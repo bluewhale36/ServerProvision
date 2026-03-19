@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유니와이드 - 베어메탈 프로비저닝 포털</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #f1f3f5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid py-4 px-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">🖥️ Server Provisioning Dashboard</h2>
+        <a th:href="@{/pxe/v1/admin/dashboard}" class="btn btn-primary">새로고침</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                <tr>
+                    <th>MAC 주소</th>
+                    <th>제조사</th>
+                    <th>모델명</th>
+                    <th>IPMI IP</th>
+                    <th>설정할 Hostname</th>
+                    <th>할당할 IP</th>
+                    <th>지시된 작업</th>
+                    <th>현재 상태</th>
+                    <th>관리</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(nodes)}">
+                    <td colspan="9" class="text-center py-4 text-muted">등록된 서버가 없습니다. (서버 전원을 켜면 자동 등록됩니다.)</td>
+                </tr>
+
+                <tr th:each="node : ${nodes}" class="align-middle">
+                    <td class="fw-bold text-primary" th:text="${node.macAddress}">00:11:22...</td>
+                    <td th:text="${node.vendor != null ? node.vendor : '-'}">GIGABYTE</td>
+                    <td th:text="${node.boardModel != null ? node.boardModel : '-'}">MS03-CE0</td>
+
+                    <td>
+                        <span th:if="${node.ipmiIp == null}" class="text-muted">미입력</span>
+                        <span th:if="${node.ipmiIp != null}" th:text="${node.ipmiIp}">192.168.x.x</span>
+                    </td>
+                    <td>
+                        <span th:if="${node.hostname == null}" class="text-muted">자동생성</span>
+                        <span th:if="${node.hostname != null}" th:text="${node.hostname}">db-01</span>
+                    </td>
+                    <td th:text="${node.assignedIp != null ? node.assignedIp : '-'}">10.0.0.1</td>
+
+                    <td>
+                            <span class="badge"
+                                  th:classappend="${node.targetJob.name() == 'IDLE' ? 'bg-secondary' : 'bg-primary'}"
+                                  th:text="${node.targetJob.description}">IDLE</span>
+                    </td>
+
+                    <td>
+                            <span class="badge"
+                                  th:classappend="${node.status.name() == 'NEW' ? 'bg-info text-dark' :
+                                                  (node.status.name() == 'PROVISIONING' ? 'bg-warning text-dark' :
+                                                  (node.status.name() == 'COMPLETED' ? 'bg-success' : 'bg-danger'))}"
+                                  th:text="${node.status.description}">NEW</span>
+                    </td>
+
+                    <td>
+                        <a th:href="@{/pxe/v1/admin/nodes/{mac}/settings(mac=${node.macAddress})}" class="btn btn-sm btn-outline-secondary">설정</a>
+                        <a href="#" class="btn btn-sm btn-success">작업시작</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

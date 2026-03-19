@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유니와이드 - 서버 상세 설정</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .form-section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container py-5" style="max-width: 900px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">⚙️ 서버 상세 설정</h2>
+        <a th:href="@{/pxe/v1/admin/dashboard}" class="btn btn-outline-secondary">대시보드로 돌아가기</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form th:action="@{/pxe/v1/admin/nodes/{mac}/edit(mac=${node.macAddress})}" th:object="${node}"
+                  method="post">
+
+                <h5 class="form-section-title mt-0">📌 하드웨어 식별 정보 (읽기 전용)</h5>
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="form-label text-muted">MAC 주소</label>
+                        <input type="text" class="form-control" th:field="*{macAddress}" readonly
+                               style="background-color: #e9ecef;">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">제조사 (Vendor)</label>
+                        <input type="text" class="form-control" th:field="*{vendor}" readonly
+                               style="background-color: #e9ecef;">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">보드 모델명 (Board Model)</label>
+                        <input type="text" class="form-control" th:field="*{boardModel}" readonly
+                               style="background-color: #e9ecef;">
+                    </div>
+                </div>
+
+                <h5 class="form-section-title">🔌 IPMI 원격 제어 정보</h5>
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">BMC / IPMI IP 주소</label>
+                        <input type="text" class="form-control" th:field="*{ipmiIp}" placeholder="예: 10.10.1.50">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">관리자 계정명</label>
+                        <input type="text" class="form-control" th:field="*{ipmiUser}" placeholder="예: admin">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">관리자 비밀번호</label>
+                        <input type="password" class="form-control" th:field="*{ipmiPassword}">
+                    </div>
+                </div>
+
+                <h5 class="form-section-title">🌐 프로비저닝 네트워크 정보</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">적용할 Hostname</label>
+                        <input type="text" class="form-control" th:field="*{hostname}" placeholder="예: uniwide-db-01">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">할당할 고정 IP</label>
+                        <input type="text" class="form-control" th:field="*{assignedIp}"
+                               placeholder="예: 192.168.10.100">
+                    </div>
+                </div>
+
+                <h5 class="form-section-title">🚀 작업 할당</h5>
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold text-primary">지시할 작업 (Target Job)</label>
+                        <select class="form-select border-primary" th:field="*{targetJob}">
+                            <option th:each="job : ${jobTypes}"
+                                    th:value="${job.name()}"
+                                    th:text="${job.description}"></option>
+                        </select>
+                        <div class="form-text mt-2 text-danger">※ 작업을 할당하고 저장한 뒤 물리 서버를 재부팅하면 해당 작업이 즉시 수행됩니다.</div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-5">
+                    <button type="submit" class="btn btn-primary px-4 py-2 fw-bold">저장 및 적용하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
