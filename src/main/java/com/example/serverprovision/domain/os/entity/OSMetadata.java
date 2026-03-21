@@ -40,12 +40,16 @@ public class OSMetadata extends BaseTimeEntity {
         this.isEnabled = !this.isEnabled;
     }
 
+    private static String emptyToNull(String value) {
+        return (value != null && value.trim().isEmpty()) ? null : value;
+    }
+
     public static OSMetadata createFrom(OSMetadataCreateDTO createDTO) {
         return OSMetadata.builder()
-                .osName(createDTO.osName())
-                .osVersion(createDTO.osVersion())
-                .isoMountPath(createDTO.isoMountPath())
-                .ksTemplatePath(createDTO.ksTemplatePath())
+                .osName(emptyToNull(createDTO.osName()))
+                .osVersion(emptyToNull(createDTO.osVersion()))
+                .isoMountPath(emptyToNull(createDTO.isoMountPath()))
+                .ksTemplatePath(emptyToNull(createDTO.ksTemplatePath()))
                 .isEnabled(createDTO.isEnabled())
                 .build();
     }
@@ -53,10 +57,10 @@ public class OSMetadata extends BaseTimeEntity {
     public static OSMetadata updateFrom(OSMetadataUpdateDTO updateDTO) {
         return OSMetadata.builder()
                 .id(updateDTO.targetId())
-                .osName(updateDTO.osName())
-                .osVersion(updateDTO.osVersion())
-                .isoMountPath(updateDTO.isoMountPath())
-                .ksTemplatePath(updateDTO.ksTemplatePath())
+                .osName(emptyToNull(updateDTO.osName()))
+                .osVersion(emptyToNull(updateDTO.osVersion()))
+                .isoMountPath(emptyToNull(updateDTO.isoMountPath()))
+                .ksTemplatePath(emptyToNull(updateDTO.ksTemplatePath()))
                 .isEnabled(updateDTO.isEnabled())
                 .build();
     }
