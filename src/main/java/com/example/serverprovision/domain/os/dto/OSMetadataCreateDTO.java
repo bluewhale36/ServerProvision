@@ -14,9 +14,8 @@ public record OSMetadataCreateDTO(
         @NotBlank(message = "ISO 마운트 경로는 필수 입력값입니다.")
         String isoMountPath,
 
-        @NotBlank(message = "Kickstart 템플릿 경로는 필수 입력값입니다.")
         String ksTemplatePath,
 
-        boolean isEnabled
+        Boolean isEnabled
 ) {
 }

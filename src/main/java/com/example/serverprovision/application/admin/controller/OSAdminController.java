@@ -52,9 +52,9 @@ public class OSAdminController {
     }
 
     @PostMapping("/{id}/edit")
-    public String updateOSMetadata(@PathVariable Long id, @Valid @ModelAttribute("osDto") OSMetadataUpdateDTO osDto, BindingResult bindingResult) {
+    public String updateOSMetadata(@PathVariable Long id, @Valid @ModelAttribute("osDto") OSMetadataUpdateDTO osDto, BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            // 에러가 발생하면 수정 폼 화면을 다시 렌더링합니다. (입력값 유지)
+            model.addAttribute("id", id); // 템플릿의 th:action에서 사용할 id 강제 주입
             return "admin/os/os-edit";
         }
         osMetadataService.saveOSMetadata(osDto);

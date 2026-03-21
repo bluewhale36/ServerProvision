@@ -50,7 +50,7 @@ public class OSMetadata extends BaseTimeEntity {
                 .osVersion(emptyToNull(createDTO.osVersion()))
                 .isoMountPath(emptyToNull(createDTO.isoMountPath()))
                 .ksTemplatePath(emptyToNull(createDTO.ksTemplatePath()))
-                .isEnabled(createDTO.isEnabled())
+                .isEnabled(createDTO.isEnabled() != null ? createDTO.isEnabled() : false) // null 방어 로직 추가
                 .build();
     }
 
@@ -61,7 +61,7 @@ public class OSMetadata extends BaseTimeEntity {
                 .osVersion(emptyToNull(updateDTO.osVersion()))
                 .isoMountPath(emptyToNull(updateDTO.isoMountPath()))
                 .ksTemplatePath(emptyToNull(updateDTO.ksTemplatePath()))
-                .isEnabled(updateDTO.isEnabled())
+                .isEnabled(updateDTO.isEnabled() != null ? updateDTO.isEnabled() : false) // null 방어 로직 추가
                 .build();
     }
 }
