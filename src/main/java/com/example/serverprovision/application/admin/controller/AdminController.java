@@ -19,13 +19,13 @@ public class AdminController {
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
         model.addAttribute("nodes", serverNodeService.getAllNodes());
-        return "dashboard";
+        return "admin/dashboard";
     }
 
     @GetMapping("/nodes/{mac}/settings")
     public String settings(@PathVariable String mac, Model model) {
         model.addAttribute("node", serverNodeService.getNodeByMac(mac));
         model.addAttribute("jobTypes", JobType.values());
-        return "settings";
+        return "admin/settings";
     }
 }

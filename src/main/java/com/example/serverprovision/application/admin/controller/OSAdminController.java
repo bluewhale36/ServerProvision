@@ -21,19 +21,19 @@ public class OSAdminController {
     @GetMapping
     public String osMetadataList(Model model) {
         model.addAttribute("osList", osMetadataService.getAllOSMetadata());
-        return "admin/os-list";
+        return "admin/os/os-list";
     }
 
     @GetMapping("/{id}")
     public String osMetadataDetail(@PathVariable Long id, Model model) {
         model.addAttribute("os", osMetadataService.getOSMetadataById(id));
-        return "admin/os-detail";
+        return "admin/os/os-detail";
     }
 
     @GetMapping("/{id}/edit")
     public String editOSMetadataForm(@PathVariable Long id, Model model) {
         model.addAttribute("os", osMetadataService.getOSMetadataById(id));
-        return "admin/os-edit";
+        return "admin/os/os-edit";
     }
 
     @PostMapping("/{id}/edit")
@@ -44,7 +44,7 @@ public class OSAdminController {
 
     @GetMapping("/new")
     public String newOSMetadataForm() {
-        return "admin/os-new";
+        return "admin/os/os-new";
     }
 
     // 신규 OS 정보 등록 처리

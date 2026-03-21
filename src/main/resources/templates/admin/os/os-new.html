@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>신규 OS 등록</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-5" style="max-width: 800px;">
+    <h2 class="fw-bold mb-4">➕ 신규 OS 등록</h2>
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form id="osForm">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">OS 이름</label>
+                    <input type="text" class="form-control" id="osName" placeholder="예: Rocky Linux" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">OS 버전</label>
+                    <input type="text" class="form-control" id="osVersion" placeholder="예: 8.9" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">ISO 마운트 경로</label>
+                    <input type="text" class="form-control" id="isoMountPath" placeholder="예: /mnt/iso/rocky8" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Kickstart 템플릿 경로</label>
+                    <input type="text" class="form-control" id="ksTemplatePath" placeholder="예: ks/rocky8.cfg">
+                </div>
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" id="isEnabled" checked>
+                    <label class="form-check-label fw-bold">활성화 여부</label>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <a th:href="@{/pxe/v1/admin/os}" class="btn btn-secondary me-2">취소</a>
+                    <button type="button" class="btn btn-primary" onclick="submitJsonData()">등록 완료</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function submitJsonData() {
+        const data = {
+            osName: document.getElementById('osName').value,
+            osVersion: document.getElementById('osVersion').value,
+            isoMountPath: document.getElementById('isoMountPath').value,
+            ksTemplatePath: document.getElementById('ksTemplatePath').value,
+            isEnabled: document.getElementById('isEnabled').checked
+        };
+
+        fetch('/pxe/v1/admin/os/new', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(response => {
+            if (response.redirected) window.location.href = response.url;
+            else window.location.href = '/pxe/v1/admin/os';
+        }).catch(err => alert("저장에 실패했습니다."));
+    }
+</script>
+</body>
+</html>
