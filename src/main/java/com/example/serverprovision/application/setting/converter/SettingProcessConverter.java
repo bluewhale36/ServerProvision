@@ -1,33 +1,35 @@
 package com.example.serverprovision.application.setting.converter;
 
-import com.example.serverprovision.application.setting.model.AbstractSettingProcess;
+import com.example.serverprovision.application.setting.model.SettingProcess;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.List;
-
 @Converter(autoApply = true)
 @RequiredArgsConstructor
-public class SettingProcessConverter implements AttributeConverter<List<AbstractSettingProcess>, String> {
+public class SettingProcessConverter implements AttributeConverter<SettingProcess, String> {
 
     private final ObjectMapper objectMapper;
 
     @Override
-    public String convertToDatabaseColumn(List<AbstractSettingProcess> attribute) {
-        String processJson;
+    public String convertToDatabaseColumn(SettingProcess attribute) {
+        if (attribute == null) return null;
         try {
-            processJson = objectMapper.writeValueAsString(attribute);
+            return objectMapper.writeValueAsString(attribute);
         } catch (JacksonException e) {
-            throw new IllegalStateException("Failed to serialize DoseFrequency", e);
+            throw new IllegalArgumentException("Failed to serialize SettingProcess", e);
         }
-        return processJson;
     }
 
     @Override
-    public List<AbstractSettingProcess> convertToEntityAttribute(String dbData) {
-        return List.of();
+    public SettingProcess convertToEntityAttribute(String dbData) {
+        if (dbData == null || dbData.isEmpty()) return null;
+        try {
+            return objectMapper.readValue(dbData, SettingProcess.class);
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("Failed to deserialize SettingProcess", e);
+        }
     }
 }
