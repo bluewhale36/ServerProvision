@@ -10,58 +10,48 @@
     <h2 class="fw-bold mb-4">✏️ OS 정보 수정</h2>
     <div class="card shadow-sm">
         <div class="card-body p-4">
-            <form id="osEditForm">
-                <input type="hidden" id="targetId" th:value="${os.id}">
+            <form th:action="@{/pxe/v1/admin/os/{id}/edit(id=${id})}" th:object="${osDto}" method="post">
+                <input type="hidden" th:field="*{targetId}">
+
                 <div class="mb-3">
                     <label class="form-label fw-bold">OS 이름</label>
-                    <input type="text" class="form-control" id="osName" th:value="${os.osName}">
+                    <input type="text" class="form-control" th:field="*{osName}"
+                           th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">OS 버전</label>
-                    <input type="text" class="form-control" id="osVersion" th:value="${os.osVersion}">
+                    <input type="text" class="form-control" th:field="*{osVersion}"
+                           th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('osVersion')}"
+                         th:errors="*{osVersion}"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">ISO 마운트 경로</label>
-                    <input type="text" class="form-control" id="isoMountPath" th:value="${os.isoMountPath}">
+                    <input type="text" class="form-control" th:field="*{isoMountPath}"
+                           th:classappend="${#fields.hasErrors('isoMountPath')} ? 'is-invalid'">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('isoMountPath')}"
+                         th:errors="*{isoMountPath}"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">Kickstart 템플릿 경로</label>
-                    <input type="text" class="form-control" id="ksTemplatePath" th:value="${os.ksTemplatePath}">
+                    <input type="text" class="form-control" th:field="*{ksTemplatePath}"
+                           th:classappend="${#fields.hasErrors('ksTemplatePath')} ? 'is-invalid'">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('ksTemplatePath')}"
+                         th:errors="*{ksTemplatePath}"></div>
                 </div>
                 <div class="form-check mb-4">
-                    <input class="form-check-input" type="checkbox" id="isEnabled" th:checked="${os.isEnabled}">
+                    <input class="form-check-input" type="checkbox" th:field="*{isEnabled}">
                     <label class="form-check-label fw-bold">활성화 여부</label>
                 </div>
                 <div class="d-flex justify-content-end">
-                    <a th:href="@{/pxe/v1/admin/os/{id}(id=${os.id})}" class="btn btn-secondary me-2">취소</a>
-                    <button type="button" class="btn btn-primary" onclick="submitEditJsonData()">수정 완료</button>
+                    <a th:href="@{/pxe/v1/admin/os/{id}(id=${osDto.targetId})}" class="btn btn-secondary me-2">취소</a>
+                    <button type="submit" class="btn btn-primary">수정 완료</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<script>
-    function submitEditJsonData() {
-        const targetId = document.getElementById('targetId').value;
-        const data = {
-            targetId: targetId,
-            osName: document.getElementById('osName').value,
-            osVersion: document.getElementById('osVersion').value,
-            isoMountPath: document.getElementById('isoMountPath').value,
-            ksTemplatePath: document.getElementById('ksTemplatePath').value,
-            isEnabled: document.getElementById('isEnabled').checked
-        };
-
-        fetch('/pxe/v1/admin/os/' + targetId + '/edit', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        }).then(response => {
-            if (response.redirected) window.location.href = response.url;
-            else window.location.href = '/pxe/v1/admin/os';
-        });
-    }
-</script>
 </body>
 </html>

@@ -10,55 +10,47 @@
     <h2 class="fw-bold mb-4">➕ 신규 OS 등록</h2>
     <div class="card shadow-sm">
         <div class="card-body p-4">
-            <form id="osForm">
+            <form th:action="@{/pxe/v1/admin/os/new}" th:object="${osDto}" method="post">
                 <div class="mb-3">
                     <label class="form-label fw-bold">OS 이름</label>
-                    <input type="text" class="form-control" id="osName" placeholder="예: Rocky Linux" required>
+                    <input type="text" class="form-control" th:field="*{osName}"
+                           th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'" placeholder="예: Rocky Linux">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">OS 버전</label>
-                    <input type="text" class="form-control" id="osVersion" placeholder="예: 8.9" required>
+                    <input type="text" class="form-control" th:field="*{osVersion}"
+                           th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'" placeholder="예: 8.9">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('osVersion')}"
+                         th:errors="*{osVersion}"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">ISO 마운트 경로</label>
-                    <input type="text" class="form-control" id="isoMountPath" placeholder="예: /mnt/iso/rocky8" required>
+                    <input type="text" class="form-control" th:field="*{isoMountPath}"
+                           th:classappend="${#fields.hasErrors('isoMountPath')} ? 'is-invalid'"
+                           placeholder="예: /mnt/iso/rocky8">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('isoMountPath')}"
+                         th:errors="*{isoMountPath}"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">Kickstart 템플릿 경로</label>
-                    <input type="text" class="form-control" id="ksTemplatePath" placeholder="예: ks/rocky8.cfg">
+                    <input type="text" class="form-control" th:field="*{ksTemplatePath}"
+                           th:classappend="${#fields.hasErrors('ksTemplatePath')} ? 'is-invalid'"
+                           placeholder="예: ks/rocky8.cfg">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('ksTemplatePath')}"
+                         th:errors="*{ksTemplatePath}"></div>
                 </div>
                 <div class="form-check mb-4">
-                    <input class="form-check-input" type="checkbox" id="isEnabled" checked>
+                    <input class="form-check-input" type="checkbox" th:field="*{isEnabled}">
                     <label class="form-check-label fw-bold">활성화 여부</label>
                 </div>
                 <div class="d-flex justify-content-end">
                     <a th:href="@{/pxe/v1/admin/os}" class="btn btn-secondary me-2">취소</a>
-                    <button type="button" class="btn btn-primary" onclick="submitJsonData()">등록 완료</button>
+                    <button type="submit" class="btn btn-primary">등록 완료</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<script>
-    function submitJsonData() {
-        const data = {
-            osName: document.getElementById('osName').value,
-            osVersion: document.getElementById('osVersion').value,
-            isoMountPath: document.getElementById('isoMountPath').value,
-            ksTemplatePath: document.getElementById('ksTemplatePath').value,
-            isEnabled: document.getElementById('isEnabled').checked
-        };
-
-        fetch('/pxe/v1/admin/os/new', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        }).then(response => {
-            if (response.redirected) window.location.href = response.url;
-            else window.location.href = '/pxe/v1/admin/os';
-        }).catch(err => alert("저장에 실패했습니다."));
-    }
-</script>
 </body>
 </html>
