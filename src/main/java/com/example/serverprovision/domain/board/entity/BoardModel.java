@@ -5,6 +5,8 @@ import com.example.serverprovision.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table(name = "board_model")
 @Getter
@@ -30,4 +32,20 @@ public class BoardModel extends BaseTimeEntity {
 
     @Column(name = "is_enabled")
     private boolean isEnabled;
+
+    @OneToMany(
+            fetch = FetchType.LAZY,
+            cascade = CascadeType.REMOVE, orphanRemoval = true,
+            mappedBy = "compatibleModel"
+    )
+    @ToString.Exclude
+    private List<BoardBIOS> boardBIOSList;
+
+    @OneToMany(
+            fetch = FetchType.LAZY,
+            cascade = CascadeType.REMOVE, orphanRemoval = true,
+            mappedBy = "compatibleModel"
+    )
+    @ToString.Exclude
+    private List<BoardBMC> boardBMCList;
 }

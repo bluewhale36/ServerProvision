@@ -1,6 +1,7 @@
 package com.example.serverprovision.domain.os.dto;
 
 import com.example.serverprovision.domain.os.entity.OSMetadata;
+import com.example.serverprovision.domain.os.enums.OSName;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -8,7 +9,7 @@ import java.time.LocalDateTime;
 @Builder
 public record OSMetadataDTO(
         Long id,
-        String osName,
+        OSName osName,
         String osVersion,
         String isoMountPath,
         String ksTemplatePath,

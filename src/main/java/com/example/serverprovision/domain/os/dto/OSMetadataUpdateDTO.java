@@ -1,5 +1,6 @@
 package com.example.serverprovision.domain.os.dto;
 
+import com.example.serverprovision.domain.os.enums.OSName;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 
@@ -7,8 +8,8 @@ import lombok.Builder;
 public record OSMetadataUpdateDTO(
         Long targetId,
 
-        @NotBlank(message = "OS 이름은 필수 입력값입니다.")
-        String osName,
+        @NotBlank(message = "OS 이름은 필수 값입니다.")
+        OSName osName,
 
         @NotBlank(message = "OS 버전은 필수 입력값입니다.")
         String osVersion,

@@ -1,7 +1,9 @@
 package com.example.serverprovision.application.setting.model;
 
+import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import lombok.Getter;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
@@ -12,18 +14,18 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 })
 public abstract class AbstractSettingProcess implements Comparable<AbstractSettingProcess> {
 
-    private final int PROCESSING_ORDER;
+    private final SettingProcessStep processStep;
 
-    protected AbstractSettingProcess(int processingOrder) {
-        this.PROCESSING_ORDER = processingOrder;
+    protected AbstractSettingProcess(SettingProcessStep processStep) {
+        this.processStep = processStep;
     }
 
-    public final int getProcessingOrder() {
-        return PROCESSING_ORDER;
+    public final SettingProcessStep getProcessStep() {
+        return processStep;
     }
 
     @Override
     public final int compareTo(AbstractSettingProcess o) {
-        return Integer.compare(this.PROCESSING_ORDER, o.PROCESSING_ORDER);
+        return Integer.compare(this.processStep.getOrder(), o.getProcessStep().getOrder());
     }
 }

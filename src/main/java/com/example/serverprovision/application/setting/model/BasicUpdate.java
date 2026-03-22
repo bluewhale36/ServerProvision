@@ -1,8 +1,11 @@
 package com.example.serverprovision.application.setting.model;
 
+import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
+
 public class BasicUpdate extends AbstractSettingProcess {
 
-    protected BasicUpdate() {
-        super(1);
+
+    protected BasicUpdate(SettingProcessStep processStep) {
+        super(SettingProcessStep.BASIC_UPDATE);
     }
 }

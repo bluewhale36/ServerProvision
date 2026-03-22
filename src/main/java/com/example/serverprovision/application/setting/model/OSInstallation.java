@@ -1,14 +1,12 @@
 package com.example.serverprovision.application.setting.model;
 
+import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
 import lombok.Getter;
 
 @Getter
 public class OSInstallation extends AbstractSettingProcess {
 
-    private final Long osMetadataId;
-
-    public OSInstallation(Long osMetadataId) {
-        super(3);
-        this.osMetadataId = osMetadataId;
+    public OSInstallation() {
+        super(SettingProcessStep.OS_INSTALLATION);
     }
 }
