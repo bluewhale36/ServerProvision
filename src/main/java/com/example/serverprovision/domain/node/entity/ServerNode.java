@@ -1,7 +1,8 @@
 package com.example.serverprovision.domain.node.entity;
 
 import com.example.serverprovision.application.setting.domain.entity.ServerSetting;
-import com.example.serverprovision.domain.node.model.enums.BoardModel;
+import com.example.serverprovision.domain.board.entity.BoardModel;
+import com.example.serverprovision.domain.node.dto.ServerNodeCreateDTO;
 import com.example.serverprovision.domain.node.model.enums.JobType;
 import com.example.serverprovision.domain.node.model.enums.ProvisioningStatus;
 import com.example.serverprovision.domain.node.model.enums.Vendor;
@@ -17,7 +18,11 @@ import lombok.*;
 @Builder
 @ToString
 public class ServerNode extends BaseTimeEntity {
+
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     @Column(name = "mac_address")
     private String macAddress; // 기본키: 통신의 기준이 되는 MAC 주소
 
@@ -38,12 +43,8 @@ public class ServerNode extends BaseTimeEntity {
     @Column(name = "assigned_ip")
     private String assignedIp;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "vendor")
-    private Vendor vendor;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "board_model")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_model_id")
     private BoardModel boardModel;
 
     // --- 상태 통제 정보 ---
@@ -73,5 +74,36 @@ public class ServerNode extends BaseTimeEntity {
     public void startProvisioning() {
         this.status = ProvisioningStatus.IN_PROGRESS;
         this.currentStepIndex = 0;
+    }
+
+    public static ServerNode create(ServerNodeCreateDTO dto, BoardModel boardModel) {
+
+        if (dto.boardModelId() == null || boardModel == null) {
+            throw new IllegalArgumentException("BoardModel 정보가 필요합니다.");
+        }
+        if (!dto.boardModelId().equals(boardModel.getId())) {
+            throw new IllegalArgumentException("DTO 의 BoardModel ID와 실제 BoardModel 의 ID가 일치하지 않습니다.");
+        }
+
+        return ServerNode.builder()
+                .macAddress(dto.macAddress())
+                .ipmiIp(dto.ipmiIp())
+                .ipmiUser(dto.ipmiUser())
+                .ipmiPassword(dto.ipmiPassword())
+                .hostname(dto.hostname())
+                .assignedIp(dto.assignedIp())
+                .boardModel(boardModel)
+                .targetJob(JobType.IDLE)
+                .status(ProvisioningStatus.NEW)
+                .build();
+    }
+
+    public static ServerNode create(String macAddress, BoardModel boardModel) {
+        return ServerNode.builder()
+                .macAddress(macAddress)
+                .boardModel(boardModel)
+                .targetJob(JobType.IDLE)
+                .status(ProvisioningStatus.NEW)
+                .build();
     }
 }

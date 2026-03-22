@@ -1,7 +1,8 @@
 package com.example.serverprovision.domain.node.service;
 
+import com.example.serverprovision.domain.board.entity.BoardModel;
+import com.example.serverprovision.domain.board.repository.BoardModelRepository;
 import com.example.serverprovision.domain.node.entity.*;
-import com.example.serverprovision.domain.node.model.enums.BoardModel;
 import com.example.serverprovision.domain.node.model.enums.JobType;
 import com.example.serverprovision.domain.node.model.enums.ProvisioningStatus;
 import com.example.serverprovision.domain.node.model.enums.Vendor;
@@ -19,25 +20,20 @@ import java.util.List;
 public class ServerNodeService {
 
     private final ServerNodeRepository serverNodeRepository;
+    private final BoardModelRepository boardModelRepository;
 
     /**
      * MAC 주소로 서버를 찾고, 없으면 IDLE 상태의 신규 서버로 DB에 자동 등록합니다.
      */
     @Transactional
-    public ServerNode getOrRegisterNode(String macAddress, String vendor, String boardModel) {
+    public ServerNode getOrRegisterNode(String macAddress, String vendorStr, String boardModelStr) {
 
-        Vendor vendorEnum = Vendor.getVendorByString(vendor);
-        BoardModel boardModelEnum = BoardModel.getBoardModelByString(boardModel, vendorEnum);
+        BoardModel boardModel = boardModelRepository.findByVendorAndModelName(Vendor.valueOf(vendorStr), boardModelStr)
+                .orElseThrow(() -> new RuntimeException("해당 보드 모델을 찾을 수 없습니다. Vendor: " + vendorStr + ", Model: " + boardModelStr));
 
-        return serverNodeRepository.findById(macAddress).orElseGet(() -> {
-            log.info("새로운 물리 서버 감지 및 DB 등록 완료. MAC: {}", macAddress);
-            ServerNode newNode = ServerNode.builder()
-                    .macAddress(macAddress)
-                    .vendor(vendorEnum)
-                    .boardModel(boardModelEnum)
-                    .targetJob(JobType.IDLE)
-                    .status(ProvisioningStatus.NEW)
-                    .build();
+        return serverNodeRepository.findAvailableNodeByMacAddress(macAddress).orElseGet(() -> {
+            log.info("신규 물리 서버 감지. MAC: {}", macAddress);
+            ServerNode newNode = ServerNode.create(macAddress, boardModel);
             return serverNodeRepository.save(newNode);
         });
     }
@@ -47,6 +43,6 @@ public class ServerNodeService {
     }
 
     public ServerNode getNodeByMac(String mac) {
-        return serverNodeRepository.findById(mac).orElseThrow(() -> new RuntimeException("서버 노드를 찾을 수 없습니다. MAC: " + mac));
+        return serverNodeRepository.findAvailableNodeByMacAddress(mac).orElseThrow(() -> new RuntimeException("서버 노드를 찾을 수 없습니다. MAC: " + mac));
     }
 }

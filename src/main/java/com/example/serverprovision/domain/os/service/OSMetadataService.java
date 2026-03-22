@@ -23,6 +23,10 @@ public class OSMetadataService {
         return osMetadataRepository.findAll().stream().map(OSMetadataDTO::from).toList();
     }
 
+    public List<OSMetadataDTO> getAllActiveOSMetadata() {
+        return osMetadataRepository.findAllByEnabledIsTrue().stream().map(OSMetadataDTO::from).toList();
+    }
+
     public OSMetadataDTO getOSMetadataById(Long id) {
         OSMetadata osMetadata = osMetadataRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 OS 정보입니다. ID: " + id));

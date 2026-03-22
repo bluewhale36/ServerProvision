@@ -1,9 +1,8 @@
 package com.example.serverprovision.application.setting.model;
 
-public class BasicUpdates extends AbstractSettingProcess {
+public class BasicUpdate extends AbstractSettingProcess {
 
-
-    protected BasicUpdates() {
+    protected BasicUpdate() {
         super(1);
     }
 }
