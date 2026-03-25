@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 @Getter
-public class User {
+public class User implements InstallScriptable {
 
     @NotNull(message = "사용자 이름은 필수 값입니다.")
     @NotBlank(message = "사용자 이름은 필수 입력값입니다.")
@@ -36,4 +36,24 @@ public class User {
         this.isPasswordEncrypted = isPasswordEncrypted;
     }
 
+    @Override
+    public String getRHELScript() {
+        StringBuilder sb = new StringBuilder();
+
+        if (isRoot) {
+            sb.append("rootpw ").append(password);
+            if (isPasswordEncrypted) sb.append(" --iscrypted");
+            else sb.append(" --plaintext");
+            sb.append("\n");
+        } else {
+            sb.append("user --name=").append(username);
+            sb.append(" --password=").append(password);
+            if (isPasswordEncrypted) sb.append(" --iscrypted");
+            else sb.append(" --plaintext");
+            if (isSudoer) sb.append(" --groups=wheel");
+            sb.append("\n");
+        }
+
+        return sb.toString();
+    }
 }

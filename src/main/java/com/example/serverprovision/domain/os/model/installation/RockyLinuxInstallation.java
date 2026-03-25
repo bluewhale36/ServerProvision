@@ -54,33 +54,10 @@ public class RockyLinuxInstallation extends LinuxInstallation {
         return sb.toString();
     }
 
-    /**
-     * Kickstart 내에서 사용자 생성 관련 스크립트를 String 으로 반환.<br/>
-     * Sudo-er 의 경우 해당 스크립트에서 생성되지 않음.
-     *
-     * @return 사용자 생성의 Kickstart Script 문자열.
-     */
     protected String getUserScript() {
         StringBuilder sb = new StringBuilder();
 
-        // root 유저가 없는 경우 LinuxInstallation class 에서 IllegalArgumentsException 발생.
-        User root = users.stream().filter(User::isRoot).findFirst().get();
-        List<User> withoutRoot = users.stream().filter(user -> !user.equals(root)).toList();
-
-        // root 유저 script
-        sb.append("rootpw ").append(root.getPassword());
-        if (root.isPasswordEncrypted()) sb.append(" --iscrypted");
-        else sb.append(" --plaintext");
-        sb.append("\n");
-
-        // 이 외 일반 사용자 script
-        for (User user : withoutRoot) {
-            sb.append("user --name=").append(user.getUsername());
-            sb.append(" --password=").append(user.getPassword());
-            if (user.isPasswordEncrypted()) sb.append(" --iscrypted");
-            else sb.append(" --plaintext");
-            sb.append("\n");
-        }
+        users.forEach(u -> sb.append(u.getRHELScript()));
 
         sb.append("\n");
 

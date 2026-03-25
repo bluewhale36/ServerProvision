@@ -9,7 +9,7 @@ import java.util.List;
 @Getter
 public abstract class LinuxInstallation extends OSInstallation {
 
-    private final List<String> MANDATORY_MOUNT_POINTS = List.of("/", "/boot", "swap");
+    private final List<String> MANDATORY_MOUNT_POINTS = List.of("/", "/boot", "/boot/efi", "swap");
 
     @NotEmpty(message = "파티션 정보는 필수 값입니다.")
     protected final List<Partition> partitions;
