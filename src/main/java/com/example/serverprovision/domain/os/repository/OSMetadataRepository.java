@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface OSMetadataRepository extends JpaRepository<OSMetadata, Long> {
-    List<OSMetadata> findAllByEnabledIsTrue();
+    List<OSMetadata> findAllByIsEnabledIsTrue();
 }

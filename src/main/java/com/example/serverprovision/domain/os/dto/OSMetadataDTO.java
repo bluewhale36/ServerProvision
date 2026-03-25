@@ -1,7 +1,7 @@
 package com.example.serverprovision.domain.os.dto;
 
 import com.example.serverprovision.domain.os.entity.OSMetadata;
-import com.example.serverprovision.domain.os.enums.OSName;
+import com.example.serverprovision.domain.os.model.enums.OSName;
 import lombok.Builder;
 
 import java.time.LocalDateTime;

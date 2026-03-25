@@ -34,7 +34,7 @@
                 </tr>
                 <tr th:each="os : ${osList}">
                     <td th:text="${os.id}">1</td>
-                    <td class="fw-bold" th:text="${os.osName}">Rocky Linux</td>
+                    <td class="fw-bold" th:text="${os.osName.displayName}">Rocky Linux</td>
                     <td th:text="${os.osVersion}">8.9</td>
                     <td>
                         <span class="badge" th:classappend="${os.isEnabled} ? 'bg-success' : 'bg-danger'"

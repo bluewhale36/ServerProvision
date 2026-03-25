@@ -2,7 +2,7 @@ package com.example.serverprovision.domain.os.entity;
 
 import com.example.serverprovision.domain.os.dto.OSMetadataCreateDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataUpdateDTO;
-import com.example.serverprovision.domain.os.enums.OSName;
+import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,6 +20,7 @@ public class OSMetadata extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "os_name", nullable = false)
     private OSName osName;
 

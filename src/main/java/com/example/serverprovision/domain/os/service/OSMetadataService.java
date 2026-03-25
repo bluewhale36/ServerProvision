@@ -24,7 +24,7 @@ public class OSMetadataService {
     }
 
     public List<OSMetadataDTO> getAllActiveOSMetadata() {
-        return osMetadataRepository.findAllByEnabledIsTrue().stream().map(OSMetadataDTO::from).toList();
+        return osMetadataRepository.findAllByIsEnabledIsTrue().stream().map(OSMetadataDTO::from).toList();
     }
 
     public OSMetadataDTO getOSMetadataById(Long id) {

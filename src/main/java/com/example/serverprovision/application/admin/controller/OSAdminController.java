@@ -3,6 +3,7 @@ package com.example.serverprovision.application.admin.controller;
 import com.example.serverprovision.domain.os.dto.OSMetadataCreateDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataUpdateDTO;
+import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.domain.os.service.OSMetadataService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,12 @@ public class OSAdminController {
     public String osMetadataDetail(@PathVariable Long id, Model model) {
         model.addAttribute("os", osMetadataService.getOSMetadataById(id));
         return "admin/os/os-detail";
+    }
+
+    // 컨트롤러 내의 모든 뷰에서 "osNames"라는 이름으로 OSName.values()를 접근할 수 있도록 설정
+    @ModelAttribute("osNames")
+    public OSName[] populateOSNames() {
+        return OSName.values();
     }
 
     @GetMapping("/{id}/edit")

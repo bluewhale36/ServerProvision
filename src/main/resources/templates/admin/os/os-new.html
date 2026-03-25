@@ -13,8 +13,10 @@
             <form th:action="@{/pxe/v1/admin/os/new}" th:object="${osDto}" method="post">
                 <div class="mb-3">
                     <label class="form-label fw-bold">OS 이름</label>
-                    <input type="text" class="form-control" th:field="*{osName}"
-                           th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'" placeholder="예: Rocky Linux">
+                    <select class="form-select" th:field="*{osName}" th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'">
+                        <option value="">설치할 OS를 선택하세요</option>
+                        <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.displayName}"></option>
+                    </select>
                     <div class="invalid-feedback" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
                 </div>
                 <div class="mb-3">

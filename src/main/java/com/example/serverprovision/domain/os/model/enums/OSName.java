@@ -1,4 +1,4 @@
-package com.example.serverprovision.domain.os.enums;
+package com.example.serverprovision.domain.os.model.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
