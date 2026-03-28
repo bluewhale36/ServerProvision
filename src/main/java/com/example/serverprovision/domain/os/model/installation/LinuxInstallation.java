@@ -1,6 +1,7 @@
 package com.example.serverprovision.domain.os.model.installation;
 
 import com.example.serverprovision.domain.os.model.enums.OSName;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 
@@ -11,9 +12,11 @@ public abstract class LinuxInstallation extends OSInstallation {
 
     private final List<String> MANDATORY_MOUNT_POINTS = List.of("/", "/boot", "/boot/efi", "swap");
 
+    @Valid
     @NotEmpty(message = "파티션 정보는 필수 값입니다.")
     protected final List<Partition> partitions;
 
+    @Valid
     @NotEmpty(message = "사용자 정보는 필수 값입니다.")
     protected final List<User> users;
 

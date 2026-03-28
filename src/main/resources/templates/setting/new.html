@@ -4,52 +4,360 @@
     <meta charset="UTF-8">
     <title>유니와이드 - 신규 세팅 템플릿 생성</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .step-content-area {
+            transition: opacity 0.3s ease;
+        }
+
+        .available {
+        }
+        .unavailable {
+            display: none !important;
+        }
+    </style>
 </head>
 <body class="bg-light">
-<div class="container py-5" style="max-width: 800px;">
+<div class="container py-5" style="max-width: 900px;">
     <h2 class="fw-bold mb-4">📋 신규 세팅 주문서(템플릿) 작성</h2>
 
-    <form id="settingForm">
+    <form id="settingForm" onsubmit="event.preventDefault(); submitSettingTemplate();">
+
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-dark text-white fw-bold">1. 주문서 식별 정보</div>
             <div class="card-body">
                 <label class="form-label fw-bold">주문서 명칭 (필수)</label>
-                <input type="text" class="form-control border-dark" id="settingName" placeholder="예: Rocky Linux 8 표준 웹 서버 구성">
-                <div class="form-text">추후 서버 목록에서 이 이름으로 주문서를 찾아 할당하게 됩니다.</div>
+                <input type="text" class="form-control border-dark" id="settingName"
+                       placeholder="예: Rocky Linux 9.6 표준 웹 서버 구성" required>
             </div>
         </div>
 
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white fw-bold">2. 프로비저닝 프로세스 추가</div>
+            <div class="card-header bg-primary text-white fw-bold">2. 프로비저닝 프로세스 구성</div>
             <div class="card-body">
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" id="chkBasicUpd">
-                    <label class="form-check-label fw-bold" for="chkBasicUpd">기본 패키지 업데이트 (Basic Updates)</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" id="chkBasicSet">
-                    <label class="form-check-label fw-bold" for="chkBasicSet">기본 환경 설정 (Basic Setting)</label>
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="chkOsInst" onchange="document.getElementById('osSelectDiv').style.display = this.checked ? 'block' : 'none';">
-                    <label class="form-check-label fw-bold text-primary" for="chkOsInst">OS 설치 (OS Installation)</label>
 
-                    <div class="mt-2 ms-3" id="osSelectDiv" style="display: none;">
-                        <select class="form-select border-primary w-75" id="osMetadataId">
-                            <option value="">설치할 OS 메타데이터를 선택하세요</option>
-                            <option th:each="os : ${osList}" th:value="${os.id}" th:text="|${os.osName.displayName} ${os.osVersion}|"></option>
-                        </select>
+                <div class="accordion" id="processAccordion">
+                    <div class="accordion-item" th:each="step : ${settingProcessStepList}">
+                        <h2 class="accordion-header" th:id="'heading_' + ${step.name()}">
+                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse"
+                                    th:data-bs-target="'#collapse_' + ${step.name()}" aria-expanded="false"
+                                    th:text="${step.description}">
+                            </button>
+                        </h2>
+
+                        <div th:id="'collapse_' + ${step.name()}" class="accordion-collapse collapse">
+                            <div class="accordion-body bg-light">
+
+                                <div class="form-check form-switch mb-3 pb-2 border-bottom border-secondary">
+                                    <input class="form-check-input step-enable-chk" type="checkbox" role="switch"
+                                           th:id="'chk_' + ${step.name()}"
+                                           th:value="${step.name()}"
+                                           th:data-order="${step.order}"
+                                           onchange="toggleStep(this)">
+                                    <label class="form-check-label fw-bold text-primary"
+                                           th:for="'chk_' + ${step.name()}">
+                                        이 단계 사용 (체크 시 입력 폼 및 필수 검증 활성화)
+                                    </label>
+                                </div>
+
+                                <div th:id="'content_' + ${step.name()}" class="step-content-area"
+                                     style="opacity: 0.4; pointer-events: none;">
+
+                                    <th:block th:if="${step.name() == 'BASIC_UPDATE'}">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">메인보드 모델 선택</label>
+                                            <select class="form-select border-primary w-50 target-req"
+                                                    id="boardModelId"
+                                                    onchange="checkIfBiosAndBmcAvailable(this.value)"
+                                                    required>
+                                                <option value="" selected>보드 모델을 선택하세요</option>
+                                                <option th:each="view : ${boardViewList}"
+                                                        th:value="${view.boardModel.id}"
+                                                        th:text="|${view.boardModel.vendor} ${view.boardModel.description}|"></option>
+                                            </select>
+                                        </div>
+
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">업데이트할 BIOS 버전</label>
+                                                <select class="form-select border-primary target-req" id="boardBIOSId" disabled required>
+                                                    <!-- 기본 option -->
+                                                    <option value="" class="info-option" selected>보드 모델을 먼저 선택하세요</option>
+
+                                                    <!--
+                                                        추가 선택 가능 option.
+                                                        boardModel 선택 시 boardModelId 와 값이 동일한 data-compatible-board-model-id 의 option 객체의
+                                                        class 가 available 로 변경되면서 선택 가능하게 됨.
+                                                    -->
+                                                    <th:block th:each="view : ${boardViewList}">
+                                                        <option class="unavailable"
+                                                                th:data-compatible-board-model-id="${view.boardModel.id}"
+                                                                th:each="bios : ${view.boardBIOSList}"
+                                                                th:value="${bios.id}"
+                                                                th:text="${bios.description}">
+                                                        </option>
+                                                    </th:block>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">업데이트할 BMC 버전</label>
+                                                <select class="form-select border-primary target-req" id="boardBMCId" disabled required>
+                                                    <!-- 기본 option -->
+                                                    <option value="" class="info-option" selected>보드 모델을 먼저 선택하세요</option>
+
+                                                    <!--
+                                                        추가 선택 가능 option.
+                                                        boardModel 선택 시 boardModelId 와 값이 동일한 data-compatible-board-model-id 의 option 객체의
+                                                        class 가 available 로 변경되면서 선택 가능하게 됨.
+                                                    -->
+                                                    <th:block th:each="view : ${boardViewList}">
+                                                        <option class="unavailable"
+                                                                th:data-compatible-board-model-id="${view.boardModel.id}"
+                                                                th:each="bmc : ${view.boardBMCList}"
+                                                                th:value="${bmc.id}"
+                                                                th:text="${bmc.description}">
+                                                        </option>
+                                                    </th:block>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </th:block>
+
+                                    <th:block th:if="${step.name() == 'BASIC_SETTING'}">
+                                        <div class="alert alert-info py-2 mb-0">BIOS 기본 설정 스크립트가 적용됩니다. 추가 입력 항목이
+                                            없습니다.
+                                        </div>
+                                    </th:block>
+
+                                    <th:block th:if="${step.name() == 'OS_INSTALLATION'}">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">설치할 OS 선택</label>
+                                            <select class="form-select border-primary w-50 target-req"
+                                                    id="osMetadataId">
+                                                <option value="">OS를 선택하세요</option>
+                                                <option th:each="os : ${osList}" th:value="${os.id}"
+                                                        th:text="|${os.osName.displayName} ${os.osVersion}|"></option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Root 계정 비밀번호</label>
+                                            <input type="password" class="form-control target-req" id="rootPassword"
+                                                   style="max-width:300px;">
+                                        </div>
+                                    </th:block>
+
+                                    <th:block th:if="${step.name() == 'OS_SETTING'}">
+                                        <div class="alert alert-secondary py-2 mb-0">OS 설치 후 진행될 사용자 정의 스크립트 구성 영역입니다.
+                                        </div>
+                                    </th:block>
+
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
 
         <div class="d-flex justify-content-end mb-5">
             <a th:href="@{/pxe/v1/admin/dashboard}" class="btn btn-secondary me-2">취소</a>
-            <button type="button" class="btn btn-primary px-4 fw-bold" onclick="submitSettingTemplate()">주문서 생성</button>
+            <button type="submit" class="btn btn-primary px-4 fw-bold">주문서 생성</button>
         </div>
     </form>
 </div>
+<script>
 
+    function checkIfBiosAndBmcAvailable(selectedBoardModelId) {
+        const biosSelect = document.querySelector('select#boardBIOSId');
+        const bmcSelect = document.querySelector('select#boardBMCId');
+        const biosInfoOption = document.querySelector('select#boardBIOSId > option.info-option');
+        const bmcInfoOption = document.querySelector('select#boardBMCId > option.info-option');
+
+        if (selectedBoardModelId != null && selectedBoardModelId !== '') {
+            console.log(selectedBoardModelId);
+
+            biosSelect.disabled = false;
+            bmcSelect.disabled = false;
+
+            biosInfoOption.innerText = 'BIOS 버전을 선택하세요';
+            biosInfoOption.selected = true;
+            bmcInfoOption.innerText = 'BMC 버전을 선택하세요';
+            bmcInfoOption.selected = true;
+
+            const biosOptions = document.querySelectorAll('select#boardBIOSId > option[data-compatible-board-model-id]');
+            const bmcOptions = document.querySelectorAll('select#boardBMCId > option[data-compatible-board-model-id]');
+
+            biosOptions.forEach(bios => {
+                const compatibleBoardModelId = bios.dataset.compatibleBoardModelId;
+                if (selectedBoardModelId === compatibleBoardModelId) {
+                    bios.classList.remove('unavailable');
+                    bios.classList.add('available');
+                    bios.disabled = false;  // Safari 호환 목적
+                } else {
+                    bios.classList.remove('available');
+                    bios.classList.add('unavailable');
+                    bios.disabled = true;   // Safari 호환 목적
+                }
+            });
+
+            bmcOptions.forEach(bmc => {
+                const compatibleBoardModelId = bmc.dataset.compatibleBoardModelId;
+                if (selectedBoardModelId === compatibleBoardModelId) {
+                    bmc.classList.remove('unavailable');
+                    bmc.classList.add('available');
+                    bmc.disabled = false;   // Safari 호환 목적
+                } else {
+                    bmc.classList.remove('available');
+                    bmc.classList.add('unavailable');
+                    bmc.disabled = true;    // Safari 호환 목적
+                }
+            });
+        } else {
+            biosSelect.disabled = true;
+            bmcSelect.disabled = true;
+
+            biosInfoOption.innerText = '보드 모델을 먼저 선택하세요';
+            biosInfoOption.selected = true;
+            bmcInfoOption.innerText = '보드 모델을 먼저 선택하세요';
+            bmcInfoOption.selected = true;
+        }
+
+    }
+
+
+    function toggleStep(changedCheckbox) {
+        const currentOrder = parseInt(changedCheckbox.getAttribute('data-order'));
+        const isChecked = changedCheckbox.checked;
+        const allCheckboxes = document.querySelectorAll('.step-enable-chk');
+
+        allCheckboxes.forEach(chk => {
+            const order = parseInt(chk.getAttribute('data-order'));
+            let shouldBeChecked = chk.checked;
+
+            if (isChecked && order <= currentOrder) {
+                shouldBeChecked = true;
+            } else if (!isChecked && order >= currentOrder) {
+                shouldBeChecked = false;
+            }
+
+            if (chk.checked !== shouldBeChecked || chk === changedCheckbox) {
+                chk.checked = shouldBeChecked;
+
+                const stepName = chk.value;
+                const contentArea = document.getElementById('content_' + stepName);
+                const collapseEl = document.getElementById('collapse_' + stepName);
+
+                if (contentArea && collapseEl) {
+                    if (chk.checked) {
+                        contentArea.style.opacity = '1';
+                        contentArea.style.pointerEvents = 'auto';
+                        contentArea.querySelectorAll('.target-req').forEach(el => el.required = true);
+
+                        // 이미 열려있는 경우(show 클래스 존재) 닫히거나 토글되지 않도록 방어
+                        if (!collapseEl.classList.contains('show')) {
+                            const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false});
+                            bsCollapse.show();
+                        }
+                    } else {
+                        contentArea.style.opacity = '0.4';
+                        contentArea.style.pointerEvents = 'none';
+                        contentArea.querySelectorAll('.target-req').forEach(el => {
+                            el.required = false;
+                            if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.value = '';
+                            if (el.tagName === 'SELECT') el.selectedIndex = 0;
+                        });
+
+                        // 체크가 해제될 때 아코디언을 접으려면 아래 코드를 유지합니다.
+                        // (만약 체크 해제 시에도 아코디언을 계속 열어두고 싶다면 아래 if 블록을 통째로 주석 처리하면 됩니다.)
+                        if (collapseEl.classList.contains('show')) {
+                            const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false});
+                            bsCollapse.hide();
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 폼 유효성 검사 통과 후 최종 JSON 조립 및 전송 로직
+     */
+    function submitSettingTemplate() {
+        const processList = [];
+
+        // 체크된 단계만 페이로드에 포함하여 객체 조립
+        document.querySelectorAll('.step-enable-chk:checked').forEach(chk => {
+            const stepName = chk.value;
+
+            if (stepName === 'BASIC_UPDATE') {
+                processList.push({
+                    type: "BASIC_UPDATES",
+                    boardModel: {
+                        id: document.querySelector('#boardModelId').value
+                    },
+                    boardBIOS: {
+                        id: document.querySelector('#boardBIOSId').value
+                    },
+                    boardBMC: {
+                        id: document.querySelector('#boardBMCId').value
+                    }
+                });
+            } else if (stepName === 'BASIC_SETTING') {
+                processList.push({type: "BASIC_SETTING"});
+            } else if (stepName === 'OS_INSTALLATION') {
+                processList.push({
+                    type: "OS_INSTALLATION",
+                    osMetadata: {id: document.getElementById('osMetadataId').value},
+                    osInstallation: {
+                        osType: "ROCKY_LINUX",
+                        users: [{username: "root", password: document.getElementById('rootPassword').value}]
+                        // 파티션 등 추가 데이터 생략
+                    }
+                });
+            } else if (stepName === 'OS_SETTING') {
+                processList.push({type: "OS_SETTING"});
+            }
+        });
+
+        if (processList.length === 0) {
+            alert("최소 하나 이상의 프로비저닝 단계를 사용(체크)해야 합니다.");
+            return;
+        }
+
+        const payload = {
+            name: document.getElementById('settingName').value,
+            settingProcess: {processList: processList}
+        };
+
+        fetch('/pxe/v1/setting/api/new', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    // 서버가 보낸 에러 JSON 을 추출하여 다음 catch 블록으로 던짐
+                    return response.json().then(err => {
+                        throw new Error(err.message || "서버 응답 오류 (" + response.status + ")");
+                    });
+                }
+                return response; // 성공 시 다음 then 으로 이동
+            })
+            .then(() => {
+                // Controller 에서 ResponseEntity.ok().build() 로 응답하므로 본문(Body) 처리 생략
+                alert("주문서 생성이 완료되었습니다.");
+                // window.location.href = '/pxe/v1/admin/dashboard';
+            })
+            .catch(error => {
+                // 에러 응답 및 네트워크 예외를 모두 여기서 처리
+                console.error("통신 실패:", error);
+                alert("요청 처리에 실패했습니다: " + error.message);
+            });
+        console.log(payload);
+    }
+</script>
 </body>
 </html>

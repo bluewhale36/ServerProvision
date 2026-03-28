@@ -15,8 +15,4 @@ public class RockyLinuxSetting extends OSSetting {
         super(OSName.ROCKY_LINUX, compatibleOSVersion);
     }
 
-    @Override
-    public String getKickstartText() {
-        return "";
-    }
 }
