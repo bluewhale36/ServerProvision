@@ -1,6 +1,6 @@
 package com.example.serverprovision.application.setting.controller;
 
-import com.example.serverprovision.application.setting.model.SettingProcess;
+import com.example.serverprovision.application.setting.dto.SettingCreateRequest;
 import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
 import com.example.serverprovision.application.setting.service.SettingService;
 import com.example.serverprovision.domain.board.service.BoardModelService;
@@ -35,19 +35,17 @@ public class SettingController {
         // BIOS/BMC 업데이트
         model.addAttribute("boardViewList", boardModelService.getViewModelList());
 
-        // OS 설치, 세팅
-        model.addAttribute("osList", osMetadataService.getAllActiveOSMetadata());
+        // OS 설치, 세팅 — 환경·패키지 그룹 포함 뷰 데이터
+        model.addAttribute("osInstallationViewList", osMetadataService.getInstallationViewList());
         model.addAttribute("fileSystems", FileSystem.values());
         return "setting/new";
     }
 
-    // JSON 본문을 받아 jakarta.validation(@Valid)으로 완벽하게 검증합니다.
     @PostMapping("/api/new")
     @ResponseBody
-    public ResponseEntity<?> createSettingProcess(@RequestBody SettingProcess settingProcess) {
-        log.info("수신된 세팅 프로세스: {}", settingProcess);
-        // 에러가 발생하면 @Valid 에 의해 자동으로 400 Bad Request 와 FieldError 가 반환됩니다.
-        // settingService.save(settingProcess);
+    public ResponseEntity<?> createSetting(@Valid @RequestBody SettingCreateRequest request) {
+        log.info("[SettingController] 세팅 주문서 수신. name={}, 단계 수={}", request.name(), request.processList().size());
+        settingService.save(request);
         return ResponseEntity.ok().build();
     }
 

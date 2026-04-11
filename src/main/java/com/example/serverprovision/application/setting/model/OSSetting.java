@@ -5,7 +5,7 @@ import com.example.serverprovision.application.setting.model.enums.SettingProces
 public class OSSetting extends AbstractSettingProcess {
 
 
-    protected OSSetting() {
+    public OSSetting() {
         super(SettingProcessStep.OS_SETTING);
     }
 }

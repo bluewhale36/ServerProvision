@@ -1,5 +1,6 @@
 package com.example.serverprovision.domain.board.entity;
 
+import com.example.serverprovision.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @ToString
-public class BoardBIOS {
+public class BoardBIOS extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

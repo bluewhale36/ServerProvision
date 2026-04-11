@@ -1,10 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <th:block th:replace="~{fragments/layout :: commonHead('신규 작업 주문')}"></th:block>
 </head>
 <body>
+
+<nav th:replace="~{fragments/layout :: navbar('order', '', '')}"></nav>
+
+<div class="n-page-sm">
+    <div class="n-page-header">
+        <h1 class="n-page-title">신규 작업 주문</h1>
+        <a th:href="@{/pxe/v1/order}" class="n-btn n-btn-ghost">목록으로 돌아가기</a>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <form>
+                <div class="n-section">대상 서버 선택</div>
+                <div class="n-form-group">
+                    <label class="n-label strong">대상 서버 (MAC 주소)</label>
+                    <select class="n-select">
+                        <option value="">서버를 선택하세요</option>
+                    </select>
+                </div>
+
+                <div class="n-section">세팅 주문서 선택</div>
+                <div class="n-form-group">
+                    <label class="n-label strong">적용할 세팅 주문서</label>
+                    <select class="n-select">
+                        <option value="">주문서를 선택하세요</option>
+                    </select>
+                </div>
+
+                <div class="n-section">비고</div>
+                <div class="n-form-group">
+                    <label class="n-label">메모 (선택)</label>
+                    <textarea class="n-textarea" placeholder="작업 관련 메모를 입력하세요"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a th:href="@{/pxe/v1/order}" class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" class="n-btn n-btn-primary">주문 생성</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+  공통 레이아웃 프래그먼트
+  ─────────────────────────────────────────────────────────────
+  commonHead(pageTitle)
+    · pageTitle : 브라우저 탭 제목 (예: '대시보드')
+    · 모든 페이지에 공통으로 필요한 <meta>, <title>, 폰트, Bootstrap CSS,
+      글로벌 CSS 를 삽입합니다.
+
+  navbar(activePage, ctaHref, ctaText)
+    · activePage : 현재 활성 메뉴 키
+        'dashboard' | 'os' | 'setting' | 'order'
+    · ctaHref    : 우측 CTA 버튼 URL (없으면 빈 문자열 '')
+    · ctaText    : 우측 CTA 버튼 텍스트 (없으면 빈 문자열 '')
+  ─────────────────────────────────────────────────────────────
+-->
+
+<head>
+    <th:block th:fragment="commonHead(pageTitle)">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title th:text="'유니와이드 - ' + ${pageTitle}">유니와이드</title>
+        <!-- Inter 폰트 -->
+        <link rel="stylesheet"
+              href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+        <!-- Bootstrap 5: 그리드, 유틸리티, 아코디언, 프로그레스바 -->
+        <link rel="stylesheet"
+              href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+        <!-- Notion 디자인 시스템: Bootstrap 이후 로드하여 시각 스타일 덮어쓰기 -->
+        <link rel="stylesheet" th:href="@{/global/style.css}">
+    </th:block>
+</head>
+
+<body>
+    <!--
+      내비게이션 바 프래그먼트
+      사용 예)
+        CTA 없음 : th:replace="~{fragments/layout :: navbar('dashboard', '', '')}"
+        CTA 있음 : th:replace="~{fragments/layout :: navbar('os', '/pxe/v1/admin/os/new', '신규 OS 등록')}"
+    -->
+    <nav th:fragment="navbar(activePage, ctaHref, ctaText)" class="n-nav">
+        <a th:href="@{/pxe/v1/admin/dashboard}" class="n-nav-brand">Provision Portal</a>
+
+        <a th:href="@{/pxe/v1/admin/dashboard}"
+           class="n-nav-link"
+           th:classappend="${activePage == 'dashboard'} ? ' active'">대시보드</a>
+
+        <a th:href="@{/pxe/v1/admin/os}"
+           class="n-nav-link"
+           th:classappend="${activePage == 'os'} ? ' active'">OS 관리</a>
+
+        <a th:href="@{/pxe/v1/setting/new}"
+           class="n-nav-link"
+           th:classappend="${activePage == 'setting'} ? ' active'">세팅 주문서</a>
+
+        <a th:href="@{/pxe/v1/order}"
+           class="n-nav-link"
+           th:classappend="${activePage == 'order'} ? ' active'">작업 주문</a>
+
+        <div class="n-nav-spacer"></div>
+
+        <!-- ctaHref 가 비어있지 않을 때만 CTA 버튼 표시 -->
+        <a th:if="${!#strings.isEmpty(ctaHref)}"
+           th:href="${ctaHref}"
+           class="n-nav-cta"
+           th:text="${ctaText}">CTA</a>
+    </nav>
+</body>
+
+</html>

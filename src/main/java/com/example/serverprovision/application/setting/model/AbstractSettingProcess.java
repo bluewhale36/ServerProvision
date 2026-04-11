@@ -3,7 +3,6 @@ package com.example.serverprovision.application.setting.model;
 import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.Getter;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({

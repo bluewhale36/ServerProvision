@@ -10,7 +10,7 @@ public record BoardBIOSDTO(
         String version,
         String filePath,
         String description,
-        boolean isEnabled
+        Boolean isEnabled
 ) {
     public static BoardBIOSDTO from(BoardBIOS boardBIOS) {
         return BoardBIOSDTO.builder()

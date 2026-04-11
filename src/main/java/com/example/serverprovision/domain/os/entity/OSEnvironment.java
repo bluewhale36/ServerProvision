@@ -36,7 +36,9 @@ public class OSEnvironment extends BaseTimeEntity {
     private boolean isDefault;
 
 
-    @OneToMany
-    @JoinColumn(name = "os_environment_id")
+    // mappedBy 로 OSPackageGroup.osEnvironment(@ManyToOne)을 FK 소유자로 지정한다.
+    // @JoinColumn 을 @OneToMany 쪽에 두면 Hibernate 가 FK 를 NULL 로 업데이트 후 삭제하려 해
+    // nullable = false 제약 조건과 충돌할 수 있다.
+    @OneToMany(mappedBy = "osEnvironment", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<OSPackageGroup> packageGroupList;
 }

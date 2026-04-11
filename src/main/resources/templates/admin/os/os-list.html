@@ -1,60 +1,149 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>유니와이드 - OS 메타데이터 관리</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <th:block th:replace="~{fragments/layout :: commonHead('OS 메타데이터 관리')}"></th:block>
+    <!-- 이 페이지 전용 스타일 (밀러 컬럼, 추출 태스크 카드) -->
+    <link rel="stylesheet" th:href="@{/admin/os/os-list.css}">
 </head>
-<body class="bg-light">
-<div class="container-fluid py-4 px-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">💿 OS 메타데이터 관리</h2>
-        <div>
-            <a th:href="@{/pxe/v1/admin/dashboard}" class="btn btn-outline-secondary me-2">대시보드</a>
-            <a th:href="@{/pxe/v1/admin/os/new}" class="btn btn-primary">신규 OS 등록</a>
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar('os', '/pxe/v1/admin/os/new', '신규 OS 등록')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">OS 메타데이터 관리</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/pxe/v1/admin/dashboard}" class="n-btn n-btn-secondary">대시보드</a>
+            <a th:href="@{/pxe/v1/admin/os/new}" class="n-btn n-btn-primary">신규 OS 등록</a>
         </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0 text-center align-middle">
-                <thead class="table-dark">
-                <tr>
-                    <th>ID</th>
-                    <th>OS 명</th>
-                    <th>버전</th>
-                    <th>상태</th>
-                    <th>관리</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(osList)}">
-                    <td colspan="5" class="py-4 text-muted">등록된 OS 메타데이터가 없습니다.</td>
-                </tr>
-                <tr th:each="os : ${osList}">
-                    <td th:text="${os.id}">1</td>
-                    <td class="fw-bold" th:text="${os.osName.displayName}">Rocky Linux</td>
-                    <td th:text="${os.osVersion}">8.9</td>
-                    <td>
-                        <span class="badge" th:classappend="${os.isEnabled} ? 'bg-success' : 'bg-danger'"
-                              th:text="${os.isEnabled} ? '사용중' : '사용안함'"></span>
-                    </td>
-                    <td>
-                        <a th:href="@{/pxe/v1/admin/os/{id}(id=${os.id})}" class="btn btn-sm btn-info text-white">상세</a>
-                        <a th:href="@{/pxe/v1/admin/os/{id}/edit(id=${os.id})}" class="btn btn-sm btn-warning">수정</a>
-                        <form th:action="@{/pxe/v1/admin/os/{id}/toggle(id=${os.id})}" method="post"
-                              style="display:inline;">
-                            <button type="submit" class="btn btn-sm"
-                                    th:classappend="${os.isEnabled} ? 'btn-outline-danger' : 'btn-outline-success'"
-                                    th:text="${os.isEnabled} ? '비활성화' : '활성화'"></button>
-                        </form>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+    <!-- 환경 정보 자동 추출 태스크 패널 — 동시 여러 작업 지원, 카드 단위 관리 -->
+    <div id="extractTaskList" class="n-extract-task-list"></div>
+
+    <!-- 빈 상태 -->
+    <div th:if="${#lists.isEmpty(osGroups)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 OS 메타데이터가 없습니다.</div>
+            <div class="n-empty-desc">상단의 "신규 OS 등록" 버튼으로 OS 를 추가하세요.</div>
+        </div>
+    </div>
+
+    <!--
+        macOS Finder 계층 보기 (Miller Columns) 스타일 레이아웃
+        컬럼 1: OSName 그룹 목록
+        컬럼 2: 선택된 OSName 의 버전 목록 (활성 우선 → 최근 등록 우선)
+        컬럼 3: 선택된 메타데이터의 상세 정보
+    -->
+    <div th:unless="${#lists.isEmpty(osGroups)}"
+         class="n-miller"
+         th:data-initial-select-id="${selectId}">
+
+        <!-- Column 1: OS Name 목록 -->
+        <div class="n-miller-col n-miller-col-names">
+            <div class="n-miller-col-header">OS 명</div>
+            <button th:each="group : ${osGroups}"
+                    type="button"
+                    class="n-miller-item"
+                    th:data-os-key="${group.osName.name()}"
+                    th:text="${group.osName.displayName}">Rocky Linux</button>
+        </div>
+
+        <!-- Column 2: 버전 목록 (그룹별 패널, JS 가 active 클래스로 토글) -->
+        <div class="n-miller-col n-miller-col-versions">
+            <div class="n-miller-col-header">버전</div>
+            <div th:each="group : ${osGroups}"
+                 class="n-miller-version-panel"
+                 th:data-os-key="${group.osName.name()}">
+                <!-- 버전명(좌) + 활성 상태 태그(우). 태그는 표시 전용이며, 토글은 상세 패널에서 수행 -->
+                <button th:each="os : ${group.items}"
+                        type="button"
+                        class="n-miller-item n-miller-item-split"
+                        th:classappend="${os.isEnabled} ? '' : 'n-miller-item-disabled'"
+                        th:data-os-id="${os.id}">
+                    <span class="n-miller-version-label" th:text="${os.osVersion}">9.6</span>
+                    <span class="n-miller-status-tag"
+                          th:classappend="${os.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:text="${os.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Column 3: 상세 패널 (메타데이터별 패널, JS 가 active 클래스로 토글) -->
+        <div class="n-miller-col n-miller-col-detail">
+            <div class="n-miller-empty" id="millerEmpty">OS 를 선택하여 상세 사항 보기</div>
+
+            <th:block th:each="group : ${osGroups}">
+                <div th:each="os : ${group.items}"
+                     class="n-miller-detail-panel"
+                     th:data-os-id="${os.id}">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>ID</th>
+                            <td th:text="${os.id}"></td>
+                        </tr>
+                        <tr>
+                            <th>OS 이름</th>
+                            <td style="font-weight:600;" th:text="${group.osName.displayName}"></td>
+                        </tr>
+                        <tr>
+                            <th>OS 버전</th>
+                            <td th:text="${os.osVersion}"></td>
+                        </tr>
+                        <tr>
+                            <th>ISO 마운트 경로</th>
+                            <td class="mono" th:text="${os.isoMountPath}"></td>
+                        </tr>
+                        <tr>
+                            <th>Kickstart 템플릿 경로</th>
+                            <td class="mono" th:text="${os.ksTemplatePath}"></td>
+                        </tr>
+                        <tr>
+                            <th>사용 여부</th>
+                            <td>
+                                <span class="n-badge"
+                                      th:classappend="${os.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
+                                      th:text="${os.isEnabled} ? '활성화' : '비활성화'"></span>
+                                <form th:action="@{/pxe/v1/admin/os/{id}/toggle(id=${os.id})}"
+                                      method="post"
+                                      style="display:inline; margin-left: 10px;">
+                                    <button type="submit"
+                                            class="n-btn n-btn-sm"
+                                            style="min-width: 72px;"
+                                            th:classappend="${os.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
+                                            th:text="${os.isEnabled} ? '비활성화' : '활성화'"></button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="n-card-footer">
+                        <!-- 환경 정보 자동 추출 — 진행 카드는 페이지 상단에서 관리 -->
+                        <button type="button"
+                                class="n-btn n-btn-outline-info n-extract-btn"
+                                th:data-start-url="@{/pxe/v1/admin/os/{id}/extract-packages(id=${os.id})}"
+                                th:data-os-name="${group.osName.displayName}"
+                                th:data-os-version="${os.osVersion}">
+                            <span class="n-spinner n-extract-spinner" style="display:none;"></span>
+                            <span>환경 정보 자동 추출</span>
+                        </button>
+                        <div class="n-footer-right">
+                            <!-- 선택 해제: selectId 없이 리스트로 이동 -->
+                            <a th:href="@{/pxe/v1/admin/os}" class="n-btn n-btn-secondary">목록으로</a>
+                            <a th:href="@{/pxe/v1/admin/os/{id}/edit(id=${os.id})}"
+                               class="n-btn n-btn-primary n-edit-btn">수정하기</a>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
         </div>
     </div>
 </div>
+
+<!-- 이 페이지 전용 스크립트 (밀러 컬럼 상호작용 + 추출 태스크 관리) -->
+<script th:src="@{/admin/os/os-list.js}"></script>
+
 </body>
 </html>

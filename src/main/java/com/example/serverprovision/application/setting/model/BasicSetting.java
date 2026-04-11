@@ -6,7 +6,7 @@ public class BasicSetting extends AbstractSettingProcess {
 
 
 
-    protected BasicSetting() {
+    public BasicSetting() {
         super(SettingProcessStep.BASIC_SETTING);
     }
 }

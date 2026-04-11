@@ -44,7 +44,7 @@ public class ServerNode extends BaseTimeEntity {
     private String assignedIp;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_model_id")
+    @JoinColumn(name = "board_model_id", nullable = false)
     private BoardModel boardModel;
 
     // --- 상태 통제 정보 ---
@@ -60,20 +60,9 @@ public class ServerNode extends BaseTimeEntity {
     @JoinColumn(name = "server_setting_id")
     private ServerSetting serverSetting;
 
-    @Column(name = "current_step_index")
-    private Integer currentStepIndex = 0;
-
-    // 단계 완료 시 인덱스를 증가시키는 메서드
-    public void advanceStepIndex() {
-        if (this.currentStepIndex != null) {
-            this.currentStepIndex++;
-        }
-    }
-
-    // 프로비저닝 시작 시 초기화
+    // 프로비저닝 시작 시 상태 전이
     public void startProvisioning() {
         this.status = ProvisioningStatus.IN_PROGRESS;
-        this.currentStepIndex = 0;
     }
 
     public static ServerNode create(ServerNodeCreateDTO dto, BoardModel boardModel) {

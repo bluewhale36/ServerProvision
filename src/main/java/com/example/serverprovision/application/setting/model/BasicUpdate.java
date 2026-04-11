@@ -6,8 +6,10 @@ import com.example.serverprovision.domain.board.dto.BoardBMCDTO;
 import com.example.serverprovision.domain.board.dto.BoardModelDTO;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+import lombok.ToString;
 
 @Getter
+@ToString
 public class BasicUpdate extends AbstractSettingProcess {
 
     @NotNull(message = "메인보드 모델은 필수 값입니다.")

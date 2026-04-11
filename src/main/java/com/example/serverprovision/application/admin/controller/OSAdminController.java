@@ -4,14 +4,19 @@ import com.example.serverprovision.domain.os.dto.OSMetadataCreateDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataUpdateDTO;
 import com.example.serverprovision.domain.os.model.enums.OSName;
+import com.example.serverprovision.domain.os.service.ExtractionTask;
+import com.example.serverprovision.domain.os.service.ExtractionTaskService;
 import com.example.serverprovision.domain.os.service.OSMetadataService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Slf4j
 @Controller
@@ -20,11 +25,14 @@ import org.springframework.web.bind.annotation.*;
 public class OSAdminController {
 
     private final OSMetadataService osMetadataService;
+    private final ExtractionTaskService extractionTaskService;
 
-    // OS 목록 조회 화면
+    // OS 목록 조회 화면 — OSName 기준 그룹핑 + 그룹 내 활성/최신순 정렬
+    // selectId 가 전달되면 해당 메타데이터를 밀러 컬럼의 상세 패널에 자동 선택한다.
     @GetMapping
-    public String osMetadataList(Model model) {
-        model.addAttribute("osList", osMetadataService.getAllOSMetadata());
+    public String osMetadataList(@RequestParam(required = false) Long selectId, Model model) {
+        model.addAttribute("osGroups", osMetadataService.getGroupedOSMetadata());
+        model.addAttribute("selectId", selectId);
         return "admin/os/os-list";
     }
 
@@ -88,10 +96,30 @@ public class OSAdminController {
         return "redirect:/pxe/v1/admin/os";
     }
 
-    // 사용 여부(Active) 상태 변경
+    // 사용 여부(Active) 상태 변경 — 토글 후 동일 메타데이터가 리스트 화면에서 계속 선택되도록 selectId 전달
     @PostMapping("/{id}/toggle")
     public String toggleOSActive(@PathVariable Long id) {
         osMetadataService.toggleActive(id);
-        return "redirect:/pxe/v1/admin/os";
+        return "redirect:/pxe/v1/admin/os?selectId=" + id;
+    }
+
+    // 환경·패키지 그룹 자동 추출 시작 (비동기)
+    // 즉시 taskId 를 반환하고, 클라이언트는 상태 엔드포인트로 폴링하여 진행률을 받아간다.
+    @PostMapping("/{id}/extract-packages")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> startExtractPackages(@PathVariable Long id) {
+        String taskId = extractionTaskService.startExtraction(id);
+        return ResponseEntity.accepted().body(Map.of("taskId", taskId));
+    }
+
+    // 추출 태스크 상태 조회 — 프런트엔드 폴링용
+    @GetMapping("/extract-packages/tasks/{taskId}")
+    @ResponseBody
+    public ResponseEntity<ExtractionTask> getExtractionTaskStatus(@PathVariable String taskId) {
+        ExtractionTask task = extractionTaskService.getTask(taskId);
+        if (task == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(task);
     }
 }

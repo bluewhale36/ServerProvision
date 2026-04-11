@@ -10,7 +10,7 @@ public record BoardBMCDTO(
         String version,
         String filePath,
         String description,
-        boolean isEnabled
+        Boolean isEnabled
 ) {
     public static BoardBMCDTO from(BoardBMC boardBMC) {
         return BoardBMCDTO.builder()

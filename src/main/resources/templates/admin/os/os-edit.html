@@ -1,52 +1,128 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>OS 정보 수정</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <th:block th:replace="~{fragments/layout :: commonHead('OS 정보 수정')}"></th:block>
 </head>
-<body class="bg-light">
-<div class="container py-5" style="max-width: 800px;">
-    <h2 class="fw-bold mb-4">✏️ OS 정보 수정</h2>
-    <div class="card shadow-sm">
-        <div class="card-body p-4">
-            <form th:action="@{/pxe/v1/admin/os/{id}/edit(id=${id})}" th:object="${osDto}" method="post">
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar('os', '', '')}"></nav>
+
+<div class="n-page-sm">
+    <div class="n-page-header">
+        <h1 class="n-page-title">OS 정보 수정</h1>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form th:action="@{/pxe/v1/admin/os/{id}/edit(id=${id})}"
+                  th:object="${osDto}" method="post">
                 <input type="hidden" th:field="*{targetId}">
 
                 <div class="mb-3">
                     <label class="form-label fw-bold">OS 이름</label>
-                    <select class="form-select" th:field="*{osName}" th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'">
-                        <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.displayName}"></option>
+                    <select class="form-select"
+                            th:field="*{osName}"
+                            th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'">
+                        <option th:each="os : ${osNames}"
+                                th:value="${os.name()}"
+                                th:text="${os.displayName}"></option>
                     </select>
-                    <div class="invalid-feedback" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
+                    <div class="invalid-feedback"
+                         th:if="${#fields.hasErrors('osName')}"
+                         th:errors="*{osName}"></div>
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label fw-bold">OS 버전</label>
-                    <input type="text" class="form-control" th:field="*{osVersion}"
+                    <input type="text" class="form-control"
+                           th:field="*{osVersion}"
                            th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'">
-                    <div class="invalid-feedback" th:if="${#fields.hasErrors('osVersion')}"
+                    <div class="invalid-feedback"
+                         th:if="${#fields.hasErrors('osVersion')}"
                          th:errors="*{osVersion}"></div>
                 </div>
+
+                <!-- ISO 마운트 경로 -->
                 <div class="mb-3">
                     <label class="form-label fw-bold">ISO 마운트 경로</label>
-                    <input type="text" class="form-control" th:field="*{isoMountPath}"
-                           th:classappend="${#fields.hasErrors('isoMountPath')} ? 'is-invalid'">
-                    <div class="invalid-feedback" th:if="${#fields.hasErrors('isoMountPath')}"
+                    <div class="input-group">
+                        <input type="text" class="form-control"
+                               th:field="*{isoMountPath}"
+                               th:classappend="${#fields.hasErrors('isoMountPath')} ? 'is-invalid'">
+                        <button type="button" class="btn btn-outline-secondary"
+                                onclick="toggleUpload('iso')">파일 업로드</button>
+                    </div>
+                    <div class="invalid-feedback d-block"
+                         th:if="${#fields.hasErrors('isoMountPath')}"
                          th:errors="*{isoMountPath}"></div>
+                    <!-- ISO 업로드 패널 -->
+                    <div class="upload-panel mt-2 d-none" id="iso-panel">
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   id="iso-dest-path" placeholder="예: /mnt/iso/rocky9.iso">
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="file" class="form-control form-control-sm"
+                                   id="iso-file-input" accept=".iso">
+                            <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
+                                    onclick="startUpload('iso', 'isoMountPath')">업로드 시작</button>
+                        </div>
+                        <div class="mt-2 d-none" id="iso-progress-area">
+                            <div class="progress mb-1">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                                     id="iso-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <small id="iso-status-text" class="text-muted"></small>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Kickstart 템플릿 경로 -->
                 <div class="mb-3">
                     <label class="form-label fw-bold">Kickstart 템플릿 경로</label>
-                    <input type="text" class="form-control" th:field="*{ksTemplatePath}"
-                           th:classappend="${#fields.hasErrors('ksTemplatePath')} ? 'is-invalid'">
-                    <div class="invalid-feedback" th:if="${#fields.hasErrors('ksTemplatePath')}"
+                    <div class="input-group">
+                        <input type="text" class="form-control"
+                               th:field="*{ksTemplatePath}"
+                               th:classappend="${#fields.hasErrors('ksTemplatePath')} ? 'is-invalid'">
+                        <button type="button" class="btn btn-outline-secondary"
+                                onclick="toggleUpload('ks')">파일 업로드</button>
+                    </div>
+                    <div class="invalid-feedback d-block"
+                         th:if="${#fields.hasErrors('ksTemplatePath')}"
                          th:errors="*{ksTemplatePath}"></div>
+                    <!-- KS 업로드 패널 -->
+                    <div class="upload-panel mt-2 d-none" id="ks-panel">
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   id="ks-dest-path" placeholder="예: /etc/ks/rocky9.cfg">
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="file" class="form-control form-control-sm"
+                                   id="ks-file-input" accept=".cfg,.ks,.txt">
+                            <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
+                                    onclick="startUpload('ks', 'ksTemplatePath')">업로드 시작</button>
+                        </div>
+                        <div class="mt-2 d-none" id="ks-progress-area">
+                            <div class="progress mb-1">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                                     id="ks-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <small id="ks-status-text" class="text-muted"></small>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="form-check mb-4">
                     <input class="form-check-input" type="checkbox" th:field="*{isEnabled}">
                     <label class="form-check-label fw-bold">활성화 여부</label>
                 </div>
-                <div class="d-flex justify-content-end">
-                    <a th:href="@{/pxe/v1/admin/os/{id}(id=${osDto.targetId})}" class="btn btn-secondary me-2">취소</a>
+
+                <div class="d-flex justify-content-end gap-2 pt-3"
+                     style="border-top: 1px solid var(--n-border);">
+                    <a th:href="@{/pxe/v1/admin/os/{id}(id=${osDto.targetId})}"
+                       class="btn btn-secondary">취소</a>
                     <button type="submit" class="btn btn-primary">수정 완료</button>
                 </div>
             </form>
@@ -54,5 +130,88 @@
     </div>
 </div>
 
+<script>
+    function toggleUpload(type) {
+        document.getElementById(type + '-panel').classList.toggle('d-none');
+    }
+
+    function startUpload(type, targetField) {
+        const destPath  = document.getElementById(type + '-dest-path').value.trim();
+        const fileInput = document.getElementById(type + '-file-input');
+
+        if (!destPath)              { alert('서버 저장 경로를 입력해 주세요.'); return; }
+        if (!fileInput.files.length){ alert('업로드할 파일을 선택해 주세요.'); return; }
+
+        const progressArea = document.getElementById(type + '-progress-area');
+        const progressBar  = document.getElementById(type + '-progress-bar');
+        const statusText   = document.getElementById(type + '-status-text');
+
+        progressArea.classList.remove('d-none');
+        setStatus(progressBar, statusText, 0, 'info', '업로드 중...');
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('destPath', destPath);
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 90);
+                setStatus(progressBar, statusText, pct, 'info', `전송 중... ${pct}%`);
+            }
+        };
+
+        xhr.onload = function() {
+            if (xhr.status === 202) {
+                const taskId = JSON.parse(xhr.responseText).taskId;
+                setStatus(progressBar, statusText, 95, 'info', '서버 저장 중...');
+                pollStatus(taskId, targetField, progressBar, statusText);
+            } else {
+                setStatus(progressBar, statusText, 0, 'danger', '업로드 실패: ' + tryParseError(xhr.responseText));
+            }
+        };
+
+        xhr.onerror = function() {
+            setStatus(progressBar, statusText, 0, 'danger', '네트워크 오류가 발생했습니다.');
+        };
+
+        xhr.open('POST', '/pxe/v1/admin/os/api/upload');
+        xhr.send(formData);
+    }
+
+    function pollStatus(taskId, targetField, progressBar, statusText) {
+        const interval = setInterval(function() {
+            fetch('/pxe/v1/admin/os/api/upload/' + taskId)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'COMPLETE') {
+                        clearInterval(interval);
+                        setStatus(progressBar, statusText, 100, 'success', '저장 완료 ✓');
+                        document.getElementById(targetField).value = data.savedPath;
+                    } else if (data.status === 'FAILED') {
+                        clearInterval(interval);
+                        setStatus(progressBar, statusText, 0, 'danger', '저장 실패: ' + data.errorMessage);
+                    }
+                })
+                .catch(() => {
+                    clearInterval(interval);
+                    setStatus(progressBar, statusText, 0, 'danger', '상태 조회 중 오류가 발생했습니다.');
+                });
+        }, 1500);
+    }
+
+    function setStatus(bar, text, pct, color, message) {
+        bar.style.width = pct + '%';
+        bar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-' + color;
+        if (pct === 100) bar.classList.remove('progress-bar-animated');
+        text.textContent = message;
+        text.className = 'text-' + (color === 'info' ? 'muted' : color);
+    }
+
+    function tryParseError(body) {
+        try { return JSON.parse(body).error || body; } catch { return body; }
+    }
+</script>
 </body>
 </html>

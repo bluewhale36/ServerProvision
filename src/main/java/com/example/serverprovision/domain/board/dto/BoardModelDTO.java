@@ -10,7 +10,7 @@ public record BoardModelDTO(
         Vendor vendor,
         String modelName,
         String description,
-        boolean isEnabled
+        Boolean isEnabled
 ) {
     public static BoardModelDTO from(BoardModel boardModel) {
         return BoardModelDTO.builder()

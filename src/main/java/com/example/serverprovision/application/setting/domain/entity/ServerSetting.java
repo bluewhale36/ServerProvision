@@ -20,6 +20,9 @@ public class ServerSetting extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "name", nullable = false)
+    private String name;
+
     @Column(name = "process")
     @Convert(converter = SettingProcessConverter.class)
     private SettingProcess settingProcess;
