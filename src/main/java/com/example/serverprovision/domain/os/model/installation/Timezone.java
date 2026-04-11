@@ -16,7 +16,7 @@ public class Timezone implements InstallScriptable {
 
         sb.append("timezone ").append(timezone);
 
-        if (isUTC) sb.append(" --isUtc");
+        if (isUTC) sb.append(" --utc");
 
         sb.append("\n");
 

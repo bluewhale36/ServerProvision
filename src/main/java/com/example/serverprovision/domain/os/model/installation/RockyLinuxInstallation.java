@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.util.List;
+import java.util.Objects;
 
 @Getter
 public class RockyLinuxInstallation extends LinuxInstallation {
@@ -21,17 +22,18 @@ public class RockyLinuxInstallation extends LinuxInstallation {
 
     @Builder
     protected RockyLinuxInstallation(
-            List<Partition> partitions, List<User> users,
+            List<Partition> partitions, List<User> users, RootPassword rootPassword,
             String installVersion, Environment environment, boolean isKDumpEnabled
     ) {
         super(
                 OSName.ROCKY_LINUX,
                 List.of("8.10", "9.0", "9.1", "9.2", "9.3", "9.4", "9.5", "9.6", "9.7"),
-
-                partitions, users
+                partitions, users, rootPassword
         );
 
         isVersionCompatible(installVersion);
+
+        Objects.requireNonNull(environment, "environment 는 null 일 수 없습니다.");
 
         this.installVersion = installVersion;
         this.environment = environment;
@@ -56,6 +58,9 @@ public class RockyLinuxInstallation extends LinuxInstallation {
 
     protected String getUserScript() {
         StringBuilder sb = new StringBuilder();
+
+        // root 비밀번호가 있는 경우 rootpw 명령을 먼저 생성한다
+        if (rootPassword != null) sb.append(rootPassword.getRHELScript());
 
         users.forEach(u -> sb.append(u.getRHELScript()));
 

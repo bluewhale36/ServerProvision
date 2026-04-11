@@ -14,7 +14,11 @@
         <h1 class="n-page-title">신규 세팅 주문서(템플릿) 작성</h1>
     </div>
 
-    <form id="settingForm" onsubmit="event.preventDefault(); submitSettingTemplate();">
+    <form id="settingForm" novalidate onsubmit="event.preventDefault(); submitSettingTemplate();">
+
+        <!-- 폼-레벨 에러 표시 영역 (FieldValidationException 의 필드가 DOM 에 매칭되지 않거나,
+             일반 IllegalArgumentException 등 폼 전체에 귀속되는 오류를 여기에 표시한다) -->
+        <div id="formErrorArea" class="alert alert-danger d-none" role="alert"></div>
 
         <!-- 주문서 식별 정보 -->
         <div class="card">
@@ -22,6 +26,7 @@
             <div class="card-body">
                 <label class="form-label fw-bold">주문서 명칭 (필수)</label>
                 <input type="text" class="form-control" id="settingName"
+                       data-error-field="name"
                        placeholder="예: Rocky Linux 9.6 표준 웹 서버 구성" required>
             </div>
         </div>
@@ -42,7 +47,9 @@
                         </h2>
 
                         <div th:id="'collapse_' + ${step.name()}" class="accordion-collapse collapse">
-                            <div class="accordion-body" style="background: var(--n-bg);">
+                            <div class="accordion-body"
+                                 th:attr="data-error-scope=${step.name()}"
+                                 style="background: var(--n-bg);">
 
                                 <!-- 단계 활성화 스위치 -->
                                 <div class="form-check form-switch mb-3 pb-2"
@@ -71,6 +78,7 @@
                                             <label class="form-label fw-bold">메인보드 모델 선택</label>
                                             <select class="form-select w-50 target-req"
                                                     id="boardModelId"
+                                                    data-error-field="boardModelId"
                                                     onchange="checkIfBiosAndBmcAvailable(this.value)"
                                                     style="border-color: rgba(0,117,222,0.4);"
                                                     required>
@@ -85,7 +93,9 @@
                                                 <label class="form-label fw-bold">업데이트할 BIOS 버전</label>
                                                 <select class="form-select target-req"
                                                         style="border-color: rgba(0,117,222,0.4);"
-                                                        id="boardBIOSId" disabled required>
+                                                        id="boardBIOSId"
+                                                        data-error-field="boardBIOSId"
+                                                        disabled required>
                                                     <option value="" class="info-option" selected>보드 모델을 먼저 선택하세요</option>
                                                     <th:block th:each="view : ${boardViewList}">
                                                         <option class="unavailable"
@@ -100,7 +110,9 @@
                                                 <label class="form-label fw-bold">업데이트할 BMC 버전</label>
                                                 <select class="form-select target-req"
                                                         style="border-color: rgba(0,117,222,0.4);"
-                                                        id="boardBMCId" disabled required>
+                                                        id="boardBMCId"
+                                                        data-error-field="boardBMCId"
+                                                        disabled required>
                                                     <option value="" class="info-option" selected>보드 모델을 먼저 선택하세요</option>
                                                     <th:block th:each="view : ${boardViewList}">
                                                         <option class="unavailable"
@@ -140,6 +152,7 @@
                                             <select class="form-select w-50 target-req"
                                                     style="border-color: rgba(0,117,222,0.4);"
                                                     id="osMetadataId"
+                                                    data-error-field="osMetadataId"
                                                     onchange="onVersionChange(this.value)"
                                                     disabled required>
                                                 <option value="" class="info-version-option">OS 종류를 먼저 선택하세요</option>
@@ -157,6 +170,7 @@
                                             <select class="form-select w-50 target-req"
                                                     style="border-color: rgba(0,117,222,0.4);"
                                                     id="environmentId"
+                                                    data-error-field="environmentId"
                                                     onchange="onEnvironmentChange(this.value)"
                                                     disabled required>
                                                 <option value="" class="info-env-option">버전을 먼저 선택하세요</option>
@@ -176,6 +190,7 @@
                                             <label class="form-label fw-bold">추가 패키지 그룹</label>
                                             <div id="packageGroupArea"
                                                  class="border rounded p-2"
+                                                 data-error-field="packageGroupIds"
                                                  style="min-height:40px; border-color: rgba(0,0,0,0.1) !important;">
                                                 <span class="text-muted small" id="pkgGroupPlaceholder">환경을 선택하면 패키지 그룹이 표시됩니다.</span>
                                                 <th:block th:each="os : ${osInstallationViewList}">
@@ -202,7 +217,9 @@
                                             <div class="col-md-4">
                                                 <label class="form-label fw-bold">타임존</label>
                                                 <input type="text" class="form-control target-req"
-                                                       id="timezone" placeholder="예: Asia/Seoul" required>
+                                                       id="timezone"
+                                                       data-error-field="timezone"
+                                                       placeholder="예: Asia/Seoul" required>
                                             </div>
                                             <div class="col-auto d-flex align-items-end pb-1">
                                                 <div class="form-check">
@@ -220,19 +237,38 @@
                                             </div>
                                         </div>
                                         <!-- 파티션 구성 -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">파티션 구성</label>
+                                        <div class="mb-3" data-error-field="partitions">
+                                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <label class="form-label fw-bold mb-0">파티션 구성</label>
+                                                <button type="button"
+                                                        class="btn btn-outline-secondary btn-sm"
+                                                        id="btnDefaultPartitions"
+                                                        onclick="generateDefaultPartitions()"
+                                                        disabled>
+                                                    기본 파티션 자동 생성
+                                                </button>
+                                            </div>
                                             <div class="small text-muted mb-1">
                                                 필수 마운트포인트: /, /boot, /boot/efi, swap
                                             </div>
-                                            <table class="table table-sm table-bordered" id="partitionTable">
+                                            <table class="table table-sm table-bordered" id="partitionTable" style="table-layout: fixed;">
+                                                <colgroup>
+                                                    <col style="width: 22%">  <!-- 마운트포인트 -->
+                                                    <col style="width: 14%">  <!-- 파일시스템 -->
+                                                    <col style="width: 11%">  <!-- 디스크명 -->
+                                                    <col style="width: 10%">  <!-- 크기 -->
+                                                    <col style="width: 9%">   <!-- 단위 -->
+                                                    <col style="width: 8%">   <!-- Grow -->
+                                                    <col style="width: 8%">   <!-- 삭제 -->
+                                                </colgroup>
                                                 <thead class="table-dark">
                                                     <tr>
                                                         <th>마운트포인트</th>
                                                         <th>파일시스템</th>
-                                                        <th>디스크명 (선택)</th>
-                                                        <th>크기(MB)</th>
-                                                        <th>Grow</th>
+                                                        <th>디스크명</th>
+                                                        <th>크기</th>
+                                                        <th>단위</th>
+                                                        <th class="text-center">Grow</th>
                                                         <th></th>
                                                     </tr>
                                                 </thead>
@@ -242,19 +278,48 @@
                                                     class="btn btn-outline-secondary btn-sm"
                                                     onclick="addPartitionRow()">+ 파티션 추가</button>
                                         </div>
-                                        <!-- 사용자 설정 -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">사용자 설정</label>
-                                            <div class="small text-muted mb-1">
-                                                username이 "root"인 사용자를 반드시 포함해야 합니다.
+                                        <!-- root 계정 비밀번호 설정 -->
+                                        <div class="mb-3" data-error-field="rootPassword">
+                                            <label class="form-label fw-bold">root 계정 비밀번호</label>
+                                            <div class="small text-muted mb-2">
+                                                비워두면 root 계정이 잠긴 상태로 설치됩니다.
+                                                이 경우 아래 일반 사용자를 반드시 1명 이상 추가해야 합니다.
                                             </div>
-                                            <table class="table table-sm table-bordered" id="userTable">
+                                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                                <div>
+                                                    <label class="form-label form-label-sm mb-1">비밀번호</label>
+                                                    <input type="password" class="form-control form-control-sm"
+                                                           id="rootPassword" style="width: 220px;"
+                                                           placeholder="비워두면 root 계정 잠금">
+                                                </div>
+                                                <div class="form-check mt-3">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           id="rootPasswordEncrypted">
+                                                    <label class="form-check-label form-label-sm"
+                                                           for="rootPasswordEncrypted">비밀번호 암호화</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- 일반 사용자 설정 -->
+                                        <div class="mb-3" data-error-field="users">
+                                            <label class="form-label fw-bold">일반 사용자 설정</label>
+                                            <div class="small text-muted mb-1">
+                                                root 비밀번호를 입력한 경우 선택 사항입니다.
+                                            </div>
+                                            <table class="table table-sm table-bordered" id="userTable" style="table-layout: fixed;">
+                                                <colgroup>
+                                                    <col style="width: 22%">  <!-- 사용자명 -->
+                                                    <col style="width: 32%">  <!-- 비밀번호 -->
+                                                    <col style="width: 12%">  <!-- sudo -->
+                                                    <col style="width: 18%">  <!-- 비밀번호 암호화 -->
+                                                    <col style="width: 16%">  <!-- 삭제 -->
+                                                </colgroup>
                                                 <thead class="table-dark">
                                                     <tr>
                                                         <th>사용자명</th>
                                                         <th>비밀번호</th>
-                                                        <th>sudo</th>
-                                                        <th>비밀번호 암호화</th>
+                                                        <th class="text-center">sudo</th>
+                                                        <th class="text-center">비밀번호 암호화</th>
                                                         <th></th>
                                                     </tr>
                                                 </thead>
@@ -289,9 +354,14 @@
 </div>
 
 <style>
-    /* 선택 불가 옵션 숨김 처리 */
+    /* 선택 불가 옵션 숨김 처리 (이 페이지 전용 동적 UI 상태) */
     .unavailable { display: none !important; }
+    /* 폼 검증 에러 스타일(.has-error, .field-error-message) 은 fragments/layout 에서
+       /css/form-validation.css 로 공통 로드된다. 여기에 재정의하지 않음. */
 </style>
+
+<!-- 공통 폼 에러 렌더러. window.FormError 네임스페이스만 노출된다. -->
+<script src="/js/form-error.js"></script>
 
 <script>
     function checkIfBiosAndBmcAvailable(selectedBoardModelId) {
@@ -365,8 +435,12 @@
         });
     }
 
-    // 1단계: OS 종류 선택 → 버전 셀렉트 동적 갱신
+    // 1단계: OS 종류 선택 → 버전 셀렉트 동적 갱신 + 기본 파티션 버튼 활성화
     function onOsNameChange(selectedOsName) {
+        // OS 가 선택된 경우에만 기본 파티션 자동 생성 버튼 활성화
+        const btnDefault = document.getElementById('btnDefaultPartitions');
+        if (btnDefault) btnDefault.disabled = !selectedOsName;
+
         const verSelect  = document.getElementById('osMetadataId');
         const infoOption = verSelect.querySelector('.info-version-option');
         if (!selectedOsName) {
@@ -413,37 +487,211 @@
         document.getElementById('pkgGroupPlaceholder').style.display = selectedEnvId ? 'none' : '';
     }
 
-    // 파티션 행 동적 추가
-    function addPartitionRow() {
-        const fsOptions = ['EXT3', 'EXT4', 'XFS', 'EFI', 'SWAP'];
-        document.querySelector('#partitionTable tbody').insertAdjacentHTML('beforeend', `
-            <tr>
-                <td><input type="text" class="form-control form-control-sm mountPoint" placeholder="/boot"></td>
-                <td><select class="form-select form-select-sm fileSystem">${fsOptions.map(v => `<option value="${v}">${v.toLowerCase()}</option>`).join('')}</select></td>
-                <td><input type="text" class="form-control form-control-sm diskName" placeholder="sda"></td>
-                <td><input type="number" class="form-control form-control-sm sizeInMB" min="1" placeholder="1024"></td>
-                <td class="text-center align-middle"><input type="checkbox" class="form-check-input isGrow"></td>
-                <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
-            </tr>`);
-    }
+    /**
+     * 마운트포인트-파일시스템 조합 제약 (백엔드 LinuxInstallation.validatePartitionFileSystems 와 동기화).
+     *   /boot/efi → EFI 강제
+     *   swap      → SWAP 강제
+     *   그 외     → EFI·SWAP 비활성화, EXT3·EXT4·XFS 만 선택 가능
+     */
+    const FS_CONSTRAINT = {
+        FIXED:   { '/boot/efi': 'EFI', 'swap': 'SWAP' },
+        BLOCKED: ['EFI', 'SWAP']
+    };
 
-    // 사용자 행 동적 추가
-    function addUserRow() {
-        document.querySelector('#userTable tbody').insertAdjacentHTML('beforeend', `
-            <tr>
-                <td><input type="text" class="form-control form-control-sm username" placeholder="root"></td>
-                <td><input type="password" class="form-control form-control-sm password"></td>
-                <td class="text-center align-middle"><input type="checkbox" class="form-check-input isSudoer"></td>
-                <td class="text-center align-middle"><input type="checkbox" class="form-check-input isPasswordEncrypted"></td>
-                <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
-            </tr>`);
+    function applyFsConstraint(row) {
+        const mp       = row.querySelector('.mountPoint').value.trim();
+        const fsSelect = row.querySelector('.fileSystem');
+        const forced   = FS_CONSTRAINT.FIXED[mp];
+
+        Array.from(fsSelect.options).forEach(opt => {
+            if (forced) {
+                // 강제 마운트포인트: 해당 파일시스템만 활성화
+                opt.disabled = opt.value !== forced;
+            } else {
+                // 일반 마운트포인트: EFI·SWAP 비활성화
+                opt.disabled = FS_CONSTRAINT.BLOCKED.includes(opt.value);
+            }
+        });
+
+        if (forced) {
+            fsSelect.value = forced;
+        } else if (FS_CONSTRAINT.BLOCKED.includes(fsSelect.value)) {
+            // 이미 선택된 값이 blocked 목록이면 EXT4 로 초기화
+            fsSelect.value = 'EXT4';
+        }
     }
 
     /**
-     * 폼 유효성 검사 통과 후 최종 JSON 조립 및 전송 로직
+     * grow 체크박스 변경 시:
+     * - 체크: 크기 입력 비활성화·초기화, 같은 디스크 그룹의 다른 행 grow 해제 및 재활성화
+     * - 해제: 크기 입력 활성화
+     * 백엔드 LinuxInstallation.validateGrowConstraint 와 동일한 디스크 그룹핑 규칙.
      */
-    function submitSettingTemplate() {
-        const processList = [];
+    function onGrowChange(checkbox) {
+        const row       = checkbox.closest('tr');
+        const sizeInput = row.querySelector('.size');
+
+        if (checkbox.checked) {
+            // grow 활성화: 크기 입력 불필요 → 비활성화 및 에러 스타일 초기화
+            sizeInput.disabled = true;
+            sizeInput.value    = '';
+            sizeInput.classList.remove('has-error');
+
+            // 같은 디스크 그룹의 다른 행 grow 해제 (디스크당 grow 1개 제한)
+            const diskName = row.querySelector('.diskName').value.trim();
+            document.querySelectorAll('#partitionTable tbody tr').forEach(otherRow => {
+                if (otherRow === row) return;
+                const otherDisk = otherRow.querySelector('.diskName').value.trim();
+                if (diskName === otherDisk) {
+                    const otherGrow = otherRow.querySelector('.isGrow');
+                    if (otherGrow.checked) {
+                        otherGrow.checked = false;
+                        otherRow.querySelector('.size').disabled = false;
+                    }
+                }
+            });
+        } else {
+            // grow 해제: 크기 입력 다시 활성화
+            sizeInput.disabled = false;
+        }
+    }
+
+    /**
+     * 파티션 크기 클라이언트 사전 검증.
+     * grow 미체크이면서 크기가 0 이하인 행의 size input 에 has-error 마킹 후 true 반환.
+     * 에러 없으면 false 반환.
+     */
+    function hasPartitionSizeError() {
+        let found = false;
+        document.querySelectorAll('#partitionTable tbody tr').forEach(row => {
+            const sizeInput = row.querySelector('.size');
+            const isGrow    = row.querySelector('.isGrow').checked;
+            if (!isGrow && (parseInt(sizeInput.value) || 0) <= 0) {
+                sizeInput.classList.add('has-error');
+                // 값 입력 시 해당 input 에러 스타일만 제거
+                sizeInput.addEventListener('input', function clear() {
+                    sizeInput.classList.remove('has-error');
+                    sizeInput.removeEventListener('input', clear);
+                });
+                found = true;
+            }
+        });
+        if (found) {
+            const partitionsDiv = document.querySelector('[data-error-field="partitions"]');
+            FormError.paintField(partitionsDiv, '파티션의 크기는 반드시 지정되거나 grow 가 지정되어야 합니다.');
+            partitionsDiv?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return found;
+    }
+
+    /**
+     * 백엔드 API 에서 OS별 기본 파티션 프리셋을 가져와 파티션 테이블을 초기화한다.
+     * 기존 행이 있으면 사용자에게 확인 후 교체한다.
+     * size/sizeUnit 이 null 인 파티션(예: /)은 크기 입력란을 비워 사용자가 직접 입력하게 한다.
+     */
+    async function generateDefaultPartitions() {
+        const osName = document.getElementById('osNameSelect').value;
+        if (!osName) return;
+
+        const tbody = document.querySelector('#partitionTable tbody');
+        if (tbody.rows.length > 0 &&
+            !confirm('기존 파티션 구성이 초기화됩니다. 계속하시겠습니까?')) return;
+
+        let presets;
+        try {
+            const res = await fetch(`/pxe/v1/setting/api/default-partitions?osName=${encodeURIComponent(osName)}`);
+            if (!res.ok) { alert('기본 파티션 정보를 불러오지 못했습니다.'); return; }
+            presets = await res.json();
+        } catch (e) {
+            alert('네트워크 오류가 발생했습니다.');
+            return;
+        }
+
+        // 기존 행 제거 후 프리셋 행 삽입
+        tbody.innerHTML = '';
+        const fsOptions = ['EXT3', 'EXT4', 'XFS', 'EFI', 'SWAP'];
+        presets.forEach(preset => {
+            const fsOpts = fsOptions.map(v =>
+                `<option value="${v}" ${v === preset.fileSystem ? 'selected' : ''}>${v.toLowerCase()}</option>`
+            ).join('');
+            const sizeVal  = preset.size     != null ? preset.size     : '';
+            // option value 는 SizeUnit enum 이름(MB/GB/TB)으로 유지하고, 표시 레이블만 IEC 이진 표기 사용
+            const IEC_LABEL = { MB: 'MiB', GB: 'GiB', TB: 'TiB' };
+            const unitSel  = ['MB', 'GB', 'TB'].map(u =>
+                `<option value="${u}" ${u === preset.sizeUnit ? 'selected' : ''}>${IEC_LABEL[u]}</option>`
+            ).join('');
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm mountPoint"
+                               value="${preset.mountPoint}"
+                               oninput="applyFsConstraint(this.closest('tr'))"></td>
+                    <td><select class="form-select form-select-sm fileSystem">${fsOpts}</select></td>
+                    <td><input type="text" class="form-control form-control-sm diskName" placeholder="sda"></td>
+                    <td><input type="number" class="form-control form-control-sm size"
+                               min="1" value="${sizeVal}" placeholder="10"></td>
+                    <td><select class="form-select form-select-sm sizeUnit">${unitSel}</select></td>
+                    <td class="text-center align-middle">
+                        <input type="checkbox" class="form-check-input isGrow"
+                               onchange="onGrowChange(this)"></td>
+                    <td style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm"
+                                onclick="this.closest('tr').remove()">삭제</button></td>
+                </tr>`);
+            applyFsConstraint(tbody.lastElementChild);
+        });
+    }
+
+    // 파티션 행 동적 추가
+    function addPartitionRow() {
+        const fsOptions = ['EXT3', 'EXT4', 'XFS', 'EFI', 'SWAP'];
+        const tbody = document.querySelector('#partitionTable tbody');
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr>
+                <td><input type="text" class="form-control form-control-sm mountPoint"
+                           placeholder="/boot"
+                           oninput="applyFsConstraint(this.closest('tr'))"></td>
+                <td><select class="form-select form-select-sm fileSystem">${fsOptions.map(v => `<option value="${v}">${v.toLowerCase()}</option>`).join('')}</select></td>
+                <td><input type="text" class="form-control form-control-sm diskName" placeholder="sda"></td>
+                <td><input type="number" class="form-control form-control-sm size" min="1" placeholder="10"></td>
+                <td><select class="form-select form-select-sm sizeUnit">
+                        <option value="MB">MiB</option>
+                        <option value="GB" selected>GiB</option>
+                        <option value="TB">TiB</option>
+                    </select></td>
+                <td class="text-center align-middle">
+                    <input type="checkbox" class="form-check-input isGrow"
+                           onchange="onGrowChange(this)"></td>
+                <td style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+            </tr>`);
+        // 새로 추가된 행에 초기 제약 적용 (기본값 EXT4, EFI·SWAP 미선택 상태에서도 옵션 상태 정합)
+        applyFsConstraint(tbody.lastElementChild);
+    }
+
+    // 일반 사용자 행 동적 추가
+    function addUserRow() {
+        document.querySelector('#userTable tbody').insertAdjacentHTML('beforeend', `
+            <tr>
+                <td><input type="text" class="form-control form-control-sm username" placeholder="사용자명"></td>
+                <td><input type="password" class="form-control form-control-sm password"></td>
+                <td class="text-center align-middle"><input type="checkbox" class="form-check-input isSudoer"></td>
+                <td class="text-center align-middle"><input type="checkbox" class="form-check-input isPasswordEncrypted"></td>
+                <td style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+            </tr>`);
+    }
+
+    // -----------------------------------------------------------------------------
+    // 폼 제출 & 서버 에러 렌더링
+    // -----------------------------------------------------------------------------
+    // 에러 렌더러 자체는 /js/form-error.js (window.FormError) 에 있으며 이 파일은
+    // 페이로드 조립 + stepTypeByIndex 매핑 + fetch 흐름만 담당한다. 서버 응답의
+    // fieldErrors[].field 경로 규칙과 data-error-scope/data-error-field 계약은
+    // form-error.js 상단 JSDoc 를 참고.
+
+    /** 체크된 step 들을 순서대로 순회하며 페이로드와 stepTypeByIndex 를 동시에 만든다. */
+    function buildSettingPayload() {
+        const processList     = [];
+        // 제출 시점의 processList 인덱스 ↔ step.name() 매핑.
+        // FormError.renderResponse 가 "processList[i]" 경로를 DOM 스코프로 역매핑할 때 사용.
+        const stepTypeByIndex = [];
 
         document.querySelectorAll('.step-enable-chk:checked').forEach(chk => {
             const stepName = chk.value;
@@ -454,16 +702,23 @@
                     boardBIOSId:  parseInt(document.querySelector('#boardBIOSId').value),
                     boardBMCId:   parseInt(document.querySelector('#boardBMCId').value)
                 });
+                stepTypeByIndex.push(stepName);
             } else if (stepName === 'BASIC_SETTING') {
-                processList.push({type: "BASIC_SETTING"});
+                processList.push({ type: "BASIC_SETTING" });
+                stepTypeByIndex.push(stepName);
             } else if (stepName === 'OS_INSTALLATION') {
                 const partitions = Array.from(document.querySelectorAll('#partitionTable tbody tr')).map(row => ({
                     mountPoint: row.querySelector('.mountPoint').value,
                     fileSystem: row.querySelector('.fileSystem').value,
                     diskName:   row.querySelector('.diskName').value || null,
-                    sizeInMB:   parseInt(row.querySelector('.sizeInMB').value) || 1,
+                    size:       parseInt(row.querySelector('.size').value) || 0,
+                    sizeUnit:   row.querySelector('.sizeUnit').value,
                     isGrow:     row.querySelector('.isGrow').checked
                 }));
+                const rootPwValue = document.getElementById('rootPassword').value;
+                const rootPassword = rootPwValue
+                    ? { password: rootPwValue, isPasswordEncrypted: document.getElementById('rootPasswordEncrypted').checked }
+                    : null;
                 const users = Array.from(document.querySelectorAll('#userTable tbody tr')).map(row => ({
                     username:            row.querySelector('.username').value,
                     password:            row.querySelector('.password').value,
@@ -481,31 +736,62 @@
                     environmentId:   parseInt(document.getElementById('environmentId').value),
                     packageGroupIds: pkgGroupIds,
                     partitions,
+                    rootPassword,
                     users
                 });
+                stepTypeByIndex.push(stepName);
             } else if (stepName === 'OS_SETTING') {
-                processList.push({type: "OS_SETTING"});
+                processList.push({ type: "OS_SETTING" });
+                stepTypeByIndex.push(stepName);
             }
         });
 
-        if (processList.length === 0) {
-            alert("최소 하나 이상의 프로비저닝 단계를 사용(체크)해야 합니다.");
+        const payload = { name: document.getElementById('settingName').value, processList };
+        return { payload, stepTypeByIndex };
+    }
+
+    /** 폼 유효성 검사 통과 후 최종 JSON 조립 및 전송 로직 */
+    async function submitSettingTemplate() {
+        FormError.clearAll();
+
+        const { payload, stepTypeByIndex } = buildSettingPayload();
+
+        if (payload.processList.length === 0) {
+            FormError.renderFormLevel("최소 하나 이상의 프로비저닝 단계를 사용(체크)해야 합니다.");
             return;
         }
 
-        const payload = { name: document.getElementById('settingName').value, processList };
+        // OS_INSTALLATION 이 포함된 경우 파티션 크기 클라이언트 사전 검증
+        if (stepTypeByIndex.includes('OS_INSTALLATION') && hasPartitionSizeError()) return;
 
-        fetch('/pxe/v1/setting/api/new', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(response => {
-            if (!response.ok) return response.json().then(err => { throw new Error(err.message || "서버 응답 오류 (" + response.status + ")"); });
-            return response;
-        })
-        .then(() => { alert("주문서 생성이 완료되었습니다."); })
-        .catch(error => { console.error("통신 실패:", error); alert("요청 처리에 실패했습니다: " + error.message); });
+        let response;
+        try {
+            response = await fetch('/pxe/v1/setting/api/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (networkErr) {
+            console.error("[submitSettingTemplate] 네트워크 오류:", networkErr);
+            FormError.renderFormLevel("서버와 통신할 수 없습니다: " + networkErr.message);
+            return;
+        }
+
+        if (!response.ok) {
+            let errBody;
+            try {
+                errBody = await response.json();
+            } catch (parseErr) {
+                errBody = { message: "서버 응답 오류 (" + response.status + ")" };
+            }
+            FormError.renderResponse(errBody, { stepTypeByIndex });
+            return;
+        }
+
+        const data = await response.json();
+        FormError.clearAll();
+        // 성공 UX 는 이번 요구사항 범위가 아니므로 alert 유지.
+        alert("주문서 #" + data.id + " '" + data.name + "' 생성이 완료되었습니다.");
     }
 </script>
 </body>
