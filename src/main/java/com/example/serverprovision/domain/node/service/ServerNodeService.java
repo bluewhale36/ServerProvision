@@ -57,10 +57,19 @@ public class ServerNodeService {
     @Transactional
     public ServerNode getOrRegisterNode(String macAddress, String vendorStr, String boardModelStr) {
 
-        BoardModel boardModel = boardModelRepository.findByVendorAndModelName(Vendor.valueOf(vendorStr), boardModelStr)
-                .orElseThrow(() -> new RuntimeException("해당 보드 모델을 찾을 수 없습니다. Vendor: " + vendorStr + ", Model: " + boardModelStr));
-
+        // 기존 노드가 있으면 바로 반환
         return serverNodeRepository.findAvailableNodeByMacAddress(macAddress).orElseGet(() -> {
+            // 신규 등록 시 vendor/boardModel 필수
+            if (vendorStr == null || vendorStr.isBlank() || boardModelStr == null || boardModelStr.isBlank()) {
+                throw new RuntimeException(
+                        "신규 서버 등록에는 vendor 와 board-model 이 필요합니다. MAC: " + macAddress);
+            }
+
+            BoardModel boardModel = boardModelRepository.findByVendorAndModelName(
+                            Vendor.valueOf(vendorStr), boardModelStr)
+                    .orElseThrow(() -> new RuntimeException(
+                            "해당 보드 모델을 찾을 수 없습니다. Vendor: " + vendorStr + ", Model: " + boardModelStr));
+
             log.info("신규 물리 서버 감지. MAC: {}", macAddress);
             ServerNode newNode = ServerNode.create(macAddress, boardModel);
             return serverNodeRepository.save(newNode);
