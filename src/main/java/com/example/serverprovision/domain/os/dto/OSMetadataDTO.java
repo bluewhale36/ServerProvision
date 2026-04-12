@@ -2,6 +2,7 @@ package com.example.serverprovision.domain.os.dto;
 
 import com.example.serverprovision.domain.os.entity.OSMetadata;
 import com.example.serverprovision.domain.os.model.enums.OSName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -9,14 +10,14 @@ import java.util.List;
 
 @Builder
 public record OSMetadataDTO(
-        Long id,
-        OSName osName,
-        String osVersion,
-        String isoMountPath,
-        String ksTemplatePath,
-        boolean isEnabled,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        @JsonProperty("id")              Long id,
+        @JsonProperty("osName")          OSName osName,
+        @JsonProperty("osVersion")       String osVersion,
+        @JsonProperty("isoMountPath")    String isoMountPath,
+        @JsonProperty("ksTemplatePath")  String ksTemplatePath,
+        @JsonProperty("isEnabled")       boolean isEnabled,
+        @JsonProperty("createdAt")       LocalDateTime createdAt,
+        @JsonProperty("updatedAt")       LocalDateTime updatedAt
 ) {
     public static OSMetadataDTO from(OSMetadata osMetadata) {
         return OSMetadataDTO.builder()

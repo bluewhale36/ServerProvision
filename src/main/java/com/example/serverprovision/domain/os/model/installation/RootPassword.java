@@ -2,6 +2,8 @@ package com.example.serverprovision.domain.os.model.installation;
 
 import com.example.serverprovision.global.exception.DomainValidationException;
 import com.example.serverprovision.global.exception.DomainValidationException.Reason;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -29,7 +31,11 @@ public class RootPassword implements InstallScriptable {
     private final boolean isPasswordEncrypted;
 
     @Builder
-    private RootPassword(String password, boolean isPasswordEncrypted) {
+    @JsonCreator
+    RootPassword(
+            @JsonProperty("password")          String password,
+            // Jackson 이 isPasswordEncrypted() getter 에서 "is" 접두사를 제거해 "passwordEncrypted" 로 직렬화함
+            @JsonProperty("passwordEncrypted") boolean isPasswordEncrypted) {
         if (password == null || !SAFE_PASSWORD.matcher(password).matches()) {
             throw new DomainValidationException(Reason.INVALID_ROOT_PASSWORD,
                     "root 비밀번호에 공백 또는 제어문자를 사용할 수 없습니다. " +

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('세팅 주문서')}"></th:block>
+</head>
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar('setting', '/pxe/v1/setting/new', '새 주문서 작성')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">세팅 주문서</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/pxe/v1/setting/new}" class="n-btn n-btn-primary">새 주문서 작성</a>
+        </div>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div class="n-card" th:if="${#lists.isEmpty(settings)}">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 세팅 주문서가 없습니다</div>
+            <div class="n-empty-desc">새 주문서 작성 버튼을 눌러 첫 번째 주문서를 만들어보세요.</div>
+        </div>
+    </div>
+
+    <!-- 주문서 목록 테이블 -->
+    <div class="n-card" th:if="${!#lists.isEmpty(settings)}">
+        <table class="n-table">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>주문서 명칭</th>
+                <th>포함 단계</th>
+                <th>상태</th>
+                <th>생성일시</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="setting : ${settings}">
+
+                <!-- ID -->
+                <td class="n-td-id" th:text="${setting.id}">1</td>
+
+                <!-- 주문서 명칭 (상세 페이지 링크) -->
+                <td>
+                    <a th:href="@{/pxe/v1/setting/{id}(id=${setting.id})}"
+                       style="font-weight: 500; color: var(--n-text); text-decoration: underline;
+                              text-underline-offset: 3px; text-decoration-color: rgba(0,0,0,0.25);"
+                       onmouseover="this.style.color='var(--n-blue)';this.style.textDecorationColor='var(--n-blue)'"
+                       onmouseout="this.style.color='var(--n-text)';this.style.textDecorationColor='rgba(0,0,0,0.25)'"
+                       th:text="${setting.name}">주문서명</a>
+                </td>
+
+                <!-- 포함 단계 배지 -->
+                <td class="n-td-center">
+                    <div class="n-actions"
+                         th:if="${setting.settingProcess != null and !#lists.isEmpty(setting.settingProcess.processList)}">
+                        <span class="n-badge n-badge-blue"
+                              th:each="step : ${setting.settingProcess.processList}"
+                              th:text="${step.processStep.description}">단계</span>
+                    </div>
+                    <span class="n-table-muted"
+                          th:if="${setting.settingProcess == null or #lists.isEmpty(setting.settingProcess.processList)}">-</span>
+                </td>
+
+                <!-- 상태 배지 -->
+                <td class="n-td-center">
+                    <span class="n-badge"
+                          th:classappend="${setting.status.name() == 'PENDING'      ? 'n-badge-gray'   :
+                                          (setting.status.name() == 'IN_PROGRESS'   ? 'n-badge-blue'   :
+                                          (setting.status.name() == 'COMPLETED'     ? 'n-badge-green'  :
+                                          (setting.status.name() == 'PARTIAL_SUCCESS' ? 'n-badge-teal' :
+                                          (setting.status.name() == 'FAILED'        ? 'n-badge-orange' : 'n-badge-gray'))))}"
+                          th:text="${setting.status.description}">상태</span>
+                </td>
+
+                <!-- 생성일시 -->
+                <td>
+                    <span class="n-table-muted"
+                          th:if="${setting.createdAt == null}">-</span>
+                    <span th:if="${setting.createdAt != null}"
+                          th:text="${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm')}">2024-01-01 00:00</span>
+                </td>
+
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

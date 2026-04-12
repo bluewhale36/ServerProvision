@@ -1,17 +1,18 @@
 package com.example.serverprovision.domain.os.dto;
 
 import com.example.serverprovision.domain.os.entity.OSEnvironment;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AccessLevel;
 import lombok.Builder;
 
 @Builder(access = AccessLevel.PRIVATE)
 public record OSEnvironmentDTO(
-        Long id,
-        OSMetadataDTO metadata,
-        String environmentCode,
-        String displayName,
-        String description,
-        boolean isDefault
+        @JsonProperty("id")              Long id,
+        @JsonProperty("metadata")        OSMetadataDTO metadata,
+        @JsonProperty("environmentCode") String environmentCode,
+        @JsonProperty("displayName")     String displayName,
+        @JsonProperty("description")     String description,
+        @JsonProperty("isDefault")       boolean isDefault
 ) {
     public static OSEnvironmentDTO from(OSEnvironment osEnvironment) {
         return OSEnvironmentDTO.builder()

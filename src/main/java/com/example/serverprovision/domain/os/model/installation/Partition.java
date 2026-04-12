@@ -3,6 +3,8 @@ package com.example.serverprovision.domain.os.model.installation;
 import com.example.serverprovision.domain.os.model.enums.FileSystem;
 import com.example.serverprovision.global.exception.DomainValidationException;
 import com.example.serverprovision.global.exception.DomainValidationException.Reason;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -41,7 +43,14 @@ public class Partition implements InstallScriptable {
     private final boolean isGrow;
 
     @Builder
-    private Partition(String mountPoint, FileSystem fileSystem, String diskName, long sizeInMB, boolean isGrow) {
+    @JsonCreator
+    Partition(
+            @JsonProperty("mountPoint")  String mountPoint,
+            @JsonProperty("fileSystem")  FileSystem fileSystem,
+            @JsonProperty("diskName")    String diskName,
+            @JsonProperty("sizeInMB")    long sizeInMB,
+            // Jackson 이 isGrow() getter 에서 "is" 접두사를 제거해 "grow" 로 직렬화함
+            @JsonProperty("grow")        boolean isGrow) {
         if (mountPoint == null || !VALID_MOUNT_POINT.matcher(mountPoint).matches()) {
             throw new DomainValidationException(Reason.INVALID_PARTITION_VALUE,
                     "마운트포인트에 허용되지 않는 문자가 포함되어 있습니다: '" + mountPoint +

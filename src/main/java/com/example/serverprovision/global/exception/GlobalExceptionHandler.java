@@ -90,6 +90,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * PENDING이 아닌 상태의 주문서 수정 시도 등 허용되지 않는 상태 전이.
+     * 409 Conflict로 응답하여 낙관적 잠금 실패와 동일한 시맨틱을 부여한다.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+        log.warn("[GlobalExceptionHandler] IllegalStateException. message={}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ErrorResponse.of("INVALID_STATE", ex.getMessage()));
+    }
+
+    /**
      * 예측하지 못한 오류. 원문은 로그에만 남기고 클라이언트에게는 일반화된 메시지를 반환해
      * 내부 정보 노출을 최소화한다.
      */

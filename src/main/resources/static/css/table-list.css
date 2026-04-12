@@ -1,0 +1,85 @@
+/* ============================================================
+   table-list.css — 리스트·인라인 테이블 공통 정렬 규칙
+
+   적용 대상
+   ─────────────────────────────────────────────────────────
+   .n-table       Notion 디자인 시스템 기반 목록 테이블
+                  (dashboard, setting/list 등)
+   .n-tbl-list    Bootstrap .table 기반 폼 내 인라인 편집 테이블
+                  (setting/new 의 파티션·사용자 테이블 등)
+
+   정렬 규칙
+   ─────────────────────────────────────────────────────────
+   thead th      수직·수평 모두 가운데 정렬
+   tbody td      수직 가운데 + 수평 왼쪽 (기본)
+   td.n-td-center 버튼·배지·체크박스 등 인터랙티브 요소 셀:
+                  수평 가운데 추가
+   ============================================================ */
+
+/* ---- n-table (Notion 스타일 목록 테이블) ------------------- */
+
+/* 헤더 셀: 수직·수평 가운데
+   style.css 의 text-align: left 를 이 파일에서 덮어씁니다
+   (commonHead 에서 style.css 이후에 로드됨) */
+.n-table thead th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* 데이터 셀: 수직 가운데(style.css 에 이미 정의)·수평 왼쪽 */
+.n-table tbody td {
+    text-align: left;
+}
+
+/* 버튼·배지·상태 표시 셀: 수평 가운데
+   text-align 은 인라인 요소(span, badge 등)에 적용되고,
+   flex 컨테이너(.n-actions)는 justify-content 로 별도 제어한다 */
+.n-table tbody td.n-td-center {
+    text-align: center;
+}
+
+/* n-td-center 안의 flex 컨테이너(.n-actions)도 가운데 정렬 */
+.n-table tbody td.n-td-center .n-actions {
+    justify-content: center;
+}
+
+/* ID 셀: 수평 가운데 + 모노스페이스 + muted 회색(--n-text-muted) */
+.n-table tbody td.n-td-id {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--n-text-muted);
+}
+
+/* ---- n-tbl-list (Bootstrap .table 기반 인라인 테이블) ------ */
+
+/* 헤더 셀: 수직·수평 가운데 */
+.n-tbl-list thead th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* 데이터 셀: 수직 가운데·수평 왼쪽 */
+.n-tbl-list tbody td {
+    text-align: left;
+    vertical-align: middle;
+}
+
+/* 버튼·체크박스·배지 셀: 수평 가운데 */
+.n-tbl-list tbody td.n-td-center {
+    text-align: center;
+}
+
+/* ---- n-detail-fields (상세 페이지 필드 그룹) --------------- */
+/* .n-label.strong(섹션 헤더, 14px)와 시각적으로 구분되도록
+   .n-detail-fields 래퍼 안의 .n-form-group > .n-label 에만 적용.
+   다른 폼 페이지의 .n-label 에는 영향을 주지 않는다. */
+/* .strong 섹션 헤더는 제외하고, 값 위의 필드 설명 레이블에만 적용 */
+.n-detail-fields .n-label:not(.strong) {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--n-text-muted);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}

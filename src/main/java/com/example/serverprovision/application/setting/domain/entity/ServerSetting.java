@@ -64,4 +64,24 @@ public class ServerSetting extends BaseTimeEntity {
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
     private SettingStatus status;
+
+    /**
+     * 세팅 주문서의 명칭과 프로세스 목록을 수정한다.
+     *
+     * <p>역할: {@code @Transactional} 컨텍스트에서 호출되면 JPA Dirty Checking이
+     * UPDATE SQL을 자동 발행한다. 명시적 {@code save()} 호출이 불필요하다.
+     * {@code status}는 변경하지 않으며, {@code updatedAt}은
+     * {@link com.example.serverprovision.global.entity.BaseTimeEntity}의
+     * {@code @LastModifiedDate}가 자동 갱신한다.</p>
+     *
+     * <p>유스케이스: {@link com.example.serverprovision.application.setting.service.SettingService#update}에서
+     * PENDING 상태 검증 후 호출된다.</p>
+     *
+     * @param name           수정할 주문서 명칭
+     * @param settingProcess 수정할 프로세스 목록 래퍼
+     */
+    public void update(String name, SettingProcess settingProcess) {
+        this.name = name;
+        this.settingProcess = settingProcess;
+    }
 }

@@ -2,7 +2,9 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('OS 메타데이터 관리')}"></th:block>
-    <!-- 이 페이지 전용 스타일 (밀러 컬럼, 추출 태스크 카드) -->
+    <!-- Miller Columns 컴포넌트 스타일 -->
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+    <!-- 이 페이지 전용 스타일 (환경 정보 자동 추출: 스피너, 태스크 카드, 진행률 바) -->
     <link rel="stylesheet" th:href="@{/admin/os/os-list.css}">
 </head>
 <body>

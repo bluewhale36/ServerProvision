@@ -171,6 +171,7 @@ public class OSInstallationResolver implements SettingProcessResolver {
                                 .rootPassword(rootPassword)
                                 .installVersion(osMetadata.getOsVersion())
                                 .environment(environment)
+                                .timezone(timezone)
                                 .isKDumpEnabled(req.isKDumpEnabled())
                                 .build();
                         default -> throw new FieldValidationException("osMetadataId",

@@ -4,11 +4,15 @@ import com.example.serverprovision.domain.os.dto.OSEnvironmentDTO;
 import com.example.serverprovision.domain.os.dto.OSPackageGroupDTO;
 import com.example.serverprovision.global.exception.DomainValidationException;
 import com.example.serverprovision.global.exception.DomainValidationException.Reason;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
+import lombok.Getter;
 
 import java.util.List;
 
+@Getter
 public class Environment implements InstallScriptable {
 
     @NotNull(message = "OS 환경 정보는 필수 값입니다.")
@@ -16,9 +20,10 @@ public class Environment implements InstallScriptable {
     private final List<OSPackageGroupDTO> packageGroups;
 
     @Builder
-    private Environment(
-            OSEnvironmentDTO osEnvironment,
-            List<OSPackageGroupDTO> packageGroups
+    @JsonCreator
+    Environment(
+            @JsonProperty("osEnvironment")  OSEnvironmentDTO osEnvironment,
+            @JsonProperty("packageGroups")  List<OSPackageGroupDTO> packageGroups
     ) {
         // 도메인 규칙: 패키지 그룹은 반드시 선택된 OS 환경에 속해야 한다.
         // 이 검증은 이중 방어 — resolver 에서 이미 서비스 계층 교차 검증을 수행하므로

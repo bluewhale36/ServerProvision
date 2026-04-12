@@ -243,7 +243,7 @@ body {
     color: rgba(0, 0, 0, 0.85);
     margin-bottom: 6px;
 }
-.n-label.strong { font-weight: 600; }
+.n-label.strong { font-size: 14px; font-weight: 600; }
 .n-label.blue   { color: var(--n-blue); font-weight: 600; }
 
 .n-input,

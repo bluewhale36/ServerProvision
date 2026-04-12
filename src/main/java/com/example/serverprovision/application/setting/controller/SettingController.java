@@ -3,13 +3,19 @@ package com.example.serverprovision.application.setting.controller;
 import com.example.serverprovision.application.setting.domain.entity.ServerSetting;
 import com.example.serverprovision.application.setting.dto.SettingCreateRequest;
 import com.example.serverprovision.application.setting.dto.SettingCreateResponse;
+import com.example.serverprovision.application.setting.dto.SettingUpdateResponse;
+import com.example.serverprovision.application.setting.model.BasicUpdate;
+import com.example.serverprovision.application.setting.model.OSInstallation;
 import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
+import com.example.serverprovision.application.setting.model.enums.SettingStatus;
 import com.example.serverprovision.application.setting.service.SettingService;
 import com.example.serverprovision.domain.board.service.BoardModelService;
+import com.example.serverprovision.domain.os.dto.OSPackageGroupDTO;
 import com.example.serverprovision.domain.os.model.enums.FileSystem;
 import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.domain.os.model.installation.LinuxInstallation;
 import com.example.serverprovision.domain.os.model.installation.PartitionPreset;
+import com.example.serverprovision.domain.os.model.installation.RockyLinuxInstallation;
 import com.example.serverprovision.domain.os.service.OSMetadataService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +24,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -55,6 +64,49 @@ public class SettingController {
     private final SettingService settingService;
     private final BoardModelService boardModelService;
     private final OSMetadataService osMetadataService;
+    private final ObjectMapper objectMapper;
+
+    /**
+     * 세팅 주문서 목록 페이지를 렌더링한다.
+     *
+     * <p>역할: DB에 저장된 모든 {@link ServerSetting}을 생성일시 내림차순으로 조회하여
+     * {@code Model}에 추가하고 {@code setting/list} 뷰를 반환한다.</p>
+     *
+     * <p>유스케이스: 관리자가 {@code /pxe/v1/setting}에 접근할 때 호출된다.
+     * 주문서가 없는 경우 템플릿의 빈 상태(empty state) 블록이 렌더링된다.</p>
+     *
+     * @param model Thymeleaf 뷰에 전달할 데이터 컨테이너
+     * @return 뷰 이름 {@code "setting/list"}
+     */
+    @GetMapping
+    public String listSettings(Model model) {
+        model.addAttribute("settings", settingService.findAll());
+        return "setting/list";
+    }
+
+    /**
+     * 세팅 주문서 상세 페이지를 렌더링한다.
+     *
+     * <p>역할: 주어진 {@code id}에 해당하는 {@link ServerSetting}을 조회하여
+     * {@code Model}에 추가하고 {@code setting/detail} 뷰를 반환한다.</p>
+     *
+     * <p>유스케이스: 목록 페이지({@code /pxe/v1/setting})에서 주문서 명칭을 클릭할 때 호출된다.
+     * 해당 id의 주문서가 없으면 404 응답이 반환된다.</p>
+     *
+     * @param id    조회할 세팅 주문서의 PK
+     * @param model Thymeleaf 뷰에 전달할 데이터 컨테이너
+     * @return 뷰 이름 {@code "setting/detail"}
+     */
+    @GetMapping("/{id}")
+    public String detailSetting(@PathVariable Long id, Model model) {
+        var setting = settingService.findById(id);
+        // 존재하지 않는 ID는 목록 페이지로 리다이렉트
+        if (setting.isEmpty()) {
+            return "redirect:/pxe/v1/setting";
+        }
+        model.addAttribute("setting", setting.get());
+        return "setting/detail";
+    }
 
     /**
      * 세팅 주문서 작성 폼 페이지를 렌더링한다.
@@ -90,6 +142,59 @@ public class SettingController {
         model.addAttribute("osInstallationViewList", osMetadataService.getInstallationViewList());
         model.addAttribute("fileSystems", FileSystem.values());
         return "setting/new";
+    }
+
+    /**
+     * 세팅 주문서 수정 폼 페이지를 렌더링한다.
+     *
+     * <p>역할: PENDING 상태인 주문서에 한해 수정 폼을 렌더링한다.
+     * 주문서가 없거나 PENDING이 아닌 경우 적절한 페이지로 redirect한다.
+     * 기존 데이터는 {@link #buildInitialJson}으로 JSON 직렬화하여 모델에 담는다.</p>
+     *
+     * <p>유스케이스: 상세 페이지({@code /pxe/v1/setting/{id}})의 "수정" 버튼 클릭 시 호출된다.
+     * PENDING이 아닌 주문서는 상세 페이지로 redirect하여 수정 폼 진입을 차단한다.</p>
+     *
+     * @param id    수정할 세팅 주문서의 PK
+     * @param model Thymeleaf 뷰에 전달할 데이터 컨테이너
+     * @return 뷰 이름 {@code "setting/edit"}, 또는 redirect URI
+     */
+    @GetMapping("/{id}/edit")
+    public String editSetting(@PathVariable Long id, Model model) {
+        var setting = settingService.findById(id);
+        if (setting.isEmpty()) return "redirect:/pxe/v1/setting";
+        ServerSetting s = setting.get();
+        if (s.getStatus() != SettingStatus.PENDING) return "redirect:/pxe/v1/setting/" + id;
+
+        model.addAttribute("settingProcessStepList", List.of(SettingProcessStep.values()));
+        model.addAttribute("boardViewList", boardModelService.getViewModelList());
+        model.addAttribute("osInstallationViewList", osMetadataService.getInstallationViewList());
+        model.addAttribute("fileSystems", FileSystem.values());
+        model.addAttribute("setting", s);
+        model.addAttribute("initialSettingJson", buildInitialJson(s));
+        return "setting/edit";
+    }
+
+    /**
+     * 세팅 주문서 수정 REST 엔드포인트이다.
+     *
+     * <p>역할: {@link SettingCreateRequest}와 동일한 JSON 스키마를 받아
+     * {@link SettingService#update}에 위임하고 200 OK + {@link SettingUpdateResponse}를 반환한다.</p>
+     *
+     * <p>유스케이스: {@code setting/edit.html}의 JS가 PUT 요청을 전송할 때 호출된다.
+     * PENDING이 아닌 주문서 수정 시도 시 409 Conflict가 반환된다.</p>
+     *
+     * @param id      수정할 세팅 주문서의 PK
+     * @param request 수정 요청 DTO. {@code @Valid}로 Bean Validation 적용.
+     * @return 200 OK + {@link SettingUpdateResponse} (id, name, status)
+     */
+    @PutMapping("/api/{id}")
+    @ResponseBody
+    public ResponseEntity<SettingUpdateResponse> updateSetting(
+            @PathVariable Long id,
+            @Valid @RequestBody SettingCreateRequest request) {
+        log.info("[SettingController] 세팅 주문서 수정 수신. id={}, name={}", id, request.name());
+        ServerSetting updated = settingService.update(id, request);
+        return ResponseEntity.ok(SettingUpdateResponse.from(updated));
     }
 
     /**
@@ -154,6 +259,108 @@ public class SettingController {
         // REST 원칙상 자원 생성 시점에 URI 를 채워두면 추후 엔드포인트가 붙는 순간 자동 유효화된다.
         URI location = URI.create("/pxe/v1/setting/" + body.id());
         return ResponseEntity.created(location).body(body);
+    }
+
+    /**
+     * {@link ServerSetting}의 기존 프로세스 목록을 JS pre-fill용 JSON으로 역변환한다.
+     *
+     * <p>역할: {@link #editSetting}에서 수정 폼에 기존 값을 초기화(pre-fill)할 때
+     * 사용할 JSON 문자열을 생성한다. 각 프로세스 타입에서 필요한 ID와 값을 추출하여
+     * JS가 파싱 가능한 구조로 반환한다.</p>
+     *
+     * <p>보안 주의: 비밀번호(rootPassword, users[].password)는 보안상 포함하지 않는다.
+     * timezone은 도메인 모델에 저장되지 않으므로 포함할 수 없다.</p>
+     *
+     * @param setting pre-fill 대상 세팅 주문서 엔티티
+     * @return JSON 문자열. 직렬화 실패 시 {@code "{}"}
+     */
+    private String buildInitialJson(ServerSetting setting) {
+        if (setting.getSettingProcess() == null) return "{}";
+        List<Map<String, Object>> processList = setting.getSettingProcess().processList()
+                .stream().map(this::toInitialMap).toList();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("name", setting.getName());
+        payload.put("processList", processList);
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            log.warn("[SettingController] initialSettingJson 직렬화 실패. id={}", setting.getId(), e);
+            return "{}";
+        }
+    }
+
+    /**
+     * 단일 {@link com.example.serverprovision.application.setting.model.AbstractSettingProcess}를
+     * JS pre-fill용 {@link Map}으로 변환한다.
+     *
+     * @param process 변환할 프로세스 단계 도메인 모델
+     * @return JS가 파싱 가능한 key-value 맵
+     */
+    private Map<String, Object> toInitialMap(
+            com.example.serverprovision.application.setting.model.AbstractSettingProcess process) {
+        return switch (process.getProcessStep()) {
+            case BASIC_UPDATE -> {
+                BasicUpdate bu = (BasicUpdate) process;
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("type", "BASIC_UPDATES");
+                m.put("boardModelId", bu.getBoardModel().id());
+                m.put("boardBIOSId", bu.getBoardBIOS().id());
+                m.put("boardBMCId", bu.getBoardBMC().id());
+                yield m;
+            }
+            case BASIC_SETTING -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("type", "BASIC_SETTING");
+                yield m;
+            }
+            case OS_INSTALLATION -> {
+                OSInstallation oi = (OSInstallation) process;
+                RockyLinuxInstallation rli = (RockyLinuxInstallation) oi.getOsInstallation();
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("type", "OS_INSTALLATION");
+                m.put("osMetadataId", oi.getOsMetadata().id());
+                m.put("isKDumpEnabled", rli.isKDumpEnabled());
+                m.put("environmentId",
+                        rli.getEnvironment() != null && rli.getEnvironment().getOsEnvironment() != null
+                        ? rli.getEnvironment().getOsEnvironment().id() : null);
+                m.put("packageGroupIds",
+                        rli.getEnvironment() != null
+                        ? rli.getEnvironment().getPackageGroups().stream()
+                                .map(OSPackageGroupDTO::id).toList()
+                        : List.of());
+                m.put("partitions", rli.getPartitions().stream().map(p -> {
+                    Map<String, Object> pm = new LinkedHashMap<>();
+                    pm.put("mountPoint", p.getMountPoint());
+                    pm.put("fileSystem", p.getFileSystem().name());
+                    pm.put("diskName", p.getDiskName() != null ? p.getDiskName() : "");
+                    pm.put("size", p.getSizeInMB());
+                    pm.put("sizeUnit", "MB");
+                    pm.put("grow", p.isGrow());
+                    return pm;
+                }).toList());
+                m.put("users", rli.getUsers().stream().map(u -> {
+                    Map<String, Object> um = new LinkedHashMap<>();
+                    um.put("username", u.getUsername());
+                    um.put("isSudoer", u.isSudoer());
+                    um.put("isPasswordEncrypted", u.isPasswordEncrypted());
+                    // password: 보안상 pre-fill 불가 — JS에서 빈 값으로 표시
+                    return um;
+                }).toList());
+                m.put("hasRootPassword", rli.getRootPassword() != null);
+                m.put("rootPasswordEncrypted",
+                        rli.getRootPassword() != null && rli.getRootPassword().isPasswordEncrypted());
+                if (rli.getTimezone() != null) {
+                    m.put("timezone", rli.getTimezone().getTimezone());
+                    m.put("isUTC", rli.getTimezone().isUTC());
+                }
+                yield m;
+            }
+            case OS_SETTING -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("type", "OS_SETTING");
+                yield m;
+            }
+        };
     }
 
 }

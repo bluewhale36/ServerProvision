@@ -2,6 +2,8 @@ package com.example.serverprovision.domain.os.model.installation;
 
 import com.example.serverprovision.global.exception.DomainValidationException;
 import com.example.serverprovision.global.exception.DomainValidationException.Reason;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -41,7 +43,14 @@ public class User implements InstallScriptable {
     private final boolean isPasswordEncrypted;
 
     @Builder
-    private User(String username, String password, Boolean isSudoer, boolean isPasswordEncrypted) {
+    @JsonCreator
+    User(
+            @JsonProperty("username")            String username,
+            @JsonProperty("password")            String password,
+            // Jackson 이 isSudoer() getter 에서 "is" 접두사를 제거해 "sudoer" 로 직렬화함
+            @JsonProperty("sudoer")              Boolean isSudoer,
+            // Jackson 이 isPasswordEncrypted() getter 에서 "is" 접두사를 제거해 "passwordEncrypted" 로 직렬화함
+            @JsonProperty("passwordEncrypted")   boolean isPasswordEncrypted) {
         if (username == null || !VALID_USERNAME.matcher(username).matches()) {
             throw new DomainValidationException(Reason.INVALID_USER_CREDENTIALS,
                     "사용자명이 올바르지 않습니다: '" + username +

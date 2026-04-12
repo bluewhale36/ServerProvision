@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('세팅 주문서 상세')}"></th:block>
+</head>
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar('setting', '', '')}"></nav>
+
+<div class="n-page-sm">
+
+    <!-- 페이지 헤더 -->
+    <div class="n-page-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <a th:href="@{/pxe/v1/setting}" class="n-btn n-btn-ghost n-btn-sm">← 목록</a>
+            <h1 class="n-page-title" th:text="${setting.name}">주문서명</h1>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <!-- PENDING 상태일 때만 수정 버튼 표시 -->
+            <a th:if="${setting.status.name() == 'PENDING'}"
+               th:href="@{/pxe/v1/setting/{id}/edit(id=${setting.id})}"
+               class="n-btn n-btn-secondary n-btn-sm">수정</a>
+            <span class="n-badge"
+                  th:classappend="${setting.status.name() == 'PENDING'         ? 'n-badge-gray'   :
+                                  (setting.status.name() == 'IN_PROGRESS'      ? 'n-badge-blue'   :
+                                  (setting.status.name() == 'COMPLETED'        ? 'n-badge-green'  :
+                                  (setting.status.name() == 'PARTIAL_SUCCESS'  ? 'n-badge-teal'   :
+                                  (setting.status.name() == 'FAILED'           ? 'n-badge-orange' : 'n-badge-gray'))))}"
+                  th:text="${setting.status.description}">상태</span>
+        </div>
+    </div>
+
+    <!-- 메타 정보 카드 -->
+    <div class="n-card">
+        <div class="n-card-body" style="display:flex; gap:48px;">
+            <div>
+                <div class="n-label">주문서 ID</div>
+                <span style="font-family:'Courier New',monospace; font-size:13px; font-weight:600; color:var(--n-text-muted);"
+                      th:text="${setting.id}">1</span>
+            </div>
+            <div>
+                <div class="n-label">생성일시</div>
+                <span th:if="${setting.createdAt != null}"
+                      th:text="${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm')}"
+                      style="font-size:14px;">-</span>
+                <span class="n-table-muted" th:if="${setting.createdAt == null}">-</span>
+            </div>
+            <div>
+                <div class="n-label">수정일시</div>
+                <span th:if="${setting.updatedAt != null}"
+                      th:text="${#temporals.format(setting.updatedAt, 'yyyy-MM-dd HH:mm')}"
+                      style="font-size:14px;">-</span>
+                <span class="n-table-muted" th:if="${setting.updatedAt == null}">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 프로세스 단계 없음 -->
+    <div class="n-card"
+         th:if="${setting.settingProcess == null or #lists.isEmpty(setting.settingProcess.processList)}">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 프로세스 단계가 없습니다</div>
+        </div>
+    </div>
+
+    <!-- 프로세스 단계별 카드 -->
+    <th:block th:if="${setting.settingProcess != null and !#lists.isEmpty(setting.settingProcess.processList)}">
+        <th:block th:each="process : ${setting.settingProcess.processList}">
+
+            <!-- ==================== BASIC_UPDATE ==================== -->
+            <div class="n-card" th:if="${process.processStep.name() == 'BASIC_UPDATE'}">
+                <div style="padding:16px 24px; border-bottom:1px solid var(--n-border);
+                            display:flex; align-items:center; gap:10px;">
+                    <span class="n-badge n-badge-blue"
+                          th:text="${process.processStep.description}">단계명</span>
+                </div>
+                <div class="n-card-body">
+                    <div class="n-detail-fields" style="display:grid; grid-template-columns:repeat(3,1fr); gap:32px;">
+
+                        <!-- 메인보드 모델 -->
+                        <div>
+                            <div class="n-label strong" style="margin-bottom:12px;">메인보드 모델</div>
+                            <div class="n-form-group">
+                                <div class="n-label">제조사</div>
+                                <div style="font-size:14px;" th:text="${process.boardModel.vendor}">-</div>
+                            </div>
+                            <div class="n-form-group">
+                                <div class="n-label">모델명</div>
+                                <div style="font-size:14px;" th:text="${process.boardModel.modelName}">-</div>
+                            </div>
+                        </div>
+
+                        <!-- BIOS 펌웨어 -->
+                        <div>
+                            <div class="n-label strong" style="margin-bottom:12px;">BIOS 펌웨어</div>
+                            <div class="n-form-group">
+                                <div class="n-label">버전</div>
+                                <div style="font-size:14px; font-family:'Courier New',monospace; font-weight:600;"
+                                     th:text="${process.boardBIOS.version}">-</div>
+                            </div>
+                            <div class="n-form-group">
+                                <div class="n-label">파일 경로</div>
+                                <div style="font-size:12px; font-family:'Courier New',monospace;
+                                            color:var(--n-text-sec); word-break:break-all;"
+                                     th:text="${process.boardBIOS.filePath}">-</div>
+                            </div>
+                        </div>
+
+                        <!-- BMC 펌웨어 -->
+                        <div>
+                            <div class="n-label strong" style="margin-bottom:12px;">BMC 펌웨어</div>
+                            <div class="n-form-group">
+                                <div class="n-label">버전</div>
+                                <div style="font-size:14px; font-family:'Courier New',monospace; font-weight:600;"
+                                     th:text="${process.boardBMC.version}">-</div>
+                            </div>
+                            <div class="n-form-group">
+                                <div class="n-label">파일 경로</div>
+                                <div style="font-size:12px; font-family:'Courier New',monospace;
+                                            color:var(--n-text-sec); word-break:break-all;"
+                                     th:text="${process.boardBMC.filePath}">-</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== BASIC_SETTING ==================== -->
+            <div class="n-card" th:if="${process.processStep.name() == 'BASIC_SETTING'}">
+                <div style="padding:16px 24px; border-bottom:1px solid var(--n-border);
+                            display:flex; align-items:center; gap:10px;">
+                    <span class="n-badge n-badge-blue"
+                          th:text="${process.processStep.description}">단계명</span>
+                </div>
+                <div class="n-card-body">
+                    <span class="n-table-muted" style="font-size:14px;">세부 설정 정보가 없습니다.</span>
+                </div>
+            </div>
+
+            <!-- ==================== OS_INSTALLATION ==================== -->
+            <div class="n-card" th:if="${process.processStep.name() == 'OS_INSTALLATION'}">
+                <div style="padding:16px 24px; border-bottom:1px solid var(--n-border);
+                            display:flex; align-items:center; gap:10px;">
+                    <span class="n-badge n-badge-blue"
+                          th:text="${process.processStep.description}">단계명</span>
+                </div>
+                <div class="n-card-body" style="display:flex; flex-direction:column; gap:32px;">
+
+                    <!-- 기본 정보 -->
+                    <div>
+                        <div class="n-label strong" style="margin-bottom:12px;">기본 정보</div>
+                        <div class="n-detail-fields" style="display:flex; gap:48px; flex-wrap:wrap;">
+                            <div>
+                                <div class="n-label">OS</div>
+                                <div style="font-size:14px;"
+                                     th:text="${process.osMetadata.osName.displayName + ' ' + process.osMetadata.osVersion}">-</div>
+                            </div>
+                            <div>
+                                <div class="n-label">설치 버전</div>
+                                <div style="font-family:'Courier New',monospace; font-size:14px; font-weight:600;"
+                                     th:text="${process.osInstallation.installVersion}">-</div>
+                            </div>
+                            <div>
+                                <div class="n-label">KDump</div>
+                                <span class="n-badge n-badge-green"
+                                      th:if="${process.osInstallation.KDumpEnabled}">활성화</span>
+                                <span class="n-badge n-badge-gray"
+                                      th:if="${!process.osInstallation.KDumpEnabled}">비활성화</span>
+                            </div>
+                            <div>
+                                <div class="n-label">루트 비밀번호</div>
+                                <span class="n-badge n-badge-green"
+                                      th:if="${process.osInstallation.rootPassword != null}">설정됨</span>
+                                <span class="n-badge n-badge-orange"
+                                      th:if="${process.osInstallation.rootPassword == null}">미설정 (잠금)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 파티션 구성 -->
+                    <div>
+                        <div class="n-label strong" style="margin-bottom:12px;">파티션 구성</div>
+                        <table class="n-table">
+                            <thead>
+                            <tr>
+                                <th>마운트포인트</th>
+                                <th>파일시스템</th>
+                                <th>디스크</th>
+                                <th>크기 (MB)</th>
+                                <th>Grow</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="partition : ${process.osInstallation.partitions}">
+                                <td class="n-td-id" th:text="${partition.mountPoint}">-</td>
+                                <td th:text="${partition.fileSystem.displayName}">-</td>
+                                <td>
+                                    <span class="n-table-muted"
+                                          th:if="${#strings.isEmpty(partition.diskName)}">자동</span>
+                                    <span th:if="${!#strings.isEmpty(partition.diskName)}"
+                                          th:text="${partition.diskName}">-</span>
+                                </td>
+                                <td class="n-td-center">
+                                    <span class="n-table-muted"
+                                          th:if="${partition.grow and partition.sizeInMB == 0}">-</span>
+                                    <span th:if="${!(partition.grow and partition.sizeInMB == 0)}"
+                                          th:text="${partition.sizeInMB}">0</span>
+                                </td>
+                                <td class="n-td-center">
+                                    <span class="n-badge n-badge-blue"
+                                          th:if="${partition.grow}">Yes</span>
+                                    <span class="n-table-muted"
+                                          th:if="${!partition.grow}">-</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 사용자 계정 -->
+                    <div th:if="${!#lists.isEmpty(process.osInstallation.users)}">
+                        <div class="n-label strong" style="margin-bottom:12px;">사용자 계정</div>
+                        <table class="n-table">
+                            <thead>
+                            <tr>
+                                <th>사용자명</th>
+                                <th>Sudo 권한</th>
+                                <th>비밀번호 방식</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="user : ${process.osInstallation.users}">
+                                <td style="font-family:'Courier New',monospace; font-size:13px; font-weight:600;"
+                                    th:text="${user.username}">-</td>
+                                <td class="n-td-center">
+                                    <span class="n-badge n-badge-green"
+                                          th:if="${user.sudoer}">Yes</span>
+                                    <span class="n-table-muted"
+                                          th:if="${!user.sudoer}">-</span>
+                                </td>
+                                <td class="n-td-center">
+                                    <span class="n-badge n-badge-gray"
+                                          th:if="${user.passwordEncrypted}">암호화</span>
+                                    <span class="n-badge n-badge-gray"
+                                          th:if="${!user.passwordEncrypted}">평문</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 설치 환경 (구 데이터는 osEnvironment가 null일 수 있음) -->
+                    <div th:if="${process.osInstallation.environment != null
+                                 and process.osInstallation.environment.osEnvironment != null}">
+                        <div class="n-label strong" style="margin-bottom:12px;">설치 환경</div>
+                        <div class="n-detail-fields" style="display:flex; gap:48px; flex-wrap:wrap; align-items:flex-start;">
+                            <div>
+                                <div class="n-label">환경</div>
+                                <div style="font-size:14px;"
+                                     th:text="${process.osInstallation.environment.osEnvironment.displayName}">-</div>
+                            </div>
+                            <div th:if="${!#lists.isEmpty(process.osInstallation.environment.packageGroups)}">
+                                <div class="n-label">패키지 그룹</div>
+                                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                                    <span class="n-badge n-badge-gray"
+                                          th:each="pkg : ${process.osInstallation.environment.packageGroups}"
+                                          th:text="${pkg.displayName}">패키지</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ==================== OS_SETTING ==================== -->
+            <div class="n-card" th:if="${process.processStep.name() == 'OS_SETTING'}">
+                <div style="padding:16px 24px; border-bottom:1px solid var(--n-border);
+                            display:flex; align-items:center; gap:10px;">
+                    <span class="n-badge n-badge-blue"
+                          th:text="${process.processStep.description}">단계명</span>
+                </div>
+                <div class="n-card-body">
+                    <span class="n-table-muted" style="font-size:14px;">세부 설정 정보가 없습니다.</span>
+                </div>
+            </div>
+
+        </th:block>
+    </th:block>
+
+</div>
+
+</body>
+</html>

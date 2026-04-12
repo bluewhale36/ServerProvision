@@ -45,19 +45,19 @@
                     <span th:if="${node.hostname != null}" th:text="${node.hostname}">db-01</span>
                 </td>
                 <td th:text="${node.assignedIp != null ? node.assignedIp : '-'}">10.0.0.1</td>
-                <td>
+                <td class="n-td-center">
                     <span class="n-badge"
                           th:classappend="${node.targetJob.name() == 'IDLE'} ? 'n-badge-gray' : 'n-badge-blue'"
                           th:text="${node.targetJob.description}">IDLE</span>
                 </td>
-                <td>
+                <td class="n-td-center">
                     <span class="n-badge"
                           th:classappend="${node.status.name() == 'NEW' ? 'n-badge-teal' :
                                           (node.status.name() == 'PROVISIONING' ? 'n-badge-orange' :
                                           (node.status.name() == 'COMPLETED' ? 'n-badge-green' : 'n-badge-orange'))}"
                           th:text="${node.status.description}">NEW</span>
                 </td>
-                <td>
+                <td class="n-td-center">
                     <div class="n-actions">
                         <a th:href="@{/pxe/v1/admin/nodes/{mac}/settings(mac=${node.macAddress})}"
                            class="n-btn n-btn-ghost n-btn-sm">설정</a>

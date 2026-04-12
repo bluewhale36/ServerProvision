@@ -1,6 +1,8 @@
 package com.example.serverprovision.domain.os.model.installation;
 
 import com.example.serverprovision.domain.os.model.enums.OSName;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -18,12 +20,22 @@ public class RockyLinuxInstallation extends LinuxInstallation {
     @NotNull(message = "설치 환경 정보는 필수 값입니다.")
     private final Environment environment;
 
+    @NotNull(message = "타임존 정보는 필수 값입니다.")
+    private final Timezone timezone;
+
     private final boolean isKDumpEnabled;
 
     @Builder
+    @JsonCreator
     protected RockyLinuxInstallation(
-            List<Partition> partitions, List<User> users, RootPassword rootPassword,
-            String installVersion, Environment environment, boolean isKDumpEnabled
+            @JsonProperty("partitions")     List<Partition> partitions,
+            @JsonProperty("users")          List<User> users,
+            @JsonProperty("rootPassword")   RootPassword rootPassword,
+            @JsonProperty("installVersion") String installVersion,
+            @JsonProperty("environment")    Environment environment,
+            @JsonProperty("timezone")       Timezone timezone,
+            // Jackson 이 isKDumpEnabled() getter 에서 "is" 접두사를 제거해 "KDumpEnabled" 로 직렬화함
+            @JsonProperty("KDumpEnabled")   boolean isKDumpEnabled
     ) {
         super(
                 OSName.ROCKY_LINUX,
@@ -36,7 +48,8 @@ public class RockyLinuxInstallation extends LinuxInstallation {
         Objects.requireNonNull(environment, "environment 는 null 일 수 없습니다.");
 
         this.installVersion = installVersion;
-        this.environment = environment;
+        this.environment    = environment;
+        this.timezone       = timezone;
         this.isKDumpEnabled = isKDumpEnabled;
     }
 

@@ -34,43 +34,45 @@
              JSON API 기반 폼(form-error.js 사용) 에서만 의미가 있지만, MVC 폼 페이지에도
              함께 로드해도 해당 클래스가 쓰이지 않으면 부작용이 없으므로 commonHead 에 포함. -->
         <link rel="stylesheet" th:href="@{/css/form-validation.css}">
+        <!-- 테이블 공통 정렬 규칙 (.n-table 헤더 가운데, .n-td-center, .n-tbl-list) -->
+        <link rel="stylesheet" th:href="@{/css/table-list.css}">
     </th:block>
 </head>
 
 <body>
-    <!--
-      내비게이션 바 프래그먼트
-      사용 예)
-        CTA 없음 : th:replace="~{fragments/layout :: navbar('dashboard', '', '')}"
-        CTA 있음 : th:replace="~{fragments/layout :: navbar('os', '/pxe/v1/admin/os/new', '신규 OS 등록')}"
-    -->
-    <nav th:fragment="navbar(activePage, ctaHref, ctaText)" class="n-nav">
-        <a th:href="@{/pxe/v1/admin/dashboard}" class="n-nav-brand">Provision Portal</a>
+<!--
+  내비게이션 바 프래그먼트
+  사용 예)
+    CTA 없음 : th:replace="~{fragments/layout :: navbar('dashboard', '', '')}"
+    CTA 있음 : th:replace="~{fragments/layout :: navbar('os', '/pxe/v1/admin/os/new', '신규 OS 등록')}"
+-->
+<nav th:fragment="navbar(activePage, ctaHref, ctaText)" class="n-nav">
+    <a th:href="@{/pxe/v1/admin/dashboard}" class="n-nav-brand">Provision Portal</a>
 
-        <a th:href="@{/pxe/v1/admin/dashboard}"
-           class="n-nav-link"
-           th:classappend="${activePage == 'dashboard'} ? ' active'">대시보드</a>
+    <a th:href="@{/pxe/v1/admin/dashboard}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'dashboard'} ? ' active'">대시보드</a>
 
-        <a th:href="@{/pxe/v1/admin/os}"
-           class="n-nav-link"
-           th:classappend="${activePage == 'os'} ? ' active'">OS 관리</a>
+    <a th:href="@{/pxe/v1/admin/os}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'os'} ? ' active'">OS 관리</a>
 
-        <a th:href="@{/pxe/v1/setting/new}"
-           class="n-nav-link"
-           th:classappend="${activePage == 'setting'} ? ' active'">세팅 주문서</a>
+    <a th:href="@{/pxe/v1/setting}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'setting'} ? ' active'">세팅 주문서</a>
 
-        <a th:href="@{/pxe/v1/order}"
-           class="n-nav-link"
-           th:classappend="${activePage == 'order'} ? ' active'">작업 주문</a>
+    <a th:href="@{/pxe/v1/order}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'order'} ? ' active'">작업 주문</a>
 
-        <div class="n-nav-spacer"></div>
+    <div class="n-nav-spacer"></div>
 
-        <!-- ctaHref 가 비어있지 않을 때만 CTA 버튼 표시 -->
-        <a th:if="${!#strings.isEmpty(ctaHref)}"
-           th:href="${ctaHref}"
-           class="n-nav-cta"
-           th:text="${ctaText}">CTA</a>
-    </nav>
+    <!-- ctaHref 가 비어있지 않을 때만 CTA 버튼 표시 -->
+    <a th:if="${!#strings.isEmpty(ctaHref)}"
+       th:href="${ctaHref}"
+       class="n-nav-cta"
+       th:text="${ctaText}">CTA</a>
+</nav>
 </body>
 
 </html>

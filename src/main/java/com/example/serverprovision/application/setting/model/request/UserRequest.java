@@ -19,6 +19,10 @@ import lombok.Getter;
  * {@code rootPassword}가 {@code null}이고 이 목록도 비어 있으면
  * 도메인 검증에서 {@code NO_ACCESSIBLE_USER} 예외가 발생한다.</p>
  *
+ * <p>수정 모드: {@code keepExistingPassword}가 {@code true}이면 비밀번호 필드를 비워 제출해도
+ * {@link com.example.serverprovision.application.setting.service.SettingService#update}가
+ * 기존 저장 비밀번호를 주입하므로 유효성 검사에서 배제된다.</p>
+ *
  * <p>확장 가이드: 사용자 계정에 SSH 공개키 등 추가 속성이 필요하면 이 클래스에 필드를 추가하고
  * {@code @JsonCreator} 생성자에 파라미터를 추가한다. 도메인 값 객체
  * {@link com.example.serverprovision.domain.os.model.installation.User}에도 동일하게
@@ -31,8 +35,11 @@ public class UserRequest {
     @NotBlank(message = "사용자 이름은 필수 입력값입니다.")
     private final String username;
 
-    /** 사용자 계정 비밀번호이다. Kickstart {@code user --password} 파라미터에 해당한다. */
-    @NotBlank(message = "비밀번호는 필수 입력값입니다.")
+    /**
+     * 사용자 계정 비밀번호이다. Kickstart {@code user --password} 파라미터에 해당한다.
+     * {@code keepExistingPassword}가 {@code true}이면 {@code null}을 허용한다.
+     * {@code false}이면 도메인 계층(SAFE_PASSWORD 패턴)에서 비어 있지 않음이 검증된다.
+     */
     private final String password;
 
     /**
@@ -47,15 +54,24 @@ public class UserRequest {
      */
     private final boolean isPasswordEncrypted;
 
+    /**
+     * 기존 저장 비밀번호를 유지할지 여부이다.
+     * 수정 폼에서 비밀번호 필드를 비워 제출할 때 {@code true}로 설정된다.
+     * 서비스 레이어가 이 플래그를 보고 기존 비밀번호를 주입한 뒤 Resolver에 전달한다.
+     */
+    private final boolean keepExistingPassword;
+
     @JsonCreator
     public UserRequest(
-            @JsonProperty("username")            String username,
-            @JsonProperty("password")            String password,
-            @JsonProperty("isSudoer")            Boolean isSudoer,
-            @JsonProperty("isPasswordEncrypted") boolean isPasswordEncrypted) {
-        this.username            = username;
-        this.password            = password;
-        this.isSudoer            = isSudoer;
-        this.isPasswordEncrypted = isPasswordEncrypted;
+            @JsonProperty("username")               String username,
+            @JsonProperty("password")               String password,
+            @JsonProperty("isSudoer")               Boolean isSudoer,
+            @JsonProperty("isPasswordEncrypted")    boolean isPasswordEncrypted,
+            @JsonProperty("keepExistingPassword")   boolean keepExistingPassword) {
+        this.username             = username;
+        this.password             = password;
+        this.isSudoer             = isSudoer;
+        this.isPasswordEncrypted  = isPasswordEncrypted;
+        this.keepExistingPassword = keepExistingPassword;
     }
 }

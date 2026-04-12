@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('신규 세팅 템플릿 생성')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('세팅 주문서 수정')}"></th:block>
     <!-- 아코디언 동작에 Bootstrap JS 필요 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- 세팅 폼 공유 로직 (new.html / edit.html 공용) -->
@@ -11,15 +11,22 @@
 
 <nav th:replace="~{fragments/layout :: navbar('setting', '', '')}"></nav>
 
+<!-- 기존 데이터 주입 (JS pre-fill 용) -->
+<div id="editInitialData" style="display:none;"
+     th:attr="data-setting-id=${setting.id},
+              data-initial-json=${initialSettingJson}"></div>
+
 <div class="n-page-md">
     <div class="n-page-header">
-        <h1 class="n-page-title">신규 세팅 주문서(템플릿) 작성</h1>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <a th:href="@{/pxe/v1/setting/{id}(id=${setting.id})}" class="n-btn n-btn-ghost n-btn-sm">← 돌아가기</a>
+            <h1 class="n-page-title">세팅 주문서 수정 — <span th:text="${setting.name}">주문서명</span></h1>
+        </div>
     </div>
 
-    <form id="settingForm" novalidate onsubmit="event.preventDefault(); submitSettingTemplate();">
+    <form id="settingEditForm" novalidate onsubmit="event.preventDefault(); submitSettingUpdate();">
 
-        <!-- 폼-레벨 에러 표시 영역 (FieldValidationException 의 필드가 DOM 에 매칭되지 않거나,
-             일반 IllegalArgumentException 등 폼 전체에 귀속되는 오류를 여기에 표시한다) -->
+        <!-- 폼-레벨 에러 표시 영역 -->
         <div id="formErrorArea" class="alert alert-danger d-none" role="alert"></div>
 
         <!-- 주문서 식별 정보 -->
@@ -220,6 +227,10 @@
                                         <div class="row g-3 mb-3">
                                             <div class="col-md-4">
                                                 <label class="form-label fw-bold">타임존</label>
+                                                <div class="small text-warning mb-1" id="timezoneWarning"
+                                                     style="display:none;">
+                                                    이전 주문서의 타임존 정보가 없습니다. 재입력해 주세요.
+                                                </div>
                                                 <input type="text" class="form-control target-req"
                                                        id="timezone"
                                                        data-error-field="timezone"
@@ -288,9 +299,13 @@
                                         <!-- root 계정 비밀번호 설정 -->
                                         <div class="mb-3" data-error-field="rootPassword">
                                             <label class="form-label fw-bold">root 계정 비밀번호</label>
-                                            <div class="small text-muted mb-2">
+                                            <div class="small text-muted mb-1" id="rootPasswordHint">
                                                 비워두면 root 계정이 잠긴 상태로 설치됩니다.
                                                 이 경우 아래 일반 사용자를 반드시 1명 이상 추가해야 합니다.
+                                            </div>
+                                            <div class="small text-warning mb-2" id="rootPasswordExistHint"
+                                                 style="display:none;">
+                                                기존 비밀번호가 설정되어 있습니다. 변경하려면 입력하세요. 비워두면 기존 비밀번호가 유지됩니다.
                                             </div>
                                             <div class="d-flex align-items-center gap-3 flex-wrap">
                                                 <div>
@@ -312,6 +327,7 @@
                                             <label class="form-label fw-bold">일반 사용자 설정</label>
                                             <div class="small text-muted mb-1">
                                                 root 비밀번호를 입력한 경우 선택 사항입니다.
+                                                기존 사용자의 비밀번호는 보안상 표시되지 않습니다. 변경하려면 입력하세요. 비워두면 기존 비밀번호가 유지됩니다.
                                             </div>
                                             <table class="table table-sm table-bordered n-tbl-list" id="userTable"
                                                    style="table-layout: fixed;">
@@ -356,8 +372,8 @@
         </div><!-- /card -->
 
         <div class="d-flex justify-content-end gap-2 mb-5">
-            <a th:href="@{/pxe/v1/admin/dashboard}" class="btn btn-secondary">취소</a>
-            <button type="submit" class="btn btn-primary px-4 fw-bold">주문서 생성</button>
+            <a th:href="@{/pxe/v1/setting/{id}(id=${setting.id})}" class="btn btn-secondary">취소</a>
+            <button type="submit" class="btn btn-primary px-4 fw-bold">주문서 수정</button>
         </div>
     </form>
 </div>
@@ -367,9 +383,6 @@
     .unavailable {
         display: none !important;
     }
-
-    /* 폼 검증 에러 스타일(.has-error, .field-error-message) 은 fragments/layout 에서
-       /css/form-validation.css 로 공통 로드된다. 여기에 재정의하지 않음. */
 </style>
 
 <!-- 공통 폼 에러 렌더러. window.FormError 네임스페이스만 노출된다. -->
@@ -377,16 +390,228 @@
 
 <script>
     // -----------------------------------------------------------------------------
-    // 폼 제출 & 서버 에러 렌더링
+    // 기존 데이터 pre-fill (페이지 로드 시 실행)
     // -----------------------------------------------------------------------------
     // 공유 함수(checkIfBiosAndBmcAvailable, toggleStep, onOsNameChange 등 12개)는
     // /js/setting-form.js (window.SettingForm) 에 있다.
     // 에러 렌더러는 /js/form-error.js (window.FormError) 에 있다.
 
-    /** 폼 유효성 검사 통과 후 최종 JSON 조립 및 전송 로직 */
-    async function submitSettingTemplate() {
+    /**
+     * 수정 폼 초기화: 서버에서 주입된 JSON으로 기존 값을 각 필드에 채운다.
+     * timezone은 도메인 모델에 저장되지 않으므로 항상 재입력이 필요하다.
+     * 비밀번호는 보안상 pre-fill 하지 않는다.
+     */
+    function initEditForm() {
+        const initialDataEl = document.getElementById('editInitialData');
+        if (!initialDataEl) return;
+
+        let initialData;
+        try {
+            initialData = JSON.parse(initialDataEl.dataset.initialJson);
+        } catch (e) {
+            console.warn('[initEditForm] initialSettingJson 파싱 실패:', e);
+            return;
+        }
+
+        // 주문서 명칭
+        const nameInput = document.getElementById('settingName');
+        if (nameInput && initialData.name) nameInput.value = initialData.name;
+
+        if (!Array.isArray(initialData.processList)) return;
+
+        initialData.processList.forEach(proc => {
+            let stepName;
+            // type → stepName 매핑 (BASIC_UPDATES → BASIC_UPDATE)
+            if (proc.type === 'BASIC_UPDATES')     stepName = 'BASIC_UPDATE';
+            else if (proc.type === 'BASIC_SETTING') stepName = 'BASIC_SETTING';
+            else if (proc.type === 'OS_INSTALLATION') stepName = 'OS_INSTALLATION';
+            else if (proc.type === 'OS_SETTING')    stepName = 'OS_SETTING';
+            else return;
+
+            // 체크박스 활성화 (toggleStep으로 아코디언 열기 + 필드 활성화)
+            const chk = document.getElementById('chk_' + stepName);
+            if (chk && !chk.checked) {
+                chk.checked = true;
+                SettingForm.toggleStep(chk);
+            }
+
+            if (stepName === 'BASIC_UPDATE') {
+                prefillBasicUpdate(proc);
+            } else if (stepName === 'OS_INSTALLATION') {
+                prefillOsInstallation(proc);
+            }
+            // BASIC_SETTING, OS_SETTING은 별도 필드 없음
+        });
+    }
+
+    function prefillBasicUpdate(proc) {
+        // 보드 모델 선택 후 BIOS/BMC 활성화
+        const boardModelSelect = document.getElementById('boardModelId');
+        if (boardModelSelect && proc.boardModelId) {
+            boardModelSelect.value = String(proc.boardModelId);
+            SettingForm.checkIfBiosAndBmcAvailable(String(proc.boardModelId));
+        }
+        if (proc.boardBIOSId) {
+            const biosSelect = document.getElementById('boardBIOSId');
+            if (biosSelect) biosSelect.value = String(proc.boardBIOSId);
+        }
+        if (proc.boardBMCId) {
+            const bmcSelect = document.getElementById('boardBMCId');
+            if (bmcSelect) bmcSelect.value = String(proc.boardBMCId);
+        }
+    }
+
+    function prefillOsInstallation(proc) {
+        // OS 종류 선택 (osMetadataId 로부터 역방향 조회: data-os-name 활용)
+        if (proc.osMetadataId) {
+            const metadataOpt = document.querySelector(
+                `#osMetadataId option[value="${proc.osMetadataId}"]`);
+            if (metadataOpt) {
+                const osNameKey = metadataOpt.dataset.osName;
+                const osNameSelect = document.getElementById('osNameSelect');
+                if (osNameSelect) {
+                    osNameSelect.value = osNameKey;
+                    SettingForm.onOsNameChange(osNameKey);
+                }
+                // 버전 선택
+                const verSelect = document.getElementById('osMetadataId');
+                verSelect.value = String(proc.osMetadataId);
+                SettingForm.onVersionChange(String(proc.osMetadataId));
+            }
+        }
+
+        // 환경 선택
+        if (proc.environmentId) {
+            const envSelect = document.getElementById('environmentId');
+            if (envSelect) {
+                envSelect.value = String(proc.environmentId);
+                SettingForm.onEnvironmentChange(String(proc.environmentId));
+                // 패키지 그룹 선택 상태 초기화 후 재선택
+                if (Array.isArray(proc.packageGroupIds)) {
+                    document.querySelectorAll('.pkg-group-row:not(.unavailable) input[type=checkbox]').forEach(cb => {
+                        cb.checked = proc.packageGroupIds.includes(parseInt(cb.value));
+                    });
+                }
+            }
+        } else {
+            // 구 레코드: environmentId 없음 → 안내 표시
+            const envSelect = document.getElementById('environmentId');
+            if (envSelect) {
+                const infoOpt = envSelect.querySelector('.info-env-option');
+                if (infoOpt) infoOpt.innerText = '환경을 다시 선택해 주세요.';
+            }
+        }
+
+        // KDump
+        const kDumpChk = document.getElementById('isKDumpEnabled');
+        if (kDumpChk) kDumpChk.checked = !!proc.isKDumpEnabled;
+
+        // 타임존 pre-fill
+        const tzInput   = document.getElementById('timezone');
+        const utcChk    = document.getElementById('isUTC');
+        const tzWarning = document.getElementById('timezoneWarning');
+        if (proc.timezone) {
+            if (tzInput)   tzInput.value   = proc.timezone;
+            if (utcChk)    utcChk.checked  = !!proc.isUTC;
+            if (tzWarning) tzWarning.style.display = 'none';
+        } else {
+            if (tzWarning) tzWarning.style.display = '';
+        }
+
+        // 파티션 pre-fill
+        if (Array.isArray(proc.partitions) && proc.partitions.length > 0) {
+            prefillPartitions(proc.partitions);
+        }
+
+        // root 비밀번호 안내
+        if (proc.hasRootPassword) {
+            const hint = document.getElementById('rootPasswordExistHint');
+            if (hint) hint.style.display = '';
+            const encryptChk = document.getElementById('rootPasswordEncrypted');
+            if (encryptChk) encryptChk.checked = !!proc.rootPasswordEncrypted;
+        }
+
+        // 사용자 pre-fill (비밀번호 제외)
+        if (Array.isArray(proc.users) && proc.users.length > 0) {
+            prefillUsers(proc.users);
+        }
+    }
+
+    function prefillPartitions(partitions) {
+        const fsOptions = ['EXT3', 'EXT4', 'XFS', 'EFI', 'SWAP'];
+        const tbody = document.querySelector('#partitionTable tbody');
+        tbody.innerHTML = '';
+        partitions.forEach(p => {
+            const fsOpts = fsOptions.map(v =>
+                `<option value="${v}" ${v === p.fileSystem ? 'selected' : ''}>${v.toLowerCase()}</option>`
+            ).join('');
+            const IEC_LABEL = {MB: 'MiB', GB: 'GiB', TB: 'TiB'};
+            const unitSel = ['MB', 'GB', 'TB'].map(u =>
+                `<option value="${u}" ${u === p.sizeUnit ? 'selected' : ''}>${IEC_LABEL[u]}</option>`
+            ).join('');
+            const sizeVal = p.grow ? '' : (p.size || '');
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm mountPoint"
+                               value="${escapeHtml(p.mountPoint || '')}"
+                               oninput="SettingForm.applyFsConstraint(this.closest('tr'))"></td>
+                    <td><select class="form-select form-select-sm fileSystem">${fsOpts}</select></td>
+                    <td><input type="text" class="form-control form-control-sm diskName"
+                               value="${escapeHtml(p.diskName || '')}" placeholder="sda"></td>
+                    <td><input type="number" class="form-control form-control-sm size"
+                               min="1" value="${sizeVal}" placeholder="10"
+                               ${p.grow ? 'disabled' : ''}></td>
+                    <td><select class="form-select form-select-sm sizeUnit">${unitSel}</select></td>
+                    <td class="n-td-center">
+                        <input type="checkbox" class="form-check-input isGrow"
+                               ${p.grow ? 'checked' : ''}
+                               onchange="SettingForm.onGrowChange(this)"></td>
+                    <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm"
+                                onclick="this.closest('tr').remove()">삭제</button></td>
+                </tr>`);
+            SettingForm.applyFsConstraint(tbody.lastElementChild);
+        });
+    }
+
+    function prefillUsers(users) {
+        const tbody = document.querySelector('#userTable tbody');
+        tbody.innerHTML = '';
+        users.forEach(u => {
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr>
+                    <td><input type="text" class="form-control form-control-sm username"
+                               value="${escapeHtml(u.username || '')}" placeholder="사용자명"></td>
+                    <td><input type="password" class="form-control form-control-sm password"
+                               data-has-existing-password="true"
+                               placeholder="비워두면 기존 비밀번호 유지"></td>
+                    <td class="n-td-center"><input type="checkbox" class="form-check-input isSudoer"
+                               ${u.isSudoer ? 'checked' : ''}></td>
+                    <td class="n-td-center"><input type="checkbox" class="form-check-input isPasswordEncrypted"
+                               ${u.isPasswordEncrypted ? 'checked' : ''}></td>
+                    <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+                </tr>`);
+        });
+    }
+
+    /** XSS 방지용 HTML 이스케이프 */
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // -----------------------------------------------------------------------------
+    // 폼 제출 & 서버 에러 렌더링
+    // -----------------------------------------------------------------------------
+
+    /** 수정 폼 제출: PUT /pxe/v1/setting/api/{id} */
+    async function submitSettingUpdate() {
         FormError.clearAll();
 
+        const settingId = document.getElementById('editInitialData').dataset.settingId;
         const {payload, stepTypeByIndex} = SettingForm.buildSettingPayload();
 
         if (payload.processList.length === 0) {
@@ -394,18 +619,17 @@
             return;
         }
 
-        // OS_INSTALLATION 이 포함된 경우 파티션 크기 클라이언트 사전 검증
         if (stepTypeByIndex.includes('OS_INSTALLATION') && SettingForm.hasPartitionSizeError()) return;
 
         let response;
         try {
-            response = await fetch('/pxe/v1/setting/api/new', {
-                method: 'POST',
+            response = await fetch(`/pxe/v1/setting/api/${settingId}`, {
+                method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)
             });
         } catch (networkErr) {
-            console.error("[submitSettingTemplate] 네트워크 오류:", networkErr);
+            console.error("[submitSettingUpdate] 네트워크 오류:", networkErr);
             FormError.renderFormLevel("서버와 통신할 수 없습니다: " + networkErr.message);
             return;
         }
@@ -417,15 +641,23 @@
             } catch (parseErr) {
                 errBody = {message: "서버 응답 오류 (" + response.status + ")"};
             }
-            FormError.renderResponse(errBody, {stepTypeByIndex});
+            // 409 Conflict (PENDING이 아닌 상태) 포함 모든 에러를 폼 레벨에 표시
+            if (response.status === 409) {
+                FormError.renderFormLevel(errBody.message || "이 주문서는 현재 수정할 수 없는 상태입니다.");
+            } else {
+                FormError.renderResponse(errBody, {stepTypeByIndex});
+            }
             return;
         }
 
         const data = await response.json();
         FormError.clearAll();
-        // 성공 UX 는 이번 요구사항 범위가 아니므로 alert 유지.
-        alert("주문서 #" + data.id + " '" + data.name + "' 생성이 완료되었습니다.");
+        // 수정 완료 후 상세 페이지로 이동
+        window.location.href = `/pxe/v1/setting/${data.id}`;
     }
+
+    // 페이지 로드 후 pre-fill 실행
+    document.addEventListener('DOMContentLoaded', initEditForm);
 </script>
 </body>
 </html>
