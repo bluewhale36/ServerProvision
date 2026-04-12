@@ -358,8 +358,74 @@
 
                                     <!-- OS_SETTING -->
                                     <th:block th:if="${step.name() == 'OS_SETTING'}">
-                                        <div class="alert alert-secondary py-2 mb-0">
-                                            OS 설치 후 진행될 사용자 정의 스크립트 구성 영역입니다.
+                                        <!-- SELinux 모드 선택 -->
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">SELinux 모드</label>
+                                            <select class="form-select w-50 target-req"
+                                                    id="selinuxMode"
+                                                    data-error-field="selinuxMode"
+                                                    style="border-color: rgba(0,117,222,0.4);"
+                                                    required>
+                                                <option value="enforcing" selected>enforcing (권장)</option>
+                                                <option value="permissive">permissive</option>
+                                                <option value="disabled">disabled</option>
+                                            </select>
+                                        </div>
+                                        <!-- 추가 패키지 설치 목록 -->
+                                        <div class="mb-3" data-error-field="additionalPackages">
+                                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <label class="form-label fw-bold mb-0">추가 패키지 설치 목록</label>
+                                            </div>
+                                            <div class="small text-muted mb-1">
+                                                dnf install 로 설치할 패키지명을 입력합니다. 비워두면 이 단계를 생략합니다.
+                                            </div>
+                                            <table class="table table-sm table-bordered n-tbl-list"
+                                                   id="additionalPackagesTable"
+                                                   style="table-layout: fixed;">
+                                                <colgroup>
+                                                    <col style="width: 85%">  <!-- 패키지명 -->
+                                                    <col style="width: 15%">  <!-- 삭제 -->
+                                                </colgroup>
+                                                <thead class="table-dark">
+                                                <tr>
+                                                    <th>패키지명</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    onclick="SettingForm.addPackageRow()">+ 패키지 추가
+                                            </button>
+                                        </div>
+                                        <!-- 서비스 활성화 목록 -->
+                                        <div class="mb-3" data-error-field="enabledServices">
+                                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <label class="form-label fw-bold mb-0">서비스 활성화 목록</label>
+                                            </div>
+                                            <div class="small text-muted mb-1">
+                                                systemctl enable 할 서비스명을 입력합니다. 비워두면 이 단계를 생략합니다.
+                                            </div>
+                                            <table class="table table-sm table-bordered n-tbl-list"
+                                                   id="enabledServicesTable"
+                                                   style="table-layout: fixed;">
+                                                <colgroup>
+                                                    <col style="width: 85%">  <!-- 서비스명 -->
+                                                    <col style="width: 15%">  <!-- 삭제 -->
+                                                </colgroup>
+                                                <thead class="table-dark">
+                                                <tr>
+                                                    <th>서비스명</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    onclick="SettingForm.addServiceRow()">+ 서비스 추가
+                                            </button>
                                         </div>
                                     </th:block>
 
@@ -439,8 +505,10 @@
                 prefillBasicUpdate(proc);
             } else if (stepName === 'OS_INSTALLATION') {
                 prefillOsInstallation(proc);
+            } else if (stepName === 'OS_SETTING') {
+                prefillOsSetting(proc);
             }
-            // BASIC_SETTING, OS_SETTING은 별도 필드 없음
+            // BASIC_SETTING은 별도 필드 없음
         });
     }
 
@@ -591,6 +659,49 @@
                     <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
                 </tr>`);
         });
+    }
+
+    /**
+     * OS_SETTING 섹션 pre-fill: selinuxMode, additionalPackages, enabledServices를 채운다.
+     */
+    function prefillOsSetting(proc) {
+        // SELinux 모드 pre-fill
+        const selinuxSelect = document.getElementById('selinuxMode');
+        if (selinuxSelect && proc.selinuxMode) {
+            selinuxSelect.value = proc.selinuxMode;
+        }
+
+        // 추가 패키지 목록 pre-fill
+        if (Array.isArray(proc.additionalPackages) && proc.additionalPackages.length > 0) {
+            const pkgTbody = document.querySelector('#additionalPackagesTable tbody');
+            if (pkgTbody) {
+                pkgTbody.innerHTML = '';
+                proc.additionalPackages.forEach(pkg => {
+                    pkgTbody.insertAdjacentHTML('beforeend', `
+                        <tr>
+                            <td><input type="text" class="form-control form-control-sm packageName"
+                                       value="${escapeHtml(pkg)}"></td>
+                            <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+                        </tr>`);
+                });
+            }
+        }
+
+        // 서비스 활성화 목록 pre-fill
+        if (Array.isArray(proc.enabledServices) && proc.enabledServices.length > 0) {
+            const svcTbody = document.querySelector('#enabledServicesTable tbody');
+            if (svcTbody) {
+                svcTbody.innerHTML = '';
+                proc.enabledServices.forEach(svc => {
+                    svcTbody.insertAdjacentHTML('beforeend', `
+                        <tr>
+                            <td><input type="text" class="form-control form-control-sm serviceName"
+                                       value="${escapeHtml(svc)}"></td>
+                            <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+                        </tr>`);
+                });
+            }
+        }
     }
 
     /** XSS 방지용 HTML 이스케이프 */
