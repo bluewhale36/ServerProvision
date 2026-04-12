@@ -273,6 +273,7 @@ body {
     cursor: default;
 }
 .n-input.is-invalid, .n-select.is-invalid { border-color: var(--n-orange); }
+.n-select-sm { font-size: 12px; padding: 4px 6px; width: auto; }
 
 .n-textarea {
     display: block;

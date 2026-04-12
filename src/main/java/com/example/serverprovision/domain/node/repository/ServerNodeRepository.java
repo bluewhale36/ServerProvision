@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -32,4 +33,13 @@ public interface ServerNodeRepository extends JpaRepository<ServerNode, Long> {
      */
     @Query("SELECT sn FROM ServerNode sn WHERE sn.macAddress = :macAddress AND sn.status NOT IN ('COMPLETED', 'FAILED')")
     Optional<ServerNode> findAvailableNodeByMacAddress(String macAddress);
+
+    /**
+     * 모든 서버 노드를 연관된 세팅 주문서 및 보드 모델과 함께 조회한다.
+     * fetch join으로 N+1 쿼리를 방지하고, open-in-view에 의존하지 않는다.
+     *
+     * @return 세팅과 보드 모델이 즉시 로딩된 전체 {@code ServerNode} 목록
+     */
+    @Query("SELECT sn FROM ServerNode sn LEFT JOIN FETCH sn.serverSetting LEFT JOIN FETCH sn.boardModel")
+    List<ServerNode> findAllWithSettingAndBoardModel();
 }

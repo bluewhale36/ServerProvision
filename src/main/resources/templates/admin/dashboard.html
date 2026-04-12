@@ -22,6 +22,7 @@
                 <th>IPMI IP</th>
                 <th>Hostname</th>
                 <th>할당 IP</th>
+                <th>할당된 세팅</th>
                 <th>지시된 작업</th>
                 <th>현재 상태</th>
                 <th>관리</th>
@@ -29,7 +30,7 @@
             </thead>
             <tbody>
             <tr class="n-table-empty" th:if="${#lists.isEmpty(nodes)}">
-                <td colspan="9">등록된 서버가 없습니다. 서버 전원을 켜면 자동 등록됩니다.</td>
+                <td colspan="10">등록된 서버가 없습니다. 서버 전원을 켜면 자동 등록됩니다.</td>
             </tr>
 
             <tr th:each="node : ${nodes}">
@@ -45,6 +46,10 @@
                     <span th:if="${node.hostname != null}" th:text="${node.hostname}">db-01</span>
                 </td>
                 <td th:text="${node.assignedIp != null ? node.assignedIp : '-'}">10.0.0.1</td>
+                <td>
+                    <span th:if="${node.serverSetting != null}" th:text="${node.serverSetting.name}">세팅명</span>
+                    <span class="n-table-muted" th:if="${node.serverSetting == null}">미할당</span>
+                </td>
                 <td class="n-td-center">
                     <span class="n-badge"
                           th:classappend="${node.targetJob.name() == 'IDLE'} ? 'n-badge-gray' : 'n-badge-blue'"
@@ -61,7 +66,15 @@
                     <div class="n-actions">
                         <a th:href="@{/pxe/v1/admin/nodes/{mac}/settings(mac=${node.macAddress})}"
                            class="n-btn n-btn-ghost n-btn-sm">설정</a>
-                        <button class="n-btn n-btn-success n-btn-sm">작업시작</button>
+                        <form th:action="@{/pxe/v1/admin/nodes/{nodeId}/assign-setting(nodeId=${node.id})}"
+                              method="post" style="display: inline-flex; align-items: center; gap: 4px;">
+                            <select name="settingId" class="n-select n-select-sm" required>
+                                <option value="" disabled selected>세팅 선택</option>
+                                <option th:each="s : ${settings}" th:value="${s.id}" th:text="${s.name}"
+                                        th:selected="${node.serverSetting != null and node.serverSetting.id == s.id}">세팅명</option>
+                            </select>
+                            <button type="submit" class="n-btn n-btn-primary n-btn-sm">할당</button>
+                        </form>
                     </div>
                 </td>
             </tr>

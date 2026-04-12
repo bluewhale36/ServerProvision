@@ -1,16 +1,21 @@
 package com.example.serverprovision.domain.node.service;
 
+import com.example.serverprovision.application.setting.domain.entity.ServerSetting;
+import com.example.serverprovision.application.setting.model.AbstractSettingProcess;
+import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
+import com.example.serverprovision.application.setting.repository.SettingRepository;
 import com.example.serverprovision.domain.board.entity.BoardModel;
 import com.example.serverprovision.domain.board.repository.BoardModelRepository;
 import com.example.serverprovision.domain.node.entity.*;
 import com.example.serverprovision.domain.node.model.enums.JobType;
 import com.example.serverprovision.domain.node.model.enums.ProvisioningStatus;
 import com.example.serverprovision.domain.node.model.enums.Vendor;
+import com.example.serverprovision.domain.node.repository.NodeStepExecutionRepository;
 import com.example.serverprovision.domain.node.repository.ServerNodeRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -40,6 +45,8 @@ public class ServerNodeService {
 
     private final ServerNodeRepository serverNodeRepository;
     private final BoardModelRepository boardModelRepository;
+    private final SettingRepository settingRepository;
+    private final NodeStepExecutionRepository nodeStepExecutionRepository;
 
     /**
      * MAC 주소로 사용 가능한 서버 노드를 조회하거나, 없으면 신규 노드로 자동 등록한다.
@@ -77,12 +84,64 @@ public class ServerNodeService {
     }
 
     /**
+     * 서버 노드에 세팅 주문서를 할당하고, 기존 단계 실행 이력을 초기화한 뒤
+     * 새 세팅의 각 프로세스 단계에 대응하는 {@code NodeStepExecution} 레코드를 생성한다.
+     *
+     * @param nodeId    할당 대상 서버 노드 ID
+     * @param settingId 할당할 세팅 주문서 ID
+     * @throws RuntimeException 노드 또는 세팅이 존재하지 않는 경우
+     */
+    @Transactional
+    public void assignSetting(Long nodeId, Long settingId) {
+        ServerNode node = serverNodeRepository.findById(nodeId)
+                .orElseThrow(() -> new IllegalArgumentException("서버 노드를 찾을 수 없습니다. ID: " + nodeId));
+
+        ServerSetting setting = settingRepository.findById(settingId)
+                .orElseThrow(() -> new IllegalArgumentException("세팅 주문서를 찾을 수 없습니다. ID: " + settingId));
+
+        // 기존 단계 실행 이력 삭제
+        nodeStepExecutionRepository.deleteAllByNode(node);
+
+        // 새 세팅의 processList 각 단계마다 NodeStepExecution 생성
+        List<AbstractSettingProcess> processList = setting.getSettingProcess().processList();
+        List<NodeStepExecution> executions = processList.stream()
+                .map(process -> NodeStepExecution.of(node, process.getProcessStep()))
+                .toList();
+        nodeStepExecutionRepository.saveAll(executions);
+
+        // targetJob 결정: processList에서 가장 대표적인 작업 유형을 선택
+        JobType targetJob = determineTargetJob(processList);
+        node.assignSetting(setting, targetJob);
+
+        log.info("[ServerNodeService] 세팅 할당 완료. nodeId={}, settingId={}, targetJob={}",
+                nodeId, settingId, targetJob);
+    }
+
+    /**
+     * 프로세스 목록에서 대표 작업 유형을 결정한다.
+     * OS 설치 단계가 포함되어 있으면 OS_INSTALLATION,
+     * BIOS/BMC 업데이트 단계가 포함되어 있으면 BIOS_UPDATE,
+     * 그 외에는 IDLE을 반환한다.
+     */
+    private JobType determineTargetJob(List<AbstractSettingProcess> processList) {
+        boolean hasOsInstallation = processList.stream()
+                .anyMatch(p -> p.getProcessStep() == SettingProcessStep.OS_INSTALLATION);
+        if (hasOsInstallation) return JobType.OS_INSTALLATION;
+
+        boolean hasBasicUpdate = processList.stream()
+                .anyMatch(p -> p.getProcessStep() == SettingProcessStep.BASIC_UPDATE);
+        if (hasBasicUpdate) return JobType.BIOS_UPDATE;
+
+        return JobType.IDLE;
+    }
+
+    /**
      * 전체 서버 노드 목록을 반환한다.
      *
      * @return 전체 {@code ServerNode} 목록
      */
     public List<ServerNode> getAllNodes() {
-        return serverNodeRepository.findAll();
+        return serverNodeRepository.findAllWithSettingAndBoardModel();
     }
 
     /**

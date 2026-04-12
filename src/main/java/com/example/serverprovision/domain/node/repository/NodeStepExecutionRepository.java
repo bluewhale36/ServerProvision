@@ -4,6 +4,9 @@ import com.example.serverprovision.domain.node.entity.NodeStepExecution;
 import com.example.serverprovision.domain.node.entity.ServerNode;
 import com.example.serverprovision.domain.node.model.enums.StepExecutionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -39,7 +42,13 @@ public interface NodeStepExecutionRepository extends JpaRepository<NodeStepExecu
      * 특정 노드의 모든 단계 실행 이력을 삭제한다.
      * 세팅 주문서 재할당 시 기존 이력을 초기화하여 단계를 처음부터 재시작할 때 사용된다.
      *
+     * <p>bulk DELETE로 실행되어 영속성 컨텍스트를 거치지 않는다.
+     * {@code clearAutomatically = true}로 삭제 후 영속성 컨텍스트를 자동 초기화하여
+     * 이후 같은 유니크 키 조합으로 INSERT할 때 flush 순서 충돌을 방지한다.</p>
+     *
      * @param node 이력을 삭제할 서버 노드
      */
-    void deleteAllByNode(ServerNode node);
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM NodeStepExecution nse WHERE nse.node = :node")
+    void deleteAllByNode(@Param("node") ServerNode node);
 }

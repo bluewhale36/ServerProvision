@@ -113,6 +113,17 @@ public class ServerNode extends BaseTimeEntity {
     }
 
     /**
+     * 이 서버 노드에 세팅 주문서를 할당하고 작업 유형을 갱신한다.
+     *
+     * @param setting   할당할 세팅 주문서
+     * @param targetJob 갱신할 작업 유형
+     */
+    public void assignSetting(ServerSetting setting, JobType targetJob) {
+        this.serverSetting = setting;
+        this.targetJob = targetJob;
+    }
+
+    /**
      * 관리자 폼 제출({@code ServerNodeCreateDTO})로 서버 노드를 생성한다.
      * {@code boardModelId}가 {@code null}이거나 DTO의 ID와 실제 엔티티 ID가 불일치하면
      * {@code IllegalArgumentException}을 던진다.
