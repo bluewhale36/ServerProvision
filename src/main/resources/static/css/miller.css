@@ -1,0 +1,177 @@
+/* ============================================================
+   miller.css — Miller Columns 컴포넌트 스타일
+   (macOS Finder 계층 보기 스타일의 3단 컬럼 패널)
+
+   사용
+   ─────────────────────────────────────────────────────────
+   .n-miller           컨테이너 (카드 형태, 3개 컬럼을 flex 로 배치)
+   .n-miller-col       각 컬럼 (border-right 구분선, overflow-y 스크롤)
+     .n-miller-col-names     1열: OS 명 목록  (width: 220px)
+     .n-miller-col-versions  2열: 버전 목록   (width: 220px)
+     .n-miller-col-detail    3열: 상세 패널   (flex: 1)
+   .n-miller-col-header      컬럼 상단 고정 헤더
+   .n-miller-item            선택 가능한 행 버튼
+     .n-miller-item-split      버전 컬럼: 버전명(좌) + 상태 배지(우)
+     .n-miller-item-disabled   비활성 항목
+     .n-miller-selected        현재 선택된 항목
+   .n-miller-version-label   버전명 텍스트 (말줄임 처리)
+   .n-miller-status-tag      상태 표시 소형 배지 (표시 전용)
+     .n-miller-status-tag-on   활성 (초록)
+     .n-miller-status-tag-off  비활성 (회색)
+   .n-miller-version-panel   2열 내 OS별 버전 목록 패널 (JS 가 .active 토글)
+   .n-miller-detail-panel    3열 내 항목별 상세 패널  (JS 가 .active 토글)
+   .n-miller-empty           아무것도 선택되지 않았을 때 안내 문구
+   ============================================================ */
+
+/* ---- 컨테이너 -------------------------------------------- */
+.n-miller {
+    display: flex;
+    background: var(--n-surface);
+    border: 1px solid var(--n-border);
+    border-radius: 12px;
+    box-shadow: var(--n-shadow-card);
+    overflow: hidden;
+    min-height: 560px;
+}
+
+/* ---- 컬럼 공통 ------------------------------------------ */
+.n-miller-col {
+    border-right: 1px solid var(--n-border);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.n-miller-col:last-child {
+    border-right: none;
+}
+
+/* 컬럼 너비 */
+.n-miller-col-names {
+    width: 220px;
+    flex-shrink: 0;
+}
+
+.n-miller-col-versions {
+    width: 220px;
+    flex-shrink: 0;
+}
+
+.n-miller-col-detail {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ---- 컬럼 헤더 ------------------------------------------ */
+/* .n-table thead th 와 동일한 톤의 고정 헤더 */
+.n-miller-col-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--n-bg);
+    padding: 10px 18px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--n-text-sec);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--n-border);
+}
+
+/* ---- 행 버튼 -------------------------------------------- */
+.n-miller-item {
+    display: block;
+    width: 100%;
+    padding: 13px 18px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--n-text);
+    cursor: pointer;
+    border-bottom: 1px solid var(--n-border-row);
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.n-miller-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.n-miller-item.n-miller-selected {
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+    font-weight: 600;
+}
+
+.n-miller-item-disabled {
+    color: var(--n-text-muted);
+}
+
+/* ---- 버전 컬럼: 버전명(좌) + 상태 배지(우) 양쪽 정렬 ---- */
+.n-miller-item-split {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.n-miller-item-split > .n-miller-version-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---- 상태 배지 (표시 전용, 클릭·토글 없음) -------------- */
+.n-miller-status-tag {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.2px;
+}
+
+.n-miller-status-tag-on {
+    background: rgba(26, 174, 57, 0.1);
+    color: var(--n-green);
+}
+
+.n-miller-status-tag-off {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--n-text-muted);
+}
+
+/* ---- 패널 표시·숨김 (JS 가 .active 클래스 토글) --------- */
+.n-miller-version-panel {
+    display: none;
+}
+
+.n-miller-version-panel.active {
+    display: block;
+}
+
+.n-miller-detail-panel {
+    display: none;
+    padding: 28px 32px;
+}
+
+.n-miller-detail-panel.active {
+    display: block;
+}
+
+/* ---- 빈 상태 안내 --------------------------------------- */
+.n-miller-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 520px;
+    color: var(--n-text-muted);
+    font-size: 14px;
+}
+
+.n-miller-empty.hidden {
+    display: none;
+}

@@ -1,50 +1,69 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>OS 메타데이터 상세</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <th:block th:replace="~{fragments/layout :: commonHead('OS 메타데이터 상세')}"></th:block>
 </head>
-<body class="bg-light">
-<div class="container py-5" style="max-width: 800px;">
-    <h2 class="fw-bold mb-4">📄 OS 상세 정보</h2>
-    <div class="card shadow-sm">
-        <div class="card-body p-4">
-            <table class="table table-bordered">
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar('os', '', '')}"></nav>
+
+<div class="n-page-sm">
+    <div class="n-page-header">
+        <h1 class="n-page-title">OS 상세 정보</h1>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <table class="n-detail-table">
                 <tbody>
                 <tr>
-                    <th class="bg-light w-25">ID</th>
+                    <th>ID</th>
                     <td th:text="${os.id}"></td>
                 </tr>
                 <tr>
-                    <th class="bg-light">OS 이름</th>
-                    <td th:text="${os.osName}"></td>
+                    <th>OS 이름</th>
+                    <td style="font-weight:600;" th:text="${os.osName.displayName}"></td>
                 </tr>
                 <tr>
-                    <th class="bg-light">OS 버전</th>
+                    <th>OS 버전</th>
                     <td th:text="${os.osVersion}"></td>
                 </tr>
                 <tr>
-                    <th class="bg-light">ISO 마운트 경로</th>
-                    <td th:text="${os.isoMountPath}"></td>
+                    <th>ISO 마운트 경로</th>
+                    <td class="mono" th:text="${os.isoMountPath}"></td>
                 </tr>
                 <tr>
-                    <th class="bg-light">Kickstart 템플릿 경로</th>
-                    <td th:text="${os.ksTemplatePath}"></td>
+                    <th>Kickstart 템플릿 경로</th>
+                    <td class="mono" th:text="${os.ksTemplatePath}"></td>
                 </tr>
                 <tr>
-                    <th class="bg-light">사용 여부</th>
-                    <td><span class="badge" th:classappend="${os.isEnabled} ? 'bg-success' : 'bg-danger'"
-                              th:text="${os.isEnabled} ? '사용' : '미사용'"></span></td>
+                    <th>사용 여부</th>
+                    <td>
+                        <span class="n-badge"
+                              th:classappend="${os.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
+                              th:text="${os.isEnabled} ? '활성화' : '비활성화'"></span>
+                    </td>
                 </tr>
                 </tbody>
             </table>
-            <div class="d-flex justify-content-end mt-4">
-                <a th:href="@{/pxe/v1/admin/os}" class="btn btn-secondary me-2">목록으로</a>
-                <a th:href="@{/pxe/v1/admin/os/{id}/edit(id=${os.id})}" class="btn btn-primary">수정하기</a>
+
+            <!-- 환경 정보 자동 추출 결과 메시지 -->
+            <div th:if="${extractSuccess}" class="n-alert n-alert-success" th:text="${extractSuccess}"></div>
+            <div th:if="${extractError}"   class="n-alert n-alert-danger"  th:text="${extractError}"></div>
+
+            <div class="n-card-footer">
+                <!-- 환경 정보 자동 추출 -->
+                <form th:action="@{/pxe/v1/admin/os/{id}/extract-packages(id=${os.id})}" method="post">
+                    <button type="submit" class="n-btn n-btn-outline-info">환경 정보 자동 추출</button>
+                </form>
+                <div class="n-footer-right">
+                    <a th:href="@{/pxe/v1/admin/os}" class="n-btn n-btn-secondary">목록으로</a>
+                    <a th:href="@{/pxe/v1/admin/os/{id}/edit(id=${os.id})}" class="n-btn n-btn-primary">수정하기</a>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
 </body>
 </html>

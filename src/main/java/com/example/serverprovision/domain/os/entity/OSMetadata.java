@@ -2,6 +2,7 @@ package com.example.serverprovision.domain.os.entity;
 
 import com.example.serverprovision.domain.os.dto.OSMetadataCreateDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataUpdateDTO;
+import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,8 +20,9 @@ public class OSMetadata extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "os_name", nullable = false)
-    private String osName;
+    private OSName osName;
 
     @Column(name = "os_version", nullable = false)
     private String osVersion;
@@ -46,7 +48,7 @@ public class OSMetadata extends BaseTimeEntity {
 
     public static OSMetadata createFrom(OSMetadataCreateDTO createDTO) {
         return OSMetadata.builder()
-                .osName(emptyToNull(createDTO.osName()))
+                .osName(createDTO.osName())
                 .osVersion(emptyToNull(createDTO.osVersion()))
                 .isoMountPath(emptyToNull(createDTO.isoMountPath()))
                 .ksTemplatePath(emptyToNull(createDTO.ksTemplatePath()))
@@ -57,7 +59,7 @@ public class OSMetadata extends BaseTimeEntity {
     public static OSMetadata updateFrom(OSMetadataUpdateDTO updateDTO) {
         return OSMetadata.builder()
                 .id(updateDTO.targetId())
-                .osName(emptyToNull(updateDTO.osName()))
+                .osName(updateDTO.osName())
                 .osVersion(emptyToNull(updateDTO.osVersion()))
                 .isoMountPath(emptyToNull(updateDTO.isoMountPath()))
                 .ksTemplatePath(emptyToNull(updateDTO.ksTemplatePath()))

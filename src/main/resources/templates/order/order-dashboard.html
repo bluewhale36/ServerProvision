@@ -1,10 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <th:block th:replace="~{fragments/layout :: commonHead('작업 주문 현황')}"></th:block>
 </head>
 <body>
+
+<nav th:replace="~{fragments/layout :: navbar('order', '/pxe/v1/order/new', '신규 주문')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">작업 주문 현황</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/pxe/v1/order/new}" class="n-btn n-btn-primary">신규 주문 생성</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <table class="n-table">
+            <thead>
+            <tr>
+                <th>주문 번호</th>
+                <th>대상 서버</th>
+                <th>세팅 주문서</th>
+                <th>요청일시</th>
+                <th>상태</th>
+                <th>관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td colspan="6">
+                    <div class="n-empty">
+                        <div class="n-empty-title">등록된 작업 주문이 없습니다</div>
+                        <div class="n-empty-desc">신규 주문 생성 버튼을 눌러 작업 주문을 등록하세요.</div>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
 </body>
 </html>

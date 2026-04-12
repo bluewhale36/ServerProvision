@@ -1,0 +1,46 @@
+/*
+ * 공통 폼 검증 에러 스타일.
+ *
+ * 사용 조건:
+ *   - 서버가 ErrorResponse { fieldErrors: [{field, message}] } 를 반환하고
+ *   - form-error.js 의 FormError.renderResponse(errBody, options) 가 호출되면
+ *     data-error-field 속성이 붙은 요소에 .has-error 클래스와 .field-error-message
+ *     자식 div 가 주입된다.
+ *
+ * setting/new.html 이 첫 사용자이며, 이후 JSON API 폼이 추가될 때 fragments/layout :: commonHead
+ * 에서 이 파일이 이미 로드되므로 추가 작업 없이 재사용 가능하다.
+ */
+
+/* ── 단순 입력 요소 (input, select, textarea) ──────────────────────────────
+   box-shadow 로 레이아웃 시프트 없이 빨간 테두리 표현.
+   border-color 를 덮어써 기존 파란 테두리와 색이 섞이는 현상을 방지한다.
+   배경 틴트는 복합 섹션 컨테이너와 일관된 시각 처리다. */
+input.has-error,
+select.has-error,
+textarea.has-error {
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.8) !important;
+    border-color: rgba(220, 53, 69, 0.5) !important;
+    background-color: rgba(220, 53, 69, 0.025) !important;
+    border-radius: 4px;
+}
+
+/* ── 복합 섹션 컨테이너 (div, table 등 단순 입력이 아닌 요소) ──────────────
+   두꺼운 윤곽선 대신 좌측 강조선 + 거의 보이지 않는 배경 틴트.
+   DESIGN.md "whisper border" 철학에 맞게 존재는 하되 무겁지 않게 표현한다. */
+div.has-error,
+table.has-error {
+    box-shadow: none !important;
+    outline: none !important;
+    border-left: 2px solid rgba(220, 53, 69, 0.7) !important;
+    border-radius: 0 4px 4px 0 !important;
+    background: rgba(220, 53, 69, 0.025) !important;
+    padding-left: 10px;
+}
+
+.field-error-message {
+    color: #dc3545;
+    font-size: 0.75rem;
+    margin-top: 6px;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+}

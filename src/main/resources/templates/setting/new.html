@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('신규 세팅 템플릿 생성')}"></th:block>
+    <!-- 아코디언 동작에 Bootstrap JS 필요 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 세팅 폼 공유 로직 (new.html / edit.html 공용) -->
+    <script src="/js/setting-form.js"></script>
+</head>
+<body>
+
+<nav th:replace="~{fragments/layout :: navbar('setting', '', '')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">신규 세팅 주문서(템플릿) 작성</h1>
+    </div>
+
+    <form id="settingForm" novalidate onsubmit="event.preventDefault(); submitSettingTemplate();">
+
+        <!-- 폼-레벨 에러 표시 영역 (FieldValidationException 의 필드가 DOM 에 매칭되지 않거나,
+             일반 IllegalArgumentException 등 폼 전체에 귀속되는 오류를 여기에 표시한다) -->
+        <div id="formErrorArea" class="alert alert-danger d-none" role="alert"></div>
+
+        <!-- 주문서 식별 정보 -->
+        <div class="card">
+            <div class="card-header bg-dark">1. 주문서 식별 정보</div>
+            <div class="card-body">
+                <label class="form-label fw-bold">주문서 명칭 (필수)</label>
+                <input type="text" class="form-control" id="settingName"
+                       data-error-field="name"
+                       placeholder="예: Rocky Linux 9.6 표준 웹 서버 구성" required>
+            </div>
+        </div>
+
+        <!-- 프로비저닝 프로세스 구성 -->
+        <div class="card">
+            <div class="card-header bg-primary">2. 프로비저닝 프로세스 구성</div>
+            <div class="card-body">
+                <div class="accordion" id="processAccordion">
+                    <div class="accordion-item" th:each="step : ${settingProcessStepList}">
+                        <h2 class="accordion-header" th:id="'heading_' + ${step.name()}">
+                            <button class="accordion-button collapsed fw-bold" type="button"
+                                    data-bs-toggle="collapse"
+                                    th:data-bs-target="'#collapse_' + ${step.name()}"
+                                    aria-expanded="false"
+                                    th:text="${step.description}">
+                            </button>
+                        </h2>
+
+                        <div th:id="'collapse_' + ${step.name()}" class="accordion-collapse collapse">
+                            <div class="accordion-body"
+                                 th:attr="data-error-scope=${step.name()}"
+                                 style="background: var(--n-bg);">
+
+                                <!-- 단계 활성화 스위치 -->
+                                <div class="form-check form-switch mb-3 pb-2"
+                                     style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                                    <input class="form-check-input step-enable-chk"
+                                           type="checkbox" role="switch"
+                                           th:id="'chk_' + ${step.name()}"
+                                           th:value="${step.name()}"
+                                           th:data-order="${step.order}"
+                                           onchange="SettingForm.toggleStep(this)">
+                                    <label class="form-check-label fw-bold"
+                                           style="color: var(--n-blue);"
+                                           th:for="'chk_' + ${step.name()}">
+                                        이 단계 사용 (체크 시 입력 폼 및 필수 검증 활성화)
+                                    </label>
+                                </div>
+
+                                <!-- 단계별 콘텐츠 영역 -->
+                                <div th:id="'content_' + ${step.name()}"
+                                     class="step-content-area"
+                                     style="opacity: 0.4; pointer-events: none; transition: opacity 0.3s ease;">
+
+                                    <!-- BASIC_UPDATE -->
+                                    <th:block th:if="${step.name() == 'BASIC_UPDATE'}">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">메인보드 모델 선택</label>
+                                            <select class="form-select w-50 target-req"
+                                                    id="boardModelId"
+                                                    data-error-field="boardModelId"
+                                                    onchange="SettingForm.checkIfBiosAndBmcAvailable(this.value)"
+                                                    style="border-color: rgba(0,117,222,0.4);"
+                                                    required>
+                                                <option value="" selected>보드 모델을 선택하세요</option>
+                                                <option th:each="view : ${boardViewList}"
+                                                        th:value="${view.boardModel.id}"
+                                                        th:text="|${view.boardModel.vendor} ${view.boardModel.description}|"></option>
+                                            </select>
+                                        </div>
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">업데이트할 BIOS 버전</label>
+                                                <select class="form-select target-req"
+                                                        style="border-color: rgba(0,117,222,0.4);"
+                                                        id="boardBIOSId"
+                                                        data-error-field="boardBIOSId"
+                                                        disabled required>
+                                                    <option value="" class="info-option" selected>보드 모델을 먼저 선택하세요
+                                                    </option>
+                                                    <th:block th:each="view : ${boardViewList}">
+                                                        <option class="unavailable"
+                                                                th:data-compatible-board-model-id="${view.boardModel.id}"
+                                                                th:each="bios : ${view.boardBIOSList}"
+                                                                th:value="${bios.id}"
+                                                                th:text="${bios.description}"></option>
+                                                    </th:block>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">업데이트할 BMC 버전</label>
+                                                <select class="form-select target-req"
+                                                        style="border-color: rgba(0,117,222,0.4);"
+                                                        id="boardBMCId"
+                                                        data-error-field="boardBMCId"
+                                                        disabled required>
+                                                    <option value="" class="info-option" selected>보드 모델을 먼저 선택하세요
+                                                    </option>
+                                                    <th:block th:each="view : ${boardViewList}">
+                                                        <option class="unavailable"
+                                                                th:data-compatible-board-model-id="${view.boardModel.id}"
+                                                                th:each="bmc : ${view.boardBMCList}"
+                                                                th:value="${bmc.id}"
+                                                                th:text="${bmc.description}"></option>
+                                                    </th:block>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </th:block>
+
+                                    <!-- BASIC_SETTING -->
+                                    <th:block th:if="${step.name() == 'BASIC_SETTING'}">
+                                        <div class="alert alert-info py-2 mb-0">
+                                            BIOS 기본 설정 스크립트가 적용됩니다. 추가 입력 항목이 없습니다.
+                                        </div>
+                                    </th:block>
+
+                                    <!-- OS_INSTALLATION -->
+                                    <th:block th:if="${step.name() == 'OS_INSTALLATION'}">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">OS 종류 선택</label>
+                                            <select class="form-select w-50 target-req"
+                                                    style="border-color: rgba(0,117,222,0.4);"
+                                                    id="osNameSelect"
+                                                    onchange="SettingForm.onOsNameChange(this.value)" required>
+                                                <option value="">OS 종류를 선택하세요</option>
+                                                <option th:each="os : ${osInstallationViewList}"
+                                                        th:value="${os.osNameKey}"
+                                                        th:text="${os.osDisplayName}"></option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">버전 선택</label>
+                                            <select class="form-select w-50 target-req"
+                                                    style="border-color: rgba(0,117,222,0.4);"
+                                                    id="osMetadataId"
+                                                    data-error-field="osMetadataId"
+                                                    onchange="SettingForm.onVersionChange(this.value)"
+                                                    disabled required>
+                                                <option value="" class="info-version-option">OS 종류를 먼저 선택하세요</option>
+                                                <th:block th:each="os : ${osInstallationViewList}">
+                                                    <option class="unavailable"
+                                                            th:each="ver : ${os.versions}"
+                                                            th:data-os-name="${os.osNameKey}"
+                                                            th:value="${ver.id}"
+                                                            th:text="${ver.version}" disabled></option>
+                                                </th:block>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">설치 환경</label>
+                                            <select class="form-select w-50 target-req"
+                                                    style="border-color: rgba(0,117,222,0.4);"
+                                                    id="environmentId"
+                                                    data-error-field="environmentId"
+                                                    onchange="SettingForm.onEnvironmentChange(this.value)"
+                                                    disabled required>
+                                                <option value="" class="info-env-option">버전을 먼저 선택하세요</option>
+                                                <th:block th:each="os : ${osInstallationViewList}">
+                                                    <th:block th:each="ver : ${os.versions}">
+                                                        <option class="unavailable"
+                                                                th:each="env : ${ver.environments}"
+                                                                th:data-metadata-id="${ver.id}"
+                                                                th:data-default="${env.isDefault}"
+                                                                th:value="${env.id}"
+                                                                th:text="${env.displayName}" disabled></option>
+                                                    </th:block>
+                                                </th:block>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">추가 패키지 그룹</label>
+                                            <div id="packageGroupArea"
+                                                 class="border rounded p-2"
+                                                 data-error-field="packageGroupIds"
+                                                 style="min-height:40px; border-color: rgba(0,0,0,0.1) !important;">
+                                                <span class="text-muted small" id="pkgGroupPlaceholder">환경을 선택하면 패키지 그룹이 표시됩니다.</span>
+                                                <th:block th:each="os : ${osInstallationViewList}">
+                                                    <th:block th:each="ver : ${os.versions}">
+                                                        <th:block th:each="env : ${ver.environments}">
+                                                            <div class="pkg-group-row unavailable form-check"
+                                                                 th:each="pkg : ${env.packageGroups}"
+                                                                 th:data-env-id="${env.id}">
+                                                                <input class="form-check-input" type="checkbox"
+                                                                       th:id="'pkg_' + ${pkg.id}"
+                                                                       th:value="${pkg.id}"
+                                                                       th:checked="${pkg.isDefault}"
+                                                                       th:data-env-id="${env.id}">
+                                                                <label class="form-check-label"
+                                                                       th:for="'pkg_' + ${pkg.id}"
+                                                                       th:text="${pkg.displayName}"></label>
+                                                            </div>
+                                                        </th:block>
+                                                    </th:block>
+                                                </th:block>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">타임존</label>
+                                                <input type="text" class="form-control target-req"
+                                                       id="timezone"
+                                                       data-error-field="timezone"
+                                                       placeholder="예: Asia/Seoul" required>
+                                            </div>
+                                            <div class="col-auto d-flex align-items-end pb-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="isUTC">
+                                                    <label class="form-check-label" for="isUTC">UTC 기준</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-auto d-flex align-items-end pb-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="isKDumpEnabled">
+                                                    <label class="form-check-label" for="isKDumpEnabled">KDump
+                                                        활성화</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- 파티션 구성 -->
+                                        <div class="mb-3" data-error-field="partitions">
+                                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <label class="form-label fw-bold mb-0">파티션 구성</label>
+                                                <button type="button"
+                                                        class="btn btn-outline-secondary btn-sm"
+                                                        id="btnDefaultPartitions"
+                                                        onclick="SettingForm.generateDefaultPartitions()"
+                                                        disabled>
+                                                    기본 파티션 자동 생성
+                                                </button>
+                                            </div>
+                                            <div class="small text-muted mb-1">
+                                                필수 마운트포인트: /, /boot, /boot/efi, swap
+                                            </div>
+                                            <table class="table table-sm table-bordered n-tbl-list" id="partitionTable"
+                                                   style="table-layout: fixed;">
+                                                <colgroup>
+                                                    <col style="width: 22%">  <!-- 마운트포인트 -->
+                                                    <col style="width: 14%">  <!-- 파일시스템 -->
+                                                    <col style="width: 11%">  <!-- 디스크명 -->
+                                                    <col style="width: 10%">  <!-- 크기 -->
+                                                    <col style="width: 9%">   <!-- 단위 -->
+                                                    <col style="width: 8%">   <!-- Grow -->
+                                                    <col style="width: 8%">   <!-- 삭제 -->
+                                                </colgroup>
+                                                <thead class="table-dark">
+                                                <tr>
+                                                    <th>마운트포인트</th>
+                                                    <th>파일시스템</th>
+                                                    <th>디스크명</th>
+                                                    <th>크기</th>
+                                                    <th>단위</th>
+                                                    <th>Grow</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    onclick="SettingForm.addPartitionRow()">+ 파티션 추가
+                                            </button>
+                                        </div>
+                                        <!-- root 계정 비밀번호 설정 -->
+                                        <div class="mb-3" data-error-field="rootPassword">
+                                            <label class="form-label fw-bold">root 계정 비밀번호</label>
+                                            <div class="small text-muted mb-2">
+                                                비워두면 root 계정이 잠긴 상태로 설치됩니다.
+                                                이 경우 아래 일반 사용자를 반드시 1명 이상 추가해야 합니다.
+                                            </div>
+                                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                                <div>
+                                                    <label class="form-label form-label-sm mb-1">비밀번호</label>
+                                                    <input type="password" class="form-control form-control-sm"
+                                                           id="rootPassword" style="width: 220px;"
+                                                           placeholder="비워두면 root 계정 잠금">
+                                                </div>
+                                                <div class="form-check mt-3">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           id="rootPasswordEncrypted">
+                                                    <label class="form-check-label form-label-sm"
+                                                           for="rootPasswordEncrypted">비밀번호 암호화</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- 일반 사용자 설정 -->
+                                        <div class="mb-3" data-error-field="users">
+                                            <label class="form-label fw-bold">일반 사용자 설정</label>
+                                            <div class="small text-muted mb-1">
+                                                root 비밀번호를 입력한 경우 선택 사항입니다.
+                                            </div>
+                                            <table class="table table-sm table-bordered n-tbl-list" id="userTable"
+                                                   style="table-layout: fixed;">
+                                                <colgroup>
+                                                    <col style="width: 22%">  <!-- 사용자명 -->
+                                                    <col style="width: 32%">  <!-- 비밀번호 -->
+                                                    <col style="width: 12%">  <!-- sudo -->
+                                                    <col style="width: 18%">  <!-- 비밀번호 암호화 -->
+                                                    <col style="width: 16%">  <!-- 삭제 -->
+                                                </colgroup>
+                                                <thead class="table-dark">
+                                                <tr>
+                                                    <th>사용자명</th>
+                                                    <th>비밀번호</th>
+                                                    <th>sudo</th>
+                                                    <th>비밀번호 암호화</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    onclick="SettingForm.addUserRow()">+ 사용자 추가
+                                            </button>
+                                        </div>
+                                    </th:block>
+
+                                    <!-- OS_SETTING -->
+                                    <th:block th:if="${step.name() == 'OS_SETTING'}">
+                                        <div class="alert alert-secondary py-2 mb-0">
+                                            OS 설치 후 진행될 사용자 정의 스크립트 구성 영역입니다.
+                                        </div>
+                                    </th:block>
+
+                                </div><!-- /step-content-area -->
+                            </div><!-- /accordion-body -->
+                        </div><!-- /accordion-collapse -->
+                    </div><!-- /accordion-item -->
+                </div><!-- /accordion -->
+            </div><!-- /card-body -->
+        </div><!-- /card -->
+
+        <div class="d-flex justify-content-end gap-2 mb-5">
+            <a th:href="@{/pxe/v1/admin/dashboard}" class="btn btn-secondary">취소</a>
+            <button type="submit" class="btn btn-primary px-4 fw-bold">주문서 생성</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* 선택 불가 옵션 숨김 처리 (이 페이지 전용 동적 UI 상태) */
+    .unavailable {
+        display: none !important;
+    }
+
+    /* 폼 검증 에러 스타일(.has-error, .field-error-message) 은 fragments/layout 에서
+       /css/form-validation.css 로 공통 로드된다. 여기에 재정의하지 않음. */
+</style>
+
+<!-- 공통 폼 에러 렌더러. window.FormError 네임스페이스만 노출된다. -->
+<script src="/js/form-error.js"></script>
+
+<script>
+    // -----------------------------------------------------------------------------
+    // 폼 제출 & 서버 에러 렌더링
+    // -----------------------------------------------------------------------------
+    // 공유 함수(checkIfBiosAndBmcAvailable, toggleStep, onOsNameChange 등 12개)는
+    // /js/setting-form.js (window.SettingForm) 에 있다.
+    // 에러 렌더러는 /js/form-error.js (window.FormError) 에 있다.
+
+    /** 폼 유효성 검사 통과 후 최종 JSON 조립 및 전송 로직 */
+    async function submitSettingTemplate() {
+        FormError.clearAll();
+
+        const {payload, stepTypeByIndex} = SettingForm.buildSettingPayload();
+
+        if (payload.processList.length === 0) {
+            FormError.renderFormLevel("최소 하나 이상의 프로비저닝 단계를 사용(체크)해야 합니다.");
+            return;
+        }
+
+        // OS_INSTALLATION 이 포함된 경우 파티션 크기 클라이언트 사전 검증
+        if (stepTypeByIndex.includes('OS_INSTALLATION') && SettingForm.hasPartitionSizeError()) return;
+
+        let response;
+        try {
+            response = await fetch('/pxe/v1/setting/api/new', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+        } catch (networkErr) {
+            console.error("[submitSettingTemplate] 네트워크 오류:", networkErr);
+            FormError.renderFormLevel("서버와 통신할 수 없습니다: " + networkErr.message);
+            return;
+        }
+
+        if (!response.ok) {
+            let errBody;
+            try {
+                errBody = await response.json();
+            } catch (parseErr) {
+                errBody = {message: "서버 응답 오류 (" + response.status + ")"};
+            }
+            FormError.renderResponse(errBody, {stepTypeByIndex});
+            return;
+        }
+
+        const data = await response.json();
+        FormError.clearAll();
+        // 성공 UX 는 이번 요구사항 범위가 아니므로 alert 유지.
+        alert("주문서 #" + data.id + " '" + data.name + "' 생성이 완료되었습니다.");
+    }
+</script>
+</body>
+</html>
