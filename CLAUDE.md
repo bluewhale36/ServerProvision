@@ -20,21 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 빌드 및 실행
 
-```bash
-# 빌드
-./gradlew build
-
-# 실행 (환경변수 필수)
-SERVER_PORT=7779 DB_URL=jdbc:mariadb://localhost:3306/server_provision DB_USERNAME=readonly_user DB_PASSWORD=readonly_claude ./gradlew bootRun
-
-# 전체 테스트
-./gradlew test
-
-# 단일 테스트 클래스 실행
-./gradlew test --tests "com.example.serverprovision.SomeTest"
-```
-
-DB 및 포트 설정은 모두 환경변수(`SERVER_PORT`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`)로 주입한다. 기본값이 없으므로 환경변수 없이는 앱이 시작되지 않는다.
+`CLAUDE.local.md` 파일 참고.
 
 ### 로컬 테스트 DB 계정
 

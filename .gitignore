@@ -37,5 +37,6 @@ out/
 .vscode/
 
 ### Claude Code ###
+CLAUDE.local.md
 /plan/
 /report/
