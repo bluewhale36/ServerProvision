@@ -158,6 +158,29 @@ What makes Notion's visual language distinctive is its border philosophy. Rather
 - Dashboard/workspace preview screenshots dominate feature sections
 - Warm gradient backgrounds behind hero illustrations (decorative character illustrations)
 
+### Inline Code
+
+인라인 `<code>` 요소는 배지(badge)와 유사한 시각적 처리를 하되, 코드 텍스트임을 명확히 구분한다.
+
+- **Font**: `"SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", monospace` — 모노스페이스 폰트로 일반 텍스트와 시각적으로 구분
+- **Font Size**: 부모 텍스트 대비 약 85% (0.85em) — 모노스페이스 폰트의 시각적 크기 차이를 보정
+- **Font Weight**: 500 — UI 요소로서의 존재감 확보
+- **Background**: `rgba(0,0,0,0.06)` — Warm White 계열의 반투명 배경으로 배지처럼 텍스트가 요소 내에 담긴 느낌
+- **Text Color**: `rgba(0,0,0,0.85)` — 본문보다 약간 연하게 처리하여 코드임을 암시
+- **Padding**: `2px 6px` — 배지와 유사한 내부 여백으로 텍스트가 요소 안에 있는 형태
+- **Radius**: `4px` — Pill 배지(9999px)보다 훨씬 작은 값으로, 사각형에 가까우면서 모서리만 살짝 둥근 형태. Micro radius 단계와 동일
+- **Border**: `1px solid rgba(0,0,0,0.08)` — Whisper border보다 한 단계 더 미묘한 경계선
+- **Vertical Align**: `baseline` 유지 — 주변 텍스트와 자연스러운 흐름
+
+**Pill Badge vs Inline Code 비교:**
+
+| 속성 | Pill Badge | Inline Code |
+|------|-----------|-------------|
+| Radius | 9999px (완전한 알약 형태) | 4px (사각형에 가까운 형태) |
+| Font | NotionInter (본문과 동일) | Monospace (코드 전용) |
+| Background | `#f2f9ff` (파란 틴트) | `rgba(0,0,0,0.06)` (중립 회색) |
+| 용도 | 상태 표시, 태그, 라벨 | 코드 식별자, 기술 용어, 명령어 |
+
 ### Distinctive Components
 
 **Feature Cards with Illustrations**
@@ -307,3 +330,85 @@ What makes Notion's visual language distinctive is its border philosophy. Rather
 6. The warm white (#f6f5f4) section background is essential for visual rhythm
 7. Pill badges (9999px) for status/tags, 4px radius for buttons and inputs
 8. Notion Blue (#0075de) is the only saturated color in core UI -- use it sparingly for CTAs and links
+
+## 10. CSS Class Usage Constraints
+
+이 섹션은 커스텀 CSS 클래스(n- 접두사)의 **사용 맥락 규칙**을 정의한다. 섹션 4(Component Stylings)가 "어떻게 보이는가"를 다루는 반면, 이 섹션은 "언제/어디서 사용하는가"를 다룬다. 이름만으로 용도가 자명한 클래스(n-btn-primary, n-card 등)는 생략하고, 오용 가능성이 있는 클래스만 선별하여 문서화한다.
+
+### 10.1 데이터 의미 셀 클래스
+
+테이블 셀(`<td>`)에 적용하는 클래스 중, 특정 데이터 유형에만 허용되는 것들이다.
+
+**`n-td-id`** — 레코드의 기본 키(PK) 또는 고유 식별자를 표시하는 셀에만 사용한다.
+
+- 스타일: 가운데 정렬, monospace, 13px, muted 색상
+- 올바른 사용: `<td class="n-td-id" th:text="${setting.id}">1</td>`
+- 잘못된 사용: `<td class="n-td-id" th:text="${partition.mountPoint}">/boot</td>` — 마운트포인트는 ID가 아니다. monospace가 필요하면 `n-table-mono`를 사용한다.
+
+**`n-table-mono`** — 코드성 값(MAC 주소, 파일 경로, 버전 문자열 등)을 표시하는 범용 monospace 클래스. `n-td-id`와 달리 색상이나 정렬을 변경하지 않으므로, ID가 아닌 코드값에는 이 클래스를 사용한다.
+
+**`n-table-muted`** — 실제 값이 없을 때의 대체 텍스트(`-`, `없음`, `미입력`)에만 사용한다. 실제 데이터가 있는 셀에는 절대 적용하지 않는다.
+
+**`n-table-empty`** — 테이블에 행이 0개일 때 "데이터 없음" 메시지를 표시하는 단일 `<tr>`에만 사용한다. `<td>`에는 헤더 수와 동일한 `colspan`을 지정해야 한다.
+
+### 10.2 테이블 타입 선택
+
+두 테이블 클래스는 **상호 배타적**이며, 페이지의 맥락에 따라 선택한다.
+
+| 클래스 | 기반 | 사용 맥락 | 선택 기준 |
+|--------|------|----------|----------|
+| `n-table` | style.css 커스텀 | 읽기 전용 목록 (dashboard, list 페이지) | 데이터를 조회/탐색하는 컨텍스트 |
+| `n-tbl-list` | Bootstrap `.table` | 폼 내 인라인 편집 (new, edit 페이지) | 행에 input, select, 삭제 버튼이 포함된 컨텍스트 |
+
+규칙:
+- 하나의 `<table>`에 두 클래스를 동시에 적용하지 않는다.
+- `n-tbl-list`는 반드시 Bootstrap 클래스(`table table-sm table-bordered`)와 함께 사용한다.
+
+### 10.3 컨텍스트 스타일 오버라이드
+
+부모 클래스가 자식 요소의 스타일을 **암묵적으로 변경**하는 패턴이다. 이 클래스들은 적용 맥락을 엄격히 지켜야 의도치 않은 스타일 변형을 방지할 수 있다.
+
+**`n-detail-fields`** — 상세(읽기 전용) 페이지에서 필드 그룹을 감싸는 래퍼 `<div>`.
+
+- 효과: 내부 `.n-label:not(.strong)`을 11px/uppercase/muted로 오버라이드한다.
+- 올바른 사용: `setting/detail.html` 등 읽기 전용 상세 페이지의 필드 블록
+- 잘못된 사용: 편집 폼(`new.html`, `edit.html`)의 폼 그룹을 이 클래스로 감싸면 레이블이 너무 작아져 폼 맥락에 부적합해진다.
+
+**`n-detail-table`** — 2열 key-value 구조의 상세 정보 테이블.
+
+- 1열(`<th>`): 필드명 레이블, 2열(`<td>`): 값
+- `.mono` 수식자는 코드/경로 값에만 적용
+- 잘못된 사용: 다건 목록 테이블에 이 클래스를 사용하면 `<th>` 너비가 180px로 고정되어 레이아웃이 깨진다.
+
+### 10.4 페이지 스코프 컴포넌트
+
+특정 페이지 전용 CSS 파일에 정의된 클래스들이다. 해당 페이지 외부에서 사용하면 스타일이 적용되지 않는다.
+
+**`n-miller-*`** (18개 클래스) — OS 목록 페이지(`admin/os/os-list.html`) 전용 Miller Columns 컴포넌트.
+
+- 정의 파일: `css/miller.css` (os-list 페이지에서만 로드)
+- 규칙: 개별 miller 클래스를 다른 페이지에서 추출하여 사용하지 않는다. 유사한 다단 선택 UI가 필요하면 `n-miller` 컴포넌트 구조 전체를 재사용한다.
+
+**`n-extract-task-*`**, **`n-spinner`**, **`n-progress-bar-*`** — OS 관리 비동기 추출 기능 전용.
+
+- 정의 파일: `admin/os/os-list.css` (os-list 페이지에서만 로드)
+- 규칙: 다른 페이지에서 이 클래스를 참조하려면, 먼저 CSS를 글로벌 스타일시트로 이동해야 한다.
+
+### 10.5 시맨틱 레이아웃 컨테이너
+
+레이아웃 내에서 고정된 역할을 갖는 컨테이너 클래스다. 역할 외 맥락에서 사용하면 마진/패딩/테두리가 의도와 다르게 적용된다.
+
+**`n-section`** — 폼 또는 상세 카드 내에서 논리적 그룹을 구분하는 시각적 구분선.
+
+- 위치: `n-card-body`의 직접 자식으로만 사용
+- 잘못된 사용: `n-row` 내부에 중첩하거나, 범용 제목 요소로 사용
+
+**`n-form-actions`** — 폼 카드 하단의 최종 액션 바(저장/취소 버튼).
+
+- 규칙: 폼당 정확히 1개. 상단 테두리와 상단 여백을 포함한다.
+- 잘못된 사용: 폼 중간에 인라인 액션 그룹이 필요하면 `n-actions`를 사용한다.
+
+**`n-page-header`** — 페이지 최상단의 제목 + 액션 버튼 영역.
+
+- 구조: 좌측 `n-page-title` + 우측 `n-header-actions`
+- 규칙: 페이지당 정확히 1개, 메인 카드 앞에 배치

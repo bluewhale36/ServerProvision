@@ -40,6 +40,19 @@ body {
     margin: 0;
 }
 
+/* 인라인 코드 — 배지와 유사한 형태의 코드 표시 요소 */
+code {
+    font-family: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+    font-size: 0.85em;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    vertical-align: baseline;
+}
+
 /* ---- 3. 내비게이션 바 ------------------------------------- */
 .n-nav {
     background: var(--n-surface);
@@ -65,7 +78,7 @@ body {
 }
 
 .n-nav-link {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     color: var(--n-text-sec);
     text-decoration: none;
@@ -77,20 +90,6 @@ body {
 .n-nav-link:hover { background: rgba(0, 0, 0, 0.05); color: var(--n-text); }
 .n-nav-link.active { color: var(--n-text); font-weight: 600; background: rgba(0, 0, 0, 0.04); }
 
-.n-nav-spacer { flex: 1; }
-
-.n-nav-cta {
-    background: var(--n-blue);
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 6px 14px;
-    border-radius: 4px;
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: background .15s;
-}
-.n-nav-cta:hover { background: var(--n-blue-hover); color: #ffffff; }
 
 /* ---- 4. 페이지 레이아웃 ----------------------------------- */
 .n-page    { padding: 40px; max-width: 1440px; margin: 0 auto; }
@@ -142,10 +141,10 @@ body {
     border: none;
     border-radius: 4px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     line-height: 1.4;
-    padding: 7px 14px;
+    padding: 8px 16px;
     cursor: pointer;
     text-decoration: none;
     white-space: nowrap;
@@ -189,9 +188,9 @@ body {
 .n-badge {
     display: inline-block;
     border-radius: 9999px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.125px;
     padding: 3px 10px;
     white-space: nowrap;
 }
@@ -213,7 +212,6 @@ body {
     text-transform: uppercase;
     padding: 10px 16px;
     border-bottom: 1px solid var(--n-border);
-    text-align: left;
     white-space: nowrap;
 }
 .n-table thead th.center { text-align: center; }
@@ -379,14 +377,6 @@ body {
     font-size: 14px;
     color: rgba(0, 0, 0, 0.9);
     vertical-align: middle;
-}
-.n-detail-table td.mono {
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    color: rgba(0, 0, 0, 0.85);
-    background: var(--n-bg);
-    padding: 8px 12px;
-    border-radius: 4px;
 }
 
 /* ---- 14. 업로드 패널 -------------------------------------- */
