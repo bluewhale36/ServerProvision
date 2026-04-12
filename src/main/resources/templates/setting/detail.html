@@ -282,7 +282,30 @@
                           th:text="${process.processStep.description}">단계명</span>
                 </div>
                 <div class="n-card-body">
-                    <span class="n-table-muted" style="font-size:14px;">세부 설정 정보가 없습니다.</span>
+                    <table class="n-tbl-detail">
+                        <tr>
+                            <th>SELinux 모드</th>
+                            <td th:text="${process.selinuxMode}">-</td>
+                        </tr>
+                        <tr>
+                            <th>추가 패키지</th>
+                            <td>
+                                <span th:if="${process.additionalPackages.isEmpty()}"
+                                      class="n-table-muted">없음</span>
+                                <span th:unless="${process.additionalPackages.isEmpty()}"
+                                      th:text="${#strings.listJoin(process.additionalPackages, ', ')}">-</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>활성화 서비스</th>
+                            <td>
+                                <span th:if="${process.enabledServices.isEmpty()}"
+                                      class="n-table-muted">없음</span>
+                                <span th:unless="${process.enabledServices.isEmpty()}"
+                                      th:text="${#strings.listJoin(process.enabledServices, ', ')}">-</span>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </div>
 

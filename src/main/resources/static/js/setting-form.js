@@ -353,6 +353,24 @@
             </tr>`);
     }
 
+    // OS_SETTING: 추가 패키지 행 동적 추가
+    function addPackageRow() {
+        document.querySelector('#additionalPackagesTable tbody').insertAdjacentHTML('beforeend', `
+            <tr>
+                <td><input type="text" class="form-control form-control-sm packageName" placeholder="예: vim, curl, wget"></td>
+                <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+            </tr>`);
+    }
+
+    // OS_SETTING: 서비스 활성화 행 동적 추가
+    function addServiceRow() {
+        document.querySelector('#enabledServicesTable tbody').insertAdjacentHTML('beforeend', `
+            <tr>
+                <td><input type="text" class="form-control form-control-sm serviceName" placeholder="예: nginx, firewalld, sshd"></td>
+                <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+            </tr>`);
+    }
+
     /** 체크된 step 들을 순서대로 순회하며 페이로드와 stepTypeByIndex 를 동시에 만든다. */
     function buildSettingPayload() {
         const processList = [];
@@ -433,7 +451,28 @@
                 });
                 stepTypeByIndex.push(stepName);
             } else if (stepName === 'OS_SETTING') {
-                processList.push({type: "OS_SETTING"});
+                // SELinux 모드 수집
+                const selinuxModeEl = document.getElementById('selinuxMode');
+                const selinuxMode = selinuxModeEl ? selinuxModeEl.value : 'enforcing';
+
+                // 추가 패키지 목록 수집 (빈 값 제외)
+                const additionalPackages = Array.from(
+                    document.querySelectorAll('#additionalPackagesTable tbody tr')
+                ).map(row => row.querySelector('.packageName').value.trim())
+                 .filter(v => v.length > 0);
+
+                // 서비스 활성화 목록 수집 (빈 값 제외)
+                const enabledServices = Array.from(
+                    document.querySelectorAll('#enabledServicesTable tbody tr')
+                ).map(row => row.querySelector('.serviceName').value.trim())
+                 .filter(v => v.length > 0);
+
+                processList.push({
+                    type: "OS_SETTING",
+                    selinuxMode,
+                    additionalPackages,
+                    enabledServices
+                });
                 stepTypeByIndex.push(stepName);
             }
         });
@@ -454,6 +493,8 @@
         generateDefaultPartitions,
         addPartitionRow,
         addUserRow,
+        addPackageRow,
+        addServiceRow,
         buildSettingPayload
     };
 
