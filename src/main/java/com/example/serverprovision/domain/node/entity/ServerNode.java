@@ -124,6 +124,14 @@ public class ServerNode extends BaseTimeEntity {
     }
 
     /**
+     * 이 서버 노드에서 세팅 주문서 할당을 해제하고 작업 유형을 IDLE로 초기화한다.
+     */
+    public void unassignSetting() {
+        this.serverSetting = null;
+        this.targetJob = JobType.IDLE;
+    }
+
+    /**
      * 관리자 폼 제출({@code ServerNodeCreateDTO})로 서버 노드를 생성한다.
      * {@code boardModelId}가 {@code null}이거나 DTO의 ID와 실제 엔티티 ID가 불일치하면
      * {@code IllegalArgumentException}을 던진다.

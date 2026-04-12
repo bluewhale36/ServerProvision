@@ -15,6 +15,10 @@
         </div>
     </div>
 
+    <!-- 플래시 메시지 -->
+    <div th:if="${successMessage}" class="n-alert n-alert-success" th:text="${successMessage}"></div>
+    <div th:if="${errorMessage}" class="n-alert n-alert-danger" th:text="${errorMessage}"></div>
+
     <div class="n-card">
         <table class="n-table">
             <thead>
@@ -22,18 +26,53 @@
                 <th>주문 번호</th>
                 <th>대상 서버</th>
                 <th>세팅 주문서</th>
+                <th>메모</th>
                 <th>요청일시</th>
                 <th>상태</th>
                 <th>관리</th>
             </tr>
             </thead>
             <tbody>
-            <tr>
-                <td colspan="6">
+            <tr th:if="${#lists.isEmpty(orders)}">
+                <td colspan="7">
                     <div class="n-empty">
                         <div class="n-empty-title">등록된 작업 주문이 없습니다</div>
                         <div class="n-empty-desc">신규 주문 생성 버튼을 눌러 작업 주문을 등록하세요.</div>
                     </div>
+                </td>
+            </tr>
+
+            <tr th:each="order : ${orders}">
+                <td class="n-table-mono" th:text="${order.id}">#1</td>
+                <td>
+                    <span class="n-table-mono" th:text="${order.node.macAddress}">00:11:22...</span>
+                    <br th:if="${order.node.hostname != null}">
+                    <small class="n-table-muted" th:if="${order.node.hostname != null}"
+                           th:text="${order.node.hostname}">hostname</small>
+                </td>
+                <td th:text="${order.setting.name}">세팅명</td>
+                <td>
+                    <span th:if="${order.memo != null}" th:text="${order.memo}">메모 내용</span>
+                    <span class="n-table-muted" th:if="${order.memo == null}">-</span>
+                </td>
+                <td th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}">2026-01-01 12:00</td>
+                <td class="n-td-center">
+                    <span class="n-badge"
+                          th:classappend="${order.status.name() == 'CREATED' ? 'n-badge-teal' :
+                                          (order.status.name() == 'IN_PROGRESS' ? 'n-badge-blue' :
+                                          (order.status.name() == 'COMPLETED' ? 'n-badge-green' :
+                                          (order.status.name() == 'FAILED' ? 'n-badge-orange' : 'n-badge-gray')))}"
+                          th:text="${order.status.description}">생성됨</span>
+                </td>
+                <td class="n-td-center">
+                    <form th:if="${order.status.name() == 'CREATED' or order.status.name() == 'IN_PROGRESS'}"
+                          th:action="@{/pxe/v1/order/{id}/cancel(id=${order.id})}"
+                          method="post" style="display: inline;">
+                        <button type="submit" class="n-btn n-btn-outline-danger n-btn-sm"
+                                onclick="return confirm('정말 취소하시겠습니까?')">취소</button>
+                    </form>
+                    <span class="n-table-muted"
+                          th:if="${order.status.name() != 'CREATED' and order.status.name() != 'IN_PROGRESS'}">-</span>
                 </td>
             </tr>
             </tbody>

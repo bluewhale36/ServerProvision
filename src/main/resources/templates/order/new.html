@@ -15,27 +15,39 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <form>
+            <form th:action="@{/pxe/v1/order}" method="post">
                 <div class="n-section">대상 서버 선택</div>
                 <div class="n-form-group">
-                    <label class="n-label strong">대상 서버 (MAC 주소)</label>
-                    <select class="n-select">
+                    <label class="n-label strong" for="nodeId">대상 서버 (MAC 주소)</label>
+                    <select class="n-select" name="nodeId" id="nodeId" required>
                         <option value="">서버를 선택하세요</option>
+                        <option th:each="node : ${nodes}"
+                                th:value="${node.id}"
+                                th:text="${node.macAddress + (node.hostname != null ? ' (' + node.hostname + ')' : '')}">
+                            00:11:22 (hostname)
+                        </option>
                     </select>
                 </div>
 
                 <div class="n-section">세팅 주문서 선택</div>
                 <div class="n-form-group">
-                    <label class="n-label strong">적용할 세팅 주문서</label>
-                    <select class="n-select">
+                    <label class="n-label strong" for="settingId">적용할 세팅 주문서</label>
+                    <select class="n-select" name="settingId" id="settingId" required>
                         <option value="">주문서를 선택하세요</option>
+                        <option th:each="setting : ${settings}"
+                                th:value="${setting.id}"
+                                th:text="${setting.name}">
+                            세팅명
+                        </option>
                     </select>
+                    <div class="n-hint">대기 중(PENDING) 상태의 세팅 주문서만 표시됩니다.</div>
                 </div>
 
                 <div class="n-section">비고</div>
                 <div class="n-form-group">
-                    <label class="n-label">메모 (선택)</label>
-                    <textarea class="n-textarea" placeholder="작업 관련 메모를 입력하세요"></textarea>
+                    <label class="n-label" for="memo">메모 (선택)</label>
+                    <textarea class="n-textarea" name="memo" id="memo"
+                              placeholder="작업 관련 메모를 입력하세요"></textarea>
                 </div>
 
                 <div class="n-form-actions">
