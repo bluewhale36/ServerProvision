@@ -29,7 +29,8 @@ public class Timezone implements InstallScriptable {
 
         sb.append("timezone ").append(timezone);
 
-        if (isUTC) sb.append(" --utc");
+        // Rocky Linux 9 Kickstart 문법은 --isUtc 를 사용한다 (--utc 는 구문 오류)
+        if (isUTC) sb.append(" --isUtc");
 
         sb.append("\n");
 

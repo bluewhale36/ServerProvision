@@ -17,5 +17,11 @@ public abstract class OSInstallation extends OSTemplate {
         super(compatibleOS, compatibleOSVersion);
     }
 
-    public abstract String getKickstartScript();
+    /**
+     * 주어진 런타임 컨텍스트를 바탕으로 완성된 Kickstart 스크립트 문자열을 반환한다.
+     *
+     * @param ctx 호스트명·IP·설치 소스 URL 등 네트워크 의존 정보를 담은 컨텍스트
+     * @return 완성된 Kickstart 파일 내용 (text/plain)
+     */
+    public abstract String getKickstartScript(KickstartContext ctx);
 }

@@ -86,4 +86,35 @@ public class ServerNodeService {
     public ServerNode getNodeByMac(String mac) {
         return serverNodeRepository.findAvailableNodeByMacAddress(mac).orElseThrow(() -> new RuntimeException("서버 노드를 찾을 수 없습니다. MAC: " + mac));
     }
+
+    /**
+     * ID로 서버 노드를 조회한다.
+     *
+     * <p>Kickstart 스크립트 서빙 등 ID 기반 직접 조회가 필요한 경우 사용한다.
+     * 상태 필터 없이 전체 상태의 노드를 반환하며, 노드가 없으면 예외를 던진다.</p>
+     *
+     * @param id 조회할 서버 노드 기본키
+     * @return 해당 ID의 {@code ServerNode}
+     * @throws RuntimeException 노드가 존재하지 않는 경우
+     */
+    @Transactional
+    public ServerNode getNodeById(Long id) {
+        return serverNodeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("서버 노드를 찾을 수 없습니다. ID: " + id));
+    }
+
+    /**
+     * ID로 서버 노드를 Optional로 조회한다.
+     *
+     * <p>컨트롤러에서 not-found 판단을 직접 수행해야 하는 경우 사용한다.
+     * 예외 대신 {@link java.util.Optional}을 반환하므로 광범위한 try-catch 없이
+     * 안전하게 null 여부를 처리할 수 있다.</p>
+     *
+     * @param id 조회할 서버 노드 기본키
+     * @return 해당 ID의 {@code ServerNode}를 감싼 Optional, 없으면 empty
+     */
+    @Transactional
+    public java.util.Optional<ServerNode> findNodeById(Long id) {
+        return serverNodeRepository.findById(id);
+    }
 }
