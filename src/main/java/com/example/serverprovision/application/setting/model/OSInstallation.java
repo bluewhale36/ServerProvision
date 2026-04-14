@@ -16,7 +16,7 @@ import lombok.Getter;
  *
  * <p>유스케이스: {@link com.example.serverprovision.application.setting.service.resolver.OSInstallationResolver}가
  * {@link com.example.serverprovision.application.setting.model.request.OSInstallationRequest}로부터
- * 도메인 설치 모델({@link com.example.serverprovision.domain.os.model.installation.RockyLinuxInstallation} 등)을
+ * 도메인 설치 모델({@link com.example.serverprovision.domain.os.model.installation.RockyLinux9Installation} 등)을
  * 빌드한 뒤 이 생성자를 호출한다. {@code osInstallation.isCompatible(osName, osVersion)}이
  * {@code false}이면 {@link IllegalArgumentException}이 발생하고, Resolver가 이를
  * {@code "osMetadataId"} 필드의 {@link com.example.serverprovision.global.exception.FieldValidationException}으로 변환한다.

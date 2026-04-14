@@ -15,7 +15,9 @@ import com.example.serverprovision.domain.os.model.enums.FileSystem;
 import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.domain.os.model.installation.LinuxInstallation;
 import com.example.serverprovision.domain.os.model.installation.PartitionPreset;
-import com.example.serverprovision.domain.os.model.installation.RockyLinuxInstallation;
+import com.example.serverprovision.domain.os.model.installation.RHELBasedInstallation;
+import com.example.serverprovision.domain.os.model.installation.RockyLinux10Installation;
+import com.example.serverprovision.domain.os.model.installation.UbuntuInstallation;
 import com.example.serverprovision.domain.os.service.OSMetadataService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -315,20 +317,45 @@ public class SettingController {
             }
             case OS_INSTALLATION -> {
                 OSInstallation oi = (OSInstallation) process;
-                RockyLinuxInstallation rli = (RockyLinuxInstallation) oi.getOsInstallation();
+                // 도메인 설치 모델의 실제 타입으로 분기: RHEL 계열 vs Ubuntu.
+                // 공통 필드(partitions, users, rootPassword 메타)는 LinuxInstallation 레벨에서 접근,
+                // family 고유 필드는 인스턴스 타입별 분기로 채운다.
+                LinuxInstallation base = (LinuxInstallation) oi.getOsInstallation();
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("type", "OS_INSTALLATION");
                 m.put("osMetadataId", oi.getOsMetadata().id());
-                m.put("isKDumpEnabled", rli.isKDumpEnabled());
-                m.put("environmentId",
-                        rli.getEnvironment() != null && rli.getEnvironment().getOsEnvironment() != null
-                        ? rli.getEnvironment().getOsEnvironment().id() : null);
-                m.put("packageGroupIds",
-                        rli.getEnvironment() != null
-                        ? rli.getEnvironment().getPackageGroups().stream()
-                                .map(OSPackageGroupDTO::id).toList()
-                        : List.of());
-                m.put("partitions", rli.getPartitions().stream().map(p -> {
+
+                // family 판별자: JS 가 pane 활성화 및 payload 구성 시 참조.
+                m.put("osFamily", oi.getOsMetadata().osName().getFamily().name());
+
+                if (base instanceof RHELBasedInstallation rli) {
+                    m.put("isKDumpEnabled", rli.isKDumpEnabled());
+                    m.put("environmentId",
+                            rli.getEnvironment() != null && rli.getEnvironment().getOsEnvironment() != null
+                            ? rli.getEnvironment().getOsEnvironment().id() : null);
+                    m.put("packageGroupIds",
+                            rli.getEnvironment() != null
+                            ? rli.getEnvironment().getPackageGroups().stream()
+                                    .map(OSPackageGroupDTO::id).toList()
+                            : List.of());
+                    // Rocky 10 전용 allowSshRoot: 다른 RHEL 버전은 포함하지 않음
+                    if (rli instanceof RockyLinux10Installation r10) {
+                        m.put("allowSshRoot", r10.isAllowSshRoot());
+                    }
+                    if (rli.getTimezone() != null) {
+                        m.put("timezone", rli.getTimezone().getTimezone());
+                        m.put("isUTC", rli.getTimezone().isUTC());
+                    }
+                } else if (base instanceof UbuntuInstallation ui) {
+                    m.put("hostname", ui.getHostname() != null ? ui.getHostname() : "");
+                    m.put("packages", ui.getPackages() != null ? ui.getPackages() : List.of());
+                    if (ui.getTimezone() != null) {
+                        m.put("timezone", ui.getTimezone().getTimezone());
+                        m.put("isUTC", ui.getTimezone().isUTC());
+                    }
+                }
+
+                m.put("partitions", base.getPartitions().stream().map(p -> {
                     Map<String, Object> pm = new LinkedHashMap<>();
                     pm.put("mountPoint", p.getMountPoint());
                     pm.put("fileSystem", p.getFileSystem().name());
@@ -338,7 +365,7 @@ public class SettingController {
                     pm.put("grow", p.isGrow());
                     return pm;
                 }).toList());
-                m.put("users", rli.getUsers().stream().map(u -> {
+                m.put("users", base.getUsers().stream().map(u -> {
                     Map<String, Object> um = new LinkedHashMap<>();
                     um.put("username", u.getUsername());
                     um.put("isSudoer", u.isSudoer());
@@ -346,13 +373,9 @@ public class SettingController {
                     // password: 보안상 pre-fill 불가 — JS에서 빈 값으로 표시
                     return um;
                 }).toList());
-                m.put("hasRootPassword", rli.getRootPassword() != null);
+                m.put("hasRootPassword", base.getRootPassword() != null);
                 m.put("rootPasswordEncrypted",
-                        rli.getRootPassword() != null && rli.getRootPassword().isPasswordEncrypted());
-                if (rli.getTimezone() != null) {
-                    m.put("timezone", rli.getTimezone().getTimezone());
-                    m.put("isUTC", rli.getTimezone().isUTC());
-                }
+                        base.getRootPassword() != null && base.getRootPassword().isPasswordEncrypted());
                 yield m;
             }
             case OS_SETTING -> {

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  RHEL 계열 (Rocky 8/9/10, CentOS 7) 상세 뷰 전용 블록.
+  detail.html 에서 OS_INSTALLATION 카드의 family 분기 지점에서 th:replace 로 렌더된다.
+  파라미터:
+    - inst         : RHELBasedInstallation 도메인 모델
+    - showAllowSsh : true 일 때만 "root SSH 허용" 필드를 표시 (Rocky 10 전용)
+-->
+<th:block th:fragment="body(inst, showAllowSsh)">
+
+    <!-- KDump -->
+    <div>
+        <div class="n-label strong" style="margin-bottom:12px;">커널 크래시 덤프 (KDump)</div>
+        <span class="n-badge n-badge-green"
+              th:if="${inst.KDumpEnabled}">활성화</span>
+        <span class="n-badge n-badge-gray"
+              th:if="${!inst.KDumpEnabled}">비활성화</span>
+    </div>
+
+    <!-- 설치 환경 (구 데이터는 environment 가 null 일 수 있음) -->
+    <div th:if="${inst.environment != null and inst.environment.osEnvironment != null}">
+        <div class="n-label strong" style="margin-bottom:12px;">설치 환경</div>
+        <div class="n-detail-fields" style="display:flex; gap:48px; flex-wrap:wrap; align-items:flex-start;">
+            <div>
+                <div class="n-label">환경</div>
+                <div style="font-size:14px;"
+                     th:text="${inst.environment.osEnvironment.displayName}">-</div>
+            </div>
+            <div th:if="${!#lists.isEmpty(inst.environment.packageGroups)}">
+                <div class="n-label">패키지 그룹</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                    <span class="n-badge n-badge-gray"
+                          th:each="pkg : ${inst.environment.packageGroups}"
+                          th:text="${pkg.displayName}">패키지</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rocky 10 전용: root SSH 허용 여부 -->
+    <div th:if="${showAllowSsh}">
+        <div class="n-label strong" style="margin-bottom:12px;">root SSH 로그인</div>
+        <span class="n-badge n-badge-blue"
+              th:if="${inst.allowSshRoot}">허용 (--allow-ssh)</span>
+        <span class="n-badge n-badge-gray"
+              th:if="${!inst.allowSshRoot}">차단 (기본)</span>
+    </div>
+
+</th:block>
+</body>
+</html>

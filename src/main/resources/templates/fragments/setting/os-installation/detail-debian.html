@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Debian 계열 (Ubuntu) 상세 뷰 전용 블록.
+  파라미터: inst — UbuntuInstallation 도메인 모델
+-->
+<th:block th:fragment="body(inst)">
+
+    <!-- 호스트명 -->
+    <div>
+        <div class="n-label strong" style="margin-bottom:12px;">호스트명</div>
+        <span th:if="${!#strings.isEmpty(inst.hostname)}"
+              style="font-family:'Courier New',monospace; font-size:14px; font-weight:600;"
+              th:text="${inst.hostname}">hostname</span>
+        <span class="n-table-muted"
+              th:if="${#strings.isEmpty(inst.hostname)}">미설정 (기본값: ubuntu-server)</span>
+    </div>
+
+    <!-- APT 패키지 목록 -->
+    <div>
+        <div class="n-label strong" style="margin-bottom:12px;">추가 설치 패키지 (APT)</div>
+        <div th:if="${!#lists.isEmpty(inst.packages)}"
+             style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span class="n-badge n-badge-gray"
+                  th:each="pkg : ${inst.packages}"
+                  style="font-family:'Courier New',monospace; font-size:12px;"
+                  th:text="${pkg}">패키지명</span>
+        </div>
+        <span class="n-table-muted"
+              th:if="${#lists.isEmpty(inst.packages)}">없음 (기본 이미지 그대로 설치)</span>
+    </div>
+
+</th:block>
+</body>
+</html>

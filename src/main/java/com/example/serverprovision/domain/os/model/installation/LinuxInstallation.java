@@ -18,7 +18,14 @@ import java.util.stream.Collectors;
 @Getter
 public abstract class LinuxInstallation extends OSInstallation {
 
-    private static final List<String> MANDATORY_MOUNT_POINTS = List.of("/", "/boot", "/boot/efi", "swap");
+    /**
+     * 모든 Linux 계열에 공통으로 요구되는 마운트포인트.
+     *
+     * <p>{@code /boot/efi} 는 UEFI 부팅을 전제로 하는 배포판(RHEL 8+, Rocky 9+, Ubuntu UEFI)에만
+     * 필수이므로 이 공통 목록에서는 제외되었다. UEFI 필수 배포판은
+     * {@link RHELBasedInstallation#requireBootEfi()} 훅을 통해 자체적으로 추가 검증한다.</p>
+     */
+    private static final List<String> MANDATORY_MOUNT_POINTS = List.of("/", "/boot", "swap");
 
     /**
      * OS 설치 폼에서 "기본 파티션 자동 생성" 시 사용하는 권장 파티션 프리셋.

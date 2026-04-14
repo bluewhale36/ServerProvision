@@ -10,11 +10,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class RockyLinuxInstallationTest {
+class RockyLinux9InstallationTest {
 
     private String script;
-    private RockyLinuxInstallation installation;
-    private KickstartContext ctx;
+    private RockyLinux9Installation installation;
+    private InstallationContext ctx;
 
     @BeforeEach
     void setUp() {
@@ -35,7 +35,7 @@ class RockyLinuxInstallationTest {
 
         Timezone timezone = Timezone.builder().timezone("Asia/Seoul").isUTC(true).build();
 
-        installation = RockyLinuxInstallation.builder()
+        installation = RockyLinux9Installation.builder()
                 .partitions(partitions)
                 .users(List.of())
                 .rootPassword(rootPw)
@@ -45,8 +45,15 @@ class RockyLinuxInstallationTest {
                 .isKDumpEnabled(true)
                 .build();
 
-        ctx = new KickstartContext("test-server", "10.0.0.1", "http://192.168.1.1/rocky9");
-        script = installation.getKickstartScript(ctx);
+        ctx = new InstallationContext("test-server", "10.0.0.1", "http://192.168.1.1/rocky9");
+        script = installation.getInstallScript(ctx).content();
+    }
+
+    @Test
+    @DisplayName("반환된 RenderedScript 의 포맷은 KICKSTART")
+    void scriptFormatIsKickstart() {
+        RenderedScript rendered = installation.getInstallScript(ctx);
+        assertThat(rendered.format()).isEqualTo(InstallScriptFormat.KICKSTART);
     }
 
     @Test
@@ -97,8 +104,8 @@ class RockyLinuxInstallationTest {
     @Test
     @DisplayName("hostname이 null이면 --hostname 미포함")
     void scriptContainsNetworkWithoutHostname_whenHostnameNull() {
-        KickstartContext nullHostCtx = new KickstartContext(null, "10.0.0.1", "http://192.168.1.1/rocky9");
-        String nullHostScript = installation.getKickstartScript(nullHostCtx);
+        InstallationContext nullHostCtx = new InstallationContext(null, "10.0.0.1", "http://192.168.1.1/rocky9");
+        String nullHostScript = installation.getInstallScript(nullHostCtx).content();
 
         assertThat(nullHostScript).contains("network --bootproto=dhcp");
         assertThat(nullHostScript).doesNotContain("--hostname");
@@ -181,7 +188,7 @@ class RockyLinuxInstallationTest {
         Environment env = new Environment(osEnvDto, List.of());
         Timezone tz = Timezone.builder().timezone("Asia/Seoul").isUTC(true).build();
 
-        RockyLinuxInstallation kdumpDisabled = RockyLinuxInstallation.builder()
+        RockyLinux9Installation kdumpDisabled = RockyLinux9Installation.builder()
                 .partitions(partitions)
                 .users(List.of())
                 .rootPassword(rootPw)
@@ -191,7 +198,7 @@ class RockyLinuxInstallationTest {
                 .isKDumpEnabled(false)
                 .build();
 
-        String disabledScript = kdumpDisabled.getKickstartScript(ctx);
+        String disabledScript = kdumpDisabled.getInstallScript(ctx).content();
         assertThat(disabledScript).contains("%addon com_redhat_kdump --disable");
     }
 
