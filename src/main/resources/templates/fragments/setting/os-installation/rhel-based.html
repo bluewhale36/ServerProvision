@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  RHEL 계열 (Rocky 8/9/10, CentOS 7) 전용 입력 블록.
+  data-os-family="RHEL_BASED" 로 JS 디스패처(dispatchOsFamilyPane) 가 가시성을 토글한다.
+  내부 `.os-version-specific-box[data-os-version-prefix]` 엘리먼트는
+  dispatchVersionSpecificBox 가 선택된 os_metadata.version 의 major 접두사로 추가 토글한다.
+-->
+<section th:fragment="form"
+         class="os-family-pane"
+         data-os-family="RHEL_BASED"
+         hidden>
+
+    <!-- 설치 환경 -->
+    <div class="mb-3">
+        <label class="form-label fw-bold">설치 환경</label>
+        <select class="form-select w-50 target-req"
+                style="border-color: rgba(0,117,222,0.4);"
+                id="environmentId"
+                data-error-field="environmentId"
+                onchange="SettingForm.onEnvironmentChange(this.value)"
+                disabled required>
+            <option value="" class="info-env-option">버전을 먼저 선택하세요</option>
+            <th:block th:each="os : ${osInstallationViewList}"
+                      th:if="${os.osFamilyKey == 'RHEL_BASED'}">
+                <th:block th:each="ver : ${os.versions}">
+                    <option class="unavailable"
+                            th:each="env : ${ver.environments}"
+                            th:data-metadata-id="${ver.id}"
+                            th:data-default="${env.isDefault}"
+                            th:value="${env.id}"
+                            th:text="${env.displayName}" disabled></option>
+                </th:block>
+            </th:block>
+        </select>
+    </div>
+
+    <!-- 추가 패키지 그룹 -->
+    <div class="mb-3">
+        <label class="form-label fw-bold">추가 패키지 그룹</label>
+        <div id="packageGroupArea"
+             class="border rounded p-2"
+             data-error-field="packageGroupIds"
+             style="min-height:40px; border-color: rgba(0,0,0,0.1) !important;">
+            <span class="text-muted small" id="pkgGroupPlaceholder">환경을 선택하면 패키지 그룹이 표시됩니다.</span>
+            <th:block th:each="os : ${osInstallationViewList}"
+                      th:if="${os.osFamilyKey == 'RHEL_BASED'}">
+                <th:block th:each="ver : ${os.versions}">
+                    <th:block th:each="env : ${ver.environments}">
+                        <div class="pkg-group-row unavailable form-check"
+                             th:each="pkg : ${env.packageGroups}"
+                             th:data-env-id="${env.id}">
+                            <input class="form-check-input" type="checkbox"
+                                   th:id="'pkg_' + ${pkg.id}"
+                                   th:value="${pkg.id}"
+                                   th:checked="${pkg.isDefault}"
+                                   th:data-env-id="${env.id}">
+                            <label class="form-check-label"
+                                   th:for="'pkg_' + ${pkg.id}"
+                                   th:text="${pkg.displayName}"></label>
+                        </div>
+                    </th:block>
+                </th:block>
+            </th:block>
+        </div>
+    </div>
+
+    <!-- KDump 활성화 -->
+    <div class="row g-3 mb-3">
+        <div class="col-auto d-flex align-items-end pb-1">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="isKDumpEnabled">
+                <label class="form-check-label" for="isKDumpEnabled">KDump 활성화</label>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      Rocky Linux 10 전용 옵션 — rootpw --allow-ssh.
+      dispatchVersionSpecificBox 가 선택된 os 버전이 "10." 접두사일 때만 hidden=false 로 토글한다.
+    -->
+    <div class="mb-3 os-version-specific-box"
+         data-os-name-key="ROCKY_LINUX"
+         data-os-version-prefix="10."
+         hidden>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="allowSshRoot">
+            <label class="form-check-label" for="allowSshRoot">
+                root SSH 로그인 허용 <span class="text-muted">(Rocky Linux 10 전용)</span>
+            </label>
+        </div>
+        <div class="small text-muted mt-1">
+            Rocky 10 기본 설치에서는 <code>rootpw</code> 가 SSH 루트 로그인을 허용하지 않습니다.
+            체크 시 Kickstart <code>rootpw --allow-ssh</code> 가 적용되어 초기 원격 관리가 가능합니다.
+        </div>
+    </div>
+</section>
+</body>
+</html>

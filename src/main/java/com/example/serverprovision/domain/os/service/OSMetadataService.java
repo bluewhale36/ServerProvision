@@ -6,6 +6,7 @@ import com.example.serverprovision.domain.os.dto.OSMetadataDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataUpdateDTO;
 import com.example.serverprovision.domain.os.entity.OSEnvironment;
 import com.example.serverprovision.domain.os.entity.OSMetadata;
+import com.example.serverprovision.domain.os.model.enums.OSFamily;
 import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.domain.os.repository.OSEnvironmentRepository;
 import com.example.serverprovision.domain.os.repository.OSMetadataRepository;
@@ -79,6 +80,11 @@ public class OSMetadataService {
 
     // 세팅 주문서 생성 폼에 전달할 OS 설치 뷰 데이터
     // OS 타입(OSName) → 버전(os_metadata 행) → 환경 → 패키지 그룹 계층 구조로 반환
+    //
+    // osFamilyKey/selectable 주입:
+    //   - 각 OS 의 OSFamily 를 JS 가 읽을 수 있게 함께 실어준다.
+    //   - Windows 계열(OSFamily.WINDOWS_BASED) 은 "준비 중" 상태이므로 selectable=false —
+    //     프론트엔드는 이 값으로 <option disabled + (준비 중) 접미> 렌더링을 결정한다.
     @Transactional(readOnly = true)
     public List<OSInstallationViewDTO> getInstallationViewList() {
         // 활성화된 OS 메타데이터를 OSName 기준으로 그룹핑
@@ -88,6 +94,7 @@ public class OSMetadataService {
         return grouped.entrySet().stream()
                 .map(entry -> {
                     OSName osName = entry.getKey();
+                    OSFamily family = osName.getFamily();
                     List<OSInstallationViewDTO.OSVersionViewItem> versions = entry.getValue().stream()
                             .map(meta -> {
                                 List<OSEnvironment> environments =
@@ -110,7 +117,13 @@ public class OSMetadataService {
                                         meta.getId(), meta.getOsVersion(), envViews);
                             })
                             .toList();
-                    return new OSInstallationViewDTO(osName.name(), osName.getDisplayName(), versions);
+                    return new OSInstallationViewDTO(
+                            osName.name(),
+                            osName.getDisplayName(),
+                            family.name(),
+                            family.getDisplayName(),
+                            family != OSFamily.WINDOWS_BASED,
+                            versions);
                 })
                 .toList();
     }

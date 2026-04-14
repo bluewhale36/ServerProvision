@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<nav th:replace="~{fragments/layout :: navbar('setting', '', '')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
@@ -148,7 +148,9 @@
                                                 <option value="">OS 종류를 선택하세요</option>
                                                 <option th:each="os : ${osInstallationViewList}"
                                                         th:value="${os.osNameKey}"
-                                                        th:text="${os.osDisplayName}"></option>
+                                                        th:text="${os.osDisplayName} + (${os.selectable} ? '' : ' (준비 중)')"
+                                                        th:attr="data-os-family=${os.osFamilyKey}"
+                                                        th:disabled="${!os.selectable}"></option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
@@ -164,58 +166,11 @@
                                                     <option class="unavailable"
                                                             th:each="ver : ${os.versions}"
                                                             th:data-os-name="${os.osNameKey}"
+                                                            th:data-os-version="${ver.version}"
                                                             th:value="${ver.id}"
                                                             th:text="${ver.version}" disabled></option>
                                                 </th:block>
                                             </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">설치 환경</label>
-                                            <select class="form-select w-50 target-req"
-                                                    style="border-color: rgba(0,117,222,0.4);"
-                                                    id="environmentId"
-                                                    data-error-field="environmentId"
-                                                    onchange="SettingForm.onEnvironmentChange(this.value)"
-                                                    disabled required>
-                                                <option value="" class="info-env-option">버전을 먼저 선택하세요</option>
-                                                <th:block th:each="os : ${osInstallationViewList}">
-                                                    <th:block th:each="ver : ${os.versions}">
-                                                        <option class="unavailable"
-                                                                th:each="env : ${ver.environments}"
-                                                                th:data-metadata-id="${ver.id}"
-                                                                th:data-default="${env.isDefault}"
-                                                                th:value="${env.id}"
-                                                                th:text="${env.displayName}" disabled></option>
-                                                    </th:block>
-                                                </th:block>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">추가 패키지 그룹</label>
-                                            <div id="packageGroupArea"
-                                                 class="border rounded p-2"
-                                                 data-error-field="packageGroupIds"
-                                                 style="min-height:40px; border-color: rgba(0,0,0,0.1) !important;">
-                                                <span class="text-muted small" id="pkgGroupPlaceholder">환경을 선택하면 패키지 그룹이 표시됩니다.</span>
-                                                <th:block th:each="os : ${osInstallationViewList}">
-                                                    <th:block th:each="ver : ${os.versions}">
-                                                        <th:block th:each="env : ${ver.environments}">
-                                                            <div class="pkg-group-row unavailable form-check"
-                                                                 th:each="pkg : ${env.packageGroups}"
-                                                                 th:data-env-id="${env.id}">
-                                                                <input class="form-check-input" type="checkbox"
-                                                                       th:id="'pkg_' + ${pkg.id}"
-                                                                       th:value="${pkg.id}"
-                                                                       th:checked="${pkg.isDefault}"
-                                                                       th:data-env-id="${env.id}">
-                                                                <label class="form-check-label"
-                                                                       th:for="'pkg_' + ${pkg.id}"
-                                                                       th:text="${pkg.displayName}"></label>
-                                                            </div>
-                                                        </th:block>
-                                                    </th:block>
-                                                </th:block>
-                                            </div>
                                         </div>
                                         <div class="row g-3 mb-3">
                                             <div class="col-md-4">
@@ -229,15 +184,6 @@
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" id="isUTC">
                                                     <label class="form-check-label" for="isUTC">UTC 기준</label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row g-3 mb-3">
-                                            <div class="col-auto d-flex align-items-end pb-1">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="isKDumpEnabled">
-                                                    <label class="form-check-label" for="isKDumpEnabled">KDump
-                                                        활성화</label>
                                                 </div>
                                             </div>
                                         </div>
@@ -255,6 +201,7 @@
                                             </div>
                                             <div class="small text-muted mb-1">
                                                 필수 마운트포인트: /, /boot, /boot/efi, swap
+                                                <span class="text-muted-small">(CentOS 7 BIOS 부트는 /boot/efi 생략 가능)</span>
                                             </div>
                                             <table class="table table-sm table-bordered n-tbl-list" id="partitionTable"
                                                    style="table-layout: fixed;">
@@ -338,6 +285,14 @@
                                                     onclick="SettingForm.addUserRow()">+ 사용자 추가
                                             </button>
                                         </div>
+
+                                        <!--
+                                          OS 패밀리별 전용 입력 블록.
+                                          JS 디스패처(SettingForm.dispatchOsFamilyPane) 가 선택된 OS 의
+                                          data-os-family 속성에 따라 pane 의 hidden 상태를 토글한다.
+                                        -->
+                                        <div th:replace="~{fragments/setting/os-installation/rhel-based :: form}"></div>
+                                        <div th:replace="~{fragments/setting/os-installation/debian-based :: form}"></div>
                                     </th:block>
 
                                     <!-- OS_SETTING -->

@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<nav th:replace="~{fragments/layout :: navbar('setting', '', '')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
 
 <!-- 기존 데이터 주입 (JS pre-fill 용) -->
 <div id="editInitialData" style="display:none;"
@@ -155,7 +155,9 @@
                                                 <option value="">OS 종류를 선택하세요</option>
                                                 <option th:each="os : ${osInstallationViewList}"
                                                         th:value="${os.osNameKey}"
-                                                        th:text="${os.osDisplayName}"></option>
+                                                        th:text="${os.osDisplayName} + (${os.selectable} ? '' : ' (준비 중)')"
+                                                        th:attr="data-os-family=${os.osFamilyKey}"
+                                                        th:disabled="${!os.selectable}"></option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
@@ -171,58 +173,11 @@
                                                     <option class="unavailable"
                                                             th:each="ver : ${os.versions}"
                                                             th:data-os-name="${os.osNameKey}"
+                                                            th:data-os-version="${ver.version}"
                                                             th:value="${ver.id}"
                                                             th:text="${ver.version}" disabled></option>
                                                 </th:block>
                                             </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">설치 환경</label>
-                                            <select class="form-select w-50 target-req"
-                                                    style="border-color: rgba(0,117,222,0.4);"
-                                                    id="environmentId"
-                                                    data-error-field="environmentId"
-                                                    onchange="SettingForm.onEnvironmentChange(this.value)"
-                                                    disabled required>
-                                                <option value="" class="info-env-option">버전을 먼저 선택하세요</option>
-                                                <th:block th:each="os : ${osInstallationViewList}">
-                                                    <th:block th:each="ver : ${os.versions}">
-                                                        <option class="unavailable"
-                                                                th:each="env : ${ver.environments}"
-                                                                th:data-metadata-id="${ver.id}"
-                                                                th:data-default="${env.isDefault}"
-                                                                th:value="${env.id}"
-                                                                th:text="${env.displayName}" disabled></option>
-                                                    </th:block>
-                                                </th:block>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">추가 패키지 그룹</label>
-                                            <div id="packageGroupArea"
-                                                 class="border rounded p-2"
-                                                 data-error-field="packageGroupIds"
-                                                 style="min-height:40px; border-color: rgba(0,0,0,0.1) !important;">
-                                                <span class="text-muted small" id="pkgGroupPlaceholder">환경을 선택하면 패키지 그룹이 표시됩니다.</span>
-                                                <th:block th:each="os : ${osInstallationViewList}">
-                                                    <th:block th:each="ver : ${os.versions}">
-                                                        <th:block th:each="env : ${ver.environments}">
-                                                            <div class="pkg-group-row unavailable form-check"
-                                                                 th:each="pkg : ${env.packageGroups}"
-                                                                 th:data-env-id="${env.id}">
-                                                                <input class="form-check-input" type="checkbox"
-                                                                       th:id="'pkg_' + ${pkg.id}"
-                                                                       th:value="${pkg.id}"
-                                                                       th:checked="${pkg.isDefault}"
-                                                                       th:data-env-id="${env.id}">
-                                                                <label class="form-check-label"
-                                                                       th:for="'pkg_' + ${pkg.id}"
-                                                                       th:text="${pkg.displayName}"></label>
-                                                            </div>
-                                                        </th:block>
-                                                    </th:block>
-                                                </th:block>
-                                            </div>
                                         </div>
                                         <div class="row g-3 mb-3">
                                             <div class="col-md-4">
@@ -243,15 +198,6 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="row g-3 mb-3">
-                                            <div class="col-auto d-flex align-items-end pb-1">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="isKDumpEnabled">
-                                                    <label class="form-check-label" for="isKDumpEnabled">KDump
-                                                        활성화</label>
-                                                </div>
-                                            </div>
-                                        </div>
                                         <!-- 파티션 구성 -->
                                         <div class="mb-3" data-error-field="partitions">
                                             <div class="d-flex align-items-center justify-content-between mb-1">
@@ -266,6 +212,7 @@
                                             </div>
                                             <div class="small text-muted mb-1">
                                                 필수 마운트포인트: /, /boot, /boot/efi, swap
+                                                <span class="text-muted-small">(CentOS 7 BIOS 부트는 /boot/efi 생략 가능)</span>
                                             </div>
                                             <table class="table table-sm table-bordered n-tbl-list" id="partitionTable"
                                                    style="table-layout: fixed;">
@@ -354,6 +301,14 @@
                                                     onclick="SettingForm.addUserRow()">+ 사용자 추가
                                             </button>
                                         </div>
+
+                                        <!--
+                                          OS 패밀리별 전용 입력 블록.
+                                          JS 디스패처(SettingForm.dispatchOsFamilyPane) 가 선택된 OS 의
+                                          data-os-family 속성에 따라 pane 의 hidden 상태를 토글한다.
+                                        -->
+                                        <div th:replace="~{fragments/setting/os-installation/rhel-based :: form}"></div>
+                                        <div th:replace="~{fragments/setting/os-installation/debian-based :: form}"></div>
                                     </th:block>
 
                                     <!-- OS_SETTING -->
@@ -548,31 +503,62 @@
             }
         }
 
-        // 환경 선택
-        if (proc.environmentId) {
-            const envSelect = document.getElementById('environmentId');
-            if (envSelect) {
-                envSelect.value = String(proc.environmentId);
-                SettingForm.onEnvironmentChange(String(proc.environmentId));
-                // 패키지 그룹 선택 상태 초기화 후 재선택
-                if (Array.isArray(proc.packageGroupIds)) {
-                    document.querySelectorAll('.pkg-group-row:not(.unavailable) input[type=checkbox]').forEach(cb => {
-                        cb.checked = proc.packageGroupIds.includes(parseInt(cb.value));
+        // family 별 전용 필드 pre-fill
+        if (proc.osFamily === 'RHEL_BASED') {
+            // 환경 선택
+            if (proc.environmentId) {
+                const envSelect = document.getElementById('environmentId');
+                if (envSelect) {
+                    envSelect.value = String(proc.environmentId);
+                    SettingForm.onEnvironmentChange(String(proc.environmentId));
+                    // 패키지 그룹 선택 상태 초기화 후 재선택
+                    if (Array.isArray(proc.packageGroupIds)) {
+                        document.querySelectorAll('.pkg-group-row:not(.unavailable) input[type=checkbox]').forEach(cb => {
+                            cb.checked = proc.packageGroupIds.includes(parseInt(cb.value));
+                        });
+                    }
+                }
+            } else {
+                // 구 레코드: environmentId 없음 → 안내 표시
+                const envSelect = document.getElementById('environmentId');
+                if (envSelect) {
+                    const infoOpt = envSelect.querySelector('.info-env-option');
+                    if (infoOpt) infoOpt.innerText = '환경을 다시 선택해 주세요.';
+                }
+            }
+
+            // KDump
+            const kDumpChk = document.getElementById('isKDumpEnabled');
+            if (kDumpChk) kDumpChk.checked = !!proc.isKDumpEnabled;
+
+            // Rocky 10 전용 allowSshRoot: box 는 version-specific 디스패처가 토글.
+            // box 가 보이면 체크박스 state 를 pre-fill 한다.
+            if (typeof proc.allowSshRoot === 'boolean') {
+                const allowSshChk = document.getElementById('allowSshRoot');
+                if (allowSshChk) allowSshChk.checked = proc.allowSshRoot;
+            }
+        } else if (proc.osFamily === 'DEBIAN_BASED') {
+            // Ubuntu hostname
+            const hostnameInput = document.getElementById('ubuntuHostname');
+            if (hostnameInput) hostnameInput.value = proc.hostname || '';
+
+            // Ubuntu APT 패키지 목록
+            if (Array.isArray(proc.packages) && proc.packages.length > 0) {
+                const pkgTbody = document.querySelector('#ubuntuPackagesTable tbody');
+                if (pkgTbody) {
+                    pkgTbody.innerHTML = '';
+                    proc.packages.forEach(pkg => {
+                        pkgTbody.insertAdjacentHTML('beforeend', `
+                            <tr>
+                                <td><input type="text" class="form-control form-control-sm ubuntuPackageName"
+                                           value="${escapeHtml(pkg)}"
+                                           placeholder="예: vim, curl, openssh-server"></td>
+                                <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+                            </tr>`);
                     });
                 }
             }
-        } else {
-            // 구 레코드: environmentId 없음 → 안내 표시
-            const envSelect = document.getElementById('environmentId');
-            if (envSelect) {
-                const infoOpt = envSelect.querySelector('.info-env-option');
-                if (infoOpt) infoOpt.innerText = '환경을 다시 선택해 주세요.';
-            }
         }
-
-        // KDump
-        const kDumpChk = document.getElementById('isKDumpEnabled');
-        if (kDumpChk) kDumpChk.checked = !!proc.isKDumpEnabled;
 
         // 타임존 pre-fill
         const tzInput   = document.getElementById('timezone');

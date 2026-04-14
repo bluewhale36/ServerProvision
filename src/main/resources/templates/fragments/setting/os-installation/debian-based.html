@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Debian 계열 (Ubuntu) 전용 입력 블록. data-os-family="DEBIAN_BASED".
+  Ubuntu 는 Kickstart 대신 Subiquity autoinstall YAML 을 사용하므로 RHEL 의
+  environment/packageGroup 개념이 없고, 대신 identity.hostname 과 packages: 리스트로 매핑된다.
+-->
+<section th:fragment="form"
+         class="os-family-pane"
+         data-os-family="DEBIAN_BASED"
+         hidden>
+
+    <!-- 호스트명 -->
+    <div class="mb-3">
+        <label class="form-label fw-bold">호스트명 <span class="text-danger">*</span></label>
+        <input type="text" class="form-control w-50 target-req"
+               id="ubuntuHostname"
+               data-error-field="hostname"
+               placeholder="예: ubuntu-server"
+               required>
+        <div class="small text-muted mt-1">
+            autoinstall <code>identity.hostname</code> 필드로 매핑됩니다.
+        </div>
+    </div>
+
+    <!-- APT 패키지 목록 -->
+    <div class="mb-3" data-error-field="packages">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+            <label class="form-label fw-bold mb-0">추가 설치 패키지 (APT)</label>
+        </div>
+        <div class="small text-muted mb-1">
+            autoinstall <code>packages</code> 섹션에 포함될 APT 패키지명입니다.
+            비워두면 서버 기본 이미지 그대로 설치됩니다.
+        </div>
+        <table class="table table-sm table-bordered n-tbl-list" id="ubuntuPackagesTable"
+               style="table-layout: fixed;">
+            <colgroup>
+                <col style="width: 85%">  <!-- 패키지명 -->
+                <col style="width: 15%">  <!-- 삭제 -->
+            </colgroup>
+            <thead class="table-dark">
+            <tr>
+                <th>패키지명</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <button type="button"
+                class="btn btn-outline-secondary btn-sm"
+                onclick="SettingForm.addUbuntuPackageRow()">+ 패키지 추가
+        </button>
+    </div>
+</section>
+</body>
+</html>

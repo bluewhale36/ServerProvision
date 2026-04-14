@@ -76,6 +76,17 @@
                         if (!collapseEl.classList.contains('show')) {
                             (bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false})).show();
                         }
+                        // OS_INSTALLATION 활성화 시 현재 선택된 OS 패밀리에 맞춰 pane 가시성/필수속성을 재정렬.
+                        // (숨겨진 pane 의 .target-req 는 required=false 로 되돌려 폼 검증 누수 방지)
+                        if (chk.value === 'OS_INSTALLATION') {
+                            const osNameSelect = document.getElementById('osNameSelect');
+                            const osKey = osNameSelect ? osNameSelect.value : '';
+                            dispatchOsFamilyPane(osKey);
+                            const verSelect = document.getElementById('osMetadataId');
+                            const selOpt = verSelect && verSelect.selectedIndex >= 0
+                                ? verSelect.options[verSelect.selectedIndex] : null;
+                            dispatchVersionSpecificBox(osKey, selOpt ? (selOpt.dataset.osVersion || '') : '');
+                        }
                     } else {
                         contentArea.style.opacity = '0.4';
                         contentArea.style.pointerEvents = 'none';
@@ -84,6 +95,11 @@
                             if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.value = '';
                             if (el.tagName === 'SELECT') el.selectedIndex = 0;
                         });
+                        // OS_INSTALLATION 비활성화 시 모든 pane 을 숨김으로 복귀.
+                        if (chk.value === 'OS_INSTALLATION') {
+                            document.querySelectorAll('.os-family-pane').forEach(p => p.hidden = true);
+                            document.querySelectorAll('.os-version-specific-box').forEach(b => b.hidden = true);
+                        }
                         if (collapseEl.classList.contains('show')) {
                             (bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false})).hide();
                         }
@@ -93,11 +109,75 @@
         });
     }
 
-    // 1단계: OS 종류 선택 → 버전 셀렉트 동적 갱신 + 기본 파티션 버튼 활성화
+    /**
+     * OS_INSTALLATION step 이 현재 활성 상태(체크박스 ON)인지 반환한다.
+     * dispatchOsFamilyPane 의 required 복원 조건으로 사용된다.
+     */
+    function isOsInstallationStepEnabled() {
+        const chk = document.getElementById('chk_OS_INSTALLATION');
+        return !!(chk && chk.checked);
+    }
+
+    /**
+     * 선택된 OS 의 family 에 매칭되는 .os-family-pane 하나만 표시하고, 나머지는 숨긴다.
+     * 숨겨진 pane 의 .target-req 는 required=false 로 해제하여 폼 검증 누수를 방지한다.
+     * OS_INSTALLATION step 이 비활성화 상태이면 보이는 pane 도 required 를 적용하지 않는다.
+     *
+     * @param {string} osNameKey 선택된 OS 의 OSName key (예: "ROCKY_LINUX", "UBUNTU") 혹은 빈 문자열
+     */
+    function dispatchOsFamilyPane(osNameKey) {
+        const osNameSelect = document.getElementById('osNameSelect');
+        const selectedOption = (osNameKey && osNameSelect)
+            ? osNameSelect.querySelector(`option[value="${osNameKey}"]`)
+            : null;
+        const family = selectedOption ? (selectedOption.dataset.osFamily || '') : '';
+        const stepOn = isOsInstallationStepEnabled();
+
+        document.querySelectorAll('.os-family-pane').forEach(pane => {
+            const matches = !!family && pane.dataset.osFamily === family;
+            pane.hidden = !matches;
+            pane.querySelectorAll('.target-req').forEach(el => {
+                el.required = matches && stepOn;
+            });
+        });
+    }
+
+    /**
+     * 활성화된 .os-family-pane 내부의 .os-version-specific-box 가시성을 토글한다.
+     * box 의 data-os-name-key 와 data-os-version-prefix 가 선택된 OS/버전과 일치할 때만 표시.
+     * 예: box name="ROCKY_LINUX" prefix="10." + osName="ROCKY_LINUX" version="10.0" → 표시,
+     *     osName="CENTOS" version="10.0" → 숨김.
+     * box 에 data-os-name-key 가 없으면 OS 이름 제약 없음 (family 내 공통 박스).
+     *
+     * @param {string} osNameKey     선택된 OSName key (예: "ROCKY_LINUX", "UBUNTU")
+     * @param {string} versionString 선택된 os_metadata.version (예: "10.0", "9.5", "22.04.5")
+     */
+    function dispatchVersionSpecificBox(osNameKey, versionString) {
+        const majorPrefix = versionString ? (versionString.split('.')[0] + '.') : '';
+        document.querySelectorAll('.os-family-pane .os-version-specific-box').forEach(box => {
+            const paneHidden = box.closest('.os-family-pane').hidden;
+            const expectedName = box.dataset.osNameKey || '';
+            const expectedPrefix = box.dataset.osVersionPrefix || '';
+            const nameMatches = !expectedName || (!!osNameKey && osNameKey === expectedName);
+            const prefixMatches = !!expectedPrefix && majorPrefix === expectedPrefix;
+            box.hidden = paneHidden || !nameMatches || !prefixMatches;
+            // 숨겨진 box 내부 required 필드는 검증 누수 방지를 위해 해제
+            if (box.hidden) {
+                box.querySelectorAll('.target-req').forEach(el => el.required = false);
+            } else if (isOsInstallationStepEnabled()) {
+                box.querySelectorAll('.target-req').forEach(el => el.required = true);
+            }
+        });
+    }
+
+    // 1단계: OS 종류 선택 → 버전 셀렉트 동적 갱신 + 기본 파티션 버튼 활성화 + family pane 디스패치
     function onOsNameChange(selectedOsName) {
         // OS 가 선택된 경우에만 기본 파티션 자동 생성 버튼 활성화
         const btnDefault = document.getElementById('btnDefaultPartitions');
         if (btnDefault) btnDefault.disabled = !selectedOsName;
+
+        // family pane 디스패치 (선택 해제 시 모든 pane 숨김)
+        dispatchOsFamilyPane(selectedOsName);
 
         const verSelect = document.getElementById('osMetadataId');
         const infoOption = verSelect.querySelector('.info-version-option');
@@ -125,9 +205,18 @@
         onVersionChange('');
     }
 
-    // 2단계: 버전 선택 → 환경 셀렉트 동적 갱신
+    // 2단계: 버전 선택 → 환경 셀렉트 동적 갱신 + version-specific box 디스패치
     function onVersionChange(selectedMetadataId) {
         const envSelect = document.getElementById('environmentId');
+        const verSelect = document.getElementById('osMetadataId');
+        const osNameSelect = document.getElementById('osNameSelect');
+        // 선택된 버전 옵션에서 실제 version 문자열을 추출하여 version-specific box 가시성 갱신
+        const selOpt = selectedMetadataId
+            ? verSelect.querySelector(`option[value="${selectedMetadataId}"]`)
+            : null;
+        const versionString = selOpt ? (selOpt.dataset.osVersion || '') : '';
+        dispatchVersionSpecificBox(osNameSelect ? osNameSelect.value : '', versionString);
+
         const infoOption = envSelect.querySelector('.info-env-option');
         if (!selectedMetadataId) {
             envSelect.disabled = true;
@@ -362,6 +451,17 @@
             </tr>`);
     }
 
+    // OS_INSTALLATION (Ubuntu): APT 패키지 행 동적 추가
+    function addUbuntuPackageRow() {
+        const tbody = document.querySelector('#ubuntuPackagesTable tbody');
+        if (!tbody) return;
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr>
+                <td><input type="text" class="form-control form-control-sm ubuntuPackageName" placeholder="예: vim, curl, openssh-server"></td>
+                <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
+            </tr>`);
+    }
+
     // OS_SETTING: 서비스 활성화 행 동적 추가
     function addServiceRow() {
         document.querySelector('#enabledServicesTable tbody').insertAdjacentHTML('beforeend', `
@@ -432,23 +532,51 @@
                         keepExistingPassword: keepExistingPw
                     };
                 });
-                const pkgGroupIds = Array.from(
-                    document.querySelectorAll('.pkg-group-row:not(.unavailable) input[type=checkbox]:checked')
-                ).map(cb => parseInt(cb.value));
-                processList.push({
+
+                // 선택된 OS 의 family 판별자를 option data attribute 로부터 추출
+                const osNameSelect = document.getElementById('osNameSelect');
+                const osOption = osNameSelect
+                    ? osNameSelect.querySelector(`option[value="${osNameSelect.value}"]`)
+                    : null;
+                const osFamily = osOption ? (osOption.dataset.osFamily || '') : '';
+
+                const osInstallation = {
                     type: "OS_INSTALLATION",
+                    osFamily,
                     osMetadataId: parseInt(document.getElementById('osMetadataId').value),
-                    isKDumpEnabled: document.getElementById('isKDumpEnabled').checked,
                     timezone: {
                         timezone: document.getElementById('timezone').value,
                         isUTC: document.getElementById('isUTC').checked
                     },
-                    environmentId: parseInt(document.getElementById('environmentId').value),
-                    packageGroupIds: pkgGroupIds,
                     partitions,
                     rootPassword,
                     users
-                });
+                };
+
+                if (osFamily === 'RHEL_BASED') {
+                    osInstallation.environmentId = parseInt(document.getElementById('environmentId').value);
+                    osInstallation.packageGroupIds = Array.from(
+                        document.querySelectorAll('.pkg-group-row:not(.unavailable) input[type=checkbox]:checked')
+                    ).map(cb => parseInt(cb.value));
+                    osInstallation.isKDumpEnabled = document.getElementById('isKDumpEnabled').checked;
+                    // Rocky 10 전용 allowSshRoot: 버전 box 가 표시되어 있을 때만 포함.
+                    // box 가 숨겨져 있으면 백엔드에서 null/기본값 처리됨.
+                    const allowSshBox = document.querySelector(
+                        '.os-version-specific-box[data-os-name-key="ROCKY_LINUX"][data-os-version-prefix="10."]'
+                    );
+                    if (allowSshBox && !allowSshBox.hidden) {
+                        const allowSshChk = document.getElementById('allowSshRoot');
+                        osInstallation.allowSshRoot = !!(allowSshChk && allowSshChk.checked);
+                    }
+                } else if (osFamily === 'DEBIAN_BASED') {
+                    const hostnameInput = document.getElementById('ubuntuHostname');
+                    osInstallation.hostname = hostnameInput ? hostnameInput.value.trim() : '';
+                    osInstallation.packages = Array.from(
+                        document.querySelectorAll('#ubuntuPackagesTable tbody .ubuntuPackageName')
+                    ).map(inp => inp.value.trim()).filter(v => v.length > 0);
+                }
+
+                processList.push(osInstallation);
                 stepTypeByIndex.push(stepName);
             } else if (stepName === 'OS_SETTING') {
                 // SELinux 모드 수집
@@ -494,8 +622,12 @@
         addPartitionRow,
         addUserRow,
         addPackageRow,
+        addUbuntuPackageRow,
         addServiceRow,
-        buildSettingPayload
+        buildSettingPayload,
+        // OS family/version 디스패처 (edit.html pre-fill 초기화 경로에서도 호출 가능)
+        dispatchOsFamilyPane,
+        dispatchVersionSpecificBox
     };
 
 })(window);

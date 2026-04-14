@@ -6,12 +6,12 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class KickstartContextTest {
+class InstallationContextTest {
 
     @Test
     @DisplayName("installSourceUrl이 null이면 IllegalArgumentException 발생")
     void throwsWhenInstallSourceUrlIsNull() {
-        assertThatThrownBy(() -> new KickstartContext("host", "10.0.0.1", null))
+        assertThatThrownBy(() -> new InstallationContext("host", "10.0.0.1", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("installSourceUrl");
     }
@@ -19,7 +19,7 @@ class KickstartContextTest {
     @Test
     @DisplayName("installSourceUrl이 공백이면 IllegalArgumentException 발생")
     void throwsWhenInstallSourceUrlIsBlank() {
-        assertThatThrownBy(() -> new KickstartContext("host", "10.0.0.1", "   "))
+        assertThatThrownBy(() -> new InstallationContext("host", "10.0.0.1", "   "))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("installSourceUrl");
     }
@@ -27,7 +27,7 @@ class KickstartContextTest {
     @Test
     @DisplayName("모든 필드가 유효하면 정상 생성")
     void createsSuccessfully_whenAllFieldsValid() {
-        KickstartContext ctx = new KickstartContext("test-server", "10.0.0.1", "http://192.168.1.1/rocky9");
+        InstallationContext ctx = new InstallationContext("test-server", "10.0.0.1", "http://192.168.1.1/rocky9");
 
         assertThat(ctx.hostname()).isEqualTo("test-server");
         assertThat(ctx.assignedIp()).isEqualTo("10.0.0.1");
@@ -37,7 +37,7 @@ class KickstartContextTest {
     @Test
     @DisplayName("hostname이 null이어도 정상 생성")
     void hostnameCanBeNull() {
-        KickstartContext ctx = new KickstartContext(null, "10.0.0.1", "http://192.168.1.1/rocky9");
+        InstallationContext ctx = new InstallationContext(null, "10.0.0.1", "http://192.168.1.1/rocky9");
 
         assertThat(ctx.hostname()).isNull();
         assertThat(ctx.installSourceUrl()).isEqualTo("http://192.168.1.1/rocky9");

@@ -9,11 +9,9 @@
     · 모든 페이지에 공통으로 필요한 <meta>, <title>, 폰트, Bootstrap CSS,
       글로벌 CSS 를 삽입합니다.
 
-  navbar(activePage, ctaHref, ctaText)
+  navbar(activePage)
     · activePage : 현재 활성 메뉴 키
         'dashboard' | 'os' | 'setting' | 'order'
-    · ctaHref    : 우측 CTA 버튼 URL (없으면 빈 문자열 '')
-    · ctaText    : 우측 CTA 버튼 텍스트 (없으면 빈 문자열 '')
   ─────────────────────────────────────────────────────────────
 -->
 
@@ -43,10 +41,9 @@
 <!--
   내비게이션 바 프래그먼트
   사용 예)
-    CTA 없음 : th:replace="~{fragments/layout :: navbar('dashboard', '', '')}"
-    CTA 있음 : th:replace="~{fragments/layout :: navbar('os', '/pxe/v1/admin/os/new', '신규 OS 등록')}"
+    th:replace="~{fragments/layout :: navbar('dashboard')}"
 -->
-<nav th:fragment="navbar(activePage, ctaHref, ctaText)" class="n-nav">
+<nav th:fragment="navbar(activePage)" class="n-nav">
     <a th:href="@{/pxe/v1/admin/dashboard}" class="n-nav-brand">Provision Portal</a>
 
     <a th:href="@{/pxe/v1/admin/dashboard}"
@@ -64,14 +61,6 @@
     <a th:href="@{/pxe/v1/order}"
        class="n-nav-link"
        th:classappend="${activePage == 'order'} ? ' active'">작업 주문</a>
-
-    <div class="n-nav-spacer"></div>
-
-    <!-- ctaHref 가 비어있지 않을 때만 CTA 버튼 표시 -->
-    <a th:if="${!#strings.isEmpty(ctaHref)}"
-       th:href="${ctaHref}"
-       class="n-nav-cta"
-       th:text="${ctaText}">CTA</a>
 </nav>
 </body>
 

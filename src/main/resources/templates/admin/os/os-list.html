@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<nav th:replace="~{fragments/layout :: navbar('os', '/pxe/v1/admin/os/new', '신규 OS 등록')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('os')}"></nav>
 
 <div class="n-page">
     <div class="n-page-header">
@@ -95,11 +95,11 @@
                         </tr>
                         <tr>
                             <th>ISO 마운트 경로</th>
-                            <td class="mono" th:text="${os.isoMountPath}"></td>
+                            <td><code th:text="${os.isoMountPath}"></code></td>
                         </tr>
                         <tr>
                             <th>Kickstart 템플릿 경로</th>
-                            <td class="mono" th:text="${os.ksTemplatePath}"></td>
+                            <td><code th:text="${os.ksTemplatePath}"></code></td>
                         </tr>
                         <tr>
                             <th>사용 여부</th>

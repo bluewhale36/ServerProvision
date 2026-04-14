@@ -1,7 +1,7 @@
 package com.example.serverprovision.application.setting.model.request;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -10,109 +10,103 @@ import lombok.Getter;
 import java.util.List;
 
 /**
- * OS 설치 단계에 대한 프론트엔드 요청 DTO이다.
+ * OS 설치 단계에 대한 프론트엔드 요청 DTO의 다형성 기반 클래스이다.
  *
- * <p>역할: {@code "type": "OS_INSTALLATION"}으로 Jackson 다형성 역직렬화에 사용된다.
- * OS 설치에 필요한 모든 정보(OS 메타데이터 ID, 파티션 목록, 사용자 정보, Timezone, 환경 설정)를 담는다.</p>
+ * <p>역할: {@code "type": "OS_INSTALLATION"} 판별자로 역직렬화될 때 2단계 다형성을 거친다.
+ * 1단계는 {@link AbstractProcessRequest}의 {@code type} 판별자로 이 클래스를 선택하고,
+ * 2단계는 이 클래스의 {@code osFamily} 판별자로 구체 {@link RHELInstallationRequest} 또는
+ * {@link UbuntuInstallationRequest} 를 선택한다. OS 패밀리별로 설치 스크립트 포맷이 다르므로
+ * (Kickstart / autoinstall YAML) 필드 구성도 다르며, 공통 필드는 이 추상 클래스에 둔다.</p>
  *
  * <p>유스케이스: {@code POST /pxe/v1/setting/api/new} 요청의 {@code processList} 항목 중
  * {@code "type": "OS_INSTALLATION"}에 해당하는 항목으로 역직렬화된다.
  * {@link com.example.serverprovision.application.setting.service.resolver.OSInstallationResolver}가
- * 이 Request를 받아 {@code osMetadataId}, {@code environmentId}, {@code packageGroupIds}로
- * 엔티티를 조회하고, 도메인 값 객체({@link com.example.serverprovision.domain.os.model.installation.Partition},
- * {@link com.example.serverprovision.domain.os.model.installation.User} 등)로 변환하여
- * {@link com.example.serverprovision.domain.os.model.installation.RockyLinuxInstallation}을 빌드한다.
- * {@code rootPassword}가 {@code null}이면 root 계정이 잠긴 상태로 설치되며, 이 경우
- * {@code users}에 최소 1명 이상이 있어야 도메인 검증을 통과한다.</p>
+ * 이 Request를 받아 {@code osMetadataId}, {@code environmentId}(RHEL 전용), {@code packageGroupIds}(RHEL 전용)로
+ * 엔티티를 조회하고, 도메인 값 객체로 변환하여 OS 패밀리별 설치 모델을 빌드한다.</p>
  *
- * <p>확장 가이드: 새 OS 타입을 지원할 때 이 Request 자체는 수정할 필요가 없다.
- * {@link com.example.serverprovision.application.setting.service.resolver.OSInstallationResolver}의
- * OS 타입 switch에 새 case를 추가하는 것으로 충분하다.
- * OS별로 추가적인 설치 파라미터가 필요하면 이 클래스에 새 필드를 추가하고
- * {@code @JsonCreator} 생성자에도 반영한다.</p>
+ * <p>확장 가이드: 새 OS 패밀리를 지원할 때 {@code osFamily} 판별자에 추가할 값과
+ * 대응하는 구체 클래스 하나를 생성하면 된다. 도메인 모델 측도
+ * {@link com.example.serverprovision.domain.os.model.installation.OSInstallation}
+ * 의 {@code @JsonSubTypes}에 새 모델을 등록해야 한다.</p>
  */
 @Getter
-public class OSInstallationRequest extends AbstractProcessRequest {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "osFamily")
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = RHELInstallationRequest.class,   name = "RHEL_BASED"),
+        @JsonSubTypes.Type(value = UbuntuInstallationRequest.class, name = "DEBIAN_BASED")
+})
+public abstract class OSInstallationRequest extends AbstractProcessRequest {
 
     /**
      * 설치할 OS의 메타데이터 DB 기본키이다. {@code os_metadata.id}에 해당하며,
      * OS 타입({@link com.example.serverprovision.domain.os.model.enums.OSName})과
-     * 버전 정보를 함께 식별한다. {@code installVersion}은 Resolver에서 이 ID로 조회한 엔티티에서 파생된다.
+     * 버전 정보를 함께 식별한다.
      */
     @NotNull(message = "OS 메타데이터 ID는 필수 값입니다.")
-    private final Long osMetadataId;
+    protected final Long osMetadataId;
 
     /**
-     * Kickstart {@code %addon com_redhat_kdump} 섹션 활성화 여부이다.
-     * KDump는 커널 크래시 시 메모리 덤프를 수집하는 기능이다.
-     */
-    private final boolean isKDumpEnabled;
-
-    /**
-     * 설치 시스템의 Timezone 설정 정보이다. Kickstart {@code timezone} 명령에 대응한다.
+     * 설치 시스템의 Timezone 설정 정보이다.
+     * RHEL 계열은 Kickstart {@code timezone} 명령, Ubuntu 는 autoinstall {@code timezone} 키에 대응한다.
      */
     @NotNull(message = "타임존 정보는 필수 값입니다.")
     @Valid
-    private final TimezoneRequest timezone;
+    protected final TimezoneRequest timezone;
 
     /**
-     * 설치할 패키지 환경 그룹의 DB 기본키이다. {@code os_environment.id}에 해당한다.
-     * Kickstart {@code %packages}의 {@code @^environment} 항목에 대응한다.
-     */
-    @NotNull(message = "설치 환경 ID는 필수 값입니다.")
-    private final Long environmentId;
-
-    /**
-     * 추가 설치할 패키지 그룹의 DB 기본키 목록이다. {@code os_package_group.id} 목록에 해당한다.
-     * Kickstart {@code %packages}의 {@code @group} 항목들에 대응한다.
-     * add-on 패키지 그룹은 선택 사항이므로 {@code null} 또는 빈 리스트 모두 허용된다.
-     * 이 경우 {@code %packages} 섹션에 환경 항목({@code @^env})만 기록된다.
-     */
-    private final List<Long> packageGroupIds;
-
-    /**
-     * 파티션 설정 목록이다. Kickstart {@code part} 명령들에 대응한다.
-     * 필수 마운트포인트({@code /}, {@code /boot}, {@code /boot/efi}, {@code swap})가
-     * 모두 포함되어야 도메인 검증을 통과한다.
+     * 파티션 설정 목록이다. RHEL 계열은 Kickstart {@code part} 명령, Ubuntu 는
+     * autoinstall {@code storage.config} 에 대응한다.
+     * 필수 마운트포인트 검증은 OS 패밀리별 도메인 모델 생성자에서 수행된다.
      */
     @NotEmpty(message = "파티션 정보는 필수 값입니다.")
     @Valid
-    private final List<PartitionRequest> partitions;
+    protected final List<PartitionRequest> partitions;
 
     /**
-     * root 계정 비밀번호 정보이다. Kickstart {@code rootpw} 명령에 대응한다.
-     * {@code null}이면 root 계정이 잠긴 상태({@code rootpw --lock})로 설치되며,
-     * 이 경우 {@code users}에 최소 1명 이상의 일반 사용자가 있어야 한다.
+     * root 계정 비밀번호 정보이다. RHEL 계열은 Kickstart {@code rootpw}, Ubuntu 는
+     * autoinstall {@code identity} 혹은 {@code ssh.install-server} 설정에 대응한다.
+     * {@code null} 이면 root 계정이 잠긴 상태로 설치되며, 이 경우 {@link #users}에
+     * 최소 1명 이상의 일반 사용자가 있어야 한다.
      */
     @Valid
-    private final RootPasswordRequest rootPassword;
+    protected final RootPasswordRequest rootPassword;
 
     /**
-     * 일반 사용자 계정 목록이다. Kickstart {@code user} 명령들에 대응한다.
-     * Rocky Linux Kickstart에서 일반 사용자는 선택 사항이다(root 비밀번호가 있는 경우).
-     * {@code rootPassword}가 {@code null}이고 이 목록도 비어 있으면
-     * 도메인 검증에서 {@code NO_ACCESSIBLE_USER} 예외가 발생한다.
+     * 일반 사용자 계정 목록이다. RHEL 계열은 Kickstart {@code user} 명령, Ubuntu 는
+     * autoinstall {@code identity} 또는 {@code user-data} 에 대응한다.
+     * {@code rootPassword} 가 {@code null} 이고 이 목록도 비어 있으면 도메인 검증에서 거부된다.
      */
     @Valid
-    private final List<UserRequest> users;
+    protected final List<UserRequest> users;
 
-    @JsonCreator
-    public OSInstallationRequest(
-            @JsonProperty("osMetadataId")    Long osMetadataId,
-            @JsonProperty("isKDumpEnabled")  boolean isKDumpEnabled,
-            @JsonProperty("timezone")        TimezoneRequest timezone,
-            @JsonProperty("environmentId")   Long environmentId,
-            @JsonProperty("packageGroupIds") List<Long> packageGroupIds,
-            @JsonProperty("partitions")      List<PartitionRequest> partitions,
-            @JsonProperty("rootPassword")    RootPasswordRequest rootPassword,
-            @JsonProperty("users")           List<UserRequest> users) {
-        this.osMetadataId    = osMetadataId;
-        this.isKDumpEnabled  = isKDumpEnabled;
-        this.timezone        = timezone;
-        this.environmentId   = environmentId;
-        this.packageGroupIds = packageGroupIds;
-        this.partitions      = partitions;
-        this.rootPassword    = rootPassword;
-        this.users           = users;
+    protected OSInstallationRequest(
+            Long osMetadataId,
+            TimezoneRequest timezone,
+            List<PartitionRequest> partitions,
+            RootPasswordRequest rootPassword,
+            List<UserRequest> users
+    ) {
+        this.osMetadataId = osMetadataId;
+        this.timezone     = timezone;
+        this.partitions   = partitions;
+        this.rootPassword = rootPassword;
+        this.users        = users;
     }
+
+    /**
+     * 기존 저장된 비밀번호를 유지하는 수정 케이스에서, 패치된 비밀번호 필드로 본인과 동일한
+     * 구체 타입의 새 인스턴스를 만들어 반환한다.
+     *
+     * <p>OS 패밀리별로 보유 필드가 다르므로 이 메서드는 각 구체 클래스에서 구현된다.
+     * {@link com.example.serverprovision.application.setting.service.SettingService#patchKeepExistingPasswords}
+     * 에서 호출된다.</p>
+     *
+     * @param patchedRootPassword 패치된 root 비밀번호 요청 (또는 {@code null} — 잠금 상태)
+     * @param patchedUsers        패치된 사용자 목록
+     * @return 동일 구체 타입의 새 인스턴스 (다른 필드는 원본 그대로 복제)
+     */
+    public abstract OSInstallationRequest withPatchedPasswords(
+            RootPasswordRequest patchedRootPassword,
+            List<UserRequest> patchedUsers
+    );
 }

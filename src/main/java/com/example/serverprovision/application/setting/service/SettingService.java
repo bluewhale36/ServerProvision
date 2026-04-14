@@ -288,16 +288,9 @@ public class SettingService {
             List<UserRequest> patchedUsers =
                     patchUsers(osReq.getUsers(), existingLinux.getUsers());
 
-            return new OSInstallationRequest(
-                    osReq.getOsMetadataId(),
-                    osReq.isKDumpEnabled(),
-                    osReq.getTimezone(),
-                    osReq.getEnvironmentId(),
-                    osReq.getPackageGroupIds(),
-                    osReq.getPartitions(),
-                    patchedRoot,
-                    patchedUsers
-            );
+            // OS 패밀리별로 보유 필드가 다르므로 구체 타입에 위임 — RHEL 은 environmentId/KDump 등,
+            // Ubuntu 는 hostname/packages 등이 보존되어야 한다.
+            return osReq.withPatchedPasswords(patchedRoot, patchedUsers);
         }).toList();
     }
 

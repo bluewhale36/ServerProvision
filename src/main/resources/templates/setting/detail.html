@@ -5,7 +5,7 @@
 </head>
 <body>
 
-<nav th:replace="~{fragments/layout :: navbar('setting', '', '')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
 
 <div class="n-page-sm">
 
@@ -162,13 +162,6 @@
                                      th:text="${process.osInstallation.installVersion}">-</div>
                             </div>
                             <div>
-                                <div class="n-label">KDump</div>
-                                <span class="n-badge n-badge-green"
-                                      th:if="${process.osInstallation.KDumpEnabled}">활성화</span>
-                                <span class="n-badge n-badge-gray"
-                                      th:if="${!process.osInstallation.KDumpEnabled}">비활성화</span>
-                            </div>
-                            <div>
                                 <div class="n-label">루트 비밀번호</div>
                                 <span class="n-badge n-badge-green"
                                       th:if="${process.osInstallation.rootPassword != null}">설정됨</span>
@@ -250,26 +243,23 @@
                         </table>
                     </div>
 
-                    <!-- 설치 환경 (구 데이터는 osEnvironment가 null일 수 있음) -->
-                    <div th:if="${process.osInstallation.environment != null
-                                 and process.osInstallation.environment.osEnvironment != null}">
-                        <div class="n-label strong" style="margin-bottom:12px;">설치 환경</div>
-                        <div class="n-detail-fields" style="display:flex; gap:48px; flex-wrap:wrap; align-items:flex-start;">
-                            <div>
-                                <div class="n-label">환경</div>
-                                <div style="font-size:14px;"
-                                     th:text="${process.osInstallation.environment.osEnvironment.displayName}">-</div>
-                            </div>
-                            <div th:if="${!#lists.isEmpty(process.osInstallation.environment.packageGroups)}">
-                                <div class="n-label">패키지 그룹</div>
-                                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
-                                    <span class="n-badge n-badge-gray"
-                                          th:each="pkg : ${process.osInstallation.environment.packageGroups}"
-                                          th:text="${pkg.displayName}">패키지</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!--
+                      OS 패밀리별 전용 상세 블록 디스패치.
+                      도메인 모델 구체 클래스의 SimpleName 으로 detail-rhel 또는 detail-debian 으로 라우팅한다.
+                      Rocky 10 만 detail-rhel 에 showAllowSsh=true 로 전달하여 root SSH 허용 여부를 렌더한다.
+                    -->
+                    <th:block th:switch="${process.osInstallation.getClass().getSimpleName()}">
+                        <th:block th:case="'RockyLinux8Installation'"
+                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=false)}"></th:block>
+                        <th:block th:case="'RockyLinux9Installation'"
+                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=false)}"></th:block>
+                        <th:block th:case="'RockyLinux10Installation'"
+                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=true)}"></th:block>
+                        <th:block th:case="'CentOS7Installation'"
+                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=false)}"></th:block>
+                        <th:block th:case="'UbuntuInstallation'"
+                                  th:replace="~{fragments/setting/os-installation/detail-debian :: body(inst=${process.osInstallation})}"></th:block>
+                    </th:block>
 
                 </div>
             </div>
