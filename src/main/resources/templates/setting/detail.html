@@ -186,7 +186,9 @@
                             </thead>
                             <tbody>
                             <tr th:each="partition : ${process.osInstallation.partitions}">
-                                <td class="n-td-id" th:text="${partition.mountPoint}">-</td>
+                                <!-- mountPoint 는 PK 가 아닌 코드성 값이므로 n-table-mono 를 사용한다
+                                     (DESIGN.md §10.1 — n-td-id 는 ID 전용). -->
+                                <td class="n-table-mono" th:text="${partition.mountPoint}">-</td>
                                 <td th:text="${partition.fileSystem.displayName}">-</td>
                                 <td>
                                     <span class="n-table-muted"
@@ -245,19 +247,14 @@
 
                     <!--
                       OS 패밀리별 전용 상세 블록 디스패치.
-                      도메인 모델 구체 클래스의 SimpleName 으로 detail-rhel 또는 detail-debian 으로 라우팅한다.
-                      Rocky 10 만 detail-rhel 에 showAllowSsh=true 로 전달하여 root SSH 허용 여부를 렌더한다.
+                      osInstallation.osFamily (OSFamily enum) 로 RHEL / Debian fragment 를 선택하고,
+                      "root SSH 허용" 필드 표시 여부는 osInstallation.supportsAllowSsh() 로 결정한다.
+                      (이전 구현은 구체 클래스 SimpleName 에 의존해 클래스 리네임 시 조용히 깨졌다.)
                     -->
-                    <th:block th:switch="${process.osInstallation.getClass().getSimpleName()}">
-                        <th:block th:case="'RockyLinux8Installation'"
-                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=false)}"></th:block>
-                        <th:block th:case="'RockyLinux9Installation'"
-                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=false)}"></th:block>
-                        <th:block th:case="'RockyLinux10Installation'"
-                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=true)}"></th:block>
-                        <th:block th:case="'CentOS7Installation'"
-                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=false)}"></th:block>
-                        <th:block th:case="'UbuntuInstallation'"
+                    <th:block th:switch="${process.osInstallation.osFamily.name()}">
+                        <th:block th:case="${osFamily.RHEL_BASED}"
+                                  th:replace="~{fragments/setting/os-installation/detail-rhel :: body(inst=${process.osInstallation}, showAllowSsh=${process.osInstallation.supportsAllowSsh()})}"></th:block>
+                        <th:block th:case="${osFamily.DEBIAN_BASED}"
                                   th:replace="~{fragments/setting/os-installation/detail-debian :: body(inst=${process.osInstallation})}"></th:block>
                     </th:block>
 

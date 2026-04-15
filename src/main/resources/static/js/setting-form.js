@@ -553,7 +553,12 @@
                     users
                 };
 
-                if (osFamily === 'RHEL_BASED') {
+                // OS_ENUMS 는 new.html / edit.html 의 th:inline 스크립트에서 Java OSFamily/OSName
+                // enum 값을 직접 주입받는다. 하드코딩된 'RHEL_BASED' 등 리터럴은 백엔드와 동기화 보장이
+                // 없으므로 항상 OS_ENUMS 경유로 비교한다.
+                const FAMILY = window.OS_ENUMS.FAMILY;
+                const NAME   = window.OS_ENUMS.NAME;
+                if (osFamily === FAMILY.RHEL_BASED) {
                     osInstallation.environmentId = parseInt(document.getElementById('environmentId').value);
                     osInstallation.packageGroupIds = Array.from(
                         document.querySelectorAll('.pkg-group-row:not(.unavailable) input[type=checkbox]:checked')
@@ -562,13 +567,13 @@
                     // Rocky 10 전용 allowSshRoot: 버전 box 가 표시되어 있을 때만 포함.
                     // box 가 숨겨져 있으면 백엔드에서 null/기본값 처리됨.
                     const allowSshBox = document.querySelector(
-                        '.os-version-specific-box[data-os-name-key="ROCKY_LINUX"][data-os-version-prefix="10."]'
+                        `.os-version-specific-box[data-os-name-key="${NAME.ROCKY_LINUX}"][data-os-version-prefix="10."]`
                     );
                     if (allowSshBox && !allowSshBox.hidden) {
                         const allowSshChk = document.getElementById('allowSshRoot');
                         osInstallation.allowSshRoot = !!(allowSshChk && allowSshChk.checked);
                     }
-                } else if (osFamily === 'DEBIAN_BASED') {
+                } else if (osFamily === FAMILY.DEBIAN_BASED) {
                     const hostnameInput = document.getElementById('ubuntuHostname');
                     osInstallation.hostname = hostnameInput ? hostnameInput.value.trim() : '';
                     osInstallation.packages = Array.from(

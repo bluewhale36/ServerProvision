@@ -4,6 +4,17 @@
     <th:block th:replace="~{fragments/layout :: commonHead('신규 세팅 템플릿 생성')}"></th:block>
     <!-- 아코디언 동작에 Bootstrap JS 필요 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!--
+      OS 분류 enum 상수 — SettingController 가 @ModelAttribute 로 주입한 Map 을 그대로 직렬화.
+      setting-form.js 및 inline JS 에서 'RHEL_BASED' 등의 하드코딩 대신 OS_ENUMS 를 참조한다.
+      enum 이 리네임되면 Thymeleaf 단계에서 참조 오류가 발생하므로 JS-백엔드 간 판별자 드리프트를 막는다.
+    -->
+    <script th:inline="javascript">
+        window.OS_ENUMS = {
+            FAMILY: /*[[${osFamily}]]*/  {},
+            NAME:   /*[[${osNameKey}]]*/ {}
+        };
+    </script>
     <!-- 세팅 폼 공유 로직 (new.html / edit.html 공용) -->
     <script src="/js/setting-form.js"></script>
 </head>

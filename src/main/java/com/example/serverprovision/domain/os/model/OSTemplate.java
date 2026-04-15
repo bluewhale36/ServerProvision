@@ -26,6 +26,16 @@ public abstract class OSTemplate {
         return this.COMPATIBLE_OS == osName && (COMPATIBLE_OS_VERSIONS.isEmpty() || COMPATIBLE_OS_VERSIONS.contains(osVersion));
     }
 
+    /**
+     * 이 설치 모델이 호환되는 대표 {@link OSName} 을 반환한다.
+     *
+     * <p>Thymeleaf / 뷰 디스패치에서 구체 클래스 {@code SimpleName} 대신 OSName 을 기준으로
+     * 분기할 수 있도록 enum 자체를 노출한다.</p>
+     */
+    public final OSName getOsName() {
+        return this.COMPATIBLE_OS;
+    }
+
     protected final boolean isVersionCompatible(String osVersion) {
         return COMPATIBLE_OS_VERSIONS.isEmpty() || COMPATIBLE_OS_VERSIONS.contains(osVersion);
     }

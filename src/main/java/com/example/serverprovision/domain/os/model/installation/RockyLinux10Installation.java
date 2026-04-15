@@ -57,6 +57,15 @@ public class RockyLinux10Installation extends RHELBasedInstallation {
         return "#version=RHEL10";
     }
 
+    /**
+     * Rocky 10 은 {@code rootpw --allow-ssh} 를 지원하는 유일한 구체 모델이다.
+     * 뷰 계층이 "root SSH 허용" 필드 표시 여부를 결정할 때 참조한다.
+     */
+    @Override
+    public boolean supportsAllowSsh() {
+        return true;
+    }
+
     @Override
     protected String renderRootPwLine() {
         // rootPassword 가 null 이면 기본 구현과 동일하게 빈 문자열 반환 (root 잠금)

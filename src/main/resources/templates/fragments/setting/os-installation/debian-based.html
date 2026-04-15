@@ -8,7 +8,7 @@
 -->
 <section th:fragment="form"
          class="os-family-pane"
-         data-os-family="DEBIAN_BASED"
+         th:attr="data-os-family=${osFamily.DEBIAN_BASED}"
          hidden>
 
     <!-- 호스트명 -->

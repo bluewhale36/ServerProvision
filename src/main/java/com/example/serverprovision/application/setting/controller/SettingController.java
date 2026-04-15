@@ -12,6 +12,7 @@ import com.example.serverprovision.application.setting.service.SettingService;
 import com.example.serverprovision.domain.board.service.BoardModelService;
 import com.example.serverprovision.domain.os.dto.OSPackageGroupDTO;
 import com.example.serverprovision.domain.os.model.enums.FileSystem;
+import com.example.serverprovision.domain.os.model.enums.OSFamily;
 import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.domain.os.model.installation.LinuxInstallation;
 import com.example.serverprovision.domain.os.model.installation.PartitionPreset;
@@ -29,9 +30,11 @@ import org.springframework.web.bind.annotation.*;
 import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 /**
@@ -67,6 +70,33 @@ public class SettingController {
     private final BoardModelService boardModelService;
     private final OSMetadataService osMetadataService;
     private final ObjectMapper objectMapper;
+
+    /**
+     * 모든 뷰에서 {@code ${osFamily.RHEL_BASED}} 형태로 {@link OSFamily} 상수명을 참조할 수 있게 주입한다.
+     *
+     * <p>{@code Map<상수명, 상수명>} 구조로 노출하는 이유: 템플릿 SpEL 에서 {@code ${osFamily.RHEL_BASED}}
+     * 접근 시 {@link OSFamily} 열거형 자체가 아닌 값만 필요하기 때문이다. 동시에 Thymeleaf 의
+     * restricted context(th:attr 등) 에서도 안전하게 평가된다.</p>
+     */
+    @ModelAttribute("osFamily")
+    public Map<String, String> populateOSFamilyKeys() {
+        return Arrays.stream(OSFamily.values())
+                .collect(Collectors.toMap(Enum::name, Enum::name,
+                        (a, b) -> a, LinkedHashMap::new));
+    }
+
+    /**
+     * 모든 뷰에서 {@code ${osNameKey.ROCKY_LINUX}} 형태로 {@link OSName} 상수명을 참조할 수 있게 주입한다.
+     *
+     * <p>{@code OSAdminController.populateOSNames()} 가 {@code OSName[]} 을 그대로 노출하는 것과는
+     * 용도가 다르다: 저쪽은 드롭다운 iteration 용, 여기는 특정 상수명을 키로 참조하기 위한 맵이다.</p>
+     */
+    @ModelAttribute("osNameKey")
+    public Map<String, String> populateOSNameKeys() {
+        return Arrays.stream(OSName.values())
+                .collect(Collectors.toMap(Enum::name, Enum::name,
+                        (a, b) -> a, LinkedHashMap::new));
+    }
 
     /**
      * 세팅 주문서 목록 페이지를 렌더링한다.

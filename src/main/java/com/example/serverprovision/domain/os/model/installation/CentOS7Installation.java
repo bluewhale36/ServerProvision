@@ -10,13 +10,18 @@ import java.util.List;
 /**
  * CentOS 7.x 설치 모델.
  *
- * <p>호환 버전: 7.9 (EOL 된 마지막 안정 버전). Kickstart 버전 헤더는 {@code #version=RHEL7}.
- * CentOS 7 은 BIOS/MBR 부팅도 표준이므로 {@link #requireBootEfi()} 를 {@code false} 로
- * override 하여 {@code /boot/efi} 파티션 없이도 검증을 통과하도록 한다.</p>
+ * <p>호환 버전: 7.9, 7.10 (EOL 된 마지막 안정 버전 및 리빌드 변형). Kickstart 버전
+ * 헤더는 {@code #version=RHEL7}. CentOS 7 은 BIOS/MBR 부팅도 표준이므로
+ * {@link #requireBootEfi()} 를 {@code false} 로 override 하여 {@code /boot/efi}
+ * 파티션 없이도 검증을 통과하도록 한다.</p>
+ *
+ * <p>{@code os_metadata} seed 에는 {@code 7.10} 이 등록되어 있으므로 호환 목록에 함께
+ * 포함한다. 7.x 의 minor 추가가 발생하면 여기에만 추가하면 되며, {@code supports()} 의
+ * 접두사 매칭({@code startsWith("7.")}) 은 변경할 필요가 없다.</p>
  */
 public class CentOS7Installation extends RHELBasedInstallation {
 
-    private static final List<String> COMPATIBLE_VERSIONS = List.of("7.9");
+    private static final List<String> COMPATIBLE_VERSIONS = List.of("7.9", "7.10");
 
     @Builder
     @JsonCreator

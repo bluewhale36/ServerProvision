@@ -1,5 +1,6 @@
 package com.example.serverprovision.domain.os.model.installation;
 
+import com.example.serverprovision.domain.os.model.enums.OSFamily;
 import com.example.serverprovision.domain.os.model.enums.OSName;
 import com.example.serverprovision.domain.os.model.OSTemplate;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -43,4 +44,29 @@ public abstract class OSInstallation extends OSTemplate {
      * @return 완성된 스크립트 + 포맷 정보
      */
     public abstract RenderedScript getInstallScript(InstallationContext ctx);
+
+    /**
+     * 이 설치 모델이 속한 OS 패밀리를 반환한다.
+     *
+     * <p>뷰 계층의 fragment 디스패치 (RHEL vs Debian)·요청 DTO 다형성 판별자 등
+     * OSFamily 기준 분기에서 참조한다. {@link #getOsName()} 에서 위임된다.</p>
+     */
+    public final OSFamily getOsFamily() {
+        return getOsName().getFamily();
+    }
+
+    /**
+     * 이 설치 모델이 {@code rootpw --allow-ssh} (root SSH 로그인 허용) 옵션을
+     * 지원하는지 반환한다.
+     *
+     * <p>Rocky Linux 10 부터 {@code rootpw} 가 기본적으로 SSH 루트 로그인을 차단하며
+     * {@code --allow-ssh} 로 명시적으로 허용해야 한다. 해당 옵션을 가진 구체 모델만
+     * {@code true} 를 반환하도록 오버라이드하고, 기본값은 {@code false} 이다.</p>
+     *
+     * <p>뷰 계층에서 구체 클래스 {@code SimpleName} 에 의존하지 않고 이 플래그로
+     * "root SSH 허용" 필드 표시 여부를 결정할 수 있다.</p>
+     */
+    public boolean supportsAllowSsh() {
+        return false;
+    }
 }
