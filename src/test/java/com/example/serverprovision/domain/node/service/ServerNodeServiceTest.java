@@ -16,6 +16,11 @@ import com.example.serverprovision.domain.node.model.enums.ProvisioningStatus;
 import com.example.serverprovision.domain.node.model.enums.StepExecutionStatus;
 import com.example.serverprovision.domain.node.repository.NodeStepExecutionRepository;
 import com.example.serverprovision.domain.node.repository.ServerNodeRepository;
+import com.example.serverprovision.domain.os.dto.OSMetadataDTO;
+import com.example.serverprovision.domain.os.model.enums.OSName;
+import com.example.serverprovision.domain.os.model.enums.ServiceAction;
+import com.example.serverprovision.domain.os.model.setting.RockyLinux9Setting;
+import com.example.serverprovision.domain.os.model.setting.ServiceDirective;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,6 +31,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -83,10 +89,19 @@ class ServerNodeServiceTest {
     }
 
     /**
-     * OSSetting 인스턴스를 반환한다.
+     * OSSetting 인스턴스를 반환한다. (Rocky Linux 9.6 + 기본 SELinux enforcing 조합)
      */
     private OSSetting createOSSetting() {
-        return new OSSetting("enforcing", List.of("sshd"), List.of("vim"));
+        OSMetadataDTO metadata = new OSMetadataDTO(
+                1L, OSName.ROCKY_LINUX, "9.6", "/mnt/iso/rocky9", null, true,
+                LocalDateTime.now(), LocalDateTime.now()
+        );
+        RockyLinux9Setting domain = RockyLinux9Setting.builder()
+                .selinuxMode("enforcing")
+                .services(List.of(new ServiceDirective("sshd", ServiceAction.ENABLE)))
+                .additionalPackages(List.of("vim"))
+                .build();
+        return new OSSetting(metadata, domain);
     }
 
     /**

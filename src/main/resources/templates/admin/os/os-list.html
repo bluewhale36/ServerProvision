@@ -131,6 +131,18 @@
                             <span class="n-spinner n-extract-spinner" style="display:none;"></span>
                             <span>환경 정보 자동 추출</span>
                         </button>
+                        <!-- 저장소 인덱싱 — 주문서 생성 시 패키지/서비스 이름 검증용 인덱스 재생성 -->
+                        <button type="button"
+                                class="n-btn n-btn-outline-info n-index-btn"
+                                th:data-start-url="@{/pxe/v1/admin/os/{id}/index-repo(id=${os.id})}"
+                                th:data-status-url="@{/pxe/v1/admin/os/{id}/index-repo/status(id=${os.id})}"
+                                th:data-os-name="${group.osName.displayName}"
+                                th:data-os-version="${os.osVersion}">
+                            <span class="n-spinner n-index-spinner" style="display:none;"></span>
+                            <span>저장소 인덱스 재생성</span>
+                            <span class="n-index-status-badge"
+                                  style="margin-left:8px; font-size:0.8em; color:var(--n-gray-600,#666);"></span>
+                        </button>
                         <div class="n-footer-right">
                             <!-- 선택 해제: selectId 없이 리스트로 이동 -->
                             <a th:href="@{/pxe/v1/admin/os}" class="n-btn n-btn-secondary">목록으로</a>

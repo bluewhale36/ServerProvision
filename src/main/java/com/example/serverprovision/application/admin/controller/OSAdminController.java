@@ -4,9 +4,13 @@ import com.example.serverprovision.domain.os.dto.OSMetadataCreateDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataDTO;
 import com.example.serverprovision.domain.os.dto.OSMetadataUpdateDTO;
 import com.example.serverprovision.domain.os.model.enums.OSName;
+import com.example.serverprovision.domain.os.repository.OSPackageRefRepository;
+import com.example.serverprovision.domain.os.repository.OSServiceRefRepository;
 import com.example.serverprovision.domain.os.service.ExtractionTask;
 import com.example.serverprovision.domain.os.service.ExtractionTaskService;
 import com.example.serverprovision.domain.os.service.OSMetadataService;
+import com.example.serverprovision.domain.os.service.RepoIndexingTask;
+import com.example.serverprovision.domain.os.service.RepoIndexingTaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +30,9 @@ public class OSAdminController {
 
     private final OSMetadataService osMetadataService;
     private final ExtractionTaskService extractionTaskService;
+    private final RepoIndexingTaskService repoIndexingTaskService;
+    private final OSPackageRefRepository packageRefRepository;
+    private final OSServiceRefRepository serviceRefRepository;
 
     // OS 목록 조회 화면 — OSName 기준 그룹핑 + 그룹 내 활성/최신순 정렬
     // selectId 가 전달되면 해당 메타데이터를 밀러 컬럼의 상세 패널에 자동 선택한다.
@@ -121,5 +128,34 @@ public class OSAdminController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(task);
+    }
+
+    // ISO 저장소 인덱스(패키지/서비스) 재생성 — 비동기 시작
+    // 주문서 생성 시 오타 검증을 위한 레퍼런스 테이블을 갱신한다.
+    @PostMapping("/{id}/index-repo")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> startRepoIndexing(@PathVariable Long id) {
+        String taskId = repoIndexingTaskService.startIndexing(id);
+        return ResponseEntity.accepted().body(Map.of("taskId", taskId));
+    }
+
+    // 저장소 인덱싱 태스크 상태 조회
+    @GetMapping("/index-repo/tasks/{taskId}")
+    @ResponseBody
+    public ResponseEntity<RepoIndexingTask> getRepoIndexingTaskStatus(@PathVariable String taskId) {
+        RepoIndexingTask task = repoIndexingTaskService.getTask(taskId);
+        if (task == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(task);
+    }
+
+    // 현재 인덱스 갯수 조회 — 상세 패널의 "마지막 인덱싱 상태" 표시용
+    @GetMapping("/{id}/index-repo/status")
+    @ResponseBody
+    public ResponseEntity<Map<String, Long>> getRepoIndexSummary(@PathVariable Long id) {
+        long pkgCount = packageRefRepository.countByOsMetadata_Id(id);
+        long svcCount = serviceRefRepository.countByOsMetadata_Id(id);
+        return ResponseEntity.ok(Map.of("packageCount", pkgCount, "serviceCount", svcCount));
     }
 }

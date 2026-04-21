@@ -2,6 +2,7 @@ package com.example.serverprovision.application.setting.service;
 
 import com.example.serverprovision.application.setting.domain.entity.ServerSetting;
 import com.example.serverprovision.application.setting.dto.SettingCreateRequest;
+import com.example.serverprovision.application.setting.dto.ValidationWarning;
 import com.example.serverprovision.application.setting.model.AbstractSettingProcess;
 import com.example.serverprovision.application.setting.model.OSInstallation;
 import com.example.serverprovision.application.setting.model.SettingProcess;
@@ -56,6 +57,7 @@ public class SettingService {
 
     private final SettingRepository settingRepository;
     private final List<SettingProcessResolver> resolvers;
+    private final OSRepoValidationService osRepoValidationService;
 
     /**
      * ID로 세팅 주문서 단건을 조회한다.
@@ -114,6 +116,36 @@ public class SettingService {
      * @throws com.example.serverprovision.global.exception.FieldValidationException
      *         지원하지 않는 프로세스 타입이거나 Resolver 내부 검증 실패 시
      */
+    /**
+     * 저장 없이 resolver dispatch + 저장소 인덱스 대조만 수행하여 경고 목록을 반환한다.
+     *
+     * <p>사전 검증 엔드포인트({@code POST /api/validate}) 에서 호출된다. Bean Validation 과
+     * Resolver 의 강성 검증(예외 발생)을 모두 통과한 뒤, 패키지/서비스 이름이 OS 의 저장소
+     * 인덱스와 일치하지 않으면 경고로 수집한다. 본 저장은 수행하지 않는다.</p>
+     */
+    @Transactional(readOnly = true)
+    public List<ValidationWarning> validate(SettingCreateRequest request) {
+        log.info("[SettingService] 사전 검증 시작. name={}, 단계 수={}",
+                request.name(), request.processList().size());
+        List<AbstractSettingProcess> resolved = resolveProcessList(request.processList());
+        return osRepoValidationService.validate(resolved);
+    }
+
+    /**
+     * 수정 요청을 대상으로 한 사전 검증. {@code keepExistingPassword} 플래그가 포함된 경우를
+     * 위해 기존 설정을 로드해 비밀번호를 패치한 뒤 resolve 한다.
+     */
+    @Transactional(readOnly = true)
+    public List<ValidationWarning> validateUpdate(Long id, SettingCreateRequest request) {
+        ServerSetting existing = settingRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "존재하지 않는 세팅 주문서입니다. id=" + id));
+        List<AbstractProcessRequest> patched =
+                patchKeepExistingPasswords(request.processList(), existing);
+        List<AbstractSettingProcess> resolved = resolveProcessList(patched);
+        return osRepoValidationService.validate(resolved);
+    }
+
     @Transactional
     public ServerSetting save(SettingCreateRequest request) {
         log.info("[SettingService] 세팅 주문서 생성 시작. name={}, 단계 수={}",
