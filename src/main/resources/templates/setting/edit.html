@@ -365,24 +365,26 @@
                                                     onclick="SettingForm.addPackageRow()">+ 패키지 추가
                                             </button>
                                         </div>
-                                        <!-- 서비스 활성화 목록 -->
-                                        <div class="mb-3" data-error-field="enabledServices">
+                                        <!-- 서비스 활성화/비활성화 목록 -->
+                                        <div class="mb-3" data-error-field="services">
                                             <div class="d-flex align-items-center justify-content-between mb-1">
-                                                <label class="form-label fw-bold mb-0">서비스 활성화 목록</label>
+                                                <label class="form-label fw-bold mb-0">서비스 활성화/비활성화 목록</label>
                                             </div>
                                             <div class="small text-muted mb-1">
-                                                systemctl enable 할 서비스명을 입력합니다. 비워두면 이 단계를 생략합니다.
+                                                서비스명을 입력하고 systemctl enable / disable 중 수행할 동작을 선택합니다. 비워두면 이 단계를 생략합니다.
                                             </div>
                                             <table class="table table-sm table-bordered n-tbl-list"
-                                                   id="enabledServicesTable"
+                                                   id="servicesTable"
                                                    style="table-layout: fixed;">
                                                 <colgroup>
-                                                    <col style="width: 85%">  <!-- 서비스명 -->
+                                                    <col style="width: 55%">  <!-- 서비스명 -->
+                                                    <col style="width: 30%">  <!-- 동작 -->
                                                     <col style="width: 15%">  <!-- 삭제 -->
                                                 </colgroup>
                                                 <thead class="table-dark">
                                                 <tr>
                                                     <th>서비스명</th>
+                                                    <th>동작</th>
                                                     <th></th>
                                                 </tr>
                                                 </thead>
@@ -410,7 +412,35 @@
     </form>
 </div>
 
+<!-- 사전 검증 경고 모달 — 패키지/서비스 이름이 저장소 인덱스에서 확인되지 않을 때 사용자 확인용 -->
+<div class="modal fade" id="settingWarningModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">확인되지 않은 항목이 있습니다</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">다음 항목은 이 OS 의 기본 저장소 인덱스에서 확인되지 않았습니다. EPEL·사내 저장소에서 제공되거나 별도 unit 을 배포한다면 정상 동작할 수 있으니, 이름을 다시 확인한 뒤 그래도 진행할지 선택해 주세요.</p>
+                <ul id="settingWarningList" class="list-unstyled mb-0"
+                    style="max-height: 40vh; overflow-y: auto;"></ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="settingWarningCancel" class="btn btn-secondary">취소하고 수정</button>
+                <button type="button" id="settingWarningConfirm" class="btn btn-warning fw-bold">이해했고 진행</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
+    #settingWarningList > li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    #settingWarningList > li:last-child { border-bottom: none; }
+    #settingWarningList code { background: rgba(255,193,7,0.15); padding: 0 0.3rem; border-radius: 3px; }
+
     /* 선택 불가 옵션 숨김 처리 (이 페이지 전용 동적 UI 상태) */
     .unavailable {
         display: none !important;
@@ -660,7 +690,7 @@
     }
 
     /**
-     * OS_SETTING 섹션 pre-fill: selinuxMode, additionalPackages, enabledServices를 채운다.
+     * OS_SETTING 섹션 pre-fill: selinuxMode, additionalPackages, services를 채운다.
      */
     function prefillOsSetting(proc) {
         // SELinux 모드 pre-fill
@@ -685,18 +715,17 @@
             }
         }
 
-        // 서비스 활성화 목록 pre-fill
-        if (Array.isArray(proc.enabledServices) && proc.enabledServices.length > 0) {
-            const svcTbody = document.querySelector('#enabledServicesTable tbody');
+        // 서비스 지시 목록 pre-fill ({name, action} 구조)
+        if (Array.isArray(proc.services) && proc.services.length > 0) {
+            const svcTbody = document.querySelector('#servicesTable tbody');
             if (svcTbody) {
                 svcTbody.innerHTML = '';
-                proc.enabledServices.forEach(svc => {
-                    svcTbody.insertAdjacentHTML('beforeend', `
-                        <tr>
-                            <td><input type="text" class="form-control form-control-sm serviceName"
-                                       value="${escapeHtml(svc)}"></td>
-                            <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
-                        </tr>`);
+                proc.services.forEach(svc => {
+                    // action 이 누락된 구 데이터가 전달될 경우에도 ENABLE 로 표시되도록 addServiceRow 내부에서 방어한다.
+                    SettingForm.addServiceRow({
+                        name:   svc && svc.name   ? svc.name   : '',
+                        action: svc && svc.action ? svc.action : 'ENABLE'
+                    });
                 });
             }
         }
@@ -729,6 +758,30 @@
         }
 
         if (stepTypeByIndex.includes('OS_INSTALLATION') && SettingForm.hasPartitionSizeError()) return;
+
+        // --- 클라이언트 구조 검증: 다형성 DTO 의 osFamily 판별자 누락 등 사전 차단 ---
+        const clientCheck = SettingForm.validateClientSide(payload, stepTypeByIndex);
+        if (clientCheck.errors.length > 0) {
+            FormError.renderResponse({code: 'CLIENT_VALIDATION', fieldErrors: clientCheck.errors},
+                    {stepTypeByIndex});
+            return;
+        }
+
+        // --- 사전 검증: OS 저장소 인덱스 대조 경고 확인 ---
+        const validation = await SettingForm.preValidate(payload, settingId);
+        if (!validation.ok) {
+            if (validation.status === 409) {
+                FormError.renderFormLevel(
+                    (validation.errorBody && validation.errorBody.message) || "이 주문서는 현재 수정할 수 없는 상태입니다.");
+            } else {
+                FormError.renderResponse(validation.errorBody, {stepTypeByIndex});
+            }
+            return;
+        }
+        if (validation.warnings && validation.warnings.length > 0) {
+            const proceed = await SettingForm.showWarningModal(validation.warnings);
+            if (!proceed) return;
+        }
 
         let response;
         try {

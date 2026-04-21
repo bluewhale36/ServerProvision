@@ -1,45 +1,34 @@
 package com.example.serverprovision.application.setting.service.resolver;
 
 import com.example.serverprovision.application.setting.model.AbstractSettingProcess;
-import com.example.serverprovision.application.setting.model.OSSetting;
 import com.example.serverprovision.application.setting.model.request.AbstractProcessRequest;
 import com.example.serverprovision.application.setting.model.request.OSSettingRequest;
+import com.example.serverprovision.domain.os.dto.OSMetadataDTO;
+import com.example.serverprovision.domain.os.entity.OSMetadata;
+import com.example.serverprovision.domain.os.repository.OSMetadataRepository;
 import com.example.serverprovision.global.exception.FieldValidationException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
- * {@link OSSettingRequest}를 {@link OSSetting} 도메인 모델로 변환하는 Resolver이다.
+ * {@link OSSettingRequest} 를 application 계층
+ * {@link com.example.serverprovision.application.setting.model.OSSetting} 으로 변환하는 Resolver.
  *
- * <p>역할: {@link OSSettingRequest}에 담긴 SELinux 모드, 서비스 활성화 목록,
- * 추가 패키지 목록을 읽어 {@link OSSetting} 도메인 객체를 생성하여 반환한다.</p>
- *
- * <p>유스케이스: {@link com.example.serverprovision.application.setting.service.SettingService}가
- * {@link OSSettingRequest} 타입을 만나면 이 Resolver를 선택한다.
- * {@code selinuxMode}가 허용값({@code enforcing}, {@code permissive}, {@code disabled}) 외의
- * 값이면 {@link com.example.serverprovision.global.exception.FieldValidationException}을 던진다.</p>
- *
- * <p>확장 가이드: OS 타입별로 다른 후처리 설정이 필요하다면
- * {@link OSInstallationResolver}처럼 OS 타입 switch로 분기하여 구현한다.</p>
+ * <p>{@link OSInstallationResolver} 와 동일한 Strategy 패턴을 따른다: OSMetadata 조회 → 주입된
+ * {@link OSSettingBuilder} 목록에서 {@code supports(...)} 매칭 → 도메인 모델 빌드 →
+ * application 래퍼로 감싸며 {@code isCompatible(...)} 로 호환성 검증. SELinux 모드·패키지·서비스 이름 검증은
+ * 빌더({@link RHELOSSettingBuilder}) 내부로 위임된다.</p>
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class OSSettingResolver implements SettingProcessResolver {
 
-    /** 허용 가능한 SELinux 모드 목록이다. {@code @Pattern} 에서 소문자만 허용하므로 소문자 기준으로 관리한다. */
-    private static final Set<String> VALID_SELINUX_MODES =
-            Set.of("enforcing", "permissive", "disabled");
-
-    /**
-     * 패키지명·서비스명에 허용되는 문자 패턴이다.
-     * alphanumeric, 하이픈, 언더스코어, 점, 플러스만 허용하여 Shell Injection을 방지한다.
-     */
-    private static final Pattern SAFE_NAME_PATTERN =
-            Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9._+\\-]*$");
+    private final OSMetadataRepository osMetadataRepository;
+    private final List<OSSettingBuilder> builders;
 
     @Override
     public boolean supports(AbstractProcessRequest request) {
@@ -50,53 +39,45 @@ public class OSSettingResolver implements SettingProcessResolver {
     public AbstractSettingProcess resolve(AbstractProcessRequest request) {
         OSSettingRequest req = (OSSettingRequest) request;
 
-        log.info("[OSSettingResolver] OSSetting 생성 시작. selinuxMode={}, enabledServices={}, additionalPackages={}",
-                req.getSelinuxMode(), req.getEnabledServices(), req.getAdditionalPackages());
+        log.info("[OSSettingResolver] OSSetting 처리 시작. osMetadataId={}, requestType={}",
+                req.getOsMetadataId(), req.getClass().getSimpleName());
 
-        // SELinux 모드 유효성 검증
-        // @Pattern 에서 이미 소문자만 허용하므로 toLowerCase() 없이 직접 비교한다.
-        // @Valid 우회 경로(API 직접 호출 등)를 대비한 방어 검증이다.
-        String selinuxMode = req.getSelinuxMode();
-        if (selinuxMode == null || !VALID_SELINUX_MODES.contains(selinuxMode)) {
-            throw new FieldValidationException(
-                    "selinuxMode",
-                    "SELinux 모드는 enforcing, permissive, disabled 중 하나여야 합니다. 입력값: " + selinuxMode);
-        }
+        // 1. OSMetadata 조회 — 존재하지 않는 ID 는 사용자 입력 필드 문제로 간주.
+        OSMetadata osMetadata = osMetadataRepository.findById(req.getOsMetadataId())
+                .orElseThrow(() -> new FieldValidationException("osMetadataId",
+                        "존재하지 않는 OS 메타데이터입니다. id=" + req.getOsMetadataId()));
 
-        // 패키지명·서비스명 whitelist 검증 — Kickstart %post 스크립트에 직접 삽입되므로
-        // Shell Injection 방지를 위해 alphanumeric과 안전한 특수문자만 허용한다.
-        validateSafeNames(req.getAdditionalPackages(), "additionalPackages");
-        validateSafeNames(req.getEnabledServices(), "enabledServices");
+        log.info("[OSSettingResolver] 메타데이터 조회 완료. osName={}, osVersion={}",
+                osMetadata.getOsName(), osMetadata.getOsVersion());
 
-        OSSetting osSetting = new OSSetting(
-                selinuxMode,
-                req.getEnabledServices(),
-                req.getAdditionalPackages()
-        );
+        // 2. Strategy 디스패치 — 매칭 빌더가 없으면 요청/메타데이터 조합이 미지원 상태.
+        OSSettingBuilder builder = builders.stream()
+                .filter(b -> b.supports(req, osMetadata))
+                .findFirst()
+                .orElseThrow(() -> new FieldValidationException("osMetadataId",
+                        "미지원 OS 타입 또는 버전입니다: osName=" + osMetadata.getOsName()
+                                + ", osVersion=" + osMetadata.getOsVersion()
+                                + ", requestType=" + req.getClass().getSimpleName()));
 
-        log.info("[OSSettingResolver] OSSetting 도메인 모델 생성 완료.");
-        return osSetting;
-    }
+        log.info("[OSSettingResolver] 빌더 선택 완료: {}", builder.getClass().getSimpleName());
 
-    /**
-     * 리스트 원소 각각이 {@link #SAFE_NAME_PATTERN}에 부합하는지 검증한다.
-     * 빈 문자열은 건너뛴다.
-     *
-     * @param items     검증할 문자열 목록
-     * @param fieldName 예외 메시지에 사용할 필드명
-     * @throws FieldValidationException 허용되지 않는 문자가 포함된 원소가 있을 때
-     */
-    private void validateSafeNames(List<String> items, String fieldName) {
-        for (int i = 0; i < items.size(); i++) {
-            String item = items.get(i);
-            if (item == null || item.isBlank()) {
-                continue;
-            }
-            if (!SAFE_NAME_PATTERN.matcher(item.trim()).matches()) {
-                throw new FieldValidationException(
-                        fieldName + "[" + i + "]",
-                        "허용되지 않는 문자가 포함되어 있습니다: " + item);
-            }
+        // 3~4. 도메인 후처리 모델 빌드 + application 래퍼 생성.
+        try {
+            com.example.serverprovision.domain.os.model.setting.OSSetting domainSetting =
+                    builder.build(req, osMetadata);
+            log.info("[OSSettingResolver] 도메인 설정 모델 생성 완료. type={}",
+                    domainSetting.getClass().getSimpleName());
+
+            OSMetadataDTO metadataDto = OSMetadataDTO.from(osMetadata);
+            AbstractSettingProcess appSetting =
+                    new com.example.serverprovision.application.setting.model.OSSetting(metadataDto, domainSetting);
+            log.info("[OSSettingResolver] application OSSetting 생성 완료 (호환성 검증 통과).");
+            return appSetting;
+
+        } catch (IllegalArgumentException ex) {
+            // application-layer 호환성 검증 (OSTemplate.isCompatible 불일치) 등은
+            // osMetadataId 선택 문제로 귀속.
+            throw new FieldValidationException("osMetadataId", ex.getMessage(), ex);
         }
     }
 }

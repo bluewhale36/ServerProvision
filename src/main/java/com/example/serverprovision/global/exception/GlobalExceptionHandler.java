@@ -60,14 +60,122 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 잘못된 JSON 본문 또는 Jackson 다형성 {@code type} 판별자 미스매치.
+     * 잘못된 JSON 본문 또는 Jackson 다형성 {@code type} / {@code osFamily} 판별자 미스매치.
+     *
+     * <p>특히 다형성 역직렬화 실패({@link tools.jackson.databind.exc.InvalidTypeIdException})
+     * 는 사용자가 해당 단계의 필수 선택(OS 종류 등)을 놓쳐서 발생하는 경우가 대부분이므로,
+     * 원인 예외 체인을 검사해 문제가 된 스텝·필드를 {@link ErrorResponse.FieldError} 로 변환한다.
+     * 브라우저가 구 JS 를 캐시해 클라이언트 가드가 우회된 경우에도 프론트가 인라인 에러를
+     * 표시할 수 있도록 하는 심층 방어선이다.</p>
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
         log.warn("[GlobalExceptionHandler] JSON 파싱 실패. message={}", ex.getMessage());
+
+        ErrorResponse.FieldError extracted = extractPolymorphicFieldError(ex);
+        if (extracted != null) {
+            return ResponseEntity.badRequest().body(
+                    ErrorResponse.ofValidation(extracted.message(), List.of(extracted)));
+        }
+
         return ResponseEntity.badRequest().body(ErrorResponse.of(
                 "MALFORMED_JSON",
                 "요청 본문의 JSON 형식이 올바르지 않거나 알 수 없는 프로세스 타입입니다."));
+    }
+
+    /**
+     * Jackson 3 ({@code tools.jackson.*}) 의 {@link tools.jackson.databind.exc.InvalidTypeIdException}
+     * 또는 동일 시맨틱의 DatabindException 을 감지해 어떤 스텝의 어떤 판별자가 누락/미스매치인지
+     * 추정하고 사용자용 필드 에러로 변환한다. 확실히 식별 불가하면 {@code null} 반환 후 상위에서
+     * 일반 MALFORMED_JSON 메시지로 폴백한다.
+     */
+    private ErrorResponse.FieldError extractPolymorphicFieldError(HttpMessageNotReadableException ex) {
+        Throwable cause = ex.getCause();
+        while (cause != null) {
+            if (cause instanceof tools.jackson.databind.exc.InvalidTypeIdException itid) {
+                // 경로에서 processList 인덱스를 복원 (없으면 일반 안내).
+                String path = joinPath(itid);
+                String baseTypeName = itid.getBaseType() != null
+                        ? itid.getBaseType().getRawClass().getSimpleName() : "";
+                String typeId = itid.getTypeId();
+
+                String fieldPath = path.isEmpty() ? "processList" : path;
+                // 베이스 타입이 OSSettingRequest / OSInstallationRequest 이면 osFamily 판별자 미스매치.
+                if ("OSSettingRequest".equals(baseTypeName)) {
+                    return new ErrorResponse.FieldError(
+                            fieldPath.endsWith(".osFamily") ? fieldPath : fieldPath + ".osFamily",
+                            "OS 설정 단계의 OS 계열을 결정할 수 없습니다. 대상 OS 종류와 버전을 선택했는지 확인해 주세요."
+                                    + (isBlank(typeId) ? "" : " (수신값: '" + typeId + "')"));
+                }
+                if ("OSInstallationRequest".equals(baseTypeName)) {
+                    return new ErrorResponse.FieldError(
+                            fieldPath.endsWith(".osFamily") ? fieldPath : fieldPath + ".osFamily",
+                            "OS 설치 단계의 OS 계열을 결정할 수 없습니다. 대상 OS 종류와 버전을 선택했는지 확인해 주세요."
+                                    + (isBlank(typeId) ? "" : " (수신값: '" + typeId + "')"));
+                }
+                // AbstractProcessRequest 수준의 type 판별자 미스매치.
+                if ("AbstractProcessRequest".equals(baseTypeName)) {
+                    return new ErrorResponse.FieldError(
+                            fieldPath.endsWith(".type") ? fieldPath : fieldPath + ".type",
+                            "지원하지 않는 프로세스 타입입니다."
+                                    + (isBlank(typeId) ? "" : " (수신값: '" + typeId + "')"));
+                }
+            }
+            cause = cause.getCause();
+        }
+
+        // 폴백: 예외 메시지 텍스트로 베이스 타입 추정.
+        return extractPolymorphicFieldErrorFromMessage(ex.getMessage() == null ? "" : ex.getMessage());
+    }
+
+    /**
+     * Jackson 예외 메시지에서 베이스 타입 이름을 찾아 사용자용 필드 에러로 변환한다.
+     * Jackson 3 가 InvalidTypeIdException 외 다른 파생 예외(MismatchedInputException 등) 로 던져도
+     * 동일한 "Cannot construct instance of X" 패턴을 유지하므로 메시지 기반 매칭이 안정적이다.
+     */
+    private ErrorResponse.FieldError extractPolymorphicFieldErrorFromMessage(String raw) {
+        if (raw == null || raw.isEmpty()) return null;
+        if (raw.contains("OSSettingRequest")) {
+            return new ErrorResponse.FieldError(
+                    "processList",
+                    "OS 설정 단계의 OS 계열을 결정할 수 없습니다. 대상 OS 종류와 버전을 선택했는지 확인해 주세요.");
+        }
+        if (raw.contains("OSInstallationRequest")) {
+            return new ErrorResponse.FieldError(
+                    "processList",
+                    "OS 설치 단계의 OS 계열을 결정할 수 없습니다. 대상 OS 종류와 버전을 선택했는지 확인해 주세요.");
+        }
+        if (raw.contains("AbstractProcessRequest")) {
+            return new ErrorResponse.FieldError(
+                    "processList",
+                    "지원하지 않는 프로세스 타입입니다.");
+        }
+        return null;
+    }
+
+    private String joinPath(tools.jackson.databind.DatabindException ex) {
+        try {
+            var ref = ex.getPath();
+            if (ref == null || ref.isEmpty()) return "";
+            StringBuilder sb = new StringBuilder();
+            for (var p : ref) {
+                // Jackson 3: getPropertyName() (구 getFieldName())
+                String prop = p.getPropertyName();
+                if (prop != null) {
+                    if (sb.length() > 0) sb.append('.');
+                    sb.append(prop);
+                } else if (p.getIndex() >= 0) {
+                    sb.append('[').append(p.getIndex()).append(']');
+                }
+            }
+            return sb.toString();
+        } catch (Exception ignore) {
+            return "";
+        }
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 
     /**
@@ -104,8 +212,47 @@ public class GlobalExceptionHandler {
      * 예측하지 못한 오류. 원문은 로그에만 남기고 클라이언트에게는 일반화된 메시지를 반환해
      * 내부 정보 노출을 최소화한다.
      */
+    /**
+     * Spring 이 HttpMessageNotReadableException 으로 감싸지 않고 직접 올라온 Jackson
+     * {@link tools.jackson.databind.DatabindException} 도 동일 경로로 처리한다.
+     * 일부 Jackson 3 조합에서 발생한다.
+     */
+    @ExceptionHandler(tools.jackson.databind.DatabindException.class)
+    public ResponseEntity<ErrorResponse> handleDatabindDirect(tools.jackson.databind.DatabindException ex) {
+        log.warn("[GlobalExceptionHandler] DatabindException 직접 발생. message={}", ex.getMessage());
+        ErrorResponse.FieldError extracted = extractPolymorphicFieldErrorFromMessage(
+                ex.getMessage() == null ? "" : ex.getMessage());
+        if (extracted != null) {
+            return ResponseEntity.badRequest().body(
+                    ErrorResponse.ofValidation(extracted.message(), List.of(extracted)));
+        }
+        return ResponseEntity.badRequest().body(ErrorResponse.of(
+                "MALFORMED_JSON",
+                "요청 본문의 JSON 형식이 올바르지 않거나 알 수 없는 프로세스 타입입니다."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
+        // 최종 폴백도 Jackson 다형성 메시지 패턴이면 사용자용 필드 에러로 승격한다.
+        // (일부 Jackson 3 경로에서 DatabindException 이 HttpMessageNotReadableException 으로
+        //  감싸이지 않고 원인 체인 깊은 곳에만 묻히는 케이스가 관찰됨)
+        ErrorResponse.FieldError extracted =
+                extractPolymorphicFieldErrorFromMessage(ex.getMessage() == null ? "" : ex.getMessage());
+        if (extracted == null) {
+            // 원인 체인도 탐색
+            for (Throwable c = ex.getCause(); c != null; c = c.getCause()) {
+                extracted = extractPolymorphicFieldErrorFromMessage(
+                        c.getMessage() == null ? "" : c.getMessage());
+                if (extracted != null) break;
+            }
+        }
+        if (extracted != null) {
+            log.warn("[GlobalExceptionHandler] Jackson 다형성 미스매치 (폴백 경로). message={}",
+                    ex.getMessage());
+            return ResponseEntity.badRequest().body(
+                    ErrorResponse.ofValidation(extracted.message(), List.of(extracted)));
+        }
+
         log.error("[GlobalExceptionHandler] 예상치 못한 오류.", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ErrorResponse.of("INTERNAL_ERROR", "서버 내부 오류가 발생했습니다."));

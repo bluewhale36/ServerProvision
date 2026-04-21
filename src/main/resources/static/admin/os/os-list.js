@@ -139,6 +139,98 @@
         if (closeBtn) closeBtn.style.display = 'inline-block';
     }
 
+    const INDEX_TASK_STATUS_URL = '/pxe/v1/admin/os/index-repo/tasks/';
+
+    // 각 상세 패널 최초 렌더 시 현재 인덱스 상태(패키지/서비스 수)를 비동기 로드
+    document.querySelectorAll('.n-index-btn').forEach(btn => {
+        const statusUrl = btn.dataset.statusUrl;
+        const badge = btn.querySelector('.n-index-status-badge');
+        if (!statusUrl || !badge) return;
+        fetch(statusUrl)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+                const p = data.packageCount || 0;
+                const s = data.serviceCount || 0;
+                if (p === 0 && s === 0) {
+                    badge.textContent = '(미인덱싱)';
+                } else {
+                    badge.textContent = '(패키지 ' + p + ' · 서비스 ' + s + ')';
+                }
+            })
+            .catch(() => { /* 조용히 무시 */ });
+    });
+
+    // 저장소 인덱싱 버튼 — 기존 태스크 카드 리스트를 공유해 진행률 표시
+    document.querySelectorAll('.n-index-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const startUrl = btn.dataset.startUrl;
+            const osName = btn.dataset.osName;
+            const osVersion = btn.dataset.osVersion;
+
+            const detailPanel = btn.closest('.n-miller-detail-panel');
+            const spinner = btn.querySelector('.n-index-spinner');
+            const editBtn = detailPanel ? detailPanel.querySelector('.n-edit-btn') : null;
+
+            btn.disabled = true;
+            if (editBtn) editBtn.classList.add('n-btn-disabled');
+            spinner.style.display = 'inline-block';
+
+            // 추출 태스크 카드와 동일 스타일 재사용 (타이틀만 수정)
+            const card = createTaskCard(osName, osVersion);
+            const title = card.querySelector('.n-extract-task-title');
+            if (title) title.textContent = osName + ' ' + osVersion + ' — 저장소 인덱스 재생성';
+            taskList.prepend(card);
+
+            try {
+                const startResp = await fetch(startUrl, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!startResp.ok) {
+                    throw new Error('요청 실패 (HTTP ' + startResp.status + ')');
+                }
+                const { taskId } = await startResp.json();
+                card.dataset.taskId = taskId;
+
+                while (true) {
+                    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+                    const statusResp = await fetch(INDEX_TASK_STATUS_URL + taskId);
+                    if (!statusResp.ok) {
+                        throw new Error('상태 조회 실패 (HTTP ' + statusResp.status + ')');
+                    }
+                    const task = await statusResp.json();
+                    updateTaskProgress(card, task);
+                    if (task.status === 'COMPLETED') {
+                        showTaskResult(card, task.message, true);
+                        break;
+                    } else if (task.status === 'FAILED') {
+                        showTaskResult(card, task.message, false);
+                        break;
+                    }
+                }
+
+                // 완료 후 상태 배지 갱신
+                const badge = btn.querySelector('.n-index-status-badge');
+                const statusUrl = btn.dataset.statusUrl;
+                if (statusUrl && badge) {
+                    const r = await fetch(statusUrl);
+                    if (r.ok) {
+                        const data = await r.json();
+                        badge.textContent = '(패키지 ' + (data.packageCount || 0)
+                            + ' · 서비스 ' + (data.serviceCount || 0) + ')';
+                    }
+                }
+            } catch (err) {
+                showTaskResult(card, '오류: ' + err.message, false);
+            } finally {
+                btn.disabled = false;
+                if (editBtn) editBtn.classList.remove('n-btn-disabled');
+                spinner.style.display = 'none';
+            }
+        });
+    });
+
     // 추출 버튼 클릭 핸들러 — 태스크 시작 + 독립 폴링 루프
     document.querySelectorAll('.n-extract-btn').forEach(btn => {
         btn.addEventListener('click', async () => {

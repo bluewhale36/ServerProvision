@@ -4,6 +4,7 @@ import com.example.serverprovision.application.setting.domain.entity.ServerSetti
 import com.example.serverprovision.application.setting.dto.SettingCreateRequest;
 import com.example.serverprovision.application.setting.dto.SettingCreateResponse;
 import com.example.serverprovision.application.setting.dto.SettingUpdateResponse;
+import com.example.serverprovision.application.setting.dto.SettingValidationResponse;
 import com.example.serverprovision.application.setting.model.BasicUpdate;
 import com.example.serverprovision.application.setting.model.OSInstallation;
 import com.example.serverprovision.application.setting.model.enums.SettingProcessStep;
@@ -281,6 +282,30 @@ public class SettingController {
      * @param request 세팅 주문서 생성 요청 DTO. {@code @Valid}로 Bean Validation 적용.
      * @return 201 Created + {@link SettingCreateResponse} (id, name, status)
      */
+    /**
+     * 주문서 생성 전 사전 검증 엔드포인트.
+     *
+     * <p>Bean Validation 과 resolver 내부 강성 검증을 모두 통과한 뒤, OS 저장소 인덱스와
+     * 대조하여 발견된 비차단 경고를 반환한다. 실제 저장은 수행하지 않는다. 프론트엔드는
+     * 이 응답의 {@code warnings} 가 비어 있지 않을 때 사용자에게 모달로 안내한 뒤
+     * {@code POST /api/new} (또는 {@code PUT /api/{id}}) 를 호출한다.</p>
+     *
+     * @param id      수정 대상 ID (생성 검증이면 null)
+     * @param request 생성/수정 공통 요청 DTO
+     */
+    @PostMapping("/api/validate")
+    @ResponseBody
+    public ResponseEntity<SettingValidationResponse> validateSetting(
+            @RequestParam(name = "id", required = false) Long id,
+            @Valid @RequestBody SettingCreateRequest request) {
+        log.info("[SettingController] 사전 검증 수신. id={}, name={}, 단계 수={}",
+                id, request.name(), request.processList().size());
+        var warnings = (id != null)
+                ? settingService.validateUpdate(id, request)
+                : settingService.validate(request);
+        return ResponseEntity.ok(new SettingValidationResponse(warnings));
+    }
+
     @PostMapping("/api/new")
     @ResponseBody
     public ResponseEntity<SettingCreateResponse> createSetting(@Valid @RequestBody SettingCreateRequest request) {

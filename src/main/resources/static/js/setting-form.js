@@ -54,59 +54,162 @@
     }
 
     function toggleStep(changedCheckbox) {
-        const currentOrder = parseInt(changedCheckbox.getAttribute('data-order'));
-        const isChecked = changedCheckbox.checked;
+        // OS_INSTALLATION 과 OS_SETTING 은 독립적으로 켜고 끌 수 있다.
+        // OS_SETTING 이 단독으로 켜진 경우, 내부의 standalone OS/버전 선택 패널이 대상 OS 를 지정한다.
+        var affected = [changedCheckbox];
 
-        document.querySelectorAll('.step-enable-chk').forEach(chk => {
-            const order = parseInt(chk.getAttribute('data-order'));
-            let shouldBeChecked = chk.checked;
-            if (isChecked && order <= currentOrder) shouldBeChecked = true;
-            if (!isChecked && order >= currentOrder) shouldBeChecked = false;
+        affected.forEach(function(chk) {
+            var contentArea = document.getElementById('content_' + chk.value);
+            var collapseEl = document.getElementById('collapse_' + chk.value);
+            if (!contentArea || !collapseEl) return;
 
-            if (chk.checked !== shouldBeChecked || chk === changedCheckbox) {
-                chk.checked = shouldBeChecked;
-                const contentArea = document.getElementById('content_' + chk.value);
-                const collapseEl = document.getElementById('collapse_' + chk.value);
-
-                if (contentArea && collapseEl) {
-                    if (chk.checked) {
-                        contentArea.style.opacity = '1';
-                        contentArea.style.pointerEvents = 'auto';
-                        contentArea.querySelectorAll('.target-req').forEach(el => el.required = true);
-                        if (!collapseEl.classList.contains('show')) {
-                            (bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false})).show();
-                        }
-                        // OS_INSTALLATION 활성화 시 현재 선택된 OS 패밀리에 맞춰 pane 가시성/필수속성을 재정렬.
-                        // (숨겨진 pane 의 .target-req 는 required=false 로 되돌려 폼 검증 누수 방지)
-                        if (chk.value === 'OS_INSTALLATION') {
-                            const osNameSelect = document.getElementById('osNameSelect');
-                            const osKey = osNameSelect ? osNameSelect.value : '';
-                            dispatchOsFamilyPane(osKey);
-                            const verSelect = document.getElementById('osMetadataId');
-                            const selOpt = verSelect && verSelect.selectedIndex >= 0
-                                ? verSelect.options[verSelect.selectedIndex] : null;
-                            dispatchVersionSpecificBox(osKey, selOpt ? (selOpt.dataset.osVersion || '') : '');
-                        }
-                    } else {
-                        contentArea.style.opacity = '0.4';
-                        contentArea.style.pointerEvents = 'none';
-                        contentArea.querySelectorAll('.target-req').forEach(el => {
-                            el.required = false;
-                            if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.value = '';
-                            if (el.tagName === 'SELECT') el.selectedIndex = 0;
-                        });
-                        // OS_INSTALLATION 비활성화 시 모든 pane 을 숨김으로 복귀.
-                        if (chk.value === 'OS_INSTALLATION') {
-                            document.querySelectorAll('.os-family-pane').forEach(p => p.hidden = true);
-                            document.querySelectorAll('.os-version-specific-box').forEach(b => b.hidden = true);
-                        }
-                        if (collapseEl.classList.contains('show')) {
-                            (bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false})).hide();
-                        }
-                    }
+            if (chk.checked) {
+                contentArea.style.opacity = '1';
+                contentArea.style.pointerEvents = 'auto';
+                contentArea.querySelectorAll('.target-req').forEach(function(el) { el.required = true; });
+                if (!collapseEl.classList.contains('show')) {
+                    (bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false})).show();
+                }
+                // OS_INSTALLATION 활성화 시 현재 선택된 OS 패밀리에 맞춰 pane 가시성/필수속성을 재정렬
+                if (chk.value === 'OS_INSTALLATION') {
+                    var osNameSelect = document.getElementById('osNameSelect');
+                    var osKey = osNameSelect ? osNameSelect.value : '';
+                    dispatchOsFamilyPane(osKey);
+                    var verSelect = document.getElementById('osMetadataId');
+                    var selOpt = verSelect && verSelect.selectedIndex >= 0
+                        ? verSelect.options[verSelect.selectedIndex] : null;
+                    dispatchVersionSpecificBox(osKey, selOpt ? (selOpt.dataset.osVersion || '') : '');
+                    var selVer = verSelect ? verSelect.value : '';
+                    var df = document.getElementById('osDetailFields');
+                    var vg = document.getElementById('osVersionGuide');
+                    if (df) df.style.display = selVer ? '' : 'none';
+                    if (vg) vg.style.display = selVer ? 'none' : '';
+                }
+                // OS_SETTING 활성화 시 OS 선택 상태에 따라 상세 필드 가시성 결정
+                if (chk.value === 'OS_SETTING') {
+                    refreshOsSettingVisibility();
+                }
+                // OS_INSTALLATION 활성화 시에도 OS_SETTING 쪽 standalone panel 표시 여부 갱신
+                if (chk.value === 'OS_INSTALLATION') {
+                    refreshOsSettingVisibility();
+                }
+            } else {
+                contentArea.style.opacity = '0.4';
+                contentArea.style.pointerEvents = 'none';
+                contentArea.querySelectorAll('.target-req').forEach(function(el) {
+                    el.required = false;
+                    if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.value = '';
+                    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+                });
+                // OS_INSTALLATION 비활성화 시 OS 설치의 pane + 상세 필드를 숨김으로 복귀.
+                // OS_SETTING 의 가시성은 standalone 패널 기준으로 refreshOsSettingVisibility 가 재계산한다.
+                if (chk.value === 'OS_INSTALLATION') {
+                    document.querySelectorAll('.os-family-pane').forEach(function(p) { p.hidden = true; });
+                    document.querySelectorAll('.os-version-specific-box').forEach(function(b) { b.hidden = true; });
+                    var df2 = document.getElementById('osDetailFields');
+                    var vg2 = document.getElementById('osVersionGuide');
+                    if (df2) df2.style.display = 'none';
+                    if (vg2) vg2.style.display = '';
+                    refreshOsSettingVisibility();
+                }
+                // OS_SETTING 비활성화 시 내부 필드/패널 모두 숨김
+                if (chk.value === 'OS_SETTING') {
+                    var osd3 = document.getElementById('osSettingDetailFields');
+                    var osg3 = document.getElementById('osSettingGuide');
+                    var osp  = document.getElementById('osSettingStandalonePanel');
+                    if (osd3) osd3.style.display = 'none';
+                    if (osg3) osg3.style.display = '';
+                    if (osp)  osp.style.display  = 'none';
+                }
+                if (collapseEl.classList.contains('show')) {
+                    (bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, {toggle: false})).hide();
                 }
             }
         });
+    }
+
+    /**
+     * OS_SETTING 섹션 내부 UI 상태 재계산.
+     * - OS_INSTALLATION 이 켜져 있으면: standalone 패널 숨김, 가시성은 OS 설치의 osNameSelect 기준
+     * - OS_INSTALLATION 이 꺼져 있으면: standalone 패널 표시, 가시성은 osSettingOsName 기준
+     * - OS_SETTING step 자체가 꺼져 있으면 모든 내부 요소 숨김
+     */
+    function refreshOsSettingVisibility() {
+        var osSettingChk   = document.getElementById('chk_OS_SETTING');
+        var osInstallChk   = document.getElementById('chk_OS_INSTALLATION');
+        var standalonePanel = document.getElementById('osSettingStandalonePanel');
+        var guide           = document.getElementById('osSettingGuide');
+        var guideTitle      = document.getElementById('osSettingGuideTitle');
+        var detailFields    = document.getElementById('osSettingDetailFields');
+
+        var settingOn = !!(osSettingChk && osSettingChk.checked);
+        var installOn = !!(osInstallChk && osInstallChk.checked);
+
+        // OS_SETTING step 자체가 꺼진 경우 모두 숨김
+        if (!settingOn) {
+            if (standalonePanel) standalonePanel.style.display = 'none';
+            if (guide)           guide.style.display           = '';
+            if (detailFields)    detailFields.style.display    = 'none';
+            return;
+        }
+
+        var hasOs;
+        if (installOn) {
+            // OS 설치 연동 모드: standalone 숨김, 설치의 OS 선택 여부로 가시성 결정
+            if (standalonePanel) standalonePanel.style.display = 'none';
+            var osNS = document.getElementById('osNameSelect');
+            hasOs = !!(osNS && osNS.value);
+            if (guideTitle) guideTitle.textContent = 'OS 설치 단계에서 OS를 먼저 선택해 주세요';
+        } else {
+            // 단독 모드: standalone 표시, standalone 의 OS 선택 여부로 가시성 결정
+            if (standalonePanel) standalonePanel.style.display = '';
+            var saOs = document.getElementById('osSettingOsName');
+            hasOs = !!(saOs && saOs.value);
+            if (guideTitle) guideTitle.textContent = '대상 OS를 먼저 선택해 주세요';
+        }
+
+        if (guide)        guide.style.display        = hasOs ? 'none' : '';
+        if (detailFields) detailFields.style.display = hasOs ? '' : 'none';
+    }
+
+    // OS_SETTING standalone: OS 종류 선택 시 버전 셀렉트 동적 갱신
+    function onOsSettingOsNameChange(selectedOsName) {
+        var verSelect = document.getElementById('osSettingOsVersion');
+        var infoOption = verSelect ? verSelect.querySelector('.info-os-setting-version-option') : null;
+
+        if (!verSelect || !infoOption) {
+            refreshOsSettingVisibility();
+            return;
+        }
+
+        if (!selectedOsName) {
+            verSelect.disabled = true;
+            verSelect.value = '';
+            infoOption.innerText = 'OS 종류를 먼저 선택하세요';
+            infoOption.selected = true;
+            verSelect.querySelectorAll('option[data-os-name]').forEach(function(o) {
+                o.classList.add('unavailable');
+                o.classList.remove('available');
+                o.disabled = true;
+            });
+        } else {
+            verSelect.disabled = false;
+            verSelect.value = '';
+            infoOption.innerText = '버전을 선택하세요';
+            infoOption.selected = true;
+            verSelect.querySelectorAll('option[data-os-name]').forEach(function(o) {
+                var match = o.dataset.osName === selectedOsName;
+                o.classList.toggle('unavailable', !match);
+                o.classList.toggle('available', match);
+                o.disabled = !match;
+            });
+        }
+        refreshOsSettingVisibility();
+    }
+
+    // OS_SETTING standalone: 버전 선택 시 가시성 갱신
+    function onOsSettingVersionChange(_selectedMetadataId) {
+        refreshOsSettingVisibility();
     }
 
     /**
@@ -179,6 +282,9 @@
         // family pane 디스패치 (선택 해제 시 모든 pane 숨김)
         dispatchOsFamilyPane(selectedOsName);
 
+        // OS_SETTING 단계 가시성: OS 설치와 연동 모드이면 이 선택값이 반영됨
+        refreshOsSettingVisibility();
+
         const verSelect = document.getElementById('osMetadataId');
         const infoOption = verSelect.querySelector('.info-version-option');
         if (!selectedOsName) {
@@ -205,8 +311,14 @@
         onVersionChange('');
     }
 
-    // 2단계: 버전 선택 → 환경 셀렉트 동적 갱신 + version-specific box 디스패치
+    // 2단계: 버전 선택 → 상세 필드 표시 + 환경 셀렉트 동적 갱신 + version-specific box 디스패치
     function onVersionChange(selectedMetadataId) {
+        // OS 상세 설정 영역 가시성 토글
+        var detailFields = document.getElementById('osDetailFields');
+        var versionGuide = document.getElementById('osVersionGuide');
+        if (detailFields) detailFields.style.display = selectedMetadataId ? '' : 'none';
+        if (versionGuide) versionGuide.style.display = selectedMetadataId ? 'none' : '';
+
         const envSelect = document.getElementById('environmentId');
         const verSelect = document.getElementById('osMetadataId');
         const osNameSelect = document.getElementById('osNameSelect');
@@ -462,13 +574,33 @@
             </tr>`);
     }
 
-    // OS_SETTING: 서비스 활성화 행 동적 추가
-    function addServiceRow() {
-        document.querySelector('#enabledServicesTable tbody').insertAdjacentHTML('beforeend', `
+    // OS_SETTING: 서비스 지시(enable/disable) 행 동적 추가
+    function addServiceRow(defaults) {
+        const d = defaults || {};
+        const enableSelected  = d.action === 'DISABLE' ? '' : 'selected';
+        const disableSelected = d.action === 'DISABLE' ? 'selected' : '';
+        const nameValue       = d.name ? String(d.name).replace(/"/g, '&quot;') : '';
+        document.querySelector('#servicesTable tbody').insertAdjacentHTML('beforeend', `
             <tr>
-                <td><input type="text" class="form-control form-control-sm serviceName" placeholder="예: nginx, firewalld, sshd"></td>
+                <td><input type="text" class="form-control form-control-sm serviceName"
+                           value="${nameValue}"
+                           placeholder="예: nginx, firewalld, sshd"></td>
+                <td><select class="form-select form-select-sm serviceAction">
+                        <option value="ENABLE" ${enableSelected}>활성화 (enable)</option>
+                        <option value="DISABLE" ${disableSelected}>비활성화 (disable)</option>
+                    </select></td>
                 <td class="n-td-center" style="white-space: nowrap;"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()">삭제</button></td>
             </tr>`);
+    }
+
+    /**
+     * OS 이름 {@code <select>} 요소의 현재 선택값에서 {@code data-os-family} 속성을 읽어 반환한다.
+     * 선택이 없거나 속성이 없으면 빈 문자열.
+     */
+    function readSelectedOsFamily(osNameSelect) {
+        if (!osNameSelect) return '';
+        const opt = osNameSelect.querySelector(`option[value="${osNameSelect.value}"]`);
+        return opt ? (opt.dataset.osFamily || '') : '';
     }
 
     /** 체크된 step 들을 순서대로 순회하며 페이로드와 stepTypeByIndex 를 동시에 만든다. */
@@ -534,11 +666,7 @@
                 });
 
                 // 선택된 OS 의 family 판별자를 option data attribute 로부터 추출
-                const osNameSelect = document.getElementById('osNameSelect');
-                const osOption = osNameSelect
-                    ? osNameSelect.querySelector(`option[value="${osNameSelect.value}"]`)
-                    : null;
-                const osFamily = osOption ? (osOption.dataset.osFamily || '') : '';
+                const osFamily = readSelectedOsFamily(document.getElementById('osNameSelect'));
 
                 const osInstallation = {
                     type: "OS_INSTALLATION",
@@ -584,6 +712,20 @@
                 processList.push(osInstallation);
                 stepTypeByIndex.push(stepName);
             } else if (stepName === 'OS_SETTING') {
+                // 대상 OS 결정:
+                //  - OS 설치 단계가 켜져 있으면 설치 섹션의 osNameSelect/osMetadataId 를 사용
+                //  - 꺼져 있으면 OS 설정 내부의 standalone 패널 값 사용
+                const installOnChk = document.getElementById('chk_OS_INSTALLATION');
+                const installOn = !!(installOnChk && installOnChk.checked);
+
+                const osNameEl = document.getElementById(installOn ? 'osNameSelect' : 'osSettingOsName');
+                const osVersionEl = document.getElementById(installOn ? 'osMetadataId' : 'osSettingOsVersion');
+
+                const osFamilyForSetting = readSelectedOsFamily(osNameEl);
+                const osMetadataIdForSetting = osVersionEl && osVersionEl.value
+                        ? parseInt(osVersionEl.value)
+                        : null;
+
                 // SELinux 모드 수집
                 const selinuxModeEl = document.getElementById('selinuxMode');
                 const selinuxMode = selinuxModeEl ? selinuxModeEl.value : 'enforcing';
@@ -594,24 +736,170 @@
                 ).map(row => row.querySelector('.packageName').value.trim())
                  .filter(v => v.length > 0);
 
-                // 서비스 활성화 목록 수집 (빈 값 제외)
-                const enabledServices = Array.from(
-                    document.querySelectorAll('#enabledServicesTable tbody tr')
-                ).map(row => row.querySelector('.serviceName').value.trim())
-                 .filter(v => v.length > 0);
+                // 서비스 지시 목록 수집 ({name, action} 구조, 빈 name 제외)
+                const services = Array.from(
+                    document.querySelectorAll('#servicesTable tbody tr')
+                ).map(row => {
+                    const nameEl   = row.querySelector('.serviceName');
+                    const actionEl = row.querySelector('.serviceAction');
+                    const name = nameEl ? nameEl.value.trim() : '';
+                    const action = actionEl && actionEl.value ? actionEl.value : 'ENABLE';
+                    return {name, action};
+                }).filter(d => d.name.length > 0);
 
-                processList.push({
+                // RHEL 계열만 구체 서브타입이 준비되어 있다. Debian/Windows 는 추후 확장.
+                const osSettingPayload = {
                     type: "OS_SETTING",
-                    selinuxMode,
-                    additionalPackages,
-                    enabledServices
-                });
+                    osFamily: osFamilyForSetting,
+                    osMetadataId: osMetadataIdForSetting
+                };
+                if (osFamilyForSetting === window.OS_ENUMS.FAMILY.RHEL_BASED) {
+                    osSettingPayload.selinuxMode        = selinuxMode;
+                    osSettingPayload.additionalPackages = additionalPackages;
+                    osSettingPayload.services           = services;
+                }
+
+                processList.push(osSettingPayload);
                 stepTypeByIndex.push(stepName);
             }
         });
 
         const payload = {name: document.getElementById('settingName').value, processList};
         return {payload, stepTypeByIndex};
+    }
+
+    /**
+     * buildSettingPayload 가 생성한 payload 를 서버에 보내기 전에 클라이언트에서 구조적으로 검증한다.
+     * 특히 다형성 DTO (OSInstallationRequest / OSSettingRequest) 가 Jackson 역직렬화 단계에서
+     * subtype 을 결정하지 못해 500 스택트레이스로 떨어지는 케이스를 사용자 친화적인 필드 에러로 변환한다.
+     *
+     * 반환값:
+     *   {errors: [{field: "processList[i]." + localField, message}]}
+     *   errors 가 비어 있으면 서버로 제출 가능.
+     */
+    function validateClientSide(payload, stepTypeByIndex) {
+        const errors = [];
+        const FAMILY = window.OS_ENUMS && window.OS_ENUMS.FAMILY ? window.OS_ENUMS.FAMILY : {};
+
+        (payload.processList || []).forEach((p, i) => {
+            if (p.type === 'OS_INSTALLATION') {
+                if (!p.osFamily) {
+                    errors.push({
+                        field: 'processList[' + i + '].osMetadataId',
+                        message: 'OS 설치 단계를 사용하려면 OS 종류와 버전을 선택해야 합니다.'
+                    });
+                } else if (p.osMetadataId == null || Number.isNaN(p.osMetadataId)) {
+                    errors.push({
+                        field: 'processList[' + i + '].osMetadataId',
+                        message: '버전이 선택되지 않았습니다.'
+                    });
+                }
+            } else if (p.type === 'OS_SETTING') {
+                if (!p.osFamily) {
+                    errors.push({
+                        field: 'processList[' + i + '].osMetadataId',
+                        message: 'OS 설정 단계를 사용하려면 대상 OS 와 버전을 먼저 선택해야 합니다.'
+                    });
+                } else if (p.osMetadataId == null || Number.isNaN(p.osMetadataId)) {
+                    errors.push({
+                        field: 'processList[' + i + '].osMetadataId',
+                        message: '버전이 선택되지 않았습니다.'
+                    });
+                } else if (FAMILY.RHEL_BASED && p.osFamily !== FAMILY.RHEL_BASED) {
+                    errors.push({
+                        field: 'processList[' + i + '].osMetadataId',
+                        message: 'OS 설정 단계는 현재 RHEL 계열(Rocky Linux, CentOS) 에서만 지원됩니다. 다른 계열은 지원 추가 예정입니다.'
+                    });
+                }
+            }
+        });
+
+        return {errors};
+    }
+
+    /**
+     * 주문서 저장 전 사전 검증을 실행한다.
+     * 서버 {@code POST /api/validate} 로 payload 를 전송해 OS 저장소 인덱스 기반 경고 목록을 받는다.
+     *
+     * @param {object} payload SettingForm.buildSettingPayload() 로 생성된 본 요청 payload
+     * @param {number|null} editId 수정 폼이면 대상 세팅 ID, 생성이면 null
+     * @returns {Promise<{ok: boolean, warnings?: Array, errorBody?: object, status?: number}>}
+     *          ok=true 이면 warnings(가능, 빈 배열 포함)를 포함. ok=false 이면 Bean Validation/
+     *          Resolver 예외 등 본 요청 경로에서 재발생할 에러이므로 바로 렌더링에 사용한다.
+     */
+    async function preValidate(payload, editId) {
+        const url = editId ? `/pxe/v1/setting/api/validate?id=${editId}` : '/pxe/v1/setting/api/validate';
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+        } catch (networkErr) {
+            return {ok: false, errorBody: {message: '서버와 통신할 수 없습니다: ' + networkErr.message}};
+        }
+
+        if (!response.ok) {
+            let errBody;
+            try { errBody = await response.json(); }
+            catch (_) { errBody = {message: '서버 응답 오류 (' + response.status + ')'}; }
+            return {ok: false, errorBody: errBody, status: response.status};
+        }
+
+        const data = await response.json();
+        return {ok: true, warnings: Array.isArray(data.warnings) ? data.warnings : []};
+    }
+
+    /**
+     * 사전 검증 경고를 사용자에게 고지하는 모달. 확인 시 resolve(true), 취소 시 resolve(false).
+     * 모달 DOM 은 new.html / edit.html 에 포함된 {@code #settingWarningModal} 를 재사용한다.
+     */
+    function showWarningModal(warnings) {
+        return new Promise(resolve => {
+            const modalEl = document.getElementById('settingWarningModal');
+            if (!modalEl) {
+                // 모달이 없는 환경이면 저장을 막지 않고 단순히 진행.
+                resolve(true);
+                return;
+            }
+            const listEl = modalEl.querySelector('#settingWarningList');
+            if (listEl) {
+                listEl.innerHTML = '';
+                warnings.forEach(w => {
+                    const li = document.createElement('li');
+                    const value = document.createElement('code');
+                    value.textContent = w.value || '';
+                    const field = document.createElement('small');
+                    field.className = 'text-muted ms-2';
+                    field.textContent = w.field || '';
+                    const msg = document.createElement('div');
+                    msg.textContent = w.message || '';
+                    li.appendChild(value);
+                    li.appendChild(field);
+                    li.appendChild(msg);
+                    listEl.appendChild(li);
+                });
+            }
+
+            const confirmBtn = modalEl.querySelector('#settingWarningConfirm');
+            const cancelBtn = modalEl.querySelector('#settingWarningCancel');
+            const bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+            function cleanup() {
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+                modalEl.removeEventListener('hidden.bs.modal', onHidden);
+            }
+            function onConfirm() { cleanup(); bsModal.hide(); resolve(true); }
+            function onCancel()  { cleanup(); bsModal.hide(); resolve(false); }
+            function onHidden()  { cleanup(); resolve(false); }
+
+            confirmBtn.addEventListener('click', onConfirm);
+            cancelBtn.addEventListener('click', onCancel);
+            modalEl.addEventListener('hidden.bs.modal', onHidden);
+            bsModal.show();
+        });
     }
 
     window.SettingForm = {
@@ -630,6 +918,13 @@
         addUbuntuPackageRow,
         addServiceRow,
         buildSettingPayload,
+        validateClientSide,
+        preValidate,
+        showWarningModal,
+        // OS_SETTING 단독 모드 핸들러
+        onOsSettingOsNameChange,
+        onOsSettingVersionChange,
+        refreshOsSettingVisibility,
         // OS family/version 디스패처 (edit.html pre-fill 초기화 경로에서도 호출 가능)
         dispatchOsFamilyPane,
         dispatchVersionSpecificBox

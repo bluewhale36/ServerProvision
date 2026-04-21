@@ -284,12 +284,18 @@
                             </td>
                         </tr>
                         <tr>
-                            <th>활성화 서비스</th>
+                            <th>서비스 활성화/비활성화</th>
                             <td>
-                                <span th:if="${process.enabledServices.isEmpty()}"
+                                <span th:if="${process.services.isEmpty()}"
                                       class="n-table-muted">없음</span>
-                                <span th:unless="${process.enabledServices.isEmpty()}"
-                                      th:text="${#strings.listJoin(process.enabledServices, ', ')}">-</span>
+                                <th:block th:unless="${process.services.isEmpty()}">
+                                    <span th:each="svc,it : ${process.services}">
+                                        <span th:text="${svc.name()}">-</span>
+                                        <span class="badge"
+                                              th:classappend="${svc.action().name() == 'ENABLE'} ? 'bg-success' : 'bg-secondary'"
+                                              th:text="${svc.action().name() == 'ENABLE'} ? 'enable' : 'disable'">enable</span><th:block th:if="${!it.last}">, </th:block>
+                                    </span>
+                                </th:block>
                             </td>
                         </tr>
                     </table>

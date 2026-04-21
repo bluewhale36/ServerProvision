@@ -17,114 +17,192 @@
             <form th:action="@{/pxe/v1/admin/os/new}" th:object="${osDto}" method="post">
 
                 <div class="mb-3">
-                    <label class="form-label fw-bold">OS 이름</label>
-                    <select class="form-select"
+                    <label class="form-label fw-bold">OS 유형</label>
+                    <select class="form-select" id="osName"
                             th:field="*{osName}"
                             th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'">
                         <option value="">설치할 OS를 선택하세요</option>
                         <option th:each="os : ${osNames}"
                                 th:value="${os.name()}"
-                                th:text="${os.displayName}"></option>
+                                th:text="${os.displayName}"
+                                th:data-family="${os.family.name()}"></option>
                     </select>
                     <div class="invalid-feedback"
                          th:if="${#fields.hasErrors('osName')}"
                          th:errors="*{osName}"></div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label fw-bold">OS 버전</label>
-                    <input type="text" class="form-control"
-                           th:field="*{osVersion}"
-                           th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'"
-                           placeholder="예: 8.9">
-                    <div class="invalid-feedback"
-                         th:if="${#fields.hasErrors('osVersion')}"
-                         th:errors="*{osVersion}"></div>
-                </div>
+                <!-- OS 유형 선택 후 표시되는 상세 입력 영역 -->
+                <div id="detail-fields" style="display: none;">
 
-                <!-- ISO 마운트 경로 -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">ISO 마운트 경로</label>
-                    <div class="input-group">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">OS 버전</label>
                         <input type="text" class="form-control"
-                               th:field="*{isoMountPath}"
-                               th:classappend="${#fields.hasErrors('isoMountPath')} ? 'is-invalid'"
-                               placeholder="예: /mnt/iso/rocky8 또는 http://mirror.example.com/rocky/8">
-                        <button type="button" class="btn btn-outline-secondary"
-                                onclick="toggleUpload('iso')">파일 업로드</button>
+                               th:field="*{osVersion}"
+                               th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'"
+                               placeholder="예: 8.9">
+                        <div class="invalid-feedback"
+                             th:if="${#fields.hasErrors('osVersion')}"
+                             th:errors="*{osVersion}"></div>
                     </div>
-                    <div class="invalid-feedback d-block"
-                         th:if="${#fields.hasErrors('isoMountPath')}"
-                         th:errors="*{isoMountPath}"></div>
-                    <!-- ISO 업로드 패널 -->
-                    <div class="upload-panel mt-2 d-none" id="iso-panel">
-                        <div class="mb-2">
-                            <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
-                            <input type="text" class="form-control form-control-sm"
-                                   id="iso-dest-path" placeholder="예: /mnt/iso/rocky9.iso">
+
+                    <!-- ISO 마운트 경로 (공통) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ISO 마운트 경로</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control"
+                                   th:field="*{isoMountPath}"
+                                   th:classappend="${#fields.hasErrors('isoMountPath')} ? 'is-invalid'"
+                                   placeholder="예: /mnt/iso/rocky8 또는 http://mirror.example.com/rocky/8">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="toggleUpload('iso')">파일 업로드</button>
                         </div>
-                        <div class="d-flex gap-2 align-items-center">
-                            <input type="file" class="form-control form-control-sm"
-                                   id="iso-file-input" accept=".iso">
-                            <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
-                                    onclick="startUpload('iso', 'isoMountPath')">업로드 시작</button>
-                        </div>
-                        <div class="mt-2 d-none" id="iso-progress-area">
-                            <div class="progress mb-1">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
-                                     id="iso-progress-bar" style="width: 0%"></div>
+                        <div class="invalid-feedback d-block"
+                             th:if="${#fields.hasErrors('isoMountPath')}"
+                             th:errors="*{isoMountPath}"></div>
+                        <!-- ISO 업로드 패널 -->
+                        <div class="upload-panel mt-2 d-none" id="iso-panel">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       id="iso-dest-path" placeholder="예: /mnt/iso/rocky9.iso">
                             </div>
-                            <small id="iso-status-text" class="text-muted"></small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Kickstart 템플릿 경로 -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Kickstart 템플릿 경로</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control"
-                               th:field="*{ksTemplatePath}"
-                               th:classappend="${#fields.hasErrors('ksTemplatePath')} ? 'is-invalid'"
-                               placeholder="예: /etc/ks/rocky8.cfg">
-                        <button type="button" class="btn btn-outline-secondary"
-                                onclick="toggleUpload('ks')">파일 업로드</button>
-                    </div>
-                    <div class="invalid-feedback d-block"
-                         th:if="${#fields.hasErrors('ksTemplatePath')}"
-                         th:errors="*{ksTemplatePath}"></div>
-                    <!-- KS 업로드 패널 -->
-                    <div class="upload-panel mt-2 d-none" id="ks-panel">
-                        <div class="mb-2">
-                            <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
-                            <input type="text" class="form-control form-control-sm"
-                                   id="ks-dest-path" placeholder="예: /etc/ks/rocky9.cfg">
-                        </div>
-                        <div class="d-flex gap-2 align-items-center">
-                            <input type="file" class="form-control form-control-sm"
-                                   id="ks-file-input" accept=".cfg,.ks,.txt">
-                            <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
-                                    onclick="startUpload('ks', 'ksTemplatePath')">업로드 시작</button>
-                        </div>
-                        <div class="mt-2 d-none" id="ks-progress-area">
-                            <div class="progress mb-1">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
-                                     id="ks-progress-bar" style="width: 0%"></div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="file" class="form-control form-control-sm"
+                                       id="iso-file-input" accept=".iso">
+                                <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
+                                        onclick="startUpload('iso', 'isoMountPath')">업로드 시작</button>
                             </div>
-                            <small id="ks-status-text" class="text-muted"></small>
+                            <div class="mt-2 d-none" id="iso-progress-area">
+                                <div class="progress mb-1">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                                         id="iso-progress-bar" style="width: 0%"></div>
+                                </div>
+                                <small id="iso-status-text" class="text-muted"></small>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="form-check mb-4">
-                    <input class="form-check-input" type="checkbox" th:field="*{isEnabled}">
-                    <label class="form-check-label fw-bold">활성화 여부</label>
-                </div>
+                    <!-- RHEL 계열: Kickstart 템플릿 경로 -->
+                    <div class="mb-3 os-family-field" data-family="RHEL_BASED" style="display: none;">
+                        <label class="form-label fw-bold">Kickstart 템플릿 경로</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control template-path-input"
+                                   name="ksTemplatePath" id="ks-tpl-input"
+                                   th:value="${osDto.ksTemplatePath}"
+                                   placeholder="예: /etc/ks/rocky8.cfg">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="toggleUpload('ks')">파일 업로드</button>
+                        </div>
+                        <div class="invalid-feedback d-block"
+                             th:if="${#fields.hasErrors('ksTemplatePath')}"
+                             th:errors="*{ksTemplatePath}"></div>
+                        <!-- KS 업로드 패널 -->
+                        <div class="upload-panel mt-2 d-none" id="ks-panel">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       id="ks-dest-path" placeholder="예: /etc/ks/rocky9.cfg">
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="file" class="form-control form-control-sm"
+                                       id="ks-file-input" accept=".cfg,.ks,.txt">
+                                <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
+                                        onclick="startUpload('ks', 'ksTemplatePath')">업로드 시작</button>
+                            </div>
+                            <div class="mt-2 d-none" id="ks-progress-area">
+                                <div class="progress mb-1">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                                         id="ks-progress-bar" style="width: 0%"></div>
+                                </div>
+                                <small id="ks-status-text" class="text-muted"></small>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="d-flex justify-content-end gap-2 pt-3"
+                    <!-- Debian 계열: Autoinstall 템플릿 경로 -->
+                    <div class="mb-3 os-family-field" data-family="DEBIAN_BASED" style="display: none;">
+                        <label class="form-label fw-bold">Autoinstall 템플릿 경로</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control template-path-input"
+                                   id="ai-tpl-input" disabled
+                                   placeholder="예: /etc/autoinstall/ubuntu-22.04.yaml">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="toggleUpload('ai')">파일 업로드</button>
+                        </div>
+                        <!-- Autoinstall 업로드 패널 -->
+                        <div class="upload-panel mt-2 d-none" id="ai-panel">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       id="ai-dest-path" placeholder="예: /etc/autoinstall/ubuntu.yaml">
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="file" class="form-control form-control-sm"
+                                       id="ai-file-input" accept=".yaml,.yml">
+                                <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
+                                        onclick="startUpload('ai', 'ksTemplatePath')">업로드 시작</button>
+                            </div>
+                            <div class="mt-2 d-none" id="ai-progress-area">
+                                <div class="progress mb-1">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                                         id="ai-progress-bar" style="width: 0%"></div>
+                                </div>
+                                <small id="ai-status-text" class="text-muted"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Windows 계열: Unattend 응답 파일 경로 -->
+                    <div class="mb-3 os-family-field" data-family="WINDOWS_BASED" style="display: none;">
+                        <label class="form-label fw-bold">Unattend 응답 파일 경로</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control template-path-input"
+                                   id="ua-tpl-input" disabled
+                                   placeholder="예: /etc/unattend/win2022.xml">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="toggleUpload('ua')">파일 업로드</button>
+                        </div>
+                        <!-- Unattend 업로드 패널 -->
+                        <div class="upload-panel mt-2 d-none" id="ua-panel">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold mb-1">서버 저장 경로 (파일명 포함)</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       id="ua-dest-path" placeholder="예: /etc/unattend/win2022.xml">
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="file" class="form-control form-control-sm"
+                                       id="ua-file-input" accept=".xml">
+                                <button type="button" class="btn btn-sm btn-info text-white text-nowrap"
+                                        onclick="startUpload('ua', 'ksTemplatePath')">업로드 시작</button>
+                            </div>
+                            <div class="mt-2 d-none" id="ua-progress-area">
+                                <div class="progress mb-1">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                                         id="ua-progress-bar" style="width: 0%"></div>
+                                </div>
+                                <small id="ua-status-text" class="text-muted"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" th:field="*{isEnabled}">
+                        <label class="form-check-label fw-bold">활성화 여부</label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 pt-3"
+                         style="border-top: 1px solid var(--n-border);">
+                        <a th:href="@{/pxe/v1/admin/os}" class="btn btn-secondary">취소</a>
+                        <button type="submit" class="btn btn-primary">등록 완료</button>
+                    </div>
+
+                </div><!-- /detail-fields -->
+
+                <!-- OS 유형 미선택 상태의 취소 버튼 -->
+                <div id="cancel-only" class="d-flex justify-content-end pt-3"
                      style="border-top: 1px solid var(--n-border);">
                     <a th:href="@{/pxe/v1/admin/os}" class="btn btn-secondary">취소</a>
-                    <button type="submit" class="btn btn-primary">등록 완료</button>
                 </div>
             </form>
         </div>
@@ -132,14 +210,62 @@
 </div>
 
 <script>
+    // OS 유형 선택 시 상세 필드 + 패밀리별 컴포넌트 표시
+    (function() {
+        const osNameSelect = document.getElementById('osName');
+        const detailFields = document.getElementById('detail-fields');
+        const cancelOnly   = document.getElementById('cancel-only');
+        const familyFields = document.querySelectorAll('.os-family-field');
+
+        function onOsNameChange() {
+            var selected = osNameSelect.selectedOptions[0];
+            var hasName  = osNameSelect.value !== '';
+
+            if (hasName) {
+                detailFields.style.display = '';
+                cancelOnly.style.display = 'none';
+
+                // 패밀리별 필드 표시/숨김 + name 속성 토글
+                var family = selected.dataset.family;
+                familyFields.forEach(function(el) {
+                    var isActive = el.dataset.family === family;
+                    el.style.display = isActive ? '' : 'none';
+                    var input = el.querySelector('.template-path-input');
+                    if (input) {
+                        if (isActive) {
+                            input.name = 'ksTemplatePath';
+                            input.disabled = false;
+                        } else {
+                            input.removeAttribute('name');
+                            input.disabled = true;
+                        }
+                    }
+                });
+            } else {
+                detailFields.style.display = 'none';
+                cancelOnly.style.display = '';
+                familyFields.forEach(function(el) {
+                    el.style.display = 'none';
+                    var input = el.querySelector('.template-path-input');
+                    if (input) { input.removeAttribute('name'); input.disabled = true; }
+                });
+            }
+        }
+
+        osNameSelect.addEventListener('change', onOsNameChange);
+
+        // 페이지 로드 시 초기 판정 (Validation 에러로 돌아온 경우)
+        onOsNameChange();
+    })();
+
     function toggleUpload(type) {
         document.getElementById(type + '-panel').classList.toggle('d-none');
     }
 
     /**
      * XHR 파일 업로드 → 백그라운드 저장 → 완료 시 경로 필드 자동 입력
-     * @param type        'iso' 또는 'ks'
-     * @param targetField 완료 후 경로를 채울 입력 필드 id
+     * @param type        'iso', 'ks', 'ai', 'ua'
+     * @param targetField 완료 후 경로를 채울 입력 필드 name
      */
     function startUpload(type, targetField) {
         const destPath  = document.getElementById(type + '-dest-path').value.trim();
@@ -165,7 +291,7 @@
         xhr.upload.onprogress = function(e) {
             if (e.lengthComputable) {
                 const pct = Math.round((e.loaded / e.total) * 90); // 90%까지 — 서버 저장 여유분
-                setStatus(progressBar, statusText, pct, 'info', `전송 중... ${pct}%`);
+                setStatus(progressBar, statusText, pct, 'info', '전송 중... ' + pct + '%');
             }
         };
 
@@ -173,7 +299,7 @@
             if (xhr.status === 202) {
                 const taskId = JSON.parse(xhr.responseText).taskId;
                 setStatus(progressBar, statusText, 95, 'info', '서버 저장 중...');
-                pollStatus(taskId, targetField, progressBar, statusText);
+                pollStatus(taskId, targetField, type, progressBar, statusText);
             } else {
                 setStatus(progressBar, statusText, 0, 'danger', '업로드 실패: ' + tryParseError(xhr.responseText));
             }
@@ -188,21 +314,27 @@
     }
 
     // 백그라운드 저장 상태를 1.5초마다 폴링
-    function pollStatus(taskId, targetField, progressBar, statusText) {
+    function pollStatus(taskId, targetField, uploadType, progressBar, statusText) {
         const interval = setInterval(function() {
             fetch('/pxe/v1/admin/os/api/upload/' + taskId)
-                .then(r => r.json())
-                .then(data => {
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     if (data.status === 'COMPLETE') {
                         clearInterval(interval);
-                        setStatus(progressBar, statusText, 100, 'success', '저장 완료 ✓');
-                        document.getElementById(targetField).value = data.savedPath;
+                        setStatus(progressBar, statusText, 100, 'success', '저장 완료');
+                        // 같은 패밀리 블록 내 경로 입력란에 값 설정
+                        var tplInput = document.getElementById(uploadType + '-tpl-input');
+                        if (tplInput) {
+                            tplInput.value = data.savedPath;
+                        } else {
+                            document.getElementById(targetField).value = data.savedPath;
+                        }
                     } else if (data.status === 'FAILED') {
                         clearInterval(interval);
                         setStatus(progressBar, statusText, 0, 'danger', '저장 실패: ' + data.errorMessage);
                     }
                 })
-                .catch(() => {
+                .catch(function() {
                     clearInterval(interval);
                     setStatus(progressBar, statusText, 0, 'danger', '상태 조회 중 오류가 발생했습니다.');
                 });
@@ -218,7 +350,7 @@
     }
 
     function tryParseError(body) {
-        try { return JSON.parse(body).error || body; } catch { return body; }
+        try { return JSON.parse(body).error || body; } catch(e) { return body; }
     }
 </script>
 </body>
