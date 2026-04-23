@@ -13,6 +13,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 프론트엔드와 백엔드가 적절히 결합되어야 하거나, 백엔드를 활용하여 구현 가능한 프론트엔드의 기능은 백엔드에 기능 구현을 더 집중하되, 지나치게 복잡해지지 않도록 적절히 분리한다.
 - WHY 가 비자명할 때만 주석을 남긴다. 의미 없는 Javadoc 금지.
 
+### 아키텍처 설계 시 주의점
+- 서버의 리소스를 효율적으로 사용하도록 할 것. 예를 들어, 대용량 파일 업로드 시 스트리밍 처리, 불필요한 데이터 로딩, 비교 방지 등.
+- 보안 고려: 민감한 정보(예: IPMI 자격 증명)는 안전하게 저장하고 전송한다. 예를 들어, 데이터베이스에 암호화하여 저장하거나, 환경 변수로 관리한다.
+- 확장성 고려: 향후 새로운 기능이나 자원 유형이 추가될 수 있으므로, 유연한 설계를 지향한다. 예를 들어, 세팅 정의서의 프로세스 단계가 다양해질 수 있으므로, 다형성을 활용하여 확장 가능한 구조로 설계한다.
+- 에러 처리: 예상 가능한 예외 상황에 대한 명확한 에러 메시지와 HTTP 상태 코드를 반환하도록 한다. 예를 들어, 권한 부족 시 403, 잘못된 입력 시 400, 서버 오류 시 500 등을 적절히 사용한다.
+
 ### 네이밍 규칙
 - 패키지명은 모두 소문자, **feature-first** 로 구성한다 (예: `com.example.serverprovision.maintenance.os`).
 - 클래스 접미사:
@@ -95,7 +101,7 @@ com.example.serverprovision/
     └── config/       # AsyncConfig 등
 ```
 
-각 feature 하위는 `controller/`, `service/`, `repository/`, `entity/`, `dto/` 레이어로 세분화.
+각 feature 하위는 `controller/`, `service/`, `repository/`, `entity/`, `vo/`, `dto/`, `enums/`, `exception/` 레이어로 세분화. Value Object(`@Embeddable` / record) 는 `vo/` 로 **entity 와 물리적으로 분리**한다 — 엔티티 파일이 쏟아질수록 VO 와의 혼재가 가독성을 떨어뜨리기 때문.
 
 ### 핵심 도메인 모델
 
@@ -133,16 +139,85 @@ com.example.serverprovision/
 - **Stage 3** — PXE Boot 연동 (PXEBootRestController, ProvisioningStrategy, Kickstart, NodeStepExecution, ProvisioningProgressService)
 
 ### 수직 슬라이스 (페이지당 10 단계)
-1. URL / 데이터 흐름 스케치 (대화로 합의, 파일 생성 X)
+1. URL / 데이터 흐름 스케치 — **`plan/YY-MM-DD_HH:MM:SS_<페이지키>_plan.docx` 산출** (아래 §Step 1 — plan docx 규약 참조)
 2. Thymeleaf 뷰 (더미 데이터, `fragments/layout.html` + 기존 CSS 재사용)
 3. Controller (`@ModelAttribute` + `BindingResult`, Model 에 Response 만)
 4. Request / Response DTO (`@Valid`)
 5. Service 인터페이스 + 시그니처 (`@Transactional` 경계)
 6. Repository (Spring Data JPA 메서드 네임 규칙 위주)
 7. Entity (`BaseTimeEntity` 상속) — **7 단계 이전 `@Entity` 작성 금지**
-8. Service 본체 + 단위 테스트 (happy 1 + 실패 1)
+8. Service 본체 + 단위 테스트 (happy 1 + 실패 1) + **사용자 액션 기반 통합 테스트** (아래 규칙 참조)
 9. 스키마 확인 (`ddl-auto=update` 로컬 반영, `SHOW CREATE TABLE` 로그 확인)
 10. 브라우저 end-to-end — **사용자 단독 수행**
+
+### 테스트 규율 (불가침)
+
+단위 테스트만으로는 "예외 → HTTP 응답" 매핑 사고나 컨트롤러 분기 누락 같은 문제가 드러나지 않는다.
+Stage S1 에서 `MissingFilenameException` 이 500 으로 새는 사고가 대표적 예시. 단위 테스트는 통과했지만
+실제 사용자 액션을 따라가는 테스트가 없어서 프로덕션 경로의 상태 코드를 놓쳤다.
+
+Step 8 의 테스트는 **두 레이어를 모두** 작성한다:
+
+1. **단위 테스트** — Service 본체의 분기별 happy 1 + 실패 1. JUnit + Mockito.
+2. **사용자 액션 기반 통합 테스트** — 각 페이지의 사용자가 수행할 수 있는 **모든 액션**을 HTTP 계층에서
+   실제 상태 코드·응답 바디로 검증한다. Spring `@WebMvcTest` + `MockMvc` + `@MockitoBean` 조합.
+
+#### 사용자 액션 기반 통합 테스트 작성 규칙
+
+- **컨트롤러 단위** 로 파일 분리 : `*ControllerUploadFlowTest`, `*ControllerExtractFlowTest` 등 플로우별.
+- **시나리오 커버리지** : 각 엔드포인트에 대해 아래 네 범주를 모두 포함한다.
+  - **성공 경로** — 2xx + 응답 바디 필드 값 검증
+  - **입력 검증 실패** — 400 + 필드 메시지
+  - **도메인 충돌** — 409 (모든 `ConflictException` 하위 클래스를 실제로 트리거)
+  - **리소스 없음** — 404 (모든 `NotFoundException` 하위 클래스)
+- **Mockito mocking** 은 Service 단까지만. Controller 내부의 try/catch + GlobalExceptionHandler 매핑은
+  실제로 실행되어야 한다.
+- 새 예외 클래스를 추가하면 **해당 예외를 발생시키는 시나리오 테스트를 반드시 함께 추가**한다.
+  추가하지 않으면 "개발자의 예상" 과 "실제 HTTP 응답" 이 어긋난 채 머문다.
+- 참고 선례 : `OSImageControllerUploadFlowTest` (Intent 6 / Upload 6 / Extract 3 = 15 시나리오).
+
+이 규율을 어긴 테스트 묶음은 CP4 승인 대상이 아니다. 단위 테스트만 있고 통합 시나리오가 누락됐다면
+사용자는 해당 CP 를 거절한다.
+
+### Step 1 — plan docx 규약 (불가침)
+
+Step 1 은 "대화로 스케치" 가 아니라 **공식 산출물을 문서화** 하는 단계다. 매 페이지(수직 슬라이스) 진입 시 Claude 는
+아래 경로에 plan docx 를 생성하고 사용자의 CP1 승인을 받아야 한다. 이 문서 없이 Step 2 이후를 선행 구현하지 않는다.
+
+- **경로** : `plan/YY-MM-DD_HH:MM:SS_<페이지키>_plan.docx` (예 : `plan/26-04-23_21:22:21_A3_plan.docx`)
+- **생성 방식** : `/tmp/<slug>.md` 에 markdown 작성 → `pandoc /tmp/<slug>.md -o plan/<filename>.docx` 로 변환. 기존 plan 파일명 규약을 그대로 따른다.
+- **페이지키** : 인벤토리 코드 (`A1`, `A1-1`, `A2`, `A3`, `A4`, `A5`, `S1`, `U1`, `U2` 등).
+
+**필수 섹션** (참고 선례 : `plan/26-04-23_21:22:21_A3_plan.docx`) :
+
+1. **현재 상태 요약** — 선행 슬라이스 완료 / 미완 여부, 본 슬라이스 진입 전제 조건
+2. **페이지 요구사항 (확정)** — UI 기능 / 제약 / 중복 방지 등 규칙
+3. **URL / 데이터 흐름 스케치** — URL 표 (Method · URL · 동작 · 응답) + 브라우저↔서버 흐름도 + Miller / 응답 구조
+4. **도메인 모델** — Entity 필드 표, VO / Enum, 도메인 메서드
+5. **수직 슬라이스 10 단계** — 각 Step 의 산출물 + CP 대응
+6. **Step 8 통합 테스트 시나리오** — 사용자 액션 범주별 (성공 · 400 · 404 · 409 · 500) 시나리오 목록과 시나리오 수
+7. **예외 계층** — 신규 · 재사용 구분
+8. **예상 부산물 / 주의** — 스코프 경계, 미루는 리팩터, CLAUDE.md 수정사항, 관련 페이지 동반 수정
+9. **Verification 체크리스트** — 빌드 / 기능 / 회귀 3분할
+10. **Critical Files** — 신규 / 수정 / 유지 3분할
+11. **다음 마일스톤** — 후속 Gate 와 슬라이스 예고
+
+이 구조를 따르면 CP1 에서 사용자가 "승인/수정/거절" 을 판별하기 쉽고, Step 8 테스트 시나리오가 초기에 합의되어
+CP4 시점의 분쟁이 줄어든다. Claude 는 plan docx 를 만드는 방법을 묻지 않는다 — 기존 `plan/*.docx` 선례를 직접 읽고 따른다.
+
+### 승인 흐름 (슬라이스 내부 체크포인트)
+
+페이지별 10 단계는 아래 5 개의 체크포인트로 묶어 사용자 승인을 받은 뒤 다음 묶음으로 진행한다. 승인 없이 다음 묶음을 선행 구현하지 않는다.
+
+| 체크포인트 | 범위 | 주체 / 동작 |
+|---|---|---|
+| **CP1** | Step 1 | Claude 가 `plan/YY-MM-DD_HH:MM:SS_<페이지키>_plan.docx` 를 생성하여 제시 → 사용자 승인 (§Step 1 — plan docx 규약 준수) |
+| **CP2** | Step 2 ~ 5 | Claude 가 4 단계(뷰 · Controller · DTO · Service 시그니처)를 구현한 뒤 핵심 변경 사항을 요약 보고 → 사용자 승인 |
+| **CP3** | Step 6 ~ 7 | Claude 가 Repository · Entity(+VO/Enum)를 구현한 뒤 보고 → 사용자 승인 |
+| **CP4** | Step 8 ~ 9 | Claude 가 Service 본체 · 단위 테스트 · 스키마 확인까지 마친 뒤 보고 → 사용자 승인 |
+| **CP5** | Step 10 | 사용자 단독으로 브라우저 E2E 수행 → 사용자 완료 통보 대기 |
+
+체크포인트 승인이 떨어지기 전까지 다음 묶음 작업을 시작하지 않는다. 사용자가 수정 지시를 내리면 해당 체크포인트 범위 안에서 재작업 후 재승인을 받는다.
 
 ### 커밋 경계
 - 10 단계 완료 후 단일 커밋: `feat(<area>/<page>): <페이지명> 1차 구현`
