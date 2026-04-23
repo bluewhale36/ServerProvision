@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  A1. 신규 ISO 등록 폼 (OSImage 서브 리소스)
+  ─────────────────────────────────────────────
+  Model:
+    isoForm      : ISOCreateRequest  @ModelAttribute (isoPath, description)
+    osId         : Long              경로 파라미터
+    contextLabel : String            "Rocky Linux 9.6" 등
+  파일 업로드 : enctype="multipart/form-data" + optional `file` 파라미터.
+                파일이 있으면 isoPath 에 저장 후 레코드 등록, 없으면 경로만 등록.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('ISO 등록')}"></th:block>
+    <link rel="stylesheet" th:href="@{/maintenance/os/os-page.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('os-image')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">ISO 등록</h1>
+        <div class="n-header-actions">
+            <!-- 업로드 중엔 JS 가 pointer-events:none + aria-disabled 로 잠근다 -->
+            <a id="backLink"
+               th:href="@{/pxe/v1/maintenance/os(selectId=${osId})}"
+               class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                대상 OS : <strong th:text="${contextLabel}"></strong>
+            </div>
+
+            <!--
+              data-upload-url : 파일이 있을 때 JS 가 XHR 로 업로드할 URL (foreground 경로).
+              data-list-url   : 업로드 완료 후 이동할 목록 URL.
+              파일이 없을 때는 JS 가 preventDefault 하지 않고 기본 submit 을 그대로 허용 →
+              th:action 의 MVC POST 로 즉시 처리되고 서버가 redirect.
+            -->
+            <form th:action="@{/pxe/v1/maintenance/os/{osId}/iso(osId=${osId})}"
+                  th:data-upload-url="@{/pxe/v1/maintenance/os/{osId}/iso/upload(osId=${osId})}"
+                  th:data-list-url="@{/pxe/v1/maintenance/os(selectId=${osId})}"
+                  th:object="${isoForm}"
+                  method="post"
+                  enctype="multipart/form-data"
+                  novalidate>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="isoPath">ISO 경로</label>
+                    <input id="isoPath" type="text" th:field="*{isoPath}"
+                           class="n-input"
+                           th:classappend="${#fields.hasErrors('isoPath')} ? 'is-invalid'"
+                           placeholder="/mnt/iso/rocky9/DVD.iso">
+                    <div class="n-hint">서버 파일시스템상의 저장 경로. 아래에서 파일을 업로드하면 이 경로에 직접 저장합니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('isoPath')}"
+                         th:errors="*{isoPath}"></div>
+
+                    <!-- 디렉토리 생성 허용 -->
+                    <label class="n-check" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
+                        <span>디렉토리 생성 허용</span>
+                    </label>
+                    <div class="n-hint">경로가 존재하지 않을 경우 디렉토리를 생성합니다.</div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="file">ISO 파일 업로드 (선택)</label>
+                    <input id="file" type="file" name="file" accept=".iso" class="n-input">
+                    <div class="n-hint">비워두면 파일 전송 없이 ISO 경로 레코드만 등록합니다.</div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"
+                              placeholder="예: Rocky Linux 9.6 x86_64 DVD ISO"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <!-- 취소: 업로드 전엔 목록으로 이동, 업로드 중엔 JS 가 버튼으로 전환해 XHR abort -->
+                    <a id="cancelLink"
+                       th:href="@{/pxe/v1/maintenance/os(selectId=${osId})}"
+                       class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">등록</button>
+                </div>
+
+                <div class="n-hint" style="margin-top: 16px;">
+                    ISO 파일이 업로드되는 동안 페이지를 떠나지 마세요. 업로드가 완료되면 자동으로 목록 페이지로 이동합니다.
+                </div>
+
+                <!-- 업로드 진행률 카드 / 에러 박스 — JS 가 .is-visible 토글. 스타일은 os-page.css -->
+                <div id="uploadProgress" class="n-upload-progress">
+                    <div id="uploadText" class="n-upload-progress-text">시작 중…</div>
+                    <div class="n-upload-progress-bar-wrap">
+                        <div id="uploadBar" class="n-upload-progress-bar"></div>
+                    </div>
+                </div>
+
+                <div id="uploadError" class="n-upload-error"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/maintenance/os/iso-new.js}"></script>
+</body>
+</html>

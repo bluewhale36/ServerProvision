@@ -1,0 +1,153 @@
+/* ============================================================
+   Accordion 공용 컴포넌트 스타일
+   ------------------------------------------------------------
+   `<details>` / `<summary>` 기반 아코디언. 토글은 브라우저 네이티브에
+   맡기고 CSS 는 접힘/펼침 시각화만 담당한다.
+
+   구조 예시:
+     <div class="n-accordion">
+       <details class="n-accordion-item">
+         <summary class="n-accordion-head">
+           <span class="n-accordion-chevron"></span>
+           <code class="n-accordion-title">제목</code>
+           <span class="n-badge n-badge-green n-accordion-badge">상태</span>
+         </summary>
+         <div class="n-accordion-body">
+           <dl class="n-accordion-fields">
+             <div class="n-accordion-field">
+               <dt>레이블</dt><dd>값</dd>
+             </div>
+           </dl>
+           <div class="n-accordion-actions">...</div>
+         </div>
+       </details>
+     </div>
+
+   첫 사용처는 maintenance/os (ISO 목록). 이후 OS 주문서 생성 등에서
+   재사용 예정이므로 "iso" 어휘가 아닌 일반 명칭으로 구성한다.
+   기존 global/style.css 의 토큰 (--n-border, --n-text-muted) 을
+   그대로 사용해 디자인 기조는 유지한다.
+   ============================================================ */
+
+.n-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.n-accordion-item {
+    border: 1px solid var(--n-border);
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+}
+
+/* 비활성·삭제·선택 불가 등 "흐리게" 처리가 필요한 항목에 붙이는 보조 클래스 */
+.n-accordion-item-muted {
+    background: #fafafa;
+}
+
+.n-accordion-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+/* 기본 disclosure triangle 제거 (크로스 브라우저) */
+.n-accordion-head::-webkit-details-marker { display: none; }
+.n-accordion-head::marker { content: ""; }
+
+.n-accordion-item:hover > .n-accordion-head {
+    background: #f7f7f8;
+}
+
+.n-accordion-chevron {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--n-text-muted);
+    border-bottom: 2px solid var(--n-text-muted);
+    transform: rotate(-45deg);
+    transition: transform 150ms ease;
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+
+.n-accordion-item[open] > .n-accordion-head .n-accordion-chevron {
+    transform: rotate(45deg);
+}
+
+.n-accordion-title {
+    flex: 1;
+    font-size: 13px;
+    word-break: break-all;
+}
+
+.n-accordion-badge {
+    flex-shrink: 0;
+}
+
+.n-accordion-body {
+    border-top: 1px solid var(--n-border);
+    padding: 14px 18px 16px;
+    background: #fff;
+}
+
+/* dl 기반 필드 — grid 로 label/value 정렬 */
+.n-accordion-fields {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    row-gap: 10px;
+    column-gap: 16px;
+}
+
+.n-accordion-field {
+    display: contents;
+}
+
+.n-accordion-field dt {
+    font-size: 12px;
+    color: var(--n-text-muted);
+    padding-top: 3px;
+}
+
+.n-accordion-field dd {
+    margin: 0;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.n-accordion-muted {
+    color: var(--n-text-muted);
+}
+
+.n-accordion-inline-form {
+    display: inline;
+    margin: 0;
+}
+
+.n-accordion-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--n-border);
+}
+
+.n-accordion-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--n-text-muted);
+    font-size: 13px;
+    border: 1px dashed var(--n-border);
+    border-radius: 6px;
+}

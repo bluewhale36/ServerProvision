@@ -1,0 +1,145 @@
+/* ============================================================
+   maintenance/os 페이지 전용 스타일 (A1 + A1-1)
+   ------------------------------------------------------------
+   분리 이유 : 인라인 style 누적으로 인한 가독성·유지보수 악화.
+   기존 global/style.css 의 토큰(--n-border, --n-text-muted 등)과
+   n- prefix 네이밍 관례를 그대로 사용해 디자인 기조는 변경하지 않는다.
+   ============================================================ */
+
+/* ---- 섹션 구분선 유틸 (기본 info ↔ ISO, ISO ↔ 환경/그룹) ------ */
+
+.n-section-divider {
+    border: 0;
+    border-top: 1px solid var(--n-border);
+    margin: 28px 0;
+}
+
+/* ---- 환경 / 패키지 그룹 섹션 (list.html 상세 패널 하단) ------ */
+
+.n-env-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.n-env-section-header h3 {
+    margin: 0;
+}
+
+.n-env-section-header + .n-env-section-header {
+    margin-top: 20px;
+}
+
+.n-env-section-note {
+    font-size: 11px;
+    color: var(--n-text-muted);
+}
+
+.n-env-empty {
+    padding: 10px 0;
+}
+
+.n-env-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+.n-env-card {
+    padding: 12px;
+}
+
+.n-env-card-header {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.n-env-card-code {
+    font-weight: 600;
+}
+
+.n-env-card-title {
+    margin-top: 2px;
+}
+
+.n-env-card-desc {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--n-text-muted);
+}
+
+.n-env-card-sub {
+    margin-top: 8px;
+}
+
+.n-env-card-sub-label {
+    font-size: 11px;
+    color: var(--n-text-muted);
+}
+
+.n-env-card-sub-value {
+    font-size: 12px;
+}
+
+.n-env-card-providers {
+    margin: 4px 0 0 0;
+    padding-left: 18px;
+    font-size: 12px;
+}
+
+.n-env-card-providers li {
+    word-break: break-all;
+}
+
+/* ---- 업로드 진행 카드 / 에러 박스 (iso-new.html) -------------- */
+/* 추출 진행 카드는 Stage S1 전환으로 navbar 알림 센터로 이전되었다. */
+
+.n-upload-progress {
+    display: none;
+    margin-top: 16px;
+    border: 1px solid var(--n-border);
+    border-radius: 6px;
+    padding: 12px;
+    background: #fafafa;
+}
+
+.n-upload-progress.is-visible {
+    display: block;
+}
+
+.n-upload-progress-text {
+    font-size: 12px;
+    color: var(--n-text-muted);
+    margin-bottom: 6px;
+}
+
+.n-upload-progress-bar-wrap {
+    height: 6px;
+    background: #e5e5e5;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.n-upload-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: #2563eb;
+    transition: width 200ms ease;
+}
+
+.n-upload-error {
+    display: none;
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 13px;
+}
+
+.n-upload-error.is-visible {
+    display: block;
+}
