@@ -24,6 +24,8 @@
    ============================================================ */
 
 /* ---- 컨테이너 -------------------------------------------- */
+/* 높이는 뷰포트 기반으로 고정해 선택 OS 에 따라 높이가 출렁이지 않게 한다.
+   내부 컨텐츠가 넘치면 각 컬럼(overflow-y: auto)에서 자체 스크롤 처리. */
 .n-miller {
     display: flex;
     background: var(--n-surface);
@@ -31,7 +33,9 @@
     border-radius: 12px;
     box-shadow: var(--n-shadow-card);
     overflow: hidden;
-    min-height: 560px;
+    height: calc(100vh - 220px);
+    min-height: 480px;
+    max-height: 860px;
 }
 
 /* ---- 컬럼 공통 ------------------------------------------ */
@@ -162,12 +166,12 @@
 }
 
 /* ---- 빈 상태 안내 --------------------------------------- */
+/* 부모(.n-miller) 의 고정 높이를 꽉 채운다 — min-height 로 컨테이너를 늘리지 않는다. */
 .n-miller-empty {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 100%;
-    min-height: 520px;
     color: var(--n-text-muted);
     font-size: 14px;
 }
