@@ -181,20 +181,50 @@
     color: var(--n-text-sec);
     line-height: 1.4;
 }
-.n-bgjob-card-bar-wrap {
-    height: 4px;
-    background: rgba(0, 0, 0, 0.06);
+/* ---- chunk progress bar — 단계별 분할 막대 (사용자 결정) ----
+   color 매핑 :
+     PENDING — grey  (rgba(0,0,0,0.10))
+     RUNNING — blue  (var(--n-blue))
+     DONE    — green (var(--n-green))
+     ERROR   — red   (#dc2626 / Tomato 계열)
+-------------------------------------------------------------- */
+.n-bgjob-stage-track {
+    display: flex;
+    gap: 3px;
+    height: 6px;
+}
+.n-bgjob-stage-chunk {
+    flex: 1 1 0;
+    min-width: 0;
     border-radius: 2px;
+    background: rgba(0, 0, 0, 0.10);
+    transition: background-color 0.3s ease;
+    position: relative;
     overflow: hidden;
 }
-.n-bgjob-card-bar-wrap[hidden] {
-    display: none;
+.n-bgjob-stage-chunk.is-pending {
+    background: rgba(0, 0, 0, 0.10);
 }
-.n-bgjob-card-bar {
-    height: 100%;
+.n-bgjob-stage-chunk.is-running {
     background: var(--n-blue);
-    width: 0%;
-    transition: width 0.3s ease;
+    /* 진행 중인 단계는 살짝 펄스 — 디테일한 % 없이도 "지금 작업 중" 가시화 */
+    animation: n-bgjob-stage-pulse 1.6s ease-in-out infinite;
+}
+.n-bgjob-stage-chunk.is-done {
+    background: var(--n-green);
+}
+.n-bgjob-stage-chunk.is-error {
+    background: #dc2626;
+}
+.n-bgjob-stage-label {
+    /* tooltip 용도로만 — 화면 협소하므로 hover title 로 노출. 시각적으로는 숨김 */
+    position: absolute;
+    width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+@keyframes n-bgjob-stage-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.6; }
 }
 
 /* ---- 서류가방 아래 토스트 (variant: info / success / error) ---
@@ -245,26 +275,6 @@
     color: #b91c1c;
 }
 
-/* indeterminate (진행률 측정 불가) — ISO 업로드의 SW fetch 경로처럼 percent 가 고정되는 경우 */
-.n-bgjob-card.is-indeterminate .n-bgjob-card-bar-wrap {
-    position: relative;
-    overflow: hidden;
-}
-.n-bgjob-card.is-indeterminate .n-bgjob-card-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 40% !important;
-    height: 100%;
-    transition: none;
-    animation: n-bgjob-indeterminate 1.4s infinite cubic-bezier(0.4, 0, 0.2, 1);
-}
-@keyframes n-bgjob-indeterminate {
-    0%   { left: -40%; }
-    60%  { left: 100%; }
-    100% { left: 100%; }
-}
-
 .n-bgjob-card-footer {
     display: flex;
     justify-content: space-between;
@@ -286,16 +296,11 @@
     color: #156f28;
     background: #e8f6eb;
 }
-.n-bgjob-card.is-completed .n-bgjob-card-bar {
-    background: var(--n-green);
-}
 .n-bgjob-card.is-failed .n-bgjob-card-status {
     color: #8f3600;
     background: #fdeee2;
 }
-.n-bgjob-card.is-failed .n-bgjob-card-bar {
-    background: var(--n-orange);
-}
+/* 완료 시 모든 단계가 DONE 으로 고정되어 자연스럽게 전체 green. 실패 시엔 ERROR 단계만 red. */
 .n-bgjob-card-time {
     font-size: 11px;
     color: var(--n-text-muted);

@@ -18,15 +18,15 @@ import java.util.List;
 /**
  * 알림 센터 공용 REST.
  * <ul>
- *   <li>{@code GET  /pxe/v1/jobs} — 알림 패널이 폴링하는 스냅샷</li>
- *   <li>{@code GET  /pxe/v1/jobs/{id}} — 단건 세밀 폴링</li>
- *   <li>{@code POST /pxe/v1/jobs/{id}/dismiss} — 종료된 Job 카드 제거</li>
+ *   <li>{@code GET  /jobs} — 알림 패널이 폴링하는 스냅샷</li>
+ *   <li>{@code GET  /jobs/{id}} — 단건 세밀 폴링</li>
+ *   <li>{@code POST /jobs/{id}/dismiss} — 종료된 Job 카드 제거</li>
  * </ul>
  * ISO 업로드 progress 보고 엔드포인트는 업로드를 foreground XHR (옵션 A) 로 전환하면서 제거했다.
  * 업로드는 페이지 내 진행 바에서 실시간으로 보여주는 것이 사용자 의도 (지켜보기 패러다임) 다.
  */
 @RestController
-@RequestMapping("/pxe/v1/jobs")
+@RequestMapping("/jobs")
 @RequiredArgsConstructor
 public class BackgroundJobController {
 

@@ -10,12 +10,13 @@
 
   navbar(activePage)
     · activePage 키
-        Maintenance : 'os-image' | 'board' | 'bios' | 'bmc' | 'driver'
-        Provisioning: 'setting' | 'server'
+        Management   : 'os-image' | 'board' | 'bios' | 'bmc' | 'driver'
+        Maintenance  : 'reconciliation'
+        Provisioning : 'setting' | 'server'
     · 구현 완료 메뉴는 <a>, 미구현은 <span aria-disabled="true"> 로 남겨
       페이지가 완성될 때 태그만 교체한다.
     · 오른쪽 끝에는 서류가방 아이콘(.n-nav-bgjob) 과 드롭다운 패널이 있어
-      장시간 실행되는 모든 배경 작업(추출·업로드·인덱싱 등) 을 통합 표시한다.
+      장시간 실행되는 모든 배경 작업(추출·업로드·인덱싱·경로 재조정) 을 통합 표시한다.
   ─────────────────────────────────────────────────────────────
 -->
 
@@ -44,18 +45,25 @@
 
 <body>
 <nav th:fragment="navbar(activePage)" class="n-nav">
-    <a th:href="@{/pxe/v1/maintenance/os}" class="n-nav-brand">Provision Portal</a>
+    <a th:href="@{/management/os}" class="n-nav-brand">Provision Portal</a>
 
     <!-- Maintenance -->
-    <a th:href="@{/pxe/v1/maintenance/os}"
+    <a th:href="@{/management/os}"
        class="n-nav-link"
        th:classappend="${activePage == 'os-image'} ? ' active'">OS 이미지</a>
-    <a th:href="@{/pxe/v1/maintenance/board}"
+    <a th:href="@{/management/board}"
        class="n-nav-link"
        th:classappend="${activePage == 'board'} ? ' active'">메인보드</a>
-    <span class="n-nav-link" aria-disabled="true" title="미구현">BIOS</span>
+    <a th:href="@{/management/bios}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'bios'} ? ' active'">BIOS</a>
     <span class="n-nav-link" aria-disabled="true" title="미구현">BMC</span>
     <span class="n-nav-link" aria-disabled="true" title="미구현">Driver</span>
+
+    <!-- Maintenance (어플리케이션-서버 운영) -->
+    <a th:href="@{/maintenance/reconciliation}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'reconciliation'} ? ' active'">경로 점검</a>
 
     <!-- Provisioning -->
     <span class="n-nav-link" aria-disabled="true" title="미구현">세팅 정의서</span>

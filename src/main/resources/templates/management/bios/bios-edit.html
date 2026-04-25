@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  A3 v3. BIOS 번들 메타 편집 폼.
+  ─────────────────────────────────────────────
+  Model:
+    biosForm                : BiosUpdateRequest  @ModelAttribute (name/version/description)
+    boardId / biosId        : Long
+    contextLabel            : String  "Gigabyte · MS03-CE0"
+    treeRootPath            : String  번들 루트 (읽기 전용 표시)
+    entrypointRelativePath  : String  진입점 상대경로 (읽기 전용 표시)
+
+  번들 내용(트리 자체) 교체는 지원하지 않는다. 파일을 바꾸려면 soft delete 후 새 번들로 재업로드.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 메타 수정')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bios')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BIOS 메타 수정</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/management/bios(selectId=${biosId})}"
+               class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                대상 메인보드 : <strong th:text="${contextLabel}"></strong>
+            </div>
+
+            <form th:action="@{/management/bios/{boardId}/bios/{biosId}/edit(boardId=${boardId},biosId=${biosId})}"
+                  th:object="${biosForm}"
+                  method="post"
+                  novalidate>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="name">이름</label>
+                    <input id="name" type="text" th:field="*{name}"
+                           class="n-input"
+                           th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'">
+                    <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="version">버전</label>
+                    <input id="version" type="text" th:field="*{version}"
+                           class="n-input"
+                           th:classappend="${#fields.hasErrors('version')} ? 'is-invalid'">
+                    <div class="n-hint">같은 메인보드 내에서 버전은 유일해야 합니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
+                </div>
+
+                <!-- 트리 루트 : 읽기 전용 -->
+                <div class="n-form-group">
+                    <label class="n-label">트리 루트 경로</label>
+                    <input type="text" th:value="${treeRootPath}" class="n-input" readonly>
+                </div>
+
+                <!-- 진입점 : 읽기 전용. 교체 의도는 "삭제 후 재업로드" 로 유도 -->
+                <div class="n-form-group">
+                    <label class="n-label">진입점 상대경로</label>
+                    <input type="text" th:value="${entrypointRelativePath}" class="n-input" readonly>
+                    <div class="n-hint">
+                        진입점 또는 번들 내용을 바꾸려면 이 BIOS 를 삭제한 뒤 새 번들로 재등록하세요.
+                        실행 시 파라미터 등의 실행 로직은 향후 Execution 도메인에서 관장합니다.
+                    </div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a th:href="@{/management/bios(selectId=${biosId})}"
+                       class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" class="n-btn n-btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

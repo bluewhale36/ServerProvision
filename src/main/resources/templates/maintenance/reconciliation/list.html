@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  MK1. 경로 재조정 (Path Reconciliation) 페이지 — Miller Columns
+  ─────────────────────────────────────────────────────────
+  Model:
+    reports        : List<DriftReportResponse> — 페이지네이션된 이력 (default size=20)
+                       · id            : Long
+                       · scannedAt     : Instant (ISO-8601)
+                       · scanDuration  : String (PT0.45S)
+                       · deep          : boolean
+                       · totalChecked  : int
+                       · driftCount    : int
+                       · drifts        : List<DriftResponse>  (C3 상세 포함)
+    page           : int  (현재 페이지 — 0-base)
+    size           : int  (페이지당 개수)
+    totalPages     : int
+    totalElements  : long
+    selectReportId : Long (nullable)  — 토글/적용 후 초기 선택 복원
+    selectDriftId  : Long (nullable)  — C3 자동 펼침
+    latestReport   : DriftReportResponse (nullable) — 가장 최근 1건. C1 빈 상태일 때 표시 헬퍼
+
+  CSS: miller.css + accordion.css 재사용. 신규 CSS 없음.
+       C1 "group" = DriftReport (스캔 1회), C2 "item" = Drift (개별 드리프트)
+       기존 os-list.js 의 data-os-key / data-os-id 일반화 바인딩 그대로 활용.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('경로 재조정')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">경로 재조정</h1>
+        <div class="n-header-actions">
+            <!--
+              수동 스캔 / Deep 스캔 — JS fetch 로 트리거. form submit 이 아니라 페이지는 그대로 두고
+              jobId 를 작업 조회 아이콘이 자동 픽업하게 한다. 완료 후 사용자 수동 reload 또는
+              자동 reload(완료 감지 — 후속 개선) 로 새 보고서 확인.
+            -->
+            <button type="button" id="scanBtn" class="n-btn n-btn-primary"
+                    th:data-scan-url="@{/maintenance/reconciliation/scan}">수동 스캔</button>
+            <button type="button" id="scanDeepBtn" class="n-btn n-btn-ghost"
+                    th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">Deep 스캔</button>
+            <!--
+              (권고1) Secret 회전용 admin 액션. 모든 자원의 marker signature 만 현재 secret 으로 재발급.
+              manifestHash 는 그대로 유지되어 변조된 자원의 hash 가 굳어지지 않는다.
+              위험한 액션 — 강한 confirm 후에만 실행.
+            -->
+            <button type="button" id="reissueBtn" class="n-btn n-btn-outline-danger"
+                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급</button>
+        </div>
+    </div>
+
+    <!-- 빈 상태 : 한번도 스캔된 적이 없는 경우 -->
+    <div th:if="${#lists.isEmpty(reports)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">아직 보고된 스캔 이력이 없습니다.</div>
+            <div class="n-empty-desc">
+                상단의 <strong>수동 스캔</strong> 버튼을 눌러 첫 점검을 시작하세요.
+                부팅 시 자동 스캔이 활성화되어 있다면(<code>reconciliation.scan.startup-enabled=true</code>)
+                다음 부팅 시점에 자동 보고됩니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- Miller 3컬럼 : C1 스캔 보고서 → C2 드리프트 → C3 상세 + 액션 -->
+    <div th:unless="${#lists.isEmpty(reports)}"
+         class="n-miller"
+         th:data-initial-select-id="${selectDriftId}"
+         th:data-initial-select-key="${selectReportId}">
+
+        <!-- C1 : 스캔 보고서 (날짜 / 드리프트 수). 가장 최근이 위 -->
+        <div class="n-miller-col n-miller-col-names">
+            <div class="n-miller-col-header">스캔 이력</div>
+            <button th:each="report : ${reports}"
+                    type="button"
+                    class="n-miller-item n-miller-item-split"
+                    th:data-os-key="${report.id}">
+                <span class="n-miller-version-label" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1.25; white-space: normal;">
+                    <span th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd')}">2026-04-25</span>
+                    <span style="font-size: 12px; color: var(--n-text-muted);">
+                        <span th:text="${#temporals.format(report.scannedAt, 'HH:mm:ss')}">10:30:00</span>
+                        <span th:if="${report.deep}" style="font-size: 11px;"> · deep</span>
+                    </span>
+                </span>
+                <span class="n-miller-status-tag"
+                      th:classappend="${report.driftCount > 0} ? 'n-miller-status-tag-off' : 'n-miller-status-tag-on'"
+                      th:text="${report.driftCount} + ' 건'">0 건</span>
+            </button>
+
+            <!-- 페이지네이션 -->
+            <div class="n-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-top: 1px solid var(--n-border); font-size: 12px;">
+                <a th:if="${page > 0}"
+                   th:href="@{/maintenance/reconciliation(page=${page - 1}, size=${size})}"
+                   class="n-btn n-btn-sm n-btn-ghost">← 이전</a>
+                <span th:unless="${page > 0}" style="color: var(--n-text-muted);">← 이전</span>
+                <span th:text="${page + 1} + ' / ' + ${totalPages}">1 / 5</span>
+                <a th:if="${page + 1 < totalPages}"
+                   th:href="@{/maintenance/reconciliation(page=${page + 1}, size=${size})}"
+                   class="n-btn n-btn-sm n-btn-ghost">다음 →</a>
+                <span th:unless="${page + 1 < totalPages}" style="color: var(--n-text-muted);">다음 →</span>
+            </div>
+        </div>
+
+        <!-- C2 : 선택된 보고서의 드리프트 목록 -->
+        <div class="n-miller-col n-miller-col-versions">
+            <div class="n-miller-col-header">드리프트</div>
+            <div th:each="report : ${reports}"
+                 class="n-miller-version-panel"
+                 th:data-os-key="${report.id}">
+
+                <!-- 보고서 메타 (스캔 정보 요약) -->
+                <div style="padding: 10px 12px; border-bottom: 1px solid var(--n-border); font-size: 12px; color: var(--n-text-muted);">
+                    <div>점검 자원 : <strong th:text="${report.totalChecked}"></strong> 건</div>
+                    <div>스캔 소요 : <code th:text="${report.scanDuration}"></code></div>
+                    <!-- (권고6) 부분 실패 경고 — walk 가 실패한 root 가 있으면 보고서가 부분 결과임을 명시 -->
+                    <div th:if="${not #lists.isEmpty(report.failedScanRoots)}"
+                         style="margin-top: 8px; padding: 8px 10px; background: var(--n-bg-warn, #fff3cd); border-left: 3px solid var(--n-color-warn, #f0ad4e); color: var(--n-text-warn, #856404);">
+                        ⚠ 일부 스캔 root 가 실패했습니다. 보고서가 부분 결과일 수 있습니다 :
+                        <ul style="margin: 4px 0 0 16px; padding: 0;">
+                            <li th:each="failed : ${report.failedScanRoots}" th:text="${failed}"
+                                style="word-break: break-all; font-size: 11px;"></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 드리프트 없는 보고서 -->
+                <div th:if="${#lists.isEmpty(report.drifts)}"
+                     class="n-empty-desc" style="padding: 10px 12px;">
+                    드리프트 없음 — 모든 자원이 정상.
+                </div>
+
+                <button th:each="drift : ${report.drifts}"
+                        type="button"
+                        class="n-miller-item n-miller-item-split"
+                        th:data-os-id="${drift.id}">
+                    <span class="n-miller-version-label">
+                        <span th:text="${drift.resourceType}">OS_ISO</span>
+                        <span style="font-size: 11px; color: var(--n-text-muted);"
+                              th:text="' #' + ${drift.resourceId}"> #42</span>
+                    </span>
+                    <span class="n-miller-status-tag"
+                          th:classappend="${drift.kind.name() == 'PATH_DRIFT'} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:text="${drift.kind}">PATH_DRIFT</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- C3 : 선택된 드리프트 상세 + 액션 -->
+        <div class="n-miller-col n-miller-col-detail">
+            <div class="n-miller-empty" id="millerEmpty">드리프트를 선택하여 상세 보기</div>
+
+            <th:block th:each="report : ${reports}">
+                <div th:each="drift : ${report.drifts}"
+                     class="n-miller-detail-panel"
+                     th:data-os-id="${drift.id}">
+
+                    <dl class="n-accordion-fields">
+                        <div class="n-accordion-field">
+                            <dt>드리프트 ID</dt>
+                            <dd>
+                                <code style="font-size: 11px;" th:text="${drift.id}"></code>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>자원 종류</dt>
+                            <dd>
+                                <span class="n-badge n-badge-gray" th:text="${drift.resourceType}"></span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>자원 ID</dt>
+                            <dd th:text="${drift.resourceId}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>드리프트 종류</dt>
+                            <dd>
+                                <span class="n-badge"
+                                      th:classappend="${drift.kind.name() == 'PATH_DRIFT'} ? 'n-badge-orange' : 'n-badge-gray'"
+                                      th:text="${drift.kind}"></span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>이전 경로</dt>
+                            <dd>
+                                <code style="font-size: 11px; word-break: break-all;" th:text="${drift.oldPath}"></code>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field" th:if="${drift.newPath != null}">
+                            <dt>새 경로</dt>
+                            <dd>
+                                <code style="font-size: 11px; word-break: break-all; color: var(--n-color-primary);" th:text="${drift.newPath}"></code>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>감지 시각</dt>
+                            <dd th:text="${#temporals.format(drift.detectedAt, 'yyyy-MM-dd HH:mm:ss')}"></dd>
+                        </div>
+                        <div class="n-accordion-field" th:if="${drift.detail != null and !#strings.isEmpty(drift.detail)}">
+                            <dt>상세</dt>
+                            <dd th:text="${drift.detail}"></dd>
+                        </div>
+                    </dl>
+
+                    <!-- 액션 : PATH_DRIFT 만 자동 적용 가능. 그 외는 dismiss / 수동 처리 -->
+                    <div class="n-form-actions">
+                        <form th:if="${drift.kind.name() == 'PATH_DRIFT'}"
+                              th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
+                              method="post"
+                              onsubmit="return confirm('PATH_DRIFT 자동 적용 — DB 의 자원 경로를 새 경로로 갱신합니다. 계속할까요?');">
+                            <button type="submit" class="n-btn n-btn-primary">자동 적용</button>
+                        </form>
+                        <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/dismiss(driftId=${drift.id})}"
+                              method="post"
+                              onsubmit="return confirm('이 드리프트를 무시 처리합니다. 다음 스캔에서 다시 보고될 수 있습니다.');">
+                            <button type="submit" class="n-btn n-btn-outline-danger">무시</button>
+                        </form>
+                    </div>
+
+                    <div class="n-hint" th:unless="${drift.kind.name() == 'PATH_DRIFT'}" style="margin-top: 8px;">
+                        <strong th:text="${drift.kind}"></strong> 종류는 자동 적용이 허용되지 않습니다.
+                        관리자가 직접 자원을 점검·복구한 뒤 재스캔하세요.
+                    </div>
+                </div>
+            </th:block>
+        </div>
+    </div>
+</div>
+
+<!--
+  Miller 컬럼 상호작용은 os-list.js (data-os-key / data-os-id 일반화) 를 그대로 재사용.
+  reconciliation 도메인 특화 동작은 list.js 에서 추가.
+-->
+<script th:src="@{/management/os/os-list.js}"></script>
+<script th:src="@{/maintenance/reconciliation/list.js}"></script>
+
+</body>
+</html>

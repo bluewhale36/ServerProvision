@@ -13,7 +13,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum JobType {
     COMPS_EXTRACTION("환경·패키지 추출"),
-    REPO_INDEXING("저장소 인덱싱");
+    REPO_INDEXING("저장소 인덱싱"),
+    PATH_RECONCILIATION("경로 재조정"),
+    MARKER_REISSUE("마커 서명 재발급"),
+    INTEGRITY_VERIFICATION("무결성 검증");
 
     private final String displayName;
 }

@@ -23,7 +23,7 @@
        </details>
      </div>
 
-   첫 사용처는 maintenance/os (ISO 목록). 이후 OS 주문서 생성 등에서
+   첫 사용처는 management/os (ISO 목록). 이후 OS 주문서 생성 등에서
    재사용 예정이므로 "iso" 어휘가 아닌 일반 명칭으로 구성한다.
    기존 global/style.css 의 토큰 (--n-border, --n-text-muted) 을
    그대로 사용해 디자인 기조는 유지한다.

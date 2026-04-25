@@ -3,13 +3,17 @@ package com.example.serverprovision.global.job.dto.response;
 import com.example.serverprovision.global.job.BackgroundJob;
 import com.example.serverprovision.global.job.enums.JobStatus;
 import com.example.serverprovision.global.job.enums.JobType;
+import com.example.serverprovision.global.job.enums.StageStatus;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
  * 알림 패널 카드 렌더용 Job 스냅샷 응답.
- * 프론트엔드 JS 가 JSON 구조를 얕게 유지할 수 있도록 {@code JobProgress} 와 상태·시각 필드를 평면화한다.
+ * <p>chunk progress bar — {@link #stages} 가 단계별 (label, status) 페어를 차례대로 담는다.
+ * 프론트는 각 chunk 의 status 를 색상에 매핑한다 (PENDING=grey, RUNNING=blue, DONE=green, ERROR=red).</p>
  */
 public record BackgroundJobResponse(
         String id,
@@ -18,17 +22,23 @@ public record BackgroundJobResponse(
         String title,
         String subtitle,
         JobStatus status,
-        String stageLabel,
-        int percent,
-        String message,
+        List<StageInfo> stages,
+        String errorMessage,
         Instant createdAt,
         Instant completedAt,
         Map<String, String> metadata
 ) {
 
+    /** chunk 1개 분량 — 라벨과 현재 상태. */
+    public record StageInfo(String label, StageStatus status) {}
+
     public static BackgroundJobResponse from(BackgroundJob job) {
-        var p = job.getProgress();
-        String msg = job.getErrorMessage() != null ? job.getErrorMessage() : p.message();
+        List<String> labels = job.getStageLabels();
+        List<StageStatus> statuses = job.snapshotStageStatuses();
+        List<StageInfo> stages = new ArrayList<>(labels.size());
+        for (int i = 0; i < labels.size(); i++) {
+            stages.add(new StageInfo(labels.get(i), statuses.get(i)));
+        }
         return new BackgroundJobResponse(
                 job.getId(),
                 job.getType(),
@@ -36,9 +46,8 @@ public record BackgroundJobResponse(
                 job.getTitle(),
                 job.getSubtitle(),
                 job.getStatus(),
-                p.stageLabel(),
-                p.percent(),
-                msg,
+                stages,
+                job.getErrorMessage(),
                 job.getCreatedAt(),
                 job.getCompletedAt(),
                 job.getMetadata()

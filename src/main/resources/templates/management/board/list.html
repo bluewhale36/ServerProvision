@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  A2. 메인보드 모델 관리 목록 페이지 (Miller Columns)
+  ─────────────────────────────────────────────────────────
+  Model:
+    boardGroups   : List<VendorGroupResponse>    C1/C2 데이터 소스
+                      · vendor        : Vendor enum
+                      · displayName   : String ("Gigabyte" 등)
+                      · items         : List<BoardModelResponse> (C3 상세 포함)
+    selectId      : Long (nullable)              토글/편집 후 초기 선택 복원
+    includeDeleted: boolean                      휴지통 모드 여부
+
+  CSS: A1 의 miller.css 재사용. 클래스 이름(n-miller-col-names/versions)은
+       원래 OS 용이지만 레이아웃만 동일하게 쓴다. 도메인 의미는 data-* 속성으로 구분.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('메인보드 모델 관리')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('board')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">메인보드 모델 관리</h1>
+        <div class="n-header-actions">
+            <a th:unless="${includeDeleted}"
+               th:href="@{/management/board(includeDeleted=true)}"
+               class="n-btn n-btn-ghost">삭제된 항목 포함</a>
+            <a th:if="${includeDeleted}"
+               th:href="@{/management/board}"
+               class="n-btn n-btn-ghost">기본 보기</a>
+            <a th:href="@{/management/board/new}"
+               class="n-btn n-btn-primary">신규 모델 등록</a>
+        </div>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div th:if="${#lists.isEmpty(boardGroups)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title"
+                 th:text="${includeDeleted} ? '등록된 메인보드 모델이 없습니다 (휴지통 포함).' : '등록된 메인보드 모델이 없습니다.'">등록된 메인보드 모델이 없습니다.</div>
+            <div class="n-empty-desc">"신규 모델 등록" 버튼으로 메인보드 모델을 추가하세요.</div>
+        </div>
+    </div>
+
+    <!-- Miller 3컬럼 : C1 Vendor → C2 모델 → C3 상세 -->
+    <div th:unless="${#lists.isEmpty(boardGroups)}"
+         class="n-miller"
+         th:data-initial-select-id="${selectId}">
+
+        <!-- C1 : Vendor 그룹 -->
+        <div class="n-miller-col n-miller-col-names">
+            <div class="n-miller-col-header">제조사</div>
+            <button th:each="group : ${boardGroups}"
+                    type="button"
+                    class="n-miller-item"
+                    th:data-os-key="${group.vendor.name()}"
+                    th:text="${group.displayName}">Gigabyte</button>
+        </div>
+
+        <!-- C2 : 해당 Vendor 의 모델 목록 -->
+        <div class="n-miller-col n-miller-col-versions">
+            <div class="n-miller-col-header">모델</div>
+            <div th:each="group : ${boardGroups}"
+                 class="n-miller-version-panel"
+                 th:data-os-key="${group.vendor.name()}">
+                <button th:each="board : ${group.items}"
+                        type="button"
+                        class="n-miller-item n-miller-item-split"
+                        th:classappend="${board.isDeleted} ? 'n-miller-item-disabled' : ''"
+                        th:data-os-id="${board.id}">
+                    <span class="n-miller-version-label">
+                        <span th:text="${board.modelName}">MS03-CE0-000</span>
+                        <span th:if="${board.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                    </span>
+                    <span th:unless="${board.isDeleted}"
+                          class="n-miller-status-tag"
+                          th:classappend="${board.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:text="${board.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- C3 : 선택된 BoardModel 상세 -->
+        <div class="n-miller-col n-miller-col-detail">
+            <div class="n-miller-empty" id="millerEmpty">메인보드 모델을 선택하여 상세 사항 보기</div>
+
+            <th:block th:each="group : ${boardGroups}">
+                <div th:each="board : ${group.items}"
+                     class="n-miller-detail-panel"
+                     th:data-os-id="${board.id}">
+
+                    <!-- 기본 정보 테이블 -->
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>ID</th>
+                            <td th:text="${board.id}"></td>
+                        </tr>
+                        <tr>
+                            <th>제조사</th>
+                            <td style="font-weight:600;" th:text="${group.displayName}"></td>
+                        </tr>
+                        <tr>
+                            <th>모델명</th>
+                            <td th:text="${board.modelName}"></td>
+                        </tr>
+                        <tr>
+                            <th>설명</th>
+                            <td th:text="${board.description != null and !#strings.isEmpty(board.description)} ? ${board.description} : '—'"></td>
+                        </tr>
+                        <tr>
+                            <th>상태</th>
+                            <td>
+                                <span th:if="${board.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
+                                <th:block th:unless="${board.isDeleted}">
+                                    <span class="n-badge"
+                                          th:classappend="${board.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
+                                          th:text="${board.isEnabled} ? '활성화' : '비활성화'"></span>
+                                    <form th:action="@{/management/board/{id}/toggle(id=${board.id})}"
+                                          method="post" style="display:inline; margin-left: 10px;">
+                                        <button type="submit"
+                                                class="n-btn n-btn-sm"
+                                                th:classappend="${board.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
+                                                th:text="${board.isEnabled} ? '비활성화' : '활성화'"></button>
+                                    </form>
+                                </th:block>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 수정/삭제/복구 : 우측 정렬 -->
+                    <div class="n-form-actions">
+                        <th:block th:unless="${board.isDeleted}">
+                            <a th:href="@{/management/board/{id}/edit(id=${board.id})}"
+                               class="n-btn n-btn-secondary">수정</a>
+                            <form th:action="@{/management/board/{id}/delete(id=${board.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('이 메인보드 모델을 삭제할까요?');">
+                                <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
+                            </form>
+                        </th:block>
+                        <th:block th:if="${board.isDeleted}">
+                            <form th:action="@{/management/board/{id}/restore(id=${board.id})}"
+                                  method="post" style="display:inline;">
+                                <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                            </form>
+                        </th:block>
+                    </div>
+
+                    <!-- 구분선 -->
+                    <hr style="border: 0; border-top: 1px solid var(--n-border); margin: 28px 0;">
+
+                    <!-- 호환 BIOS / BMC / Driver 섹션 : A3/A4/A5 에서 실제 데이터 연결 예정.
+                         A2 MVP 단계에서는 안내 문구만 두고 페이지 링크는 해당 페이지 완성 시 활성화. -->
+                    <h3 class="n-label strong" style="margin-bottom: 8px;">호환 BIOS · BMC · Driver</h3>
+                    <div class="n-empty" style="padding: 16px;">
+                        <div class="n-empty-desc">
+                            이 보드에 호환되는 BIOS · BMC 펌웨어와 Driver 패키지 정보는
+                            해당 관리 페이지(A3 BIOS, A4 BMC, A5 Driver) 완성 후 표시됩니다.
+                        </div>
+                    </div>
+
+                </div>
+            </th:block>
+        </div>
+    </div>
+</div>
+
+<!-- Miller 컬럼 상호작용 스크립트 : A1 의 os-list.js 를 그대로 재사용.
+     data-os-key / data-os-id 속성에 일반적으로 바인딩돼 있어 도메인 의존 없음. -->
+<script th:src="@{/management/os/os-list.js}"></script>
+
+</body>
+</html>

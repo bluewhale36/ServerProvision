@@ -149,26 +149,28 @@
             job.status === 'FAILED'    ? 'is-failed' :
             job.status === 'RUNNING'   ? 'is-running' : 'is-pending';
         const isTerminal = job.status === 'COMPLETED' || job.status === 'FAILED';
-        const rawPercent = typeof job.percent === 'number' ? job.percent : -1;
-        const percent = rawPercent >= 0 ? rawPercent : 0;
-        // RUNNING 인데 percent 를 아직 못 받은 경우는 indeterminate 애니메이션 — Job 타입에 무관.
-        const isIndeterminate = job.status === 'RUNNING' && rawPercent < 0;
-        const indetClass = isIndeterminate ? ' is-indeterminate' : '';
         const subtitle = job.subtitle ? `<div class="n-bgjob-card-subtitle">${escapeHtml(job.subtitle)}</div>` : '';
         const time = isTerminal ? formatTime(job.completedAt) : formatTime(job.createdAt);
-        const barHidden = isTerminal && job.status === 'FAILED' ? ' hidden' : '';
-        const barStyle = isIndeterminate ? '' : `style="width:${percent}%"`;
+        const errorMsg = job.errorMessage
+            ? `<div class="n-bgjob-card-message">${escapeHtml(job.errorMessage)}</div>` : '';
+
+        // chunk progress bar — 단계별 라벨 + 색상.
+        // PENDING(grey) / RUNNING(blue) / DONE(green) / ERROR(red)
+        const stages = Array.isArray(job.stages) ? job.stages : [];
+        const chunks = stages.map(s => {
+            const cls = 'n-bgjob-stage-chunk is-' + (s.status || 'PENDING').toLowerCase();
+            return `<div class="${cls}" title="${escapeHtml(s.label)}"><span class="n-bgjob-stage-label">${escapeHtml(s.label)}</span></div>`;
+        }).join('');
+
         return `
-            <li class="n-bgjob-card ${stateClass}${indetClass}" data-job-id="${escapeHtml(job.id)}">
+            <li class="n-bgjob-card ${stateClass}" data-job-id="${escapeHtml(job.id)}">
                 <div class="n-bgjob-card-header">
                     <span class="n-bgjob-card-title">${escapeHtml(job.title)}</span>
                     <span class="n-bgjob-card-type">${escapeHtml(job.typeLabel)}</span>
                 </div>
                 ${subtitle}
-                <div class="n-bgjob-card-message">${escapeHtml(job.message || '')}</div>
-                <div class="n-bgjob-card-bar-wrap"${barHidden}>
-                    <div class="n-bgjob-card-bar" ${barStyle}></div>
-                </div>
+                ${errorMsg}
+                <div class="n-bgjob-stage-track">${chunks}</div>
                 <div class="n-bgjob-card-footer">
                     <span class="n-bgjob-card-status">${statusLabel(job.status)}</span>
                     <span class="n-bgjob-card-time">${escapeHtml(time)}</span>
@@ -222,7 +224,7 @@
     // ---- 폴링 --------------------------------------------------
     async function poll() {
         try {
-            const resp = await fetch('/pxe/v1/jobs', { headers: { 'Accept': 'application/json' } });
+            const resp = await fetch('/jobs', { headers: { 'Accept': 'application/json' } });
             if (!resp.ok) {
                 schedule();
                 return;
@@ -290,7 +292,7 @@
         const id = card.dataset.jobId;
         if (!id) return;
         try {
-            await fetch(`/pxe/v1/jobs/${encodeURIComponent(id)}/dismiss`, { method: 'POST' });
+            await fetch(`/jobs/${encodeURIComponent(id)}/dismiss`, { method: 'POST' });
         } catch (_) { /* no-op — 다음 폴링에서 자연 재동기화 */ }
         poll();
     });
@@ -303,7 +305,7 @@
         await Promise.all(terminal.map(c => {
             const id = c.dataset.jobId;
             if (!id) return Promise.resolve();
-            return fetch(`/pxe/v1/jobs/${encodeURIComponent(id)}/dismiss`, { method: 'POST' })
+            return fetch(`/jobs/${encodeURIComponent(id)}/dismiss`, { method: 'POST' })
                 .catch(() => { /* no-op */ });
         }));
         poll();

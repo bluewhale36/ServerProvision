@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  A1. ISO 수정 폼 (OSImage 서브 리소스)
+  ─────────────────────────────────────────────────────────
+  Model:
+    isoForm      : ISOUpdateRequest   @ModelAttribute (isoPath, description)
+    osId, isoId  : Long               경로 파라미터
+    contextLabel : String             화면 표시용 ("Rocky Linux 9.6" 등)
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('ISO 수정')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('os-image')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">ISO 수정</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/management/os(selectId=${osId})}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                대상 OS : <strong th:text="${contextLabel}"></strong>
+            </div>
+
+            <form th:action="@{/management/os/{osId}/iso/{isoId}/edit(osId=${osId},isoId=${isoId})}"
+                  th:object="${isoForm}"
+                  method="post"
+                  novalidate>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="isoPath">ISO 경로</label>
+                    <input id="isoPath" type="text" th:field="*{isoPath}"
+                           class="n-input"
+                           th:classappend="${#fields.hasErrors('isoPath')} ? 'is-invalid'"
+                           placeholder="/mnt/iso/rocky9/DVD.iso">
+                    <div class="n-error" th:if="${#fields.hasErrors('isoPath')}"
+                         th:errors="*{isoPath}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a th:href="@{/management/os(selectId=${osId})}"
+                       class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" class="n-btn n-btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

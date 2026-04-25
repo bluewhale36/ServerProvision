@@ -1,0 +1,36 @@
+package com.example.serverprovision.global.marker;
+
+import java.nio.file.Path;
+
+/**
+ * `.provision.json` 마커가 부착될 수 있는 도메인 자원의 어댑터.
+ * <p>각 도메인 엔티티({@code BoardBIOS}, {@code ISO} 등)가 본 인터페이스를 구현해
+ * 인프라 측에 자기를 마커 부착 가능 자원으로 노출한다. 인프라(global/marker) 는 도메인 모르고
+ * 본 인터페이스 메서드만으로 마커 발급/검증을 처리할 수 있어야 한다.</p>
+ *
+ * <p>2-phase save 패턴: 등록 직후 PK 가 정해지기 전에는 {@code markerSignature} 가 null 일 수 있다.
+ * Service 가 PK 를 채운 entity 를 다시 저장한 뒤 {@link #reissueMarker(String, String)} 으로
+ * manifestHash + signature 를 부여한다.</p>
+ */
+public interface Markable {
+
+    Long getResourceId();
+
+    ResourceType getResourceType();
+
+    /** 자원 본체의 디스크 경로. IN_TREE 자원은 디렉토리, SIDECAR 자원은 단일 파일. */
+    Path getResourcePath();
+
+    /** ResourceType 의 default layout 을 그대로 쓰는 게 일반적. 자원별 override 필요 시 재정의. */
+    default MarkerLayout getMarkerLayout() {
+        return getResourceType().getDefaultLayout();
+    }
+
+    String getManifestHash();
+
+    /** null 이면 마커 미발급 상태 (2-phase save 중간 또는 데이터 마이그레이션 전 자원). */
+    String getMarkerSignature();
+
+    /** 새로 계산된 hash + signature 를 엔티티 필드에 반영. 호출자는 이후 repository.save() 로 영속화. */
+    void reissueMarker(String manifestHash, String markerSignature);
+}
