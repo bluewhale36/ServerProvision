@@ -10,6 +10,8 @@ import com.example.serverprovision.management.board.exception.BoardModelNotFound
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.management.bmc.entity.BoardBMC;
+import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,20 +37,32 @@ import java.util.stream.Collectors;
 public class BoardModelService {
 
     private final BoardModelRepository boardModelRepository;
-    // A3 합류 : softDelete 시 활성 하위 BIOS 를 동반 soft 삭제하기 위한 cross-feature 의존.
-    // A4/A5 추가 시 BmcRepository / DriverRepository 도 함께 주입된다. 3회 반복 확보 후 이벤트 기반으로 리팩터 검토.
+    // A3/A4 합류 : softDelete 시 활성 하위 BIOS / BMC 를 동반 soft 삭제하기 위한 cross-feature 의존.
+    // A5 추가 시 DriverRepository 도 함께 주입된다. 3회 반복 확보 후 이벤트 기반으로 리팩터 검토.
     private final BiosRepository biosRepository;
+    private final BmcRepository bmcRepository;
 
     // ==== 조회 ========================================================
 
     public BoardModelResponse findById(Long id) {
-        return BoardModelResponse.of(requireActiveBoard(id));
+        BoardModel board = requireActiveBoard(id);
+        int biosCount = biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id).size();
+        int bmcCount = bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id).size();
+        return toResponse(board, biosCount, bmcCount);
     }
 
     public List<VendorGroupResponse> findAllGrouped(boolean includeDeleted) {
         List<BoardModel> boards = includeDeleted
                 ? boardModelRepository.findAllByOrderByVendorAscCreatedAtDesc()
                 : boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc();
+
+        List<Long> boardIds = boards.stream().map(BoardModel::getId).toList();
+        Map<Long, Integer> biosCounts = biosRepository.findAllByBoardModel_IdIn(boardIds).stream()
+                .filter(bios -> includeDeleted || !bios.isDeleted())
+                .collect(Collectors.groupingBy(bios -> bios.getBoardModel().getId(), Collectors.summingInt(__ -> 1)));
+        Map<Long, Integer> bmcCounts = bmcRepository.findAllByBoardModel_IdIn(boardIds).stream()
+                .filter(bmc -> includeDeleted || !bmc.isDeleted())
+                .collect(Collectors.groupingBy(bmc -> bmc.getBoardModel().getId(), Collectors.summingInt(__ -> 1)));
 
         Map<Vendor, List<BoardModel>> byVendor = boards.stream().collect(
                 Collectors.groupingBy(BoardModel::getVendor, LinkedHashMap::new, Collectors.toList())
@@ -57,7 +71,12 @@ public class BoardModelService {
         return byVendor.entrySet().stream()
                 .map(entry -> VendorGroupResponse.of(
                         entry.getKey(),
-                        entry.getValue().stream().map(BoardModelResponse::of).toList()
+                        entry.getValue().stream()
+                                .map(board -> toResponse(
+                                        board,
+                                        biosCounts.getOrDefault(board.getId(), 0),
+                                        bmcCounts.getOrDefault(board.getId(), 0)))
+                                .toList()
                 ))
                 .toList();
     }
@@ -96,15 +115,17 @@ public class BoardModelService {
     }
 
     /**
-     * BoardModel soft 삭제. 활성 상태인 하위 BIOS 도 함께 soft 삭제한다.
-     * 이미 삭제된 BIOS 는 건드리지 않는다 (이전 삭제 시점 보존).
-     * BoardModel 을 복구해도 BIOS 는 자동 복구되지 않으며 개별적으로 restore 해야 한다.
+     * BoardModel soft 삭제. 활성 상태인 하위 BIOS / BMC 도 함께 soft 삭제한다.
+     * 이미 삭제된 자식은 건드리지 않는다 (이전 삭제 시점 보존).
+     * BoardModel 을 복구해도 BIOS / BMC 는 자동 복구되지 않으며 개별적으로 restore 해야 한다.
      */
     @Transactional
     public void softDelete(Long id) {
         requireActiveBoard(id).softDelete();
         biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id)
                 .forEach(BoardBIOS::softDelete);
+        bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id)
+                .forEach(BoardBMC::softDelete);
     }
 
     @Transactional
@@ -124,5 +145,18 @@ public class BoardModelService {
     private BoardModel requireActiveBoard(Long id) {
         return boardModelRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new BoardModelNotFoundException(id));
+    }
+
+    private static BoardModelResponse toResponse(BoardModel board, int biosCount, int bmcCount) {
+        return new BoardModelResponse(
+                board.getId(),
+                board.getVendor(),
+                board.getModelName(),
+                board.getDescription(),
+                biosCount,
+                bmcCount,
+                board.isEnabled(),
+                board.isDeleted()
+        );
     }
 }

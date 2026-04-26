@@ -112,6 +112,12 @@
                             <td th:text="${board.description != null and !#strings.isEmpty(board.description)} ? ${board.description} : '—'"></td>
                         </tr>
                         <tr>
+                            <th>호환 자원</th>
+                            <td>
+                                <span th:text="'BIOS ' + ${board.biosCount} + '건 · BMC ' + ${board.bmcCount} + '건'">BIOS 0건 · BMC 0건</span>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>상태</th>
                             <td>
                                 <span th:if="${board.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
@@ -154,13 +160,17 @@
                     <!-- 구분선 -->
                     <hr style="border: 0; border-top: 1px solid var(--n-border); margin: 28px 0;">
 
-                    <!-- 호환 BIOS / BMC / Driver 섹션 : A3/A4/A5 에서 실제 데이터 연결 예정.
-                         A2 MVP 단계에서는 안내 문구만 두고 페이지 링크는 해당 페이지 완성 시 활성화. -->
                     <h3 class="n-label strong" style="margin-bottom: 8px;">호환 BIOS · BMC · Driver</h3>
                     <div class="n-empty" style="padding: 16px;">
-                        <div class="n-empty-desc">
-                            이 보드에 호환되는 BIOS · BMC 펌웨어와 Driver 패키지 정보는
-                            해당 관리 페이지(A3 BIOS, A4 BMC, A5 Driver) 완성 후 표시됩니다.
+                        <div class="n-empty-desc" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <a th:href="@{/management/bios/{boardId}/new(boardId=${board.id})}"
+                               class="n-btn n-btn-sm n-btn-secondary">BIOS 등록</a>
+                            <a th:href="@{/management/bmc/{boardId}/new(boardId=${board.id})}"
+                               class="n-btn n-btn-sm n-btn-secondary">BMC 등록</a>
+                            <span>
+                                현재 연결: <strong th:text="${board.biosCount}">0</strong> BIOS,
+                                <strong th:text="${board.bmcCount}">0</strong> BMC
+                            </span>
                         </div>
                     </div>
 

@@ -17,6 +17,8 @@ import com.example.serverprovision.management.bios.exception.TargetDirectoryNotE
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
+import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -25,15 +27,12 @@ import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import com.example.serverprovision.management.os.exception.DirectoryMissingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Comparator;
@@ -42,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * A3 v3 BIOS 번들 도메인 로직 총괄. 번들 저장 · marker 관리 · 무결성 검증을 조합한다.
@@ -68,6 +66,8 @@ public class BiosService {
     private final BundleEntrypointDetector bundleEntrypointDetector;
     private final BundleManifestService bundleManifestService;
     private final ProvisionMarkerService provisionMarkerService;
+    private final TargetDirectoryPolicyService targetDirectoryPolicyService;
+    private final BundleTreeCleanupService bundleTreeCleanupService;
 
     // ==== 조회 ========================================================
 
@@ -123,64 +123,68 @@ public class BiosService {
         // 2) soft-deleted 같은 (board, version) 존재 시 기존 트리·레코드 물리 정리 (D3 정책)
         biosRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version())
                 .ifPresent(existing -> {
-                    purgeExistingTree(Path.of(existing.getTreeRootPath()));
+                    bundleTreeCleanupService.purgeExistingTree(Path.of(existing.getTreeRootPath()), "purgeExistingTree");
                     biosRepository.delete(existing);
                 });
 
         // 3) targetDirectory 상태 검증 — 상위 dir 존재 or allowCreateDirectory, 그리고 자기 자신이 비어있거나 부재
-        ensureParentDirectory(targetDir, request.allowCreateDirectory());
-        verifyTargetNotOccupied(targetDir);
+        targetDirectoryPolicyService.prepareForUpload(targetDir, request.allowCreateDirectory());
 
-        // 4) 업로드 페이로드 전개 (extractionService 가 targetDirectory 생성 · 비어있음 검증을 내부 수행)
-        switch (uploadMode) {
-            case FOLDER -> bundleExtractionService.extractFolder(folderFiles, targetDir);
-            case ZIP -> bundleExtractionService.extractZip(zipFile, targetDir);
-            case SINGLE_FILE -> bundleExtractionService.extractSingleFile(singleFile, targetDir);
+        try {
+            // 4) 업로드 페이로드 전개 (extractionService 가 targetDirectory 생성 · 비어있음 검증을 내부 수행)
+            switch (uploadMode) {
+                case FOLDER -> bundleExtractionService.extractFolder(folderFiles, targetDir);
+                case ZIP -> bundleExtractionService.extractZip(zipFile, targetDir);
+                case SINGLE_FILE -> bundleExtractionService.extractSingleFile(singleFile, targetDir);
+            }
+
+            // 5) 진입점 탐지 (override 우선)
+            String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
+
+            // 6) manifest 집계
+            ManifestSummary manifest = bundleManifestService.compute(targetDir);
+
+            // 7) 2-phase save : 엔티티 선 저장 (signature=null) → biosId 획득
+            BoardBIOS saved = biosRepository.save(BoardBIOS.builder()
+                    .boardModel(parent)
+                    .name(request.name())
+                    .version(request.version())
+                    .treeRootPath(targetDir.toString())
+                    .entrypointRelativePath(entrypoint)
+                    .manifestHash(manifest.manifestHash())
+                    .markerSignature(null)
+                    .fileCount(manifest.fileCount())
+                    .totalBytes(manifest.totalBytes())
+                    .description(request.description())
+                    .isEnabled(true)
+                    .isDeleted(false)
+                    .build());
+
+            // 8) biosId 를 포함한 marker 생성 + 서명 + entity 갱신 + 파일 기록
+            MarkerContent unsigned = new MarkerContent(
+                    ResourceType.BIOS_BUNDLE.name(),
+                    saved.getId(),
+                    Map.of(
+                            "boardId", String.valueOf(boardId),
+                            "version", request.version(),
+                            "entrypointRelativePath", entrypoint
+                    ),
+                    Instant.now(),
+                    manifest.manifestHash(),
+                    null
+            );
+            String signature = provisionMarkerService.computeSignature(unsigned);
+            MarkerContent signed = unsigned.withSignature(signature);
+            saved.reissueMarker(manifest.manifestHash(), signature);
+            provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, signed);
+
+            log.info("[addBios] 등록 완료. biosId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
+                    saved.getId(), boardId, request.version(), manifest.fileCount(), manifest.totalBytes());
+            return saved.getId();
+        } catch (RuntimeException e) {
+            bundleTreeCleanupService.cleanupFailedUpload(targetDir, "purgeExistingTree", "addBios", e);
+            throw e;
         }
-
-        // 5) 진입점 탐지 (override 우선)
-        String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
-
-        // 6) manifest 집계
-        ManifestSummary manifest = bundleManifestService.compute(targetDir);
-
-        // 7) 2-phase save : 엔티티 선 저장 (signature=null) → biosId 획득
-        BoardBIOS saved = biosRepository.save(BoardBIOS.builder()
-                .boardModel(parent)
-                .name(request.name())
-                .version(request.version())
-                .treeRootPath(targetDir.toString())
-                .entrypointRelativePath(entrypoint)
-                .manifestHash(manifest.manifestHash())
-                .markerSignature(null)
-                .fileCount(manifest.fileCount())
-                .totalBytes(manifest.totalBytes())
-                .description(request.description())
-                .isEnabled(true)
-                .isDeleted(false)
-                .build());
-
-        // 8) biosId 를 포함한 marker 생성 + 서명 + entity 갱신 + 파일 기록
-        MarkerContent unsigned = new MarkerContent(
-                ResourceType.BIOS_BUNDLE.name(),
-                saved.getId(),
-                Map.of(
-                        "boardId", String.valueOf(boardId),
-                        "version", request.version(),
-                        "entrypointRelativePath", entrypoint
-                ),
-                Instant.now(),
-                manifest.manifestHash(),
-                null
-        );
-        String signature = provisionMarkerService.computeSignature(unsigned);
-        MarkerContent signed = unsigned.withSignature(signature);
-        saved.reissueMarker(manifest.manifestHash(), signature);
-        provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, signed);
-
-        log.info("[addBios] 등록 완료. biosId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
-                saved.getId(), boardId, request.version(), manifest.fileCount(), manifest.totalBytes());
-        return saved.getId();
     }
 
     @Transactional
@@ -257,50 +261,6 @@ public class BiosService {
             throw new IllegalBiosStateException("삭제된 BIOS 에는 수행할 수 없는 작업입니다. biosId=" + biosId);
         }
         return bios;
-    }
-
-    private void ensureParentDirectory(Path targetPath, boolean allowCreateDirectory) {
-        Path parent = targetPath.getParent();
-        if (parent == null || Files.exists(parent)) return;
-        if (!allowCreateDirectory) {
-            throw new DirectoryMissingException(parent.toString());
-        }
-        try {
-            Files.createDirectories(parent);
-        } catch (IOException e) {
-            throw new BundleExtractionException("상위 디렉토리 생성 실패 : " + parent, e);
-        }
-    }
-
-    private void verifyTargetNotOccupied(Path targetDir) {
-        if (!Files.exists(targetDir)) return;
-        if (!Files.isDirectory(targetDir)) {
-            throw new TargetDirectoryNotEmptyException(targetDir + " (디렉토리가 아닌 파일 점유)");
-        }
-        try (Stream<Path> children = Files.list(targetDir)) {
-            List<Path> list = children.toList();
-            if (list.isEmpty()) return;
-            // marker 가 있으면 이미 다른 등록 소유 — MarkerConflict
-            Path marker = targetDir.resolve(ProvisionMarkerService.MARKER_FILENAME);
-            if (Files.exists(marker)) {
-                throw new MarkerConflictException(targetDir.toString());
-            }
-            throw new TargetDirectoryNotEmptyException(targetDir.toString());
-        } catch (IOException e) {
-            throw new BundleExtractionException("대상 디렉토리 점검 실패 : " + targetDir, e);
-        }
-    }
-
-    private void purgeExistingTree(Path treeRoot) {
-        if (!Files.exists(treeRoot)) return;
-        try (Stream<Path> walker = Files.walk(treeRoot)) {
-            walker.sorted(Comparator.reverseOrder()).forEach(p -> {
-                try { Files.deleteIfExists(p); }
-                catch (IOException ignored) { /* best-effort */ }
-            });
-        } catch (IOException e) {
-            log.warn("[purgeExistingTree] 기존 트리 삭제 중 IO 문제 : {}", treeRoot, e);
-        }
     }
 
     private static BiosResponse toResponse(BoardBIOS entity) {

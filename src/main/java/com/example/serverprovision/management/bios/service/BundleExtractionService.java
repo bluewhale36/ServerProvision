@@ -2,6 +2,7 @@ package com.example.serverprovision.management.bios.service;
 
 import com.example.serverprovision.management.bios.exception.BundleExtractionException;
 import com.example.serverprovision.management.bios.exception.EmptyBundleException;
+import com.example.serverprovision.management.common.filesystem.policy.BundleFilePolicy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -197,7 +198,7 @@ public class BundleExtractionService {
                             "대상 경로가 디렉토리가 아닙니다 : " + targetDirectory);
                 }
                 try (var entries = Files.list(targetDirectory)) {
-                    if (entries.findAny().isPresent()) {
+                    if (entries.anyMatch(p -> !BundleFilePolicy.isIgnorable(p))) {
                         throw new BundleExtractionException(
                                 "대상 디렉토리가 비어있지 않습니다 (전개 전 검증) : " + targetDirectory);
                     }

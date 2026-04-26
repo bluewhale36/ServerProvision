@@ -12,6 +12,8 @@ import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
+import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -45,6 +47,8 @@ class BiosServiceTest {
     @Mock BundleEntrypointDetector bundleEntrypointDetector;
     @Mock BundleManifestService bundleManifestService;
     @Mock ProvisionMarkerService provisionMarkerService;
+    @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
+    @Mock BundleTreeCleanupService bundleTreeCleanupService;
     @InjectMocks BiosService biosService;
 
     private BoardModel activeBoard() {
@@ -105,14 +109,14 @@ class BiosServiceTest {
 
     @Test
     @DisplayName("addBios(fail) : targetDirectory 에 다른 marker 존재 → MarkerConflictException")
-    void addBios_markerConflict_throws(@TempDir Path tmp) throws Exception {
+    void addBios_markerConflict_throws(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
-        Files.createDirectories(target);
-        Files.writeString(target.resolve(".provision.json"), "{}"); // 기존 marker 점유
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         given(biosRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "1.0"))
                 .willReturn(Optional.empty());
+        org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
+                .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 
         assertThatThrownBy(() -> biosService.addBios(10L,
                 new BiosCreateRequest("x", "1.0", target.toString(), null, true, ""),
@@ -123,14 +127,14 @@ class BiosServiceTest {
 
     @Test
     @DisplayName("addBios(fail) : targetDirectory 비어있지 않고 marker 없음 → TargetDirectoryNotEmpty")
-    void addBios_targetNotEmpty_throws(@TempDir Path tmp) throws Exception {
+    void addBios_targetNotEmpty_throws(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
-        Files.createDirectories(target);
-        Files.writeString(target.resolve("random.txt"), "외부 파일");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         given(biosRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "1.0"))
                 .willReturn(Optional.empty());
+        org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
+                .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 
         assertThatThrownBy(() -> biosService.addBios(10L,
                 new BiosCreateRequest("x", "1.0", target.toString(), null, true, ""),

@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum JobType {
+    ISO_REGISTRATION("ISO 등록"),
     COMPS_EXTRACTION("환경·패키지 추출"),
     REPO_INDEXING("저장소 인덱싱"),
     PATH_RECONCILIATION("경로 재조정"),

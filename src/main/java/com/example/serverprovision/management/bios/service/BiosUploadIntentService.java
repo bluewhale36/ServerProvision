@@ -4,21 +4,16 @@ import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentR
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
+import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import com.example.serverprovision.management.os.exception.DirectoryMissingException;
 import com.example.serverprovision.management.os.exception.InvalidUploadTokenException;
-import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,6 +35,7 @@ public class BiosUploadIntentService {
 
     private final BoardModelRepository boardModelRepository;
     private final BiosRepository biosRepository;
+    private final TargetDirectoryPolicyService targetDirectoryPolicyService;
 
     private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
@@ -54,7 +50,7 @@ public class BiosUploadIntentService {
 
         // targetDirectory 점유 검증
         Path targetDir = Path.of(request.targetDirectory());
-        verifyTargetForIntent(targetDir, request.allowCreateDirectory());
+        targetDirectoryPolicyService.validateForIntent(targetDir, request.allowCreateDirectory());
 
         // 소프트 경고 수집
         List<String> warnings = new ArrayList<>();
@@ -106,33 +102,6 @@ public class BiosUploadIntentService {
     }
 
     public int size() { return intents.size(); }
-
-    // ---- 헬퍼 --------------------------------------------------------
-
-    private void verifyTargetForIntent(Path targetDir, boolean allowCreateDirectory) {
-        if (Files.exists(targetDir)) {
-            if (!Files.isDirectory(targetDir)) {
-                throw new TargetDirectoryNotEmptyException(targetDir + " (디렉토리가 아닌 파일 점유)");
-            }
-            try (var children = Files.list(targetDir)) {
-                if (children.findAny().isPresent()) {
-                    Path marker = targetDir.resolve(ProvisionMarkerService.MARKER_FILENAME);
-                    if (Files.exists(marker)) {
-                        throw new MarkerConflictException(targetDir.toString());
-                    }
-                    throw new TargetDirectoryNotEmptyException(targetDir.toString());
-                }
-            } catch (IOException e) {
-                // IO 예외는 여기서 던지지 않고 Upload 단계에서 더 구체적 오류로 잡는다. intent 단계는 관대하게.
-                log.warn("[issue] targetDirectory 점검 중 IO 예외 (통과) : {}", targetDir, e);
-            }
-            return;
-        }
-        Path parent = targetDir.getParent();
-        if (parent != null && !Files.exists(parent) && !allowCreateDirectory) {
-            throw new DirectoryMissingException(parent.toString());
-        }
-    }
 
     public record Intent(
             Long boardId,

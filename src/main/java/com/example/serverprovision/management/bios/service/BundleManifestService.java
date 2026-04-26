@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.bios.exception.BundleExtractionException;
+import com.example.serverprovision.management.common.filesystem.policy.BundleFilePolicy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +38,8 @@ public class BundleManifestService {
         try (Stream<Path> walker = Files.walk(treeRoot)) {
             for (Path p : (Iterable<Path>) walker::iterator) {
                 if (!Files.isRegularFile(p)) continue;
-                if (p.getFileName().toString().equals(ProvisionMarkerService.MARKER_FILENAME)) continue;
+                if (p.getFileName().toString().equals(com.example.serverprovision.global.marker.service.ProvisionMarkerService.MARKER_FILENAME)) continue;
+                if (BundleFilePolicy.isIgnorable(p)) continue;
                 String rel = toRelative(treeRoot, p);
                 String sha = sha256Hex(p);
                 long size = Files.size(p);

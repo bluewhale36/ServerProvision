@@ -157,10 +157,9 @@
 
                     <!--
                       ISO 목록 블록.
-                      ISO 업로드는 foreground XHR 경로로 바뀌어 완료 시 목록 페이지로 redirect 되므로
-                      별도 fragment 갱신 경로는 쓰지 않는다. wrap 클래스는 레이아웃 컨테이너로만 유지.
+                      ISO 등록 background job 완료 시 이 블록(.n-iso-section-wrap)만 부분 갱신된다.
                     -->
-                    <div class="n-iso-section-wrap">
+                    <div class="n-iso-section-wrap" th:fragment="isoSection">
                         <h3 class="n-label strong" style="margin-bottom: 8px;">ISO 목록</h3>
 
                         <!--

@@ -54,7 +54,8 @@
     <!-- Miller 3컬럼 : C1 BoardModel → C2 BIOS 버전 → C3 상세 -->
     <div th:unless="${#lists.isEmpty(boards)}"
          class="n-miller"
-         th:data-initial-select-id="${selectId}">
+         th:data-initial-select-id="${selectId}"
+         th:data-initial-select-board-id="${selectBoardId}">
 
         <!-- C1 : BoardModel (읽기 전용). A2 에서 등록, 여기서는 선택만. -->
         <div class="n-miller-col n-miller-col-names">

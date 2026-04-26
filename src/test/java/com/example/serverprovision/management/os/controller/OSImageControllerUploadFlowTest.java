@@ -2,6 +2,9 @@ package com.example.serverprovision.management.os.controller;
 
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
+import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
+import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
+import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
 import com.example.serverprovision.management.os.exception.AlreadyExtractedException;
@@ -14,6 +17,7 @@ import com.example.serverprovision.management.os.exception.DuplicateFilenameExce
 import com.example.serverprovision.management.os.exception.IsoUploadIntentConflictException;
 import com.example.serverprovision.management.os.exception.OSImageNotFoundException;
 import com.example.serverprovision.management.os.service.CompsExtractionLauncher;
+import com.example.serverprovision.management.os.service.IsoRegistrationLauncher;
 import com.example.serverprovision.management.os.service.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.IsoVerificationLauncher;
 import com.example.serverprovision.management.os.service.OSImageService;
@@ -41,6 +45,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,9 +64,40 @@ class OSImageControllerUploadFlowTest {
     @MockitoBean CompsExtractionLauncher compsExtractionLauncher;
     @MockitoBean IsoUploadIntentService isoUploadIntentService;
     @MockitoBean IsoVerificationLauncher isoVerificationLauncher;
+    @MockitoBean IsoRegistrationLauncher isoRegistrationLauncher;
+    @MockitoBean DirectoryBrowseService directoryBrowseService;
     // @EnableJpaAuditing 이 main class 에 있어 WebMvcTest 부팅 시 jpaMappingContext 를 요구한다.
     // 실제 JPA metamodel 은 slice 에서 필요 없으므로 mock 으로 대체.
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @Test
+    @DisplayName("GET /browse : includeFiles=true 정상 경로면 200 JSON")
+    void browse_success_includeFiles() throws Exception {
+        given(directoryBrowseService.browse(any()))
+                .willReturn(new DirectoryListingResponse(
+                        "/opt/iso", "/opt",
+                        java.util.List.of(DirectoryListingResponse.Entry.file("dvd.iso", 1024L))));
+
+        mvc.perform(get("/management/os/browse")
+                        .param("path", "/opt/iso")
+                        .param("includeFiles", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.path").value("/opt/iso"))
+                .andExpect(jsonPath("$.entries[0].type").value("FILE"))
+                .andExpect(jsonPath("$.entries[0].name").value("dvd.iso"))
+                .andExpect(jsonPath("$.entries[0].size").value(1024));
+    }
+
+    @Test
+    @DisplayName("GET /browse : invalid path 면 400 JSON")
+    void browse_invalidPath() throws Exception {
+        willThrow(new InvalidBrowsePathException("bad"))
+                .given(directoryBrowseService).browse(any());
+
+        mvc.perform(get("/management/os/browse").param("path", "bad"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("경로 형식")));
+    }
 
     // ========= Intent 핸드셰이크 시나리오 =========
 
@@ -161,9 +197,12 @@ class OSImageControllerUploadFlowTest {
         }
 
         @Test
-        @DisplayName("정상 경로 — 200 + redirect 필드")
+        @DisplayName("정상 경로 — 200 + jobId/redirect 필드")
         void success() throws Exception {
-            given(osImageService.addISO(eq(1L), any(), any())).willReturn(42L);
+            given(osImageService.prepareIsoRegistration(eq(1L), any(), any()))
+                    .willReturn(new OSImageService.PreparedIsoRegistration(
+                            1L, "/mnt/iso/dvd.iso", "", "dvd.iso", true));
+            given(isoRegistrationLauncher.startRegistration(any())).willReturn("job-iso-1");
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -172,7 +211,7 @@ class OSImageControllerUploadFlowTest {
                             .param("allowCreateDirectory", "false")
                             .header("X-Upload-Token", "valid-token"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.isoId").value(42))
+                    .andExpect(jsonPath("$.jobId").value("job-iso-1"))
                     .andExpect(jsonPath("$.redirect").value(containsString("selectId=1")));
         }
 
@@ -193,8 +232,8 @@ class OSImageControllerUploadFlowTest {
         @Test
         @DisplayName("경로 형식 오류 (빈 문자열 우회 → InvalidPathException 흐름) → 409")
         void invalidPath_returns409() throws Exception {
-            doThrow(new InvalidIsoPathException("ISO 경로 형식이 올바르지 않습니다 :  bad"))
-                    .when(osImageService).addISO(eq(1L), any(), any());
+            doThrow(new InvalidIsoPathException("ISO 경로 형식이 올바르지 않습니다 : bad"))
+                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -209,7 +248,7 @@ class OSImageControllerUploadFlowTest {
         @DisplayName("체크섬 중복 → 409 DuplicateISOContentException")
         void duplicateContent_returns409() throws Exception {
             doThrow(new DuplicateISOContentException("/mnt/iso/existing.iso"))
-                    .when(osImageService).addISO(eq(1L), any(), any());
+                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -224,7 +263,7 @@ class OSImageControllerUploadFlowTest {
         @DisplayName("파일시스템 동일 이름 파일 → 409 DuplicateFilenameException")
         void fileAlreadyExists_returns409() throws Exception {
             doThrow(new DuplicateFilenameException("/mnt/iso/dvd.iso"))
-                    .when(osImageService).addISO(eq(1L), any(), any());
+                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -239,7 +278,7 @@ class OSImageControllerUploadFlowTest {
         @DisplayName("OSImage not found → 404")
         void unknownOs_returns404() throws Exception {
             doThrow(new OSImageNotFoundException(999L))
-                    .when(osImageService).addISO(eq(999L), any(), any());
+                    .when(osImageService).prepareIsoRegistration(eq(999L), any(), any());
 
             mvc.perform(multipart("/management/os/999/iso/upload")
                             .file(buildFile())

@@ -57,7 +57,9 @@
     <a th:href="@{/management/bios}"
        class="n-nav-link"
        th:classappend="${activePage == 'bios'} ? ' active'">BIOS</a>
-    <span class="n-nav-link" aria-disabled="true" title="미구현">BMC</span>
+    <a th:href="@{/management/bmc}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'bmc'} ? ' active'">BMC</a>
     <span class="n-nav-link" aria-disabled="true" title="미구현">Driver</span>
 
     <!-- Maintenance (어플리케이션-서버 운영) -->

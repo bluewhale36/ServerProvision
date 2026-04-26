@@ -4,19 +4,26 @@ import com.example.serverprovision.global.exception.ConflictException;
 import com.example.serverprovision.global.exception.DomainException;
 import com.example.serverprovision.global.exception.NotFoundException;
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
+import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
+import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
+import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
+import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotFoundException;
+import com.example.serverprovision.management.common.filesystem.exception.DirectoryBrowseIoException;
+import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
+import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.os.dto.request.ISOCreateRequest;
 import com.example.serverprovision.management.os.dto.request.ISOUpdateRequest;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.request.OSImageCreateRequest;
 import com.example.serverprovision.management.os.dto.request.OSImageUpdateRequest;
 import com.example.serverprovision.global.exception.ApiErrorResponse;
-import com.example.serverprovision.management.bios.dto.response.DirectoryListingResponse;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
 import com.example.serverprovision.management.os.dto.response.ISOResponse;
 import com.example.serverprovision.management.os.dto.response.IsoUploadResponse;
 import com.example.serverprovision.management.os.dto.response.OSImageResponse;
 import com.example.serverprovision.management.os.enums.OSName;
 import com.example.serverprovision.management.os.service.CompsExtractionLauncher;
+import com.example.serverprovision.management.os.service.IsoRegistrationLauncher;
 import com.example.serverprovision.management.os.service.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.IsoVerificationLauncher;
 import com.example.serverprovision.management.os.service.OSImageService;
@@ -64,6 +71,8 @@ public class OSImageController {
     private final CompsExtractionLauncher compsExtractionLauncher;
     private final IsoUploadIntentService isoUploadIntentService;
     private final IsoVerificationLauncher isoVerificationLauncher;
+    private final IsoRegistrationLauncher isoRegistrationLauncher;
+    private final DirectoryBrowseService directoryBrowseService;
 
     // ==== 목록 ========================================================
 
@@ -170,7 +179,9 @@ public class OSImageController {
             populateIsoFormContext(model, osId, null, os);
             return "management/os/iso-new";
         }
-        osImageService.addISO(osId, request, file);
+        OSImageService.PreparedIsoRegistration prepared =
+                osImageService.prepareIsoRegistration(osId, request, file);
+        isoRegistrationLauncher.startRegistration(prepared);
         return redirectToListWithSelect(osId);
     }
 
@@ -209,11 +220,11 @@ public class OSImageController {
 
     /**
      * JS XHR 업로드 전용 REST 엔드포인트 (옵션 A 경로).
-     * 클라이언트가 foreground XHR 로 업로드를 수행하며 실시간 진행률을 페이지 내 바에 표시한다.
+     * 클라이언트가 foreground XHR 로 바이트를 먼저 올리고, 이후 무거운 등록 후처리는 background job 으로 넘긴다.
      * <ul>
-     *   <li>{@code X-Upload-Token} 헤더의 intent 토큰을 서버에서 1회용으로 소비한다.</li>
-     *   <li>최후 SHA-256 체크섬 검증은 {@link OSImageService#addISO} 가 그대로 수행한다 —
-     *       intent 의 사전 방어선과 최후 방어선이 이중으로 작동한다.</li>
+     *   <li>파일 업로드가 있는 경우에만 {@code X-Upload-Token} 헤더의 intent 토큰을 1회용으로 소비한다.</li>
+     *   <li>요청 스레드는 파일 저장/경로 검증까지만 수행하고, SHA-256 계산 · marker 발급 · DB 저장은
+     *       {@link IsoRegistrationLauncher} 의 background job 으로 이어진다.</li>
      * </ul>
      * 도메인 예외는 메서드 내부에서 JSON 으로 감싸 {@link com.example.serverprovision.global.exception.GlobalExceptionHandler}
      * 의 HTML 뷰 경로로 빠지지 않게 한다.
@@ -233,13 +244,15 @@ public class OSImageController {
             return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
         }
         try {
-            // 1차 방어선 : intent 토큰 소비. 없거나 만료됐거나 타 OS 면 즉시 거절.
-            isoUploadIntentService.consume(osId, uploadToken);
-
-            // 2차 방어선 : OSImageService 가 스트리밍 SHA-256 계산 → DB 중복 체크섬 확인 → 저장.
-            Long id = osImageService.addISO(osId, request, file);
+            boolean hasFile = file != null && !file.isEmpty();
+            if (hasFile) {
+                isoUploadIntentService.consume(osId, uploadToken);
+            }
+            OSImageService.PreparedIsoRegistration prepared =
+                    osImageService.prepareIsoRegistration(osId, request, file);
+            String jobId = isoRegistrationLauncher.startRegistration(prepared);
             String redirect = "/management/os?selectId=" + osId;
-            return ResponseEntity.ok(new IsoUploadResponse(id, redirect));
+            return ResponseEntity.ok(new IsoUploadResponse(jobId, redirect));
         } catch (NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
         } catch (ConflictException e) {
@@ -340,6 +353,16 @@ public class OSImageController {
     }
 
     /**
+     * ISO 목록 섹션만 렌더하는 Thymeleaf fragment.
+     * ISO 등록 background job 완료 시점에 클라이언트가 fetch 해서 해당 OS 상세 패널의 ISO 블록만 교체한다.
+     */
+    @GetMapping("/{osId}/iso-section-fragment")
+    public String isoSectionFragment(@PathVariable("osId") Long osId, Model model) {
+        model.addAttribute("os", osImageService.findById(osId));
+        return "management/os/list :: isoSection";
+    }
+
+    /**
      * 단일 ISO 의 최신 제공 환경·패키지 그룹 정보 (JSON).
      * 추출 Job 완료 이벤트 수신 시 해당 ISO 의 아코디언 행 안쪽 "설치 환경"·"패키지 그룹" 값을
      * 다른 아이템의 펼침 상태를 건드리지 않고 부분 갱신하는 데 쓰인다. 전체 accordion 을 재렌더하면
@@ -369,44 +392,21 @@ public class OSImageController {
     public ResponseEntity<?> browse(
             @RequestParam(name = "path", required = false) String pathParam,
             @RequestParam(name = "includeFiles", defaultValue = "false") boolean includeFiles) {
-        String raw = (pathParam == null || pathParam.isBlank()) ? "/" : pathParam;
-        java.nio.file.Path target;
         try {
-            target = java.nio.file.Path.of(raw).toAbsolutePath().normalize();
-        } catch (java.nio.file.InvalidPathException e) {
+            return ResponseEntity.ok(directoryBrowseService.browse(new DirectoryBrowseRequest(pathParam, includeFiles)));
+        } catch (InvalidBrowsePathException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ApiErrorResponse("경로 형식이 올바르지 않습니다 : " + raw));
-        }
-        if (!java.nio.file.Files.exists(target)) {
+                    .body(new ApiErrorResponse(e.getMessage()));
+        } catch (BrowseTargetNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ApiErrorResponse("경로를 찾을 수 없습니다 : " + target));
-        }
-        if (!java.nio.file.Files.isDirectory(target)) {
+                    .body(new ApiErrorResponse(e.getMessage()));
+        } catch (BrowseTargetNotDirectoryException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(new ApiErrorResponse("디렉토리가 아닙니다 : " + target));
-        }
-        java.util.List<DirectoryListingResponse.Entry> entries = new java.util.ArrayList<>();
-        try (java.util.stream.Stream<java.nio.file.Path> children = java.nio.file.Files.list(target)) {
-            children
-                    .sorted(java.util.Comparator.comparing(p -> p.getFileName().toString()))
-                    .forEach(p -> {
-                        String name = p.getFileName().toString();
-                        // hidden file (sidecar 마커 등) 은 일반 파일과 함께 노출 — 운영자가 sidecar 잔재를 확인할 수 있도록.
-                        if (java.nio.file.Files.isDirectory(p)) {
-                            entries.add(DirectoryListingResponse.Entry.directory(name));
-                        } else if (includeFiles) {
-                            long size = -1L;
-                            try { size = java.nio.file.Files.size(p); } catch (java.io.IOException ignore) {}
-                            entries.add(DirectoryListingResponse.Entry.file(name, size));
-                        }
-                    });
-        } catch (java.io.IOException e) {
+                    .body(new ApiErrorResponse(e.getMessage()));
+        } catch (DirectoryBrowseIoException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiErrorResponse("디렉토리 열람 중 오류 : " + e.getMessage()));
+                    .body(new ApiErrorResponse(e.getMessage()));
         }
-        java.nio.file.Path parent = target.getParent();
-        String parentStr = parent == null ? null : parent.toString();
-        return ResponseEntity.ok(new DirectoryListingResponse(target.toString(), parentStr, entries));
     }
 
     // ==== 헬퍼 =========================================================

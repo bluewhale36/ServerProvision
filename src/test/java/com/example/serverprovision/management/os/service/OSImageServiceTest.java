@@ -11,6 +11,7 @@ import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
 import com.example.serverprovision.management.os.repository.OSImageRepository;
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
+import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import org.junit.jupiter.api.DisplayName;
@@ -48,6 +49,7 @@ class OSImageServiceTest {
     @Mock OSEnvironmentRepository envRepository;
     @Mock OSPackageGroupRepository grpRepository;
     @Mock ProvisionMarkerService markerService;
+    @Mock BackgroundJobService backgroundJobService;
     @InjectMocks OSImageService osImageService;
 
     /** addISO 호출 시 markerService 의 표준 동작을 stub. resolveMarkerFile 은 실제 sidecar 위치를 반환. */
@@ -123,6 +125,8 @@ class OSImageServiceTest {
                 .isEnabled(true).isDeleted(false).build();
         given(osImageRepository.findByIdAndIsDeletedFalse(1L))
                 .willReturn(Optional.of(parent));
+        given(isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
+                .willReturn(Optional.empty());
         given(isoRepository.findFirstByChecksumAndIsDeletedFalse(expectedHash))
                 .willReturn(Optional.empty());
         stubMarkerService();
@@ -170,6 +174,8 @@ class OSImageServiceTest {
                 .build();
         given(osImageRepository.findByIdAndIsDeletedFalse(1L))
                 .willReturn(Optional.of(parent));
+        given(isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
+                .willReturn(Optional.empty());
         given(isoRepository.findFirstByChecksumAndIsDeletedFalse(hash))
                 .willReturn(Optional.of(existing));
         // duplicate 케이스는 sidecar 충돌 사전 검사까지만 markerService 가 호출됨 — resolve 만 stub

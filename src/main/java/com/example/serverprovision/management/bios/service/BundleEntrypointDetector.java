@@ -4,6 +4,7 @@ import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.bios.exception.BundleExtractionException;
 import com.example.serverprovision.management.bios.exception.EntrypointAmbiguousException;
 import com.example.serverprovision.management.bios.exception.EntrypointNotFoundException;
+import com.example.serverprovision.management.common.filesystem.policy.BundleFilePolicy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -22,8 +23,6 @@ import java.util.stream.Stream;
 @Service
 public class BundleEntrypointDetector {
 
-    private static final String MARKER = ProvisionMarkerService.MARKER_FILENAME;
-
     public String detect(Path treeRoot, String override) {
         // 1) Override 우선
         if (override != null && !override.isBlank()) {
@@ -36,7 +35,7 @@ public class BundleEntrypointDetector {
             return normalized;
         }
 
-        // 2) 트리 파일 1개면 그것 (marker 제외)
+        // 2) 트리 파일 1개면 그것 (marker / OS 잡파일 제외)
         List<Path> allFiles = listRegularFilesExcludingMarker(treeRoot);
         if (allFiles.size() == 1) {
             Path only = allFiles.get(0);
@@ -73,7 +72,8 @@ public class BundleEntrypointDetector {
         try (Stream<Path> walker = Files.walk(treeRoot)) {
             for (Path p : (Iterable<Path>) walker::iterator) {
                 if (!Files.isRegularFile(p)) continue;
-                if (p.getFileName().toString().equals(MARKER)) continue;
+                if (p.getFileName().toString().equals(ProvisionMarkerService.MARKER_FILENAME)) continue;
+                if (BundleFilePolicy.isIgnorable(p)) continue;
                 result.add(p);
             }
         } catch (IOException e) {
@@ -88,7 +88,8 @@ public class BundleEntrypointDetector {
         try (Stream<Path> children = Files.list(treeRoot)) {
             children.filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".nsh"))
-                    .filter(p -> !p.getFileName().toString().equals(MARKER))
+                    .filter(p -> !p.getFileName().toString().equals(ProvisionMarkerService.MARKER_FILENAME))
+                    .filter(p -> !BundleFilePolicy.isIgnorable(p))
                     .forEach(result::add);
         } catch (IOException e) {
             throw new BundleExtractionException("루트 .nsh 스캔 실패 : " + treeRoot, e);

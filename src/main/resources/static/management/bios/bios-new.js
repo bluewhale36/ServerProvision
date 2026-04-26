@@ -11,6 +11,8 @@
 
     const form = document.getElementById('biosForm');
     if (!form) return;
+    const shell = window.BundleUploadShell;
+    if (!shell) return;
 
     const uploadUrl = form.dataset.uploadUrl;
     const intentUrl = form.dataset.intentUrl;
@@ -47,9 +49,6 @@
     const browseApplyBtn  = document.getElementById('browseApplyBtn');
     const browseUrl       = targetDirInput ? targetDirInput.dataset.browseUrl : null;
 
-    // 브라우저 패널 내부에서 이동 중인 경로 (확정 전)
-    let browseCurrentPath = '/';
-
     if (!form || !uploadUrl || !intentUrl || !listUrl || !submitBtn) return;
 
     let activeXhr = null;
@@ -69,113 +68,31 @@
 
     // ---- 탭 전환 ------------------------------------------------------
 
-    function setMode(mode) {
-        uploadModeInput.value = mode;
-        const isFolder = mode === 'FOLDER';
-        const isZip    = mode === 'ZIP';
-        const isSingle = mode === 'SINGLE_FILE';
-
-        folderPane.hidden = !isFolder;
-        zipPane.hidden    = !isZip;
-        singlePane.hidden = !isSingle;
-
-        [[tabFolder, isFolder], [tabZip, isZip], [tabSingle, isSingle]].forEach(([btn, active]) => {
-            btn.classList.toggle('n-btn-ghost', !active);
-            btn.setAttribute('aria-selected', String(active));
+    const bootstrap = window.BundleUploadBootstrap;
+    if (bootstrap) {
+        bootstrap.bindModeTabs({
+            uploadModeInput, folderPane, zipPane, singlePane,
+            folderInput, zipInput, singleInput,
+            tabFolder, tabZip, tabSingle
         });
-
-        // 선택되지 않은 입력 초기화 — 잘못 섞여 전송되는 것 방지
-        if (!isFolder) folderInput.value = '';
-        if (!isZip)    zipInput.value    = '';
-        if (!isSingle) singleInput.value = '';
     }
-    tabFolder.addEventListener('click', () => setMode('FOLDER'));
-    tabZip.addEventListener('click',    () => setMode('ZIP'));
-    tabSingle.addEventListener('click', () => setMode('SINGLE_FILE'));
 
     // ---- 경로 브라우저 -----------------------------------------------
 
-    if (browseBtn && browseUrl) {
-        browseBtn.addEventListener('click', () => {
-            if (browsePanel.hidden) {
-                const seed = targetDirInput.value.trim() || '/';
-                browsePanel.hidden = false;
-                loadDirectory(seed);
-            } else {
-                browsePanel.hidden = true;
-            }
+    if (bootstrap) {
+        bootstrap.bindDirectoryBrowse({
+            targetInput: targetDirInput,
+            browseBtn,
+            browsePanel,
+            browseUpBtn,
+            browseCurrent,
+            browseStatus,
+            browseEntries,
+            browseCancelBtn,
+            browseApplyBtn,
+            browseUrl,
+            includeFiles: false
         });
-    }
-    if (browseCancelBtn) {
-        browseCancelBtn.addEventListener('click', () => { browsePanel.hidden = true; });
-    }
-    if (browseUpBtn) {
-        browseUpBtn.addEventListener('click', () => {
-            // 현재 path 의 상위. 서버에서 정규화해 돌려주므로 직접 계산.
-            const p = browseCurrentPath;
-            if (!p || p === '/') return;
-            const trimmed = p.replace(/\/+$/, '');
-            const idx = trimmed.lastIndexOf('/');
-            const up = idx <= 0 ? '/' : trimmed.slice(0, idx);
-            loadDirectory(up);
-        });
-    }
-    if (browseApplyBtn) {
-        browseApplyBtn.addEventListener('click', () => {
-            if (!browseCurrentPath) return;
-            // 끝에 슬래시 1개로 정규화 — 서버는 양쪽 모두 수용하지만 UX 일관성
-            const applied = browseCurrentPath.endsWith('/') ? browseCurrentPath : browseCurrentPath + '/';
-            targetDirInput.value = applied;
-            browsePanel.hidden = true;
-        });
-    }
-
-    async function loadDirectory(pathStr) {
-        browseStatus.textContent = '로딩…';
-        browseEntries.innerHTML = '';
-        try {
-            const url = browseUrl + '?path=' + encodeURIComponent(pathStr);
-            const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            if (!resp.ok) {
-                const body = await resp.json().catch(() => ({}));
-                browseStatus.textContent = '오류 : ' + (body.message || ('HTTP ' + resp.status));
-                return;
-            }
-            const data = await resp.json();
-            browseCurrentPath = data.path;
-            browseCurrent.textContent = data.path;
-            renderEntries(data);
-            browseStatus.textContent = data.entries.length + ' 개 하위 디렉토리';
-        } catch (err) {
-            browseStatus.textContent = '요청 실패 : ' + err.message;
-        }
-    }
-
-    function renderEntries(data) {
-        browseEntries.innerHTML = '';
-        if (!data.entries || data.entries.length === 0) {
-            const li = document.createElement('li');
-            li.style.padding = '8px 12px';
-            li.style.color = 'var(--n-text-muted)';
-            li.style.fontSize = '12px';
-            li.textContent = '(하위 디렉토리 없음)';
-            browseEntries.appendChild(li);
-            return;
-        }
-        for (const e of data.entries) {
-            const li = document.createElement('li');
-            li.style.padding = '6px 12px';
-            li.style.cursor = 'pointer';
-            li.style.borderBottom = '1px solid var(--n-border)';
-            li.textContent = '📁 ' + e.name;
-            li.addEventListener('click', () => {
-                const sep = browseCurrentPath.endsWith('/') ? '' : '/';
-                loadDirectory(browseCurrentPath + sep + e.name);
-            });
-            li.addEventListener('mouseover', () => { li.style.background = '#f0f0f0'; });
-            li.addEventListener('mouseout',  () => { li.style.background = ''; });
-            browseEntries.appendChild(li);
-        }
     }
 
     // ---- Submit ------------------------------------------------------
@@ -183,7 +100,9 @@
     form.addEventListener('submit', async e => {
         e.preventDefault();
         const mode = uploadModeInput.value;
-        const { fileCount, totalBytes } = collectSizeInfo(mode);
+        const { fileCount, totalBytes } = shell.collectSizeInfo(mode, {
+            folderInput, zipInput, singleInput
+        });
         if (fileCount === 0) {
             showError('업로드할 파일이 없습니다.');
             return;
@@ -193,28 +112,29 @@
         // webkitdirectory 는 파일 선택 대화상자에서 폴더를 고르도록 강제하므로 정상 경로면 여기 걸리지 않는다.
         // 드래그 앤 드롭 등 일부 경우에 webkitRelativePath 가 비어있거나 여러 prefix 가 섞이면 거절.
         if (mode === 'FOLDER') {
-            const err = validateFolderWrapping(Array.from(folderInput.files));
+            const err = shell.validateFolderWrapping(Array.from(folderInput.files));
             if (err) { showError(err); return; }
         }
 
-        const targetDirectory = form.querySelector('input[name="targetDirectory"]').value.trim();
-        const version = form.querySelector('input[name="version"]').value.trim();
-        const allowCreateDirectory = form.querySelector('input[name="allowCreateDirectory"]').checked;
-        const entrypointOverride = (form.querySelector('input[name="entrypointRelativePath"]').value || '').trim();
+        const commonFields = shell.resolveCommonFields(form);
 
         submitBtn.disabled = true;
         submitBtn.textContent = '사전 검증 중…';
 
         let intent;
         try {
-            intent = await requestIntent({
-                targetDirectory,
+            intent = await shell.requestIntent({
+                intentUrl,
+                body: {
+                targetDirectory: commonFields.targetDirectory.trim(),
                 uploadMode: mode,
                 fileCount,
                 totalBytes,
-                version,
-                allowCreateDirectory,
-                entrypointRelativePath: entrypointOverride
+                version: commonFields.version.trim(),
+                allowCreateDirectory: commonFields.allowCreateDirectory,
+                entrypointRelativePath: commonFields.entrypointRelativePath.trim()
+                },
+                intentFallbackMessage
             });
         } catch (err) {
             console.error(TAG, 'intent 실패', err);
@@ -233,66 +153,8 @@
             }
         }
 
-        startXhrUpload(intent.uploadToken);
+        startXhrUpload(intent.uploadToken, commonFields);
     });
-
-    function collectSizeInfo(mode) {
-        if (mode === 'FOLDER') {
-            const files = folderInput.files ? Array.from(folderInput.files) : [];
-            const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
-            return { fileCount: files.length, totalBytes };
-        } else if (mode === 'ZIP') {
-            const f = zipInput.files && zipInput.files[0];
-            return { fileCount: f ? 1 : 0, totalBytes: f ? f.size : 0 };
-        } else { // SINGLE_FILE
-            const f = singleInput.files && singleInput.files[0];
-            return { fileCount: f ? 1 : 0, totalBytes: f ? f.size : 0 };
-        }
-    }
-
-    /**
-     * 요구사항 케이스 1 (개별 파일 여러 개 업로드) 을 UI·네트워크 단에서 거절.
-     * webkitdirectory 가 정상 동작하면 모든 파일의 webkitRelativePath 는
-     * "<wrappingFolder>/..." 공통 prefix 로 시작한다. 그렇지 않으면 거절.
-     * 반환값 : 오류 메시지 or null(통과).
-     */
-    function validateFolderWrapping(files) {
-        if (files.length === 0) return '업로드할 파일이 없습니다.';
-        const prefixes = new Set();
-        for (const f of files) {
-            const rel = f.webkitRelativePath || '';
-            if (!rel) {
-                return '여러 개의 개별 파일 업로드는 거절됩니다. 관련 파일들을 하나의 폴더로 묶어 업로드하세요.';
-            }
-            const firstSeg = rel.split('/')[0];
-            if (!firstSeg) {
-                return '파일 상대경로 형식이 올바르지 않습니다.';
-            }
-            prefixes.add(firstSeg);
-            if (prefixes.size > 1) {
-                return '여러 폴더가 섞여 있습니다. 단일 폴더만 선택해 업로드하세요.';
-            }
-        }
-        return null;
-    }
-
-    async function requestIntent(body) {
-        const resp = await fetch(intentUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        if (!resp.ok) {
-            let msg = null;
-            try {
-                const body = await resp.json();
-                if (body && body.message) msg = body.message;
-            } catch (_) { /* ignore */ }
-            if (!msg) msg = intentFallbackMessage(resp.status);
-            throw new Error(msg);
-        }
-        return resp.json();
-    }
 
     function intentFallbackMessage(status) {
         switch (status) {
@@ -304,113 +166,93 @@
         }
     }
 
-    function startXhrUpload(uploadToken) {
+    function startXhrUpload(uploadToken, commonFields) {
         // FormData 수동 구성 — `new FormData(form)` 은 각 File 의 webkitRelativePath 를 소실시킨다.
         // 폴더 모드에서는 파일별로 Blob 자체 + 3번째 인자(filename) 에 상대경로를 명시적으로 실어
         // 서버의 MultipartFile.getOriginalFilename() 이 "BiosPkg/SPI_UPD/image.bin" 처럼 받도록 한다.
-        const fd = new FormData();
-        const mode = uploadModeInput.value;
-        fd.append('uploadMode', mode);
-        fd.append('name', form.querySelector('input[name="name"]').value);
-        fd.append('version', form.querySelector('input[name="version"]').value);
-        fd.append('targetDirectory', form.querySelector('input[name="targetDirectory"]').value);
-        fd.append('description', form.querySelector('textarea[name="description"]').value || '');
-        fd.append('allowCreateDirectory',
-            form.querySelector('input[name="allowCreateDirectory"]').checked ? 'true' : 'false');
-        fd.append('entrypointRelativePath',
-            form.querySelector('input[name="entrypointRelativePath"]').value || '');
-
-        if (mode === 'FOLDER') {
-            const files = Array.from(folderInput.files || []);
-            for (const f of files) {
-                // 3번째 인자(filename)에 웹킷 상대경로 주입. 서버 unwrap 은 공통 prefix 제거로 처리.
-                fd.append('folderFiles', f, f.webkitRelativePath || f.name);
+        const { formData: fd } = shell.buildBundleFormData({
+            form,
+            uploadModeInput,
+            folderInput,
+            zipInput,
+            singleInput,
+            fixedFields: {
+                name: commonFields.name,
+                version: commonFields.version,
+                targetDirectory: commonFields.targetDirectory,
+                description: commonFields.description,
+                allowCreateDirectory: commonFields.allowCreateDirectory ? 'true' : 'false',
+                entrypointRelativePath: commonFields.entrypointRelativePath
             }
-        } else if (mode === 'ZIP') {
-            const f = zipInput.files && zipInput.files[0];
-            if (f) fd.append('zipFile', f, f.name);
-        } else { // SINGLE_FILE
-            const f = singleInput.files && singleInput.files[0];
-            if (f) fd.append('singleFile', f, f.name);
-        }
+        });
 
         resetError();
-        lockPage(true);
-        showProgress('시작 중…', 0);
-
-        const xhr = new XMLHttpRequest();
-        activeXhr = xhr;
-        uploading = true;
-
-        xhr.open('POST', uploadUrl);
-        if (uploadToken) xhr.setRequestHeader('X-Upload-Token', uploadToken);
-
         const REPORT_INTERVAL_MS = 100;
         const UPLOAD_END_PCT = 90;
         const SERVER_END_PCT = 99;
-        let lastUiUpdate = 0;
+        const progressTracker = shell.createUploadProgressTracker();
         let serverTimer = null;
-
-        xhr.upload.addEventListener('progress', ev => {
-            if (!ev.lengthComputable) {
-                showProgress('전송 중…', null);
-                return;
-            }
-            const now = Date.now();
-            if (now - lastUiUpdate < REPORT_INTERVAL_MS) return;
-            lastUiUpdate = now;
-            const ratio = ev.total > 0 ? (ev.loaded / ev.total) : 0;
-            const pct = Math.floor(ratio * UPLOAD_END_PCT);
-            showProgress(`${pct}%  ${formatBytes(ev.loaded)} / ${formatBytes(ev.total)}`, pct);
-        });
-
-        xhr.upload.addEventListener('load', () => {
-            // 서버 저장 · 트리 전개 · manifestHash · marker 기록 단계 — 시간 tween
-            const tweenStart = Date.now();
-            serverTimer = setInterval(() => {
-                const elapsedSec = (Date.now() - tweenStart) / 1000;
-                const r = 1 - Math.exp(-elapsedSec / 3);
-                const pct = UPLOAD_END_PCT + (SERVER_END_PCT - UPLOAD_END_PCT) * Math.min(1, r);
-                showProgress(`${Math.floor(pct)}%  서버 저장 · 전개 · marker 기록 중…`, pct);
-            }, 150);
-        });
-
-        xhr.addEventListener('load', () => {
-            uploading = false;
-            activeXhr = null;
-            if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
-            if (xhr.status >= 200 && xhr.status < 300) {
+        activeXhr = shell.startXhrUpload({
+            uploadUrl,
+            uploadToken,
+            formData: fd,
+            onStart() {
+                uploading = true;
+                lockPage(true);
+                showProgress('시작 중…', 0);
+            },
+            onUploadProgress(ev) {
+                const ratio = ev.total > 0 ? (ev.loaded / ev.total) : 0;
+                const pct = Math.floor(ratio * UPLOAD_END_PCT);
+                const progress = shell.describeUploadProgress(ev, {
+                    tracker: progressTracker,
+                    reportIntervalMs: REPORT_INTERVAL_MS,
+                    displayPercent: pct
+                });
+                if (!progress.shouldRender) return;
+                showProgress(`${progress.percent}%  ${progress.message}`, progress.percent);
+            },
+            onUploadLoad() {
+                const tweenStart = Date.now();
+                serverTimer = setInterval(() => {
+                    const elapsedSec = (Date.now() - tweenStart) / 1000;
+                    const r = 1 - Math.exp(-elapsedSec / 3);
+                    const pct = UPLOAD_END_PCT + (SERVER_END_PCT - UPLOAD_END_PCT) * Math.min(1, r);
+                    showProgress(`${Math.floor(pct)}%  서버 저장 · 전개 · marker 기록 중…`, pct);
+                }, 150);
+            },
+            onSuccess() {
+                uploading = false;
+                activeXhr = null;
+                if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
                 showProgress('100%  완료', 100);
                 window.location.href = listUrl;
-                return;
+            },
+            onHttpError(msg) {
+                uploading = false;
+                activeXhr = null;
+                if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
+                showError(msg);
+                hideProgress();
+                lockPage(false);
+            },
+            onNetworkError() {
+                uploading = false;
+                activeXhr = null;
+                if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
+                showError('네트워크 오류로 업로드가 중단되었습니다.');
+                hideProgress();
+                lockPage(false);
+            },
+            onAbort() {
+                uploading = false;
+                activeXhr = null;
+                if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
+                showError('업로드를 취소했습니다.');
+                hideProgress();
+                lockPage(false);
             }
-            let msg = 'HTTP ' + xhr.status;
-            try {
-                const body = JSON.parse(xhr.responseText);
-                if (body && body.message) msg = body.message;
-            } catch (_) { /* ignore */ }
-            showError(msg);
-            hideProgress();
-            lockPage(false);
         });
-        xhr.addEventListener('error', () => {
-            uploading = false;
-            activeXhr = null;
-            if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
-            showError('네트워크 오류로 업로드가 중단되었습니다.');
-            hideProgress();
-            lockPage(false);
-        });
-        xhr.addEventListener('abort', () => {
-            uploading = false;
-            activeXhr = null;
-            if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
-            showError('업로드를 취소했습니다.');
-            hideProgress();
-            lockPage(false);
-        });
-
-        xhr.send(fd);
     }
 
     // ---- 페이지 잠금 (iso-new 와 동일 패턴) ---------------------------
@@ -495,11 +337,4 @@
         errorBox.classList.remove('is-visible');
     }
 
-    function formatBytes(n) {
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        if (n < 1024) return n.toFixed(0) + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-        if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
-        return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
-    }
 })();

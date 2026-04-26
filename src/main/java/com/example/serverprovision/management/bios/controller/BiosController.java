@@ -10,7 +10,13 @@ import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadResponse;
-import com.example.serverprovision.management.bios.dto.response.DirectoryListingResponse;
+import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
+import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
+import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
+import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotFoundException;
+import com.example.serverprovision.management.common.filesystem.exception.DirectoryBrowseIoException;
+import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
+import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.bios.service.BiosUploadIntentService;
@@ -35,14 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
  * A3 v3. BIOS 번들 관리 MVC 컨트롤러.
@@ -64,6 +63,7 @@ public class BiosController {
     private final BiosUploadIntentService biosUploadIntentService;
     private final BoardModelService boardModelService;
     private final BiosVerificationLauncher biosVerificationLauncher;
+    private final DirectoryBrowseService directoryBrowseService;
 
     // ==== 목록 ========================================================
 
@@ -71,11 +71,13 @@ public class BiosController {
     public String list(@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
                        @RequestParam(name = "selectId", required = false) Long selectId,
                        @RequestParam(name = "selectBoardId", required = false) Long selectBoardId,
+                       @RequestParam(name = "selectedBoardId", required = false) Long selectedBoardId,
                        Model model) {
+        Long initialBoardId = selectBoardId != null ? selectBoardId : selectedBoardId;
         model.addAttribute("boards", biosService.findAllGrouped(includeDeleted));
         model.addAttribute("includeDeleted", includeDeleted);
         model.addAttribute("selectId", selectId);
-        model.addAttribute("selectBoardId", selectBoardId);
+        model.addAttribute("selectBoardId", initialBoardId);
         return "management/bios/list";
     }
 
@@ -246,35 +248,21 @@ public class BiosController {
     @GetMapping(path = "/browse")
     @ResponseBody
     public ResponseEntity<?> browse(@RequestParam(name = "path", required = false) String pathParam) {
-        String raw = (pathParam == null || pathParam.isBlank()) ? "/" : pathParam;
-        Path target;
         try {
-            target = Path.of(raw).toAbsolutePath().normalize();
-        } catch (InvalidPathException e) {
+            return ResponseEntity.ok(directoryBrowseService.browse(new DirectoryBrowseRequest(pathParam, false)));
+        } catch (InvalidBrowsePathException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ApiErrorResponse("경로 형식이 올바르지 않습니다 : " + raw));
-        }
-        if (!Files.exists(target)) {
+                    .body(new ApiErrorResponse(e.getMessage()));
+        } catch (BrowseTargetNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ApiErrorResponse("경로를 찾을 수 없습니다 : " + target));
-        }
-        if (!Files.isDirectory(target)) {
+                    .body(new ApiErrorResponse(e.getMessage()));
+        } catch (BrowseTargetNotDirectoryException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(new ApiErrorResponse("디렉토리가 아닙니다 : " + target));
-        }
-        List<DirectoryListingResponse.Entry> entries = new ArrayList<>();
-        try (Stream<Path> children = Files.list(target)) {
-            children.filter(Files::isDirectory)
-                    .map(p -> p.getFileName().toString())
-                    .sorted(Comparator.naturalOrder())
-                    .forEach(name -> entries.add(DirectoryListingResponse.Entry.directory(name)));
-        } catch (IOException e) {
+                    .body(new ApiErrorResponse(e.getMessage()));
+        } catch (DirectoryBrowseIoException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiErrorResponse("디렉토리 열람 중 오류 : " + e.getMessage()));
+                    .body(new ApiErrorResponse(e.getMessage()));
         }
-        Path parent = target.getParent();
-        String parentStr = parent == null ? null : parent.toString();
-        return ResponseEntity.ok(new DirectoryListingResponse(target.toString(), parentStr, entries));
     }
 
     // ==== 헬퍼 =========================================================

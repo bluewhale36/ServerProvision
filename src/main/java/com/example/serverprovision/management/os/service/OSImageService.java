@@ -23,6 +23,7 @@ import com.example.serverprovision.management.os.exception.InvalidIsoPathExcepti
 import com.example.serverprovision.management.os.exception.DuplicateFilenameException;
 import com.example.serverprovision.management.os.exception.ISONotFoundException;
 import com.example.serverprovision.management.os.exception.IllegalOSImageStateException;
+import com.example.serverprovision.management.os.exception.IsoUploadIntentConflictException;
 import com.example.serverprovision.management.os.exception.OSImageNotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
@@ -35,6 +36,7 @@ import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
 import com.example.serverprovision.global.marker.exception.SidecarConflictException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
+import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +48,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -79,6 +80,7 @@ public class OSImageService {
     private final OSEnvironmentRepository envRepository;
     private final OSPackageGroupRepository grpRepository;
     private final ProvisionMarkerService markerService;
+    private final BackgroundJobService backgroundJobService;
 
     // ==== 조회 ========================================================
 
@@ -185,81 +187,101 @@ public class OSImageService {
 
     @Transactional
     public Long addISO(Long osImageId, ISOCreateRequest request, MultipartFile uploadedFile) {
-        OSImage parent = requireActiveImage(osImageId);
+        PreparedIsoRegistration prepared = prepareIsoRegistration(osImageId, request, uploadedFile);
+        return finalizePreparedIsoRegistration(null, prepared);
+    }
+
+    @Transactional
+    public PreparedIsoRegistration prepareIsoRegistration(Long osImageId,
+                                                          ISOCreateRequest request,
+                                                          MultipartFile uploadedFile) {
+        requireActiveImage(osImageId);
 
         boolean hasFile = uploadedFile != null && !uploadedFile.isEmpty();
         String originalFilename = hasFile ? uploadedFile.getOriginalFilename() : null;
-
-        // '/' 로 끝나는 경로는 디렉토리 — 업로드 파일명을 append 해 실제 저장 경로를 완성.
-        // 파일명 누락은 사용자 입력 문제이므로 409(Conflict) InvalidIsoPathException 으로 던진다.
         String resolvedPath = IsoPathResolver.resolve(
                 request.isoPath(),
                 originalFilename,
                 path -> new InvalidIsoPathException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path));
 
-        log.info("[addISO] osImageId={}, raw={}, resolved={}, allowCreateDirectory={}, hasFile={}",
+        log.info("[prepareIsoRegistration] osImageId={}, raw={}, resolved={}, allowCreateDirectory={}, hasFile={}",
                 osImageId, request.isoPath(), resolvedPath, request.allowCreateDirectory(), hasFile);
 
-        // 1) 상위 디렉토리 검증·생성 (파일 유무와 무관)
         ensureParentDirectory(resolvedPath, request.allowCreateDirectory());
         Path target = Path.of(resolvedPath);
 
-        // 2) sidecar 마커 충돌 사전 검사 — 기존 마커 보존 (다른 자원의 마커거나 잔재)
+        isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(osImageId, resolvedPath)
+                .ifPresent(existing -> {
+                    throw new IsoUploadIntentConflictException("같은 경로에 이미 등록된 ISO 가 있습니다 : "
+                            + existing.getIsoPath());
+                });
+
         Path sidecar = markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR);
         if (Files.exists(sidecar)) {
             throw new SidecarConflictException(sidecar.toString());
         }
 
-        // 3) 파일 처리 + manifestHash 산출 — 두 케이스 모두에서 산출 (마커 무결성 검증의 기준값)
-        String manifestHash;
         if (hasFile) {
-            // 업로드 케이스 : 동일 이름 파일이 이미 있으면 거절 (덮어쓰기 방지)
             if (Files.exists(target) && !Files.isDirectory(target)) {
                 throw new DuplicateFilenameException(resolvedPath);
             }
-            // 저장과 동시에 SHA-256 을 흘려 계산. I/O 한 번으로 "쓰기 + 해시" 모두 수행.
-            manifestHash = storeUploadedFileWithChecksum(uploadedFile, resolvedPath);
-            // 내용 동일 ISO 가 활성 상태로 존재하면 방금 저장한 파일을 지우고 거절 — 디스크 낭비 방지.
-            String calculatedHash = manifestHash;
-            isoRepository.findFirstByChecksumAndIsDeletedFalse(calculatedHash).ifPresent(existing -> {
-                deleteQuietly(target);
-                throw new DuplicateISOContentException(existing.getIsoPath());
-            });
-        } else {
-            // 경로만 입력 케이스 : 디스크에 파일이 이미 있어야 함. 없으면 거절.
-            if (!Files.isRegularFile(target)) {
-                throw new InvalidIsoPathException("ISO 파일이 해당 경로에 존재하지 않습니다 : " + resolvedPath);
-            }
-            // manifestHash 계산 — 디스크에서 읽어 SHA-256 (12GB 면 수십 초~수 분, 사용자에게 안내됨)
-            manifestHash = computeFileSha256(target);
-            // 내용 중복 검사 — 같은 hash 의 활성 ISO 가 있으면 거절 (파일은 이미 디스크에 있고 사용자가 정리해야 함)
-            String calculatedHash = manifestHash;
-            isoRepository.findFirstByChecksumAndIsDeletedFalse(calculatedHash).ifPresent(existing -> {
-                throw new DuplicateISOContentException(existing.getIsoPath());
-            });
+            storeUploadedFile(uploadedFile, resolvedPath);
+        } else if (!Files.isRegularFile(target)) {
+            throw new InvalidIsoPathException("ISO 파일이 해당 경로에 존재하지 않습니다 : " + resolvedPath);
         }
 
-        // 4) 2-phase save : entity 선 저장 → isoId 획득 → marker 서명 계산 → 갱신 + 마커 파일 기록
+        String originalName = hasFile
+                ? originalFilename
+                : target.getFileName().toString();
+        return new PreparedIsoRegistration(
+                osImageId,
+                resolvedPath,
+                request.description(),
+                originalName != null ? originalName : "",
+                hasFile
+        );
+    }
+
+    @Transactional
+    public Long finalizePreparedIsoRegistration(String jobId, PreparedIsoRegistration prepared) {
+        OSImage parent = requireActiveImage(prepared.osImageId());
+        Path target = Path.of(prepared.resolvedPath());
+
+        String manifestHash = computeFileSha256(target);
+        startJobStage(jobId, IsoRegistrationStage.CHECK_DUPLICATE);
+
+        isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(prepared.osImageId(), prepared.resolvedPath())
+                .ifPresent(existing -> {
+                    throw new IsoUploadIntentConflictException("같은 경로에 이미 등록된 ISO 가 있습니다 : "
+                            + existing.getIsoPath());
+                });
+
+        isoRepository.findFirstByChecksumAndIsDeletedFalse(manifestHash).ifPresent(existing -> {
+            if (prepared.uploadedFile()) {
+                deleteQuietly(target);
+            }
+            throw new DuplicateISOContentException(existing.getIsoPath());
+        });
+
+        startJobStage(jobId, IsoRegistrationStage.PERSIST_METADATA);
+
         ISO saved = isoRepository.save(ISO.builder()
                 .osImage(parent)
-                .isoPath(resolvedPath)
+                .isoPath(prepared.resolvedPath())
                 .checksum(manifestHash)
                 .manifestHash(manifestHash)
                 .markerSignature(null)
-                .description(request.description())
+                .description(prepared.description())
                 .isEnabled(true)
                 .isDeleted(false)
                 .build());
 
-        String filenameForAttr = hasFile
-                ? originalFilename
-                : target.getFileName().toString();
         MarkerContent unsigned = new MarkerContent(
                 ResourceType.OS_ISO.name(),
                 saved.getId(),
                 Map.of(
-                        "osImageId", String.valueOf(osImageId),
-                        "originalFilename", filenameForAttr != null ? filenameForAttr : ""
+                        "osImageId", String.valueOf(prepared.osImageId()),
+                        "originalFilename", prepared.originalFilename()
                 ),
                 Instant.now(),
                 manifestHash,
@@ -269,8 +291,8 @@ public class OSImageService {
         saved.reissueMarker(manifestHash, signature);
         markerService.write(target, MarkerLayout.SIDECAR, unsigned.withSignature(signature));
 
-        log.info("[addISO] 등록 완료. isoId={}, osImageId={}, hasFile={}, hash={}",
-                saved.getId(), osImageId, hasFile, manifestHash);
+        log.info("[finalizePreparedIsoRegistration] 등록 완료. isoId={}, osImageId={}, uploadedFile={}, hash={}",
+                saved.getId(), prepared.osImageId(), prepared.uploadedFile(), manifestHash);
         return saved.getId();
     }
 
@@ -317,23 +339,25 @@ public class OSImageService {
     }
 
     /**
-     * 업로드 스트림을 목적 경로에 저장하면서 동일 스트림에 대해 SHA-256 을 흘려 계산한다.
-     * 대용량 ISO (10GB+) 라도 추가 리드 없이 한 번의 I/O 로 저장 + 해시가 끝난다.
-     * 이 함수는 상위 디렉토리가 이미 존재한다고 전제한다 — {@link #ensureParentDirectory} 가 선행되어야 한다.
+     * 업로드 스트림을 목적 경로에 저장한다.
+     * 해시 계산은 foreground 요청에서 제거되었고, background 후처리 단계가 파일을 다시 읽어 수행한다.
      */
-    private String storeUploadedFileWithChecksum(MultipartFile file, String targetPath) {
+    private void storeUploadedFile(MultipartFile file, String targetPath) {
         try {
             Path target = Path.of(targetPath);
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            try (InputStream in = file.getInputStream();
-                 DigestInputStream dis = new DigestInputStream(in, md)) {
-                Files.copy(dis, target, StandardCopyOption.REPLACE_EXISTING);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, target);
             }
-            return HexFormat.of().formatHex(md.digest());
-        } catch (IOException | NoSuchAlgorithmException e) {
+        } catch (IOException e) {
             // IOException 의 cause 메시지(예: "No space left on device") 까지 노출해 운영자 진단을 돕는다.
             String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             throw new ISOFileStorageException("ISO 파일 저장에 실패했습니다. path=" + targetPath + " (" + reason + ")", e);
+        }
+    }
+
+    private void startJobStage(String jobId, IsoRegistrationStage stage) {
+        if (jobId != null && !jobId.isBlank()) {
+            backgroundJobService.startStage(jobId, stage);
         }
     }
 
@@ -344,6 +368,14 @@ public class OSImageService {
             // 중복 판정 직후의 파일 제거 실패는 핵심 흐름을 막지 않는다 — 운영자가 별도로 정리할 대상.
         }
     }
+
+    public record PreparedIsoRegistration(
+            Long osImageId,
+            String resolvedPath,
+            String description,
+            String originalFilename,
+            boolean uploadedFile
+    ) {}
 
     @Transactional
     public void updateISO(Long osImageId, Long isoId, ISOUpdateRequest request) {

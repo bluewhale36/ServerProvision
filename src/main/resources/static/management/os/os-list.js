@@ -8,8 +8,7 @@
       - 완료 대상 OS 가 현재 active 면 env-groups fragment 를 즉시 부분 갱신.
       - active 가 아니면 stale 로 표시. 사용자가 그 OS 를 다시 클릭하면 select 시점에 refresh.
 
-   ISO 업로드는 foreground XHR 로 수행되며 완료 시 iso-new.js 가 직접 목록 페이지로
-   redirect 하므로 여기서 별도 이벤트 처리를 하지 않는다.
+   ISO 등록 후처리는 ISO_REGISTRATION job 완료 시점에 반영된다.
    ============================================================ */
 
 (function () {
@@ -102,6 +101,7 @@
     });
 
     const initialId = miller.dataset.initialSelectId;
+    const initialBoardId = miller.dataset.initialSelectBoardId;
     if (initialId) {
         const versionBtn = versionCol.querySelector(
             '.n-miller-item[data-os-id="' + initialId + '"]'
@@ -113,7 +113,22 @@
                 selectOsId(initialId);
             }
         }
+    } else if (initialBoardId) {
+        const boardBtn = nameCol.querySelector(
+            '.n-miller-item[data-os-key="' + initialBoardId + '"]'
+        );
+        if (boardBtn) {
+            selectOsName(initialBoardId);
+        }
     }
+
+    try {
+        const pendingToast = sessionStorage.getItem('os.isoRegistration.toast');
+        if (pendingToast && window.bgjobToast) {
+            window.bgjobToast(pendingToast, { variant: 'info' });
+            sessionStorage.removeItem('os.isoRegistration.toast');
+        }
+    } catch (_) { /* ignore */ }
 
     // ---- 추출 시작 (A1-1) --------------------------------------
 
@@ -228,6 +243,30 @@
         } catch (_) { /* 다음 select 시점에 재시도 */ }
     }
 
+    async function refreshIsoSection(panel, osId) {
+        const wrap = panel.querySelector('.n-iso-section-wrap');
+        if (!wrap) return;
+
+        const openIsoIds = Array.from(
+            panel.querySelectorAll('.n-accordion-item[open][data-iso-id]')
+        ).map(el => el.dataset.isoId);
+
+        try {
+            const resp = await fetch(`/management/os/${encodeURIComponent(osId)}/iso-section-fragment`, {
+                headers: { 'Accept': 'text/html' }
+            });
+            if (!resp.ok) return;
+            const html = await resp.text();
+            wrap.outerHTML = html;
+
+            for (const isoId of openIsoIds) {
+                const item = panel.querySelector(`.n-accordion-item[data-iso-id="${CSS.escape(isoId)}"]`);
+                if (item) item.setAttribute('open', 'open');
+            }
+            bindExtractButtons(panel);
+        } catch (_) { /* 다음 이벤트까지 현 상태 유지 */ }
+    }
+
     // 추출 완료 시 해당 ISO 아코디언 행의 "설치 환경" / "패키지 그룹" dd 셀만 교체한다.
     // 전체 아코디언을 재렌더하면 사용자가 열어둔 다른 행이 닫히므로 최소 단위로 끊는다.
     async function refreshIsoProvisions(isoPath) {
@@ -284,6 +323,15 @@
 
     document.addEventListener('bgjob:completed', e => {
         const d = e.detail || {};
+        if (d.type === 'ISO_REGISTRATION') {
+            if (window.bgjobToast) {
+                window.bgjobToast('ISO 등록이 완료되었습니다.', { variant: 'success' });
+            }
+            const osId = d.metadata && d.metadata.osId ? d.metadata.osId : null;
+            const panel = osId ? findPanelByOsId(osId) : null;
+            if (panel) refreshIsoSection(panel, osId);
+            return;
+        }
         if (d.type !== 'COMPS_EXTRACTION') return;
 
         // 1) 추출 버튼을 "추출됨" 상태로 굳힘 (어느 OS 가 focused 든 무관)
@@ -312,6 +360,12 @@
 
     document.addEventListener('bgjob:failed', e => {
         const d = e.detail || {};
+        if (d.type === 'ISO_REGISTRATION') {
+            if (window.bgjobToast) {
+                window.bgjobToast('ISO 등록 실패: ' + (d.subtitle || d.title || ''), { variant: 'error' });
+            }
+            return;
+        }
         if (d.type !== 'COMPS_EXTRACTION') return;
         restoreExtractByIsoPath(d.subtitle);
         if (window.bgjobToast) {

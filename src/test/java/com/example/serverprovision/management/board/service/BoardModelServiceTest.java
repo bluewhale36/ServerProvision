@@ -5,6 +5,8 @@ import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.management.bmc.entity.BoardBMC;
+import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +35,7 @@ class BoardModelServiceTest {
 
     @Mock BoardModelRepository boardModelRepository;
     @Mock BiosRepository biosRepository;
+    @Mock BmcRepository bmcRepository;
     @InjectMocks BoardModelService boardModelService;
 
     @Test
@@ -67,8 +70,8 @@ class BoardModelServiceTest {
     }
 
     @Test
-    @DisplayName("softDelete : BoardModel 이 soft 삭제되면 활성 하위 BIOS 도 함께 soft 삭제된다")
-    void softDelete_cascadesToActiveBios() {
+    @DisplayName("softDelete : BoardModel 이 soft 삭제되면 활성 하위 BIOS / BMC 도 함께 soft 삭제된다")
+    void softDelete_cascadesToActiveChildren() {
         // given
         BoardModel board = BoardModel.builder()
                 .id(7L).vendor(Vendor.ASUS).modelName("WS C621E SAGE")
@@ -79,8 +82,16 @@ class BoardModelServiceTest {
         BoardBIOS activeBios = BoardBIOS.builder()
                 .id(101L).boardModel(board).name("WS BIOS").version("1.12")
                 .isEnabled(true).isDeleted(false).build();
+        BoardBMC activeBmc = BoardBMC.builder()
+                .id(201L).boardModel(board).name("AST2600").version("12.61")
+                .treeRootPath("/fw/bmc").legacyFilePath("/fw/bmc").boardModelIdMirror(7L)
+                .entrypointRelativePath("flash.nsh")
+                .manifestHash("hash").markerSignature("sig").fileCount(2).totalBytes(128L)
+                .isEnabled(true).isDeleted(false).build();
         given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(7L))
                 .willReturn(List.of(activeBios));
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(7L))
+                .willReturn(List.of(activeBmc));
 
         // when
         boardModelService.softDelete(7L);
@@ -88,6 +99,7 @@ class BoardModelServiceTest {
         // then
         assertThat(board.isDeleted()).isTrue();
         assertThat(activeBios.isDeleted()).isTrue();
+        assertThat(activeBmc.isDeleted()).isTrue();
     }
 
     @Test

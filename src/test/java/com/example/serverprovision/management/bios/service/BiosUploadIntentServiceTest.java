@@ -6,6 +6,7 @@ import com.example.serverprovision.management.bios.exception.DuplicateBiosVersio
 import com.example.serverprovision.management.bios.exception.MarkerConflictException;
 import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
+import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
@@ -32,6 +33,7 @@ class BiosUploadIntentServiceTest {
 
     @Mock BoardModelRepository boardModelRepository;
     @Mock BiosRepository biosRepository;
+    @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
     @InjectMocks BiosUploadIntentService service;
 
     private BoardModel activeBoard() {
@@ -79,12 +81,12 @@ class BiosUploadIntentServiceTest {
 
     @Test
     @DisplayName("issue(fail) : targetDirectory 비어있지 않고 marker 없음 → TargetDirectoryNotEmpty")
-    void issue_targetNotEmpty(@TempDir Path tmp) throws Exception {
+    void issue_targetNotEmpty(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
-        Files.createDirectories(target);
-        Files.writeString(target.resolve("unrelated.txt"), "x");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
+        org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
+                .given(targetDirectoryPolicyService).validateForIntent(target, false);
 
         assertThatThrownBy(() -> service.issue(10L, req(target.toString())))
                 .isInstanceOf(TargetDirectoryNotEmptyException.class);
@@ -92,12 +94,12 @@ class BiosUploadIntentServiceTest {
 
     @Test
     @DisplayName("issue(fail) : targetDirectory 에 marker 있으면 MarkerConflict")
-    void issue_markerConflict(@TempDir Path tmp) throws Exception {
+    void issue_markerConflict(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
-        Files.createDirectories(target);
-        Files.writeString(target.resolve(".provision.json"), "{}");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
+        org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
+                .given(targetDirectoryPolicyService).validateForIntent(target, false);
 
         assertThatThrownBy(() -> service.issue(10L, req(target.toString())))
                 .isInstanceOf(MarkerConflictException.class);

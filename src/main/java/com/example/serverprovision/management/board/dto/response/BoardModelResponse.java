@@ -12,6 +12,8 @@ public record BoardModelResponse(
         Vendor vendor,
         String modelName,
         String description,
+        int biosCount,
+        int bmcCount,
         boolean isEnabled,
         boolean isDeleted
 ) {
@@ -21,6 +23,8 @@ public record BoardModelResponse(
                 entity.getVendor(),
                 entity.getModelName(),
                 entity.getDescription(),
+                0,
+                0,
                 entity.isEnabled(),
                 entity.isDeleted()
         );

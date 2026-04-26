@@ -166,7 +166,7 @@ com.example.serverprovision/
 - **M0** — Cross-cutting 1회성 리네임 슬라이스 (영역 재구성)
 
 ### 수직 슬라이스 (페이지당 10 단계)
-1. URL / 데이터 흐름 스케치 — **`plan/YY-MM-DD_HH:MM:SS_<페이지키>_plan.docx` 산출** (아래 §Step 1 — plan docx 규약 참조)
+1. URL / 데이터 흐름 스케치 — **`plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.docx` 산출** (아래 §Step 1 — plan docx 규약 참조)
 2. Thymeleaf 뷰 (더미 데이터, `fragments/layout.html` + 기존 CSS 재사용)
 3. Controller (`@ModelAttribute` + `BindingResult`, Model 에 Response 만)
 4. Request / Response DTO (`@Valid`)

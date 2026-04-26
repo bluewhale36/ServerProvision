@@ -1,15 +1,11 @@
 /* ============================================================
    management/os/iso-new.html 전용 스크립트
    ─────────────────────────────────────────────────────────────
-   ISO 생성 정책 (MK1 마커 도입 후 갱신) :
-     · 파일 없음 → 경로 입력만으로 등록. 단, 서버는 디스크의 ISO 파일을 읽어
-       SHA-256 manifestHash 를 계산하고 sidecar 마커({basename}.provision.json)를 발급한다.
-       12GB ISO 면 수 분 소요 → 사용자에게 진행 안내 + submit 버튼 잠금.
-       기본 form submit 을 허용하되 진행 메시지 / 페이지 잠금은 동일하게 적용 (UI 통일).
-     · 파일 있음 → foreground XHR 로 업로드. 실시간 % / 속도 / ETA 는 페이지 내 진행 바에
-       표시되고, 업로드 후 서버 측 SHA-256 + 마커 발급 단계가 progress tween 으로 채워진다.
-     · 두 케이스 모두 진행률 박스를 노출 — "큰 파일은 시간이 걸린다" 는 동일한 UX.
-     · Background Job 프레임워크와 무관 — JobType 에도 ISO_UPLOAD 가 존재하지 않는다.
+   ISO 생성 정책 :
+     · 파일 있음  → foreground XHR 로 바이트를 먼저 올린다.
+     · 파일 없음 → 기존 경로만 서버에 넘긴다.
+     · 두 케이스 모두 해시 계산 + marker 발급 + DB 등록은 background job 으로 후행 처리한다.
+       화면은 job 시작만 확인한 뒤 목록 페이지로 이동하고, 완료/실패는 알림 센터가 담당한다.
    ============================================================ */
 (function () {
     const TAG = '[iso-new]';
@@ -175,27 +171,15 @@
     });
 
     form.addEventListener('submit', async e => {
-        // 파일 유무로 조기 분기
+        e.preventDefault();
         const fileInput = form.querySelector('input[type="file"]');
         const file = fileInput && fileInput.files[0] ? fileInput.files[0] : null;
 
         if (!file) {
-            // 경로만 등록 케이스 — 서버에서 manifestHash 계산 + 마커 발급으로 시간이 걸릴 수 있음.
-            // 기본 form submit 은 그대로 허용 (서버 redirect 로 목록 이동), 단 진행 안내 / 잠금만 추가.
-            console.log(TAG, '파일 없음 — 경로 등록 + 마커 발급 진행. submit 허용 + UI 잠금');
-            uploading = true;  // beforeunload 보호 활성
-            submitBtn.disabled = false;  // disable 시 form submit 자체가 막힐 수 있어 그대로 두고 라벨만
-            submitBtn.textContent = '검증·등록 중…';
-            submitBtn.style.pointerEvents = 'none';
-            submitBtn.style.opacity = '0.7';
-            showProgress('파일 점검 + manifest 해시 계산 + 마커 발급 중… (큰 ISO 는 수 분 소요)', null);
-            // navbar / back 링크만 잠금 (form 요소는 이미 submit 직전이라 건드리지 않음)
-            if (backLink) setLinkDisabled(backLink, true);
-            lockNavbar(true);
+            console.log(TAG, '파일 없음 — 경로 검증 후 background 등록 시작');
+            startPathOnlyRegistration();
             return;
         }
-
-        e.preventDefault();
         console.log(TAG, '파일 있음 — intent 핸드셰이크 후 XHR foreground 업로드', {
             name: file.name, size: file.size
         });
@@ -270,6 +254,24 @@
         }
     }
 
+    function startPathOnlyRegistration() {
+        const fd = new FormData(form);
+
+        resetError();
+        lockPage(true);
+        showProgress('기존 ISO 경로 확인 후 등록 작업 시작 중…', null);
+
+        const xhr = new XMLHttpRequest();
+        activeXhr = xhr;
+        uploading = true;
+        xhr.open('POST', uploadUrl);
+
+        xhr.addEventListener('load', () => handleUploadResponse(xhr, false));
+        xhr.addEventListener('error', () => handleUploadNetworkError('네트워크 오류로 등록 요청이 중단되었습니다.'));
+        xhr.addEventListener('abort', () => handleUploadNetworkError('등록 요청을 취소했습니다.'));
+        xhr.send(fd);
+    }
+
     function startXhrUpload(file, uploadToken) {
         // intent 에서 받은 토큰은 이 함수에서 단 한 번 X-Upload-Token 으로 전송된다.
 
@@ -291,11 +293,10 @@
         const speedSamples = [];
         let lastUiUpdate = 0;
 
-        // 진행도 단계 비율. 실제 네트워크 전송은 0~UPLOAD_END, 그 뒤 서버 저장·체크섬 단계는
-        // UPLOAD_END~CHECKSUM_END 사이를 시간 tween 으로 채운다. 마지막 1% 는 서버 응답 수신 시 100%.
+        // 진행도 단계 비율. 실제 네트워크 전송은 0~UPLOAD_END, 그 뒤 서버가 background job 을
+        // 등록하는 구간을 짧은 tween 으로 보여준다. 마지막 응답 수신 시 100%.
         const UPLOAD_END_PCT = 90;
         const CHECKSUM_END_PCT = 99;
-        // SHA-256 계산 속도 추정 (보수적). 대부분의 현대 CPU 가 300~500 MB/s.
         const CHECKSUM_ESTIMATED_MB_PER_SEC = 300;
         let checksumTimer = null;
 
@@ -330,62 +331,64 @@
         });
 
         xhr.upload.addEventListener('load', () => {
-            // 업로드 바이트 전송 완료 — 서버 측 저장 + SHA-256 체크섬 + DB 커밋 단계 시작.
-            // 파일 크기 기반으로 예상 시간을 계산해 UPLOAD_END → CHECKSUM_END 를 tween.
+            // 업로드 바이트 전송 완료 — 이후 해시 계산/등록은 background job 이 담당한다.
             const fileSizeMB = (file && file.size ? file.size : 0) / (1024 * 1024);
-            const estimatedSec = Math.max(1.5, fileSizeMB / CHECKSUM_ESTIMATED_MB_PER_SEC);
+            const estimatedSec = Math.max(1.0, fileSizeMB / CHECKSUM_ESTIMATED_MB_PER_SEC);
             const tweenStart = Date.now();
             checksumTimer = setInterval(() => {
                 const elapsed = (Date.now() - tweenStart) / 1000;
-                // 처음엔 빨리 올라가다 점점 느려지는 easing — 시간이 길어져도 99% 를 넘지 않도록.
                 const ratio = 1 - Math.exp(-elapsed / (estimatedSec * 0.6));
                 const pct = UPLOAD_END_PCT + (CHECKSUM_END_PCT - UPLOAD_END_PCT) * Math.min(1, ratio);
                 showProgress(
-                    `${Math.floor(pct)}%  서버 저장 · 체크섬 검증 중…`,
+                    `${Math.floor(pct)}%  서버 수신 완료 · 등록 작업 시작 중…`,
                     pct
                 );
             }, 150);
         });
 
-        xhr.addEventListener('load', () => {
-            uploading = false;
-            activeXhr = null;
-            if (checksumTimer) { clearInterval(checksumTimer); checksumTimer = null; }
-            if (xhr.status >= 200 && xhr.status < 300) {
-                console.log(TAG, 'upload 완료 — 목록으로 이동');
-                showProgress('100%  완료', 100);
-                // 잠금 해제는 생략하고 바로 navigate (이 페이지는 버려짐)
-                window.location.href = listUrl;
-                return;
-            }
-            let msg = 'HTTP ' + xhr.status;
-            try {
-                const body = JSON.parse(xhr.responseText);
-                if (body && body.message) msg = body.message;
-            } catch (_) { /* ignore */ }
-            console.error(TAG, 'upload 실패', msg);
-            showError(msg);
-            hideProgress();
-            lockPage(false);
-        });
-        xhr.addEventListener('error', () => {
-            uploading = false;
-            activeXhr = null;
-            if (checksumTimer) { clearInterval(checksumTimer); checksumTimer = null; }
-            showError('네트워크 오류로 업로드가 중단되었습니다.');
-            hideProgress();
-            lockPage(false);
-        });
-        xhr.addEventListener('abort', () => {
-            uploading = false;
-            activeXhr = null;
-            if (checksumTimer) { clearInterval(checksumTimer); checksumTimer = null; }
-            showError('업로드를 취소했습니다.');
-            hideProgress();
-            lockPage(false);
-        });
+        xhr.addEventListener('load', () => handleUploadResponse(xhr, true, checksumTimer));
+        xhr.addEventListener('error', () => handleUploadNetworkError('네트워크 오류로 업로드가 중단되었습니다.', checksumTimer));
+        xhr.addEventListener('abort', () => handleUploadNetworkError('업로드를 취소했습니다.', checksumTimer));
 
         xhr.send(fd);
+    }
+
+    function handleUploadResponse(xhr, hadFile, checksumTimer) {
+        uploading = false;
+        activeXhr = null;
+        if (checksumTimer) { clearInterval(checksumTimer); }
+        if (xhr.status >= 200 && xhr.status < 300) {
+            let body = {};
+            try { body = JSON.parse(xhr.responseText || '{}'); } catch (_) { /* ignore */ }
+            const redirect = body.redirect || listUrl;
+            const msg = hadFile
+                ? 'ISO 업로드가 끝났고 등록 후처리가 background 에서 계속됩니다.'
+                : 'ISO 등록 후처리가 background 에서 시작되었습니다.';
+            try {
+                sessionStorage.setItem('os.isoRegistration.toast', msg);
+            } catch (_) { /* ignore */ }
+            showProgress('100%  등록 작업 시작됨', 100);
+            window.location.href = redirect;
+            return;
+        }
+        let msg = 'HTTP ' + xhr.status;
+        try {
+            const body = JSON.parse(xhr.responseText);
+            if (body && body.message) msg = body.message;
+        } catch (_) { /* ignore */ }
+        console.error(TAG, 'upload 실패', msg);
+        showError(msg);
+        hideProgress();
+        lockPage(false);
+    }
+
+    function handleUploadNetworkError(message, checksumTimer) {
+        uploading = false;
+        activeXhr = null;
+        if (checksumTimer) { clearInterval(checksumTimer); }
+        showError(message);
+        hideProgress();
+        lockPage(false);
     }
 
     // ---- 페이지 잠금 / 해제 --------------------------------------

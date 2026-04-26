@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BMC 펌웨어 관리')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bmc')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BMC 펌웨어 관리</h1>
+        <div class="n-header-actions">
+            <a th:unless="${includeDeleted}"
+               th:href="@{/management/bmc(includeDeleted=true)}"
+               class="n-btn n-btn-ghost">삭제된 항목 포함</a>
+            <a th:if="${includeDeleted}"
+               th:href="@{/management/bmc}"
+               class="n-btn n-btn-ghost">기본 보기</a>
+        </div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(boards)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 메인보드 모델이 없습니다.</div>
+            <div class="n-empty-desc">
+                BMC 펌웨어는 메인보드 모델에 귀속됩니다.
+                <a th:href="@{/management/board}">메인보드 모델 관리</a> 페이지에서 모델을 먼저 등록하세요.
+            </div>
+        </div>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(boards)}"
+         class="n-miller"
+         th:data-initial-select-id="${selectId}"
+         th:data-initial-select-board-id="${selectBoardId}">
+
+        <div class="n-miller-col n-miller-col-names">
+            <div class="n-miller-col-header">메인보드 모델</div>
+            <button th:each="board : ${boards}"
+                    type="button"
+                    class="n-miller-item n-miller-item-split"
+                    th:classappend="${board.isDeleted} ? 'n-miller-item-disabled' : ''"
+                    th:data-os-key="${board.id}">
+                <span class="n-miller-version-label">
+                    <span th:text="${board.modelName}">MS03-CE0-000</span>
+                    <span style="font-size: 11px; color: var(--n-text-muted);"
+                          th:text="' · ' + ${board.vendorDisplayName}"> · Gigabyte</span>
+                    <span th:if="${board.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                </span>
+            </button>
+            <div class="n-empty-desc" style="padding: 10px 12px; font-size: 11px;">
+                신규 메인보드 모델은
+                <a th:href="@{/management/board}">메인보드 모델 관리</a>
+                페이지에서 등록하세요.
+            </div>
+        </div>
+
+        <div class="n-miller-col n-miller-col-versions">
+            <div class="n-miller-col-header">BMC 버전</div>
+            <div th:each="board : ${boards}"
+                 class="n-miller-version-panel"
+                 th:data-os-key="${board.id}">
+
+                <div th:if="${#lists.isEmpty(board.bmcList)}"
+                     class="n-empty-desc" style="padding: 10px 12px;">
+                    등록된 BMC 펌웨어가 없습니다.
+                </div>
+
+                <button th:each="bmc : ${board.bmcList}"
+                        type="button"
+                        class="n-miller-item n-miller-item-split"
+                        th:classappend="${bmc.isDeleted} ? 'n-miller-item-disabled' : ''"
+                        th:data-os-id="${bmc.id}">
+                    <span class="n-miller-version-label">
+                        <span th:text="${bmc.version}">12.61</span>
+                        <span th:if="${bmc.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                    </span>
+                    <span th:unless="${bmc.isDeleted}"
+                          class="n-miller-status-tag"
+                          th:classappend="${bmc.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:text="${bmc.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                </button>
+
+                <div th:unless="${board.isDeleted}" style="padding: 8px 12px;">
+                    <a th:href="@{/management/bmc/{boardId}/new(boardId=${board.id})}"
+                       class="n-btn n-btn-sm n-btn-primary" style="width: 100%;">+ BMC 등록</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="n-miller-col n-miller-col-detail">
+            <div class="n-miller-empty" id="millerEmpty">BMC 를 선택하여 상세 사항 보기</div>
+
+            <th:block th:each="board : ${boards}">
+                <div th:each="bmc : ${board.bmcList}"
+                     class="n-miller-detail-panel"
+                     th:data-os-id="${bmc.id}">
+
+                    <dl class="n-accordion-fields">
+                        <div class="n-accordion-field">
+                            <dt>ID</dt>
+                            <dd th:text="${bmc.id}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>메인보드</dt>
+                            <dd>
+                                <span th:text="${board.vendorDisplayName + ' · ' + board.modelName}"></span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>이름</dt>
+                            <dd th:text="${bmc.name}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>버전</dt>
+                            <dd><code th:text="${bmc.version}"></code></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>트리 루트</dt>
+                            <dd><code th:text="${bmc.treeRootPath}"></code></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>실행 대상</dt>
+                            <dd><code th:text="${bmc.entrypointRelativePath}"></code></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>manifest 해시</dt>
+                            <dd><code style="font-size: 11px;" th:text="${bmc.manifestHash}"></code></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>번들 크기</dt>
+                            <dd>
+                                <span th:text="${bmc.fileCount}">0</span> files /
+                                <span th:text="${bmc.totalBytes}">0</span> bytes
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>무결성</dt>
+                            <dd>
+                                <span class="n-badge n-badge-gray"
+                                      th:data-bmc-id="${bmc.id}"
+                                      th:data-verify-url="@{/management/bmc/{boardId}/bmc/{bmcId}/verify(boardId=${board.id},bmcId=${bmc.id})}"
+                                      th:text="${bmc.integrityStatus != null ? bmc.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
+                                <button type="button" class="n-btn n-btn-sm n-btn-ghost"
+                                        th:data-verify-url="@{/management/bmc/{boardId}/bmc/{bmcId}/verify(boardId=${board.id},bmcId=${bmc.id})}">
+                                    지금 검증
+                                </button>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>설명</dt>
+                            <dd th:text="${bmc.description != null and !#strings.isEmpty(bmc.description)} ? ${bmc.description} : '—'"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>상태</dt>
+                            <dd>
+                                <span th:if="${bmc.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
+                                <th:block th:unless="${bmc.isDeleted}">
+                                    <span class="n-badge"
+                                          th:classappend="${bmc.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
+                                          th:text="${bmc.isEnabled} ? '활성화' : '비활성화'"></span>
+                                    <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/toggle(boardId=${board.id},bmcId=${bmc.id})}"
+                                          method="post" class="n-accordion-inline-form">
+                                        <button type="submit"
+                                                class="n-btn n-btn-sm"
+                                                th:classappend="${bmc.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
+                                                th:text="${bmc.isEnabled} ? '비활성화' : '활성화'"></button>
+                                    </form>
+                                </th:block>
+                            </dd>
+                        </div>
+                    </dl>
+
+                    <div class="n-form-actions">
+                        <th:block th:unless="${bmc.isDeleted}">
+                            <a th:href="@{/management/bmc/{boardId}/bmc/{bmcId}/edit(boardId=${board.id},bmcId=${bmc.id})}"
+                               class="n-btn n-btn-secondary">수정</a>
+                            <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/delete(boardId=${board.id},bmcId=${bmc.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('이 BMC 펌웨어를 삭제할까요?');">
+                                <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
+                            </form>
+                        </th:block>
+                        <th:block th:if="${bmc.isDeleted}">
+                            <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/restore(boardId=${board.id},bmcId=${bmc.id})}"
+                                  method="post" style="display:inline;">
+                                <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                            </form>
+                        </th:block>
+                    </div>
+                </div>
+            </th:block>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/management/os/os-list.js}"></script>
+<script th:src="@{/management/bios/bios-list.js}"></script>
+</body>
+</html>

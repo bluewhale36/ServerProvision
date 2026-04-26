@@ -3,6 +3,8 @@ package com.example.serverprovision.management.bios.controller;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
+import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
+import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
 import com.example.serverprovision.management.bios.exception.BundleExtractionException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
@@ -41,6 +43,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -58,7 +61,23 @@ class BiosControllerUploadFlowTest {
     @MockitoBean BiosUploadIntentService biosUploadIntentService;
     @MockitoBean BoardModelService boardModelService;
     @MockitoBean BiosVerificationLauncher biosVerificationLauncher;
+    @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @Test
+    @DisplayName("GET /browse : 정상 경로면 200 JSON")
+    void browse_success() throws Exception {
+        given(directoryBrowseService.browse(any()))
+                .willReturn(new DirectoryListingResponse(
+                        "/opt/bios", "/opt",
+                        List.of(DirectoryListingResponse.Entry.directory("MS03-CE0"))));
+
+        mvc.perform(get("/management/bios/browse").param("path", "/opt/bios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.path").value("/opt/bios"))
+                .andExpect(jsonPath("$.entries[0].type").value("DIR"))
+                .andExpect(jsonPath("$.entries[0].name").value("MS03-CE0"));
+    }
 
     // =========== Intent 6 시나리오 ===========
 
