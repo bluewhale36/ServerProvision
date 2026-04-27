@@ -14,6 +14,7 @@ import com.example.serverprovision.management.os.repository.OSPackageGroupReposi
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
+import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +28,9 @@ import org.springframework.mock.web.MockMultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -193,6 +196,71 @@ class OSImageServiceTest {
         // 방금 저장했던 중복 파일은 디스크에서 제거되어야 한다 — 공간 낭비 방지가 핵심 목적
         assertThat(Files.exists(target)).isFalse();
         verify(isoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("findById : ISO 의 저장된 마지막 무결성 상태를 응답에 반영한다")
+    void findById_usesStoredIntegrityStatus() {
+        ISO iso = ISO.builder()
+                .id(5L)
+                .isoPath("/mnt/iso/dvd.iso")
+                .checksum("hash")
+                .manifestHash("hash")
+                .markerSignature("sig")
+                .description("")
+                .isEnabled(true)
+                .isDeleted(false)
+                .build();
+        iso.recordIntegritySnapshot(IntegrityStatus.SIGNATURE_INVALID, java.time.Instant.now());
+
+        OSImage image = OSImage.builder()
+                .id(1L)
+                .osName(OSName.ROCKY_LINUX)
+                .osVersion("9.5")
+                .description("")
+                .isEnabled(true)
+                .isDeleted(false)
+                .build();
+        image.getIsos().add(iso);
+
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(image));
+        given(envRepository.findAllByOsImage_IdOrderByEnvironmentCode_ValueAsc(1L)).willReturn(List.of());
+        given(grpRepository.findAllByOsImage_IdOrderByGroupCode_ValueAsc(1L)).willReturn(List.of());
+
+        var response = osImageService.findById(1L);
+
+        assertThat(response.isos()).hasSize(1);
+        assertThat(response.isos().get(0).integrityStatus()).isEqualTo(IntegrityStatus.SIGNATURE_INVALID);
+    }
+
+    @Test
+    @DisplayName("verifyAndRecordIntegrity : 계산 결과를 엔티티 스냅샷에 기록한다")
+    void verifyAndRecordIntegrity_recordsSnapshot(@TempDir Path tempDir) throws Exception {
+        Path isoPath = tempDir.resolve("dvd.iso");
+        Files.writeString(isoPath, "iso");
+
+        OSImage parent = OSImage.builder()
+                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .isEnabled(true).isDeleted(false).build();
+        ISO iso = ISO.builder()
+                .id(2L).osImage(parent).isoPath(isoPath.toString())
+                .checksum("old").manifestHash("old").markerSignature("sig")
+                .isEnabled(true).isDeleted(false).build();
+        var marker = new com.example.serverprovision.global.marker.MarkerContent(
+                com.example.serverprovision.global.marker.ResourceType.OS_ISO.name(),
+                2L, java.util.Map.of(), Instant.now(), "other-hash", "sig");
+
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
+        given(isoRepository.findByIdAndOsImage_Id(2L, 1L)).willReturn(Optional.of(iso));
+        given(markerService.read(isoPath, MarkerLayout.SIDECAR)).willReturn(marker);
+        given(markerService.verifySignature(marker)).willReturn(true);
+        given(markerService.verifyManifestHash(any(), any())).willReturn(false);
+
+        IntegrityStatus status = osImageService.verifyAndRecordIntegrity(1L, 2L);
+
+        assertThat(status).isEqualTo(IntegrityStatus.TAMPERED);
+        assertThat(iso.getLastIntegrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
+        assertThat(iso.getLastVerifiedAt()).isNotNull();
     }
 
     private static String sha256Hex(byte[] bytes) throws Exception {

@@ -199,6 +199,7 @@ code {
 }
 .n-badge-blue   { background: var(--n-blue-badge-bg);        color: var(--n-blue-badge-text); }
 .n-badge-green  { background: rgba(26, 174, 57, 0.1);        color: var(--n-green); }
+.n-badge-red    { background: rgba(191, 38, 38, 0.1);        color: #bf2626; }
 .n-badge-orange { background: rgba(221, 91, 0, 0.1);         color: var(--n-orange); }
 .n-badge-gray   { background: rgba(0, 0, 0, 0.06);           color: var(--n-text-sec); }
 .n-badge-teal   { background: rgba(42, 157, 153, 0.1);       color: var(--n-teal); }

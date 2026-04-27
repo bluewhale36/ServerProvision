@@ -4,6 +4,7 @@ import com.example.serverprovision.global.exception.ConflictException;
 import com.example.serverprovision.global.exception.DomainException;
 import com.example.serverprovision.global.exception.NotFoundException;
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
@@ -322,6 +323,13 @@ public class OSImageController {
                                       @PathVariable("isoId") Long isoId) {
         String jobId = isoVerificationLauncher.startVerification(osId, isoId);
         return new JobStartResponse(jobId);
+    }
+
+    @GetMapping(path = "/{osId}/iso/{isoId}/integrity-status")
+    @ResponseBody
+    public IntegrityStatusResponse integrityStatus(@PathVariable("osId") Long osId,
+                                                   @PathVariable("isoId") Long isoId) {
+        return osImageService.findIntegrityStatus(osId, isoId);
     }
 
     // 단건 marker 재발급 endpoint 는 위험도가 높아 제거됨. 일괄 재발급은

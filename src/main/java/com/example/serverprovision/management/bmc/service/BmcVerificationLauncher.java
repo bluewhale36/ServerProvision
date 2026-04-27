@@ -3,6 +3,7 @@ package com.example.serverprovision.management.bmc.service;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.job.stage.IntegrityVerificationStage;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
@@ -11,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 /**
  * BMC 파일 무결성 검증 Job 시작자.
@@ -31,7 +34,12 @@ public class BmcVerificationLauncher {
                 JobType.INTEGRITY_VERIFICATION,
                 "BMC 무결성 검증",
                 bmc.getName() + " · " + bmc.getVersion(),
-                BackgroundJobService.stagesOf(IntegrityVerificationStage.values()));
+                BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
+                Map.of(
+                        "resourceType", ResourceType.BMC_FIRMWARE.name(),
+                        "resourceId", String.valueOf(bmcId),
+                        "parentId", String.valueOf(boardId)
+                ));
         runAsync(jobId, boardId, bmcId);
         return jobId;
     }
@@ -40,7 +48,7 @@ public class BmcVerificationLauncher {
     public void runAsync(String jobId, Long boardId, Long bmcId) {
         try {
             backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
-            IntegrityStatus status = bmcService.verifyIntegrity(boardId, bmcId);
+            IntegrityStatus status = bmcService.verifyAndRecordIntegrity(boardId, bmcId);
             applyStatus(jobId, status);
         } catch (RuntimeException e) {
             log.error("[verify] BMC 검증 실패. bmcId={}", bmcId, e);

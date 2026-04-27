@@ -176,9 +176,11 @@
                             <dt>무결성</dt>
                             <dd>
                                 <!-- data-verify-url 을 통해 JS 가 POST 로 실시간 검증을 요청. 기본 표시는 '미검증' -->
-                                <span class="n-badge n-badge-gray"
+                                <span class="n-badge"
+                                      th:classappend="${T(com.example.serverprovision.management.common.view.IntegrityStatusView).badgeClass(bios.integrityStatus)}"
                                       th:data-bios-id="${bios.id}"
                                       th:data-verify-url="@{/management/bios/{boardId}/bios/{biosId}/verify(boardId=${board.id},biosId=${bios.id})}"
+                                      th:data-status-url="@{/management/bios/{boardId}/bios/{biosId}/integrity-status(boardId=${board.id},biosId=${bios.id})}"
                                       th:text="${bios.integrityStatus != null ? bios.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
                                 <button type="button" class="n-btn n-btn-sm n-btn-ghost"
                                         th:data-verify-url="@{/management/bios/{boardId}/bios/{biosId}/verify(boardId=${board.id},biosId=${bios.id})}">

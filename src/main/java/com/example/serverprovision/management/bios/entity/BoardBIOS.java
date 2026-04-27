@@ -12,6 +12,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -22,6 +24,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.nio.file.Path;
+import java.time.Instant;
 
 /**
  * 메인보드 모델에 귀속되는 BIOS "번들". 실제 파일들은 {@code treeRootPath} 가 가리키는 서버 디렉토리 하위에 전개된다.
@@ -90,6 +93,17 @@ public class BoardBIOS extends BaseTimeEntity implements Markable {
     @Column(name = "marker_signature", length = 64)
     private String markerSignature;
 
+    /** 마지막 무결성 검증 스냅샷. 목록 렌더 시 해시를 재계산하지 않고 최근 결과를 보여주기 위함. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_integrity_status", nullable = false, length = 32)
+    @Builder.Default
+    private com.example.serverprovision.management.bios.vo.IntegrityStatus lastIntegrityStatus =
+            com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED;
+
+    /** 마지막 검증 수행 시각. 미검증 자원은 null. */
+    @Column(name = "last_verified_at")
+    private Instant lastVerifiedAt;
+
     /** 트리 내 파일 개수 (marker 파일 제외). 목록 뷰 표시용. */
     @Column(name = "file_count", nullable = false)
     private int fileCount;
@@ -141,6 +155,12 @@ public class BoardBIOS extends BaseTimeEntity implements Markable {
     public void reissueMarker(String manifestHash, String markerSignature) {
         this.manifestHash = manifestHash;
         this.markerSignature = markerSignature;
+    }
+
+    public void recordIntegritySnapshot(com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
+                                        Instant verifiedAt) {
+        this.lastIntegrityStatus = integrityStatus;
+        this.lastVerifiedAt = verifiedAt;
     }
 
     /** PATH_DRIFT 자동 적용 시 BoardBiosMarkableScanner 가 호출 — DB 의 treeRootPath 만 갱신. */

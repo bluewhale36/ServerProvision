@@ -3,6 +3,8 @@ package com.example.serverprovision.management.bios.controller;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
+import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
@@ -328,6 +330,19 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/1/bios/5/verify"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.jobId").value("job-bios-5"));
+        }
+
+        @Test
+        @DisplayName("15. integrity-status — 200 + status/badgeClass")
+        void integrityStatus_returnsBody() throws Exception {
+            given(biosService.findIntegrityStatus(1L, 5L))
+                    .willReturn(IntegrityStatusResponse.of(5L, IntegrityStatus.ORIGINAL, null));
+
+            mvc.perform(get("/management/bios/1/bios/5/integrity-status"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.resourceId").value(5))
+                    .andExpect(jsonPath("$.integrityStatus").value("ORIGINAL"))
+                    .andExpect(jsonPath("$.badgeClass").value("n-badge-green"));
         }
 
         @Test

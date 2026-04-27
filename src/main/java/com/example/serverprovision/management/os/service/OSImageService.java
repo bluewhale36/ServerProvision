@@ -10,6 +10,7 @@ import com.example.serverprovision.management.os.dto.response.OSEnvironmentRespo
 import com.example.serverprovision.management.os.dto.response.OSGroupResponse;
 import com.example.serverprovision.management.os.dto.response.OSImageResponse;
 import com.example.serverprovision.management.os.dto.response.OSPackageGroupResponse;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSEnvironment;
 import com.example.serverprovision.management.os.entity.OSImage;
@@ -102,6 +103,15 @@ public class OSImageService {
      */
     public ISOResponse findISO(Long osImageId, Long isoId) {
         return ISOResponse.from(requireLiveISO(osImageId, isoId));
+    }
+
+    public IntegrityStatusResponse findIntegrityStatus(Long osImageId, Long isoId) {
+        ISO iso = requireLiveISO(osImageId, isoId);
+        return IntegrityStatusResponse.of(
+                iso.getId(),
+                iso.getLastIntegrityStatus() != null ? iso.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
+                iso.getLastVerifiedAt()
+        );
     }
 
     public List<OSGroupResponse> findAllGrouped(boolean includeDeleted) {
@@ -442,6 +452,13 @@ public class OSImageService {
             return IntegrityStatus.TAMPERED;
         }
         return IntegrityStatus.ORIGINAL;
+    }
+
+    @Transactional
+    public IntegrityStatus verifyAndRecordIntegrity(Long osImageId, Long isoId) {
+        IntegrityStatus status = verifyIntegrity(osImageId, isoId);
+        requireLiveISO(osImageId, isoId).recordIntegritySnapshot(status, Instant.now());
+        return status;
     }
 
     // 단건 ISO marker 재발급 메서드는 위험도가 높아 외부 endpoint 와 함께 제거됨.

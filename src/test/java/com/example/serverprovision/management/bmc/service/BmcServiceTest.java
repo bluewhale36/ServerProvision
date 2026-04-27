@@ -7,6 +7,8 @@ import com.example.serverprovision.management.bios.service.BundleEntrypointDetec
 import com.example.serverprovision.management.bios.service.BundleExtractionService;
 import com.example.serverprovision.management.bios.service.BundleManifestService;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
+import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse;
 import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.bmc.dto.request.BmcCreateRequest;
@@ -28,6 +30,8 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -214,5 +218,56 @@ class BmcServiceTest {
                 new MockMultipartFile("singleFile", "firmware.bin", "application/octet-stream", "bin".getBytes()));
 
         assertThat(id).isEqualTo(88L);
+    }
+
+    @Test
+    @DisplayName("findAllGrouped : 저장된 마지막 무결성 상태를 응답에 반영한다")
+    void findAllGrouped_usesStoredIntegrityStatus() {
+        BoardBMC bmc = BoardBMC.builder()
+                .id(7L).boardModel(activeBoard()).name("AST2600").version("13.06.25")
+                .treeRootPath("/opt/bmc").legacyFilePath("/opt/bmc").boardModelIdMirror(10L)
+                .entrypointRelativePath("flash.nsh").manifestHash("hash").markerSignature("sig")
+                .fileCount(3).totalBytes(2048L).description("")
+                .isEnabled(true).isDeleted(false)
+                .build();
+        bmc.recordIntegritySnapshot(IntegrityStatus.ORIGINAL, java.time.Instant.now());
+
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc())
+                .willReturn(List.of(activeBoard()));
+        given(bmcRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(bmc));
+
+        List<BoardWithBmcListResponse> groups = bmcService.findAllGrouped(false);
+
+        assertThat(groups).hasSize(1);
+        assertThat(groups.get(0).bmcList().get(0).integrityStatus()).isEqualTo(IntegrityStatus.ORIGINAL);
+    }
+
+    @Test
+    @DisplayName("verifyAndRecordIntegrity : 계산 결과를 엔티티 스냅샷에 기록한다")
+    void verifyAndRecordIntegrity_recordsSnapshot(@TempDir Path tmp) throws Exception {
+        Path tree = tmp.resolve("bmc");
+        Files.createDirectories(tree);
+        Files.writeString(tree.resolve("flash.nsh"), "echo");
+
+        BoardBMC bmc = BoardBMC.builder()
+                .id(1L).boardModel(activeBoard()).name("AST2600").version("13.06.25")
+                .treeRootPath(tree.toString()).legacyFilePath(tree.toString()).boardModelIdMirror(10L)
+                .entrypointRelativePath("flash.nsh").manifestHash("hash").markerSignature("sig")
+                .fileCount(1).totalBytes(4L).isEnabled(true).isDeleted(false).build();
+        var marker = new com.example.serverprovision.global.marker.MarkerContent(
+                com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE.name(),
+                1L, java.util.Map.of(), Instant.now(), "hash", "sig");
+
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(bmcRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(bmc));
+        given(provisionMarkerService.read(tree, com.example.serverprovision.global.marker.MarkerLayout.IN_TREE))
+                .willReturn(marker);
+        given(provisionMarkerService.verifySignature(marker)).willReturn(false);
+
+        IntegrityStatus status = bmcService.verifyAndRecordIntegrity(10L, 1L);
+
+        assertThat(status).isEqualTo(IntegrityStatus.SIGNATURE_INVALID);
+        assertThat(bmc.getLastIntegrityStatus()).isEqualTo(IntegrityStatus.SIGNATURE_INVALID);
+        assertThat(bmc.getLastVerifiedAt()).isNotNull();
     }
 }

@@ -23,6 +23,7 @@ import com.example.serverprovision.management.bmc.dto.request.BmcCreateRequest;
 import com.example.serverprovision.management.bmc.dto.request.BmcUpdateRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
 import com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.enums.BmcUploadMode;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
@@ -91,6 +92,15 @@ public class BmcService {
 
     public BmcResponse findBmc(Long boardId, Long bmcId) {
         return toResponse(requireLiveBmc(boardId, bmcId));
+    }
+
+    public IntegrityStatusResponse findIntegrityStatus(Long boardId, Long bmcId) {
+        BoardBMC bmc = requireLiveBmc(boardId, bmcId);
+        return IntegrityStatusResponse.of(
+                bmc.getId(),
+                bmc.getLastIntegrityStatus() != null ? bmc.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
+                bmc.getLastVerifiedAt()
+        );
     }
 
     @Transactional
@@ -226,6 +236,13 @@ public class BmcService {
         return IntegrityStatus.ORIGINAL;
     }
 
+    @Transactional
+    public IntegrityStatus verifyAndRecordIntegrity(Long boardId, Long bmcId) {
+        IntegrityStatus status = verifyIntegrity(boardId, bmcId);
+        requireLiveBmc(boardId, bmcId).recordIntegritySnapshot(status, Instant.now());
+        return status;
+    }
+
     private BoardModel requireActiveBoard(Long boardId) {
         return boardModelRepository.findByIdAndIsDeletedFalse(boardId)
                 .orElseThrow(() -> new BoardModelNotFoundException(boardId));
@@ -253,7 +270,7 @@ public class BmcService {
                 entity.getFileCount(),
                 entity.getTotalBytes(),
                 entity.getDescription(),
-                IntegrityStatus.NOT_VERIFIED,
+                entity.getLastIntegrityStatus() != null ? entity.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
                 entity.isEnabled(),
                 entity.isDeleted()
         );

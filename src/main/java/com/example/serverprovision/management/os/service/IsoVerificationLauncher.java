@@ -7,10 +7,13 @@ import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.exception.ISONotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
+import com.example.serverprovision.global.marker.ResourceType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 /**
  * ISO 무결성 검증 Job 시작자. {@link OSImageService#verifyIntegrity(Long, Long)} 의 동기 호출을
@@ -44,7 +47,12 @@ public class IsoVerificationLauncher {
                 JobType.INTEGRITY_VERIFICATION,
                 "ISO 무결성 검증",
                 iso.getIsoPath(),
-                BackgroundJobService.stagesOf(IntegrityVerificationStage.values()));
+                BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
+                Map.of(
+                        "resourceType", ResourceType.OS_ISO.name(),
+                        "resourceId", String.valueOf(isoId),
+                        "parentId", String.valueOf(osImageId)
+                ));
         runAsync(jobId, osImageId, isoId);
         return jobId;
     }
@@ -61,7 +69,7 @@ public class IsoVerificationLauncher {
     public void runAsync(String jobId, Long osImageId, Long isoId) {
         try {
             backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
-            IntegrityStatus status = osImageService.verifyIntegrity(osImageId, isoId);
+            IntegrityStatus status = osImageService.verifyAndRecordIntegrity(osImageId, isoId);
             applyStatus(jobId, status);
         } catch (RuntimeException e) {
             log.error("[verify] ISO 검증 실패. isoId={}", isoId, e);

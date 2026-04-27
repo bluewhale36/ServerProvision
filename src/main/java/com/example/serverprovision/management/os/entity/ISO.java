@@ -13,6 +13,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -85,6 +87,15 @@ public class ISO extends BaseTimeEntity implements Markable {
      */
     @Column(name = "marker_signature", length = 64)
     private String markerSignature;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_integrity_status", nullable = false, length = 32)
+    @Builder.Default
+    private com.example.serverprovision.management.bios.vo.IntegrityStatus lastIntegrityStatus =
+            com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED;
+
+    @Column(name = "last_verified_at")
+    private Instant lastVerifiedAt;
 
     /**
      * 추출 파이프라인이 정상 완료된 시각. NULL 이면 "완료된 적 없음" 을 의미한다.
@@ -193,5 +204,11 @@ public class ISO extends BaseTimeEntity implements Markable {
     public void reissueMarker(String manifestHash, String markerSignature) {
         this.manifestHash = manifestHash;
         this.markerSignature = markerSignature;
+    }
+
+    public void recordIntegritySnapshot(com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
+                                        Instant verifiedAt) {
+        this.lastIntegrityStatus = integrityStatus;
+        this.lastVerifiedAt = verifiedAt;
     }
 }

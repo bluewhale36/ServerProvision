@@ -12,6 +12,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -22,6 +24,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.nio.file.Path;
+import java.time.Instant;
 
 /**
  * 메인보드 모델에 귀속되는 BMC 펌웨어 번들.
@@ -77,6 +80,15 @@ public class BoardBMC extends BaseTimeEntity implements Markable {
     @Column(name = "marker_signature", length = 64)
     private String markerSignature;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_integrity_status", nullable = false, length = 32)
+    @Builder.Default
+    private com.example.serverprovision.management.bios.vo.IntegrityStatus lastIntegrityStatus =
+            com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED;
+
+    @Column(name = "last_verified_at")
+    private Instant lastVerifiedAt;
+
     @Column(name = "description", length = 1024)
     private String description;
 
@@ -121,6 +133,12 @@ public class BoardBMC extends BaseTimeEntity implements Markable {
     public void reissueMarker(String manifestHash, String markerSignature) {
         this.manifestHash = manifestHash;
         this.markerSignature = markerSignature;
+    }
+
+    public void recordIntegritySnapshot(com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
+                                        Instant verifiedAt) {
+        this.lastIntegrityStatus = integrityStatus;
+        this.lastVerifiedAt = verifiedAt;
     }
 
     @Override

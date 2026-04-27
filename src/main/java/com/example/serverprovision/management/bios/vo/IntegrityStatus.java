@@ -1,7 +1,8 @@
 package com.example.serverprovision.management.bios.vo;
 
 /**
- * 번들 무결성 검증 결과. 목록/상세 렌더링 시 뱃지로 표시되며 {@code /verify} 엔드포인트의 응답 값이기도 하다.
+ * 번들 무결성 검증 결과. 목록/상세 렌더링 시 뱃지로 표시되며
+ * {@code /integrity-status} 엔드포인트의 응답 본문에도 사용된다.
  * <ul>
  *   <li>{@link #ORIGINAL} : marker 존재 + 서명 유효 + manifestHash 일치</li>
  *   <li>{@link #TAMPERED} : marker 존재 + 서명 유효하나 현재 트리 manifestHash 불일치 — 파일이 외부 수정됨</li>

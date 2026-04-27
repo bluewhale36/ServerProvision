@@ -139,9 +139,11 @@
                         <div class="n-accordion-field">
                             <dt>무결성</dt>
                             <dd>
-                                <span class="n-badge n-badge-gray"
+                                <span class="n-badge"
+                                      th:classappend="${T(com.example.serverprovision.management.common.view.IntegrityStatusView).badgeClass(bmc.integrityStatus)}"
                                       th:data-bmc-id="${bmc.id}"
                                       th:data-verify-url="@{/management/bmc/{boardId}/bmc/{bmcId}/verify(boardId=${board.id},bmcId=${bmc.id})}"
+                                      th:data-status-url="@{/management/bmc/{boardId}/bmc/{bmcId}/integrity-status(boardId=${board.id},bmcId=${bmc.id})}"
                                       th:text="${bmc.integrityStatus != null ? bmc.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
                                 <button type="button" class="n-btn n-btn-sm n-btn-ghost"
                                         th:data-verify-url="@{/management/bmc/{boardId}/bmc/{bmcId}/verify(boardId=${board.id},bmcId=${bmc.id})}">

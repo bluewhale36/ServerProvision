@@ -4,6 +4,7 @@ import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
 import com.example.serverprovision.management.bios.dto.response.BoardWithBiosListResponse;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
@@ -49,7 +50,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>등록 : 검증 → 기존 soft-deleted 동일 (board, version) 정리 → 트리 전개 → manifest 계산 →
  *       엔티티 선 저장 → marker signature 계산(biosId 포함) → entity.reissueMarker → marker 파일 기록</li>
- *   <li>조회 : Miller 전체 뷰 (N+1 방지 배치 조회) + integrityStatus 는 NOT_VERIFIED 로 내려감</li>
+ *   <li>조회 : Miller 전체 뷰 (N+1 방지 배치 조회) + 마지막 검증 스냅샷(lastIntegrityStatus) 을 내려감</li>
  *   <li>검증 : {@code .provision.json} 읽어 서명 + manifestHash 재계산 비교</li>
  *   <li>재발급 : 현재 트리 내용으로 manifest 재계산 → 엔티티 · marker 갱신 (관리자 명시 액션 전제)</li>
  * </ul>
@@ -100,6 +101,15 @@ public class BiosService {
 
     public BiosResponse findBios(Long boardId, Long biosId) {
         return toResponse(requireLiveBios(boardId, biosId));
+    }
+
+    public IntegrityStatusResponse findIntegrityStatus(Long boardId, Long biosId) {
+        BoardBIOS bios = requireLiveBios(boardId, biosId);
+        return IntegrityStatusResponse.of(
+                bios.getId(),
+                bios.getLastIntegrityStatus() != null ? bios.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
+                bios.getLastVerifiedAt()
+        );
     }
 
     // ==== 쓰기 연산 ====================================================
@@ -242,6 +252,13 @@ public class BiosService {
         return IntegrityStatus.ORIGINAL;
     }
 
+    @Transactional
+    public IntegrityStatus verifyAndRecordIntegrity(Long boardId, Long biosId) {
+        IntegrityStatus status = verifyIntegrity(boardId, biosId);
+        requireLiveBios(boardId, biosId).recordIntegritySnapshot(status, Instant.now());
+        return status;
+    }
+
     // 단건 BIOS marker 재발급 메서드는 위험도가 높아 외부 endpoint 와 함께 제거됨.
     // 일괄 재발급(secret 회전 시)은 PathReconciliationService.performReissue 가 담당.
     // 이전 hash → 새 hash audit 로그도 그곳의 일괄 audit 으로 통합.
@@ -275,7 +292,7 @@ public class BiosService {
                 entity.getFileCount(),
                 entity.getTotalBytes(),
                 entity.getDescription(),
-                IntegrityStatus.NOT_VERIFIED,
+                entity.getLastIntegrityStatus() != null ? entity.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
                 entity.isEnabled(),
                 entity.isDeleted()
         );

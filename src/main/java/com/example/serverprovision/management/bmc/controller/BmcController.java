@@ -5,6 +5,7 @@ import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.global.exception.ConflictException;
 import com.example.serverprovision.global.exception.DomainException;
 import com.example.serverprovision.global.exception.NotFoundException;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
@@ -194,6 +195,13 @@ public class BmcController {
                                    @PathVariable("bmcId") Long bmcId) {
         String jobId = bmcVerificationLauncher.startVerification(boardId, bmcId);
         return new JobStartResponse(jobId);
+    }
+
+    @GetMapping(path = "/{boardId}/bmc/{bmcId}/integrity-status")
+    @ResponseBody
+    public IntegrityStatusResponse integrityStatus(@PathVariable("boardId") Long boardId,
+                                                   @PathVariable("bmcId") Long bmcId) {
+        return bmcService.findIntegrityStatus(boardId, bmcId);
     }
 
     @GetMapping(path = "/browse")

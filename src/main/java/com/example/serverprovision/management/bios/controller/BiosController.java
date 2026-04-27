@@ -10,6 +10,7 @@ import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadResponse;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
@@ -227,6 +228,17 @@ public class BiosController {
             @PathVariable("biosId") Long biosId) {
         String jobId = biosVerificationLauncher.startVerification(boardId, biosId);
         return new com.example.serverprovision.global.job.dto.response.JobStartResponse(jobId);
+    }
+
+    /**
+     * 현재 시점의 무결성 상태를 즉시 계산해 badge 렌더링용 JSON 으로 반환한다.
+     * CP2 단계에서는 persisted last status 가 아직 없으므로 조회 시마다 재계산한다.
+     */
+    @GetMapping(path = "/{boardId}/bios/{biosId}/integrity-status")
+    @ResponseBody
+    public IntegrityStatusResponse integrityStatus(@PathVariable("boardId") Long boardId,
+                                                   @PathVariable("biosId") Long biosId) {
+        return biosService.findIntegrityStatus(boardId, biosId);
     }
 
     // 단건 marker 재발급 endpoint 는 위험도가 높아 제거됨. 일괄 재발급은

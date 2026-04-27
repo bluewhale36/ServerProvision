@@ -231,9 +231,11 @@
                                         <div class="n-accordion-field" th:unless="${iso.isDeleted}">
                                             <dt>무결성</dt>
                                             <dd>
-                                                <span class="n-badge n-badge-gray"
+                                                <span class="n-badge"
+                                                      th:classappend="${T(com.example.serverprovision.management.common.view.IntegrityStatusView).badgeClass(iso.integrityStatus)}"
                                                       th:data-iso-id="${iso.id}"
                                                       th:data-verify-url="@{/management/os/{osId}/iso/{isoId}/verify(osId=${os.id},isoId=${iso.id})}"
+                                                      th:data-status-url="@{/management/os/{osId}/iso/{isoId}/integrity-status(osId=${os.id},isoId=${iso.id})}"
                                                       th:text="${iso.integrityStatus != null ? iso.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
                                                 <button type="button" class="n-btn n-btn-sm n-btn-ghost"
                                                         th:data-verify-url="@{/management/os/{osId}/iso/{isoId}/verify(osId=${os.id},isoId=${iso.id})}">

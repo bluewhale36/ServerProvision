@@ -28,6 +28,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -191,6 +192,54 @@ class BiosServiceTest {
         assertThat(groups).hasSize(1);
         assertThat(groups.get(0).biosList()).hasSize(1);
         assertThat(groups.get(0).biosList().get(0).integrityStatus()).isEqualTo(IntegrityStatus.NOT_VERIFIED);
+    }
+
+    @Test
+    @DisplayName("findAllGrouped : 저장된 마지막 무결성 상태가 있으면 응답에 그대로 반영한다")
+    void findAllGrouped_usesStoredIntegrityStatus() {
+        BoardModel b = activeBoard();
+        BoardBIOS bios = buildActiveBios();
+        bios.recordIntegritySnapshot(IntegrityStatus.TAMPERED, java.time.Instant.now());
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc())
+                .willReturn(List.of(b));
+        given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(bios));
+
+        var groups = biosService.findAllGrouped(false);
+
+        assertThat(groups.get(0).biosList().get(0).integrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
+    }
+
+    @Test
+    @DisplayName("verifyAndRecordIntegrity : 계산 결과를 엔티티 스냅샷에 기록한다")
+    void verifyAndRecordIntegrity_recordsSnapshot(@TempDir Path tmp) throws Exception {
+        Path tree = tmp.resolve("bios");
+        Files.createDirectories(tree);
+        Files.writeString(tree.resolve("flash.nsh"), "echo");
+
+        BoardBIOS bios = BoardBIOS.builder()
+                .id(1L).boardModel(activeBoard())
+                .name("x").version("1.0")
+                .treeRootPath(tree.toString()).entrypointRelativePath("flash.nsh")
+                .manifestHash("old").markerSignature("sig")
+                .fileCount(1).totalBytes(4L)
+                .isEnabled(true).isDeleted(false).build();
+        var marker = new com.example.serverprovision.global.marker.MarkerContent(
+                com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE.name(),
+                1L, java.util.Map.of(), Instant.now(), "old", "sig");
+
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(biosRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(bios));
+        given(provisionMarkerService.read(tree, com.example.serverprovision.global.marker.MarkerLayout.IN_TREE))
+                .willReturn(marker);
+        given(provisionMarkerService.verifySignature(marker)).willReturn(true);
+        given(bundleManifestService.compute(tree)).willReturn(new ManifestSummary("new-hash", 1, 4L));
+        given(provisionMarkerService.verifyManifestHash(marker, "new-hash")).willReturn(false);
+
+        IntegrityStatus status = biosService.verifyAndRecordIntegrity(10L, 1L);
+
+        assertThat(status).isEqualTo(IntegrityStatus.TAMPERED);
+        assertThat(bios.getLastIntegrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
+        assertThat(bios.getLastVerifiedAt()).isNotNull();
     }
 
     private BoardBIOS buildActiveBios() {

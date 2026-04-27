@@ -2,6 +2,7 @@ package com.example.serverprovision.management.bmc.controller;
 
 import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotFoundException;
@@ -176,6 +177,19 @@ class BmcControllerTest {
         mvc.perform(post("/management/bmc/1/bmc/2/verify"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.jobId").value("job-bmc-1"));
+    }
+
+    @Test
+    @DisplayName("GET /{boardId}/bmc/{bmcId}/integrity-status : 200 + status/badgeClass")
+    void integrityStatus() throws Exception {
+        given(bmcService.findIntegrityStatus(1L, 2L))
+                .willReturn(IntegrityStatusResponse.of(2L, IntegrityStatus.TAMPERED, null));
+
+        mvc.perform(get("/management/bmc/1/bmc/2/integrity-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resourceId").value(2))
+                .andExpect(jsonPath("$.integrityStatus").value("TAMPERED"))
+                .andExpect(jsonPath("$.badgeClass").value("n-badge-red"));
     }
 
     @Test

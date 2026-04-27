@@ -5,6 +5,8 @@ import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
+import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
 import com.example.serverprovision.management.os.exception.AlreadyExtractedException;
@@ -324,5 +326,18 @@ class OSImageControllerUploadFlowTest {
             mvc.perform(post("/management/os/1/iso/99/extract"))
                     .andExpect(status().isNotFound());
         }
+    }
+
+    @Test
+    @DisplayName("GET /{osId}/iso/{isoId}/integrity-status : 200 + status/badgeClass")
+    void integrityStatus() throws Exception {
+        given(osImageService.findIntegrityStatus(1L, 2L))
+                .willReturn(IntegrityStatusResponse.of(2L, IntegrityStatus.SIGNATURE_INVALID, null));
+
+        mvc.perform(get("/management/os/1/iso/2/integrity-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resourceId").value(2))
+                .andExpect(jsonPath("$.integrityStatus").value("SIGNATURE_INVALID"))
+                .andExpect(jsonPath("$.badgeClass").value("n-badge-orange"));
     }
 }
