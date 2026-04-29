@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('Subprogram 등록')}"></th:block>
+    <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('subprogram')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">
+            <span th:text="${kindDisplayName}">드라이버</span> 번들 등록
+        </h1>
+        <div class="n-header-actions">
+            <a id="backLink" th:href="@{/management/subprogram}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                자원 종류 : <strong th:text="${kindDisplayName}">드라이버</strong>
+                <span style="color: var(--n-text-muted); font-size: 12px;">
+                    (등록 시점에는 진입점을 입력하지 않습니다. 등록 후 수정 화면에서 설정하세요.)
+                </span>
+            </div>
+
+            <form id="subprogramForm"
+                  th:data-base-url="@{/management/subprogram}"
+                  th:data-kind-token="${kindToken}"
+                  th:data-list-url="@{/management/subprogram}"
+                  th:object="${subprogramForm}"
+                  enctype="multipart/form-data"
+                  novalidate>
+
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong">적용 범위</label>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                        <label class="n-check" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <input type="radio" name="boardScopeMode" value="common"
+                                   data-error-field="boardScopeMode"
+                                   th:checked="${prefillScopeMode == 'common'}">
+                            <span>공용 (보드 무관)</span>
+                        </label>
+                        <label class="n-check" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <input type="radio" name="boardScopeMode" value="board"
+                                   data-error-field="boardScopeMode"
+                                   th:checked="${prefillScopeMode == 'board'}">
+                            <span>특정 메인보드</span>
+                        </label>
+                    </div>
+
+                    <select id="boardId" name="boardId" class="n-input"
+                            data-error-field="boardId"
+                            th:disabled="${prefillScopeMode != 'board'}"
+                            style="margin-top: 8px;">
+                        <option value="">— 메인보드 선택 —</option>
+                        <th:block th:each="vg : ${vendorGroups}">
+                            <optgroup th:label="${vg.displayName}">
+                                <option th:each="b : ${vg.items}"
+                                        th:value="${b.id}"
+                                        th:selected="${prefillBoardId != null and prefillBoardId == b.id}"
+                                        th:text="${b.modelName}"></option>
+                            </optgroup>
+                        </th:block>
+                    </select>
+                    <div class="n-hint">
+                        공용 자원은 RAID utility · 진단 프로그램처럼 보드 종속이 없는 도구에 사용합니다.
+                    </div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="name">이름</label>
+                    <input id="name" type="text" th:field="*{name}" class="n-input"
+                           data-error-field="name"
+                           placeholder="예: Intel ME RAID Utility / Realtek r8169 driver">
+                    <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="version">버전</label>
+                    <input id="version" type="text" th:field="*{version}" class="n-input"
+                           data-error-field="version"
+                           placeholder="예: 1.2.0">
+                    <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="targetDirectory">대상 디렉토리</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input id="targetDirectory" type="text" th:field="*{targetDirectory}" class="n-input"
+                               style="flex: 1;"
+                               data-error-field="targetDirectory"
+                               placeholder="/opt/subprogram/.../1.2.0/"
+                               th:data-browse-url="@{/management/subprogram/browse}">
+                        <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
+                    </div>
+                    <div class="n-hint">
+                        업로드된 번들이 전개될 서버 측 경로. 비어있거나 존재하지 않아야 합니다.
+                    </div>
+                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}" th:errors="*{targetDirectory}"></div>
+
+                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', null)}"></div>
+
+                    <label class="n-check" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
+                        <span>디렉토리 생성 허용</span>
+                    </label>
+                    <div class="n-hint">경로가 존재하지 않을 경우 디렉토리를 생성합니다.</div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong">번들 업로드 방식</label>
+                    <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
+                                aria-selected="true" data-mode="FOLDER">폴더</button>
+                        <button type="button" id="modeTabZip" class="n-btn n-btn-sm n-btn-ghost" role="tab"
+                                aria-selected="false" data-mode="ZIP">Zip 파일</button>
+                        <button type="button" id="modeTabSingle" class="n-btn n-btn-sm n-btn-ghost" role="tab"
+                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일</button>
+                    </div>
+
+                    <input type="hidden" id="uploadMode" name="uploadMode" value="FOLDER">
+
+                    <div id="folderPane">
+                        <input id="folderFiles" type="file" name="folderFiles" webkitdirectory multiple class="n-input">
+                        <div class="n-hint">
+                            드라이버 패키지 폴더 / 유틸리티 디스트리뷰션 폴더를 그대로 올립니다.
+                        </div>
+                    </div>
+
+                    <div id="zipPane" hidden>
+                        <input id="zipFile" type="file" name="zipFile" accept=".zip" class="n-input">
+                        <div class="n-hint">배포 zip 을 서버가 대상 디렉토리에 전개합니다.</div>
+                    </div>
+
+                    <div id="singlePane" hidden>
+                        <input id="singleFile" type="file" name="singleFile" class="n-input">
+                        <div class="n-hint">단일 파일 형태의 자원도 등록할 수 있습니다.</div>
+                    </div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"
+                              data-error-field="description"
+                              placeholder="자원에 대한 설명이나 출처 메모"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a id="cancelLink" th:href="@{/management/subprogram}" class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">번들 등록</button>
+                </div>
+
+                <div class="n-hint" style="margin-top: 16px;">
+                    업로드 중에는 페이지를 떠나지 마세요. 완료 시 목록으로 자동 이동합니다.
+                </div>
+
+                <div id="uploadProgress" class="n-upload-progress">
+                    <div id="uploadText" class="n-upload-progress-text">시작 중…</div>
+                    <div class="n-upload-progress-bar-wrap">
+                        <div id="uploadBar" class="n-upload-progress-bar"></div>
+                    </div>
+                </div>
+
+                <div id="uploadError" class="n-upload-error"></div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- MK2 — nudge modal fragment (해시 충돌 시 사용자 3택 confirm) -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('subprogramNudge', '/management/subprogram/nudge')}"></div>
+
+<script th:src="@{/management/common/bundle-upload-bootstrap.js}"></script>
+<script th:src="@{/management/common/bundle-upload-shell.js}"></script>
+<script th:src="@{/management/subprogram/subprogram-new.js}"></script>
+</body>
+</html>

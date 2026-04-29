@@ -54,6 +54,16 @@
 
 /* ---- n-tbl-list (Bootstrap .table 기반 인라인 테이블) ------ */
 
+/* 컬럼 너비 고정. table-layout: fixed 를 쓰면 thead th 의 width 만 존중되고
+   td 내용 길이에 따라 컬럼이 춤추지 않는다. 긴 경로는 overflow-wrap: anywhere 로 줄바꿈. */
+.n-tbl-list {
+    table-layout: fixed;
+    width: 100%;
+}
+.n-tbl-list tbody td {
+    overflow-wrap: anywhere;
+}
+
 /* 헤더 셀: 수직·수평 가운데 */
 .n-tbl-list thead th {
     text-align: center;

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BMC 등록')}"></th:block>
+    <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bmc')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BMC 번들 등록</h1>
+        <div class="n-header-actions">
+            <a id="backLink"
+               th:href="@{/management/bmc(selectBoardId=${boardId})}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                대상 보드 : <strong th:text="${contextLabel}"></strong>
+            </div>
+
+            <form id="bmcForm"
+                  th:data-upload-url="@{/management/bmc/{boardId}/upload(boardId=${boardId})}"
+                  th:data-intent-url="@{/management/bmc/{boardId}/upload-intent(boardId=${boardId})}"
+                  th:data-list-url="@{/management/bmc(selectBoardId=${boardId})}"
+                  th:object="${bmcForm}"
+                  enctype="multipart/form-data"
+                  novalidate>
+
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="name">이름</label>
+                    <input id="name" type="text" th:field="*{name}" class="n-input"
+                           data-error-field="name"
+                           placeholder="예: AST2500 BMC Firmware">
+                    <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="version">버전</label>
+                    <input id="version" type="text" th:field="*{version}" class="n-input"
+                           data-error-field="version"
+                           placeholder="예: 12.61.32">
+                    <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="targetDirectory">대상 디렉토리</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input id="targetDirectory" type="text" th:field="*{targetDirectory}" class="n-input"
+                               style="flex: 1;"
+                               data-error-field="targetDirectory"
+                               placeholder="/opt/firmware/bmc/gigabyte/ms03/13.06.25/"
+                               th:data-browse-url="@{/management/bmc/browse}">
+                        <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
+                    </div>
+                    <div class="n-hint">
+                        업로드된 번들 파일들이 전개될 서버 측 경로. 비어있거나 존재하지 않아야 합니다.
+                    </div>
+                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}" th:errors="*{targetDirectory}"></div>
+
+                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', null)}"></div>
+
+                    <label class="n-check" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
+                        <span>디렉토리 생성 허용</span>
+                    </label>
+                    <div class="n-hint">경로가 존재하지 않을 경우 디렉토리를 생성합니다.</div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong">번들 업로드 방식</label>
+                    <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
+                                aria-selected="true" data-mode="FOLDER">폴더</button>
+                        <button type="button" id="modeTabZip" class="n-btn n-btn-sm n-btn-ghost" role="tab"
+                                aria-selected="false" data-mode="ZIP">Zip 파일</button>
+                        <button type="button" id="modeTabSingle" class="n-btn n-btn-sm n-btn-ghost" role="tab"
+                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일</button>
+                    </div>
+
+                    <input type="hidden" id="uploadMode" name="uploadMode" value="FOLDER">
+
+                    <div id="folderPane">
+                        <input id="folderFiles" type="file" name="folderFiles" webkitdirectory multiple class="n-input">
+                        <div class="n-hint">
+                            BMC 웹 업데이트 패키지처럼 다중 파일/폴더 구조를 그대로 올립니다. 단일 폴더만 선택할 수 있습니다.
+                        </div>
+                    </div>
+
+                    <div id="zipPane" hidden>
+                        <input id="zipFile" type="file" name="zipFile" accept=".zip" class="n-input">
+                        <div class="n-hint">
+                            배포 zip 을 서버가 대상 디렉토리에 전개합니다.
+                        </div>
+                    </div>
+
+                    <div id="singlePane" hidden>
+                        <input id="singleFile" type="file" name="singleFile" class="n-input">
+                        <div class="n-hint">
+                            파일 하나만 제공되는 BMC 배포본도 등록할 수 있습니다. 서버는 그 파일을 포함한 디렉토리 번들로 저장합니다.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="entrypointRelativePath">실행 대상 상대경로 (선택)</label>
+                    <input id="entrypointRelativePath" type="text" th:field="*{entrypointRelativePath}"
+                           class="n-input"
+                           data-error-field="entrypointRelativePath"
+                           placeholder="예: ami.sh / update.nsh / Linux_x86_64/flash.sh">
+                    <div class="n-hint">
+                        비워두면 서버가 번들 내 단일 파일 또는 루트의 <code>f.nsh</code> / <code>flash.nsh</code> / 단일 <code>*.nsh</code> 규칙으로 자동 탐지합니다.
+                    </div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"
+                              data-error-field="description"
+                              placeholder="예: Gigabyte AST2500 BMC firmware"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a id="cancelLink" th:href="@{/management/bmc(selectBoardId=${boardId})}" class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">번들 등록</button>
+                </div>
+
+                <div class="n-hint" style="margin-top: 16px;">
+                    업로드 중에는 페이지를 떠나지 마세요. 완료 시 목록으로 자동 이동합니다.
+                </div>
+
+                <div id="uploadProgress" class="n-upload-progress">
+                    <div id="uploadText" class="n-upload-progress-text">시작 중…</div>
+                    <div class="n-upload-progress-bar-wrap">
+                        <div id="uploadBar" class="n-upload-progress-bar"></div>
+                    </div>
+                </div>
+
+                <div id="uploadError" class="n-upload-error"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MK2 — nudge confirm modal (단계 B 충돌 시 표시) -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', @{/management/bmc/nudge})}"></div>
+
+<script th:src="@{/management/common/bundle-upload-bootstrap.js}"></script>
+<script th:src="@{/management/common/bundle-upload-shell.js}"></script>
+<script th:src="@{/management/bmc-new.js}"></script>
+</body>
+</html>

@@ -89,6 +89,9 @@ code {
 }
 .n-nav-link:hover { background: rgba(0, 0, 0, 0.05); color: var(--n-text); }
 .n-nav-link.active { color: var(--n-text); font-weight: 600; background: rgba(0, 0, 0, 0.04); }
+/* 미구현 메뉴 : <span class="n-nav-link" aria-disabled="true"> 형태로 렌더링 */
+.n-nav-link[aria-disabled="true"]        { color: var(--n-text-muted); opacity: 0.55; cursor: not-allowed; }
+.n-nav-link[aria-disabled="true"]:hover  { background: transparent;    color: var(--n-text-muted); }
 
 
 /* ---- 4. 페이지 레이아웃 ----------------------------------- */
@@ -196,6 +199,7 @@ code {
 }
 .n-badge-blue   { background: var(--n-blue-badge-bg);        color: var(--n-blue-badge-text); }
 .n-badge-green  { background: rgba(26, 174, 57, 0.1);        color: var(--n-green); }
+.n-badge-red    { background: rgba(191, 38, 38, 0.1);        color: #bf2626; }
 .n-badge-orange { background: rgba(221, 91, 0, 0.1);         color: var(--n-orange); }
 .n-badge-gray   { background: rgba(0, 0, 0, 0.06);           color: var(--n-text-sec); }
 .n-badge-teal   { background: rgba(42, 157, 153, 0.1);       color: var(--n-teal); }
@@ -248,10 +252,12 @@ code {
 .n-select {
     display: block;
     width: 100%;
+    box-sizing: border-box;
     border: 1px solid var(--n-border-form);
     border-radius: 4px;
     font-family: inherit;
     font-size: 15px;
+    line-height: 1.5;
     color: rgba(0, 0, 0, 0.9);
     background: var(--n-surface);
     padding: 8px 10px;
@@ -265,10 +271,22 @@ code {
     box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.12);
 }
 .n-input::placeholder { color: var(--n-text-muted); }
-.n-input[readonly], .n-input:disabled, .n-select:disabled {
+/* readonly : 값은 보이되 편집만 막힌 상태 — 약한 시각 피드백 */
+.n-input[readonly] {
     background: var(--n-bg);
     color: var(--n-text-sec);
     cursor: default;
+}
+
+/* disabled : 요소 자체가 조작 불가 — readonly 대비 명확히 구분되도록 강한 피드백 */
+.n-input:disabled,
+.n-textarea:disabled,
+.n-select:disabled {
+    background: var(--n-bg);
+    color: var(--n-text-muted);
+    border-color: var(--n-border);
+    cursor: not-allowed;
+    opacity: 0.65;
 }
 .n-input.is-invalid, .n-select.is-invalid { border-color: var(--n-orange); }
 .n-select-sm { font-size: 12px; padding: 4px 6px; width: auto; }
@@ -332,6 +350,15 @@ code {
     margin-top: 32px;
     padding-top: 20px;
     border-top: 1px solid var(--n-border);
+}
+
+/* 표 바로 다음에 오는 form-actions 는 border-top 을 꺼서 표 마지막 행의 구분선처럼 보이는 착시를 막는다. */
+.n-detail-table + .n-form-actions,
+.n-table + .n-form-actions,
+.n-tbl-list + .n-form-actions {
+    margin-top: 16px;
+    padding-top: 0;
+    border-top: none;
 }
 
 .n-back-link {

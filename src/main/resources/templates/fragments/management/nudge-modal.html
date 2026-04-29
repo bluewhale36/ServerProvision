@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  MK2 — nudge modal fragment.
+  ─────────────────────────────────────────────────────────
+  업로드 단계 B (해시 검증 후) 에서 서버가 409 + NudgeRequiredResponse 를 회신하면
+  본 modal 이 표시된다. 사용자 3택 (proceed / replace / cancel) 으로 confirm endpoint 호출.
+
+  파라미터:
+    - prefix : modal element id 접두사. 페이지에 여러 modal 이 있을 때 충돌 회피
+               ("nudge" / "biosNudge" 등). JS 가 prefix + suffix 로 element 잡음.
+    - confirmBaseUrl : `/management/{domain}/nudge` — 3 endpoint prefix.
+                       JS 가 `confirmBaseUrl + '/{nudgeId}/proceed'` 로 호출.
+
+  생성되는 element id (prefix="nudge" 기준):
+    nudgeModal · nudgeBackdrop · nudgeConflictsList · nudgeProceedBtn ·
+    nudgeReplaceBtn · nudgeCancelBtn · nudgeCloseBtn
+
+  CSS: 기존 .n-alert / .n-btn / .n-card 재사용. 신규 CSS 토큰 0.
+*/-->
+<div th:fragment="nudgeModal(prefix, confirmBaseUrl)"
+     th:id="${prefix} + 'Modal'"
+     hidden
+     th:data-confirm-base-url="${confirmBaseUrl}"
+     style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050;
+            display: flex; align-items: center; justify-content: center; padding: 24px;">
+
+    <!-- backdrop -->
+    <div th:id="${prefix} + 'Backdrop'"
+         style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.45);"></div>
+
+    <!-- card -->
+    <div class="n-card" role="dialog" aria-modal="true"
+         style="position: relative; max-width: 560px; width: 100%; max-height: 90vh;
+                overflow-y: auto;">
+        <div class="n-card-body">
+            <h2 style="margin: 0 0 12px 0; font-size: 1.15rem;">
+                동일한 자원이 이미 존재합니다
+            </h2>
+            <div class="n-alert n-alert-warning" style="margin-bottom: 14px;">
+                업로드한 파일과 동일한 해시를 가진 자원이 다음과 같이 발견되었습니다.
+                계속 진행할 방법을 선택하세요.
+            </div>
+
+            <ul th:id="${prefix} + 'ConflictsList'"
+                style="list-style: none; padding: 0; margin: 0 0 18px 0;
+                       border: 1px solid var(--n-border); border-radius: 4px;
+                       background: #fff; max-height: 200px; overflow-y: auto;">
+                <!-- JS 가 NudgeConflictEntry 로 채움 -->
+            </ul>
+
+            <div class="n-hint" style="margin-bottom: 14px;">
+                <strong>그래도 등록</strong> : 새 자원으로 등록 (기존 자원은 그대로 보존)<br>
+                <strong>기존 영구 삭제 후 등록</strong> : 기존 자원을 영구 삭제하고 새 자원을 등록<br>
+                <strong>취소</strong> : 업로드를 취소하고 임시 파일 정리
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+                <button type="button"
+                        th:id="${prefix} + 'CancelBtn'"
+                        class="n-btn n-btn-secondary">취소</button>
+                <button type="button"
+                        th:id="${prefix} + 'ReplaceBtn'"
+                        class="n-btn n-btn-danger"
+                        disabled
+                        title="대체할 기존 자원을 목록에서 선택하세요">기존 영구 삭제 후 등록</button>
+                <button type="button"
+                        th:id="${prefix} + 'ProceedBtn'"
+                        class="n-btn n-btn-primary">그래도 등록</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

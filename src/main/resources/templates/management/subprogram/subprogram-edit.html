@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('Subprogram 편집')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('subprogram')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">
+            <span th:text="${kindDisplayName}">드라이버</span> 편집
+        </h1>
+        <div class="n-header-actions">
+            <a th:href="@{/management/subprogram(selectId=${subprogram.id})}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                트리 루트 : <code th:text="${subprogram.treeRootPath}"></code>
+            </div>
+
+            <form id="subprogramEditForm"
+                  th:action="@{/management/subprogram/{id}/edit(id=${subprogram.id})}"
+                  th:data-tree-root="${subprogram.treeRootPath}"
+                  th:data-browse-url="@{/management/subprogram/browse}"
+                  th:object="${subprogramForm}"
+                  method="post"
+                  novalidate>
+
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="name">이름</label>
+                    <input id="name" type="text" th:field="*{name}" class="n-input"
+                           data-error-field="name">
+                    <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="version">버전</label>
+                    <input id="version" type="text" th:field="*{version}" class="n-input"
+                           data-error-field="version">
+                    <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="entrypointRelativePath">실행 진입점 상대경로 (선택)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input id="entrypointRelativePath" type="text" th:field="*{entrypointRelativePath}"
+                               class="n-input"
+                               style="flex: 1;"
+                               data-error-field="entrypointRelativePath"
+                               placeholder="예: install.sh / setup.exe / firmware/flash.nsh">
+                        <button type="button" id="entrypointBrowseBtn" class="n-btn n-btn-ghost">탐색</button>
+                    </div>
+                    <div class="n-hint">
+                        번들 안에 진입점이 명확한 경우 입력하세요. "탐색" 으로 트리 안의 파일을 직접 선택할 수도 있습니다. 비워두면 진입점 없는 자원으로 표시됩니다.
+                    </div>
+                    <div class="n-error" th:if="${#fields.hasErrors('entrypointRelativePath')}"
+                         th:errors="*{entrypointRelativePath}"></div>
+
+                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('entrypointBrowse', 'file', null)}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}" class="n-textarea" rows="3"
+                              data-error-field="description"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a th:href="@{/management/subprogram(selectId=${subprogram.id})}"
+                       class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" class="n-btn n-btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script th:src="@{/management/subprogram/subprogram-edit.js}"></script>
+</body>
+</html>

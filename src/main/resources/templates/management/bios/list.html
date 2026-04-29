@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  A3. BIOS 파일 관리 목록 페이지 (Miller Columns)
+  ─────────────────────────────────────────────────────────
+  Model:
+    boards        : List<BoardWithBiosListResponse>
+                      · id               : Long
+                      · vendor           : Vendor enum
+                      · vendorDisplayName: String
+                      · modelName        : String
+                      · isDeleted        : boolean
+                      · biosList         : List<BiosResponse> (C3 상세 포함)
+    selectId      : Long (nullable)    BIOS id — 토글/편집 후 초기 선택 복원
+    includeDeleted: boolean            휴지통 모드 여부
+
+  CSS: miller.css + accordion.css(상세 dl-grid) 재사용. 신규 CSS 없음.
+       C1 "group" 은 BoardModel, C2 "item" 은 BIOS version.
+       os-list.js 의 data-os-key / data-os-id 바인딩 규칙을 그대로 재사용.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 파일 관리')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bios')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BIOS 파일 관리</h1>
+        <div class="n-header-actions">
+            <a th:unless="${includeDeleted}"
+               th:href="@{/management/bios(includeDeleted=true)}"
+               class="n-btn n-btn-ghost">삭제된 항목 포함</a>
+            <a th:if="${includeDeleted}"
+               th:href="@{/management/bios}"
+               class="n-btn n-btn-ghost">기본 보기</a>
+        </div>
+    </div>
+
+    <!-- 빈 상태 : 등록된 BoardModel 이 아예 없는 경우 -->
+    <div th:if="${#lists.isEmpty(boards)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 메인보드 모델이 없습니다.</div>
+            <div class="n-empty-desc">
+                BIOS 는 메인보드 모델에 귀속됩니다.
+                <a th:href="@{/management/board}">메인보드 모델 관리</a> 페이지에서
+                모델을 먼저 등록하세요.
+            </div>
+        </div>
+    </div>
+
+    <!-- Miller 3컬럼 : C1 BoardModel → C2 BIOS 버전 → C3 상세 -->
+    <div th:unless="${#lists.isEmpty(boards)}"
+         class="n-miller"
+         th:data-initial-select-id="${selectId}"
+         th:data-initial-select-board-id="${selectBoardId}">
+
+        <!-- C1 : BoardModel (읽기 전용). A2 에서 등록, 여기서는 선택만. -->
+        <div class="n-miller-col n-miller-col-names">
+            <div class="n-miller-col-header">메인보드 모델</div>
+            <button th:each="board : ${boards}"
+                    type="button"
+                    class="n-miller-item n-miller-item-split"
+                    th:classappend="${board.isDeleted} ? 'n-miller-item-disabled' : ''"
+                    th:data-os-key="${board.id}">
+                <span class="n-miller-version-label">
+                    <span th:text="${board.modelName}">MS03-CE0-000</span>
+                    <span style="font-size: 11px; color: var(--n-text-muted);"
+                          th:text="' · ' + ${board.vendorDisplayName}"> · Gigabyte</span>
+                    <span th:if="${board.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                </span>
+            </button>
+            <!-- C1 하단 안내 : 신규 BoardModel 은 A2 에서만 등록 가능 -->
+            <div class="n-empty-desc" style="padding: 10px 12px; font-size: 11px;">
+                신규 메인보드 모델은
+                <a th:href="@{/management/board}">메인보드 모델 관리</a>
+                페이지에서 등록하세요.
+            </div>
+        </div>
+
+        <!-- C2 : 선택된 보드의 BIOS 버전 목록 -->
+        <div class="n-miller-col n-miller-col-versions">
+            <div class="n-miller-col-header">BIOS 버전</div>
+            <div th:each="board : ${boards}"
+                 class="n-miller-version-panel"
+                 th:data-os-key="${board.id}">
+
+                <!-- 보드 scope 빈 상태 -->
+                <div th:if="${#lists.isEmpty(board.biosList)}"
+                     class="n-empty-desc" style="padding: 10px 12px;">
+                    등록된 BIOS 가 없습니다.
+                </div>
+
+                <button th:each="bios : ${board.biosList}"
+                        type="button"
+                        class="n-miller-item n-miller-item-split"
+                        th:classappend="${bios.isDeleted} ? 'n-miller-item-disabled' : ''"
+                        th:data-os-id="${bios.id}">
+                    <span class="n-miller-version-label">
+                        <span th:text="${bios.version}">2.03</span>
+                        <span th:if="${bios.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                    </span>
+                    <span th:unless="${bios.isDeleted}"
+                          class="n-miller-status-tag"
+                          th:classappend="${bios.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:text="${bios.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                </button>
+
+                <!-- 보드별 "+ 신규 BIOS 등록" 액션 : 삭제된 보드에는 노출 안 함 -->
+                <div th:unless="${board.isDeleted}" style="padding: 8px 12px;">
+                    <a th:href="@{/management/bios/{boardId}/new(boardId=${board.id})}"
+                       class="n-btn n-btn-sm n-btn-primary" style="width: 100%;">+ BIOS 등록</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- C3 : 선택된 BIOS 상세 -->
+        <div class="n-miller-col n-miller-col-detail">
+            <div class="n-miller-empty" id="millerEmpty">BIOS 를 선택하여 상세 사항 보기</div>
+
+            <th:block th:each="board : ${boards}">
+                <div th:each="bios : ${board.biosList}"
+                     class="n-miller-detail-panel"
+                     th:data-os-id="${bios.id}">
+
+                    <!-- 기본 정보 dl-grid (accordion.css 의 .n-accordion-fields 재사용) -->
+                    <dl class="n-accordion-fields">
+                        <div class="n-accordion-field">
+                            <dt>ID</dt>
+                            <dd th:text="${bios.id}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>메인보드</dt>
+                            <dd>
+                                <span th:text="${board.vendorDisplayName + ' · ' + board.modelName}"></span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>이름</dt>
+                            <dd th:text="${bios.name}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>버전</dt>
+                            <dd>
+                                <code th:text="${bios.version}"></code>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>트리 루트</dt>
+                            <dd>
+                                <code th:text="${bios.treeRootPath}"></code>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>진입점</dt>
+                            <dd>
+                                <code th:text="${bios.entrypointRelativePath}"></code>
+                                <span class="n-accordion-muted" style="font-size: 11px;">· 실행 파일 경로만 보관 (실행 로직은 Execution 도메인 담당 예정)</span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>파일 수</dt>
+                            <dd>
+                                <span th:text="${bios.fileCount} + ' 개 · ' + ${#numbers.formatInteger(bios.totalBytes, 0, 'COMMA')} + ' B'"></span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>manifest 해시</dt>
+                            <dd>
+                                <code style="font-size: 11px;" th:text="${bios.manifestHash}"></code>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>무결성</dt>
+                            <dd>
+                                <!-- data-verify-url 을 통해 JS 가 POST 로 실시간 검증을 요청. 기본 표시는 '미검증' -->
+                                <span class="n-badge"
+                                      th:classappend="${T(com.example.serverprovision.management.common.view.IntegrityStatusView).badgeClass(bios.integrityStatus)}"
+                                      th:data-bios-id="${bios.id}"
+                                      th:data-verify-url="@{/management/bios/{boardId}/bios/{biosId}/verify(boardId=${board.id},biosId=${bios.id})}"
+                                      th:data-status-url="@{/management/bios/{boardId}/bios/{biosId}/integrity-status(boardId=${board.id},biosId=${bios.id})}"
+                                      th:text="${bios.integrityStatus != null ? bios.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
+                                <button type="button" class="n-btn n-btn-sm n-btn-ghost"
+                                        th:data-verify-url="@{/management/bios/{boardId}/bios/{biosId}/verify(boardId=${board.id},biosId=${bios.id})}">
+                                    검증
+                                </button>
+                                <!--
+                                  marker 재발급 액션은 위험도가 높아 자원 디테일에서 제거됨.
+                                  필요 시 [경로 점검] 페이지의 "마커 서명 재발급" 으로 일괄 처리.
+                                -->
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>설명</dt>
+                            <dd th:text="${bios.description != null and !#strings.isEmpty(bios.description)} ? ${bios.description} : '—'"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>상태</dt>
+                            <dd>
+                                <span th:if="${bios.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
+                                <th:block th:unless="${bios.isDeleted}">
+                                    <span class="n-badge"
+                                          th:classappend="${bios.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
+                                          th:text="${bios.isEnabled} ? '활성화' : '비활성화'"></span>
+                                    <!-- MK2 — Deprecated 임시 텍스트 표시. CSS 토큰화 (.has-warning) 는 후속 슬라이스. -->
+                                    <span th:if="${bios.isDeprecated}" class="n-badge n-badge-orange">(Deprecated)</span>
+                                    <form th:action="@{/management/bios/{boardId}/bios/{biosId}/toggle(boardId=${board.id},biosId=${bios.id})}"
+                                          method="post" class="n-accordion-inline-form">
+                                        <button type="submit"
+                                                class="n-btn n-btn-sm"
+                                                th:classappend="${bios.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
+                                                th:text="${bios.isEnabled} ? '비활성화' : '활성화'"></button>
+                                    </form>
+                                </th:block>
+                            </dd>
+                        </div>
+                    </dl>
+
+                    <!-- 수정 / 삭제 / 복구 / Deprecate / 영구 삭제 -->
+                    <div class="n-form-actions">
+                        <th:block th:unless="${bios.isDeleted}">
+                            <a th:href="@{/management/bios/{boardId}/bios/{biosId}/edit(boardId=${board.id},biosId=${bios.id})}"
+                               class="n-btn n-btn-secondary">수정</a>
+                            <!-- MK2 — Deprecate / Undeprecate 토글. 활성 / Deprecated 자원에 한해 노출. -->
+                            <form th:unless="${bios.isDeprecated}"
+                                  th:action="@{/management/bios/{boardId}/bios/{biosId}/deprecate(boardId=${board.id},biosId=${bios.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('이 BIOS 자원을 Deprecate (사용 비권장 표시) 할까요?');">
+                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecate</button>
+                            </form>
+                            <form th:if="${bios.isDeprecated}"
+                                  th:action="@{/management/bios/{boardId}/bios/{biosId}/undeprecate(boardId=${board.id},biosId=${bios.id})}"
+                                  method="post" style="display:inline;">
+                                <button type="submit" class="n-btn n-btn-outline-info">Undeprecate</button>
+                            </form>
+                            <form th:action="@{/management/bios/{boardId}/bios/{biosId}/delete(boardId=${board.id},biosId=${bios.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('이 BIOS 파일을 삭제할까요?');">
+                                <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
+                            </form>
+                        </th:block>
+                        <th:block th:if="${bios.isDeleted}">
+                            <form th:action="@{/management/bios/{boardId}/bios/{biosId}/restore(boardId=${board.id},biosId=${bios.id})}"
+                                  method="post" style="display:inline;">
+                                <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                            </form>
+                            <!-- MK2 — 영구 삭제. typed-name confirm (자원명 입력) 으로 우발 삭제 방어. -->
+                            <form th:action="@{/management/bios/{boardId}/bios/{biosId}/purge(boardId=${board.id},biosId=${bios.id})}"
+                                  method="post" style="display:inline;"
+                                  th:data-resource-name="${bios.name}"
+                                  data-typed-confirm="purge">
+                                <button type="submit" class="n-btn n-btn-outline-danger">영구 삭제</button>
+                            </form>
+                        </th:block>
+                    </div>
+                </div>
+            </th:block>
+        </div>
+    </div>
+</div>
+
+<!--
+  Miller 컬럼 상호작용 스크립트 재사용.
+  os-list.js 는 data-os-key / data-os-id 에 일반 바인딩되어 있고, BIOS 에 해당하는
+  추가 도메인 로직(추출 등) 은 BIOS 페이지에서 클래스·데이터가 매칭되지 않아
+  자연스럽게 no-op 이 된다. A3 단독 js 는 A4 까지 반복 확보 후 공용화 예정 — 지금은 복제 없이 재사용.
+-->
+<!-- MK2 — nudge modal fragment include. bios-new.js 가 업로드 응답 409 NUDGE_REQUIRED 시 본 modal 을 표시. -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('biosNudge', @{/management/bios/nudge})}"></div>
+
+<script th:src="@{/management/os/os-list.js}"></script>
+<script th:src="@{/management/bios/bios-list.js}"></script>
+
+</body>
+</html>

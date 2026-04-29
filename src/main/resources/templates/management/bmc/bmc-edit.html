@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BMC 메타 수정')}"></th:block>
+    <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bmc')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BMC 메타 수정</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/management/bmc(selectId=${bmcId})}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                대상 보드 : <strong th:text="${contextLabel}"></strong>
+            </div>
+
+            <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/edit(boardId=${boardId},bmcId=${bmcId})}"
+                  th:object="${bmcForm}"
+                  method="post"
+                  novalidate>
+
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="name">이름</label>
+                    <input id="name" type="text" th:field="*{name}" class="n-input"
+                           data-error-field="name">
+                    <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="version">버전</label>
+                    <input id="version" type="text" th:field="*{version}" class="n-input"
+                           data-error-field="version">
+                    <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong">트리 루트 경로</label>
+                    <code th:text="${treeRootPath}"></code>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong">실행 대상 상대경로</label>
+                    <code th:text="${entrypointRelativePath}"></code>
+                    <div class="n-hint">번들 내용이나 실행 대상을 바꾸려면 삭제 후 새 번들로 다시 등록하세요.</div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"
+                              data-error-field="description"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a th:href="@{/management/bmc(selectId=${bmcId})}" class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" class="n-btn n-btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

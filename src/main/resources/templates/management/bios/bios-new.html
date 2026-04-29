@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  A3 v3. BIOS 번들 업로드 폼 (BoardModel 서브 리소스).
+  ─────────────────────────────────────────────
+  Model:
+    biosForm     : BiosCreateRequest  @ModelAttribute
+                     · name / version / targetDirectory / description
+                     · allowCreateDirectory / entrypointRelativePath(선택)
+    boardId      : Long
+    contextLabel : String
+
+  업로드 방식 택 1:
+    · 폴더 업로드 : <input type="file" webkitdirectory multiple name="folderFiles">
+    · zip 업로드 : <input type="file" accept=".zip" name="zipFile">
+    · 선택 탭으로 토글 + uploadMode 값을 hidden 으로 전송
+
+  흐름: iso-new 와 동일한 Intent + XHR foreground 패턴. bios-new.js 가 탭 선택 · 트리 집계 · Intent 호출 · XHR 전송 담당.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 번들 등록')}"></th:block>
+    <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bios')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BIOS 번들 등록</h1>
+        <div class="n-header-actions">
+            <a id="backLink"
+               th:href="@{/management/bios(selectBoardId=${boardId})}"
+               class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                대상 메인보드 : <strong th:text="${contextLabel}"></strong>
+            </div>
+
+            <form id="biosForm"
+                  th:data-upload-url="@{/management/bios/{boardId}/upload(boardId=${boardId})}"
+                  th:data-intent-url="@{/management/bios/{boardId}/upload-intent(boardId=${boardId})}"
+                  th:data-list-url="@{/management/bios(selectBoardId=${boardId})}"
+                  th:object="${biosForm}"
+                  method="post"
+                  enctype="multipart/form-data"
+                  novalidate>
+
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="name">이름</label>
+                    <input id="name" type="text" th:field="*{name}"
+                           class="n-input"
+                           data-error-field="name"
+                           th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                           placeholder="예: Gigabyte MS03-CE0 BIOS Bundle">
+                    <div class="n-hint">사람이 식별하기 쉬운 레이블.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="version">버전</label>
+                    <input id="version" type="text" th:field="*{version}"
+                           class="n-input"
+                           data-error-field="version"
+                           th:classappend="${#fields.hasErrors('version')} ? 'is-invalid'"
+                           placeholder="예: 2.03">
+                    <div class="n-hint">같은 메인보드 내에서 버전은 유일해야 합니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="targetDirectory">대상 디렉토리</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input id="targetDirectory" type="text" th:field="*{targetDirectory}"
+                               class="n-input" style="flex: 1;"
+                               data-error-field="targetDirectory"
+                               th:classappend="${#fields.hasErrors('targetDirectory')} ? 'is-invalid'"
+                               placeholder="/mnt/firmware/bios/gigabyte/ms03-ce0/2.03/"
+                               th:data-browse-url="@{/management/bios/browse}">
+                        <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
+                    </div>
+                    <div class="n-hint">업로드된 번들 파일들이 전개될 서버 측 경로. 비어있거나 존재하지 않아야 합니다. 경로를 직접 타자하거나 "탐색" 버튼으로 서버 디렉토리를 골라 채울 수 있습니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}" th:errors="*{targetDirectory}"></div>
+
+                    <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글 -->
+                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', null)}"></div>
+
+                    <label class="n-check" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
+                        <span>디렉토리 생성 허용</span>
+                    </label>
+                    <div class="n-hint">경로가 존재하지 않을 경우 자동으로 생성합니다.</div>
+                </div>
+
+                <!-- 업로드 방식 선택 탭 -->
+                <div class="n-form-group">
+                    <label class="n-label strong">번들 업로드 방식</label>
+                    <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
+                                aria-selected="true" data-mode="FOLDER">폴더</button>
+                        <button type="button" id="modeTabZip" class="n-btn n-btn-sm n-btn-ghost" role="tab"
+                                aria-selected="false" data-mode="ZIP">Zip 파일</button>
+                        <button type="button" id="modeTabSingle" class="n-btn n-btn-sm n-btn-ghost" role="tab"
+                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일</button>
+                    </div>
+
+                    <input type="hidden" id="uploadMode" name="uploadMode" value="FOLDER">
+
+                    <!-- 폴더 업로드 : webkitdirectory + multiple  (Gigabyte 다중 파일 번들) -->
+                    <div id="folderPane">
+                        <input id="folderFiles" type="file" name="folderFiles"
+                               webkitdirectory multiple class="n-input">
+                        <div class="n-hint">
+                            <strong>단일 폴더 하나</strong>만 선택합니다. 개별 파일 여러 개를 흩뿌려 올리는 방식은 거절됩니다.
+                            선택한 폴더 <em>자체</em> 는 대상 디렉토리에 만들어지지 않고,
+                            그 안의 내용물만 대상 디렉토리로 전개됩니다 (폴더 이름 prefix 자동 제거).
+                            Gigabyte 서버보드 BIOS (RBU / SPI_UPD / f.nsh 등 다중 파일) 에 적합.
+                        </div>
+                    </div>
+
+                    <!-- zip 업로드 -->
+                    <div id="zipPane" hidden>
+                        <input id="zipFile" type="file" name="zipFile" accept=".zip" class="n-input">
+                        <div class="n-hint">
+                            zip 내용이 파일들을 <strong>직접</strong> 담고 있으면 그대로 전개.
+                            zip 이 단일 폴더로 한번 감싼 형태이면 그 폴더는 제거되고 내용물만 전개됩니다.
+                            zip 파일 자체는 전개 후 폐기.
+                        </div>
+                    </div>
+
+                    <!-- 단일 파일 업로드 : ASUS .cap/.CAP 등 단일 바이너리 -->
+                    <div id="singlePane" hidden>
+                        <input id="singleFile" type="file" name="singleFile" class="n-input">
+                        <div class="n-hint">
+                            파일 하나가 BIOS 전체를 담고 있는 경우 (예: ASUS 의 <code>.cap</code>/<code>.CAP</code>).
+                            해당 파일이 대상 디렉토리에 저장되고, 서버가 그 파일 자체를 진입점(대상 파일) 으로 등록합니다.
+                            Fujitsu 처럼 iRMC 웹 API 기반 업데이트는 파일 업로드 모델로 표현 불가해 지원되지 않습니다.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="entrypointRelativePath">진입점 상대경로 (선택)</label>
+                    <input id="entrypointRelativePath" type="text" th:field="*{entrypointRelativePath}"
+                           class="n-input"
+                           data-error-field="entrypointRelativePath"
+                           placeholder="예: f.nsh  (비워두면 자동 탐지)">
+                    <div class="n-hint">
+                        비워두면 서버가 트리 루트에서 <code>f.nsh</code> → <code>flash.nsh</code> → 단일 <code>*.nsh</code> 순으로 자동 탐지합니다.
+                        진입점은 <strong>실행 파일 자체만</strong> 지정합니다. 실행 시 파라미터 등은 향후 Execution 도메인에서 관장합니다.
+                    </div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"
+                              data-error-field="description"
+                              placeholder="예: 2026-03 릴리스. AMI AfuEfix64 별도 주입 필요."></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a id="cancelLink"
+                       th:href="@{/management/bios(selectBoardId=${boardId})}"
+                       class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">번들 등록</button>
+                </div>
+
+                <div class="n-hint" style="margin-top: 16px;">
+                    번들이 업로드되는 동안 페이지를 떠나지 마세요. 업로드 완료 시 자동으로 목록 페이지로 이동합니다.
+                </div>
+
+                <div id="uploadProgress" class="n-upload-progress">
+                    <div id="uploadText" class="n-upload-progress-text">시작 중…</div>
+                    <div class="n-upload-progress-bar-wrap">
+                        <div id="uploadBar" class="n-upload-progress-bar"></div>
+                    </div>
+                </div>
+
+                <div id="uploadError" class="n-upload-error"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MK2 — nudge modal fragment include. bios-new.js 가 업로드 응답 409 NUDGE_REQUIRED 시 본 modal 을 표시. -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('biosNudge', @{/management/bios/nudge})}"></div>
+
+<script th:src="@{/management/common/bundle-upload-bootstrap.js}"></script>
+<script th:src="@{/management/common/bundle-upload-shell.js}"></script>
+<script th:src="@{/management/bios/bios-new.js}"></script>
+</body>
+</html>
