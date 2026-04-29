@@ -12,7 +12,18 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 class BundleTreeCleanupServiceTest {
 
-    private final BundleTreeCleanupService service = new BundleTreeCleanupService();
+    /** S3.1 — purgeExistingTree 가 PathPolicy 가드를 통과해야 함. 단위 테스트는 mock 으로 통과. */
+    private final com.example.serverprovision.global.security.PathPolicyService pathPolicyService =
+            org.mockito.Mockito.mock(com.example.serverprovision.global.security.PathPolicyService.class);
+    private final com.example.serverprovision.global.security.config.FileSystemSecurityProperties fsProps =
+            new com.example.serverprovision.global.security.config.FileSystemSecurityProperties(2000, 8);
+    private final BundleTreeCleanupService service = new BundleTreeCleanupService(pathPolicyService, fsProps);
+
+    {
+        // 모든 path 통과 시키는 default mock — 본 단위 테스트는 가드 동작 자체가 아니라 walk/delete 검증.
+        org.mockito.Mockito.when(pathPolicyService.assertWritablePath(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> Path.of(inv.getArgument(0, String.class)));
+    }
 
     @Test
     @DisplayName("purgeExistingTree : 하위 파일/디렉토리를 역순 삭제한다")

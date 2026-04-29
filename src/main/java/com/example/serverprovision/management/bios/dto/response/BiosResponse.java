@@ -22,6 +22,7 @@ public record BiosResponse(
         String description,
         IntegrityStatus integrityStatus,
         boolean isEnabled,
-        boolean isDeleted
+        boolean isDeleted,
+        boolean isDeprecated
 ) {
 }

@@ -25,7 +25,8 @@ import java.util.List;
  *   <li>뷰에는 Request / Response 만 넘긴다 (엔티티 직접 노출 금지).</li>
  *   <li>성공 시 {@code /management/board?selectId=...} 로 리다이렉트해 Miller 초기 선택을 복원한다.</li>
  *   <li>검증 실패({@code BindingResult}) 는 같은 폼 뷰로 돌아가 Thymeleaf 의 field errors 를 렌더한다.</li>
- *   <li>도메인 예외({@code NotFound}, {@code Conflict}) 는 {@link com.example.serverprovision.global.exception.GlobalExceptionHandler} 가 처리한다.</li>
+ *   <li>도메인 예외({@code NotFound}, {@code Conflict}) 는 {@link com.example.serverprovision.global.exception.WebExceptionHandler}
+ *       (HTML) / {@link com.example.serverprovision.global.exception.ApiExceptionHandler} (JSON) 가 Accept 헤더에 따라 처리한다.</li>
  * </ul>
  */
 @Controller

@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.common.filesystem.service;
 
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.os.exception.DirectoryMissingException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

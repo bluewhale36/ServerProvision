@@ -75,6 +75,110 @@
 
     if (!trigger || !panel || !list || !empty || !count || !clear) return;
 
+    // ---- CH3 : 폴링 실패 → 자동 reload 가드 ----------------------------
+    // 임계값 / grace 는 commonHead fragment 의 data-attribute 로 외부화.
+    // (override 가 없으면 default 5회 / 1500ms.)
+    // 우선순위 : (1) <script src=".../background-jobs.js"> 의 data-* 속성
+    //              (2) <html> 의 data-* 속성  ← layout 가 직접 제어 가능한 페이지에서 override 용
+    //              (3) default
+    const scriptEl = document.currentScript
+        || document.querySelector('script[src*="background-jobs.js"]');
+    function readIntAttr(name, fallback) {
+        const sources = [scriptEl, document.documentElement];
+        for (const src of sources) {
+            if (!src) continue;
+            const v = src.getAttribute(name);
+            if (v == null) continue;
+            const n = parseInt(v, 10);
+            if (Number.isFinite(n) && n > 0) return n;
+        }
+        return fallback;
+    }
+    const FAIL_THRESHOLD     = readIntAttr('data-bgjob-fail-threshold', 5);
+    const RELOAD_GRACE_MS    = readIntAttr('data-bgjob-fail-grace-ms', 1500);
+    const RELOAD_LOOP_GUARD_MS = 30 * 1000; // 30초 내 직전 reload 가 있으면 보류
+    const RELOAD_TS_KEY      = 'bgjob:lastReloadAt';
+    const PERMA_NOTICE_MSG   = '서버와 연결이 끊어졌습니다. 잠시 후 다시 시도해주세요.';
+    const RELOAD_NOTICE_MSG  = '서버 응답이 없어 페이지를 새로고침합니다.';
+
+    let consecutiveFailures = 0;
+    let reloadScheduled = false;       // 이미 reload 예약 (지연 중) 인지
+    let permaNoticeShown = false;      // 무한 reload 가드 메시지 1회만
+
+    // 업로드 진행 카운터 — 동시 다중 업로드도 정확히 추적.
+    // 외부 모듈은 `bgjob:uploadStart` / `bgjob:uploadEnd` document event 로 통보한다.
+    // (보조: `window.__bgjobUploading === true` 도 인정한다.)
+    let uploadInProgressCount = 0;
+    document.addEventListener('bgjob:uploadStart', () => {
+        uploadInProgressCount++;
+    });
+    document.addEventListener('bgjob:uploadEnd', () => {
+        uploadInProgressCount = Math.max(0, uploadInProgressCount - 1);
+        // 업로드가 모두 끝난 시점에 임계 초과가 누적된 상태였으면 그때 reload 시도
+        if (uploadInProgressCount === 0 && consecutiveFailures >= FAIL_THRESHOLD) {
+            tryScheduleReload();
+        }
+    });
+
+    function isUploadActive() {
+        return uploadInProgressCount > 0 || window.__bgjobUploading === true;
+    }
+
+    function recentlyReloaded() {
+        try {
+            const raw = sessionStorage.getItem(RELOAD_TS_KEY);
+            if (!raw) return false;
+            const last = parseInt(raw, 10);
+            if (!Number.isFinite(last)) return false;
+            return (Date.now() - last) < RELOAD_LOOP_GUARD_MS;
+        } catch (_) {
+            return false; // sessionStorage 비활성화 환경 — 무한 루프 가드 비활성화
+        }
+    }
+
+    function markReloaded() {
+        try {
+            sessionStorage.setItem(RELOAD_TS_KEY, String(Date.now()));
+        } catch (_) { /* no-op */ }
+    }
+
+    function tryScheduleReload() {
+        if (reloadScheduled) return;
+        if (isUploadActive()) {
+            // 업로드 중이면 보류 — `bgjob:uploadEnd` 핸들러가 다시 호출
+            return;
+        }
+        if (recentlyReloaded()) {
+            // 30초 내 reload 가 직전 → 무한 루프 회피. 영구 알림 1회.
+            if (!permaNoticeShown) {
+                permaNoticeShown = true;
+                if (typeof window.bgjobToast === 'function') {
+                    window.bgjobToast(PERMA_NOTICE_MSG, { variant: 'error', duration: 8000 });
+                }
+            }
+            return;
+        }
+        reloadScheduled = true;
+        if (typeof window.bgjobToast === 'function') {
+            window.bgjobToast(RELOAD_NOTICE_MSG, { variant: 'error', duration: RELOAD_GRACE_MS + 200 });
+        }
+        setTimeout(() => {
+            markReloaded();
+            window.location.reload();
+        }, RELOAD_GRACE_MS);
+    }
+
+    function recordFailure() {
+        consecutiveFailures++;
+        if (consecutiveFailures >= FAIL_THRESHOLD) {
+            tryScheduleReload();
+        }
+    }
+
+    function recordSuccess() {
+        consecutiveFailures = 0;
+    }
+
     // 이전 폴링 결과의 종료 상태 기록 — 신규 종료 전이를 감지해 이벤트 디스패치
     const terminalSeen = new Map();
     // 첫 폴링에서는 이벤트 dispatch 를 억제한다.
@@ -222,14 +326,28 @@
     }
 
     // ---- 폴링 --------------------------------------------------
+    // CH3 : 연속 실패 (network error / 비-2xx / JSON parse 실패) 가
+    //       FAIL_THRESHOLD 회 누적되면 toast 후 자동 reload.
+    //       1회라도 성공하면 카운터 0 으로 리셋 → 간헐적 실패는 무시한다.
     async function poll() {
+        let succeeded = false;
         try {
             const resp = await fetch('/jobs', { headers: { 'Accept': 'application/json' } });
             if (!resp.ok) {
+                // 비-2xx (5xx 우선, 4xx 도 포함) — 실패로 카운트
+                recordFailure();
                 schedule();
                 return;
             }
-            const body = await resp.json();
+            let body;
+            try {
+                body = await resp.json();
+            } catch (_parseErr) {
+                // JSON 파싱 실패 — 서버가 비정상 응답을 흘린 경우. 실패로 카운트.
+                recordFailure();
+                schedule();
+                return;
+            }
             const jobs = Array.isArray(body.jobs) ? body.jobs : [];
             if (!firstPollDone) {
                 seedTerminalSeen(jobs);
@@ -238,9 +356,12 @@
                 detectTerminalTransitions(jobs);
             }
             render(jobs);
-        } catch (e) {
-            // 네트워크 오류는 조용히 흘림 — 다음 폴링에서 자연 복구
+            succeeded = true;
+        } catch (_e) {
+            // network error / TypeError — 실패로 카운트
+            recordFailure();
         } finally {
+            if (succeeded) recordSuccess();
             schedule();
         }
     }

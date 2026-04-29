@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
-import com.example.serverprovision.management.bios.exception.EmptyBundleException;
+import com.example.serverprovision.management.common.filesystem.exception.BundleExtractionException;
+import com.example.serverprovision.management.common.filesystem.exception.EmptyBundleException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,7 +19,36 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BundleExtractionServiceTest {
 
-    private final BundleExtractionService service = new BundleExtractionService();
+    /** S3 — 본 단위 테스트는 zip slip / 폴더 케이스 분기 검증이 핵심이라 보안 가드는 mock 으로 통과시킴. */
+    private final com.example.serverprovision.global.security.config.UploadSecurityProperties uploadProps =
+            new com.example.serverprovision.global.security.config.UploadSecurityProperties(
+                    org.springframework.util.unit.DataSize.ofGigabytes(5),
+                    org.springframework.util.unit.DataSize.ofGigabytes(20),
+                    5000,
+                    org.springframework.util.unit.DataSize.ofGigabytes(20),
+                    org.springframework.util.unit.DataSize.ofGigabytes(20),
+                    100,
+                    10000,
+                    com.example.serverprovision.global.security.config.UploadSecurityProperties.ExecutableBinaryPolicy.ALLOW,
+                    50,
+                    com.example.serverprovision.global.security.config.UploadSecurityProperties.SuspiciousFilenamesPolicy.DISABLED,
+                    null,
+                    org.springframework.util.unit.DataSize.ofGigabytes(20)
+            );
+    private final com.example.serverprovision.global.security.config.FileSystemSecurityProperties fsProps =
+            new com.example.serverprovision.global.security.config.FileSystemSecurityProperties(2000, 8);
+    private final com.example.serverprovision.global.security.FileSystemHardener fileSystemHardener =
+            new com.example.serverprovision.global.security.FileSystemHardener(fsProps);
+    private final com.example.serverprovision.global.security.UploadTempDirectoryProvider tempDirProvider =
+            new com.example.serverprovision.global.security.UploadTempDirectoryProvider(uploadProps);
+    private final com.example.serverprovision.global.security.ZipBombGuard zipBombGuard =
+            new com.example.serverprovision.global.security.ZipBombGuard(uploadProps, tempDirProvider);
+    private final com.example.serverprovision.global.security.ContentGuard contentGuard =
+            new com.example.serverprovision.global.security.ContentGuard(uploadProps);
+    private final com.example.serverprovision.global.security.UploadLimitsPolicy uploadLimitsPolicy =
+            new com.example.serverprovision.global.security.UploadLimitsPolicy(uploadProps, fsProps);
+    private final BundleExtractionService service = new BundleExtractionService(
+            zipBombGuard, contentGuard, uploadLimitsPolicy, fileSystemHardener, tempDirProvider);
 
     // ---- folder 케이스 ---------------------------------------------
 
@@ -110,6 +139,37 @@ class BundleExtractionServiceTest {
         MultipartFile z = zip(new String[][]{ {"../../evil.txt", "gotcha"} });
         assertThatThrownBy(() -> service.extractZip(z, tmp.resolve("t")))
                 .isInstanceOf(BundleExtractionException.class);
+    }
+
+    // ---- S3.3 (K16) commonPrefix 후 재침투 가드 ---------------------
+
+    @Test
+    @DisplayName("S3.3 (K16) extractZip : commonPrefix strip 후 traversal 재출현 → BundleExtractionException")
+    void commonPrefixStripExposesTraversal_rejected(@TempDir Path tmp) throws Exception {
+        // 모든 entry 가 동일한 first-segment "wrapping-folder/" 로 시작하므로 commonPrefix 가 검출되어 strip 된다.
+        // strip 결과는 "../etc/passwd" — sanitize 가 다시 실행되어야 하며, 두 번째 sanitize 또는 safeResolve 에서
+        // BundleExtractionException 으로 거절되어야 한다 (zip slip 재침투 차단).
+        // 일관된 prefix 보존을 위해 보조 entry "wrapping-folder/legit.bin" 을 함께 제공한다.
+        MultipartFile z = zip(new String[][]{
+                {"wrapping-folder/legit.bin", "ok"},
+                {"wrapping-folder/../etc/passwd", "evil"}
+        });
+        assertThatThrownBy(() -> service.extractZip(z, tmp.resolve("t")))
+                .isInstanceOf(BundleExtractionException.class);
+    }
+
+    @Test
+    @DisplayName("S3.3 (K16) extractZip : commonPrefix strip 결과가 빈 문자열이면 skip (회귀 가드)")
+    void commonPrefixStripBecomesEmpty_skipped(@TempDir Path tmp) throws Exception {
+        // "wrapper/" 디렉토리 entry 는 prefix strip 후 빈 문자열이 되며, 이 경우 continue (skip) 가 정상 흐름.
+        // 정상 파일 "wrapper/file.bin" 은 그대로 전개되어야 하고, 빈 entry 때문에 IOException 으로 새지 않아야 한다.
+        MultipartFile z = zip(new String[][]{
+                {"wrapper/file.bin", "data"}
+        });
+        Path target = tmp.resolve("target");
+        service.extractZip(z, target);
+
+        assertThat(Files.exists(target.resolve("file.bin"))).isTrue();
     }
 
     // ---- single file 케이스 ----------------------------------------

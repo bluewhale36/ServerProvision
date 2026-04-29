@@ -28,6 +28,24 @@ public interface ISORepository extends JpaRepository<ISO, Long> {
      */
     Optional<ISO> findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(Long osImageId, String isoPath);
 
+    // ---- MK2 — 메타 사전 경고 (단계 A) -------------------------------
+
+    /**
+     * 같은 OS 의 isoPath 가 일치하는 soft-deleted ISO 후보 (단계 A — sidecar 충돌 사전 경고).
+     * intent 응답의 {@code preExistingMatch} 채울 때 사용. PURGED 자원은 row 부재라 후보가 안 됨.
+     */
+    Optional<ISO> findFirstByOsImage_IdAndIsoPathAndIsDeletedTrue(Long osImageId, String isoPath);
+
+    // ---- MK2 — 해시 충돌 후보 (단계 B) -------------------------------
+
+    /**
+     * 동일 manifestHash 를 가진 soft-deleted 또는 deprecated ISO 후보들.
+     * <p>활성 ISO 와의 해시 충돌은 그대로 hard conflict ({@code DuplicateISOContentException}) 이지만,
+     * 휴지통/Deprecated 자원과의 충돌은 사용자가 confirm 하면 등록을 진행할 수 있는 nudge 흐름으로 분기한다.</p>
+     */
+    @Query("select i from ISO i where i.manifestHash = :hash and (i.isDeleted = true or i.isDeprecated = true)")
+    List<ISO> findByManifestHashAndIsDeletedTrueOrIsDeprecatedTrue(String hash);
+
     // ---- MK1 reconciliation 인벤토리 -------------------------------
 
     /** Markable 인벤토리 (활성). MK1 PathReconciliationService 가 OS_ISO 자원 수집 시 사용. */

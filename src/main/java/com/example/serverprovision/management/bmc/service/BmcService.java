@@ -5,10 +5,8 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
-import com.example.serverprovision.management.bios.enums.BiosUploadMode;
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
-import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.global.security.PathPolicyService;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.service.BundleEntrypointDetector;
 import com.example.serverprovision.management.bios.service.BundleExtractionService;
 import com.example.serverprovision.management.bios.service.BundleManifestService;
@@ -62,6 +60,7 @@ public class BmcService {
     private final ProvisionMarkerService provisionMarkerService;
     private final TargetDirectoryPolicyService targetDirectoryPolicyService;
     private final BundleTreeCleanupService bundleTreeCleanupService;
+    private final PathPolicyService pathPolicyService;
 
     public List<BoardWithBmcListResponse> findAllGrouped(boolean includeDeleted) {
         List<BoardModel> boards = includeDeleted
@@ -116,13 +115,11 @@ public class BmcService {
             throw new DuplicateBmcVersionException(boardId, request.version());
         }
 
-        Path targetDir = Path.of(request.targetDirectory());
+        // S3 — allowlist 검증된 절대경로만 사용
+        Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
 
-        bmcRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version())
-                .ifPresent(existing -> {
-                    bundleTreeCleanupService.purgeExistingTree(Path.of(existing.getTreeRootPath()), "purgeExistingTree");
-                    bmcRepository.delete(existing);
-                });
+        // MK2 — 자동 hard-delete 인라인 로직 제거. soft-deleted 동일 (board, version) 충돌은
+        // NudgeRegistry 흐름에서 사용자 명시 액션 (PROCEED / REPLACE / CANCEL) 으로 해소된다.
 
         targetDirectoryPolicyService.prepareForUpload(targetDir, request.allowCreateDirectory());
 
@@ -272,7 +269,45 @@ public class BmcService {
                 entity.getDescription(),
                 entity.getLastIntegrityStatus() != null ? entity.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
                 entity.isEnabled(),
-                entity.isDeleted()
+                entity.isDeleted(),
+                entity.isDeprecated()
         );
+    }
+
+    // ==== MK2 lifecycle 액션 ============================================
+
+    /**
+     * Active → Deprecated 전이. {@link com.example.serverprovision.global.lifecycle.exception.IllegalDeprecationStateException}
+     * 가 super 단에서 던져진다 (이미 deprecated 거나 삭제된 경우).
+     */
+    @Transactional
+    public void deprecate(Long boardId, Long bmcId) {
+        requireLiveBmc(boardId, bmcId).deprecate();
+    }
+
+    /**
+     * Deprecated → Active 전이.
+     */
+    @Transactional
+    public void undeprecate(Long boardId, Long bmcId) {
+        requireLiveBmc(boardId, bmcId).undeprecate();
+    }
+
+    /**
+     * Soft-deleted 한정 영구 삭제 (트리 제거 + DB row delete).
+     * Active / Deprecated 자원에는 호출 금지 — 가드 후 hard-delete 하면 가시 자원이 사라지므로.
+     */
+    @Transactional
+    public void purge(Long boardId, Long bmcId) {
+        requireActiveBoard(boardId);
+        BoardBMC bmc = bmcRepository.findByIdAndBoardModel_Id(bmcId, boardId)
+                .orElseThrow(() -> new BmcNotFoundException(boardId, bmcId));
+        if (!bmc.isDeleted()) {
+            throw new IllegalBmcStateException(
+                    "영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
+        }
+        bundleTreeCleanupService.purgeExistingTree(Path.of(bmc.getTreeRootPath()), "purgeBmc");
+        bmcRepository.delete(bmc);
+        log.info("[purgeBmc] 영구 삭제 완료. bmcId={}, boardId={}", bmcId, boardId);
     }
 }

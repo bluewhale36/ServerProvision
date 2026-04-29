@@ -62,4 +62,25 @@ public interface BiosRepository extends JpaRepository<BoardBIOS, Long> {
     /** soft-deleted 자원의 ID Set (D20). ORPHAN 분류 후처리에서 매칭 제외 용도. */
     @Query("select b.id from BoardBIOS b where b.isDeleted = true")
     Set<Long> findIdsByIsDeletedTrue();
+
+    // ---- MK2 (단계 A · 메타 사전 매칭) --------------------------------
+
+    /**
+     * MK2 — 단계 A. (board, version) 메타가 같은 자원이 어떤 lifecycle 이든 존재하는지.
+     * upload-intent 응답의 {@code preExistingMatch} 안내용. 활성 / Deprecated / SoftDeleted 모두 포함.
+     */
+    Optional<BoardBIOS> findFirstByBoardModel_IdAndVersion(Long boardModelId, String version);
+
+    // ---- MK2 (단계 B · 해시 충돌 후보) --------------------------------
+
+    /**
+     * MK2 — 단계 B. 해시가 같은 SoftDeleted 또는 Deprecated 자원 후보 (보드 scope).
+     * ACTIVE 자원의 해시 일치는 동일 (board, version) 활성 거절 흐름과 별개로 본 슬라이스에서는 conflict
+     * 후보에서 제외 — 사용자 결정 의미가 없다 (운영 정책).
+     */
+    @Query("select b from BoardBIOS b where b.boardModel.id = :boardModelId "
+            + "and b.manifestHash = :manifestHash "
+            + "and (b.isDeleted = true or b.isDeprecated = true)")
+    List<BoardBIOS> findHashConflictCandidates(@org.springframework.data.repository.query.Param("boardModelId") Long boardModelId,
+                                               @org.springframework.data.repository.query.Param("manifestHash") String manifestHash);
 }

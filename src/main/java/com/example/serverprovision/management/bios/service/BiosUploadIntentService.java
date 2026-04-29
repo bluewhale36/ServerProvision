@@ -1,11 +1,14 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
+import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
+import com.example.serverprovision.management.common.nudge.dto.PreExistingMatchInfo;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.os.exception.InvalidUploadTokenException;
@@ -36,6 +39,7 @@ public class BiosUploadIntentService {
     private final BoardModelRepository boardModelRepository;
     private final BiosRepository biosRepository;
     private final TargetDirectoryPolicyService targetDirectoryPolicyService;
+    private final PathPolicyService pathPolicyService;
 
     private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
@@ -48,8 +52,8 @@ public class BiosUploadIntentService {
             throw new DuplicateBiosVersionException(boardId, request.version());
         }
 
-        // targetDirectory 점유 검증
-        Path targetDir = Path.of(request.targetDirectory());
+        // S3 — allowlist 검증
+        Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
         targetDirectoryPolicyService.validateForIntent(targetDir, request.allowCreateDirectory());
 
         // 소프트 경고 수집
@@ -60,6 +64,19 @@ public class BiosUploadIntentService {
         if (request.uploadMode() == BiosUploadMode.FOLDER && request.fileCount() == 0) {
             warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어있을 수 있습니다.");
         }
+
+        // MK2 (단계 A) — 메타가 같은 기존 자원 사전 매칭. SoftDeleted/Deprecated/Active 무관.
+        // 활성 (board, version) 은 위에서 이미 거절했으므로 본 lookup 의 ACTIVE 매칭은 발생하지 않는다 —
+        // 결과는 항상 SoftDeleted 또는 Deprecated. 사용자에게 "휴지통/Deprecated 에 같은 메타가 있으니
+        // 진행하면 단계 B 에서 nudge 결정이 필요할 수 있다" 안내용.
+        PreExistingMatchInfo preExistingMatch = biosRepository
+                .findFirstByBoardModel_IdAndVersion(boardId, request.version())
+                .map(b -> new PreExistingMatchInfo(
+                        b.getId(),
+                        LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
+                        b.getName(),
+                        b.getVersion()))
+                .orElse(null);
 
         String token = UUID.randomUUID().toString();
         intents.put(token, new Intent(
@@ -72,9 +89,10 @@ public class BiosUploadIntentService {
                 request.entrypointRelativePath(),
                 Instant.now()
         ));
-        log.info("[BiosUploadIntentService] issued token={}, boardId={}, mode={}, target={}",
-                token, boardId, request.uploadMode(), request.targetDirectory());
-        return new BiosUploadIntentResponse(token, warnings);
+        log.info("[BiosUploadIntentService] issued token={}, boardId={}, mode={}, target={}, preExisting={}",
+                token, boardId, request.uploadMode(), request.targetDirectory(),
+                preExistingMatch != null ? preExistingMatch.id() : null);
+        return new BiosUploadIntentResponse(token, warnings, preExistingMatch);
     }
 
     public Intent consume(Long boardId, String token) {

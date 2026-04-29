@@ -1,8 +1,8 @@
 package com.example.serverprovision.management.bmc.service;
 
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.service.BundleEntrypointDetector;
 import com.example.serverprovision.management.bios.service.BundleExtractionService;
 import com.example.serverprovision.management.bios.service.BundleManifestService;
@@ -52,7 +52,14 @@ class BmcServiceTest {
     @Mock ProvisionMarkerService provisionMarkerService;
     @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
     @Mock BundleTreeCleanupService bundleTreeCleanupService;
+    @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
     @InjectMocks BmcService bmcService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubSecurity() {
+        org.mockito.Mockito.lenient().when(pathPolicyService.assertWritablePath(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> java.nio.file.Path.of(inv.getArgument(0, String.class)).toAbsolutePath().normalize());
+    }
 
     private BoardModel activeBoard() {
         return BoardModel.builder()
@@ -66,8 +73,6 @@ class BmcServiceTest {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
-        given(bmcRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "13.06.25"))
-                .willReturn(Optional.empty());
         given(bundleEntrypointDetector.detect(any(), any())).willReturn("flash.nsh");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 3, 2048L));
         given(provisionMarkerService.computeSignature(any())).willReturn("sig123");
@@ -114,8 +119,6 @@ class BmcServiceTest {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        given(bmcRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "1.0"))
-                .willReturn(Optional.empty());
         org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 
@@ -132,8 +135,6 @@ class BmcServiceTest {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        given(bmcRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "1.0"))
-                .willReturn(Optional.empty());
         org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 
@@ -150,8 +151,6 @@ class BmcServiceTest {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
-        given(bmcRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "13.06.25"))
-                .willReturn(Optional.empty());
         given(bundleEntrypointDetector.detect(any(), any())).willReturn("flash.nsh");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 10L));
         given(bmcRepository.save(any(BoardBMC.class))).willThrow(new IllegalStateException("db fail"));
@@ -189,8 +188,6 @@ class BmcServiceTest {
 
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
-        given(bmcRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "13.06.25"))
-                .willReturn(Optional.empty());
         given(bundleEntrypointDetector.detect(any(), any())).willReturn("flash.nsh");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 10L));
         given(provisionMarkerService.computeSignature(any())).willReturn("sig123");

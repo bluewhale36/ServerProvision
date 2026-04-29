@@ -8,14 +8,14 @@ import com.example.serverprovision.management.common.dto.response.IntegrityStatu
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
+import com.example.serverprovision.management.common.filesystem.exception.BundleExtractionException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
-import com.example.serverprovision.management.bios.exception.EmptyBundleException;
+import com.example.serverprovision.management.common.filesystem.exception.EmptyBundleException;
 import com.example.serverprovision.management.bios.exception.EntrypointAmbiguousException;
 import com.example.serverprovision.management.bios.exception.EntrypointNotFoundException;
 import com.example.serverprovision.management.bios.exception.IllegalBiosStateException;
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.bios.service.BiosUploadIntentService;
 import com.example.serverprovision.management.bios.service.BiosVerificationLauncher;
@@ -61,6 +61,7 @@ class BiosControllerUploadFlowTest {
 
     @MockitoBean BiosService biosService;
     @MockitoBean BiosUploadIntentService biosUploadIntentService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosNudgeService biosNudgeService;
     @MockitoBean BoardModelService boardModelService;
     @MockitoBean BiosVerificationLauncher biosVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
@@ -92,7 +93,7 @@ class BiosControllerUploadFlowTest {
         void success() throws Exception {
             var req = new BiosUploadIntentRequest("/mnt/bios/x", BiosUploadMode.FOLDER, 5, 1024, "2.03", false, "");
             given(biosUploadIntentService.issue(eq(1L), any()))
-                    .willReturn(new BiosUploadIntentResponse("token-abc", List.of()));
+                    .willReturn(new BiosUploadIntentResponse("token-abc", List.of(), null));
 
             mvc.perform(post("/management/bios/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -134,7 +135,10 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(req)))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.message").value(containsString("2.03")));
+                    .andExpect(jsonPath("$.message").value(containsString("2.03")))
+                    // S4 — DuplicateBiosVersionException 이 FieldBoundConflictException 상속 →
+                    // 응답에 fieldErrors[0].field=version 동봉. 회귀 시 base 가 ConflictException 으로 되돌려진 것.
+                    .andExpect(jsonPath("$.fieldErrors[0].field").value("version"));
         }
 
         @Test

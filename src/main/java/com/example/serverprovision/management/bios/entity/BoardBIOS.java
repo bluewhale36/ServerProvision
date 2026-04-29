@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.bios.entity;
 
-import com.example.serverprovision.global.entity.BaseTimeEntity;
+import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -16,10 +16,10 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -49,9 +49,8 @@ import java.time.Instant;
 @Table(name = "board_bios")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
-public class BoardBIOS extends BaseTimeEntity implements Markable {
+@SuperBuilder
+public class BoardBIOS extends LifecycleEntity implements Markable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -115,26 +114,16 @@ public class BoardBIOS extends BaseTimeEntity implements Markable {
     @Column(name = "description", length = 1024)
     private String description;
 
-    @Column(name = "is_enabled", nullable = false)
-    @Builder.Default
-    private boolean isEnabled = true;
+    // ---- 도메인 메서드 (lifecycle 메서드는 LifecycleEntity 가 처리) -------
 
-    @Column(name = "is_deleted", nullable = false)
-    @Builder.Default
-    private boolean isDeleted = false;
-
-    // ---- 도메인 메서드 -------------------------------------------------
-
-    public void toggleEnabled() {
-        this.isEnabled = !this.isEnabled;
+    @Override
+    protected Long resourceId() {
+        return this.id;
     }
 
-    public void softDelete() {
-        this.isDeleted = true;
-    }
-
-    public void restore() {
-        this.isDeleted = false;
+    @Override
+    protected String resourceLabel() {
+        return "BIOS";
     }
 
     /**

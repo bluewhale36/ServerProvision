@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.dto.response;
 
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSImage;
 import com.example.serverprovision.management.os.enums.OSName;
@@ -8,8 +9,9 @@ import java.util.List;
 
 /**
  * OS 이미지 단일 응답. Miller Columns 의 C2 요약 + C3 상세를 한 타입으로 서빙.
- * ISO 리스트는 호출자가 휴지통 모드 여부에 맞춰 미리 필터링해 넘긴다.
- * 환경/패키지 그룹 필드는 A1-1 추출 슬라이스에서 채워지며, 아직 주입되지 않는 호출 경로는 빈 리스트가 들어간다.
+ *
+ * <p>MK2 — {@code isDeprecated} (스칼라 노출) + {@code state} (LifecycleStage 어휘) 추가.
+ * 클라이언트가 boolean 조합을 수행하지 않도록 서버에서 어휘 환산해 내려준다.</p>
  */
 public record OSImageResponse(
         Long id,
@@ -18,6 +20,8 @@ public record OSImageResponse(
         String description,
         boolean isEnabled,
         boolean isDeleted,
+        boolean isDeprecated,
+        LifecycleStage state,
         List<ISOResponse> isos,
         List<OSEnvironmentResponse> environments,
         List<OSPackageGroupResponse> packageGroups
@@ -36,6 +40,8 @@ public record OSImageResponse(
                 entity.getDescription(),
                 entity.isEnabled(),
                 entity.isDeleted(),
+                entity.isDeprecated(),
+                entity.currentStage(),
                 visibleIsos.stream().map(ISOResponse::from).toList(),
                 environments,
                 packageGroups

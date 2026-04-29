@@ -1,9 +1,9 @@
 package com.example.serverprovision.management.common.filesystem.service;
 
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.filesystem.exception.BundleExtractionException;
+import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.common.filesystem.policy.BundleFilePolicy;
 import com.example.serverprovision.management.os.exception.DirectoryMissingException;
 import lombok.extern.slf4j.Slf4j;

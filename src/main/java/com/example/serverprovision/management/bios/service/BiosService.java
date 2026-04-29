@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
@@ -8,13 +9,13 @@ import com.example.serverprovision.management.common.dto.response.IntegrityStatu
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
+import com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.bios.exception.IllegalBiosStateException;
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.MarkerSignatureMismatchException;
-import com.example.serverprovision.management.bios.exception.ManifestHashMismatchException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeResourceType;
+import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
@@ -25,6 +26,7 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
+import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -40,7 +42,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -69,6 +70,8 @@ public class BiosService {
     private final ProvisionMarkerService provisionMarkerService;
     private final TargetDirectoryPolicyService targetDirectoryPolicyService;
     private final BundleTreeCleanupService bundleTreeCleanupService;
+    private final PathPolicyService pathPolicyService;
+    private final NudgeRegistry nudgeRegistry;
 
     // ==== 조회 ========================================================
 
@@ -128,31 +131,64 @@ public class BiosService {
             throw new DuplicateBiosVersionException(boardId, request.version());
         }
 
-        Path targetDir = Path.of(request.targetDirectory());
+        // S3 — allowlist 검증된 절대경로만 사용
+        Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
 
-        // 2) soft-deleted 같은 (board, version) 존재 시 기존 트리·레코드 물리 정리 (D3 정책)
-        biosRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version())
-                .ifPresent(existing -> {
-                    bundleTreeCleanupService.purgeExistingTree(Path.of(existing.getTreeRootPath()), "purgeExistingTree");
-                    biosRepository.delete(existing);
-                });
+        // MK2 — 자동 hard-delete 인라인 로직 제거. 동일 (board, version) SoftDeleted 자원이 있어도
+        //       즉시 purge 하지 않는다. 대신 단계 B (해시 비교) 에서 nudge 세션을 발급해 사용자 결정에 위임.
 
-        // 3) targetDirectory 상태 검증 — 상위 dir 존재 or allowCreateDirectory, 그리고 자기 자신이 비어있거나 부재
+        // 2) targetDirectory 상태 검증 — 상위 dir 존재 or allowCreateDirectory, 그리고 자기 자신이 비어있거나 부재
         targetDirectoryPolicyService.prepareForUpload(targetDir, request.allowCreateDirectory());
 
         try {
-            // 4) 업로드 페이로드 전개 (extractionService 가 targetDirectory 생성 · 비어있음 검증을 내부 수행)
+            // 3) 업로드 페이로드 전개 (extractionService 가 targetDirectory 생성 · 비어있음 검증을 내부 수행)
             switch (uploadMode) {
                 case FOLDER -> bundleExtractionService.extractFolder(folderFiles, targetDir);
                 case ZIP -> bundleExtractionService.extractZip(zipFile, targetDir);
                 case SINGLE_FILE -> bundleExtractionService.extractSingleFile(singleFile, targetDir);
             }
 
-            // 5) 진입점 탐지 (override 우선)
+            // 4) 진입점 탐지 (override 우선)
             String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
 
-            // 6) manifest 집계
+            // 5) manifest 집계
             ManifestSummary manifest = bundleManifestService.compute(targetDir);
+
+            // 6) MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + 409.
+            //    임시 트리는 targetDir 에 그대로 남겨두고 사용자 결정 (proceed / replace / cancel) 대기.
+            //    BiosNudgeService 가 confirm 시점에 정식 영속화 또는 cleanup.
+            List<BoardBIOS> hashCandidates = biosRepository.findHashConflictCandidates(boardId, manifest.manifestHash());
+            if (!hashCandidates.isEmpty()) {
+                NudgeSession session = nudgeRegistry.register(
+                        NudgeResourceType.BIOS,
+                        boardId,
+                        hashCandidates.stream().map(BoardBIOS::getId).toList(),
+                        new NudgeSession.PendingPayload(
+                                request.name(),
+                                request.version(),
+                                manifest.manifestHash(),
+                                targetDir.toString(),
+                                Map.of(
+                                        "entrypointRelativePath", entrypoint,
+                                        "fileCount", String.valueOf(manifest.fileCount()),
+                                        "totalBytes", String.valueOf(manifest.totalBytes()),
+                                        "description", request.description() != null ? request.description() : ""
+                                )
+                        )
+                );
+                List<NudgeConflictEntry> entries = hashCandidates.stream()
+                        .map(b -> new NudgeConflictEntry(
+                                b.getId(),
+                                LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
+                                b.getManifestHash(),
+                                b.getName(),
+                                b.getVersion(),
+                                java.time.Instant.now()))
+                        .toList();
+                log.info("[addBios] nudge required : boardId={}, version={}, candidates={}",
+                        boardId, request.version(), hashCandidates.size());
+                throw new BiosNudgeRequiredException(session, entries);
+            }
 
             // 7) 2-phase save : 엔티티 선 저장 (signature=null) → biosId 획득
             BoardBIOS saved = biosRepository.save(BoardBIOS.builder()
@@ -191,6 +227,10 @@ public class BiosService {
             log.info("[addBios] 등록 완료. biosId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
                     saved.getId(), boardId, request.version(), manifest.fileCount(), manifest.totalBytes());
             return saved.getId();
+        } catch (BiosNudgeRequiredException nudge) {
+            // MK2 — nudge 분기는 임시 트리를 보존해야 confirm 시 ACTIVE 영속화가 가능하다.
+            // cleanup 대상에서 제외하고 그대로 위로 throw — 컨트롤러는 advice 가 처리.
+            throw nudge;
         } catch (RuntimeException e) {
             bundleTreeCleanupService.cleanupFailedUpload(targetDir, "purgeExistingTree", "addBios", e);
             throw e;
@@ -219,16 +259,44 @@ public class BiosService {
 
     @Transactional
     public void restore(Long boardId, Long biosId) {
-        requireActiveBoard(boardId);
-        BoardBIOS bios = biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
-                .orElseThrow(() -> new BiosNotFoundException(boardId, biosId));
-        if (!bios.isDeleted()) {
-            throw new IllegalBiosStateException("이미 활성 상태인 BIOS 입니다. biosId=" + biosId);
-        }
+        BoardBIOS bios = requireExistingBios(boardId, biosId);
         if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, bios.getVersion())) {
             throw new DuplicateBiosVersionException(boardId, bios.getVersion());
         }
         bios.restore();
+    }
+
+    /**
+     * MK2 — Active → Deprecated 전이. 엔티티 가드가 SoftDeleted / 이미 Deprecated 케이스를 거절.
+     * 현 시점에 SoftDeleted 자원에는 호출할 수 없으므로 {@code requireLiveBios} 사용 (삭제됨 → 409).
+     */
+    @Transactional
+    public void deprecate(Long boardId, Long biosId) {
+        requireLiveBios(boardId, biosId).deprecate();
+    }
+
+    /**
+     * MK2 — Deprecated → Active 전이. 엔티티 가드가 부적합 상태를 거절.
+     */
+    @Transactional
+    public void undeprecate(Long boardId, Long biosId) {
+        requireLiveBios(boardId, biosId).undeprecate();
+    }
+
+    /**
+     * MK2 — SoftDeleted 자원의 영구 삭제. 트리·marker 물리 삭제 후 DB row 제거.
+     * SoftDeleted 가 아닌 자원에 호출되면 명시적 충돌로 거절 (활성 자원의 우발 영구 삭제 방어).
+     */
+    @Transactional
+    public void purge(Long boardId, Long biosId) {
+        BoardBIOS bios = requireExistingBios(boardId, biosId);
+        if (!bios.isDeleted()) {
+            throw new IllegalBiosStateException(
+                    "활성/Deprecated 자원은 영구 삭제할 수 없습니다. 먼저 휴지통으로 이동하세요. biosId=" + biosId);
+        }
+        bundleTreeCleanupService.purgeExistingTree(Path.of(bios.getTreeRootPath()), "purgeBios");
+        biosRepository.delete(bios);
+        log.info("[purge] biosId={}, boardId={}, treeRoot={}", biosId, boardId, bios.getTreeRootPath());
     }
 
     // ==== 무결성 / marker 재발급 =======================================
@@ -280,6 +348,16 @@ public class BiosService {
         return bios;
     }
 
+    /**
+     * MK2 — 상태 무관 단건 조회. SoftDeleted 자원에 대한 restore / purge 가 사용한다.
+     * 보드는 활성 상태여야 한다 (삭제된 보드의 BIOS 영구 삭제는 보드 삭제 cascade 가 처리).
+     */
+    private BoardBIOS requireExistingBios(Long boardId, Long biosId) {
+        requireActiveBoard(boardId);
+        return biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
+                .orElseThrow(() -> new BiosNotFoundException(boardId, biosId));
+    }
+
     private static BiosResponse toResponse(BoardBIOS entity) {
         return new BiosResponse(
                 entity.getId(),
@@ -294,7 +372,70 @@ public class BiosService {
                 entity.getDescription(),
                 entity.getLastIntegrityStatus() != null ? entity.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
                 entity.isEnabled(),
-                entity.isDeleted()
+                entity.isDeleted(),
+                entity.isDeprecated()
         );
+    }
+
+    // ==== MK2 — BiosNudgeService 가 사용할 helper (package-private 접근) =================
+
+    /**
+     * MK2 — nudge proceed/replace 후 임시 트리를 ACTIVE 자원으로 영속화한다. 단계 B 의 {@link #addBios}
+     * 흐름 중 entity save + marker write 부분만 재사용. PendingPayload 는 BiosNudgeService 가 nudge
+     * 세션에서 가져와 전달한다.
+     */
+    @Transactional
+    public Long persistFromNudge(Long boardId, NudgeSession.PendingPayload payload) {
+        BoardModel parent = requireActiveBoard(boardId);
+        // 활성 (board, version) 재검증 — replace 트랜잭션이 외부에서 별도 commit 됐을 수 있으므로.
+        if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, payload.version())) {
+            throw new DuplicateBiosVersionException(boardId, payload.version());
+        }
+        Path targetDir = pathPolicyService.assertWritablePath(payload.tempFilePath());
+        String entrypoint = payload.attributes().getOrDefault("entrypointRelativePath", "");
+        int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
+        long totalBytes = Long.parseLong(payload.attributes().getOrDefault("totalBytes", "0"));
+        String description = payload.attributes().getOrDefault("description", "");
+
+        BoardBIOS saved = biosRepository.save(BoardBIOS.builder()
+                .boardModel(parent)
+                .name(payload.name())
+                .version(payload.version())
+                .treeRootPath(targetDir.toString())
+                .entrypointRelativePath(entrypoint)
+                .manifestHash(payload.manifestHash())
+                .markerSignature(null)
+                .fileCount(fileCount)
+                .totalBytes(totalBytes)
+                .description(description.isEmpty() ? null : description)
+                .isEnabled(true)
+                .isDeleted(false)
+                .build());
+
+        MarkerContent unsigned = new MarkerContent(
+                ResourceType.BIOS_BUNDLE.name(),
+                saved.getId(),
+                Map.of(
+                        "boardId", String.valueOf(boardId),
+                        "version", payload.version(),
+                        "entrypointRelativePath", entrypoint
+                ),
+                Instant.now(),
+                payload.manifestHash(),
+                null
+        );
+        String signature = provisionMarkerService.computeSignature(unsigned);
+        MarkerContent signed = unsigned.withSignature(signature);
+        saved.reissueMarker(payload.manifestHash(), signature);
+        provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, signed);
+        log.info("[persistFromNudge] biosId={}, boardId={}, version={}", saved.getId(), boardId, payload.version());
+        return saved.getId();
+    }
+
+    /**
+     * MK2 — nudge cancel 시 임시 트리 정리. allowed-roots 가드는 cleanup 내부에서 수행.
+     */
+    public void purgeNudgeTempTree(Path tempPath) {
+        bundleTreeCleanupService.purgeExistingTree(tempPath, "nudgeCancel");
     }
 }

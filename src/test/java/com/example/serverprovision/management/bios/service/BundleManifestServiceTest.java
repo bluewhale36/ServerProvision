@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
+import com.example.serverprovision.management.common.filesystem.exception.BundleExtractionException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

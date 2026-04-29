@@ -29,4 +29,10 @@ public interface OSImageRepository extends JpaRepository<OSImage, Long> {
 
     /** 중복 등록 방지 — 삭제된 동일 조합은 중복으로 취급하지 않는다. */
     boolean existsByOsNameAndOsVersionAndIsDeletedFalse(OSName osName, String osVersion);
+
+    /**
+     * MK2 — 단계 A (메타 사전 경고). 같은 (OSName, osVersion) 의 soft-deleted 레코드 후보를 찾는다.
+     * 사용자가 같은 OS + 같은 버전 메타로 새 등록을 시도할 때 "이미 휴지통에 같은 자원이 있다" 안내용.
+     */
+    Optional<OSImage> findFirstByOsNameAndOsVersionAndIsDeletedTrue(OSName osName, String osVersion);
 }

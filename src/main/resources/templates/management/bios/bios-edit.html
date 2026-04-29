@@ -38,10 +38,14 @@
                   method="post"
                   novalidate>
 
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
                 <div class="n-form-group">
                     <label class="n-label strong" for="name">이름</label>
                     <input id="name" type="text" th:field="*{name}"
                            class="n-input"
+                           data-error-field="name"
                            th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'">
                     <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
                 </div>
@@ -50,6 +54,7 @@
                     <label class="n-label strong" for="version">버전</label>
                     <input id="version" type="text" th:field="*{version}"
                            class="n-input"
+                           data-error-field="version"
                            th:classappend="${#fields.hasErrors('version')} ? 'is-invalid'">
                     <div class="n-hint">같은 메인보드 내에서 버전은 유일해야 합니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
@@ -74,7 +79,8 @@
                 <div class="n-form-group">
                     <label class="n-label" for="description">설명 (선택)</label>
                     <textarea id="description" th:field="*{description}"
-                              class="n-textarea" rows="3"></textarea>
+                              class="n-textarea" rows="3"
+                              data-error-field="description"></textarea>
                 </div>
 
                 <div class="n-form-actions">

@@ -1,5 +1,8 @@
 package com.example.serverprovision.global.marker;
 
+import com.example.serverprovision.global.lifecycle.LifecycleManageable;
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
+
 import java.nio.file.Path;
 
 /**
@@ -12,7 +15,7 @@ import java.nio.file.Path;
  * Service 가 PK 를 채운 entity 를 다시 저장한 뒤 {@link #reissueMarker(String, String)} 으로
  * manifestHash + signature 를 부여한다.</p>
  */
-public interface Markable {
+public interface Markable extends LifecycleManageable {
 
     Long getResourceId();
 
@@ -33,4 +36,12 @@ public interface Markable {
 
     /** 새로 계산된 hash + signature 를 엔티티 필드에 반영. 호출자는 이후 repository.save() 로 영속화. */
     void reissueMarker(String manifestHash, String markerSignature);
+
+    /**
+     * MK2 — Markable 자원의 lifecycle 어휘. {@link LifecycleManageable} 의 default 구현 그대로 사용.
+     * MK1 reconciliation 보고서가 본 메서드로 자원 상태를 분류 (결정 #4 — deprecated 별도 표기).
+     */
+    default LifecycleStage lifecycleStage() {
+        return currentStage();
+    }
 }

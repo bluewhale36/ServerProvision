@@ -37,9 +37,20 @@
         <link rel="stylesheet" th:href="@{/css/table-list.css}">
         <!-- 배경 작업 알림 센터 (모든 페이지 공통) -->
         <link rel="stylesheet" th:href="@{/global/background-jobs.css}">
-        <script th:src="@{/global/background-jobs.js}" defer></script>
+        <!--
+          data-bgjob-fail-threshold : /jobs 폴링 연속 실패 임계값 (default 5)
+          data-bgjob-fail-grace-ms  : reload 직전 toast 노출 지연 (default 1500ms)
+          이 값을 페이지별로 override 하려면 해당 페이지 head 에서 <html> 에
+          동일 data-* 를 박아도 된다. (script 속성이 우선)
+        -->
+        <script th:src="@{/global/background-jobs.js}"
+                data-bgjob-fail-threshold="5"
+                data-bgjob-fail-grace-ms="1500"
+                defer></script>
         <!-- Service Worker 기반 background 업로드 등록기. 모든 페이지에서 window.BackgroundUpload 사용 가능. -->
         <script th:src="@{/global/upload-client.js}" defer></script>
+        <!-- S4 — 폼 에러 매핑 단일 진입점 window.FormError. data-error-field / .n-form-banner 결합. -->
+        <script th:src="@{/global/form-error.js}" defer></script>
     </th:block>
 </head>
 
@@ -60,7 +71,9 @@
     <a th:href="@{/management/bmc}"
        class="n-nav-link"
        th:classappend="${activePage == 'bmc'} ? ' active'">BMC</a>
-    <span class="n-nav-link" aria-disabled="true" title="미구현">Driver</span>
+    <a th:href="@{/management/subprogram}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'subprogram'} ? ' active'">Driver/Utility</a>
 
     <!-- Maintenance (어플리케이션-서버 운영) -->
     <a th:href="@{/maintenance/reconciliation}"

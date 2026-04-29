@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.os.entity;
 
-import com.example.serverprovision.global.entity.BaseTimeEntity;
+import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import jakarta.persistence.Column;
@@ -17,10 +17,10 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -30,16 +30,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OS 이미지에 귀속되는 ISO 파일 레코드. 실제 ISO 바이너리는 {@code isoPath} 가 가리키는 파일시스템 경로에 둔다.
- * 한 OS 버전이 복수 ISO 를 가질 수 있어 (DVD/Boot/Minimal 등) 별도 엔티티로 분리한다.
+ * OS 이미지에 귀속되는 ISO 파일 레코드.
+ *
+ * <p>MK2 — {@link LifecycleEntity} 상속으로 lifecycle 4 boolean + audit + 가드 로직을 super 가 보유한다.
+ * 본 엔티티는 ISO 고유 필드 (path · checksum · marker · 제공 관계 · 추출 시점) 만 책임진다.
+ * sidecar 마커 부착 자원이라 {@link Markable} 도 함께 구현한다.</p>
  */
 @Entity
 @Table(name = "iso")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
-public class ISO extends BaseTimeEntity implements Markable {
+@SuperBuilder
+public class ISO extends LifecycleEntity implements Markable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,26 +66,17 @@ public class ISO extends BaseTimeEntity implements Markable {
     @Column(name = "description", length = 1024)
     private String description;
 
-    @Column(name = "is_enabled", nullable = false)
-    @Builder.Default
-    private boolean isEnabled = true;
-
-    @Column(name = "is_deleted", nullable = false)
-    @Builder.Default
-    private boolean isDeleted = false;
-
     /**
      * MK1 마커 시스템 — sidecar `<isoPath>.provision.json` 에 기록된 manifest hash.
      * 등록 시점 1회 SHA-256(file bytes) 계산. {@code checksum} 과 같은 값이 들어갈 수 있으나
      * 의미는 다르다 — checksum 은 중복 등록 차단용, manifestHash 는 마커 무결성 검증용.
-     * 마커 미발급 ISO (MK1 이전 등록) 는 NULL.
      */
     @Column(name = "manifest_hash", length = 64)
     private String manifestHash;
 
     /**
      * MK1 마커 시스템 — HMAC-SHA256 서명 (sidecar 마커의 signature 필드와 동일).
-     * 2-phase save 로 entity 선저장(NULL) 후 signature 계산하여 갱신. 마커 미발급 ISO 는 NULL.
+     * 2-phase save 로 entity 선저장(NULL) 후 signature 계산하여 갱신.
      */
     @Column(name = "marker_signature", length = 64)
     private String markerSignature;
@@ -107,9 +100,6 @@ public class ISO extends BaseTimeEntity implements Markable {
     private Instant extractedAt;
 
     // ---- 제공 관계 (A1-1 추출 결과) ----------------------------------
-    // ISO 한 건이 어떤 환경·그룹을 "제공"하는지를 N:M 으로 기록한다.
-    // ISO 가 조인 소유 측 — 추출 실행 주체가 ISO 단위라서, 관계 재구성 시 "이 ISO 의 이전 제공 내역" 을 한 번에 끌어와 비교하는 편이 자연스럽다.
-    // 조인 테이블의 양쪽 FK 는 부모가 지워질 때 함께 사라져야 한다 — DB DDL 에서도 CASCADE 로 고정.
     @ManyToMany(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinTable(
@@ -130,19 +120,19 @@ public class ISO extends BaseTimeEntity implements Markable {
     @Builder.Default
     private List<OSPackageGroup> providedPackageGroups = new ArrayList<>();
 
+    // ---- LifecycleEntity 가드 메시지용 -----------------------------------
+
+    @Override
+    protected Long resourceId() {
+        return this.id;
+    }
+
+    @Override
+    protected String resourceLabel() {
+        return "ISO";
+    }
+
     // ---- 도메인 메서드 -------------------------------------------------
-
-    public void toggleEnabled() {
-        this.isEnabled = !this.isEnabled;
-    }
-
-    public void softDelete() {
-        this.isDeleted = true;
-    }
-
-    public void restore() {
-        this.isDeleted = false;
-    }
 
     public void update(String isoPath, String description) {
         this.isoPath = isoPath;
@@ -151,7 +141,6 @@ public class ISO extends BaseTimeEntity implements Markable {
 
     /**
      * 이 ISO 가 "제공한다" 고 기록된 환경·그룹 관계를 한 번에 치환한다.
-     * 기존 리스트와 동일하면 caller 가 호출 자체를 생략하는 것이 자원 낭비 방지 정책(A1-1) 에 부합한다.
      */
     public void replaceProvisions(List<OSEnvironment> environments, List<OSPackageGroup> packageGroups) {
         this.providedEnvironments.clear();
@@ -162,8 +151,6 @@ public class ISO extends BaseTimeEntity implements Markable {
 
     /**
      * 추출 파이프라인이 정상 완료된 시점을 기록한다.
-     * CompsMergeService 가 모든 merge 작업을 성공적으로 끝낸 직후에 호출되어야 한다.
-     * 중단·실패 시에는 호출되지 않으므로 extractedAt 은 null 유지 → 재추출 허용.
      */
     public void markExtracted() {
         this.extractedAt = Instant.now();

@@ -29,6 +29,9 @@
                   method="post"
                   novalidate>
 
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
                 <!-- OS 이름 : 수정 불가. 바꿀 땐 삭제 후 재등록 -->
                 <div class="n-form-group">
                     <label class="n-label strong">OS 이름</label>
@@ -40,6 +43,7 @@
                     <label class="n-label strong" for="osVersion">OS 버전</label>
                     <input id="osVersion" type="text" th:field="*{osVersion}"
                            class="n-input"
+                           data-error-field="osVersion"
                            th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'"
                            placeholder="예: 9.6">
                     <div class="n-error" th:if="${#fields.hasErrors('osVersion')}"
@@ -49,7 +53,8 @@
                 <div class="n-form-group">
                     <label class="n-label" for="description">설명 (선택)</label>
                     <textarea id="description" th:field="*{description}"
-                              class="n-textarea" rows="3"></textarea>
+                              class="n-textarea" rows="3"
+                              data-error-field="description"></textarea>
                 </div>
 
                 <div class="n-form-actions">

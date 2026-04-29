@@ -99,6 +99,10 @@
 
     form.addEventListener('submit', async e => {
         e.preventDefault();
+        // S4 — submit 시작 시 기존 폼 에러 (배너 + 필드 has-error) 초기화.
+        if (window.FormError && typeof window.FormError.clear === 'function') {
+            window.FormError.clear(form);
+        }
         const mode = uploadModeInput.value;
         const { fileCount, totalBytes } = shell.collectSizeInfo(mode, {
             folderInput, zipInput, singleInput
@@ -138,7 +142,12 @@
             });
         } catch (err) {
             console.error(TAG, 'intent 실패', err);
-            showError(err.message);
+            // S4 — 응답 body 의 fieldErrors 를 폼에 매핑 + banner 노출.
+            if (window.FormError && err.body) {
+                window.FormError.renderResponse(err.body, { root: form });
+            } else {
+                showError(err.message);
+            }
             submitBtn.disabled = false;
             submitBtn.textContent = '번들 등록';
             return;
@@ -198,6 +207,8 @@
             formData: fd,
             onStart() {
                 uploading = true;
+                // CH3 : 업로드 진행 중 폴링 실패 누적 시 reload 보류 신호
+                document.dispatchEvent(new CustomEvent('bgjob:uploadStart'));
                 lockPage(true);
                 showProgress('시작 중…', 0);
             },
@@ -223,21 +234,34 @@
             },
             onSuccess() {
                 uploading = false;
+                document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 activeXhr = null;
                 if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
                 showProgress('100%  완료', 100);
                 window.location.href = listUrl;
             },
-            onHttpError(msg) {
+            onHttpError(msg, xhr, body) {
                 uploading = false;
+                document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 activeXhr = null;
                 if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
-                showError(msg);
                 hideProgress();
                 lockPage(false);
+                // MK2 — 409 NUDGE_REQUIRED 응답이면 nudge modal 표시 + 사용자 3택 routing.
+                if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
+                    openNudgeModal(body);
+                    return;
+                }
+                // S4 — 업로드 응답 body 의 fieldErrors 매핑.
+                if (window.FormError && body) {
+                    window.FormError.renderResponse(body, { root: form });
+                } else {
+                    showError(msg);
+                }
             },
             onNetworkError() {
                 uploading = false;
+                document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 activeXhr = null;
                 if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
                 showError('네트워크 오류로 업로드가 중단되었습니다.');
@@ -246,6 +270,7 @@
             },
             onAbort() {
                 uploading = false;
+                document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 activeXhr = null;
                 if (serverTimer) { clearInterval(serverTimer); serverTimer = null; }
                 showError('업로드를 취소했습니다.');
@@ -335,6 +360,126 @@
         if (!errorBox) return;
         errorBox.textContent = '';
         errorBox.classList.remove('is-visible');
+    }
+
+    // ---- MK2 nudge modal -----------------------------------------------
+
+    function openNudgeModal(body) {
+        const modal       = document.getElementById('biosNudgeModal');
+        const conflicts   = document.getElementById('biosNudgeConflictsList');
+        const proceedBtn  = document.getElementById('biosNudgeProceedBtn');
+        const replaceBtn  = document.getElementById('biosNudgeReplaceBtn');
+        const cancelBtn   = document.getElementById('biosNudgeCancelBtn');
+        if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
+            showError('nudge modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+            return;
+        }
+        const baseUrl = modal.dataset.confirmBaseUrl;
+        const nudgeId = body.nudgeId;
+        let selectedTargetId = null;
+
+        // conflicts 렌더 — radio 선택 시 replaceBtn 활성화.
+        conflicts.innerHTML = '';
+        (body.conflicts || []).forEach(entry => {
+            const li = document.createElement('li');
+            li.style.padding = '8px 12px';
+            li.style.borderBottom = '1px solid var(--n-border, #e0e0e0)';
+            li.innerHTML =
+                '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
+                '  <input type="radio" name="biosNudgeTarget" value="' + entry.id + '">' +
+                '  <span><strong>' + escapeHtml(entry.name) + '</strong> · v' + escapeHtml(entry.version) +
+                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                '</label>';
+            conflicts.appendChild(li);
+        });
+        conflicts.querySelectorAll('input[name="biosNudgeTarget"]').forEach(input => {
+            input.addEventListener('change', () => {
+                selectedTargetId = input.value;
+                replaceBtn.disabled = false;
+            });
+        });
+
+        modal.hidden = false;
+
+        const closeModal = () => {
+            modal.hidden = true;
+            proceedBtn.onclick = null;
+            replaceBtn.onclick = null;
+            cancelBtn.onclick = null;
+        };
+
+        proceedBtn.onclick = async () => {
+            disableNudgeButtons(true);
+            try {
+                const resp = await fetch(baseUrl + '/' + nudgeId + '/proceed', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const respBody = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    showError(respBody.message || ('nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeButtons(false);
+                    return;
+                }
+                closeModal();
+                window.location.href = respBody.redirect || listUrl;
+            } catch (err) {
+                showError('네트워크 오류 : ' + err.message);
+                disableNudgeButtons(false);
+            }
+        };
+
+        replaceBtn.onclick = async () => {
+            if (!selectedTargetId) return;
+            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
+            disableNudgeButtons(true);
+            try {
+                const resp = await fetch(baseUrl + '/' + nudgeId + '/replace?targetId=' + encodeURIComponent(selectedTargetId), {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const respBody = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    showError(respBody.message || ('nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeButtons(false);
+                    return;
+                }
+                closeModal();
+                window.location.href = respBody.redirect || listUrl;
+            } catch (err) {
+                showError('네트워크 오류 : ' + err.message);
+                disableNudgeButtons(false);
+            }
+        };
+
+        cancelBtn.onclick = async () => {
+            disableNudgeButtons(true);
+            try {
+                await fetch(baseUrl + '/' + nudgeId + '/cancel', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+            } catch (err) {
+                console.warn(TAG, 'cancel 호출 실패 (무시) :', err);
+            } finally {
+                closeModal();
+                showError('업로드를 취소했습니다.');
+            }
+        };
+    }
+
+    function disableNudgeButtons(disabled) {
+        ['biosNudgeProceedBtn', 'biosNudgeReplaceBtn', 'biosNudgeCancelBtn'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = disabled;
+        });
+    }
+
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
     }
 
 })();

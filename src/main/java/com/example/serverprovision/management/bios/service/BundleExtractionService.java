@@ -1,8 +1,13 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
-import com.example.serverprovision.management.bios.exception.EmptyBundleException;
+import com.example.serverprovision.global.security.ContentGuard;
+import com.example.serverprovision.global.security.FileSystemHardener;
+import com.example.serverprovision.global.security.UploadLimitsPolicy;
+import com.example.serverprovision.global.security.ZipBombGuard;
+import com.example.serverprovision.management.common.filesystem.exception.BundleExtractionException;
+import com.example.serverprovision.management.common.filesystem.exception.EmptyBundleException;
 import com.example.serverprovision.management.common.filesystem.policy.BundleFilePolicy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,12 +29,27 @@ import java.util.zip.ZipFile;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class BundleExtractionService {
+
+    private final ZipBombGuard zipBombGuard;
+    private final ContentGuard contentGuard;
+    private final UploadLimitsPolicy uploadLimitsPolicy;
+    private final FileSystemHardener fileSystemHardener;
+    private final com.example.serverprovision.global.security.UploadTempDirectoryProvider uploadTempDirectoryProvider;
 
     /** 폴더 업로드 — 케이스 1 거절 + 케이스 2 prefix 제거. */
     public void extractFolder(MultipartFile[] files, Path targetDirectory) {
         if (files == null || files.length == 0) {
             throw new EmptyBundleException();
+        }
+        // S3 — 파일 갯수 / 위험 파일명 / 실행 binary 표본 검사
+        uploadLimitsPolicy.assertFileCount(files);
+        contentGuard.assertNoSuspiciousFilenames(files);
+        contentGuard.classifyAndApplyExecutablePolicyForFolder(files, null);
+        // S3.1 (A4) — 모든 파일명의 control char / null byte / 길이 검증 (zip slip 가드의 1차 라인).
+        for (MultipartFile f : files) {
+            if (f != null) contentGuard.sanitizeFilenameOrThrow(f.getOriginalFilename());
         }
 
         // 1) 공통 최상위 prefix 검증 — 모든 파일이 동일 first-segment 로 시작해야 한다.
@@ -71,6 +91,9 @@ public class BundleExtractionService {
                 throw new BundleExtractionException("폴더 파일 저장 실패 : " + dest, e);
             }
         }
+        // S3 — 추출 후 트리 크기 가드 + POSIX 권한 적용
+        uploadLimitsPolicy.assertTreeBytes(targetDirectory);
+        fileSystemHardener.applyDefaultPermissions(targetDirectory);
     }
 
     /** zip 업로드 — 케이스 3 그대로 · 케이스 4 prefix 제거. zip slip 방어. */
@@ -78,22 +101,34 @@ public class BundleExtractionService {
         if (zipFile == null || zipFile.isEmpty()) {
             throw new EmptyBundleException();
         }
+        // S3 — multipart size cap (전송 직전).
+        uploadLimitsPolicy.assertSingleFileSize(zipFile);
 
+        // C5 + C6 — multipart 의 InputStream 다중 소비를 피하려고 1회 transfer 후 file 기반 가드를 호출.
+        // 임시 파일은 UploadTempDirectoryProvider 가 결정한 위치 (default tmpdir 권한 누설 회피).
         Path tempZip;
         try {
-            tempZip = Files.createTempFile("bios-upload-", ".zip");
+            tempZip = uploadTempDirectoryProvider.createTempFile("bios-upload-", ".zip");
             try (InputStream in = zipFile.getInputStream()) {
                 Files.copy(in, tempZip, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
             throw new BundleExtractionException("zip 임시 저장 실패", e);
         }
+        // 파일 기반 head magic / bomb 검사 (multipart 재 transfer 회피).
+        contentGuard.assertSafeZip(tempZip);
+        zipBombGuard.assertSafeZip(tempZip);
 
         try (ZipFile zf = new ZipFile(tempZip.toFile())) {
             List<ZipEntry> entries = new ArrayList<>();
             zf.stream().forEach(entries::add);
             if (entries.isEmpty()) {
                 throw new EmptyBundleException();
+            }
+
+            // S3.1 (A4) — zip entry 이름의 control char / null byte / 길이 검증 (zip slip 가드의 1차 라인).
+            for (ZipEntry e : entries) {
+                contentGuard.sanitizeFilenameOrThrow(e.getName());
             }
 
             String commonPrefix = detectCommonPrefix(entries);
@@ -107,6 +142,10 @@ public class BundleExtractionService {
                     normalized = normalized.substring(commonPrefix.length());
                 }
                 if (normalized.isEmpty()) continue;
+                // S3.2 (K16) — commonPrefix 제거 후의 entry 이름에도 sanitize 재실행.
+                // raw entry 의 첫 번째 segment 가 정상이어도 prefix 제거 결과에 control char / 위험 코드포인트가
+                // 남아있는 위조 케이스 (예: "ok/‮evil.txt") 를 strip 단계 이후에도 차단한다.
+                contentGuard.sanitizeFilenameOrThrow(normalized);
                 Path dest = safeResolve(targetDirectory, normalized);
                 try {
                     Files.createDirectories(dest.getParent());
@@ -122,6 +161,9 @@ public class BundleExtractionService {
         } finally {
             try { Files.deleteIfExists(tempZip); } catch (IOException ignored) { /* best effort */ }
         }
+        // S3 — 추출 후 트리 크기 가드 + POSIX 권한 적용
+        uploadLimitsPolicy.assertTreeBytes(targetDirectory);
+        fileSystemHardener.applyDefaultPermissions(targetDirectory);
     }
 
     /** 단일 파일 업로드 (ASUS .cap 등). */
@@ -129,6 +171,12 @@ public class BundleExtractionService {
         if (singleFile == null || singleFile.isEmpty()) {
             throw new EmptyBundleException();
         }
+        // S3 — 단일 파일 size cap + 위험 파일명 + 실행 binary 검사
+        uploadLimitsPolicy.assertSingleFileSize(singleFile);
+        contentGuard.assertNoSuspiciousFilenames(new MultipartFile[] { singleFile });
+        contentGuard.classifyAndApplyExecutablePolicy(singleFile, null);
+        // S3.1 (A4) — 파일명 raw 검증.
+        contentGuard.sanitizeFilenameOrThrow(singleFile.getOriginalFilename());
         String name = singleFile.getOriginalFilename();
         if (name == null || name.isBlank()) {
             throw new BundleExtractionException("파일명이 누락되어 있습니다.");
@@ -147,6 +195,8 @@ public class BundleExtractionService {
         } catch (IOException e) {
             throw new BundleExtractionException("단일 파일 저장 실패 : " + dest, e);
         }
+        // S3 — POSIX 권한 적용 (단일 파일은 디렉토리도 함께)
+        fileSystemHardener.applyDefaultPermissions(targetDirectory);
     }
 
     // ---- 헬퍼 --------------------------------------------------------

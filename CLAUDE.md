@@ -12,6 +12,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Git 커밋 메시지는 한국어로 작성한다.
 - 프론트엔드와 백엔드가 적절히 결합되어야 하거나, 백엔드를 활용하여 구현 가능한 프론트엔드의 기능은 백엔드에 기능 구현을 더 집중하되, 지나치게 복잡해지지 않도록 적절히 분리한다.
 - WHY 가 비자명할 때만 주석을 남긴다. 의미 없는 Javadoc 금지.
+- **중복된 코드와 가독성이 떨어지는 코드는 유지보수에 매우 까다로우므로 절대 지양한다 (불가침)**.
+  - 동일 로직이 두 곳 이상에 복붙으로 존재하면 즉시 공통 모듈/유틸/fragment 로 추출한다 (예: `path-browser.js` / `bundle-upload-shell.js` / `directory-browse-panel.html` 처럼).
+  - 한 함수 안에 검증 / 변환 / IO / 응답 조립이 뒤섞이면 작은 함수로 쪼갠다.
+  - 매직 상수 / 무명 boolean 인자 / 중첩 5단계 이상 / 100줄 초과 메서드는 모두 가독성 저해 신호 — 발견 즉시 정비한다.
+  - 중복은 "지금은 비슷해 보이지만 미래에 갈라질 수 있어 분리해두는 게 안전" 류의 변명으로 정당화하지 않는다 — 갈라지는 시점에 분리하면 된다.
+  - 단, 분리하려는 추상이 도메인을 가로질러 의미를 잃게 하면 분리하지 않는다 (over-abstraction 도 동일하게 유지보수 비용).
+
+- **조건 분기문 (try-catch / if-else / switch case) 의 legacy 무분별 확장 절대 지양 (불가침)**.
+  - 신규 케이스 / 신규 예외 / 신규 도메인 타입이 추가될 때 분기문에 줄을 늘리는 방식으로 처리하지 않는다. 분기문은 도메인 의미가 추가될 때마다 거의 항상 같이 자라며, 누락 / 회귀 / silent 흡수 사고의 진원지가 된다 (S3 + S4 사이 `catch (DomainException)` 가 보안 예외 흡수해 silent 500 으로 새던 사고가 대표 사례).
+  - 대신 **Java 의 다형성** (interface / abstract class / sealed type / enum 의 method-per-constant / strategy pattern) 과 **Spring Framework primitive** (`@ControllerAdvice` / `@RestControllerAdvice` / `HandlerExceptionResolver` / `@ResponseStatus` / `BindingResult` 자동 매핑 / AOP / `@EventListener` / `MessageSource` / `Converter` / `HandlerMethodArgumentResolver`) 를 적극 활용해 framework 측이 분기를 떠맡도록 설계한다.
+  - 신규 분기문 추가가 **유일한 옵션** 이라면 직전에 다음 질문을 던져본다 :
+    1. 이 분기는 도메인 다형성으로 표현 가능한가? (예: 7 보안 예외별 HTTP status → enum 의 abstract method 또는 `@ResponseStatus` 어노테이션)
+    2. Spring 이 이미 제공하는 framework primitive 가 있는가? (예: SSR/XHR 응답 분기 → `@ControllerAdvice` + `@RestControllerAdvice` 분리, 컨트롤러별 try/catch 대신 `HandlerExceptionResolver` 단일 진입점)
+    3. 분기 조건이 곧 새 sub-class 의 책임으로 흡수될 수 있는가? (Open/Closed Principle 준수)
+  - 위 세 질문 중 하나라도 yes 라면 분기문 추가 대신 다형성 / framework 활용으로 전환한다.
+  - 컨트롤러의 try/catch 블록은 특히 경계해야 한다. 신규 컨트롤러 추가 시 같은 catch 블록을 또 복붙하는 회귀 사고가 본 프로젝트에서 반복적으로 발생했다 (S3.3 → S3.4 의 4 컨트롤러 multi-catch 누락 사고). framework 단의 advice / resolver 로 끌어올린다.
+  - 단, **도메인 invariant 검증의 imperative if-throw** 는 정당한 사용처다 (예: `if (token == null) throw InvalidTokenException`) — 이 항목은 분기문 자체를 금지하는 것이 아니라 **분기문 줄 추가로 책임을 늘리는 패턴** 을 금지한다.
 
 ### 아키텍처 설계 시 주의점
 - 서버의 리소스를 효율적으로 사용하도록 할 것. 예를 들어, 대용량 파일 업로드 시 스트리밍 처리, 불필요한 데이터 로딩, 비교 방지 등.
@@ -160,10 +177,16 @@ com.example.serverprovision/
 
 ### 인벤토리 코드 어휘
 - **MA1 ~ MA5** — Manage-Application (Stage 1 Management)
-- **MK1** — Manage-Kernel (Stage 2 Maintenance) — 향후 MK2 (ApplicationFileMover) 등 추가 예정
+- **MK1 ~ MK3** — Manage-Kernel (Stage 2 Maintenance)
+  - **MK1** — 경로 재조정 (완료)
+  - **MK2** — Soft-delete / Restore / Purge 정합화 (사용자 명시 결정 — 예정 / 미진입). BIOS/BMC/Subprogram 의 자동 hard-delete 정책 vs ISO 의 sidecar 충돌 사고를 일관 정책으로 통합 + UI "영구 삭제" 액션 도입
+  - **MK3** — ApplicationFileMover (예정 / 미진입). UI 에서 파일을 옮기면 마커 + DB 가 동시 갱신. MK1 의 `applyDriftedPath` 를 역방향으로 호출
+  - 그 외 후보 (마커 재발급 마이그레이션 / 분산 스캔 / Stage 4 자원 강제 검증) 는 인벤토리 외 — `plan/26-04-28_21-33-00_MK_expected_plan.docx` 에 archived
 - **U1 ~ U2** — User (Stage 3 Provisioning)
 - **S1** — Cross-cutting infrastructure (Background Job)
+- **S3 / S3.1 / S3.2** — Cross-cutting Security Hardening
 - **M0** — Cross-cutting 1회성 리네임 슬라이스 (영역 재구성)
+- **CH1 ~ CH4** — Cross-cutting Housekeeping (정리 / 정합화)
 
 ### 수직 슬라이스 (페이지당 10 단계)
 1. URL / 데이터 흐름 스케치 — **`plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.docx` 산출** (아래 §Step 1 — plan docx 규약 참조)

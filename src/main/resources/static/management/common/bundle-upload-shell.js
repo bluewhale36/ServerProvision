@@ -35,15 +35,21 @@
             body: JSON.stringify(body)
         });
         if (!resp.ok) {
-            let message = null;
-            try {
-                const payload = await resp.json();
-                if (payload && payload.message) message = payload.message;
-            } catch (_) { /* ignore */ }
+            // S4 — 응답 body 전체 (fieldErrors 포함) 를 호출자에 전달해 FormError.renderResponse 가능하게 한다.
+            let payload = null;
+            try { payload = await resp.json(); } catch (_) { /* ignore */ }
+            let message = (payload && payload.message) || null;
             if (!message && typeof intentFallbackMessage === 'function') {
                 message = intentFallbackMessage(resp.status);
             }
-            throw new Error(message || ('사전 검증 실패 (HTTP ' + resp.status + ')'));
+            const fallback = message || ('사전 검증 실패 (HTTP ' + resp.status + ')');
+            const finalBody = payload || { message: fallback };
+            // payload.message 가 비어있으면 fallback 으로 보강
+            if (!finalBody.message) finalBody.message = fallback;
+            const err = new Error(finalBody.message);
+            err.body = finalBody;
+            err.status = resp.status;
+            throw err;
         }
         return resp.json();
     }
@@ -161,12 +167,11 @@
                 if (typeof onSuccess === 'function') onSuccess(body, xhr);
                 return;
             }
-            let message = 'HTTP ' + xhr.status;
-            try {
-                const body = JSON.parse(xhr.responseText || '{}');
-                if (body && body.message) message = body.message;
-            } catch (_) { /* ignore */ }
-            if (typeof onHttpError === 'function') onHttpError(message, xhr);
+            // S4 — 응답 body 전체를 호출자에 전달해 FormError.renderResponse 가 fieldErrors 매핑 가능하게 한다.
+            let body = null;
+            try { body = JSON.parse(xhr.responseText || '{}'); } catch (_) { /* ignore */ }
+            const message = (body && body.message) || ('HTTP ' + xhr.status);
+            if (typeof onHttpError === 'function') onHttpError(message, xhr, body || { message });
         });
         xhr.addEventListener('error', () => {
             if (typeof onNetworkError === 'function') onNetworkError(xhr);

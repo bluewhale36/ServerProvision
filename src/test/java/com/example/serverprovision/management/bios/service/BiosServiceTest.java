@@ -6,8 +6,8 @@ import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.bios.exception.IllegalBiosStateException;
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
@@ -50,7 +50,14 @@ class BiosServiceTest {
     @Mock ProvisionMarkerService provisionMarkerService;
     @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
     @Mock BundleTreeCleanupService bundleTreeCleanupService;
+    @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
     @InjectMocks BiosService biosService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubSecurity() {
+        org.mockito.Mockito.lenient().when(pathPolicyService.assertWritablePath(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> java.nio.file.Path.of(inv.getArgument(0, String.class)).toAbsolutePath().normalize());
+    }
 
     private BoardModel activeBoard() {
         return BoardModel.builder()
@@ -66,8 +73,7 @@ class BiosServiceTest {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         // 중복 없음
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        given(biosRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "1.0"))
-                .willReturn(Optional.empty());
+        // MK2 — 자동 purge 인라인 제거로 findFirstByBoardModel_IdAndVersionAndIsDeletedTrue stub 불필요.
         // entrypoint 탐지 + manifest
         given(bundleEntrypointDetector.detect(any(), any())).willReturn("X99E-WS.CAP");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 100L));
@@ -114,8 +120,7 @@ class BiosServiceTest {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        given(biosRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "1.0"))
-                .willReturn(Optional.empty());
+        // MK2 — 자동 purge 인라인 제거로 findFirstByBoardModel_IdAndVersionAndIsDeletedTrue stub 불필요.
         org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 
@@ -132,8 +137,7 @@ class BiosServiceTest {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        given(biosRepository.findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "1.0"))
-                .willReturn(Optional.empty());
+        // MK2 — 자동 purge 인라인 제거로 findFirstByBoardModel_IdAndVersionAndIsDeletedTrue stub 불필요.
         org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 

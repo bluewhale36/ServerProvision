@@ -1,25 +1,25 @@
 package com.example.serverprovision.management.bmc.entity;
 
-import com.example.serverprovision.global.entity.BaseTimeEntity;
+import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -30,14 +30,22 @@ import java.time.Instant;
  * 메인보드 모델에 귀속되는 BMC 펌웨어 번들.
  * 실제 파일들은 {@code treeRootPath} 하위에 전개되며, {@code entrypointRelativePath} 가
  * 실행 대상 파일을 가리킨다.
+ *
+ * <p>MK2 — {@link LifecycleEntity} 상속으로 lifecycle 4 boolean ({@code is_enabled} /
+ * {@code is_deprecated} / {@code is_deleted}) 과 {@code deprecated_at} / {@code created_at} /
+ * {@code updated_at} 및 lifecycle 메서드 (가드 포함) 일체를 super 가 보유. 본 sub-class 는
+ * 도메인 메서드 + Markable 구현 + 자체 컬럼만 가진다.</p>
+ *
+ * <p><b>legacy schema 호환</b> — {@code file_path} / {@code board_model_id} 컬럼이 NOT NULL 로 잔존하므로
+ * {@link #legacyFilePath} 와 {@link #boardModelIdMirror} 필드로 미러링한다. 신규 코드 경로에서는
+ * {@link #getTreeRootPath()} 와 {@link #getBoardModel()} 만 의미를 가진다.</p>
  */
 @Entity
 @Table(name = "board_bmc")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
-public class BoardBMC extends BaseTimeEntity implements Markable {
+@SuperBuilder
+public class BoardBMC extends LifecycleEntity implements Markable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -98,24 +106,16 @@ public class BoardBMC extends BaseTimeEntity implements Markable {
     @Column(name = "total_bytes", nullable = false)
     private long totalBytes;
 
-    @Column(name = "is_enabled", nullable = false)
-    @Builder.Default
-    private boolean isEnabled = true;
+    // ---- 도메인 메서드 (lifecycle 메서드는 LifecycleEntity 가 처리) -------
 
-    @Column(name = "is_deleted", nullable = false)
-    @Builder.Default
-    private boolean isDeleted = false;
-
-    public void toggleEnabled() {
-        this.isEnabled = !this.isEnabled;
+    @Override
+    protected Long resourceId() {
+        return this.id;
     }
 
-    public void softDelete() {
-        this.isDeleted = true;
-    }
-
-    public void restore() {
-        this.isDeleted = false;
+    @Override
+    protected String resourceLabel() {
+        return "BMC";
     }
 
     public void update(String name, String version, String description) {
@@ -124,6 +124,7 @@ public class BoardBMC extends BaseTimeEntity implements Markable {
         this.description = description;
     }
 
+    /** PATH_DRIFT 자동 적용 시 호출 — DB 의 treeRootPath 와 legacy mirror 를 함께 갱신. */
     public void updateTreeRootPath(String treeRootPath) {
         this.treeRootPath = treeRootPath;
         this.legacyFilePath = treeRootPath;
@@ -140,6 +141,8 @@ public class BoardBMC extends BaseTimeEntity implements Markable {
         this.lastIntegrityStatus = integrityStatus;
         this.lastVerifiedAt = verifiedAt;
     }
+
+    // ---- Markable 구현 -------------------------------------------------
 
     @Override
     public Long getResourceId() {

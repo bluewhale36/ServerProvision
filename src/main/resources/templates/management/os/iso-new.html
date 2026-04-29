@@ -48,11 +48,15 @@
                   enctype="multipart/form-data"
                   novalidate>
 
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
                 <div class="n-form-group">
                     <label class="n-label strong" for="isoPath">ISO 경로</label>
                     <div style="display: flex; gap: 8px;">
                         <input id="isoPath" type="text" th:field="*{isoPath}"
                                class="n-input" style="flex: 1;"
+                               data-error-field="isoPath"
                                th:classappend="${#fields.hasErrors('isoPath')} ? 'is-invalid'"
                                placeholder="/mnt/iso/rocky9/DVD.iso"
                                th:data-browse-url="@{/management/os/browse}">
@@ -65,21 +69,10 @@
                     <div class="n-error" th:if="${#fields.hasErrors('isoPath')}"
                          th:errors="*{isoPath}"></div>
 
-                    <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글. BIOS 의 동일 패널 패턴 재사용. -->
-                    <div id="browsePanel" hidden style="margin-top: 10px; border: 1px solid var(--n-border); border-radius: 6px; padding: 12px; background: #fafafa;">
-                        <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 8px;">
-                            <button type="button" id="browseUpBtn" class="n-btn n-btn-sm n-btn-ghost" title="상위 디렉토리로">↑ 상위</button>
-                            <code id="browseCurrentPath" style="flex: 1; font-size: 12px; word-break: break-all;"></code>
-                        </div>
-                        <div id="browseStatus" class="n-hint" style="margin-bottom: 8px;"></div>
-                        <ul id="browseEntries"
-                            style="list-style: none; padding: 0; margin: 0 0 8px 0; max-height: 240px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: 4px; background: #fff;">
-                        </ul>
-                        <div style="display: flex; justify-content: flex-end; gap: 6px;">
-                            <button type="button" id="browseCancelBtn" class="n-btn n-btn-sm n-btn-ghost">닫기</button>
-                            <button type="button" id="browseApplyDirBtn" class="n-btn n-btn-sm n-btn-primary"
-                                    title="현재 디렉토리를 ISO 경로로 적용 — 파일 업로드 시 multipart 파일명이 자동 추가됩니다">이 디렉토리에 저장</button>
-                        </div>
+                    <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글. directory-browse-panel fragment 재사용. -->
+                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', '이 디렉토리에 저장')}"></div>
+                    <div class="n-hint" style="margin-top: 6px;">
+                        <strong>이 디렉토리에 저장</strong>: 현재 디렉토리를 ISO 경로로 적용 — 파일 업로드 시 multipart 파일명이 자동 추가됩니다.
                     </div>
 
                     <!-- 디렉토리 생성 허용 -->
@@ -92,7 +85,8 @@
 
                 <div class="n-form-group">
                     <label class="n-label" for="file">ISO 파일 업로드 (선택)</label>
-                    <input id="file" type="file" name="file" accept=".iso" class="n-input">
+                    <input id="file" type="file" name="file" accept=".iso" class="n-input"
+                           data-error-field="file">
                     <div class="n-hint">
                         비워두면 파일 전송 없이 등록합니다 — 단, 서버가 위 경로의 기존 ISO 파일을 읽어
                         manifest 해시를 계산하고 <code>.provision.json</code> 마커를 발급합니다.
@@ -104,6 +98,7 @@
                     <label class="n-label" for="description">설명 (선택)</label>
                     <textarea id="description" th:field="*{description}"
                               class="n-textarea" rows="3"
+                              data-error-field="description"
                               placeholder="예: Rocky Linux 9.6 x86_64 DVD ISO"></textarea>
                 </div>
 
@@ -134,6 +129,10 @@
     </div>
 </div>
 
+<!-- MK2 — nudge modal (단계 B 해시 충돌 시 표시). iso-new.js 가 element id 'nudgeModal' 등을 잡는다. -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/nudge')}"></div>
+
+<script th:src="@{/management/common/path-browser.js}"></script>
 <script th:src="@{/management/os/iso-new.js}"></script>
 </body>
 </html>

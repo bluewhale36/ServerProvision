@@ -36,6 +36,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -53,7 +54,16 @@ class OSImageServiceTest {
     @Mock OSPackageGroupRepository grpRepository;
     @Mock ProvisionMarkerService markerService;
     @Mock BackgroundJobService backgroundJobService;
+    @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
+    @Mock com.example.serverprovision.global.security.FileSystemHardener fileSystemHardener;
     @InjectMocks OSImageService osImageService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubSecurity() {
+        org.mockito.Mockito.lenient().when(pathPolicyService.assertWritablePath(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> java.nio.file.Path.of(inv.getArgument(0, String.class)).toAbsolutePath().normalize());
+    }
+
 
     /** addISO 호출 시 markerService 의 표준 동작을 stub. resolveMarkerFile 은 실제 sidecar 위치를 반환. */
     private void stubMarkerService() {
@@ -261,6 +271,122 @@ class OSImageServiceTest {
         assertThat(status).isEqualTo(IntegrityStatus.TAMPERED);
         assertThat(iso.getLastIntegrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
         assertThat(iso.getLastVerifiedAt()).isNotNull();
+    }
+
+    /* ─────────────────────────── S3.3 (K13) — hardener / markerService 회귀 차단 ─────────────────────────── */
+
+    @Test
+    @DisplayName("S3.3 (K13) addIso : sidecar 작성 직후 FileSystemHardener.applyDefaultPermissionsForFile 가 호출된다")
+    void addIso_hardenerInvokedAfterSidecarWrite(@TempDir Path tempDir) throws Exception {
+        byte[] content = "iso-bytes".getBytes();
+        String hash = sha256Hex(content);
+        Path target = tempDir.resolve("rocky.iso");
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "rocky.iso", "application/octet-stream", content);
+        ISOCreateRequest req = new ISOCreateRequest(target.toString(), "신규", false);
+
+        OSImage parent = OSImage.builder()
+                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .isEnabled(true).isDeleted(false).build();
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L))
+                .willReturn(Optional.of(parent));
+        given(isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
+                .willReturn(Optional.empty());
+        given(isoRepository.findFirstByChecksumAndIsDeletedFalse(hash))
+                .willReturn(Optional.empty());
+        stubMarkerService();
+        given(isoRepository.save(any(ISO.class)))
+                .willAnswer(inv -> ISO.builder()
+                        .id(7L).osImage(parent)
+                        .isoPath(((ISO) inv.getArgument(0)).getIsoPath())
+                        .checksum(hash).manifestHash(hash).markerSignature(null)
+                        .isEnabled(true).isDeleted(false).build());
+
+        osImageService.addISO(1L, req, file);
+
+        // ISO 본체 파일 권한 적용 (line 245) + sidecar 파일 권한 적용 (line 314) — 두 번 호출되어야 한다.
+        Path expectedSidecar = target.resolveSibling(target.getFileName() + ".provision.json");
+        verify(fileSystemHardener).applyDefaultPermissionsForFile(target);
+        verify(fileSystemHardener).applyDefaultPermissionsForFile(expectedSidecar);
+    }
+
+    @Test
+    @DisplayName("S3.3 (K13) addIso : sidecar 경로는 markerService.resolveMarkerFile(SIDECAR) 으로 계산 (DRY 회귀 차단)")
+    void addIso_sidecarPathResolvedViaMarkerService(@TempDir Path tempDir) throws Exception {
+        byte[] content = "iso-bytes-2".getBytes();
+        String hash = sha256Hex(content);
+        Path target = tempDir.resolve("centos.iso");
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "centos.iso", "application/octet-stream", content);
+        ISOCreateRequest req = new ISOCreateRequest(target.toString(), "신규", false);
+
+        OSImage parent = OSImage.builder()
+                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .isEnabled(true).isDeleted(false).build();
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L))
+                .willReturn(Optional.of(parent));
+        given(isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
+                .willReturn(Optional.empty());
+        given(isoRepository.findFirstByChecksumAndIsDeletedFalse(hash))
+                .willReturn(Optional.empty());
+        stubMarkerService();
+        given(isoRepository.save(any(ISO.class)))
+                .willAnswer(inv -> ISO.builder()
+                        .id(8L).osImage(parent)
+                        .isoPath(((ISO) inv.getArgument(0)).getIsoPath())
+                        .checksum(hash).manifestHash(hash)
+                        .isEnabled(true).isDeleted(false).build());
+
+        osImageService.addISO(1L, req, file);
+
+        // sidecar 사전 충돌 검사 (prepareIsoRegistration) + finalize 단계의 hardener 인자 계산 — 총 2회 호출.
+        // SIDECAR layout 명명 규칙이 미래에 바뀌어도 hardener 호출이 silent drift 되지 않도록 markerService 위임을 강제한다.
+        verify(markerService, org.mockito.Mockito.atLeast(2))
+                .resolveMarkerFile(eq(target), eq(MarkerLayout.SIDECAR));
+    }
+
+    @Test
+    @DisplayName("S3.3 (K13) restoreISO : 디스크 자원을 건드리지 않으므로 hardener 호출이 없다 (회귀 가드)")
+    void restoreIso_hardenerNotInvokedSinceNoFileWrite() {
+        // restoreISO 는 isDeleted 플래그만 false 로 전환한다. 파일 시스템에 새로 쓰는 자원이 없으므로
+        // hardener 호출은 부적절하며, 누가 실수로 파일 쓰기를 추가했을 때 본 테스트가 깨져 알람 역할을 한다.
+        OSImage parent = OSImage.builder()
+                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .isEnabled(true).isDeleted(false).build();
+        ISO deletedIso = ISO.builder()
+                .id(2L).osImage(parent).isoPath("/mnt/iso/x.iso")
+                .checksum("h").manifestHash("h").markerSignature("s")
+                .isEnabled(true).isDeleted(true).build();
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
+        given(isoRepository.findByIdAndOsImage_Id(2L, 1L)).willReturn(Optional.of(deletedIso));
+
+        osImageService.restoreISO(1L, 2L);
+
+        verify(fileSystemHardener, never()).applyDefaultPermissionsForFile(any());
+        assertThat(deletedIso.isDeleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("S3.3 (K13) updateISO : 메타데이터만 수정하므로 hardener 호출이 없다 (회귀 가드)")
+    void updateIso_hardenerNotInvokedSinceMetadataOnly() {
+        // updateISO 는 isoPath 문자열 / description 만 갱신한다. 파일 교체가 없으므로 hardener 호출이 없어야 하며,
+        // 향후 파일 교체 흐름이 추가되면 본 테스트가 실패하여 hardener 호출 누락을 강제로 노출시킨다.
+        OSImage parent = OSImage.builder()
+                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .isEnabled(true).isDeleted(false).build();
+        ISO iso = ISO.builder()
+                .id(3L).osImage(parent).isoPath("/mnt/iso/old.iso")
+                .checksum("h").manifestHash("h").markerSignature("s")
+                .isEnabled(true).isDeleted(false).build();
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
+        given(isoRepository.findByIdAndOsImage_Id(3L, 1L)).willReturn(Optional.of(iso));
+
+        osImageService.updateISO(1L, 3L,
+                new com.example.serverprovision.management.os.dto.request.ISOUpdateRequest(
+                        "/mnt/iso/old.iso", "수정된 설명"));
+
+        verify(fileSystemHardener, never()).applyDefaultPermissionsForFile(any());
+        assertThat(iso.getDescription()).isEqualTo("수정된 설명");
     }
 
     private static String sha256Hex(byte[] bytes) throws Exception {

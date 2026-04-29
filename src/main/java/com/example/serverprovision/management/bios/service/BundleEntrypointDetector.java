@@ -1,10 +1,13 @@
 package com.example.serverprovision.management.bios.service;
 
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
-import com.example.serverprovision.management.bios.exception.BundleExtractionException;
+import com.example.serverprovision.global.security.EntrypointPolicyService;
+import com.example.serverprovision.global.security.config.FileSystemSecurityProperties;
+import com.example.serverprovision.management.common.filesystem.exception.BundleExtractionException;
 import com.example.serverprovision.management.bios.exception.EntrypointAmbiguousException;
 import com.example.serverprovision.management.bios.exception.EntrypointNotFoundException;
 import com.example.serverprovision.management.common.filesystem.policy.BundleFilePolicy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -21,18 +24,26 @@ import java.util.stream.Stream;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class BundleEntrypointDetector {
 
+    private final EntrypointPolicyService entrypointPolicyService;
+    private final FileSystemSecurityProperties fileSystemSecurityProperties;
+
     public String detect(Path treeRoot, String override) {
-        // 1) Override 우선
+        // 1) Override 우선 — S3 EntrypointPolicy 검증 (절대경로 / .. / 트리 밖 / null byte / 길이)
         if (override != null && !override.isBlank()) {
-            String normalized = override.replace('\\', '/').replaceFirst("^/+", "");
-            Path candidate = treeRoot.resolve(normalized);
-            if (!Files.isRegularFile(candidate)) {
-                throw new EntrypointNotFoundException(
-                        "명시된 진입점 경로에 파일이 없습니다 : " + normalized);
+            String normalized = entrypointPolicyService.validateAndNormalize(treeRoot, override);
+            if (normalized == null) {
+                // EntrypointPolicy 가 빈 입력으로 처리한 경우 — auto-detect 로 fallthrough
+            } else {
+                Path candidate = treeRoot.resolve(normalized);
+                if (!Files.isRegularFile(candidate)) {
+                    throw new EntrypointNotFoundException(
+                            "명시된 진입점 경로에 파일이 없습니다 : " + normalized);
+                }
+                return normalized;
             }
-            return normalized;
         }
 
         // 2) 트리 파일 1개면 그것 (marker / OS 잡파일 제외)
@@ -69,7 +80,8 @@ public class BundleEntrypointDetector {
 
     private List<Path> listRegularFilesExcludingMarker(Path treeRoot) {
         List<Path> result = new ArrayList<>();
-        try (Stream<Path> walker = Files.walk(treeRoot)) {
+        // S3.1 (A3) — maxDepth 명시. follow-links 옵션 부재로 symlink 미추적.
+        try (Stream<Path> walker = Files.walk(treeRoot, fileSystemSecurityProperties.maxDepth())) {
             for (Path p : (Iterable<Path>) walker::iterator) {
                 if (!Files.isRegularFile(p)) continue;
                 if (p.getFileName().toString().equals(ProvisionMarkerService.MARKER_FILENAME)) continue;

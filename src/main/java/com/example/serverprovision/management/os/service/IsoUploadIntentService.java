@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.service;
 
+import com.example.serverprovision.management.common.nudge.dto.PreExistingMatchInfo;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
 import com.example.serverprovision.management.os.entity.ISO;
@@ -32,21 +33,16 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * ISO 업로드 Intent 핸드셰이크 관리자.
- * <ol>
- *   <li>{@code issue} : 업로드 전 사전 검증. isoPath 중복 등 하드 조건은 즉시 409 로 거절하여
- *       바이트 전송이 시작되지 않게 한다.</li>
- *   <li>{@code consume} : 업로드 요청의 {@code X-Upload-Token} 헤더를 검증하고 1회용 토큰을 소비한다.
- *       intent 단계와 실제 업로드의 (osId, isoPath) 가 어긋나면 거절.</li>
- * </ol>
- * 서버 최후 검증(SHA-256 체크섬) 은 그대로 {@link OSImageService#addISO} 에서 이어진다.
- * Intent 는 어디까지나 "명백한 낭비를 사전에 차단" 하는 방어선이다.
+ *
+ * <p>MK2 — intent 응답에 {@code preExistingMatch} 사전 경고 동봉 (단계 A). 같은 OS 의 동일 isoPath 로
+ * 등록된 soft-deleted ISO 가 있으면 클라이언트가 안내 modal 1차 dismiss 후 업로드 진입한다.
+ * 단계 B (해시 후) 의 nudge 흐름과는 독립 — 메타만 같고 파일이 달라도 본 사전 경고는 발생할 수 있다.</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class IsoUploadIntentService {
 
-    /** 토큰 유효 시간 — 업로드 자체가 길 수 있으므로 여유 있게. */
     private static final Duration TTL = Duration.ofHours(2);
 
     private final OSImageRepository osImageRepository;
@@ -54,10 +50,6 @@ public class IsoUploadIntentService {
 
     private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
-    /**
-     * Intent 발급. 하드 거절 조건에 해당하면 {@link IsoUploadIntentConflictException} 을 던진다.
-     * 소프트 경고는 응답의 {@code warnings} 에 담아 클라이언트가 confirm 다이얼로그로 처리하도록 위임한다.
-     */
     public IsoUploadIntentResponse issue(Long osImageId, IsoUploadIntentRequest request) {
         // 부모 OS 존재 확인
         osImageRepository.findByIdAndIsDeletedFalse(osImageId)
@@ -67,7 +59,6 @@ public class IsoUploadIntentService {
         String filename = request.filename();
         long size = request.size();
 
-        // 경로가 '/' 로 끝나면 디렉토리로 해석 → 업로드 파일명 append. 파일명 누락 시 409.
         String resolvedPath = IsoPathResolver.resolve(
                 rawPath,
                 filename,
@@ -82,29 +73,25 @@ public class IsoUploadIntentService {
         }
 
         // 하드 블록 : 파일시스템 상 동일 이름 파일이 실재 — 덮어쓰기 방지
-        // 디스크 공간 사전 검증 — 13GB 짜리 multipart 가 다 도착한 뒤 IOException 으로 실패하는 사고를 막는다.
         try {
             Path target = Path.of(resolvedPath);
             if (Files.exists(target) && !Files.isDirectory(target)) {
                 throw new DuplicateFilenameException(resolvedPath);
             }
-            // 하드 블록 : 상위 디렉토리가 없는데 "디렉토리 생성 허용" 체크도 안 된 경우
             Path parent = target.getParent();
             if (parent != null && !Files.exists(parent) && !request.allowCreateDirectory()) {
                 throw new DirectoryMissingException(parent.toString());
             }
-            // 디스크 공간 — 부모 디렉토리가 실재할 때만 측정 (생성 예정 디렉토리는 부모의 부모로 거슬러 올라가도 의미 단조롭지 않음)
+            // 디스크 공간 — 부모 디렉토리가 실재할 때만 측정.
             if (size > 0 && parent != null && Files.exists(parent)) {
                 try {
                     FileStore store = Files.getFileStore(parent);
                     long usable = store.getUsableSpace();
-                    // 10% 또는 256MB 의 안전 여유분을 두어 OS 의 reserve 영역과 충돌하지 않게.
                     long safetyMargin = Math.max(size / 10, 256L * 1024 * 1024);
                     if (usable < size + safetyMargin) {
                         throw new InsufficientDiskSpaceException(resolvedPath, size + safetyMargin, usable);
                     }
                 } catch (IOException ioe) {
-                    // FileStore 조회 실패는 차단 사유가 아님 — 기록만 하고 통과 (후단에서 IOException 재현됨)
                     log.warn("[IsoUploadIntentService] FileStore 조회 실패 — 디스크 공간 검증 건너뜀. parent={}, msg={}",
                             parent, ioe.getMessage());
                 }
@@ -119,17 +106,23 @@ public class IsoUploadIntentService {
             warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
         }
 
+        // MK2 — 단계 A 사전 경고. 같은 (osImageId, isoPath) 의 soft-deleted 후보가 있으면 동봉.
+        PreExistingMatchInfo preExistingMatch = isoRepository
+                .findFirstByOsImage_IdAndIsoPathAndIsDeletedTrue(osImageId, resolvedPath)
+                .map(c -> new PreExistingMatchInfo(
+                        c.getId(),
+                        c.currentStage(),
+                        c.getOsImage().getOsVersion(),
+                        c.getIsoPath()))
+                .orElse(null);
+
         String token = UUID.randomUUID().toString();
         intents.put(token, new Intent(osImageId, resolvedPath, filename, size, Instant.now()));
-        log.info("[IsoUploadIntentService] intent 발급. token={}, osImageId={}, rawPath={}, resolvedPath={}, size={}",
-                token, osImageId, rawPath, resolvedPath, size);
-        return new IsoUploadIntentResponse(token, warnings);
+        log.info("[IsoUploadIntentService] intent 발급. token={}, osImageId={}, rawPath={}, resolvedPath={}, size={}, preExistingMatch={}",
+                token, osImageId, rawPath, resolvedPath, size, preExistingMatch != null ? preExistingMatch.id() : null);
+        return new IsoUploadIntentResponse(token, warnings, preExistingMatch);
     }
 
-    /**
-     * 토큰 검증 및 소비. 유효하면 {@link Intent} 반환 후 저장소에서 제거 (1회용).
-     * - 토큰 없음/만료/타 OS : {@link InvalidUploadTokenException}
-     */
     public Intent consume(Long osImageId, String token) {
         if (token == null || token.isBlank()) {
             throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
@@ -148,18 +141,13 @@ public class IsoUploadIntentService {
         return intent;
     }
 
-    /** 주기적으로 만료된 토큰을 청소한다. */
     @Scheduled(fixedDelayString = "${upload.intent.prune-interval-ms:300000}")
     public void prune() {
         Instant cutoff = Instant.now().minus(TTL);
         intents.entrySet().removeIf(e -> e.getValue().issuedAt().isBefore(cutoff));
     }
 
-    /** 테스트·디버깅용. */
     public int size() { return intents.size(); }
 
-    /**
-     * 1회용 intent 레코드.
-     */
     public record Intent(Long osImageId, String isoPath, String filename, long expectedSize, Instant issuedAt) {}
 }

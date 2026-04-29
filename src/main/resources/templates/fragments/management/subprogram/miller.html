@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  Subprogram 한 kind 의 Miller 3 컬럼 fragment.
+  파라미터:
+    - groups          : List<BoardWithSubprogramListResponse> (첫 행은 공용 분류)
+    - kindToken       : "driver" | "utility"
+    - kindDisplayName : "드라이버" | "유틸리티"
+    - millerId        : DOM root 의 id (driver / utility 두 곳에서 충돌 회피)
+    - selectId        : (선택) 초기 선택할 자원 id
+  Miller C2 의 "+ 등록" 버튼은 분류 행마다 자체 boardScope 를 쿼리로 동봉한다 (폼 prefill 용).
+*/-->
+<div th:fragment="kindMiller(groups, kindToken, kindDisplayName, millerId, selectId)"
+     class="n-miller n-subprogram-miller"
+     th:id="${millerId}"
+     th:attr="data-kind=${kindToken}"
+     th:data-initial-select-id="${selectId}">
+
+    <div class="n-miller-col n-miller-col-names">
+        <div class="n-miller-col-header" th:text="${kindDisplayName} + ' 분류'">분류</div>
+
+        <button th:each="group : ${groups}"
+                type="button"
+                class="n-miller-item n-miller-item-split"
+                th:classappend="${group.isDeleted} ? 'n-miller-item-disabled' : ''"
+                th:data-os-key="${group.commonScope ? 'common' : group.boardId}">
+            <span class="n-miller-version-label">
+                <span th:if="${group.commonScope}">공용</span>
+                <th:block th:unless="${group.commonScope}">
+                    <span th:text="${group.modelName}">X11SCA</span>
+                    <span style="font-size: 11px; color: var(--n-text-muted);"
+                          th:text="' · ' + ${group.vendorDisplayName}"> · Supermicro</span>
+                </th:block>
+                <span th:if="${group.deleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+            </span>
+        </button>
+    </div>
+
+    <div class="n-miller-col n-miller-col-versions">
+        <div class="n-miller-col-header">버전</div>
+        <div th:each="group : ${groups}"
+             class="n-miller-version-panel"
+             th:data-os-key="${group.commonScope ? 'common' : group.boardId}">
+
+            <div th:if="${#lists.isEmpty(group.items)}"
+                 class="n-empty-desc" style="padding: 10px 12px;">
+                등록된 항목이 없습니다.
+            </div>
+
+            <button th:each="sp : ${group.items}"
+                    type="button"
+                    class="n-miller-item n-miller-item-split"
+                    th:classappend="${sp.deleted} ? 'n-miller-item-disabled' : ''"
+                    th:data-os-id="${sp.id}">
+                <span class="n-miller-version-label">
+                    <span th:text="${sp.name + ' · ' + sp.version}">name · 1.0</span>
+                    <span th:if="${sp.deleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                </span>
+                <span th:unless="${sp.deleted}"
+                      class="n-miller-status-tag"
+                      th:classappend="${sp.enabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                      th:text="${sp.enabled} ? '활성화' : '비활성화'">활성화</span>
+            </button>
+
+            <div style="padding: 8px 12px;">
+                <a th:href="@{/management/subprogram/new(kind=${kindToken == 'driver' ? 'DRIVER' : 'UTILITY'}, boardScope=${group.commonScope ? 'common' : group.boardId})}"
+                   class="n-btn n-btn-sm n-btn-primary" style="width: 100%;"
+                   th:text="'+ ' + ${kindDisplayName} + ' 등록'">+ 등록</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="n-miller-col n-miller-col-detail">
+        <div class="n-miller-empty">자원을 선택하여 상세 사항 보기</div>
+
+        <th:block th:each="group : ${groups}">
+            <div th:each="sp : ${group.items}"
+                 class="n-miller-detail-panel"
+                 th:data-os-id="${sp.id}">
+
+                <dl class="n-accordion-fields">
+                    <div class="n-accordion-field">
+                        <dt>ID</dt>
+                        <dd th:text="${sp.id}"></dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>분류</dt>
+                        <dd>
+                            <span th:if="${group.commonScope}">공용</span>
+                            <span th:unless="${group.commonScope}"
+                                  th:text="${group.vendorDisplayName + ' · ' + group.modelName}"></span>
+                        </dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>이름</dt>
+                        <dd th:text="${sp.name}"></dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>버전</dt>
+                        <dd><code th:text="${sp.version}"></code></dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>트리 루트</dt>
+                        <dd><code th:text="${sp.treeRootPath}"></code></dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>실행 대상</dt>
+                        <dd>
+                            <code th:if="${sp.entrypointRelativePath != null and !#strings.isEmpty(sp.entrypointRelativePath)}"
+                                  th:text="${sp.entrypointRelativePath}"></code>
+                            <span th:if="${sp.entrypointRelativePath == null or #strings.isEmpty(sp.entrypointRelativePath)}"
+                                  style="color: var(--n-text-muted); font-size: 12px;">
+                                미설정 — 수정에서 입력하세요.
+                            </span>
+                        </dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>manifest 해시</dt>
+                        <dd><code style="font-size: 11px;" th:text="${sp.manifestHash}"></code></dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>번들 크기</dt>
+                        <dd>
+                            <span th:text="${sp.fileCount}">0</span> files /
+                            <span th:text="${sp.totalBytes}">0</span> bytes
+                        </dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>무결성</dt>
+                        <dd>
+                            <span class="n-badge"
+                                  th:classappend="${T(com.example.serverprovision.management.common.view.IntegrityStatusView).badgeClass(sp.integrityStatus)}"
+                                  th:data-subprogram-id="${sp.id}"
+                                  th:data-verify-url="@{/management/subprogram/{id}/verify(id=${sp.id})}"
+                                  th:data-status-url="@{/management/subprogram/{id}/integrity-status(id=${sp.id})}"
+                                  th:text="${sp.integrityStatus != null ? sp.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
+                            <button type="button" class="n-btn n-btn-sm n-btn-ghost"
+                                    th:data-verify-url="@{/management/subprogram/{id}/verify(id=${sp.id})}">
+                                검증
+                            </button>
+                        </dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>설명</dt>
+                        <dd th:text="${sp.description != null and !#strings.isEmpty(sp.description)} ? ${sp.description} : '—'"></dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>상태</dt>
+                        <dd>
+                            <span th:if="${sp.deleted}" class="n-badge n-badge-gray">삭제됨</span>
+                            <th:block th:unless="${sp.deleted}">
+                                <span class="n-badge"
+                                      th:classappend="${sp.enabled} ? 'n-badge-green' : 'n-badge-orange'"
+                                      th:text="${sp.enabled} ? '활성화' : '비활성화'"></span>
+                                <form th:action="@{/management/subprogram/{id}/toggle(id=${sp.id})}"
+                                      method="post" class="n-accordion-inline-form">
+                                    <button type="submit"
+                                            class="n-btn n-btn-sm"
+                                            th:classappend="${sp.enabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
+                                            th:text="${sp.enabled} ? '비활성화' : '활성화'"></button>
+                                </form>
+                            </th:block>
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="n-form-actions">
+                    <th:block th:unless="${sp.deleted}">
+                        <a th:href="@{/management/subprogram/{id}/edit(id=${sp.id})}"
+                           class="n-btn n-btn-secondary">수정</a>
+                        <form th:action="@{/management/subprogram/{id}/delete(id=${sp.id})}"
+                              method="post" style="display:inline;"
+                              onsubmit="return confirm('이 항목을 삭제할까요?');">
+                            <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
+                        </form>
+                    </th:block>
+                    <th:block th:if="${sp.deleted}">
+                        <form th:action="@{/management/subprogram/{id}/restore(id=${sp.id})}"
+                              method="post" style="display:inline;">
+                            <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                        </form>
+                    </th:block>
+                </div>
+            </div>
+        </th:block>
+    </div>
+</div>
+</body>
+</html>

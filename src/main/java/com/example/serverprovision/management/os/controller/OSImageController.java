@@ -2,7 +2,9 @@ package com.example.serverprovision.management.os.controller;
 
 import com.example.serverprovision.global.exception.ConflictException;
 import com.example.serverprovision.global.exception.DomainException;
+import com.example.serverprovision.global.exception.FieldBoundConflictException;
 import com.example.serverprovision.global.exception.NotFoundException;
+import com.example.serverprovision.global.security.exception.SecurityException;
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
@@ -28,6 +30,7 @@ import com.example.serverprovision.management.os.service.IsoRegistrationLauncher
 import com.example.serverprovision.management.os.service.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.IsoVerificationLauncher;
 import com.example.serverprovision.management.os.service.OSImageService;
+import com.example.serverprovision.management.os.service.OsNudgeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -35,6 +38,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,7 +58,8 @@ import java.util.List;
  *   <li>뷰에는 Request / Response 만 넘긴다 (엔티티 직접 노출 금지).</li>
  *   <li>성공 시 {@code /management/os?selectId=...} 로 리다이렉트해 Miller 초기 선택을 복원한다.</li>
  *   <li>검증 실패({@code BindingResult}) 는 같은 폼 뷰로 돌아가 Thymeleaf 의 field errors 를 렌더한다.</li>
- *   <li>도메인 예외({@code NotFound}, {@code Conflict}) 는 {@link com.example.serverprovision.global.exception.GlobalExceptionHandler} 가 처리한다.</li>
+ *   <li>도메인 예외({@code NotFound}, {@code Conflict}) 는 {@link com.example.serverprovision.global.exception.WebExceptionHandler}
+ *       (HTML) / {@link com.example.serverprovision.global.exception.ApiExceptionHandler} (JSON) 가 Accept 헤더에 따라 처리한다.</li>
  *   <li>장시간 실행 작업(추출·업로드) 은 Stage S1 의 {@code BackgroundJobService} 를 거쳐 알림 센터로 통합 노출된다.</li>
  * </ul>
  */
@@ -74,6 +79,7 @@ public class OSImageController {
     private final IsoVerificationLauncher isoVerificationLauncher;
     private final IsoRegistrationLauncher isoRegistrationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
+    private final OsNudgeService osNudgeService;
 
     // ==== 목록 ========================================================
 
@@ -159,6 +165,27 @@ public class OSImageController {
         return redirectToListWithSelect(id);
     }
 
+    // ==== MK2 OS 이미지 lifecycle =====================================
+
+    @PostMapping("/{id}/deprecate")
+    public String deprecateOs(@PathVariable Long id) {
+        osImageService.deprecateImage(id);
+        return redirectToListWithSelect(id);
+    }
+
+    @PostMapping("/{id}/undeprecate")
+    public String undeprecateOs(@PathVariable Long id) {
+        osImageService.undeprecateImage(id);
+        return redirectToListWithSelect(id);
+    }
+
+    @PostMapping("/{id}/purge")
+    public String purgeOs(@PathVariable Long id) {
+        osImageService.purgeImage(id);
+        // 영구 삭제 후 row 부재 — selectId 복원 의미 없음.
+        return "redirect:/management/os?includeDeleted=true";
+    }
+
     // ==== ISO ==========================================================
 
     @GetMapping("/{osId}/iso/new")
@@ -212,9 +239,14 @@ public class OSImageController {
             return ResponseEntity.ok(body);
         } catch (NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
+        } catch (FieldBoundConflictException e) {
+            // S4 — 필드 직결 충돌은 fieldErrors 동봉.
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiErrorResponse.ofFieldBound(e.getMessage(), e.fieldName()));
         } catch (ConflictException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
         } catch (DomainException e) {
+            // B3 — 보안 예외는 SecurityException 계층으로 분리되어 본 catch 에 흡수되지 않고 통과한다.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
         }
     }
@@ -227,7 +259,7 @@ public class OSImageController {
      *   <li>요청 스레드는 파일 저장/경로 검증까지만 수행하고, SHA-256 계산 · marker 발급 · DB 저장은
      *       {@link IsoRegistrationLauncher} 의 background job 으로 이어진다.</li>
      * </ul>
-     * 도메인 예외는 메서드 내부에서 JSON 으로 감싸 {@link com.example.serverprovision.global.exception.GlobalExceptionHandler}
+     * 도메인 예외는 메서드 내부에서 JSON 으로 감싸 {@link com.example.serverprovision.global.exception.ApiExceptionHandler}
      * 의 HTML 뷰 경로로 빠지지 않게 한다.
      */
     @PostMapping(path = "/{osId}/iso/upload")
@@ -256,9 +288,14 @@ public class OSImageController {
             return ResponseEntity.ok(new IsoUploadResponse(jobId, redirect));
         } catch (NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
+        } catch (FieldBoundConflictException e) {
+            // S4 — 필드 직결 충돌은 fieldErrors 동봉.
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiErrorResponse.ofFieldBound(e.getMessage(), e.fieldName()));
         } catch (ConflictException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
         } catch (DomainException e) {
+            // B3 — 보안 예외는 SecurityException 계층으로 분리되어 본 catch 에 흡수되지 않고 통과한다.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
         }
     }
@@ -285,9 +322,36 @@ public class OSImageController {
             populateIsoFormContext(model, osId, isoId, os);
             return "management/os/iso-edit";
         }
-        osImageService.updateISO(osId, isoId, request);
+        try {
+            osImageService.updateISO(osId, isoId, request);
+        } catch (com.example.serverprovision.global.security.exception.PathTraversalException
+                | com.example.serverprovision.global.security.exception.PathOutsideAllowedRootsException ex) {
+            // SSR 폼 흐름에서 isoPath 필드 입력 형식 위반 — BindingResult 로 흡수해 폼 재렌더.
+            // try/catch 형식이지만 SSR 컨트롤러의 view 컨텍스트와 BindingResult 주입을 모두 받기 위해 framework 한계상 이 위치에서 직접 처리.
+            bindingResult.rejectValue("isoPath", "security", ex.getMessage());
+            OSImageResponse os = osImageService.findById(osId);
+            populateIsoFormContext(model, osId, isoId, os);
+            return "management/os/iso-edit";
+        }
         return redirectToListWithSelect(osId);
     }
+
+    /**
+     * SSR ISO 수정 폼 전용 보안 예외 흡수 핸들러.
+     * <p>{@link SecurityException} 단일 catch — 다형성 활용으로 PathTraversal / PathOutsideAllowedRoots /
+     * EntrypointInvalid 등 모든 보안 예외 sub-class 가 동일 BindingResult 매핑 흐름으로 들어간다.
+     * sub-class 추가 시 핸들러 시그니처에 분기를 늘릴 필요 없음.</p>
+     * <p>요청 흐름이 {@code @ExceptionHandler} 로 진입하는 시점에 {@code @ModelAttribute("isoForm")}
+     * 인자가 이미 model 에 바인딩되어 있으므로, BindingResult 만 새로 만들어 같은 키로 다시 추가하면
+     * Thymeleaf 폼이 isoPath 필드 에러를 그대로 렌더한다.</p>
+     * <p>본 핸들러는 컨트롤러 로컬이라 같은 컨트롤러의 다른 엔드포인트 (intent / upload / browse 등) 에는
+     * 영향을 주지 않는다 — URI 패턴 가드로 SSR iso-edit 흐름만 흡수하고 그 외는 다시 throw 해
+     * 전역 {@link com.example.serverprovision.global.exception.ApiExceptionHandler} 로 위임한다.</p>
+     */
+    // updateIso 의 try/catch 가 SSR 흐름을 처리하고, XHR 흐름 (intent/upload/browse) 의 보안 예외는
+    // ApiExceptionHandler 가 직접 매핑한다. 컨트롤러 로컬 @ExceptionHandler 의 URI 패턴 분기는
+    // throw 시 ServletException wrap 으로 advice 까지 도달 안 하던 framework 한계로 제거.
+    // 향후 ControllerAdvice basePackages 패턴 도입 시점에 SSR/XHR 정합화 재검토.
 
     @PostMapping("/{osId}/iso/{isoId}/toggle")
     public String toggleIso(@PathVariable("osId") Long osId,
@@ -309,6 +373,65 @@ public class OSImageController {
         osImageService.restoreISO(osId, isoId);
         return redirectToListWithSelect(osId);
     }
+
+    // ==== MK2 ISO lifecycle ============================================
+
+    @PostMapping("/{osId}/iso/{isoId}/deprecate")
+    public String deprecateIso(@PathVariable("osId") Long osId,
+                                @PathVariable("isoId") Long isoId) {
+        osImageService.deprecateIso(osId, isoId);
+        return redirectToListWithSelect(osId);
+    }
+
+    @PostMapping("/{osId}/iso/{isoId}/undeprecate")
+    public String undeprecateIso(@PathVariable("osId") Long osId,
+                                  @PathVariable("isoId") Long isoId) {
+        osImageService.undeprecateIso(osId, isoId);
+        return redirectToListWithSelect(osId);
+    }
+
+    @PostMapping("/{osId}/iso/{isoId}/purge")
+    public String purgeIso(@PathVariable("osId") Long osId,
+                            @PathVariable("isoId") Long isoId) {
+        osImageService.purgeIso(osId, isoId);
+        return redirectToListWithSelect(osId);
+    }
+
+    // ==== MK2 nudge confirm ============================================
+
+    /**
+     * nudge proceed — 기존 충돌 후보 보존 + 임시 자원을 ACTIVE 로 영속화.
+     */
+    @PostMapping(path = "/nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public NudgeProceedResponse nudgeProceed(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        Long isoId = osNudgeService.proceed(nudgeId);
+        return new NudgeProceedResponse(isoId, "/management/os");
+    }
+
+    /**
+     * nudge replace — 사용자가 지목한 충돌 후보를 명시적 purge 후 임시 자원을 ACTIVE 로 영속화.
+     */
+    @PostMapping(path = "/nudge/{nudgeId}/replace")
+    @ResponseBody
+    public NudgeProceedResponse nudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
+                                              @RequestParam(name = "targetId") Long targetId) {
+        Long isoId = osNudgeService.replace(nudgeId, targetId);
+        return new NudgeProceedResponse(isoId, "/management/os");
+    }
+
+    /**
+     * nudge cancel — 임시 파일 정리 + 세션 폐기. 신규 자원은 영속화되지 않는다.
+     */
+    @PostMapping(path = "/nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> nudgeCancel(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        osNudgeService.cancel(nudgeId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** nudge proceed/replace 응답 — JS modal 이 redirect 후 toast 표시에 활용. */
+    public record NudgeProceedResponse(Long isoId, String redirect) {}
 
     // ==== ISO 무결성 검증 / 마커 재발급 (BIOS 와 동일 패턴) ===========
 
@@ -400,6 +523,11 @@ public class OSImageController {
     public ResponseEntity<?> browse(
             @RequestParam(name = "path", required = false) String pathParam,
             @RequestParam(name = "includeFiles", defaultValue = "false") boolean includeFiles) {
+        // XHR 엔드포인트 — Accept 헤더가 `*` `/*` 인 경우 Web advice 의 `handleDomain` 이 먼저 매칭되어
+        // 500 HTML 로 응답하는 회귀를 막기 위해 컨트롤러 로컬 try/catch 를 유지한다. 보안 예외 (S3) 는
+        // 별도 계층 (SecurityException) 이라 본 catch 에 흡수되지 않고 ApiExceptionHandler 로 통과한다.
+        // 후속 슬라이스 후보 : 모든 XHR 핸들러를 produces=APPLICATION_JSON 으로 표준화하고 클라이언트가
+        // Accept: application/json 을 일관되게 보내도록 정합화한 뒤 본 try/catch 를 제거.
         try {
             return ResponseEntity.ok(directoryBrowseService.browse(new DirectoryBrowseRequest(pathParam, includeFiles)));
         } catch (InvalidBrowsePathException e) {

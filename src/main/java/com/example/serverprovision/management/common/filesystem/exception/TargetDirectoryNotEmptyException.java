@@ -1,4 +1,4 @@
-package com.example.serverprovision.management.bios.exception;
+package com.example.serverprovision.management.common.filesystem.exception;
 
 import com.example.serverprovision.global.exception.ConflictException;
 

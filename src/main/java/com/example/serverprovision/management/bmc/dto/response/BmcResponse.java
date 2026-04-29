@@ -4,6 +4,8 @@ import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 
 /**
  * BMC 단건 응답.
+ *
+ * <p>MK2 — {@code isDeprecated} 추가. 클라이언트는 boolean 조합 없이 본 필드를 직접 렌더한다.</p>
  */
 public record BmcResponse(
         Long id,
@@ -18,6 +20,7 @@ public record BmcResponse(
         String description,
         IntegrityStatus integrityStatus,
         boolean isEnabled,
-        boolean isDeleted
+        boolean isDeleted,
+        boolean isDeprecated
 ) {
 }

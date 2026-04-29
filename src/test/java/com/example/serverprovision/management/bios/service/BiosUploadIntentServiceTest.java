@@ -3,8 +3,8 @@ package com.example.serverprovision.management.bios.service;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
-import com.example.serverprovision.management.bios.exception.MarkerConflictException;
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -34,7 +34,14 @@ class BiosUploadIntentServiceTest {
     @Mock BoardModelRepository boardModelRepository;
     @Mock BiosRepository biosRepository;
     @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
+    @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
     @InjectMocks BiosUploadIntentService service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubSecurity() {
+        org.mockito.Mockito.lenient().when(pathPolicyService.assertWritablePath(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> java.nio.file.Path.of(inv.getArgument(0, String.class)).toAbsolutePath().normalize());
+    }
 
     private BoardModel activeBoard() {
         return BoardModel.builder()

@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.common.filesystem.service;
 
+import com.example.serverprovision.global.security.PathPolicyService;
+import com.example.serverprovision.global.security.config.FileSystemSecurityProperties;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
@@ -8,16 +10,35 @@ import com.example.serverprovision.management.common.filesystem.exception.Invali
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 
 class DirectoryBrowseServiceTest {
 
-    private final DirectoryBrowseService directoryBrowseService = new DirectoryBrowseService();
+    /** 테스트는 PathPolicy mock 으로 — 입력 그대로 Path 로 통과시켜 테스트 영향 최소화. */
+    private final PathPolicyService pathPolicyService = Mockito.mock(PathPolicyService.class);
+    private final FileSystemSecurityProperties browseSecurityProperties = new FileSystemSecurityProperties(2000, 8);
+    private final DirectoryBrowseService directoryBrowseService =
+            new DirectoryBrowseService(pathPolicyService, browseSecurityProperties);
+
+    {
+        Mockito.when(pathPolicyService.assertReadablePath(anyString()))
+                .thenAnswer(inv -> {
+                    String s = inv.getArgument(0, String.class);
+                    try {
+                        return Path.of(s).toAbsolutePath().normalize();
+                    } catch (java.nio.file.InvalidPathException e) {
+                        throw new com.example.serverprovision.global.security.exception.PathTraversalException(
+                                "invalid: " + e.getMessage());
+                    }
+                });
+    }
 
     @Test
     @DisplayName("browse : includeFiles=false 면 디렉토리만 반환한다")
@@ -75,9 +96,9 @@ class DirectoryBrowseServiceTest {
     }
 
     @Test
-    @DisplayName("browse : invalid path 면 400 예외")
+    @DisplayName("browse : invalid path (null byte) 면 PathTraversalException (S3)")
     void browse_invalidPath() {
         assertThatThrownBy(() -> directoryBrowseService.browse(new DirectoryBrowseRequest("\0bad", false)))
-                .isInstanceOf(InvalidBrowsePathException.class);
+                .isInstanceOf(com.example.serverprovision.global.security.exception.PathTraversalException.class);
     }
 }

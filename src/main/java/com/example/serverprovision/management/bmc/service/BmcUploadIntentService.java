@@ -1,13 +1,17 @@
 package com.example.serverprovision.management.bmc.service;
 
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
+import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
+import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.enums.BmcUploadMode;
 import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
+import com.example.serverprovision.management.common.nudge.dto.PreExistingMatchInfo;
 import com.example.serverprovision.management.os.exception.InvalidUploadTokenException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +37,7 @@ public class BmcUploadIntentService {
     private final BoardModelRepository boardModelRepository;
     private final com.example.serverprovision.management.bmc.repository.BmcRepository bmcRepository;
     private final TargetDirectoryPolicyService targetDirectoryPolicyService;
+    private final PathPolicyService pathPolicyService;
 
     private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
@@ -44,7 +49,8 @@ public class BmcUploadIntentService {
             throw new DuplicateBmcVersionException(boardId, request.version());
         }
 
-        Path targetDir = Path.of(request.targetDirectory());
+        // S3 — allowlist 검증
+        Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
         targetDirectoryPolicyService.validateForIntent(targetDir, request.allowCreateDirectory());
 
         List<String> warnings = new ArrayList<>();
@@ -54,6 +60,14 @@ public class BmcUploadIntentService {
         if (request.uploadMode() == BmcUploadMode.FOLDER && request.fileCount() == 0) {
             warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어있을 수 있습니다.");
         }
+
+        // MK2 단계 A — 메타 (boardId, version) 가 같은 기존 자원 (어느 stage 든) 이 존재하면
+        // 단순 안내 modal 용 PreExistingMatchInfo 를 응답에 동봉. 활성 충돌은 위에서 이미 거절했으므로
+        // 본 매칭은 deprecated / soft-deleted 만 매칭된다.
+        PreExistingMatchInfo preExistingMatch = bmcRepository
+                .findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version())
+                .map(BmcUploadIntentService::toMatch)
+                .orElse(null);
 
         String token = UUID.randomUUID().toString();
         intents.put(token, new Intent(
@@ -66,7 +80,16 @@ public class BmcUploadIntentService {
                 request.entrypointRelativePath(),
                 Instant.now()
         ));
-        return new BmcUploadIntentResponse(token, warnings);
+        return new BmcUploadIntentResponse(token, warnings, preExistingMatch);
+    }
+
+    private static PreExistingMatchInfo toMatch(BoardBMC entity) {
+        return new PreExistingMatchInfo(
+                entity.getId(),
+                LifecycleStage.of(entity.isDeprecated(), entity.isDeleted()),
+                entity.getName(),
+                entity.getVersion()
+        );
     }
 
     public Intent consume(Long boardId, String token) {

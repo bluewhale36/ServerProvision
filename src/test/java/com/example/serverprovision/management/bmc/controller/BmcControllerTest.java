@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.bmc.controller;
 
-import com.example.serverprovision.management.bios.exception.TargetDirectoryNotEmptyException;
+import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
@@ -57,6 +57,7 @@ class BmcControllerTest {
 
     @MockitoBean BmcService bmcService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;
+    @MockitoBean com.example.serverprovision.management.bmc.service.BmcNudgeService bmcNudgeService;
     @MockitoBean BoardModelService boardModelService;
     @MockitoBean BmcVerificationLauncher bmcVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
@@ -82,7 +83,7 @@ class BmcControllerTest {
         void success() throws Exception {
             var req = new BmcUploadIntentRequest("/mnt/bmc/x", BmcUploadMode.FOLDER, 5, 1024, "13.06.25", false, "");
             given(bmcUploadIntentService.issue(eq(1L), any()))
-                    .willReturn(new BmcUploadIntentResponse("token-abc", List.of()));
+                    .willReturn(new BmcUploadIntentResponse("token-abc", List.of(), null));
 
             mvc.perform(post("/management/bmc/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -162,7 +163,7 @@ class BmcControllerTest {
                 .willReturn(new BoardModelResponse(1L, Vendor.GIGABYTE, "MS03", "", 0, 0, true, false));
         given(bmcService.findBmc(1L, 2L))
                 .willReturn(new BmcResponse(2L, 1L, "AST2600", "12.61", "/opt/fw/bmc", "flash.nsh", "hash", 3, 2048L,
-                        "", IntegrityStatus.NOT_VERIFIED, true, false));
+                        "", IntegrityStatus.NOT_VERIFIED, true, false, false));
 
         mvc.perform(get("/management/bmc/1/bmc/2/edit"))
                 .andExpect(status().isOk())

@@ -1,8 +1,5 @@
 package com.example.serverprovision.management.bios.controller;
 
-import com.example.serverprovision.global.exception.ConflictException;
-import com.example.serverprovision.global.exception.DomainException;
-import com.example.serverprovision.global.exception.NotFoundException;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
@@ -10,9 +7,9 @@ import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadResponse;
+import com.example.serverprovision.management.bios.service.BiosNudgeService;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
-import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotFoundException;
 import com.example.serverprovision.management.common.filesystem.exception.DirectoryBrowseIoException;
@@ -42,8 +39,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-
 /**
  * A3 v3. BIOS 번들 관리 MVC 컨트롤러.
  *
@@ -51,7 +46,7 @@ import java.util.List;
  *   <li>BIOS 는 번들(디렉토리 트리) 단위로 관리된다. 단일 파일 등록 개념은 사라졌다.</li>
  *   <li>업로드 경로는 {@code /upload-intent} → {@code /upload} 의 2단 핸드셰이크로 고정. MVC fallback POST 없음.</li>
  *   <li>Intent / Upload / Verify 엔드포인트는 JSON 응답. {@code ApiErrorResponse} 로 예외를 래핑해
- *       GlobalExceptionHandler 의 HTML 에러 뷰 경로를 회피 → 클라이언트가 실제 사유를 파싱 가능.</li>
+ *       WebExceptionHandler 의 HTML 에러 뷰 경로를 회피 → 클라이언트가 실제 사유를 파싱 가능.</li>
  *   <li>Verify 는 무결성 상태만 조회 (수정 안 함) 이지만 POST 로 고정 — 상태 계산 비용이 크고 감사 로그에 남길 필요가 있어 단순 GET 으로 캐싱되지 않도록 함.</li>
  * </ul>
  */
@@ -62,6 +57,7 @@ public class BiosController {
 
     private final BiosService biosService;
     private final BiosUploadIntentService biosUploadIntentService;
+    private final BiosNudgeService biosNudgeService;
     private final BoardModelService boardModelService;
     private final BiosVerificationLauncher biosVerificationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
@@ -100,6 +96,8 @@ public class BiosController {
     public ResponseEntity<?> intent(@PathVariable("boardId") Long boardId,
                                     @Valid @RequestBody BiosUploadIntentRequest request,
                                     BindingResult bindingResult) {
+        // MK2 — Layer A 검증 실패만 직접 응답. 도메인 예외 (NotFound / Conflict / FieldBoundConflict /
+        //       BiosNudgeRequired / Security) 는 ApiExceptionHandler 가 일괄 처리 (try/catch 없음).
         if (bindingResult.hasErrors()) {
             String msg = bindingResult.getFieldErrors().stream()
                     .findFirst()
@@ -107,16 +105,8 @@ public class BiosController {
                     .orElse("입력값이 올바르지 않습니다.");
             return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
         }
-        try {
-            BiosUploadIntentResponse body = biosUploadIntentService.issue(boardId, request);
-            return ResponseEntity.ok(body);
-        } catch (NotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
-        } catch (ConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
-        } catch (DomainException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
-        }
+        BiosUploadIntentResponse body = biosUploadIntentService.issue(boardId, request);
+        return ResponseEntity.ok(body);
     }
 
     /**
@@ -133,6 +123,7 @@ public class BiosController {
                                           @RequestParam(value = "zipFile", required = false) MultipartFile zipFile,
                                           @RequestParam(value = "singleFile", required = false) MultipartFile singleFile,
                                           @RequestHeader(name = "X-Upload-Token", required = false) String uploadToken) {
+        // MK2 — Layer A 검증 실패만 직접 응답. 도메인 예외는 advice 일괄 처리.
         if (bindingResult.hasErrors()) {
             String msg = bindingResult.getFieldErrors().stream()
                     .findFirst()
@@ -140,18 +131,10 @@ public class BiosController {
                     .orElse("입력값이 올바르지 않습니다.");
             return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
         }
-        try {
-            biosUploadIntentService.consume(boardId, uploadToken);
-            Long id = biosService.addBios(boardId, request, uploadMode, folderFiles, zipFile, singleFile);
-            String redirect = "/management/bios?selectId=" + id;
-            return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
-        } catch (NotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
-        } catch (ConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
-        } catch (DomainException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
-        }
+        biosUploadIntentService.consume(boardId, uploadToken);
+        Long id = biosService.addBios(boardId, request, uploadMode, folderFiles, zipFile, singleFile);
+        String redirect = "/management/bios?selectId=" + id;
+        return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
     }
 
     // ==== 메타 수정 ===================================================
@@ -212,6 +195,66 @@ public class BiosController {
                           @PathVariable("biosId") Long biosId) {
         biosService.restore(boardId, biosId);
         return redirectToListWithSelect(biosId);
+    }
+
+    // ==== MK2 — Deprecate / Undeprecate / Purge ========================
+
+    /**
+     * Active → Deprecated. SSR 폼 submit 진입 (XHR 아님). 엔티티 가드가 부적합 상태를 거절하면
+     * advice 가 409 + error.html 로 회신.
+     */
+    @PostMapping("/{boardId}/bios/{biosId}/deprecate")
+    public String deprecate(@PathVariable("boardId") Long boardId,
+                            @PathVariable("biosId") Long biosId) {
+        biosService.deprecate(boardId, biosId);
+        return redirectToListWithSelect(biosId);
+    }
+
+    /**
+     * Deprecated → Active. SSR 폼 submit.
+     */
+    @PostMapping("/{boardId}/bios/{biosId}/undeprecate")
+    public String undeprecate(@PathVariable("boardId") Long boardId,
+                              @PathVariable("biosId") Long biosId) {
+        biosService.undeprecate(boardId, biosId);
+        return redirectToListWithSelect(biosId);
+    }
+
+    /**
+     * SoftDeleted 자원의 영구 삭제. 활성/Deprecated 자원에 호출되면 advice 가 409 회신.
+     */
+    @PostMapping("/{boardId}/bios/{biosId}/purge")
+    public String purge(@PathVariable("boardId") Long boardId,
+                        @PathVariable("biosId") Long biosId) {
+        biosService.purge(boardId, biosId);
+        return "redirect:/management/bios?selectBoardId=" + boardId + "&includeDeleted=true";
+    }
+
+    // ==== MK2 — Nudge confirm 엔드포인트 ===============================
+    //  XHR 호출. 모든 도메인 예외 (NudgeNotFoundException · NudgeSessionExpiredException ·
+    //  InvalidReplaceTargetException · DuplicateBiosVersionException · IllegalBiosStateException) 는
+    //  advice 가 일괄 매핑 — 컨트롤러 try/catch 추가 금지.
+
+    @PostMapping(path = "/nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public BiosUploadResponse nudgeProceed(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        Long id = biosNudgeService.proceed(nudgeId);
+        return new BiosUploadResponse(id, "/management/bios?selectId=" + id);
+    }
+
+    @PostMapping(path = "/nudge/{nudgeId}/replace")
+    @ResponseBody
+    public BiosUploadResponse nudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
+                                           @RequestParam("targetId") Long targetId) {
+        Long id = biosNudgeService.replace(nudgeId, targetId);
+        return new BiosUploadResponse(id, "/management/bios?selectId=" + id);
+    }
+
+    @PostMapping(path = "/nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> nudgeCancel(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        biosNudgeService.cancel(nudgeId);
+        return ResponseEntity.noContent().build();
     }
 
     // ==== 무결성 / marker 관리 ==========================================

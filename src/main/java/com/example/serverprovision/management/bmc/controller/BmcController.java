@@ -4,6 +4,7 @@ import com.example.serverprovision.global.job.dto.response.JobStartResponse;
 import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.global.exception.ConflictException;
 import com.example.serverprovision.global.exception.DomainException;
+import com.example.serverprovision.global.exception.FieldBoundConflictException;
 import com.example.serverprovision.global.exception.NotFoundException;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
@@ -20,6 +21,7 @@ import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadResponse;
 import com.example.serverprovision.management.bmc.enums.BmcUploadMode;
+import com.example.serverprovision.management.bmc.service.BmcNudgeService;
 import com.example.serverprovision.management.bmc.service.BmcService;
 import com.example.serverprovision.management.bmc.service.BmcUploadIntentService;
 import com.example.serverprovision.management.bmc.service.BmcVerificationLauncher;
@@ -53,6 +55,7 @@ public class BmcController {
 
     private final BmcService bmcService;
     private final BmcUploadIntentService bmcUploadIntentService;
+    private final BmcNudgeService bmcNudgeService;
     private final BoardModelService boardModelService;
     private final BmcVerificationLauncher bmcVerificationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
@@ -96,9 +99,14 @@ public class BmcController {
             return ResponseEntity.ok(body);
         } catch (NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
+        } catch (FieldBoundConflictException e) {
+            // S4 — 필드 직결 충돌은 fieldErrors 동봉.
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiErrorResponse.ofFieldBound(e.getMessage(), e.fieldName()));
         } catch (ConflictException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
         } catch (DomainException e) {
+            // B3 — 보안 예외는 SecurityException 계층으로 분리되어 본 catch 에 흡수되지 않고 통과한다.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
         }
     }
@@ -126,9 +134,14 @@ public class BmcController {
             return ResponseEntity.ok(new BmcUploadResponse(id, "/management/bmc?selectId=" + id));
         } catch (NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
+        } catch (FieldBoundConflictException e) {
+            // S4 — 필드 직결 충돌은 fieldErrors 동봉.
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiErrorResponse.ofFieldBound(e.getMessage(), e.fieldName()));
         } catch (ConflictException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
         } catch (DomainException e) {
+            // B3 — 보안 예외는 SecurityException 계층으로 분리되어 본 catch 에 흡수되지 않고 통과한다.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
         }
     }
@@ -187,6 +200,56 @@ public class BmcController {
                           @PathVariable("bmcId") Long bmcId) {
         bmcService.restore(boardId, bmcId);
         return redirectToListWithSelect(bmcId);
+    }
+
+    // ==== MK2 lifecycle 액션 (Deprecated 토글 + 영구 삭제) =================
+
+    @PostMapping("/{boardId}/bmc/{bmcId}/deprecate")
+    public String deprecate(@PathVariable("boardId") Long boardId,
+                            @PathVariable("bmcId") Long bmcId) {
+        bmcService.deprecate(boardId, bmcId);
+        return redirectToListWithSelect(bmcId);
+    }
+
+    @PostMapping("/{boardId}/bmc/{bmcId}/undeprecate")
+    public String undeprecate(@PathVariable("boardId") Long boardId,
+                              @PathVariable("bmcId") Long bmcId) {
+        bmcService.undeprecate(boardId, bmcId);
+        return redirectToListWithSelect(bmcId);
+    }
+
+    /**
+     * 영구 삭제. 휴지통(soft-deleted) 상태 한정 — 가드는 Service 가 수행.
+     */
+    @PostMapping("/{boardId}/bmc/{bmcId}/purge")
+    public String purge(@PathVariable("boardId") Long boardId,
+                        @PathVariable("bmcId") Long bmcId) {
+        bmcService.purge(boardId, bmcId);
+        return "redirect:/management/bmc?selectBoardId=" + boardId + "&includeDeleted=true";
+    }
+
+    // ==== MK2 nudge confirm (3택) — JSON, advice 가 예외 → 응답 매핑 =====
+
+    @PostMapping(path = "/nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public ResponseEntity<Void> nudgeProceed(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        bmcNudgeService.proceed(nudgeId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(path = "/nudge/{nudgeId}/replace")
+    @ResponseBody
+    public ResponseEntity<Void> nudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
+                                              @RequestParam("replaceTargetId") Long replaceTargetId) {
+        bmcNudgeService.replace(nudgeId, replaceTargetId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(path = "/nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> nudgeCancel(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        bmcNudgeService.cancel(nudgeId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(path = "/{boardId}/bmc/{bmcId}/verify")

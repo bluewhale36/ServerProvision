@@ -11,6 +11,11 @@ import com.example.serverprovision.management.os.dto.response.OSGroupResponse;
 import com.example.serverprovision.management.os.dto.response.OSImageResponse;
 import com.example.serverprovision.management.os.dto.response.OSPackageGroupResponse;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeResourceType;
+import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
+import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSEnvironment;
 import com.example.serverprovision.management.os.entity.OSImage;
@@ -24,6 +29,7 @@ import com.example.serverprovision.management.os.exception.InvalidIsoPathExcepti
 import com.example.serverprovision.management.os.exception.DuplicateFilenameException;
 import com.example.serverprovision.management.os.exception.ISONotFoundException;
 import com.example.serverprovision.management.os.exception.IllegalOSImageStateException;
+import com.example.serverprovision.management.os.exception.IsoNudgeRequiredException;
 import com.example.serverprovision.management.os.exception.IsoUploadIntentConflictException;
 import com.example.serverprovision.management.os.exception.OSImageNotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
@@ -31,6 +37,7 @@ import com.example.serverprovision.management.os.repository.OSEnvironmentReposit
 import com.example.serverprovision.management.os.repository.OSImageRepository;
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
 import com.example.serverprovision.management.os.util.IsoPathResolver;
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -39,6 +46,8 @@ import com.example.serverprovision.global.marker.exception.SidecarConflictExcept
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.security.FileSystemHardener;
+import com.example.serverprovision.global.security.PathPolicyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -63,12 +72,11 @@ import java.util.stream.Collectors;
 
 /**
  * A1 페이지의 도메인 로직 총괄. A1-1 에서 환경·패키지 그룹 응답 조립까지 책임을 확장한다.
- * <ul>
- *   <li>Controller 는 Request / Response 만 주고받는다.</li>
- *   <li>엔티티 상태 전이(토글/삭제/복구)는 모두 이 서비스의 도메인 메서드 호출로 수행한다.</li>
- *   <li>{@code softDelete(id)} 는 자식 ISO 중 활성인 것들까지 동반 soft 삭제한다 (엔티티 내부 로직).</li>
- *   <li>환경/그룹의 "제공 ISO" 배지는 {@code buildEnvResponses} / {@code buildGroupResponses} 가 ISO 순회로 집계한다.</li>
- * </ul>
+ *
+ * <p>MK2 — lifecycle 상태 전이 (deprecate / undeprecate / restore / purge) 를 OS / ISO 양쪽에 추가.
+ * 업로드 단계 B 에서 soft-deleted/deprecated 자원과 manifestHash 가 충돌하면 자동 purge 대신
+ * {@link NudgeRegistry} 세션을 등록해 사용자 confirm 을 요구하는 nudge 흐름으로 분기한다.
+ * 활성 자원과의 해시 충돌은 그대로 fail-fast ({@link DuplicateISOContentException}).</p>
  */
 @Slf4j
 @Service
@@ -82,12 +90,12 @@ public class OSImageService {
     private final OSPackageGroupRepository grpRepository;
     private final ProvisionMarkerService markerService;
     private final BackgroundJobService backgroundJobService;
+    private final PathPolicyService pathPolicyService;
+    private final FileSystemHardener fileSystemHardener;
+    private final NudgeRegistry nudgeRegistry;
 
     // ==== 조회 ========================================================
 
-    /**
-     * OS 이미지 단건 조회 (수정 폼 프리필 용도). 삭제된 레코드는 NotFound 로 취급한다.
-     */
     public OSImageResponse findById(Long id) {
         OSImage image = requireActiveImage(id);
         return OSImageResponse.of(
@@ -98,9 +106,6 @@ public class OSImageService {
         );
     }
 
-    /**
-     * ISO 단건 조회 (ISO 수정 폼 프리필 용도). 부모 OS 가 살아있고 ISO 도 활성 상태여야 반환한다.
-     */
     public ISOResponse findISO(Long osImageId, Long isoId) {
         return ISOResponse.from(requireLiveISO(osImageId, isoId));
     }
@@ -171,11 +176,7 @@ public class OSImageService {
     }
 
     /**
-     * OS 이미지 soft delete.
-     * <p>OSImage 와 활성 ISO 들만 {@code isDeleted=true} 로 전환한다. 환경·패키지 그룹은 물리적으로 남겨
-     * 추후 복구 시 관계가 자동으로 다시 보인다. "삭제된 것처럼 보이게" 는 응답 조립 단계에서
-     * 활성 ISO provider 가 없는 환경·그룹을 제외하는 필터로 구현된다
-     * ({@link #buildEnvResponses}, {@link #buildGroupResponses}).</p>
+     * OS 이미지 soft delete. OSImage 엔티티의 override 가 자식 활성 ISO 도 함께 soft delete 한다.
      */
     @Transactional
     public void softDelete(Long id) {
@@ -191,6 +192,36 @@ public class OSImageService {
             throw new DuplicateOSImageException(image.getOsName(), image.getOsVersion());
         }
         image.restore();
+    }
+
+    // ---- MK2 OSImage lifecycle ----------------------------------------
+
+    @Transactional
+    public void deprecateImage(Long id) {
+        requireActiveImage(id).deprecate();
+    }
+
+    @Transactional
+    public void undeprecateImage(Long id) {
+        requireActiveImage(id).undeprecate();
+    }
+
+    /**
+     * OSImage 영구 삭제. soft-deleted 상태에서만 호출 가능.
+     * <p>자식 ISO 들의 sidecar 파일 정리 후 row 삭제. cascade 가 ISO 행을 자동 제거하지만, sidecar 파일은
+     * 어플리케이션이 직접 정리해야 한다.</p>
+     */
+    @Transactional
+    public void purgeImage(Long id) {
+        OSImage image = osImageRepository.findByIdAndIsDeletedTrue(id)
+                .orElseThrow(() -> new IllegalOSImageStateException(
+                        "soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+        // 자식 ISO 들의 sidecar 파일 정리 (DB row 는 cascade 로 제거됨).
+        for (ISO iso : image.getIsos()) {
+            cleanupIsoArtifacts(iso);
+        }
+        osImageRepository.delete(image);
+        log.info("[purgeImage] OS 이미지 영구 삭제 완료. id={}", id);
     }
 
     // ==== ISO 쓰기 연산 ================================================
@@ -218,7 +249,8 @@ public class OSImageService {
                 osImageId, request.isoPath(), resolvedPath, request.allowCreateDirectory(), hasFile);
 
         ensureParentDirectory(resolvedPath, request.allowCreateDirectory());
-        Path target = Path.of(resolvedPath);
+        // S3 — allowlist 검증
+        Path target = pathPolicyService.assertWritablePath(resolvedPath);
 
         isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(osImageId, resolvedPath)
                 .ifPresent(existing -> {
@@ -236,6 +268,8 @@ public class OSImageService {
                 throw new DuplicateFilenameException(resolvedPath);
             }
             storeUploadedFile(uploadedFile, resolvedPath);
+            // S3.1 (B1) — 저장 직후 POSIX 권한 0644 강제 (의도치 않은 실행 권한 차단).
+            fileSystemHardener.applyDefaultPermissionsForFile(target);
         } else if (!Files.isRegularFile(target)) {
             throw new InvalidIsoPathException("ISO 파일이 해당 경로에 존재하지 않습니다 : " + resolvedPath);
         }
@@ -254,6 +288,8 @@ public class OSImageService {
 
     @Transactional
     public Long finalizePreparedIsoRegistration(String jobId, PreparedIsoRegistration prepared) {
+        // S3 — finalize 직전 다시 한 번 allowlist 검증 (이중 가드)
+        pathPolicyService.assertWritablePath(prepared.resolvedPath());
         OSImage parent = requireActiveImage(prepared.osImageId());
         Path target = Path.of(prepared.resolvedPath());
 
@@ -266,12 +302,26 @@ public class OSImageService {
                             + existing.getIsoPath());
                 });
 
+        // 활성 ISO 와의 해시 충돌 → fail-fast.
         isoRepository.findFirstByChecksumAndIsDeletedFalse(manifestHash).ifPresent(existing -> {
             if (prepared.uploadedFile()) {
                 deleteQuietly(target);
+                deleteQuietly(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
             }
             throw new DuplicateISOContentException(existing.getIsoPath());
         });
+
+        // MK2 — soft-deleted / deprecated 자원과의 해시 충돌 → nudge 흐름.
+        // 자동 purge 로 기존 row 를 silently 정리하지 않는다 — 사용자가 modal 에서 결정해야 한다.
+        List<ISO> dormantConflicts =
+                isoRepository.findByManifestHashAndIsDeletedTrueOrIsDeprecatedTrue(manifestHash);
+        if (!dormantConflicts.isEmpty()) {
+            NudgeRequiredResponse payload = registerIsoNudgeSession(
+                    prepared, manifestHash, dormantConflicts);
+            // 임시 파일은 그대로 두고 (confirm 시 정식 등록), 예외로 단계 B 결과를 호출자에게 전달.
+            // job runner 가 본 예외를 catch 해 fail 메시지에 nudgeId 를 동봉, UI 가 폴링해 modal 표시.
+            throw new IsoNudgeRequiredException(payload);
+        }
 
         startJobStage(jobId, IsoRegistrationStage.PERSIST_METADATA);
 
@@ -286,6 +336,112 @@ public class OSImageService {
                 .isDeleted(false)
                 .build());
 
+        finalizeMarker(saved, prepared, manifestHash, target);
+
+        log.info("[finalizePreparedIsoRegistration] 등록 완료. isoId={}, osImageId={}, uploadedFile={}, hash={}",
+                saved.getId(), prepared.osImageId(), prepared.uploadedFile(), manifestHash);
+        return saved.getId();
+    }
+
+    private NudgeRequiredResponse registerIsoNudgeSession(PreparedIsoRegistration prepared,
+                                                          String manifestHash,
+                                                          List<ISO> dormantConflicts) {
+        List<NudgeConflictEntry> conflicts = dormantConflicts.stream()
+                .map(c -> new NudgeConflictEntry(
+                        c.getId(),
+                        c.currentStage(),
+                        c.getManifestHash(),
+                        c.getOsImage().getOsVersion(),
+                        c.getIsoPath(),
+                        // ISO 엔티티가 보유한 createdAt 은 LocalDateTime — Instant 로 환산.
+                        c.getCreatedAt() != null
+                                ? c.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
+                                : Instant.EPOCH))
+                .toList();
+        List<Long> conflictIds = dormantConflicts.stream().map(ISO::getId).toList();
+
+        NudgeSession.PendingPayload payload = new NudgeSession.PendingPayload(
+                // OS_ISO 의 name 슬롯에는 isoPath, version 슬롯에는 osVersion 을 담는다 (도메인별 의미 매핑).
+                prepared.resolvedPath(),
+                "",
+                manifestHash,
+                prepared.resolvedPath(),
+                Map.of(
+                        "osImageId", String.valueOf(prepared.osImageId()),
+                        "originalFilename", prepared.originalFilename(),
+                        "description", prepared.description() != null ? prepared.description() : "",
+                        "uploadedFile", String.valueOf(prepared.uploadedFile())
+                )
+        );
+        NudgeSession session = nudgeRegistry.register(
+                NudgeResourceType.OS_ISO,
+                prepared.osImageId(),
+                conflictIds,
+                payload
+        );
+        return NudgeRequiredResponse.of(session.nudgeId(), conflicts, session.expiresAt());
+    }
+
+    /**
+     * MK2 — nudge confirm (PROCEED / REPLACE) 에서 호출. 임시 파일이 가리키는 자원을 ACTIVE 로 영속화.
+     */
+    @Transactional
+    public Long completePendingIsoFromNudge(NudgeSession session) {
+        if (session.resourceType() != NudgeResourceType.OS_ISO) {
+            throw new IllegalOSImageStateException("OS_ISO 세션이 아닙니다.");
+        }
+        Long osImageId = session.boardId();
+        OSImage parent = requireActiveImage(osImageId);
+        NudgeSession.PendingPayload p = session.pendingPayload();
+        Path target = Path.of(p.tempFilePath());
+        String manifestHash = p.manifestHash();
+        String description = p.attributes().getOrDefault("description", "");
+        String originalFilename = p.attributes().getOrDefault("originalFilename", "");
+        boolean uploadedFile = Boolean.parseBoolean(p.attributes().getOrDefault("uploadedFile", "false"));
+
+        // confirm 시점에 활성 ISO 와 해시가 또 충돌하면 fail-fast (다른 사용자가 그 사이 같은 자원을 등록).
+        isoRepository.findFirstByChecksumAndIsDeletedFalse(manifestHash).ifPresent(existing -> {
+            if (uploadedFile) {
+                deleteQuietly(target);
+                deleteQuietly(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
+            }
+            throw new DuplicateISOContentException(existing.getIsoPath());
+        });
+
+        ISO saved = isoRepository.save(ISO.builder()
+                .osImage(parent)
+                .isoPath(p.tempFilePath())
+                .checksum(manifestHash)
+                .manifestHash(manifestHash)
+                .markerSignature(null)
+                .description(description)
+                .isEnabled(true)
+                .isDeleted(false)
+                .build());
+
+        PreparedIsoRegistration prepared = new PreparedIsoRegistration(
+                osImageId, p.tempFilePath(), description, originalFilename, uploadedFile);
+        finalizeMarker(saved, prepared, manifestHash, target);
+        log.info("[completePendingIsoFromNudge] 신규 ISO 영속화 완료. isoId={}, osImageId={}, hash={}",
+                saved.getId(), osImageId, manifestHash);
+        return saved.getId();
+    }
+
+    /**
+     * MK2 — REPLACE confirm 에서 충돌 후보 ISO 를 영구 삭제할 때 nudge 서비스가 호출한다.
+     * 외부 endpoint 와 직접 묶이지 않은 내부 진입점. 호출자 (OsNudgeService) 가 LifecycleStage 검증을 마쳤다고 가정.
+     */
+    @Transactional
+    public void purgeIsoForNudge(ISO target) {
+        cleanupIsoArtifacts(target);
+        isoRepository.delete(target);
+        log.info("[purgeIsoForNudge] 충돌 후보 ISO 영구 삭제. isoId={}", target.getId());
+    }
+
+    private void finalizeMarker(ISO saved,
+                                PreparedIsoRegistration prepared,
+                                String manifestHash,
+                                Path target) {
         MarkerContent unsigned = new MarkerContent(
                 ResourceType.OS_ISO.name(),
                 saved.getId(),
@@ -300,13 +456,12 @@ public class OSImageService {
         String signature = markerService.computeSignature(unsigned);
         saved.reissueMarker(manifestHash, signature);
         markerService.write(target, MarkerLayout.SIDECAR, unsigned.withSignature(signature));
-
-        log.info("[finalizePreparedIsoRegistration] 등록 완료. isoId={}, osImageId={}, uploadedFile={}, hash={}",
-                saved.getId(), prepared.osImageId(), prepared.uploadedFile(), manifestHash);
-        return saved.getId();
+        // S3.1 (B1) + S3.2 (K12) — sidecar 경로는 ProvisionMarkerService 의 resolveMarkerFile 로 계산.
+        fileSystemHardener.applyDefaultPermissionsForFile(
+                markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
     }
 
-    /** 디스크에 이미 있는 파일의 SHA-256. 경로만 등록 케이스에서 manifestHash 산출용. */
+    /** 디스크에 이미 있는 파일의 SHA-256. */
     private String computeFileSha256(Path file) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -321,10 +476,6 @@ public class OSImageService {
         }
     }
 
-    /**
-     * 상위 디렉토리가 없으면 {@code allowCreateDirectory} 플래그에 따라 생성하거나 예외를 던진다.
-     * addISO 의 진입부에서 먼저 호출되어, 파일이 없는 "경로만 등록" 케이스에도 동일하게 적용된다.
-     */
     private void ensureParentDirectory(String targetPath, boolean allowCreateDirectory) {
         Path target;
         try {
@@ -348,10 +499,6 @@ public class OSImageService {
         }
     }
 
-    /**
-     * 업로드 스트림을 목적 경로에 저장한다.
-     * 해시 계산은 foreground 요청에서 제거되었고, background 후처리 단계가 파일을 다시 읽어 수행한다.
-     */
     private void storeUploadedFile(MultipartFile file, String targetPath) {
         try {
             Path target = Path.of(targetPath);
@@ -359,7 +506,6 @@ public class OSImageService {
                 Files.copy(in, target);
             }
         } catch (IOException e) {
-            // IOException 의 cause 메시지(예: "No space left on device") 까지 노출해 운영자 진단을 돕는다.
             String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             throw new ISOFileStorageException("ISO 파일 저장에 실패했습니다. path=" + targetPath + " (" + reason + ")", e);
         }
@@ -379,6 +525,15 @@ public class OSImageService {
         }
     }
 
+    /**
+     * ISO 의 디스크 부산물 (본체 파일 + sidecar) 을 모두 정리한다. purge / replace 시 공통 사용.
+     */
+    private void cleanupIsoArtifacts(ISO iso) {
+        Path body = Path.of(iso.getIsoPath());
+        deleteQuietly(markerService.resolveMarkerFile(body, MarkerLayout.SIDECAR));
+        deleteQuietly(body);
+    }
+
     public record PreparedIsoRegistration(
             Long osImageId,
             String resolvedPath,
@@ -389,7 +544,9 @@ public class OSImageService {
 
     @Transactional
     public void updateISO(Long osImageId, Long isoId, ISOUpdateRequest request) {
-        requireLiveISO(osImageId, isoId).update(request.isoPath(), request.description());
+        // S4.x — isoPath 를 PathPolicyService 로 검증해 ".." 등 traversal 입력이 DB 에 silent 저장되는 사고 차단.
+        Path validated = pathPolicyService.assertWritablePath(request.isoPath());
+        requireLiveISO(osImageId, isoId).update(validated.toString(), request.description());
     }
 
     @Transactional
@@ -397,12 +554,6 @@ public class OSImageService {
         requireLiveISO(osImageId, isoId).toggleEnabled();
     }
 
-    /**
-     * ISO soft delete.
-     * <p>{@code isDeleted=true} 만 전환한다. 이 ISO 가 유일 provider 였던 환경·그룹은 물리 삭제하지 않고,
-     * 응답 조립 단계에서 "활성 provider 가 없으면 제외" 하는 필터로 노출만 숨긴다. 복구 시 자연스럽게
-     * 다시 보인다.</p>
-     */
     @Transactional
     public void softDeleteISO(Long osImageId, Long isoId) {
         requireLiveISO(osImageId, isoId).softDelete();
@@ -419,13 +570,38 @@ public class OSImageService {
         iso.restore();
     }
 
-    // ==== 무결성 검증 / 마커 재발급 (BIOS 와 동일 패턴) ===================
+    // ---- MK2 ISO lifecycle --------------------------------------------
+
+    @Transactional
+    public void deprecateIso(Long osImageId, Long isoId) {
+        requireLiveISO(osImageId, isoId).deprecate();
+    }
+
+    @Transactional
+    public void undeprecateIso(Long osImageId, Long isoId) {
+        ISO iso = requireLiveISO(osImageId, isoId);
+        iso.undeprecate();
+    }
 
     /**
-     * ISO sidecar 마커 검증. BIOS {@code BiosService.verifyIntegrity} 와 동일 4 단계:
-     * marker 존재 → signature 검증 → manifestHash 재계산 비교 → 결과 enum 반환.
-     * 단일 파일 ISO 라 manifestHash 재계산 = SHA-256(file bytes).
+     * ISO 영구 삭제. soft-deleted 상태에서만 호출 가능. sidecar + 본체 파일 모두 정리.
      */
+    @Transactional
+    public void purgeIso(Long osImageId, Long isoId) {
+        requireActiveImage(osImageId);
+        ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
+                .orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
+        if (iso.currentStage() != LifecycleStage.SOFT_DELETED) {
+            throw new IllegalOSImageStateException(
+                    "soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. isoId=" + isoId);
+        }
+        cleanupIsoArtifacts(iso);
+        isoRepository.delete(iso);
+        log.info("[purgeIso] ISO 영구 삭제 완료. osImageId={}, isoId={}", osImageId, isoId);
+    }
+
+    // ==== 무결성 검증 / 마커 재발급 (BIOS 와 동일 패턴) ===================
+
     public IntegrityStatus verifyIntegrity(Long osImageId, Long isoId) {
         requireActiveImage(osImageId);
         ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
@@ -444,7 +620,6 @@ public class OSImageService {
             return IntegrityStatus.SIGNATURE_INVALID;
         }
         if (!Files.isRegularFile(target)) {
-            // 마커는 있으나 본체 파일이 사라진 케이스 — TAMPERED 와 동일하게 무결성 깨짐으로 처리.
             return IntegrityStatus.TAMPERED;
         }
         String recomputed = computeFileSha256(target);
@@ -461,16 +636,8 @@ public class OSImageService {
         return status;
     }
 
-    // 단건 ISO marker 재발급 메서드는 위험도가 높아 외부 endpoint 와 함께 제거됨.
-    // 일괄 재발급(secret 회전 시)은 PathReconciliationService.performReissue 가 담당.
-
     // ==== 환경·그룹 응답 조립 (A1-1) =====================================
 
-    /**
-     * 설치 환경 Response 목록.
-     * <p>"삭제된 것처럼 보이게" 원칙에 따라, 활성(isDeleted=false) ISO 가 하나도 제공하지 않는 환경은 응답에서 제외한다.
-     * 물리 row 는 유지되므로 ISO 를 restore 하면 관계가 다시 살아난다.</p>
-     */
     private List<OSEnvironmentResponse> buildEnvResponses(OSImage image) {
         List<OSEnvironment> envs = envRepository
                 .findAllByOsImage_IdOrderByEnvironmentCode_ValueAsc(image.getId());
@@ -478,7 +645,7 @@ public class OSImageService {
 
         Map<Long, List<IsoProvisionView>> envProviders = new HashMap<>();
         for (ISO iso : image.getIsos()) {
-            if (iso.isDeleted()) continue; // 삭제된 ISO 의 제공 관계는 집계하지 않는다.
+            if (iso.isDeleted()) continue;
             for (OSEnvironment e : iso.getProvidedEnvironments()) {
                 envProviders
                         .computeIfAbsent(e.getId(), k -> new ArrayList<>())
@@ -487,7 +654,7 @@ public class OSImageService {
         }
 
         return envs.stream()
-                .filter(e -> envProviders.containsKey(e.getId())) // 활성 provider 없는 환경은 숨김
+                .filter(e -> envProviders.containsKey(e.getId()))
                 .map(e -> new OSEnvironmentResponse(
                         e.getId(),
                         e.getEnvironmentCode().getValue(),
@@ -500,9 +667,6 @@ public class OSImageService {
                 .toList();
     }
 
-    /**
-     * 패키지 그룹 Response 목록. 환경 응답과 동일한 필터 정책.
-     */
     private List<OSPackageGroupResponse> buildGroupResponses(OSImage image) {
         List<OSPackageGroup> grps = grpRepository
                 .findAllByOsImage_IdOrderByGroupCode_ValueAsc(image.getId());

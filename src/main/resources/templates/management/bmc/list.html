@@ -147,7 +147,7 @@
                                       th:text="${bmc.integrityStatus != null ? bmc.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
                                 <button type="button" class="n-btn n-btn-sm n-btn-ghost"
                                         th:data-verify-url="@{/management/bmc/{boardId}/bmc/{bmcId}/verify(boardId=${board.id},bmcId=${bmc.id})}">
-                                    지금 검증
+                                    검증
                                 </button>
                             </dd>
                         </div>
@@ -163,12 +163,25 @@
                                     <span class="n-badge"
                                           th:classappend="${bmc.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
                                           th:text="${bmc.isEnabled} ? '활성화' : '비활성화'"></span>
+                                    <span th:if="${bmc.isDeprecated}"
+                                          class="n-badge n-badge-orange"
+                                          style="margin-left:6px;">Deprecated</span>
                                     <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/toggle(boardId=${board.id},bmcId=${bmc.id})}"
                                           method="post" class="n-accordion-inline-form">
                                         <button type="submit"
                                                 class="n-btn n-btn-sm"
                                                 th:classappend="${bmc.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
                                                 th:text="${bmc.isEnabled} ? '비활성화' : '활성화'"></button>
+                                    </form>
+                                    <form th:unless="${bmc.isDeprecated}"
+                                          th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/deprecate(boardId=${board.id},bmcId=${bmc.id})}"
+                                          method="post" class="n-accordion-inline-form">
+                                        <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">Deprecate</button>
+                                    </form>
+                                    <form th:if="${bmc.isDeprecated}"
+                                          th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/undeprecate(boardId=${board.id},bmcId=${bmc.id})}"
+                                          method="post" class="n-accordion-inline-form">
+                                        <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">Undeprecate</button>
                                     </form>
                                 </th:block>
                             </dd>
@@ -189,6 +202,11 @@
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/restore(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                            </form>
+                            <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/purge(boardId=${board.id},bmcId=${bmc.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('이 BMC 펌웨어를 영구 삭제할까요? 디스크의 번들 트리도 함께 제거됩니다.');">
+                                <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
                     </div>

@@ -49,10 +49,14 @@
                   enctype="multipart/form-data"
                   novalidate>
 
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
                 <div class="n-form-group">
                     <label class="n-label strong" for="name">이름</label>
                     <input id="name" type="text" th:field="*{name}"
                            class="n-input"
+                           data-error-field="name"
                            th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
                            placeholder="예: Gigabyte MS03-CE0 BIOS Bundle">
                     <div class="n-hint">사람이 식별하기 쉬운 레이블.</div>
@@ -63,6 +67,7 @@
                     <label class="n-label strong" for="version">버전</label>
                     <input id="version" type="text" th:field="*{version}"
                            class="n-input"
+                           data-error-field="version"
                            th:classappend="${#fields.hasErrors('version')} ? 'is-invalid'"
                            placeholder="예: 2.03">
                     <div class="n-hint">같은 메인보드 내에서 버전은 유일해야 합니다.</div>
@@ -74,6 +79,7 @@
                     <div style="display: flex; gap: 8px;">
                         <input id="targetDirectory" type="text" th:field="*{targetDirectory}"
                                class="n-input" style="flex: 1;"
+                               data-error-field="targetDirectory"
                                th:classappend="${#fields.hasErrors('targetDirectory')} ? 'is-invalid'"
                                placeholder="/mnt/firmware/bios/gigabyte/ms03-ce0/2.03/"
                                th:data-browse-url="@{/management/bios/browse}">
@@ -83,20 +89,7 @@
                     <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}" th:errors="*{targetDirectory}"></div>
 
                     <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글 -->
-                    <div id="browsePanel" hidden style="margin-top: 10px; border: 1px solid var(--n-border); border-radius: 6px; padding: 12px; background: #fafafa;">
-                        <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 8px;">
-                            <button type="button" id="browseUpBtn" class="n-btn n-btn-sm n-btn-ghost" title="상위 디렉토리로">↑ 상위</button>
-                            <code id="browseCurrentPath" style="flex: 1; font-size: 12px; word-break: break-all;"></code>
-                        </div>
-                        <div id="browseStatus" class="n-hint" style="margin-bottom: 8px;"></div>
-                        <ul id="browseEntries"
-                            style="list-style: none; padding: 0; margin: 0 0 8px 0; max-height: 220px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: 4px; background: #fff;">
-                        </ul>
-                        <div style="display: flex; justify-content: flex-end; gap: 6px;">
-                            <button type="button" id="browseCancelBtn" class="n-btn n-btn-sm n-btn-ghost">닫기</button>
-                            <button type="button" id="browseApplyBtn" class="n-btn n-btn-sm n-btn-primary">이 경로로 적용</button>
-                        </div>
-                    </div>
+                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', null)}"></div>
 
                     <label class="n-check" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
@@ -156,6 +149,7 @@
                     <label class="n-label" for="entrypointRelativePath">진입점 상대경로 (선택)</label>
                     <input id="entrypointRelativePath" type="text" th:field="*{entrypointRelativePath}"
                            class="n-input"
+                           data-error-field="entrypointRelativePath"
                            placeholder="예: f.nsh  (비워두면 자동 탐지)">
                     <div class="n-hint">
                         비워두면 서버가 트리 루트에서 <code>f.nsh</code> → <code>flash.nsh</code> → 단일 <code>*.nsh</code> 순으로 자동 탐지합니다.
@@ -167,6 +161,7 @@
                     <label class="n-label" for="description">설명 (선택)</label>
                     <textarea id="description" th:field="*{description}"
                               class="n-textarea" rows="3"
+                              data-error-field="description"
                               placeholder="예: 2026-03 릴리스. AMI AfuEfix64 별도 주입 필요."></textarea>
                 </div>
 
@@ -193,6 +188,9 @@
         </div>
     </div>
 </div>
+
+<!-- MK2 — nudge modal fragment include. bios-new.js 가 업로드 응답 409 NUDGE_REQUIRED 시 본 modal 을 표시. -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('biosNudge', @{/management/bios/nudge})}"></div>
 
 <script th:src="@{/management/common/bundle-upload-bootstrap.js}"></script>
 <script th:src="@{/management/common/bundle-upload-shell.js}"></script>

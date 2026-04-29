@@ -14,7 +14,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BundleEntrypointDetectorTest {
 
-    private final BundleEntrypointDetector detector = new BundleEntrypointDetector();
+    private final com.example.serverprovision.global.security.EntrypointPolicyService entrypointPolicyService =
+            new com.example.serverprovision.global.security.EntrypointPolicyService();
+    private final com.example.serverprovision.global.security.config.FileSystemSecurityProperties fsProps =
+            new com.example.serverprovision.global.security.config.FileSystemSecurityProperties(2000, 8);
+    private final BundleEntrypointDetector detector = new BundleEntrypointDetector(entrypointPolicyService, fsProps);
 
     @Test
     @DisplayName("트리 파일 1개면 그 파일 (확장자 무관 — ASUS .CAP 케이스)")

@@ -133,11 +133,27 @@
                         </tbody>
                     </table>
 
-                    <!-- OS 수정/삭제/복구 : 우측 정렬. 버튼 크기는 ISO 추가와 일관되도록 기본 크기 사용 -->
+                    <!-- OS 수정/삭제/복구/Deprecate/영구삭제 : 우측 정렬. -->
+                    <!-- MK2 — Deprecated 배지는 상태 셀에서 보강하지 않고 액션 행에서 별도 노출(시각 노이즈 분리). -->
+                    <div th:if="${os.isDeprecated}" style="margin-top: 6px;">
+                        <span class="n-badge n-badge-orange">Deprecated</span>
+                    </div>
                     <div class="n-form-actions">
                         <th:block th:unless="${os.isDeleted}">
                             <a th:href="@{/management/os/{id}/edit(id=${os.id})}"
                                class="n-btn n-btn-secondary">수정</a>
+                            <!-- Deprecate ↔ Undeprecate 토글 (활성 자원에 대해서만 노출) -->
+                            <form th:if="${!os.isDeprecated}"
+                                  th:action="@{/management/os/{id}/deprecate(id=${os.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('이 OS 이미지를 Deprecated 로 표시할까요?');">
+                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
+                            </form>
+                            <form th:if="${os.isDeprecated}"
+                                  th:action="@{/management/os/{id}/undeprecate(id=${os.id})}"
+                                  method="post" style="display:inline;">
+                                <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
+                            </form>
                             <form th:action="@{/management/os/{id}/delete(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   onsubmit="return confirm('이 OS 이미지를 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.');">
@@ -148,6 +164,11 @@
                             <form th:action="@{/management/os/{id}/restore(id=${os.id})}"
                                   method="post" style="display:inline;">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                            </form>
+                            <form th:action="@{/management/os/{id}/purge(id=${os.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('영구 삭제 시 자식 ISO 의 sidecar 와 본체 파일도 모두 정리됩니다. 진행할까요?');">
+                                <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
                     </div>
@@ -239,7 +260,7 @@
                                                       th:text="${iso.integrityStatus != null ? iso.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
                                                 <button type="button" class="n-btn n-btn-sm n-btn-ghost"
                                                         th:data-verify-url="@{/management/os/{osId}/iso/{isoId}/verify(osId=${os.id},isoId=${iso.id})}">
-                                                    지금 검증
+                                                    검증
                                                 </button>
                                                 <!--
                                                   marker 재발급 액션은 위험도가 높아 자원 디테일에서 제거됨.
@@ -249,12 +270,12 @@
                                         </div>
                                     </dl>
 
+                                    <!-- MK2 — Deprecated 배지 (상태 셀과 분리) -->
+                                    <div th:if="${iso.isDeprecated}" style="margin-bottom: 6px;">
+                                        <span class="n-badge n-badge-orange">Deprecated</span>
+                                    </div>
                                     <div class="n-accordion-actions">
                                         <th:block th:unless="${iso.isDeleted}">
-                                            <!--
-                                              추출 버튼. POST /iso/{isoId}/extract 는 JS 가 fetch 로 호출하므로 form 이 아닌 button.
-                                              iso.extracted=true 면 이미 추출된 상태 — 비활성화 + "추출됨" 라벨.
-                                            -->
                                             <button type="button"
                                                     class="n-btn n-btn-sm n-btn-extract"
                                                     th:classappend="${iso.extracted} ? ' n-btn-outline-success' : ' n-btn-primary'"
@@ -263,6 +284,17 @@
                                                     th:attr="data-os-id=${os.id},data-iso-id=${iso.id}"></button>
                                             <a th:href="@{/management/os/{osId}/iso/{isoId}/edit(osId=${os.id},isoId=${iso.id})}"
                                                class="n-btn n-btn-sm n-btn-secondary">수정</a>
+                                            <form th:if="${!iso.isDeprecated}"
+                                                  th:action="@{/management/os/{osId}/iso/{isoId}/deprecate(osId=${os.id},isoId=${iso.id})}"
+                                                  method="post" class="n-accordion-inline-form"
+                                                  onsubmit="return confirm('이 ISO 를 Deprecated 로 표시할까요?');">
+                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">Deprecated 표시</button>
+                                            </form>
+                                            <form th:if="${iso.isDeprecated}"
+                                                  th:action="@{/management/os/{osId}/iso/{isoId}/undeprecate(osId=${os.id},isoId=${iso.id})}"
+                                                  method="post" class="n-accordion-inline-form">
+                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">Deprecated 해제</button>
+                                            </form>
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/delete(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
                                                   onsubmit="return confirm('ISO 를 삭제할까요?');">
@@ -273,6 +305,11 @@
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구</button>
+                                            </form>
+                                            <form th:action="@{/management/os/{osId}/iso/{isoId}/purge(osId=${os.id},isoId=${iso.id})}"
+                                                  method="post" class="n-accordion-inline-form"
+                                                  onsubmit="return confirm('영구 삭제 시 sidecar 와 본체 파일이 모두 정리됩니다. 진행할까요?');">
+                                                <button type="submit" class="n-btn n-btn-sm n-btn-danger">영구 삭제</button>
                                             </form>
                                         </th:block>
                                     </div>
@@ -389,6 +426,13 @@
         </div>
     </div>
 </div>
+
+<!--
+  MK2 — nudge modal fragment include. iso-new.html 에서도 동일 fragment 를 사용하지만, 본 list 페이지에서는
+  background job 완료 후 nudge 가 필요한 경우 (UI 가 알림 센터를 통해 nudgeId 를 받았을 때) 활용.
+  prefix=nudge / confirmBaseUrl=/management/os/nudge.
+-->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/nudge')}"></div>
 
 <!-- Miller 컬럼 상호작용 스크립트 -->
 <script th:src="@{/management/os/os-list.js}"></script>

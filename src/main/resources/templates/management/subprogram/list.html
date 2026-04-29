@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('Subprogram (Driver / Utility) 관리')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <style>
+        .n-subprogram-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        /*
+         * Bootstrap 5 가 h2 를 2rem (32px) 으로 키우므로 .n-page-title (26px) 보다
+         * 커 보이는 문제가 발생. 섹션 제목은 페이지 제목보다 작게 명시적으로 잡는다.
+         */
+        .n-subprogram-section-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            line-height: 1.3;
+            color: var(--n-text);
+        }
+        .n-subprogram-section-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('subprogram')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">Subprogram (Driver · Utility)</h1>
+    </div>
+
+    <section class="n-subprogram-section">
+        <div class="n-subprogram-section-header">
+            <h2 class="n-subprogram-section-title">Driver</h2>
+            <div class="n-subprogram-section-actions">
+                <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ Driver 등록</a>
+                <a th:unless="${includeDeleted}"
+                   th:href="@{/management/subprogram(includeDeleted=true)}"
+                   class="n-btn n-btn-ghost">삭제된 항목 포함</a>
+                <a th:if="${includeDeleted}"
+                   th:href="@{/management/subprogram}"
+                   class="n-btn n-btn-ghost">기본 보기</a>
+            </div>
+        </div>
+        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null})}"></div>
+    </section>
+
+    <section class="n-subprogram-section" style="margin-top: 32px;">
+        <div class="n-subprogram-section-header">
+            <h2 class="n-subprogram-section-title">Utility</h2>
+            <div class="n-subprogram-section-actions">
+                <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ Utility 등록</a>
+                <a th:unless="${includeDeleted}"
+                   th:href="@{/management/subprogram(includeDeleted=true)}"
+                   class="n-btn n-btn-ghost">삭제된 항목 포함</a>
+                <a th:if="${includeDeleted}"
+                   th:href="@{/management/subprogram}"
+                   class="n-btn n-btn-ghost">기본 보기</a>
+            </div>
+        </div>
+        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${utilityGroups}, 'utility', '유틸리티', 'utilityMiller', ${selectKind != null and selectKind.name() == 'UTILITY' ? selectId : null})}"></div>
+    </section>
+</div>
+
+<!-- MK2 — nudge modal (해시 충돌 시 사용자 3택 confirm 흐름) -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('subprogramNudge', '/management/subprogram/nudge')}"></div>
+
+<script th:src="@{/management/subprogram/subprogram-list.js}"></script>
+<script th:src="@{/management/bios/bios-list.js}"></script>
+</body>
+</html>

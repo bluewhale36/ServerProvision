@@ -79,6 +79,10 @@
 
     form.addEventListener('submit', async e => {
         e.preventDefault();
+        // S4 — submit 시작 시 폼 에러 초기화.
+        if (window.FormError && typeof window.FormError.clear === 'function') {
+            window.FormError.clear(form);
+        }
 
         const mode = uploadModeInput.value;
         const { fileCount, totalBytes } = shell.collectSizeInfo(mode, {
@@ -114,6 +118,22 @@
                 entrypointRelativePath: commonFields.entrypointRelativePath.trim()
                 }
             });
+            // MK2 단계 A — preExistingMatch 안내 (1차 dismiss). 사용자 진행 의사 확인.
+            if (intent.preExistingMatch) {
+                const m = intent.preExistingMatch;
+                const stateLabel = m.state === 'SOFT_DELETED' ? '휴지통' : (m.state === 'DEPRECATED' ? 'Deprecated' : '활성');
+                const msg = `같은 메인보드에 같은 버전의 BMC 자원이 이미 존재합니다.\n\n`
+                    + `  · id : ${m.id}\n`
+                    + `  · 이름 : ${m.name}\n`
+                    + `  · 버전 : ${m.version}\n`
+                    + `  · 상태 : ${stateLabel}\n\n`
+                    + `그래도 업로드를 진행하시겠습니까?`;
+                if (!confirm(msg)) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '번들 등록';
+                    return;
+                }
+            }
             if (intent.warnings && intent.warnings.length) {
                 if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
                     submitBtn.disabled = false;
@@ -123,7 +143,12 @@
             }
             startXhrUpload(intent.uploadToken, commonFields);
         } catch (err) {
-            showError(err.message);
+            // S4 — body.fieldErrors 매핑.
+            if (window.FormError && err.body) {
+                window.FormError.renderResponse(err.body, { root: form });
+            } else {
+                showError(err.message);
+            }
             submitBtn.disabled = false;
             submitBtn.textContent = '번들 등록';
         }
@@ -152,6 +177,8 @@
             formData: fd,
             onStart() {
                 uploading = true;
+                // CH3 : 업로드 진행 중 폴링 실패 누적 시 reload 보류 신호
+                document.dispatchEvent(new CustomEvent('bgjob:uploadStart'));
                 lockPage(true);
                 showProgress('시작 중…', 0);
             },
@@ -165,20 +192,27 @@
             onSuccess(body) {
                 activeXhr = null;
                 uploading = false;
+                document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 lockPage(false);
                 showProgress('완료. 이동 중…', 100);
                 window.location.href = body.redirect || listUrl;
             },
-            onHttpError(msg) {
+            onHttpError(msg, xhr, body) {
                 activeXhr = null;
                 uploading = false;
+                document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 lockPage(false);
                 submitBtn.textContent = '번들 등록';
-                showError(msg);
+                if (window.FormError && body) {
+                    window.FormError.renderResponse(body, { root: form });
+                } else {
+                    showError(msg);
+                }
             },
             onNetworkError() {
                 activeXhr = null;
                 uploading = false;
+                document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 lockPage(false);
                 submitBtn.textContent = '번들 등록';
                 showError('네트워크 오류로 업로드에 실패했습니다.');

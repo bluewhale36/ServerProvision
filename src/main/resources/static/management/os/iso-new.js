@@ -30,130 +30,15 @@
     let activeXhr = null;
     let uploading = false;
 
-    // ---- 서버 경로 탐색 (BIOS 의 bios-new.js 의 browse UI 와 동일 패턴) ------
-    const isoPathInput        = document.getElementById('isoPath');
-    const browseBtn           = document.getElementById('browseBtn');
-    const browsePanel         = document.getElementById('browsePanel');
-    const browseUpBtn         = document.getElementById('browseUpBtn');
-    const browseCurrent       = document.getElementById('browseCurrentPath');
-    const browseStatus        = document.getElementById('browseStatus');
-    const browseEntries       = document.getElementById('browseEntries');
-    const browseCancelBtn     = document.getElementById('browseCancelBtn');
-    const browseApplyDirBtn   = document.getElementById('browseApplyDirBtn');
-    const browseUrl           = isoPathInput ? isoPathInput.dataset.browseUrl : null;
-    let browseCurrentPath = '/';
-
-    function openBrowsePanel() {
-        if (!browsePanel) return;
-        if (browsePanel.hidden) {
-            const seed = (isoPathInput.value || '').trim();
-            // 경로 입력이 파일 경로(.iso)면 그 부모 디렉토리부터, 디렉토리면 그대로, 비어있으면 / 부터.
-            let initial = '/';
-            if (seed) {
-                if (seed.endsWith('/')) initial = seed;
-                else {
-                    const idx = seed.lastIndexOf('/');
-                    initial = idx >= 0 ? (seed.substring(0, idx) || '/') : '/';
-                }
-            }
-            browsePanel.hidden = false;
-            loadDirectory(initial);
-        } else {
-            browsePanel.hidden = true;
-        }
-    }
-
-    if (browseBtn && browseUrl) {
-        browseBtn.addEventListener('click', openBrowsePanel);
-    }
-    if (browseCancelBtn) {
-        browseCancelBtn.addEventListener('click', () => { browsePanel.hidden = true; });
-    }
-    if (browseUpBtn) {
-        browseUpBtn.addEventListener('click', () => {
-            if (!browseCurrentPath || browseCurrentPath === '/') return;
-            const p = browseCurrentPath;
-            const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
-            const idx = trimmed.lastIndexOf('/');
-            loadDirectory(idx <= 0 ? '/' : trimmed.substring(0, idx));
+    // ---- 서버 경로 탐색 — PathBrowser 공통 헬퍼에 위임 (iso-edit 와 동일 진입점). ------
+    if (window.PathBrowser) {
+        window.PathBrowser.attach({
+            inputId: 'isoPath',
+            browseBtnId: 'browseBtn',
+            panelPrefix: 'browse',
+            includeFiles: true,
+            fileHighlight: (entry) => entry.name.toLowerCase().endsWith('.iso')
         });
-    }
-    if (browseApplyDirBtn) {
-        browseApplyDirBtn.addEventListener('click', () => {
-            // "이 디렉토리에 저장" — 디렉토리 + '/' 로 끝나게 하면 서버가 multipart 파일명을 자동 append.
-            if (!browseCurrentPath) return;
-            const applied = browseCurrentPath.endsWith('/') ? browseCurrentPath : browseCurrentPath + '/';
-            isoPathInput.value = applied;
-            browsePanel.hidden = true;
-        });
-    }
-
-    async function loadDirectory(pathStr) {
-        browseStatus.textContent = '로딩…';
-        browseEntries.innerHTML = '';
-        try {
-            // includeFiles=true 로 ISO 파일까지 받아옴 — 경로만 등록 케이스 지원.
-            const url = browseUrl + '?includeFiles=true&path=' + encodeURIComponent(pathStr);
-            const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            if (!resp.ok) {
-                const body = await resp.json().catch(() => ({}));
-                browseStatus.textContent = '오류 : ' + (body.message || ('HTTP ' + resp.status));
-                return;
-            }
-            const data = await resp.json();
-            browseCurrentPath = data.path;
-            browseCurrent.textContent = data.path;
-            renderBrowseEntries(data);
-            const dirCount = data.entries.filter(e => e.type === 'DIR').length;
-            const fileCount = data.entries.length - dirCount;
-            browseStatus.textContent = `${dirCount} 개 디렉토리, ${fileCount} 개 파일`;
-        } catch (err) {
-            browseStatus.textContent = '요청 실패 : ' + err.message;
-        }
-    }
-
-    function renderBrowseEntries(data) {
-        browseEntries.innerHTML = '';
-        if (!data.entries || data.entries.length === 0) {
-            const li = document.createElement('li');
-            li.style.padding = '8px 12px';
-            li.style.color = 'var(--n-text-muted)';
-            li.style.fontSize = '12px';
-            li.textContent = '(비어있음)';
-            browseEntries.appendChild(li);
-            return;
-        }
-        for (const e of data.entries) {
-            const li = document.createElement('li');
-            li.style.padding = '6px 12px';
-            li.style.cursor = 'pointer';
-            li.style.borderBottom = '1px solid var(--n-border)';
-            li.style.fontSize = '13px';
-            const isDir = e.type === 'DIR';
-            const isIso = !isDir && e.name.toLowerCase().endsWith('.iso');
-            const icon = isDir ? '📁' : (isIso ? '💿' : '📄');
-            const sizeText = !isDir && typeof e.size === 'number' && e.size >= 0 ? '  · ' + formatBytes(e.size) : '';
-            li.innerHTML = `${icon} ${escapeHtml(e.name)}<span style="color: var(--n-text-muted); font-size: 11px;">${escapeHtml(sizeText)}</span>`;
-            if (isIso) li.style.background = '#f2f9ff';
-            li.addEventListener('click', () => {
-                if (isDir) {
-                    const sep = browseCurrentPath.endsWith('/') ? '' : '/';
-                    loadDirectory(browseCurrentPath + sep + e.name);
-                } else {
-                    // 파일 클릭 → 절대 경로로 isoPath 입력에 자동 채움 + 패널 닫음 (경로만 등록 흐름).
-                    const sep = browseCurrentPath.endsWith('/') ? '' : '/';
-                    isoPathInput.value = browseCurrentPath + sep + e.name;
-                    browsePanel.hidden = true;
-                }
-            });
-            li.addEventListener('mouseover', () => { li.style.background = isIso ? '#e1f1fe' : '#f0f0f0'; });
-            li.addEventListener('mouseout',  () => { li.style.background = isIso ? '#f2f9ff' : ''; });
-            browseEntries.appendChild(li);
-        }
-    }
-
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
     // 원래 상태 복원용 스냅샷
@@ -172,6 +57,10 @@
 
     form.addEventListener('submit', async e => {
         e.preventDefault();
+        // S4 — submit 시작 시 폼 에러 초기화.
+        if (window.FormError && typeof window.FormError.clear === 'function') {
+            window.FormError.clear(form);
+        }
         const fileInput = form.querySelector('input[type="file"]');
         const file = fileInput && fileInput.files[0] ? fileInput.files[0] : null;
 
@@ -197,7 +86,12 @@
             intent = await requestIntent(isoPath, file, allowCreateDirectory);
         } catch (err) {
             console.error(TAG, 'intent 실패', err);
-            showError(err.message);
+            // S4 — body.fieldErrors 를 폼에 매핑.
+            if (window.FormError && err.body) {
+                window.FormError.renderResponse(err.body, { root: form });
+            } else {
+                showError(err.message);
+            }
             submitBtn.disabled = false;
             submitBtn.textContent = '등록';
             return;
@@ -207,6 +101,20 @@
         if (intent.warnings && intent.warnings.length) {
             const msg = intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?';
             if (!confirm(msg)) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '등록';
+                return;
+            }
+        }
+
+        // MK2 단계 A — preExistingMatch 사전 경고. 같은 OS 의 동일 isoPath 로 등록됐던 휴지통/Deprecated
+        // 자원이 있을 때 1차 dismiss modal 로 사용자 의사 확인. confirm 으로 단순 대체 (커스텀 modal 추가는 미루는 리팩터).
+        if (intent.preExistingMatch) {
+            const m = intent.preExistingMatch;
+            const stateLabel = m.state || '';
+            const note = `같은 경로에 ${stateLabel} 상태의 자원이 이미 존재합니다.\n` +
+                         `(id=${m.id}, ${m.name || ''} ${m.version || ''})\n\n진행하시겠습니까?`;
+            if (!confirm(note)) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '등록';
                 return;
@@ -231,15 +139,16 @@
             })
         });
         if (!resp.ok) {
-            // 서버 JSON 의 message 를 최우선으로 사용한다.
-            // JSON 파싱 실패 등으로 body 메시지를 못 얻은 경우를 대비해 status 별로 의미 있는 fallback.
-            let msg = null;
-            try {
-                const body = await resp.json();
-                if (body && body.message) msg = body.message;
-            } catch (_) { /* ignore */ }
-            if (!msg) msg = intentFallbackMessage(resp.status);
-            throw new Error(msg);
+            // S4 — 응답 body 전체 (fieldErrors 포함) 를 throw 에 부착해 호출자가 FormError.renderResponse 가능.
+            let body = null;
+            try { body = await resp.json(); } catch (_) { /* ignore */ }
+            const fallback = (body && body.message) || intentFallbackMessage(resp.status);
+            const finalBody = body || { message: fallback };
+            if (!finalBody.message) finalBody.message = fallback;
+            const err = new Error(finalBody.message);
+            err.body = finalBody;
+            err.status = resp.status;
+            throw err;
         }
         return resp.json();
     }
@@ -264,6 +173,8 @@
         const xhr = new XMLHttpRequest();
         activeXhr = xhr;
         uploading = true;
+        // CH3 : 업로드 진행 중 폴링 실패 누적 시 reload 보류 신호
+        document.dispatchEvent(new CustomEvent('bgjob:uploadStart'));
         xhr.open('POST', uploadUrl);
 
         xhr.addEventListener('load', () => handleUploadResponse(xhr, false));
@@ -284,6 +195,8 @@
         const xhr = new XMLHttpRequest();
         activeXhr = xhr;
         uploading = true;
+        // CH3 : 업로드 진행 중 폴링 실패 누적 시 reload 보류 신호
+        document.dispatchEvent(new CustomEvent('bgjob:uploadStart'));
 
         xhr.open('POST', uploadUrl);
         if (uploadToken) xhr.setRequestHeader('X-Upload-Token', uploadToken);
@@ -355,6 +268,7 @@
 
     function handleUploadResponse(xhr, hadFile, checksumTimer) {
         uploading = false;
+        document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
         activeXhr = null;
         if (checksumTimer) { clearInterval(checksumTimer); }
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -371,19 +285,140 @@
             window.location.href = redirect;
             return;
         }
-        let msg = 'HTTP ' + xhr.status;
-        try {
-            const body = JSON.parse(xhr.responseText);
-            if (body && body.message) msg = body.message;
-        } catch (_) { /* ignore */ }
+        // S4 — XHR 응답 body 전체를 파싱해 FormError.renderResponse 로 fieldErrors 매핑.
+        let body = null;
+        try { body = JSON.parse(xhr.responseText || '{}'); } catch (_) { /* ignore */ }
+        // MK2 단계 B — body.code === 'NUDGE_REQUIRED' 면 modal 표시 후 confirm endpoint 분기.
+        if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
+            console.log(TAG, 'NUDGE_REQUIRED 수신 — modal 표시', body);
+            hideProgress();
+            lockPage(false);
+            showNudgeModal(body);
+            return;
+        }
+        const msg = (body && body.message) || ('HTTP ' + xhr.status);
         console.error(TAG, 'upload 실패', msg);
-        showError(msg);
+        if (window.FormError && body) {
+            window.FormError.renderResponse(body, { root: form });
+        } else {
+            showError(msg);
+        }
         hideProgress();
         lockPage(false);
     }
 
+    // ---- MK2 nudge modal ---------------------------------------------
+
+    /**
+     * NUDGE_REQUIRED 응답 body 를 받아 modal 을 띄우고 사용자 3택 (proceed / replace / cancel) 처리.
+     * fragments/management/nudge-modal.html 에서 만든 element id (prefix='nudge') 를 잡는다.
+     */
+    function showNudgeModal(payload) {
+        const modal = document.getElementById('nudgeModal');
+        if (!modal) {
+            console.error(TAG, 'nudge modal element 가 페이지에 없습니다.');
+            showError(payload.message || '동일한 자원이 이미 존재합니다.');
+            return;
+        }
+        const baseUrl = modal.dataset.confirmBaseUrl || '/management/os/nudge';
+        const list = document.getElementById('nudgeConflictsList');
+        const proceedBtn = document.getElementById('nudgeProceedBtn');
+        const replaceBtn = document.getElementById('nudgeReplaceBtn');
+        const cancelBtn  = document.getElementById('nudgeCancelBtn');
+        const backdrop   = document.getElementById('nudgeBackdrop');
+
+        // 충돌 후보 렌더 + 단일 선택 (replace 활성화).
+        list.innerHTML = '';
+        let selectedTargetId = null;
+        (payload.conflicts || []).forEach(c => {
+            const li = document.createElement('li');
+            li.style.padding = '10px 12px';
+            li.style.borderBottom = '1px solid var(--n-border)';
+            li.style.cursor = 'pointer';
+            li.dataset.targetId = c.id;
+            li.innerHTML =
+                '<div style="font-weight: 600;">' + escapeHtml(c.name || '') + ' ' + escapeHtml(c.version || '') + '</div>' +
+                '<div style="font-size: 12px; color: var(--n-text-muted);">' +
+                'id=' + c.id + ' · ' + escapeHtml(c.state || '') + ' · ' + escapeHtml((c.hash || '').slice(0, 16)) + '…</div>';
+            li.addEventListener('click', () => {
+                Array.from(list.children).forEach(el => el.style.background = '');
+                li.style.background = 'var(--n-bg-soft, #eef)';
+                selectedTargetId = c.id;
+                replaceBtn.disabled = false;
+                replaceBtn.removeAttribute('title');
+            });
+            list.appendChild(li);
+        });
+
+        modal.hidden = false;
+
+        const onProceed = () => {
+            confirmNudge(baseUrl, payload.nudgeId, 'proceed', null);
+        };
+        const onReplace = () => {
+            if (selectedTargetId == null) return;
+            confirmNudge(baseUrl, payload.nudgeId, 'replace', selectedTargetId);
+        };
+        const onCancel = () => {
+            confirmNudge(baseUrl, payload.nudgeId, 'cancel', null);
+        };
+        // 1회용 핸들러 — 종결 후 onclick 제거.
+        proceedBtn.onclick = onProceed;
+        replaceBtn.onclick = onReplace;
+        cancelBtn.onclick = onCancel;
+        backdrop.onclick = onCancel;
+    }
+
+    function confirmNudge(baseUrl, nudgeId, action, targetId) {
+        let url = baseUrl + '/' + encodeURIComponent(nudgeId) + '/' + action;
+        if (action === 'replace' && targetId != null) {
+            url += '?targetId=' + encodeURIComponent(targetId);
+        }
+        fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } })
+            .then(resp => {
+                if (!resp.ok) {
+                    return resp.json().catch(() => ({})).then(body => {
+                        throw new Error((body && body.message) || ('HTTP ' + resp.status));
+                    });
+                }
+                if (resp.status === 204) return null;
+                return resp.json();
+            })
+            .then(body => {
+                hideNudgeModal();
+                if (action === 'cancel') {
+                    showError('업로드를 취소했습니다.');
+                    return;
+                }
+                const redirect = (body && body.redirect) || listUrl;
+                try {
+                    sessionStorage.setItem('os.isoRegistration.toast',
+                        action === 'replace'
+                            ? '기존 자원을 영구 삭제하고 신규 ISO 를 등록했습니다.'
+                            : '신규 ISO 를 등록했습니다.');
+                } catch (_) { /* ignore */ }
+                window.location.href = redirect;
+            })
+            .catch(err => {
+                hideNudgeModal();
+                showError(err.message || 'nudge 처리에 실패했습니다.');
+            });
+    }
+
+    function hideNudgeModal() {
+        const modal = document.getElementById('nudgeModal');
+        if (modal) modal.hidden = true;
+    }
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     function handleUploadNetworkError(message, checksumTimer) {
         uploading = false;
+        document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
         activeXhr = null;
         if (checksumTimer) { clearInterval(checksumTimer); }
         showError(message);

@@ -68,6 +68,7 @@ class OSImageControllerUploadFlowTest {
     @MockitoBean IsoVerificationLauncher isoVerificationLauncher;
     @MockitoBean IsoRegistrationLauncher isoRegistrationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
+    @MockitoBean com.example.serverprovision.management.os.service.OsNudgeService osNudgeService;
     // @EnableJpaAuditing 이 main class 에 있어 WebMvcTest 부팅 시 jpaMappingContext 를 요구한다.
     // 실제 JPA metamodel 은 slice 에서 필요 없으므로 mock 으로 대체.
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -112,7 +113,7 @@ class OSImageControllerUploadFlowTest {
         void success() throws Exception {
             var req = new IsoUploadIntentRequest("/mnt/iso/dvd.iso", "dvd.iso", 1024L, false);
             given(isoUploadIntentService.issue(eq(1L), any()))
-                    .willReturn(new IsoUploadIntentResponse("token-abc", java.util.List.of()));
+                    .willReturn(IsoUploadIntentResponse.of("token-abc", java.util.List.of()));
 
             mvc.perform(post("/management/os/1/iso/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON)

@@ -45,7 +45,7 @@ public class DriftReport extends BaseTimeEntity {
 
     /**
      * (권고3) 낙관적 락 — 동시 dismiss / apply / 자동 적용이 같은 보고서의 자식 drift 를 동시에 건드릴 때
-     * stale write 를 막는다. 충돌 발생 시 OptimisticLockException → GlobalExceptionHandler 가 409 매핑.
+     * stale write 를 막는다. 충돌 발생 시 OptimisticLockException → WebExceptionHandler 가 409 매핑.
      */
     @Version
     @Column(name = "version", nullable = false)
