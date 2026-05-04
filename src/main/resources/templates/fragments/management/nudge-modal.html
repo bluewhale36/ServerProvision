@@ -36,8 +36,13 @@
          style="position: relative; max-width: 560px; width: 100%; max-height: 90vh;
                 overflow-y: auto;">
         <div class="n-card-body">
-            <h2 style="margin: 0 0 12px 0; font-size: 1.15rem;">
-                동일한 자원이 이미 존재합니다
+            <h2 style="margin: 0 0 12px 0; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: baseline; gap: 12px;">
+                <span>동일한 자원이 이미 존재합니다</span>
+                <!-- MK2 — TTL countdown. JS (NudgeTimer) 가 expiresAt 으로부터 mm:ss 갱신.
+                     0:00 도달 시 modal 자동 닫힘 + onExpire 호출. -->
+                <span data-nudge-timer
+                      style="font-size: 0.85rem; font-weight: 500; color: var(--n-text-muted);"
+                      title="이 시간 안에 결정하지 않으면 nudge 세션이 만료됩니다."></span>
             </h2>
             <div class="n-alert n-alert-warning" style="margin-bottom: 14px;">
                 동일한 자원이 휴지통 또는 Deprecated 상태로 다음과 같이 발견되었습니다.

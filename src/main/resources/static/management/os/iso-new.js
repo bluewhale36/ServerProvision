@@ -358,6 +358,12 @@
         });
 
         modal.hidden = false;
+        // MK2 — TTL countdown.
+        if (window.NudgeTimer) {
+            window.NudgeTimer.start(modal, payload.expiresAt, () => {
+                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            });
+        }
 
         const onProceed = () => {
             confirmNudge(baseUrl, payload.nudgeId, 'proceed', null);
@@ -382,16 +388,16 @@
             url += '?targetId=' + encodeURIComponent(targetId);
         }
         fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } })
-            .then(resp => {
-                if (!resp.ok) {
-                    return resp.json().catch(() => ({})).then(body => {
-                        throw new Error((body && body.message) || ('HTTP ' + resp.status));
-                    });
+            .then(resp => resp.json().catch(() => ({})).then(body => ({ status: resp.status, ok: resp.ok, body })))
+            .then(({ status, ok, body }) => {
+                if (!ok) {
+                    if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
+                        hideNudgeModal();
+                        showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                        return;
+                    }
+                    throw new Error((body && body.message) || ('HTTP ' + status));
                 }
-                if (resp.status === 204) return null;
-                return resp.json();
-            })
-            .then(body => {
                 hideNudgeModal();
                 if (action === 'cancel') {
                     showError('업로드를 취소했습니다.');
@@ -414,7 +420,10 @@
 
     function hideNudgeModal() {
         const modal = document.getElementById('nudgeModal');
-        if (modal) modal.hidden = true;
+        if (modal) {
+            if (window.NudgeTimer) window.NudgeTimer.stop(modal);
+            modal.hidden = true;
+        }
     }
 
     // ---- MK2 WAVE 2 — intent (단계 A) path nudge modal ----------------
@@ -459,6 +468,12 @@
         });
 
         modal.hidden = false;
+        // MK2 — TTL countdown.
+        if (window.NudgeTimer) {
+            window.NudgeTimer.start(modal, payload.expiresAt, () => {
+                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            });
+        }
 
         const reissue = (intent) => {
             hideNudgeModal();
@@ -479,6 +494,11 @@
                 });
                 const body = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(resp.status, body)) {
+                        hideNudgeModal();
+                        showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                        return;
+                    }
                     showError(body.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
                     disableIntentBtns(false);
                     return;
@@ -499,6 +519,11 @@
                 });
                 const body = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(resp.status, body)) {
+                        hideNudgeModal();
+                        showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                        return;
+                    }
                     showError(body.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
                     disableIntentBtns(false);
                     return;

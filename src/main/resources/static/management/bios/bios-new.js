@@ -407,8 +407,15 @@
         });
 
         modal.hidden = false;
+        // MK2 — TTL countdown.
+        if (window.NudgeTimer) {
+            window.NudgeTimer.start(modal, body.expiresAt, () => {
+                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            });
+        }
 
         const closeModal = () => {
+            if (window.NudgeTimer) window.NudgeTimer.stop(modal);
             modal.hidden = true;
             proceedBtn.onclick = null;
             replaceBtn.onclick = null;
@@ -423,6 +430,7 @@
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('nudge proceed 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeButtons(false);
                     return;
@@ -445,6 +453,7 @@
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('nudge replace 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeButtons(false);
                     return;
@@ -515,8 +524,15 @@
         });
 
         modal.hidden = false;
+        // MK2 — TTL countdown.
+        if (window.NudgeTimer) {
+            window.NudgeTimer.start(modal, body.expiresAt, () => {
+                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            });
+        }
 
         const closeModal = () => {
+            if (window.NudgeTimer) window.NudgeTimer.stop(modal);
             modal.hidden = true;
             proceedBtn.onclick = null;
             replaceBtn.onclick = null;
@@ -544,6 +560,7 @@
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeButtons(false);
                     return;
@@ -565,6 +582,7 @@
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeButtons(false);
                     return;
@@ -589,6 +607,15 @@
                 showError('업로드를 취소했습니다.');
             }
         };
+    }
+
+    function handleExpiredIfAny(closeModal, status, body) {
+        if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
+            closeModal();
+            showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            return true;
+        }
+        return false;
     }
 
     function disableNudgeButtons(disabled) {

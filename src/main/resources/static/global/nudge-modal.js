@@ -29,6 +29,68 @@
         return document.getElementById(prefix + suffix);
     }
 
+    /* ============================================================
+       NudgeTimer — modal 안 [data-nudge-timer] span 에 mm:ss 카운트다운.
+       0:00 도달 시 onExpire 콜백 + modal 자동 닫힘.
+       ============================================================ */
+    const _activeTimers = new WeakMap(); // modalEl → intervalId
+
+    function _formatRemaining(ms) {
+        if (ms <= 0) return '0:00';
+        const totalSec = Math.ceil(ms / 1000);
+        const m = Math.floor(totalSec / 60);
+        const s = totalSec % 60;
+        return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function startTimer(modalEl, expiresAtIso, onExpire) {
+        if (!modalEl || !expiresAtIso) return;
+        stopTimer(modalEl);
+        const span = modalEl.querySelector('[data-nudge-timer]');
+        if (!span) return;
+        const expiresAtMs = new Date(expiresAtIso).getTime();
+        if (Number.isNaN(expiresAtMs)) return;
+
+        const tick = () => {
+            const remaining = expiresAtMs - Date.now();
+            if (remaining <= 0) {
+                span.textContent = '만료됨';
+                stopTimer(modalEl);
+                modalEl.hidden = true;
+                if (typeof onExpire === 'function') onExpire();
+                return;
+            }
+            span.textContent = '⏱ ' + _formatRemaining(remaining);
+            // 1분 미만일 때 빨간색 강조
+            span.style.color = remaining < 60_000 ? 'var(--n-orange)' : 'var(--n-text-muted)';
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        _activeTimers.set(modalEl, id);
+    }
+
+    function stopTimer(modalEl) {
+        if (!modalEl) return;
+        const id = _activeTimers.get(modalEl);
+        if (id != null) {
+            clearInterval(id);
+            _activeTimers.delete(modalEl);
+        }
+        const span = modalEl.querySelector('[data-nudge-timer]');
+        if (span) span.textContent = '';
+    }
+
+    /**
+     * 만료 응답 인지 — NudgeNotFoundException(404) / NudgeSessionExpiredException(409+"만료").
+     * 도메인 JS 의 fetch 응답 catch 에서 호출. true 반환 시 "만료" UX 처리하도록.
+     */
+    function isExpiredResponse(status, body) {
+        if (status === 404) return true; // NudgeNotFound (pruner 가 정리한 후)
+        if (status === 409 && body && typeof body.message === 'string'
+                && body.message.indexOf('만료') >= 0) return true;
+        return false;
+    }
+
     function handle(payload, options) {
         options = options || {};
         const prefix = options.prefix || 'nudge';
@@ -74,6 +136,11 @@
 
         modal.hidden = false;
 
+        // MK2 — TTL countdown 시작. 0:00 도달 시 modal 자동 닫힘 + 안내.
+        startTimer(modal, payload.expiresAt, () => {
+            if (options.onError) options.onError('nudge 세션이 만료되었습니다. 다시 시도해주세요.');
+        });
+
         proceedBtn.onclick = () => confirmNudge(baseUrl, payload.nudgeId, 'proceed', null, options);
         replaceBtn.onclick = () => {
             if (selectedTargetId == null) return;
@@ -90,16 +157,17 @@
             url += '?targetId=' + encodeURIComponent(targetId);
         }
         fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } })
-                .then(resp => {
-                    if (!resp.ok) {
-                        return resp.json().catch(() => ({})).then(body => {
-                            throw new Error((body && body.message) || ('HTTP ' + resp.status));
-                        });
+                .then(resp => resp.json().catch(() => ({})).then(body => ({ status: resp.status, ok: resp.ok, body })))
+                .then(({ status, ok, body }) => {
+                    if (!ok) {
+                        // MK2 — 만료 응답은 modal 강제 닫힘 + 명시적 안내.
+                        if (isExpiredResponse(status, body)) {
+                            hide(options.prefix || 'nudge');
+                            if (options.onError) options.onError('nudge 세션이 만료되었습니다. 다시 시도해주세요.');
+                            return;
+                        }
+                        throw new Error((body && body.message) || ('HTTP ' + status));
                     }
-                    if (resp.status === 204) return null;
-                    return resp.json();
-                })
-                .then(body => {
                     hide(options.prefix || 'nudge');
                     if (action === 'cancel') {
                         if (options.afterCancel) options.afterCancel();
@@ -125,8 +193,12 @@
 
     function hide(prefix) {
         const modal = el(prefix, 'Modal');
-        if (modal) modal.hidden = true;
+        if (modal) {
+            stopTimer(modal);
+            modal.hidden = true;
+        }
     }
 
     window.NudgeModal = { handle: handle, hide: hide };
+    window.NudgeTimer = { start: startTimer, stop: stopTimer, isExpiredResponse: isExpiredResponse };
 })();

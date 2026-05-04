@@ -295,7 +295,14 @@
         });
 
         modal.hidden = false;
+        // MK2 — TTL countdown. 0:00 도달 시 modal 자동 닫힘 + 안내.
+        if (window.NudgeTimer) {
+            window.NudgeTimer.start(modal, body.expiresAt, () => {
+                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            });
+        }
         const closeModal = () => {
+            if (window.NudgeTimer) window.NudgeTimer.stop(modal);
             modal.hidden = true;
             proceedBtn.onclick = null;
             replaceBtn.onclick = null;
@@ -303,6 +310,16 @@
         };
         return { modal, baseUrl, nudgeId, getSelectedTargetId: () => selectedTargetId, closeModal,
                  proceedBtn, replaceBtn, cancelBtn };
+    }
+
+    // 만료 응답 (404 NudgeNotFound / 409 NudgeSessionExpired) 공통 처리.
+    function handleExpiredIfAny(closeModal, status, body) {
+        if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
+            closeModal();
+            showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            return true;
+        }
+        return false;
     }
 
     function openContentNudgeModal(body) {
@@ -317,6 +334,7 @@
                 });
                 if (!resp.ok) {
                     const respBody = await resp.json().catch(() => ({}));
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('nudge proceed 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeBtns(false);
                     return;
@@ -339,6 +357,7 @@
                 });
                 if (!resp.ok) {
                     const respBody = await resp.json().catch(() => ({}));
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('nudge replace 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeBtns(false);
                     return;
@@ -385,6 +404,7 @@
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeBtns(false);
                     return;
@@ -406,6 +426,7 @@
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
                     disableNudgeBtns(false);
                     return;

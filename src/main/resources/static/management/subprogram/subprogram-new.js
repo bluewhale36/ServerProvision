@@ -321,7 +321,14 @@
         });
 
         modal.hidden = false;
+        // MK2 — TTL countdown.
+        if (window.NudgeTimer) {
+            window.NudgeTimer.start(modal, body.expiresAt, () => {
+                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            });
+        }
         const closeModal = () => {
+            if (window.NudgeTimer) window.NudgeTimer.stop(modal);
             modal.hidden = true;
             proceedBtn.onclick = null;
             replaceBtn.onclick = null;
@@ -329,6 +336,15 @@
         };
         return { baseUrl, nudgeId, getSelectedTargetId: () => selectedTargetId, closeModal,
                  proceedBtn, replaceBtn, cancelBtn };
+    }
+
+    function handleExpiredIfAny(closeModal, status, body) {
+        if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
+            closeModal();
+            showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            return true;
+        }
+        return false;
     }
 
     function openContentNudgeModal(body) {
@@ -340,7 +356,12 @@
                 const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/proceed', {
                     method: 'POST', headers: { 'Accept': 'application/json' }
                 });
-                if (!resp.ok) { showError('nudge proceed 실패 (HTTP ' + resp.status + ')'); disableNudgeBtns(false); return; }
+                if (!resp.ok) {
+                    const respBody = await resp.json().catch(() => ({}));
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
+                    showError(respBody.message || ('nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeBtns(false); return;
+                }
                 ctx.closeModal();
                 window.location.href = listUrl;
             } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
@@ -354,7 +375,12 @@
                 const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/replace?targetId=' + encodeURIComponent(targetId), {
                     method: 'POST', headers: { 'Accept': 'application/json' }
                 });
-                if (!resp.ok) { showError('nudge replace 실패 (HTTP ' + resp.status + ')'); disableNudgeBtns(false); return; }
+                if (!resp.ok) {
+                    const respBody = await resp.json().catch(() => ({}));
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
+                    showError(respBody.message || ('nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeBtns(false); return;
+                }
                 ctx.closeModal();
                 window.location.href = listUrl;
             } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
@@ -391,7 +417,11 @@
                     method: 'POST', headers: { 'Accept': 'application/json' }
                 });
                 const respBody = await resp.json().catch(() => ({}));
-                if (!resp.ok) { showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')')); disableNudgeBtns(false); return; }
+                if (!resp.ok) {
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
+                    showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeBtns(false); return;
+                }
                 handleIntentReissued(respBody);
             } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
         };
@@ -405,7 +435,11 @@
                     method: 'POST', headers: { 'Accept': 'application/json' }
                 });
                 const respBody = await resp.json().catch(() => ({}));
-                if (!resp.ok) { showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')')); disableNudgeBtns(false); return; }
+                if (!resp.ok) {
+                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
+                    showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeBtns(false); return;
+                }
                 handleIntentReissued(respBody);
             } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
         };
