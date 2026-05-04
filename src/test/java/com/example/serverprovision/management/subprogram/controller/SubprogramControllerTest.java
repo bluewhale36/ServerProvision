@@ -173,4 +173,72 @@ class SubprogramControllerTest {
         mvc.perform(post("/management/subprogram/3/toggle"))
                 .andExpect(status().is3xxRedirection());
     }
+
+    // =========== MK2 WAVE 2 — Intent (단계 A) Nudge 4 시나리오 ===========
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("MK2 WAVE 2 — Intent Nudge")
+    class IntentNudge {
+
+        @Test
+        @DisplayName("intent : 메타 충돌 → 409 NUDGE_REQUIRED (Driver, common scope)")
+        void intentMetaNudge() throws Exception {
+            var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024, "1.0.0", false);
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            var session = new com.example.serverprovision.management.common.nudge.NudgeSession(
+                    nudgeId,
+                    com.example.serverprovision.management.common.nudge.NudgeResourceType.SUBPROGRAM,
+                    null,
+                    List.of(99L),
+                    new com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload(java.util.Map.of()),
+                    Instant.now(), Instant.now().plusSeconds(300));
+            var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
+                    99L,
+                    com.example.serverprovision.global.lifecycle.LifecycleStage.DEPRECATED,
+                    "hash", "Realtek-r8169", "1.0.0", Instant.now()));
+            willThrow(new com.example.serverprovision.management.subprogram.exception.SubprogramNudgeRequiredException(
+                    "동일 메타", session, conflicts))
+                    .given(subprogramUploadIntentService).issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any());
+
+            mvc.perform(post("/management/subprogram/DRIVER/common/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(req)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("NUDGE_REQUIRED"))
+                    .andExpect(jsonPath("$.nudgeId").value(nudgeId.toString()))
+                    .andExpect(jsonPath("$.conflicts[0].id").value(99));
+        }
+
+        @Test
+        @DisplayName("intent-nudge proceed : 200 + 새 uploadToken")
+        void intentNudgeProceed() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.proceedIntent(eq(nudgeId)))
+                    .willReturn(new SubprogramUploadIntentResponse("token-new", List.of(), null));
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-new"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 200 + 새 uploadToken")
+        void intentNudgeReplace() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.replaceIntent(eq(nudgeId), eq(99L)))
+                    .willReturn(new SubprogramUploadIntentResponse("token-after-replace", List.of(), null));
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=99"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-after-replace"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge cancel : 204 NoContent")
+        void intentNudgeCancel() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/cancel"))
+                    .andExpect(status().isNoContent());
+        }
+    }
 }

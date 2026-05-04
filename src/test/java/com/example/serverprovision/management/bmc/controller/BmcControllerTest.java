@@ -258,4 +258,72 @@ class BmcControllerTest {
         mvc.perform(get("/management/bmc/1/bmc/99/edit"))
                 .andExpect(status().isNotFound());
     }
+
+    // =========== MK2 WAVE 2 — Intent (단계 A) Nudge 4 시나리오 ===========
+
+    @Nested
+    @DisplayName("MK2 WAVE 2 — Intent Nudge")
+    class IntentNudge {
+
+        @Test
+        @DisplayName("intent : 메타 충돌 → 409 NUDGE_REQUIRED")
+        void intentMetaNudge() throws Exception {
+            var req = new BmcUploadIntentRequest("/mnt/x", BmcUploadMode.FOLDER, 5, 1024, "12.61", false, "");
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            var session = new com.example.serverprovision.management.common.nudge.NudgeSession(
+                    nudgeId,
+                    com.example.serverprovision.management.common.nudge.NudgeResourceType.BMC,
+                    1L,
+                    List.of(77L),
+                    new com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload(java.util.Map.of()),
+                    Instant.now(), Instant.now().plusSeconds(300));
+            var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
+                    77L,
+                    com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
+                    "hash", "BMC-A", "12.61", Instant.now()));
+            willThrow(new com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException(
+                    "동일 메타", session, conflicts))
+                    .given(bmcUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/bmc/1/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(req)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("NUDGE_REQUIRED"))
+                    .andExpect(jsonPath("$.nudgeId").value(nudgeId.toString()))
+                    .andExpect(jsonPath("$.conflicts[0].id").value(77));
+        }
+
+        @Test
+        @DisplayName("intent-nudge proceed : 200 + 새 uploadToken")
+        void intentNudgeProceed() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(bmcNudgeService.proceedIntent(eq(nudgeId)))
+                    .willReturn(new BmcUploadIntentResponse("token-new", List.of(), null));
+
+            mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-new"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 200 + 새 uploadToken")
+        void intentNudgeReplace() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(bmcNudgeService.replaceIntent(eq(nudgeId), eq(77L)))
+                    .willReturn(new BmcUploadIntentResponse("token-after-replace", List.of(), null));
+
+            mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/replace?targetId=77"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-after-replace"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge cancel : 204 NoContent")
+        void intentNudgeCancel() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+
+            mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/cancel"))
+                    .andExpect(status().isNoContent());
+        }
+    }
 }

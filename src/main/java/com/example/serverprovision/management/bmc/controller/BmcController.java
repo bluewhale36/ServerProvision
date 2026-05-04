@@ -87,6 +87,8 @@ public class BmcController {
     public ResponseEntity<?> intent(@PathVariable("boardId") Long boardId,
                                     @Valid @RequestBody BmcUploadIntentRequest request,
                                     BindingResult bindingResult) {
+        // MK2 WAVE 2 — Layer A 검증 실패만 직접 응답. 도메인 예외 (NotFound / Conflict / FieldBoundConflict /
+        //       BmcNudgeRequired / Security) 는 ApiExceptionHandler 가 일괄 처리 (try/catch 제거 — S3-4 정합).
         if (bindingResult.hasErrors()) {
             String msg = bindingResult.getFieldErrors().stream()
                     .findFirst()
@@ -94,21 +96,8 @@ public class BmcController {
                     .orElse("입력값이 올바르지 않습니다.");
             return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
         }
-        try {
-            BmcUploadIntentResponse body = bmcUploadIntentService.issue(boardId, request);
-            return ResponseEntity.ok(body);
-        } catch (NotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
-        } catch (FieldBoundConflictException e) {
-            // S4 — 필드 직결 충돌은 fieldErrors 동봉.
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiErrorResponse.ofFieldBound(e.getMessage(), e.fieldName()));
-        } catch (ConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
-        } catch (DomainException e) {
-            // B3 — 보안 예외는 SecurityException 계층으로 분리되어 본 catch 에 흡수되지 않고 통과한다.
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
-        }
+        BmcUploadIntentResponse body = bmcUploadIntentService.issue(boardId, request);
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping(path = "/{boardId}/upload")

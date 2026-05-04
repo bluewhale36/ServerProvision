@@ -369,4 +369,72 @@ class BiosControllerUploadFlowTest {
                     .andExpect(status().isNotFound());
         }
     }
+
+    // =========== MK2 WAVE 2 — Intent (단계 A) Nudge 4 시나리오 ===========
+
+    @Nested
+    @DisplayName("MK2 WAVE 2 — Intent Nudge")
+    class IntentNudge {
+
+        @Test
+        @DisplayName("18. intent : 메타 충돌 → 409 NUDGE_REQUIRED + nudgeId/conflicts 동봉")
+        void intentMetaNudge() throws Exception {
+            var req = new BiosUploadIntentRequest("/mnt/x", BiosUploadMode.FOLDER, 5, 1024, "2.03", false, "");
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            var session = new com.example.serverprovision.management.common.nudge.NudgeSession(
+                    nudgeId,
+                    com.example.serverprovision.management.common.nudge.NudgeResourceType.BIOS,
+                    1L,
+                    List.of(42L),
+                    new com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload(java.util.Map.of()),
+                    Instant.now(), Instant.now().plusSeconds(300));
+            var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
+                    42L,
+                    com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
+                    "abc", "BIOS-A", "2.03", Instant.now()));
+            willThrow(new com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException(
+                    "동일 메타", session, conflicts))
+                    .given(biosUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/bios/1/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(req)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("NUDGE_REQUIRED"))
+                    .andExpect(jsonPath("$.nudgeId").value(nudgeId.toString()))
+                    .andExpect(jsonPath("$.conflicts[0].id").value(42));
+        }
+
+        @Test
+        @DisplayName("19. intent-nudge proceed : 200 + 새 uploadToken")
+        void intentNudgeProceed() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(biosNudgeService.proceedIntent(eq(nudgeId)))
+                    .willReturn(new BiosUploadIntentResponse("token-new", List.of(), null));
+
+            mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-new"));
+        }
+
+        @Test
+        @DisplayName("20. intent-nudge replace : 200 + 새 uploadToken (targetId purge 후)")
+        void intentNudgeReplace() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(biosNudgeService.replaceIntent(eq(nudgeId), eq(42L)))
+                    .willReturn(new BiosUploadIntentResponse("token-after-replace", List.of(), null));
+
+            mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-after-replace"));
+        }
+
+        @Test
+        @DisplayName("21. intent-nudge cancel : 204 NoContent")
+        void intentNudgeCancel() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+
+            mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/cancel"))
+                    .andExpect(status().isNoContent());
+        }
+    }
 }

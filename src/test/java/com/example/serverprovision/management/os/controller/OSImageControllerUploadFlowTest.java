@@ -342,4 +342,68 @@ class OSImageControllerUploadFlowTest {
                 .andExpect(jsonPath("$.integrityStatus").value("SIGNATURE_INVALID"))
                 .andExpect(jsonPath("$.badgeClass").value("n-badge-orange"));
     }
+
+    // =========== MK2 WAVE 2 — Intent (단계 A) ISO Path Nudge 4 시나리오 ===========
+
+    @Nested
+    @DisplayName("MK2 WAVE 2 — ISO Intent Nudge")
+    class IsoIntentNudge {
+
+        @Test
+        @DisplayName("intent : 동일 path 의 soft-deleted/Deprecated 자원 → 409 NUDGE_REQUIRED")
+        void intentPathNudge() throws Exception {
+            var req = new IsoUploadIntentRequest("/opt/iso/rocky/9/dvd.iso", "dvd.iso", 1024L, false);
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            var payload = com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse.of(
+                    nudgeId,
+                    java.util.List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
+                            55L,
+                            com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
+                            "hash", "9.4", "/opt/iso/rocky/9/dvd.iso", Instant.now())),
+                    Instant.now().plusSeconds(300));
+            willThrow(new com.example.serverprovision.management.os.exception.IsoNudgeRequiredException(
+                    "동일 path", payload))
+                    .given(isoUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(req)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("NUDGE_REQUIRED"))
+                    .andExpect(jsonPath("$.nudgeId").value(nudgeId.toString()))
+                    .andExpect(jsonPath("$.conflicts[0].id").value(55));
+        }
+
+        @Test
+        @DisplayName("intent-nudge proceed : 200 + 새 uploadToken")
+        void intentNudgeProceed() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(osNudgeService.proceedIntent(eq(nudgeId)))
+                    .willReturn(new IsoUploadIntentResponse("token-new", java.util.List.of(), null));
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-new"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 200 + 새 uploadToken (targetId purge 후)")
+        void intentNudgeReplace() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(osNudgeService.replaceIntent(eq(nudgeId), eq(55L)))
+                    .willReturn(new IsoUploadIntentResponse("token-after-replace", java.util.List.of(), null));
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=55"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadToken").value("token-after-replace"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge cancel : 204 NoContent")
+        void intentNudgeCancel() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/cancel"))
+                    .andExpect(status().isNoContent());
+        }
+    }
 }
