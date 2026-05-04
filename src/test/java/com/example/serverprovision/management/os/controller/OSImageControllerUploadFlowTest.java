@@ -406,4 +406,102 @@ class OSImageControllerUploadFlowTest {
                     .andExpect(status().isNoContent());
         }
     }
+
+    // =========== MK2 WAVE 3 — Hash Precheck (Phase 1 / 2 / 3) 5 시나리오 ===========
+
+    @Nested
+    @DisplayName("MK2 WAVE 3 — Hash Precheck")
+    class WaveThreeHashPrecheck {
+
+        @Test
+        @DisplayName("Phase 1 정상 (candidates 0건) → 200 + type=INTENT_TOKEN_ISSUED")
+        void phase1_noCandidates_directToken() throws Exception {
+            given(isoUploadIntentService.issue(eq(1L), any()))
+                    .willReturn(new IsoUploadIntentResponse.IntentTokenIssued("token-direct", java.util.List.of()));
+
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"isoPath":"/opt/iso/x.iso","filename":"x.iso","size":1024,"allowCreateDirectory":false}
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.type").value("INTENT_TOKEN_ISSUED"))
+                    .andExpect(jsonPath("$.uploadToken").value("token-direct"));
+        }
+
+        @Test
+        @DisplayName("Phase 1 candidates 1+ → 200 + type=HASH_CHECK_REQUIRED + candidates")
+        void phase1_candidatesPresent_hashCheckRequired() throws Exception {
+            var candidate = new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
+                    77L,
+                    com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
+                    "abc", "9.4", "/opt/iso/old.iso", Instant.now());
+            given(isoUploadIntentService.issue(eq(1L), any()))
+                    .willReturn(new IsoUploadIntentResponse.HashCheckRequired(
+                            java.util.List.of(candidate), "SHA-256"));
+
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"isoPath":"/opt/iso/new.iso","filename":"new.iso","size":1024,"allowCreateDirectory":false}
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.type").value("HASH_CHECK_REQUIRED"))
+                    .andExpect(jsonPath("$.fingerprintAlgorithm").value("SHA-256"))
+                    .andExpect(jsonPath("$.candidates[0].id").value(77));
+        }
+
+        @Test
+        @DisplayName("Phase 2 hash 매칭 → 409 NUDGE_REQUIRED")
+        void phase2_hashMatch_nudgeRequired() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            var payload = com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse.of(
+                    nudgeId,
+                    java.util.List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
+                            77L,
+                            com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
+                            "deadbeef", "9.4", "/opt/iso/old.iso", Instant.now())),
+                    Instant.now().plusSeconds(300));
+            willThrow(new com.example.serverprovision.management.os.exception.IsoNudgeRequiredException(
+                    "동일 hash", payload))
+                    .given(isoUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"isoPath":"/opt/iso/new.iso","filename":"new.iso","size":1024,"allowCreateDirectory":false,"clientHash":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"}
+                                    """))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("NUDGE_REQUIRED"))
+                    .andExpect(jsonPath("$.nudgeId").value(nudgeId.toString()));
+        }
+
+        @Test
+        @DisplayName("clientHash 형식 오류 (64자 hex 아님) → 400")
+        void clientHashFormatInvalid_returns400() throws Exception {
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"isoPath":"/opt/iso/x.iso","filename":"x.iso","size":1024,"allowCreateDirectory":false,"clientHash":"not-a-hash"}
+                                    """))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(containsString("clientHash")));
+        }
+
+        @Test
+        @DisplayName("Phase 3 client hash 와 server 계산 hash 불일치 → 400 IsoClientHashMismatchException")
+        void phase3_hashMismatch_returns400() throws Exception {
+            doThrow(new com.example.serverprovision.management.os.exception.IsoClientHashMismatchException(
+                    "abcdef…", "fedcba…"))
+                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any(), any());
+
+            mvc.perform(multipart("/management/os/1/iso/upload")
+                            .file(new MockMultipartFile("file", "dvd.iso", "application/octet-stream", new byte[]{1, 2, 3}))
+                            .param("isoPath", "/opt/iso/dvd.iso")
+                            .param("allowCreateDirectory", "false")
+                            .header("X-Upload-Token", "tok"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(containsString("fingerprint")));
+        }
+    }
 }

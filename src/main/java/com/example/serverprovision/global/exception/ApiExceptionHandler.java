@@ -109,6 +109,15 @@ public class ApiExceptionHandler {
      */
     @ExceptionHandler(value = DomainException.class, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiErrorResponse> handleDomain(DomainException ex) {
+        // MK2 WAVE 3 — sub-class 가 @ResponseStatus 어노테이션을 갖고 있으면 그것 우선 (예: 400).
+        // 신규 도메인 예외는 어노테이션 한 줄로 status 매핑되며, 별도 핸들러 추가 분기 불필요.
+        org.springframework.web.bind.annotation.ResponseStatus rs =
+                org.springframework.core.annotation.AnnotationUtils.findAnnotation(
+                        ex.getClass(), org.springframework.web.bind.annotation.ResponseStatus.class);
+        if (rs != null) {
+            log.info("Domain exception with @ResponseStatus({}): {}", rs.value(), ex.getMessage());
+            return ResponseEntity.status(rs.value()).body(new ApiErrorResponse(ex.getMessage()));
+        }
         log.warn("Unhandled DomainException: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(ex.getMessage()));
     }

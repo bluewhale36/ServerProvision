@@ -278,31 +278,19 @@ public class OSImageController {
                     .orElse("입력값이 올바르지 않습니다.");
             return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
         }
-        try {
-            boolean hasFile = file != null && !file.isEmpty();
-            String clientHash = null;
-            if (hasFile) {
-                IsoUploadIntentService.Intent intent = isoUploadIntentService.consume(osId, uploadToken);
-                // MK2 WAVE 3 — finalize 단계에서 server-side hash 와 비교용 (mock 환경 null safety).
-                if (intent != null) clientHash = intent.clientHash();
-            }
-            OSImageService.PreparedIsoRegistration prepared =
-                    osImageService.prepareIsoRegistration(osId, request, file, clientHash);
-            String jobId = isoRegistrationLauncher.startRegistration(prepared);
-            String redirect = "/management/os?selectId=" + osId;
-            return ResponseEntity.ok(new IsoUploadResponse(jobId, redirect));
-        } catch (NotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(e.getMessage()));
-        } catch (FieldBoundConflictException e) {
-            // S4 — 필드 직결 충돌은 fieldErrors 동봉.
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiErrorResponse.ofFieldBound(e.getMessage(), e.fieldName()));
-        } catch (ConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(e.getMessage()));
-        } catch (DomainException e) {
-            // B3 — 보안 예외는 SecurityException 계층으로 분리되어 본 catch 에 흡수되지 않고 통과한다.
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(e.getMessage()));
+        // MK2 WAVE 3 — try-catch 제거 (S3-4 정합). 도메인 예외는 ApiExceptionHandler 단일 진입점이 polymorphic
+        // 매핑 → IsoClientHashMismatchException(@ResponseStatus 400) 등 신규 예외도 자동 처리.
+        boolean hasFile = file != null && !file.isEmpty();
+        String clientHash = null;
+        if (hasFile) {
+            IsoUploadIntentService.Intent intent = isoUploadIntentService.consume(osId, uploadToken);
+            if (intent != null) clientHash = intent.clientHash();
         }
+        OSImageService.PreparedIsoRegistration prepared =
+                osImageService.prepareIsoRegistration(osId, request, file, clientHash);
+        String jobId = isoRegistrationLauncher.startRegistration(prepared);
+        String redirect = "/management/os?selectId=" + osId;
+        return ResponseEntity.ok(new IsoUploadResponse(jobId, redirect));
     }
 
     @GetMapping("/{osId}/iso/{isoId}/edit")

@@ -81,30 +81,58 @@
         submitBtn.disabled = true;
         submitBtn.textContent = '사전 검증 중…';
 
+        // MK2 WAVE 3 — 2단계 intent 흐름 위임.
+        await runIntentFlow(file, isoPath, allowCreateDirectory);
+    });
+
+    /**
+     * MK2 WAVE 3 — 2단계 intent 흐름.
+     * Phase 1 응답이 HASH_CHECK_REQUIRED 면 Web Worker SHA-256 계산 후 Phase 2 호출.
+     */
+    async function runIntentFlow(file, isoPath, allowCreateDirectory) {
         let intent;
         try {
-            intent = await requestIntent(isoPath, file, allowCreateDirectory);
+            intent = await requestIntent(isoPath, file, allowCreateDirectory, null);
         } catch (err) {
-            console.error(TAG, 'intent 실패', err);
-            // MK2 WAVE 2 — intent path nudge (단계 A) 분기.
-            if (err.body && err.body.code === 'NUDGE_REQUIRED' && err.body.nudgeId) {
-                openIntentNudgeModal(err.body, file);
+            handleIntentError(err, file);
+            return;
+        }
+
+        // sealed sum type — type discriminator 로 분기
+        if (intent && intent.type === 'HASH_CHECK_REQUIRED') {
+            // Phase 1.5 — Web Worker SHA-256 계산
+            submitBtn.textContent = 'fingerprint 계산 중… 0%';
+            let clientHash;
+            try {
+                clientHash = await computeFingerprint(file, (progress, processedBytes, totalBytes) => {
+                    const pct = Math.floor(progress * 100);
+                    submitBtn.textContent = `fingerprint 계산 중… ${pct}%`;
+                });
+            } catch (err) {
+                showError('fingerprint 계산 실패 : ' + (err.message || err));
                 submitBtn.disabled = false;
                 submitBtn.textContent = '등록';
                 return;
             }
-            // S4 — body.fieldErrors 를 폼에 매핑.
-            if (window.FormError && err.body) {
-                window.FormError.renderResponse(err.body, { root: form });
-            } else {
-                showError(err.message);
+
+            // Phase 2 — hash 동봉 재호출
+            submitBtn.textContent = '사전 검증 중…';
+            try {
+                intent = await requestIntent(isoPath, file, allowCreateDirectory, clientHash);
+            } catch (err) {
+                handleIntentError(err, file);
+                return;
             }
-            submitBtn.disabled = false;
-            submitBtn.textContent = '등록';
-            return;
+            // Phase 2 응답이 또 HashCheckRequired 면 안 됨 (이론상)
+            if (intent.type !== 'INTENT_TOKEN_ISSUED') {
+                showError('intent 응답 형식 오류 : type=' + intent.type);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '등록';
+                return;
+            }
         }
 
-        // 서버가 반환한 경고는 confirm 으로 사용자 의사 확인
+        // INTENT_TOKEN_ISSUED — 정상 진행
         if (intent.warnings && intent.warnings.length) {
             const msg = intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?';
             if (!confirm(msg)) {
@@ -114,36 +142,70 @@
             }
         }
 
-        // MK2 단계 A — preExistingMatch 사전 경고. 같은 OS 의 동일 isoPath 로 등록됐던 휴지통/Deprecated
-        // 자원이 있을 때 1차 dismiss modal 로 사용자 의사 확인. confirm 으로 단순 대체 (커스텀 modal 추가는 미루는 리팩터).
-        if (intent.preExistingMatch) {
-            const m = intent.preExistingMatch;
-            const stateLabel = m.state || '';
-            const note = `같은 경로에 ${stateLabel} 상태의 자원이 이미 존재합니다.\n` +
-                         `(id=${m.id}, ${m.name || ''} ${m.version || ''})\n\n진행하시겠습니까?`;
-            if (!confirm(note)) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '등록';
-                return;
-            }
-        }
-
-        // 2) 실제 XHR 업로드
         startXhrUpload(file, intent.uploadToken);
-    });
+    }
 
-    async function requestIntent(isoPath, file, allowCreateDirectory) {
+    function handleIntentError(err, file) {
+        console.error(TAG, 'intent 실패', err);
+        if (err.body && err.body.code === 'NUDGE_REQUIRED' && err.body.nudgeId) {
+            openIntentNudgeModal(err.body, file);
+            submitBtn.disabled = false;
+            submitBtn.textContent = '등록';
+            return;
+        }
+        if (window.FormError && err.body) {
+            window.FormError.renderResponse(err.body, { root: form });
+        } else {
+            showError(err.message);
+        }
+        submitBtn.disabled = false;
+        submitBtn.textContent = '등록';
+    }
+
+    // MK2 WAVE 3 — Web Worker 로 SHA-256 계산. Promise resolve = hex string.
+    function computeFingerprint(file, onProgress) {
+        return new Promise((resolve, reject) => {
+            const worker = new Worker('/global/iso-fingerprint-worker.js');
+            const requestId = 'req-' + Date.now();
+            worker.onmessage = (e) => {
+                const msg = e.data || {};
+                if (msg.requestId !== requestId) return;
+                if (msg.error) {
+                    worker.terminate();
+                    reject(new Error(msg.error));
+                    return;
+                }
+                if (msg.fingerprint) {
+                    worker.terminate();
+                    resolve(msg.fingerprint);
+                    return;
+                }
+                if (typeof msg.progress === 'number' && typeof onProgress === 'function') {
+                    onProgress(msg.progress, msg.processedBytes, msg.totalBytes);
+                }
+            };
+            worker.onerror = (e) => {
+                worker.terminate();
+                reject(new Error('Worker error : ' + (e.message || e)));
+            };
+            worker.postMessage({ requestId, file });
+        });
+    }
+
+    async function requestIntent(isoPath, file, allowCreateDirectory, clientHash) {
         // uploadUrl = /management/os/{osId}/iso/upload → 같은 경로에서 /upload-intent 로 파생
         const intentUrl = uploadUrl.replace(/\/upload$/, '/upload-intent');
+        const body = {
+            isoPath,
+            filename: file.name,
+            size: file.size,
+            allowCreateDirectory
+        };
+        if (clientHash) body.clientHash = clientHash;
         const resp = await fetch(intentUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-                isoPath,
-                filename: file.name,
-                size: file.size,
-                allowCreateDirectory
-            })
+            body: JSON.stringify(body)
         });
         if (!resp.ok) {
             // S4 — 응답 body 전체 (fieldErrors 포함) 를 throw 에 부착해 호출자가 FormError.renderResponse 가능.
