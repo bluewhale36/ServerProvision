@@ -71,6 +71,16 @@ public interface BiosRepository extends JpaRepository<BoardBIOS, Long> {
      */
     Optional<BoardBIOS> findFirstByBoardModel_IdAndVersion(Long boardModelId, String version);
 
+    /**
+     * MK2 WAVE 2 — 단계 A intent nudge 후보 수집 (soft-deleted).
+     */
+    List<BoardBIOS> findAllByBoardModel_IdAndVersionAndIsDeletedTrue(Long boardModelId, String version);
+
+    /**
+     * MK2 WAVE 2 — 단계 A intent nudge 후보 수집 (Deprecated 활성).
+     */
+    List<BoardBIOS> findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(Long boardModelId, String version);
+
     // ---- MK2 (단계 B · 해시 충돌 후보) --------------------------------
 
     /**

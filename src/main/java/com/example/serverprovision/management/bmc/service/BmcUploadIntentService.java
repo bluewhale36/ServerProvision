@@ -1,17 +1,21 @@
 package com.example.serverprovision.management.bmc.service;
 
-import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
-import com.example.serverprovision.global.security.PathPolicyService;
-import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
-import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
-import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
+import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.enums.BmcUploadMode;
+import com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException;
 import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
-import com.example.serverprovision.management.common.nudge.dto.PreExistingMatchInfo;
+import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
+import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
+import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeResourceType;
+import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
 import com.example.serverprovision.management.os.exception.InvalidUploadTokenException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,10 +26,13 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -38,9 +45,13 @@ public class BmcUploadIntentService {
     private final com.example.serverprovision.management.bmc.repository.BmcRepository bmcRepository;
     private final TargetDirectoryPolicyService targetDirectoryPolicyService;
     private final PathPolicyService pathPolicyService;
+    private final NudgeRegistry nudgeRegistry;
 
     private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
+    /**
+     * MK2 WAVE 2 — intent 시점 메타 (board, version) 사전 검출. 충돌 시 BmcNudgeRequiredException throw.
+     */
     public BmcUploadIntentResponse issue(Long boardId, BmcUploadIntentRequest request) {
         boardModelRepository.findByIdAndIsDeletedFalse(boardId)
                 .orElseThrow(() -> new BoardModelNotFoundException(boardId));
@@ -49,7 +60,28 @@ public class BmcUploadIntentService {
             throw new DuplicateBmcVersionException(boardId, request.version());
         }
 
-        // S3 — allowlist 검증
+        List<BoardBMC> metaCandidates = collectMetaNudgeCandidates(boardId, request.version());
+        if (!metaCandidates.isEmpty()) {
+            throw new BmcNudgeRequiredException(
+                    "동일한 (보드, 버전) 의 BMC 자원이 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+                    registerIntentNudge(boardId, request, metaCandidates),
+                    toConflictEntries(metaCandidates));
+        }
+
+        return issueAfterNudge(boardId, request);
+    }
+
+    /**
+     * MK2 WAVE 2 — nudge proceed/replace 후 호출. 메타 검사를 건너뛰고 token 발급.
+     */
+    public BmcUploadIntentResponse issueAfterNudge(Long boardId, BmcUploadIntentRequest request) {
+        boardModelRepository.findByIdAndIsDeletedFalse(boardId)
+                .orElseThrow(() -> new BoardModelNotFoundException(boardId));
+
+        if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
+            throw new DuplicateBmcVersionException(boardId, request.version());
+        }
+
         Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
         targetDirectoryPolicyService.validateForIntent(targetDir, request.allowCreateDirectory());
 
@@ -60,14 +92,6 @@ public class BmcUploadIntentService {
         if (request.uploadMode() == BmcUploadMode.FOLDER && request.fileCount() == 0) {
             warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어있을 수 있습니다.");
         }
-
-        // MK2 단계 A — 메타 (boardId, version) 가 같은 기존 자원 (어느 stage 든) 이 존재하면
-        // 단순 안내 modal 용 PreExistingMatchInfo 를 응답에 동봉. 활성 충돌은 위에서 이미 거절했으므로
-        // 본 매칭은 deprecated / soft-deleted 만 매칭된다.
-        PreExistingMatchInfo preExistingMatch = bmcRepository
-                .findFirstByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version())
-                .map(BmcUploadIntentService::toMatch)
-                .orElse(null);
 
         String token = UUID.randomUUID().toString();
         intents.put(token, new Intent(
@@ -80,15 +104,60 @@ public class BmcUploadIntentService {
                 request.entrypointRelativePath(),
                 Instant.now()
         ));
-        return new BmcUploadIntentResponse(token, warnings, preExistingMatch);
+        // preExistingMatch 는 deprecated — meta 충돌은 이제 NUDGE_REQUIRED 로 분기되므로 항상 null.
+        return new BmcUploadIntentResponse(token, warnings, null);
     }
 
-    private static PreExistingMatchInfo toMatch(BoardBMC entity) {
-        return new PreExistingMatchInfo(
-                entity.getId(),
-                LifecycleStage.of(entity.isDeprecated(), entity.isDeleted()),
-                entity.getName(),
-                entity.getVersion()
+    private List<BoardBMC> collectMetaNudgeCandidates(Long boardId, String version) {
+        return Stream.concat(
+                        bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, version).stream(),
+                        bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(boardId, version).stream())
+                .toList();
+    }
+
+    private NudgeSession registerIntentNudge(Long boardId, BmcUploadIntentRequest request, List<BoardBMC> candidates) {
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put("boardId", String.valueOf(boardId));
+        attributes.put("version", request.version());
+        attributes.put("targetDirectory", request.targetDirectory());
+        attributes.put("uploadMode", request.uploadMode().name());
+        attributes.put("fileCount", String.valueOf(request.fileCount()));
+        attributes.put("totalBytes", String.valueOf(request.totalBytes()));
+        attributes.put("allowCreateDirectory", String.valueOf(request.allowCreateDirectory()));
+        if (request.entrypointRelativePath() != null) {
+            attributes.put("entrypointRelativePath", request.entrypointRelativePath());
+        }
+        return nudgeRegistry.register(
+                NudgeResourceType.BMC,
+                boardId,
+                candidates.stream().map(BoardBMC::getId).toList(),
+                new IntentMetaNudgePayload(attributes));
+    }
+
+    private List<NudgeConflictEntry> toConflictEntries(List<BoardBMC> candidates) {
+        return candidates.stream()
+                .map(b -> new NudgeConflictEntry(
+                        b.getId(),
+                        LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
+                        b.getManifestHash(),
+                        b.getName(),
+                        b.getVersion(),
+                        Instant.now()))
+                .toList();
+    }
+
+    /**
+     * MK2 WAVE 2 — IntentMetaNudgePayload.attributes 로부터 BmcUploadIntentRequest 재구성.
+     */
+    public BmcUploadIntentRequest reconstructRequestFromAttributes(Map<String, String> attributes) {
+        return new BmcUploadIntentRequest(
+                attributes.get("targetDirectory"),
+                BmcUploadMode.valueOf(attributes.get("uploadMode")),
+                Integer.parseInt(attributes.get("fileCount")),
+                Long.parseLong(attributes.get("totalBytes")),
+                attributes.get("version"),
+                Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false")),
+                attributes.getOrDefault("entrypointRelativePath", "")
         );
     }
 

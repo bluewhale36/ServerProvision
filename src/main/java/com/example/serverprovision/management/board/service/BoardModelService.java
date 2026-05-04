@@ -130,12 +130,9 @@ public class BoardModelService {
                 NudgeResourceType.BOARD_MODEL,
                 null,
                 candidates.stream().map(BoardModel::getId).toList(),
-                new NudgeSession.PendingPayload(
-                        request.modelName(),
-                        null,
-                        null,
-                        null,
+                new com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload(
                         Map.of(
+                                "modelName", request.modelName(),
                                 "vendor", request.vendor().name(),
                                 "description", request.description() != null ? request.description() : ""
                         )
@@ -169,9 +166,12 @@ public class BoardModelService {
      */
     @Transactional
     public Long completePendingBoardFromNudge(NudgeSession session) {
-        NudgeSession.PendingPayload payload = session.pendingPayload();
+        if (!(session.payload() instanceof com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload payload)) {
+            throw new IllegalBoardModelStateException(
+                    "BoardModel nudge 세션은 IntentMetaNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
+        }
         Vendor vendor = Vendor.valueOf(payload.attributes().get("vendor"));
-        String modelName = payload.name();
+        String modelName = payload.attributes().get("modelName");
         if (boardModelRepository.existsByVendorAndModelNameAndIsDeletedFalse(vendor, modelName)) {
             // race — 다른 트랜잭션이 같은 메타로 활성 자원을 만든 경우.
             List<BoardModel> activeDeprecated =

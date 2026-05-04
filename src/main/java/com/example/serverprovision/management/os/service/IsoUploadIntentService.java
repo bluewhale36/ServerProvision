@@ -1,5 +1,12 @@
 package com.example.serverprovision.management.os.service;
 
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
+import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeResourceType;
+import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
+import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.common.nudge.dto.PreExistingMatchInfo;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
@@ -8,6 +15,7 @@ import com.example.serverprovision.management.os.exception.DirectoryMissingExcep
 import com.example.serverprovision.management.os.exception.InsufficientDiskSpaceException;
 import com.example.serverprovision.management.os.exception.InvalidUploadTokenException;
 import com.example.serverprovision.management.os.exception.DuplicateFilenameException;
+import com.example.serverprovision.management.os.exception.IsoNudgeRequiredException;
 import com.example.serverprovision.management.os.exception.IsoUploadIntentConflictException;
 import com.example.serverprovision.management.os.exception.OSImageNotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
@@ -25,7 +33,9 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,6 +57,7 @@ public class IsoUploadIntentService {
 
     private final OSImageRepository osImageRepository;
     private final ISORepository isoRepository;
+    private final NudgeRegistry nudgeRegistry;
 
     private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
@@ -70,6 +81,15 @@ public class IsoUploadIntentService {
         if (existingSamePath.isPresent()) {
             throw new IsoUploadIntentConflictException(
                     "같은 경로에 이미 등록된 ISO 가 있습니다 : " + resolvedPath);
+        }
+
+        // MK2 WAVE 2 — 단계 A : 같은 (osImageId, isoPath) 의 soft-deleted/Deprecated 후보 → NUDGE_REQUIRED.
+        List<ISO> intentNudgeCandidates = isoRepository.findIntentPathNudgeCandidates(osImageId, resolvedPath);
+        if (!intentNudgeCandidates.isEmpty()) {
+            NudgeSession session = registerIntentNudge(osImageId, resolvedPath, request, intentNudgeCandidates);
+            throw new IsoNudgeRequiredException(
+                    "동일한 경로의 ISO 가 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+                    NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(intentNudgeCandidates), session.expiresAt()));
         }
 
         // 하드 블록 : 파일시스템 상 동일 이름 파일이 실재 — 덮어쓰기 방지
@@ -149,5 +169,77 @@ public class IsoUploadIntentService {
 
     public int size() { return intents.size(); }
 
+    /**
+     * MK2 WAVE 2 — nudge proceed/replace 후 호출. 메타 path 검사 skip + intent 발급.
+     * 호출자가 IntentMetaNudgePayload.attributes 로부터 IsoUploadIntentRequest 를 reconstruct 해서 전달.
+     */
+    public IsoUploadIntentResponse issueAfterNudge(Long osImageId, IsoUploadIntentRequest request) {
+        // 부모 OS 존재 확인
+        osImageRepository.findByIdAndIsDeletedFalse(osImageId)
+                .orElseThrow(() -> new OSImageNotFoundException(osImageId));
+
+        String resolvedPath = IsoPathResolver.resolve(
+                request.isoPath(),
+                request.filename(),
+                p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + p));
+
+        // 활성 동일 경로 race 방어 재검사
+        if (isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(osImageId, resolvedPath).isPresent()) {
+            throw new IsoUploadIntentConflictException(
+                    "같은 경로에 이미 등록된 ISO 가 있습니다 : " + resolvedPath);
+        }
+
+        List<String> warnings = new ArrayList<>();
+        if (request.size() == 0) {
+            warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+        }
+
+        String token = UUID.randomUUID().toString();
+        intents.put(token, new Intent(osImageId, resolvedPath, request.filename(), request.size(), Instant.now()));
+        return new IsoUploadIntentResponse(token, warnings, null);
+    }
+
+    private NudgeSession registerIntentNudge(Long osImageId, String resolvedPath,
+                                              IsoUploadIntentRequest request, List<ISO> candidates) {
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put("osImageId", String.valueOf(osImageId));
+        attributes.put("isoPath", request.isoPath());
+        attributes.put("resolvedPath", resolvedPath);
+        attributes.put("filename", request.filename() != null ? request.filename() : "");
+        attributes.put("size", String.valueOf(request.size()));
+        attributes.put("allowCreateDirectory", String.valueOf(request.allowCreateDirectory()));
+        return nudgeRegistry.register(
+                NudgeResourceType.OS_ISO,
+                osImageId,
+                candidates.stream().map(ISO::getId).toList(),
+                new IntentMetaNudgePayload(attributes));
+    }
+
+    private List<NudgeConflictEntry> toConflictEntries(List<ISO> candidates) {
+        return candidates.stream()
+                .map(c -> new NudgeConflictEntry(
+                        c.getId(),
+                        LifecycleStage.of(c.isDeprecated(), c.isDeleted()),
+                        c.getManifestHash(),
+                        c.getOsImage().getOsVersion(),
+                        c.getIsoPath(),
+                        Instant.now()))
+                .toList();
+    }
+
+    /** MK2 WAVE 2 — IntentMetaNudgePayload.attributes 로부터 (osImageId, IsoUploadIntentRequest) 재구성. */
+    public IntentReissue reconstructFromAttributes(Map<String, String> attributes) {
+        Long osImageId = Long.parseLong(attributes.get("osImageId"));
+        IsoUploadIntentRequest request = new IsoUploadIntentRequest(
+                attributes.get("isoPath"),
+                attributes.getOrDefault("filename", ""),
+                Long.parseLong(attributes.getOrDefault("size", "0")),
+                Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false"))
+        );
+        return new IntentReissue(osImageId, request);
+    }
+
     public record Intent(Long osImageId, String isoPath, String filename, long expectedSize, Instant issuedAt) {}
+
+    public record IntentReissue(Long osImageId, IsoUploadIntentRequest request) {}
 }

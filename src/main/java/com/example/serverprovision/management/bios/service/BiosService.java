@@ -163,7 +163,7 @@ public class BiosService {
                         NudgeResourceType.BIOS,
                         boardId,
                         hashCandidates.stream().map(BoardBIOS::getId).toList(),
-                        new NudgeSession.PendingPayload(
+                        new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
                                 request.name(),
                                 request.version(),
                                 manifest.manifestHash(),
@@ -385,7 +385,7 @@ public class BiosService {
      * 세션에서 가져와 전달한다.
      */
     @Transactional
-    public Long persistFromNudge(Long boardId, NudgeSession.PendingPayload payload) {
+    public Long persistFromNudge(Long boardId, com.example.serverprovision.management.common.nudge.ContentNudgePayload payload) {
         BoardModel parent = requireActiveBoard(boardId);
         // 활성 (board, version) 재검증 — replace 트랜잭션이 외부에서 별도 commit 됐을 수 있으므로.
         if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, payload.version())) {

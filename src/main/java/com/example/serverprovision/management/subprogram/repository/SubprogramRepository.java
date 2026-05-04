@@ -148,4 +148,38 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
                                     @Param("boardId") Long boardId,
                                     @Param("name") String name,
                                     @Param("version") String version);
+
+    /* ───── MK2 WAVE 2 — intent 메타 nudge 후보 (soft-deleted + Deprecated) ───── */
+
+    @Query("""
+            select s from Subprogram s
+            where s.kind = :kind
+              and (
+                    (:boardId is null and s.boardModel is null)
+                 or (s.boardModel.id = :boardId)
+              )
+              and s.name = :name
+              and s.version = :version
+              and (s.isDeleted = true or s.isDeprecated = true)
+            """)
+    List<Subprogram> findIntentNudgeCandidates(@Param("kind") SubprogramKind kind,
+                                               @Param("boardId") Long boardId,
+                                               @Param("name") String name,
+                                               @Param("version") String version);
+
+    /* ───── MK2 WAVE 2 — hash 충돌 후보 (soft-deleted + Deprecated, 같은 scope) ───── */
+
+    @Query("""
+            select s from Subprogram s
+            where s.kind = :kind
+              and (
+                    (:boardId is null and s.boardModel is null)
+                 or (s.boardModel.id = :boardId)
+              )
+              and s.manifestHash = :manifestHash
+              and (s.isDeleted = true or s.isDeprecated = true)
+            """)
+    List<Subprogram> findHashConflictCandidates(@Param("kind") SubprogramKind kind,
+                                                @Param("boardId") Long boardId,
+                                                @Param("manifestHash") String manifestHash);
 }

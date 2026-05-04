@@ -257,6 +257,32 @@ public class BiosController {
         return ResponseEntity.noContent().build();
     }
 
+    // ==== MK2 WAVE 2 — Intent (단계 A) Nudge confirm 엔드포인트 =========
+    //  intent 시점 메타 충돌 nudge 의 confirm. proceed/replace 는 새 upload-intent token 을 반환해
+    //  클라이언트가 정상 업로드 흐름으로 즉시 복귀.
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse intentNudgeProceed(
+            @PathVariable("nudgeId") java.util.UUID nudgeId) {
+        return biosNudgeService.proceedIntent(nudgeId);
+    }
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/replace")
+    @ResponseBody
+    public com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse intentNudgeReplace(
+            @PathVariable("nudgeId") java.util.UUID nudgeId,
+            @RequestParam("targetId") Long targetId) {
+        return biosNudgeService.replaceIntent(nudgeId, targetId);
+    }
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> intentNudgeCancel(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        biosNudgeService.cancelIntent(nudgeId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ==== 무결성 / marker 관리 ==========================================
 
     /**

@@ -142,6 +142,13 @@
             });
         } catch (err) {
             console.error(TAG, 'intent 실패', err);
+            // MK2 WAVE 2 — intent 시점 메타 nudge (단계 A) 분기. proceed/replace 시 새 token 받아 자동 업로드 재개.
+            if (err.body && err.body.code === 'NUDGE_REQUIRED' && err.body.nudgeId) {
+                openIntentNudgeModal(err.body, commonFields);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '번들 등록';
+                return;
+            }
             // S4 — 응답 body 의 fieldErrors 를 폼에 매핑 + banner 노출.
             if (window.FormError && err.body) {
                 window.FormError.renderResponse(err.body, { root: form });
@@ -458,6 +465,125 @@
                 });
             } catch (err) {
                 console.warn(TAG, 'cancel 호출 실패 (무시) :', err);
+            } finally {
+                closeModal();
+                showError('업로드를 취소했습니다.');
+            }
+        };
+    }
+
+    // ---- MK2 WAVE 2 — intent (단계 A) nudge modal ---------------------
+    //  단계 B (해시 nudge) 의 openNudgeModal 과 UI 는 동일하지만 endpoint base 와 후속 동작만 다름:
+    //   · proceed/replace → 새 uploadToken 수신 → 그 token 으로 자동 업로드 시작
+    //   · cancel → 폼 상태만 복구 (임시 파일 없음)
+
+    function openIntentNudgeModal(body, commonFields) {
+        const modal       = document.getElementById('biosNudgeModal');
+        const conflicts   = document.getElementById('biosNudgeConflictsList');
+        const proceedBtn  = document.getElementById('biosNudgeProceedBtn');
+        const replaceBtn  = document.getElementById('biosNudgeReplaceBtn');
+        const cancelBtn   = document.getElementById('biosNudgeCancelBtn');
+        if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
+            showError('nudge modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+            return;
+        }
+        // 단계 B 의 baseUrl (`.../nudge`) 을 단계 A 용 `.../intent-nudge` 로 치환.
+        const contentBase = modal.dataset.confirmBaseUrl || '';
+        const intentBase  = contentBase.replace(/\/nudge$/, '/intent-nudge');
+        const nudgeId = body.nudgeId;
+        let selectedTargetId = null;
+
+        conflicts.innerHTML = '';
+        (body.conflicts || []).forEach(entry => {
+            const li = document.createElement('li');
+            li.style.padding = '8px 12px';
+            li.style.borderBottom = '1px solid var(--n-border, #e0e0e0)';
+            li.innerHTML =
+                '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
+                '  <input type="radio" name="biosIntentNudgeTarget" value="' + entry.id + '">' +
+                '  <span><strong>' + escapeHtml(entry.name) + '</strong> · v' + escapeHtml(entry.version) +
+                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                '</label>';
+            conflicts.appendChild(li);
+        });
+        replaceBtn.disabled = true;
+        conflicts.querySelectorAll('input[name="biosIntentNudgeTarget"]').forEach(input => {
+            input.addEventListener('change', () => {
+                selectedTargetId = input.value;
+                replaceBtn.disabled = false;
+            });
+        });
+
+        modal.hidden = false;
+
+        const closeModal = () => {
+            modal.hidden = true;
+            proceedBtn.onclick = null;
+            replaceBtn.onclick = null;
+            cancelBtn.onclick = null;
+        };
+
+        // 단계 A 의 후속 — 새 uploadToken 받아 즉시 업로드 시작.
+        const handleIntentReissued = (intent) => {
+            closeModal();
+            if (intent.warnings && intent.warnings.length) {
+                const msg = intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?';
+                if (!confirm(msg)) {
+                    showError('업로드를 취소했습니다.');
+                    return;
+                }
+            }
+            startXhrUpload(intent.uploadToken, commonFields);
+        };
+
+        proceedBtn.onclick = async () => {
+            disableNudgeButtons(true);
+            try {
+                const resp = await fetch(intentBase + '/' + nudgeId + '/proceed', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const respBody = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeButtons(false);
+                    return;
+                }
+                handleIntentReissued(respBody);
+            } catch (err) {
+                showError('네트워크 오류 : ' + err.message);
+                disableNudgeButtons(false);
+            }
+        };
+
+        replaceBtn.onclick = async () => {
+            if (!selectedTargetId) return;
+            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
+            disableNudgeButtons(true);
+            try {
+                const resp = await fetch(intentBase + '/' + nudgeId + '/replace?targetId=' + encodeURIComponent(selectedTargetId), {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const respBody = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    disableNudgeButtons(false);
+                    return;
+                }
+                handleIntentReissued(respBody);
+            } catch (err) {
+                showError('네트워크 오류 : ' + err.message);
+                disableNudgeButtons(false);
+            }
+        };
+
+        cancelBtn.onclick = async () => {
+            disableNudgeButtons(true);
+            try {
+                await fetch(intentBase + '/' + nudgeId + '/cancel', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+            } catch (err) {
+                console.warn(TAG, 'intent cancel 호출 실패 (무시) :', err);
             } finally {
                 closeModal();
                 showError('업로드를 취소했습니다.');

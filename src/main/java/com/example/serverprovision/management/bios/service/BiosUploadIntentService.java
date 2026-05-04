@@ -3,11 +3,18 @@ package com.example.serverprovision.management.bios.service;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
+import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
+import com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
+import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeResourceType;
+import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
 import com.example.serverprovision.management.common.nudge.dto.PreExistingMatchInfo;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -21,10 +28,13 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
 
 /**
  * BIOS 번들 업로드 Intent 핸드셰이크. 번들 바이트 전송 이전에 하드 조건을 검증하고 1회용 토큰을 발급.
@@ -40,14 +50,47 @@ public class BiosUploadIntentService {
     private final BiosRepository biosRepository;
     private final TargetDirectoryPolicyService targetDirectoryPolicyService;
     private final PathPolicyService pathPolicyService;
+    private final NudgeRegistry nudgeRegistry;
 
     private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
+    /**
+     * MK2 WAVE 2 — intent 시점에 (board, version) 메타 키로 SoftDeleted/Deprecated 자원 사전 검출.
+     *
+     * <p>충돌 발견 시 {@link BiosNudgeRequiredException} (단계 A) 으로 throw 해 클라이언트가 임시 파일
+     * 업로드 자체를 시작하지 않도록 한다. proceed/replace 시 {@link #issueAfterNudge}
+     * 가 메타 검사를 건너뛰고 token 을 재발급한다.</p>
+     */
     public BiosUploadIntentResponse issue(Long boardId, BiosUploadIntentRequest request) {
         boardModelRepository.findByIdAndIsDeletedFalse(boardId)
                 .orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
         // 활성 동일 (board, version) 중복 — 하드 거절
+        if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
+            throw new DuplicateBiosVersionException(boardId, request.version());
+        }
+
+        // MK2 WAVE 2 (단계 A) — 메타 충돌 사전 검출. SoftDeleted / Deprecated 모두 conflicts 에 포함.
+        List<BoardBIOS> metaCandidates = collectMetaNudgeCandidates(boardId, request.version());
+        if (!metaCandidates.isEmpty()) {
+            throw new BiosNudgeRequiredException(
+                    "동일한 (보드, 버전) 의 자원이 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+                    registerIntentNudge(boardId, request, metaCandidates),
+                    toConflictEntries(metaCandidates));
+        }
+
+        return issueAfterNudge(boardId, request);
+    }
+
+    /**
+     * MK2 WAVE 2 — nudge proceed/replace 후 호출. 메타 검사를 건너뛰고 정상 intent 발급 흐름을 수행.
+     * 활성 (board, version) 중복 검사는 race 방어용으로 한 번 더 수행 (replace 가 별도 트랜잭션이라
+     * 그 사이 다른 사용자가 활성 자원을 만들 수도 있음).
+     */
+    public BiosUploadIntentResponse issueAfterNudge(Long boardId, BiosUploadIntentRequest request) {
+        boardModelRepository.findByIdAndIsDeletedFalse(boardId)
+                .orElseThrow(() -> new BoardModelNotFoundException(boardId));
+
         if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
             throw new DuplicateBiosVersionException(boardId, request.version());
         }
@@ -65,19 +108,6 @@ public class BiosUploadIntentService {
             warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어있을 수 있습니다.");
         }
 
-        // MK2 (단계 A) — 메타가 같은 기존 자원 사전 매칭. SoftDeleted/Deprecated/Active 무관.
-        // 활성 (board, version) 은 위에서 이미 거절했으므로 본 lookup 의 ACTIVE 매칭은 발생하지 않는다 —
-        // 결과는 항상 SoftDeleted 또는 Deprecated. 사용자에게 "휴지통/Deprecated 에 같은 메타가 있으니
-        // 진행하면 단계 B 에서 nudge 결정이 필요할 수 있다" 안내용.
-        PreExistingMatchInfo preExistingMatch = biosRepository
-                .findFirstByBoardModel_IdAndVersion(boardId, request.version())
-                .map(b -> new PreExistingMatchInfo(
-                        b.getId(),
-                        LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-                        b.getName(),
-                        b.getVersion()))
-                .orElse(null);
-
         String token = UUID.randomUUID().toString();
         intents.put(token, new Intent(
                 boardId,
@@ -89,10 +119,64 @@ public class BiosUploadIntentService {
                 request.entrypointRelativePath(),
                 Instant.now()
         ));
-        log.info("[BiosUploadIntentService] issued token={}, boardId={}, mode={}, target={}, preExisting={}",
-                token, boardId, request.uploadMode(), request.targetDirectory(),
-                preExistingMatch != null ? preExistingMatch.id() : null);
-        return new BiosUploadIntentResponse(token, warnings, preExistingMatch);
+        log.info("[BiosUploadIntentService] issued token={}, boardId={}, mode={}, target={}",
+                token, boardId, request.uploadMode(), request.targetDirectory());
+        // preExistingMatch 는 deprecated — meta 충돌은 이제 NUDGE_REQUIRED 로 분기되므로 항상 null.
+        return new BiosUploadIntentResponse(token, warnings, null);
+    }
+
+    private List<BoardBIOS> collectMetaNudgeCandidates(Long boardId, String version) {
+        return Stream.concat(
+                        biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, version).stream(),
+                        biosRepository.findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(boardId, version).stream())
+                .toList();
+    }
+
+    private NudgeSession registerIntentNudge(Long boardId, BiosUploadIntentRequest request, List<BoardBIOS> candidates) {
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put("boardId", String.valueOf(boardId));
+        attributes.put("version", request.version());
+        attributes.put("targetDirectory", request.targetDirectory());
+        attributes.put("uploadMode", request.uploadMode().name());
+        attributes.put("fileCount", String.valueOf(request.fileCount()));
+        attributes.put("totalBytes", String.valueOf(request.totalBytes()));
+        attributes.put("allowCreateDirectory", String.valueOf(request.allowCreateDirectory()));
+        if (request.entrypointRelativePath() != null) {
+            attributes.put("entrypointRelativePath", request.entrypointRelativePath());
+        }
+        return nudgeRegistry.register(
+                NudgeResourceType.BIOS,
+                boardId,
+                candidates.stream().map(BoardBIOS::getId).toList(),
+                new IntentMetaNudgePayload(attributes));
+    }
+
+    private List<NudgeConflictEntry> toConflictEntries(List<BoardBIOS> candidates) {
+        return candidates.stream()
+                .map(b -> new NudgeConflictEntry(
+                        b.getId(),
+                        LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
+                        b.getManifestHash(),
+                        b.getName(),
+                        b.getVersion(),
+                        Instant.now()))
+                .toList();
+    }
+
+    /**
+     * MK2 WAVE 2 — IntentMetaNudgePayload 의 attributes 로부터 BiosUploadIntentRequest 재구성.
+     * BiosNudgeService 의 proceedIntent / replaceIntent 가 호출.
+     */
+    public BiosUploadIntentRequest reconstructRequestFromAttributes(Map<String, String> attributes) {
+        return new BiosUploadIntentRequest(
+                attributes.get("targetDirectory"),
+                BiosUploadMode.valueOf(attributes.get("uploadMode")),
+                Integer.parseInt(attributes.get("fileCount")),
+                Long.parseLong(attributes.get("totalBytes")),
+                attributes.get("version"),
+                Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false")),
+                attributes.getOrDefault("entrypointRelativePath", "")
+        );
     }
 
     public Intent consume(Long boardId, String token) {

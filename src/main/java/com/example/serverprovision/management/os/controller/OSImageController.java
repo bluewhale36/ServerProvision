@@ -470,6 +470,30 @@ public class OSImageController {
         return ResponseEntity.noContent().build();
     }
 
+    // ==== MK2 WAVE 2 — ISO intent path Nudge confirm ====================
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse intentNudgeProceed(
+            @PathVariable("nudgeId") java.util.UUID nudgeId) {
+        return osNudgeService.proceedIntent(nudgeId);
+    }
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/replace")
+    @ResponseBody
+    public com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse intentNudgeReplace(
+            @PathVariable("nudgeId") java.util.UUID nudgeId,
+            @RequestParam("targetId") Long targetId) {
+        return osNudgeService.replaceIntent(nudgeId, targetId);
+    }
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> intentNudgeCancel(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        osNudgeService.cancelIntent(nudgeId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ==== ISO 무결성 검증 / 마커 재발급 (BIOS 와 동일 패턴) ===========
 
     /**

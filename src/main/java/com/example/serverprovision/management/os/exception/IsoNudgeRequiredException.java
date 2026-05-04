@@ -15,4 +15,9 @@ public class IsoNudgeRequiredException extends NudgeRequiredException {
     public IsoNudgeRequiredException(NudgeRequiredResponse payload) {
         super("동일한 해시의 자원이 휴지통/Deprecated 에 존재합니다. (nudgeId=" + payload.nudgeId() + ")", payload);
     }
+
+    /** 단계 A (intent path 충돌) 생성자. */
+    public IsoNudgeRequiredException(String message, NudgeRequiredResponse payload) {
+        super(message, payload);
+    }
 }

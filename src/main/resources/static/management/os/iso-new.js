@@ -86,6 +86,13 @@
             intent = await requestIntent(isoPath, file, allowCreateDirectory);
         } catch (err) {
             console.error(TAG, 'intent 실패', err);
+            // MK2 WAVE 2 — intent path nudge (단계 A) 분기.
+            if (err.body && err.body.code === 'NUDGE_REQUIRED' && err.body.nudgeId) {
+                openIntentNudgeModal(err.body, file);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '등록';
+                return;
+            }
             // S4 — body.fieldErrors 를 폼에 매핑.
             if (window.FormError && err.body) {
                 window.FormError.renderResponse(err.body, { root: form });
@@ -408,6 +415,118 @@
     function hideNudgeModal() {
         const modal = document.getElementById('nudgeModal');
         if (modal) modal.hidden = true;
+    }
+
+    // ---- MK2 WAVE 2 — intent (단계 A) path nudge modal ----------------
+    //  intent fail 에서 호출됨. proceed/replace 시 새 uploadToken 받아 즉시 업로드 시작.
+    function openIntentNudgeModal(payload, file) {
+        const modal = document.getElementById('nudgeModal');
+        if (!modal) {
+            showError('nudge modal element 가 페이지에 없습니다.');
+            return;
+        }
+        const intentBase = '/management/os/intent-nudge';
+        const list = document.getElementById('nudgeConflictsList');
+        const proceedBtn = document.getElementById('nudgeProceedBtn');
+        const replaceBtn = document.getElementById('nudgeReplaceBtn');
+        const cancelBtn  = document.getElementById('nudgeCancelBtn');
+        const backdrop   = document.getElementById('nudgeBackdrop');
+        if (!list || !proceedBtn || !replaceBtn || !cancelBtn) {
+            showError('nudge modal 구성 요소가 없습니다.');
+            return;
+        }
+
+        let selectedTargetId = null;
+        list.innerHTML = '';
+        (payload.conflicts || []).forEach(entry => {
+            const li = document.createElement('li');
+            li.style.padding = '8px 12px';
+            li.style.borderBottom = '1px solid var(--n-border, #e0e0e0)';
+            li.innerHTML =
+                '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
+                '  <input type="radio" name="isoIntentNudgeTarget" value="' + entry.id + '">' +
+                '  <span><strong>' + escapeHtml(entry.name) + '</strong> · v' + escapeHtml(entry.version) +
+                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                '</label>';
+            list.appendChild(li);
+        });
+        replaceBtn.disabled = true;
+        list.querySelectorAll('input[name="isoIntentNudgeTarget"]').forEach(input => {
+            input.addEventListener('change', () => {
+                selectedTargetId = input.value;
+                replaceBtn.disabled = false;
+            });
+        });
+
+        modal.hidden = false;
+
+        const reissue = (intent) => {
+            hideNudgeModal();
+            if (intent.warnings && intent.warnings.length) {
+                if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
+                    showError('업로드를 취소했습니다.');
+                    return;
+                }
+            }
+            startXhrUpload(file, intent.uploadToken);
+        };
+
+        proceedBtn.onclick = async () => {
+            disableIntentBtns(true);
+            try {
+                const resp = await fetch(intentBase + '/' + payload.nudgeId + '/proceed', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const body = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    showError(body.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    disableIntentBtns(false);
+                    return;
+                }
+                reissue(body);
+            } catch (e) {
+                showError('네트워크 오류 : ' + e.message);
+                disableIntentBtns(false);
+            }
+        };
+        replaceBtn.onclick = async () => {
+            if (!selectedTargetId) return;
+            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
+            disableIntentBtns(true);
+            try {
+                const resp = await fetch(intentBase + '/' + payload.nudgeId + '/replace?targetId=' + encodeURIComponent(selectedTargetId), {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const body = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    showError(body.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    disableIntentBtns(false);
+                    return;
+                }
+                reissue(body);
+            } catch (e) {
+                showError('네트워크 오류 : ' + e.message);
+                disableIntentBtns(false);
+            }
+        };
+        cancelBtn.onclick = async () => {
+            disableIntentBtns(true);
+            try {
+                await fetch(intentBase + '/' + payload.nudgeId + '/cancel', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+            } catch (_) { /* ignore */ }
+            hideNudgeModal();
+            showError('업로드를 취소했습니다.');
+        };
+        if (backdrop) backdrop.onclick = cancelBtn.onclick;
+    }
+
+    function disableIntentBtns(disabled) {
+        ['nudgeProceedBtn', 'nudgeReplaceBtn', 'nudgeCancelBtn'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = disabled;
+        });
     }
 
     function escapeHtml(s) {

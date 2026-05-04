@@ -24,9 +24,16 @@ import com.example.serverprovision.management.subprogram.dto.response.Subprogram
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
 import com.example.serverprovision.management.subprogram.enums.SubprogramUploadMode;
+import com.example.serverprovision.management.common.nudge.ContentNudgePayload;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeResourceType;
+import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.subprogram.exception.DuplicateSubprogramVersionException;
 import com.example.serverprovision.management.subprogram.exception.IllegalSubprogramStateException;
 import com.example.serverprovision.management.subprogram.exception.SubprogramNotFoundException;
+import com.example.serverprovision.management.subprogram.exception.SubprogramNudgeRequiredException;
 import com.example.serverprovision.management.subprogram.exception.SubprogramPathConflictException;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
 import com.example.serverprovision.management.subprogram.vo.BoardScope;
@@ -64,6 +71,7 @@ public class SubprogramService {
     private final BundleTreeCleanupService bundleTreeCleanupService;
     private final PathPolicyService pathPolicyService;
     private final EntrypointPolicyService entrypointPolicyService;
+    private final NudgeRegistry nudgeRegistry;
 
     /* ─────────────────────────── 조회 ─────────────────────────── */
 
@@ -200,6 +208,43 @@ public class SubprogramService {
 
             ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
+            // MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated, 같은 scope) 탐지 시 nudge throw.
+            List<Subprogram> hashCandidates = subprogramRepository.findHashConflictCandidates(
+                    kind, scope.isCommon() ? null : scope.boardId(), manifest.manifestHash());
+            if (!hashCandidates.isEmpty()) {
+                NudgeSession session = nudgeRegistry.register(
+                        NudgeResourceType.SUBPROGRAM,
+                        scope.isCommon() ? null : scope.boardId(),
+                        hashCandidates.stream().map(Subprogram::getId).toList(),
+                        new ContentNudgePayload(
+                                request.name(),
+                                request.version(),
+                                manifest.manifestHash(),
+                                targetDir.toString(),
+                                Map.of(
+                                        "kind", kind.name(),
+                                        "scopeCommon", String.valueOf(scope.isCommon()),
+                                        "boardId", scope.isCommon() ? "" : String.valueOf(scope.boardId()),
+                                        "fileCount", String.valueOf(manifest.fileCount()),
+                                        "totalBytes", String.valueOf(manifest.totalBytes()),
+                                        "description", request.description() != null ? request.description() : ""
+                                )
+                        )
+                );
+                List<NudgeConflictEntry> entries = hashCandidates.stream()
+                        .map(s -> new NudgeConflictEntry(
+                                s.getId(),
+                                LifecycleStage.of(s.isDeprecated(), s.isDeleted()),
+                                s.getManifestHash(),
+                                s.getName(),
+                                s.getVersion(),
+                                Instant.now()))
+                        .toList();
+                log.info("[addSubprogram] nudge required : kind={}, scope={}, version={}, candidates={}",
+                        kind, scope.pathToken(), request.version(), hashCandidates.size());
+                throw new SubprogramNudgeRequiredException(session, entries);
+            }
+
             Subprogram saved = subprogramRepository.save(Subprogram.builder()
                     .kind(kind)
                     .boardModel(parent) // null OK (공용)
@@ -232,10 +277,74 @@ public class SubprogramService {
             log.info("[addSubprogram] 등록 완료. id={}, kind={}, scope={}, name={}, version={}",
                     saved.getId(), kind, scope.pathToken(), request.name(), request.version());
             return saved.getId();
+        } catch (SubprogramNudgeRequiredException e) {
+            // MK2 — nudge 결정 대기 동안 임시 트리 보존 (사용자 proceed 시 정식 영속화에 재사용).
+            throw e;
         } catch (RuntimeException e) {
             bundleTreeCleanupService.cleanupFailedUpload(targetDir, "purgeExistingTree", "addSubprogram", e);
             throw e;
         }
+    }
+
+    // ==== MK2 — SubprogramNudgeService 가 사용할 helper =================
+
+    /**
+     * MK2 — nudge proceed/replace 후 임시 트리를 ACTIVE 자원으로 영속화.
+     */
+    @Transactional
+    public Long persistFromNudge(ContentNudgePayload payload) {
+        SubprogramKind kind = SubprogramKind.valueOf(payload.attributes().get("kind"));
+        boolean common = Boolean.parseBoolean(payload.attributes().getOrDefault("scopeCommon", "false"));
+        BoardModel parent = null;
+        if (!common) {
+            Long boardId = Long.parseLong(payload.attributes().get("boardId"));
+            parent = requireActiveBoard(boardId);
+        }
+        Path targetDir = pathPolicyService.assertWritablePath(payload.tempFilePath());
+        int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
+        long totalBytes = Long.parseLong(payload.attributes().getOrDefault("totalBytes", "0"));
+        String description = payload.attributes().getOrDefault("description", "");
+
+        Subprogram saved = subprogramRepository.save(Subprogram.builder()
+                .kind(kind)
+                .boardModel(parent)
+                .name(payload.name())
+                .version(payload.version())
+                .treeRootPath(targetDir.toString())
+                .entrypointRelativePath(null)
+                .manifestHash(payload.manifestHash())
+                .markerSignature(null)
+                .lastIntegrityStatus(IntegrityStatus.NOT_VERIFIED)
+                .fileCount(fileCount)
+                .totalBytes(totalBytes)
+                .description(description)
+                .isEnabled(true)
+                .isDeleted(false)
+                .build());
+
+        BoardScope scope = common ? BoardScope.COMMON : BoardScope.ofBoard(parent.getId());
+        MarkerContent unsigned = new MarkerContent(
+                ResourceType.SUBPROGRAM.name(),
+                saved.getId(),
+                buildMarkerAttributes(kind, scope, payload.name(), payload.version()),
+                Instant.now(),
+                payload.manifestHash(),
+                null
+        );
+        String signature = provisionMarkerService.computeSignature(unsigned);
+        saved.reissueMarker(payload.manifestHash(), signature);
+        provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, unsigned.withSignature(signature));
+
+        log.info("[persistFromNudge.subprogram] id={}, kind={}, scope={}", saved.getId(), kind, scope.pathToken());
+        return saved.getId();
+    }
+
+    /**
+     * MK2 — nudge cancel 시 임시 트리 cleanup.
+     */
+    @Transactional
+    public void purgeNudgeTempTree(Path tempPath) {
+        bundleTreeCleanupService.purgeExistingTree(tempPath, "purgeNudgeTempTree.subprogram");
     }
 
     private Map<String, String> buildMarkerAttributes(SubprogramKind kind, BoardScope scope, String name, String version) {

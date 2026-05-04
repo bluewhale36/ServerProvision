@@ -5,6 +5,8 @@ import com.example.serverprovision.management.common.nudge.NudgeResourceType;
 import com.example.serverprovision.management.common.nudge.NudgeSession;
 import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
 import com.example.serverprovision.management.common.nudge.exception.NudgeAlreadyResolvedException;
+import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
+import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.exception.ISONotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
@@ -41,6 +43,7 @@ public class OsNudgeService {
     private final NudgeRegistry nudgeRegistry;
     private final OSImageService osImageService;
     private final ISORepository isoRepository;
+    private final IsoUploadIntentService isoUploadIntentService;
 
     /**
      * PROCEED — 기존 충돌 후보를 그대로 두고 신규 자원만 ACTIVE 로 등록한다.
@@ -81,9 +84,57 @@ public class OsNudgeService {
      */
     public void cancel(UUID nudgeId) {
         NudgeSession session = requireOsIsoSession(nudgeId);
-        cleanupTempFile(session.pendingPayload().tempFilePath());
+        if (session.payload() instanceof com.example.serverprovision.management.common.nudge.ContentNudgePayload p) {
+            cleanupTempFile(p.tempFilePath());
+        }
         consumeSession(nudgeId);
         log.info("[osNudge] cancel 완료. nudgeId={}", nudgeId);
+    }
+
+    // ---- WAVE 2 (intent path nudge) -----------------------------------
+
+    /** 단계 A intent path nudge proceed — 새 intent token 발급 후 클라이언트에 반환. */
+    public IsoUploadIntentResponse proceedIntent(UUID nudgeId) {
+        NudgeSession session = requireOsIsoSession(nudgeId);
+        IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
+        var reissue = isoUploadIntentService.reconstructFromAttributes(payload.attributes());
+        IsoUploadIntentResponse response = isoUploadIntentService.issueAfterNudge(reissue.osImageId(), reissue.request());
+        consumeSession(nudgeId);
+        log.info("[osNudge.intent.proceed] nudgeId={}, newToken={}", nudgeId, response.uploadToken());
+        return response;
+    }
+
+    /** 단계 A intent path nudge replace — targetId purge 후 새 intent token 발급. */
+    public IsoUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
+        NudgeSession session = requireOsIsoSession(nudgeId);
+        IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
+        if (targetId == null || !session.conflictTargetIds().contains(targetId)) {
+            throw new InvalidReplaceTargetException(targetId);
+        }
+        ISO target = isoRepository.findById(targetId)
+                .orElseThrow(() -> new ISONotFoundException(session.boardId(), targetId));
+        osImageService.purgeIsoForNudge(target);
+        var reissue = isoUploadIntentService.reconstructFromAttributes(payload.attributes());
+        IsoUploadIntentResponse response = isoUploadIntentService.issueAfterNudge(reissue.osImageId(), reissue.request());
+        consumeSession(nudgeId);
+        log.info("[osNudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
+                nudgeId, targetId, response.uploadToken());
+        return response;
+    }
+
+    /** 단계 A intent path nudge cancel — 임시 파일 없으니 세션만 회수. */
+    public void cancelIntent(UUID nudgeId) {
+        NudgeSession session = requireOsIsoSession(nudgeId);
+        requireIntentMetaPayload(session);
+        consumeSession(nudgeId);
+        log.info("[osNudge.intent.cancel] nudgeId={}", nudgeId);
+    }
+
+    private IntentMetaNudgePayload requireIntentMetaPayload(NudgeSession session) {
+        if (!(session.payload() instanceof IntentMetaNudgePayload p)) {
+            throw new com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException(session.nudgeId());
+        }
+        return p;
     }
 
     // ---- 내부 헬퍼 -----------------------------------------------------

@@ -276,6 +276,30 @@ public class SubprogramController {
         return ResponseEntity.noContent().build();
     }
 
+    /* ─── MK2 WAVE 2 — Intent (단계 A) Nudge confirm ─── */
+
+    @PostMapping("/intent-nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse intentNudgeProceed(
+            @PathVariable("nudgeId") UUID nudgeId) {
+        return subprogramNudgeService.proceedIntent(nudgeId);
+    }
+
+    @PostMapping("/intent-nudge/{nudgeId}/replace")
+    @ResponseBody
+    public com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse intentNudgeReplace(
+            @PathVariable("nudgeId") UUID nudgeId,
+            @RequestParam("targetId") Long targetId) {
+        return subprogramNudgeService.replaceIntent(nudgeId, targetId);
+    }
+
+    @PostMapping("/intent-nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> intentNudgeCancel(@PathVariable("nudgeId") UUID nudgeId) {
+        subprogramNudgeService.cancelIntent(nudgeId);
+        return ResponseEntity.noContent().build();
+    }
+
     /* ─────────────────────────── REST: 디렉토리 탐색 ─────────────────────────── */
 
     @GetMapping("/browse")

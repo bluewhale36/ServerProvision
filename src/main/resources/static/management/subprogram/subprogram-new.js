@@ -168,6 +168,13 @@
             }
             startXhrUpload(uploadUrl, intent.uploadToken, commonFields);
         } catch (err) {
+            // MK2 WAVE 2 — intent 메타 nudge (단계 A) 분기.
+            if (err.body && err.body.code === 'NUDGE_REQUIRED' && err.body.nudgeId) {
+                openIntentNudgeModal(err.body, uploadUrl, commonFields);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '번들 등록';
+                return;
+            }
             // S4 — body.fieldErrors 매핑.
             if (window.FormError && err.body) {
                 window.FormError.renderResponse(err.body, { root: form });
@@ -232,6 +239,11 @@
                 document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 lockPage(false);
                 submitBtn.textContent = '번들 등록';
+                // MK2 — 단계 B 해시 충돌 nudge.
+                if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
+                    openContentNudgeModal(body);
+                    return;
+                }
                 if (window.FormError && body) {
                     window.FormError.renderResponse(body, { root: form });
                 } else {
@@ -269,5 +281,160 @@
     function resetError() {
         errorBox.textContent = '';
         errorBox.style.display = '';
+    }
+
+    // ---- MK2 nudge modal -----------------------------------------------
+    //  modal element id prefix = 'subprogramNudge' (subprogram-new.html 의 fragment include 와 일치).
+
+    function bindModalCommon(body, baseUrl) {
+        const modal      = document.getElementById('subprogramNudgeModal');
+        const conflicts  = document.getElementById('subprogramNudgeConflictsList');
+        const proceedBtn = document.getElementById('subprogramNudgeProceedBtn');
+        const replaceBtn = document.getElementById('subprogramNudgeReplaceBtn');
+        const cancelBtn  = document.getElementById('subprogramNudgeCancelBtn');
+        if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
+            showError('nudge modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+            return null;
+        }
+        const nudgeId = body.nudgeId;
+        let selectedTargetId = null;
+
+        conflicts.innerHTML = '';
+        (body.conflicts || []).forEach(entry => {
+            const li = document.createElement('li');
+            li.style.padding = '8px 12px';
+            li.style.borderBottom = '1px solid var(--n-border, #e0e0e0)';
+            li.innerHTML =
+                '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
+                '  <input type="radio" name="subprogramNudgeTarget" value="' + entry.id + '">' +
+                '  <span><strong>' + escapeHtml(entry.name) + '</strong> · v' + escapeHtml(entry.version) +
+                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                '</label>';
+            conflicts.appendChild(li);
+        });
+        replaceBtn.disabled = true;
+        conflicts.querySelectorAll('input[name="subprogramNudgeTarget"]').forEach(input => {
+            input.addEventListener('change', () => {
+                selectedTargetId = input.value;
+                replaceBtn.disabled = false;
+            });
+        });
+
+        modal.hidden = false;
+        const closeModal = () => {
+            modal.hidden = true;
+            proceedBtn.onclick = null;
+            replaceBtn.onclick = null;
+            cancelBtn.onclick = null;
+        };
+        return { baseUrl, nudgeId, getSelectedTargetId: () => selectedTargetId, closeModal,
+                 proceedBtn, replaceBtn, cancelBtn };
+    }
+
+    function openContentNudgeModal(body) {
+        const ctx = bindModalCommon(body, '/management/subprogram/nudge');
+        if (!ctx) return;
+        ctx.proceedBtn.onclick = async () => {
+            disableNudgeBtns(true);
+            try {
+                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/proceed', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                if (!resp.ok) { showError('nudge proceed 실패 (HTTP ' + resp.status + ')'); disableNudgeBtns(false); return; }
+                ctx.closeModal();
+                window.location.href = listUrl;
+            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+        };
+        ctx.replaceBtn.onclick = async () => {
+            const targetId = ctx.getSelectedTargetId();
+            if (!targetId) return;
+            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
+            disableNudgeBtns(true);
+            try {
+                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/replace?targetId=' + encodeURIComponent(targetId), {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                if (!resp.ok) { showError('nudge replace 실패 (HTTP ' + resp.status + ')'); disableNudgeBtns(false); return; }
+                ctx.closeModal();
+                window.location.href = listUrl;
+            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+        };
+        ctx.cancelBtn.onclick = async () => {
+            disableNudgeBtns(true);
+            try {
+                await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/cancel', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+            } catch (e) { /* ignore */ }
+            ctx.closeModal();
+            showError('업로드를 취소했습니다.');
+        };
+    }
+
+    function openIntentNudgeModal(body, uploadUrl, commonFields) {
+        const ctx = bindModalCommon(body, '/management/subprogram/intent-nudge');
+        if (!ctx) return;
+        const handleIntentReissued = (intent) => {
+            ctx.closeModal();
+            if (intent.warnings && intent.warnings.length) {
+                if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
+                    showError('업로드를 취소했습니다.'); return;
+                }
+            }
+            startXhrUpload(uploadUrl, intent.uploadToken, commonFields);
+        };
+
+        ctx.proceedBtn.onclick = async () => {
+            disableNudgeBtns(true);
+            try {
+                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/proceed', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const respBody = await resp.json().catch(() => ({}));
+                if (!resp.ok) { showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')')); disableNudgeBtns(false); return; }
+                handleIntentReissued(respBody);
+            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+        };
+        ctx.replaceBtn.onclick = async () => {
+            const targetId = ctx.getSelectedTargetId();
+            if (!targetId) return;
+            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
+            disableNudgeBtns(true);
+            try {
+                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/replace?targetId=' + encodeURIComponent(targetId), {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+                const respBody = await resp.json().catch(() => ({}));
+                if (!resp.ok) { showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')')); disableNudgeBtns(false); return; }
+                handleIntentReissued(respBody);
+            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+        };
+        ctx.cancelBtn.onclick = async () => {
+            disableNudgeBtns(true);
+            try {
+                await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/cancel', {
+                    method: 'POST', headers: { 'Accept': 'application/json' }
+                });
+            } catch (e) { /* ignore */ }
+            ctx.closeModal();
+            showError('업로드를 취소했습니다.');
+        };
+    }
+
+    function disableNudgeBtns(disabled) {
+        ['subprogramNudgeProceedBtn', 'subprogramNudgeReplaceBtn', 'subprogramNudgeCancelBtn'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = disabled;
+        });
+    }
+
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
     }
 })();

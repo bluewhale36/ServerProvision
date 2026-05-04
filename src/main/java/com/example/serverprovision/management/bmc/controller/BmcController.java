@@ -252,6 +252,30 @@ public class BmcController {
         return ResponseEntity.noContent().build();
     }
 
+    // ==== MK2 WAVE 2 — Intent (단계 A) Nudge confirm =====================
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse intentNudgeProceed(
+            @PathVariable("nudgeId") java.util.UUID nudgeId) {
+        return bmcNudgeService.proceedIntent(nudgeId);
+    }
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/replace")
+    @ResponseBody
+    public com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse intentNudgeReplace(
+            @PathVariable("nudgeId") java.util.UUID nudgeId,
+            @RequestParam("targetId") Long targetId) {
+        return bmcNudgeService.replaceIntent(nudgeId, targetId);
+    }
+
+    @PostMapping(path = "/intent-nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> intentNudgeCancel(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        bmcNudgeService.cancelIntent(nudgeId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping(path = "/{boardId}/bmc/{bmcId}/verify")
     @ResponseBody
     public JobStartResponse verify(@PathVariable("boardId") Long boardId,

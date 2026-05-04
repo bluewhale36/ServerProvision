@@ -27,7 +27,14 @@ import com.example.serverprovision.management.bmc.enums.BmcUploadMode;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
 import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.bmc.exception.IllegalBmcStateException;
+import com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
+import com.example.serverprovision.management.common.nudge.ContentNudgePayload;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeResourceType;
+import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -61,6 +68,7 @@ public class BmcService {
     private final TargetDirectoryPolicyService targetDirectoryPolicyService;
     private final BundleTreeCleanupService bundleTreeCleanupService;
     private final PathPolicyService pathPolicyService;
+    private final NudgeRegistry nudgeRegistry;
 
     public List<BoardWithBmcListResponse> findAllGrouped(boolean includeDeleted) {
         List<BoardModel> boards = includeDeleted
@@ -138,6 +146,40 @@ public class BmcService {
             String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
             ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
+            // MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + 409.
+            List<BoardBMC> hashCandidates = bmcRepository.findHashConflictCandidates(boardId, manifest.manifestHash());
+            if (!hashCandidates.isEmpty()) {
+                NudgeSession session = nudgeRegistry.register(
+                        NudgeResourceType.BMC,
+                        boardId,
+                        hashCandidates.stream().map(BoardBMC::getId).toList(),
+                        new ContentNudgePayload(
+                                request.name(),
+                                request.version(),
+                                manifest.manifestHash(),
+                                targetDir.toString(),
+                                Map.of(
+                                        "entrypointRelativePath", entrypoint,
+                                        "fileCount", String.valueOf(manifest.fileCount()),
+                                        "totalBytes", String.valueOf(manifest.totalBytes()),
+                                        "description", request.description() != null ? request.description() : ""
+                                )
+                        )
+                );
+                List<NudgeConflictEntry> entries = hashCandidates.stream()
+                        .map(b -> new NudgeConflictEntry(
+                                b.getId(),
+                                LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
+                                b.getManifestHash(),
+                                b.getName(),
+                                b.getVersion(),
+                                Instant.now()))
+                        .toList();
+                log.info("[addBmc] nudge required : boardId={}, version={}, candidates={}",
+                        boardId, request.version(), hashCandidates.size());
+                throw new BmcNudgeRequiredException(session, entries);
+            }
+
             BoardBMC saved = bmcRepository.save(BoardBMC.builder()
                     .boardModel(parent)
                     .name(request.name())
@@ -174,10 +216,75 @@ public class BmcService {
             log.info("[addBmc] 등록 완료. bmcId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
                     saved.getId(), boardId, request.version(), manifest.fileCount(), manifest.totalBytes());
             return saved.getId();
+        } catch (BmcNudgeRequiredException e) {
+            // MK2 — nudge 결정 대기 동안 임시 트리는 보존 (사용자 proceed 시 정식 영속화에 재사용).
+            throw e;
         } catch (RuntimeException e) {
             bundleTreeCleanupService.cleanupFailedUpload(targetDir, "purgeExistingTree", "addBMC", e);
             throw e;
         }
+    }
+
+    // ==== MK2 — BmcNudgeService 가 사용할 helper =====================
+
+    /**
+     * MK2 — nudge proceed/replace 후 임시 트리를 ACTIVE 자원으로 영속화.
+     */
+    @Transactional
+    public Long persistFromNudge(Long boardId, ContentNudgePayload payload) {
+        BoardModel parent = requireActiveBoard(boardId);
+        if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, payload.version())) {
+            throw new DuplicateBmcVersionException(boardId, payload.version());
+        }
+        Path targetDir = pathPolicyService.assertWritablePath(payload.tempFilePath());
+        String entrypoint = payload.attributes().getOrDefault("entrypointRelativePath", "");
+        int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
+        long totalBytes = Long.parseLong(payload.attributes().getOrDefault("totalBytes", "0"));
+        String description = payload.attributes().getOrDefault("description", "");
+
+        BoardBMC saved = bmcRepository.save(BoardBMC.builder()
+                .boardModel(parent)
+                .name(payload.name())
+                .version(payload.version())
+                .treeRootPath(targetDir.toString())
+                .legacyFilePath(targetDir.toString())
+                .boardModelIdMirror(parent.getId())
+                .entrypointRelativePath(entrypoint)
+                .manifestHash(payload.manifestHash())
+                .markerSignature(null)
+                .fileCount(fileCount)
+                .totalBytes(totalBytes)
+                .description(description)
+                .isEnabled(true)
+                .isDeleted(false)
+                .build());
+
+        MarkerContent unsigned = new MarkerContent(
+                ResourceType.BMC_FIRMWARE.name(),
+                saved.getId(),
+                Map.of(
+                        "boardId", String.valueOf(boardId),
+                        "version", payload.version(),
+                        "entrypointRelativePath", entrypoint
+                ),
+                Instant.now(),
+                payload.manifestHash(),
+                null
+        );
+        String signature = provisionMarkerService.computeSignature(unsigned);
+        saved.reissueMarker(payload.manifestHash(), signature);
+        provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, unsigned.withSignature(signature));
+
+        log.info("[persistFromNudge.bmc] 영속화 완료. bmcId={}, boardId={}", saved.getId(), boardId);
+        return saved.getId();
+    }
+
+    /**
+     * MK2 — nudge cancel 시 임시 트리 cleanup.
+     */
+    @Transactional
+    public void purgeNudgeTempTree(Path tempPath) {
+        bundleTreeCleanupService.purgeExistingTree(tempPath, "purgeNudgeTempTree.bmc");
     }
 
     @Transactional

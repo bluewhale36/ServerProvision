@@ -188,13 +188,10 @@ public class OSImageService {
                 NudgeResourceType.OS_IMAGE,
                 null,
                 candidates.stream().map(OSImage::getId).toList(),
-                new NudgeSession.PendingPayload(
-                        null,
-                        request.osVersion(),
-                        null,
-                        null,
+                new com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload(
                         Map.of(
                                 "osName", request.osName().name(),
+                                "osVersion", request.osVersion(),
                                 "description", request.description() != null ? request.description() : ""
                         )
                 )
@@ -228,9 +225,12 @@ public class OSImageService {
      */
     @Transactional
     public Long completePendingOSImageFromNudge(NudgeSession session) {
-        NudgeSession.PendingPayload payload = session.pendingPayload();
+        if (!(session.payload() instanceof com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload payload)) {
+            throw new IllegalOSImageStateException(
+                    "OSImage nudge 세션은 IntentMetaNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
+        }
         OSName osName = OSName.valueOf(payload.attributes().get("osName"));
-        String osVersion = payload.version();
+        String osVersion = payload.attributes().get("osVersion");
         // PROCEED — 활성 (osName, osVersion) 가 새로 생기면 안 된다 (race). 재검사.
         if (osImageRepository.existsByOsNameAndOsVersionAndIsDeletedFalse(osName, osVersion)) {
             // race — 다른 트랜잭션이 같은 메타로 활성 자원을 만든 경우. 명시적 fail.
@@ -454,19 +454,20 @@ public class OSImageService {
                 .toList();
         List<Long> conflictIds = dormantConflicts.stream().map(ISO::getId).toList();
 
-        NudgeSession.PendingPayload payload = new NudgeSession.PendingPayload(
-                // OS_ISO 의 name 슬롯에는 isoPath, version 슬롯에는 osVersion 을 담는다 (도메인별 의미 매핑).
-                prepared.resolvedPath(),
-                "",
-                manifestHash,
-                prepared.resolvedPath(),
-                Map.of(
-                        "osImageId", String.valueOf(prepared.osImageId()),
-                        "originalFilename", prepared.originalFilename(),
-                        "description", prepared.description() != null ? prepared.description() : "",
-                        "uploadedFile", String.valueOf(prepared.uploadedFile())
-                )
-        );
+        com.example.serverprovision.management.common.nudge.ContentNudgePayload payload =
+                new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
+                        // OS_ISO 의 name 슬롯에는 isoPath 를 담는다 (도메인별 의미 매핑).
+                        prepared.resolvedPath(),
+                        "",
+                        manifestHash,
+                        prepared.resolvedPath(),
+                        Map.of(
+                                "osImageId", String.valueOf(prepared.osImageId()),
+                                "originalFilename", prepared.originalFilename(),
+                                "description", prepared.description() != null ? prepared.description() : "",
+                                "uploadedFile", String.valueOf(prepared.uploadedFile())
+                        )
+                );
         NudgeSession session = nudgeRegistry.register(
                 NudgeResourceType.OS_ISO,
                 prepared.osImageId(),
@@ -486,7 +487,10 @@ public class OSImageService {
         }
         Long osImageId = session.boardId();
         OSImage parent = requireActiveImage(osImageId);
-        NudgeSession.PendingPayload p = session.pendingPayload();
+        if (!(session.payload() instanceof com.example.serverprovision.management.common.nudge.ContentNudgePayload p)) {
+            throw new IllegalOSImageStateException(
+                    "OS_ISO nudge 세션은 ContentNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
+        }
         Path target = Path.of(p.tempFilePath());
         String manifestHash = p.manifestHash();
         String description = p.attributes().getOrDefault("description", "");

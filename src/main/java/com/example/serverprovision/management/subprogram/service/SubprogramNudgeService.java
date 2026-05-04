@@ -1,31 +1,23 @@
 package com.example.serverprovision.management.subprogram.service;
 
-import com.example.serverprovision.management.common.nudge.NudgeAction;
+import com.example.serverprovision.management.common.nudge.ContentNudgePayload;
+import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
+import com.example.serverprovision.management.common.nudge.NudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
 import com.example.serverprovision.management.common.nudge.NudgeSession;
 import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
-import com.example.serverprovision.management.common.nudge.exception.NudgeAlreadyResolvedException;
+import com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException;
+import com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Path;
 import java.util.UUID;
 
 /**
- * MK2 — Subprogram 도메인 nudge confirm 흐름.
- *
- * <p>{@link NudgeRegistry} 의 단일 진실원에서 세션을 잡고 사용자 결정 ({@link NudgeAction}) 에 따라
- * 도메인 자원 상태를 확정한다 :</p>
- * <ul>
- *   <li>{@link NudgeAction#PROCEED} — 기존 충돌 후보 보존, 새 자원 정식 등록</li>
- *   <li>{@link NudgeAction#REPLACE} — targetId 의 기존 자원을 영구 삭제 후 새 자원 등록</li>
- *   <li>{@link NudgeAction#CANCEL}  — 임시 업로드 cleanup</li>
- * </ul>
- *
- * <p>본 서비스는 {@link NudgeResourceType#SUBPROGRAM} 세션만 수용한다. 세션 도메인이 다른 경우
- * {@link NudgeAlreadyResolvedException} 은 아니지만 별도 검증으로 거절 — 추후 nudge 도메인 통합 검증
- * 인프라가 들어오면 본 메서드는 단순 forwarder 로 축소된다.</p>
+ * MK2 — Subprogram nudge 세션 confirm 핸들러. 두 phase 지원 (BIOS / BMC 와 동일 패턴).
  */
 @Slf4j
 @Service
@@ -34,48 +26,105 @@ public class SubprogramNudgeService {
 
     private final NudgeRegistry nudgeRegistry;
     private final SubprogramService subprogramService;
+    private final SubprogramUploadIntentService subprogramUploadIntentService;
 
-    public void proceed(UUID nudgeId) {
+    // ============================================================
+    // 단계 B (해시 충돌, ContentNudgePayload)
+    // ============================================================
+
+    public Long proceed(UUID nudgeId) {
         NudgeSession session = requireSubprogramSession(nudgeId);
-        // PROCEED — 기존 자원 보존 + 새 자원 정식 등록은 confirm 시점의 pendingPayload 로 처리.
-        // 본 슬라이스의 SubprogramService 등록 경로가 nudge pendingPayload 를 받아 정식화하는 메서드는
-        // 다른 도메인 (BIOS/BMC) 의 pendingPayload 형식이 안착된 뒤 통합 도입한다. 본 메서드는 세션을
-        // 소비하고 호출자가 후속 정식 등록을 별도 수행하도록 한다.
-        consume(session);
-        log.info("[nudge/subprogram] PROCEED 처리. nudgeId={}", nudgeId);
+        ContentNudgePayload payload = requireContentPayload(session);
+        Long id = subprogramService.persistFromNudge(payload);
+        nudgeRegistry.remove(nudgeId);
+        log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
+        return id;
     }
 
-    public void replace(UUID nudgeId, Long targetId) {
+    public Long replace(UUID nudgeId, Long targetId) {
         NudgeSession session = requireSubprogramSession(nudgeId);
-        if (targetId == null || !session.conflictTargetIds().contains(targetId)) {
+        ContentNudgePayload payload = requireContentPayload(session);
+        if (!session.conflictTargetIds().contains(targetId)) {
             throw new InvalidReplaceTargetException(targetId);
         }
-        // REPLACE — 별도 트랜잭션으로 기존 자원 영구 삭제. 이후 정식 등록은 PROCEED 와 동일 후속 경로.
         subprogramService.purge(targetId);
-        consume(session);
-        log.info("[nudge/subprogram] REPLACE 처리. nudgeId={}, targetId={}", nudgeId, targetId);
+        Long id = subprogramService.persistFromNudge(payload);
+        nudgeRegistry.remove(nudgeId);
+        log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
+        return id;
     }
 
     public void cancel(UUID nudgeId) {
         NudgeSession session = requireSubprogramSession(nudgeId);
-        // CANCEL — 임시 업로드 cleanup 책임은 pendingPayload.tempFilePath() 가 있는 경우 호출자가 수행.
-        // 본 슬라이스에서 Subprogram 은 디스크 트리를 정식 경로에 직접 풀므로 별도 임시 cleanup 대상이
-        // 없다 (실패 시는 SubprogramService.addSubprogram 의 catch 가 cleanup 수행). 세션만 제거.
-        consume(session);
-        log.info("[nudge/subprogram] CANCEL 처리. nudgeId={}", nudgeId);
+        ContentNudgePayload payload = requireContentPayload(session);
+        subprogramService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
+        nudgeRegistry.remove(nudgeId);
+        log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
     }
+
+    // ============================================================
+    // 단계 A (intent 메타 충돌, IntentMetaNudgePayload, WAVE 2)
+    // ============================================================
+
+    public SubprogramUploadIntentResponse proceedIntent(UUID nudgeId) {
+        NudgeSession session = requireSubprogramSession(nudgeId);
+        IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
+        var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
+        SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
+                reissue.kind(), reissue.scope(), reissue.request());
+        nudgeRegistry.remove(nudgeId);
+        log.info("[subprogram-nudge.intent.proceed] nudgeId={}, newToken={}", nudgeId, response.uploadToken());
+        return response;
+    }
+
+    public SubprogramUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
+        NudgeSession session = requireSubprogramSession(nudgeId);
+        IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
+        if (!session.conflictTargetIds().contains(targetId)) {
+            throw new InvalidReplaceTargetException(targetId);
+        }
+        subprogramService.purge(targetId);
+        var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
+        SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
+                reissue.kind(), reissue.scope(), reissue.request());
+        nudgeRegistry.remove(nudgeId);
+        log.info("[subprogram-nudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
+                nudgeId, targetId, response.uploadToken());
+        return response;
+    }
+
+    public void cancelIntent(UUID nudgeId) {
+        NudgeSession session = requireSubprogramSession(nudgeId);
+        requireIntentMetaPayload(session);
+        nudgeRegistry.remove(nudgeId);
+        log.info("[subprogram-nudge.intent.cancel] nudgeId={}", nudgeId);
+    }
+
+    // ============================================================
+    // 내부 헬퍼
+    // ============================================================
 
     private NudgeSession requireSubprogramSession(UUID nudgeId) {
         NudgeSession session = nudgeRegistry.require(nudgeId);
         if (session.resourceType() != NudgeResourceType.SUBPROGRAM) {
-            throw new NudgeAlreadyResolvedException(nudgeId);
+            throw new NudgeNotFoundException(nudgeId);
         }
         return session;
     }
 
-    private void consume(NudgeSession session) {
-        if (!nudgeRegistry.remove(session.nudgeId())) {
-            throw new NudgeAlreadyResolvedException(session.nudgeId());
+    private ContentNudgePayload requireContentPayload(NudgeSession session) {
+        return castPayload(session, ContentNudgePayload.class);
+    }
+
+    private IntentMetaNudgePayload requireIntentMetaPayload(NudgeSession session) {
+        return castPayload(session, IntentMetaNudgePayload.class);
+    }
+
+    private <T extends NudgePayload> T castPayload(NudgeSession session, Class<T> expected) {
+        NudgePayload payload = session.payload();
+        if (!expected.isInstance(payload)) {
+            throw new NudgeNotFoundException(session.nudgeId());
         }
+        return expected.cast(payload);
     }
 }

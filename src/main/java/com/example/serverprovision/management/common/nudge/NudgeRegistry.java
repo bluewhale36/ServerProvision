@@ -37,14 +37,14 @@ public class NudgeRegistry {
     public NudgeSession register(NudgeResourceType resourceType,
                                   Long boardId,
                                   java.util.List<Long> conflictTargetIds,
-                                  NudgeSession.PendingPayload pendingPayload) {
+                                  NudgePayload payload) {
         Instant now = Instant.now();
         NudgeSession session = new NudgeSession(
                 UUID.randomUUID(),
                 resourceType,
                 boardId,
                 conflictTargetIds,
-                pendingPayload,
+                payload,
                 now,
                 now.plus(TTL)
         );

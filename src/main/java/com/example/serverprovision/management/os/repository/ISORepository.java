@@ -36,6 +36,13 @@ public interface ISORepository extends JpaRepository<ISO, Long> {
      */
     Optional<ISO> findFirstByOsImage_IdAndIsoPathAndIsDeletedTrue(Long osImageId, String isoPath);
 
+    /**
+     * MK2 WAVE 2 — intent path nudge 후보 수집 (soft-deleted + Deprecated, 같은 OS + 같은 isoPath).
+     */
+    @Query("select i from ISO i where i.osImage.id = :osImageId and i.isoPath = :isoPath and (i.isDeleted = true or i.isDeprecated = true)")
+    List<ISO> findIntentPathNudgeCandidates(@org.springframework.data.repository.query.Param("osImageId") Long osImageId,
+                                            @org.springframework.data.repository.query.Param("isoPath") String isoPath);
+
     // ---- MK2 — 해시 충돌 후보 (단계 B) -------------------------------
 
     /**
