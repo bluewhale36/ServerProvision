@@ -9,14 +9,14 @@
     osNameLabel : String                  화면 표시용 ("Rocky Linux" 등, 수정 불가)
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('OS 이미지 수정')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('OS 버전 수정')}"></th:block>
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('os-image')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
-        <h1 class="n-page-title">OS 이미지 수정</h1>
+        <h1 class="n-page-title">OS 버전 수정</h1>
         <div class="n-header-actions">
             <a th:href="@{/management/os(selectId=${osImageId})}" class="n-back-link">← 목록으로</a>
         </div>

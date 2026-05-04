@@ -44,12 +44,12 @@
             <h2 class="n-subprogram-section-title">Driver</h2>
             <div class="n-subprogram-section-actions">
                 <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ Driver 등록</a>
-                <a th:unless="${includeDeleted}"
-                   th:href="@{/management/subprogram(includeDeleted=true)}"
-                   class="n-btn n-btn-ghost">삭제된 항목 포함</a>
-                <a th:if="${includeDeleted}"
-                   th:href="@{/management/subprogram}"
-                   class="n-btn n-btn-ghost">기본 보기</a>
+                <label class="n-checkbox">
+                    <input type="checkbox"
+                           th:checked="${includeDeleted}"
+                           onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                    삭제된 항목 포함
+                </label>
             </div>
         </div>
         <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null})}"></div>
@@ -60,12 +60,12 @@
             <h2 class="n-subprogram-section-title">Utility</h2>
             <div class="n-subprogram-section-actions">
                 <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ Utility 등록</a>
-                <a th:unless="${includeDeleted}"
-                   th:href="@{/management/subprogram(includeDeleted=true)}"
-                   class="n-btn n-btn-ghost">삭제된 항목 포함</a>
-                <a th:if="${includeDeleted}"
-                   th:href="@{/management/subprogram}"
-                   class="n-btn n-btn-ghost">기본 보기</a>
+                <label class="n-checkbox">
+                    <input type="checkbox"
+                           th:checked="${includeDeleted}"
+                           onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                    삭제된 항목 포함
+                </label>
             </div>
         </div>
         <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${utilityGroups}, 'utility', '유틸리티', 'utilityMiller', ${selectKind != null and selectKind.name() == 'UTILITY' ? selectId : null})}"></div>

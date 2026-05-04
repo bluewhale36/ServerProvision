@@ -19,6 +19,8 @@
     --n-blue-badge-text: #097fe8;
     --n-green:           #1aae39;
     --n-orange:          #dd5b00;
+    --n-yellow:          #C29343;
+    --n-yellow-bg:       #FAF3DD;
     --n-teal:            #2a9d99;
     --n-warm-dark:       #31302e;
     --n-shadow-card:
@@ -201,6 +203,38 @@ code {
 .n-badge-green  { background: rgba(26, 174, 57, 0.1);        color: var(--n-green); }
 .n-badge-red    { background: rgba(191, 38, 38, 0.1);        color: #bf2626; }
 .n-badge-orange { background: rgba(221, 91, 0, 0.1);         color: var(--n-orange); }
+.n-badge-yellow { background: var(--n-yellow-bg);             color: var(--n-yellow); }
+
+/* Deprecated 식별용 작은 노란 점. Miller C2 처럼 공간이 좁은 라벨 옆에 부착. */
+.n-deprecated-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--n-yellow);
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* 인라인 체크박스 (예: "삭제된 항목 포함" 토글). 페이지 헤더 액션 영역에서 버튼 옆에 위치. */
+.n-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--n-text-sec);
+    cursor: pointer;
+    user-select: none;
+    padding: 6px 4px;
+}
+.n-checkbox input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--n-blue);
+    width: 14px;
+    height: 14px;
+    margin: 0;
+}
+.n-checkbox:hover { color: var(--n-text); }
 .n-badge-gray   { background: rgba(0, 0, 0, 0.06);           color: var(--n-text-sec); }
 .n-badge-teal   { background: rgba(42, 157, 153, 0.1);       color: var(--n-teal); }
 

@@ -23,7 +23,8 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <form th:action="@{/management/board}"
+            <form id="boardModelForm"
+                  th:action="@{/management/board}"
                   th:object="${boardModelForm}"
                   method="post"
                   novalidate>
@@ -75,5 +76,12 @@
         </div>
     </div>
 </div>
+
+<!-- MK2 WAVE 1 — nudge modal (메타 단독 충돌용). -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/board/nudge')}"></div>
+
+<script th:src="@{/global/form-error.js}"></script>
+<script th:src="@{/global/nudge-modal.js}"></script>
+<script th:src="@{/management/board/board-new.js}"></script>
 </body>
 </html>

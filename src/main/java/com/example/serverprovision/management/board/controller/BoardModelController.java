@@ -1,12 +1,16 @@
 package com.example.serverprovision.management.board.controller;
 
+import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.management.board.dto.request.BoardModelCreateRequest;
 import com.example.serverprovision.management.board.dto.request.BoardModelUpdateRequest;
+import com.example.serverprovision.management.board.dto.response.BoardModelCreateResponse;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import com.example.serverprovision.management.board.enums.Vendor;
+import com.example.serverprovision.management.board.service.BoardModelNudgeService;
 import com.example.serverprovision.management.board.service.BoardModelService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -16,8 +20,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A2. 메인보드 모델 관리 MVC 컨트롤러.
@@ -35,6 +41,7 @@ import java.util.List;
 public class BoardModelController {
 
     private final BoardModelService boardModelService;
+    private final BoardModelNudgeService boardModelNudgeService;
 
     // ==== 목록 ========================================================
 
@@ -57,16 +64,25 @@ public class BoardModelController {
         return "management/board/new";
     }
 
-    @PostMapping
-    public String create(@Valid @ModelAttribute("boardModelForm") BoardModelCreateRequest request,
-                         BindingResult bindingResult,
-                         Model model) {
+    /**
+     * MK2 WAVE 1 — XHR JSON 응답으로 통일. 메타 충돌 시 409 + NudgeRequiredResponse 가 advice 매핑으로 회신.
+     */
+    @PostMapping(produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<?> create(@Valid @ModelAttribute("boardModelForm") BoardModelCreateRequest request,
+                                    BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("vendorOptions", List.of(Vendor.values()));
-            return "management/board/new";
+            List<ApiErrorResponse.FieldError> fields = bindingResult.getFieldErrors().stream()
+                    .map(fe -> new ApiErrorResponse.FieldError(
+                            fe.getField(),
+                            fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"))
+                    .toList();
+            return ResponseEntity.badRequest().body(
+                    ApiErrorResponse.ofValidation(
+                            "입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields));
         }
         Long id = boardModelService.create(request);
-        return redirectToListWithSelect(id);
+        return ResponseEntity.ok(new BoardModelCreateResponse(id, "/management/board?selectId=" + id));
     }
 
     // ==== 수정 ========================================================
@@ -117,6 +133,44 @@ public class BoardModelController {
     public String restore(@PathVariable Long id) {
         boardModelService.restore(id);
         return redirectToListWithSelect(id);
+    }
+
+    // ==== MK2 — Deprecate / Undeprecate ===============================
+
+    @PostMapping("/{id}/deprecate")
+    public String deprecate(@PathVariable Long id) {
+        boardModelService.deprecate(id);
+        return redirectToListWithSelect(id);
+    }
+
+    @PostMapping("/{id}/undeprecate")
+    public String undeprecate(@PathVariable Long id) {
+        boardModelService.undeprecate(id);
+        return redirectToListWithSelect(id);
+    }
+
+    // ==== MK2 WAVE 1 — BoardModel 메타 nudge confirm ===================
+
+    @PostMapping(path = "/nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public BoardModelCreateResponse nudgeProceed(@PathVariable("nudgeId") UUID nudgeId) {
+        Long id = boardModelNudgeService.proceed(nudgeId);
+        return new BoardModelCreateResponse(id, "/management/board?selectId=" + id);
+    }
+
+    @PostMapping(path = "/nudge/{nudgeId}/replace")
+    @ResponseBody
+    public BoardModelCreateResponse nudgeReplace(@PathVariable("nudgeId") UUID nudgeId,
+                                                  @RequestParam("targetId") Long targetId) {
+        Long id = boardModelNudgeService.replace(nudgeId, targetId);
+        return new BoardModelCreateResponse(id, "/management/board?selectId=" + id);
+    }
+
+    @PostMapping(path = "/nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> nudgeCancel(@PathVariable("nudgeId") UUID nudgeId) {
+        boardModelNudgeService.cancel(nudgeId);
+        return ResponseEntity.noContent().build();
     }
 
     // ==== 헬퍼 =========================================================

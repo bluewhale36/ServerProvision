@@ -12,7 +12,7 @@
     includeDeleted: boolean                    휴지통 모드 여부 (쿼리 ?includeDeleted)
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('OS 이미지 관리')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('OS 버전 관리')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/miller.css}">
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
     <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
@@ -22,25 +22,25 @@
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">OS 이미지 관리</h1>
+        <h1 class="n-page-title">OS 버전 관리</h1>
         <div class="n-header-actions">
-            <!-- 휴지통 토글 : 같은 경로에 쿼리 반전 -->
-            <a th:unless="${includeDeleted}"
-               th:href="@{/management/os(includeDeleted=true)}"
-               class="n-btn n-btn-ghost">삭제된 항목 포함</a>
-            <a th:if="${includeDeleted}"
-               th:href="@{/management/os}"
-               class="n-btn n-btn-ghost">기본 보기</a>
+            <!-- 휴지통 토글 : 체크박스 onchange 로 쿼리 반전 -->
+            <label class="n-checkbox">
+                <input type="checkbox"
+                       th:checked="${includeDeleted}"
+                       onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                삭제된 항목 포함
+            </label>
             <a th:href="@{/management/os/new}"
-               class="n-btn n-btn-primary">신규 OS 등록</a>
+               class="n-btn n-btn-primary">OS 버전 등록</a>
         </div>
     </div>
 
     <!-- 빈 상태 -->
     <div th:if="${#lists.isEmpty(osGroups)}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title" th:text="${includeDeleted} ? '등록된 OS 이미지가 없습니다 (휴지통 포함).' : '등록된 OS 이미지가 없습니다.'">등록된 OS 이미지가 없습니다.</div>
-            <div class="n-empty-desc">"신규 OS 등록" 버튼으로 OS 이미지를 추가하세요.</div>
+            <div class="n-empty-title" th:text="${includeDeleted} ? '등록된 OS 버전이 없습니다 (휴지통 포함).' : '등록된 OS 버전이 없습니다.'">등록된 OS 버전이 없습니다.</div>
+            <div class="n-empty-desc">"OS 버전 등록" 버튼으로 OS 버전을 추가하세요.</div>
         </div>
     </div>
 
@@ -72,6 +72,9 @@
                         th:data-os-id="${os.id}">
                     <span class="n-miller-version-label">
                         <span th:text="${os.osVersion}">9.6</span>
+                        <span th:if="${os.isDeprecated and !os.isDeleted}"
+                              class="n-deprecated-dot"
+                              title="Deprecated"></span>
                         <span th:if="${os.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
                     </span>
                     <span th:unless="${os.isDeleted}"
@@ -104,7 +107,12 @@
                         </tr>
                         <tr>
                             <th>OS 버전</th>
-                            <td th:text="${os.osVersion}"></td>
+                            <td>
+                                <span th:text="${os.osVersion}"></span>
+                                <span th:if="${os.isDeprecated}"
+                                      class="n-badge n-badge-yellow"
+                                      style="margin-left: 8px;">Deprecated</span>
+                            </td>
                         </tr>
                         <tr>
                             <th>설명</th>
@@ -134,10 +142,6 @@
                     </table>
 
                     <!-- OS 수정/삭제/복구/Deprecate/영구삭제 : 우측 정렬. -->
-                    <!-- MK2 — Deprecated 배지는 상태 셀에서 보강하지 않고 액션 행에서 별도 노출(시각 노이즈 분리). -->
-                    <div th:if="${os.isDeprecated}" style="margin-top: 6px;">
-                        <span class="n-badge n-badge-orange">Deprecated</span>
-                    </div>
                     <div class="n-form-actions">
                         <th:block th:unless="${os.isDeleted}">
                             <a th:href="@{/management/os/{id}/edit(id=${os.id})}"
@@ -146,7 +150,7 @@
                             <form th:if="${!os.isDeprecated}"
                                   th:action="@{/management/os/{id}/deprecate(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 OS 이미지를 Deprecated 로 표시할까요?');">
+                                  onsubmit="return confirm('이 OS 버전을 Deprecated 로 표시할까요?');">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${os.isDeprecated}"
@@ -156,7 +160,7 @@
                             </form>
                             <form th:action="@{/management/os/{id}/delete(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 OS 이미지를 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.');">
+                                  onsubmit="return confirm('이 OS 버전을 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.');">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -196,6 +200,8 @@
                                 <summary class="n-accordion-head">
                                     <span class="n-accordion-chevron" aria-hidden="true"></span>
                                     <code class="n-accordion-title" th:text="${iso.isoPath}"></code>
+                                    <span th:if="${iso.isDeprecated and !iso.isDeleted}"
+                                          class="n-badge n-badge-yellow n-accordion-badge">Deprecated</span>
                                     <span th:if="${iso.isDeleted}" class="n-badge n-badge-gray n-accordion-badge">삭제됨</span>
                                     <span th:unless="${iso.isDeleted}"
                                           class="n-badge n-accordion-badge"
@@ -270,10 +276,6 @@
                                         </div>
                                     </dl>
 
-                                    <!-- MK2 — Deprecated 배지 (상태 셀과 분리) -->
-                                    <div th:if="${iso.isDeprecated}" style="margin-bottom: 6px;">
-                                        <span class="n-badge n-badge-orange">Deprecated</span>
-                                    </div>
                                     <div class="n-accordion-actions">
                                         <th:block th:unless="${iso.isDeleted}">
                                             <button type="button"

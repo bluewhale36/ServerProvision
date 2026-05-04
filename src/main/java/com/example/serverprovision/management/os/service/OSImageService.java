@@ -32,6 +32,7 @@ import com.example.serverprovision.management.os.exception.IllegalOSImageStateEx
 import com.example.serverprovision.management.os.exception.IsoNudgeRequiredException;
 import com.example.serverprovision.management.os.exception.IsoUploadIntentConflictException;
 import com.example.serverprovision.management.os.exception.OSImageNotFoundException;
+import com.example.serverprovision.management.os.exception.OSImageNudgeRequiredException;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
 import com.example.serverprovision.management.os.repository.OSImageRepository;
@@ -147,17 +148,110 @@ public class OSImageService {
 
     @Transactional
     public Long create(OSImageCreateRequest request) {
+        // 1) 활성 + 동일 (OSName, osVersion) → 즉시 fail-fast (409 + DuplicateOSImageException).
         if (osImageRepository.existsByOsNameAndOsVersionAndIsDeletedFalse(request.osName(), request.osVersion())) {
-            throw new DuplicateOSImageException(request.osName(), request.osVersion());
+            // 활성 단순 충돌 vs Deprecated 충돌 — 활성 deprecated 도 nudge 후보로 회수해야 한다.
+            List<OSImage> activeDeprecated =
+                    osImageRepository.findAllByOsNameAndOsVersionAndIsDeprecatedTrueAndIsDeletedFalse(
+                            request.osName(), request.osVersion());
+            if (activeDeprecated.isEmpty()) {
+                // 진짜 활성 자원과의 충돌 — fail-fast.
+                throw new DuplicateOSImageException(request.osName(), request.osVersion());
+            }
+            // Deprecated 활성 자원은 nudge 후보 — 아래 로직과 합류.
         }
+
+        // 2) MK2 WAVE 1 — soft-deleted / deprecated 후보 탐지 → nudge 세션 발급 + 409.
+        List<OSImage> candidates = collectMetaNudgeCandidates(request.osName(), request.osVersion());
+        if (!candidates.isEmpty()) {
+            throw new OSImageNudgeRequiredException(buildOSImageNudgePayload(request, candidates));
+        }
+
+        // 3) 충돌 후보 0 → 그대로 영속화.
+        return persistNewOSImage(request.osName(), request.osVersion(), request.description());
+    }
+
+    /**
+     * MK2 WAVE 1 — 메타 nudge 후보 (soft-deleted ∪ active+deprecated).
+     */
+    private List<OSImage> collectMetaNudgeCandidates(OSName osName, String osVersion) {
+        List<OSImage> softDeleted = osImageRepository.findAllByOsNameAndOsVersionAndIsDeletedTrue(osName, osVersion);
+        List<OSImage> deprecated = osImageRepository.findAllByOsNameAndOsVersionAndIsDeprecatedTrueAndIsDeletedFalse(osName, osVersion);
+        List<OSImage> merged = new ArrayList<>(softDeleted.size() + deprecated.size());
+        merged.addAll(softDeleted);
+        merged.addAll(deprecated);
+        return merged;
+    }
+
+    private NudgeRequiredResponse buildOSImageNudgePayload(OSImageCreateRequest request, List<OSImage> candidates) {
+        NudgeSession session = nudgeRegistry.register(
+                NudgeResourceType.OS_IMAGE,
+                null,
+                candidates.stream().map(OSImage::getId).toList(),
+                new NudgeSession.PendingPayload(
+                        null,
+                        request.osVersion(),
+                        null,
+                        null,
+                        Map.of(
+                                "osName", request.osName().name(),
+                                "description", request.description() != null ? request.description() : ""
+                        )
+                )
+        );
+        List<NudgeConflictEntry> entries = candidates.stream()
+                .map(c -> new NudgeConflictEntry(
+                        c.getId(),
+                        LifecycleStage.of(c.isDeprecated(), c.isDeleted()),
+                        null,
+                        c.getOsName().name(),
+                        c.getOsVersion(),
+                        Instant.now()))
+                .toList();
+        log.info("[osImage] nudge required : osName={}, osVersion={}, candidates={}",
+                request.osName(), request.osVersion(), candidates.size());
+        return NudgeRequiredResponse.of(session.nudgeId(), entries, session.expiresAt());
+    }
+
+    private Long persistNewOSImage(OSName osName, String osVersion, String description) {
         OSImage saved = osImageRepository.save(OSImage.builder()
-                .osName(request.osName())
-                .osVersion(request.osVersion())
-                .description(request.description())
-                .isEnabled(true)
-                .isDeleted(false)
+                .osName(osName)
+                .osVersion(osVersion)
+                .description(description)
                 .build());
         return saved.getId();
+    }
+
+    /**
+     * MK2 WAVE 1 — OSImageNudgeService PROCEED — 충돌 후보 보존, 신규 자원만 ACTIVE 등록.
+     * 외부 endpoint 와 직접 묶이지 않은 내부 진입점. 호출자가 LifecycleStage 검증을 마쳤다고 가정.
+     */
+    @Transactional
+    public Long completePendingOSImageFromNudge(NudgeSession session) {
+        NudgeSession.PendingPayload payload = session.pendingPayload();
+        OSName osName = OSName.valueOf(payload.attributes().get("osName"));
+        String osVersion = payload.version();
+        // PROCEED — 활성 (osName, osVersion) 가 새로 생기면 안 된다 (race). 재검사.
+        if (osImageRepository.existsByOsNameAndOsVersionAndIsDeletedFalse(osName, osVersion)) {
+            // race — 다른 트랜잭션이 같은 메타로 활성 자원을 만든 경우. 명시적 fail.
+            throw new DuplicateOSImageException(osName, osVersion);
+        }
+        return persistNewOSImage(osName, osVersion, payload.attributes().get("description"));
+    }
+
+    /**
+     * MK2 WAVE 1 — REPLACE 흐름의 target purge. 본 메서드는 OSImage 자체의 soft-deleted row 만 hard-delete
+     * 한다 (자식 ISO 도 cascade — DB FK ON DELETE CASCADE 가 처리).
+     */
+    @Transactional
+    public void purgeOSImageForNudge(OSImage target) {
+        if (!target.isDeleted() && !target.isDeprecated()) {
+            throw new IllegalOSImageStateException(
+                    "활성 자원은 nudge replace 대상이 될 수 없습니다. id=" + target.getId());
+        }
+        osImageRepository.delete(target);
+        log.info("[osImage] purge for nudge replace : id={}, osName={}, osVersion={}",
+                target.getId(), target.getOsName(), target.getOsVersion());
     }
 
     @Transactional
@@ -187,7 +281,7 @@ public class OSImageService {
     public void restore(Long id) {
         OSImage image = osImageRepository.findByIdAndIsDeletedTrue(id)
                 .orElseThrow(() -> new IllegalOSImageStateException(
-                        "이미 활성 상태이거나 존재하지 않는 OS 이미지입니다. id=" + id));
+                        "이미 활성 상태이거나 존재하지 않는 OS 버전입니다. id=" + id));
         if (osImageRepository.existsByOsNameAndOsVersionAndIsDeletedFalse(image.getOsName(), image.getOsVersion())) {
             throw new DuplicateOSImageException(image.getOsName(), image.getOsVersion());
         }

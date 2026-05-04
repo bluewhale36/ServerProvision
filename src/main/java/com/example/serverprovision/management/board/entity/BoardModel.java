@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.board.entity;
 
-import com.example.serverprovision.global.entity.BaseTimeEntity;
+import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.management.board.enums.Vendor;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,23 +11,24 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 /**
  * 메인보드 모델 — (Vendor, model) 조합의 유일한 논리적 단위.
- * A3/A4/A5 의 BoardBIOS / BoardBMC / DriverPackage 가 이 엔티티를 FK 로 참조한다 (Stage 1 후속 슬라이스에서 도입).
- * 삭제는 soft 삭제 ({@code isDeleted}) — 자식이 도입된 뒤에는 삭제 시 활성 자식 동반 처리를 이 엔티티 도메인 메서드에 추가한다.
+ *
+ * <p>MK2 — {@link LifecycleEntity} 상속으로 lifecycle 4 boolean (is_enabled / is_deprecated /
+ * is_deleted / deprecated_at) + audit + 가드 로직을 super 가 보유한다. 본 엔티티는 BoardModel 고유
+ * 필드(vendor / modelName / description) 만 책임진다. 활성 자식(BIOS / BMC) 동반 soft-delete 정책은
+ * 도메인 cascade 가 다르므로 Service 레이어가 처리한다 (super 의 {@code softDelete} override 하지 않음).</p>
  */
 @Entity
 @Table(name = "board_model")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
-public class BoardModel extends BaseTimeEntity {
+@SuperBuilder
+public class BoardModel extends LifecycleEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,27 +44,19 @@ public class BoardModel extends BaseTimeEntity {
     @Column(name = "description", length = 1024)
     private String description;
 
-    @Column(name = "is_enabled", nullable = false)
-    @Builder.Default
-    private boolean isEnabled = true;
+    // ---- LifecycleEntity 가드 메시지용 -----------------------------------
 
-    @Column(name = "is_deleted", nullable = false)
-    @Builder.Default
-    private boolean isDeleted = false;
+    @Override
+    protected Long resourceId() {
+        return this.id;
+    }
+
+    @Override
+    protected String resourceLabel() {
+        return "메인보드 모델";
+    }
 
     // ---- 도메인 메서드 -------------------------------------------------
-
-    public void toggleEnabled() {
-        this.isEnabled = !this.isEnabled;
-    }
-
-    public void softDelete() {
-        this.isDeleted = true;
-    }
-
-    public void restore() {
-        this.isDeleted = false;
-    }
 
     public void update(String modelName, String description) {
         this.modelName = modelName;

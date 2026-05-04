@@ -29,8 +29,10 @@ import com.example.serverprovision.management.os.service.CompsExtractionLauncher
 import com.example.serverprovision.management.os.service.IsoRegistrationLauncher;
 import com.example.serverprovision.management.os.service.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.IsoVerificationLauncher;
+import com.example.serverprovision.management.os.service.OSImageNudgeService;
 import com.example.serverprovision.management.os.service.OSImageService;
 import com.example.serverprovision.management.os.service.OsNudgeService;
+import com.example.serverprovision.management.os.dto.response.OSImageCreateResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -80,6 +82,7 @@ public class OSImageController {
     private final IsoRegistrationLauncher isoRegistrationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
     private final OsNudgeService osNudgeService;
+    private final OSImageNudgeService osImageNudgeService;
 
     // ==== 목록 ========================================================
 
@@ -102,16 +105,26 @@ public class OSImageController {
         return "management/os/new";
     }
 
-    @PostMapping
-    public String create(@Valid @ModelAttribute("osImageForm") OSImageCreateRequest request,
-                         BindingResult bindingResult,
-                         Model model) {
+    /**
+     * MK2 WAVE 1 — XHR JSON 응답으로 통일. 성공 200 + redirect URL, 검증 실패 400 + fieldErrors[],
+     * 메타 충돌 시 409 + NudgeRequiredResponse 가 advice 매핑으로 회신된다. SSR redirect 분기 폐기.
+     */
+    @PostMapping(produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<?> create(@Valid @ModelAttribute("osImageForm") OSImageCreateRequest request,
+                                    BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("osNameOptions", MVP_OS_NAMES);
-            return "management/os/new";
+            List<ApiErrorResponse.FieldError> fields = bindingResult.getFieldErrors().stream()
+                    .map(fe -> new ApiErrorResponse.FieldError(
+                            fe.getField(),
+                            fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"))
+                    .toList();
+            return ResponseEntity.badRequest().body(
+                    ApiErrorResponse.ofValidation(
+                            "입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields));
         }
         Long id = osImageService.create(request);
-        return redirectToListWithSelect(id);
+        return ResponseEntity.ok(new OSImageCreateResponse(id, "/management/os?selectId=" + id));
     }
 
     // ==== OS 이미지 수정 ==============================================
@@ -432,6 +445,30 @@ public class OSImageController {
 
     /** nudge proceed/replace 응답 — JS modal 이 redirect 후 toast 표시에 활용. */
     public record NudgeProceedResponse(Long isoId, String redirect) {}
+
+    // ==== MK2 WAVE 1 — OSImage 메타 nudge confirm ===================
+
+    @PostMapping(path = "/image-nudge/{nudgeId}/proceed")
+    @ResponseBody
+    public OSImageCreateResponse osImageNudgeProceed(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        Long id = osImageNudgeService.proceed(nudgeId);
+        return new OSImageCreateResponse(id, "/management/os?selectId=" + id);
+    }
+
+    @PostMapping(path = "/image-nudge/{nudgeId}/replace")
+    @ResponseBody
+    public OSImageCreateResponse osImageNudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
+                                                      @RequestParam(name = "targetId") Long targetId) {
+        Long id = osImageNudgeService.replace(nudgeId, targetId);
+        return new OSImageCreateResponse(id, "/management/os?selectId=" + id);
+    }
+
+    @PostMapping(path = "/image-nudge/{nudgeId}/cancel")
+    @ResponseBody
+    public ResponseEntity<Void> osImageNudgeCancel(@PathVariable("nudgeId") java.util.UUID nudgeId) {
+        osImageNudgeService.cancel(nudgeId);
+        return ResponseEntity.noContent().build();
+    }
 
     // ==== ISO 무결성 검증 / 마커 재발급 (BIOS 와 동일 패턴) ===========
 

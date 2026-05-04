@@ -55,6 +55,9 @@
                     th:data-os-id="${sp.id}">
                 <span class="n-miller-version-label">
                     <span th:text="${sp.name + ' · ' + sp.version}">name · 1.0</span>
+                    <span th:if="${sp.deprecated and !sp.deleted}"
+                          class="n-deprecated-dot"
+                          title="Deprecated"></span>
                     <span th:if="${sp.deleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
                 </span>
                 <span th:unless="${sp.deleted}"
@@ -94,7 +97,12 @@
                     </div>
                     <div class="n-accordion-field">
                         <dt>이름</dt>
-                        <dd th:text="${sp.name}"></dd>
+                        <dd>
+                            <span th:text="${sp.name}"></span>
+                            <span th:if="${sp.deprecated}"
+                                  class="n-badge n-badge-yellow"
+                                  style="margin-left: 8px;">Deprecated</span>
+                        </dd>
                     </div>
                     <div class="n-accordion-field">
                         <dt>버전</dt>
@@ -169,6 +177,18 @@
                     <th:block th:unless="${sp.deleted}">
                         <a th:href="@{/management/subprogram/{id}/edit(id=${sp.id})}"
                            class="n-btn n-btn-secondary">수정</a>
+                        <!-- MK2 — Deprecated 토글. -->
+                        <form th:unless="${sp.deprecated}"
+                              th:action="@{/management/subprogram/{id}/deprecate(id=${sp.id})}"
+                              method="post" style="display:inline;"
+                              onsubmit="return confirm('이 자원을 Deprecated 로 표시할까요?');">
+                            <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
+                        </form>
+                        <form th:if="${sp.deprecated}"
+                              th:action="@{/management/subprogram/{id}/undeprecate(id=${sp.id})}"
+                              method="post" style="display:inline;">
+                            <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
+                        </form>
                         <form th:action="@{/management/subprogram/{id}/delete(id=${sp.id})}"
                               method="post" style="display:inline;"
                               onsubmit="return confirm('이 항목을 삭제할까요?');">

@@ -25,12 +25,12 @@
     <div class="n-page-header">
         <h1 class="n-page-title">메인보드 모델 관리</h1>
         <div class="n-header-actions">
-            <a th:unless="${includeDeleted}"
-               th:href="@{/management/board(includeDeleted=true)}"
-               class="n-btn n-btn-ghost">삭제된 항목 포함</a>
-            <a th:if="${includeDeleted}"
-               th:href="@{/management/board}"
-               class="n-btn n-btn-ghost">기본 보기</a>
+            <label class="n-checkbox">
+                <input type="checkbox"
+                       th:checked="${includeDeleted}"
+                       onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                삭제된 항목 포함
+            </label>
             <a th:href="@{/management/board/new}"
                class="n-btn n-btn-primary">신규 모델 등록</a>
         </div>
@@ -73,6 +73,9 @@
                         th:data-os-id="${board.id}">
                     <span class="n-miller-version-label">
                         <span th:text="${board.modelName}">MS03-CE0-000</span>
+                        <span th:if="${board.isDeprecated and !board.isDeleted}"
+                              class="n-deprecated-dot"
+                              title="Deprecated"></span>
                         <span th:if="${board.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
                     </span>
                     <span th:unless="${board.isDeleted}"
@@ -105,7 +108,12 @@
                         </tr>
                         <tr>
                             <th>모델명</th>
-                            <td th:text="${board.modelName}"></td>
+                            <td>
+                                <span th:text="${board.modelName}"></span>
+                                <span th:if="${board.isDeprecated}"
+                                      class="n-badge n-badge-yellow"
+                                      style="margin-left: 8px;">Deprecated</span>
+                            </td>
                         </tr>
                         <tr>
                             <th>설명</th>
@@ -143,6 +151,18 @@
                         <th:block th:unless="${board.isDeleted}">
                             <a th:href="@{/management/board/{id}/edit(id=${board.id})}"
                                class="n-btn n-btn-secondary">수정</a>
+                            <!-- MK2 — Deprecated 토글. -->
+                            <form th:unless="${board.isDeprecated}"
+                                  th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
+                                  method="post" style="display:inline;"
+                                  onsubmit="return confirm('이 메인보드 모델을 Deprecated 로 표시할까요?');">
+                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
+                            </form>
+                            <form th:if="${board.isDeprecated}"
+                                  th:action="@{/management/board/{id}/undeprecate(id=${board.id})}"
+                                  method="post" style="display:inline;">
+                                <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
+                            </form>
                             <form th:action="@{/management/board/{id}/delete(id=${board.id})}"
                                   method="post" style="display:inline;"
                                   onsubmit="return confirm('이 메인보드 모델을 삭제할까요?');">

@@ -46,6 +46,7 @@ class OSImageControllerSecurityFlowTest {
 
     @MockitoBean OSImageService osImageService;
     @MockitoBean com.example.serverprovision.management.os.service.OsNudgeService osNudgeService;
+    @MockitoBean com.example.serverprovision.management.os.service.OSImageNudgeService osImageNudgeService;
     @MockitoBean CompsExtractionLauncher compsExtractionLauncher;
     @MockitoBean IsoUploadIntentService isoUploadIntentService;
     @MockitoBean IsoVerificationLauncher isoVerificationLauncher;

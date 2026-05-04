@@ -2,8 +2,8 @@ package com.example.serverprovision.global.exception;
 
 import com.example.serverprovision.global.security.exception.SecurityException;
 import com.example.serverprovision.global.security.exception.ZipBombInspectionFailedException;
-import com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
+import com.example.serverprovision.management.common.nudge.exception.NudgeRequiredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -56,15 +56,15 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * MK2 — BIOS 업로드 단계 B 해시 충돌. {@link ConflictException} 일반 핸들러보다 본 sub-class
-     * 핸들러가 더 구체적이므로 Spring 이 우선 매핑한다. 응답 body 는 {@link NudgeRequiredResponse}
-     * (code · nudgeId · conflicts · expiresAt) — 클라이언트가 modal 표시 + 사용자 3택 routing 에 사용.
+     * MK2 — nudge 결정 대기 (모든 도메인). {@link NudgeRequiredException} 추상 super 매칭으로
+     * BIOS / BMC / Subprogram / ISO / OSImage / BoardModel sub-class 가 모두 polymorphic 처리된다.
+     * 새 도메인 추가 시 본 핸들러에 분기 추가 불필요 — sub-class 만 정의하면 된다.
      */
-    @ExceptionHandler(value = BiosNudgeRequiredException.class, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<NudgeRequiredResponse> handleBiosNudgeRequired(BiosNudgeRequiredException ex) {
-        log.info("[bios] nudge required : nudgeId={}, conflicts={}", ex.nudgeId(), ex.conflicts().size());
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(NudgeRequiredResponse.of(ex.nudgeId(), ex.conflicts(), ex.expiresAt()));
+    @ExceptionHandler(value = NudgeRequiredException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<NudgeRequiredResponse> handleNudgeRequired(NudgeRequiredException ex) {
+        log.info("[nudge] required : nudgeId={}, conflicts={}",
+                ex.payload().nudgeId(), ex.payload().conflicts().size());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.payload());
     }
 
     /**

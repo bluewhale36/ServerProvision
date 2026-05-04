@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class OSImageNotFoundException extends NotFoundException {
 
     public OSImageNotFoundException(Long id) {
-        super("OS 이미지를 찾을 수 없습니다. id=" + id);
+        super("OS 버전을 찾을 수 없습니다. id=" + id);
     }
 }

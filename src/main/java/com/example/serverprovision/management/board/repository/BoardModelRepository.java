@@ -31,4 +31,11 @@ public interface BoardModelRepository extends JpaRepository<BoardModel, Long> {
      * 삭제된 동일 조합을 재등록하려 하면 DB 유니크 제약으로 실패하므로 복구 경로를 사용해야 한다.
      */
     boolean existsByVendorAndModelNameAndIsDeletedFalse(Vendor vendor, String modelName);
+
+    /**
+     * MK2 WAVE 1 — 메타 nudge 후보 (soft-deleted ∪ active+deprecated). 중복 등록 시도 시 충돌 후보 회수용.
+     */
+    List<BoardModel> findAllByVendorAndModelNameAndIsDeletedTrue(Vendor vendor, String modelName);
+
+    List<BoardModel> findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor vendor, String modelName);
 }

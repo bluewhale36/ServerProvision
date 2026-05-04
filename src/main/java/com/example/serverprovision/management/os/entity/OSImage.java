@@ -80,7 +80,7 @@ public class OSImage extends LifecycleEntity {
 
     @Override
     protected String resourceLabel() {
-        return "OS 이미지";
+        return "OS 버전";
     }
 
     // ---- 도메인 메서드 -------------------------------------------------

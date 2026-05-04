@@ -30,12 +30,12 @@
     <div class="n-page-header">
         <h1 class="n-page-title">BIOS 파일 관리</h1>
         <div class="n-header-actions">
-            <a th:unless="${includeDeleted}"
-               th:href="@{/management/bios(includeDeleted=true)}"
-               class="n-btn n-btn-ghost">삭제된 항목 포함</a>
-            <a th:if="${includeDeleted}"
-               th:href="@{/management/bios}"
-               class="n-btn n-btn-ghost">기본 보기</a>
+            <label class="n-checkbox">
+                <input type="checkbox"
+                       th:checked="${includeDeleted}"
+                       onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                삭제된 항목 포함
+            </label>
         </div>
     </div>
 
@@ -100,6 +100,9 @@
                         th:data-os-id="${bios.id}">
                     <span class="n-miller-version-label">
                         <span th:text="${bios.version}">2.03</span>
+                        <span th:if="${bios.isDeprecated and !bios.isDeleted}"
+                              class="n-deprecated-dot"
+                              title="Deprecated"></span>
                         <span th:if="${bios.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
                     </span>
                     <span th:unless="${bios.isDeleted}"
@@ -139,7 +142,12 @@
                         </div>
                         <div class="n-accordion-field">
                             <dt>이름</dt>
-                            <dd th:text="${bios.name}"></dd>
+                            <dd>
+                                <span th:text="${bios.name}"></span>
+                                <span th:if="${bios.isDeprecated}"
+                                      class="n-badge n-badge-yellow"
+                                      style="margin-left: 8px;">Deprecated</span>
+                            </dd>
                         </div>
                         <div class="n-accordion-field">
                             <dt>버전</dt>
@@ -204,8 +212,6 @@
                                     <span class="n-badge"
                                           th:classappend="${bios.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
                                           th:text="${bios.isEnabled} ? '활성화' : '비활성화'"></span>
-                                    <!-- MK2 — Deprecated 임시 텍스트 표시. CSS 토큰화 (.has-warning) 는 후속 슬라이스. -->
-                                    <span th:if="${bios.isDeprecated}" class="n-badge n-badge-orange">(Deprecated)</span>
                                     <form th:action="@{/management/bios/{boardId}/bios/{biosId}/toggle(boardId=${board.id},biosId=${bios.id})}"
                                           method="post" class="n-accordion-inline-form">
                                         <button type="submit"
@@ -223,17 +229,17 @@
                         <th:block th:unless="${bios.isDeleted}">
                             <a th:href="@{/management/bios/{boardId}/bios/{biosId}/edit(boardId=${board.id},biosId=${bios.id})}"
                                class="n-btn n-btn-secondary">수정</a>
-                            <!-- MK2 — Deprecate / Undeprecate 토글. 활성 / Deprecated 자원에 한해 노출. -->
+                            <!-- MK2 — Deprecated 토글. 활성 / Deprecated 자원에 한해 노출. -->
                             <form th:unless="${bios.isDeprecated}"
                                   th:action="@{/management/bios/{boardId}/bios/{biosId}/deprecate(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 BIOS 자원을 Deprecate (사용 비권장 표시) 할까요?');">
-                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecate</button>
+                                  onsubmit="return confirm('이 BIOS 자원을 Deprecated 로 표시할까요?');">
+                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${bios.isDeprecated}"
                                   th:action="@{/management/bios/{boardId}/bios/{biosId}/undeprecate(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;">
-                                <button type="submit" class="n-btn n-btn-outline-info">Undeprecate</button>
+                                <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
                             </form>
                             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/delete(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"

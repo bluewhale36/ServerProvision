@@ -35,4 +35,12 @@ public interface OSImageRepository extends JpaRepository<OSImage, Long> {
      * 사용자가 같은 OS + 같은 버전 메타로 새 등록을 시도할 때 "이미 휴지통에 같은 자원이 있다" 안내용.
      */
     Optional<OSImage> findFirstByOsNameAndOsVersionAndIsDeletedTrue(OSName osName, String osVersion);
+
+    /**
+     * MK2 WAVE 1 — 메타 nudge 후보 조회. (OSName, osVersion) 동일 + (soft-deleted OR deprecated)
+     * 자원을 모두 반환. create() 진입 시점에 충돌 후보 탐지용.
+     */
+    List<OSImage> findAllByOsNameAndOsVersionAndIsDeletedTrue(OSName osName, String osVersion);
+
+    List<OSImage> findAllByOsNameAndOsVersionAndIsDeprecatedTrueAndIsDeletedFalse(OSName osName, String osVersion);
 }
