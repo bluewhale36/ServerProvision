@@ -83,26 +83,65 @@ public class IsoUploadIntentService {
                     "같은 경로에 이미 등록된 ISO 가 있습니다 : " + resolvedPath);
         }
 
-        // MK2 WAVE 2 — 단계 A : 같은 (osImageId, isoPath) 의 soft-deleted/Deprecated 후보 → NUDGE_REQUIRED.
-        List<ISO> intentNudgeCandidates = isoRepository.findIntentPathNudgeCandidates(osImageId, resolvedPath);
-        if (!intentNudgeCandidates.isEmpty()) {
-            NudgeSession session = registerIntentNudge(osImageId, resolvedPath, request, intentNudgeCandidates);
+        // MK2 WAVE 2 — 단계 A path nudge : 같은 (osImageId, isoPath) 의 soft-deleted/Deprecated → NUDGE_REQUIRED.
+        List<ISO> pathNudgeCandidates = isoRepository.findIntentPathNudgeCandidates(osImageId, resolvedPath);
+        if (!pathNudgeCandidates.isEmpty()) {
+            NudgeSession session = registerIntentNudge(osImageId, resolvedPath, request, pathNudgeCandidates);
             throw new IsoNudgeRequiredException(
                     "동일한 경로의 ISO 가 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
-                    NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(intentNudgeCandidates), session.expiresAt()));
+                    NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(pathNudgeCandidates), session.expiresAt()));
+        }
+
+        // MK2 WAVE 3 — Phase 2 (client hash 동봉) : hash 매칭 nudge.
+        if (request.clientHash() != null && !request.clientHash().isBlank()) {
+            List<ISO> hashCandidates = isoRepository.findIntentHashNudgeCandidates(osImageId, request.clientHash());
+            if (!hashCandidates.isEmpty()) {
+                NudgeSession session = registerIntentNudge(osImageId, resolvedPath, request, hashCandidates);
+                throw new IsoNudgeRequiredException(
+                        "동일한 내용의 ISO 가 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+                        NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(hashCandidates), session.expiresAt()));
+            }
+            // hash 비매칭 — 정상 진행 (아래 token 발급)
+        } else {
+            // MK2 WAVE 3 — Phase 1 (hash 미동봉) : 휴지통 / Deprecated ISO 1건 이상이면 client 에 hash 계산 요청.
+            List<ISO> hashCheckCandidates = isoRepository.findIntentHashCheckCandidates(osImageId);
+            if (!hashCheckCandidates.isEmpty()) {
+                log.info("[IsoUploadIntentService] phase1 hash check required. osImageId={}, candidates={}",
+                        osImageId, hashCheckCandidates.size());
+                return new IsoUploadIntentResponse.HashCheckRequired(
+                        toConflictEntries(hashCheckCandidates),
+                        "SHA-256");
+            }
         }
 
         // 하드 블록 : 파일시스템 상 동일 이름 파일이 실재 — 덮어쓰기 방지
+        validateFilesystem(resolvedPath, request.allowCreateDirectory(), size);
+
+        // 소프트 경고 수집
+        List<String> warnings = new ArrayList<>();
+        if (size == 0) {
+            warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+        }
+
+        String token = UUID.randomUUID().toString();
+        intents.put(token, new Intent(osImageId, resolvedPath, filename, size,
+                request.clientHash(), Instant.now()));
+        log.info("[IsoUploadIntentService] intent 발급. token={}, osImageId={}, rawPath={}, resolvedPath={}, size={}, clientHash={}",
+                token, osImageId, rawPath, resolvedPath, size,
+                request.clientHash() != null ? request.clientHash().substring(0, Math.min(16, request.clientHash().length())) + "…" : "<null>");
+        return new IsoUploadIntentResponse.IntentTokenIssued(token, warnings);
+    }
+
+    private void validateFilesystem(String resolvedPath, boolean allowCreateDirectory, long size) {
         try {
             Path target = Path.of(resolvedPath);
             if (Files.exists(target) && !Files.isDirectory(target)) {
                 throw new DuplicateFilenameException(resolvedPath);
             }
             Path parent = target.getParent();
-            if (parent != null && !Files.exists(parent) && !request.allowCreateDirectory()) {
+            if (parent != null && !Files.exists(parent) && !allowCreateDirectory) {
                 throw new DirectoryMissingException(parent.toString());
             }
-            // 디스크 공간 — 부모 디렉토리가 실재할 때만 측정.
             if (size > 0 && parent != null && Files.exists(parent)) {
                 try {
                     FileStore store = Files.getFileStore(parent);
@@ -119,28 +158,6 @@ public class IsoUploadIntentService {
         } catch (java.nio.file.InvalidPathException e) {
             throw new IsoUploadIntentConflictException("ISO 경로 형식이 올바르지 않습니다 : " + resolvedPath);
         }
-
-        // 소프트 경고 수집
-        List<String> warnings = new ArrayList<>();
-        if (size == 0) {
-            warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
-        }
-
-        // MK2 — 단계 A 사전 경고. 같은 (osImageId, isoPath) 의 soft-deleted 후보가 있으면 동봉.
-        PreExistingMatchInfo preExistingMatch = isoRepository
-                .findFirstByOsImage_IdAndIsoPathAndIsDeletedTrue(osImageId, resolvedPath)
-                .map(c -> new PreExistingMatchInfo(
-                        c.getId(),
-                        c.currentStage(),
-                        c.getOsImage().getOsVersion(),
-                        c.getIsoPath()))
-                .orElse(null);
-
-        String token = UUID.randomUUID().toString();
-        intents.put(token, new Intent(osImageId, resolvedPath, filename, size, Instant.now()));
-        log.info("[IsoUploadIntentService] intent 발급. token={}, osImageId={}, rawPath={}, resolvedPath={}, size={}, preExistingMatch={}",
-                token, osImageId, rawPath, resolvedPath, size, preExistingMatch != null ? preExistingMatch.id() : null);
-        return new IsoUploadIntentResponse(token, warnings, preExistingMatch);
     }
 
     public Intent consume(Long osImageId, String token) {
@@ -195,8 +212,9 @@ public class IsoUploadIntentService {
         }
 
         String token = UUID.randomUUID().toString();
-        intents.put(token, new Intent(osImageId, resolvedPath, request.filename(), request.size(), Instant.now()));
-        return new IsoUploadIntentResponse(token, warnings, null);
+        intents.put(token, new Intent(osImageId, resolvedPath, request.filename(), request.size(),
+                request.clientHash(), Instant.now()));
+        return new IsoUploadIntentResponse.IntentTokenIssued(token, warnings);
     }
 
     private NudgeSession registerIntentNudge(Long osImageId, String resolvedPath,
@@ -234,12 +252,19 @@ public class IsoUploadIntentService {
                 attributes.get("isoPath"),
                 attributes.getOrDefault("filename", ""),
                 Long.parseLong(attributes.getOrDefault("size", "0")),
-                Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false"))
+                Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false")),
+                // WAVE 3 — proceed/replace 후 재발급은 hash 검사 skip 의도라 null 동봉.
+                null
         );
         return new IntentReissue(osImageId, request);
     }
 
-    public record Intent(Long osImageId, String isoPath, String filename, long expectedSize, Instant issuedAt) {}
+    /**
+     * MK2 WAVE 3 — Intent record 에 {@code clientHash} 추가. 단계 B (IsoVerificationLauncher) 가 server-side
+     * hash 재계산 후 본 값과 비교 → 불일치 시 IsoClientHashMismatchException fail-fast.
+     */
+    public record Intent(Long osImageId, String isoPath, String filename, long expectedSize,
+                          String clientHash, Instant issuedAt) {}
 
     public record IntentReissue(Long osImageId, IsoUploadIntentRequest request) {}
 }

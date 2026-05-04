@@ -322,7 +322,7 @@ public class OSImageService {
 
     @Transactional
     public Long addISO(Long osImageId, ISOCreateRequest request, MultipartFile uploadedFile) {
-        PreparedIsoRegistration prepared = prepareIsoRegistration(osImageId, request, uploadedFile);
+        PreparedIsoRegistration prepared = prepareIsoRegistration(osImageId, request, uploadedFile, null);
         return finalizePreparedIsoRegistration(null, prepared);
     }
 
@@ -330,6 +330,17 @@ public class OSImageService {
     public PreparedIsoRegistration prepareIsoRegistration(Long osImageId,
                                                           ISOCreateRequest request,
                                                           MultipartFile uploadedFile) {
+        return prepareIsoRegistration(osImageId, request, uploadedFile, null);
+    }
+
+    /**
+     * MK2 WAVE 3 — clientHash 동봉 오버로드. controller 가 intent.consume() 결과의 clientHash 를 전달.
+     */
+    @Transactional
+    public PreparedIsoRegistration prepareIsoRegistration(Long osImageId,
+                                                          ISOCreateRequest request,
+                                                          MultipartFile uploadedFile,
+                                                          String clientHash) {
         requireActiveImage(osImageId);
 
         boolean hasFile = uploadedFile != null && !uploadedFile.isEmpty();
@@ -376,7 +387,8 @@ public class OSImageService {
                 resolvedPath,
                 request.description(),
                 originalName != null ? originalName : "",
-                hasFile
+                hasFile,
+                clientHash
         );
     }
 
@@ -388,6 +400,20 @@ public class OSImageService {
         Path target = Path.of(prepared.resolvedPath());
 
         String manifestHash = computeFileSha256(target);
+
+        // MK2 WAVE 3 — client 가 intent 시 보낸 hash 와 server 가 재계산한 hash 비교 (변조 / corruption 방어).
+        if (prepared.clientHash() != null && !prepared.clientHash().isBlank()
+                && !prepared.clientHash().equalsIgnoreCase(manifestHash)) {
+            log.warn("[finalizePreparedIsoRegistration] client hash mismatch! osImageId={}, client={}, server={}",
+                    prepared.osImageId(), prepared.clientHash(), manifestHash);
+            if (prepared.uploadedFile()) {
+                deleteQuietly(target);
+                deleteQuietly(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
+            }
+            throw new com.example.serverprovision.management.os.exception.IsoClientHashMismatchException(
+                    prepared.clientHash(), manifestHash);
+        }
+
         startJobStage(jobId, IsoRegistrationStage.CHECK_DUPLICATE);
 
         isoRepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(prepared.osImageId(), prepared.resolvedPath())
@@ -637,8 +663,16 @@ public class OSImageService {
             String resolvedPath,
             String description,
             String originalFilename,
-            boolean uploadedFile
-    ) {}
+            boolean uploadedFile,
+            /** MK2 WAVE 3 — intent 시 client 가 보낸 SHA-256. nullable. server-side 재계산 후 비교. */
+            String clientHash
+    ) {
+        /** WAVE 3 이전 호출자 호환 — clientHash 없이 생성. */
+        public PreparedIsoRegistration(Long osImageId, String resolvedPath, String description,
+                                        String originalFilename, boolean uploadedFile) {
+            this(osImageId, resolvedPath, description, originalFilename, uploadedFile, null);
+        }
+    }
 
     @Transactional
     public void updateISO(Long osImageId, Long isoId, ISOUpdateRequest request) {

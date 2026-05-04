@@ -43,6 +43,21 @@ public interface ISORepository extends JpaRepository<ISO, Long> {
     List<ISO> findIntentPathNudgeCandidates(@org.springframework.data.repository.query.Param("osImageId") Long osImageId,
                                             @org.springframework.data.repository.query.Param("isoPath") String isoPath);
 
+    /**
+     * MK2 WAVE 3 — Phase 1 hash check candidates : 같은 osImageId 의 휴지통 / Deprecated ISO 1건 이상 존재 여부 안내용.
+     * client 가 SHA-256 계산해서 Phase 2 로 재호출할지 결정하는 sentinel. size 매칭 안 함 (size 컬럼 부재) — 단순 lifecycle 필터.
+     */
+    @Query("select i from ISO i where i.osImage.id = :osImageId and (i.isDeleted = true or i.isDeprecated = true)")
+    List<ISO> findIntentHashCheckCandidates(@org.springframework.data.repository.query.Param("osImageId") Long osImageId);
+
+    /**
+     * MK2 WAVE 3 — Phase 2 hash match : client 가 보낸 SHA-256 과 일치하는 휴지통 / Deprecated ISO 후보.
+     * 일치 시 IsoNudgeRequiredException (NUDGE_REQUIRED) — 사용자 3택.
+     */
+    @Query("select i from ISO i where i.osImage.id = :osImageId and i.manifestHash = :manifestHash and (i.isDeleted = true or i.isDeprecated = true)")
+    List<ISO> findIntentHashNudgeCandidates(@org.springframework.data.repository.query.Param("osImageId") Long osImageId,
+                                            @org.springframework.data.repository.query.Param("manifestHash") String manifestHash);
+
     // ---- MK2 — 해시 충돌 후보 (단계 B) -------------------------------
 
     /**

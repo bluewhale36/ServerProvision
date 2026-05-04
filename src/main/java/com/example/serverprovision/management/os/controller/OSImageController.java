@@ -280,11 +280,14 @@ public class OSImageController {
         }
         try {
             boolean hasFile = file != null && !file.isEmpty();
+            String clientHash = null;
             if (hasFile) {
-                isoUploadIntentService.consume(osId, uploadToken);
+                IsoUploadIntentService.Intent intent = isoUploadIntentService.consume(osId, uploadToken);
+                // MK2 WAVE 3 — finalize 단계에서 server-side hash 와 비교용 (mock 환경 null safety).
+                if (intent != null) clientHash = intent.clientHash();
             }
             OSImageService.PreparedIsoRegistration prepared =
-                    osImageService.prepareIsoRegistration(osId, request, file);
+                    osImageService.prepareIsoRegistration(osId, request, file, clientHash);
             String jobId = isoRegistrationLauncher.startRegistration(prepared);
             String redirect = "/management/os?selectId=" + osId;
             return ResponseEntity.ok(new IsoUploadResponse(jobId, redirect));

@@ -114,7 +114,7 @@ class OSImageControllerUploadFlowTest {
         void success() throws Exception {
             var req = new IsoUploadIntentRequest("/mnt/iso/dvd.iso", "dvd.iso", 1024L, false);
             given(isoUploadIntentService.issue(eq(1L), any()))
-                    .willReturn(IsoUploadIntentResponse.of("token-abc", java.util.List.of()));
+                    .willReturn(new IsoUploadIntentResponse.IntentTokenIssued("token-abc", java.util.List.of()));
 
             mvc.perform(post("/management/os/1/iso/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -203,7 +203,7 @@ class OSImageControllerUploadFlowTest {
         @Test
         @DisplayName("정상 경로 — 200 + jobId/redirect 필드")
         void success() throws Exception {
-            given(osImageService.prepareIsoRegistration(eq(1L), any(), any()))
+            given(osImageService.prepareIsoRegistration(eq(1L), any(), any(), any()))
                     .willReturn(new OSImageService.PreparedIsoRegistration(
                             1L, "/mnt/iso/dvd.iso", "", "dvd.iso", true));
             given(isoRegistrationLauncher.startRegistration(any())).willReturn("job-iso-1");
@@ -237,7 +237,7 @@ class OSImageControllerUploadFlowTest {
         @DisplayName("경로 형식 오류 (빈 문자열 우회 → InvalidPathException 흐름) → 409")
         void invalidPath_returns409() throws Exception {
             doThrow(new InvalidIsoPathException("ISO 경로 형식이 올바르지 않습니다 : bad"))
-                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any());
+                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -252,7 +252,7 @@ class OSImageControllerUploadFlowTest {
         @DisplayName("체크섬 중복 → 409 DuplicateISOContentException")
         void duplicateContent_returns409() throws Exception {
             doThrow(new DuplicateISOContentException("/mnt/iso/existing.iso"))
-                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any());
+                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -267,7 +267,7 @@ class OSImageControllerUploadFlowTest {
         @DisplayName("파일시스템 동일 이름 파일 → 409 DuplicateFilenameException")
         void fileAlreadyExists_returns409() throws Exception {
             doThrow(new DuplicateFilenameException("/mnt/iso/dvd.iso"))
-                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any());
+                    .when(osImageService).prepareIsoRegistration(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -282,7 +282,7 @@ class OSImageControllerUploadFlowTest {
         @DisplayName("OSImage not found → 404")
         void unknownOs_returns404() throws Exception {
             doThrow(new OSImageNotFoundException(999L))
-                    .when(osImageService).prepareIsoRegistration(eq(999L), any(), any());
+                    .when(osImageService).prepareIsoRegistration(eq(999L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/999/iso/upload")
                             .file(buildFile())
@@ -378,7 +378,7 @@ class OSImageControllerUploadFlowTest {
         void intentNudgeProceed() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
             given(osNudgeService.proceedIntent(eq(nudgeId)))
-                    .willReturn(new IsoUploadIntentResponse("token-new", java.util.List.of(), null));
+                    .willReturn(new IsoUploadIntentResponse.IntentTokenIssued("token-new", java.util.List.of()));
 
             mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/proceed"))
                     .andExpect(status().isOk())
@@ -390,7 +390,7 @@ class OSImageControllerUploadFlowTest {
         void intentNudgeReplace() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
             given(osNudgeService.replaceIntent(eq(nudgeId), eq(55L)))
-                    .willReturn(new IsoUploadIntentResponse("token-after-replace", java.util.List.of(), null));
+                    .willReturn(new IsoUploadIntentResponse.IntentTokenIssued("token-after-replace", java.util.List.of()));
 
             mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=55"))
                     .andExpect(status().isOk())

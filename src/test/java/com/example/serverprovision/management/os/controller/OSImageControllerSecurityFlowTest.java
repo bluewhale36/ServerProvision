@@ -75,9 +75,9 @@ class OSImageControllerSecurityFlowTest {
     void upload_zipBombSuspected_returns415() throws Exception {
         given(isoUploadIntentService.consume(eq(1L), anyString()))
                 .willReturn(new IsoUploadIntentService.Intent(
-                        1L, "/opt/iso/x.iso", "x.iso", 1024L, Instant.now()));
+                        1L, "/opt/iso/x.iso", "x.iso", 1024L, null, Instant.now()));
         willThrow(new ZipBombSuspectedException("iso 내부 zip 손상 또는 ratio 초과"))
-                .given(osImageService).prepareIsoRegistration(eq(1L), any(), any());
+                .given(osImageService).prepareIsoRegistration(eq(1L), any(), any(), any());
 
         mvc.perform(multipart("/management/os/1/iso/upload")
                         .file(new MockMultipartFile("file", "x.iso", "application/octet-stream", "data".getBytes()))
@@ -95,9 +95,9 @@ class OSImageControllerSecurityFlowTest {
     void upload_uploadLimitExceeded_returns413() throws Exception {
         given(isoUploadIntentService.consume(eq(1L), anyString()))
                 .willReturn(new IsoUploadIntentService.Intent(
-                        1L, "/opt/iso/x.iso", "x.iso", 1024L, Instant.now()));
+                        1L, "/opt/iso/x.iso", "x.iso", 1024L, null, Instant.now()));
         willThrow(new UploadLimitExceededException("size > limit"))
-                .given(osImageService).prepareIsoRegistration(eq(1L), any(), any());
+                .given(osImageService).prepareIsoRegistration(eq(1L), any(), any(), any());
 
         mvc.perform(multipart("/management/os/1/iso/upload")
                         .file(new MockMultipartFile("file", "x.iso", "application/octet-stream", "data".getBytes()))
@@ -115,9 +115,9 @@ class OSImageControllerSecurityFlowTest {
     void upload_zipInspectionFailed_returns500() throws Exception {
         given(isoUploadIntentService.consume(eq(1L), anyString()))
                 .willReturn(new IsoUploadIntentService.Intent(
-                        1L, "/opt/iso/x.iso", "x.iso", 1024L, Instant.now()));
+                        1L, "/opt/iso/x.iso", "x.iso", 1024L, null, Instant.now()));
         willThrow(new ZipBombInspectionFailedException("disk full", new RuntimeException("io")))
-                .given(osImageService).prepareIsoRegistration(eq(1L), any(), any());
+                .given(osImageService).prepareIsoRegistration(eq(1L), any(), any(), any());
 
         mvc.perform(multipart("/management/os/1/iso/upload")
                         .file(new MockMultipartFile("file", "x.iso", "application/octet-stream", "data".getBytes()))

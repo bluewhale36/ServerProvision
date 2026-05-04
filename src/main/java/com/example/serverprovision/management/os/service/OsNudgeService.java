@@ -100,7 +100,7 @@ public class OsNudgeService {
         var reissue = isoUploadIntentService.reconstructFromAttributes(payload.attributes());
         IsoUploadIntentResponse response = isoUploadIntentService.issueAfterNudge(reissue.osImageId(), reissue.request());
         consumeSession(nudgeId);
-        log.info("[osNudge.intent.proceed] nudgeId={}, newToken={}", nudgeId, response.uploadToken());
+        log.info("[osNudge.intent.proceed] nudgeId={}, response={}", nudgeId, summarize(response));
         return response;
     }
 
@@ -117,9 +117,20 @@ public class OsNudgeService {
         var reissue = isoUploadIntentService.reconstructFromAttributes(payload.attributes());
         IsoUploadIntentResponse response = isoUploadIntentService.issueAfterNudge(reissue.osImageId(), reissue.request());
         consumeSession(nudgeId);
-        log.info("[osNudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
-                nudgeId, targetId, response.uploadToken());
+        log.info("[osNudge.intent.replace] nudgeId={}, replacedTarget={}, response={}",
+                nudgeId, targetId, summarize(response));
         return response;
+    }
+
+    /** WAVE 3 — sealed IsoUploadIntentResponse 의 phase 별 요약 (logging 용). Java 17 호환 instanceof 패턴. */
+    private static String summarize(IsoUploadIntentResponse response) {
+        if (response instanceof IsoUploadIntentResponse.IntentTokenIssued tok) {
+            return "TOKEN_ISSUED(" + tok.uploadToken() + ")";
+        }
+        if (response instanceof IsoUploadIntentResponse.HashCheckRequired chk) {
+            return "HASH_CHECK_REQUIRED(" + chk.candidates().size() + ")";
+        }
+        return "<unknown>";
     }
 
     /** 단계 A intent path nudge cancel — 임시 파일 없으니 세션만 회수. */
