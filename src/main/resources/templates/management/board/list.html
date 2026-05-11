@@ -156,7 +156,7 @@
                                   th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="deprecate"
-                                  data-confirm-message="이 메인보드 모델을 Deprecated 로 표시할까요?">
+                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 Deprecated 로 표시할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${board.isDeprecated}"
@@ -167,7 +167,7 @@
                             <form th:action="@{/management/board/{id}/delete(id=${board.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="soft-delete"
-                                  data-confirm-message="이 메인보드 모델을 삭제할까요?">
+                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 삭제할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -175,7 +175,7 @@
                             <form th:action="@{/management/board/{id}/restore(id=${board.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="restore"
-                                  data-confirm-message="이 메인보드 모델을 복구할까요?">
+                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 복구할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                         </th:block>

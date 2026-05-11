@@ -151,7 +151,7 @@
                                   th:action="@{/management/os/{id}/deprecate(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="deprecate"
-                                  data-confirm-message="이 OS 버전을 Deprecated 로 표시할까요?">
+                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 Deprecated 로 표시할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${os.isDeprecated}"
@@ -162,7 +162,7 @@
                             <form th:action="@{/management/os/{id}/delete(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="soft-delete"
-                                  data-confirm-message="이 OS 버전을 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.">
+                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.|">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -170,7 +170,7 @@
                             <form th:action="@{/management/os/{id}/restore(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="restore"
-                                  data-confirm-message="이 OS 버전을 복구할까요?">
+                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 복구할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <form th:action="@{/management/os/{id}/purge(id=${os.id})}"
@@ -294,7 +294,7 @@
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/deprecate(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-action="deprecate"
-                                                  data-confirm-message="이 ISO 를 Deprecated 로 표시할까요?">
+                                                  th:data-confirm-message="|ISO '${iso.isoPath.replaceAll('.*/', '')}' 를 Deprecated 로 표시할까요?|">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">Deprecated 표시</button>
                                             </form>
                                             <form th:if="${iso.isDeprecated}"
@@ -306,7 +306,7 @@
                                                   method="post"
                                                   class="n-accordion-inline-form mk3-2-delete-form"
                                                   data-confirm-action="soft-delete"
-                                                  data-confirm-message="ISO 를 삭제할까요?">
+                                                  th:data-confirm-message="|ISO '${iso.isoPath.replaceAll('.*/', '')}' 를 삭제할까요?|">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">삭제</button>
                                             </form>
                                         </th:block>
@@ -314,7 +314,7 @@
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-action="restore"
-                                                  data-confirm-message="이 ISO 를 복구할까요?">
+                                                  th:data-confirm-message="|ISO '${iso.isoPath.replaceAll('.*/', '')}' 를 복구할까요?|">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구</button>
                                             </form>
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/purge(osId=${os.id},isoId=${iso.id})}"

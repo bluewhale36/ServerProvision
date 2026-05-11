@@ -234,7 +234,7 @@
                                   th:action="@{/management/bios/{boardId}/bios/{biosId}/deprecate(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="deprecate"
-                                  data-confirm-message="이 BIOS 자원을 Deprecated 로 표시할까요?">
+                                  th:data-confirm-message="|BIOS '${bios.name}' 을 Deprecated 로 표시할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${bios.isDeprecated}"
@@ -246,7 +246,7 @@
                                   method="post" style="display:inline;"
                                   class="mk3-2-delete-form"
                                   data-confirm-action="soft-delete"
-                                  data-confirm-message="이 BIOS 파일을 삭제할까요?">
+                                  th:data-confirm-message="|BIOS '${bios.name}' 을 삭제할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -254,7 +254,7 @@
                             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/restore(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="restore"
-                                  data-confirm-message="이 BIOS 파일을 복구할까요?">
+                                  th:data-confirm-message="|BIOS '${bios.name}' 을 복구할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <!-- MK2 — 영구 삭제. typed-name confirm (자원명 입력) 으로 우발 삭제 방어. -->

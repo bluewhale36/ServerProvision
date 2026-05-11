@@ -192,7 +192,7 @@
                                   th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/deprecate(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="deprecate"
-                                  data-confirm-message="이 BMC 펌웨어를 Deprecated 로 표시할까요?">
+                                  th:data-confirm-message="|BMC '${bmc.name}' 을 Deprecated 로 표시할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${bmc.isDeprecated}"
@@ -204,7 +204,7 @@
                                   method="post" style="display:inline;"
                                   class="mk3-2-delete-form"
                                   data-confirm-action="soft-delete"
-                                  data-confirm-message="이 BMC 펌웨어를 삭제할까요?">
+                                  th:data-confirm-message="|BMC '${bmc.name}' 을 삭제할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -212,7 +212,7 @@
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/restore(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-action="restore"
-                                  data-confirm-message="이 BMC 펌웨어를 복구할까요?">
+                                  th:data-confirm-message="|BMC '${bmc.name}' 을 복구할까요?|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/purge(boardId=${board.id},bmcId=${bmc.id})}"
