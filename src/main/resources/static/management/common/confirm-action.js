@@ -24,12 +24,16 @@
 (function () {
     const TAG = '[confirm-action]';
 
+    // confirmClass : miller 의 form submit 버튼과 동일한 클래스로 맞춰 디자인 일관성 보장.
+    //   - soft-delete : n-btn-outline-danger (모든 5 도메인 동일)
+    //   - deprecate   : n-btn-outline-warning
+    //   - restore     : n-btn-outline-info
     const ACTION_CONFIG = {
         'soft-delete': {
             title: '자원 삭제',
             defaultMessage: '이 자원을 삭제할까요?',
             confirmLabel: '삭제',
-            confirmClass: 'n-btn-danger'
+            confirmClass: 'n-btn-outline-danger'
         },
         'deprecate': {
             title: 'Deprecated 표시',

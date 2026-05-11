@@ -14,7 +14,8 @@
 
   생성되는 element id (prefix="confirmAction" 기준):
     confirmActionModal · confirmActionBackdrop · confirmActionTitle · confirmActionMessage ·
-    confirmActionConfirmBtn · confirmActionCancelBtn · confirmActionCloseBtn
+    confirmActionConfirmBtn · confirmActionCancelBtn
+    (X close 버튼 없음 — 취소 버튼 / backdrop / Esc 로 닫음)
 
   CSS: 기존 .n-btn / .n-card / .n-alert 재사용. 신규 CSS 토큰 0.
   MK3-2 의 delete-reject-modal 과 트리거·내용·책임 분리 (책임 분리는 S5-2 plan §1.3 참조).
@@ -34,12 +35,8 @@
     <div class="n-card" role="dialog" aria-modal="true"
          style="position: relative; max-width: 480px; width: 100%;">
         <div class="n-card-body">
-            <h2 style="margin: 0 0 12px 0; font-size: 1.1rem; display: flex;
-                       justify-content: space-between; align-items: baseline; gap: 12px;">
-                <span th:id="${prefix} + 'Title'">자원 상태 변경</span>
-                <button type="button" th:id="${prefix} + 'CloseBtn'"
-                        class="n-btn n-btn-sm n-btn-ghost" aria-label="닫기">×</button>
-            </h2>
+            <h2 th:id="${prefix} + 'Title'"
+                style="margin: 0 0 12px 0; font-size: 1.1rem;">자원 상태 변경</h2>
 
             <p th:id="${prefix} + 'Message'"
                style="margin: 0 0 20px 0; line-height: 1.5;">메시지</p>

@@ -44,7 +44,8 @@ class ConfirmActionFragmentRenderTest {
         assertThat(html).contains("'Message'");
         assertThat(html).contains("'ConfirmBtn'");
         assertThat(html).contains("'CancelBtn'");
-        assertThat(html).contains("'CloseBtn'");
+        // X close 버튼 제거 — 취소 버튼 / backdrop / Esc 로 닫음.
+        assertThat(html).doesNotContain("'CloseBtn'");
     }
 
     @Test
