@@ -15,6 +15,7 @@ import com.example.serverprovision.management.common.filesystem.exception.Direct
 import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.bmc.dto.request.BmcCreateRequest;
+import com.example.serverprovision.management.bmc.dto.request.BmcRegisterExistingRequest;
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
 import com.example.serverprovision.management.bmc.dto.request.BmcUpdateRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
@@ -59,6 +60,7 @@ public class BmcController {
     private final BoardModelService boardModelService;
     private final BmcVerificationLauncher bmcVerificationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
+    private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
 
     @GetMapping
     public String list(@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
@@ -135,6 +137,25 @@ public class BmcController {
         }
     }
 
+    /**
+     * 기존 디렉토리 등록 — 업로드 없이 이미 콘텐츠가 차 있는 트리를 BMC 자원으로 claim.
+     */
+    @PostMapping(path = "/{boardId}/register-existing")
+    @ResponseBody
+    public ResponseEntity<?> registerExisting(@PathVariable("boardId") Long boardId,
+                                              @Valid @RequestBody BmcRegisterExistingRequest request,
+                                              BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            String msg = bindingResult.getFieldErrors().stream()
+                    .findFirst()
+                    .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                    .orElse("입력값이 올바르지 않습니다.");
+            return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
+        }
+        Long id = bmcService.registerExisting(boardId, request);
+        return ResponseEntity.ok(new BmcUploadResponse(id, "/management/bmc?selectId=" + id));
+    }
+
     @GetMapping("/{boardId}/bmc/{bmcId}/edit")
     public String editForm(@PathVariable("boardId") Long boardId,
                            @PathVariable("bmcId") Long bmcId,
@@ -182,6 +203,22 @@ public class BmcController {
                          @PathVariable("bmcId") Long bmcId) {
         bmcService.softDelete(boardId, bmcId);
         return "redirect:/management/bmc?selectBoardId=" + boardId;
+    }
+
+    /** MK3-2 (DCM3-2.3) — softDelete reject modal 의 두 번째 호출 (XHR JSON). */
+    @PostMapping(path = "/{boardId}/bmc/{bmcId}/delete-intent/{token}", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Void> deleteWithIntent(
+            @PathVariable("boardId") Long boardId,
+            @PathVariable("bmcId") Long bmcId,
+            @PathVariable("token") String token,
+            @Valid @RequestBody com.example.serverprovision.management.common.dto.request.DeleteIntentRequest request) {
+        com.example.serverprovision.global.lifecycle.DeleteIntentToken parsed =
+                com.example.serverprovision.global.lifecycle.DeleteIntentToken.parse(token);
+        deleteIntentRegistry.consume(parsed,
+                com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE, bmcId);
+        bmcService.softDeleteWithIntent(boardId, bmcId, request.action());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{boardId}/bmc/{bmcId}/restore")

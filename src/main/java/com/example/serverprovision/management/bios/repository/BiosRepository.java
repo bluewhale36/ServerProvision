@@ -4,6 +4,7 @@ import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -93,4 +94,18 @@ public interface BiosRepository extends JpaRepository<BoardBIOS, Long> {
             + "and (b.isDeleted = true or b.isDeprecated = true)")
     List<BoardBIOS> findHashConflictCandidates(@org.springframework.data.repository.query.Param("boardModelId") Long boardModelId,
                                                @org.springframework.data.repository.query.Param("manifestHash") String manifestHash);
+
+    // ---- MK3 — Trash TTL 정책 -------------------------------
+
+    /** TTL worker — 만료 자원 일괄 조회. */
+    List<BoardBIOS> findByIsDeletedTrueAndTrashedAtBefore(Instant threshold);
+
+    /** TTL 알림 worker — 만료 임박 자원. */
+    List<BoardBIOS> findByIsDeletedTrueAndTrashedAtBetween(Instant start, Instant end);
+
+    /** TrashController.list — 휴지통 페이지 합본 조회. */
+    List<BoardBIOS> findByIsDeletedTrueOrderByTrashedAtDesc();
+
+    /** MK3-1 — ghost 후보 (DB-only soft-deleted). FS 부재 검증은 scanner 가 추가. */
+    List<BoardBIOS> findByIsDeletedTrueAndTrashedPathIsNull();
 }

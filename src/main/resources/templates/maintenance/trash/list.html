@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  MK3. 휴지통 (Trash) 페이지
+  ─────────────────────────────────────────────────────────
+  Model:
+    trashItems     : List<TrashItemResponse>  — 5 도메인 합본
+                       · resourceType : ResourceType
+                       · resourceId   : Long
+                       · displayName  : String
+                       · originalPath : String
+                       · trashedPath  : String
+                       · trashedAt    : Instant
+                       · expiresAt    : Instant   (trashedAt + TTL)
+                       · ttlWarning   : boolean   (7일 이내)
+
+  액션 :
+    · 복원      → 기존 도메인 endpoint `/management/<domain>/{id}/restore` 재사용
+    · 영구삭제   → 기존 도메인 endpoint `/management/<domain>/{id}/purge`   재사용 (S5-2-2 typed-name)
+    · 보존기간 연장 → `/maintenance/trash/{resourceType}/{resourceId}/extend`
+
+  CP2 — 페이지 더미 + 표 스켈레톤. 도메인별 endpoint 합성 + ttl 경고 색 + 빈 상태는 CP4 에서 정밀화.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('휴지통')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/table-list.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('trash')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">휴지통</h1>
+        <div class="n-header-actions">
+            <span class="n-hint">soft-delete 자원이 격리되며, 30일 후 자동 영구삭제됩니다. 자원별로 보존기간을 연장할 수 있습니다.</span>
+        </div>
+    </div>
+
+    <!--/* 빈 상태 */-->
+    <div th:if="${#lists.isEmpty(trashItems)}" class="n-empty-state">
+        <div class="n-empty-title">휴지통이 비어있습니다.</div>
+        <div class="n-hint">soft-delete 한 자원이 여기에 보관됩니다.</div>
+    </div>
+
+    <!--/* 자원 목록 */-->
+    <table th:if="${not #lists.isEmpty(trashItems)}" class="n-table">
+        <thead>
+        <tr>
+            <th>자원 종류</th>
+            <th>자원 ID</th>
+            <th>자원 이름</th>
+            <th>원래 경로</th>
+            <th>휴지통 이동 시각</th>
+            <th>잔여 TTL</th>
+            <th>액션</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${trashItems}"
+            th:classappend="${item.ttlWarning} ? 'n-row-warning' : ''">
+            <td>
+                <span class="n-badge n-badge-gray" th:text="${item.resourceType}"></span>
+                <!--/* MK3-1 — ghost 배지. DB-truth + FS-truth 양쪽이 음수인 dead row. */-->
+                <span th:if="${item.ghost}" class="n-badge"
+                      style="background: var(--n-color-danger, #c0392b); color: #fff; margin-left: 4px;"
+                      title="DB row 만 남고 FS 자원도 trash 도 없는 상태 — 복구 불가. 정리 액션으로 row 제거.">복구 불가</span>
+            </td>
+            <td th:text="${item.resourceId}"></td>
+            <td>
+                <code style="font-size: 12px;" th:text="${item.displayName}"></code>
+            </td>
+            <td>
+                <code style="font-size: 11px; word-break: break-all;" th:text="${item.originalPath}"></code>
+            </td>
+            <td>
+                <span th:if="${item.trashedAt != null}" th:text="${#temporals.format(item.trashedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
+                <span th:if="${item.trashedAt == null}" style="color: var(--n-text-muted, #777);">—</span>
+            </td>
+            <td>
+                <span th:if="${item.expiresAt != null}" th:text="${#temporals.format(item.expiresAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
+                <span th:if="${item.expiresAt == null}" style="color: var(--n-text-muted, #777);">—</span>
+                <strong th:if="${item.ttlWarning}" style="color: var(--n-color-danger); margin-left: 6px;">곧 영구삭제</strong>
+            </td>
+            <td class="n-form-actions">
+                <!--/* MK3-1 — ghost 행은 "정리" 액션 1개만. 복원/연장/영구삭제 disabled. */-->
+                <form th:if="${item.ghost}"
+                      th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
+                      method="post"
+                      onsubmit="return confirm('이 ghost row 를 DB 에서 영구 정리합니다. 복구 가능한 자원이 없으므로 안전한 작업입니다. 계속할까요?');">
+                    <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
+                </form>
+
+                <!--/* 정상 trash 자원 — 기존 3 액션 그대로 */-->
+                <th:block th:unless="${item.ghost}">
+                    <form th:action="@{/maintenance/trash/{rt}/{rid}/restore(rt=${item.resourceType}, rid=${item.resourceId})}"
+                          method="post"
+                          onsubmit="return confirm('이 자원을 원래 경로로 복원합니다. 계속할까요?');">
+                        <button type="submit" class="n-btn n-btn-sm n-btn-primary">복원</button>
+                    </form>
+                    <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
+                          method="post"
+                          onsubmit="return confirm('보존기간을 +30일 연장합니다. 계속할까요?');">
+                        <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
+                    </form>
+                    <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
+                          method="post"
+                          onsubmit="return confirm('이 자원을 영구 삭제합니다. 휴지통에서 제거되며 복구 불가능합니다. 계속할까요?');">
+                        <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">영구삭제</button>
+                    </form>
+                </th:block>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

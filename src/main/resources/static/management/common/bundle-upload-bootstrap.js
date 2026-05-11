@@ -10,9 +10,10 @@
 
     function bindModeTabs(opts) {
         const {
-            uploadModeInput, folderPane, zipPane, singlePane,
+            uploadModeInput, folderPane, zipPane, singlePane, existingPane,
             folderInput, zipInput, singleInput,
-            tabFolder, tabZip, tabSingle
+            tabFolder, tabZip, tabSingle, tabExisting,
+            onModeChange
         } = opts;
 
         if (!uploadModeInput || !folderPane || !zipPane || !singlePane ||
@@ -25,17 +26,22 @@
         }
 
         function setMode(mode) {
-            const normalized = mode === 'ZIP' || mode === 'SINGLE_FILE' ? mode : 'FOLDER';
+            const allowed = mode === 'ZIP' || mode === 'SINGLE_FILE' || mode === 'EXISTING_DIRECTORY';
+            const normalized = allowed ? mode : 'FOLDER';
             uploadModeInput.value = normalized;
             const isFolder = normalized === 'FOLDER';
             const isZip = normalized === 'ZIP';
             const isSingle = normalized === 'SINGLE_FILE';
+            const isExisting = normalized === 'EXISTING_DIRECTORY';
 
             folderPane.hidden = !isFolder;
             zipPane.hidden = !isZip;
             singlePane.hidden = !isSingle;
+            if (existingPane) existingPane.hidden = !isExisting;
 
-            [[tabFolder, isFolder], [tabZip, isZip], [tabSingle, isSingle]].forEach(([btn, active]) => {
+            const pairs = [[tabFolder, isFolder], [tabZip, isZip], [tabSingle, isSingle]];
+            if (tabExisting) pairs.push([tabExisting, isExisting]);
+            pairs.forEach(([btn, active]) => {
                 btn.classList.toggle('n-btn-ghost', !active);
                 btn.setAttribute('aria-selected', String(active));
             });
@@ -43,11 +49,14 @@
             if (!isFolder) clearIfPresent(folderInput);
             if (!isZip) clearIfPresent(zipInput);
             if (!isSingle) clearIfPresent(singleInput);
+
+            if (typeof onModeChange === 'function') onModeChange(normalized);
         }
 
         tabFolder.addEventListener('click', () => setMode('FOLDER'));
         tabZip.addEventListener('click', () => setMode('ZIP'));
         tabSingle.addEventListener('click', () => setMode('SINGLE_FILE'));
+        if (tabExisting) tabExisting.addEventListener('click', () => setMode('EXISTING_DIRECTORY'));
         setMode(uploadModeInput.value);
 
         return { setMode };
@@ -68,7 +77,9 @@
 
         browseBtn.addEventListener('click', () => {
             if (browsePanel.hidden) {
-                const seed = (targetInput && targetInput.value ? targetInput.value.trim() : '') || '/';
+                // S5-1 — 빈 input 시 fallback `'/'` 보내면 백엔드 assertReadablePath 가 allowed-roots 외라 403.
+                // 빈 문자열 그대로 보내 백엔드 firstAllowedRoot 자동 치환에 위임.
+                const seed = (targetInput && targetInput.value ? targetInput.value.trim() : '') || '';
                 browsePanel.hidden = false;
                 loadDirectory(seed);
             } else {
@@ -80,6 +91,9 @@
         }
         if (browseUpBtn) {
             browseUpBtn.addEventListener('click', () => {
+                // S5-1 — 서버 응답 parentPath=null (allowed-roots 경계 도달) 시 더 이상 상위 진입 금지.
+                // path-browser.js 의 atTop 가드 (e3a33ae) 와 동일 패턴.
+                if (browseUpBtn.dataset.atTop === 'true') return;
                 const p = browseCurrentPath;
                 if (!p || p === '/') return;
                 const trimmed = p.replace(/\/+$/, '');
@@ -114,6 +128,14 @@
                 const data = await resp.json();
                 browseCurrentPath = data.path;
                 browseCurrent.textContent = data.path;
+                // S5-1 — server parentPath=null 이면 allowed-roots 경계 → '상위' 버튼 비활성화 + 안내.
+                if (browseUpBtn) {
+                    const atTop = !data.parentPath;
+                    browseUpBtn.dataset.atTop = atTop ? 'true' : 'false';
+                    browseUpBtn.style.opacity = atTop ? '0.4' : '';
+                    browseUpBtn.style.cursor = atTop ? 'not-allowed' : '';
+                    browseUpBtn.title = atTop ? '더이상 상위 디렉토리로 진입할 수 없습니다.' : '상위 디렉토리로';
+                }
                 renderEntries(data.entries || []);
                 const visibleCount = includeFiles
                         ? (data.entries || []).length

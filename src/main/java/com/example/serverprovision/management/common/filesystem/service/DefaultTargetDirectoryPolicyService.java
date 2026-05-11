@@ -2,7 +2,9 @@ package com.example.serverprovision.management.common.filesystem.service;
 
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.common.filesystem.exception.BundleExtractionException;
+import com.example.serverprovision.management.common.filesystem.exception.EmptyTargetDirectoryException;
 import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
+import com.example.serverprovision.management.common.filesystem.exception.MissingTargetDirectoryException;
 import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
 import com.example.serverprovision.management.common.filesystem.policy.BundleFilePolicy;
 import com.example.serverprovision.management.os.exception.DirectoryMissingException;
@@ -63,6 +65,24 @@ public class DefaultTargetDirectoryPolicyService implements TargetDirectoryPolic
             Files.createDirectories(parent);
         } catch (IOException e) {
             throw new BundleExtractionException("상위 디렉토리 생성 실패 : " + parent, e);
+        }
+    }
+
+    @Override
+    public void prepareForExistingDirectoryRegistration(Path targetDirectory) {
+        if (!Files.exists(targetDirectory) || !Files.isDirectory(targetDirectory)) {
+            throw new MissingTargetDirectoryException(String.valueOf(targetDirectory));
+        }
+        if (Files.exists(targetDirectory.resolve(ProvisionMarkerService.MARKER_FILENAME))) {
+            throw new MarkerConflictException(targetDirectory.toString());
+        }
+        try (Stream<Path> children = Files.list(targetDirectory)) {
+            boolean hasContent = children.anyMatch(path -> !BundleFilePolicy.isIgnorable(path));
+            if (!hasContent) {
+                throw new EmptyTargetDirectoryException(targetDirectory.toString());
+            }
+        } catch (IOException e) {
+            throw new BundleExtractionException("기존 디렉토리 검증 실패 : " + targetDirectory, e);
         }
     }
 

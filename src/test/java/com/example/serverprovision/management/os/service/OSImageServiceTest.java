@@ -56,12 +56,39 @@ class OSImageServiceTest {
     @Mock BackgroundJobService backgroundJobService;
     @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
     @Mock com.example.serverprovision.global.security.FileSystemHardener fileSystemHardener;
+    @Mock com.example.serverprovision.global.trash.TrashLifecycleService trashLifecycleService;
     @InjectMocks OSImageService osImageService;
 
     @org.junit.jupiter.api.BeforeEach
     void stubSecurity() {
         org.mockito.Mockito.lenient().when(pathPolicyService.assertWritablePath(org.mockito.ArgumentMatchers.anyString()))
                 .thenAnswer(inv -> java.nio.file.Path.of(inv.getArgument(0, String.class)).toAbsolutePath().normalize());
+    }
+
+    /**
+     * MK3 — TrashLifecycleService mock 의 default 동작. softDelete/restore 가 entity 의 lifecycle 메서드를
+     * 명시 호출하도록 stub — 단위 테스트에서 OSImageService 의 위임 의도를 검증할 수 있게 한다.
+     */
+    @org.junit.jupiter.api.BeforeEach
+    void stubTrashLifecycle() {
+        org.mockito.Mockito.lenient().doAnswer(inv -> {
+            Object e = inv.getArgument(0);
+            if (e instanceof com.example.serverprovision.global.entity.LifecycleEntity le) {
+                le.softDelete();
+            }
+            return null;
+        }).when(trashLifecycleService).softDeleteToTrash(org.mockito.ArgumentMatchers.any());
+
+        org.mockito.Mockito.lenient().doAnswer(inv -> {
+            Object e = inv.getArgument(0);
+            if (e instanceof com.example.serverprovision.global.entity.LifecycleEntity le) {
+                le.restore();
+                le.clearTrashed();
+            }
+            return null;
+        }).when(trashLifecycleService).restoreFromTrash(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
     }
 
 

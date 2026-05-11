@@ -18,6 +18,7 @@ import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.bmc.dto.request.BmcCreateRequest;
+import com.example.serverprovision.management.bmc.dto.request.BmcRegisterExistingRequest;
 import com.example.serverprovision.management.bmc.dto.request.BmcUpdateRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
 import com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse;
@@ -69,6 +70,8 @@ public class BmcService {
     private final BundleTreeCleanupService bundleTreeCleanupService;
     private final PathPolicyService pathPolicyService;
     private final NudgeRegistry nudgeRegistry;
+    private final com.example.serverprovision.global.trash.TrashLifecycleService trashLifecycleService;
+    private final com.example.serverprovision.global.lifecycle.SoftDeleteIntentService softDeleteIntentService;
 
     public List<BoardWithBmcListResponse> findAllGrouped(boolean includeDeleted) {
         List<BoardModel> boards = includeDeleted
@@ -147,7 +150,11 @@ public class BmcService {
             ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
             // MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + 409.
-            List<BoardBMC> hashCandidates = bmcRepository.findHashConflictCandidates(boardId, manifest.manifestHash());
+            // MK3-1 — ghost 후보 사전 필터링.
+            List<BoardBMC> hashCandidates = bmcRepository.findHashConflictCandidates(boardId, manifest.manifestHash())
+                    .stream()
+                    .filter(c -> !com.example.serverprovision.global.trash.GhostEvaluator.isGhost(c))
+                    .toList();
             if (!hashCandidates.isEmpty()) {
                 NudgeSession session = nudgeRegistry.register(
                         NudgeResourceType.BMC,
@@ -223,6 +230,104 @@ public class BmcService {
             bundleTreeCleanupService.cleanupFailedUpload(targetDir, "purgeExistingTree", "addBMC", e);
             throw e;
         }
+    }
+
+    /**
+     * 기존 디렉토리를 BMC 자원으로 등록. 업로드 없이 이미 있는 트리를 claim.
+     * 추출 단계만 생략하고 검증 / nudge / marker 흐름은 {@link #addBmc} 와 일치한다.
+     */
+    @Transactional
+    public Long registerExisting(Long boardId, BmcRegisterExistingRequest request) {
+        BoardModel parent = requireActiveBoard(boardId);
+
+        if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
+            throw new DuplicateBmcVersionException(boardId, request.version());
+        }
+
+        Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
+        targetDirectoryPolicyService.prepareForExistingDirectoryRegistration(targetDir);
+
+        bmcRepository.findFirstByBoardModel_IdAndTreeRootPathAndIsDeletedFalse(boardId, targetDir.toString())
+                .ifPresent(existing -> {
+                    throw new TargetDirectoryNotEmptyException(existing.getTreeRootPath());
+                });
+
+        String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
+        ManifestSummary manifest = bundleManifestService.compute(targetDir);
+
+        // MK3-1 — ghost 후보 사전 필터링.
+        List<BoardBMC> hashCandidates = bmcRepository.findHashConflictCandidates(boardId, manifest.manifestHash())
+                .stream()
+                .filter(c -> !com.example.serverprovision.global.trash.GhostEvaluator.isGhost(c))
+                .toList();
+        if (!hashCandidates.isEmpty()) {
+            NudgeSession session = nudgeRegistry.register(
+                    NudgeResourceType.BMC,
+                    boardId,
+                    hashCandidates.stream().map(BoardBMC::getId).toList(),
+                    new ContentNudgePayload(
+                            request.name(),
+                            request.version(),
+                            manifest.manifestHash(),
+                            targetDir.toString(),
+                            Map.of(
+                                    "entrypointRelativePath", entrypoint,
+                                    "fileCount", String.valueOf(manifest.fileCount()),
+                                    "totalBytes", String.valueOf(manifest.totalBytes()),
+                                    "description", request.description() != null ? request.description() : ""
+                            )
+                    )
+            );
+            List<NudgeConflictEntry> entries = hashCandidates.stream()
+                    .map(b -> new NudgeConflictEntry(
+                            b.getId(),
+                            LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
+                            b.getManifestHash(),
+                            b.getName(),
+                            b.getVersion(),
+                            Instant.now()))
+                    .toList();
+            log.info("[registerExistingBmc] nudge required : boardId={}, version={}, candidates={}",
+                    boardId, request.version(), hashCandidates.size());
+            throw new BmcNudgeRequiredException(session, entries);
+        }
+
+        BoardBMC saved = bmcRepository.save(BoardBMC.builder()
+                .boardModel(parent)
+                .name(request.name())
+                .version(request.version())
+                .treeRootPath(targetDir.toString())
+                .legacyFilePath(targetDir.toString())
+                .boardModelIdMirror(parent.getId())
+                .entrypointRelativePath(entrypoint)
+                .manifestHash(manifest.manifestHash())
+                .markerSignature(null)
+                .fileCount(manifest.fileCount())
+                .totalBytes(manifest.totalBytes())
+                .description(request.description())
+                .isEnabled(true)
+                .isDeleted(false)
+                .build());
+
+        MarkerContent unsigned = new MarkerContent(
+                ResourceType.BMC_FIRMWARE.name(),
+                saved.getId(),
+                Map.of(
+                        "boardId", String.valueOf(boardId),
+                        "version", request.version(),
+                        "entrypointRelativePath", entrypoint
+                ),
+                Instant.now(),
+                manifest.manifestHash(),
+                null
+        );
+        String signature = provisionMarkerService.computeSignature(unsigned);
+        saved.reissueMarker(manifest.manifestHash(), signature);
+        provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, unsigned.withSignature(signature));
+
+        log.info("[registerExistingBmc] 등록 완료. bmcId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
+                saved.getId(), boardId, request.version(), manifest.fileCount(), manifest.totalBytes());
+        return saved.getId();
     }
 
     // ==== MK2 — BmcNudgeService 가 사용할 helper =====================
@@ -302,11 +407,34 @@ public class BmcService {
         requireLiveBmc(boardId, bmcId).toggleEnabled();
     }
 
+    /** MK3 — soft-delete BMC. 도메인 가드 후 공통 trash 흐름 위임. MK3-2 사전조건 추가. */
     @Transactional
     public void softDelete(Long boardId, Long bmcId) {
-        requireLiveBmc(boardId, bmcId).softDelete();
+        BoardBMC bmc = requireLiveBmc(boardId, bmcId);
+        // MK3-2 (DCM3-2.1) — Files.exists 사전조건. flag false 면 통과.
+        softDeleteIntentService.checkPrecondition(bmc);
+        trashLifecycleService.softDeleteToTrash(bmc);
     }
 
+    /**
+     * MK3-2 (DCM3-2.3 ~ 2.5) — softDelete reject modal 의 두 번째 호출 진입점.
+     */
+    @Transactional
+    public void softDeleteWithIntent(Long boardId, Long bmcId,
+                                     com.example.serverprovision.global.lifecycle.DeleteAction action) {
+        switch (action) {
+            case CORRECT_PATH_THEN_DELETE -> softDeleteIntentService.reconcileThenDelete(
+                    com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE, bmcId,
+                    () -> {
+                        BoardBMC refreshed = requireLiveBmc(boardId, bmcId);
+                        trashLifecycleService.softDeleteToTrash(refreshed);
+                    });
+            case FORCED_CLEAR -> softDeleteIntentService.forcedClear(
+                    com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE, bmcId);
+        }
+    }
+
+    /** MK3 — restore BMC. 도메인 가드 + 공통 흐름. attributes 는 BMC 도메인 메타. */
     @Transactional
     public void restore(Long boardId, Long bmcId) {
         requireActiveBoard(boardId);
@@ -318,7 +446,11 @@ public class BmcService {
         if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, bmc.getVersion())) {
             throw new DuplicateBmcVersionException(boardId, bmc.getVersion());
         }
-        bmc.restore();
+        trashLifecycleService.restoreFromTrash(bmc, bmcEntity -> java.util.Map.of(
+                "boardId", String.valueOf(boardId),
+                "version", bmcEntity.getVersion(),
+                "entrypointRelativePath",
+                bmcEntity.getEntrypointRelativePath() == null ? "" : bmcEntity.getEntrypointRelativePath()));
     }
 
     public IntegrityStatus verifyIntegrity(Long boardId, Long bmcId) {

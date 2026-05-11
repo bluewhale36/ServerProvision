@@ -18,6 +18,7 @@ import com.example.serverprovision.management.common.dto.response.IntegrityStatu
 import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramCreateRequest;
+import com.example.serverprovision.management.subprogram.dto.request.SubprogramRegisterExistingRequest;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest;
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse;
@@ -72,6 +73,8 @@ public class SubprogramService {
     private final PathPolicyService pathPolicyService;
     private final EntrypointPolicyService entrypointPolicyService;
     private final NudgeRegistry nudgeRegistry;
+    private final com.example.serverprovision.global.trash.TrashLifecycleService trashLifecycleService;
+    private final com.example.serverprovision.global.lifecycle.SoftDeleteIntentService softDeleteIntentService;
 
     /* ─────────────────────────── 조회 ─────────────────────────── */
 
@@ -209,8 +212,12 @@ public class SubprogramService {
             ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
             // MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated, 같은 scope) 탐지 시 nudge throw.
+            // MK3-1 — ghost 후보 사전 필터링.
             List<Subprogram> hashCandidates = subprogramRepository.findHashConflictCandidates(
-                    kind, scope.isCommon() ? null : scope.boardId(), manifest.manifestHash());
+                    kind, scope.isCommon() ? null : scope.boardId(), manifest.manifestHash())
+                    .stream()
+                    .filter(c -> !com.example.serverprovision.global.trash.GhostEvaluator.isGhost(c))
+                    .toList();
             if (!hashCandidates.isEmpty()) {
                 NudgeSession session = nudgeRegistry.register(
                         NudgeResourceType.SUBPROGRAM,
@@ -284,6 +291,117 @@ public class SubprogramService {
             bundleTreeCleanupService.cleanupFailedUpload(targetDir, "purgeExistingTree", "addSubprogram", e);
             throw e;
         }
+    }
+
+    /**
+     * 기존 디렉토리를 Subprogram 자원으로 등록. 업로드 없이 이미 있는 트리를 claim.
+     * 추출 단계만 생략하고 검증 / nudge / marker 흐름은 {@link #addSubprogram} 와 일치한다.
+     */
+    @Transactional
+    public Long registerExisting(SubprogramKind kind,
+                                 BoardScope scope,
+                                 SubprogramRegisterExistingRequest request) {
+        BoardModel parent = scope.isCommon() ? null : requireActiveBoard(scope.boardId());
+
+        Optional<Subprogram> active = scope.isCommon()
+                ? subprogramRepository.findActiveByCommonKey(kind, request.name(), request.version())
+                : subprogramRepository.findActiveByBoardKey(kind, scope.boardId(), request.name(), request.version());
+        if (active.isPresent()) {
+            throw new DuplicateSubprogramVersionException(kind, scope, request.name(), request.version());
+        }
+
+        Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
+
+        Optional<Subprogram> staleHolder = scope.isCommon()
+                ? subprogramRepository.findSoftDeletedByCommonKey(kind, request.name(), request.version())
+                : subprogramRepository.findSoftDeletedByBoardKey(kind, scope.boardId(), request.name(), request.version());
+        if (staleHolder.isPresent()) {
+            Subprogram existing = staleHolder.get();
+            BoardScope sc = existing.isCommonScope() ? BoardScope.COMMON : BoardScope.ofBoard(existing.getBoardId());
+            throw new DuplicateSubprogramVersionException(existing.getKind(), sc, existing.getName(), existing.getVersion());
+        }
+
+        targetDirectoryPolicyService.prepareForExistingDirectoryRegistration(targetDir);
+
+        subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(targetDir.toString())
+                .ifPresent(existing -> {
+                    throw new SubprogramPathConflictException(existing.getTreeRootPath());
+                });
+
+        ManifestSummary manifest = bundleManifestService.compute(targetDir);
+
+        // MK3-1 — ghost 후보 사전 필터링.
+        List<Subprogram> hashCandidates = subprogramRepository.findHashConflictCandidates(
+                kind, scope.isCommon() ? null : scope.boardId(), manifest.manifestHash())
+                .stream()
+                .filter(c -> !com.example.serverprovision.global.trash.GhostEvaluator.isGhost(c))
+                .toList();
+        if (!hashCandidates.isEmpty()) {
+            NudgeSession session = nudgeRegistry.register(
+                    NudgeResourceType.SUBPROGRAM,
+                    scope.isCommon() ? null : scope.boardId(),
+                    hashCandidates.stream().map(Subprogram::getId).toList(),
+                    new ContentNudgePayload(
+                            request.name(),
+                            request.version(),
+                            manifest.manifestHash(),
+                            targetDir.toString(),
+                            Map.of(
+                                    "kind", kind.name(),
+                                    "scopeCommon", String.valueOf(scope.isCommon()),
+                                    "boardId", scope.isCommon() ? "" : String.valueOf(scope.boardId()),
+                                    "fileCount", String.valueOf(manifest.fileCount()),
+                                    "totalBytes", String.valueOf(manifest.totalBytes()),
+                                    "description", request.description() != null ? request.description() : ""
+                            )
+                    )
+            );
+            List<NudgeConflictEntry> entries = hashCandidates.stream()
+                    .map(s -> new NudgeConflictEntry(
+                            s.getId(),
+                            LifecycleStage.of(s.isDeprecated(), s.isDeleted()),
+                            s.getManifestHash(),
+                            s.getName(),
+                            s.getVersion(),
+                            Instant.now()))
+                    .toList();
+            log.info("[registerExistingSubprogram] nudge required : kind={}, scope={}, version={}, candidates={}",
+                    kind, scope.pathToken(), request.version(), hashCandidates.size());
+            throw new SubprogramNudgeRequiredException(session, entries);
+        }
+
+        Subprogram saved = subprogramRepository.save(Subprogram.builder()
+                .kind(kind)
+                .boardModel(parent)
+                .name(request.name())
+                .version(request.version())
+                .treeRootPath(targetDir.toString())
+                .entrypointRelativePath(null)
+                .manifestHash(manifest.manifestHash())
+                .markerSignature(null)
+                .lastIntegrityStatus(IntegrityStatus.NOT_VERIFIED)
+                .fileCount(manifest.fileCount())
+                .totalBytes(manifest.totalBytes())
+                .description(request.description())
+                .isEnabled(true)
+                .isDeleted(false)
+                .build());
+
+        MarkerContent unsigned = new MarkerContent(
+                ResourceType.SUBPROGRAM.name(),
+                saved.getId(),
+                buildMarkerAttributes(kind, scope, request.name(), request.version()),
+                Instant.now(),
+                manifest.manifestHash(),
+                null
+        );
+        String signature = provisionMarkerService.computeSignature(unsigned);
+        saved.reissueMarker(manifest.manifestHash(), signature);
+        provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, unsigned.withSignature(signature));
+
+        log.info("[registerExistingSubprogram] 등록 완료. id={}, kind={}, scope={}, name={}, version={}",
+                saved.getId(), kind, scope.pathToken(), request.name(), request.version());
+        return saved.getId();
     }
 
     // ==== MK2 — SubprogramNudgeService 가 사용할 helper =================
@@ -393,17 +511,38 @@ public class SubprogramService {
         requireLive(subprogramId).toggleEnabled();
     }
 
+    /** MK3 — soft-delete Subprogram. 도메인 가드 후 공통 trash 흐름 위임. MK3-2 사전조건 추가. */
     @Transactional
     public void softDelete(Long subprogramId) {
-        requireLive(subprogramId).softDelete();
+        Subprogram sp = requireLive(subprogramId);
+        // MK3-2 (DCM3-2.1) — Files.exists 사전조건. flag false 면 통과.
+        softDeleteIntentService.checkPrecondition(sp);
+        trashLifecycleService.softDeleteToTrash(sp);
     }
 
+    /**
+     * MK3-2 (DCM3-2.3 ~ 2.5) — softDelete reject modal 의 두 번째 호출 진입점.
+     */
+    @Transactional
+    public void softDeleteWithIntent(Long subprogramId,
+                                     com.example.serverprovision.global.lifecycle.DeleteAction action) {
+        switch (action) {
+            case CORRECT_PATH_THEN_DELETE -> softDeleteIntentService.reconcileThenDelete(
+                    com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, subprogramId,
+                    () -> {
+                        Subprogram refreshed = requireLive(subprogramId);
+                        trashLifecycleService.softDeleteToTrash(refreshed);
+                    });
+            case FORCED_CLEAR -> softDeleteIntentService.forcedClear(
+                    com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, subprogramId);
+        }
+    }
+
+    /** MK3 — restore Subprogram. 도메인 가드 (활성 자원 충돌) + 공통 흐름. attributes 는 Subprogram 도메인 메타. */
     @Transactional
     public void restore(Long subprogramId) {
         Subprogram sp = subprogramRepository.findById(subprogramId)
                 .orElseThrow(() -> new SubprogramNotFoundException(subprogramId));
-        // 활성 상태 가드는 LifecycleEntity.restore() 가 IllegalLifecycleTransitionException 으로 던진다.
-        // 같은 키의 활성 자원과 충돌하지 않도록 사전 검사만 본 메서드에서 수행.
         Optional<Subprogram> active = sp.isCommonScope()
                 ? subprogramRepository.findActiveByCommonKey(sp.getKind(), sp.getName(), sp.getVersion())
                 : subprogramRepository.findActiveByBoardKey(sp.getKind(), sp.getBoardId(), sp.getName(), sp.getVersion());
@@ -411,7 +550,16 @@ public class SubprogramService {
             BoardScope scope = sp.isCommonScope() ? BoardScope.COMMON : BoardScope.ofBoard(sp.getBoardId());
             throw new DuplicateSubprogramVersionException(sp.getKind(), scope, sp.getName(), sp.getVersion());
         }
-        sp.restore();
+        trashLifecycleService.restoreFromTrash(sp, spEntity -> {
+            java.util.Map<String, String> attrs = new java.util.HashMap<>();
+            attrs.put("kind", spEntity.getKind().name());
+            attrs.put("name", spEntity.getName());
+            attrs.put("version", spEntity.getVersion());
+            if (spEntity.getBoardId() != null) {
+                attrs.put("boardId", String.valueOf(spEntity.getBoardId()));
+            }
+            return attrs;
+        });
     }
 
     /* ─────────────────────────── MK2 — Deprecate / Undeprecate / Purge ─────────────────────────── */

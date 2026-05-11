@@ -52,6 +52,7 @@ class OSImageControllerSecurityFlowTest {
     @MockitoBean IsoVerificationLauncher isoVerificationLauncher;
     @MockitoBean IsoRegistrationLauncher isoRegistrationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
+    @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test

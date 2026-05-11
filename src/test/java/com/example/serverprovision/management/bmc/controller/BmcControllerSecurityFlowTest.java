@@ -51,6 +51,7 @@ class BmcControllerSecurityFlowTest {
     @MockitoBean BoardModelService boardModelService;
     @MockitoBean BmcVerificationLauncher bmcVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
+    @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test

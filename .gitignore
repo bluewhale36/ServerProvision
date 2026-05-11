@@ -45,3 +45,7 @@ out/
 CLAUDE.local.md
 /plan/
 /report/
+
+# Claude Code session logs and agent memory (per-session, not source)
+2026-*.txt
+.claude/agent-memory/

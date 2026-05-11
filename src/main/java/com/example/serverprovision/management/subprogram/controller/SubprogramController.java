@@ -7,6 +7,7 @@ import com.example.serverprovision.management.common.dto.response.IntegrityStatu
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramCreateRequest;
+import com.example.serverprovision.management.subprogram.dto.request.SubprogramRegisterExistingRequest;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUploadIntentRequest;
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
@@ -59,6 +60,7 @@ public class SubprogramController {
     private final SubprogramNudgeService subprogramNudgeService;
     private final BoardModelService boardModelService;
     private final DirectoryBrowseService directoryBrowseService;
+    private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
 
     /* ─────────────────────────── 메인 페이지 ─────────────────────────── */
 
@@ -148,6 +150,21 @@ public class SubprogramController {
     public String delete(@PathVariable("id") Long id) {
         subprogramService.softDelete(id);
         return "redirect:/management/subprogram";
+    }
+
+    /** MK3-2 (DCM3-2.3) — softDelete reject modal 의 두 번째 호출 (XHR JSON). */
+    @PostMapping(path = "/{id:[0-9]+}/delete-intent/{token}", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Void> deleteWithIntent(
+            @PathVariable("id") Long id,
+            @PathVariable("token") String token,
+            @Valid @RequestBody com.example.serverprovision.management.common.dto.request.DeleteIntentRequest request) {
+        com.example.serverprovision.global.lifecycle.DeleteIntentToken parsed =
+                com.example.serverprovision.global.lifecycle.DeleteIntentToken.parse(token);
+        deleteIntentRegistry.consume(parsed,
+                com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, id);
+        subprogramService.softDeleteWithIntent(id, request.action());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id:[0-9]+}/restore")
@@ -249,6 +266,24 @@ public class SubprogramController {
         BoardScope scope = BoardScope.fromPathToken(boardScopeToken);
         subprogramUploadIntentService.consume(kind, scope, uploadToken);
         Long id = subprogramService.addSubprogram(kind, scope, request, uploadMode, folderFiles, zipFile, singleFile);
+        return ResponseEntity.ok(new SubprogramUploadResponse(id, "/management/subprogram?selectId=" + id));
+    }
+
+    /**
+     * 기존 디렉토리 등록 — 업로드 없이 이미 콘텐츠가 차 있는 트리를 Subprogram 자원으로 claim.
+     */
+    @PostMapping("/{kind}/{boardScope}/register-existing")
+    @ResponseBody
+    public ResponseEntity<?> registerExisting(@PathVariable("kind") String kindToken,
+                                              @PathVariable("boardScope") String boardScopeToken,
+                                              @Valid @RequestBody SubprogramRegisterExistingRequest request,
+                                              BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.badRequest().body(new ApiErrorResponse(firstFieldError(bindingResult)));
+        }
+        SubprogramKind kind = SubprogramKind.fromPathToken(kindToken);
+        BoardScope scope = BoardScope.fromPathToken(boardScopeToken);
+        Long id = subprogramService.registerExisting(kind, scope, request);
         return ResponseEntity.ok(new SubprogramUploadResponse(id, "/management/subprogram?selectId=" + id));
     }
 

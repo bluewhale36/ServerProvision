@@ -105,11 +105,27 @@ public class PathReconciliationService {
     @Value("${reconciliation.report.retention-count:100}")
     private int retentionCount;
 
+    /** MK3-1 — GHOST_DB_ROW drift 자동 적용 (default OFF). 사용자 사후 검토 가능. */
+    @Value("${reconciliation.auto-apply-ghost-row:false}")
+    private boolean autoApplyGhostRow;
+
     @Value("${reconciliation.auto-apply-path-drift:false}")
     private boolean autoApplyPathDrift;
 
     @Value("${reconciliation.scan.extra-roots:}")
     private String extraRootsCsv;
+
+    /**
+     * MK3 — 자동 정합 전역 OFF 옵션 (DCN-NEW11). default true. false 시 자동 ON DriftKind 도 보고만.
+     * <p>Boolean wrapper 사용 — unit test mock 환경에서 @Value 미주입 시 null. {@code Boolean.FALSE.equals}
+     * 로 비교하면 null = 활성 (운영자 의도 default = 활성).</p>
+     */
+    @Value("${reconciliation.auto-apply:true}")
+    private Boolean autoApplyEnabled;
+
+    /** MK3 — Trash 디렉토리 (walk 시 명시 제외). macOS 호환을 위해 `.soft-deleted` 사용. */
+    @Value("${trash.root:/opt/provisioning/.soft-deleted}")
+    private String trashRoot;
 
     /** 동시 실행 차단. 스캔 시작 시 true 로, 종료 시 false 로. */
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -370,6 +386,16 @@ public class PathReconciliationService {
                     .build());
         }
 
+        // (5.5) MK3-1 — Ghost row 감지 패스. is_deleted=true AND trashed_path=null AND FS 부재 인 dead row.
+        //       active 인벤토리에 없으므로 별도 패스. drift 의 oldPath = stale DB.path, newPath = null.
+        for (MarkableScanner scanner : scanners) {
+            for (Markable ghost : scanner.findGhostMarkables()) {
+                drifts.add(buildDrift(ghost, DriftKind.GHOST_DB_ROW,
+                        ghost.getResourcePath().toString(), null, now,
+                        "DB row 만 남은 ghost — FS 자원도 trash 도 없음. drift apply = DB row hard-delete."));
+            }
+        }
+
         // (6) DriftReport 영속화
         long durationMs = Duration.between(start, Instant.now()).toMillis();
         DriftReport report = DriftReport.builder()
@@ -387,16 +413,22 @@ public class PathReconciliationService {
         // (7) FIFO prune (D15)
         pruneOldReports();
 
-        // (8) 자동 적용 (옵트인, D13) — PATH_DRIFT 만
-        if (autoApplyPathDrift) {
+        // (8) 자동 적용 (옵트인, D13) — PATH_DRIFT / MK3-1 GHOST_DB_ROW.
+        if (Boolean.FALSE.equals(autoApplyEnabled)) {
+            // 전역 OFF — 자동 적용 건너뜀.
+        } else {
             for (Drift d : saved.getDrifts()) {
-                if (d.getKind() == DriftKind.PATH_DRIFT) {
-                    try {
+                try {
+                    if (d.getKind() == DriftKind.PATH_DRIFT && autoApplyPathDrift) {
                         scannersByType.get(d.getResourceType())
                                 .applyDriftedPath(d.getResourceId(), Path.of(d.getNewPath()));
-                    } catch (RuntimeException ex) {
-                        log.warn("[reconciliation] 자동 적용 실패. driftId={}, msg={}", d.getId(), ex.getMessage());
+                    } else if (d.getKind() == DriftKind.GHOST_DB_ROW && autoApplyGhostRow) {
+                        scannersByType.get(d.getResourceType())
+                                .applyGhostClear(d.getResourceId());
                     }
+                } catch (RuntimeException ex) {
+                    log.warn("[reconciliation] 자동 적용 실패. driftId={}, kind={}, msg={}",
+                            d.getId(), d.getKind(), ex.getMessage());
                 }
             }
         }
@@ -431,12 +463,19 @@ public class PathReconciliationService {
 
     private Map<MarkerKey, MarkerHit> collectDiskMarkers(Set<Path> scanRoots, List<String> failedRoots) {
         Map<MarkerKey, MarkerHit> result = new HashMap<>();
+        // MK3 — trashRoot 미설정 (test mock 환경 등) 시 walk skip 비활성. null 이면 모든 walk 결과 통과.
+        Path trashRootPath = (trashRoot != null && !trashRoot.isBlank())
+                ? Path.of(trashRoot).toAbsolutePath().normalize()
+                : null;
         for (Path root : scanRoots) {
             if (!Files.isDirectory(root)) continue;
             // (B-3) walk 깊이 제한이 적중하면 운영자가 인지할 수 있도록 boundary 마커 카운트를 함께 본다.
             int[] boundaryHits = {0};
             try (Stream<Path> walker = Files.walk(root, WALK_MAX_DEPTH)) {
                 walker.filter(Files::isRegularFile)
+                      // MK3 — trash 디렉토리 안 마커는 walk 결과에서 명시 제외 (active 인벤토리와 별개 lifecycle).
+                      .filter(p -> trashRootPath == null
+                              || !p.toAbsolutePath().normalize().startsWith(trashRootPath))
                       .filter(p -> p.getFileName().toString().endsWith(".provision.json"))
                       .peek(p -> { if (root.relativize(p).getNameCount() >= WALK_MAX_DEPTH) boundaryHits[0]++; })
                       .forEach(markerFile -> {
@@ -535,15 +574,149 @@ public class PathReconciliationService {
 
     @Transactional
     public void apply(Long driftId) {
+        apply(driftId, false);
+    }
+
+    /**
+     * MK3-2 (DCM3-2.4) — 강제 적용 오버로드. {@code forced=true} 면 자동 적용 가능 분기 검증 + 전역 OFF
+     * 옵션을 모두 우회한다. softDelete reject 의 saga "위치 정정 후 삭제" 흐름이 사용자 명시 액션이므로
+     * 글로벌 설정과 무관하게 진행되어야 함.
+     */
+    @Transactional
+    public void apply(Long driftId, boolean forced) {
         Drift drift = driftRepository.findById(driftId)
                 .orElseThrow(() -> new DriftNotFoundException(driftId));
-        if (drift.getKind() != DriftKind.PATH_DRIFT) {
-            throw new DriftAutoApplyNotAllowedException(drift.getKind());
+        if (!forced) {
+            // MK3 — 자동 적용 허용 분기 4종 + MK3-1 GHOST_DB_ROW 1종.
+            // 전역 OFF 옵션 (DCN-NEW11) 활성 시 자동 ON 분기도 거절 — 운영 환경 안전망.
+            if (!isAutoApplicable(drift.getKind())) {
+                throw new DriftAutoApplyNotAllowedException(drift.getKind());
+            }
+            if (Boolean.FALSE.equals(autoApplyEnabled)) {
+                log.warn("[reconciliation] auto-apply 전역 OFF — drift {} 거절", driftId);
+                throw new DriftAutoApplyNotAllowedException(drift.getKind());
+            }
+        } else {
+            log.info("[reconciliation] forced apply — driftId={}, kind={}", driftId, drift.getKind());
         }
         MarkableScanner scanner = scannerFor(drift.getResourceType());
-        scanner.applyDriftedPath(drift.getResourceId(), Path.of(drift.getNewPath()));
-        // 적용 후 보고서에서 제거 — 동일 drift 가 다음 스캔까지 남아 중복 적용되지 않게
+        // MK3-1 — GHOST_DB_ROW 는 newPath 가 null 이고 액션이 row hard-delete 라 별도 분기.
+        if (drift.getKind() == DriftKind.GHOST_DB_ROW) {
+            scanner.applyGhostClear(drift.getResourceId());
+        } else {
+            // PATH_DRIFT / RESOURCE_RENAMED 는 newPath 로 갱신. SOFTDEL_ESCAPE_TO_ORIGINAL / TRASH_MARKER_STALE 는
+            // applyDriftedPath 와 다른 동작이 필요할 수 있으나 본 sub-slice 단계에서는 PATH_DRIFT 와 동일 호출 (newPath 기반).
+            scanner.applyDriftedPath(drift.getResourceId(), Path.of(drift.getNewPath()));
+        }
         drift.getReport().removeDrift(drift);
+    }
+
+    /**
+     * MK3-2 (DCM3-2.4) — 단일 자원 스캔. softDelete reject 의 saga 진입점에서 호출.
+     *
+     * <p>전체 인벤토리 스캔과 달리 단일 (resourceType, resourceId) 의 drift 만 분류해 in-memory
+     * 결과로 반환. 트랜잭션 일관성을 위해 영속화하지 않음 (saga 의 일부라 호출자가 후속 액션 결정).</p>
+     *
+     * <p>분류 방식 :</p>
+     * <ol>
+     *   <li>scanner 의 {@link MarkableScanner#findActiveMarkableById} 로 active markable 조회</li>
+     *   <li>DB.path 위치 마커 존재하면 → 정상 (drift 없음, empty 반환)</li>
+     *   <li>DB.path 위치 마커 부재 → scan roots 를 walk 하면서 (resourceType, resourceId) 매칭 마커 검색</li>
+     *   <li>발견 시 PATH_DRIFT, 미발견 시 MISSING</li>
+     * </ol>
+     */
+    @Transactional(readOnly = true)
+    public List<Drift> scanForResource(ResourceType type, Long resourceId) {
+        MarkableScanner scanner = scannerFor(type);
+        Optional<Markable> markableOpt = scanner.findActiveMarkableById(resourceId);
+        if (markableOpt.isEmpty()) {
+            return List.of();
+        }
+        Markable resource = markableOpt.get();
+        Path expectedPath = resource.getResourcePath();
+        Path expectedMarker = markerService.resolveMarkerFile(expectedPath, resource.getMarkerLayout());
+        Instant now = Instant.now();
+
+        if (Files.exists(expectedMarker)) {
+            return List.of(); // 정상 — drift 없음
+        }
+
+        // 마커 부재 → scan roots 에서 (resourceType, resourceId) 매칭 검색 (PATH_DRIFT 후보)
+        Set<Path> roots = computeScanRootsForResource(resource);
+        Path trashRootPath = (trashRoot != null && !trashRoot.isBlank())
+                ? Path.of(trashRoot).toAbsolutePath().normalize()
+                : null;
+        MarkerKey targetKey = new MarkerKey(type, resourceId);
+        for (Path root : roots) {
+            if (!Files.isDirectory(root)) continue;
+            try (Stream<Path> walker = Files.walk(root, WALK_MAX_DEPTH)) {
+                Optional<MarkerHit> hit = walker
+                        .filter(Files::isRegularFile)
+                        .filter(p -> trashRootPath == null
+                                || !p.toAbsolutePath().normalize().startsWith(trashRootPath))
+                        .filter(p -> p.getFileName().toString().endsWith(".provision.json"))
+                        .map(this::parseMarkerHit)
+                        .filter(java.util.Objects::nonNull)
+                        .filter(h -> new MarkerKey(h.resourceType(), h.resourceId()).equals(targetKey))
+                        .findFirst();
+                if (hit.isPresent()) {
+                    Path newPath = hit.get().resourcePath();
+                    return List.of(buildDrift(resource, DriftKind.PATH_DRIFT,
+                            expectedPath.toString(), newPath.toString(), now,
+                            "단일 자원 스캔 — 다른 위치에서 (type, id) 매칭 마커 발견"));
+                }
+            } catch (IOException e) {
+                log.warn("[reconciliation.scanForResource] walk 실패. root={}, msg={}", root, e.getMessage());
+            }
+        }
+        return List.of(buildDrift(resource, DriftKind.MISSING, expectedPath.toString(), null, now,
+                "단일 자원 스캔 — DB.path + 어디에도 매칭 마커 없음"));
+    }
+
+    /** MK3-2 — 단일 자원에 대한 scan roots 계산. 자원 path.parent + extra-roots. */
+    private Set<Path> computeScanRootsForResource(Markable resource) {
+        Set<Path> roots = new HashSet<>();
+        Path parent = resource.getResourcePath().getParent();
+        if (parent != null) roots.add(parent);
+        if (extraRootsCsv != null && !extraRootsCsv.isBlank()) {
+            for (String r : extraRootsCsv.split(",")) {
+                String trimmed = r.trim();
+                if (!trimmed.isEmpty()) roots.add(Path.of(trimmed));
+            }
+        }
+        return roots;
+    }
+
+    /**
+     * MK3-2 (DCM3-2.4) — saga 흐름에서 호출. {@link #scanForResource} 결과의 단일 drift 를 in-memory
+     * 영속화 후 forced apply. driftRepository 를 거쳐 영속화하여 apply() 가 driftId 로 처리 가능.
+     */
+    @Transactional
+    public void persistAndForcedApply(Drift drift) {
+        // 본 메서드는 saga 의 (3) 단계 — 분류된 drift 를 일시 영속화 후 forced apply.
+        DriftReport tempReport = DriftReport.builder()
+                .scannedAt(Instant.now())
+                .scanDurationMs(0L)
+                .deep(false)
+                .totalChecked(1)
+                .build();
+        tempReport.addDrift(drift);
+        DriftReport saved = driftReportRepository.save(tempReport);
+        Drift persisted = saved.getDrifts().iterator().next();
+        apply(persisted.getId(), true);
+    }
+
+    /**
+     * MK3 — 자동 적용 가능 DriftKind 인지 판단. {@link DriftKind} 자체에 메서드 두는 대안도 있으나 본체 단계에서는
+     * service 안 명시 분기 — 다른 곳에서 같은 분기가 반복되면 enum method-per-constant 로 승격.
+     * <p>MK3-1 — GHOST_DB_ROW 추가 (drift apply = DB row hard-delete).</p>
+     */
+    private boolean isAutoApplicable(DriftKind kind) {
+        return kind == DriftKind.PATH_DRIFT
+                || kind == DriftKind.RESOURCE_RENAMED
+                || kind == DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL
+                || kind == DriftKind.TRASH_MARKER_STALE
+                || kind == DriftKind.GHOST_DB_ROW;
     }
 
     @Transactional

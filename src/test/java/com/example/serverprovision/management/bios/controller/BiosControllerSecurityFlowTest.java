@@ -45,6 +45,7 @@ class BiosControllerSecurityFlowTest {
     @MockitoBean BoardModelService boardModelService;
     @MockitoBean BiosVerificationLauncher biosVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
+    @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test

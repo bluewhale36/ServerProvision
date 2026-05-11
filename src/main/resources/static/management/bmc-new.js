@@ -13,6 +13,7 @@
 
     const uploadUrl = form.dataset.uploadUrl;
     const intentUrl = form.dataset.intentUrl;
+    const registerExistingUrl = form.dataset.registerExistingUrl;
     const listUrl = form.dataset.listUrl;
 
     const submitBtn = document.getElementById('submitBtn');
@@ -28,12 +29,14 @@
     const folderPane = document.getElementById('folderPane');
     const zipPane = document.getElementById('zipPane');
     const singlePane = document.getElementById('singlePane');
+    const existingPane = document.getElementById('existingPane');
     const folderInput = document.getElementById('folderFiles');
     const zipInput = document.getElementById('zipFile');
     const singleInput = document.getElementById('singleFile');
     const tabFolder = document.getElementById('modeTabFolder');
     const tabZip = document.getElementById('modeTabZip');
     const tabSingle = document.getElementById('modeTabSingle');
+    const tabExisting = document.getElementById('modeTabExisting');
 
     const targetDirInput = document.getElementById('targetDirectory');
     const browseBtn = document.getElementById('browseBtn');
@@ -58,9 +61,12 @@
     const bootstrap = window.BundleUploadBootstrap;
     if (bootstrap) {
         bootstrap.bindModeTabs({
-            uploadModeInput, folderPane, zipPane, singlePane,
+            uploadModeInput, folderPane, zipPane, singlePane, existingPane,
             folderInput, zipInput, singleInput,
-            tabFolder, tabZip, tabSingle
+            tabFolder, tabZip, tabSingle, tabExisting,
+            onModeChange(mode) {
+                if (submitBtn) submitBtn.textContent = mode === 'EXISTING_DIRECTORY' ? '기존 디렉토리 등록' : '번들 등록';
+            }
         });
         bootstrap.bindDirectoryBrowse({
             targetInput: targetDirInput,
@@ -85,6 +91,12 @@
         }
 
         const mode = uploadModeInput.value;
+
+        if (mode === 'EXISTING_DIRECTORY') {
+            await submitRegisterExisting();
+            return;
+        }
+
         const { fileCount, totalBytes } = shell.collectSizeInfo(mode, {
             folderInput, zipInput, singleInput
         });
@@ -160,6 +172,49 @@
             submitBtn.textContent = '번들 등록';
         }
     });
+    async function submitRegisterExisting() {
+        if (!registerExistingUrl) {
+            showError('기존 디렉토리 등록 URL 이 설정되지 않았습니다. 페이지를 새로고침 해주세요.');
+            return;
+        }
+        const fields = shell.resolveCommonFields(form);
+        submitBtn.disabled = true;
+        const originalLabel = submitBtn.textContent;
+        submitBtn.textContent = '등록 중…';
+        try {
+            const resp = await fetch(registerExistingUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    name: fields.name.trim(),
+                    version: fields.version.trim(),
+                    targetDirectory: fields.targetDirectory.trim(),
+                    description: fields.description,
+                    entrypointRelativePath: fields.entrypointRelativePath.trim()
+                })
+            });
+            const body = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+                if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
+                    openContentNudgeModal(body);
+                    return;
+                }
+                if (window.FormError && body) {
+                    window.FormError.renderResponse(body, { root: form });
+                } else {
+                    showError(body.message || ('등록 실패 (HTTP ' + resp.status + ')'));
+                }
+                return;
+            }
+            window.location.href = body.redirect || listUrl;
+        } catch (err) {
+            showError('네트워크 오류 : ' + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalLabel;
+        }
+    }
+
     function startXhrUpload(uploadToken, commonFields) {
         const { formData: fd } = shell.buildBundleFormData({
             form,

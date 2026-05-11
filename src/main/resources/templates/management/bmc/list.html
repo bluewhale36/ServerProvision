@@ -201,6 +201,7 @@
                             </form>
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/delete(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
+                                  class="mk3-2-delete-form"
                                   onsubmit="return confirm('이 BMC 펌웨어를 삭제할까요?');">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
@@ -223,7 +224,21 @@
     </div>
 </div>
 
+<!-- MK3-2 — softDelete reject modal fragment. -->
+<div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
+
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
+<script th:src="@{/management/common/delete-reject-modal.js}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.DeleteRejectModal) {
+            window.DeleteRejectModal.bind({
+                deleteFormSelector: 'form.mk3-2-delete-form',
+                modalPrefix: 'deleteReject'
+            });
+        }
+    });
+</script>
 </body>
 </html>

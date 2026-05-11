@@ -64,6 +64,21 @@ public abstract class LifecycleEntity implements LifecycleManageable {
     private Instant deprecatedAt;
 
     /**
+     * MK3 — soft-delete 시각. trash 이동 동시 기록.
+     * <p>{@code is_deleted=true} && {@code trashed_path != null} 조합이 정상 soft-deleted 상태.</p>
+     */
+    @Column(name = "trashed_at")
+    private Instant trashedAt;
+
+    /**
+     * MK3 — 휴지통 내 절대 경로 (timestamp + UUID8 suffix 포함).
+     * <p>{@code is_deleted=true} && {@code trashed_path=null} 조합은 자원 부재 상태 (A2 케이스).</p>
+     * <p>운영자 의도 보존을 위해 기존 도메인의 path 컬럼 ({@code iso_path} 등) 은 soft-delete 시 변경하지 않는다.</p>
+     */
+    @Column(name = "trashed_path", length = 1024)
+    private String trashedPath;
+
+    /**
      * 가드 메시지에 노출할 자원 라벨. sub-class 가 도메인 명칭으로 override (예: "BIOS", "BMC", "ISO").
      * 기본값은 클래스 simple name 이라 override 안 해도 동작 가능.
      */
@@ -120,5 +135,26 @@ public abstract class LifecycleEntity implements LifecycleManageable {
         }
         this.isDeprecated = false;
         this.deprecatedAt = null;
+    }
+
+    /**
+     * MK3 — soft-delete 시 trash 이동 직후 caller 가 호출. trashedAt + trashedPath 기록.
+     * <p>{@link #softDelete()} 와 별개 — 시그니처를 분리해 기존 호출자를 깨지 않는다.
+     * 정상 흐름 : {@code softDelete() → trashService.moveToTrash() → markTrashed(trashedPath)}.</p>
+     *
+     * @param trashedPath trash 내 절대 경로 (timestamp + UUID8 suffix 포함)
+     */
+    public void markTrashed(String trashedPath) {
+        this.trashedAt = Instant.now();
+        this.trashedPath = trashedPath;
+    }
+
+    /**
+     * MK3 — restore 시 trash 복원 직후 caller 가 호출. trashedAt / trashedPath 초기화.
+     * <p>{@link #restore()} 와 별개 — 정상 흐름 : {@code trashService.moveBack() → restore() → clearTrashed()}.</p>
+     */
+    public void clearTrashed() {
+        this.trashedAt = null;
+        this.trashedPath = null;
     }
 }

@@ -179,8 +179,12 @@
                         <div class="n-accordion-field">
                             <dt>드리프트 종류</dt>
                             <dd>
+                                <!--/* MK3 — 자동 ON 분기 (4종) 는 오렌지, 그 외는 회색. CP4 에서 detail 메시지 + 위험도별 색 분기 정밀화 검토. */-->
                                 <span class="n-badge"
-                                      th:classappend="${drift.kind.name() == 'PATH_DRIFT'} ? 'n-badge-orange' : 'n-badge-gray'"
+                                      th:classappend="${drift.kind.name() == 'PATH_DRIFT'
+                                                         or drift.kind.name() == 'RESOURCE_RENAMED'
+                                                         or drift.kind.name() == 'SOFTDEL_ESCAPE_TO_ORIGINAL'
+                                                         or drift.kind.name() == 'TRASH_MARKER_STALE'} ? 'n-badge-orange' : 'n-badge-gray'"
                                       th:text="${drift.kind}"></span>
                             </dd>
                         </div>
@@ -206,12 +210,18 @@
                         </div>
                     </dl>
 
-                    <!-- 액션 : PATH_DRIFT 만 자동 적용 가능. 그 외는 dismiss / 수동 처리 -->
+                    <!--/* MK3 — 자동 적용 가능 분기 4종 :
+                         PATH_DRIFT / RESOURCE_RENAMED / SOFTDEL_ESCAPE_TO_ORIGINAL / TRASH_MARKER_STALE.
+                         그 외는 보고만 + dismiss 옵션. SOFTDEL_ESCAPE_TO_OTHER 는 사용자 명시 (DCN-NEW13) 로
+                         별도 액션 옵션 미제공 — dismiss 만. */-->
                     <div class="n-form-actions">
-                        <form th:if="${drift.kind.name() == 'PATH_DRIFT'}"
+                        <form th:if="${drift.kind.name() == 'PATH_DRIFT'
+                                       or drift.kind.name() == 'RESOURCE_RENAMED'
+                                       or drift.kind.name() == 'SOFTDEL_ESCAPE_TO_ORIGINAL'
+                                       or drift.kind.name() == 'TRASH_MARKER_STALE'}"
                               th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
                               method="post"
-                              onsubmit="return confirm('PATH_DRIFT 자동 적용 — DB 의 자원 경로를 새 경로로 갱신합니다. 계속할까요?');">
+                              onsubmit="return confirm('자동 적용 — 시스템이 무결성을 정합 시킵니다. 계속할까요?');">
                             <button type="submit" class="n-btn n-btn-primary">자동 적용</button>
                         </form>
                         <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/dismiss(driftId=${drift.id})}"
@@ -221,7 +231,12 @@
                         </form>
                     </div>
 
-                    <div class="n-hint" th:unless="${drift.kind.name() == 'PATH_DRIFT'}" style="margin-top: 8px;">
+                    <div class="n-hint"
+                         th:unless="${drift.kind.name() == 'PATH_DRIFT'
+                                      or drift.kind.name() == 'RESOURCE_RENAMED'
+                                      or drift.kind.name() == 'SOFTDEL_ESCAPE_TO_ORIGINAL'
+                                      or drift.kind.name() == 'TRASH_MARKER_STALE'}"
+                         style="margin-top: 8px;">
                         <strong th:text="${drift.kind}"></strong> 종류는 자동 적용이 허용되지 않습니다.
                         관리자가 직접 자원을 점검·복구한 뒤 재스캔하세요.
                     </div>

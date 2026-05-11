@@ -243,6 +243,7 @@
                             </form>
                             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/delete(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"
+                                  class="mk3-2-delete-form"
                                   onsubmit="return confirm('이 BIOS 파일을 삭제할까요?');">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
@@ -276,8 +277,22 @@
 <!-- MK2 — nudge modal fragment include. bios-new.js 가 업로드 응답 409 NUDGE_REQUIRED 시 본 modal 을 표시. -->
 <div th:replace="~{fragments/management/nudge-modal :: nudgeModal('biosNudge', @{/management/bios/nudge})}"></div>
 
+<!-- MK3-2 — softDelete reject modal fragment. -->
+<div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
+
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
+<script th:src="@{/management/common/delete-reject-modal.js}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.DeleteRejectModal) {
+            window.DeleteRejectModal.bind({
+                deleteFormSelector: 'form.mk3-2-delete-form',
+                modalPrefix: 'deleteReject'
+            });
+        }
+    });
+</script>
 
 </body>
 </html>

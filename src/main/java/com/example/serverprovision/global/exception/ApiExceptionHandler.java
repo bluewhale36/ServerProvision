@@ -1,7 +1,12 @@
 package com.example.serverprovision.global.exception;
 
+import com.example.serverprovision.global.lifecycle.exception.DeleteIntentTokenExpiredException;
+import com.example.serverprovision.global.lifecycle.exception.DeleteIntentTokenMismatchException;
+import com.example.serverprovision.global.lifecycle.exception.SoftDeleteRequiresIntentException;
 import com.example.serverprovision.global.security.exception.SecurityException;
 import com.example.serverprovision.global.security.exception.ZipBombInspectionFailedException;
+import com.example.serverprovision.management.common.dto.response.DeleteRejectResponse;
+import com.example.serverprovision.management.common.exception.PathCorrectionFailedException;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.common.nudge.exception.NudgeRequiredException;
 import org.slf4j.Logger;
@@ -65,6 +70,50 @@ public class ApiExceptionHandler {
         log.info("[nudge] required : nudgeId={}, conflicts={}",
                 ex.payload().nudgeId(), ex.payload().conflicts().size());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.payload());
+    }
+
+    /**
+     * MK3-2 (DCM3-2.1, 2.2) — softDelete 사전조건 위반. 409 + structured DeleteRejectResponse 반환.
+     * ConflictException 일반 핸들러보다 더 구체적이라 Spring 이 본 핸들러를 우선 매핑.
+     */
+    @ExceptionHandler(value = SoftDeleteRequiresIntentException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DeleteRejectResponse> handleSoftDeleteRequiresIntent(SoftDeleteRequiresIntentException ex) {
+        var intent = ex.intent();
+        long ttlSec = java.time.Duration.between(java.time.Instant.now(), intent.expiresAt()).getSeconds();
+        if (ttlSec < 0) ttlSec = 0;
+        log.info("[softdelete-reject] 409 issued : type={} id={} token={} ttl={}s",
+                intent.resourceType(), intent.resourceId(), intent.token().asString(), ttlSec);
+        DeleteRejectResponse body = new DeleteRejectResponse(
+                DeleteRejectResponse.CODE,
+                intent.resourceType(),
+                intent.resourceId(),
+                intent.missingPath() != null ? intent.missingPath().toString() : null,
+                intent.token().asString(),
+                ttlSec,
+                List.of("CORRECT_PATH_THEN_DELETE", "FORCED_CLEAR"),
+                intent.ghostCandidate());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    /** MK3-2 (DCM3-2.6) — DeleteIntent token 만료 / 1회 사용 후 재호출 → 410 Gone. */
+    @ExceptionHandler(value = DeleteIntentTokenExpiredException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiErrorResponse> handleDeleteIntentTokenExpired(DeleteIntentTokenExpiredException ex) {
+        log.info("[softdelete-reject] token expired : {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.GONE).body(new ApiErrorResponse(ex.getMessage()));
+    }
+
+    /** MK3-2 (DCM3-2.6) — DeleteIntent token 의 자원 mismatch → 410 Gone. */
+    @ExceptionHandler(value = DeleteIntentTokenMismatchException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiErrorResponse> handleDeleteIntentTokenMismatch(DeleteIntentTokenMismatchException ex) {
+        log.warn("[softdelete-reject] token mismatch : {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.GONE).body(new ApiErrorResponse(ex.getMessage()));
+    }
+
+    /** MK3-2 (DCM3-2.4) — saga 의 PATH_DRIFT 미발견 또는 자동 재시도 3회 모두 실패 → 422. */
+    @ExceptionHandler(value = PathCorrectionFailedException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiErrorResponse> handlePathCorrectionFailed(PathCorrectionFailedException ex) {
+        log.warn("[softdelete-saga] path correction failed : {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(new ApiErrorResponse(ex.getMessage()));
     }
 
     /**

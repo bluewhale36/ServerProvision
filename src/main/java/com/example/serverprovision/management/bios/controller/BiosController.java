@@ -1,6 +1,7 @@
 package com.example.serverprovision.management.bios.controller;
 
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
+import com.example.serverprovision.management.bios.dto.request.BiosRegisterExistingRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.global.exception.ApiErrorResponse;
@@ -61,6 +62,7 @@ public class BiosController {
     private final BoardModelService boardModelService;
     private final BiosVerificationLauncher biosVerificationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
+    private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
 
     // ==== 목록 ========================================================
 
@@ -137,6 +139,27 @@ public class BiosController {
         return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
     }
 
+    /**
+     * 기존 디렉토리 등록 — 업로드 없이 이미 콘텐츠가 차 있는 트리를 BIOS 자원으로 claim.
+     * 핸드셰이크 없이 단발 POST. 응답은 업로드와 동일한 {@link BiosUploadResponse}.
+     */
+    @PostMapping(path = "/{boardId}/register-existing")
+    @ResponseBody
+    public ResponseEntity<?> registerExisting(@PathVariable("boardId") Long boardId,
+                                              @Valid @RequestBody BiosRegisterExistingRequest request,
+                                              BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            String msg = bindingResult.getFieldErrors().stream()
+                    .findFirst()
+                    .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                    .orElse("입력값이 올바르지 않습니다.");
+            return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
+        }
+        Long id = biosService.registerExisting(boardId, request);
+        String redirect = "/management/bios?selectId=" + id;
+        return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
+    }
+
     // ==== 메타 수정 ===================================================
 
     @GetMapping("/{boardId}/bios/{biosId}/edit")
@@ -188,6 +211,22 @@ public class BiosController {
                          @PathVariable("biosId") Long biosId) {
         biosService.softDelete(boardId, biosId);
         return "redirect:/management/bios?selectBoardId=" + boardId;
+    }
+
+    /** MK3-2 (DCM3-2.3) — softDelete reject modal 의 두 번째 호출 (XHR JSON). */
+    @PostMapping(path = "/{boardId}/bios/{biosId}/delete-intent/{token}", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Void> deleteWithIntent(
+            @PathVariable("boardId") Long boardId,
+            @PathVariable("biosId") Long biosId,
+            @PathVariable("token") String token,
+            @Valid @RequestBody com.example.serverprovision.management.common.dto.request.DeleteIntentRequest request) {
+        com.example.serverprovision.global.lifecycle.DeleteIntentToken parsed =
+                com.example.serverprovision.global.lifecycle.DeleteIntentToken.parse(token);
+        deleteIntentRegistry.consume(parsed,
+                com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE, biosId);
+        biosService.softDeleteWithIntent(boardId, biosId, request.action());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{boardId}/bios/{biosId}/restore")

@@ -54,6 +54,7 @@ class SubprogramControllerSecurityFlowTest {
     @MockitoBean SubprogramVerificationLauncher subprogramVerificationLauncher;
     @MockitoBean BoardModelService boardModelService;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
+    @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test

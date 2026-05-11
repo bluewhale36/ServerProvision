@@ -16,5 +16,5 @@ package com.example.serverprovision.management.common.nudge;
  * 두 phase 를 분기하며, 새 phase 추가 시 sealed permits 에 추가하면 컴파일러가 누락된 case 를 강제한다.
  * if-else 분기문 무분별 확장 anti-pattern 회피 (CLAUDE.md §조건 분기문 정합).</p>
  */
-public sealed interface NudgePayload permits ContentNudgePayload, IntentMetaNudgePayload {
+public sealed interface NudgePayload permits ContentNudgePayload, IntentMetaNudgePayload, RestoreHashConflictPayload {
 }

@@ -2,6 +2,7 @@ package com.example.serverprovision.management.bios.service;
 
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
+import com.example.serverprovision.management.bios.dto.request.BiosRegisterExistingRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
 import com.example.serverprovision.management.bios.dto.response.BoardWithBiosListResponse;
@@ -72,6 +73,8 @@ public class BiosService {
     private final BundleTreeCleanupService bundleTreeCleanupService;
     private final PathPolicyService pathPolicyService;
     private final NudgeRegistry nudgeRegistry;
+    private final com.example.serverprovision.global.trash.TrashLifecycleService trashLifecycleService;
+    private final com.example.serverprovision.global.lifecycle.SoftDeleteIntentService softDeleteIntentService;
 
     // ==== 조회 ========================================================
 
@@ -157,7 +160,11 @@ public class BiosService {
             // 6) MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + 409.
             //    임시 트리는 targetDir 에 그대로 남겨두고 사용자 결정 (proceed / replace / cancel) 대기.
             //    BiosNudgeService 가 confirm 시점에 정식 영속화 또는 cleanup.
-            List<BoardBIOS> hashCandidates = biosRepository.findHashConflictCandidates(boardId, manifest.manifestHash());
+            // MK3-1 — ghost (DB-only soft-deleted, FS 부재) 후보 사전 필터링.
+            List<BoardBIOS> hashCandidates = biosRepository.findHashConflictCandidates(boardId, manifest.manifestHash())
+                    .stream()
+                    .filter(c -> !com.example.serverprovision.global.trash.GhostEvaluator.isGhost(c))
+                    .toList();
             if (!hashCandidates.isEmpty()) {
                 NudgeSession session = nudgeRegistry.register(
                         NudgeResourceType.BIOS,
@@ -237,6 +244,99 @@ public class BiosService {
         }
     }
 
+    /**
+     * 기존 디렉토리를 BIOS 번들 자원으로 등록. 업로드 없이 이미 있는 트리를 claim.
+     * <p>업로드 경로의 {@link #addBios} 와 동일한 검증/마커 발급/nudge 흐름을 공유하되,
+     * 추출 단계만 생략한다. 자동 hard-delete 없이 해시 충돌 시 nudge 위임 정책도 동일.</p>
+     */
+    @Transactional
+    public Long registerExisting(Long boardId, BiosRegisterExistingRequest request) {
+        BoardModel parent = requireActiveBoard(boardId);
+
+        if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
+            throw new DuplicateBiosVersionException(boardId, request.version());
+        }
+
+        Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
+        // 업로드와 달리 자동 hard-delete 없이 nudge 흐름에 위임 — 정책 일관성 유지.
+        targetDirectoryPolicyService.prepareForExistingDirectoryRegistration(targetDir);
+
+        String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
+        ManifestSummary manifest = bundleManifestService.compute(targetDir);
+
+        // MK3-1 — ghost 후보 사전 필터링.
+        List<BoardBIOS> hashCandidates = biosRepository.findHashConflictCandidates(boardId, manifest.manifestHash())
+                .stream()
+                .filter(c -> !com.example.serverprovision.global.trash.GhostEvaluator.isGhost(c))
+                .toList();
+        if (!hashCandidates.isEmpty()) {
+            NudgeSession session = nudgeRegistry.register(
+                    NudgeResourceType.BIOS,
+                    boardId,
+                    hashCandidates.stream().map(BoardBIOS::getId).toList(),
+                    new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
+                            request.name(),
+                            request.version(),
+                            manifest.manifestHash(),
+                            targetDir.toString(),
+                            Map.of(
+                                    "entrypointRelativePath", entrypoint,
+                                    "fileCount", String.valueOf(manifest.fileCount()),
+                                    "totalBytes", String.valueOf(manifest.totalBytes()),
+                                    "description", request.description() != null ? request.description() : ""
+                            )
+                    )
+            );
+            List<NudgeConflictEntry> entries = hashCandidates.stream()
+                    .map(b -> new NudgeConflictEntry(
+                            b.getId(),
+                            LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
+                            b.getManifestHash(),
+                            b.getName(),
+                            b.getVersion(),
+                            Instant.now()))
+                    .toList();
+            log.info("[registerExistingBios] nudge required : boardId={}, version={}, candidates={}",
+                    boardId, request.version(), hashCandidates.size());
+            throw new BiosNudgeRequiredException(session, entries);
+        }
+
+        BoardBIOS saved = biosRepository.save(BoardBIOS.builder()
+                .boardModel(parent)
+                .name(request.name())
+                .version(request.version())
+                .treeRootPath(targetDir.toString())
+                .entrypointRelativePath(entrypoint)
+                .manifestHash(manifest.manifestHash())
+                .markerSignature(null)
+                .fileCount(manifest.fileCount())
+                .totalBytes(manifest.totalBytes())
+                .description(request.description())
+                .isEnabled(true)
+                .isDeleted(false)
+                .build());
+
+        MarkerContent unsigned = new MarkerContent(
+                ResourceType.BIOS_BUNDLE.name(),
+                saved.getId(),
+                Map.of(
+                        "boardId", String.valueOf(boardId),
+                        "version", request.version(),
+                        "entrypointRelativePath", entrypoint
+                ),
+                Instant.now(),
+                manifest.manifestHash(),
+                null
+        );
+        String signature = provisionMarkerService.computeSignature(unsigned);
+        saved.reissueMarker(manifest.manifestHash(), signature);
+        provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, unsigned.withSignature(signature));
+
+        log.info("[registerExistingBios] 등록 완료. biosId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
+                saved.getId(), boardId, request.version(), manifest.fileCount(), manifest.totalBytes());
+        return saved.getId();
+    }
+
     @Transactional
     public void update(Long boardId, Long biosId, BiosUpdateRequest request) {
         BoardBIOS bios = requireLiveBios(boardId, biosId);
@@ -252,18 +352,45 @@ public class BiosService {
         requireLiveBios(boardId, biosId).toggleEnabled();
     }
 
+    /** MK3 — soft-delete BIOS. 도메인 가드 후 공통 trash 흐름 위임. MK3-2 사전조건 추가. */
     @Transactional
     public void softDelete(Long boardId, Long biosId) {
-        requireLiveBios(boardId, biosId).softDelete();
+        BoardBIOS bios = requireLiveBios(boardId, biosId);
+        // MK3-2 (DCM3-2.1) — Files.exists 사전조건. flag false 면 통과.
+        softDeleteIntentService.checkPrecondition(bios);
+        trashLifecycleService.softDeleteToTrash(bios);
     }
 
+    /**
+     * MK3-2 (DCM3-2.3 ~ 2.5) — softDelete reject modal 의 두 번째 호출 진입점.
+     */
+    @Transactional
+    public void softDeleteWithIntent(Long boardId, Long biosId,
+                                     com.example.serverprovision.global.lifecycle.DeleteAction action) {
+        switch (action) {
+            case CORRECT_PATH_THEN_DELETE -> softDeleteIntentService.reconcileThenDelete(
+                    com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE, biosId,
+                    () -> {
+                        BoardBIOS refreshed = requireLiveBios(boardId, biosId);
+                        trashLifecycleService.softDeleteToTrash(refreshed);
+                    });
+            case FORCED_CLEAR -> softDeleteIntentService.forcedClear(
+                    com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE, biosId);
+        }
+    }
+
+    /** MK3 — restore BIOS. 도메인 가드 + 공통 흐름. attributes 는 BIOS 도메인 메타 (boardId, version, entrypoint). */
     @Transactional
     public void restore(Long boardId, Long biosId) {
         BoardBIOS bios = requireExistingBios(boardId, biosId);
         if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, bios.getVersion())) {
             throw new DuplicateBiosVersionException(boardId, bios.getVersion());
         }
-        bios.restore();
+        trashLifecycleService.restoreFromTrash(bios, biosEntity -> java.util.Map.of(
+                "boardId", String.valueOf(boardId),
+                "version", biosEntity.getVersion(),
+                "entrypointRelativePath",
+                biosEntity.getEntrypointRelativePath() == null ? "" : biosEntity.getEntrypointRelativePath()));
     }
 
     /**

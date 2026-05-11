@@ -38,7 +38,9 @@ import com.example.serverprovision.management.os.repository.OSEnvironmentReposit
 import com.example.serverprovision.management.os.repository.OSImageRepository;
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
 import com.example.serverprovision.management.os.util.IsoPathResolver;
+import com.example.serverprovision.global.lifecycle.DeleteAction;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
+import com.example.serverprovision.global.lifecycle.SoftDeleteIntentService;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -49,6 +51,7 @@ import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.global.security.FileSystemHardener;
 import com.example.serverprovision.global.security.PathPolicyService;
+import com.example.serverprovision.global.trash.TrashLifecycleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -94,6 +97,8 @@ public class OSImageService {
     private final PathPolicyService pathPolicyService;
     private final FileSystemHardener fileSystemHardener;
     private final NudgeRegistry nudgeRegistry;
+    private final TrashLifecycleService trashLifecycleService;
+    private final SoftDeleteIntentService softDeleteIntentService;
 
     // ==== 조회 ========================================================
 
@@ -435,6 +440,10 @@ public class OSImageService {
         // 자동 purge 로 기존 row 를 silently 정리하지 않는다 — 사용자가 modal 에서 결정해야 한다.
         List<ISO> dormantConflicts =
                 isoRepository.findByManifestHashAndIsDeletedTrueOrIsDeprecatedTrue(manifestHash);
+        // MK3-1 — ghost (DB-only soft-deleted, FS 부재) 후보 사전 필터링. 사용자 흐름 차단 방지.
+        dormantConflicts = dormantConflicts.stream()
+                .filter(c -> !com.example.serverprovision.global.trash.GhostEvaluator.isGhost(c))
+                .toList();
         if (!dormantConflicts.isEmpty()) {
             NudgeRequiredResponse payload = registerIsoNudgeSession(
                     prepared, manifestHash, dormantConflicts);
@@ -686,11 +695,35 @@ public class OSImageService {
         requireLiveISO(osImageId, isoId).toggleEnabled();
     }
 
+    /** MK3 — soft-delete ISO. 도메인-specific 가드 후 공통 trash 흐름 위임. MK3-2 사전조건 추가. */
     @Transactional
     public void softDeleteISO(Long osImageId, Long isoId) {
-        requireLiveISO(osImageId, isoId).softDelete();
+        ISO iso = requireLiveISO(osImageId, isoId);
+        // MK3-2 (DCM3-2.1) — Files.exists 사전조건. flag false 면 통과 (회귀 차단).
+        softDeleteIntentService.checkPrecondition(iso);
+        trashLifecycleService.softDeleteToTrash(iso);
     }
 
+    /**
+     * MK3-2 (DCM3-2.3 ~ 2.5) — softDelete reject modal 의 두 번째 호출 진입점.
+     * controller 가 token 검증 후 호출. action 에 따라 saga (CORRECT_PATH_THEN_DELETE) 또는
+     * forced clear (FORCED_CLEAR) 분기.
+     */
+    @Transactional
+    public void softDeleteISOWithIntent(Long osImageId, Long isoId, DeleteAction action) {
+        switch (action) {
+            case CORRECT_PATH_THEN_DELETE -> softDeleteIntentService.reconcileThenDelete(
+                    ResourceType.OS_ISO, isoId,
+                    () -> {
+                        // saga 의 4단계 — 재조회 후 정상 softDelete. 사전조건 우회 (이미 위치 정정 완료).
+                        ISO refreshed = requireLiveISO(osImageId, isoId);
+                        trashLifecycleService.softDeleteToTrash(refreshed);
+                    });
+            case FORCED_CLEAR -> softDeleteIntentService.forcedClear(ResourceType.OS_ISO, isoId);
+        }
+    }
+
+    /** MK3 — restore ISO. 도메인 가드 (이미 active 거절) 후 공통 흐름. attributes 는 ISO 도메인 메타. */
     @Transactional
     public void restoreISO(Long osImageId, Long isoId) {
         requireActiveImage(osImageId);
@@ -699,7 +732,9 @@ public class OSImageService {
         if (!iso.isDeleted()) {
             throw new IllegalOSImageStateException("이미 활성 상태인 ISO 입니다. isoId=" + isoId);
         }
-        iso.restore();
+        trashLifecycleService.restoreFromTrash(iso, isoEntity -> Map.of(
+                "osImageId", String.valueOf(isoEntity.getOsImage().getId()),
+                "originalFilename", isoEntity.getResourcePath().getFileName().toString()));
     }
 
     // ---- MK2 ISO lifecycle --------------------------------------------

@@ -177,11 +177,21 @@ com.example.serverprovision/
 
 ### 인벤토리 코드 어휘
 - **MA1 ~ MA5** — Manage-Application (Stage 1 Management)
-- **MK1 ~ MK3** — Manage-Kernel (Stage 2 Maintenance)
+- **MK1 ~ MK4** — Manage-Kernel (Stage 2 Maintenance)
   - **MK1** — 경로 재조정 (완료)
-  - **MK2** — Soft-delete / Restore / Purge 정합화 (사용자 명시 결정 — 예정 / 미진입). BIOS/BMC/Subprogram 의 자동 hard-delete 정책 vs ISO 의 sidecar 충돌 사고를 일관 정책으로 통합 + UI "영구 삭제" 액션 도입
-  - **MK3** — ApplicationFileMover (예정 / 미진입). UI 에서 파일을 옮기면 마커 + DB 가 동시 갱신. MK1 의 `applyDriftedPath` 를 역방향으로 호출
-  - 그 외 후보 (마커 재발급 마이그레이션 / 분산 스캔 / Stage 4 자원 강제 검증) 는 인벤토리 외 — `plan/26-04-28_21-33-00_MK_expected_plan.docx` 에 archived
+  - **MK2** — Soft-delete / Restore / Purge 정합화 (완료, WAVE 1/2/3)
+  - **MK3** — Trash 패턴 도입 (완료) — soft-delete 자원을 `.soft-deleted/` 디렉토리로 격리. active 트리는 항상 깨끗 + reconciliation 의 (resourceType, resourceId) 매칭 신뢰성 회복. 6 신규 DriftKind + TTL worker + 휴지통 페이지
+  - **MK3-1** — Ghost row 일급 개념 도입 (CP4 완료, 의미 재해석). DB-truth + FS-truth 양쪽이 음수인 dead row 를 4 영역에서 일관된 멘탈 모델로 처리. `DriftKind.GHOST_DB_ROW` + `MarkableScanner.isGhost/findGhostMarkables/applyGhostClear` SPI + `GhostRowRestoreNotAllowedException`. **외부 비판 검토 결과 (2026-05-07) : 사후 패치 성격으로 재해석. 본 슬라이스 코드는 한시적 안전망 + 마이그레이션 도구로 위치 변경. MK3-2 운영 안정 후 별도 정리 슬라이스에서 전체 삭제 가능**
+  - **MK3-2** — softDelete Reject 정책 (예정 / 진입 대기). 외부 비판 1+4 해소 — softDelete 진입 시 `Files.exists(DB.path)` 사전조건 강화로 Ghost 신규 생성 차단. modal 3택 (위치 정정 후 삭제 / 강제 정리 / 취소) + DeleteIntentRegistry 5분 TTL token + feature flag 게이팅. 이중 의도 검증 명제의 시스템 전체 일관성 회복
+  - **MK4** — ApplicationFileMover (예정 / 미진입). UI 에서 파일을 옮기면 마커 + DB 가 동시 갱신. MK1 의 `applyDriftedPath` 를 역방향으로 호출
+  - 그 외 후속 슬라이스 후보 (외부 비판 검토 도출, 2026-05-07) :
+    - **SPI 분리** — `MarkableScanner` → 4 sealed interface (`MarkableInventory` / `MarkableDriftApplier` / `MarkableTrashOperator` / `MarkableGhostOperator`). 비판 3 / ISP 위반 해소
+    - **Marker DB backup 컬럼** — `(resourceType, resourceId)` 매핑의 SPOF 방어. 비판 5 + HMAC secret 회전 (§7.3) 연계
+    - **DriftKind 3 축 매트릭스 UI** — 12 enum 평면화를 lifecycle / FS 위치 / 마커 상태 3 축으로 재구성. 비판 6 + PATH_DRIFT↔RESOURCE_RENAMED 자연 해소
+    - **ReferenceTracker** — Job 사용 중 자원 hard-delete 차단 (다이어그램 통찰). 본 슬라이스와 별개 결함
+    - **Audit Event Bus** — append-only audit 영속화 인프라. MK3-2 의 7종 이벤트 흡수
+    - **Ghost 코드 정리 슬라이스** — MK3-2 운영 안정 후 한시적 fail-safe 코드 전체 삭제 (DCM3-2.9)
+  - 인벤토리 외 후보 (마커 재발급 마이그레이션 / 분산 스캔 / Stage 4 자원 강제 검증) 는 `plan/26-04-28_21-33-00_MK_expected_plan.docx` 에 archived
 - **U1 ~ U2** — User (Stage 3 Provisioning)
 - **S1** — Cross-cutting infrastructure (Background Job)
 - **S3 / S3.1 / S3.2** — Cross-cutting Security Hardening

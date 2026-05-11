@@ -298,7 +298,9 @@
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">Deprecated 해제</button>
                                             </form>
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/delete(osId=${os.id},isoId=${iso.id})}"
-                                                  method="post" class="n-accordion-inline-form"
+                                                  method="post"
+                                                  class="n-accordion-inline-form mk3-2-delete-form"
+                                                  data-confirm-message="ISO 를 삭제할까요?"
                                                   onsubmit="return confirm('ISO 를 삭제할까요?');">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">삭제</button>
                                             </form>
@@ -436,10 +438,25 @@
 -->
 <div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/nudge')}"></div>
 
+<!-- MK3-2 — softDelete reject modal fragment. 사전조건 위반 시 본 modal 이 사용자 3택 제시. -->
+<div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
+
 <!-- Miller 컬럼 상호작용 스크립트 -->
 <script th:src="@{/management/os/os-list.js}"></script>
 <!-- "지금 검증" 버튼 일반 핸들러 (data-verify-url) — BIOS 측 핸들러를 그대로 재사용. ISO 무결성 검증에 동일 로직. -->
 <script th:src="@{/management/bios/bios-list.js}"></script>
+<!-- MK3-2 — softDelete reject modal 핸들러. mk3-2-delete-form 클래스의 form submit 을 가로채 fetch() 로 호출. -->
+<script th:src="@{/management/common/delete-reject-modal.js}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.DeleteRejectModal) {
+            window.DeleteRejectModal.bind({
+                deleteFormSelector: 'form.mk3-2-delete-form',
+                modalPrefix: 'deleteReject'
+            });
+        }
+    });
+</script>
 
 </body>
 </html>

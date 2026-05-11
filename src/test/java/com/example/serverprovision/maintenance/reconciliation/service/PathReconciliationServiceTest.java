@@ -302,4 +302,57 @@ class PathReconciliationServiceTest {
         verify(driftReportRepository).save(captor.capture());
         return captor.getValue();
     }
+
+    // ==== MK3-1 — Ghost row drift 시나리오 =================================
+
+    @Test
+    @DisplayName("MK3-1 : ghost markable 1건 → GHOST_DB_ROW drift 발생 + auto-apply OFF default 라 자동 정리 안 됨")
+    void scan_ghostDriftReported(@TempDir Path tmp) {
+        Markable ghost = isoAt(99L, tmp.resolve("removed.iso")); // 파일도 마커도 없음
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        given(isoScanner.findGhostMarkables()).willReturn(List.of(ghost));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDrifts()).singleElement()
+                .satisfies(d -> {
+                    assertThat(d.getKind()).isEqualTo(DriftKind.GHOST_DB_ROW);
+                    assertThat(d.getResourceId()).isEqualTo(99L);
+                    assertThat(d.getNewPath()).isNull();
+                });
+        // auto-apply-ghost-row default false → applyGhostClear 호출되지 않음
+        verify(isoScanner, never()).applyGhostClear(99L);
+    }
+
+    @Test
+    @DisplayName("MK3-1 : auto-apply-ghost-row=true 시 scan 직후 applyGhostClear 자동 호출")
+    void scan_ghostAutoApplied(@TempDir Path tmp) {
+        ReflectionTestUtils.setField(service, "autoApplyGhostRow", true);
+        Markable ghost = isoAt(99L, tmp.resolve("removed.iso"));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        given(isoScanner.findGhostMarkables()).willReturn(List.of(ghost));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        verify(isoScanner, times(1)).applyGhostClear(99L);
+    }
+
+    @Test
+    @DisplayName("MK3-1 : apply(GHOST_DB_ROW) → scanner.applyGhostClear 호출 + drift 제거")
+    void apply_ghostRow_success() {
+        DriftReport report = DriftReport.builder()
+                .scannedAt(Instant.now()).scanDurationMs(50).deep(false).totalChecked(0).build();
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(99L).kind(DriftKind.GHOST_DB_ROW)
+                .oldPath("/missing").newPath(null).detectedAt(Instant.now()).build();
+        report.addDrift(drift);
+        ReflectionTestUtils.setField(drift, "id", 7L);
+        given(driftRepository.findById(7L)).willReturn(Optional.of(drift));
+
+        service.apply(7L);
+
+        verify(isoScanner, times(1)).applyGhostClear(99L);
+        assertThat(report.getDrifts()).isEmpty();
+    }
 }

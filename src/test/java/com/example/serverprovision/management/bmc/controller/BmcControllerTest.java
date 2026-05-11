@@ -61,6 +61,7 @@ class BmcControllerTest {
     @MockitoBean BoardModelService boardModelService;
     @MockitoBean BmcVerificationLauncher bmcVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
+    @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
@@ -191,6 +192,20 @@ class BmcControllerTest {
                 .andExpect(jsonPath("$.resourceId").value(2))
                 .andExpect(jsonPath("$.integrityStatus").value("TAMPERED"))
                 .andExpect(jsonPath("$.badgeClass").value("n-badge-red"));
+    }
+
+    @Test
+    @DisplayName("S5-1 — GET /browse : path 누락 시 200 + 첫 allowed-root listing (서비스 본체 위임)")
+    void browse_returnsFirstRoot_when_pathOmitted() throws Exception {
+        given(directoryBrowseService.browse(any()))
+                .willReturn(new DirectoryListingResponse(
+                        "/opt/bmc", null,
+                        List.of(DirectoryListingResponse.Entry.directory("VENDOR_A"))));
+
+        mvc.perform(get("/management/bmc/browse"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.path").value("/opt/bmc"))
+                .andExpect(jsonPath("$.entries[0].name").value("VENDOR_A"));
     }
 
     @Test

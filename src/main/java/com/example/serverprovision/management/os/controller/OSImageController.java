@@ -83,6 +83,7 @@ public class OSImageController {
     private final DirectoryBrowseService directoryBrowseService;
     private final OsNudgeService osNudgeService;
     private final OSImageNudgeService osImageNudgeService;
+    private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
 
     // ==== 목록 ========================================================
 
@@ -358,6 +359,29 @@ public class OSImageController {
                             @PathVariable("isoId") Long isoId) {
         osImageService.softDeleteISO(osId, isoId);
         return redirectToListWithSelect(osId);
+    }
+
+    /**
+     * MK3-2 (DCM3-2.3) — softDelete reject modal 의 두 번째 호출 (XHR JSON).
+     * 사용자가 modal 에서 선택한 action (CORRECT_PATH_THEN_DELETE / FORCED_CLEAR) 으로 진행.
+     * token mismatch / 만료 / saga 실패는 advice 가 적절한 HTTP status 로 매핑.
+     */
+    @PostMapping(path = "/{osId}/iso/{isoId}/delete-intent/{token}", produces = "application/json")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public ResponseEntity<Void> deleteIsoWithIntent(
+            @PathVariable("osId") Long osId,
+            @PathVariable("isoId") Long isoId,
+            @PathVariable("token") String token,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+            com.example.serverprovision.management.common.dto.request.DeleteIntentRequest request) {
+        // token 검증 + consume
+        com.example.serverprovision.global.lifecycle.DeleteIntentToken parsed =
+                com.example.serverprovision.global.lifecycle.DeleteIntentToken.parse(token);
+        deleteIntentRegistry.consume(parsed,
+                com.example.serverprovision.global.marker.ResourceType.OS_ISO, isoId);
+        // action 분기 — service 가 saga / forcedClear 처리
+        osImageService.softDeleteISOWithIntent(osId, isoId, request.action());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{osId}/iso/{isoId}/restore")

@@ -25,6 +25,7 @@
             <form id="bmcForm"
                   th:data-upload-url="@{/management/bmc/{boardId}/upload(boardId=${boardId})}"
                   th:data-intent-url="@{/management/bmc/{boardId}/upload-intent(boardId=${boardId})}"
+                  th:data-register-existing-url="@{/management/bmc/{boardId}/register-existing(boardId=${boardId})}"
                   th:data-list-url="@{/management/bmc(selectBoardId=${boardId})}"
                   th:object="${bmcForm}"
                   enctype="multipart/form-data"
@@ -60,7 +61,8 @@
                         <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
                     </div>
                     <div class="n-hint">
-                        업로드된 번들 파일들이 전개될 서버 측 경로. 비어있거나 존재하지 않아야 합니다.
+                        번들 등록 방식에 따라 의미가 달라집니다 — 업로드 모드에서는 "전개 대상 (비어있어야 함)",
+                        기존 디렉토리 등록 모드에서는 "이미 콘텐츠가 차 있는 디렉토리".
                     </div>
                     <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}" th:errors="*{targetDirectory}"></div>
 
@@ -74,14 +76,16 @@
                 </div>
 
                 <div class="n-form-group">
-                    <label class="n-label strong">번들 업로드 방식</label>
-                    <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <label class="n-label strong">번들 등록 방식</label>
+                    <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
                         <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
-                                aria-selected="true" data-mode="FOLDER">폴더</button>
+                                aria-selected="true" data-mode="FOLDER">폴더 업로드</button>
                         <button type="button" id="modeTabZip" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="ZIP">Zip 파일</button>
+                                aria-selected="false" data-mode="ZIP">Zip 업로드</button>
                         <button type="button" id="modeTabSingle" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일</button>
+                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일 업로드</button>
+                        <button type="button" id="modeTabExisting" class="n-btn n-btn-sm n-btn-ghost" role="tab"
+                                aria-selected="false" data-mode="EXISTING_DIRECTORY">기존 디렉토리 등록</button>
                     </div>
 
                     <input type="hidden" id="uploadMode" name="uploadMode" value="FOLDER">
@@ -104,6 +108,15 @@
                         <input id="singleFile" type="file" name="singleFile" class="n-input">
                         <div class="n-hint">
                             파일 하나만 제공되는 BMC 배포본도 등록할 수 있습니다. 서버는 그 파일을 포함한 디렉토리 번들로 저장합니다.
+                        </div>
+                    </div>
+
+                    <!-- 기존 디렉토리 등록 -->
+                    <div id="existingPane" hidden>
+                        <div class="n-alert n-alert-muted">
+                            <strong>대상 디렉토리</strong> 에 이미 BMC 펌웨어 번들이 존재한다는 전제로 등록합니다.
+                            업로드 없이 서버가 트리를 직접 스캔해 manifest · 진입점 · marker 를 생성합니다.
+                            기존에 다른 등록의 <code>.provision.json</code> 마커가 있으면 거절됩니다.
                         </div>
                     </div>
                 </div>
