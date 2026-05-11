@@ -28,6 +28,21 @@ public class PathPolicyService {
         return assertPath(input);
     }
 
+    /**
+     * 사용자가 입력 path 를 비워두고 디렉토리 탐색을 시작했을 때의 default 진입점.
+     * `provision.path.allowed-roots` 의 첫 원소를 정규화된 절대경로로 반환한다.
+     * S5-1 (탐색 첫 진입 hotfix) — 빈 path 를 fail-fast 하지 않고 첫 root 로 자동 치환하기 위한 진입점.
+     *
+     * @throws IllegalStateException allowed-roots 가 비어 있을 때 (운영자 설정 오류)
+     */
+    public Path firstAllowedRoot() {
+        List<Path> roots = normalizedAllowedRoots();
+        if (roots.isEmpty()) {
+            throw new IllegalStateException("provision.path.allowed-roots 가 설정되지 않았습니다.");
+        }
+        return roots.get(0);
+    }
+
     private Path assertPath(String input) {
         if (input == null || input.isBlank()) {
             throw new PathTraversalException("경로 입력이 비어있습니다.");

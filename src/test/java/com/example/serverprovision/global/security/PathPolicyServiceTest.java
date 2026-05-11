@@ -102,4 +102,23 @@ class PathPolicyServiceTest {
         Path ok = svc.assertWritablePath(tmp.resolve("$1/$2").toString());
         assertThat(ok.toString()).startsWith(tmp.toString());
     }
+
+    // ==== S5-1 — firstAllowedRoot (탐색 첫 진입 hotfix) ====
+
+    @Test
+    @DisplayName("S5-1 — firstAllowedRoot : roots 설정 시 첫 원소를 정규화 절대경로로 반환")
+    void firstAllowedRoot_returnsFirstNormalized(@TempDir Path tmp) {
+        Path root2 = tmp.resolve("second");
+        PathPolicyService svc = serviceWithRoots(tmp.toString(), root2.toString());
+        assertThat(svc.firstAllowedRoot()).isEqualTo(tmp.toAbsolutePath().normalize());
+    }
+
+    @Test
+    @DisplayName("S5-1 — firstAllowedRoot : roots 비어있으면 IllegalStateException")
+    void firstAllowedRoot_throwsIllegalState_when_empty() {
+        PathPolicyService svc = new PathPolicyService(new PathSecurityProperties(List.of()));
+        assertThatThrownBy(svc::firstAllowedRoot)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("allowed-roots");
+    }
 }

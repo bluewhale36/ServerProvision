@@ -6,7 +6,6 @@ import com.example.serverprovision.management.common.filesystem.dto.DirectoryBro
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotFoundException;
-import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -100,5 +99,49 @@ class DirectoryBrowseServiceTest {
     void browse_invalidPath() {
         assertThatThrownBy(() -> directoryBrowseService.browse(new DirectoryBrowseRequest("\0bad", false)))
                 .isInstanceOf(com.example.serverprovision.global.security.exception.PathTraversalException.class);
+    }
+
+    // ==== S5-1 — 빈 path 자동 치환 (탐색 첫 진입 hotfix) ====
+
+    @Test
+    @DisplayName("S5-1 — browse : 빈 path 면 firstAllowedRoot 디렉토리 listing 반환")
+    void browse_returnsFirstRootListing_when_pathBlank(@TempDir Path tmp) throws Exception {
+        Files.createDirectory(tmp.resolve("alpha"));
+        Mockito.when(pathPolicyService.firstAllowedRoot()).thenReturn(tmp);
+
+        DirectoryListingResponse response =
+                directoryBrowseService.browse(new DirectoryBrowseRequest("", false));
+
+        assertThat(response.path()).isEqualTo(tmp.toString());
+        assertThat(response.entries())
+                .extracting(DirectoryListingResponse.Entry::name)
+                .containsExactly("alpha");
+        Mockito.verify(pathPolicyService).firstAllowedRoot();
+        // raw path 검증 경로로 들어가지 않는다 — 빈 문자열이 firstAllowedRoot 로 치환됐음을 보장.
+        // (assertReadablePath 는 부모 경로 노출 분기에서 별도 호출될 수 있어 never 검증은 부적절.)
+    }
+
+    @Test
+    @DisplayName("S5-1 — browse : null path 도 firstAllowedRoot 위임")
+    void browse_returnsFirstRootListing_when_pathNull(@TempDir Path tmp) throws Exception {
+        Files.createDirectory(tmp.resolve("beta"));
+        Mockito.when(pathPolicyService.firstAllowedRoot()).thenReturn(tmp);
+
+        DirectoryListingResponse response =
+                directoryBrowseService.browse(new DirectoryBrowseRequest(null, false));
+
+        assertThat(response.path()).isEqualTo(tmp.toString());
+        Mockito.verify(pathPolicyService).firstAllowedRoot();
+    }
+
+    @Test
+    @DisplayName("S5-1 — browse : 명시 path 면 assertReadablePath 만 위임 (firstAllowedRoot 미호출)")
+    void browse_doesNotInvokeFirstAllowedRoot_when_pathSpecified(@TempDir Path tmp) throws Exception {
+        Files.createDirectory(tmp.resolve("gamma"));
+
+        directoryBrowseService.browse(new DirectoryBrowseRequest(tmp.toString(), false));
+
+        Mockito.verify(pathPolicyService).assertReadablePath(tmp.toString());
+        Mockito.verify(pathPolicyService, Mockito.never()).firstAllowedRoot();
     }
 }

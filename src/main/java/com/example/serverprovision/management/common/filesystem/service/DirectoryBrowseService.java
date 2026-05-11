@@ -7,7 +7,6 @@ import com.example.serverprovision.management.common.filesystem.dto.DirectoryLis
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotFoundException;
 import com.example.serverprovision.management.common.filesystem.exception.DirectoryBrowseIoException;
-import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -33,10 +32,11 @@ public class DirectoryBrowseService {
 
     public DirectoryListingResponse browse(DirectoryBrowseRequest request) {
         String raw = request.path();
-        if (raw == null || raw.isBlank()) {
-            throw new InvalidBrowsePathException("(empty)");
-        }
-        Path target = pathPolicyService.assertReadablePath(raw);
+        // S5-1 — 신규 등록 폼 첫 진입 시 빈 path 도 자동 치환 (이전엔 InvalidBrowsePathException 거절).
+        // 명시 path 는 기존대로 assertReadablePath 통과해 정규화 + allowed-roots 검증.
+        Path target = (raw == null || raw.isBlank())
+                ? pathPolicyService.firstAllowedRoot()
+                : pathPolicyService.assertReadablePath(raw);
         if (!Files.exists(target)) {
             throw new BrowseTargetNotFoundException(target.toString());
         }

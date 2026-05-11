@@ -49,7 +49,9 @@
         function open() {
             if (panel.hidden) {
                 const seed = (inputEl.value || '').trim();
-                let initial = '/';
+                // S5-1 — 빈 input 진입 시 fallback `'/'` 사용하면 백엔드 assertReadablePath 가
+                // allowed-roots 외라 거절. 빈 문자열 그대로 보내고 백엔드의 firstAllowedRoot 자동 치환에 위임.
+                let initial = '';
                 if (seed) {
                     if (seed.endsWith('/')) initial = seed;
                     else {
