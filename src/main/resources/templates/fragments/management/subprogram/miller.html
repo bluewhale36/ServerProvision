@@ -181,7 +181,8 @@
                         <form th:unless="${sp.deprecated}"
                               th:action="@{/management/subprogram/{id}/deprecate(id=${sp.id})}"
                               method="post" style="display:inline;"
-                              onsubmit="return confirm('이 자원을 Deprecated 로 표시할까요?');">
+                              data-confirm-action="deprecate"
+                              data-confirm-message="이 자원을 Deprecated 로 표시할까요?">
                             <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                         </form>
                         <form th:if="${sp.deprecated}"
@@ -191,13 +192,16 @@
                         </form>
                         <form th:action="@{/management/subprogram/{id}/delete(id=${sp.id})}"
                               method="post" style="display:inline;"
-                              onsubmit="return confirm('이 항목을 삭제할까요?');">
+                              data-confirm-action="soft-delete"
+                              data-confirm-message="이 항목을 삭제할까요?">
                             <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                         </form>
                     </th:block>
                     <th:block th:if="${sp.deleted}">
                         <form th:action="@{/management/subprogram/{id}/restore(id=${sp.id})}"
-                              method="post" style="display:inline;">
+                              method="post" style="display:inline;"
+                              data-confirm-action="restore"
+                              data-confirm-message="이 항목을 복구할까요?">
                             <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                         </form>
                     </th:block>

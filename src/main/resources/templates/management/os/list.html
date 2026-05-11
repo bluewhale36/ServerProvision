@@ -150,7 +150,8 @@
                             <form th:if="${!os.isDeprecated}"
                                   th:action="@{/management/os/{id}/deprecate(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 OS 버전을 Deprecated 로 표시할까요?');">
+                                  data-confirm-action="deprecate"
+                                  data-confirm-message="이 OS 버전을 Deprecated 로 표시할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${os.isDeprecated}"
@@ -160,13 +161,16 @@
                             </form>
                             <form th:action="@{/management/os/{id}/delete(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 OS 버전을 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.');">
+                                  data-confirm-action="soft-delete"
+                                  data-confirm-message="이 OS 버전을 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
                         <th:block th:if="${os.isDeleted}">
                             <form th:action="@{/management/os/{id}/restore(id=${os.id})}"
-                                  method="post" style="display:inline;">
+                                  method="post" style="display:inline;"
+                                  data-confirm-action="restore"
+                                  data-confirm-message="이 OS 버전을 복구할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <form th:action="@{/management/os/{id}/purge(id=${os.id})}"
@@ -289,7 +293,8 @@
                                             <form th:if="${!iso.isDeprecated}"
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/deprecate(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
-                                                  onsubmit="return confirm('이 ISO 를 Deprecated 로 표시할까요?');">
+                                                  data-confirm-action="deprecate"
+                                                  data-confirm-message="이 ISO 를 Deprecated 로 표시할까요?">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">Deprecated 표시</button>
                                             </form>
                                             <form th:if="${iso.isDeprecated}"
@@ -300,14 +305,16 @@
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/delete(osId=${os.id},isoId=${iso.id})}"
                                                   method="post"
                                                   class="n-accordion-inline-form mk3-2-delete-form"
-                                                  data-confirm-message="ISO 를 삭제할까요?"
-                                                  onsubmit="return confirm('ISO 를 삭제할까요?');">
+                                                  data-confirm-action="soft-delete"
+                                                  data-confirm-message="ISO 를 삭제할까요?">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">삭제</button>
                                             </form>
                                         </th:block>
                                         <th:block th:if="${iso.isDeleted}">
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
-                                                  method="post" class="n-accordion-inline-form">
+                                                  method="post" class="n-accordion-inline-form"
+                                                  data-confirm-action="restore"
+                                                  data-confirm-message="이 ISO 를 복구할까요?">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구</button>
                                             </form>
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/purge(osId=${os.id},isoId=${iso.id})}"
@@ -441,14 +448,23 @@
 <!-- MK3-2 — softDelete reject modal fragment. 사전조건 위반 시 본 modal 이 사용자 3택 제시. -->
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
+<!-- S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal. -->
+<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+
 <!-- Miller 컬럼 상호작용 스크립트 -->
 <script th:src="@{/management/os/os-list.js}"></script>
 <!-- "지금 검증" 버튼 일반 핸들러 (data-verify-url) — BIOS 측 핸들러를 그대로 재사용. ISO 무결성 검증에 동일 로직. -->
 <script th:src="@{/management/bios/bios-list.js}"></script>
+<!-- S5-2-1 — confirm-action.js 는 delete-reject-modal.js 보다 먼저 로드되어야 함 (capture phase 등록 순서). -->
+<script th:src="@{/management/common/confirm-action.js}"></script>
 <!-- MK3-2 — softDelete reject modal 핸들러. mk3-2-delete-form 클래스의 form submit 을 가로채 fetch() 로 호출. -->
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // S5-2-1 — confirm-action 먼저 bind (capture listener 등록 순서 보존).
+        if (window.ConfirmActionModal) {
+            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
+        }
         if (window.DeleteRejectModal) {
             window.DeleteRejectModal.bind({
                 deleteFormSelector: 'form.mk3-2-delete-form',

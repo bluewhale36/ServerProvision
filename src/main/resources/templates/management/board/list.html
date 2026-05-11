@@ -155,7 +155,8 @@
                             <form th:unless="${board.isDeprecated}"
                                   th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 메인보드 모델을 Deprecated 로 표시할까요?');">
+                                  data-confirm-action="deprecate"
+                                  data-confirm-message="이 메인보드 모델을 Deprecated 로 표시할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${board.isDeprecated}"
@@ -165,13 +166,16 @@
                             </form>
                             <form th:action="@{/management/board/{id}/delete(id=${board.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 메인보드 모델을 삭제할까요?');">
+                                  data-confirm-action="soft-delete"
+                                  data-confirm-message="이 메인보드 모델을 삭제할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
                         <th:block th:if="${board.isDeleted}">
                             <form th:action="@{/management/board/{id}/restore(id=${board.id})}"
-                                  method="post" style="display:inline;">
+                                  method="post" style="display:inline;"
+                                  data-confirm-action="restore"
+                                  data-confirm-message="이 메인보드 모델을 복구할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                         </th:block>
@@ -200,9 +204,21 @@
     </div>
 </div>
 
+<!-- S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal. -->
+<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+
 <!-- Miller 컬럼 상호작용 스크립트 : A1 의 os-list.js 를 그대로 재사용.
      data-os-key / data-os-id 속성에 일반적으로 바인딩돼 있어 도메인 의존 없음. -->
 <script th:src="@{/management/os/os-list.js}"></script>
+<!-- S5-2-1 — 자원 상태 변경 확인 modal 핸들러. -->
+<script th:src="@{/management/common/confirm-action.js}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.ConfirmActionModal) {
+            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
+        }
+    });
+</script>
 
 </body>
 </html>

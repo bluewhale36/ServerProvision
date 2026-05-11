@@ -191,7 +191,8 @@
                             <form th:unless="${bmc.isDeprecated}"
                                   th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/deprecate(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 BMC 펌웨어를 Deprecated 로 표시할까요?');">
+                                  data-confirm-action="deprecate"
+                                  data-confirm-message="이 BMC 펌웨어를 Deprecated 로 표시할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${bmc.isDeprecated}"
@@ -202,13 +203,16 @@
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/delete(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
                                   class="mk3-2-delete-form"
-                                  onsubmit="return confirm('이 BMC 펌웨어를 삭제할까요?');">
+                                  data-confirm-action="soft-delete"
+                                  data-confirm-message="이 BMC 펌웨어를 삭제할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
                         <th:block th:if="${bmc.isDeleted}">
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/restore(boardId=${board.id},bmcId=${bmc.id})}"
-                                  method="post" style="display:inline;">
+                                  method="post" style="display:inline;"
+                                  data-confirm-action="restore"
+                                  data-confirm-message="이 BMC 펌웨어를 복구할까요?">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/purge(boardId=${board.id},bmcId=${bmc.id})}"
@@ -227,11 +231,19 @@
 <!-- MK3-2 — softDelete reject modal fragment. -->
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
+<!-- S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal. -->
+<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
+<!-- S5-2-1 — confirm-action.js 는 delete-reject-modal.js 보다 먼저. -->
+<script th:src="@{/management/common/confirm-action.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        if (window.ConfirmActionModal) {
+            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
+        }
         if (window.DeleteRejectModal) {
             window.DeleteRejectModal.bind({
                 deleteFormSelector: 'form.mk3-2-delete-form',

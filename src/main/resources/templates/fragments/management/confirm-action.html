@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal fragment.
+  ─────────────────────────────────────────────────────────
+  사용자 form submit 클릭 직후 본 modal 이 표시된다. 사용자 2택 — 확인 / 취소.
+
+  파라미터:
+    - prefix : modal element id 접두사 (페이지에 여러 modal 이 있을 때 충돌 회피).
+
+  JS 흐름은 `confirm-action.js` 가 처리. `[data-confirm-action]` 속성이 있는
+  form 의 submit 을 가로채 modal 표시 → 사용자 확인 시 requestSubmit 으로 통과.
+
+  생성되는 element id (prefix="confirmAction" 기준):
+    confirmActionModal · confirmActionBackdrop · confirmActionTitle · confirmActionMessage ·
+    confirmActionConfirmBtn · confirmActionCancelBtn · confirmActionCloseBtn
+
+  CSS: 기존 .n-btn / .n-card / .n-alert 재사용. 신규 CSS 토큰 0.
+  MK3-2 의 delete-reject-modal 과 트리거·내용·책임 분리 (책임 분리는 S5-2 plan §1.3 참조).
+*/-->
+<div th:fragment="confirmActionModal(prefix)"
+     th:id="${prefix} + 'Modal'"
+     hidden
+     style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1040;
+            display: flex; align-items: center; justify-content: center; padding: 24px;">
+
+    <!-- backdrop -->
+    <div th:id="${prefix} + 'Backdrop'"
+         style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.45);"></div>
+
+    <!-- card -->
+    <div class="n-card" role="dialog" aria-modal="true"
+         style="position: relative; max-width: 480px; width: 100%;">
+        <div class="n-card-body">
+            <h2 style="margin: 0 0 12px 0; font-size: 1.1rem; display: flex;
+                       justify-content: space-between; align-items: baseline; gap: 12px;">
+                <span th:id="${prefix} + 'Title'">자원 상태 변경</span>
+                <button type="button" th:id="${prefix} + 'CloseBtn'"
+                        class="n-btn n-btn-sm n-btn-ghost" aria-label="닫기">×</button>
+            </h2>
+
+            <p th:id="${prefix} + 'Message'"
+               style="margin: 0 0 20px 0; line-height: 1.5;">메시지</p>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" th:id="${prefix} + 'CancelBtn'"
+                        class="n-btn n-btn-secondary">취소</button>
+                <button type="button" th:id="${prefix} + 'ConfirmBtn'"
+                        class="n-btn n-btn-primary">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
