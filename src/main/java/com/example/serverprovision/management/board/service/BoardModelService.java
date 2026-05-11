@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.board.service;
 
+import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.board.dto.request.BoardModelCreateRequest;
 import com.example.serverprovision.management.board.dto.request.BoardModelUpdateRequest;
@@ -43,7 +44,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BoardModelService {
 
@@ -53,6 +53,27 @@ public class BoardModelService {
     private final BiosRepository biosRepository;
     private final BmcRepository bmcRepository;
     private final NudgeRegistry nudgeRegistry;
+    // S5-2-3 — cascade restore 시 자식 BIOS / BMC service 의 restore 로직 재사용.
+    // @Lazy : BiosService / BmcService 가 다른 service / scanner 를 거쳐 BoardModelService 를 의존할 경우
+    // 발생할 circular reference 차단 (SoftDeleteIntentService 와 동일 패턴).
+    private final com.example.serverprovision.management.bios.service.BiosService biosService;
+    private final com.example.serverprovision.management.bmc.service.BmcService bmcService;
+
+    public BoardModelService(BoardModelRepository boardModelRepository,
+                             BiosRepository biosRepository,
+                             BmcRepository bmcRepository,
+                             NudgeRegistry nudgeRegistry,
+                             @org.springframework.context.annotation.Lazy
+                             com.example.serverprovision.management.bios.service.BiosService biosService,
+                             @org.springframework.context.annotation.Lazy
+                             com.example.serverprovision.management.bmc.service.BmcService bmcService) {
+        this.boardModelRepository = boardModelRepository;
+        this.biosRepository = biosRepository;
+        this.bmcRepository = bmcRepository;
+        this.nudgeRegistry = nudgeRegistry;
+        this.biosService = biosService;
+        this.bmcService = bmcService;
+    }
 
     // ==== 조회 ========================================================
 
@@ -231,17 +252,42 @@ public class BoardModelService {
      * 이미 삭제된 자식은 건드리지 않는다 (이전 삭제 시점 보존).
      * BoardModel 을 복구해도 BIOS / BMC 는 자동 복구되지 않으며 개별적으로 restore 해야 한다.
      */
+    /**
+     * S5-2-3 정합화 — Board soft-delete + 자식 BIOS / BMC 동반 trash 이동.
+     * <p>이전엔 service 가 BIOS/BMC entity 의 softDelete() 직접 호출 → trashLifecycleService 우회 →
+     * ghost 상태. 본 변경에서는 biosService.softDelete / bmcService.softDelete 위임 (정상 trash 이동).</p>
+     */
     @Transactional
     public void softDelete(Long id) {
-        requireActiveBoard(id).softDelete();
+        BoardModel board = requireActiveBoard(id);
+        // 자식 BIOS / BMC 활성 자원 동반 trash 이동 — service.softDelete 위임 (trash 이동 + DB 갱신).
         biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id)
-                .forEach(BoardBIOS::softDelete);
+                .forEach(bios -> biosService.softDelete(id, bios.getId()));
         bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id)
-                .forEach(BoardBMC::softDelete);
+                .forEach(bmc -> bmcService.softDelete(id, bmc.getId()));
+        // Board 자체 — 메타 자원 lifecycle 메타만 갱신.
+        board.softDelete();
+        board.markTrashed(null);
     }
 
     @Transactional
     public void restore(Long id) {
+        // 기존 단일 인자 시그니처 — cascade=false 와 동일하게 위임 (호환 보존).
+        restore(id, false);
+    }
+
+    /**
+     * S5-2-3 — Board restore + 하위 BIOS / BMC 일괄 복구 옵션.
+     *
+     * <p>cascade=true 면 soft-deleted 자식 BIOS / BMC 를 일괄 복구. 각 자식의 restore 는 기존
+     * {@code BiosService.restore} / {@code BmcService.restore} 위임 — duplicate version 검증 +
+     * trashLifecycleService.restoreFromTrash 흐름 그대로 재사용 (중복 코드 회피).</p>
+     *
+     * <p>자식 복구 중 활성 자원과 (boardId, version) 충돌하면 해당 service 가 Duplicate*Exception 던지고
+     * {@code @Transactional} 전체 롤백 — 부모 / 모든 자식 모두 복구 안 된 상태.</p>
+     */
+    @Transactional
+    public com.example.serverprovision.management.common.dto.response.RestoreResponse restore(Long id, boolean cascade) {
         BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
                 .orElseThrow(() -> new IllegalBoardModelStateException(
                         "이미 활성 상태이거나 존재하지 않는 메인보드 모델입니다. id=" + id));
@@ -250,6 +296,50 @@ public class BoardModelService {
             throw new DuplicateBoardModelException(board.getVendor(), board.getModelName());
         }
         board.restore();
+        board.clearTrashed();  // S5-2-3 — 메타 자원 lifecycle 메타 초기화.
+        if (!cascade) {
+            return com.example.serverprovision.management.common.dto.response.RestoreResponse.none();
+        }
+        int restored = 0;
+        for (BoardBIOS bios : biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(id)) {
+            biosService.restore(id, bios.getId());
+            restored++;
+        }
+        for (BoardBMC bmc : bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(id)) {
+            bmcService.restore(id, bmc.getId());
+            restored++;
+        }
+        log.info("[restore] BoardModel id={} cascade=true → 하위 자원 {}건 복구", id, restored);
+        return new com.example.serverprovision.management.common.dto.response.RestoreResponse(restored);
+    }
+
+    /**
+     * S5-2-2 — Board typed-name 검증 후 영구 삭제. Board 는 기존 hard-delete 가 부재하여 본 메서드에서 신설.
+     * 합성식 : {@code vendor.displayName + " " + modelName}.
+     *
+     * <p>제약 : 자식 BIOS / BMC 가 한 건이라도 남아 있으면 거절 — 운영자가 자식을 먼저 정리해야 함.
+     * 부모 hard-delete 시 자식 cascade 는 운영 위험이 커서 명시적 거절 정책 채택.</p>
+     */
+    @Transactional
+    public void purgeWithTypedNameCheck(Long id, String typedName) {
+        BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
+                .orElseThrow(() -> new IllegalBoardModelStateException(
+                        "soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+        String expected = board.getVendor().getDisplayName() + " " + board.getModelName();
+        if (!expected.equals(typedName)) {
+            throw new TypedNameMismatchException(expected, typedName);
+        }
+        // 자식 잔존 검사 — BIOS / BMC 한 건이라도 남으면 거절
+        boolean hasBios = !biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
+        boolean hasBmc = !bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
+        if (hasBios || hasBmc) {
+            throw new IllegalBoardModelStateException(
+                    "자식 BIOS / BMC 자원이 남아 있어 메인보드 모델을 영구 삭제할 수 없습니다. "
+                            + "자식을 먼저 모두 영구 삭제해주세요. id=" + id);
+        }
+        boardModelRepository.delete(board);
+        log.info("[purge] BoardModel 영구 삭제. id={}, vendor={}, modelName={}",
+                board.getId(), board.getVendor(), board.getModelName());
     }
 
     // ==== 내부 헬퍼 ====================================================

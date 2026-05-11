@@ -1,6 +1,8 @@
 package com.example.serverprovision.management.os.entity;
 
 import com.example.serverprovision.global.entity.LifecycleEntity;
+import com.example.serverprovision.global.marker.Markable;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.os.enums.OSName;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -36,7 +38,7 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder
-public class OSImage extends LifecycleEntity {
+public class OSImage extends LifecycleEntity implements Markable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -86,21 +88,38 @@ public class OSImage extends LifecycleEntity {
     // ---- 도메인 메서드 -------------------------------------------------
 
     /**
-     * OS 이미지를 soft 삭제하면서, 현재 활성 상태인 ISO 들도 함께 soft 삭제한다.
-     * <p>super 의 가드 (이미 삭제됨 등) 를 먼저 적용하고, 추가로 자식 ISO cascade 를 수행한다.
-     * 이미 삭제된 ISO 는 건드리지 않는다 (이전 삭제 시점 보존).</p>
+     * S5-2-3 정합화 : 자식 ISO 동반 cascade soft-delete 책임을 Service 로 응집.
+     * <p>이전엔 entity 가 자식 ISO.softDelete() 를 직접 호출했으나, 그 경로는
+     * trashLifecycleService 우회로 ISO 들을 ghost (is_deleted=true + trashed_at=null) 로 만들었다.
+     * 본 entity 는 자기 lifecycle 만 책임지고, OSImageService.softDelete 가 자식 trash 이동을 수행.</p>
      */
-    @Override
-    public void softDelete() {
-        super.softDelete();
-        // 부모-자식 시점 보존 : 이미 삭제된 ISO 는 건너뛰고, 활성 ISO 만 동반 삭제.
-        this.isos.stream()
-                .filter(iso -> !iso.isDeleted())
-                .forEach(ISO::softDelete);
-    }
 
     public void update(String osVersion, String description) {
         this.osVersion = osVersion;
         this.description = description;
+    }
+
+    // ==== Markable 구현 (메타 자원) ===================================
+    // OSImage 는 디렉토리/파일 없는 메타데이터 — 마커 발급/검증 흐름 미적용.
+    // 휴지통 페이지 노출용으로 ResourceType / lifecycle 메타만 제공.
+
+    @Override
+    public Long getResourceId() { return this.id; }
+
+    @Override
+    public ResourceType getResourceType() { return ResourceType.OS_IMAGE; }
+
+    @Override
+    public java.nio.file.Path getResourcePath() { return null; }
+
+    @Override
+    public String getManifestHash() { return null; }
+
+    @Override
+    public String getMarkerSignature() { return null; }
+
+    @Override
+    public void reissueMarker(String manifestHash, String markerSignature) {
+        // 메타 자원 — no-op.
     }
 }

@@ -189,6 +189,11 @@ code {
 .n-btn-outline-info { background: transparent; color: var(--n-blue-badge-text); border: 1px solid rgba(9, 127, 232, 0.3); }
 .n-btn-outline-info:hover { background: var(--n-blue-badge-bg); }
 
+/* S5-2-1 — outline-warning 보강. miller 및 confirm-action modal 의 'Deprecated 표시' 버튼에서 참조됨.
+   color/border 는 --n-yellow + 30% opacity. hover 는 yellow-bg 토큰 재사용. */
+.n-btn-outline-warning { background: transparent; color: var(--n-yellow); border: 1px solid rgba(194, 147, 67, 0.35); }
+.n-btn-outline-warning:hover { background: var(--n-yellow-bg); }
+
 /* ---- 7. 배지 ---------------------------------------------- */
 .n-badge {
     display: inline-block;

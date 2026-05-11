@@ -196,8 +196,9 @@ public class SubprogramController {
      * 영구 삭제된 자원은 redirect 시 selectId 로 잡을 수 없으므로 단순 list 로 이동.
      */
     @PostMapping("/{id:[0-9]+}/purge")
-    public String purge(@PathVariable("id") Long id) {
-        subprogramService.purge(id);
+    public String purge(@PathVariable("id") Long id,
+                        @RequestParam("typedName") String typedName) {
+        subprogramService.purgeWithTypedNameCheck(id, typedName);
         return "redirect:/management/subprogram?includeDeleted=true";
     }
 

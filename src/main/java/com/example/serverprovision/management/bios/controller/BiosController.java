@@ -264,8 +264,9 @@ public class BiosController {
      */
     @PostMapping("/{boardId}/bios/{biosId}/purge")
     public String purge(@PathVariable("boardId") Long boardId,
-                        @PathVariable("biosId") Long biosId) {
-        biosService.purge(boardId, biosId);
+                        @PathVariable("biosId") Long biosId,
+                        @RequestParam("typedName") String typedName) {
+        biosService.purgeWithTypedNameCheck(boardId, biosId, typedName);
         return "redirect:/management/bios?selectBoardId=" + boardId + "&includeDeleted=true";
     }
 

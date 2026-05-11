@@ -217,7 +217,9 @@
                             </form>
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/purge(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('이 BMC 펌웨어를 영구 삭제할까요? 디스크의 번들 트리도 함께 제거됩니다.');">
+                                  data-confirm-action="purge"
+                                  th:data-typed-name="${bmc.name}"
+                                  data-confirm-message="BMC 펌웨어를 영구 삭제합니다. 디스크의 번들 트리도 함께 제거됩니다. 자원명을 정확히 입력하세요.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>

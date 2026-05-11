@@ -130,9 +130,18 @@ public class BoardModelController {
     }
 
     @PostMapping("/{id}/restore")
-    public String restore(@PathVariable Long id) {
-        boardModelService.restore(id);
+    public String restore(@PathVariable Long id,
+                          @RequestParam(name = "cascade", defaultValue = "false") boolean cascade) {
+        boardModelService.restore(id, cascade);
         return redirectToListWithSelect(id);
+    }
+
+    // ==== S5-2-2 — hard-delete with typed-name 검증 ====================
+    @PostMapping("/{id}/purge")
+    public String purge(@PathVariable Long id,
+                        @RequestParam("typedName") String typedName) {
+        boardModelService.purgeWithTypedNameCheck(id, typedName);
+        return "redirect:/management/board?includeDeleted=true";
     }
 
     // ==== MK2 — Deprecate / Undeprecate ===============================

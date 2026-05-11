@@ -169,13 +169,17 @@
                         <th:block th:if="${os.isDeleted}">
                             <form th:action="@{/management/os/{id}/restore(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="restore"
-                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 복구할까요?|">
+                                  data-confirm-action="restore-cascade"
+                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 복구할까요? 하위 자원도 함께 복구할지 선택해주세요.|"
+                                  th:data-cascade-true-title="|하위 ISO ${os.isos.?[isDeleted].size()}건도 함께 복구|"
+                                  th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ' · ')}">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <form th:action="@{/management/os/{id}/purge(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  onsubmit="return confirm('영구 삭제 시 자식 ISO 의 sidecar 와 본체 파일도 모두 정리됩니다. 진행할까요?');">
+                                  data-confirm-action="purge"
+                                  th:data-typed-name="|${group.displayName} ${os.osVersion}|"
+                                  data-confirm-message="영구 삭제 시 자식 ISO 의 sidecar 와 본체 파일도 모두 정리됩니다. 자원명을 정확히 입력하세요.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
@@ -319,7 +323,9 @@
                                             </form>
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/purge(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
-                                                  onsubmit="return confirm('영구 삭제 시 sidecar 와 본체 파일이 모두 정리됩니다. 진행할까요?');">
+                                                  data-confirm-action="purge"
+                                                  th:data-typed-name="|${group.displayName} ${os.osVersion} ${iso.isoPath.replaceAll('.*/', '')}|"
+                                                  data-confirm-message="영구 삭제 시 sidecar 와 본체 파일이 모두 정리됩니다. 자원명을 정확히 입력하세요.">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-danger">영구 삭제</button>
                                             </form>
                                         </th:block>

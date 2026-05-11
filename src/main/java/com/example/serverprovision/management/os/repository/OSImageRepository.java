@@ -43,4 +43,7 @@ public interface OSImageRepository extends JpaRepository<OSImage, Long> {
     List<OSImage> findAllByOsNameAndOsVersionAndIsDeletedTrue(OSName osName, String osVersion);
 
     List<OSImage> findAllByOsNameAndOsVersionAndIsDeprecatedTrueAndIsDeletedFalse(OSName osName, String osVersion);
+
+    /** S5-2-3+ — soft-deleted OS image (메타 자원). 휴지통 표시 + cascade restore 흐름에서 활용. */
+    List<OSImage> findAllByIsDeletedTrue();
 }

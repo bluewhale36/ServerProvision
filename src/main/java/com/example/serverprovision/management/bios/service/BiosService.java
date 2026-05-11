@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosRegisterExistingRequest;
@@ -424,6 +425,24 @@ public class BiosService {
         bundleTreeCleanupService.purgeExistingTree(Path.of(bios.getTreeRootPath()), "purgeBios");
         biosRepository.delete(bios);
         log.info("[purge] biosId={}, boardId={}, treeRoot={}", biosId, boardId, bios.getTreeRootPath());
+    }
+
+    /**
+     * S5-2-2 — BIOS typed-name 검증 후 영구 삭제.
+     * 합성식 : {@code bios.name}.
+     */
+    @Transactional
+    public void purgeWithTypedNameCheck(Long boardId, Long biosId, String typedName) {
+        BoardBIOS bios = requireExistingBios(boardId, biosId);
+        if (!bios.isDeleted()) {
+            throw new IllegalBiosStateException(
+                    "활성/Deprecated 자원은 영구 삭제할 수 없습니다. 먼저 휴지통으로 이동하세요. biosId=" + biosId);
+        }
+        String expected = bios.getName();
+        if (!expected.equals(typedName)) {
+            throw new TypedNameMismatchException(expected, typedName);
+        }
+        purge(boardId, biosId);
     }
 
     // ==== 무결성 / marker 재발급 =======================================

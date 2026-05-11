@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bmc.service;
 
+import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -548,5 +549,25 @@ public class BmcService {
         bundleTreeCleanupService.purgeExistingTree(Path.of(bmc.getTreeRootPath()), "purgeBmc");
         bmcRepository.delete(bmc);
         log.info("[purgeBmc] 영구 삭제 완료. bmcId={}, boardId={}", bmcId, boardId);
+    }
+
+    /**
+     * S5-2-2 — BMC typed-name 검증 후 영구 삭제.
+     * 합성식 : {@code bmc.name}.
+     */
+    @Transactional
+    public void purgeWithTypedNameCheck(Long boardId, Long bmcId, String typedName) {
+        requireActiveBoard(boardId);
+        BoardBMC bmc = bmcRepository.findByIdAndBoardModel_Id(bmcId, boardId)
+                .orElseThrow(() -> new BmcNotFoundException(boardId, bmcId));
+        if (!bmc.isDeleted()) {
+            throw new IllegalBmcStateException(
+                    "영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
+        }
+        String expected = bmc.getName();
+        if (!expected.equals(typedName)) {
+            throw new TypedNameMismatchException(expected, typedName);
+        }
+        purge(boardId, bmcId);
     }
 }

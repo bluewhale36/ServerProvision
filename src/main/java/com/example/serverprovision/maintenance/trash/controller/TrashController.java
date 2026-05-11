@@ -123,25 +123,30 @@ public class TrashController {
      * </ul>
      */
     private TrashItemResponse toResponse(Markable m, Duration ttl, Instant now, boolean ghost) {
-        // Markable 자체엔 trashed_at / trashed_path 가 없음 — LifecycleEntity 로 cast.
-        // 단 모든 trash 적용 도메인 entity 는 LifecycleEntity 상속 + Markable 구현이므로 cast 안전.
         if (!(m instanceof com.example.serverprovision.global.entity.LifecycleEntity lifecycle)) {
             return null;
         }
         Instant trashedAt = lifecycle.getTrashedAt();
         String trashedPath = lifecycle.getTrashedPath();
-        if (!ghost && (trashedAt == null || trashedPath == null)) {
-            // 정상 trash 패스에서 null 메타 발견 — A2 / ghost 영역의 책임이므로 여기선 무시.
+        // S5-2-3 — 메타 자원 (OS_IMAGE / BOARD_MODEL) 은 trashed_path=null 이 정상.
+        boolean isMeta = m.getResourceType().isMetadata();
+        if (!ghost && trashedAt == null) {
+            return null;
+        }
+        if (!ghost && !isMeta && trashedPath == null) {
+            // 파일 자원인데 trashed_path 가 null → ghost 영역. 본 메서드는 정상 trash 만 처리.
             return null;
         }
         Instant expiresAt = (trashedAt != null) ? trashedAt.plus(ttl) : null;
         boolean ttlWarning = !ghost && expiresAt != null
                 && Duration.between(now, expiresAt).compareTo(TTL_WARNING_THRESHOLD) <= 0;
+        java.nio.file.Path resourcePath = m.getResourcePath();
+        String resourcePathStr = resourcePath != null ? resourcePath.toString() : "(메타데이터 — 파일 없음)";
         return new TrashItemResponse(
                 m.getResourceType(),
                 m.getResourceId(),
-                m.getResourceType().name() + "#" + m.getResourceId(), // displayName : 도메인 override 후속 보강
-                m.getResourcePath().toString(),
+                m.getResourceType().name() + "#" + m.getResourceId(),
+                resourcePathStr,
                 trashedPath,
                 trashedAt,
                 expiresAt,

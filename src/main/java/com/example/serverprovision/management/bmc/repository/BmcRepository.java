@@ -20,6 +20,9 @@ public interface BmcRepository extends JpaRepository<BoardBMC, Long> {
 
     List<BoardBMC> findAllByBoardModel_IdOrderByVersionDesc(Long boardModelId);
 
+    /** S5-2-3 — 특정 보드의 soft-deleted BMC. Board restore cascade=true 시 일괄 복구 대상. */
+    List<BoardBMC> findAllByBoardModel_IdAndIsDeletedTrue(Long boardModelId);
+
     List<BoardBMC> findAllByBoardModel_IdIn(List<Long> boardModelIds);
 
     boolean existsByBoardModel_IdAndVersionAndIsDeletedFalse(Long boardModelId, String version);

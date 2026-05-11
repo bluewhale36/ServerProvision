@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -602,6 +603,25 @@ public class SubprogramService {
         subprogramRepository.delete(sp);
         log.info("[purge] Subprogram 영구 삭제. id={}, kind={}, name={}, version={}",
                 sp.getId(), sp.getKind(), sp.getName(), sp.getVersion());
+    }
+
+    /**
+     * S5-2-2 — Subprogram typed-name 검증 후 영구 삭제.
+     * 합성식 : {@code sp.name}.
+     */
+    @Transactional
+    public void purgeWithTypedNameCheck(Long subprogramId, String typedName) {
+        Subprogram sp = subprogramRepository.findById(subprogramId)
+                .orElseThrow(() -> new SubprogramNotFoundException(subprogramId));
+        if (!sp.isDeleted()) {
+            throw new IllegalSubprogramStateException(
+                    "활성 상태에서는 영구 삭제할 수 없습니다. 먼저 삭제(soft-delete)를 수행하세요. id=" + subprogramId);
+        }
+        String expected = sp.getName();
+        if (!expected.equals(typedName)) {
+            throw new TypedNameMismatchException(expected, typedName);
+        }
+        purge(subprogramId);
     }
 
     /* ─────────────────────────── 무결성 검증 ─────────────────────────── */

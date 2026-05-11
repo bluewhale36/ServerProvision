@@ -64,7 +64,7 @@ class ConfirmActionFragmentRenderTest {
     }
 
     @Test
-    @DisplayName("L1 : OS list 가 fragment include + script tag + 3 actionKey 활용")
+    @DisplayName("L1 : OS list 가 fragment include + script tag + 다중 actionKey 활용")
     void osList_includesFragmentAndScripts() throws Exception {
         String html = read(TEMPLATES.resolve("management/os/list.html"));
         assertThat(html).contains("confirm-action :: confirmActionModal('confirmAction')");
@@ -72,11 +72,13 @@ class ConfirmActionFragmentRenderTest {
         assertThat(html).contains("ConfirmActionModal.bind");
         assertThat(html).contains("data-confirm-action=\"soft-delete\"");
         assertThat(html).contains("data-confirm-action=\"deprecate\"");
+        // S5-2-3 — OS 부모는 restore-cascade, ISO leaf 는 단순 restore.
         assertThat(html).contains("data-confirm-action=\"restore\"");
+        assertThat(html).contains("data-confirm-action=\"restore-cascade\"");
     }
 
     @Test
-    @DisplayName("L2 : Board list 가 fragment include + script tag + 3 actionKey 활용")
+    @DisplayName("L2 : Board list 가 fragment include + script tag + 3 actionKey 활용 (restore 는 S5-2-3 의 cascade 변형)")
     void boardList_includesFragmentAndScripts() throws Exception {
         String html = read(TEMPLATES.resolve("management/board/list.html"));
         assertThat(html).contains("confirm-action :: confirmActionModal('confirmAction')");
@@ -84,7 +86,8 @@ class ConfirmActionFragmentRenderTest {
         assertThat(html).contains("ConfirmActionModal.bind");
         assertThat(html).contains("data-confirm-action=\"soft-delete\"");
         assertThat(html).contains("data-confirm-action=\"deprecate\"");
-        assertThat(html).contains("data-confirm-action=\"restore\"");
+        // S5-2-3 — Board / OS 의 restore 는 cascade 변형. leaf 자원만 단순 restore.
+        assertThat(html).contains("data-confirm-action=\"restore-cascade\"");
     }
 
     @Test
@@ -109,6 +112,30 @@ class ConfirmActionFragmentRenderTest {
         assertThat(html).contains("data-confirm-action=\"soft-delete\"");
         assertThat(html).contains("data-confirm-action=\"deprecate\"");
         assertThat(html).contains("data-confirm-action=\"restore\"");
+    }
+
+    @Test
+    @DisplayName("L7 : 휴지통 페이지 (maintenance/trash) modal 인프라 적용 — restore / deprecate / soft-delete 마커")
+    void trashList_includesFragmentAndScripts() throws Exception {
+        String html = read(TEMPLATES.resolve("maintenance/trash/list.html"));
+        assertThat(html).contains("confirm-action :: confirmActionModal('confirmAction')");
+        assertThat(html).contains("/management/common/confirm-action.js");
+        assertThat(html).contains("ConfirmActionModal.bind");
+        // 4 form (clear-ghost / restore / extend / purge) 의 actionKey 마커.
+        assertThat(html).contains("data-confirm-action=\"restore\"");
+        assertThat(html).contains("data-confirm-action=\"deprecate\"");  // extend
+        assertThat(html).contains("data-confirm-action=\"soft-delete\""); // purge / clear-ghost
+    }
+
+    @Test
+    @DisplayName("L8 : 경로 점검 (maintenance/reconciliation) modal 인프라 적용 — apply / dismiss 마커")
+    void reconciliationList_includesFragmentAndScripts() throws Exception {
+        String html = read(TEMPLATES.resolve("maintenance/reconciliation/list.html"));
+        assertThat(html).contains("confirm-action :: confirmActionModal('confirmAction')");
+        assertThat(html).contains("/management/common/confirm-action.js");
+        assertThat(html).contains("ConfirmActionModal.bind");
+        assertThat(html).contains("data-confirm-action=\"restore\"");      // apply
+        assertThat(html).contains("data-confirm-action=\"soft-delete\""); // dismiss
     }
 
     @Test
@@ -150,23 +177,20 @@ class ConfirmActionFragmentRenderTest {
     }
 
     @Test
-    @DisplayName("L6 : S5-2-1 범위 (soft-delete / deprecate / restore) 의 onsubmit=return confirm 호출 완전 제거")
-    void noLegacyOnsubmitConfirm_inScope() throws Exception {
-        Path[] files = {
-                TEMPLATES.resolve("management/os/list.html"),
-                TEMPLATES.resolve("management/board/list.html"),
-                TEMPLATES.resolve("management/bios/list.html"),
-                TEMPLATES.resolve("management/bmc/list.html"),
-                TEMPLATES.resolve("fragments/management/subprogram/miller.html")
-        };
+    @DisplayName("L6 : 전 templates 의 onsubmit=return confirm 잔존 0 (S5-2-1/2-2/2-3 전체 modal 인프라 적용)")
+    void noLegacyOnsubmitConfirm_inAllTemplates() throws Exception {
+        // S5-2-2 이후 purge 도 modal 화 — 모든 form 이 modal 인프라 사용. confirm() 잔존 = 0.
+        java.util.List<Path> files = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<Path> stream = java.nio.file.Files.walk(TEMPLATES)) {
+            stream.filter(p -> p.toString().endsWith(".html"))
+                  .forEach(files::add);
+        }
         for (Path p : files) {
             String html = read(p);
-            // S5-2-1 범위 — soft-delete / deprecate / restore confirm 만 제거. purge (영구 삭제) 는 S5-2-2 잠정 유지.
-            // 위반 신호 : "return confirm" 호출의 메시지에 "영구 삭제" 가 없으면 (= purge 가 아니면) S5-2-1 미적용.
             String[] lines = html.split("\n");
             for (String line : lines) {
-                if (line.contains("onsubmit=") && line.contains("return confirm") && !line.contains("영구 삭제")) {
-                    org.junit.jupiter.api.Assertions.fail(p + " 에 S5-2-1 미적용 confirm 잔존 : " + line.trim());
+                if (line.contains("onsubmit=") && line.contains("return confirm")) {
+                    org.junit.jupiter.api.Assertions.fail(p + " 에 legacy onsubmit=confirm 잔존 : " + line.trim());
                 }
             }
         }

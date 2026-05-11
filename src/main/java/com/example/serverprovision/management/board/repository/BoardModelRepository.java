@@ -38,4 +38,7 @@ public interface BoardModelRepository extends JpaRepository<BoardModel, Long> {
     List<BoardModel> findAllByVendorAndModelNameAndIsDeletedTrue(Vendor vendor, String modelName);
 
     List<BoardModel> findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor vendor, String modelName);
+
+    /** S5-2-3+ — soft-deleted Board (메타 자원). 휴지통 표시용. */
+    List<BoardModel> findAllByIsDeletedTrue();
 }

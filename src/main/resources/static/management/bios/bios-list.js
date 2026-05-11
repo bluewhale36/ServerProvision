@@ -123,22 +123,6 @@
         }
     });
 
-    // ---- MK2 — 영구 삭제 typed-name confirm ----------------------------
-    // form 에 data-typed-confirm="purge" 가 있으면 submit 시점에 사용자 자원명 입력을 요구.
-    // 자원명 (data-resource-name) 과 정확히 일치해야 진행. 우발 영구 삭제 방어용.
-    document.addEventListener('submit', e => {
-        const form = e.target;
-        if (!(form instanceof HTMLFormElement)) return;
-        if (form.dataset.typedConfirm !== 'purge') return;
-        const expected = form.dataset.resourceName || '';
-        const typed = window.prompt(
-            '영구 삭제를 진행하려면 자원명을 정확히 입력하세요 :\n\n  ' + expected + '\n\n(취소: 빈 값 또는 Cancel)'
-        );
-        if (typed === null || typed.trim() !== expected) {
-            e.preventDefault();
-            if (typed !== null && typed.trim() !== '') {
-                alert('자원명이 일치하지 않습니다. 영구 삭제를 취소합니다.');
-            }
-        }
-    });
+    // S5-2-2 — 기존 MK2 의 data-typed-confirm + window.prompt() 핸들러는 confirm-action.js 의
+    // 'purge' actionKey 로 일원화. 이 자리에서 제거됨.
 })();

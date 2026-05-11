@@ -174,8 +174,9 @@ public class OSImageController {
     }
 
     @PostMapping("/{id}/restore")
-    public String restore(@PathVariable Long id) {
-        osImageService.restore(id);
+    public String restore(@PathVariable Long id,
+                          @RequestParam(name = "cascade", defaultValue = "false") boolean cascade) {
+        osImageService.restore(id, cascade);
         return redirectToListWithSelect(id);
     }
 
@@ -194,8 +195,9 @@ public class OSImageController {
     }
 
     @PostMapping("/{id}/purge")
-    public String purgeOs(@PathVariable Long id) {
-        osImageService.purgeImage(id);
+    public String purgeOs(@PathVariable Long id,
+                          @RequestParam("typedName") String typedName) {
+        osImageService.purgeImageWithTypedNameCheck(id, typedName);
         // 영구 삭제 후 row 부재 — selectId 복원 의미 없음.
         return "redirect:/management/os?includeDeleted=true";
     }
@@ -409,8 +411,9 @@ public class OSImageController {
 
     @PostMapping("/{osId}/iso/{isoId}/purge")
     public String purgeIso(@PathVariable("osId") Long osId,
-                            @PathVariable("isoId") Long isoId) {
-        osImageService.purgeIso(osId, isoId);
+                            @PathVariable("isoId") Long isoId,
+                            @RequestParam("typedName") String typedName) {
+        osImageService.purgeIsoWithTypedNameCheck(osId, isoId, typedName);
         return redirectToListWithSelect(osId);
     }
 

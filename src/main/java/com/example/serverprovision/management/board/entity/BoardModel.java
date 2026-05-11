@@ -1,6 +1,8 @@
 package com.example.serverprovision.management.board.entity;
 
 import com.example.serverprovision.global.entity.LifecycleEntity;
+import com.example.serverprovision.global.marker.Markable;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.enums.Vendor;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,7 +30,7 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder
-public class BoardModel extends LifecycleEntity {
+public class BoardModel extends LifecycleEntity implements Markable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -61,5 +63,28 @@ public class BoardModel extends LifecycleEntity {
     public void update(String modelName, String description) {
         this.modelName = modelName;
         this.description = description;
+    }
+
+    // ==== Markable 구현 (메타 자원) ===================================
+    // BoardModel 도 디렉토리/파일 없는 메타데이터 — 휴지통 노출용으로 ResourceType / lifecycle 만 제공.
+
+    @Override
+    public Long getResourceId() { return this.id; }
+
+    @Override
+    public ResourceType getResourceType() { return ResourceType.BOARD_MODEL; }
+
+    @Override
+    public java.nio.file.Path getResourcePath() { return null; }
+
+    @Override
+    public String getManifestHash() { return null; }
+
+    @Override
+    public String getMarkerSignature() { return null; }
+
+    @Override
+    public void reissueMarker(String manifestHash, String markerSignature) {
+        // 메타 자원 — no-op.
     }
 }

@@ -3,6 +3,7 @@
 <body>
 <!--/*
   S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal fragment.
+  S5-2-2 — 'purge' actionKey 확장 — typed-name input 노출 + 일치 시 확인 버튼 활성.
   ─────────────────────────────────────────────────────────
   사용자 form submit 클릭 직후 본 modal 이 표시된다. 사용자 2택 — 확인 / 취소.
 
@@ -15,6 +16,9 @@
   생성되는 element id (prefix="confirmAction" 기준):
     confirmActionModal · confirmActionBackdrop · confirmActionTitle · confirmActionMessage ·
     confirmActionConfirmBtn · confirmActionCancelBtn
+    confirmActionTypedTargetWrap · confirmActionTypedTarget · confirmActionTypedInput  (S5-2-2 purge 전용)
+    confirmActionCascadeWrap · confirmActionCascadeTrue · confirmActionCascadeFalse ·
+    confirmActionCascadeTrueTitle · confirmActionCascadeTrueDesc                       (S5-2-3 restore-cascade 전용)
     (X close 버튼 없음 — 취소 버튼 / backdrop / Esc 로 닫음)
 
   CSS: 기존 .n-btn / .n-card / .n-alert 재사용. 신규 CSS 토큰 0.
@@ -39,7 +43,49 @@
                 style="margin: 0 0 12px 0; font-size: 1.1rem;">자원 상태 변경</h2>
 
             <p th:id="${prefix} + 'Message'"
-               style="margin: 0 0 20px 0; line-height: 1.5;">메시지</p>
+               style="margin: 0 0 16px 0; line-height: 1.5;">메시지</p>
+
+            <!-- S5-2-2 — purge actionKey 전용 typed-name input slot. 기본 hidden, JS 가 노출 -->
+            <div th:id="${prefix} + 'TypedTargetWrap'" hidden style="margin-bottom: 14px;">
+                <div style="background: var(--n-bg, #f5f5f5); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;">
+                    <span style="font-size: 11px; color: var(--n-text-muted, #666); display: block; margin-bottom: 4px; letter-spacing: 0.3px;">정확히 입력해야 할 자원명</span>
+                    <code th:id="${prefix} + 'TypedTarget'"
+                          style="font-size: 13px; word-break: break-all; user-select: all;"></code>
+                </div>
+                <input type="text" th:id="${prefix} + 'TypedInput'"
+                       style="width: 100%; padding: 9px 12px; font-size: 14px;
+                              border: 1px solid var(--n-border, #d0d7de); border-radius: 6px;
+                              font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"
+                       placeholder="자원명을 정확히 입력...">
+            </div>
+
+            <!-- S5-2-3 — restore-cascade actionKey 전용 라디오 slot. 기본 hidden, JS 가 노출. -->
+            <div th:id="${prefix} + 'CascadeWrap'" hidden style="margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;">
+                <label th:id="${prefix} + 'CascadeTrueWrap'"
+                       style="display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px;
+                              border: 1px solid var(--n-border, #d0d7de); border-radius: 6px; cursor: pointer;">
+                    <input type="radio" th:id="${prefix} + 'CascadeTrue'"
+                           th:name="${prefix} + 'Cascade'" value="true" checked
+                           style="margin-top: 3px;">
+                    <span>
+                        <span th:id="${prefix} + 'CascadeTrueTitle'"
+                              style="font-size: 14px; font-weight: 500;">하위 자원도 함께 복구</span>
+                        <div th:id="${prefix} + 'CascadeTrueDesc'"
+                             style="font-size: 12px; color: var(--n-text-muted, #666); margin-top: 2px;"></div>
+                    </span>
+                </label>
+                <label th:id="${prefix} + 'CascadeFalseWrap'"
+                       style="display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px;
+                              border: 1px solid var(--n-border, #d0d7de); border-radius: 6px; cursor: pointer;">
+                    <input type="radio" th:id="${prefix} + 'CascadeFalse'"
+                           th:name="${prefix} + 'Cascade'" value="false"
+                           style="margin-top: 3px;">
+                    <span>
+                        <span style="font-size: 14px; font-weight: 500;">이 자원만 복구</span>
+                        <div style="font-size: 12px; color: var(--n-text-muted, #666); margin-top: 2px;">하위 자원은 필요 시 휴지통에서 개별 복구 가능해요.</div>
+                    </span>
+                </label>
+            </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
                 <button type="button" th:id="${prefix} + 'CancelBtn'"

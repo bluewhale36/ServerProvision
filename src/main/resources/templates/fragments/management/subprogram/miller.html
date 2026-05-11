@@ -204,6 +204,14 @@
                               th:data-confirm-message="|${sp.kindDisplayName} '${sp.name}' 을 복구할까요?|">
                             <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                         </form>
+                        <!-- S5-2-2 — 영구 삭제 신설. typed-name 입력 일치 시에만 활성. -->
+                        <form th:action="@{/management/subprogram/{id}/purge(id=${sp.id})}"
+                              method="post" style="display:inline;"
+                              data-confirm-action="purge"
+                              th:data-typed-name="${sp.name}"
+                              th:data-confirm-message="|${sp.kindDisplayName} 자원을 영구 삭제합니다. 디스크의 트리도 함께 제거됩니다. 자원명을 정확히 입력하세요.|">
+                            <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
+                        </form>
                     </th:block>
                 </div>
             </div>

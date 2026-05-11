@@ -174,9 +174,19 @@
                         <th:block th:if="${board.isDeleted}">
                             <form th:action="@{/management/board/{id}/restore(id=${board.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="restore"
-                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 복구할까요?|">
+                                  data-confirm-action="restore-cascade"
+                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 복구할까요? 하위 자원도 함께 복구할지 선택해주세요.|"
+                                  data-cascade-true-title="하위 BIOS / BMC 도 함께 복구"
+                                  data-cascade-true-desc="이 보드에 종속된 휴지통의 BIOS / BMC 자원을 일괄 복구해요.">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                            </form>
+                            <!-- S5-2-2 — 영구 삭제 신설. typed-name 입력 일치 시에만 활성. -->
+                            <form th:action="@{/management/board/{id}/purge(id=${board.id})}"
+                                  method="post" style="display:inline;"
+                                  data-confirm-action="purge"
+                                  th:data-typed-name="|${board.vendor.displayName} ${board.modelName}|"
+                                  data-confirm-message="메인보드 모델을 영구 삭제합니다. 자원명을 정확히 입력하세요.">
+                                <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
                     </div>

@@ -86,7 +86,8 @@
                 <form th:if="${item.ghost}"
                       th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
                       method="post"
-                      onsubmit="return confirm('이 ghost row 를 DB 에서 영구 정리합니다. 복구 가능한 자원이 없으므로 안전한 작업입니다. 계속할까요?');">
+                      data-confirm-action="soft-delete"
+                      data-confirm-message="이 ghost row 를 DB 에서 영구 정리합니다. 복구 가능한 자원이 없으므로 안전한 작업이에요.">
                     <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
                 </form>
 
@@ -94,17 +95,20 @@
                 <th:block th:unless="${item.ghost}">
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/restore(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
-                          onsubmit="return confirm('이 자원을 원래 경로로 복원합니다. 계속할까요?');">
+                          data-confirm-action="restore"
+                          th:data-confirm-message="|이 자원을 원래 경로로 복원합니다. 계속할까요?|">
                         <button type="submit" class="n-btn n-btn-sm n-btn-primary">복원</button>
                     </form>
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
-                          onsubmit="return confirm('보존기간을 +30일 연장합니다. 계속할까요?');">
+                          data-confirm-action="deprecate"
+                          data-confirm-message="보존기간을 +30일 연장할까요?">
                         <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
                     </form>
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
-                          onsubmit="return confirm('이 자원을 영구 삭제합니다. 휴지통에서 제거되며 복구 불가능합니다. 계속할까요?');">
+                          data-confirm-action="soft-delete"
+                          data-confirm-message="이 자원을 영구 삭제합니다. 휴지통에서 제거되며 복구 불가능해요. 계속할까요?">
                         <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">영구삭제</button>
                     </form>
                 </th:block>
@@ -113,6 +117,18 @@
         </tbody>
     </table>
 </div>
+
+<!-- S5-2-1+ — 자원 상태 변경 (restore / extend / purge / clear-ghost) 2차 확인 modal. -->
+<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+
+<script th:src="@{/management/common/confirm-action.js}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.ConfirmActionModal) {
+            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
+        }
+    });
+</script>
 
 </body>
 </html>

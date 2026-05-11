@@ -32,6 +32,9 @@ public interface BiosRepository extends JpaRepository<BoardBIOS, Long> {
     /** 특정 보드의 전체 BIOS (삭제 포함) 버전 내림차순. 휴지통 보기용. */
     List<BoardBIOS> findAllByBoardModel_IdOrderByVersionDesc(Long boardModelId);
 
+    /** S5-2-3 — 특정 보드의 soft-deleted BIOS. Board restore cascade=true 시 일괄 복구 대상. */
+    List<BoardBIOS> findAllByBoardModel_IdAndIsDeletedTrue(Long boardModelId);
+
     /** 복수 보드 일괄 조회 (N+1 방지용). Service 에서 `findAllGrouped` 구성 시 활용. */
     List<BoardBIOS> findAllByBoardModel_IdIn(List<Long> boardModelIds);
 

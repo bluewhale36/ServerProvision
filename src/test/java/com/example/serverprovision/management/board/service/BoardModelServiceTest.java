@@ -5,10 +5,13 @@ import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import com.example.serverprovision.management.bmc.entity.BoardBMC;
-import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
+import com.example.serverprovision.management.bios.service.BiosService;
+import com.example.serverprovision.management.bmc.entity.BoardBMC;
+import com.example.serverprovision.management.bmc.repository.BmcRepository;
+import com.example.serverprovision.management.bmc.service.BmcService;
+import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +39,9 @@ class BoardModelServiceTest {
     @Mock BoardModelRepository boardModelRepository;
     @Mock BiosRepository biosRepository;
     @Mock BmcRepository bmcRepository;
+    @Mock NudgeRegistry nudgeRegistry;
+    @Mock BiosService biosService;
+    @Mock BmcService bmcService;
     @InjectMocks BoardModelService boardModelService;
 
     @Test
@@ -96,10 +102,11 @@ class BoardModelServiceTest {
         // when
         boardModelService.softDelete(7L);
 
-        // then
+        // then — Board 본인은 entity.softDelete() 직접 호출되어 state 변경.
         assertThat(board.isDeleted()).isTrue();
-        assertThat(activeBios.isDeleted()).isTrue();
-        assertThat(activeBmc.isDeleted()).isTrue();
+        // S5-2-3 정합화 — 하위 BIOS / BMC 는 service.softDelete 위임 (trashLifecycleService 통한 정상 trash 이동).
+        verify(biosService).softDelete(7L, 101L);
+        verify(bmcService).softDelete(7L, 201L);
     }
 
     @Test

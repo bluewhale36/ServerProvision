@@ -16,10 +16,16 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum ResourceType {
-    BIOS_BUNDLE(MarkerLayout.IN_TREE),
-    OS_ISO(MarkerLayout.SIDECAR),
-    BMC_FIRMWARE(MarkerLayout.IN_TREE),
-    SUBPROGRAM(MarkerLayout.IN_TREE);
+    BIOS_BUNDLE(MarkerLayout.IN_TREE, false),
+    OS_ISO(MarkerLayout.SIDECAR, false),
+    BMC_FIRMWARE(MarkerLayout.IN_TREE, false),
+    SUBPROGRAM(MarkerLayout.IN_TREE, false),
+    // S5-2-3+ — 메타 자원 (디렉토리/파일 없음). layout 은 형식상 placeholder.
+    // marker / reconciliation / trash 이동 흐름과 무관 — lifecycle 메타 (is_deleted / trashed_at) 만 활용.
+    OS_IMAGE(MarkerLayout.SIDECAR, true),
+    BOARD_MODEL(MarkerLayout.SIDECAR, true);
 
     private final MarkerLayout defaultLayout;
+    /** true 면 디렉토리/파일 없는 메타 자원 — 마커 미발급, trash 이동 미수행. */
+    private final boolean metadata;
 }

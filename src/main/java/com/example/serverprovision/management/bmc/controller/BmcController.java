@@ -249,8 +249,9 @@ public class BmcController {
      */
     @PostMapping("/{boardId}/bmc/{bmcId}/purge")
     public String purge(@PathVariable("boardId") Long boardId,
-                        @PathVariable("bmcId") Long bmcId) {
-        bmcService.purge(boardId, bmcId);
+                        @PathVariable("bmcId") Long bmcId,
+                        @RequestParam("typedName") String typedName) {
+        bmcService.purgeWithTypedNameCheck(boardId, bmcId, typedName);
         return "redirect:/management/bmc?selectBoardId=" + boardId + "&includeDeleted=true";
     }
 

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.service;
 
+import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.os.dto.request.ISOCreateRequest;
 import com.example.serverprovision.management.os.dto.request.ISOUpdateRequest;
 import com.example.serverprovision.management.os.dto.request.OSImageCreateRequest;
@@ -277,13 +278,45 @@ public class OSImageService {
     /**
      * OS 이미지 soft delete. OSImage 엔티티의 override 가 자식 활성 ISO 도 함께 soft delete 한다.
      */
+    /**
+     * S5-2-3 정합화 — OS 이미지 soft-delete + 자식 ISO 동반 trash 이동.
+     * <p>OSImage 자체는 메타 자원 (디스크 파일 없음) → entity.softDelete() + markTrashed(null) 로 lifecycle 메타만 갱신.
+     * 자식 ISO 들 (활성) 은 {@link TrashLifecycleService#softDeleteToTrash} 위임 — 정상 trash 이동 + DB 갱신.
+     * 이전엔 entity 의 cascade 가 ISO.softDelete() 직접 호출이라 trash 이동 우회 → ghost 상태 발생. 본 변경으로 해소.</p>
+     */
     @Transactional
     public void softDelete(Long id) {
-        requireActiveImage(id).softDelete();
+        OSImage image = requireActiveImage(id);
+        // 자식 ISO 활성 자원 동반 trash 이동.
+        for (ISO iso : image.getIsos()) {
+            if (!iso.isDeleted()) {
+                trashLifecycleService.softDeleteToTrash(iso);
+            }
+        }
+        // OS image 자체 — 메타 자원 lifecycle 메타만 갱신.
+        image.softDelete();
+        image.markTrashed(null);
     }
 
     @Transactional
     public void restore(Long id) {
+        // 기존 단일 인자 시그니처 — cascade=false 와 동일하게 위임 (호환 보존).
+        restore(id, false);
+    }
+
+    /**
+     * S5-2-3 — OS 이미지 restore + 하위 ISO 일괄 복구 옵션.
+     *
+     * <p>cascade=true 면 soft-deleted 자식 ISO 를 일괄 복구. 각 ISO 의 restore 는 동일 service 내
+     * {@link #restoreISO} 위임 — trashLifecycleService.restoreFromTrash 흐름 그대로 재사용.</p>
+     *
+     * <p>자식 복구 중 충돌 (path 충돌 / 활성 ISO 와 hash 충돌 등) 발생 시 service 가 예외 throw 하고
+     * {@code @Transactional} 전체 롤백.</p>
+     *
+     * <p>OSEnvironment / OSPackageGroup 은 ISO soft-delete 시 DB hard-delete 됐으므로 cascade 대상 외.</p>
+     */
+    @Transactional
+    public com.example.serverprovision.management.common.dto.response.RestoreResponse restore(Long id, boolean cascade) {
         OSImage image = osImageRepository.findByIdAndIsDeletedTrue(id)
                 .orElseThrow(() -> new IllegalOSImageStateException(
                         "이미 활성 상태이거나 존재하지 않는 OS 버전입니다. id=" + id));
@@ -291,6 +324,20 @@ public class OSImageService {
             throw new DuplicateOSImageException(image.getOsName(), image.getOsVersion());
         }
         image.restore();
+        image.clearTrashed();  // S5-2-3 — 메타 자원 lifecycle 메타 초기화.
+        if (!cascade) {
+            return com.example.serverprovision.management.common.dto.response.RestoreResponse.none();
+        }
+        int restored = 0;
+        // image.getIsos() 는 LAZY collection — 트랜잭션 안에서 초기화. soft-deleted 만 추려서 복구.
+        for (ISO iso : image.getIsos()) {
+            if (iso.isDeleted()) {
+                restoreISO(id, iso.getId());
+                restored++;
+            }
+        }
+        log.info("[restore] OSImage id={} cascade=true → 하위 ISO {}건 복구", id, restored);
+        return new com.example.serverprovision.management.common.dto.response.RestoreResponse(restored);
     }
 
     // ---- MK2 OSImage lifecycle ----------------------------------------
@@ -310,6 +357,41 @@ public class OSImageService {
      * <p>자식 ISO 들의 sidecar 파일 정리 후 row 삭제. cascade 가 ISO 행을 자동 제거하지만, sidecar 파일은
      * 어플리케이션이 직접 정리해야 한다.</p>
      */
+    /**
+     * S5-2-2 — OS 이미지 typed-name 검증 후 영구 삭제.
+     * 합성식 : {@code osName.displayName + " " + osVersion}.
+     * 우발 영구 삭제 방어 — 사용자가 modal 에서 본 자원명과 정확히 일치할 때만 통과.
+     */
+    @Transactional
+    public void purgeImageWithTypedNameCheck(Long id, String typedName) {
+        OSImage image = osImageRepository.findByIdAndIsDeletedTrue(id)
+                .orElseThrow(() -> new IllegalOSImageStateException(
+                        "soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+        String expected = image.getOsName().getDisplayName() + " " + image.getOsVersion();
+        if (!expected.equals(typedName)) {
+            throw new TypedNameMismatchException(expected, typedName);
+        }
+        purgeImage(id);
+    }
+
+    /**
+     * S5-2-2 — ISO typed-name 검증 후 영구 삭제.
+     * 합성식 : {@code parent.osName.displayName + " " + parent.osVersion + " " + isoBasename}.
+     */
+    @Transactional
+    public void purgeIsoWithTypedNameCheck(Long osImageId, Long isoId, String typedName) {
+        requireActiveImage(osImageId);
+        ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
+                .orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
+        OSImage parent = iso.getOsImage();
+        String basename = iso.getIsoPath().replaceAll(".*/", "");
+        String expected = parent.getOsName().getDisplayName() + " " + parent.getOsVersion() + " " + basename;
+        if (!expected.equals(typedName)) {
+            throw new TypedNameMismatchException(expected, typedName);
+        }
+        purgeIso(osImageId, isoId);
+    }
+
     @Transactional
     public void purgeImage(Long id) {
         OSImage image = osImageRepository.findByIdAndIsDeletedTrue(id)
