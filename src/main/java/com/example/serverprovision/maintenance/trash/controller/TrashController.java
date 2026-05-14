@@ -165,6 +165,21 @@ public class TrashController {
         String displayName = m.displayName();
         // ghost 자원은 typed-name 입력 불가 (raw row 정리 액션만 활성). null 로 두어 form 마커 분기에 활용.
         String typedName = ghost ? null : displayName;
+        // S5-2-3-1 — 부모 자원 lookup. Markable 다형성으로 도메인 분기 없이 응집.
+        ResourceType parentType = null;
+        Long parentId = null;
+        String parentDisplayName = null;
+        boolean parentDeleted = false;
+        java.util.Optional<Markable> parentOpt = m.getParentMarkable();
+        if (parentOpt.isPresent()) {
+            Markable parent = parentOpt.get();
+            parentType = parent.getResourceType();
+            parentId = parent.getResourceId();
+            parentDisplayName = parent.displayName();
+            if (parent instanceof com.example.serverprovision.global.entity.LifecycleEntity parentLc) {
+                parentDeleted = parentLc.isDeleted();
+            }
+        }
         return new TrashItemResponse(
                 m.getResourceType(),
                 m.getResourceId(),
@@ -176,7 +191,11 @@ public class TrashController {
                 ttlWarning,
                 ghost,
                 childPreview,
-                typedName);
+                typedName,
+                parentType,
+                parentId,
+                parentDisplayName,
+                parentDeleted);
     }
 
     /**

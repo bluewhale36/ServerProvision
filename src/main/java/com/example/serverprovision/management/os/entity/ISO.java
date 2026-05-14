@@ -200,6 +200,12 @@ public class ISO extends LifecycleEntity implements Markable {
         return osImage.displayName() + " " + basename;
     }
 
+    /** S5-2-3-1 — 휴지통 위계 시각화용 부모 노출. */
+    @Override
+    public java.util.Optional<com.example.serverprovision.global.marker.Markable> getParentMarkable() {
+        return java.util.Optional.ofNullable(osImage);
+    }
+
     public void recordIntegritySnapshot(com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
                                         Instant verifiedAt) {
         this.lastIntegrityStatus = integrityStatus;

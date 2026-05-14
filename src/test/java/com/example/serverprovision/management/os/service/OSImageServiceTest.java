@@ -384,7 +384,8 @@ class OSImageServiceTest {
                 .id(2L).osImage(parent).isoPath("/mnt/iso/x.iso")
                 .checksum("h").manifestHash("h").markerSignature("s")
                 .isEnabled(true).isDeleted(true).build();
-        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
+        // S5-2-3-1 — restoreISO 가 부모 가드 위해 findById 로 lookup (deleted 포함 → 부모 deleted 면 거절).
+        given(osImageRepository.findById(1L)).willReturn(Optional.of(parent));
         given(isoRepository.findByIdAndOsImage_Id(2L, 1L)).willReturn(Optional.of(deletedIso));
 
         osImageService.restoreISO(1L, 2L);

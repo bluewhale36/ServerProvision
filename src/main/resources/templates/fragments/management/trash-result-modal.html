@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  S5-2-3-1 — 휴지통 액션 결과 안내 modal.
+  거절 응답 (409 ChildLifecycleBlockedByParentException, 400, 500 등) 을 raw JSON 페이지
+  대신 정보-only modal 로 흡수해 사용자에게 친절히 안내한다.
+
+  사용 :  <div th:replace="~{fragments/management/trash-result-modal :: modal}"></div>
+          <script th:src="@{/maintenance/trash/trash-action.js}"></script>
+
+  스타일은 기존 .cm-* 재사용 (확인 modal 과 동일 룩).
+*/-->
+<th:block th:fragment="modal">
+    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+    <div id="trashResultModal" class="cm-overlay" hidden>
+        <div id="trashResultBackdrop" class="cm-backdrop"></div>
+        <div class="n-card cm-card" role="dialog" aria-modal="true">
+            <div class="n-card-body">
+                <h2 id="trashResultTitle" class="cm-title">알림</h2>
+                <p id="trashResultMessage" class="cm-message-tight">메시지</p>
+                <div id="trashResultHint" class="cm-cascade-option-desc" style="margin-top: 8px;" hidden></div>
+                <div class="cm-actions">
+                    <button type="button" id="trashResultOkBtn"
+                            class="n-btn n-btn-primary">확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

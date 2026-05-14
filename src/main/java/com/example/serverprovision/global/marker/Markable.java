@@ -4,6 +4,7 @@ import com.example.serverprovision.global.lifecycle.LifecycleManageable;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * `.provision.json` 마커가 부착될 수 있는 도메인 자원의 어댑터.
@@ -64,5 +65,18 @@ public interface Markable extends LifecycleManageable {
      */
     default String displayName() {
         return getResourceType().name() + " #" + getResourceId();
+    }
+
+    /**
+     * S5-2-3-1 — 자식 자원의 부모 Markable. 부모-자식 cascade 정합화의 시각화 진입점.
+     *
+     * <p>자식 entity (ISO / BoardBIOS / BoardBMC / Subprogram) 가 자기 부모(OSImage / BoardModel) 를
+     * 반환하도록 override. 메타 자원(OS_IMAGE / BOARD_MODEL) 은 default 인 {@code Optional.empty()} 그대로.</p>
+     *
+     * <p>휴지통 뷰가 본 메서드로 부모-자식 위계를 들여쓰기 표시할 수 있도록 일급 메서드로 응집 —
+     * controller 가 도메인 분기 없이 다형성만 호출.</p>
+     */
+    default Optional<Markable> getParentMarkable() {
+        return Optional.empty();
     }
 }

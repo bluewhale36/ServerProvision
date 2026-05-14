@@ -22,6 +22,10 @@ import java.time.Instant;
  *                     null 이면 cascade 라디오 자체 노출 안 함.
  * @param typedName    S5-2 — 영구삭제 typed-name 검증 기준 자원명 ({@code Markable.displayName()}).
  *                     5 list page 와 동일 합성식 사용 — 두 진입점 일관성 보장.
+ * @param parentResourceType S5-2-3-1 — 자식 자원의 부모 종류 (없으면 null). 휴지통 위계 시각화용.
+ * @param parentResourceId   S5-2-3-1 — 자식 자원의 부모 PK (없으면 null).
+ * @param parentDisplayName  S5-2-3-1 — 자식 자원의 부모 displayName (없으면 null). 활성/삭제 무관 lookup.
+ * @param parentDeleted      S5-2-3-1 — 부모가 삭제 상태인지 여부. true 면 부모 복구 먼저 필요 안내.
  */
 public record TrashItemResponse(
         ResourceType resourceType,
@@ -34,6 +38,10 @@ public record TrashItemResponse(
         boolean ttlWarning,
         boolean ghost,
         String childPreview,
-        String typedName
+        String typedName,
+        ResourceType parentResourceType,
+        Long parentResourceId,
+        String parentDisplayName,
+        boolean parentDeleted
 ) {
 }

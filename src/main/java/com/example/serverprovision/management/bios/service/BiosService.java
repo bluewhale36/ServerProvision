@@ -348,9 +348,30 @@ public class BiosService {
         bios.update(request.name(), request.version(), request.description());
     }
 
+    /**
+     * S5-2-3-1 — 자식 BIOS 단독 toggle.
+     * 부모 가드 : 부모 Board 가 비활성/Deprecated 면 enable 거절.
+     */
     @Transactional
     public void toggleEnabled(Long boardId, Long biosId) {
-        requireLiveBios(boardId, biosId).toggleEnabled();
+        BoardBIOS bios = requireLiveBios(boardId, biosId);
+        boolean nextEnabled = !bios.isEnabled();
+        if (nextEnabled) {
+            com.example.serverprovision.management.board.entity.BoardModel parent =
+                    boardModelRepository.findById(boardId).orElseThrow();
+            String parentState = !parent.isEnabled() ? "DISABLED"
+                    : parent.isDeprecated() ? "DEPRECATED" : null;
+            if (parentState != null) {
+                throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                        com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
+                        parent.getId(), parentState,
+                        com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE,
+                        biosId, "enable",
+                        parent.displayName()
+                );
+            }
+        }
+        bios.toggleEnabled();
     }
 
     /** MK3 — soft-delete BIOS. 도메인 가드 후 공통 trash 흐름 위임. MK3-2 사전조건 추가. */
@@ -380,9 +401,22 @@ public class BiosService {
         }
     }
 
-    /** MK3 — restore BIOS. 도메인 가드 + 공통 흐름. attributes 는 BIOS 도메인 메타 (boardId, version, entrypoint). */
+    /**
+     * MK3 — restore BIOS. S5-2-3-1 부모 가드 추가 : 부모 Board 가 deleted 상태이면 자식 단독 restore 거절.
+     */
     @Transactional
     public void restore(Long boardId, Long biosId) {
+        com.example.serverprovision.management.board.entity.BoardModel parent =
+                boardModelRepository.findById(boardId).orElseThrow();
+        if (parent.isDeleted()) {
+            throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                    com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
+                    parent.getId(), "DELETED",
+                    com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE,
+                    biosId, "restore",
+                    parent.displayName()
+            );
+        }
         BoardBIOS bios = requireExistingBios(boardId, biosId);
         if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, bios.getVersion())) {
             throw new DuplicateBiosVersionException(boardId, bios.getVersion());
@@ -405,9 +439,21 @@ public class BiosService {
 
     /**
      * MK2 — Deprecated → Active 전이. 엔티티 가드가 부적합 상태를 거절.
+     * S5-2-3-1 부모 가드 : 부모 Board 가 deprecated 상태면 거절.
      */
     @Transactional
     public void undeprecate(Long boardId, Long biosId) {
+        com.example.serverprovision.management.board.entity.BoardModel parent =
+                boardModelRepository.findById(boardId).orElseThrow();
+        if (parent.isDeprecated()) {
+            throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                    com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
+                    parent.getId(), "DEPRECATED",
+                    com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE,
+                    biosId, "undeprecate",
+                    parent.displayName()
+            );
+        }
         requireLiveBios(boardId, biosId).undeprecate();
     }
 

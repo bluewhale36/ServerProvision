@@ -403,9 +403,27 @@ public class BmcService {
         bmc.update(request.name(), request.version(), request.description());
     }
 
+    /** S5-2-3-1 — 자식 BMC 단독 toggle. 부모 가드 : 부모 Board 비활성/Deprecated 시 enable 거절. */
     @Transactional
     public void toggleEnabled(Long boardId, Long bmcId) {
-        requireLiveBmc(boardId, bmcId).toggleEnabled();
+        BoardBMC bmc = requireLiveBmc(boardId, bmcId);
+        boolean nextEnabled = !bmc.isEnabled();
+        if (nextEnabled) {
+            com.example.serverprovision.management.board.entity.BoardModel parent =
+                    boardModelRepository.findById(boardId).orElseThrow();
+            String parentState = !parent.isEnabled() ? "DISABLED"
+                    : parent.isDeprecated() ? "DEPRECATED" : null;
+            if (parentState != null) {
+                throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                        com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
+                        parent.getId(), parentState,
+                        com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE,
+                        bmcId, "enable",
+                        parent.displayName()
+                );
+            }
+        }
+        bmc.toggleEnabled();
     }
 
     /** MK3 — soft-delete BMC. 도메인 가드 후 공통 trash 흐름 위임. MK3-2 사전조건 추가. */
@@ -436,9 +454,22 @@ public class BmcService {
     }
 
     /** MK3 — restore BMC. 도메인 가드 + 공통 흐름. attributes 는 BMC 도메인 메타. */
+    /**
+     * MK3 — restore BMC. S5-2-3-1 부모 가드 추가 : 부모 Board 가 deleted 시 자식 단독 restore 거절.
+     */
     @Transactional
     public void restore(Long boardId, Long bmcId) {
-        requireActiveBoard(boardId);
+        com.example.serverprovision.management.board.entity.BoardModel parent =
+                boardModelRepository.findById(boardId).orElseThrow();
+        if (parent.isDeleted()) {
+            throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                    com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
+                    parent.getId(), "DELETED",
+                    com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE,
+                    bmcId, "restore",
+                    parent.displayName()
+            );
+        }
         BoardBMC bmc = bmcRepository.findByIdAndBoardModel_Id(bmcId, boardId)
                 .orElseThrow(() -> new BmcNotFoundException(boardId, bmcId));
         if (!bmc.isDeleted()) {
@@ -528,8 +559,20 @@ public class BmcService {
     /**
      * Deprecated → Active 전이.
      */
+    /** S5-2-3-1 — 자식 BMC 단독 undeprecate. 부모 가드 : 부모 Board deprecated 시 거절. */
     @Transactional
     public void undeprecate(Long boardId, Long bmcId) {
+        com.example.serverprovision.management.board.entity.BoardModel parent =
+                boardModelRepository.findById(boardId).orElseThrow();
+        if (parent.isDeprecated()) {
+            throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                    com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
+                    parent.getId(), "DEPRECATED",
+                    com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE,
+                    bmcId, "undeprecate",
+                    parent.displayName()
+            );
+        }
         requireLiveBmc(boardId, bmcId).undeprecate();
     }
 

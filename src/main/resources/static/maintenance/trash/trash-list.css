@@ -1,0 +1,43 @@
+/* ============================================================
+   S5-2-3-1 — 휴지통 자원 위계 시각화.
+   부모-자식 관계가 있는 자식 행 (ISO / BIOS / BMC / Subprogram) 의
+   '자원 이름' 셀에 들여쓰기 + ↳ + 부모 표시.
+   ============================================================ */
+.trash-parent-line {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    color: var(--n-text-muted, #666);
+}
+
+.trash-parent-arrow {
+    color: var(--n-text-muted, #888);
+    font-size: 13px;
+    line-height: 1;
+}
+
+.trash-parent-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.trash-parent-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+}
+
+.trash-parent-deleted {
+    background: var(--n-color-danger, #c0392b);
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+}
+
+.trash-child-name {
+    margin-left: 16px;
+    display: inline-block;
+}

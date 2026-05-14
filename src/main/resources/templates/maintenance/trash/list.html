@@ -24,6 +24,7 @@
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('휴지통')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/table-list.css}">
+    <link rel="stylesheet" th:href="@{/maintenance/trash/trash-list.css}">
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('trash')}"></nav>
@@ -67,7 +68,18 @@
             </td>
             <td th:text="${item.resourceId}"></td>
             <td>
-                <code style="font-size: 12px;" th:text="${item.displayName}"></code>
+                <!--/* S5-2-3-1 — 자식 자원은 들여쓰기 + ↳ + 부모 표시. 부모 활성/삭제 상태 배지 동반. */-->
+                <div th:if="${item.parentResourceId != null}" class="trash-parent-line">
+                    <span class="trash-parent-arrow">↳</span>
+                    <span class="trash-parent-label">
+                        <span th:text="${item.parentResourceType}" class="n-badge n-badge-gray trash-parent-badge"></span>
+                        <code style="font-size: 11px;" th:text="${item.parentDisplayName}"></code>
+                        <span th:if="${item.parentDeleted}" class="n-badge trash-parent-deleted"
+                              title="부모 자원이 삭제 상태입니다. 자식만 단독 복구할 수 없으니 부모부터 복구해주세요.">부모 삭제 상태</span>
+                    </span>
+                </div>
+                <code th:class="${item.parentResourceId != null} ? 'trash-child-name' : ''"
+                      style="font-size: 12px;" th:text="${item.displayName}"></code>
             </td>
             <td>
                 <code style="font-size: 11px; word-break: break-all;" th:text="${item.originalPath}"></code>
@@ -89,6 +101,7 @@
                       th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
                       method="post"
                       data-confirm-soft-delete=""
+                      data-async-submit=""
                       th:data-resource-label="|${item.resourceType} #${item.resourceId} (ghost row)|"
                       data-resource-extra="복구 가능한 자원이 없으므로 안전한 작업이에요.">
                     <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
@@ -99,15 +112,19 @@
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/restore(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
                           data-confirm-restore=""
+                          data-async-submit=""
                           th:data-resource-label="${item.displayName}"
                           data-resource-extra="원래 경로로 복원돼요."
                           th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
                                    data-cascade-true-desc=${item.childPreview}">
-                        <button type="submit" class="n-btn n-btn-sm n-btn-primary">복원</button>
+                        <button type="submit" class="n-btn n-btn-sm n-btn-primary"
+                                th:disabled="${item.parentDeleted}"
+                                th:title="${item.parentDeleted} ? '부모 자원이 삭제 상태라 자식 단독 복구가 불가능합니다. 부모부터 복구해주세요.' : null">복원</button>
                     </form>
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
                           data-confirm-deprecate=""
+                          data-async-submit=""
                           th:data-resource-label="|${item.displayName} 의 보존기간|"
                           data-resource-extra="+30일 연장돼요.">
                         <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
@@ -116,6 +133,7 @@
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
                           data-confirm-purge=""
+                          data-async-submit=""
                           th:data-typed-name="${item.typedName}"
                           th:data-resource-label="${item.displayName}"
                           data-resource-extra="휴지통에서 제거되며 복구 불가능해요.">
@@ -131,6 +149,10 @@
 
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
 <div th:replace="~{fragments/management/confirm-modals :: all}"></div>
+
+<!-- S5-2-3-1 — 휴지통 액션 결과 안내 modal (거절 응답 흡수). data-async-submit form 응답이 본 modal 로 흘러든다. -->
+<div th:replace="~{fragments/management/trash-result-modal :: modal}"></div>
+<script th:src="@{/maintenance/trash/trash-action.js}"></script>
 
 </body>
 </html>

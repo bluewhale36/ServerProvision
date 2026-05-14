@@ -270,9 +270,19 @@ public class OSImageService {
         image.update(request.osVersion(), request.description());
     }
 
+    /**
+     * S5-2-3-1 — OS 활성/비활성 토글 + 자식 ISO 강제 cascade.
+     * 자식이 deprecated / deleted 면 skip (toggle 비대상). 부모 활성 상태와 자식 활성 상태가 다른 자식만 동기화.
+     */
     @Transactional
     public void toggleEnabled(Long id) {
-        requireActiveImage(id).toggleEnabled();
+        OSImage parent = requireActiveImage(id);
+        parent.toggleEnabled();
+        boolean target = parent.isEnabled();
+        parent.getIsos().stream()
+                .filter(iso -> !iso.isDeleted() && !iso.isDeprecated())
+                .filter(iso -> iso.isEnabled() != target)
+                .forEach(ISO::toggleEnabled);
     }
 
     /**
@@ -342,14 +352,30 @@ public class OSImageService {
 
     // ---- MK2 OSImage lifecycle ----------------------------------------
 
+    /**
+     * S5-2-3-1 — OS deprecate + 자식 ISO 강제 cascade.
+     * 자식이 이미 deprecated 거나 deleted 면 skip (entity 가드 회피).
+     */
     @Transactional
     public void deprecateImage(Long id) {
-        requireActiveImage(id).deprecate();
+        OSImage parent = requireActiveImage(id);
+        parent.deprecate();
+        parent.getIsos().stream()
+                .filter(iso -> !iso.isDeleted() && !iso.isDeprecated())
+                .forEach(ISO::deprecate);
     }
 
+    /**
+     * S5-2-3-1 — OS undeprecate + 자식 ISO 강제 cascade.
+     * 자식이 deprecated 인 것만 undeprecate. active / deleted 자식은 skip.
+     */
     @Transactional
     public void undeprecateImage(Long id) {
-        requireActiveImage(id).undeprecate();
+        OSImage parent = requireActiveImage(id);
+        parent.undeprecate();
+        parent.getIsos().stream()
+                .filter(iso -> !iso.isDeleted() && iso.isDeprecated())
+                .forEach(ISO::undeprecate);
     }
 
     /**
@@ -768,9 +794,29 @@ public class OSImageService {
         requireLiveISO(osImageId, isoId).update(validated.toString(), request.description());
     }
 
+    /**
+     * S5-2-3-1 — 자식 ISO 단독 toggle.
+     * 부모 가드 : 부모가 비활성/Deprecated 인 상태에서 자식 enable 시도 거절. disable 은 자유.
+     */
     @Transactional
     public void toggleIsoEnabled(Long osImageId, Long isoId) {
-        requireLiveISO(osImageId, isoId).toggleEnabled();
+        OSImage parent = requireActiveImage(osImageId);
+        ISO iso = requireLiveISO(osImageId, isoId);
+        boolean nextEnabled = !iso.isEnabled();
+        if (nextEnabled) {
+            String parentState = !parent.isEnabled() ? "DISABLED"
+                    : parent.isDeprecated() ? "DEPRECATED" : null;
+            if (parentState != null) {
+                throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                        com.example.serverprovision.global.marker.ResourceType.OS_IMAGE,
+                        parent.getId(), parentState,
+                        com.example.serverprovision.global.marker.ResourceType.OS_ISO,
+                        isoId, "enable",
+                        parent.displayName()
+                );
+            }
+        }
+        iso.toggleEnabled();
     }
 
     /** MK3 — soft-delete ISO. 도메인-specific 가드 후 공통 trash 흐름 위임. MK3-2 사전조건 추가. */
@@ -801,10 +847,24 @@ public class OSImageService {
         }
     }
 
-    /** MK3 — restore ISO. 도메인 가드 (이미 active 거절) 후 공통 흐름. attributes 는 ISO 도메인 메타. */
+    /**
+     * MK3 — restore ISO. S5-2-3-1 부모 가드 추가 : 부모 OS 가 deleted 상태이면 자식 단독 restore 거절
+     * ({@link com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException}).
+     */
     @Transactional
     public void restoreISO(Long osImageId, Long isoId) {
-        requireActiveImage(osImageId);
+        // 부모 lookup 은 deleted 포함 (자식 단독 restore 거절 시점 명확화).
+        OSImage parent = osImageRepository.findById(osImageId)
+                .orElseThrow(() -> new IllegalOSImageStateException("OS 버전이 존재하지 않습니다. id=" + osImageId));
+        if (parent.isDeleted()) {
+            throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                    com.example.serverprovision.global.marker.ResourceType.OS_IMAGE,
+                    parent.getId(), "DELETED",
+                    com.example.serverprovision.global.marker.ResourceType.OS_ISO,
+                    isoId, "restore",
+                    parent.displayName()
+            );
+        }
         ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
                 .orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
         if (!iso.isDeleted()) {
@@ -822,8 +882,22 @@ public class OSImageService {
         requireLiveISO(osImageId, isoId).deprecate();
     }
 
+    /**
+     * S5-2-3-1 — 자식 ISO 단독 undeprecate.
+     * 부모 가드 : 부모 OS 가 deprecated 인 상태에서 자식 단독 undeprecate 거절.
+     */
     @Transactional
     public void undeprecateIso(Long osImageId, Long isoId) {
+        OSImage parent = requireActiveImage(osImageId);
+        if (parent.isDeprecated()) {
+            throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
+                    com.example.serverprovision.global.marker.ResourceType.OS_IMAGE,
+                    parent.getId(), "DEPRECATED",
+                    com.example.serverprovision.global.marker.ResourceType.OS_ISO,
+                    isoId, "undeprecate",
+                    parent.displayName()
+            );
+        }
         ISO iso = requireLiveISO(osImageId, isoId);
         iso.undeprecate();
     }

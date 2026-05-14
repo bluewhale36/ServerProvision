@@ -227,24 +227,52 @@ public class BoardModelService {
     }
 
     @Transactional
+    /**
+     * S5-2-3-1 — Board 활성/비활성 토글 + 자식 BIOS / BMC 강제 cascade.
+     * 자식이 deprecated / deleted 면 skip.
+     */
     public void toggleEnabled(Long id) {
-        requireActiveBoard(id).toggleEnabled();
+        BoardModel parent = requireActiveBoard(id);
+        parent.toggleEnabled();
+        boolean target = parent.isEnabled();
+        biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
+                .filter(b -> !b.isDeleted() && !b.isDeprecated())
+                .filter(b -> b.isEnabled() != target)
+                .forEach(BoardBIOS::toggleEnabled);
+        bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
+                .filter(b -> !b.isDeleted() && !b.isDeprecated())
+                .filter(b -> b.isEnabled() != target)
+                .forEach(BoardBMC::toggleEnabled);
     }
 
     /**
-     * MK2 — Active → Deprecated 전이. 엔티티 가드가 SoftDeleted / 이미 Deprecated 케이스를 거절.
+     * S5-2-3-1 — Board deprecate + 자식 BIOS / BMC 강제 cascade.
      */
     @Transactional
     public void deprecate(Long id) {
-        requireActiveBoard(id).deprecate();
+        BoardModel parent = requireActiveBoard(id);
+        parent.deprecate();
+        biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
+                .filter(b -> !b.isDeleted() && !b.isDeprecated())
+                .forEach(BoardBIOS::deprecate);
+        bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
+                .filter(b -> !b.isDeleted() && !b.isDeprecated())
+                .forEach(BoardBMC::deprecate);
     }
 
     /**
-     * MK2 — Deprecated → Active 전이. 엔티티 가드가 부적합 상태를 거절.
+     * S5-2-3-1 — Board undeprecate + 자식 BIOS / BMC 강제 cascade.
      */
     @Transactional
     public void undeprecate(Long id) {
-        requireActiveBoard(id).undeprecate();
+        BoardModel parent = requireActiveBoard(id);
+        parent.undeprecate();
+        biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
+                .filter(b -> !b.isDeleted() && b.isDeprecated())
+                .forEach(BoardBIOS::undeprecate);
+        bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
+                .filter(b -> !b.isDeleted() && b.isDeprecated())
+                .forEach(BoardBMC::undeprecate);
     }
 
     /**

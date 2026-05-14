@@ -122,6 +122,12 @@ public class Subprogram extends LifecycleEntity implements Markable {
         return name;
     }
 
+    /** S5-2-3-1 — 휴지통 위계 시각화용 부모 노출. null (공용 자원) 이면 부모 없음. */
+    @Override
+    public java.util.Optional<com.example.serverprovision.global.marker.Markable> getParentMarkable() {
+        return java.util.Optional.ofNullable(boardModel);
+    }
+
     public void recordIntegritySnapshot(IntegrityStatus integrityStatus, Instant verifiedAt) {
         this.lastIntegrityStatus = integrityStatus == null ? IntegrityStatus.NOT_VERIFIED : integrityStatus;
         this.lastVerifiedAt = verifiedAt;

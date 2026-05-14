@@ -113,11 +113,66 @@
         return defaultMessage;
     }
 
-    /** 사용자 확인 직후 form 재제출. 본 base 의 submit listener 가 두 번째 submit 을 통과시킴. */
+    /**
+     * 사용자 확인 직후 form 재제출. 본 base 의 submit listener 가 두 번째 submit 을 통과시킴.
+     * <p>form 에 {@code data-async-submit} 마커가 있으면 native navigation 대신 fetch 로 보내고
+     * 응답을 {@code window.AsyncSubmitResult} 에 위임한다 — 거절 응답이 raw JSON 페이지로
+     * 노출되는 사고를 막기 위함 (휴지통 등 일부 페이지 전용).</p>
+     */
     function approveAndSubmit(form) {
+        if (form.hasAttribute('data-async-submit')) {
+            submitAsync(form);
+            return;
+        }
         form.dataset.confirmApproved = '1';
         form.requestSubmit();
     }
+
+    async function submitAsync(form) {
+        const method = (form.getAttribute('method') || 'POST').toUpperCase();
+        const action = form.getAttribute('action') || window.location.pathname;
+        const fd = new FormData(form);
+        let url = action;
+        let body = fd;
+        if (method === 'GET') {
+            const qs = new URLSearchParams(fd).toString();
+            url = action + (action.includes('?') ? '&' : '?') + qs;
+            body = null;
+        }
+        const handler = window.AsyncSubmitResult || defaultAsyncResult;
+        let resp;
+        try {
+            resp = await fetch(url, {
+                method,
+                body,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json,text/html;q=0.9,*/*;q=0.5' },
+                redirect: 'follow'
+            });
+        } catch (err) {
+            handler.onNetworkError(form, err);
+            return;
+        }
+        if (resp.ok || resp.redirected) {
+            handler.onSuccess(form, resp);
+            return;
+        }
+        let payload = null;
+        try {
+            const ct = resp.headers.get('content-type') || '';
+            if (ct.includes('application/json')) payload = await resp.json();
+            else payload = { message: (await resp.text()).slice(0, 500) };
+        } catch (_) { payload = null; }
+        handler.onRejected(form, resp.status, payload);
+    }
+
+    const defaultAsyncResult = {
+        onSuccess: () => window.location.reload(),
+        onRejected: (_form, status, payload) => {
+            const msg = (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')');
+            alert(msg);
+        },
+        onNetworkError: () => alert('서버와 통신할 수 없어요.')
+    };
 
     window.ConfirmModal = { open, bindFormSubmit, composeMessage, approveAndSubmit };
 })();
