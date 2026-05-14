@@ -438,7 +438,7 @@ public class BiosService {
             throw new IllegalBiosStateException(
                     "활성/Deprecated 자원은 영구 삭제할 수 없습니다. 먼저 휴지통으로 이동하세요. biosId=" + biosId);
         }
-        String expected = bios.getName();
+        String expected = bios.displayName();
         if (!expected.equals(typedName)) {
             throw new TypedNameMismatchException(expected, typedName);
         }

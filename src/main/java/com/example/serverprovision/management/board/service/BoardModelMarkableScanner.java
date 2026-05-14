@@ -63,6 +63,12 @@ public class BoardModelMarkableScanner implements MarkableScanner {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Markable> findTrashedById(Long resourceId) {
+        return boardModelRepository.findByIdAndIsDeletedTrue(resourceId).<Markable>map(b -> b);
+    }
+
+    @Override
     public void restoreFromTrash(Long resourceId, boolean cascade) {
         boardModelServiceProvider.getObject().restore(resourceId, cascade);
     }
@@ -70,6 +76,12 @@ public class BoardModelMarkableScanner implements MarkableScanner {
     @Override
     public void restoreFromTrash(Long resourceId) {
         boardModelServiceProvider.getObject().restore(resourceId, false);
+    }
+
+    /** 휴지통 영구삭제 — BoardModelService.purge 위임 (자식 BIOS / BMC 잔존 시 거절). */
+    @Override
+    public void purgeFromTrash(Long resourceId) {
+        boardModelServiceProvider.getObject().purge(resourceId);
     }
 
     /** 휴지통 cascade preview — soft-deleted 자식 BIOS / BMC 이름 list. */

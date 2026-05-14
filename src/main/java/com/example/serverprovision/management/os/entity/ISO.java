@@ -193,6 +193,13 @@ public class ISO extends LifecycleEntity implements Markable {
         this.markerSignature = markerSignature;
     }
 
+    /** S5-2 — typed-name 검증 + modal 표시 기준. 부모 OSImage 의 displayName + 파일명. */
+    @Override
+    public String displayName() {
+        String basename = isoPath != null ? isoPath.replaceAll(".*/", "") : "";
+        return osImage.displayName() + " " + basename;
+    }
+
     public void recordIntegritySnapshot(com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
                                         Instant verifiedAt) {
         this.lastIntegrityStatus = integrityStatus;

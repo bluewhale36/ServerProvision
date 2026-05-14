@@ -89,6 +89,14 @@ public class SubprogramMarkableScanner implements MarkableScanner {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<Markable> findTrashedById(Long resourceId) {
+        return subprogramRepository.findById(resourceId)
+                .filter(com.example.serverprovision.management.subprogram.entity.Subprogram::isDeleted)
+                .<Markable>map(s -> s);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Markable> findTrashedBefore(java.time.Instant threshold) {
         return subprogramRepository.findByIsDeletedTrueAndTrashedAtBefore(threshold).stream().<Markable>map(s -> s).toList();
     }

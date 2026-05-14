@@ -19,6 +19,8 @@
     --n-blue-badge-text: #097fe8;
     --n-green:           #1aae39;
     --n-orange:          #dd5b00;
+    --n-red:             #bf2626;
+    --n-red-hover:       #951c1c;
     --n-yellow:          #C29343;
     --n-yellow-bg:       #FAF3DD;
     --n-teal:            #2a9d99;
@@ -186,6 +188,11 @@ code {
 .n-btn-outline-danger { background: transparent; color: var(--n-orange); border: 1px solid rgba(221, 91, 0, 0.3); }
 .n-btn-outline-danger:hover { background: rgba(221, 91, 0, 0.08); }
 
+/* S5-2 — solid danger (영구 삭제 등 파괴적 액션 강조). 빨강 (--n-red) — outline-danger 의 주황과 구분. */
+.n-btn-danger { background: var(--n-red); color: #ffffff; border: 1px solid var(--n-red); }
+.n-btn-danger:hover:not(:disabled) { background: var(--n-red-hover); border-color: var(--n-red-hover); color: #ffffff; }
+.n-btn-danger:disabled { background: rgba(0, 0, 0, 0.10); color: var(--n-text-muted); border-color: transparent; cursor: not-allowed; }
+
 .n-btn-outline-info { background: transparent; color: var(--n-blue-badge-text); border: 1px solid rgba(9, 127, 232, 0.3); }
 .n-btn-outline-info:hover { background: var(--n-blue-badge-bg); }
 
@@ -206,7 +213,7 @@ code {
 }
 .n-badge-blue   { background: var(--n-blue-badge-bg);        color: var(--n-blue-badge-text); }
 .n-badge-green  { background: rgba(26, 174, 57, 0.1);        color: var(--n-green); }
-.n-badge-red    { background: rgba(191, 38, 38, 0.1);        color: #bf2626; }
+.n-badge-red    { background: rgba(191, 38, 38, 0.1);        color: var(--n-red); }
 .n-badge-orange { background: rgba(221, 91, 0, 0.1);         color: var(--n-orange); }
 .n-badge-yellow { background: var(--n-yellow-bg);             color: var(--n-yellow); }
 

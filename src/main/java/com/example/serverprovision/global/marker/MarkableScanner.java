@@ -101,11 +101,42 @@ public interface MarkableScanner {
     }
 
     /**
-     * MK3 — 휴지통 페이지에서 영구삭제 액션. 도메인이 자기 service 의 purge 메서드 호출.
-     * S5-2-2 의 typed-name 검증은 후속 sub-slice — 본 메서드는 단순 purge.
+     * MK3 — 휴지통 페이지에서 단순 영구삭제 액션. typed-name 검증 없이 service.purge 위임.
+     * 호출 가능 경로 : ① 본 SPI 의 typed-name 검증 overload 가 위임 (정상 흐름)
+     *              ② TTL 자동 만료 (시스템 진입, S5-2-4 예정)
      */
     default void purgeFromTrash(Long resourceId) {
         throw new UnsupportedOperationException(supportedType() + " 는 trash 영구삭제를 지원하지 않습니다.");
+    }
+
+    /**
+     * S5-2 — 휴지통 페이지에서 typed-name 검증 적용 영구삭제.
+     *
+     * <p>검증 책임이 SPI default 에 응집 — 6 scanner 가 자기 도메인 분기 없이 동일 패턴.
+     * 합성식 = {@link Markable#displayName()} (도메인 entity 가 다형성으로 보유). 일치 시 단순
+     * {@link #purgeFromTrash(Long)} 위임.</p>
+     *
+     * @throws TypedNameMismatchException typedName 이 실제 자원명과 불일치
+     */
+    default void purgeFromTrash(Long resourceId, String typedName) {
+        Markable resource = findTrashedById(resourceId)
+                .orElseThrow(() -> new IllegalStateException(
+                        supportedType() + " trash 자원을 찾을 수 없습니다. id=" + resourceId));
+        String expected = resource.displayName();
+        if (!expected.equals(typedName)) {
+            throw new com.example.serverprovision.global.exception.TypedNameMismatchException(expected, typedName);
+        }
+        purgeFromTrash(resourceId);
+    }
+
+    /**
+     * S5-2 — 휴지통 자원 단건 lookup. typed-name 검증 / displayName 미리 채움 용도.
+     * default 는 findTrashed 전체 stream filter (비효율) — 도메인이 repository.findById 로 override 권장.
+     */
+    default Optional<Markable> findTrashedById(Long resourceId) {
+        return findTrashed().stream()
+                .filter(m -> resourceId.equals(m.getResourceId()))
+                .findFirst();
     }
 
     // ---- MK3-1 — Ghost row 일급 개념 ----------------------------------------

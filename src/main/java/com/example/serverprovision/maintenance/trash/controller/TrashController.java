@@ -105,16 +105,18 @@ public class TrashController {
     }
 
     /**
-     * MK3 — 휴지통 페이지에서 직접 영구삭제. S5-2-2 의 typed-name 검증은 후속 — 본 endpoint 는 단순 confirm 만.
+     * S5-2 — 휴지통 페이지에서 typed-name 검증 적용 영구삭제. SPI default 가 검증 책임 보유 —
+     * 본 controller 는 도메인 모르고 단순 위임.
      */
     @PostMapping("/{resourceType}/{resourceId}/purge")
     public String purge(@PathVariable("resourceType") ResourceType resourceType,
-                        @PathVariable("resourceId") Long resourceId) {
+                        @PathVariable("resourceId") Long resourceId,
+                        @org.springframework.web.bind.annotation.RequestParam("typedName") String typedName) {
         MarkableScanner scanner = scannersByType().get(resourceType);
         if (scanner == null) {
             throw new IllegalArgumentException("지원하지 않는 자원 종류 : " + resourceType);
         }
-        scanner.purgeFromTrash(resourceId);
+        scanner.purgeFromTrash(resourceId, typedName);
         log.info("[trash] purge type={} id={}", resourceType, resourceId);
         return "redirect:/maintenance/trash";
     }
@@ -159,17 +161,22 @@ public class TrashController {
                 }
             }
         }
+        // S5-2 — entity.displayName() 가 사용자 표시명 + typed-name 검증식. 5 list page 와 동일 합성식.
+        String displayName = m.displayName();
+        // ghost 자원은 typed-name 입력 불가 (raw row 정리 액션만 활성). null 로 두어 form 마커 분기에 활용.
+        String typedName = ghost ? null : displayName;
         return new TrashItemResponse(
                 m.getResourceType(),
                 m.getResourceId(),
-                m.getResourceType().name() + "#" + m.getResourceId(),
+                displayName,
                 resourcePathStr,
                 trashedPath,
                 trashedAt,
                 expiresAt,
                 ttlWarning,
                 ghost,
-                childPreview);
+                childPreview,
+                typedName);
     }
 
     /**

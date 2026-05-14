@@ -72,6 +72,12 @@ public class OSImageMarkableScanner implements MarkableScanner {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Markable> findTrashedById(Long resourceId) {
+        return osImageRepository.findByIdAndIsDeletedTrue(resourceId).<Markable>map(o -> o);
+    }
+
     /** 휴지통 페이지 복원 액션 — OSImageService.restore 위임. cascade 옵션 지원. */
     @Override
     public void restoreFromTrash(Long resourceId, boolean cascade) {
@@ -82,6 +88,12 @@ public class OSImageMarkableScanner implements MarkableScanner {
     @Override
     public void restoreFromTrash(Long resourceId) {
         osImageServiceProvider.getObject().restore(resourceId, false);
+    }
+
+    /** 휴지통 영구삭제 — OSImageService.purgeImage 위임 (자식 ISO sidecar 정리 + DB row 제거). */
+    @Override
+    public void purgeFromTrash(Long resourceId) {
+        osImageServiceProvider.getObject().purgeImage(resourceId);
     }
 
     /** 휴지통 cascade preview — soft-deleted 자식 ISO 의 파일명 list. */

@@ -86,6 +86,14 @@ public class BoardBmcMarkableScanner implements MarkableScanner {
 
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Optional<Markable> findTrashedById(Long resourceId) {
+        return bmcRepository.findById(resourceId)
+                .filter(com.example.serverprovision.management.bmc.entity.BoardBMC::isDeleted)
+                .<Markable>map(b -> b);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<Markable> findTrashedBefore(java.time.Instant threshold) {
         return bmcRepository.findByIsDeletedTrueAndTrashedAtBefore(threshold).stream().<Markable>map(b -> b).toList();
     }

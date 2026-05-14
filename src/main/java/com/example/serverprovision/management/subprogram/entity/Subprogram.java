@@ -116,6 +116,12 @@ public class Subprogram extends LifecycleEntity implements Markable {
         this.markerSignature = markerSignature;
     }
 
+    /** S5-2 — typed-name 검증 + modal 표시 기준. Subprogram 은 name 자체가 식별자. */
+    @Override
+    public String displayName() {
+        return name;
+    }
+
     public void recordIntegritySnapshot(IntegrityStatus integrityStatus, Instant verifiedAt) {
         this.lastIntegrityStatus = integrityStatus == null ? IntegrityStatus.NOT_VERIFIED : integrityStatus;
         this.lastVerifiedAt = verifiedAt;

@@ -44,4 +44,25 @@ public interface Markable extends LifecycleManageable {
     default LifecycleStage lifecycleStage() {
         return currentStage();
     }
+
+    /**
+     * S5-2 — 사용자 표시용 + 영구삭제 typed-name 검증 기준 자원명.
+     *
+     * <p>각 도메인 entity 가 자기 합성식을 보유하는 다형성 진입점. 5 list page 의 typed-name 검증,
+     * 휴지통 페이지의 displayName + typed-name 검증, modal 메시지의 자원 식별자가 모두 본 메서드를 사용.
+     * 합성식이 entity 한 곳에 응집 — service / scanner / controller / view 모두 동일 메서드 호출 (중복 0).</p>
+     *
+     * <p>합성 예시 :</p>
+     * <ul>
+     *   <li>OSImage : {@code osName.displayName + " " + osVersion} (예: "Rocky Linux 9.6")</li>
+     *   <li>ISO : {@code parent + " " + isoBasename}</li>
+     *   <li>BoardModel : {@code vendor.displayName + " " + modelName}</li>
+     *   <li>BIOS / BMC / Subprogram : {@code name}</li>
+     * </ul>
+     *
+     * <p>default 는 일반 fallback — entity 가 override 권장.</p>
+     */
+    default String displayName() {
+        return getResourceType().name() + " #" + getResourceId();
+    }
 }

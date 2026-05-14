@@ -564,7 +564,7 @@ public class BmcService {
             throw new IllegalBmcStateException(
                     "영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
         }
-        String expected = bmc.getName();
+        String expected = bmc.displayName();
         if (!expected.equals(typedName)) {
             throw new TypedNameMismatchException(expected, typedName);
         }

@@ -96,6 +96,15 @@ public class IsoMarkableScanner implements MarkableScanner {
         return isoRepository.findByIsDeletedTrueOrderByTrashedAtDesc().stream().<Markable>map(i -> i).toList();
     }
 
+    /** SPI default 의 stream filter 대신 repository.findById — typed-name 검증 hot path 효율. */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Markable> findTrashedById(Long resourceId) {
+        return isoRepository.findById(resourceId)
+                .filter(ISO::isDeleted)
+                .<Markable>map(i -> i);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<Markable> findTrashedBefore(java.time.Instant threshold) {

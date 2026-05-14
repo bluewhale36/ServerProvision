@@ -617,7 +617,7 @@ public class SubprogramService {
             throw new IllegalSubprogramStateException(
                     "활성 상태에서는 영구 삭제할 수 없습니다. 먼저 삭제(soft-delete)를 수행하세요. id=" + subprogramId);
         }
-        String expected = sp.getName();
+        String expected = sp.displayName();
         if (!expected.equals(typedName)) {
             throw new TypedNameMismatchException(expected, typedName);
         }

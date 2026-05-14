@@ -329,20 +329,34 @@ public class BoardModelService {
     /**
      * S5-2-2 — Board typed-name 검증 후 영구 삭제. Board 는 기존 hard-delete 가 부재하여 본 메서드에서 신설.
      * 합성식 : {@code vendor.displayName + " " + modelName}.
-     *
-     * <p>제약 : 자식 BIOS / BMC 가 한 건이라도 남아 있으면 거절 — 운영자가 자식을 먼저 정리해야 함.
-     * 부모 hard-delete 시 자식 cascade 는 운영 위험이 커서 명시적 거절 정책 채택.</p>
      */
     @Transactional
     public void purgeWithTypedNameCheck(Long id, String typedName) {
         BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
                 .orElseThrow(() -> new IllegalBoardModelStateException(
                         "soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
-        String expected = board.getVendor().getDisplayName() + " " + board.getModelName();
+        String expected = board.displayName();
         if (!expected.equals(typedName)) {
             throw new TypedNameMismatchException(expected, typedName);
         }
-        // 자식 잔존 검사 — BIOS / BMC 한 건이라도 남으면 거절
+        purge(board);
+    }
+
+    /**
+     * S5-2+ — 휴지통 직진입 영구 삭제 (typed-name 검증 우회). 휴지통 페이지에서 호출.
+     * <p>제약 : 자식 BIOS / BMC 가 한 건이라도 남아 있으면 거절 — 운영자가 자식을 먼저 정리해야 함.</p>
+     */
+    @Transactional
+    public void purge(Long id) {
+        BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
+                .orElseThrow(() -> new IllegalBoardModelStateException(
+                        "soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+        purge(board);
+    }
+
+    /** 공통 hard-delete 본체 — 자식 잔존 검사 + DB row 제거. */
+    private void purge(BoardModel board) {
+        Long id = board.getId();
         boolean hasBios = !biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
         boolean hasBmc = !bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
         if (hasBios || hasBmc) {
@@ -352,7 +366,7 @@ public class BoardModelService {
         }
         boardModelRepository.delete(board);
         log.info("[purge] BoardModel 영구 삭제. id={}, vendor={}, modelName={}",
-                board.getId(), board.getVendor(), board.getModelName());
+                id, board.getVendor(), board.getModelName());
     }
 
     // ==== 내부 헬퍼 ====================================================

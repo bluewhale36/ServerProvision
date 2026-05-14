@@ -359,37 +359,33 @@ public class OSImageService {
      */
     /**
      * S5-2-2 — OS 이미지 typed-name 검증 후 영구 삭제.
-     * 합성식 : {@code osName.displayName + " " + osVersion}.
-     * 우발 영구 삭제 방어 — 사용자가 modal 에서 본 자원명과 정확히 일치할 때만 통과.
+     * <p>합성식은 {@link OSImage#displayName()} 에 응집 — service 가 entity 합성 책임을 갖지 않는다.</p>
      */
     @Transactional
     public void purgeImageWithTypedNameCheck(Long id, String typedName) {
         OSImage image = osImageRepository.findByIdAndIsDeletedTrue(id)
                 .orElseThrow(() -> new IllegalOSImageStateException(
                         "soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
-        String expected = image.getOsName().getDisplayName() + " " + image.getOsVersion();
-        if (!expected.equals(typedName)) {
-            throw new TypedNameMismatchException(expected, typedName);
-        }
+        verifyTypedNameOrThrow(image, typedName);
         purgeImage(id);
     }
 
-    /**
-     * S5-2-2 — ISO typed-name 검증 후 영구 삭제.
-     * 합성식 : {@code parent.osName.displayName + " " + parent.osVersion + " " + isoBasename}.
-     */
+    /** S5-2-2 — ISO typed-name 검증 후 영구 삭제. */
     @Transactional
     public void purgeIsoWithTypedNameCheck(Long osImageId, Long isoId, String typedName) {
         requireActiveImage(osImageId);
         ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
                 .orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
-        OSImage parent = iso.getOsImage();
-        String basename = iso.getIsoPath().replaceAll(".*/", "");
-        String expected = parent.getOsName().getDisplayName() + " " + parent.getOsVersion() + " " + basename;
+        verifyTypedNameOrThrow(iso, typedName);
+        purgeIso(osImageId, isoId);
+    }
+
+    /** typed-name 일치 검증 — entity.displayName() 이 곧 기대값. */
+    private static void verifyTypedNameOrThrow(com.example.serverprovision.global.marker.Markable resource, String typedName) {
+        String expected = resource.displayName();
         if (!expected.equals(typedName)) {
             throw new TypedNameMismatchException(expected, typedName);
         }
-        purgeIso(osImageId, isoId);
     }
 
     @Transactional

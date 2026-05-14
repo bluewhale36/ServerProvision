@@ -88,6 +88,12 @@ public class BoardBiosMarkableScanner implements MarkableScanner {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<Markable> findTrashedById(Long resourceId) {
+        return biosRepository.findById(resourceId).filter(BoardBIOS::isDeleted).<Markable>map(b -> b);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Markable> findTrashedBefore(java.time.Instant threshold) {
         return biosRepository.findByIsDeletedTrueAndTrashedAtBefore(threshold).stream().<Markable>map(b -> b).toList();
     }

@@ -87,4 +87,10 @@ public class BoardModel extends LifecycleEntity implements Markable {
     public void reissueMarker(String manifestHash, String markerSignature) {
         // 메타 자원 — no-op.
     }
+
+    /** S5-2 — typed-name 검증 + modal 표시 기준 자원명. */
+    @Override
+    public String displayName() {
+        return vendor.getDisplayName() + " " + modelName;
+    }
 }
