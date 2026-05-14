@@ -150,8 +150,8 @@
                             <form th:if="${!os.isDeprecated}"
                                   th:action="@{/management/os/{id}/deprecate(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="deprecate"
-                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 Deprecated 로 표시할까요?|">
+                                  data-confirm-deprecate=""
+                                  th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${os.isDeprecated}"
@@ -161,25 +161,27 @@
                             </form>
                             <form th:action="@{/management/os/{id}/delete(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="soft-delete"
-                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 삭제할까요? 포함된 ISO 도 함께 삭제됩니다.|">
+                                  data-confirm-soft-delete=""
+                                  th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
+                                  data-resource-extra="포함된 ISO 도 함께 삭제돼요.">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
                         <th:block th:if="${os.isDeleted}">
                             <form th:action="@{/management/os/{id}/restore(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="restore-cascade"
-                                  th:data-confirm-message="|OS 버전 '${group.displayName} ${os.osVersion}' 을 복구할까요? 하위 자원도 함께 복구할지 선택해주세요.|"
+                                  data-confirm-restore=""
+                                  th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   th:data-cascade-true-title="|하위 ISO ${os.isos.?[isDeleted].size()}건도 함께 복구|"
                                   th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ' · ')}">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <form th:action="@{/management/os/{id}/purge(id=${os.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="purge"
+                                  data-confirm-purge=""
                                   th:data-typed-name="|${group.displayName} ${os.osVersion}|"
-                                  data-confirm-message="영구 삭제 시 자식 ISO 의 sidecar 와 본체 파일도 모두 정리됩니다. 자원명을 정확히 입력하세요.">
+                                  th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
+                                  data-resource-extra="포함된 ISO 의 sidecar 와 본체 파일도 모두 정리돼요.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
@@ -297,8 +299,8 @@
                                             <form th:if="${!iso.isDeprecated}"
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/deprecate(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
-                                                  data-confirm-action="deprecate"
-                                                  th:data-confirm-message="|ISO '${iso.isoPath.replaceAll('.*/', '')}' 를 Deprecated 로 표시할까요?|">
+                                                  data-confirm-deprecate=""
+                                                  th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">Deprecated 표시</button>
                                             </form>
                                             <form th:if="${iso.isDeprecated}"
@@ -309,23 +311,24 @@
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/delete(osId=${os.id},isoId=${iso.id})}"
                                                   method="post"
                                                   class="n-accordion-inline-form mk3-2-delete-form"
-                                                  data-confirm-action="soft-delete"
-                                                  th:data-confirm-message="|ISO '${iso.isoPath.replaceAll('.*/', '')}' 를 삭제할까요?|">
+                                                  data-confirm-soft-delete=""
+                                                  th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">삭제</button>
                                             </form>
                                         </th:block>
                                         <th:block th:if="${iso.isDeleted}">
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
-                                                  data-confirm-action="restore"
-                                                  th:data-confirm-message="|ISO '${iso.isoPath.replaceAll('.*/', '')}' 를 복구할까요?|">
+                                                  data-confirm-restore=""
+                                                  th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구</button>
                                             </form>
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/purge(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
-                                                  data-confirm-action="purge"
+                                                  data-confirm-purge=""
                                                   th:data-typed-name="|${group.displayName} ${os.osVersion} ${iso.isoPath.replaceAll('.*/', '')}|"
-                                                  data-confirm-message="영구 삭제 시 sidecar 와 본체 파일이 모두 정리됩니다. 자원명을 정확히 입력하세요.">
+                                                  th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|"
+                                                  data-resource-extra="sidecar 와 본체 파일이 모두 정리돼요.">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-danger">영구 삭제</button>
                                             </form>
                                         </th:block>
@@ -454,23 +457,17 @@
 <!-- MK3-2 — softDelete reject modal fragment. 사전조건 위반 시 본 modal 이 사용자 3택 제시. -->
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
-<!-- S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal. -->
-<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
+<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
 <!-- Miller 컬럼 상호작용 스크립트 -->
 <script th:src="@{/management/os/os-list.js}"></script>
 <!-- "지금 검증" 버튼 일반 핸들러 (data-verify-url) — BIOS 측 핸들러를 그대로 재사용. ISO 무결성 검증에 동일 로직. -->
 <script th:src="@{/management/bios/bios-list.js}"></script>
-<!-- S5-2-1 — confirm-action.js 는 delete-reject-modal.js 보다 먼저 로드되어야 함 (capture phase 등록 순서). -->
-<script th:src="@{/management/common/confirm-action.js}"></script>
 <!-- MK3-2 — softDelete reject modal 핸들러. mk3-2-delete-form 클래스의 form submit 을 가로채 fetch() 로 호출. -->
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // S5-2-1 — confirm-action 먼저 bind (capture listener 등록 순서 보존).
-        if (window.ConfirmActionModal) {
-            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
-        }
         if (window.DeleteRejectModal) {
             window.DeleteRejectModal.bind({
                 deleteFormSelector: 'form.mk3-2-delete-form',

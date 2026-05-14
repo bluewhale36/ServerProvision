@@ -221,14 +221,16 @@
                                        or drift.kind.name() == 'TRASH_MARKER_STALE'}"
                               th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
                               method="post"
-                              data-confirm-action="restore"
-                              data-confirm-message="자동 적용 — 시스템이 무결성을 정합 시킵니다. 계속할까요?">
+                              data-confirm-restore=""
+                              th:data-resource-label="|${drift.kind} 드리프트|"
+                              data-resource-extra="시스템이 무결성을 자동 정합 시켜요.">
                             <button type="submit" class="n-btn n-btn-primary">자동 적용</button>
                         </form>
                         <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/dismiss(driftId=${drift.id})}"
                               method="post"
-                              data-confirm-action="soft-delete"
-                              data-confirm-message="이 드리프트를 무시 처리합니다. 다음 스캔에서 다시 보고될 수 있어요.">
+                              data-confirm-soft-delete=""
+                              th:data-resource-label="|${drift.kind} 드리프트|"
+                              data-resource-extra="다음 스캔에서 다시 보고될 수 있어요.">
                             <button type="submit" class="n-btn n-btn-outline-danger">무시</button>
                         </form>
                     </div>
@@ -248,8 +250,8 @@
     </div>
 </div>
 
-<!-- S5-2-1+ — 자동 적용 / 무시 확인 modal. -->
-<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
+<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
 <!--
   Miller 컬럼 상호작용은 os-list.js (data-os-key / data-os-id 일반화) 를 그대로 재사용.
@@ -257,14 +259,6 @@
 -->
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/maintenance/reconciliation/list.js}"></script>
-<script th:src="@{/management/common/confirm-action.js}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.ConfirmActionModal) {
-            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
-        }
-    });
-</script>
 
 </body>
 </html>

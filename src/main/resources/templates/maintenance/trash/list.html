@@ -86,29 +86,35 @@
                 <form th:if="${item.ghost}"
                       th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
                       method="post"
-                      data-confirm-action="soft-delete"
-                      data-confirm-message="이 ghost row 를 DB 에서 영구 정리합니다. 복구 가능한 자원이 없으므로 안전한 작업이에요.">
+                      data-confirm-soft-delete=""
+                      th:data-resource-label="|${item.resourceType} #${item.resourceId} (ghost row)|"
+                      data-resource-extra="복구 가능한 자원이 없으므로 안전한 작업이에요.">
                     <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
                 </form>
 
-                <!--/* 정상 trash 자원 — 기존 3 액션 그대로 */-->
+                <!--/* 정상 trash 자원 — 기존 3 액션 그대로. 부모 메타 자원 (OS_IMAGE/BOARD_MODEL) 은 cascade 라디오 노출. */-->
                 <th:block th:unless="${item.ghost}">
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/restore(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
-                          data-confirm-action="restore"
-                          th:data-confirm-message="|이 자원을 원래 경로로 복원합니다. 계속할까요?|">
+                          data-confirm-restore=""
+                          th:data-resource-label="|${item.resourceType} #${item.resourceId}|"
+                          data-resource-extra="원래 경로로 복원돼요."
+                          th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
+                                   data-cascade-true-desc=${item.childPreview}">
                         <button type="submit" class="n-btn n-btn-sm n-btn-primary">복원</button>
                     </form>
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
-                          data-confirm-action="deprecate"
-                          data-confirm-message="보존기간을 +30일 연장할까요?">
+                          data-confirm-deprecate=""
+                          th:data-resource-label="|${item.resourceType} #${item.resourceId} 의 보존기간|"
+                          data-resource-extra="+30일 연장돼요.">
                         <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
                     </form>
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
-                          data-confirm-action="soft-delete"
-                          data-confirm-message="이 자원을 영구 삭제합니다. 휴지통에서 제거되며 복구 불가능해요. 계속할까요?">
+                          data-confirm-soft-delete=""
+                          th:data-resource-label="|${item.resourceType} #${item.resourceId}|"
+                          data-resource-extra="휴지통에서 제거되며 복구 불가능해요.">
                         <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">영구삭제</button>
                     </form>
                 </th:block>
@@ -118,17 +124,8 @@
     </table>
 </div>
 
-<!-- S5-2-1+ — 자원 상태 변경 (restore / extend / purge / clear-ghost) 2차 확인 modal. -->
-<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
-
-<script th:src="@{/management/common/confirm-action.js}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.ConfirmActionModal) {
-            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
-        }
-    });
-</script>
+<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
+<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
 </body>
 </html>

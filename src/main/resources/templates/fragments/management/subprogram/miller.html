@@ -181,8 +181,8 @@
                         <form th:unless="${sp.deprecated}"
                               th:action="@{/management/subprogram/{id}/deprecate(id=${sp.id})}"
                               method="post" style="display:inline;"
-                              data-confirm-action="deprecate"
-                              th:data-confirm-message="|${sp.kindDisplayName} '${sp.name}' 을 Deprecated 로 표시할까요?|">
+                              data-confirm-deprecate=""
+                              th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|">
                             <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                         </form>
                         <form th:if="${sp.deprecated}"
@@ -192,24 +192,25 @@
                         </form>
                         <form th:action="@{/management/subprogram/{id}/delete(id=${sp.id})}"
                               method="post" style="display:inline;"
-                              data-confirm-action="soft-delete"
-                              th:data-confirm-message="|${sp.kindDisplayName} '${sp.name}' 을 삭제할까요?|">
+                              data-confirm-soft-delete=""
+                              th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|">
                             <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                         </form>
                     </th:block>
                     <th:block th:if="${sp.deleted}">
                         <form th:action="@{/management/subprogram/{id}/restore(id=${sp.id})}"
                               method="post" style="display:inline;"
-                              data-confirm-action="restore"
-                              th:data-confirm-message="|${sp.kindDisplayName} '${sp.name}' 을 복구할까요?|">
+                              data-confirm-restore=""
+                              th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|">
                             <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                         </form>
                         <!-- S5-2-2 — 영구 삭제 신설. typed-name 입력 일치 시에만 활성. -->
                         <form th:action="@{/management/subprogram/{id}/purge(id=${sp.id})}"
                               method="post" style="display:inline;"
-                              data-confirm-action="purge"
+                              data-confirm-purge=""
                               th:data-typed-name="${sp.name}"
-                              th:data-confirm-message="|${sp.kindDisplayName} 자원을 영구 삭제합니다. 디스크의 트리도 함께 제거됩니다. 자원명을 정확히 입력하세요.|">
+                              th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|"
+                              data-resource-extra="디스크의 트리도 함께 제거돼요.">
                             <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                         </form>
                     </th:block>

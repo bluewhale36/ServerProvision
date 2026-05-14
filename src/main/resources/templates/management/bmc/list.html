@@ -191,8 +191,8 @@
                             <form th:unless="${bmc.isDeprecated}"
                                   th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/deprecate(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="deprecate"
-                                  th:data-confirm-message="|BMC '${bmc.name}' 을 Deprecated 로 표시할까요?|">
+                                  data-confirm-deprecate=""
+                                  th:data-resource-label="|BMC '${bmc.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${bmc.isDeprecated}"
@@ -203,23 +203,24 @@
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/delete(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
                                   class="mk3-2-delete-form"
-                                  data-confirm-action="soft-delete"
-                                  th:data-confirm-message="|BMC '${bmc.name}' 을 삭제할까요?|">
+                                  data-confirm-soft-delete=""
+                                  th:data-resource-label="|BMC '${bmc.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
                         <th:block th:if="${bmc.isDeleted}">
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/restore(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="restore"
-                                  th:data-confirm-message="|BMC '${bmc.name}' 을 복구할까요?|">
+                                  data-confirm-restore=""
+                                  th:data-resource-label="|BMC '${bmc.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/purge(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="purge"
+                                  data-confirm-purge=""
                                   th:data-typed-name="${bmc.name}"
-                                  data-confirm-message="BMC 펌웨어를 영구 삭제합니다. 디스크의 번들 트리도 함께 제거됩니다. 자원명을 정확히 입력하세요.">
+                                  th:data-resource-label="|BMC '${bmc.name}'|"
+                                  data-resource-extra="디스크의 번들 트리도 함께 제거돼요.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
@@ -233,19 +234,14 @@
 <!-- MK3-2 — softDelete reject modal fragment. -->
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
-<!-- S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal. -->
-<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
+<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
-<!-- S5-2-1 — confirm-action.js 는 delete-reject-modal.js 보다 먼저. -->
-<script th:src="@{/management/common/confirm-action.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        if (window.ConfirmActionModal) {
-            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
-        }
         if (window.DeleteRejectModal) {
             window.DeleteRejectModal.bind({
                 deleteFormSelector: 'form.mk3-2-delete-form',

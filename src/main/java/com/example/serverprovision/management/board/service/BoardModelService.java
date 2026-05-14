@@ -314,6 +314,19 @@ public class BoardModelService {
     }
 
     /**
+     * S5-2+ — 휴지통 cascade preview 용 — 본 보드에 종속된 soft-deleted BIOS / BMC 이름 라벨.
+     * 호출자 : BoardModelMarkableScanner.findDeletedChildLabels.
+     */
+    public List<String> findDeletedChildLabels(Long boardId) {
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)
+                .forEach(bios -> labels.add("BIOS: " + bios.getName()));
+        bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)
+                .forEach(bmc -> labels.add("BMC: " + bmc.getName()));
+        return labels;
+    }
+
+    /**
      * S5-2-2 — Board typed-name 검증 후 영구 삭제. Board 는 기존 hard-delete 가 부재하여 본 메서드에서 신설.
      * 합성식 : {@code vendor.displayName + " " + modelName}.
      *

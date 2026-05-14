@@ -3,9 +3,7 @@ package com.example.serverprovision.management.board.service;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +18,16 @@ import java.util.stream.Collectors;
  * S5-2-3+ — BoardModel 도메인 어댑터. 메타 자원 — 휴지통 노출용 lifecycle 메타만 노출.
  */
 @Service
-@RequiredArgsConstructor
 public class BoardModelMarkableScanner implements MarkableScanner {
 
     private final BoardModelRepository boardModelRepository;
+    private final org.springframework.beans.factory.ObjectProvider<BoardModelService> boardModelServiceProvider;
+
+    public BoardModelMarkableScanner(BoardModelRepository boardModelRepository,
+                                     org.springframework.beans.factory.ObjectProvider<BoardModelService> boardModelServiceProvider) {
+        this.boardModelRepository = boardModelRepository;
+        this.boardModelServiceProvider = boardModelServiceProvider;
+    }
 
     @Override
     public ResourceType supportedType() {
@@ -56,5 +60,22 @@ public class BoardModelMarkableScanner implements MarkableScanner {
         return boardModelRepository.findAllByIsDeletedTrue().stream()
                 .<Markable>map(b -> b)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void restoreFromTrash(Long resourceId, boolean cascade) {
+        boardModelServiceProvider.getObject().restore(resourceId, cascade);
+    }
+
+    @Override
+    public void restoreFromTrash(Long resourceId) {
+        boardModelServiceProvider.getObject().restore(resourceId, false);
+    }
+
+    /** 휴지통 cascade preview — soft-deleted 자식 BIOS / BMC 이름 list. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> findDeletedChildLabels(Long resourceId) {
+        return boardModelServiceProvider.getObject().findDeletedChildLabels(resourceId);
     }
 }

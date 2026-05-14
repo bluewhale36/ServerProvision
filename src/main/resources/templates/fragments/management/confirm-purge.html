@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  S5-2 — 자원 영구 삭제 (purge) 확인 modal fragment.
+  typed-name input slot 보유 — 호출측 data-typed-name 와 일치 시에만 확인 활성.
+  호출측 마커 : data-confirm-purge + data-resource-label + data-typed-name [+ data-resource-extra]
+  스타일은 /css/confirm-modal.css 의 .cm-* / .cm-typed-* 클래스 사용.
+*/-->
+<div th:fragment="confirmPurgeModal(prefix)"
+     th:id="${prefix} + 'Modal'"
+     class="cm-overlay"
+     hidden>
+    <div th:id="${prefix} + 'Backdrop'" class="cm-backdrop"></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 th:id="${prefix} + 'Title'" class="cm-title">자원 영구 삭제</h2>
+            <p th:id="${prefix} + 'Message'" class="cm-message-tight">메시지</p>
+
+            <!-- typed-name input slot. JS 가 호출측 data-typed-name 으로 채움 + 일치 검증. -->
+            <div th:id="${prefix} + 'TypedTargetWrap'" class="cm-typed-wrap" hidden>
+                <div class="cm-typed-target-box">
+                    <span class="cm-typed-target-label">정확히 입력해야 할 자원명</span>
+                    <code th:id="${prefix} + 'TypedTarget'" class="cm-typed-target-code"></code>
+                </div>
+                <input type="text" th:id="${prefix} + 'TypedInput'"
+                       class="cm-typed-input"
+                       placeholder="자원명을 정확히 입력...">
+            </div>
+
+            <div class="cm-actions">
+                <button type="button" th:id="${prefix} + 'CancelBtn'"
+                        class="n-btn n-btn-secondary">취소</button>
+                <button type="button" th:id="${prefix} + 'ConfirmBtn'"
+                        class="n-btn n-btn-danger">영구 삭제</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

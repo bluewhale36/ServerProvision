@@ -123,6 +123,6 @@
         }
     });
 
-    // S5-2-2 — 기존 MK2 의 data-typed-confirm + window.prompt() 핸들러는 confirm-action.js 의
-    // 'purge' actionKey 로 일원화. 이 자리에서 제거됨.
+    // S5-2 — purge 확인은 confirm-purge fragment + JS 모듈 (form[data-confirm-purge]) 로 일원화.
+    // 기존 MK2 의 data-typed-confirm + window.prompt() 핸들러는 이 자리에서 제거됨.
 })();

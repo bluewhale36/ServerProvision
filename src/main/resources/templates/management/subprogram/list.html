@@ -78,19 +78,14 @@
 <!-- MK3-2 — softDelete reject modal fragment. delete form 이 별도 페이지에 있어도 본 list 에 미리 등록. -->
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
-<!-- S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal. -->
-<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
+<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
 <script th:src="@{/management/subprogram/subprogram-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
-<!-- S5-2-1 — confirm-action.js 는 delete-reject-modal.js 보다 먼저. -->
-<script th:src="@{/management/common/confirm-action.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        if (window.ConfirmActionModal) {
-            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
-        }
         if (window.DeleteRejectModal) {
             window.DeleteRejectModal.bind({
                 deleteFormSelector: 'form.mk3-2-delete-form',

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합 include.
+  ─────────────────────────────────────────────────────────────
+  사용 :  <div th:replace="~{fragments/management/confirm-modals :: all}"></div>
+
+  호출측은 1 줄로 4 fragment + 5 script 를 모두 include. 호출 form 에는 boolean 마커
+  (data-confirm-soft-delete / -deprecate / -restore / -purge) + 자원 식별자만 주면 끝.
+*/-->
+<th:block th:fragment="all">
+    <!-- 공통 modal 스타일 — 4 fragment 가 .cm-* class 로 참조 -->
+    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+    <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmSoftDelete')}"></div>
+    <div th:replace="~{fragments/management/confirm-deprecate :: confirmDeprecateModal('confirmDeprecate')}"></div>
+    <div th:replace="~{fragments/management/confirm-restore :: confirmRestoreModal('confirmRestore')}"></div>
+    <div th:replace="~{fragments/management/confirm-purge :: confirmPurgeModal('confirmPurge')}"></div>
+    <script th:src="@{/management/common/confirm-modal-base.js}"></script>
+    <script th:src="@{/management/common/confirm-soft-delete.js}"></script>
+    <script th:src="@{/management/common/confirm-deprecate.js}"></script>
+    <script th:src="@{/management/common/confirm-restore.js}"></script>
+    <script th:src="@{/management/common/confirm-purge.js}"></script>
+</th:block>
+</body>
+</html>

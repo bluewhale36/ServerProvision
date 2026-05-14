@@ -1,0 +1,125 @@
+/* ============================================================
+   S5-2 — 4 종 자원 상태 변경 modal 공통 스타일.
+   ─────────────────────────────────────────────────────────────
+   confirm-soft-delete / confirm-deprecate / confirm-restore / confirm-purge
+   fragment 가 공유. 디자인 토큰은 global/style.css 의 --n-* 변수 재사용.
+   ============================================================ */
+
+/* ---- 공통 modal 컨테이너 ---- */
+.cm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1040;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.cm-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.cm-card {
+    position: relative;
+    max-width: 480px;
+    width: 100%;
+}
+
+.cm-title {
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+}
+
+.cm-message {
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+}
+
+/* restore / purge 는 message 와 slot 사이 간격을 작게 — slot 자체에 margin-bottom 있음. */
+.cm-message-tight {
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+}
+
+.cm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* ---- restore fragment — cascade 라디오 slot ---- */
+.cm-cascade-wrap {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cm-cascade-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--n-border, #d0d7de);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.cm-cascade-option input[type="radio"] {
+    margin-top: 3px;
+}
+
+.cm-cascade-option-title {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.cm-cascade-option-desc {
+    font-size: 12px;
+    color: var(--n-text-muted, #666);
+    margin-top: 2px;
+}
+
+/* ---- purge fragment — typed-name input slot ---- */
+.cm-typed-wrap {
+    margin-bottom: 14px;
+}
+
+.cm-typed-target-box {
+    background: var(--n-bg, #f5f5f5);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.cm-typed-target-label {
+    font-size: 11px;
+    color: var(--n-text-muted, #666);
+    display: block;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+}
+
+.cm-typed-target-code {
+    font-size: 13px;
+    word-break: break-all;
+    user-select: all;
+}
+
+.cm-typed-input {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 14px;
+    border: 1px solid var(--n-border, #d0d7de);
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

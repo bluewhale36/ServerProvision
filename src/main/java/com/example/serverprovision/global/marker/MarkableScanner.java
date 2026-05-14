@@ -84,6 +84,23 @@ public interface MarkableScanner {
     }
 
     /**
+     * S5-2-3+ — 메타 자원 (OS_IMAGE / BOARD_MODEL) 의 cascade 옵션 지원 복원.
+     * default 는 cascade 무시하고 단순 restoreFromTrash 위임 — 파일 자원도 안전하게 작동.
+     */
+    default void restoreFromTrash(Long resourceId, boolean cascade) {
+        restoreFromTrash(resourceId);
+    }
+
+    /**
+     * S5-2+ — 메타 자원 (OS_IMAGE / BOARD_MODEL) 의 휴지통 내 자식 자원 이름 미리보기.
+     * 휴지통 페이지의 cascade 라디오 desc 에 "ISO: dvd.iso · minimal.iso" 형태로 노출하기 위함.
+     * default 는 empty — 파일 자원 / 자식 없는 메타 자원은 cascade 라디오 자체 표시 안 됨.
+     */
+    default java.util.List<String> findDeletedChildLabels(Long resourceId) {
+        return java.util.Collections.emptyList();
+    }
+
+    /**
      * MK3 — 휴지통 페이지에서 영구삭제 액션. 도메인이 자기 service 의 purge 메서드 호출.
      * S5-2-2 의 typed-name 검증은 후속 sub-slice — 본 메서드는 단순 purge.
      */

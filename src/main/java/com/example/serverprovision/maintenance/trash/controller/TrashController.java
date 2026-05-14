@@ -88,13 +88,19 @@ public class TrashController {
      */
     @PostMapping("/{resourceType}/{resourceId}/restore")
     public String restore(@PathVariable("resourceType") ResourceType resourceType,
-                          @PathVariable("resourceId") Long resourceId) {
+                          @PathVariable("resourceId") Long resourceId,
+                          @org.springframework.web.bind.annotation.RequestParam(name = "cascade", required = false) Boolean cascade) {
         MarkableScanner scanner = scannersByType().get(resourceType);
         if (scanner == null) {
             throw new IllegalArgumentException("지원하지 않는 자원 종류 : " + resourceType);
         }
-        scanner.restoreFromTrash(resourceId);
-        log.info("[trash] restore type={} id={}", resourceType, resourceId);
+        // 메타 자원 (OS_IMAGE / BOARD_MODEL) 은 cascade 옵션 수신. 파일 자원은 cascade 무관 — 단순 위임.
+        if (resourceType.isMetadata()) {
+            scanner.restoreFromTrash(resourceId, Boolean.TRUE.equals(cascade));
+        } else {
+            scanner.restoreFromTrash(resourceId);
+        }
+        log.info("[trash] restore type={} id={} cascade={}", resourceType, resourceId, cascade);
         return "redirect:/maintenance/trash";
     }
 
@@ -142,6 +148,17 @@ public class TrashController {
                 && Duration.between(now, expiresAt).compareTo(TTL_WARNING_THRESHOLD) <= 0;
         java.nio.file.Path resourcePath = m.getResourcePath();
         String resourcePathStr = resourcePath != null ? resourcePath.toString() : "(메타데이터 — 파일 없음)";
+        // S5-2+ — 메타 자원의 cascade preview. ghost 가 아닌 정상 trash 만 의미.
+        String childPreview = null;
+        if (!ghost && isMeta) {
+            MarkableScanner scanner = scannersByType().get(m.getResourceType());
+            if (scanner != null) {
+                List<String> labels = scanner.findDeletedChildLabels(m.getResourceId());
+                if (!labels.isEmpty()) {
+                    childPreview = String.join(" · ", labels);
+                }
+            }
+        }
         return new TrashItemResponse(
                 m.getResourceType(),
                 m.getResourceId(),
@@ -151,7 +168,8 @@ public class TrashController {
                 trashedAt,
                 expiresAt,
                 ttlWarning,
-                ghost);
+                ghost,
+                childPreview);
     }
 
     /**

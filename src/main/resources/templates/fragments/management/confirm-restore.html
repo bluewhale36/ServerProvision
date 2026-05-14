@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  S5-2 — 자원 복구 확인 modal fragment.
+  하위 자원 cascade 라디오 slot 보유 — form 에 data-cascade-true-title 가 있으면 노출.
+  호출측 마커 : data-confirm-restore + data-resource-label
+              [+ data-cascade-true-title + data-cascade-true-desc (cascade 옵션 노출)]
+  스타일은 /css/confirm-modal.css 의 .cm-* / .cm-cascade-* 클래스 사용.
+*/-->
+<div th:fragment="confirmRestoreModal(prefix)"
+     th:id="${prefix} + 'Modal'"
+     class="cm-overlay"
+     hidden>
+    <div th:id="${prefix} + 'Backdrop'" class="cm-backdrop"></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 th:id="${prefix} + 'Title'" class="cm-title">자원 복구</h2>
+            <p th:id="${prefix} + 'Message'" class="cm-message-tight">메시지</p>
+
+            <!-- cascade 라디오 slot. JS 가 호출측 마커 유무에 따라 노출/숨김. -->
+            <div th:id="${prefix} + 'CascadeWrap'" class="cm-cascade-wrap" hidden>
+                <label class="cm-cascade-option">
+                    <input type="radio" th:id="${prefix} + 'CascadeTrue'"
+                           th:name="${prefix} + 'Cascade'" value="true" checked>
+                    <span>
+                        <span th:id="${prefix} + 'CascadeTrueTitle'"
+                              class="cm-cascade-option-title">하위 자원도 함께 복구</span>
+                        <div th:id="${prefix} + 'CascadeTrueDesc'"
+                             class="cm-cascade-option-desc"></div>
+                    </span>
+                </label>
+                <label class="cm-cascade-option">
+                    <input type="radio" th:id="${prefix} + 'CascadeFalse'"
+                           th:name="${prefix} + 'Cascade'" value="false">
+                    <span>
+                        <span class="cm-cascade-option-title">이 자원만 복구</span>
+                        <div class="cm-cascade-option-desc">하위 자원은 필요 시 휴지통에서 개별 복구 가능해요.</div>
+                    </span>
+                </label>
+            </div>
+
+            <div class="cm-actions">
+                <button type="button" th:id="${prefix} + 'CancelBtn'"
+                        class="n-btn n-btn-secondary">취소</button>
+                <button type="button" th:id="${prefix} + 'ConfirmBtn'"
+                        class="n-btn n-btn-outline-info">복구</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

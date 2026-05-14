@@ -3,9 +3,7 @@ package com.example.serverprovision.management.os.service;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.management.os.entity.OSImage;
 import com.example.serverprovision.management.os.repository.OSImageRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,10 +23,16 @@ import java.util.stream.Collectors;
  * is_deleted=true 인 OSImage 를 가져와 Markable 목록으로 반환.</p>
  */
 @Service
-@RequiredArgsConstructor
 public class OSImageMarkableScanner implements MarkableScanner {
 
     private final OSImageRepository osImageRepository;
+    private final org.springframework.beans.factory.ObjectProvider<OSImageService> osImageServiceProvider;
+
+    public OSImageMarkableScanner(OSImageRepository osImageRepository,
+                                  org.springframework.beans.factory.ObjectProvider<OSImageService> osImageServiceProvider) {
+        this.osImageRepository = osImageRepository;
+        this.osImageServiceProvider = osImageServiceProvider;
+    }
 
     @Override
     public ResourceType supportedType() {
@@ -66,5 +70,29 @@ public class OSImageMarkableScanner implements MarkableScanner {
         return osImageRepository.findAllByIsDeletedTrue().stream()
                 .<Markable>map(o -> o)
                 .collect(Collectors.toList());
+    }
+
+    /** 휴지통 페이지 복원 액션 — OSImageService.restore 위임. cascade 옵션 지원. */
+    @Override
+    public void restoreFromTrash(Long resourceId, boolean cascade) {
+        osImageServiceProvider.getObject().restore(resourceId, cascade);
+    }
+
+    /** cascade 옵션 없는 default 도 동일 위임 (cascade=false). */
+    @Override
+    public void restoreFromTrash(Long resourceId) {
+        osImageServiceProvider.getObject().restore(resourceId, false);
+    }
+
+    /** 휴지통 cascade preview — soft-deleted 자식 ISO 의 파일명 list. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> findDeletedChildLabels(Long resourceId) {
+        return osImageRepository.findById(resourceId)
+                .map(image -> image.getIsos().stream()
+                        .filter(iso -> iso.isDeleted())
+                        .map(iso -> iso.getIsoPath().replaceAll(".*/", ""))
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
     }
 }

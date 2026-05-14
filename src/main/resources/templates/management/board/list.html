@@ -155,8 +155,8 @@
                             <form th:unless="${board.isDeprecated}"
                                   th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="deprecate"
-                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 Deprecated 로 표시할까요?|">
+                                  data-confirm-deprecate=""
+                                  th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${board.isDeprecated}"
@@ -166,16 +166,17 @@
                             </form>
                             <form th:action="@{/management/board/{id}/delete(id=${board.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="soft-delete"
-                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 삭제할까요?|">
+                                  data-confirm-soft-delete=""
+                                  th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
+                                  data-resource-extra="하위 BIOS / BMC 도 함께 삭제돼요.">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
                         <th:block th:if="${board.isDeleted}">
                             <form th:action="@{/management/board/{id}/restore(id=${board.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="restore-cascade"
-                                  th:data-confirm-message="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}' 을 복구할까요? 하위 자원도 함께 복구할지 선택해주세요.|"
+                                  data-confirm-restore=""
+                                  th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
                                   data-cascade-true-title="하위 BIOS / BMC 도 함께 복구"
                                   data-cascade-true-desc="이 보드에 종속된 휴지통의 BIOS / BMC 자원을 일괄 복구해요.">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
@@ -183,9 +184,9 @@
                             <!-- S5-2-2 — 영구 삭제 신설. typed-name 입력 일치 시에만 활성. -->
                             <form th:action="@{/management/board/{id}/purge(id=${board.id})}"
                                   method="post" style="display:inline;"
-                                  data-confirm-action="purge"
+                                  data-confirm-purge=""
                                   th:data-typed-name="|${board.vendor.displayName} ${board.modelName}|"
-                                  data-confirm-message="메인보드 모델을 영구 삭제합니다. 자원명을 정확히 입력하세요.">
+                                  th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
@@ -214,21 +215,11 @@
     </div>
 </div>
 
-<!-- S5-2-1 — 자원 상태 변경 (soft-delete / deprecate / restore) 2차 확인 modal. -->
-<div th:replace="~{fragments/management/confirm-action :: confirmActionModal('confirmAction')}"></div>
+<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
+<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
-<!-- Miller 컬럼 상호작용 스크립트 : A1 의 os-list.js 를 그대로 재사용.
-     data-os-key / data-os-id 속성에 일반적으로 바인딩돼 있어 도메인 의존 없음. -->
+<!-- Miller 컬럼 상호작용 스크립트 : A1 의 os-list.js 를 그대로 재사용. -->
 <script th:src="@{/management/os/os-list.js}"></script>
-<!-- S5-2-1 — 자원 상태 변경 확인 modal 핸들러. -->
-<script th:src="@{/management/common/confirm-action.js}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.ConfirmActionModal) {
-            window.ConfirmActionModal.bind({ modalPrefix: 'confirmAction' });
-        }
-    });
-</script>
 
 </body>
 </html>

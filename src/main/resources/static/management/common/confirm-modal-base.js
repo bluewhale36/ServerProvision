@@ -1,0 +1,123 @@
+/* ============================================================
+   S5-2 — 자원 상태 변경 modal 공통 base helper.
+   ─────────────────────────────────────────────────────────────
+   4 종 specialized modal (soft-delete / deprecate / restore / purge) 이 공유하는
+   인프라. modal element 다루기 / submit 가로채기 / 메시지 합성 등 도메인-agnostic 로직.
+
+   각 specialized JS 는 본 base 의 API 만 사용 — 자기 actionKey 문자열을 보유하지 않는다.
+   호출측 form 의 boolean 마커 (data-confirm-soft-delete 등) 가 곧 action 식별자.
+   ============================================================ */
+(function () {
+    'use strict';
+    const TAG = '[confirm-modal-base]';
+
+    /**
+     * 공통 modal opener. prefix 별 element id 셋
+     * ({prefix}Modal / Backdrop / Title / Message / ConfirmBtn / CancelBtn) 을 자동 wiring.
+     *
+     * @param {string} prefix              element id 접두사
+     * @param {object} opts
+     * @param {string}   opts.title        modal 제목
+     * @param {string}   opts.message      본문 메시지
+     * @param {string}   opts.confirmLabel 확인 버튼 텍스트
+     * @param {string}   opts.confirmClass 확인 버튼 CSS class (n-btn 외)
+     * @param {boolean=} opts.startDisabled 확인 버튼 초기 disabled
+     * @param {function=} opts.afterOpen   modal 표시 직후 추가 wiring. {modal, confirmBtn, cancelBtn} 받음. cleanup 반환 (close 시 호출).
+     * @param {function=} opts.beforeConfirm 확인 클릭 시 onConfirm 전에 호출. false 반환 시 close 안 됨.
+     * @param {function}  opts.onConfirm   확인 클릭 + close 후 호출.
+     */
+    function open(prefix, opts) {
+        const modal      = document.getElementById(prefix + 'Modal');
+        const titleEl    = document.getElementById(prefix + 'Title');
+        const messageEl  = document.getElementById(prefix + 'Message');
+        const confirmBtn = document.getElementById(prefix + 'ConfirmBtn');
+        const cancelBtn  = document.getElementById(prefix + 'CancelBtn');
+        const backdrop   = document.getElementById(prefix + 'Backdrop');
+
+        if (!modal || !confirmBtn || !cancelBtn) {
+            console.warn(TAG, 'fragment 누락 — fallback native confirm. prefix=', prefix);
+            if (window.confirm(opts.message || '계속할까요?')) opts.onConfirm();
+            return;
+        }
+
+        if (titleEl && opts.title) titleEl.textContent = opts.title;
+        if (messageEl) messageEl.textContent = opts.message || '';
+        confirmBtn.textContent = opts.confirmLabel;
+        confirmBtn.className = 'n-btn ' + (opts.confirmClass || 'n-btn-primary');
+        confirmBtn.disabled = !!opts.startDisabled;
+
+        let extraCleanup = null;
+        if (opts.afterOpen) {
+            extraCleanup = opts.afterOpen({ modal, confirmBtn, cancelBtn });
+        }
+
+        modal.hidden = false;
+        // afterOpen 측이 별도 focus 를 잡지 않으면 confirm 버튼 default focus.
+        if (!opts.suppressDefaultFocus) confirmBtn.focus();
+
+        const close = () => {
+            modal.hidden = true;
+            confirmBtn.onclick = null;
+            cancelBtn.onclick = null;
+            if (backdrop) backdrop.onclick = null;
+            document.removeEventListener('keydown', onKey);
+            if (typeof extraCleanup === 'function') extraCleanup();
+        };
+        const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+
+        confirmBtn.onclick = () => {
+            if (opts.beforeConfirm && opts.beforeConfirm() === false) return;
+            close();
+            opts.onConfirm();
+        };
+        cancelBtn.onclick = close;
+        if (backdrop) backdrop.onclick = close;
+        document.addEventListener('keydown', onKey);
+    }
+
+    /**
+     * form[markerAttr] 마다 submit 가로채기 등록. 두 번째 submit (사용자 확인 후 requestSubmit) 은 통과.
+     * @param {string}   markerAttr - 'data-confirm-soft-delete' 같은 form 식별자.
+     * @param {function} handler    - (form) => void. modal 표시 + 확인 시 approveAndSubmit 호출.
+     */
+    function bindFormSubmit(markerAttr, handler) {
+        document.querySelectorAll('form[' + markerAttr + ']').forEach(form => {
+            form.addEventListener('submit', e => {
+                if (form.dataset.confirmApproved === '1') {
+                    delete form.dataset.confirmApproved;
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                // delete-reject-modal 등 다른 capture listener 가 동시에 fetch() 쏘지 않도록 즉시 차단.
+                e.stopImmediatePropagation();
+                handler(form);
+            }, true);
+        });
+    }
+
+    /**
+     * '{resource}' placeholder 를 data-resource-label 로 치환 + data-resource-extra 합성.
+     * data-confirm-message 명시 override 도 지원 (backward compat).
+     */
+    function composeMessage(form, template, defaultMessage) {
+        const explicit = form.getAttribute('data-confirm-message');
+        if (explicit) return explicit;
+        const resource = form.getAttribute('data-resource-label');
+        if (resource && template) {
+            let msg = template.replace('{resource}', resource);
+            const extra = form.getAttribute('data-resource-extra');
+            if (extra) msg += ' ' + extra;
+            return msg;
+        }
+        return defaultMessage;
+    }
+
+    /** 사용자 확인 직후 form 재제출. 본 base 의 submit listener 가 두 번째 submit 을 통과시킴. */
+    function approveAndSubmit(form) {
+        form.dataset.confirmApproved = '1';
+        form.requestSubmit();
+    }
+
+    window.ConfirmModal = { open, bindFormSubmit, composeMessage, approveAndSubmit };
+})();
