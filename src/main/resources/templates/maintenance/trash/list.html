@@ -124,9 +124,14 @@
                           data-resource-extra="원래 경로로 복원돼요."
                           th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
                                    data-cascade-true-desc=${item.childPreview}">
-                        <button type="submit" class="n-btn n-btn-sm n-btn-primary"
-                                th:disabled="${item.parentDeleted}"
-                                th:title="${item.parentDeleted} ? '부모 자원이 삭제 상태라 자식 단독 복구가 불가능합니다. 부모부터 복구해주세요.' : null">복원</button>
+                        <!-- S5-3-2 — parentDeleted 시 disabled + wrapper tooltip 으로 안내. -->
+                        <!--    테이블 오른쪽 끝 액션 컬럼이라 tooltip 잘림 방지 위해 우측 정렬. -->
+                        <span class="n-btn-tooltip-wrap"
+                              data-tooltip-align="right"
+                              th:attr="data-tooltip=${item.parentDeleted} ? '부모 자원이 삭제 상태라 자식 단독 복구가 불가능해요. 부모부터 복구해주세요.' : null">
+                            <button type="submit" class="n-btn n-btn-sm n-btn-primary"
+                                    th:disabled="${item.parentDeleted}">복원</button>
+                        </span>
                     </form>
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"

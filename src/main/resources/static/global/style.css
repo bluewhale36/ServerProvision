@@ -164,6 +164,56 @@ code {
 /* 링크 버튼(a 태그) 비활성 상태 — button:disabled 는 a 에 적용되지 않음 */
 .n-btn-disabled { opacity: 0.5; pointer-events: none; cursor: not-allowed; }
 
+/* ============================================================
+   S5-3-2 — disabled 버튼의 hover/focus tooltip 표시.
+   브라우저 native title 은 <button disabled> 에서 표시되지 않으므로
+   wrapper span 의 ::after 로 페이지 디자인 일관 tooltip 을 렌더한다.
+   사용법 :
+     <span class="n-btn-tooltip-wrap" data-tooltip="안내 메시지">
+         <button class="n-btn ..." disabled>...</button>
+     </span>
+   tooltip 비활성 :
+     <span class="n-btn-tooltip-wrap" data-tooltip-active="false" ...>
+   (활성화된 상태에서 noise 회피 목적. JS 가 button 활성/비활성에 맞춰 토글)
+   ============================================================ */
+.n-btn-tooltip-wrap { position: relative; display: inline-block; }
+
+.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):hover::after,
+.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):focus-within::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(31, 35, 40, 0.82);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    /* 핵심 — width: max-content 로 shrink-to-fit 회피 + max-width 로 긴 한국어 wrap. */
+    width: max-content;
+    max-width: min(260px, 80vw);
+    word-break: keep-all;
+    white-space: normal;
+    text-align: center;
+    pointer-events: none;
+    z-index: 1100;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+
+/*
+  S5-3-2 — viewport 우측 끝에 wrapper 가 있어 tooltip 박스가 화면 밖으로 잘리는 경우 대비.
+  사용처 마크업이 wrapper 에 data-tooltip-align="right" 를 부여하면 tooltip 박스의 오른쪽 끝이
+  wrapper 의 오른쪽 끝에 정렬되어 viewport 안으로 들어온다.
+*/
+.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):hover::after,
+.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):focus-within::after {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
 .n-btn-primary { background: var(--n-blue); color: #ffffff; }
 .n-btn-primary:hover { background: var(--n-blue-hover); color: #ffffff; }
 

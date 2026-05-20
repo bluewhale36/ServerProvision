@@ -111,7 +111,9 @@
         list.innerHTML = '';
         let selectedTargetId = null;
         replaceBtn.disabled = true;
-        replaceBtn.title = '대체할 기존 자원을 목록에서 선택하세요';
+        // S5-3-2 — wrapper 의 tooltip 활성 상태 reset (modal 재진입 시 tooltip 다시 보이도록).
+        const replaceBtnWrap = replaceBtn.closest('.n-btn-tooltip-wrap');
+        if (replaceBtnWrap) delete replaceBtnWrap.dataset.tooltipActive;
 
         (payload.conflicts || []).forEach(c => {
             const li = document.createElement('li');
@@ -129,7 +131,8 @@
                 li.style.background = 'var(--n-bg-soft, #eef)';
                 selectedTargetId = c.id;
                 replaceBtn.disabled = false;
-                replaceBtn.removeAttribute('title');
+                // S5-3-2 — 자원 선택 후 tooltip 침묵 (활성 버튼에 hint 노이즈 회피).
+                if (replaceBtnWrap) replaceBtnWrap.dataset.tooltipActive = 'false';
             });
             list.appendChild(li);
         });
