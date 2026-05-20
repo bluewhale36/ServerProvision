@@ -49,10 +49,13 @@ public class BoardModelController {
     @GetMapping
     public String list(@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
                        @RequestParam(name = "selectId", required = false) Long selectId,
+                       // S5-4 — C1 (Vendor) 선택 보존. '삭제된 항목 포함' 토글이나 새로고침 시 동일 vendor active.
+                       @RequestParam(name = "selectKey", required = false) String selectKey,
                        Model model) {
         model.addAttribute("boardGroups", boardModelService.findAllGrouped(includeDeleted));
         model.addAttribute("includeDeleted", includeDeleted);
         model.addAttribute("selectId", selectId);
+        model.addAttribute("selectKey", selectKey);
         return "management/board/list";
     }
 

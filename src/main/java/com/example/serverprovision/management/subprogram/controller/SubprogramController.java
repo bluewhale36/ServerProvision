@@ -69,12 +69,15 @@ public class SubprogramController {
     public String list(@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
                        @RequestParam(name = "selectId", required = false) Long selectId,
                        @RequestParam(name = "selectKind", required = false) SubprogramKind selectKind,
+                       // S5-4 — C1 (scope = boardId 또는 'common') 선택 보존. selectKind 와 함께 어느 미러를 가리키는지 결정.
+                       @RequestParam(name = "selectKey", required = false) String selectKey,
                        Model model) {
         model.addAttribute("driverGroups", subprogramService.findAllGrouped(SubprogramKind.DRIVER, includeDeleted));
         model.addAttribute("utilityGroups", subprogramService.findAllGrouped(SubprogramKind.UTILITY, includeDeleted));
         model.addAttribute("includeDeleted", includeDeleted);
         model.addAttribute("selectId", selectId);
         model.addAttribute("selectKind", selectKind);
+        model.addAttribute("selectKey", selectKey);
         return "management/subprogram/list";
     }
 

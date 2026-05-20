@@ -23,6 +23,20 @@
 
     const EMPTY_VERSION_MSG = '버전을 선택하여 상세 사항 보기';
 
+    // S5-4 — 미러 선택 시 URL querystring 도 동기화한다. '삭제된 항목 포함' 토글 같은
+    // 다른 쿼리 변경 동작이 선택 상태를 자연스럽게 보존하도록 하는 것이 목적.
+    // BIOS / BMC 는 정적 data-board-aware="true" 마커로 식별. 동적 th:data-initial-select-board-id
+    // 는 값이 null 일 때 Thymeleaf 가 속성을 emit 하지 않아 hasAttribute 로는 판별 불가.
+    const boardAware = miller.dataset.boardAware === 'true';
+
+    function updateUrl(mutate) {
+        const params = new URLSearchParams(window.location.search);
+        mutate(params);
+        const q = params.toString();
+        const next = window.location.pathname + (q ? '?' + q : '') + window.location.hash;
+        history.replaceState(null, '', next);
+    }
+
     // ---- Stale 추적 --------------------------------------------
     // key: osId (string), value: Set<string>   (refresh 해야 할 fragment 타입: 현재 'env' 만 사용)
     const stalePanels = new Map();
@@ -54,7 +68,7 @@
 
     // ---- Miller 상호작용 ---------------------------------------
 
-    function selectOsName(osKey) {
+    function selectOsName(osKey, opts) {
         nameCol.querySelectorAll('.n-miller-item').forEach(btn => {
             btn.classList.toggle('n-miller-selected', btn.dataset.osKey === osKey);
         });
@@ -69,9 +83,19 @@
             emptyState.textContent = EMPTY_VERSION_MSG;
             emptyState.classList.remove('hidden');
         }
+        // C1 선택은 C2 선택을 해제한다 → URL 의 selectId 제거.
+        // board-aware (BIOS / BMC) 에서는 osKey 가 boardId → selectBoardId 로,
+        // non-board-aware (OS / Board) 에서는 osKey 가 enum 문자열 → selectKey 로.
+        if (!opts || !opts.skipUrl) {
+            updateUrl(p => {
+                p.delete('selectId');
+                if (boardAware) p.set('selectBoardId', osKey);
+                else p.set('selectKey', osKey);
+            });
+        }
     }
 
-    function selectOsId(osId) {
+    function selectOsId(osId, opts) {
         versionCol.querySelectorAll('.n-miller-item').forEach(btn => {
             btn.classList.toggle('n-miller-selected', btn.dataset.osId === osId);
         });
@@ -85,6 +109,10 @@
         const set = stalePanels.get(String(osId));
         if (panel && set) {
             if (set.has('env')) { refreshEnvGroups(panel, osId); clearStale(osId, 'env'); }
+        }
+
+        if (!opts || !opts.skipUrl) {
+            updateUrl(p => p.set('selectId', osId));
         }
     }
 
@@ -102,6 +130,8 @@
 
     const initialId = miller.dataset.initialSelectId;
     const initialBoardId = miller.dataset.initialSelectBoardId;
+    const initialKey = miller.dataset.initialSelectKey;
+    // 초기 복원은 URL 갱신을 일으키지 않는다 — 이미 URL 이 진실.
     if (initialId) {
         const versionBtn = versionCol.querySelector(
             '.n-miller-item[data-os-id="' + initialId + '"]'
@@ -109,8 +139,8 @@
         if (versionBtn) {
             const panel = versionBtn.closest('.n-miller-version-panel');
             if (panel) {
-                selectOsName(panel.dataset.osKey);
-                selectOsId(initialId);
+                selectOsName(panel.dataset.osKey, { skipUrl: true });
+                selectOsId(initialId, { skipUrl: true });
             }
         }
     } else if (initialBoardId) {
@@ -118,7 +148,15 @@
             '.n-miller-item[data-os-key="' + initialBoardId + '"]'
         );
         if (boardBtn) {
-            selectOsName(initialBoardId);
+            selectOsName(initialBoardId, { skipUrl: true });
+        }
+    } else if (initialKey) {
+        // S5-4 — C1 만 선택된 상태 (OS / Board 페이지). C2 는 비어있음.
+        const c1Btn = nameCol.querySelector(
+            '.n-miller-item[data-os-key="' + initialKey + '"]'
+        );
+        if (c1Btn) {
+            selectOsName(initialKey, { skipUrl: true });
         }
     }
 

@@ -14,10 +14,17 @@ import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -61,5 +68,17 @@ class BmcControllerPurgeFlowTest {
 
         mvc.perform(post("/management/bmc/2/bmc/5/purge").param("typedName", "x"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // S5-4 — '삭제된 항목 포함' 체크박스의 마커 검증 + inline onchange 부재 회귀.
+    @Test
+    @DisplayName("GET /management/bmc — '삭제된 항목 포함' 체크박스에 data-include-deleted-toggle 마커 + inline onchange 부재")
+    void renders_includeDeletedToggle_with_dataMarker() throws Exception {
+        given(bmcService.findAllGrouped(false)).willReturn(List.of());
+
+        mvc.perform(get("/management/bmc"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-include-deleted-toggle")))
+                .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
 }

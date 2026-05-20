@@ -12,10 +12,11 @@
     <div class="n-page-header">
         <h1 class="n-page-title">BMC 펌웨어 관리</h1>
         <div class="n-header-actions">
+            <!-- S5-4 — 토글 시 selectBoardId / selectId 등 다른 querystring 보존. -->
             <label class="n-checkbox">
                 <input type="checkbox"
                        th:checked="${includeDeleted}"
-                       onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                       data-include-deleted-toggle>
                 삭제된 항목 포함
             </label>
         </div>
@@ -33,6 +34,7 @@
 
     <div th:unless="${#lists.isEmpty(boards)}"
          class="n-miller"
+         data-board-aware="true"
          th:data-initial-select-id="${selectId}"
          th:data-initial-select-board-id="${selectBoardId}">
 
@@ -237,6 +239,8 @@
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
 <div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
+<!-- S5-4 — '삭제된 항목 포함' 토글 시 selectBoardId / selectId 등 querystring 보존. -->
+<script th:src="@{/global/include-deleted-toggle.js}"></script>
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>

@@ -9,13 +9,15 @@
     - kindDisplayName : "드라이버" | "유틸리티"
     - millerId        : DOM root 의 id (driver / utility 두 곳에서 충돌 회피)
     - selectId        : (선택) 초기 선택할 자원 id
+    - selectKey       : (선택, S5-4) 초기 선택할 scope key ('common' 또는 boardId)
   Miller C2 의 "+ 등록" 버튼은 분류 행마다 자체 boardScope 를 쿼리로 동봉한다 (폼 prefill 용).
 */-->
-<div th:fragment="kindMiller(groups, kindToken, kindDisplayName, millerId, selectId)"
+<div th:fragment="kindMiller(groups, kindToken, kindDisplayName, millerId, selectId, selectKey)"
      class="n-miller n-subprogram-miller"
      th:id="${millerId}"
      th:attr="data-kind=${kindToken}"
-     th:data-initial-select-id="${selectId}">
+     th:data-initial-select-id="${selectId}"
+     th:data-initial-select-key="${selectKey}">
 
     <div class="n-miller-col n-miller-col-names">
         <div class="n-miller-col-header" th:text="${kindDisplayName} + ' 분류'">분류</div>

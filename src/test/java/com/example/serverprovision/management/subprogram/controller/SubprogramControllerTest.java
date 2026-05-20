@@ -28,12 +28,15 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -63,6 +66,26 @@ class SubprogramControllerTest {
         mvc.perform(get("/management/subprogram"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("management/subprogram/list"));
+    }
+
+    // S5-4 — Driver / Utility 두 섹션 모두 data-include-deleted-toggle 마커 + inline onchange 부재.
+    @Test
+    @DisplayName("GET /management/subprogram — 2 체크박스 (Driver / Utility) 모두 data-include-deleted-toggle 마커 + inline onchange 부재")
+    void renders_two_includeDeletedToggles() throws Exception {
+        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, false)).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, false)).willReturn(List.of());
+
+        String body = mvc.perform(get("/management/subprogram"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-include-deleted-toggle")))
+                .andExpect(content().string(not(containsString("onchange=\"window.location"))))
+                .andReturn().getResponse().getContentAsString();
+
+        int occurrences = body.split("data-include-deleted-toggle", -1).length - 1;
+        if (occurrences != 2) {
+            throw new AssertionError(
+                    "data-include-deleted-toggle 마커가 정확히 2 개여야 한다 (Driver / Utility 섹션). 실제: " + occurrences);
+        }
     }
 
     @Test

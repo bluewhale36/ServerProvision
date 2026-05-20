@@ -25,10 +25,11 @@
     <div class="n-page-header">
         <h1 class="n-page-title">메인보드 모델 관리</h1>
         <div class="n-header-actions">
+            <!-- S5-4 — 토글 시 selectId 등 다른 querystring 보존. -->
             <label class="n-checkbox">
                 <input type="checkbox"
                        th:checked="${includeDeleted}"
-                       onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                       data-include-deleted-toggle>
                 삭제된 항목 포함
             </label>
             <a th:href="@{/management/board/new}"
@@ -48,7 +49,8 @@
     <!-- Miller 3컬럼 : C1 Vendor → C2 모델 → C3 상세 -->
     <div th:unless="${#lists.isEmpty(boardGroups)}"
          class="n-miller"
-         th:data-initial-select-id="${selectId}">
+         th:data-initial-select-id="${selectId}"
+         th:data-initial-select-key="${selectKey}">
 
         <!-- C1 : Vendor 그룹 -->
         <div class="n-miller-col n-miller-col-names">
@@ -218,6 +220,8 @@
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
 <div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
+<!-- S5-4 — '삭제된 항목 포함' 토글 시 selectId 등 querystring 보존. -->
+<script th:src="@{/global/include-deleted-toggle.js}"></script>
 <!-- Miller 컬럼 상호작용 스크립트 : A1 의 os-list.js 를 그대로 재사용. -->
 <script th:src="@{/management/os/os-list.js}"></script>
 

@@ -44,15 +44,16 @@
             <h2 class="n-subprogram-section-title">Driver</h2>
             <div class="n-subprogram-section-actions">
                 <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ Driver 등록</a>
+                <!-- S5-4 — 토글 시 selectKind / selectId 등 다른 querystring 보존. -->
                 <label class="n-checkbox">
                     <input type="checkbox"
                            th:checked="${includeDeleted}"
-                           onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                           data-include-deleted-toggle>
                     삭제된 항목 포함
                 </label>
             </div>
         </div>
-        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null})}"></div>
+        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null}, ${selectKind != null and selectKind.name() == 'DRIVER' ? selectKey : null})}"></div>
     </section>
 
     <section class="n-subprogram-section" style="margin-top: 32px;">
@@ -60,15 +61,16 @@
             <h2 class="n-subprogram-section-title">Utility</h2>
             <div class="n-subprogram-section-actions">
                 <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ Utility 등록</a>
+                <!-- S5-4 — 토글 시 selectKind / selectId 등 다른 querystring 보존. -->
                 <label class="n-checkbox">
                     <input type="checkbox"
                            th:checked="${includeDeleted}"
-                           onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname">
+                           data-include-deleted-toggle>
                     삭제된 항목 포함
                 </label>
             </div>
         </div>
-        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${utilityGroups}, 'utility', '유틸리티', 'utilityMiller', ${selectKind != null and selectKind.name() == 'UTILITY' ? selectId : null})}"></div>
+        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${utilityGroups}, 'utility', '유틸리티', 'utilityMiller', ${selectKind != null and selectKind.name() == 'UTILITY' ? selectId : null}, ${selectKind != null and selectKind.name() == 'UTILITY' ? selectKey : null})}"></div>
     </section>
 </div>
 
@@ -81,6 +83,8 @@
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
 <div th:replace="~{fragments/management/confirm-modals :: all}"></div>
 
+<!-- S5-4 — '삭제된 항목 포함' 토글 시 selectKind / selectId 등 querystring 보존. -->
+<script th:src="@{/global/include-deleted-toggle.js}"></script>
 <script th:src="@{/management/subprogram/subprogram-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
