@@ -40,6 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = OSImageController.class)
 class OSImageControllerSecurityFlowTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper om;

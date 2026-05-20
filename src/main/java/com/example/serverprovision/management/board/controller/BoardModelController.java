@@ -42,6 +42,7 @@ public class BoardModelController {
 
     private final BoardModelService boardModelService;
     private final BoardModelNudgeService boardModelNudgeService;
+    private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
     // ==== 목록 ========================================================
 
@@ -170,7 +171,11 @@ public class BoardModelController {
     @PostMapping(path = "/nudge/{nudgeId}/replace")
     @ResponseBody
     public BoardModelCreateResponse nudgeReplace(@PathVariable("nudgeId") UUID nudgeId,
-                                                  @RequestParam("targetId") Long targetId) {
+                                                  @RequestParam("targetId") Long targetId,
+                                                  @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL, targetId, typedName);
+        }
         Long id = boardModelNudgeService.replace(nudgeId, targetId);
         return new BoardModelCreateResponse(id, "/management/board?selectId=" + id);
     }

@@ -17,7 +17,11 @@ public enum JobType {
     REPO_INDEXING("저장소 인덱싱"),
     PATH_RECONCILIATION("경로 재조정"),
     MARKER_REISSUE("마커 서명 재발급"),
-    INTEGRITY_VERIFICATION("무결성 검증");
+    INTEGRITY_VERIFICATION("무결성 검증"),
+    // S5-2-4 — 휴지통 자동 hard-delete + 사전 알림 + 실패 알림 3 종
+    TTL_NOTIFY("영구삭제 임박 알림"),
+    TRASH_AUTO_PURGE("자동 영구삭제"),
+    TRASH_PURGE_FAILED("영구삭제 실패 (재시도 대기)");
 
     private final String displayName;
 }

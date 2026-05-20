@@ -61,6 +61,7 @@ public class BmcController {
     private final BmcVerificationLauncher bmcVerificationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
     private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
+    private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
     @GetMapping
     public String list(@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
@@ -267,7 +268,11 @@ public class BmcController {
     @PostMapping(path = "/nudge/{nudgeId}/replace")
     @ResponseBody
     public ResponseEntity<Void> nudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
-                                              @RequestParam("replaceTargetId") Long replaceTargetId) {
+                                              @RequestParam("replaceTargetId") Long replaceTargetId,
+                                              @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE, replaceTargetId, typedName);
+        }
         bmcNudgeService.replace(nudgeId, replaceTargetId);
         return ResponseEntity.noContent().build();
     }
@@ -292,7 +297,11 @@ public class BmcController {
     @ResponseBody
     public com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse intentNudgeReplace(
             @PathVariable("nudgeId") java.util.UUID nudgeId,
-            @RequestParam("targetId") Long targetId) {
+            @RequestParam("targetId") Long targetId,
+            @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.BMC_FIRMWARE, targetId, typedName);
+        }
         return bmcNudgeService.replaceIntent(nudgeId, targetId);
     }
 

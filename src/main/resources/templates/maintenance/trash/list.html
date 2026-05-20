@@ -33,7 +33,14 @@
     <div class="n-page-header">
         <h1 class="n-page-title">휴지통</h1>
         <div class="n-header-actions">
-            <span class="n-hint">soft-delete 자원이 격리되며, 30일 후 자동 영구삭제됩니다. 자원별로 보존기간을 연장할 수 있습니다.</span>
+            <span class="n-hint" style="margin-right: 12px;">soft-delete 자원이 격리되며, 30일 후 자동 영구삭제됩니다. 자원별로 보존기간을 연장할 수 있습니다.</span>
+            <!-- S5-2-4 — 운영 설정 / 감사 로그 페이지 진입점. -->
+            <a th:href="@{/maintenance/trash/settings}"
+               class="n-btn n-btn-secondary n-btn-sm"
+               title="휴지통 운영 설정 (TTL · cron · 알림 채널 · retry 정책)">⚙️ 운영 설정</a>
+            <a th:href="@{/maintenance/trash/purge-log}"
+               class="n-btn n-btn-secondary n-btn-sm"
+               title="영구삭제 감사 로그 — 자원별 시간순 이력">📋 감사 로그</a>
         </div>
     </div>
 

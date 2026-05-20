@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  S5-2-4 — purge_log 조회 페이지. 단일 시간순 로그를 운영자가 회고.
+  ─────────────────────────────────────────────────────────
+  Model:
+    page             : Page<PurgeLogResponse>
+    filterResourceType / filterOrigin / filterOutcome / filterFrom / filterTo
+    resourceTypes / origins / outcomes : 셀렉트 옵션 (enum values())
+
+  디자인 :
+    n-page / n-card / n-form-group / n-select / n-table — settings 페이지와 동일 기조.
+    select option 은 enum 의 displayName 으로 사용자 친화 표시.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('영구삭제 감사 로그')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('trash')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">영구삭제 감사 로그</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/maintenance/trash}" class="n-back-link">← 휴지통으로</a>
+            <a th:href="@{/maintenance/trash/settings}" class="n-btn n-btn-secondary n-btn-sm">⚙️ 운영 설정</a>
+            <form th:action="@{/maintenance/trash/retry-failed}" method="post" style="display: inline;">
+                <button type="submit" class="n-btn n-btn-outline-info n-btn-sm">실패 자원 재시도</button>
+            </form>
+        </div>
+    </div>
+
+    <!--/* 필터 — 카드 안에 n-form-group inline 배치. */-->
+    <div class="n-card" style="margin-bottom: 14px;">
+        <div class="n-card-body">
+            <form method="get" th:action="@{/maintenance/trash/purge-log}"
+                  style="display: grid; grid-template-columns: repeat(3, 1fr) auto auto; gap: 12px; align-items: end;">
+
+                <div class="n-form-group" style="margin-bottom: 0;">
+                    <label class="n-label" for="filterResourceType">자원 종류</label>
+                    <select id="filterResourceType" name="resource_type" class="n-select">
+                        <option value="">전체</option>
+                        <option th:each="rt : ${resourceTypes}"
+                                th:value="${rt}"
+                                th:text="${rt.displayName}"
+                                th:selected="${rt == filterResourceType}"></option>
+                    </select>
+                </div>
+
+                <div class="n-form-group" style="margin-bottom: 0;">
+                    <label class="n-label" for="filterOrigin">진입 경로</label>
+                    <select id="filterOrigin" name="origin" class="n-select">
+                        <option value="">전체</option>
+                        <option th:each="o : ${origins}"
+                                th:value="${o}"
+                                th:text="${o.displayName}"
+                                th:selected="${o == filterOrigin}"></option>
+                    </select>
+                </div>
+
+                <div class="n-form-group" style="margin-bottom: 0;">
+                    <label class="n-label" for="filterOutcome">결과</label>
+                    <select id="filterOutcome" name="outcome" class="n-select">
+                        <option value="">전체</option>
+                        <option th:each="oc : ${outcomes}"
+                                th:value="${oc}"
+                                th:text="${oc.displayName}"
+                                th:selected="${oc == filterOutcome}"></option>
+                    </select>
+                </div>
+
+                <button type="submit" class="n-btn n-btn-primary">필터 적용</button>
+                <a th:href="@{/maintenance/trash/purge-log}" class="n-btn n-btn-secondary">초기화</a>
+            </form>
+        </div>
+    </div>
+
+    <!--/* 빈 상태 */-->
+    <div th:if="${page.totalElements == 0}" class="n-empty-state">
+        <div class="n-empty-title">감사 로그가 없어요.</div>
+        <div class="n-hint">사용자 직접 / 충돌 교체 / 자동 (TTL 만료) 영구삭제 사건이 발생하면 여기에 시간순으로 기록돼요.</div>
+    </div>
+
+    <!--/* 로그 테이블 */-->
+    <table th:if="${page.totalElements > 0}" class="n-table">
+        <thead>
+        <tr>
+            <th style="width: 60px;">ID</th>
+            <th>자원 종류</th>
+            <th style="width: 70px;">자원 ID</th>
+            <th>자원 이름</th>
+            <th>진입 경로</th>
+            <th style="width: 80px;">결과</th>
+            <th>발생 시각</th>
+            <th>완료 시각</th>
+            <th>상세</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${page.content}">
+            <td th:text="${row.id}" style="color: var(--n-text-muted, #777); font-family: ui-monospace, Menlo, monospace; font-size: 12px;"></td>
+            <td><span class="n-badge n-badge-gray" th:text="${row.resourceType.displayName}"></span></td>
+            <td th:text="${row.resourceId}" style="font-family: ui-monospace, Menlo, monospace; font-size: 12px;"></td>
+            <td><code th:text="${row.displayName}"></code></td>
+            <td><span class="n-badge n-badge-blue" th:text="${row.origin.displayName}"></span></td>
+            <td>
+                <span th:if="${row.outcome.name() == 'SUCCESS'}"
+                      class="n-badge n-badge-green" th:text="${row.outcome.displayName}"></span>
+                <span th:if="${row.outcome.name() == 'FAILED'}"
+                      class="n-badge n-badge-red" th:text="${row.outcome.displayName}"></span>
+            </td>
+            <td>
+                <code style="font-size: 11px;"
+                      th:if="${row.occurredAt != null}"
+                      th:text="${#temporals.format(row.occurredAt, 'yyyy-MM-dd HH:mm:ss.SSS')}"></code>
+            </td>
+            <td>
+                <code style="font-size: 11px;"
+                      th:if="${row.purgedAt != null}"
+                      th:text="${#temporals.format(row.purgedAt, 'yyyy-MM-dd HH:mm:ss.SSS')}"></code>
+                <span th:if="${row.purgedAt == null}" style="color: var(--n-text-muted, #777);">—</span>
+            </td>
+            <td>
+                <details>
+                    <summary style="cursor: pointer; color: var(--n-blue, #0075de); font-size: 12px;">펼치기</summary>
+                    <pre style="font-size: 11px; margin-top: 6px;" th:text="${row.details}"></pre>
+                </details>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!--/* 페이지네이션 */-->
+    <div th:if="${page.totalPages > 1}"
+         style="margin-top: 14px; display: flex; gap: 6px; align-items: center; justify-content: center;">
+        <a th:if="${page.hasPrevious()}"
+           th:href="@{/maintenance/trash/purge-log(page=${page.number - 1}, size=${page.size},
+                       resource_type=${filterResourceType}, origin=${filterOrigin}, outcome=${filterOutcome})}"
+           class="n-btn n-btn-secondary n-btn-sm">← 이전</a>
+        <span style="font-size: 13px; color: var(--n-text-muted, #57606a); padding: 0 12px;">
+            <strong th:text="${page.number + 1}"></strong> /
+            <span th:text="${page.totalPages}"></span> 페이지
+            (총 <strong th:text="${page.totalElements}"></strong> 건)
+        </span>
+        <a th:if="${page.hasNext()}"
+           th:href="@{/maintenance/trash/purge-log(page=${page.number + 1}, size=${page.size},
+                       resource_type=${filterResourceType}, origin=${filterOrigin}, outcome=${filterOutcome})}"
+           class="n-btn n-btn-secondary n-btn-sm">다음 →</a>
+    </div>
+</div>
+
+</body>
+</html>

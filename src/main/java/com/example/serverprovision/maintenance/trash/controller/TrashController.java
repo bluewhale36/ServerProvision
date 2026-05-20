@@ -3,7 +3,11 @@ package com.example.serverprovision.maintenance.trash.controller;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
+import com.example.serverprovision.global.trash.PurgeRequest;
+import com.example.serverprovision.global.trash.PurgeResult;
 import com.example.serverprovision.global.trash.TrashPolicy;
+import com.example.serverprovision.global.trash.service.PurgeExecutor;
+import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.maintenance.trash.dto.response.TrashItemResponse;
 import com.example.serverprovision.maintenance.trash.service.TrashTtlExtensionService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +44,8 @@ public class TrashController {
     private final TrashTtlExtensionService trashTtlExtensionService;
     private final List<MarkableScanner> scanners;
     private final TrashPolicy trashPolicy;
+    private final PurgeExecutor purgeExecutor;
+    private final TypedNameVerifier typedNameVerifier;
 
     private Map<ResourceType, MarkableScanner> scannersByType() {
         return scanners.stream().collect(Collectors.toMap(MarkableScanner::supportedType, s -> s));
@@ -112,12 +118,18 @@ public class TrashController {
     public String purge(@PathVariable("resourceType") ResourceType resourceType,
                         @PathVariable("resourceId") Long resourceId,
                         @org.springframework.web.bind.annotation.RequestParam("typedName") String typedName) {
-        MarkableScanner scanner = scannersByType().get(resourceType);
-        if (scanner == null) {
-            throw new IllegalArgumentException("지원하지 않는 자원 종류 : " + resourceType);
+        // S5-2-4 — typed-name 검증을 단일 진입점으로 응집 + PurgeExecutor 통과 (audit_log 자동 INSERT).
+        typedNameVerifier.verify(resourceType, resourceId, typedName);
+        PurgeResult result = purgeExecutor.execute(
+                PurgeRequest.forUserDirect(resourceType, resourceId, null, typedName));
+        log.info("[trash] purge type={} id={} result={}", resourceType, resourceId,
+                result.getClass().getSimpleName());
+        if (result instanceof PurgeResult.Failed failed) {
+            // 실패 시 호출자에게 예외 전파 — ControllerAdvice 가 흡수.
+            Throwable cause = failed.cause();
+            if (cause instanceof RuntimeException re) throw re;
+            throw new IllegalStateException(cause);
         }
-        scanner.purgeFromTrash(resourceId, typedName);
-        log.info("[trash] purge type={} id={}", resourceType, resourceId);
         return "redirect:/maintenance/trash";
     }
 

@@ -84,6 +84,7 @@ public class OSImageController {
     private final OsNudgeService osNudgeService;
     private final OSImageNudgeService osImageNudgeService;
     private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
+    private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
     // ==== 목록 ========================================================
 
@@ -435,7 +436,11 @@ public class OSImageController {
     @PostMapping(path = "/nudge/{nudgeId}/replace")
     @ResponseBody
     public NudgeProceedResponse nudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
-                                              @RequestParam(name = "targetId") Long targetId) {
+                                              @RequestParam(name = "targetId") Long targetId,
+                                              @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.OS_ISO, targetId, typedName);
+        }
         Long isoId = osNudgeService.replace(nudgeId, targetId);
         return new NudgeProceedResponse(isoId, "/management/os");
     }
@@ -465,7 +470,11 @@ public class OSImageController {
     @PostMapping(path = "/image-nudge/{nudgeId}/replace")
     @ResponseBody
     public OSImageCreateResponse osImageNudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
-                                                      @RequestParam(name = "targetId") Long targetId) {
+                                                      @RequestParam(name = "targetId") Long targetId,
+                                                      @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.OS_IMAGE, targetId, typedName);
+        }
         Long id = osImageNudgeService.replace(nudgeId, targetId);
         return new OSImageCreateResponse(id, "/management/os?selectId=" + id);
     }
@@ -490,7 +499,11 @@ public class OSImageController {
     @ResponseBody
     public com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse intentNudgeReplace(
             @PathVariable("nudgeId") java.util.UUID nudgeId,
-            @RequestParam("targetId") Long targetId) {
+            @RequestParam("targetId") Long targetId,
+            @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.OS_ISO, targetId, typedName);
+        }
         return osNudgeService.replaceIntent(nudgeId, targetId);
     }
 

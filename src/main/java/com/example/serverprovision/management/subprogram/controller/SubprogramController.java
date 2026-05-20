@@ -61,6 +61,7 @@ public class SubprogramController {
     private final BoardModelService boardModelService;
     private final DirectoryBrowseService directoryBrowseService;
     private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
+    private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
     /* ─────────────────────────── 메인 페이지 ─────────────────────────── */
 
@@ -300,7 +301,11 @@ public class SubprogramController {
     @PostMapping("/nudge/{nudgeId}/replace")
     @ResponseBody
     public ResponseEntity<Void> nudgeReplace(@PathVariable("nudgeId") UUID nudgeId,
-                                              @RequestParam("targetId") Long targetId) {
+                                              @RequestParam("targetId") Long targetId,
+                                              @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, targetId, typedName);
+        }
         subprogramNudgeService.replace(nudgeId, targetId);
         return ResponseEntity.noContent().build();
     }
@@ -325,7 +330,11 @@ public class SubprogramController {
     @ResponseBody
     public com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse intentNudgeReplace(
             @PathVariable("nudgeId") UUID nudgeId,
-            @RequestParam("targetId") Long targetId) {
+            @RequestParam("targetId") Long targetId,
+            @RequestParam(value = "typedName", required = false) String typedName) {
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, targetId, typedName);
+        }
         return subprogramNudgeService.replaceIntent(nudgeId, targetId);
     }
 

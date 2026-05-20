@@ -63,6 +63,7 @@ public class BiosController {
     private final BiosVerificationLauncher biosVerificationLauncher;
     private final DirectoryBrowseService directoryBrowseService;
     private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
+    private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
     // ==== 목록 ========================================================
 
@@ -285,7 +286,12 @@ public class BiosController {
     @PostMapping(path = "/nudge/{nudgeId}/replace")
     @ResponseBody
     public BiosUploadResponse nudgeReplace(@PathVariable("nudgeId") java.util.UUID nudgeId,
-                                           @RequestParam("targetId") Long targetId) {
+                                           @RequestParam("targetId") Long targetId,
+                                           @RequestParam(value = "typedName", required = false) String typedName) {
+        // S5-2-4 — nudge REPLACE 의 typed-name 검증. typedName 누락 시 점진 마이그레이션 (구 클라이언트 호환).
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE, targetId, typedName);
+        }
         Long id = biosNudgeService.replace(nudgeId, targetId);
         return new BiosUploadResponse(id, "/management/bios?selectId=" + id);
     }
@@ -312,7 +318,12 @@ public class BiosController {
     @ResponseBody
     public com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse intentNudgeReplace(
             @PathVariable("nudgeId") java.util.UUID nudgeId,
-            @RequestParam("targetId") Long targetId) {
+            @RequestParam("targetId") Long targetId,
+            @RequestParam(value = "typedName", required = false) String typedName) {
+        // S5-2-4 — intent nudge REPLACE 의 typed-name 검증.
+        if (typedName != null && !typedName.isBlank()) {
+            typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE, targetId, typedName);
+        }
         return biosNudgeService.replaceIntent(nudgeId, targetId);
     }
 
