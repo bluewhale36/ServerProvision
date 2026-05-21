@@ -21,7 +21,14 @@
     const detailPanels = miller.querySelectorAll('.n-miller-detail-panel');
     const emptyState = miller.querySelector('#millerEmpty');
 
-    const EMPTY_VERSION_MSG = '버전을 선택하여 상세 사항 보기';
+    // S5-5 — C3 안내 텍스트 2 상태. 도메인별로 data-empty-before / data-empty-after 가
+    // miller-empty element 에 박혀 있어 EMPTY_VERSION_MSG 단일 상수가 더 이상 적합하지 않다.
+    function emptyTextBefore() {
+        return (emptyState && emptyState.dataset.emptyBefore) || '';
+    }
+    function emptyTextAfter() {
+        return (emptyState && emptyState.dataset.emptyAfter) || '';
+    }
 
     // S5-4 — 미러 선택 시 URL querystring 도 동기화한다. '삭제된 항목 포함' 토글 같은
     // 다른 쿼리 변경 동작이 선택 상태를 자연스럽게 보존하도록 하는 것이 목적.
@@ -80,7 +87,8 @@
         });
         detailPanels.forEach(panel => panel.classList.remove('active'));
         if (emptyState) {
-            emptyState.textContent = EMPTY_VERSION_MSG;
+            // S5-5 — C1 선택 후의 C3 메시지로 전환.
+            emptyState.textContent = emptyTextAfter();
             emptyState.classList.remove('hidden');
         }
         // C1 선택은 C2 선택을 해제한다 → URL 의 selectId 제거.

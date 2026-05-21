@@ -81,4 +81,42 @@ class BiosControllerPurgeFlowTest {
                 .andExpect(content().string(containsString("data-include-deleted-toggle")))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
+
+    // S5-5 — 외부 우상단 + 신규 BIOS 등록 버튼이 보이는지 확인.
+    @Test
+    @DisplayName("GET /management/bios — 외부 우상단 '+ 신규 BIOS 등록' 버튼 노출")
+    void renders_external_register_button() throws Exception {
+        given(biosService.findAllGrouped(false)).willReturn(List.of());
+
+        mvc.perform(get("/management/bios"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("+ 신규 BIOS 등록")));
+    }
+
+    // S5-5 — boardId 없는 /new 진입점이 메인보드 선택 dropdown 을 노출.
+    @Test
+    @DisplayName("GET /management/bios/new — boardId 없는 진입 → 메인보드 선택 dropdown")
+    void renders_new_without_boardId() throws Exception {
+        given(boardModelService.findAllGrouped(false)).willReturn(List.of());
+
+        mvc.perform(get("/management/bios/new"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-bios-board-redirect")));
+    }
+
+    // S5-5 — /{boardId}/new 에 X-Requested-With 헤더 동봉 시 formCard fragment 만 반환 (nav / page-header 부재).
+    @Test
+    @DisplayName("GET /management/bios/{boardId}/new (XHR) — formCard fragment 만 반환, nav 부재")
+    void renders_form_fragment_for_ajax_request() throws Exception {
+        var board = new com.example.serverprovision.management.board.dto.response.BoardModelResponse(
+                3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE, "MS73-HB1",
+                "desc", 0, 0, true, false, false,
+                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE);
+        given(boardModelService.findById(3L)).willReturn(board);
+
+        mvc.perform(get("/management/bios/3/new").header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"biosForm\"")))
+                .andExpect(content().string(not(containsString("navbar"))));
+    }
 }

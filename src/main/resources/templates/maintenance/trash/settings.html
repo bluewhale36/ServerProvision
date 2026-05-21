@@ -24,7 +24,7 @@
         <h1 class="n-page-title">휴지통 운영 설정</h1>
         <div class="n-header-actions">
             <a th:href="@{/maintenance/trash}" class="n-back-link">← 휴지통으로</a>
-            <a th:href="@{/maintenance/trash/purge-log}" class="n-btn n-btn-secondary n-btn-sm">📋 감사 로그</a>
+            <a th:href="@{/maintenance/trash/purge-log}" class="n-btn n-btn-secondary n-btn-sm">감사 로그</a>
         </div>
     </div>
 
@@ -86,7 +86,7 @@
                         <option value="0 */10 * * * *">매 10분 (테스트용)</option>
                         <option value="0 0 0 * * *">매일 자정 (1일 1회)</option>
                         <option value="0 0 */6 * * *">6시간마다</option>
-                        <option value="__custom__">⚙ 직접 입력 (cron 식)</option>
+                        <option value="__custom__">직접 입력 (cron 식)</option>
                     </select>
                     <div class="n-hint">자동 영구삭제 후보를 점검하는 cron 주기예요. 대부분 '매시 정각' 으로 충분해요.</div>
 
@@ -110,7 +110,7 @@
                         <option value="0 */30 * * * *">매 30분</option>
                         <option value="0 0 0 * * *">매일 자정 (1일 1회)</option>
                         <option value="0 0 */6 * * *">6시간마다</option>
-                        <option value="__custom__">⚙ 직접 입력 (cron 식)</option>
+                        <option value="__custom__">직접 입력 (cron 식)</option>
                     </select>
                     <div class="n-hint">TTL 임박 자원을 작업 조회 아이콘에 알림으로 등록하는 주기예요.</div>
 
@@ -141,7 +141,7 @@
                 <!-- ⑥ 고급 설정 — retry 정책 접기 -->
                 <details class="n-form-group" style="border: 1px solid var(--n-border, #d0d7de); border-radius: 6px; padding: 12px 14px;">
                     <summary style="cursor: pointer; font-weight: 600; color: var(--n-text-muted, #57606a); font-size: 13px;">
-                        ⚙ 고급 설정 (retry 정책)
+                        고급 설정 (retry 정책)
                     </summary>
                     <div style="margin-top: 14px;">
                         <p class="n-hint" style="margin-bottom: 12px;">

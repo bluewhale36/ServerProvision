@@ -8,7 +8,8 @@
    verify 버튼 클릭 / bgjob 후처리는 bios-list.js 가 처리 (data-subprogram-id 추가).
    ============================================================ */
 (function () {
-    const EMPTY_VERSION_MSG = '버전을 선택하여 상세 사항 보기';
+    // S5-5 — C3 안내 텍스트 2 상태. 각 미러의 miller-empty 가 data-empty-before / data-empty-after
+    // 를 보유 (kindDisplayName 으로 합성된 텍스트). 단일 상수 EMPTY_VERSION_MSG 는 더 이상 적합하지 않음.
 
     // S5-4 — '삭제된 항목 포함' 같은 다른 쿼리 토글이 선택 상태를 보존하도록
     // 미러 선택을 URL querystring 에 반영한다.
@@ -46,7 +47,8 @@
             });
             detailPanels.forEach(panel => panel.classList.remove('active'));
             if (emptyState) {
-                emptyState.textContent = EMPTY_VERSION_MSG;
+                // S5-5 — C1 선택 후의 C3 메시지로 전환.
+                emptyState.textContent = emptyState.dataset.emptyAfter || '';
                 emptyState.classList.remove('hidden');
             }
             // C1 선택 → URL : selectKind = 본 미러 kind, selectKey = scope, selectId 제거.

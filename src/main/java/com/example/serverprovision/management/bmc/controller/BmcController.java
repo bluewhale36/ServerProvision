@@ -78,10 +78,27 @@ public class BmcController {
     }
 
     @GetMapping("/{boardId}/new")
-    public String newForm(@PathVariable("boardId") Long boardId, Model model) {
+    public String newForm(@PathVariable("boardId") Long boardId,
+                          // S5-5 — AJAX (XMLHttpRequest) 진입 시 formCard fragment 반환.
+                          @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                          Model model) {
         BoardModelResponse board = boardModelService.findById(boardId);
         model.addAttribute("bmcForm", new BmcCreateRequest("", "", "", "", false, ""));
         populateFormContext(model, boardId, null, board);
+        boolean ajax = "XMLHttpRequest".equalsIgnoreCase(requestedWith);
+        return ajax ? "management/bmc/bmc-new :: formCard" : "management/bmc/bmc-new";
+    }
+
+    /**
+     * S5-5 — 외부 우상단 "+ 신규 BMC 등록" 진입점. boardId 미지정 진입에서는
+     * 메인보드 모델 선택 단계를 먼저 보여주고, 선택 시 {@code /{boardId}/new} 로 redirect 한다.
+     */
+    @GetMapping("/new")
+    public String newFormWithoutBoard(Model model) {
+        model.addAttribute("bmcForm", new BmcCreateRequest("", "", "", "", false, ""));
+        model.addAttribute("boardId", null);
+        model.addAttribute("contextLabel", null);
+        model.addAttribute("vendorGroups", boardModelService.findAllGrouped(false));
         return "management/bmc/bmc-new";
     }
 

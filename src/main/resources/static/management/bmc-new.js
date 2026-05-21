@@ -6,8 +6,13 @@
 (function () {
     const TAG = '[bmc-new]';
 
+    // S5-5 — 외부 우상단 '+ 신규 BMC 등록' 진입 시 폼이 AJAX 로 동적 삽입되므로
+    // init() 으로 본체를 분리. idempotent 가드로 동일 form 중복 바인딩 방지.
+    function init() {
     const form = document.getElementById('bmcForm');
     if (!form) return;
+    if (form.dataset.bmcNewBound === '1') return;
+    form.dataset.bmcNewBound = '1';
     const shell = window.BundleUploadShell;
     if (!shell) return;
 
@@ -519,5 +524,13 @@
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#39;');
+    }
+    }  // end init()
+
+    window.BmcNewForm = { init: init };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
 })();

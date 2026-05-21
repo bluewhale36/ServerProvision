@@ -43,7 +43,7 @@
         <div class="n-subprogram-section-header">
             <h2 class="n-subprogram-section-title">Driver</h2>
             <div class="n-subprogram-section-actions">
-                <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ Driver 등록</a>
+                <!-- S5-5 — 체크박스를 외부 + 등록 버튼의 왼편으로 swap. -->
                 <!-- S5-4 — 토글 시 selectKind / selectId 등 다른 querystring 보존. -->
                 <label class="n-checkbox">
                     <input type="checkbox"
@@ -51,6 +51,7 @@
                            data-include-deleted-toggle>
                     삭제된 항목 포함
                 </label>
+                <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ 신규 드라이버 등록</a>
             </div>
         </div>
         <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null}, ${selectKind != null and selectKind.name() == 'DRIVER' ? selectKey : null})}"></div>
@@ -60,7 +61,7 @@
         <div class="n-subprogram-section-header">
             <h2 class="n-subprogram-section-title">Utility</h2>
             <div class="n-subprogram-section-actions">
-                <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ Utility 등록</a>
+                <!-- S5-5 — 체크박스를 외부 + 등록 버튼의 왼편으로 swap. -->
                 <!-- S5-4 — 토글 시 selectKind / selectId 등 다른 querystring 보존. -->
                 <label class="n-checkbox">
                     <input type="checkbox"
@@ -68,6 +69,7 @@
                            data-include-deleted-toggle>
                     삭제된 항목 포함
                 </label>
+                <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ 신규 유틸리티 등록</a>
             </div>
         </div>
         <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${utilityGroups}, 'utility', '유틸리티', 'utilityMiller', ${selectKind != null and selectKind.name() == 'UTILITY' ? selectId : null}, ${selectKind != null and selectKind.name() == 'UTILITY' ? selectKey : null})}"></div>

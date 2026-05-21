@@ -37,6 +37,9 @@
                        data-include-deleted-toggle>
                 삭제된 항목 포함
             </label>
+            <!-- S5-5 — 외부 우상단 + 신규 BIOS 등록. boardId 없는 진입점이라 폼에서 board 선택 단계. -->
+            <a th:href="@{/management/bios/new}"
+               class="n-btn n-btn-primary">+ 신규 BIOS 등록</a>
         </div>
     </div>
 
@@ -123,7 +126,11 @@
 
         <!-- C3 : 선택된 BIOS 상세 -->
         <div class="n-miller-col n-miller-col-detail">
-            <div class="n-miller-empty" id="millerEmpty">BIOS 를 선택하여 상세 사항 보기</div>
+            <!-- S5-5 — C3 안내 텍스트 2 상태. -->
+            <div class="n-miller-empty" id="millerEmpty"
+                 data-empty-before="메인보드 모델을 선택하여 버전 보기"
+                 data-empty-after="버전을 선택하여 상세 보기"
+                 th:text="${selectBoardId != null or selectId != null} ? '버전을 선택하여 상세 보기' : '메인보드 모델을 선택하여 버전 보기'">메인보드 모델을 선택하여 버전 보기</div>
 
             <th:block th:each="board : ${boards}">
                 <div th:each="bios : ${board.biosList}"

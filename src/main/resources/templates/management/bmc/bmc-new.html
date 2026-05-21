@@ -16,7 +16,35 @@
         </div>
     </div>
 
-    <div class="n-card">
+    <!-- S5-5 — /new 진입 (boardId 미지정) 의 board picker 카드. picker 는 항상 가시 상태를 유지해
+         사용자가 board 를 바꿔가며 폼을 재로딩 할 수 있게 한다. -->
+    <div class="n-card" th:if="${boardId == null}">
+        <div class="n-card-body">
+            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+                BMC 펌웨어를 등록할 메인보드 모델을 선택하세요.
+            </div>
+            <div class="n-form-group">
+                <label class="n-label strong" for="boardSelector">메인보드 모델</label>
+                <select id="boardSelector" class="n-select" data-bmc-board-redirect>
+                    <option value="">— 메인보드 모델 선택 —</option>
+                    <th:block th:each="vg : ${vendorGroups}">
+                        <optgroup th:label="${vg.displayName}">
+                            <option th:each="b : ${vg.items}"
+                                    th:value="${b.id}"
+                                    th:text="${b.modelName}"></option>
+                        </optgroup>
+                    </th:block>
+                </select>
+                <div class="n-hint">선택 즉시 아래에 해당 모델의 BMC 펌웨어 등록 폼이 표시됩니다. 보드를 다시 바꿀 수 있어요.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- S5-5 — AJAX 로 폼 카드가 주입되는 슬롯. /new 모드에서만 존재. -->
+    <div id="formCardSlot" th:if="${boardId == null}"></div>
+
+    <!-- S5-5 — 폼 카드 fragment. /{boardId}/new 직접 진입 시 inline 으로, AJAX 시 본 fragment 만 응답. -->
+    <div class="n-card" th:if="${boardId != null}" th:fragment="formCard">
         <div class="n-card-body">
             <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
                 대상 보드 : <strong th:text="${contextLabel}"></strong>
@@ -162,7 +190,34 @@
     </div>
 </div>
 
-<!-- MK2 — nudge confirm modal (단계 B 충돌 시 표시) -->
+<!-- S5-5 — board select 드롭다운에서 AJAX fetch + inject + init() 호출. /new 모드에만 필요. -->
+<script th:if="${boardId == null}">
+    document.getElementById('boardSelector').addEventListener('change', async function () {
+        const boardId = this.value;
+        if (!boardId) {
+            document.getElementById('formCardSlot').innerHTML = '';
+            return;
+        }
+        try {
+            const resp = await fetch('/management/bmc/' + encodeURIComponent(boardId) + '/new', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!resp.ok) {
+                console.error('[bmc-new] form fetch failed:', resp.status);
+                return;
+            }
+            const html = await resp.text();
+            document.getElementById('formCardSlot').innerHTML = html;
+            if (window.BmcNewForm && window.BmcNewForm.init) {
+                window.BmcNewForm.init();
+            }
+        } catch (err) {
+            console.error('[bmc-new] form fetch error:', err);
+        }
+    });
+</script>
+
+<!-- S5-5 — nudge modal + 업로드 script 는 두 모드 모두에서 로드 (동적 inject 폼도 동일 script 사용). -->
 <div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', @{/management/bmc/nudge})}"></div>
 
 <script th:src="@{/management/common/bundle-upload-bootstrap.js}"></script>

@@ -32,7 +32,7 @@
                 삭제된 항목 포함
             </label>
             <a th:href="@{/management/os/new}"
-               class="n-btn n-btn-primary">OS 버전 등록</a>
+               class="n-btn n-btn-primary">+ 신규 OS 버전 등록</a>
         </div>
     </div>
 
@@ -83,12 +83,21 @@
                           th:classappend="${os.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
                           th:text="${os.isEnabled} ? '활성화' : '비활성화'">활성화</span>
                 </button>
+                <!-- S5-5 — C2 내부 + 등록 버튼 (C1 선택 시에만 active 패널에서 가시). -->
+                <div style="padding: 8px 12px;">
+                    <a th:href="@{/management/os/new}"
+                       class="n-btn n-btn-sm n-btn-primary" style="width: 100%;">+ OS 버전 등록</a>
+                </div>
             </div>
         </div>
 
         <!-- C3 : 선택된 OSImage 상세 (JS 가 active 토글) -->
         <div class="n-miller-col n-miller-col-detail">
-            <div class="n-miller-empty" id="millerEmpty">OS 를 선택하여 상세 사항 보기</div>
+            <!-- S5-5 — C3 안내 텍스트 2 상태. JS 가 C1 선택 시 textContent 를 data-empty-after 로 교체. -->
+            <div class="n-miller-empty" id="millerEmpty"
+                 data-empty-before="OS 이름을 선택하여 버전 보기"
+                 data-empty-after="버전을 선택하여 상세 보기"
+                 th:text="${selectKey != null or selectId != null} ? '버전을 선택하여 상세 보기' : 'OS 이름을 선택하여 버전 보기'">OS 이름을 선택하여 버전 보기</div>
 
             <th:block th:each="group : ${osGroups}">
                 <div th:each="os : ${group.items}"

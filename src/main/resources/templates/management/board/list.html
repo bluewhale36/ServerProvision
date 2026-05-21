@@ -33,7 +33,7 @@
                 삭제된 항목 포함
             </label>
             <a th:href="@{/management/board/new}"
-               class="n-btn n-btn-primary">신규 모델 등록</a>
+               class="n-btn n-btn-primary">+ 신규 메인보드 모델 등록</a>
         </div>
     </div>
 
@@ -85,12 +85,21 @@
                           th:classappend="${board.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
                           th:text="${board.isEnabled} ? '활성화' : '비활성화'">활성화</span>
                 </button>
+                <!-- S5-5 — C2 내부 + 등록 버튼. -->
+                <div style="padding: 8px 12px;">
+                    <a th:href="@{/management/board/new}"
+                       class="n-btn n-btn-sm n-btn-primary" style="width: 100%;">+ 메인보드 모델 등록</a>
+                </div>
             </div>
         </div>
 
         <!-- C3 : 선택된 BoardModel 상세 -->
         <div class="n-miller-col n-miller-col-detail">
-            <div class="n-miller-empty" id="millerEmpty">메인보드 모델을 선택하여 상세 사항 보기</div>
+            <!-- S5-5 — C3 안내 텍스트 2 상태. -->
+            <div class="n-miller-empty" id="millerEmpty"
+                 data-empty-before="제조사를 선택하여 모델 보기"
+                 data-empty-after="모델을 선택하여 상세 보기"
+                 th:text="${selectKey != null or selectId != null} ? '모델을 선택하여 상세 보기' : '제조사를 선택하여 모델 보기'">제조사를 선택하여 모델 보기</div>
 
             <th:block th:each="group : ${boardGroups}">
                 <div th:each="board : ${group.items}"

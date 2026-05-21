@@ -23,7 +23,7 @@
         <h1 class="n-page-title">영구삭제 감사 로그</h1>
         <div class="n-header-actions">
             <a th:href="@{/maintenance/trash}" class="n-back-link">← 휴지통으로</a>
-            <a th:href="@{/maintenance/trash/settings}" class="n-btn n-btn-secondary n-btn-sm">⚙️ 운영 설정</a>
+            <a th:href="@{/maintenance/trash/settings}" class="n-btn n-btn-secondary n-btn-sm">운영 설정</a>
             <form th:action="@{/maintenance/trash/retry-failed}" method="post" style="display: inline;">
                 <button type="submit" class="n-btn n-btn-outline-info n-btn-sm">실패 자원 재시도</button>
             </form>

@@ -20,7 +20,8 @@
      th:data-initial-select-key="${selectKey}">
 
     <div class="n-miller-col n-miller-col-names">
-        <div class="n-miller-col-header" th:text="${kindDisplayName} + ' 분류'">분류</div>
+        <!-- S5-5 — 헤더를 '메인보드 모델' 로 통일. C1 의 실제 의미는 board scope. -->
+        <div class="n-miller-col-header">메인보드 모델</div>
 
         <button th:each="group : ${groups}"
                 type="button"
@@ -40,7 +41,8 @@
     </div>
 
     <div class="n-miller-col n-miller-col-versions">
-        <div class="n-miller-col-header">버전</div>
+        <!-- S5-5 — 헤더를 kindDisplayName ('드라이버' / '유틸리티') 로 통일. -->
+        <div class="n-miller-col-header" th:text="${kindDisplayName}">버전</div>
         <div th:each="group : ${groups}"
              class="n-miller-version-panel"
              th:data-os-key="${group.commonScope ? 'common' : group.boardId}">
@@ -77,7 +79,11 @@
     </div>
 
     <div class="n-miller-col n-miller-col-detail">
-        <div class="n-miller-empty">자원을 선택하여 상세 사항 보기</div>
+        <!-- S5-5 — C3 안내 텍스트 2 상태. kindDisplayName ('드라이버' / '유틸리티') 로 메시지 합성. -->
+        <div class="n-miller-empty"
+             th:data-empty-before="|메인보드 모델을 선택하여 ${kindDisplayName} 보기|"
+             th:data-empty-after="|${kindDisplayName}를 선택하여 상세 보기|"
+             th:text="${selectId != null or selectKey != null} ? |${kindDisplayName}를 선택하여 상세 보기| : |메인보드 모델을 선택하여 ${kindDisplayName} 보기|">자원을 선택하여 상세 사항 보기</div>
 
         <th:block th:each="group : ${groups}">
             <div th:each="sp : ${group.items}"

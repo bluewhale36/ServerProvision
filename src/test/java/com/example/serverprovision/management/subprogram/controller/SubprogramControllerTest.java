@@ -68,6 +68,22 @@ class SubprogramControllerTest {
                 .andExpect(view().name("management/subprogram/list"));
     }
 
+    // S5-5 — 미러 헤더가 통일 텍스트 사용 + 기존 '드라이버 분류' 어휘 부재.
+    @Test
+    @DisplayName("GET /management/subprogram — 미러 헤더가 '메인보드 모델' / '드라이버' / '유틸리티' 로 통일 + '드라이버 분류' 부재")
+    void miller_headers_use_unified_text() throws Exception {
+        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, false)).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, false)).willReturn(List.of());
+
+        mvc.perform(get("/management/subprogram"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("메인보드 모델")))
+                .andExpect(content().string(containsString("드라이버")))
+                .andExpect(content().string(containsString("유틸리티")))
+                .andExpect(content().string(not(containsString("드라이버 분류"))))
+                .andExpect(content().string(not(containsString("유틸리티 분류"))));
+    }
+
     // S5-4 — Driver / Utility 두 섹션 모두 data-include-deleted-toggle 마커 + inline onchange 부재.
     @Test
     @DisplayName("GET /management/subprogram — 2 체크박스 (Driver / Utility) 모두 data-include-deleted-toggle 마커 + inline onchange 부재")

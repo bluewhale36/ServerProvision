@@ -9,8 +9,14 @@
     const TAG = '[bios-new]';
     console.log(TAG, 'script loaded');
 
+    // S5-5 — 외부 우상단 '+ 신규 BIOS 등록' 진입 시 폼이 AJAX 로 동적 삽입되므로,
+    // 스크립트 본체를 init() 으로 분리해 (a) DOMContentLoaded 시점 + (b) 폼 주입 후 호출 둘 다 지원.
+    // idempotent 가드 : 동일 form 인스턴스에 중복 바인딩 방지.
+    function init() {
     const form = document.getElementById('biosForm');
     if (!form) return;
+    if (form.dataset.biosNewBound === '1') return;
+    form.dataset.biosNewBound = '1';
     const shell = window.BundleUploadShell;
     if (!shell) return;
 
@@ -690,5 +696,12 @@
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#39;');
     }
+    }  // end init()
 
+    window.BiosNewForm = { init: init };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();

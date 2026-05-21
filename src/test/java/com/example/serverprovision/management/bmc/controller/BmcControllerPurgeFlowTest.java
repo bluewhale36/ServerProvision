@@ -81,4 +81,26 @@ class BmcControllerPurgeFlowTest {
                 .andExpect(content().string(containsString("data-include-deleted-toggle")))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
+
+    // S5-5 — 외부 우상단 + 신규 BMC 등록 버튼 노출.
+    @Test
+    @DisplayName("GET /management/bmc — 외부 우상단 '+ 신규 BMC 등록' 버튼 노출")
+    void renders_external_register_button() throws Exception {
+        given(bmcService.findAllGrouped(false)).willReturn(List.of());
+
+        mvc.perform(get("/management/bmc"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("+ 신규 BMC 등록")));
+    }
+
+    // S5-5 — boardId 없는 /new 진입점이 메인보드 선택 dropdown 을 노출.
+    @Test
+    @DisplayName("GET /management/bmc/new — boardId 없는 진입 → 메인보드 선택 dropdown")
+    void renders_new_without_boardId() throws Exception {
+        given(boardModelService.findAllGrouped(false)).willReturn(List.of());
+
+        mvc.perform(get("/management/bmc/new"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-bmc-board-redirect")));
+    }
 }

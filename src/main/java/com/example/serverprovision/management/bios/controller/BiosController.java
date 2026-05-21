@@ -84,10 +84,29 @@ public class BiosController {
     // ==== 신규 번들 등록 ===============================================
 
     @GetMapping("/{boardId}/new")
-    public String newForm(@PathVariable("boardId") Long boardId, Model model) {
+    public String newForm(@PathVariable("boardId") Long boardId,
+                          // S5-5 — 외부 진입 (/new) 의 board select 가 AJAX 로 본 endpoint 를 호출.
+                          // X-Requested-With=XMLHttpRequest 헤더 시 fragment 만 반환, 직접 진입 시 풀 페이지.
+                          @RequestHeader(value = "X-Requested-With", required = false) String requestedWith,
+                          Model model) {
         BoardModelResponse board = boardModelService.findById(boardId);
         model.addAttribute("biosForm", new BiosCreateRequest("", "", "", "", false, ""));
         populateFormContext(model, boardId, null, board);
+        boolean ajax = "XMLHttpRequest".equalsIgnoreCase(requestedWith);
+        return ajax ? "management/bios/bios-new :: formCard" : "management/bios/bios-new";
+    }
+
+    /**
+     * S5-5 — 외부 우상단 "+ 신규 BIOS 등록" 진입점. boardId 미지정 진입에서는
+     * 메인보드 모델 선택 단계를 먼저 보여주고, 선택 시 {@code /{boardId}/new} 로 redirect 한다.
+     * 기존 {@link #newForm(Long, Model)} 와는 별개의 진입 경로.
+     */
+    @GetMapping("/new")
+    public String newFormWithoutBoard(Model model) {
+        model.addAttribute("biosForm", new BiosCreateRequest("", "", "", "", false, ""));
+        model.addAttribute("boardId", null);
+        model.addAttribute("contextLabel", null);
+        model.addAttribute("vendorGroups", boardModelService.findAllGrouped(false));
         return "management/bios/bios-new";
     }
 
