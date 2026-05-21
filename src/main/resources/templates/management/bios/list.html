@@ -108,7 +108,8 @@
                         <span th:if="${bios.isDeprecated and !bios.isDeleted}"
                               class="n-deprecated-dot"
                               title="Deprecated"></span>
-                        <span th:if="${bios.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                        <span th:if="${bios.isDeleted}"
+                              style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
                     </span>
                     <span th:unless="${bios.isDeleted}"
                           class="n-miller-status-tag"
@@ -130,7 +131,9 @@
             <div class="n-miller-empty" id="millerEmpty"
                  data-empty-before="메인보드 모델을 선택하여 버전 보기"
                  data-empty-after="버전을 선택하여 상세 보기"
-                 th:text="${selectBoardId != null or selectId != null} ? '버전을 선택하여 상세 보기' : '메인보드 모델을 선택하여 버전 보기'">메인보드 모델을 선택하여 버전 보기</div>
+                 th:text="${selectBoardId != null or selectId != null} ? '버전을 선택하여 상세 보기' : '메인보드 모델을 선택하여 버전 보기'">메인보드
+                모델을 선택하여 버전 보기
+            </div>
 
             <th:block th:each="board : ${boards}">
                 <div th:each="bios : ${board.biosList}"

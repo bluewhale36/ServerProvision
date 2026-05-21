@@ -6,17 +6,7 @@ import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -45,133 +35,137 @@ import java.time.Instant;
 @SuperBuilder
 public class Subprogram extends LifecycleEntity implements Markable {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "kind", nullable = false, length = 16, updatable = false)
-    private SubprogramKind kind;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "kind", nullable = false, length = 16, updatable = false)
+	private SubprogramKind kind;
 
-    /**
-     * {@code null} 이면 공용 자원.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "board_model_id")
-    private BoardModel boardModel;
+	/**
+	 * {@code null} 이면 공용 자원.
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@OnDelete(action = OnDeleteAction.CASCADE)
+	@JoinColumn(name = "board_model_id")
+	private BoardModel boardModel;
 
-    @Column(name = "name", nullable = false, length = 128)
-    private String name;
+	@Column(name = "name", nullable = false, length = 128)
+	private String name;
 
-    @Column(name = "version", nullable = false, length = 64)
-    private String version;
+	@Column(name = "version", nullable = false, length = 64)
+	private String version;
 
-    @Column(name = "tree_root_path", nullable = false, length = 1024)
-    private String treeRootPath;
+	@Column(name = "tree_root_path", nullable = false, length = 1024)
+	private String treeRootPath;
 
-    /**
-     * 등록 시점에는 {@code null}. 사용자가 편집 화면에서 명시 입력 (MA5-D5).
-     */
-    @Column(name = "entrypoint_relative_path", length = 512)
-    private String entrypointRelativePath;
+	/**
+	 * 등록 시점에는 {@code null}. 사용자가 편집 화면에서 명시 입력 (MA5-D5).
+	 */
+	@Column(name = "entrypoint_relative_path", length = 512)
+	private String entrypointRelativePath;
 
-    @Column(name = "manifest_hash", nullable = false, length = 64)
-    private String manifestHash;
+	@Column(name = "manifest_hash", nullable = false, length = 64)
+	private String manifestHash;
 
-    @Column(name = "marker_signature", length = 64)
-    private String markerSignature;
+	@Column(name = "marker_signature", length = 64)
+	private String markerSignature;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "last_integrity_status", nullable = false, length = 32)
-    @Builder.Default
-    private IntegrityStatus lastIntegrityStatus = IntegrityStatus.NOT_VERIFIED;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "last_integrity_status", nullable = false, length = 32)
+	@Builder.Default
+	private IntegrityStatus lastIntegrityStatus = IntegrityStatus.NOT_VERIFIED;
 
-    @Column(name = "last_verified_at")
-    private Instant lastVerifiedAt;
+	@Column(name = "last_verified_at")
+	private Instant lastVerifiedAt;
 
-    @Column(name = "description", length = 1024)
-    private String description;
+	@Column(name = "description", length = 1024)
+	private String description;
 
-    @Column(name = "file_count", nullable = false)
-    private int fileCount;
+	@Column(name = "file_count", nullable = false)
+	private int fileCount;
 
-    @Column(name = "total_bytes", nullable = false)
-    private long totalBytes;
+	@Column(name = "total_bytes", nullable = false)
+	private long totalBytes;
 
-    public void update(String name, String version, String description, String entrypointRelativePath) {
-        this.name = name;
-        this.version = version;
-        this.description = description;
-        this.entrypointRelativePath = blankToNull(entrypointRelativePath);
-    }
+	public void update(String name, String version, String description, String entrypointRelativePath) {
+		this.name = name;
+		this.version = version;
+		this.description = description;
+		this.entrypointRelativePath = blankToNull(entrypointRelativePath);
+	}
 
-    public void updateTreeRootPath(String treeRootPath) {
-        this.treeRootPath = treeRootPath;
-    }
+	public void updateTreeRootPath(String treeRootPath) {
+		this.treeRootPath = treeRootPath;
+	}
 
-    @Override
-    public void reissueMarker(String manifestHash, String markerSignature) {
-        this.manifestHash = manifestHash;
-        this.markerSignature = markerSignature;
-    }
+	@Override
+	public void reissueMarker(String manifestHash, String markerSignature) {
+		this.manifestHash = manifestHash;
+		this.markerSignature = markerSignature;
+	}
 
-    /** S5-2 — typed-name 검증 + modal 표시 기준. Subprogram 은 name 자체가 식별자. */
-    @Override
-    public String displayName() {
-        return name;
-    }
+	/**
+	 * S5-2 — typed-name 검증 + modal 표시 기준. Subprogram 은 name 자체가 식별자.
+	 */
+	@Override
+	public String displayName() {
+		return name;
+	}
 
-    /** S5-2-3-1 — 휴지통 위계 시각화용 부모 노출. null (공용 자원) 이면 부모 없음. */
-    @Override
-    public java.util.Optional<com.example.serverprovision.global.marker.Markable> getParentMarkable() {
-        return java.util.Optional.ofNullable(boardModel);
-    }
+	/**
+	 * S5-2-3-1 — 휴지통 위계 시각화용 부모 노출. null (공용 자원) 이면 부모 없음.
+	 */
+	@Override
+	public java.util.Optional<com.example.serverprovision.global.marker.Markable> getParentMarkable() {
+		return java.util.Optional.ofNullable(boardModel);
+	}
 
-    public void recordIntegritySnapshot(IntegrityStatus integrityStatus, Instant verifiedAt) {
-        this.lastIntegrityStatus = integrityStatus == null ? IntegrityStatus.NOT_VERIFIED : integrityStatus;
-        this.lastVerifiedAt = verifiedAt;
-    }
+	public void recordIntegritySnapshot(IntegrityStatus integrityStatus, Instant verifiedAt) {
+		this.lastIntegrityStatus = integrityStatus == null ? IntegrityStatus.NOT_VERIFIED : integrityStatus;
+		this.lastVerifiedAt = verifiedAt;
+	}
 
-    public boolean isCommonScope() {
-        return boardModel == null;
-    }
+	public boolean isCommonScope() {
+		return boardModel == null;
+	}
 
-    public Long getBoardId() {
-        return boardModel == null ? null : boardModel.getId();
-    }
+	public Long getBoardId() {
+		return boardModel == null ? null : boardModel.getId();
+	}
 
-    @Override
-    public Long getResourceId() {
-        return id;
-    }
+	@Override
+	public Long getResourceId() {
+		return id;
+	}
 
-    @Override
-    public ResourceType getResourceType() {
-        return ResourceType.SUBPROGRAM;
-    }
+	@Override
+	public ResourceType getResourceType() {
+		return ResourceType.SUBPROGRAM;
+	}
 
-    @Override
-    public Path getResourcePath() {
-        return Path.of(treeRootPath);
-    }
+	@Override
+	public Path getResourcePath() {
+		return Path.of(treeRootPath);
+	}
 
-    /* ─────────────── LifecycleEntity hooks ─────────────── */
+	/* ─────────────── LifecycleEntity hooks ─────────────── */
 
-    @Override
-    protected Long resourceId() {
-        return id;
-    }
+	@Override
+	protected Long resourceId() {
+		return id;
+	}
 
-    @Override
-    protected String resourceLabel() {
-        // Driver / Utility 어휘를 가드 메시지에 그대로 노출.
-        return kind == null ? "Subprogram" : kind.getDisplayName();
-    }
+	@Override
+	protected String resourceLabel() {
+		// Driver / Utility 어휘를 가드 메시지에 그대로 노출.
+		return kind == null ? "Subprogram" : kind.getDisplayName();
+	}
 
-    private static String blankToNull(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
+	private static String blankToNull(String value) {
+		if (value == null) return null;
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
+	}
 }

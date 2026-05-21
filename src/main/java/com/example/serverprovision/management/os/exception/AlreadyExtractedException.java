@@ -8,7 +8,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * 재추출이 필요하면 ISO 를 soft delete 한 후 다시 등록하거나 별도의 "재추출" 기능을 통해 명시적으로 수행해야 한다.
  */
 public class AlreadyExtractedException extends ConflictException {
-    public AlreadyExtractedException(Long isoId) {
-        super("이미 추출이 완료된 ISO 입니다. isoId=" + isoId);
-    }
+
+	public AlreadyExtractedException(Long isoId) {
+		super("이미 추출이 완료된 ISO 입니다. isoId=" + isoId);
+	}
 }

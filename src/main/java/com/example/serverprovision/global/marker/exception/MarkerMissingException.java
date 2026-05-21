@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class MarkerMissingException extends ConflictException {
 
-    public MarkerMissingException(String path) {
-        super("marker 파일 (.provision.json) 이 없습니다. 재발급이 필요합니다 : " + path);
-    }
+	public MarkerMissingException(String path) {
+		super("marker 파일 (.provision.json) 이 없습니다. 재발급이 필요합니다 : " + path);
+	}
 }

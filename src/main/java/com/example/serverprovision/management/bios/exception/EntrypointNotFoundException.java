@@ -7,7 +7,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * 단일 *.nsh)에 해당하는 파일이 없고 override 도 지정되지 않음.
  */
 public class EntrypointNotFoundException extends ConflictException {
-    public EntrypointNotFoundException(String message) {
-        super(message);
-    }
+
+	public EntrypointNotFoundException(String message) {
+		super(message);
+	}
 }

@@ -7,10 +7,12 @@ import jakarta.validation.constraints.NotBlank;
  * {@code allowCreateDirectory} 가 true 면 isoPath 상위 디렉토리가 없을 때 자동 생성한다.
  */
 public record ISOCreateRequest(
-        @NotBlank(message = "ISO 경로를 입력하세요.")
-        String isoPath,
+		@NotBlank(message = "ISO 경로를 입력하세요.")
+		String isoPath,
 
-        String description,
+		String description,
 
-        boolean allowCreateDirectory
-) {}
+		boolean allowCreateDirectory
+) {
+
+}

@@ -1,11 +1,7 @@
 package com.example.serverprovision.management.bios.dto.request;
 
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 /**
  * BIOS 번들 업로드 Intent 핸드셰이크 Request (XHR JSON).
@@ -15,29 +11,30 @@ import jakarta.validation.constraints.Size;
  */
 public record BiosUploadIntentRequest(
 
-        @NotBlank(message = "대상 디렉토리 경로를 입력해주세요.")
-        String targetDirectory,
+		@NotBlank(message = "대상 디렉토리 경로를 입력해주세요.")
+		String targetDirectory,
 
-        @NotNull(message = "업로드 방식을 지정해야 합니다.")
-        BiosUploadMode uploadMode,
+		@NotNull(message = "업로드 방식을 지정해야 합니다.")
+		BiosUploadMode uploadMode,
 
-        @Positive(message = "파일 수는 1 이상이어야 합니다.")
-        int fileCount,
+		@Positive(message = "파일 수는 1 이상이어야 합니다.")
+		int fileCount,
 
-        @PositiveOrZero(message = "총 바이트는 0 이상이어야 합니다.")
-        long totalBytes,
+		@PositiveOrZero(message = "총 바이트는 0 이상이어야 합니다.")
+		long totalBytes,
 
-        @NotBlank(message = "버전은 필수입니다.")
-        @Size(max = 64)
-        String version,
+		@NotBlank(message = "버전은 필수입니다.")
+		@Size(max = 64)
+		String version,
 
-        boolean allowCreateDirectory,
+		boolean allowCreateDirectory,
 
-        /**
-         * 진입점 override. Intent 단계에서는 서버 디렉토리가 아직 비어 있으므로 파일 실재 검증은 불가하지만,
-         * 빈 값이 아니면 "자동 탐지에 맡기지 않음" 의사 표시로 저장소에 기록해 둔다.
-         */
-        @Size(max = 512)
-        String entrypointRelativePath
+		/**
+		 * 진입점 override. Intent 단계에서는 서버 디렉토리가 아직 비어 있으므로 파일 실재 검증은 불가하지만,
+		 * 빈 값이 아니면 "자동 탐지에 맡기지 않음" 의사 표시로 저장소에 기록해 둔다.
+		 */
+		@Size(max = 512)
+		String entrypointRelativePath
 ) {
+
 }

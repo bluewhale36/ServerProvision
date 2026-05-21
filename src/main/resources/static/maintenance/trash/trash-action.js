@@ -19,11 +19,11 @@
             return;
         }
         ConfirmModal.openLazy(LAZY_URL, {
-            afterInject: ({ modal, confirmBtn }) => {
-                const titleEl   = modal.querySelector('[data-modal-title]');
+            afterInject: ({modal, confirmBtn}) => {
+                const titleEl = modal.querySelector('[data-modal-title]');
                 const messageEl = modal.querySelector('[data-modal-message]');
-                const hintEl    = modal.querySelector('[data-modal-hint]');
-                if (titleEl)   titleEl.textContent = opts.title || '알림';
+                const hintEl = modal.querySelector('[data-modal-hint]');
+                if (titleEl) titleEl.textContent = opts.title || '알림';
                 if (messageEl) messageEl.textContent = opts.message || '';
                 if (hintEl) {
                     if (opts.hint) {
@@ -42,7 +42,8 @@
                     if (typeof opts.onClose === 'function') opts.onClose();
                 };
             },
-            onConfirm: () => { /* close 후 cleanup 이 onClose 호출. */ }
+            onConfirm: () => { /* close 후 cleanup 이 onClose 호출. */
+            }
         });
     }
 
@@ -80,7 +81,9 @@
     }
 
     window.AsyncSubmitResult = {
-        onSuccess: () => { window.location.reload(); },
+        onSuccess: () => {
+            window.location.reload();
+        },
         onRejected: (_form, status, payload) => {
             openResult(describeRejection(status, payload));
         },

@@ -15,27 +15,26 @@ import com.example.serverprovision.global.marker.ResourceType;
  */
 public interface TypedNameVerifier {
 
-    /**
-     * 자원의 현재 {@code displayName()} 과 사용자가 입력한 typedName 이 일치하는지 검증.
-     * 불일치 시 {@link com.example.serverprovision.global.exception.TypedNameMismatchException} throw.
-     *
-     * <p>자원 lookup 위치는 진입경로에 따라 다르다 :
-     * <ul>
-     *   <li>USER_DIRECT (5 list 페이지) — 활성 자원 (scanner.findActiveMarkableById)</li>
-     *   <li>USER_DIRECT (휴지통 페이지) — 휴지통 자원 (scanner.findTrashedById)</li>
-     *   <li>NUDGE_REPLACE — 충돌 대상 자원 (nudge 가 지목한 targetId 의 활성 자원)</li>
-     * </ul>
-     * 진입경로별 분기는 호출측이 처리 — 본 인터페이스는 단순히 활성 + 휴지통 양쪽을 시도하는 default 동작.
-     */
-    void verify(ResourceType resourceType, Long resourceId, String typedName);
+	/**
+	 * 자원의 현재 {@code displayName()} 과 사용자가 입력한 typedName 이 일치하는지 검증.
+	 * 불일치 시 {@link com.example.serverprovision.global.exception.TypedNameMismatchException} throw.
+	 *
+	 * <p>자원 lookup 위치는 진입경로에 따라 다르다 :
+	 * <ul>
+	 *   <li>USER_DIRECT (5 list 페이지) — 활성 자원 (scanner.findActiveMarkableById)</li>
+	 *   <li>USER_DIRECT (휴지통 페이지) — 휴지통 자원 (scanner.findTrashedById)</li>
+	 *   <li>NUDGE_REPLACE — 충돌 대상 자원 (nudge 가 지목한 targetId 의 활성 자원)</li>
+	 * </ul>
+	 * 진입경로별 분기는 호출측이 처리 — 본 인터페이스는 단순히 활성 + 휴지통 양쪽을 시도하는 default 동작.
+	 */
+	void verify(ResourceType resourceType, Long resourceId, String typedName);
 
-    /**
-     * S5-6-1 — 자원의 현재 {@code displayName()} 만 조회. modal lazy-load 시 BE 가 expected value 를
-     * fragment 에 직접 렌더할 때 사용. {@link #verify(ResourceType, Long, String)} 와 lookup 경로 공유 :
-     * 활성 자원 → 휴지통 자원 순으로 시도, 둘 다 없으면 자원 부재.
-     *
-     * @throws com.example.serverprovision.global.ui.exception.ModalContextNotFoundException
-     *         자원 lookup 실패 (404 매핑)
-     */
-    String resolveExpectedName(ResourceType resourceType, Long resourceId);
+	/**
+	 * S5-6-1 — 자원의 현재 {@code displayName()} 만 조회. modal lazy-load 시 BE 가 expected value 를
+	 * fragment 에 직접 렌더할 때 사용. {@link #verify(ResourceType, Long, String)} 와 lookup 경로 공유 :
+	 * 활성 자원 → 휴지통 자원 순으로 시도, 둘 다 없으면 자원 부재.
+	 *
+	 * @throws com.example.serverprovision.global.ui.exception.ModalContextNotFoundException 자원 lookup 실패 (404 매핑)
+	 */
+	String resolveExpectedName(ResourceType resourceType, Long resourceId);
 }

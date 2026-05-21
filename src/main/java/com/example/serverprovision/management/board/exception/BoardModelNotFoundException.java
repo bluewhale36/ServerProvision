@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.NotFoundException;
  */
 public class BoardModelNotFoundException extends NotFoundException {
 
-    public BoardModelNotFoundException(Long id) {
-        super("메인보드 모델을 찾을 수 없습니다. id=" + id);
-    }
+	public BoardModelNotFoundException(Long id) {
+		super("메인보드 모델을 찾을 수 없습니다. id=" + id);
+	}
 }

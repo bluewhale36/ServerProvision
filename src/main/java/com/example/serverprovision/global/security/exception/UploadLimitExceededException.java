@@ -7,12 +7,12 @@ import org.springframework.http.HttpStatus;
  */
 public class UploadLimitExceededException extends SecurityException {
 
-    public UploadLimitExceededException(String reason) {
-        super("업로드 한도 초과 : " + reason);
-    }
+	public UploadLimitExceededException(String reason) {
+		super("업로드 한도 초과 : " + reason);
+	}
 
-    @Override
-    public HttpStatus httpStatus() {
-        return HttpStatus.PAYLOAD_TOO_LARGE;
-    }
+	@Override
+	public HttpStatus httpStatus() {
+		return HttpStatus.PAYLOAD_TOO_LARGE;
+	}
 }

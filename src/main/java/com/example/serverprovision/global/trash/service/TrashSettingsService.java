@@ -18,33 +18,53 @@ import java.util.Set;
  */
 public interface TrashSettingsService {
 
-    /** 현재 설정 응답. count==0 이면 default 시드 후 응답, count>=2 이면 첫 row + log.warn. */
-    TrashSettingsResponse current();
+	/**
+	 * 현재 설정 응답. count==0 이면 default 시드 후 응답, count>=2 이면 첫 row + log.warn.
+	 */
+	TrashSettingsResponse current();
 
-    /** 운영자 갱신. count!=1 이면 정리 후 갱신 적용 (CP4 본체에서 상세 정책). */
-    TrashSettingsResponse update(TrashSettingsRequest request);
+	/**
+	 * 운영자 갱신. count!=1 이면 정리 후 갱신 적용 (CP4 본체에서 상세 정책).
+	 */
+	TrashSettingsResponse update(TrashSettingsRequest request);
 
-    /** worker / executor 가 자주 호출하는 직접 접근 — TTL 계산용. */
-    Duration getTtl();
+	/**
+	 * worker / executor 가 자주 호출하는 직접 접근 — TTL 계산용.
+	 */
+	Duration getTtl();
 
-    /** TTL_AUTO 의 retry 정책. */
-    int getRetryMaxAttempts();
+	/**
+	 * TTL_AUTO 의 retry 정책.
+	 */
+	int getRetryMaxAttempts();
 
-    /** backoff base ms. */
-    long getRetryBackoffBaseMs();
+	/**
+	 * backoff base ms.
+	 */
+	long getRetryBackoffBaseMs();
 
-    /** auto_purge_enabled flag — TrashTtlWorker 가 cron 진입 직후 가드. */
-    boolean isAutoPurgeEnabled();
+	/**
+	 * auto_purge_enabled flag — TrashTtlWorker 가 cron 진입 직후 가드.
+	 */
+	boolean isAutoPurgeEnabled();
 
-    /** purge_cron_expression — Spring Scheduler 가 본 값을 cron 으로 사용. CP4 본체에서 동적 cron 어떻게 적용할지 결정. */
-    String getPurgeCronExpression();
+	/**
+	 * purge_cron_expression — Spring Scheduler 가 본 값을 cron 으로 사용. CP4 본체에서 동적 cron 어떻게 적용할지 결정.
+	 */
+	String getPurgeCronExpression();
 
-    /** notify_cron_expression. */
-    String getNotifyCronExpression();
+	/**
+	 * notify_cron_expression.
+	 */
+	String getNotifyCronExpression();
 
-    /** notify_days_before split → int 리스트. */
-    List<Integer> getNotifyDaysBeforeList();
+	/**
+	 * notify_days_before split → int 리스트.
+	 */
+	List<Integer> getNotifyDaysBeforeList();
 
-    /** notification_channels split → enum 셋. */
-    Set<NotifyChannel> getNotificationChannels();
+	/**
+	 * notification_channels split → enum 셋.
+	 */
+	Set<NotifyChannel> getNotificationChannels();
 }

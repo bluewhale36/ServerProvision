@@ -9,7 +9,7 @@ import com.example.serverprovision.management.os.enums.OSName;
  */
 public class DuplicateOSImageException extends ConflictException {
 
-    public DuplicateOSImageException(OSName osName, String osVersion) {
-        super("이미 등록된 OS 버전입니다. %s %s".formatted(osName.getDisplayName(), osVersion));
-    }
+	public DuplicateOSImageException(OSName osName, String osVersion) {
+		super("이미 등록된 OS 버전입니다. %s %s".formatted(osName.getDisplayName(), osVersion));
+	}
 }

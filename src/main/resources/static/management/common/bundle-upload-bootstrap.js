@@ -17,8 +17,11 @@
         } = opts;
 
         if (!uploadModeInput || !folderPane || !zipPane || !singlePane ||
-                !tabFolder || !tabZip || !tabSingle) {
-            return { setMode() {} };
+            !tabFolder || !tabZip || !tabSingle) {
+            return {
+                setMode() {
+                }
+            };
         }
 
         function clearIfPresent(control) {
@@ -59,7 +62,7 @@
         if (tabExisting) tabExisting.addEventListener('click', () => setMode('EXISTING_DIRECTORY'));
         setMode(uploadModeInput.value);
 
-        return { setMode };
+        return {setMode};
     }
 
     function bindDirectoryBrowse(opts) {
@@ -70,8 +73,11 @@
         } = opts;
 
         if (!browseBtn || !browsePanel || !browseCurrent || !browseStatus ||
-                !browseEntries || !browseUrl) {
-            return { loadDirectory: async function () {} };
+            !browseEntries || !browseUrl) {
+            return {
+                loadDirectory: async function () {
+                }
+            };
         }
         let browseCurrentPath = '/';
 
@@ -87,7 +93,9 @@
             }
         });
         if (browseCancelBtn) {
-            browseCancelBtn.addEventListener('click', () => { browsePanel.hidden = true; });
+            browseCancelBtn.addEventListener('click', () => {
+                browsePanel.hidden = true;
+            });
         }
         if (browseUpBtn) {
             browseUpBtn.addEventListener('click', () => {
@@ -118,8 +126,8 @@
             browseEntries.innerHTML = '';
             try {
                 const query = includeFiles ? `?path=${encodeURIComponent(pathStr)}&includeFiles=true`
-                                           : `?path=${encodeURIComponent(pathStr)}`;
-                const resp = await fetch(browseUrl + query, { headers: { 'Accept': 'application/json' } });
+                    : `?path=${encodeURIComponent(pathStr)}`;
+                const resp = await fetch(browseUrl + query, {headers: {'Accept': 'application/json'}});
                 if (!resp.ok) {
                     const body = await resp.json().catch(() => ({}));
                     browseStatus.textContent = '오류 : ' + (body.message || ('HTTP ' + resp.status));
@@ -138,8 +146,8 @@
                 }
                 renderEntries(data.entries || []);
                 const visibleCount = includeFiles
-                        ? (data.entries || []).length
-                        : (data.entries || []).filter(entry => entry.type === 'DIR').length;
+                    ? (data.entries || []).length
+                    : (data.entries || []).filter(entry => entry.type === 'DIR').length;
                 browseStatus.textContent = visibleCount + ' 개 항목';
             } catch (err) {
                 browseStatus.textContent = '요청 실패 : ' + err.message;
@@ -174,13 +182,17 @@
                         browsePanel.hidden = true;
                     }
                 });
-                li.addEventListener('mouseover', () => { li.style.background = '#f0f0f0'; });
-                li.addEventListener('mouseout', () => { li.style.background = ''; });
+                li.addEventListener('mouseover', () => {
+                    li.style.background = '#f0f0f0';
+                });
+                li.addEventListener('mouseout', () => {
+                    li.style.background = '';
+                });
                 browseEntries.appendChild(li);
             }
         }
 
-        return { loadDirectory };
+        return {loadDirectory};
     }
 
     window.BundleUploadBootstrap = {

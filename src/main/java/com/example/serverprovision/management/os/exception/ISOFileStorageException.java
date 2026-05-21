@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class ISOFileStorageException extends DomainException {
 
-    public ISOFileStorageException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public ISOFileStorageException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

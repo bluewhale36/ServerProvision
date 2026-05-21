@@ -7,8 +7,8 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class MarkerWriteFailedException extends DomainException {
 
-    public MarkerWriteFailedException(String message, Throwable cause) {
-        super(message);
-        initCause(cause);
-    }
+	public MarkerWriteFailedException(String message, Throwable cause) {
+		super(message);
+		initCause(cause);
+	}
 }

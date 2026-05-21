@@ -8,16 +8,17 @@ import java.util.Set;
  */
 public final class BundleFilePolicy {
 
-    private static final Set<String> IGNORED_FILENAMES = Set.of(
-            ".DS_Store",
-            "Thumbs.db"
-    );
+	private static final Set<String> IGNORED_FILENAMES = Set.of(
+			".DS_Store",
+			"Thumbs.db"
+	);
 
-    private BundleFilePolicy() {}
+	private BundleFilePolicy() {
+	}
 
-    public static boolean isIgnorable(Path path) {
-        return path != null
-                && path.getFileName() != null
-                && IGNORED_FILENAMES.contains(path.getFileName().toString());
-    }
+	public static boolean isIgnorable(Path path) {
+		return path != null
+				&& path.getFileName() != null
+				&& IGNORED_FILENAMES.contains(path.getFileName().toString());
+	}
 }

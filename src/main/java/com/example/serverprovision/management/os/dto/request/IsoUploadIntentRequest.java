@@ -18,22 +18,24 @@ import jakarta.validation.constraints.Pattern;
  * </ul>
  */
 public record IsoUploadIntentRequest(
-        @NotBlank String isoPath,
-        @NotBlank String filename,
-        @NotNull @Min(0) Long size,
-        boolean allowCreateDirectory,
+		@NotBlank String isoPath,
+		@NotBlank String filename,
+		@NotNull @Min(0) Long size,
+		boolean allowCreateDirectory,
 
-        /**
-         * MK2 WAVE 3 — client 가 Web Worker 로 미리 계산한 SHA-256 (소문자 hex 64자). 1차 intent 호출 시 null.
-         * server 는 단계 B (업로드 후) 에서 정식 SHA-256 재계산 후 본 값과 비교 → 불일치 시
-         * {@code IsoClientHashMismatchException} fail-fast (변조 / corruption 방어).
-         */
-        @Pattern(regexp = "^[0-9a-f]{64}$", message = "clientHash 는 64자 lowercase hex 여야 합니다.")
-        String clientHash
+		/**
+		 * MK2 WAVE 3 — client 가 Web Worker 로 미리 계산한 SHA-256 (소문자 hex 64자). 1차 intent 호출 시 null.
+		 * server 는 단계 B (업로드 후) 에서 정식 SHA-256 재계산 후 본 값과 비교 → 불일치 시
+		 * {@code IsoClientHashMismatchException} fail-fast (변조 / corruption 방어).
+		 */
+		@Pattern(regexp = "^[0-9a-f]{64}$", message = "clientHash 는 64자 lowercase hex 여야 합니다.")
+		String clientHash
 ) {
 
-    /** MK2 WAVE 3 — 1차 intent 호출 (hash 미동봉). */
-    public IsoUploadIntentRequest(String isoPath, String filename, Long size, boolean allowCreateDirectory) {
-        this(isoPath, filename, size, allowCreateDirectory, null);
-    }
+	/**
+	 * MK2 WAVE 3 — 1차 intent 호출 (hash 미동봉).
+	 */
+	public IsoUploadIntentRequest(String isoPath, String filename, Long size, boolean allowCreateDirectory) {
+		this(isoPath, filename, size, allowCreateDirectory, null);
+	}
 }

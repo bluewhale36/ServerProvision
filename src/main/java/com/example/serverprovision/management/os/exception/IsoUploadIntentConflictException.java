@@ -7,7 +7,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * 이 경우 실제 업로드 자체가 시작되지 않으므로 네트워크/디스크 낭비가 발생하지 않는다.
  */
 public class IsoUploadIntentConflictException extends ConflictException {
-    public IsoUploadIntentConflictException(String message) {
-        super(message);
-    }
+
+	public IsoUploadIntentConflictException(String message) {
+		super(message);
+	}
 }

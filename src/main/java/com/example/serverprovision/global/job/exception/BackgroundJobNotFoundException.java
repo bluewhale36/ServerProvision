@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.NotFoundException;
  */
 public class BackgroundJobNotFoundException extends NotFoundException {
 
-    public BackgroundJobNotFoundException(String jobId) {
-        super("배경 작업을 찾을 수 없습니다. jobId=" + jobId);
-    }
+	public BackgroundJobNotFoundException(String jobId) {
+		super("배경 작업을 찾을 수 없습니다. jobId=" + jobId);
+	}
 }

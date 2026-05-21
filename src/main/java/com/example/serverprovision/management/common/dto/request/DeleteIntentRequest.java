@@ -9,7 +9,8 @@ import jakarta.validation.constraints.NotNull;
  * @param action 사용자가 선택한 액션 (CORRECT_PATH_THEN_DELETE / FORCED_CLEAR)
  */
 public record DeleteIntentRequest(
-        @NotNull(message = "삭제 액션을 선택해주세요.")
-        DeleteAction action
+		@NotNull(message = "삭제 액션을 선택해주세요.")
+		DeleteAction action
 ) {
+
 }

@@ -16,17 +16,17 @@ import com.example.serverprovision.global.job.JobStage;
  */
 public enum IntegrityVerificationStage implements JobStage {
 
-    VERIFY_SIGNATURE("서명 검증"),
-    RECOMPUTE_HASH("해시 재계산");
+	VERIFY_SIGNATURE("서명 검증"),
+	RECOMPUTE_HASH("해시 재계산");
 
-    private final String label;
+	private final String label;
 
-    IntegrityVerificationStage(String label) {
-        this.label = label;
-    }
+	IntegrityVerificationStage(String label) {
+		this.label = label;
+	}
 
-    @Override
-    public String label() {
-        return label;
-    }
+	@Override
+	public String label() {
+		return label;
+	}
 }

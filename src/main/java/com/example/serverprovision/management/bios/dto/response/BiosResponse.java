@@ -10,19 +10,20 @@ import com.example.serverprovision.management.bios.vo.IntegrityStatus;
  * 전체 목록 렌더마다 모든 트리를 해시하는 비용을 피하기 위함.</p>
  */
 public record BiosResponse(
-        Long id,
-        Long boardId,
-        String name,
-        String version,
-        String treeRootPath,
-        String entrypointRelativePath,
-        String manifestHash,
-        int fileCount,
-        long totalBytes,
-        String description,
-        IntegrityStatus integrityStatus,
-        boolean isEnabled,
-        boolean isDeleted,
-        boolean isDeprecated
+		Long id,
+		Long boardId,
+		String name,
+		String version,
+		String treeRootPath,
+		String entrypointRelativePath,
+		String manifestHash,
+		int fileCount,
+		long totalBytes,
+		String description,
+		IntegrityStatus integrityStatus,
+		boolean isEnabled,
+		boolean isDeleted,
+		boolean isDeprecated
 ) {
+
 }

@@ -32,43 +32,45 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TypedNameVerifierImpl implements TypedNameVerifier {
 
-    private final List<MarkableScanner> scanners;
+	private final List<MarkableScanner> scanners;
 
-    private Map<ResourceType, MarkableScanner> scannerByType() {
-        return scanners.stream().collect(Collectors.toMap(MarkableScanner::supportedType, s -> s));
-    }
+	private Map<ResourceType, MarkableScanner> scannerByType() {
+		return scanners.stream().collect(Collectors.toMap(MarkableScanner::supportedType, s -> s));
+	}
 
-    @Override
-    public void verify(ResourceType resourceType, Long resourceId, String typedName) {
-        MarkableScanner scanner = scannerByType().get(resourceType);
-        if (scanner == null) {
-            throw new IllegalStateException("지원하지 않는 자원 종류 : " + resourceType);
-        }
-        Optional<Markable> resource = scanner.findActiveMarkableById(resourceId)
-                .or(() -> scanner.findTrashedById(resourceId));
-        if (resource.isEmpty()) {
-            // 자원 부재는 의도적으로 mismatch 로 응집 — UI 메시지 분기 회피.
-            throw new TypedNameMismatchException("(자원 부재)", typedName);
-        }
-        String expected = resource.get().displayName();
-        if (!expected.equals(typedName)) {
-            log.warn("[typed-name-verify] mismatch type={} id={} expected='{}' typed='{}'",
-                    resourceType, resourceId, expected, typedName);
-            throw new TypedNameMismatchException(expected, typedName);
-        }
-    }
+	@Override
+	public void verify(ResourceType resourceType, Long resourceId, String typedName) {
+		MarkableScanner scanner = scannerByType().get(resourceType);
+		if (scanner == null) {
+			throw new IllegalStateException("지원하지 않는 자원 종류 : " + resourceType);
+		}
+		Optional<Markable> resource = scanner.findActiveMarkableById(resourceId)
+				.or(() -> scanner.findTrashedById(resourceId));
+		if (resource.isEmpty()) {
+			// 자원 부재는 의도적으로 mismatch 로 응집 — UI 메시지 분기 회피.
+			throw new TypedNameMismatchException("(자원 부재)", typedName);
+		}
+		String expected = resource.get().displayName();
+		if (!expected.equals(typedName)) {
+			log.warn(
+					"[typed-name-verify] mismatch type={} id={} expected='{}' typed='{}'",
+					resourceType, resourceId, expected, typedName
+			);
+			throw new TypedNameMismatchException(expected, typedName);
+		}
+	}
 
-    @Override
-    public String resolveExpectedName(ResourceType resourceType, Long resourceId) {
-        MarkableScanner scanner = scannerByType().get(resourceType);
-        if (scanner == null) {
-            throw new IllegalStateException("지원하지 않는 자원 종류 : " + resourceType);
-        }
-        Optional<Markable> resource = scanner.findActiveMarkableById(resourceId)
-                .or(() -> scanner.findTrashedById(resourceId));
-        // verify() 와 달리 자원 부재는 명시 예외로 분리 — modal lazy-load 의 404 매핑.
-        return resource
-                .map(Markable::displayName)
-                .orElseThrow(() -> new ModalContextNotFoundException(resourceType, resourceId));
-    }
+	@Override
+	public String resolveExpectedName(ResourceType resourceType, Long resourceId) {
+		MarkableScanner scanner = scannerByType().get(resourceType);
+		if (scanner == null) {
+			throw new IllegalStateException("지원하지 않는 자원 종류 : " + resourceType);
+		}
+		Optional<Markable> resource = scanner.findActiveMarkableById(resourceId)
+				.or(() -> scanner.findTrashedById(resourceId));
+		// verify() 와 달리 자원 부재는 명시 예외로 분리 — modal lazy-load 의 404 매핑.
+		return resource
+				.map(Markable::displayName)
+				.orElseThrow(() -> new ModalContextNotFoundException(resourceType, resourceId));
+	}
 }

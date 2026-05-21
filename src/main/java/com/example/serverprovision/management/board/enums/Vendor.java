@@ -11,9 +11,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum Vendor {
 
-    GIGABYTE("Gigabyte"),
-    ASUS("Asus"),
-    FUJITSU("Fujitsu");
+	GIGABYTE("Gigabyte"),
+	ASUS("Asus"),
+	FUJITSU("Fujitsu");
 
-    private final String displayName;
+	private final String displayName;
 }

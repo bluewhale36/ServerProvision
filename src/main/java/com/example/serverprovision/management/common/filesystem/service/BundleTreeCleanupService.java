@@ -28,52 +28,62 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class BundleTreeCleanupService {
 
-    private final PathPolicyService pathPolicyService;
-    private final FileSystemSecurityProperties fileSystemSecurityProperties;
+	private final PathPolicyService pathPolicyService;
+	private final FileSystemSecurityProperties fileSystemSecurityProperties;
 
-    public void purgeExistingTree(Path treeRoot, String warnContext) {
-        if (treeRoot == null) return;
-        // S3.1 (A2) — allowed-roots 밖의 path 면 거절. DB 가 변형된 흔적을 그대로 walk + delete 하지 않는다.
-        try {
-            pathPolicyService.assertWritablePath(treeRoot.toString());
-        } catch (PathOutsideAllowedRootsException e) {
-            log.warn("[{}] purgeExistingTree 가드 거절 (allowed-roots 밖) — 작업 중단. path={}",
-                    warnContext, treeRoot);
-            throw e;
-        }
-        if (!Files.exists(treeRoot)) return;
-        // S3.1 (A3) — maxDepth 인자 명시로 무한 재귀 / 깊은 nested directory 방어.
-        try (Stream<Path> walker = Files.walk(treeRoot, fileSystemSecurityProperties.maxDepth())) {
-            walker.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException ignored) {
-                    // best-effort
-                }
-            });
-        } catch (IOException e) {
-            log.warn("[{}] 기존 트리 삭제 중 IO 문제 : {}", warnContext, treeRoot, e);
-        }
-    }
+	public void purgeExistingTree(Path treeRoot, String warnContext) {
+		if (treeRoot == null) return;
+		// S3.1 (A2) — allowed-roots 밖의 path 면 거절. DB 가 변형된 흔적을 그대로 walk + delete 하지 않는다.
+		try {
+			pathPolicyService.assertWritablePath(treeRoot.toString());
+		} catch (PathOutsideAllowedRootsException e) {
+			log.warn(
+					"[{}] purgeExistingTree 가드 거절 (allowed-roots 밖) — 작업 중단. path={}",
+					warnContext, treeRoot
+			);
+			throw e;
+		}
+		if (!Files.exists(treeRoot)) return;
+		// S3.1 (A3) — maxDepth 인자 명시로 무한 재귀 / 깊은 nested directory 방어.
+		try (Stream<Path> walker = Files.walk(treeRoot, fileSystemSecurityProperties.maxDepth())) {
+			walker.sorted(Comparator.reverseOrder()).forEach(path -> {
+				try {
+					Files.deleteIfExists(path);
+				} catch (IOException ignored) {
+					// best-effort
+				}
+			});
+		} catch (IOException e) {
+			log.warn("[{}] 기존 트리 삭제 중 IO 문제 : {}", warnContext, treeRoot, e);
+		}
+	}
 
-    public void cleanupFailedUpload(Path targetDir,
-                                    String warnContext,
-                                    String resourceLabel,
-                                    RuntimeException cause) {
-        try {
-            purgeExistingTree(targetDir, warnContext);
-            log.warn("[{}] 실패 후 대상 디렉토리 정리 완료. path={}, cause={}",
-                    resourceLabel, targetDir, cause.getMessage());
-        } catch (com.example.serverprovision.global.security.exception.PathOutsideAllowedRootsException
-                | com.example.serverprovision.global.security.exception.PathTraversalException
-                cleanupGuard) {
-            // S3.2 (K1) — 보안 가드 예외는 swallow 하지 않음. 가드 발동 사실이 호출자 / 사용자 응답에 도달.
-            log.warn("[{}] 실패 후 대상 디렉토리 정리에서 보안 가드 거절. path={}, cause={}",
-                    resourceLabel, targetDir, cleanupGuard.getMessage());
-            throw cleanupGuard;
-        } catch (RuntimeException cleanupError) {
-            log.warn("[{}] 실패 후 대상 디렉토리 정리 중 추가 오류. path={}, cleanupMsg={}",
-                    resourceLabel, targetDir, cleanupError.getMessage());
-        }
-    }
+	public void cleanupFailedUpload(
+			Path targetDir,
+			String warnContext,
+			String resourceLabel,
+			RuntimeException cause
+	) {
+		try {
+			purgeExistingTree(targetDir, warnContext);
+			log.warn(
+					"[{}] 실패 후 대상 디렉토리 정리 완료. path={}, cause={}",
+					resourceLabel, targetDir, cause.getMessage()
+			);
+		} catch (com.example.serverprovision.global.security.exception.PathOutsideAllowedRootsException
+		         | com.example.serverprovision.global.security.exception.PathTraversalException
+				cleanupGuard) {
+			// S3.2 (K1) — 보안 가드 예외는 swallow 하지 않음. 가드 발동 사실이 호출자 / 사용자 응답에 도달.
+			log.warn(
+					"[{}] 실패 후 대상 디렉토리 정리에서 보안 가드 거절. path={}, cause={}",
+					resourceLabel, targetDir, cleanupGuard.getMessage()
+			);
+			throw cleanupGuard;
+		} catch (RuntimeException cleanupError) {
+			log.warn(
+					"[{}] 실패 후 대상 디렉토리 정리 중 추가 오류. path={}, cleanupMsg={}",
+					resourceLabel, targetDir, cleanupError.getMessage()
+			);
+		}
+	}
 }

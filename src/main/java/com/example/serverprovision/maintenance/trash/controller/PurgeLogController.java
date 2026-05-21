@@ -27,30 +27,31 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class PurgeLogController {
 
-    private final PurgeLogService purgeLogService;
+	private final PurgeLogService purgeLogService;
 
-    @GetMapping
-    public String view(
-            @RequestParam(name = "resource_type", required = false) ResourceType resourceType,
-            @RequestParam(name = "origin", required = false) PurgeOrigin origin,
-            @RequestParam(name = "outcome", required = false) PurgeOutcome outcome,
-            @RequestParam(name = "from", required = false)
-                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(name = "to", required = false)
-                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-            Pageable pageable,
-            Model model) {
+	@GetMapping
+	public String view(
+			@RequestParam(name = "resource_type", required = false) ResourceType resourceType,
+			@RequestParam(name = "origin", required = false) PurgeOrigin origin,
+			@RequestParam(name = "outcome", required = false) PurgeOutcome outcome,
+			@RequestParam(name = "from", required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam(name = "to", required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+			Pageable pageable,
+			Model model
+	) {
 
-        Page<PurgeLogResponse> page = purgeLogService.findPage(resourceType, origin, outcome, from, to, pageable);
-        model.addAttribute("page", page);
-        model.addAttribute("filterResourceType", resourceType);
-        model.addAttribute("filterOrigin", origin);
-        model.addAttribute("filterOutcome", outcome);
-        model.addAttribute("filterFrom", from);
-        model.addAttribute("filterTo", to);
-        model.addAttribute("resourceTypes", ResourceType.values());
-        model.addAttribute("origins", PurgeOrigin.values());
-        model.addAttribute("outcomes", PurgeOutcome.values());
-        return "maintenance/trash/purge-log";
-    }
+		Page<PurgeLogResponse> page = purgeLogService.findPage(resourceType, origin, outcome, from, to, pageable);
+		model.addAttribute("page", page);
+		model.addAttribute("filterResourceType", resourceType);
+		model.addAttribute("filterOrigin", origin);
+		model.addAttribute("filterOutcome", outcome);
+		model.addAttribute("filterFrom", from);
+		model.addAttribute("filterTo", to);
+		model.addAttribute("resourceTypes", ResourceType.values());
+		model.addAttribute("origins", PurgeOrigin.values());
+		model.addAttribute("outcomes", PurgeOutcome.values());
+		return "maintenance/trash/purge-log";
+	}
 }

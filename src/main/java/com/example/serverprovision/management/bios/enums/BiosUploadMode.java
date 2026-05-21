@@ -12,7 +12,7 @@ package com.example.serverprovision.management.bios.enums;
  * Fujitsu iRMC 방식처럼 파일 업로드로 표현 불가한 vendor 는 향후 Execution 도메인에서 별도 bundle type 으로 분리 예정.
  */
 public enum BiosUploadMode {
-    FOLDER,
-    ZIP,
-    SINGLE_FILE
+	FOLDER,
+	ZIP,
+	SINGLE_FILE
 }

@@ -20,9 +20,9 @@ import java.util.Optional;
  */
 public interface TrashSettingsRepository extends JpaRepository<TrashSettings, Long> {
 
-    /**
-     * 가장 오래된 row 1개. count()==1 이면 곧 유일 row, &gt;=2 이면 가장 오래된 row 가 진실의 원천.
-     * id ASC 정렬 — count >=2 의 비정상 상태에서도 결정성 유지.
-     */
-    Optional<TrashSettings> findFirstByOrderByIdAsc();
+	/**
+	 * 가장 오래된 row 1개. count()==1 이면 곧 유일 row, &gt;=2 이면 가장 오래된 row 가 진실의 원천.
+	 * id ASC 정렬 — count >=2 의 비정상 상태에서도 결정성 유지.
+	 */
+	Optional<TrashSettings> findFirstByOrderByIdAsc();
 }

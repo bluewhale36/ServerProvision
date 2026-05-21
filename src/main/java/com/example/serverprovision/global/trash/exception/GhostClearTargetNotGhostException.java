@@ -9,9 +9,9 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class GhostClearTargetNotGhostException extends ConflictException {
 
-    public GhostClearTargetNotGhostException(String resourceTypeAndId) {
-        super("ghost 가 아닌 자원에는 정리 액션을 사용할 수 없습니다 — "
-                + resourceTypeAndId
-                + " · 활성 자원은 도메인 페이지에서, soft-deleted 자원은 휴지통에서 영구삭제하세요.");
-    }
+	public GhostClearTargetNotGhostException(String resourceTypeAndId) {
+		super("ghost 가 아닌 자원에는 정리 액션을 사용할 수 없습니다 — "
+					  + resourceTypeAndId
+					  + " · 활성 자원은 도메인 페이지에서, soft-deleted 자원은 휴지통에서 영구삭제하세요.");
+	}
 }

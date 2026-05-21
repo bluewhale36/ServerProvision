@@ -42,7 +42,7 @@
     // 페이지 로드 직후 엘리먼트를 사전 생성해 둔다 — 첫 bgjobToast 호출이 왔을 때
     // 이미 DOM 에 삽입되어 초기 스타일이 계산된 상태이므로 transition 이 확실하게 동작한다.
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', ensureEl, { once: true });
+        document.addEventListener('DOMContentLoaded', ensureEl, {once: true});
     } else {
         ensureEl();
     }
@@ -66,12 +66,12 @@
     const POLL_OPEN_MS = 500;
 
     const trigger = document.getElementById('bgjobTrigger');
-    const panel   = document.getElementById('bgjobPanel');
-    const dot     = document.getElementById('bgjobDot');
-    const list    = document.getElementById('bgjobList');
-    const empty   = document.getElementById('bgjobEmpty');
-    const count   = document.getElementById('bgjobCount');
-    const clear   = document.getElementById('bgjobClear');
+    const panel = document.getElementById('bgjobPanel');
+    const dot = document.getElementById('bgjobDot');
+    const list = document.getElementById('bgjobList');
+    const empty = document.getElementById('bgjobEmpty');
+    const count = document.getElementById('bgjobCount');
+    const clear = document.getElementById('bgjobClear');
 
     if (!trigger || !panel || !list || !empty || !count || !clear) return;
 
@@ -83,6 +83,7 @@
     //              (3) default
     const scriptEl = document.currentScript
         || document.querySelector('script[src*="background-jobs.js"]');
+
     function readIntAttr(name, fallback) {
         const sources = [scriptEl, document.documentElement];
         for (const src of sources) {
@@ -94,12 +95,13 @@
         }
         return fallback;
     }
-    const FAIL_THRESHOLD     = readIntAttr('data-bgjob-fail-threshold', 5);
-    const RELOAD_GRACE_MS    = readIntAttr('data-bgjob-fail-grace-ms', 1500);
+
+    const FAIL_THRESHOLD = readIntAttr('data-bgjob-fail-threshold', 5);
+    const RELOAD_GRACE_MS = readIntAttr('data-bgjob-fail-grace-ms', 1500);
     const RELOAD_LOOP_GUARD_MS = 30 * 1000; // 30초 내 직전 reload 가 있으면 보류
-    const RELOAD_TS_KEY      = 'bgjob:lastReloadAt';
-    const PERMA_NOTICE_MSG   = '서버와 연결이 끊어졌습니다. 잠시 후 다시 시도해주세요.';
-    const RELOAD_NOTICE_MSG  = '서버 응답이 없어 페이지를 새로고침합니다.';
+    const RELOAD_TS_KEY = 'bgjob:lastReloadAt';
+    const PERMA_NOTICE_MSG = '서버와 연결이 끊어졌습니다. 잠시 후 다시 시도해주세요.';
+    const RELOAD_NOTICE_MSG = '서버 응답이 없어 페이지를 새로고침합니다.';
 
     let consecutiveFailures = 0;
     let reloadScheduled = false;       // 이미 reload 예약 (지연 중) 인지
@@ -139,7 +141,8 @@
     function markReloaded() {
         try {
             sessionStorage.setItem(RELOAD_TS_KEY, String(Date.now()));
-        } catch (_) { /* no-op */ }
+        } catch (_) { /* no-op */
+        }
     }
 
     function tryScheduleReload() {
@@ -153,14 +156,14 @@
             if (!permaNoticeShown) {
                 permaNoticeShown = true;
                 if (typeof window.bgjobToast === 'function') {
-                    window.bgjobToast(PERMA_NOTICE_MSG, { variant: 'error', duration: 8000 });
+                    window.bgjobToast(PERMA_NOTICE_MSG, {variant: 'error', duration: 8000});
                 }
             }
             return;
         }
         reloadScheduled = true;
         if (typeof window.bgjobToast === 'function') {
-            window.bgjobToast(RELOAD_NOTICE_MSG, { variant: 'error', duration: RELOAD_GRACE_MS + 200 });
+            window.bgjobToast(RELOAD_NOTICE_MSG, {variant: 'error', duration: RELOAD_GRACE_MS + 200});
         }
         setTimeout(() => {
             markReloaded();
@@ -211,11 +214,16 @@
 
     function statusLabel(status) {
         switch (status) {
-            case 'PENDING':   return '대기';
-            case 'RUNNING':   return '진행 중';
-            case 'COMPLETED': return '완료';
-            case 'FAILED':    return '실패';
-            default:          return status || '';
+            case 'PENDING':
+                return '대기';
+            case 'RUNNING':
+                return '진행 중';
+            case 'COMPLETED':
+                return '완료';
+            case 'FAILED':
+                return '실패';
+            default:
+                return status || '';
         }
     }
 
@@ -250,8 +258,8 @@
     function cardHtml(job) {
         const stateClass =
             job.status === 'COMPLETED' ? 'is-completed' :
-            job.status === 'FAILED'    ? 'is-failed' :
-            job.status === 'RUNNING'   ? 'is-running' : 'is-pending';
+                job.status === 'FAILED' ? 'is-failed' :
+                    job.status === 'RUNNING' ? 'is-running' : 'is-pending';
         const isTerminal = job.status === 'COMPLETED' || job.status === 'FAILED';
         const subtitle = job.subtitle ? `<div class="n-bgjob-card-subtitle">${escapeHtml(job.subtitle)}</div>` : '';
         const time = isTerminal ? formatTime(job.completedAt) : formatTime(job.createdAt);
@@ -332,7 +340,7 @@
     async function poll() {
         let succeeded = false;
         try {
-            const resp = await fetch('/jobs', { headers: { 'Accept': 'application/json' } });
+            const resp = await fetch('/jobs', {headers: {'Accept': 'application/json'}});
             if (!resp.ok) {
                 // 비-2xx (5xx 우선, 4xx 도 포함) — 실패로 카운트
                 recordFailure();
@@ -413,8 +421,9 @@
         const id = card.dataset.jobId;
         if (!id) return;
         try {
-            await fetch(`/jobs/${encodeURIComponent(id)}/dismiss`, { method: 'POST' });
-        } catch (_) { /* no-op — 다음 폴링에서 자연 재동기화 */ }
+            await fetch(`/jobs/${encodeURIComponent(id)}/dismiss`, {method: 'POST'});
+        } catch (_) { /* no-op — 다음 폴링에서 자연 재동기화 */
+        }
         poll();
     });
 
@@ -426,8 +435,9 @@
         await Promise.all(terminal.map(c => {
             const id = c.dataset.jobId;
             if (!id) return Promise.resolve();
-            return fetch(`/jobs/${encodeURIComponent(id)}/dismiss`, { method: 'POST' })
-                .catch(() => { /* no-op */ });
+            return fetch(`/jobs/${encodeURIComponent(id)}/dismiss`, {method: 'POST'})
+                .catch(() => { /* no-op */
+                });
         }));
         poll();
     });

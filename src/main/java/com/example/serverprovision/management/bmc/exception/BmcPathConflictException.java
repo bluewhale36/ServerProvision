@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.FieldBoundConflictException;
  */
 public class BmcPathConflictException extends FieldBoundConflictException {
 
-    public BmcPathConflictException(String firmwarePath) {
-        super("대상 파일 경로가 이미 점유되어 있습니다 : " + firmwarePath, "targetDirectory");
-    }
+	public BmcPathConflictException(String firmwarePath) {
+		super("대상 파일 경로가 이미 점유되어 있습니다 : " + firmwarePath, "targetDirectory");
+	}
 }

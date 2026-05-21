@@ -13,10 +13,10 @@ package com.example.serverprovision.management.common.nudge;
  * null 이며, 도메인 메타는 {@code attributes} 맵으로 운반된다.</p>
  */
 public enum NudgeResourceType {
-    BIOS,
-    BMC,
-    SUBPROGRAM,
-    OS_ISO,
-    OS_IMAGE,
-    BOARD_MODEL
+	BIOS,
+	BMC,
+	SUBPROGRAM,
+	OS_ISO,
+	OS_IMAGE,
+	BOARD_MODEL
 }

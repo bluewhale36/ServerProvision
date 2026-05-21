@@ -6,14 +6,16 @@ package com.example.serverprovision.global.security.exception;
  */
 public class SuspiciousFilenameException extends UnsupportedMediaTypeException {
 
-    private static final String GENERIC_MESSAGE = "위험 파일명 패턴이 감지되었습니다.";
+	private static final String GENERIC_MESSAGE = "위험 파일명 패턴이 감지되었습니다.";
 
-    public SuspiciousFilenameException() {
-        super(GENERIC_MESSAGE);
-    }
+	public SuspiciousFilenameException() {
+		super(GENERIC_MESSAGE);
+	}
 
-    /** legacy / 내부 디버깅용 (S3.1 B4 — 사용자 응답에는 노아그 권장). */
-    public SuspiciousFilenameException(String filename) {
-        super(GENERIC_MESSAGE);
-    }
+	/**
+	 * legacy / 내부 디버깅용 (S3.1 B4 — 사용자 응답에는 노아그 권장).
+	 */
+	public SuspiciousFilenameException(String filename) {
+		super(GENERIC_MESSAGE);
+	}
 }

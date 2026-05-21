@@ -16,8 +16,9 @@ import java.util.List;
  * 다르면 본 필드만 노출되고 단계 B 충돌은 미발생.</p>
  */
 public record BiosUploadIntentResponse(
-        String uploadToken,
-        List<String> warnings,
-        PreExistingMatchInfo preExistingMatch
+		String uploadToken,
+		List<String> warnings,
+		PreExistingMatchInfo preExistingMatch
 ) {
+
 }

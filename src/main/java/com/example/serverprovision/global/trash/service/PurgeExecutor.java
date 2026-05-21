@@ -14,17 +14,17 @@ import com.example.serverprovision.global.trash.PurgeResult;
  */
 public interface PurgeExecutor {
 
-    /**
-     * 단일 cron tick / 단일 사용자 호출 = purge_log 1행.
-     *
-     * <ul>
-     *   <li>TTL_AUTO 만 cron tick 내 retry (1s · 2s · 4s exponential backoff)</li>
-     *   <li>SUCCESS : purged_at NOT NULL + SuccessDetails JSON</li>
-     *   <li>FAILED  : purged_at NULL + FailedDetails JSON (attemptNumber = countFailed + 1)</li>
-     * </ul>
-     *
-     * @param request 진입경로별 메타 + 자원 식별자
-     * @return Success(logId) 또는 Failed(logId, cause)
-     */
-    PurgeResult execute(PurgeRequest request);
+	/**
+	 * 단일 cron tick / 단일 사용자 호출 = purge_log 1행.
+	 *
+	 * <ul>
+	 *   <li>TTL_AUTO 만 cron tick 내 retry (1s · 2s · 4s exponential backoff)</li>
+	 *   <li>SUCCESS : purged_at NOT NULL + SuccessDetails JSON</li>
+	 *   <li>FAILED  : purged_at NULL + FailedDetails JSON (attemptNumber = countFailed + 1)</li>
+	 * </ul>
+	 *
+	 * @param request 진입경로별 메타 + 자원 식별자
+	 * @return Success(logId) 또는 Failed(logId, cause)
+	 */
+	PurgeResult execute(PurgeRequest request);
 }

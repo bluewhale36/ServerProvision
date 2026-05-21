@@ -14,18 +14,18 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class IsoRegistrationLauncher {
 
-    private final BackgroundJobService backgroundJobService;
-    private final IsoRegistrationRunner isoRegistrationRunner;
+	private final BackgroundJobService backgroundJobService;
+	private final IsoRegistrationRunner isoRegistrationRunner;
 
-    public String startRegistration(OSImageService.PreparedIsoRegistration prepared) {
-        String jobId = backgroundJobService.register(
-                JobType.ISO_REGISTRATION,
-                "ISO 등록",
-                prepared.resolvedPath(),
-                BackgroundJobService.stagesOf(IsoRegistrationStage.values()),
-                Map.of("osId", String.valueOf(prepared.osImageId()))
-        );
-        isoRegistrationRunner.runAsync(jobId, prepared);
-        return jobId;
-    }
+	public String startRegistration(OSImageService.PreparedIsoRegistration prepared) {
+		String jobId = backgroundJobService.register(
+				JobType.ISO_REGISTRATION,
+				"ISO 등록",
+				prepared.resolvedPath(),
+				BackgroundJobService.stagesOf(IsoRegistrationStage.values()),
+				Map.of("osId", String.valueOf(prepared.osImageId()))
+		);
+		isoRegistrationRunner.runAsync(jobId, prepared);
+		return jobId;
+	}
 }

@@ -13,11 +13,12 @@ import jakarta.validation.constraints.NotNull;
  */
 public record NudgeTypedNameRequest(
 
-        @NotNull
-        Long targetId,
+		@NotNull
+		Long targetId,
 
-        /** 사용자가 입력한 자원명. {@code Markable.displayName()} 과 일치 검증. */
-        @NotBlank
-        String typedName
+		/** 사용자가 입력한 자원명. {@code Markable.displayName()} 과 일치 검증. */
+		@NotBlank
+		String typedName
 ) {
+
 }

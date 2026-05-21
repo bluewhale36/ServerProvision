@@ -13,31 +13,32 @@ import jakarta.validation.constraints.Size;
  */
 public record BiosCreateRequest(
 
-        @NotBlank(message = "이름을 입력해주세요.")
-        @Size(max = 128, message = "이름은 128자 이하로 입력해주세요.")
-        String name,
+		@NotBlank(message = "이름을 입력해주세요.")
+		@Size(max = 128, message = "이름은 128자 이하로 입력해주세요.")
+		String name,
 
-        @NotBlank(message = "버전을 입력해주세요.")
-        @Size(max = 64, message = "버전은 64자 이하로 입력해주세요.")
-        String version,
+		@NotBlank(message = "버전을 입력해주세요.")
+		@Size(max = 64, message = "버전은 64자 이하로 입력해주세요.")
+		String version,
 
-        @NotBlank(message = "대상 디렉토리 경로를 입력해주세요.")
-        @Size(max = 1024, message = "대상 디렉토리 경로는 1024자 이하로 입력해주세요.")
-        String targetDirectory,
+		@NotBlank(message = "대상 디렉토리 경로를 입력해주세요.")
+		@Size(max = 1024, message = "대상 디렉토리 경로는 1024자 이하로 입력해주세요.")
+		String targetDirectory,
 
-        @Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
-        String description,
+		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
+		String description,
 
-        /**
-         * 상위 디렉토리가 없을 때 자동 생성할지 여부. 기본 false.
-         */
-        boolean allowCreateDirectory,
+		/**
+		 * 상위 디렉토리가 없을 때 자동 생성할지 여부. 기본 false.
+		 */
+		boolean allowCreateDirectory,
 
-        /**
-         * 진입점 상대경로 override. 빈 값이면 서버 자동 탐지. 예: {@code "f.nsh"}, {@code "subdir/update.nsh"}.
-         * 번들 수행 시 실행할 파일 자체만 지정하며, 실행 시 파라미터 등은 향후 Execution 도메인이 관장한다.
-         */
-        @Size(max = 512, message = "진입점 경로는 512자 이하로 입력해주세요.")
-        String entrypointRelativePath
+		/**
+		 * 진입점 상대경로 override. 빈 값이면 서버 자동 탐지. 예: {@code "f.nsh"}, {@code "subdir/update.nsh"}.
+		 * 번들 수행 시 실행할 파일 자체만 지정하며, 실행 시 파라미터 등은 향후 Execution 도메인이 관장한다.
+		 */
+		@Size(max = 512, message = "진입점 경로는 512자 이하로 입력해주세요.")
+		String entrypointRelativePath
 ) {
+
 }

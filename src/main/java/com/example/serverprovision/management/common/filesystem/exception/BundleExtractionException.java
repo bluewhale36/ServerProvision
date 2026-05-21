@@ -7,11 +7,12 @@ import com.example.serverprovision.global.exception.DomainException;
  * zip slip 탐지 · 디스크 여유 부족 · 권한 오류 등을 포괄.
  */
 public class BundleExtractionException extends DomainException {
-    public BundleExtractionException(String message, Throwable cause) {
-        super(message, cause);
-    }
 
-    public BundleExtractionException(String message) {
-        super(message);
-    }
+	public BundleExtractionException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public BundleExtractionException(String message) {
+		super(message);
+	}
 }

@@ -13,14 +13,15 @@ import java.time.Instant;
  * <p>{@code details} 는 polymorphic sealed type — JSON 직렬화 시 type discriminator 가 포함.</p>
  */
 public record PurgeLogResponse(
-        Long id,
-        ResourceType resourceType,
-        Long resourceId,
-        String displayName,
-        PurgeOrigin origin,
-        PurgeOutcome outcome,
-        Instant occurredAt,
-        Instant purgedAt,
-        PurgeLogDetails details
+		Long id,
+		ResourceType resourceType,
+		Long resourceId,
+		String displayName,
+		PurgeOrigin origin,
+		PurgeOutcome outcome,
+		Instant occurredAt,
+		Instant purgedAt,
+		PurgeLogDetails details
 ) {
+
 }

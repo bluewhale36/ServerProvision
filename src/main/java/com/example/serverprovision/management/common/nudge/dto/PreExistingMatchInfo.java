@@ -10,8 +10,10 @@ import com.example.serverprovision.global.lifecycle.LifecycleStage;
  * 단계 B (해시 후) 와는 독립 — 메타만 같고 파일이 다르면 본 객체만 노출되고 단계 B 충돌은 미발생.</p>
  */
 public record PreExistingMatchInfo(
-        Long id,
-        LifecycleStage state,
-        String name,
-        String version
-) {}
+		Long id,
+		LifecycleStage state,
+		String name,
+		String version
+) {
+
+}

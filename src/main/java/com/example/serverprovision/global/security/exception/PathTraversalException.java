@@ -8,12 +8,12 @@ import org.springframework.http.HttpStatus;
  */
 public class PathTraversalException extends SecurityException {
 
-    public PathTraversalException(String reason) {
-        super("경로 입력이 안전하지 않습니다 : " + reason);
-    }
+	public PathTraversalException(String reason) {
+		super("경로 입력이 안전하지 않습니다 : " + reason);
+	}
 
-    @Override
-    public HttpStatus httpStatus() {
-        return HttpStatus.BAD_REQUEST;
-    }
+	@Override
+	public HttpStatus httpStatus() {
+		return HttpStatus.BAD_REQUEST;
+	}
 }

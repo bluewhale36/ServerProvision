@@ -11,12 +11,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum OSName {
 
-    UBUNTU("Ubuntu", OSFamily.DEBIAN_BASED),
-    CENTOS("CentOS", OSFamily.RHEL_BASED),
-    ROCKY_LINUX("Rocky Linux", OSFamily.RHEL_BASED),
-    WINDOWS("Windows", OSFamily.WINDOWS_BASED),
-    WINDOWS_SERVER("Windows Server", OSFamily.WINDOWS_BASED);
+	UBUNTU("Ubuntu", OSFamily.DEBIAN_BASED),
+	CENTOS("CentOS", OSFamily.RHEL_BASED),
+	ROCKY_LINUX("Rocky Linux", OSFamily.RHEL_BASED),
+	WINDOWS("Windows", OSFamily.WINDOWS_BASED),
+	WINDOWS_SERVER("Windows Server", OSFamily.WINDOWS_BASED);
 
-    private final String displayName;
-    private final OSFamily family;
+	private final String displayName;
+	private final OSFamily family;
 }

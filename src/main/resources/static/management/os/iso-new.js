@@ -15,15 +15,15 @@
     if (!form) return;
 
     const uploadUrl = form.dataset.uploadUrl;
-    const listUrl   = form.dataset.listUrl;
+    const listUrl = form.dataset.listUrl;
     const submitBtn = document.getElementById('submitBtn');
     const cancelLink = document.getElementById('cancelLink');
     const backLink = document.getElementById('backLink');
 
-    const progressBox  = document.getElementById('uploadProgress');
-    const progressBar  = document.getElementById('uploadBar');
+    const progressBox = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('uploadBar');
     const progressText = document.getElementById('uploadText');
-    const errorBox     = document.getElementById('uploadError');
+    const errorBox = document.getElementById('uploadError');
 
     if (!uploadUrl || !listUrl || !submitBtn) return;
 
@@ -154,7 +154,7 @@
             return;
         }
         if (window.FormError && err.body) {
-            window.FormError.renderResponse(err.body, { root: form });
+            window.FormError.renderResponse(err.body, {root: form});
         } else {
             showError(err.message);
         }
@@ -188,7 +188,7 @@
                 worker.terminate();
                 reject(new Error('Worker error : ' + (e.message || e)));
             };
-            worker.postMessage({ requestId, file });
+            worker.postMessage({requestId, file});
         });
     }
 
@@ -204,15 +204,18 @@
         if (clientHash) body.clientHash = clientHash;
         const resp = await fetch(intentUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
             body: JSON.stringify(body)
         });
         if (!resp.ok) {
             // S4 — 응답 body 전체 (fieldErrors 포함) 를 throw 에 부착해 호출자가 FormError.renderResponse 가능.
             let body = null;
-            try { body = await resp.json(); } catch (_) { /* ignore */ }
+            try {
+                body = await resp.json();
+            } catch (_) { /* ignore */
+            }
             const fallback = (body && body.message) || intentFallbackMessage(resp.status);
-            const finalBody = body || { message: fallback };
+            const finalBody = body || {message: fallback};
             if (!finalBody.message) finalBody.message = fallback;
             const err = new Error(finalBody.message);
             err.body = finalBody;
@@ -224,11 +227,16 @@
 
     function intentFallbackMessage(status) {
         switch (status) {
-            case 400: return '입력값이 올바르지 않습니다. ISO 경로와 파일을 다시 확인해주세요.';
-            case 404: return '대상 OS 이미지를 찾을 수 없습니다. 목록에서 다시 선택해주세요.';
-            case 409: return '같은 경로에 이미 등록된 ISO 가 있거나 사전 검증 조건에 어긋났습니다.';
-            case 500: return '서버 내부 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도해주세요.';
-            default:  return '사전 검증 실패 (HTTP ' + status + ')';
+            case 400:
+                return '입력값이 올바르지 않습니다. ISO 경로와 파일을 다시 확인해주세요.';
+            case 404:
+                return '대상 OS 이미지를 찾을 수 없습니다. 목록에서 다시 선택해주세요.';
+            case 409:
+                return '같은 경로에 이미 등록된 ISO 가 있거나 사전 검증 조건에 어긋났습니다.';
+            case 500:
+                return '서버 내부 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도해주세요.';
+            default:
+                return '사전 검증 실패 (HTTP ' + status + ')';
         }
     }
 
@@ -293,14 +301,14 @@
 
             const ratio = ev.total > 0 ? (ev.loaded / ev.total) : 0;
             const displayPct = Math.floor(ratio * UPLOAD_END_PCT); // 0~90%
-            speedSamples.push({ t: now, loaded: ev.loaded });
+            speedSamples.push({t: now, loaded: ev.loaded});
             while (speedSamples.length > 1 && now - speedSamples[0].t > SPEED_WINDOW_MS) {
                 speedSamples.shift();
             }
             let speedBps = 0;
             if (speedSamples.length >= 2) {
                 const first = speedSamples[0];
-                const last  = speedSamples[speedSamples.length - 1];
+                const last = speedSamples[speedSamples.length - 1];
                 const dtSec = (last.t - first.t) / 1000;
                 if (dtSec > 0) speedBps = (last.loaded - first.loaded) / dtSec;
             }
@@ -339,24 +347,33 @@
         uploading = false;
         document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
         activeXhr = null;
-        if (checksumTimer) { clearInterval(checksumTimer); }
+        if (checksumTimer) {
+            clearInterval(checksumTimer);
+        }
         if (xhr.status >= 200 && xhr.status < 300) {
             let body = {};
-            try { body = JSON.parse(xhr.responseText || '{}'); } catch (_) { /* ignore */ }
+            try {
+                body = JSON.parse(xhr.responseText || '{}');
+            } catch (_) { /* ignore */
+            }
             const redirect = body.redirect || listUrl;
             const msg = hadFile
                 ? 'ISO 업로드가 끝났고 등록 후처리가 background 에서 계속됩니다.'
                 : 'ISO 등록 후처리가 background 에서 시작되었습니다.';
             try {
                 sessionStorage.setItem('os.isoRegistration.toast', msg);
-            } catch (_) { /* ignore */ }
+            } catch (_) { /* ignore */
+            }
             showProgress('100%  등록 작업 시작됨', 100);
             window.location.href = redirect;
             return;
         }
         // S4 — XHR 응답 body 전체를 파싱해 FormError.renderResponse 로 fieldErrors 매핑.
         let body = null;
-        try { body = JSON.parse(xhr.responseText || '{}'); } catch (_) { /* ignore */ }
+        try {
+            body = JSON.parse(xhr.responseText || '{}');
+        } catch (_) { /* ignore */
+        }
         // MK2 단계 B — body.code === 'NUDGE_REQUIRED' 면 modal 표시 후 confirm endpoint 분기.
         if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
             console.log(TAG, 'NUDGE_REQUIRED 수신 — modal 표시', body);
@@ -368,7 +385,7 @@
         const msg = (body && body.message) || ('HTTP ' + xhr.status);
         console.error(TAG, 'upload 실패', msg);
         if (window.FormError && body) {
-            window.FormError.renderResponse(body, { root: form });
+            window.FormError.renderResponse(body, {root: form});
         } else {
             showError(msg);
         }
@@ -393,8 +410,8 @@
         const list = document.getElementById('nudgeConflictsList');
         const proceedBtn = document.getElementById('nudgeProceedBtn');
         const replaceBtn = document.getElementById('nudgeReplaceBtn');
-        const cancelBtn  = document.getElementById('nudgeCancelBtn');
-        const backdrop   = document.getElementById('nudgeBackdrop');
+        const cancelBtn = document.getElementById('nudgeCancelBtn');
+        const backdrop = document.getElementById('nudgeBackdrop');
 
         // 충돌 후보 렌더 + 단일 선택 (replace 활성화).
         list.innerHTML = '';
@@ -449,9 +466,9 @@
         if (action === 'replace' && targetId != null) {
             url += '?targetId=' + encodeURIComponent(targetId);
         }
-        fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } })
-            .then(resp => resp.json().catch(() => ({})).then(body => ({ status: resp.status, ok: resp.ok, body })))
-            .then(({ status, ok, body }) => {
+        fetch(url, {method: 'POST', headers: {'Accept': 'application/json'}})
+            .then(resp => resp.json().catch(() => ({})).then(body => ({status: resp.status, ok: resp.ok, body})))
+            .then(({status, ok, body}) => {
                 if (!ok) {
                     if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
                         hideNudgeModal();
@@ -471,7 +488,8 @@
                         action === 'replace'
                             ? '기존 자원을 영구 삭제하고 신규 ISO 를 등록했습니다.'
                             : '신규 ISO 를 등록했습니다.');
-                } catch (_) { /* ignore */ }
+                } catch (_) { /* ignore */
+                }
                 window.location.href = redirect;
             })
             .catch(err => {
@@ -500,8 +518,8 @@
         const list = document.getElementById('nudgeConflictsList');
         const proceedBtn = document.getElementById('nudgeProceedBtn');
         const replaceBtn = document.getElementById('nudgeReplaceBtn');
-        const cancelBtn  = document.getElementById('nudgeCancelBtn');
-        const backdrop   = document.getElementById('nudgeBackdrop');
+        const cancelBtn = document.getElementById('nudgeCancelBtn');
+        const backdrop = document.getElementById('nudgeBackdrop');
         if (!list || !proceedBtn || !replaceBtn || !cancelBtn) {
             showError('nudge modal 구성 요소가 없습니다.');
             return;
@@ -552,7 +570,7 @@
             disableIntentBtns(true);
             try {
                 const resp = await fetch(intentBase + '/' + payload.nudgeId + '/proceed', {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
                 const body = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
@@ -577,7 +595,7 @@
             disableIntentBtns(true);
             try {
                 const resp = await fetch(intentBase + '/' + payload.nudgeId + '/replace?targetId=' + encodeURIComponent(selectedTargetId), {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
                 const body = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
@@ -600,9 +618,10 @@
             disableIntentBtns(true);
             try {
                 await fetch(intentBase + '/' + payload.nudgeId + '/cancel', {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
-            } catch (_) { /* ignore */ }
+            } catch (_) { /* ignore */
+            }
             hideNudgeModal();
             showError('업로드를 취소했습니다.');
         };
@@ -626,7 +645,9 @@
         uploading = false;
         document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
         activeXhr = null;
-        if (checksumTimer) { clearInterval(checksumTimer); }
+        if (checksumTimer) {
+            clearInterval(checksumTimer);
+        }
         showError(message);
         hideProgress();
         lockPage(false);
@@ -665,7 +686,11 @@
             el.removeEventListener('click', preventClick, true);
         }
     }
-    function preventClick(e) { e.preventDefault(); e.stopPropagation(); }
+
+    function preventClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
     function lockNavbar(lock) {
         document.querySelectorAll('.n-nav a.n-nav-link').forEach(a => setLinkDisabled(a, lock));
@@ -691,6 +716,7 @@
             cancelLink.removeEventListener('click', onCancelClick, true);
         }
     }
+
     function onCancelClick(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -709,14 +735,20 @@
             progressBar.style.width = Math.max(0, Math.min(100, pct)) + '%';
         }
     }
+
     function hideProgress() {
         if (progressBox) progressBox.classList.remove('is-visible');
     }
+
     function showError(msg) {
-        if (!errorBox) { alert(msg); return; }
+        if (!errorBox) {
+            alert(msg);
+            return;
+        }
         errorBox.textContent = msg;
         errorBox.classList.add('is-visible');
     }
+
     function resetError() {
         if (!errorBox) return;
         errorBox.textContent = '';
@@ -730,6 +762,7 @@
         if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
         return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
     }
+
     function formatDuration(sec) {
         if (sec < 60) return sec + '초';
         const m = Math.floor(sec / 60);

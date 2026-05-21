@@ -12,7 +12,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * </ul>
  */
 public class IllegalLifecycleTransitionException extends ConflictException {
-    public IllegalLifecycleTransitionException(String message) {
-        super(message);
-    }
+
+	public IllegalLifecycleTransitionException(String message) {
+		super(message);
+	}
 }

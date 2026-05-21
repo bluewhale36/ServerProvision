@@ -40,7 +40,8 @@
                        justify-content: space-between; align-items: baseline; gap: 12px;">
                 <span>파일을 찾을 수 없습니다</span>
                 <button type="button" th:id="${prefix} + 'CloseBtn'"
-                        class="n-btn n-btn-sm n-btn-ghost" aria-label="닫기">×</button>
+                        class="n-btn n-btn-sm n-btn-ghost" aria-label="닫기">×
+                </button>
             </h2>
 
             <div class="n-alert n-alert-warning" style="margin-bottom: 12px;">
@@ -88,7 +89,8 @@
                 </button>
 
                 <button type="button" th:id="${prefix} + 'CancelBtn'"
-                        class="n-btn n-btn-secondary">취소</button>
+                        class="n-btn n-btn-secondary">취소
+                </button>
             </div>
 
             <div th:id="${prefix} + 'Error'" hidden

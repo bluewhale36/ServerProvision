@@ -24,35 +24,37 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UploadTempDirectoryProvider {
 
-    /** S3.2 (K9) — 업로드 임시 파일은 default 0644 가 아니라 owner-only (0600) 로 강제. multi-user 호스트에서
-     *  tempDir 가 다른 사용자에게도 readable 하면 업로드 중 파일을 엿볼 위험이 있어 boundary 좁힘. */
-    private static final Set<PosixFilePermission> TEMP_FILE_PERMS = PosixFilePermissions.fromString("rw-------");
+	/**
+	 * S3.2 (K9) — 업로드 임시 파일은 default 0644 가 아니라 owner-only (0600) 로 강제. multi-user 호스트에서
+	 * tempDir 가 다른 사용자에게도 readable 하면 업로드 중 파일을 엿볼 위험이 있어 boundary 좁힘.
+	 */
+	private static final Set<PosixFilePermission> TEMP_FILE_PERMS = PosixFilePermissions.fromString("rw-------");
 
-    private final UploadSecurityProperties uploadSecurityProperties;
+	private final UploadSecurityProperties uploadSecurityProperties;
 
-    /**
-     * {@code prefix} / {@code suffix} 로 임시 파일 생성. 설정된 디렉토리가 없으면 만들고, POSIX 권한 0644 강제.
-     */
-    public Path createTempFile(String prefix, String suffix) throws IOException {
-        String configured = uploadSecurityProperties.tempDir();
-        Path tempFile;
-        if (configured == null || configured.isBlank()) {
-            tempFile = Files.createTempFile(prefix, suffix);
-        } else {
-            Path dir = Path.of(configured).toAbsolutePath().normalize();
-            if (!Files.exists(dir)) {
-                Files.createDirectories(dir);
-            }
-            tempFile = Files.createTempFile(dir, prefix, suffix);
-        }
-        // S3.2 (K9) — 업로드 임시 파일은 0600 (owner-only) 강제. POSIX 미지원 OS 면 silent no-op.
-        try {
-            if (Files.getFileStore(tempFile).supportsFileAttributeView("posix")) {
-                Files.setPosixFilePermissions(tempFile, TEMP_FILE_PERMS);
-            }
-        } catch (UnsupportedOperationException | IOException ignored) {
-            // best-effort — 권한 적용 실패가 업로드 자체를 막지 않도록.
-        }
-        return tempFile;
-    }
+	/**
+	 * {@code prefix} / {@code suffix} 로 임시 파일 생성. 설정된 디렉토리가 없으면 만들고, POSIX 권한 0644 강제.
+	 */
+	public Path createTempFile(String prefix, String suffix) throws IOException {
+		String configured = uploadSecurityProperties.tempDir();
+		Path tempFile;
+		if (configured == null || configured.isBlank()) {
+			tempFile = Files.createTempFile(prefix, suffix);
+		} else {
+			Path dir = Path.of(configured).toAbsolutePath().normalize();
+			if (!Files.exists(dir)) {
+				Files.createDirectories(dir);
+			}
+			tempFile = Files.createTempFile(dir, prefix, suffix);
+		}
+		// S3.2 (K9) — 업로드 임시 파일은 0600 (owner-only) 강제. POSIX 미지원 OS 면 silent no-op.
+		try {
+			if (Files.getFileStore(tempFile).supportsFileAttributeView("posix")) {
+				Files.setPosixFilePermissions(tempFile, TEMP_FILE_PERMS);
+			}
+		} catch (UnsupportedOperationException | IOException ignored) {
+			// best-effort — 권한 적용 실패가 업로드 자체를 막지 않도록.
+		}
+		return tempFile;
+	}
 }

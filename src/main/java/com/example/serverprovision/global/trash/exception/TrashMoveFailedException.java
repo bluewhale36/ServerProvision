@@ -9,11 +9,11 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class TrashMoveFailedException extends DomainException {
 
-    public TrashMoveFailedException(String message) {
-        super(message);
-    }
+	public TrashMoveFailedException(String message) {
+		super(message);
+	}
 
-    public TrashMoveFailedException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public TrashMoveFailedException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

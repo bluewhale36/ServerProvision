@@ -28,24 +28,28 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequiredArgsConstructor
 public class ConfirmModalFragmentController {
 
-    private final TypedNameVerifier typedNameVerifier;
+	private final TypedNameVerifier typedNameVerifier;
 
-    /**
-     * modalType + resourceType + resourceId 로 modal fragment 응답.
-     *
-     * @param modalType    {@link ConfirmModalType} (path) — Spring 의 enum 바인딩 실패 시 400 자동 매핑
-     * @param resourceType {@link ResourceType} (query) — 동일
-     * @param resourceId   자원 PK (query)
-     * @return Thymeleaf fragment view name ({@code "templateName :: fragmentName"} 형식)
-     */
-    @GetMapping("/{modalType}")
-    public String fragment(@PathVariable("modalType") ConfirmModalType modalType,
-                            @RequestParam("resourceType") ResourceType resourceType,
-                            @RequestParam("resourceId") Long resourceId,
-                            Model model) {
-        log.debug("[confirm-modal] type={} resourceType={} resourceId={}",
-                modalType, resourceType, resourceId);
-        modalType.resolveModel(resourceType, resourceId, typedNameVerifier, model);
-        return modalType.fragmentView();
-    }
+	/**
+	 * modalType + resourceType + resourceId 로 modal fragment 응답.
+	 *
+	 * @param modalType    {@link ConfirmModalType} (path) — Spring 의 enum 바인딩 실패 시 400 자동 매핑
+	 * @param resourceType {@link ResourceType} (query) — 동일
+	 * @param resourceId   자원 PK (query)
+	 * @return Thymeleaf fragment view name ({@code "templateName :: fragmentName"} 형식)
+	 */
+	@GetMapping("/{modalType}")
+	public String fragment(
+			@PathVariable("modalType") ConfirmModalType modalType,
+			@RequestParam("resourceType") ResourceType resourceType,
+			@RequestParam("resourceId") Long resourceId,
+			Model model
+	) {
+		log.debug(
+				"[confirm-modal] type={} resourceType={} resourceId={}",
+				modalType, resourceType, resourceId
+		);
+		modalType.resolveModel(resourceType, resourceId, typedNameVerifier, model);
+		return modalType.fragmentView();
+	}
 }

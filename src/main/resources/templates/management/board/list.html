@@ -41,7 +41,8 @@
     <div th:if="${#lists.isEmpty(boardGroups)}" class="n-card">
         <div class="n-empty">
             <div class="n-empty-title"
-                 th:text="${includeDeleted} ? '등록된 메인보드 모델이 없습니다 (휴지통 포함).' : '등록된 메인보드 모델이 없습니다.'">등록된 메인보드 모델이 없습니다.</div>
+                 th:text="${includeDeleted} ? '등록된 메인보드 모델이 없습니다 (휴지통 포함).' : '등록된 메인보드 모델이 없습니다.'">등록된 메인보드 모델이 없습니다.
+            </div>
             <div class="n-empty-desc">"신규 모델 등록" 버튼으로 메인보드 모델을 추가하세요.</div>
         </div>
     </div>
@@ -59,7 +60,8 @@
                     type="button"
                     class="n-miller-item"
                     th:data-os-key="${group.vendor.name()}"
-                    th:text="${group.displayName}">Gigabyte</button>
+                    th:text="${group.displayName}">Gigabyte
+            </button>
         </div>
 
         <!-- C2 : 해당 Vendor 의 모델 목록 -->
@@ -78,7 +80,8 @@
                         <span th:if="${board.isDeprecated and !board.isDeleted}"
                               class="n-deprecated-dot"
                               title="Deprecated"></span>
-                        <span th:if="${board.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                        <span th:if="${board.isDeleted}"
+                              style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
                     </span>
                     <span th:unless="${board.isDeleted}"
                           class="n-miller-status-tag"
@@ -99,7 +102,9 @@
             <div class="n-miller-empty" id="millerEmpty"
                  data-empty-before="제조사를 선택하여 모델 보기"
                  data-empty-after="모델을 선택하여 상세 보기"
-                 th:text="${selectKey != null or selectId != null} ? '모델을 선택하여 상세 보기' : '제조사를 선택하여 모델 보기'">제조사를 선택하여 모델 보기</div>
+                 th:text="${selectKey != null or selectId != null} ? '모델을 선택하여 상세 보기' : '제조사를 선택하여 모델 보기'">제조사를 선택하여 모델
+                보기
+            </div>
 
             <th:block th:each="group : ${boardGroups}">
                 <div th:each="board : ${group.items}"

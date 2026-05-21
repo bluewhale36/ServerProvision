@@ -8,28 +8,31 @@ import java.util.List;
  * 처음 N 개만 잘려 들어왔음을 의미한다 (S3 § 2.4).</p>
  */
 public record DirectoryListingResponse(
-        String path,
-        String parentPath,
-        List<Entry> entries,
-        boolean truncated
+		String path,
+		String parentPath,
+		List<Entry> entries,
+		boolean truncated
 ) {
 
-    /** S3 이전의 호출 호환을 위한 편의 생성자 — {@code truncated=false}. */
-    public DirectoryListingResponse(String path, String parentPath, List<Entry> entries) {
-        this(path, parentPath, entries, false);
-    }
+	/**
+	 * S3 이전의 호출 호환을 위한 편의 생성자 — {@code truncated=false}.
+	 */
+	public DirectoryListingResponse(String path, String parentPath, List<Entry> entries) {
+		this(path, parentPath, entries, false);
+	}
 
-    public record Entry(
-            String type,
-            String name,
-            Long size
-    ) {
-        public static Entry directory(String name) {
-            return new Entry("DIR", name, null);
-        }
+	public record Entry(
+			String type,
+			String name,
+			Long size
+	) {
 
-        public static Entry file(String name, long size) {
-            return new Entry("FILE", name, size);
-        }
-    }
+		public static Entry directory(String name) {
+			return new Entry("DIR", name, null);
+		}
+
+		public static Entry file(String name, long size) {
+			return new Entry("FILE", name, size);
+		}
+	}
 }

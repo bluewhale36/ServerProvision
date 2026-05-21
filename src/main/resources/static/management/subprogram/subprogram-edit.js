@@ -41,7 +41,9 @@
         }
     });
 
-    cancelBtn.addEventListener('click', () => { panel.hidden = true; });
+    cancelBtn.addEventListener('click', () => {
+        panel.hidden = true;
+    });
 
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
@@ -66,7 +68,7 @@
         let body;
         try {
             const resp = await fetch(browseUrl + '?path=' + encodeURIComponent(absPath), {
-                headers: { 'Accept': 'application/json' }
+                headers: {'Accept': 'application/json'}
             });
             body = await resp.json().catch(() => ({}));
             if (!resp.ok) {

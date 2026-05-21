@@ -21,8 +21,8 @@
 
     function escapeHtml(s) {
         return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function el(prefix, suffix) {
@@ -87,7 +87,7 @@
     function isExpiredResponse(status, body) {
         if (status === 404) return true; // NudgeNotFound (pruner 가 정리한 후)
         if (status === 409 && body && typeof body.message === 'string'
-                && body.message.indexOf('만료') >= 0) return true;
+            && body.message.indexOf('만료') >= 0) return true;
         return false;
     }
 
@@ -123,9 +123,9 @@
             li.dataset.targetId = c.id;
             const hashFragment = c.hash ? (' · ' + escapeHtml(String(c.hash).slice(0, 16)) + '…') : '';
             li.innerHTML =
-                    '<div style="font-weight: 600;">' + escapeHtml(c.name || '') + ' ' + escapeHtml(c.version || '') + '</div>' +
-                    '<div style="font-size: 12px; color: var(--n-text-muted);">' +
-                    'id=' + c.id + ' · ' + escapeHtml(c.state || '') + hashFragment + '</div>';
+                '<div style="font-weight: 600;">' + escapeHtml(c.name || '') + ' ' + escapeHtml(c.version || '') + '</div>' +
+                '<div style="font-size: 12px; color: var(--n-text-muted);">' +
+                'id=' + c.id + ' · ' + escapeHtml(c.state || '') + hashFragment + '</div>';
             li.addEventListener('click', () => {
                 Array.from(list.children).forEach(item => item.style.background = '');
                 li.style.background = 'var(--n-bg-soft, #eef)';
@@ -159,39 +159,40 @@
         if (action === 'replace' && targetId != null) {
             url += '?targetId=' + encodeURIComponent(targetId);
         }
-        fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } })
-                .then(resp => resp.json().catch(() => ({})).then(body => ({ status: resp.status, ok: resp.ok, body })))
-                .then(({ status, ok, body }) => {
-                    if (!ok) {
-                        // MK2 — 만료 응답은 modal 강제 닫힘 + 명시적 안내.
-                        if (isExpiredResponse(status, body)) {
-                            hide(options.prefix || 'nudge');
-                            if (options.onError) options.onError('nudge 세션이 만료되었습니다. 다시 시도해주세요.');
-                            return;
-                        }
-                        throw new Error((body && body.message) || ('HTTP ' + status));
-                    }
-                    hide(options.prefix || 'nudge');
-                    if (action === 'cancel') {
-                        if (options.afterCancel) options.afterCancel();
-                        else if (options.onError) options.onError('등록을 취소했습니다.');
+        fetch(url, {method: 'POST', headers: {'Accept': 'application/json'}})
+            .then(resp => resp.json().catch(() => ({})).then(body => ({status: resp.status, ok: resp.ok, body})))
+            .then(({status, ok, body}) => {
+                if (!ok) {
+                    // MK2 — 만료 응답은 modal 강제 닫힘 + 명시적 안내.
+                    if (isExpiredResponse(status, body)) {
+                        hide(options.prefix || 'nudge');
+                        if (options.onError) options.onError('nudge 세션이 만료되었습니다. 다시 시도해주세요.');
                         return;
                     }
-                    const redirect = (body && body.redirect) || options.listUrl || '/';
-                    if (options.toastKey) {
-                        try {
-                            sessionStorage.setItem(options.toastKey,
-                                    action === 'replace'
-                                            ? '기존 자원을 영구 삭제하고 신규 자원을 등록했습니다.'
-                                            : '신규 자원을 등록했습니다.');
-                        } catch (_) { /* ignore */ }
+                    throw new Error((body && body.message) || ('HTTP ' + status));
+                }
+                hide(options.prefix || 'nudge');
+                if (action === 'cancel') {
+                    if (options.afterCancel) options.afterCancel();
+                    else if (options.onError) options.onError('등록을 취소했습니다.');
+                    return;
+                }
+                const redirect = (body && body.redirect) || options.listUrl || '/';
+                if (options.toastKey) {
+                    try {
+                        sessionStorage.setItem(options.toastKey,
+                            action === 'replace'
+                                ? '기존 자원을 영구 삭제하고 신규 자원을 등록했습니다.'
+                                : '신규 자원을 등록했습니다.');
+                    } catch (_) { /* ignore */
                     }
-                    window.location.href = redirect;
-                })
-                .catch(err => {
-                    hide(options.prefix || 'nudge');
-                    if (options.onError) options.onError(err.message || 'nudge 처리에 실패했습니다.');
-                });
+                }
+                window.location.href = redirect;
+            })
+            .catch(err => {
+                hide(options.prefix || 'nudge');
+                if (options.onError) options.onError(err.message || 'nudge 처리에 실패했습니다.');
+            });
     }
 
     function hide(prefix) {
@@ -202,6 +203,6 @@
         }
     }
 
-    window.NudgeModal = { handle: handle, hide: hide };
-    window.NudgeTimer = { start: startTimer, stop: stopTimer, isExpiredResponse: isExpiredResponse };
+    window.NudgeModal = {handle: handle, hide: hide};
+    window.NudgeTimer = {start: startTimer, stop: stopTimer, isExpiredResponse: isExpiredResponse};
 })();

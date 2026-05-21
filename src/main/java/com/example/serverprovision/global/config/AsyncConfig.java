@@ -19,14 +19,14 @@ import java.util.concurrent.Executor;
 @EnableScheduling
 public class AsyncConfig {
 
-    @Bean("compsExtractionExecutor")
-    public Executor compsExtractionExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
-        executor.setQueueCapacity(8);
-        executor.setThreadNamePrefix("comps-extract-");
-        executor.initialize();
-        return executor;
-    }
+	@Bean("compsExtractionExecutor")
+	public Executor compsExtractionExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(2);
+		executor.setMaxPoolSize(4);
+		executor.setQueueCapacity(8);
+		executor.setThreadNamePrefix("comps-extract-");
+		executor.initialize();
+		return executor;
+	}
 }

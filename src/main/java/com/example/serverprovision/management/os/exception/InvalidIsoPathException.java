@@ -7,7 +7,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * 사용자의 입력 자체에 문제가 있는 케이스이므로 409 로 매핑된다 — 서버 내부 오류(500)와 구분.
  */
 public class InvalidIsoPathException extends ConflictException {
-    public InvalidIsoPathException(String message) {
-        super(message);
-    }
+
+	public InvalidIsoPathException(String message) {
+		super(message);
+	}
 }

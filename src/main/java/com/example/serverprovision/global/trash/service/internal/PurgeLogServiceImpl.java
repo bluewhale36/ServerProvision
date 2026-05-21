@@ -32,62 +32,69 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class PurgeLogServiceImpl implements PurgeLogService {
 
-    private final PurgeLogRepository repository;
+	private final PurgeLogRepository repository;
 
-    @Override
-    public List<PurgeLogResponse> findByResource(ResourceType resourceType, Long resourceId) {
-        return repository.findByResourceTypeAndResourceIdOrderByOccurredAtAsc(resourceType, resourceId)
-                .stream().map(this::toResponse).toList();
-    }
+	@Override
+	public List<PurgeLogResponse> findByResource(ResourceType resourceType, Long resourceId) {
+		return repository.findByResourceTypeAndResourceIdOrderByOccurredAtAsc(resourceType, resourceId)
+				.stream().map(this::toResponse).toList();
+	}
 
-    @Override
-    public Page<PurgeLogResponse> findPage(ResourceType filterType,
-                                            PurgeOrigin filterOrigin,
-                                            PurgeOutcome filterOutcome,
-                                            Instant from,
-                                            Instant to,
-                                            Pageable pageable) {
-        Specification<PurgeLog> spec = buildSpec(filterType, filterOrigin, filterOutcome, from, to);
-        return repository.findAll(spec, pageable).map(this::toResponse);
-    }
+	@Override
+	public Page<PurgeLogResponse> findPage(
+			ResourceType filterType,
+			PurgeOrigin filterOrigin,
+			PurgeOutcome filterOutcome,
+			Instant from,
+			Instant to,
+			Pageable pageable
+	) {
+		Specification<PurgeLog> spec = buildSpec(filterType, filterOrigin, filterOutcome, from, to);
+		return repository.findAll(spec, pageable).map(this::toResponse);
+	}
 
-    @Override
-    public long countFailedForResource(ResourceType resourceType, Long resourceId) {
-        return repository.countByResourceTypeAndResourceIdAndOutcome(resourceType, resourceId, PurgeOutcome.FAILED);
-    }
+	@Override
+	public long countFailedForResource(ResourceType resourceType, Long resourceId) {
+		return repository.countByResourceTypeAndResourceIdAndOutcome(resourceType, resourceId, PurgeOutcome.FAILED);
+	}
 
-    @Override
-    public Set<ResourceKey> findResourcesWithLastOutcomeFailed() {
-        return new HashSet<>(repository.findResourceKeysWithLastOutcomeFailed());
-    }
+	@Override
+	public Set<ResourceKey> findResourcesWithLastOutcomeFailed() {
+		return new HashSet<>(repository.findResourceKeysWithLastOutcomeFailed());
+	}
 
-    /** Specification 합성 — null 필터는 무시. CLAUDE.md 의 분기 응집 원칙 준수 (each predicate is independent). */
-    private static Specification<PurgeLog> buildSpec(ResourceType type,
-                                                      PurgeOrigin origin,
-                                                      PurgeOutcome outcome,
-                                                      Instant from,
-                                                      Instant to) {
-        return (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            if (type != null)    predicates.add(cb.equal(root.get("resourceType"), type));
-            if (origin != null)  predicates.add(cb.equal(root.get("origin"), origin));
-            if (outcome != null) predicates.add(cb.equal(root.get("outcome"), outcome));
-            if (from != null)    predicates.add(cb.greaterThanOrEqualTo(root.get("occurredAt"), from));
-            if (to != null)      predicates.add(cb.lessThanOrEqualTo(root.get("occurredAt"), to));
-            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(Predicate[]::new));
-        };
-    }
+	/**
+	 * Specification 합성 — null 필터는 무시. CLAUDE.md 의 분기 응집 원칙 준수 (each predicate is independent).
+	 */
+	private static Specification<PurgeLog> buildSpec(
+			ResourceType type,
+			PurgeOrigin origin,
+			PurgeOutcome outcome,
+			Instant from,
+			Instant to
+	) {
+		return (root, query, cb) -> {
+			List<Predicate> predicates = new ArrayList<>();
+			if (type != null) predicates.add(cb.equal(root.get("resourceType"), type));
+			if (origin != null) predicates.add(cb.equal(root.get("origin"), origin));
+			if (outcome != null) predicates.add(cb.equal(root.get("outcome"), outcome));
+			if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("occurredAt"), from));
+			if (to != null) predicates.add(cb.lessThanOrEqualTo(root.get("occurredAt"), to));
+			return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(Predicate[]::new));
+		};
+	}
 
-    private PurgeLogResponse toResponse(PurgeLog log) {
-        return new PurgeLogResponse(
-                log.getId(),
-                log.getResourceType(),
-                log.getResourceId(),
-                log.getDisplayName(),
-                log.getOrigin(),
-                log.getOutcome(),
-                log.getOccurredAt(),
-                log.getPurgedAt(),
-                log.getDetails());
-    }
+	private PurgeLogResponse toResponse(PurgeLog log) {
+		return new PurgeLogResponse(
+				log.getId(),
+				log.getResourceType(),
+				log.getResourceId(),
+				log.getDisplayName(),
+				log.getOrigin(),
+				log.getOutcome(),
+				log.getOccurredAt(),
+				log.getPurgedAt(),
+				log.getDetails()
+		);
+	}
 }

@@ -60,7 +60,9 @@ public enum ConfirmModalType {
 		}
 	},
 
-	/** S5-6-2 — deprecate 확인 modal. SOFT_DELETE 와 동일 패턴. */
+	/**
+	 * S5-6-2 — deprecate 확인 modal. SOFT_DELETE 와 동일 패턴.
+	 */
 	DEPRECATE {
 		@Override
 		public void resolveModel(

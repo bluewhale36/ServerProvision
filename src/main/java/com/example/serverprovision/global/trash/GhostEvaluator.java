@@ -23,18 +23,18 @@ import java.nio.file.Files;
  */
 public final class GhostEvaluator {
 
-    private GhostEvaluator() {
-    }
+	private GhostEvaluator() {
+	}
 
-    /**
-     * MK3-1 — 단일 entity 가 ghost 인지 판정. 4 조건 모두 충족하면 true.
-     * <p>Markable + LifecycleEntity 두 인터페이스에서 필요한 모든 정보 추출 가능.</p>
-     */
-    public static <T extends LifecycleEntity & Markable> boolean isGhost(T entity) {
-        if (entity == null) return false;
-        if (!entity.isDeleted()) return false;
-        if (entity.getTrashedAt() != null) return false;
-        if (entity.getTrashedPath() != null) return false;
-        return !Files.exists(entity.getResourcePath());
-    }
+	/**
+	 * MK3-1 — 단일 entity 가 ghost 인지 판정. 4 조건 모두 충족하면 true.
+	 * <p>Markable + LifecycleEntity 두 인터페이스에서 필요한 모든 정보 추출 가능.</p>
+	 */
+	public static <T extends LifecycleEntity & Markable> boolean isGhost(T entity) {
+		if (entity == null) return false;
+		if (!entity.isDeleted()) return false;
+		if (entity.getTrashedAt() != null) return false;
+		if (entity.getTrashedPath() != null) return false;
+		return !Files.exists(entity.getResourcePath());
+	}
 }

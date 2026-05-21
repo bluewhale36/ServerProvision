@@ -27,7 +27,7 @@
 
     function attachAll() {
         const checkboxes = document.querySelectorAll(
-                'input[type="checkbox"][data-include-deleted-toggle]'
+            'input[type="checkbox"][data-include-deleted-toggle]'
         );
         checkboxes.forEach(cb => {
             cb.addEventListener('change', () => {
@@ -43,5 +43,5 @@
     }
 
     // unit test / 다른 모듈 재사용 export
-    window.IncludeDeletedToggle = { buildNextUrl: buildNextUrl };
+    window.IncludeDeletedToggle = {buildNextUrl: buildNextUrl};
 })();

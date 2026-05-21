@@ -11,9 +11,13 @@ package com.example.serverprovision.global.trash.enums;
  */
 public enum NotifyChannel {
 
-    /** navbar 우측 작업 조회 아이콘 (서류가방) 패널의 Job 카드. */
-    BACKGROUND_JOB,
+	/**
+	 * navbar 우측 작업 조회 아이콘 (서류가방) 패널의 Job 카드.
+	 */
+	BACKGROUND_JOB,
 
-    /** SLF4J 서버 로그 (INFO/WARN/ERROR). 운영자가 별도 로그 수집기로 흡수. */
-    SERVER_LOG
+	/**
+	 * SLF4J 서버 로그 (INFO/WARN/ERROR). 운영자가 별도 로그 수집기로 흡수.
+	 */
+	SERVER_LOG
 }

@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class IllegalBiosStateException extends ConflictException {
 
-    public IllegalBiosStateException(String message) {
-        super(message);
-    }
+	public IllegalBiosStateException(String message) {
+		super(message);
+	}
 }

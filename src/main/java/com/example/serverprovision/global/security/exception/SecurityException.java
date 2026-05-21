@@ -18,17 +18,17 @@ import org.springframework.http.HttpStatus;
  */
 public abstract class SecurityException extends RuntimeException {
 
-    protected SecurityException(String message) {
-        super(message);
-    }
+	protected SecurityException(String message) {
+		super(message);
+	}
 
-    protected SecurityException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	protected SecurityException(String message, Throwable cause) {
+		super(message, cause);
+	}
 
-    /**
-     * 본 예외가 응답으로 가져야 할 HTTP status.
-     * 핸들러가 분기 없이 다형적으로 매핑하기 위한 메타데이터.
-     */
-    public abstract HttpStatus httpStatus();
+	/**
+	 * 본 예외가 응답으로 가져야 할 HTTP status.
+	 * 핸들러가 분기 없이 다형적으로 매핑하기 위한 메타데이터.
+	 */
+	public abstract HttpStatus httpStatus();
 }

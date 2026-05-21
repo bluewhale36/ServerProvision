@@ -1,8 +1,8 @@
 package com.example.serverprovision.management.os.dto.response;
 
 import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.util.List;
 
@@ -21,31 +21,38 @@ import java.util.List;
  * sealed 의 permits 에 포함되지 않는다.</p>
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes({
-        @JsonSubTypes.Type(value = IsoUploadIntentResponse.IntentTokenIssued.class, name = "INTENT_TOKEN_ISSUED"),
-        @JsonSubTypes.Type(value = IsoUploadIntentResponse.HashCheckRequired.class, name = "HASH_CHECK_REQUIRED")
-})
+@JsonSubTypes(
+		{
+				@JsonSubTypes.Type(value = IsoUploadIntentResponse.IntentTokenIssued.class, name = "INTENT_TOKEN_ISSUED"),
+				@JsonSubTypes.Type(value = IsoUploadIntentResponse.HashCheckRequired.class, name = "HASH_CHECK_REQUIRED")
+		}
+)
 public sealed interface IsoUploadIntentResponse
-        permits IsoUploadIntentResponse.IntentTokenIssued,
-                IsoUploadIntentResponse.HashCheckRequired {
+		permits IsoUploadIntentResponse.IntentTokenIssued,
+		IsoUploadIntentResponse.HashCheckRequired {
 
-    /**
-     * Phase 1 정상 (후보 0건) 또는 Phase 2 hash 비매칭 — 정상 token 발급. 클라이언트는 즉시 업로드 시작.
-     */
-    record IntentTokenIssued(
-            String uploadToken,
-            List<String> warnings
-    ) implements IsoUploadIntentResponse {}
+	/**
+	 * Phase 1 정상 (후보 0건) 또는 Phase 2 hash 비매칭 — 정상 token 발급. 클라이언트는 즉시 업로드 시작.
+	 */
+	record IntentTokenIssued(
+			String uploadToken,
+			List<String> warnings
+	) implements IsoUploadIntentResponse {
 
-    /**
-     * Phase 1 결과 (osImageId, size) 매칭 후보 발견 — 클라이언트가 정식 SHA-256 계산 후 같은 endpoint 를
-     * hash 동봉해서 재호출해야 한다.
-     *
-     * @param candidates 후보 자원 목록 (modal 표시용 — id/state/name/version 노출)
-     * @param fingerprintAlgorithm 해시 알고리즘 식별자 (현재 "SHA-256" 고정, 향후 확장 여지)
-     */
-    record HashCheckRequired(
-            List<NudgeConflictEntry> candidates,
-            String fingerprintAlgorithm
-    ) implements IsoUploadIntentResponse {}
+	}
+
+
+	/**
+	 * Phase 1 결과 (osImageId, size) 매칭 후보 발견 — 클라이언트가 정식 SHA-256 계산 후 같은 endpoint 를
+	 * hash 동봉해서 재호출해야 한다.
+	 *
+	 * @param candidates           후보 자원 목록 (modal 표시용 — id/state/name/version 노출)
+	 * @param fingerprintAlgorithm 해시 알고리즘 식별자 (현재 "SHA-256" 고정, 향후 확장 여지)
+	 */
+	record HashCheckRequired(
+			List<NudgeConflictEntry> candidates,
+			String fingerprintAlgorithm
+	) implements IsoUploadIntentResponse {
+
+	}
 }

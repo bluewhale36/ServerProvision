@@ -20,30 +20,38 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class IsoRegistrationRunner {
 
-    /** UI 가 fail 메시지에서 nudge 흐름임을 인식하는 prefix. */
-    public static final String NUDGE_FAIL_PREFIX = "NUDGE_REQUIRED:";
+	/**
+	 * UI 가 fail 메시지에서 nudge 흐름임을 인식하는 prefix.
+	 */
+	public static final String NUDGE_FAIL_PREFIX = "NUDGE_REQUIRED:";
 
-    private final OSImageService osImageService;
-    private final BackgroundJobService backgroundJobService;
+	private final OSImageService osImageService;
+	private final BackgroundJobService backgroundJobService;
 
-    @Async
-    public void runAsync(String jobId, OSImageService.PreparedIsoRegistration prepared) {
-        try {
-            backgroundJobService.startStage(jobId, IsoRegistrationStage.COMPUTE_HASH);
-            Long isoId = osImageService.finalizePreparedIsoRegistration(jobId, prepared);
-            backgroundJobService.complete(jobId);
-            log.info("[IsoRegistrationRunner] ISO 등록 완료. jobId={}, isoId={}, path={}",
-                    jobId, isoId, prepared.resolvedPath());
-        } catch (IsoNudgeRequiredException nudge) {
-            // 단계 B nudge 흐름 — 임시 파일은 confirm 시 정식 등록될 수 있으므로 정리하지 않는다.
-            String marker = NUDGE_FAIL_PREFIX + nudge.payload().nudgeId();
-            backgroundJobService.fail(jobId, marker);
-            log.info("[IsoRegistrationRunner] nudge 필요 — job 일시 fail 표시. jobId={}, nudgeId={}",
-                    jobId, nudge.payload().nudgeId());
-        } catch (RuntimeException e) {
-            log.error("[IsoRegistrationRunner] ISO 등록 실패. jobId={}, path={}",
-                    jobId, prepared.resolvedPath(), e);
-            backgroundJobService.fail(jobId, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
-        }
-    }
+	@Async
+	public void runAsync(String jobId, OSImageService.PreparedIsoRegistration prepared) {
+		try {
+			backgroundJobService.startStage(jobId, IsoRegistrationStage.COMPUTE_HASH);
+			Long isoId = osImageService.finalizePreparedIsoRegistration(jobId, prepared);
+			backgroundJobService.complete(jobId);
+			log.info(
+					"[IsoRegistrationRunner] ISO 등록 완료. jobId={}, isoId={}, path={}",
+					jobId, isoId, prepared.resolvedPath()
+			);
+		} catch (IsoNudgeRequiredException nudge) {
+			// 단계 B nudge 흐름 — 임시 파일은 confirm 시 정식 등록될 수 있으므로 정리하지 않는다.
+			String marker = NUDGE_FAIL_PREFIX + nudge.payload().nudgeId();
+			backgroundJobService.fail(jobId, marker);
+			log.info(
+					"[IsoRegistrationRunner] nudge 필요 — job 일시 fail 표시. jobId={}, nudgeId={}",
+					jobId, nudge.payload().nudgeId()
+			);
+		} catch (RuntimeException e) {
+			log.error(
+					"[IsoRegistrationRunner] ISO 등록 실패. jobId={}, path={}",
+					jobId, prepared.resolvedPath(), e
+			);
+			backgroundJobService.fail(jobId, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+		}
+	}
 }

@@ -10,10 +10,11 @@ import java.util.List;
  */
 @ConfigurationProperties(prefix = "provision.path")
 public record PathSecurityProperties(
-        /**
-         * 업로드 / 탐색이 허용되는 절대경로 root 들. 콤마 구분된 환경변수에서 주입된다.
-         * 예: {@code /opt/iso,/opt/bios,/opt/firmware,/opt/subprogram}
-         */
-        List<String> allowedRoots
+		/**
+		 * 업로드 / 탐색이 허용되는 절대경로 root 들. 콤마 구분된 환경변수에서 주입된다.
+		 * 예: {@code /opt/iso,/opt/bios,/opt/firmware,/opt/subprogram}
+		 */
+		List<String> allowedRoots
 ) {
+
 }

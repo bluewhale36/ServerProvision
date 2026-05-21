@@ -9,29 +9,30 @@ import com.example.serverprovision.management.board.enums.Vendor;
  * MK2 — {@code isDeprecated} / {@code lifecycleStage} 노출.
  */
 public record BoardModelResponse(
-        Long id,
-        Vendor vendor,
-        String modelName,
-        String description,
-        int biosCount,
-        int bmcCount,
-        boolean isEnabled,
-        boolean isDeprecated,
-        boolean isDeleted,
-        LifecycleStage lifecycleStage
+		Long id,
+		Vendor vendor,
+		String modelName,
+		String description,
+		int biosCount,
+		int bmcCount,
+		boolean isEnabled,
+		boolean isDeprecated,
+		boolean isDeleted,
+		LifecycleStage lifecycleStage
 ) {
-    public static BoardModelResponse of(BoardModel entity) {
-        return new BoardModelResponse(
-                entity.getId(),
-                entity.getVendor(),
-                entity.getModelName(),
-                entity.getDescription(),
-                0,
-                0,
-                entity.isEnabled(),
-                entity.isDeprecated(),
-                entity.isDeleted(),
-                LifecycleStage.of(entity.isDeprecated(), entity.isDeleted())
-        );
-    }
+
+	public static BoardModelResponse of(BoardModel entity) {
+		return new BoardModelResponse(
+				entity.getId(),
+				entity.getVendor(),
+				entity.getModelName(),
+				entity.getDescription(),
+				0,
+				0,
+				entity.isEnabled(),
+				entity.isDeprecated(),
+				entity.isDeleted(),
+				LifecycleStage.of(entity.isDeprecated(), entity.isDeleted())
+		);
+	}
 }

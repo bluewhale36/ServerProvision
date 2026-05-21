@@ -24,33 +24,37 @@ import org.springframework.validation.Validator;
 @Component
 public class TrashSettingsRequestValidator implements Validator {
 
-    @Override
-    public boolean supports(Class<?> clazz) {
-        return TrashSettingsRequest.class.isAssignableFrom(clazz);
-    }
+	@Override
+	public boolean supports(Class<?> clazz) {
+		return TrashSettingsRequest.class.isAssignableFrom(clazz);
+	}
 
-    @Override
-    public void validate(Object target, Errors errors) {
-        TrashSettingsRequest req = (TrashSettingsRequest) target;
-        validateCronField(errors, "purgeCronExpression", req.purgeCronExpression(),
-                "영구삭제 점검 주기 cron 식의 형식이 올바르지 않아요. 예 : 0 0 * * * *");
-        validateCronField(errors, "notifyCronExpression", req.notifyCronExpression(),
-                "사전 알림 점검 주기 cron 식의 형식이 올바르지 않아요. 예 : 0 0 * * * *");
-    }
+	@Override
+	public void validate(Object target, Errors errors) {
+		TrashSettingsRequest req = (TrashSettingsRequest) target;
+		validateCronField(
+				errors, "purgeCronExpression", req.purgeCronExpression(),
+				"영구삭제 점검 주기 cron 식의 형식이 올바르지 않아요. 예 : 0 0 * * * *"
+		);
+		validateCronField(
+				errors, "notifyCronExpression", req.notifyCronExpression(),
+				"사전 알림 점검 주기 cron 식의 형식이 올바르지 않아요. 예 : 0 0 * * * *"
+		);
+	}
 
-    private static void validateCronField(Errors errors, String field, String expr, String message) {
-        if (expr == null || expr.isBlank()) {
-            // @NotBlank 가 별도 메시지로 처리 — 본 단계에서 중복 등록 회피.
-            return;
-        }
-        // 이미 같은 field 에 에러가 있으면 (예: @NotBlank 등) skip — 중복 메시지 회피.
-        if (errors.getFieldErrorCount(field) > 0) {
-            return;
-        }
-        try {
-            CronExpression.parse(expr.trim());
-        } catch (IllegalArgumentException ex) {
-            errors.rejectValue(field, "cronExpression.invalid", message);
-        }
-    }
+	private static void validateCronField(Errors errors, String field, String expr, String message) {
+		if (expr == null || expr.isBlank()) {
+			// @NotBlank 가 별도 메시지로 처리 — 본 단계에서 중복 등록 회피.
+			return;
+		}
+		// 이미 같은 field 에 에러가 있으면 (예: @NotBlank 등) skip — 중복 메시지 회피.
+		if (errors.getFieldErrorCount(field) > 0) {
+			return;
+		}
+		try {
+			CronExpression.parse(expr.trim());
+		} catch (IllegalArgumentException ex) {
+			errors.rejectValue(field, "cronExpression.invalid", message);
+		}
+	}
 }

@@ -7,7 +7,7 @@ import com.example.serverprovision.global.exception.NotFoundException;
  */
 public class BiosNotFoundException extends NotFoundException {
 
-    public BiosNotFoundException(Long boardId, Long biosId) {
-        super("BIOS 를 찾을 수 없습니다. boardId=" + boardId + ", biosId=" + biosId);
-    }
+	public BiosNotFoundException(Long boardId, Long biosId) {
+		super("BIOS 를 찾을 수 없습니다. boardId=" + boardId + ", biosId=" + biosId);
+	}
 }

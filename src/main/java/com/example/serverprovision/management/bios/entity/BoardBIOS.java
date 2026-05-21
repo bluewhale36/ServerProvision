@@ -4,17 +4,7 @@ import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.entity.BoardModel;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -52,137 +42,161 @@ import java.time.Instant;
 @SuperBuilder
 public class BoardBIOS extends LifecycleEntity implements Markable {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "board_model_id", nullable = false)
-    private BoardModel boardModel;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@OnDelete(action = OnDeleteAction.CASCADE)
+	@JoinColumn(name = "board_model_id", nullable = false)
+	private BoardModel boardModel;
 
-    /** 업체/제품 계열명 등 관리자가 식별에 쓰는 레이블. */
-    @Column(name = "name", nullable = false, length = 128)
-    private String name;
+	/**
+	 * 업체/제품 계열명 등 관리자가 식별에 쓰는 레이블.
+	 */
+	@Column(name = "name", nullable = false, length = 128)
+	private String name;
 
-    /** BIOS 버전 문자열 (예: "2.03", "F13"). BoardModel 범위 유일성은 Service 가 검증. */
-    @Column(name = "version", nullable = false, length = 64)
-    private String version;
+	/**
+	 * BIOS 버전 문자열 (예: "2.03", "F13"). BoardModel 범위 유일성은 Service 가 검증.
+	 */
+	@Column(name = "version", nullable = false, length = 64)
+	private String version;
 
-    /** 번들 트리 루트 절대경로. 이 경로 <em>하위</em> 에 전개된 파일들이 실제 BIOS 번들 내용. */
-    @Column(name = "tree_root_path", nullable = false, length = 1024)
-    private String treeRootPath;
+	/**
+	 * 번들 트리 루트 절대경로. 이 경로 <em>하위</em> 에 전개된 파일들이 실제 BIOS 번들 내용.
+	 */
+	@Column(name = "tree_root_path", nullable = false, length = 1024)
+	private String treeRootPath;
 
-    /**
-     * 진입점의 {@code treeRootPath} 기준 상대경로. 예: {@code "f.nsh"}, {@code "subdir/update.nsh"}.
-     * 실행 파일 자체만 보관하며, 파라미터 · 호출 방식 등 실행 로직은 향후 Execution 도메인에서 관장.
-     */
-    @Column(name = "entrypoint_relative_path", nullable = false, length = 512)
-    private String entrypointRelativePath;
+	/**
+	 * 진입점의 {@code treeRootPath} 기준 상대경로. 예: {@code "f.nsh"}, {@code "subdir/update.nsh"}.
+	 * 실행 파일 자체만 보관하며, 파라미터 · 호출 방식 등 실행 로직은 향후 Execution 도메인에서 관장.
+	 */
+	@Column(name = "entrypoint_relative_path", nullable = false, length = 512)
+	private String entrypointRelativePath;
 
-    /** 트리 내용 전체의 SHA-256 매니페스트 해시 (hex 64자). marker 와 대조해 무결성 확인. */
-    @Column(name = "manifest_hash", nullable = false, length = 64)
-    private String manifestHash;
+	/**
+	 * 트리 내용 전체의 SHA-256 매니페스트 해시 (hex 64자). marker 와 대조해 무결성 확인.
+	 */
+	@Column(name = "manifest_hash", nullable = false, length = 64)
+	private String manifestHash;
 
-    /**
-     * marker 컨텐츠의 HMAC-SHA256 서명 (hex 64자). 외부 이식/변조 탐지.
-     * <p>등록 과정상 2-phase save 필요(저장 후 id 가 정해져야 signature 에 포함 가능)하여 nullable.
-     * Service 레벨에서 "활성 레코드는 반드시 signature 가 채워짐" 을 불변식으로 보장한다.</p>
-     */
-    @Column(name = "marker_signature", length = 64)
-    private String markerSignature;
+	/**
+	 * marker 컨텐츠의 HMAC-SHA256 서명 (hex 64자). 외부 이식/변조 탐지.
+	 * <p>등록 과정상 2-phase save 필요(저장 후 id 가 정해져야 signature 에 포함 가능)하여 nullable.
+	 * Service 레벨에서 "활성 레코드는 반드시 signature 가 채워짐" 을 불변식으로 보장한다.</p>
+	 */
+	@Column(name = "marker_signature", length = 64)
+	private String markerSignature;
 
-    /** 마지막 무결성 검증 스냅샷. 목록 렌더 시 해시를 재계산하지 않고 최근 결과를 보여주기 위함. */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "last_integrity_status", nullable = false, length = 32)
-    @Builder.Default
-    private com.example.serverprovision.management.bios.vo.IntegrityStatus lastIntegrityStatus =
-            com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED;
+	/**
+	 * 마지막 무결성 검증 스냅샷. 목록 렌더 시 해시를 재계산하지 않고 최근 결과를 보여주기 위함.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "last_integrity_status", nullable = false, length = 32)
+	@Builder.Default
+	private com.example.serverprovision.management.bios.vo.IntegrityStatus lastIntegrityStatus =
+			com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED;
 
-    /** 마지막 검증 수행 시각. 미검증 자원은 null. */
-    @Column(name = "last_verified_at")
-    private Instant lastVerifiedAt;
+	/**
+	 * 마지막 검증 수행 시각. 미검증 자원은 null.
+	 */
+	@Column(name = "last_verified_at")
+	private Instant lastVerifiedAt;
 
-    /** 트리 내 파일 개수 (marker 파일 제외). 목록 뷰 표시용. */
-    @Column(name = "file_count", nullable = false)
-    private int fileCount;
+	/**
+	 * 트리 내 파일 개수 (marker 파일 제외). 목록 뷰 표시용.
+	 */
+	@Column(name = "file_count", nullable = false)
+	private int fileCount;
 
-    /** 트리 내 파일 총 바이트 (marker 파일 제외). 목록 뷰 표시용. */
-    @Column(name = "total_bytes", nullable = false)
-    private long totalBytes;
+	/**
+	 * 트리 내 파일 총 바이트 (marker 파일 제외). 목록 뷰 표시용.
+	 */
+	@Column(name = "total_bytes", nullable = false)
+	private long totalBytes;
 
-    @Column(name = "description", length = 1024)
-    private String description;
+	@Column(name = "description", length = 1024)
+	private String description;
 
-    // ---- 도메인 메서드 (lifecycle 메서드는 LifecycleEntity 가 처리) -------
+	// ---- 도메인 메서드 (lifecycle 메서드는 LifecycleEntity 가 처리) -------
 
-    @Override
-    protected Long resourceId() {
-        return this.id;
-    }
+	@Override
+	protected Long resourceId() {
+		return this.id;
+	}
 
-    @Override
-    protected String resourceLabel() {
-        return "BIOS";
-    }
+	@Override
+	protected String resourceLabel() {
+		return "BIOS";
+	}
 
-    /**
-     * 메타데이터 수정. 트리·진입점·해시·서명은 여기서 변경하지 않는다 —
-     * 번들 교체는 soft delete 후 새 번들 업로드 흐름을 통해서만 가능.
-     */
-    public void update(String name, String version, String description) {
-        this.name = name;
-        this.version = version;
-        this.description = description;
-    }
+	/**
+	 * 메타데이터 수정. 트리·진입점·해시·서명은 여기서 변경하지 않는다 —
+	 * 번들 교체는 soft delete 후 새 번들 업로드 흐름을 통해서만 가능.
+	 */
+	public void update(String name, String version, String description) {
+		this.name = name;
+		this.version = version;
+		this.description = description;
+	}
 
-    /**
-     * marker 재발급 흐름에서 manifestHash · signature 만 갱신. Entity 경계 내부에서만 허용.
-     * 파일 내용이 변조된 상태에서 호출되면 그 상태가 "원본" 으로 굳어지므로 반드시 관리자 명시적 액션에서만 호출.
-     */
-    @Override
-    public void reissueMarker(String manifestHash, String markerSignature) {
-        this.manifestHash = manifestHash;
-        this.markerSignature = markerSignature;
-    }
+	/**
+	 * marker 재발급 흐름에서 manifestHash · signature 만 갱신. Entity 경계 내부에서만 허용.
+	 * 파일 내용이 변조된 상태에서 호출되면 그 상태가 "원본" 으로 굳어지므로 반드시 관리자 명시적 액션에서만 호출.
+	 */
+	@Override
+	public void reissueMarker(String manifestHash, String markerSignature) {
+		this.manifestHash = manifestHash;
+		this.markerSignature = markerSignature;
+	}
 
-    /** S5-2 — typed-name 검증 + modal 표시 기준. BIOS 는 name 자체가 식별자. */
-    @Override
-    public String displayName() {
-        return name;
-    }
+	/**
+	 * S5-2 — typed-name 검증 + modal 표시 기준. BIOS 는 name 자체가 식별자.
+	 */
+	@Override
+	public String displayName() {
+		return name;
+	}
 
-    /** S5-2-3-1 — 휴지통 위계 시각화용 부모 노출. */
-    @Override
-    public java.util.Optional<com.example.serverprovision.global.marker.Markable> getParentMarkable() {
-        return java.util.Optional.ofNullable(boardModel);
-    }
+	/**
+	 * S5-2-3-1 — 휴지통 위계 시각화용 부모 노출.
+	 */
+	@Override
+	public java.util.Optional<com.example.serverprovision.global.marker.Markable> getParentMarkable() {
+		return java.util.Optional.ofNullable(boardModel);
+	}
 
-    public void recordIntegritySnapshot(com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
-                                        Instant verifiedAt) {
-        this.lastIntegrityStatus = integrityStatus;
-        this.lastVerifiedAt = verifiedAt;
-    }
+	public void recordIntegritySnapshot(
+			com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
+			Instant verifiedAt
+	) {
+		this.lastIntegrityStatus = integrityStatus;
+		this.lastVerifiedAt = verifiedAt;
+	}
 
-    /** PATH_DRIFT 자동 적용 시 BoardBiosMarkableScanner 가 호출 — DB 의 treeRootPath 만 갱신. */
-    public void updateTreeRootPath(String treeRootPath) {
-        this.treeRootPath = treeRootPath;
-    }
+	/**
+	 * PATH_DRIFT 자동 적용 시 BoardBiosMarkableScanner 가 호출 — DB 의 treeRootPath 만 갱신.
+	 */
+	public void updateTreeRootPath(String treeRootPath) {
+		this.treeRootPath = treeRootPath;
+	}
 
-    // ---- Markable 구현 -------------------------------------------------
+	// ---- Markable 구현 -------------------------------------------------
 
-    @Override
-    public Long getResourceId() {
-        return id;
-    }
+	@Override
+	public Long getResourceId() {
+		return id;
+	}
 
-    @Override
-    public ResourceType getResourceType() {
-        return ResourceType.BIOS_BUNDLE;
-    }
+	@Override
+	public ResourceType getResourceType() {
+		return ResourceType.BIOS_BUNDLE;
+	}
 
-    @Override
-    public Path getResourcePath() {
-        return Path.of(treeRootPath);
-    }
+	@Override
+	public Path getResourcePath() {
+		return Path.of(treeRootPath);
+	}
 }

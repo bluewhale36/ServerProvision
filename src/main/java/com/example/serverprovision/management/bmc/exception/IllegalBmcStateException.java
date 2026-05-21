@@ -7,7 +7,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class IllegalBmcStateException extends ConflictException {
 
-    public IllegalBmcStateException(String message) {
-        super(message);
-    }
+	public IllegalBmcStateException(String message) {
+		super(message);
+	}
 }

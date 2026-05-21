@@ -8,7 +8,8 @@ import com.example.serverprovision.global.exception.FieldBoundBadRequestExceptio
  * <p>{@link FieldBoundBadRequestException} 상속으로 응답 fieldErrors 에 매핑된다 (S4 정합).</p>
  */
 public class InvalidReplaceTargetException extends FieldBoundBadRequestException {
-    public InvalidReplaceTargetException(Long targetId) {
-        super("replace 대상이 nudge 세션의 충돌 후보 목록에 없습니다 : " + targetId, "targetId");
-    }
+
+	public InvalidReplaceTargetException(Long targetId) {
+		super("replace 대상이 nudge 세션의 충돌 후보 목록에 없습니다 : " + targetId, "targetId");
+	}
 }

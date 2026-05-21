@@ -27,19 +27,19 @@
         if (!window.ConfirmModal) return;
         ConfirmModal.bindFormSubmit('data-confirm-purge', function (form) {
             const resourceType = form.getAttribute('data-resource-type');
-            const resourceId   = form.getAttribute('data-resource-id');
+            const resourceId = form.getAttribute('data-resource-id');
             if (!resourceType || !resourceId) {
                 console.warn('[confirm-purge] form 에 data-resource-type / data-resource-id 누락');
                 return;
             }
             const url = '/ui/confirm-modal/PURGE'
-                    + '?resourceType=' + encodeURIComponent(resourceType)
-                    + '&resourceId=' + encodeURIComponent(resourceId);
+                + '?resourceType=' + encodeURIComponent(resourceType)
+                + '&resourceId=' + encodeURIComponent(resourceId);
             const composedMessage = ConfirmModal.composeMessage(form, TEMPLATE, DEFAULT_MSG);
 
             ConfirmModal.openLazy(url, {
                 startDisabled: true,
-                afterInject: ({ confirmBtn, expectedEl, typedInput, messageEl }) => {
+                afterInject: ({confirmBtn, expectedEl, typedInput, messageEl}) => {
                     // form 에서 받은 메시지 (resource-label 조립) 를 modal 의 message slot 에 주입.
                     if (messageEl) messageEl.textContent = composedMessage;
                     if (!expectedEl || !typedInput) return null;

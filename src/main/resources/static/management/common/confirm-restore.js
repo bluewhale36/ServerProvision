@@ -12,10 +12,10 @@
 
     function lazyUrl(form) {
         const resourceType = form.getAttribute('data-resource-type') || 'OS_IMAGE';
-        const resourceId   = form.getAttribute('data-resource-id') || '0';
+        const resourceId = form.getAttribute('data-resource-id') || '0';
         return '/ui/confirm-modal/RESTORE'
-                + '?resourceType=' + encodeURIComponent(resourceType)
-                + '&resourceId=' + encodeURIComponent(resourceId);
+            + '?resourceType=' + encodeURIComponent(resourceType)
+            + '&resourceId=' + encodeURIComponent(resourceId);
     }
 
     function writeHiddenCascade(form, cascadeValue) {
@@ -40,7 +40,7 @@
 
             let cascadeWrap, cascadeTrueRadio;
             ConfirmModal.openLazy(lazyUrl(form), {
-                afterInject: ({ modal, messageEl }) => {
+                afterInject: ({modal, messageEl}) => {
                     if (messageEl) messageEl.textContent = message;
                     cascadeWrap = modal.querySelector('[data-modal-cascade-wrap]');
                     cascadeTrueRadio = modal.querySelector('[data-modal-cascade-true]');

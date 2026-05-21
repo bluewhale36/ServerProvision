@@ -38,39 +38,42 @@
             const body = new URLSearchParams(new FormData(form));
             fetch(form.action, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json' },
+                headers: {'Accept': 'application/json'},
                 body: body
             })
-                    .then(resp => resp.text().then(text => {
-                        let parsed = null;
-                        try { parsed = text ? JSON.parse(text) : null; } catch (_) { /* ignore */ }
-                        return { status: resp.status, ok: resp.ok, body: parsed };
-                    }))
-                    .then(({ status, ok, body }) => {
-                        if (ok) {
-                            window.location.href = (body && body.redirect) || '/management/board';
-                            return;
-                        }
-                        if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                            window.NudgeModal.handle(body, {
-                                baseUrl: '/management/board/nudge',
-                                listUrl: '/management/board',
-                                toastKey: 'board.toast',
-                                onError: showBanner,
-                                afterCancel: () => showBanner('등록을 취소했습니다.')
-                            });
-                            return;
-                        }
-                        if (body && window.FormError) {
-                            window.FormError.renderResponse(body, { root: form });
-                            return;
-                        }
-                        showBanner((body && body.message) || ('HTTP ' + status));
-                    })
-                    .catch(err => {
-                        console.error(TAG, err);
-                        showBanner(err.message || '요청 처리 중 오류가 발생했습니다.');
-                    });
+                .then(resp => resp.text().then(text => {
+                    let parsed = null;
+                    try {
+                        parsed = text ? JSON.parse(text) : null;
+                    } catch (_) { /* ignore */
+                    }
+                    return {status: resp.status, ok: resp.ok, body: parsed};
+                }))
+                .then(({status, ok, body}) => {
+                    if (ok) {
+                        window.location.href = (body && body.redirect) || '/management/board';
+                        return;
+                    }
+                    if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
+                        window.NudgeModal.handle(body, {
+                            baseUrl: '/management/board/nudge',
+                            listUrl: '/management/board',
+                            toastKey: 'board.toast',
+                            onError: showBanner,
+                            afterCancel: () => showBanner('등록을 취소했습니다.')
+                        });
+                        return;
+                    }
+                    if (body && window.FormError) {
+                        window.FormError.renderResponse(body, {root: form});
+                        return;
+                    }
+                    showBanner((body && body.message) || ('HTTP ' + status));
+                })
+                .catch(err => {
+                    console.error(TAG, err);
+                    showBanner(err.message || '요청 처리 중 오류가 발생했습니다.');
+                });
         });
     });
 })();

@@ -18,8 +18,8 @@ import java.nio.file.Path;
 @Component
 public class LocalFileSystemResourceExistenceChecker implements ResourceExistenceChecker {
 
-    @Override
-    public boolean exists(Path resourcePath) {
-        return resourcePath != null && Files.exists(resourcePath);
-    }
+	@Override
+	public boolean exists(Path resourcePath) {
+		return resourcePath != null && Files.exists(resourcePath);
+	}
 }

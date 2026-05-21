@@ -8,20 +8,21 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class InsufficientDiskSpaceException extends ConflictException {
 
-    public InsufficientDiskSpaceException(String path, long required, long available) {
-        super(String.format(
-                "디스크 공간이 부족합니다. path=%s, 필요=%s, 가용=%s",
-                path, formatBytes(required), formatBytes(available)));
-    }
+	public InsufficientDiskSpaceException(String path, long required, long available) {
+		super(String.format(
+				"디스크 공간이 부족합니다. path=%s, 필요=%s, 가용=%s",
+				path, formatBytes(required), formatBytes(available)
+		));
+	}
 
-    private static String formatBytes(long bytes) {
-        if (bytes < 0) return "?";
-        if (bytes < 1024) return bytes + " B";
-        long kb = bytes / 1024;
-        if (kb < 1024) return kb + " KB";
-        long mb = kb / 1024;
-        if (mb < 1024) return mb + " MB";
-        long gb = mb / 1024;
-        return gb + " GB";
-    }
+	private static String formatBytes(long bytes) {
+		if (bytes < 0) return "?";
+		if (bytes < 1024) return bytes + " B";
+		long kb = bytes / 1024;
+		if (kb < 1024) return kb + " KB";
+		long mb = kb / 1024;
+		if (mb < 1024) return mb + " MB";
+		long gb = mb / 1024;
+		return gb + " GB";
+	}
 }

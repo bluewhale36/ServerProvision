@@ -98,7 +98,8 @@
         </thead>
         <tbody>
         <tr th:each="row : ${page.content}">
-            <td th:text="${row.id}" style="color: var(--n-text-muted, #777); font-family: ui-monospace, Menlo, monospace; font-size: 12px;"></td>
+            <td th:text="${row.id}"
+                style="color: var(--n-text-muted, #777); font-family: ui-monospace, Menlo, monospace; font-size: 12px;"></td>
             <td><span class="n-badge n-badge-gray" th:text="${row.resourceType.displayName}"></span></td>
             <td th:text="${row.resourceId}" style="font-family: ui-monospace, Menlo, monospace; font-size: 12px;"></td>
             <td><code th:text="${row.displayName}"></code></td>

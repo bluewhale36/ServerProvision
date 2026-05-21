@@ -25,17 +25,17 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class BackgroundJobNotificationAdapter implements NotificationDispatcher {
 
-    private final BackgroundJobService backgroundJobService;
+	private final BackgroundJobService backgroundJobService;
 
-    @Override
-    public void dispatch(JobType type, Set<NotifyChannel> activeChannels, String title, String body) {
-        if (activeChannels.contains(NotifyChannel.SERVER_LOG)) {
-            log.info("[trash-notify] type={} title='{}' body='{}'", type, title, body);
-        }
-        if (activeChannels.contains(NotifyChannel.BACKGROUND_JOB)) {
-            // 단일 stage 알림 — register 즉시 complete. 사용자가 알림 패널에서 확인 후 dismiss.
-            String jobId = backgroundJobService.register(type, title, body, List.of("알림"));
-            backgroundJobService.complete(jobId);
-        }
-    }
+	@Override
+	public void dispatch(JobType type, Set<NotifyChannel> activeChannels, String title, String body) {
+		if (activeChannels.contains(NotifyChannel.SERVER_LOG)) {
+			log.info("[trash-notify] type={} title='{}' body='{}'", type, title, body);
+		}
+		if (activeChannels.contains(NotifyChannel.BACKGROUND_JOB)) {
+			// 단일 stage 알림 — register 즉시 complete. 사용자가 알림 패널에서 확인 후 dismiss.
+			String jobId = backgroundJobService.register(type, title, body, List.of("알림"));
+			backgroundJobService.complete(jobId);
+		}
+	}
 }

@@ -103,11 +103,13 @@
                         번들 등록 방식에 따라 의미가 달라집니다 — 업로드 모드에서는 "전개 대상 (비어있어야 함)",
                         기존 디렉토리 등록 모드에서는 "이미 콘텐츠가 차 있는 디렉토리".
                     </div>
-                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}" th:errors="*{targetDirectory}"></div>
+                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}"
+                         th:errors="*{targetDirectory}"></div>
 
                     <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', null)}"></div>
 
-                    <label class="n-check" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <label class="n-check"
+                           style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>디렉토리 생성 허용</span>
                     </label>
@@ -118,13 +120,17 @@
                     <label class="n-label strong">번들 등록 방식</label>
                     <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
                         <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
-                                aria-selected="true" data-mode="FOLDER">폴더 업로드</button>
+                                aria-selected="true" data-mode="FOLDER">폴더 업로드
+                        </button>
                         <button type="button" id="modeTabZip" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="ZIP">Zip 업로드</button>
+                                aria-selected="false" data-mode="ZIP">Zip 업로드
+                        </button>
                         <button type="button" id="modeTabSingle" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일 업로드</button>
+                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일 업로드
+                        </button>
                         <button type="button" id="modeTabExisting" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="EXISTING_DIRECTORY">기존 디렉토리 등록</button>
+                                aria-selected="false" data-mode="EXISTING_DIRECTORY">기존 디렉토리 등록
+                        </button>
                     </div>
 
                     <input type="hidden" id="uploadMode" name="uploadMode" value="FOLDER">

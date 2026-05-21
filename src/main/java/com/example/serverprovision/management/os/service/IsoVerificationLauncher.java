@@ -3,11 +3,11 @@ package com.example.serverprovision.management.os.service;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.job.stage.IntegrityVerificationStage;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.exception.ISONotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
-import com.example.serverprovision.global.marker.ResourceType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -33,76 +33,76 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class IsoVerificationLauncher {
 
-    private final OSImageService osImageService;
-    private final ISORepository isoRepository;
-    private final BackgroundJobService backgroundJobService;
+	private final OSImageService osImageService;
+	private final ISORepository isoRepository;
+	private final BackgroundJobService backgroundJobService;
 
-    /**
-     * 검증 Job 등록 후 비동기 실행. 호출 스레드는 jobId 만 받고 즉시 반환.
-     */
-    public String startVerification(Long osImageId, Long isoId) {
-        ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
-                .orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
-        String jobId = backgroundJobService.register(
-                JobType.INTEGRITY_VERIFICATION,
-                "ISO 무결성 검증",
-                iso.getIsoPath(),
-                BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
-                Map.of(
-                        "resourceType", ResourceType.OS_ISO.name(),
-                        "resourceId", String.valueOf(isoId),
-                        "parentId", String.valueOf(osImageId)
-                ));
-        runAsync(jobId, osImageId, isoId);
-        return jobId;
-    }
+	/**
+	 * 검증 Job 등록 후 비동기 실행. 호출 스레드는 jobId 만 받고 즉시 반환.
+	 */
+	public String startVerification(Long osImageId, Long isoId) {
+		ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
+				.orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
+		String jobId = backgroundJobService.register(
+				JobType.INTEGRITY_VERIFICATION,
+				"ISO 무결성 검증",
+				iso.getIsoPath(),
+				BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
+				Map.of(
+						"resourceType", ResourceType.OS_ISO.name(),
+						"resourceId", String.valueOf(isoId),
+						"parentId", String.valueOf(osImageId)
+				)
+		);
+		runAsync(jobId, osImageId, isoId);
+		return jobId;
+	}
 
-    /**
-     * 실제 검증 수행. {@code verifyIntegrity} 는 단일 호출이지만 결과 enum 으로 단계별 전이를 역추적한다.
-     * <ul>
-     *   <li>{@code MARKER_MISSING / SIGNATURE_INVALID} : 서명 단계에서 막힘 → 1단계 ERROR</li>
-     *   <li>{@code TAMPERED} : 서명 통과 후 해시 불일치 → 1단계 DONE, 2단계 ERROR</li>
-     *   <li>{@code ORIGINAL} : 둘 다 DONE → Job COMPLETED</li>
-     * </ul>
-     */
-    @Async
-    public void runAsync(String jobId, Long osImageId, Long isoId) {
-        try {
-            backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
-            IntegrityStatus status = osImageService.verifyAndRecordIntegrity(osImageId, isoId);
-            applyStatus(jobId, status);
-        } catch (RuntimeException e) {
-            log.error("[verify] ISO 검증 실패. isoId={}", isoId, e);
-            backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
-        }
-    }
+	/**
+	 * 실제 검증 수행. {@code verifyIntegrity} 는 단일 호출이지만 결과 enum 으로 단계별 전이를 역추적한다.
+	 * <ul>
+	 *   <li>{@code MARKER_MISSING / SIGNATURE_INVALID} : 서명 단계에서 막힘 → 1단계 ERROR</li>
+	 *   <li>{@code TAMPERED} : 서명 통과 후 해시 불일치 → 1단계 DONE, 2단계 ERROR</li>
+	 *   <li>{@code ORIGINAL} : 둘 다 DONE → Job COMPLETED</li>
+	 * </ul>
+	 */
+	@Async
+	public void runAsync(String jobId, Long osImageId, Long isoId) {
+		try {
+			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
+			IntegrityStatus status = osImageService.verifyAndRecordIntegrity(osImageId, isoId);
+			applyStatus(jobId, status);
+		} catch (RuntimeException e) {
+			log.error("[verify] ISO 검증 실패. isoId={}", isoId, e);
+			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
+		}
+	}
 
-    private void applyStatus(String jobId, IntegrityStatus status) {
-        switch (status) {
-            case MARKER_MISSING, SIGNATURE_INVALID ->
-                    backgroundJobService.fail(jobId, statusMessage(status));
-            case TAMPERED -> {
-                backgroundJobService.completeStage(jobId);
-                backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-                backgroundJobService.fail(jobId, statusMessage(status));
-            }
-            case ORIGINAL -> {
-                backgroundJobService.completeStage(jobId);
-                backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-                backgroundJobService.completeStage(jobId);
-                backgroundJobService.complete(jobId);
-            }
-            case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
-        }
-    }
+	private void applyStatus(String jobId, IntegrityStatus status) {
+		switch (status) {
+			case MARKER_MISSING, SIGNATURE_INVALID -> backgroundJobService.fail(jobId, statusMessage(status));
+			case TAMPERED -> {
+				backgroundJobService.completeStage(jobId);
+				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
+				backgroundJobService.fail(jobId, statusMessage(status));
+			}
+			case ORIGINAL -> {
+				backgroundJobService.completeStage(jobId);
+				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
+				backgroundJobService.completeStage(jobId);
+				backgroundJobService.complete(jobId);
+			}
+			case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
+		}
+	}
 
-    private String statusMessage(IntegrityStatus status) {
-        return switch (status) {
-            case ORIGINAL -> "원본 유지";
-            case TAMPERED -> "변조 감지 (해시 불일치)";
-            case SIGNATURE_INVALID -> "서명 무효";
-            case MARKER_MISSING -> "마커 파일 없음";
-            case NOT_VERIFIED -> "미검증";
-        };
-    }
+	private String statusMessage(IntegrityStatus status) {
+		return switch (status) {
+			case ORIGINAL -> "원본 유지";
+			case TAMPERED -> "변조 감지 (해시 불일치)";
+			case SIGNATURE_INVALID -> "서명 무효";
+			case MARKER_MISSING -> "마커 파일 없음";
+			case NOT_VERIFIED -> "미검증";
+		};
+	}
 }

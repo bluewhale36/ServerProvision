@@ -10,18 +10,19 @@ import java.util.List;
  * 템플릿이 {@link #boardId} null 여부로 "공용" 라벨 분기.</p>
  */
 public record BoardWithSubprogramListResponse(
-        Long boardId,
-        Vendor vendor,
-        String vendorDisplayName,
-        String modelName,
-        boolean isDeleted,
-        List<SubprogramResponse> items
+		Long boardId,
+		Vendor vendor,
+		String vendorDisplayName,
+		String modelName,
+		boolean isDeleted,
+		List<SubprogramResponse> items
 ) {
-    public boolean isCommonScope() {
-        return boardId == null;
-    }
 
-    public static BoardWithSubprogramListResponse common(List<SubprogramResponse> items) {
-        return new BoardWithSubprogramListResponse(null, null, null, null, false, items);
-    }
+	public boolean isCommonScope() {
+		return boardId == null;
+	}
+
+	public static BoardWithSubprogramListResponse common(List<SubprogramResponse> items) {
+		return new BoardWithSubprogramListResponse(null, null, null, null, false, items);
+	}
 }

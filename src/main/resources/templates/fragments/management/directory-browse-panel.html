@@ -29,7 +29,8 @@
         <button type="button"
                 th:id="${prefix} + 'UpBtn'"
                 class="n-btn n-btn-sm n-btn-ghost"
-                th:title="${mode == 'file' ? '상위 디렉토리로 (트리 루트 밖으로는 이동 불가)' : '상위 디렉토리로'}">↑ 상위</button>
+                th:title="${mode == 'file' ? '상위 디렉토리로 (트리 루트 밖으로는 이동 불가)' : '상위 디렉토리로'}">↑ 상위
+        </button>
         <code th:id="${prefix} + 'CurrentPath'"
               style="flex: 1; font-size: 12px; word-break: break-all;"></code>
     </div>
@@ -43,16 +44,19 @@
     <div style="display: flex; justify-content: flex-end; gap: 6px;">
         <button type="button"
                 th:id="${prefix} + 'CancelBtn'"
-                class="n-btn n-btn-sm n-btn-ghost">닫기</button>
+                class="n-btn n-btn-sm n-btn-ghost">닫기
+        </button>
         <button th:if="${mode == 'file'}"
                 type="button"
                 th:id="${prefix} + 'ClearBtn'"
-                class="n-btn n-btn-sm n-btn-ghost">진입점 비우기</button>
+                class="n-btn n-btn-sm n-btn-ghost">진입점 비우기
+        </button>
         <button th:if="${mode == 'directory'}"
                 type="button"
                 th:id="${prefix} + 'ApplyBtn'"
                 class="n-btn n-btn-sm n-btn-primary"
-                th:text="${primaryActionLabel != null ? primaryActionLabel : '이 경로로 적용'}">이 경로로 적용</button>
+                th:text="${primaryActionLabel != null ? primaryActionLabel : '이 경로로 적용'}">이 경로로 적용
+        </button>
     </div>
 </div>
 </body>

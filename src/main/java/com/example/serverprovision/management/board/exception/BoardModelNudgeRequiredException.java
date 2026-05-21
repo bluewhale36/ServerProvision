@@ -9,7 +9,7 @@ import com.example.serverprovision.management.common.nudge.exception.NudgeRequir
  */
 public class BoardModelNudgeRequiredException extends NudgeRequiredException {
 
-    public BoardModelNudgeRequiredException(NudgeRequiredResponse payload) {
-        super("동일한 메인보드 모델이 휴지통/Deprecated 에 존재합니다. (nudgeId=" + payload.nudgeId() + ")", payload);
-    }
+	public BoardModelNudgeRequiredException(NudgeRequiredResponse payload) {
+		super("동일한 메인보드 모델이 휴지통/Deprecated 에 존재합니다. (nudgeId=" + payload.nudgeId() + ")", payload);
+	}
 }

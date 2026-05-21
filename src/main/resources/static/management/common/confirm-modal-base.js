@@ -27,12 +27,12 @@
      * @param {function}  opts.onConfirm   확인 클릭 + close 후 호출.
      */
     function open(prefix, opts) {
-        const modal      = document.getElementById(prefix + 'Modal');
-        const titleEl    = document.getElementById(prefix + 'Title');
-        const messageEl  = document.getElementById(prefix + 'Message');
+        const modal = document.getElementById(prefix + 'Modal');
+        const titleEl = document.getElementById(prefix + 'Title');
+        const messageEl = document.getElementById(prefix + 'Message');
         const confirmBtn = document.getElementById(prefix + 'ConfirmBtn');
-        const cancelBtn  = document.getElementById(prefix + 'CancelBtn');
-        const backdrop   = document.getElementById(prefix + 'Backdrop');
+        const cancelBtn = document.getElementById(prefix + 'CancelBtn');
+        const backdrop = document.getElementById(prefix + 'Backdrop');
 
         if (!modal || !confirmBtn || !cancelBtn) {
             console.warn(TAG, 'fragment 누락 — fallback native confirm. prefix=', prefix);
@@ -48,7 +48,7 @@
 
         let extraCleanup = null;
         if (opts.afterOpen) {
-            extraCleanup = opts.afterOpen({ modal, confirmBtn, cancelBtn });
+            extraCleanup = opts.afterOpen({modal, confirmBtn, cancelBtn});
         }
 
         modal.hidden = false;
@@ -63,7 +63,9 @@
             document.removeEventListener('keydown', onKey);
             if (typeof extraCleanup === 'function') extraCleanup();
         };
-        const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+        const onKey = (ev) => {
+            if (ev.key === 'Escape') close();
+        };
 
         confirmBtn.onclick = () => {
             if (opts.beforeConfirm && opts.beforeConfirm() === false) return;
@@ -145,7 +147,7 @@
             resp = await fetch(url, {
                 method,
                 body,
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json,text/html;q=0.9,*/*;q=0.5' },
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json,text/html;q=0.9,*/*;q=0.5'},
                 redirect: 'follow'
             });
         } catch (err) {
@@ -160,8 +162,10 @@
         try {
             const ct = resp.headers.get('content-type') || '';
             if (ct.includes('application/json')) payload = await resp.json();
-            else payload = { message: (await resp.text()).slice(0, 500) };
-        } catch (_) { payload = null; }
+            else payload = {message: (await resp.text()).slice(0, 500)};
+        } catch (_) {
+            payload = null;
+        }
         handler.onRejected(form, resp.status, payload);
     }
 
@@ -200,7 +204,7 @@
         let html;
         try {
             const resp = await fetch(fetchUrl, {
-                headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' }
+                headers: {'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest'}
             });
             if (!resp.ok) {
                 if (opts.onError) opts.onError(new Error('HTTP ' + resp.status));
@@ -224,8 +228,8 @@
         const confirmBtn = modal.querySelector('[data-modal-confirm]');
         const expectedEl = modal.querySelector('[data-modal-expected]');
         const typedInput = modal.querySelector('[data-modal-typed-input]');
-        const messageEl  = modal.querySelector('[data-modal-message]');
-        const cancelEls  = modal.querySelectorAll('[data-modal-cancel]');
+        const messageEl = modal.querySelector('[data-modal-message]');
+        const cancelEls = modal.querySelectorAll('[data-modal-cancel]');
 
         if (!confirmBtn) {
             console.warn(TAG, 'lazy modal 에 [data-modal-confirm] 부재.');
@@ -237,24 +241,30 @@
 
         let extraCleanup = null;
         if (opts.afterInject) {
-            extraCleanup = opts.afterInject({ modal, confirmBtn, expectedEl, typedInput, messageEl });
+            extraCleanup = opts.afterInject({modal, confirmBtn, expectedEl, typedInput, messageEl});
         }
 
         const close = () => {
             confirmBtn.onclick = null;
-            cancelEls.forEach(el => { el.onclick = null; });
+            cancelEls.forEach(el => {
+                el.onclick = null;
+            });
             document.removeEventListener('keydown', onKey);
             if (typeof extraCleanup === 'function') extraCleanup();
             slot.innerHTML = '';
         };
-        const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+        const onKey = (ev) => {
+            if (ev.key === 'Escape') close();
+        };
 
         confirmBtn.onclick = () => {
             if (opts.beforeConfirm && opts.beforeConfirm() === false) return;
             close();
             opts.onConfirm();
         };
-        cancelEls.forEach(el => { el.onclick = close; });
+        cancelEls.forEach(el => {
+            el.onclick = close;
+        });
         document.addEventListener('keydown', onKey);
 
         if (typedInput) {
@@ -264,5 +274,5 @@
         }
     }
 
-    window.ConfirmModal = { open, openLazy, bindFormSubmit, composeMessage, approveAndSubmit };
+    window.ConfirmModal = {open, openLazy, bindFormSubmit, composeMessage, approveAndSubmit};
 })();

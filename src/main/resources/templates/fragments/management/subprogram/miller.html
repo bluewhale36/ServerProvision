@@ -83,7 +83,9 @@
         <div class="n-miller-empty"
              th:data-empty-before="|메인보드 모델을 선택하여 ${kindDisplayName} 보기|"
              th:data-empty-after="|${kindDisplayName}를 선택하여 상세 보기|"
-             th:text="${selectId != null or selectKey != null} ? |${kindDisplayName}를 선택하여 상세 보기| : |메인보드 모델을 선택하여 ${kindDisplayName} 보기|">자원을 선택하여 상세 사항 보기</div>
+             th:text="${selectId != null or selectKey != null} ? |${kindDisplayName}를 선택하여 상세 보기| : |메인보드 모델을 선택하여 ${kindDisplayName} 보기|">
+            자원을 선택하여 상세 사항 보기
+        </div>
 
         <th:block th:each="group : ${groups}">
             <div th:each="sp : ${group.items}"

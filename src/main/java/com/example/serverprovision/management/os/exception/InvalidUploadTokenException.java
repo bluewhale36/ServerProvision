@@ -7,7 +7,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * (인증 실패와 구별되는 의미이기 때문에 409 Conflict 로 매핑)
  */
 public class InvalidUploadTokenException extends ConflictException {
-    public InvalidUploadTokenException(String message) {
-        super(message);
-    }
+
+	public InvalidUploadTokenException(String message) {
+		super(message);
+	}
 }

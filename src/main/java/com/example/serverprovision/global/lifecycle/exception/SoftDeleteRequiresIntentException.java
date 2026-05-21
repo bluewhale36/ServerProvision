@@ -13,16 +13,16 @@ import com.example.serverprovision.global.lifecycle.DeleteIntent;
  */
 public class SoftDeleteRequiresIntentException extends ConflictException {
 
-    private final DeleteIntent intent;
+	private final DeleteIntent intent;
 
-    public SoftDeleteRequiresIntentException(DeleteIntent intent) {
-        super("softDelete 진입 시 자원이 추적 위치에 없습니다 — 사용자 명시 액션 필요. type="
-                + intent.resourceType() + " id=" + intent.resourceId()
-                + " missingPath=" + intent.missingPath());
-        this.intent = intent;
-    }
+	public SoftDeleteRequiresIntentException(DeleteIntent intent) {
+		super("softDelete 진입 시 자원이 추적 위치에 없습니다 — 사용자 명시 액션 필요. type="
+					  + intent.resourceType() + " id=" + intent.resourceId()
+					  + " missingPath=" + intent.missingPath());
+		this.intent = intent;
+	}
 
-    public DeleteIntent intent() {
-        return intent;
-    }
+	public DeleteIntent intent() {
+		return intent;
+	}
 }

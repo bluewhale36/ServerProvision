@@ -9,7 +9,7 @@ import com.example.serverprovision.global.exception.NotFoundException;
  */
 public class RestoreTrashLostException extends NotFoundException {
 
-    public RestoreTrashLostException(String trashedPath) {
-        super("휴지통 자원 부재 — 외부에서 정리된 것으로 보입니다 : " + trashedPath);
-    }
+	public RestoreTrashLostException(String trashedPath) {
+		super("휴지통 자원 부재 — 외부에서 정리된 것으로 보입니다 : " + trashedPath);
+	}
 }

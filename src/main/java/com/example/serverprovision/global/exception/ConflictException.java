@@ -6,7 +6,7 @@ package com.example.serverprovision.global.exception;
  */
 public abstract class ConflictException extends DomainException {
 
-    protected ConflictException(String message) {
-        super(message);
-    }
+	protected ConflictException(String message) {
+		super(message);
+	}
 }

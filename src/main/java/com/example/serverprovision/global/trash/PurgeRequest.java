@@ -18,27 +18,37 @@ import com.example.serverprovision.global.trash.enums.PurgeOrigin;
  * @param typedName    사용자가 입력한 자원명. {@link PurgeOrigin#requiresTypedName()} 가 true 인 경우 NOT NULL. TTL_AUTO 는 null
  */
 public record PurgeRequest(
-        ResourceType resourceType,
-        Long resourceId,
-        PurgeOrigin origin,
-        String triggeredBy,
-        String typedName
+		ResourceType resourceType,
+		Long resourceId,
+		PurgeOrigin origin,
+		String triggeredBy,
+		String typedName
 ) {
 
-    /** TTL_AUTO 시스템 진입용 팩토리 — typedName / triggeredBy 모두 null. */
-    public static PurgeRequest forTtlAuto(ResourceType resourceType, Long resourceId) {
-        return new PurgeRequest(resourceType, resourceId, PurgeOrigin.TTL_AUTO, null, null);
-    }
+	/**
+	 * TTL_AUTO 시스템 진입용 팩토리 — typedName / triggeredBy 모두 null.
+	 */
+	public static PurgeRequest forTtlAuto(ResourceType resourceType, Long resourceId) {
+		return new PurgeRequest(resourceType, resourceId, PurgeOrigin.TTL_AUTO, null, null);
+	}
 
-    /** 사용자 직접 진입용 팩토리. */
-    public static PurgeRequest forUserDirect(ResourceType resourceType, Long resourceId,
-                                              String triggeredBy, String typedName) {
-        return new PurgeRequest(resourceType, resourceId, PurgeOrigin.USER_DIRECT, triggeredBy, typedName);
-    }
+	/**
+	 * 사용자 직접 진입용 팩토리.
+	 */
+	public static PurgeRequest forUserDirect(
+			ResourceType resourceType, Long resourceId,
+			String triggeredBy, String typedName
+	) {
+		return new PurgeRequest(resourceType, resourceId, PurgeOrigin.USER_DIRECT, triggeredBy, typedName);
+	}
 
-    /** nudge REPLACE 진입용 팩토리 (v3-1 typed-name 추가). */
-    public static PurgeRequest forNudgeReplace(ResourceType resourceType, Long resourceId,
-                                                String triggeredBy, String typedName) {
-        return new PurgeRequest(resourceType, resourceId, PurgeOrigin.NUDGE_REPLACE, triggeredBy, typedName);
-    }
+	/**
+	 * nudge REPLACE 진입용 팩토리 (v3-1 typed-name 추가).
+	 */
+	public static PurgeRequest forNudgeReplace(
+			ResourceType resourceType, Long resourceId,
+			String triggeredBy, String typedName
+	) {
+		return new PurgeRequest(resourceType, resourceId, PurgeOrigin.NUDGE_REPLACE, triggeredBy, typedName);
+	}
 }

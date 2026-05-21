@@ -8,19 +8,21 @@ import java.util.UUID;
  */
 public record DeleteIntentToken(UUID value) {
 
-    public static DeleteIntentToken issue() {
-        return new DeleteIntentToken(UUID.randomUUID());
-    }
+	public static DeleteIntentToken issue() {
+		return new DeleteIntentToken(UUID.randomUUID());
+	}
 
-    public static DeleteIntentToken parse(String prefixed) {
-        if (prefixed == null || !prefixed.startsWith("del-")) {
-            throw new IllegalArgumentException("올바른 DeleteIntentToken 형식이 아닙니다 : " + prefixed);
-        }
-        return new DeleteIntentToken(UUID.fromString(prefixed.substring(4)));
-    }
+	public static DeleteIntentToken parse(String prefixed) {
+		if (prefixed == null || !prefixed.startsWith("del-")) {
+			throw new IllegalArgumentException("올바른 DeleteIntentToken 형식이 아닙니다 : " + prefixed);
+		}
+		return new DeleteIntentToken(UUID.fromString(prefixed.substring(4)));
+	}
 
-    /** 응답 / Path variable 등 외부 노출용 직렬화. {@code "del-<uuid>"}. */
-    public String asString() {
-        return "del-" + value;
-    }
+	/**
+	 * 응답 / Path variable 등 외부 노출용 직렬화. {@code "del-<uuid>"}.
+	 */
+	public String asString() {
+		return "del-" + value;
+	}
 }

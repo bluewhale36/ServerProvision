@@ -17,4 +17,5 @@ package com.example.serverprovision.management.common.nudge;
  * if-else 분기문 무분별 확장 anti-pattern 회피 (CLAUDE.md §조건 분기문 정합).</p>
  */
 public sealed interface NudgePayload permits ContentNudgePayload, IntentMetaNudgePayload, RestoreHashConflictPayload {
+
 }

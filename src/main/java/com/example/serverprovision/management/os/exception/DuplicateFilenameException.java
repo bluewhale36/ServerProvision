@@ -8,7 +8,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * 먼저 정리해야 한다.
  */
 public class DuplicateFilenameException extends ConflictException {
-    public DuplicateFilenameException(String path) {
-        super("해당 경로에 이미 같은 이름의 파일이 존재합니다 : " + path);
-    }
+
+	public DuplicateFilenameException(String path) {
+		super("해당 경로에 이미 같은 이름의 파일이 존재합니다 : " + path);
+	}
 }

@@ -12,9 +12,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "provision.browse")
 public record FileSystemSecurityProperties(
-        /** Browse 응답에 포함할 최대 entry 수. 초과 시 처음 N 개만 + {@code truncated=true}. */
-        int maxEntries,
-        /** {@code Files.walk} 류 호출의 max depth. 무한 재귀 / 깊은 nested directory 폭주 방어. */
-        int maxDepth
+		/** Browse 응답에 포함할 최대 entry 수. 초과 시 처음 N 개만 + {@code truncated=true}. */
+		int maxEntries,
+		/** {@code Files.walk} 류 호출의 max depth. 무한 재귀 / 깊은 nested directory 폭주 방어. */
+		int maxDepth
 ) {
+
 }

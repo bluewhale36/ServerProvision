@@ -12,8 +12,9 @@ import java.util.List;
  * dismiss 후 진행하면 단계 B (해시) 에서 본격 충돌 nudge 흐름으로 전이될 수 있다.</p>
  */
 public record SubprogramUploadIntentResponse(
-        String uploadToken,
-        List<String> warnings,
-        PreExistingMatchInfo preExistingMatch
+		String uploadToken,
+		List<String> warnings,
+		PreExistingMatchInfo preExistingMatch
 ) {
+
 }

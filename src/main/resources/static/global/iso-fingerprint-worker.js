@@ -24,11 +24,11 @@ self.addEventListener('message', async (event) => {
     const file = data.file;
 
     if (!file) {
-        self.postMessage({ requestId, error: '파일이 전달되지 않았습니다.' });
+        self.postMessage({requestId, error: '파일이 전달되지 않았습니다.'});
         return;
     }
     if (typeof self.hashwasm === 'undefined' || !self.hashwasm.createSHA256) {
-        self.postMessage({ requestId, error: 'hash-wasm 라이브러리 로드 실패. 네트워크 / CDN 확인.' });
+        self.postMessage({requestId, error: 'hash-wasm 라이브러리 로드 실패. 네트워크 / CDN 확인.'});
         return;
     }
 
@@ -39,7 +39,7 @@ self.addEventListener('message', async (event) => {
         let lastReport = Date.now();
 
         // 진행 0% 시작 보고 (UI 가 시간 표기 시작)
-        self.postMessage({ requestId, progress: 0, processedBytes: 0, totalBytes: total });
+        self.postMessage({requestId, progress: 0, processedBytes: 0, totalBytes: total});
 
         for (let offset = 0; offset < total; offset += CHUNK_BYTES) {
             const end = Math.min(offset + CHUNK_BYTES, total);
@@ -61,8 +61,8 @@ self.addEventListener('message', async (event) => {
         }
 
         const fingerprint = hasher.digest('hex');
-        self.postMessage({ requestId, fingerprint, totalBytes: total });
+        self.postMessage({requestId, fingerprint, totalBytes: total});
     } catch (err) {
-        self.postMessage({ requestId, error: (err && err.message) || String(err) });
+        self.postMessage({requestId, error: (err && err.message) || String(err)});
     }
 });

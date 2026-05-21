@@ -13,32 +13,42 @@ import java.util.Optional;
  */
 public interface BoardModelRepository extends JpaRepository<BoardModel, Long> {
 
-    /** 기본 보기 : soft 삭제된 레코드 제외. Vendor 오름차순 → 등록일 내림차순(최신 등록이 상단). */
-    List<BoardModel> findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc();
+	/**
+	 * 기본 보기 : soft 삭제된 레코드 제외. Vendor 오름차순 → 등록일 내림차순(최신 등록이 상단).
+	 */
+	List<BoardModel> findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc();
 
-    /** 휴지통 포함 보기 : 모든 레코드. */
-    List<BoardModel> findAllByOrderByVendorAscCreatedAtDesc();
+	/**
+	 * 휴지통 포함 보기 : 모든 레코드.
+	 */
+	List<BoardModel> findAllByOrderByVendorAscCreatedAtDesc();
 
-    /** 단건 조회 (삭제된 레코드 제외). 수정/토글/삭제 시 사용. */
-    Optional<BoardModel> findByIdAndIsDeletedFalse(Long id);
+	/**
+	 * 단건 조회 (삭제된 레코드 제외). 수정/토글/삭제 시 사용.
+	 */
+	Optional<BoardModel> findByIdAndIsDeletedFalse(Long id);
 
-    /** 복구 조회 (삭제된 레코드만 대상). */
-    Optional<BoardModel> findByIdAndIsDeletedTrue(Long id);
+	/**
+	 * 복구 조회 (삭제된 레코드만 대상).
+	 */
+	Optional<BoardModel> findByIdAndIsDeletedTrue(Long id);
 
-    /**
-     * 중복 등록 방지 — 활성 상태(is_deleted=false) 에서 (vendor, modelName) 조합 유일성 검사.
-     * DB 레이어의 {@code uk_vendor_model_name (vendor, model_name)} 과 이중 가드를 이룬다.
-     * 삭제된 동일 조합을 재등록하려 하면 DB 유니크 제약으로 실패하므로 복구 경로를 사용해야 한다.
-     */
-    boolean existsByVendorAndModelNameAndIsDeletedFalse(Vendor vendor, String modelName);
+	/**
+	 * 중복 등록 방지 — 활성 상태(is_deleted=false) 에서 (vendor, modelName) 조합 유일성 검사.
+	 * DB 레이어의 {@code uk_vendor_model_name (vendor, model_name)} 과 이중 가드를 이룬다.
+	 * 삭제된 동일 조합을 재등록하려 하면 DB 유니크 제약으로 실패하므로 복구 경로를 사용해야 한다.
+	 */
+	boolean existsByVendorAndModelNameAndIsDeletedFalse(Vendor vendor, String modelName);
 
-    /**
-     * MK2 WAVE 1 — 메타 nudge 후보 (soft-deleted ∪ active+deprecated). 중복 등록 시도 시 충돌 후보 회수용.
-     */
-    List<BoardModel> findAllByVendorAndModelNameAndIsDeletedTrue(Vendor vendor, String modelName);
+	/**
+	 * MK2 WAVE 1 — 메타 nudge 후보 (soft-deleted ∪ active+deprecated). 중복 등록 시도 시 충돌 후보 회수용.
+	 */
+	List<BoardModel> findAllByVendorAndModelNameAndIsDeletedTrue(Vendor vendor, String modelName);
 
-    List<BoardModel> findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor vendor, String modelName);
+	List<BoardModel> findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor vendor, String modelName);
 
-    /** S5-2-3+ — soft-deleted Board (메타 자원). 휴지통 표시용. */
-    List<BoardModel> findAllByIsDeletedTrue();
+	/**
+	 * S5-2-3+ — soft-deleted Board (메타 자원). 휴지통 표시용.
+	 */
+	List<BoardModel> findAllByIsDeletedTrue();
 }

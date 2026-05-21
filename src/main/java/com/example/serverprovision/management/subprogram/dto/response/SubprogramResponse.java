@@ -12,22 +12,23 @@ import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
  * 재계산하지 않도록 서버에서 단일 진입점으로 산출해 내려준다.</p>
  */
 public record SubprogramResponse(
-        Long id,
-        SubprogramKind kind,
-        String kindDisplayName,
-        Long boardId,
-        String name,
-        String version,
-        String treeRootPath,
-        String entrypointRelativePath,
-        String manifestHash,
-        int fileCount,
-        long totalBytes,
-        String description,
-        IntegrityStatus integrityStatus,
-        boolean isEnabled,
-        boolean isDeleted,
-        boolean isDeprecated,
-        LifecycleStage lifecycleStage
+		Long id,
+		SubprogramKind kind,
+		String kindDisplayName,
+		Long boardId,
+		String name,
+		String version,
+		String treeRootPath,
+		String entrypointRelativePath,
+		String manifestHash,
+		int fileCount,
+		long totalBytes,
+		String description,
+		IntegrityStatus integrityStatus,
+		boolean isEnabled,
+		boolean isDeleted,
+		boolean isDeprecated,
+		LifecycleStage lifecycleStage
 ) {
+
 }

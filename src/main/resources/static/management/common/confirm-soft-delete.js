@@ -13,10 +13,10 @@
     function lazyUrl(form) {
         // S5-6-2 의 SOFT_DELETE 는 자원 lookup 불요 — dummy 값으로 endpoint signature 만 충족.
         const resourceType = form.getAttribute('data-resource-type') || 'OS_IMAGE';
-        const resourceId   = form.getAttribute('data-resource-id') || '0';
+        const resourceId = form.getAttribute('data-resource-id') || '0';
         return '/ui/confirm-modal/SOFT_DELETE'
-                + '?resourceType=' + encodeURIComponent(resourceType)
-                + '&resourceId=' + encodeURIComponent(resourceId);
+            + '?resourceType=' + encodeURIComponent(resourceType)
+            + '&resourceId=' + encodeURIComponent(resourceId);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -24,7 +24,7 @@
         ConfirmModal.bindFormSubmit('data-confirm-soft-delete', function (form) {
             const message = ConfirmModal.composeMessage(form, TEMPLATE, DEFAULT_MSG);
             ConfirmModal.openLazy(lazyUrl(form), {
-                afterInject: ({ messageEl }) => {
+                afterInject: ({messageEl}) => {
                     if (messageEl) messageEl.textContent = message;
                     return null;
                 },

@@ -18,14 +18,14 @@ import java.util.Set;
  */
 public interface NotificationDispatcher {
 
-    /**
-     * 사건 발생 알림. JobType 별 다형성 — {@link JobType} 자체에 displayName 이 있으므로 본 인터페이스는
-     * type + 자원 식별자 + 메시지만 받는다.
-     *
-     * @param type             알림 종류 (TTL_NOTIFY / TRASH_AUTO_PURGE / TRASH_PURGE_FAILED 등)
-     * @param activeChannels   현재 trash_settings.notification_channels 의 활성 셋
-     * @param title            알림 제목 (Job 카드 본문 등에 사용)
-     * @param body             상세 메시지 (NULL 가능)
-     */
-    void dispatch(JobType type, Set<NotifyChannel> activeChannels, String title, String body);
+	/**
+	 * 사건 발생 알림. JobType 별 다형성 — {@link JobType} 자체에 displayName 이 있으므로 본 인터페이스는
+	 * type + 자원 식별자 + 메시지만 받는다.
+	 *
+	 * @param type           알림 종류 (TTL_NOTIFY / TRASH_AUTO_PURGE / TRASH_PURGE_FAILED 등)
+	 * @param activeChannels 현재 trash_settings.notification_channels 의 활성 셋
+	 * @param title          알림 제목 (Job 카드 본문 등에 사용)
+	 * @param body           상세 메시지 (NULL 가능)
+	 */
+	void dispatch(JobType type, Set<NotifyChannel> activeChannels, String title, String body);
 }

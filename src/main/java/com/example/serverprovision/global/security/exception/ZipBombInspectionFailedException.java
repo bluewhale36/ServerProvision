@@ -16,16 +16,16 @@ import org.springframework.http.HttpStatus;
  */
 public class ZipBombInspectionFailedException extends SecurityException {
 
-    public ZipBombInspectionFailedException(String reason) {
-        super("zip 검사 도중 서버 측 IO 오류가 발생했습니다 : " + reason);
-    }
+	public ZipBombInspectionFailedException(String reason) {
+		super("zip 검사 도중 서버 측 IO 오류가 발생했습니다 : " + reason);
+	}
 
-    public ZipBombInspectionFailedException(String reason, Throwable cause) {
-        super("zip 검사 도중 서버 측 IO 오류가 발생했습니다 : " + reason, cause);
-    }
+	public ZipBombInspectionFailedException(String reason, Throwable cause) {
+		super("zip 검사 도중 서버 측 IO 오류가 발생했습니다 : " + reason, cause);
+	}
 
-    @Override
-    public HttpStatus httpStatus() {
-        return HttpStatus.INTERNAL_SERVER_ERROR;
-    }
+	@Override
+	public HttpStatus httpStatus() {
+		return HttpStatus.INTERNAL_SERVER_ERROR;
+	}
 }

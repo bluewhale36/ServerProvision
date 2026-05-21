@@ -8,12 +8,15 @@ import com.example.serverprovision.management.os.enums.OSName;
  */
 public interface CompsExtractorStrategy {
 
-    /** 주어진 OSName 이 이 전략이 지원하는 계열에 속하는지 여부. */
-    boolean supports(OSName osName);
+	/**
+	 * 주어진 OSName 이 이 전략이 지원하는 계열에 속하는지 여부.
+	 */
+	boolean supports(OSName osName);
 
-    /**
-     * 전략 고유 로직으로 comps.xml 을 찾아 파싱한다.
-     * @param preparedPath {@code IsoPreparationService} 가 마운트/해제 후 제공한 탐색 가능 경로 (로컬 디렉토리 또는 HTTP URL)
-     */
-    CompsExtractionResult extract(String preparedPath);
+	/**
+	 * 전략 고유 로직으로 comps.xml 을 찾아 파싱한다.
+	 *
+	 * @param preparedPath {@code IsoPreparationService} 가 마운트/해제 후 제공한 탐색 가능 경로 (로컬 디렉토리 또는 HTTP URL)
+	 */
+	CompsExtractionResult extract(String preparedPath);
 }

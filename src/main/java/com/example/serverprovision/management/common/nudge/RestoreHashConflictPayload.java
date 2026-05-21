@@ -17,8 +17,9 @@ package com.example.serverprovision.management.common.nudge;
  * @param manifestHash       양쪽 자원이 공유하는 manifestHash
  */
 public record RestoreHashConflictPayload(
-        String trashedPath,
-        String targetOriginalPath,
-        String manifestHash
+		String trashedPath,
+		String targetOriginalPath,
+		String manifestHash
 ) implements NudgePayload {
+
 }

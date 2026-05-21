@@ -8,14 +8,14 @@ package com.example.serverprovision.global.exception;
  */
 public abstract class FieldBoundConflictException extends ConflictException {
 
-    private final String fieldName;
+	private final String fieldName;
 
-    protected FieldBoundConflictException(String message, String fieldName) {
-        super(message);
-        this.fieldName = fieldName;
-    }
+	protected FieldBoundConflictException(String message, String fieldName) {
+		super(message);
+		this.fieldName = fieldName;
+	}
 
-    public String fieldName() {
-        return fieldName;
-    }
+	public String fieldName() {
+		return fieldName;
+	}
 }

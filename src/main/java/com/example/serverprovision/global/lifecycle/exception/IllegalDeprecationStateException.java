@@ -12,7 +12,8 @@ import com.example.serverprovision.global.exception.ConflictException;
  * </ul>
  */
 public class IllegalDeprecationStateException extends ConflictException {
-    public IllegalDeprecationStateException(String message) {
-        super(message);
-    }
+
+	public IllegalDeprecationStateException(String message) {
+		super(message);
+	}
 }

@@ -14,11 +14,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
 public class PurgeIoFailedException extends DomainException {
 
-    public PurgeIoFailedException(String message) {
-        super(message);
-    }
+	public PurgeIoFailedException(String message) {
+		super(message);
+	}
 
-    public PurgeIoFailedException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public PurgeIoFailedException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

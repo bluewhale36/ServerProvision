@@ -7,7 +7,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class IllegalSubprogramStateException extends ConflictException {
 
-    public IllegalSubprogramStateException(String message) {
-        super(message);
-    }
+	public IllegalSubprogramStateException(String message) {
+		super(message);
+	}
 }

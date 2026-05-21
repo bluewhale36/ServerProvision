@@ -12,8 +12,10 @@ import java.util.Optional;
  */
 public interface OSPackageGroupRepository extends JpaRepository<OSPackageGroup, Long> {
 
-    List<OSPackageGroup> findAllByOsImage_IdOrderByGroupCode_ValueAsc(Long osImageId);
+	List<OSPackageGroup> findAllByOsImage_IdOrderByGroupCode_ValueAsc(Long osImageId);
 
-    /** 추출 upsert 조회 — 동일 (osImageId, groupCode) 가 있으면 그 엔티티를 반환. */
-    Optional<OSPackageGroup> findByOsImage_IdAndGroupCode_Value(Long osImageId, String groupCode);
+	/**
+	 * 추출 upsert 조회 — 동일 (osImageId, groupCode) 가 있으면 그 엔티티를 반환.
+	 */
+	Optional<OSPackageGroup> findByOsImage_IdAndGroupCode_Value(Long osImageId, String groupCode);
 }

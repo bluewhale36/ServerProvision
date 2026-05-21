@@ -10,7 +10,7 @@ import java.util.List;
  */
 public class EntrypointAmbiguousException extends ConflictException {
 
-    public EntrypointAmbiguousException(List<String> candidates) {
-        super("진입점 후보가 여러 개입니다. 하나를 명시 지정하세요 : " + String.join(", ", candidates));
-    }
+	public EntrypointAmbiguousException(List<String> candidates) {
+		super("진입점 후보가 여러 개입니다. 하나를 명시 지정하세요 : " + String.join(", ", candidates));
+	}
 }

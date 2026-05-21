@@ -13,6 +13,8 @@ package com.example.serverprovision.global.job;
  */
 public interface JobStage {
 
-    /** 알림 카드의 chunk 위에 노출되는 단계 이름. */
-    String label();
+	/**
+	 * 알림 카드의 chunk 위에 노출되는 단계 이름.
+	 */
+	String label();
 }

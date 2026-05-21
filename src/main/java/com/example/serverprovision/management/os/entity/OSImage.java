@@ -4,17 +4,7 @@ import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.os.enums.OSName;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -40,92 +30,104 @@ import java.util.List;
 @SuperBuilder
 public class OSImage extends LifecycleEntity implements Markable {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "os_name", nullable = false, length = 32)
-    private OSName osName;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "os_name", nullable = false, length = 32)
+	private OSName osName;
 
-    @Column(name = "os_version", nullable = false, length = 64)
-    private String osVersion;
+	@Column(name = "os_version", nullable = false, length = 64)
+	private String osVersion;
 
-    @Column(name = "description", length = 1024)
-    private String description;
+	@Column(name = "description", length = 1024)
+	private String description;
 
-    // 양방향 매핑 : ISO 가 FK 소유자. 조회 편의를 위해 연관 리스트를 유지한다.
-    // cascade/orphanRemoval 을 쓰지 않는 이유 — ISO 생성/삭제는 Service 가 명시적으로 Repository 호출로 수행한다.
-    // @Builder.Default — SuperBuilder 가 sub-class 필드의 기본값을 build 시점에 적용하도록 보장.
-    @OneToMany(mappedBy = "osImage", fetch = FetchType.LAZY)
-    @OrderBy("id ASC")
-    @Builder.Default
-    private List<ISO> isos = new ArrayList<>();
+	// 양방향 매핑 : ISO 가 FK 소유자. 조회 편의를 위해 연관 리스트를 유지한다.
+	// cascade/orphanRemoval 을 쓰지 않는 이유 — ISO 생성/삭제는 Service 가 명시적으로 Repository 호출로 수행한다.
+	// @Builder.Default — SuperBuilder 가 sub-class 필드의 기본값을 build 시점에 적용하도록 보장.
+	@OneToMany(mappedBy = "osImage", fetch = FetchType.LAZY)
+	@OrderBy("id ASC")
+	@Builder.Default
+	private List<ISO> isos = new ArrayList<>();
 
-    // A1-1 : 설치 환경·패키지 그룹은 OSImage 범위에서 관리된다. 양방향 매핑은 조회 편의용이며 cascade 없음.
-    @OneToMany(mappedBy = "osImage", fetch = FetchType.LAZY)
-    @OrderBy("id ASC")
-    @Builder.Default
-    private List<OSEnvironment> environments = new ArrayList<>();
+	// A1-1 : 설치 환경·패키지 그룹은 OSImage 범위에서 관리된다. 양방향 매핑은 조회 편의용이며 cascade 없음.
+	@OneToMany(mappedBy = "osImage", fetch = FetchType.LAZY)
+	@OrderBy("id ASC")
+	@Builder.Default
+	private List<OSEnvironment> environments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "osImage", fetch = FetchType.LAZY)
-    @OrderBy("id ASC")
-    @Builder.Default
-    private List<OSPackageGroup> packageGroups = new ArrayList<>();
+	@OneToMany(mappedBy = "osImage", fetch = FetchType.LAZY)
+	@OrderBy("id ASC")
+	@Builder.Default
+	private List<OSPackageGroup> packageGroups = new ArrayList<>();
 
-    // ---- LifecycleEntity 가드 메시지용 -----------------------------------
+	// ---- LifecycleEntity 가드 메시지용 -----------------------------------
 
-    @Override
-    protected Long resourceId() {
-        return this.id;
-    }
+	@Override
+	protected Long resourceId() {
+		return this.id;
+	}
 
-    @Override
-    protected String resourceLabel() {
-        return "OS 버전";
-    }
+	@Override
+	protected String resourceLabel() {
+		return "OS 버전";
+	}
 
-    // ---- 도메인 메서드 -------------------------------------------------
+	// ---- 도메인 메서드 -------------------------------------------------
 
-    /**
-     * S5-2-3 정합화 : 자식 ISO 동반 cascade soft-delete 책임을 Service 로 응집.
-     * <p>이전엔 entity 가 자식 ISO.softDelete() 를 직접 호출했으나, 그 경로는
-     * trashLifecycleService 우회로 ISO 들을 ghost (is_deleted=true + trashed_at=null) 로 만들었다.
-     * 본 entity 는 자기 lifecycle 만 책임지고, OSImageService.softDelete 가 자식 trash 이동을 수행.</p>
-     */
+	/**
+	 * S5-2-3 정합화 : 자식 ISO 동반 cascade soft-delete 책임을 Service 로 응집.
+	 * <p>이전엔 entity 가 자식 ISO.softDelete() 를 직접 호출했으나, 그 경로는
+	 * trashLifecycleService 우회로 ISO 들을 ghost (is_deleted=true + trashed_at=null) 로 만들었다.
+	 * 본 entity 는 자기 lifecycle 만 책임지고, OSImageService.softDelete 가 자식 trash 이동을 수행.</p>
+	 */
 
-    public void update(String osVersion, String description) {
-        this.osVersion = osVersion;
-        this.description = description;
-    }
+	public void update(String osVersion, String description) {
+		this.osVersion = osVersion;
+		this.description = description;
+	}
 
-    // ==== Markable 구현 (메타 자원) ===================================
-    // OSImage 는 디렉토리/파일 없는 메타데이터 — 마커 발급/검증 흐름 미적용.
-    // 휴지통 페이지 노출용으로 ResourceType / lifecycle 메타만 제공.
+	// ==== Markable 구현 (메타 자원) ===================================
+	// OSImage 는 디렉토리/파일 없는 메타데이터 — 마커 발급/검증 흐름 미적용.
+	// 휴지통 페이지 노출용으로 ResourceType / lifecycle 메타만 제공.
 
-    @Override
-    public Long getResourceId() { return this.id; }
+	@Override
+	public Long getResourceId() {
+		return this.id;
+	}
 
-    @Override
-    public ResourceType getResourceType() { return ResourceType.OS_IMAGE; }
+	@Override
+	public ResourceType getResourceType() {
+		return ResourceType.OS_IMAGE;
+	}
 
-    @Override
-    public java.nio.file.Path getResourcePath() { return null; }
+	@Override
+	public java.nio.file.Path getResourcePath() {
+		return null;
+	}
 
-    @Override
-    public String getManifestHash() { return null; }
+	@Override
+	public String getManifestHash() {
+		return null;
+	}
 
-    @Override
-    public String getMarkerSignature() { return null; }
+	@Override
+	public String getMarkerSignature() {
+		return null;
+	}
 
-    @Override
-    public void reissueMarker(String manifestHash, String markerSignature) {
-        // 메타 자원 — no-op.
-    }
+	@Override
+	public void reissueMarker(String manifestHash, String markerSignature) {
+		// 메타 자원 — no-op.
+	}
 
-    /** S5-2 — typed-name 검증 + modal 표시 기준 자원명. */
-    @Override
-    public String displayName() {
-        return osName.getDisplayName() + " " + osVersion;
-    }
+	/**
+	 * S5-2 — typed-name 검증 + modal 표시 기준 자원명.
+	 */
+	@Override
+	public String displayName() {
+		return osName.getDisplayName() + " " + osVersion;
+	}
 }

@@ -17,14 +17,14 @@ import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResp
  */
 public abstract class NudgeRequiredException extends ConflictException {
 
-    private final NudgeRequiredResponse payload;
+	private final NudgeRequiredResponse payload;
 
-    protected NudgeRequiredException(String message, NudgeRequiredResponse payload) {
-        super(message);
-        this.payload = payload;
-    }
+	protected NudgeRequiredException(String message, NudgeRequiredResponse payload) {
+		super(message);
+		this.payload = payload;
+	}
 
-    public NudgeRequiredResponse payload() {
-        return payload;
-    }
+	public NudgeRequiredResponse payload() {
+		return payload;
+	}
 }

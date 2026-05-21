@@ -13,7 +13,7 @@ package com.example.serverprovision.global.lifecycle;
  */
 public enum DeleteAction {
 
-    CORRECT_PATH_THEN_DELETE,
+	CORRECT_PATH_THEN_DELETE,
 
-    FORCED_CLEAR
+	FORCED_CLEAR
 }

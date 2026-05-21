@@ -7,11 +7,7 @@ import com.example.serverprovision.global.job.exception.BackgroundJobNotFoundExc
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -30,26 +26,26 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BackgroundJobController {
 
-    private final BackgroundJobService backgroundJobService;
+	private final BackgroundJobService backgroundJobService;
 
-    @GetMapping
-    public BackgroundJobListResponse list() {
-        List<BackgroundJobResponse> jobs = backgroundJobService.snapshot().stream()
-                .map(BackgroundJobResponse::from)
-                .toList();
-        return new BackgroundJobListResponse(jobs);
-    }
+	@GetMapping
+	public BackgroundJobListResponse list() {
+		List<BackgroundJobResponse> jobs = backgroundJobService.snapshot().stream()
+				.map(BackgroundJobResponse::from)
+				.toList();
+		return new BackgroundJobListResponse(jobs);
+	}
 
-    @GetMapping("/{id}")
-    public BackgroundJobResponse get(@PathVariable("id") String id) {
-        BackgroundJob job = backgroundJobService.find(id)
-                .orElseThrow(() -> new BackgroundJobNotFoundException(id));
-        return BackgroundJobResponse.from(job);
-    }
+	@GetMapping("/{id}")
+	public BackgroundJobResponse get(@PathVariable("id") String id) {
+		BackgroundJob job = backgroundJobService.find(id)
+				.orElseThrow(() -> new BackgroundJobNotFoundException(id));
+		return BackgroundJobResponse.from(job);
+	}
 
-    @PostMapping("/{id}/dismiss")
-    public ResponseEntity<Void> dismiss(@PathVariable("id") String id) {
-        backgroundJobService.dismiss(id);
-        return ResponseEntity.noContent().build();
-    }
+	@PostMapping("/{id}/dismiss")
+	public ResponseEntity<Void> dismiss(@PathVariable("id") String id) {
+		backgroundJobService.dismiss(id);
+		return ResponseEntity.noContent().build();
+	}
 }

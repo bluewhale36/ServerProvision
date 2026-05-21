@@ -8,7 +8,8 @@ import com.example.serverprovision.global.exception.FieldBoundConflictException;
  * <p>S4 — targetDirectory 필드 직결.</p>
  */
 public class MarkerConflictException extends FieldBoundConflictException {
-    public MarkerConflictException(String path) {
-        super("이 디렉토리는 이미 다른 등록 소유로 marker 가 있습니다 : " + path, "targetDirectory");
-    }
+
+	public MarkerConflictException(String path) {
+		super("이 디렉토리는 이미 다른 등록 소유로 marker 가 있습니다 : " + path, "targetDirectory");
+	}
 }

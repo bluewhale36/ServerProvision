@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.FieldBoundConflictException;
  */
 public class DuplicateBmcVersionException extends FieldBoundConflictException {
 
-    public DuplicateBmcVersionException(Long boardId, String version) {
-        super("같은 메인보드에 이미 같은 버전의 BMC 펌웨어가 등록되어 있습니다. boardId=" + boardId + ", version=" + version, "version");
-    }
+	public DuplicateBmcVersionException(Long boardId, String version) {
+		super("같은 메인보드에 이미 같은 버전의 BMC 펌웨어가 등록되어 있습니다. boardId=" + boardId + ", version=" + version, "version");
+	}
 }

@@ -26,65 +26,65 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BiosVerificationLauncher {
 
-    private final BiosService biosService;
-    private final BiosRepository biosRepository;
-    private final BackgroundJobService backgroundJobService;
+	private final BiosService biosService;
+	private final BiosRepository biosRepository;
+	private final BackgroundJobService backgroundJobService;
 
-    public String startVerification(Long boardId, Long biosId) {
-        BoardBIOS bios = biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
-                .orElseThrow(() -> new BiosNotFoundException(boardId, biosId));
-        String jobId = backgroundJobService.register(
-                JobType.INTEGRITY_VERIFICATION,
-                "BIOS 무결성 검증",
-                bios.getName() + " · " + bios.getVersion(),
-                BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
-                Map.of(
-                        "resourceType", ResourceType.BIOS_BUNDLE.name(),
-                        "resourceId", String.valueOf(biosId),
-                        "parentId", String.valueOf(boardId)
-                ));
-        runAsync(jobId, boardId, biosId);
-        return jobId;
-    }
+	public String startVerification(Long boardId, Long biosId) {
+		BoardBIOS bios = biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
+				.orElseThrow(() -> new BiosNotFoundException(boardId, biosId));
+		String jobId = backgroundJobService.register(
+				JobType.INTEGRITY_VERIFICATION,
+				"BIOS 무결성 검증",
+				bios.getName() + " · " + bios.getVersion(),
+				BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
+				Map.of(
+						"resourceType", ResourceType.BIOS_BUNDLE.name(),
+						"resourceId", String.valueOf(biosId),
+						"parentId", String.valueOf(boardId)
+				)
+		);
+		runAsync(jobId, boardId, biosId);
+		return jobId;
+	}
 
-    @Async
-    public void runAsync(String jobId, Long boardId, Long biosId) {
-        try {
-            backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
-            IntegrityStatus status = biosService.verifyAndRecordIntegrity(boardId, biosId);
-            applyStatus(jobId, status);
-        } catch (RuntimeException e) {
-            log.error("[verify] BIOS 검증 실패. biosId={}", biosId, e);
-            backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
-        }
-    }
+	@Async
+	public void runAsync(String jobId, Long boardId, Long biosId) {
+		try {
+			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
+			IntegrityStatus status = biosService.verifyAndRecordIntegrity(boardId, biosId);
+			applyStatus(jobId, status);
+		} catch (RuntimeException e) {
+			log.error("[verify] BIOS 검증 실패. biosId={}", biosId, e);
+			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
+		}
+	}
 
-    private void applyStatus(String jobId, IntegrityStatus status) {
-        switch (status) {
-            case MARKER_MISSING, SIGNATURE_INVALID ->
-                    backgroundJobService.fail(jobId, statusMessage(status));
-            case TAMPERED -> {
-                backgroundJobService.completeStage(jobId);
-                backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-                backgroundJobService.fail(jobId, statusMessage(status));
-            }
-            case ORIGINAL -> {
-                backgroundJobService.completeStage(jobId);
-                backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-                backgroundJobService.completeStage(jobId);
-                backgroundJobService.complete(jobId);
-            }
-            case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
-        }
-    }
+	private void applyStatus(String jobId, IntegrityStatus status) {
+		switch (status) {
+			case MARKER_MISSING, SIGNATURE_INVALID -> backgroundJobService.fail(jobId, statusMessage(status));
+			case TAMPERED -> {
+				backgroundJobService.completeStage(jobId);
+				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
+				backgroundJobService.fail(jobId, statusMessage(status));
+			}
+			case ORIGINAL -> {
+				backgroundJobService.completeStage(jobId);
+				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
+				backgroundJobService.completeStage(jobId);
+				backgroundJobService.complete(jobId);
+			}
+			case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
+		}
+	}
 
-    private String statusMessage(IntegrityStatus status) {
-        return switch (status) {
-            case ORIGINAL -> "원본 유지";
-            case TAMPERED -> "변조 감지 (해시 불일치)";
-            case SIGNATURE_INVALID -> "서명 무효";
-            case MARKER_MISSING -> "마커 파일 없음";
-            case NOT_VERIFIED -> "미검증";
-        };
-    }
+	private String statusMessage(IntegrityStatus status) {
+		return switch (status) {
+			case ORIGINAL -> "원본 유지";
+			case TAMPERED -> "변조 감지 (해시 불일치)";
+			case SIGNATURE_INVALID -> "서명 무효";
+			case MARKER_MISSING -> "마커 파일 없음";
+			case NOT_VERIFIED -> "미검증";
+		};
+	}
 }

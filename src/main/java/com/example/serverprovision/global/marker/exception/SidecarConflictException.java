@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class SidecarConflictException extends ConflictException {
 
-    public SidecarConflictException(String sidecarPath) {
-        super("sidecar 마커 파일이 이미 존재합니다 : " + sidecarPath);
-    }
+	public SidecarConflictException(String sidecarPath) {
+		super("sidecar 마커 파일이 이미 존재합니다 : " + sidecarPath);
+	}
 }

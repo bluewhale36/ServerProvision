@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class IllegalOSImageStateException extends ConflictException {
 
-    public IllegalOSImageStateException(String message) {
-        super(message);
-    }
+	public IllegalOSImageStateException(String message) {
+		super(message);
+	}
 }

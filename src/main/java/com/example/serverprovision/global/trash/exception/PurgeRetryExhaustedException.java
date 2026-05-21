@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
 public class PurgeRetryExhaustedException extends DomainException {
 
-    public PurgeRetryExhaustedException(String message) {
-        super(message);
-    }
+	public PurgeRetryExhaustedException(String message) {
+		super(message);
+	}
 
-    public PurgeRetryExhaustedException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public PurgeRetryExhaustedException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

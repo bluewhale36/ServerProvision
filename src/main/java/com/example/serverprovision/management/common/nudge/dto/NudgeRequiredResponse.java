@@ -11,14 +11,18 @@ import java.util.UUID;
  * 중 하나를 선택해 confirm 엔드포인트를 호출한다.</p>
  */
 public record NudgeRequiredResponse(
-        String code,        // "NUDGE_REQUIRED" 고정
-        UUID nudgeId,
-        List<NudgeConflictEntry> conflicts,
-        Instant expiresAt
+		String code,
+		// "NUDGE_REQUIRED" 고정
+		UUID nudgeId,
+		List<NudgeConflictEntry> conflicts,
+		Instant expiresAt
 ) {
-    public static NudgeRequiredResponse of(UUID nudgeId,
-                                            List<NudgeConflictEntry> conflicts,
-                                            Instant expiresAt) {
-        return new NudgeRequiredResponse("NUDGE_REQUIRED", nudgeId, conflicts, expiresAt);
-    }
+
+	public static NudgeRequiredResponse of(
+			UUID nudgeId,
+			List<NudgeConflictEntry> conflicts,
+			Instant expiresAt
+	) {
+		return new NudgeRequiredResponse("NUDGE_REQUIRED", nudgeId, conflicts, expiresAt);
+	}
 }

@@ -10,8 +10,10 @@ import com.example.serverprovision.management.subprogram.vo.BoardScope;
  */
 public class DuplicateSubprogramVersionException extends FieldBoundConflictException {
 
-    public DuplicateSubprogramVersionException(SubprogramKind kind, BoardScope scope, String name, String version) {
-        super("같은 " + kind.getDisplayName() + " 가 이미 등록되어 있습니다. scope=" + scope.pathToken()
-                + ", name=" + name + ", version=" + version, "version");
-    }
+	public DuplicateSubprogramVersionException(SubprogramKind kind, BoardScope scope, String name, String version) {
+		super(
+				"같은 " + kind.getDisplayName() + " 가 이미 등록되어 있습니다. scope=" + scope.pathToken()
+						+ ", name=" + name + ", version=" + version, "version"
+		);
+	}
 }

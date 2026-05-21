@@ -18,12 +18,14 @@ import java.time.Instant;
  * @param detail       자유 텍스트 추가 정보. SIGNATURE_INVALID 등에 변조 정황 메시지가 들어간다
  */
 public record DriftResponse(
-        Long id,
-        ResourceType resourceType,
-        Long resourceId,
-        DriftKind kind,
-        String oldPath,
-        String newPath,
-        Instant detectedAt,
-        String detail
-) {}
+		Long id,
+		ResourceType resourceType,
+		Long resourceId,
+		DriftKind kind,
+		String oldPath,
+		String newPath,
+		Instant detectedAt,
+		String detail
+) {
+
+}

@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class IllegalBoardModelStateException extends ConflictException {
 
-    public IllegalBoardModelStateException(String message) {
-        super(message);
-    }
+	public IllegalBoardModelStateException(String message) {
+		super(message);
+	}
 }

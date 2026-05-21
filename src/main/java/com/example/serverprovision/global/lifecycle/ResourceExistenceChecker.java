@@ -21,11 +21,11 @@ import java.nio.file.Path;
  */
 public interface ResourceExistenceChecker {
 
-    /**
-     * 지정 경로의 자원 존재 여부를 반환한다.
-     *
-     * @param resourcePath 자원의 active 위치 (DB.iso_path 또는 treeRootPath 등)
-     * @return 존재하면 true, 부재면 false
-     */
-    boolean exists(Path resourcePath);
+	/**
+	 * 지정 경로의 자원 존재 여부를 반환한다.
+	 *
+	 * @param resourcePath 자원의 active 위치 (DB.iso_path 또는 treeRootPath 등)
+	 * @return 존재하면 true, 부재면 false
+	 */
+	boolean exists(Path resourcePath);
 }

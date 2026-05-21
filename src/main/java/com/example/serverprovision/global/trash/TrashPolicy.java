@@ -27,30 +27,30 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class TrashPolicy {
 
-    @Value("${trash.root:/opt/provisioning/.soft-deleted}")
-    private String trashRoot;
+	@Value("${trash.root:/opt/provisioning/.soft-deleted}")
+	private String trashRoot;
 
-    @Value("${trash.ttl.days:30}")
-    private int ttlDays;
+	@Value("${trash.ttl.days:30}")
+	private int ttlDays;
 
-    /**
-     * Trash root 절대 경로. 부재 시 {@code TrashService.moveToTrash} 가 자동 생성.
-     */
-    public Path getTrashRoot() {
-        return Path.of(trashRoot);
-    }
+	/**
+	 * Trash root 절대 경로. 부재 시 {@code TrashService.moveToTrash} 가 자동 생성.
+	 */
+	public Path getTrashRoot() {
+		return Path.of(trashRoot);
+	}
 
-    /**
-     * 도메인 + 자원 ID 별 trash sub-디렉토리. 예: {@code <root>/OS_ISO/25/}.
-     */
-    public Path resolveTrashDirectory(ResourceType resourceType, Long resourceId) {
-        return getTrashRoot().resolve(resourceType.name()).resolve(String.valueOf(resourceId));
-    }
+	/**
+	 * 도메인 + 자원 ID 별 trash sub-디렉토리. 예: {@code <root>/OS_ISO/25/}.
+	 */
+	public Path resolveTrashDirectory(ResourceType resourceType, Long resourceId) {
+		return getTrashRoot().resolve(resourceType.name()).resolve(String.valueOf(resourceId));
+	}
 
-    /**
-     * 보존 기간 (TTL). default 30일.
-     */
-    public Duration getTtl() {
-        return Duration.ofDays(ttlDays);
-    }
+	/**
+	 * 보존 기간 (TTL). default 30일.
+	 */
+	public Duration getTtl() {
+		return Duration.ofDays(ttlDays);
+	}
 }

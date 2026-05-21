@@ -11,10 +11,12 @@ import java.time.Instant;
  * row 부재라 conflicts 후보가 될 수 없음.</p>
  */
 public record NudgeConflictEntry(
-        Long id,
-        LifecycleStage state,
-        String hash,
-        String name,
-        String version,
-        Instant registeredAt
-) {}
+		Long id,
+		LifecycleStage state,
+		String hash,
+		String name,
+		String version,
+		Instant registeredAt
+) {
+
+}

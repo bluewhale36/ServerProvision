@@ -9,6 +9,6 @@ package com.example.serverprovision.global.marker;
  * <p>구체적인 위치 계산은 {@code ProvisionMarkerService.resolveMarkerFile(Path, MarkerLayout)} 로 위임.</p>
  */
 public enum MarkerLayout {
-    IN_TREE,
-    SIDECAR
+	IN_TREE,
+	SIDECAR
 }

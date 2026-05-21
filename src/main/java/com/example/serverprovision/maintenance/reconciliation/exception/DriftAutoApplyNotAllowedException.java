@@ -9,7 +9,7 @@ import com.example.serverprovision.global.marker.DriftKind;
  */
 public class DriftAutoApplyNotAllowedException extends ConflictException {
 
-    public DriftAutoApplyNotAllowedException(DriftKind kind) {
-        super("자동 적용은 PATH_DRIFT 종류에만 허용됩니다. 현재 종류 : " + kind);
-    }
+	public DriftAutoApplyNotAllowedException(DriftKind kind) {
+		super("자동 적용은 PATH_DRIFT 종류에만 허용됩니다. 현재 종류 : " + kind);
+	}
 }

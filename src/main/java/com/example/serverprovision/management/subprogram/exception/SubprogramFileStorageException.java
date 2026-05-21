@@ -7,7 +7,7 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class SubprogramFileStorageException extends DomainException {
 
-    public SubprogramFileStorageException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public SubprogramFileStorageException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

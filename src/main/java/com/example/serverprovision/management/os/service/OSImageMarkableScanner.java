@@ -25,86 +25,106 @@ import java.util.stream.Collectors;
 @Service
 public class OSImageMarkableScanner implements MarkableScanner {
 
-    private final OSImageRepository osImageRepository;
-    private final org.springframework.beans.factory.ObjectProvider<OSImageService> osImageServiceProvider;
+	private final OSImageRepository osImageRepository;
+	private final org.springframework.beans.factory.ObjectProvider<OSImageService> osImageServiceProvider;
 
-    public OSImageMarkableScanner(OSImageRepository osImageRepository,
-                                  org.springframework.beans.factory.ObjectProvider<OSImageService> osImageServiceProvider) {
-        this.osImageRepository = osImageRepository;
-        this.osImageServiceProvider = osImageServiceProvider;
-    }
+	public OSImageMarkableScanner(
+			OSImageRepository osImageRepository,
+			org.springframework.beans.factory.ObjectProvider<OSImageService> osImageServiceProvider
+	) {
+		this.osImageRepository = osImageRepository;
+		this.osImageServiceProvider = osImageServiceProvider;
+	}
 
-    @Override
-    public ResourceType supportedType() {
-        return ResourceType.OS_IMAGE;
-    }
+	@Override
+	public ResourceType supportedType() {
+		return ResourceType.OS_IMAGE;
+	}
 
-    /** 메타 자원 — 마커 인벤토리 없음. */
-    @Override
-    public List<Markable> findActiveMarkables() {
-        return Collections.emptyList();
-    }
+	/**
+	 * 메타 자원 — 마커 인벤토리 없음.
+	 */
+	@Override
+	public List<Markable> findActiveMarkables() {
+		return Collections.emptyList();
+	}
 
-    /** 메타 자원 — soft-deleted ID 셋은 reconciliation 의 ORPHAN 분류 제외용 SPI. 빈 셋 충분. */
-    @Override
-    public Set<Long> findSoftDeletedResourceIds() {
-        return Collections.emptySet();
-    }
+	/**
+	 * 메타 자원 — soft-deleted ID 셋은 reconciliation 의 ORPHAN 분류 제외용 SPI. 빈 셋 충분.
+	 */
+	@Override
+	public Set<Long> findSoftDeletedResourceIds() {
+		return Collections.emptySet();
+	}
 
-    /** 메타 자원 — 디스크 path 없음. no-op. */
-    @Override
-    public void applyDriftedPath(Long resourceId, Path newPath) {
-        // 메타 자원에는 path 가 없으므로 호출되지 않아야 함.
-    }
+	/**
+	 * 메타 자원 — 디스크 path 없음. no-op.
+	 */
+	@Override
+	public void applyDriftedPath(Long resourceId, Path newPath) {
+		// 메타 자원에는 path 가 없으므로 호출되지 않아야 함.
+	}
 
-    /** 메타 자원 — manifest hash 없음. */
-    @Override
-    public Optional<String> recomputeManifestHash(Markable markable) {
-        return Optional.empty();
-    }
+	/**
+	 * 메타 자원 — manifest hash 없음.
+	 */
+	@Override
+	public Optional<String> recomputeManifestHash(Markable markable) {
+		return Optional.empty();
+	}
 
-    /** 휴지통 페이지 노출용 — is_deleted=true 인 OSImage 를 Markable 로 반환. */
-    @Override
-    @Transactional(readOnly = true)
-    public List<Markable> findTrashed() {
-        return osImageRepository.findAllByIsDeletedTrue().stream()
-                .<Markable>map(o -> o)
-                .collect(Collectors.toList());
-    }
+	/**
+	 * 휴지통 페이지 노출용 — is_deleted=true 인 OSImage 를 Markable 로 반환.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public List<Markable> findTrashed() {
+		return osImageRepository.findAllByIsDeletedTrue().stream()
+				.<Markable>map(o -> o)
+				.collect(Collectors.toList());
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<Markable> findTrashedById(Long resourceId) {
-        return osImageRepository.findByIdAndIsDeletedTrue(resourceId).<Markable>map(o -> o);
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<Markable> findTrashedById(Long resourceId) {
+		return osImageRepository.findByIdAndIsDeletedTrue(resourceId).<Markable>map(o -> o);
+	}
 
-    /** 휴지통 페이지 복원 액션 — OSImageService.restore 위임. cascade 옵션 지원. */
-    @Override
-    public void restoreFromTrash(Long resourceId, boolean cascade) {
-        osImageServiceProvider.getObject().restore(resourceId, cascade);
-    }
+	/**
+	 * 휴지통 페이지 복원 액션 — OSImageService.restore 위임. cascade 옵션 지원.
+	 */
+	@Override
+	public void restoreFromTrash(Long resourceId, boolean cascade) {
+		osImageServiceProvider.getObject().restore(resourceId, cascade);
+	}
 
-    /** cascade 옵션 없는 default 도 동일 위임 (cascade=false). */
-    @Override
-    public void restoreFromTrash(Long resourceId) {
-        osImageServiceProvider.getObject().restore(resourceId, false);
-    }
+	/**
+	 * cascade 옵션 없는 default 도 동일 위임 (cascade=false).
+	 */
+	@Override
+	public void restoreFromTrash(Long resourceId) {
+		osImageServiceProvider.getObject().restore(resourceId, false);
+	}
 
-    /** 휴지통 영구삭제 — OSImageService.purgeImage 위임 (자식 ISO sidecar 정리 + DB row 제거). */
-    @Override
-    public void purgeFromTrash(Long resourceId) {
-        osImageServiceProvider.getObject().purgeImage(resourceId);
-    }
+	/**
+	 * 휴지통 영구삭제 — OSImageService.purgeImage 위임 (자식 ISO sidecar 정리 + DB row 제거).
+	 */
+	@Override
+	public void purgeFromTrash(Long resourceId) {
+		osImageServiceProvider.getObject().purgeImage(resourceId);
+	}
 
-    /** 휴지통 cascade preview — soft-deleted 자식 ISO 의 파일명 list. */
-    @Override
-    @Transactional(readOnly = true)
-    public List<String> findDeletedChildLabels(Long resourceId) {
-        return osImageRepository.findById(resourceId)
-                .map(image -> image.getIsos().stream()
-                        .filter(iso -> iso.isDeleted())
-                        .map(iso -> iso.getIsoPath().replaceAll(".*/", ""))
-                        .collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
-    }
+	/**
+	 * 휴지통 cascade preview — soft-deleted 자식 ISO 의 파일명 list.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public List<String> findDeletedChildLabels(Long resourceId) {
+		return osImageRepository.findById(resourceId)
+				.map(image -> image.getIsos().stream()
+						.filter(iso -> iso.isDeleted())
+						.map(iso -> iso.getIsoPath().replaceAll(".*/", ""))
+						.collect(Collectors.toList()))
+				.orElse(Collections.emptyList());
+	}
 }

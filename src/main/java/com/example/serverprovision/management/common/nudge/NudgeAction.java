@@ -14,7 +14,7 @@ package com.example.serverprovision.management.common.nudge;
  * </ul>
  */
 public enum NudgeAction {
-    PROCEED,
-    REPLACE,
-    CANCEL
+	PROCEED,
+	REPLACE,
+	CANCEL
 }

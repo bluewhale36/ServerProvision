@@ -58,8 +58,13 @@
 }
 
 /* 기본 disclosure triangle 제거 (크로스 브라우저) */
-.n-accordion-head::-webkit-details-marker { display: none; }
-.n-accordion-head::marker { content: ""; }
+.n-accordion-head::-webkit-details-marker {
+    display: none;
+}
+
+.n-accordion-head::marker {
+    content: "";
+}
 
 .n-accordion-item:hover > .n-accordion-head {
     background: #f7f7f8;

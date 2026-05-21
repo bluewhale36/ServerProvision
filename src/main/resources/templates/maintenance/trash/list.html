@@ -79,7 +79,8 @@
                 <div th:if="${item.parentResourceId != null}" class="trash-parent-line">
                     <span class="trash-parent-arrow">↳</span>
                     <span class="trash-parent-label">
-                        <span th:text="${item.parentResourceType}" class="n-badge n-badge-gray trash-parent-badge"></span>
+                        <span th:text="${item.parentResourceType}"
+                              class="n-badge n-badge-gray trash-parent-badge"></span>
                         <code style="font-size: 11px;" th:text="${item.parentDisplayName}"></code>
                         <span th:if="${item.parentDeleted}" class="n-badge trash-parent-deleted"
                               title="부모 자원이 삭제 상태입니다. 자식만 단독 복구할 수 없으니 부모부터 복구해주세요.">부모 삭제 상태</span>
@@ -92,68 +93,71 @@
                 <code style="font-size: 11px; word-break: break-all;" th:text="${item.originalPath}"></code>
             </td>
             <td>
-                <span th:if="${item.trashedAt != null}" th:text="${#temporals.format(item.trashedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
+                <span th:if="${item.trashedAt != null}"
+                      th:text="${#temporals.format(item.trashedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
                 <span th:if="${item.trashedAt == null}" style="color: var(--n-text-muted, #777);">—</span>
             </td>
             <td>
-                <span th:if="${item.expiresAt != null}" th:text="${#temporals.format(item.expiresAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
+                <span th:if="${item.expiresAt != null}"
+                      th:text="${#temporals.format(item.expiresAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
                 <span th:if="${item.expiresAt == null}" style="color: var(--n-text-muted, #777);">—</span>
-                <strong th:if="${item.ttlWarning}" style="color: var(--n-color-danger); margin-left: 6px;">곧 영구삭제</strong>
+                <strong th:if="${item.ttlWarning}" style="color: var(--n-color-danger); margin-left: 6px;">곧
+                    영구삭제</strong>
             </td>
             <td style="vertical-align: middle; text-align: right;">
-              <div style="display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-                <!--/* MK3-1 — ghost 행은 "정리" 액션 1개만. 복원/연장/영구삭제 disabled. */-->
-                <!-- ghost row 정리는 DB row 만 제거 (복구 가능 자원 없음). typed-name 불요 — 단순 soft-delete 마커 유지. -->
-                <form th:if="${item.ghost}"
-                      th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
-                      method="post"
-                      data-confirm-soft-delete=""
-                      data-async-submit=""
-                      th:data-resource-label="|${item.resourceType} #${item.resourceId} (ghost row)|"
-                      data-resource-extra="복구 가능한 자원이 없으므로 안전한 작업이에요.">
-                    <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
-                </form>
-
-                <!--/* 정상 trash 자원 — 기존 3 액션 그대로. 부모 메타 자원 (OS_IMAGE/BOARD_MODEL) 은 cascade 라디오 노출. */-->
-                <th:block th:unless="${item.ghost}">
-                    <form th:action="@{/maintenance/trash/{rt}/{rid}/restore(rt=${item.resourceType}, rid=${item.resourceId})}"
+                <div style="display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                    <!--/* MK3-1 — ghost 행은 "정리" 액션 1개만. 복원/연장/영구삭제 disabled. */-->
+                    <!-- ghost row 정리는 DB row 만 제거 (복구 가능 자원 없음). typed-name 불요 — 단순 soft-delete 마커 유지. -->
+                    <form th:if="${item.ghost}"
+                          th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
-                          data-confirm-restore=""
+                          data-confirm-soft-delete=""
                           data-async-submit=""
-                          th:data-resource-label="${item.displayName}"
-                          data-resource-extra="원래 경로로 복원돼요."
-                          th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
+                          th:data-resource-label="|${item.resourceType} #${item.resourceId} (ghost row)|"
+                          data-resource-extra="복구 가능한 자원이 없으므로 안전한 작업이에요.">
+                        <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
+                    </form>
+
+                    <!--/* 정상 trash 자원 — 기존 3 액션 그대로. 부모 메타 자원 (OS_IMAGE/BOARD_MODEL) 은 cascade 라디오 노출. */-->
+                    <th:block th:unless="${item.ghost}">
+                        <form th:action="@{/maintenance/trash/{rt}/{rid}/restore(rt=${item.resourceType}, rid=${item.resourceId})}"
+                              method="post"
+                              data-confirm-restore=""
+                              data-async-submit=""
+                              th:data-resource-label="${item.displayName}"
+                              data-resource-extra="원래 경로로 복원돼요."
+                              th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
                                    data-cascade-true-desc=${item.childPreview}">
-                        <!-- S5-3-2 — parentDeleted 시 disabled + wrapper tooltip 으로 안내. -->
-                        <!--    테이블 오른쪽 끝 액션 컬럼이라 tooltip 잘림 방지 위해 우측 정렬. -->
-                        <span class="n-btn-tooltip-wrap"
-                              data-tooltip-align="right"
-                              th:attr="data-tooltip=${item.parentDeleted} ? '부모 자원이 삭제 상태라 자식 단독 복구가 불가능해요. 부모부터 복구해주세요.' : null">
+                            <!-- S5-3-2 — parentDeleted 시 disabled + wrapper tooltip 으로 안내. -->
+                            <!--    테이블 오른쪽 끝 액션 컬럼이라 tooltip 잘림 방지 위해 우측 정렬. -->
+                            <span class="n-btn-tooltip-wrap"
+                                  data-tooltip-align="right"
+                                  th:attr="data-tooltip=${item.parentDeleted} ? '부모 자원이 삭제 상태라 자식 단독 복구가 불가능해요. 부모부터 복구해주세요.' : null">
                             <button type="submit" class="n-btn n-btn-sm n-btn-primary"
                                     th:disabled="${item.parentDeleted}">복원</button>
                         </span>
-                    </form>
-                    <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
-                          method="post"
-                          data-confirm-deprecate=""
-                          data-async-submit=""
-                          th:data-resource-label="|${item.displayName} 의 보존기간|"
-                          data-resource-extra="+30일 연장돼요.">
-                        <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
-                    </form>
-                    <!-- S5-2 — typed-name 검증 적용 영구삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
-                    <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
-                          method="post"
-                          data-confirm-purge=""
-                          data-async-submit=""
-                          th:data-resource-type="${item.resourceType}"
-                          th:data-resource-id="${item.resourceId}"
-                          th:data-resource-label="${item.displayName}"
-                          data-resource-extra="휴지통에서 제거되며 복구 불가능해요.">
-                        <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">영구삭제</button>
-                    </form>
-                </th:block>
-              </div>
+                        </form>
+                        <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
+                              method="post"
+                              data-confirm-deprecate=""
+                              data-async-submit=""
+                              th:data-resource-label="|${item.displayName} 의 보존기간|"
+                              data-resource-extra="+30일 연장돼요.">
+                            <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
+                        </form>
+                        <!-- S5-2 — typed-name 검증 적용 영구삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
+                        <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
+                              method="post"
+                              data-confirm-purge=""
+                              data-async-submit=""
+                              th:data-resource-type="${item.resourceType}"
+                              th:data-resource-id="${item.resourceId}"
+                              th:data-resource-label="${item.displayName}"
+                              data-resource-extra="휴지통에서 제거되며 복구 불가능해요.">
+                            <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">영구삭제</button>
+                        </form>
+                    </th:block>
+                </div>
             </td>
         </tr>
         </tbody>

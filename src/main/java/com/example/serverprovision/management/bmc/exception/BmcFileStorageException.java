@@ -7,7 +7,7 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class BmcFileStorageException extends DomainException {
 
-    public BmcFileStorageException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public BmcFileStorageException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

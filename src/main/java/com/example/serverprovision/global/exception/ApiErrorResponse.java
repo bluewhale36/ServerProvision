@@ -14,31 +14,39 @@ import java.util.List;
  * 직렬화에서 생략되어 기존 클라이언트 호환성을 유지한다.</p>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ApiErrorResponse(String message, List<FieldError> fieldErrors) {
+public record ApiErrorResponse(
+		String message,
+		List<FieldError> fieldErrors
+) {
 
-    /**
-     * 단일 메시지만 보내는 기존 호환 생성자. fieldErrors 는 null 로 직렬화에서 생략된다.
-     */
-    public ApiErrorResponse(String message) {
-        this(message, null);
-    }
+	/**
+	 * 단일 메시지만 보내는 기존 호환 생성자. fieldErrors 는 null 로 직렬화에서 생략된다.
+	 */
+	public ApiErrorResponse(String message) {
+		this(message, null);
+	}
 
-    /**
-     * 단일 필드 직결 도메인 예외용 생성자. message 와 함께 fieldErrors 1건을 동봉한다.
-     */
-    public static ApiErrorResponse ofFieldBound(String message, String fieldName) {
-        return new ApiErrorResponse(message, List.of(new FieldError(fieldName, message)));
-    }
+	/**
+	 * 단일 필드 직결 도메인 예외용 생성자. message 와 함께 fieldErrors 1건을 동봉한다.
+	 */
+	public static ApiErrorResponse ofFieldBound(String message, String fieldName) {
+		return new ApiErrorResponse(message, List.of(new FieldError(fieldName, message)));
+	}
 
-    /**
-     * Layer A (Bean Validation) 위반 시 BindingResult 의 FieldError 목록을 매핑한 응답.
-     */
-    public static ApiErrorResponse ofValidation(String message, List<FieldError> fieldErrors) {
-        return new ApiErrorResponse(message, fieldErrors);
-    }
+	/**
+	 * Layer A (Bean Validation) 위반 시 BindingResult 의 FieldError 목록을 매핑한 응답.
+	 */
+	public static ApiErrorResponse ofValidation(String message, List<FieldError> fieldErrors) {
+		return new ApiErrorResponse(message, fieldErrors);
+	}
 
-    /**
-     * 폼 필드 단위 에러 정보. {@code field} 는 DTO 필드명 (HTML 의 {@code data-error-field} 속성 매핑값).
-     */
-    public record FieldError(String field, String message) {}
+	/**
+	 * 폼 필드 단위 에러 정보. {@code field} 는 DTO 필드명 (HTML 의 {@code data-error-field} 속성 매핑값).
+	 */
+	public record FieldError(
+			String field,
+			String message
+	) {
+
+	}
 }

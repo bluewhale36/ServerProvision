@@ -51,7 +51,7 @@
         const statusUrl = badge.dataset.statusUrl;
         if (!statusUrl) return;
 
-        const resp = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
+        const resp = await fetch(statusUrl, {headers: {'Accept': 'application/json'}});
         const body = await resp.json().catch(() => ({}));
         if (!resp.ok) {
             throw new Error(body.message || ('HTTP ' + resp.status));
@@ -81,7 +81,7 @@
         setButtonBusy(btn);
 
         try {
-            const resp = await fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } });
+            const resp = await fetch(url, {method: 'POST', headers: {'Accept': 'application/json'}});
             const body = await resp.json().catch(() => ({}));
             if (!resp.ok) {
                 alert('검증 시작 실패 : ' + (body.message || ('HTTP ' + resp.status)));
@@ -102,7 +102,7 @@
         try {
             await refreshBadge(d.metadata || {});
             if (window.bgjobToast) {
-                window.bgjobToast('무결성 검증이 완료되었습니다.', { variant: 'success' });
+                window.bgjobToast('무결성 검증이 완료되었습니다.', {variant: 'success'});
             }
         } catch (err) {
             console.error(TAG, err);

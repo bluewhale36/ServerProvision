@@ -36,11 +36,15 @@
         const includeFiles = opts.includeFiles !== false;
         const fileHighlight = typeof opts.fileHighlight === 'function' ? opts.fileHighlight : () => false;
         const onApply = typeof opts.onApply === 'function'
-                ? opts.onApply
-                : (path) => { inputEl.value = path.endsWith('/') ? path : path + '/'; };
+            ? opts.onApply
+            : (path) => {
+                inputEl.value = path.endsWith('/') ? path : path + '/';
+            };
         const onPickFile = typeof opts.onPickFile === 'function'
-                ? opts.onPickFile
-                : (path) => { inputEl.value = path; };
+            ? opts.onPickFile
+            : (path) => {
+                inputEl.value = path;
+            };
 
         if (!inputEl || !browseBtn || !panel || !browseUrl) return;
 
@@ -71,7 +75,7 @@
             entriesEl.innerHTML = '';
             try {
                 const url = browseUrl + '?includeFiles=' + includeFiles + '&path=' + encodeURIComponent(pathStr);
-                const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                const resp = await fetch(url, {headers: {'Accept': 'application/json'}});
                 if (!resp.ok) {
                     const body = await resp.json().catch(() => ({}));
                     statusEl.textContent = '오류 : ' + (body.message || ('HTTP ' + resp.status));
@@ -132,14 +136,20 @@
                         panel.hidden = true;
                     }
                 });
-                li.addEventListener('mouseover', () => { li.style.background = highlight ? '#e1f1fe' : '#f0f0f0'; });
-                li.addEventListener('mouseout',  () => { li.style.background = highlight ? '#f2f9ff' : ''; });
+                li.addEventListener('mouseover', () => {
+                    li.style.background = highlight ? '#e1f1fe' : '#f0f0f0';
+                });
+                li.addEventListener('mouseout', () => {
+                    li.style.background = highlight ? '#f2f9ff' : '';
+                });
                 entriesEl.appendChild(li);
             }
         }
 
         browseBtn.addEventListener('click', open);
-        if (cancelBtn) cancelBtn.addEventListener('click', () => { panel.hidden = true; });
+        if (cancelBtn) cancelBtn.addEventListener('click', () => {
+            panel.hidden = true;
+        });
         if (upBtn) {
             upBtn.addEventListener('click', () => {
                 if (upBtn.dataset.atTop === 'true') return;
@@ -167,8 +177,14 @@
     }
 
     function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[c]));
     }
 
-    global.PathBrowser = { attach };
+    global.PathBrowser = {attach};
 })(window);

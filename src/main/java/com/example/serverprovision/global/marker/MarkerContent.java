@@ -20,20 +20,25 @@ import java.util.Map;
  * @param signature    HMAC-SHA256 (signature 제외 직렬화 + secret). 서명 검증 시점엔 본인 비교용
  */
 public record MarkerContent(
-        String resourceType,
-        Long resourceId,
-        Map<String, String> attributes,
-        Instant createdAt,
-        String manifestHash,
-        String signature
+		String resourceType,
+		Long resourceId,
+		Map<String, String> attributes,
+		Instant createdAt,
+		String manifestHash,
+		String signature
 ) {
-    /** 서명 계산용 사본 — signature 만 null 로 비운 동일 record 반환. */
-    public MarkerContent withoutSignature() {
-        return new MarkerContent(resourceType, resourceId, attributes, createdAt, manifestHash, null);
-    }
 
-    /** 서명을 채운 사본 반환. {@link ProvisionMarkerService} 가 signature 계산 후 호출. */
-    public MarkerContent withSignature(String signature) {
-        return new MarkerContent(resourceType, resourceId, attributes, createdAt, manifestHash, signature);
-    }
+	/**
+	 * 서명 계산용 사본 — signature 만 null 로 비운 동일 record 반환.
+	 */
+	public MarkerContent withoutSignature() {
+		return new MarkerContent(resourceType, resourceId, attributes, createdAt, manifestHash, null);
+	}
+
+	/**
+	 * 서명을 채운 사본 반환. {@link ProvisionMarkerService} 가 signature 계산 후 호출.
+	 */
+	public MarkerContent withSignature(String signature) {
+		return new MarkerContent(resourceType, resourceId, attributes, createdAt, manifestHash, signature);
+	}
 }

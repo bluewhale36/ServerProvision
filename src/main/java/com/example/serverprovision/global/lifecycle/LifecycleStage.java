@@ -10,21 +10,21 @@ package com.example.serverprovision.global.lifecycle;
  * @see LifecycleManageable#currentStage()
  */
 public enum LifecycleStage {
-    ACTIVE,
-    DEPRECATED,
-    SOFT_DELETED;
+	ACTIVE,
+	DEPRECATED,
+	SOFT_DELETED;
 
-    /**
-     * 두 boolean 조합을 단일 lifecycle 어휘로 환산한다.
-     * <ul>
-     *   <li>{@code is_deleted=true} → 무조건 {@link #SOFT_DELETED} ({@code is_deprecated} 보존)</li>
-     *   <li>{@code is_deprecated=true && is_deleted=false} → {@link #DEPRECATED}</li>
-     *   <li>그 외 → {@link #ACTIVE}</li>
-     * </ul>
-     */
-    public static LifecycleStage of(boolean isDeprecated, boolean isDeleted) {
-        if (isDeleted) return SOFT_DELETED;
-        if (isDeprecated) return DEPRECATED;
-        return ACTIVE;
-    }
+	/**
+	 * 두 boolean 조합을 단일 lifecycle 어휘로 환산한다.
+	 * <ul>
+	 *   <li>{@code is_deleted=true} → 무조건 {@link #SOFT_DELETED} ({@code is_deprecated} 보존)</li>
+	 *   <li>{@code is_deprecated=true && is_deleted=false} → {@link #DEPRECATED}</li>
+	 *   <li>그 외 → {@link #ACTIVE}</li>
+	 * </ul>
+	 */
+	public static LifecycleStage of(boolean isDeprecated, boolean isDeleted) {
+		if (isDeleted) return SOFT_DELETED;
+		if (isDeprecated) return DEPRECATED;
+		return ACTIVE;
+	}
 }

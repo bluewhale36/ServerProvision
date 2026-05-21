@@ -7,11 +7,27 @@ package com.example.serverprovision.global.trash;
  */
 public sealed interface PurgeResult permits PurgeResult.Success, PurgeResult.Failed {
 
-    PurgeRequest request();
+	PurgeRequest request();
 
-    /** 성공 — purge_log 의 SUCCESS 행 id 보유. */
-    record Success(PurgeRequest request, Long logId) implements PurgeResult {}
+	/**
+	 * 성공 — purge_log 의 SUCCESS 행 id 보유.
+	 */
+	record Success(
+			PurgeRequest request,
+			Long logId
+	) implements PurgeResult {
 
-    /** 실패 — purge_log 의 FAILED 행 id + 마지막 throwable. */
-    record Failed(PurgeRequest request, Long logId, Throwable cause) implements PurgeResult {}
+	}
+
+
+	/**
+	 * 실패 — purge_log 의 FAILED 행 id + 마지막 throwable.
+	 */
+	record Failed(
+			PurgeRequest request,
+			Long logId,
+			Throwable cause
+	) implements PurgeResult {
+
+	}
 }

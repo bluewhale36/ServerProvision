@@ -8,14 +8,14 @@ package com.example.serverprovision.global.exception;
  */
 public abstract class FieldBoundBadRequestException extends DomainException {
 
-    private final String fieldName;
+	private final String fieldName;
 
-    protected FieldBoundBadRequestException(String message, String fieldName) {
-        super(message);
-        this.fieldName = fieldName;
-    }
+	protected FieldBoundBadRequestException(String message, String fieldName) {
+		super(message);
+		this.fieldName = fieldName;
+	}
 
-    public String fieldName() {
-        return fieldName;
-    }
+	public String fieldName() {
+		return fieldName;
+	}
 }

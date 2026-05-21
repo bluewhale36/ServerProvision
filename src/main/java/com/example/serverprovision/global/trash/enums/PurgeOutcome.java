@@ -11,9 +11,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum PurgeOutcome {
 
-    SUCCESS("성공"),
-    FAILED("실패");
+	SUCCESS("성공"),
+	FAILED("실패");
 
-    /** S5-2-4 — UI 표시용 사용자 친화 이름. */
-    private final String displayName;
+	/**
+	 * S5-2-4 — UI 표시용 사용자 친화 이름.
+	 */
+	private final String displayName;
 }

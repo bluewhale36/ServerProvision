@@ -28,54 +28,68 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CompsExtractionService {
 
-    /** comps 추출 파이프라인의 4 단계. ordinal 이 chunk 인덱스로 쓰인다. */
-    public enum Stage implements JobStage {
-        PREPARE_ISO("ISO 이미지 준비"),
-        SCAN_REPO  ("저장소 탐색"),
-        PARSE_COMPS("comps.xml 파싱"),
-        MERGE_SAVE ("환경·패키지 그룹 저장");
+	/**
+	 * comps 추출 파이프라인의 4 단계. ordinal 이 chunk 인덱스로 쓰인다.
+	 */
+	public enum Stage implements JobStage {
+		PREPARE_ISO("ISO 이미지 준비"),
+		SCAN_REPO("저장소 탐색"),
+		PARSE_COMPS("comps.xml 파싱"),
+		MERGE_SAVE("환경·패키지 그룹 저장");
 
-        private final String label;
-        Stage(String label) { this.label = label; }
-        @Override public String label() { return label; }
-    }
+		private final String label;
 
-    private final List<CompsExtractorStrategy> strategies;
-    private final IsoPreparationService isoPreparationService;
-    private final CompsMergeService compsMergeService;
-    private final BackgroundJobService backgroundJobService;
+		Stage(String label) {
+			this.label = label;
+		}
 
-    @Async("compsExtractionExecutor")
-    public void extractAsync(OSImage osImage, ISO iso, String jobId) {
-        try {
-            backgroundJobService.startStage(jobId, Stage.PREPARE_ISO);
+		@Override
+		public String label() {
+			return label;
+		}
+	}
 
-            try (PreparedIsoPath prepared = isoPreparationService.prepare(iso.getIsoPath())) {
 
-                backgroundJobService.startStage(jobId, Stage.SCAN_REPO);
+	private final List<CompsExtractorStrategy> strategies;
+	private final IsoPreparationService isoPreparationService;
+	private final CompsMergeService compsMergeService;
+	private final BackgroundJobService backgroundJobService;
 
-                CompsExtractorStrategy strategy = strategies.stream()
-                        .filter(s -> s.supports(osImage.getOsName()))
-                        .findFirst()
-                        .orElseThrow(() -> new UnsupportedExtractionException(osImage.getOsName()));
+	@Async("compsExtractionExecutor")
+	public void extractAsync(OSImage osImage, ISO iso, String jobId) {
+		try {
+			backgroundJobService.startStage(jobId, Stage.PREPARE_ISO);
 
-                backgroundJobService.startStage(jobId, Stage.PARSE_COMPS);
+			try (PreparedIsoPath prepared = isoPreparationService.prepare(iso.getIsoPath())) {
 
-                CompsExtractionResult result = strategy.extract(prepared.effectivePath());
+				backgroundJobService.startStage(jobId, Stage.SCAN_REPO);
 
-                backgroundJobService.startStage(jobId, Stage.MERGE_SAVE);
+				CompsExtractorStrategy strategy = strategies.stream()
+						.filter(s -> s.supports(osImage.getOsName()))
+						.findFirst()
+						.orElseThrow(() -> new UnsupportedExtractionException(osImage.getOsName()));
 
-                compsMergeService.mergeAndSave(osImage.getId(), iso.getId(), result);
-            }
+				backgroundJobService.startStage(jobId, Stage.PARSE_COMPS);
 
-            backgroundJobService.complete(jobId);
-            log.info("[CompsExtractionService] 추출 완료. jobId={}, osImageId={}, isoId={}",
-                    jobId, osImage.getId(), iso.getId());
+				CompsExtractionResult result = strategy.extract(prepared.effectivePath());
 
-        } catch (Exception e) {
-            log.error("[CompsExtractionService] 추출 실패. jobId={}, osImageId={}, isoId={}, 원인={}",
-                    jobId, osImage.getId(), iso.getId(), e.getMessage(), e);
-            backgroundJobService.fail(jobId, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
-        }
-    }
+				backgroundJobService.startStage(jobId, Stage.MERGE_SAVE);
+
+				compsMergeService.mergeAndSave(osImage.getId(), iso.getId(), result);
+			}
+
+			backgroundJobService.complete(jobId);
+			log.info(
+					"[CompsExtractionService] 추출 완료. jobId={}, osImageId={}, isoId={}",
+					jobId, osImage.getId(), iso.getId()
+			);
+
+		} catch (Exception e) {
+			log.error(
+					"[CompsExtractionService] 추출 실패. jobId={}, osImageId={}, isoId={}, 원인={}",
+					jobId, osImage.getId(), iso.getId(), e.getMessage(), e
+			);
+			backgroundJobService.fail(jobId, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+		}
+	}
 }

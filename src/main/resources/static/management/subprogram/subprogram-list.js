@@ -103,13 +103,13 @@
             const target = miller.querySelector(`.n-miller-item[data-os-id="${initialId}"]`);
             if (target) {
                 const versionPanel = target.closest('.n-miller-version-panel');
-                if (versionPanel) selectScope(versionPanel.dataset.osKey, { skipUrl: true });
-                selectItem(initialId, { skipUrl: true });
+                if (versionPanel) selectScope(versionPanel.dataset.osKey, {skipUrl: true});
+                selectItem(initialId, {skipUrl: true});
             }
         } else if (initialKey) {
             // S5-4 — C1 만 선택된 상태.
             const c1Btn = miller.querySelector(`.n-miller-item[data-os-key="${initialKey}"]`);
-            if (c1Btn) selectScope(initialKey, { skipUrl: true });
+            if (c1Btn) selectScope(initialKey, {skipUrl: true});
         }
     }
 

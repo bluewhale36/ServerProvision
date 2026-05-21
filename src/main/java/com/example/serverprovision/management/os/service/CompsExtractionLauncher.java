@@ -28,51 +28,57 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CompsExtractionLauncher {
 
-    private final OSImageRepository osImageRepository;
-    private final ISORepository isoRepository;
-    private final BackgroundJobService backgroundJobService;
-    private final CompsExtractionService compsExtractionService;
+	private final OSImageRepository osImageRepository;
+	private final ISORepository isoRepository;
+	private final BackgroundJobService backgroundJobService;
+	private final CompsExtractionService compsExtractionService;
 
-    public String startExtraction(Long osImageId, Long isoId) {
-        OSImage osImage = osImageRepository.findByIdAndIsDeletedFalse(osImageId)
-                .orElseThrow(() -> new OSImageNotFoundException(osImageId));
-        ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
-                .orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
+	public String startExtraction(Long osImageId, Long isoId) {
+		OSImage osImage = osImageRepository.findByIdAndIsDeletedFalse(osImageId)
+				.orElseThrow(() -> new OSImageNotFoundException(osImageId));
+		ISO iso = isoRepository.findByIdAndOsImage_Id(isoId, osImageId)
+				.orElseThrow(() -> new ISONotFoundException(osImageId, isoId));
 
-        String isoPath = iso.getIsoPath();
+		String isoPath = iso.getIsoPath();
 
-        // 동일 ISO 에 대해 이미 활성 추출 Job 이 있다면 새로 만들지 않고 그 jobId 를 재사용한다.
-        String existingJobId = findActiveExtractionJob(isoPath);
-        if (existingJobId != null) {
-            log.info("[CompsExtractionLauncher] 기존 추출 Job 재사용. isoId={}, jobId={}", isoId, existingJobId);
-            return existingJobId;
-        }
+		// 동일 ISO 에 대해 이미 활성 추출 Job 이 있다면 새로 만들지 않고 그 jobId 를 재사용한다.
+		String existingJobId = findActiveExtractionJob(isoPath);
+		if (existingJobId != null) {
+			log.info("[CompsExtractionLauncher] 기존 추출 Job 재사용. isoId={}, jobId={}", isoId, existingJobId);
+			return existingJobId;
+		}
 
-        // 이미 추출이 완료된 ISO(extractedAt 이 찍힌 경우) 에 대해서는 재추출을 막는다.
-        // 중단된 추출(일부만 저장되고 예외로 끝난 경우) 은 extractedAt 이 null 이므로 재추출 허용.
-        if (iso.isExtractionComplete()) {
-            log.info("[CompsExtractionLauncher] 이미 추출 완료된 ISO — 재추출 차단. isoId={}, extractedAt={}",
-                    isoId, iso.getExtractedAt());
-            throw new AlreadyExtractedException(isoId);
-        }
+		// 이미 추출이 완료된 ISO(extractedAt 이 찍힌 경우) 에 대해서는 재추출을 막는다.
+		// 중단된 추출(일부만 저장되고 예외로 끝난 경우) 은 extractedAt 이 null 이므로 재추출 허용.
+		if (iso.isExtractionComplete()) {
+			log.info(
+					"[CompsExtractionLauncher] 이미 추출 완료된 ISO — 재추출 차단. isoId={}, extractedAt={}",
+					isoId, iso.getExtractedAt()
+			);
+			throw new AlreadyExtractedException(isoId);
+		}
 
-        String title = osImage.getOsName().getDisplayName() + " " + osImage.getOsVersion() + " — 환경·패키지 그룹 추출";
-        String jobId = backgroundJobService.register(JobType.COMPS_EXTRACTION, title, isoPath,
-                BackgroundJobService.stagesOf(CompsExtractionService.Stage.values()));
-        compsExtractionService.extractAsync(osImage, iso, jobId);
-        log.info("[CompsExtractionLauncher] 추출 Job 시작. jobId={}, osImageId={}, isoId={}",
-                jobId, osImageId, isoId);
-        return jobId;
-    }
+		String title = osImage.getOsName().getDisplayName() + " " + osImage.getOsVersion() + " — 환경·패키지 그룹 추출";
+		String jobId = backgroundJobService.register(
+				JobType.COMPS_EXTRACTION, title, isoPath,
+				BackgroundJobService.stagesOf(CompsExtractionService.Stage.values())
+		);
+		compsExtractionService.extractAsync(osImage, iso, jobId);
+		log.info(
+				"[CompsExtractionLauncher] 추출 Job 시작. jobId={}, osImageId={}, isoId={}",
+				jobId, osImageId, isoId
+		);
+		return jobId;
+	}
 
-    private String findActiveExtractionJob(String isoPath) {
-        for (BackgroundJob job : backgroundJobService.snapshot()) {
-            if (job.getType() == JobType.COMPS_EXTRACTION
-                    && job.getStatus().isActive()
-                    && isoPath.equals(job.getSubtitle())) {
-                return job.getId();
-            }
-        }
-        return null;
-    }
+	private String findActiveExtractionJob(String isoPath) {
+		for (BackgroundJob job : backgroundJobService.snapshot()) {
+			if (job.getType() == JobType.COMPS_EXTRACTION
+					&& job.getStatus().isActive()
+					&& isoPath.equals(job.getSubtitle())) {
+				return job.getId();
+			}
+		}
+		return null;
+	}
 }

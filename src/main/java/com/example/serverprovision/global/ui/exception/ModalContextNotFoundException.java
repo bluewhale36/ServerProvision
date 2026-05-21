@@ -11,7 +11,7 @@ import com.example.serverprovision.global.marker.ResourceType;
  */
 public class ModalContextNotFoundException extends NotFoundException {
 
-    public ModalContextNotFoundException(ResourceType resourceType, Long resourceId) {
-        super("modal 대상 자원을 찾을 수 없습니다 : " + resourceType + "#" + resourceId);
-    }
+	public ModalContextNotFoundException(ResourceType resourceType, Long resourceId) {
+		super("modal 대상 자원을 찾을 수 없습니다 : " + resourceType + "#" + resourceId);
+	}
 }

@@ -2,21 +2,8 @@ package com.example.serverprovision.management.os.entity;
 
 import com.example.serverprovision.global.entity.BaseTimeEntity;
 import com.example.serverprovision.management.os.vo.PackageGroupCode;
-import jakarta.persistence.Column;
-import jakarta.persistence.Embedded;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -33,37 +20,37 @@ import org.hibernate.annotations.OnDeleteAction;
 @Builder
 public class OSPackageGroup extends BaseTimeEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "os_image_id", nullable = false)
-    private OSImage osImage;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@OnDelete(action = OnDeleteAction.CASCADE)
+	@JoinColumn(name = "os_image_id", nullable = false)
+	private OSImage osImage;
 
-    @Embedded
-    private PackageGroupCode groupCode;
+	@Embedded
+	private PackageGroupCode groupCode;
 
-    @Column(name = "display_name", nullable = false, length = 256)
-    private String displayName;
+	@Column(name = "display_name", nullable = false, length = 256)
+	private String displayName;
 
-    @Column(name = "description", length = 1024)
-    private String description;
+	@Column(name = "description", length = 1024)
+	private String description;
 
-    @Column(name = "is_default", nullable = false)
-    @Builder.Default
-    private boolean isDefault = false;
+	@Column(name = "is_default", nullable = false)
+	@Builder.Default
+	private boolean isDefault = false;
 
-    // ---- 도메인 메서드 ----------------------------------------------
+	// ---- 도메인 메서드 ----------------------------------------------
 
-    /**
-     * 재추출된 동일 코드 그룹의 메타데이터로 필드를 갱신한다.
-     * 값이 실제로 달라졌을 때만 변경이 반영되도록 JPA dirty checking 에 의존한다.
-     */
-    public void update(String displayName, String description, boolean isDefault) {
-        this.displayName = displayName;
-        this.description = description;
-        this.isDefault = isDefault;
-    }
+	/**
+	 * 재추출된 동일 코드 그룹의 메타데이터로 필드를 갱신한다.
+	 * 값이 실제로 달라졌을 때만 변경이 반영되도록 JPA dirty checking 에 의존한다.
+	 */
+	public void update(String displayName, String description, boolean isDefault) {
+		this.displayName = displayName;
+		this.description = description;
+		this.isDefault = isDefault;
+	}
 }

@@ -12,9 +12,9 @@ package com.example.serverprovision.management.bios.vo;
  * </ul>
  */
 public enum IntegrityStatus {
-    ORIGINAL,
-    TAMPERED,
-    SIGNATURE_INVALID,
-    MARKER_MISSING,
-    NOT_VERIFIED
+	ORIGINAL,
+	TAMPERED,
+	SIGNATURE_INVALID,
+	MARKER_MISSING,
+	NOT_VERIFIED
 }

@@ -114,13 +114,17 @@
                                th:data-browse-url="@{/management/bios/browse}">
                         <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
                     </div>
-                    <div class="n-hint">번들 등록 방식에 따라 의미가 달라집니다 — 업로드 모드에서는 "전개 대상 (비어있어야 함)", 기존 디렉토리 등록 모드에서는 "이미 콘텐츠가 차 있는 디렉토리". 경로를 직접 타자하거나 "탐색" 버튼으로 서버 디렉토리를 골라 채울 수 있습니다.</div>
-                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}" th:errors="*{targetDirectory}"></div>
+                    <div class="n-hint">번들 등록 방식에 따라 의미가 달라집니다 — 업로드 모드에서는 "전개 대상 (비어있어야 함)", 기존 디렉토리 등록 모드에서는 "이미 콘텐츠가
+                        차 있는 디렉토리". 경로를 직접 타자하거나 "탐색" 버튼으로 서버 디렉토리를 골라 채울 수 있습니다.
+                    </div>
+                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}"
+                         th:errors="*{targetDirectory}"></div>
 
                     <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글 -->
                     <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', null)}"></div>
 
-                    <label class="n-check" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <label class="n-check"
+                           style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>디렉토리 생성 허용</span>
                     </label>
@@ -132,13 +136,17 @@
                     <label class="n-label strong">번들 등록 방식</label>
                     <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
                         <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
-                                aria-selected="true" data-mode="FOLDER">폴더 업로드</button>
+                                aria-selected="true" data-mode="FOLDER">폴더 업로드
+                        </button>
                         <button type="button" id="modeTabZip" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="ZIP">Zip 업로드</button>
+                                aria-selected="false" data-mode="ZIP">Zip 업로드
+                        </button>
                         <button type="button" id="modeTabSingle" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일 업로드</button>
+                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일 업로드
+                        </button>
                         <button type="button" id="modeTabExisting" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="EXISTING_DIRECTORY">기존 디렉토리 등록</button>
+                                aria-selected="false" data-mode="EXISTING_DIRECTORY">기존 디렉토리 등록
+                        </button>
                     </div>
 
                     <input type="hidden" id="uploadMode" name="uploadMode" value="FOLDER">
@@ -196,7 +204,8 @@
                            data-error-field="entrypointRelativePath"
                            placeholder="예: f.nsh  (비워두면 자동 탐지)">
                     <div class="n-hint">
-                        비워두면 서버가 트리 루트에서 <code>f.nsh</code> → <code>flash.nsh</code> → 단일 <code>*.nsh</code> 순으로 자동 탐지합니다.
+                        비워두면 서버가 트리 루트에서 <code>f.nsh</code> → <code>flash.nsh</code> → 단일 <code>*.nsh</code> 순으로 자동
+                        탐지합니다.
                         진입점은 <strong>실행 파일 자체만</strong> 지정합니다. 실행 시 파라미터 등은 향후 Execution 도메인에서 관장합니다.
                     </div>
                 </div>
@@ -243,7 +252,7 @@
         }
         try {
             const resp = await fetch('/management/bios/' + encodeURIComponent(boardId) + '/new', {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
             });
             if (!resp.ok) {
                 console.error('[bios-new] form fetch failed:', resp.status);

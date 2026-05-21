@@ -18,65 +18,73 @@ import java.util.Optional;
  */
 public interface Markable extends LifecycleManageable {
 
-    Long getResourceId();
+	Long getResourceId();
 
-    ResourceType getResourceType();
+	ResourceType getResourceType();
 
-    /** 자원 본체의 디스크 경로. IN_TREE 자원은 디렉토리, SIDECAR 자원은 단일 파일. */
-    Path getResourcePath();
+	/**
+	 * 자원 본체의 디스크 경로. IN_TREE 자원은 디렉토리, SIDECAR 자원은 단일 파일.
+	 */
+	Path getResourcePath();
 
-    /** ResourceType 의 default layout 을 그대로 쓰는 게 일반적. 자원별 override 필요 시 재정의. */
-    default MarkerLayout getMarkerLayout() {
-        return getResourceType().getDefaultLayout();
-    }
+	/**
+	 * ResourceType 의 default layout 을 그대로 쓰는 게 일반적. 자원별 override 필요 시 재정의.
+	 */
+	default MarkerLayout getMarkerLayout() {
+		return getResourceType().getDefaultLayout();
+	}
 
-    String getManifestHash();
+	String getManifestHash();
 
-    /** null 이면 마커 미발급 상태 (2-phase save 중간 또는 데이터 마이그레이션 전 자원). */
-    String getMarkerSignature();
+	/**
+	 * null 이면 마커 미발급 상태 (2-phase save 중간 또는 데이터 마이그레이션 전 자원).
+	 */
+	String getMarkerSignature();
 
-    /** 새로 계산된 hash + signature 를 엔티티 필드에 반영. 호출자는 이후 repository.save() 로 영속화. */
-    void reissueMarker(String manifestHash, String markerSignature);
+	/**
+	 * 새로 계산된 hash + signature 를 엔티티 필드에 반영. 호출자는 이후 repository.save() 로 영속화.
+	 */
+	void reissueMarker(String manifestHash, String markerSignature);
 
-    /**
-     * MK2 — Markable 자원의 lifecycle 어휘. {@link LifecycleManageable} 의 default 구현 그대로 사용.
-     * MK1 reconciliation 보고서가 본 메서드로 자원 상태를 분류 (결정 #4 — deprecated 별도 표기).
-     */
-    default LifecycleStage lifecycleStage() {
-        return currentStage();
-    }
+	/**
+	 * MK2 — Markable 자원의 lifecycle 어휘. {@link LifecycleManageable} 의 default 구현 그대로 사용.
+	 * MK1 reconciliation 보고서가 본 메서드로 자원 상태를 분류 (결정 #4 — deprecated 별도 표기).
+	 */
+	default LifecycleStage lifecycleStage() {
+		return currentStage();
+	}
 
-    /**
-     * S5-2 — 사용자 표시용 + 영구삭제 typed-name 검증 기준 자원명.
-     *
-     * <p>각 도메인 entity 가 자기 합성식을 보유하는 다형성 진입점. 5 list page 의 typed-name 검증,
-     * 휴지통 페이지의 displayName + typed-name 검증, modal 메시지의 자원 식별자가 모두 본 메서드를 사용.
-     * 합성식이 entity 한 곳에 응집 — service / scanner / controller / view 모두 동일 메서드 호출 (중복 0).</p>
-     *
-     * <p>합성 예시 :</p>
-     * <ul>
-     *   <li>OSImage : {@code osName.displayName + " " + osVersion} (예: "Rocky Linux 9.6")</li>
-     *   <li>ISO : {@code parent + " " + isoBasename}</li>
-     *   <li>BoardModel : {@code vendor.displayName + " " + modelName}</li>
-     *   <li>BIOS / BMC / Subprogram : {@code name}</li>
-     * </ul>
-     *
-     * <p>default 는 일반 fallback — entity 가 override 권장.</p>
-     */
-    default String displayName() {
-        return getResourceType().name() + " #" + getResourceId();
-    }
+	/**
+	 * S5-2 — 사용자 표시용 + 영구삭제 typed-name 검증 기준 자원명.
+	 *
+	 * <p>각 도메인 entity 가 자기 합성식을 보유하는 다형성 진입점. 5 list page 의 typed-name 검증,
+	 * 휴지통 페이지의 displayName + typed-name 검증, modal 메시지의 자원 식별자가 모두 본 메서드를 사용.
+	 * 합성식이 entity 한 곳에 응집 — service / scanner / controller / view 모두 동일 메서드 호출 (중복 0).</p>
+	 *
+	 * <p>합성 예시 :</p>
+	 * <ul>
+	 *   <li>OSImage : {@code osName.displayName + " " + osVersion} (예: "Rocky Linux 9.6")</li>
+	 *   <li>ISO : {@code parent + " " + isoBasename}</li>
+	 *   <li>BoardModel : {@code vendor.displayName + " " + modelName}</li>
+	 *   <li>BIOS / BMC / Subprogram : {@code name}</li>
+	 * </ul>
+	 *
+	 * <p>default 는 일반 fallback — entity 가 override 권장.</p>
+	 */
+	default String displayName() {
+		return getResourceType().name() + " #" + getResourceId();
+	}
 
-    /**
-     * S5-2-3-1 — 자식 자원의 부모 Markable. 부모-자식 cascade 정합화의 시각화 진입점.
-     *
-     * <p>자식 entity (ISO / BoardBIOS / BoardBMC / Subprogram) 가 자기 부모(OSImage / BoardModel) 를
-     * 반환하도록 override. 메타 자원(OS_IMAGE / BOARD_MODEL) 은 default 인 {@code Optional.empty()} 그대로.</p>
-     *
-     * <p>휴지통 뷰가 본 메서드로 부모-자식 위계를 들여쓰기 표시할 수 있도록 일급 메서드로 응집 —
-     * controller 가 도메인 분기 없이 다형성만 호출.</p>
-     */
-    default Optional<Markable> getParentMarkable() {
-        return Optional.empty();
-    }
+	/**
+	 * S5-2-3-1 — 자식 자원의 부모 Markable. 부모-자식 cascade 정합화의 시각화 진입점.
+	 *
+	 * <p>자식 entity (ISO / BoardBIOS / BoardBMC / Subprogram) 가 자기 부모(OSImage / BoardModel) 를
+	 * 반환하도록 override. 메타 자원(OS_IMAGE / BOARD_MODEL) 은 default 인 {@code Optional.empty()} 그대로.</p>
+	 *
+	 * <p>휴지통 뷰가 본 메서드로 부모-자식 위계를 들여쓰기 표시할 수 있도록 일급 메서드로 응집 —
+	 * controller 가 도메인 분기 없이 다형성만 호출.</p>
+	 */
+	default Optional<Markable> getParentMarkable() {
+		return Optional.empty();
+	}
 }

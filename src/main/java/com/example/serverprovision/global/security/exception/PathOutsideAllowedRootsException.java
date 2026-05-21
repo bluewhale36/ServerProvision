@@ -11,14 +11,16 @@ package com.example.serverprovision.global.security.exception;
  */
 public class PathOutsideAllowedRootsException extends ForbiddenException {
 
-    private static final String GENERIC_MESSAGE = "경로가 허용된 영역 밖에 있습니다.";
+	private static final String GENERIC_MESSAGE = "경로가 허용된 영역 밖에 있습니다.";
 
-    public PathOutsideAllowedRootsException() {
-        super(GENERIC_MESSAGE);
-    }
+	public PathOutsideAllowedRootsException() {
+		super(GENERIC_MESSAGE);
+	}
 
-    /** legacy / 내부 디버깅용. 사용자 응답에는 {@link #PathOutsideAllowedRootsException()} 노아그를 권장. */
-    public PathOutsideAllowedRootsException(String detail) {
-        super(GENERIC_MESSAGE);
-    }
+	/**
+	 * legacy / 내부 디버깅용. 사용자 응답에는 {@link #PathOutsideAllowedRootsException()} 노아그를 권장.
+	 */
+	public PathOutsideAllowedRootsException(String detail) {
+		super(GENERIC_MESSAGE);
+	}
 }

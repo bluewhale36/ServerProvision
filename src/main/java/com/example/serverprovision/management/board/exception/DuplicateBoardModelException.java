@@ -11,7 +11,7 @@ import com.example.serverprovision.management.board.enums.Vendor;
  */
 public class DuplicateBoardModelException extends FieldBoundConflictException {
 
-    public DuplicateBoardModelException(Vendor vendor, String modelName) {
-        super("이미 등록된 메인보드 모델입니다. %s %s".formatted(vendor.getDisplayName(), modelName), "modelName");
-    }
+	public DuplicateBoardModelException(Vendor vendor, String modelName) {
+		super("이미 등록된 메인보드 모델입니다. %s %s".formatted(vendor.getDisplayName(), modelName), "modelName");
+	}
 }

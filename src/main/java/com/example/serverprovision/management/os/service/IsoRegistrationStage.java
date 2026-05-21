@@ -8,18 +8,18 @@ import com.example.serverprovision.global.job.JobStage;
  */
 public enum IsoRegistrationStage implements JobStage {
 
-    COMPUTE_HASH("해시 계산"),
-    CHECK_DUPLICATE("중복 검사"),
-    PERSIST_METADATA("메타데이터 저장");
+	COMPUTE_HASH("해시 계산"),
+	CHECK_DUPLICATE("중복 검사"),
+	PERSIST_METADATA("메타데이터 저장");
 
-    private final String label;
+	private final String label;
 
-    IsoRegistrationStage(String label) {
-        this.label = label;
-    }
+	IsoRegistrationStage(String label) {
+		this.label = label;
+	}
 
-    @Override
-    public String label() {
-        return label;
-    }
+	@Override
+	public String label() {
+		return label;
+	}
 }

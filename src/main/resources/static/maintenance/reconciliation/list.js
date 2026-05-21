@@ -20,10 +20,10 @@
             return;
         }
         if (isReissue && !confirm(
-                '⚠ 마커 서명 일괄 재발급\n\n' +
-                'secret 회전 직후에만 실행하세요. 모든 자원의 marker signature 가 현재 secret 으로 재계산됩니다.\n' +
-                'manifestHash 는 그대로 유지되므로 변조된 자원이 있다면 이후 deep scan 에서 HASH_MISMATCH 로 노출됩니다.\n\n' +
-                '계속할까요?')) {
+            '⚠ 마커 서명 일괄 재발급\n\n' +
+            'secret 회전 직후에만 실행하세요. 모든 자원의 marker signature 가 현재 secret 으로 재계산됩니다.\n' +
+            'manifestHash 는 그대로 유지되므로 변조된 자원이 있다면 이후 deep scan 에서 HASH_MISMATCH 로 노출됩니다.\n\n' +
+            '계속할까요?')) {
             return;
         }
 
@@ -33,11 +33,13 @@
 
         fetch(url, {
             method: 'POST',
-            headers: { 'Accept': 'application/json' }
+            headers: {'Accept': 'application/json'}
         }).then(res => {
             if (res.ok) return res.json();
             // 409 동시 실행 / 5xx 에러
-            return res.text().then(txt => { throw new Error('스캔 시작 실패 (HTTP ' + res.status + ') : ' + txt); });
+            return res.text().then(txt => {
+                throw new Error('스캔 시작 실패 (HTTP ' + res.status + ') : ' + txt);
+            });
         }).then(data => {
             // jobId 받음 — 작업 조회 아이콘이 다음 폴링 사이클에 자동 발견
             btn.textContent = '스캔 중…';

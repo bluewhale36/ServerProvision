@@ -2,7 +2,6 @@ package com.example.serverprovision.maintenance.trash.service;
 
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -23,22 +22,22 @@ import java.util.stream.Collectors;
 @Service
 public class TrashTtlExtensionService {
 
-    private final Map<ResourceType, MarkableScanner> scannersByType;
+	private final Map<ResourceType, MarkableScanner> scannersByType;
 
-    public TrashTtlExtensionService(List<MarkableScanner> scanners) {
-        this.scannersByType = scanners.stream()
-                .collect(Collectors.toMap(MarkableScanner::supportedType, s -> s));
-    }
+	public TrashTtlExtensionService(List<MarkableScanner> scanners) {
+		this.scannersByType = scanners.stream()
+				.collect(Collectors.toMap(MarkableScanner::supportedType, s -> s));
+	}
 
-    /**
-     * 자원의 trash 보존기간을 +TTL 일 연장한다.
-     */
-    public void extend(ResourceType resourceType, Long resourceId) {
-        MarkableScanner scanner = scannersByType.get(resourceType);
-        if (scanner == null) {
-            throw new IllegalArgumentException("지원하지 않는 자원 종류 : " + resourceType);
-        }
-        scanner.extendTrashTtl(resourceId);
-        log.info("[trash:ttl] extend type={} id={}", resourceType, resourceId);
-    }
+	/**
+	 * 자원의 trash 보존기간을 +TTL 일 연장한다.
+	 */
+	public void extend(ResourceType resourceType, Long resourceId) {
+		MarkableScanner scanner = scannersByType.get(resourceType);
+		if (scanner == null) {
+			throw new IllegalArgumentException("지원하지 않는 자원 종류 : " + resourceType);
+		}
+		scanner.extendTrashTtl(resourceId);
+		log.info("[trash:ttl] extend type={} id={}", resourceType, resourceId);
+	}
 }

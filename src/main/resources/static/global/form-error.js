@@ -71,7 +71,7 @@
             }
             mappedCount++;
         }
-        return { overflow: overflow, mappedCount: mappedCount };
+        return {overflow: overflow, mappedCount: mappedCount};
     }
 
     /**
@@ -117,8 +117,8 @@
         // 노출하지 않는다 (필드 직결 충돌 예외처럼 message 와 fieldErrors[0].message 가 동일한
         // 경우의 중복 표시 회피). overflow 가 있으면 message + overflow 를 banner 로.
         const bannerMessage = (result.mappedCount > 0 && result.overflow.length === 0)
-                ? null
-                : data.message;
+            ? null
+            : data.message;
         showBanner(root, bannerMessage, result.overflow);
     }
 
@@ -133,7 +133,7 @@
         try {
             body = await response.clone().json();
         } catch (_) {
-            body = { message: '서버 응답을 해석할 수 없습니다 (HTTP ' + response.status + ').' };
+            body = {message: '서버 응답을 해석할 수 없습니다 (HTTP ' + response.status + ').'};
         }
         renderResponse(body, opts);
         return body;

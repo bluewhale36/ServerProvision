@@ -15,45 +15,98 @@ package com.example.serverprovision.global.trash.enums;
  */
 public enum PurgeOrigin {
 
-    /** 5 list 페이지 / 휴지통의 사용자 직접 영구삭제 진입. typed-name 검증 통과 후 호출. */
-    USER_DIRECT {
-        @Override public boolean retriesAllowed() { return false; }
-        @Override public boolean requiresTypedName() { return true; }
-        @Override public String jobTitle(String displayName) {
-            return "자원 영구삭제 — " + displayName;
-        }
-        @Override public String displayName() { return "사용자 직접"; }
-    },
+	/**
+	 * 5 list 페이지 / 휴지통의 사용자 직접 영구삭제 진입. typed-name 검증 통과 후 호출.
+	 */
+	USER_DIRECT {
+		@Override
+		public boolean retriesAllowed() {
+			return false;
+		}
 
-    /** nudge 충돌 modal 에서 사용자가 "REPLACE" 클릭 후 typed-name 입력 통과. */
-    NUDGE_REPLACE {
-        @Override public boolean retriesAllowed() { return false; }
-        @Override public boolean requiresTypedName() { return true; }
-        @Override public String jobTitle(String displayName) {
-            return "nudge 교체 — " + displayName;
-        }
-        @Override public String displayName() { return "충돌 교체"; }
-    },
+		@Override
+		public boolean requiresTypedName() {
+			return true;
+		}
 
-    /** TrashTtlWorker 의 cron 진입 — 시스템 자동. retry + 사전 알림 + 실패 격상. */
-    TTL_AUTO {
-        @Override public boolean retriesAllowed() { return true; }
-        @Override public boolean requiresTypedName() { return false; }
-        @Override public String jobTitle(String displayName) {
-            return "🗑 자동 영구삭제 — " + displayName;
-        }
-        @Override public String displayName() { return "자동 (TTL 만료)"; }
-    };
+		@Override
+		public String jobTitle(String displayName) {
+			return "자원 영구삭제 — " + displayName;
+		}
 
-    /** 본 cron tick 내에서 retry 가 허용되는가. TTL_AUTO 만 true. */
-    public abstract boolean retriesAllowed();
+		@Override
+		public String displayName() {
+			return "사용자 직접";
+		}
+	},
 
-    /** PurgeExecutor 진입 전 typed-name 검증이 필요한가. 사용자 진입 2 경로만 true. */
-    public abstract boolean requiresTypedName();
+	/**
+	 * nudge 충돌 modal 에서 사용자가 "REPLACE" 클릭 후 typed-name 입력 통과.
+	 */
+	NUDGE_REPLACE {
+		@Override
+		public boolean retriesAllowed() {
+			return false;
+		}
 
-    /** BackgroundJob 카드 제목 합성 — displayName 을 합성식에 끼움. */
-    public abstract String jobTitle(String displayName);
+		@Override
+		public boolean requiresTypedName() {
+			return true;
+		}
 
-    /** S5-2-4 — UI 표시용 사용자 친화 이름. select option / 테이블 셀에 사용. */
-    public abstract String displayName();
+		@Override
+		public String jobTitle(String displayName) {
+			return "nudge 교체 — " + displayName;
+		}
+
+		@Override
+		public String displayName() {
+			return "충돌 교체";
+		}
+	},
+
+	/**
+	 * TrashTtlWorker 의 cron 진입 — 시스템 자동. retry + 사전 알림 + 실패 격상.
+	 */
+	TTL_AUTO {
+		@Override
+		public boolean retriesAllowed() {
+			return true;
+		}
+
+		@Override
+		public boolean requiresTypedName() {
+			return false;
+		}
+
+		@Override
+		public String jobTitle(String displayName) {
+			return "🗑 자동 영구삭제 — " + displayName;
+		}
+
+		@Override
+		public String displayName() {
+			return "자동 (TTL 만료)";
+		}
+	};
+
+	/**
+	 * 본 cron tick 내에서 retry 가 허용되는가. TTL_AUTO 만 true.
+	 */
+	public abstract boolean retriesAllowed();
+
+	/**
+	 * PurgeExecutor 진입 전 typed-name 검증이 필요한가. 사용자 진입 2 경로만 true.
+	 */
+	public abstract boolean requiresTypedName();
+
+	/**
+	 * BackgroundJob 카드 제목 합성 — displayName 을 합성식에 끼움.
+	 */
+	public abstract String jobTitle(String displayName);
+
+	/**
+	 * S5-2-4 — UI 표시용 사용자 친화 이름. select option / 테이블 셀에 사용.
+	 */
+	public abstract String displayName();
 }

@@ -1,11 +1,6 @@
 package com.example.serverprovision.management.subprogram.service;
 
-import com.example.serverprovision.management.common.nudge.ContentNudgePayload;
-import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
-import com.example.serverprovision.management.common.nudge.NudgePayload;
-import com.example.serverprovision.management.common.nudge.NudgeRegistry;
-import com.example.serverprovision.management.common.nudge.NudgeResourceType;
-import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.*;
 import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
 import com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse;
@@ -24,107 +19,109 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SubprogramNudgeService {
 
-    private final NudgeRegistry nudgeRegistry;
-    private final SubprogramService subprogramService;
-    private final SubprogramUploadIntentService subprogramUploadIntentService;
+	private final NudgeRegistry nudgeRegistry;
+	private final SubprogramService subprogramService;
+	private final SubprogramUploadIntentService subprogramUploadIntentService;
 
-    // ============================================================
-    // 단계 B (해시 충돌, ContentNudgePayload)
-    // ============================================================
+	// ============================================================
+	// 단계 B (해시 충돌, ContentNudgePayload)
+	// ============================================================
 
-    public Long proceed(UUID nudgeId) {
-        NudgeSession session = requireSubprogramSession(nudgeId);
-        ContentNudgePayload payload = requireContentPayload(session);
-        Long id = subprogramService.persistFromNudge(payload);
-        nudgeRegistry.remove(nudgeId);
-        log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
-        return id;
-    }
+	public Long proceed(UUID nudgeId) {
+		NudgeSession session = requireSubprogramSession(nudgeId);
+		ContentNudgePayload payload = requireContentPayload(session);
+		Long id = subprogramService.persistFromNudge(payload);
+		nudgeRegistry.remove(nudgeId);
+		log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
+		return id;
+	}
 
-    public Long replace(UUID nudgeId, Long targetId) {
-        NudgeSession session = requireSubprogramSession(nudgeId);
-        ContentNudgePayload payload = requireContentPayload(session);
-        if (!session.conflictTargetIds().contains(targetId)) {
-            throw new InvalidReplaceTargetException(targetId);
-        }
-        subprogramService.purge(targetId);
-        Long id = subprogramService.persistFromNudge(payload);
-        nudgeRegistry.remove(nudgeId);
-        log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
-        return id;
-    }
+	public Long replace(UUID nudgeId, Long targetId) {
+		NudgeSession session = requireSubprogramSession(nudgeId);
+		ContentNudgePayload payload = requireContentPayload(session);
+		if (!session.conflictTargetIds().contains(targetId)) {
+			throw new InvalidReplaceTargetException(targetId);
+		}
+		subprogramService.purge(targetId);
+		Long id = subprogramService.persistFromNudge(payload);
+		nudgeRegistry.remove(nudgeId);
+		log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
+		return id;
+	}
 
-    public void cancel(UUID nudgeId) {
-        NudgeSession session = requireSubprogramSession(nudgeId);
-        ContentNudgePayload payload = requireContentPayload(session);
-        subprogramService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
-        nudgeRegistry.remove(nudgeId);
-        log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
-    }
+	public void cancel(UUID nudgeId) {
+		NudgeSession session = requireSubprogramSession(nudgeId);
+		ContentNudgePayload payload = requireContentPayload(session);
+		subprogramService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
+		nudgeRegistry.remove(nudgeId);
+		log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+	}
 
-    // ============================================================
-    // 단계 A (intent 메타 충돌, IntentMetaNudgePayload, WAVE 2)
-    // ============================================================
+	// ============================================================
+	// 단계 A (intent 메타 충돌, IntentMetaNudgePayload, WAVE 2)
+	// ============================================================
 
-    public SubprogramUploadIntentResponse proceedIntent(UUID nudgeId) {
-        NudgeSession session = requireSubprogramSession(nudgeId);
-        IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
-        var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
-        SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
-                reissue.kind(), reissue.scope(), reissue.request());
-        nudgeRegistry.remove(nudgeId);
-        log.info("[subprogram-nudge.intent.proceed] nudgeId={}, newToken={}", nudgeId, response.uploadToken());
-        return response;
-    }
+	public SubprogramUploadIntentResponse proceedIntent(UUID nudgeId) {
+		NudgeSession session = requireSubprogramSession(nudgeId);
+		IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
+		var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
+		SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
+				reissue.kind(), reissue.scope(), reissue.request());
+		nudgeRegistry.remove(nudgeId);
+		log.info("[subprogram-nudge.intent.proceed] nudgeId={}, newToken={}", nudgeId, response.uploadToken());
+		return response;
+	}
 
-    public SubprogramUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
-        NudgeSession session = requireSubprogramSession(nudgeId);
-        IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
-        if (!session.conflictTargetIds().contains(targetId)) {
-            throw new InvalidReplaceTargetException(targetId);
-        }
-        subprogramService.purge(targetId);
-        var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
-        SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
-                reissue.kind(), reissue.scope(), reissue.request());
-        nudgeRegistry.remove(nudgeId);
-        log.info("[subprogram-nudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
-                nudgeId, targetId, response.uploadToken());
-        return response;
-    }
+	public SubprogramUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
+		NudgeSession session = requireSubprogramSession(nudgeId);
+		IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
+		if (!session.conflictTargetIds().contains(targetId)) {
+			throw new InvalidReplaceTargetException(targetId);
+		}
+		subprogramService.purge(targetId);
+		var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
+		SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
+				reissue.kind(), reissue.scope(), reissue.request());
+		nudgeRegistry.remove(nudgeId);
+		log.info(
+				"[subprogram-nudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
+				nudgeId, targetId, response.uploadToken()
+		);
+		return response;
+	}
 
-    public void cancelIntent(UUID nudgeId) {
-        NudgeSession session = requireSubprogramSession(nudgeId);
-        requireIntentMetaPayload(session);
-        nudgeRegistry.remove(nudgeId);
-        log.info("[subprogram-nudge.intent.cancel] nudgeId={}", nudgeId);
-    }
+	public void cancelIntent(UUID nudgeId) {
+		NudgeSession session = requireSubprogramSession(nudgeId);
+		requireIntentMetaPayload(session);
+		nudgeRegistry.remove(nudgeId);
+		log.info("[subprogram-nudge.intent.cancel] nudgeId={}", nudgeId);
+	}
 
-    // ============================================================
-    // 내부 헬퍼
-    // ============================================================
+	// ============================================================
+	// 내부 헬퍼
+	// ============================================================
 
-    private NudgeSession requireSubprogramSession(UUID nudgeId) {
-        NudgeSession session = nudgeRegistry.require(nudgeId);
-        if (session.resourceType() != NudgeResourceType.SUBPROGRAM) {
-            throw new NudgeNotFoundException(nudgeId);
-        }
-        return session;
-    }
+	private NudgeSession requireSubprogramSession(UUID nudgeId) {
+		NudgeSession session = nudgeRegistry.require(nudgeId);
+		if (session.resourceType() != NudgeResourceType.SUBPROGRAM) {
+			throw new NudgeNotFoundException(nudgeId);
+		}
+		return session;
+	}
 
-    private ContentNudgePayload requireContentPayload(NudgeSession session) {
-        return castPayload(session, ContentNudgePayload.class);
-    }
+	private ContentNudgePayload requireContentPayload(NudgeSession session) {
+		return castPayload(session, ContentNudgePayload.class);
+	}
 
-    private IntentMetaNudgePayload requireIntentMetaPayload(NudgeSession session) {
-        return castPayload(session, IntentMetaNudgePayload.class);
-    }
+	private IntentMetaNudgePayload requireIntentMetaPayload(NudgeSession session) {
+		return castPayload(session, IntentMetaNudgePayload.class);
+	}
 
-    private <T extends NudgePayload> T castPayload(NudgeSession session, Class<T> expected) {
-        NudgePayload payload = session.payload();
-        if (!expected.isInstance(payload)) {
-            throw new NudgeNotFoundException(session.nudgeId());
-        }
-        return expected.cast(payload);
-    }
+	private <T extends NudgePayload> T castPayload(NudgeSession session, Class<T> expected) {
+		NudgePayload payload = session.payload();
+		if (!expected.isInstance(payload)) {
+			throw new NudgeNotFoundException(session.nudgeId());
+		}
+		return expected.cast(payload);
+	}
 }

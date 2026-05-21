@@ -9,11 +9,12 @@ import java.util.List;
  * 같은 Vendor 를 가진 메인보드 모델들을 묶어 뷰에서 그룹 단위로 렌더한다.
  */
 public record VendorGroupResponse(
-        Vendor vendor,
-        String displayName,
-        List<BoardModelResponse> items
+		Vendor vendor,
+		String displayName,
+		List<BoardModelResponse> items
 ) {
-    public static VendorGroupResponse of(Vendor vendor, List<BoardModelResponse> items) {
-        return new VendorGroupResponse(vendor, vendor.getDisplayName(), items);
-    }
+
+	public static VendorGroupResponse of(Vendor vendor, List<BoardModelResponse> items) {
+		return new VendorGroupResponse(vendor, vendor.getDisplayName(), items);
+	}
 }

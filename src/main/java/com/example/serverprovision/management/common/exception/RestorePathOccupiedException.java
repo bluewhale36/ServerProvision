@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class RestorePathOccupiedException extends ConflictException {
 
-    public RestorePathOccupiedException(String occupiedPath) {
-        super("복원할 경로가 이미 점유되어 있습니다 : " + occupiedPath);
-    }
+	public RestorePathOccupiedException(String occupiedPath) {
+		super("복원할 경로가 이미 점유되어 있습니다 : " + occupiedPath);
+	}
 }

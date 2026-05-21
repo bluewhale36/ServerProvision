@@ -8,12 +8,12 @@ import org.springframework.http.HttpStatus;
  */
 public abstract class ForbiddenException extends SecurityException {
 
-    protected ForbiddenException(String message) {
-        super(message);
-    }
+	protected ForbiddenException(String message) {
+		super(message);
+	}
 
-    @Override
-    public HttpStatus httpStatus() {
-        return HttpStatus.FORBIDDEN;
-    }
+	@Override
+	public HttpStatus httpStatus() {
+		return HttpStatus.FORBIDDEN;
+	}
 }

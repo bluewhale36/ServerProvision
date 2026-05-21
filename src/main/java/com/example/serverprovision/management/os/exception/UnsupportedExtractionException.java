@@ -9,7 +9,7 @@ import com.example.serverprovision.management.os.enums.OSName;
  */
 public class UnsupportedExtractionException extends ConflictException {
 
-    public UnsupportedExtractionException(OSName osName) {
-        super("해당 OS 는 환경·패키지 그룹 자동 추출을 지원하지 않습니다: " + osName.getDisplayName());
-    }
+	public UnsupportedExtractionException(OSName osName) {
+		super("해당 OS 는 환경·패키지 그룹 자동 추출을 지원하지 않습니다: " + osName.getDisplayName());
+	}
 }

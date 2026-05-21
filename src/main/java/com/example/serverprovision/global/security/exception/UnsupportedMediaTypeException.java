@@ -8,12 +8,12 @@ import org.springframework.http.HttpStatus;
  */
 public abstract class UnsupportedMediaTypeException extends SecurityException {
 
-    protected UnsupportedMediaTypeException(String message) {
-        super(message);
-    }
+	protected UnsupportedMediaTypeException(String message) {
+		super(message);
+	}
 
-    @Override
-    public HttpStatus httpStatus() {
-        return HttpStatus.UNSUPPORTED_MEDIA_TYPE;
-    }
+	@Override
+	public HttpStatus httpStatus() {
+		return HttpStatus.UNSUPPORTED_MEDIA_TYPE;
+	}
 }

@@ -9,7 +9,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class RestoreTargetUnreachableException extends ConflictException {
 
-    public RestoreTargetUnreachableException(String parentPath) {
-        super("복원 대상 부모 디렉토리에 접근할 수 없습니다 : " + parentPath);
-    }
+	public RestoreTargetUnreachableException(String parentPath) {
+		super("복원 대상 부모 디렉토리에 접근할 수 없습니다 : " + parentPath);
+	}
 }

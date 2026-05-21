@@ -49,44 +49,48 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class WebExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(WebExceptionHandler.class);
+	private static final Logger log = LoggerFactory.getLogger(WebExceptionHandler.class);
 
-    @ExceptionHandler(value = NotFoundException.class, produces = MediaType.TEXT_HTML_VALUE)
-    public String handleNotFound(NotFoundException ex, Model model, HttpServletResponse response) {
-        response.setStatus(HttpStatus.NOT_FOUND.value());
-        populate(model, 404, "Not Found", ex.getMessage());
-        return "error";
-    }
+	@ExceptionHandler(value = NotFoundException.class, produces = MediaType.TEXT_HTML_VALUE)
+	public String handleNotFound(NotFoundException ex, Model model, HttpServletResponse response) {
+		response.setStatus(HttpStatus.NOT_FOUND.value());
+		populate(model, 404, "Not Found", ex.getMessage());
+		return "error";
+	}
 
-    @ExceptionHandler(value = ConflictException.class, produces = MediaType.TEXT_HTML_VALUE)
-    public String handleConflict(ConflictException ex, Model model, HttpServletResponse response) {
-        response.setStatus(HttpStatus.CONFLICT.value());
-        populate(model, 409, "Conflict", ex.getMessage());
-        return "error";
-    }
+	@ExceptionHandler(value = ConflictException.class, produces = MediaType.TEXT_HTML_VALUE)
+	public String handleConflict(ConflictException ex, Model model, HttpServletResponse response) {
+		response.setStatus(HttpStatus.CONFLICT.value());
+		populate(model, 409, "Conflict", ex.getMessage());
+		return "error";
+	}
 
-    @ExceptionHandler(value = OptimisticLockingFailureException.class, produces = MediaType.TEXT_HTML_VALUE)
-    public String handleOptimisticLock(OptimisticLockingFailureException ex,
-                                       Model model, HttpServletResponse response) {
-        log.warn("OptimisticLockingFailureException : {}", ex.getMessage());
-        response.setStatus(HttpStatus.CONFLICT.value());
-        populate(model, 409, "Conflict",
-                "다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해주세요.");
-        return "error";
-    }
+	@ExceptionHandler(value = OptimisticLockingFailureException.class, produces = MediaType.TEXT_HTML_VALUE)
+	public String handleOptimisticLock(
+			OptimisticLockingFailureException ex,
+			Model model, HttpServletResponse response
+	) {
+		log.warn("OptimisticLockingFailureException : {}", ex.getMessage());
+		response.setStatus(HttpStatus.CONFLICT.value());
+		populate(
+				model, 409, "Conflict",
+				"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해주세요."
+		);
+		return "error";
+	}
 
-    @ExceptionHandler(value = DomainException.class, produces = MediaType.TEXT_HTML_VALUE)
-    public String handleDomain(DomainException ex, Model model, HttpServletResponse response) {
-        // NotFound / Conflict / FieldBound 하위를 제외한 도메인 예외는 잠재적 버그로 간주
-        log.warn("Unhandled DomainException: {}", ex.getMessage(), ex);
-        response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        populate(model, 500, "Internal Error", ex.getMessage());
-        return "error";
-    }
+	@ExceptionHandler(value = DomainException.class, produces = MediaType.TEXT_HTML_VALUE)
+	public String handleDomain(DomainException ex, Model model, HttpServletResponse response) {
+		// NotFound / Conflict / FieldBound 하위를 제외한 도메인 예외는 잠재적 버그로 간주
+		log.warn("Unhandled DomainException: {}", ex.getMessage(), ex);
+		response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		populate(model, 500, "Internal Error", ex.getMessage());
+		return "error";
+	}
 
-    private static void populate(Model model, int status, String statusLabel, String message) {
-        model.addAttribute("status", status);
-        model.addAttribute("statusLabel", statusLabel);
-        model.addAttribute("message", message);
-    }
+	private static void populate(Model model, int status, String statusLabel, String message) {
+		model.addAttribute("status", status);
+		model.addAttribute("statusLabel", statusLabel);
+		model.addAttribute("message", message);
+	}
 }

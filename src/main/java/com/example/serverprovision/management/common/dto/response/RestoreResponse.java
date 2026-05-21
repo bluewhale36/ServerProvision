@@ -11,7 +11,7 @@ package com.example.serverprovision.management.common.dto.response;
  */
 public record RestoreResponse(int cascadedChildren) {
 
-    public static RestoreResponse none() {
-        return new RestoreResponse(0);
-    }
+	public static RestoreResponse none() {
+		return new RestoreResponse(0);
+	}
 }

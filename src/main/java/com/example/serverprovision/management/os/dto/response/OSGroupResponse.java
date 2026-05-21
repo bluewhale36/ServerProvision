@@ -9,11 +9,12 @@ import java.util.List;
  * 같은 OSName 을 가진 OS 이미지들을 묶어 뷰에서 그룹 단위로 렌더한다.
  */
 public record OSGroupResponse(
-        OSName osName,
-        String displayName,
-        List<OSImageResponse> items
+		OSName osName,
+		String displayName,
+		List<OSImageResponse> items
 ) {
-    public static OSGroupResponse of(OSName osName, List<OSImageResponse> items) {
-        return new OSGroupResponse(osName, osName.getDisplayName(), items);
-    }
+
+	public static OSGroupResponse of(OSName osName, List<OSImageResponse> items) {
+		return new OSGroupResponse(osName, osName.getDisplayName(), items);
+	}
 }

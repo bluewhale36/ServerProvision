@@ -24,27 +24,35 @@ import java.util.UUID;
  */
 public class BiosNudgeRequiredException extends NudgeRequiredException {
 
-    /** 단계 B (해시 충돌) 생성자. */
-    public BiosNudgeRequiredException(NudgeSession session, List<NudgeConflictEntry> conflicts) {
-        super("동일한 해시의 자원이 이미 존재합니다. nudge 결정이 필요합니다.",
-                NudgeRequiredResponse.of(session.nudgeId(), conflicts, session.expiresAt()));
-    }
+	/**
+	 * 단계 B (해시 충돌) 생성자.
+	 */
+	public BiosNudgeRequiredException(NudgeSession session, List<NudgeConflictEntry> conflicts) {
+		super(
+				"동일한 해시의 자원이 이미 존재합니다. nudge 결정이 필요합니다.",
+				NudgeRequiredResponse.of(session.nudgeId(), conflicts, session.expiresAt())
+		);
+	}
 
-    /** 단계 A (intent 메타 충돌) 생성자. */
-    public BiosNudgeRequiredException(String message, NudgeSession session, List<NudgeConflictEntry> conflicts) {
-        super(message,
-                NudgeRequiredResponse.of(session.nudgeId(), conflicts, session.expiresAt()));
-    }
+	/**
+	 * 단계 A (intent 메타 충돌) 생성자.
+	 */
+	public BiosNudgeRequiredException(String message, NudgeSession session, List<NudgeConflictEntry> conflicts) {
+		super(
+				message,
+				NudgeRequiredResponse.of(session.nudgeId(), conflicts, session.expiresAt())
+		);
+	}
 
-    public UUID nudgeId() {
-        return payload().nudgeId();
-    }
+	public UUID nudgeId() {
+		return payload().nudgeId();
+	}
 
-    public List<NudgeConflictEntry> conflicts() {
-        return payload().conflicts();
-    }
+	public List<NudgeConflictEntry> conflicts() {
+		return payload().conflicts();
+	}
 
-    public Instant expiresAt() {
-        return payload().expiresAt();
-    }
+	public Instant expiresAt() {
+		return payload().expiresAt();
+	}
 }

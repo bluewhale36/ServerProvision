@@ -27,31 +27,35 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReconciliationController {
 
-    private static final int DEFAULT_PAGE_SIZE = 20;
+	private static final int DEFAULT_PAGE_SIZE = 20;
 
-    private final PathReconciliationService reconciliationService;
+	private final PathReconciliationService reconciliationService;
 
-    @GetMapping
-    public String list(@RequestParam(name = "page", defaultValue = "0") int page,
-                       @RequestParam(name = "size", defaultValue = "20") int size,
-                       @RequestParam(name = "selectReportId", required = false) Long selectReportId,
-                       @RequestParam(name = "selectDriftId", required = false) Long selectDriftId,
-                       Model model) {
-        int safeSize = (size <= 0 || size > 100) ? DEFAULT_PAGE_SIZE : size;
-        Pageable pageable = PageRequest.of(Math.max(page, 0), safeSize,
-                Sort.by(Sort.Direction.DESC, "scannedAt"));
-        Page<DriftReportResponse> reportPage = reconciliationService.history(pageable);
+	@GetMapping
+	public String list(
+			@RequestParam(name = "page", defaultValue = "0") int page,
+			@RequestParam(name = "size", defaultValue = "20") int size,
+			@RequestParam(name = "selectReportId", required = false) Long selectReportId,
+			@RequestParam(name = "selectDriftId", required = false) Long selectDriftId,
+			Model model
+	) {
+		int safeSize = (size <= 0 || size > 100) ? DEFAULT_PAGE_SIZE : size;
+		Pageable pageable = PageRequest.of(
+				Math.max(page, 0), safeSize,
+				Sort.by(Sort.Direction.DESC, "scannedAt")
+		);
+		Page<DriftReportResponse> reportPage = reconciliationService.history(pageable);
 
-        List<DriftReportResponse> reports = reportPage.getContent();
-        model.addAttribute("reports", reports);
-        model.addAttribute("page", reportPage.getNumber());
-        model.addAttribute("size", reportPage.getSize());
-        model.addAttribute("totalPages", Math.max(reportPage.getTotalPages(), 1));
-        model.addAttribute("totalElements", reportPage.getTotalElements());
-        model.addAttribute("selectReportId", selectReportId);
-        model.addAttribute("selectDriftId", selectDriftId);
-        model.addAttribute("latestReport", reports.isEmpty() ? null : reports.get(0));
+		List<DriftReportResponse> reports = reportPage.getContent();
+		model.addAttribute("reports", reports);
+		model.addAttribute("page", reportPage.getNumber());
+		model.addAttribute("size", reportPage.getSize());
+		model.addAttribute("totalPages", Math.max(reportPage.getTotalPages(), 1));
+		model.addAttribute("totalElements", reportPage.getTotalElements());
+		model.addAttribute("selectReportId", selectReportId);
+		model.addAttribute("selectDriftId", selectDriftId);
+		model.addAttribute("latestReport", reports.isEmpty() ? null : reports.get(0));
 
-        return "maintenance/reconciliation/list";
-    }
+		return "maintenance/reconciliation/list";
+	}
 }

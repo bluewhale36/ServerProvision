@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class BiosFileStorageException extends DomainException {
 
-    public BiosFileStorageException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public BiosFileStorageException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

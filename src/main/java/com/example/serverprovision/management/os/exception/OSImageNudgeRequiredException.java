@@ -12,7 +12,7 @@ import com.example.serverprovision.management.common.nudge.exception.NudgeRequir
  */
 public class OSImageNudgeRequiredException extends NudgeRequiredException {
 
-    public OSImageNudgeRequiredException(NudgeRequiredResponse payload) {
-        super("동일한 OS 버전이 휴지통/Deprecated 에 존재합니다. (nudgeId=" + payload.nudgeId() + ")", payload);
-    }
+	public OSImageNudgeRequiredException(NudgeRequiredResponse payload) {
+		super("동일한 OS 버전이 휴지통/Deprecated 에 존재합니다. (nudgeId=" + payload.nudgeId() + ")", payload);
+	}
 }

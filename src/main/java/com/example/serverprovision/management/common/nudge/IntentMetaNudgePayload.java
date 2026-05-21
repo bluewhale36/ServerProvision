@@ -14,6 +14,7 @@ import java.util.Map;
  * @param attributes 도메인별 intent 재발급에 필요한 모든 메타 (도메인 NudgeService 가 정의한 키 어휘로 보관)
  */
 public record IntentMetaNudgePayload(
-        Map<String, String> attributes
+		Map<String, String> attributes
 ) implements NudgePayload {
+
 }

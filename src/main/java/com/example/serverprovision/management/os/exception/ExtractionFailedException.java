@@ -8,11 +8,11 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class ExtractionFailedException extends DomainException {
 
-    public ExtractionFailedException(String message) {
-        super(message);
-    }
+	public ExtractionFailedException(String message) {
+		super(message);
+	}
 
-    public ExtractionFailedException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public ExtractionFailedException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

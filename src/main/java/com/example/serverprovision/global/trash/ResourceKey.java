@@ -9,5 +9,9 @@ import com.example.serverprovision.global.marker.ResourceType;
  * 공유한다. inner record 대신 top-level 로 분리 — JPQL 의 fully qualified constructor 호출에
  * Hibernate 가 안전하게 인식하도록 함.</p>
  */
-public record ResourceKey(ResourceType resourceType, Long resourceId) {
+public record ResourceKey(
+		ResourceType resourceType,
+		Long resourceId
+) {
+
 }

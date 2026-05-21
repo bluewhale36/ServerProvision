@@ -26,6 +26,7 @@
     function emptyTextBefore() {
         return (emptyState && emptyState.dataset.emptyBefore) || '';
     }
+
     function emptyTextAfter() {
         return (emptyState && emptyState.dataset.emptyAfter) || '';
     }
@@ -116,7 +117,10 @@
         const panel = findPanelByOsId(osId);
         const set = stalePanels.get(String(osId));
         if (panel && set) {
-            if (set.has('env')) { refreshEnvGroups(panel, osId); clearStale(osId, 'env'); }
+            if (set.has('env')) {
+                refreshEnvGroups(panel, osId);
+                clearStale(osId, 'env');
+            }
         }
 
         if (!opts || !opts.skipUrl) {
@@ -147,8 +151,8 @@
         if (versionBtn) {
             const panel = versionBtn.closest('.n-miller-version-panel');
             if (panel) {
-                selectOsName(panel.dataset.osKey, { skipUrl: true });
-                selectOsId(initialId, { skipUrl: true });
+                selectOsName(panel.dataset.osKey, {skipUrl: true});
+                selectOsId(initialId, {skipUrl: true});
             }
         }
     } else if (initialBoardId) {
@@ -156,7 +160,7 @@
             '.n-miller-item[data-os-key="' + initialBoardId + '"]'
         );
         if (boardBtn) {
-            selectOsName(initialBoardId, { skipUrl: true });
+            selectOsName(initialBoardId, {skipUrl: true});
         }
     } else if (initialKey) {
         // S5-4 — C1 만 선택된 상태 (OS / Board 페이지). C2 는 비어있음.
@@ -164,17 +168,18 @@
             '.n-miller-item[data-os-key="' + initialKey + '"]'
         );
         if (c1Btn) {
-            selectOsName(initialKey, { skipUrl: true });
+            selectOsName(initialKey, {skipUrl: true});
         }
     }
 
     try {
         const pendingToast = sessionStorage.getItem('os.isoRegistration.toast');
         if (pendingToast && window.bgjobToast) {
-            window.bgjobToast(pendingToast, { variant: 'info' });
+            window.bgjobToast(pendingToast, {variant: 'info'});
             sessionStorage.removeItem('os.isoRegistration.toast');
         }
-    } catch (_) { /* ignore */ }
+    } catch (_) { /* ignore */
+    }
 
     // ---- 추출 시작 (A1-1) --------------------------------------
 
@@ -197,14 +202,14 @@
         try {
             const resp = await fetch(EXTRACT_URL(osId, isoId), {
                 method: 'POST',
-                headers: { 'Accept': 'application/json' }
+                headers: {'Accept': 'application/json'}
             });
             if (!resp.ok) {
                 // 409 = 이미 추출된 ISO 등 의미 있는 충돌. 이 경우 버튼을 "추출됨" 으로 굳혀둔다.
                 if (resp.status === 409) {
                     markExtractedByIsoPath(findIsoPathFromButton(btn));
                     if (window.bgjobToast) {
-                        window.bgjobToast('이미 추출된 ISO 입니다.', { variant: 'info' });
+                        window.bgjobToast('이미 추출된 ISO 입니다.', {variant: 'info'});
                     }
                     return;
                 }
@@ -212,12 +217,12 @@
             }
             await resp.json();
             if (window.bgjobToast) {
-                window.bgjobToast('ISO 추출 진행 확인…', { variant: 'info' });
+                window.bgjobToast('ISO 추출 진행 확인…', {variant: 'info'});
             }
             // 버튼은 이 상태로 유지. 완료 / 실패 감지 시 mark/restore 가 정리.
         } catch (err) {
             if (window.bgjobToast) {
-                window.bgjobToast('추출 시작 실패: ' + err.message, { variant: 'error' });
+                window.bgjobToast('추출 시작 실패: ' + err.message, {variant: 'error'});
             }
             restoreExtractButton(btn);
         }
@@ -268,6 +273,7 @@
             btn.addEventListener('click', () => startExtract(btn));
         });
     }
+
     bindExtractButtons();
 
     // ---- Fragment 부분 갱신 ------------------------------------
@@ -280,13 +286,14 @@
     async function refreshEnvGroups(panel, osId) {
         try {
             const resp = await fetch(`/management/os/${encodeURIComponent(osId)}/env-groups-fragment`, {
-                headers: { 'Accept': 'text/html' }
+                headers: {'Accept': 'text/html'}
             });
             if (!resp.ok) return;
             const html = await resp.text();
             const wrap = panel.querySelector('.n-env-groups-wrap');
             if (wrap) wrap.outerHTML = html;
-        } catch (_) { /* 다음 select 시점에 재시도 */ }
+        } catch (_) { /* 다음 select 시점에 재시도 */
+        }
     }
 
     async function refreshIsoSection(panel, osId) {
@@ -299,7 +306,7 @@
 
         try {
             const resp = await fetch(`/management/os/${encodeURIComponent(osId)}/iso-section-fragment`, {
-                headers: { 'Accept': 'text/html' }
+                headers: {'Accept': 'text/html'}
             });
             if (!resp.ok) return;
             const html = await resp.text();
@@ -310,7 +317,8 @@
                 if (item) item.setAttribute('open', 'open');
             }
             bindExtractButtons(panel);
-        } catch (_) { /* 다음 이벤트까지 현 상태 유지 */ }
+        } catch (_) { /* 다음 이벤트까지 현 상태 유지 */
+        }
     }
 
     // 추출 완료 시 해당 ISO 아코디언 행의 "설치 환경" / "패키지 그룹" dd 셀만 교체한다.
@@ -325,12 +333,13 @@
             try {
                 const resp = await fetch(
                     `/management/os/${encodeURIComponent(osId)}/iso/${encodeURIComponent(isoId)}/provisions`,
-                    { headers: { 'Accept': 'application/json' } }
+                    {headers: {'Accept': 'application/json'}}
                 );
                 if (!resp.ok) continue;
                 const data = await resp.json();
                 applyProvisionsToItem(item, data);
-            } catch (_) { /* 다음 select 시점의 env-groups refresh 에 맡긴다 */ }
+            } catch (_) { /* 다음 select 시점의 env-groups refresh 에 맡긴다 */
+            }
         }
     }
 
@@ -371,7 +380,7 @@
         const d = e.detail || {};
         if (d.type === 'ISO_REGISTRATION') {
             if (window.bgjobToast) {
-                window.bgjobToast('ISO 등록이 완료되었습니다.', { variant: 'success' });
+                window.bgjobToast('ISO 등록이 완료되었습니다.', {variant: 'success'});
             }
             const osId = d.metadata && d.metadata.osId ? d.metadata.osId : null;
             const panel = osId ? findPanelByOsId(osId) : null;
@@ -389,7 +398,7 @@
 
         // 3) 완료 토스트
         if (window.bgjobToast) {
-            window.bgjobToast('ISO 추출이 완료되었습니다.', { variant: 'success' });
+            window.bgjobToast('ISO 추출이 완료되었습니다.', {variant: 'success'});
         }
 
         // 4) 환경·패키지 그룹 섹션(아코디언 하단) 갱신 — active 일 때만, 아니면 stale 마킹
@@ -408,14 +417,14 @@
         const d = e.detail || {};
         if (d.type === 'ISO_REGISTRATION') {
             if (window.bgjobToast) {
-                window.bgjobToast('ISO 등록 실패: ' + (d.subtitle || d.title || ''), { variant: 'error' });
+                window.bgjobToast('ISO 등록 실패: ' + (d.subtitle || d.title || ''), {variant: 'error'});
             }
             return;
         }
         if (d.type !== 'COMPS_EXTRACTION') return;
         restoreExtractByIsoPath(d.subtitle);
         if (window.bgjobToast) {
-            window.bgjobToast('ISO 추출 실패: ' + (d.subtitle || d.title || ''), { variant: 'error' });
+            window.bgjobToast('ISO 추출 실패: ' + (d.subtitle || d.title || ''), {variant: 'error'});
         }
     });
 })();

@@ -11,7 +11,7 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class PathCorrectionFailedException extends DomainException {
 
-    public PathCorrectionFailedException(String message) {
-        super(message);
-    }
+	public PathCorrectionFailedException(String message) {
+		super(message);
+	}
 }

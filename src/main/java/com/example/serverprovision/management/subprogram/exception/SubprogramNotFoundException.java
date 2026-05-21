@@ -7,7 +7,7 @@ import com.example.serverprovision.global.exception.NotFoundException;
  */
 public class SubprogramNotFoundException extends NotFoundException {
 
-    public SubprogramNotFoundException(Long subprogramId) {
-        super("Subprogram 을 찾을 수 없습니다. subprogramId=" + subprogramId);
-    }
+	public SubprogramNotFoundException(Long subprogramId) {
+		super("Subprogram 을 찾을 수 없습니다. subprogramId=" + subprogramId);
+	}
 }

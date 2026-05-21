@@ -5,7 +5,7 @@ package com.example.serverprovision.management.os.enums;
  * Stage 3 PXE 연동에서 {@code ProvisioningStrategy} 가 이 값을 참조한다.
  */
 public enum OSFamily {
-    RHEL_BASED,
-    DEBIAN_BASED,
-    WINDOWS_BASED
+	RHEL_BASED,
+	DEBIAN_BASED,
+	WINDOWS_BASED
 }

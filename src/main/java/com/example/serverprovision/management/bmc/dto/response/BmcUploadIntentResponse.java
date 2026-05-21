@@ -12,11 +12,12 @@ import java.util.List;
  * 없으면 null. 단계 B (해시 후) 와 독립적이다.</p>
  */
 public record BmcUploadIntentResponse(
-        String uploadToken,
-        List<String> warnings,
-        PreExistingMatchInfo preExistingMatch
+		String uploadToken,
+		List<String> warnings,
+		PreExistingMatchInfo preExistingMatch
 ) {
-    public static BmcUploadIntentResponse withoutMatch(String uploadToken, List<String> warnings) {
-        return new BmcUploadIntentResponse(uploadToken, warnings, null);
-    }
+
+	public static BmcUploadIntentResponse withoutMatch(String uploadToken, List<String> warnings) {
+		return new BmcUploadIntentResponse(uploadToken, warnings, null);
+	}
 }

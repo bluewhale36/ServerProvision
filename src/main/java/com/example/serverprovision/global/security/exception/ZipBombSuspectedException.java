@@ -10,12 +10,12 @@ import org.springframework.http.HttpStatus;
  */
 public class ZipBombSuspectedException extends SecurityException {
 
-    public ZipBombSuspectedException(String reason) {
-        super("Zip 압축 해제 검사에서 위험 신호가 감지되었습니다 : " + reason);
-    }
+	public ZipBombSuspectedException(String reason) {
+		super("Zip 압축 해제 검사에서 위험 신호가 감지되었습니다 : " + reason);
+	}
 
-    @Override
-    public HttpStatus httpStatus() {
-        return HttpStatus.UNSUPPORTED_MEDIA_TYPE;
-    }
+	@Override
+	public HttpStatus httpStatus() {
+		return HttpStatus.UNSUPPORTED_MEDIA_TYPE;
+	}
 }

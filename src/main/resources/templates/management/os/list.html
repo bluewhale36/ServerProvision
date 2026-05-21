@@ -39,7 +39,9 @@
     <!-- 빈 상태 -->
     <div th:if="${#lists.isEmpty(osGroups)}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title" th:text="${includeDeleted} ? '등록된 OS 버전이 없습니다 (휴지통 포함).' : '등록된 OS 버전이 없습니다.'">등록된 OS 버전이 없습니다.</div>
+            <div class="n-empty-title" th:text="${includeDeleted} ? '등록된 OS 버전이 없습니다 (휴지통 포함).' : '등록된 OS 버전이 없습니다.'">
+                등록된 OS 버전이 없습니다.
+            </div>
             <div class="n-empty-desc">"OS 버전 등록" 버튼으로 OS 버전을 추가하세요.</div>
         </div>
     </div>
@@ -57,7 +59,8 @@
                     type="button"
                     class="n-miller-item"
                     th:data-os-key="${group.osName.name()}"
-                    th:text="${group.displayName}">Rocky Linux</button>
+                    th:text="${group.displayName}">Rocky Linux
+            </button>
         </div>
 
         <!-- C2 : 해당 OSName 의 버전 목록 (JS 가 active 토글) -->
@@ -97,7 +100,9 @@
             <div class="n-miller-empty" id="millerEmpty"
                  data-empty-before="OS 이름을 선택하여 버전 보기"
                  data-empty-after="버전을 선택하여 상세 보기"
-                 th:text="${selectKey != null or selectId != null} ? '버전을 선택하여 상세 보기' : 'OS 이름을 선택하여 버전 보기'">OS 이름을 선택하여 버전 보기</div>
+                 th:text="${selectKey != null or selectId != null} ? '버전을 선택하여 상세 보기' : 'OS 이름을 선택하여 버전 보기'">OS 이름을 선택하여
+                버전 보기
+            </div>
 
             <th:block th:each="group : ${osGroups}">
                 <div th:each="os : ${group.items}"
@@ -224,7 +229,8 @@
                                     <code class="n-accordion-title" th:text="${iso.isoPath}"></code>
                                     <span th:if="${iso.isDeprecated and !iso.isDeleted}"
                                           class="n-badge n-badge-yellow n-accordion-badge">Deprecated</span>
-                                    <span th:if="${iso.isDeleted}" class="n-badge n-badge-gray n-accordion-badge">삭제됨</span>
+                                    <span th:if="${iso.isDeleted}"
+                                          class="n-badge n-badge-gray n-accordion-badge">삭제됨</span>
                                     <span th:unless="${iso.isDeleted}"
                                           class="n-badge n-accordion-badge"
                                           th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
@@ -271,7 +277,8 @@
                                         <div class="n-accordion-field">
                                             <dt>패키지 그룹</dt>
                                             <dd data-field="package-group-count">
-                                                <span th:if="${iso.providedPackageGroupCount == 0}" class="n-accordion-muted">—</span>
+                                                <span th:if="${iso.providedPackageGroupCount == 0}"
+                                                      class="n-accordion-muted">—</span>
                                                 <span th:unless="${iso.providedPackageGroupCount == 0}"
                                                       th:text="${iso.providedPackageGroupCount} + ' 개'"></span>
                                             </dd>
@@ -313,19 +320,24 @@
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-deprecate=""
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
-                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">Deprecated 표시</button>
+                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">
+                                                    Deprecated 표시
+                                                </button>
                                             </form>
                                             <form th:if="${iso.isDeprecated}"
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/undeprecate(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form">
-                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">Deprecated 해제</button>
+                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">
+                                                    Deprecated 해제
+                                                </button>
                                             </form>
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/delete(osId=${os.id},isoId=${iso.id})}"
                                                   method="post"
                                                   class="n-accordion-inline-form mk3-2-delete-form"
                                                   data-confirm-soft-delete=""
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
-                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">삭제</button>
+                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">삭제
+                                                </button>
                                             </form>
                                         </th:block>
                                         <th:block th:if="${iso.isDeleted}">
@@ -333,7 +345,8 @@
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-restore=""
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
-                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구</button>
+                                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구
+                                                </button>
                                             </form>
                                             <!-- S5-6-1 — ISO 자원도 동일 패턴. resourceType=OS_ISO, resourceId=${iso.id}. -->
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/purge(osId=${os.id},isoId=${iso.id})}"

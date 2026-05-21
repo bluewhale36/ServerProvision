@@ -27,55 +27,57 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OSImageNudgeService {
 
-    private final NudgeRegistry nudgeRegistry;
-    private final OSImageService osImageService;
-    private final OSImageRepository osImageRepository;
+	private final NudgeRegistry nudgeRegistry;
+	private final OSImageService osImageService;
+	private final OSImageRepository osImageRepository;
 
-    @Transactional
-    public Long proceed(UUID nudgeId) {
-        NudgeSession session = requireOSImageSession(nudgeId);
-        Long id = osImageService.completePendingOSImageFromNudge(session);
-        consumeSession(nudgeId);
-        log.info("[osImageNudge] proceed 완료. nudgeId={}, newId={}", nudgeId, id);
-        return id;
-    }
+	@Transactional
+	public Long proceed(UUID nudgeId) {
+		NudgeSession session = requireOSImageSession(nudgeId);
+		Long id = osImageService.completePendingOSImageFromNudge(session);
+		consumeSession(nudgeId);
+		log.info("[osImageNudge] proceed 완료. nudgeId={}, newId={}", nudgeId, id);
+		return id;
+	}
 
-    @Transactional
-    public Long replace(UUID nudgeId, Long targetId) {
-        NudgeSession session = requireOSImageSession(nudgeId);
-        if (targetId == null || !session.conflictTargetIds().contains(targetId)) {
-            throw new InvalidReplaceTargetException(targetId);
-        }
-        OSImage target = osImageRepository.findById(targetId)
-                .orElseThrow(() -> new OSImageNotFoundException(targetId));
-        osImageService.purgeOSImageForNudge(target);
-        Long newId = osImageService.completePendingOSImageFromNudge(session);
-        consumeSession(nudgeId);
-        log.info("[osImageNudge] replace 완료. nudgeId={}, purgedId={}, newId={}",
-                nudgeId, targetId, newId);
-        return newId;
-    }
+	@Transactional
+	public Long replace(UUID nudgeId, Long targetId) {
+		NudgeSession session = requireOSImageSession(nudgeId);
+		if (targetId == null || !session.conflictTargetIds().contains(targetId)) {
+			throw new InvalidReplaceTargetException(targetId);
+		}
+		OSImage target = osImageRepository.findById(targetId)
+				.orElseThrow(() -> new OSImageNotFoundException(targetId));
+		osImageService.purgeOSImageForNudge(target);
+		Long newId = osImageService.completePendingOSImageFromNudge(session);
+		consumeSession(nudgeId);
+		log.info(
+				"[osImageNudge] replace 완료. nudgeId={}, purgedId={}, newId={}",
+				nudgeId, targetId, newId
+		);
+		return newId;
+	}
 
-    public void cancel(UUID nudgeId) {
-        // 메타 단독 — 정리할 임시 파일 없음. 세션만 회수.
-        requireOSImageSession(nudgeId);
-        consumeSession(nudgeId);
-        log.info("[osImageNudge] cancel 완료. nudgeId={}", nudgeId);
-    }
+	public void cancel(UUID nudgeId) {
+		// 메타 단독 — 정리할 임시 파일 없음. 세션만 회수.
+		requireOSImageSession(nudgeId);
+		consumeSession(nudgeId);
+		log.info("[osImageNudge] cancel 완료. nudgeId={}", nudgeId);
+	}
 
-    // ---- 내부 헬퍼 -----------------------------------------------------
+	// ---- 내부 헬퍼 -----------------------------------------------------
 
-    private NudgeSession requireOSImageSession(UUID nudgeId) {
-        NudgeSession session = nudgeRegistry.require(nudgeId);
-        if (session.resourceType() != NudgeResourceType.OS_IMAGE) {
-            throw new NudgeAlreadyResolvedException(nudgeId);
-        }
-        return session;
-    }
+	private NudgeSession requireOSImageSession(UUID nudgeId) {
+		NudgeSession session = nudgeRegistry.require(nudgeId);
+		if (session.resourceType() != NudgeResourceType.OS_IMAGE) {
+			throw new NudgeAlreadyResolvedException(nudgeId);
+		}
+		return session;
+	}
 
-    private void consumeSession(UUID nudgeId) {
-        if (!nudgeRegistry.remove(nudgeId)) {
-            throw new NudgeAlreadyResolvedException(nudgeId);
-        }
-    }
+	private void consumeSession(UUID nudgeId) {
+		if (!nudgeRegistry.remove(nudgeId)) {
+			throw new NudgeAlreadyResolvedException(nudgeId);
+		}
+	}
 }

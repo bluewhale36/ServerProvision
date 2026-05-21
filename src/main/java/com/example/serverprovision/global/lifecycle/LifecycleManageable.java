@@ -13,33 +13,33 @@ package com.example.serverprovision.global.lifecycle;
  */
 public interface LifecycleManageable {
 
-    boolean isDeprecated();
+	boolean isDeprecated();
 
-    boolean isDeleted();
+	boolean isDeleted();
 
-    /**
-     * Active → Deprecated 전이. 이미 Deprecated 거나 SoftDeleted 인 경우 구현체에서 도메인 예외를
-     * 던진다 (CP3 에 정의될 {@code IllegalDeprecationStateException}).
-     */
-    void deprecate();
+	/**
+	 * Active → Deprecated 전이. 이미 Deprecated 거나 SoftDeleted 인 경우 구현체에서 도메인 예외를
+	 * 던진다 (CP3 에 정의될 {@code IllegalDeprecationStateException}).
+	 */
+	void deprecate();
 
-    /**
-     * Deprecated → Active 전이. Active 또는 SoftDeleted 인 경우 도메인 예외.
-     */
-    void undeprecate();
+	/**
+	 * Deprecated → Active 전이. Active 또는 SoftDeleted 인 경우 도메인 예외.
+	 */
+	void undeprecate();
 
-    /**
-     * Active / Deprecated → SoftDeleted 전이. {@code is_deprecated} 는 보존된다.
-     */
-    void softDelete();
+	/**
+	 * Active / Deprecated → SoftDeleted 전이. {@code is_deprecated} 는 보존된다.
+	 */
+	void softDelete();
 
-    /**
-     * SoftDeleted → 이전 stage 복귀. {@code is_deprecated} 보존되어 있으면 Deprecated 로,
-     * 아니면 Active 로 복귀.
-     */
-    void restore();
+	/**
+	 * SoftDeleted → 이전 stage 복귀. {@code is_deprecated} 보존되어 있으면 Deprecated 로,
+	 * 아니면 Active 로 복귀.
+	 */
+	void restore();
 
-    default LifecycleStage currentStage() {
-        return LifecycleStage.of(isDeprecated(), isDeleted());
-    }
+	default LifecycleStage currentStage() {
+		return LifecycleStage.of(isDeprecated(), isDeleted());
+	}
 }

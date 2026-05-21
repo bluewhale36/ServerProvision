@@ -11,17 +11,18 @@ import java.time.Instant;
  * 같은 shape 을 그대로 재사용한다.
  */
 public record IntegrityStatusResponse(
-        Long resourceId,
-        IntegrityStatus integrityStatus,
-        String badgeClass,
-        Instant verifiedAt
+		Long resourceId,
+		IntegrityStatus integrityStatus,
+		String badgeClass,
+		Instant verifiedAt
 ) {
-    public static IntegrityStatusResponse of(Long resourceId, IntegrityStatus integrityStatus, Instant verifiedAt) {
-        return new IntegrityStatusResponse(
-                resourceId,
-                integrityStatus,
-                IntegrityStatusView.badgeClass(integrityStatus),
-                verifiedAt
-        );
-    }
+
+	public static IntegrityStatusResponse of(Long resourceId, IntegrityStatus integrityStatus, Instant verifiedAt) {
+		return new IntegrityStatusResponse(
+				resourceId,
+				integrityStatus,
+				IntegrityStatusView.badgeClass(integrityStatus),
+				verifiedAt
+		);
+	}
 }

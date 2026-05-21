@@ -6,7 +6,7 @@ package com.example.serverprovision.global.security.exception;
  */
 public class MaliciousContentSuspectedException extends UnsupportedMediaTypeException {
 
-    public MaliciousContentSuspectedException(String reason) {
-        super("업로드 파일의 콘텐츠가 안전하지 않습니다 : " + reason);
-    }
+	public MaliciousContentSuspectedException(String reason) {
+		super("업로드 파일의 콘텐츠가 안전하지 않습니다 : " + reason);
+	}
 }

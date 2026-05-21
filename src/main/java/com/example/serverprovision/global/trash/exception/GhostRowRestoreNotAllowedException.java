@@ -15,9 +15,9 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class GhostRowRestoreNotAllowedException extends ConflictException {
 
-    public GhostRowRestoreNotAllowedException(String resourceTypeAndId) {
-        super("이 자원은 ghost (DB row 만 남은 상태) 입니다. 복구 가능한 자원이 없습니다 — "
-                + resourceTypeAndId
-                + " · 휴지통의 '정리' 또는 reconciliation 의 GHOST_DB_ROW drift apply 로 row 를 제거하세요.");
-    }
+	public GhostRowRestoreNotAllowedException(String resourceTypeAndId) {
+		super("이 자원은 ghost (DB row 만 남은 상태) 입니다. 복구 가능한 자원이 없습니다 — "
+					  + resourceTypeAndId
+					  + " · 휴지통의 '정리' 또는 reconciliation 의 GHOST_DB_ROW drift apply 로 row 를 제거하세요.");
+	}
 }

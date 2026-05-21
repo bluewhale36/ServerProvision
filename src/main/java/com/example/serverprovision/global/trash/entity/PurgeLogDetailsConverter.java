@@ -18,21 +18,21 @@ import tools.jackson.databind.json.JsonMapper;
 @Converter(autoApply = false)
 public class PurgeLogDetailsConverter implements AttributeConverter<PurgeLogDetails, String> {
 
-    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
+	private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
-    @Override
-    public String convertToDatabaseColumn(PurgeLogDetails attribute) {
-        if (attribute == null) {
-            return null;
-        }
-        return MAPPER.writeValueAsString(attribute);
-    }
+	@Override
+	public String convertToDatabaseColumn(PurgeLogDetails attribute) {
+		if (attribute == null) {
+			return null;
+		}
+		return MAPPER.writeValueAsString(attribute);
+	}
 
-    @Override
-    public PurgeLogDetails convertToEntityAttribute(String dbData) {
-        if (dbData == null || dbData.isBlank()) {
-            return null;
-        }
-        return MAPPER.readValue(dbData, PurgeLogDetails.class);
-    }
+	@Override
+	public PurgeLogDetails convertToEntityAttribute(String dbData) {
+		if (dbData == null || dbData.isBlank()) {
+			return null;
+		}
+		return MAPPER.readValue(dbData, PurgeLogDetails.class);
+	}
 }

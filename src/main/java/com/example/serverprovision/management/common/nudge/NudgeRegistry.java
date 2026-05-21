@@ -26,65 +26,69 @@ import java.util.concurrent.ConcurrentMap;
 @Component
 public class NudgeRegistry {
 
-    /** 결정 #1 — 메모리 ConcurrentMap. JVM 재시작 시 모든 nudge 세션 소실 (재업로드 필요). */
-    private final ConcurrentMap<UUID, NudgeSession> sessions = new ConcurrentHashMap<>();
+	/**
+	 * 결정 #1 — 메모리 ConcurrentMap. JVM 재시작 시 모든 nudge 세션 소실 (재업로드 필요).
+	 */
+	private final ConcurrentMap<UUID, NudgeSession> sessions = new ConcurrentHashMap<>();
 
-    private static final Duration TTL = Duration.ofMinutes(5);
+	private static final Duration TTL = Duration.ofMinutes(5);
 
-    /**
-     * 새 세션 등록. 호출자는 충돌 후보 발견 시점에 본 메서드 호출 후 응답에 nudgeId 동봉.
-     */
-    public NudgeSession register(NudgeResourceType resourceType,
-                                  Long boardId,
-                                  java.util.List<Long> conflictTargetIds,
-                                  NudgePayload payload) {
-        Instant now = Instant.now();
-        NudgeSession session = new NudgeSession(
-                UUID.randomUUID(),
-                resourceType,
-                boardId,
-                conflictTargetIds,
-                payload,
-                now,
-                now.plus(TTL)
-        );
-        sessions.put(session.nudgeId(), session);
-        return session;
-    }
+	/**
+	 * 새 세션 등록. 호출자는 충돌 후보 발견 시점에 본 메서드 호출 후 응답에 nudgeId 동봉.
+	 */
+	public NudgeSession register(
+			NudgeResourceType resourceType,
+			Long boardId,
+			java.util.List<Long> conflictTargetIds,
+			NudgePayload payload
+	) {
+		Instant now = Instant.now();
+		NudgeSession session = new NudgeSession(
+				UUID.randomUUID(),
+				resourceType,
+				boardId,
+				conflictTargetIds,
+				payload,
+				now,
+				now.plus(TTL)
+		);
+		sessions.put(session.nudgeId(), session);
+		return session;
+	}
 
-    /**
-     * 세션 조회. 만료 / 부재 시 명시적 도메인 예외.
-     */
-    public NudgeSession require(UUID nudgeId) {
-        NudgeSession session = sessions.get(nudgeId);
-        if (session == null) {
-            throw new NudgeNotFoundException(nudgeId);
-        }
-        if (session.isExpired(Instant.now())) {
-            sessions.remove(nudgeId);
-            throw new NudgeSessionExpiredException(nudgeId);
-        }
-        return session;
-    }
+	/**
+	 * 세션 조회. 만료 / 부재 시 명시적 도메인 예외.
+	 */
+	public NudgeSession require(UUID nudgeId) {
+		NudgeSession session = sessions.get(nudgeId);
+		if (session == null) {
+			throw new NudgeNotFoundException(nudgeId);
+		}
+		if (session.isExpired(Instant.now())) {
+			sessions.remove(nudgeId);
+			throw new NudgeSessionExpiredException(nudgeId);
+		}
+		return session;
+	}
 
-    /**
-     * confirm 완료 후 세션 제거. {@code resolveNudge} 의 멱등성 차단을 위해 반환값으로 제거 여부 알림.
-     */
-    public boolean remove(UUID nudgeId) {
-        return sessions.remove(nudgeId) != null;
-    }
+	/**
+	 * confirm 완료 후 세션 제거. {@code resolveNudge} 의 멱등성 차단을 위해 반환값으로 제거 여부 알림.
+	 */
+	public boolean remove(UUID nudgeId) {
+		return sessions.remove(nudgeId) != null;
+	}
 
-    /**
-     * TTL pruner — 1분 간격으로 만료 세션 회수. 도메인 Service 가 임시 파일 cleanup 책임.
-     */
-    @Scheduled(fixedDelay = 60_000L)
-    public void pruneExpired() {
-        Instant now = Instant.now();
-        int before = sessions.size();
-        sessions.entrySet().removeIf(e -> e.getValue().isExpired(now));
-        int removed = before - sessions.size();
-        if (removed > 0) {
-            log.info("[nudge] 만료 세션 {} 건 회수 (활성 {} 건 잔존)", removed, sessions.size());
-        }
-    }
+	/**
+	 * TTL pruner — 1분 간격으로 만료 세션 회수. 도메인 Service 가 임시 파일 cleanup 책임.
+	 */
+	@Scheduled(fixedDelay = 60_000L)
+	public void pruneExpired() {
+		Instant now = Instant.now();
+		int before = sessions.size();
+		sessions.entrySet().removeIf(e -> e.getValue().isExpired(now));
+		int removed = before - sessions.size();
+		if (removed > 0) {
+			log.info("[nudge] 만료 세션 {} 건 회수 (활성 {} 건 잔존)", removed, sessions.size());
+		}
+	}
 }

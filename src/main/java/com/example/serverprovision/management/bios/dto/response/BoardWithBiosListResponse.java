@@ -10,11 +10,12 @@ import java.util.List;
  * {@code isDeleted} 는 BoardModel 자체의 soft 삭제 상태 — 휴지통 보기에서만 노출.
  */
 public record BoardWithBiosListResponse(
-        Long id,
-        Vendor vendor,
-        String vendorDisplayName,
-        String modelName,
-        boolean isDeleted,
-        List<BiosResponse> biosList
+		Long id,
+		Vendor vendor,
+		String vendorDisplayName,
+		String modelName,
+		boolean isDeleted,
+		List<BiosResponse> biosList
 ) {
+
 }

@@ -7,16 +7,16 @@ import com.example.serverprovision.management.bios.vo.IntegrityStatus;
  */
 public final class IntegrityStatusView {
 
-    private IntegrityStatusView() {
-    }
+	private IntegrityStatusView() {
+	}
 
-    public static String badgeClass(IntegrityStatus status) {
-        IntegrityStatus safeStatus = status != null ? status : IntegrityStatus.NOT_VERIFIED;
-        return switch (safeStatus) {
-            case ORIGINAL -> "n-badge-green";
-            case TAMPERED -> "n-badge-red";
-            case SIGNATURE_INVALID -> "n-badge-orange";
-            case MARKER_MISSING, NOT_VERIFIED -> "n-badge-gray";
-        };
-    }
+	public static String badgeClass(IntegrityStatus status) {
+		IntegrityStatus safeStatus = status != null ? status : IntegrityStatus.NOT_VERIFIED;
+		return switch (safeStatus) {
+			case ORIGINAL -> "n-badge-green";
+			case TAMPERED -> "n-badge-red";
+			case SIGNATURE_INVALID -> "n-badge-orange";
+			case MARKER_MISSING, NOT_VERIFIED -> "n-badge-gray";
+		};
+	}
 }

@@ -20,7 +20,7 @@
     const TAG = '[delete-reject]';
 
     function bind(opts) {
-        const { deleteFormSelector, modalPrefix } = opts;
+        const {deleteFormSelector, modalPrefix} = opts;
         const forms = document.querySelectorAll(deleteFormSelector);
         if (forms.length === 0) return;
 
@@ -48,7 +48,7 @@
         try {
             const resp = await fetch(action, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json' },
+                headers: {'Accept': 'application/json'},
                 redirect: 'manual'
             });
 
@@ -61,7 +61,10 @@
             // 409 + SOFTDELETE_REQUIRES_INTENT → modal
             if (resp.status === 409) {
                 let body = null;
-                try { body = await resp.json(); } catch (_) { /* ignore */ }
+                try {
+                    body = await resp.json();
+                } catch (_) { /* ignore */
+                }
                 if (body && body.code === 'SOFTDELETE_REQUIRES_INTENT') {
                     openModal(prefix, body, action);
                     return;
@@ -72,7 +75,10 @@
 
             // 그 외 에러
             let body = null;
-            try { body = await resp.json(); } catch (_) { /* ignore */ }
+            try {
+                body = await resp.json();
+            } catch (_) { /* ignore */
+            }
             alert((body && body.message) || ('삭제 실패 (HTTP ' + resp.status + ')'));
         } catch (err) {
             console.error(TAG, 'submit error', err);
@@ -81,14 +87,14 @@
     }
 
     function openModal(prefix, payload, deleteAction) {
-        const modal       = document.getElementById(prefix + 'Modal');
-        const missingEl   = document.getElementById(prefix + 'MissingPath');
-        const ghostBadge  = document.getElementById(prefix + 'GhostBadge');
-        const correctBtn  = document.getElementById(prefix + 'CorrectBtn');
-        const forcedBtn   = document.getElementById(prefix + 'ForcedBtn');
-        const cancelBtn   = document.getElementById(prefix + 'CancelBtn');
-        const closeBtn    = document.getElementById(prefix + 'CloseBtn');
-        const errorEl     = document.getElementById(prefix + 'Error');
+        const modal = document.getElementById(prefix + 'Modal');
+        const missingEl = document.getElementById(prefix + 'MissingPath');
+        const ghostBadge = document.getElementById(prefix + 'GhostBadge');
+        const correctBtn = document.getElementById(prefix + 'CorrectBtn');
+        const forcedBtn = document.getElementById(prefix + 'ForcedBtn');
+        const cancelBtn = document.getElementById(prefix + 'CancelBtn');
+        const closeBtn = document.getElementById(prefix + 'CloseBtn');
+        const errorEl = document.getElementById(prefix + 'Error');
 
         if (!modal || !correctBtn || !forcedBtn || !cancelBtn) {
             alert(payload.code + ' — modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
@@ -97,7 +103,10 @@
 
         if (missingEl) missingEl.textContent = payload.missingPath || '(unknown)';
         if (ghostBadge) ghostBadge.hidden = !payload.ghostCandidate;
-        if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
+        if (errorEl) {
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+        }
 
         // intent endpoint URL 조립 — 기존 deleteAction 의 `/delete` 를 `/delete-intent/{token}` 으로 치환
         const intentUrl = deleteAction.replace(/\/delete$/, '/delete-intent/' + encodeURIComponent(payload.intentToken));
@@ -107,8 +116,8 @@
         const close = () => {
             modal.hidden = true;
             correctBtn.onclick = null;
-            forcedBtn.onclick  = null;
-            cancelBtn.onclick  = null;
+            forcedBtn.onclick = null;
+            cancelBtn.onclick = null;
             if (closeBtn) closeBtn.onclick = null;
         };
 
@@ -117,8 +126,8 @@
             try {
                 const resp = await fetch(intentUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify({ action: action })
+                    headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+                    body: JSON.stringify({action: action})
                 });
                 if (resp.ok) {
                     close();
@@ -126,7 +135,10 @@
                     return;
                 }
                 let body = null;
-                try { body = await resp.json(); } catch (_) { /* ignore */ }
+                try {
+                    body = await resp.json();
+                } catch (_) { /* ignore */
+                }
                 if (errorEl) {
                     errorEl.hidden = false;
                     errorEl.textContent = (body && body.message) || ('처리 실패 (HTTP ' + resp.status + ')');
@@ -142,7 +154,7 @@
         };
 
         correctBtn.onclick = () => callIntent('CORRECT_PATH_THEN_DELETE');
-        forcedBtn.onclick  = () => {
+        forcedBtn.onclick = () => {
             if (!confirm('시스템 등록만 제거됩니다. 디스크 파일은 유지됩니다 (이미 사라진 경우 영향 없음). 계속할까요?')) return;
             callIntent('FORCED_CLEAR');
         };
@@ -151,10 +163,10 @@
 
         function disableButtons(disabled) {
             correctBtn.disabled = disabled;
-            forcedBtn.disabled  = disabled;
-            cancelBtn.disabled  = disabled;
+            forcedBtn.disabled = disabled;
+            cancelBtn.disabled = disabled;
         }
     }
 
-    window.DeleteRejectModal = { bind };
+    window.DeleteRejectModal = {bind};
 })();

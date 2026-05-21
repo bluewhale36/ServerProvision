@@ -9,7 +9,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class RestoreHashConflictException extends ConflictException {
 
-    public RestoreHashConflictException(String message) {
-        super(message);
-    }
+	public RestoreHashConflictException(String message) {
+		super(message);
+	}
 }

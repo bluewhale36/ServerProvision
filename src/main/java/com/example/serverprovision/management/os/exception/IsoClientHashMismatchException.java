@@ -19,13 +19,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @ResponseStatus(HttpStatus.BAD_REQUEST)
 public class IsoClientHashMismatchException extends DomainException {
 
-    public IsoClientHashMismatchException(String clientHash, String serverHash) {
-        super("업로드 파일의 fingerprint 가 일치하지 않습니다. 파일 손상 또는 client 변조 의심. "
-                + "client=" + abbr(clientHash) + ", server=" + abbr(serverHash));
-    }
+	public IsoClientHashMismatchException(String clientHash, String serverHash) {
+		super("업로드 파일의 fingerprint 가 일치하지 않습니다. 파일 손상 또는 client 변조 의심. "
+					  + "client=" + abbr(clientHash) + ", server=" + abbr(serverHash));
+	}
 
-    private static String abbr(String hash) {
-        if (hash == null) return "<null>";
-        return hash.length() > 16 ? hash.substring(0, 16) + "…" : hash;
-    }
+	private static String abbr(String hash) {
+		if (hash == null) return "<null>";
+		return hash.length() > 16 ? hash.substring(0, 16) + "…" : hash;
+	}
 }

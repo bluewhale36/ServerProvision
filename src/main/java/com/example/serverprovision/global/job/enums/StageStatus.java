@@ -11,8 +11,8 @@ package com.example.serverprovision.global.job.enums;
  * 모든 단계가 DONE 이면 Job 자체가 COMPLETED. 한 단계라도 ERROR 면 Job 은 FAILED.
  */
 public enum StageStatus {
-    PENDING,
-    RUNNING,
-    DONE,
-    ERROR
+	PENDING,
+	RUNNING,
+	DONE,
+	ERROR
 }

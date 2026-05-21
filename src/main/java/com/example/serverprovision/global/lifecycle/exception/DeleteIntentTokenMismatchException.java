@@ -8,8 +8,8 @@ import com.example.serverprovision.global.exception.DomainException;
  */
 public class DeleteIntentTokenMismatchException extends DomainException {
 
-    public DeleteIntentTokenMismatchException(String tokenAsString, String expected, String actual) {
-        super("DeleteIntent token 이 다른 자원에 발급되었습니다 : " + tokenAsString
-                + " expected=" + expected + " actual=" + actual);
-    }
+	public DeleteIntentTokenMismatchException(String tokenAsString, String expected, String actual) {
+		super("DeleteIntent token 이 다른 자원에 발급되었습니다 : " + tokenAsString
+					  + " expected=" + expected + " actual=" + actual);
+	}
 }

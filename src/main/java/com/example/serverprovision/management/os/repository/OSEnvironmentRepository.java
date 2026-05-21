@@ -13,10 +13,14 @@ import java.util.Optional;
  */
 public interface OSEnvironmentRepository extends JpaRepository<OSEnvironment, Long> {
 
-    /** 해당 OS 이미지의 환경 목록을 코드 오름차순으로 반환. */
-    @EntityGraph(attributePaths = "groups")
-    List<OSEnvironment> findAllByOsImage_IdOrderByEnvironmentCode_ValueAsc(Long osImageId);
+	/**
+	 * 해당 OS 이미지의 환경 목록을 코드 오름차순으로 반환.
+	 */
+	@EntityGraph(attributePaths = "groups")
+	List<OSEnvironment> findAllByOsImage_IdOrderByEnvironmentCode_ValueAsc(Long osImageId);
 
-    /** 추출 upsert 조회 — 동일 (osImageId, environmentCode) 가 있으면 그 엔티티를 반환. */
-    Optional<OSEnvironment> findByOsImage_IdAndEnvironmentCode_Value(Long osImageId, String environmentCode);
+	/**
+	 * 추출 upsert 조회 — 동일 (osImageId, environmentCode) 가 있으면 그 엔티티를 반환.
+	 */
+	Optional<OSEnvironment> findByOsImage_IdAndEnvironmentCode_Value(Long osImageId, String environmentCode);
 }

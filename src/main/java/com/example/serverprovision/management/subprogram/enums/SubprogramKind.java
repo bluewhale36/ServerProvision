@@ -15,27 +15,27 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum SubprogramKind {
-    DRIVER("드라이버"),
-    UTILITY("유틸리티");
+	DRIVER("드라이버"),
+	UTILITY("유틸리티");
 
-    private final String displayName;
+	private final String displayName;
 
-    /**
-     * URL path variable 의 소문자 표기 ({@code driver} / {@code utility}) 를 enum 으로 변환.
-     */
-    public static SubprogramKind fromPathToken(String token) {
-        if (token == null) throw new IllegalArgumentException("kind 토큰이 null 입니다.");
-        return switch (token.toLowerCase()) {
-            case "driver" -> DRIVER;
-            case "utility" -> UTILITY;
-            default -> throw new IllegalArgumentException("알 수 없는 subprogram kind 토큰 : " + token);
-        };
-    }
+	/**
+	 * URL path variable 의 소문자 표기 ({@code driver} / {@code utility}) 를 enum 으로 변환.
+	 */
+	public static SubprogramKind fromPathToken(String token) {
+		if (token == null) throw new IllegalArgumentException("kind 토큰이 null 입니다.");
+		return switch (token.toLowerCase()) {
+			case "driver" -> DRIVER;
+			case "utility" -> UTILITY;
+			default -> throw new IllegalArgumentException("알 수 없는 subprogram kind 토큰 : " + token);
+		};
+	}
 
-    /**
-     * URL / 마커 attributes 에 쓰이는 소문자 토큰.
-     */
-    public String pathToken() {
-        return name().toLowerCase();
-    }
+	/**
+	 * URL / 마커 attributes 에 쓰이는 소문자 토큰.
+	 */
+	public String pathToken() {
+		return name().toLowerCase();
+	}
 }

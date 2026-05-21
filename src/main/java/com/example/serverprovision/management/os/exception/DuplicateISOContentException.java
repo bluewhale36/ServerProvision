@@ -8,7 +8,7 @@ import com.example.serverprovision.global.exception.ConflictException;
  */
 public class DuplicateISOContentException extends ConflictException {
 
-    public DuplicateISOContentException(String existingIsoPath) {
-        super("이미 등록된 ISO 와 내용이 동일합니다. 기존 경로: " + existingIsoPath);
-    }
+	public DuplicateISOContentException(String existingIsoPath) {
+		super("이미 등록된 ISO 와 내용이 동일합니다. 기존 경로: " + existingIsoPath);
+	}
 }

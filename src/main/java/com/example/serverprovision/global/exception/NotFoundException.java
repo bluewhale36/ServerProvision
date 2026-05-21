@@ -6,7 +6,7 @@ package com.example.serverprovision.global.exception;
  */
 public abstract class NotFoundException extends DomainException {
 
-    protected NotFoundException(String message) {
-        super(message);
-    }
+	protected NotFoundException(String message) {
+		super(message);
+	}
 }

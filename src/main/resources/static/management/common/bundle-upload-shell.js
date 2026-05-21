@@ -1,16 +1,16 @@
 (function () {
     function collectSizeInfo(mode, inputs) {
-        const { folderInput, zipInput, singleInput } = inputs;
+        const {folderInput, zipInput, singleInput} = inputs;
         if (mode === 'FOLDER') {
             const files = Array.from((folderInput && folderInput.files) || []);
-            return { fileCount: files.length, totalBytes: files.reduce((sum, file) => sum + file.size, 0) };
+            return {fileCount: files.length, totalBytes: files.reduce((sum, file) => sum + file.size, 0)};
         }
         if (mode === 'ZIP') {
             const file = zipInput && zipInput.files && zipInput.files[0];
-            return { fileCount: file ? 1 : 0, totalBytes: file ? file.size : 0 };
+            return {fileCount: file ? 1 : 0, totalBytes: file ? file.size : 0};
         }
         const file = singleInput && singleInput.files && singleInput.files[0];
-        return { fileCount: file ? 1 : 0, totalBytes: file ? file.size : 0 };
+        return {fileCount: file ? 1 : 0, totalBytes: file ? file.size : 0};
     }
 
     function validateFolderWrapping(files) {
@@ -28,22 +28,25 @@
     }
 
     async function requestIntent(opts) {
-        const { intentUrl, body, intentFallbackMessage } = opts;
+        const {intentUrl, body, intentFallbackMessage} = opts;
         const resp = await fetch(intentUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
             body: JSON.stringify(body)
         });
         if (!resp.ok) {
             // S4 — 응답 body 전체 (fieldErrors 포함) 를 호출자에 전달해 FormError.renderResponse 가능하게 한다.
             let payload = null;
-            try { payload = await resp.json(); } catch (_) { /* ignore */ }
+            try {
+                payload = await resp.json();
+            } catch (_) { /* ignore */
+            }
             let message = (payload && payload.message) || null;
             if (!message && typeof intentFallbackMessage === 'function') {
                 message = intentFallbackMessage(resp.status);
             }
             const fallback = message || ('사전 검증 실패 (HTTP ' + resp.status + ')');
-            const finalBody = payload || { message: fallback };
+            const finalBody = payload || {message: fallback};
             // payload.message 가 비어있으면 fallback 으로 보강
             if (!finalBody.message) finalBody.message = fallback;
             const err = new Error(finalBody.message);
@@ -78,7 +81,7 @@
             const file = singleInput && singleInput.files && singleInput.files[0];
             if (file) formData.append('singleFile', file, file.name);
         }
-        return { formData, mode, form };
+        return {formData, mode, form};
     }
 
     function createUploadProgressTracker() {
@@ -96,23 +99,23 @@
             displayPercent = null
         } = opts;
         if (!event.lengthComputable) {
-            return { shouldRender: true, percent: displayPercent, message: '전송 중…' };
+            return {shouldRender: true, percent: displayPercent, message: '전송 중…'};
         }
 
         const now = Date.now();
         if (tracker && now - tracker.lastUiUpdate < reportIntervalMs) {
-            return { shouldRender: false };
+            return {shouldRender: false};
         }
         if (tracker) tracker.lastUiUpdate = now;
 
         const percent = displayPercent == null
-                ? Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)))
-                : displayPercent;
+            ? Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)))
+            : displayPercent;
 
         let speedBps = 0;
         let etaSec = -1;
         if (tracker) {
-            tracker.speedSamples.push({ t: now, loaded: event.loaded });
+            tracker.speedSamples.push({t: now, loaded: event.loaded});
             while (tracker.speedSamples.length > 1 && now - tracker.speedSamples[0].t > speedWindowMs) {
                 tracker.speedSamples.shift();
             }
@@ -128,10 +131,10 @@
         }
 
         const message = `${formatBytes(event.loaded)} / ${formatBytes(event.total)}` +
-                (speedBps > 0 ? ` · ${formatBytes(speedBps)}/s` : '') +
-                (etaSec >= 0 ? ` · 약 ${formatDuration(etaSec)} 남음` : '');
+            (speedBps > 0 ? ` · ${formatBytes(speedBps)}/s` : '') +
+            (etaSec >= 0 ? ` · 약 ${formatDuration(etaSec)} 남음` : '');
 
-        return { shouldRender: true, percent, message, speedBps, etaSec };
+        return {shouldRender: true, percent, message, speedBps, etaSec};
     }
 
     function startXhrUpload(opts) {
@@ -163,15 +166,21 @@
         xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
                 let body = {};
-                try { body = JSON.parse(xhr.responseText || '{}'); } catch (_) { /* ignore */ }
+                try {
+                    body = JSON.parse(xhr.responseText || '{}');
+                } catch (_) { /* ignore */
+                }
                 if (typeof onSuccess === 'function') onSuccess(body, xhr);
                 return;
             }
             // S4 — 응답 body 전체를 호출자에 전달해 FormError.renderResponse 가 fieldErrors 매핑 가능하게 한다.
             let body = null;
-            try { body = JSON.parse(xhr.responseText || '{}'); } catch (_) { /* ignore */ }
+            try {
+                body = JSON.parse(xhr.responseText || '{}');
+            } catch (_) { /* ignore */
+            }
             const message = (body && body.message) || ('HTTP ' + xhr.status);
-            if (typeof onHttpError === 'function') onHttpError(message, xhr, body || { message });
+            if (typeof onHttpError === 'function') onHttpError(message, xhr, body || {message});
         });
         xhr.addEventListener('error', () => {
             if (typeof onNetworkError === 'function') onNetworkError(xhr);

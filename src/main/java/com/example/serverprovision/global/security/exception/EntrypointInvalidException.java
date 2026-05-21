@@ -8,12 +8,12 @@ import org.springframework.http.HttpStatus;
  */
 public class EntrypointInvalidException extends SecurityException {
 
-    public EntrypointInvalidException(String reason) {
-        super("진입점 경로가 안전하지 않습니다 : " + reason);
-    }
+	public EntrypointInvalidException(String reason) {
+		super("진입점 경로가 안전하지 않습니다 : " + reason);
+	}
 
-    @Override
-    public HttpStatus httpStatus() {
-        return HttpStatus.BAD_REQUEST;
-    }
+	@Override
+	public HttpStatus httpStatus() {
+		return HttpStatus.BAD_REQUEST;
+	}
 }

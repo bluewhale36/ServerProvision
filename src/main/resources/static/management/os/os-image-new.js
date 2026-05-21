@@ -38,45 +38,48 @@
             const body = new URLSearchParams(new FormData(form));
             fetch(form.action, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json' },
+                headers: {'Accept': 'application/json'},
                 body: body
             })
-                    .then(resp => resp.text().then(text => {
-                        let parsed = null;
-                        try { parsed = text ? JSON.parse(text) : null; } catch (_) { /* ignore */ }
-                        return { status: resp.status, ok: resp.ok, body: parsed, raw: text };
-                    }))
-                    .then(({ status, ok, body }) => {
-                        if (ok) {
-                            if (body && body.redirect) {
-                                window.location.href = body.redirect;
-                            } else {
-                                window.location.href = '/management/os';
-                            }
-                            return;
+                .then(resp => resp.text().then(text => {
+                    let parsed = null;
+                    try {
+                        parsed = text ? JSON.parse(text) : null;
+                    } catch (_) { /* ignore */
+                    }
+                    return {status: resp.status, ok: resp.ok, body: parsed, raw: text};
+                }))
+                .then(({status, ok, body}) => {
+                    if (ok) {
+                        if (body && body.redirect) {
+                            window.location.href = body.redirect;
+                        } else {
+                            window.location.href = '/management/os';
                         }
-                        // 409 + NUDGE_REQUIRED
-                        if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                            window.NudgeModal.handle(body, {
-                                baseUrl: '/management/os/image-nudge',
-                                listUrl: '/management/os',
-                                toastKey: 'os.image.toast',
-                                onError: showBanner,
-                                afterCancel: () => showBanner('등록을 취소했습니다.')
-                            });
-                            return;
-                        }
-                        // 400 fieldErrors
-                        if (body && window.FormError) {
-                            window.FormError.renderResponse(body, { root: form });
-                            return;
-                        }
-                        showBanner((body && body.message) || ('HTTP ' + status));
-                    })
-                    .catch(err => {
-                        console.error(TAG, err);
-                        showBanner(err.message || '요청 처리 중 오류가 발생했습니다.');
-                    });
+                        return;
+                    }
+                    // 409 + NUDGE_REQUIRED
+                    if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
+                        window.NudgeModal.handle(body, {
+                            baseUrl: '/management/os/image-nudge',
+                            listUrl: '/management/os',
+                            toastKey: 'os.image.toast',
+                            onError: showBanner,
+                            afterCancel: () => showBanner('등록을 취소했습니다.')
+                        });
+                        return;
+                    }
+                    // 400 fieldErrors
+                    if (body && window.FormError) {
+                        window.FormError.renderResponse(body, {root: form});
+                        return;
+                    }
+                    showBanner((body && body.message) || ('HTTP ' + status));
+                })
+                .catch(err => {
+                    console.error(TAG, err);
+                    showBanner(err.message || '요청 처리 중 오류가 발생했습니다.');
+                });
         });
     });
 })();

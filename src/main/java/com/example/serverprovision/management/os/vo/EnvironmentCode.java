@@ -2,11 +2,7 @@ package com.example.serverprovision.management.os.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 /**
  * 설치 환경 식별 코드 VO.
@@ -20,18 +16,18 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode
 public class EnvironmentCode {
 
-    @Column(name = "environment_code", nullable = false, length = 128)
-    private String value;
+	@Column(name = "environment_code", nullable = false, length = 128)
+	private String value;
 
-    public static EnvironmentCode of(String value) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("environmentCode 는 빈 값일 수 없습니다.");
-        }
-        return new EnvironmentCode(value);
-    }
+	public static EnvironmentCode of(String value) {
+		if (value == null || value.isBlank()) {
+			throw new IllegalArgumentException("environmentCode 는 빈 값일 수 없습니다.");
+		}
+		return new EnvironmentCode(value);
+	}
 
-    @Override
-    public String toString() {
-        return value;
-    }
+	@Override
+	public String toString() {
+		return value;
+	}
 }

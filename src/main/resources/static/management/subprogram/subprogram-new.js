@@ -100,6 +100,7 @@
             }
         }
     }
+
     scopeRadios.forEach(r => r.addEventListener('change', applyScopeMode));
     applyScopeMode();
 
@@ -135,7 +136,7 @@
             return;
         }
 
-        const { fileCount, totalBytes } = shell.collectSizeInfo(mode, {
+        const {fileCount, totalBytes} = shell.collectSizeInfo(mode, {
             folderInput, zipInput, singleInput
         });
         if (fileCount === 0) {
@@ -188,7 +189,7 @@
             }
             // S4 — body.fieldErrors 매핑.
             if (window.FormError && err.body) {
-                window.FormError.renderResponse(err.body, { root: form });
+                window.FormError.renderResponse(err.body, {root: form});
             } else {
                 showError(err.message);
             }
@@ -206,7 +207,7 @@
         try {
             const resp = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
                 body: JSON.stringify({
                     name: fields.name.trim(),
                     version: fields.version.trim(),
@@ -221,7 +222,7 @@
                     return;
                 }
                 if (window.FormError && body) {
-                    window.FormError.renderResponse(body, { root: form });
+                    window.FormError.renderResponse(body, {root: form});
                 } else {
                     showError(body.message || ('등록 실패 (HTTP ' + resp.status + ')'));
                 }
@@ -237,7 +238,7 @@
     }
 
     function startXhrUpload(uploadUrl, uploadToken, commonFields) {
-        const { formData: fd } = shell.buildBundleFormData({
+        const {formData: fd} = shell.buildBundleFormData({
             form,
             uploadModeInput,
             folderInput,
@@ -265,7 +266,7 @@
                 showProgress('시작 중…', 0);
             },
             onUploadProgress(evt) {
-                const progress = shell.describeUploadProgress(evt, { tracker: progressTracker });
+                const progress = shell.describeUploadProgress(evt, {tracker: progressTracker});
                 if (!progress.shouldRender) return;
                 // 네트워크 전송이 100% 에 도달한 뒤에도 서버는 압축 해제 / manifest 계산 / 마커 발급을
                 // 동기 처리한다. 사용자가 "멈춘 것 같다" 고 오해하지 않도록 안내 문구로 전환한다.
@@ -295,7 +296,7 @@
                     return;
                 }
                 if (window.FormError && body) {
-                    window.FormError.renderResponse(body, { root: form });
+                    window.FormError.renderResponse(body, {root: form});
                 } else {
                     showError(msg);
                 }
@@ -337,11 +338,11 @@
     //  modal element id prefix = 'subprogramNudge' (subprogram-new.html 의 fragment include 와 일치).
 
     function bindModalCommon(body, baseUrl) {
-        const modal      = document.getElementById('subprogramNudgeModal');
-        const conflicts  = document.getElementById('subprogramNudgeConflictsList');
+        const modal = document.getElementById('subprogramNudgeModal');
+        const conflicts = document.getElementById('subprogramNudgeConflictsList');
         const proceedBtn = document.getElementById('subprogramNudgeProceedBtn');
         const replaceBtn = document.getElementById('subprogramNudgeReplaceBtn');
-        const cancelBtn  = document.getElementById('subprogramNudgeCancelBtn');
+        const cancelBtn = document.getElementById('subprogramNudgeCancelBtn');
         if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
             showError('nudge modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
             return null;
@@ -384,8 +385,10 @@
             replaceBtn.onclick = null;
             cancelBtn.onclick = null;
         };
-        return { baseUrl, nudgeId, getSelectedTargetId: () => selectedTargetId, closeModal,
-                 proceedBtn, replaceBtn, cancelBtn };
+        return {
+            baseUrl, nudgeId, getSelectedTargetId: () => selectedTargetId, closeModal,
+            proceedBtn, replaceBtn, cancelBtn
+        };
     }
 
     function handleExpiredIfAny(closeModal, status, body) {
@@ -404,17 +407,21 @@
             disableNudgeBtns(true);
             try {
                 const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/proceed', {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
                 if (!resp.ok) {
                     const respBody = await resp.json().catch(() => ({}));
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('nudge proceed 실패 (HTTP ' + resp.status + ')'));
-                    disableNudgeBtns(false); return;
+                    disableNudgeBtns(false);
+                    return;
                 }
                 ctx.closeModal();
                 window.location.href = listUrl;
-            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+            } catch (e) {
+                showError('네트워크 오류 : ' + e.message);
+                disableNudgeBtns(false);
+            }
         };
         ctx.replaceBtn.onclick = async () => {
             const targetId = ctx.getSelectedTargetId();
@@ -423,25 +430,30 @@
             disableNudgeBtns(true);
             try {
                 const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/replace?targetId=' + encodeURIComponent(targetId), {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
                 if (!resp.ok) {
                     const respBody = await resp.json().catch(() => ({}));
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('nudge replace 실패 (HTTP ' + resp.status + ')'));
-                    disableNudgeBtns(false); return;
+                    disableNudgeBtns(false);
+                    return;
                 }
                 ctx.closeModal();
                 window.location.href = listUrl;
-            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+            } catch (e) {
+                showError('네트워크 오류 : ' + e.message);
+                disableNudgeBtns(false);
+            }
         };
         ctx.cancelBtn.onclick = async () => {
             disableNudgeBtns(true);
             try {
                 await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/cancel', {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
-            } catch (e) { /* ignore */ }
+            } catch (e) { /* ignore */
+            }
             ctx.closeModal();
             showError('업로드를 취소했습니다.');
         };
@@ -454,7 +466,8 @@
             ctx.closeModal();
             if (intent.warnings && intent.warnings.length) {
                 if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
-                    showError('업로드를 취소했습니다.'); return;
+                    showError('업로드를 취소했습니다.');
+                    return;
                 }
             }
             startXhrUpload(uploadUrl, intent.uploadToken, commonFields);
@@ -464,16 +477,20 @@
             disableNudgeBtns(true);
             try {
                 const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/proceed', {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
-                    disableNudgeBtns(false); return;
+                    disableNudgeBtns(false);
+                    return;
                 }
                 handleIntentReissued(respBody);
-            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+            } catch (e) {
+                showError('네트워크 오류 : ' + e.message);
+                disableNudgeBtns(false);
+            }
         };
         ctx.replaceBtn.onclick = async () => {
             const targetId = ctx.getSelectedTargetId();
@@ -482,24 +499,29 @@
             disableNudgeBtns(true);
             try {
                 const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/replace?targetId=' + encodeURIComponent(targetId), {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
                     showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
-                    disableNudgeBtns(false); return;
+                    disableNudgeBtns(false);
+                    return;
                 }
                 handleIntentReissued(respBody);
-            } catch (e) { showError('네트워크 오류 : ' + e.message); disableNudgeBtns(false); }
+            } catch (e) {
+                showError('네트워크 오류 : ' + e.message);
+                disableNudgeBtns(false);
+            }
         };
         ctx.cancelBtn.onclick = async () => {
             disableNudgeBtns(true);
             try {
                 await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/cancel', {
-                    method: 'POST', headers: { 'Accept': 'application/json' }
+                    method: 'POST', headers: {'Accept': 'application/json'}
                 });
-            } catch (e) { /* ignore */ }
+            } catch (e) { /* ignore */
+            }
             ctx.closeModal();
             showError('업로드를 취소했습니다.');
         };

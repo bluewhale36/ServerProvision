@@ -7,11 +7,13 @@ import java.util.List;
  * Step 4 에서 Service 층의 정식 factory 와 연결될 예정.
  */
 public record OSEnvironmentResponse(
-        Long id,
-        String environmentCode,
-        String displayName,
-        String description,
-        boolean isDefault,
-        List<String> groupCodes,
-        List<IsoProvisionView> providers
-) {}
+		Long id,
+		String environmentCode,
+		String displayName,
+		String description,
+		boolean isDefault,
+		List<String> groupCodes,
+		List<IsoProvisionView> providers
+) {
+
+}

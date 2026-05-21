@@ -10,11 +10,13 @@ import jakarta.validation.constraints.NotNull;
  * (osName, osVersion) 조합은 활성 레코드 안에서 유일해야 한다.
  */
 public record OSImageCreateRequest(
-        @NotNull(message = "OS 이름을 선택하세요.")
-        OSName osName,
+		@NotNull(message = "OS 이름을 선택하세요.")
+		OSName osName,
 
-        @NotBlank(message = "OS 버전을 입력하세요.")
-        String osVersion,
+		@NotBlank(message = "OS 버전을 입력하세요.")
+		String osVersion,
 
-        String description
-) {}
+		String description
+) {
+
+}

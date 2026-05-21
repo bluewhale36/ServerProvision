@@ -9,10 +9,10 @@
 
     function lazyUrl(form) {
         const resourceType = form.getAttribute('data-resource-type') || 'OS_IMAGE';
-        const resourceId   = form.getAttribute('data-resource-id') || '0';
+        const resourceId = form.getAttribute('data-resource-id') || '0';
         return '/ui/confirm-modal/DEPRECATE'
-                + '?resourceType=' + encodeURIComponent(resourceType)
-                + '&resourceId=' + encodeURIComponent(resourceId);
+            + '?resourceType=' + encodeURIComponent(resourceType)
+            + '&resourceId=' + encodeURIComponent(resourceId);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -20,7 +20,7 @@
         ConfirmModal.bindFormSubmit('data-confirm-deprecate', function (form) {
             const message = ConfirmModal.composeMessage(form, TEMPLATE, DEFAULT_MSG);
             ConfirmModal.openLazy(lazyUrl(form), {
-                afterInject: ({ messageEl }) => {
+                afterInject: ({messageEl}) => {
                     if (messageEl) messageEl.textContent = message;
                     return null;
                 },

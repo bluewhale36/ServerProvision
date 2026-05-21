@@ -24,28 +24,30 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class TrashRetryController {
 
-    private final PurgeLogService purgeLogService;
-    private final PurgeExecutor purgeExecutor;
+	private final PurgeLogService purgeLogService;
+	private final PurgeExecutor purgeExecutor;
 
-    @PostMapping
-    public String retryFailed() {
-        Set<ResourceKey> candidates = purgeLogService.findResourcesWithLastOutcomeFailed();
-        log.info("[trash-retry] 운영자 수동 재시도 시작. candidates={}", candidates.size());
-        int success = 0;
-        int failed = 0;
-        for (ResourceKey key : candidates) {
-            try {
-                var result = purgeExecutor.execute(
-                        PurgeRequest.forTtlAuto(key.resourceType(), key.resourceId()));
-                if (result instanceof com.example.serverprovision.global.trash.PurgeResult.Success) success++;
-                else failed++;
-            } catch (Exception ex) {
-                failed++;
-                log.error("[trash-retry] PurgeExecutor 호출 실패. type={} id={} cause={}",
-                        key.resourceType(), key.resourceId(), ex.toString(), ex);
-            }
-        }
-        log.info("[trash-retry] 완료. success={} failed={}", success, failed);
-        return "redirect:/maintenance/trash/purge-log";
-    }
+	@PostMapping
+	public String retryFailed() {
+		Set<ResourceKey> candidates = purgeLogService.findResourcesWithLastOutcomeFailed();
+		log.info("[trash-retry] 운영자 수동 재시도 시작. candidates={}", candidates.size());
+		int success = 0;
+		int failed = 0;
+		for (ResourceKey key : candidates) {
+			try {
+				var result = purgeExecutor.execute(
+						PurgeRequest.forTtlAuto(key.resourceType(), key.resourceId()));
+				if (result instanceof com.example.serverprovision.global.trash.PurgeResult.Success) success++;
+				else failed++;
+			} catch (Exception ex) {
+				failed++;
+				log.error(
+						"[trash-retry] PurgeExecutor 호출 실패. type={} id={} cause={}",
+						key.resourceType(), key.resourceId(), ex.toString(), ex
+				);
+			}
+		}
+		log.info("[trash-retry] 완료. success={} failed={}", success, failed);
+		return "redirect:/maintenance/trash/purge-log";
+	}
 }

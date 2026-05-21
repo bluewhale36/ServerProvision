@@ -16,12 +16,14 @@ import java.util.List;
  * @param drifts          드리프트 상세 (C2/C3 표시용)
  */
 public record DriftReportResponse(
-        Long id,
-        Instant scannedAt,
-        String scanDuration,
-        boolean deep,
-        int totalChecked,
-        int driftCount,
-        List<String> failedScanRoots,
-        List<DriftResponse> drifts
-) {}
+		Long id,
+		Instant scannedAt,
+		String scanDuration,
+		boolean deep,
+		int totalChecked,
+		int driftCount,
+		List<String> failedScanRoots,
+		List<DriftResponse> drifts
+) {
+
+}
