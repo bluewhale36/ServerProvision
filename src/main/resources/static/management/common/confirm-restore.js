@@ -1,38 +1,24 @@
 /* ============================================================
-   S5-2 — 자원 복구 확인 modal handler.
+   S5-6-2 — 자원 복구 확인 modal handler (lazy-load 흐름).
    호출측 : form[data-confirm-restore] + data-resource-label [+ data-resource-extra]
    cascade 옵션 : form 에 data-cascade-true-title (필수) + data-cascade-true-desc (선택) 있으면
-                  라디오 slot 노출 + hidden cascade input 자동 채움.
+                  modal 내 라디오 slot 노출 + form 의 hidden cascade input 자동 채움.
    ============================================================ */
 (function () {
     'use strict';
     const TEMPLATE_PLAIN = '{resource} 을(를) 복구할까요?';
     const TEMPLATE_CASCADE = '{resource} 을(를) 복구할까요? 하위 자원도 함께 복구할지 선택해주세요.';
     const DEFAULT_MSG = '이 자원을 복구할까요?';
-    const PREFIX = 'confirmRestore';
 
-    function fillCascadeSlot(form, cascadeTitle, cascadeDesc) {
-        const wrap = document.getElementById(PREFIX + 'CascadeWrap');
-        const trueRadio = document.getElementById(PREFIX + 'CascadeTrue');
-        const falseRadio = document.getElementById(PREFIX + 'CascadeFalse');
-        const titleEl = document.getElementById(PREFIX + 'CascadeTrueTitle');
-        const descEl = document.getElementById(PREFIX + 'CascadeTrueDesc');
-        if (!wrap || !trueRadio || !falseRadio) return false;
-        if (titleEl) titleEl.textContent = cascadeTitle;
-        if (descEl) descEl.textContent = cascadeDesc || '';
-        trueRadio.checked = true;
-        falseRadio.checked = false;
-        wrap.hidden = false;
-        return true;
+    function lazyUrl(form) {
+        const resourceType = form.getAttribute('data-resource-type') || 'OS_IMAGE';
+        const resourceId   = form.getAttribute('data-resource-id') || '0';
+        return '/ui/confirm-modal/RESTORE'
+                + '?resourceType=' + encodeURIComponent(resourceType)
+                + '&resourceId=' + encodeURIComponent(resourceId);
     }
 
-    function hideCascadeSlot() {
-        const wrap = document.getElementById(PREFIX + 'CascadeWrap');
-        if (wrap) wrap.hidden = true;
-    }
-
-    function writeHiddenCascade(form) {
-        const trueRadio = document.getElementById(PREFIX + 'CascadeTrue');
+    function writeHiddenCascade(form, cascadeValue) {
         let hidden = form.querySelector('input[name="cascade"]');
         if (!hidden) {
             hidden = document.createElement('input');
@@ -40,7 +26,7 @@
             hidden.name = 'cascade';
             form.appendChild(hidden);
         }
-        hidden.value = trueRadio && trueRadio.checked ? 'true' : 'false';
+        hidden.value = cascadeValue;
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -50,22 +36,28 @@
             const cascadeDesc = form.getAttribute('data-cascade-true-desc');
             const hasCascade = !!cascadeTitle;
             const template = hasCascade ? TEMPLATE_CASCADE : TEMPLATE_PLAIN;
+            const message = ConfirmModal.composeMessage(form, template, DEFAULT_MSG);
 
-            ConfirmModal.open(PREFIX, {
-                title: '자원 복구',
-                message: ConfirmModal.composeMessage(form, template, DEFAULT_MSG),
-                confirmLabel: '복구',
-                confirmClass: 'n-btn-outline-info',
-                afterOpen: () => {
-                    if (hasCascade) {
-                        fillCascadeSlot(form, cascadeTitle, cascadeDesc);
-                    } else {
-                        hideCascadeSlot();
+            let cascadeWrap, cascadeTrueRadio;
+            ConfirmModal.openLazy(lazyUrl(form), {
+                afterInject: ({ modal, messageEl }) => {
+                    if (messageEl) messageEl.textContent = message;
+                    cascadeWrap = modal.querySelector('[data-modal-cascade-wrap]');
+                    cascadeTrueRadio = modal.querySelector('[data-modal-cascade-true]');
+                    if (hasCascade && cascadeWrap) {
+                        const titleEl = modal.querySelector('[data-modal-cascade-true-title]');
+                        const descEl = modal.querySelector('[data-modal-cascade-true-desc]');
+                        if (titleEl) titleEl.textContent = cascadeTitle;
+                        if (descEl) descEl.textContent = cascadeDesc || '';
+                        cascadeWrap.hidden = false;
                     }
-                    return () => hideCascadeSlot();
+                    return null;
                 },
                 beforeConfirm: () => {
-                    if (hasCascade) writeHiddenCascade(form);
+                    if (hasCascade) {
+                        const value = (cascadeTrueRadio && cascadeTrueRadio.checked) ? 'true' : 'false';
+                        writeHiddenCascade(form, value);
+                    }
                     return true;
                 },
                 onConfirm: () => ConfirmModal.approveAndSubmit(form)

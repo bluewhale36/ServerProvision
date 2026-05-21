@@ -37,5 +37,49 @@
         </div>
     </div>
 </div>
+
+<!--/*
+  S5-6-1 — modal lazy-load 응답 fragment.
+  ─────────────────────────────────────────────────────────────
+  ConfirmModalFragmentController 가 본 fragment 만 응답으로 반환.
+  Model 인자:
+    · expectedName  : 자원의 현재 displayName (TypedNameVerifier.resolveExpectedName)
+    · resourceType  : ResourceType 이름 (form 매칭 디버그 용)
+    · resourceId    : 자원 PK
+  형제 자원 메시지 (resource-label / extra) 는 form 의 data 속성에서 JS 가 읽어 채움.
+  단일 modal 이 placeholder 에 inject 되므로 ID 충돌 없음 — data-* 셀렉터로 element 매칭.
+*/-->
+<div th:fragment="modalCard"
+     class="cm-overlay"
+     data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title">자원 영구 삭제</h2>
+            <p class="cm-message-tight" data-modal-message>이 자원을 영구 삭제하시겠어요? 복구할 수 없어요.</p>
+
+            <div class="cm-typed-wrap">
+                <div class="cm-typed-target-box">
+                    <span class="cm-typed-target-label">정확히 입력해야 할 자원명</span>
+                    <code class="cm-typed-target-code"
+                          data-modal-expected
+                          th:text="${expectedName}"></code>
+                </div>
+                <input type="text"
+                       class="cm-typed-input"
+                       data-modal-typed-input
+                       placeholder="자원명을 정확히 입력...">
+            </div>
+
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
+                <button type="button" class="n-btn n-btn-danger" data-modal-confirm disabled>영구 삭제</button>
+            </div>
+        </div>
+    </div>
+    <!-- form 매칭용 meta (resourceType + resourceId 회신) — 표시 안 함. -->
+    <span data-modal-meta-resource-type th:text="${resourceType}" hidden></span>
+    <span data-modal-meta-resource-id th:text="${resourceId}" hidden></span>
+</div>
 </body>
 </html>

@@ -212,11 +212,12 @@
                               th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|">
                             <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                         </form>
-                        <!-- S5-2-2 — 영구 삭제 신설. typed-name 입력 일치 시에만 활성. -->
+                        <!-- S5-2-2 — 영구 삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
                         <form th:action="@{/management/subprogram/{id}/purge(id=${sp.id})}"
                               method="post" style="display:inline;"
                               data-confirm-purge=""
-                              th:data-typed-name="${sp.name}"
+                              data-resource-type="SUBPROGRAM"
+                              th:data-resource-id="${sp.id}"
                               th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|"
                               data-resource-extra="디스크의 트리도 함께 제거돼요.">
                             <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>

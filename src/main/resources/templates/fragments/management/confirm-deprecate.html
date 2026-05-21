@@ -24,5 +24,20 @@
         </div>
     </div>
 </div>
+
+<!--/* S5-6-2 — modal lazy-load 응답 fragment. JS 가 form 의 data 속성으로 message 채움. */-->
+<div th:fragment="modalCard" class="cm-overlay" data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title">Deprecated 표시</h2>
+            <p class="cm-message" data-modal-message>이 자원을 Deprecated 로 표시할까요?</p>
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
+                <button type="button" class="n-btn n-btn-outline-warning" data-modal-confirm>Deprecated 표시</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

@@ -5,6 +5,7 @@ import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.service.TypedNameVerifier;
+import com.example.serverprovision.global.ui.exception.ModalContextNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -55,5 +56,19 @@ public class TypedNameVerifierImpl implements TypedNameVerifier {
                     resourceType, resourceId, expected, typedName);
             throw new TypedNameMismatchException(expected, typedName);
         }
+    }
+
+    @Override
+    public String resolveExpectedName(ResourceType resourceType, Long resourceId) {
+        MarkableScanner scanner = scannerByType().get(resourceType);
+        if (scanner == null) {
+            throw new IllegalStateException("지원하지 않는 자원 종류 : " + resourceType);
+        }
+        Optional<Markable> resource = scanner.findActiveMarkableById(resourceId)
+                .or(() -> scanner.findTrashedById(resourceId));
+        // verify() 와 달리 자원 부재는 명시 예외로 분리 — modal lazy-load 의 404 매핑.
+        return resource
+                .map(Markable::displayName)
+                .orElseThrow(() -> new ModalContextNotFoundException(resourceType, resourceId));
     }
 }

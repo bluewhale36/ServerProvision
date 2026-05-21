@@ -92,11 +92,18 @@ class ConfirmActionFragmentRenderTest {
     // ==== J — JS 모듈 검증 ============================================================
 
     @Test
-    @DisplayName("J1 : confirm-modal-base.js 가 공통 API 노출 (open / bindFormSubmit / composeMessage / approveAndSubmit)")
+    @DisplayName("J1 : confirm-modal-base.js 가 공통 API 노출 (open / openLazy / bindFormSubmit / composeMessage / approveAndSubmit)")
     void jsBase_exposesApi() throws Exception {
         String js = read(STATIC.resolve("management/common/confirm-modal-base.js"));
         assertThat(js).contains("window.ConfirmModal");
         assertThat(js).contains("function open");
+        // S5-6-1 — lazy-load API.
+        assertThat(js).contains("openLazy");
+        assertThat(js).contains("modalLazySlot");
+        assertThat(js).contains("data-modal-active");
+        assertThat(js).contains("data-modal-confirm");
+        assertThat(js).contains("data-modal-cancel");
+        // 공통 인프라.
         assertThat(js).contains("function bindFormSubmit");
         assertThat(js).contains("function composeMessage");
         assertThat(js).contains("function approveAndSubmit");
@@ -123,11 +130,17 @@ class ConfirmActionFragmentRenderTest {
     }
 
     @Test
-    @DisplayName("J3 : confirm-purge.js 가 typed-name 일치 시에만 confirm 활성 (startDisabled + input keyup 검증)")
+    @DisplayName("J3 : confirm-purge.js 가 lazy-load 흐름 — openLazy 사용 + data-modal-* 셀렉터 + hidden typedName")
     void jsPurge_typedNameValidation() throws Exception {
         String js = read(STATIC.resolve("management/common/confirm-purge.js"));
+        // S5-6-1 lazy-load : openLazy + form 의 resource-type/id + modal 내 expected/typed-input.
         assertThat(js).contains("startDisabled: true");
-        assertThat(js).contains("data-typed-name");
+        assertThat(js).contains("ConfirmModal.openLazy");
+        assertThat(js).contains("data-resource-type");
+        assertThat(js).contains("data-resource-id");
+        assertThat(js).contains("/ui/confirm-modal/PURGE");
+        assertThat(js).contains("data-modal-typed-input");
+        assertThat(js).contains("data-modal-expected");
         assertThat(js).contains("input[name=\"typedName\"]");
     }
 
@@ -143,13 +156,17 @@ class ConfirmActionFragmentRenderTest {
 
     private void assertPageUsesNewModalInfra(String relPath) throws Exception {
         String html = read(TEMPLATES.resolve(relPath));
-        assertThat(html)
-                .as(relPath + " — confirm-modals 통합 fragment include 누락")
-                .contains("confirm-modals :: all");
+        // S5-6-1 / S5-6-2 — confirm-modals 의 3 variant (`all`, `nonPurge`, `lazyShell`) 모두 허용.
+        boolean hasInclude = html.contains("confirm-modals :: all")
+                || html.contains("confirm-modals :: nonPurge")
+                || html.contains("confirm-modals :: lazyShell");
+        assertThat(hasInclude)
+                .as(relPath + " — confirm-modals 통합 fragment (all / nonPurge / lazyShell) include 누락")
+                .isTrue();
     }
 
     @Test
-    @DisplayName("L1 : 5 list + miller fragment + trash + reconciliation 모두 confirm-modals :: all include")
+    @DisplayName("L1 : 5 list + miller fragment + trash + reconciliation 모두 confirm-modals (all / nonPurge / lazyShell) include")
     void allCallerPagesIncludeModals() throws Exception {
         // miller fragment 자체는 form 만 보유 — modal 인프라는 부모 list (subprogram/list.html) 가 가짐.
         String[] pagesWithModalInfra = {

@@ -49,5 +49,41 @@
         </div>
     </div>
 </div>
+
+<!--/*
+  S5-6-2 — modal lazy-load 응답 fragment. cascade 라디오 slot 보유 — JS 가 form 의
+  data-cascade-true-title 유무로 노출/숨김 결정.
+*/-->
+<div th:fragment="modalCard" class="cm-overlay" data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title">자원 복구</h2>
+            <p class="cm-message-tight" data-modal-message>이 자원을 복구할까요?</p>
+
+            <div class="cm-cascade-wrap" data-modal-cascade-wrap hidden>
+                <label class="cm-cascade-option">
+                    <input type="radio" name="modalCascade" value="true" checked data-modal-cascade-true>
+                    <span>
+                        <span class="cm-cascade-option-title" data-modal-cascade-true-title>하위 자원도 함께 복구</span>
+                        <div class="cm-cascade-option-desc" data-modal-cascade-true-desc></div>
+                    </span>
+                </label>
+                <label class="cm-cascade-option">
+                    <input type="radio" name="modalCascade" value="false" data-modal-cascade-false>
+                    <span>
+                        <span class="cm-cascade-option-title">이 자원만 복구</span>
+                        <div class="cm-cascade-option-desc">하위 자원은 필요 시 휴지통에서 개별 복구 가능해요.</div>
+                    </span>
+                </label>
+            </div>
+
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
+                <button type="button" class="n-btn n-btn-outline-info" data-modal-confirm>복구</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

@@ -149,6 +149,29 @@ class OSImageControllerSecurityFlowTest {
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
 
+    // S5-6-1 — purge form 에 typed-name expected value 부재 + 자원 식별 마커만 존재.
+    @Test
+    @DisplayName("GET /management/os — purge form 에 data-typed-name 부재 + data-resource-type/id 존재")
+    void form_no_longer_exposes_typed_name() throws Exception {
+        // purge form 은 isDeleted=true 분기에서만 렌더 (휴지통 모드). isDeleted=true 로 mock.
+        var os = new com.example.serverprovision.management.os.dto.response.OSImageResponse(
+                12L, com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX,
+                "9.6", null,
+                false, true, false,
+                com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
+                java.util.List.of(), java.util.List.of(), java.util.List.of());
+        var osGroup = com.example.serverprovision.management.os.dto.response.OSGroupResponse.of(
+                com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX,
+                java.util.List.of(os));
+        given(osImageService.findAllGrouped(false)).willReturn(java.util.List.of(osGroup));
+
+        mvc.perform(get("/management/os"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-typed-name"))))
+                .andExpect(content().string(containsString("data-resource-type=\"OS_IMAGE\"")))
+                .andExpect(content().string(containsString("data-resource-id=\"12\"")));
+    }
+
     // S5-5 — miller-empty 가 data-empty-before / data-empty-after 2 상태 보유 + 외부 + 신규 OS 버전 등록 버튼.
     @Test
     @DisplayName("GET /management/os — miller-empty 2 상태 (data-empty-before/after) + 외부 '+ 신규 OS 버전 등록' 버튼")

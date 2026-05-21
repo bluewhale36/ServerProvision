@@ -93,6 +93,33 @@ class BmcControllerPurgeFlowTest {
                 .andExpect(content().string(containsString("+ 신규 BMC 등록")));
     }
 
+    // S5-6-1 — purge form 에 typed-name expected value 부재 + 자원 식별 마커만 존재.
+    @Test
+    @DisplayName("GET /management/bmc — purge form 에 data-typed-name 부재 + data-resource-type/id 존재")
+    void form_no_longer_exposes_typed_name() throws Exception {
+        // purge form 은 isDeleted=true 분기에서만 렌더 (휴지통 모드).
+        var bmc = new com.example.serverprovision.management.bmc.dto.response.BmcResponse(
+                5L, 3L,
+                "GIGABYTE_BMC_13.06.25", "13.06.25",
+                "/opt/firmware/bmc/gigabyte/ms73/13.06.25", null,
+                "hash-stub",
+                0, 0L,
+                null,
+                com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED,
+                false, true, false);
+        var boardWithBmc = new com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse(
+                3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE,
+                "Gigabyte", "MS73-HB1", false,
+                java.util.List.of(bmc));
+        given(bmcService.findAllGrouped(false)).willReturn(java.util.List.of(boardWithBmc));
+
+        mvc.perform(get("/management/bmc"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-typed-name"))))
+                .andExpect(content().string(containsString("data-resource-type=\"BMC_FIRMWARE\"")))
+                .andExpect(content().string(containsString("data-resource-id=\"5\"")));
+    }
+
     // S5-5 — boardId 없는 /new 진입점이 메인보드 선택 dropdown 을 노출.
     @Test
     @DisplayName("GET /management/bmc/new — boardId 없는 진입 → 메인보드 선택 dropdown")

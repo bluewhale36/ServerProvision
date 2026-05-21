@@ -104,6 +104,33 @@ class BiosControllerPurgeFlowTest {
                 .andExpect(content().string(containsString("data-bios-board-redirect")));
     }
 
+    // S5-6-1 — purge form 에 typed-name expected value 부재 + 자원 식별 마커만 존재.
+    @Test
+    @DisplayName("GET /management/bios — purge form 에 data-typed-name 부재 + data-resource-type/id 존재")
+    void form_no_longer_exposes_typed_name() throws Exception {
+        // purge form 은 isDeleted=true 분기에서만 렌더 (휴지통 모드).
+        var bios = new com.example.serverprovision.management.bios.dto.response.BiosResponse(
+                7L, 3L,
+                "R23_MS73-HB1_Uni", "R23",
+                "/opt/bios/gigabyte/ms73-hb1/r23", "flash.nsh",
+                "hash-stub",
+                0, 0L,
+                null,
+                com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED,
+                false, true, false);
+        var boardWithBios = new com.example.serverprovision.management.bios.dto.response.BoardWithBiosListResponse(
+                3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE,
+                "Gigabyte", "MS73-HB1", false,
+                java.util.List.of(bios));
+        given(biosService.findAllGrouped(false)).willReturn(java.util.List.of(boardWithBios));
+
+        mvc.perform(get("/management/bios"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-typed-name"))))
+                .andExpect(content().string(containsString("data-resource-type=\"BIOS_BUNDLE\"")))
+                .andExpect(content().string(containsString("data-resource-id=\"7\"")));
+    }
+
     // S5-5 — /{boardId}/new 에 X-Requested-With 헤더 동봉 시 formCard fragment 만 반환 (nav / page-header 부재).
     @Test
     @DisplayName("GET /management/bios/{boardId}/new (XHR) — formCard fragment 만 반환, nav 부재")

@@ -1,0 +1,134 @@
+package com.example.serverprovision.global.ui.enums;
+
+import com.example.serverprovision.global.marker.ResourceType;
+import com.example.serverprovision.global.trash.service.TypedNameVerifier;
+import com.example.serverprovision.global.ui.exception.ModalContextNotFoundException;
+import org.springframework.ui.Model;
+
+/**
+ * S5-6 — modal fragment lazy-load 의 modal 종류. abstract method 다형성으로 modalType 별 처리
+ * (자원 lookup / expected value 계산 / fragment view 선택) 분기 흡수.
+ *
+ * <p>CLAUDE.md 의 "조건 분기문 무분별 확장 금지" 원칙 — controller 가 if/switch 로 분기하지 않고
+ * enum 상수의 method 호출만으로 modal 별 처리 완료.</p>
+ *
+ * <p>본 CP2 시점 : S5-6-1 의 2 상수 (PURGE / NUDGE_REPLACE) 만 정의. S5-6-2 / S5-6-3 진입 시
+ * 추가 상수가 본 enum 에 합류.</p>
+ */
+public enum ConfirmModalType {
+
+	/**
+	 * S5-6-1 — 영구삭제 (purge) 확인 modal. 자원의 displayName 을 expected value 로 박아 fragment 응답.
+	 * 사용자가 입력한 typed-name 과 일치 시에만 form resubmit 활성.
+	 */
+	PURGE {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			String expected = verifier.resolveExpectedName(resourceType, resourceId);
+			model.addAttribute("expectedName", expected);
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/management/confirm-purge :: modalCard";
+		}
+	},
+
+	/**
+	 * S5-6-2 — soft-delete 확인 modal. 자원 lookup 불요 — 표시 정보 (label, extra) 는
+	 * JS 가 form 의 data 속성으로 inject.
+	 */
+	SOFT_DELETE {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			// 자원 lookup 없음. resourceType 만 model 에 표기 (디버그용).
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/management/confirm-soft-delete :: modalCard";
+		}
+	},
+
+	/** S5-6-2 — deprecate 확인 modal. SOFT_DELETE 와 동일 패턴. */
+	DEPRECATE {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/management/confirm-deprecate :: modalCard";
+		}
+	},
+
+	/**
+	 * S5-6-2 — restore 확인 modal. cascade preview 정보 (하위 자원 목록 등) 는 JS 가
+	 * form 의 data-cascade-true-title / data-cascade-true-desc 에서 inject.
+	 */
+	RESTORE {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/management/confirm-restore :: modalCard";
+		}
+	},
+
+	/**
+	 * S5-6-3 — 휴지통 액션 결과 안내 modal. 자원 lookup 불요 — JS 가 title / message / hint 모두 inject.
+	 * resourceType / resourceId 는 endpoint signature 일관성을 위해 받지만 사용하지 않음.
+	 */
+	TRASH_RESULT {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			// 자원 lookup 없음. fragment markup 만 응답.
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/management/trash-result-modal :: modalCard";
+		}
+	};
+
+	/**
+	 * modal 별 model 준비 책임. resourceType + resourceId 로 자원 lookup, expected value 계산,
+	 * model 에 필요한 attribute 주입까지 처리한다. 자원 lookup 실패는
+	 * {@link ModalContextNotFoundException} 으로 통일.
+	 */
+	public abstract void resolveModel(
+			ResourceType resourceType, Long resourceId,
+			TypedNameVerifier verifier, Model model
+	);
+
+	/**
+	 * Thymeleaf fragment view 이름 ({@code "templateName :: fragmentName"} 형식).
+	 * Controller 가 본 값을 그대로 return.
+	 */
+	public abstract String fragmentView();
+}

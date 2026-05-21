@@ -83,7 +83,8 @@
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
-<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
+<!-- S5-6-1 — confirm-purge 만 lazy-load. -->
+<div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
 <!-- S5-4 — '삭제된 항목 포함' 토글 시 selectKind / selectId 등 querystring 보존. -->
 <script th:src="@{/global/include-deleted-toggle.js}"></script>

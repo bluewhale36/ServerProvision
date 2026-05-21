@@ -266,11 +266,12 @@
                                   th:data-resource-label="|BIOS '${bios.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
-                            <!-- S5-2-2 — 영구 삭제. typed-name 입력 일치 시에만 활성. -->
+                            <!-- S5-2-2 — 영구 삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
                             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/purge(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-purge=""
-                                  th:data-typed-name="${bios.name}"
+                                  data-resource-type="BIOS_BUNDLE"
+                                  th:data-resource-id="${bios.id}"
                                   th:data-resource-label="|BIOS '${bios.name}'|"
                                   data-resource-extra="디스크의 번들 트리도 함께 제거돼요.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
@@ -296,7 +297,8 @@
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
-<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
+<!-- S5-6-1 — confirm-purge 만 lazy-load. -->
+<div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
 <!-- S5-4 — '삭제된 항목 포함' 토글 시 selectBoardId / selectId 등 querystring 보존. -->
 <script th:src="@{/global/include-deleted-toggle.js}"></script>

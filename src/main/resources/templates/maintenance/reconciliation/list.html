@@ -42,16 +42,19 @@
               자동 reload(완료 감지 — 후속 개선) 로 새 보고서 확인.
             -->
             <button type="button" id="scanBtn" class="n-btn n-btn-primary"
-                    th:data-scan-url="@{/maintenance/reconciliation/scan}">수동 스캔</button>
+                    th:data-scan-url="@{/maintenance/reconciliation/scan}">수동 스캔
+            </button>
             <button type="button" id="scanDeepBtn" class="n-btn n-btn-ghost"
-                    th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">Deep 스캔</button>
+                    th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">Deep 스캔
+            </button>
             <!--
               (권고1) Secret 회전용 admin 액션. 모든 자원의 marker signature 만 현재 secret 으로 재발급.
               manifestHash 는 그대로 유지되어 변조된 자원의 hash 가 굳어지지 않는다.
               위험한 액션 — 강한 confirm 후에만 실행.
             -->
             <button type="button" id="reissueBtn" class="n-btn n-btn-outline-danger"
-                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급</button>
+                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
+            </button>
         </div>
     </div>
 
@@ -80,7 +83,8 @@
                     type="button"
                     class="n-miller-item n-miller-item-split"
                     th:data-os-key="${report.id}">
-                <span class="n-miller-version-label" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1.25; white-space: normal;">
+                <span class="n-miller-version-label"
+                      style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1.25; white-space: normal;">
                     <span th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd')}">2026-04-25</span>
                     <span style="font-size: 12px; color: var(--n-text-muted);">
                         <span th:text="${#temporals.format(report.scannedAt, 'HH:mm:ss')}">10:30:00</span>
@@ -93,7 +97,8 @@
             </button>
 
             <!-- 페이지네이션 -->
-            <div class="n-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-top: 1px solid var(--n-border); font-size: 12px;">
+            <div class="n-pagination"
+                 style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-top: 1px solid var(--n-border); font-size: 12px;">
                 <a th:if="${page > 0}"
                    th:href="@{/maintenance/reconciliation(page=${page - 1}, size=${size})}"
                    class="n-btn n-btn-sm n-btn-ghost">← 이전</a>
@@ -197,14 +202,16 @@
                         <div class="n-accordion-field" th:if="${drift.newPath != null}">
                             <dt>새 경로</dt>
                             <dd>
-                                <code style="font-size: 11px; word-break: break-all; color: var(--n-color-primary);" th:text="${drift.newPath}"></code>
+                                <code style="font-size: 11px; word-break: break-all; color: var(--n-color-primary);"
+                                      th:text="${drift.newPath}"></code>
                             </dd>
                         </div>
                         <div class="n-accordion-field">
                             <dt>감지 시각</dt>
                             <dd th:text="${#temporals.format(drift.detectedAt, 'yyyy-MM-dd HH:mm:ss')}"></dd>
                         </div>
-                        <div class="n-accordion-field" th:if="${drift.detail != null and !#strings.isEmpty(drift.detail)}">
+                        <div class="n-accordion-field"
+                             th:if="${drift.detail != null and !#strings.isEmpty(drift.detail)}">
                             <dt>상세</dt>
                             <dd th:text="${drift.detail}"></dd>
                         </div>
@@ -250,8 +257,8 @@
     </div>
 </div>
 
-<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
-<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
+<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음. S5-6-1 — 일관성을 위해 nonPurge 로 교체 (본 페이지에 purge form 없음). -->
+<div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
 <!--
   Miller 컬럼 상호작용은 os-list.js (data-os-key / data-os-id 일반화) 를 그대로 재사용.

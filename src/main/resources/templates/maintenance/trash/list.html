@@ -141,12 +141,13 @@
                           data-resource-extra="+30일 연장돼요.">
                         <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
                     </form>
-                    <!-- S5-2 — typed-name 검증 적용 영구삭제. 5 list page 와 동일 정책. -->
+                    <!-- S5-2 — typed-name 검증 적용 영구삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
                     <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
                           data-confirm-purge=""
                           data-async-submit=""
-                          th:data-typed-name="${item.typedName}"
+                          th:data-resource-type="${item.resourceType}"
+                          th:data-resource-id="${item.resourceId}"
                           th:data-resource-label="${item.displayName}"
                           data-resource-extra="휴지통에서 제거되며 복구 불가능해요.">
                         <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">영구삭제</button>
@@ -160,10 +161,10 @@
 </div>
 
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
-<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
+<!-- S5-6-1 — confirm-purge 만 lazy-load. -->
+<div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
-<!-- S5-2-3-1 — 휴지통 액션 결과 안내 modal (거절 응답 흡수). data-async-submit form 응답이 본 modal 로 흘러든다. -->
-<div th:replace="~{fragments/management/trash-result-modal :: modal}"></div>
+<!-- S5-6-3 — 휴지통 결과 안내 modal 도 lazy-load. trash-result-modal :: modal 사전 include 제거. -->
 <script th:src="@{/maintenance/trash/trash-action.js}"></script>
 
 </body>

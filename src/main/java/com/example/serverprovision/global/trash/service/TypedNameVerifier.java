@@ -28,4 +28,14 @@ public interface TypedNameVerifier {
      * 진입경로별 분기는 호출측이 처리 — 본 인터페이스는 단순히 활성 + 휴지통 양쪽을 시도하는 default 동작.
      */
     void verify(ResourceType resourceType, Long resourceId, String typedName);
+
+    /**
+     * S5-6-1 — 자원의 현재 {@code displayName()} 만 조회. modal lazy-load 시 BE 가 expected value 를
+     * fragment 에 직접 렌더할 때 사용. {@link #verify(ResourceType, Long, String)} 와 lookup 경로 공유 :
+     * 활성 자원 → 휴지통 자원 순으로 시도, 둘 다 없으면 자원 부재.
+     *
+     * @throws com.example.serverprovision.global.ui.exception.ModalContextNotFoundException
+     *         자원 lookup 실패 (404 매핑)
+     */
+    String resolveExpectedName(ResourceType resourceType, Long resourceId);
 }

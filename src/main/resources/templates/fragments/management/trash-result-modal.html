@@ -19,7 +19,7 @@
             <div class="n-card-body">
                 <h2 id="trashResultTitle" class="cm-title">알림</h2>
                 <p id="trashResultMessage" class="cm-message-tight">메시지</p>
-                <div id="trashResultHint" class="cm-cascade-option-desc" style="margin-top: 8px;" hidden></div>
+                <div id="trashResultHint" class="cm-message-hint" hidden></div>
                 <div class="cm-actions">
                     <button type="button" id="trashResultOkBtn"
                             class="n-btn n-btn-primary">확인</button>
@@ -28,5 +28,23 @@
         </div>
     </div>
 </th:block>
+
+<!--/*
+  S5-6-3 — trash-result modal lazy-load fragment. ConfirmModalFragmentController 가 본 fragment 반환.
+  JS 가 [data-modal-*] 셀렉터로 title / message / hint / confirm 채움. 자원 lookup 불요 — 정보성 modal.
+*/-->
+<div th:fragment="modalCard" class="cm-overlay" data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title" data-modal-title>알림</h2>
+            <p class="cm-message-tight" data-modal-message>메시지</p>
+            <div class="cm-message-hint" data-modal-hint hidden></div>
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-primary" data-modal-confirm>확인</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

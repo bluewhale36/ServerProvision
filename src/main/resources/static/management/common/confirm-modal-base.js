@@ -174,5 +174,95 @@
         onNetworkError: () => alert('서버와 통신할 수 없어요.')
     };
 
-    window.ConfirmModal = { open, bindFormSubmit, composeMessage, approveAndSubmit };
+    /**
+     * S5-6-1 — modal lazy-load 흐름. fetchUrl 로 BE 에 fragment 요청 → #modalLazySlot 에 inject →
+     * data-modal-* 셀렉터로 wiring 후 표시.
+     *
+     * @param {string}  fetchUrl  GET 으로 fragment 받을 URL (예 : /ui/confirm-modal/PURGE?...)
+     * @param {object}  opts
+     * @param {boolean=} opts.startDisabled    확인 버튼 초기 disabled
+     * @param {function=} opts.afterInject     modal 표시 직후 추가 wiring.
+     *                                          {modal, confirmBtn, expectedEl, typedInput, messageEl} 받음.
+     *                                          cleanup 반환 (close 시 호출).
+     * @param {function=} opts.beforeConfirm   확인 클릭 시 onConfirm 전에 호출. false 반환 시 close 안 됨.
+     * @param {function}  opts.onConfirm       확인 클릭 + close 후 호출.
+     * @param {function=} opts.onError         fetch / inject 실패 시 콜백.
+     */
+    async function openLazy(fetchUrl, opts) {
+        let slot = document.getElementById('modalLazySlot');
+        if (!slot) {
+            // placeholder 누락 페이지 — 동적 생성.
+            slot = document.createElement('div');
+            slot.id = 'modalLazySlot';
+            document.body.appendChild(slot);
+        }
+
+        let html;
+        try {
+            const resp = await fetch(fetchUrl, {
+                headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!resp.ok) {
+                if (opts.onError) opts.onError(new Error('HTTP ' + resp.status));
+                else alert('modal 을 불러오지 못했어요. (HTTP ' + resp.status + ')');
+                return;
+            }
+            html = await resp.text();
+        } catch (err) {
+            if (opts.onError) opts.onError(err);
+            else alert('서버와 통신할 수 없어요.');
+            return;
+        }
+
+        slot.innerHTML = html;
+        const modal = slot.querySelector('[data-modal-active]');
+        if (!modal) {
+            console.warn(TAG, 'lazy modal markup 에 [data-modal-active] 부재 — fragment 응답 확인.');
+            slot.innerHTML = '';
+            return;
+        }
+        const confirmBtn = modal.querySelector('[data-modal-confirm]');
+        const expectedEl = modal.querySelector('[data-modal-expected]');
+        const typedInput = modal.querySelector('[data-modal-typed-input]');
+        const messageEl  = modal.querySelector('[data-modal-message]');
+        const cancelEls  = modal.querySelectorAll('[data-modal-cancel]');
+
+        if (!confirmBtn) {
+            console.warn(TAG, 'lazy modal 에 [data-modal-confirm] 부재.');
+            slot.innerHTML = '';
+            return;
+        }
+
+        if (opts.startDisabled) confirmBtn.disabled = true;
+
+        let extraCleanup = null;
+        if (opts.afterInject) {
+            extraCleanup = opts.afterInject({ modal, confirmBtn, expectedEl, typedInput, messageEl });
+        }
+
+        const close = () => {
+            confirmBtn.onclick = null;
+            cancelEls.forEach(el => { el.onclick = null; });
+            document.removeEventListener('keydown', onKey);
+            if (typeof extraCleanup === 'function') extraCleanup();
+            slot.innerHTML = '';
+        };
+        const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+
+        confirmBtn.onclick = () => {
+            if (opts.beforeConfirm && opts.beforeConfirm() === false) return;
+            close();
+            opts.onConfirm();
+        };
+        cancelEls.forEach(el => { el.onclick = close; });
+        document.addEventListener('keydown', onKey);
+
+        if (typedInput) {
+            setTimeout(() => typedInput.focus(), 0);
+        } else {
+            confirmBtn.focus();
+        }
+    }
+
+    window.ConfirmModal = { open, openLazy, bindFormSubmit, composeMessage, approveAndSubmit };
 })();

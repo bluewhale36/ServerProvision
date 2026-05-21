@@ -1,13 +1,16 @@
 /* ============================================================
-   S5-2 — 자원 영구 삭제 (purge) 확인 modal handler.
-   호출측 : form[data-confirm-purge] + data-typed-name + data-resource-label [+ data-resource-extra]
-   typed-name input 과 일치 시에만 확인 버튼 활성. 일치 시 hidden typedName input 자동 채움.
+   S5-6-1 — 자원 영구 삭제 (purge) 확인 modal handler (lazy-load 흐름).
+   호출측 : form[data-confirm-purge] + data-resource-type + data-resource-id
+            + data-resource-label [+ data-resource-extra]
+
+   S5-2 와 달리 typed-name expected value 는 form 에 없음 — modal trigger 시 BE 의
+   /ui/confirm-modal/PURGE?resourceType=...&resourceId=... 가 fragment 안에 직접 박아 응답.
+   사용자 입력은 modal 내 [data-modal-typed-input] vs [data-modal-expected] textContent 비교.
    ============================================================ */
 (function () {
     'use strict';
     const TEMPLATE = '{resource} 을(를) 영구 삭제하려면 자원명을 정확히 입력하세요.';
     const DEFAULT_MSG = '아래 자원을 영구 삭제하려면 자원명을 정확히 입력하세요.';
-    const PREFIX = 'confirmPurge';
 
     function writeHiddenTypedName(form, value) {
         let hidden = form.querySelector('input[name="typedName"]');
@@ -23,34 +26,36 @@
     document.addEventListener('DOMContentLoaded', function () {
         if (!window.ConfirmModal) return;
         ConfirmModal.bindFormSubmit('data-confirm-purge', function (form) {
-            const expectedName = form.getAttribute('data-typed-name') || '';
-            const wrap = document.getElementById(PREFIX + 'TypedTargetWrap');
-            const targetEl = document.getElementById(PREFIX + 'TypedTarget');
-            const inputEl = document.getElementById(PREFIX + 'TypedInput');
+            const resourceType = form.getAttribute('data-resource-type');
+            const resourceId   = form.getAttribute('data-resource-id');
+            if (!resourceType || !resourceId) {
+                console.warn('[confirm-purge] form 에 data-resource-type / data-resource-id 누락');
+                return;
+            }
+            const url = '/ui/confirm-modal/PURGE'
+                    + '?resourceType=' + encodeURIComponent(resourceType)
+                    + '&resourceId=' + encodeURIComponent(resourceId);
+            const composedMessage = ConfirmModal.composeMessage(form, TEMPLATE, DEFAULT_MSG);
 
-            ConfirmModal.open(PREFIX, {
-                title: '자원 영구 삭제',
-                message: ConfirmModal.composeMessage(form, TEMPLATE, DEFAULT_MSG),
-                confirmLabel: '영구 삭제',
-                confirmClass: 'n-btn-danger',
+            ConfirmModal.openLazy(url, {
                 startDisabled: true,
-                suppressDefaultFocus: true,
-                afterOpen: ({ confirmBtn }) => {
-                    if (!wrap || !targetEl || !inputEl) return null;
-                    targetEl.textContent = expectedName;
-                    inputEl.value = '';
-                    inputEl.placeholder = expectedName;
-                    wrap.hidden = false;
-                    const onInput = () => { confirmBtn.disabled = (inputEl.value !== expectedName); };
-                    inputEl.addEventListener('input', onInput);
-                    setTimeout(() => inputEl.focus(), 0);
-                    return () => {
-                        inputEl.removeEventListener('input', onInput);
-                        wrap.hidden = true;
+                afterInject: ({ confirmBtn, expectedEl, typedInput, messageEl }) => {
+                    // form 에서 받은 메시지 (resource-label 조립) 를 modal 의 message slot 에 주입.
+                    if (messageEl) messageEl.textContent = composedMessage;
+                    if (!expectedEl || !typedInput) return null;
+                    const expectedName = (expectedEl.textContent || '').trim();
+                    typedInput.value = '';
+                    typedInput.placeholder = expectedName;
+                    const onInput = () => {
+                        confirmBtn.disabled = (typedInput.value !== expectedName);
                     };
+                    typedInput.addEventListener('input', onInput);
+                    return () => typedInput.removeEventListener('input', onInput);
                 },
                 beforeConfirm: () => {
-                    if (inputEl) writeHiddenTypedName(form, inputEl.value);
+                    const slot = document.getElementById('modalLazySlot');
+                    const typedInput = slot && slot.querySelector('[data-modal-typed-input]');
+                    if (typedInput) writeHiddenTypedName(form, typedInput.value);
                     return true;
                 },
                 onConfirm: () => ConfirmModal.approveAndSubmit(form)

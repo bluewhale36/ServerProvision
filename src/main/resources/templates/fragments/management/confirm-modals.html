@@ -22,5 +22,39 @@
     <script th:src="@{/management/common/confirm-restore.js}"></script>
     <script th:src="@{/management/common/confirm-purge.js}"></script>
 </th:block>
+
+<!--/*
+  S5-6-1 — confirm-purge 의 사전 include 만 제외한 변형. soft-delete / deprecate / restore 는
+  그대로 사전 렌더 (S5-6-2 에서 별도 lazy-load), purge 는 modalLazySlot placeholder 로 대체.
+  S5-6-2 진입 후 lazyShell 로 대체 — backward-compat 으로만 유지.
+*/-->
+<th:block th:fragment="nonPurge">
+    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+    <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmSoftDelete')}"></div>
+    <div th:replace="~{fragments/management/confirm-deprecate :: confirmDeprecateModal('confirmDeprecate')}"></div>
+    <div th:replace="~{fragments/management/confirm-restore :: confirmRestoreModal('confirmRestore')}"></div>
+    <div id="modalLazySlot"></div>
+    <script th:src="@{/management/common/confirm-modal-base.js}"></script>
+    <script th:src="@{/management/common/confirm-soft-delete.js}"></script>
+    <script th:src="@{/management/common/confirm-deprecate.js}"></script>
+    <script th:src="@{/management/common/confirm-restore.js}"></script>
+    <script th:src="@{/management/common/confirm-purge.js}"></script>
+</th:block>
+
+<!--/*
+  S5-6-2 — confirm-purge / soft-delete / deprecate / restore 모두 lazy-load. modal markup 은
+  /ui/confirm-modal/{type} 가 응답. 본 fragment 는 단일 placeholder + 4 script + CSS 만 포함.
+  delete-reject-modal 은 응답 흐름이 다른 별도 sub-slice 에서 다룸 (현재 호출측이 별도로 사전 include).
+*/-->
+<th:block th:fragment="lazyShell">
+    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+    <!-- modal markup 이 inject 될 placeholder. modal 1 개만 활성이므로 ID 공유 안전. -->
+    <div id="modalLazySlot"></div>
+    <script th:src="@{/management/common/confirm-modal-base.js}"></script>
+    <script th:src="@{/management/common/confirm-soft-delete.js}"></script>
+    <script th:src="@{/management/common/confirm-deprecate.js}"></script>
+    <script th:src="@{/management/common/confirm-restore.js}"></script>
+    <script th:src="@{/management/common/confirm-purge.js}"></script>
+</th:block>
 </body>
 </html>

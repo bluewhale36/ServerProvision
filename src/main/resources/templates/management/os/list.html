@@ -186,10 +186,12 @@
                                   th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ' · ')}">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
+                            <!-- S5-6-1 — typed-name expected value 가 form 에 박히지 않음. modal trigger 시 BE 가 응답. -->
                             <form th:action="@{/management/os/{id}/purge(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-purge=""
-                                  th:data-typed-name="|${group.displayName} ${os.osVersion}|"
+                                  data-resource-type="OS_IMAGE"
+                                  th:data-resource-id="${os.id}"
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   data-resource-extra="포함된 ISO 의 sidecar 와 본체 파일도 모두 정리돼요.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
@@ -333,10 +335,12 @@
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구</button>
                                             </form>
+                                            <!-- S5-6-1 — ISO 자원도 동일 패턴. resourceType=OS_ISO, resourceId=${iso.id}. -->
                                             <form th:action="@{/management/os/{osId}/iso/{isoId}/purge(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-purge=""
-                                                  th:data-typed-name="|${group.displayName} ${os.osVersion} ${iso.isoPath.replaceAll('.*/', '')}|"
+                                                  data-resource-type="OS_ISO"
+                                                  th:data-resource-id="${iso.id}"
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|"
                                                   data-resource-extra="sidecar 와 본체 파일이 모두 정리돼요.">
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-danger">영구 삭제</button>
@@ -468,7 +472,8 @@
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음 + 공통 script 통합. -->
-<div th:replace="~{fragments/management/confirm-modals :: all}"></div>
+<!-- S5-6-1 — confirm-purge 만 lazy-load. 나머지 3 modal 은 그대로 사전 렌더. -->
+<div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
 <!-- S5-4 — '삭제된 항목 포함' 토글 시 selectId 등 querystring 보존. -->
 <script th:src="@{/global/include-deleted-toggle.js}"></script>
