@@ -37,11 +37,13 @@
      * fieldErrors[] 를 마크업에 매핑한다. 매칭 안되는 필드는 banner 로 폴백.
      * @param {Array} fieldErrors - [{field, message}, ...]
      * @param {HTMLElement} root - 매핑 범위 (보통 form)
-     * @returns {Array<string>} 폴백 처리해야 할 메시지 (banner 후보)
+     * @returns {{overflow: Array<string>, mappedCount: number}}
+     *   overflow : banner 로 폴백할 메시지. mappedCount : 인라인 매핑 성공 건수.
      */
     function applyFieldErrors(fieldErrors, root) {
         const scope = root || document;
         const overflow = [];
+        let mappedCount = 0;
         for (const fe of fieldErrors || []) {
             if (!fe || !fe.field) {
                 if (fe && fe.message) overflow.push(fe.message);
@@ -53,15 +55,23 @@
                 continue;
             }
             target.classList.add(ERROR_CLASS);
+            // 메시지 anchor : input 이 flex / grid 컨테이너 안일 경우 input afterend 로 넣으면
+            // 컨테이너 폭을 잠식한다. .n-form-group 을 stable anchor 로 사용해 항상 form-group 끝에 부착.
+            const formGroup = target.closest('.n-form-group');
+            const anchor = formGroup || target.parentElement || target;
             // 동일 필드의 기존 메시지 제거 후 새 메시지 1건 부착.
-            const parent = target.parentElement || target;
-            parent.querySelectorAll(':scope > .' + MESSAGE_CLASS).forEach(el => el.remove());
+            anchor.querySelectorAll(':scope > .' + MESSAGE_CLASS).forEach(el => el.remove());
             const note = document.createElement('div');
             note.className = MESSAGE_CLASS;
             note.textContent = fe.message || '';
-            target.insertAdjacentElement('afterend', note);
+            if (formGroup) {
+                formGroup.appendChild(note);
+            } else {
+                target.insertAdjacentElement('afterend', note);
+            }
+            mappedCount++;
         }
-        return overflow;
+        return { overflow: overflow, mappedCount: mappedCount };
     }
 
     /**
@@ -102,8 +112,14 @@
         const root = opts.root || document;
         clear(root);
         const data = body || {};
-        const overflow = applyFieldErrors(data.fieldErrors, root);
-        showBanner(root, data.message, overflow);
+        const result = applyFieldErrors(data.fieldErrors, root);
+        // 모든 fieldErrors 가 인라인 매핑에 성공했고 overflow 도 없으면 banner 의 data.message 를
+        // 노출하지 않는다 (필드 직결 충돌 예외처럼 message 와 fieldErrors[0].message 가 동일한
+        // 경우의 중복 표시 회피). overflow 가 있으면 message + overflow 를 banner 로.
+        const bannerMessage = (result.mappedCount > 0 && result.overflow.length === 0)
+                ? null
+                : data.message;
+        showBanner(root, bannerMessage, result.overflow);
     }
 
     /**
