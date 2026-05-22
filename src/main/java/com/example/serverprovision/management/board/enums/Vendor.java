@@ -1,7 +1,11 @@
 package com.example.serverprovision.management.board.enums;
 
+import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
+import com.example.serverprovision.management.board.exception.VendorNotFoundException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Arrays;
 
 /**
  * 메인보드 제조사. A2 MVP 는 실제 보유 장비 기준 3종.
@@ -11,9 +15,19 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum Vendor {
 
-	GIGABYTE("Gigabyte"),
-	ASUS("Asus"),
-	FUJITSU("Fujitsu");
+	GIGABYTE("Gigabyte", "Giga Computing"),
+	ASUS("Asus", "Asus"),
+	FUJITSU("Fujitsu", "FUJITSU");
 
 	private final String displayName;
+	private final String ipxeName;
+
+	public static Vendor findByIpxeName(String ipxeNameStr) {
+		return Arrays.stream(Vendor.values())
+				.filter(v -> v.ipxeName.equals(ipxeNameStr))
+				.findFirst()
+				.orElseThrow(
+						() -> new VendorNotFoundException(ipxeNameStr)
+				);
+	}
 }
