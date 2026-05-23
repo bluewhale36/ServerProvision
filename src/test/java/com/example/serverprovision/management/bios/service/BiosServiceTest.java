@@ -75,7 +75,7 @@ class BiosServiceTest {
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         // MK2 — 자동 purge 인라인 제거로 findFirstByBoardModel_IdAndVersionAndIsDeletedTrue stub 불필요.
         // entrypoint 탐지 + manifest
-        given(bundleEntrypointDetector.detect(any(), any())).willReturn("X99E-WS.CAP");
+        given(bundleEntrypointDetector.detect(any(), any(), any())).willReturn("X99E-WS.CAP");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 100L));
         given(provisionMarkerService.computeSignature(any())).willReturn("sig123");
         // save 후 id 부여

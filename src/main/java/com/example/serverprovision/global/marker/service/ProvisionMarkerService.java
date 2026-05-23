@@ -111,6 +111,23 @@ public class ProvisionMarkerService {
 		} catch (IOException e) {
 			throw new MarkerWriteFailedException("marker 파일 기록 실패 : " + target, e);
 		}
+		// S5-10 — Windows 환경에서 탐색기 default 뷰에 마커가 노출되지 않도록 DOS hidden 속성 부여.
+		// Linux/macOS 는 dot-prefix 자체가 hidden 관례 → setAttribute 가 UnsupportedOperationException
+		// 으로 실패하더라도 가시성 영향 없음. fail-safe 흡수.
+		applyOsHiddenAttribute(target);
+	}
+
+	/**
+	 * Windows 의 DOS hidden 속성 부여. Linux/macOS 등 dos:hidden attribute view 미지원 OS 에서는
+	 * UnsupportedOperationException 발생 — dot-prefix 가 표준 hidden 관례라 fail-safe 흡수.
+	 * 일부 파일시스템 (FAT32 등) 에서 IOException 발생 시도 무해하게 흡수해 마커 발급 자체 영향 차단.
+	 */
+	private void applyOsHiddenAttribute(Path p) {
+		try {
+			Files.setAttribute(p, "dos:hidden", true);
+		} catch (UnsupportedOperationException | IOException ignored) {
+			// Unix-style 환경 — dot-prefix 가 이미 hidden.
+		}
 	}
 
 	/**

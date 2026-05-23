@@ -212,19 +212,31 @@
         return `${hh}:${mm}`;
     }
 
-    function statusLabel(status) {
-        switch (status) {
-            case 'PENDING':
-                return '대기';
-            case 'RUNNING':
-                return '진행 중';
-            case 'COMPLETED':
-                return '완료';
-            case 'FAILED':
-                return '실패';
-            default:
-                return status || '';
+    // S5-8 — 카드 footer 의 status 영역 텍스트 합성.
+    // 단순 enum 라벨 ("진행 중" / "실패") 이 아닌, RUNNING / FAILED 시에는 stages 배열에서
+    // 해당 단계의 label 을 찾아 "{label} 중" / "{label} 실패" 로 합성해 "지금 무엇을 하고 있는가" 를
+    // 알림 패널 1 회 시선으로 파악 가능하게 한다. fallback 으로 기존 enum 라벨 보존.
+    function currentStatusText(job) {
+        if (!job) return '';
+        const status = job.status;
+        const stages = Array.isArray(job.stages) ? job.stages : [];
+
+        if (status === 'PENDING') return '대기 중';
+        if (status === 'COMPLETED') return '완료';
+
+        if (status === 'RUNNING') {
+            const running = stages.find(s => s && s.status === 'RUNNING');
+            if (running && running.label) return `${running.label} 중`;
+            return '진행 중';
         }
+
+        if (status === 'FAILED') {
+            const errored = stages.find(s => s && s.status === 'ERROR');
+            if (errored && errored.label) return `${errored.label} 실패`;
+            return '실패';
+        }
+
+        return status || '';
     }
 
     // ---- 렌더 ---------------------------------------------------
@@ -284,7 +296,7 @@
                 ${errorMsg}
                 <div class="n-bgjob-stage-track">${chunks}</div>
                 <div class="n-bgjob-card-footer">
-                    <span class="n-bgjob-card-status">${statusLabel(job.status)}</span>
+                    <span class="n-bgjob-card-status">${escapeHtml(currentStatusText(job))}</span>
                     <span class="n-bgjob-card-time">${escapeHtml(time)}</span>
                     <button type="button"
                             class="n-bgjob-card-close"

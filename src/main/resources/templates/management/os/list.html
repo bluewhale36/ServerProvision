@@ -222,22 +222,30 @@
                         <div class="n-accordion" th:if="${!#lists.isEmpty(os.isos)}">
                             <details th:each="iso : ${os.isos}"
                                      class="n-accordion-item"
-                                     th:classappend="${iso.isDeleted} ? 'n-accordion-item-muted' : ''"
-                                     th:attr="data-iso-id=${iso.id},data-iso-path=${iso.isoPath},data-os-id=${os.id}">
+                                     th:classappend="${iso.isDeleted} ? 'n-accordion-item-muted' : (${iso.inProgress} ? 'n-accordion-item-in-progress' : '')"
+                                     th:attr="data-iso-id=${iso.id},data-iso-path=${iso.isoPath},data-os-id=${os.id},data-iso-in-progress=${iso.inProgress}">
                                 <summary class="n-accordion-head">
                                     <span class="n-accordion-chevron" aria-hidden="true"></span>
                                     <code class="n-accordion-title" th:text="${iso.isoPath}"></code>
-                                    <span th:if="${iso.isDeprecated and !iso.isDeleted}"
+                                    <!--/* S5-12 — 등록 중 placeholder : 다른 상태 배지 대신 "등록 중" 배지만 표시 */-->
+                                    <span th:if="${iso.inProgress}"
+                                          class="n-badge n-badge-blue n-accordion-badge">등록 중</span>
+                                    <span th:if="${!iso.inProgress and iso.isDeprecated and !iso.isDeleted}"
                                           class="n-badge n-badge-yellow n-accordion-badge">Deprecated</span>
-                                    <span th:if="${iso.isDeleted}"
+                                    <span th:if="${!iso.inProgress and iso.isDeleted}"
                                           class="n-badge n-badge-gray n-accordion-badge">삭제됨</span>
-                                    <span th:unless="${iso.isDeleted}"
+                                    <span th:if="${!iso.inProgress and !iso.isDeleted}"
                                           class="n-badge n-accordion-badge"
                                           th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
                                           th:text="${iso.isEnabled} ? '활성화' : '비활성화'"></span>
                                 </summary>
 
-                                <div class="n-accordion-body">
+                                <!--/* S5-12 — 등록 중 placeholder : body 단순화. ID / 액션 / 무결성 모두 부재 — 안내만 노출 */-->
+                                <div th:if="${iso.inProgress}" class="n-accordion-body">
+                                    <p class="n-hint" style="margin: 4px 0;">파일 업로드 후 해시 계산 / 중복 검사 / DB 영속 진행 중입니다. 완료되면 자동으로 갱신됩니다.</p>
+                                </div>
+
+                                <div th:unless="${iso.inProgress}" class="n-accordion-body">
                                     <dl class="n-accordion-fields">
                                         <div class="n-accordion-field">
                                             <dt>ID</dt>
@@ -307,11 +315,14 @@
 
                                     <div class="n-accordion-actions">
                                         <th:block th:unless="${iso.isDeleted}">
+                                            <!-- S5-12 hotfix — RHEL 자동 추출 + 사용자 수동 추출 중복 방지.
+                                                 extracted (이미 추출됨) 또는 extractionInProgress (COMPS_EXTRACTION job active) 시 disabled.
+                                                 라벨 : 추출됨 / 추출 중… / 추출 -->
                                             <button type="button"
                                                     class="n-btn n-btn-sm n-btn-extract"
-                                                    th:classappend="${iso.extracted} ? ' n-btn-outline-success' : ' n-btn-primary'"
-                                                    th:disabled="${iso.extracted}"
-                                                    th:text="${iso.extracted} ? '추출됨' : '추출'"
+                                                    th:classappend="${iso.extracted} ? ' n-btn-outline-success' : (${iso.extractionInProgress} ? ' n-btn-secondary' : ' n-btn-primary')"
+                                                    th:disabled="${iso.extracted or iso.extractionInProgress}"
+                                                    th:text="${iso.extracted} ? '추출됨' : (${iso.extractionInProgress} ? '추출 중…' : '추출')"
                                                     th:attr="data-os-id=${os.id},data-iso-id=${iso.id}"></button>
                                             <a th:href="@{/management/os/{osId}/iso/{isoId}/edit(osId=${os.id},isoId=${iso.id})}"
                                                class="n-btn n-btn-sm n-btn-secondary">수정</a>

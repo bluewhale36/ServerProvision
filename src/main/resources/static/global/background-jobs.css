@@ -328,6 +328,11 @@
     font-weight: 500;
     padding: 2px 6px;
     border-radius: 3px;
+    /* S5-8 — RUNNING/FAILED 시 단계 라벨이 길어질 수 있어 카드 폭이 깨지지 않도록 ellipsis */
+    max-width: 60%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .n-bgjob-card.is-pending .n-bgjob-card-status,

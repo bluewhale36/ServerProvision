@@ -122,10 +122,18 @@
                 li.style.fontSize = '13px';
                 const isDir = e.type === 'DIR';
                 const highlight = !isDir && fileHighlight(e);
+                // S5-9 — hidden entry (dot-prefix OR OS-level hidden flag) 는 muted + opacity 0.55 로 시각 분리.
+                // highlight 와 동시 발생 시 hidden 우선 (시스템/메타 파일을 자원으로 오인하지 않도록).
+                const isHidden = e.hidden === true;
                 const icon = isDir ? '📁' : (highlight ? '💿' : '📄');
                 const sizeText = !isDir && typeof e.size === 'number' && e.size >= 0 ? '  · ' + formatBytes(e.size) : '';
                 li.innerHTML = `${icon} ${escapeHtml(e.name)}<span style="color: var(--n-text-muted); font-size: 11px;">${escapeHtml(sizeText)}</span>`;
-                if (highlight) li.style.background = '#f2f9ff';
+                if (isHidden) {
+                    li.style.color = 'var(--n-text-muted)';
+                    li.style.opacity = '0.55';
+                } else if (highlight) {
+                    li.style.background = '#f2f9ff';
+                }
                 li.addEventListener('click', () => {
                     if (isDir) {
                         const sep = currentPath.endsWith('/') ? '' : '/';
@@ -137,10 +145,18 @@
                     }
                 });
                 li.addEventListener('mouseover', () => {
-                    li.style.background = highlight ? '#e1f1fe' : '#f0f0f0';
+                    if (isHidden) {
+                        li.style.background = '#f0f0f0';
+                    } else {
+                        li.style.background = highlight ? '#e1f1fe' : '#f0f0f0';
+                    }
                 });
                 li.addEventListener('mouseout', () => {
-                    li.style.background = highlight ? '#f2f9ff' : '';
+                    if (isHidden) {
+                        li.style.background = '';
+                    } else {
+                        li.style.background = highlight ? '#f2f9ff' : '';
+                    }
                 });
                 entriesEl.appendChild(li);
             }

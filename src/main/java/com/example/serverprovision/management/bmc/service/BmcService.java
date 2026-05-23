@@ -149,7 +149,9 @@ public class BmcService {
 				case SINGLE_FILE -> bundleExtractionService.extractSingleFile(singleFile, targetDir);
 			}
 
-			String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
+			// S5-11 v2 — Vendor 별 strategy 위임
+			String entrypoint = bundleEntrypointDetector.detect(
+					parent.getVendor(), targetDir, request.entrypointRelativePath());
 			ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
 			// MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + 409.
@@ -260,7 +262,9 @@ public class BmcService {
 					throw new TargetDirectoryNotEmptyException(existing.getTreeRootPath());
 				});
 
-		String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
+		// S5-11 v2 — Vendor 별 strategy 위임
+		String entrypoint = bundleEntrypointDetector.detect(
+				parent.getVendor(), targetDir, request.entrypointRelativePath());
 		ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
 		// MK3-1 — ghost 후보 사전 필터링.

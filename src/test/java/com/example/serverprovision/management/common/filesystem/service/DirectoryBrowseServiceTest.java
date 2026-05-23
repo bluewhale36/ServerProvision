@@ -144,4 +144,69 @@ class DirectoryBrowseServiceTest {
         Mockito.verify(pathPolicyService).assertReadablePath(tmp.toString());
         Mockito.verify(pathPolicyService, Mockito.never()).firstAllowedRoot();
     }
+
+    // ==== S5-9 — hidden 판별 (dot-prefix + OS-level hidden) ====
+
+    @Test
+    @DisplayName("S5-9 — browse : dot-prefix 디렉토리는 hidden=true 로 응답")
+    void browse_marksDotPrefixDirectoryAsHidden(@TempDir Path tmp) throws Exception {
+        Files.createDirectory(tmp.resolve(".cache"));
+        Files.createDirectory(tmp.resolve("isos"));
+
+        DirectoryListingResponse response =
+                directoryBrowseService.browse(new DirectoryBrowseRequest(tmp.toString(), false));
+
+        // 알파벳 정렬 — .cache 가 isos 보다 먼저 (ASCII 46 < 105)
+        assertThat(response.entries()).hasSize(2);
+        DirectoryListingResponse.Entry dotCache = response.entries().stream()
+                .filter(e -> e.name().equals(".cache")).findFirst().orElseThrow();
+        DirectoryListingResponse.Entry isos = response.entries().stream()
+                .filter(e -> e.name().equals("isos")).findFirst().orElseThrow();
+
+        assertThat(dotCache.hidden()).isTrue();
+        assertThat(isos.hidden()).isFalse();
+    }
+
+    @Test
+    @DisplayName("S5-9 — browse : dot-prefix 파일도 hidden=true")
+    void browse_marksDotPrefixFileAsHidden(@TempDir Path tmp) throws Exception {
+        Files.writeString(tmp.resolve(".provision.json"), "{}");
+        Files.writeString(tmp.resolve("README.md"), "x");
+
+        DirectoryListingResponse response =
+                directoryBrowseService.browse(new DirectoryBrowseRequest(tmp.toString(), true));
+
+        DirectoryListingResponse.Entry provisionJson = response.entries().stream()
+                .filter(e -> e.name().equals(".provision.json")).findFirst().orElseThrow();
+        DirectoryListingResponse.Entry readme = response.entries().stream()
+                .filter(e -> e.name().equals("README.md")).findFirst().orElseThrow();
+
+        assertThat(provisionJson.hidden()).isTrue();
+        assertThat(provisionJson.type()).isEqualTo("FILE");
+        assertThat(readme.hidden()).isFalse();
+    }
+
+    @Test
+    @DisplayName("S5-9 — browse : 일반 이름 (dot-prefix 아님 + OS hidden 아님) 은 hidden=false")
+    void browse_normalEntriesNotHidden(@TempDir Path tmp) throws Exception {
+        Files.createDirectory(tmp.resolve("alpha"));
+        Files.writeString(tmp.resolve("bundle.zip"), "z");
+
+        DirectoryListingResponse response =
+                directoryBrowseService.browse(new DirectoryBrowseRequest(tmp.toString(), true));
+
+        assertThat(response.entries())
+                .extracting(DirectoryListingResponse.Entry::hidden)
+                .containsOnly(false);
+    }
+
+    @Test
+    @DisplayName("S5-9 — browse : Entry record 의 새 hidden 필드 기본 false (factory 호환)")
+    void entryFactoryWithoutHiddenDefaultsFalse() {
+        DirectoryListingResponse.Entry dir = DirectoryListingResponse.Entry.directory("foo");
+        DirectoryListingResponse.Entry file = DirectoryListingResponse.Entry.file("bar.bin", 100L);
+
+        assertThat(dir.hidden()).isFalse();
+        assertThat(file.hidden()).isFalse();
+    }
 }

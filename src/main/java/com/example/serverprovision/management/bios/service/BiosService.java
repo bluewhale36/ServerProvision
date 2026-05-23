@@ -154,8 +154,9 @@ public class BiosService {
 				case SINGLE_FILE -> bundleExtractionService.extractSingleFile(singleFile, targetDir);
 			}
 
-			// 4) 진입점 탐지 (override 우선)
-			String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
+			// 4) 진입점 탐지 (override 우선) — S5-11 v2 : Vendor 별 strategy 위임
+			String entrypoint = bundleEntrypointDetector.detect(
+					parent.getVendor(), targetDir, request.entrypointRelativePath());
 
 			// 5) manifest 집계
 			ManifestSummary manifest = bundleManifestService.compute(targetDir);
@@ -269,7 +270,9 @@ public class BiosService {
 		// 업로드와 달리 자동 hard-delete 없이 nudge 흐름에 위임 — 정책 일관성 유지.
 		targetDirectoryPolicyService.prepareForExistingDirectoryRegistration(targetDir);
 
-		String entrypoint = bundleEntrypointDetector.detect(targetDir, request.entrypointRelativePath());
+		// S5-11 v2 — Vendor 별 strategy 위임
+		String entrypoint = bundleEntrypointDetector.detect(
+				parent.getVendor(), targetDir, request.entrypointRelativePath());
 		ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
 		// MK3-1 — ghost 후보 사전 필터링.

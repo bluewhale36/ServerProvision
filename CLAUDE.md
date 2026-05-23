@@ -65,6 +65,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 코드 소유권
 - **커밋은 사용자 지시가 있을 때만 수행**. Claude 는 `git commit` 을 자동 호출하지 않는다.
+- 사용자가 커밋 지시를 내린 경우, 커밋 메시지에 반드시 AI 가 참가했다는 사실을 명시한다(github 에서 CLAUDE CODE 참여 여부가 명확히 드러나도록).
 - 각 페이지 수직 슬라이스의 **2~9 단계까지만 Claude 가 작성**한다. 10 단계(브라우저 end-to-end) 는 사용자 단독 수행.
 - 파일 헤더에 AI 작성 마커 주석(`// Claude`, `// AI-generated` 등) 금지.
 - 플랜 범위 밖의 코드 이동/공통화는 사용자 명시 요청 시에만.

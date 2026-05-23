@@ -47,6 +47,17 @@
     background: #fafafa;
 }
 
+/* S5-12 — ISO 등록 background job 진행 중 placeholder. DB 영속 전이라 정상 ISO 와 시각 분리. */
+.n-accordion-item-in-progress {
+    background: #fafafa;
+    opacity: 0.65;
+}
+
+.n-accordion-item-in-progress .n-accordion-title {
+    color: var(--n-text-muted, #6b7280);
+    font-style: italic;
+}
+
 .n-accordion-head {
     display: flex;
     align-items: center;

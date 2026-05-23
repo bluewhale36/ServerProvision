@@ -421,4 +421,140 @@ class OSImageServiceTest {
         MessageDigest md = MessageDigest.getInstance("SHA-256");
         return HexFormat.of().formatHex(md.digest(bytes));
     }
+
+    // ==== S5-12 — ISO 등록 background job placeholder 합성 회귀 ====
+
+    /**
+     * BackgroundJob mock 헬퍼. type / status / metadata.osId / subtitle 만 설정.
+     */
+    private com.example.serverprovision.global.job.BackgroundJob mockJob(
+            com.example.serverprovision.global.job.enums.JobType type,
+            com.example.serverprovision.global.job.enums.JobStatus status,
+            String osId,
+            String isoPath
+    ) {
+        com.example.serverprovision.global.job.BackgroundJob job =
+                org.mockito.Mockito.mock(com.example.serverprovision.global.job.BackgroundJob.class);
+        org.mockito.Mockito.lenient().when(job.getType()).thenReturn(type);
+        org.mockito.Mockito.lenient().when(job.getStatus()).thenReturn(status);
+        org.mockito.Mockito.lenient().when(job.getMetadata()).thenReturn(java.util.Map.of("osId", osId));
+        org.mockito.Mockito.lenient().when(job.getSubtitle()).thenReturn(isoPath);
+        return job;
+    }
+
+    private OSImage buildEmptyImage(Long id) {
+        return OSImage.builder().id(id).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .isEnabled(true).isDeleted(false).build();
+    }
+
+    @Test
+    @DisplayName("S5-12 — active job 0 + DB only : placeholder 0, base 그대로")
+    void s5_12_noActiveJobs() {
+        OSImage image = buildEmptyImage(1L);
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(image));
+        given(backgroundJobService.snapshot()).willReturn(List.of());
+
+        var response = osImageService.findById(1L);
+
+        assertThat(response.isos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("S5-12 — active ISO_REGISTRATION (osId 매칭) → placeholder 1")
+    void s5_12_activeJobMatchingOsId() {
+        OSImage image = buildEmptyImage(7L);
+        given(osImageRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(image));
+        // Mockito : given() 안에서 mockJob() 의 내부 stubbing 충돌 회피 — 객체 먼저 생성 후 use.
+        var job = mockJob(com.example.serverprovision.global.job.enums.JobType.ISO_REGISTRATION,
+                com.example.serverprovision.global.job.enums.JobStatus.RUNNING,
+                "7", "/opt/iso/rocky/9/minimal.iso");
+        given(backgroundJobService.snapshot()).willReturn(List.of(job));
+
+        var response = osImageService.findById(7L);
+
+        assertThat(response.isos()).hasSize(1);
+        assertThat(response.isos().get(0).inProgress()).isTrue();
+        assertThat(response.isos().get(0).isoPath()).isEqualTo("/opt/iso/rocky/9/minimal.iso");
+        assertThat(response.isos().get(0).id()).isNull();
+    }
+
+    @Test
+    @DisplayName("S5-12 — active job 의 osId 불일치 : placeholder 0 (다른 OS 의 job 은 흡수 안 함)")
+    void s5_12_activeJobDifferentOsId() {
+        OSImage image = buildEmptyImage(7L);
+        given(osImageRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(image));
+        var job = mockJob(com.example.serverprovision.global.job.enums.JobType.ISO_REGISTRATION,
+                com.example.serverprovision.global.job.enums.JobStatus.RUNNING,
+                "999",  // ← 다른 OS
+                "/opt/iso/other/x.iso");
+        given(backgroundJobService.snapshot()).willReturn(List.of(job));
+
+        var response = osImageService.findById(7L);
+
+        assertThat(response.isos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("S5-12 — DB + active job (isoPath 동일, race) : 중복 회피로 placeholder 0")
+    void s5_12_duplicatePathAvoided() {
+        OSImage parent = buildEmptyImage(1L);
+        ISO iso = ISO.builder().id(5L).osImage(parent).isoPath("/opt/iso/rocky/9/dvd.iso")
+                .checksum("h").manifestHash("h").markerSignature("s")
+                .isEnabled(true).isDeleted(false).build();
+        parent.getIsos().add(iso);
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
+        var job = mockJob(com.example.serverprovision.global.job.enums.JobType.ISO_REGISTRATION,
+                com.example.serverprovision.global.job.enums.JobStatus.RUNNING,
+                "1", "/opt/iso/rocky/9/dvd.iso");
+        given(backgroundJobService.snapshot()).willReturn(List.of(job));
+
+        var response = osImageService.findById(1L);
+
+        assertThat(response.isos()).hasSize(1);
+        assertThat(response.isos().get(0).inProgress()).isFalse();
+        assertThat(response.isos().get(0).id()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("S5-12 — COMPLETED job : placeholder 0 (isActive() false)")
+    void s5_12_completedJobNoPlaceholder() {
+        OSImage image = buildEmptyImage(1L);
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(image));
+        var job = mockJob(com.example.serverprovision.global.job.enums.JobType.ISO_REGISTRATION,
+                com.example.serverprovision.global.job.enums.JobStatus.COMPLETED,
+                "1", "/opt/iso/x.iso");
+        given(backgroundJobService.snapshot()).willReturn(List.of(job));
+
+        assertThat(osImageService.findById(1L).isos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("S5-12 — FAILED job : placeholder 0 (isActive() false)")
+    void s5_12_failedJobNoPlaceholder() {
+        OSImage image = buildEmptyImage(1L);
+        given(osImageRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(image));
+        var job = mockJob(com.example.serverprovision.global.job.enums.JobType.ISO_REGISTRATION,
+                com.example.serverprovision.global.job.enums.JobStatus.FAILED,
+                "1", "/opt/iso/x.iso");
+        given(backgroundJobService.snapshot()).willReturn(List.of(job));
+
+        assertThat(osImageService.findById(1L).isos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("S5-12 — ISOResponse.inProgress factory : id=null, inProgress=true, 다른 필드 default")
+    void s5_12_isoResponseInProgressFactory() {
+        var placeholder = com.example.serverprovision.management.os.dto.response.ISOResponse
+                .inProgress("/opt/iso/foo.iso");
+
+        assertThat(placeholder.id()).isNull();
+        assertThat(placeholder.isoPath()).isEqualTo("/opt/iso/foo.iso");
+        assertThat(placeholder.inProgress()).isTrue();
+        assertThat(placeholder.isEnabled()).isFalse();
+        assertThat(placeholder.isDeleted()).isFalse();
+        assertThat(placeholder.isDeprecated()).isFalse();
+        assertThat(placeholder.extracted()).isFalse();
+        assertThat(placeholder.providedEnvironmentCodes()).isEmpty();
+        assertThat(placeholder.providedPackageGroupCount()).isZero();
+    }
 }

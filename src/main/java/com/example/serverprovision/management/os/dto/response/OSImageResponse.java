@@ -57,4 +57,29 @@ public record OSImageResponse(
 	public static OSImageResponse of(OSImage entity, List<ISO> visibleIsos) {
 		return of(entity, visibleIsos, List.of(), List.of());
 	}
+
+	/**
+	 * S5-12 — ISO entity → ISOResponse 매핑이 이미 끝나고, background job placeholder 등 합성된
+	 * 결과를 그대로 ISO 목록으로 노출하는 호출 경로. OSImageService 가 BackgroundJobService 합성 후 사용.
+	 */
+	public static OSImageResponse ofAssembled(
+			OSImage entity,
+			List<ISOResponse> assembledIsos,
+			List<OSEnvironmentResponse> environments,
+			List<OSPackageGroupResponse> packageGroups
+	) {
+		return new OSImageResponse(
+				entity.getId(),
+				entity.getOsName(),
+				entity.getOsVersion(),
+				entity.getDescription(),
+				entity.isEnabled(),
+				entity.isDeleted(),
+				entity.isDeprecated(),
+				entity.currentStage(),
+				assembledIsos,
+				environments,
+				packageGroups
+		);
+	}
 }

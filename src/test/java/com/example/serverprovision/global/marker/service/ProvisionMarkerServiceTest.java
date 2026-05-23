@@ -162,4 +162,23 @@ class ProvisionMarkerServiceTest {
 
         assertThat(Files.exists(subTree.resolve(".provision.json"))).isTrue();
     }
+
+    @Test
+    @DisplayName("S5-10 — write 는 Unix-style OS 의 setAttribute 미지원도 fail-safe 흡수")
+    void write_failsSafelyWhenDosAttributeUnsupported(@TempDir Path tmp) {
+        // Linux/macOS 테스트 환경 — Files.setAttribute(p, "dos:hidden", true) 가
+        // UnsupportedOperationException 을 throw 한다. ProvisionMarkerService.write 가 그 예외를
+        // 무해하게 흡수하여 마커가 정상 발급되고 후속 read / verifySignature 가 정상 동작해야 한다.
+        MarkerContent unsigned = biosSample(null);
+        String sig = service.computeSignature(unsigned);
+        MarkerContent signed = unsigned.withSignature(sig);
+
+        // 실행이 예외 없이 끝나야 한다 (Unix-style 환경에서 setAttribute 실패는 흡수).
+        service.write(tmp, MarkerLayout.IN_TREE, signed);
+
+        MarkerContent loaded = service.read(tmp, MarkerLayout.IN_TREE);
+        assertThat(loaded).isEqualTo(signed);
+        assertThat(service.verifySignature(loaded)).isTrue();
+        assertThat(Files.exists(tmp.resolve(".provision.json"))).isTrue();
+    }
 }

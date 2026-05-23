@@ -79,14 +79,17 @@ public class OSImageService {
 	private final NudgeRegistry nudgeRegistry;
 	private final TrashLifecycleService trashLifecycleService;
 	private final SoftDeleteIntentService softDeleteIntentService;
+	// S5-7 — OS family 별 자동 작업 트리거. RhelPostCreationTaskStrategy + NoopPostCreationTaskStrategy
+	// 가 Spring 빈으로 자동 주입. 새 family 추가 시 strategy 구현체만 추가.
+	private final List<PostCreationTaskStrategy> postCreationTaskStrategies;
 
 	// ==== 조회 ========================================================
 
 	public OSImageResponse findById(Long id) {
 		OSImage image = requireActiveImage(id);
-		return OSImageResponse.of(
+		return OSImageResponse.ofAssembled(
 				image,
-				visibleISOs(image.getIsos(), false),
+				assembleIsoResponses(image, false),
 				buildEnvResponses(image),
 				buildGroupResponses(image)
 		);
@@ -118,9 +121,9 @@ public class OSImageService {
 				.map(entry -> OSGroupResponse.of(
 						entry.getKey(),
 						entry.getValue().stream()
-								.map(img -> OSImageResponse.of(
+								.map(img -> OSImageResponse.ofAssembled(
 										img,
-										visibleISOs(img.getIsos(), includeDeleted),
+										assembleIsoResponses(img, includeDeleted),
 										buildEnvResponses(img),
 										buildGroupResponses(img)
 								))
@@ -572,7 +575,31 @@ public class OSImageService {
 				"[finalizePreparedIsoRegistration] 등록 완료. isoId={}, osImageId={}, uploadedFile={}, hash={}",
 				saved.getId(), prepared.osImageId(), prepared.uploadedFile(), manifestHash
 		);
+
+		// S5-7 — ISO 등록 후 자동 작업 트리거 (OS family 별 strategy 다형성).
+		// 실패는 ISO 등록 자체 영향 없도록 fail-safe — D3 정책 B (등록 성공 + Job 실패 알림).
+		triggerPostCreationTask(parent, saved);
+
 		return saved.getId();
+	}
+
+	/**
+	 * S5-7 — OS family 에 매칭되는 PostCreationTaskStrategy 를 찾아 자동 작업 트리거.
+	 * strategy 실행 중 RuntimeException 발생 시 ISO 등록 트랜잭션은 보존 (D3 정책 B). 실패는
+	 * BackgroundJob 의 FAILED 상태로 알림 패널에 노출되므로 사용자가 인지 가능.
+	 */
+	private void triggerPostCreationTask(OSImage osImage, ISO iso) {
+		// 단위 테스트 @InjectMocks 환경에서 List 자동 주입이 null 인 경우 방어.
+		if (postCreationTaskStrategies == null || postCreationTaskStrategies.isEmpty()) return;
+		try {
+			postCreationTaskStrategies.stream()
+					.filter(s -> s.supports(osImage.getOsName().getFamily()))
+					.findFirst()
+					.ifPresent(s -> s.trigger(osImage, iso));
+		} catch (RuntimeException e) {
+			log.error("[S5-7] PostCreationTask 트리거 실패 (ISO 등록은 영속됨). osImageId={}, isoId={}, family={}",
+					osImage.getId(), iso.getId(), osImage.getOsName().getFamily(), e);
+		}
 	}
 
 	private NudgeRequiredResponse registerIsoNudgeSession(
@@ -1052,5 +1079,48 @@ public class OSImageService {
 
 	private static List<ISO> visibleISOs(List<ISO> all, boolean includeDeleted) {
 		return includeDeleted ? all : all.stream().filter(iso -> !iso.isDeleted()).toList();
+	}
+
+	/**
+	 * S5-12 — ISO entity 목록 + 진행 중 ISO_REGISTRATION background job placeholder 를 합성한 응답.
+	 *
+	 * <p>사용자가 ISO 등록 폼 제출 후 background job 이 PERSIST_METADATA 완료 전인 짧은 구간 동안 DB 에 ISO 가
+	 * 영속되지 않은 상태로 OS 목록 화면이 노출된다. 사용자 혼란 ("등록한 자원이 안 보임") 을 막기 위해
+	 * 진행 중 job 의 metadata 에서 osId 매칭, subtitle (= isoPath) 로 placeholder ISOResponse 합성.</p>
+	 *
+	 * <p>중복 회피 : PERSIST_METADATA 직후의 race 구간에서 DB 영속된 ISO + active job 이 동시에 보일 수 있으므로
+	 * 같은 isoPath 의 placeholder 는 추가하지 않는다 (existingPaths 검사).</p>
+	 */
+	private List<ISOResponse> assembleIsoResponses(OSImage image, boolean includeDeleted) {
+		var snapshot = backgroundJobService.snapshot();
+
+		// S5-12 hotfix — 동일 isoPath 의 active COMPS_EXTRACTION job 이 있으면 그 ISO 의 추출 버튼 비활성화.
+		// RHEL 자동 추출 (S5-7) + 사용자 수동 추출 클릭의 중복 트리거 방지.
+		Set<String> extractionInProgressPaths = snapshot.stream()
+				.filter(j -> j.getType() == com.example.serverprovision.global.job.enums.JobType.COMPS_EXTRACTION)
+				.filter(j -> j.getStatus().isActive())
+				.map(com.example.serverprovision.global.job.BackgroundJob::getSubtitle)
+				.collect(java.util.stream.Collectors.toSet());
+
+		List<ISOResponse> base = visibleISOs(image.getIsos(), includeDeleted).stream()
+				.map(ISOResponse::from)
+				.map(r -> extractionInProgressPaths.contains(r.isoPath())
+						? r.withExtractionInProgress(true)
+						: r)
+				.collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+
+		Set<String> existingPaths = base.stream()
+				.map(ISOResponse::isoPath)
+				.collect(java.util.stream.Collectors.toSet());
+
+		String osIdString = String.valueOf(image.getId());
+		snapshot.stream()
+				.filter(j -> j.getType() == com.example.serverprovision.global.job.enums.JobType.ISO_REGISTRATION)
+				.filter(j -> j.getStatus().isActive())
+				.filter(j -> osIdString.equals(j.getMetadata().get("osId")))
+				.filter(j -> !existingPaths.contains(j.getSubtitle()))
+				.forEach(j -> base.add(ISOResponse.inProgress(j.getSubtitle())));
+
+		return base;
 	}
 }

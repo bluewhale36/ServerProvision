@@ -173,7 +173,15 @@
                 li.style.borderBottom = '1px solid var(--n-border)';
                 li.style.fontSize = '13px';
                 const isDir = entry.type === 'DIR';
+                // S5-9 회귀 : path-browser.js 와 같은 hidden 시각 처리. dot-prefix 또는 OS-level
+                // hidden 속성 시 muted + opacity 0.55. BIOS / BMC / Subprogram 의 탐색도 OS ISO 와
+                // 일관되게 시스템 / 메타 파일 시각 분리.
+                const isHidden = entry.hidden === true;
                 li.textContent = (isDir ? '📁 ' : '📄 ') + entry.name;
+                if (isHidden) {
+                    li.style.color = 'var(--n-text-muted)';
+                    li.style.opacity = '0.55';
+                }
                 li.addEventListener('click', () => {
                     if (isDir) {
                         loadDirectory(joinPath(browseCurrentPath, entry.name));

@@ -73,7 +73,7 @@ class BmcServiceTest {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
-        given(bundleEntrypointDetector.detect(any(), any())).willReturn("flash.nsh");
+        given(bundleEntrypointDetector.detect(any(), any(), any())).willReturn("flash.nsh");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 3, 2048L));
         given(provisionMarkerService.computeSignature(any())).willReturn("sig123");
         given(bmcRepository.save(any(BoardBMC.class))).willAnswer(inv -> {
@@ -151,7 +151,7 @@ class BmcServiceTest {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
-        given(bundleEntrypointDetector.detect(any(), any())).willReturn("flash.nsh");
+        given(bundleEntrypointDetector.detect(any(), any(), any())).willReturn("flash.nsh");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 10L));
         given(bmcRepository.save(any(BoardBMC.class))).willThrow(new IllegalStateException("db fail"));
         org.mockito.Mockito.doAnswer(inv -> {
@@ -188,7 +188,7 @@ class BmcServiceTest {
 
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
-        given(bundleEntrypointDetector.detect(any(), any())).willReturn("flash.nsh");
+        given(bundleEntrypointDetector.detect(any(), any(), any())).willReturn("flash.nsh");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 10L));
         given(provisionMarkerService.computeSignature(any())).willReturn("sig123");
         given(bmcRepository.save(any(BoardBMC.class))).willAnswer(inv -> {
