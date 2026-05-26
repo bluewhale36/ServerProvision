@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OS 이미지에 귀속되는 설치 환경.
+ * OS 메타데이터에 귀속되는 설치 환경.
  * comps.xml {@code <environment>} 한 건에 대응하며, 해당 환경이 포함하는 패키지 그룹 목록은 N:M 조인으로 묶인다.
  * 제공 ISO 관계(N:M)는 {@link ISO} 가 소유 측을 들고 있으므로 여기서는 양방향 매핑을 두지 않는다.
  * 조회 편의가 필요하면 Service 가 별도 쿼리를 수행한다.
@@ -30,8 +30,8 @@ public class OSEnvironment extends BaseTimeEntity {
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@OnDelete(action = OnDeleteAction.CASCADE)
-	@JoinColumn(name = "os_image_id", nullable = false)
-	private OSImage osImage;
+	@JoinColumn(name = "os_metadata_id", nullable = false)
+	private OSMetadata osMetadata;
 
 	@Embedded
 	private EnvironmentCode environmentCode;

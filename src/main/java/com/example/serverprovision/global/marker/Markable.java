@@ -63,7 +63,7 @@ public interface Markable extends LifecycleManageable {
 	 *
 	 * <p>합성 예시 :</p>
 	 * <ul>
-	 *   <li>OSImage : {@code osName.displayName + " " + osVersion} (예: "Rocky Linux 9.6")</li>
+	 *   <li>OSMetadata : {@code osName.displayName + " " + osVersion} (예: "Rocky Linux 9.6")</li>
 	 *   <li>ISO : {@code parent + " " + isoBasename}</li>
 	 *   <li>BoardModel : {@code vendor.displayName + " " + modelName}</li>
 	 *   <li>BIOS / BMC / Subprogram : {@code name}</li>
@@ -78,7 +78,7 @@ public interface Markable extends LifecycleManageable {
 	/**
 	 * S5-2-3-1 — 자식 자원의 부모 Markable. 부모-자식 cascade 정합화의 시각화 진입점.
 	 *
-	 * <p>자식 entity (ISO / BoardBIOS / BoardBMC / Subprogram) 가 자기 부모(OSImage / BoardModel) 를
+	 * <p>자식 entity (ISO / BoardBIOS / BoardBMC / Subprogram) 가 자기 부모(OSMetadata / BoardModel) 를
 	 * 반환하도록 override. 메타 자원(OS_IMAGE / BOARD_MODEL) 은 default 인 {@code Optional.empty()} 그대로.</p>
 	 *
 	 * <p>휴지통 뷰가 본 메서드로 부모-자식 위계를 들여쓰기 표시할 수 있도록 일급 메서드로 응집 —

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  R1-3 — 자원 undeprecate 확인 modal fragment. DEPRECATE 역동작의 2 차 확인.
+  호출측은 form 에 data-confirm-undeprecate + data-resource-label 만 주면 끝.
+*/-->
+<div th:fragment="confirmUndeprecateModal(prefix)"
+     th:id="${prefix} + 'Modal'"
+     class="cm-overlay"
+     hidden>
+    <div th:id="${prefix} + 'Backdrop'" class="cm-backdrop"></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 th:id="${prefix} + 'Title'" class="cm-title">Deprecated 해제</h2>
+            <p th:id="${prefix} + 'Message'" class="cm-message">메시지</p>
+            <div class="cm-actions">
+                <button type="button" th:id="${prefix} + 'CancelBtn'"
+                        class="n-btn n-btn-secondary">취소
+                </button>
+                <button type="button" th:id="${prefix} + 'ConfirmBtn'"
+                        class="n-btn n-btn-outline-info">Deprecated 해제
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--/* lazy-load 응답 fragment. JS 가 form 의 data 속성으로 message 채움. */-->
+<div th:fragment="modalCard" class="cm-overlay" data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title">Deprecated 해제</h2>
+            <p class="cm-message" data-modal-message>이 자원의 Deprecated 표시를 해제할까요?</p>
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
+                <button type="button" class="n-btn n-btn-outline-info" data-modal-confirm>Deprecated 해제</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

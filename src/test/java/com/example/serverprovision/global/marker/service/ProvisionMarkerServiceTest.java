@@ -48,7 +48,7 @@ class ProvisionMarkerServiceTest {
         return new MarkerContent(
                 ResourceType.OS_ISO.name(),
                 17L,
-                Map.of("osImageId", "5", "originalFilename", "rocky-9-dvd.iso"),
+                Map.of("osMetadataId", "5", "originalFilename", "rocky-9-dvd.iso"),
                 Instant.parse("2026-04-24T09:00:00Z"),
                 "deadbeef",
                 signature);

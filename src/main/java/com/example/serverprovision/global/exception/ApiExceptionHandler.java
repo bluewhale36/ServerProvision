@@ -62,7 +62,7 @@ public class ApiExceptionHandler {
 
 	/**
 	 * MK2 — nudge 결정 대기 (모든 도메인). {@link NudgeRequiredException} 추상 super 매칭으로
-	 * BIOS / BMC / Subprogram / ISO / OSImage / BoardModel sub-class 가 모두 polymorphic 처리된다.
+	 * BIOS / BMC / Subprogram / ISO / OSMetadata / BoardModel sub-class 가 모두 polymorphic 처리된다.
 	 * 새 도메인 추가 시 본 핸들러에 분기 추가 불필요 — sub-class 만 정의하면 된다.
 	 */
 	@ExceptionHandler(value = NudgeRequiredException.class, produces = MediaType.APPLICATION_JSON_VALUE)

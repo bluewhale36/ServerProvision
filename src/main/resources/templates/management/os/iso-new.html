@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  A1. 신규 ISO 등록 폼 (OSImage 서브 리소스)
+  A1. 신규 ISO 등록 폼 (OSMetadata 서브 리소스)
   ─────────────────────────────────────────────
   Model:
     isoForm      : ISOCreateRequest  @ModelAttribute (isoPath, description)
@@ -15,7 +15,7 @@
     <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('os-image')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('os-metadata')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">

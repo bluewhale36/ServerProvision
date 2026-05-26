@@ -80,6 +80,25 @@ public enum ConfirmModalType {
 	},
 
 	/**
+	 * R1-3 — undeprecate 확인 modal. DEPRECATE 의 역동작 2 차 확인.
+	 */
+	UNDEPRECATE {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/management/confirm-undeprecate :: modalCard";
+		}
+	},
+
+	/**
 	 * S5-6-2 — restore 확인 modal. cascade preview 정보 (하위 자원 목록 등) 는 JS 가
 	 * form 의 data-cascade-true-title / data-cascade-true-desc 에서 inject.
 	 */

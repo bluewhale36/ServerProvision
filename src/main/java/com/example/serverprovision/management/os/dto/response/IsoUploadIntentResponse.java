@@ -12,7 +12,7 @@ import java.util.List;
  * <p>sealed sum type 으로 두 phase 분기 :
  * <ul>
  *   <li>{@link IntentTokenIssued} : 정상 — 클라이언트가 즉시 업로드 시작 가능</li>
- *   <li>{@link HashCheckRequired} : Phase 1 결과 (osImageId, size) 매칭 후보가 있어 client SHA-256
+ *   <li>{@link HashCheckRequired} : Phase 1 결과 (osMetadataId, size) 매칭 후보가 있어 client SHA-256
  *       precompute 필요. 클라이언트가 fingerprint 계산 후 같은 endpoint 를 hash 동봉해서 재호출.</li>
  * </ul>
  *
@@ -43,7 +43,7 @@ public sealed interface IsoUploadIntentResponse
 
 
 	/**
-	 * Phase 1 결과 (osImageId, size) 매칭 후보 발견 — 클라이언트가 정식 SHA-256 계산 후 같은 endpoint 를
+	 * Phase 1 결과 (osMetadataId, size) 매칭 후보 발견 — 클라이언트가 정식 SHA-256 계산 후 같은 endpoint 를
 	 * hash 동봉해서 재호출해야 한다.
 	 *
 	 * @param candidates           후보 자원 목록 (modal 표시용 — id/state/name/version 노출)

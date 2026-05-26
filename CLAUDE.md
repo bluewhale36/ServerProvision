@@ -61,6 +61,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 인라인 스타일 금지. CSS 클래스 적극 활용.
 
 ### Notion 작업
+- 작업할 Notion 페이지 이름은 'Provisioning Server' 이고 주요 데이터베이스 이름은 'Provisioning Server 개발 상세' 이다.
 - Notion 페이지에 댓글을 달 때는 [Claude] 접두사를 사용하여 구분한다.
 
 ### 코드 소유권

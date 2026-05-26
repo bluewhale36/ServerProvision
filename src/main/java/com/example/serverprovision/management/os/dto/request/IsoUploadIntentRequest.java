@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Pattern;
  *
  * <p>MK2 WAVE 3 — {@code clientHash} 필드 추가 (nullable). 클라이언트 흐름:
  * <ul>
- *   <li>1차 호출 : {@code clientHash = null}. 서버는 (osImageId, size) 후보 0건이면 token 발급, 1건+이면
+ *   <li>1차 호출 : {@code clientHash = null}. 서버는 (osMetadataId, size) 후보 0건이면 token 발급, 1건+이면
  *       {@code HashCheckRequired} 응답으로 candidate 동봉.</li>
  *   <li>2차 호출 (1차에서 HashCheckRequired 받았을 때만) : 클라이언트가 Web Worker 로 SHA-256 계산 후
  *       {@code clientHash} 동봉해서 재호출. 서버는 hash 매칭 → NUDGE_REQUIRED, 비매칭 → 정상 token 발급.</li>

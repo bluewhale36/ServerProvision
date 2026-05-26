@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  A1. OS 이미지 관리 목록 페이지 (Miller Columns)
+  A1. OS 메타데이터 관리 목록 페이지 (Miller Columns)
   ─────────────────────────────────────────────────────────
   Model:
     osGroups      : List<OSGroupResponse>      Miller C1/C2 데이터 소스
                       · osName        : OSName enum
                       · displayName   : String ("Rocky Linux" 등)
-                      · items         : List<OSImageResponse> (C3 상세 포함 full object)
+                      · items         : List<OSMetadataResponse> (C3 상세 포함 full object)
     selectId      : Long (nullable)            토글/편집 후 리다이렉트 시 초기 선택 복원
     includeDeleted: boolean                    휴지통 모드 여부 (쿼리 ?includeDeleted)
 -->
@@ -18,7 +18,7 @@
     <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('os-image')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('os-metadata')}"></nav>
 
 <div class="n-page">
     <div class="n-page-header">
@@ -94,7 +94,7 @@
             </div>
         </div>
 
-        <!-- C3 : 선택된 OSImage 상세 (JS 가 active 토글) -->
+        <!-- C3 : 선택된 OSMetadata 상세 (JS 가 active 토글) -->
         <div class="n-miller-col n-miller-col-detail">
             <!-- S5-5 — C3 안내 텍스트 2 상태. JS 가 C1 선택 시 textContent 를 data-empty-after 로 교체. -->
             <div class="n-miller-empty" id="millerEmpty"
@@ -145,6 +145,8 @@
                                           th:text="${os.isEnabled} ? '활성화' : '비활성화'"></span>
                                     <form th:action="@{/management/os/{id}/toggle(id=${os.id})}"
                                           method="post" style="display:inline; margin-left: 10px;">
+                                        <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                        <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                         <button type="submit"
                                                 class="n-btn n-btn-sm"
                                                 th:classappend="${os.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
@@ -167,11 +169,17 @@
                                   method="post" style="display:inline;"
                                   data-confirm-deprecate=""
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|">
+                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${os.isDeprecated}"
                                   th:action="@{/management/os/{id}/undeprecate(id=${os.id})}"
-                                  method="post" style="display:inline;">
+                                  method="post" style="display:inline;"
+                                  data-confirm-undeprecate=""
+                                  th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|">
+                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
                             </form>
                             <form th:action="@{/management/os/{id}/delete(id=${os.id})}"
@@ -179,6 +187,8 @@
                                   data-confirm-soft-delete=""
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   data-resource-extra="포함된 ISO 도 함께 삭제돼요.">
+                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -189,6 +199,8 @@
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   th:data-cascade-true-title="|하위 ISO ${os.isos.?[isDeleted].size()}건도 함께 복구|"
                                   th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ' · ')}">
+                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <!-- S5-6-1 — typed-name expected value 가 form 에 박히지 않음. modal trigger 시 BE 가 응답. -->
@@ -199,6 +211,8 @@
                                   th:data-resource-id="${os.id}"
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   data-resource-extra="포함된 ISO 의 sidecar 와 본체 파일도 모두 정리돼요.">
+                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>

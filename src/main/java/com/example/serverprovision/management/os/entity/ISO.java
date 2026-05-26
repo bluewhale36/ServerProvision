@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OS 이미지에 귀속되는 ISO 파일 레코드.
+ * OS 메타데이터에 귀속되는 ISO 파일 레코드.
  *
  * <p>MK2 — {@link LifecycleEntity} 상속으로 lifecycle 4 boolean + audit + 가드 로직을 super 가 보유한다.
  * 본 엔티티는 ISO 고유 필드 (path · checksum · marker · 제공 관계 · 추출 시점) 만 책임진다.
@@ -37,8 +37,8 @@ public class ISO extends LifecycleEntity implements Markable {
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@OnDelete(action = OnDeleteAction.CASCADE)
-	@JoinColumn(name = "os_image_id", nullable = false)
-	private OSImage osImage;
+	@JoinColumn(name = "os_metadata_id", nullable = false)
+	private OSMetadata osMetadata;
 
 	@Column(name = "iso_path", nullable = false, length = 1024)
 	private String isoPath;
@@ -184,12 +184,12 @@ public class ISO extends LifecycleEntity implements Markable {
 	}
 
 	/**
-	 * S5-2 — typed-name 검증 + modal 표시 기준. 부모 OSImage 의 displayName + 파일명.
+	 * S5-2 — typed-name 검증 + modal 표시 기준. 부모 OSMetadata 의 displayName + 파일명.
 	 */
 	@Override
 	public String displayName() {
 		String basename = isoPath != null ? isoPath.replaceAll(".*/", "") : "";
-		return osImage.displayName() + " " + basename;
+		return osMetadata.displayName() + " " + basename;
 	}
 
 	/**
@@ -197,7 +197,7 @@ public class ISO extends LifecycleEntity implements Markable {
 	 */
 	@Override
 	public java.util.Optional<com.example.serverprovision.global.marker.Markable> getParentMarkable() {
-		return java.util.Optional.ofNullable(osImage);
+		return java.util.Optional.ofNullable(osMetadata);
 	}
 
 	public void recordIntegritySnapshot(

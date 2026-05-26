@@ -5,12 +5,12 @@
   공통 레이아웃 프래그먼트
   ─────────────────────────────────────────────────────────────
   commonHead(pageTitle)
-    · pageTitle : 브라우저 탭 제목 (예: 'OS 이미지 관리')
+    · pageTitle : 브라우저 탭 제목 (예: 'OS 메타데이터 관리')
     · 배경 작업 알림 센터용 CSS/JS 를 모든 페이지에 공통 로드한다.
 
   navbar(activePage)
     · activePage 키
-        Management   : 'os-image' | 'board' | 'bios' | 'bmc' | 'driver'
+        Management   : 'os-metadata' | 'board' | 'bios' | 'bmc' | 'driver'
         Maintenance  : 'reconciliation'
         Provisioning : 'setting' | 'server'
     · 구현 완료 메뉴는 <a>, 미구현은 <span aria-disabled="true"> 로 남겨
@@ -61,7 +61,7 @@
     <!-- Maintenance -->
     <a th:href="@{/management/os}"
        class="n-nav-link"
-       th:classappend="${activePage == 'os-image'} ? ' active'">OS 버전</a>
+       th:classappend="${activePage == 'os-metadata'} ? ' active'">OS 버전</a>
     <a th:href="@{/management/board}"
        class="n-nav-link"
        th:classappend="${activePage == 'board'} ? ' active'">메인보드</a>

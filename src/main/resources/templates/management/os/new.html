@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  A1. OS 이미지 신규 등록 폼
+  A1. OS 메타데이터 신규 등록 폼
   ─────────────────────────────────────────────────────────
   MK2 WAVE 1 — XHR JSON 제출 + nudge modal.
     · POST /management/os 가 200/{redirect} 또는 409/NUDGE_REQUIRED JSON 으로 응답.
     · soft-deleted 또는 deprecated 동일 (OSName, osVersion) 충돌 시 NudgeModal.handle 위임.
 
   Model:
-    osImageForm : OSImageCreateRequest   @ModelAttribute (BindingResult 대상)
+    osMetadataForm : OSMetadataCreateRequest   @ModelAttribute (BindingResult 대상)
     osNameOptions : List<OSName>         MVP 대상 3종 (ROCKY_LINUX, CENTOS, UBUNTU)
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('OS 버전 등록')}"></th:block>
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('os-image')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('os-metadata')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
@@ -27,9 +27,9 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <form id="osImageForm"
+            <form id="osMetadataForm"
                   th:action="@{/management/os}"
-                  th:object="${osImageForm}"
+                  th:object="${osMetadataForm}"
                   method="post"
                   novalidate>
 
@@ -80,10 +80,10 @@
 </div>
 
 <!-- MK2 WAVE 1 — nudge modal (메타 단독 충돌용). -->
-<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/image-nudge')}"></div>
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/metadata-nudge')}"></div>
 
 <script th:src="@{/global/form-error.js}"></script>
 <script th:src="@{/global/nudge-modal.js}"></script>
-<script th:src="@{/management/os/os-image-new.js}"></script>
+<script th:src="@{/management/os/os-metadata-new.js}"></script>
 </body>
 </html>

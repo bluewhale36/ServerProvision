@@ -14,7 +14,7 @@ import java.util.Map;
  * @param resourceType {@code "BIOS_BUNDLE"} 등 {@link ResourceType} 의 name. 문자열로 보존.
  * @param resourceId   엔티티 PK
  * @param attributes   도메인별 부속 (예: BIOS — {@code boardId}, {@code version}, {@code entrypointRelativePath};
- *                     ISO — {@code osImageId}, {@code originalFilename})
+ *                     ISO — {@code osMetadataId}, {@code originalFilename})
  * @param createdAt    마커 발급 시각
  * @param manifestHash 자원 무결성 해시. 디렉토리는 canonicalized 트리, 단일 파일은 SHA-256(bytes)
  * @param signature    HMAC-SHA256 (signature 제외 직렬화 + secret). 서명 검증 시점엔 본인 비교용

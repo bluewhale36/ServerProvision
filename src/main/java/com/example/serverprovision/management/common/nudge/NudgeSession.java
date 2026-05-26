@@ -16,7 +16,7 @@ import java.util.UUID;
  *
  * @param nudgeId           UUID v4
  * @param resourceType      어느 도메인 컨트롤러가 발급한 세션인지
- * @param boardId           BIOS/BMC/Subprogram 용 보드 id (OS/ISO 의 경우 osImageId 로 의미 전환). null 가능 (Subprogram common scope, OSImage / Board 메타 nudge)
+ * @param boardId           BIOS/BMC/Subprogram 용 보드 id (OS/ISO 의 경우 osMetadataId 로 의미 전환). null 가능 (Subprogram common scope, OSMetadata / Board 메타 nudge)
  * @param conflictTargetIds 사용자에게 노출할 기존 충돌 후보 자원 id (soft-deleted / Deprecated)
  * @param payload           phase 별 pending 데이터 ({@link ContentNudgePayload} 또는 {@link IntentMetaNudgePayload})
  * @param createdAt         세션 생성 시각

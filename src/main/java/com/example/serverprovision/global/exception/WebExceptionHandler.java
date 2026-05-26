@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
  * </ul>
  *
  * <p>{@link SecurityException} 은 본 advice 에서 다루지 않고 항상 {@link ApiExceptionHandler} 가 JSON 으로 응답한다.
- * 이유 : 보안 예외가 발생하는 엔드포인트군 (BIOS / BMC / OSImage / Subprogram 의 upload / upload-intent / browse) 은
+ * 이유 : 보안 예외가 발생하는 엔드포인트군 (BIOS / BMC / OSMetadata / Subprogram 의 upload / upload-intent / browse) 은
  * 모두 {@code @ResponseBody} XHR 호출이며 클라이언트가 응답 사유를 파싱해 사용자에게 inline 노출한다. 본 advice 에
  * SSR variant 를 추가하면 {@code Accept: *}{@code /*} 매칭에서 XHR 에 HTML 가 회신되어 클라이언트 파싱이 깨진다.
  * SSR 폼이 직접 보안 예외를 만나는 경로는 현 시점에 존재하지 않는다.</p>

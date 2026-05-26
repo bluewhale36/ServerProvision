@@ -1,31 +1,31 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  A1. OS 이미지 수정 폼
+  A1. OS 메타데이터 수정 폼
   ─────────────────────────────────────────────────────────
   Model:
-    osImageForm : OSImageUpdateRequest   @ModelAttribute (osVersion / repoPath / description)
-    osImageId   : Long                    경로 파라미터
+    osMetadataForm : OSMetadataUpdateRequest   @ModelAttribute (osVersion / repoPath / description)
+    osMetadataId   : Long                    경로 파라미터
     osNameLabel : String                  화면 표시용 ("Rocky Linux" 등, 수정 불가)
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('OS 버전 수정')}"></th:block>
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('os-image')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('os-metadata')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
         <h1 class="n-page-title">OS 버전 수정</h1>
         <div class="n-header-actions">
-            <a th:href="@{/management/os(selectId=${osImageId})}" class="n-back-link">← 목록으로</a>
+            <a th:href="@{/management/os(selectId=${osMetadataId})}" class="n-back-link">← 목록으로</a>
         </div>
     </div>
 
     <div class="n-card">
         <div class="n-card-body">
-            <form th:action="@{/management/os/{id}/edit(id=${osImageId})}"
-                  th:object="${osImageForm}"
+            <form th:action="@{/management/os/{id}/edit(id=${osMetadataId})}"
+                  th:object="${osMetadataForm}"
                   method="post"
                   novalidate>
 
@@ -41,13 +41,8 @@
 
                 <div class="n-form-group">
                     <label class="n-label strong" for="osVersion">OS 버전</label>
-                    <input id="osVersion" type="text" th:field="*{osVersion}"
-                           class="n-input"
-                           data-error-field="osVersion"
-                           th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'"
-                           placeholder="예: 9.6">
-                    <div class="n-error" th:if="${#fields.hasErrors('osVersion')}"
-                         th:errors="*{osVersion}"></div>
+                    <input id="osVersion" type="text" class="n-input" th:value="${osVersionLabel}" readonly>
+                    <div class="n-hint">변경하려면 자원을 삭제 후 다시 생성해주세요.</div>
                 </div>
 
                 <div class="n-form-group">
@@ -58,7 +53,7 @@
                 </div>
 
                 <div class="n-form-actions">
-                    <a th:href="@{/management/os(selectId=${osImageId})}"
+                    <a th:href="@{/management/os(selectId=${osMetadataId})}"
                        class="n-btn n-btn-secondary">취소</a>
                     <button type="submit" class="n-btn n-btn-primary">저장</button>
                 </div>

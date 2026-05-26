@@ -8,7 +8,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 /**
- * OS 이미지에 귀속되는 패키지 그룹 레코드.
+ * OS 메타데이터에 귀속되는 패키지 그룹 레코드.
  * 동일 {@code groupCode} 가 여러 ISO 에 의해 제공될 수 있으므로 ISO 와의 관계는 N:M 이며, 소유 측은 {@link ISO} 쪽이다.
  * 여기서는 그룹 본체만 관리하고, 제공자 목록 조회는 Service 가 별도 쿼리로 수행한다.
  */
@@ -26,8 +26,8 @@ public class OSPackageGroup extends BaseTimeEntity {
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@OnDelete(action = OnDeleteAction.CASCADE)
-	@JoinColumn(name = "os_image_id", nullable = false)
-	private OSImage osImage;
+	@JoinColumn(name = "os_metadata_id", nullable = false)
+	private OSMetadata osMetadata;
 
 	@Embedded
 	private PackageGroupCode groupCode;

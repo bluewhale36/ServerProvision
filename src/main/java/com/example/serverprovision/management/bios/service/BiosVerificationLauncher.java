@@ -19,7 +19,7 @@ import java.util.Map;
  * BIOS 트리 무결성 검증 Job 시작자. {@link BiosService#verifyIntegrity(Long, Long)} 동기 호출을
  * BackgroundJob 으로 감싼다. 트리 manifest 재계산은 파일 수에 비례해 시간이 늘어나므로 비동기화 효과가 크다.
  *
- * <p>구조는 {@link com.example.serverprovision.management.os.service.IsoVerificationLauncher} 와 대칭.</p>
+ * <p>구조는 {@link com.example.serverprovision.management.os.service.iso.IsoVerificationLauncher} 와 대칭.</p>
  */
 @Slf4j
 @Component

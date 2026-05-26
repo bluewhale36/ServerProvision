@@ -3,7 +3,7 @@
  *
  * 사용법:
  *   NudgeModal.handle(payload, {
- *       baseUrl: '/management/os/image-nudge',  // confirm endpoint prefix
+ *       baseUrl: '/management/os/metadata-nudge',  // confirm endpoint prefix
  *       listUrl: '/management/os',              // 종결 후 redirect 기본값
  *       toastKey: 'os.image.toast',             // sessionStorage 키 (선택)
  *       onError: (msg) => { ... },              // 표시 콜백
