@@ -18,6 +18,7 @@ import com.example.serverprovision.management.os.exception.IsoUploadIntentConfli
 import com.example.serverprovision.management.os.exception.OSMetadataNotFoundException;
 import com.example.serverprovision.management.os.service.OSNudgeService;
 import com.example.serverprovision.management.os.service.comps.CompsExtractionLauncher;
+import com.example.serverprovision.management.os.service.iso.IsoRegistrationService;
 import com.example.serverprovision.management.os.service.iso.IsoRegistrationLauncher;
 import com.example.serverprovision.management.os.service.iso.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.iso.IsoVerificationLauncher;
@@ -61,6 +62,8 @@ class OSMetadataControllerUploadFlowTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean OSMetadataService osMetadataService;
+    @MockitoBean IsoRegistrationService isoRegistrationService;
+    @MockitoBean com.example.serverprovision.management.os.service.iso.IsoIntegrityService isoIntegrityService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
     @MockitoBean CompsExtractionLauncher compsExtractionLauncher;
     @MockitoBean IsoUploadIntentService isoUploadIntentService;
@@ -203,8 +206,8 @@ class OSMetadataControllerUploadFlowTest {
         @Test
         @DisplayName("정상 경로 — 200 + jobId/redirect 필드")
         void success() throws Exception {
-            given(osMetadataService.prepareIsoRegistration(eq(1L), any(), any(), any()))
-                    .willReturn(new OSMetadataService.PreparedIsoRegistration(
+            given(isoRegistrationService.prepare(eq(1L), any(), any(), any()))
+                    .willReturn(new IsoRegistrationService.PreparedIsoRegistration(
                             1L, "/mnt/iso/dvd.iso", "", "dvd.iso", true));
             given(isoRegistrationLauncher.startRegistration(any())).willReturn("job-iso-1");
 
@@ -237,7 +240,7 @@ class OSMetadataControllerUploadFlowTest {
         @DisplayName("경로 형식 오류 (빈 문자열 우회 → InvalidPathException 흐름) → 409")
         void invalidPath_returns409() throws Exception {
             doThrow(new InvalidIsoPathException("ISO 경로 형식이 올바르지 않습니다 : bad"))
-                    .when(osMetadataService).prepareIsoRegistration(eq(1L), any(), any(), any());
+                    .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -252,7 +255,7 @@ class OSMetadataControllerUploadFlowTest {
         @DisplayName("체크섬 중복 → 409 DuplicateISOContentException")
         void duplicateContent_returns409() throws Exception {
             doThrow(new DuplicateISOContentException("/mnt/iso/existing.iso"))
-                    .when(osMetadataService).prepareIsoRegistration(eq(1L), any(), any(), any());
+                    .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -267,7 +270,7 @@ class OSMetadataControllerUploadFlowTest {
         @DisplayName("파일시스템 동일 이름 파일 → 409 DuplicateFilenameException")
         void fileAlreadyExists_returns409() throws Exception {
             doThrow(new DuplicateFilenameException("/mnt/iso/dvd.iso"))
-                    .when(osMetadataService).prepareIsoRegistration(eq(1L), any(), any(), any());
+                    .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(buildFile())
@@ -282,7 +285,7 @@ class OSMetadataControllerUploadFlowTest {
         @DisplayName("OSMetadata not found → 404")
         void unknownOs_returns404() throws Exception {
             doThrow(new OSMetadataNotFoundException(999L))
-                    .when(osMetadataService).prepareIsoRegistration(eq(999L), any(), any(), any());
+                    .when(isoRegistrationService).prepare(eq(999L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/999/iso/upload")
                             .file(buildFile())
@@ -333,7 +336,7 @@ class OSMetadataControllerUploadFlowTest {
     @Test
     @DisplayName("GET /{osId}/iso/{isoId}/integrity-status : 200 + status/badgeClass")
     void integrityStatus() throws Exception {
-        given(osMetadataService.findIntegrityStatus(1L, 2L))
+        given(isoIntegrityService.findStatus(1L, 2L))
                 .willReturn(IntegrityStatusResponse.of(2L, IntegrityStatus.SIGNATURE_INVALID, null));
 
         mvc.perform(get("/management/os/1/iso/2/integrity-status"))
@@ -493,7 +496,7 @@ class OSMetadataControllerUploadFlowTest {
         void phase3_hashMismatch_returns400() throws Exception {
             doThrow(new com.example.serverprovision.management.os.exception.IsoClientHashMismatchException(
                     "abcdef…", "fedcba…"))
-                    .when(osMetadataService).prepareIsoRegistration(eq(1L), any(), any(), any());
+                    .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
                             .file(new MockMultipartFile("file", "dvd.iso", "application/octet-stream", new byte[]{1, 2, 3}))

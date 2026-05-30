@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 public class IsoLifecycleController {
 
 	private final OSMetadataService osMetadataService;
+	private final com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
 	private final DeleteIntentRegistry deleteIntentRegistry;
 
 	@GetMapping("/{osId}/iso/{isoId}/edit")
@@ -70,25 +71,31 @@ public class IsoLifecycleController {
 			OSControllerSupport.populateIsoFormContext(model, osId, isoId, os);
 			return "management/os/iso-edit";
 		}
-		return OSControllerSupport.redirectToListWithSelect(osId);
+		return OSControllerSupport.redirectToListWithSelect(osId);   // updateIso 는 별도 — selectKey 보존 미적용
 	}
 
 	@PostMapping("/{osId}/iso/{isoId}/toggle")
 	public String toggleIso(
 			@PathVariable("osId") Long osId,
-			@PathVariable("isoId") Long isoId
+			@PathVariable("isoId") Long isoId,
+			@RequestParam(name = "selectKey", required = false) String selectKey,
+			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted
 	) {
-		osMetadataService.toggleIsoEnabled(osId, isoId);
-		return OSControllerSupport.redirectToListWithSelect(osId);
+		isoLifecycleService.assertBelongsToOs(isoId, osId);
+		isoLifecycleService.toggleEnabled(isoId);
+		return OSControllerSupport.redirectToList(osId, selectKey, includeDeleted);
 	}
 
 	@PostMapping("/{osId}/iso/{isoId}/delete")
 	public String deleteIso(
 			@PathVariable("osId") Long osId,
-			@PathVariable("isoId") Long isoId
+			@PathVariable("isoId") Long isoId,
+			@RequestParam(name = "selectKey", required = false) String selectKey,
+			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted
 	) {
-		osMetadataService.softDeleteISO(osId, isoId);
-		return OSControllerSupport.redirectToListWithSelect(osId);
+		isoLifecycleService.assertBelongsToOs(isoId, osId);
+		isoLifecycleService.softDelete(isoId);
+		return OSControllerSupport.redirectToList(osId, selectKey, includeDeleted);
 	}
 
 	/**
@@ -106,45 +113,58 @@ public class IsoLifecycleController {
 	) {
 		DeleteIntentToken parsed = DeleteIntentToken.parse(token);
 		deleteIntentRegistry.consume(parsed, ResourceType.OS_ISO, isoId);
-		osMetadataService.softDeleteISOWithIntent(osId, isoId, request.action());
+		isoLifecycleService.assertBelongsToOs(isoId, osId);
+		isoLifecycleService.softDeleteWithIntent(isoId, request.action());
 		return ResponseEntity.noContent().build();
 	}
 
 	@PostMapping("/{osId}/iso/{isoId}/restore")
 	public String restoreIso(
 			@PathVariable("osId") Long osId,
-			@PathVariable("isoId") Long isoId
+			@PathVariable("isoId") Long isoId,
+			@RequestParam(name = "selectKey", required = false) String selectKey,
+			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted
 	) {
-		osMetadataService.restoreISO(osId, isoId);
-		return OSControllerSupport.redirectToListWithSelect(osId);
+		isoLifecycleService.assertBelongsToOs(isoId, osId);
+		isoLifecycleService.restore(isoId);
+		return OSControllerSupport.redirectToList(osId, selectKey, includeDeleted);
 	}
 
 	@PostMapping("/{osId}/iso/{isoId}/deprecate")
 	public String deprecateIso(
 			@PathVariable("osId") Long osId,
-			@PathVariable("isoId") Long isoId
+			@PathVariable("isoId") Long isoId,
+			@RequestParam(name = "selectKey", required = false) String selectKey,
+			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted
 	) {
-		osMetadataService.deprecateIso(osId, isoId);
-		return OSControllerSupport.redirectToListWithSelect(osId);
+		isoLifecycleService.assertBelongsToOs(isoId, osId);
+		isoLifecycleService.deprecate(isoId);
+		return OSControllerSupport.redirectToList(osId, selectKey, includeDeleted);
 	}
 
 	@PostMapping("/{osId}/iso/{isoId}/undeprecate")
 	public String undeprecateIso(
 			@PathVariable("osId") Long osId,
-			@PathVariable("isoId") Long isoId
+			@PathVariable("isoId") Long isoId,
+			@RequestParam(name = "selectKey", required = false) String selectKey,
+			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted
 	) {
-		osMetadataService.undeprecateIso(osId, isoId);
-		return OSControllerSupport.redirectToListWithSelect(osId);
+		isoLifecycleService.assertBelongsToOs(isoId, osId);
+		isoLifecycleService.undeprecate(isoId);
+		return OSControllerSupport.redirectToList(osId, selectKey, includeDeleted);
 	}
 
 	@PostMapping("/{osId}/iso/{isoId}/purge")
 	public String purgeIso(
 			@PathVariable("osId") Long osId,
 			@PathVariable("isoId") Long isoId,
-			@RequestParam("typedName") String typedName
+			@RequestParam("typedName") String typedName,
+			@RequestParam(name = "selectKey", required = false) String selectKey,
+			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted
 	) {
-		osMetadataService.purgeIsoWithTypedNameCheck(osId, isoId, typedName);
-		return OSControllerSupport.redirectToListWithSelect(osId);
+		isoLifecycleService.assertBelongsToOs(isoId, osId);
+		isoLifecycleService.purgeWithTypedNameCheck(isoId, typedName);
+		return OSControllerSupport.redirectToList(osId, selectKey, includeDeleted);
 	}
 
 	/**

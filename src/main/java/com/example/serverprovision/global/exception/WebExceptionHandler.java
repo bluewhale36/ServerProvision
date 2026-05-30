@@ -47,6 +47,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
  */
 @ControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
+// R1-4-1 hotfix v3 — v1 의 `HIGHEST_PRECEDENCE - 100` 은 Integer.MIN_VALUE underflow 로 사실상 LOWEST 가
+// 되어 무효였고, v2 의 양수 offset 은 Accept: */* 테스트 28건 회귀를 일으켰다. v3 부터는 양 advice 모두
+// HIGHEST 로 통일하고 Spring 의 ContentNegotiation 매처에 위임한다 (Accept 헤더와 produces 호환성만으로 분리).
+// !!! 절대 금지 : @Order 값에 HIGHEST_PRECEDENCE +/- 산술 연산 사용 (overflow 위험).
 public class WebExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(WebExceptionHandler.class);

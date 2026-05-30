@@ -74,6 +74,22 @@ public class TrashService {
 	}
 
 	/**
+	 * HF-1 — FS-first 역보상. restore 본문 mv (moveBack) 후 후속 단계 (마커 write 등) 실패 시
+	 * 원위치로 옮겨진 자원을 다시 trash 로 되돌린다. @Transactional 롤백과 FS 상태를 동방향 (둘 다 trash)
+	 * 으로 맞춰 dangling stale row 발생을 차단한다.
+	 *
+	 * <p>{@link #moveBack} 의 방향만 뒤집은 동작 — 신규 mv 로직 없이 기존 {@link #moveWithRetry}
+	 * (3회 ATOMIC_MOVE → fallback) 를 그대로 재사용한다 (CLAUDE.md §중복 지양).</p>
+	 *
+	 * @param originalPath 후속 실패로 원위치에 남은 자원 경로 (mv 출발지)
+	 * @param trashedPath  되돌릴 trash 내 경로 (mv 도착지)
+	 */
+	public void moveBackReverse(Path originalPath, Path trashedPath) {
+		moveWithRetry(originalPath, trashedPath);
+		log.info("[trash] moveBackReverse (역보상) from={} to={}", originalPath, trashedPath);
+	}
+
+	/**
 	 * 원본 파일명 + ms timestamp + UUID8 suffix 합성. 같은 ms 안에 두 번 호출되어도 UUID 로 고유 보장.
 	 */
 	private String generateTrashedFileName(Path resourcePath) {

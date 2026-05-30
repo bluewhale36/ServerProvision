@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.os.service;
 
-import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
+import com.example.serverprovision.management.os.service.iso.IsoRegistrationService;
 import com.example.serverprovision.management.os.service.iso.IsoUploadIntentService;
 
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
@@ -44,7 +44,7 @@ import java.util.UUID;
 public class OSNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
-	private final OSMetadataService osMetadataService;
+	private final IsoRegistrationService isoRegistrationService;
 	private final ISORepository isoRepository;
 	private final IsoUploadIntentService isoUploadIntentService;
 
@@ -54,7 +54,7 @@ public class OSNudgeService {
 	@Transactional
 	public Long proceed(UUID nudgeId) {
 		NudgeSession session = requireOsIsoSession(nudgeId);
-		Long isoId = osMetadataService.completePendingIsoFromNudge(session);
+		Long isoId = isoRegistrationService.completePendingFromNudge(session);
 		consumeSession(nudgeId);
 		log.info("[osNudge] proceed 완료. nudgeId={}, newIsoId={}", nudgeId, isoId);
 		return isoId;
@@ -72,10 +72,10 @@ public class OSNudgeService {
 		// 1) 충돌 후보 명시적 purge — 별도 트랜잭션 경계가 필요한 경우 OSMetadataService 의 purge 메서드를 호출.
 		ISO target = isoRepository.findById(targetId)
 				.orElseThrow(() -> new ISONotFoundException(session.boardId(), targetId));
-		osMetadataService.purgeIsoForNudge(target);
+		isoRegistrationService.purgeForNudge(target);
 
 		// 2) 신규 자원을 ACTIVE 로 영속화.
-		Long newIsoId = osMetadataService.completePendingIsoFromNudge(session);
+		Long newIsoId = isoRegistrationService.completePendingFromNudge(session);
 		consumeSession(nudgeId);
 		log.info(
 				"[osNudge] replace 완료. nudgeId={}, purgedTargetId={}, newIsoId={}",
@@ -122,7 +122,7 @@ public class OSNudgeService {
 		}
 		ISO target = isoRepository.findById(targetId)
 				.orElseThrow(() -> new ISONotFoundException(session.boardId(), targetId));
-		osMetadataService.purgeIsoForNudge(target);
+		isoRegistrationService.purgeForNudge(target);
 		var reissue = isoUploadIntentService.reconstructFromAttributes(payload.attributes());
 		IsoUploadIntentResponse response = isoUploadIntentService.issueAfterNudge(reissue.osMetadataId(), reissue.request());
 		consumeSession(nudgeId);

@@ -8,6 +8,7 @@ import com.example.serverprovision.management.common.filesystem.service.Director
 import com.example.serverprovision.management.os.service.OSNudgeService;
 import com.example.serverprovision.management.os.service.comps.CompsExtractionLauncher;
 import com.example.serverprovision.management.os.service.iso.IsoRegistrationLauncher;
+import com.example.serverprovision.management.os.service.iso.IsoRegistrationService;
 import com.example.serverprovision.management.os.service.iso.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.iso.IsoVerificationLauncher;
 import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
@@ -52,6 +53,7 @@ class OSMetadataControllerSecurityFlowTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean OSMetadataService osMetadataService;
+    @MockitoBean IsoRegistrationService isoRegistrationService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
     @MockitoBean OSNudgeService osNudgeService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataNudgeService osMetadataNudgeService;
@@ -86,7 +88,7 @@ class OSMetadataControllerSecurityFlowTest {
                 .willReturn(new IsoUploadIntentService.Intent(
                         1L, "/opt/iso/x.iso", "x.iso", 1024L, null, Instant.now()));
         willThrow(new ZipBombSuspectedException("iso 내부 zip 손상 또는 ratio 초과"))
-                .given(osMetadataService).prepareIsoRegistration(eq(1L), any(), any(), any());
+                .given(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
         mvc.perform(multipart("/management/os/1/iso/upload")
                         .file(new MockMultipartFile("file", "x.iso", "application/octet-stream", "data".getBytes()))
@@ -106,7 +108,7 @@ class OSMetadataControllerSecurityFlowTest {
                 .willReturn(new IsoUploadIntentService.Intent(
                         1L, "/opt/iso/x.iso", "x.iso", 1024L, null, Instant.now()));
         willThrow(new UploadLimitExceededException("size > limit"))
-                .given(osMetadataService).prepareIsoRegistration(eq(1L), any(), any(), any());
+                .given(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
         mvc.perform(multipart("/management/os/1/iso/upload")
                         .file(new MockMultipartFile("file", "x.iso", "application/octet-stream", "data".getBytes()))
@@ -126,7 +128,7 @@ class OSMetadataControllerSecurityFlowTest {
                 .willReturn(new IsoUploadIntentService.Intent(
                         1L, "/opt/iso/x.iso", "x.iso", 1024L, null, Instant.now()));
         willThrow(new ZipBombInspectionFailedException("disk full", new RuntimeException("io")))
-                .given(osMetadataService).prepareIsoRegistration(eq(1L), any(), any(), any());
+                .given(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
         mvc.perform(multipart("/management/os/1/iso/upload")
                         .file(new MockMultipartFile("file", "x.iso", "application/octet-stream", "data".getBytes()))

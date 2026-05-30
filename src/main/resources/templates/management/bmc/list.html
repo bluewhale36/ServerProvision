@@ -223,6 +223,7 @@
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/restore(boardId=${board.id},bmcId=${bmc.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-restore=""
+                                  data-async-submit=""
                                   th:data-resource-label="|BMC '${bmc.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>

@@ -1,7 +1,5 @@
 package com.example.serverprovision.management.os.service.iso;
 
-import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
-
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.management.os.exception.IsoNudgeRequiredException;
 import lombok.RequiredArgsConstructor;
@@ -27,14 +25,14 @@ public class IsoRegistrationRunner {
 	 */
 	public static final String NUDGE_FAIL_PREFIX = "NUDGE_REQUIRED:";
 
-	private final OSMetadataService osMetadataService;
+	private final IsoRegistrationService isoRegistrationService;
 	private final BackgroundJobService backgroundJobService;
 
 	@Async
-	public void runAsync(String jobId, OSMetadataService.PreparedIsoRegistration prepared) {
+	public void runAsync(String jobId, IsoRegistrationService.PreparedIsoRegistration prepared) {
 		try {
 			backgroundJobService.startStage(jobId, IsoRegistrationStage.COMPUTE_HASH);
-			Long isoId = osMetadataService.finalizePreparedIsoRegistration(jobId, prepared);
+			Long isoId = isoRegistrationService.finalize(jobId, prepared);
 			backgroundJobService.complete(jobId);
 			log.info(
 					"[IsoRegistrationRunner] ISO 등록 완료. jobId={}, isoId={}, path={}",

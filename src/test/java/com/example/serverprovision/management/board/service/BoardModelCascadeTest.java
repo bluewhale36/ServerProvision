@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * S5-2-3-1 — Board 부모 lifecycle cascade 단위 테스트.
@@ -65,8 +66,8 @@ class BoardModelCascadeTest {
     }
 
     @Test
-    @DisplayName("toggle off : 부모 비활성 → 자식 BIOS / BMC 모두 비활성. deprecated/deleted 자식은 skip.")
-    void toggleOff_cascadesBothChildTypes() {
+    @DisplayName("HF-2 toggle off : 부모 비활성 → BIOS/BMC enabled 자식 전부(active + deprecated + soft-deleted) 비활성 동기화 (비대칭).")
+    void toggleOff_disablesAllEnabledChildren_includingTrashedAndDeprecated() {
         BoardModel p = parent(true, false);
         BoardBIOS biosActive = bios(101L, p, true, false, false);
         BoardBIOS biosDeprecated = bios(102L, p, true, true, false);
@@ -81,10 +82,22 @@ class BoardModelCascadeTest {
         boardModelService.toggleEnabled(7L);
 
         assertThat(p.isEnabled()).isFalse();
-        assertThat(biosActive.isEnabled()).isFalse();      // cascade
-        assertThat(biosDeprecated.isEnabled()).isTrue();   // skip
-        assertThat(bmcActive.isEnabled()).isFalse();       // cascade
-        assertThat(bmcDeleted.isEnabled()).isTrue();       // skip — deleted
+        assertThat(biosActive.isEnabled()).isFalse();        // 동기화
+        assertThat(biosDeprecated.isEnabled()).isFalse();    // HF-2 — deprecated 자식도 동기화
+        assertThat(bmcActive.isEnabled()).isFalse();         // 동기화
+        assertThat(bmcDeleted.isEnabled()).isFalse();        // HF-2 — soft-deleted 자식도 동기화 (stale 씨앗 차단)
+    }
+
+    @Test
+    @DisplayName("HF-2 toggle on : 부모 활성 → 자식 cascade 미적용. BIOS/BMC repository 조회조차 안 함 (early return).")
+    void toggleOn_doesNotCascadeToChildren() {
+        BoardModel p = parent(false, false);
+        given(boardModelRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(p));
+
+        boardModelService.toggleEnabled(7L);
+
+        assertThat(p.isEnabled()).isTrue();
+        verifyNoInteractions(biosRepository, bmcRepository, biosService, bmcService);
     }
 
     @Test

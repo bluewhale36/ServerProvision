@@ -7,6 +7,7 @@ import com.example.serverprovision.management.os.dto.response.IsoUploadIntentRes
 import com.example.serverprovision.management.os.dto.response.IsoUploadResponse;
 import com.example.serverprovision.management.os.dto.response.OSMetadataResponse;
 import com.example.serverprovision.management.os.service.iso.IsoRegistrationLauncher;
+import com.example.serverprovision.management.os.service.iso.IsoRegistrationService;
 import com.example.serverprovision.management.os.service.iso.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
 import jakarta.validation.Valid;
@@ -25,9 +26,9 @@ import org.springframework.web.multipart.MultipartFile;
  * 한 컨트롤러에 묶었다. lifecycle (수정/삭제/복구/deprecate 등) 흐름은
  * {@link IsoLifecycleController} 가 별도로 관할한다.</p>
  *
- * <p>의존성: {@link OSMetadataService} (등록 prepare), {@link IsoUploadIntentService} (intent
- * token 발급/consume), {@link IsoRegistrationLauncher} (job 등록). 다른 컨트롤러와 중복되는 의존은
- * {@code OSMetadataService} 뿐 — hub 성격이라 불가피.</p>
+ * <p>의존성: {@link IsoRegistrationService} (등록 prepare, R1-4-2 분리), {@link OSMetadataService}
+ * (폼 컨텍스트용 부모 조회), {@link IsoUploadIntentService} (intent token 발급/consume),
+ * {@link IsoRegistrationLauncher} (job 등록).</p>
  */
 @Controller
 @RequestMapping("/management/os")
@@ -35,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class IsoUploadController {
 
 	private final OSMetadataService osMetadataService;
+	private final IsoRegistrationService isoRegistrationService;
 	private final IsoUploadIntentService isoUploadIntentService;
 	private final IsoRegistrationLauncher isoRegistrationLauncher;
 
@@ -59,8 +61,8 @@ public class IsoUploadController {
 			OSControllerSupport.populateIsoFormContext(model, osId, null, os);
 			return "management/os/iso-new";
 		}
-		OSMetadataService.PreparedIsoRegistration prepared =
-				osMetadataService.prepareIsoRegistration(osId, request, file);
+		IsoRegistrationService.PreparedIsoRegistration prepared =
+				isoRegistrationService.prepare(osId, request, file);
 		isoRegistrationLauncher.startRegistration(prepared);
 		return OSControllerSupport.redirectToListWithSelect(osId);
 	}
@@ -123,8 +125,8 @@ public class IsoUploadController {
 			IsoUploadIntentService.Intent intent = isoUploadIntentService.consume(osId, uploadToken);
 			if (intent != null) clientHash = intent.clientHash();
 		}
-		OSMetadataService.PreparedIsoRegistration prepared =
-				osMetadataService.prepareIsoRegistration(osId, request, file, clientHash);
+		IsoRegistrationService.PreparedIsoRegistration prepared =
+				isoRegistrationService.prepare(osId, request, file, clientHash);
 		String jobId = isoRegistrationLauncher.startRegistration(prepared);
 		String redirect = "/management/os?selectId=" + osId;
 		return ResponseEntity.ok(new IsoUploadResponse(jobId, redirect));

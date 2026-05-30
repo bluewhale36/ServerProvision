@@ -266,6 +266,7 @@
                             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/restore(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-restore=""
+                                  data-async-submit=""
                                   th:data-resource-label="|BIOS '${bios.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>

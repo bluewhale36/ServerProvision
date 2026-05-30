@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.os.service.iso;
 
-import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
+// R1-4-1 — OSMetadataService 의존 제거, IsoLifecycleService 로 교체
 
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
@@ -37,7 +37,7 @@ import java.util.Set;
 public class IsoMarkableScanner implements MarkableScanner {
 
 	private final ISORepository isoRepository;
-	private final OSMetadataService osMetadataService;
+	private final IsoLifecycleService isoLifecycleService;
 
 	@Override
 	public ResourceType supportedType() {
@@ -136,14 +136,14 @@ public class IsoMarkableScanner implements MarkableScanner {
 	public void restoreFromTrash(Long resourceId) {
 		ISO iso = isoRepository.findById(resourceId)
 				.orElseThrow(() -> new IllegalStateException("ISO not found for trash restore: " + resourceId));
-		osMetadataService.restoreISO(iso.getOsMetadata().getId(), resourceId);
+		isoLifecycleService.restore(resourceId);
 	}
 
 	@Override
 	public void purgeFromTrash(Long resourceId) {
 		ISO iso = isoRepository.findById(resourceId)
 				.orElseThrow(() -> new IllegalStateException("ISO not found for trash purge: " + resourceId));
-		osMetadataService.purgeIso(iso.getOsMetadata().getId(), resourceId);
+		isoLifecycleService.purge(resourceId);
 	}
 
 	// ---- MK3-1 — Ghost SPI -------------------------------------------

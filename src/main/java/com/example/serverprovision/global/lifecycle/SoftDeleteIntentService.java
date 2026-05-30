@@ -1,5 +1,6 @@
 package com.example.serverprovision.global.lifecycle;
 
+import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.lifecycle.exception.SoftDeleteRequiresIntentException;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
@@ -77,7 +78,7 @@ public class SoftDeleteIntentService {
 	 * <p>flag {@code provision.softdelete.reject-on-missing=false} 일 때는 검사 자체를 건너뛰고 통과
 	 * (기존 MK3 동작 유지 — 회귀 차단 + 즉시 롤백 경로).</p>
 	 */
-	public <T extends com.example.serverprovision.global.entity.LifecycleEntity & Markable> void checkPrecondition(T entity) {
+	public <T extends LifecycleEntity & Markable> void checkPrecondition(T entity) {
 		if (!rejectOnMissing) {
 			return;
 		}

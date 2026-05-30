@@ -1,7 +1,5 @@
 package com.example.serverprovision.management.os.service.iso;
 
-import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
-
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +17,7 @@ public class IsoRegistrationLauncher {
 	private final BackgroundJobService backgroundJobService;
 	private final IsoRegistrationRunner isoRegistrationRunner;
 
-	public String startRegistration(OSMetadataService.PreparedIsoRegistration prepared) {
+	public String startRegistration(IsoRegistrationService.PreparedIsoRegistration prepared) {
 		String jobId = backgroundJobService.register(
 				JobType.ISO_REGISTRATION,
 				"ISO 등록",

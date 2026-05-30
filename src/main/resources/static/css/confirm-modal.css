@@ -131,3 +131,51 @@
     border-radius: 6px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* ============================================================
+   R1-4-1 hotfix — global error modal (.gem-*)
+   ============================================================ */
+.gem-overlay {
+    position: fixed; inset: 0;
+    z-index: 1100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+}
+.gem-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+.gem-card {
+    position: relative;
+    max-width: 480px; width: 100%;
+    background: var(--n-card-bg, #fff);
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+.gem-title {
+    margin: 0 0 12px;
+    font-size: 1.1rem;
+    color: var(--n-text-strong, #1f2328);
+}
+.gem-status {
+    font-size: 0.75rem;
+    color: var(--n-text-muted, #57606a);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin-bottom: 12px;
+    padding: 4px 8px;
+    background: var(--n-surface-subtle, #f6f8fa);
+    border-radius: 4px;
+    display: inline-block;
+}
+.gem-message {
+    margin: 0 0 20px;
+    line-height: 1.55;
+    color: var(--n-text, #1f2328);
+    white-space: pre-line;
+}
+.gem-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}

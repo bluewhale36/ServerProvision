@@ -3,8 +3,8 @@ package com.example.serverprovision.management.os.controller;
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.os.service.comps.CompsExtractionLauncher;
+import com.example.serverprovision.management.os.service.iso.IsoIntegrityService;
 import com.example.serverprovision.management.os.service.iso.IsoVerificationLauncher;
-import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
  * <p>세 endpoint 모두 "사용자 액션 → BackgroundJob 등록 후 jobId 반환" 또는 "단순 read" 라는 동일
  * 패턴을 공유하고, 다른 controller 와 의존성 중복이 거의 없도록 한 곳에 묶었다.</p>
  *
- * <p>의존성: {@link OSMetadataService} (integrity-status read), {@link IsoVerificationLauncher},
+ * <p>의존성: {@link IsoIntegrityService} (integrity-status read), {@link IsoVerificationLauncher},
  * {@link CompsExtractionLauncher}. 단건 marker 재발급 endpoint 는 위험도가 높아 제거되었고,
  * 일괄 재발급은 PathReconciliationService 가 별도 도메인에서 관할.</p>
  */
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class IsoJobController {
 
-	private final OSMetadataService osMetadataService;
+	private final IsoIntegrityService isoIntegrityService;
 	private final IsoVerificationLauncher isoVerificationLauncher;
 	private final CompsExtractionLauncher compsExtractionLauncher;
 
@@ -49,7 +49,7 @@ public class IsoJobController {
 			@PathVariable("osId") Long osId,
 			@PathVariable("isoId") Long isoId
 	) {
-		return osMetadataService.findIntegrityStatus(osId, isoId);
+		return isoIntegrityService.findStatus(osId, isoId);
 	}
 
 	/**

@@ -38,7 +38,7 @@ class OSMetadataLifecycleServiceTest {
 
 	@Mock OSMetadataRepository osMetadataRepository;
 	@Mock TrashLifecycleService trashLifecycleService;
-	@Mock OSMetadataService osMetadataService;
+	@Mock com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
 
 	@InjectMocks OSMetadataLifecycleService osMetadataLifecycleService;
 
@@ -57,7 +57,7 @@ class OSMetadataLifecycleServiceTest {
 
 		assertThat(image.isDeleted()).isFalse();
 		// cascade=false 였으므로 자식 ISO restoreISO 호출 없음.
-		verify(osMetadataService, never()).restoreISO(any(), any());
+		verify(isoLifecycleService, never()).restore(any());
 	}
 
 	// ==== restore — duplicate 충돌 =====================================
@@ -104,7 +104,7 @@ class OSMetadataLifecycleServiceTest {
 
 		verify(osMetadataRepository).delete(image);
 		// 자식 ISO 0 — cleanupIsoArtifacts 호출 없음 (image.getIsos() 가 빈 리스트)
-		verify(osMetadataService, never()).cleanupIsoArtifacts(any());
+		verify(isoLifecycleService, never()).cleanupArtifacts(any());
 	}
 
 	@Test

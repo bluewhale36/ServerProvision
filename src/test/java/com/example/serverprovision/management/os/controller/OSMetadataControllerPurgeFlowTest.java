@@ -36,6 +36,7 @@ class OSMetadataControllerPurgeFlowTest {
 
     @MockitoBean OSMetadataService osMetadataService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
+    @MockitoBean com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
     @MockitoBean OSNudgeService osNudgeService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataNudgeService osMetadataNudgeService;
     @MockitoBean CompsExtractionLauncher compsExtractionLauncher;
@@ -71,8 +72,8 @@ class OSMetadataControllerPurgeFlowTest {
     @Test
     @DisplayName("ISO purge — typedName 일치 → 302 redirect, selectId 보존")
     void purgeIso_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(osMetadataService)
-                .purgeIsoWithTypedNameCheck(eq(1L), eq(7L), eq("Rocky Linux 9.6 dvd.iso"));
+        willDoNothing().given(isoLifecycleService)
+                .purgeWithTypedNameCheck(eq(7L), eq("Rocky Linux 9.6 dvd.iso"));
 
         mvc.perform(post("/management/os/1/iso/7/purge")
                         .param("typedName", "Rocky Linux 9.6 dvd.iso"))
@@ -84,8 +85,8 @@ class OSMetadataControllerPurgeFlowTest {
     @DisplayName("ISO purge — typedName 불일치 → 400")
     void purgeIso_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("Rocky Linux 9.6 dvd.iso", "x"))
-                .given(osMetadataService)
-                .purgeIsoWithTypedNameCheck(eq(1L), eq(7L), eq("x"));
+                .given(isoLifecycleService)
+                .purgeWithTypedNameCheck(eq(7L), eq("x"));
 
         mvc.perform(post("/management/os/1/iso/7/purge").param("typedName", "x"))
                 .andExpect(status().isBadRequest());

@@ -6,10 +6,8 @@ import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateReq
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.enums.OSName;
-import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
-import com.example.serverprovision.management.common.nudge.NudgeResourceType;
-import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.os.exception.DuplicateISOContentException;
 import com.example.serverprovision.management.os.exception.DuplicateOSMetadataException;
 import com.example.serverprovision.management.os.exception.OSMetadataNudgeRequiredException;
@@ -37,13 +35,13 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -66,7 +64,12 @@ class OSMetadataServiceTest {
     @Mock com.example.serverprovision.global.security.FileSystemHardener fileSystemHardener;
     @Mock com.example.serverprovision.global.trash.TrashLifecycleService trashLifecycleService;
     @Mock NudgeRegistry nudgeRegistry;
+    // R1-6 — create() 가 nudge payload 조립 + persist 를 OSMetadataNudgeService 로 위임하므로 mock 으로 위임 검증.
+    @Mock OSMetadataNudgeService osMetadataNudgeService;
+    @Mock com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
     @InjectMocks OSMetadataService osMetadataService;
+    // R1-4-2 — ISO 등록 흐름이 IsoRegistrationService 로 이동했으므로 등록 시나리오는 본 인스턴스에 위임.
+    @InjectMocks com.example.serverprovision.management.os.service.iso.IsoRegistrationService isoRegistrationService;
 
     @org.junit.jupiter.api.BeforeEach
     void stubSecurity() {
@@ -112,34 +115,26 @@ class OSMetadataServiceTest {
     }
 
     @Test
-    @DisplayName("create(happy) : 동일 (osName, osVersion) 자원이 0 건이면 저장 후 ID 반환")
-    void create_whenNotDuplicated_returnsGeneratedId() {
+    @DisplayName("create(정상 등록 위임) : 동일 (osName, osVersion) 자원이 0 건이면 OSMetadataNudgeService.persistNew 로 위임한다 (R1-6)")
+    void create_whenNotDuplicated_delegatesPersistNew() {
         // given
         OSMetadataCreateRequest request = new OSMetadataCreateRequest(
                 OSName.ROCKY_LINUX, "9.6", "최신 마이너"
         );
         given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
                 .willReturn(List.of());
-        given(osMetadataRepository.save(any(OSMetadata.class)))
-                .willAnswer(invocation -> {
-                    OSMetadata arg = invocation.getArgument(0);
-                    // JPA 가 id 할당한 상태를 흉내내기 위해 동일 필드로 id=1L 을 붙인 엔티티 재생성
-                    return OSMetadata.builder()
-                            .id(1L)
-                            .osName(arg.getOsName())
-                            .osVersion(arg.getOsVersion())
-                            .description(arg.getDescription())
-                            .isEnabled(true)
-                            .isDeleted(false)
-                            .build();
-                });
+        // R1-6 — 신규 row 영속화는 nudge 서비스 위임. 부모 서비스는 직접 save 하지 않는다.
+        given(osMetadataNudgeService.persistNew(OSName.ROCKY_LINUX, "9.6", "최신 마이너"))
+                .willReturn(1L);
 
         // when
         Long generatedId = osMetadataService.create(request);
 
         // then
         assertThat(generatedId).isEqualTo(1L);
-        verify(osMetadataRepository).save(any(OSMetadata.class));
+        verify(osMetadataNudgeService).persistNew(OSName.ROCKY_LINUX, "9.6", "최신 마이너");
+        // 부모 서비스는 직접 save 하지 않고 nudge 서비스로 위임 (중복 0)
+        verify(osMetadataRepository, never()).save(any(OSMetadata.class));
     }
 
     @Test
@@ -183,8 +178,8 @@ class OSMetadataServiceTest {
     }
 
     @Test
-    @DisplayName("create(nudge) : ACTIVE + SOFT_DELETED 혼합 시 휴지통 회수 시그널을 위해 Nudge 분기로 발화한다 (R1-1 안 B)")
-    void create_whenActiveAndSoftDeletedCoexist_throwsNudge() {
+    @DisplayName("create(nudge 위임) : ACTIVE + SOFT_DELETED 혼합 시 OSMetadataNudgeService.buildNudgePayload 로 위임 후 Nudge 발화한다 (R1-6)")
+    void create_whenActiveAndSoftDeletedCoexist_delegatesNudgePayload() {
         // given
         OSMetadataCreateRequest request = new OSMetadataCreateRequest(
                 OSName.ROCKY_LINUX, "9.6", null
@@ -197,20 +192,16 @@ class OSMetadataServiceTest {
                 .isEnabled(false).isDeprecated(false).isDeleted(true).build();
         given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
                 .willReturn(List.of(activeRow, softDeletedRow));
-        given(nudgeRegistry.register(any(), any(), any(), any()))
-                .willReturn(new NudgeSession(
-                        UUID.randomUUID(),
-                        NudgeResourceType.OS_IMAGE,
-                        null,
-                        List.of(8L),
-                        new IntentMetaNudgePayload(Map.of()),
-                        Instant.now(),
-                        Instant.now().plusSeconds(300)
-                ));
+        // R1-6 — payload 조립 + 세션 등록은 nudge 서비스 위임. 부모 서비스는 후보 합성 + 발화만 담당.
+        given(osMetadataNudgeService.buildNudgePayload(eq(request), any()))
+                .willReturn(NudgeRequiredResponse.of(UUID.randomUUID(), List.of(), Instant.now().plusSeconds(300)));
 
         // when / then
         assertThatThrownBy(() -> osMetadataService.create(request))
                 .isInstanceOf(OSMetadataNudgeRequiredException.class);
+        // SOFT_DELETED 후보가 buildNudgePayload 로 전달되는지 위임 검증
+        verify(osMetadataNudgeService).buildNudgePayload(eq(request), argThat(c -> c.contains(softDeletedRow)));
+        verify(osMetadataNudgeService, never()).persistNew(any(), any(), any());
         verify(osMetadataRepository, never()).save(any());
     }
 
@@ -248,7 +239,7 @@ class OSMetadataServiceTest {
                         .build());
 
         // when
-        Long id = osMetadataService.addISO(1L, req, file);
+        Long id = isoRegistrationService.add(1L, req, file);
 
         // then
         assertThat(id).isEqualTo(42L);
@@ -291,7 +282,7 @@ class OSMetadataServiceTest {
                 });
 
         // when / then
-        assertThatThrownBy(() -> osMetadataService.addISO(1L, req, file))
+        assertThatThrownBy(() -> isoRegistrationService.add(1L, req, file))
                 .isInstanceOf(DuplicateISOContentException.class)
                 .hasMessageContaining("/data/iso/original.iso");
 
@@ -335,35 +326,7 @@ class OSMetadataServiceTest {
         assertThat(response.isos().get(0).integrityStatus()).isEqualTo(IntegrityStatus.SIGNATURE_INVALID);
     }
 
-    @Test
-    @DisplayName("verifyAndRecordIntegrity : 계산 결과를 엔티티 스냅샷에 기록한다")
-    void verifyAndRecordIntegrity_recordsSnapshot(@TempDir Path tempDir) throws Exception {
-        Path isoPath = tempDir.resolve("dvd.iso");
-        Files.writeString(isoPath, "iso");
-
-        OSMetadata parent = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
-                .isEnabled(true).isDeleted(false).build();
-        ISO iso = ISO.builder()
-                .id(2L).osMetadata(parent).isoPath(isoPath.toString())
-                .checksum("old").manifestHash("old").markerSignature("sig")
-                .isEnabled(true).isDeleted(false).build();
-        var marker = new com.example.serverprovision.global.marker.MarkerContent(
-                com.example.serverprovision.global.marker.ResourceType.OS_ISO.name(),
-                2L, java.util.Map.of(), Instant.now(), "other-hash", "sig");
-
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
-        given(isoRepository.findByIdAndOsMetadata_Id(2L, 1L)).willReturn(Optional.of(iso));
-        given(markerService.read(isoPath, MarkerLayout.SIDECAR)).willReturn(marker);
-        given(markerService.verifySignature(marker)).willReturn(true);
-        given(markerService.verifyManifestHash(any(), any())).willReturn(false);
-
-        IntegrityStatus status = osMetadataService.verifyAndRecordIntegrity(1L, 2L);
-
-        assertThat(status).isEqualTo(IntegrityStatus.TAMPERED);
-        assertThat(iso.getLastIntegrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
-        assertThat(iso.getLastVerifiedAt()).isNotNull();
-    }
+    // R1-4-3 — verifyAndRecordIntegrity 시나리오는 IsoIntegrityServiceTest 로 이동.
 
     /* ─────────────────────────── S3.3 (K13) — hardener / markerService 회귀 차단 ─────────────────────────── */
 
@@ -394,7 +357,7 @@ class OSMetadataServiceTest {
                         .checksum(hash).manifestHash(hash).markerSignature(null)
                         .isEnabled(true).isDeleted(false).build());
 
-        osMetadataService.addISO(1L, req, file);
+        isoRegistrationService.add(1L, req, file);
 
         // ISO 본체 파일 권한 적용 (line 245) + sidecar 파일 권한 적용 (line 314) — 두 번 호출되어야 한다.
         Path expectedSidecar = target.resolveSibling(target.getFileName() + ".provision.json");
@@ -429,7 +392,7 @@ class OSMetadataServiceTest {
                         .checksum(hash).manifestHash(hash)
                         .isEnabled(true).isDeleted(false).build());
 
-        osMetadataService.addISO(1L, req, file);
+        isoRegistrationService.add(1L, req, file);
 
         // sidecar 사전 충돌 검사 (prepareIsoRegistration) + finalize 단계의 hardener 인자 계산 — 총 2회 호출.
         // SIDECAR layout 명명 규칙이 미래에 바뀌어도 hardener 호출이 silent drift 되지 않도록 markerService 위임을 강제한다.
@@ -438,6 +401,7 @@ class OSMetadataServiceTest {
     }
 
     @Test
+    @org.junit.jupiter.api.Disabled("R1-4-1 — restoreISO 가 IsoLifecycleService 로 이동, 본 시나리오는 IsoLifecycleServiceTest 영역")
     @DisplayName("S3.3 (K13) restoreISO : 디스크 자원을 건드리지 않으므로 hardener 호출이 없다 (회귀 가드)")
     void restoreIso_hardenerNotInvokedSinceNoFileWrite() {
         // restoreISO 는 isDeleted 플래그만 false 로 전환한다. 파일 시스템에 새로 쓰는 자원이 없으므로
@@ -453,7 +417,7 @@ class OSMetadataServiceTest {
         given(osMetadataRepository.findById(1L)).willReturn(Optional.of(parent));
         given(isoRepository.findByIdAndOsMetadata_Id(2L, 1L)).willReturn(Optional.of(deletedIso));
 
-        osMetadataService.restoreISO(1L, 2L);
+        // R1-4-1 — restoreISO 는 IsoLifecycleService 로 이동. 본 시나리오는 RhelPostCreationTaskStrategyTest 또는 IsoLifecycleServiceTest 에서 다룸
 
         verify(fileSystemHardener, never()).applyDefaultPermissionsForFile(any());
         assertThat(deletedIso.isDeleted()).isFalse();

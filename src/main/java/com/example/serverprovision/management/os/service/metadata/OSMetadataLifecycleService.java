@@ -10,6 +10,7 @@ import com.example.serverprovision.management.os.exception.DuplicateOSMetadataEx
 import com.example.serverprovision.management.os.exception.IllegalOSMetadataStateException;
 import com.example.serverprovision.management.os.exception.OSMetadataNotFoundException;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
+import com.example.serverprovision.management.os.service.iso.IsoLifecycleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,14 +21,13 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>enabled / deprecated / soft-deleted 필드 전이 + purge 종착점의 8 메서드를 한 곳에 모은다.
  * 자식 ISO 의 lifecycle cascade 가 필요한 경우 ({@link #restore(Long, boolean)} cascade,
- * {@link #purge(Long)} 의 sidecar 정리) 는 {@link OSMetadataService} 의 ISO 측 메서드
- * ({@code restoreISO} / {@code cleanupIsoArtifacts}) 에 위임한다 — 이 의존은 단방향
- * (Lifecycle → Service) 으로 cycle 없다.</p>
+ * {@link #purge(Long)} 의 sidecar 정리) 는 {@link IsoLifecycleService} 의 ISO 측 메서드
+ * ({@code restore} / {@code cleanupArtifacts}) 에 위임한다 — 이 의존은 단방향
+ * (parent → leaf) 으로 cycle 없다 (R1-4-1).</p>
  *
  * <p>잔류 사유 (본 service 에 안 포함된 lifecycle 인접 항목) :
  * <ul>
  *   <li>{@code purgeIsoWithTypedNameCheck} — ISO 도메인의 lifecycle (R2-iso 영역)</li>
- *   <li>{@code purgeOSMetadataForNudge} — nudge replace 흐름의 의존이 강해 OSMetadataService 잔류</li>
  * </ul></p>
  */
 @Slf4j
@@ -38,25 +38,30 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 
 	private final OSMetadataRepository osMetadataRepository;
 	private final TrashLifecycleService trashLifecycleService;
-	// R1-3 — 자식 ISO 의 restore / sidecar 정리는 OSMetadataService 의 ISO 메서드에 위임.
-	// 단방향 의존 (OSMetadataService 가 본 service 를 의존하지 않음) 으로 cycle 회피.
-	private final OSMetadataService osMetadataService;
+	// R1-4-1 — 자식 ISO 의 cascade restore / sidecar 정리는 IsoLifecycleService 에 위임.
+	// 옛 R1-3 의 OSMetadataService 의존을 IsoLifecycleService 로 교체 — parent → leaf 단방향, cycle 없음.
+	private final IsoLifecycleService isoLifecycleService;
 
 	// ==== enabled 토글 =================================================
 
 	/**
-	 * S5-2-3-1 — OS 활성/비활성 토글 + 자식 ISO 강제 cascade.
-	 * 자식이 deprecated / deleted 면 skip. 부모 활성 상태와 자식 활성 상태가 다른 자식만 동기화.
+	 * S5-2-3-1 / HF-2 — OS 활성/비활성 토글 + 자식 ISO 비대칭 cascade.
+	 * <p><b>disable</b> (부모 → 비활성) : enabled 자식 전부(trash / deprecated 포함) 를 비활성화 →
+	 * invariant "자식 enabled ≤ 부모 enabled" 유지. soft-deleted 자식이 부모 disable 을 우회해 stale enabled 로
+	 * 남았다가 restore 시 모순으로 부활하던 결함(HF-2 Leg A) 을 차단한다.</p>
+	 * <p><b>enable</b> (부모 → 활성) : 자식 cascade 안 함. 부모 ceiling 만 상승하고, 개별 자식 활성화는 운영자가
+	 * 명시적으로 수행한다 — 부모 활성화가 운영자가 개별 비활성한 자식을 임의로 되살리지 않도록 한다.</p>
 	 */
 	@Override
 	@Transactional
 	public void toggleEnabled(Long id) {
 		OSMetadata parent = requireActiveImage(id);
 		parent.toggleEnabled();
-		boolean target = parent.isEnabled();
+		if (parent.isEnabled()) {
+			return;   // 활성화는 cascade 안 함 — 자식 활성은 운영자 개별 액션.
+		}
 		parent.getIsos().stream()
-				.filter(iso -> !iso.isDeleted() && !iso.isDeprecated())
-				.filter(iso -> iso.isEnabled() != target)
+				.filter(ISO::isEnabled)
 				.forEach(ISO::toggleEnabled);
 	}
 
@@ -87,7 +92,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	 * S5-2-3 — OS 메타데이터 restore + 하위 ISO 일괄 복구 옵션.
 	 *
 	 * <p>cascade=true 면 soft-deleted 자식 ISO 를 일괄 복구. 각 ISO 의 restore 는
-	 * {@link OSMetadataService#restoreISO(Long, Long)} 위임 — trashLifecycleService.restoreFromTrash 흐름 재사용.</p>
+	 * {@link IsoLifecycleService#restore(Long)} 위임 (R1-4-1) — trashLifecycleService.restoreFromTrash 흐름 재사용.</p>
 	 *
 	 * <p>OSEnvironment / OSPackageGroup 은 ISO soft-delete 시 DB hard-delete 됐으므로 cascade 대상 외.</p>
 	 */
@@ -108,7 +113,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 		int restored = 0;
 		for (ISO iso : image.getIsos()) {
 			if (iso.isDeleted()) {
-				osMetadataService.restoreISO(id, iso.getId());
+				isoLifecycleService.restore(iso.getId());   // R1-4-1 — interface default 활용 (cascade=false)
 				restored++;
 			}
 		}
@@ -165,7 +170,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	/**
 	 * OSMetadata 영구 삭제. soft-deleted 상태에서만 호출 가능.
 	 * <p>자식 ISO 들의 sidecar 파일 정리 후 row 삭제. cascade 가 ISO 행을 자동 제거하지만, sidecar 파일은
-	 * 어플리케이션이 직접 정리해야 한다 — {@link OSMetadataService#cleanupIsoArtifacts(ISO)} 위임.</p>
+	 * 어플리케이션이 직접 정리해야 한다 — {@link IsoLifecycleService#cleanupArtifacts(ISO)} 위임 (R1-4-1).</p>
 	 */
 	@Override
 	@Transactional
@@ -174,7 +179,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 				.orElseThrow(() -> new IllegalOSMetadataStateException(
 						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
 		for (ISO iso : image.getIsos()) {
-			osMetadataService.cleanupIsoArtifacts(iso);
+			isoLifecycleService.cleanupArtifacts(iso);   // R1-4-1 — IsoLifecycleService 로 위임
 		}
 		osMetadataRepository.delete(image);
 		log.info("[purgeImage] OS 메타데이터 영구 삭제 완료. id={}", id);

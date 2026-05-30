@@ -51,6 +51,9 @@
         <script th:src="@{/global/upload-client.js}" defer></script>
         <!-- S4 — 폼 에러 매핑 단일 진입점 window.FormError. data-error-field / .n-form-banner 결합. -->
         <script th:src="@{/global/form-error.js}" defer></script>
+        <!-- R1-4-1 hotfix — 전역 error modal. submitAsync 의 onRejected 가 본 modal 호출 (alert 대체). -->
+        <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+        <script th:src="@{/global/error-modal.js}" defer></script>
     </th:block>
 </head>
 

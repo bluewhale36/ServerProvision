@@ -1,7 +1,5 @@
 package com.example.serverprovision.management.os.service.postcreation;
 
-import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
-
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.enums.OSFamily;
@@ -11,7 +9,7 @@ import com.example.serverprovision.management.os.enums.OSFamily;
  *
  * <p>"if-then 으로 OS family 별 분기" 대신 strategy 다형성으로 흡수 — CLAUDE.md 의
  * "조건 분기문 무분별 확장 금지" 원칙을 따른다. 새 OS family 가 추가되거나 자동 작업 종류가
- * 늘어나면 strategy 구현체를 하나 더 등록하면 끝, 호출부 (OSMetadataService.finalizePreparedIsoRegistration)
+ * 늘어나면 strategy 구현체를 하나 더 등록하면 끝, 호출부 (R1-4-2 이후 IsoRegistrationService.finalize)
  * 는 변경하지 않는다.</p>
  *
  * <p>구현체 :</p>

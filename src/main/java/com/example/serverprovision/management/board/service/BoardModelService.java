@@ -235,21 +235,21 @@ public class BoardModelService {
 
 	@Transactional
 	/**
-	 * S5-2-3-1 — Board 활성/비활성 토글 + 자식 BIOS / BMC 강제 cascade.
-	 * 자식이 deprecated / deleted 면 skip.
+	 * S5-2-3-1 / HF-2 — Board 활성/비활성 토글 + 자식 BIOS / BMC 비대칭 cascade.
+	 * <p><b>disable</b> : enabled 자식(BIOS / BMC) 전부(trash / deprecated 포함) 비활성화 → invariant
+	 * "자식 enabled ≤ 부모 enabled" 유지 (soft-deleted 자식 stale enabled 부활 모순 차단).
+	 * <b>enable</b> : cascade 안 함 — 부모 ceiling 만 상승, 자식 개별 활성화는 운영자 몫.</p>
 	 */
 	public void toggleEnabled(Long id) {
 		BoardModel parent = requireActiveBoard(id);
 		parent.toggleEnabled();
-		boolean target = parent.isEnabled();
+		if (parent.isEnabled()) {
+			return;   // 활성화는 cascade 안 함.
+		}
 		biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted() && !b.isDeprecated())
-				.filter(b -> b.isEnabled() != target)
-				.forEach(BoardBIOS::toggleEnabled);
+				.filter(BoardBIOS::isEnabled).forEach(BoardBIOS::toggleEnabled);
 		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted() && !b.isDeprecated())
-				.filter(b -> b.isEnabled() != target)
-				.forEach(BoardBMC::toggleEnabled);
+				.filter(BoardBMC::isEnabled).forEach(BoardBMC::toggleEnabled);
 	}
 
 	/**

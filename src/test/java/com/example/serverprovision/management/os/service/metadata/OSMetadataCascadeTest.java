@@ -37,7 +37,9 @@ class OSMetadataCascadeTest {
     @Mock OSMetadataRepository osMetadataRepository;
     @Mock ISORepository isoRepository;
     @Mock TrashLifecycleService trashLifecycleService;
+    com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
     @Mock SoftDeleteIntentService softDeleteIntentService;
+    @Mock com.example.serverprovision.global.marker.service.ProvisionMarkerService markerService;
 
     @InjectMocks OSMetadataService osMetadataService;
 
@@ -45,8 +47,10 @@ class OSMetadataCascadeTest {
 
     @BeforeEach
     void initLifecycleService() {
+        isoLifecycleService = new com.example.serverprovision.management.os.service.iso.IsoLifecycleService(
+                isoRepository, osMetadataRepository, trashLifecycleService, softDeleteIntentService, markerService);
         osMetadataLifecycleService = new OSMetadataLifecycleService(
-                osMetadataRepository, trashLifecycleService, osMetadataService);
+                osMetadataRepository, trashLifecycleService, isoLifecycleService);
     }
 
     // ==== helper ===================================================
@@ -79,36 +83,55 @@ class OSMetadataCascadeTest {
     // ==== 부모 toggleEnabled cascade ================================
 
     @Test
-    @DisplayName("toggle off : 활성 부모 → 비활성. 자식 active ISO 도 모두 비활성. deprecated/deleted 자식은 skip.")
-    void toggleOff_cascadesToActiveChildren_skipsDeprecatedAndDeleted() {
+    @DisplayName("HF-2 toggle off : 부모 → 비활성. enabled 자식 전부(active + deprecated + soft-deleted) 비활성 동기화 (비대칭 disable).")
+    void toggleOff_disablesAllEnabledChildren_includingTrashedAndDeprecated() {
         ISO active = buildChild(101L, null, true, false, false);
         ISO deprecated = buildChild(102L, null, true, true, false);
         ISO deleted = buildChild(103L, null, true, false, true);
         List<ISO> isos = new ArrayList<>(List.of(active, deprecated, deleted));
         OSMetadata parent = buildParent(true, false, false, isos);
-        // 자식의 osMetadata 역참조 세팅 — entity 의 isos 자식이 osMetadata 를 알게.
         given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
 
         osMetadataLifecycleService.toggleEnabled(1L);
 
         assertThat(parent.isEnabled()).isFalse();
-        assertThat(active.isEnabled()).isFalse();    // cascade 대상
-        assertThat(deprecated.isEnabled()).isTrue(); // skip — deprecated 자식
-        assertThat(deleted.isEnabled()).isTrue();    // skip — deleted 자식
+        assertThat(active.isEnabled()).isFalse();      // 동기화
+        assertThat(deprecated.isEnabled()).isFalse();  // HF-2 — deprecated 자식도 동기화 (invariant: 자식 enabled ≤ 부모 enabled)
+        assertThat(deleted.isEnabled()).isFalse();     // HF-2 — soft-deleted(trash) 자식도 동기화 → stale 씨앗(Leg A) 차단
     }
 
     @Test
-    @DisplayName("toggle on : 비활성 부모 → 활성. 자식 (active 상태였던) 도 모두 활성. (자식이 이전엔 disabled 인 케이스도 동기화)")
-    void toggleOn_cascadesToActiveChildren() {
-        ISO disabledChild = buildChild(101L, null, false, false, false);
-        List<ISO> isos = new ArrayList<>(List.of(disabledChild));
-        OSMetadata parent = buildParent(false, false, false, isos);
+    @DisplayName("HF-2 toggle on : 부모 → 활성. 자식 cascade 미적용 — active 자식도 disabled 유지 (부모 ceiling 만 상승, 자식 개별 활성은 운영자 몫).")
+    void toggleOn_doesNotCascadeToChildren() {
+        ISO activeDisabled = buildChild(101L, null, false, false, false);
+        ISO trashedDisabled = buildChild(102L, null, false, false, true);
+        ISO deprecatedDisabled = buildChild(103L, null, false, true, false);
+        OSMetadata parent = buildParent(false, false, false,
+                new ArrayList<>(List.of(activeDisabled, trashedDisabled, deprecatedDisabled)));
         given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
 
         osMetadataLifecycleService.toggleEnabled(1L);
 
         assertThat(parent.isEnabled()).isTrue();
-        assertThat(disabledChild.isEnabled()).isTrue();
+        assertThat(activeDisabled.isEnabled()).isFalse();      // 활성화 cascade 안 함 — active 자식도 그대로 disabled
+        assertThat(trashedDisabled.isEnabled()).isFalse();
+        assertThat(deprecatedDisabled.isEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("HF-2 핵심 : 부모 disable 시 enabled 인 soft-deleted 자식이 disable → 이후 restore 해도 disabled 보존 (Leg B 모순 미발생).")
+    void toggleOff_thenChildStaysDisabledAcrossRestore() {
+        ISO trashedEnabled = buildChild(101L, null, true, false, true);  // 모순 씨앗 : soft-deleted 인데 enabled
+        OSMetadata parent = buildParent(true, false, false, new ArrayList<>(List.of(trashedEnabled)));
+        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
+
+        osMetadataLifecycleService.toggleEnabled(1L);                 // 부모 disable
+        assertThat(trashedEnabled.isEnabled()).isFalse();            // Leg A 차단 — trash 자식도 disable
+
+        // restore 는 is_deleted 만 되돌리고 is_enabled 는 보존 (LifecycleEntity.restore 계약).
+        trashedEnabled.restore();
+        assertThat(trashedEnabled.isEnabled()).isFalse();            // 부모 disabled 와 정합 — stale enabled 부활 없음
+        assertThat(trashedEnabled.isDeleted()).isFalse();
     }
 
     // ==== 부모 deprecate cascade ====================================
@@ -149,109 +172,6 @@ class OSMetadataCascadeTest {
         assertThat(deletedDeprecated.isDeprecated()).isTrue();  // skip — deleted 는 휴지통 잔존
     }
 
-    // ==== 자식 단독 가드 — toggleIsoEnabled =========================
-
-    @Test
-    @DisplayName("자식 ISO enable 시도 — 부모 disabled 면 거절 (ChildLifecycleBlockedByParentException)")
-    void toggleIsoEnable_parentDisabled_rejects() {
-        OSMetadata parent = buildParent(false, false, false, new ArrayList<>());
-        ISO disabledIso = buildChild(101L, parent, false, false, false);
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
-        given(isoRepository.findByIdAndOsMetadata_Id(101L, 1L)).willReturn(Optional.of(disabledIso));
-
-        assertThatThrownBy(() -> osMetadataService.toggleIsoEnabled(1L, 101L))
-                .isInstanceOf(ChildLifecycleBlockedByParentException.class)
-                .extracting("parentState").isEqualTo("DISABLED");
-        assertThat(disabledIso.isEnabled()).isFalse(); // 상태 변경 없음
-    }
-
-    @Test
-    @DisplayName("자식 ISO enable 시도 — 부모 deprecated 면 거절")
-    void toggleIsoEnable_parentDeprecated_rejects() {
-        OSMetadata parent = buildParent(true, true, false, new ArrayList<>());
-        ISO disabledIso = buildChild(101L, parent, false, false, false);
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
-        given(isoRepository.findByIdAndOsMetadata_Id(101L, 1L)).willReturn(Optional.of(disabledIso));
-
-        assertThatThrownBy(() -> osMetadataService.toggleIsoEnabled(1L, 101L))
-                .isInstanceOf(ChildLifecycleBlockedByParentException.class)
-                .extracting("parentState").isEqualTo("DEPRECATED");
-    }
-
-    @Test
-    @DisplayName("자식 ISO disable 은 부모 상태 무관 자유 (부모 active 일 때 자식 단독 disable)")
-    void toggleIsoDisable_freeWhenParentActive() {
-        OSMetadata parent = buildParent(true, false, false, new ArrayList<>());
-        ISO activeIso = buildChild(101L, parent, true, false, false);
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
-        given(isoRepository.findByIdAndOsMetadata_Id(101L, 1L)).willReturn(Optional.of(activeIso));
-
-        osMetadataService.toggleIsoEnabled(1L, 101L);
-
-        assertThat(activeIso.isEnabled()).isFalse();
-    }
-
-    // ==== 자식 단독 가드 — undeprecateIso ============================
-
-    @Test
-    @DisplayName("자식 ISO undeprecate — 부모 deprecated 면 거절")
-    void undeprecateIso_parentDeprecated_rejects() {
-        OSMetadata parent = buildParent(true, true, false, new ArrayList<>());
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
-
-        assertThatThrownBy(() -> osMetadataService.undeprecateIso(1L, 101L))
-                .isInstanceOf(ChildLifecycleBlockedByParentException.class)
-                .extracting("parentState").isEqualTo("DEPRECATED");
-    }
-
-    @Test
-    @DisplayName("자식 ISO undeprecate — 부모 active 면 OK")
-    void undeprecateIso_parentActive_succeeds() {
-        OSMetadata parent = buildParent(true, false, false, new ArrayList<>());
-        ISO deprecatedIso = buildChild(101L, parent, true, true, false);
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
-        given(isoRepository.findByIdAndOsMetadata_Id(101L, 1L)).willReturn(Optional.of(deprecatedIso));
-
-        osMetadataService.undeprecateIso(1L, 101L);
-
-        assertThat(deprecatedIso.isDeprecated()).isFalse();
-    }
-
-    // ==== 자식 단독 가드 — restoreISO ================================
-
-    @Test
-    @DisplayName("자식 ISO restore — 부모 deleted 면 거절 (사용자 명시 사건)")
-    void restoreIso_parentDeleted_rejects() {
-        OSMetadata parent = buildParent(true, false, true, new ArrayList<>());
-        given(osMetadataRepository.findById(1L)).willReturn(Optional.of(parent));
-
-        assertThatThrownBy(() -> osMetadataService.restoreISO(1L, 101L))
-                .isInstanceOf(ChildLifecycleBlockedByParentException.class)
-                .extracting("parentState").isEqualTo("DELETED");
-    }
-
-    @Test
-    @DisplayName("자식 ISO restore — 부모 active 면 OK (trash service 위임)")
-    void restoreIso_parentActive_delegatesToTrash() {
-        OSMetadata parent = buildParent(true, false, false, new ArrayList<>());
-        ISO deletedIso = buildChild(101L, parent, true, false, true);
-        given(osMetadataRepository.findById(1L)).willReturn(Optional.of(parent));
-        given(isoRepository.findByIdAndOsMetadata_Id(101L, 1L)).willReturn(Optional.of(deletedIso));
-
-        osMetadataService.restoreISO(1L, 101L);
-
-        // trashLifecycleService.restoreFromTrash 호출 → Mockito 가 verify 가능. 본 테스트는 throw 안 함만 검증.
-    }
-
-    @Test
-    @DisplayName("자식 ISO restore — 자식 자체가 active 면 거절 (부모는 active)")
-    void restoreIso_childAlreadyActive_rejects() {
-        OSMetadata parent = buildParent(true, false, false, new ArrayList<>());
-        ISO activeIso = buildChild(101L, parent, true, false, false);
-        given(osMetadataRepository.findById(1L)).willReturn(Optional.of(parent));
-        given(isoRepository.findByIdAndOsMetadata_Id(101L, 1L)).willReturn(Optional.of(activeIso));
-
-        assertThatThrownBy(() -> osMetadataService.restoreISO(1L, 101L))
-                .isInstanceOf(IllegalOSMetadataStateException.class);
-    }
+    // R1-4-1 — 자식 ISO lifecycle 단위 시나리오 (toggleIsoEnabled / undeprecateIso / restoreISO)
+    // 는 IsoLifecycleServiceTest 로 이동.
 }

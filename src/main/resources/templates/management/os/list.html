@@ -196,6 +196,7 @@
                             <form th:action="@{/management/os/{id}/restore(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-restore=""
+                                  data-async-submit=""
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   th:data-cascade-true-title="|하위 ISO ${os.isos.?[isDeleted].size()}건도 함께 복구|"
                                   th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ' · ')}">
@@ -279,7 +280,9 @@
                                                           th:text="${iso.isEnabled} ? '활성화' : '비활성화'"></span>
                                                     <form th:action="@{/management/os/{osId}/iso/{isoId}/toggle(osId=${os.id},isoId=${iso.id})}"
                                                           method="post" class="n-accordion-inline-form">
-                                                        <button type="submit"
+                                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
+                                                <button type="submit"
                                                                 class="n-btn n-btn-sm"
                                                                 th:classappend="${iso.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
                                                                 th:text="${iso.isEnabled} ? '비활성화' : '활성화'"></button>
@@ -345,6 +348,8 @@
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-deprecate=""
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
+                                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning">
                                                     Deprecated 표시
                                                 </button>
@@ -352,6 +357,8 @@
                                             <form th:if="${iso.isDeprecated}"
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/undeprecate(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form">
+                                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">
                                                     Deprecated 해제
                                                 </button>
@@ -361,15 +368,26 @@
                                                   class="n-accordion-inline-form mk3-2-delete-form"
                                                   data-confirm-soft-delete=""
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
+                                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">삭제
                                                 </button>
                                             </form>
                                         </th:block>
                                         <th:block th:if="${iso.isDeleted}">
-                                            <form th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
+                                            <!-- 부모 OS 가 deleted 면 자식 단독 restore 가 거절되므로 disabled + tooltip 안내. -->
+                                            <span th:if="${os.isDeleted}" class="n-btn-tooltip-wrap"
+                                                  data-tooltip="부모 OS 버전이 삭제 상태입니다. 부모부터 복구해주세요.">
+                                                <button type="button" class="n-btn n-btn-sm n-btn-outline-info" disabled>복구</button>
+                                            </span>
+                                            <form th:unless="${os.isDeleted}"
+                                                  th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-restore=""
+                                                  data-async-submit=""
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
+                                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">복구
                                                 </button>
                                             </form>
@@ -381,6 +399,8 @@
                                                   th:data-resource-id="${iso.id}"
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|"
                                                   data-resource-extra="sidecar 와 본체 파일이 모두 정리돼요.">
+                                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-danger">영구 삭제</button>
                                             </form>
                                         </th:block>

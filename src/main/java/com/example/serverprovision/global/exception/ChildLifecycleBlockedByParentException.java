@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * 제안 등 UX 보강 진입점.</p>
  */
 @ResponseStatus(HttpStatus.CONFLICT)
-public class ChildLifecycleBlockedByParentException extends DomainException {
+public class ChildLifecycleBlockedByParentException extends ConflictException {
 
 	private final ResourceType parentResourceType;
 	private final Long parentResourceId;

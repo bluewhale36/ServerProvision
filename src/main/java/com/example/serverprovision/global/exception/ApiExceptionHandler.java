@@ -43,13 +43,26 @@ import java.util.List;
  * <p>본 핸들러는 컨트롤러의 try/catch 블록을 대체한다. 새 도메인 예외를 추가할 때는 본 advice 또는
  * {@link WebExceptionHandler} 에 매핑을 추가하면 되며, 컨트롤러는 예외를 그냥 던지면 된다.</p>
  */
+/*
+ * R1-4-1 hotfix v3 — 양 advice 모두 HIGHEST_PRECEDENCE 로 통일 + ContentNegotiation 위임.
+ *
+ * 시도 이력 :
+ *   v1 : Web @Order(HIGHEST_PRECEDENCE - 100) — Integer.MIN_VALUE underflow 로 사실상 LOWEST 가 되어 무효.
+ *   v2 : Api @Order(HIGHEST_PRECEDENCE + 100) — Accept any 인 MockMvc 테스트 28건이 Web 의 HTML 응답으로 잡혀 회귀.
+ *   v3 : 양 advice 모두 HIGHEST_PRECEDENCE. Spring 의 ExceptionHandlerExceptionResolver 가 핸들러의 produces 와
+ *        request 의 Accept 호환성으로 자연 분리 — Accept: text/html 명시 흐름은 Web 의 produces=text/html 매처 우선,
+ *        Accept: application/json 명시 흐름은 본 advice 의 produces=application/json 매처 우선. Accept any 는
+ *        등록 순서 의존이지만 ApiExceptionHandler 의 핸들러가 더 구체적인 sub-class 매핑이 많아 자연스럽게 우선됨.
+ *
+ * 적용 범위는 모든 controller (annotations 제한 없음) — hybrid controller (@Controller 가 @ResponseBody 메서드 보유)
+ * 의 JSON 응답도 본 advice 가 처리.
+ *
+ * !!! 절대 금지 : @Order 값에 HIGHEST_PRECEDENCE +/- 산술 연산 사용 (overflow 위험, v1 사고 참조).
+ */
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ApiExceptionHandler {
-	// MK2 — Web 보다 우선. 두 advice 모두 produces (application/json vs text/html) 가 명시되어 있어
-	// Spring 의 ExceptionHandlerExceptionResolver 가 request Accept 헤더와 호환되는 advice 만 매칭한다.
-	// SSR 흐름은 Accept: text/html 이라 Api advice 의 produces=application/json 이 비호환 → Web 으로 fallthrough.
-	// XHR / Accept: */* 흐름은 Api 가 우선 매칭되어 JSON 응답 (테스트의 jsonPath 어설션 회복).
+	// 양 advice 모두 HIGHEST. produces 와 Accept 헤더 호환성으로 자연 분리.
 
 	private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
