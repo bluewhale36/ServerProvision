@@ -137,6 +137,36 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 		this.deprecatedAt = null;
 	}
 
+	// ==== R2-2 — 부모-자식 lifecycle 가드 SSOT =============================
+	// "이 자원이 부모일 때 자식의 해당 액션을 막는가" 를 부모 자신의 lifecycle boolean 으로 판정.
+	// (1) 서버 가드 throw 조건 (2) 뷰모델 capability 플래그가 같은 메서드 바디를 공유 → UI ↔ 서버 드리프트 0.
+
+	/**
+	 * 자식 enable(활성화) 차단 사유 라벨. {@code null} = 차단 안 함.
+	 * 부모가 fully-active (¬삭제 · ¬비활성 · ¬deprecated) 가 아니면 차단한다 (DELETED comprehensive).
+	 * toggle 가드 + {@code ChildLifecycleBlockedByParentException} 의 parentState 가 공용으로 쓴다.
+	 */
+	public String childEnableBlockReason() {
+		return isDeleted ? "DELETED" : !isEnabled ? "DISABLED" : isDeprecated ? "DEPRECATED" : null;
+	}
+
+	public boolean blocksChildEnable() {
+		return childEnableBlockReason() != null;
+	}
+
+	/** 부모가 삭제 상태면 자식 restore 불가 (부모부터 복구해야 함). */
+	public boolean blocksChildRestore() {
+		return isDeleted;
+	}
+
+	/** 부모가 deprecated 또는 삭제 상태면 자식 undeprecate 불가. */
+	public boolean blocksChildUndeprecate() {
+		return isDeprecated || isDeleted;
+	}
+
+	// self-guard (휴지통 자원 자체의 toggle/deprecate/undeprecate 동결) 는 각 service 의 requireLive* 헬퍼가
+	// 이미 enforce (deleted 자원에 Illegal*StateException) → 별도 isLifecycleFrozen 메서드 불필요.
+
 	/**
 	 * MK3 — soft-delete 시 trash 이동 직후 caller 가 호출. trashedAt + trashedPath 기록.
 	 * <p>{@link #softDelete()} 와 별개 — 시그니처를 분리해 기존 호출자를 깨지 않는다.

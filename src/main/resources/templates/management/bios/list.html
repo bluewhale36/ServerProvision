@@ -224,7 +224,13 @@
                                     <span class="n-badge"
                                           th:classappend="${bios.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
                                           th:text="${bios.isEnabled} ? '활성화' : '비활성화'"></span>
-                                    <form th:action="@{/management/bios/{boardId}/bios/{biosId}/toggle(boardId=${board.id},biosId=${bios.id})}"
+                                    <!-- R2-2 — 활성화 방향이 부모 상태(비활성/Deprecated/삭제)로 막히면 disabled + tooltip -->
+                                    <span th:if="${!bios.isEnabled and bios.parentBlocksEnable}" class="n-btn-tooltip-wrap"
+                                          data-tooltip="부모 메인보드가 비활성 / Deprecated / 삭제 상태입니다. 부모를 먼저 정상화해주세요.">
+                                        <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
+                                    </span>
+                                    <form th:unless="${!bios.isEnabled and bios.parentBlocksEnable}"
+                                          th:action="@{/management/bios/{boardId}/bios/{biosId}/toggle(boardId=${board.id},biosId=${bios.id})}"
                                           method="post" class="n-accordion-inline-form">
                                         <button type="submit"
                                                 class="n-btn n-btn-sm"
@@ -249,9 +255,18 @@
                                   th:data-resource-label="|BIOS '${bios.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
-                            <form th:if="${bios.isDeprecated}"
+                            <!-- R2-2 — 부모가 Deprecated/삭제면 undeprecate 차단 -->
+                            <span th:if="${bios.isDeprecated and bios.parentBlocksUndeprecate}" class="n-btn-tooltip-wrap"
+                                  data-tooltip="부모 메인보드가 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.">
+                                <button type="button" class="n-btn n-btn-outline-info" disabled>Deprecated 해제</button>
+                            </span>
+                            <form th:if="${bios.isDeprecated and !bios.parentBlocksUndeprecate}"
                                   th:action="@{/management/bios/{boardId}/bios/{biosId}/undeprecate(boardId=${board.id},biosId=${bios.id})}"
-                                  method="post" style="display:inline;">
+                                  method="post" style="display:inline;"
+                                  data-confirm-undeprecate=""
+                                  data-resource-type="BIOS_BUNDLE"
+                                  th:data-resource-id="${bios.id}"
+                                  th:data-resource-label="|BIOS '${bios.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
                             </form>
                             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/delete(boardId=${board.id},biosId=${bios.id})}"
@@ -263,7 +278,13 @@
                             </form>
                         </th:block>
                         <th:block th:if="${bios.isDeleted}">
-                            <form th:action="@{/management/bios/{boardId}/bios/{biosId}/restore(boardId=${board.id},biosId=${bios.id})}"
+                            <!-- R2-2 — 부모 메인보드가 삭제면 restore 차단 -->
+                            <span th:if="${bios.parentBlocksRestore}" class="n-btn-tooltip-wrap"
+                                  data-tooltip="부모 메인보드가 삭제 상태입니다. 부모부터 복구해주세요.">
+                                <button type="button" class="n-btn n-btn-outline-info" disabled>복구</button>
+                            </span>
+                            <form th:unless="${bios.parentBlocksRestore}"
+                                  th:action="@{/management/bios/{boardId}/bios/{biosId}/restore(boardId=${board.id},biosId=${bios.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-restore=""
                                   data-async-submit=""

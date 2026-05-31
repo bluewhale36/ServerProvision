@@ -25,7 +25,12 @@ public record ISOResponse(
 		int providedPackageGroupCount,
 		IntegrityStatus integrityStatus,
 		boolean inProgress,
-		boolean extractionInProgress
+		boolean extractionInProgress,
+		// R2-2 — 부모(OSMetadata) lifecycle 이 자식 ISO 의 해당 액션을 막는가. 뷰의 버튼 disable + tooltip 근거.
+		// 서버 가드와 동일한 LifecycleEntity.blocksChildXxx() 결과를 그대로 캡처 (UI ↔ 서버 드리프트 0).
+		boolean parentBlocksEnable,
+		boolean parentBlocksRestore,
+		boolean parentBlocksUndeprecate
 ) {
 
 	public static ISOResponse from(ISO entity) {
@@ -33,6 +38,11 @@ public record ISOResponse(
 				.map(e -> e.getEnvironmentCode().getValue())
 				.sorted()
 				.toList();
+		// 부모 OSMetadata 는 영속 ISO 에선 항상 non-null(FK) 이나, 방어적으로 null 이면 차단 0 으로 둔다.
+		var parent = entity.getOsMetadata();
+		boolean pBlocksEnable = parent != null && parent.blocksChildEnable();
+		boolean pBlocksRestore = parent != null && parent.blocksChildRestore();
+		boolean pBlocksUndeprecate = parent != null && parent.blocksChildUndeprecate();
 		return new ISOResponse(
 				entity.getId(),
 				entity.getIsoPath(),
@@ -46,7 +56,10 @@ public record ISOResponse(
 				entity.getProvidedPackageGroups().size(),
 				entity.getLastIntegrityStatus() != null ? entity.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
 				false,
-				false
+				false,
+				pBlocksEnable,
+				pBlocksRestore,
+				pBlocksUndeprecate
 		);
 	}
 
@@ -69,6 +82,9 @@ public record ISOResponse(
 				0,
 				IntegrityStatus.NOT_VERIFIED,
 				true,
+				false,
+				false,
+				false,
 				false
 		);
 	}
@@ -81,7 +97,8 @@ public record ISOResponse(
 		return new ISOResponse(
 				id, isoPath, description, isEnabled, isDeleted, isDeprecated,
 				state, extracted, providedEnvironmentCodes, providedPackageGroupCount,
-				integrityStatus, inProgress, value
+				integrityStatus, inProgress, value,
+				parentBlocksEnable, parentBlocksRestore, parentBlocksUndeprecate
 		);
 	}
 }

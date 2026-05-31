@@ -168,7 +168,8 @@ class SubprogramControllerTest {
                         7L, SubprogramKind.UTILITY, "유틸리티",
                         null, "raid-cli", "1.0", "/x", null, "h",
                         1, 100L, "d", IntegrityStatus.ORIGINAL, true, false, false,
-                        com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE));
+                        com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE,
+                        false, false, false));
 
         mvc.perform(get("/management/subprogram/7"))
                 .andExpect(status().isOk())

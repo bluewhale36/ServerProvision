@@ -278,7 +278,13 @@
                                                     <span class="n-badge"
                                                           th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
                                                           th:text="${iso.isEnabled} ? '활성화' : '비활성화'"></span>
-                                                    <form th:action="@{/management/os/{osId}/iso/{isoId}/toggle(osId=${os.id},isoId=${iso.id})}"
+                                                    <!-- R2-2 — 활성화 방향이 부모 상태(비활성/Deprecated/삭제)로 막히면 disabled + tooltip -->
+                                                    <span th:if="${!iso.isEnabled and iso.parentBlocksEnable}" class="n-btn-tooltip-wrap"
+                                                          data-tooltip="부모 OS 버전이 비활성 / Deprecated / 삭제 상태입니다. 부모를 먼저 정상화해주세요.">
+                                                        <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
+                                                    </span>
+                                                    <form th:unless="${!iso.isEnabled and iso.parentBlocksEnable}"
+                                                          th:action="@{/management/os/{osId}/iso/{isoId}/toggle(osId=${os.id},isoId=${iso.id})}"
                                                           method="post" class="n-accordion-inline-form">
                                                 <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                                 <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
@@ -354,9 +360,18 @@
                                                     Deprecated 표시
                                                 </button>
                                             </form>
-                                            <form th:if="${iso.isDeprecated}"
+                                            <!-- R2-2 — 부모가 Deprecated/삭제면 undeprecate 차단 -->
+                                            <span th:if="${iso.isDeprecated and iso.parentBlocksUndeprecate}" class="n-btn-tooltip-wrap"
+                                                  data-tooltip="부모 OS 버전이 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.">
+                                                <button type="button" class="n-btn n-btn-sm n-btn-outline-info" disabled>Deprecated 해제</button>
+                                            </span>
+                                            <form th:if="${iso.isDeprecated and !iso.parentBlocksUndeprecate}"
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/undeprecate(osId=${os.id},isoId=${iso.id})}"
-                                                  method="post" class="n-accordion-inline-form">
+                                                  method="post" class="n-accordion-inline-form"
+                                                  data-confirm-undeprecate=""
+                                                  data-resource-type="OS_ISO"
+                                                  th:data-resource-id="${iso.id}"
+                                                  th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
                                                 <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                                 <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-outline-info">
@@ -376,11 +391,11 @@
                                         </th:block>
                                         <th:block th:if="${iso.isDeleted}">
                                             <!-- 부모 OS 가 deleted 면 자식 단독 restore 가 거절되므로 disabled + tooltip 안내. -->
-                                            <span th:if="${os.isDeleted}" class="n-btn-tooltip-wrap"
+                                            <span th:if="${iso.parentBlocksRestore}" class="n-btn-tooltip-wrap"
                                                   data-tooltip="부모 OS 버전이 삭제 상태입니다. 부모부터 복구해주세요.">
                                                 <button type="button" class="n-btn n-btn-sm n-btn-outline-info" disabled>복구</button>
                                             </span>
-                                            <form th:unless="${os.isDeleted}"
+                                            <form th:unless="${iso.parentBlocksRestore}"
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-restore=""

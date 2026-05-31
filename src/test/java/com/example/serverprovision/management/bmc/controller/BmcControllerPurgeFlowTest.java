@@ -106,7 +106,7 @@ class BmcControllerPurgeFlowTest {
                 0, 0L,
                 null,
                 com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED,
-                false, true, false);
+                false, true, false, false, false, false);
         var boardWithBmc = new com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse(
                 3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE,
                 "Gigabyte", "MS73-HB1", false,

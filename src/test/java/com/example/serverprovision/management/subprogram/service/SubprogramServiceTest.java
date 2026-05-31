@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.bios.service.BundleExtractionService;
 import com.example.serverprovision.management.bios.service.BundleManifestService;
@@ -260,6 +261,101 @@ class SubprogramServiceTest {
         // blank("   ") 도 동일.
         subprogramService.update(7L, new SubprogramUpdateRequest("n", "v", "desc", "   "));
         assertThat(sp.getEntrypointRelativePath()).isEqualTo("install.sh");
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // R2-2-1 — 부모(BoardModel) lifecycle 가드 (UI 1차 차단의 서버 안전망)
+    // ──────────────────────────────────────────────────────────────
+
+    private BoardModel board(boolean enabled, boolean deprecated, boolean deleted) {
+        return BoardModel.builder()
+                .id(10L).vendor(Vendor.GIGABYTE).modelName("MS03-CE0")
+                .isEnabled(enabled).isDeprecated(deprecated).isDeleted(deleted).build();
+    }
+
+    private Subprogram sp(Long id, BoardModel parent, boolean enabled, boolean deprecated, boolean deleted) {
+        return Subprogram.builder()
+                .id(id).kind(SubprogramKind.DRIVER).boardModel(parent)
+                .name("a").version("1.0").treeRootPath("/p").manifestHash("h")
+                .fileCount(1).totalBytes(1L)
+                .isEnabled(enabled).isDeprecated(deprecated).isDeleted(deleted).build();
+    }
+
+    @Test
+    @DisplayName("toggleEnabled : 부모 DISABLED → 자식 활성화 거절 (ChildLifecycleBlockedByParent)")
+    void toggle_parentDisabled_blocks() {
+        given(subprogramRepository.findById(5L)).willReturn(Optional.of(sp(5L, board(false, false, false), false, false, false)));
+        assertThatThrownBy(() -> subprogramService.toggleEnabled(5L))
+                .isInstanceOf(ChildLifecycleBlockedByParentException.class);
+    }
+
+    @Test
+    @DisplayName("toggleEnabled : 부모 DELETED → 자식 활성화 거절 (comprehensive)")
+    void toggle_parentDeleted_blocks() {
+        given(subprogramRepository.findById(5L)).willReturn(Optional.of(sp(5L, board(true, false, true), false, false, false)));
+        assertThatThrownBy(() -> subprogramService.toggleEnabled(5L))
+                .isInstanceOf(ChildLifecycleBlockedByParentException.class);
+    }
+
+    @Test
+    @DisplayName("undeprecate : 부모 DEPRECATED → 자식 undeprecate 거절")
+    void undeprecate_parentDeprecated_blocks() {
+        given(subprogramRepository.findById(6L)).willReturn(Optional.of(sp(6L, board(true, true, false), true, true, false)));
+        assertThatThrownBy(() -> subprogramService.undeprecate(6L))
+                .isInstanceOf(ChildLifecycleBlockedByParentException.class);
+    }
+
+    @Test
+    @DisplayName("undeprecate : 부모 DELETED → 자식 undeprecate 거절")
+    void undeprecate_parentDeleted_blocks() {
+        given(subprogramRepository.findById(6L)).willReturn(Optional.of(sp(6L, board(true, false, true), true, true, false)));
+        assertThatThrownBy(() -> subprogramService.undeprecate(6L))
+                .isInstanceOf(ChildLifecycleBlockedByParentException.class);
+    }
+
+    @Test
+    @DisplayName("restore : 부모 DELETED → 자식 단독 restore 거절")
+    void restore_parentDeleted_blocks() {
+        given(subprogramRepository.findById(7L)).willReturn(Optional.of(sp(7L, board(true, false, true), false, false, true)));
+        assertThatThrownBy(() -> subprogramService.restore(7L))
+                .isInstanceOf(ChildLifecycleBlockedByParentException.class);
+    }
+
+    @Test
+    @DisplayName("toggleEnabled : 공용(boardModel=null) → 부모 가드 미적용, 정상 활성화")
+    void toggle_commonScope_passes() {
+        Subprogram s = sp(8L, null, false, false, false);
+        given(subprogramRepository.findById(8L)).willReturn(Optional.of(s));
+        subprogramService.toggleEnabled(8L);
+        assertThat(s.isEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("toggleEnabled : 부모 ACTIVE → 정상 활성화")
+    void toggle_parentActive_passes() {
+        Subprogram s = sp(9L, board(true, false, false), false, false, false);
+        given(subprogramRepository.findById(9L)).willReturn(Optional.of(s));
+        subprogramService.toggleEnabled(9L);
+        assertThat(s.isEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("undeprecate : 공용 → 부모 가드 미적용, 정상 해제")
+    void undeprecate_commonScope_passes() {
+        Subprogram s = sp(11L, null, true, true, false);
+        given(subprogramRepository.findById(11L)).willReturn(Optional.of(s));
+        subprogramService.undeprecate(11L);
+        assertThat(s.isDeprecated()).isFalse();
+    }
+
+    @Test
+    @DisplayName("restore : 공용 → 부모 가드 건너뜀, 기존 중복키 가드는 그대로 (Duplicate)")
+    void restore_commonScope_skipsParentGuard_keepsDupGuard() {
+        given(subprogramRepository.findById(12L)).willReturn(Optional.of(sp(12L, null, false, false, true)));
+        given(subprogramRepository.findActiveByCommonKey(SubprogramKind.DRIVER, "a", "1.0"))
+                .willReturn(Optional.of(sp(99L, null, true, false, false)));
+        assertThatThrownBy(() -> subprogramService.restore(12L))
+                .isInstanceOf(DuplicateSubprogramVersionException.class);
     }
 
 }

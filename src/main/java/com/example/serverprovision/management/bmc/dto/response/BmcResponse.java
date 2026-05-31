@@ -21,7 +21,12 @@ public record BmcResponse(
 		IntegrityStatus integrityStatus,
 		boolean isEnabled,
 		boolean isDeleted,
-		boolean isDeprecated
+		boolean isDeprecated,
+		// R2-2 — 부모(BoardModel) lifecycle 이 자식 BMC 의 해당 액션을 막는가. 뷰 버튼 disable + tooltip 근거.
+		// 서버 가드와 동일한 LifecycleEntity.blocksChildXxx() 결과를 캡처 (UI ↔ 서버 드리프트 0).
+		boolean parentBlocksEnable,
+		boolean parentBlocksRestore,
+		boolean parentBlocksUndeprecate
 ) {
 
 }

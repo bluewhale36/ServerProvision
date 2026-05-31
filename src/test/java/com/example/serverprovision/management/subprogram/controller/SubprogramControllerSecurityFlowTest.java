@@ -120,7 +120,10 @@ class SubprogramControllerSecurityFlowTest {
                 true,
                 false,
                 false,
-                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE
+                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE,
+                false,
+                false,
+                false
         );
     }
 }

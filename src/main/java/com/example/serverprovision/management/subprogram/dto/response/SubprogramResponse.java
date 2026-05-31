@@ -28,7 +28,12 @@ public record SubprogramResponse(
 		boolean isEnabled,
 		boolean isDeleted,
 		boolean isDeprecated,
-		LifecycleStage lifecycleStage
+		LifecycleStage lifecycleStage,
+		// R2-2-1 — 부모(BoardModel) lifecycle 이 자식 promote 액션을 막는지 (UI 1차 차단 capability).
+		// 공용 자원(boardModel=null)은 부모가 없으므로 전부 false. SSOT = BoardModel.blocksChild*().
+		boolean parentBlocksEnable,
+		boolean parentBlocksUndeprecate,
+		boolean parentBlocksRestore
 ) {
 
 }

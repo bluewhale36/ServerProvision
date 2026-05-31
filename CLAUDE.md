@@ -267,7 +267,7 @@ Step 1 은 "대화로 스케치" 가 아니라 **공식 산출물을 문서화**
 
 **골격 구조 (기존 `plan/*.html` 선례 그대로 — 묻지 말고 최근 plan 을 직접 읽어 복제)** :
 - `<header class="page-header">` (h1 + `.meta` flex : 슬라이스 / scope / 생성일 / CP 상태) → `<div class="layout">` (grid `240px 1fr`) → `<nav class="toc">` + `<main>`.
-- `nav.toc` : `align-self:start` (**top sticky 금지**) + `<ol id="toc-list">` 링크 + "전부 펴기 / 접기" 버튼.
+- `header.page-header` 와 `nav.toc` 는 **top sticky** : header `position:sticky; top:0; z-index:100`, `nav.toc` `position:sticky; top:108px; align-self:start; max-height:calc(100vh - 130px); overflow-y:auto`. `<ol id="toc-list">` 링크 + "전부 펴기 / 접기" 버튼. ToC 클릭 시 스크롤 offset 은 헤더 높이만큼 `-108` (sticky 헤더 뒤로 가리지 않게). (구 "top sticky 금지" 는 일부 한시적 문제-보고 문서에만 적용됐던 조건으로, plan html 일반 규약 아님.)
 - 각 섹션 = `<details class="section" id="sN"><summary>…</summary><div class="body">…</div></details>` (CSS `summary::before` 쉐브론 회전).
 - `<input class="filter-box" id="filter">` 섹션 검색.
 - 말미 `<script>` 4 로직 (불가침) : ① ToC `a` 클릭 → `target.open=true` + smooth scroll, ② 전부 펴기 / 접기, ③ filter 입력 → 매칭 섹션만 표시 (`.hidden` 토글 + open), ④ `ul.check-list[data-storage]` localStorage 동기화.

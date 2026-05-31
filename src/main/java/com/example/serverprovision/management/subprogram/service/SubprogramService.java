@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.MarkerContent;
@@ -513,7 +514,19 @@ public class SubprogramService {
 
 	@Transactional
 	public void toggleEnabled(Long subprogramId) {
-		requireLive(subprogramId).toggleEnabled();
+		Subprogram sp = requireLive(subprogramId);
+		BoardModel parent = sp.getBoardModel();
+		// R2-2-1 — 활성화(promote) 방향만 부모 가드. 비활성화는 자유. 공용(parent=null) 자원은 미적용.
+		if (parent != null && !sp.isEnabled()) {
+			String parentState = parent.childEnableBlockReason();   // SSOT (DELETED comprehensive)
+			if (parentState != null) {
+				throw new ChildLifecycleBlockedByParentException(
+						ResourceType.BOARD_MODEL, parent.getId(), parentState,
+						ResourceType.SUBPROGRAM, subprogramId, "enable",
+						parent.displayName());
+			}
+		}
+		sp.toggleEnabled();
 	}
 
 	/**
@@ -555,6 +568,15 @@ public class SubprogramService {
 	public void restore(Long subprogramId) {
 		Subprogram sp = subprogramRepository.findById(subprogramId)
 				.orElseThrow(() -> new SubprogramNotFoundException(subprogramId));
+		BoardModel parent = sp.getBoardModel();
+		// R2-2-1 — 부모 메인보드가 삭제면 자식 단독 restore 거절 (부모부터 복구).
+		if (parent != null && parent.blocksChildRestore()) {
+			throw new ChildLifecycleBlockedByParentException(
+					ResourceType.BOARD_MODEL, parent.getId(), "DELETED",
+					ResourceType.SUBPROGRAM, subprogramId, "restore",
+					parent.displayName());
+		}
+		// 동일 활성 키 충돌 가드 — 본 슬라이스는 예외 유지. UI 1차 차단은 R2-2-2(전 도메인 일괄)로 분리.
 		Optional<Subprogram> active = sp.isCommonScope()
 				? subprogramRepository.findActiveByCommonKey(sp.getKind(), sp.getName(), sp.getVersion())
 				: subprogramRepository.findActiveByBoardKey(sp.getKind(), sp.getBoardId(), sp.getName(), sp.getVersion());
@@ -595,7 +617,16 @@ public class SubprogramService {
 	public void undeprecate(Long subprogramId) {
 		Subprogram sp = subprogramRepository.findById(subprogramId)
 				.orElseThrow(() -> new SubprogramNotFoundException(subprogramId));
-		sp.undeprecate();
+		BoardModel parent = sp.getBoardModel();
+		// R2-2-1 — 부모 메인보드가 Deprecated/삭제면 자식 단독 undeprecate 거절.
+		if (parent != null && parent.blocksChildUndeprecate()) {
+			throw new ChildLifecycleBlockedByParentException(
+					ResourceType.BOARD_MODEL, parent.getId(),
+					parent.isDeleted() ? "DELETED" : "DEPRECATED",
+					ResourceType.SUBPROGRAM, subprogramId, "undeprecate",
+					parent.displayName());
+		}
+		sp.undeprecate();   // self-state 가드(!isDeprecated) 안전망 유지
 	}
 
 	/**
@@ -691,6 +722,7 @@ public class SubprogramService {
 	}
 
 	private static SubprogramResponse toResponse(Subprogram entity) {
+		BoardModel parent = entity.getBoardModel();   // 공용 자원이면 null → capability 전부 false
 		return new SubprogramResponse(
 				entity.getId(),
 				entity.getKind(),
@@ -708,7 +740,11 @@ public class SubprogramService {
 				entity.isEnabled(),
 				entity.isDeleted(),
 				entity.isDeprecated(),
-				entity.currentStage()
+				entity.currentStage(),
+				// R2-2-1 — 부모(BoardModel) lifecycle capability. 공용 자원(parent=null)은 전부 false. SSOT = BoardModel.blocksChild*().
+				parent != null && parent.blocksChildEnable(),
+				parent != null && parent.blocksChildUndeprecate(),
+				parent != null && parent.blocksChildRestore()
 		);
 	}
 }

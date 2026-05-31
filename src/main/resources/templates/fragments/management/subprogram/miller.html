@@ -171,7 +171,13 @@
                                 <span class="n-badge"
                                       th:classappend="${sp.enabled} ? 'n-badge-green' : 'n-badge-orange'"
                                       th:text="${sp.enabled} ? '활성화' : '비활성화'"></span>
-                                <form th:action="@{/management/subprogram/{id}/toggle(id=${sp.id})}"
+                                <!-- R2-2-1 — 활성화 방향이 부모 메인보드 상태(비활성/Deprecated/삭제)로 막히면 disabled + tooltip -->
+                                <span th:if="${!sp.enabled and sp.parentBlocksEnable}" class="n-btn-tooltip-wrap"
+                                      data-tooltip="부모 메인보드가 비활성 / Deprecated / 삭제 상태입니다. 부모를 먼저 정상화해주세요.">
+                                    <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
+                                </span>
+                                <form th:unless="${!sp.enabled and sp.parentBlocksEnable}"
+                                      th:action="@{/management/subprogram/{id}/toggle(id=${sp.id})}"
                                       method="post" class="n-accordion-inline-form">
                                     <button type="submit"
                                             class="n-btn n-btn-sm"
@@ -195,7 +201,12 @@
                               th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|">
                             <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                         </form>
-                        <form th:if="${sp.deprecated}"
+                        <!-- R2-2-1 — 부모 메인보드가 Deprecated/삭제면 undeprecate 차단 -->
+                        <span th:if="${sp.deprecated and sp.parentBlocksUndeprecate}" class="n-btn-tooltip-wrap"
+                              data-tooltip="부모 메인보드가 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.">
+                            <button type="button" class="n-btn n-btn-outline-info" disabled>Deprecated 해제</button>
+                        </span>
+                        <form th:if="${sp.deprecated and !sp.parentBlocksUndeprecate}"
                               th:action="@{/management/subprogram/{id}/undeprecate(id=${sp.id})}"
                               method="post" style="display:inline;">
                             <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
@@ -208,7 +219,13 @@
                         </form>
                     </th:block>
                     <th:block th:if="${sp.deleted}">
-                        <form th:action="@{/management/subprogram/{id}/restore(id=${sp.id})}"
+                        <!-- R2-2-1 — 부모 메인보드가 삭제면 restore 차단 (부모부터 복구) -->
+                        <span th:if="${sp.parentBlocksRestore}" class="n-btn-tooltip-wrap"
+                              data-tooltip="부모 메인보드가 삭제 상태입니다. 부모부터 복구해주세요.">
+                            <button type="button" class="n-btn n-btn-outline-info" disabled>복구</button>
+                        </span>
+                        <form th:unless="${sp.parentBlocksRestore}"
+                              th:action="@{/management/subprogram/{id}/restore(id=${sp.id})}"
                               method="post" style="display:inline;"
                               data-confirm-restore=""
                               data-async-submit=""

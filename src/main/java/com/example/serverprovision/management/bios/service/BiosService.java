@@ -374,8 +374,7 @@ public class BiosService {
 		if (nextEnabled) {
 			com.example.serverprovision.management.board.entity.BoardModel parent =
 					boardModelRepository.findById(boardId).orElseThrow();
-			String parentState = !parent.isEnabled() ? "DISABLED"
-					: parent.isDeprecated() ? "DEPRECATED" : null;
+			String parentState = parent.childEnableBlockReason();   // R2-2 — SSOT (DELETED comprehensive)
 			if (parentState != null) {
 				throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
 						com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
@@ -428,7 +427,7 @@ public class BiosService {
 	public void restore(Long boardId, Long biosId) {
 		com.example.serverprovision.management.board.entity.BoardModel parent =
 				boardModelRepository.findById(boardId).orElseThrow();
-		if (parent.isDeleted()) {
+		if (parent.blocksChildRestore()) {   // R2-2 — SSOT
 			throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
 					com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
 					parent.getId(), "DELETED",
@@ -468,10 +467,10 @@ public class BiosService {
 	public void undeprecate(Long boardId, Long biosId) {
 		com.example.serverprovision.management.board.entity.BoardModel parent =
 				boardModelRepository.findById(boardId).orElseThrow();
-		if (parent.isDeprecated()) {
+		if (parent.blocksChildUndeprecate()) {   // R2-2 — SSOT (DEPRECATED 또는 DELETED)
 			throw new com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException(
 					com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL,
-					parent.getId(), "DEPRECATED",
+					parent.getId(), parent.isDeleted() ? "DELETED" : "DEPRECATED",
 					com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE,
 					biosId, "undeprecate",
 					parent.displayName()
@@ -588,7 +587,11 @@ public class BiosService {
 				entity.getLastIntegrityStatus() != null ? entity.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
 				entity.isEnabled(),
 				entity.isDeleted(),
-				entity.isDeprecated()
+				entity.isDeprecated(),
+				// R2-2 — 부모 BoardModel lifecycle 가드 (엔티티 그래프로 도달, repo 조회 0).
+				entity.getBoardModel().blocksChildEnable(),
+				entity.getBoardModel().blocksChildRestore(),
+				entity.getBoardModel().blocksChildUndeprecate()
 		);
 	}
 

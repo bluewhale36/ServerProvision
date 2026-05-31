@@ -117,7 +117,7 @@ class BiosControllerPurgeFlowTest {
                 0, 0L,
                 null,
                 com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED,
-                false, true, false);
+                false, true, false, false, false, false);
         var boardWithBios = new com.example.serverprovision.management.bios.dto.response.BoardWithBiosListResponse(
                 3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE,
                 "Gigabyte", "MS73-HB1", false,

@@ -197,9 +197,21 @@ code {
     transform: scale(0.95);
 }
 
-.n-btn:disabled {
-    opacity: 0.5;
+/* disabled : flavor(outline-success/info/warning/danger 등) 색을 일관된 중립 회색으로 정규화한다.
+   opacity 페이드만으로는 flavor 별로 다른 색(흐린 초록/파랑/주황)이 남으므로, 명시적 중립 배경 + muted
+   텍스트 + border 제거로 모든 disabled 버튼이 동일하게 보이게 한다 (.n-btn-danger:disabled 선례와 동일 값). */
+.n-btn:disabled,
+.n-btn.n-btn-disabled {
+    background: rgba(0, 0, 0, 0.10);
+    color: var(--n-text-muted);
+    border-color: transparent;
+    opacity: 1;
     cursor: not-allowed;
+}
+/* button:disabled 는 disabled 속성이 클릭/제출을 막으므로 pointer-events 를 살려 둔다 → hover 시 not-allowed
+   커서가 보이고, tooltip wrap(.n-btn-tooltip-wrap) 의 조상 :hover 도 그대로 발동. 링크 버튼(a.n-btn-disabled)
+   은 native disabled 속성이 없어 클릭 차단용으로 pointer-events 를 제거한다(커서는 wrap/부모가 보완). */
+.n-btn.n-btn-disabled {
     pointer-events: none;
 }
 

@@ -87,8 +87,7 @@ public class IsoLifecycleService implements LifecycleService {
 		OSMetadata parent = loadParent(iso);
 		boolean nextEnabled = !iso.isEnabled();
 		if (nextEnabled) {
-			String parentState = !parent.isEnabled() ? "DISABLED"
-					: parent.isDeprecated() ? "DEPRECATED" : null;
+			String parentState = parent.childEnableBlockReason();   // R2-2 — SSOT (DELETED comprehensive)
 			if (parentState != null) {
 				throw new ChildLifecycleBlockedByParentException(
 						ResourceType.OS_IMAGE,
@@ -162,7 +161,7 @@ public class IsoLifecycleService implements LifecycleService {
 		OSMetadata parent = osMetadataRepository.findById(iso.getOsMetadata().getId())
 				.orElseThrow(() -> new IllegalOSMetadataStateException(
 						"OS 버전이 존재하지 않습니다. id=" + iso.getOsMetadata().getId()));
-		if (parent.isDeleted()) {
+		if (parent.blocksChildRestore()) {   // R2-2 — SSOT
 			throw new ChildLifecycleBlockedByParentException(
 					ResourceType.OS_IMAGE,
 					parent.getId(), "DELETED",
@@ -202,10 +201,10 @@ public class IsoLifecycleService implements LifecycleService {
 	public void undeprecate(Long isoId) {
 		ISO iso = requireLiveIso(isoId);
 		OSMetadata parent = loadParent(iso);
-		if (parent.isDeprecated()) {
+		if (parent.blocksChildUndeprecate()) {   // R2-2 — SSOT (DEPRECATED 또는 DELETED)
 			throw new ChildLifecycleBlockedByParentException(
 					ResourceType.OS_IMAGE,
-					parent.getId(), "DEPRECATED",
+					parent.getId(), parent.isDeleted() ? "DELETED" : "DEPRECATED",
 					ResourceType.OS_ISO,
 					isoId, "undeprecate",
 					parent.displayName()

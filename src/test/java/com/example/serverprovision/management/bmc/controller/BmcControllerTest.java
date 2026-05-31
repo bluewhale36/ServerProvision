@@ -165,7 +165,7 @@ class BmcControllerTest {
                 .willReturn(new BoardModelResponse(1L, Vendor.GIGABYTE, "MS03", "", 0, 0, true, false, false, com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE));
         given(bmcService.findBmc(1L, 2L))
                 .willReturn(new BmcResponse(2L, 1L, "AST2600", "12.61", "/opt/fw/bmc", "flash.nsh", "hash", 3, 2048L,
-                        "", IntegrityStatus.NOT_VERIFIED, true, false, false));
+                        "", IntegrityStatus.NOT_VERIFIED, true, false, false, false, false, false));
 
         mvc.perform(get("/management/bmc/1/bmc/2/edit"))
                 .andExpect(status().isOk())
