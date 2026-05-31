@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R1-2 Plan — OSMetadata update 로직 단순화 + osVersion 수정 불가</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.preview { color: var(--orange); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  details.section.preview > summary { background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.add { background: var(--green-bg); color: var(--green); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.del { background: var(--red-bg); color: var(--red); }
+  .chip.keep { background: var(--bg); color: var(--text-muted); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.danger { border-color: var(--red); background: var(--red-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+  .compare-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 12px 0; }
+  .compare-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; min-width: 0; overflow: hidden; }
+  .compare-card h4 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .compare-card.before { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .compare-card.before h4 { color: var(--red); }
+  .compare-card.after { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .compare-card.after h4 { color: var(--green); }
+  .compare-card pre { background: rgba(255,255,255,0.6); }
+
+  /* edit 폼 mock */
+  .edit-mock { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-top: 10px; min-width: 0; }
+  .edit-mock .row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .edit-mock label { min-width: 80px; font-size: 12px; color: var(--text-muted); }
+  .edit-mock .field {
+    flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--card); font-family: var(--mono); font-size: 12px; min-width: 0;
+  }
+  .edit-mock .field.readonly { background: var(--bg); color: var(--text-muted); }
+  .edit-mock .field.editable { border-color: var(--blue); }
+  .edit-mock .badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+  .edit-mock .badge.lock { background: var(--bg); color: var(--text-muted); }
+  .edit-mock .badge.edit { background: var(--blue-bg); color: var(--blue); }
+  .edit-mock .badge.gone { background: var(--red-bg); color: var(--red); text-decoration: line-through; }
+  .edit-mock .help { font-size: 11px; color: var(--text-muted); margin-left: 90px; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R1-2 — OSMetadata <code>update()</code> 단순화 + <code>osVersion</code> 수정 불가 정책</h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R1-2</span>
+    <span><strong>상위</strong> R1 (OSMetadata 도메인 리팩토링) ← R0 (Backend 전면 리팩토링)</span>
+    <span><strong>단계</strong> 2-1차 개발</span>
+    <span><strong>생성</strong> 2026-05-26 20:05:55 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약</a></li>
+      <li><a href="#s2">§2 페이지 요구사항</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (수정 폼 데모)</a></li>
+      <li><a href="#s3">§3 데이터 흐름 (before vs after)</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10 단계 + CP 묶음</a></li>
+      <li><a href="#s6">§6 통합 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정 사항</a></li>
+      <li><a href="#s9">§9 Verification 체크리스트</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약</summary>
+      <div class="body">
+        <p><b>선행</b> :</p>
+        <ul>
+          <li>R1-1 (Create 로직 환원 + 안 B) — CP5 승인 (2026-05-26). round-trip 4~5 → 1 + ACTIVE+SOFT_DELETED 혼합 nudge 환원</li>
+          <li>R1-1 §8 D-2 결정 : <code>existsByOsNameAndOsVersionAndIsDeletedFalse</code> 는 update / 기타 3 곳 호출처가 남아 보존했음. 본 R1-2 가 update 호출처 1 개를 추가 제거</li>
+        </ul>
+        <p><b>본 슬라이스 진입 시점 측정값</b> (<code>OSMetadataService.update()</code>, line 260-270) :</p>
+        <table>
+          <thead><tr><th>지표</th><th>현재</th><th>목표</th></tr></thead>
+          <tbody>
+            <tr><td><code>update()</code> 본체 줄 수 (Service)</td><td>10</td><td>4 (-60%)</td></tr>
+            <tr><td><code>update()</code> 의 Repository 호출</td><td>2 (requireActiveImage + existsBy…)</td><td>1 (requireActiveImage 만)</td></tr>
+            <tr><td><code>update()</code> 안 분기·guard 줄</td><td>2 (<code>!equals</code> + <code>existsBy</code>)</td><td>0</td></tr>
+            <tr><td><code>OSMetadataUpdateRequest</code> 필드</td><td>2 (osVersion + description)</td><td>1 (description 만)</td></tr>
+            <tr><td><code>existsBy…IsDeletedFalse</code> 호출처 (서비스 안)</td><td>4 곳</td><td>3 곳 (-1)</td></tr>
+            <tr><td>수정 폼 (edit.html) — osVersion 편집 가능 여부</td><td>편집 가능 input</td><td>read-only label (osName 과 동일 처리)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 페이지 요구사항</summary>
+      <div class="body">
+        <p>본 슬라이스의 핵심 : <b>OSMetadata 의 osVersion 을 osName 과 동일하게 "수정 불가" 도메인 정책으로 격상</b>.
+        이 정책 변경이 update 로직의 모든 분기·검사를 자연스럽게 소멸시킨다.</p>
+
+        <ol>
+          <li><b>도메인 정책</b> — OSMetadata 의 <code>osVersion</code> 은 수정 불가. 변경 필요 시 soft delete 후 재등록 (osName 과 동일).
+            DB 컬럼은 그대로 유지, 변경 채널만 차단.</li>
+          <li><b>UpdateRequest 단순화</b> — <code>OSMetadataUpdateRequest</code> 는 <code>description</code> 1 필드만 가진다.
+            <code>osVersion</code> 제거.</li>
+          <li><b>Service.update() 단순화</b> — entity 조회 + <code>image.update(description)</code> 만. 충돌 검사 완전 소멸.</li>
+          <li><b>Entity.update() 시그니처 좁힘</b> — <code>OSMetadata.update(String description)</code>. <code>osVersion</code> 인자 제거.</li>
+          <li><b>수정 폼 UX</b> — edit.html 에서 osVersion 을 osName 과 동일하게 readonly 표시. 옆에 작은 안내 ("변경하려면 삭제 후 재등록").</li>
+          <li><b>회귀 0</b> — description-only 수정 흐름은 옛 동작과 동치. 외부 endpoint URL / HTTP method / response 코드 모두 동일.</li>
+        </ol>
+
+        <div class="callout">
+          <b>비 목표 (out of scope)</b> — <code>existsByOsNameAndOsVersionAndIsDeletedFalse</code> 의 다른 3 호출처 (line 236 / 330 / restore-from-nudge 흐름).
+          본 슬라이스 종료 시점에 호출처 3 곳 남음. R1-3 후속.
+        </div>
+
+        <div class="callout warn">
+          <b>UX 비교 분석 — 정책 변경의 사용자 영향</b><br>
+          옛 흐름에서 사용자가 "오타 수정" 또는 "버전 표기 정정 (예: 9.6 → 9.06)" 시 update 를 사용했을 가능성이 있다.
+          새 정책에선 그 경로가 막힘 → soft delete 후 재등록 안내가 사용자 부담일 수 있음.
+          <b>완화책 (안 적용)</b> :
+          <ul>
+            <li>edit 화면의 osVersion 옆에 안내 문구 ("버전을 변경하려면 자원을 삭제 후 다시 생성해주세요.")</li>
+            <li>tooltip — disabled input 에 hover 시 도메인 정책 설명 (S5-3-2 의 <code>.n-btn-tooltip-wrap</code> 패턴 재사용)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 미리보기 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 수정 폼의 before vs after</summary>
+      <div class="body">
+        <p>같은 수정 화면이 두 정책에서 어떻게 그려지는지 라이브 mock 으로 비교. 우측의 새 화면에서 osVersion 박스는 회색 처리 + 안내 문구가 따라붙는다.</p>
+
+        <div class="compare-grid">
+          <div class="compare-card before">
+            <h4>옛 화면 — osVersion 편집 가능</h4>
+            <div class="edit-mock">
+              <div class="row">
+                <label>OS</label>
+                <div class="field readonly">Rocky Linux</div>
+                <span class="badge lock">잠금</span>
+              </div>
+              <div class="row">
+                <label>OS 버전</label>
+                <div class="field editable" contenteditable>9.6</div>
+                <span class="badge edit">편집 가능</span>
+              </div>
+              <div class="row">
+                <label>설명</label>
+                <div class="field editable" contenteditable>최신 마이너</div>
+                <span class="badge edit">편집 가능</span>
+              </div>
+              <div class="row">
+                <button style="margin-left:auto; padding:6px 14px; background:var(--blue); color:white; border:none; border-radius:4px; cursor:pointer;">저장</button>
+              </div>
+            </div>
+            <p style="font-size:11px; color:var(--text-muted); margin:8px 2px 0;">
+              저장 시 Service.update() 가 <code>existsBy…IsDeletedFalse</code> 호출 → 다른 활성 row 와 충돌 검사.
+              실제 사용은 description 수정이 대부분 — 충돌 검사가 사실상 무용.
+            </p>
+          </div>
+
+          <div class="compare-card after">
+            <h4>새 화면 — osVersion 도 잠금</h4>
+            <div class="edit-mock">
+              <div class="row">
+                <label>OS</label>
+                <div class="field readonly">Rocky Linux</div>
+                <span class="badge lock">잠금</span>
+              </div>
+              <div class="row">
+                <label>OS 버전</label>
+                <div class="field readonly">9.6</div>
+                <span class="badge lock">잠금</span>
+              </div>
+              <div class="help">변경하려면 자원을 삭제 후 다시 생성해주세요.</div>
+              <div class="row">
+                <label>설명</label>
+                <div class="field editable" contenteditable>최신 마이너</div>
+                <span class="badge edit">편집 가능</span>
+              </div>
+              <div class="row">
+                <button style="margin-left:auto; padding:6px 14px; background:var(--green); color:white; border:none; border-radius:4px; cursor:pointer;">저장</button>
+              </div>
+            </div>
+            <p style="font-size:11px; color:var(--text-muted); margin:8px 2px 0;">
+              저장 시 Service.update() = <code>image.update(description)</code> 만. exists 호출 0, 충돌 검사 0, 분기 0.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout success">
+          <b>핵심 통찰</b> — "분기를 더 깔끔하게" 가 아니라 <b>분기의 전제 자체를 도메인 정책으로 흡수</b>해서 분기를 통째로 없앤다.
+          R1-1 이 LifecycleStage 다형성으로 분기를 응집한 것과 같은 정신, 다른 도구 (도메인 invariant 강화).
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 데이터 흐름 (before vs after)</summary>
+      <div class="body">
+
+        <h4 style="margin-top:0">3.1 옛 코드 (현행)</h4>
+<pre><code>// OSMetadataUpdateRequest.java
+public record OSMetadataUpdateRequest(
+    @NotBlank String osVersion,
+    String description
+) {}
+
+// OSMetadataService.java
+@Transactional
+public void update(Long id, OSMetadataUpdateRequest request) {
+    OSMetadata image = requireActiveImage(id);
+    if (
+            !image.getOsVersion().equals(request.osVersion()) &&
+            osMetadataRepository.existsByOsNameAndOsVersionAndIsDeletedFalse(
+                    image.getOsName(), request.osVersion())
+    ) {
+        throw new DuplicateOSMetadataException(image.getOsName(), request.osVersion());
+    }
+    image.update(request.osVersion(), request.description());
+}
+
+// OSMetadata.java (entity)
+public void update(String osVersion, String description) {
+    this.osVersion = osVersion;
+    this.description = description;
+}</code></pre>
+
+        <h4>3.2 새 코드 (제안)</h4>
+<pre><code>// OSMetadataUpdateRequest.java
+public record OSMetadataUpdateRequest(
+    String description
+) {}
+
+// OSMetadataService.java
+@Transactional
+public void update(Long id, OSMetadataUpdateRequest request) {
+    OSMetadata image = requireActiveImage(id);
+    image.update(request.description());
+}
+
+// OSMetadata.java (entity)
+public void update(String description) {
+    this.description = description;
+}</code></pre>
+
+        <h4>3.3 외부 행위 동치성 (description-only 수정 케이스)</h4>
+        <table>
+          <thead><tr><th>입력</th><th>옛 결과</th><th>새 결과</th><th>일치?</th></tr></thead>
+          <tbody>
+            <tr><td>description 만 변경 (osVersion 동일)</td><td>200 OK / DB description 갱신</td><td>200 OK / DB description 갱신</td><td>✓</td></tr>
+            <tr><td>osVersion 도 변경 + 충돌 0</td><td>200 OK / DB osVersion + description 갱신</td><td><b style="color:var(--orange)">의도 변경</b> — request 에 osVersion 없음 (필드 제거). 그 값은 form 에서 안 보내짐</td><td>의도 변경</td></tr>
+            <tr><td>osVersion 도 변경 + 다른 활성 row 와 충돌</td><td>409 DuplicateOSMetadataException</td><td>발생 가능성 0 — request 에 osVersion 없음</td><td>의도 변경</td></tr>
+          </tbody>
+        </table>
+        <p>새 정책 하에서 osVersion 변경 분기 자체가 사용자에게 노출되지 않음. 따라서 충돌 케이스도 발생 불가 → 검사·예외 제거 안전.</p>
+
+        <h4>3.4 form 측 행위</h4>
+        <ul>
+          <li>edit.html 에서 osVersion <code>input</code> 을 <code>readonly</code> label 로 (osNameLabel 패턴과 동일)</li>
+          <li>controller editForm() 에서 osMetadataForm 의 osVersion 초기값 더 이상 안 채움 (UpdateRequest 에 필드 없음).
+            화면 표시는 별도 model 속성 <code>osVersionLabel</code> (또는 image.osVersion 직접 노출)</li>
+          <li>사용자가 의도적으로 osVersion 값을 form 에 끼워 넣어 POST 해도, Spring 의 <code>@ModelAttribute</code> binding 에 해당 setter 가 없으므로 **무시** (silent ignore). 보안적으로 안전</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>OSMetadataUpdateRequest.java</code></td>
+              <td><span class="chip mod">필드 제거</span></td>
+              <td><code>osVersion</code> 필드 + <code>@NotBlank</code> 제거. record 컴팩트 형식 그대로 <code>description</code> 만</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataService.java</code> (update)</td>
+              <td><span class="chip mod">본체 단순화</span></td>
+              <td>if 트리 + exists 호출 + DuplicateOSMetadataException 제거. <code>requireActiveImage(id)</code> + <code>image.update(request.description())</code></td>
+            </tr>
+            <tr>
+              <td><code>OSMetadata.java</code> (entity)</td>
+              <td><span class="chip mod">메서드 시그니처</span></td>
+              <td><code>update(String osVersion, String description)</code> → <code>update(String description)</code></td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataController.java</code> (editForm + update)</td>
+              <td><span class="chip mod">form binding</span></td>
+              <td>
+                <ul>
+                  <li><code>editForm()</code> : <code>new OSMetadataUpdateRequest(...)</code> 호출 인자 1 개로 축소. model 에 <code>osVersionLabel</code> (또는 image 자체) 추가해 화면 표시용으로 전달</li>
+                  <li><code>update()</code> : 시그니처·로직 변경 없음 (record 인자만 다른 형태로 자동 바인딩)</li>
+                </ul>
+              </td>
+            </tr>
+            <tr>
+              <td><code>edit.html</code></td>
+              <td><span class="chip mod">readonly 변환</span></td>
+              <td>
+                <ul>
+                  <li>osVersion 의 <code>&lt;input th:field="*{osVersion}"&gt;</code> → <code>&lt;input class="n-input" th:value="${osVersionLabel}" readonly&gt;</code> (osNameLabel 패턴 그대로)</li>
+                  <li>label 아래에 안내 텍스트 한 줄 ("버전을 변경하려면 …")</li>
+                  <li>error 출력 <code>th:if="${#fields.hasErrors('osVersion')}"</code> 블록 제거 (필드 자체 부재)</li>
+                </ul>
+              </td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataServiceTest.java</code></td>
+              <td><span class="chip mod">시나리오 갱신</span></td>
+              <td>
+                <ul>
+                  <li>update(happy) — request 가 description 만 → image.update(description) 호출 검증</li>
+                  <li>update(409 duplicate) 시나리오 — <b>제거</b> (충돌 케이스 자체가 발생 불가)</li>
+                </ul>
+              </td>
+            </tr>
+            <tr>
+              <td>Controller flow test (update 경로)</td>
+              <td><span class="chip mod">필드 검증</span></td>
+              <td>updateForm POST 시 osVersion 파라미터 무시 검증 + description 만 반영 검증</td>
+            </tr>
+            <tr>
+              <td>DB schema</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>os_metadata.os_version 컬럼 그대로 (도메인 채널만 차단, 컬럼은 보존)</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — main +5 / -25 (net <b>-20</b>) + test +5 / -15 (net <b>-10</b>).</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>표준</th><th>R1-2 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html</td><td>본 문서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf 뷰</td><td>edit.html — osVersion input → readonly label + 안내 1 줄</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller</td><td>editForm() 의 UpdateRequest 생성 인자 + model 속성 osVersionLabel</td></tr>
+            <tr><td>4</td><td>Request DTO</td><td>OSMetadataUpdateRequest 의 osVersion 필드 제거</td></tr>
+            <tr><td>5</td><td>Service 시그니처</td><td>update() 본체 새 흐름</td></tr>
+            <tr><td>6</td><td>Repository</td><td><i>N/A</i> (Repository 변경 0)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity</td><td>OSMetadata.update() 시그니처 좁힘</td></tr>
+            <tr><td>8</td><td>Service 본체 + 테스트</td><td>update(happy) 갱신 + update(409 duplicate) 시나리오 제거</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 확인</td><td><i>N/A</i> (DDL 변경 0)</td></tr>
+            <tr><td>10</td><td>브라우저 E2E</td><td>수정 화면 진입 → osVersion 잠금 확인 → description 만 갱신 → 정상 응답 시나리오</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>위치</th><th>R1-2 변경</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>update(happy) — description 만 변경 → 200 + entity.description 갱신</td>
+              <td><code>OSMetadataServiceTest::update_…</code> (현재 미존재 시 신규)</td>
+              <td>request = description 만, image.update(description) 호출 검증</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>update(404) — 존재하지 않는 id → OSMetadataNotFoundException</td>
+              <td>controller flow test</td>
+              <td>requireActiveImage 가 그대로 발화 → 변경 없음</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>update(form 무시) — POST 로 osVersion 파라미터를 보내도 무시되고 description 만 반영</td>
+              <td>controller flow test (신규)</td>
+              <td>새 시나리오 — record binding 의 silent ignore 동작 검증</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><b>시나리오 제거</b> — update(409 duplicate)</td>
+              <td>OSMetadataServiceTest / flow test</td>
+              <td>충돌 발생 불가 → 시나리오 자체 삭제. CP4 보고 시 명시</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p><b>update 경로에서 <code>DuplicateOSMetadataException</code> 발화 분기 제거</b>. 다른 경로 (create / nudge replace 등) 는 그대로.</p>
+        <ul>
+          <li>예외 클래스 자체는 유지 (create 흐름이 계속 사용)</li>
+          <li>전역 ExceptionHandler 매핑 변경 없음</li>
+          <li>새 예외 도입 없음</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4 style="margin-top:0">D-1. 정책 변경의 사용자 영향 — 완화 안내</h4>
+        <p>edit.html 의 osVersion readonly label 옆에 1 줄 안내 표시 :
+          <i>"버전을 변경하려면 자원을 삭제 후 다시 생성해주세요."</i>. CSS 클래스는 <code>.n-help</code> 또는 fragment 의 기존 안내 스타일 재사용.</p>
+
+        <h4>D-2. Spring binding 동작 — silent ignore 의존 안전성</h4>
+        <p><code>@ModelAttribute</code> + record 바인딩에서 record 컴포넌트에 없는 form 파라미터는 자동으로 무시된다.
+          따라서 사용자가 직접 HTML 수정 / curl 로 <code>osVersion=…</code> 을 POST 해도 서버 측에서 silent ignore.
+          이를 명시적으로 거절하려면 별도 <code>@InitBinder</code> + denylist 가 필요하지만, 본 슬라이스에서는
+          <b>silent ignore 그대로 채택</b> (사용자 친화적 + Spring 기본 동작과 정합).
+          관련 테스트 시나리오 §6 #3 으로 검증.</p>
+
+        <h4>D-3. <code>findFirstByOsNameAndOsVersionAndIsDeletedTrue</code> 의 거취</h4>
+        <p>R1-1 시점에 unused 로 식별. 본 슬라이스 범위 밖이지만 호출처가 여전히 0 이면 R1-3 또는 후속 cleanup 슬라이스에서 일괄 제거.</p>
+
+        <h4>D-4. CLAUDE.md 정렬</h4>
+        <ul>
+          <li>"조건 분기문 의 legacy 무분별 확장 절대 지양" — <b>분기 자체를 도메인 정책으로 흡수</b>해 소멸시키는 방식</li>
+          <li>"확장성 고려" — version 변경 흐름이 필요해지면 별도 endpoint (예: <code>PUT /…/{id}/version</code>) 를 명시적으로 추가 가능. 묵시적 채널이 아닌 명시적 채널</li>
+          <li>"보안 고려" — silent ignore 가 의도하지 않은 변경을 차단</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r1-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (608 ~ 609 → 시나리오 ±1 변동 가능)</span></label></li>
+          <li><label><input type="checkbox" data-key="grep-version-update"> <span>OSMetadata 의 osVersion setter / update(osVersion) 호출처 0 (grep 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="form-readonly"> <span>edit.html 진입 시 osVersion input 이 readonly + 안내 문구 노출</span></label></li>
+          <li><label><input type="checkbox" data-key="silent-ignore"> <span>POST 로 osVersion 파라미터를 강제 주입해도 entity 의 osVersion 이 변하지 않음</span></label></li>
+          <li><label><input type="checkbox" data-key="exists-1"> <span><code>existsByOsNameAndOsVersionAndIsDeletedFalse</code> 호출처가 4 → 3 으로 감소 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="diff"> <span>main net diff 음수 (-20 ± 추정), test net diff 음수</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자 단독) — 수정 화면 진입 + description 갱신 + osVersion 잠금 확인</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataUpdateRequest.java</code></td><td>osVersion 필드 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataService.java</code> (update)</td><td>분기 + exists 제거, 본체 2 줄</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadata.java</code> (entity)</td><td>update() 메서드 시그니처</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataController.java</code> (editForm)</td><td>UpdateRequest 생성 인자 + model osVersionLabel</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>edit.html</code></td><td>osVersion input readonly + 안내</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataServiceTest.java</code></td><td>update(happy) 갱신 + 409 시나리오 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>controller flow test (update)</td><td>silent ignore 시나리오 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>OSMetadataRepository.java</code></td><td>변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>DuplicateOSMetadataException</code></td><td>create 흐름이 계속 사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>DB schema</td><td>os_version 컬럼 보존</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1-3</b> — <code>existsByOsNameAndOsVersionAndIsDeletedFalse</code> 의 남은 3 호출처 (line 236 / 330 / nudge replace 흐름) 정비.
+              관련 메서드 (finalizePreparedIsoRegistration / restore-from-nudge / 기타) 도 같이 점검.
+              호출처 0 도달 시 메서드 자체 제거.</li>
+          <li><b>R1-4</b> — <code>findFirstByOsNameAndOsVersionAndIsDeletedTrue</code> unused 메서드 제거 (R1-3 합류 가능)</li>
+          <li><b>R2</b> — Subprogram / BIOS / BMC 의 동형 update / addExisting 패턴 환원 (registerExisting 7 calls 등)</li>
+          <li><b>R3</b> — <code>PathReconciliationService::performScan</code> (829 line + 13 if + 10 try-catch) 분해</li>
+        </ol>
+        <p>R1-2 자체는 1 일 분량. 변경 표면 작음 (5 ~ 7 파일).</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+
+  document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      if (text.includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+      });
+    });
+  });
+</script>
+</body>
+</html>

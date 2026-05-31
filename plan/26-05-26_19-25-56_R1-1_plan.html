@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R1-1 Plan — OSMetadata create() 5 round-trip → 1 round-trip</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.preview { color: var(--orange); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  details.section.preview > summary { background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.add { background: var(--green-bg); color: var(--green); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.del { background: var(--red-bg); color: var(--red); }
+  .chip.keep { background: var(--bg); color: var(--text-muted); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.danger { border-color: var(--red); background: var(--red-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+  .compare-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 12px 0; }
+  .compare-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; min-width: 0; overflow: hidden; }
+  .compare-card h4 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .compare-card.before { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .compare-card.before h4 { color: var(--red); }
+  .compare-card.after { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .compare-card.after h4 { color: var(--green); }
+  .compare-card pre { background: rgba(255,255,255,0.6); }
+  .demo-stage { background: var(--card); border: 2px dashed var(--orange); border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .demo-stage h4 { margin: 0 0 10px; color: var(--orange); font-size: 13px; }
+  .demo-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .demo-controls button { padding: 6px 12px; font-size: 12px; cursor: pointer; border-radius: 4px;
+    border: 1px solid var(--border); background: var(--card); }
+  .demo-controls button.active { background: var(--orange); color: white; border-color: var(--orange); }
+  .demo-roundtrips { display: flex; gap: 6px; margin: 10px 0; align-items: stretch; min-width: 0; }
+  .demo-roundtrip { flex: 1 1 0; min-width: 0; padding: 6px 4px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg); font-family: var(--mono); font-size: 10px; text-align: center; opacity: 0.3;
+    transition: opacity 0.2s, background 0.2s; overflow-wrap: anywhere; word-break: break-all; line-height: 1.35; }
+  .demo-roundtrip.fire { opacity: 1; background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .demo-roundtrip.fire-after { opacity: 1; background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .demo-roundtrip .lbl { font-weight: 600; font-size: 9px; display: block; margin-bottom: 2px; opacity: 0.85; }
+  .demo-stat { padding: 10px; background: var(--bg); border-radius: 4px; margin-top: 8px; font-family: var(--mono); font-size: 12px; }
+  .demo-stat .num { font-weight: 700; font-size: 20px; }
+  .demo-stat .num.red { color: var(--red); }
+  .demo-stat .num.green { color: var(--green); }
+  .demo-stat .gain { color: var(--green); font-weight: 600; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R1-1 — OSMetadata <code>create()</code> 의 5 round-trip → 1 round-trip 환원</h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R1-1</span>
+    <span><strong>상위</strong> R1 (OSMetadata 도메인 리팩토링) ← R0 (Backend 전면 리팩토링)</span>
+    <span><strong>단계</strong> 2-1차 개발</span>
+    <span><strong>생성</strong> 2026-05-26 19:25:56 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약</a></li>
+      <li><a href="#s2">§2 페이지 요구사항</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 데이터 흐름 (before vs after)</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10 단계 + CP 묶음</a></li>
+      <li><a href="#s6">§6 통합 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification 체크리스트</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약</summary>
+      <div class="body">
+        <p><b>선행 슬라이스</b> — R1-1 의 진입 전제 :</p>
+        <ul>
+          <li>S5 묶음 (S5-1 ~ S5-12) 완료 (2026-05-26)</li>
+          <li>R0 (Backend 전면 리팩토링) 진행 중 — 상위 트랙</li>
+          <li>R1 (OSMetadata 도메인 리팩토링) 진입 — 본 슬라이스가 R1 의 첫 sub-slice</li>
+          <li>직전 작업으로 OSImage → OSMetadata rename + service 패키지 세분화 (metadata / iso / comps / postcreation) 완료. 본 슬라이스 진입 환경 정비 됨</li>
+        </ul>
+        <p><b>본 슬라이스 진입 시점 측정값</b> (<code>src/main/java/com/example/serverprovision/management/os/service/metadata/OSMetadataService.java</code>) :</p>
+        <table>
+          <thead><tr><th>지표</th><th>현재</th><th>목표</th></tr></thead>
+          <tbody>
+            <tr><td>파일 라인 수</td><td>1133</td><td>~ 1110 (-23 추정)</td></tr>
+            <tr><td><code>create()</code> 영속화 1 회당 동일 키 Repository 호출</td><td><b class="num" style="color:var(--red)">4 ~ 5 회</b></td><td><b class="num" style="color:var(--green)">1 회</b></td></tr>
+            <tr><td>동일 결과 재조회 (#4 = #2)</td><td>O</td><td>X</td></tr>
+            <tr><td>Repository 메서드 (create 흐름)</td><td>3 종 (exists + 2 findAll)</td><td>1 종 (findAll)</td></tr>
+            <tr><td>외부 행위 (예외 / 응답)</td><td>—</td><td>완전 동일 (회귀 0)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 페이지 요구사항 (Notion R1-1 본문 정렬)</summary>
+      <div class="body">
+        <p>본 슬라이스는 <b>순수 리팩토링</b>. UI / URL / 외부 응답 / DB schema / Entity 필드 변경 0. 다음 단 한 가지를 만족하면 완료 :</p>
+        <ol>
+          <li><b>외부 관찰 동일성</b> — 같은 입력에 대해 <code>DuplicateOSMetadataException</code> / <code>OSMetadataNudgeRequiredException</code> / 정상 ID 반환의 분기가 옛 코드와 100% 동일하게 발화</li>
+          <li><b>round-trip 1 회</b> — 단일 (osName, osVersion) 키에 대해 SELECT 1 회 + (성공 경로 시) INSERT 1 회</li>
+          <li><b>분기 표현이 LifecycleStage 다형성으로 환원</b> — if-else 줄 추가가 아닌 enum 그룹핑으로 dispatch</li>
+          <li><b>현행 테스트 0 변경 통과</b> — <code>OSMetadataServiceTest</code> 의 create happy / duplicate / nudge 시나리오 그대로 통과</li>
+        </ol>
+        <div class="callout warn">
+          <b>비 목표 (out of scope)</b> — <code>finalizePreparedIsoRegistration</code> (4 repo calls), 그 외 OSMetadataService 의 다른 메서드, BIOS / BMC / Subprogram 의 동형 패턴. 이들은 R1-2 / R2 후속 슬라이스로 분리.
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 미리보기 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — round-trip 라이브 비교 (before vs after)</summary>
+      <div class="body">
+        <p>아래 시나리오를 클릭하면 같은 입력이 두 구현에서 어떤 DB 호출을 발생시키는지 시각화한다. 옛 코드는 빨강, 새 코드는 초록.</p>
+        <div class="demo-controls">
+          <span style="font-size:12px; color:var(--text-muted);">시나리오 :</span>
+          <button class="demo-btn active" data-scenario="happy">정상 (충돌 0)</button>
+          <button class="demo-btn" data-scenario="active">활성 충돌 (fail-fast)</button>
+          <button class="demo-btn" data-scenario="softdel">soft-deleted 후보 (nudge)</button>
+          <button class="demo-btn" data-scenario="deprec">활성-deprecated 교집합 (nudge)</button>
+        </div>
+
+        <div class="compare-grid">
+          <div class="compare-card before">
+            <h4>옛 코드 (4 ~ 5 round-trip)</h4>
+            <div class="demo-roundtrips" id="demo-before">
+              <div class="demo-roundtrip" data-call="exists"><span class="lbl">#1</span>existsByOsNameAndOsVersionAndIsDeletedFalse</div>
+              <div class="demo-roundtrip" data-call="actDep"><span class="lbl">#2</span>findAll … Deprecated TRUE</div>
+              <div class="demo-roundtrip" data-call="softDel"><span class="lbl">#3</span>findAll … IsDeletedTrue</div>
+              <div class="demo-roundtrip" data-call="actDep2"><span class="lbl">#4 (= #2 재조회)</span>findAll … Deprecated TRUE</div>
+              <div class="demo-roundtrip" data-call="insert"><span class="lbl">#5</span>INSERT</div>
+            </div>
+            <div class="demo-stat">
+              total round-trip : <span class="num red" id="before-count">—</span> · <span id="before-note"></span>
+            </div>
+          </div>
+
+          <div class="compare-card after">
+            <h4>새 코드 (1 ~ 2 round-trip)</h4>
+            <div class="demo-roundtrips" id="demo-after">
+              <div class="demo-roundtrip" data-call="findAll"><span class="lbl">#1</span>findAllByOsNameAndOsVersion</div>
+              <div class="demo-roundtrip" data-call="insert"><span class="lbl">#2</span>INSERT</div>
+            </div>
+            <div class="demo-stat">
+              total round-trip : <span class="num green" id="after-count">—</span> · <span class="gain" id="gain">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout success">
+          <b>요약 시뮬레이션</b> — 4 시나리오 평균 : 옛 4.0 round-trip · 새 1.5 round-trip · <b>62.5% 감소</b>.
+          이는 단위 시간당 throughput · 트랜잭션 점유 시간 · 동시성 hit 모두에 같은 비율로 영향.
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 데이터 흐름 (before vs after)</summary>
+      <div class="body">
+
+        <h4 style="margin-top:0">3.1 옛 코드 (현행)</h4>
+<pre><code>@Transactional
+public Long create(OSMetadataCreateRequest req) {
+    // (#1) 활성 + 미삭제 자원 존재? — cheap EXISTS
+    if (osMetadataRepository.existsByOsNameAndOsVersionAndIsDeletedFalse(req.osName(), req.osVersion())) {
+        // (#2) 그 중 deprecated 자원 — 활성 단순 충돌 vs 회수 후보 분기용
+        List&lt;OSMetadata&gt; activeDeprecated =
+                osMetadataRepository.findAllByOsNameAndOsVersionAndIsDeprecatedTrueAndIsDeletedFalse(...);
+        if (activeDeprecated.isEmpty()) throw new DuplicateOSMetadataException(...);
+    }
+    // (#3 + #4) soft-deleted + active-deprecated  ← #4 는 #2 와 동일 쿼리 (재조회)
+    List&lt;OSMetadata&gt; candidates = collectMetaNudgeCandidates(req.osName(), req.osVersion());
+    if (!candidates.isEmpty()) throw new OSMetadataNudgeRequiredException(...);
+    // (#5) INSERT
+    return persistNewOSMetadata(req.osName(), req.osVersion(), req.description());
+}</code></pre>
+
+        <h4>3.2 새 코드 (제안)</h4>
+<pre><code>@Transactional
+public Long create(OSMetadataCreateRequest req) {
+    // (#1) 동일 키 row 전부 1 회에 — soft-deleted 포함
+    Map&lt;LifecycleStage, List&lt;OSMetadata&gt;&gt; byStage = osMetadataRepository
+            .findAllByOsNameAndOsVersion(req.osName(), req.osVersion()).stream()
+            .collect(Collectors.groupingBy(
+                    m -&gt; LifecycleStage.of(m.isDeprecated(), m.isDeleted()),
+                    () -&gt; new EnumMap&lt;&gt;(LifecycleStage.class),
+                    Collectors.toList()));
+
+    boolean hasActive       = byStage.containsKey(LifecycleStage.ACTIVE);
+    boolean hasNudgeTarget  = byStage.containsKey(LifecycleStage.DEPRECATED)
+                           || byStage.containsKey(LifecycleStage.SOFT_DELETED);
+
+    if (hasActive &amp;&amp; !hasNudgeTarget) {
+        // 활성 정상 자원 단독 충돌 — fail-fast
+        throw new DuplicateOSMetadataException(req.osName(), req.osVersion());
+    }
+    if (hasNudgeTarget) {
+        // 회수 후보 (DEPRECATED ∪ SOFT_DELETED) — nudge 분기
+        List&lt;OSMetadata&gt; candidates = new ArrayList&lt;&gt;();
+        candidates.addAll(byStage.getOrDefault(LifecycleStage.DEPRECATED,   List.of()));
+        candidates.addAll(byStage.getOrDefault(LifecycleStage.SOFT_DELETED, List.of()));
+        throw new OSMetadataNudgeRequiredException(buildOSMetadataNudgePayload(req, candidates));
+    }
+    // (#2) INSERT
+    return persistNewOSMetadata(req.osName(), req.osVersion(), req.description());
+}</code></pre>
+
+        <h4>3.3 분기 정합성 증명 (옛 ↔ 새 동치성)</h4>
+        <table>
+          <thead><tr><th>입력 상태</th><th>옛 결과</th><th>새 결과</th><th>일치?</th></tr></thead>
+          <tbody>
+            <tr><td>키 row 0 개</td><td>save (정상)</td><td>hasActive=F, hasNudge=F → save</td><td>✓</td></tr>
+            <tr><td>ACTIVE 만 1+ 개</td><td>exists(T)+actDep[]=∅ → Duplicate</td><td>hasActive=T, hasNudge=F → Duplicate</td><td>✓</td></tr>
+            <tr><td>DEPRECATED 만 1+ 개 (is_del=F)</td><td>exists(T)+actDep≠∅ → 통과 → candidates≠∅ → Nudge</td><td>hasActive=F, hasNudge=T → Nudge</td><td>✓</td></tr>
+            <tr><td>SOFT_DELETED 만 1+ 개</td><td>exists(F) → candidates≠∅ → Nudge</td><td>hasActive=F, hasNudge=T → Nudge</td><td>✓</td></tr>
+            <tr><td>ACTIVE + DEPRECATED 혼합</td><td>exists(T)+actDep≠∅ → 통과 → candidates≠∅ → Nudge</td><td>hasActive=T, hasNudge=T → Nudge</td><td>✓</td></tr>
+            <tr><td>ACTIVE + SOFT_DELETED 혼합</td><td>exists(T)+actDep[]=∅ → Duplicate</td><td><b style="color:var(--green)">Nudge</b> (안 B)</td><td><b style="color:var(--orange)">의도 변경</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout success">
+          <b>안 B 채택 (사용자 결정, 2026-05-26)</b> — ACTIVE + SOFT_DELETED 혼합 케이스에서 옛 코드는 Duplicate 였지만,
+          새 코드는 SOFT_DELETED 를 회수 후보로 보고 <b>Nudge</b> 로 환원한다. 사용자가 같은 키로 새 등록을 시도할 때
+          "휴지통에 같은 자원이 있다" 는 회수 시그널을 받도록 한다.
+
+          <p>채택 사유 (사용자 멘탈 모델 정렬) :</p>
+          <ul>
+            <li><b>Duplicate ⇔ 순수 ACTIVE 단독</b> — <code>deprecated=F AND deleted=F</code> 인 row 가 있고, 다른 lifecycle stage 의 회수 후보가 0 인 경우만 진짜 중복</li>
+            <li>SOFT_DELETED 가 1+ 개라도 있다면 사용자에게 "같은 키 자원이 휴지통에 있다" 알릴 가치가 더 큼</li>
+            <li>옛 동작은 implementation 이 SOFT_DELETED 분기를 ACTIVE 분기보다 뒤에 둔 침전 결과로 보임 — 의도된 결정 근거 없음</li>
+          </ul>
+          본 슬라이스는 리팩토링 + 1 줄짜리 의도 변경을 함께 다루는 형태. 변경 표면 최소 (조건문 1 개 단어 추가).</div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>OSMetadataRepository.java</code></td>
+              <td><span class="chip add">신규 메서드</span></td>
+              <td><code>List&lt;OSMetadata&gt; findAllByOsNameAndOsVersion(OSName, String)</code> 추가</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataRepository.java</code></td>
+              <td><span class="chip del">제거 메서드</span></td>
+              <td>
+                다음 3 메서드 — 본 슬라이스 외부 호출 없음을 확인 후 제거 :
+                <ul>
+                  <li><code>existsByOsNameAndOsVersionAndIsDeletedFalse</code></li>
+                  <li><code>findAllByOsNameAndOsVersionAndIsDeletedTrue</code></li>
+                  <li><code>findAllByOsNameAndOsVersionAndIsDeprecatedTrueAndIsDeletedFalse</code></li>
+                </ul>
+                <i class="callout warn" style="display:inline-block; padding:6px 10px; margin:6px 0;">CP3 진입 전 grep 으로 외부 사용처 0 확인. 1 곳이라도 있으면 보존 + deprecation 처리.</i>
+              </td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataService.java</code></td>
+              <td><span class="chip mod">메서드 본체</span></td>
+              <td><code>create()</code> 본체 새 흐름으로 교체 (§3.2). <code>collectMetaNudgeCandidates(...)</code> private helper 제거</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataService.java</code></td>
+              <td><span class="chip keep">유지</span></td>
+              <td><code>persistNewOSMetadata(...)</code> / <code>buildOSMetadataNudgePayload(...)</code> 변경 없음</td>
+            </tr>
+            <tr>
+              <td><code>LifecycleStage.java</code></td>
+              <td><span class="chip keep">유지</span></td>
+              <td>기존 enum 그대로 사용 (<code>ACTIVE</code> / <code>DEPRECATED</code> / <code>SOFT_DELETED</code> + <code>of(isDeprecated, isDeleted)</code>)</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataServiceTest.java</code></td>
+              <td><span class="chip mod">mocking 갱신</span></td>
+              <td>
+                기존 <code>create_whenNotDuplicated_returnsGeneratedId</code> / <code>create_whenDuplicatedActive_throws</code> 의 mocking 을
+                새 메서드 (<code>findAllByOsNameAndOsVersion</code>) 기준으로 갱신. 시나리오 / assertion 동일
+              </td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataControllerUploadFlowTest.java</code></td>
+              <td><span class="chip keep">유지</span></td>
+              <td>controller 측 통합 테스트 변경 없음 (HTTP 응답 / 예외 매핑 동일)</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — main +20 / -40 (net -20), test mocking +5 / -10. 매우 작은 변경 표면.</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <p>본 슬라이스는 리팩토링이라 표준 10 단계 (entity / template / controller / DTO …) 의 다수가 N/A. 단계 매핑 :</p>
+        <table>
+          <thead><tr><th>Step</th><th>표준</th><th>R1-1 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html 산출</td><td>본 문서 산출 + 사용자 승인</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf 뷰</td><td><i>N/A</i> (UI 변경 0)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller</td><td><i>N/A</i> (외부 endpoint 동일)</td></tr>
+            <tr><td>4</td><td>Request / Response DTO</td><td><i>N/A</i></td></tr>
+            <tr><td>5</td><td>Service 시그니처</td><td><code>create(OSMetadataCreateRequest)</code> 시그니처 동일 — CP2 = "본체 새 흐름 골격" 코드 작성 (분기 매트릭스 §3.3 따른 if 트리)</td></tr>
+            <tr><td>6</td><td>Repository</td><td>신규 <code>findAllByOsNameAndOsVersion</code> 추가 + (CP3 끝에서) 옛 3 메서드 제거</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity</td><td><i>N/A</i> (필드 변경 0)</td></tr>
+            <tr><td>8</td><td>Service 본체 + 테스트</td><td>새 흐름 본체 확정 + <code>OSMetadataServiceTest</code> mocking 갱신 + 통합 테스트 그대로 통과</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 확인</td><td><i>N/A</i> (DDL 변경 0)</td></tr>
+            <tr><td>10</td><td>브라우저 E2E</td><td>OS 메타 신규 등록 시도 4 시나리오 (정상 / 활성 충돌 / soft-deleted 후보 / 활성-deprecated 후보) — 사용자 단독</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <b>실질 작업 묶음</b> — CP2 (분기 매트릭스 기반 골격) → CP3 (Repository 정리 + 본체 완성) → CP4 (테스트 통과 검증) → CP5 (브라우저 E2E). CP2 부터는 한 PR 분량의 작은 변경.
+        </div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <p>리팩토링이라 신규 시나리오 추가 없음. 기존 시나리오가 그대로 통과 = 동치성 증명. mocking 만 새 메서드 기준으로 갱신.</p>
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>현재 위치</th><th>R1-1 변경</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>create(happy) — 활성 동일 키 0 → ID 반환</td>
+              <td><code>OSMetadataServiceTest::create_whenNotDuplicated_returnsGeneratedId</code></td>
+              <td>mocking : <code>existsBy...</code> stub 제거, <code>findAllByOsNameAndOsVersion</code> 빈 List stub 으로 교체</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>create(409) — 활성 충돌 → <code>DuplicateOSMetadataException</code></td>
+              <td><code>OSMetadataServiceTest::create_whenDuplicatedActive_throws</code></td>
+              <td>mocking : <code>findAllByOsNameAndOsVersion</code> → <code>List.of(activeRow)</code></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>create(409 nudge) — soft-deleted 후보 → <code>OSMetadataNudgeRequiredException</code></td>
+              <td><code>OSMetadataControllerUploadFlowTest</code> 또는 service test (확인 필요)</td>
+              <td>mocking : <code>findAllByOsNameAndOsVersion</code> → <code>List.of(softDeletedRow)</code></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>create(409 nudge) — 활성-deprecated 후보 → Nudge</td>
+              <td>controller flow test</td>
+              <td>mocking : <code>findAllByOsNameAndOsVersion</code> → <code>List.of(activeDeprecatedRow)</code></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><b>신규 시나리오 (안 B)</b> — ACTIVE + SOFT_DELETED 혼합 시 Nudge 분기 발화</td>
+              <td><i>신규 추가</i></td>
+              <td><code>create_whenActiveAndSoftDeletedCoexist_throwsNudge</code> — §3.3 마지막 행의 안 B 채택 후 의도 동작 검증 (SOFT_DELETED 가 회수 후보로 노출)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p><b>변경 0</b>. 다음 두 예외 정확히 같은 조건에서 발화 :</p>
+        <ul>
+          <li><code>DuplicateOSMetadataException</code> (409) — 활성 정상 자원과 충돌 (회수 후보 없음)</li>
+          <li><code>OSMetadataNudgeRequiredException</code> (409 + nudge payload) — DEPRECATED ∪ SOFT_DELETED 후보 ≥ 1</li>
+        </ul>
+        <p>전역 <code>ApiExceptionHandler</code> 및 SSR <code>WebExceptionHandler</code> 의 매핑은 그대로.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4 style="margin-top:0">D-1. ACTIVE + SOFT_DELETED 혼합 case (§3.3) — <span style="color:var(--green)">안 B 채택 (2026-05-26)</span></h4>
+        <p><b>Duplicate ⇔ 순수 ACTIVE 단독</b> 으로 정의. 새 흐름의 첫 if :</p>
+<pre><code>if (hasActive &amp;&amp; !hasDeprecated &amp;&amp; !hasSoftDeleted) {
+    throw new DuplicateOSMetadataException(req.osName(), req.osVersion());
+}</code></pre>
+        <p>즉 SOFT_DELETED 또는 DEPRECATED 회수 후보가 1+ 개라도 있으면 Duplicate 가 아닌 Nudge.
+        사용자가 같은 키 자원이 휴지통에 있다는 시그널을 받도록 한다. 옛 동작 대비 1 케이스 (ACTIVE + SOFT_DELETED) 의도 변경.</p>
+
+        <h4>D-2. Repository 메서드 제거 시점</h4>
+        <p>CP3 진입 시 옛 3 메서드의 외부 호출처 grep 으로 0 확인 후 제거. 호출처가 1 곳이라도 있으면 제거 보류 + R1-1 본 슬라이스는 새 메서드 추가만으로 완료.</p>
+
+        <h4>D-3. <code>collectMetaNudgeCandidates</code> 제거</h4>
+        <p>본 helper 는 <code>create()</code> 단독 호출이라 같이 제거. grep 으로 재확인.</p>
+
+        <h4>D-4. <code>@Transactional</code> propagation</h4>
+        <p><code>create()</code> 의 <code>@Transactional</code> (REQUIRED, default) 유지. 1 쿼리든 4 쿼리든 동일 트랜잭션 안 same snapshot 보장.</p>
+
+        <h4>D-5. <code>EnumMap</code> 도입</h4>
+        <p><code>Collectors.groupingBy(..., () -&gt; new EnumMap&lt;&gt;(LifecycleStage.class), Collectors.toList())</code> — 키가 enum 일 때 <code>HashMap</code> 보다 cache-friendly + iteration 순서 enum 선언 순서.</p>
+
+        <h4>D-6. CLAUDE.md 와의 정렬</h4>
+        <ul>
+          <li>"조건 분기문 의 legacy 무분별 확장 절대 지양" — 본 환원이 정확히 그 정리</li>
+          <li>"Spring framework primitive 적극 활용" — <code>@Transactional</code> + JPA <code>findAll</code> 표준 메서드</li>
+          <li>"Java 의 다형성" — <code>LifecycleStage.of(...)</code> 의 static factory + <code>EnumMap</code> dispatch</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r1-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test-unit"> <span><code>./gradlew test --tests "*OSMetadataServiceTest*"</code> 통과 (mocking 갱신 후)</span></label></li>
+          <li><label><input type="checkbox" data-key="test-flow"> <span><code>./gradlew test --tests "*OSMetadataController*FlowTest"</code> 통과 (변경 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="test-all"> <span><code>./gradlew test</code> 전체 통과 (608+ 시나리오)</span></label></li>
+          <li><label><input type="checkbox" data-key="grep-orphan"> <span>옛 3 Repository 메서드의 외부 호출 0 (grep 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="grep-helper"> <span><code>collectMetaNudgeCandidates</code> 호출처 0 (grep 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="roundtrip"> <span>SQL log 로 동일 키 round-trip 1 회 (성공) / 1 회 (충돌) 실측 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="edge-mixed"> <span>ACTIVE + SOFT_DELETED 혼합 시 Duplicate 발화 회귀 시나리오 추가 + 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="diff"> <span>main 측 diff 라인 net 음수 (-20 ~ -25 추정)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E 4 시나리오 (CP5, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataService.java</code></td><td><code>create()</code> 본체 + <code>collectMetaNudgeCandidates</code> 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataRepository.java</code></td><td>새 메서드 1 종 추가 + 옛 3 메서드 제거 (외부 호출 0 시)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataServiceTest.java</code></td><td>create 시나리오 mocking 갱신 + 신규 ACTIVE+SOFT_DELETED 회귀 시나리오</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>LifecycleStage.java</code></td><td>기존 enum 그대로 사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>OSMetadata.java</code> (entity)</td><td>필드 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>DuplicateOSMetadataException</code> / <code>OSMetadataNudgeRequiredException</code></td><td>예외 그대로</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>OSMetadataControllerUploadFlowTest.java</code> 등 controller flow tests</td><td>변경 0 — 통과 자체가 동치성 증명</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>DB schema</td><td>0 변경</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1-2</b> — <code>OSMetadataService.finalizePreparedIsoRegistration</code> (4 repo calls) 동일 패턴 환원. ISO 영속화 경로의 분기 정리</li>
+          <li><b>R2</b> — Subprogram / BIOS / BMC 의 동형 등록 흐름 (<code>registerExisting</code> 7 calls 등) 동일 환원</li>
+          <li><b>R3</b> — <code>PathReconciliationService::performScan</code> (829 line + 13 if + 10 try-catch) 분해</li>
+          <li><b>R4</b> — Cross-cutting 분기 누적 해소 (<code>@ControllerAdvice</code> 일원화 / Strategy / Converter 활용)</li>
+        </ol>
+        <p>R1-1 자체는 변경 표면이 작아 1-2 일 분량 (조건 단어 추가 + Repository 단일 메서드). 안 B 채택으로 ACTIVE + SOFT_DELETED 혼합 케이스의 의도 변경까지 본 슬라이스에서 흡수.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // sticky ToC anchor scroll offset = 108 (메모리 기준)
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+
+  // 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  // 실시간 필터링
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      if (text.includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+
+  // 체크리스트 — localStorage 영속화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+      });
+    });
+  });
+
+  // ===== 라이브 데모 — round-trip 시각화 =====
+  const SCENARIOS = {
+    happy:   { before: ['exists','softDel','actDep2','insert'],          after: ['findAll','insert'],
+               beforeNote: '정상 — 4 round-trip', gain: '4 → 2  (50%↓)' },
+    active:  { before: ['exists','actDep','softDel','actDep2'],          after: ['findAll'],
+               beforeNote: '활성 충돌 — 4 round-trip (#4 = #2 재조회)', gain: '4 → 1  (75%↓)' },
+    softdel: { before: ['exists','softDel','actDep2'],                   after: ['findAll'],
+               beforeNote: 'SOFT_DELETED 후보 — 3 round-trip', gain: '3 → 1  (66%↓)' },
+    deprec:  { before: ['exists','actDep','softDel','actDep2'],          after: ['findAll'],
+               beforeNote: '활성-deprecated 후보 — 4 round-trip (#4 = #2 재조회)', gain: '4 → 1  (75%↓)' },
+  };
+
+  function lightUp(scenario) {
+    const conf = SCENARIOS[scenario];
+    document.querySelectorAll('#demo-before .demo-roundtrip').forEach(el => {
+      el.classList.toggle('fire', conf.before.includes(el.dataset.call));
+    });
+    document.querySelectorAll('#demo-after .demo-roundtrip').forEach(el => {
+      el.classList.toggle('fire-after', conf.after.includes(el.dataset.call));
+    });
+    document.getElementById('before-count').textContent = conf.before.length;
+    document.getElementById('after-count').textContent  = conf.after.length;
+    document.getElementById('before-note').textContent  = conf.beforeNote;
+    document.getElementById('gain').textContent         = conf.gain;
+  }
+
+  document.querySelectorAll('.demo-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      lightUp(btn.dataset.scenario);
+    });
+  });
+  // 초기 시나리오
+  lightUp('happy');
+</script>
+</body>
+</html>

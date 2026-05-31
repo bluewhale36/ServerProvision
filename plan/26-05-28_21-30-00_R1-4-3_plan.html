@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R1-4-3 Plan — ISO Integrity 검증 로직을 IsoIntegrityService 로 분리</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.preview { color: var(--orange); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  details.section.preview > summary { background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.add { background: var(--green-bg); color: var(--green); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.move { background: var(--blue-bg); color: var(--blue); }
+  .chip.del { background: var(--red-bg); color: var(--red); }
+  .chip.keep { background: var(--bg); color: var(--text-muted); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.danger { border-color: var(--red); background: var(--red-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  .split-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 12px 0; }
+  .split-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; min-width: 0; overflow: hidden; }
+  .split-card h4 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .split-card.before { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .split-card.before h4 { color: var(--red); }
+  .split-card.after { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .split-card.after h4 { color: var(--green); }
+  .method-list { list-style: none; padding: 0; margin: 8px 0; font-family: var(--mono); font-size: 11px; }
+  .method-list li { padding: 2px 6px; margin: 2px 0; border-radius: 3px; background: rgba(255,255,255,0.6); }
+  .method-list li.move { background: var(--blue-bg); color: var(--blue); }
+  .method-list li.keep { background: rgba(255,255,255,0.6); color: var(--text-muted); }
+  .file-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 6px 8px; background: rgba(255,255,255,0.4); border-radius: 4px; }
+
+  .dep-diagram {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 14px; align-items: center; margin: 14px 0;
+  }
+  .dep-node { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; min-width: 0; }
+  .dep-node h5 { margin: 0 0 6px; font-size: 12px; font-family: var(--mono); color: var(--blue); }
+  .dep-node ul { margin: 0; padding-left: 16px; font-size: 11px; color: var(--text-muted); }
+  .dep-node.parent { border-color: var(--orange); }
+  .dep-node.parent h5 { color: var(--orange); }
+  .dep-node.new { border-color: var(--green); }
+  .dep-node.new h5 { color: var(--green); }
+  .dep-node.nudge { border-color: var(--blue); }
+  .dep-arrow { font-size: 18px; color: var(--text-muted); text-align: center; font-family: var(--mono); }
+
+  /* §2 preview — IntegrityStatus enum 도식 전용 */
+  .enum-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 12px 0; }
+  .enum-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; background: var(--card); }
+  .enum-card h5 { margin: 0 0 4px; font-family: var(--mono); font-size: 12px; }
+  .enum-card.original { border-left: 4px solid var(--green); }
+  .enum-card.original h5 { color: var(--green); }
+  .enum-card.missing { border-left: 4px solid var(--yellow); }
+  .enum-card.missing h5 { color: var(--yellow); }
+  .enum-card.sig { border-left: 4px solid var(--orange); }
+  .enum-card.sig h5 { color: var(--orange); }
+  .enum-card.tamp { border-left: 4px solid var(--red); }
+  .enum-card.tamp h5 { color: var(--red); }
+  .enum-card.notv { border-left: 4px solid var(--text-muted); }
+  .enum-card.notv h5 { color: var(--text-muted); }
+  .enum-card p { margin: 4px 0 0; font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R1-4-3 — ISO 무결성 검증 로직을 <code>IsoIntegrityService</code> 로 분리</h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R1-4-3 <span style="color:var(--green)">(R1-4 묶음 종료 슬라이스)</span></span>
+    <span><strong>상위</strong> R1-4 (ISO 관련 로직 분리) ← R1 ← R0</span>
+    <span><strong>단계</strong> 2-1차 개발</span>
+    <span><strong>생성</strong> 2026-05-28 21:30:00 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약</a></li>
+      <li><a href="#s2">§2 슬라이스 요구사항</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (IntegrityStatus 도식 + dependency 그래프)</a></li>
+      <li><a href="#s3">§3 분리 후 책임 + 시그니처 정렬</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10 단계 + CP 묶음</a></li>
+      <li><a href="#s6">§6 통합 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정 사항</a></li>
+      <li><a href="#s9">§9 Verification 체크리스트</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약</summary>
+      <div class="body">
+        <p><b>선행</b> :</p>
+        <ul>
+          <li>R1-3 완료 — OSMetadataLifecycleService 분리 + <code>LifecycleService</code> interface 도입</li>
+          <li>R1-4-1 완료 — IsoLifecycleService 분리 (interface 두 번째 구현체) + cleanupArtifacts helper 공통화</li>
+          <li>R1-4-1 hotfix v3 종료 → R2 묶음 (예외 라우팅 advice 정비) 으로 승격. 본 슬라이스 scope 외.</li>
+          <li>R1-4-2 <b>CP2 단계 진행 중</b> — IsoRegistrationService 분리 (5 public + 8 private helper + PreparedIsoRegistration record). 본 R1-4-3 진입은 R1-4-2 CP4/CP5 완료 후를 전제로 한다.</li>
+          <li>본 R1-4-3 = R1-4 묶음의 세 번째 (마지막) — OSMetadataService 잔류 무결성 검증 흐름을 IsoIntegrityService 로 응집해 묶음 종료.</li>
+        </ul>
+
+        <p><b>R1-4-2 직후 OSMetadataService 잔류 무결성 책임 (본 슬라이스 해소 대상)</b> :</p>
+        <ul>
+          <li><code>findIntegrityStatus(osMetadataId, isoId)</code> — 단순 조회. ISO 의 <code>lastIntegrityStatus</code> / <code>lastVerifiedAt</code> 두 컬럼을 응답 DTO 로 조립. <b>IsoJobController.integrityStatus</b> 가 호출.</li>
+          <li><code>verifyIntegrity(osMetadataId, isoId)</code> — sidecar 마커 read + 서명 검증 + manifestHash 비교 → IntegrityStatus 5종 중 하나 반환. 외부 직접 호출 X (verifyAndRecordIntegrity 의 내부 위임).</li>
+          <li><code>verifyAndRecordIntegrity(osMetadataId, isoId)</code> — verifyIntegrity 호출 후 ISO entity 의 <code>recordIntegritySnapshot(status, now)</code> 영속화. <b>IsoVerificationLauncher.runAsync</b> 가 호출.</li>
+          <li><code>computeFileSha256(Path)</code> — private static helper. 디스크 파일의 SHA-256 재계산. <code>verifyIntegrity</code> 만 의존이라 R1-4-2 에서 잔류된 상태. 본 슬라이스에서 함께 이동.</li>
+          <li><code>updateISO(osMetadataId, isoId, ISOUpdateRequest)</code> — ISO 의 isoPath / description 편집. PathPolicyService 검증 후 entity.update 위임. <b>IsoLifecycleController.updateIso</b> 가 호출. <span style="color:var(--orange)">의미상 등록도 무결성도 아닌 "ISO 후속 수정" — §8 D-1 결정 필요</span>.</li>
+        </ul>
+
+        <p><b>본 슬라이스 진입 시점 측정값</b> (R1-4-2 CP4 완료 후 가정) :</p>
+        <table>
+          <thead><tr><th>지표</th><th>현재 (R1-4-2 직후)</th><th>목표</th></tr></thead>
+          <tbody>
+            <tr><td>OSMetadataService.java 줄 수</td><td>~451 (실측)</td><td>~380 (-70 추정)</td></tr>
+            <tr><td>무결성 흐름 public 메서드 (OSMetadataService 안)</td><td>3 개 (verify / verifyAndRecord / findIntegrityStatus)</td><td>0 (이동)</td></tr>
+            <tr><td>무결성 흐름 private helper (OSMetadataService 안)</td><td>1 개 (computeFileSha256)</td><td>0 (이동)</td></tr>
+            <tr><td>IsoIntegrityService.java 줄 수</td><td>0 (파일 부재)</td><td>~150</td></tr>
+            <tr><td>IsoVerificationLauncher 의 OSMetadataService 의존</td><td>1 호출 (verifyAndRecordIntegrity)</td><td>0 (IsoIntegrityService 로 교체)</td></tr>
+            <tr><td>IsoJobController 의 OSMetadataService 의존 (무결성)</td><td>1 호출 (findIntegrityStatus)</td><td>0 (IsoIntegrityService 로 교체)</td></tr>
+            <tr><td>OSMetadataService 의 ISORepository 의존</td><td>유지 (조회 / 응답 조립)</td><td>유지 (find 흐름 잔류)</td></tr>
+            <tr><td>외부 endpoint</td><td>—</td><td>완전 동일 (회귀 0)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <b>R1-4-2 진행 의존성</b> — 본 plan 의 §4 / §10 의 메서드 위치 표기는 "R1-4-2 가 정상 종료된 직후" 시점을 가정한다. R1-4-2 CP2 의 변경 (5 public 메서드 + 8 helper 이동) 이 코드에 반영된 상태에서 본 슬라이스가 진입. R1-4-2 가 거부 / 롤백되면 본 슬라이스의 §4 매트릭스도 재산정 필요.
+        </div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 슬라이스 요구사항</summary>
+      <div class="body">
+        <p>본 슬라이스는 <b>ISO 무결성 검증 도메인 응집</b>. R1-4-1 의 IsoLifecycleService / R1-4-2 의 IsoRegistrationService 와 동형 패턴이지만 무결성은 ISO 만의 고유 흐름 + Markable 추상화의 일부라 별도 service.</p>
+
+        <ol>
+          <li><b>책임 응집</b> — 무결성 3 public + 1 private helper 를 <code>IsoIntegrityService</code> 로 응집. (updateISO 처리 결정은 §8 D-1)</li>
+          <li><b>의존 비대칭 해소</b> — IsoVerificationLauncher (async 검증) / IsoJobController (status 조회) 의 OSMetadataService 무결성 의존을 IsoIntegrityService 로 교체. OSMetadataService 는 OSMetadata 부모 도메인 + 응답 조립만 담당.</li>
+          <li><b>IsoVerificationLauncher 의 호출처 갱신</b> — <code>runAsync</code> 의 <code>osMetadataService.verifyAndRecordIntegrity</code> → <code>isoIntegrityService.verifyAndRecord</code></li>
+          <li><b>IsoJobController 의 호출처 갱신</b> — <code>integrityStatus</code> 의 <code>osMetadataService.findIntegrityStatus</code> → <code>isoIntegrityService.findStatus</code></li>
+          <li><b>외부 endpoint 동일</b> — Controller URL (<code>/management/os/{osId}/iso/{isoId}/verify</code> · <code>/integrity-status</code>) / HTTP method / response shape / Job 이벤트 100% 동일</li>
+          <li><b>의존 그래프 단방향</b> — IsoIntegrityService → ISORepository + OSMetadataRepository + ProvisionMarkerService. OSMetadataService 와 무의존. IsoVerificationLauncher 의 OSMetadataService 의존은 본 슬라이스에서 제거 (단, OSMetadataService 의 다른 흐름이 Launcher 에서 호출되지 않는 한)</li>
+          <li><b>R1-4 묶음 종료</b> — 본 슬라이스 후 OSMetadataService 는 OSMetadata 자체의 CRUD + 응답 조립 + nudge (OSMeta 자신의 nudge) 만 보유. ISO 의 lifecycle / registration / integrity 책임 100% 분리.</li>
+        </ol>
+
+        <div class="callout">
+          <b>비 목표 (out of scope)</b> :
+          <ul>
+            <li>R1-4-1 hotfix 의 advice 분리 / errorCode 다형성 / ProblemDetail adapter — <b>R2 묶음으로 승격됨</b>. 본 슬라이스의 hotfix 영향 0. controller flow test 의 15 시나리오가 그대로 회귀 검증.</li>
+            <li>마커 재발급 (<code>finalizeMarker</code>) — R1-4-2 의 등록 흐름 종착점이라 IsoRegistrationService 안에 잔류 (Notion highlight 의 결정 그대로).</li>
+            <li>일괄 마커 재발급 (PathReconciliationService 의 마이그레이션 흐름) — 별도 도메인. 본 슬라이스에서 변경 0.</li>
+            <li>BIOS / BMC / Subprogram 의 동형 무결성 패턴 환원 → R2.</li>
+            <li>IntegrityStatus enum 자체의 패키지 이동 (<code>management.bios.vo</code> → <code>management.common.vo</code>) — 옛 흐름의 잔여 위치. 본 슬라이스 scope 외. 별도 housekeeping 슬라이스 후보.</li>
+            <li>OSMetadata 의 단순 조회 (<code>findISO</code> / <code>findAllGrouped</code> / <code>findById</code>) — OSMetadata 응답 조립의 일부라 OSMetadataService 잔류.</li>
+            <li>예외 처리 보고서 §8 권고 적용 (단일 advice 통합 / errorCode 다형성 등) → R2 묶음.</li>
+          </ul>
+        </div>
+
+        <div class="callout success">
+          <b>스코프 한 줄 정의</b> — "OSMetadataService 잔류 마지막 ISO 책임인 <b>무결성 검증 / 상태 조회</b> 를 IsoIntegrityService 로 풀어내 R1-4 묶음을 종료하는 슬라이스". 이로써 OSMetadataService 는 부모 도메인만 담당, ISO 의 lifecycle / registration / integrity 가 각 service 로 응집 — Single Responsibility 원칙의 마지막 1마일.
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 미리보기 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — IntegrityStatus 5종 도식 + dependency 그래프 before/after</summary>
+      <div class="body">
+        <p>본 슬라이스가 응집하는 도메인 의미를 <b>IntegrityStatus 5종</b> 으로 먼저 보여주고, 의존 그래프 비대칭을 비교.</p>
+
+        <h4 style="margin-top: 0; font-size: 13px;">5-1. IntegrityStatus 5종 — 본 service 의 핵심 도메인 의미</h4>
+        <div class="enum-grid">
+          <div class="enum-card original">
+            <h5>ORIGINAL</h5>
+            <p>marker 존재 + 서명 유효 + manifestHash 일치. 원본 보존 상태. 뱃지 = 초록.</p>
+          </div>
+          <div class="enum-card missing">
+            <h5>MARKER_MISSING</h5>
+            <p>sidecar <code>.provision.json</code> 파일 자체가 없음. 재발급 필요. 뱃지 = 노랑.</p>
+          </div>
+          <div class="enum-card sig">
+            <h5>SIGNATURE_INVALID</h5>
+            <p>marker 존재하나 HMAC 서명 재계산 불일치. 이식/변조 의심. 뱃지 = 주황.</p>
+          </div>
+          <div class="enum-card tamp">
+            <h5>TAMPERED</h5>
+            <p>서명 유효 + 파일 부재 OR manifestHash 불일치. 외부 수정. 뱃지 = 빨강.</p>
+          </div>
+          <div class="enum-card notv">
+            <h5>NOT_VERIFIED</h5>
+            <p>아직 검증하지 않은 초기 상태. 목록 뷰 기본값. 뱃지 = 회색.</p>
+          </div>
+        </div>
+
+        <div class="callout">
+          <b>verifyIntegrity 의 단계별 판정</b> — 위 5종 enum 으로 도메인 의미가 표현됨. 본 service 의 핵심 책임은 "디스크 + 마커 + DB 의 3-way 비교 결과를 enum 으로 환원". 분기문은 enum 매칭만 — 새 상태가 추가되면 enum + applyStatus 만 확장 (CLAUDE.md "조건 분기문 legacy 무분별 확장 절대 지양" 부합).
+        </div>
+
+        <h4 style="font-size: 13px;">5-2. dependency 그래프 before / after</h4>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>R1-4-3 진입 전 (R1-4-2 직후) — 비대칭 잔류</h4>
+            <pre><code>IsoJobController.integrityStatus
+  └─→ <span style="color:var(--red)">OSMetadataService.findIntegrityStatus</span>
+        └─→ ISORepository.findByIdAndOsMetadata_Id
+
+IsoVerificationLauncher.runAsync
+  └─→ <span style="color:var(--red)">OSMetadataService.verifyAndRecordIntegrity</span>
+        └─→ <span style="color:var(--red)">OSMetadataService.verifyIntegrity</span>
+              ├─→ ProvisionMarkerService.read / verifySignature / verifyManifestHash
+              └─→ <span style="color:var(--red)">OSMetadataService.computeFileSha256</span>
+
+IsoLifecycleController.updateIso
+  └─→ <span style="color:var(--red)">OSMetadataService.updateISO</span>
+        └─→ PathPolicyService.assertWritablePath</code></pre>
+            <div class="file-meta">
+              <span style="color:var(--red)">빨강</span> = ISO 무결성/편집 책임 (OSMetadataService 잔류).
+              <b>OSMetadata 부모 service 가 자식 ISO 의 무결성·편집 책임까지 떠안고 있음</b> — R1-4-1 / R1-4-2 로 lifecycle / registration 은 풀었지만 integrity 가 남음.
+            </div>
+          </div>
+
+          <div class="split-card after">
+            <h4>R1-4-3 후 — 단방향 정렬</h4>
+            <pre><code>IsoJobController.integrityStatus
+  └─→ <span style="color:var(--green)">IsoIntegrityService.findStatus</span>
+        └─→ ISORepository.findByIdAndOsMetadata_Id
+
+IsoVerificationLauncher.runAsync
+  └─→ <span style="color:var(--green)">IsoIntegrityService.verifyAndRecord</span>
+        └─→ <span style="color:var(--green)">IsoIntegrityService.verify</span>
+              ├─→ ProvisionMarkerService.read / verifySignature / verifyManifestHash
+              └─→ (private) computeFileSha256
+
+IsoLifecycleController.updateIso
+  └─→ <span style="color:var(--green)">{updateISO 결정 옵션 — §8 D-1}</span>
+
+OSMetadataService
+  └─→ (ISO 관련 호출 0 — 부모 책임만)</code></pre>
+            <div class="file-meta">
+              <span style="color:var(--green)">초록</span> = 무결성 책임 (신 IsoIntegrityService).
+              IsoVerificationLauncher / IsoJobController 모두 OSMetadataService 무결성 의존 0.
+              <b>R1-4 묶음 의도 완성 — ISO 의 3 책임 (lifecycle / registration / integrity) 이 3 service 로 응집.</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="dep-diagram">
+          <div class="dep-node nudge">
+            <h5>IsoVerificationLauncher</h5>
+            <ul>
+              <li>runAsync</li>
+              <li>1 호출 lookup 갱신</li>
+            </ul>
+          </div>
+          <div class="dep-arrow">↓</div>
+          <div class="dep-node new">
+            <h5>IsoIntegrityService (신규)</h5>
+            <ul>
+              <li>verify(osId, isoId)</li>
+              <li>verifyAndRecord(osId, isoId)</li>
+              <li>findStatus(osId, isoId)</li>
+              <li>+ private computeFileSha256</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="dep-diagram">
+          <div class="dep-node nudge">
+            <h5>IsoJobController</h5>
+            <ul>
+              <li>integrityStatus (GET)</li>
+              <li>1 호출 lookup 갱신</li>
+            </ul>
+          </div>
+          <div class="dep-arrow">↓</div>
+          <div class="dep-node new">
+            <h5>IsoIntegrityService</h5>
+            <ul>
+              <li>findStatus(osId, isoId)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="dep-diagram">
+          <div class="dep-node parent">
+            <h5>OSMetadataService (parent)</h5>
+            <ul>
+              <li>findById / findISO / findAllGrouped (조회만)</li>
+              <li>create / update (OSMeta 자신)</li>
+              <li>completePendingOSMetadataFromNudge / purgeOSMetadataForNudge</li>
+              <li><b>ISO 무결성 호출 0</b></li>
+              <li><b>ISO 등록 호출 0</b> (R1-4-2 분리)</li>
+              <li><b>ISO lifecycle 호출 0</b> (R1-4-1 분리)</li>
+            </ul>
+          </div>
+          <div class="dep-arrow">→ (없음)</div>
+          <div class="dep-node new">
+            <h5>IsoIntegrityService</h5>
+            <ul>
+              <li>(OSMetadataService 의존성 없음 — 부모 lookup 은 OSMetadataRepository 직접)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout success">
+          <b>핵심 통찰 — R1-4 묶음 완료의 의미</b> — R1-4-1 (lifecycle) · R1-4-2 (registration) · R1-4-3 (integrity) 세 슬라이스로 ISO 의 책임 3종이 OSMetadataService 에서 완전히 빠진다. OSMetadataService 는 "OSMetadata (parent) 의 책임만 가진 service" 가 되어, ~847 → ~380 줄 (45% 축소) 달성 예상. 향후 R2 의 cross-domain 추상화 (LifecycleService 4 도메인 적용) 의 토대가 마련됨.
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 분리 후 책임 + 시그니처 정렬</summary>
+      <div class="body">
+        <h4>3.1 IsoIntegrityService 골격</h4>
+<pre><code>@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class IsoIntegrityService {
+
+    // 의존 — 부모 lookup 위해 Repo 직접 (OSMetadataService 의존 X, 단방향 보존)
+    private final OSMetadataRepository osMetadataRepository;
+    private final ISORepository isoRepository;
+
+    // 무결성 검증 인프라
+    private final ProvisionMarkerService markerService;
+
+    // ── public 3 진입점 ───────────────────────────────────────
+    public IntegrityStatusResponse findStatus(Long osMetadataId, Long isoId) { ... }   // 단순 조회 (DB last snapshot)
+    public IntegrityStatus verify(Long osMetadataId, Long isoId) { ... }                // 동기 검증 (영속화 X)
+    @Transactional public IntegrityStatus verifyAndRecord(Long osMetadataId, Long isoId) { ... }  // 검증 + 영속화
+
+    // ── private helpers (OSMetadataService 에서 이동) ──────────
+    private static String computeFileSha256(Path file) { ... }
+    private OSMetadata requireActiveImage(Long id) { ... }       // 사본 보유 (over-abstraction 회피)
+    private ISO requireLiveISO(Long osMetadataId, Long isoId) { ... }  // 사본 보유
+}</code></pre>
+
+        <h4>3.2 메서드명 정렬 — service 컨텍스트 노출 어휘로 단축</h4>
+        <p>OSMetadataService 의 메서드명은 "이 service 가 OSMetadata 의 것이라 ISO 명시 필요" 였지만, 신 service 안에선 이미 도메인 컨텍스트가 ISO 무결성이므로 단축 :</p>
+
+<pre><code>// 옛 (OSMetadataService 안)                          // 새 (IsoIntegrityService 안)
+osMetadataService.findIntegrityStatus(osId, isoId)    →  isoIntegrityService.findStatus(osId, isoId)
+osMetadataService.verifyIntegrity(osId, isoId)        →  isoIntegrityService.verify(osId, isoId)
+osMetadataService.verifyAndRecordIntegrity(osId, id)  →  isoIntegrityService.verifyAndRecord(osId, isoId)</code></pre>
+
+        <p>이 정렬은 R1-4-1 (<code>toggleIsoEnabled → toggleEnabled</code>) / R1-4-2 (<code>prepareIsoRegistration → prepare</code>) 와 동일 정책.</p>
+
+        <h4>3.3 의존 그래프 단방향 검증</h4>
+        <p>R1-4-3 후 의존 :</p>
+        <ul style="font-family: var(--mono); font-size: 12px;">
+          <li>IsoVerificationLauncher → IsoIntegrityService (verifyAndRecord)</li>
+          <li>IsoJobController → IsoIntegrityService (findStatus)</li>
+          <li>IsoIntegrityService → ProvisionMarkerService, OSMetadataRepository, ISORepository</li>
+          <li>IsoIntegrityService → (OSMetadataService 의존 0)</li>
+          <li>OSMetadataService → (IsoIntegrityService 의존 0)</li>
+        </ul>
+        <p>cycle 없음. R1-4-1 / R1-4-2 의 단방향 정렬을 무결성 흐름까지 확장.</p>
+
+        <h4>3.4 verify 메서드 본문 (그대로 이동, 변경 0)</h4>
+<pre><code>public IntegrityStatus verify(Long osMetadataId, Long isoId) {
+    requireActiveImage(osMetadataId);
+    ISO iso = isoRepository.findByIdAndOsMetadata_Id(isoId, osMetadataId)
+            .orElseThrow(() -> new ISONotFoundException(osMetadataId, isoId));
+    if (iso.isDeleted()) {
+        throw new IllegalOSMetadataStateException("삭제된 ISO 는 검증할 수 없습니다. isoId=" + isoId);
+    }
+    Path target = Path.of(iso.getIsoPath());
+    MarkerContent marker;
+    try {
+        marker = markerService.read(target, MarkerLayout.SIDECAR);
+    } catch (MarkerMissingException e) {
+        return IntegrityStatus.MARKER_MISSING;
+    }
+    if (!markerService.verifySignature(marker)) return IntegrityStatus.SIGNATURE_INVALID;
+    if (!Files.isRegularFile(target))            return IntegrityStatus.TAMPERED;
+    String recomputed = computeFileSha256(target);
+    if (!markerService.verifyManifestHash(marker, recomputed)) return IntegrityStatus.TAMPERED;
+    return IntegrityStatus.ORIGINAL;
+}</code></pre>
+        <p>본문 100% 동일 (R1-4-1 / R1-4-2 의 단순 이동 패턴). 시그니처 변경 0. 분기문 신규 0줄.</p>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>IsoIntegrityService.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td>3 public 진입점 (<code>findStatus</code> / <code>verify</code> / <code>verifyAndRecord</code>) + private <code>computeFileSha256</code> + private lookup helper 사본 2종 (<code>requireActiveImage</code> / <code>requireLiveISO</code>). 의존 4 (OSMetadataRepository + ISORepository + ProvisionMarkerService). ~150 줄.</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataService.java</code></td>
+              <td><span class="chip move">이동</span></td>
+              <td>3 public 메서드 (<code>findIntegrityStatus</code> / <code>verifyIntegrity</code> / <code>verifyAndRecordIntegrity</code>) + 1 private static helper (<code>computeFileSha256</code>) 제거. <code>ProvisionMarkerService</code> 의존도 다른 사용처가 없으면 제거 (grep 확인). 잔류 import 정리. ~451 → ~380 줄 (-70).</td>
+            </tr>
+            <tr>
+              <td><code>IsoVerificationLauncher.java</code></td>
+              <td><span class="chip mod">호출처 교체</span></td>
+              <td>line 38 의 <code>private final OSMetadataService osMetadataService</code> → <code>IsoIntegrityService isoIntegrityService</code>. line 75 의 <code>osMetadataService.verifyAndRecordIntegrity</code> → <code>isoIntegrityService.verifyAndRecord</code>. import 갱신.</td>
+            </tr>
+            <tr>
+              <td><code>IsoJobController.java</code></td>
+              <td><span class="chip mod">호출처 교체</span></td>
+              <td>line 27 의 <code>osMetadataService</code> 의존 옆에 <code>isoIntegrityService</code> 추가 (또는 교체 — 다른 호출이 없으면 osMetadataService 제거). line 52 의 <code>osMetadataService.findIntegrityStatus</code> → <code>isoIntegrityService.findStatus</code>. import 갱신.</td>
+            </tr>
+            <tr>
+              <td><code>IsoLifecycleController.java</code></td>
+              <td><span class="chip mod">결정 의존</span></td>
+              <td><b>§8 D-1 의 옵션 선택 결과에 따름</b>. 옵션 A (IsoIntegrityService 로 이동) — line 64 의 <code>osMetadataService.updateISO</code> → <code>isoIntegrityService.updateIsoPath</code>. 옵션 B (IsoLifecycleService 로 이동) — <code>isoLifecycleService.update</code>. 옵션 C (잔류) — 변경 0.</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataServiceTest.java</code></td>
+              <td><span class="chip mod">정리</span></td>
+              <td>무결성 단위 시나리오 (verifyIntegrity / verifyAndRecord 가 있다면) 제거 또는 IsoIntegrityServiceTest 로 이동. <code>ProvisionMarkerService</code> mock 도 무결성 외 사용처가 없으면 제거.</td>
+            </tr>
+            <tr>
+              <td><code>IsoIntegrityServiceTest.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td>무결성 단위 시나리오 — verify happy (ORIGINAL) / verify marker missing / verify sig invalid / verify file missing → TAMPERED / verify hash mismatch → TAMPERED / verifyAndRecord (영속화 verify) / findStatus happy / findStatus null lastVerifiedAt → NOT_VERIFIED 기본값 / verify on deleted ISO → IllegalOSMetadataState / verify on non-existent ISO → ISONotFound / verify on non-existent OS → OSMetadataNotFound</td>
+            </tr>
+            <tr>
+              <td>OSMetadataControllerSecurityFlowTest.java / IsoJobControllerTest.java (있을 시)</td>
+              <td><span class="chip mod">MockitoBean</span></td>
+              <td><code>IsoIntegrityService</code> 의 @MockitoBean 추가 + 기존 stub (<code>findIntegrityStatus</code> / <code>verifyAndRecordIntegrity</code>) 이동. ~4 stub.</td>
+            </tr>
+            <tr>
+              <td>Entity (<code>ISO.recordIntegritySnapshot</code>) / IntegrityStatus enum / IntegrityStatusResponse DTO</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>변경 0. enum 패키지 이동 (<code>management.bios.vo</code> → <code>management.common.vo</code>) 은 별도 housekeeping (§2 비 목표).</td>
+            </tr>
+            <tr>
+              <td>예외 클래스 / Repository / DTO / Template / DB schema</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>변경 0.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — IsoIntegrityService +150 / OSMetadataService -70 / IsoVerificationLauncher ±4 / IsoJobController ±4 / IsoLifecycleController ±0~3 (D-1 옵션 결과) / OSMetadataServiceTest ±20 / IsoIntegrityServiceTest +180 / controller flow test ±4 stub. net ~ +280.</p>
+
+        <div class="callout warn">
+          <b>호출처 grep — CP2 진입 시점 확정 작업</b> :
+<pre><code>grep -rn "verifyIntegrity\|verifyAndRecordIntegrity\|findIntegrityStatus" src</code></pre>
+          본 plan 작성 시점 (R1-4-2 CP2 단계) 의 추정 호출처는 위 4 파일이지만, R1-4-2 CP4 완료 직후 다시 grep 으로 누락 없는지 확인. 신규 호출처 등장 시 본 plan §4 매트릭스에 추가.
+        </div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>표준</th><th>R1-4-3 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html</td><td>본 문서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf</td><td><i>N/A</i></td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller</td><td>IsoJobController 의 1 호출 prefix 변경 + 의존 추가. (D-1 옵션 A 시) IsoLifecycleController 의 1 호출 prefix 변경</td></tr>
+            <tr><td>4</td><td>DTO</td><td><i>N/A</i> (IntegrityStatusResponse 유지)</td></tr>
+            <tr><td>5</td><td>Service 시그니처</td><td>IsoIntegrityService 신규 + 3 public 진입점 + 1 private helper + 2 lookup helper 사본. (D-1 옵션 A 시) <code>updateIsoPath</code> 메서드 추가</td></tr>
+            <tr><td>6</td><td>Repository</td><td><i>N/A</i> (OSMetadataRepository / ISORepository 그대로)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity</td><td><i>N/A</i> (ISO.recordIntegritySnapshot 변경 0)</td></tr>
+            <tr><td>8</td><td>Service 본체 + 테스트</td><td>OSMetadataService 에서 4 메서드 제거 + IsoVerificationLauncher / IsoJobController 호출처 교체 + IsoIntegrityServiceTest 신규 (~11 시나리오) + controller flow test mock 갱신 + (D-1 옵션 A 시) IsoLifecycleController 갱신</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마</td><td><i>N/A</i></td></tr>
+            <tr><td>10</td><td>브라우저 E2E</td><td>무결성 진입점 2 동작 확인 — (a) "검증" 버튼 클릭 → IsoVerificationLauncher → IntegrityStatus 5종 중 1종 응답 + 알림 센터에 작업 카드 표시, (b) GET /integrity-status → 마지막 검증 결과 JSON 반환. (D-1 옵션 A/B 시) ISO 편집 폼 제출 동작도 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <b>CP 분리 정책 (R1-4-1 / R1-4-2 사후 인정 패턴 그대로)</b> — Step 5 / Step 8 의 컴파일 의존이 강해 strict CP 분리 인위적. <b>안 A</b> 채택 : CP2 안에서 옛 file 의 4 메서드 제거 + 2 호출처 교체까지 동반. CP3 = N/A, CP4 = test 정리 + 신규 test 작성.
+        </div>
+
+        <div class="callout">
+          <b>R1-4 묶음 종료 마커</b> — 본 슬라이스 CP5 완료 시 R1-4 묶음 (R1-4-1 + R1-4-2 + R1-4-3) 전체 종료. Gate 표기 <b>G-R1-4</b> (R1-4 묶음 종료) 신설 권장 — CLAUDE.md Gate 섹션 갱신 §8 D-3 참고.
+        </div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>위치</th><th>분류</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>verify(happy ORIGINAL) — 마커 read OK + 서명 OK + manifestHash 일치 → ORIGINAL</td><td>IsoIntegrityServiceTest (신규)</td><td>신규</td></tr>
+            <tr><td>2</td><td>verify(marker missing) — markerService.read throws MarkerMissingException → MARKER_MISSING</td><td>위</td><td>신규</td></tr>
+            <tr><td>3</td><td>verify(signature invalid) — verifySignature → false → SIGNATURE_INVALID</td><td>위</td><td>신규</td></tr>
+            <tr><td>4</td><td>verify(file missing) — Files.isRegularFile → false → TAMPERED</td><td>위</td><td>신규</td></tr>
+            <tr><td>5</td><td>verify(hash mismatch) — verifyManifestHash → false → TAMPERED</td><td>위</td><td>신규</td></tr>
+            <tr><td>6</td><td>verifyAndRecord(happy) — verify 결과 + ISO.recordIntegritySnapshot 호출 검증 (ArgumentCaptor)</td><td>위</td><td>신규</td></tr>
+            <tr><td>7</td><td>verifyAndRecord(TAMPERED 상태도 영속화) — TAMPERED 결과도 lastIntegrityStatus 에 기록되는지</td><td>위</td><td>신규</td></tr>
+            <tr><td>8</td><td>findStatus(happy) — DB last snapshot 반환</td><td>위</td><td>신규</td></tr>
+            <tr><td>9</td><td>findStatus(NOT_VERIFIED 기본값) — lastIntegrityStatus 가 null 이거나 NOT_VERIFIED → 기본값 반환</td><td>위</td><td>신규</td></tr>
+            <tr><td>10</td><td>verify(deleted ISO) → IllegalOSMetadataStateException (메시지에 isoId 포함)</td><td>위</td><td>신규</td></tr>
+            <tr><td>11</td><td>verify(non-existent ISO) → ISONotFoundException (osId/isoId 둘 다 메시지)</td><td>위</td><td>신규</td></tr>
+            <tr><td>12</td><td>verify(non-existent OS) → OSMetadataNotFoundException</td><td>위</td><td>신규</td></tr>
+            <tr><td>13</td><td>controller flow — GET /management/os/{osId}/iso/{isoId}/integrity-status → 200 + IntegrityStatusResponse body</td><td>IsoJobControllerTest (신규 또는 기존)</td><td>신규/갱신</td></tr>
+            <tr><td>14</td><td>controller flow — GET /integrity-status (ISO 없음) → 404 + ApiErrorResponse</td><td>위</td><td>신규/갱신</td></tr>
+            <tr><td>15</td><td>controller flow — POST /verify → 200 + jobId (IsoVerificationLauncher mock)</td><td>위</td><td>신규/갱신</td></tr>
+            <tr><td>16</td><td>controller flow — POST /verify (ISO 없음) → 404 (launcher 가 ISONotFound throw)</td><td>위</td><td>신규/갱신</td></tr>
+            <tr><td>17</td><td>OSMetadataControllerSecurityFlowTest (있을 시) — IsoIntegrityService @MockitoBean 으로 stub 교체</td><td>기존</td><td>mock 갱신</td></tr>
+            <tr><td>18</td><td>(D-1 옵션 A/B 시) updateIso 시나리오 — happy / PathTraversal 400 / ISO 없음 404</td><td>관련 service test</td><td>D-1 의존</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>범주 분배</b> — 성공 7 / 400 0 (D-1 옵션 결과에 따라 +1) / 404 3 (ISO 없음 ×2 + OS 없음 ×1) / 409 0 (무결성은 충돌 도메인 아님) / 500 0 / domain-state 1 (deleted ISO → IllegalOSMetadataState) / mock 갱신 2 = 총 17~18. CLAUDE.md 의 통합 테스트 규율 (성공·400·404·409·500 모두 포함) 중 무결성 도메인 특성상 409 는 자연 미발생. 404 시나리오는 모든 <code>NotFoundException</code> 하위 클래스 (ISONotFound + OSMetadataNotFound) 를 실제 트리거.</p>
+
+        <div class="callout">
+          <b>409 미발생 정당화</b> — verify / verifyAndRecord / findStatus 는 모두 read-heavy 흐름. 도메인 충돌 (중복 등록 / 잠재 자원 충돌) 은 R1-4-2 의 등록 도메인에 속함. 본 service 의 충돌 대응 책임 0 — Step 8 통합 테스트 규율의 "모든 ConflictException 하위 클래스 트리거" 요건은 ConflictException 가 발화될 수 있는 흐름이 0 이므로 vacuously true.
+        </div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p><b>변경 0</b>. 발화 위치만 새 service 로 이동 :</p>
+        <ul>
+          <li><code>OSMetadataNotFoundException</code> — requireActiveImage 의 OS 없음 (404)</li>
+          <li><code>ISONotFoundException</code> — isoRepository.findByIdAndOsMetadata_Id 의 ISO 없음 또는 부모 mismatch (404)</li>
+          <li><code>IllegalOSMetadataStateException</code> — 삭제된 ISO 에 verify 시도 시 (400 또는 409, advice 매핑에 따름)</li>
+          <li><code>ISOFileStorageException</code> — computeFileSha256 의 IO 실패 (500)</li>
+          <li>(D-1 옵션 A/B 시) <code>PathTraversalException</code> / <code>PathOutsideAllowedRootsException</code> — IsoLifecycleController.updateIso 의 try/catch 가 BindingResult 로 흡수 — 본 catch 위치 그대로 잔류</li>
+        </ul>
+        <p>전역 ExceptionHandler 매핑 그대로. 본 슬라이스가 hotfix v3 의 advice 흐름을 깨지 않음을 controller flow test (16~17) 가 증명 — existing 시나리오 회귀.</p>
+
+        <div class="callout">
+          <b>새 예외 클래스 신설 0</b> — 본 슬라이스의 책임은 메서드 이동만. 새 예외 신설 시에는 CLAUDE.md 의 통합 테스트 규율 ("새 예외 클래스 추가 시 해당 예외 발생 시나리오 테스트 반드시 함께") 이 적용되지만, 본 슬라이스에는 해당사항 없음.
+        </div>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>D-1. <code>updateISO</code> 처리 결정 — <span style="color:var(--orange)">사용자 결정 필요 (3 옵션)</span></h4>
+        <p><code>OSMetadataService.updateISO</code> 는 등록 (creation) 도 무결성 (integrity) 도 아닌 "ISO 후속 수정" 책임. 본 R1-4-3 의 검토 결과 세 옵션 :</p>
+
+        <table>
+          <thead><tr><th>옵션</th><th>이동 위치</th><th>근거</th><th>비용 / 우려</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>A</b> <span class="chip add">권장</span></td>
+              <td>IsoIntegrityService (<code>updateIsoPath</code>)</td>
+              <td>isoPath 변경은 marker 재발급이 필요할 수 있음 (sidecar 가 옛 경로에 묶여 있음). 무결성 service 가 마커와 함께 책임 응집 — "경로 바뀌면 마커도 같이 다뤄야 한다" 는 멘탈 모델.</td>
+              <td>service 책임이 "검증" + "편집" 두 축으로 확장 — 책임 응집 단일성 약화. 단, 마커가 공통 인프라라 자연스러움.</td>
+            </tr>
+            <tr>
+              <td><b>B</b></td>
+              <td>IsoLifecycleService (<code>update</code>)</td>
+              <td>편집은 lifecycle 의 한 단계 (등록 → 편집 → 삭제). LifecycleService interface 의 추가 default 메서드 후보. 4 도메인 (OS/BIOS/BMC/Subprogram) 동형 적용 가능.</td>
+              <td>현 LifecycleService interface 는 toggle / softDelete / restore 등 상태 전이만 표준화 — update 는 도메인별 DTO 가 달라 추상화 자연성 떨어짐. R2 의 cross-domain 추상화 시점에 재검토.</td>
+            </tr>
+            <tr>
+              <td><b>C</b></td>
+              <td>OSMetadataService 잔류</td>
+              <td>R2 후속 슬라이스로 미룸. 본 슬라이스는 무결성만 응집해 scope 명확화.</td>
+              <td>R1-4 묶음 종료 후에도 OSMetadataService 에 ISO 책임 1 가 잔존 — "ISO 책임 100% 분리" 의도와 어긋남.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <b>Claude 권장 — 옵션 A</b>. 이유 : (1) updateISO 의 PathPolicyService 의존이 무결성의 sidecar 경로 정합과 직접 연결, (2) 미래에 isoPath 변경 시 marker 재발급 자동 트리거가 필요해질 가능성 — IsoIntegrityService 안에 두면 자연스럽게 연결, (3) "ISO 책임 100% 분리" 의도 충족 (R1-4 묶음 종료 의미).
+          <br><br>
+          <b>사용자가 옵션 B 또는 C 를 선택하면</b> §4 매트릭스 / §6 시나리오 (#18) / §10 Critical Files 표를 재산정.
+        </div>
+
+        <h4>D-2. <code>computeFileSha256</code> helper 사본 정책 (R1-3 / R1-4-1 / R1-4-2 패턴 그대로)</h4>
+        <p>옛 OSMetadataService 의 private static helper. <code>verifyIntegrity</code> 단독 의존이었고, R1-4-2 에서는 ISO 등록 흐름의 다른 sha256 계산 (<code>finalize</code> 의 hash 재계산) 과 별도로 잔류시킨 상태. <b>본 슬라이스에서 IsoIntegrityService 안에 사본 보유</b>. IsoRegistrationService 의 finalize 흐름과 의미가 다름 (등록 시 client/server hash 비교 vs 검증 시 marker manifestHash 와 재계산값 비교) 이라 over-abstraction 회피.</p>
+
+        <h4>D-3. CLAUDE.md Gate 갱신 — <code>G-R1-4</code> 신설 권장</h4>
+        <p>현 CLAUDE.md 의 Gate 섹션에 R1 / R1-4 가 미명시. 본 슬라이스 종료 = R1-4 묶음 종료이므로 <code>G-R1-4</code> Gate 표기 추가 권장 (R1-4-1 + R1-4-2 + R1-4-3 의 누적 결과 검토 후 R2 진입). CP5 보고 시점에 함께 제안.</p>
+
+        <h4>D-4. <code>reissueMarker</code> 신설 여부 — <span style="color:var(--yellow)">신설 안 함 (Notion highlight 명시)</span></h4>
+        <p>Notion 페이지 highlight 의 결정 사항 : "마커 발급 (<code>finalizeMarker</code>) — R1-4-2 의 등록 흐름 종착점이라 R1-4-2 잔류 (<code>reissueMarker</code> 는 본 슬라이스 — 재발급은 무결성 회복의 일부)". 본 plan 작성 시점 코드 확인 결과 :</p>
+        <ul>
+          <li>현 OSMetadataService 에 service-level <code>reissueMarker(Long, Long)</code> 메서드 <b>부재</b>.</li>
+          <li><code>ISO.reissueMarker(String manifestHash, String markerSignature)</code> 는 entity 의 Markable 인터페이스 구현 — entity 도메인 메서드 (이동 대상 아님).</li>
+          <li>일괄 마커 재발급은 <code>PathReconciliationService</code> 가 별도 도메인에서 관할.</li>
+        </ul>
+        <p><b>결정</b> — 본 슬라이스에서 신규 <code>reissueMarker</code> service 메서드를 신설하지 않는다. 이유 : (1) 현 코드에 호출처가 없어 dead code 가 됨, (2) 일괄 재발급은 reconciliation 도메인에서 처리 중이라 책임 중복, (3) 무결성 회복 (MARKER_MISSING / SIGNATURE_INVALID 상태에서의 재발급) 흐름이 UI 에 노출되지 않은 시점. 미래에 "재발급" 버튼이 UI 에 노출되면 별도 슬라이스에서 신설.</p>
+
+        <h4>D-5. 트랜잭션 경계 보존</h4>
+        <p>3 public 메서드 모두 옛 OSMetadataService 의 어노테이션 그대로 이동 :</p>
+        <ul>
+          <li><code>findStatus</code> — class-level <code>@Transactional(readOnly = true)</code> 만 (메서드 어노테이션 X)</li>
+          <li><code>verify</code> — class-level <code>@Transactional(readOnly = true)</code> 만</li>
+          <li><code>verifyAndRecord</code> — 메서드 <code>@Transactional</code> (write — entity.recordIntegritySnapshot)</li>
+        </ul>
+        <p>트랜잭션 경계 변경 0. 옛 흐름의 자동 dirty checking 그대로 동작.</p>
+
+        <h4>D-6. CLAUDE.md 정렬</h4>
+        <ul>
+          <li><b>"중복된 코드와 가독성이 떨어지는 코드는 절대 지양"</b> — OSMetadataService 의 마지막 ISO 책임 분리. R1-4 묶음 종료 시 ~847 → ~380 줄 (45% 축소) 달성.</li>
+          <li><b>"조건 분기문 legacy 무분별 확장 절대 지양"</b> — 본 슬라이스는 메서드 이동만, 분기문 신규 0줄. verify 의 5단계 enum 매칭 (MARKER_MISSING / SIGNATURE_INVALID / TAMPERED / ORIGINAL) 도 그대로 이동.</li>
+          <li><b>"Primitive Obsession 금지"</b> — IntegrityStatus enum 그대로 활용. 본 슬라이스에서 새 primitive 도입 0.</li>
+          <li><b>"Spring framework primitive 적극 활용"</b> — 신 service 도 @Transactional 경계 / @Service / RequiredArgsConstructor 그대로.</li>
+        </ul>
+
+        <h4>D-7. IsoVerificationLauncher 의 OSMetadataService 의존 잔류 여부 — <span style="color:var(--blue)">검토 필요</span></h4>
+        <p>본 슬라이스 후 IsoVerificationLauncher 가 osMetadataService 호출이 0 이 되면 의존 제거. 현 코드 (line 38) 의 <code>private final OSMetadataService osMetadataService</code> 는 line 75 의 <code>verifyAndRecordIntegrity</code> 호출 단독 사용처로 추정 — CP2 진입 시 grep 으로 확인 후 제거.</p>
+
+        <h4>D-8. IsoJobController 의 OSMetadataService 의존 잔류 여부 — <span style="color:var(--blue)">검토 필요</span></h4>
+        <p>IsoJobController line 27 의 <code>osMetadataService</code> 는 line 52 의 <code>findIntegrityStatus</code> 단독 사용처로 추정. CP2 진입 시 grep 으로 확인 후 제거 (또는 다른 호출이 있으면 유지).</p>
+
+        <h4>D-9. R1-4-1 hotfix 와의 호환</h4>
+        <p>예외 라우팅 advice (Web/Api) 는 본 슬라이스에서 변경 0. controller flow test 의 기존 시나리오가 새 service stub 기반으로 회귀 검증. hotfix v3 의 안정성 보존. R2 의 advice 통합 / errorCode 다형성 적용은 본 슬라이스 후 진입 가능.</p>
+
+        <h4>D-10. Notion 페이지 본문 갱신 (CLAUDE.md 불가침 규정)</h4>
+        <p>CP1 승인 후 Notion 페이지 (<code>36cef0e8-68f9-8134-8a68-ca50f8c8bc96</code>) 본문에 다음 4 항목 기재 (CLAUDE.md "페이지 신설 / 상태 갱신 시 Claude 판단 세부 사항 본문 반드시 기재") :</p>
+        <ul>
+          <li><b>① scope 요약</b> — OSMetadataService 잔류 무결성 3 메서드 + 1 helper 를 IsoIntegrityService 로 응집. R1-4 묶음 종료 슬라이스.</li>
+          <li><b>② 비 목표</b> — 마커 일괄 재발급 (PathReconciliationService), 예외 advice 통합 (R2), IntegrityStatus enum 패키지 이동 (housekeeping), updateISO 옵션 B/C 선택 시 잔류 책임.</li>
+          <li><b>③ 잔존 책임 / 임시 비대칭</b> — (D-1 결정에 따름) 옵션 A 채택 시 잔존 0, 옵션 C 채택 시 OSMetadataService.updateISO 1 메서드 잔류 (R2 또는 별도 슬라이스 해소).</li>
+          <li><b>④ 후속 마일스톤</b> — R2 (4 도메인 동형 패턴 환원 + LifecycleService cross-domain 검증).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r1-4-3-verify">
+          <li><label><input type="checkbox" data-key="r1-4-2-done"> <span>R1-4-2 CP4/CP5 완료 (선행 조건)</span></label></li>
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (R1-4-2 baseline + ~11 시나리오 추가)</span></label></li>
+          <li><label><input type="checkbox" data-key="size"> <span>OSMetadataService.java 줄 수 -60 이상 (R1-4-2 직후 ~451 → ~380)</span></label></li>
+          <li><label><input type="checkbox" data-key="new-file"> <span>IsoIntegrityService.java 존재 + 3 public + 1 private helper + 2 lookup helper</span></label></li>
+          <li><label><input type="checkbox" data-key="grep-leftover"> <span>OSMetadataService 에 verifyIntegrity / verifyAndRecordIntegrity / findIntegrityStatus / computeFileSha256 메서드 0 (grep)</span></label></li>
+          <li><label><input type="checkbox" data-key="launcher-link"> <span>IsoVerificationLauncher 의 verifyAndRecord 호출이 isoIntegrityService 로 갱신 (line 75)</span></label></li>
+          <li><label><input type="checkbox" data-key="jobcontroller-link"> <span>IsoJobController 의 findIntegrityStatus 호출이 isoIntegrityService 로 갱신 (line 52)</span></label></li>
+          <li><label><input type="checkbox" data-key="d1-decision"> <span>D-1 (updateISO 처리) 옵션 A/B/C 사용자 결정 완료 + §4/§6/§10 매트릭스 재산정</span></label></li>
+          <li><label><input type="checkbox" data-key="cycle"> <span>의존 단방향 — IsoIntegrityService → ProvisionMarkerService / Repo, OSMetadataService 와 무의존 (양방향 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="enum-unchanged"> <span>IntegrityStatus enum / IntegrityStatusResponse DTO / ISO.recordIntegritySnapshot 변경 0</span></label></li>
+          <li><label><input type="checkbox" data-key="ext-behavior"> <span>외부 동작 동치 — IsoJobControllerTest / OSMetadataControllerSecurityFlowTest 전부 통과로 증명. hotfix v3 advice 흐름 보존</span></label></li>
+          <li><label><input type="checkbox" data-key="dep-pruned"> <span>(D-7 / D-8) IsoVerificationLauncher 와 IsoJobController 의 osMetadataService 의존이 다른 호출 없으면 제거됨</span></label></li>
+          <li><label><input type="checkbox" data-key="notion"> <span>Notion 페이지 (36cef0e8-68f9-8134-8a68-ca50f8c8bc96) 본문 4 항목 기재 (D-10)</span></label></li>
+          <li><label><input type="checkbox" data-key="gate"> <span>G-R1-4 Gate 신설 권고 CLAUDE.md 에 제안 (D-3)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자 단독) — 무결성 2 진입점 (verify 버튼 / integrity-status 조회) + (D-1 옵션 A/B 시) ISO 편집 폼</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip add">신규</span></td><td><code>management/os/service/iso/IsoIntegrityService.java</code></td><td>ISO 무결성 책임 단일 service. 3 public + 1 private helper + 2 lookup helper</td></tr>
+            <tr><td><span class="chip add">신규</span></td><td><code>test/.../iso/IsoIntegrityServiceTest.java</code></td><td>무결성 단위 시나리오 (§6 의 1~12)</td></tr>
+            <tr><td><span class="chip move">이동</span></td><td><code>management/os/service/metadata/OSMetadataService.java</code></td><td>4 메서드 (3 public + 1 private helper) 제거. ~451 → ~380. <code>ProvisionMarkerService</code> 의존도 다른 사용처 없으면 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/iso/IsoVerificationLauncher.java</code></td><td>의존 교체 (osMetadataService → isoIntegrityService) + line 75 호출 prefix 변경 + import 갱신</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/controller/IsoJobController.java</code></td><td>의존 추가 또는 교체 (isoIntegrityService) + line 52 호출 prefix 변경 + import 갱신</td></tr>
+            <tr><td><span class="chip mod">수정 (D-1 옵션 A/B 시)</span></td><td><code>management/os/controller/IsoLifecycleController.java</code></td><td>line 64 의 updateIso 호출 prefix 변경. 옵션 결정에 따라 변경 0 또는 의존 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>controller flow test (OSMetadataControllerSecurityFlowTest / IsoJobControllerTest 등)</td><td>IsoIntegrityService @MockitoBean 추가 + 기존 stub 4 건 이동</td></tr>
+            <tr><td><span class="chip mod">수정 (있을 시)</span></td><td>OSMetadataServiceTest.java</td><td>verifyIntegrity / verifyAndRecord / findIntegrityStatus 시나리오 (있을 시) 제거</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ISO.recordIntegritySnapshot</code> entity 메서드 + Markable 구현</td><td>entity 도메인 메서드 — 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>management/bios/vo/IntegrityStatus.java</code> + <code>IntegrityStatusResponse.java</code> + <code>IntegrityStatusView.java</code></td><td>enum / DTO / view — 변경 0 (패키지 이동은 별도 housekeeping)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>IsoLifecycleService</code> / <code>IsoRegistrationService</code> (R1-4-1 / R1-4-2 산출물)</td><td>변경 0 — IsoIntegrityService 와 의존 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>PathReconciliationService</code> (일괄 마커 재발급)</td><td>별도 도메인 — 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>WebExceptionHandler / ApiExceptionHandler / ApiErrorResponse</td><td>R1-4-1 hotfix v3 안정 그대로</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>Entity / Repository / Exception / DTO / Template / DB schema</td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1-4 묶음 종료 (G-R1-4)</b> — 본 슬라이스 CP5 완료 = R1-4-1 + R1-4-2 + R1-4-3 누적 결과 검토. OSMetadataService ~847 → ~380 줄 (45% 축소). ISO 의 3 책임 (lifecycle / registration / integrity) 이 3 service 로 응집된 최종 상태 확인.</li>
+          <li><b>R2</b> — Subprogram / BIOS / BMC / Board 의 동형 패턴 환원 + LifecycleService interface cross-domain 검증. R1-4 의 ISO 분리 3종이 다른 도메인에도 자연 매핑되는지 확인. BIOS / BMC 도 무결성 패턴 보유 — R1-4-3 의 IsoIntegrityService 를 모델로 BiosIntegrityService / BmcIntegrityService 도입 가능성.</li>
+          <li><b>R2 (advice 통합 보고서 §8 적용)</b> — 단일 advice 통합 (변경 1) / ProblemDetail adapter (변경 2) / errorCode 다형성 (변경 3). R1-4-1 hotfix 안정 + R1-4-2 / R1-4-3 의 hotfix 영향 0 이라 진입 안전.</li>
+          <li><b>R3</b> — PathReconciliationService 분해 (드리프트 감지 / 적용 / sidecar 동기화의 책임 분리). 본 R1-4 의 IsoIntegrityService 의 marker 의존이 reconciliation 과 어떻게 연결될지 검토.</li>
+          <li><b>(별도) IntegrityStatus enum 패키지 이동</b> — <code>management.bios.vo</code> → <code>management.common.vo</code>. 옛 흐름의 잔여 위치 정정. housekeeping 슬라이스 후보.</li>
+          <li><b>(별도) updateISO 의 D-1 옵션 C 선택 시 후속</b> — R1-4 묶음 종료 후 잔류한 updateISO 를 R2 시점에 cross-domain update 패턴으로 환원.</li>
+        </ol>
+        <p>R1-4-3 자체는 1 일 분량 (R1-4-1 / R1-4-2 와 동형 패턴, scope 작음). R1-4 묶음 종료 후 R2 진입.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      if (text.includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+      });
+    });
+  });
+</script>
+</body>
+</html>

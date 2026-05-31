@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-4 Plan — '삭제된 항목' 토글 시 miller 선택 보존</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.rec { background: var(--green-bg); color: var(--green); }
+  .chip.alt { background: var(--blue-bg); color: var(--blue); }
+  .chip.bad { background: var(--red-bg); color: var(--red); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* 🎬 라이브 — toggle 동작 시연 (현재 vs 채택안) */
+  .ux-wrap { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: 16px; margin: 12px 0; }
+  .ux-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  .ux-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px;
+    padding: 14px; }
+  .ux-card .ux-card-title { font-family: var(--mono); font-weight: 700; margin-bottom: 8px; font-size: 12px; }
+  .ux-card.recommended { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .ux-card.recommended .ux-card-title { color: var(--green); }
+  .ux-card .ux-card-desc { font-size: 11.5px; color: var(--text-muted); margin: 6px 0; }
+  .ux-url { font-family: var(--mono); font-size: 11.5px; background: #fff; border: 1px solid var(--border-soft);
+    padding: 6px 8px; border-radius: 4px; margin-top: 8px; word-break: break-all; }
+  .ux-url.red { color: var(--red); }
+  .ux-url.green { color: var(--green); }
+  .ux-card label.t { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .ux-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-4 — '삭제된 항목' 토글 시 miller 선택 보존</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-20</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-3 완료 (nudge-modal fragment + tooltip 일반화)</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 대기</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#preview" class="live">🎬 토글 비교 라이브</a></li>
+    <li><a href="#s3">3. URL · 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. 테스트</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태 — 토글 시 selectId / selectBoardId / selectKind 가 휘발</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">1.1 마크업 현황 — 5 도메인 list 페이지 모두 동일 inline 핸들러</h3>
+    <p>5 도메인 list 페이지 (OS / Board / BIOS / BMC / Subprogram) 의 헤더 체크박스는 모두 다음 inline 핸들러를 사용 :</p>
+<pre><code>&lt;label class="n-checkbox"&gt;
+    &lt;input type="checkbox"
+           th:checked="${includeDeleted}"
+           onchange="window.location.href = this.checked
+                       ? '?includeDeleted=true'
+                       : window.location.pathname"&gt;
+    삭제된 항목 포함
+&lt;/label&gt;</code></pre>
+
+    <h3>1.2 결과 — 토글 후 querystring 통째로 휘발</h3>
+    <p><code>this.checked ? '?includeDeleted=true' : window.location.pathname</code> 는 <strong>현재 URL 의 다른 쿼리 파라미터 (selectId, selectBoardId, selectKind 등) 를 모두 버린다</strong>. miller column 의 선택 상태는 모두 querystring 기반이므로, 토글 직후 사용자가 보던 자원 선택이 사라진다.</p>
+
+    <h3>1.3 시나리오로 본 사용자 영향</h3>
+    <table>
+      <thead><tr><th>도메인</th><th>토글 전 URL</th><th>토글 후 URL (현재)</th><th>UX 영향</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>OS</td>
+          <td><code>/management/os?selectId=12</code></td>
+          <td><code>/management/os?includeDeleted=true</code></td>
+          <td>v9.6 선택 → 토글 → C2/C3 panel 닫힘</td>
+        </tr>
+        <tr>
+          <td>Board</td>
+          <td><code>/management/board?selectId=4</code></td>
+          <td><code>/management/board?includeDeleted=true</code></td>
+          <td>MS03-CE0 선택 → 토글 → 선택 잃음</td>
+        </tr>
+        <tr>
+          <td>BIOS</td>
+          <td><code>/management/bios?selectBoardId=3&amp;selectId=7</code></td>
+          <td><code>/management/bios?includeDeleted=true</code></td>
+          <td>BoardModel + BIOS 둘 다 풀림 (가장 큰 회귀)</td>
+        </tr>
+        <tr>
+          <td>BMC</td>
+          <td><code>/management/bmc?selectBoardId=3&amp;selectId=5</code></td>
+          <td><code>/management/bmc?includeDeleted=true</code></td>
+          <td>BIOS 와 동일 패턴</td>
+        </tr>
+        <tr>
+          <td>Subprogram (Driver)</td>
+          <td><code>/management/subprogram?selectKind=DRIVER&amp;selectId=8</code></td>
+          <td><code>/management/subprogram?includeDeleted=true</code></td>
+          <td>Driver/Utility 두 섹션 모두 선택 풀림</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>1.4 사용자 동기 (Notion S5-4 원문)</h3>
+    <div class="callout">
+      <strong>Notion :</strong> "'삭제된 항목' 체크 시 기존의 miller 선택이 남아있도록 수정."
+    </div>
+
+    <h3>1.5 왜 inline 으로 풀린 채로 두는가</h3>
+    <ul>
+      <li>5 페이지 각각에 같은 핸들러가 복붙되어 있어 — 도메인별 list.js 에 흩어두면 중복 5 곳 발생 (CLAUDE.md 의 코드 중복 절대 지양 원칙 위배)</li>
+      <li>BIOS / BMC 의 selectBoardId, Subprogram 의 selectKind 처리가 도메인별로 미묘하게 다르나, 본질은 "현재 URL 의 querystring 에서 <code>includeDeleted</code> 만 토글" 로 단일화 가능</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2" open>
+  <summary>2. 요구사항</summary>
+  <div class="body">
+    <ol>
+      <li>'삭제된 항목 포함' 체크박스 토글 시 사용자가 선택한 miller 항목 (selectId / selectBoardId / selectKind) 이 유지된 채로 reload</li>
+      <li>5 도메인 (OS / Board / BIOS / BMC / Subprogram) 에 동일하게 적용 — 도메인별 분기 없이 동일 JS 1 곳</li>
+      <li>Subprogram 페이지의 2 체크박스 (Driver / Utility 섹션) 모두 동일 동작</li>
+      <li>Server-side 변경 0 — 백엔드는 이미 모든 쿼리 파라미터를 받고 있으므로 frontend 만 손봐도 충분</li>
+      <li>새 JS 는 일반 모듈 — 다른 페이지 ("내 자원만" / "활성만" 같은 향후 querystring 토글) 가 재사용할 수 있게 generic 한 토글 빌더</li>
+      <li>CLAUDE.md 의 "중복된 코드 절대 지양" 준수 — inline 핸들러 5 곳 → 일반 JS 모듈 1 곳으로 흡수</li>
+    </ol>
+  </div>
+</details>
+
+<!-- ============================== preview ============================== -->
+<details class="section" id="preview" open>
+  <summary>🎬 토글 비교 라이브 — 체크박스를 켜고 끄며 URL 변화를 비교</summary>
+  <div class="body">
+    <p style="margin-top:0;">현재 URL 을 <code>/management/bios?selectBoardId=3&amp;selectId=7</code> 로 가정.</p>
+
+    <div class="ux-wrap">
+      <div class="ux-grid">
+
+        <div class="ux-card">
+          <div class="ux-card-title"><span class="chip bad">A</span> 현재 inline onchange</div>
+          <label class="t">
+            <input type="checkbox" id="demo-current" onchange="document.getElementById('demo-current-url').textContent = this.checked ? '/management/bios?includeDeleted=true' : '/management/bios';">
+            삭제된 항목 포함
+          </label>
+          <div class="ux-url red" id="demo-current-url">/management/bios?selectBoardId=3&amp;selectId=7</div>
+          <div class="ux-card-desc">체크 시 <code>selectBoardId</code>, <code>selectId</code> 가 사라짐 — miller 선택 휘발</div>
+        </div>
+
+        <div class="ux-card recommended">
+          <div class="ux-card-title"><span class="chip rec">B ✓</span> 채택안 — URLSearchParams</div>
+          <label class="t">
+            <input type="checkbox" id="demo-new" onchange="(function(box){
+              const params = new URLSearchParams('selectBoardId=3&amp;selectId=7');
+              if (box.checked) params.set('includeDeleted', 'true');
+              else params.delete('includeDeleted');
+              const q = params.toString();
+              document.getElementById('demo-new-url').textContent = '/management/bios' + (q ? '?' + q : '');
+            })(this);">
+            삭제된 항목 포함
+          </label>
+          <div class="ux-url green" id="demo-new-url">/management/bios?selectBoardId=3&amp;selectId=7</div>
+          <div class="ux-card-desc"><code>URLSearchParams</code> 로 기존 쿼리 보존 + <code>includeDeleted</code> 만 토글 — 선택 유지</div>
+        </div>
+
+      </div>
+    </div>
+
+    <h3 style="margin-top: 22px;">비교표</h3>
+    <table>
+      <thead><tr><th>패턴</th><th>selectId 보존</th><th>selectBoardId 보존</th><th>selectKind 보존</th><th>중복 코드</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr style="background: var(--red-bg);">
+          <td><strong>A — 현재 inline</strong></td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>5 곳 동일 inline</td>
+          <td>본 슬라이스가 해결</td>
+        </tr>
+        <tr style="background: var(--green-bg);">
+          <td><strong>B — 일반 JS 모듈 (채택)</strong></td>
+          <td>✅</td>
+          <td>✅</td>
+          <td>✅</td>
+          <td>1 곳 (global JS)</td>
+          <td>fragment + JS 1 + script import 5</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3" open>
+  <summary>3. URL · 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">3.1 새 endpoint — 없음</h3>
+    <p>Server-side 는 이미 모든 쿼리 파라미터를 받음. <strong>변경 표면은 frontend 만</strong>.</p>
+
+    <h3>3.2 URL 합성 알고리즘 (JS)</h3>
+<pre><code>// static/global/include-deleted-toggle.js
+(function () {
+    'use strict';
+
+    /**
+     * 체크박스의 onchange 핸들러. data-include-deleted-toggle 속성을 가진
+     * checkbox 를 자동 발견해 attach.
+     *
+     * 동작 :
+     *   1. 현재 location 의 querystring 을 URLSearchParams 로 파싱
+     *   2. checkbox 체크 여부에 따라 includeDeleted 파라미터를 set / delete
+     *   3. 다른 파라미터 (selectId / selectBoardId / selectKind 등) 는 그대로 보존
+     *   4. window.location.search 로 redirect
+     */
+    function buildNextUrl(checked) {
+        const params = new URLSearchParams(window.location.search);
+        if (checked) params.set('includeDeleted', 'true');
+        else params.delete('includeDeleted');
+        const q = params.toString();
+        return window.location.pathname + (q ? '?' + q : '');
+    }
+
+    function attachAll() {
+        const checkboxes = document.querySelectorAll(
+            'input[type="checkbox"][data-include-deleted-toggle]'
+        );
+        checkboxes.forEach(cb =&gt; {
+            cb.addEventListener('change', () =&gt; {
+                window.location.href = buildNextUrl(cb.checked);
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachAll);
+    } else {
+        attachAll();
+    }
+
+    // unit test / 다른 모듈 재사용용 export
+    window.IncludeDeletedToggle = { buildNextUrl: buildNextUrl };
+})();
+</code></pre>
+
+    <h3>3.3 마크업 변경 (5 도메인 + Subprogram 의 2 섹션)</h3>
+<pre><code>&lt;!-- 변경 전 --&gt;
+&lt;label class="n-checkbox"&gt;
+    &lt;input type="checkbox"
+           th:checked="${includeDeleted}"
+           onchange="window.location.href = this.checked ? '?includeDeleted=true' : window.location.pathname"&gt;
+    삭제된 항목 포함
+&lt;/label&gt;
+
+&lt;!-- 변경 후 --&gt;
+&lt;label class="n-checkbox"&gt;
+    &lt;input type="checkbox"
+           th:checked="${includeDeleted}"
+           data-include-deleted-toggle&gt;
+    삭제된 항목 포함
+&lt;/label&gt;
+&lt;!-- 각 list.html head 또는 body 끝에 한 줄 추가 --&gt;
+&lt;script th:src="@{/global/include-deleted-toggle.js}"&gt;&lt;/script&gt;</code></pre>
+
+    <h3>3.4 백엔드 영향 — 0</h3>
+    <p>Controller 시그니처, Service, Repository, DTO, Entity 일체 변경 없음. 기존 <code>@RequestParam(required = false) Long selectId</code>, <code>@RequestParam(required = false) Boolean includeDeleted</code> 등의 매핑은 그대로 동작 — querystring 키 이름이 동일하기 때문.</p>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4" open>
+  <summary>4. 도메인 모델</summary>
+  <div class="body">
+    <p>신규 엔티티 / 스키마 / VO / Enum / DTO <strong>일체 없음</strong>. 본 슬라이스는 frontend 전용.</p>
+
+    <table>
+      <thead><tr><th>신규 / 변경</th><th>위치</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>신규 JS</strong></td>
+          <td><code>src/main/resources/static/global/include-deleted-toggle.js</code></td>
+          <td><code>data-include-deleted-toggle</code> 마커가 붙은 checkbox 에 자동 attach. <code>URLSearchParams</code> 로 querystring 의 다른 키 보존하며 <code>includeDeleted</code> 만 토글.</td>
+        </tr>
+        <tr>
+          <td><strong>수정 — markup</strong></td>
+          <td><code>templates/management/{os,board,bios,bmc,subprogram}/list.html</code></td>
+          <td>inline <code>onchange</code> → <code>data-include-deleted-toggle</code> 마커 + <code>&lt;script&gt;</code> import. Subprogram 은 Driver / Utility 두 체크박스 모두 동일하게 변경.</td>
+        </tr>
+        <tr>
+          <td><strong>유지</strong></td>
+          <td>Controller / Service / Repository / Entity / DTO / VO / Enum</td>
+          <td>일체 변경 없음.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. 10단계 + 체크포인트</summary>
+  <div class="body">
+    <p>본 슬라이스는 frontend (JS + Thymeleaf markup) 만 — Step 4~7, 9 의 대부분이 적용되지 않아 자연스럽게 단계 압축.</p>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><strong>Step 1</strong> <span class="chip cp1">CP1</span> plan html 산출 + 채택안 (URLSearchParams) 사용자 합의</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 2</strong> <span class="chip cp2">CP2</span> 5 도메인 list.html 의 inline <code>onchange</code> 제거 + <code>data-include-deleted-toggle</code> 마커 + script import</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 3</strong> <span class="chip cp2">CP2</span> Controller — 변경 없음 (확인만)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 4</strong> <span class="chip cp2">CP2</span> DTO — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 5</strong> <span class="chip cp2">CP2</span> Service 시그니처 — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 6</strong> <span class="chip cp3">CP3</span> Repository — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 7</strong> <span class="chip cp3">CP3</span> Entity — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 8</strong> <span class="chip cp4">CP4</span> JS 본체 (<code>include-deleted-toggle.js</code>) + 5 도메인 markup 검증 통합 테스트 (HTML render assertion)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 9</strong> <span class="chip cp4">CP4</span> 스키마 — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 10</strong> <span class="chip cp5">CP5</span> 브라우저 E2E — 사용자 단독. 5 도메인 × (selectId 선택 → 토글 ON → 토글 OFF) 3 동작 확인</span></label></li>
+    </ul>
+
+    <div class="callout">
+      <strong>축약 사유</strong> 본 슬라이스는 entity / repository / service / DTO 변경 0 — CLAUDE.md 의 10 단계 중 Step 3~7, 9 가 실제 작업 없음 (확인만). frontend 전용 슬라이스의 자연스러운 형태.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. Step 8 통합 테스트 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">자동 테스트 한계</h3>
+    <p><code>URLSearchParams</code> 의 동작은 브라우저 JS 런타임 의존 — Spring 측에서는 검증 불가. 대신 <strong>5 도메인 list.html 렌더 결과의 마크업 마커</strong> 를 통합 테스트로 검증.</p>
+
+    <h3>시나리오 (5)</h3>
+    <table>
+      <thead><tr><th>#</th><th>이름</th><th>범주</th><th>검증</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><code>OSImageControllerListFlowTest::renders_includeDeletedToggle_with_dataMarker</code></td>
+          <td>성공 (200)</td>
+          <td>응답 HTML 에 <code>data-include-deleted-toggle</code> 속성 존재 + inline <code>onchange="window.location"</code> 부재</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><code>BoardModelControllerListFlowTest::renders_includeDeletedToggle_with_dataMarker</code></td>
+          <td>성공</td>
+          <td>동일</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><code>BiosControllerListFlowTest::renders_includeDeletedToggle_with_dataMarker</code></td>
+          <td>성공</td>
+          <td>동일</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><code>BmcControllerListFlowTest::renders_includeDeletedToggle_with_dataMarker</code></td>
+          <td>성공</td>
+          <td>동일</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><code>SubprogramControllerListFlowTest::renders_two_includeDeletedToggles</code></td>
+          <td>성공</td>
+          <td>응답 HTML 에 <code>data-include-deleted-toggle</code> 가 정확히 2 개 (Driver / Utility 섹션)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>JS 단위 (선택)</h3>
+    <p>프로젝트에 JS 테스트 러너 없음 (Jest / vitest 미도입). <code>IncludeDeletedToggle.buildNextUrl()</code> 의 순수 함수 동작은 브라우저 콘솔 / E2E 로 spot check :</p>
+    <ul>
+      <li><code>buildNextUrl(true)</code> on <code>/management/bios?selectBoardId=3&amp;selectId=7</code> → <code>/management/bios?selectBoardId=3&amp;selectId=7&amp;includeDeleted=true</code></li>
+      <li><code>buildNextUrl(false)</code> on <code>/management/bios?selectBoardId=3&amp;selectId=7&amp;includeDeleted=true</code> → <code>/management/bios?selectBoardId=3&amp;selectId=7</code></li>
+    </ul>
+
+    <h3>대안 — 브라우저 수동 검증 체크리스트 (CP5)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span>OS 페이지에서 v9.6 선택 → 토글 ON → URL 에 <code>selectId=12&amp;includeDeleted=true</code> + miller v9.6 active 유지</span></label></li>
+      <li><label><input type="checkbox"><span>BIOS 페이지에서 BoardModel + 버전 둘 다 선택 → 토글 ON → <code>selectBoardId</code> + <code>selectId</code> 둘 다 보존</span></label></li>
+      <li><label><input type="checkbox"><span>Subprogram 페이지에서 Driver 섹션의 자원 선택 → 토글 ON → <code>selectKind=DRIVER&amp;selectId=...</code> 보존</span></label></li>
+      <li><label><input type="checkbox"><span>토글 OFF 시점에도 동일 — selectId 만 보존, includeDeleted 만 사라짐</span></label></li>
+    </ul>
+
+    <p><strong>합계 : 5 신규 통합 테스트 시나리오 + 4 수동 검증.</strong></p>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">예외 신설</h3>
+    <p>없음 — frontend 전용 슬라이스.</p>
+
+    <h3>회귀 위험</h3>
+    <ul>
+      <li>5 도메인 list.html 의 다른 inline 핸들러는 무관 — 본 슬라이스는 <code>data-include-deleted-toggle</code> 마커 붙은 checkbox 만 처리</li>
+      <li>Subprogram 의 2 개 체크박스 가 동시에 attach — 두 섹션이 같은 querystring 토글 키 (<code>includeDeleted</code>) 공유. 토글 시 두 섹션 모두 같은 모드로 reload (단일 진실 — 의도된 동작)</li>
+      <li>JS 모듈이 <code>DOMContentLoaded</code> 후 attach 되므로 SSR 첫 페인트에서 inline 핸들러 부재는 사용자 영향 없음 (체크박스 표시는 정상)</li>
+    </ul>
+
+    <h3>JS 로딩 실패 시 fallback</h3>
+    <div class="callout warn">
+      <strong>주의</strong> <code>include-deleted-toggle.js</code> 로딩 실패 시 체크박스는 단순 토글만 하고 reload 안 함. 사용자가 "체크해도 변화 없음" 인지 가능. inline onchange 보다 안전한 fallback — 잘못된 URL 로 redirect 되는 회귀 없음. JS 실패는 Network 탭에서 즉시 확인 가능.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">스코프 경계</h3>
+    <ul>
+      <li>유사 패턴의 다른 querystring 토글 (예 : "내 자원만" / "활성만") — 본 슬라이스 외. 단 <code>IncludeDeletedToggle.buildNextUrl()</code> 은 충분히 generic 해서 향후 동일 모듈 확장 가능 (<code>data-querystring-toggle="key"</code> 같은 일반화 후보)</li>
+      <li>휴지통 페이지 (<code>/maintenance/trash</code>) 는 항상 휴지통만 보이는 페이지라 토글 자체가 없음 — 본 슬라이스 영향 없음</li>
+      <li>Provisioning 영역 (U1 setting / U2 server) 에는 아직 '삭제된 항목' 토글 없음 — 향후 도입 시 동일 마커 패턴으로 흡수</li>
+    </ul>
+
+    <h3>관련 페이지 동반 수정</h3>
+    <ul>
+      <li>5 도메인 list.html 모두 동일 패턴으로 변경 — 단일 슬라이스 내 일괄 처리. 동반 수정 없음</li>
+    </ul>
+
+    <h3>CLAUDE.md 수정 사항</h3>
+    <ul>
+      <li>없음 — 기존 "코드 중복 절대 지양" 원칙의 자연스러운 이행</li>
+    </ul>
+
+    <h3>향후 일반화 가능성</h3>
+    <div class="callout success">
+      <strong>재사용</strong> <code>data-include-deleted-toggle</code> 마커 + <code>URLSearchParams</code> 기반 querystring 보존 패턴은 다른 토글 (예 : "오늘만 / 최근 7일" 같은 시간 필터, "내 자원만" 같은 owner 필터) 에도 동일 적용 가능. 본 슬라이스가 만든 일반 모듈이 자연스럽게 확산되도록 함수명 / 마커명을 specific 하게 유지 (<code>include-deleted</code>) — 다른 토글이 도입될 시 별 마커로 분리하는 게 명료성 측면에서 더 좋음.
+    </div>
+
+    <h3>대안 검토 — 왜 일반 querystring 토글 모듈로 미리 일반화하지 않는가</h3>
+    <ul>
+      <li>현재 토글은 <code>includeDeleted</code> 하나뿐 — 일반화 시점이 아직 아님 (over-abstraction 회피)</li>
+      <li>두번째 토글이 도입될 때 자연스럽게 일반화 가능 — <code>data-querystring-toggle="key:value"</code> 같은 형태로 진화. 본 슬라이스는 그 시점까지의 정직한 중간 형태</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><code>./gradlew compileJava test</code> 통과 (기존 회귀 무변 + 5 신규 시나리오 통과)</span></label></li>
+    </ul>
+
+    <h3>기능 (사용자 단독, CP5)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span>OS / Board / BIOS / BMC / Subprogram 5 도메인에서 자원 선택 후 토글 ON → URL 에 selectId / selectBoardId / selectKind 보존</span></label></li>
+      <li><label><input type="checkbox"><span>토글 OFF 시점에도 동일 보존 (includeDeleted 만 사라짐)</span></label></li>
+      <li><label><input type="checkbox"><span>reload 후 동일 자원이 자동 선택된 상태 (miller active class)</span></label></li>
+      <li><label><input type="checkbox"><span>Subprogram 의 Driver / Utility 두 체크박스 모두 동일 동작</span></label></li>
+    </ul>
+
+    <h3>회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span>기존 selectId / selectBoardId / selectKind 기반 페이지 렌더 (서버 측) 동작 무변</span></label></li>
+      <li><label><input type="checkbox"><span>5 도메인 controller 의 <code>@RequestParam includeDeleted</code> 매핑 동작 무변</span></label></li>
+      <li><label><input type="checkbox"><span>inline onchange 5 곳 제거 후 dead code 없음 (전체 grep 으로 <code>onchange="window.location"</code> 0 건)</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">신규</h3>
+    <ul>
+      <li><code>src/main/resources/static/global/include-deleted-toggle.js</code> — <code>IncludeDeletedToggle.buildNextUrl()</code> + 자동 attach</li>
+      <li>(테스트) <code>src/test/.../management/{os,board,bios,bmc,subprogram}/...ListFlowTest.java</code> 의 <code>renders_includeDeletedToggle_with_dataMarker</code> 신규 메서드 (5 도메인 — 기존 컨트롤러 테스트 파일에 메서드 추가)</li>
+    </ul>
+
+    <h3>수정</h3>
+    <ul>
+      <li><code>templates/management/os/list.html</code> — inline onchange 제거 + 마커 + script import</li>
+      <li><code>templates/management/board/list.html</code> — 동일</li>
+      <li><code>templates/management/bios/list.html</code> — 동일</li>
+      <li><code>templates/management/bmc/list.html</code> — 동일</li>
+      <li><code>templates/management/subprogram/list.html</code> — 동일 (Driver / Utility 2 체크박스 모두)</li>
+    </ul>
+
+    <h3>유지</h3>
+    <ul>
+      <li>Controller / Service / Repository / Entity / DTO / VO / Enum 일체 변경 없음</li>
+      <li>CSS — 변경 없음 (markup 만)</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-4</strong> — 본 sub-slice CP5 통과 시 S5-4 종료</li>
+      <li><strong>S5 묶음 잔존</strong> — S5-5 (화면 구조 통일) / S5-6 (Job status 구체화) 중 사용자 우선순위</li>
+      <li><strong>후속 후보</strong>
+        <ul>
+          <li><code>IncludeDeletedToggle</code> 모듈의 generic 화 — 두 번째 querystring 토글 도입 시 <code>data-querystring-toggle="key"</code> 패턴으로 진화</li>
+          <li>Provisioning 영역 (U1 / U2) 의 list 페이지에 동일 마커 도입 — '삭제된 항목' 토글 도입 시점에 자동 흡수</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="callout success">
+      <strong>완료 조건</strong> CP5 통과 시 사용자가 5 도메인 어느 페이지에서든 자원을 선택한 후 '삭제된 항목 포함' 체크박스를 토글해도, miller 의 선택 상태가 유지되며 reload 된다. inline <code>onchange</code> 5 곳이 일반 JS 모듈 1 곳으로 흡수되어 향후 유사 토글의 도입 비용이 감소한다.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

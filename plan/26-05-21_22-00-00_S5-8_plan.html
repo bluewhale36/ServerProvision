@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-8 Plan — Background Job Status 구체화 (현재 단계 라벨 노출)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.rec { background: var(--green-bg); color: var(--green); }
+  .chip.alt { background: var(--blue-bg); color: var(--blue); }
+  .chip.bad { background: var(--red-bg); color: var(--red); }
+  .chip.a { background: var(--green-bg); color: var(--green); }
+  .chip.b { background: var(--yellow-bg); color: var(--yellow); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* A vs B 비교 — 2 카드 */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  .compare-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .compare-card.a { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .compare-card.b { border-color: var(--yellow); border-width: 2px; background: var(--yellow-bg); }
+  .compare-card h4 { margin: 0 0 8px; font-size: 14px; font-family: var(--mono); }
+  .compare-card.a h4 { color: var(--green); }
+  .compare-card.b h4 { color: var(--yellow); }
+  .compare-card ul { margin: 4px 0; padding-left: 18px; }
+  .compare-card li { font-size: 12.5px; line-height: 1.5; }
+
+  /* 카드 미리보기 — UX preview */
+  .ux-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .ux-card { background: #ffffff; border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .ux-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .ux-card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .ux-card-type { font-size: 11px; font-weight: 500; color: var(--blue); background: var(--blue-bg);
+    padding: 2px 6px; border-radius: 3px; }
+  .ux-card-subtitle { font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+  .ux-stage-track { display: flex; gap: 3px; height: 6px; margin-top: 2px; }
+  .ux-stage-chunk { flex: 1; border-radius: 2px; background: rgba(0,0,0,0.10); }
+  .ux-stage-chunk.is-pending { background: rgba(0,0,0,0.10); }
+  .ux-stage-chunk.is-running { background: var(--blue); animation: ux-pulse 1.6s ease-in-out infinite; }
+  .ux-stage-chunk.is-done { background: var(--green); }
+  .ux-stage-chunk.is-error { background: #dc2626; }
+  @keyframes ux-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  .ux-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
+  .ux-card-status { font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 3px;
+    color: var(--blue); background: var(--blue-bg); }
+  .ux-card-status.is-done { color: #156f28; background: #e8f6eb; }
+  .ux-card-status.is-failed { color: #8f3600; background: #fdeee2; }
+  .ux-card-time { font-size: 11px; color: var(--text-muted); flex: 1; text-align: right; }
+  .ux-label { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 6px; }
+  .ux-label.before { color: var(--red); }
+  .ux-label.after { color: var(--green); }
+
+  /* 흐름 다이어그램 */
+  .flow { background: var(--bg); padding: 14px; border-radius: 6px; border: 1px solid var(--border-soft);
+    font-family: var(--mono); font-size: 12px; line-height: 1.7; white-space: pre; overflow-x: auto; }
+
+  /* 시퀀스 다이어그램 */
+  .seq { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; background: var(--bg);
+    border: 1px solid var(--border-soft); border-radius: 6px; margin: 10px 0; overflow: hidden; }
+  .seq .actor { padding: 8px 10px; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-align: center; color: var(--text-muted); background: var(--card); border-bottom: 1px solid var(--border-soft); }
+  .seq .actor.fe { color: var(--blue); }
+  .seq .actor.be { color: var(--green); }
+  .seq .actor.user { color: var(--yellow); }
+  .seq .step { padding: 6px 12px; font-size: 12px; line-height: 1.55; border-bottom: 1px solid var(--border-soft); }
+  .seq .step:last-child { border-bottom: none; }
+  .seq .step.fe { background: rgba(0,117,222,0.04); }
+  .seq .step.be { background: rgba(26,174,57,0.04); }
+  .seq .step.user { background: rgba(194,147,67,0.04); }
+  .seq .step code { font-size: 11px; padding: 1px 4px; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .ux-preview { grid-template-columns: 1fr; }
+    .seq { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-8 — Background Job Status 구체화 (현재 단계 라벨 노출)</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21 22:00</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-6 완료 (modal fragment lazy load)</strong></span>
+    <span>변경 표면 : <strong>FE-only (BE 변경 0)</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 산출 — 안 A 채택</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s0">🎬 라이브 UX 미리보기</a></li>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s3">3. URL / 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<!-- ============================== §0 ============================== -->
+<details class="section" id="s0" open>
+  <summary>🎬 라이브 UX 미리보기 — Before / After</summary>
+  <div class="body">
+    <p>본 슬라이스가 카드 footer 의 <strong>status 텍스트 영역만</strong> 바꾼다. chunk progress bar / title / subtitle / 닫기 버튼 모두 그대로. 사용자 변경 인지 지점은 <em>실시간 작업 중인 단계 이름</em> 이 footer 에 보이는 것 1 가지.</p>
+
+    <h3 style="margin-top: 0;">0.1 RUNNING 상태 (3 단계 중 2 번째 진행 중)</h3>
+    <div class="ux-preview">
+      <div>
+        <div class="ux-card">
+          <div class="ux-card-header">
+            <span class="ux-card-title">Rocky Linux 9.4 / dvd.iso</span>
+            <span class="ux-card-type">환경·패키지 추출</span>
+          </div>
+          <div class="ux-card-subtitle">/opt/iso/rocky/9/dvd.iso</div>
+          <div class="ux-stage-track">
+            <div class="ux-stage-chunk is-done"></div>
+            <div class="ux-stage-chunk is-running"></div>
+            <div class="ux-stage-chunk is-pending"></div>
+            <div class="ux-stage-chunk is-pending"></div>
+          </div>
+          <div class="ux-card-footer">
+            <span class="ux-card-status">진행 중</span>
+            <span class="ux-card-time">14:32</span>
+          </div>
+        </div>
+        <div class="ux-label before">현재 (S5-7 까지) — "진행 중" 만 표시</div>
+      </div>
+      <div>
+        <div class="ux-card">
+          <div class="ux-card-header">
+            <span class="ux-card-title">Rocky Linux 9.4 / dvd.iso</span>
+            <span class="ux-card-type">환경·패키지 추출</span>
+          </div>
+          <div class="ux-card-subtitle">/opt/iso/rocky/9/dvd.iso</div>
+          <div class="ux-stage-track">
+            <div class="ux-stage-chunk is-done"></div>
+            <div class="ux-stage-chunk is-running"></div>
+            <div class="ux-stage-chunk is-pending"></div>
+            <div class="ux-stage-chunk is-pending"></div>
+          </div>
+          <div class="ux-card-footer">
+            <span class="ux-card-status">comps.xml 파싱 중</span>
+            <span class="ux-card-time">14:32</span>
+          </div>
+        </div>
+        <div class="ux-label after">S5-8 후 — 현재 RUNNING 단계 라벨 + " 중"</div>
+      </div>
+    </div>
+
+    <h3>0.2 COMPLETED 상태</h3>
+    <div class="ux-preview">
+      <div>
+        <div class="ux-card">
+          <div class="ux-card-header">
+            <span class="ux-card-title">Rocky Linux 9.4 / dvd.iso</span>
+            <span class="ux-card-type">환경·패키지 추출</span>
+          </div>
+          <div class="ux-card-subtitle">/opt/iso/rocky/9/dvd.iso</div>
+          <div class="ux-stage-track">
+            <div class="ux-stage-chunk is-done"></div>
+            <div class="ux-stage-chunk is-done"></div>
+            <div class="ux-stage-chunk is-done"></div>
+            <div class="ux-stage-chunk is-done"></div>
+          </div>
+          <div class="ux-card-footer">
+            <span class="ux-card-status is-done">완료</span>
+            <span class="ux-card-time">14:35</span>
+          </div>
+        </div>
+        <div class="ux-label before">Before / After 동일 — "완료" 유지</div>
+      </div>
+      <div>
+        <div class="ux-card">
+          <div class="ux-card-header">
+            <span class="ux-card-title">/opt/bios/X11SCA/v3.2.4</span>
+            <span class="ux-card-type">무결성 검증</span>
+          </div>
+          <div class="ux-stage-track">
+            <div class="ux-stage-chunk is-done"></div>
+            <div class="ux-stage-chunk is-error"></div>
+            <div class="ux-stage-chunk is-pending"></div>
+          </div>
+          <div class="ux-card-footer">
+            <span class="ux-card-status is-failed">manifestHash 계산 실패</span>
+            <span class="ux-card-time">15:01</span>
+          </div>
+        </div>
+        <div class="ux-label after">FAILED — ERROR 단계 라벨 + " 실패"</div>
+      </div>
+    </div>
+
+    <h3>0.3 변경의 본질</h3>
+    <ul>
+      <li>현재 footer 의 <code>statusLabel(status)</code> 가 JobStatus enum 만 보고 "대기"/"진행 중"/"완료"/"실패" 중 하나를 출력</li>
+      <li>S5-8 후 : RUNNING 일 때는 <strong>stages 배열에서 status === 'RUNNING' 인 항목의 label</strong> + " 중", FAILED 일 때는 ERROR 단계의 label + " 실패" 로 합성</li>
+      <li>BE 응답 구조 / API URL / DB 스키마 모두 변경 없음 (안 A — FE-only)</li>
+    </ul>
+
+    <div class="callout success">
+      <strong>핵심 가치</strong> 사용자가 알림 패널을 펼쳤을 때 "지금 진행 중인 단계가 무엇인지" 1 회의 시각 탐색으로 파악 가능. chunk progress bar 의 색상은 "어디까지 왔는가" 를 보여주고, footer 라벨은 "지금 정확히 무엇을 하는가" 를 보여줘 둘이 보완 관계.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">1.1 선행 슬라이스 완료 상태</h3>
+    <ul>
+      <li><strong>S5-1 ~ S5-6 모두 완료</strong> (2026-05-05 ~ 2026-05-21)</li>
+      <li>최신 commit : <code>efea893</code> (S5-6 modal fragment lazy load)</li>
+      <li>본 슬라이스의 직접 선행 : S1 BackgroundJob 인프라 (G-S1 통과, in-memory chunk progress 모델)</li>
+    </ul>
+
+    <h3>1.2 Background Job Panel 현황</h3>
+    <ul>
+      <li>알림 센터 (navbar 우측 서류가방 아이콘) 가 모든 페이지에 공통 로드 — <code>fragments/layout.html</code> → <code>background-jobs.js</code> + <code>background-jobs.css</code></li>
+      <li>2 초 주기 폴링 (패널 열림 시 0.5 초). <code>GET /jobs</code> → <code>BackgroundJobListResponse</code></li>
+      <li>카드 마크업 5 영역 :
+        <ol>
+          <li><strong>header</strong> — title (강조) + type 칩</li>
+          <li><strong>subtitle</strong> — 자원 경로 / 식별자 (monospace)</li>
+          <li><strong>errorMessage</strong> — 실패 시 상세 메시지 (optional)</li>
+          <li><strong>chunk progress bar</strong> — 단계별 (PENDING grey / RUNNING blue / DONE green / ERROR red), pulse animation</li>
+          <li><strong>footer</strong> — <code>status</code> label + 시각 + 닫기 버튼</li>
+        </ol>
+      </li>
+    </ul>
+
+    <h3>1.3 footer 의 status label 현재 구현</h3>
+<pre><code>// background-jobs.js — Line 215~228
+function statusLabel(status) {
+    switch (status) {
+        case 'PENDING':   return '대기';
+        case 'RUNNING':   return '진행 중';
+        case 'COMPLETED': return '완료';
+        case 'FAILED':    return '실패';
+        default:          return status || '';
+    }
+}</code></pre>
+    <p>사용자가 지적한 문제 — 단계가 4 개여도 RUNNING 동안 footer 는 "진행 중" 만 표시. chunk bar 의 RUNNING 청크가 어느 단계인지 hover title 로만 알 수 있음 (sr-only label). 알림 패널을 열어둔 상태에서 "지금 정확히 무슨 작업 중인가" 가 즉시 보이지 않음.</p>
+
+    <h3>1.4 등록처별 stageLabels 현황 (S5-8 가 노출하게 될 라벨들)</h3>
+    <table>
+      <thead><tr><th>JobType</th><th>등록처</th><th>stageLabels (현재)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>ISO_REGISTRATION</code></td>
+          <td><code>IsoRegistrationLauncher</code></td>
+          <td>JobStage enum (실제 라벨 §3 참조)</td>
+        </tr>
+        <tr>
+          <td><code>COMPS_EXTRACTION</code></td>
+          <td><code>CompsExtractionLauncher</code></td>
+          <td>"ISO 마운트 / 준비", "comps.xml 탐색·파싱", "환경·그룹 upsert" 등</td>
+        </tr>
+        <tr>
+          <td><code>PATH_RECONCILIATION</code></td>
+          <td><code>PathReconciliationService</code></td>
+          <td>"인벤토리 수집", "디스크 마커 매칭", "DriftReport 영속화"</td>
+        </tr>
+        <tr>
+          <td><code>INTEGRITY_VERIFICATION</code></td>
+          <td><code>BiosVerificationLauncher</code> / <code>BmcVerificationLauncher</code> / <code>IsoVerificationLauncher</code> / <code>SubprogramVerificationLauncher</code></td>
+          <td>"manifestHash 계산", "마커 서명 검증" 등</td>
+        </tr>
+        <tr>
+          <td><code>MARKER_REISSUE</code></td>
+          <td>마커 secret 회전 launcher</td>
+          <td>"기존 마커 읽기", "새 secret 으로 서명", "마커 재발급"</td>
+        </tr>
+        <tr>
+          <td><code>TTL_NOTIFY</code> / <code>TRASH_AUTO_PURGE</code> / <code>TRASH_PURGE_FAILED</code></td>
+          <td><code>BackgroundJobNotificationAdapter</code> (S5-2-4)</td>
+          <td>단일 단계 "알림" (Job 자체가 단계 1 개로 알림 자체)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>주의</strong> Step 8 통합 테스트 / Step 9 manual 검증 단계에서 위 라벨들이 footer 에 노출됐을 때 어색하지 않은지 검토 필요. 너무 짧으면 ("준비") 정보 부족, 너무 길면 카드 폭이 깨질 수 있음. ellipsis CSS 로 fail-safe.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2">
+  <summary>2. 요구사항 (확정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">2.1 Notion 명세 (S5-8 본문)</h3>
+    <blockquote style="border-left: 3px solid var(--text-muted); padding-left: 12px; color: var(--text-muted); margin: 8px 0; font-size: 13px;">
+      Background Job Panel 에서 status 를 단순히 '진행 중', '완료', '실패' 등으로 표시하던 것에서 <strong>어떤 작업을 하고 있는지 간략하게 기술</strong>하도록 수정.
+    </blockquote>
+
+    <h3>2.2 사용자 의도 해석 (자율 결정)</h3>
+    <ul>
+      <li>title 은 이미 카드 헤더에 크게 노출 — "작업 종류" 는 알 수 있음 (예: <em>"Rocky Linux 9.4 / dvd.iso"</em>)</li>
+      <li>type 칩도 헤더 우측에 노출 — JobType 카테고리 (<em>"환경·패키지 추출"</em>) 도 알 수 있음</li>
+      <li>그러나 알림 패널에서 <strong>"지금 정확히 어느 단계에 있는가"</strong> 는 chunk bar 색상만으로 파악해야 했음 — hover 해야 단계 이름이 보임</li>
+      <li><strong>→ 사용자 의도 = 현재 RUNNING 단계 라벨을 footer 에 텍스트로 직접 노출</strong>. 시선 1 회로 파악 가능</li>
+    </ul>
+
+    <h3>2.3 4 상태별 텍스트 정책 (확정)</h3>
+    <table>
+      <thead><tr><th>JobStatus</th><th>현재</th><th>S5-8 후</th><th>합성 규칙</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>PENDING</code></td>
+          <td>"대기"</td>
+          <td>"대기 중"</td>
+          <td>고정 문자열 (단계 진입 전, 어떤 단계도 RUNNING 아님)</td>
+        </tr>
+        <tr>
+          <td><code>RUNNING</code></td>
+          <td>"진행 중"</td>
+          <td><code>${runningStage.label} 중</code></td>
+          <td>stages 배열 중 <code>status === 'RUNNING'</code> 인 항목의 label. 다중 RUNNING 은 정책상 발생 안 함 (BackgroundJob.startStage 가 이전 RUNNING 을 DONE 으로 전환). 안전 fallback : 없으면 "진행 중"</td>
+        </tr>
+        <tr>
+          <td><code>COMPLETED</code></td>
+          <td>"완료"</td>
+          <td>"완료"</td>
+          <td>변경 없음. chunk bar 가 전체 green 이므로 footer 는 깔끔히 "완료" 만</td>
+        </tr>
+        <tr>
+          <td><code>FAILED</code></td>
+          <td>"실패"</td>
+          <td><code>${errorStage.label} 실패</code></td>
+          <td>stages 배열 중 <code>status === 'ERROR'</code> 인 항목의 label. fallback : 없으면 "실패"</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.4 추가 제약 (불가침)</h3>
+    <ul>
+      <li><strong>BE 변경 0</strong> — BackgroundJobResponse 의 stages 배열을 그대로 사용. 신규 필드 추가 안 함</li>
+      <li>chunk progress bar 그대로 (S5-8 범위 외)</li>
+      <li>title / subtitle / errorMessage / 닫기 버튼 위치 그대로</li>
+      <li><strong>label 의 자연어 표현이 "현재형 / 진행형" 이 되도록 등록처 검토</strong> — 명사형으로 등록된 라벨에 " 중" suffix 만 붙이면 어색할 수 있음 (예: "ISO 마운트" → "ISO 마운트 중" OK / "준비" → "준비 중" OK / "comps.xml" → "comps.xml 중" 어색). 일부 라벨 자연어 보정 동반</li>
+      <li>FAILED 시 카드 본문의 <code>errorMessage</code> 표시는 그대로 유지 (footer status + body errorMessage 가 보완)</li>
+      <li>긴 라벨 ellipsis — CSS 의 <code>.n-bgjob-card-status</code> 에 <code>white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;</code> 추가</li>
+    </ul>
+
+    <h3>2.5 채택안 비교 — A (FE-only) vs B (BE 신규 필드)</h3>
+    <div class="compare-grid">
+      <div class="compare-card a">
+        <h4><span class="chip a">안 A ✓</span> FE-only — JS 가 stages 에서 RUNNING 항목 추출</h4>
+        <p style="margin: 4px 0; font-size: 12.5px;"><strong>변경 표면</strong></p>
+        <ul>
+          <li><code>background-jobs.js</code> 의 <code>statusLabel(status)</code> → <code>currentStatusText(job)</code> 로 시그니처 변경. job 객체 전체를 받아 stages 검사</li>
+          <li><code>background-jobs.css</code> 의 <code>.n-bgjob-card-status</code> ellipsis 1 줄 추가</li>
+          <li>일부 등록처 stageLabels 자연어 검토 (어색한 명사형 → 진행형 어휘로 보정)</li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>장점</strong></p>
+        <ul>
+          <li>BE 응답 구조 / DTO / Controller / Service / Repository / Entity 변경 0</li>
+          <li>회귀 영향 최소 — 기존 통합 테스트 그대로 통과</li>
+          <li>FE 단독으로 시각 변경 — 사용자가 직접 manual 검증 가능</li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>단점</strong></p>
+        <ul>
+          <li>JS 단위 테스트가 본 프로젝트에 없어 JS 변경의 회귀 검증은 manual</li>
+          <li>다른 클라이언트가 같은 알림 패널을 호출 시 동일 로직 재구현 필요 — 다만 현재 클라이언트는 1 종 (브라우저)</li>
+        </ul>
+      </div>
+
+      <div class="compare-card b">
+        <h4><span class="chip b">안 B</span> BE 가 currentStageLabel 필드 직접 노출</h4>
+        <p style="margin: 4px 0; font-size: 12.5px;"><strong>변경 표면</strong></p>
+        <ul>
+          <li><code>BackgroundJobResponse</code> 에 <code>currentStageLabel: String</code> 추가 (nullable, RUNNING / FAILED 시 채움)</li>
+          <li><code>BackgroundJob.getCurrentStageLabel()</code> 등 도메인 메서드 신설</li>
+          <li>FE 는 <code>job.currentStageLabel</code> 직접 사용</li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>장점</strong></p>
+        <ul>
+          <li>BackgroundJobControllerTest 가 새 필드 직접 검증 가능 — 통합 테스트로 명세화</li>
+          <li>다른 클라이언트가 자체 로직 없이 사용 가능</li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>단점</strong></p>
+        <ul>
+          <li>변경 표면 +50% (Java 측 3~4 파일 추가 수정)</li>
+          <li>stages 배열에 이미 정보가 있는 상태에서 derived 필드 추가 — 약한 중복</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout success">
+      <strong>안 A 채택</strong> — 본 슬라이스의 의도는 "사용자 시각 인지 개선" 이며 BE 데이터는 이미 충분히 노출되어 있음. 안 B 의 통합 테스트 강점은 매력적이나 본 변경은 거의 표시 로직 — 비용 대비 가치 낮음. 통합 테스트는 <strong>응답이 RUNNING stage 를 식별 가능한 상태로 오는지</strong> 만 기존 테스트로 회귀 검증.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3">
+  <summary>3. URL / 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">3.1 URL 표</h3>
+    <p>본 슬라이스는 신규 URL / 변경 URL 모두 <strong>없다</strong>. 기존 알림 센터 endpoint 그대로 사용.</p>
+    <table>
+      <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>GET</code></td>
+          <td><code>/jobs</code></td>
+          <td>알림 패널 폴링 — 활성 + 최근 종료 Job 의 시간 역순 스냅샷</td>
+          <td><code>BackgroundJobListResponse</code> — <code>{ jobs: BackgroundJobResponse[] }</code></td>
+        </tr>
+        <tr>
+          <td><code>GET</code></td>
+          <td><code>/jobs/{id}</code></td>
+          <td>단건 (세밀 폴링용)</td>
+          <td><code>BackgroundJobResponse</code></td>
+        </tr>
+        <tr>
+          <td><code>POST</code></td>
+          <td><code>/jobs/{id}/dismiss</code></td>
+          <td>종료 Job 카드 제거</td>
+          <td>204 No Content</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>3.2 데이터 흐름 (변경 없음, 참고용)</h3>
+    <div class="seq">
+      <div class="actor user">User</div>
+      <div class="actor fe">FE (background-jobs.js)</div>
+      <div class="actor be">BE (BackgroundJobController + Service)</div>
+
+      <div class="step full">— 사용자가 자원 등록 / 점검 등 작업 트리거 (별도 페이지) —</div>
+
+      <div class="step be">launcher 가 <code>backgroundJobService.register(type, title, subtitle, stageLabels)</code> 호출 → Job 메모리 등록 (PENDING)</div>
+      <div class="step be"></div>
+      <div class="step user"></div>
+
+      <div class="step be">async 작업 스레드에서 <code>startStage(jobId, 0)</code> → 단계 0 RUNNING</div>
+      <div class="step be"></div>
+      <div class="step user"></div>
+
+      <div class="step full">↓ FE 폴링 사이클 시작 (2 초 / 0.5 초 주기) ↓</div>
+
+      <div class="step fe"><code>fetch('/jobs')</code> 호출</div>
+      <div class="step be">.</div>
+      <div class="step user">.</div>
+
+      <div class="step fe">.</div>
+      <div class="step be"><code>snapshot()</code> + <code>BackgroundJobResponse.from(job)</code> 매핑 → stages 배열에 (label, status) 페어들 포함</div>
+      <div class="step user">.</div>
+
+      <div class="step fe"><strong>S5-8 변경</strong> : <code>currentStatusText(job)</code> 가 stages.find(s =&gt; s.status === 'RUNNING')?.label + ' 중' 합성 → footer 에 표시</div>
+      <div class="step be">.</div>
+      <div class="step user">.</div>
+
+      <div class="step fe">render — 카드 footer 의 <code>n-bgjob-card-status</code> 가 새 텍스트로 갱신</div>
+      <div class="step be">.</div>
+      <div class="step user">.</div>
+
+      <div class="step user">→ 알림 패널 펼친 사용자가 "지금 comps.xml 파싱 중이구나" 즉시 인지</div>
+      <div class="step fe">.</div>
+      <div class="step be">.</div>
+    </div>
+
+    <h3>3.3 BackgroundJobResponse 응답 예시 (변경 없음)</h3>
+<pre><code>{
+  "jobs": [
+    {
+      "id": "9d8e7f6c-...",
+      "type": "COMPS_EXTRACTION",
+      "typeLabel": "환경·패키지 추출",
+      "title": "Rocky Linux 9.4 / dvd.iso",
+      "subtitle": "/opt/iso/rocky/9/dvd.iso",
+      "status": "RUNNING",
+      "stages": [
+        { "label": "ISO 마운트 준비", "status": "DONE" },
+        { "label": "comps.xml 파싱",   "status": "RUNNING" },   // ← S5-8 이 추출하는 단계
+        { "label": "환경·그룹 upsert", "status": "PENDING" },
+        { "label": "DB 저장",         "status": "PENDING" }
+      ],
+      "errorMessage": null,
+      "createdAt": "2026-05-21T14:31:00Z",
+      "completedAt": null,
+      "metadata": { "isoId": "12" }
+    }
+  ]
+}</code></pre>
+
+    <h3>3.4 FE 의 currentStatusText 의사 코드</h3>
+<pre><code>function currentStatusText(job) {
+    const status = job.status;
+    const stages = Array.isArray(job.stages) ? job.stages : [];
+
+    if (status === 'PENDING')   return '대기 중';
+    if (status === 'COMPLETED') return '완료';
+
+    if (status === 'RUNNING') {
+        const running = stages.find(s =&gt; s.status === 'RUNNING');
+        if (running &amp;&amp; running.label) return `${running.label} 중`;
+        return '진행 중';
+    }
+
+    if (status === 'FAILED') {
+        const errored = stages.find(s =&gt; s.status === 'ERROR');
+        if (errored &amp;&amp; errored.label) return `${errored.label} 실패`;
+        return '실패';
+    }
+
+    return status || '';
+}</code></pre>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4">
+  <summary>4. 도메인 모델</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">4.1 신규 도메인 모델 — <strong>없음</strong></h3>
+    <p>본 슬라이스는 BE 도메인 변경이 0 이다. BackgroundJob / JobType / JobStatus / StageStatus / BackgroundJobResponse 모두 그대로.</p>
+
+    <h3>4.2 기존 모델 의존 (참고용)</h3>
+    <table>
+      <thead><tr><th>타입</th><th>역할</th><th>S5-8 사용처</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>BackgroundJob</code> (POJO)</td>
+          <td>메모리 상태 컨테이너 — id / type / title / subtitle / stageLabels / stageStatuses / status / currentStageIndex / completedAt / errorMessage</td>
+          <td>FE 가 사용하는 정보는 모두 <code>BackgroundJobResponse</code> 매핑 후 노출 — FE 직접 의존 없음</td>
+        </tr>
+        <tr>
+          <td><code>BackgroundJobResponse.StageInfo</code> (record)</td>
+          <td><code>(label, status)</code> 페어 1 개. label = stageLabels[i], status = stageStatuses[i]</td>
+          <td>FE 의 <code>job.stages[i].status === 'RUNNING' / 'ERROR'</code> 판별 + <code>job.stages[i].label</code> 추출</td>
+        </tr>
+        <tr>
+          <td><code>StageStatus</code> (enum)</td>
+          <td>PENDING / RUNNING / DONE / ERROR — 단계별 색상 매핑</td>
+          <td>FE 의 chunk class (.is-pending / .is-running / .is-done / .is-error) + S5-8 의 currentStatusText 분기</td>
+        </tr>
+        <tr>
+          <td><code>JobStatus</code> (enum)</td>
+          <td>PENDING / RUNNING / COMPLETED / FAILED — Job 전체 생명주기</td>
+          <td>FE 의 카드 컨테이너 stateClass + S5-8 의 4 분기 진입</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4.3 등록처별 stageLabels 자연어 점검 표</h3>
+    <p>각 라벨에 " 중" / " 실패" suffix 가 자연스러운지 확인. 어색한 항목은 §5 Step 2 에서 보정.</p>
+    <table>
+      <thead><tr><th>등록처</th><th>현재 라벨 (추정 / grep 필요)</th><th>"+중" 어색 여부</th><th>보정안</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>CompsExtractionLauncher</code></td>
+          <td>"ISO 마운트", "comps.xml 파싱", "환경·그룹 upsert", "DB 저장"</td>
+          <td>OK (4 항목 모두 동사적)</td>
+          <td>변경 없음 (CP1 시점 grep 확인 후 확정)</td>
+        </tr>
+        <tr>
+          <td><code>IsoRegistrationLauncher</code></td>
+          <td>"파일 검증", "마커 발급", "DB 저장"</td>
+          <td>OK</td>
+          <td>변경 없음 (CP1 시점 grep 확인 후 확정)</td>
+        </tr>
+        <tr>
+          <td><code>PathReconciliationService</code> (quick scan)</td>
+          <td>"인벤토리 수집", "디스크 매칭", "보고서 저장"</td>
+          <td>OK</td>
+          <td>변경 없음 (CP1 시점 grep 확인 후 확정)</td>
+        </tr>
+        <tr>
+          <td><code>PathReconciliationService</code> (deep scan)</td>
+          <td>"manifestHash 재계산", "보고서 저장"</td>
+          <td>OK</td>
+          <td>변경 없음 (CP1 시점 grep 확인 후 확정)</td>
+        </tr>
+        <tr>
+          <td><code>BiosVerificationLauncher</code> 외 4 도메인</td>
+          <td>"manifestHash 계산", "서명 검증"</td>
+          <td>OK</td>
+          <td>변경 없음 (CP1 시점 grep 확인 후 확정)</td>
+        </tr>
+        <tr>
+          <td>S5-2-4 알림 Job (TTL / AUTO_PURGE / PURGE_FAILED)</td>
+          <td>"알림" (단일 단계)</td>
+          <td>"알림 중" 어색 — 알림 Job 은 즉시 COMPLETED 로 종료되므로 RUNNING 상태가 짧음. 사용자가 RUNNING 상태를 거의 못 봄. 무시 가능</td>
+          <td>변경 없음 (실용상 RUNNING 노출 안 됨)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>참고</strong> Step 2 진입 시 위 4.3 표의 라벨들을 grep 으로 정확히 확인 후 plan 본 §4.3 표 갱신. 라벨 문구 자체가 어색하다고 판단되면 (예: "DB 저장" → "DB 저장 중" 자연스러움 OK / "Service 호출" 같은 기술 어휘 발견 시 사용자 친화 어휘로 보정) 등록처 java 파일도 함께 수정. 변경 범위는 본 슬라이스 안에서 처리.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. 수직 슬라이스 10 단계 + CP 매핑</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>예상 변경 파일</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>본 plan html (<code>plan/26-05-21_22-00-00_S5-8_plan.html</code>)</td>
+          <td><span class="chip cp1">CP1</span></td>
+          <td>plan html 1 (신규)</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><strong>뷰</strong> — 카드 footer 텍스트가 RUNNING 시 동적 합성되도록 <code>background-jobs.js</code> 의 <code>statusLabel()</code> → <code>currentStatusText(job)</code> 시그니처 확장 (호출부 동시 갱신)</td>
+          <td><span class="chip cp2">CP2</span></td>
+          <td><code>background-jobs.js</code></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><strong>Controller</strong> — 변경 없음 (확인만)</td>
+          <td><span class="chip cp2">CP2</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><strong>DTO</strong> — 변경 없음 (확인만). BackgroundJobResponse 그대로</td>
+          <td><span class="chip cp2">CP2</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><strong>Service 시그니처</strong> — 변경 없음 (확인만)</td>
+          <td><span class="chip cp2">CP2</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td><strong>Repository</strong> — 변경 없음 (확인만, 본 슬라이스는 영속성 변경 0)</td>
+          <td><span class="chip cp3">CP3</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td><strong>Entity</strong> — 변경 없음 (확인만). 등록처 java 파일의 stageLabels 자연어 검토 + 어색 시 보정 (등록처 = launcher / service)</td>
+          <td><span class="chip cp3">CP3</span></td>
+          <td>(변경 가능성) <code>CompsExtractionLauncher</code> · <code>IsoRegistrationLauncher</code> · <code>PathReconciliationService</code> · 5 verification launcher 의 stageLabels 인자</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td><strong>Service 본체 + 통합 테스트</strong> — JS 단위 테스트는 본 프로젝트에 인프라 없음. 대신 <code>BackgroundJobControllerTest</code> 가 응답 구조 (stages 배열에 RUNNING 항목 명확히 식별) 회귀 검증. <strong>+CSS ellipsis</strong></td>
+          <td><span class="chip cp4">CP4</span></td>
+          <td><code>BackgroundJobControllerTest</code> 회귀 + <code>background-jobs.css</code> (<code>.n-bgjob-card-status</code> ellipsis 1 줄)</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td><strong>스키마</strong> — 변경 없음 (in-memory). <code>./gradlew test</code> 전체 통과 + <code>./gradlew bootRun</code> 부팅 smoke</td>
+          <td><span class="chip cp4">CP4</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td><strong>브라우저 E2E (사용자 단독)</strong> — ISO 등록 / comps 추출 / BIOS verify / Reconciliation scan 트리거 후 알림 패널 펼쳐 "현재 단계 라벨 + 중" 노출 확인. FAILED 케이스도 1 회 (의도적 실패 유도)</td>
+          <td><span class="chip cp5">CP5</span></td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>5.1 CP2 변경 범위 상세</h3>
+    <ul>
+      <li><code>background-jobs.js</code> Line 215~228 <code>statusLabel(status)</code> 함수 제거</li>
+      <li>새 함수 <code>currentStatusText(job)</code> 추가 — §3.4 의사 코드 그대로 구현</li>
+      <li>cardHtml() Line 287 의 <code>${statusLabel(job.status)}</code> → <code>${escapeHtml(currentStatusText(job))}</code></li>
+      <li>다른 호출처 없음 (grep 확인) — <code>statusLabel</code> 은 background-jobs.js 내부 함수</li>
+    </ul>
+
+    <h3>5.2 CP3 stageLabels 자연어 보정 절차</h3>
+    <ol>
+      <li>각 등록처 java 파일을 grep — <code>backgroundJobService.register(</code> 호출의 4 번째 인자 (stageLabels) 식별</li>
+      <li>등록되는 라벨 리스트 추출</li>
+      <li>각 라벨 + " 중" suffix 가 자연스러운 한국어인지 검토</li>
+      <li>어색한 라벨만 보정 (예: 기술 어휘 → 사용자 친화 어휘)</li>
+      <li>해당 파일을 commit 단위로 묶기 (Step 7 정리)</li>
+    </ol>
+
+    <h3>5.3 CP4 통합 테스트 보강 범위</h3>
+    <ul>
+      <li><strong>회귀</strong> — <code>BackgroundJobControllerTest</code> 의 기존 시나리오 (응답 구조 안정성) 그대로 통과 확인. 신규 시나리오 없음</li>
+      <li><strong>JS</strong> — 본 프로젝트에 JS 단위 테스트 인프라 없음. manual 검증으로 대체 (Step 10 사용자 단독)</li>
+      <li><strong>CSS</strong> — <code>.n-bgjob-card-status</code> 에 ellipsis 적용 :
+<pre><code>.n-bgjob-card-status {
+    /* 기존 11px / 500 / 패딩 그대로 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}</code></pre>
+      </li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. Step 8 통합 테스트 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">6.1 범주별 시나리오 수</h3>
+    <p><strong>총 0 신규 (회귀만)</strong>. 본 슬라이스는 BE 응답 구조 변경 0 이므로 신규 통합 테스트가 추가될 자리가 없다. JS 단위 테스트는 본 프로젝트 미지원 — Step 10 manual 로 대체.</p>
+
+    <h3>6.2 회귀 대상</h3>
+    <table>
+      <thead><tr><th>테스트</th><th>검증 항목</th><th>본 슬라이스 영향</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>BackgroundJobControllerTest</code></td>
+          <td><code>GET /jobs</code> 응답이 <code>jobs[]</code> 배열을 포함하며 각 항목이 <code>stages[]</code> + (label, status) 페어를 가지는지</td>
+          <td>변경 없음 — 본 슬라이스의 FE 로직은 이 응답 구조에 의존하므로 안정성 보장 필요</td>
+        </tr>
+        <tr>
+          <td><code>CompsExtractionServiceTest</code> + <code>IsoRegistrationLauncherTest</code> 등 등록처 단위 테스트</td>
+          <td>등록 / 단계 전환 / 완료 / 실패 이벤트가 BackgroundJobService 로 올바르게 흐르는지</td>
+          <td>등록처 java 의 stageLabels 인자 변경 시 일부 assertion 수정 가능성 (텍스트 비교 시)</td>
+        </tr>
+        <tr>
+          <td>전체 <code>./gradlew test</code></td>
+          <td>S5-6 이후 580 testcase 전체 안정성</td>
+          <td>모두 통과 필수</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>6.3 manual 검증 시나리오 (Step 10 사용자 단독)</h3>
+    <ol>
+      <li><strong>RUNNING 단계 진행</strong> — ISO 등록 또는 comps 추출 트리거. 알림 패널 펼쳐 footer 의 "&lt;단계 라벨&gt; 중" 텍스트가 chunk bar 의 RUNNING 청크 (blue pulse) 와 동기 확인. 단계 전환 시 footer 텍스트 즉시 갱신 확인</li>
+      <li><strong>COMPLETED 전이</strong> — Job 완료 시 footer "완료" 로 단순화 확인. chunk bar 전체 green</li>
+      <li><strong>FAILED 케이스</strong> — 의도적 실패 유도 (예: ISO 파일 권한 박탈 또는 잘못된 path) → 알림 패널의 footer 가 "&lt;실패한 단계 라벨&gt; 실패" 로 표시되며 chunk bar 의 해당 청크가 red, errorMessage 카드 본문에 별도 노출 확인</li>
+      <li><strong>긴 라벨 ellipsis</strong> — 등록처 중 라벨이 긴 항목 (예: "manifestHash 재계산") 이 footer 에 들어왔을 때 카드 폭이 깨지지 않고 끝부분이 "..." 으로 잘리는지</li>
+      <li><strong>PENDING 노출 케이스</strong> — Job 등록 후 startStage 호출 전 (있다면) "대기 중" 으로 표시되는지</li>
+    </ol>
+
+    <div class="callout warn">
+      <strong>주의</strong> 본 슬라이스가 통합 테스트 0 신규 인 점은 §6.1 에 명시했다. CP4 승인 시 사용자가 manual 시나리오 5 항목 직접 확인하므로 신규 통합 테스트 부재는 정당화된다 (사용자 액션 = footer 텍스트 시각 확인).
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">7.1 신규 예외 — 없음</h3>
+    <p>본 슬라이스는 BE 변경 0 이므로 예외 계층 변동 없음. 기존 <code>BackgroundJobNotFoundException</code> 등 그대로.</p>
+
+    <h3>7.2 FE 의 fallback 경로</h3>
+    <p>예외 대신 <strong>fallback 텍스트</strong> 가 본 슬라이스의 안전망. 4 상태에 대해 명확한 default 가 정의되므로 어떤 응답 변형에도 noop 안 함.</p>
+    <table>
+      <thead><tr><th>응답 이상</th><th>fallback</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>status === 'RUNNING'</code> 인데 stages 배열에 RUNNING 항목 0 (정책상 발생 안 함, 동시성 corner case)</td>
+          <td>"진행 중" (기존 동작)</td>
+        </tr>
+        <tr>
+          <td><code>status === 'FAILED'</code> 인데 stages 배열에 ERROR 항목 0 (수동 fail 호출 + currentStageIndex == -1)</td>
+          <td>"실패" (기존 동작)</td>
+        </tr>
+        <tr>
+          <td><code>stages</code> 가 null / undefined</td>
+          <td>각 상태 기본 텍스트 (대기 중 / 진행 중 / 완료 / 실패)</td>
+        </tr>
+        <tr>
+          <td><code>job.status</code> 가 enum 값이 아닌 임의 문자열</td>
+          <td>그 문자열 그대로 표시 (default branch, 디버그 가시성)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>7.3 회귀 영향 확인 항목</h3>
+    <ul>
+      <li><code>./gradlew test</code> 전체 — 580 testcase 모두 통과</li>
+      <li><code>./gradlew bootRun</code> 부팅 smoke — 알림 패널이 빈 상태로 정상 로드</li>
+      <li>알림 패널 폴링 cycle — 2 초 / 0.5 초 주기 정상</li>
+      <li>chunk progress bar 색상 매핑 — 변경 없으므로 안정</li>
+      <li>"모두 지우기" / 개별 dismiss — 변경 없음</li>
+      <li>BG job 토스트 — 변경 없음</li>
+    </ul>
+
+    <h3>7.4 보안 / 권한</h3>
+    <p>변경 없음. <code>GET /jobs</code> 는 현재 인증된 사용자 전체에게 노출. 단계 라벨 자체에 민감 정보가 없음 (등록처에서 secret 등을 stageLabel 에 넣는 일 없음 — Step 2 grep 확인 시 재검).</p>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">8.1 스코프 경계</h3>
+    <ul>
+      <li>chunk progress bar 의 디자인 변경 — <strong>본 슬라이스 외</strong> (스타일 검토 필요 시 별 슬라이스)</li>
+      <li>알림 패널의 폴링 주기 / 보관 정책 — 본 슬라이스 외</li>
+      <li>알림 패널의 dismiss / clear UX — 본 슬라이스 외</li>
+      <li>알림 패널의 카드 정렬 (시간 역순) — 본 슬라이스 외</li>
+      <li>navbar 의 dot 표시 — 본 슬라이스 외</li>
+    </ul>
+
+    <h3>8.2 미루는 후속 작업</h3>
+    <ul>
+      <li><strong>BE 단계 메시지 강화</strong> — Job 등록 시 startStage 호출 시점에 동적 메시지 (예: "Rocky Linux 9.4 / dvd.iso comps.xml 파싱 중 ... 30%") 부착. 현재는 라벨이 고정 문자열. 본 슬라이스 외 별 사양</li>
+      <li><strong>JS 단위 테스트 인프라</strong> — Jest 등 도입은 본 프로젝트 외부 결정. 본 슬라이스에서는 manual 로 대체</li>
+      <li><strong>알림 카드의 i18n</strong> — 현재 한국어 hardcoded. 다국어는 본 슬라이스 외</li>
+    </ul>
+
+    <h3>8.3 CLAUDE.md 영향</h3>
+    <p>없음. 본 슬라이스는 사용자 의도 명세에 따른 FE 표시 보강이며, 아키텍처 / 네이밍 / 원칙에 영향 없음.</p>
+
+    <h3>8.4 관련 페이지 동반 수정</h3>
+    <p>없음. 알림 패널은 layout.html 의 공통 fragment 이므로 단일 변경 지점.</p>
+
+    <h3>8.5 CSS ellipsis 주의</h3>
+    <p>footer 의 status 영역에 ellipsis 를 적용할 때 sibling 인 <code>n-bgjob-card-time</code> 의 우측 정렬과 균형 필요. <code>max-width: 60%</code> 로 두면 시각 60% 차지, time 이 우측 40% 공간 확보. ellipsis 동작 확인은 manual.</p>
+
+    <h3>8.6 라벨 어휘 추정의 risk</h3>
+    <p>§1.4 / §4.3 의 라벨 리스트는 plan 작성 시점 추정. Step 2 grep 후 정확한 라벨 리스트로 §4.3 표 갱신. 어휘가 매우 짧거나 길 경우 보정 범위를 본 슬라이스 안에서 처리하되, 너무 광범위해지면 별 슬라이스로 분리 (사용자 판단 = CP3 시점).</p>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification 체크리스트</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">9.1 빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> <code>./gradlew compileJava compileTestJava</code> → BUILD SUCCESSFUL</label></li>
+      <li><label><input type="checkbox"> <code>./gradlew test</code> → 580 testcase 통과 (failure 0 / error 0)</label></li>
+      <li><label><input type="checkbox"> <code>./gradlew bootRun</code> → 정상 부팅, 빈 컨텍스트 + navbar 알림 패널 로드</label></li>
+    </ul>
+
+    <h3>9.2 기능 (manual, Step 10)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> ISO 등록 트리거 후 알림 패널 footer 가 "&lt;단계&gt; 중" 형태로 갱신</label></li>
+      <li><label><input type="checkbox"> comps 추출 진행 중 알림 패널의 footer 가 단계 전환에 맞춰 갱신</label></li>
+      <li><label><input type="checkbox"> 무결성 검증 (BIOS / BMC / ISO / Subprogram) 4 도메인 footer 라벨 갱신</label></li>
+      <li><label><input type="checkbox"> 경로 재조정 (quick / deep scan) footer 라벨 갱신</label></li>
+      <li><label><input type="checkbox"> Job 완료 시 "완료" 단순화</label></li>
+      <li><label><input type="checkbox"> 의도적 FAILED 유도 시 "&lt;실패 단계&gt; 실패" 표시 + errorMessage 카드 본문</label></li>
+      <li><label><input type="checkbox"> PENDING 상태가 (실제로 노출되는 시점이 있다면) "대기 중" 으로 표시</label></li>
+    </ul>
+
+    <h3>9.3 회귀 / UI</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> chunk progress bar 색상 그대로 (PENDING grey / RUNNING blue pulse / DONE green / ERROR red)</label></li>
+      <li><label><input type="checkbox"> 카드 title / type 칩 / subtitle / errorMessage 본문 그대로</label></li>
+      <li><label><input type="checkbox"> 닫기 버튼 / clear 버튼 동작 그대로</label></li>
+      <li><label><input type="checkbox"> 긴 라벨 ellipsis "…" 표시 (예: "manifestHash 재계산 중")</label></li>
+      <li><label><input type="checkbox"> 알림 패널 폴링 주기 안정 (브라우저 콘솔 fetch 로그 확인)</label></li>
+      <li><label><input type="checkbox"> 다른 5 list 페이지 (OS / Board / BIOS / BMC / Subprogram) 알림 동작 확인</label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">10.1 신규</h3>
+    <p>없음.</p>
+
+    <h3>10.2 수정 (확정)</h3>
+    <ul>
+      <li><code>src/main/resources/static/global/background-jobs.js</code> — <code>statusLabel()</code> → <code>currentStatusText(job)</code> 시그니처 변경 + cardHtml() 호출부 갱신</li>
+      <li><code>src/main/resources/static/global/background-jobs.css</code> — <code>.n-bgjob-card-status</code> 에 ellipsis 4 줄 추가</li>
+    </ul>
+
+    <h3>10.3 수정 (검토 후 조건부)</h3>
+    <p>각 launcher / service 의 stageLabels 인자가 §4.3 / §5.2 검토에서 보정 필요 판단 시 변경 :</p>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/management/os/service/CompsExtractionLauncher.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/management/os/service/IsoRegistrationLauncher.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/maintenance/reconciliation/service/PathReconciliationService.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/management/bios/service/BiosVerificationLauncher.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/management/bmc/service/BmcVerificationLauncher.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/management/os/service/IsoVerificationLauncher.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/management/subprogram/service/SubprogramVerificationLauncher.java</code></li>
+    </ul>
+
+    <h3>10.4 유지 (변경 0)</h3>
+    <ul>
+      <li>모든 BE 도메인 java 파일 (BackgroundJob / JobType / JobStatus / StageStatus / BackgroundJobService / BackgroundJobController / BackgroundJobResponse / BackgroundJobListResponse / BackgroundJobNotFoundException)</li>
+      <li>fragments/layout.html (navbar 마크업 그대로)</li>
+      <li>BackgroundJobControllerTest (회귀만, 변경 없음)</li>
+      <li>기존 580 testcase 전체</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-8</strong> — Step 10 사용자 manual 검증 통과 시 본 슬라이스 종료</li>
+      <li><strong>S5 묶음 잔존 (S5-8 완료 후 순차 진행 예정)</strong>
+        <ul>
+          <li>S5-9 (탐색 기능 사용성 — 숨김 파일/폴더 회색)</li>
+          <li>S5-10 (provision json OS-level 숨김 처리)</li>
+          <li>S5-11 (제조사별 진입점 자동 탐지 정합화)</li>
+          <li>S5-7 (OS ISO 등록 후 작업 자동화) — 진입 전 개발자와 구체적 상의 필수 (plan html 까지만 산출, 코드 변경은 사용자 합의 후)</li>
+        </ul>
+      </li>
+      <li><strong>S5-8 후속 후보 (별 슬라이스)</strong>
+        <ul>
+          <li>BE 단계 메시지 동적화 — startStage 시점에 stage 별 동적 메시지 부착 (예: 진행률 % + 자원 이름 합성)</li>
+          <li>JS 단위 테스트 인프라 도입 (Jest / Vitest)</li>
+          <li>알림 패널 카드의 다국어 (i18n)</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="callout success">
+      <strong>완료 조건</strong> 카드 footer 의 status 영역이 RUNNING 시 "&lt;현재 단계 라벨&gt; 중", FAILED 시 "&lt;실패 단계 라벨&gt; 실패" 로 표시되며, chunk progress bar / 카드의 나머지 영역은 시각 회귀 없이 그대로 동작. <code>./gradlew test</code> 580 testcase 전부 통과.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

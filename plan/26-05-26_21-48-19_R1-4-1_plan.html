@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R1-4-1 Plan — ISO Lifecycle 로직 분리</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.preview { color: var(--orange); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  details.section.preview > summary { background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.add { background: var(--green-bg); color: var(--green); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.move { background: var(--blue-bg); color: var(--blue); }
+  .chip.del { background: var(--red-bg); color: var(--red); }
+  .chip.keep { background: var(--bg); color: var(--text-muted); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.danger { border-color: var(--red); background: var(--red-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* split mock */
+  .split-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 12px 0; }
+  .split-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; min-width: 0; overflow: hidden; }
+  .split-card h4 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .split-card.before { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .split-card.before h4 { color: var(--red); }
+  .split-card.after { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .split-card.after h4 { color: var(--green); }
+  .method-list { list-style: none; padding: 0; margin: 8px 0; font-family: var(--mono); font-size: 11px; }
+  .method-list li { padding: 2px 6px; margin: 2px 0; border-radius: 3px; background: rgba(255,255,255,0.6); }
+  .method-list li.move { background: var(--blue-bg); color: var(--blue); }
+  .method-list li.keep { background: rgba(255,255,255,0.6); color: var(--text-muted); }
+  .file-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 6px 8px; background: rgba(255,255,255,0.4); border-radius: 4px; }
+
+  /* lifecycle interface 도식 */
+  .iface-diagram {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px; align-items: center; margin: 14px 0;
+  }
+  .iface-node { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; min-width: 0; }
+  .iface-node h5 { margin: 0 0 6px; font-size: 12px; font-family: var(--mono); color: var(--blue); }
+  .iface-node ul { margin: 0; padding-left: 16px; font-size: 11px; color: var(--text-muted); }
+  .iface-node.leaf { border-color: var(--green); }
+  .iface-node.leaf h5 { color: var(--green); }
+  .iface-node.parent { border-color: var(--orange); }
+  .iface-node.parent h5 { color: var(--orange); }
+  .iface-arrow { font-size: 18px; color: var(--text-muted); text-align: center; font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R1-4-1 — ISO Lifecycle 로직을 <code>IsoLifecycleService</code> 로 분리 + <code>LifecycleService</code> 구현</h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R1-4-1</span>
+    <span><strong>상위</strong> R1-4 (ISO 관련 로직 분리) ← R1 ← R0</span>
+    <span><strong>단계</strong> 2-1차 개발</span>
+    <span><strong>생성</strong> 2026-05-26 21:48:19 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약</a></li>
+      <li><a href="#s2">§2 페이지 요구사항</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (interface 적용)</a></li>
+      <li><a href="#s3">§3 분리 후 책임 + 시그니처 정렬</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10 단계 + CP 묶음</a></li>
+      <li><a href="#s6">§6 통합 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정 사항</a></li>
+      <li><a href="#s9">§9 Verification 체크리스트</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약</summary>
+      <div class="body">
+        <p><b>선행</b> :</p>
+        <ul>
+          <li>R1-3 완료 (2026-05-26) — OSMetadata lifecycle 분리 + <code>LifecycleService</code> interface 도입</li>
+          <li>R1-4 (ISO 관련 로직 파일 분리) 묶음 진입 — R1-4-1 / R1-4-2 / R1-4-3 으로 점진 분해</li>
+          <li>본 R1-4-1 = 3 슬라이스 중 첫 진입. lifecycle 패턴이 R1-3 과 직접 정렬되어 가장 단순</li>
+        </ul>
+
+        <p><b>본 슬라이스 진입 시점 측정값</b> :</p>
+        <table>
+          <thead><tr><th>지표</th><th>현재</th><th>목표</th></tr></thead>
+          <tbody>
+            <tr><td>OSMetadataService.java 줄 수</td><td>~960</td><td>~830 (-130 추정)</td></tr>
+            <tr><td>ISO lifecycle 메서드 (Service 안)</td><td>8 개</td><td>0 (이동)</td></tr>
+            <tr><td>IsoLifecycleService.java 줄 수</td><td>0 (파일 부재)</td><td>~180</td></tr>
+            <tr><td>LifecycleService 구현체</td><td>1 (OSMetadataLifecycleService)</td><td>2 (+ IsoLifecycleService)</td></tr>
+            <tr><td>외부 endpoint</td><td>—</td><td>완전 동일 (회귀 0)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 페이지 요구사항</summary>
+      <div class="body">
+        <p>본 슬라이스는 <b>파일 분리 + interface 구현</b>. R1-3 의 OSMetadataLifecycleService 패턴 직접 재사용.</p>
+
+        <ol>
+          <li><b>책임 분할</b> — ISO 의 lifecycle 메서드 8 개를 <code>IsoLifecycleService</code> 로 응집</li>
+          <li><b>LifecycleService implements</b> — R1-3 의 interface 를 ISO 도 구현. ISO 는 leaf 자원 (자식 없음) 이므로 default <code>restore(Long)</code> 자동 활용</li>
+          <li><b>메서드명 표준화</b> — <code>toggleIsoEnabled → toggleEnabled</code>, <code>softDeleteISO → softDelete</code>, <code>restoreISO → restore</code>, <code>deprecateIso → deprecate</code>, <code>undeprecateIso → undeprecate</code>, <code>purgeIso → purge</code>, <code>purgeIsoWithTypedNameCheck → purgeWithTypedNameCheck</code></li>
+          <li><b>시그니처 정렬</b> — LifecycleService 의 단일 id 시그니처 채택 (옵션 A) — controller 는 URL 의 osMetadataId 와 entity 의 부모 id 일치 검증 가드 추가</li>
+          <li><b>외부 endpoint 동일</b> — Controller URL / HTTP method / response 100% 동일</li>
+          <li><b>cascade 정책 유지</b> — R1-3 OSMetadataLifecycleService 의 자식 ISO cascade 가 이 service 의 메서드를 호출하므로 호환 보존</li>
+        </ol>
+
+        <div class="callout">
+          <b>비 목표 (out of scope)</b> :
+          <ul>
+            <li>ISO 등록 흐름 (addISO / prepare / finalize / completePendingIsoFromNudge) → R1-4-2</li>
+            <li>ISO 무결성 검증 (verifyIntegrity / reissueMarker) → R1-4-3</li>
+            <li>ISO 의 helper (cleanupIsoArtifacts / requireLiveISO 등) — purgeIso 가 호출하므로 사본 또는 위임 결정 (§8 D-1)</li>
+            <li><code>findISO</code> / <code>findIntegrityStatus</code> 조회 메서드 — OSMetadata 응답 조립의 일부라 잔류</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 미리보기 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — LifecycleService interface 의 두 구현체</summary>
+      <div class="body">
+        <p>R1-3 에서 도입한 interface 가 R1-4-1 에서 두 번째 구현체를 갖게 된다. parent (OSMetadata) 와 leaf (ISO) 가 같은 메서드 시그니처를 공유.</p>
+
+        <div class="iface-diagram">
+          <div class="iface-node">
+            <h5>LifecycleService (interface)</h5>
+            <ul>
+              <li>toggleEnabled(id)</li>
+              <li>softDelete(id)</li>
+              <li>restore(id) <em>default</em></li>
+              <li>restore(id, cascade) <em>abstract</em></li>
+              <li>deprecate(id)</li>
+              <li>undeprecate(id)</li>
+              <li>purge(id)</li>
+              <li>purgeWithTypedNameCheck(id, name)</li>
+            </ul>
+          </div>
+          <div class="iface-arrow">←</div>
+          <div class="iface-node parent">
+            <h5>OSMetadataLifecycleService (parent)</h5>
+            <ul>
+              <li>cascade=true → 자식 ISO 동반 복구</li>
+              <li>자식 lifecycle 가드 가능</li>
+              <li><em>R1-3 완료</em></li>
+            </ul>
+          </div>
+          <div class="iface-arrow">/</div>
+          <div class="iface-node leaf">
+            <h5>IsoLifecycleService (leaf, 신규)</h5>
+            <ul>
+              <li>cascade=true 도 자식 0 → none() 자연 반환</li>
+              <li>부모 OSMetadata 의 lifecycle 가드 (parent ChildLifecycleBlocked)</li>
+              <li>R1-4-1 본 슬라이스</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout success">
+          <b>핵심 통찰</b> — R1-3 의 default <code>restore(Long)</code> 가 정확히 이 leaf 자원의 위해 설계됨.
+          ISO 는 cascade 시그니처 하나만 구현하고 자식 0 일 때 자연 무모순으로 동작. interface 의 의도가 코드로 검증되는 자리.
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 분리 후 책임 + 시그니처 정렬</summary>
+      <div class="body">
+        <h4>3.1 IsoLifecycleService 골격</h4>
+<pre><code>@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class IsoLifecycleService implements LifecycleService {
+
+    private final ISORepository isoRepository;
+    private final OSMetadataRepository osMetadataRepository;   // 부모 lifecycle 가드용
+    private final TrashLifecycleService trashLifecycleService;
+    private final SoftDeleteIntentService softDeleteIntentService;
+    private final ProvisionMarkerService markerService;        // sidecar 정리 (purge)
+
+    @Override @Transactional public void toggleEnabled(Long isoId) { ... }
+    @Override @Transactional public void softDelete(Long isoId) { ... }
+    // restore(Long) 은 interface default 가 처리 — 자동
+    @Override @Transactional public RestoreResponse restore(Long isoId, boolean cascade) { ... }
+    @Override @Transactional public void deprecate(Long isoId) { ... }
+    @Override @Transactional public void undeprecate(Long isoId) { ... }
+    @Override @Transactional public void purge(Long isoId) { ... }
+    @Override @Transactional public void purgeWithTypedNameCheck(Long isoId, String typedName) { ... }
+
+    // R1-4-1 — 자체 사본 (R1-3 D-1 안 A 정책 — over-abstraction 회피)
+    private ISO requireLiveIso(Long isoId) { ... }
+    private ISO requireDeletedIso(Long isoId) { ... }
+    private void cleanupIsoArtifacts(ISO iso) { ... }
+    private static void verifyTypedNameOrThrow(Markable resource, String typedName) { ... }
+
+    // softDelete intent saga 분기 (DCM3-2.3~2.5) — softDeleteISOWithIntent 도 같이 이동
+    @Transactional public void softDeleteWithIntent(Long isoId, DeleteAction action) { ... }
+}</code></pre>
+
+        <h4>3.2 시그니처 정렬 결정 — 옵션 A (단일 id, 확정)</h4>
+        <p>ISO 의 옛 시그니처는 <code>(Long osMetadataId, Long isoId)</code> 2-arg. interface 의 단일 id 와 정렬하기 위해 <b>isoId 단일 인자</b> 채택.</p>
+        <ul>
+          <li>service 는 ISO entity 의 <code>osMetadata</code> reference 로 부모 lookup → 모든 lifecycle 가드 (toggle / restore / undeprecate) 그대로 동작</li>
+          <li>URL forging 가드 (URL osMetadataId ↔ entity 부모 id 일치) 는 <b>IsoLifecycleService 의 가드 메서드 <code>assertBelongsToOs(isoId, expectedParentId)</code></b> 가 책임. controller 가 lifecycle 호출 직전에 호출 (§8 D-2)</li>
+          <li>외부 endpoint URL 은 그대로 유지 (<code>/management/os/{osId}/iso/{isoId}/...</code>)</li>
+        </ul>
+
+<pre><code>// 옛
+osMetadataService.toggleIsoEnabled(osId, isoId)
+osMetadataService.softDeleteISO(osId, isoId)
+osMetadataService.restoreISO(osId, isoId)
+osMetadataService.deprecateIso(osId, isoId)
+osMetadataService.undeprecateIso(osId, isoId)
+osMetadataService.purgeIso(osId, isoId)
+osMetadataService.purgeIsoWithTypedNameCheck(osId, isoId, typedName)
+
+// 새
+isoLifecycleService.toggleEnabled(isoId)         // ISO entity → 부모 lookup
+isoLifecycleService.softDelete(isoId)
+isoLifecycleService.restore(isoId)                // default
+isoLifecycleService.restore(isoId, cascade)
+isoLifecycleService.deprecate(isoId)
+isoLifecycleService.undeprecate(isoId)
+isoLifecycleService.purge(isoId)
+isoLifecycleService.purgeWithTypedNameCheck(isoId, typedName)</code></pre>
+
+        <h4>3.3 부모 가드 — entity 의 부모 reference 로 lookup</h4>
+        <p>옛 <code>toggleIsoEnabled</code> 같은 메서드는 <code>requireActiveImage(osMetadataId)</code> 로 부모 검증. 새 service 는 :</p>
+<pre><code>private OSMetadata loadParent(ISO iso) {
+    return osMetadataRepository.findByIdAndIsDeletedFalse(iso.getOsMetadata().getId())
+            .orElseThrow(() -&gt; new OSMetadataNotFoundException(iso.getOsMetadata().getId()));
+}</code></pre>
+        <p>ChildLifecycleBlockedByParentException 발화 조건 그대로.</p>
+
+        <h4>3.4 IsoLifecycleService → OSMetadataLifecycleService 결합 검토</h4>
+        <p>R1-3 의 <code>OSMetadataLifecycleService.restore(id, cascade=true)</code> 가 자식 ISO 복구를 위해 옛 <code>osMetadataService.restoreISO(...)</code> 를 위임 호출. R1-4-1 후엔 :</p>
+<pre><code>// OSMetadataLifecycleService (R1-3) — 호출처 변경
+- osMetadataService.restoreISO(id, iso.getId());
++ isoLifecycleService.restore(iso.getId());   // default — interface 활용</code></pre>
+        <p>→ OSMetadataLifecycleService 의 <code>OSMetadataService</code> 의존을 <code>IsoLifecycleService</code> 로 교체. 의존 그래프 :</p>
+        <ul style="font-family: var(--mono); font-size: 12px;">
+          <li>Controller → OSMetadataLifecycleService, IsoLifecycleService (2 service 모두)</li>
+          <li>OSMetadataLifecycleService → IsoLifecycleService (cascade restore 위임)</li>
+          <li>IsoLifecycleService → (없음, leaf)</li>
+        </ul>
+        <p>단방향 (parent → leaf). cycle 없음.</p>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>IsoLifecycleService.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td>8 lifecycle 메서드 + softDeleteWithIntent + helper (requireLiveIso / requireDeletedIso / cleanupIsoArtifacts / verifyTypedNameOrThrow) + loadParent. 의존 5 (Iso/OSMeta repo + Trash + SoftDeleteIntent + Marker)</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataService.java</code></td>
+              <td><span class="chip move">이동</span></td>
+              <td>8 ISO lifecycle 메서드 제거. <code>cleanupIsoArtifacts</code> 는 R1-4-2 까지 잔류 (R1-4-2 의 finalizePreparedIsoRegistration / completePendingIsoFromNudge 가 호출)</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataLifecycleService.java</code></td>
+              <td><span class="chip mod">의존 교체</span></td>
+              <td><code>OSMetadataService</code> 의존 → <code>IsoLifecycleService</code> 의존. cascade restore 시 <code>isoLifecycleService.restore(iso.getId())</code> 위임</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataController.java</code></td>
+              <td><span class="chip mod">호출처 + 가드</span></td>
+              <td>ISO lifecycle endpoint (7 곳) 의 호출 prefix 변경. URL <code>osMetadataId</code> ↔ entity 부모 일치 가드 추가 (helper 또는 controller-level <code>@InitBinder</code> 검토)</td>
+            </tr>
+            <tr>
+              <td>controller flow test (5 파일)</td>
+              <td><span class="chip mod">MockitoBean</span></td>
+              <td><code>IsoLifecycleService</code> 의 @MockitoBean 추가 + 기존 ISO lifecycle stub 이동</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataServiceTest.java</code></td>
+              <td><span class="chip mod">정리</span></td>
+              <td>ISO lifecycle 단위 시나리오 (있을 시) 제거</td>
+            </tr>
+            <tr>
+              <td><code>IsoLifecycleServiceTest.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td>lifecycle 단위 시나리오 — toggle / softDelete / restore default / restore + cascade=true (자식 0 → none) / purge / purgeWithTypedNameCheck mismatch / 부모 deleted 시 restore 차단 등</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataCascadeTest.java</code></td>
+              <td><span class="chip mod">호출처</span></td>
+              <td>cascade 시나리오에서 IsoLifecycleService mock 으로 자식 restore 호출 검증</td>
+            </tr>
+            <tr>
+              <td>Entity / Repository / Exception / DTO / Template / DB schema</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>변경 0</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — IsoLifecycleService +180 / OSMetadataService -130 / OSMetadataLifecycleService ±5 / Controller +30 (가드) / test +50 / -30. net ~ +100.</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>표준</th><th>R1-4-1 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html</td><td>본 문서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf</td><td><i>N/A</i></td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller</td><td>의존 추가 + 7 호출처 prefix + 부모 일치 가드</td></tr>
+            <tr><td>4</td><td>DTO</td><td><i>N/A</i></td></tr>
+            <tr><td>5</td><td>Service 시그니처</td><td>IsoLifecycleService 신규 + 8 메서드 + helper + softDeleteWithIntent</td></tr>
+            <tr><td>6</td><td>Repository</td><td><i>N/A</i></td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity</td><td><i>N/A</i></td></tr>
+            <tr><td>8</td><td>Service 본체 + 테스트</td><td>OSMetadataService 에서 8 메서드 제거 + OSMetadataLifecycleService cascade 호출처 교체 + IsoLifecycleServiceTest 신규 + controller flow test mock 추가 + CascadeTest 갱신</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마</td><td><i>N/A</i></td></tr>
+            <tr><td>10</td><td>브라우저 E2E</td><td>ISO lifecycle 7 endpoint 동작 확인 (toggle / softDelete / restore + cascade / deprecate / undeprecate / purge / purgeWithTypedName)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <b>CP 분리 정책 (R1-3 사후 인정 패턴 사전 합의)</b> — Step 5 / Step 8 의 컴파일 의존 (Service 신규 + 옛 file 정리) 가 강해 strict CP 분리가 인위적. <b>안 A</b> 채택 : CP2 안에서 옛 file 의 메서드 제거 + OSMetadataLifecycleService 의 cascade 호출처 교체까지 동반. CP3 = N/A, CP4 = test 정리만.
+        </div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>위치</th><th>분류</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>toggleEnabled(happy) + 부모 활성 가드</td><td>IsoLifecycleServiceTest (신규)</td><td>신규</td></tr>
+            <tr><td>2</td><td>toggleEnabled(부모 disabled) → ChildLifecycleBlocked</td><td>위</td><td>신규</td></tr>
+            <tr><td>3</td><td>restore(Long) default 위임 — cascade=false 자동</td><td>위</td><td>신규</td></tr>
+            <tr><td>4</td><td>restore(cascade=true) — leaf 자원이라 자식 0 → none()</td><td>위</td><td>신규</td></tr>
+            <tr><td>5</td><td>restore — 부모 deleted 시 ChildLifecycleBlocked</td><td>위</td><td>신규</td></tr>
+            <tr><td>6</td><td>softDelete + softDeleteWithIntent (CORRECT_PATH / FORCED_CLEAR)</td><td>위</td><td>신규</td></tr>
+            <tr><td>7</td><td>purge(happy) — soft-deleted 자원의 sidecar 정리 + row 삭제</td><td>위</td><td>신규</td></tr>
+            <tr><td>8</td><td>purge(fail) — 활성 자원에 purge → IllegalOSMetadataStateException</td><td>위</td><td>신규</td></tr>
+            <tr><td>9</td><td>purgeWithTypedNameCheck — mismatch → TypedNameMismatchException</td><td>위</td><td>신규</td></tr>
+            <tr><td>10</td><td>controller flow test — 7 lifecycle endpoint 가 새 service 호출 검증</td><td>OSMetadataController*FlowTest (기존)</td><td>mock 갱신</td></tr>
+            <tr><td>11</td><td>OSMetadataLifecycleService.restore(cascade=true) → 자식 ISO restore 위임 (interface 호출)</td><td>OSMetadataCascadeTest</td><td>mock 갱신</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p><b>변경 0</b>. 발화 위치만 새 service 로 이동 :</p>
+        <ul>
+          <li><code>ISONotFoundException</code> — requireLiveIso / requireDeletedIso</li>
+          <li><code>IllegalOSMetadataStateException</code> — 상태 위반 (purge 활성 / restore 이미 활성 등)</li>
+          <li><code>ChildLifecycleBlockedByParentException</code> — 부모 가드 위반</li>
+          <li><code>OSMetadataNotFoundException</code> — 부모 lookup 실패</li>
+          <li><code>TypedNameMismatchException</code> — typed-name 검증 실패</li>
+        </ul>
+        <p>전역 ExceptionHandler 매핑 그대로.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>D-1. helper 사본 정책 (R1-3 패턴 그대로)</h4>
+        <p><code>requireLiveIso</code> / <code>requireDeletedIso</code> / <code>cleanupIsoArtifacts</code> / <code>verifyTypedNameOrThrow</code> — IsoLifecycleService 안 사본 보유.
+          over-abstraction 회피.</p>
+        <p>특히 <code>cleanupIsoArtifacts</code> 는 R1-4-2 에서 IsoRegistrationService 로 이동 예정 → 그 시점에 IsoLifecycleService 의 사본을 IsoRegistrationService 의 메서드 위임으로 교체할 수도 있고, 그대로 사본 유지할 수도 있음 (R1-4-2 진입 시 결정).</p>
+
+        <h4>D-2. 부모 일치 가드 — <span style="color:var(--green)">Service 측 책임 (사용자 결정 2026-05-26)</span></h4>
+        <p>URL 의 <code>{osMetadataId}</code> 와 entity 의 <code>iso.osMetadata.id</code> 일치 검증을 <b>IsoLifecycleService 가 노출하는 가드 메서드</b> 로 처리. controller 는 endpoint 진입 시 가드 + lifecycle 두 호출.</p>
+<pre><code>// IsoLifecycleService 의 public 가드 메서드
+public void assertBelongsToOs(Long isoId, Long expectedParentId) {
+    ISO iso = requireLiveIso(isoId);
+    if (!iso.getOsMetadata().getId().equals(expectedParentId)) {
+        throw new ISONotFoundException(expectedParentId, isoId);
+    }
+}
+
+// controller endpoint
+@PostMapping("/{osId}/iso/{isoId}/toggle")
+public String toggleIso(@PathVariable Long osId, @PathVariable Long isoId, ...) {
+    isoLifecycleService.assertBelongsToOs(isoId, osId);
+    isoLifecycleService.toggleEnabled(isoId);
+    return ...;
+}</code></pre>
+        <p>장점 — 가드 로직이 service 안에 응집. controller 는 단순 dispatcher.
+          LifecycleService interface 의 단일 id 시그니처는 그대로 유지 (interface 정합성 보존).</p>
+
+        <h4>D-3. OSMetadataLifecycleService 의 cascade 호출 — interface 활용</h4>
+        <p>cascade restore 위임 시 :</p>
+<pre><code>// 옛 (R1-3)
+osMetadataService.restoreISO(id, iso.getId());
+
+// 새 (R1-4-1)
+isoLifecycleService.restore(iso.getId());   // interface default 활용 — cascade=false</code></pre>
+        <p>의존 그래프 단방향 정렬 — parent → leaf. R1-4-1 의 가장 중요한 의존 정리.</p>
+
+        <h4>D-4. CLAUDE.md 정렬</h4>
+        <ul>
+          <li>"중복된 코드와 가독성이 떨어지는 코드는 절대 지양" — OSMetadataService 의 비대 (960 줄) 책임 분할로 해소</li>
+          <li>"Java 의 다형성 적극 활용" — LifecycleService interface 의 두 번째 구현체 추가로 cross-domain 추상화 완성</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r1-4-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (618 → 626 ± 시나리오 변동)</span></label></li>
+          <li><label><input type="checkbox" data-key="size"> <span>OSMetadataService.java 줄 수 -120 이상 (현재 ~960)</span></label></li>
+          <li><label><input type="checkbox" data-key="new-file"> <span>IsoLifecycleService.java 존재 + 8 메서드 + LifecycleService implements</span></label></li>
+          <li><label><input type="checkbox" data-key="grep-leftover"> <span>OSMetadataService 에 toggleIsoEnabled / softDeleteISO / restoreISO / deprecateIso / undeprecateIso / purgeIso / purgeIsoWithTypedNameCheck 메서드 0 (grep)</span></label></li>
+          <li><label><input type="checkbox" data-key="parent-link"> <span>OSMetadataLifecycleService 의 cascade restore 가 IsoLifecycleService 호출</span></label></li>
+          <li><label><input type="checkbox" data-key="controller"> <span>OSMetadataController 의 ISO lifecycle 7 endpoint 가 새 service 호출 + 부모 일치 가드 동작</span></label></li>
+          <li><label><input type="checkbox" data-key="ext-behavior"> <span>외부 동작 동치 — controller flow test 전부 통과로 증명</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip add">신규</span></td><td><code>IsoLifecycleService.java</code></td><td>ISO lifecycle 책임 단일 service. LifecycleService implements</td></tr>
+            <tr><td><span class="chip add">신규</span></td><td><code>IsoLifecycleServiceTest.java</code></td><td>lifecycle 단위 시나리오</td></tr>
+            <tr><td><span class="chip move">이동</span></td><td><code>OSMetadataService.java</code></td><td>8 ISO lifecycle 메서드 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataLifecycleService.java</code></td><td>의존 교체 (OSMetadataService → IsoLifecycleService) + cascade restore 위임 호출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataController.java</code></td><td>의존 추가 + 7 호출처 prefix + 부모 일치 가드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>controller flow test 5 파일</td><td>새 service @MockitoBean + stub 이동</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataCascadeTest.java</code></td><td>cascade restore 자식 호출 mock 갱신</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>LifecycleService.java</code></td><td>R1-3 인터페이스 그대로</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>Entity / Repository / Exception / DTO / Template / DB schema</td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1-4-2</b> — IsoRegistrationService 분리 (addISO / prepare / finalize / completePendingIsoFromNudge / purgeIsoForNudge / registerIsoNudgeSession / finalizeMarker / cleanupIsoArtifacts / triggerPostCreationTask / helpers + PreparedIsoRegistration record). ISO 전용 service (interface 추상화 대상 아님 — 4 도메인 중 ISO 만의 고유 패턴).</li>
+          <li><b>R1-4-3</b> — IsoIntegrityService 분리 (verifyIntegrity / reissueMarker). 사용자 "검증" 버튼 + post-upload task 자동 트리거 두 진입점이 공존 — 별도 service 로 빼면 순환 참조 / 의존 일방향 강제 회피.</li>
+          <li><b>R2</b> — Subprogram / BIOS / BMC / Board 의 동형 패턴 환원 + LifecycleService interface 구현 (cross-domain 추상화 검증)</li>
+          <li><b>R3</b> — PathReconciliationService 분해</li>
+        </ol>
+        <p>R1-4-1 자체는 1 ~ 2 일 분량. R1-4 묶음 (3 슬라이스) 완료 후 OSMetadataService 가 ~500 줄로 줄어들 예상.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      if (text.includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+      });
+    });
+  });
+</script>
+</body>
+</html>

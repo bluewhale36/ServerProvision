@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF-2 Plan v2 — 부모 disabled / 자식 enabled 모순 (cascade 비대칭, 전 도메인)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--orange-bg); color:var(--orange); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  nav.toc { align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  main { min-width:0; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);} .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.mod{background:var(--yellow-bg);color:var(--yellow);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul,ol { padding-left:22px; }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF-2 — 부모 disabled / 자식 enabled lifecycle 모순 해소 <span class="v2-badge">v2 · cascade 비대칭</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF-2</span>
+    <span><strong>채택</strong> 후보2 (toggle cascade 비대칭 수정) — 사용자 직관 채택, judge 후보1 재검토 후 전환</span>
+    <span><strong>scope</strong> OS/ISO + BoardModel/BIOS + BoardModel/BMC (3 도메인)</span>
+    <span><strong>생성</strong> 2026-05-30 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (cascade 비대칭 before/after)</a></li>
+      <li><a href="#s3">§3 수정 책임 + 시그니처</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정 (후보 전환 근거)</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (8-에이전트 Workflow 적대적 검증 진단)</summary>
+      <div class="body">
+        <p><b>증상</b> — OS 버전 9.5 = 비활성화(disabled), 하위 ISO 27 = 활성화(enabled). 부모가 꺼져 있는데 자식이 켜진 lifecycle 논리 모순.</p>
+        <p><b>Q1 — 유스케이스 (순서 의존 3단계, 가설 A∧B 곱)</b> :</p>
+        <ol>
+          <li>자식 ISO soft-delete → <code>is_deleted=true</code>, <code>is_enabled=true</code> 보존</li>
+          <li>(자식이 trash 에 있는 상태에서) 부모 OS disable toggle → cascade 가 <code>!iso.isDeleted()</code> 필터로 soft-deleted 자식 제외 → 자식 <code>is_enabled=true</code> 그대로 (<b>모순 씨앗 = Leg A</b>)</li>
+          <li>자식 restore → <code>parent.isDeleted()</code> 만 가드(통과), <code>is_enabled=true</code> 보존 → <b>부모 disabled · 자식 enabled 표면화 = Leg B</b></li>
+        </ol>
+        <div class="callout">핵심 순서 : 부모 disable 이 자식 soft-delete <b>후</b>. HF-1 self-heal override 가 비로소 DB flush 시켜 stale enabled 표면화.</div>
+
+        <p><b>Q2 — 정확한 지점 (두 레그의 곱)</b> :</p>
+        <table>
+          <thead><tr><th>레그</th><th>file:line</th><th>결함</th></tr></thead>
+          <tbody>
+            <tr><td><b>A (stale 생성, ★ v2 수정 대상)</b></td><td><code>OSMetadataLifecycleService:58</code></td><td><code>.filter(!iso.isDeleted() &amp;&amp; !iso.isDeprecated())</code> — soft-deleted 자식 cascade 제외 → 부모 disable 이 trash 자식에 전파 안 됨</td></tr>
+            <tr><td>B (surface)</td><td><code>IsoLifecycleService:165</code></td><td><code>if (parent.isDeleted())</code> — parent.isEnabled() 미확인. <b>v2 에선 Leg A 차단으로 stale 자체가 안 생겨 미수정</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">
+          <b>v2 전환</b> — 초기 진단의 judge 권장(후보1 = Leg B restore 종속)을 사용자 지적으로 재검토.
+          "부모 disable 시 DB 의 모든 자식을 동기화하면 되는 문제 아니냐" → <b>Leg A(cascade 필터) 를 고치면 stale 씨앗 자체가 안 생겨 restore 가드 불필요</b>. 더 단순. (§8 후보 전환 근거)
+        </div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 + 비목표 (후보2 — cascade 비대칭)</summary>
+      <div class="body">
+        <p>채택 = <b>후보2 : toggleEnabled cascade 를 비대칭으로 수정</b>. 부모 disable 시 soft-deleted 자식까지 동기화해 stale 씨앗(Leg A) 자체를 차단.</p>
+        <ol>
+          <li><b>disable cascade — 전체 자식</b> : 부모 disable 시 모든 자식(trash 포함, deprecated 무관) 중 enabled 인 것을 disable → 복구 시 자동 정합.</li>
+          <li><b>enable — cascade 없음</b> : 부모 enable 은 자식에 cascade 하지 않는다. 부모 ceiling 만 상승하고 개별 자식 활성화는 운영자 몫 (부모 활성화가 운영자가 개별 비활성한 자식을 임의 부활시키지 않도록). <b>비대칭</b> (E2E 후 사용자 정정).</li>
+          <li><b>3 도메인 동시</b> : OS/ISO(cascade 1) + BoardModel/BIOS·BMC(cascade 2) = 총 3 cascade.</li>
+        </ol>
+        <div class="callout">
+          <b>비 목표</b> :
+          <ul>
+            <li><b>restore 부모 종속 가드(후보1) 미채택</b> — cascade 수정만으로 stale 씨앗 차단 → 모순 근절. restore 3곳 무수정 (사용자 결정 : cascade 수정만).</li>
+            <li><b>deprecate cascade 필터(<code>!iso.isDeleted()</code>) 유지</b> — <code>LifecycleEntity.deprecate()</code> 가 soft-deleted 에 <code>IllegalDeprecationStateException</code> 가드 보유 → soft-deleted 자식 deprecate 는 예외. 필터 필수 (§8 D-2).</li>
+            <li><b>enabled invariant 도메인 불변식 승격</b> — 도메인 4+ 늘 때 후속(§11).</li>
+            <li>Driver/Subprogram lifecycle service 미구현 — 향후 동형.</li>
+            <li><code>LifecycleEntity</code> 미수정.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — cascade 비대칭 before/after + 상태전이</summary>
+      <div class="body">
+        <div class="state-flow">[T1] ISO 27 soft-delete       → ISO 27 {enabled, DELETED}
+[T2] OS 9.5 disable toggle
+      BEFORE: cascade .filter(!iso.isDeleted()) ✗ ISO 27 제외   → ISO 27 {enabled, DELETED}   ★ stale
+      AFTER : disable cascade 전체            ✓ ISO 27 포함   → ISO 27 {disabled, DELETED}  ★ 정합
+[T3] ISO 27 restore           → is_enabled 보존
+      BEFORE: {ENABLED, active}   ← 모순
+      AFTER : {disabled, active}  ← 정합 (restore 무수정으로도 자동 해결)</div>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>BEFORE — 대칭 필터 (현재)</h4>
+            <pre><code>parent.toggleEnabled();
+boolean target = parent.isEnabled();
+parent.getIsos().stream()
+    .filter(iso -> !iso.isDeleted()    // ← trash 자식 제외
+               && !iso.isDeprecated())
+    .filter(iso -> iso.isEnabled() != target)
+    .forEach(ISO::toggleEnabled);
+// disable 시 trash 자식 누락 → stale 씨앗</code></pre>
+          </div>
+          <div class="split-card after">
+            <h4>AFTER — 비대칭 (disable 전체 / enable cascade 없음)</h4>
+            <pre><code>parent.toggleEnabled();
+if (parent.isEnabled()) {
+    return;   // enable: cascade 없음 (자식 개별 활성은 운영자 몫)
+}
+// disable: enabled 자식 전부(trash/deprecated 포함) 비활성화
+parent.getIsos().stream()
+        .filter(ISO::isEnabled)
+        .forEach(ISO::toggleEnabled);
+// disable 시 trash 자식도 동기화 → stale 0</code></pre>
+          </div>
+        </div>
+        <div class="callout success">
+          <b>핵심</b> — early-return 으로 비대칭 달성. enable 은 자식 cascade 없이 부모 ceiling 만 상승, disable 은 enabled 자식 전부(trash 포함) 비활성화. invariant "자식 enabled ≤ 부모 enabled" 는 disable cascade 만으로 충족(자식을 끌어내림); enable 은 ceiling 만 올려 위반 불가.
+          Leg A 차단으로 stale 씨앗 0 → restore 무수정으로도 모순 근절.
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 수정 책임 + 시그니처 (3 cascade 비대칭)</summary>
+      <div class="body">
+        <p>3 cascade (OS→ISO 1, BoardModel→BIOS 1, BoardModel→BMC 1) 에 동형 비대칭 적용.</p>
+<pre><code>// OSMetadataLifecycleService.toggleEnabled (자식 ISO)
+parent.toggleEnabled();
+if (parent.isEnabled()) return;                  // enable: cascade 없음 (자식 개별 활성은 운영자 몫)
+parent.getIsos().stream()                         // disable: enabled 자식 전부(trash/deprecated 포함)
+        .filter(ISO::isEnabled).forEach(ISO::toggleEnabled);
+
+// BoardModelService.toggleEnabled (자식 BIOS + BMC — 2 cascade 동형)
+if (parent.isEnabled()) return;                  // enable: cascade 없음
+biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
+        .filter(BoardBIOS::isEnabled).forEach(BoardBIOS::toggleEnabled);
+// bmc 동형</code></pre>
+        <div class="callout warn">
+          <b>중복 회피 (§8 D-3)</b> — 3 cascade 가 동형이나 자식 타입(ISO/BoardBIOS/BoardBMC)·조회 방식이 다름. 지금은 각 service 사본(R1-4 helper 사본 정책 동형). 도메인 4+ 늘 때 §11 공통 헬퍼 승격.
+        </div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>OSMetadataLifecycleService.java</code> (~51-62)</td><td><span class="chip mod">수정</span></td><td>toggleEnabled cascade 비대칭 (disable 전체 / enable cascade 없음). deprecate cascade 무수정</td></tr>
+            <tr><td><code>BoardModelService.java</code> (~204-212)</td><td><span class="chip mod">수정</span></td><td>toggleEnabled BIOS·BMC 2 cascade 비대칭</td></tr>
+            <tr><td>OSMetadataCascadeTest / BoardModelCascadeTest</td><td><span class="chip mod">테스트</span></td><td>disable 시 trash/deprecated 자식 동기화 + enable 시 cascade 없음(자식 불변) 단위 검증</td></tr>
+            <tr><td><code>IsoLifecycleService:165</code> restore 가드</td><td><span class="chip keep">유지</span></td><td>후보1 미채택 — cascade 수정으로 stale 차단</td></tr>
+            <tr><td><code>BiosService</code> / <code>BmcService</code> restore</td><td><span class="chip keep">유지</span></td><td>무수정</td></tr>
+            <tr><td>deprecate cascade 필터 / LifecycleEntity / 예외 / DTO / 템플릿 / DB schema</td><td><span class="chip keep">유지</span></td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — 2 파일(OSMetadataLifecycleService 1 cascade + BoardModelService 2 cascade) 각 +2~3줄 / 테스트 +40. 신규 예외·인프라·restore 변경 0.</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>HF-2 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서 v2)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~5</td><td>2 service toggleEnabled cascade 비대칭 (안 A : 본체+테스트 동반)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6~7</td><td><i>N/A</i> (Repository/Entity 변경 0)</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8~9</td><td>단위/통합 테스트 (disable 전체 / enable cascade 없음 비대칭 + 회귀) + 스키마 0</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 부모 disable 시 trash 자식 disable 확인 → 복구 정합 (3 도메인)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>CP 경계</b> — 작은 수정(2 service cascade). 안 A : CP2 에 본체+테스트 동반. CP3 = N/A, CP4 = 회귀.</div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>도메인</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>부모 disable + enabled 자식이 soft-deleted → cascade 가 trash 자식도 disable (is_enabled=false)</td><td>OS/ISO</td></tr>
+            <tr><td>2</td><td>위 후 자식 restore → is_enabled=false 보존 → 부모-자식 정합 (모순 근절 검증)</td><td>OS/ISO</td></tr>
+            <tr><td>3</td><td>부모 enable → cascade <b>없음</b>. 자식(active / trash / deprecated) 전부 불변 (disabled 유지). 비대칭</td><td>OS/ISO</td></tr>
+            <tr><td>4</td><td>회귀 — 부모 disable 시 active 자식 disable (기존 동작 유지)</td><td>OS/ISO</td></tr>
+            <tr><td>5</td><td>회귀 — deprecated 자식은 deprecate cascade 필터로 그대로 (entity 가드 보존)</td><td>OS/ISO</td></tr>
+            <tr><td>6~8</td><td>BIOS — disable 시 trash/deprecated BIOS 동기화 / enable 시 cascade 없음 / 회귀</td><td>BoardModel/BIOS</td></tr>
+            <tr><td>9~11</td><td>BMC — 동형 3 시나리오</td><td>BoardModel/BMC</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">신규 예외 없음 → 400/404/409/500 신규 시나리오 없음. 핵심 = disable 전체 / enable cascade 없음 비대칭 검증 + 복구 정합.</div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p><b>변경 0</b>. cascade 동기화는 상태 전이라 신규 예외 없음.</p>
+        <ul>
+          <li><code>LifecycleEntity.toggleEnabled()</code> 는 가드 없음 → soft-deleted 자식 toggle 해도 예외 0 (후보2 가능의 핵심).</li>
+          <li><code>LifecycleEntity.deprecate()</code> 는 soft-deleted 가드 보유 → deprecate cascade 는 <code>!isDeleted()</code> 필터 유지 (toggle 과 분리).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 결정 (후보 전환 근거)</summary>
+      <div class="body">
+        <h4>D-1. 후보1(restore 종속) → 후보2(cascade 비대칭) 전환 근거</h4>
+        <p>초기 Workflow judge 는 후보2 를 "soft-deleted 자원에 toggle 강제 시 entity 가드/trash 의미 손상" 으로 기각했다. 그러나 코드 재검증 :</p>
+        <ul>
+          <li><code>LifecycleEntity.toggleEnabled()</code> (94-96) — <b>트랜지션 가드 없음</b> (<code>this.isEnabled = !this.isEnabled</code>). soft-deleted 자식 toggle 가능.</li>
+          <li><code>LifecycleEntity.deprecate()</code> (118-) — soft-deleted 가드 있음.</li>
+        </ul>
+        <p>→ judge 가 deprecate 의 제약을 toggleEnabled 에 잘못 일반화. <b>toggleEnabled cascade 필터는 entity 가드와 무관하므로 제거 가능</b>. 사용자 직관(후보2)이 옳고 더 단순 — Leg A 차단으로 restore 가드(후보1) 불필요.</p>
+
+        <h4>D-2. disable / enable 비대칭 (사용자 결정)</h4>
+        <p><b>disable</b> : enabled 자식 전부(trash / deprecated 포함) 비활성화 — 부모 disabled 하에 enabled 자식 0 보장. <b>enable</b> : cascade 없음 — 부모 ceiling 만 상승, 자식 활성화는 운영자 개별 액션. invariant "자식 enabled ≤ 부모 enabled" 는 disable cascade 만으로 충족(자식을 끌어내림); enable 은 ceiling 상승이라 위반 불가. <b>E2E 후 사용자 정정</b> : 초기 v2 의 "enable active 자식만" → "enable cascade 없음" (부모 활성화가 운영자가 개별 비활성한 자식을 임의 부활시키면 안 됨).</p>
+
+        <h4>D-3. 종속 로직 사본 (지금) vs 승격 (후속)</h4>
+        <p>3 cascade 동형이나 자식 타입·조회 상이. 각 service 사본(over-abstraction 회피). 도메인 4+ 늘 때 §11.</p>
+
+        <h4>D-4. CLAUDE.md 정합</h4>
+        <ul>
+          <li>"분기문 무분별 확장 금지" — <code>if(target)</code> 한 줄은 도메인 의미(disable=전체/enable=active)의 정당한 단일 분기. 책임 늘리는 분기 누적 아님.</li>
+          <li>"중복/over-abstraction 금지" — 각 service 사본, 승격은 4+ 에서.</li>
+        </ul>
+
+        <h4>D-5. 모순 잔존 자원 (선택)</h4>
+        <p>이미 DB 에 부모 disabled·자식 enabled 로 남은 자원(ISO 27 등)은 본 수정 후 부모를 disable→(자동 cascade) 또는 자식을 개별 disable 로 정합. 일괄 마이그레이션은 비목표.</p>
+
+        <h4>D-6. N+1 / cascade 쓰기 성능 (3-렌즈 Workflow 적대 검증 + 사용자 결정)</h4>
+        <p>사용자 우려 "stream+forEach 가 N+1 을 일으키지 않나" → SQL 추적 / 숨은 lazy-load 사냥 / bulk 대안 3 독립 렌즈 만장일치 :</p>
+        <ul>
+          <li><b>N+1 SELECT 없음</b> — 필터 술어(<code>isDeleted/isDeprecated/isEnabled</code>)와 <code>toggleEnabled()</code> 는 <b>동일 row scalar 컬럼만</b> 접근. 루프 내 per-element lazy 재조회(=N+1 트리거) 부재. SELECT 고정 : OS = 부모1 + <code>getIsos()</code> LAZY1 = <b>2</b>, Board = 부모1 + bios1 + bmc1 = <b>3</b>. 자식 수와 무관.</li>
+          <li>발생하는 건 dirty checking 의 <b>자식당 UPDATE N개</b> — "N+1 SELECT 문제" 아니라 "N행을 실제로 끄는 필연 쓰기". bulk 로 접어도 쓸 row 수는 동일.</li>
+          <li><b>bulk JPQL(<code>UPDATE ... WHERE id IN</code>) 기각</b> — <code>@LastModifiedDate updated_at</code> auditing 깨짐(JPQL 수동 set 필요) + 영속성 컨텍스트 stale(<code>clearAutomatically</code> 필요) + <code>LifecycleEntity</code> 도메인 메서드/guard 우회 + 6 cascade 혼재(또는 repository 메서드 3중 폭증). cardinality 한 자릿수에서 실익 없음.</li>
+        </ul>
+        <p><b>채택</b> : <code>spring.jpa.properties.hibernate.jdbc.batch_size=20</code> + <code>order_updates=true</code> <b>전역 설정</b>. N개 UPDATE 를 단일 JDBC 배치 왕복으로 묶어 사용자 목표("N개 따로 발행 회피")를 충족하면서 도메인 메서드·auditing·guard 전부 보존. <code>@GeneratedValue(IDENTITY)</code> 라 INSERT 배칭은 불가하나 UPDATE/DELETE 는 적용. 모든 write 경로 전역 수혜. <b>HF-2 본 cascade 코드(D-2)는 무변경</b> — config 1회 추가뿐.</p>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="hf-2-v2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (662 → 662 + 신규 cascade 테스트)</span></label></li>
+          <li><label><input type="checkbox" data-key="disable"> <span>부모 disable → trash 자식도 disable (OS/ISO, BIOS, BMC)</span></label></li>
+          <li><label><input type="checkbox" data-key="enable"> <span>부모 enable → 자식 cascade 없음 (active 자식도 불변, 비대칭)</span></label></li>
+          <li><label><input type="checkbox" data-key="restore"> <span>disable 후 자식 restore → 자식 disabled 로 정합 (restore 무수정 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="regress-active"> <span>회귀 — active 자식 disable cascade 기존 동작 유지</span></label></li>
+          <li><label><input type="checkbox" data-key="deprecate"> <span>deprecate cascade 필터 무수정 (soft-deleted 가드 보존)</span></label></li>
+          <li><label><input type="checkbox" data-key="batch"> <span>D-6 — <code>batch_size=20</code> + <code>order_updates=true</code> 적용 후 <code>show-sql</code> 로 자식 UPDATE 가 단일 배치로 묶이는지 확인 (회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자 단독) — 3 도메인</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/metadata/OSMetadataLifecycleService.java</code></td><td>toggleEnabled cascade 비대칭 (OS→ISO)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/board/service/BoardModelService.java</code></td><td>toggleEnabled BIOS·BMC 2 cascade 비대칭</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>src/main/resources/application.properties</code></td><td>D-6 — <code>hibernate.jdbc.batch_size=20</code> + <code>order_updates=true</code> 전역 1회 (N UPDATE → 단일 배치 왕복). cascade 코드 무관, 전역 위생 튜닝</td></tr>
+            <tr><td><span class="chip mod">테스트</span></td><td>OSMetadataLifecycleServiceTest / BoardModelServiceTest</td><td>비대칭 + 회귀 + 복구 정합</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>IsoLifecycleService / BiosService / BmcService restore</td><td>후보1 미채택 — 무수정</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>deprecate cascade / LifecycleEntity / 예외 / DTO / 템플릿 / DB schema</td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>cascade 비대칭 + invariant 공통 헬퍼 승격</b> — 도메인 4+ (Driver/Subprogram) 진입 시 비대칭 토글을 공통 메서드/LifecycleService template 으로.</li>
+          <li><b>Driver(MA5) / Subprogram lifecycle service 신규</b> 시 동형 비대칭 cascade 적용.</li>
+          <li><b>모순 잔존 자원 정합</b> (선택) — reconciliation 후속.</li>
+        </ol>
+        <p>HF-2 자체는 0.5 일 분량 (2 service cascade + 테스트). HF-1(restore FS-DB 무결성) + HF-2(부모-자식 enabled 정합) 로 lifecycle 양축 해소.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 12, behavior:'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => { stored[cb.dataset.key] = cb.checked; localStorage.setItem(key, JSON.stringify(stored)); });
+    });
+  });
+</script>
+</body>
+</html>

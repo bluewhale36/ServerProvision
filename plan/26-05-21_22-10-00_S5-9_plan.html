@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-9 Plan — 탐색 기능 사용성 수정 (숨김 파일/폴더 회색)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.a { background: var(--green-bg); color: var(--green); }
+  .chip.b { background: var(--yellow-bg); color: var(--yellow); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* A vs B 비교 — 2 카드 */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  .compare-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .compare-card.a { border-color: var(--yellow); border-width: 2px; background: var(--yellow-bg); }
+  .compare-card.b { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .compare-card h4 { margin: 0 0 8px; font-size: 14px; font-family: var(--mono); }
+  .compare-card.a h4 { color: var(--yellow); }
+  .compare-card.b h4 { color: var(--green); }
+  .compare-card ul { margin: 4px 0; padding-left: 18px; }
+  .compare-card li { font-size: 12.5px; line-height: 1.5; }
+
+  /* 디렉토리 listing 미리보기 */
+  .browse-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .browse-mock { background: #ffffff; border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px; font-size: 13px; font-family: var(--mono); }
+  .browse-mock-path { color: var(--text-muted); font-size: 11px; margin-bottom: 6px; }
+  .browse-mock-entry { padding: 4px 8px; border-bottom: 1px solid var(--border-soft); display: flex;
+    justify-content: space-between; align-items: center; }
+  .browse-mock-entry:last-child { border-bottom: none; }
+  .browse-mock-entry.is-highlight { background: #f2f9ff; color: var(--blue); }
+  .browse-mock-entry.is-hidden-before { /* before — 그대로 일반 색상 */ }
+  .browse-mock-entry.is-hidden-after { color: var(--text-muted); opacity: 0.55; }
+  .browse-mock-size { font-size: 11px; color: var(--text-muted); }
+  .browse-mock-label { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+  .browse-mock-label.before { color: var(--red); }
+  .browse-mock-label.after { color: var(--green); }
+
+  /* 시퀀스 다이어그램 */
+  .seq { display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: var(--bg);
+    border: 1px solid var(--border-soft); border-radius: 6px; margin: 10px 0; overflow: hidden; }
+  .seq .actor { padding: 8px 10px; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-align: center; color: var(--text-muted); background: var(--card); border-bottom: 1px solid var(--border-soft); }
+  .seq .actor.fe { color: var(--blue); }
+  .seq .actor.be { color: var(--green); }
+  .seq .step { padding: 6px 12px; font-size: 12px; line-height: 1.55; border-bottom: 1px solid var(--border-soft); }
+  .seq .step:last-child { border-bottom: none; }
+  .seq .step.fe { background: rgba(0,117,222,0.04); }
+  .seq .step.be { background: rgba(26,174,57,0.04); }
+  .seq .step code { font-size: 11px; padding: 1px 4px; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .browse-preview { grid-template-columns: 1fr; }
+    .seq { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-9 — 탐색 기능 사용성 수정 (숨김 파일/폴더 회색 표시)</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21 22:10</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-8 완료 (Job Status 구체화)</strong></span>
+    <span>변경 표면 : <strong>BE +1 필드 + FE-render</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 산출 — 안 B 채택</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s0">🎬 라이브 UX 미리보기</a></li>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s3">3. URL / 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<!-- ============================== §0 ============================== -->
+<details class="section" id="s0" open>
+  <summary>🎬 라이브 UX 미리보기 — Before / After</summary>
+  <div class="body">
+    <p>BIOS / BMC / ISO / Subprogram 등록 폼의 "탐색" 버튼이 띄우는 디렉토리 패널의 entry 시각 처리. <code>.</code> 으로 시작하거나 OS-level hidden 속성을 가진 항목을 회색에 가깝게 표시해 일반 자원과 시각 분리.</p>
+
+    <h3 style="margin-top: 0;">0.1 디렉토리 listing 시각 비교</h3>
+    <div class="browse-preview">
+      <div>
+        <div class="browse-mock">
+          <div class="browse-mock-path">📁 /opt/iso/rocky/9/</div>
+          <div class="browse-mock-entry">📁 .cache</div>
+          <div class="browse-mock-entry">📁 .git</div>
+          <div class="browse-mock-entry">📁 isos</div>
+          <div class="browse-mock-entry is-highlight">💿 dvd.iso <span class="browse-mock-size">11.2 GB</span></div>
+          <div class="browse-mock-entry">📄 .provision.json <span class="browse-mock-size">462 B</span></div>
+          <div class="browse-mock-entry">📄 README.md <span class="browse-mock-size">1.4 KB</span></div>
+        </div>
+        <div class="browse-mock-label before">현재 — hidden 도 같은 색상으로 표시</div>
+      </div>
+      <div>
+        <div class="browse-mock">
+          <div class="browse-mock-path">📁 /opt/iso/rocky/9/</div>
+          <div class="browse-mock-entry is-hidden-after">📁 .cache</div>
+          <div class="browse-mock-entry is-hidden-after">📁 .git</div>
+          <div class="browse-mock-entry">📁 isos</div>
+          <div class="browse-mock-entry is-highlight">💿 dvd.iso <span class="browse-mock-size">11.2 GB</span></div>
+          <div class="browse-mock-entry is-hidden-after">📄 .provision.json <span class="browse-mock-size">462 B</span></div>
+          <div class="browse-mock-entry">📄 README.md <span class="browse-mock-size">1.4 KB</span></div>
+        </div>
+        <div class="browse-mock-label after">S5-9 후 — hidden 회색 + opacity 0.55</div>
+      </div>
+    </div>
+
+    <h3>0.2 변경의 본질</h3>
+    <ul>
+      <li>BE 가 <code>DirectoryListingResponse.Entry</code> 에 <code>hidden: boolean</code> 필드 추가</li>
+      <li>판별 기준 : <code>name.startsWith('.')</code> <strong>OR</strong> <code>Files.isHidden(path)</code> — Linux 의 dot-file 관례와 Windows / macOS 의 OS-level hidden flag 모두 cover</li>
+      <li>FE 가 <code>e.hidden === true</code> 인 entry 의 <code>color</code> 를 <code>var(--n-text-muted)</code>, <code>opacity</code> 0.55 로 렌더</li>
+      <li>클릭 가능 / hover 효과는 유지 (사용자가 의도적으로 hidden 진입 가능)</li>
+    </ul>
+
+    <div class="callout success">
+      <strong>핵심 가치</strong> 탐색 패널에서 <strong>.cache / .git / .provision.json</strong> 같은 hidden 항목이 일반 자원에 묻혀 보이지 않도록 시각 분리. ISO 같은 highlight 자원은 그대로 강조. 사용자가 등록할 자원을 한 눈에 식별 가능.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">1.1 선행 슬라이스 완료 상태</h3>
+    <ul>
+      <li>S5-8 완료 (Job Status 구체화) — 본 슬라이스의 직접 선행 아니지만 시각 일관성 측면 영향</li>
+      <li>S5-1 완료 (탐색 첫 진입 hotfix) — PathPolicyService.firstAllowedRoot() 도입, S5-9 의 BE 진입점과 동일 path</li>
+    </ul>
+
+    <h3>1.2 탐색 패널 사용처</h3>
+    <table>
+      <thead><tr><th>도메인</th><th>fragment include 경로</th><th>endpoint (browseUrl)</th></tr></thead>
+      <tbody>
+        <tr><td>OS / ISO</td><td>iso-new.html / iso-edit.html</td><td><code>GET /management/os/browse</code></td></tr>
+        <tr><td>BIOS</td><td>bios-new.html</td><td><code>GET /management/bios/browse</code></td></tr>
+        <tr><td>BMC</td><td>bmc-new.html</td><td><code>GET /management/bmc/browse</code></td></tr>
+        <tr><td>Subprogram (Driver / Utility)</td><td>subprogram-new.html</td><td><code>GET /management/subprogram/browse</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>1.3 현재 응답 / 렌더</h3>
+<pre><code>// DirectoryListingResponse.Entry
+record Entry(
+    String type,   // "DIR" | "FILE"
+    String name,   // 파일/디렉토리 이름
+    Long size      // 파일만, DIR 은 null
+)
+// → hidden 정보 노출 안 됨
+
+// path-browser.js renderEntries() 의 핵심
+const icon = isDir ? '📁' : (highlight ? '💿' : '📄');
+li.innerHTML = `${icon} ${escapeHtml(e.name)}...`;
+if (highlight) li.style.background = '#f2f9ff';
+// → hidden 처리 없음. .provision.json / .cache 가 일반 색상</code></pre>
+
+    <h3>1.4 문제 시나리오</h3>
+    <ul>
+      <li>BIOS 트리 루트 디렉토리에 들어가면 <code>.provision.json</code> 마커가 같은 색상으로 나옴 → 사용자가 진입점으로 잘못 선택할 우려</li>
+      <li>OS ISO 디렉토리에 <code>.cache</code>, <code>.tmp</code> 등 시스템 디렉토리가 있을 때 사용자가 그곳을 자원 위치로 잘못 지정할 가능성</li>
+      <li>특히 자원 자체와 메타 파일이 같은 디렉토리에 공존하는 경우 (S5-10 이후) 메타 파일의 시각 분리 강한 가치 필요</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2">
+  <summary>2. 요구사항 (확정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">2.1 Notion 명세 (S5-9 본문)</h3>
+    <blockquote style="border-left: 3px solid var(--text-muted); padding-left: 12px; color: var(--text-muted); margin: 8px 0; font-size: 13px;">
+      숨김 파일이나 폴더를 <strong>회색에 가깝게 표시</strong>하여 시각적 차이를 만드는 작업.
+    </blockquote>
+
+    <h3>2.2 채택안 비교 — A (FE-only) vs B (BE hidden 필드)</h3>
+    <div class="compare-grid">
+      <div class="compare-card a">
+        <h4><span class="chip a">안 A</span> FE-only — name prefix 검사</h4>
+        <ul>
+          <li>FE 가 <code>e.name.startsWith('.')</code> 으로 hidden 판별</li>
+          <li>BE 변경 0</li>
+          <li>단점 : macOS 의 <code>chflags hidden</code> 또는 Windows 의 <code>attrib +h</code> 로 부여된 OS-level hidden flag 인식 못함 (S5-10 호환성 불완전)</li>
+        </ul>
+      </div>
+      <div class="compare-card b">
+        <h4><span class="chip b">안 B ✓</span> BE 가 <code>hidden: boolean</code> 노출</h4>
+        <ul>
+          <li><code>DirectoryListingResponse.Entry</code> 에 <code>hidden: boolean</code> 1 필드 추가</li>
+          <li>BE 가 <code>name.startsWith('.') || Files.isHidden(p)</code> 결합 판별</li>
+          <li>FE 는 <code>e.hidden</code> 직접 사용</li>
+          <li>S5-10 의 OS-level hidden flag 부여와 자연 연계 — macOS / Windows 도 cover</li>
+          <li>회귀 테스트 단순 — Entry record 시그니처 검증 1 줄 추가</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>2.3 시각 디자인 결정</h3>
+    <ul>
+      <li><strong>color</strong> : <code>var(--n-text-muted)</code> — 현재 사이즈 텍스트와 같은 muted 톤</li>
+      <li><strong>opacity</strong> : 0.55 — 너무 옅으면 글자가 안 보이고 너무 진하면 분리감 약함. 0.55 가 시각 분리 강도 vs 가독성 절충점</li>
+      <li><strong>아이콘</strong> : 아이콘에도 opacity 적용 — entry 전체 li 에 opacity 부여</li>
+      <li><strong>highlight 와 충돌</strong> : hidden + highlight (예: <code>.dvd.iso</code> ?) 인 경우 거의 없으나, 발생 시 hidden 우선 (회색 처리)</li>
+      <li><strong>클릭 가능</strong> : hidden entry 도 클릭 가능 — 사용자가 의도적 접근 시 막지 않음</li>
+      <li><strong>hover 효과</strong> : hidden 도 hover 시 background 변경 — 클릭 가능성 유지</li>
+    </ul>
+
+    <h3>2.4 추가 제약 (불가침)</h3>
+    <ul>
+      <li><code>DirectoryListingResponse</code> 의 path / parentPath / truncated 필드 그대로</li>
+      <li>BE 의 entry 정렬 순서 그대로 (이름 알파벳)</li>
+      <li>filter 기능 없음 — hidden 도 응답 / 렌더 모두 포함 (단지 시각 차별만)</li>
+      <li>"숨김 항목 토글" 같은 사용자 컨트롤 추가 안 함 (본 슬라이스 외)</li>
+    </ul>
+
+    <h3>2.5 hidden 판별 정책</h3>
+    <table>
+      <thead><tr><th>케이스</th><th>판별</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td><code>.cache</code> / <code>.git</code> / <code>.provision.json</code></td><td><code>name.startsWith('.')</code> → true</td><td>Linux 의 dot-file 관례</td></tr>
+        <tr><td>macOS 에서 <code>chflags hidden</code> 부여된 파일</td><td><code>Files.isHidden(p)</code> → true</td><td>macOS 운영자 노출 시</td></tr>
+        <tr><td>Windows 에서 <code>attrib +h</code> 부여된 파일</td><td><code>Files.isHidden(p)</code> → true</td><td>Windows 호환</td></tr>
+        <tr><td>S5-10 적용 후 <code>*.provision.json</code></td><td>두 조건 모두 true</td><td>dot-prefix + OS hidden flag</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3">
+  <summary>3. URL / 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">3.1 URL 표</h3>
+    <p>본 슬라이스는 신규 URL 0. 기존 4 도메인 browse endpoint 의 응답 구조만 +1 필드.</p>
+    <table>
+      <thead><tr><th>Method</th><th>URL</th><th>응답 변경</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET</code></td><td><code>/management/os/browse</code></td><td>entry[].hidden 추가</td></tr>
+        <tr><td><code>GET</code></td><td><code>/management/bios/browse</code></td><td>동일</td></tr>
+        <tr><td><code>GET</code></td><td><code>/management/bmc/browse</code></td><td>동일</td></tr>
+        <tr><td><code>GET</code></td><td><code>/management/subprogram/browse</code></td><td>동일</td></tr>
+      </tbody>
+    </table>
+
+    <h3>3.2 데이터 흐름</h3>
+    <div class="seq">
+      <div class="actor fe">FE (path-browser.js)</div>
+      <div class="actor be">BE (DirectoryBrowseService)</div>
+      <div class="step fe"><code>browse?path=/opt/iso/rocky/9</code></div>
+      <div class="step be"></div>
+      <div class="step fe"></div>
+      <div class="step be">PathPolicyService 통과 후 <code>Files.list(target)</code> 순회</div>
+      <div class="step fe"></div>
+      <div class="step be"><strong>S5-9</strong> : 각 path 에 대해 <code>boolean hidden = name.startsWith('.') || Files.isHidden(p)</code> 계산</div>
+      <div class="step fe"></div>
+      <div class="step be">Entry record 의 4-arg constructor (type, name, size, hidden) 사용</div>
+      <div class="step fe">응답 받음 → <code>renderEntries(data)</code> 호출</div>
+      <div class="step be"></div>
+      <div class="step fe"><strong>S5-9</strong> : <code>if (e.hidden) { li.style.color = muted; li.style.opacity = '0.55'; }</code></div>
+      <div class="step be"></div>
+    </div>
+
+    <h3>3.3 응답 예시</h3>
+<pre><code>{
+  "path": "/opt/iso/rocky/9",
+  "parentPath": "/opt/iso/rocky",
+  "entries": [
+    { "type": "DIR",  "name": ".cache",          "size": null, "hidden": true  },
+    { "type": "DIR",  "name": ".git",            "size": null, "hidden": true  },
+    { "type": "DIR",  "name": "isos",            "size": null, "hidden": false },
+    { "type": "FILE", "name": "dvd.iso",         "size": 12012,"hidden": false },
+    { "type": "FILE", "name": ".provision.json", "size": 462,  "hidden": true  },
+    { "type": "FILE", "name": "README.md",       "size": 1430, "hidden": false }
+  ],
+  "truncated": false
+}</code></pre>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4">
+  <summary>4. 도메인 모델</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">4.1 수정 — DirectoryListingResponse.Entry</h3>
+<pre><code>public record Entry(
+    String type,
+    String name,
+    Long size,
+    boolean hidden    // ← S5-9 신규
+) {
+    public static Entry directory(String name, boolean hidden) {
+        return new Entry("DIR", name, null, hidden);
+    }
+    public static Entry file(String name, long size, boolean hidden) {
+        return new Entry("FILE", name, size, hidden);
+    }
+}</code></pre>
+
+    <h3>4.2 service 변경</h3>
+<pre><code>// DirectoryBrowseService.browse() 내부
+for (Path p : sorted) {
+    if (entries.size() &gt;= maxEntries) { truncated = true; break; }
+    String name = p.getFileName().toString();
+    // S5-9 — dot-file 관례 OR OS-level hidden flag (Windows/macOS) 통합 판별
+    boolean hidden = name.startsWith(".") || isOsHidden(p);
+    if (Files.isDirectory(p)) {
+        entries.add(DirectoryListingResponse.Entry.directory(name, hidden));
+    } else if (request.includeFiles()) {
+        long size = -1L;
+        try { size = Files.size(p); } catch (IOException ignore) {}
+        entries.add(DirectoryListingResponse.Entry.file(name, size, hidden));
+    }
+}
+
+private boolean isOsHidden(Path p) {
+    try {
+        return Files.isHidden(p);
+    } catch (IOException e) {
+        return false;
+    }
+}</code></pre>
+
+    <h3>4.3 신규 도메인 — 없음</h3>
+    <p>VO / Enum / Entity / Service / Repository 신규 0. 단순 응답 필드 추가.</p>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. 수직 슬라이스 10 단계 + CP 매핑</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>본 plan html</td><td><span class="chip cp1">CP1</span></td></tr>
+        <tr><td>2</td><td>뷰 — <code>path-browser.js</code> 의 renderEntries() 에서 <code>e.hidden</code> 시 muted 색상 + opacity 0.55 + hover 색상 적응</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>3</td><td>Controller — 변경 없음 (확인만)</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>4</td><td>DTO — <code>DirectoryListingResponse.Entry</code> 에 <code>hidden: boolean</code> 필드 + factory method 시그니처 변경</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>5</td><td>Service 시그니처 — <code>DirectoryBrowseService</code> 의 entry 생성 호출부 + 신규 private 헬퍼 <code>isOsHidden(Path)</code></td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>6</td><td>Repository — 변경 없음 (탐색은 파일시스템 직접)</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>7</td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>8</td><td>통합 테스트 — <code>DirectoryBrowseServiceTest</code> 에 hidden 판별 시나리오 3 (dot-prefix / 일반 / OS-hidden은 단위 테스트 어렵지만 Files.isHidden mock 시도). 4 controller 회귀 추가</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>9</td><td>스키마 — 변경 없음. <code>./gradlew test</code> 전체 통과</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>10</td><td>브라우저 E2E — 사용자 단독. <code>.cache</code> / <code>.provision.json</code> 등이 있는 디렉토리에서 회색 표시 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.1 CP2 변경 범위</h3>
+    <ul>
+      <li><code>DirectoryListingResponse.java</code> — Entry record +1 필드, factory method 2 개 시그니처 갱신, 편의 생성자 <code>DirectoryListingResponse(path, parentPath, entries)</code> 그대로</li>
+      <li><code>DirectoryBrowseService.java</code> — for 루프 안에서 hidden 계산 + isOsHidden 헬퍼</li>
+      <li><code>path-browser.js renderEntries()</code> — <code>li.style.color</code> + <code>li.style.opacity</code> 추가. hover 시 회색 유지</li>
+      <li>기존 호출자 (Entry.directory / file factory) 갱신 — 본 service 1 곳만 존재 (grep 확인 후 추가 호출자 있다면 보정)</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. Step 8 통합 테스트 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">6.1 범주별 시나리오 수</h3>
+    <p><strong>총 4 신규</strong></p>
+    <ul>
+      <li>성공 경로 (2) :
+        <ul>
+          <li>일반 파일 / 폴더 → hidden=false 응답 검증</li>
+          <li>dot-prefix 파일 / 폴더 → hidden=true 응답 검증 (예: <code>.cache</code>, <code>.provision.json</code>)</li>
+        </ul>
+      </li>
+      <li>경계 (1) : 이름이 정확히 <code>.</code> 또는 <code>..</code> 인 경우 — 실 발생은 거의 없으나, hidden=true 처리 검증</li>
+      <li>회귀 (1) : 기존 DirectoryBrowseServiceTest 가 Entry 의 3-arg 생성자에 의존하는 경우 4-arg 갱신 후 통과 확인</li>
+    </ul>
+
+    <h3>6.2 회귀 대상</h3>
+    <ul>
+      <li>BIOS / BMC / OS / Subprogram 의 controller browse endpoint 테스트 — 응답 JSON 에 hidden 필드 추가 확인 (또는 기존 assertion 그대로 통과 = 추가 필드 무시)</li>
+      <li>전체 <code>./gradlew test</code> — 580+ testcase 통과</li>
+      <li>JS manual 검증은 Step 10</li>
+    </ul>
+
+    <h3>6.3 manual 시나리오 (Step 10)</h3>
+    <ol>
+      <li>BIOS 등록 폼에서 트리 루트 입력 → "탐색" → <code>.provision.json</code> 회색 + opacity 0.55 표시 확인</li>
+      <li>OS ISO 등록 폼에서 같은 시나리오</li>
+      <li>BMC / Subprogram 등록 폼에서 같은 시나리오</li>
+      <li>hidden entry 클릭 가능성 유지 — 의도적 클릭 시 정상 진입 / 선택 동작</li>
+      <li>highlight (ISO 등) 와 hidden 충돌 시 hidden 우선 확인</li>
+    </ol>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">7.1 신규 예외 — 없음</h3>
+    <p>본 슬라이스는 응답 필드 +1 만. 예외 계층 변동 없음.</p>
+
+    <h3>7.2 Files.isHidden 실패 시 fallback</h3>
+    <p><code>IOException</code> 발생 시 hidden=false 로 처리. 안전한 default — 사용자가 모든 항목을 일반 색상으로 본 뒤 직접 선택 가능. fail-loud 보다 fail-quiet 가 본 UI 의 의도와 부합.</p>
+
+    <h3>7.3 응답 JSON 호환성</h3>
+    <p>새 필드 hidden 추가는 기존 클라이언트 (path-browser.js) 가 무시 가능 — Jackson 의 unknown property 무시 정책 + JS 의 optional field 접근. 회귀 없음.</p>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">8.1 스코프 경계</h3>
+    <ul>
+      <li>"숨김 항목 토글" UI — 본 슬라이스 외 (별 슬라이스 후보)</li>
+      <li>hidden 필터링 (응답에서 제거) — 본 슬라이스 외. 사용자가 의도적 접근 가능성 보존</li>
+      <li>BE 의 hidden 판별 알고리즘 확장 (예: <code>__</code> 으로 시작 등) — 본 슬라이스 외</li>
+    </ul>
+
+    <h3>8.2 S5-10 와의 연계</h3>
+    <p>S5-10 에서 <code>*.provision.json</code> 에 OS-level hidden 속성을 부여하면, 본 슬라이스의 BE 판별 (<code>name.startsWith('.') || Files.isHidden(p)</code>) 가 양쪽 모두 cover. S5-9 → S5-10 순서 진행으로 S5-9 의 시각 효과가 S5-10 적용 후에도 일관 적용.</p>
+
+    <h3>8.3 inline style 사용</h3>
+    <p>path-browser.js 가 이미 li.style 의 inline 패턴을 사용하므로 본 슬라이스에서도 동일 패턴 유지. CSS 클래스 분리는 path-browser 의 향후 전체 refactor 슬라이스에서 처리 (본 슬라이스 외).</p>
+
+    <div class="callout warn">
+      <strong>주의</strong> CLAUDE.md 의 "인라인 스타일 금지" 원칙과 충돌 가능성. 그러나 path-browser.js 의 기존 패턴 (li.style.padding / cursor / background 등 inline 다수) 과 일관성을 위해 본 슬라이스에서는 inline 유지. 별 슬라이스에서 path-browser 전체 CSS 화 권장.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification 체크리스트</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">9.1 빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> <code>./gradlew compileJava compileTestJava</code> BUILD SUCCESSFUL</label></li>
+      <li><label><input type="checkbox"> <code>./gradlew test</code> — 580+ testcase 통과 + 신규 4 시나리오</label></li>
+      <li><label><input type="checkbox"> <code>./gradlew bootRun</code> 부팅 smoke</label></li>
+    </ul>
+
+    <h3>9.2 기능 (Step 10 manual)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> 4 등록 폼 (BIOS / BMC / OS / Subprogram) 모두에서 hidden entry 가 회색 + opacity 0.55</label></li>
+      <li><label><input type="checkbox"> <code>.provision.json</code> 마커가 회색 표시</label></li>
+      <li><label><input type="checkbox"> hidden entry 클릭 가능 / hover 효과 정상</label></li>
+      <li><label><input type="checkbox"> highlight (ISO) vs hidden — hidden 우선 확인</label></li>
+    </ul>
+
+    <h3>9.3 회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> 기존 4 도메인 browse 정상 동작</label></li>
+      <li><label><input type="checkbox"> '상위' 버튼 동작 (allowed-roots 경계)</label></li>
+      <li><label><input type="checkbox"> '닫기' 버튼 동작</label></li>
+      <li><label><input type="checkbox"> 빈 디렉토리 메시지 정상</label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">10.1 신규</h3>
+    <p>없음.</p>
+
+    <h3>10.2 수정</h3>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/management/common/filesystem/dto/DirectoryListingResponse.java</code> — Entry record 4 번째 필드 추가 + factory method 시그니처</li>
+      <li><code>src/main/java/com/example/serverprovision/management/common/filesystem/service/DirectoryBrowseService.java</code> — hidden 계산 + isOsHidden 헬퍼</li>
+      <li><code>src/main/resources/static/management/common/path-browser.js</code> — renderEntries() 의 hidden 시각 처리</li>
+    </ul>
+
+    <h3>10.3 통합 테스트</h3>
+    <ul>
+      <li>(기존) <code>DirectoryBrowseServiceTest</code> — 4 시나리오 추가</li>
+    </ul>
+
+    <h3>10.4 유지 (변경 0)</h3>
+    <ul>
+      <li>fragments/management/directory-browse-panel.html (markup 그대로)</li>
+      <li>4 controller (browse endpoint 그대로)</li>
+      <li>PathPolicyService / FileSystemSecurityProperties</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-9</strong> — Step 10 사용자 manual 검증 통과 시 종료</li>
+      <li><strong>S5 잔존</strong>
+        <ul>
+          <li>S5-10 (provision json OS-level 숨김) — 본 슬라이스의 BE hidden 판별이 자연 연계</li>
+          <li>S5-11 (제조사별 진입점 자동 탐지 정합화)</li>
+          <li>S5-7 (OS ISO 등록 후 작업 자동화 — plan 까지만)</li>
+        </ul>
+      </li>
+      <li><strong>S5-9 후속</strong>
+        <ul>
+          <li>"숨김 항목 토글" UI 옵션 — 사용자가 hidden 보이기/숨기기 선택</li>
+          <li>path-browser.js 의 inline style → CSS class 화 (전체 refactor)</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="callout success">
+      <strong>완료 조건</strong> 4 도메인 탐색 패널에서 dot-prefix / OS-hidden 항목이 회색 + opacity 0.55 로 일관 표시. 클릭 가능성 / hover 효과 유지. <code>./gradlew test</code> 전부 통과.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

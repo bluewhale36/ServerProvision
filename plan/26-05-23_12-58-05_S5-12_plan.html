@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-12 Plan — OS ISO 등록 UI 수정 (등록중 placeholder)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.a { background: var(--green-bg); color: var(--green); }
+  .chip.b { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.c { background: var(--red-bg); color: var(--red); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .compare-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .compare-card h4 { margin: 0 0 8px; font-size: 14px; font-family: var(--mono); }
+  .compare-card.a { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .compare-card.a h4 { color: var(--green); }
+  .compare-card.b { border-color: var(--yellow); border-width: 2px; background: var(--yellow-bg); }
+  .compare-card.b h4 { color: var(--yellow); }
+  .compare-card.c { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .compare-card.c h4 { color: var(--red); }
+  .compare-card ul { margin: 4px 0; padding-left: 18px; }
+  .compare-card li { font-size: 12px; line-height: 1.55; }
+  .ux-card { background: #ffffff; border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; margin: 8px 0; }
+  .ux-card.placeholder { opacity: 0.55; background: var(--bg); }
+  .ux-card-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 13px; }
+  .ux-card-row code { font-size: 12px; }
+  .ux-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .ux-badge.ok { background: var(--green-bg); color: var(--green); }
+  .ux-badge.gray { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+  .ux-badge.progress { background: var(--blue-bg); color: var(--blue); }
+  .ux-label { font-size: 11px; text-align: center; color: var(--text-muted); }
+  .ux-label.before { color: var(--red); }
+  .ux-label.after { color: var(--green); }
+  .seq { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; background: var(--bg);
+    border: 1px solid var(--border-soft); border-radius: 6px; margin: 10px 0; overflow: hidden; }
+  .seq .actor { padding: 8px 10px; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-align: center; color: var(--text-muted); background: var(--card); border-bottom: 1px solid var(--border-soft); }
+  .seq .actor.user { color: var(--blue); }
+  .seq .actor.be { color: var(--green); }
+  .seq .actor.bg { color: var(--orange); }
+  .seq .step { padding: 6px 12px; font-size: 12px; line-height: 1.55; border-bottom: 1px solid var(--border-soft); }
+  .seq .step:last-child { border-bottom: none; }
+  .seq .step.user { background: rgba(0,117,222,0.04); }
+  .seq .step.be { background: rgba(26,174,57,0.04); }
+  .seq .step.bg { background: rgba(221,91,0,0.04); }
+  .seq .step code { font-size: 11px; padding: 1px 4px; }
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .seq { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-12 — OS ISO 등록 UI 수정 (등록중 placeholder 표시)</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-23 20:00</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-11 v2 완료 (Vendor strategy)</strong></span>
+    <span>변경 범위 : <strong>+ISOResponse 1 필드 / OSImageService 합성 헬퍼 / list.html inProgress 시각 / 신규 테스트 4</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 산출 — 안 A 채택</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s0">🎬 라이브 UX 미리보기</a></li>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s3">3. 안 비교 (A · B · C)</a></li>
+    <li><a href="#s4">4. URL / 데이터 흐름</a></li>
+    <li><a href="#s5">5. 도메인 모델</a></li>
+    <li><a href="#s6">6. 10단계 + CP</a></li>
+    <li><a href="#s7">7. Step 8 테스트</a></li>
+    <li><a href="#s8">8. 예외 / 회귀</a></li>
+    <li><a href="#s9">9. 부산물 · 주의</a></li>
+    <li><a href="#s10">10. Verification</a></li>
+    <li><a href="#s11">11. Critical Files</a></li>
+    <li><a href="#s12">12. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색…">
+
+<details class="section" id="s0" open>
+  <summary>🎬 라이브 UX 미리보기 — Before / After</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">0.1 사용자 액션 직후 OS 상세 패널</h3>
+    <p>사용자가 ISO 등록 폼 제출 → foreground 파일 업로드 → 응답 받고 OS 목록 페이지로 redirect.
+    이 시점에 background job 은 hash 계산 / 중복 검사 / 메타 저장 진행 중. DB 영속 전이라 새 ISO 가 아직 목록에 안 보임.</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0;">
+      <div>
+        <h4 style="margin: 4px 0; font-size: 13px;">Before — 빈 상태 (사용자 혼란)</h4>
+        <div class="ux-card">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">ISO 목록</div>
+          <div class="ux-card-row">
+            <code>/opt/iso/rocky/9/dvd.iso</code>
+            <span class="ux-badge ok">활성화</span>
+          </div>
+          <!-- 새로 등록한 ISO 가 안 보임 → "등록 안 됐나?" 혼란 -->
+        </div>
+        <div class="ux-label before">방금 등록한 minimal.iso 가 안 보임</div>
+      </div>
+      <div>
+        <h4 style="margin: 4px 0; font-size: 13px;">After — 등록중 placeholder</h4>
+        <div class="ux-card">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">ISO 목록</div>
+          <div class="ux-card-row">
+            <code>/opt/iso/rocky/9/dvd.iso</code>
+            <span class="ux-badge ok">활성화</span>
+          </div>
+          <div class="ux-card-row" style="opacity: 0.55; background: var(--bg); padding: 4px 8px; border-radius: 4px;">
+            <code>/opt/iso/rocky/9/minimal.iso</code>
+            <span class="ux-badge progress">등록 중</span>
+          </div>
+        </div>
+        <div class="ux-label after">placeholder 표시 + Job 완료 시 자동 reload</div>
+      </div>
+    </div>
+
+    <h3>0.2 placeholder 의 시각 특성</h3>
+    <ul>
+      <li><strong>opacity 0.55 + 회색 배경</strong> — 정상 ISO 와 명확 분리</li>
+      <li><strong>"등록 중" 배지</strong> — blue 톤 (chunk progress bar 의 RUNNING 색상과 일관)</li>
+      <li>액션 버튼 (토글 / 삭제 / 무결성 검증 등) <strong>모두 비활성화</strong> — placeholder 는 DB 영속 전이라 의미 없음</li>
+      <li>details 가 클릭되어 펼쳐져도 안에는 "등록 중" 안내만 표시</li>
+      <li>BackgroundJob ISO_REGISTRATION 완료 시 <code>bgjob:completed</code> 이벤트 → 페이지 자동 reload → placeholder 가 정상 ISO 로 교체</li>
+    </ul>
+
+    <div class="callout success">
+      <strong>핵심 가치</strong> 사용자 액션 직후 "내가 등록한 자원이 시스템에 들어왔다" 시각 확인. background job 알림 패널 + 목록 placeholder 의 이중 확인 → 등록 흐름의 투명성.
+    </div>
+  </div>
+</details>
+
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">1.1 ISO 등록 흐름 (S5-7 적용 후)</h3>
+    <ol>
+      <li>사용자 ISO 등록 폼 제출 → <code>POST /management/os/{osId}/iso</code></li>
+      <li><code>OSImageController.addISO()</code> → <code>OSImageService.prepareIsoRegistration()</code> → ISO 파일 저장 + sidecar 마커 생성 (foreground)</li>
+      <li><code>IsoRegistrationLauncher.startRegistration(prepared)</code> → <strong>ISO_REGISTRATION background job 등록</strong> + async runner 시작</li>
+      <li>응답 즉시 반환 → OS 목록 페이지로 redirect</li>
+      <li><strong>background job 진행</strong> :
+        <ul>
+          <li>COMPUTE_HASH — 해시 계산</li>
+          <li>CHECK_DUPLICATE — 중복 검사</li>
+          <li>PERSIST_METADATA — DB 영속 (이 시점에 ISO 가 목록에 추가됨)</li>
+        </ul>
+      </li>
+      <li>S5-7 추가 : RHEL_BASED 면 <strong>COMPS_EXTRACTION job 도 동시 트리거</strong></li>
+    </ol>
+
+    <h3>1.2 UX 문제</h3>
+    <ul>
+      <li>Step 4 (redirect) 시점에 DB 의 ISO 목록은 <strong>새 ISO 미반영</strong> — Step 5.PERSIST_METADATA 전이라 안 보임</li>
+      <li>알림 패널을 펼쳐야 등록 진행 확인 가능 — 사용자가 알림 패널을 안 보면 "등록 안 됐나?" 혼란</li>
+      <li>새로고침 자주 → background job 부담 가중 / 사용자 행동 비효율</li>
+    </ul>
+
+    <h3>1.3 IsoRegistrationLauncher 의 metadata 구조 (S5-12 가 활용)</h3>
+<pre><code>backgroundJobService.register(
+    JobType.ISO_REGISTRATION,
+    "ISO 등록",
+    prepared.resolvedPath(),                  // ← subtitle = isoPath
+    BackgroundJobService.stagesOf(IsoRegistrationStage.values()),
+    Map.of("osId", String.valueOf(prepared.osImageId()))   // ← metadata
+);</code></pre>
+    <p>BackgroundJob 의 <code>metadata.osId</code> + <code>subtitle (= isoPath)</code> 로 placeholder 합성 가능.</p>
+
+    <h3>1.4 list.html 의 ISO accordion 마크업</h3>
+    <ul>
+      <li><code>th:each="iso : ${os.isos}"</code> 로 반복</li>
+      <li><code>iso.isDeleted</code> 시 <code>n-accordion-item-muted</code> 클래스</li>
+      <li><code>iso.isDeprecated</code> 시 yellow 배지</li>
+      <li>infosis 토글 / 삭제 / 무결성 검증 등 액션 버튼들</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s2">
+  <summary>2. 요구사항 (확정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">2.1 Notion 명세 (S5-12 본문)</h3>
+    <blockquote style="border-left: 3px solid var(--text-muted); padding-left: 12px; color: var(--text-muted); margin: 8px 0; font-size: 13px;">
+      OS ISO 등록 시 파일 업로드 직후 hash 계산 등의 이후 로직이 background job 으로 빠지면서 목록 화면으로 돌아오는데, 이 때 해당 OS 의 ISO 목록에 반영되어 있지 않으므로 사용자 혼란 야기 가능성 존재. <strong>목록에 '(등록중)' 등으로 비활성화 된 요소를 미리 채워 넣어서 이를 개선</strong>.
+    </blockquote>
+
+    <h3>2.2 채택 정책</h3>
+    <ul>
+      <li><strong>출처</strong> : BackgroundJobService.snapshot() 의 활성 ISO_REGISTRATION Job 들</li>
+      <li><strong>매칭</strong> : <code>metadata.osId == 현재 OSImage.id</code></li>
+      <li><strong>합성 시점</strong> : OSImageService 의 ISO 목록 조립 시점 (findById / findAllGrouped)</li>
+      <li><strong>중복 회피</strong> : DB 영속 직후 race 케이스 — 이미 같은 isoPath 의 ISO 가 base 에 있으면 placeholder 추가 안 함</li>
+      <li><strong>UX</strong> : opacity 0.55 + 회색 + "등록 중" 배지 + 액션 버튼 모두 비활성화 / 부재</li>
+      <li><strong>자동 reload</strong> : 기존 <code>bgjob:completed</code> 이벤트 (background-jobs.js) 활용 — type 이 ISO_REGISTRATION 인 경우 페이지 reload</li>
+    </ul>
+
+    <h3>2.3 추가 제약 (불가침)</h3>
+    <ul>
+      <li><strong>DB 변경 0</strong> — ISO entity 그대로</li>
+      <li>BackgroundJob 의 metadata 구조 그대로 — 이미 osId 보유</li>
+      <li>실패 (FAILED job) 시 placeholder 제거 — snapshot() 의 isActive() 필터로 자연 처리</li>
+      <li>새로고침 / 페이지 이동 후에도 등록중 표시 유지 — JVM 메모리에 background job 남아있는 동안 일관</li>
+    </ul>
+
+    <h3>2.4 LifecycleStage placeholder 처리</h3>
+    <p>ISOResponse 의 state 필드는 <code>LifecycleStage</code> enum. placeholder 는 아직 DB 영속 전이므로 일반 lifecycle 어휘로 표현 어색. 두 옵션 :</p>
+    <ul>
+      <li><strong>A</strong> : <code>state = ACTIVE</code> (영속 후 의도된 상태) + <code>inProgress=true</code> 로 시각 분리. 채택</li>
+      <li>B : LifecycleStage 에 <code>REGISTERING</code> 신규 상수 추가 — 영향 표면 큼, 본 슬라이스 외</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s3">
+  <summary>3. 안 비교 (A · B · C)</summary>
+  <div class="body">
+    <div class="compare-grid">
+      <div class="compare-card a">
+        <h4><span class="chip a">안 A ✓</span> in-memory BackgroundJob 합성</h4>
+        <ul>
+          <li>OSImageService 가 ISO 목록 조립 시 BackgroundJobService.snapshot() 합성</li>
+          <li><strong>DB 변경 0</strong></li>
+          <li>JVM 메모리 영속과 일관 (background job 자체가 in-memory)</li>
+          <li>JVM 재시작 시 placeholder 사라짐 — 재시작 자체로 진행 중이던 job 도 사라짐 → 일관</li>
+          <li>변경 표면 최소</li>
+        </ul>
+      </div>
+      <div class="compare-card b">
+        <h4><span class="chip b">안 B</span> ISO entity 에 status 컬럼</h4>
+        <ul>
+          <li>ISO.status enum (PENDING / ACTIVE / FAILED) 추가</li>
+          <li>등록 즉시 PENDING 으로 DB 영속, PERSIST_METADATA stage 에서 ACTIVE 전환</li>
+          <li>장점 : 영속 source of truth, 재시작 후에도 진행 추적</li>
+          <li>단점 : 스키마 변경 + 마이그레이션 + ISO 라이프사이클 영향 큼</li>
+          <li>FAILED placeholder 의 정리 (TTL) 추가 인프라 필요</li>
+        </ul>
+      </div>
+      <div class="compare-card c">
+        <h4><span class="chip c">안 C</span> 클라이언트 측 localStorage</h4>
+        <ul>
+          <li>사용자 브라우저에 등록 시작 기록 + 폴링</li>
+          <li>장점 : BE 변경 0</li>
+          <li>단점 : 다른 브라우저 / 탭 / 사용자 / 새 디바이스에서 안 보임</li>
+          <li>실패 / 완료 동기화 복잡</li>
+          <li>탈락</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>채택 = A</h3>
+    <ul>
+      <li>BackgroundJob 이 이미 in-memory 라 placeholder 도 같은 수명 cycle</li>
+      <li>변경 표면 최소 (ISOResponse +1 필드 + OSImageService 합성 헬퍼 + list.html 시각)</li>
+      <li>S5-8 의 알림 패널 + S5-12 의 목록 placeholder = 같은 데이터 출처로 양쪽 동기</li>
+      <li>다른 사용자도 같은 OS 보고 있으면 동일하게 placeholder 보임 — 운영 일관성</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s4">
+  <summary>4. URL / 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">4.1 URL 변경</h3>
+    <p>없음. 기존 <code>GET /management/os</code> + <code>POST /management/os/{osId}/iso</code> 그대로.</p>
+
+    <h3>4.2 데이터 흐름</h3>
+    <div class="seq">
+      <div class="actor user">User / FE</div>
+      <div class="actor be">OSImageService</div>
+      <div class="actor bg">BackgroundJobService</div>
+      <div class="step user">POST /management/os/{osId}/iso (파일 업로드)</div>
+      <div class="step be">prepareIsoRegistration → 파일 저장</div>
+      <div class="step bg">.</div>
+      <div class="step user">.</div>
+      <div class="step be">IsoRegistrationLauncher.startRegistration()</div>
+      <div class="step bg">job 등록 (subtitle=isoPath, metadata.osId=...)</div>
+      <div class="step user">.</div>
+      <div class="step be">jobId 응답 + redirect</div>
+      <div class="step bg">.</div>
+      <div class="step user">GET /management/os (목록 화면)</div>
+      <div class="step be">.</div>
+      <div class="step bg">.</div>
+      <div class="step user">.</div>
+      <div class="step be"><strong>S5-12 추가</strong> : assembleIsoResponses(image)<br>· visibleISOs(image) → from ISOResponse 매핑<br>· snapshot() 의 ISO_REGISTRATION + isActive() + metadata.osId 매칭 → placeholder 합성</div>
+      <div class="step bg">.</div>
+      <div class="step user">렌더 — 정상 ISO + 등록중 placeholder</div>
+      <div class="step be">.</div>
+      <div class="step bg">.</div>
+      <div class="step user">.</div>
+      <div class="step be">.</div>
+      <div class="step bg">runner 진행 → PERSIST_METADATA 후 ISO DB 영속</div>
+      <div class="step user">.</div>
+      <div class="step be">.</div>
+      <div class="step bg">job COMPLETED → bgjob:completed 이벤트</div>
+      <div class="step user">background-jobs.js 가 ISO_REGISTRATION type 의 completed 이벤트 → window.location.reload()</div>
+      <div class="step be">.</div>
+      <div class="step bg">.</div>
+      <div class="step user">.</div>
+      <div class="step be">재조립 — 이제 정상 ISO 영속됨 + 진행 중 placeholder 0</div>
+      <div class="step bg">.</div>
+    </div>
+  </div>
+</details>
+
+<details class="section" id="s5">
+  <summary>5. 도메인 모델</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">5.1 ISOResponse 변경</h3>
+<pre><code>public record ISOResponse(
+    Long id,                  // placeholder 시 null
+    String isoPath,
+    String description,
+    boolean isEnabled,
+    boolean isDeleted,
+    boolean isDeprecated,
+    LifecycleStage state,
+    boolean extracted,
+    List&lt;String&gt; providedEnvironmentCodes,
+    int providedPackageGroupCount,
+    IntegrityStatus integrityStatus,
+    boolean inProgress         // ← S5-12 신규
+) {
+    public static ISOResponse from(ISO entity) { /* inProgress=false */ }
+
+    /**
+     * S5-12 — 진행 중 ISO_REGISTRATION job 의 placeholder. DB 영속 전이라 id 는 null.
+     */
+    public static ISOResponse inProgress(String isoPath) {
+        return new ISOResponse(
+            null, isoPath, null,
+            false, false, false,
+            LifecycleStage.ACTIVE,    // 영속 후 의도된 상태 (시각은 inProgress 가 우선)
+            false,
+            List.of(),
+            0,
+            IntegrityStatus.NOT_VERIFIED,
+            true
+        );
+    }
+}</code></pre>
+
+    <h3>5.2 OSImageService.assembleIsoResponses 신규 헬퍼</h3>
+<pre><code>private List&lt;ISOResponse&gt; assembleIsoResponses(OSImage image, boolean includeDeleted) {
+    List&lt;ISOResponse&gt; base = visibleISOs(image.getIsos(), includeDeleted).stream()
+            .map(ISOResponse::from)
+            .collect(Collectors.toCollection(ArrayList::new));
+
+    Set&lt;String&gt; existingPaths = base.stream()
+            .map(ISOResponse::isoPath)
+            .collect(Collectors.toSet());
+
+    // S5-12 — 진행 중 ISO_REGISTRATION job 합성. metadata.osId 매칭, 중복 회피.
+    String osIdString = String.valueOf(image.getId());
+    backgroundJobService.snapshot().stream()
+            .filter(j -&gt; j.getType() == JobType.ISO_REGISTRATION)
+            .filter(j -&gt; j.getStatus().isActive())
+            .filter(j -&gt; osIdString.equals(j.getMetadata().get("osId")))
+            .filter(j -&gt; !existingPaths.contains(j.getSubtitle()))
+            .forEach(j -&gt; base.add(ISOResponse.inProgress(j.getSubtitle())));
+
+    return base;
+}</code></pre>
+
+    <h3>5.3 OSImageResponse.of overload</h3>
+<pre><code>// 기존 (변경 없음)
+public static OSImageResponse of(OSImage entity, List&lt;ISO&gt; visibleIsos, ...) { ... }
+
+// S5-12 — assembleIsoResponses 결과를 직접 받는 overload
+public static OSImageResponse of(OSImage entity, List&lt;ISOResponse&gt; assembledIsos,
+                                 List&lt;OSEnvironmentResponse&gt; envs,
+                                 List&lt;OSPackageGroupResponse&gt; grps,
+                                 boolean unused /* method 시그니처 구분용 */) {
+    // → 단순한 방식 — service 가 record canonical constructor 직접 호출
+}</code></pre>
+    <p>실제로는 OSImageResponse 변경 없이 service 가 record canonical constructor 직접 호출하는 게 더 깔끔. of() 시그니처 변경 회피.</p>
+  </div>
+</details>
+
+<details class="section" id="s6">
+  <summary>6. 수직 슬라이스 10 단계 + CP</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>본 plan html</td><td><span class="chip cp1">CP1</span></td></tr>
+        <tr><td>2</td><td>뷰 — list.html ISO accordion 의 <code>iso.inProgress</code> 분기 (회색 + opacity + "등록 중" 배지 + 액션 부재)</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>3</td><td>Controller — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>4</td><td>DTO — ISOResponse 에 <code>inProgress</code> 필드 + <code>inProgress(isoPath)</code> factory. <code>from(entity)</code> 는 inProgress=false default</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>5</td><td>Service 시그니처 — OSImageService 에 <code>assembleIsoResponses(image, includeDeleted)</code> 헬퍼. findById / findAllGrouped 가 visibleISOs 대신 본 헬퍼 사용. 새 OSImageResponse 의 record canonical constructor 직접 호출</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>6</td><td>Repository — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>7</td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>8</td><td>통합 테스트 :<br>· OSImageService.assembleIsoResponses 회귀 4 시나리오 (DB only / DB + active job / DB + completed job / 중복 회피)<br>· ISOResponse factory test 1<br>· list.html 회귀 (Thymeleaf render assertion) — 필요 시</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>9</td><td>스키마 — 없음. <code>./gradlew test</code> 전체 통과</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>10</td><td>브라우저 E2E — 사용자 단독. ISO 등록 시 placeholder 노출 + 등록 완료 시 자동 reload 정상 동작</td><td><span class="chip cp5">CP5</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3>6.1 background-jobs.js 의 자동 reload</h3>
+    <p>이미 background-jobs.js 가 <code>bgjob:completed</code> 이벤트를 document 에 dispatch. 각 페이지에서 type 별로 reload 가능. OS list 페이지에서 이벤트 listener 가 있는지 확인 필요.</p>
+<pre><code>// os-list.js 에 이런 listener 가 있다면 그대로 활용
+document.addEventListener('bgjob:completed', (e) =&gt; {
+    if (e.detail.type === 'ISO_REGISTRATION' || e.detail.type === 'COMPS_EXTRACTION') {
+        // reload 또는 partial refresh
+        window.location.reload();
+    }
+});</code></pre>
+    <p>이미 다른 슬라이스에서 동일 패턴 사용 중. 필요 시 본 슬라이스에서 보강.</p>
+  </div>
+</details>
+
+<details class="section" id="s7">
+  <summary>7. Step 8 통합 테스트 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">7.1 신규 시나리오 — 6</h3>
+    <ol>
+      <li>DB 에 ISO 만 있고 active job 0 → placeholder 0, base 그대로</li>
+      <li>DB 0 + active ISO_REGISTRATION job 1 (osId 매칭) → placeholder 1</li>
+      <li>DB 0 + active job 1 (osId 다름) → placeholder 0 (다른 OS 의 job 은 합성 안 됨)</li>
+      <li>DB 1 + active job 1 (isoPath 동일, race 케이스) → placeholder 0 (중복 회피)</li>
+      <li>DB 0 + COMPLETED job 1 → placeholder 0 (isActive() false 라 합성 안 됨)</li>
+      <li>DB 0 + FAILED job 1 → placeholder 0 (isActive() false)</li>
+    </ol>
+
+    <h3>7.2 ISOResponse factory test — 1</h3>
+    <ul>
+      <li><code>ISOResponse.inProgress(isoPath)</code> → id=null, inProgress=true, 다른 필드 default</li>
+    </ul>
+
+    <h3>7.3 회귀</h3>
+    <ul>
+      <li>OSImageServiceTest 의 findById / findAllGrouped 기존 시나리오 — 변경 없음 (placeholder 0)</li>
+      <li>전체 <code>./gradlew test</code></li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s8">
+  <summary>8. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">8.1 신규 예외 — 없음</h3>
+    <p>본 슬라이스는 응답 합성 로직만. 예외 계층 변동 0.</p>
+
+    <h3>8.2 race condition 회피</h3>
+    <ul>
+      <li>BackgroundJob 의 PERSIST_METADATA stage 완료 → ISO entity 영속 → snapshot() 의 isActive() false → placeholder 제거. 그러나 :
+        <ul>
+          <li>그 사이 사용자 요청이 들어오면 base 에 DB 영속된 ISO + snapshot 의 active job 둘 다 존재 가능 (race)</li>
+          <li>중복 회피 : <code>existingPaths.contains(j.getSubtitle())</code> 체크로 같은 isoPath 인 placeholder 합성 안 함</li>
+        </ul>
+      </li>
+      <li>BackgroundJob 의 COMPLETED → COMPLETED 의 keep-after-terminal-ms 동안 snapshot 에 남음. 그러나 isActive() false 이므로 placeholder 안 됨</li>
+    </ul>
+
+    <h3>8.3 다중 동시 등록</h3>
+    <p>한 OS 에 동시에 여러 ISO 등록 (예: dvd.iso + minimal.iso) → 모두 placeholder 추가. 정렬은 별도 처리 안 함 (snapshot() 의 시간 역순).</p>
+  </div>
+</details>
+
+<details class="section" id="s9">
+  <summary>9. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">9.1 스코프 경계</h3>
+    <ul>
+      <li>BIOS / BMC / Subprogram 의 동일 패턴 적용 — 본 슬라이스 외 (별 슬라이스 후보 시 동일 헬퍼 재사용)</li>
+      <li>placeholder 정렬 / 그룹화 / 진행률 % 표시 — 본 슬라이스 외</li>
+      <li>실패한 job 의 retry 버튼 — 본 슬라이스 외</li>
+    </ul>
+
+    <h3>9.2 BIOS / BMC / Subprogram 확장 후보</h3>
+    <p>BIOS / BMC / Subprogram 도 동일 background job 패턴 (BIOS_UPLOAD 등 없지만 verification 등) 이 있을 수 있음. 본 슬라이스 패턴 (BackgroundJobService.snapshot() 합성) 을 그대로 재사용 가능 — 별 슬라이스에서 적용.</p>
+
+    <h3>9.3 자동 reload 정책</h3>
+    <p>ISO_REGISTRATION 의 PERSIST_METADATA 완료 시 page reload. 그러나 :</p>
+    <ul>
+      <li>사용자가 다른 작업 중일 수 있음 (입력 / 스크롤 등) → reload 가 방해 가능성</li>
+      <li>대안 : reload 대신 partial AJAX refresh — 본 슬라이스 외 향후 보강</li>
+      <li>현재는 reload 가 단순 + 일관 — S5-12 채택</li>
+    </ul>
+
+    <h3>9.4 CLAUDE.md 영향</h3>
+    <p>없음. background job 합성은 service 내부 구현이며, 아키텍처 원칙 / 네이밍에 영향 없음.</p>
+  </div>
+</details>
+
+<details class="section" id="s10">
+  <summary>10. Verification 체크리스트</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">10.1 빌드 / 테스트</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> <code>./gradlew compileJava compileTestJava</code> BUILD SUCCESSFUL</label></li>
+      <li><label><input type="checkbox"> <code>./gradlew test</code> 전체 통과 + 신규 7 시나리오</label></li>
+      <li><label><input type="checkbox"> <code>./gradlew bootRun</code> 부팅 smoke</label></li>
+    </ul>
+
+    <h3>10.2 기능 (manual, Step 10)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> Rocky 9 ISO 등록 → 즉시 OS 목록에 placeholder "등록 중" 표시</label></li>
+      <li><label><input type="checkbox"> 알림 패널에 ISO_REGISTRATION + COMPS_EXTRACTION (S5-7) 두 job 표시</label></li>
+      <li><label><input type="checkbox"> 등록 완료 (PERSIST_METADATA 완료) 시 자동 reload → placeholder 가 정상 ISO 로 교체</label></li>
+      <li><label><input type="checkbox"> 등록 실패 (의도적 유도) 시 placeholder 자동 제거</label></li>
+      <li><label><input type="checkbox"> 동시 다중 ISO 등록 → 모두 placeholder 표시</label></li>
+      <li><label><input type="checkbox"> 다른 브라우저 / 탭에서 같은 OS 조회 → 동일 placeholder 보임</label></li>
+    </ul>
+
+    <h3>10.3 회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"> 기존 ISO 목록 회귀 — 정상 ISO 표시 그대로</label></li>
+      <li><label><input type="checkbox"> 삭제됨 / Deprecated ISO 표시 그대로</label></li>
+      <li><label><input type="checkbox"> ISO 액션 (토글 / 삭제 / 무결성 검증) 정상 동작</label></li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s11">
+  <summary>11. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">11.1 수정</h3>
+    <ul>
+      <li><code>src/main/java/.../management/os/dto/response/ISOResponse.java</code> — <code>inProgress</code> 필드 + <code>inProgress(isoPath)</code> factory</li>
+      <li><code>src/main/java/.../management/os/service/OSImageService.java</code> — <code>assembleIsoResponses</code> 헬퍼 + findById / findAllGrouped 갱신</li>
+      <li><code>src/main/resources/templates/management/os/list.html</code> — ISO accordion 의 <code>iso.inProgress</code> 분기</li>
+    </ul>
+
+    <h3>11.2 신규 테스트</h3>
+    <ul>
+      <li>OSImageServiceTest 또는 신규 <code>OSImageServiceIsoPlaceholderTest</code> — 6 시나리오</li>
+      <li>ISOResponse factory test 1 (기존 dto 테스트가 있다면 추가)</li>
+    </ul>
+
+    <h3>11.3 변경 없음</h3>
+    <ul>
+      <li>ISO entity / OSImage entity / Repository / Controller</li>
+      <li>BackgroundJobService / BackgroundJob / JobType / JobStatus</li>
+      <li>IsoRegistrationLauncher / IsoRegistrationRunner</li>
+      <li>background-jobs.js (이미 bgjob:completed dispatch 가 있음 — 페이지측 listener 추가만)</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s12">
+  <summary>12. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-12</strong> — Step 10 통과 시 종료</li>
+      <li><strong>S5 잔존</strong> : 없음 — S5-1 ~ S5-12 모든 sub-slice 완료. <strong>G-S5 통합 게이트</strong> 진입 가능</li>
+      <li><strong>S5-12 후속 후보</strong>
+        <ul>
+          <li>BIOS / BMC / Subprogram 의 동일 패턴 적용</li>
+          <li>placeholder 진행률 % 표시 (chunk progress bar 와 동기)</li>
+          <li>reload 대신 partial AJAX refresh</li>
+          <li>실패 job 의 재시도 버튼</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="callout success">
+      <strong>완료 조건</strong> OS ISO 등록 → 목록에 placeholder 즉시 표시 → background job 완료 → 자동 reload → 정상 ISO 로 교체. <code>./gradlew test</code> 전부 통과.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

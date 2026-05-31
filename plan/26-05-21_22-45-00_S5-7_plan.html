@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-7 Plan — OS ISO 등록 후 작업 자동화 (사용자 상의 필요)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.q { background: var(--red-bg); color: var(--red); }
+  .chip.a { background: var(--green-bg); color: var(--green); }
+  .chip.b { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.c { background: var(--blue-bg); color: var(--blue); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  .hidden { display: none !important; }
+
+  /* 결정 사항 (D1~D4) 카드 */
+  .decision { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+    margin-bottom: 12px; }
+  .decision h4 { margin: 0 0 8px; font-size: 14px; }
+  .decision-options { display: grid; gap: 8px; }
+  .decision-opt { padding: 8px 12px; border: 1px solid var(--border-soft); border-radius: 4px; font-size: 13px; }
+  .decision-opt.a { border-left: 3px solid var(--green); }
+  .decision-opt.b { border-left: 3px solid var(--yellow); }
+  .decision-opt.c { border-left: 3px solid var(--blue); }
+  .decision-opt strong { display: block; margin-bottom: 4px; }
+
+  /* 3 안 비교 */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .compare-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .compare-card h4 { margin: 0 0 8px; font-size: 14px; font-family: var(--mono); }
+  .compare-card.a { border-color: var(--orange); border-width: 2px; background: var(--orange-bg); }
+  .compare-card.a h4 { color: var(--orange); }
+  .compare-card.b { border-color: var(--yellow); border-width: 2px; background: var(--yellow-bg); }
+  .compare-card.b h4 { color: var(--yellow); }
+  .compare-card.c { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .compare-card.c h4 { color: var(--green); }
+  .compare-card ul { margin: 4px 0; padding-left: 18px; }
+  .compare-card li { font-size: 12px; line-height: 1.55; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-7 — OS ISO 등록 후 작업 자동화 (CP1 사용자 상의 대기)</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21 22:45</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-11 완료 (진입점 자동 탐지 정합화)</strong></span>
+    <span>상태 : <span class="chip q">CP1 사용자 상의 대기 — 코드 변경 0</span></span>
+    <span>특이 : <strong>Notion 본문 "진입 전 개발자 상의 필수"</strong></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s0">🚨 CP1 사용자 결정 사항 (4 항목)</a></li>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항 (잠정)</a></li>
+    <li><a href="#s3">3. URL / 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오 (잠정)</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files (잠정)</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색…">
+
+<!-- ============================== §0 ============================== -->
+<details class="section" id="s0" open>
+  <summary>🚨 CP1 사용자 결정 사항 (코드 진입 전 합의 필요)</summary>
+  <div class="body">
+    <div class="callout crit">
+      <strong>본 슬라이스는 CP1 plan 산출까지만</strong>. Notion 본문에 "진입 전 개발자와 구체적 상의 진행 필수" 명시. 사용자 합의 없이 코드 변경 진행 안 함. 아래 4 결정 사항 확정 시 CP2 진입.
+    </div>
+
+    <div class="decision">
+      <h4><span class="chip q">D1</span> 자동화 트리거 시점 — <code>create()</code> vs <code>addIso()</code></h4>
+      <p>Notion 본문 예시는 <code>OSImageService.create()</code> 의 step 3 직후에 자동 작업을 끼우는 흐름이었다. 그러나 :</p>
+      <ul>
+        <li><code>create()</code> → 빈 OSImage 메타데이터만 생성. ISO 파일은 없는 상태 → comps.xml 자동 추출 <strong>불가능</strong></li>
+        <li><code>addIso()</code> → 실제 ISO 파일 등록. comps.xml 추출 가능 ← <strong>의도된 트리거 시점일 가능성 높음</strong></li>
+      </ul>
+      <div class="decision-options">
+        <div class="decision-opt a">
+          <strong>A. <code>addIso()</code> 직후 자동 트리거 (권장)</strong>
+          ISO 등록 완료 → 동기 응답 후 background Job 으로 comps 추출 시작. 실제 데이터 추출이 의미 있는 시점.
+        </div>
+        <div class="decision-opt b">
+          <strong>B. <code>create()</code> 직후 (Notion 본문 그대로)</strong>
+          OS 이미지 생성 즉시 작업 등록 — 그러나 ISO 없으면 noop 또는 skip 처리. 사용자 의도와 일치할 수도 (예: 향후 Ubuntu 의 "OS 메타 등록만으로 가능한 자동화" 가 있다면).
+        </div>
+        <div class="decision-opt c">
+          <strong>C. 두 곳 모두 — 각 작업 별 트리거 시점 분리</strong>
+          comps 추출 = addIso 직후 / 다른 작업 (예: Ubuntu cloud-init 템플릿 생성) = create 직후. enum / strategy 가 자체적으로 트리거 시점 명시.
+        </div>
+      </div>
+    </div>
+
+    <div class="decision">
+      <h4><span class="chip q">D2</span> 분기 방식 — Notion 본문의 if-then vs CLAUDE.md 다형성 원칙</h4>
+      <p>Notion 본문이 보인 코드 :</p>
+<pre><code>if (request.osName().hasPostCreationTask()) {
+    // ROCKY_LINUX / CENTOS → 환경·패키지 추출
+    // UBUNTU → 특정 작업
+    // ...
+}</code></pre>
+      <p>그러나 CLAUDE.md "조건 분기문 무분별 확장 절대 지양 (불가침)" 원칙과 충돌. 같은 if-else 가 신규 OS 추가 시마다 자라 silent 누락 / 회귀 진원지가 됨. 3 안 비교 :</p>
+      <div class="compare-grid">
+        <div class="compare-card a">
+          <h4><span class="chip a">A. OSName abstract method</span></h4>
+          <ul>
+            <li><code>OSName.executePostCreationTask(OSImage, Context)</code> abstract 추가</li>
+            <li>5 상수 각각 자체 구현</li>
+            <li>장점 : 새 OS 추가 시 컴파일러가 강제 구현 — 누락 불가</li>
+            <li>단점 : enum 안에 Service 의존 (Context 객체로 우회 가능)</li>
+          </ul>
+        </div>
+        <div class="compare-card b">
+          <h4><span class="chip b">B. OSFamily abstract method</span></h4>
+          <ul>
+            <li><code>OSFamily.executePostCreationTask</code> abstract</li>
+            <li>3 상수 (RHEL_BASED / DEBIAN_BASED / WINDOWS_BASED) 구현</li>
+            <li>장점 : 같은 family 의 다중 OSName 공통 처리 자연</li>
+            <li>단점 : OS 별 미세 차이 (Rocky vs CentOS) 표현 어려움 — 그러나 본 요구에선 RHEL_BASED 묶음 적절</li>
+          </ul>
+        </div>
+        <div class="compare-card c">
+          <h4><span class="chip c">C. PostCreationTaskStrategy 빈 (권장)</span></h4>
+          <ul>
+            <li><code>PostCreationTaskStrategy</code> 인터페이스 — <code>supports(OSFamily)</code> + <code>execute(OSImage, ISO)</code></li>
+            <li>Spring 빈 등록 — JobLauncher / CompsExtractionLauncher 등 의존 주입 자연</li>
+            <li>장점 : 본 프로젝트 패턴 (CompsExtractorStrategy 와 일관)</li>
+            <li>단점 : 빈 추가 — 상대적으로 보일러플레이트 좀 더</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top: 8px;"><strong>plan 작성자 권장 = 안 C</strong>. 본 프로젝트의 <code>CompsExtractorStrategy</code> 패턴 (이미 존재) 과 일관. 본 슬라이스 진입 후 자연스러운 확장 (Ubuntu / Windows 의 자동 작업 추가 시) 가능.</p>
+    </div>
+
+    <div class="decision">
+      <h4><span class="chip q">D3</span> 자동 추출 실패 시 정책</h4>
+      <p>RHEL_BASED ISO 등록 후 자동 comps 추출이 실패하면 :</p>
+      <div class="decision-options">
+        <div class="decision-opt a">
+          <strong>A. ISO 등록 자체 rollback</strong>
+          DB 트랜잭션과 background Job 결과를 묶어 둘 다 fail-fast. 안전하지만 ISO 업로드 완료 후 추출 실패만으로 자원 등록 자체가 무효화되는 강한 강제력 — 사용자 입장에서 가혹할 수 있음.
+        </div>
+        <div class="decision-opt b">
+          <strong>B. 등록 성공 + Job 실패 알림 (권장)</strong>
+          ISO 등록은 성공 (영속됨). comps 추출 Job 은 실패 상태로 종료 + 알림 패널에 "환경·패키지 추출 실패" 노출. 사용자가 수동 재추출 또는 무시 가능. 본 프로젝트의 기존 background Job 사용성과 일관.
+        </div>
+        <div class="decision-opt c">
+          <strong>C. silent 무시 + 로그만</strong>
+          알림 없이 서버 로그에만 기록. 비추천 — UX 측 모호함 누적.
+        </div>
+      </div>
+    </div>
+
+    <div class="decision">
+      <h4><span class="chip q">D4</span> 비RHEL OS 의 자동 작업 — 본 슬라이스 범위 결정</h4>
+      <p>Notion 본문 : "UBUNTU 였을 경우 특정 작업 등 각 OS 에 맞는 추가 작업 진행". 그러나 :</p>
+      <ul>
+        <li>현재 <code>UbuntuCompsExtractor</code> 가 archive 에 없으며 (CLAUDE.md 명시), 자동화할 의미 있는 작업 정의 불명확</li>
+        <li>Windows 계열은 enum 에만 존재 — UI 활성화 안 됨 (Stage 3 PXE 재도입 시)</li>
+      </ul>
+      <div class="decision-options">
+        <div class="decision-opt a">
+          <strong>A. RHEL_BASED 만 자동화 (권장)</strong>
+          본 슬라이스 = ROCKY_LINUX / CENTOS 의 comps 추출 자동화만. Ubuntu / Windows 는 strategy 인터페이스만 두고 noop 구현. 향후 자동 작업이 정의되면 별 슬라이스.
+        </div>
+        <div class="decision-opt b">
+          <strong>B. Ubuntu 자동 작업도 같이 정의</strong>
+          plan 단계에서 Ubuntu 의 자동 작업 구체화 → 해당 추출기 신규 구현. 변경 표면 확장.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <strong>요청</strong> 위 D1~D4 결정 후 plan v2 산출. CP1 승인 시 CP2 진입 (코드 작업 시작). 결정이 v3 / v3-1 등 반복되어도 OK — 본 슬라이스는 코드 변경 0 인 plan 단계.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">1.1 현재 ISO 등록 흐름</h3>
+    <ol>
+      <li>사용자 ISO 등록 폼 제출 → <code>OSImageController.addIso(...)</code></li>
+      <li><code>OSImageService.addIso(...)</code> 가 ISO 파일 저장 + 메타데이터 영속화 + 마커 발급</li>
+      <li><code>IsoRegistrationLauncher</code> 가 BackgroundJob 등록 (ISO_REGISTRATION) + IsoRegistrationRunner 가 hash 계산 / 중복 검사 / 메타데이터 저장 3 단계 비동기</li>
+      <li><strong>이후 자동 작업 없음</strong> — 사용자가 별도로 환경·패키지 추출 버튼 클릭해야 comps 작업 시작 (<code>POST /management/os/{osId}/iso/{isoId}/extract</code>)</li>
+    </ol>
+
+    <h3>1.2 현재 OSName / OSFamily enum</h3>
+<pre><code>public enum OSName {
+    UBUNTU("Ubuntu", OSFamily.DEBIAN_BASED),
+    CENTOS("CentOS", OSFamily.RHEL_BASED),
+    ROCKY_LINUX("Rocky Linux", OSFamily.RHEL_BASED),
+    WINDOWS("Windows", OSFamily.WINDOWS_BASED),
+    WINDOWS_SERVER("Windows Server", OSFamily.WINDOWS_BASED);
+    ...
+}
+
+public enum OSFamily {
+    RHEL_BASED, DEBIAN_BASED, WINDOWS_BASED
+}</code></pre>
+
+    <h3>1.3 현재 Comps 추출 흐름 (수동 트리거)</h3>
+    <ul>
+      <li><code>CompsExtractionLauncher.startExtraction(...)</code> — 사용자 클릭 시 진입점</li>
+      <li><code>CompsExtractionService.extractAsync(jobId, ...)</code> — 4 단계 (PREPARE_ISO / SCAN_REPO / PARSE_COMPS / MERGE_SAVE)</li>
+      <li><code>RHELCompsExtractor</code> — Rocky / CentOS 구현. Ubuntu 추출기 부재</li>
+    </ul>
+
+    <h3>1.4 자동화 가치</h3>
+    <ul>
+      <li>관리자가 ISO 등록 → 별도 화면에서 "환경·패키지 추출" 클릭 → 결과 확인 — 2 단계 사용자 액션</li>
+      <li>자동화 후 : ISO 등록 → 추출 진행률이 알림 패널에 자동 노출 → 결과 적용 — 1 단계로 축소</li>
+      <li>특히 RHEL 계열 (Rocky / CentOS) 은 추출이 거의 필수 — 자동화 효과 큼</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2">
+  <summary>2. 요구사항 (잠정 — D1~D4 확정 후 갱신)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">2.1 Notion 명세</h3>
+    <blockquote style="border-left: 3px solid var(--text-muted); padding-left: 12px; color: var(--text-muted); margin: 8px 0; font-size: 13px;">
+      ISO 이미지 등록 이후 자연히 하게 되는 작업을 자동으로 하도록 수정. 가령 Rocky Linux, CentOS 의 경우 설치 환경/패키지 그룹 추출 작업을 자동으로 진행하도록 변경. <strong>진입 전 개발자와 구체적 상의 진행 필수</strong>.
+    </blockquote>
+
+    <h3>2.2 잠정 정책 (D1~D4 권장안 기준)</h3>
+    <ul>
+      <li><strong>트리거</strong> : <code>addIso()</code> 직후 (D1 권장 A)</li>
+      <li><strong>분기 방식</strong> : <code>PostCreationTaskStrategy</code> 인터페이스 + Spring 빈 (D2 권장 C)</li>
+      <li><strong>실패 정책</strong> : ISO 등록 성공 + Job 실패 알림 (D3 권장 B)</li>
+      <li><strong>범위</strong> : RHEL_BASED 만 자동 (D4 권장 A). Ubuntu / Windows 는 noop strategy</li>
+    </ul>
+
+    <h3>2.3 신규 PostCreationTaskStrategy 인터페이스 (잠정)</h3>
+<pre><code>public interface PostCreationTaskStrategy {
+    boolean supports(OSFamily family);
+    /**
+     * 비동기 실행 — 메서드 자체는 jobId 등록 + Runner 트리거만 하고 즉시 반환.
+     * Job 실패 시 알림 패널에 노출됨.
+     */
+    String trigger(OSImage osImage, ISO iso);
+}
+
+@Component
+public class RhelPostCreationTaskStrategy implements PostCreationTaskStrategy {
+    private final CompsExtractionLauncher compsExtractionLauncher;
+
+    public boolean supports(OSFamily family) {
+        return family == OSFamily.RHEL_BASED;
+    }
+    public String trigger(OSImage osImage, ISO iso) {
+        return compsExtractionLauncher.startExtraction(osImage, iso);
+    }
+}
+
+@Component
+public class NoopPostCreationTaskStrategy implements PostCreationTaskStrategy {
+    public boolean supports(OSFamily family) {
+        return family == OSFamily.DEBIAN_BASED || family == OSFamily.WINDOWS_BASED;
+    }
+    public String trigger(OSImage osImage, ISO iso) {
+        return null;  // 자동 작업 없음
+    }
+}</code></pre>
+
+    <h3>2.4 OSImageService.addIso 변경 (잠정)</h3>
+<pre><code>@Transactional
+public Long addIso(Long osImageId, ISOCreateRequest request, ...) {
+    // ... 기존 ISO 영속화 + 마커 발급 + IsoRegistrationLauncher 호출 ...
+    Long isoId = persistedIso.getId();
+
+    // S5-7 — 자동 작업 트리거 (PostCreationTaskStrategy 패턴, OS Family 기준)
+    postCreationTaskStrategies.stream()
+        .filter(s -> s.supports(osImage.getOsName().getFamily()))
+        .findFirst()
+        .ifPresent(s -> s.trigger(osImage, persistedIso));
+
+    return isoId;
+}</code></pre>
+    <p>여기서 <code>postCreationTaskStrategies</code> 는 <code>List&lt;PostCreationTaskStrategy&gt;</code> 로 Spring 이 자동 주입.</p>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3">
+  <summary>3. URL / 데이터 흐름 (잠정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">3.1 URL 변경</h3>
+    <p>없음. 기존 <code>POST /management/os/{osId}/iso</code> 의 응답에 변화 없음. 자동 트리거된 Job 은 알림 패널에서 확인.</p>
+
+    <h3>3.2 데이터 흐름 (잠정)</h3>
+<pre><code>사용자 → POST /management/os/{osId}/iso (ISO 등록)
+         ↓
+       OSImageService.addIso()
+         · 메타데이터 영속
+         · 마커 발급
+         · IsoRegistrationLauncher.start() → BackgroundJob ISO_REGISTRATION 등록
+         · S5-7 신규 : PostCreationTaskStrategy.trigger() → CompsExtractionLauncher.start()
+                                                          → BackgroundJob COMPS_EXTRACTION 등록
+         ↓
+       응답 (jobId of ISO_REGISTRATION)
+         ↓
+       FE 알림 패널에 두 Job 모두 노출
+</code></pre>
+
+    <h3>3.3 두 Job 의 직렬화</h3>
+    <p>ISO_REGISTRATION 이 끝나기 전에 COMPS_EXTRACTION 이 시작되면 경합 발생 가능 — ISO 파일이 아직 hash 계산 / 중복 검사 중일 수 있음. 결정 사항 :</p>
+    <ul>
+      <li><strong>A. 두 Job 병렬 (현재 잠정안)</strong> : COMPS_EXTRACTION 의 PREPARE_ISO 단계가 파일 존재 + 읽기 가능성 확인하므로 ISO_REGISTRATION 의 hash 계산과 병렬 가능</li>
+      <li><strong>B. ISO_REGISTRATION 완료 후 COMPS_EXTRACTION 트리거</strong> : <code>bgjob:completed</code> 이벤트 또는 launcher 안에서 동기 대기. 더 안전하지만 추가 인프라 필요</li>
+    </ul>
+    <div class="callout warn">
+      <strong>D5 추가 결정 사항</strong> 두 Job 직렬화 정책. CP1 사용자 확인 추가 항목.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4">
+  <summary>4. 도메인 모델 (잠정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">4.1 신규</h3>
+    <ul>
+      <li><code>PostCreationTaskStrategy</code> (interface) — supports(OSFamily) / trigger(OSImage, ISO)</li>
+      <li><code>RhelPostCreationTaskStrategy</code> (component) — RHEL_BASED 처리, CompsExtractionLauncher 의존</li>
+      <li><code>NoopPostCreationTaskStrategy</code> (component) — DEBIAN_BASED / WINDOWS_BASED noop</li>
+    </ul>
+
+    <h3>4.2 수정</h3>
+    <ul>
+      <li><code>OSImageService</code> — addIso 직후 strategy 호출 추가, 의존성 주입 <code>List&lt;PostCreationTaskStrategy&gt;</code></li>
+    </ul>
+
+    <h3>4.3 변경 없음</h3>
+    <ul>
+      <li>OSName / OSFamily enum (분기는 strategy 가 supports() 로 흡수)</li>
+      <li>CompsExtractionLauncher / CompsExtractionService — 기존 그대로 재사용</li>
+      <li>BackgroundJobService / JobType (COMPS_EXTRACTION 그대로)</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. 수직 슬라이스 10 단계 + CP (잠정)</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>본 plan html — 사용자 D1~D5 확정 후 v2 갱신</td><td><span class="chip cp1">CP1 ← 현재 단계</span></td></tr>
+        <tr><td>2</td><td>뷰 — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>3</td><td>Controller — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>4</td><td>DTO — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>5</td><td>Service 시그니처 — PostCreationTaskStrategy 인터페이스 + 2 구현 + OSImageService 의존성 주입 추가</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>6</td><td>Repository — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>7</td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>8</td><td>통합 테스트 — OSImageServiceTest 에 addIso 후 strategy 호출 + RhelPostCreationTaskStrategyTest + NoopPostCreationTaskStrategyTest</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>9</td><td>스키마 — 없음. <code>./gradlew test</code> 전체 통과</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>10</td><td>브라우저 E2E — Rocky 9 ISO 등록 → 알림 패널에 두 Job (ISO_REGISTRATION + COMPS_EXTRACTION) 자동 노출 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. Step 8 통합 테스트 시나리오 (잠정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">6.1 시나리오 수 (잠정 6)</h3>
+    <ul>
+      <li>성공 (3) :
+        <ul>
+          <li>Rocky Linux ISO 등록 → strategy.supports(RHEL_BASED) = true → trigger 호출 검증</li>
+          <li>CentOS ISO 등록 → 동일</li>
+          <li>Ubuntu ISO 등록 → Noop strategy 가 호출되어 trigger 가 null 반환 (자동 작업 없음)</li>
+        </ul>
+      </li>
+      <li>경계 (2) :
+        <ul>
+          <li>WINDOWS / WINDOWS_SERVER — Noop strategy</li>
+          <li>strategy 가 null 반환 시 ISO 등록 자체는 성공</li>
+        </ul>
+      </li>
+      <li>실패 (1) :
+        <ul>
+          <li>RhelPostCreationTaskStrategy.trigger 가 예외 throw 시 → ISO 등록 트랜잭션 영향 없음 (D3 안 B 정책)</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>6.2 회귀 대상</h3>
+    <ul>
+      <li>OSImageServiceTest — addIso 기존 시나리오 그대로 통과</li>
+      <li>CompsExtractionServiceTest — 기존 그대로</li>
+      <li>전체 <code>./gradlew test</code></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">7.1 신규 예외</h3>
+    <p>없음. trigger 실패 시 기존 BackgroundJob 의 FAILED 상태로 흡수.</p>
+
+    <h3>7.2 strategy 실패 격리</h3>
+    <p>OSImageService.addIso 내부에서 strategy.trigger() 호출이 RuntimeException 던질 경우 — 트랜잭션 rollback 막기 위해 try-catch + 로그 + 알림 토스트. ISO 등록 자체는 영속됨.</p>
+<pre><code>try {
+    postCreationTaskStrategies.stream()
+        .filter(s -&gt; s.supports(osImage.getOsName().getFamily()))
+        .findFirst()
+        .ifPresent(s -&gt; s.trigger(osImage, persistedIso));
+} catch (RuntimeException e) {
+    log.error("[S5-7] 자동 작업 트리거 실패 (ISO 등록은 영속됨). osImage={}, iso={}",
+              osImage.getId(), persistedIso.getId(), e);
+    // 별도 BackgroundJob 도 등록 가능 — "자동 작업 트리거 실패" 알림
+}</code></pre>
+
+    <h3>7.3 회귀 영향</h3>
+    <ul>
+      <li>OSImageServiceTest 의 addIso 시나리오 — strategy 의존성 주입 mock 필요</li>
+      <li>전체 <code>./gradlew test</code></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">8.1 스코프 경계</h3>
+    <ul>
+      <li>Ubuntu / Windows 의 자동 작업 — 본 슬라이스 외 (D4 권장 A). 향후 별 슬라이스</li>
+      <li>ISO_REGISTRATION + COMPS_EXTRACTION 두 Job 직렬화 (D5) — CP1 결정 후 반영</li>
+      <li>UI 측 "자동 작업 진행 중" 별도 UX — 본 슬라이스 외 (알림 패널 그대로 사용)</li>
+    </ul>
+
+    <h3>8.2 CLAUDE.md 원칙 준수</h3>
+    <ul>
+      <li>"조건 분기문 무분별 확장 금지" — strategy + supports() 다형성으로 흡수 ✓</li>
+      <li>"중복 코드 금지" — RhelCompsExtractor / Launcher 기존 인프라 그대로 재사용 ✓</li>
+      <li>"Primitive Obsession 금지" — OSName / OSFamily enum 이미 도메인 타입화 ✓</li>
+    </ul>
+
+    <h3>8.3 D5 — 두 Job 직렬화 정책 (추가 결정 사항)</h3>
+    <p>§3.3 에서 도출된 추가 결정 사항. CP1 사용자 확인 추가 항목 :</p>
+    <ul>
+      <li><strong>A. 병렬 (잠정 권장)</strong> — COMPS_EXTRACTION 의 PREPARE_ISO 단계가 파일 존재 / 읽기 가능성 확인 → 안전. 사용자가 알림 패널에서 두 Job 진행 동시 관찰 가능</li>
+      <li><strong>B. 직렬</strong> — ISO_REGISTRATION 완료 후 COMPS_EXTRACTION 트리거. <code>bgjob:completed</code> 이벤트 의존 또는 Job dependency 인프라 신규 필요 — 본 슬라이스 외 변경 표면</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification 체크리스트</summary>
+  <div class="body">
+    <ul>
+      <li>[ ] D1~D5 사용자 확정 → plan v2</li>
+      <li>[ ] <code>./gradlew compileJava compileTestJava</code> BUILD SUCCESSFUL</li>
+      <li>[ ] <code>./gradlew test</code> 전체 통과 + 신규 6 시나리오</li>
+      <li>[ ] Rocky 9 ISO 등록 manual 시 알림 패널에 두 Job 자동 노출</li>
+      <li>[ ] Ubuntu ISO 등록 시 ISO_REGISTRATION 만 노출 (COMPS_EXTRACTION 없음)</li>
+      <li>[ ] strategy 의도적 실패 시 ISO 등록은 정상 영속 + 별 알림</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files (잠정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">10.1 신규</h3>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/management/os/service/PostCreationTaskStrategy.java</code> (interface)</li>
+      <li><code>src/main/java/com/example/serverprovision/management/os/service/RhelPostCreationTaskStrategy.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/management/os/service/NoopPostCreationTaskStrategy.java</code></li>
+      <li><code>src/test/java/com/example/serverprovision/management/os/service/RhelPostCreationTaskStrategyTest.java</code></li>
+      <li><code>src/test/java/com/example/serverprovision/management/os/service/NoopPostCreationTaskStrategyTest.java</code></li>
+    </ul>
+
+    <h3>10.2 수정</h3>
+    <ul>
+      <li><code>OSImageService.java</code> — strategy 의존성 주입 + addIso 내부 strategy.trigger 호출</li>
+      <li><code>OSImageServiceTest.java</code> — addIso 시나리오에 strategy mock + 회귀 시나리오</li>
+    </ul>
+
+    <h3>10.3 유지 (변경 0)</h3>
+    <ul>
+      <li>OSName / OSFamily enum</li>
+      <li>CompsExtractionLauncher / CompsExtractionService / RHELCompsExtractor</li>
+      <li>BackgroundJobService / JobType</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>CP1 사용자 확정</strong> — D1~D5 결정 → plan v2 산출 → CP2 진입</li>
+      <li><strong>G-S5-7</strong> — Step 10 통과 시 종료</li>
+      <li><strong>S5 묶음 전체 종료</strong> — S5-7 통과로 S5-1 ~ S5-11 11 sub-slice 모두 마감. <strong>G-S5 통합 게이트</strong> 가능</li>
+      <li><strong>S5-7 후속 후보</strong>
+        <ul>
+          <li>Ubuntu 자동 작업 정의 + UbuntuCompsExtractor 구현 (별 슬라이스)</li>
+          <li>Windows / Server 의 자동 작업 (Stage 3 PXE 진입 시점)</li>
+          <li>두 Job 직렬화 인프라 (Job dependency)</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="callout success">
+      <strong>완료 조건 (CP1)</strong> D1~D5 사용자 확정 + 본 plan html v2 산출 + 사용자 승인. 코드 작업 0.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

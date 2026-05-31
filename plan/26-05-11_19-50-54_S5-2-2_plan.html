@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-2-2 Plan — hard-delete 자원명 입력 (v2)</title>
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --card: #ffffff;
+    --text: #1f2328;
+    --text-muted: #57606a;
+    --border: #d0d7de;
+    --border-soft: #eaecef;
+    --blue: #0075de;
+    --blue-bg: #e6f0ff;
+    --orange: #dd5b00;
+    --orange-bg: rgba(221,91,0,0.08);
+    --yellow: #C29343;
+    --yellow-bg: #FAF3DD;
+    --green: #1aae39;
+    --green-bg: rgba(26,174,57,0.10);
+    --red: #cf222e;
+    --red-bg: rgba(207,34,46,0.08);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  header.page-header {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 24px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 {
+    margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.2px;
+  }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-muted); }
+  .meta .meta-item strong { color: var(--text); font-weight: 600; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 24px;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  nav.toc {
+    position: sticky; top: 108px;
+    align-self: start;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 4px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 4px 6px; border-radius: 4px; transition: 0.1s; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button {
+    border: 1px solid var(--border); background: var(--card);
+    padding: 4px 8px; font-size: 12px; border-radius: 4px;
+    cursor: pointer; flex: 1;
+  }
+  nav.toc button:hover { background: var(--bg); }
+
+  main { min-width: 0; }
+  .filter-box {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: 16px; background: var(--card);
+  }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    transition: 0.1s;
+  }
+  details.section > summary {
+    cursor: pointer; padding: 14px 18px;
+    font-size: 16px; font-weight: 600;
+    list-style: none; user-select: none;
+    display: flex; align-items: center; gap: 10px;
+  }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before {
+    content: '›';
+    color: var(--text-muted);
+    font-weight: 400; font-size: 18px;
+    transition: transform 0.15s;
+    display: inline-block; width: 14px;
+  }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  .section-num { color: var(--text-muted); font-weight: 500; min-width: 20px; }
+  .section-title { flex: 1; }
+
+  /* CP chips */
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.new { background: var(--blue-bg); color: var(--blue); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.keep { background: var(--green-bg); color: var(--green); }
+  .chip.scope-in { background: var(--green-bg); color: var(--green); }
+  .chip.scope-out { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 13px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+  table.compact th, table.compact td { padding: 6px 8px; font-size: 13px; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.9em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; font-family: var(--mono); }
+  pre code { background: none; padding: 0; }
+
+  /* checklist */
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; transition: 0.1s; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  ul.check-list li.done label { color: var(--text-muted); }
+  ul.check-list li.done label .text { text-decoration: line-through; }
+
+  .callout {
+    border-left: 3px solid var(--blue);
+    background: var(--blue-bg);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 10px 0;
+    font-size: 14px;
+  }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.danger { border-color: var(--orange); background: var(--orange-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  .hidden { display: none !important; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; }
+  }
+
+  /* ─────────── UX 라이브 미리보기 ─────────── */
+  .ux-wrapper {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    padding: 16px;
+    margin: 12px 0;
+  }
+  .ux-controls { margin-bottom: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .ux-controls label { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .ux-controls select {
+    padding: 6px 24px 6px 10px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--card); font-size: 13px; color: var(--text); font-family: inherit;
+  }
+
+  .ux-list-mock {
+    background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px;
+    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .ux-list-label { font-size: 14px; }
+  .ux-deleted-badge {
+    display: inline-block; padding: 1px 7px; background: rgba(0,0,0,0.06);
+    color: var(--text-muted); border-radius: 9px; font-size: 11px; margin-left: 4px;
+  }
+  .ux-list-actions { display: flex; gap: 6px; }
+
+  .ux-mock-btn {
+    padding: 5px 11px; border: 1px solid; border-radius: 4px;
+    font-size: 13px; cursor: pointer; font-family: inherit; background: transparent;
+  }
+  .ux-mock-btn.info { color: var(--blue); border-color: rgba(0,117,222,0.3); }
+  .ux-mock-btn.info:hover { background: var(--blue-bg); }
+  .ux-mock-btn.danger-solid { background: var(--orange); color: #fff; border-color: var(--orange); }
+  .ux-mock-btn.danger-solid:hover { background: #b84800; }
+
+  .ux-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin: 10px 0; line-height: 1.4; }
+
+  .ux-modal-container {
+    position: relative; background: rgba(0,0,0,0.04); border: 1px dashed var(--border);
+    border-radius: 6px; padding: 24px 16px; min-height: 60px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ux-modal-card {
+    background: var(--card); border-radius: 8px; padding: 18px 20px;
+    max-width: 460px; width: 100%;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  }
+  .ux-modal-card.hidden-card { display: none; }
+  .ux-modal-empty { color: var(--text-muted); font-size: 13px; font-style: italic; }
+  .ux-modal-title { margin: 0 0 10px; font-size: 16px; font-weight: 600; }
+  .ux-modal-message { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--text); }
+
+  .ux-typed-target {
+    background: var(--bg); padding: 10px 12px; border-radius: 6px; margin-bottom: 12px;
+  }
+  .ux-typed-label { font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px; letter-spacing: 0.3px; }
+  .ux-typed-name { font-family: var(--mono); font-size: 13px; color: var(--text); user-select: all; word-break: break-all; }
+
+  .ux-typed-input {
+    width: 100%; padding: 9px 12px; font-size: 14px; font-family: var(--mono);
+    border: 2px solid var(--border); border-radius: 6px; margin-bottom: 6px;
+    transition: 0.12s; background: var(--card); color: var(--text);
+  }
+  .ux-typed-input:focus { outline: none; border-color: var(--blue); }
+  .ux-typed-input.matched { border-color: var(--green); background: var(--green-bg); }
+  .ux-typed-input.mismatched { border-color: var(--orange); }
+
+  .ux-match-hint { font-size: 12px; margin-bottom: 14px; color: var(--text-muted); min-height: 16px; }
+  .ux-match-hint.match { color: var(--green); }
+  .ux-match-hint.mismatch { color: var(--orange); }
+
+  .ux-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .ux-modal-actions button {
+    padding: 7px 14px; border-radius: 4px; font-size: 13px; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit;
+  }
+  .ux-btn-cancel { background: rgba(0,0,0,0.06); color: var(--text); }
+  .ux-btn-cancel:hover { background: rgba(0,0,0,0.10); }
+  .ux-btn-confirm { background: var(--orange); color: #fff; border-color: var(--orange); }
+  .ux-btn-confirm:hover:not(:disabled) { background: #b84800; }
+  .ux-btn-confirm:disabled { background: rgba(0,0,0,0.10); color: var(--text-muted); cursor: not-allowed; border-color: transparent; }
+
+  .ux-flow-arrow { text-align: center; color: var(--text-muted); font-size: 18px; margin: 8px 0; }
+
+  .ux-toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--green); color: #fff; padding: 10px 18px; border-radius: 6px;
+    font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    opacity: 0; pointer-events: none; transition: 0.25s; z-index: 1000;
+  }
+  .ux-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-2-2 — hard-delete 자원명 입력 <span style="color:var(--text-muted); font-weight:500;">(plan v2)</span></h1>
+  <div class="meta">
+    <span class="meta-item">생성 : <strong>2026-05-11</strong></span>
+    <span class="meta-item">버전 : <strong>v2 (post-S5-2-1)</strong></span>
+    <span class="meta-item">선행 : <strong>S5-2-1 CP5 승인 완료</strong></span>
+    <span class="meta-item">v1 : <code>26-05-05_11-37-08_S5-2-2_plan.docx</code></span>
+    <span class="meta-item">상태 : <span class="chip cp1">CP1 대기</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 페이지 요구사항</a></li>
+    <li><a href="#preview" style="color: var(--blue); font-weight: 600;">🎬 미리보기 (UX)</a></li>
+    <li><a href="#s3">3. URL · 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. 통합 테스트</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<details class="section" id="s1" open>
+  <summary><span class="section-num">1.</span> <span class="section-title">현재 상태 요약</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">1.1 선행 완료</h3>
+    <ul>
+      <li><strong>S5-2-1</strong> (자원 상태 변경 modal) CP5 승인 완료 — <code>confirm-action.html</code> fragment + <code>confirm-action.js</code> JS 모듈이 5 도메인 list 에 wiring 완료. <strong>3 actionKey (soft-delete / deprecate / restore)</strong> 작동 중.</li>
+      <li>style.css 에 <code>.n-btn-outline-warning</code> 정의 추가 — 디자인 시스템 누락 보강 (commit 안 됨, working tree).</li>
+      <li>MK3-2 의 <code>delete-reject-modal.html / .js</code> 도 그대로 — fetch intercept 후 409 응답 시 자동 modal. 본 슬라이스와 책임 분리 유지.</li>
+    </ul>
+
+    <h3>1.2 현재 hard-delete 흐름 (5 도메인 점검)</h3>
+    <table class="compact">
+      <thead><tr><th>도메인</th><th>백엔드 endpoint</th><th>프론트엔드 form</th><th>현재 confirm 패턴</th></tr></thead>
+      <tbody>
+        <tr><td>OS 버전</td><td><code>POST /management/os/{id}/purge</code> ✓</td><td>os/list.html (deleted only)</td><td><code>onsubmit=confirm()</code></td></tr>
+        <tr><td>ISO 이미지</td><td><code>POST /management/os/{osId}/iso/{isoId}/purge</code> ✓</td><td>os/list.html ISO 아코디언</td><td><code>onsubmit=confirm()</code></td></tr>
+        <tr><td>BIOS</td><td><code>POST /management/bios/.../purge</code> ✓</td><td>bios/list.html</td><td><code>data-typed-confirm="purge"</code> + bios-list.js <code>window.prompt()</code></td></tr>
+        <tr><td>BMC</td><td><code>POST /management/bmc/.../purge</code> ✓</td><td>bmc/list.html</td><td><code>onsubmit=confirm()</code></td></tr>
+        <tr><td>Subprogram</td><td><code>POST /management/subprogram/{id}/purge</code> ✓</td><td><strong>없음</strong> — frontend 만 신설 필요</td><td>—</td></tr>
+        <tr><td>메인보드</td><td><strong>없음</strong> — endpoint 신설 필요</td><td><strong>없음</strong> — frontend 도 신설</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h3>1.3 사용자 동기</h3>
+    <p>모든 5 도메인에서 hard-delete 시 단순 confirm 다이얼로그 / 도메인별 다른 prompt() 가 아닌, <strong>S5-2-1 의 modal 인프라 위에서 자원명 일치 입력</strong> 으로 우발 영구삭제 방어. 5 도메인 일관성 + 디자인 통일.</p>
+  </div>
+</details>
+
+<details class="section" id="s2" open>
+  <summary><span class="section-num">2.</span> <span class="section-title">페이지 요구사항 (Notion 확정)</span></summary>
+  <div class="body">
+    <blockquote style="border-left:3px solid var(--border); padding-left:14px; color:var(--text-muted); margin:0;">
+      자원 hard-delete 시 자원 명 입력 로직을 모든 자원 도메인에서 수행하도록 수정. 아래는 입력 값 :
+      <ol style="margin: 8px 0 0;">
+        <li>OS 버전 : <code>OS이름 버전</code></li>
+        <li>ISO 이미지 : <code>OS이름 버전 ISO이미지파일이름</code></li>
+        <li>BIOS, BMC, Driver, Utility : <code>이름</code></li>
+      </ol>
+    </blockquote>
+    <p style="margin-top: 12px;">Board 는 Notion 본문에 명시 없음 — 영구 삭제 자체가 없는 자원이지만, 본 슬라이스에서 일관성을 위해 신설 (typed-name = <code>vendor.displayName + " " + modelName</code>).</p>
+  </div>
+</details>
+
+<details class="section" id="preview" open>
+  <summary><span class="section-num">🎬</span> <span class="section-title">미리보기 — 사용자 경험 라이브 데모</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">아래 위젯에서 실제 modal 인터랙션을 체험할 수 있습니다. 도메인을 선택하면 typed-name 이 자동 갱신됩니다. 입력 일치 여부에 따라 확인 버튼이 활성/비활성화됩니다.</p>
+
+    <div class="ux-wrapper">
+      <div class="ux-controls">
+        <label>
+          도메인 :
+          <select id="ux-domain">
+            <option value="os">OS 버전</option>
+            <option value="iso">ISO 이미지</option>
+            <option value="board">메인보드 모델</option>
+            <option value="bios">BIOS</option>
+            <option value="bmc">BMC</option>
+            <option value="subprogram">Driver / Utility</option>
+          </select>
+        </label>
+        <span style="font-size:12px; color:var(--text-muted);">↑ 선택 시 modal 의 자원명도 함께 갱신</span>
+      </div>
+
+      <!-- mock list 표현 -->
+      <div class="ux-list-mock">
+        <span class="ux-list-label">
+          <span id="ux-list-item-label">9.5</span>
+          <span class="ux-deleted-badge">삭제됨</span>
+        </span>
+        <div class="ux-list-actions">
+          <button type="button" class="ux-mock-btn info">복구</button>
+          <button type="button" class="ux-mock-btn danger-solid" onclick="openPreviewModal()">영구 삭제</button>
+        </div>
+      </div>
+
+      <div class="ux-flow-arrow">↓</div>
+      <p class="ux-hint">사용자가 "영구 삭제" 클릭 시 아래 modal 이 표시됩니다 (S5-2-1 의 confirm-action.html fragment 확장).</p>
+
+      <!-- mock modal -->
+      <div class="ux-modal-container">
+        <div class="ux-modal-empty" id="ux-modal-empty">↑ "영구 삭제" 버튼을 클릭해보세요.</div>
+        <div class="ux-modal-card hidden-card" id="ux-modal-card">
+          <h3 class="ux-modal-title">자원 영구 삭제</h3>
+          <p class="ux-modal-message">아래 자원을 영구 삭제하려면 자원명을 정확히 입력하세요. <strong>디스크의 파일도 함께 제거</strong>됩니다.</p>
+          <div class="ux-typed-target">
+            <span class="ux-typed-label">정확히 입력해야 할 자원명</span>
+            <code class="ux-typed-name" id="ux-target-name">Rocky Linux 9.5</code>
+          </div>
+          <input type="text" class="ux-typed-input" id="ux-typed-input" placeholder="자원명을 정확히 입력..." style="margin-bottom: 14px;">
+          <div class="ux-modal-actions">
+            <button type="button" class="ux-btn-cancel" onclick="closePreviewModal()">취소</button>
+            <button type="button" class="ux-btn-confirm" id="ux-confirm-btn" disabled onclick="confirmPreview()">영구 삭제</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 22px;">4 단계 사용자 흐름</h3>
+    <ol style="line-height: 1.7;">
+      <li><strong>클릭</strong> — list 의 "영구 삭제" 버튼 클릭 → submit 가로채기 (capture phase, <code>stopImmediatePropagation</code>)</li>
+      <li><strong>modal 표시</strong> — title, 자원명 hint, input slot 표시. 확인 버튼은 비활성 상태로 시작</li>
+      <li><strong>입력 검증</strong> — input 의 모든 keystroke 마다 <code>value === target</code> 비교. 일치 시 확인 버튼 활성, 불일치 시 비활성. 별도 시각 피드백 없음 (버튼 disabled 상태가 곧 시그널)</li>
+      <li><strong>제출</strong> — 확인 클릭 → hidden <code>typedName</code> input 에 값 복사 → <code>form.requestSubmit()</code> → 백엔드 재검증 → 통과 시 hard-delete, 실패 시 400</li>
+    </ol>
+
+    <h3 style="margin-top: 18px;">백엔드 의사코드 (Service 측, OS 예시)</h3>
+<pre><code>@Transactional
+public void purgeWithTypedNameCheck(Long id, String typedName) {
+    OSImage os = repo.findByIdIncludeDeleted(id)
+        .orElseThrow(() -> new OSImageNotFoundException(id));
+
+    // typed-name 합성 — modal 메시지의 자원명과 동일 식
+    String expected = os.getOsName().getDisplayName() + " " + os.getOsVersion();
+
+    if (!expected.equals(typedName)) {
+        throw new TypedNameMismatchException(expected, typedName);
+    }
+
+    purge(id);  // 기존 service-internal hard-delete 위임
+}</code></pre>
+
+    <div class="callout warn" style="margin-top: 12px;">
+      <strong>이중 검증의 의의 :</strong> frontend 검증은 UX (잘못된 submit 사전 차단) 용. 백엔드는 frontend 우회 / 직접 POST 공격을 대비해 다시 한번 검증. <strong>두 검증은 typed-name 합성식이 정확히 같아야 함</strong> — 본 슬라이스의 핵심 invariant.
+    </div>
+  </div>
+</details>
+
+<details class="section" id="s3">
+  <summary><span class="section-num">3.</span> <span class="section-title">URL · 데이터 흐름 스케치</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">3.1 URL 표</h3>
+    <table class="compact">
+      <thead><tr><th>Method</th><th>URL</th><th>변경</th><th>body</th></tr></thead>
+      <tbody>
+        <tr><td>POST</td><td><code>/management/os/{id}/purge</code></td><td><span class="chip mod">시그니처</span></td><td><code>typedName</code> param</td></tr>
+        <tr><td>POST</td><td><code>/management/os/{osId}/iso/{isoId}/purge</code></td><td><span class="chip mod">시그니처</span></td><td><code>typedName</code></td></tr>
+        <tr><td>POST</td><td><code>/management/board/{id}/purge</code></td><td><span class="chip new">신설</span></td><td><code>typedName</code></td></tr>
+        <tr><td>POST</td><td><code>/management/bios/{boardId}/bios/{biosId}/purge</code></td><td><span class="chip mod">시그니처</span></td><td><code>typedName</code></td></tr>
+        <tr><td>POST</td><td><code>/management/bmc/{boardId}/bmc/{bmcId}/purge</code></td><td><span class="chip mod">시그니처</span></td><td><code>typedName</code></td></tr>
+        <tr><td>POST</td><td><code>/management/subprogram/{id}/purge</code></td><td><span class="chip mod">시그니처</span></td><td><code>typedName</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>3.2 브라우저 흐름</h3>
+<pre><code>list.html
+  └─ &lt;form th:action="@{.../purge}"
+            data-confirm-action="purge"
+            data-typed-name="Rocky Linux 9.6"&gt;
+       &lt;input type="hidden" name="typedName" data-typed-name-input&gt;
+       &lt;button&gt;영구 삭제&lt;/button&gt;
+     &lt;/form&gt;
+  └─ confirmActionModal('confirmAction')      ← S5-2-1 에서 도입한 fragment
+
+confirm-action.js
+  ├─ submit 가로채기 (capture, stopImmediatePropagation)
+  ├─ actionKey=purge → input slot 표시 + 사용자 자원명 입력 대기
+  ├─ input value === data-typed-name 일 때만 확인 버튼 활성
+  ├─ 확인 → hidden typedName 채움 + form.requestSubmit()
+  └─ 2번째 submit (flag 통과) → 백엔드 POST
+
+backend
+  └─ Controller : @RequestParam("typedName") String typedName
+  └─ Service    : purgeWithTypedNameCheck(id, typedName)
+       ├─ 도메인별 typed-name 합성
+       ├─ 불일치 → TypedNameMismatchException (400)
+       └─ 일치   → 기존 service-internal hard-delete 위임</code></pre>
+  </div>
+</details>
+
+<details class="section" id="s4">
+  <summary><span class="section-num">4.</span> <span class="section-title">도메인 모델</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">신규 엔티티 / 스키마 변경 <strong>없음</strong>.</p>
+
+    <h3>4.1 코드 변경 매트릭스</h3>
+    <table class="compact">
+      <thead><tr><th>분류</th><th>위치</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip new">신규 예외</span></td><td><code>global/exception/TypedNameMismatchException</code></td><td><code>@ResponseStatus(BAD_REQUEST)</code>. 자원명 불일치 공용</td></tr>
+        <tr><td><span class="chip mod">fragment 확장</span></td><td><code>confirm-action.html</code></td><td>'purge' actionKey slot — input + 라벨</td></tr>
+        <tr><td><span class="chip mod">JS 확장</span></td><td><code>confirm-action.js</code></td><td>purge 모드 — input keypress 검증 + hidden 채움</td></tr>
+        <tr><td><span class="chip mod">5 Service 본체</span></td><td>OS / Bios / Bmc / Subprogram / BoardModel</td><td><code>purgeWithTypedNameCheck(...)</code> 본체</td></tr>
+        <tr><td><span class="chip new">Board 백엔드</span></td><td>BoardModelController + Service</td><td>purge endpoint + service 메서드 신설</td></tr>
+        <tr><td><span class="chip new">Subprogram 프론트</span></td><td>subprogram/miller.html</td><td>purge form 신설 (백엔드는 이미 있음)</td></tr>
+        <tr><td><span class="chip mod">BIOS legacy 제거</span></td><td>bios/list.html + bios-list.js</td><td><code>data-typed-confirm="purge"</code> + <code>prompt()</code> 핸들러 제거</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 typed-name 합성 규칙 (Service 내부)</h3>
+    <table class="compact">
+      <thead><tr><th>도메인</th><th>합성식</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td>OS Image</td><td><code>osName.displayName + " " + osVersion</code></td><td><code>"Rocky Linux 9.6"</code></td></tr>
+        <tr><td>ISO</td><td><code>osName.displayName + " " + osVersion + " " + isoBasename</code></td><td><code>"Rocky Linux 9.6 dvd.iso"</code></td></tr>
+        <tr><td>Board</td><td><code>vendor.displayName + " " + modelName</code></td><td><code>"Asus P13R-E"</code></td></tr>
+        <tr><td>BIOS</td><td><code>bios.name</code></td><td><code>"R23_MS73-HB1_Uni"</code></td></tr>
+        <tr><td>BMC</td><td><code>bmc.name</code></td><td><code>"GIGABYTE BMC Firmware 13.06.25"</code></td></tr>
+        <tr><td>Subprogram</td><td><code>sp.name</code></td><td><code>"ASPEED_1-15-03_MS03-CE0"</code></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px; color:var(--text-muted); margin-top:6px;">
+      Service 측의 typed-name 합성은 S5-2-1 에서 modal 에 표시한 식별자와 <strong>완전 동일</strong> — 사용자가 modal 의 메시지에 보인 자원명을 그대로 입력하면 통과.
+    </p>
+  </div>
+</details>
+
+<details class="section" id="s5">
+  <summary><span class="section-num">5.</span> <span class="section-title">수직 슬라이스 10 단계</span></summary>
+  <div class="body">
+    <p style="margin-top:0; font-size:13px; color:var(--text-muted);">진행 상황은 체크박스로 추적 (브라우저 localStorage 에 저장).</p>
+    <table>
+      <thead><tr><th>Step</th><th>진행</th><th>내용</th><th>CP</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><input type="checkbox" data-key="step-1"></td><td>본 plan html 산출 (현재 단계)</td><td><span class="chip cp1">CP1</span></td></tr>
+        <tr><td>2</td><td><input type="checkbox" data-key="step-2"></td><td>View — <code>confirm-action.html</code> 에 'purge' actionKey slot 추가. 5 list.html 의 hard-delete form 에 <code>data-confirm-action="purge"</code> + <code>th:data-typed-name</code> + hidden input. Subprogram / Board 의 purge form 신설</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>3</td><td><input type="checkbox" data-key="step-3"></td><td>Controller — 5 도메인 purge 엔드포인트 시그니처 통일 (<code>@RequestParam("typedName") String typedName</code>). <strong>Board purge</strong> 엔드포인트 신설</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>4</td><td><input type="checkbox" data-key="step-4"></td><td>DTO — 변경 없음 (typedName 은 form param 단일)</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>5</td><td><input type="checkbox" data-key="step-5"></td><td>Service 시그니처 — 5 도메인에 <code>purgeWithTypedNameCheck(...)</code> 신설. <strong>nudge REPLACE 흐름의 기존 <code>purge(...)</code> 보존</strong> (typed-name 우회)</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>6</td><td><input type="checkbox" data-key="step-6"></td><td>Repository — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>7</td><td><input type="checkbox" data-key="step-7"></td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>8</td><td><input type="checkbox" data-key="step-8"></td><td>Service 본체 5 종 + JS 확장 (purge actionKey) + 통합 테스트 12 시나리오 + BIOS legacy 마커 / prompt() 핸들러 제거</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>9</td><td><input type="checkbox" data-key="step-9"></td><td>스키마 — 변경 없음</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>10</td><td><input type="checkbox" data-key="step-10"></td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp5">CP5</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.1 CP 묶음</h3>
+    <ul>
+      <li><span class="chip cp1">CP1</span> Step 1 — 본 plan html 승인</li>
+      <li><span class="chip cp2">CP2</span> Step 2-5 — View / Controller / DTO / Service 시그니처</li>
+      <li><span class="chip cp3">CP3</span> Step 6-7 — Repository / Entity (변경 없음, 통과)</li>
+      <li><span class="chip cp4">CP4</span> Step 8-9 — Service 본체 + JS + 테스트 + legacy 제거</li>
+      <li><span class="chip cp5">CP5</span> Step 10 — 사용자 브라우저 E2E</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s6">
+  <summary><span class="section-num">6.</span> <span class="section-title">Step 8 통합 테스트 시나리오</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">5 도메인 × {일치 성공, 불일치 400} = 10. Board 신설 endpoint cover 2 = <strong>합계 12 시나리오</strong>.</p>
+    <table class="compact">
+      <thead><tr><th>#</th><th>도메인</th><th>시나리오</th><th>예상</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>OS</td><td>typedName 일치 → service 위임</td><td>302 redirect + <code>?includeDeleted=true</code></td></tr>
+        <tr><td>2</td><td>OS</td><td>typedName 불일치</td><td>400 <code>TypedNameMismatchException</code></td></tr>
+        <tr><td>3</td><td>ISO</td><td>typedName 일치 (<code>OS이름 버전 파일명</code>)</td><td>302 + <code>?selectId=...</code></td></tr>
+        <tr><td>4</td><td>ISO</td><td>typedName 불일치</td><td>400</td></tr>
+        <tr><td>5</td><td>Board</td><td>typedName 일치 (<strong>신설 endpoint</strong>)</td><td>302</td></tr>
+        <tr><td>6</td><td>Board</td><td>typedName 불일치</td><td>400</td></tr>
+        <tr><td>7</td><td>BIOS</td><td>typedName 일치</td><td>302 + <code>?selectBoardId=...&includeDeleted=true</code></td></tr>
+        <tr><td>8</td><td>BIOS</td><td>typedName 불일치</td><td>400</td></tr>
+        <tr><td>9</td><td>BMC</td><td>typedName 일치</td><td>302 + <code>?selectBoardId=...&includeDeleted=true</code></td></tr>
+        <tr><td>10</td><td>BMC</td><td>typedName 불일치</td><td>400</td></tr>
+        <tr><td>11</td><td>Subprogram</td><td>typedName 일치</td><td>302</td></tr>
+        <tr><td>12</td><td>Subprogram</td><td>typedName 불일치</td><td>400</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <strong>주의 :</strong> 백엔드 통합 테스트 + JS unit/integration 테스트 별개. JS 의 input 검증 / 확인 버튼 활성-비활성 로직은 <code>ConfirmActionFragmentRenderTest</code> 에 시나리오 추가 (purge actionKey 의 input slot 마크업 존재 + JS ACTION_CONFIG.purge 정의).
+    </div>
+  </div>
+</details>
+
+<details class="section" id="s7">
+  <summary><span class="section-num">7.</span> <span class="section-title">예외 계층</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">신규</h3>
+    <ul>
+      <li><code>global/exception/TypedNameMismatchException extends DomainException</code> (<code>@ResponseStatus(BAD_REQUEST)</code>) — 자원명 불일치 시 모든 도메인 공용</li>
+    </ul>
+    <h3>재사용</h3>
+    <ul>
+      <li>기존 hard-delete 분기 (sidecar 정리 / 트리 정리) 의 예외 그대로</li>
+      <li>NotFoundException 류 — 자원이 이미 hard-delete 된 경우 (race) 등</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s8">
+  <summary><span class="section-num">8.</span> <span class="section-title">예상 부산물 · 주의</span></summary>
+  <div class="body">
+    <div class="callout">
+      <strong>불가침 §조건분기문 legacy 무분별 확장 절대 지양</strong><br>
+      typed-name 검증은 service 내부 1지점 (단순 <code>if (!expected.equals(typed)) throw</code>, 도메인 invariant 검증의 정당한 imperative). 5 도메인을 단일 추상화로 묶지 않음 — typed-name 합성 로직이 도메인별로 다름 (over-abstraction 회피).
+    </div>
+
+    <h3>주의 항목</h3>
+    <ul>
+      <li><strong>BIOS 의 legacy</strong> <code>data-typed-confirm="purge"</code> + <code>bios-list.js</code> 의 <code>window.prompt()</code> 핸들러는 본 sub-slice CP4 시점에 <strong>일괄 제거</strong>.</li>
+      <li><strong>nudge REPLACE 흐름 보전</strong> — <code>*NudgeService.purge</code> 가 호출하는 service-internal hard-delete 는 typed-name 우회. <code>purgeWithTypedNameCheck</code> 는 그 메서드를 wrapping (재진입 위험 없음).</li>
+      <li><strong>TTL 자동 hard-delete 도 typed-name 우회</strong> — <code>TrashTtlWorker</code> (현재 식별 + 로그만 구현) 가 향후 호출할 hard-delete 도 사용자 입력 부재이므로 <code>purge(id)</code> 직접 호출 경로. nudge REPLACE 와 동일 정책. <strong>본 S5-2-2 범위 외 — S5-2-4 (nudge / TTL 만료 자동 hard-delete 정책 지정) 로 분리</strong>. retry / 실패 알림 / 백업 정책은 S5-2-4 에서 결정.</li>
+      <li><strong>Board / Subprogram 백엔드 / 프론트엔드 신설</strong> — Subprogram 은 백엔드 있고 프론트엔드만 신설. Board 는 양쪽 다 신설.</li>
+      <li><strong>S5-2-1 의 JS handleSubmit 와 호환</strong> — 본 sub-slice 가 추가하는 'purge' actionKey 는 ACTION_CONFIG 에 entry 추가 + input slot 분기 추가. 기존 3 actionKey 흐름 무영향.</li>
+      <li><strong>typed-name 일치성 보장</strong> — S5-2-1 의 modal 메시지 식별자 (Service 외부) 와 본 sub-slice 의 백엔드 typed-name 합성 (Service 내부) 가 정확히 일치해야 함. 불일치 시 사용자 입력 검증 실패. <strong>단일 helper 로 통합 검토 항목 (over-abstraction 가능성, CP2 시점에 사용자와 합의)</strong>.</li>
+      <li><strong>CLAUDE.md 수정</strong> — Step 1 plan 산출물 규약을 docx → html 로 전환한 사용자 결정 반영 필요 (별도 commit 후보).</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s9">
+  <summary><span class="section-num">9.</span> <span class="section-title">Verification 체크리스트</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox" data-key="v-build-1"><span class="text"><code>./gradlew compileJava compileTestJava</code> BUILD SUCCESSFUL</span></label></li>
+      <li><label><input type="checkbox" data-key="v-build-2"><span class="text"><code>./gradlew test</code> 12 신규 + 회귀 통과</span></label></li>
+    </ul>
+    <h3>기능</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox" data-key="v-func-1"><span class="text">5 도메인 hard-delete 클릭 → modal 표시 → 자원명 입력</span></label></li>
+      <li><label><input type="checkbox" data-key="v-func-2"><span class="text">자원명 일치 시 확인 버튼 활성, 불일치 시 비활성</span></label></li>
+      <li><label><input type="checkbox" data-key="v-func-3"><span class="text">불일치 상태로 form 강제 submit 시도 시 백엔드 400</span></label></li>
+      <li><label><input type="checkbox" data-key="v-func-4"><span class="text">BIOS 의 legacy <code>prompt()</code> 흐름 제거 후 새 modal 만 작동</span></label></li>
+      <li><label><input type="checkbox" data-key="v-func-5"><span class="text">Subprogram / Board 의 신설 purge form 동작</span></label></li>
+    </ul>
+    <h3>회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox" data-key="v-reg-1"><span class="text">nudge REPLACE 흐름 (BIOS / BMC / ISO / Subprogram) 보전</span></label></li>
+      <li><label><input type="checkbox" data-key="v-reg-2"><span class="text">MK1 PathReconciliationService 회귀 0건 (sidecar / 트리 정리 동일 service-internal 메서드)</span></label></li>
+      <li><label><input type="checkbox" data-key="v-reg-3"><span class="text">S5-2-1 의 soft-delete / deprecate / restore modal 흐름 무영향</span></label></li>
+      <li><label><input type="checkbox" data-key="v-reg-4"><span class="text">MK3-2 의 delete-reject-modal (백엔드 409) 흐름 무영향</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s10">
+  <summary><span class="section-num">10.</span> <span class="section-title">Critical Files</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;"><span class="chip new">신규</span> 신규 파일</h3>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/global/exception/TypedNameMismatchException.java</code></li>
+      <li><code>src/test/.../management/{os,board,bios,bmc,subprogram}/controller/*PurgeFlowTest.java</code> (5 파일, 12 시나리오)</li>
+    </ul>
+    <h3><span class="chip mod">수정</span> 수정 파일</h3>
+    <ul>
+      <li><code>templates/fragments/management/confirm-action.html</code> — 'purge' actionKey slot</li>
+      <li><code>static/management/common/confirm-action.js</code> — purge 모드 처리</li>
+      <li><code>templates/management/{os,board,bios,bmc,subprogram}/list.html</code> (+ subprogram miller) — hard-delete form 마커 전환 + Board / Subprogram 신설</li>
+      <li><code>static/management/bios/bios-list.js</code> — legacy <code>prompt()</code> 핸들러 제거</li>
+      <li>5 도메인 Controller — purge 시그니처 통일 (<code>@RequestParam typedName</code>), Board purge endpoint 신설</li>
+      <li>5 도메인 Service — <code>purgeWithTypedNameCheck(...)</code> 본체</li>
+    </ul>
+    <h3><span class="chip keep">유지</span> 유지</h3>
+    <ul>
+      <li>nudge REPLACE 흐름 (<code>*NudgeService.purge</code>) — service-internal purge 시그니처 보존</li>
+      <li>S5-2-1 의 3 actionKey (soft-delete / deprecate / restore) 와 그 modal 흐름</li>
+      <li>MK3-2 의 delete-reject-modal 자산</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s11">
+  <summary><span class="section-num">11.</span> <span class="section-title">다음 마일스톤</span></summary>
+  <div class="body">
+    <ul style="margin-top:0;">
+      <li><strong>G-S5-2-2</strong> — 본 sub-slice 완료 후 사용자 E2E 확인.</li>
+      <li>다음 sub-slice : <strong>S5-2-3</strong> (restore 2차 확인 — cascade 라디오를 fragment 에 추가, OS / Board restore 의 자식 일괄 복구 옵션).</li>
+      <li>그 다음 : <strong>S5-2-4 (nudge / TTL 만료 자동 hard-delete 정책 지정, 신규 분기)</strong> — 시스템 진입 hard-delete 의 retry / 알림 / 백업 정책.</li>
+      <li>이후 묶음 진행 : <strong>S5-3 (nudge modal 공통화)</strong> → S5-4 / S5-5 → S5-6 (Job status 구체화).</li>
+    </ul>
+  </div>
+</details>
+
+</main>
+</div>
+
+<script>
+  // 1. 체크박스 상태 localStorage 보존
+  document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => {
+    const key = 's5-2-2-' + cb.dataset.key;
+    cb.checked = localStorage.getItem(key) === '1';
+    cb.addEventListener('change', () => {
+      localStorage.setItem(key, cb.checked ? '1' : '0');
+      cb.closest('li')?.classList.toggle('done', cb.checked);
+    });
+    if (cb.checked) cb.closest('li')?.classList.add('done');
+  });
+
+  // 2. 전부 펼치기 / 접기
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  // 3. 검색 — 매칭 안되는 섹션 hidden + 매칭 섹션은 자동 펼치기
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      const matches = text.includes(q);
+      d.classList.toggle('hidden', !matches);
+      if (matches) d.open = true;
+    });
+  });
+
+  // 4. ToC anchor scroll — scroll offset = nav.toc 의 top 과 동일 (108).
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+
+  // ─────────── 5. UX 라이브 미리보기 ───────────
+  const PREVIEW_DATA = {
+    os:         { listLabel: '9.5',     target: 'Rocky Linux 9.5' },
+    iso:        { listLabel: 'dvd.iso', target: 'Rocky Linux 9.5 dvd.iso' },
+    board:      { listLabel: 'P13R-E',  target: 'Asus P13R-E' },
+    bios:       { listLabel: 'R23',     target: 'R23_MS73-HB1_Uni' },
+    bmc:        { listLabel: '13.06.25',target: 'GIGABYTE BMC Firmware 13.06.25' },
+    subprogram: { listLabel: 'ASPEED',  target: 'ASPEED_1-15-03_MS03-CE0' }
+  };
+
+  function updatePreviewTarget() {
+    const domain = document.getElementById('ux-domain').value;
+    const data = PREVIEW_DATA[domain];
+    document.getElementById('ux-list-item-label').textContent = data.listLabel;
+    document.getElementById('ux-target-name').textContent = data.target;
+    document.getElementById('ux-typed-input').placeholder = data.target;
+    document.getElementById('ux-typed-input').value = '';
+    validatePreviewInput();
+  }
+
+  function openPreviewModal() {
+    updatePreviewTarget();
+    document.getElementById('ux-modal-empty').style.display = 'none';
+    document.getElementById('ux-modal-card').classList.remove('hidden-card');
+    setTimeout(() => document.getElementById('ux-typed-input').focus(), 0);
+  }
+
+  function closePreviewModal() {
+    document.getElementById('ux-modal-empty').style.display = '';
+    document.getElementById('ux-modal-card').classList.add('hidden-card');
+    document.getElementById('ux-typed-input').value = '';
+    validatePreviewInput();
+  }
+
+  function validatePreviewInput() {
+    const input = document.getElementById('ux-typed-input');
+    const target = document.getElementById('ux-target-name').textContent;
+    const btn = document.getElementById('ux-confirm-btn');
+    btn.disabled = (input.value !== target);
+  }
+
+  function confirmPreview() {
+    showToast('🎉 시뮬레이션 — 실제 흐름 : form.requestSubmit() → POST /management/.../purge → 백엔드 typed-name 재검증 → 200/400');
+    closePreviewModal();
+  }
+
+  function showToast(msg) {
+    let toast = document.querySelector('.ux-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.className = 'ux-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 3500);
+  }
+
+  // wiring
+  document.getElementById('ux-domain').addEventListener('change', updatePreviewTarget);
+  document.getElementById('ux-typed-input').addEventListener('input', validatePreviewInput);
+  // Esc 로 modal 닫기
+  document.getElementById('ux-typed-input').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePreviewModal();
+    if (e.key === 'Enter' && !document.getElementById('ux-confirm-btn').disabled) confirmPreview();
+  });
+  updatePreviewTarget();
+</script>
+
+</body>
+</html>

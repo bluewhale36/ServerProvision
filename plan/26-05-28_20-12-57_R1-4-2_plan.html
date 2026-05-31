@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R1-4-2 Plan — ISO Registration 흐름을 IsoRegistrationService 로 분리</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.preview { color: var(--orange); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  details.section.preview > summary { background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.add { background: var(--green-bg); color: var(--green); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.move { background: var(--blue-bg); color: var(--blue); }
+  .chip.del { background: var(--red-bg); color: var(--red); }
+  .chip.keep { background: var(--bg); color: var(--text-muted); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.danger { border-color: var(--red); background: var(--red-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  .split-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 12px 0; }
+  .split-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; min-width: 0; overflow: hidden; }
+  .split-card h4 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .split-card.before { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .split-card.before h4 { color: var(--red); }
+  .split-card.after { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .split-card.after h4 { color: var(--green); }
+  .method-list { list-style: none; padding: 0; margin: 8px 0; font-family: var(--mono); font-size: 11px; }
+  .method-list li { padding: 2px 6px; margin: 2px 0; border-radius: 3px; background: rgba(255,255,255,0.6); }
+  .method-list li.move { background: var(--blue-bg); color: var(--blue); }
+  .method-list li.keep { background: rgba(255,255,255,0.6); color: var(--text-muted); }
+  .file-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 6px 8px; background: rgba(255,255,255,0.4); border-radius: 4px; }
+
+  .dep-diagram {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 14px; align-items: center; margin: 14px 0;
+  }
+  .dep-node { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; min-width: 0; }
+  .dep-node h5 { margin: 0 0 6px; font-size: 12px; font-family: var(--mono); color: var(--blue); }
+  .dep-node ul { margin: 0; padding-left: 16px; font-size: 11px; color: var(--text-muted); }
+  .dep-node.parent { border-color: var(--orange); }
+  .dep-node.parent h5 { color: var(--orange); }
+  .dep-node.new { border-color: var(--green); }
+  .dep-node.new h5 { color: var(--green); }
+  .dep-node.nudge { border-color: var(--blue); }
+  .dep-arrow { font-size: 18px; color: var(--text-muted); text-align: center; font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R1-4-2 — ISO 등록 흐름을 <code>IsoRegistrationService</code> 로 분리</h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R1-4-2</span>
+    <span><strong>상위</strong> R1-4 (ISO 관련 로직 분리) ← R1 ← R0</span>
+    <span><strong>단계</strong> 2-1차 개발</span>
+    <span><strong>생성</strong> 2026-05-28 20:12:57 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약</a></li>
+      <li><a href="#s2">§2 슬라이스 요구사항</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (등록 흐름 dependency 그래프)</a></li>
+      <li><a href="#s3">§3 분리 후 책임 + 시그니처 정렬</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10 단계 + CP 묶음</a></li>
+      <li><a href="#s6">§6 통합 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정 사항</a></li>
+      <li><a href="#s9">§9 Verification 체크리스트</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약</summary>
+      <div class="body">
+        <p><b>선행</b> :</p>
+        <ul>
+          <li>R1-3 완료 — OSMetadata lifecycle 분리 + <code>LifecycleService</code> interface 도입</li>
+          <li>R1-4-1 완료 (2026-05-26 ~ 28) — ISO lifecycle 분리 + <code>IsoLifecycleService</code> 신설 + <code>LifecycleService</code> 두 번째 구현체</li>
+          <li>R1-4-1 hotfix v3 종료 — 예외 라우팅 advice (Web/Api) 안정. 623/0 fail.</li>
+          <li>본 R1-4-2 = R1-4 묶음의 두 번째. lifecycle (R1-4-1) 과 동형 패턴이지만 ISO 등록 흐름 특유의 4 진입점 (직접 등록 / 단계 A 준비 / 단계 B 완결 / nudge confirm 후 영속) 을 응집</li>
+        </ul>
+
+        <p><b>R1-4-1 잔류 의존 비대칭 — 본 슬라이스 해소 대상</b> :</p>
+        <ul>
+          <li><code>IsoLifecycleService.cleanupArtifacts</code> 의 javadoc 에 명시 — <code>OSMetadataService.finalizePreparedIsoRegistration</code> / <code>completePendingIsoFromNudge</code> 가 본 메서드 위임 호출. 즉 <b>ISO 등록 흐름이 ISO lifecycle 의 helper 를 호출</b> 하는데, 그 등록 흐름 자체는 OSMetadataService 에 잔류 → 의존 그래프 안 OSMetadata 가 자기 자식 ISO 의 등록 책임을 떠안고 있는 비대칭</li>
+          <li><code>OSNudgeService.replace</code> (line 75, 125) 가 <code>osMetadataService.purgeIsoForNudge(target)</code> 호출 — Nudge 가 OSMetadata 를 통해 ISO 를 정리</li>
+          <li><code>OSNudgeService.proceed</code> (line 57, 78) 가 <code>osMetadataService.completePendingIsoFromNudge(session)</code> 호출 — 같은 비대칭</li>
+        </ul>
+
+        <p><b>본 슬라이스 진입 시점 측정값</b> :</p>
+        <table>
+          <thead><tr><th>지표</th><th>현재</th><th>목표</th></tr></thead>
+          <tbody>
+            <tr><td>OSMetadataService.java 줄 수</td><td>847</td><td>~580 (-260 추정)</td></tr>
+            <tr><td>ISO 등록 흐름 public 메서드 (OSMetadataService 안)</td><td>5 개</td><td>0 (이동)</td></tr>
+            <tr><td>ISO 등록 private helper (OSMetadataService 안)</td><td>7 개</td><td>0 (이동)</td></tr>
+            <tr><td>IsoRegistrationService.java 줄 수</td><td>0 (파일 부재)</td><td>~330</td></tr>
+            <tr><td>OSMetadataService 의 비대칭 의존 (자식 lifecycle 호출)</td><td>3 (cleanupArtifacts ×3)</td><td>0</td></tr>
+            <tr><td>외부 endpoint</td><td>—</td><td>완전 동일 (회귀 0)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 슬라이스 요구사항</summary>
+      <div class="body">
+        <p>본 슬라이스는 <b>ISO 등록 도메인 응집</b>. R1-4-1 의 IsoLifecycleService 와 동형 패턴이지만 LifecycleService interface 의 두 번째 추가 구현체는 <b>아니다</b> — 등록은 lifecycle 의 두 진입점 (toggle / softDelete 등) 과 시그니처가 다르고, 4 도메인 (OS/BIOS/BMC/Subprogram) 중 ISO 만의 고유 흐름이라 interface 추상화 대상이 아님.</p>
+
+        <ol>
+          <li><b>책임 응집</b> — ISO 등록 5 public + 7 private helper + 1 record (<code>PreparedIsoRegistration</code>) 를 <code>IsoRegistrationService</code> 로 응집</li>
+          <li><b>의존 비대칭 해소</b> — OSMetadataService 가 자식 ISO 의 등록 / nudge 정리 책임을 떠안던 비대칭을 단방향 (등록 service → lifecycle service / marker / repo) 정렬</li>
+          <li><b>OSNudgeService 의 호출처 갱신</b> — 4 호출 (proceed.completePending, replace.purgeIsoForNudge + completePending, replaceIntent.purgeIsoForNudge) 의 lookup target 을 새 service 로</li>
+          <li><b>IsoUploadController 의 호출처 갱신</b> — 2 호출 (prepareIsoRegistration overload 2종) lookup target 갱신</li>
+          <li><b>IsoRegistrationRunner 의 호출처 갱신</b> — 1 호출 (finalizePreparedIsoRegistration)</li>
+          <li><b>외부 endpoint 동일</b> — Controller URL / HTTP method / response / Job event 100% 동일</li>
+          <li><b>의존성 strategy 보존</b> — <code>postCreationTaskStrategies</code> (S5-7) 의 <code>List&lt;PostCreationTaskStrategy&gt;</code> 주입 자리도 함께 이동. trigger 책임이 등록 service 로 응집</li>
+        </ol>
+
+        <div class="callout">
+          <b>비 목표 (out of scope)</b> :
+          <ul>
+            <li>ISO 무결성 검증 (<code>verifyIntegrity</code> / <code>verifyAndRecordIntegrity</code>) → R1-4-3 (IsoIntegrityService)</li>
+            <li>ISO 의 단순 조회 (<code>findISO</code> / <code>findIntegrityStatus</code>) — OSMetadata 응답 조립의 일부라 OSMetadataService 잔류</li>
+            <li>ISO 의 <code>updateISO</code> (편집) — 등록이 아닌 후속 수정. 잔류 (또는 R1-4-3 으로 함께 이동 검토)</li>
+            <li>BIOS / BMC / Subprogram 의 동형 패턴 환원 → R2</li>
+            <li>OSMetadata 생성 흐름 (<code>create</code> / <code>completePendingOSMetadataFromNudge</code> / <code>purgeOSMetadataForNudge</code>) — 부모 도메인이라 잔류</li>
+          </ul>
+        </div>
+
+        <div class="callout success">
+          <b>스코프 한 줄 정의</b> — "OSMetadataService 가 ISO 의 생애 가운데 <b>'태어나는 순간'</b> 만 떠안고 있는 비대칭을 IsoRegistrationService 로 풀어내는 슬라이스".
+          이로써 OSMetadataService 는 OSMetadata (parent) 의 CRUD + 조회 응답 조립만 담당, ISO 의 등록 / 정리 / lifecycle 은 각자의 service 가 응집 (R1-4-2 후 R1-4-3 으로 완결).
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 미리보기 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 등록 흐름 dependency 그래프 before/after</summary>
+      <div class="body">
+        <p>R1-4-1 (lifecycle 분리) 직후의 의존 비대칭과, R1-4-2 후 단방향 정렬 모습을 비교.</p>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>R1-4-2 진입 전 (현재) — 비대칭</h4>
+            <pre><code>OSNudgeService.proceed
+  └─→ <span style="color:var(--red)">OSMetadataService.completePendingIsoFromNudge</span>
+        └─→ <span style="color:var(--blue)">IsoLifecycleService.cleanupArtifacts</span>  (옛 파일 정리)
+
+OSNudgeService.replace
+  ├─→ <span style="color:var(--red)">OSMetadataService.purgeIsoForNudge</span>
+  │     └─→ <span style="color:var(--blue)">IsoLifecycleService.cleanupArtifacts</span>
+  └─→ <span style="color:var(--red)">OSMetadataService.completePendingIsoFromNudge</span>
+        └─→ <span style="color:var(--blue)">IsoLifecycleService.cleanupArtifacts</span>
+
+IsoUploadController.upload
+  └─→ <span style="color:var(--red)">OSMetadataService.prepareIsoRegistration</span>
+
+IsoRegistrationRunner.runAsync
+  └─→ <span style="color:var(--red)">OSMetadataService.finalizePreparedIsoRegistration</span>
+        └─→ <span style="color:var(--blue)">IsoLifecycleService.cleanupArtifacts</span> (hash 충돌 시)</code></pre>
+            <div class="file-meta">
+              <span style="color:var(--red)">빨강</span> = ISO 등록 책임 (OSMetadataService 잔류) ·
+              <span style="color:var(--blue)">파랑</span> = IsoLifecycleService.
+              <b>OSMetadataService 가 자기 자식 ISO 의 등록·정리를 떠안고 있고, 그 안에서 IsoLifecycleService 를 호출</b> — 부모가 자식 서비스를 알아야 하는 비대칭.
+            </div>
+          </div>
+
+          <div class="split-card after">
+            <h4>R1-4-2 후 — 단방향</h4>
+            <pre><code>OSNudgeService.proceed
+  └─→ <span style="color:var(--green)">IsoRegistrationService.completePendingFromNudge</span>
+        └─→ <span style="color:var(--blue)">IsoLifecycleService.cleanupArtifacts</span>
+
+OSNudgeService.replace
+  ├─→ <span style="color:var(--green)">IsoRegistrationService.purgeForNudge</span>
+  │     └─→ <span style="color:var(--blue)">IsoLifecycleService.cleanupArtifacts</span>
+  └─→ <span style="color:var(--green)">IsoRegistrationService.completePendingFromNudge</span>
+
+IsoUploadController.upload
+  └─→ <span style="color:var(--green)">IsoRegistrationService.prepare</span>
+
+IsoRegistrationRunner.runAsync
+  └─→ <span style="color:var(--green)">IsoRegistrationService.finalize</span>
+
+OSMetadataService
+  └─→ (ISO 등록 관련 호출 0 — 부모 책임만)</code></pre>
+            <div class="file-meta">
+              <span style="color:var(--green)">초록</span> = ISO 등록 책임 (신 IsoRegistrationService).
+              의존 그래프 단방향 : Controller / Runner / Nudge → IsoRegistrationService → IsoLifecycleService (cleanup helper) + Repo + Marker.
+              <b>OSMetadataService 가 IsoRegistrationService 를 알 필요 없음.</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="dep-diagram">
+          <div class="dep-node nudge">
+            <h5>OSNudgeService</h5>
+            <ul>
+              <li>proceed / replace / replaceIntent</li>
+              <li>4 호출 lookup 갱신</li>
+            </ul>
+          </div>
+          <div class="dep-arrow">↓</div>
+          <div class="dep-node new">
+            <h5>IsoRegistrationService (신규)</h5>
+            <ul>
+              <li>prepare / finalize</li>
+              <li>completePendingFromNudge</li>
+              <li>purgeForNudge</li>
+              <li>+ private helpers</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="dep-diagram">
+          <div class="dep-node parent">
+            <h5>OSMetadataService (parent)</h5>
+            <ul>
+              <li>findById / findISO / findAllGrouped</li>
+              <li>create / update</li>
+              <li>OSMeta nudge (자기 도메인)</li>
+              <li>verifyIntegrity (R1-4-3 까지 잔류)</li>
+              <li><b>ISO 등록 호출 0</b></li>
+            </ul>
+          </div>
+          <div class="dep-arrow">→ (없음, 의존 사라짐)</div>
+          <div class="dep-node new">
+            <h5>IsoRegistrationService</h5>
+            <ul>
+              <li>(OSMetadataService 의존성 없음 — 부모 lookup 은 OSMetadataRepository 직접)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout success">
+          <b>핵심 통찰</b> — R1-4-1 이 자식 lifecycle 책임을 떼었고, R1-4-2 가 자식 등록 책임을 떼면, OSMetadataService 가 정말로 <b>OSMetadata (parent) 의 책임만</b> 가진 service 가 된다. R1-4-3 의 IntegrityService 분리로 최종 ~500 줄 도달 예상.
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 분리 후 책임 + 시그니처 정렬</summary>
+      <div class="body">
+        <h4>3.1 IsoRegistrationService 골격</h4>
+<pre><code>@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class IsoRegistrationService {
+
+    // 의존 — 부모 lookup 위해 Repo 직접 (OSMetadataService 의존 X, 단방향 보존)
+    private final OSMetadataRepository osMetadataRepository;
+    private final ISORepository isoRepository;
+
+    // ISO 등록의 인프라
+    private final ProvisionMarkerService markerService;
+    private final PathPolicyService pathPolicyService;
+    private final FileSystemHardener fileSystemHardener;
+    private final BackgroundJobService backgroundJobService;
+    private final NudgeRegistry nudgeRegistry;
+
+    // S5-7 — OS family 별 post-creation strategy 다형성 (옛 OSMetadataService 위치에서 이동)
+    private final List&lt;PostCreationTaskStrategy&gt; postCreationTaskStrategies;
+
+    // R1-4-1 cleanup helper 위임 (단방향, cycle 없음)
+    private final IsoLifecycleService isoLifecycleService;
+
+    // ── public 5 진입점 ───────────────────────────────────────
+    @Transactional public Long add(Long osMetadataId, ISOCreateRequest req, MultipartFile uploaded) { ... }
+    @Transactional public PreparedIsoRegistration prepare(Long osMetadataId, ISOCreateRequest req, MultipartFile uploaded) { ... }
+    @Transactional public PreparedIsoRegistration prepare(Long osMetadataId, ISOCreateRequest req, MultipartFile uploaded, String clientHash) { ... }
+    @Transactional public Long finalize(String jobId, PreparedIsoRegistration prepared) { ... }
+    @Transactional public Long completePendingFromNudge(NudgeSession session) { ... }
+    @Transactional public void purgeForNudge(ISO target) { ... }
+
+    // ── private helpers (모두 OSMetadataService 에서 이동) ──────────
+    private void triggerPostCreationTask(OSMetadata os, ISO iso) { ... }
+    private NudgeRequiredResponse registerIsoNudgeSession(...) { ... }
+    private void finalizeMarker(ISO saved, PreparedIsoRegistration prepared, String hash, Path target) { ... }
+    private String computeFileSha256(Path file) { ... }
+    private void ensureParentDirectory(String path, boolean allow) { ... }
+    private void storeUploadedFile(MultipartFile file, String path) { ... }
+    private void startJobStage(String jobId, IsoRegistrationStage stage) { ... }
+    private void deleteQuietly(Path p) { ... }
+
+    // 부모 lookup helper — OSMetadataService 의 requireActiveImage 사본 (over-abstraction 회피, D-1)
+    private OSMetadata requireActiveImage(Long id) { ... }
+
+    public record PreparedIsoRegistration(...) { ... }   // record 도 함께 이동
+}</code></pre>
+
+        <h4>3.2 메서드명 정렬 — service 컨텍스트 노출 어휘로 단축</h4>
+        <p>OSMetadataService 의 메서드명은 "이 service 가 OSMetadata 의 것이라 ISO 명시 필요" 였지만, 신 service 안에선 이미 도메인 컨텍스트가 ISO 등록이므로 단축 :</p>
+
+<pre><code>// 옛 (OSMetadataService 안)                          // 새 (IsoRegistrationService 안)
+osMetadataService.addISO(osId, req, file)             →  isoRegistrationService.add(osId, req, file)
+osMetadataService.prepareIsoRegistration(...)         →  isoRegistrationService.prepare(...)
+osMetadataService.finalizePreparedIsoRegistration(...)→  isoRegistrationService.finalize(...)
+osMetadataService.completePendingIsoFromNudge(...)    →  isoRegistrationService.completePendingFromNudge(...)
+osMetadataService.purgeIsoForNudge(...)               →  isoRegistrationService.purgeForNudge(...)</code></pre>
+
+        <p>이 정렬은 R1-4-1 에서 <code>toggleIsoEnabled → toggleEnabled</code>, <code>softDeleteISO → softDelete</code> 같은 단축과 동일 정책.</p>
+
+        <h4>3.3 의존 그래프 단방향 검증</h4>
+        <p>R1-4-2 후 의존 :</p>
+        <ul style="font-family: var(--mono); font-size: 12px;">
+          <li>Controller / Runner / Nudge → IsoRegistrationService (4 진입점)</li>
+          <li>IsoRegistrationService → IsoLifecycleService (cleanupArtifacts 위임)</li>
+          <li>IsoRegistrationService → OSMetadataRepository, ISORepository, Marker, Job, Path, Hardener, Nudge, PostCreation strategies</li>
+          <li>IsoRegistrationService → (OSMetadataService 의존 0)</li>
+          <li>OSMetadataService → (IsoRegistrationService 의존 0)</li>
+        </ul>
+        <p>cycle 없음. R1-4-1 의 단방향 정렬을 등록 흐름까지 확장.</p>
+
+        <h4>3.4 <code>IsoLifecycleService.cleanupArtifacts</code> javadoc 갱신</h4>
+        <p>R1-4-1 의 javadoc 에 명시된 "R1-4-2 이전 잔류" 표기를 모두 제거. 위임 호출처 갱신 :</p>
+<pre><code>// 옛 (R1-4-1 의 javadoc)
+* <li>{@code OSMetadataService.finalizePreparedIsoRegistration} (R1-4-2 이전 잔류)</li>
+* <li>{@code OSMetadataService.completePendingIsoFromNudge} (R1-4-2 이전 잔류)</li>
+
+// 새 (R1-4-2 후)
+* <li>{@code IsoRegistrationService.finalize} — hash 충돌 시 임시 파일 정리</li>
+* <li>{@code IsoRegistrationService.completePendingFromNudge} — nudge replace 시 옛 파일 정리</li>
+* <li>{@code IsoRegistrationService.purgeForNudge} — nudge replace 의 부모 purge</li></code></pre>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>IsoRegistrationService.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td>5 public 진입점 (add / prepare ×2 / finalize / completePendingFromNudge / purgeForNudge) + 8 private helper + PreparedIsoRegistration record. 의존 9 (Repo ×2 + Marker + Path + Hardener + Job + Nudge + PostCreation strategies + IsoLifecycleService)</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataService.java</code></td>
+              <td><span class="chip move">이동</span></td>
+              <td>5 public + 7 private 메서드 제거. <code>PreparedIsoRegistration</code> record 도 이동. <code>postCreationTaskStrategies</code> / <code>IsoLifecycleService</code> 의존 제거 (다른 곳에서 안 쓰는 한). <code>NudgeRegistry</code> / <code>PathPolicyService</code> / <code>FileSystemHardener</code> / <code>BackgroundJobService</code> 의존도 사용처 확인 후 정리 가능</td>
+            </tr>
+            <tr>
+              <td><code>OSNudgeService.java</code></td>
+              <td><span class="chip mod">호출처 교체</span></td>
+              <td>4 호출 (line 57 / 75 / 78 / 125) lookup target 을 <code>isoRegistrationService</code> 로 갱신 + 의존 추가. <code>osMetadataService</code> 의존은 다른 호출이 있으면 잔류 / 없으면 제거</td>
+            </tr>
+            <tr>
+              <td><code>IsoUploadController.java</code></td>
+              <td><span class="chip mod">호출처 교체</span></td>
+              <td>line 63 / 127 의 <code>prepareIsoRegistration</code> 호출 prefix 변경. 의존 추가 + (불필요 시) <code>osMetadataService</code> 의존 제거</td>
+            </tr>
+            <tr>
+              <td><code>IsoRegistrationRunner.java</code></td>
+              <td><span class="chip mod">호출처 교체</span></td>
+              <td>line 37 의 <code>finalizePreparedIsoRegistration</code> 호출 prefix 변경. <code>osMetadataService</code> → <code>isoRegistrationService</code></td>
+            </tr>
+            <tr>
+              <td><code>IsoRegistrationLauncher.java</code></td>
+              <td><span class="chip mod">참조 갱신</span></td>
+              <td><code>OSMetadataService.PreparedIsoRegistration</code> import 경로 갱신 (record 이동 후)</td>
+            </tr>
+            <tr>
+              <td><code>IsoLifecycleService.java</code></td>
+              <td><span class="chip mod">javadoc</span></td>
+              <td><code>cleanupArtifacts</code> 의 위임 호출처 javadoc 갱신 (§3.4) — 코드 변경 0</td>
+            </tr>
+            <tr>
+              <td><code>PostCreationTaskStrategy.java</code></td>
+              <td><span class="chip mod">javadoc</span></td>
+              <td>주석의 호출부 참조 (<code>OSMetadataService.finalizePreparedIsoRegistration</code>) 를 새 service 로 갱신</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataServiceTest.java</code></td>
+              <td><span class="chip mod">정리</span></td>
+              <td>ISO 등록 단위 시나리오 (있을 시) 제거 또는 IsoRegistrationServiceTest 로 이동</td>
+            </tr>
+            <tr>
+              <td><code>IsoRegistrationServiceTest.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td>등록 단위 시나리오 — prepare happy / prepare path conflict 409 / prepare sidecar conflict / finalize happy + post-creation trigger / finalize hash mismatch → IsoClientHashMismatch / finalize dormant conflict → IsoNudgeRequired / completePendingFromNudge happy + 임시 hash 재충돌 / completePendingFromNudge wrong type → IllegalOSMetadataState / purgeForNudge 호출 → cleanupArtifacts + delete</td>
+            </tr>
+            <tr>
+              <td>OSMetadataControllerUploadFlowTest.java (등)</td>
+              <td><span class="chip mod">MockitoBean</span></td>
+              <td><code>IsoRegistrationService</code> 의 @MockitoBean 추가 + 기존 stub (prepareIsoRegistration / finalizePreparedIsoRegistration / purgeIsoForNudge) 이동 (총 ~12 stub)</td>
+            </tr>
+            <tr>
+              <td>Entity / Repository / Exception / DTO / Template / DB schema</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>변경 0</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — IsoRegistrationService +330 / OSMetadataService -260 / OSNudgeService ±10 / IsoUploadController ±4 / IsoRegistrationRunner ±2 / IsoRegistrationLauncher ±2 / IsoLifecycleService javadoc ±5 / PostCreationTaskStrategy javadoc ±2 / test +120 / test stub 이동 ±0. net ~ +200.</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>표준</th><th>R1-4-2 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html</td><td>본 문서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf</td><td><i>N/A</i></td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller</td><td>IsoUploadController 의 2 호출 prefix 변경 + 의존 추가</td></tr>
+            <tr><td>4</td><td>DTO</td><td><i>N/A</i></td></tr>
+            <tr><td>5</td><td>Service 시그니처</td><td>IsoRegistrationService 신규 + 5 public 진입점 + 7 helper + PreparedIsoRegistration record</td></tr>
+            <tr><td>6</td><td>Repository</td><td><i>N/A</i> (OSMetadataRepository / ISORepository 그대로)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity</td><td><i>N/A</i></td></tr>
+            <tr><td>8</td><td>Service 본체 + 테스트</td><td>OSMetadataService 에서 12 메서드 + record 제거 + OSNudgeService / Runner / Launcher 호출처 교체 + IsoRegistrationServiceTest 신규 + controller flow test mock 추가 + IsoLifecycleService javadoc 갱신</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마</td><td><i>N/A</i></td></tr>
+            <tr><td>10</td><td>브라우저 E2E</td><td>ISO 등록 4 진입점 동작 확인 — (a) 단계 A path conflict 정상 거절, (b) 단계 B 영속화 성공, (c) nudge proceed → 신규 자원 ACTIVE, (d) nudge replace → 옛 자원 purge + 신규 ACTIVE</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <b>CP 분리 정책 (R1-4-1 사후 인정 패턴 그대로)</b> — Step 5 / Step 8 의 컴파일 의존이 강해 strict CP 분리 인위적. <b>안 A</b> 채택 : CP2 안에서 옛 file 의 12 메서드 제거 + 4 호출처 교체까지 동반. CP3 = N/A, CP4 = test 정리만.
+        </div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>위치</th><th>분류</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>prepare(happy) — 경로 정상 + 업로드 파일 → PreparedIsoRegistration 반환</td><td>IsoRegistrationServiceTest (신규)</td><td>신규</td></tr>
+            <tr><td>2</td><td>prepare(path conflict) — 같은 경로 활성 ISO → IsoUploadIntentConflict</td><td>위</td><td>신규</td></tr>
+            <tr><td>3</td><td>prepare(sidecar conflict) — sidecar 파일 이미 존재 → SidecarConflict</td><td>위</td><td>신규</td></tr>
+            <tr><td>4</td><td>prepare(parent dir 미존재 + allowCreateDirectory=false) → InvalidIsoPath</td><td>위</td><td>신규</td></tr>
+            <tr><td>5</td><td>prepare(duplicate filename on FS) → DuplicateFilename</td><td>위</td><td>신규</td></tr>
+            <tr><td>6</td><td>finalize(happy) — 영속화 + marker 발급 + post-creation strategy 호출 검증</td><td>위</td><td>신규</td></tr>
+            <tr><td>7</td><td>finalize(client hash mismatch) → IsoClientHashMismatch + 임시 파일 cleanup</td><td>위</td><td>신규</td></tr>
+            <tr><td>8</td><td>finalize(active hash dup) → DuplicateISOContent + 임시 파일 cleanup (IsoLifecycleService.cleanupArtifacts 호출 검증)</td><td>위</td><td>신규</td></tr>
+            <tr><td>9</td><td>finalize(dormant hash conflict, non-ghost) → IsoNudgeRequired + 임시 파일 보존</td><td>위</td><td>신규</td></tr>
+            <tr><td>10</td><td>finalize(dormant hash conflict, all ghost) → 통과 (nudge 안 발생, ghost 필터링 검증)</td><td>위</td><td>신규</td></tr>
+            <tr><td>11</td><td>completePendingFromNudge(happy) — 임시 path → ACTIVE 영속화 + marker</td><td>위</td><td>신규</td></tr>
+            <tr><td>12</td><td>completePendingFromNudge(임시 시점 hash 재충돌) → DuplicateISOContent + cleanup</td><td>위</td><td>신규</td></tr>
+            <tr><td>13</td><td>completePendingFromNudge(wrong NudgeSession type) → IllegalOSMetadataState</td><td>위</td><td>신규</td></tr>
+            <tr><td>14</td><td>completePendingFromNudge(payload type 잘못) → IllegalOSMetadataState</td><td>위</td><td>신규</td></tr>
+            <tr><td>15</td><td>purgeForNudge — IsoLifecycleService.cleanupArtifacts 호출 + isoRepository.delete 검증</td><td>위</td><td>신규</td></tr>
+            <tr><td>16</td><td>post-creation strategy 실패 시 finalize 전체 트랜잭션 보존 (D3 정책 B)</td><td>위</td><td>신규</td></tr>
+            <tr><td>17</td><td>controller flow test — IsoUploadController 의 prepare/upload-token 진입 (15 시나리오) → 새 service @MockitoBean 으로 stub</td><td>OSMetadataControllerUploadFlowTest (기존)</td><td>mock 갱신</td></tr>
+            <tr><td>18</td><td>OSNudgeServiceTest — proceed / replace / replaceIntent 4 호출 lookup 갱신 검증</td><td>OSNudgeServiceTest (기존)</td><td>mock 갱신</td></tr>
+            <tr><td>19</td><td>IsoRegistrationRunner — finalize 호출 검증 (jobId 전달 + stage 진행)</td><td>IsoRegistrationRunnerTest (있을 시)</td><td>mock 갱신</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>범주 분배</b> — 성공 6 / 400 1 / 404 0 (등록은 부모 OS 존재 가정, requireActiveImage 가드는 별도) / 409 8 / 500 1 / 422-equiv 1 / mock 갱신 3 = 총 19. CLAUDE.md 의 통합 테스트 규율 (성공·400·404·409 모두 포함) 충족. 404 분류는 controller flow test (기존 stub 활용) 가 부모 미존재 케이스 보존.</p>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p><b>변경 0</b>. 발화 위치만 새 service 로 이동 :</p>
+        <ul>
+          <li><code>InvalidIsoPathException</code> — prepare 의 경로 형식 / 부모 디렉토리 미존재</li>
+          <li><code>IsoUploadIntentConflictException</code> — 같은 경로 활성 ISO 존재</li>
+          <li><code>SidecarConflictException</code> — sidecar 파일 이미 존재</li>
+          <li><code>DuplicateFilenameException</code> — FS 동일 이름 파일 존재</li>
+          <li><code>IsoClientHashMismatchException</code> — client/server hash 불일치 (R1-4-1 hotfix 의 ChildLifecycleBlockedByParent 와 유사하게 <code>@ResponseStatus(BAD_REQUEST)</code> 활용)</li>
+          <li><code>DuplicateISOContentException</code> — 활성 hash 중복 (409, FieldBoundConflictException 하위)</li>
+          <li><code>IsoNudgeRequiredException</code> — soft-deleted/deprecated hash 충돌 nudge 발화 (409, NudgeRequiredException 하위)</li>
+          <li><code>IllegalOSMetadataStateException</code> — completePendingFromNudge 의 wrong session type / payload type</li>
+          <li><code>ISOFileStorageException</code> — sha256 계산 IO 실패</li>
+          <li><code>ISONotFoundException</code> — purgeForNudge target 미존재 (호출처 OSNudgeService 가 이미 lookup 후 전달이므로 service 안 발화 X, 호출처 잔류)</li>
+        </ul>
+        <p>전역 ExceptionHandler 매핑 그대로. 본 슬라이스가 hotfix v3 의 advice 흐름을 깨지 않음을 controller flow test 가 증명 (existing 15 scenario 회귀).</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>D-1. helper 사본 정책 (R1-3 / R1-4-1 패턴 그대로)</h4>
+        <p><code>requireActiveImage</code> / <code>deleteQuietly</code> / <code>ensureParentDirectory</code> 등 — IsoRegistrationService 안 사본 보유. over-abstraction 회피. <code>requireActiveImage</code> 는 OSMetadataService 에도 사본 잔류 (그 service 의 OSMetadata 생성·조회 흐름 안에서 사용).</p>
+
+        <h4>D-2. <code>PreparedIsoRegistration</code> record 이동 결정 — <span style="color:var(--green)">함께 이동</span></h4>
+        <p>record 의 도메인 의미가 "ISO 등록의 단계 A 완료 상태" 이므로 IsoRegistrationService 안에 둠. 기존 외부 참조 (<code>OSMetadataService.PreparedIsoRegistration</code> 사용처) :</p>
+        <ul>
+          <li><code>IsoRegistrationLauncher</code> — line 22 의 <code>OSMetadataService.PreparedIsoRegistration prepared</code> → <code>IsoRegistrationService.PreparedIsoRegistration prepared</code></li>
+          <li><code>IsoRegistrationRunner</code> — line 의 record import / 사용처 갱신</li>
+          <li>controller flow test — 5 파일 정도의 <code>given(...).prepareIsoRegistration(...)</code> mock 의 return type</li>
+        </ul>
+        <p>총 ~10 곳의 import 경로 갱신. IDE 자동 리네임 활용 가능.</p>
+
+        <h4>D-3. post-creation strategy List 의존 이동</h4>
+        <p>S5-7 의 <code>List&lt;PostCreationTaskStrategy&gt; postCreationTaskStrategies</code> 는 등록 흐름 (finalize) 의 trigger 책임이므로 IsoRegistrationService 로 함께 이동. OSMetadataService 의존 제거. <b>주의</b> — 단위 테스트 @InjectMocks 환경에서 List 자동 주입이 null 인 경우 방어 코드 (<code>if (postCreationTaskStrategies == null || isEmpty) return</code>) 도 함께 이동.</p>
+
+        <h4>D-4. <code>updateISO</code> 잔류 결정 — <span style="color:var(--yellow)">잔류 (본 슬라이스 범위 외)</span></h4>
+        <p><code>OSMetadataService.updateISO</code> (편집) 는 등록 (creation) 이 아닌 후속 수정. <code>IsoLifecycleController</code> 에서 <code>osMetadataService.updateISO</code> 직접 호출 중. 책임 의미상 IsoRegistrationService 보다는 별도 service 또는 IsoLifecycleService 의 추가 메서드가 더 자연스럽다 — R1-4-3 또는 별도 슬라이스에서 결정.</p>
+
+        <h4>D-5. <code>verifyIntegrity</code> / <code>verifyAndRecordIntegrity</code> 잔류 — <span style="color:var(--yellow)">R1-4-3 까지 잔류</span></h4>
+        <p>무결성 검증은 등록 흐름과 의미가 다름. R1-4-3 (IsoIntegrityService 분리) 에서 처리. 본 슬라이스에서는 변경 0.</p>
+
+        <h4>D-6. CLAUDE.md 정렬</h4>
+        <ul>
+          <li><b>"중복된 코드와 가독성이 떨어지는 코드는 절대 지양"</b> — OSMetadataService 의 비대 (847 줄) 책임 분할로 ~580 까지 해소</li>
+          <li><b>"조건 분기문 legacy 무분별 확장 절대 지양"</b> — 본 슬라이스는 메서드 이동만, 분기문 신규 0줄. R1-4-1 hotfix 의 ChildLifecycleBlockedByParentException → ConflictException 흡수 패턴과 동일하게, 신 service 안의 fallthrough 도 advice 의 super-class 매처가 받음</li>
+          <li><b>"Spring framework primitive 적극 활용"</b> — 신 service 도 @Transactional 경계 / @Service / RequiredArgsConstructor 그대로</li>
+        </ul>
+
+        <h4>D-7. OSNudgeService 의 <code>osMetadataService</code> 의존 잔류 여부 — <span style="color:var(--blue)">검토 필요</span></h4>
+        <p>R1-4-2 후 OSNudgeService 가 osMetadataService 호출이 0 이 되면 의존 제거. 잔류 호출이 있으면 (예: <code>OSMetadata</code> 부모 lookup 등) 의존 유지. CP2 진입 시점에 grep 으로 확인.</p>
+
+        <h4>D-8. 트랜잭션 경계 보존</h4>
+        <p>5 public 메서드 모두 옛 OSMetadataService 의 @Transactional 어노테이션 그대로 이동. 트랜잭션 경계 변경 0. <code>OSNudgeService.replace</code> 는 옛 @Transactional 유지 — 안에서 두 호출 (purgeForNudge + completePendingFromNudge) 이 한 트랜잭션 안에 묶임.</p>
+
+        <h4>D-9. R1-4-1 hotfix 와의 호환</h4>
+        <p>예외 라우팅 advice (Web/Api) 는 본 슬라이스에서 변경 0. controller flow test 의 15 시나리오가 새 service stub 기반으로 회귀 검증 — advice 분기 (text/html vs application/json) 가 그대로 동작. hotfix v3 의 안정성 보존.</p>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r1-4-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (623 → 640 ± 시나리오 변동)</span></label></li>
+          <li><label><input type="checkbox" data-key="size"> <span>OSMetadataService.java 줄 수 -250 이상 (현재 847 → ~580)</span></label></li>
+          <li><label><input type="checkbox" data-key="new-file"> <span>IsoRegistrationService.java 존재 + 5 public + 7 private + PreparedIsoRegistration record</span></label></li>
+          <li><label><input type="checkbox" data-key="grep-leftover"> <span>OSMetadataService 에 addISO / prepareIsoRegistration / finalizePreparedIsoRegistration / completePendingIsoFromNudge / purgeIsoForNudge / registerIsoNudgeSession / triggerPostCreationTask / finalizeMarker / computeFileSha256 / ensureParentDirectory / storeUploadedFile / startJobStage 메서드 0 (grep)</span></label></li>
+          <li><label><input type="checkbox" data-key="record-moved"> <span>OSMetadataService.PreparedIsoRegistration → IsoRegistrationService.PreparedIsoRegistration 이동 + 모든 import 갱신</span></label></li>
+          <li><label><input type="checkbox" data-key="nudge-link"> <span>OSNudgeService 의 4 호출이 isoRegistrationService 로 갱신 (line 57 / 75 / 78 / 125)</span></label></li>
+          <li><label><input type="checkbox" data-key="upload-link"> <span>IsoUploadController 의 2 호출이 isoRegistrationService 로 갱신 (line 63 / 127)</span></label></li>
+          <li><label><input type="checkbox" data-key="runner-link"> <span>IsoRegistrationRunner 의 finalize 호출이 isoRegistrationService 로 갱신 (line 37)</span></label></li>
+          <li><label><input type="checkbox" data-key="cycle"> <span>의존 단방향 — IsoRegistrationService → IsoLifecycleService (cleanupArtifacts 위임), OSMetadataService 와 무의존 (양방향 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="ext-behavior"> <span>외부 동작 동치 — controller flow test 15 시나리오 전부 통과로 증명. hotfix v3 advice 흐름 보존</span></label></li>
+          <li><label><input type="checkbox" data-key="javadoc"> <span>IsoLifecycleService.cleanupArtifacts javadoc 의 "R1-4-2 이전 잔류" 표기 제거 + 새 호출처 IsoRegistrationService 로 갱신</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자 단독) — 4 진입점 (단계 A path conflict / 단계 B 성공 / nudge proceed / nudge replace)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip add">신규</span></td><td><code>management/os/service/iso/IsoRegistrationService.java</code></td><td>ISO 등록 책임 단일 service. 5 public + 7 private + PreparedIsoRegistration record</td></tr>
+            <tr><td><span class="chip add">신규</span></td><td><code>test/.../iso/IsoRegistrationServiceTest.java</code></td><td>등록 단위 시나리오 (§6 의 1~16)</td></tr>
+            <tr><td><span class="chip move">이동</span></td><td><code>management/os/service/metadata/OSMetadataService.java</code></td><td>12 메서드 + record 제거. ~847 → ~580. 의존 정리 (PostCreation strategy / IsoLifecycleService 등)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/OSNudgeService.java</code></td><td>4 호출처 (line 57 / 75 / 78 / 125) lookup 갱신 + 의존 추가. osMetadataService 의존 잔류 여부 결정 (D-7)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/controller/IsoUploadController.java</code></td><td>2 호출처 (line 63 / 127) lookup 갱신 + 의존 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/iso/IsoRegistrationRunner.java</code></td><td>1 호출처 (line 37) lookup 갱신 + 의존 교체</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/iso/IsoRegistrationLauncher.java</code></td><td>PreparedIsoRegistration import 경로 갱신</td></tr>
+            <tr><td><span class="chip mod">수정 (javadoc)</span></td><td><code>management/os/service/iso/IsoLifecycleService.java</code></td><td>cleanupArtifacts javadoc 의 위임 호출처 표기 갱신 — 코드 변경 0</td></tr>
+            <tr><td><span class="chip mod">수정 (javadoc)</span></td><td><code>management/os/service/postcreation/PostCreationTaskStrategy.java</code></td><td>주석의 호출부 참조 갱신</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>controller flow test (OSMetadataControllerUploadFlowTest 등 5 파일)</td><td>IsoRegistrationService @MockitoBean 추가 + 기존 stub 12 건 이동</td></tr>
+            <tr><td><span class="chip mod">수정 (있을 시)</span></td><td>OSMetadataServiceTest.java, OSNudgeServiceTest.java, IsoRegistrationRunnerTest.java</td><td>이동된 메서드 시나리오 제거 또는 mock target 갱신</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>WebExceptionHandler / ApiExceptionHandler / ApiErrorResponse / IsoLifecycleService (코드)</td><td>R1-4-1 hotfix v3 안정 그대로</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>Entity / Repository / Exception / DTO / Template / DB schema</td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1-4-3</b> — IsoIntegrityService 분리 (<code>verifyIntegrity</code> / <code>verifyAndRecordIntegrity</code> / <code>findIntegrityStatus</code> / <code>updateISO</code> 의 marker 재발급 부분). 사용자 "검증" 버튼 + post-upload 자동 트리거 두 진입점 응집. <code>OSMetadataService</code> 가 ~500 줄로 도달 예상 — R1-4 묶음 종료.</li>
+          <li><b>R2</b> — Subprogram / BIOS / BMC / Board 의 동형 패턴 환원 + LifecycleService interface 구현 (cross-domain 추상화 검증). R1-4 의 ISO 분리 3종 (lifecycle / registration / integrity) 이 다른 도메인에도 자연스럽게 매핑되는지 확인.</li>
+          <li><b>R3</b> — PathReconciliationService 분해</li>
+          <li><b>예외 처리 보고서 §8 권고 적용 (별도 슬라이스)</b> — 단일 advice 통합 (변경 1) / ProblemDetail adapter (변경 2) / errorCode 다형성 (변경 3). 본 R1-4-2 후 진입 가능. hotfix v3 안정 + 본 슬라이스의 hotfix 영향 0 이라 진입 안전.</li>
+        </ol>
+        <p>R1-4-2 자체는 1 ~ 2 일 분량. R1-4-3 진입 후 R1-4 묶음 완료 예상.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      if (text.includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+      });
+    });
+  });
+</script>
+</body>
+</html>

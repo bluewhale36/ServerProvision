@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R1-6 Plan — OSMetadata nudge 영속화 로직을 OSMetadataNudgeService 로 흡수</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.preview { color: var(--orange); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  details.section.preview > summary { background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.add { background: var(--green-bg); color: var(--green); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.move { background: var(--blue-bg); color: var(--blue); }
+  .chip.del { background: var(--red-bg); color: var(--red); }
+  .chip.keep { background: var(--bg); color: var(--text-muted); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.danger { border-color: var(--red); background: var(--red-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  .split-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 12px 0; }
+  .split-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; min-width: 0; overflow: hidden; }
+  .split-card h4 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .split-card.before { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .split-card.before h4 { color: var(--red); }
+  .split-card.after { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .split-card.after h4 { color: var(--green); }
+  .method-list { list-style: none; padding: 0; margin: 8px 0; font-family: var(--mono); font-size: 11px; }
+  .method-list li { padding: 2px 6px; margin: 2px 0; border-radius: 3px; background: rgba(255,255,255,0.6); }
+  .method-list li.move { background: var(--blue-bg); color: var(--blue); }
+  .method-list li.keep { background: rgba(255,255,255,0.6); color: var(--text-muted); }
+  .file-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 6px 8px; background: rgba(255,255,255,0.4); border-radius: 4px; }
+
+  .dep-diagram {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 14px; align-items: center; margin: 14px 0;
+  }
+  .dep-node { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; min-width: 0; }
+  .dep-node h5 { margin: 0 0 6px; font-size: 12px; font-family: var(--mono); color: var(--blue); }
+  .dep-node ul { margin: 0; padding-left: 16px; font-size: 11px; color: var(--text-muted); }
+  .dep-node.parent { border-color: var(--orange); }
+  .dep-node.parent h5 { color: var(--orange); }
+  .dep-node.new { border-color: var(--green); }
+  .dep-node.new h5 { color: var(--green); }
+  .dep-node.nudge { border-color: var(--blue); }
+  .dep-arrow { font-size: 18px; color: var(--text-muted); text-align: center; font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R1-6 — OSMetadata nudge 영속화 로직을 <code>OSMetadataNudgeService</code> 로 흡수</h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R1-6</span>
+    <span><strong>상위</strong> R1 (OSMetadata 도메인 리팩토링) ← R0</span>
+    <span><strong>단계</strong> 2-1차 개발 (refactor 슬라이스)</span>
+    <span><strong>생성</strong> 2026-05-29 19:59:38 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약</a></li>
+      <li><a href="#s2">§2 슬라이스 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (nudge dependency 그래프)</a></li>
+      <li><a href="#s3">§3 분리 후 책임 + 시그니처</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10 단계 + CP 묶음</a></li>
+      <li><a href="#s6">§6 통합 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정 사항</a></li>
+      <li><a href="#s9">§9 Verification 체크리스트</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약</summary>
+      <div class="body">
+        <p><b>선행</b> :</p>
+        <ul>
+          <li>R1-1 ~ R1-3 완료 — OSMetadata 충돌 검사 1 round-trip 환원 (R1-1), update 도메인 정책 흡수 (R1-2), lifecycle 분리 + <code>LifecycleService</code> interface 도입 (R1-3).</li>
+          <li>R1-4-1 / R1-4-2 / R1-4-3 완료 — ISO 의 lifecycle / registration / integrity 책임 3종 분리. <code>IsoLifecycleService</code> / <code>IsoRegistrationService</code> / <code>IsoIntegrityService</code> 신설. ISO 도메인은 OSMetadataService 와 <b>완전 단방향</b> 정렬 종료.</li>
+          <li>본 R1-6 = R1 묶음의 후속. ISO 가 R1-4-2 에서 등록 흐름을 <code>IsoRegistrationService</code> 로 떼어낸 것과 정확히 동형으로, OSMetadata <b>부모 도메인</b> 자체의 nudge 영속화 잔류분을 떼어낸다. 단, OSMetadata 는 <b>파일 없는 메타 자원</b>이라 ISO 식 신규 service 신설이 아닌 <b>이미 존재하는 <code>OSMetadataNudgeService</code> 흡수</b> 로 간소화한다.</li>
+        </ul>
+
+        <p><b>본 슬라이스 해소 대상 — 확정 의존 비대칭 (file:line)</b> :</p>
+        <ul>
+          <li><code>OSMetadataNudgeService</code> 가 이미 존재하지만 (proceed/replace/cancel), 영속화 로직은 <code>OSMetadataService</code> 에 잔류해 <b>nudge 서비스가 부모 서비스를 역호출</b>한다 :
+            <ul>
+              <li><code>OSMetadataNudgeService.proceed</code> (line 39) → <code>osMetadataService.completePendingOSMetadataFromNudge(session)</code></li>
+              <li><code>OSMetadataNudgeService.replace</code> (line 53) → <code>osMetadataService.purgeOSMetadataForNudge(target)</code></li>
+              <li><code>OSMetadataNudgeService.replace</code> (line 54) → <code>osMetadataService.completePendingOSMetadataFromNudge(session)</code></li>
+            </ul>
+          </li>
+          <li>잔류 영속화 메서드 4개 (<code>OSMetadataService</code> 안) :
+            <ul>
+              <li><code>completePendingOSMetadataFromNudge</code> (line 191) — PROCEED/REPLACE 의 신규 자원 ACTIVE 영속화</li>
+              <li><code>purgeOSMetadataForNudge</code> (line 211) — REPLACE 의 충돌 후보 hard-delete</li>
+              <li><code>buildOSMetadataNudgePayload</code> (line 145) — <code>create()</code> 의 nudge 세션 등록 + payload 조립</li>
+              <li><code>persistNewOSMetadata</code> (line 175) — 신규 row save (<code>create()</code> happy-path + nudge proceed 두 곳 공유)</li>
+            </ul>
+          </li>
+          <li><code>nudgeRegistry</code> 의존 (<code>OSMetadataService</code> line 56) 은 <code>buildOSMetadataNudgePayload</code> 전용 → C1 과 함께 <b>완전 제거</b>.</li>
+          <li><b>동형 선례 — ISO R1-4-2 직전</b>: <code>OSNudgeService → OSMetadataService.completePendingIsoFromNudge</code> 의 역호출이 R1-4-2 에서 <code>IsoRegistrationService</code> 로 이동해 단방향 완성 (현 <code>OSNudgeService.proceed</code> line 57 / replace line 75, 78 → <code>isoRegistrationService</code>, <code>IsoRegistrationService</code> line 57~58 javadoc "⇸ OSMetadataService 의존 없음"). R1-6 는 이 패턴의 OSMetadata 판.</li>
+        </ul>
+
+        <p><b>본 슬라이스 진입 시점 측정값</b> :</p>
+        <table>
+          <thead><tr><th>지표</th><th>현재</th><th>목표</th></tr></thead>
+          <tbody>
+            <tr><td><code>OSMetadataService.java</code> 줄 수</td><td>381</td><td>~200 (-180 추정)</td></tr>
+            <tr><td>nudge 영속화 메서드 (<code>OSMetadataService</code> 안)</td><td>4 (public 2 + private 2)</td><td>0 (이동)</td></tr>
+            <tr><td><code>nudgeRegistry</code> 의존 (<code>OSMetadataService</code>)</td><td>1 (buildPayload 전용)</td><td>0 (제거)</td></tr>
+            <tr><td>nudge 서비스 → 부모 서비스 역호출</td><td>3 (proceed×1 + replace×2)</td><td>0 (단방향)</td></tr>
+            <tr><td><code>OSMetadataNudgeService</code> 의존</td><td>3 (Registry + osMetadataService + Repository)</td><td>3 (Registry + osMetadataRepository + 자체 흡수)</td></tr>
+            <tr><td>신규 service 파일</td><td>—</td><td>0 (기존 흡수, micro-class 회피)</td></tr>
+            <tr><td>외부 endpoint</td><td>—</td><td>완전 동일 (회귀 0)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <b>측정값 주의 — ISO R1-4-2 와 규모가 다르다.</b> ISO 등록은 단계 A/B + 파일 IO + marker + post-creation 까지 ~330 줄짜리 신규 service 였지만, OSMetadata 는 메타 자원이라 <code>persistNewOSMetadata</code> = <code>builder().save()</code> 한 줄 수준. 그래서 신규 service 신설은 <b>micro-class (책임 과소 분할)</b> 이 되어 over-abstraction. 이미 존재하는 nudge 서비스로 <b>흡수</b>하는 것이 자연스럽다 (결정 B-1).
+        </div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 슬라이스 요구사항 + 비목표</summary>
+      <div class="body">
+        <p>본 슬라이스는 <b>OSMetadata 부모 도메인의 nudge 영속화 응집</b>. 10-에이전트 5관점+4후보 토론 합의 — <b>C1 (nudge 영속화) 만 분리, C2 / C3 / C4 는 KEEP</b> (C3 는 C1 의 공유 절단면이라 동반 처리).</p>
+
+        <ol>
+          <li><b>책임 단방향 정렬 (C1)</b> — <code>completePendingOSMetadataFromNudge</code> / <code>purgeOSMetadataForNudge</code> / <code>buildOSMetadataNudgePayload</code> / <code>persistNewOSMetadata</code> 4 메서드를 <code>OSMetadataNudgeService</code> 로 흡수. nudge 서비스가 부모 서비스를 역호출하던 비대칭 → nudge 서비스가 <code>OSMetadataRepository</code> + <code>NudgeRegistry</code> 직접 주입으로 self-contained.</li>
+          <li><b><code>nudgeRegistry</code> 의존 제거</b> — <code>OSMetadataService</code> 에서 <code>buildOSMetadataNudgePayload</code> 전용 의존을 완전히 끊는다.</li>
+          <li><b><code>create()</code> 재배선 (C3 공유 절단면)</b> — <code>create()</code> happy-path (line 142) 와 nudge proceed (line 203) 두 곳이 <code>persistNewOSMetadata</code> 를 공유한다. <code>create()</code> 의 정상 등록도 흡수 service 의 persist 를 위임하도록 재배선해 persist 로직 중복(불가침) 0 을 보장한다. <code>create()</code> 의 nudge 발화도 흡수 service 의 payload 빌더를 위임.</li>
+          <li><b><code>create()</code> 의 3분기 invariant 판단은 잔류</b> — line 127~142 의 LifecycleStage 3분기 (ACTIVE 단독 → Duplicate / DEPRECATED|SOFT_DELETED → Nudge / row 0 → save) 는 "등록 명령의 본질" 이므로 분해하지 않는다. <code>create()</code> 는 "invariant 판단 → 발화 위임 / 정상 등록 위임" 으로 얇아질 뿐.</li>
+          <li><b>외부 endpoint 동일</b> — Controller URL / HTTP method / response / nudge modal 흐름 100% 동일.</li>
+          <li><b>stale javadoc 청산</b> — C1 이동으로 해소되는 잔류 표기 정정 (§8 D-5).</li>
+        </ol>
+
+        <div class="callout">
+          <b>비 목표 (out of scope)</b> :
+          <ul>
+            <li><b>C2 (Query/CQRS 분리)</b> — codebase 에 <code>*QueryService</code> 0 건 + Board 도 query+command 동거가 표준 + <code>assembleIsoResponses</code> 가 <code>BackgroundJobService</code> 에 의존해 순수 read 로 떼어낼 수 없음 → "도메인을 가로질러 의미를 잃음" (CLAUDE.md over-abstraction 금지) 저촉. <b>KEEP.</b></li>
+            <li><b>C4 (<code>updateISO</code> silent corruption)</b> — <code>OSMetadataService.updateISO</code> (line 242) 의 잠재 손상은 위치 이동으로 해소 불가. MK4 <code>ApplicationFileMover</code> 가 흡수 예정. <b>KEEP (본 슬라이스 변경 0).</b></li>
+            <li><b><code>requireActiveImage</code> 헬퍼 공통화</b> — 의도적 사본 정책 (over-abstraction 회피, 갈라질 때 분리). 흡수 service 에도 사본을 둔다. <b>비 목표.</b></li>
+            <li><b>ISO 측 추가 정리</b> — R1-4 묶음에서 종료. 본 슬라이스는 OSMetadata 부모만 다룬다.</li>
+            <li><b>Board / BIOS / BMC 동형 환원</b> — R2 (다음 마일스톤). 본 R1-6 가 그 복제 템플릿이 된다.</li>
+          </ul>
+        </div>
+
+        <div class="callout success">
+          <b>스코프 한 줄 정의</b> — "<code>OSMetadataNudgeService</code> 가 이미 존재하는데도 영속화 로직만 부모 <code>OSMetadataService</code> 에 잔류해 발생한 <b>역호출 비대칭</b>을, 영속화 4 메서드를 nudge 서비스로 흡수해 단방향으로 풀어내는 슬라이스". ISO R1-4-2 와 정확히 동형이되 메타 자원이라 신규 service 대신 기존 흡수로 간소화.
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 미리보기 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — nudge dependency 그래프 before/after</summary>
+      <div class="body">
+        <p>R1-6 진입 전의 역호출 비대칭과, R1-6 후 단방향 정렬을 비교. ISO R1-4-2 의 도식과 동형 (단, 흡수 대상이 신규 service 가 아닌 기존 <code>OSMetadataNudgeService</code>).</p>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>R1-6 진입 전 (현재) — 역호출 비대칭</h4>
+            <pre><code>OSMetadataNudgeService.proceed   (line 39)
+  └─→ <span style="color:var(--red)">OSMetadataService.completePendingOSMetadataFromNudge</span>
+
+OSMetadataNudgeService.replace   (line 53, 54)
+  ├─→ <span style="color:var(--red)">OSMetadataService.purgeOSMetadataForNudge</span>
+  └─→ <span style="color:var(--red)">OSMetadataService.completePendingOSMetadataFromNudge</span>
+
+OSMetadataService.create         (line 140, 142)
+  ├─→ <span style="color:var(--red)">buildOSMetadataNudgePayload</span> ─→ nudgeRegistry.register
+  └─→ <span style="color:var(--red)">persistNewOSMetadata</span></code></pre>
+            <div class="file-meta">
+              <span style="color:var(--red)">빨강</span> = nudge 영속화 책임 (<code>OSMetadataService</code> 잔류).
+              <b>nudge 서비스가 부모 서비스를 역호출</b> + <code>nudgeRegistry</code> 의존이 부모에 매달려 있는 비대칭.
+              ISO R1-4-2 직전의 <code>OSNudgeService → OSMetadataService.completePendingIsoFromNudge</code> 와 동형.
+            </div>
+          </div>
+
+          <div class="split-card after">
+            <h4>R1-6 후 — 단방향 (self-contained)</h4>
+            <pre><code>OSMetadataNudgeService.proceed
+  └─→ <span style="color:var(--green)">this.completePendingFromNudge</span>
+        └─→ <span style="color:var(--green)">this.persistNew</span> ─→ osMetadataRepository.save
+
+OSMetadataNudgeService.replace
+  ├─→ <span style="color:var(--green)">this.purgeForNudge</span> ─→ osMetadataRepository.delete
+  └─→ <span style="color:var(--green)">this.completePendingFromNudge</span>
+
+OSMetadataService.create
+  ├─→ <span style="color:var(--blue)">osMetadataNudgeService.buildNudgePayload</span>  (발화 위임)
+  └─→ <span style="color:var(--blue)">osMetadataNudgeService.persistNew</span>         (정상 등록 위임)
+
+OSMetadataService
+  └─→ (nudgeRegistry 의존 0 · nudge 영속화 호출 0)</code></pre>
+            <div class="file-meta">
+              <span style="color:var(--green)">초록</span> = 흡수 service 의 자체 책임 (역호출 사라짐) ·
+              <span style="color:var(--blue)">파랑</span> = <code>create()</code> 가 흡수 service 로 <b>정방향</b> 위임 (부모 → nudge 단방향).
+              <code>OSMetadataNudgeService</code> 가 <code>OSMetadataRepository</code> + <code>NudgeRegistry</code> 직접 주입 → self-contained.
+            </div>
+          </div>
+        </div>
+
+        <div class="dep-diagram">
+          <div class="dep-node nudge">
+            <h5>OSMetadataController</h5>
+            <ul>
+              <li>nudge confirm endpoint</li>
+              <li>(URL / response 변경 0)</li>
+            </ul>
+          </div>
+          <div class="dep-arrow">↓</div>
+          <div class="dep-node new">
+            <h5>OSMetadataNudgeService (흡수)</h5>
+            <ul>
+              <li>proceed / replace / cancel</li>
+              <li>+ completePendingFromNudge</li>
+              <li>+ purgeForNudge</li>
+              <li>+ buildNudgePayload / persistNew</li>
+              <li>deps : NudgeRegistry + OSMetadataRepository</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="dep-diagram">
+          <div class="dep-node parent">
+            <h5>OSMetadataService (parent)</h5>
+            <ul>
+              <li>findById / findISO / findAllGrouped</li>
+              <li>create (3분기 판단만, 발화·persist 는 위임)</li>
+              <li>update / updateISO (MK4 까지 한시)</li>
+              <li>buildEnv / buildGroup / assembleIso</li>
+              <li><b>nudge 영속화 호출 0 · nudgeRegistry 의존 0</b></li>
+            </ul>
+          </div>
+          <div class="dep-arrow">→ 정방향 위임<br>(부모 → nudge)</div>
+          <div class="dep-node new">
+            <h5>OSMetadataNudgeService</h5>
+            <ul>
+              <li>(역호출 0 — 부모 lookup 은 OSMetadataRepository 직접)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout success">
+          <b>핵심 통찰</b> — R1-4-2 가 ISO 등록을 떼어 OSMetadataService 의 자식 책임을 비웠다면, R1-6 는 OSMetadata 부모 자신의 nudge 영속화를 nudge 서비스로 흡수해 부모를 "OSMetadata 조회 + 등록 충돌 invariant 판단" 단일 책임 (~200 줄) 으로 환원한다. 의존 그래프는 <b>부모 → nudge 단방향</b> + nudge 서비스 self-contained 로 정렬되어 cycle 0.
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 분리 후 책임 + 시그니처</summary>
+      <div class="body">
+        <h4>3.1 흡수 후 <code>OSMetadataNudgeService</code> 골격</h4>
+        <p>기존 nudge 서비스 (proceed/replace/cancel) 에 영속화 4 메서드를 흡수. 의존을 <code>osMetadataService</code> → <code>osMetadataRepository</code> + <code>nudgeRegistry</code> 로 교체. <code>IsoRegistrationService</code> (line 67~77) 의 self-contained 패턴 복제.</p>
+<pre><code>@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OSMetadataNudgeService {
+
+    // 흡수 후 의존 — 부모 서비스 역의존 제거, Repo + Registry 직접
+    private final NudgeRegistry nudgeRegistry;
+    private final OSMetadataRepository osMetadataRepository;
+    // (제거) private final OSMetadataService osMetadataService;
+
+    // ── 기존 confirm 진입점 (호출처 self-contained 로 전환) ──────────
+    @Transactional public Long proceed(UUID nudgeId) {
+        NudgeSession session = requireOSMetadataSession(nudgeId);
+        Long id = completePendingFromNudge(session);     // this. — 역호출 → 자기 호출
+        consumeSession(nudgeId);
+        return id;
+    }
+    @Transactional public Long replace(UUID nudgeId, Long targetId) {
+        NudgeSession session = requireOSMetadataSession(nudgeId);
+        // ... InvalidReplaceTarget 가드 동일 ...
+        OSMetadata target = osMetadataRepository.findById(targetId)
+                .orElseThrow(() -&gt; new OSMetadataNotFoundException(targetId));
+        purgeForNudge(target);                           // this.
+        Long newId = completePendingFromNudge(session);  // this.
+        consumeSession(nudgeId);
+        return newId;
+    }
+    public void cancel(UUID nudgeId) { ... }             // 변경 0 (메타 단독 — 임시 파일 없음)
+
+    // ── 흡수된 영속화 (옛 OSMetadataService 에서 이동) ──────────────
+    @Transactional public Long completePendingFromNudge(NudgeSession session) { ... }  // 옛 :191
+    @Transactional public void purgeForNudge(OSMetadata target) { ... }                // 옛 :211
+    public NudgeRequiredResponse buildNudgePayload(                                     // 옛 :145
+            OSMetadataCreateRequest request, List&lt;OSMetadata&gt; candidates) { ... }
+    public Long persistNew(OSName osName, String osVersion, String description) { ... } // 옛 :175
+
+    // ── 기존 내부 헬퍼 (변경 0) ──────────────────────────────────
+    private NudgeSession requireOSMetadataSession(UUID nudgeId) { ... }
+    private void consumeSession(UUID nudgeId) { ... }
+}</code></pre>
+
+        <h4>3.2 <code>create()</code> 가 흡수 service 로 정방향 위임 (C3 공유 절단면)</h4>
+        <p><code>OSMetadataService.create()</code> 의 3분기 invariant 판단은 잔류하되, 발화·persist 는 위임한다. <code>OSMetadataService</code> 가 <code>osMetadataNudgeService</code> 를 주입 (부모 → nudge <b>정방향</b>, cycle 없음 — nudge 서비스는 osMetadataService 를 더 이상 모름).</p>
+<pre><code>// OSMetadataService (R1-6 후) — invariant 판단만, 발화·persist 위임
+@Transactional
+public Long create(OSMetadataCreateRequest request) {
+    Map&lt;LifecycleStage, List&lt;OSMetadata&gt;&gt; byStage = ... ;   // R1-1 1 round-trip (잔류)
+    boolean hasActive = ...; boolean hasDeprecated = ...; boolean hasSoftDeleted = ...;
+
+    if (hasActive &amp;&amp; !hasDeprecated &amp;&amp; !hasSoftDeleted)
+        throw new DuplicateOSMetadataException(request.osName(), request.osVersion());   // 잔류 (invariant)
+    if (hasDeprecated || hasSoftDeleted) {
+        List&lt;OSMetadata&gt; candidates = ... ;                  // 후보 합성 (잔류)
+        throw new OSMetadataNudgeRequiredException(
+                osMetadataNudgeService.buildNudgePayload(request, candidates));   // 발화 위임
+    }
+    return osMetadataNudgeService.persistNew(
+            request.osName(), request.osVersion(), request.description());        // 정상 등록 위임
+}</code></pre>
+
+        <div class="callout warn">
+          <b>위임 방향 검증</b> — R1-6 후 의존은 <b>OSMetadataService → OSMetadataNudgeService</b> (정방향) 단 한 줄. 반대로 OSMetadataNudgeService → OSMetadataService 역호출은 0 (Repository 직접). 따라서 cycle 없음. 만약 <code>create()</code> 의 위임이 부담스러우면 대안 — <code>persistNew</code>/<code>buildNudgePayload</code> 를 흡수 service 의 public 으로 두고 <code>create()</code> 가 호출 (본 안). 이는 ISO R1-4-2 가 <code>OSNudgeService → IsoRegistrationService.completePendingFromNudge</code> 를 단방향으로 만든 것과 동형이되, OSMetadata 는 부모가 자식 nudge 서비스를 호출하는 형태라 방향이 한 단계 더 명시적.
+        </div>
+
+        <h4>3.3 메서드명 정렬 — 흡수 후 컨텍스트로 단축</h4>
+        <p>옛 이름은 "OSMetadataService 안이라 OSMetadata 명시 필요" 였으나, 흡수 service 가 이미 OSMetadata nudge 컨텍스트이므로 단축 (ISO R1-4-2 의 <code>completePendingIsoFromNudge → completePendingFromNudge</code> 정책 동일) :</p>
+<pre><code>// 옛 (OSMetadataService 안)                              // 새 (OSMetadataNudgeService 안)
+completePendingOSMetadataFromNudge(session)            →  completePendingFromNudge(session)
+purgeOSMetadataForNudge(target)                        →  purgeForNudge(target)
+buildOSMetadataNudgePayload(request, candidates)       →  buildNudgePayload(request, candidates)
+persistNewOSMetadata(osName, osVersion, description)   →  persistNew(osName, osVersion, description)</code></pre>
+
+        <h4>3.4 분리 후 <code>OSMetadataService</code> 최종 형태 (~200 줄)</h4>
+        <p>"OSMetadata 부모 도메인 조회 + 명령 (등록 충돌 invariant 포함)" 단일 책임. <code>nudgeRegistry</code> 의존 완전 제거. 잔류 멤버 :</p>
+        <ul style="font-family: var(--mono); font-size: 12px;">
+          <li>조회 : findById / findISO / findAllGrouped</li>
+          <li>명령 : create (3분기 판단만) / update / updateISO (MK4 까지 한시)</li>
+          <li>응답 조립 : buildEnvResponses / buildGroupResponses / assembleIsoResponses</li>
+          <li>헬퍼 : requireActiveImage / requireLiveISO / visibleISOs</li>
+          <li>신규 의존 : osMetadataNudgeService (정방향 위임 1)</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>OSMetadataNudgeService.java</code></td>
+              <td><span class="chip add">흡수</span></td>
+              <td>영속화 4 메서드 흡수 (completePendingFromNudge / purgeForNudge / buildNudgePayload / persistNew). 의존 교체 : <code>osMetadataService</code> 제거 → <code>nudgeRegistry</code> (기존) + <code>osMetadataRepository</code> (기존, lookup 용) 직접 사용. proceed/replace 의 역호출을 <code>this.</code> 자기 호출로 전환.</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataService.java</code></td>
+              <td><span class="chip move">이동</span></td>
+              <td>영속화 4 메서드 제거 (line 145 / 175 / 191 / 211). <code>nudgeRegistry</code> 의존 제거 (line 56). <code>create()</code> 재배선 — 3분기 invariant 잔류 + 발화·persist 를 <code>osMetadataNudgeService</code> 로 위임. <code>osMetadataNudgeService</code> 의존 추가. 줄 수 381 → ~200.</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataLifecycleService.java</code></td>
+              <td><span class="chip mod">javadoc</span></td>
+              <td>class javadoc line 31 의 <code>purgeOSMetadataForNudge ... OSMetadataService 잔류</code> 표기 제거 (C1 이동으로 해소). (덤) line 25 / 91 / 169 의 삭제된 <code>#restoreISO</code> / <code>#cleanupIsoArtifacts</code> still-link stale doc 청산 (§8 D-5).</td>
+            </tr>
+            <tr>
+              <td><code>IsoLifecycleService.java</code></td>
+              <td><span class="chip mod">javadoc</span></td>
+              <td><code>cleanupArtifacts</code> javadoc line 243 의 <code>OSMetadataService.purgeOSMetadataForNudge — nudge replace 의 부모 purge</code> 표기 정정 (이 메서드는 OSMetadataNudgeService 로 이동). 코드 변경 0.</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataServiceTest.java</code></td>
+              <td><span class="chip mod">정리</span></td>
+              <td><code>create_whenActiveAndSoftDeletedCoexist_throwsNudge</code> (line 188) — <code>create()</code> 잔류 (3분기 판단) 이지만 payload 빌더가 위임으로 바뀌므로, <code>osMetadataNudgeService</code> mock 으로 stub 후 <b>위임 검증</b>으로 갱신. <code>nudgeRegistry</code> @Mock 은 <code>create()</code> 가 더 이상 직접 호출 안 하므로 OSMetadataServiceTest 에서 제거 가능 (OSMetadataNudgeServiceTest 로 이동).</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataNudgeServiceTest.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td><b>현재 부재.</b> 흡수된 영속화 로직의 단위 시나리오 신규 작성 — proceed(happy) / replace(happy, purge+persist 순서) / completePendingFromNudge(wrong payload type → IllegalOSMetadataState) / completePendingFromNudge(race 활성 중복 → DuplicateOSMetadata) / purgeForNudge(활성 target 거절 → IllegalOSMetadataState) / buildNudgePayload(세션 등록 검증). 테스트 lag 방지 — 로직 이동과 동시 작성.</td>
+            </tr>
+            <tr>
+              <td>controller flow test (OSMetadataControllerUploadFlowTest 등)</td>
+              <td><span class="chip keep">유지 (검증)</span></td>
+              <td>nudge confirm endpoint 의 <code>@MockitoBean OSMetadataNudgeService</code> 는 그대로 (서비스 이름 불변). 외부 동작 동치 — 기존 시나리오 회귀로 증명. mock target 변경 없음.</td>
+            </tr>
+            <tr>
+              <td>Controller / Repository / Entity / Exception / DTO / Template / DB schema</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>변경 0. 흡수는 서비스 내부 책임 재배치 — 외부 계약 불변.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — OSMetadataNudgeService +60 (흡수) / OSMetadataService -180 (이동 + create 재배선) / OSMetadataLifecycleService javadoc ±8 / IsoLifecycleService javadoc ±2 / OSMetadataServiceTest ±30 (위임 검증 전환) / OSMetadataNudgeServiceTest +90 (신규). net ~ +10 (로직 총량 보존, 책임만 재배치).</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>표준</th><th>R1-6 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html</td><td>본 문서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf</td><td><i>N/A</i> (UI 변경 0)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller</td><td><i>N/A</i> (nudge endpoint mock target 동일)</td></tr>
+            <tr><td>4</td><td>DTO</td><td><i>N/A</i></td></tr>
+            <tr><td>5</td><td>Service 시그니처</td><td>OSMetadataNudgeService 에 흡수 4 메서드 시그니처 추가 + 의존 교체. OSMetadataService 에 osMetadataNudgeService 의존 + create 위임 시그니처.</td></tr>
+            <tr><td>6</td><td>Repository</td><td><i>N/A</i> (OSMetadataRepository 그대로)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity</td><td><i>N/A</i></td></tr>
+            <tr><td>8</td><td>Service 본체 + 테스트</td><td>OSMetadataService 에서 4 메서드 + nudgeRegistry 제거 + create 재배선 + OSMetadataNudgeService 흡수 (역호출 → this) + OSMetadataNudgeServiceTest 신규 + OSMetadataServiceTest nudge 시나리오 위임 검증 전환 + 2 javadoc 청산</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마</td><td><i>N/A</i></td></tr>
+            <tr><td>10</td><td>브라우저 E2E</td><td>nudge 흐름 4 동작 확인 — (a) create 정상 등록 (row 0), (b) ACTIVE 단독 충돌 → Duplicate 거절, (c) SOFT_DELETED 충돌 → nudge modal → proceed 시 신규 ACTIVE + 후보 보존, (d) nudge replace 시 후보 purge + 신규 ACTIVE</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <b>CP 분리 정책 (안 A — ISO R1-4-2 사후 인정 패턴 그대로)</b> — Step 5 / Step 8 의 컴파일 의존이 강해 strict CP 분리는 인위적. <b>안 A</b> 채택 : CP2 안에서 옛 file 의 4 메서드 제거 + 3 역호출 self-contained 전환 + create 재배선까지 동반 (컴파일 단위가 묶임). CP3 = N/A, CP4 = 테스트 신규/전환 + javadoc 청산.
+        </div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <p>본 슬라이스는 refactor 라 신규 endpoint 0. 단위 테스트 이동/신규 + 기존 controller flow test 회귀로 외부 동치를 증명한다. CLAUDE.md 통합 테스트 규율 (성공 · 400 · 404 · 409 · 500) 은 nudge confirm endpoint 의 기존 controller flow test 가 이미 커버 (mock target 불변이라 회귀로 충족).</p>
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>위치</th><th>분류</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>proceed(happy) — 신규 자원 ACTIVE 영속화 + 후보 보존 + 세션 consume</td><td>OSMetadataNudgeServiceTest (신규)</td><td>성공</td></tr>
+            <tr><td>2</td><td>replace(happy) — purgeForNudge → completePendingFromNudge 순서 검증 + 세션 consume</td><td>위</td><td>성공</td></tr>
+            <tr><td>3</td><td>buildNudgePayload — nudgeRegistry.register 호출 + NudgeRequiredResponse 후보 entry 조립</td><td>위</td><td>성공</td></tr>
+            <tr><td>4</td><td>persistNew(happy) — osMetadataRepository.save 호출 + 생성 id 반환</td><td>위</td><td>성공</td></tr>
+            <tr><td>5</td><td>completePendingFromNudge(wrong payload type) — IntentMetaNudgePayload 아니면 IllegalOSMetadataStateException</td><td>위</td><td>500 (잘못된 세션 상태)</td></tr>
+            <tr><td>6</td><td>completePendingFromNudge(race) — confirm 시점 활성 (osName, osVersion) 재생성 → DuplicateOSMetadataException</td><td>위</td><td>409</td></tr>
+            <tr><td>7</td><td>purgeForNudge(활성 target) — isDeleted &amp;&amp; isDeprecated 둘 다 false 면 IllegalOSMetadataStateException</td><td>위</td><td>500 (불변 위반)</td></tr>
+            <tr><td>8</td><td>replace(invalid target) — conflictTargetIds 에 없는 targetId → InvalidReplaceTargetException</td><td>위</td><td>400</td></tr>
+            <tr><td>9</td><td>replace(target 미존재) — osMetadataRepository.findById empty → OSMetadataNotFoundException</td><td>위</td><td>404</td></tr>
+            <tr><td>10</td><td>proceed/replace(이미 해결된 nudgeId) — consumeSession 두 번째 호출 → NudgeAlreadyResolvedException</td><td>위</td><td>409</td></tr>
+            <tr><td>11</td><td>create(nudge 위임) — ACTIVE+SOFT_DELETED 혼합 시 osMetadataNudgeService.buildNudgePayload 위임 검증 (mock) → OSMetadataNudgeRequiredException</td><td>OSMetadataServiceTest (전환)</td><td>위임 검증</td></tr>
+            <tr><td>12</td><td>create(정상 등록 위임) — row 0 시 osMetadataNudgeService.persistNew 위임 검증 (mock)</td><td>OSMetadataServiceTest (전환)</td><td>위임 검증</td></tr>
+            <tr><td>13</td><td>create(ACTIVE 단독) — DuplicateOSMetadataException 잔류 (invariant 판단은 부모) + persist/payload 위임 0</td><td>OSMetadataServiceTest (유지)</td><td>409</td></tr>
+            <tr><td>14</td><td>nudge confirm endpoint 회귀 — proceed/replace/cancel HTTP 상태 + 응답 바디 (mock target OSMetadataNudgeService 불변)</td><td>controller flow test (기존)</td><td>회귀</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>범주 분배</b> — 성공 4 / 400 1 (#8) / 404 1 (#9) / 409 3 (#6, #10, #13) / 500 2 (#5, #7, IllegalOSMetadataState) / 위임 검증 3 (#3·#4 포함 시 부분 겹침, #11·#12) / 회귀 1 = 총 14. CLAUDE.md 의 통합 테스트 규율 (성공 · 400 · 404 · 409 · 500 모두 포함) 충족. <b>신규 예외 0</b> 이지만 발화 위치가 흡수 service 로 이동하므로 각 예외를 트리거하는 시나리오를 흡수 service 단위 테스트에 명시 (#5~#10).</p>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p><b>변경 0</b>. 발화 위치만 흡수 service 로 이동 :</p>
+        <ul>
+          <li><code>IllegalOSMetadataStateException</code> — completePendingFromNudge 의 wrong payload type / purgeForNudge 의 활성 target 거절. 발화 위치 OSMetadataService → OSMetadataNudgeService.</li>
+          <li><code>DuplicateOSMetadataException</code> — completePendingFromNudge 의 confirm 시점 race 재검사. 발화 위치 이동. (단 <code>create()</code> 의 ACTIVE 단독 충돌 발화는 부모 invariant 라 OSMetadataService 잔류.)</li>
+          <li><code>OSMetadataNudgeRequiredException</code> — <code>create()</code> 가 던지지만 payload 는 흡수 service 의 <code>buildNudgePayload</code> 가 조립. 발화는 부모 잔류, payload 생성만 위임.</li>
+          <li><code>OSMetadataNotFoundException</code> — replace 의 target lookup 미존재. OSMetadataNudgeService 에 이미 존재 (line 52), 변경 0.</li>
+          <li><code>InvalidReplaceTargetException</code> / <code>NudgeAlreadyResolvedException</code> — 기존 nudge 서비스 발화 그대로, 변경 0.</li>
+        </ul>
+        <p>전역 ExceptionHandler 매핑 (WebExceptionHandler / ApiExceptionHandler) 그대로. 흡수가 발화 위치만 옮기고 예외 타입은 불변이라 advice 분기 영향 0. controller flow test 의 nudge confirm 시나리오가 회귀로 증명.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>D-1. 이동처 결정 — <span style="color:var(--green)">기존 OSMetadataNudgeService 흡수 (안 A 확정)</span></h4>
+        <p>10-에이전트 토론에서 ISO 식 신규 service 신설안 (안 B) 과 비교. OSMetadata 는 파일 없는 메타 자원이라 <code>persistNew</code> = <code>builder().save()</code> 한 줄 수준 → 신규 service 신설은 <b>micro-class (책임 과소 분할)</b> 로 over-abstraction. 이미 존재하는 <code>OSMetadataNudgeService</code> 흡수 시 그 service 가 <code>OSMetadataRepository</code> + <code>NudgeRegistry</code> 직접 주입으로 self-contained 가 되어 <code>IsoRegistrationService</code> line 57~58 의 단방향 패턴을 복제. <b>흡수 확정.</b></p>
+
+        <h4>D-2. Board 동형 — <span style="color:var(--blue)">R1-6 → R2 순차 (B-2 확정)</span></h4>
+        <p><code>BoardModelService</code> (432 줄) 가 글자 그대로 동일 구조 : <code>buildBoardNudgePayload</code> (line 151) / <code>persistNewBoard</code> (line 181) / <code>completePendingBoardFromNudge</code> (line 194) / <code>purgeBoardForNudge</code> (line 213) + <code>nudgeRegistry</code> 의존 (line 54). <code>BoardModelNudgeService</code> 도 OSMetadataNudgeService 와 동일하게 부모 서비스를 역호출 (proceed line 33 / replace line 47, 48). <b>R1-6 가 R2 (Board) 복제 템플릿</b>이 된다. plan §11 + Notion 본문에 "Board 동형 복제 예정" 명기. (BIOS / BMC 도 R2 묶음에서 함께 검토.)</p>
+
+        <h4>D-3. Bios 콜백 — <span style="color:var(--yellow)">OS 만 전환, Bios 는 그대로 (B-3 확정)</span></h4>
+        <p>BiosNudgeService → biosService 콜백은 <b>이미 출시된 정상 패턴</b> — 파일 있는 Bios 는 콜백이 자연스러운 형태라 동일 비대칭으로 보지 않는다. R1-6 는 OS 만 단방향 전환. Bios 는 본 슬라이스 / R2 범위에서 변경 0.</p>
+
+        <h4>D-4. <code>persistNew</code> 공유 절단면 — <span style="color:var(--green)">create() 재배선으로 중복 0 보장</span></h4>
+        <p><code>persistNewOSMetadata</code> 는 <code>create()</code> happy-path (line 142) 와 <code>completePendingOSMetadataFromNudge</code> (line 203) 두 곳이 공유한다. C1 이동 후 <code>create()</code> 가 흡수 service 의 <code>persistNew</code> 를 위임 호출하도록 재배선해 persist 로직 (불가침 중복 금지) 이 두 곳에 복붙되지 않도록 보장. <code>create()</code> 는 "3분기 invariant 판단 → 발화 위임 / persist 위임" 으로 얇아지되 <b>invariant 판단 (line 127~142) 은 등록 명령의 본질이라 분해하지 않는다</b>.</p>
+
+        <h4>D-5. stale javadoc 청산 — <span style="color:var(--orange)">2 파일 정정</span></h4>
+        <ul>
+          <li><code>OSMetadataLifecycleService.java</code> line 31 : <code>purgeOSMetadataForNudge — nudge replace 흐름의 의존이 강해 OSMetadataService 잔류</code> → C1 이동으로 해소되므로 제거.</li>
+          <li>(덤, 권장) 같은 파일 line 25 / 91 / 169 : 삭제된 <code>#restoreISO</code> / <code>#cleanupIsoArtifacts</code> still-link stale doc (R1-4-1 에서 IsoLifecycleService 로 이동했으나 javadoc 이 옛 OSMetadataService 메서드를 가리킴) 동반 청산.</li>
+          <li><code>IsoLifecycleService.java</code> line 243 : <code>OSMetadataService.purgeOSMetadataForNudge — nudge replace 의 부모 purge</code> 표기를 <code>OSMetadataNudgeService.purgeForNudge</code> 로 정정.</li>
+          <li>(권장) <code>OSMetadataServiceTest</code> 의 R1-4 이전 잔여 <code>addISO_*</code> 테스트 / import lag 은 이미 isoRegistrationService 로 위임된 상태이나, 잔여 stale import 가 있으면 동반 청산.</li>
+        </ul>
+
+        <h4>D-6. <code>requireActiveImage</code> 사본 정책 (R1-3 / R1-4-1 패턴 그대로)</h4>
+        <p>흡수 service 가 부모 lookup 이 필요하면 <code>requireActiveImage</code> 사본을 둔다 (over-abstraction 회피). 단 nudge proceed 의 <code>completePendingFromNudge</code> 는 현재 (line 199) <code>existsByOsNameAndOsVersionAndIsDeletedFalse</code> 만 호출하고 부모 entity lookup 은 하지 않으므로 사본이 불필요할 수 있다 — CP2 진입 시 실제 필요성 확인 후 결정.</p>
+
+        <h4>D-7. 트랜잭션 경계 보존</h4>
+        <p>흡수 4 메서드 모두 옛 <code>@Transactional</code> 어노테이션 그대로 이동. <code>OSMetadataNudgeService.replace</code> 는 옛 <code>@Transactional</code> (line 45) 유지 — 안에서 두 호출 (purgeForNudge + completePendingFromNudge) 이 한 트랜잭션 안에 묶임 (기존 동작 동일). 트랜잭션 경계 변경 0.</p>
+
+        <h4>D-8. CLAUDE.md 정렬</h4>
+        <ul>
+          <li><b>"중복된 코드와 가독성이 떨어지는 코드는 절대 지양"</b> — OSMetadataService (381 줄) 책임 분할로 ~200 까지 해소. persistNew 공유 절단면 재배선으로 중복 0.</li>
+          <li><b>"조건 분기문 legacy 무분별 확장 절대 지양"</b> — 본 슬라이스는 메서드 이동 + 역호출 정렬만, 분기문 신규 0줄. create 의 3분기는 잔류 (도메인 invariant 의 정당한 if-throw).</li>
+          <li><b>"Spring framework primitive 적극 활용"</b> — 흡수 service 도 <code>@Service</code> / <code>@RequiredArgsConstructor</code> / <code>@Transactional</code> 그대로.</li>
+          <li>CLAUDE.md 본문 수정 불필요 (인벤토리 코드 / Stage 어휘 변경 0).</li>
+        </ul>
+
+        <h4>D-9. Notion R1-6 페이지 본문 (4 항목)</h4>
+        <ul>
+          <li>① scope — OSMetadata nudge 영속화 4 메서드를 OSMetadataNudgeService 로 흡수, 역호출 비대칭 단방향 정렬.</li>
+          <li>② 비 목표 — C2 (Query 분리) / C4 (updateISO, MK4 흡수 예정) / requireActiveImage 공통화 제외. Board 동형은 R2 로.</li>
+          <li>③ 잔존 책임 — updateISO 의 잠재 손상은 R1-6 범위 외, MK4 ApplicationFileMover 에서 해소 예정.</li>
+          <li>④ 후속 마일스톤 — R2 에서 BoardModel / BIOS / BMC 동형 환원 (R1-6 가 복제 템플릿).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r1-6-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><b>빌드</b> — <code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><b>빌드</b> — <code>./gradlew test</code> 전체 통과 (신규 OSMetadataNudgeServiceTest 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="size"> <span><b>기능</b> — OSMetadataService.java 줄 수 -150 이상 (현재 381 → ~200)</span></label></li>
+          <li><label><input type="checkbox" data-key="grep-leftover"> <span><b>기능</b> — OSMetadataService 에 completePendingOSMetadataFromNudge / purgeOSMetadataForNudge / buildOSMetadataNudgePayload / persistNewOSMetadata 메서드 0 (grep)</span></label></li>
+          <li><label><input type="checkbox" data-key="no-registry"> <span><b>기능</b> — OSMetadataService 에 <code>NudgeRegistry</code> import / 필드 0 (grep), <code>nudgeRegistry</code> 의존 완전 제거</span></label></li>
+          <li><label><input type="checkbox" data-key="self-contained"> <span><b>기능</b> — OSMetadataNudgeService 가 <code>osMetadataService</code> 의존 0 (역호출 사라짐) + <code>osMetadataRepository</code> + <code>nudgeRegistry</code> 직접 주입</span></label></li>
+          <li><label><input type="checkbox" data-key="create-delegate"> <span><b>기능</b> — OSMetadataService.create() 가 osMetadataNudgeService.buildNudgePayload / persistNew 로 위임 (정방향) + 3분기 invariant 판단 잔류</span></label></li>
+          <li><label><input type="checkbox" data-key="cycle"> <span><b>기능</b> — 의존 단방향 검증 : OSMetadataService → OSMetadataNudgeService (정방향 1) / 역방향 0 (cycle 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="dedup-persist"> <span><b>기능</b> — persist 로직이 한 곳 (OSMetadataNudgeService.persistNew) 에만 존재, create() / completePendingFromNudge 가 공유 (복붙 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="ext-behavior"> <span><b>회귀</b> — 외부 동작 동치 : controller flow test 의 nudge confirm 시나리오 전부 통과 (mock target 불변)</span></label></li>
+          <li><label><input type="checkbox" data-key="javadoc"> <span><b>회귀</b> — javadoc 청산 : OSMetadataLifecycleService line 31 (+ 25/91/169 권장) + IsoLifecycleService line 243 stale 표기 제거/정정</span></label></li>
+          <li><label><input type="checkbox" data-key="board-note"> <span><b>회귀</b> — Notion R1-6 본문 4 항목 + "Board 동형 복제 예정 (R2)" 명기</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span><b>회귀</b> — 브라우저 E2E (CP5, 사용자 단독) — create 정상 / Duplicate 거절 / nudge proceed / nudge replace 4 동작</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip add">신규</span></td><td><code>test/.../os/service/metadata/OSMetadataNudgeServiceTest.java</code></td><td>흡수된 영속화 로직 단위 시나리오 (§6 의 1~10). 현재 부재 — 테스트 lag 청산.</td></tr>
+            <tr><td><span class="chip add">흡수</span></td><td><code>management/os/service/metadata/OSMetadataNudgeService.java</code></td><td>영속화 4 메서드 흡수 + 의존 교체 (osMetadataService 제거 → osMetadataRepository 직접) + 역호출 → this 전환. self-contained.</td></tr>
+            <tr><td><span class="chip move">이동</span></td><td><code>management/os/service/metadata/OSMetadataService.java</code></td><td>영속화 4 메서드 + nudgeRegistry 의존 제거. create 재배선 (invariant 잔류 + 발화·persist 위임). 381 → ~200.</td></tr>
+            <tr><td><span class="chip mod">수정 (javadoc)</span></td><td><code>management/os/service/metadata/OSMetadataLifecycleService.java</code></td><td>line 31 stale 표기 제거 + (권장) line 25/91/169 still-link 청산. 코드 변경 0.</td></tr>
+            <tr><td><span class="chip mod">수정 (javadoc)</span></td><td><code>management/os/service/iso/IsoLifecycleService.java</code></td><td>cleanupArtifacts javadoc line 243 의 purgeOSMetadataForNudge 표기 정정. 코드 변경 0.</td></tr>
+            <tr><td><span class="chip mod">수정 (테스트)</span></td><td><code>test/.../os/service/metadata/OSMetadataServiceTest.java</code></td><td>create nudge 시나리오 (line 188) 를 osMetadataNudgeService mock 위임 검증으로 전환. nudgeRegistry @Mock 제거 (직접 호출 사라짐).</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>OSMetadataController / OSMetadataRepository / WebExceptionHandler / ApiExceptionHandler</td><td>외부 계약 불변. nudge confirm endpoint mock target 동일.</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>Entity / Exception / DTO / Template / DB schema</td><td>변경 0.</td></tr>
+            <tr><td><span class="chip keep">유지 (R2 대상)</span></td><td><code>board/service/BoardModelService.java</code> / <code>BoardModelNudgeService.java</code></td><td>동형 구조 — R1-6 가 복제 템플릿. R2 에서 환원 (본 슬라이스 변경 0).</td></tr>
+          </tbody>
+        </table>
+        <p><b>요약</b> — 신규 1 (테스트) · 흡수 1 · 이동 1 · 수정 3 (javadoc 2 + 테스트 1) · 유지 4 (R2 대상 1 포함).</p>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R2 — BoardModel 동형 복제 (R1-6 템플릿 적용)</b> : <code>BoardModelService</code> (432 줄) 의 nudge 영속화 4 메서드 (buildBoardNudgePayload line 151 / persistNewBoard line 181 / completePendingBoardFromNudge line 194 / purgeBoardForNudge line 213) 를 <code>BoardModelNudgeService</code> 로 흡수. R1-6 와 글자 그대로 동일 구조라 본 슬라이스가 검증 완료한 패턴을 그대로 복제. 같은 묶음에서 BIOS / BMC 의 동형 패턴도 검토.</li>
+          <li><b>MK4 — ApplicationFileMover</b> : C4 (<code>updateISO</code> silent corruption) 가 흡수될 슬라이스. UI 에서 파일 이동 시 마커 + DB 동시 갱신. R1-6 비 목표였던 updateISO 잔존 책임 해소.</li>
+          <li><b>R1 묶음 종료 검토</b> : R1-6 후 OSMetadata 도메인 (조회 + 등록 invariant + lifecycle + nudge + ISO 3종 분리) 의 책임 정렬이 완결 단계. R2 진입 전 R1 묶음 Gate 정리.</li>
+        </ol>
+        <p>R1-6 자체는 refactor 라 1 일 분량 (로직 이동 + 테스트 신규/전환 + javadoc 청산). 외부 동작 동치라 회귀 위험 낮음.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 16;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      if (text.includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+      });
+    });
+  });
+</script>
+</body>
+</html>

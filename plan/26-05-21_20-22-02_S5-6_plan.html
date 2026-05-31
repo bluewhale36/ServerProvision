@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-6 Plan — modal fragment lazy load (안 C : expected value 까지 BE 위임)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.rec { background: var(--green-bg); color: var(--green); }
+  .chip.alt { background: var(--blue-bg); color: var(--blue); }
+  .chip.bad { background: var(--red-bg); color: var(--red); }
+  .chip.b { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.c { background: var(--green-bg); color: var(--green); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* B vs C 비교 — 2 카드 */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  .compare-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .compare-card.b { border-color: var(--yellow); border-width: 2px; background: var(--yellow-bg); }
+  .compare-card.c { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .compare-card h4 { margin: 0 0 8px; font-size: 14px; font-family: var(--mono); }
+  .compare-card.b h4 { color: var(--yellow); }
+  .compare-card.c h4 { color: var(--green); }
+  .compare-card ul { margin: 4px 0; padding-left: 18px; }
+  .compare-card li { font-size: 12.5px; line-height: 1.5; }
+
+  /* 흐름 다이어그램 */
+  .flow { background: var(--bg); padding: 14px; border-radius: 6px; border: 1px solid var(--border-soft);
+    font-family: var(--mono); font-size: 12px; line-height: 1.7; white-space: pre; overflow-x: auto; }
+
+  /* 시퀀스 다이어그램 — 컬럼 기반 */
+  .seq { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; background: var(--bg);
+    border: 1px solid var(--border-soft); border-radius: 6px; margin: 10px 0; overflow: hidden; }
+  .seq .actor { padding: 8px 10px; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    text-align: center; color: var(--text-muted); background: var(--card); border-bottom: 1px solid var(--border-soft); }
+  .seq .actor.fe { color: var(--blue); }
+  .seq .actor.be { color: var(--green); }
+  .seq .actor.db { color: var(--yellow); }
+  .seq .step { padding: 6px 12px; font-size: 12px; line-height: 1.55; border-bottom: 1px solid var(--border-soft); }
+  .seq .step:last-child { border-bottom: none; }
+  .seq .step.fe { background: rgba(0,117,222,0.04); }
+  .seq .step.be { background: rgba(26,174,57,0.04); }
+  .seq .step.db { background: rgba(194,147,67,0.04); }
+  .seq .step.arrow-right { text-align: right; font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .seq .step.arrow-left { text-align: left; font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .seq .step strong { font-weight: 600; }
+  .seq .step code { font-size: 11px; padding: 1px 4px; }
+  .seq .step.full { grid-column: 1 / -1; background: var(--bg); font-size: 11px;
+    text-align: center; color: var(--text-muted); padding: 4px 10px; font-style: italic; }
+
+  /* BE 컴포넌트 박스 다이어그램 */
+  .arch { background: var(--bg); padding: 18px; border-radius: 6px; border: 1px solid var(--border-soft);
+    margin: 10px 0; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .arch-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .arch-box { background: var(--card); border: 2px solid var(--border); border-radius: 6px;
+    padding: 10px 14px; min-width: 140px; text-align: center; font-size: 12.5px; }
+  .arch-box.entry { border-color: var(--blue); }
+  .arch-box.entry .arch-box-title { color: var(--blue); }
+  .arch-box.enum { border-color: var(--orange); }
+  .arch-box.enum .arch-box-title { color: var(--orange); }
+  .arch-box.service { border-color: var(--green); }
+  .arch-box.service .arch-box-title { color: var(--green); }
+  .arch-box.spi { border-color: var(--yellow); }
+  .arch-box.spi .arch-box-title { color: var(--yellow); }
+  .arch-box.fragment { border-color: var(--red); }
+  .arch-box.fragment .arch-box-title { color: var(--red); }
+  .arch-box-title { font-family: var(--mono); font-weight: 700; font-size: 11px; margin-bottom: 4px; letter-spacing: 0.3px; }
+  .arch-box-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+  .arch-arrow { color: var(--text-muted); font-size: 18px; font-family: var(--mono); }
+
+  /* sub-slice 별 흐름 비교 */
+  .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  .variant-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 12px; }
+  .variant-card h5 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .variant-card.v1 { border-left: 4px solid var(--blue); }
+  .variant-card.v1 h5 { color: var(--blue); }
+  .variant-card.v2 { border-left: 4px solid var(--green); }
+  .variant-card.v2 h5 { color: var(--green); }
+  .variant-card.v3 { border-left: 4px solid var(--orange); }
+  .variant-card.v3 h5 { color: var(--orange); }
+  .variant-card.v4 { border-left: 4px solid var(--yellow); }
+  .variant-card.v4 h5 { color: var(--yellow); }
+  .variant-card ol { margin: 4px 0; padding-left: 18px; }
+  .variant-card li { font-size: 12px; padding: 2px 0; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .variant-grid { grid-template-columns: 1fr; }
+    .seq { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-6 — modal fragment lazy load (안 C : expected value 까지 BE 위임)</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-5 완료 (자원 도메인 화면 통일화)</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 대기 · 안 C 검토</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s0">0. 안 B vs C 차이 (사전 합의)</a></li>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s3">3. URL / 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. 테스트</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<!-- ============================== §0 ============================== -->
+<details class="section" id="s0" open>
+  <summary>0. 안 B (기존 사용자 제안) vs 안 C (본 계획)의 차이</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">0.1 사용자 명제의 검증 결과 (2026-05-21)</h3>
+    <p>사용자 직전 메시지 ("미리 삽입되어 있을 경우 오작동/악용 가능성") 검증 — modal 자체가 아니라 <strong>form 의 <code>data-typed-name</code> 속성에 expected value 가 박혀있다</strong>는 사실 확인 :</p>
+<pre><code>&lt;!-- 5 list 페이지에 공통 패턴 --&gt;
+&lt;form data-confirm-purge=""
+      th:data-typed-name="${bios.name}"   &lt;!-- ← 페이지 진입만으로 expected 노출 --&gt;
+      th:action="@{/management/bios/{boardId}/bios/{biosId}/purge(...)}"
+      method="post"&gt;
+    &lt;button&gt;영구 삭제&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+
+    <p>이 때문에 :</p>
+    <ul>
+      <li><strong>안 B (단순 modal lazy-load)</strong> 만으로는 보안 향상 <strong>0</strong>. 페이지 진입 즉시 form 의 data-typed-name 으로 expected 알 수 있음. modal 만 lazy-load 해도 attack surface 동일.</li>
+      <li>실효 있는 friction 추가는 <strong>expected value 자체를 form 에서 떼어내</strong> modal trigger 시점에만 BE 가 응답하는 안 C 가 필요.</li>
+    </ul>
+
+    <h3>0.2 두 안의 구조 차이</h3>
+    <div class="compare-grid">
+      <div class="compare-card b">
+        <h4><span class="chip b">안 B</span> 단순 modal lazy-load</h4>
+        <p style="margin: 4px 0; font-size: 12.5px;"><strong>변경 표면</strong></p>
+        <ul>
+          <li>list.html 의 <code>&lt;div th:replace="...modal..."&gt;</code> 5~6 개 제거</li>
+          <li>단일 modal placeholder <code>&lt;div id="modalLazySlot"&gt;</code> 추가</li>
+          <li>JS : form submit 가로채기 → fragment fetch → inject → 표시</li>
+          <li><strong>form 의 <code>data-typed-name</code> 그대로 유지</strong></li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>보안 향상</strong></p>
+        <ul>
+          <li>❌ expected value 가 여전히 form 에 노출 → 페이지 진입만으로 보임</li>
+          <li>❌ DevTools 로 form 의 <code>data-confirm-approved</code> 설정 + resubmit 으로 modal UX 우회 가능 (서버는 typed-name 만 보므로 통과)</li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>실제 이점</strong></p>
+        <ul>
+          <li>초기 DOM 크기 감소 (30+ hidden element 제거)</li>
+          <li>마크업 응집</li>
+        </ul>
+      </div>
+
+      <div class="compare-card c">
+        <h4><span class="chip c">안 C ✓</span> modal + expected value 모두 lazy-load</h4>
+        <p style="margin: 4px 0; font-size: 12.5px;"><strong>변경 표면</strong></p>
+        <ul>
+          <li>안 B 변경 전부 +</li>
+          <li>list.html 의 form 에서 <strong><code>data-typed-name</code> 제거</strong>, 대신 <code>data-resource-type</code> + <code>data-resource-id</code> 보유</li>
+          <li>JS : form submit 가로채기 → fragment fetch <strong>(BE 가 자원 lookup + expected value 계산 + modal 에 직접 박아 응답)</strong> → inject → 표시</li>
+          <li>typed-name 검증은 modal 내부에서 사용자 입력 vs modal 내 expected (DOM 비교) <strong>+</strong> 서버 측 재검증 (기존 그대로)</li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>보안 향상</strong></p>
+        <ul>
+          <li>✅ 페이지 진입만으로 expected 노출 안 됨</li>
+          <li>✅ expected 알아내려면 trigger endpoint 호출 필요 → <strong>권한 검증 + audit log + rate-limit</strong> 가능 지점 생김 (BE 가 modal trigger 를 sensitive action 로 인지 가능)</li>
+          <li>⚠ DevTools 로 modal endpoint 호출 자체는 막을 수 없음 (해당 자원에 권한 있는 사용자라면 응답 받음). 그러나 <strong>friction + audit trail + rate-limit</strong> 라는 정량적 안전장치가 추가됨 — 무작위 자원명 harvest 방어</li>
+          <li>✅ 기존 BE typed-name verifier 그대로 (defense in depth)</li>
+        </ul>
+        <p style="margin: 8px 0 4px; font-size: 12.5px;"><strong>실제 이점</strong></p>
+        <ul>
+          <li>안 B 이점 전부 +</li>
+          <li>UI 안전장치 (modal 경고) 가 우회 어려워짐 — modal 없이는 expected 모름</li>
+          <li>각 trigger 가 BE 에서 audit 가능</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>0.3 cost 차이</h3>
+    <table>
+      <thead><tr><th>항목</th><th>안 B</th><th>안 C</th></tr></thead>
+      <tbody>
+        <tr><td>list.html 수정</td><td>modal include 제거 + placeholder 추가 (6 도메인)</td><td>+ form 의 <code>data-typed-name</code> → <code>data-resource-type</code> / <code>data-resource-id</code> 로 교체 (6 도메인 × N form)</td></tr>
+        <tr><td>신규 Controller</td><td><code>ConfirmModalFragmentController</code> 1 개</td><td>동일 — 다만 자원 lookup + expected value 계산 책임 추가</td></tr>
+        <tr><td>Service 활용</td><td>없음 (단순 fragment 반환)</td><td>기존 <code>TypedNameVerifier</code> 의 자원 lookup 흐름 재사용 (별도 service 신설 불요)</td></tr>
+        <tr><td>JS 변경</td><td><code>confirm-modal-base.js</code> 의 form submit hook → fetch + inject</td><td>동일</td></tr>
+        <tr><td>회귀 테스트 영향</td><td>제한적 (markup 만)</td><td>중간 — typed-name 값 출처 변경. 5 typed-name 시나리오 재검토</td></tr>
+        <tr><td>총 변경 파일 수 (추정)</td><td>~10</td><td>~15</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout success">
+      <strong>본 plan 은 안 C 를 기준으로 진행</strong>. 안 B 와 비교해 cost +50% 이지만 사용자가 제기한 보안 명제에 실효로 대응 가능. 안 B 만으로는 명제가 만족되지 않음 (검증 결과 §0.1).
+    </div>
+
+    <h3>0.4 본 S5-6 슬라이스의 sub-slice 분할 (2026-05-21 사용자 확정)</h3>
+    <p>이전 plan v1 의 Phase A/B/C 를 정식 sub-slice 로 승격해 본 S5-6 슬라이스 내에 <strong>모두 처리</strong>한다. 각 sub-slice 는 자체 CP1~CP5 사이클을 가지지만 plan html 은 본 문서 1 개로 통합.</p>
+    <table>
+      <thead><tr><th>sub-slice</th><th>범위</th><th>의미</th><th>진행 순서</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>S5-6-1</strong></td>
+          <td><code>confirm-purge</code> + <code>nudge-modal</code> 의 typed-name slot lazy-load</td>
+          <td>보안 명제 직접 대응 — form 의 <code>data-typed-name</code> 제거 + modal trigger 시점에 BE 가 expected value 응답</td>
+          <td>1 (최우선)</td>
+        </tr>
+        <tr>
+          <td><strong>S5-6-2</strong></td>
+          <td><code>confirm-soft-delete</code> · <code>confirm-deprecate</code> · <code>confirm-restore</code> · <code>delete-reject-modal</code> lazy-load</td>
+          <td>typed-name 무관. 페이지 DOM 크기 축소 + 마크업 응집</td>
+          <td>2 (S5-6-1 의 인프라 재사용)</td>
+        </tr>
+        <tr>
+          <td><strong>S5-6-3</strong></td>
+          <td><code>trash-result-modal</code> lazy-load</td>
+          <td>휴지통 액션 결과 전시용. 트리거 시점 inject 만 적용 — 가장 단순</td>
+          <td>3 (마지막 정리)</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>3 sub-slice 가 모두 통과해야 S5-6 종료. CP1 (본 plan 승인) 후 sub-slice 별 CP2~CP5 사이클로 순차 진행.</p>
+  </div>
+</details>
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">1.1 modal fragment 사전 include 현황 (6 페이지)</h3>
+    <table>
+      <thead><tr><th>페이지</th><th>사전 include 되는 modal</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>OS list</td><td>nudge-modal · delete-reject-modal · confirm-modals (4종 묶음)</td><td>총 6 modal</td></tr>
+        <tr><td>Board list</td><td>confirm-modals (4종 묶음)</td><td>총 4 modal</td></tr>
+        <tr><td>BIOS list</td><td>nudge-modal · delete-reject-modal · confirm-modals (4종)</td><td>총 6 modal</td></tr>
+        <tr><td>BMC list</td><td>delete-reject-modal · confirm-modals (4종)</td><td>총 5 modal</td></tr>
+        <tr><td>Subprogram list</td><td>nudge-modal · delete-reject-modal · confirm-modals (4종)</td><td>총 6 modal</td></tr>
+        <tr><td>Trash list</td><td>confirm-modals (4종) · trash-result-modal</td><td>총 5 modal</td></tr>
+      </tbody>
+    </table>
+    <p>전체 약 32 개의 hidden modal element 가 페이지 진입 시점에 DOM 에 미리 렌더된다.</p>
+
+    <h3>1.2 typed-name expected value 의 form 노출</h3>
+    <p>5 페이지의 영구삭제 (purge) form 마다 :</p>
+<pre><code>&lt;form data-confirm-purge=""
+      th:data-typed-name="${...}"           &lt;!-- ← Thymeleaf 가 페이지 렌더 시점에 값 박음 --&gt;
+      th:data-resource-label="${...}"
+      th:action="..."
+      method="post"&gt;
+    ...
+&lt;/form&gt;</code></pre>
+    <p>각 form 의 <code>data-typed-name</code> 값은 페이지 진입 즉시 DOM 에 노출되며, <code>document.querySelectorAll('[data-typed-name]')</code> 한 번으로 페이지의 모든 typed-name 을 한꺼번에 수집 가능.</p>
+
+    <h3>1.3 nudge / delete-intent token 의 흐름</h3>
+    <p>이 두 modal 은 server response 트리거 후에만 표시 — 페이지 진입 시점에 토큰이 DOM 에 없음. <strong>본 슬라이스의 보안 명제와는 직접 관련 없음</strong>. lazy-load 의 부수 대상으로만 처리.</p>
+
+    <h3>1.4 BE 측 방어 (기존)</h3>
+    <ul>
+      <li><code>TypedNameVerifier</code> interface — 자원의 <code>displayName()</code> 과 사용자 입력 typedName 일치 확인. <code>TypedNameMismatchException</code> (400) 으로 거절</li>
+      <li>각 도메인 컨트롤러가 <code>typedNameVerifier</code> 주입 받음 (현재 5 도메인)</li>
+      <li><strong>데이터 보호는 BE 가 담당</strong> — modal 우회 시도해도 typed-name 검증 못 넘으면 영구삭제 불가</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2" open>
+  <summary>2. 요구사항 (안 C)</summary>
+  <div class="body">
+    <ol>
+      <li>list.html 들에서 사전 include 된 modal 5~6 개 모두 제거</li>
+      <li>대신 단일 modal placeholder <code>&lt;div id="modalLazySlot"&gt;&lt;/div&gt;</code> 1 개만 남김</li>
+      <li>각 form 의 <code>data-typed-name</code> 속성 제거. 대신 <code>data-resource-type</code> (Enum) + <code>data-resource-id</code> (Long) 만 보유</li>
+      <li>form submit 가로채기 시점에 JS 가 <code>GET /ui/confirm-modal/{modalType}?resourceType=...&amp;resourceId=...</code> 로 modal fragment 요청</li>
+      <li>컨트롤러 : 자원 lookup + expected value (typed-name 등) 계산 → modal fragment 에 직접 박아 응답</li>
+      <li>JS : 응답 HTML 을 placeholder 에 inject → 사용자 입력 → modal 내부에서 typed-name 일치 검증 (DOM 내 비교) → 일치 시 form approve flag 설정 → resubmit</li>
+      <li>서버 측 <code>TypedNameVerifier</code> 그대로 (defense in depth)</li>
+      <li>modal 닫힘 (취소 / 확인 후) 시 placeholder 비우기</li>
+    </ol>
+
+    <h3>S5-6 sub-slice 분할 (§0.4 참고)</h3>
+    <table>
+      <thead><tr><th>sub-slice</th><th>대상 modal</th><th>의미</th></tr></thead>
+      <tbody>
+        <tr><td><strong>S5-6-1</strong></td><td><code>confirm-purge</code> + <code>nudge-modal</code> 의 typed-name slot</td><td>보안 명제 직접 대응 — typed-name expected 가 form 에 없도록. 통합 endpoint <code>/ui/confirm-modal/{modalType}</code> 신설</td></tr>
+        <tr><td><strong>S5-6-2</strong></td><td><code>confirm-soft-delete</code> · <code>confirm-deprecate</code> · <code>confirm-restore</code> · <code>delete-reject-modal</code></td><td>typed-name 없음. 단순 DOM 축소 + 마크업 응집. S5-6-1 의 endpoint / placeholder 재사용</td></tr>
+        <tr><td><strong>S5-6-3</strong></td><td><code>trash-result-modal</code></td><td>결과 전시용 — 트리거 시 inject 만. 가장 가벼움</td></tr>
+      </tbody>
+    </table>
+    <p>3 sub-slice 모두 본 S5-6 슬라이스 내 처리. 본 plan 의 §5 / §6 / §10 은 sub-slice 별 구분으로 기재.</p>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3" open>
+  <summary>3. URL · 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">3.1 신규 endpoint</h3>
+<pre><code>GET /ui/confirm-modal/{modalType}
+    ?resourceType=...&amp;resourceId=...
+    [&amp;extra=...]             # nudge-replace 등에서 보조 정보
+
+modalType ∈ { PURGE, NUDGE_REPLACE }   # Phase A 범위
+Response : Thymeleaf fragment HTML (modal markup 만)
+Status   : 200 (정상) · 403 (권한 없음) · 404 (자원 없음) · 410 (휴지통 자원의 만료된 expected 등)</code></pre>
+
+    <h3>3.2 흐름 (PURGE 시나리오)</h3>
+    <div class="flow">
+[사용자]                  [브라우저 JS]              [서버]
+   │                          │                       │
+   │ "영구 삭제" 버튼 클릭     │                       │
+   │ ─────────────▶            │                       │
+   │                          │ form.submit 가로채기   │
+   │                          │ form 에서 resourceType │
+   │                          │ + resourceId 읽기      │
+   │                          │                       │
+   │                          │ GET /ui/confirm-modal  │
+   │                          │ /PURGE?...             │
+   │                          │ ─────────────────────▶ │
+   │                          │                       │ 1. 권한 검증
+   │                          │                       │ 2. TypedNameVerifier
+   │                          │                       │    가 자원 lookup
+   │                          │                       │    + displayName() 계산
+   │                          │                       │ 3. modal fragment HTML
+   │                          │                       │    에 expected value 박음
+   │                          │                       │ 4. audit 로깅 (선택)
+   │                          │                       │
+   │                          │ ◀──────────────────── │
+   │                          │ Response : HTML       │
+   │                          │                       │
+   │                          │ placeholder.innerHTML │
+   │                          │ = response            │
+   │                          │ + JS bind             │
+   │                          │                       │
+   │ Modal 표시                │                       │
+   │ ◀───────────────          │                       │
+   │                          │                       │
+   │ typed-name 입력           │                       │
+   │ ─────────────▶            │                       │
+   │                          │ DOM 내 비교            │
+   │                          │ (input.value ===       │
+   │                          │  expectedSlot.text)    │
+   │                          │ → 확인 버튼 활성/비활성 │
+   │                          │                       │
+   │ "확인" 클릭               │                       │
+   │ ─────────────▶            │                       │
+   │                          │ form.dataset.confirm  │
+   │                          │ Approved = '1'         │
+   │                          │ + typedName 을 form    │
+   │                          │ 의 hidden field 에     │
+   │                          │ 설정                   │
+   │                          │ form.requestSubmit()   │
+   │                          │ ─────────────────────▶ │
+   │                          │                       │ TypedNameVerifier
+   │                          │                       │ 서버측 재검증
+   │                          │                       │ → 일치 시 purge
+   │                          │ ◀──────────────────── │
+   │ 결과 페이지               │                       │
+   │ ◀───────────────          │                       │
+    </div>
+
+    <h3>3.3 list.html 의 form markup 변화 (예 — BIOS purge)</h3>
+<pre><code>&lt;!-- 기존 (S5-5 까지) --&gt;
+&lt;form data-confirm-purge=""
+      th:data-typed-name="${bios.name}"
+      th:data-resource-label="${bios.name}"
+      th:action="@{/management/bios/{bid}/bios/{id}/purge(bid=${boardId}, id=${bios.id})}"
+      method="post"&gt;
+    &lt;button&gt;영구 삭제&lt;/button&gt;
+&lt;/form&gt;
+
+&lt;!-- 변경 (S5-6 Phase A) --&gt;
+&lt;form data-confirm-purge=""
+      data-resource-type="BIOS"
+      th:data-resource-id="${bios.id}"
+      th:data-resource-label="${bios.name}"   &lt;!-- 표시용 라벨은 그대로 유지 가능 (단순 식별, 보안 영향 없음) --&gt;
+      th:action="@{/management/bios/{bid}/bios/{id}/purge(bid=${boardId}, id=${bios.id})}"
+      method="post"&gt;
+    &lt;button&gt;영구 삭제&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+
+    <h3>3.4 list.html 의 modal include 변화</h3>
+<pre><code>&lt;!-- 기존 (6 페이지마다 5~6 개 modal include) --&gt;
+&lt;div th:replace="~{fragments/management/confirm-modals :: all}"&gt;&lt;/div&gt;
+&lt;div th:replace="~{fragments/management/nudge-modal :: nudgeModal('biosNudge', ...)}"&gt;&lt;/div&gt;
+&lt;div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"&gt;&lt;/div&gt;
+
+&lt;!-- 변경 --&gt;
+&lt;div id="modalLazySlot"&gt;&lt;/div&gt;
+&lt;script th:src="@{/management/common/confirm-modal-base.js}"&gt;&lt;/script&gt;
+&lt;!-- 기존 confirm-purge.js / confirm-soft-delete.js 등도 그대로 로드 (form submit hook 은 유지) --&gt;</code></pre>
+
+    <h3 style="margin-top: 22px;">3.5 BE 컴포넌트 다이어그램</h3>
+    <p>단일 endpoint <code>/ui/confirm-modal/{modalType}</code> 가 enum 다형성 + verifier 재사용으로 6 modal 변형을 흡수.</p>
+    <div class="arch">
+      <div class="arch-row">
+        <div class="arch-box entry">
+          <div class="arch-box-title">ConfirmModalFragmentController</div>
+          <div class="arch-box-desc">@GetMapping<br><code>/ui/confirm-modal/{modalType}</code><br>resourceType + resourceId param</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓ modalType.handle()</div>
+      <div class="arch-row">
+        <div class="arch-box enum">
+          <div class="arch-box-title">ConfirmModalType (enum)</div>
+          <div class="arch-box-desc">PURGE · NUDGE_REPLACE<br>SOFT_DELETE · DEPRECATE · RESTORE · DELETE_REJECT<br>TRASH_RESULT<br><strong>abstract method 다형성</strong></div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓ resolveModel()</div>
+      <div class="arch-row">
+        <div class="arch-box service">
+          <div class="arch-box-title">TypedNameVerifier</div>
+          <div class="arch-box-desc">resolveExpectedName()<br><em>(PURGE / NUDGE_REPLACE 만)</em></div>
+        </div>
+        <div class="arch-box spi">
+          <div class="arch-box-title">MarkableScanner (SPI)</div>
+          <div class="arch-box-desc">findActiveById / findTrashedById<br><em>(S5-6-2 의 소속 자원 lookup)</em></div>
+        </div>
+        <div class="arch-box service">
+          <div class="arch-box-title">메시지 통과</div>
+          <div class="arch-box-desc">자원 lookup 없음<br><em>(TRASH_RESULT 만)</em></div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓ model + fragment view</div>
+      <div class="arch-row">
+        <div class="arch-box fragment">
+          <div class="arch-box-title">Thymeleaf fragment</div>
+          <div class="arch-box-desc">confirm-purge :: modalCard<br>nudge-modal :: replaceCard<br>confirm-soft-delete / deprecate / restore<br>delete-reject-modal · trash-result-modal</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 22px;">3.6 ConfirmModalType enum 다형성 — 분기 흡수 도식</h3>
+    <p>CLAUDE.md 의 "조건 분기문 무분별 확장 금지" 원칙 — modalType 별 처리는 enum 의 abstract method 로 응집한다.</p>
+<pre><code>public enum ConfirmModalType {
+
+    PURGE {
+        @Override
+        public ModelContext resolveModel(Long resourceId, ResourceType type, ConfirmModalContext ctx) {
+            String expected = ctx.verifier().resolveExpectedName(type, resourceId);
+            String label    = ctx.scanner(type).findById(resourceId).displayName();
+            return ModelContext.of("expectedName", expected, "label", label);
+        }
+        @Override public String fragmentView() { return "fragments/management/confirm-purge :: modalCard"; }
+    },
+
+    NUDGE_REPLACE {
+        @Override
+        public ModelContext resolveModel(Long targetId, ResourceType type, ConfirmModalContext ctx) {
+            // nudge session 의 targetId 자원 lookup + expected.
+            String expected = ctx.verifier().resolveExpectedName(type, targetId);
+            return ModelContext.of("expectedName", expected, "targetId", targetId);
+        }
+        @Override public String fragmentView() { return "fragments/management/nudge-modal :: replaceCard"; }
+    },
+
+    SOFT_DELETE, DEPRECATE, RESTORE, DELETE_REJECT {  // S5-6-2 묶음
+        @Override
+        public ModelContext resolveModel(Long resourceId, ResourceType type, ConfirmModalContext ctx) {
+            // typed-name 불요 — label / cascade preview 만.
+            Markable m = ctx.scanner(type).findById(resourceId);
+            return ModelContext.of("label", m.displayName(), "cascade", m.cascadePreview());
+        }
+        @Override public String fragmentView() { return /* per-constant view */; }
+    },
+
+    TRASH_RESULT {
+        @Override
+        public ModelContext resolveModel(Long ignored, ResourceType ignored2, ConfirmModalContext ctx) {
+            // 자원 lookup 없음. 메시지를 그대로 전시.
+            return ModelContext.of("message", ctx.queryParam("message"));
+        }
+        @Override public String fragmentView() { return "fragments/management/trash-result-modal :: modal"; }
+    };
+
+    public abstract ModelContext resolveModel(Long resourceId, ResourceType type, ConfirmModalContext ctx);
+    public abstract String fragmentView();
+}</code></pre>
+    <p>Controller 는 단순히 <code>modalType.resolveModel(...)</code> + <code>modalType.fragmentView()</code> 만 호출 — 6 modal × 변형 사이의 if/switch 분기 없음.</p>
+
+    <h3 style="margin-top: 22px;">3.7 sub-slice 별 시퀀스</h3>
+
+    <h4 style="margin: 14px 0 4px;">3.7.1 S5-6-1 — PURGE (typed-name expected value 동봉)</h4>
+    <div class="seq">
+      <div class="actor fe">FE (브라우저)</div>
+      <div class="actor be">BE (ConfirmModalFragmentController)</div>
+      <div class="actor db">자원 lookup (SPI)</div>
+
+      <div class="step fe">①  사용자가 "영구 삭제" 버튼 클릭</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+
+      <div class="step fe">②  base.js 가 form submit 가로채기.<br>form 에서 <code>data-resource-type</code> · <code>data-resource-id</code> 추출</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+
+      <div class="step fe arrow-right">③  GET /ui/confirm-modal/PURGE<br>?resourceType=BIOS&amp;resourceId=5  ────▶</div>
+      <div class="step be">④  ConfirmModalType.valueOf("PURGE")<br>→ resolveModel() 호출</div>
+      <div class="step be">— —</div>
+
+      <div class="step be">— —</div>
+      <div class="step be arrow-right">⑤  verifier.resolveExpectedName(BIOS, 5) ────▶</div>
+      <div class="step db">⑥  BoardBiosMarkableScanner<br>→ findActiveById(5) → BoardBIOS<br>→ displayName() = "R23_MS73-HB1_Uni"</div>
+
+      <div class="step be">— —</div>
+      <div class="step be arrow-left">⑦  ◀──── "R23_MS73-HB1_Uni" (expected)</div>
+      <div class="step db">— —</div>
+
+      <div class="step be">— —</div>
+      <div class="step be">⑧  Model 에 {expectedName, label} 주입<br>+ Thymeleaf 가 confirm-purge :: modalCard 렌더</div>
+      <div class="step be">— —</div>
+
+      <div class="step fe arrow-left">⑨  ◀──── 200 OK + modal HTML</div>
+      <div class="step be">— —</div>
+      <div class="step be">— —</div>
+
+      <div class="step fe">⑩  placeholder.innerHTML = response<br>+ JS event bind</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+
+      <div class="step fe">⑪  사용자 typed-name 입력 → input.value vs<br>modal 의 expectedName slot textContent 비교 → 확인 버튼 활성/비활성</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+
+      <div class="step fe">⑫  "확인" 클릭 → form 의 hidden typedName 채움<br>+ form.dataset.confirmApproved='1' + requestSubmit()</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+
+      <div class="step fe arrow-right">⑬  POST /management/bios/.../purge?typedName=... ────▶</div>
+      <div class="step be">⑭  기존 컨트롤러 + service<br>+ <strong>TypedNameVerifier.verify()</strong> 서버측 재검증<br><em>(defense in depth)</em></div>
+      <div class="step be">— —</div>
+
+      <div class="step fe arrow-left">⑮  ◀──── 302 redirect (성공) 또는 400 (불일치)</div>
+      <div class="step be">— —</div>
+      <div class="step be">— —</div>
+    </div>
+
+    <h4 style="margin: 14px 0 4px;">3.7.2 S5-6-2 — SOFT_DELETE / DEPRECATE / RESTORE / DELETE_REJECT (typed-name 무관)</h4>
+    <div class="seq">
+      <div class="actor fe">FE</div>
+      <div class="actor be">BE</div>
+      <div class="actor db">자원 lookup</div>
+
+      <div class="step fe arrow-right">①  GET /ui/confirm-modal/RESTORE?... ────▶</div>
+      <div class="step be">②  RESTORE.resolveModel()</div>
+      <div class="step be">— —</div>
+
+      <div class="step be">— —</div>
+      <div class="step be arrow-right">③  scanner.findTrashedById(id) ────▶</div>
+      <div class="step db">④  Markable → displayName + cascadePreview</div>
+
+      <div class="step be">— —</div>
+      <div class="step be">⑤  Model {label, cascade} + RESTORE.fragmentView()</div>
+      <div class="step be">— —</div>
+
+      <div class="step fe arrow-left">⑥  ◀──── modal HTML (typed-name slot 없음)</div>
+      <div class="step be">— —</div>
+      <div class="step be">— —</div>
+
+      <div class="step fe">⑦  inject + "복구" 클릭 → form resubmit</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+
+      <div class="step full">기존 BE service 흐름 (restore endpoint) — 변경 없음</div>
+    </div>
+
+    <h4 style="margin: 14px 0 4px;">3.7.3 S5-6-3 — TRASH_RESULT (자원 lookup 없음, 메시지만)</h4>
+    <div class="seq">
+      <div class="actor fe">FE (trash-action.js)</div>
+      <div class="actor be">BE</div>
+      <div class="actor db">자원 lookup</div>
+
+      <div class="step fe">①  async-submit 응답 수신<br>(예 : 영구삭제 결과 JSON)</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+
+      <div class="step fe arrow-right">②  GET /ui/confirm-modal/TRASH_RESULT<br>?message=&lt;encoded&gt; ────▶</div>
+      <div class="step be">③  TRASH_RESULT.resolveModel()<br>— 자원 lookup 없음</div>
+      <div class="step db">⚠️ 호출 없음</div>
+
+      <div class="step be">— —</div>
+      <div class="step be">④  Model {message} + fragmentView()<br>= trash-result-modal :: modal</div>
+      <div class="step be">— —</div>
+
+      <div class="step fe arrow-left">⑤  ◀──── 200 OK + modal HTML</div>
+      <div class="step be">— —</div>
+      <div class="step be">— —</div>
+
+      <div class="step fe">⑥  inject + 사용자가 "확인" 클릭 → modal 제거</div>
+      <div class="step fe">— —</div>
+      <div class="step fe">— —</div>
+    </div>
+
+    <h3 style="margin-top: 22px;">3.8 sub-slice 별 흐름 차이 한눈에</h3>
+    <div class="variant-grid">
+      <div class="variant-card v1">
+        <h5>S5-6-1 PURGE / NUDGE_REPLACE</h5>
+        <ol>
+          <li>resourceType + resourceId 추출</li>
+          <li>verifier.resolveExpectedName() <strong>호출</strong></li>
+          <li>자원 lookup → displayName 산출</li>
+          <li>Model 에 <strong>expectedName + label</strong> 주입</li>
+          <li>fragment 에 expected 직접 렌더</li>
+          <li>FE 가 input 입력 후 DOM 내부 비교</li>
+          <li><strong>BE 가 form submit 시 typedName 재검증</strong> (defense in depth)</li>
+        </ol>
+      </div>
+      <div class="variant-card v2">
+        <h5>S5-6-2 SOFT_DELETE / DEPRECATE / RESTORE / DELETE_REJECT</h5>
+        <ol>
+          <li>resourceType + resourceId 추출</li>
+          <li>verifier 호출 <strong>없음</strong> (typed-name 무관)</li>
+          <li>scanner 가 자원 lookup → label + cascade preview</li>
+          <li>Model 에 <strong>label, cascade</strong> 주입</li>
+          <li>fragment 는 confirm 메시지만</li>
+          <li>FE 는 단순 confirm → form resubmit</li>
+          <li>BE 측 추가 검증 없음 (자원 ID 만으로 충분)</li>
+        </ol>
+      </div>
+      <div class="variant-card v3">
+        <h5>S5-6-3 TRASH_RESULT</h5>
+        <ol>
+          <li>자원 lookup <strong>없음</strong></li>
+          <li>queryParam "message" 만 사용</li>
+          <li>Model 에 <strong>message</strong> 주입</li>
+          <li>fragment 는 결과 안내 텍스트</li>
+          <li>FE 는 확인 후 modal 닫기 (action 없음)</li>
+          <li>BE 측 추가 처리 없음</li>
+        </ol>
+      </div>
+      <div class="variant-card v4">
+        <h5>공통 인프라 (모든 sub-slice)</h5>
+        <ol>
+          <li>단일 endpoint <code>/ui/confirm-modal/{modalType}</code></li>
+          <li>ConfirmModalType enum 의 다형성으로 분기 흡수</li>
+          <li>응답은 항상 Thymeleaf fragment HTML</li>
+          <li>FE 는 placeholder 에 innerHTML inject</li>
+          <li>FE 는 base.js 의 form submit hook 단일 흐름</li>
+          <li>BE 의 도메인 service / repository / entity 변경 0</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 22px;">3.9 데이터 변환 단계</h3>
+    <table>
+      <thead><tr><th>단계</th><th>입력</th><th>처리</th><th>출력</th></tr></thead>
+      <tbody>
+        <tr><td>1. URL 파싱</td><td><code>/ui/confirm-modal/PURGE?resourceType=BIOS&amp;resourceId=5</code></td><td>Spring MVC path / query 바인딩</td><td><code>ConfirmModalType.PURGE</code> · <code>ResourceType.BIOS</code> · <code>Long 5</code></td></tr>
+        <tr><td>2. enum 다형성 분기</td><td>위 3 값</td><td><code>modalType.resolveModel(...)</code> 호출</td><td>per-constant 로직 진입</td></tr>
+        <tr><td>3. 자원 lookup (필요 시)</td><td>resourceType + resourceId</td><td>MarkableScanner SPI → findById</td><td><code>Markable</code> (BoardBIOS, OSImage 등)</td></tr>
+        <tr><td>4. expected value 계산 (PURGE/NUDGE_REPLACE 만)</td><td>Markable</td><td><code>verifier.resolveExpectedName()</code> → markable.displayName()</td><td>String (예 : "R23_MS73-HB1_Uni")</td></tr>
+        <tr><td>5. Model 조립</td><td>위 산출물들</td><td>per-constant 가 Model 의 key 결정</td><td><code>Model{expectedName, label, cascade, ...}</code></td></tr>
+        <tr><td>6. fragment view 선택</td><td>ConfirmModalType</td><td><code>modalType.fragmentView()</code></td><td>String (예 : "fragments/management/confirm-purge :: modalCard")</td></tr>
+        <tr><td>7. Thymeleaf 렌더</td><td>fragment view name + Model</td><td>Thymeleaf 가 fragment 만 렌더 (layout / nav 제외)</td><td>HTML 문자열 — modal markup 만</td></tr>
+        <tr><td>8. HTTP 응답</td><td>HTML 문자열</td><td><code>Content-Type: text/html</code></td><td>FE 의 <code>resp.text()</code> 로 수신</td></tr>
+        <tr><td>9. FE inject</td><td>HTML 문자열</td><td><code>placeholder.innerHTML = html</code></td><td>DOM 에 modal 등장</td></tr>
+        <tr><td>10. (PURGE 만) DOM 내 typed-name 비교</td><td>input.value vs modal 내 expectedName slot</td><td>JS 단순 문자열 비교</td><td>확인 버튼 활성/비활성</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4" open>
+  <summary>4. 도메인 모델</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">4.1 신규 (Phase A)</h3>
+    <table>
+      <thead><tr><th>구분</th><th>위치</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Controller</strong></td><td><code>global/ui/controller/ConfirmModalFragmentController</code></td><td><code>@GetMapping("/ui/confirm-modal/{modalType}")</code> — modalType (Enum) + resourceType + resourceId 로 자원 lookup + expected value 계산 + modal fragment HTML 반환</td></tr>
+        <tr><td><strong>Enum</strong></td><td><code>global/ui/enums/ConfirmModalType</code></td><td><code>PURGE</code> / <code>NUDGE_REPLACE</code> (Phase A). 각 상수가 fragment view 이름 보유 (sealed-method 다형성)</td></tr>
+        <tr><td><strong>Service (재사용)</strong></td><td><code>global/trash/service/TypedNameVerifier</code></td><td>이미 자원 lookup + displayName 계산 책임 보유 — Controller 가 verifier 의 lookup 기능을 활용 (단, 검증이 아닌 expected 조회 메서드 1 개 추가 필요)</td></tr>
+        <tr><td><strong>DTO</strong></td><td>없음 — fragment HTML 응답이라 JSON DTO 불요</td><td></td></tr>
+        <tr><td><strong>Exception</strong></td><td><code>global/ui/exception/ModalContextNotFoundException</code> (404)</td><td>resourceType + resourceId 로 자원 lookup 실패 시</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 수정 (기존)</h3>
+    <table>
+      <thead><tr><th>파일</th><th>변경</th></tr></thead>
+      <tbody>
+        <tr><td><code>TypedNameVerifier</code> interface</td><td>메서드 추가 : <code>String resolveExpectedName(ResourceType, Long)</code> — 자원 lookup 후 displayName 만 반환. 기존 <code>verify()</code> 와 lookup 흐름 공유</td></tr>
+        <tr><td><code>fragments/management/confirm-purge.html</code></td><td>fragment 가 expected value 를 <strong>모델 인자</strong>로 받아 inline 렌더 (현재는 JS 가 form 의 data-typed-name 으로 채움)</td></tr>
+        <tr><td><code>fragments/management/nudge-modal.html</code></td><td>NUDGE_REPLACE 의 typed-name slot 도 동일 — fragment 가 expected value 를 직접 렌더</td></tr>
+        <tr><td>5 list.html (OS / Board / BIOS / BMC / Subprogram)</td><td>form 의 <code>data-typed-name</code> 제거 + <code>data-resource-type</code> / <code>data-resource-id</code> 추가. 사전 include 된 modal 5~6 개 → 단일 placeholder 1 개</td></tr>
+        <tr><td>Trash list.html</td><td>동일 패턴 (trash 자원의 resourceType / resourceId 사용)</td></tr>
+        <tr><td><code>static/management/common/confirm-modal-base.js</code></td><td>form submit hook 흐름 재구성 : 기존 (form data → 미리 박힌 modal 표시) → 신규 (form data → fragment fetch → placeholder inject → modal 표시)</td></tr>
+        <tr><td><code>static/management/common/confirm-purge.js</code></td><td>expected value 출처 변경 (form.dataset.typedName → modal 의 expected slot textContent)</td></tr>
+        <tr><td><code>static/global/nudge-modal.js</code></td><td>NUDGE_REPLACE 의 typed-name 입력 슬롯도 동일 패턴 적용 — modal 내부의 expected slot 사용</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.3 form 의 hidden field 추가</h3>
+    <p>typed-name 을 form 의 hidden field 로 서버에 전송 — modal 의 input value 를 confirm 시점에 form 에 주입.</p>
+<pre><code>&lt;input type="hidden" name="typedName" /&gt;   &lt;!-- modal confirm 시 JS 가 채움 --&gt;</code></pre>
+    <p>현재는 modal 내 input 이 직접 form 에 transient 으로 전송되는 구조 (input slot 이 form 밖에 있어 JS 가 form 에 동적으로 주입). 본 슬라이스에서도 동일 패턴 유지.</p>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. sub-slice 별 단계 + 체크포인트</summary>
+  <div class="body">
+
+    <div class="callout">
+      <strong>S5-6 전체 CP1</strong> — 본 plan html 산출 + 안 C 채택 사용자 합의 + Notion 데이터베이스 갱신 (S5-6-1/-2/-3 하위 항목 생성). 이후 sub-slice 별 CP2~CP5 사이클로 순차 진행.
+    </div>
+
+    <h3 style="margin-top: 18px;">5.1 S5-6-1 — typed-name slot lazy-load (보안)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><strong>Step 1</strong> <span class="chip cp1">CP1</span> 본 plan 의 §0~§4 합의 (전체 CP1 과 통합)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 2</strong> <span class="chip cp2">CP2</span> 5 자원 list.html (OS / Board / BIOS / BMC / Subprogram) + trash/list.html 의 purge form 마크업 — <code>data-typed-name</code> 제거 + <code>data-resource-type</code> / <code>data-resource-id</code> 추가. nudge-modal / confirm-purge fragment 의 expected slot 을 modal 이 직접 렌더하도록 구조 변경. modal include 도 단일 placeholder <code>&lt;div id="modalLazySlot"&gt;</code> 로 교체</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 3</strong> <span class="chip cp2">CP2</span> Controller — <code>ConfirmModalFragmentController</code> 신설. PURGE / NUDGE_REPLACE modalType 처리</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 4</strong> <span class="chip cp2">CP2</span> DTO — 없음 (fragment HTML 응답)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 5</strong> <span class="chip cp2">CP2</span> Service 시그니처 — <code>TypedNameVerifier.resolveExpectedName(ResourceType, Long)</code> 추가</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 6</strong> <span class="chip cp3">CP3</span> Repository / Entity — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 7</strong> <span class="chip cp3">CP3</span> 동일 — 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 8</strong> <span class="chip cp4">CP4</span> JS — <code>confirm-modal-base.js</code> 의 form submit hook 흐름 (fragment fetch + inject) / <code>confirm-purge.js</code> expected 출처 변경 / <code>nudge-modal.js</code> typed-name slot 동일 패턴. 통합 테스트 8 (§6.1)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 9</strong> <span class="chip cp4">CP4</span> 스키마 무변</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 10</strong> <span class="chip cp5">CP5</span> 브라우저 E2E — 6 페이지 × purge flow + nudge replace flow. DevTools 에서 <code>[data-typed-name]</code> 부재 확인</span></label></li>
+    </ul>
+
+    <h3 style="margin-top: 18px;">5.2 S5-6-2 — typed-name 없는 modal lazy-load (DOM 축소)</h3>
+    <p>S5-6-1 의 인프라 (<code>ConfirmModalFragmentController</code> · <code>modalLazySlot</code> · base.js hook) 재사용.</p>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><strong>Step 2-1</strong> <span class="chip cp2">CP2</span> ConfirmModalType enum 에 <code>SOFT_DELETE</code> / <code>DEPRECATE</code> / <code>RESTORE</code> / <code>DELETE_REJECT</code> 4 상수 추가. 각 상수 별 fragment view 매핑 + 자원 lookup 분기 (자원의 resourceType / id 기반)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 2-2</strong> <span class="chip cp2">CP2</span> 6 list.html 의 <code>confirm-modals :: all</code> include 제거. 동일 placeholder 재사용 (S5-6-1 에서 신설된 것)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 2-3</strong> <span class="chip cp2">CP2</span> <code>confirm-soft-delete.js</code> · <code>confirm-deprecate.js</code> · <code>confirm-restore.js</code> · <code>delete-reject-modal.js</code> 의 form submit hook 을 base.js 의 fetch-inject hook 으로 전환</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 4</strong> <span class="chip cp4">CP4</span> 통합 테스트 6 추가 (§6.2)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 5</strong> <span class="chip cp5">CP5</span> 브라우저 E2E — soft-delete / restore / deprecate / delete-reject 각 1 회씩 회귀</span></label></li>
+    </ul>
+
+    <h3 style="margin-top: 18px;">5.3 S5-6-3 — trash-result-modal lazy-load (마무리)</h3>
+    <p>휴지통 액션의 async-submit 결과 안내 modal — 가장 단순.</p>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><strong>Step 3-1</strong> <span class="chip cp2">CP2</span> ConfirmModalType enum 에 <code>TRASH_RESULT</code> 추가. modal 이 정보성이므로 자원 lookup 불요 (응답 메시지를 그대로 노출)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 3-2</strong> <span class="chip cp2">CP2</span> <code>maintenance/trash/list.html</code> 의 <code>trash-result-modal :: modal</code> include 제거. async-submit response 의 메시지를 trigger 인자로 fetch → inject</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 3-3</strong> <span class="chip cp2">CP2</span> <code>trash-action.js</code> 의 result handler — modal inject 흐름으로 전환</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 4</strong> <span class="chip cp4">CP4</span> 통합 테스트 2 추가 (§6.3)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 5</strong> <span class="chip cp5">CP5</span> 브라우저 E2E — 휴지통의 복원 / 영구삭제 / 보존기간 연장 시 결과 modal 정상 표시 + DOM trace</span></label></li>
+    </ul>
+
+    <div class="callout success" style="margin-top: 14px;">
+      <strong>S5-6 종료 조건</strong> — 3 sub-slice 모두 CP5 통과. 결과적으로 6 페이지 진입 시 hidden modal element 32 개 → 0 개 (단일 placeholder 1 개 만). typed-name expected value 도 DOM 노출 0.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. 통합 테스트 시나리오 (sub-slice 별)</summary>
+  <div class="body">
+
+    <h3 style="margin-top:0;">6.1 S5-6-1 — typed-name slot (8 신규)</h3>
+    <table>
+      <thead><tr><th>#</th><th>이름</th><th>범주</th><th>검증</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>ConfirmModalFragmentControllerTest::renders_purge_modal_with_expected_value</code></td><td>성공 (200)</td><td>GET <code>/ui/confirm-modal/PURGE?resourceType=BIOS&amp;resourceId=5</code> → 응답에 expected value (자원 displayName) 포함</td></tr>
+        <tr><td>2</td><td><code>ConfirmModalFragmentControllerTest::renders_nudge_replace_modal</code></td><td>성공</td><td>NUDGE_REPLACE modalType 도 동일 패턴 — expected value 노출</td></tr>
+        <tr><td>3</td><td><code>ConfirmModalFragmentControllerTest::returns_404_for_missing_resource</code></td><td>404</td><td>존재하지 않는 resourceId → <code>ModalContextNotFoundException</code></td></tr>
+        <tr><td>4</td><td><code>ConfirmModalFragmentControllerTest::returns_400_for_unknown_modalType</code></td><td>400</td><td>잘못된 modalType (Enum conversion fail)</td></tr>
+        <tr><td>5</td><td><code>OSImageControllerListPageTest::form_no_longer_exposes_typed_name</code></td><td>회귀</td><td>OS list 응답에 <code>data-typed-name</code> 부재 + <code>data-resource-type</code> / <code>data-resource-id</code> 존재</td></tr>
+        <tr><td>6</td><td><code>BiosControllerListPageTest::form_no_longer_exposes_typed_name</code></td><td>회귀</td><td>BIOS list 동일</td></tr>
+        <tr><td>7</td><td><code>BmcControllerListPageTest::form_no_longer_exposes_typed_name</code></td><td>회귀</td><td>BMC list 동일</td></tr>
+        <tr><td>8</td><td><code>BiosControllerPurgeFlowTest::purge_still_requires_typed_name_verify_server_side</code></td><td>보안 회귀 (400)</td><td>잘못된 typedName 으로 purge 호출 → BE verifier 가 그대로 막음 (defense in depth)</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top: 18px;">6.2 S5-6-2 — 4 modal lazy-load (6 신규)</h3>
+    <table>
+      <thead><tr><th>#</th><th>이름</th><th>범주</th><th>검증</th></tr></thead>
+      <tbody>
+        <tr><td>9</td><td><code>ConfirmModalFragmentControllerTest::renders_soft_delete_modal</code></td><td>성공</td><td>GET <code>/ui/confirm-modal/SOFT_DELETE?...</code> → soft-delete confirm modal fragment 응답</td></tr>
+        <tr><td>10</td><td><code>ConfirmModalFragmentControllerTest::renders_deprecate_modal</code></td><td>성공</td><td>DEPRECATE 동일 패턴</td></tr>
+        <tr><td>11</td><td><code>ConfirmModalFragmentControllerTest::renders_restore_modal</code></td><td>성공</td><td>RESTORE — cascade 정보 (휴지통 자원의 child preview) 포함 검증</td></tr>
+        <tr><td>12</td><td><code>ConfirmModalFragmentControllerTest::renders_delete_reject_modal</code></td><td>성공</td><td>DELETE_REJECT — MK3-2 의 3택 (위치 정정 / 강제 정리 / 취소) 슬롯 포함</td></tr>
+        <tr><td>13</td><td><code>OSImageControllerListPageTest::list_has_no_pre_rendered_modals</code></td><td>회귀</td><td>OS list 페이지 응답에 <code>id="confirmSoftDeleteModal"</code> 같은 modal element 부재 (placeholder 만 존재)</td></tr>
+        <tr><td>14</td><td><code>SubprogramControllerTest::list_has_no_pre_rendered_modals</code></td><td>회귀</td><td>Subprogram 동일</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top: 18px;">6.3 S5-6-3 — trash-result-modal (2 신규)</h3>
+    <table>
+      <thead><tr><th>#</th><th>이름</th><th>범주</th><th>검증</th></tr></thead>
+      <tbody>
+        <tr><td>15</td><td><code>ConfirmModalFragmentControllerTest::renders_trash_result_modal</code></td><td>성공</td><td>GET <code>/ui/confirm-modal/TRASH_RESULT?message=...</code> → 결과 메시지 modal fragment 응답</td></tr>
+        <tr><td>16</td><td><code>TrashControllerListPageTest::list_has_no_pre_rendered_result_modal</code></td><td>회귀</td><td>휴지통 list 에 <code>id="trashResultModal"</code> 부재</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top: 18px;">기존 회귀</h3>
+    <ul>
+      <li>S5-5 의 8 신규 시나리오 (외부 등록 버튼 / fragment endpoint / 미러 헤더 / 이모지 부재) 그대로</li>
+      <li>S5-4 의 'data-include-deleted-toggle' 마커 5 시나리오 그대로</li>
+      <li>기존 BE typed-name verifier 단위 테스트 — 변경 없음</li>
+    </ul>
+
+    <p><strong>합계 : 16 신규 시나리오</strong> (S5-6-1: 8, S5-6-2: 6, S5-6-3: 2).</p>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">예외 신설</h3>
+    <ul>
+      <li><code>global/ui/exception/ModalContextNotFoundException</code> extends <code>NotFoundException</code> (404) — resourceType + resourceId 로 자원 lookup 실패</li>
+    </ul>
+
+    <h3>회귀 위험</h3>
+    <ul>
+      <li><strong>typed-name expected value 의 출처 변경</strong> — JS 가 form 의 data 속성 대신 modal 내 expected slot 의 textContent 를 비교. 단위 / 통합 테스트에서 회귀 확인 필수</li>
+      <li><strong>modal trigger 시점 latency</strong> — 페이지 진입 즉시 modal 표시가 아니라 fetch + inject. 0.1~0.3 초 지연 가능. 첫 클릭 직후 사용자 인지 미세 차이 — 무해 수준</li>
+      <li><strong>placeholder DOM 충돌</strong> — 6 페이지의 placeholder id 가 모두 <code>modalLazySlot</code> 으로 동일하지만 페이지당 1 개라 무관</li>
+      <li><strong>여러 form 의 modal trigger 가 빠르게 연속 클릭</strong> — JS 가 직전 modal 을 placeholder 에서 제거하고 새 modal 을 inject. race condition 가능성 → fetch 진행 중 새 트리거 발생 시 직전 fetch 결과 폐기</li>
+    </ul>
+
+    <div class="callout warn">
+      <strong>BE typed-name verifier 의 위치 무변</strong> — 본 슬라이스는 UI / friction 측 향상만 다룸. 서버 측 보호선은 그대로 유지 (defense in depth).
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">스코프 경계</h3>
+    <ul>
+      <li>Phase B (typed-name 없는 modal — soft-delete / deprecate / restore / delete-reject) 의 lazy-load 는 별 슬라이스</li>
+      <li>Phase C (trash-result-modal — 결과 전시용) 는 별 슬라이스</li>
+      <li>rate-limit / audit log 등의 BE 강화는 후속 S5-6 보강 슬라이스로 분리 (본 슬라이스는 friction 추가 + endpoint 만)</li>
+    </ul>
+
+    <h3>관련 페이지 동반 수정</h3>
+    <ul>
+      <li>fragment <code>confirm-purge.html</code> / <code>nudge-modal.html</code> 의 expected value slot 구조 변경 — modal 정의 자체가 expected 를 보유</li>
+      <li>5 list.html (OS / Board / BIOS / BMC / Subprogram) + trash/list.html 의 form 마크업 정합화</li>
+    </ul>
+
+    <h3>CLAUDE.md 수정사항</h3>
+    <ul>
+      <li>없음 — 기존 "조건 분기문 무분별 확장 지양 + framework primitive 활용" 원칙의 자연스러운 이행. ConfirmModalType enum 의 abstract method 활용으로 분기 흡수</li>
+    </ul>
+
+    <h3>후속 후보</h3>
+    <ul>
+      <li><strong>Audit Event Bus</strong> — modal trigger 별 audit 로깅. <code>ConfirmModalFragmentController</code> 가 application event 발행</li>
+      <li><strong>Rate limit</strong> — 동일 사용자가 1 분 안에 N 회 이상 modal 호출 시 거절. 자원명 harvest 시도 방어</li>
+      <li><strong>Phase B / C 진행</strong> — 나머지 modal lazy-load 로 DOM 더 축소</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><code>./gradlew compileJava test</code> 통과 (기존 560 + 8 신규)</span></label></li>
+    </ul>
+
+    <h3>기능 (사용자 단독, CP5)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span>6 페이지 진입 직후 DevTools 에서 <code>document.querySelectorAll('[data-typed-name]')</code> → 결과 empty</span></label></li>
+      <li><label><input type="checkbox"><span>"영구 삭제" 버튼 클릭 → modal 정상 표시 + typed-name 입력 + 확인 → 자원 삭제 정상</span></label></li>
+      <li><label><input type="checkbox"><span>typed-name 불일치 입력 → 확인 버튼 비활성 (DOM 비교) + 우회 시도해도 BE 가 거절</span></label></li>
+      <li><label><input type="checkbox"><span>nudge replace flow — 자원 등록 충돌 시 nudge modal 표시 + typed-name 입력 검증 정상</span></label></li>
+      <li><label><input type="checkbox"><span>여러 form trigger 빠르게 연속 클릭 → 마지막 trigger 의 modal 만 표시 (이전 fetch 폐기)</span></label></li>
+    </ul>
+
+    <h3>회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span>S5-5 / S5-4 / S5-3 / S5-2 의 기존 시나리오 모두 통과</span></label></li>
+      <li><label><input type="checkbox"><span>BE typed-name verifier 의 동작 무변 — defense in depth 유지</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files (sub-slice 별)</summary>
+  <div class="body">
+
+    <h3 style="margin-top:0;">10.1 S5-6-1 — typed-name slot</h3>
+    <h4 style="margin: 8px 0 4px;">신규</h4>
+    <ul>
+      <li><code>global/ui/controller/ConfirmModalFragmentController.java</code></li>
+      <li><code>global/ui/enums/ConfirmModalType.java</code> (PURGE / NUDGE_REPLACE 2 상수 + abstract method 다형성)</li>
+      <li><code>global/ui/exception/ModalContextNotFoundException.java</code></li>
+      <li><code>src/test/.../global/ui/controller/ConfirmModalFragmentControllerTest.java</code></li>
+    </ul>
+    <h4 style="margin: 8px 0 4px;">수정 — Service</h4>
+    <ul>
+      <li><code>global/trash/service/TypedNameVerifier.java</code> — <code>resolveExpectedName(ResourceType, Long)</code> 메서드 추가</li>
+    </ul>
+    <h4 style="margin: 8px 0 4px;">수정 — Template</h4>
+    <ul>
+      <li><code>fragments/management/confirm-purge.html</code> — expected value slot 을 fragment 가 직접 렌더</li>
+      <li><code>fragments/management/nudge-modal.html</code> — NUDGE_REPLACE 의 expected value slot 동일</li>
+      <li><code>management/{os,board,bios,bmc,subprogram}/list.html</code> + <code>maintenance/trash/list.html</code> — purge form 의 <code>data-typed-name</code> → <code>data-resource-type</code> / <code>data-resource-id</code></li>
+    </ul>
+    <h4 style="margin: 8px 0 4px;">수정 — JS</h4>
+    <ul>
+      <li><code>static/management/common/confirm-modal-base.js</code> — form submit hook 흐름 (fragment fetch + inject)</li>
+      <li><code>static/management/common/confirm-purge.js</code> — expected value 출처 변경</li>
+      <li><code>static/global/nudge-modal.js</code> — NUDGE_REPLACE 의 typed-name 슬롯</li>
+    </ul>
+
+    <h3 style="margin-top: 18px;">10.2 S5-6-2 — typed-name 없는 modal</h3>
+    <h4 style="margin: 8px 0 4px;">수정</h4>
+    <ul>
+      <li><code>global/ui/enums/ConfirmModalType.java</code> — SOFT_DELETE / DEPRECATE / RESTORE / DELETE_REJECT 4 상수 추가</li>
+      <li><code>global/ui/controller/ConfirmModalFragmentController.java</code> — 추가 modalType 처리 (다형성으로 자동 흡수)</li>
+      <li><code>management/{os,board,bios,bmc,subprogram}/list.html</code> + <code>maintenance/trash/list.html</code> — <code>confirm-modals :: all</code> + <code>delete-reject-modal :: ...</code> include 제거 (placeholder 재사용)</li>
+      <li><code>static/management/common/confirm-soft-delete.js</code> / <code>confirm-deprecate.js</code> / <code>confirm-restore.js</code> / <code>delete-reject-modal.js</code> — base.js 의 fetch-inject hook 으로 전환</li>
+      <li><code>fragments/management/confirm-soft-delete.html</code> / <code>confirm-deprecate.html</code> / <code>confirm-restore.html</code> / <code>delete-reject-modal.html</code> — fragment 시그니처 정리 (필요 시)</li>
+    </ul>
+
+    <h3 style="margin-top: 18px;">10.3 S5-6-3 — trash-result-modal</h3>
+    <h4 style="margin: 8px 0 4px;">수정</h4>
+    <ul>
+      <li><code>global/ui/enums/ConfirmModalType.java</code> — TRASH_RESULT 상수 추가</li>
+      <li><code>global/ui/controller/ConfirmModalFragmentController.java</code> — TRASH_RESULT 분기 (자원 lookup 불요, 메시지를 그대로 전시)</li>
+      <li><code>maintenance/trash/list.html</code> — <code>trash-result-modal :: modal</code> include 제거</li>
+      <li><code>static/maintenance/trash/trash-action.js</code> — async-submit response handler 가 fetch-inject 로 전환</li>
+    </ul>
+
+    <h3 style="margin-top: 18px;">유지 (3 sub-slice 공통)</h3>
+    <ul>
+      <li>BE typed-name verifier (단위 테스트 포함) — 변경 없음 (defense in depth)</li>
+      <li>각 도메인의 lifecycle 컨트롤러 / 서비스 / 엔티티 — 변경 없음</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-6</strong> — S5-6-1 / S5-6-2 / S5-6-3 모두 CP5 통과 시 S5-6 종료</li>
+      <li><strong>S5 묶음 잔존</strong> (Notion 인벤토리 기준) :
+        <ul>
+          <li>S5-7 (OS ISO 등록 후 작업 자동화) — 진입 전 개발자와 구체적 상의 필요 (Notion 본문 명시)</li>
+          <li>S5-8 (Background Job Status 구체화)</li>
+          <li>S5-9 (탐색 기능 사용성 — 숨김 파일 시각 차이)</li>
+          <li>S5-10 (provision json 파일 OS-level 숨김 처리)</li>
+          <li>S5-11 (제조사별 진입점 자동 탐지 정합화)</li>
+        </ul>
+      </li>
+      <li><strong>후속 후보 (S5-6 보강)</strong>
+        <ul>
+          <li>Audit Event Bus 도입 — modal trigger 별 logging</li>
+          <li>Rate limit — modal 호출 빈도 제한 (자원명 harvest 방어)</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="callout success">
+      <strong>완료 조건</strong> CP5 통과 시 6 자원 도메인 list 페이지 진입만으로는 typed-name expected value 가 DOM 에 노출되지 않으며, modal 은 trigger 시점에 BE 에서 lazy-load 됨. BE 의 기존 typed-name 검증은 그대로 유지되어 defense in depth 가 보존된다.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

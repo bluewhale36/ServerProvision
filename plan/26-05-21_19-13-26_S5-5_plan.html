@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-5 Plan — 화면 구조 통일화</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.rec { background: var(--green-bg); color: var(--green); }
+  .chip.alt { background: var(--blue-bg); color: var(--blue); }
+  .chip.bad { background: var(--red-bg); color: var(--red); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* 🎬 라이브 — 미러 헤더 + 버튼 배치 비교 */
+  .ux-wrap { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: 16px; margin: 12px 0; }
+  .ux-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 10px; }
+  .ux-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .ux-card.before { border-color: var(--red); border-width: 2px; }
+  .ux-card.after { border-color: var(--green); border-width: 2px; }
+  .ux-card-title { font-family: var(--mono); font-weight: 700; margin-bottom: 8px; font-size: 12px; }
+  .ux-card.before .ux-card-title { color: var(--red); }
+  .ux-card.after .ux-card-title { color: var(--green); }
+
+  /* 미러 mock — 외부 button + C2 internal button + C3 empty 상태 */
+  .mock-miller { font-family: -apple-system, sans-serif; font-size: 13px; }
+  .mock-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;
+    border-bottom: 1px solid var(--border); background: #fafbfc; }
+  .mock-header-title { font-weight: 600; }
+  .mock-header-actions { display: flex; gap: 8px; align-items: center; }
+  .mock-toggle { font-size: 12px; color: var(--text-muted); }
+  .mock-btn { padding: 4px 10px; background: var(--blue); color: #fff; border-radius: 4px; font-size: 12px;
+    text-decoration: none; font-weight: 600; }
+  .mock-btn-sm { padding: 3px 8px; font-size: 11px; }
+  .mock-cols { display: grid; grid-template-columns: 1fr 1fr 1.5fr; min-height: 160px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .mock-col { border-right: 1px solid var(--border-soft); padding: 6px 0; }
+  .mock-col:last-child { border-right: none; }
+  .mock-col-header { padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; border-bottom: 1px solid var(--border-soft); }
+  .mock-item { padding: 6px 10px; border-bottom: 1px solid var(--border-soft); cursor: pointer; font-size: 12px; }
+  .mock-item.sel { background: var(--blue-bg); font-weight: 600; }
+  .mock-c2-bottom { padding: 8px 10px; text-align: center; }
+  .mock-empty { padding: 16px 12px; color: var(--text-muted); font-size: 12px; text-align: center; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-5 — 각 자원 도메인 화면 구조 통일화</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-4 완료 (miller 선택 querystring 보존)</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 대기</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#preview" class="live">🎬 전후 비교</a></li>
+    <li><a href="#s3">3. URL / 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. 테스트</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태 — 6 도메인 list 페이지의 구조 산만</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">1.1 6 도메인 list 의 현재 격차</h3>
+    <table>
+      <thead><tr><th>도메인</th><th>외부 + 등록 버튼</th><th>외부 텍스트</th><th>C2 내부 + 등록</th><th>내부 텍스트</th><th>'삭제 항목' 토글 위치</th></tr></thead>
+      <tbody>
+        <tr><td>OS</td><td>✅ 우상단</td><td><code>OS 버전 등록</code></td><td>❌ 없음</td><td>—</td><td>버튼 왼편 ✓</td></tr>
+        <tr><td>Board</td><td>✅ 우상단</td><td><code>신규 모델 등록</code></td><td>❌ 없음</td><td>—</td><td>버튼 왼편 ✓</td></tr>
+        <tr><td>BIOS</td><td>❌ 없음</td><td>—</td><td>✅ C2 panel 마지막</td><td><code>+ BIOS 등록</code></td><td>외부 토글만 (버튼 없음)</td></tr>
+        <tr><td>BMC</td><td>❌ 없음</td><td>—</td><td>✅ C2 panel 마지막</td><td><code>+ BMC 등록</code></td><td>외부 토글만</td></tr>
+        <tr><td>Subprogram - Driver</td><td>✅ 섹션 헤더</td><td><code>+ Driver 등록</code></td><td>✅ C2 panel 마지막</td><td><code>+ 드라이버 등록</code></td><td>버튼 <strong>오른쪽</strong> (순서 반대)</td></tr>
+        <tr><td>Subprogram - Utility</td><td>✅ 섹션 헤더</td><td><code>+ Utility 등록</code></td><td>✅ C2 panel 마지막</td><td><code>+ 유틸리티 등록</code></td><td>버튼 <strong>오른쪽</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h3>1.2 C3 (miller-empty) 안내 텍스트 — 의미 불명확</h3>
+    <p>현재 모든 도메인이 "X 를 선택하여 상세 사항 보기" 단일 메시지를 사용. 사용자가 C1 만 선택했는데 C2 가 비어보일 때 안내 부재.</p>
+    <table>
+      <thead><tr><th>도메인</th><th>현재</th><th>한계</th></tr></thead>
+      <tbody>
+        <tr><td>OS</td><td>OS 를 선택하여 상세 사항 보기</td><td>C2 만 선택 가능 단계인지 모호</td></tr>
+        <tr><td>Board</td><td>메인보드 모델을 선택하여 상세 사항 보기</td><td>C1 미선택 시 안내 부재</td></tr>
+        <tr><td>BIOS</td><td>BIOS 를 선택하여 상세 사항 보기</td><td>C1 미선택 시 "어디서부터 시작?"</td></tr>
+        <tr><td>BMC</td><td>BMC 를 선택하여 상세 사항 보기</td><td>동일</td></tr>
+        <tr><td>Subprogram</td><td>자원을 선택하여 상세 사항 보기</td><td>"자원" 너무 추상</td></tr>
+      </tbody>
+    </table>
+
+    <h3>1.3 Subprogram 미러 헤더 — 직관성 떨어짐</h3>
+    <p>fragment 의 헤더 텍스트가 함수 인자 <code>kindDisplayName</code> 으로 합성 :</p>
+    <ul>
+      <li>C1 : <code>${kindDisplayName} + ' 분류'</code> → "드라이버 분류" / "유틸리티 분류"</li>
+      <li>C2 : <code>버전</code></li>
+    </ul>
+    <p>"드라이버 분류" 라는 어휘가 부자연스러움 — 실제 분류 기준이 메인보드 모델이라 사용자가 메인보드 모델 선택 컬럼이라는 사실을 헤더에서 즉시 인지 못 함.</p>
+
+    <h3>1.4 휴지통 영역 — 이모지가 디자인 톤 깨뜨림</h3>
+    <table>
+      <thead><tr><th>파일</th><th>이모지 사용처</th></tr></thead>
+      <tbody>
+        <tr><td><code>maintenance/trash/list.html</code></td><td><code>⚙️ 운영 설정</code> · <code>📋 감사 로그</code></td></tr>
+        <tr><td><code>maintenance/trash/settings.html</code></td><td><code>📋 감사 로그</code> 링크 · <code>⚙ 직접 입력 (cron 식)</code> 옵션 (driver / utility 2 곳) · <code>⚙ 고급 설정 (retry 정책)</code> details summary</td></tr>
+        <tr><td><code>maintenance/trash/purge-log.html</code></td><td><code>⚙️ 운영 설정</code> 링크</td></tr>
+      </tbody>
+    </table>
+    <p>본 슬라이스 외 영역의 이모지 (예 : nav 알림 벨 🛍, modal `:`emoji 등) 는 본 범위 외 — Notion 본문이 "휴지통 페이지와 그 아래 운영 설정 및 감사 로그 페이지" 로 명시.</p>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2" open>
+  <summary>2. 요구사항 — Notion 본문 그대로 + 분석</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">2.1 신규 등록 버튼 통일</h3>
+    <ul>
+      <li>외부 우상단 + miller 1 선택 시 C2 마지막 — <strong>두 곳 모두 노출</strong></li>
+      <li>외부 버튼 텍스트 : <code>+ 신규 (자원) 등록</code>
+        <ul>
+          <li>OS : <code>+ 신규 OS 버전 등록</code></li>
+          <li>Board : <code>+ 신규 메인보드 모델 등록</code></li>
+          <li>BIOS : <code>+ 신규 BIOS 등록</code></li>
+          <li>BMC : <code>+ 신규 BMC 등록</code></li>
+          <li>Subprogram (driver) : <code>+ 신규 드라이버 등록</code></li>
+          <li>Subprogram (utility) : <code>+ 신규 유틸리티 등록</code></li>
+        </ul>
+      </li>
+      <li>내부 버튼 텍스트 : <code>+ (자원) 등록</code>
+        <ul>
+          <li>OS : <code>+ OS 버전 등록</code></li>
+          <li>Board : <code>+ 메인보드 모델 등록</code></li>
+          <li>BIOS : <code>+ BIOS 등록</code> (현행 유지)</li>
+          <li>BMC : <code>+ BMC 등록</code> (현행 유지)</li>
+          <li>Subprogram (driver) : <code>+ 드라이버 등록</code> (현행 유지)</li>
+          <li>Subprogram (utility) : <code>+ 유틸리티 등록</code> (현행 유지)</li>
+        </ul>
+      </li>
+      <li>'삭제된 항목 포함' 체크박스는 외부 + 등록 버튼의 <strong>왼편</strong>에 위치</li>
+    </ul>
+
+    <h3>2.2 Subprogram 미러 헤더 수정</h3>
+    <ul>
+      <li>C1 : "드라이버 분류" / "유틸리티 분류" → <strong>"메인보드 모델"</strong></li>
+      <li>C2 : "버전" → <strong>"드라이버"</strong> / <strong>"유틸리티"</strong></li>
+    </ul>
+
+    <h3>2.3 C3 안내 텍스트 — 2 상태 도입</h3>
+    <table>
+      <thead><tr><th>도메인</th><th>C1 선택 전</th><th>C1 선택 후</th></tr></thead>
+      <tbody>
+        <tr><td>OS</td><td>OS 이름을 선택하여 버전 보기</td><td>버전을 선택하여 상세 보기</td></tr>
+        <tr><td>Board</td><td>제조사를 선택하여 모델 보기</td><td>모델을 선택하여 상세 보기</td></tr>
+        <tr><td>BIOS</td><td>메인보드 모델을 선택하여 버전 보기</td><td>버전을 선택하여 상세 보기</td></tr>
+        <tr><td>BMC</td><td>메인보드 모델을 선택하여 버전 보기</td><td>버전을 선택하여 상세 보기</td></tr>
+        <tr><td>Subprogram (driver)</td><td>메인보드 모델을 선택하여 드라이버 보기</td><td>드라이버를 선택하여 상세 보기</td></tr>
+        <tr><td>Subprogram (utility)</td><td>메인보드 모델을 선택하여 유틸리티 보기</td><td>유틸리티를 선택하여 상세 보기</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <strong>주의 (OS)</strong> Notion 본문에 OS 의 C3 텍스트는 명시 안 됨. 다른 5 도메인의 패턴 (X 를 선택하여 Y 보기 / Y 를 선택하여 상세 보기) 을 적용. CP1 승인 단계에서 사용자 확인 필요.
+    </div>
+
+    <h3>2.4 휴지통 영역 이모지 전수 제거</h3>
+    <p>3 파일 (list / settings / purge-log) 의 모든 이모지 (⚙ · ⚙️ · 📋) 제거. 이모지 없이 텍스트만으로 의미 전달.</p>
+  </div>
+</details>
+
+<!-- ============================== preview ============================== -->
+<details class="section" id="preview" open>
+  <summary>🎬 전후 비교 — BIOS 도메인 mock</summary>
+  <div class="body">
+    <p style="margin-top:0;">BIOS list 의 head + 미러 구조 전후 비교 (다른 5 도메인 동일 패턴).</p>
+
+    <div class="ux-wrap">
+      <div class="ux-grid">
+
+        <div class="ux-card before">
+          <div class="ux-card-title"><span class="chip bad">BEFORE</span> 외부 등록 버튼 부재 / C3 안내 모호</div>
+          <div class="mock-miller">
+            <div class="mock-header">
+              <div class="mock-header-title">BIOS 파일 관리</div>
+              <div class="mock-header-actions">
+                <span class="mock-toggle">☑ 삭제된 항목 포함</span>
+              </div>
+            </div>
+            <div class="mock-cols">
+              <div class="mock-col">
+                <div class="mock-col-header">메인보드 모델</div>
+                <div class="mock-item sel">MS73-HB1</div>
+                <div class="mock-item">P13R-E</div>
+              </div>
+              <div class="mock-col">
+                <div class="mock-col-header">BIOS 버전</div>
+                <div class="mock-item">R19</div>
+                <div class="mock-item">R20</div>
+                <div class="mock-c2-bottom"><span class="mock-btn mock-btn-sm">+ BIOS 등록</span></div>
+              </div>
+              <div class="mock-col">
+                <div class="mock-col-header"></div>
+                <div class="mock-empty">BIOS 를 선택하여 상세 사항 보기</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ux-card after">
+          <div class="ux-card-title"><span class="chip rec">AFTER</span> 외부 우상단 등록 버튼 + C3 안내 2 상태</div>
+          <div class="mock-miller">
+            <div class="mock-header">
+              <div class="mock-header-title">BIOS 파일 관리</div>
+              <div class="mock-header-actions">
+                <span class="mock-toggle">☑ 삭제된 항목 포함</span>
+                <span class="mock-btn">+ 신규 BIOS 등록</span>
+              </div>
+            </div>
+            <div class="mock-cols">
+              <div class="mock-col">
+                <div class="mock-col-header">메인보드 모델</div>
+                <div class="mock-item sel">MS73-HB1</div>
+                <div class="mock-item">P13R-E</div>
+              </div>
+              <div class="mock-col">
+                <div class="mock-col-header">BIOS 버전</div>
+                <div class="mock-item">R19</div>
+                <div class="mock-item">R20</div>
+                <div class="mock-c2-bottom"><span class="mock-btn mock-btn-sm">+ BIOS 등록</span></div>
+              </div>
+              <div class="mock-col">
+                <div class="mock-col-header"></div>
+                <div class="mock-empty">버전을 선택하여 상세 보기</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p style="margin-top:14px;">C1 미선택 상태에서는 C3 가 <code>메인보드 모델을 선택하여 버전 보기</code> 로 표시. C1 선택 후 위 mock 처럼 <code>버전을 선택하여 상세 보기</code> 로 전이.</p>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3" open>
+  <summary>3. URL · 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">3.1 신규 endpoint — 없음</h3>
+    <p>모든 + 등록 버튼은 기존 <code>/management/&lt;domain&gt;/new</code> 로 연결. URL prefill 도 본 슬라이스 범위 외 (BIOS / BMC 는 기존 <code>/{boardId}/new</code> 로 컨텍스트 prefill, 다른 도메인은 그대로).</p>
+
+    <h3>3.2 신규 외부 버튼이 추가되는 도메인</h3>
+    <table>
+      <thead><tr><th>도메인</th><th>외부 버튼 link</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>OS</td><td><code>/management/os/new</code></td><td>기존 외부 버튼의 텍스트만 갱신</td></tr>
+        <tr><td>Board</td><td><code>/management/board/new</code></td><td>기존 외부 버튼의 텍스트만 갱신</td></tr>
+        <tr><td>BIOS</td><td><code>/management/bios/new</code></td><td><strong>외부 버튼 신설</strong>. boardId 미지정 → 새 폼에 board 선택 단계 필요. 본 슬라이스에서는 단순 연결 (board 선택 UI 추가는 후속)</td></tr>
+        <tr><td>BMC</td><td><code>/management/bmc/new</code></td><td>BIOS 와 동일 — <strong>외부 버튼 신설</strong></td></tr>
+        <tr><td>Subprogram - Driver</td><td><code>/management/subprogram/new?kind=DRIVER</code></td><td>기존 외부 버튼 텍스트만 갱신</td></tr>
+        <tr><td>Subprogram - Utility</td><td><code>/management/subprogram/new?kind=UTILITY</code></td><td>기존 외부 버튼 텍스트만 갱신</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>중요</strong> BIOS / BMC 의 외부 버튼 신설 — 현재 <code>/{boardId}/new</code> 만 정의되어 있고 <code>/new</code> (boardId 없는) 진입점이 없음. <strong>외부 버튼 클릭 시 어떤 페이지로 가는지</strong> 결정 필요 :
+      <ul>
+        <li>옵션 A — boardId 없는 <code>/management/bios/new</code> 신규 추가. 폼 안에 board 선택 dropdown.</li>
+        <li>옵션 B — board 선택 단계 페이지 신규 추가 (<code>/management/bios/new-board-select</code> 같은).</li>
+        <li>옵션 C — 외부 버튼을 첫 board 자동 선택으로 첫 board 의 <code>/{boardId}/new</code> 로 연결.</li>
+        <li><strong>채택안 — 옵션 A (단일 폼)</strong> : 폼의 board 선택 dropdown 신설. 기존 <code>/{boardId}/new</code> 도 호환 유지. 사용자 직관과 일치 (외부 버튼 = "어디서든 등록 시작").</li>
+      </ul>
+    </div>
+
+    <h3>3.3 C3 안내 텍스트 — 2 상태 구현</h3>
+    <pre><code>&lt;!-- list.html 의 miller-empty 에 두 상태 모두 data 속성으로 보유 --&gt;
+&lt;div class="n-miller-empty" id="millerEmpty"
+     data-empty-before="메인보드 모델을 선택하여 버전 보기"
+     data-empty-after="버전을 선택하여 상세 보기"
+     th:text="${selectKey != null or selectBoardId != null ? '버전을 선택하여 상세 보기' : '메인보드 모델을 선택하여 버전 보기'}"&gt;&lt;/div&gt;</code></pre>
+    <p>JS 에서 C1 클릭 시 <code>emptyState.textContent = el.dataset.emptyAfter</code>, C1 해제 시 <code>emptyState.textContent = el.dataset.emptyBefore</code>. 초기 렌더 는 server-side 가 selectKey / selectBoardId 존재 여부로 분기.</p>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4" open>
+  <summary>4. 도메인 모델</summary>
+  <div class="body">
+    <p>신규 entity / DTO / VO / Enum / Repository 일체 없음. 본 슬라이스는 frontend 전용 (markup + JS + 일부 controller mapping).</p>
+
+    <table>
+      <thead><tr><th>신규 / 변경</th><th>위치</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><strong>수정 — Controller</strong></td><td><code>BiosController</code> / <code>BmcController</code></td><td>boardId 없는 <code>@GetMapping("/new")</code> 추가 (옵션 A). board 선택 dropdown 위해 model 에 boardModel 옵션 list 주입</td></tr>
+        <tr><td><strong>수정 — 등록 폼 template</strong></td><td><code>bios/bios-new.html</code> / <code>bmc/bmc-new.html</code></td><td>현재 <code>boardId</code> path variable 로 board 고정. 외부 진입 시에는 dropdown 으로 board 선택 — 단순 form-group 1 개 추가</td></tr>
+        <tr><td><strong>수정 — list.html 6 곳</strong></td><td><code>management/{os,board,bios,bmc}/list.html</code> + <code>subprogram/list.html</code> + <code>fragments/management/subprogram/miller.html</code></td><td>외부 버튼 / 내부 버튼 텍스트 / 미러 헤더 / miller-empty 안내 텍스트 정합화</td></tr>
+        <tr><td><strong>수정 — JS</strong></td><td><code>static/management/os/os-list.js</code> + <code>static/management/subprogram/subprogram-list.js</code></td><td>C1 클릭 시 emptyState textContent 를 <code>data-empty-after</code> 로 토글. 기존 <code>EMPTY_VERSION_MSG</code> 상수 제거 (도메인별 다름)</td></tr>
+        <tr><td><strong>수정 — 휴지통 template 3</strong></td><td><code>maintenance/trash/{list,settings,purge-log}.html</code></td><td>이모지 제거 (⚙ · ⚙️ · 📋)</td></tr>
+        <tr><td><strong>유지</strong></td><td>Service / Repository / Entity / DTO / VO / Enum</td><td>일체 변경 없음</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. 10단계 + 체크포인트</summary>
+  <div class="body">
+    <p>본 슬라이스는 frontend (markup + JS) + 소폭 controller mapping — Step 6 (Repository) / 7 (Entity) / 9 (스키마) 변경 없음.</p>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><strong>Step 1</strong> <span class="chip cp1">CP1</span> plan html 산출 + 사용자 합의 (특히 §2.3 OS 의 C3 텍스트, §3.2 BIOS/BMC 외부 버튼 옵션 A)</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 2</strong> <span class="chip cp2">CP2</span> 6 list.html + subprogram miller fragment markup 변경 — 외부 버튼 (텍스트 + 위치) / 내부 버튼 텍스트 / 미러 헤더 / miller-empty 2 상태 + 휴지통 3 파일 이모지 제거</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 3</strong> <span class="chip cp2">CP2</span> Controller — BiosController / BmcController 에 boardId 없는 <code>/new</code> 매핑 추가</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 4</strong> <span class="chip cp2">CP2</span> DTO — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 5</strong> <span class="chip cp2">CP2</span> Service 시그니처 — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 6</strong> <span class="chip cp3">CP3</span> Repository — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 7</strong> <span class="chip cp3">CP3</span> Entity — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 8</strong> <span class="chip cp4">CP4</span> JS 변경 — os-list.js / subprogram-list.js 의 emptyState 전환 로직. BIOS / BMC <code>/new</code> 엔드포인트 시나리오 통합 테스트</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 9</strong> <span class="chip cp4">CP4</span> 스키마 — 변경 없음</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Step 10</strong> <span class="chip cp5">CP5</span> 브라우저 E2E — 사용자 단독. 6 도메인 + 휴지통 3 페이지 시각 확인</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. Step 8 통합 테스트 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">새로 추가되는 시나리오 (7)</h3>
+    <table>
+      <thead><tr><th>#</th><th>이름</th><th>범주</th><th>검증</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td><td><code>BiosControllerListPageTest::renders_external_register_button</code></td><td>성공 (200)</td>
+          <td>응답 HTML 에 외부 우상단 + 등록 버튼 (텍스트 <code>+ 신규 BIOS 등록</code>) 존재 확인</td>
+        </tr>
+        <tr>
+          <td>2</td><td><code>BmcControllerListPageTest::renders_external_register_button</code></td><td>성공</td>
+          <td>동일 — <code>+ 신규 BMC 등록</code></td>
+        </tr>
+        <tr>
+          <td>3</td><td><code>BiosController::renders_new_without_boardId</code></td><td>성공 (200)</td>
+          <td>GET <code>/management/bios/new</code> → 200, view <code>management/bios/bios-new</code>, model 에 boardModel 옵션 list 포함</td>
+        </tr>
+        <tr>
+          <td>4</td><td><code>BmcController::renders_new_without_boardId</code></td><td>성공</td>
+          <td>GET <code>/management/bmc/new</code> → 동일</td>
+        </tr>
+        <tr>
+          <td>5</td><td><code>SubprogramControllerTest::miller_headers_use_unified_text</code></td><td>성공</td>
+          <td>응답 HTML 에 <code>메인보드 모델</code> 헤더 (Driver / Utility 미러 양쪽) + <code>드라이버</code> / <code>유틸리티</code> 컬럼 헤더 포함, 기존 <code>드라이버 분류</code> 부재</td>
+        </tr>
+        <tr>
+          <td>6</td><td><code>OSImageControllerListPageTest::miller_empty_has_two_state_data_attrs</code></td><td>성공</td>
+          <td>응답 HTML 의 <code>.n-miller-empty</code> 에 <code>data-empty-before</code> + <code>data-empty-after</code> 속성 존재</td>
+        </tr>
+        <tr>
+          <td>7</td><td><code>TrashListPageTest::no_emoji_in_settings_links</code></td><td>성공</td>
+          <td>응답 HTML 에 <code>⚙</code> 또는 <code>📋</code> 등의 이모지 부재 (휴지통 list / settings / purge-log 3 페이지 각각)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>기존 통합 테스트 회귀 :</p>
+    <ul>
+      <li>BIOS / BMC controller 의 <code>/{boardId}/new</code> 매핑 — boardId path variable 분기 유지 확인</li>
+      <li>S5-4 의 <code>data-include-deleted-toggle</code> 마커 5 시나리오 — 토글 위치만 바뀌고 마커는 그대로</li>
+    </ul>
+
+    <p><strong>합계 : 7 신규 시나리오</strong>.</p>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">예외 신설</h3>
+    <p>없음 — UI 정합화 슬라이스.</p>
+
+    <h3>회귀 위험</h3>
+    <ul>
+      <li><strong>BIOS / BMC 의 <code>/new</code> 매핑</strong> — 기존 <code>/{boardId}/new</code> path 와 충돌 가능성. Spring 의 path matching 은 <code>/new</code> 가 <code>/{boardId}/new</code> 보다 specific 하므로 우선. 안전.</li>
+      <li><strong>등록 폼의 board 선택 dropdown</strong> — 기존 path variable 에서 받던 boardId 를 form 의 별도 필드로 받는 분기 추가. 기존 <code>/{boardId}/new</code> 진입로는 board 가 fixed (hidden field 로 prefill), 새 <code>/new</code> 진입로는 dropdown 활성. 두 분기 모두 polymorphic 으로 통합 (Spring <code>@PathVariable(required=false)</code> 활용).</li>
+      <li><strong>os-list.js 의 emptyState 전환</strong> — 기존 <code>EMPTY_VERSION_MSG</code> 상수가 OS 의 특정 텍스트만 알고 있음. 도메인별로 다른 텍스트를 처리해야 하므로 data 속성 기반으로 전환. 다른 도메인 (Board / BIOS / BMC) 도 같은 JS 를 공유하므로 일괄 적용.</li>
+      <li><strong>휴지통 이모지 제거</strong> — 이모지가 button label / option 텍스트 / details summary 에 사용. 제거 후에도 의미 명확하도록 텍스트 다시 검토 ('직접 입력' / '고급 설정' 등은 이모지 없이도 자명).</li>
+    </ul>
+
+    <div class="callout warn">
+      <strong>주의 — 외부 + 등록 버튼 신설의 추가 부담</strong> BIOS / BMC 에서 board 선택 dropdown 추가는 폼 검증 분기 + Service 호출 시점 boardId 결정 책임 분산을 유발. 기존 <code>BiosService.create(boardId, request)</code> 시그니처는 그대로 두고 컨트롤러가 path 또는 form 양쪽에서 boardId 얻어 service 호출 — controller 분기 1 개 추가. 큰 영향 없음.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">스코프 경계</h3>
+    <ul>
+      <li>OS / Board 외부 버튼 텍스트는 <code>OS 버전 등록</code> → <code>+ 신규 OS 버전 등록</code> 으로 텍스트만 갱신 (현재 위치 이미 우상단)</li>
+      <li>Subprogram 의 섹션 헤더는 이미 좌측에 제목 (Driver / Utility) + 우측에 액션 — '삭제된 항목 포함' 체크박스가 현재 외부 + 등록 버튼 <strong>오른쪽</strong>인 것을 <strong>왼쪽</strong>으로 순서 swap</li>
+      <li>OS 도메인의 <code>/management/os/new</code> 의 ISO 관련 sub-flow / Board / BMC / Driver / Utility 등록 폼의 변경 없음 — 본 슬라이스는 진입점 변경만</li>
+    </ul>
+
+    <h3>OS C3 텍스트 (Notion 미명시)</h3>
+    <div class="callout">
+      <strong>제안</strong> Notion 의 다른 5 도메인 패턴을 따라 OS 는 <code>OS 이름을 선택하여 버전 보기</code> (전) / <code>버전을 선택하여 상세 보기</code> (후) 적용. CP1 승인 단계에서 사용자 의견 확인.
+    </div>
+
+    <h3>관련 페이지 동반 수정</h3>
+    <ul>
+      <li>BIOS / BMC 등록 폼 (<code>bios-new.html</code> / <code>bmc-new.html</code>) — board 선택 dropdown 추가</li>
+      <li>휴지통 nav 항목 (<code>fragments/layout.html</code>) — 휴지통 자체의 nav 라벨에는 이모지가 없으므로 영향 없음</li>
+    </ul>
+
+    <h3>CLAUDE.md 수정사항</h3>
+    <ul>
+      <li>없음</li>
+    </ul>
+
+    <h3>후속 후보 (본 슬라이스 외)</h3>
+    <ul>
+      <li>외부 + 등록 버튼의 prefill 컨텍스트 전달 — C1 이 선택된 상태에서 외부 버튼 클릭 시 그 C1 으로 prefill (URL <code>?boardId=3</code> 또는 <code>?osName=ROCKY_LINUX</code>). 본 슬라이스는 단순 진입점만</li>
+      <li>'+ 등록' 버튼 일반 fragment 화 — 6 도메인이 동일 패턴이라 단일 thymeleaf fragment 로 정리 여지. 본 슬라이스의 후속 정리 슬라이스 후보</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span><code>./gradlew compileJava test</code> 통과 (기존 550 + 7 신규 시나리오)</span></label></li>
+    </ul>
+
+    <h3>기능 (사용자 단독, CP5)</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span>6 도메인 (OS / Board / BIOS / BMC / Subprogram-Driver / Subprogram-Utility) 모두 외부 우상단에 <code>+ 신규 (자원) 등록</code> 버튼 노출 + 왼편에 '삭제된 항목 포함' 체크박스</span></label></li>
+      <li><label><input type="checkbox"><span>C1 선택 시 C2 panel 마지막에 <code>+ (자원) 등록</code> 버튼 추가 (OS / Board 신설)</span></label></li>
+      <li><label><input type="checkbox"><span>Subprogram 미러 헤더 : 메인보드 모델 / 드라이버 (또는 유틸리티)</span></label></li>
+      <li><label><input type="checkbox"><span>각 도메인의 C3 안내 텍스트 — C1 선택 전후 2 상태 정합 확인</span></label></li>
+      <li><label><input type="checkbox"><span>휴지통 3 페이지에 이모지 없음 — 텍스트만으로 의미 충분</span></label></li>
+      <li><label><input type="checkbox"><span>BIOS / BMC 외부 + 등록 버튼 → board 선택 dropdown 포함된 폼 정상 동작 — 등록 성공까지 확인</span></label></li>
+    </ul>
+
+    <h3>회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span>S5-4 의 '삭제된 항목 포함' 토글 시 selectKey / selectId 보존 — 그대로</span></label></li>
+      <li><label><input type="checkbox"><span>BIOS / BMC 의 <code>/{boardId}/new</code> 진입 (C2 내부 버튼 경유) — 그대로</span></label></li>
+      <li><label><input type="checkbox"><span>기존 nudge / typed-name confirm flow — 변경 없음</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">수정 — Controller (2)</h3>
+    <ul>
+      <li><code>management/bios/controller/BiosController.java</code> — <code>@GetMapping("/new")</code> 신규 (boardId 없는). model 에 boardModel 옵션 list 주입</li>
+      <li><code>management/bmc/controller/BmcController.java</code> — 동일</li>
+    </ul>
+
+    <h3>수정 — Template (10)</h3>
+    <ul>
+      <li><code>management/os/list.html</code> — 외부 버튼 텍스트 / C2 내부 버튼 신설 / miller-empty 2 상태</li>
+      <li><code>management/board/list.html</code> — 동일</li>
+      <li><code>management/bios/list.html</code> — 외부 버튼 신설 / miller-empty 2 상태 / C2 내부 버튼 텍스트 정합 (이미 일치)</li>
+      <li><code>management/bmc/list.html</code> — 동일</li>
+      <li><code>management/subprogram/list.html</code> — 외부 버튼 텍스트 / 체크박스 순서 swap</li>
+      <li><code>fragments/management/subprogram/miller.html</code> — 미러 헤더 텍스트 정합 / miller-empty 2 상태 / C2 내부 버튼 텍스트 정합</li>
+      <li><code>management/bios/bios-new.html</code> — board 선택 dropdown 추가 (boardId null 진입 분기)</li>
+      <li><code>management/bmc/bmc-new.html</code> — 동일</li>
+      <li><code>maintenance/trash/list.html</code> — <code>⚙️ 운영 설정</code> / <code>📋 감사 로그</code> 이모지 제거</li>
+      <li><code>maintenance/trash/settings.html</code> + <code>maintenance/trash/purge-log.html</code> — 이모지 제거</li>
+    </ul>
+
+    <h3>수정 — JS (2)</h3>
+    <ul>
+      <li><code>static/management/os/os-list.js</code> — <code>EMPTY_VERSION_MSG</code> 상수 제거. <code>selectOsName</code> / 초기 미선택 상태에서 miller-empty 의 <code>data-empty-before</code> / <code>data-empty-after</code> 토글</li>
+      <li><code>static/management/subprogram/subprogram-list.js</code> — 동일 패턴</li>
+    </ul>
+
+    <h3>신규 — Test (3+)</h3>
+    <ul>
+      <li>기존 <code>SubprogramControllerTest</code> / <code>BiosControllerPurgeFlowTest</code> 등 컨트롤러 테스트에 신규 메서드 7 개 분산 추가</li>
+    </ul>
+
+    <h3>유지</h3>
+    <ul>
+      <li>Service / Repository / Entity / DTO / VO / Enum 일체 변경 없음</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-5</strong> — 본 sub-slice CP5 통과 시 S5-5 종료</li>
+      <li><strong>S5 묶음 잔존</strong> — S5-6 (Job status 구체화) — 별 plan docx 산출부터</li>
+      <li><strong>후속 후보</strong>
+        <ul>
+          <li>외부 + 등록 버튼의 C1 컨텍스트 prefill — <code>?boardId=3</code> / <code>?osName=ROCKY_LINUX</code> 자동 prefill</li>
+          <li>외부 + 등록 버튼 fragment 화 — 6 도메인 동일 패턴 → <code>fragments/management/register-button.html</code> 단일화</li>
+          <li>휴지통 페이지의 design 추가 정비 — S5-2-4 이후 미세 조정 필요한 부분 (별 슬라이스)</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="callout success">
+      <strong>완료 조건</strong> CP5 통과 시 사용자는 6 자원 도메인 list 페이지를 동일한 시각·인지 부담으로 사용 가능. + 등록 버튼은 항상 우상단 + C1 선택 시 C2 마지막에도 출현. C3 안내 텍스트는 C1 선택 전후로 명확히 다른 메시지. 휴지통 영역의 이모지는 모두 제거되어 디자인 톤 통일.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

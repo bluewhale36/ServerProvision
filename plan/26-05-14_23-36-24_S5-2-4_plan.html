@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-2-4 Plan — TTL 만료 자동 hard-delete + nudge REPLACE 정합화</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%); border-bottom: 1px solid var(--border);
+    padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12.5px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.new { background: var(--blue-bg); color: var(--blue); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.keep { background: var(--green-bg); color: var(--green); }
+  .chip.force { background: var(--red-bg); color: var(--red); }
+  .chip.opt { background: var(--blue-bg); color: var(--blue); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  ul.check-list li.done label { color: var(--text-muted); }
+  ul.check-list li.done label .text { text-decoration: line-through; }
+
+  .hidden { display: none !important; }
+
+  /* UX 미리보기 — TTL 시간 흐름 시뮬레이터 */
+  .ux-wrap { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: 16px; margin: 12px 0; }
+  .ux-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  .ux-toolbar button { padding: 5px 10px; font-size: 12px; border: 1px solid var(--border); background: var(--card); border-radius: 4px; cursor: pointer; }
+  .ux-toolbar button:hover { background: var(--bg); }
+  .ux-toolbar .group-label { font-size: 11px; color: var(--text-muted); margin-right: 4px; }
+  .ux-timeline { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .ux-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card);
+    border: 1px solid var(--border-soft); border-radius: 6px; font-size: 13px; }
+  .ux-row.muted { opacity: 0.5; }
+  .ux-row .day { width: 80px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .ux-row .label { flex: 1; }
+  .ux-row .badge { font-size: 10px; padding: 2px 6px; border-radius: 8px; }
+  .ux-row .badge.trashed { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+  .ux-row .badge.warn { background: var(--yellow-bg); color: var(--yellow); }
+  .ux-row .badge.crit { background: var(--red-bg); color: var(--red); }
+  .ux-row .badge.purged { background: var(--green-bg); color: var(--green); }
+  .ux-row .badge.failed { background: var(--orange-bg); color: var(--orange); }
+  .ux-message { padding: 10px 12px; border-radius: 6px; font-size: 12px; min-height: 36px;
+    border: 1px solid var(--border-soft); background: var(--card); margin-top: 10px; line-height: 1.5; }
+  .ux-message.error { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .ux-message.success { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .ux-message.warn { background: var(--yellow-bg); border-color: var(--yellow); color: var(--yellow); }
+  .ux-current-day { font-weight: 700; color: var(--blue); }
+
+  /* job 카드 미리보기 */
+  .ux-jobcard { border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 10px 12px;
+    margin-top: 8px; font-size: 12px; }
+  .ux-jobcard .jobcard-title { font-weight: 600; margin-bottom: 4px; }
+  .ux-jobcard .jobcard-stage { color: var(--text-muted); font-size: 11px; }
+  .ux-jobcard .jobcard-bar { height: 4px; background: var(--bg); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .ux-jobcard .jobcard-bar > div { height: 100%; background: var(--blue); transition: width 0.3s; }
+
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; padding: 16px; } nav.toc { position: static; max-height: none; } }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-2-4 — TTL 만료 자동 hard-delete + nudge REPLACE 정합화 <span style="color:var(--text-muted); font-weight:500;">(plan v1)</span></h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-14</strong></span>
+    <span>상위 : <strong>S5-2 (자원 상태 변경 UI/기능 수정)</strong></span>
+    <span>선행 : <strong>S5-2-1 / S5-2-2 / S5-2-3 / S5-2-3-1 CP5 완료</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 대기</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 페이지 요구사항</a></li>
+    <li><a href="#preview" class="live">🎬 미리보기 (UX)</a></li>
+    <li><a href="#s3">3. URL · 흐름</a></li>
+    <li><a href="#s4">4. 도메인 · 정책 매트릭스</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. 통합 테스트</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">1.</span> <span style="flex:1;">현재 상태 — 시스템 진입 hard-delete 경로의 결손</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">1.1 사용자 진입 vs 시스템 진입</h3>
+    <p>S5-2-2 가 사용자 직접 hard-delete 경로에 <strong>typed-name 검증</strong> 을 도입해 우발 삭제를 방어했다. 그러나 사용자 입력이 부재한 두 가지 <strong>시스템 진입</strong> 경로는 여전히 결손 상태다.</p>
+
+    <table>
+      <thead><tr><th>진입 경로</th><th>현재 상태</th><th>결손</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>사용자 직접</strong> (휴지통 / 5 list page 영구삭제 버튼)</td>
+          <td><span class="chip keep">정합</span> typed-name 검증 적용 (S5-2-2 + S5-2 typed-name 다형성)</td>
+          <td>—</td>
+        </tr>
+        <tr style="background: var(--orange-bg);">
+          <td><strong>nudge REPLACE</strong> (등록 시 중복 자원 발견 → 사용자 "REPLACE" 클릭)</td>
+          <td><span class="chip mod">부분</span> <code>service.purgeXxxForNudge(target)</code> 직접 호출. typed-name 우회 (사용자 nudge confirm 클릭이 의도 증거)</td>
+          <td>retry / 실패 알림 / 백업 정책 부재. I/O 실패 시 silent 500</td>
+        </tr>
+        <tr style="background: var(--red-bg);">
+          <td><strong>TTL 자동 만료</strong> (휴지통 30일 경과 자원의 cron 진입)</td>
+          <td><span class="chip force">미구현</span> <code>TrashTtlWorker.purgeExpired()</code> 가 만료 식별 + 경고 로그만. 실제 hard-delete 미수행</td>
+          <td>전체. 정책 결정 필요</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>1.2 TrashTtlWorker.purgeExpired 의 현재 stub</h3>
+    <pre><code>@Scheduled(cron = "${trash.ttl.purge-cron:0 0 * * * *}")
+public void purgeExpired() {
+    Instant threshold = Instant.now().minus(trashPolicy.getTtl());
+    for (MarkableScanner scanner : scanners) {
+        List&lt;Markable&gt; expired = scanner.findTrashedBefore(threshold);
+        if (!expired.isEmpty()) {
+            log.warn("[trash:ttl] type={} expired count={} (threshold={}). 자동 hard-delete 는 S5-2-2 와 합쳐 결정 — 현재는 보고만.",
+                    scanner.supportedType(), expired.size(), threshold);
+        }
+    }
+}</code></pre>
+    <p>코드 주석 자체가 <strong>"S5-2-2 와 합쳐 결정"</strong> 으로 위임을 명시. S5-2-2 범위에서 제외되었으므로 본 슬라이스에서 결론을 짓는다.</p>
+
+    <h3>1.3 nudge REPLACE 의 retry / 알림 부재</h3>
+    <p>6 도메인 NudgeService (OS / Bios / Bmc / BoardModel / Subprogram / OsImage) 가 동일 패턴으로 <code>purgeXxxForNudge(target)</code> 직접 호출. 성공/실패는 호출자 controller 의 HTTP 응답으로만 노출 — 실패 시 자원이 어떤 상태로 남는지, retry 가 가능한지 일관된 정책이 없다.</p>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">2.</span> <span style="flex:1;">페이지 요구사항 + 결정 항목</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">2.1 핵심 원리 (Notion 페이지에서 확정)</h3>
+    <ul>
+      <li>S5-2-2 의 typed-name 은 <strong>사용자 우발 삭제 방어용</strong> — 시스템 자동 진입엔 적용 불가능</li>
+      <li>시스템 진입의 보호 메커니즘은 <strong>TTL (30일) + 사전 알림 (7일 / 1일) + retry + 실패 복구</strong></li>
+      <li>nudge REPLACE 도 동일 인프라 위로 통일 (단, 사용자 confirm 이 직전 이뤄지므로 사전 알림 단계 생략)</li>
+    </ul>
+
+    <h3>2.2 결정 6 항목 + 권고 (사용자 CP1 에서 결정)</h3>
+    <table>
+      <thead><tr><th>#</th><th>결정 항목</th><th>권고 (default)</th><th>대안</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>D1</td>
+          <td>TTL 자동 hard-delete 활성화 정책</td>
+          <td><strong>default ON</strong>, application.yml 로 끄기 가능 (<code>trash.ttl.auto-purge.enabled=true</code>)</td>
+          <td>(a) default OFF + 운영자 수동 cron 트리거 — 안전하나 디스크 누적<br>(b) feature flag — 환경별 분기 (dev OFF / prod ON)</td>
+        </tr>
+        <tr>
+          <td>D2</td>
+          <td>retry 정책 (I/O 실패 시)</td>
+          <td><strong>최대 3회</strong>, exponential backoff (1s → 2s → 4s). 모두 실패 시 자원 단위로 다음 cron 에 재시도</td>
+          <td>(a) retry 없음 — 단순하지만 일시 장애로 자원 누적<br>(b) 무제한 재시도 — 영원 루프 위험</td>
+        </tr>
+        <tr>
+          <td>D3</td>
+          <td>실패 시 자원 상태</td>
+          <td><strong><code>purge_failed_at</code> 컬럼 도입</strong> (Instant). retry 횟수와 마지막 실패 시각 기록. DB row + trash 파일 모두 보존. 다음 cron 이 자동 재시도</td>
+          <td>(a) 별도 'purge_failed' enum 상태 — 더 명시적이나 lifecycle 확장 부담<br>(b) 단순 로그만 — 추적 불가</td>
+        </tr>
+        <tr>
+          <td>D4</td>
+          <td>백업 / 감사</td>
+          <td><strong>purge receipt 저장</strong> — hard-delete 직전 marker + DB 메타를 <code>&lt;trashRoot&gt;/.purge-receipt/&lt;TYPE&gt;/&lt;id&gt;.json</code> 으로 30일 보존. 운영자 수동 복구 가능성 + 감사 로그</td>
+          <td>(a) 백업 없음 — 디스크 효율 ↑, 사고 대응 ↓<br>(b) 무제한 보존 — 디스크 누적</td>
+        </tr>
+        <tr>
+          <td>D5</td>
+          <td>알림 채널</td>
+          <td><strong>작업 조회 아이콘 카드 + 서버 로그</strong> 만. 성공 / 실패 / 알림 임박 3 종 Job 등록</td>
+          <td>(a) 이메일 추가 — 의존성 증가<br>(b) Slack/webhook — MVP 범위 외</td>
+        </tr>
+        <tr>
+          <td>D6</td>
+          <td>nudge REPLACE 흐름 정합화</td>
+          <td><strong>동일 PurgeExecutor 통과</strong> — retry / receipt 백업 / 작업 조회 아이콘 알림 일관 적용 (단, 사용자 직전 confirm 이므로 TTL 알림 단계만 생략)</td>
+          <td>(a) 기존 직접 호출 유지 — 단순하나 인프라 분기 영구화</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>설계 원칙</strong> 모든 hard-delete 는 <strong>PurgeExecutor</strong> 단일 진입점을 통과한다. 사용자 직접 / nudge REPLACE / TTL 자동 — 3 진입점이 동일 retry / receipt / 알림 인프라를 공유. typed-name 검증만 controller / scanner 측 분기 (이미 다형성 적용).
+    </div>
+  </div>
+</details>
+
+<!-- ============================== 미리보기 ============================== -->
+<details class="section" id="preview" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">🎬</span> <span style="flex:1;">미리보기 — TTL 시간 흐름 + retry 시뮬레이션</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">아래 위젯에서 휴지통 자원의 30일 라이프사이클을 시뮬레이션할 수 있어요. "+1일" 버튼으로 시간을 진행시키면 알림 / 만료 / 자동 hard-delete 흐름이 단계별로 표시됩니다.</p>
+
+    <div class="ux-wrap">
+      <div class="ux-toolbar">
+        <span class="group-label">시간 흐름 :</span>
+        <button onclick="advanceDays(1)">+1일</button>
+        <button onclick="advanceDays(7)">+7일</button>
+        <button onclick="advanceDays(23)">+23일 (7일 전까지)</button>
+        <button onclick="advanceDays(6)">+6일 (1일 전까지)</button>
+        <button onclick="resetSim()">초기화</button>
+      </div>
+      <div class="ux-toolbar">
+        <span class="group-label">시나리오 :</span>
+        <button onclick="injectIoFailure()">⚠ I/O 실패 주입 (다음 cron)</button>
+        <button onclick="injectNudgeReplace()">nudge REPLACE 시뮬</button>
+      </div>
+
+      <div style="margin-top: 10px; padding: 8px 12px; background: var(--card); border-radius: 6px; border: 1px solid var(--border-soft);">
+        현재 시점 : <span class="ux-current-day" id="ux-day">D+0</span>
+        <span style="color: var(--text-muted); margin-left: 12px;" id="ux-day-note">자원이 휴지통에 막 이동된 시점</span>
+      </div>
+
+      <div class="ux-timeline" id="ux-timeline">
+        <!-- 자원 행이 동적으로 렌더링됩니다 -->
+      </div>
+
+      <div class="ux-jobcard hidden" id="ux-jobcard">
+        <div class="jobcard-title" id="ux-job-title">🗑 자동 영구삭제 진행 중</div>
+        <div class="jobcard-stage" id="ux-job-stage">PREPARE — 자원 식별</div>
+        <div class="jobcard-bar"><div id="ux-job-bar" style="width: 0%;"></div></div>
+      </div>
+
+      <div class="ux-message" id="ux-message">⏳ 자원 1건이 휴지통에 있어요. "+1일" 버튼으로 시간을 진행시켜보세요.</div>
+    </div>
+
+    <h3 style="margin-top: 22px;">핵심 시나리오</h3>
+    <ol style="line-height: 1.75;">
+      <li><strong>D+23 (TTL 만료 7일 전)</strong> — 작업 조회 아이콘에 "7일 후 영구삭제 예정" Job 등록. 휴지통 UI 의 잔여 TTL 셀이 노랑으로 강조</li>
+      <li><strong>D+29 (1일 전)</strong> — 작업 조회 아이콘에 "1일 이내 영구삭제 예정" Job 추가. TTL 셀 빨강</li>
+      <li><strong>D+30 (TTL 만료)</strong> — 다음 cron tick 에 PurgeExecutor 실행. 작업 조회 아이콘에 "🗑 자동 영구삭제 진행" 카드. receipt 저장 → 파일 삭제 → DB row 삭제 순차 진행 → "✅ 자동 영구삭제 완료" 로 전이</li>
+      <li><strong>I/O 실패 시</strong> — 자원에 <code>purge_failed_at</code> 기록 + 작업 조회 아이콘에 "⚠ 영구삭제 실패 (재시도 예정)" Job. 다음 cron 에 자동 재시도. 3회 연속 실패 시 운영자 알림 격상</li>
+      <li><strong>nudge REPLACE</strong> — TTL 알림 단계 생략 + PurgeExecutor 진입 (retry / receipt / 작업 조회 아이콘 알림 동일 적용)</li>
+    </ol>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3">
+  <summary><span style="color:var(--text-muted); min-width:20px;">3.</span> <span style="flex:1;">URL · 데이터 흐름</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">3.1 영향 endpoint (전부 신규 0, 기존 흐름의 인프라 교체)</h3>
+    <table>
+      <thead><tr><th>경로</th><th>변경</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td><code>@Scheduled TrashTtlWorker.purgeExpired</code></td><td><span class="chip mod">본체 구현</span></td><td>PurgeExecutor 위임으로 실제 hard-delete 수행</td></tr>
+        <tr><td><code>@Scheduled TrashTtlWorker.notifyUpcomingExpiration</code></td><td><span class="chip mod">알림 격상</span></td><td>현재 log 출력 → BackgroundJobService.register(TTL_NOTIFY) 로 작업 조회 아이콘 노출</td></tr>
+        <tr><td><code>POST /management/&lt;domain&gt;/nudge/&lt;id&gt;/replace</code> (6 도메인)</td><td><span class="chip mod">통일</span></td><td>NudgeService 가 PurgeExecutor 위임 — 기존 직접 호출 제거</td></tr>
+        <tr><td><code>POST /management/&lt;domain&gt;/&lt;id&gt;/purge</code> (5 list / 휴지통)</td><td><span class="chip keep">유지</span></td><td>typed-name 검증 진입점은 그대로. 검증 통과 후 동일 PurgeExecutor 위임</td></tr>
+        <tr><td><code>POST /maintenance/trash/retry-failed</code></td><td><span class="chip new">신규</span></td><td>운영자 수동 재시도 — purge_failed_at 보유 자원만 1 회 재실행. 권한 보호</td></tr>
+      </tbody>
+    </table>
+
+    <h3>3.2 PurgeExecutor 단일 진입점</h3>
+    <pre><code>// global/trash/PurgeExecutor.java (신규)
+public class PurgeExecutor {
+    public PurgeResult execute(PurgeRequest req) {
+        // 1) receipt 저장 (실패 시 throw — hard-delete 안 함)
+        purgeReceiptWriter.write(req);
+        // 2) scanner.purgeFromTrash(id) 호출 (도메인 service 가 파일 + DB row 정리)
+        try {
+            attemptWithRetry(req);  // 1s/2s/4s backoff
+            return PurgeResult.success(req);
+        } catch (PurgeIoFailedException ex) {
+            markFailed(req, ex);  // purge_failed_at 갱신
+            return PurgeResult.failed(req, ex);
+        }
+    }
+}</code></pre>
+
+    <h3>3.3 흐름 다이어그램</h3>
+    <pre><code>┌─── 사용자 직접 ────┐   ┌─── nudge REPLACE ───┐   ┌─── TTL 자동 ────┐
+│ typed-name 검증     │   │ confirm 클릭 (intent) │   │ @Scheduled cron │
+└────────┬──────────┘   └──────────┬──────────┘   └────────┬───────┘
+         │                          │                       │
+         └─────────────┬────────────┴───────────────────────┘
+                       │
+                       ▼
+              ┌──────────────────┐
+              │  PurgeExecutor   │  ← 단일 진입점
+              │  retry · receipt │
+              │  · BackgroundJob │
+              └────────┬─────────┘
+                       │
+                       ▼
+              scanner.purgeFromTrash(id)
+                       │
+                       ▼
+              ┌──────────────────┐
+              │ 성공  : Job 완료 │
+              │ 실패  : 재시도 OR │
+              │        purge_fail │
+              └──────────────────┘</code></pre>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4">
+  <summary><span style="color:var(--text-muted); min-width:20px;">4.</span> <span style="flex:1;">도메인 모델 · 정책 매트릭스</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">4.1 신규 도메인</h3>
+    <table>
+      <thead><tr><th>이름</th><th>위치</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>PurgeExecutor</code></td>
+          <td><code>global/trash/service/</code></td>
+          <td>3 진입점이 공유하는 단일 hard-delete 실행기. retry + receipt 백업 + Job 등록 응집</td>
+        </tr>
+        <tr>
+          <td><code>PurgeRequest</code> (record)</td>
+          <td><code>global/trash/</code></td>
+          <td><code>resourceType / resourceId / origin (USER · NUDGE · TTL) / trashedPath / displayName</code> 응집 VO</td>
+        </tr>
+        <tr>
+          <td><code>PurgeOrigin</code> (enum)</td>
+          <td><code>global/trash/enums/</code></td>
+          <td>3 진입점 분기 표현. <strong>다형성</strong> — switch 대신 enum-per-method 패턴으로 알림 메시지 / Job 제목 생성</td>
+        </tr>
+        <tr>
+          <td><code>PurgeReceipt</code> (record)</td>
+          <td><code>global/trash/</code></td>
+          <td>hard-delete 직전 자원 메타 스냅샷. JSON 직렬화하여 <code>.purge-receipt/</code> 저장</td>
+        </tr>
+        <tr>
+          <td><code>PurgeReceiptWriter</code></td>
+          <td><code>global/trash/service/</code></td>
+          <td>receipt JSON 작성. trash root 하위 sidecar 디렉토리에 보존</td>
+        </tr>
+        <tr>
+          <td><code>PurgeRetryPolicy</code> (VO)</td>
+          <td><code>global/trash/vo/</code></td>
+          <td><code>maxAttempts / backoff base+factor / attempt timeout</code> 응집 — application.yml 바인딩</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 Entity 변경 — purge_failed_at</h3>
+    <p><code>LifecycleEntity</code> (모든 trash 대상 entity 의 베이스) 에 1 컬럼 추가 :</p>
+    <table>
+      <thead><tr><th>컬럼</th><th>타입</th><th>의미</th></tr></thead>
+      <tbody>
+        <tr><td><code>purge_failed_at</code></td><td>Instant nullable</td><td>마지막 실패 시각. null = 실패 없음. NOT NULL = 재시도 대기</td></tr>
+        <tr><td><code>purge_attempt_count</code></td><td>int default 0</td><td>총 시도 횟수 (cron 사이 누적). 3회 초과 시 운영자 알림 격상</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.3 BackgroundJob 신규 JobType</h3>
+    <table>
+      <thead><tr><th>JobType</th><th>등록 시점</th><th>제목 예시</th></tr></thead>
+      <tbody>
+        <tr><td><code>TTL_NOTIFY</code></td><td>D+23 / D+29 사전 알림</td><td>"⏰ 7일 후 영구삭제 — Rocky Linux 9.5 dvd.iso"</td></tr>
+        <tr><td><code>TRASH_AUTO_PURGE</code></td><td>cron 진입 / nudge REPLACE</td><td>"🗑 자동 영구삭제 — Rocky Linux 9.5 dvd.iso"</td></tr>
+        <tr><td><code>TRASH_PURGE_FAILED</code></td><td>retry 실패 / 3회 누적</td><td>"⚠ 영구삭제 실패 (재시도 예정 또는 운영자 확인 필요)"</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.4 정책 매트릭스 (3 진입점 × 7 정책 항목)</h3>
+    <table>
+      <thead><tr><th>정책 항목</th><th>사용자 직접</th><th>nudge REPLACE</th><th>TTL 자동</th></tr></thead>
+      <tbody>
+        <tr><td>typed-name 검증</td><td>✅ 필수</td><td>❌ 우회 (nudge confirm 이 의도)</td><td>❌ 우회 (시스템)</td></tr>
+        <tr><td>사전 알림 (D+23 / D+29)</td><td>—</td><td>—</td><td>✅ JobType.TTL_NOTIFY</td></tr>
+        <tr><td>PurgeExecutor 통과</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>retry (3회, 1s/2s/4s)</td><td>❌ (사용자가 직접 재시도)</td><td>❌ (사용자가 재시도)</td><td>✅</td></tr>
+        <tr><td>purge receipt 저장</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>BackgroundJob 알림</td><td>—</td><td>✅</td><td>✅</td></tr>
+        <tr><td>purge_failed_at 갱신</td><td>—</td><td>—</td><td>✅ (cron 단위 재시도 대상)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary><span style="color:var(--text-muted); min-width:20px;">5.</span> <span style="flex:1;">10단계 + 체크포인트</span></summary>
+  <div class="body">
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span class="text"><strong>Step 1</strong> <span class="chip cp1">CP1</span> plan html 산출 + 사용자 결정 6 항목 (D1~D6) 합의</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 2</strong> <span class="chip cp2">CP2</span> 작업 조회 아이콘 카드 시각 디자인 — TTL_NOTIFY / TRASH_AUTO_PURGE / TRASH_PURGE_FAILED 3 신규 JobType 의 카드 텍스트, 진행 단계 라벨</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 3</strong> <span class="chip cp2">CP2</span> Controller — <code>POST /maintenance/trash/retry-failed</code> 신규 endpoint. 권한 체크 (관리자만)</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 4</strong> <span class="chip cp2">CP2</span> DTO — <code>PurgeRequest</code> · <code>PurgeReceipt</code> · <code>PurgeResult</code></span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 5</strong> <span class="chip cp2">CP2</span> Service 시그니처 — <code>PurgeExecutor.execute(PurgeRequest)</code>, <code>PurgeReceiptWriter.write(...)</code>, <code>PurgeRetryPolicy</code> VO</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 6</strong> <span class="chip cp3">CP3</span> Repository — <code>findByPurgeFailedAtNotNull()</code> (lifecycle 베이스 + 6 도메인 repo) 또는 scanner SPI 의 <code>findFailedPurges()</code> default. <strong>다형성 적용</strong> — 도메인 분기 0</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 7</strong> <span class="chip cp3">CP3</span> Entity — <code>LifecycleEntity</code> 에 <code>purge_failed_at</code> + <code>purge_attempt_count</code> 2 컬럼 추가. 6 entity 자동 흡수</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 8</strong> <span class="chip cp4">CP4</span> Service 본체 — PurgeExecutor 본체 + retry 알고리즘 + receipt 직렬화 + TrashTtlWorker 실제 구현. <strong>단위 테스트 + 통합 테스트</strong> §6 시나리오 전부</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 9</strong> <span class="chip cp4">CP4</span> 스키마 — <code>ddl-auto=update</code> 로 6 테이블에 컬럼 2개 동시 추가 → <code>SHOW CREATE TABLE</code> 검증 → <code>validate</code> 복원</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><strong>Step 10</strong> <span class="chip cp5">CP5</span> 브라우저 E2E — <strong>사용자 단독</strong>. TTL 단축 테스트 (예: <code>trash.ttl.days=0</code> + 1분 cron) 로 자동 hard-delete 동작 검증</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary><span style="color:var(--text-muted); min-width:20px;">6.</span> <span style="flex:1;">Step 8 통합 테스트 시나리오 (16 시나리오)</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">PurgeExecutorTest (단위)</h3>
+    <ol>
+      <li><strong>성공 happy</strong> — receipt 저장 → scanner.purgeFromTrash 1회 호출 → PurgeResult.success</li>
+      <li><strong>retry 후 성공</strong> — 1회 IOException → 2회째 성공. attemptCount 2, success</li>
+      <li><strong>retry 3회 후 실패</strong> — 모두 IOException → markFailed 호출, purge_failed_at NOT NULL, PurgeResult.failed</li>
+      <li><strong>receipt 저장 실패</strong> — receiptWriter 가 throw → hard-delete 시도 안 함 (선행조건 실패), PurgeResult.failed</li>
+      <li><strong>backoff 시간 검증</strong> — 1s · 2s · 4s 의 sleep 호출 확인 (mockable clock)</li>
+    </ol>
+
+    <h3>TrashTtlWorkerTest (단위)</h3>
+    <ol start="6">
+      <li><strong>만료 자원 0건</strong> — log 만 출력, PurgeExecutor 호출 0회</li>
+      <li><strong>만료 자원 N건</strong> — PurgeExecutor.execute(TTL 진입) N회 호출</li>
+      <li><strong>D+23 사전 알림</strong> — JobType.TTL_NOTIFY 1회 등록 (7일 윈도우)</li>
+      <li><strong>D+29 사전 알림 격상</strong> — JobType.TTL_NOTIFY 1회 등록 (1일 윈도우)</li>
+      <li><strong>auto-purge.enabled=false</strong> — purgeExpired() 가 식별만 + log, PurgeExecutor 호출 0회</li>
+    </ol>
+
+    <h3>RetryFailedControllerTest (HTTP)</h3>
+    <ol start="11">
+      <li><strong>성공</strong> — purge_failed_at 보유 자원 2건 → PurgeExecutor 2회 호출, 200 응답</li>
+      <li><strong>실패 자원 0건</strong> — 200 응답 + count=0 메시지</li>
+      <li><strong>인증 실패</strong> — 비관리자 → 403</li>
+    </ol>
+
+    <h3>NudgeReplace 통합 (6 도메인 중 OS 만 회귀)</h3>
+    <ol start="14">
+      <li><strong>nudge REPLACE 성공</strong> — PurgeExecutor.execute(NUDGE 진입) 1회, 작업 조회 아이콘에 TRASH_AUTO_PURGE 카드 생성</li>
+      <li><strong>nudge REPLACE I/O 실패</strong> — purge_failed_at 갱신, 409 응답 + 안내</li>
+      <li><strong>typed-name 검증 우회</strong> — PurgeOrigin.NUDGE 진입은 typed-name 입력 없이 통과</li>
+    </ol>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary><span style="color:var(--text-muted); min-width:20px;">7.</span> <span style="flex:1;">예외 계층</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">신규</h3>
+    <ul>
+      <li><code>PurgeIoFailedException extends DomainException</code> — hard-delete 도중 IO/DB 실패. retry 대상.</li>
+      <li><code>PurgeReceiptWriteFailedException extends DomainException</code> — receipt 저장 실패. <strong>hard-delete 차단</strong>.</li>
+      <li><code>PurgeRetryExhaustedException extends DomainException</code> — 3회 연속 실패 시 자원 단위 격상. <code>@ResponseStatus(SERVICE_UNAVAILABLE)</code> 가능성 검토 (사용자 진입에선 안 만남)</li>
+    </ul>
+
+    <h3>재사용</h3>
+    <ul>
+      <li><code>TypedNameMismatchException</code> (S5-2-2) — 사용자 직접 진입 검증 단계에서만 발생. PurgeExecutor 진입 전 controller / scanner 의 typed-name 검증 통과 후 호출되므로 본 슬라이스 변경 없음</li>
+      <li><code>ChildLifecycleBlockedByParentException</code> (S5-2-3-1) — restore 측 거절. purge 와 무관</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary><span style="color:var(--text-muted); min-width:20px;">8.</span> <span style="flex:1;">예상 부산물 · 주의</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">스코프 경계</h3>
+    <ul>
+      <li><strong>외부 알림 채널 (이메일 / Slack) 도입 안 함</strong> — 작업 조회 아이콘 + 서버 로그로 충분. 운영자가 외부 채널 도입 시점에 별도 슬라이스</li>
+      <li><strong>receipt 자동 정리 cron 도입 안 함</strong> — 30일 보존은 디스크 수동 정리 또는 다음 슬라이스</li>
+      <li><strong>분산 환경 lock 도입 안 함</strong> — 현재 단일 JVM 전제. 멀티 노드 진입 시 cron lock (예: ShedLock) 별도 슬라이스</li>
+    </ul>
+
+    <h3>관련 페이지 동반 수정</h3>
+    <ul>
+      <li>휴지통 list.html — 잔여 TTL 셀에 <code>purge_failed_at</code> 보유 시 "⚠ 재시도 대기" 배지 추가 (운영자 즉시 인지)</li>
+      <li>BackgroundJob fragment — 3 신규 JobType 의 아이콘 + 색상 매핑 (이미 JobType 별 다형성 적용된 곳에 enum 상수 추가)</li>
+    </ul>
+
+    <h3>CLAUDE.md 수정사항</h3>
+    <ul>
+      <li>§MK3-2 항목 옆에 "<strong>MK3-3 / S5-2-4</strong> — TTL 자동 hard-delete + PurgeExecutor 단일 진입점" 1줄 추가</li>
+    </ul>
+
+    <h3>마이그레이션 / 운영 고려</h3>
+    <ul>
+      <li><code>purge_failed_at</code> / <code>purge_attempt_count</code> 2 컬럼 nullable / default 0 — 기존 row 영향 없음. <code>ddl-auto=update</code> 안전</li>
+      <li>운영 환경의 첫 자동 hard-delete 가 위험할 수 있으므로 D1 의 default 를 <strong>OFF</strong> 로 두는 절충안도 검토 가능 (사용자 결정)</li>
+      <li>receipt 디렉토리 (<code>&lt;trashRoot&gt;/.purge-receipt/</code>) 의 권한 / 백업 정책은 운영 가이드 사용자 자체 작성</li>
+    </ul>
+
+    <div class="callout warn">
+      <strong>주의</strong> nudge REPLACE 의 retry 정책은 D2 와 동일하게 적용하되, 사용자 confirm 직후이므로 <strong>UI 측 대기 시간</strong> 이 7초 (1s+2s+4s) 까지 늘어날 수 있다. 실시간 응답 보장을 위해 async fire-and-forget 으로 처리하고 결과는 작업 조회 아이콘에서 확인하도록 분리하는 것이 권장.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary><span style="color:var(--text-muted); min-width:20px;">9.</span> <span style="flex:1;">Verification 체크리스트</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span class="text"><code>./gradlew compileJava compileTestJava</code> ✅</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><code>./gradlew test</code> 전체 통과 (16 시나리오 신규 + 기존 회귀 무변)</span></label></li>
+      <li><label><input type="checkbox"><span class="text">스키마 <code>ddl-auto=update</code> 적용 후 <code>SHOW CREATE TABLE</code> 6 entity 컬럼 2 개 확인</span></label></li>
+    </ul>
+
+    <h3>기능</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span class="text">TTL 단축 (<code>trash.ttl.days=0</code> + 1분 cron) 상태에서 휴지통 자원이 1분 안에 자동 hard-delete</span></label></li>
+      <li><label><input type="checkbox"><span class="text">trash root 에 마운트한 파일시스템을 read-only 로 잠시 전환 → retry 후 purge_failed_at 갱신 + 작업 조회 아이콘 알림</span></label></li>
+      <li><label><input type="checkbox"><span class="text">read-only 해제 후 다음 cron tick 에 자동 재시도 + 성공</span></label></li>
+      <li><label><input type="checkbox"><span class="text">nudge REPLACE 가 PurgeExecutor 통과 + 작업 조회 아이콘 카드 생성</span></label></li>
+      <li><label><input type="checkbox"><span class="text"><code>.purge-receipt/&lt;TYPE&gt;/&lt;id&gt;.json</code> 파일 생성 + 내용에 displayName / origin / timestamp 포함</span></label></li>
+      <li><label><input type="checkbox"><span class="text">사용자 직접 hard-delete 의 typed-name 검증 흐름 변경 없음 (회귀 0)</span></label></li>
+    </ul>
+
+    <h3>회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox"><span class="text">기존 526 tests 무변 통과</span></label></li>
+      <li><label><input type="checkbox"><span class="text">restore / extend / clear-ghost 경로 변경 없음 — async-submit 흐름 그대로 동작</span></label></li>
+      <li><label><input type="checkbox"><span class="text">parent-deleted 가드 (S5-2-3-1) 정합 유지</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary><span style="color:var(--text-muted); min-width:20px;">10.</span> <span style="flex:1;">Critical Files</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">신규</h3>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/service/PurgeExecutor.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/service/PurgeReceiptWriter.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/PurgeRequest.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/PurgeResult.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/PurgeReceipt.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/enums/PurgeOrigin.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/vo/PurgeRetryPolicy.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/global/trash/exception/{PurgeIoFailedException, PurgeReceiptWriteFailedException, PurgeRetryExhaustedException}.java</code></li>
+      <li><code>src/main/java/com/example/serverprovision/maintenance/trash/controller/TrashRetryController.java</code> (<code>POST /maintenance/trash/retry-failed</code>)</li>
+      <li>4 신규 테스트 파일 — <code>PurgeExecutorTest / TrashTtlWorkerTest / TrashRetryControllerTest / NudgeReplaceIntegrationTest</code></li>
+    </ul>
+
+    <h3>수정</h3>
+    <ul>
+      <li><code>maintenance/trash/service/TrashTtlWorker.java</code> — purgeExpired 본체 + notifyUpcomingExpiration BackgroundJob 격상</li>
+      <li><code>global/entity/LifecycleEntity.java</code> — <code>purge_failed_at</code> + <code>purge_attempt_count</code> 2 컬럼</li>
+      <li>6 NudgeService — <code>purgeXxxForNudge</code> 호출을 PurgeExecutor.execute(NUDGE 진입) 으로 교체</li>
+      <li><code>global/job/JobType.java</code> — TTL_NOTIFY / TRASH_AUTO_PURGE / TRASH_PURGE_FAILED 3 enum 추가</li>
+      <li><code>templates/fragments/job-card.html</code> — 신규 3 JobType 의 아이콘 / 색상 매핑</li>
+      <li><code>templates/maintenance/trash/list.html</code> — 잔여 TTL 셀에 "재시도 대기" 배지 분기</li>
+      <li><code>application.properties</code> — <code>trash.ttl.auto-purge.enabled / trash.ttl.purge.max-retries / trash.ttl.purge.backoff-ms / trash.purge-receipt.root</code> 4 항목</li>
+      <li><code>CLAUDE.md</code> — §MK3 묶음 다음 줄에 S5-2-4 1줄 추가</li>
+    </ul>
+
+    <h3>유지</h3>
+    <ul>
+      <li>6 scanner 의 <code>purgeFromTrash(id)</code> — 이미 구현됨. PurgeExecutor 가 그대로 위임</li>
+      <li>5 list page / 휴지통의 typed-name 검증 진입점 — S5-2-2 + S5-2 typed-name 다형성 그대로</li>
+      <li>S5-2-3-1 의 cascade 본체 + parent 가드 — 본 슬라이스에서 변경 없음</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary><span style="color:var(--text-muted); min-width:20px;">11.</span> <span style="flex:1;">다음 마일스톤</span></summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-2-4</strong> — S5-2-4 CP5 후 S5-2 묶음 종료. S5 의 5 잔존 항목 (S5-3 modal fragment / S5-3-2 modal 버튼 UX / S5-4 삭제 항목 UX / S5-5 화면 구조 통일 / S5-6 Job status 구체화) 로 진행</li>
+      <li><strong>후속 슬라이스 후보</strong>
+        <ul>
+          <li>분산 환경 ShedLock 도입 (멀티 노드 진입 시)</li>
+          <li>receipt 자동 정리 cron (30일 후 receipt 도 삭제)</li>
+          <li>외부 알림 채널 (이메일 / Slack webhook) — 운영자 요구 발생 시</li>
+          <li>S5-6 Job status 구체화 — TTL_NOTIFY / TRASH_AUTO_PURGE 카드의 본문 텍스트 정밀화</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="callout success">
+      <strong>완료 조건</strong> CP5 통과 시 S5-2 묶음 (S5-2-1 ~ S5-2-4) 전체 종료. typed-name + cascade + TTL 자동 정합화 3 축이 일관된 인프라 위에서 동작.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  // 1. ToC 라이브 강조
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  // 2. 전부 펼치기 / 접기
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  // 3. 검색
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      const matches = text.includes(q);
+      d.classList.toggle('hidden', !matches);
+      if (matches) d.open = true;
+    });
+  });
+
+  // 4. ToC anchor scroll — offset = nav.toc top (108).
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+
+  // 5. UX 시뮬레이션 — TTL 시간 흐름 + retry
+  let simState = {
+    day: 0,
+    resources: [
+      { id: 1, name: 'Rocky Linux 9.5 dvd.iso', status: 'trashed', failedAt: null, attemptCount: 0, purgedAt: null }
+    ],
+    cronTick: 0
+  };
+
+  function render() {
+    const tl = document.getElementById('ux-timeline');
+    tl.innerHTML = '';
+    simState.resources.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'ux-row';
+      let badgeClass = 'trashed';
+      let badgeText = '휴지통';
+      if (r.purgedAt !== null) { badgeClass = 'purged'; badgeText = `영구삭제 완료 (D+${r.purgedAt})`; row.classList.add('muted'); }
+      else if (r.failedAt !== null) { badgeClass = 'failed'; badgeText = `재시도 대기 (시도 ${r.attemptCount}회)`; }
+      else if (simState.day >= 29) { badgeClass = 'crit'; badgeText = `1일 후 영구삭제`; }
+      else if (simState.day >= 23) { badgeClass = 'warn'; badgeText = `7일 후 영구삭제`; }
+      row.innerHTML = `<span class="day">D+${simState.day}</span><span class="label">${r.name}</span><span class="badge ${badgeClass}">${badgeText}</span>`;
+      tl.appendChild(row);
+    });
+    document.getElementById('ux-day').textContent = `D+${simState.day}`;
+    const note = document.getElementById('ux-day-note');
+    if (simState.day === 0) note.textContent = '자원이 휴지통에 막 이동된 시점';
+    else if (simState.day < 23) note.textContent = '아직 알림 없음 — 정상 보관 중';
+    else if (simState.day < 29) note.textContent = '🟡 7일 후 영구삭제 예정 — 작업 조회 아이콘에 사전 알림';
+    else if (simState.day < 30) note.textContent = '🔴 1일 이내 영구삭제 예정 — 마지막 사전 알림';
+    else note.textContent = '🗑 TTL 만료 — 다음 cron tick 에 PurgeExecutor 진입';
+  }
+
+  function setMessage(msg, kind) {
+    const el = document.getElementById('ux-message');
+    el.textContent = msg;
+    el.className = 'ux-message' + (kind ? ' ' + kind : '');
+  }
+
+  function showJobCard(title, stage, percent) {
+    const card = document.getElementById('ux-jobcard');
+    card.classList.remove('hidden');
+    document.getElementById('ux-job-title').textContent = title;
+    document.getElementById('ux-job-stage').textContent = stage;
+    document.getElementById('ux-job-bar').style.width = percent + '%';
+  }
+  function hideJobCard() { document.getElementById('ux-jobcard').classList.add('hidden'); }
+
+  let pendingFailure = false;
+
+  function advanceDays(n) {
+    for (let i = 0; i < n; i++) {
+      simState.day++;
+      if (simState.day === 23) setMessage('🟡 D+23 도달 — 작업 조회 아이콘에 "7일 후 영구삭제 예정" Job 등록.', 'warn');
+      else if (simState.day === 29) setMessage('🔴 D+29 도달 — "1일 이내 영구삭제" 알림 격상.', 'warn');
+      else if (simState.day >= 30 && simState.resources.some(r => r.status === 'trashed' && r.purgedAt === null)) {
+        // cron tick — purge 시도
+        simulatePurge();
+        return;
+      }
+    }
+    render();
+  }
+
+  function simulatePurge() {
+    const r = simState.resources.find(x => x.purgedAt === null);
+    if (!r) return;
+    showJobCard('🗑 자동 영구삭제 진행 중', 'PREPARE — receipt 저장', 25);
+    setMessage(`D+${simState.day} cron tick — PurgeExecutor 진입. receipt 저장 중…`, 'warn');
+    setTimeout(() => {
+      showJobCard('🗑 자동 영구삭제 진행 중', 'EXECUTE — scanner.purgeFromTrash', 60);
+      setTimeout(() => {
+        if (pendingFailure) {
+          r.failedAt = simState.day;
+          r.attemptCount += 1;
+          pendingFailure = false;
+          showJobCard('⚠ 영구삭제 실패 (재시도 예정)', `시도 ${r.attemptCount}회 — IOException. 다음 cron 에 자동 재시도`, 100);
+          setMessage(`⚠ I/O 실패 발생 — purge_failed_at=D+${simState.day} 갱신. retry 3회 backoff 후 다음 cron 으로 위임.`, 'error');
+          render();
+        } else {
+          r.status = 'purged';
+          r.purgedAt = simState.day;
+          showJobCard('✅ 자동 영구삭제 완료', `D+${simState.day} — receipt + 파일 + DB row 정리 완료`, 100);
+          setMessage(`✅ ${r.name} 영구삭제 완료. receipt 는 .purge-receipt/OS_ISO/${r.id}.json 에 30일 보존.`, 'success');
+          render();
+        }
+      }, 700);
+    }, 700);
+  }
+
+  function injectIoFailure() {
+    pendingFailure = true;
+    setMessage('⚠ 다음 cron tick 의 PurgeExecutor 진입에 I/O 실패를 주입합니다. "+1일" 을 눌러 진행하세요.', 'warn');
+  }
+
+  function injectNudgeReplace() {
+    showJobCard('🗑 nudge REPLACE — 영구삭제 진행', 'PREPARE — receipt 저장 → EXECUTE', 50);
+    setMessage('nudge REPLACE 진입 — 동일 PurgeExecutor 통과. TTL 알림 단계 생략 + 즉시 hard-delete.', 'warn');
+    setTimeout(() => {
+      simState.resources[0].status = 'purged';
+      simState.resources[0].purgedAt = simState.day;
+      showJobCard('✅ nudge REPLACE 완료', `D+${simState.day} — receipt + 파일 + DB row 정리`, 100);
+      setMessage('✅ nudge REPLACE 자원 영구삭제 완료. retry / receipt / Job 알림 모두 일관 적용.', 'success');
+      render();
+    }, 900);
+  }
+
+  function resetSim() {
+    simState = {
+      day: 0,
+      resources: [{ id: 1, name: 'Rocky Linux 9.5 dvd.iso', status: 'trashed', failedAt: null, attemptCount: 0, purgedAt: null }],
+      cronTick: 0
+    };
+    pendingFailure = false;
+    hideJobCard();
+    setMessage('초기화. "+1일" 버튼으로 시간을 진행시켜보세요.', '');
+    render();
+  }
+
+  render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-10 Plan — provision json 파일 OS-level 숨김 처리</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* OS 매트릭스 */
+  .os-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .os-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .os-card h4 { margin: 0 0 8px; font-size: 14px; font-family: var(--mono); }
+  .os-card.linux { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .os-card.linux h4 { color: var(--green); }
+  .os-card.macos { border-color: var(--yellow); border-width: 2px; background: var(--yellow-bg); }
+  .os-card.macos h4 { color: var(--yellow); }
+  .os-card.windows { border-color: var(--blue); border-width: 2px; background: var(--blue-bg); }
+  .os-card.windows h4 { color: var(--blue); }
+  .os-card ul { margin: 4px 0; padding-left: 18px; }
+  .os-card li { font-size: 12px; line-height: 1.55; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .os-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-10 — provision json 파일 OS-level 숨김 처리</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21 22:20</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-9 완료 (탐색 hidden 회색 표시)</strong></span>
+    <span>변경 표면 : <strong>ProvisionMarkerService.write() 1 줄</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 산출</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s3">3. URL / 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. Step 8 테스트</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색…">
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">1.1 마커 파일 발급 현황</h3>
+    <ul>
+      <li><code>ProvisionMarkerService.write(Path, MarkerLayout, MarkerContent)</code> 가 모든 자원의 마커 파일 진입점</li>
+      <li>발급 대상 :
+        <ul>
+          <li>BIOS 번들 (IN_TREE) — <code>&lt;treeRoot&gt;/.provision.json</code></li>
+          <li>OS ISO (SIDECAR) — <code>&lt;isoPath&gt;.provision.json</code></li>
+          <li>BMC firmware (SIDECAR)</li>
+          <li>Subprogram bundle (IN_TREE) — Driver / Utility</li>
+        </ul>
+      </li>
+      <li>현재 <code>Files.write(target, bytes)</code> 호출 후 OS-level 속성 부여 없음. <code>.</code> prefix 만으로 Unix-style hidden 처리</li>
+    </ul>
+
+    <h3>1.2 현재 가시성 매트릭스</h3>
+    <div class="os-grid">
+      <div class="os-card linux">
+        <h4>Linux ✓</h4>
+        <ul>
+          <li>dot-prefix → <code>ls</code> 기본 숨김</li>
+          <li><code>ls -a</code> 시 표시</li>
+          <li>S5-9 의 path-browser 에서 <code>Files.isHidden()</code> true</li>
+          <li>운영 환경 — 별도 작업 불필요</li>
+        </ul>
+      </div>
+      <div class="os-card macos">
+        <h4>macOS △</h4>
+        <ul>
+          <li>dot-prefix → Finder / <code>ls</code> 숨김</li>
+          <li>Cmd-Shift-. 시 표시</li>
+          <li><code>chflags hidden</code> 추가 가능 (UF_HIDDEN) — Java 표준 API 없음, JNA 필요</li>
+          <li>본 슬라이스 : dot-prefix 그대로 활용 (UF_HIDDEN 미적용)</li>
+        </ul>
+      </div>
+      <div class="os-card windows">
+        <h4>Windows ✗</h4>
+        <ul>
+          <li>dot-prefix → 자동 숨김 처리 <strong>안 됨</strong></li>
+          <li>탐색기 / dir 명령에서 노출 — 사용자 혼란 가능성</li>
+          <li><code>attrib +h</code> 또는 Java 의 <code>Files.setAttribute("dos:hidden", true)</code> 필요</li>
+          <li>본 슬라이스의 핵심 타겟</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <strong>관찰</strong> 본 프로젝트 운영 환경 (PXE 부팅 서버) 는 Linux 가 표준. 그러나 개발 / 검증 / 마이그레이션 시 Windows + Java 환경에서 자원 마커 파일이 노출되는 경우 있음. S5-10 은 cross-platform 안전망으로 dot-prefix + DOS hidden 둘 다 부여.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2">
+  <summary>2. 요구사항 (확정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">2.1 Notion 명세 (S5-10 본문)</h3>
+    <blockquote style="border-left: 3px solid var(--text-muted); padding-left: 12px; color: var(--text-muted); margin: 8px 0; font-size: 13px;">
+      모든 <code>*.provision.json</code> 파일을 숨김 처리하여 기본적으로 쉽게 탐색되지 않도록 하는 작업.
+    </blockquote>
+
+    <h3>2.2 채택 정책</h3>
+    <ul>
+      <li><strong>핵심</strong> : 모든 <code>.provision.json</code> 마커 파일에 OS-level hidden 속성 부여</li>
+      <li><strong>구현</strong> : <code>Files.setAttribute(path, "dos:hidden", true)</code> — Windows 적용, Linux/macOS UnsupportedOperationException 발생 → fail-safe try-catch 흡수</li>
+      <li><strong>호출 위치</strong> : <code>ProvisionMarkerService.write()</code> 의 <code>Files.write(target, bytes)</code> 직후</li>
+      <li><strong>Linux/macOS</strong> : dot-prefix 자체로 hidden — DOS attribute 설정 실패해도 가시성 동일하게 hidden 유지</li>
+      <li><strong>읽기 호환성</strong> : DOS hidden 속성이 있는 파일도 <code>Files.readAllBytes</code> 로 정상 읽힘 — 마커 read / verify 영향 없음</li>
+    </ul>
+
+    <h3>2.3 추가 제약 (불가침)</h3>
+    <ul>
+      <li><code>MarkerContent</code> 의 JSON 구조 그대로</li>
+      <li>HMAC 서명 / manifestHash 계산 로직 그대로</li>
+      <li>마커 file name (<code>.provision.json</code>) 그대로 — dot-prefix 보존</li>
+      <li>기존 발급된 마커 파일은 <strong>본 슬라이스가 자동 migrate 안 함</strong> — 재발급 (재서명) 시점에 hidden 부여 (별 작업 = 마커 secret 회전)</li>
+      <li>S5-9 의 BE hidden 판별 (<code>name.startsWith('.') || Files.isHidden(p)</code>) 가 모든 케이스 cover — 본 슬라이스의 효과는 Windows 환경에서 가시</li>
+    </ul>
+
+    <h3>2.4 잠재적 risk : Windows 에서 read 권한</h3>
+    <p>DOS hidden 속성이 있는 파일도 일반 read API 로 읽힘. ACL / permission 변경 없음. 단지 탐색기 default 뷰에서 안 보일 뿐. <code>Files.exists</code>, <code>Files.readAllBytes</code> 등 표준 API 정상 동작. 회귀 위험 0.</p>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3">
+  <summary>3. URL / 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">3.1 URL 변경</h3>
+    <p>없음 (BE 내부 변경).</p>
+
+    <h3>3.2 마커 발급 흐름</h3>
+<pre><code>// ProvisionMarkerService.write() — S5-10 전
+public void write(Path resourcePath, MarkerLayout layout, MarkerContent content) {
+    Path target = resolveMarkerFile(resourcePath, layout);
+    byte[] bytes = om.writeValueAsBytes(content);
+    if (layout == MarkerLayout.IN_TREE) Files.createDirectories(resourcePath);
+    Files.write(target, bytes);
+    // ← 끝
+}
+
+// ProvisionMarkerService.write() — S5-10 후
+public void write(Path resourcePath, MarkerLayout layout, MarkerContent content) {
+    Path target = resolveMarkerFile(resourcePath, layout);
+    byte[] bytes = om.writeValueAsBytes(content);
+    if (layout == MarkerLayout.IN_TREE) Files.createDirectories(resourcePath);
+    Files.write(target, bytes);
+    applyOsHiddenAttribute(target);  // ← S5-10 신규
+}
+
+private void applyOsHiddenAttribute(Path p) {
+    try {
+        Files.setAttribute(p, "dos:hidden", true);
+    } catch (UnsupportedOperationException | IOException ignored) {
+        // Linux/macOS 에서는 DOS attribute view 미지원 — dot-prefix 자체가 hidden 관례.
+    }
+}</code></pre>
+
+    <h3>3.3 적용 시점 — 자원 마커가 생성/재발급되는 모든 경로</h3>
+    <table>
+      <thead><tr><th>호출처</th><th>자원</th><th>적용 결과</th></tr></thead>
+      <tbody>
+        <tr><td><code>BiosService.upload</code></td><td>BIOS 번들 IN_TREE 마커</td><td>업로드 시점 hidden</td></tr>
+        <tr><td><code>OSImageService.addIso</code></td><td>ISO SIDECAR 마커</td><td>ISO 등록 시점 hidden</td></tr>
+        <tr><td><code>BmcService.upload</code></td><td>BMC SIDECAR 마커</td><td>BMC 업로드 시점 hidden</td></tr>
+        <tr><td><code>SubprogramService.upload</code></td><td>Subprogram IN_TREE 마커</td><td>업로드 시점 hidden</td></tr>
+        <tr><td><code>PathReconciliationService.applyDriftedPath</code></td><td>드리프트 적용 시 마커 재발급</td><td>재발급 시점 hidden</td></tr>
+        <tr><td><code>TrashLifecycleService.softDelete</code></td><td>휴지통 이동 시 마커 재발급</td><td>이동 시점 hidden</td></tr>
+        <tr><td><code>TrashLifecycleService.restore</code></td><td>복원 시 마커 재발급</td><td>복원 시점 hidden</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4">
+  <summary>4. 도메인 모델</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">4.1 변경 — 없음</h3>
+    <p>도메인 모델 / VO / Enum / DTO 변경 0. <code>MarkerContent</code> / <code>MarkerLayout</code> / <code>Markable</code> 그대로.</p>
+
+    <h3>4.2 신규 헬퍼 메서드 (private)</h3>
+<pre><code>// ProvisionMarkerService 내부
+private void applyOsHiddenAttribute(Path p) {
+    try {
+        Files.setAttribute(p, "dos:hidden", true);
+    } catch (UnsupportedOperationException | IOException ignored) {
+        // fail-safe — dot-prefix 가 Unix-style 의 표준 hidden 관례.
+    }
+}</code></pre>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. 수직 슬라이스 10 단계 + CP</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>본 plan html</td><td><span class="chip cp1">CP1</span></td></tr>
+        <tr><td>2</td><td>뷰 — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>3</td><td>Controller — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>4</td><td>DTO — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>5</td><td>Service 시그니처 — <code>ProvisionMarkerService.write()</code> 내부에 <code>applyOsHiddenAttribute</code> 호출 추가</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>6</td><td>Repository — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>7</td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>8</td><td>통합 테스트 — <code>ProvisionMarkerServiceTest</code> 에 hidden 부여 회귀 1 추가 (Linux 환경에서 UnsupportedOperationException 흡수 + 마커 쓰기 성공)</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>9</td><td>스키마 — 없음. <code>./gradlew test</code> 전체 통과</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>10</td><td>브라우저 E2E (사용자 단독) — 신규 자원 등록 후 디스크 확인 (Linux 에서는 가시성 동일, Windows 에서는 hidden 속성 부여 확인)</td><td><span class="chip cp5">CP5</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. Step 8 테스트 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">6.1 신규 시나리오 — 1 개</h3>
+    <ul>
+      <li><strong>Hidden attribute fail-safe</strong> — Linux 테스트 환경에서 <code>Files.setAttribute(p, "dos:hidden", true)</code> 가 UnsupportedOperationException 발생해도 marker write 가 정상 성공하며 후속 <code>read()</code> + <code>verifySignature()</code> 가 정상 동작</li>
+    </ul>
+
+    <h3>6.2 회귀 대상</h3>
+    <ul>
+      <li><code>ProvisionMarkerServiceTest</code> 전체 — write / read / signature / hash 모두 영향 없음 확인</li>
+      <li><code>BiosService</code> / <code>OSImageService</code> / <code>BmcService</code> / <code>SubprogramService</code> 의 upload / addIso 단위 테스트 — 마커 발급 후 검증 정상</li>
+      <li>전체 <code>./gradlew test</code></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">7.1 신규 예외 — 없음</h3>
+    <p><code>setAttribute</code> 가 던지는 모든 예외 (UnsupportedOperationException / IOException) 는 marker write 의 결과에 영향 주지 않도록 흡수. 마커 자체가 정상 기록됐다면 hidden flag 부여 실패는 부수 효과만 누락.</p>
+
+    <h3>7.2 fail-safe 정당화</h3>
+    <table>
+      <thead><tr><th>OS</th><th>setAttribute 결과</th><th>가시성</th><th>실행 영향</th></tr></thead>
+      <tbody>
+        <tr><td>Linux</td><td>UnsupportedOperationException</td><td>dot-prefix 로 이미 hidden</td><td>없음</td></tr>
+        <tr><td>macOS</td><td>UnsupportedOperationException</td><td>dot-prefix 로 이미 hidden (Finder)</td><td>없음</td></tr>
+        <tr><td>Windows + NTFS</td><td>적용 성공</td><td>탐색기 default 뷰에서 숨김</td><td>의도 효과 발생</td></tr>
+        <tr><td>Windows + 일부 FS (FAT32 등)</td><td>IOException</td><td>변화 없음</td><td>흡수 — fallback</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">8.1 스코프 경계</h3>
+    <ul>
+      <li>기존 발급된 마커 파일에 대한 일괄 hidden 부여 — 본 슬라이스 외 (마이그레이션 도구는 별 슬라이스)</li>
+      <li>macOS UF_HIDDEN flag (JNA 필요) — 본 슬라이스 외. dot-prefix 로 충분</li>
+      <li>Linux 의 별도 hidden 메커니즘 (extended attribute) — 본 슬라이스 외</li>
+    </ul>
+
+    <h3>8.2 S5-9 와의 시너지</h3>
+    <p>S5-9 의 BE 가 <code>name.startsWith('.') || Files.isHidden(p)</code> 로 hidden 판별. 본 슬라이스 적용 후 :</p>
+    <ul>
+      <li>Linux : dot-prefix 만으로 S5-9 가 회색 표시</li>
+      <li>Windows : DOS hidden 속성으로 S5-9 가 회색 표시 (Linux 에서는 부여 안 됐어도 dot-prefix 가 우선)</li>
+      <li>macOS : dot-prefix 로 S5-9 회색 표시</li>
+    </ul>
+
+    <h3>8.3 CLAUDE.md 영향</h3>
+    <p>없음. 기존 마커 시스템의 내부 보강.</p>
+
+    <h3>8.4 운영 가이드</h3>
+    <p>관리자 README / 운영 문서에 "마커 파일은 .provision.json 으로 발급되며 Windows 환경에서는 DOS hidden 속성도 부여됨" 1 줄 추가 권장. 사용자 자체 갱신 — 본 슬라이스 외.</p>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification 체크리스트</summary>
+  <div class="body">
+    <ul class="check-list">
+      <li><label><input type="checkbox"> <code>./gradlew compileJava compileTestJava</code> BUILD SUCCESSFUL</label></li>
+      <li><label><input type="checkbox"> <code>./gradlew test</code> 전체 통과 (신규 1 시나리오 포함)</label></li>
+      <li><label><input type="checkbox"> Linux 환경에서 신규 자원 등록 시 <code>.provision.json</code> 정상 발급 (가시성 dot-prefix hidden 유지)</label></li>
+      <li><label><input type="checkbox"> 마커 read / signature verify 정상 동작 (회귀 0)</label></li>
+      <li><label><input type="checkbox"> (가능 시) Windows 환경 manual 검증 — 탐색기에서 마커 파일이 default 뷰에 안 보임</label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">10.1 수정</h3>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/global/marker/service/ProvisionMarkerService.java</code> — <code>write()</code> 의 <code>Files.write</code> 직후 <code>applyOsHiddenAttribute(target)</code> 호출 + private 헬퍼 추가</li>
+    </ul>
+
+    <h3>10.2 테스트</h3>
+    <ul>
+      <li><code>src/test/java/com/example/serverprovision/global/marker/service/ProvisionMarkerServiceTest.java</code> — fail-safe 회귀 1 시나리오 추가</li>
+    </ul>
+
+    <h3>10.3 유지 (변경 0)</h3>
+    <ul>
+      <li>마커를 사용하는 모든 service (Bios / OS / BMC / Subprogram / Reconciliation / Trash)</li>
+      <li>MarkerContent / MarkerLayout / ResourceType</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-10</strong> — Step 10 사용자 manual 검증 통과 시 종료</li>
+      <li><strong>S5 잔존</strong>
+        <ul>
+          <li>S5-11 (제조사별 진입점 자동 탐지 정합화)</li>
+          <li>S5-7 (OS ISO 등록 후 작업 자동화 — plan 까지만)</li>
+        </ul>
+      </li>
+      <li><strong>S5-10 후속 후보</strong>
+        <ul>
+          <li>기존 마커 일괄 hidden 부여 (마이그레이션 도구)</li>
+          <li>macOS UF_HIDDEN flag 적용 (JNA 도입 시)</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="callout success">
+      <strong>완료 조건</strong> 모든 마커 발급 시점에 OS-level hidden 시도. Linux/macOS 에서는 dot-prefix 로 자연 hidden, Windows 에서는 DOS hidden 속성 부여. 마커 read / verify 회귀 0.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

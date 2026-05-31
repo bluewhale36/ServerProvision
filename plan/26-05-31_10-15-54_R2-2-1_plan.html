@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>R2-2-1 Plan — 예외→UI 1차 차단 전면 확산 (Subprogram 비대칭 해소)</title>
+    <style>
+        :root {
+            --bg: #f6f8fa;
+            --card: #fff;
+            --text: #1f2328;
+            --text-muted: #57606a;
+            --border: #d0d7de;
+            --border-soft: #eaecef;
+            --blue: #0075de;
+            --blue-bg: #e6f0ff;
+            --orange: #dd5b00;
+            --orange-bg: rgba(221, 91, 0, 0.10);
+            --yellow: #C29343;
+            --yellow-bg: #FAF3DD;
+            --green: #1aae39;
+            --green-bg: rgba(26, 174, 57, 0.10);
+            --red: #bf2626;
+            --red-bg: rgba(191, 38, 38, 0.10);
+            --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.65;
+            font-size: 14px;
+        }
+
+        header.page-header {
+            background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 18px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            margin: 0 0 6px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .meta strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .v2-badge {
+            background: var(--blue-bg);
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns:240px 1fr;
+            gap: 24px;
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        nav.toc {
+            position: sticky;
+            top: 108px;
+            align-self: start;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 12px;
+            max-height: calc(100vh - 130px);
+            overflow-y: auto;
+        }
+
+        nav.toc strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        nav.toc ol {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 12px;
+        }
+
+        nav.toc li {
+            padding: 3px 0;
+        }
+
+        nav.toc a {
+            color: var(--text-muted);
+            text-decoration: none;
+            display: block;
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+
+        nav.toc a:hover {
+            background: var(--bg);
+            color: var(--blue);
+        }
+
+        nav.toc a.preview {
+            color: var(--orange);
+            font-weight: 600;
+        }
+
+        nav.toc .toc-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        nav.toc button {
+            border: 1px solid var(--border);
+            background: var(--card);
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        main {
+            min-width: 0;
+        }
+
+        .filter-box {
+            width: 100%;
+            padding: 9px 12px;
+            font-size: 13px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 14px;
+            background: var(--card);
+        }
+
+        details.section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+
+        details.section > summary {
+            cursor: pointer;
+            padding: 14px 18px;
+            font-size: 15px;
+            font-weight: 600;
+            list-style: none;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        details.section > summary::before {
+            content: '›';
+            color: var(--text-muted);
+            font-size: 18px;
+            transition: transform 0.15s;
+            display: inline-block;
+            width: 14px;
+        }
+
+        details.section[open] > summary::before {
+            transform: rotate(90deg);
+            color: var(--blue);
+        }
+
+        details.section .body {
+            padding: 0 18px 18px;
+            border-top: 1px solid var(--border-soft);
+            padding-top: 14px;
+        }
+
+        details.section.preview > summary {
+            background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%);
+        }
+
+        h4 {
+            margin: 16px 0 6px;
+            font-size: 13.5px;
+            color: var(--blue);
+        }
+
+        h4:first-child {
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        th, td {
+            border-bottom: 1px solid var(--border-soft);
+            padding: 7px 9px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: var(--bg);
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        code {
+            background: var(--bg);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.92em;
+            font-family: var(--mono);
+        }
+
+        pre {
+            background: var(--bg);
+            padding: 12px 14px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+            font-family: var(--mono);
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .chip {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .chip.cp1 {
+            background: var(--blue-bg);
+            color: var(--blue);
+        }
+
+        .chip.cp2 {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .chip.cp3 {
+            background: var(--yellow-bg);
+            color: var(--yellow);
+        }
+
+        .chip.cp4 {
+            background: var(--orange-bg);
+            color: var(--orange);
+        }
+
+        .chip.cp5 {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        .chip.mod {
+            background: var(--yellow-bg);
+            color: var(--yellow);
+        }
+
+        .chip.keep {
+            background: var(--bg);
+            color: var(--text-muted);
+        }
+
+        .chip.new {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .callout {
+            border-left: 3px solid var(--blue);
+            background: var(--blue-bg);
+            padding: 10px 14px;
+            border-radius: 0 6px 6px 0;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .callout.warn {
+            border-color: var(--yellow);
+            background: var(--yellow-bg);
+        }
+
+        .callout.success {
+            border-color: var(--green);
+            background: var(--green-bg);
+        }
+
+        .callout.danger {
+            border-color: var(--red);
+            background: var(--red-bg);
+        }
+
+        ul, ol {
+            padding-left: 22px;
+        }
+
+        ul.check-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        ul.check-list li {
+            padding: 4px 0;
+        }
+
+        ul.check-list label {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        ul.check-list input[type="checkbox"] {
+            margin-top: 4px;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .split-grid {
+            display: grid;
+            grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+            gap: 12px;
+            margin: 12px 0;
+        }
+
+        .split-card {
+            background: var(--card);
+            border: 1px solid var(--border-soft);
+            border-radius: 6px;
+            padding: 14px;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .split-card h4 {
+            margin: 0 0 8px;
+            font-size: 13px;
+            font-family: var(--mono);
+        }
+
+        .split-card.before {
+            border-color: var(--red);
+            border-width: 2px;
+            background: var(--red-bg);
+        }
+
+        .split-card.before h4 {
+            color: var(--red);
+        }
+
+        .split-card.after {
+            border-color: var(--green);
+            border-width: 2px;
+            background: var(--green-bg);
+        }
+
+        .split-card.after h4 {
+            color: var(--green);
+        }
+
+        .ok {
+            color: var(--green);
+            font-weight: 700;
+        }
+
+        .no {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        /* ── 🎬 인터랙티브 미리보기 (live demo) ── */
+        .ux-wrap {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            padding: 16px;
+            margin: 12px 0;
+        }
+
+        .ux-toolbar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+            align-items: center;
+        }
+
+        .ux-toolbar .group-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-right: 4px;
+            min-width: 118px;
+        }
+
+        .ux-toolbar .seg {
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: var(--card);
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--mono);
+        }
+
+        .ux-toolbar .seg:hover {
+            background: var(--blue-bg);
+        }
+
+        .ux-toolbar .seg.active {
+            background: var(--blue);
+            color: #fff;
+            border-color: var(--blue);
+        }
+
+        .ux-toolbar .seg.modeseg {
+            font-size: 11px;
+        }
+
+        .ux-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            background: var(--card);
+            border: 1px solid var(--border-soft);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .ux-row.muted {
+            opacity: 0.6;
+        }
+
+        .ux-row.child {
+            margin-left: 26px;
+        }
+
+        .ux-row .label {
+            flex: 1;
+        }
+
+        .ux-row .badge {
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .ux-row .badge.on {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .ux-row .badge.off {
+            background: rgba(0, 0, 0, 0.06);
+            color: var(--text-muted);
+        }
+
+        .ux-row .badge.dep {
+            background: var(--yellow-bg);
+            color: var(--yellow);
+        }
+
+        .ux-row .badge.del {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        .r22-ok {
+            font-size: 10px;
+            color: var(--green);
+            border: 1px solid var(--green);
+            border-radius: 6px;
+            padding: 1px 5px;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+
+        .r22-gap {
+            font-size: 10px;
+            color: var(--orange);
+            border: 1px solid var(--orange);
+            border-radius: 6px;
+            padding: 1px 5px;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+
+        .n-demo-btn {
+            padding: 4px 11px;
+            font-size: 12px;
+            border: 1px solid var(--blue);
+            color: var(--blue);
+            background: var(--card);
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .n-demo-btn:hover:not(:disabled) {
+            background: var(--blue-bg);
+        }
+
+        .n-demo-btn:disabled {
+            opacity: 1;
+            cursor: not-allowed;
+            background: rgba(0, 0, 0, 0.07);
+            border-color: transparent;
+            color: var(--text-muted);
+        }
+
+        .n-demo-btn.gap {
+            border-style: dashed;
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+
+        .r22-tip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .r22-tip[data-tip]:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 7px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(31, 35, 40, 0.92);
+            color: #fff;
+            font-size: 11px;
+            line-height: 1.4;
+            padding: 7px 10px;
+            border-radius: 6px;
+            width: 240px;
+            z-index: 5;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+        }
+
+        .r22-tip[data-tip]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: calc(100% + 1px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(31, 35, 40, 0.92);
+            z-index: 5;
+        }
+
+        .ux-caps {
+            font-family: var(--mono);
+            font-size: 11.5px;
+            background: var(--card);
+            border: 1px solid var(--border-soft);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-top: 10px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .ux-caps .t {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .ux-caps .f {
+            color: var(--green);
+            font-weight: 700;
+        }
+
+        .ux-message {
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            min-height: 20px;
+            border: 1px solid var(--border-soft);
+            background: var(--card);
+            margin-top: 10px;
+        }
+
+        .ux-message.error {
+            background: var(--red-bg);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .ux-message.success {
+            background: var(--green-bg);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        @media (max-width: 1000px) {
+            .layout {
+                grid-template-columns:1fr;
+                padding: 16px;
+            }
+
+            .split-grid {
+                grid-template-columns:1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header class="page-header">
+    <h1>R2-2-1 — 예외→UI 1차 차단 전면 확산 <span class="v2-badge">Subprogram 비대칭 해소</span></h1>
+    <div class="meta">
+        <span><strong>슬라이스</strong> R2-2-1 (refactor)</span>
+        <span><strong>상위</strong> R2-2 (Lifecycle 모순 UI 1차 차단)</span>
+        <span><strong>scope</strong> Subprogram × enable / undeprecate / restore (+ G2 restore 중복키, 선택)</span>
+        <span><strong>생성</strong> 2026-05-31 KST</span>
+        <span><strong>CP1</strong> 사용자 승인 대기</span>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="toc">
+        <strong>목차</strong>
+        <ol id="toc-list">
+            <li><a href="#s1">§1 현재 상태 (audit 진단)</a></li>
+            <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+            <li><a href="#s2-preview" class="preview">🎬 미리보기 (BEFORE/AFTER 비대칭 라이브)</a></li>
+            <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+            <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+            <li><a href="#s5">§5 10단계 + CP</a></li>
+            <li><a href="#s6">§6 통합 테스트</a></li>
+            <li><a href="#s7">§7 예외 계층</a></li>
+            <li><a href="#s8">§8 부산물 / open questions</a></li>
+            <li><a href="#s9">§9 Verification</a></li>
+            <li><a href="#s10">§10 Critical Files</a></li>
+            <li><a href="#s11">§11 다음 마일스톤</a></li>
+        </ol>
+        <div class="toc-actions">
+            <button id="btn-expand">전부 펴기</button>
+            <button id="btn-collapse">전부 접기</button>
+        </div>
+    </nav>
+
+    <main>
+        <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+        <!-- §1 -->
+        <details class="section" id="s1" open>
+            <summary>§1. 현재 상태 (18-에이전트 Workflow audit 진단)</summary>
+            <div class="body">
+                <p><b>출발</b> — "R2-2 의 UI 1차 차단 패턴을 lifecycle 가드 외 <b>프로그램 전반</b>으로 확산" 이 목표. BindingResult 검증은 제외 (사용자
+                    지시).</p>
+                <div class="callout success">
+                    <b>audit 결론 (9 도메인 + 95 예외 catalog 전수 · adversarial 검증)</b> — "프로그램 전반 확산" 의 실질 후보는 <b>단 한 도메인,
+                    Subprogram(Driver/Utility) 에 수렴</b>한다. 부모-자식 lifecycle UX 모순은 형제 ISO/BIOS/BMC 3 도메인에서 이미 R2-2 완비됐고,
+                    <b>동일 위계인 Subprogram 만 부모 가드가 통째로 누락</b>되어 silent 성공한다.
+                </div>
+                <h4>4 자식 도메인 가드 현황 — Subprogram 만 비대칭</h4>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>자식</th>
+                        <th>부모</th>
+                        <th>enable 부모가드</th>
+                        <th>undeprecate 부모가드</th>
+                        <th>restore 부모가드</th>
+                        <th>capability</th>
+                        <th>tooltip</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>ISO</td>
+                        <td>OSMetadata</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                    </tr>
+                    <tr>
+                        <td>BIOS</td>
+                        <td>BoardModel</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                    </tr>
+                    <tr>
+                        <td>BMC</td>
+                        <td>BoardModel</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                        <td class="ok">✅</td>
+                    </tr>
+                    <tr>
+                        <td><b>Subprogram</b></td>
+                        <td>BoardModel</td>
+                        <td class="no">❌ silent</td>
+                        <td class="no">❌ silent</td>
+                        <td class="no">❌ (중복키만)</td>
+                        <td class="no">❌</td>
+                        <td class="no">❌</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <h4>Subprogram throw-site (현재 코드)</h4>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>액션 / 메서드</th>
+                        <th>현재</th>
+                        <th>모순</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>toggleEnabled</code> (SubprogramService:514-517)</td>
+                        <td><code>requireLive(id).toggleEnabled()</code> — 부모 가드 0</td>
+                        <td>부모 메인보드 비활성/Deprecated/삭제인데 자식 활성화 silent 성공</td>
+                    </tr>
+                    <tr>
+                        <td><code>undeprecate</code> (594-599)</td>
+                        <td><code>sp.undeprecate()</code> — 부모 가드 0</td>
+                        <td>부모 Deprecated/삭제인데 자식 undeprecate silent 성공</td>
+                    </tr>
+                    <tr>
+                        <td><code>restore</code> (554-577)</td>
+                        <td>중복키 가드(558-564)만 — <b>부모 DELETED 가드 0</b></td>
+                        <td>부모 삭제인데 자식만 단독 복구 silent 성공</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="callout">
+                    <b>나머지 ~92 예외 = 전부 유지</b> (audit 분류) : <code>KEEP-PROGRAM</code> (보안 11 · IO · 외부변조 마커/해시 · 동시성 ·
+                    direct-POST/URL forging · 휴지통 FS 예외) / <code>KEEP-VALIDATION</code> (<code>FieldBound*</code>
+                    중복·경로·typed-name — 사용자 지시 제외) / <code>KEEP-INTERACTIVE</code> (nudge · DeleteIntent · purge
+                    typed-name modal) / <code>ALREADY-R2-2</code> (형제 3 도메인). 이들은 UI 로 막을 수 없거나 (외부상태 의존), 폼 검증이거나, 의도된
+                    대화형이다. §7 참조.
+                </div>
+            </div>
+        </details>
+
+        <!-- §2 -->
+        <details class="section" id="s2" open>
+            <summary>§2. 요구사항 + 비목표</summary>
+            <div class="body">
+                <p>채택 = <b>Subprogram 을 형제(ISO/BIOS/BMC)와 동일 R2-2 수준으로 끌어올려 비대칭 해소</b>. 신규 클래스 / 예외 / 스키마 <b>0</b> — 형제가
+                    이미 쓰는 SSOT·예외·패턴 재사용.</p>
+                <h4>G1 — 부모(BoardModel) lifecycle → 자식 promote 차단 (핵심)</h4>
+                <ol>
+                    <li><b>서버 가드 3</b> — <code>toggleEnabled</code>(enable 방향만) / <code>undeprecate</code> / <code>restore</code>
+                        에 <code>sp.getBoardModel()</code> 부모 가드 추가. BMC(<code>BmcService:432/486/598</code>)와 동형. SSOT =
+                        <code>BoardModel.childEnableBlockReason() / blocksChildUndeprecate() /
+                            blocksChildRestore()</code> (<code>LifecycleEntity</code> 기존 메서드, <b>변경 0</b>).
+                    </li>
+                    <li><b>capability 3</b> — <code>SubprogramResponse</code> 에 <code>parentBlocksEnable /
+                        parentBlocksUndeprecate / parentBlocksRestore</code>. 부모는 엔티티
+                        그래프(<code>sp.getBoardModel()</code>)로 도달 — repo 질의 0. <b>common-scope(boardModel=null)
+                            null-guard</b> 필수.
+                    </li>
+                    <li><b>UI 차단</b> — <code>miller.html</code> 의 toggle/undeprecate/restore form 을 BIOS
+                        <code>list.html</code> 동형으로 <code>&lt;span class="n-btn-tooltip-wrap" data-tooltip&gt;</code>+disabled
+                        ↔ 정상 form 분기.
+                    </li>
+                </ol>
+                <h4>G2 — restore 활성 중복키 차단 (선택, 우선순위 낮음)</h4>
+                <p>restore 시 같은 <code>(kind,scope,name,version)</code> 활성 자원이 있으면 <code>DuplicateSubprogramVersionException</code>(409).
+                    신규 <code>hasActiveDuplicateKey()</code> 로 서버 가드 +
+                    capability(<code>restoreBlockedByActiveDuplicate</code>) SSOT 공유 → 버튼 disable. <b>단</b> restore form
+                    이 <b>이미 <code>data-async-submit</code> 보유</b>라 409 가 full-page 가 아닌 async alert 로 떠 이미 완화돼 있고,
+                    per-row 질의 + <code>toResponse</code> <code>static→instance</code> 리팩터 비용이 따른다 → <b>CP1 결정</b> (§8
+                    Q2/Q3).</p>
+                <div class="callout">
+                    <b>비 목표</b> :
+                    <ul>
+                        <li><b>BindingResult / <code>FieldBound*</code> 폼 입력 검증 — 제외</b> (사용자 명시). 등록/수정 경로의 <code>DuplicateSubprogramVersion</code>
+                            · <code>SubprogramPathConflict</code> · <code>TypedNameMismatch</code> 불변.
+                        </li>
+                        <li><b>형제 ISO/BIOS/BMC 무수정</b>. <b>서버 가드 throw 제거 안 함</b> (안전망 유지, 불가침).</li>
+                        <li><b>부모 도메인(OSMetadata/BoardModel) self-restore 중복키 확산 — 보류</b> (per-row 질의 미보유 + race, Q3).
+                        </li>
+                        <li><b>advice 통합 / raw JSON 근본 정리 → R2-3</b>. nudge/intent/FS 예외 무변경. <code>self-state</code>
+                            모순(이미 deprecated 인데 deprecate)은 이미 조건부 렌더로 차단됨(형제 동일 정책 유지, Q1).
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- 🎬 인터랙티브 미리보기 -->
+        <details class="section preview" id="s2-preview" open>
+            <summary>🎬 미리보기 — BEFORE/AFTER 비대칭 라이브 데모</summary>
+            <div class="body">
+                <p style="margin-top:0;"><b>부모 메인보드 상태</b>와 <b>모드(BEFORE 현재 / AFTER R2-2-1)</b>를 바꿔보세요. <b>BIOS(형제, 이미
+                    가드)</b>와 <b>Subprogram(대상)</b> 두 자식 행이 부모 상태를 cascade 미러하며, 그때 노출되는 실제 액션 버튼을 보여줍니다. <b>BEFORE</b>
+                    에서 Subprogram 의 점선 버튼을 눌러보면 — 부모가 막아야 할 액션이 <b>그대로 성공(silent 모순)</b>하는 게 형제 BIOS 와 어떻게 비대칭인지 드러납니다.
+                    <b>AFTER</b> 로 바꾸면 Subprogram 이 BIOS 와 동일하게 disable+tooltip 됩니다. (데모 판정 = 서버 가드 = 뷰 플래그, 같은 SSOT)
+                </p>
+
+                <div class="ux-wrap">
+                    <div class="ux-toolbar">
+                        <span class="group-label">부모 메인보드 상태 :</span>
+                        <button class="seg" data-state="ACTIVE" onclick="r221Set('ACTIVE')">ACTIVE</button>
+                        <button class="seg" data-state="DISABLED" onclick="r221Set('DISABLED')">DISABLED</button>
+                        <button class="seg" data-state="DEPRECATED" onclick="r221Set('DEPRECATED')">DEPRECATED</button>
+                        <button class="seg" data-state="DELETED" onclick="r221Set('DELETED')">DELETED</button>
+                    </div>
+                    <div class="ux-toolbar">
+                        <span class="group-label">모드 :</span>
+                        <button class="seg modeseg" data-mode="BEFORE" onclick="r221SetView('BEFORE')">BEFORE — 현재
+                            (Subprogram 가드 누락)
+                        </button>
+                        <button class="seg modeseg" data-mode="AFTER" onclick="r221SetView('AFTER')">AFTER — R2-2-1 (형제와
+                            동일)
+                        </button>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <div class="ux-row" id="r221-parent">
+                            <strong>메인보드</strong><span class="label">ASUS PRO WS Z790</span>
+                            <span class="badge on" id="r221-parent-badge">활성화</span>
+                        </div>
+                        <div class="ux-row child" id="r221-bios"></div>
+                        <div class="ux-row child" id="r221-sp"></div>
+                    </div>
+
+                    <div class="ux-caps" id="r221-caps"></div>
+                    <div class="ux-message" id="r221-message">부모 상태와 모드를 바꿔보세요. BEFORE 의 Subprogram 점선 버튼이 형제 BIOS 와
+                        비대칭입니다.
+                    </div>
+                </div>
+
+                <div class="split-grid">
+                    <div class="split-card before">
+                        <h4>BEFORE — Subprogram 부모 가드 0 (silent)</h4>
+                        <pre><code>// SubprogramService — 부모 상태 무관, 그대로 수행
+public void toggleEnabled(Long id){
+  requireLive(id).toggleEnabled();      // 부모 비활성이어도 활성화 성공
+}
+public void undeprecate(Long id){ ...; sp.undeprecate(); }
+public void restore(Long id){ /* 중복키 가드만, 부모 DELETED 무가드 */ }
+// SubprogramResponse — capability 필드 없음 → 뷰가 막을 수 없음</code></pre>
+                    </div>
+                    <div class="split-card after">
+                        <h4>AFTER — 형제 BMC 동형 (SSOT 재사용)</h4>
+                        <pre><code>public void toggleEnabled(Long id){
+  Subprogram sp = requireLive(id);
+  BoardModel parent = sp.getBoardModel();   // 그래프 도달(repo 0)
+  if (parent != null &amp;&amp; !sp.isEnabled()) {   // common-scope null skip
+    String r = parent.childEnableBlockReason();   // LifecycleEntity SSOT
+    if (r != null) throw new ChildLifecycleBlockedByParentException(
+      ResourceType.BOARD_MODEL, parent.getId(), r,
+      ResourceType.SUBPROGRAM, id, "enable", parent.displayName());
+  }
+  sp.toggleEnabled();
+}
+// SubprogramResponse.parentBlocksEnable = (bm!=null &amp;&amp; bm.blocksChildEnable())</code></pre>
+                    </div>
+                </div>
+                <div class="callout success"><b>드리프트 0</b> — 데모의 disable 판정 = 서버 throw 판정 = <code>BoardModel.blocksChildEnable()</code>
+                    단일 바디. 형제 BIOS/BMC/ISO 가 이미 쓰는 그 메서드를 Subprogram 도 그대로 호출 — 새 규칙 0.
+                </div>
+            </div>
+        </details>
+
+        <!-- §3 -->
+        <details class="section" id="s3">
+            <summary>§3. URL / 데이터 흐름</summary>
+            <div class="body">
+                <p>URL / 엔드포인트 <b>변경 0</b> — 기존 <code>/management/subprogram/{id}/{toggle,undeprecate,restore}</code>
+                    그대로. 데이터 흐름만 보강 (Response 에 capability 동승).</p>
+                <pre><code>[조회 렌더]
+GET /management/subprogram (miller fragment)
+  → SubprogramService.toResponse(sp)
+      var bm = sp.getBoardModel();                  // 엔티티 그래프, repo 조회 0 (common 이면 null)
+      parentBlocksEnable      = bm != null &amp;&amp; bm.blocksChildEnable()
+      parentBlocksUndeprecate = bm != null &amp;&amp; bm.blocksChildUndeprecate()
+      parentBlocksRestore     = bm != null &amp;&amp; bm.blocksChildRestore()
+      [G2] restoreBlockedByActiveDuplicate = isDeleted &amp;&amp; hasActiveDuplicateKey(sp)  // repo 질의 (deleted 행만)
+  → Thymeleaf: 버튼 th:if="${sp.parentBlocksXxx}" → disabled+tooltip / th:unless → 정상 form
+
+[액션 — 정상] 차단 버튼 클릭 불가 → 서버 도달 0
+[액션 — 비정상] direct POST → Service 가드: parent.childEnableBlockReason()/blocksChildUndeprecate()/blocksChildRestore()
+              → 차단이면 throw ChildLifecycleBlockedByParentException (409, 안전망)</code></pre>
+                <div class="callout warn"><b>G2 의 데이터 흐름 비용</b> — <code>restoreBlockedByActiveDuplicate</code> 는 부모 그래프가
+                    아니라 <code>repository</code> 질의(<code>findActiveByCommonKey/findActiveByBoardKey</code>)에 의존한다.
+                    <code>toResponse</code> 가 현재 <code>static</code> 이라 (a) instance 전환 후 deleted 행만 질의, 또는 (b) list 조립
+                    시 batch 질의 (N+1 회피) 중 택1 필요 (§8 Q2). G1 은 이 비용 없음(엔티티 그래프).
+                </div>
+            </div>
+        </details>
+
+        <!-- §4 -->
+        <details class="section" id="s4">
+            <summary>§4. 도메인 모델 (SSOT)</summary>
+            <div class="body">
+                <h4>1) LifecycleEntity — 변경 0 (재사용)</h4>
+                <p>부모 가드 SSOT 4 메서드(<code>childEnableBlockReason / blocksChildEnable / blocksChildRestore /
+                    blocksChildUndeprecate</code>)는 R2-2 에서 이미 <code>LifecycleEntity</code> 에 작성됨.
+                    <code>BoardModel</code> 이 이를 상속하므로 <b>Subprogram 가드는 새 도메인 메서드 0</b> — 형제와 같은 바디 호출.</p>
+                <h4>2) SubprogramService — 부모 가드 3 추가 (BMC 동형)</h4>
+                <pre><code>// undeprecate — BmcService:598 동형
+public void undeprecate(Long id){
+  Subprogram sp = findLive(id);
+  BoardModel parent = sp.getBoardModel();
+  if (parent != null &amp;&amp; parent.blocksChildUndeprecate())     // DEPRECATED || DELETED
+    throw new ChildLifecycleBlockedByParentException(
+      ResourceType.BOARD_MODEL, parent.getId(),
+      parent.isDeleted() ? "DELETED" : "DEPRECATED",
+      ResourceType.SUBPROGRAM, id, "undeprecate", parent.displayName());
+  sp.undeprecate();                                            // self-state 가드(!isDeprecated) 안전망 유지
+}
+// restore — BmcService:486 동형. 진입 직후 parent.blocksChildRestore()(=isDeleted) 검사 후
+//           기존 중복키 가드(G2 대상)는 그 뒤에 유지.</code></pre>
+                <div class="callout"><b>common-scope null-guard (Subprogram 고유)</b> — BMC/BIOS 는 부모가 항상 존재하지만 Subprogram
+                    은 <code>boardModel=null</code>(공용) 가능. 모든 가드·capability 는 <code>parent != null</code> 선검사 → 공용 자원은
+                    가드 미적용(<code>capability=false</code>), 정상 동작 회귀 0.
+                </div>
+                <h4>3) SubprogramResponse — capability 추가 (BmcResponse 동형)</h4>
+                <pre><code>public record SubprogramResponse(
+    … 기존 17 필드 …,
+    boolean parentBlocksEnable,        // bm != null &amp;&amp; bm.blocksChildEnable()
+    boolean parentBlocksUndeprecate,   // bm != null &amp;&amp; bm.blocksChildUndeprecate()
+    boolean parentBlocksRestore,       // bm != null &amp;&amp; bm.blocksChildRestore()
+    boolean restoreBlockedByActiveDuplicate   // [G2 선택] isDeleted &amp;&amp; hasActiveDuplicateKey(sp)
+) { }</code></pre>
+                <h4>4) [G2 선택] hasActiveDuplicateKey 추출</h4>
+                <p>현재 <code>restore</code>(558-564) 의 중복키 if-throw 를 <code>private boolean
+                    hasActiveDuplicateKey(Subprogram sp)</code> 로 추출 → (1) restore 서버 가드 (2) capability 산출이 <b>같은 메서드
+                    바디</b> 공유 (복붙 금지). 서버 throw 는 유지.</p>
+            </div>
+        </details>
+
+        <!-- §5 -->
+        <details class="section" id="s5">
+            <summary>§5. 10단계 + CP 묶음</summary>
+            <div class="body">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Step</th>
+                        <th>R2-2-1 적용</th>
+                        <th>CP</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>plan html (본 문서)</td>
+                        <td><span class="chip cp1">CP1</span></td>
+                    </tr>
+                    <tr>
+                        <td>2~5</td>
+                        <td>뷰(miller.html 3 버튼 disable+tooltip) · DTO(SubprogramResponse capability 3 [+1 G2]) ·
+                            Service(toResponse capability + 가드 3 시그니처) · 본체 동반
+                        </td>
+                        <td><span class="chip cp2">CP2</span></td>
+                    </tr>
+                    <tr>
+                        <td>6~7</td>
+                        <td>Repository <i>변경 0</i> (G2 시 기존 <code>findActive*Key</code> 재사용) · Entity = LifecycleEntity
+                            <i>변경 0</i> (스키마 0 — 재사용)
+                        </td>
+                        <td><span class="chip cp3">CP3</span></td>
+                    </tr>
+                    <tr>
+                        <td>8~9</td>
+                        <td>가드 3 본체 + [G2] hasActiveDuplicateKey + 단위/통합 테스트(아래 §6) + 스키마 0</td>
+                        <td><span class="chip cp4">CP4</span></td>
+                    </tr>
+                    <tr>
+                        <td>10</td>
+                        <td>브라우저 E2E — 부모 disabled/deleted 시 Subprogram 버튼 disable+tooltip, common-scope 정상</td>
+                        <td><span class="chip cp5">CP5</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="callout warn"><b>CP 경계</b> — Entity/Repository/스키마 변경 0 (전부 재사용)이라 CP3 거의 빈 묶음. 핵심 =
+                    CP2(뷰+DTO+capability+가드 시그니처) + CP4(가드 본체 + 테스트). 형제와 100% 동형이라 회귀 위험 낮음.
+                </div>
+            </div>
+        </details>
+
+        <!-- §6 -->
+        <details class="section" id="s6">
+            <summary>§6. 통합 테스트 시나리오 (Step 8)</summary>
+            <div class="body">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>분류</th>
+                        <th>시나리오</th>
+                        <th>수</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><b>A. direct-POST 안전망 (409)</b></td>
+                        <td>부모 DISABLED→<code>/toggle</code>(활성화) / 부모 DEPRECATED→<code>/undeprecate</code> / 부모
+                            DELETED→<code>/restore</code> 직접 호출 시 <code>ChildLifecycleBlockedByParentException</code>
+                            409 (UI 우회해도 DB invariant 보호). parentState 페이로드 검증
+                        </td>
+                        <td>~4</td>
+                    </tr>
+                    <tr>
+                        <td><b>B. 성공 / 비차단</b></td>
+                        <td>부모 ACTIVE 시 3 액션 정상 2xx ; 비활성화(downgrade)·deprecate 는 부모 상태 무관 항상 허용 ; 이미
+                            활성→<code>/toggle</code>(비활성화)은 부모 무관 200
+                        </td>
+                        <td>~4</td>
+                    </tr>
+                    <tr>
+                        <td><b>C. common-scope 회귀</b></td>
+                        <td><code>boardModel=null</code> Subprogram 의 enable/undeprecate/restore 가 부모 가드 미적용으로 정상 2xx +
+                            capability 3(+1) 전부 false
+                        </td>
+                        <td>~3</td>
+                    </tr>
+                    <tr>
+                        <td><b>D. capability 적재</b></td>
+                        <td>부모 각 상태(특히 DELETED)에서 <code>toResponse</code> 의 3 플래그가 부모 메서드 결과와 일치 (드리프트 0 단위)</td>
+                        <td>~4</td>
+                    </tr>
+                    <tr>
+                        <td><b>E. UI 차단 렌더</b></td>
+                        <td><code>@WebMvcTest</code>+MockMvc — 부모 disabled/deleted Subprogram 행 버튼에
+                            <code>disabled</code>+<code>n-btn-tooltip-wrap</code> 존재 ; common-scope·정상 부모는 제출 form
+                        </td>
+                        <td>~4</td>
+                    </tr>
+                    <tr>
+                        <td><b>F. [G2] 중복키</b></td>
+                        <td>동일 활성 키 존재 시 deleted 사본 <code>restoreBlockedByActiveDuplicate=true</code>+disabled ;
+                            direct-POST 우회 시 <code>DuplicateSubprogramVersionException</code> 409 ; <code>hasActiveDuplicateKey</code>
+                            가 가드·capability 동일 결과(SSOT)
+                        </td>
+                        <td>~3 (G2 채택 시)</td>
+                    </tr>
+                    <tr>
+                        <td><b>G. self-state 회귀</b></td>
+                        <td>활성 자원에 restore 버튼 미렌더, deprecated 자원에 deprecate 버튼 미렌더(상호배타) — 현행 CONDITIONAL-HIDE 유지 (Q1)
+                        </td>
+                        <td>~2</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="callout">신규 예외 0 — 409 는 기존 <code>ChildLifecycleBlockedByParentException</code> / <code>DuplicateSubprogramVersionException</code>
+                    재사용. 신규 통합 테스트 파일 1 (<code>SubprogramControllerLifecycleFlowTest</code>) + 기존 <code>SubprogramServiceTest</code>
+                    보강.
+                </div>
+            </div>
+        </details>
+
+        <!-- §7 -->
+        <details class="section" id="s7">
+            <summary>§7. 예외 계층 (변경 0) + KEEP 근거</summary>
+            <div class="body">
+                <p><b>신규 예외 0</b>. Subprogram 가드는 형제와 같은 <code>ChildLifecycleBlockedByParentException(ResourceType.BOARD_MODEL
+                    → SUBPROGRAM)</code> 재사용. G2 는 기존 <code>DuplicateSubprogramVersionException</code> 그대로.</p>
+                <h4>유지(KEEP) — frontend 던짐 패턴이지만 전환 안 함</h4>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>대상</th>
+                        <th>분류</th>
+                        <th>유지 이유</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>self-state 모순 (<code>Illegal*StateException</code> — 이미 deprecated 인데 deprecate, 활성인데
+                            restore/purge)
+                        </td>
+                        <td>KEEP-PROGRAM (UI 이미 차단)</td>
+                        <td>템플릿이 상태별 한쪽 버튼만 렌더(deprecate↔undeprecate 상호배타, restore/purge=th:if isDeleted). 정상 사용자는 모순
+                            버튼을 못 봄. if-throw 는 우회/동시성 안전망 = 진짜 예외
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>deprecate(downgrade) — 전 자식 도메인 부모 가드 없음</td>
+                        <td>KEEP-PROGRAM (설계상 부재)</td>
+                        <td>deprecate 는 downgrade — 부모가 deprecated/disabled 여도 자식 deprecate 는 부모 상태로 수렴(모순 아님). 형제도 동일 →
+                            누락 아님
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>Duplicate*Version</code> / <code>*PathConflict</code> / <code>TypedNameMismatch</code>
+                            (등록·수정·purge)
+                        </td>
+                        <td>KEEP-VALIDATION</td>
+                        <td>사용자가 폼에 입력한 값 직결 <code>FieldBound*</code> 검증 = BindingResult 영역. 사용자 지시 제외. (단 restore 시점
+                            중복키만 G2 로 분리 — 폼 입력이 아니라 기존 자원 복구 가드라 사전 boolean 산출 가능)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>경로재조정 <code>DriftAutoApplyNotAllowed</code> / <code>ReconciliationAlreadyRunning</code> /
+                            <code>DriftNotFound</code></td>
+                        <td>KEEP-PROGRAM</td>
+                        <td>전역 config OFF / <code>@Async</code> running 플래그(SSR 렌더 시점 미표현) / stale driftId — render-time
+                            viewmodel boolean 로 사전 판정 불가
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>nudge proceed/replace · SoftDeleteRequiresIntent 2차 · DeleteIntentToken</td>
+                        <td>KEEP-INTERACTIVE</td>
+                        <td>등록 충돌 회수 / softDelete reject 3택 / 파괴적 작업 재확인 — 의도된 대화형 modal. UX 모순 아님</td>
+                    </tr>
+                    <tr>
+                        <td>보안 11 · IO · 마커/해시 외부변조 · 업로드 내용해시 · URL forging</td>
+                        <td>KEEP-PROGRAM</td>
+                        <td>파일 내용·경로·해시·FS 외부상태 의존 → disabled 버튼으로 막을 수 없음. 진짜 프로그램/보안 예외</td>
+                    </tr>
+                    <tr>
+                        <td>OSMetadata/BoardModel restore 중복키 (<code>DuplicateOSMetadata/BoardModel</code>)</td>
+                        <td>KEEP-PROGRAM (Q3 보류)</td>
+                        <td>부모 도메인 list 응답에 per-row 중복키 capability 미보유 + race 성격 강함. 본 슬라이스 비대상 (Q3 사용자 결정)</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <!-- §8 -->
+        <details class="section" id="s8">
+            <summary>§8. 부산물 / open questions</summary>
+            <div class="body">
+                <h4>Open Questions (CP1 사용자 결정)</h4>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>질문</th>
+                        <th>Claude 권고</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>Q1</td>
+                        <td>self-state 모순(이미 deprecated 인데 deprecate 등)을 추가 disable+tooltip 할지, 현행 CONDITIONAL-HIDE
+                            유지?
+                        </td>
+                        <td><b>현행 유지</b> — 형제 3도메인과 동일 정책. 상호배타 버튼이라 이미 모순 불가</td>
+                    </tr>
+                    <tr>
+                        <td>Q2</td>
+                        <td>G2 채택 시 <code>toResponse</code> static→instance(deleted 행만 질의) vs list 조립 batch 질의?</td>
+                        <td><b>G2 채택하면 instance + deleted 행만 질의</b> (deleted 자원 소수). 단순성 우선</td>
+                    </tr>
+                    <tr>
+                        <td><b>Q3</b></td>
+                        <td><b>G2 (restore 중복키 disable) 를 포함할지?</b> 포함 시 Subprogram 만, 아니면 부모 도메인까지?</td>
+                        <td><b>G1 만 우선, G2 는 분리/보류 권고</b> — restore 가 이미 async 라 완화돼 있고 toResponse 리팩터 비용. 사용자 결정</td>
+                    </tr>
+                    <tr>
+                        <td>Q4</td>
+                        <td>(G2 채택 시) restore 가 parentBlocksRestore + 중복키 둘 다로 막힐 때 tooltip 우선순위?</td>
+                        <td><b>부모 삭제 &gt; 활성 중복키</b> 고정 (부모부터 복구가 선결)</td>
+                    </tr>
+                    <tr>
+                        <td>Q5</td>
+                        <td>direct-POST 우회 시 Subprogram restore 의 409 노출 — restore 는 이미 <code>data-async-submit</code>
+                            (async XHR). 형제와 통일됨?
+                        </td>
+                        <td><b>현행 유지</b> — restore 가 이미 async라 형제와 동일 경로. R2-3 advice 통합에서 응답 형식 일괄 정리</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <h4>주의</h4>
+                <ul>
+                    <li><b>over-abstraction 점검</b> — 새 Policy/Strategy 클래스 0. <code>LifecycleEntity</code> SSOT + <code>ChildLifecycleBlockedByParentException</code>
+                        + BMC 패턴 그대로 복제. 도메인을 가로지르지 않음(BoardModel lifecycle = 동일 개념).
+                    </li>
+                    <li><b>record 필드 추가</b> — <code>SubprogramResponse</code> 는 record. 생성처 = <code>toResponse</code>
+                        1곳(또는 <code>toResponses</code> 루프) → 컴파일 안전. G2 채택 시 static→instance 전환이 유일한 구조 변경.
+                    </li>
+                    <li><b>CLAUDE.md</b> — R2-2 에서 "예외 사용 원칙" 불가침 규칙 이미 추가됨. 본 슬라이스는 그 규칙의 Subprogram 적용 — CLAUDE.md 수정
+                        0.
+                    </li>
+                    <li><b>scope 밖 기록</b> — audit 중 BIOS browse try/catch 의 advice 통합, BIOS purge 본체 중복 가드 등 §분기금지 위반 후보
+                        발견 → R2-3 이후 별도 기록(본 슬라이스 비대상).
+                    </li>
+                </ul>
+            </div>
+        </details>
+
+        <!-- §9 -->
+        <details class="section" id="s9">
+            <summary>§9. Verification 체크리스트</summary>
+            <div class="body">
+                <ul class="check-list" data-storage="r2-2-1-verify">
+                    <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과 (record 필드 추가 후 호출처 컴파일)</span></label>
+                    </li>
+                    <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 — A(409 안전망) + B/C/D/E + [G2]F + G</span></label>
+                    </li>
+                    <li><label><input type="checkbox" data-key="guard"> <span>SubprogramService 3 가드(enable/undeprecate/restore)가 BMC 동형으로 <code>parent != null</code> null-guard + SSOT 호출</span></label>
+                    </li>
+                    <li><label><input type="checkbox" data-key="cap"> <span>SubprogramResponse capability 3(+1) + toResponse 채움 (G1 repo 조회 0)</span></label>
+                    </li>
+                    <li><label><input type="checkbox" data-key="view"> <span>miller.html toggle/undeprecate/restore disable+tooltip 분기 (BIOS list.html 동형)</span></label>
+                    </li>
+                    <li><label><input type="checkbox" data-key="common"> <span>common-scope(boardModel=null) 정상 동작 회귀 0 (capability 전부 false)</span></label>
+                    </li>
+                    <li><label><input type="checkbox" data-key="sibling"> <span>형제 ISO/BIOS/BMC 코드 무수정 확인</span></label>
+                    </li>
+                    <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자) — 부모 disabled/deleted 시 Subprogram 버튼 차단</span></label>
+                    </li>
+                </ul>
+            </div>
+        </details>
+
+        <!-- §10 -->
+        <details class="section" id="s10">
+            <summary>§10. Critical Files</summary>
+            <div class="body">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>분류</th>
+                        <th>파일</th>
+                        <th>변경</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><span class="chip mod">수정</span></td>
+                        <td><code>…/subprogram/service/SubprogramService.java</code></td>
+                        <td>toggleEnabled/undeprecate/restore 부모 가드 3 (BMC 동형) + toResponse capability 채움 [+G2
+                            hasActiveDuplicateKey 추출 + static→instance]
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="chip mod">수정</span></td>
+                        <td><code>…/subprogram/dto/response/SubprogramResponse.java</code></td>
+                        <td>capability 3 boolean [+1 G2] 추가</td>
+                    </tr>
+                    <tr>
+                        <td><span class="chip mod">수정</span></td>
+                        <td><code>templates/fragments/management/subprogram/miller.html</code></td>
+                        <td>toggle(174-180)/undeprecate(198-202)/restore(211-217) disable+tooltip 분기</td>
+                    </tr>
+                    <tr>
+                        <td><span class="chip mod">테스트</span></td>
+                        <td><code>…/subprogram/service/SubprogramServiceTest.java</code></td>
+                        <td>가드 3 차단/통과 + common-scope + [G2]중복키 단위</td>
+                    </tr>
+                    <tr>
+                        <td><span class="chip new">신규</span></td>
+                        <td><code>…/subprogram/controller/SubprogramControllerLifecycleFlowTest.java</code></td>
+                        <td>direct-POST 409 안전망 + 성공 + common-scope + capability 렌더 (MockMvc)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="chip keep">유지</span></td>
+                        <td><code>LifecycleEntity</code> · <code>BoardModel</code> · <code>ChildLifecycleBlockedByParentException</code>
+                            · advice · 형제 ISO/BIOS/BMC · CSS · ResourceType · CLAUDE.md
+                        </td>
+                        <td>변경 0 (신규 클래스/예외/스키마/CSS 0)</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <!-- §11 -->
+        <details class="section" id="s11">
+            <summary>§11. 다음 마일스톤</summary>
+            <div class="body">
+                <ol>
+                    <li><b>R2-2-1 완료 시</b> — 4 자식 도메인(ISO/BIOS/BMC/Subprogram) 전체가 부모-자식 가드 UI 1차 차단을 일관 보유. R2-2 비대칭 해소
+                        완결.
+                    </li>
+                    <li><b>R2-3</b> (advice 통합) — UI 1차 차단으로 예외 표면이 한 번 더 축소된 상태에서 진입. 비정상 경로 409 응답 형식 일괄 정리.</li>
+                    <li><b>R2-4 ~ R2-6</b> — ProblemDetail / errorCode 다형성 / frontend alert ErrorModal (R2-1 조사대로).</li>
+                    <li><b>[조건부] G2 분리 슬라이스</b> — Q3 에서 G2 보류 시, restore 활성 중복키 disable + 부모 도메인(OSMetadata/BoardModel)
+                        확산을 별도 슬라이스로.
+                    </li>
+                </ol>
+                <p>R2-2-1 본체는 ~0.5 일 분량 (가드 3 + capability 3 + miller 분기 + 테스트). 형제 동형이라 신규 클래스/예외/스키마/CSS 0. G2 채택 시
+                    toResponse 리팩터로 +0.3 일.</p>
+            </div>
+        </details>
+
+    </main>
+</div>
+
+<script>
+    // ── ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤 (기존 plan html 규약) ──
+    document.querySelectorAll('nav.toc a').forEach(a => {
+        a.addEventListener('click', e => {
+            e.preventDefault();
+            const id = a.getAttribute('href').slice(1);
+            const target = document.getElementById(id);
+            if (!target) return;
+            target.open = true;
+            const top = target.getBoundingClientRect().top + window.scrollY - 108;
+            window.scrollTo({top, behavior: 'smooth'});
+        });
+    });
+    document.getElementById('btn-expand').addEventListener('click', () =>
+        document.querySelectorAll('details.section').forEach(d => d.open = true));
+    document.getElementById('btn-collapse').addEventListener('click', () =>
+        document.querySelectorAll('details.section').forEach(d => d.open = false));
+    document.getElementById('filter').addEventListener('input', e => {
+        const q = e.target.value.trim().toLowerCase();
+        document.querySelectorAll('details.section').forEach(d => {
+            if (!q) {
+                d.classList.remove('hidden');
+                return;
+            }
+            if (d.textContent.toLowerCase().includes(q)) {
+                d.classList.remove('hidden');
+                d.open = true;
+            } else d.classList.add('hidden');
+        });
+    });
+    document.querySelectorAll('ul.check-list').forEach(ul => {
+        const key = ul.dataset.storage;
+        const stored = JSON.parse(localStorage.getItem(key) || '{}');
+        ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = !!stored[cb.dataset.key];
+            cb.addEventListener('change', () => {
+                stored[cb.dataset.key] = cb.checked;
+                localStorage.setItem(key, JSON.stringify(stored));
+            });
+        });
+    });
+
+    // ── 🎬 인터랙티브 미리보기 — Subprogram 비대칭 BEFORE/AFTER (서버 가드와 동일 SSOT, DELETED comprehensive) ──
+    let r221Parent = 'ACTIVE';
+    let r221View = 'BEFORE';
+    const R221_TIPS = {
+        enable: '부모 메인보드가 비활성 / Deprecated / 삭제 상태입니다. 부모를 먼저 정상화(활성화·해제·복구)해주세요.',
+        restore: '부모 메인보드가 삭제 상태입니다. 부모부터 복구해주세요.',
+        undeprecate: '부모 메인보드가 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.'
+    };
+
+    // BoardModel.blocksChildXxx() 와 동일 판정 (DELETED comprehensive)
+    function r221Blocks(p) {
+        const reason = (p === 'DELETED') ? 'DELETED' : (p === 'DISABLED') ? 'DISABLED' : (p === 'DEPRECATED') ? 'DEPRECATED' : null;
+        return {
+            enableReason: reason,
+            enable: reason !== null,
+            restore: (p === 'DELETED'),
+            undeprecate: (p === 'DEPRECATED' || p === 'DELETED')
+        };
+    }
+
+    function r221Kor(p) {
+        return {ACTIVE: '활성', DISABLED: '비활성', DEPRECATED: 'Deprecated', DELETED: '삭제'}[p];
+    }
+
+    function r221Set(s) {
+        r221Parent = s;
+        r221Render();
+    }
+
+    function r221SetView(v) {
+        r221View = v;
+        r221Render();
+    }
+
+    function r221Click(who, action, blocked, enforce) {
+        const msg = document.getElementById('r221-message');
+        const L = {enable: '활성화', disable: '비활성화', restore: '복구', undeprecate: 'Deprecated 해제', purge: '영구삭제'};
+        if (blocked && !enforce) {   // BEFORE Subprogram — silent 모순 노출
+            msg.className = 'ux-message error';
+            msg.textContent = '⚠ BEFORE(현재) — 부모 메인보드가 ' + r221Kor(r221Parent) + ' 인데 ' + who + ' 의 ' + L[action] + ' 가 그대로 성공합니다 (silent 모순). 형제 BIOS/BMC/ISO 는 막는데 Subprogram 만 비대칭 — R2-2-1 이 해소.';
+            return;
+        }
+        if (blocked && enforce) {    // disabled 라 실제론 도달 안 함 — 안전망 강조
+            msg.className = 'ux-message error';
+            msg.textContent = '이 버튼은 부모 상태 때문에 disabled 입니다 (UI 1차 차단). 서버 가드도 같은 판정으로 409 안전망.';
+            return;
+        }
+        msg.className = 'ux-message success';
+        msg.textContent = '✓ ' + who + ' ' + L[action] + ' 진행 — 부모 상태가 막지 않음.';
+    }
+
+    function r221Btn(who, action, label, blocked, tip, enforce, extra) {
+        const guardOn = enforce && blocked;
+        const dis = guardOn ? ' disabled' : '';
+        const t = guardOn ? (' data-tip="' + tip + '"') : '';
+        const cls = 'n-demo-btn' + ((!enforce && blocked) ? ' gap' : '');
+        const st = extra ? (' style="' + extra + '"') : '';
+        return '<span class="r22-tip"' + t + '><button class="' + cls + '"' + st + dis +
+            ' onclick="r221Click(\'' + who + '\',\'' + action + '\',' + blocked + ',' + enforce + ')">' + label + '</button></span>';
+    }
+
+    function r221ChildRow(name, file, p, b, enforce) {
+        let cbadge, buttons;
+        if (p === 'DELETED') {
+            cbadge = '<span class="badge del">삭제됨</span>';
+            buttons = r221Btn(name, 'restore', '복구', b.restore, R221_TIPS.restore, enforce)
+                + r221Btn(name, 'purge', '영구삭제', false, '', enforce, 'border-color:var(--red);color:var(--red)');
+        } else if (p === 'DEPRECATED') {
+            cbadge = '<span class="badge dep">Deprecated</span>';
+            buttons = r221Btn(name, 'enable', '활성화', b.enable, R221_TIPS.enable, enforce)
+                + r221Btn(name, 'undeprecate', 'Deprecated 해제', b.undeprecate, R221_TIPS.undeprecate, enforce);
+        } else if (p === 'DISABLED') {
+            cbadge = '<span class="badge off">비활성화</span>';
+            buttons = r221Btn(name, 'enable', '활성화', b.enable, R221_TIPS.enable, enforce);
+        } else {
+            cbadge = '<span class="badge on">활성화</span>';
+            buttons = r221Btn(name, 'disable', '비활성화', false, '', enforce);
+        }
+        const tag = enforce ? '<span class="r22-ok">가드 ✓</span>' : '<span class="r22-gap">가드 없음</span>';
+        return '<strong>' + name + '</strong><span class="label">' + file + tag + '</span>' + cbadge + buttons;
+    }
+
+    function r221Render() {
+        const p = r221Parent, b = r221Blocks(p), after = (r221View === 'AFTER');
+        document.querySelectorAll('.ux-toolbar .seg[data-state]').forEach(s => s.classList.toggle('active', s.dataset.state === p));
+        document.querySelectorAll('.ux-toolbar .seg[data-mode]').forEach(s => s.classList.toggle('active', s.dataset.mode === r221View));
+        const pmap = {
+            ACTIVE: ['활성화', 'on'],
+            DISABLED: ['비활성화', 'off'],
+            DEPRECATED: ['Deprecated', 'dep'],
+            DELETED: ['삭제됨(휴지통)', 'del']
+        };
+        const pb = document.getElementById('r221-parent-badge');
+        pb.textContent = pmap[p][0];
+        pb.className = 'badge ' + pmap[p][1];
+        document.getElementById('r221-parent').classList.toggle('muted', p === 'DELETED');
+
+        const biosEl = document.getElementById('r221-bios');
+        const spEl = document.getElementById('r221-sp');
+        biosEl.classList.toggle('muted', p === 'DELETED');
+        spEl.classList.toggle('muted', p === 'DELETED');
+        // BIOS = 형제(이미 가드, 항상 enforce). Subprogram = 대상 (BEFORE off / AFTER on)
+        biosEl.innerHTML = r221ChildRow('BIOS', 'firmware v3.21 ', p, b, true);
+        spEl.innerHTML = r221ChildRow('Subprogram', 'i40e-driver 2.1 ', p, b, after);
+
+        const tf = v => v ? '<span class="t">true</span> → 차단' : '<span class="f">false</span> → 허용';
+        document.getElementById('r221-caps').innerHTML = after
+            ? ('subprogram.parentBlocksEnable      = ' + tf(b.enable) + (b.enableReason ? '  (reason="' + b.enableReason + '")' : '') + '\n' +
+                'subprogram.parentBlocksUndeprecate = ' + tf(b.undeprecate) + '\n' +
+                'subprogram.parentBlocksRestore     = ' + tf(b.restore))
+            : 'BEFORE — SubprogramResponse 에 capability 필드 없음. 서버 가드도 없음 → 모든 자식 promote 액션이 silent 성공 (형제 BIOS 와 비대칭).';
+    }
+
+    r221Render();
+</script>
+</body>
+</html>

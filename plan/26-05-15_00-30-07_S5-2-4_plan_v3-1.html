@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-2-4 Plan v3-1 — DB 테이블 설계 정밀화</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --purple: #6f4cdd; --purple-bg: rgba(111,76,221,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%); border-bottom: 1px solid var(--border);
+    padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1320px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section.focus > summary { background: var(--purple-bg); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12.5px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.new { background: var(--blue-bg); color: var(--blue); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.keep { background: var(--green-bg); color: var(--green); }
+  .chip.pk { background: var(--purple-bg); color: var(--purple); }
+  .chip.idx { background: var(--blue-bg); color: var(--blue); }
+  .chip.uk { background: var(--orange-bg); color: var(--orange); }
+  .chip.col { background: var(--green-bg); color: var(--green); }
+  .chip.json { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.v31 { background: var(--purple-bg); color: var(--purple); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.focus { border-color: var(--purple); background: var(--purple-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  .hidden { display: none !important; }
+
+  .diff-add { background: var(--green-bg); color: var(--green); padding: 0 4px; border-radius: 3px; }
+  .diff-del { background: var(--red-bg); color: var(--red); padding: 0 4px; border-radius: 3px; text-decoration: line-through; }
+
+  /* DB 시각화 */
+  .db-card { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 0;
+    overflow: hidden; margin: 10px 0; }
+  .db-card .db-header { background: linear-gradient(180deg, var(--purple-bg) 0%, transparent 100%); padding: 10px 14px;
+    border-bottom: 1px solid var(--border-soft); font-family: var(--mono); font-weight: 700; color: var(--purple); display: flex; align-items: center; gap: 8px; }
+  .db-card .db-header .db-icon { font-size: 14px; }
+  .db-card .db-meta { padding: 8px 14px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-soft); }
+  .db-card table { margin: 0; }
+  .db-card table th { background: var(--bg); text-align: left; padding: 6px 12px; font-size: 11px; }
+  .db-card table td { padding: 6px 12px; font-size: 12px; vertical-align: top; }
+  .db-card table td.col-name { font-family: var(--mono); font-weight: 600; color: var(--text); width: 200px; }
+  .db-card table td.col-type { font-family: var(--mono); color: var(--purple); width: 160px; }
+  .db-card table td.col-constraint { font-size: 11px; }
+  .db-card .db-footer { padding: 10px 14px; background: var(--bg); border-top: 1px solid var(--border-soft); font-size: 11px; }
+  .db-card .db-footer ul { margin: 4px 0; padding-left: 18px; }
+  .db-card .db-footer code { font-size: 11px; }
+
+  /* JSON 시각화 */
+  .json-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0; overflow: hidden; margin: 8px 0; }
+  .json-card .json-header { padding: 8px 12px; font-family: var(--mono); font-weight: 600; font-size: 12px; }
+  .json-card.success .json-header { background: var(--green-bg); color: var(--green); }
+  .json-card.failed .json-header { background: var(--red-bg); color: var(--red); }
+  .json-card pre { margin: 0; padding: 12px; background: var(--card); }
+
+  /* UX 미리보기 */
+  .ux-wrap { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: 16px; margin: 12px 0; }
+  .ux-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  .ux-toolbar button { padding: 5px 10px; font-size: 12px; border: 1px solid var(--border); background: var(--card); border-radius: 4px; cursor: pointer; }
+  .ux-toolbar button:hover { background: var(--bg); }
+  .ux-toolbar .group-label { font-size: 11px; color: var(--text-muted); margin-right: 4px; }
+  .ux-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card);
+    border: 1px solid var(--border-soft); border-radius: 6px; font-size: 13px; margin-top: 6px; }
+  .ux-row.muted { opacity: 0.5; }
+  .ux-row .ts { width: 175px; font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .ux-row .label { flex: 1; }
+  .ux-row .badge { font-size: 10px; padding: 2px 6px; border-radius: 8px; }
+  .ux-row .badge.trashed { background: rgba(0,0,0,0.06); color: var(--text-muted); }
+  .ux-row .badge.warn { background: var(--yellow-bg); color: var(--yellow); }
+  .ux-row .badge.crit { background: var(--red-bg); color: var(--red); }
+  .ux-row .badge.purged { background: var(--green-bg); color: var(--green); }
+  .ux-row .badge.failed { background: var(--orange-bg); color: var(--orange); }
+  .ux-message { padding: 10px 12px; border-radius: 6px; font-size: 12px; min-height: 36px;
+    border: 1px solid var(--border-soft); background: var(--card); margin-top: 10px; line-height: 1.5; }
+  .ux-message.error { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .ux-message.success { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .ux-message.warn { background: var(--yellow-bg); border-color: var(--yellow); color: var(--yellow); }
+  .ux-current-ts { font-family: var(--mono); font-weight: 700; color: var(--blue); font-size: 13px; }
+
+  .ux-log-table { background: var(--card); border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; padding: 12px; font-size: 11px; overflow-x: auto; }
+  .ux-log-table .title { font-family: var(--mono); font-weight: 700; color: var(--purple); margin-bottom: 6px; font-size: 12px; }
+  .ux-log-table table { font-size: 11px; }
+  .ux-log-table td { white-space: nowrap; padding: 4px 8px; }
+  .ux-log-table td.ts-cell { font-family: var(--mono); }
+  .ux-log-table td.json-cell { font-family: var(--mono); font-size: 10.5px; max-width: 320px; white-space: pre-wrap; word-break: break-all; }
+
+  /* ER 다이어그램 (텍스트) */
+  .er-box { background: var(--card); border: 2px solid var(--purple); border-radius: 6px; padding: 10px 14px; display: inline-block; min-width: 200px; vertical-align: top; }
+  .er-box .er-title { font-family: var(--mono); font-weight: 700; color: var(--purple); margin-bottom: 6px; }
+  .er-box ul { margin: 0; padding-left: 18px; font-size: 11.5px; }
+  .er-arrow { display: inline-block; font-family: var(--mono); font-weight: 700; color: var(--text-muted); margin: 0 8px; vertical-align: top; padding-top: 50px; }
+
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; padding: 16px; } nav.toc { position: static; max-height: none; } }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-2-4 — DB 테이블 설계 정밀화 <span style="color:var(--text-muted); font-weight:500;">(plan <span class="chip v31">v3-1</span>)</span></h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-15</strong></span>
+    <span>v3 → v3-1 : <strong>displayName 컬럼 분리, occurred_at/purged_at TIMESTAMP 명시, 데이터베이스 표 설계 위주</strong></span>
+    <span>상위 : <strong>S5-2 자원 상태 변경 UI/기능 수정</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 대기 (v3-1)</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#diff">📋 v3 → v3-1 변경점</a></li>
+    <li><a href="#er">🗺 ER 다이어그램</a></li>
+    <li><a href="#t1">💾 1. trash_settings</a></li>
+    <li><a href="#t2">💾 2. purge_log</a></li>
+    <li><a href="#json">📦 3. details JSON 스키마</a></li>
+    <li><a href="#queries">🔎 4. 주요 쿼리 패턴</a></li>
+    <li><a href="#jpa">⚙ 5. JPA 매핑 & 인덱스</a></li>
+    <li><a href="#preview" class="live">🎬 미리보기 (실제 timestamp)</a></li>
+    <li><a href="#flow">6. 흐름 & PurgeExecutor</a></li>
+    <li><a href="#scope">7. 비스코프 (v3 와 동일)</a></li>
+    <li><a href="#plan-link">8. v3 본문 연결</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<!-- ============================== diff ============================== -->
+<details class="section" id="diff" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">📋</span> <span style="flex:1;">v3 → v3-1 변경점 (사용자 결정 반영)</span></summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>항목</th><th>v3</th><th>v3-1</th><th>의도</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>displayName</code> 저장 위치</td>
+          <td>details JSON 안의 키</td>
+          <td><span class="diff-add">독립 컬럼 <code>display_name VARCHAR(256) NOT NULL</code></span></td>
+          <td>SUCCESS / FAILED 모든 outcome 에 항상 존재 → 컬럼화 자연스러움. UI 페이지에서 JSON parse 없이 SELECT 가능 + 필요시 인덱스 가능</td>
+        </tr>
+        <tr>
+          <td><code>occurred_at</code></td>
+          <td>TIMESTAMP NOT NULL</td>
+          <td>유지 (명시적 TIMESTAMP)</td>
+          <td>변경 없음 — 본 슬라이스에서 명시 강조</td>
+        </tr>
+        <tr>
+          <td><code>purged_at</code></td>
+          <td>TIMESTAMP NULL (SUCCESS 시만 채움)</td>
+          <td>유지 (명시적 TIMESTAMP NULL)</td>
+          <td>변경 없음 — outcome 와 별도로 실제 hard-delete 완료 시각 보존</td>
+        </tr>
+        <tr>
+          <td>본 plan 의 초점</td>
+          <td>전체 11 섹션 (요구사항 + URL + 도메인 + 테스트 + ...)</td>
+          <td><span class="diff-add">DB 테이블 설계 위주</span> — ER + 컬럼 표 + JSON 스키마 + 쿼리 패턴 + JPA 매핑</td>
+          <td>v3 본문의 다른 섹션은 그대로 유효. v3-1 은 사용자가 명시한 "데이터베이스 table 설계 위주" 에 집중</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout focus">
+      <strong>v3-1 의 역할</strong> v3 의 §1~§3, §5~§11 은 변경 없이 그대로 사용. v3-1 은 §4 (도메인 모델) 의 DB 부분을 정밀화한 보충 문서. CP1 승인 시 v3 + v3-1 두 plan 을 함께 채택.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== ER ============================== -->
+<details class="section" id="er" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">🗺</span> <span style="flex:1;">ER 다이어그램 — 신규 2 테이블 + 기존 자원 테이블</span></summary>
+  <div class="body">
+    <p>본 슬라이스는 <strong>신규 테이블 2개</strong> 만 추가. 기존 자원 테이블 (os_image, iso, board_model, board_bios, board_bmc, subprogram) 의 컬럼은 변경하지 않는다 — v2 의 <code>purge_failed_at</code> / <code>purge_attempt_count</code> 컬럼 도입 거절 결정에 따른 D3 일관성.</p>
+
+    <div style="text-align: center; padding: 16px 0; font-size: 11.5px; line-height: 1.5;">
+      <div class="er-box" style="background: var(--bg);">
+        <div class="er-title">trash_settings</div>
+        <ul>
+          <li><strong>id</strong> BIGINT PK (=1)</li>
+          <li>ttl_days INT</li>
+          <li>auto_purge_enabled BOOL</li>
+          <li>purge_cron VARCHAR</li>
+          <li>notify_cron VARCHAR</li>
+          <li>notify_days_before VARCHAR</li>
+          <li>notification_channels VARCHAR</li>
+          <li>retry_max_attempts INT</li>
+          <li>retry_backoff_base_ms BIGINT</li>
+          <li>updated_at TIMESTAMP</li>
+        </ul>
+      </div>
+      <span class="er-arrow">─ singleton ─</span>
+      <div class="er-box" style="background: var(--bg);">
+        <div class="er-title">purge_log</div>
+        <ul>
+          <li><strong>id</strong> BIGINT PK</li>
+          <li>resource_type VARCHAR(32)</li>
+          <li>resource_id BIGINT</li>
+          <li><strong>display_name</strong> VARCHAR(256)</li>
+          <li>origin VARCHAR(16)</li>
+          <li>outcome VARCHAR(8)</li>
+          <li><strong>occurred_at</strong> TIMESTAMP</li>
+          <li><strong>purged_at</strong> TIMESTAMP NULL</li>
+          <li>details JSON</li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="margin-top: 16px;">두 테이블 간 FK 관계는 없다. <code>purge_log.resource_id</code> 도 자원 테이블에 FK 를 걸지 않음 — 자원 hard-delete 후에도 로그는 보존되어야 하므로 의도된 비-FK 설계.</p>
+
+    <h3>관계 요약</h3>
+    <ul>
+      <li><code>trash_settings</code> — 싱글톤. 모든 worker / executor 가 이 한 row 를 참조</li>
+      <li><code>purge_log</code> — 자원 단위 1:N. <code>(resource_type, resource_id)</code> 으로 자원 회고. FK 없음 (로그 영속화 우선)</li>
+      <li><code>os_image / iso / board_* / subprogram</code> — 변경 0 (D3 핵심)</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== t1 ============================== -->
+<details class="section focus" id="t1" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">💾</span> <span style="flex:1;">1. <code>trash_settings</code> — 휴지통 운영 설정 (singleton)</span></summary>
+  <div class="body">
+    <div class="db-card">
+      <div class="db-header"><span class="db-icon">📋</span> trash_settings</div>
+      <div class="db-meta">
+        Engine : <code>InnoDB</code> · Charset : <code>utf8mb4</code> · Row 수 : 1 (singleton 강제) · 갱신 빈도 : 운영자가 수동 수정 시 (낮음)
+      </div>
+      <table>
+        <thead><tr><th>컬럼</th><th>타입</th><th>제약</th><th>default</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td class="col-name">id</td><td class="col-type">BIGINT</td><td><span class="chip pk">PK</span> NOT NULL</td><td>(고정 1)</td><td>singleton 보장. PostConstruct 가 id=1 row 없으면 insert</td></tr>
+          <tr><td class="col-name">ttl_days</td><td class="col-type">INT</td><td>NOT NULL</td><td><code>30</code></td><td>TTL (일). 사용자 결정 시 적용 즉시 worker 반영</td></tr>
+          <tr><td class="col-name">auto_purge_enabled</td><td class="col-type">BOOLEAN</td><td>NOT NULL</td><td><code>true</code></td><td>false 면 TrashTtlWorker 가 식별만 + 알림만 (hard-delete 미수행)</td></tr>
+          <tr><td class="col-name">purge_cron_expression</td><td class="col-type">VARCHAR(64)</td><td>NOT NULL</td><td><code>0 0 * * * *</code></td><td>매시 정각 (Spring cron 6 필드 형식)</td></tr>
+          <tr><td class="col-name">notify_cron_expression</td><td class="col-type">VARCHAR(64)</td><td>NOT NULL</td><td><code>0 0 * * * *</code></td><td>알림 worker cron</td></tr>
+          <tr><td class="col-name">notify_days_before</td><td class="col-type">VARCHAR(64)</td><td>NOT NULL</td><td><code>"7,1"</code></td><td>콤마 구분 D-day 리스트. service 가 split → int 셋으로 변환</td></tr>
+          <tr><td class="col-name">notification_channels</td><td class="col-type">VARCHAR(128)</td><td>NOT NULL</td><td><code>"BACKGROUND_JOB,SERVER_LOG"</code></td><td>콤마 구분 enum 셋. 후일 알림 도메인 이관 시 EMAIL/SLACK 추가</td></tr>
+          <tr><td class="col-name">retry_max_attempts</td><td class="col-type">INT</td><td>NOT NULL CHECK ≥ 1</td><td><code>3</code></td><td>TTL_AUTO 의 cron tick 내 retry 최대 횟수</td></tr>
+          <tr><td class="col-name">retry_backoff_base_ms</td><td class="col-type">BIGINT</td><td>NOT NULL</td><td><code>1000</code></td><td>exponential backoff base (1s · 2s · 4s)</td></tr>
+          <tr><td class="col-name">updated_at</td><td class="col-type">TIMESTAMP(6)</td><td>NOT NULL</td><td><code>CURRENT_TIMESTAMP(6)</code></td><td>BaseTimeEntity. 마지막 운영자 수정 시각</td></tr>
+        </tbody>
+      </table>
+      <div class="db-footer">
+        <strong>인덱스</strong> 없음 — singleton row 이므로 PK 만 사용.<br>
+        <strong>제약</strong> id=1 만 허용하는 CHECK 또는 service 의 PostConstruct 검증.<br>
+        <strong>접근 패턴</strong> <code>findById(1L)</code> 한 가지. Spring <code>@Cacheable</code> 적용 권장 — 변경 시 evict.
+      </div>
+    </div>
+
+    <h3>singleton 강제 방법</h3>
+    <pre><code>// global/trash/service/TrashSettingsService.java
+@PostConstruct
+public void seedIfMissing() {
+    if (!repository.existsById(1L)) {
+        repository.save(TrashSettings.defaults());  // id=1 강제
+    }
+}
+
+// TrashSettings.defaults() 가 모든 default 값 채움.
+// id 는 @Id Long 으로 두되 어플리케이션 단에서 1L 강제.</code></pre>
+
+    <h3>샘플 데이터</h3>
+    <pre><code>id | ttl_days | auto_purge_enabled | purge_cron     | notify_days_before | notification_channels         | retry_max | backoff_ms
+1  | 30       | true               | 0 0 * * * *    | 7,1                | BACKGROUND_JOB,SERVER_LOG      | 3         | 1000</code></pre>
+  </div>
+</details>
+
+<!-- ============================== t2 ============================== -->
+<details class="section focus" id="t2" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">💾</span> <span style="flex:1;">2. <code>purge_log</code> — 단일 hard-delete 사건 로그</span></summary>
+  <div class="body">
+    <div class="db-card">
+      <div class="db-header"><span class="db-icon">📋</span> purge_log</div>
+      <div class="db-meta">
+        Engine : <code>InnoDB</code> · Charset : <code>utf8mb4</code> · Row 수 : 운영 누적 (자원 수 × 평균 시도 수) · INSERT only (UPDATE 거의 없음)
+      </div>
+      <table>
+        <thead><tr><th>컬럼</th><th>타입</th><th>제약</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td class="col-name">id</td><td class="col-type">BIGINT</td><td><span class="chip pk">PK</span> AUTO_INCREMENT NOT NULL</td><td>—</td></tr>
+          <tr><td class="col-name">resource_type</td><td class="col-type">VARCHAR(32)</td><td>NOT NULL</td><td><code>ResourceType</code> enum 이름. OS_ISO / BIOS_BUNDLE / BMC_FIRMWARE / SUBPROGRAM / OS_IMAGE / BOARD_MODEL</td></tr>
+          <tr><td class="col-name">resource_id</td><td class="col-type">BIGINT</td><td>NOT NULL</td><td>자원 PK. FK 아님 (hard-delete 후에도 로그 보존)</td></tr>
+          <tr><td class="col-name" style="background: var(--purple-bg);">display_name <span class="chip v31">v3-1</span></td><td class="col-type">VARCHAR(256)</td><td>NOT NULL</td><td>hard-delete 직전 <code>Markable.displayName()</code> 스냅샷. JSON 에서 발탁된 항상-존재 컬럼</td></tr>
+          <tr><td class="col-name">origin</td><td class="col-type">VARCHAR(16)</td><td>NOT NULL</td><td><code>PurgeOrigin</code> : USER_DIRECT / NUDGE_REPLACE / TTL_AUTO</td></tr>
+          <tr><td class="col-name">outcome</td><td class="col-type">VARCHAR(8)</td><td>NOT NULL</td><td><code>PurgeOutcome</code> : SUCCESS / FAILED</td></tr>
+          <tr><td class="col-name" style="background: var(--purple-bg);">occurred_at <span class="chip v31">v3-1</span></td><td class="col-type">TIMESTAMP(6)</td><td>NOT NULL</td><td>PurgeExecutor 진입 시각 (마이크로초 정밀도). cron tick 내 retry 가 발생해도 본 이벤트 시작 시각 1개</td></tr>
+          <tr><td class="col-name" style="background: var(--purple-bg);">purged_at <span class="chip v31">v3-1</span></td><td class="col-type">TIMESTAMP(6)</td><td>NULL</td><td>실제 hard-delete 완료 시각. SUCCESS 일 때만 NOT NULL. FAILED 행은 NULL — 사용자 결정 "purged_at 에는 실 timestamp"</td></tr>
+          <tr><td class="col-name">details</td><td class="col-type">JSON</td><td>NOT NULL</td><td>outcome 별 상세. <span class="chip json">JSON</span> §3 참조</td></tr>
+        </tbody>
+      </table>
+      <div class="db-footer">
+        <strong>인덱스 (3종)</strong>
+        <ul>
+          <li><code>idx_purge_log_resource</code> on <code>(resource_type, resource_id, occurred_at DESC)</code> <span class="chip idx">자원별 회고</span></li>
+          <li><code>idx_purge_log_outcome_occurred</code> on <code>(outcome, occurred_at DESC)</code> <span class="chip idx">실패 자원 목록 / 페이지 정렬</span></li>
+          <li><code>idx_purge_log_origin</code> on <code>(origin)</code> <span class="chip idx">필터 빈도 낮음 — 카디널리티 3 — 선택적</span></li>
+        </ul>
+        <strong>UNIQUE 제약</strong> 없음 — 동일 자원에 여러 행 누적 가능 (FAILED → FAILED → SUCCESS 패턴).<br>
+        <strong>FK</strong> 없음 (의도) — 자원 hard-delete 후 로그 보존.
+      </div>
+    </div>
+
+    <h3>예상 row 누적 패턴 (자원 1건의 lifecycle)</h3>
+    <table>
+      <thead><tr><th>#</th><th>resource_id</th><th>display_name</th><th>origin</th><th>outcome</th><th>occurred_at</th><th>purged_at</th><th>details (요약)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td><td>27</td><td>Rocky Linux 9.5 dvd.iso</td><td>TTL_AUTO</td>
+          <td style="color: var(--orange);">FAILED</td>
+          <td>2026-06-14 00:00:01.123</td><td style="color: var(--text-muted);">NULL</td>
+          <td><code>{attemptNumber:1, tickAttemptCount:3, exceptionClass:"PurgeIoFailed..."}</code></td>
+        </tr>
+        <tr>
+          <td>2</td><td>27</td><td>Rocky Linux 9.5 dvd.iso</td><td>TTL_AUTO</td>
+          <td style="color: var(--orange);">FAILED</td>
+          <td>2026-06-14 01:00:00.892</td><td style="color: var(--text-muted);">NULL</td>
+          <td><code>{attemptNumber:2, tickAttemptCount:3, exceptionClass:"PurgeIoFailed..."}</code></td>
+        </tr>
+        <tr>
+          <td>3</td><td>27</td><td>Rocky Linux 9.5 dvd.iso</td><td>TTL_AUTO</td>
+          <td style="color: var(--green);">SUCCESS</td>
+          <td>2026-06-14 02:00:00.501</td><td>2026-06-14 02:00:01.234</td>
+          <td><code>{attemptCount:1, manifestHash:"sha256:7f3a…", markerSignature:"abc…"}</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+      위 자원 27 의 lifecycle 회고 — 처음 cron tick (00:00) 에서 3회 retry 모두 실패하여 1행 FAILED.
+      1시간 후 (01:00) 다음 cron 이 휴지통의 미purge 자원을 발견하여 또 시도, 또 3회 실패. attemptNumber 누적.
+      02:00 cron 에서 read-only 가 해제되어 SUCCESS. purged_at 채워짐.
+      운영자는 <code>SELECT * FROM purge_log WHERE resource_id=27 ORDER BY occurred_at</code> 만으로 전 lifecycle 회고.
+    </p>
+  </div>
+</details>
+
+<!-- ============================== json ============================== -->
+<details class="section focus" id="json" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">📦</span> <span style="flex:1;">3. <code>details</code> JSON 스키마 (outcome 별 disjoint)</span></summary>
+  <div class="body">
+    <p><code>display_name</code> 이 컬럼으로 발탁되었으므로 JSON 에서 제거. 나머지 outcome 별 상세 정보는 그대로 응집.</p>
+
+    <div class="json-card success">
+      <div class="json-header">✅ outcome = SUCCESS · details 스키마</div>
+      <pre><code>{
+  "triggeredBy"     : "admin@example.com" | null,    // USER_DIRECT/NUDGE_REPLACE 만 채움. TTL_AUTO 는 null
+  "trashedPath"     : "/opt/.../OS_ISO/27/dvd.iso_…" | null,
+  "originalPath"    : "/opt/.../rocky/9/dvd.iso"     | null,
+  "manifestHash"    : "sha256:7f3a…"                 | null,  // Markable 마커 보유 자원만
+  "markerSignature" : "abc…"                          | null,
+  "attemptCount"    : 1                                       // cron tick 안의 retry 횟수. TTL_AUTO 만 의미
+}</code></pre>
+    </div>
+
+    <div class="json-card failed">
+      <div class="json-header">⚠ outcome = FAILED · details 스키마</div>
+      <pre><code>{
+  "triggeredBy"      : "admin@example.com" | null,
+  "attemptNumber"    : 2,                              // 자원의 누적 FAILED count + 1 (cron tick 단위)
+  "tickAttemptCount" : 3,                              // 이번 cron tick 안의 retry 횟수 (1~retry_max_attempts)
+  "exceptionClass"   : "PurgeIoFailedException",
+  "failureReason"    : "read-only filesystem",
+  "stackHash"        : "f3a8…"                         | null  // 동일 exception 그룹핑 보조 (선택)
+}</code></pre>
+    </div>
+
+    <h3>Java 직렬화</h3>
+    <pre><code>// global/trash/PurgeLogDetails.java — sealed interface + 2 record
+public sealed interface PurgeLogDetails permits SuccessDetails, FailedDetails {}
+
+public record SuccessDetails(
+    String triggeredBy, String trashedPath, String originalPath,
+    String manifestHash, String markerSignature, int attemptCount
+) implements PurgeLogDetails {}
+
+public record FailedDetails(
+    String triggeredBy, int attemptNumber, int tickAttemptCount,
+    String exceptionClass, String failureReason, String stackHash
+) implements PurgeLogDetails {}
+
+// PurgeLogDetailsConverter — JPA @Converter
+@Converter
+public class PurgeLogDetailsConverter implements AttributeConverter&lt;PurgeLogDetails, String&gt; {
+    private final ObjectMapper mapper;  // tools.jackson.databind.ObjectMapper (Jackson 3)
+
+    @Override
+    public String convertToDatabaseColumn(PurgeLogDetails attr) {
+        return attr == null ? null : mapper.writeValueAsString(attr);
+    }
+
+    @Override
+    public PurgeLogDetails convertToEntityAttribute(String dbData) {
+        // outcome 컬럼은 entity 단에서 이미 읽혔으므로 polymorphic deserialize.
+        // @JsonTypeInfo / @JsonSubTypes 로 type discriminator. 또는 outer entity 가 outcome 보고 분기.
+    }
+}</code></pre>
+
+    <div class="callout">
+      <strong>JSON 직렬화 전략</strong> sealed interface + Jackson <code>@JsonTypeInfo</code>. entity 의 <code>outcome</code> 컬럼이 discriminator 역할 — converter 는 outcome 을 받아 적절한 record 로 deserialize. <strong>tools.jackson.*</strong> 사용 (CLAUDE.md §기술 스택).
+    </div>
+
+    <h3>스키마 확장 시 절차</h3>
+    <ul>
+      <li>새 키 추가 — record 에 컴포넌트 추가 + 기존 row 는 missing → default 처리 (Jackson <code>@JsonProperty(defaultValue=...)</code>)</li>
+      <li>키 제거 — record 컴포넌트 제거 + 직렬화에서 무시. 기존 row 의 잉여 키는 Jackson <code>FAIL_ON_UNKNOWN_PROPERTIES=false</code> 로 흡수</li>
+      <li><strong>schema migration 0</strong> — 모든 변경이 application 단에서만 (DB JSON 타입 그대로)</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== queries ============================== -->
+<details class="section focus" id="queries" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">🔎</span> <span style="flex:1;">4. 주요 쿼리 패턴</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">Q1. 자원 단위 회고 (운영자 페이지)</h3>
+    <pre><code>SELECT id, origin, outcome, occurred_at, purged_at, details
+FROM purge_log
+WHERE resource_type = 'OS_ISO' AND resource_id = 27
+ORDER BY occurred_at ASC;</code></pre>
+    <p style="font-size: 12px;">활용 인덱스 : <code>idx_purge_log_resource</code> — covering range scan</p>
+
+    <h3>Q2. 다음 cron 의 재시도 후보 자동 식별 (별 SPI 없이)</h3>
+    <pre><code>-- "재시도 후보 조회 SPI" 자체를 제거 (사용자 결정).
+-- TrashTtlWorker 는 그냥 휴지통의 TTL 만료 자원을 순회.
+-- 자원이 휴지통에 남아있다 = 아직 SUCCESS 안 했다 → 자연스러운 다음 cron 후보.
+
+SELECT resource_id
+FROM iso          -- 도메인별 자원 테이블
+WHERE is_deleted = true
+  AND trashed_at &lt;= NOW() - INTERVAL :ttl_days DAY;
+-- 이미 SUCCESS 한 자원은 entity hard-delete 로 row 자체가 사라졌으므로 자연 제외</code></pre>
+
+    <h3>Q3. 자원별 누적 FAILED 횟수 (attemptNumber 계산용)</h3>
+    <pre><code>SELECT COUNT(*) FROM purge_log
+WHERE resource_type = :type
+  AND resource_id   = :id
+  AND outcome       = 'FAILED';</code></pre>
+    <p style="font-size: 12px;">활용 인덱스 : <code>idx_purge_log_resource</code> + outcome 컬럼 후 분기 — MariaDB 가 적절히 사용</p>
+
+    <h3>Q4. 마지막 outcome=FAILED 자원 목록 (재시도 대기 배지)</h3>
+    <pre><code>-- 자원별 마지막 행이 FAILED 인 자원 셋
+WITH last_log AS (
+  SELECT resource_type, resource_id,
+         ROW_NUMBER() OVER (PARTITION BY resource_type, resource_id ORDER BY occurred_at DESC) AS rn,
+         outcome
+  FROM purge_log
+)
+SELECT resource_type, resource_id
+FROM last_log
+WHERE rn = 1 AND outcome = 'FAILED';</code></pre>
+    <p style="font-size: 12px;">MariaDB 10.2+ 의 window function 활용. 또는 자원 단위 GROUP BY + HAVING MAX(occurred_at) 패턴.</p>
+
+    <h3>Q5. Pageable 조회 (관리자 purge-log 페이지)</h3>
+    <pre><code>SELECT * FROM purge_log
+WHERE (:resource_type IS NULL OR resource_type = :resource_type)
+  AND (:origin        IS NULL OR origin        = :origin)
+  AND (:outcome       IS NULL OR outcome       = :outcome)
+  AND occurred_at BETWEEN :from AND :to
+ORDER BY occurred_at DESC
+LIMIT :size OFFSET :offset;</code></pre>
+    <p style="font-size: 12px;">활용 인덱스 : <code>idx_purge_log_outcome_occurred</code> (outcome 필터 + 정렬 동시) 또는 idx_purge_log_resource</p>
+
+    <h3>Q6. 자원 displayName 검색 (JSON parse 없음 — v3-1 의 효과)</h3>
+    <pre><code>SELECT * FROM purge_log
+WHERE display_name LIKE '%Rocky Linux%'
+ORDER BY occurred_at DESC;</code></pre>
+    <p style="font-size: 12px;">v3 는 JSON parse 필요했음 (<code>JSON_EXTRACT(details, '$.displayName') LIKE ...</code>) — v3-1 의 컬럼화로 단순 LIKE 사용 가능. 자원 검색 빈도가 높으면 <code>idx_purge_log_display_name(display_name)</code> 추가 가능 (선택).</p>
+  </div>
+</details>
+
+<!-- ============================== jpa ============================== -->
+<details class="section focus" id="jpa" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">⚙</span> <span style="flex:1;">5. JPA 매핑 & 인덱스</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;"><code>TrashSettings</code> entity</h3>
+    <pre><code>@Entity
+@Table(name = "trash_settings")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class TrashSettings extends BaseTimeEntity {
+
+    @Id
+    private Long id;  // 항상 1L
+
+    @Column(nullable = false) private int ttlDays;
+    @Column(nullable = false) private boolean autoPurgeEnabled;
+    @Column(nullable = false, length = 64) private String purgeCronExpression;
+    @Column(nullable = false, length = 64) private String notifyCronExpression;
+    @Column(nullable = false, length = 64) private String notifyDaysBefore;
+    @Column(nullable = false, length = 128) private String notificationChannels;
+    @Column(nullable = false) private int retryMaxAttempts;
+    @Column(nullable = false) private long retryBackoffBaseMs;
+
+    public static TrashSettings defaults() {
+        // id=1L + 모든 default 값 채움 빌더
+    }
+
+    public Duration getTtl() { return Duration.ofDays(ttlDays); }
+    public List&lt;Integer&gt; getNotifyDaysBeforeList() {
+        return Arrays.stream(notifyDaysBefore.split(",")).map(String::trim).map(Integer::parseInt).toList();
+    }
+    public Set&lt;NotifyChannel&gt; getNotificationChannelSet() {
+        return Arrays.stream(notificationChannels.split(",")).map(NotifyChannel::valueOf).collect(toSet());
+    }
+}</code></pre>
+
+    <h3><code>PurgeLog</code> entity</h3>
+    <pre><code>@Entity
+@Table(
+    name = "purge_log",
+    indexes = {
+        @Index(name = "idx_purge_log_resource",          columnList = "resource_type, resource_id, occurred_at DESC"),
+        @Index(name = "idx_purge_log_outcome_occurred",  columnList = "outcome, occurred_at DESC"),
+        @Index(name = "idx_purge_log_origin",            columnList = "origin")
+    }
+)
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class PurgeLog {
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private ResourceType resourceType;
+
+    @Column(nullable = false)
+    private Long resourceId;
+
+    @Column(nullable = false, length = 256)
+    private String displayName;  // v3-1 발탁 컬럼
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private PurgeOrigin origin;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 8)
+    private PurgeOutcome outcome;
+
+    @Column(nullable = false, columnDefinition = "TIMESTAMP(6)")
+    private Instant occurredAt;
+
+    @Column(columnDefinition = "TIMESTAMP(6)")
+    private Instant purgedAt;  // SUCCESS 시만 NOT NULL
+
+    @Convert(converter = PurgeLogDetailsConverter.class)
+    @Column(nullable = false, columnDefinition = "JSON")
+    private PurgeLogDetails details;
+
+    /* 도메인 메서드 — outcome 다형성을 record + sealed 로 표현 */
+    public static PurgeLog success(PurgeRequest req, Markable snapshot, int tickAttemptCount,
+                                   Instant occurredAt, Instant purgedAt) { /* ... */ }
+
+    public static PurgeLog failure(PurgeRequest req, Throwable lastError,
+                                   int attemptNumber, int tickAttemptCount,
+                                   Instant occurredAt) { /* purgedAt=null */ }
+}</code></pre>
+
+    <h3>BaseTimeEntity 사용 여부</h3>
+    <p><code>PurgeLog</code> 은 <code>BaseTimeEntity</code> 를 <strong>상속하지 않는다</strong>. 이유 : <code>created_at</code> / <code>modified_at</code> 보다 <code>occurred_at</code> / <code>purged_at</code> 가 도메인 의미를 직접 표현. base 의 자동 컬럼이 노이즈가 됨. INSERT only 라 modified_at 도 무의미.</p>
+
+    <h3><code>SHOW CREATE TABLE</code> 예상 출력</h3>
+    <pre><code>CREATE TABLE `purge_log` (
+  `id`            BIGINT NOT NULL AUTO_INCREMENT,
+  `resource_type` VARCHAR(32)  NOT NULL,
+  `resource_id`   BIGINT       NOT NULL,
+  `display_name`  VARCHAR(256) NOT NULL,
+  `origin`        VARCHAR(16)  NOT NULL,
+  `outcome`       VARCHAR(8)   NOT NULL,
+  `occurred_at`   TIMESTAMP(6) NOT NULL,
+  `purged_at`     TIMESTAMP(6) NULL,
+  `details`       JSON         NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_purge_log_resource`         (`resource_type`, `resource_id`, `occurred_at`),
+  KEY `idx_purge_log_outcome_occurred` (`outcome`, `occurred_at`),
+  KEY `idx_purge_log_origin`           (`origin`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;</code></pre>
+
+    <div class="callout warn">
+      <strong>MariaDB JSON 컬럼 주의</strong> MariaDB 의 JSON 은 사실상 LONGTEXT alias (validation 만 적용). JSON 함수 인덱스는 생성 불가 — 필요 시 generated column 후 인덱스 패턴. 본 슬라이스는 JSON 키 기반 검색 빈도가 낮으므로 별도 처리 안 함. 운영 병목 시 PostgreSQL jsonb + GIN 이관 검토.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== preview ============================== -->
+<details class="section" id="preview" open>
+  <summary><span style="color:var(--text-muted); min-width:20px;">🎬</span> <span style="flex:1;">미리보기 — 실제 timestamp 시뮬레이션</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">자연어 D+ 표기 대신 <strong>실제 timestamp (마이크로초 정밀도)</strong> 로 표시.</p>
+
+    <div class="ux-wrap">
+      <div class="ux-toolbar">
+        <span class="group-label">시간 흐름 :</span>
+        <button onclick="advanceHours(1)">+1시간</button>
+        <button onclick="advanceDays(1)">+1일</button>
+        <button onclick="advanceDays(23)">+23일</button>
+        <button onclick="advanceDays(6)">+6일</button>
+        <button onclick="resetSim()">초기화</button>
+      </div>
+      <div class="ux-toolbar">
+        <span class="group-label">시나리오 :</span>
+        <button onclick="injectIoFailure()">⚠ I/O 실패 주입 (다음 cron)</button>
+        <button onclick="injectNudgeReplace()">nudge REPLACE 시뮬</button>
+      </div>
+
+      <div style="margin-top: 10px; padding: 8px 12px; background: var(--card); border-radius: 6px; border: 1px solid var(--border-soft);">
+        현재 시점 : <span class="ux-current-ts" id="ux-ts">—</span>
+        <span style="color: var(--text-muted); margin-left: 12px;" id="ux-ts-note">자원이 휴지통에 막 이동된 시점</span>
+      </div>
+
+      <div id="ux-timeline">
+        <!-- 동적 -->
+      </div>
+
+      <div class="ux-log-table">
+        <div class="title">📊 purge_log (실제 timestamp 시간순)</div>
+        <table id="ux-log-table">
+          <thead>
+            <tr>
+              <th>id</th><th>resource_type</th><th>resource_id</th>
+              <th>display_name</th><th>origin</th><th>outcome</th>
+              <th>occurred_at</th><th>purged_at</th><th>details (JSON)</th>
+            </tr>
+          </thead>
+          <tbody><tr><td colspan="9" style="color: var(--text-muted); text-align: center;">(empty)</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="ux-message" id="ux-message">⏳ 자원 1건이 휴지통에 있어요. "+1일" 또는 "+1시간" 으로 진행하세요.</div>
+    </div>
+
+    <h3 style="margin-top: 22px;">실제 timestamp 시나리오</h3>
+    <ol style="line-height: 1.75;">
+      <li><strong>휴지통 진입</strong> — <code>trashed_at = 2026-05-15 09:00:00.000</code></li>
+      <li><strong>D+23 도달</strong> — <code>2026-06-07 09:00:00</code> → JobType.TTL_NOTIFY 등록 (display_name 으로 사용자에게 안내)</li>
+      <li><strong>D+30 cron tick</strong> — <code>occurred_at = 2026-06-14 00:00:01.123</code> 에 PurgeExecutor 진입. 실패 시 purge_log 1행 (purged_at NULL)</li>
+      <li><strong>다음 cron tick</strong> — <code>occurred_at = 2026-06-14 01:00:00.892</code> 에 또 시도</li>
+      <li><strong>최종 SUCCESS</strong> — <code>occurred_at = 2026-06-14 02:00:00.501</code>, <code>purged_at = 2026-06-14 02:00:01.234</code></li>
+    </ol>
+  </div>
+</details>
+
+<!-- ============================== flow ============================== -->
+<details class="section" id="flow">
+  <summary><span style="color:var(--text-muted); min-width:20px;">6.</span> <span style="flex:1;">PurgeExecutor 흐름 (v3 와 동일, 컬럼 분리 반영)</span></summary>
+  <div class="body">
+    <pre><code>public PurgeResult execute(PurgeRequest req) {
+    Instant occurredAt = Instant.now();
+    Markable snapshot = scanner.findTrashedById(req.resourceId()).orElseThrow();
+    String displayName = snapshot.displayName();  // v3-1 — 컬럼 저장용 발탁
+
+    Exception lastFailure = null;
+    int maxAttempts = req.origin().retriesAllowed() ? settings.getRetryMaxAttempts() : 1;
+
+    for (int tickAttempt = 1; tickAttempt &lt;= maxAttempts; tickAttempt++) {
+        try {
+            scanner.purgeFromTrash(req.resourceId());
+            Instant purgedAt = Instant.now();
+            SuccessDetails details = new SuccessDetails(
+                req.triggeredBy(),
+                snapshot.getTrashedPathOrNull(), snapshot.getResourcePath().toString(),
+                snapshot.getManifestHash(), snapshot.getMarkerSignature(),
+                tickAttempt
+            );
+            purgeLogRepository.save(PurgeLog.success(
+                req.resourceType(), req.resourceId(), displayName,
+                req.origin(), occurredAt, purgedAt, details));
+            return PurgeResult.success(req);
+
+        } catch (PurgeIoFailedException ex) {
+            lastFailure = ex;
+            if (tickAttempt &lt; maxAttempts) {
+                Thread.sleep(backoff(tickAttempt));  // 1s/2s/4s
+            }
+        }
+    }
+
+    int historicalFailedCount = purgeLogRepository.countByResourceAndOutcome(
+        req.resourceType(), req.resourceId(), PurgeOutcome.FAILED);
+    FailedDetails details = new FailedDetails(
+        req.triggeredBy(),
+        historicalFailedCount + 1, maxAttempts,
+        lastFailure.getClass().getSimpleName(), lastFailure.getMessage(),
+        stackHashOf(lastFailure)
+    );
+    purgeLogRepository.save(PurgeLog.failure(
+        req.resourceType(), req.resourceId(), displayName,
+        req.origin(), occurredAt, details));
+    return PurgeResult.failed(req, lastFailure);
+}</code></pre>
+  </div>
+</details>
+
+<!-- ============================== scope ============================== -->
+<details class="section" id="scope">
+  <summary><span style="color:var(--text-muted); min-width:20px;">7.</span> <span style="flex:1;">비스코프 / 후속 (v3 와 동일)</span></summary>
+  <div class="body">
+    <ul>
+      <li>외부 알림 채널 — D5 알림 도메인 후속</li>
+      <li>분산 cron lock (ShedLock) — 단일 JVM 전제</li>
+      <li>purge_log 자동 정리 — 후속</li>
+      <li>PostgreSQL 이관 — 본 슬라이스 범위 외 (운영 병목 발생 시)</li>
+      <li><code>idx_purge_log_display_name</code> — 자원 이름 검색 빈도 높아지면 추가</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== plan-link ============================== -->
+<details class="section" id="plan-link">
+  <summary><span style="color:var(--text-muted); min-width:20px;">8.</span> <span style="flex:1;">v3 본문 연결 — 다른 섹션은 그대로 사용</span></summary>
+  <div class="body">
+    <p>본 v3-1 은 데이터베이스 테이블 설계 정밀화 보충 문서. 다음 섹션은 <strong>v3 plan</strong> (<code>plan/26-05-15_00-21-32_S5-2-4_plan_v3.html</code>) 의 해당 절을 그대로 참고 :</p>
+    <ul>
+      <li>§1 현재 상태 — v3 §1</li>
+      <li>§2 요구사항 + 결정 (D1~D8) — v3 §2</li>
+      <li>§3 URL · 흐름 — v3 §3 (단, 자원 lookup 흐름에서 displayName 을 컬럼으로 저장하는 부분만 v3-1 의 §5 코드 참조)</li>
+      <li>§5 10단계 + CP — v3 §5</li>
+      <li>§6 통합 테스트 20 시나리오 — v3 §6</li>
+      <li>§7 예외 계층 — v3 §7</li>
+      <li>§8 부산물 · 주의 — v3 §8</li>
+      <li>§9 Verification — v3 §9</li>
+      <li>§10 Critical Files — v3 §10 (단, PurgeLog 의 컬럼 1개 추가 반영)</li>
+      <li>§11 다음 마일스톤 — v3 §11</li>
+    </ul>
+    <div class="callout success">
+      <strong>최종 CP1 채택</strong> v3 + v3-1 두 plan 을 함께. v3 는 슬라이스 전체 골격, v3-1 은 DB 설계 정밀화. 두 문서의 충돌점은 v3-1 이 우선 (가장 최신 사용자 결정 반영).
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => { const r = s.getBoundingClientRect(); if (r.top < 200) active = s.id; });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      const matches = text.includes(q);
+      d.classList.toggle('hidden', !matches);
+      if (matches) d.open = true;
+    });
+  });
+
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+
+  // 시뮬레이션 — 실제 timestamp
+  const baseTime = new Date('2026-05-15T09:00:00.000Z');
+  function fmt(d) {
+    const pad = (n, w=2) => String(n).padStart(w, '0');
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate())
+      + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds())
+      + '.' + pad(d.getUTCMilliseconds(), 3);
+  }
+  function offsetMs(ms) { return new Date(baseTime.getTime() + ms); }
+
+  let simState = {
+    elapsedMs: 0,
+    resources: [{ id: 27, name: 'Rocky Linux 9.5 dvd.iso', resourceType: 'OS_ISO', purgedAtMs: null }],
+    logRows: [],
+    pendingFailure: false
+  };
+
+  function pastFailedCount(rType, rId) {
+    return simState.logRows.filter(r => r.resource_type === rType && r.resource_id === rId && r.outcome === 'FAILED').length;
+  }
+
+  function render() {
+    const tl = document.getElementById('ux-timeline');
+    tl.innerHTML = '';
+    simState.resources.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'ux-row';
+      let badgeClass = 'trashed', badgeText = '휴지통';
+      const failed = pastFailedCount(r.resourceType, r.id);
+      const days = simState.elapsedMs / (24 * 3600 * 1000);
+      if (r.purgedAtMs !== null) { badgeClass = 'purged'; badgeText = '영구삭제 완료'; row.classList.add('muted'); }
+      else if (failed > 0) { badgeClass = 'failed'; badgeText = `재시도 대기 (FAILED ${failed}회)`; }
+      else if (days >= 29) { badgeClass = 'crit'; badgeText = '1일 후 영구삭제'; }
+      else if (days >= 23) { badgeClass = 'warn'; badgeText = '7일 후 영구삭제'; }
+      row.innerHTML = `<span class="ts">${fmt(offsetMs(simState.elapsedMs))}</span><span class="label">${r.name}</span><span class="badge ${badgeClass}">${badgeText}</span>`;
+      tl.appendChild(row);
+    });
+    document.getElementById('ux-ts').textContent = fmt(offsetMs(simState.elapsedMs));
+    const note = document.getElementById('ux-ts-note');
+    const days = simState.elapsedMs / (24 * 3600 * 1000);
+    if (simState.elapsedMs === 0) note.textContent = '자원이 휴지통에 막 이동된 시점';
+    else if (days < 23) note.textContent = '정상 보관 중';
+    else if (days < 29) note.textContent = '🟡 7일 후 영구삭제';
+    else if (days < 30) note.textContent = '🔴 1일 이내 영구삭제';
+    else note.textContent = '🗑 TTL 만료 — cron 진입 시도';
+
+    const lt = document.querySelector('#ux-log-table tbody');
+    if (simState.logRows.length === 0) {
+      lt.innerHTML = '<tr><td colspan="9" style="color: var(--text-muted); text-align: center;">(empty)</td></tr>';
+    } else {
+      lt.innerHTML = simState.logRows.map((r, i) =>
+        `<tr><td>${i+1}</td><td>${r.resource_type}</td><td>${r.resource_id}</td><td>${r.display_name}</td><td>${r.origin}</td>` +
+        `<td><span class="badge ${r.outcome === 'SUCCESS' ? 'purged' : 'failed'}">${r.outcome}</span></td>` +
+        `<td class="ts-cell">${r.occurred_at}</td><td class="ts-cell">${r.purged_at || '—'}</td>` +
+        `<td class="json-cell">${JSON.stringify(r.details, null, 2)}</td></tr>`
+      ).join('');
+    }
+  }
+
+  function setMessage(msg, kind) {
+    const el = document.getElementById('ux-message');
+    el.textContent = msg;
+    el.className = 'ux-message' + (kind ? ' ' + kind : '');
+  }
+
+  function advanceHours(h) {
+    simState.elapsedMs += h * 3600 * 1000;
+    maybeNotifyOrPurge();
+    render();
+  }
+
+  function advanceDays(d) {
+    let stop = false;
+    for (let i = 0; i < d && !stop; i++) {
+      simState.elapsedMs += 24 * 3600 * 1000;
+      stop = maybeNotifyOrPurge();
+    }
+    render();
+  }
+
+  function maybeNotifyOrPurge() {
+    const days = simState.elapsedMs / (24 * 3600 * 1000);
+    if (Math.abs(days - 23) < 0.01) setMessage('🟡 D+23 도달 — TTL_NOTIFY Job 등록', 'warn');
+    else if (Math.abs(days - 29) < 0.01) setMessage('🔴 D+29 도달 — 1일 알림 격상', 'warn');
+    else if (days >= 30 && simState.resources[0].purgedAtMs === null) {
+      simulatePurge();
+      return true;
+    }
+    return false;
+  }
+
+  function simulatePurge() {
+    const r = simState.resources[0];
+    const occurredAt = fmt(offsetMs(simState.elapsedMs + Math.floor(Math.random() * 1500)));
+    setMessage(`${occurredAt} — PurgeExecutor(TTL_AUTO) 진입`, 'warn');
+
+    setTimeout(() => {
+      if (simState.pendingFailure) {
+        const attemptNumber = pastFailedCount(r.resourceType, r.id) + 1;
+        simState.logRows.push({
+          resource_type: r.resourceType, resource_id: r.id, display_name: r.name,
+          origin: 'TTL_AUTO', outcome: 'FAILED',
+          occurred_at: occurredAt, purged_at: null,
+          details: {
+            triggeredBy: null,
+            attemptNumber, tickAttemptCount: 3,
+            exceptionClass: 'PurgeIoFailedException',
+            failureReason: 'read-only filesystem'
+          }
+        });
+        simState.pendingFailure = false;
+        setMessage(`⚠ purge_log 1행 INSERT (FAILED, attemptNumber=${attemptNumber}). 자원이 휴지통에 남아 다음 cron 자동 재시도.`, 'error');
+        // 1시간 후로 시간 이동 (다음 cron 시뮬)
+        simState.elapsedMs += 3600 * 1000;
+      } else {
+        const purgedAt = fmt(offsetMs(simState.elapsedMs + Math.floor(2000 + Math.random() * 1500)));
+        simState.logRows.push({
+          resource_type: r.resourceType, resource_id: r.id, display_name: r.name,
+          origin: 'TTL_AUTO', outcome: 'SUCCESS',
+          occurred_at: occurredAt, purged_at: purgedAt,
+          details: {
+            triggeredBy: null,
+            trashedPath: '/opt/.../OS_ISO/27/dvd.iso_…',
+            originalPath: '/opt/.../rocky/9/dvd.iso',
+            manifestHash: 'sha256:7f3a…',
+            markerSignature: 'abc…',
+            attemptCount: 1
+          }
+        });
+        r.purgedAtMs = simState.elapsedMs;
+        setMessage(`✅ ${r.name} 영구삭제 완료. purge_log 1행 INSERT (SUCCESS, purged_at=${purgedAt}).`, 'success');
+      }
+      render();
+    }, 700);
+  }
+
+  function injectIoFailure() {
+    simState.pendingFailure = true;
+    setMessage('⚠ 다음 cron tick 에 I/O 실패 주입.', 'warn');
+  }
+
+  function injectNudgeReplace() {
+    const r = simState.resources[0];
+    const occurredAt = fmt(offsetMs(simState.elapsedMs));
+    setMessage(`${occurredAt} — nudge REPLACE typed-name 통과 → PurgeExecutor 진입`, 'warn');
+    setTimeout(() => {
+      const purgedAt = fmt(offsetMs(simState.elapsedMs + 800));
+      simState.logRows.push({
+        resource_type: r.resourceType, resource_id: r.id, display_name: r.name,
+        origin: 'NUDGE_REPLACE', outcome: 'SUCCESS',
+        occurred_at: occurredAt, purged_at: purgedAt,
+        details: {
+          triggeredBy: 'admin@example.com',
+          trashedPath: null, originalPath: '/opt/.../rocky/9/dvd.iso',
+          manifestHash: 'sha256:7f3a…', markerSignature: 'abc…',
+          attemptCount: 1
+        }
+      });
+      r.purgedAtMs = simState.elapsedMs;
+      setMessage(`✅ nudge REPLACE 완료. purge_log 1행 (NUDGE_REPLACE, triggeredBy=admin@example.com).`, 'success');
+      render();
+    }, 800);
+  }
+
+  function resetSim() {
+    simState = {
+      elapsedMs: 0,
+      resources: [{ id: 27, name: 'Rocky Linux 9.5 dvd.iso', resourceType: 'OS_ISO', purgedAtMs: null }],
+      logRows: [], pendingFailure: false
+    };
+    setMessage('초기화. "+1일" 또는 "+1시간" 으로 시간을 진행시켜보세요.', '');
+    render();
+  }
+
+  render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<!--
+ ============================================================================
+  plan_template.html — ServerProvision 수직 슬라이스 Step 1 plan 템플릿
+ ============================================================================
+  사용법 (CLAUDE.md §Step 1 — plan html 규약 준수) :
+   1. 이 파일을 복제 → plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html 로 저장.
+      · timestamp 는 KST(Asia/Seoul) 기준 (UTC 금지).  · 페이지키 = 인벤토리 코드(R2-3 / MA4 / HF-3 …).
+   2. {{...}} 토큰과 TODO... 주석을 실제 내용으로 교체.
+   3. 불필요한 §0(재설계 동기)·부록 위젯·split-card 등은 삭제. 11 필수 섹션(§1~§11)은 유지.
+
+  불가침 (CLAUDE.md) :
+   · 골격 = header.page-header(top sticky) → div.layout(grid 240px 1fr) → nav.toc(sticky, top:108px) + main.
+   · 말미 <script> 4 로직 = ① ToC 클릭→open+scroll  ② 전부펴기/접기  ③ filter 검색(.hidden+open)  ④ check-list localStorage.
+   · 🎬 미리보기는 §2 직후 배치 + "진짜 인터랙티브" — state+render()+action() 라이브 시뮬. 정적 텍스트/도식으로 대체 금지.
+   · 🎬 demoBlocks() 의 도메인 판정은 서버 도메인 메서드(LifecycleEntity.blocksChildXxx 등)와 1:1 동일 로직을 JS 재현(드리프트 0).
+     UI disable 판정 == 서버 throw 판정이 같은 SSOT 임을 .ux-caps capability 패널로 시각 증명. render() 는 파일 끝에서 1회 호출.
+   · disabled 버튼 차단 사유 = .tip[data-tip] CSS tooltip (native title 은 disabled 에서 안 뜸 → wrapper span 사용).
+
+  색 팔레트(:root)는 자유 — 구조·인터랙티비티가 본질. 테마 교체는 :root 만 바꾸면 chip/callout/badge/seq/card 전부 따라온다.
+ ============================================================================
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{PAGE_KEY}} Plan — {{SLICE_TITLE}}</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC (sticky — 헤더 높이만큼 top offset) ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 (쉐브론 회전) ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip (CP 단계 + 변경 분류 + variant) ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout 강조 박스 ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 진행 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : BEFORE(red) / AFTER(green) 코드·도식 2열 비교 (보조) ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow : lifecycle 상태 전이 ASCII (보조, §4) ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 (live demo) — §2 직후 (불가침) ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── 부록 위젯 (필요 시 본문으로 복사 후 부록 details 삭제) ── */
+  /* .seq : N-actor 호출 흐름 (§3 데이터 흐름) */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  /* .pkg-tree : 디렉토리/패키지 트리 (§3/§4) */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  /* card-grid : 정책/옵션 병렬 비교 (§3/§4) */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>{{PAGE_KEY}} — {{SLICE_TITLE}} <span class="v2-badge">{{SLICE_TAG}}</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> {{PAGE_KEY}} ({{TYPE: feature|refactor|hotfix}})</span>
+    <span><strong>상위</strong> {{PARENT_SLICE}}</span>
+    <span><strong>scope</strong> {{ONE_LINE_SCOPE}}</span>
+    <span><strong>생성</strong> {{YYYY-MM-DD}} KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <!-- §0 은 재설계/스코프 재정의 슬라이스에만. 일반 신규는 삭제하고 §1 부터. -->
+      <!-- <li><a href="#s0">§0 재설계 동기</a></li> -->
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 재설계 동기 (선택 — v1→v2 재설계/스코프 재정의 때만. 아니면 삭제) =====
+    <details class="section" id="s0" open>
+      <summary>§0. 재설계 동기 (v1 → v2)</summary>
+      <div class="body">
+        TODO: 동기 + 이전 접근의 한계 + 이번 변경의 본질. 결정 변경점은 <span class="diff-del">제거</span> / <span class="diff-add">추가</span> 로.
+      </div>
+    </details>
+    -->
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <!-- TODO: 선행 슬라이스 완료/미완, 진입 전제, 현재 시스템 결손·비대칭·진단(예: N-에이전트 workflow audit).
+             무엇이 갖춰졌고 무엇이 비었는지. 가드/액션 표 + .callout.warn 핵심 진단. -->
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <!-- TODO: UI 기능/제약/중복방지 등 확정 규칙(체크 가능한 항목). -->
+        <ol><li>TODO 요구 1</li></ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul><li>TODO — 다음 슬라이스 어디로 가는지 명시</li></ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;"><!-- TODO: 무엇을 바꿔 무엇을 검증하는 데모인지 1문단. -->
+          아래 toolbar 로 <b>{{부모/상태}}</b> 를 바꾸면 자식 액션 버튼의 차단(disabled + tooltip)이 라이브로 갱신됩니다.
+          (데모 판정 = 서버 가드 = 뷰 플래그, <b>같은 SSOT</b>)</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">{{부모 상태}} :</span>
+            <button class="seg" data-state="ACTIVE" onclick="demoSet('ACTIVE')">ACTIVE</button>
+            <button class="seg" data-state="DISABLED" onclick="demoSet('DISABLED')">DISABLED</button>
+            <button class="seg" data-state="DEPRECATED" onclick="demoSet('DEPRECATED')">DEPRECATED</button>
+            <button class="seg" data-state="DELETED" onclick="demoSet('DELETED')">DELETED</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-parent">
+              <strong>{{부모}}</strong><span class="label">{{부모 예시명}}</span>
+              <span class="badge on" id="demo-parent-badge">활성화</span>
+            </div>
+            <div class="ux-row child" id="demo-child"><!-- JS 렌더 --></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">상태 버튼을 눌러보세요. 차단된 버튼에 마우스를 올리면 tooltip 이 떠요.</div>
+        </div>
+
+        <!-- (보조) BEFORE/AFTER 코드 비교 — 필요 시. 데모를 대체하지 말 것. -->
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE</h4><pre><code>TODO</code></pre></div>
+          <div class="split-card after"><h4>AFTER — SSOT 1 소스</h4><pre><code>TODO</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 disable 판정 = 서버 throw 판정 = <code>{{domainMethod()}}</code> 단일 바디.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <!-- TODO: URL 표 + 흐름도(pre code ASCII 또는 부록 .seq) + Miller/응답 구조. 정상/비정상(throw+상태코드) 분기. -->
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody><tr><td>POST</td><td><code>/...</code></td><td>TODO</td><td>302 / 200 / 409</td></tr></tbody>
+        </table>
+        <pre><code>[조회 렌더]  GET /...  → Service.toResponse(...) → capability 적재 → Thymeleaf disable+tooltip
+[액션 정상]  차단 버튼 클릭 불가 → 서버 도달 0
+[액션 비정상] direct POST → Service 가드 → throw {{Exception}} (409, 안전망)</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <!-- TODO: Entity 필드 표, VO/Enum, 도메인 메서드. 🎬 데모 판정이 호출하는 단일 소스(서버 가드 + 뷰 플래그 공유) 명시. -->
+        <h4>{{Entity}} 도메인 메서드 (SSOT)</h4>
+        <pre><code>TODO</code></pre>
+        <!-- (보조) lifecycle 전이는 .state-flow 로:
+        <div class="state-flow">ACTIVE ──deprecate──▶ DEPRECATED ──delete──▶ SOFT_DELETED</div> -->
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6~7</td><td>Repository · Entity (+VO/Enum)</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8~9</td><td>Service 본체 + 단위/통합 테스트 + 스키마 확인</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <!-- TODO: 사용자 액션 범주별(성공 2xx · 400 · 404 · 409 · 500) + 시나리오 수. 컨트롤러별 플로우 파일. 신규 예외마다 트리거. -->
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody><tr><td>성공</td><td>TODO</td><td>0</td></tr></tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <!-- TODO: 신규·재사용 예외 구분 + HTTP status 매핑(@ResponseStatus/advice). 변경 0 이면 KEEP 근거. -->
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody><tr><td><code>TODO</code></td><td>409</td><td><span class="chip keep">재사용</span></td></tr></tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <!-- TODO: 스코프 경계, 미루는 리팩터, 잔존 책임·임시 비대칭(+해소 시점), CLAUDE.md 수정, 관련 페이지 동반 수정, open questions. -->
+        <h4>Open Questions (CP1 결정)</h4>
+        <table><thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody><tr><td>Q1</td><td>TODO</td><td>TODO</td></tr></tbody></table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="{{PAGE_KEY}}-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>TODO</code></td><td>TODO</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>TODO</code></td><td>TODO</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>TODO</code></td><td>변경 0 (KEEP 근거)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <!-- TODO: 후속 슬라이스 1~2줄 예고 + 본 슬라이스 잔존 책임을 어느 슬라이스가 받는지. -->
+        <ol><li>TODO</li></ol>
+      </div>
+    </details>
+
+    <!-- ===== 부록 : 선택 재사용 위젯 (본문 필요한 곳에 복사 후 이 details 삭제) ===== -->
+    <details class="section" id="appendix">
+      <summary>📎 부록 — 선택 위젯 (복사용, 산출 전 삭제)</summary>
+      <div class="body">
+        <h4>.seq — N-actor 호출 흐름 (§3)</h4>
+        <div class="seq">
+          <div class="actor a1">Caller</div><div class="actor a2">Dispatcher</div><div class="actor a3">Strategy</div>
+          <div class="step a1"><code>call(arg)</code></div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">위임 선택</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">정책 적용 → 반환</div>
+        </div>
+        <h4>.pkg-tree — 디렉토리/패키지 트리 (§3/§4)</h4>
+        <div class="pkg-tree">com.example.serverprovision.{{feature}}/
+├── {{NewClass}}.java          (신규)
+└── service/
+    └── {{Service}}.java       (수정)</div>
+        <h4>card-grid — 정책/옵션 병렬 비교 (§3/§4)</h4>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>옵션 A</h4><ul><li>TODO</li></ul></div>
+          <div class="card v-orange"><h4>옵션 B</h4><ul><li>TODO</li></ul></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:12px;">※ .ux-jobcard / .db-table (비동기 Job·라이브 DB 시뮬) 가 필요하면 <code>plan/26-05-15_..._S5-2-4_plan_v2.html</code> 참조.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 (이 슬라이스 도메인 규칙을 JS 로 1:1 재현)
+  //  ⚠ demoBlocks() 는 서버 도메인 메서드(예: LifecycleEntity.blocksChildXxx)와 동일 판정이어야 함 (드리프트 0).
+  //  ⚠ render() 는 파일 끝에서 1회 호출. disabled 사유는 .tip[data-tip] CSS tooltip.
+  //  cascade(부모→자식 강제) 슬라이스면 state={parent,children[]} + action 을 parentAction/childAction 이원으로 확장.
+  // ─────────────────────────────────────────────────────────────
+  let demoParent = 'ACTIVE';
+  const DEMO_TIPS = {
+    enable: '부모가 비활성 / Deprecated / 삭제 상태입니다. 부모를 먼저 정상화해주세요.',
+    restore: '부모 자원이 삭제 상태입니다. 부모부터 복구해주세요.',
+    undeprecate: '부모 자원이 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.'
+  };
+  // ⬇⬇ TODO: 서버 도메인 메서드와 동일 로직으로 교체 (아래는 LifecycleEntity.blocksChild* 의 JS 재현 예시) ⬇⬇
+  function demoBlocks(p) {
+    const reason = (p === 'DELETED') ? 'DELETED' : (p === 'DISABLED') ? 'DISABLED' : (p === 'DEPRECATED') ? 'DEPRECATED' : null;
+    return { enableReason: reason, enable: reason !== null, restore: (p === 'DELETED'), undeprecate: (p === 'DEPRECATED' || p === 'DELETED') };
+  }
+  // ⬆⬆ 여기까지 교체 ⬆⬆
+  function demoSet(s) { demoParent = s; demoRender(); }
+  function demoClick(action, blocked) {
+    const msg = document.getElementById('demo-message');
+    const L = { enable: '활성화', disable: '비활성화', restore: '복구', undeprecate: 'Deprecated 해제', purge: '영구삭제' };
+    if (blocked) {
+      msg.className = 'ux-message error';
+      msg.textContent = '이 버튼은 부모 상태 때문에 disabled 입니다 (UI 1차 차단). 서버 가드도 같은 판정으로 409 안전망.';
+      return;
+    }
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ ' + L[action] + ' 진행 — 부모 상태가 막지 않음.';
+  }
+  function demoBtn(action, label, blocked, tip, extra) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    const st = extra ? (' style="' + extra + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + st + dis +
+      ' onclick="demoClick(\'' + action + '\',' + blocked + ')">' + label + '</button></span>';
+  }
+  function demoRender() {
+    const p = demoParent, b = demoBlocks(p);
+    document.querySelectorAll('.ux-toolbar .seg[data-state]').forEach(s => s.classList.toggle('active', s.dataset.state === p));
+    const pmap = { ACTIVE: ['활성화', 'on'], DISABLED: ['비활성화', 'off'], DEPRECATED: ['Deprecated', 'dep'], DELETED: ['삭제됨(휴지통)', 'del'] };
+    const pb = document.getElementById('demo-parent-badge');
+    pb.textContent = pmap[p][0]; pb.className = 'badge ' + pmap[p][1];
+    document.getElementById('demo-parent').classList.toggle('muted', p === 'DELETED');
+
+    const child = document.getElementById('demo-child');
+    child.classList.toggle('muted', p === 'DELETED');
+    let cbadge, buttons;
+    if (p === 'DELETED') {
+      cbadge = '<span class="badge del">삭제됨</span>';
+      buttons = demoBtn('restore', '복구', b.restore, DEMO_TIPS.restore)
+              + demoBtn('purge', '영구삭제', false, '', 'border-color:var(--red);color:var(--red)');
+    } else if (p === 'DEPRECATED') {
+      cbadge = '<span class="badge dep">Deprecated</span>';
+      buttons = demoBtn('enable', '활성화', b.enable, DEMO_TIPS.enable)
+              + demoBtn('undeprecate', 'Deprecated 해제', b.undeprecate, DEMO_TIPS.undeprecate);
+    } else if (p === 'DISABLED') {
+      cbadge = '<span class="badge off">비활성화</span>';
+      buttons = demoBtn('enable', '활성화', b.enable, DEMO_TIPS.enable);
+    } else {
+      cbadge = '<span class="badge on">활성화</span>';
+      buttons = demoBtn('disable', '비활성화', false, '');
+    }
+    child.innerHTML = '<strong>{{자식}}</strong><span class="label">{{자식 예시명}}</span>' + cbadge + buttons;
+
+    const tf = v => v ? '<span class="t">true</span> → 차단' : '<span class="f">false</span> → 허용';
+    document.getElementById('demo-caps').innerHTML =
+      'child.parentBlocksEnable      = ' + tf(b.enable) + (b.enableReason ? '  (reason="' + b.enableReason + '")' : '') + '\n' +
+      'child.parentBlocksUndeprecate = ' + tf(b.undeprecate) + '\n' +
+      'child.parentBlocksRestore     = ' + tf(b.restore);
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

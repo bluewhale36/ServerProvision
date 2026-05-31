@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-11 Plan — 진입점 자동 탐지 로직 정합화 (제조사별 .cap / f.nsh)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.new { background: var(--green-bg); color: var(--green); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+
+  .hidden { display: none !important; }
+
+  /* 우선순위 단계 다이어그램 */
+  .priority { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+  .priority-step { background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 14px; display: grid; grid-template-columns: 40px 1fr 200px; gap: 10px; align-items: center; }
+  .priority-step.new { border-color: var(--green); background: var(--green-bg); border-width: 2px; }
+  .priority-num { font-family: var(--mono); font-weight: 700; font-size: 18px; text-align: center;
+    color: var(--text-muted); }
+  .priority-step.new .priority-num { color: var(--green); }
+  .priority-rule { font-size: 13px; }
+  .priority-eg { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+
+  /* 제조사 매트릭스 */
+  .vendor-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .vendor-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; }
+  .vendor-card h4 { margin: 0 0 8px; font-size: 14px; font-family: var(--mono); }
+  .vendor-card.cover { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .vendor-card.cover h4 { color: var(--green); }
+  .vendor-card.fail { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .vendor-card.fail h4 { color: var(--red); }
+  .vendor-card.unsupported { border-color: var(--text-muted); background: var(--bg); }
+  .vendor-card.unsupported h4 { color: var(--text-muted); }
+  .vendor-card ul { margin: 4px 0; padding-left: 18px; }
+  .vendor-card li { font-size: 12px; line-height: 1.55; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .vendor-grid { grid-template-columns: 1fr; }
+    .priority-step { grid-template-columns: 30px 1fr; }
+    .priority-eg { grid-column: 1 / -1; padding-left: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-11 — 진입점 자동 탐지 로직 정합화 (제조사별 .cap / f.nsh)</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21 22:30</strong></span>
+    <span>상위 : <strong>S5 (MA · MK 단계 점검)</strong></span>
+    <span>선행 : <strong>S5-10 완료 (마커 OS-level 숨김)</strong></span>
+    <span>변경 표면 : <strong>BundleEntrypointDetector +1 단계</strong></span>
+    <span>상태 : <span class="chip cp1">CP1 산출</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s3">3. URL / 데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 / 회귀</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색…">
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 현재 상태</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">1.1 현재 진입점 탐지 우선순위</h3>
+    <p><code>BundleEntrypointDetector.detect(Path treeRoot, String override)</code> 의 단계 :</p>
+    <div class="priority">
+      <div class="priority-step">
+        <div class="priority-num">1</div>
+        <div class="priority-rule">override 가 있으면 EntrypointPolicyService 검증 후 그대로 반환</div>
+        <div class="priority-eg">사용자가 진입점 명시 지정</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">2</div>
+        <div class="priority-rule">트리 전체에 (marker / OS 잡파일 제외) 파일이 1 개면 그 파일</div>
+        <div class="priority-eg">단일 파일 번들 — ASUS .CAP 만 있는 경우 cover</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">3</div>
+        <div class="priority-rule">루트 수준의 <code>f.nsh</code> 우선 (대소문자 무시)</div>
+        <div class="priority-eg">GIGABYTE 표준 컨벤션</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">4</div>
+        <div class="priority-rule">루트 수준의 <code>flash.nsh</code> fallback</div>
+        <div class="priority-eg">일부 보드 컨벤션</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">5</div>
+        <div class="priority-rule">루트의 <code>*.nsh</code> 가 정확히 1 개면 그것</div>
+        <div class="priority-eg">단일 .nsh 자동 채택</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">!</div>
+        <div class="priority-rule">루트 <code>*.nsh</code> 2 개 이상 → EntrypointAmbiguousException<br>0 개 → EntrypointNotFoundException</div>
+        <div class="priority-eg">사용자 명시 지정 요구</div>
+      </div>
+    </div>
+
+    <h3>1.2 제조사별 cover 매트릭스 (S5-11 진입 전)</h3>
+    <div class="vendor-grid">
+      <div class="vendor-card cover">
+        <h4>GIGABYTE ✓</h4>
+        <ul>
+          <li>루트 <code>f.nsh</code> — 단계 3 에서 잡힘</li>
+          <li><code>flash.nsh</code> — 단계 4</li>
+          <li>다양한 부속 파일 함께 → 단계 2 fail 가능, 단계 3-5 cover</li>
+        </ul>
+      </div>
+      <div class="vendor-card fail">
+        <h4>ASUS △</h4>
+        <ul>
+          <li><code>.CAP</code> 단일 파일만 있으면 단계 2 cover</li>
+          <li>다중 파일 (.CAP + 부속 README 등) 시 단계 3-5 가 .nsh 찾지 못해 NotFound 실패</li>
+          <li>본 슬라이스의 핵심 보강 대상</li>
+        </ul>
+      </div>
+      <div class="vendor-card unsupported">
+        <h4>Fujitsu (제외)</h4>
+        <ul>
+          <li>사용자 명시 — 본 슬라이스 범위 외</li>
+          <li>iRMC 기반 별도 흐름 — 별 슬라이스</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>1.3 기존 테스트가 cover 하는 케이스</h3>
+    <ul>
+      <li><code>BundleEntrypointDetectorTest::singleFile_detectedRegardlessOfExtension</code> — ASUS <code>X99E-WS.CAP</code> 단일 — 통과 (단계 2)</li>
+      <li><code>BundleEntrypointDetectorTest::gigabyte_fNsh</code> — GIGABYTE <code>f.nsh</code> — 통과 (단계 3)</li>
+      <li><code>BundleEntrypointDetectorTest::flashNsh_fallback</code> — <code>flash.nsh</code> — 통과 (단계 4)</li>
+      <li>다중 .nsh ambiguous, 0 .nsh notFound — 통과</li>
+      <li><strong>없음</strong> : ASUS .CAP + 부속 파일 다수 → 본 슬라이스에서 신규 테스트 추가</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2">
+  <summary>2. 요구사항 (확정)</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">2.1 Notion 명세 (S5-11 본문)</h3>
+    <blockquote style="border-left: 3px solid var(--text-muted); padding-left: 12px; color: var(--text-muted); margin: 8px 0; font-size: 13px;">
+      ASUS 의 경우 <code>.CAP</code> 또는 <code>.cap</code> 의 단일 파일, GIGABYTE 의 경우 <code>f.nsh</code> 파일. 제조사마다 조금씩 다른 진입점 상대경로를 자동으로 탐지하는 로직을 수정. (Fujitsu 제외)
+    </blockquote>
+
+    <h3>2.2 채택안 — 우선순위 단계 추가</h3>
+    <p>기존 단계 3 (f.nsh) 진입 전에 <strong>루트 수준의 단일 .cap / .CAP 파일</strong> 우선 채택 단계를 삽입.</p>
+    <div class="priority">
+      <div class="priority-step">
+        <div class="priority-num">1</div>
+        <div class="priority-rule">override</div>
+        <div class="priority-eg">변경 없음</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">2</div>
+        <div class="priority-rule">트리 전체 파일 1 개면 그것</div>
+        <div class="priority-eg">변경 없음</div>
+      </div>
+      <div class="priority-step new">
+        <div class="priority-num">3</div>
+        <div class="priority-rule"><strong>NEW</strong> — 루트 수준의 <code>*.cap</code> / <code>*.CAP</code> (대소문자 무시) 가 정확히 1 개면 그것</div>
+        <div class="priority-eg">ASUS .CAP + 부속 파일</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">4</div>
+        <div class="priority-rule"><code>f.nsh</code></div>
+        <div class="priority-eg">GIGABYTE — 우선순위 +1 밀림</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">5</div>
+        <div class="priority-rule"><code>flash.nsh</code></div>
+        <div class="priority-eg">fallback</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">6</div>
+        <div class="priority-rule">루트 <code>*.nsh</code> 정확히 1 개</div>
+        <div class="priority-eg">단일 .nsh</div>
+      </div>
+      <div class="priority-step">
+        <div class="priority-num">!</div>
+        <div class="priority-rule">위 모든 단계 fail → ambiguous (루트 .nsh 다수 또는 .cap 다수) 또는 notFound</div>
+        <div class="priority-eg">에러 메시지 갱신 (.cap 도 후보 명시)</div>
+      </div>
+    </div>
+
+    <h3>2.3 ASUS .cap 다중 시나리오</h3>
+    <ul>
+      <li>루트에 <code>.cap</code> / <code>.CAP</code> 가 정확히 1 개 → 채택</li>
+      <li>2 개 이상 → <strong>EntrypointAmbiguousException</strong> + 후보 리스트에 .cap 도 포함</li>
+      <li>0 개 → 단계 4 (f.nsh) 로 fall-through</li>
+    </ul>
+
+    <h3>2.4 .cap 우선순위가 f.nsh 보다 높은 이유</h3>
+    <ul>
+      <li>실 운영 케이스에서 ASUS .cap 번들에 부속 .nsh 가 동봉되는 사례가 거의 없음 (ASUS 는 UEFI 자체 펌웨어 업데이트)</li>
+      <li>혹시 동봉돼도 ASUS 의 의도된 진입점은 .cap → .cap 우선이 자연스러움</li>
+      <li>실제 충돌 발생 시에는 override 로 사용자가 명시 가능</li>
+    </ul>
+
+    <h3>2.5 추가 제약 (불가침)</h3>
+    <ul>
+      <li>override 동작 그대로</li>
+      <li>단일 파일 (단계 2) 동작 그대로 — 트리에 .cap 1 개만 있으면 단계 2 에서 잡히는 게 정상</li>
+      <li>BundleFilePolicy.isIgnorable 정책 그대로 (.DS_Store / Thumbs.db 제외)</li>
+      <li>대소문자 무시 (.CAP / .cap / .Cap 모두 동일 취급)</li>
+      <li>BIOS_BUNDLE 외 다른 자원 (BMC / Subprogram) 에는 영향 없음 — 본 detector 가 BIOS 트리에만 적용</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3">
+  <summary>3. URL / 데이터 흐름</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">3.1 URL 변경</h3>
+    <p>없음. 본 슬라이스는 BIOS 업로드 흐름 내부 보강.</p>
+
+    <h3>3.2 호출 흐름 (참고)</h3>
+<pre><code>// BiosService.upload(...)
+String entrypoint = bundleEntrypointDetector.detect(treeRoot, request.entrypointOverride());
+
+// BundleEntrypointDetector.detect()
+// 1) Override → 검증 후 반환
+// 2) 트리 전체 파일 1 개 → 그것
+// 3) [NEW] 루트 *.cap 정확히 1 개 → 그것
+// 4) f.nsh
+// 5) flash.nsh
+// 6) 단일 *.nsh
+// 7) ambiguous / notFound</code></pre>
+
+    <h3>3.3 신규 헬퍼</h3>
+<pre><code>private List&lt;Path&gt; listRootCapFiles(Path treeRoot) {
+    List&lt;Path&gt; result = new ArrayList&lt;&gt;();
+    try (Stream&lt;Path&gt; children = Files.list(treeRoot)) {
+        children.filter(Files::isRegularFile)
+                .filter(p -&gt; p.getFileName().toString().toLowerCase().endsWith(".cap"))
+                .filter(p -&gt; !BundleFilePolicy.isIgnorable(p))
+                .forEach(result::add);
+    } catch (IOException e) {
+        throw new BundleExtractionException("루트 .cap 스캔 실패 : " + treeRoot, e);
+    }
+    return result;
+}</code></pre>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4">
+  <summary>4. 도메인 모델</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">4.1 변경 — 없음 (BundleEntrypointDetector 내부 로직만)</h3>
+    <p>도메인 / VO / Enum / Entity / DTO 모두 그대로.</p>
+
+    <h3>4.2 BundleEntrypointDetector 내부 변경</h3>
+    <ul>
+      <li>신규 private 헬퍼 : <code>listRootCapFiles(Path treeRoot)</code></li>
+      <li><code>detect()</code> 의 단계 2 직후 .cap 후보 검사 블록 추가</li>
+      <li>에러 메시지에 .cap 도 후보로 명시 갱신 (NotFound 메시지)</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5">
+  <summary>5. 수직 슬라이스 10 단계 + CP</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>본 plan html</td><td><span class="chip cp1">CP1</span></td></tr>
+        <tr><td>2</td><td>뷰 — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>3</td><td>Controller — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>4</td><td>DTO — 변경 없음</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>5</td><td>Service 시그니처 — <code>BundleEntrypointDetector.detect()</code> 내부 단계 +1 + 헬퍼 1 개</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>6</td><td>Repository — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>7</td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>8</td><td>통합 테스트 — <code>BundleEntrypointDetectorTest</code> 에 ASUS .cap 다중 시나리오 4 추가</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>9</td><td>스키마 — 없음. <code>./gradlew test</code> 전체 통과</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>10</td><td>브라우저 E2E — 사용자 단독. ASUS .CAP 번들 + 부속 파일 다수 업로드 시 entrypoint 자동 채택 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6">
+  <summary>6. Step 8 통합 테스트 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">6.1 신규 시나리오 — 4 개</h3>
+    <ol>
+      <li><strong>ASUS 단일 .CAP + 부속 README</strong> — <code>X99E-WS.CAP</code> + <code>README.txt</code> → entrypoint = <code>X99E-WS.CAP</code></li>
+      <li><strong>ASUS 단일 .cap + 다중 부속</strong> — <code>x99.cap</code> + <code>flash.bin</code> + <code>tool.exe</code> → entrypoint = <code>x99.cap</code></li>
+      <li><strong>ASUS .cap 다중 → ambiguous</strong> — <code>foo.cap</code> + <code>bar.CAP</code> + 부속 → EntrypointAmbiguousException + 후보에 .cap 포함</li>
+      <li><strong>.cap + f.nsh 둘 다 존재 시 .cap 우선</strong> — <code>x99.cap</code> + <code>f.nsh</code> → entrypoint = <code>x99.cap</code> (정책 §2.4)</li>
+    </ol>
+
+    <h3>6.2 회귀 대상</h3>
+    <ul>
+      <li>기존 <code>BundleEntrypointDetectorTest</code> 7 시나리오 모두 통과</li>
+      <li><code>BiosService</code> upload 통합 테스트 — detector 호출 결과 변경 없음 (기존 케이스는 .cap 없음)</li>
+      <li>전체 <code>./gradlew test</code></li>
+    </ul>
+
+    <h3>6.3 ASUS .cap 단일 (트리 파일 1 개) — 기존 cover</h3>
+    <p><code>singleFile_detectedRegardlessOfExtension</code> 가 단계 2 에서 잡으므로 정책 그대로. 본 슬라이스에서 새 케이스 추가 안 함 (회귀만 통과 확인).</p>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7">
+  <summary>7. 예외 / 회귀</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">7.1 신규 예외 — 없음</h3>
+    <p>기존 <code>EntrypointAmbiguousException</code> / <code>EntrypointNotFoundException</code> 재사용. 메시지에 .cap 후보 명시 추가만.</p>
+
+    <h3>7.2 ambiguous 후보 리스트 갱신</h3>
+    <p>루트 .cap 이 2 개 이상이면 ambiguous. 후보 리스트는 .cap + .nsh 합집합으로 정렬.</p>
+
+    <h3>7.3 .cap 정책 안전성</h3>
+    <ul>
+      <li>대소문자 무시 비교 (<code>toLowerCase().endsWith(".cap")</code>) — Linux 의 case-sensitive FS 에서도 안정</li>
+      <li>BundleFilePolicy.isIgnorable 필터링 적용 — .DS_Store 등은 .cap 후보에서도 자동 제외</li>
+      <li>마커 파일 (<code>.provision.json</code>) 은 .cap 으로 끝나지 않으므로 영향 없음</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8">
+  <summary>8. 부산물 · 주의</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">8.1 스코프 경계</h3>
+    <ul>
+      <li>Fujitsu iRMC 흐름 — 본 슬라이스 외 (Notion 명시)</li>
+      <li>BIOS 외 자원 (BMC / Subprogram) 의 진입점 정책 — 본 슬라이스 외</li>
+      <li>제조사 자동 식별 (Vendor enum 기반 strategy) — 본 슬라이스 외. 단순 확장자 매칭으로 충분</li>
+    </ul>
+
+    <h3>8.2 향후 확장 후보</h3>
+    <ul>
+      <li>제조사별 전용 strategy (Vendor enum 의 abstract method) — CLAUDE.md "다형성" 원칙. .cap / .nsh / .fd / .bin 등 확장자가 다양해지면 분리 슬라이스로 전환</li>
+      <li>현재 단계 +1 추가만으로 충분 (over-abstraction 회피)</li>
+    </ul>
+
+    <h3>8.3 CLAUDE.md 영향</h3>
+    <p>없음. 기존 자동 탐지 로직의 자연 확장.</p>
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9">
+  <summary>9. Verification 체크리스트</summary>
+  <div class="body">
+    <ul class="check-list">
+      <li><label><input type="checkbox"> <code>./gradlew test</code> 전체 통과 (신규 4 시나리오 포함)</label></li>
+      <li><label><input type="checkbox"> 기존 7 시나리오 회귀 0</label></li>
+      <li><label><input type="checkbox"> ASUS .CAP 다중 부속 번들 manual 업로드 확인 (Step 10)</label></li>
+      <li><label><input type="checkbox"> GIGABYTE f.nsh 번들 manual 업로드 확인 — 회귀 없음</label></li>
+      <li><label><input type="checkbox"> .cap 다중 시 ambiguous 안내 메시지 적절함 확인</label></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10">
+  <summary>10. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">10.1 수정</h3>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/management/bios/service/BundleEntrypointDetector.java</code> — <code>detect()</code> 에 .cap 단계 + private 헬퍼 <code>listRootCapFiles</code> 추가</li>
+    </ul>
+
+    <h3>10.2 테스트</h3>
+    <ul>
+      <li><code>src/test/java/com/example/serverprovision/management/bios/service/BundleEntrypointDetectorTest.java</code> — ASUS .cap 시나리오 4 신규</li>
+    </ul>
+
+    <h3>10.3 유지 (변경 0)</h3>
+    <ul>
+      <li>BiosController / BiosService — detector 호출 시그니처 그대로</li>
+      <li>EntrypointPolicyService / EntrypointAmbiguousException / EntrypointNotFoundException</li>
+      <li>BundleFilePolicy</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §11 ============================== -->
+<details class="section" id="s11">
+  <summary>11. 다음 마일스톤</summary>
+  <div class="body">
+    <ul>
+      <li><strong>G-S5-11</strong> — Step 10 통과 시 종료</li>
+      <li><strong>S5 잔존</strong>
+        <ul>
+          <li>S5-7 (OS ISO 등록 후 작업 자동화) — 진입 전 개발자 상의 필수. plan html 까지만 산출 후 CP1 대기</li>
+        </ul>
+      </li>
+      <li><strong>S5-11 후속</strong>
+        <ul>
+          <li>제조사 strategy 다형성 도입 (.cap / .nsh / .fd / .bin etc.) — over-abstraction 회피로 본 슬라이스에서 미적용</li>
+          <li>Fujitsu iRMC 흐름 별 슬라이스</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="callout success">
+      <strong>완료 조건</strong> ASUS .CAP 다중 파일 번들에서도 진입점 자동 채택. GIGABYTE f.nsh 회귀 없음. 신규 4 시나리오 + 기존 7 시나리오 모두 통과.
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    sections.forEach(s => {
+      const txt = s.textContent.toLowerCase();
+      s.classList.toggle('hidden', q.length > 0 && !txt.includes(q));
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF-1 Plan — Restore FS-DB 무결성 (partial-restore) + RestoreTrashLost raw 에러 근본 해결</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 250px 1fr; gap: 24px; max-width: 1320px; margin: 0 auto; padding: 24px; }
+  /* 목차 sticky 금지 (사용자 직전 지시) — position 일반 흐름 유지. */
+  nav.toc { align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.preview { color: var(--orange); font-weight: 600; }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button { border: 1px solid var(--border); background: var(--card); padding: 4px 8px; font-size: 11px;
+    border-radius: 4px; cursor: pointer; flex: 1; }
+  main { min-width: 0; }
+  .filter-box { width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 14px; background: var(--card); }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  details.section.preview > summary { background: linear-gradient(90deg, var(--orange-bg) 0%, transparent 60%); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.add { background: var(--green-bg); color: var(--green); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.move { background: var(--blue-bg); color: var(--blue); }
+  .chip.del { background: var(--red-bg); color: var(--red); }
+  .chip.keep { background: var(--bg); color: var(--text-muted); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout.danger { border-color: var(--red); background: var(--red-bg); }
+  ul, ol { padding-left: 22px; }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 4px 0; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  .split-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; margin: 12px 0; }
+  .split-card { background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px; padding: 14px; min-width: 0; overflow: hidden; }
+  .split-card h4 { margin: 0 0 8px; font-size: 13px; font-family: var(--mono); }
+  .split-card.before { border-color: var(--red); border-width: 2px; background: var(--red-bg); }
+  .split-card.before h4 { color: var(--red); }
+  .split-card.after { border-color: var(--green); border-width: 2px; background: var(--green-bg); }
+  .split-card.after h4 { color: var(--green); }
+  .file-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 6px 8px; background: rgba(255,255,255,0.4); border-radius: 4px; }
+
+  /* 🎬 미리보기 — FS 2비트 4상태 매트릭스 전용 */
+  .matrix-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin: 12px 0; }
+  .matrix-card { border: 1px solid var(--border); border-radius: 6px; padding: 11px 13px; background: var(--card); }
+  .matrix-card h5 { margin: 0 0 4px; font-family: var(--mono); font-size: 12px; }
+  .matrix-card .bits { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+  .matrix-card p { margin: 4px 0 0; font-size: 11px; color: var(--text-muted); }
+  .matrix-card.heal    { border-left: 4px solid var(--green); }   .matrix-card.heal h5    { color: var(--green); }
+  .matrix-card.normal  { border-left: 4px solid var(--blue); }    .matrix-card.normal h5  { color: var(--blue); }
+  .matrix-card.lost    { border-left: 4px solid var(--red); }     .matrix-card.lost h5    { color: var(--red); }
+  .matrix-card.occupied{ border-left: 4px solid var(--orange); }  .matrix-card.occupied h5{ color: var(--orange); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF-1 — Restore FS-DB 무결성 (partial-restore) + RestoreTrashLost raw 에러 <span style="color:var(--red)">근본 해결</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF-1 (HotFix-1) <span style="color:var(--red)">cross-cutting hotfix</span></span>
+    <span><strong>단계</strong> 2-1차 개발</span>
+    <span><strong>도메인</strong> global/trash (ISO·BIOS·BMC·Subprogram 4 도메인 공통)</span>
+    <span><strong>생성</strong> 2026-05-29 11:20:00 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약 (두 버그 진단)</a></li>
+      <li><a href="#s2">§2 슬라이스 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (FS 4상태 매트릭스 + FS-first before/after)</a></li>
+      <li><a href="#s3">§3 분리 후 책임 + 시그니처 (heal / moveBackReverse)</a></li>
+      <li><a href="#s4">§4 코드 변경 매트릭스</a></li>
+      <li><a href="#s5">§5 10 단계 + CP 묶음</a></li>
+      <li><a href="#s6">§6 통합 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층 (404→409)</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정 (A-1/A-2/A-3)</a></li>
+      <li><a href="#s9">§9 Verification 체크리스트</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약 — 두 버그의 file:line 진단</summary>
+      <div class="body">
+        <p>본 슬라이스는 <b>16-에이전트 Workflow 적대적 검증으로 근본 원인이 확정된 cross-cutting hotfix</b>다. <code>TrashLifecycleService.restoreFromTrash</code> 단일 인프라에 공존하는 두 버그를 <b>1곳 수정 + 예외 1줄 + restore form 마커</b>로 4 도메인 (ISO·BIOS·BMC·Subprogram) 동시 해결한다. 아래 진단은 모두 코드 직접 Read 로 재확인됨.</p>
+
+        <h4>버그 1 — FS-DB 무결성 깨짐 (ghost 양산)</h4>
+        <ul>
+          <li><code>TrashLifecycleService.restoreFromTrash</code> 의 <code>trashed_path != null</code> 분기 (L123-152) 가 <b>비가역 FS 작업을 DB 전이보다 먼저, try/catch·보상 없이</b> 실행 :
+            <ul>
+              <li>L137 <code>trashService.moveBack(trashedPath, originalPath)</code> — trash → 원위치 mv (FS)</li>
+              <li>L147-148 <code>computeSignature</code> + <code>markerService.write(...)</code> — 마커 재발급 (FS)</li>
+              <li>L149 <code>entity.reissueMarker(...)</code> / L151 <code>entity.restore()</code> / L152 <code>entity.clearTrashed()</code> — DB 전이</li>
+            </ul>
+          </li>
+          <li>전체가 caller <code>@Transactional</code> 안 (<code>IsoLifecycleService:144</code> 메서드 어노테이션 → L163 <code>restoreFromTrash</code> 호출).</li>
+          <li><b>실패 시나리오</b> : moveBack 성공 후 어느 단계든 <code>RuntimeException</code> (가장 유력 = <code>MarkerWriteFailedException</code>, <code>ProvisionMarkerService:111-112</code>, <code>extends DomainException = RuntimeException</code>) →
+            <ul>
+              <li>FS 는 자원이 <b>원위치로 이미 복구됨</b> (트랜잭션 관할 밖, 롤백 불가)</li>
+              <li>DB 는 <code>@Transactional</code> 롤백 → <code>is_deleted=true</code> + <code>trashed_path=stale 유효경로</code> 로 되돌아감</li>
+              <li>결과 = <b>FS(원위치 존재) ↔ DB(삭제+trash경로 유효) 비대칭 고정</b></li>
+            </ul>
+          </li>
+        </ul>
+        <div class="callout danger">
+          <b>결정적 비대칭</b> — <code>trashed_path == null</code> 분기 (L114-120) 는 이미 <code>!Files.exists(resourcePath)</code> 사전검사로 "FS 존재 → DB 만 정합" self-heal 을 보유한다 (L118-119 <code>restore()</code> + <code>clearTrashed()</code>). 그러나 <code>trashed_path != null</code> 분기 (L123-152) 에는 <b>그 사전검사가 없다</b>. 이 비대칭이 <u>두 버그 공통의 핵심 진원지</u>다.
+        </div>
+        <div class="callout warn">
+          <b>정정 — 이 stale row 는 기존 ghost 처리(MK3-1)가 못 잡는다</b>. <code>GhostEvaluator.isGhost</code> 4조건은 <code>trashed_path=null</code> 을 포함하는데, 본 row 는 <code>trashed_path</code> 가 stale 하지만 <b>유효 경로</b>다 → ghost 4조건 <b>불만족</b>. MK3-1 의 GHOST_DB_ROW 흐름이 손대지 못하는 <b>"dangling stale row"</b> 라는 신규 결함 카테고리.
+        </div>
+        <p><code>softDeleteToTrash</code> (L60-92) 도 동형 — <code>moveToTrash</code>(L77) 후 <code>markTrashed</code>(L85) 전 예외 시 비대칭 (단 narrow window).</p>
+
+        <h4>버그 2 — RestoreTrashLost raw 에러 (재시도 시 표면화)</h4>
+        <ul>
+          <li>버그 1 로 stale row 가 고정된 뒤 사용자가 재시도 → trash 가 이미 비었으므로 L126 <code>!Files.exists(trashedPath)</code> → L127 <code>throw new RestoreTrashLostException(...)</code> (현 <code>extends NotFoundException</code> = 404).</li>
+          <li><b>중대 정정 — raw JSON 이 아니다.</b> <b>native nav 로 렌더된 <code>error.html</code> 본문에 도메인 메시지가 그대로 노출</b>된다 :
+            <ul>
+              <li>OS list 의 ISO restore form 에 <code>data-async-submit</code> 마커 <b>부재</b> (<code>list.html:382-391</code>) — trash list 엔 존재 (<code>trash/list.html:126</code>).</li>
+              <li>→ <code>form.requestSubmit()</code> 가 native POST (Accept: text/html) 로 나감</li>
+              <li>→ <code>WebExceptionHandler.handleNotFound</code> (<code>:58-63</code>, produces=TEXT_HTML) → <code>return "error"</code></li>
+              <li>→ <code>error.html:26</code> <code>th:text="${message}"</code> 가 도메인 메시지를 <b>무가공</b>으로 출력</li>
+            </ul>
+          </li>
+        </ul>
+        <div class="callout danger">
+          <b>R1-4-1 hotfix v3 가 못 막은 이유</b> — v3 는 content-type routing (Web/Api advice 의 @Order·produces 분리) <b>만</b> 손댔다. (a) self-heal 부재 (b) message 무가공 (c) OS restore form 의 async-submit 비대칭 — <b>셋 다 안 건드림</b>. 또한 <code>RestoreTrashLost</code> 만 404 인데 형제 3개 (<code>RestorePathOccupied</code> / <code>RestoreTargetUnreachable</code> / <code>GhostRowRestoreNotAllowed</code>) 는 모두 409 (<code>extends ConflictException</code>) — <b>계층 불일치</b>.
+        </div>
+
+        <h4>횡단 영향 — 4 도메인 공통 (코드 동일성)</h4>
+        <p><code>TrashLifecycleService.restoreFromTrash / softDeleteToTrash</code> 는 공통 인프라이고, 호출처는 4 도메인 :</p>
+        <table>
+          <thead><tr><th>도메인</th><th>caller (restore)</th><th>caller @Transactional</th></tr></thead>
+          <tbody>
+            <tr><td>ISO</td><td><code>IsoLifecycleService:163</code></td><td><code>:144</code> (메서드)</td></tr>
+            <tr><td>BIOS</td><td><code>BiosService:444</code></td><td>caller 메서드</td></tr>
+            <tr><td>BMC</td><td><code>BmcService:504</code></td><td>caller 메서드</td></tr>
+            <tr><td>Subprogram</td><td><code>SubprogramService:565</code> <span style="color:var(--text-muted)">(briefing 사실, 코드 동일성으로 동형)</span></td><td>caller 메서드</td></tr>
+          </tbody>
+        </table>
+        <p>두 버그가 코드 동일성으로 4 도메인 전부 존재. 네 restore controller 도 전부 <code>public String</code> SSR redirect + try/catch 無 로 동형. <b>인프라 1곳 수정으로 4 도메인 동시 치유</b>가 가능한 구조.</p>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 슬라이스 요구사항 + 비목표</summary>
+      <div class="body">
+        <p>본 hotfix 는 judge 권장 <b>후보3 hybrid</b> (사용자 승인 완료, afterCommit 명시 배제) 를 채택한다. 4 요구사항 :</p>
+        <ol>
+          <li><b>① 멱등 사전게이트 (최우선)</b> — <code>restoreFromTrash</code> 의 <code>trashed_path != null</code> 분기 진입 직후, FS 2비트 (<code>Files.exists(originalPath)</code>, <code>Files.exists(trashedPath)</code>) 로 4상태를 분류하는 private heal 메서드 도입. 이 게이트가 partial-restore 잔여를 self-heal 하면서 버그 2 의 발화 자체를 소멸시킨다.</li>
+          <li><b>② FS-first + 즉시 역보상</b> — moveBack(L137) + computeSignature/write(L147-148) 를 트랜잭션 본문 <code>try</code> 로 감싸고, <code>catch</code> 에서 1단계 역보상 후 원예외 재던짐. @Transactional 롤백과 FS 보상이 <u>동방향</u> (둘 다 trash) 이라 dangling stale row 가 0 이 된다. <b>afterCommit 미사용</b>.</li>
+          <li><b>③ softDeleteToTrash 대칭 보강</b> — <code>moveToTrash</code>(L77) ↔ <code>markTrashed</code>(L85) 사이 역보상.</li>
+          <li><b>④ 버그 2 봉쇄</b> — <code>RestoreTrashLostException</code> superclass 404→409 (형제 일관성, advice polymorphic 흡수 = 신규 핸들러 0) + 메시지에 동선 추가 + OS/ISO/BIOS/BMC/Subprogram restore form 에 <code>data-async-submit</code> 마커 (공통 fragment 추출) + AsyncSubmitResult 친화 핸들러 로드.</li>
+        </ol>
+
+        <div class="callout success">
+          <b>스코프 한 줄 정의</b> — "공통 trash 인프라의 restore 흐름을 <b>멱등 self-heal 사전게이트 + FS-first 역보상</b> 으로 무결하게 만들고, <code>RestoreTrashLost</code> 의 404→409 + restore form async-submit 마커로 raw 에러를 봉쇄하여, 1곳 수정으로 4 도메인을 동시 치유하는 hotfix".
+        </div>
+
+        <div class="callout">
+          <b>비 목표 (out of scope)</b> :
+          <ul>
+            <li><b>afterCommit 기반 2-phase 무결성</b> — 배제. 근거 : 코드베이스 <code>TransactionSynchronization</code> 선례 0건 + cascade restore 시 N 자식이 단일 부모 커밋 콜백에 몰리는 복잡도 + post-commit silent 실패 알림 인프라 부재 → CLAUDE.md 단순성 / over-abstraction 회피 원칙. <b>별도 2-phase 무결성 슬라이스로 분리</b> (§11).</li>
+            <li><b>BoardModel → Subprogram cascade 누락</b> — 본 HF-1 비목표. <b>별도 cascade-asymmetry 슬라이스로 분리</b> + Notion 본문에 잔존 책임 기재 (§8 A-3).</li>
+            <li><b>예외 advice 통합 / errorCode 다형성 / ProblemDetail adapter</b> — R2 묶음 (R1-4-1 hotfix v3 후속). 본 슬라이스 영향 0.</li>
+            <li><b>Ghost 코드 (MK3-1) 정리</b> — MK3-2 운영 안정 후 별도 정리 슬라이스 (DCM3-2.9). 본 hotfix 는 dangling stale row 가 ghost 4조건을 불만족함을 §1 에 명시만 하고 ghost 코드 자체는 변경 0.</li>
+            <li><b>MK4 ApplicationFileMover</b> — 미진입. 본 슬라이스와 별개.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 미리보기 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — FS 2비트 4상태 매트릭스 + FS-first 흐름 before/after</summary>
+      <div class="body">
+        <p>본 hotfix 의 핵심 도메인 의미는 <b>"원위치(O) · 휴지통(T) 두 FS 비트의 4상태"</b> 다. 멱등 사전게이트가 이 4상태를 어떻게 분기하는지 먼저 보여주고, FS-first 역보상의 트랜잭션 정합을 before/after 로 비교한다.</p>
+
+        <h4 style="margin-top: 0; font-size: 13px;">P-1. FS 2비트 4상태 매트릭스 — <code>restoreFromTrash</code> 사전게이트의 핵심</h4>
+        <div class="matrix-grid">
+          <div class="matrix-card heal">
+            <h5>(원 O · trash X) — partial-restore 잔여</h5>
+            <div class="bits">exists(original)=true &nbsp; exists(trashed)=false</div>
+            <p>버그 1 이 남긴 dangling 상태. <b>self-heal</b> : moveBack / write skip, DB 만 <code>restore()</code> + <code>clearTrashed()</code> 후 return. <b>예외 미발생 = 버그 2 소멸</b>. (A-2 : 토스트 미노출 2xx)</p>
+          </div>
+          <div class="matrix-card normal">
+            <h5>(원 X · trash O) — 정상 복원</h5>
+            <div class="bits">exists(original)=false &nbsp; exists(trashed)=true</div>
+            <p>정상 경로. moveBack → write → DB 전이 진행 (단, ② FS-first try/catch 역보상으로 감싸짐).</p>
+          </div>
+          <div class="matrix-card lost">
+            <h5>(원 X · trash X) — 진짜 분실</h5>
+            <div class="bits">exists(original)=false &nbsp; exists(trashed)=false</div>
+            <p>자원이 외부에서 완전히 사라짐. <code>RestoreTrashLostException</code> → <b>409</b> (A-1). 메시지에 "휴지통 정리 / reconciliation GHOST_DB_ROW drift apply" 동선 추가.</p>
+          </div>
+          <div class="matrix-card occupied">
+            <h5>(원 O · trash O) — 경로 점유</h5>
+            <div class="bits">exists(original)=true &nbsp; exists(trashed)=true</div>
+            <p>원위치에 동명 파일 점유 + trash 도 살아있음. 기존 <code>RestorePathOccupiedException</code> (409) 유지. heal 미적용.</p>
+          </div>
+        </div>
+        <div class="callout">
+          <b>(원 O) 분기 보강</b> — (원 O · trash X) 와 (원 O · trash O) 의 heal/판정 직전, 동명파일 오인 방어를 위해 <code>manifestHash</code> 선택 검증을 둔다. 원위치 파일이 실제로 그 자원인지(해시 일치) 확인하여 외부 무관 파일을 자원으로 오인해 DB 만 정합시키는 사고를 차단.
+        </div>
+
+        <h4 style="font-size: 13px;">P-2. FS-first + 역보상 — 트랜잭션 정합 before / after</h4>
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>HF-1 전 — FS 비가역 + DB 롤백 = dangling</h4>
+<pre><code>@Transactional (caller)
+ ├─ moveBack(trash → 원위치)      <span style="color:var(--red)">FS (비가역)</span>
+ ├─ markerService.write(...)      <span style="color:var(--red)">FS 실패!</span>
+ │     └─ throw MarkerWriteFailed
+ ├─ entity.reissueMarker(...)     (도달 X)
+ ├─ entity.restore()             (도달 X)
+ └─ entity.clearTrashed()        (도달 X)
+
+결과:
+  FS  = 자원 원위치에 존재 (롤백 불가)
+  DB  = @Transactional 롤백
+        is_deleted=true + trashed_path=stale</code></pre>
+            <div class="file-meta">
+              <span style="color:var(--red)">빨강</span> = FS 비가역 작업. DB 는 롤백되는데 FS 는 못 돌아옴 →
+              <b>dangling stale row 고정</b>. 재시도 시 버그 2 (trash 빈 상태 → RestoreTrashLost) 표면화.
+            </div>
+          </div>
+          <div class="split-card after">
+            <h4>HF-1 후 — 사전게이트 + 동방향 역보상</h4>
+<pre><code>@Transactional (caller)
+ ├─ <span style="color:var(--green)">heal 사전게이트 (FS 2비트 분류)</span>
+ │    └─ (원O·trashX) → DB만 정합 return (self-heal)
+ │    └─ (원X·trashX) → 409
+ │    └─ (원O·trashO) → 409 (점유)
+ │    └─ (원X·trashO) → 아래 진행
+ ├─ <span style="color:var(--green)">try {</span>
+ │    moveBack(trash → 원위치)
+ │    markerService.write(...)   <span style="color:var(--green)">실패!</span>
+ │  <span style="color:var(--green)">} catch {</span>
+ │    deleteIfExists(마커)
+ │    moveBackReverse(원위치 → trash)  <span style="color:var(--green)">역보상</span>
+ │    throw 원예외
+ │  <span style="color:var(--green)">}</span>
+ ├─ entity.reissueMarker / restore / clearTrashed
+
+결과:
+  FS  = 자원 trash 로 역복귀 (보상)
+  DB  = @Transactional 롤백 (trash 상태 유지)
+  → <span style="color:var(--green)">FS·DB 동방향 = dangling 0</span></code></pre>
+            <div class="file-meta">
+              <span style="color:var(--green)">초록</span> = HF-1 신규. <code>catch</code> 의 역보상이 FS 를 trash 로 되돌려 @Transactional 롤백과 <b>동방향</b>으로 만든다. 역보상은 <code>TrashService.moveBackReverse</code> (기존 <code>moveWithRetry</code> 3회 재사용) 로 캡슐화.
+            </div>
+          </div>
+        </div>
+
+        <div class="callout success">
+          <b>핵심 통찰 — 두 메커니즘의 분담</b> — ① 멱등 사전게이트는 <u>이미 발생한</u> dangling 을 self-heal 하며 버그 2 를 소멸시키고, ② FS-first 역보상은 <u>새로운</u> dangling 생성을 0 으로 만든다. 두 메커니즘이 함께 들어가야 "과거 잔여 치유 + 미래 발생 차단" 이 모두 충족된다. 어느 하나만으로는 불완전.
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 분리 후 책임 + 시그니처 (heal / moveBackReverse)</summary>
+      <div class="body">
+        <p>본 hotfix 는 <b>새 service 신설이 아니라 기존 인프라 내부의 책임 정렬</b>이다. 분기문 줄을 늘리는 대신 (CLAUDE.md §조건 분기문 무분별 확장 지양), 멱등 게이트를 <b>단일 private 메서드로 추출</b>하고 역보상을 <b><code>TrashService</code> 메서드로 캡슐화</b>한다.</p>
+
+        <h4>3.1 신규 private heal 메서드 — FS 4상태 게이트 (<code>TrashLifecycleService</code>)</h4>
+<pre><code>// restoreFromTrash 의 trashed_path != null 분기 진입 직후 호출.
+// return true  → caller 가 추가 작업 없이 종료 (self-heal 또는 예외 throw 가 내부에서 처리됨)
+// return false → 정상 복원 흐름 (moveBack ...) 진행
+private &lt;T extends LifecycleEntity &amp; Markable&gt; boolean healOrThrowBeforeRestore(
+        T entity, Path originalPath, Path trashedPath) {
+    boolean originalExists = Files.exists(originalPath);
+    boolean trashedExists  = Files.exists(trashedPath);
+
+    if (originalExists &amp;&amp; !trashedExists) {        // (원O·trashX) partial-restore 잔여
+        assertSameResourceOrThrow(entity, originalPath);  // manifestHash 선택 검증
+        entity.restore();
+        entity.clearTrashed();                     // DB만 정합 (self-heal, A-2: 토스트 미노출)
+        return true;
+    }
+    if (!originalExists &amp;&amp; !trashedExists) {       // (원X·trashX) 진짜 분실
+        throw new RestoreTrashLostException(trashedPath.toString());  // A-1: 이제 409
+    }
+    if (originalExists &amp;&amp; trashedExists) {         // (원O·trashO) 경로 점유
+        throw new RestorePathOccupiedException(originalPath.toString());  // 기존 409 유지
+    }
+    return false;                                  // (원X·trashO) 정상 복원 진행
+}</code></pre>
+        <p>이 게이트는 기존 L126 (<code>RestoreTrashLost</code>) / L133 (<code>RestorePathOccupied</code>) 의 개별 검사를 <b>4상태 단일 분기</b>로 응집해 흡수한다 — 기존 검사 줄을 늘리는 게 아니라 <b>대체</b>한다. <code>RestoreTargetUnreachable</code> (부모 디렉토리 부재, L129-132) 검사는 게이트 통과 후 정상 흐름 직전에 그대로 유지.</p>
+
+        <h4>3.2 신규 <code>TrashService.moveBackReverse</code> — 역보상 캡슐화</h4>
+<pre><code>/** HF-1 — FS-first 역보상. restore 본문 mv 후 후속 실패 시 원위치 자원을 trash 로 되돌린다.
+ *  기존 moveWithRetry (3회 ATOMIC_MOVE → fallback) 재사용. */
+public void moveBackReverse(Path originalPath, Path trashedPath) {
+    moveWithRetry(originalPath, trashedPath);   // 기존 private 재사용 (신규 mv 로직 0)
+    log.info("[trash] moveBackReverse (역보상) from={} to={}", originalPath, trashedPath);
+}</code></pre>
+        <p>신규 mv 로직 0 — 기존 <code>moveWithRetry</code>(<code>TrashService:100-119</code>) 를 방향만 바꿔 재사용. over-abstraction 회피.</p>
+
+        <h4>3.3 <code>restoreFromTrash</code> 본문 재구성 (요구 ① + ②)</h4>
+<pre><code>// trashed_path != null 분기 (L123 이후) 재구성
+Path trashedPath = Path.of(trashedPathStr);
+Path originalPath = entity.getResourcePath();
+
+// 부모 디렉토리 접근성 (기존 L129-132 유지)
+Path parent = originalPath.getParent();
+if (parent == null || !Files.isDirectory(parent))
+    throw new RestoreTargetUnreachableException(...);
+
+// ① 멱등 사전게이트 — 4상태 분류
+if (healOrThrowBeforeRestore(entity, originalPath, trashedPath)) return;
+
+// ② FS-first + 즉시 역보상
+trashService.moveBack(trashedPath, originalPath);
+try {
+    MarkerContent content = ...; String signature = markerService.computeSignature(content);
+    markerService.write(originalPath, entity.getMarkerLayout(), content.withSignature(signature));
+} catch (RuntimeException e) {
+    Files.deleteIfExists(markerService.resolveMarkerFile(originalPath, entity.getMarkerLayout()));
+    trashService.moveBackReverse(originalPath, trashedPath);   // FS 를 trash 로 역복귀
+    throw e;                                                   // @Transactional 롤백 유발 (동방향)
+}
+entity.reissueMarker(entity.getManifestHash(), signature);
+entity.restore();
+entity.clearTrashed();</code></pre>
+
+        <h4>3.4 <code>softDeleteToTrash</code> 대칭 보강 (요구 ③)</h4>
+<pre><code>// L77 moveToTrash 후 L85 markTrashed 사이 (narrow window) 역보상
+Path trashed = trashService.moveToTrash(resourcePath, ...);
+try {
+    Path movedMarker = markerService.resolveMarkerFile(trashed, layout);
+    Files.deleteIfExists(movedMarker);
+    entity.markTrashed(trashed.toString());
+} catch (RuntimeException e) {
+    trashService.moveBackReverse(trashed, resourcePath);   // trash → 원위치 역복귀
+    throw e;
+}</code></pre>
+
+        <h4>3.5 의존 / 분기 정책 검증</h4>
+        <ul style="font-size: 12px;">
+          <li>신규 분기문 줄 추가 0 — 기존 L126/L133 개별 검사를 4상태 게이트로 <b>대체</b> (확장 아님). CLAUDE.md §조건 분기문 무분별 확장 지양 부합.</li>
+          <li>신규 예외 클래스 0 — <code>RestoreTrashLost</code> superclass 만 변경 (§7).</li>
+          <li>신규 mv 로직 0 — <code>moveWithRetry</code> 재사용.</li>
+          <li><code>TrashLifecycleService</code> → <code>TrashService</code> (역보상) + <code>ProvisionMarkerService</code> (마커 삭제·write) 의존 — 기존 그대로, 신규 의존 0.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 코드 변경 매트릭스</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>global/trash/TrashLifecycleService.java</code></td>
+              <td><span class="chip mod">핵심 수정</span></td>
+              <td><code>restoreFromTrash</code> 에 ① 멱등 사전게이트 (<code>healOrThrowBeforeRestore</code> private + <code>assertSameResourceOrThrow</code> private) + ② FS-first try/catch 역보상. <code>softDeleteToTrash</code> 에 ③ 대칭 역보상 try/catch. 기존 L126/L133 개별 검사는 게이트로 흡수. ~+50 줄.</td>
+            </tr>
+            <tr>
+              <td><code>global/trash/TrashService.java</code></td>
+              <td><span class="chip add">메서드 추가</span></td>
+              <td><code>moveBackReverse(Path original, Path trashed)</code> 1 메서드 (<code>moveWithRetry</code> 재사용). ~+5 줄.</td>
+            </tr>
+            <tr>
+              <td><code>management/common/exception/RestoreTrashLostException.java</code></td>
+              <td><span class="chip mod">superclass 변경</span></td>
+              <td><code>extends NotFoundException</code> → <code>extends ConflictException</code> (404→409). 메시지에 "휴지통 정리 / reconciliation GHOST_DB_ROW drift apply" 동선 추가.</td>
+            </tr>
+            <tr>
+              <td><code>templates/management/os/list.html</code></td>
+              <td><span class="chip mod">마커 추가</span></td>
+              <td>ISO restore form (L382-391) + OS restore form (L196-205) 에 <code>data-async-submit</code> 마커 추가. 가능하면 restore form 공통 fragment 추출 검토 (CLAUDE.md §중복 지양).</td>
+            </tr>
+            <tr>
+              <td>BIOS / BMC / Subprogram restore form 템플릿</td>
+              <td><span class="chip mod">동형 마커</span></td>
+              <td>동일 <code>data-async-submit</code> 마커 부착 (4 도메인 일관). 공통 fragment 적용 시 1곳 수정으로 흡수.</td>
+            </tr>
+            <tr>
+              <td><code>static/global/error-modal.js</code> 또는 trash-action.js</td>
+              <td><span class="chip mod">핸들러 로드</span></td>
+              <td>OS list 에 AsyncSubmitResult 친화 핸들러 로드 — async-submit form 의 409/JSON 응답을 modal/toast 로 표시 (native nav error.html 회피).</td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataControllerRestoreFlowTest.java</code></td>
+              <td><span class="chip mod">status 갱신</span></td>
+              <td>RestoreTrashLost status assert 404 → 409 동반 갱신 (A-1).</td>
+            </tr>
+            <tr>
+              <td><code>IsoLifecycleControllerRestoreFlowTest.java</code></td>
+              <td><span class="chip add">신규</span></td>
+              <td>ISO restore controller flow — 정상 / partial-failure 역보상 / 멱등 재시도 / 진짜분실 409 / native nav 표면 시나리오.</td>
+            </tr>
+            <tr>
+              <td><code>TrashLifecycleServiceTest.java</code></td>
+              <td><span class="chip add">신규/보강</span></td>
+              <td>멱등 4상태 단위 + 역보상 단위 (markerService.write mock throw → moveBackReverse 호출 검증, ArgumentCaptor).</td>
+            </tr>
+            <tr>
+              <td>WebExceptionHandler / ApiExceptionHandler / ApiErrorResponse</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>변경 0 — <code>ConflictException</code> 핸들러 (Web:65 / Api:164) 가 RestoreTrashLost 를 polymorphic 흡수. <b>신규 핸들러 0</b>.</td>
+            </tr>
+            <tr>
+              <td>3 형제 예외 / Entity / Repository / DB schema</td>
+              <td><span class="chip keep">유지</span></td>
+              <td>변경 0.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>예상 diff</b> — TrashLifecycleService +50 / TrashService +5 / RestoreTrashLostException ±3 / list.html + 도메인 템플릿 ±N (fragment 추출 시 축소) / JS 핸들러 ±10 / 테스트 +180. net ~ +250.</p>
+        <div class="callout warn">
+          <b>CP2 진입 시 grep 확정</b> — <code>data-async-submit</code> 부착 누락 form 이 없는지 4 도메인 restore 템플릿 전수 확인. restore 호출처 (<code>restoreFromTrash</code>) 4 도메인 외 신규 호출처 없는지 재확인.
+        </div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>표준</th><th>HF-1 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html</td><td>본 문서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf</td><td>4 도메인 restore form 에 <code>data-async-submit</code> 마커 + (검토) 공통 fragment 추출 + AsyncSubmitResult 친화 핸들러 로드</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller</td><td><i>N/A</i> — 4 restore controller 시그니처/redirect 그대로 (async-submit 은 클라이언트 routing 으로 흡수)</td></tr>
+            <tr><td>4</td><td>DTO</td><td><i>N/A</i> — AsyncSubmitResult 기존 자산 재사용</td></tr>
+            <tr><td>5</td><td>Service 시그니처</td><td><code>TrashService.moveBackReverse</code> 추가 + <code>TrashLifecycleService</code> 의 private <code>healOrThrowBeforeRestore</code> / <code>assertSameResourceOrThrow</code> 시그니처</td></tr>
+            <tr><td>6</td><td>Repository</td><td><i>N/A</i></td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity</td><td><i>N/A</i> — <code>restore()</code> / <code>clearTrashed()</code> / <code>reissueMarker()</code> 변경 0</td></tr>
+            <tr><td>8</td><td>Service 본체 + 테스트</td><td><code>restoreFromTrash</code> ① 게이트 + ② 역보상, <code>softDeleteToTrash</code> ③ 대칭, <code>moveBackReverse</code> 본체, <code>RestoreTrashLost</code> 404→409 + 메시지 + <code>TrashLifecycleServiceTest</code> (멱등 4상태 + 역보상 단위) + <code>IsoLifecycleControllerRestoreFlowTest</code> 신규 + <code>OSMetadataControllerRestoreFlowTest</code> 404→409 갱신</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마</td><td><i>N/A</i> — DB 컬럼 변경 0</td></tr>
+            <tr><td>10</td><td>브라우저 E2E</td><td>사용자 단독 — (a) partial-restore 인위재현 후 재시도 → modal/toast 로 안내 (error.html native nav 없음), (b) 정상 restore 성공, (c) 진짜분실 → 409 안내, (d) 4 도메인 회귀 (BIOS/BMC/Subprogram restore)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">
+          <b>CP 분리 정책</b> — Step 2 (템플릿 마커) 와 Step 8 (service 본체) 의 검증 의존이 강하다. Step 8 의 역보상이 들어가야 Step 2 의 async-submit routing 이 의미를 갖는다 (둘 다 있어야 버그 2 완전 봉쇄). 단 hotfix 특성상 CP2 / CP4 묶음 경계는 유지하되, CP4 보고 시 두 메커니즘의 통합 동작을 함께 시연.
+        </div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>위치</th><th>분류</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>정상 restore — (원X·trashO) → moveBack + write + DB 전이 → 2xx, FS·DB 정합</td><td>IsoLifecycleControllerRestoreFlowTest / TrashLifecycleServiceTest</td><td>성공</td></tr>
+            <tr><td>2</td><td>partial-failure 인위재현 — <code>markerService.write</code> mock throw → 역보상 (마커 delete + moveBackReverse) 호출 검증 + FS·DB 동방향 (trash 복귀, DB 롤백) + 원예외 재전파</td><td>TrashLifecycleServiceTest</td><td>500/역보상</td></tr>
+            <tr><td>3</td><td>멱등 재시도 — (원O·trashX) → moveBack/write skip, DB 만 <code>restore()</code>+<code>clearTrashed()</code> → 2xx (토스트 미노출, A-2)</td><td>TrashLifecycleServiceTest</td><td>성공(self-heal)</td></tr>
+            <tr><td>4</td><td>(원O·trashX) 동명파일 오인 방어 — manifestHash 불일치 시 self-heal 거부 → 적절 예외</td><td>TrashLifecycleServiceTest</td><td>방어</td></tr>
+            <tr><td>5</td><td>진짜분실 — (원X·trashX) → <code>RestoreTrashLostException</code> → <b>409</b> (A-1)</td><td>IsoLifecycleControllerRestoreFlowTest</td><td>409</td></tr>
+            <tr><td>6</td><td>경로 점유 — (원O·trashO) → <code>RestorePathOccupiedException</code> → 409 (기존 유지)</td><td>위</td><td>409</td></tr>
+            <tr><td>7</td><td>버그2 표면 (현 동작 회귀 방지) — async-submit form 제출 시 409 + JSON (<code>ApiErrorResponse</code>) media type 라우팅 (native nav error.html 아님)</td><td>IsoLifecycleControllerRestoreFlowTest</td><td>409/routing</td></tr>
+            <tr><td>8</td><td>계층 일관성 — 4 restore 예외 (RestoreTrashLost / RestorePathOccupied / RestoreTargetUnreachable / GhostRowRestoreNotAllowed) 모두 <b>409</b></td><td>controller flow test</td><td>409 일관성</td></tr>
+            <tr><td>9</td><td>RestoreTargetUnreachable — 부모 디렉토리 부재 → 409 (게이트 통과 후 잔류 검사)</td><td>위</td><td>409</td></tr>
+            <tr><td>10</td><td>cross-domain 회귀 — BIOS restore 정상 + partial-failure 역보상</td><td>BiosService 관련 test</td><td>회귀</td></tr>
+            <tr><td>11</td><td>cross-domain 회귀 — BMC restore 정상 + partial-failure 역보상</td><td>BmcService 관련 test</td><td>회귀</td></tr>
+            <tr><td>12</td><td>cross-domain 회귀 — Subprogram restore 정상 + partial-failure 역보상</td><td>SubprogramService 관련 test</td><td>회귀</td></tr>
+            <tr><td>13</td><td>softDelete 대칭 — <code>markTrashed</code> 전 예외 → moveBackReverse (trash→원위치) → FS·DB 동방향</td><td>TrashLifecycleServiceTest</td><td>역보상</td></tr>
+            <tr><td>14</td><td>cascade 성공경로 — 부모 OS restore 시 자식 ISO 도 함께 복원 (회귀)</td><td>IsoLifecycleControllerRestoreFlowTest</td><td>성공</td></tr>
+            <tr><td>15</td><td>OSMetadataControllerRestoreFlowTest — 기존 RestoreTrashLost status assert 404→409 갱신</td><td>기존</td><td>갱신</td></tr>
+          </tbody>
+        </table>
+        <p><b>범주 분배</b> — 성공 4 (정상 ×2 + self-heal + cascade) / 400 0 / 404 0 <span style="color:var(--orange)">(A-1 로 RestoreTrashLost 가 404→409 이전, 의도된 0)</span> / 409 5 (진짜분실 + 점유 + 계층일관성 + UnreachableParent + routing) / 500-역보상 2 (restore + softDelete) / 회귀 4 (BIOS/BMC/Subprogram/기존갱신) / 방어 1. CLAUDE.md 통합 테스트 규율의 성공·400·404·409·500 중 본 hotfix 의 도메인 특성상 400 미발생.</p>
+        <div class="callout">
+          <b>404 → 409 전환 명시</b> — A-1 채택으로 <code>RestoreTrashLostException</code> 의 status 가 404 에서 409 로 이동한다. 따라서 본 hotfix 후 restore 흐름의 4 예외가 모두 409 로 일관 (계층 일관성, 시나리오 #8). CLAUDE.md §"새 예외 추가 시 트리거 시나리오 반드시" 는 신규 예외가 없으므로 superclass 변경에 대해 status assert 갱신 (시나리오 #5, #15) 으로 충족.
+        </div>
+        <div class="callout warn">
+          <b>역보상 시나리오의 결정성</b> — 시나리오 #2/#13 은 <code>markerService.write</code> / <code>markTrashed</code> 직전 작업을 mock 으로 throw 시켜 인위 재현. 실제 IO 실패가 비결정적이므로 단위 테스트에서 mock throw 로 catch 경로를 강제 실행하고, <code>moveBackReverse</code> 호출 + 원예외 재전파를 verify.
+        </div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 (404 → 409)</summary>
+      <div class="body">
+        <p><b>신규 예외 클래스 0.</b> 단 1건의 superclass 변경 :</p>
+        <table>
+          <thead><tr><th>예외</th><th>현재</th><th>HF-1 후</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>RestoreTrashLostException</code></td><td><code>extends NotFoundException</code> (404)</td><td><b><code>extends ConflictException</code> (409)</b></td><td>A-1. 형제 일관성 + 메시지 동선 추가</td></tr>
+            <tr><td><code>RestorePathOccupiedException</code></td><td>ConflictException (409)</td><td>유지 (409)</td><td>형제</td></tr>
+            <tr><td><code>RestoreTargetUnreachableException</code></td><td>ConflictException (409)</td><td>유지 (409)</td><td>형제</td></tr>
+            <tr><td><code>GhostRowRestoreNotAllowedException</code></td><td>ConflictException (409)</td><td>유지 (409)</td><td>형제</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout success">
+          <b>advice polymorphic 흡수 — 신규 핸들러 0</b> — <code>WebExceptionHandler:65</code> (<code>@ExceptionHandler(ConflictException.class, produces=TEXT_HTML)</code>) 와 <code>ApiExceptionHandler:164</code> (<code>@ExceptionHandler(ConflictException.class, produces=APPLICATION_JSON)</code>) 가 이미 <code>ConflictException</code> 을 다형적으로 처리한다. superclass 를 <code>ConflictException</code> 으로 바꾸는 순간 <code>RestoreTrashLost</code> 가 이 두 핸들러로 자동 흡수 → <b>신규 @ExceptionHandler 0줄</b>. CLAUDE.md §다형성으로 분기 흡수 부합.
+        </div>
+
+        <h4>예외 메시지 동선 추가 (현 → 신)</h4>
+<pre><code>// 현재 (RestoreTrashLostException)
+"휴지통 자원 부재 — 외부에서 정리된 것으로 보입니다 : " + trashedPath
+
+// HF-1 후 (동선 추가)
+"휴지통 자원이 부재합니다 (외부에서 정리된 것으로 보입니다) : " + trashedPath
+  + " · 휴지통의 '정리' 또는 reconciliation 의 GHOST_DB_ROW drift apply 로 정리하세요."</code></pre>
+
+        <h4>버그 2 의 표면화 경로 — error.html → 친화 핸들러</h4>
+        <ul>
+          <li><b>현재</b> : OS list ISO restore form 에 <code>data-async-submit</code> 부재 → native POST (Accept: text/html) → <code>WebExceptionHandler.handleNotFound</code> (<code>:58-63</code>) → <code>error.html:26</code> <code>th:text="${message}"</code> 무가공 출력.</li>
+          <li><b>HF-1 후</b> : (1) restore form 에 <code>data-async-submit</code> → XHR (Accept: application/json) → <code>ApiExceptionHandler.handleConflict</code> (<code>:164</code>) → <code>ApiErrorResponse</code> JSON → AsyncSubmitResult 친화 핸들러가 modal/toast 로 표시. (2) superclass 가 409 라 <code>handleNotFound</code> 가 아닌 <code>handleConflict</code> 로 진입 — 설령 native nav 가 잔류해도 일관된 409 페이지.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항 (A-1 / A-2 / A-3 확정)</summary>
+      <div class="body">
+        <div class="callout success">
+          아래 A-1 / A-2 / A-3 은 <b>모두 권장안으로 확정</b>됨 (briefing 명시). plan 에 확정으로 기재. 사용자 CP1 에서 재검토 가능.
+        </div>
+
+        <h4>A-1. <code>RestoreTrashLostException</code> 404 → <span style="color:var(--green)">409 변경 (확정)</span></h4>
+        <p>형제 3 예외와의 계층 일관성 + advice polymorphic 흡수. 동반 작업 : <code>OSMetadataControllerRestoreFlowTest</code> 의 status assert 404 → 409 갱신 (§6 #15). 의미상 "복구 가능 자원이 없는 상태 충돌" 은 NotFound (리소스 식별 실패) 보다 Conflict (현재 상태와의 충돌) 가 정확.</p>
+
+        <h4>A-2. 멱등 (원O·trashX) self-heal 시 <span style="color:var(--green)">조용히 DB 정합 후 성공(2xx) — 토스트 미노출 (확정)</span></h4>
+        <p>partial-restore 잔여를 사용자에게 "오류였다" 고 노출하지 않고 조용히 정상 복원으로 귀결. 사용자 관점에서 "복구 버튼 → 복구됨" 의 멘탈 모델이 깨지지 않음 (CLAUDE.md §명확한 사용성). self-heal 이 발생했다는 사실은 서버 로그 (info) 로만 남김.</p>
+
+        <h4>A-3. BoardModel → Subprogram cascade 누락 → <span style="color:var(--orange)">별도 cascade-asymmetry 슬라이스로 분리 (확정)</span></h4>
+        <p>본 HF-1 비목표. Notion 페이지 본문에 잔존 책임으로 기재 (CLAUDE.md 불가침 — 페이지 본문에 ① scope ② 비목표 ③ 잔존 책임 + 해소 시점 ④ 후속 마일스톤 4 항목). HF-1 은 restore 인프라 무결성만 다루며 cascade 위상 누락은 직교 결함.</p>
+
+        <h4>D-1. afterCommit 배제 근거 (재확인)</h4>
+        <ul>
+          <li>코드베이스 <code>TransactionSynchronization</code> 선례 0건 — 신규 패턴 도입 비용.</li>
+          <li>cascade restore 시 N 자식이 단일 부모 커밋 콜백에 몰리는 복잡도.</li>
+          <li>post-commit silent 실패 시 알림 인프라 부재 (Audit Event Bus 미도입).</li>
+          <li>→ CLAUDE.md §단순성 / over-abstraction 회피. 2-phase 무결성은 <b>별도 슬라이스</b>로 분리 (§11).</li>
+        </ul>
+
+        <h4>D-2. 공통 fragment 추출 검토</h4>
+        <p>4 도메인 restore form 의 <code>data-async-submit</code> 마커 부착 시, restore form 자체를 공통 fragment 로 추출하면 1곳 수정으로 흡수 가능 (CLAUDE.md §중복 지양). 단 도메인별 cascade preview 속성 (<code>data-cascade-true-title/desc</code>) 차이가 있어 파라미터화 필요 — over-abstraction 우려 시 마커만 부착하고 fragment 추출은 후속으로 미룰 수 있음. CP2 에서 결정.</p>
+
+        <h4>D-3. CLAUDE.md 정렬</h4>
+        <ul>
+          <li><b>§조건 분기문 무분별 확장 지양</b> — 기존 L126/L133 개별 검사를 4상태 게이트로 <b>대체</b> (확장 아님). superclass 변경으로 advice 분기 흡수 (신규 핸들러 0).</li>
+          <li><b>§중복 지양</b> — 역보상은 <code>moveWithRetry</code> 재사용 (신규 mv 로직 0). restore form 마커는 fragment 추출 검토.</li>
+          <li><b>§Primitive Obsession</b> — <code>Path</code> 기반 FS 비트 판정. 새 primitive 도입 0.</li>
+          <li><b>§Spring framework primitive 활용</b> — @Transactional 롤백 + advice polymorphic 흡수에 위임. 컨트롤러 try/catch 추가 0.</li>
+        </ul>
+
+        <h4>D-4. Notion 페이지 본문 갱신 (CLAUDE.md 불가침)</h4>
+        <p>CP1 승인 후 HF-1 Notion 페이지 본문에 4 항목 기재 : ① scope (restore 인프라 무결성 + RestoreTrashLost 404→409, 4 도메인 동시), ② 비목표 (afterCommit 2-phase / Subprogram cascade / R2 advice 통합 / Ghost 코드 정리), ③ 잔존 책임 (dangling stale row 가 ghost 4조건 불만족 — MK3-1 이 못 잡음을 명시; afterCommit 미사용으로 극히 드문 multi-step FS 실패의 잔여 위험은 2-phase 슬라이스에서 해소), ④ 후속 마일스톤 (2-phase 무결성 / cascade-asymmetry).</p>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="hf-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (기존 baseline + 신규 ~15 시나리오)</span></label></li>
+          <li><label><input type="checkbox" data-key="gate"> <span><b>버그1</b> — restoreFromTrash 의 trashed_path!=null 분기에 멱등 4상태 사전게이트 존재</span></label></li>
+          <li><label><input type="checkbox" data-key="fsfirst"> <span><b>버그1</b> — moveBack/write 가 try/catch 로 감싸지고 catch 에서 moveBackReverse 역보상 + 원예외 재전파</span></label></li>
+          <li><label><input type="checkbox" data-key="symmetry"> <span><b>버그1</b> — softDeleteToTrash 도 markTrashed 전 예외 시 moveBackReverse 대칭 보강</span></label></li>
+          <li><label><input type="checkbox" data-key="reverse"> <span>TrashService.moveBackReverse 가 moveWithRetry 재사용 (신규 mv 로직 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="status"> <span><b>버그2</b> — RestoreTrashLostException extends ConflictException (409) + 메시지 동선 추가 (A-1)</span></label></li>
+          <li><label><input type="checkbox" data-key="advice"> <span><b>버그2</b> — 신규 @ExceptionHandler 0 (ConflictException 핸들러 polymorphic 흡수 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="marker"> <span><b>버그2</b> — OS/ISO/BIOS/BMC/Subprogram restore form 에 data-async-submit 마커 (누락 0, grep 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="handler"> <span><b>버그2</b> — OS list 에 AsyncSubmitResult 친화 핸들러 로드 (native nav error.html 회피)</span></label></li>
+          <li><label><input type="checkbox" data-key="selfheal"> <span>self-heal (원O·trashX) 시 토스트 미노출 + 2xx (A-2)</span></label></li>
+          <li><label><input type="checkbox" data-key="hashguard"> <span>(원O) self-heal 직전 manifestHash 선택 검증 (동명파일 오인 방어)</span></label></li>
+          <li><label><input type="checkbox" data-key="layer"> <span>계층 일관성 — restore 4 예외 모두 409</span></label></li>
+          <li><label><input type="checkbox" data-key="crossdomain"> <span>cross-domain 회귀 — ISO/BIOS/BMC/Subprogram restore 정상 + 역보상 동작</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span>DB schema / Entity / Repository 변경 0</span></label></li>
+          <li><label><input type="checkbox" data-key="notion"> <span>Notion 페이지 본문 4 항목 기재 (D-4)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자 단독) — partial-restore 재시도 modal 안내 / 정상 / 진짜분실 409 / 4 도메인 회귀</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">핵심 수정</span></td><td><code>global/trash/TrashLifecycleService.java</code></td><td>멱등 사전게이트 + FS-first 역보상 (restore) + 대칭 역보상 (softDelete). 두 버그의 단일 진원지 = 단일 수정점</td></tr>
+            <tr><td><span class="chip add">메서드 추가</span></td><td><code>global/trash/TrashService.java</code></td><td><code>moveBackReverse</code> (moveWithRetry 재사용)</td></tr>
+            <tr><td><span class="chip mod">superclass</span></td><td><code>management/common/exception/RestoreTrashLostException.java</code></td><td>NotFoundException → ConflictException (404→409) + 메시지 동선</td></tr>
+            <tr><td><span class="chip mod">마커</span></td><td><code>templates/management/os/list.html</code></td><td>ISO(L382-391)/OS(L196-205) restore form 에 data-async-submit + 친화 핸들러 로드</td></tr>
+            <tr><td><span class="chip mod">마커</span></td><td>BIOS / BMC / Subprogram restore form 템플릿</td><td>동형 data-async-submit (공통 fragment 검토)</td></tr>
+            <tr><td><span class="chip mod">핸들러</span></td><td><code>static/global/error-modal.js</code> 또는 trash-action.js</td><td>OS list AsyncSubmitResult 친화 핸들러</td></tr>
+            <tr><td><span class="chip add">신규</span></td><td><code>test/.../IsoLifecycleControllerRestoreFlowTest.java</code></td><td>ISO restore controller flow (정상 / partial-failure / 멱등 / 진짜분실 409 / routing)</td></tr>
+            <tr><td><span class="chip add">신규/보강</span></td><td><code>test/.../global/trash/TrashLifecycleServiceTest.java</code></td><td>멱등 4상태 + 역보상 단위 (mock throw → moveBackReverse verify)</td></tr>
+            <tr><td><span class="chip mod">status 갱신</span></td><td><code>test/.../OSMetadataControllerRestoreFlowTest.java</code></td><td>RestoreTrashLost 404 → 409 assert 갱신</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>WebExceptionHandler:65 / ApiExceptionHandler:164 / ApiErrorResponse</td><td>ConflictException polymorphic 흡수 — 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>3 형제 예외 (PathOccupied / TargetUnreachable / GhostRowRestoreNotAllowed)</td><td>이미 409 — 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>error.html / Entity(restore·clearTrashed·reissueMarker) / Repository / DB schema</td><td>변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>4 restore caller (IsoLifecycleService:163 / BiosService:444 / BmcService:504 / SubprogramService:565)</td><td>인프라 내부 수정으로 자동 치유 — caller 변경 0</td></tr>
+          </tbody>
+        </table>
+        <p><b>요약</b> — 신규 2 (test ×2) / 수정 7 (service ×2 + exception ×1 + 템플릿 ×2 + JS ×1 + test ×1) / 유지 다수. <b>두 버그의 단일 진원지 (TrashLifecycleService) 1곳 + 예외 1줄 + restore form 마커</b>로 4 도메인 동시 해결.</p>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>2-phase 무결성 슬라이스 (afterCommit)</b> — 본 HF-1 이 배제한 afterCommit 기반 정합. <code>TransactionSynchronization</code> 도입 + cascade restore 의 자식 커밋 콜백 설계 + post-commit silent 실패 알림 인프라 (Audit Event Bus 연계). HF-1 의 즉시 역보상으로도 극히 드문 multi-step FS 실패의 잔여 위험이 남는다면 이 슬라이스가 최종 해소.</li>
+          <li><b>cascade-asymmetry 슬라이스</b> — BoardModel → Subprogram cascade 누락 (A-3). restore/softDelete 의 위상 일관성 회복.</li>
+          <li><b>R2 — 예외 advice 통합 / errorCode 다형성 / ProblemDetail adapter</b> — R1-4-1 hotfix v3 후속. HF-1 의 superclass 변경 (409 일관성) 이 이 통합의 전제를 정돈.</li>
+          <li><b>Audit Event Bus</b> — append-only audit 영속화 인프라. self-heal / 역보상 이벤트를 운영자가 추적할 채널. MK3-2 의 7종 이벤트도 흡수.</li>
+          <li><b>(별도) Ghost 코드 정리 슬라이스 (DCM3-2.9)</b> — MK3-2 운영 안정 후. HF-1 이 dangling stale row 를 self-heal 로 흡수하면서 ghost 4조건과의 경계가 명확해진 뒤 한시적 fail-safe 코드 전체 삭제 가능.</li>
+        </ol>
+        <p>HF-1 자체는 hotfix 1 묶음 분량 — 단일 진원지 수정 + 예외 1줄 + 템플릿 마커. 두 버그의 코드 동일성으로 4 도메인 동시 치유. 멱등 게이트와 FS-first 역보상의 통합 동작 (과거 잔여 치유 + 미래 발생 차단) 이 CP4 의 핵심 검증 대상.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 12;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      if (text.includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+      });
+    });
+  });
+</script>
+</body>
+</html>

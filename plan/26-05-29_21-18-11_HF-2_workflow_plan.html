@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workflow 계획 — 부모 disabled / 자식 enabled lifecycle 모순 (HF-2)</title>
+<style>
+    :root {
+        --bg: #0f1115; --panel: #161a22; --panel-2: #1c2230;
+        --border: #2a3142; --border-soft: #232938;
+        --text: #e6e9ef; --muted: #8a93a6;
+        --accent: #7aa2f7; --accent-2: #bb9af7;
+        --ok: #9ece6a; --warn: #e0af68; --bad: #f7768e; --info: #7dcfff;
+        --phase: #bb9af7; --hyp: #e0af68;
+        --mono: "SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    }
+    * { box-sizing: border-box; }
+    html,body { margin:0; padding:0; background:var(--bg); color:var(--text);
+        font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif; font-size:14.5px; line-height:1.66; }
+    code,.mono { font-family:var(--mono); font-size:12.8px; }
+    header.banner { padding:28px 36px 20px; border-bottom:1px solid var(--border);
+        background:linear-gradient(180deg,#1a1f2c 0%,#0f1115 100%); }
+    header.banner h1 { margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em; }
+    header.banner .sub { color:var(--muted); margin-top:8px; font-size:13px; }
+    header.banner .approve { margin-top:12px; display:inline-block; background:rgba(224,175,104,0.16);
+        border:1px solid var(--warn); color:var(--warn); font-size:12.5px; font-weight:700; padding:5px 14px; border-radius:6px; }
+    main { max-width:1140px; margin:0 auto; padding:24px 36px 80px; }
+    .toc { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:26px; }
+    .toc h3 { margin:0 0 8px; font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em; }
+    .toc ol { margin:0; padding-left:22px; }
+    .toc a { color:var(--accent); text-decoration:none; }
+    .toc a:hover { text-decoration:underline; }
+    section { margin-bottom:30px; scroll-margin-top:14px; }
+    h2 { font-size:18px; font-weight:700; margin:0 0 12px; padding-bottom:7px; border-bottom:1px solid var(--border-soft); }
+    h3 { font-size:15px; font-weight:600; margin:20px 0 8px; color:var(--accent-2); }
+    h4 { font-size:14px; font-weight:600; margin:14px 0 6px; color:var(--info); }
+    p { margin:8px 0; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin:12px 0; }
+    .card-bad { border-left:3px solid var(--bad); }
+    .card-info { border-left:3px solid var(--info); }
+    .card-warn { border-left:3px solid var(--warn); }
+    .card-hyp { border-left:3px solid var(--hyp); background:#211c12; }
+    pre { background:#0a0d13; border:1px solid var(--border); border-radius:8px; padding:12px 14px; overflow-x:auto;
+        font-family:var(--mono); font-size:12.3px; line-height:1.55; margin:10px 0; }
+    .k-kw{color:#bb9af7;} .k-ty{color:#7dcfff;} .k-cm{color:#565f89;font-style:italic;} .k-st{color:#9ece6a;} .k-nm{color:#ff9e64;}
+    table { width:100%; border-collapse:collapse; margin:10px 0 16px; font-size:13px; }
+    th,td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--border-soft); vertical-align:top; }
+    th { background:var(--panel-2); color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.04em; }
+    tr:hover td { background:var(--panel-2); }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .pill-q { background:rgba(122,162,247,0.18); color:var(--accent); }
+    .pill-hyp { background:rgba(224,175,104,0.18); color:var(--warn); }
+    .pill-phase { background:rgba(187,154,247,0.18); color:var(--phase); }
+    .flow { background:#0a0d13; border:1px solid var(--border); border-radius:8px; padding:16px 20px; margin:12px 0;
+        font-family:var(--mono); font-size:12px; line-height:1.5; white-space:pre; overflow-x:auto; color:#c8d0e2; }
+    .phase-box { background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--phase);
+        border-radius:0 8px 8px 0; padding:12px 16px; margin:12px 0; }
+    .phase-box .ph-label { font-size:11px; font-weight:800; color:var(--phase); letter-spacing:0.06em; }
+    .phase-box h4 { margin:4px 0 8px; color:var(--text); }
+    ul,ol { padding-left:22px; }
+    .qmap { display:grid; grid-template-columns:auto 1fr; gap:8px 14px; margin:10px 0; }
+    .qmap .q { font-weight:700; color:var(--accent); }
+    .hidden { display:none !important; }
+    .meta-row { display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:10px; }
+    .meta-row b { color:var(--text); }
+</style>
+</head>
+<body>
+
+<header class="banner">
+    <h1>Workflow 계획 — 부모 disabled / 자식 enabled lifecycle 모순 (HF-2)</h1>
+    <div class="sub">
+        OS 버전 9.5 = 비활성화, 하위 ISO 27 = 활성화 의 논리적 모순. 근본 원인 진단 + 수정 + 횡단 확인을 위한
+        multi-agent Workflow 의 <b>실행 계획서</b>. 본 문서는 계획이며, Workflow 실제 실행은 사용자 승인 후 진행.
+    </div>
+    <div class="approve">⬢ 본 계획 검토 후 "승인" 시 Workflow 실행 — 미승인 시 미실행</div>
+    <div class="meta-row">
+        <span>작성 <b>2026-05-29 KST</b></span>
+        <span>슬라이스 후보 <b>HF-2</b> (2-1차 개발 hotfix)</span>
+        <span>최소 스카우트로 초기 가설 확보 — Workflow 가 검증·확정</span>
+    </div>
+</header>
+
+<main>
+
+<div class="toc">
+    <h3>목차</h3>
+    <ol>
+        <li><a href="#bg">1. 배경 — 관찰된 모순</a></li>
+        <li><a href="#q">2. 답해야 할 4 질문 (사용자 요구)</a></li>
+        <li><a href="#hyp">3. 초기 가설 (스카우트 결과)</a></li>
+        <li><a href="#wf">4. Workflow 설계 (phase 구조)</a></li>
+        <li><a href="#out">5. 예상 산출물 + 승인 요청</a></li>
+    </ol>
+</div>
+
+<!-- 1 -->
+<section id="bg">
+    <h2>1. 배경 — 관찰된 모순</h2>
+    <div class="card card-bad">
+        <b>증상</b> — OS 버전 <b>9.5 가 비활성화(disabled)</b> 상태인데, 그 하위 <b>ISO 27(Rocky 9.5 dvd iso)이 활성화(enabled)</b>.
+        부모가 꺼져 있는데 자식이 켜져 있는 <b>lifecycle 논리 모순</b>. (다른 OS 버전 8.10 / 10.1 은 활성.)
+    </div>
+    <p>
+        직전 HF-1 작업에서 ISO 27 을 self-heal restore 한 직후 발견. "이전에 부모-자식 가드로 다뤘던 문제 같은데 어쩌다 재발했는가" 가 핵심 질문.
+        이미 코드에는 부모-자식 enabled 가드가 존재하므로(아래 §3), 그 가드를 우회한 경로가 있다는 의미.
+    </p>
+</section>
+
+<!-- 2 -->
+<section id="q">
+    <h2>2. 답해야 할 4 질문 (사용자 요구)</h2>
+    <div class="qmap">
+        <div class="q"><span class="pill pill-q">Q1</span></div>
+        <div><b>어떤 유스케이스에서 발생하는가</b> — 어떤 사용자 액션 순서가 이 모순 상태를 만드는가 (재현 시나리오 확정)</div>
+        <div class="q"><span class="pill pill-q">Q2</span></div>
+        <div><b>정확히 어느 지점에서 문제가 되었는가</b> — 어느 메서드·라인이 부모-자식 enabled 정합을 깨뜨리는가 (file:line)</div>
+        <div class="q"><span class="pill pill-q">Q3</span></div>
+        <div><b>어느 지점을 수정해야 하는가</b> — 근본 수정 위치 + 설계 (임시 처방 아닌)</div>
+        <div class="q"><span class="pill pill-q">Q4</span></div>
+        <div><b>다른 자원 도메인에서 중복 발생할 수 있는가</b> — BoardModel→BIOS/BMC/Driver, Subprogram 등 동형 부모-자식 구조의 같은 결함 여부</div>
+    </div>
+</section>
+
+<!-- 3 -->
+<section id="hyp">
+    <h2>3. 초기 가설 (스카우트 결과 — Workflow 가 검증·확정)</h2>
+    <p>workflow_plan 작성 전 최소 스카우트로 확보한 코드 사실 2개 + 그로부터의 가설. <b>아직 미확정 — Workflow 의 적대적 검증 대상.</b></p>
+
+    <h3>확보한 코드 사실</h3>
+    <div class="card card-info">
+        <b>사실 ①</b> — <code>LifecycleEntity.restore()</code> (line 108-113) 은 <code>is_deleted = false</code> 로만 복원하고
+        <b><code>is_enabled</code> 는 건드리지 않는다</b> (soft-delete 시점의 enabled 값 보존). softDelete() 도 is_enabled 무변경.
+        <pre style="margin:8px 0 0;"><span class="k-kw">public void</span> restore() {
+    <span class="k-kw">if</span> (!this.isDeleted) { ... }
+    this.isDeleted = <span class="k-kw">false</span>;   <span class="k-cm">// is_enabled 는 그대로 — soft-delete 전 값 보존</span>
+}</pre>
+    </div>
+    <div class="card card-info">
+        <b>사실 ②</b> — <code>OSMetadataLifecycleService.toggleEnabled</code> 는 OS disable 시 자식 ISO 를 cascade 하나
+        <b><code>!iso.isDeleted()</code> 필터로 soft-deleted 자식은 cascade 에서 제외</b>한다. 또 ISO restore 의 부모 가드
+        (<code>IsoLifecycleService.restore</code>) 는 <code>parent.isDeleted()</code> 만 확인하고 <b><code>parent.isEnabled()</code> 는 확인하지 않는다.</b>
+        <pre style="margin:8px 0 0;">parent.getIsos().stream()
+    .filter(iso -> !iso.isDeleted() && !iso.isDeprecated())   <span class="k-cm">// ← soft-deleted 자식 제외</span>
+    .filter(iso -> iso.isEnabled() != target)
+    .forEach(ISO::toggleEnabled);</pre>
+    </div>
+
+    <h3>가설 (두 갈래 — 어느 쪽이 실제 경로인지 Workflow 가 확정)</h3>
+    <div class="card card-hyp">
+        <b><span class="pill pill-hyp">가설 A</span> cascade 제외 + restore 보존</b><br>
+        OS disable 시점에 ISO 27 이 이미 soft-deleted(trash) 였다면 → <code>!iso.isDeleted()</code> 필터로 cascade disable 제외 →
+        ISO 27 의 <code>is_enabled=true</code> 보존. 이후 ISO 27 restore → <code>is_deleted=false</code> 로만 복원, <code>is_enabled=true</code> 유지
+        → <b>부모 disabled · 자식 enabled 모순</b>.
+    </div>
+    <div class="card card-hyp">
+        <b><span class="pill pill-hyp">가설 B</span> restore 부모 enabled 가드 누락</b><br>
+        <code>IsoLifecycleService.restore</code> 가 부모 <code>isDeleted</code> 만 가드하고 <code>isEnabled</code> 는 확인 안 함 →
+        부모가 disabled 인 상태에서 자식 단독 restore 가 enabled 자식을 되살림 → 모순. (HF-1 self-heal 경로도 동일하게 부모 enabled 미확인.)
+    </div>
+    <div class="card card-warn">
+        <b>핵심 의문</b> — OS 9.5 는 어떻게 disabled 가 됐는가? (a) 사용자가 OS 를 toggle disable / (b) 삭제→복구 과정에서 disabled 로 /
+        (c) 다른 경로. 이 시점·순서가 Q1(유스케이스) 의 핵심이며 가설 A/B 중 어느 쪽인지를 가른다.
+    </div>
+</section>
+
+<!-- 4 -->
+<section id="wf">
+    <h2>4. Workflow 설계 (phase 구조)</h2>
+    <p>4 질문(Q1~Q4)을 4 phase 에 매핑한 pipeline. 각 phase 는 코드 Read/Grep 기반 사실 확인 + 적대적 검증.</p>
+
+    <div class="phase-box">
+        <span class="ph-label">PHASE 1 · INVESTIGATE</span>
+        <h4>유스케이스 재구성 + 정확한 지점 (Q1 · Q2) — 병렬 4 agent</h4>
+        <ul>
+            <li><b>A. enabled cascade 경로</b> — OS/부모 toggle disable 시 자식 cascade 의 정확한 조건(soft-deleted/deprecated 제외 필터)이 어떤 상태의 자식을 누락시키는지. <code>OSMetadataLifecycleService.toggleEnabled</code> + deprecate/undeprecate cascade 전수.</li>
+            <li><b>B. restore 의 enabled 처리</b> — <code>LifecycleEntity.restore()</code> + <code>restoreFromTrash</code> self-heal + <code>IsoLifecycleService.restore</code> 부모 가드. is_enabled 보존이 부모 상태와 어떻게 어긋나는지.</li>
+            <li><b>C. OS 9.5 가 disabled 가 된 경로</b> — soft-delete→restore 흐름에서 OS 의 is_enabled 변화 추적. 삭제/복구/토글 중 어디서 disabled 가 됐는지 재구성.</li>
+            <li><b>D. 부모-자식 enabled invariant 의 현 가드 지도</b> — 기존에 "이미 다뤘다"는 가드(IsoLifecycleService.toggleEnabled 의 enable 시 부모 가드 등)가 무엇을 커버하고 무엇을 빠뜨리는지 전수.</li>
+        </ul>
+        <p class="mono" style="font-size:11.5px; color:var(--muted);">schema: { area, mechanism, trigger_state, evidence(file:line), confidence }</p>
+    </div>
+
+    <div class="phase-box">
+        <span class="ph-label">PHASE 2 · VERIFY</span>
+        <h4>가설 A/B 적대적 검증 — 각 진단을 코드로 반증 시도</h4>
+        <ul>
+            <li>가설 A(cascade 제외) 와 가설 B(restore 부모 가드 누락) 중 실제 재현 경로를 코드로 확정. 둘 다일 수도.</li>
+            <li>재현 시나리오를 단계별 entity 상태(is_enabled/is_deleted)로 추적해 모순 발생 라인 pinpoint.</li>
+            <li>"이전에 다뤘다"는 가드가 정확히 어떤 케이스만 막고 본 케이스를 왜 못 막았는지 (가드의 구멍).</li>
+        </ul>
+        <p class="mono" style="font-size:11.5px; color:var(--muted);">schema: { hypothesis, confirmed, actual_path, gap_in_existing_guard, evidence }</p>
+    </div>
+
+    <div class="phase-box">
+        <span class="ph-label">PHASE 3 · DESIGN</span>
+        <h4>근본 수정 설계 (Q3) — 후보 + judge</h4>
+        <p>수정 후보 (Workflow 가 평가·선택):</p>
+        <ul>
+            <li><b>후보 1 — restore 시 부모 enabled 정합</b>: 자식 restore 시 부모가 disabled 면 자식도 disabled 로 복원 (또는 enable 차단). 부모 상태에 자식 맞춤.</li>
+            <li><b>후보 2 — cascade 필터 보정</b>: OS toggle disable 의 cascade 가 soft-deleted 자식도 포함하거나, restore 시점에 부모 상태 재적용.</li>
+            <li><b>후보 3 — enabled invariant 를 entity/도메인 불변식으로 승격</b>: 부모-자식 enabled 정합을 한 곳에서 강제 (CLAUDE.md 다형성/framework primitive). 분기 확장 회피.</li>
+            <li><b>후보 4 — 조회 시점 정합 (derived)</b>: 자식 effective-enabled 를 부모 enabled AND 자식 enabled 로 파생 표현 (저장 상태가 아닌 계산).</li>
+        </ul>
+        <p>judge 축: correctness(모순 근절) / 단순성(CLAUDE.md) / 횡단 적용성 / 기존 가드와의 일관성. afterCommit 류 과한 인프라 배제.</p>
+        <p class="mono" style="font-size:11.5px; color:var(--muted);">schema: { approach, fix_point, invariant_enforcement, cross_domain, tradeoffs, claude_md }</p>
+    </div>
+
+    <div class="phase-box">
+        <span class="ph-label">PHASE 4 · CROSS-DOMAIN</span>
+        <h4>다른 도메인 횡단 확인 (Q4)</h4>
+        <ul>
+            <li>BoardModel→BIOS/BMC/DriverPackage, Subprogram 등 부모-자식 1:N 도메인 전수. 동일한 "부모 disable cascade + 자식 restore enabled 보존" 결함 여부.</li>
+            <li>각 도메인의 toggleEnabled cascade 필터 + restore 부모 가드 비교 (HF-1 의 self-invocation 처럼 도메인별 편차 가능).</li>
+            <li>채택 수정이 공통 인프라(LifecycleEntity / LifecycleService / restoreFromTrash) 1곳으로 4 도메인 동시 해결 가능한지.</li>
+        </ul>
+        <p class="mono" style="font-size:11.5px; color:var(--muted);">schema: { domain, has_same_defect, cascade_filter, restore_guard, evidence }</p>
+    </div>
+
+    <h3>Workflow 산출 (종합)</h3>
+    <p>Phase 1~4 종합 → 4 질문 각각의 확정 답 + 채택 수정 설계 + CP 단위 구현 계획 + 횡단 영향. (HF-1 처럼 구현은 별도 CP 로, 본 Workflow 는 진단+설계까지.)</p>
+</section>
+
+<!-- 5 -->
+<section id="out">
+    <h2>5. 예상 산출물 + 승인 요청</h2>
+    <table>
+        <thead><tr><th>항목</th><th>내용</th></tr></thead>
+        <tbody>
+            <tr><td>Q1 유스케이스</td><td>모순을 만드는 정확한 사용자 액션 순서 (재현 시나리오)</td></tr>
+            <tr><td>Q2 정확한 지점</td><td>부모-자식 enabled 정합을 깨는 메서드:라인 (가설 A/B 확정)</td></tr>
+            <tr><td>Q3 수정 지점</td><td>근본 수정 설계 (judge 선택 후보) + file:line</td></tr>
+            <tr><td>Q4 횡단</td><td>BIOS/BMC/Driver/Subprogram 동형 결함 여부 + 공통 수정 범위</td></tr>
+            <tr><td>구현 계획</td><td>HF-2 CP 단위 (진단 확정 후 별도 승인으로 구현 진입)</td></tr>
+        </tbody>
+    </table>
+    <div class="card card-warn">
+        <b>⬢ 승인 요청</b> — 본 계획(4 phase Workflow)대로 진행할지 검토 부탁드립니다.
+        <ul style="margin:8px 0 0;">
+            <li><b>승인</b> → 위 4 phase Workflow 실행 (진단 + 설계). 완료 후 4 질문 답 + 채택 설계 보고.</li>
+            <li><b>수정</b> → phase 구성/가설/후보 조정 후 재계획.</li>
+            <li><b>특정 가설만</b> → 가설 A 또는 B 한쪽으로 좁혀 조사 범위 축소.</li>
+        </ul>
+        Workflow 실행은 토큰 비용이 큽니다 (HF-1 진단 Workflow 는 16 에이전트 / 168만 토큰). 승인 시에만 실행합니다.
+    </div>
+</section>
+
+</main>
+
+<script>
+  document.querySelectorAll('.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href')); if (!t) return;
+      e.preventDefault();
+      window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 12, behavior:'smooth' });
+    });
+  });
+</script>
+</body>
+</html>

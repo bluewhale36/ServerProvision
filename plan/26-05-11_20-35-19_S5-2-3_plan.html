@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-2-3 Plan — restore cascade 라디오 (v2)</title>
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --card: #ffffff;
+    --text: #1f2328;
+    --text-muted: #57606a;
+    --border: #d0d7de;
+    --border-soft: #eaecef;
+    --blue: #0075de;
+    --blue-bg: #e6f0ff;
+    --orange: #dd5b00;
+    --orange-bg: rgba(221,91,0,0.08);
+    --yellow: #C29343;
+    --yellow-bg: #FAF3DD;
+    --green: #1aae39;
+    --green-bg: rgba(26,174,57,0.10);
+    --red: #cf222e;
+    --red-bg: rgba(207,34,46,0.08);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.6; font-size: 15px;
+  }
+  header.page-header {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-muted); }
+  .meta .meta-item strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1180px; margin: 0 auto; padding: 24px; }
+  nav.toc {
+    position: sticky; top: 108px; align-self: start;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; font-size: 13px;
+  }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 4px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 4px 6px; border-radius: 4px; transition: 0.1s; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc .toc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.toc button {
+    border: 1px solid var(--border); background: var(--card);
+    padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; flex: 1;
+  }
+  nav.toc button:hover { background: var(--bg); }
+
+  main { min-width: 0; }
+  .filter-box {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 6px; margin-bottom: 16px; background: var(--card);
+  }
+  .filter-box:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+
+  details.section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 14px; overflow: hidden; transition: 0.1s;
+  }
+  details.section > summary {
+    cursor: pointer; padding: 14px 18px;
+    font-size: 16px; font-weight: 600;
+    list-style: none; user-select: none;
+    display: flex; align-items: center; gap: 10px;
+  }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before {
+    content: '›'; color: var(--text-muted); font-weight: 400; font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px;
+  }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  .section-num { color: var(--text-muted); font-weight: 500; min-width: 20px; }
+  .section-title { flex: 1; }
+
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.cp1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.cp2 { background: var(--green-bg); color: var(--green); }
+  .chip.cp3 { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.cp4 { background: var(--orange-bg); color: var(--orange); }
+  .chip.cp5 { background: var(--red-bg); color: var(--red); }
+  .chip.new { background: var(--blue-bg); color: var(--blue); }
+  .chip.mod { background: var(--yellow-bg); color: var(--yellow); }
+  .chip.keep { background: var(--green-bg); color: var(--green); }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 13px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+  table.compact th, table.compact td { padding: 6px 8px; font-size: 13px; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.9em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; font-family: var(--mono); }
+  pre code { background: none; padding: 0; }
+
+  ul.check-list { list-style: none; padding: 0; margin: 0; }
+  ul.check-list li { padding: 4px 0; transition: 0.1s; }
+  ul.check-list label { cursor: pointer; display: inline-flex; align-items: flex-start; gap: 8px; }
+  ul.check-list input[type="checkbox"] { margin-top: 4px; cursor: pointer; }
+  ul.check-list li.done label { color: var(--text-muted); }
+  ul.check-list li.done label .text { text-decoration: line-through; }
+
+  .callout {
+    border-left: 3px solid var(--blue); background: var(--blue-bg);
+    padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 14px;
+  }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.danger { border-color: var(--orange); background: var(--orange-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  .hidden { display: none !important; }
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; }
+  }
+
+  /* UX 미리보기 */
+  .ux-wrapper { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: 16px; margin: 12px 0; }
+  .ux-controls { margin-bottom: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .ux-controls label { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .ux-controls select {
+    padding: 6px 24px 6px 10px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--card); font-size: 13px; color: var(--text); font-family: inherit;
+  }
+
+  .ux-list-mock {
+    background: var(--card); border: 1px solid var(--border-soft); border-radius: 6px;
+    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .ux-list-label { font-size: 14px; }
+  .ux-deleted-badge {
+    display: inline-block; padding: 1px 7px; background: rgba(0,0,0,0.06);
+    color: var(--text-muted); border-radius: 9px; font-size: 11px; margin-left: 4px;
+  }
+  .ux-child-info {
+    display: inline-block; margin-left: 6px; padding: 1px 7px;
+    background: var(--blue-bg); color: var(--blue); border-radius: 9px; font-size: 11px;
+  }
+  .ux-list-actions { display: flex; gap: 6px; }
+  .ux-mock-btn {
+    padding: 5px 11px; border: 1px solid; border-radius: 4px;
+    font-size: 13px; cursor: pointer; font-family: inherit; background: transparent;
+  }
+  .ux-mock-btn.info { color: var(--blue); border-color: rgba(0,117,222,0.3); }
+  .ux-mock-btn.info:hover { background: var(--blue-bg); }
+
+  .ux-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin: 10px 0; line-height: 1.4; }
+  .ux-flow-arrow { text-align: center; color: var(--text-muted); font-size: 18px; margin: 8px 0; }
+
+  .ux-modal-container {
+    position: relative; background: rgba(0,0,0,0.04); border: 1px dashed var(--border);
+    border-radius: 6px; padding: 24px 16px; min-height: 60px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ux-modal-card {
+    background: var(--card); border-radius: 8px; padding: 18px 20px;
+    max-width: 460px; width: 100%; box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  }
+  .ux-modal-card.hidden-card { display: none; }
+  .ux-modal-empty { color: var(--text-muted); font-size: 13px; font-style: italic; }
+  .ux-modal-title { margin: 0 0 10px; font-size: 16px; font-weight: 600; }
+  .ux-modal-message { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--text); }
+
+  .ux-radio-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .ux-radio-item {
+    display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: 0.12s;
+  }
+  .ux-radio-item:hover { border-color: var(--blue); background: rgba(0,117,222,0.03); }
+  .ux-radio-item.checked { border-color: var(--blue); background: var(--blue-bg); }
+  .ux-radio-item input[type="radio"] { margin-top: 3px; cursor: pointer; }
+  .ux-radio-title { font-size: 14px; font-weight: 500; }
+  .ux-radio-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .ux-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .ux-modal-actions button {
+    padding: 7px 14px; border-radius: 4px; font-size: 13px; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit;
+  }
+  .ux-btn-cancel { background: rgba(0,0,0,0.06); color: var(--text); }
+  .ux-btn-cancel:hover { background: rgba(0,0,0,0.10); }
+  .ux-btn-confirm { background: transparent; color: var(--blue); border: 1px solid rgba(9,127,232,0.4); }
+  .ux-btn-confirm:hover:not(:disabled) { background: var(--blue-bg); }
+  .ux-btn-confirm:disabled { background: rgba(0,0,0,0.10); color: var(--text-muted); cursor: not-allowed; border-color: transparent; }
+
+  .ux-toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--green); color: #fff; padding: 10px 18px; border-radius: 6px;
+    font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    opacity: 0; pointer-events: none; transition: 0.25s; z-index: 1000;
+  }
+  .ux-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-2-3 — restore cascade 라디오 <span style="color:var(--text-muted); font-weight:500;">(plan v2)</span></h1>
+  <div class="meta">
+    <span class="meta-item">생성 : <strong>2026-05-11</strong></span>
+    <span class="meta-item">버전 : <strong>v2 (post-S5-2-1 / S5-2-2)</strong></span>
+    <span class="meta-item">선행 : <strong>S5-2-1 / S5-2-2 CP4 완료, CP5 일괄 보류 (다음 슬라이스와 함께 E2E)</strong></span>
+    <span class="meta-item">v1 : <code>26-05-05_11-37-08_S5-2-3_plan.docx</code></span>
+    <span class="meta-item">상태 : <span class="chip cp1">CP1 대기</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 페이지 요구사항</a></li>
+    <li><a href="#preview" style="color: var(--blue); font-weight: 600;">🎬 미리보기 (UX)</a></li>
+    <li><a href="#s3">3. URL · 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델</a></li>
+    <li><a href="#s5">5. 10단계 + CP</a></li>
+    <li><a href="#s6">6. 통합 테스트</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물 · 주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="expand-all">전부 펼치기</button>
+    <button id="collapse-all">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+
+<input type="search" class="filter-box" placeholder="🔍  섹션 텍스트 검색 (실시간 필터)…">
+
+<details class="section" id="s1" open>
+  <summary><span class="section-num">1.</span> <span class="section-title">현재 상태 요약</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">1.1 선행 완료</h3>
+    <ul>
+      <li><strong>S5-2-1</strong> CP4 완료 — confirm-action.html + JS 의 3 actionKey (soft-delete / deprecate / restore) 도입. <strong>단순 restore</strong> 가 5 도메인 모두에 modal 적용된 상태.</li>
+      <li><strong>S5-2-2</strong> CP4 완료 — 'purge' actionKey + typed-name input + 5 + Board 신설 purge endpoint + 12 통합 테스트.</li>
+      <li>CP5 (브라우저 E2E) 는 <strong>S5-2 묶음 종료 시점에 일괄</strong> — 본 S5-2-3 까지 합쳐서 사용자가 동시 테스트.</li>
+    </ul>
+
+    <h3>1.2 본 sub-slice 진입 전제</h3>
+    <ul>
+      <li>OS / Board 의 restore 는 현재 단순 'restore' actionKey (S5-2-1) — cascade 옵션 없음.</li>
+      <li>OS soft-delete 시 하위 ISO 들이 자동 동반 soft-delete 됨 (현재 service 정책). restore 시 하위이 자동 복구되지 않으면 부모만 살아남고 하위은 휴지통에 남는 비대칭 상태.</li>
+      <li>Board 도 동일 — soft-delete 시 하위 BIOS / BMC 동반, restore 시 하위 자동 복구 안 됨.</li>
+      <li><strong>ISO 의 OSEnvironment / OSPackageGroup 은 ISO soft-delete 시 DB hard-delete</strong> 됨 → cascade 대상 외 (복구 자체 불가).</li>
+    </ul>
+
+    <h3>1.3 사용자 동기</h3>
+    <p>부모 (OS / Board) restore 시점에 하위 자원도 함께 복구할지 사용자가 modal 에서 라디오로 선택. 묵시적 동반 복구 / 무복구 양자택일이 아니라 명시 선택으로 운영 의도 명확화.</p>
+  </div>
+</details>
+
+<details class="section" id="s2" open>
+  <summary><span class="section-num">2.</span> <span class="section-title">페이지 요구사항 (Notion 확정)</span></summary>
+  <div class="body">
+    <blockquote style="border-left:3px solid var(--border); padding-left:14px; color:var(--text-muted); margin:0;">
+      restore 시에도 modal 을 띄워서 확인 받을 것. 메인보드/OS버전 soft-delete 이후 restore 시 하위에 종속된 ISO이미지/BIOS,BMC파일 도 함께 restore 할 여부를 modal 에서 물어보도록 수정. (단, ISO 이미지의 설치 환경 및 패키지 환경은 제외.)
+    </blockquote>
+  </div>
+</details>
+
+<details class="section" id="preview" open>
+  <summary><span class="section-num">🎬</span> <span class="section-title">미리보기 — 사용자 경험 라이브 데모</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">아래 위젯에서 cascade 라디오 modal 인터랙션을 체험할 수 있습니다. 도메인을 선택하면 하위 카운트가 자동 갱신됩니다.</p>
+
+    <div class="ux-wrapper">
+      <div class="ux-controls">
+        <label>
+          도메인 :
+          <select id="ux-domain">
+            <option value="os">OS 버전 (하위 ISO 2건)</option>
+            <option value="board">메인보드 모델 (하위 BIOS 1, BMC 1)</option>
+          </select>
+        </label>
+        <span style="font-size:12px; color:var(--text-muted);">↑ 선택 시 하위 자원 정보와 라디오 텍스트가 갱신돼요.</span>
+      </div>
+
+      <!-- mock list -->
+      <div class="ux-list-mock">
+        <span class="ux-list-label">
+          <span id="ux-list-item-label">Rocky Linux 9.5</span>
+          <span class="ux-deleted-badge">삭제됨</span>
+          <span class="ux-child-info" id="ux-child-info">하위 자원 2건</span>
+        </span>
+        <div class="ux-list-actions">
+          <button type="button" class="ux-mock-btn info" onclick="openPreviewModal()">복구</button>
+        </div>
+      </div>
+
+      <div class="ux-flow-arrow">↓</div>
+      <p class="ux-hint">사용자가 "복구" 클릭 시 cascade 라디오 modal 이 표시됩니다 (S5-2-1 의 confirm-action.html fragment 확장).</p>
+
+      <!-- mock modal -->
+      <div class="ux-modal-container">
+        <div class="ux-modal-empty" id="ux-modal-empty">↑ "복구" 버튼을 클릭해보세요.</div>
+        <div class="ux-modal-card hidden-card" id="ux-modal-card">
+          <h3 class="ux-modal-title">자원 복구</h3>
+          <p class="ux-modal-message" id="ux-modal-message">자원을 복구할까요? 하위 자원도 함께 복구할지 선택해주세요.</p>
+
+          <div class="ux-radio-group">
+            <label class="ux-radio-item checked" id="ux-radio-true-wrap">
+              <input type="radio" name="ux-cascade" value="true" id="ux-radio-true" checked>
+              <span>
+                <span class="ux-radio-title" id="ux-radio-true-title">하위 자원도 함께 복구 (2건)</span>
+                <div class="ux-radio-desc" id="ux-radio-true-desc">ISO: dvd.iso · minimal.iso</div>
+              </span>
+            </label>
+            <label class="ux-radio-item" id="ux-radio-false-wrap">
+              <input type="radio" name="ux-cascade" value="false" id="ux-radio-false">
+              <span>
+                <span class="ux-radio-title">이 자원만 복구</span>
+                <div class="ux-radio-desc">하위 자원은 필요 시 휴지통에서 개별 복구 가능해요.</div>
+              </span>
+            </label>
+          </div>
+
+          <div class="ux-modal-actions">
+            <button type="button" class="ux-btn-cancel" onclick="closePreviewModal()">취소</button>
+            <button type="button" class="ux-btn-confirm" id="ux-confirm-btn" onclick="confirmPreview()">복구</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 22px;">사용자 흐름</h3>
+    <ol style="line-height: 1.7;">
+      <li><strong>클릭</strong> — soft-deleted 상태 부모 자원의 "복구" 버튼 클릭 → submit 가로채기</li>
+      <li><strong>modal 표시</strong> — title + 메시지 + 라디오 2 (cascade=true 가 default) + 하위 자원 카운트 안내</li>
+      <li><strong>라디오 선택</strong> — 변경 시 hidden <code>cascade</code> input 값 갱신. 시각적으로는 선택된 항목만 강조 (S5-2-1 의 disabled 단순화 정책 동일 — 별도 hint 문구 없음)</li>
+      <li><strong>제출</strong> — 확인 클릭 → form submit → <code>POST .../restore?cascade=true</code> 또는 <code>?cascade=false</code> → service.restore(id, cascade)</li>
+      <li><strong>결과</strong> — 성공 시 302 redirect. cascade=true 이면 하위까지 함께 복구. 활성 자원과 (vendor, modelName) 등 충돌 시 409 (트랜잭션 전체 롤백)</li>
+    </ol>
+
+    <h3 style="margin-top: 18px;">백엔드 의사코드 (Service 측, OS 예시)</h3>
+<pre><code>@Transactional
+public RestoreResponse restore(Long id, boolean cascade) {
+    OSImage image = osImageRepository.findByIdAndIsDeletedTrue(id)
+        .orElseThrow(() -> new IllegalOSImageStateException(...));
+
+    // 활성 (osName, osVersion) 충돌 검사 — 기존 정책
+    if (osImageRepository.existsByOsNameAndOsVersionAndIsDeletedFalse(
+            image.getOsName(), image.getOsVersion())) {
+        throw new DuplicateOSImageException(...);
+    }
+    image.restore();
+
+    int restoredChildren = 0;
+    if (cascade) {
+        // 하위 ISO 중 isDeleted=true 만 일괄 복구
+        for (ISO iso : image.getIsos()) {
+            if (iso.isDeleted()) {
+                // ISO path 활성 충돌 검사 — 충돌 시 throw → @Transactional 전체 롤백
+                requireNoPathConflict(iso);
+                iso.restore();
+                restoredChildren++;
+            }
+        }
+    }
+    return new RestoreResponse(restoredChildren);
+}</code></pre>
+
+    <div class="callout warn" style="margin-top: 12px;">
+      <strong>partial-rollback :</strong> cascade 진행 중 하위 일부 복구 후 다른 하위이 충돌하면 <code>@Transactional</code> 이 전체 롤백 — 부모 / 모든 하위 모두 복구 안 된 상태로 되돌아감. <code>cascadedChildren</code> 응답은 트랜잭션 커밋 성공 시의 하위 복구 건수.
+    </div>
+    <div class="callout danger" style="margin-top: 6px;">
+      <strong>OSEnvironment / OSPackageGroup :</strong> ISO soft-delete 시 DB hard-delete 됨 → cascade 대상 외. 사용자는 ISO 복구 후 별도로 다시 추출해야 함. modal 메시지에 그 안내 포함.
+    </div>
+  </div>
+</details>
+
+<details class="section" id="s3">
+  <summary><span class="section-num">3.</span> <span class="section-title">URL · 데이터 흐름 스케치</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">3.1 URL 표</h3>
+    <table class="compact">
+      <thead><tr><th>Method</th><th>URL</th><th>변경</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>POST</td><td><code>/management/os/{id}/restore</code></td><td><span class="chip mod">시그니처</span></td><td><code>?cascade=true|false</code> param 추가</td></tr>
+        <tr><td>POST</td><td><code>/management/board/{id}/restore</code></td><td><span class="chip mod">시그니처</span></td><td><code>?cascade=true|false</code> param 추가</td></tr>
+        <tr><td>POST</td><td><code>/management/bios/{boardId}/bios/{biosId}/restore</code></td><td><span class="chip keep">유지</span></td><td>leaf — cascade 무관</td></tr>
+        <tr><td>POST</td><td><code>/management/bmc/{boardId}/bmc/{bmcId}/restore</code></td><td><span class="chip keep">유지</span></td><td>leaf</td></tr>
+        <tr><td>POST</td><td><code>/management/os/{osId}/iso/{isoId}/restore</code></td><td><span class="chip keep">유지</span></td><td>leaf (ISO 의 하위은 hard-delete 됨)</td></tr>
+        <tr><td>POST</td><td><code>/management/subprogram/{id}/restore</code></td><td><span class="chip keep">유지</span></td><td>leaf</td></tr>
+      </tbody>
+    </table>
+
+    <h3>3.2 브라우저 흐름</h3>
+<pre><code>list.html (OS / Board)
+  └─ &lt;form th:action="@{.../restore}"
+            data-confirm-action="restore-cascade"
+            data-cascade-default="true"&gt;
+       &lt;input type="hidden" name="cascade" value="true" data-cascade-input&gt;
+       &lt;button&gt;복구&lt;/button&gt;
+     &lt;/form&gt;
+
+confirm-action.js (ACTION_CONFIG.restore-cascade)
+  ├─ 라디오 2 개 (cascade=true / cascade=false) 노출
+  ├─ 라디오 change 시 hidden input value 갱신
+  └─ 확인 → form.requestSubmit()
+
+backend
+  └─ Controller : @RequestParam(defaultValue="false") boolean cascade
+  └─ Service    : restore(id, cascade) → RestoreResponse
+       ├─ 부모 restore (활성 충돌 검사)
+       └─ cascade=true 면 하위 일괄 restore (각자 충돌 검사)</code></pre>
+  </div>
+</details>
+
+<details class="section" id="s4">
+  <summary><span class="section-num">4.</span> <span class="section-title">도메인 모델</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">신규 엔티티 / 스키마 변경 <strong>없음</strong>.</p>
+
+    <h3>4.1 코드 변경 매트릭스</h3>
+    <table class="compact">
+      <thead><tr><th>분류</th><th>위치</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip new">신규 DTO</span></td><td><code>management/common/dto/response/RestoreResponse</code></td><td><code>record(int cascadedChildren)</code></td></tr>
+        <tr><td><span class="chip mod">fragment 확장</span></td><td><code>confirm-action.html</code></td><td>'restore-cascade' actionKey slot — 라디오 2 개 + 하위 카운트 표시</td></tr>
+        <tr><td><span class="chip mod">JS 확장</span></td><td><code>confirm-action.js</code></td><td>restore-cascade 모드 — 라디오 change → hidden input 갱신</td></tr>
+        <tr><td><span class="chip mod">OS Service 본체</span></td><td><code>OSImageService.restore(Long, boolean) → RestoreResponse</code></td><td>cascade=true 면 하위 ISO 일괄 restore</td></tr>
+        <tr><td><span class="chip mod">Board Service 본체</span></td><td><code>BoardModelService.restore(Long, boolean) → RestoreResponse</code></td><td>cascade=true 면 하위 BIOS / BMC 일괄 restore</td></tr>
+        <tr><td><span class="chip new">Repository</span></td><td><code>BiosRepository</code>, <code>BmcRepository</code></td><td><code>findAllByBoardModel_IdAndIsDeletedTrue</code> 신설</td></tr>
+        <tr><td><span class="chip mod">Controller</span></td><td><code>OSImageController.restore</code>, <code>BoardModelController.restore</code></td><td><code>@RequestParam(defaultValue="false") boolean cascade</code> 시그니처</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 cascade 정책</h3>
+    <table class="compact">
+      <thead><tr><th>부모</th><th>cascade 대상</th><th>제외</th></tr></thead>
+      <tbody>
+        <tr><td>OS Image</td><td>하위 ISO 중 isDeleted=true</td><td>OSEnvironment / OSPackageGroup (이미 hard-delete 됨)</td></tr>
+        <tr><td>Board Model</td><td>하위 BIOS / BMC 중 isDeleted=true</td><td>Subprogram (board scope 하위 아님 — 별도 도메인)</td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:13px; color:var(--text-muted); margin-top:6px;">
+      <strong>복구 후 하위 상태</strong> : 하위은 restore 직후 Deprecated 또는 Active 중 어디로 갈지는 기존 <code>entity.restore()</code> 정책 (현재는 활성 복원). 본 슬라이스에서 변경 없음 — 운영자가 필요 시 별도 deprecate.
+    </p>
+  </div>
+</details>
+
+<details class="section" id="s5">
+  <summary><span class="section-num">5.</span> <span class="section-title">수직 슬라이스 10 단계</span></summary>
+  <div class="body">
+    <p style="margin-top:0; font-size:13px; color:var(--text-muted);">진행 상황은 체크박스로 추적 (브라우저 localStorage 에 저장).</p>
+    <table>
+      <thead><tr><th>Step</th><th>진행</th><th>내용</th><th>CP</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><input type="checkbox" data-key="step-1"></td><td>본 plan html 산출 (현재 단계)</td><td><span class="chip cp1">CP1</span></td></tr>
+        <tr><td>2</td><td><input type="checkbox" data-key="step-2"></td><td>View — <code>confirm-action.html</code> 에 'restore-cascade' actionKey slot 추가. OS / Board list.html 의 restore form 마커 전환 + hidden cascade input</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>3</td><td><input type="checkbox" data-key="step-3"></td><td>Controller — OS / Board <code>restore</code> 시그니처에 <code>@RequestParam(defaultValue="false") boolean cascade</code> 추가</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>4</td><td><input type="checkbox" data-key="step-4"></td><td>DTO — <code>RestoreResponse(int cascadedChildren)</code> record 신설</td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>5</td><td><input type="checkbox" data-key="step-5"></td><td>Service 시그니처 — OS / Board 의 <code>restore(Long, boolean) → RestoreResponse</code></td><td><span class="chip cp2">CP2</span></td></tr>
+        <tr><td>6</td><td><input type="checkbox" data-key="step-6"></td><td>Repository — <code>BiosRepository / BmcRepository</code> 에 <code>findAllByBoardModel_IdAndIsDeletedTrue</code> 신설</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>7</td><td><input type="checkbox" data-key="step-7"></td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td></tr>
+        <tr><td>8</td><td><input type="checkbox" data-key="step-8"></td><td>Service 본체 + JS 확장 (restore-cascade actionKey) + 통합 테스트 8 시나리오</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>9</td><td><input type="checkbox" data-key="step-9"></td><td>스키마 — 변경 없음</td><td><span class="chip cp4">CP4</span></td></tr>
+        <tr><td>10</td><td><input type="checkbox" data-key="step-10"></td><td>브라우저 E2E — <strong>S5-2-1 + 2-2 + 2-3 합쳐서 사용자 단독</strong></td><td><span class="chip cp5">CP5</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.1 CP 묶음</h3>
+    <ul>
+      <li><span class="chip cp1">CP1</span> Step 1 — 본 plan html 승인</li>
+      <li><span class="chip cp2">CP2</span> Step 2-5 — View / Controller / DTO / Service 시그니처</li>
+      <li><span class="chip cp3">CP3</span> Step 6-7 — Repository 신설 / Entity 변경 없음</li>
+      <li><span class="chip cp4">CP4</span> Step 8-9 — Service 본체 + JS + 테스트</li>
+      <li><span class="chip cp5">CP5</span> Step 10 — S5-2 묶음 종료 시 사용자 단독 E2E</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s6">
+  <summary><span class="section-num">6.</span> <span class="section-title">Step 8 통합 테스트 시나리오</span></summary>
+  <div class="body">
+    <p style="margin-top:0;">OS / Board × {cascade=true 성공, cascade=false 성공, cascade=true 충돌} + 추가 검증 = <strong>합계 8 시나리오</strong>.</p>
+    <table class="compact">
+      <thead><tr><th>#</th><th>도메인</th><th>시나리오</th><th>예상</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>OS</td><td>cascade=true, 하위 ISO 2건 복구</td><td>302 + service 위임 검증 + <code>cascadedChildren=2</code></td></tr>
+        <tr><td>2</td><td>OS</td><td>cascade=false, 부모만 복구</td><td>302 + <code>cascadedChildren=0</code></td></tr>
+        <tr><td>3</td><td>OS</td><td>cascade=true, 활성 (osName, osVersion) 충돌</td><td>409 <code>DuplicateOSImageException</code></td></tr>
+        <tr><td>4</td><td>Board</td><td>cascade=true, 하위 BIOS 1 + BMC 1 복구</td><td>302 + <code>cascadedChildren=2</code></td></tr>
+        <tr><td>5</td><td>Board</td><td>cascade=false, 부모만 복구</td><td>302 + <code>cascadedChildren=0</code></td></tr>
+        <tr><td>6</td><td>Board</td><td>cascade=true, 활성 (vendor, modelName) 충돌</td><td>409 <code>DuplicateBoardModelException</code></td></tr>
+        <tr><td>7</td><td>OS</td><td>cascade=true, 하위 ISO 가 활성 ISO 와 path 충돌</td><td>409 <code>IsoConflictException</code> (cascade rollback)</td></tr>
+        <tr><td>8</td><td>OS</td><td>OSEnvironment / OSPackageGroup 이 cascade 대상에서 제외됨을 검증 (service 단위 테스트로 충분)</td><td>200 + 하위 ISO 만 복구, 환경/그룹 손대지 않음</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <strong>주의 :</strong> 통합 테스트는 controller 단위 (<code>@WebMvcTest</code>) + service mock. service 본체의 cascade 로직 자체는 별도 단위 테스트 (<code>OSImageServiceTest</code> / <code>BoardModelServiceTest</code> 에 추가) 또는 service-level integration 으로 검증.
+    </div>
+  </div>
+</details>
+
+<details class="section" id="s7">
+  <summary><span class="section-num">7.</span> <span class="section-title">예외 계층</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">신규</h3>
+    <p>없음.</p>
+    <h3>재사용</h3>
+    <ul>
+      <li><code>DuplicateOSImageException</code> (409) — cascade 시 부모 (osName, osVersion) 충돌</li>
+      <li><code>DuplicateBoardModelException</code> (409) — cascade 시 부모 (vendor, modelName) 충돌</li>
+      <li><code>IsoConflictException</code> 류 (409) — cascade 시 하위 ISO 가 활성 ISO 와 path 충돌</li>
+      <li><code>IllegalOSImageStateException</code> / <code>IllegalBoardModelStateException</code> — 이미 활성 상태에서 restore 호출</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s8">
+  <summary><span class="section-num">8.</span> <span class="section-title">예상 부산물 · 주의</span></summary>
+  <div class="body">
+    <div class="callout">
+      <strong>partial-rollback 정책 :</strong> cascade 진행 중 하위 일부 복구 → 다른 하위이 충돌 → <code>@Transactional</code> 전체 롤백. 응답의 <code>cascadedChildren</code> 은 트랜잭션 커밋 성공 시의 하위 복구 건수. 사용자는 페이지 reload 후 휴지통에 그대로 남은 것 확인 가능.
+    </div>
+
+    <h3>주의 항목</h3>
+    <ul>
+      <li><strong>OSEnvironment / OSPackageGroup 의 cascade 제외</strong> — ISO soft-delete 시 DB hard-delete 됐으므로 복구 자체 불가능. modal 메시지에 "설치 환경 / 패키지 그룹은 별도로 다시 추출해야 합니다" 안내 포함.</li>
+      <li><strong>BIOS / BMC / Subprogram / ISO 의 restore</strong> — leaf 이므로 cascade 옵션 미적용. S5-2-1 의 단순 'restore' actionKey 유지.</li>
+      <li><strong>Subprogram cascade 미포함</strong> — Notion 명시에 메인보드 하위으로 BIOS / BMC 만. Subprogram (Driver / Utility) 은 board scope 일 수도 공용일 수도 있어 정책 모호 → 본 슬라이스 범위 외.</li>
+      <li><strong>nudge REPLACE / TTL 자동 복구 흐름은 없음</strong> — restore 는 사용자 명시 액션에만. S5-2-4 와 무관.</li>
+      <li><strong>CLAUDE.md 수정</strong> — 없음. (Step 1 산출물 규약은 S5-2-2 시점에 이미 docx→html 전환 명시됨.)</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s9">
+  <summary><span class="section-num">9.</span> <span class="section-title">Verification 체크리스트</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;">빌드</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox" data-key="v-build-1"><span class="text"><code>./gradlew compileJava compileTestJava</code> BUILD SUCCESSFUL</span></label></li>
+      <li><label><input type="checkbox" data-key="v-build-2"><span class="text"><code>./gradlew test</code> 8 신규 + 회귀 통과</span></label></li>
+    </ul>
+    <h3>기능</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox" data-key="v-func-1"><span class="text">OS / Board restore 클릭 → modal 표시 + 라디오 2 개 (cascade=true 가 default)</span></label></li>
+      <li><label><input type="checkbox" data-key="v-func-2"><span class="text">cascade=true 시 하위 자원도 함께 복구 (휴지통 보기 토글로 확인)</span></label></li>
+      <li><label><input type="checkbox" data-key="v-func-3"><span class="text">cascade=false 시 부모만 복구</span></label></li>
+      <li><label><input type="checkbox" data-key="v-func-4"><span class="text">cascade=true 시 활성 자원과 충돌 → 409 + 트랜잭션 롤백 (하위이 일부 restore 안됨)</span></label></li>
+    </ul>
+    <h3>회귀</h3>
+    <ul class="check-list">
+      <li><label><input type="checkbox" data-key="v-reg-1"><span class="text">BIOS / BMC / Subprogram / ISO 의 leaf restore 동작 보전</span></label></li>
+      <li><label><input type="checkbox" data-key="v-reg-2"><span class="text">S5-2-1 의 soft-delete / deprecate 흐름 무영향</span></label></li>
+      <li><label><input type="checkbox" data-key="v-reg-3"><span class="text">S5-2-2 의 purge typed-name 흐름 무영향</span></label></li>
+      <li><label><input type="checkbox" data-key="v-reg-4"><span class="text">MK1 PathReconciliationService 회귀 0건</span></label></li>
+      <li><label><input type="checkbox" data-key="v-reg-5"><span class="text">OSEnvironment / OSPackageGroup 이 cascade 시 손대지지 않음</span></label></li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s10">
+  <summary><span class="section-num">10.</span> <span class="section-title">Critical Files</span></summary>
+  <div class="body">
+    <h3 style="margin-top:0;"><span class="chip new">신규</span> 신규 파일</h3>
+    <ul>
+      <li><code>src/main/java/com/example/serverprovision/management/common/dto/response/RestoreResponse.java</code></li>
+      <li><code>src/test/.../management/os/controller/OSImageControllerRestoreFlowTest.java</code> (4 시나리오)</li>
+      <li><code>src/test/.../management/board/controller/BoardModelControllerRestoreFlowTest.java</code> (3 시나리오)</li>
+      <li>(service-level cascade 검증은 기존 service 테스트에 추가)</li>
+    </ul>
+    <h3><span class="chip mod">수정</span> 수정 파일</h3>
+    <ul>
+      <li><code>templates/fragments/management/confirm-action.html</code> — 'restore-cascade' actionKey slot</li>
+      <li><code>static/management/common/confirm-action.js</code> — restore-cascade 모드</li>
+      <li><code>templates/management/os/list.html</code>, <code>templates/management/board/list.html</code> — restore form 마커 전환</li>
+      <li><code>OSImageController.restore</code> / <code>BoardModelController.restore</code> — cascade 파라미터</li>
+      <li><code>OSImageService.restore</code> / <code>BoardModelService.restore</code> — 시그니처 + 본체</li>
+      <li><code>BiosRepository</code>, <code>BmcRepository</code> — <code>findAllByBoardModel_IdAndIsDeletedTrue</code></li>
+    </ul>
+    <h3><span class="chip keep">유지</span> 유지</h3>
+    <ul>
+      <li>S5-2-1 의 3 actionKey (soft-delete / deprecate / restore) 와 S5-2-2 의 'purge' actionKey</li>
+      <li>BIOS / BMC / Subprogram / ISO 의 leaf restore endpoint 시그니처</li>
+      <li>nudge REPLACE 흐름</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s11">
+  <summary><span class="section-num">11.</span> <span class="section-title">다음 마일스톤</span></summary>
+  <div class="body">
+    <ul style="margin-top:0;">
+      <li><strong>G-S5-2-3</strong> — 본 sub-slice 완료 후 사용자 E2E 확인. <strong>실제로는 S5-2 묶음 전체 (2-1 + 2-2 + 2-3) 의 일괄 E2E</strong>.</li>
+      <li>다음 sub-slice : <strong>S5-2-4</strong> (nudge / TTL 만료 자동 hard-delete 정책 지정) — Notion 에 이미 등록됨. 시스템 진입 hard-delete 의 retry / 알림 / 백업 정책.</li>
+      <li>이후 묶음 진행 : <strong>S5-3 (nudge modal 공통화)</strong> → S5-4 / S5-5 → S5-6 (Job status 구체화).</li>
+    </ul>
+  </div>
+</details>
+
+</main>
+</div>
+
+<script>
+  // 1. 체크박스 localStorage
+  document.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => {
+    const key = 's5-2-3-' + cb.dataset.key;
+    cb.checked = localStorage.getItem(key) === '1';
+    cb.addEventListener('change', () => {
+      localStorage.setItem(key, cb.checked ? '1' : '0');
+      cb.closest('li')?.classList.toggle('done', cb.checked);
+    });
+    if (cb.checked) cb.closest('li')?.classList.add('done');
+  });
+
+  // 2. 전부 펼치기 / 접기
+  document.getElementById('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = true);
+  });
+  document.getElementById('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('details.section').forEach(d => d.open = false);
+  });
+
+  // 3. 검색
+  const filter = document.querySelector('.filter-box');
+  filter.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      const text = d.textContent.toLowerCase();
+      const matches = text.includes(q);
+      d.classList.toggle('hidden', !matches);
+      if (matches) d.open = true;
+    });
+  });
+
+  // 4. ToC anchor scroll — scroll offset = nav.toc 의 top 과 동일 (108).
+  //    ToC 박스 상단과 클릭한 섹션 details 상단이 같은 viewport y 위치에서 정렬.
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+
+  // 5. UX 미리보기
+  const PREVIEW_DATA = {
+    os: {
+      listLabel: 'Rocky Linux 9.5',
+      childInfo: '하위 자원 2건',
+      cascadeTrueTitle: '하위 자원도 함께 복구 (2건)',
+      cascadeTrueDesc: 'ISO: dvd.iso · minimal.iso'
+    },
+    board: {
+      listLabel: 'Asus P13R-E',
+      childInfo: '하위 자원 2건',
+      cascadeTrueTitle: '하위 자원도 함께 복구 (2건)',
+      cascadeTrueDesc: 'BIOS: R23_MS73-HB1_Uni · BMC: GIGABYTE BMC 13.06.25'
+    }
+  };
+
+  function updatePreviewTarget() {
+    const domain = document.getElementById('ux-domain').value;
+    const data = PREVIEW_DATA[domain];
+    document.getElementById('ux-list-item-label').textContent = data.listLabel;
+    document.getElementById('ux-child-info').textContent = data.childInfo;
+    document.getElementById('ux-radio-true-title').textContent = data.cascadeTrueTitle;
+    document.getElementById('ux-radio-true-desc').textContent = data.cascadeTrueDesc;
+  }
+
+  function openPreviewModal() {
+    updatePreviewTarget();
+    document.getElementById('ux-modal-empty').style.display = 'none';
+    document.getElementById('ux-modal-card').classList.remove('hidden-card');
+  }
+
+  function closePreviewModal() {
+    document.getElementById('ux-modal-empty').style.display = '';
+    document.getElementById('ux-modal-card').classList.add('hidden-card');
+  }
+
+  function syncRadioVisual() {
+    const trueChecked = document.getElementById('ux-radio-true').checked;
+    document.getElementById('ux-radio-true-wrap').classList.toggle('checked', trueChecked);
+    document.getElementById('ux-radio-false-wrap').classList.toggle('checked', !trueChecked);
+  }
+
+  function confirmPreview() {
+    const cascade = document.getElementById('ux-radio-true').checked;
+    const domain = document.getElementById('ux-domain').value;
+    const data = PREVIEW_DATA[domain];
+    const cascadedChildren = cascade ? (domain === 'os' ? 2 : 2) : 0;
+    showToast(`🎉 시뮬레이션 — POST .../restore?cascade=${cascade} → 200 + cascadedChildren=${cascadedChildren}`);
+    closePreviewModal();
+  }
+
+  function showToast(msg) {
+    let toast = document.querySelector('.ux-toast');
+    if (!toast) { toast = document.createElement('div'); toast.className = 'ux-toast'; document.body.appendChild(toast); }
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 3500);
+  }
+
+  // wiring
+  document.getElementById('ux-domain').addEventListener('change', updatePreviewTarget);
+  document.getElementById('ux-radio-true').addEventListener('change', syncRadioVisual);
+  document.getElementById('ux-radio-false').addEventListener('change', syncRadioVisual);
+  updatePreviewTarget();
+</script>
+
+</body>
+</html>
