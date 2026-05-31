@@ -137,7 +137,7 @@ class BiosControllerPurgeFlowTest {
     void renders_form_fragment_for_ajax_request() throws Exception {
         var board = new com.example.serverprovision.management.board.dto.response.BoardModelResponse(
                 3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE, "MS73-HB1",
-                "desc", 0, 0, true, false, false,
+                "desc", 0, 0, 0, true, false, false,
                 com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE);
         given(boardModelService.findById(3L)).willReturn(board);
 

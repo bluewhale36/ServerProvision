@@ -17,6 +17,8 @@ import com.example.serverprovision.management.board.exception.BoardModelNudgeReq
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.management.subprogram.entity.Subprogram;
+import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
 import com.example.serverprovision.management.common.nudge.NudgeSession;
@@ -57,6 +59,9 @@ public class BoardModelService {
 	// 발생할 circular reference 차단 (SoftDeleteIntentService 와 동일 패턴).
 	private final com.example.serverprovision.management.bios.service.BiosService biosService;
 	private final com.example.serverprovision.management.bmc.service.BmcService bmcService;
+	// R3-1 — BoardModel cascade 에 board-scoped Subprogram 동반. @Lazy : 형제(bios/bmc)Service 와 동일 circular-ref 차단.
+	private final SubprogramRepository subprogramRepository;
+	private final com.example.serverprovision.management.subprogram.service.SubprogramService subprogramService;
 
 	public BoardModelService(
 			BoardModelRepository boardModelRepository,
@@ -66,7 +71,10 @@ public class BoardModelService {
 			@org.springframework.context.annotation.Lazy
 			com.example.serverprovision.management.bios.service.BiosService biosService,
 			@org.springframework.context.annotation.Lazy
-			com.example.serverprovision.management.bmc.service.BmcService bmcService
+			com.example.serverprovision.management.bmc.service.BmcService bmcService,
+			SubprogramRepository subprogramRepository,
+			@org.springframework.context.annotation.Lazy
+			com.example.serverprovision.management.subprogram.service.SubprogramService subprogramService
 	) {
 		this.boardModelRepository = boardModelRepository;
 		this.biosRepository = biosRepository;
@@ -74,6 +82,8 @@ public class BoardModelService {
 		this.nudgeRegistry = nudgeRegistry;
 		this.biosService = biosService;
 		this.bmcService = bmcService;
+		this.subprogramRepository = subprogramRepository;
+		this.subprogramService = subprogramService;
 	}
 
 	// ==== 조회 ========================================================
@@ -82,7 +92,8 @@ public class BoardModelService {
 		BoardModel board = requireActiveBoard(id);
 		int biosCount = biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id).size();
 		int bmcCount = bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id).size();
-		return toResponse(board, biosCount, bmcCount);
+		int subprogramCount = subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(id).size();
+		return toResponse(board, biosCount, bmcCount, subprogramCount);
 	}
 
 	public List<VendorGroupResponse> findAllGrouped(boolean includeDeleted) {
@@ -97,6 +108,9 @@ public class BoardModelService {
 		Map<Long, Integer> bmcCounts = bmcRepository.findAllByBoardModel_IdIn(boardIds).stream()
 				.filter(bmc -> includeDeleted || !bmc.isDeleted())
 				.collect(Collectors.groupingBy(bmc -> bmc.getBoardModel().getId(), Collectors.summingInt(__ -> 1)));
+		Map<Long, Integer> subprogramCounts = subprogramRepository.findAllByBoardModel_IdIn(boardIds).stream()
+				.filter(sp -> includeDeleted || !sp.isDeleted())
+				.collect(Collectors.groupingBy(sp -> sp.getBoardModel().getId(), Collectors.summingInt(__ -> 1)));
 
 		Map<Vendor, List<BoardModel>> byVendor = boards.stream().collect(
 				Collectors.groupingBy(BoardModel::getVendor, LinkedHashMap::new, Collectors.toList())
@@ -109,7 +123,8 @@ public class BoardModelService {
 								.map(board -> toResponse(
 										board,
 										biosCounts.getOrDefault(board.getId(), 0),
-										bmcCounts.getOrDefault(board.getId(), 0)
+										bmcCounts.getOrDefault(board.getId(), 0),
+										subprogramCounts.getOrDefault(board.getId(), 0)
 								))
 								.toList()
 				))
@@ -250,6 +265,9 @@ public class BoardModelService {
 				.filter(BoardBIOS::isEnabled).forEach(BoardBIOS::toggleEnabled);
 		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
 				.filter(BoardBMC::isEnabled).forEach(BoardBMC::toggleEnabled);
+		// R3-1 — board-scoped Subprogram 동반 (공용은 boardModel.id 매칭이라 제외). 비활성화만 cascade(활성화는 위 early-return).
+		subprogramRepository.findAllByBoardModel_Id(id).stream()
+				.filter(Subprogram::isEnabled).forEach(Subprogram::toggleEnabled);
 	}
 
 	/**
@@ -265,6 +283,9 @@ public class BoardModelService {
 		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
 				.filter(b -> !b.isDeleted() && !b.isDeprecated())
 				.forEach(BoardBMC::deprecate);
+		subprogramRepository.findAllByBoardModel_Id(id).stream()
+				.filter(s -> !s.isDeleted() && !s.isDeprecated())
+				.forEach(Subprogram::deprecate);
 	}
 
 	/**
@@ -280,6 +301,9 @@ public class BoardModelService {
 		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
 				.filter(b -> !b.isDeleted() && b.isDeprecated())
 				.forEach(BoardBMC::undeprecate);
+		subprogramRepository.findAllByBoardModel_Id(id).stream()
+				.filter(s -> !s.isDeleted() && s.isDeprecated())
+				.forEach(Subprogram::undeprecate);
 	}
 
 	/**
@@ -300,6 +324,9 @@ public class BoardModelService {
 				.forEach(bios -> biosService.softDelete(id, bios.getId()));
 		bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id)
 				.forEach(bmc -> bmcService.softDelete(id, bmc.getId()));
+		// R3-1 — board-scoped Subprogram 동반 trash 이동 (단일 인자 service 위임, board.softDelete 前).
+		subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(id)
+				.forEach(sp -> subprogramService.softDelete(sp.getId()));
 		// Board 자체 — 메타 자원 lifecycle 메타만 갱신.
 		board.softDelete();
 		board.markTrashed(null);
@@ -344,6 +371,11 @@ public class BoardModelService {
 			bmcService.restore(id, bmc.getId());
 			restored++;
 		}
+		// R3-1 — board-scoped Subprogram 동반 복구 (board.restore 後 → R2-2-1 부모가드 통과). 활성 동일키 충돌 시 전체 롤백.
+		for (Subprogram sp : subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(id)) {
+			subprogramService.restore(sp.getId());
+			restored++;
+		}
 		log.info("[restore] BoardModel id={} cascade=true → 하위 자원 {}건 복구", id, restored);
 		return new com.example.serverprovision.management.common.dto.response.RestoreResponse(restored);
 	}
@@ -358,6 +390,8 @@ public class BoardModelService {
 				.forEach(bios -> labels.add("BIOS: " + bios.getName()));
 		bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)
 				.forEach(bmc -> labels.add("BMC: " + bmc.getName()));
+		subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)
+				.forEach(sp -> labels.add(sp.getKind().getDisplayName() + ": " + sp.getName()));
 		return labels;
 	}
 
@@ -396,9 +430,10 @@ public class BoardModelService {
 		Long id = board.getId();
 		boolean hasBios = !biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
 		boolean hasBmc = !bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
-		if (hasBios || hasBmc) {
+		boolean hasSubprogram = !subprogramRepository.findAllByBoardModel_Id(id).isEmpty();
+		if (hasBios || hasBmc || hasSubprogram) {
 			throw new IllegalBoardModelStateException(
-					"자식 BIOS / BMC 자원이 남아 있어 메인보드 모델을 영구 삭제할 수 없습니다. "
+					"자식 BIOS / BMC / Subprogram(드라이버·유틸리티) 자원이 남아 있어 메인보드 모델을 영구 삭제할 수 없습니다. "
 							+ "자식을 먼저 모두 영구 삭제해주세요. id=" + id);
 		}
 		boardModelRepository.delete(board);
@@ -415,7 +450,7 @@ public class BoardModelService {
 				.orElseThrow(() -> new BoardModelNotFoundException(id));
 	}
 
-	private static BoardModelResponse toResponse(BoardModel board, int biosCount, int bmcCount) {
+	private static BoardModelResponse toResponse(BoardModel board, int biosCount, int bmcCount, int subprogramCount) {
 		return new BoardModelResponse(
 				board.getId(),
 				board.getVendor(),
@@ -423,6 +458,7 @@ public class BoardModelService {
 				board.getDescription(),
 				biosCount,
 				bmcCount,
+				subprogramCount,
 				board.isEnabled(),
 				board.isDeprecated(),
 				board.isDeleted(),

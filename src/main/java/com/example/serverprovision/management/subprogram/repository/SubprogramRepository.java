@@ -100,6 +100,16 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 
 	Optional<Subprogram> findFirstByTreeRootPathAndIsDeletedFalse(String treeRootPath);
 
+	/* ───── R3-1 — BoardModel cascade SPI (board-scoped, kind 무관. boardModel.id 매칭이라 공용(null FK) 자동 제외) ───── */
+
+	List<Subprogram> findAllByBoardModel_Id(Long boardModelId);
+
+	List<Subprogram> findAllByBoardModel_IdAndIsDeletedFalse(Long boardModelId);
+
+	List<Subprogram> findAllByBoardModel_IdAndIsDeletedTrue(Long boardModelId);
+
+	List<Subprogram> findAllByBoardModel_IdIn(List<Long> boardModelIds);
+
 	/* ───── Miller C2 목록 (kind + scope 별) ───── */
 
 	@Query(

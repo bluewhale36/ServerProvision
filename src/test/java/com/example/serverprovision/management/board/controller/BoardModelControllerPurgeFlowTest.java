@@ -73,4 +73,22 @@ class BoardModelControllerPurgeFlowTest {
                 .andExpect(content().string(containsString("data-include-deleted-toggle")))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
+
+    // R3-1 — 집계/모달 카피에 board-scoped Subprogram(드라이버·유틸리티) 포함 렌더 검증.
+    @Test
+    @DisplayName("GET /management/board — 모달 카피(deprecate 신설 포함) + '현재 연결' 에 드라이버·유틸리티(subprogramCount) 노출")
+    void renders_subprogramCount_inModalAndConnections() throws Exception {
+        var board = new com.example.serverprovision.management.board.dto.response.BoardModelResponse(
+                1L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE, "MS03-CE0", "",
+                2, 1, 3, true, false, false,
+                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE);
+        given(boardModelService.findAllGrouped(false)).willReturn(List.of(
+                com.example.serverprovision.management.board.dto.response.VendorGroupResponse.of(
+                        com.example.serverprovision.management.board.enums.Vendor.GIGABYTE, List.of(board))));
+
+        mvc.perform(get("/management/board"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("드라이버·유틸리티")))
+                .andExpect(content().string(containsString("함께 Deprecated 표시돼요")));
+    }
 }

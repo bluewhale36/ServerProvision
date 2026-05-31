@@ -172,7 +172,8 @@
                                   th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-deprecate=""
-                                  th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|">
+                                  th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
+                                  th:data-resource-extra="|하위 BIOS · BMC · 드라이버·유틸리티 도 함께 Deprecated 표시돼요.|">
                                 <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                             </form>
                             <form th:if="${board.isDeprecated}"
@@ -184,7 +185,7 @@
                                   method="post" style="display:inline;"
                                   data-confirm-soft-delete=""
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
-                                  data-resource-extra="하위 BIOS / BMC 도 함께 삭제돼요.">
+                                  th:data-resource-extra="|하위 BIOS ${board.biosCount} · BMC ${board.bmcCount} · 드라이버·유틸리티 ${board.subprogramCount} 도 함께 삭제돼요.|">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -193,8 +194,8 @@
                                   method="post" style="display:inline;"
                                   data-confirm-restore=""
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
-                                  data-cascade-true-title="하위 BIOS / BMC 도 함께 복구"
-                                  data-cascade-true-desc="이 보드에 종속된 휴지통의 BIOS / BMC 자원을 일괄 복구해요.">
+                                  data-cascade-true-title="하위 BIOS / BMC / 드라이버·유틸리티 도 함께 복구"
+                                  data-cascade-true-desc="이 보드에 종속된 휴지통의 BIOS / BMC / 드라이버·유틸리티 자원을 일괄 복구해요.">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <!-- S5-2-2 — 영구 삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
@@ -221,7 +222,8 @@
                                class="n-btn n-btn-sm n-btn-secondary">BMC 등록</a>
                             <span>
                                 현재 연결: <strong th:text="${board.biosCount}">0</strong> BIOS,
-                                <strong th:text="${board.bmcCount}">0</strong> BMC
+                                <strong th:text="${board.bmcCount}">0</strong> BMC,
+                                <strong th:text="${board.subprogramCount}">0</strong> 드라이버·유틸리티
                             </span>
                         </div>
                     </div>
