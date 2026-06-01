@@ -116,6 +116,11 @@ public class ISO extends LifecycleEntity implements Markable {
 	}
 
 	@Override
+	protected LifecycleEntity parentLifecycle() {
+		return this.osMetadata;   // R4-1 — 부모 OS 버전 effective 를 상속
+	}
+
+	@Override
 	protected String resourceLabel() {
 		return "ISO";
 	}

@@ -273,12 +273,14 @@ class SubprogramServiceTest {
                 .isEnabled(enabled).isDeprecated(deprecated).isDeleted(deleted).build();
     }
 
-    private Subprogram sp(Long id, BoardModel parent, boolean enabled, boolean deprecated, boolean deleted) {
-        return Subprogram.builder()
+    private Subprogram sp(Long id, BoardModel parent, boolean ownEnabled, boolean ownDeprecated, boolean deleted) {
+        Subprogram s = Subprogram.builder()
                 .id(id).kind(SubprogramKind.DRIVER).boardModel(parent)
                 .name("a").version("1.0").treeRootPath("/p").manifestHash("h")
                 .fileCount(1).totalBytes(1L)
-                .isEnabled(enabled).isDeprecated(deprecated).isDeleted(deleted).build();
+                .ownEnabled(ownEnabled).ownDeprecated(ownDeprecated).isDeleted(deleted).build();
+        s.recomputeEffective();   // R4-1 — effective = own ⊕ 부모
+        return s;
     }
 
     @Test

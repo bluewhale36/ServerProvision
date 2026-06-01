@@ -248,62 +248,52 @@ public class BoardModelService {
 		board.update(request.modelName(), request.description());
 	}
 
-	@Transactional
 	/**
-	 * S5-2-3-1 / HF-2 — Board 활성/비활성 토글 + 자식 BIOS / BMC 비대칭 cascade.
-	 * <p><b>disable</b> : enabled 자식(BIOS / BMC) 전부(trash / deprecated 포함) 비활성화 → invariant
-	 * "자식 enabled ≤ 부모 enabled" 유지 (soft-deleted 자식 stale enabled 부활 모순 차단).
-	 * <b>enable</b> : cascade 안 함 — 부모 ceiling 만 상승, 자식 개별 활성화는 운영자 몫.</p>
+	 * R4-1 — Board 활성/비활성 토글 + 자식 effective 재계산 (양방향).
+	 * <p>부모 own_enabled flip 후 자식 effective 를 재계산한다. own 은 건드리지 않으므로, 부모 비활성 시
+	 * 자식이 강제 비활성되고 부모 활성 시 own_enabled=true 자식만 자동 복원된다 (기존 enable early-return 제거).</p>
 	 */
+	@Transactional
 	public void toggleEnabled(Long id) {
 		BoardModel parent = requireActiveBoard(id);
 		parent.toggleEnabled();
-		if (parent.isEnabled()) {
-			return;   // 활성화는 cascade 안 함.
-		}
-		biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(BoardBIOS::isEnabled).forEach(BoardBIOS::toggleEnabled);
-		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(BoardBMC::isEnabled).forEach(BoardBMC::toggleEnabled);
-		// R3-1 — board-scoped Subprogram 동반 (공용은 boardModel.id 매칭이라 제외). 비활성화만 cascade(활성화는 위 early-return).
-		subprogramRepository.findAllByBoardModel_Id(id).stream()
-				.filter(Subprogram::isEnabled).forEach(Subprogram::toggleEnabled);
+		cascadeRecompute(id);
 	}
 
 	/**
-	 * S5-2-3-1 — Board deprecate + 자식 BIOS / BMC 강제 cascade.
+	 * R4-1 — Board deprecate + 자식 effective 재계산.
 	 */
 	@Transactional
 	public void deprecate(Long id) {
 		BoardModel parent = requireActiveBoard(id);
 		parent.deprecate();
-		biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted() && !b.isDeprecated())
-				.forEach(BoardBIOS::deprecate);
-		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted() && !b.isDeprecated())
-				.forEach(BoardBMC::deprecate);
-		subprogramRepository.findAllByBoardModel_Id(id).stream()
-				.filter(s -> !s.isDeleted() && !s.isDeprecated())
-				.forEach(Subprogram::deprecate);
+		cascadeRecompute(id);
 	}
 
 	/**
-	 * S5-2-3-1 — Board undeprecate + 자식 BIOS / BMC 강제 cascade.
+	 * R4-1 — Board undeprecate + 자식 effective 재계산.
+	 * <p>own 불변 → 운영자가 직접 deprecate 한 자식(own_deprecated=true)은 보존, 부모 추종 자식
+	 * (own_deprecated=false)만 활성 복원. 기존 "deprecated 자식 전량 환원" 결함 해소.</p>
 	 */
 	@Transactional
 	public void undeprecate(Long id) {
 		BoardModel parent = requireActiveBoard(id);
 		parent.undeprecate();
+		cascadeRecompute(id);
+	}
+
+	/**
+	 * R4-1 — board-scoped 자식(BIOS / BMC / Subprogram) 의 effective(is_enabled/is_deprecated) 재계산.
+	 * own 보존, 부모 effective 변화만 반영. 휴지통(soft-deleted) 자식은 restore 시 개별 재계산되므로 제외.
+	 * 공용 Subprogram(boardModel=null) 은 boardModel.id 매칭에서 자연 제외 → effective=own 유지.
+	 */
+	private void cascadeRecompute(Long id) {
 		biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted() && b.isDeprecated())
-				.forEach(BoardBIOS::undeprecate);
+				.filter(b -> !b.isDeleted()).forEach(BoardBIOS::recomputeEffective);
 		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted() && b.isDeprecated())
-				.forEach(BoardBMC::undeprecate);
+				.filter(b -> !b.isDeleted()).forEach(BoardBMC::recomputeEffective);
 		subprogramRepository.findAllByBoardModel_Id(id).stream()
-				.filter(s -> !s.isDeleted() && s.isDeprecated())
-				.forEach(Subprogram::undeprecate);
+				.filter(s -> !s.isDeleted()).forEach(Subprogram::recomputeEffective);
 	}
 
 	/**

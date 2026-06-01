@@ -158,6 +158,11 @@ public class Subprogram extends LifecycleEntity implements Markable {
 	}
 
 	@Override
+	protected LifecycleEntity parentLifecycle() {
+		return this.boardModel;   // R4-1 — board-scoped 는 부모 상속, 공용(boardModel=null)은 effective=own
+	}
+
+	@Override
 	protected String resourceLabel() {
 		// Driver / Utility 어휘를 가드 메시지에 그대로 노출.
 		return kind == null ? "Subprogram" : kind.getDisplayName();

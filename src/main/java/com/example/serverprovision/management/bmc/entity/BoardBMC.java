@@ -104,6 +104,11 @@ public class BoardBMC extends LifecycleEntity implements Markable {
 	}
 
 	@Override
+	protected LifecycleEntity parentLifecycle() {
+		return this.boardModel;   // R4-1 — 부모 메인보드 effective 를 상속
+	}
+
+	@Override
 	protected String resourceLabel() {
 		return "BMC";
 	}

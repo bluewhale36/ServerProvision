@@ -228,26 +228,30 @@ class IsoLifecycleServiceTest {
 	// ==== fixtures =====================================================
 
 	private static OSMetadata buildParent(Long id, boolean enabled, boolean deprecated, boolean deleted) {
-		return OSMetadata.builder()
+		OSMetadata p = OSMetadata.builder()
 				.id(id)
 				.osName(OSName.ROCKY_LINUX)
 				.osVersion("9.6")
-				.isEnabled(enabled)
-				.isDeprecated(deprecated)
+				.ownEnabled(enabled)
+				.ownDeprecated(deprecated)
 				.isDeleted(deleted)
 				.build();
+		p.recomputeEffective();   // R4-1 — 루트 → effective = own
+		return p;
 	}
 
 	private static ISO buildChild(Long id, OSMetadata parent, boolean enabled, boolean deprecated, boolean deleted) {
-		return ISO.builder()
+		ISO iso = ISO.builder()
 				.id(id)
 				.osMetadata(parent)
 				.isoPath("/var/iso/dvd.iso")
 				.checksum("hash")
 				.manifestHash("hash")
-				.isEnabled(enabled)
-				.isDeprecated(deprecated)
+				.ownEnabled(enabled)
+				.ownDeprecated(deprecated)
 				.isDeleted(deleted)
 				.build();
+		iso.recomputeEffective();   // R4-1 — effective = own ⊕ 부모
+		return iso;
 	}
 }

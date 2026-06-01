@@ -47,6 +47,11 @@ public class BoardModel extends LifecycleEntity implements Markable {
 	}
 
 	@Override
+	protected LifecycleEntity parentLifecycle() {
+		return null;   // R4-1 — 루트(부모 없음) → effective = own
+	}
+
+	@Override
 	protected String resourceLabel() {
 		return "메인보드 모델";
 	}

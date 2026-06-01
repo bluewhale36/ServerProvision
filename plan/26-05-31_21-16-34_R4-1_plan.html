@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<!--
+  R4-1 plan — Lifecycle cascade 출처(provenance) 재정의 + '자동 추종' UI
+  CLAUDE.md §Step 1 규약 준수. 워크플로(wf_50ca1724-953) 4-에이전트 write-site 전수 인벤토리 + 사용자 최종 결정 기반.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4-1 Plan — Lifecycle cascade 출처(cascade_origin) + 자동 추종 UI</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.inh{background:var(--blue-bg);color:var(--blue);} .chip.exp{background:var(--orange-bg);color:var(--orange);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  /* 🎬 인터랙티브 데모 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:96px; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.55; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-row .badge.inh { background:var(--blue-bg); color:var(--blue); } .ux-row .badge.exp { background:var(--orange-bg); color:var(--orange); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.warn { border-color:var(--yellow); color:var(--yellow); } .n-demo-btn.warn:hover { background:var(--yellow-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .auto-box { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-muted); padding:3px 7px; border:1px solid var(--border); border-radius:5px; background:var(--card); cursor:pointer; user-select:none; }
+  .auto-box.on { border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
+  .auto-box input { margin:0; cursor:pointer; }
+  .help-q { display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; border:1px solid var(--text-muted); color:var(--text-muted); font-size:10px; font-weight:700; cursor:help; }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); white-space:normal; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-message.info { background:var(--blue-bg); border-color:var(--blue); color:var(--blue); }
+  /* 상세표 UI 목업 (§2/§3) */
+  .mock-dl { background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; max-width:560px; margin:10px 0; }
+  .mock-dl .row { display:grid; grid-template-columns:108px 1fr; border-bottom:1px solid var(--border-soft); }
+  .mock-dl .row:last-child { border-bottom:none; }
+  .mock-dl dt { background:var(--bg); padding:9px 12px; font-size:12px; color:var(--text-muted); font-weight:600; margin:0; }
+  .mock-dl dd { padding:9px 12px; margin:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .mock-dl .row.fresh dt { color:var(--purple); } .mock-dl .row.fresh { background:var(--purple-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R4-1 — Lifecycle cascade 출처(<code>cascade_origin</code>) 재정의 + '자동 추종' UI <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R4-1 (refactor)</span>
+    <span><strong>상위</strong> R4 : Lifecycle cascade 개념 및 구현 재정의</span>
+    <span><strong>scope</strong> 값=boolean 유지 · 출처=bitmask 컬럼 · undeprecate cascade 결함 수정 · 자동 체크박스 UI</span>
+    <span><strong>생성</strong> 2026-05-31 KST</span>
+    <span><strong>CP1</strong> ⚠ 보류(PARKED) — 단순 비트 모델 한계 발견(§8), 사용자 개선안 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>진입 전제</h4>
+        <ul>
+          <li><b>R2-2 / R2-2-1 완료</b> — 부모 상태로 자식 액션을 <i>차단</i>하는 read-time 가드(<code>childEnableBlockReason</code> / <code>blocksChildUndeprecate</code> / <code>blocksChildRestore</code>)가 (1) 서버 throw + (2) 뷰 disabled 플래그의 SSOT 로 정착.</li>
+          <li><b>R3-1 완료(green)</b> — board-scoped Subprogram 이 BoardModel cascade 묶음(softDelete / restore / deprecate / undeprecate)에 합류. 부모 cascade 가 3 자식 도메인(BIOS / BMC / Subprogram)을 모두 다룬다.</li>
+          <li>본 슬라이스는 R2-2 의 "차단(restrict)"이 아니라 <b>"역전파(reversal)"</b> 측 결함을 다룬다 — 부모를 <i>되돌릴 때</i> 자식을 어디까지 되돌리나.</li>
+        </ul>
+
+        <h4>핵심 결함 (workflow 전수 인벤토리로 확정)</h4>
+        <div class="callout danger">
+          <b>부모 undeprecate cascade 가 자식의 "출처"를 보지 않는다.</b><br>
+          현재 <code>BoardModelService.undeprecate</code>(L294–307) / <code>OSMetadataLifecycleService.undeprecate</code>(L144–152) 의 자식 forEach 필터는
+          <code>(!isDeleted &amp;&amp; isDeprecated)</code> — <b>값만</b> 본다. 그래서 부모를 undeprecate 하면
+          <b>운영자가 손수 deprecate 해 둔 자식까지 무차별 환원</b>된다. "값(is_deprecated=true)은 같지만, 그게 부모 cascade 로 깔린 것인지 운영자가 직접 깐 것인지" 를 시스템이 기록하지 않는 것이 결함의 진원.
+        </div>
+
+        <p>4-에이전트 workflow(<code>wf_50ca1724-953</code>)가 6 service + LifecycleEntity + 6 repository 의 lifecycle write/read-site 를 전수 분류:</p>
+        <table>
+          <thead><tr><th>kind</th><th>지점</th><th>출처 처리</th></tr></thead>
+          <tbody>
+            <tr><td><b>cascade-up-permit-reversal</b><br>(결함 진원, 자동 &gt; 부모)</td><td><code>BoardModelService.undeprecate</code> · <code>OSMetadataLifecycleService.undeprecate</code></td><td>현재 출처 무시(전 자식 환원) → <b>자동(AUTO) 자식만</b> 환원하도록 <code>&amp;&amp; isAuto(DEPRECATED)</code> 필터 추가 (정확히 2곳). 자동 플래그 보존</td></tr>
+            <tr><td>cascade-down-restrict<br>(부모 &gt; 자동)</td><td>두 service 의 <code>deprecate</code> / <code>toggleEnabled(disable)</code></td><td>전 비제약 자식 <b>강제</b> set (자동 OFF 자식도 포함) · 값 behavior 무변경 · <b>origin 무변경</b>(직접 플래그 보존)</td></tr>
+            <tr><td>manual-operator<br>(스탬프 누락 1급 위험 8곳)</td><td>Iso / Bios / Bmc / Subprogram 의 <code>toggleEnabled</code> · <code>deprecate</code> · <code>undeprecate</code></td><td>운영자 직접 전이 → <b>EXPLICIT 스탬프</b> 필수</td></tr>
+            <tr><td>entity-mutator</td><td><code>LifecycleEntity</code> cascade 메서드(값만) vs operator 메서드(값+markExplicit)</td><td>호출자가 메서드 선택으로 의도 표현 (entity 는 추론 안 함)</td></tr>
+            <tr><td>read-only (무변경)</td><td>6 repository derived/@Query 38+, <code>LifecycleStage.of</code>, R2-2 가드 4종, toResponse</td><td>값=boolean 유지 → <b>회귀 0</b> (agent 전수 확인)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>추가 비대칭</b> : enabled cascade 는 현재 <b>disable 단방향</b>만 (부모 enable 시 <code>early-return</code>으로 자식 자동복구 없음). 자식의 "자동(추종)" 개념이 enabled 에서 일관되려면 enable 도 양방향이어야 한다(§2 확정 6).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>확정 (사용자 최종 결정)</h4>
+        <ol>
+          <li><b>값 = boolean 유지</b>. <code>is_enabled / is_deprecated / is_deleted</code> 컬럼 그대로. <span class="diff-del">값 패킹(A안)</span> 거부 — JPQL 에 비트 연산 <code>&amp;</code> 부재로 6 repository derived query 가 전부 native 로 강제되는 회귀를 피한다.</li>
+          <li><b>출처 = 단일 bitmask 컬럼 <code>cascade_origin</code></b>. 차원별 1비트, <code>0 = 자동(AUTO, 부모 추종, 기본)</code> / <code>1 = 직접(EXPLICIT, 운영자 관리)</code>. <code>LifecycleEntity</code>(@MappedSuperclass)에 추가 → 6 자식 테이블 일괄(ddl-auto=update 1회).</li>
+          <li><b>최소 적용 차원 = enabled(bit0) + deprecated(bit1)</b>. <code>deleted(bit2)</code>는 <b>예약(미사용)</b> — trash / TTL / ghost 물리부작용 + softDelete/restore 가 child-service / trash 위임이라 cascade↔manual 컨텍스트 신호가 없음(R4-2 로 이연).</li>
+          <li><b>'자동' 체크박스로 출처를 UI 에서 입력</b> (사용자 신규 결정). 상세표 '상태' 행의 <b>활성화/비활성화 버튼 왼편</b>에 <code>[✓ 자동]</code> 체크박스 + 오른쪽에 <code>?</code> 아이콘(hover 설명). 기본 체크(=자동/AUTO). <b>자식에서 활성화/비활성화 버튼을 누르면 체크가 자동 해제 → 직접(EXPLICIT)</b>.</li>
+          <li><b>deprecated UI 이동</b>. 기존 deprecate 버튼을 액션줄에서 떼어 <b>상세표 '상태' 바로 밑 신규 행</b>으로 옮기고, 버튼 옆에 <code>[✓ 자동]</code> 체크박스(+<code>?</code>)를 둔다.</li>
+          <li><b>방향성 일관화</b> — enabled 를 <b>양방향</b>으로 정렬. 부모 disable 시 전 자식 강제 disable(부모 우선), 부모 enable 시 <b>자동 ✓ 자식만</b> re-enable + 직접 disabled 자식 보존(자동 우선). deprecate↔undeprecate 와 같은 우선순위 비대칭(무게/부담 역전 해소, Windows ACL "remove inherited copies" 와 1:1).</li>
+          <li><b>CLAUDE.md 정합</b> — 분기 줄 추가 대신 <b>메서드-per-의도</b>. entity 에 cascade 전이(<code>deprecateCascade</code>, 값만)와 운영자 전이(<code>deprecateByOperator</code>, 값+markExplicit)를 별도 메서드로 분리 → 호출자가 메서드 선택으로 의도 표현, origin 스탬프 누락(드리프트)을 컴파일·리뷰 단에서 차단.</li>
+        </ol>
+
+        <h4>'자동' 체크박스 = <code>cascade_origin</code> 비트의 UI 표면</h4>
+        <div class="mock-dl">
+          <div class="row"><dt>상태</dt><dd><span class="badge dep" style="font-size:10px;padding:2px 7px;border-radius:8px;">Deprecated</span> 가 아닌 활성 예시 ↓</dd></div>
+          <div class="row"><dt>상태</dt><dd>
+            <span style="background:var(--green-bg);color:var(--green);font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600;">활성화</span>
+            <span class="auto-box on"><input type="checkbox" checked disabled>자동</span>
+            <span class="tip" data-tip="'자동'이 켜져 있으면 부모(메인보드/OS)의 활성 상태를 그대로 따라갑니다. 비활성화 버튼을 누르면 자동이 꺼지고, 이 자원은 부모와 무관하게 직접 관리됩니다."><span class="help-q">?</span></span>
+            <button class="n-demo-btn" style="pointer-events:none;">비활성화</button>
+          </dd></div>
+          <div class="row fresh"><dt>지원 상태</dt><dd>
+            <span class="auto-box on"><input type="checkbox" checked disabled>자동</span>
+            <span class="tip" data-tip="'자동'이 켜져 있으면 부모가 Deprecated 되면 함께 Deprecated, 부모가 해제되면 함께 해제됩니다. Deprecated 표시를 직접 누르면 자동이 꺼져 부모 해제에도 보존됩니다."><span class="help-q">?</span></span>
+            <button class="n-demo-btn warn" style="pointer-events:none;">Deprecated 표시</button>
+            <span style="color:var(--purple);font-size:11px;">← '상태' 밑 신규 행 (요구 5)</span>
+          </dd></div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0;">체크 상태 ⟺ <code>cascade_origin</code> 비트 : <span class="chip inh">자동 ✓ = 비트 clear(0) = AUTO(기본)</span> <span class="chip exp">자동 ☐ = 비트 set(1) = 직접(EXPLICIT)</span>. default 0 = 자동 ✓ (요구 4 "기본 체크"). "inherit/explicit 를 백엔드로 어떻게 가져오나" 문제를 <b>체크박스 상태 = 비트값</b>으로 직결해 해소.</p>
+        <div class="callout warn" style="margin-top:6px;"><b>우선순위 비대칭(요구 2·3)</b> : 자동 ☐(직접) 자식이라도 <b>부모가 deprecate/disable/delete 되면 강제로 함께 내려간다</b>(DOWN: 부모 우선). 반대로 <b>부모가 풀릴(undeprecate/enable/restore) 때는 자동 ✓ 자식만 따라 올라오고</b>, 자동 ☐ 자식은 보존된다(UP: 자동 우선). 자동 플래그는 DOWN 에서 보존되어 UP 에서 존중됨.</div>
+
+        <div class="callout warn"><b>비 목표</b>
+          <ul>
+            <li><b>deleted 차원 provenance</b> — bit2 예약만. 적용은 child-service / trash 위임에 컨텍스트 신호 주입이 선행돼야 함 → <b>R4-2</b>.</li>
+            <li><b>scanner(reconciliation) restore 의 출처 정책</b> — system-driven 3rd 컨텍스트. INHERITED/EXPLICIT/system 처리 방침 확정 → <b>R4-2</b>.</li>
+            <li><b>effective-read(A안, read-time 계산)</b> 거부 — 출처는 영속 컬럼으로만. derived query 무변경 보장.</li>
+            <li>부모 자원(BoardModel / OS 이미지) 과 <b>공용 Subprogram(부모 없음)</b> — '자동' 체크박스 미노출(추종할 부모가 없어 자동/직접 구분이 무의미). 부모 자신의 deprecate 버튼은 '상태' 밑으로 이동하되 체크박스 없음.</li>
+          </ul>
+        </div>
+        <div class="callout success"><b>마이그레이션 불필요</b> — pre-deployment. 신규 컬럼 default <code>0</code> = 전 자식 <b>자동(✓)</b> 으로 시작(요구 4 "기본 체크"와 정합; 공용/부모는 추종 대상 없어 무의미).</div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모 (cascade + 출처 보존)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래는 메인보드(부모) 1 개 + BIOS(자식) 3 개. <b>부모를 deprecate/undeprecate</b> 하거나, 각 자식의 <b>Deprecated 버튼·'자동' 체크박스</b>를 직접 조작해보세요.
+          핵심 검증 : <b>운영자가 직접 Deprecated 한 자식(자동 ☐ = EXPLICIT)은 부모를 undeprecate 해도 보존</b>된다는 것. (데모 판정 = 서버 cascade 로직과 동일 JS 재현, 드리프트 0)</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">부모 액션 :</span>
+            <button class="n-demo-btn warn" id="p-dep" onclick="pAct('dep')">Deprecated 표시</button>
+            <button class="n-demo-btn" id="p-undep" onclick="pAct('undep')">Deprecated 해제</button>
+            <button class="n-demo-btn" onclick="demoReset()" style="border-color:var(--text-muted);color:var(--text-muted);">↺ 초기화</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-parent">
+              <strong>메인보드</strong><span class="label">Gigabyte MS03-CE0</span>
+              <span class="badge on" id="p-badge">활성화</span>
+            </div>
+            <div id="demo-children"></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message info" id="demo-message">시나리오 권장 : ① BIOS-B 를 직접 [Deprecated 표시] → ② 부모 [Deprecated 표시] → ③ 부모 [Deprecated 해제]. <b>A·C 는 환원되며 '자동 ✓' 유지</b>, B 만 Deprecated 보존되는지 보세요.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE (현재 결함)</h4><pre><code>// BoardModelService.undeprecate
+parent.undeprecate();
+biosRepo.filter(b -&gt;
+   !b.isDeleted() &amp;&amp; b.isDeprecated())   // 값만 봄
+  .forEach(BoardBIOS::undeprecate);     // ← 운영자 수동
+                                        //   deprecate 자식도 환원</code></pre></div>
+          <div class="split-card after"><h4>AFTER — UP 은 자동 자식만</h4><pre><code>// BoardModelService.undeprecate
+parent.undeprecateByOperator();         // 부모는 운영자 직접
+biosRepo.filter(b -&gt;
+   !b.isDeleted() &amp;&amp; b.isDeprecated()
+   &amp;&amp; b.getCascadeOrigin()
+        .isAuto(DEPRECATED))            // ← 자동 ON 자식만 (UP: 자동&gt;부모)
+  .forEach(BoardBIOS::undeprecateCascade);  // 값만 환원, 자동 플래그 보존
+                                        // 직접(자동 ☐) 자식 = skip(보존)
+// ※ DOWN(deprecate)은 그대로 전 자식 강제(부모&gt;자동) — 값 behavior 무변경,
+//   단 operator 경로만 markExplicit 추가</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 UP 판정 = 서버 <code>BoardModelService.undeprecate</code> 필터 = <code>cascadeOrigin.isAuto(DEPRECATED)</code> 단일 기준. (DOWN 은 전 자식 강제 — 부모 우선.)</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>엔드포인트 — 기존(시그니처 무변경, 내부 스탬프만 추가) + 신규 1종</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL (BIOS 예시, 4 자원 대칭)</th><th>동작</th><th>출처 처리</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/management/bios/{boardId}/bios/{biosId}/toggle</code></td><td>활성/비활성 토글</td><td><span class="chip mod">내부</span> 값 flip + <b>EXPLICIT 스탬프</b>(자동 해제)</td></tr>
+            <tr><td>POST</td><td><code>/.../deprecate</code> · <code>/.../undeprecate</code></td><td>운영자 직접 deprecate/해제</td><td><span class="chip mod">내부</span> 값 set + <b>EXPLICIT 스탬프</b></td></tr>
+            <tr><td>POST</td><td><b><code>/.../cascade-origin</code></b> <span class="chip new">신규</span></td><td>'자동' 체크박스 직접 토글</td><td><code>dimension</code>(ENABLED/DEPRECATED) + <code>inherited</code>(bool). true→re-inherit(값 snap to 부모), false→mark EXPLICIT</td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/deprecate</code> · <code>/undeprecate</code> 등 부모</td><td>부모 cascade (DOWN 강제 / UP 환원)</td><td><span class="chip mod">내부</span> DOWN=전 자식 강제 · UP=<code>isAuto</code> 자식만 환원(직접 보존)</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px;color:var(--text-muted);">신규 <code>cascade-origin</code> 엔드포인트는 4 자원(bios / bmc / iso / subprogram) 대칭 추가. <code>dimension</code> 은 <code>LifecycleDimension</code> enum 으로 타입 바인딩(분기 줄 증식 회피).</p>
+
+        <h4>데이터 흐름 (5 경로)</h4>
+        <pre><code>[조회 렌더]   GET list → Service.toResponse(): isEnabled/isDeprecated(값)
+             + cascadeOrigin.isAuto(dim)(자동 여부) + R2-2 capability(차단)
+             → Thymeleaf : '자동' 체크박스 checked(=isAuto) + 버튼 disable+tooltip
+
+[자식 직접]   [비활성화]/[Deprecated] 클릭 → 기존 엔드포인트
+             → entity.*ByOperator() → markExplicit → 자동 ☐ 로 렌더
+
+[자동 토글]   '자동' 체크박스 change → 폼 auto-submit → /cascade-origin
+             auto=true  : markAuto(dim) + 값 = 부모값 snap (재추종)
+             auto=false : markExplicit(dim) + 값 유지 (직접 관리 선언)
+
+[부모 DOWN]  부모 [Deprecated 표시] → BoardModelService.deprecate
+             → 전 비제약 자식 강제 deprecateCascade() (자동 ☐ 자식도 포함, 부모 우선)
+             → origin 무변경(자동 플래그 보존)
+
+[부모 UP]    부모 [Deprecated 해제] → BoardModelService.undeprecate
+             → 자식 filter(isAuto(DEPRECATED)) 만 undeprecateCascade()
+             → 직접(자동 ☐) 자식은 보존 (UI 에 Deprecated 유지)</code></pre>
+        <div class="callout"><b>SSR 폼 + 페이지 리로드</b> 패턴 유지(R2-2 와 동일). '자동' 체크박스는 <code>include-deleted-toggle.js</code> 처럼 change 시 숨은 폼 auto-submit → XHR 분기 없음.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>신규 타입 (D6 Primitive Obsession 금지 준수 — 출처는 도메인 개념)</h4>
+        <table>
+          <thead><tr><th>타입</th><th>종류</th><th>책임</th></tr></thead>
+          <tbody>
+            <tr><td><code>LifecycleDimension</code></td><td>enum</td><td><code>ENABLED(bit0)</code> · <code>DEPRECATED(bit1)</code> · <code>DELETED(bit2, 예약)</code>. 각 상수가 비트 마스크 보유</td></tr>
+            <tr><td><code>CascadeOrigin</code></td><td>VO (record, byte 래핑)</td><td><b>비트 set(1) = 직접(EXPLICIT)</b> / <b>clear(0) = 자동(AUTO, 기본)</b>. <code>isAuto(dim)</code> · <code>isExplicit(dim)</code> · <code>markExplicit(dim)</code> · <code>markAuto(dim)</code> · <code>empty()</code>(전 차원 자동). 불변</td></tr>
+            <tr><td><code>CascadeOriginConverter</code></td><td>@Converter</td><td><code>CascadeOrigin ↔ Byte(TINYINT)</code> JPA 변환 (컬럼 <code>cascade_origin</code>, default 0=자동)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>우선순위 비대칭 (사용자 확정)</b> — 같은 부모-자식 cascade 라도 방향에 따라 우선순위가 뒤집힌다 :
+          <ul style="margin:4px 0;">
+            <li><b>DOWN 제약</b> (부모 → disabled / deprecated / deleted) : <b>부모 &gt; 자동</b>. 자동 OFF(직접) 자식도 <b>강제로</b> 함께 내려간다(값 강제). 자동 플래그는 보존.</li>
+            <li><b>UP 허용</b> (부모 → enabled / undeprecated / restored) : <b>자동 &gt; 부모</b>. <b>자동 ON 자식만</b> 환원. 자동 OFF(직접) 자식은 보존.</li>
+          </ul>
+          ⟹ "막을 땐 부모가 절대적, 풀 땐 자식의 자동 의사를 존중". R2-2 read-time 가드(자식 enable/undeprecate/restore 차단)가 DOWN 제약의 또 다른 표현과 정합.</div>
+
+        <h4><code>LifecycleEntity</code> 변경 (@MappedSuperclass → 6 엔티티 일괄)</h4>
+        <pre><code>@Column(name = "cascade_origin")
+@Convert(converter = CascadeOriginConverter.class)
+private CascadeOrigin cascadeOrigin = CascadeOrigin.empty();   // default 0 = 전 차원 자동(✓)
+// 비트 = '운영자 직접 관리 플래그' : 1=직접(EXPLICIT, 자동 ☐) / 0=자동(AUTO, 자동 ✓, 부모 추종). 기본 자동.
+//   DOWN 제약은 이 플래그를 무시하고 값을 강제(플래그 보존). UP 허용만 이 플래그를 존중.
+
+// (A) cascade : 값만 바꾸고 자동 플래그는 보존 — 부모가 자식을 강제/환원
+public void deprecateCascade()   { /* guard */ this.isDeprecated = true;  this.deprecatedAt = now(); }   // DOWN: 자동 무관 강제
+public void undeprecateCascade() { /* guard */ this.isDeprecated = false; this.deprecatedAt = null;  }   // UP: 자동 ON 자식만(호출 전 filter)
+public void disableCascade()     { this.isEnabled = false; }   // DOWN
+public void enableCascade()      { this.isEnabled = true;  }   // UP: 자동 ON 자식만
+
+// (B) 운영자 직접 : 값 + 자동 해제(직접 마킹) — 한 메서드로 묶어 스탬프 누락(드리프트) 차단
+public void deprecateByOperator()   { /* guard */ this.isDeprecated = true;  this.deprecatedAt = now();
+                                      this.cascadeOrigin = cascadeOrigin.markExplicit(DEPRECATED); }
+public void undeprecateByOperator() { /* guard */ this.isDeprecated = false; this.deprecatedAt = null;
+                                      this.cascadeOrigin = cascadeOrigin.markExplicit(DEPRECATED); }
+public void toggleEnabledByOperator(){ this.isEnabled = !this.isEnabled;
+                                      this.cascadeOrigin = cascadeOrigin.markExplicit(ENABLED); }
+
+// (C) '자동' 재체크 : 자동 ON 으로 되돌리고 값을 부모값으로 snap
+public void reinherit(LifecycleDimension dim, boolean parentValue) {
+    this.cascadeOrigin = cascadeOrigin.markAuto(dim); /* + dim 에 따라 값 = parentValue */ }</code></pre>
+
+        <h4>cascade 호출 규약 (책임 경계)</h4>
+        <pre><code>DOWN 제약 (부모 service)   filter(!deleted &amp;&amp; !deprecated).forEach → child.deprecateCascade()
+                                      // 자동 OFF 자식도 포함(부모 우선) · 이미 deprecated 자식은 filter 제외(값·플래그 보존)
+UP 허용   (부모 service)   filter(!deleted &amp;&amp; deprecated &amp;&amp; isAuto(DEPRECATED)).forEach → child.undeprecateCascade()
+                                      // 자동 ON 자식만 환원 · 직접(EXPLICIT) 자식은 보존
+manual    (child service)  resource.deprecateByOperator() / undeprecateByOperator() / toggleEnabledByOperator()  // 자동 해제(☐)
+재추종    (cascade-origin) resource.reinherit(dim, 부모값)                          // 자동 ✓ + 값 snap</code></pre>
+        <div class="callout warn"><b>cascade 메서드(A)와 운영자 메서드(B)를 entity 에서 분리</b> — 같은 전이라도 "부모 강제(플래그 보존)" 와 "운영자 직접(플래그 set)" 은 다른 메서드다. 호출자가 메서드 선택으로 의도를 표현 → origin 스탬프 누락(드리프트) 컴파일·리뷰 단에서 차단(CLAUDE.md §조건분기 — 인자 분기 대신 메서드-per-의도). 어느 자식을 환원할지 <b>선별은 부모 service 의 filter(=SSOT)</b>. <b>DOWN 은 origin 을 건드리지 않는다</b>(부모가 강제해도 자식의 직접 플래그는 보존) → UP 에서 그 플래그가 존중됨.</div>
+
+        <h4>상태 + 출처 전이 (deprecated 차원, deprecated 예시)</h4>
+        <div class="state-flow">자식 초기            부모 deprecate (DOWN)        부모 undeprecate (UP)        최종
+자동✓ 활성(C)     ─▶ Deprecated, 자동✓        ─▶ 활성, 자동✓(환원)         자동✓ 왕복
+직접☐ 활성(A)     ─▶ Deprecated, 자동☐(강제)  ─▶ 보존(자동☐) → Deprecated  직접 관리(운영자가 풀어야)
+직접☐ Deprecated(B) ─▶ 이미 dep, 그대로        ─▶ 보존(자동☐) → Deprecated  직접 관리
+운영자 deprecate  ─▶ 값 set + 자동 해제 ☐(직접)
+'자동' 재체크     ─▶ 자동 ✓ + 값 = 부모값 snap</div>
+        <h4>무변경 (KEEP) 근거</h4>
+        <ul>
+          <li><code>LifecycleStage.of(isDeprecated, isDeleted)</code> · R2-2 가드 4종 · 6 repository derived/@Query — 전부 boolean 값만 평가. <code>cascade_origin</code> 은 신규 컬럼이라 술어에 안 걸림 → <b>회귀 0</b>.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>R4-1 산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서) + R4-1 Notion 페이지</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 — 4 자원 list.html 상세표 : '상태' 행에 [자동]+[?] (활성 버튼 좌측), '상태' 밑 신규 deprecate 행, 부모(board/os) deprecate 버튼 이동(체크박스 없음)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — 4 자원 <code>/cascade-origin</code> 엔드포인트 추가 (dimension + inherited)</td></tr>
+            <tr><td>4</td><td>DTO — toResponse 에 <code>autoEnabled</code>/<code>autoDeprecated</code>(=<code>isAuto(dim)</code>) 플래그 + <code>CascadeOriginRequest</code>(dimension+auto)</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — 4 child service 의 cascade-origin 메서드 + 부모/엔티티 시그니처 확정</td></tr>
+            <tr><td>6</td><td>(신규 repository 없음 — derived query 무변경 확인)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity/VO/Enum — <code>CascadeOrigin</code> VO + <code>LifecycleDimension</code> enum + Converter + LifecycleEntity 필드 + cascade/operator 메서드 분리(deprecateCascade/deprecateByOperator 등) + reinherit</td></tr>
+            <tr><td>8</td><td>Service 본체 — 2 부모 cascade 출처 인지화 + 8 manual EXPLICIT 스탬프 + enabled 양방향 + cascade-origin 핸들러. 단위(happy+fail) + 통합(§6)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <code>cascade_origin TINYINT</code> 6 테이블 일괄 (ddl-auto=update → SHOW CREATE TABLE → validate 복원)</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 부모 deprecate→undeprecate 사이클에서 수동 deprecate 자식 보존 육안 확인 (사용자 단독)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 (Service) — cascade 출처 핵심</h4>
+        <ul>
+          <li><b>(우선순위 비대칭 ★)</b> <code>BoardModelServiceCascadeTest</code> — 자식 3종 셋업 : A(자동 ☐, 활성) · B(자동 ☐, 직접 Deprecated) · C(자동 ✓, 활성).
+            <ul>
+              <li><b>DOWN</b> : 부모 deprecate → <b>A·B·C 모두 Deprecated</b> (A 는 자동 ☐ 라도 <b>강제</b> — 부모 우선). origin 플래그는 A·B 자동 ☐ / C 자동 ✓ 그대로.</li>
+              <li><b>UP</b> : 부모 undeprecate → <b>C 만 환원</b>(자동 ✓), <b>A·B 보존</b>(자동 ☐). <code>isAuto(DEPRECATED)</code> : C=true, A·B=false 단언. (구 결함 = A·B 도 환원.)</li>
+            </ul>
+            ISO 측 <code>OSMetadataLifecycleServiceCascadeTest</code> 동형.</li>
+          <li>manual deprecate/undeprecate → <code>isAuto(DEPRECATED)==false</code> (markExplicit, 8 지점 중 대표). 재추종 <code>reinherit</code> → <code>isAuto==true</code> + 값 snap.</li>
+          <li>enabled 양방향 : 부모 disable→전 자식 강제 disable(자동 보존), 부모 enable→자동 ✓ 자식만 re-enable + 자동 ☐ disabled 보존.</li>
+          <li><code>CascadeOriginTest</code> (VO) : markExplicit/markAuto/isAuto 비트 연산 + Converter round-trip(byte↔VO) + default empty()=전 차원 자동.</li>
+        </ul>
+        <h4>사용자 액션 통합 (MockMvc, 컨트롤러별 flow 파일)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>cascade-origin auto=true(재추종)/false(직접) 각 200 + 부모 undeprecate 302 후 직접(자동 ☐) 자식 응답에 Deprecated 유지 + 자동 ✓ 자식 체크박스 checked 렌더 검증(4 자원)</td><td>8</td></tr>
+            <tr><td>400</td><td>cascade-origin 에 미지원 <code>dimension</code>(예: DELETED) → 400 · 잘못된 enum 문자열 → 400</td><td>2</td></tr>
+            <tr><td>404</td><td>존재하지 않는 resourceId 로 cascade-origin · 토글</td><td>2</td></tr>
+            <tr><td>409</td><td>R2-2 가드 재사용 — 부모 Deprecated 인데 자식 undeprecate(자동 재체크 포함) 시도 → <code>ChildLifecycleBlockedByParentException</code> 409 (출처 도입 후에도 가드 유지 회귀)</td><td>3</td></tr>
+            <tr><td>렌더</td><td>list.html : 부모/공용 자원에 '자동' 체크박스 <b>미노출</b> · 자식엔 노출 · deprecate 버튼이 '상태' 밑 행에 위치</td><td>3</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px;color:var(--text-muted);">신규 <code>/cascade-origin</code> 엔드포인트마다 위 4 범주 트리거 → 합 ≈ 18 시나리오 + 부모 cascade 단위 4.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>ChildLifecycleBlockedByParentException</code></td><td>409</td><td><span class="chip keep">재사용</span> R2-2 가드. cascade-origin 재추종도 동일 가드 경유</td></tr>
+            <tr><td><code>IllegalDeprecationStateException</code> · <code>IllegalLifecycleTransitionException</code></td><td>409/400</td><td><span class="chip keep">재사용</span> entity self-guard (안전망)</td></tr>
+            <tr><td><code>*NotFoundException</code> (Bios/Bmc/Iso/Subprogram)</td><td>404</td><td><span class="chip keep">재사용</span> requireLive*</td></tr>
+            <tr><td>미지원 <code>dimension</code> (DELETED 등)</td><td>400</td><td><span class="chip mod">매핑</span> <code>IllegalArgumentException</code> → 기존 advice(신규 예외 클래스 불필요 — enum 바인딩 실패는 Spring 이 400)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>신규 예외 0 지향</b> — 출처 도입은 "상태 전이의 속성"이지 새 거절 사유가 아님. dimension 검증은 enum 타입 바인딩이 framework 단에서 400 처리(분기 줄 추가 없이).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <div class="callout danger"><b>⚠ 알려진 한계 — 단순 비트 모델로 미해결 (2026-05-31 사용자 판정, CP1 PARKED)</b><br>
+          <b>값=boolean(1개) + 차원별 1비트(자동/직접) provenance 만으로는</b> 아래 <b>force-down-while-explicit</b> 케이스를 풀 수 없다 :
+          <ol style="margin:6px 0;">
+            <li>BIOS A = 자동 ☐(직접) + <b>활성</b> (운영자가 직접 관리, 활성 유지 의도).</li>
+            <li>부모 deprecate (DOWN, 부모&gt;자동) → A 강제 deprecate. A = {값: deprecated, origin: 직접}.</li>
+            <li>부모 undeprecate (UP, 자동&gt;부모) → 자동 ON 자식만 환원 → A(직접) <b>환원 안 됨</b> → <b>A 무조건 deprecated 잔존</b>.</li>
+          </ol>
+          <b>근본 원인</b> : 2단계 후 A 의 {deprecated, 직접} 가 <b>운영자가 직접 deprecate 한 자식 B 의 {deprecated, 직접} 와 구별 불가</b> → UP 이 "A 는 회복, B 는 보존"을 판별 못 함. 단일 boolean 이 A 의 <b>cascade 이전 본래 의도값(활성)</b> 을 기억 못 하기 때문. (본래 의도값 · 부모강제 여부 · 추종모드 3 정보를 1 boolean + 1 bit 로 표현 불가.)<br>
+          ⟹ <b>본 plan 의 단순 bitmask 설계는 보류.</b> 사용자가 개선 아이디어를 제시 예정. 🎬 데모에서 A 가 부모 해제 후에도 Deprecated 로 남는 것이 바로 이 미해결 케이스의 시연.</div>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>저장 인코딩 — <code>bit(3)</code> vs <code>TINYINT</code>+@Convert(VO)</td><td><b>TINYINT + CascadeOrigin VO @Convert</b>. MariaDB+JPA 에서 bit(3) 매핑이 까다롭고, VO 가 D6(Primitive Obsession 금지)·도메인 메서드 캡슐화에 맞음</td></tr>
+            <tr><td>Q2</td><td>enabled 양방향(확정 6)을 R4-1 에 포함 vs R4-2 분리</td><td><b>포함</b>. '자동' 체크박스가 enabled 에서 coherent 하려면 enable 자동복구가 동반돼야 함(미포함 시 자동 ✓ 인데 부모 enable 에 안 따라오는 모순). 단 CP2 에서 슬라이스가 과대하면 enabled 만 R4-2 로 떼는 안 재논의</td></tr>
+            <tr><td>Q3</td><td>'자동' 체크박스 노출 범위</td><td>자식 자원(BIOS/BMC/board-scoped Subprogram/ISO)만. 부모(board/os)·공용 Subprogram 은 미노출(항상 EXPLICIT)</td></tr>
+            <tr><td>Q4</td><td>deprecate 신규 행의 <code>&lt;dt&gt;</code> 라벨 명칭</td><td><b>"지원 상태"</b>(deprecate=지원 종료 예고) 제안 — 또는 "Deprecated". 사용자 확정</td></tr>
+            <tr><td>Q5 <span class="chip force">차단</span></td><td>직접(자동 ☐) 활성 자식을 부모가 강제 deprecate 후 부모 undeprecate 시 — 자식 복귀 여부</td><td><b>미해결</b> — 위 §8 상단 <b>알려진 한계</b> 참조. 단순 비트로는 "부모강제 deprecated" 와 "운영자 deprecated" 를 구별 불가. <b>사용자 개선안 대기</b> (값=boolean + 1bit 를 넘는 모델 필요)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>CLAUDE.md 수정</h4>
+        <ul>
+          <li>인벤토리 어휘에 <b>R4 / R4-1</b> 추가 (Lifecycle cascade 재정의). <code>cascade_origin</code> bitmask + '자동 추종' UI 1줄 설명.</li>
+          <li>§예외 사용 원칙 / R2-2 메모와의 관계 명시 — R2-2=차단(restrict), R4=역전파 출처(reversal provenance).</li>
+        </ul>
+
+        <h4>동반 수정 페이지</h4>
+        <ul>
+          <li>자식 4 : <code>bios/list.html</code> · <code>bmc/list.html</code> · <code>os/list.html</code>(ISO 상세) · subprogram 상세 — '자동' 체크박스 + deprecate 행 이동.</li>
+          <li>부모 2 : <code>board/list.html</code> · <code>os/list.html</code>(OS 이미지 상세) — deprecate 버튼만 '상태' 밑으로 이동(체크박스 없음).</li>
+          <li>신규 JS <code>auto-cascade-toggle.js</code> — change → 숨은 폼 auto-submit (include-deleted-toggle.js 패턴 복제 최소화 위해 공용화 검토).</li>
+        </ul>
+
+        <h4>잔존 책임 / 임시 비대칭</h4>
+        <ul>
+          <li><code>deleted(bit2)</code> 예약만 — provenance 미적용. softDelete/restore 가 trash 위임이라 컨텍스트 신호 주입(child-service 시그니처 확장)이 선행 → <b>R4-2</b>.</li>
+          <li>scanner restore(system-driven 3rd 컨텍스트)의 출처 처리 미정 → <b>R4-2</b>.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R4-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (기존 cascade/lifecycle 테스트 회귀 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span><code>cascade_origin TINYINT</code> 6 테이블 반영 — SHOW CREATE TABLE 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="down"> <span><b>기능(DOWN)</b> : 부모 deprecate/disable 시 <b>자동 ☐(직접) 자식도 강제</b>로 함께 내려감 (부모 우선)</span></label></li>
+          <li><label><input type="checkbox" data-key="up"> <span><b>기능(UP) ★</b> : 부모 undeprecate/enable 시 <b>자동 ✓ 자식만 환원</b>, 자동 ☐ 자식 보존 (자동 우선)</span></label></li>
+          <li><label><input type="checkbox" data-key="autopersist"> <span><b>기능</b> : DOWN 은 자동 플래그를 건드리지 않음 → 자동 ✓ 자식은 사이클 후에도 ✓ 유지, 자동 ☐ 자식은 ☐ 유지</span></label></li>
+          <li><label><input type="checkbox" data-key="enabled2"> <span><b>기능</b> : enabled 양방향 — 부모 disable 시 전 자식 강제, 부모 enable 시 자동 ✓ 자식만 자동복구 + 직접 disabled 보존</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span><b>회귀</b> : R2-2 가드 4종 · LifecycleStage · 6 repository derived query 무변경 (값=boolean 유지)</span></label></li>
+          <li><label><input type="checkbox" data-key="ui"> <span><b>회귀</b> : 부모·공용 자원에 '자동' 체크박스 미노출, 자식만 노출</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/lifecycle/CascadeOrigin.java</code> (VO) · <code>LifecycleDimension.java</code> · <code>CascadeOriginConverter.java</code></td><td>출처 타입 3종 (D6 준수)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/management/common/auto-cascade-toggle.js</code></td><td>'자동' 체크박스 auto-submit</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/entity/LifecycleEntity.java</code></td><td><code>cascadeOrigin</code> 필드 + cascade 메서드(값만)·operator 메서드(markExplicit) 분리 + reinherit</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>board/service/BoardModelService.java</code> · <code>os/service/metadata/OSMetadataLifecycleService.java</code></td><td>UP <code>isAuto</code> 필터 추가(<b>결함 수정</b>) · DOWN 값 강제 유지(cascade 메서드 호출) · enabled 양방향</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>os/iso/IsoLifecycleService</code> · <code>bios/BiosService</code> · <code>bmc/BmcService</code> · <code>subprogram/SubprogramService</code></td><td>manual EXPLICIT 스탬프(8지점) + cascade-origin 핸들러</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>4 controller (Bios/Bmc/IsoLifecycle/Subprogram) + 4 child list.html + 2 부모 list.html + toResponse/DTO</td><td><code>/cascade-origin</code> 엔드포인트 · 자동 체크박스 · 출처 플래그</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>6 repository · <code>LifecycleStage</code> · R2-2 가드 4종 · <code>TrashLifecycleService</code></td><td>변경 0 — 값=boolean 유지(agent 전수 확인), deleted 위임 무변경</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R4-2</b> — deleted 차원 provenance(bit2) : child-service / trash 위임에 cascade↔manual 컨텍스트 신호 주입 후 적용 + scanner restore(system) 출처 정책 확정.</li>
+          <li><b>R4 마감</b> 후 → Stage 3 Provisioning <b>U1 세팅 정의서</b> 진입 (lifecycle 도메인 안정화 완료 위에서).</li>
+        </ol>
+        <div class="callout"><b>R4-1 이 받는 R4 책임</b> : 출처 인프라(cascade_origin) + deprecated/enabled 양 차원 + UI. <b>이연</b> : deleted + scanner = R4-2.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 cascade + 출처(자동/직접) 라이브 시뮬 — 우선순위 비대칭이 핵심
+  //  ⚠ 서버 cascade 규칙과 1:1 동일 판정 (드리프트 0):
+  //    · DOWN 제약(부모 deprecate) : 부모 > 자동 — 자동 OFF 자식도 '강제' deprecate (값 강제, 자동 플래그 보존)
+  //    · UP 허용(부모 undeprecate)  : 자동 > 부모 — 자동 ON 자식만 환원, 자동 OFF(직접) 보존
+  //    · 자식 manual deprecate/undeprecate : 자동 해제(직접)
+  //    · '자동' 재체크 : 자동 ON + 값 = 부모값 으로 snap
+  //  (auto=true ⟺ 자동 ✓ ⟺ cascade_origin 비트 clear/AUTO · auto=false ⟺ 자동 ☐ ⟺ 비트 set/EXPLICIT)
+  // ─────────────────────────────────────────────────────────────
+  const INIT = () => ({
+    parentDep: false,
+    children: [
+      { name: 'BIOS-A v2.01', dep: false, auto: true },   // ① A 의 '자동' 을 끄고 부모를 deprecate 해보세요
+      { name: 'BIOS-B v2.03', dep: false, auto: true },   // ② B 를 직접 [Deprecated 표시]
+      { name: 'BIOS-C v2.05', dep: false, auto: true }    // C 는 자동 그대로 — 부모를 따라 왕복
+    ]
+  });
+  let S = INIT();
+  function demoReset() { S = INIT(); msg('info', "초기화. 권장 : ① A 의 '자동' 해제 → ② B 직접 [Deprecated 표시] → ③ 부모 [Deprecated 표시] (A·B·C 모두 강제) → ④ 부모 [해제]. 자동 C 만 환원, A·B 는 보존."); render(); }
+  function msg(cls, t) { const m = document.getElementById('demo-message'); m.className = 'ux-message ' + cls; m.textContent = t; }
+
+  // 부모 액션
+  function pAct(kind) {
+    if (kind === 'dep') {                          // DOWN 제약 : 부모 > 자동 (전 자식 강제)
+      if (S.parentDep) { msg('error', '부모가 이미 Deprecated 입니다.'); return; }
+      S.parentDep = true;
+      let forced = 0, already = 0;
+      S.children.forEach(c => {
+        if (!c.dep) { c.dep = true; forced++; }    // 자동 ON/OFF 무관 강제 deprecate — 자동 플래그(c.auto)는 보존
+        else { already++; }                        // 이미 Deprecated → 값·플래그 그대로
+      });
+      msg('success', `부모 Deprecated → 자식 ${forced}개 강제 Deprecated (자동 ON/OFF 무관 · 부모 우선). 이미 ${already}개는 그대로. ※ 자동 플래그 보존.`);
+    } else {                                        // UP 허용 : 자동 > 부모 (자동 ON 자식만)
+      if (!S.parentDep) { msg('error', '부모가 Deprecated 상태가 아닙니다.'); return; }
+      S.parentDep = false;
+      let reverted = 0, preserved = 0;
+      S.children.forEach(c => {
+        if (c.dep && c.auto) { c.dep = false; reverted++; }   // 자동 ON 자식만 환원 (자동 유지)
+        else if (c.dep) { preserved++; }                      // 자동 OFF(직접) → 보존 ★
+      });
+      msg('success', `부모 Deprecated 해제 → 자동 ON 자식 ${reverted}개 환원 (자동 유지 ✓). 자동 OFF(직접 관리) ${preserved}개는 보존 ★`);
+    }
+    render();
+  }
+  // 자식 직접 액션 (manual) → 자동 해제(직접 관리)
+  function cDep(i) {
+    const c = S.children[i];
+    if (c.dep) { msg('error', `${c.name} 는 이미 Deprecated 입니다.`); return; }
+    c.dep = true; c.auto = false;
+    msg('success', `${c.name} 직접 Deprecated → 자동 해제(직접 관리). 부모 해제 시에도 보존됩니다.`);
+    render();
+  }
+  function cUndep(i) {
+    const c = S.children[i];
+    if (!c.dep) { msg('error', `${c.name} 는 Deprecated 가 아닙니다.`); return; }
+    c.dep = false; c.auto = false;
+    msg('success', `${c.name} 직접 해제 → 자동 해제(직접 관리). '자동' 을 다시 켜면 부모를 재추종합니다.`);
+    render();
+  }
+  // '자동' 체크박스 토글
+  function cAuto(i) {
+    const c = S.children[i];
+    if (c.auto) {                       // 체크 ✓ → 해제 ☐ : 직접 관리. 값 유지
+      c.auto = false;
+      msg('info', `${c.name} 자동 해제 → 직접 관리. 부모 Deprecated 엔 강제로 따라가지만(부모 우선), 부모 해제 시엔 환원되지 않습니다(자동 우선).`);
+    } else {                            // 해제 ☐ → 체크 ✓ : 재추종 + 값 snap
+      c.auto = true; c.dep = S.parentDep;
+      msg('info', `${c.name} 자동 켜짐 → 부모 재추종. 값을 부모(${S.parentDep ? 'Deprecated' : '활성'})에 맞춤.`);
+    }
+    render();
+  }
+
+  function render() {
+    document.getElementById('p-badge').textContent = S.parentDep ? 'Deprecated' : '활성화';
+    document.getElementById('p-badge').className = 'badge ' + (S.parentDep ? 'dep' : 'on');
+    document.getElementById('p-dep').disabled = S.parentDep;
+    document.getElementById('p-undep').disabled = !S.parentDep;
+
+    const wrap = document.getElementById('demo-children');
+    wrap.innerHTML = S.children.map((c, i) => {
+      const stateBadge = c.dep ? '<span class="badge dep">Deprecated</span>' : '<span class="badge on">활성</span>';
+      const originBadge = c.auto ? '<span class="badge inh">자동</span>' : '<span class="badge exp">직접</span>';
+      const autoCls = c.auto ? 'auto-box on' : 'auto-box';
+      const autoBox = `<span class="${autoCls}" onclick="cAuto(${i})"><input type="checkbox" ${c.auto ? 'checked' : ''} onclick="event.preventDefault()">자동</span>`;
+      const tip = '자동 ✓ : 부모를 따라감(부모 Deprecated→함께, 부모 해제→함께 환원). 자동 ☐(직접) : 부모 Deprecated 엔 강제로 따라가나(부모 우선) 부모 해제엔 보존(자동 우선).';
+      const help = `<span class="tip" data-tip="${tip}"><span class="help-q">?</span></span>`;
+      const btn = c.dep
+        ? `<button class="n-demo-btn" onclick="cUndep(${i})">Deprecated 해제</button>`
+        : `<button class="n-demo-btn warn" onclick="cDep(${i})">Deprecated 표시</button>`;
+      return `<div class="ux-row child">
+        <span class="label">${c.name}</span>
+        ${stateBadge}${originBadge}
+        ${autoBox}${help}${btn}
+      </div>`;
+    }).join('');
+
+    const tf = v => v ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'parent.isDeprecated = ' + tf(S.parentDep) + '\n' +
+      S.children.map(c =>
+        ('child[' + c.name.slice(0,6) + '] dep=' + tf(c.dep) +
+         '  isAuto(DEPRECATED)=' + tf(c.auto) +
+         (c.dep ? (c.auto ? '  → 부모 해제 시 환원' : '  → 직접 관리 = 보존(환원 제외)') : '')
+        )).join('\n');
+  }
+  render();   // ⚠ 파일 끝 1회
+</script>
+</body>
+</html>

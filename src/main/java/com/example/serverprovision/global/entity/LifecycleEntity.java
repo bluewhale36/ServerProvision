@@ -6,6 +6,7 @@ import com.example.serverprovision.global.lifecycle.exception.IllegalLifecycleTr
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PrePersist;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -48,9 +49,13 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	@Column(name = "updated_at", nullable = false)
 	private LocalDateTime updatedAt;
 
+	// ── R4-1 — own(운영자 본래 의도) / effective(부모 제약 반영 현재값) 분리 (report 26-06-01 Option A) ──
+	// is_enabled / is_deprecated = EFFECTIVE 캐시 (= own ⊕ 부모). derived query · 뷰 · R2-2 가드가 읽는 값.
+	// own_enabled / own_deprecated = 운영자 의도. cascade 는 own 을 절대 갱신하지 않는다.
+
 	@Column(name = "is_enabled", nullable = false)
 	@Builder.Default
-	private boolean isEnabled = true;
+	private boolean isEnabled = true;            // effective
 
 	@Column(name = "is_deleted", nullable = false)
 	@Builder.Default
@@ -58,7 +63,15 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 
 	@Column(name = "is_deprecated", nullable = false)
 	@Builder.Default
-	private boolean isDeprecated = false;
+	private boolean isDeprecated = false;        // effective
+
+	@Column(name = "own_enabled", nullable = false)
+	@Builder.Default
+	private boolean ownEnabled = true;           // 운영자 의도
+
+	@Column(name = "own_deprecated", nullable = false)
+	@Builder.Default
+	private boolean ownDeprecated = false;       // 운영자 의도
 
 	@Column(name = "deprecated_at")
 	private Instant deprecatedAt;
@@ -91,8 +104,42 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	 */
 	protected abstract Long resourceId();
 
+	/**
+	 * R4-1 — 이 자원의 부모 lifecycle 자원. 루트(BoardModel/OSMetadata)·공용 자원은 {@code null}.
+	 * <p>{@link #recomputeEffective()} 가 부모 effective 를 읽어 own 과 결합한다.</p>
+	 */
+	protected abstract LifecycleEntity parentLifecycle();
+
+	/**
+	 * R4-1 — effective(is_enabled/is_deprecated) 를 own ⊕ 부모 제약으로 재계산한다. own 은 건드리지 않는다.
+	 * <p><b>차원 독립</b> : 부모가 <b>비활성</b>이면 자식 effective 도 비활성(enabled 차원), 부모가 <b>deprecated</b>면
+	 * 자식 effective 도 deprecated(deprecated 차원). 두 차원은 서로 간섭하지 않는다 — deprecated 는 enabled 를
+	 * 끄지 않는다(deprecated ≠ disabled). 부모가 회복되면 보존된 own 으로 자동 복원(UP). 루트는 부모가 없어 effective = own.</p>
+	 * <p>호출 지점 : 운영자 own 전이(아래 메서드) · 부모 cascade(service) · 자식 restore · 신규 생성 직후.</p>
+	 */
+	public final void recomputeEffective() {
+		LifecycleEntity p = parentLifecycle();
+		boolean pDeprecated = (p != null) && p.isDeprecated();
+		boolean pEnabled    = (p == null) || p.isEnabled();
+		this.isDeprecated = this.ownDeprecated || pDeprecated;   // 부모 deprecate → 자식 deprecate
+		this.isEnabled    = this.ownEnabled && pEnabled;          // 부모 disable → 자식 disable (deprecated 는 무관)
+	}
+
+	/**
+	 * R4-1 — 신규 영속(insert) 직전 effective 를 own ⊕ 부모 로 초기화한다.
+	 * <p>모든 생성 경로(BIOS/BMC/ISO/Subprogram upload·create)를 한 곳에서 일관 처리 → "생성 시 recompute
+	 * 누락" 드리프트 차단. 부모가 deprecated/disabled 상태에서 만든 자식도 즉시 effective 가 부모를 반영한다.
+	 * (own 컬럼은 @Builder.Default true/false → 신규 자원의 의도는 활성·비deprecated.)</p>
+	 */
+	@PrePersist
+	private void onCreateRecomputeEffective() {
+		recomputeEffective();
+	}
+
+	/** 운영자 직접 활성/비활성 토글 — own 만 뒤집고 effective 재계산. */
 	public void toggleEnabled() {
-		this.isEnabled = !this.isEnabled;
+		this.ownEnabled = !this.ownEnabled;
+		recomputeEffective();
 	}
 
 	@Override
@@ -111,6 +158,7 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 					"삭제 상태가 아닌 " + resourceLabel() + " 는 복구할 수 없습니다 : " + resourceId());
 		}
 		this.isDeleted = false;
+		recomputeEffective();   // R4-1 — 복원 시 현재 부모 기준 effective 재계산 (own 보존)
 	}
 
 	@Override
@@ -119,22 +167,24 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 			throw new IllegalDeprecationStateException(
 					"삭제된 " + resourceLabel() + " 는 deprecate 할 수 없습니다 : " + resourceId());
 		}
-		if (this.isDeprecated) {
+		if (this.ownDeprecated) {   // R4-1 — own 기준 self-guard
 			throw new IllegalDeprecationStateException(
 					"이미 deprecated 상태입니다 : " + resourceId());
 		}
-		this.isDeprecated = true;
+		this.ownDeprecated = true;
 		this.deprecatedAt = Instant.now();
+		recomputeEffective();
 	}
 
 	@Override
 	public void undeprecate() {
-		if (!this.isDeprecated) {
+		if (!this.ownDeprecated) {   // R4-1 — own 기준 self-guard
 			throw new IllegalDeprecationStateException(
 					"deprecated 상태가 아닙니다 : " + resourceId());
 		}
-		this.isDeprecated = false;
+		this.ownDeprecated = false;
 		this.deprecatedAt = null;
+		recomputeEffective();
 	}
 
 	// ==== R2-2 — 부모-자식 lifecycle 가드 SSOT =============================

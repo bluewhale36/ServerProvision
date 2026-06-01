@@ -51,124 +51,145 @@ class BoardModelCascadeTest {
     @Mock com.example.serverprovision.management.subprogram.service.SubprogramService subprogramService;
     @InjectMocks BoardModelService boardModelService;
 
+    // R4-1 — own(운영자 의도) 으로 빌드 후 recomputeEffective() 로 초기 effective = own ⊕ 부모 설정.
     private BoardModel parent(boolean enabled, boolean deprecated) {
-        return BoardModel.builder()
+        BoardModel p = BoardModel.builder()
                 .id(7L)
                 .vendor(Vendor.ASUS).modelName("P13R-E")
-                .isEnabled(enabled).isDeprecated(deprecated).isDeleted(false)
+                .ownEnabled(enabled).ownDeprecated(deprecated).isDeleted(false)
                 .build();
+        p.recomputeEffective();   // 루트 → effective = own
+        return p;
     }
 
-    private BoardBIOS bios(Long id, BoardModel parent, boolean enabled, boolean deprecated, boolean deleted) {
-        return BoardBIOS.builder()
+    private BoardBIOS bios(Long id, BoardModel parent, boolean ownEnabled, boolean ownDeprecated, boolean deleted) {
+        BoardBIOS b = BoardBIOS.builder()
                 .id(id).boardModel(parent).name("BIOS-" + id).version("1." + id)
-                .isEnabled(enabled).isDeprecated(deprecated).isDeleted(deleted)
+                .ownEnabled(ownEnabled).ownDeprecated(ownDeprecated).isDeleted(deleted)
                 .build();
+        b.recomputeEffective();
+        return b;
     }
 
-    private BoardBMC bmc(Long id, BoardModel parent, boolean enabled, boolean deprecated, boolean deleted) {
-        return BoardBMC.builder()
+    private BoardBMC bmc(Long id, BoardModel parent, boolean ownEnabled, boolean ownDeprecated, boolean deleted) {
+        BoardBMC b = BoardBMC.builder()
                 .id(id).boardModel(parent).name("BMC-" + id).version("2." + id)
                 .treeRootPath("/fw/bmc/" + id).legacyFilePath("/fw/bmc/" + id).boardModelIdMirror(7L)
                 .entrypointRelativePath("flash.nsh")
                 .manifestHash("hash").markerSignature("sig").fileCount(2).totalBytes(128L)
-                .isEnabled(enabled).isDeprecated(deprecated).isDeleted(deleted)
+                .ownEnabled(ownEnabled).ownDeprecated(ownDeprecated).isDeleted(deleted)
                 .build();
+        b.recomputeEffective();
+        return b;
     }
 
     @Test
-    @DisplayName("HF-2 toggle off : 부모 비활성 → BIOS/BMC enabled 자식 전부(active + deprecated + soft-deleted) 비활성 동기화 (비대칭).")
-    void toggleOff_disablesAllEnabledChildren_includingTrashedAndDeprecated() {
+    @DisplayName("R4-1 toggle off : 부모 비활성 → 비삭제 자식 effective 비활성(own 보존). soft-deleted 자식은 cascade 제외(restore 시 재계산).")
+    void toggleOff_recomputesNonDeletedChildrenDisabled() {
         BoardModel p = parent(true, false);
-        BoardBIOS biosActive = bios(101L, p, true, false, false);
-        BoardBIOS biosDeprecated = bios(102L, p, true, true, false);
+        BoardBIOS active = bios(101L, p, true, false, false);       // own active
+        BoardBIOS opDeprecated = bios(102L, p, true, true, false);  // own deprecated (운영자)
         BoardBMC bmcActive = bmc(201L, p, true, false, false);
-        BoardBMC bmcDeleted = bmc(202L, p, true, false, true);
+        BoardBMC bmcDeleted = bmc(202L, p, true, false, true);      // soft-deleted
         given(boardModelRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(p));
         given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(7L))
-                .willReturn(List.of(biosActive, biosDeprecated));
+                .willReturn(List.of(active, opDeprecated));
         given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(7L))
                 .willReturn(List.of(bmcActive, bmcDeleted));
 
-        boardModelService.toggleEnabled(7L);
+        boardModelService.toggleEnabled(7L);   // 부모 활성 → 비활성
 
         assertThat(p.isEnabled()).isFalse();
-        assertThat(biosActive.isEnabled()).isFalse();        // 동기화
-        assertThat(biosDeprecated.isEnabled()).isFalse();    // HF-2 — deprecated 자식도 동기화
-        assertThat(bmcActive.isEnabled()).isFalse();         // 동기화
-        assertThat(bmcDeleted.isEnabled()).isFalse();        // HF-2 — soft-deleted 자식도 동기화 (stale 씨앗 차단)
+        assertThat(active.isEnabled()).isFalse();          // own_en=true 이나 부모 비활성 → 강제
+        assertThat(active.isOwnEnabled()).isTrue();        // own 보존
+        assertThat(opDeprecated.isEnabled()).isFalse();
+        assertThat(opDeprecated.isOwnDeprecated()).isTrue(); // own_dep 보존
+        assertThat(bmcActive.isEnabled()).isFalse();
+        assertThat(bmcDeleted.isEnabled()).isTrue();        // soft-deleted → cascade 제외, 그대로
     }
 
     @Test
-    @DisplayName("HF-2 toggle on : 부모 활성 → 자식 cascade 미적용. BIOS/BMC repository 조회조차 안 함 (early return).")
-    void toggleOn_doesNotCascadeToChildren() {
-        BoardModel p = parent(false, false);
-        given(boardModelRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(p));
-
-        boardModelService.toggleEnabled(7L);
-
-        assertThat(p.isEnabled()).isTrue();
-        verifyNoInteractions(biosRepository, bmcRepository, biosService, bmcService, subprogramRepository, subprogramService);
-    }
-
-    @Test
-    @DisplayName("deprecate : 부모 active → deprecated. 자식 active 만 deprecate")
-    void deprecate_cascadesActiveChildren() {
-        BoardModel p = parent(true, false);
-        BoardBIOS active = bios(101L, p, true, false, false);
-        BoardBIOS alreadyDep = bios(102L, p, true, true, false);
-        BoardBMC bmcActive = bmc(201L, p, true, false, false);
+    @DisplayName("R4-1 toggle on (양방향) : 부모 활성 → own_enabled=true 자식만 복원, own_enabled=false(직접 비활성) 자식 보존.")
+    void toggleOn_recomputesChildren_bidirectional() {
+        BoardModel p = parent(false, false);   // 부모 비활성
+        BoardBIOS ownEnabled = bios(101L, p, true, false, false);    // own_en=true → 현재 부모비활성으로 effective 비활성
+        BoardBIOS ownDisabled = bios(102L, p, false, false, false);  // own_en=false (직접 비활성)
         given(boardModelRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(p));
         given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(7L))
-                .willReturn(List.of(active, alreadyDep));
-        given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(7L))
-                .willReturn(List.of(bmcActive));
+                .willReturn(List.of(ownEnabled, ownDisabled));
+
+        boardModelService.toggleEnabled(7L);   // 부모 비활성 → 활성
+
+        assertThat(p.isEnabled()).isTrue();
+        assertThat(ownEnabled.isEnabled()).isTrue();    // own_en=true → 부모 따라 복원 (양방향)
+        assertThat(ownDisabled.isEnabled()).isFalse();  // own_en=false → 보존
+    }
+
+    @Test
+    @DisplayName("R4-1 deprecate : 부모 deprecate → 전 자식 effective 강제 deprecated (own 보존).")
+    void deprecate_forcesAllChildrenEffectiveDeprecated() {
+        BoardModel p = parent(true, false);
+        BoardBIOS a = bios(101L, p, true, false, false);  // own active
+        BoardBIOS b = bios(102L, p, true, true, false);   // own deprecated
+        BoardBMC bmcA = bmc(201L, p, true, false, false);
+        given(boardModelRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(p));
+        given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(7L)).willReturn(List.of(a, b));
+        given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(7L)).willReturn(List.of(bmcA));
 
         boardModelService.deprecate(7L);
 
         assertThat(p.isDeprecated()).isTrue();
-        assertThat(active.isDeprecated()).isTrue();
-        assertThat(alreadyDep.isDeprecated()).isTrue();  // 그대로
-        assertThat(bmcActive.isDeprecated()).isTrue();
+        assertThat(p.isEnabled()).isTrue();           // 부모 enabled 유지 (deprecate 는 enabled 무관)
+        assertThat(a.isDeprecated()).isTrue();        // own_dep=false 이나 부모 deprecated → 강제
+        assertThat(a.isOwnDeprecated()).isFalse();    // own 보존
+        assertThat(a.isEnabled()).isTrue();           // ★ 차원 독립 : 부모 deprecate 가 자식 enabled 를 끄지 않음
+        assertThat(b.isDeprecated()).isTrue();
+        assertThat(bmcA.isDeprecated()).isTrue();
     }
 
     @Test
-    @DisplayName("undeprecate : 부모 deprecated → active. 자식 deprecated 만 undeprecate")
-    void undeprecate_cascadesDeprecatedChildren() {
-        BoardModel p = parent(true, true);
-        BoardBIOS active = bios(101L, p, true, false, false);
-        BoardBIOS deprecated = bios(102L, p, true, true, false);
-        BoardBMC bmcDep = bmc(201L, p, true, true, false);
+    @DisplayName("R4-1 ★ force-down-while-explicit : 부모 deprecate→undeprecate 사이클서 own=active 자식 복원, own=deprecated(운영자) 자식 보존.")
+    void undeprecate_recoversOwnActive_preservesOwnDeprecated() {
+        BoardModel p = parent(true, false);
+        BoardBIOS a = bios(101L, p, true, false, false);  // own active (직접 활성 관리)
+        BoardBIOS b = bios(102L, p, true, true, false);   // own deprecated (운영자가 직접 deprecate)
+        BoardBMC bmcA = bmc(201L, p, true, false, false); // own active
         given(boardModelRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(p));
-        given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(7L))
-                .willReturn(List.of(active, deprecated));
-        given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(7L))
-                .willReturn(List.of(bmcDep));
+        given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(7L)).willReturn(List.of(a, b));
+        given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(7L)).willReturn(List.of(bmcA));
 
+        // ① 부모 deprecate → 전 자식 강제 deprecated
+        boardModelService.deprecate(7L);
+        assertThat(a.isDeprecated()).isTrue();
+        assertThat(b.isDeprecated()).isTrue();
+        assertThat(bmcA.isDeprecated()).isTrue();
+
+        // ② 부모 undeprecate → own=active 복원, own=deprecated 보존 (구 결함 = b 도 환원됐었음)
         boardModelService.undeprecate(7L);
-
         assertThat(p.isDeprecated()).isFalse();
-        assertThat(active.isDeprecated()).isFalse();      // 그대로
-        assertThat(deprecated.isDeprecated()).isFalse();   // cascade
-        assertThat(bmcDep.isDeprecated()).isFalse();
+        assertThat(a.isDeprecated()).isFalse();    // ★ own active → 복원
+        assertThat(b.isDeprecated()).isTrue();     // ★ own deprecated → 보존
+        assertThat(bmcA.isDeprecated()).isFalse(); // own active → 복원
     }
 
     // ──────────────────────────────────────────────────────────────
     // R3-1 — board-scoped Subprogram cascade parity (공용은 boardModel.id 쿼리로 자연 제외)
     // ──────────────────────────────────────────────────────────────
 
-    private Subprogram subprogram(Long id, BoardModel parent, boolean enabled, boolean deprecated, boolean deleted) {
-        return Subprogram.builder()
+    private Subprogram subprogram(Long id, BoardModel parent, boolean ownEnabled, boolean ownDeprecated, boolean deleted) {
+        Subprogram s = Subprogram.builder()
                 .id(id).kind(SubprogramKind.DRIVER).boardModel(parent)
                 .name("drv-" + id).version("1." + id).treeRootPath("/sp/" + id)
                 .manifestHash("h").fileCount(1).totalBytes(1L)
-                .isEnabled(enabled).isDeprecated(deprecated).isDeleted(deleted)
+                .ownEnabled(ownEnabled).ownDeprecated(ownDeprecated).isDeleted(deleted)
                 .build();
+        s.recomputeEffective();
+        return s;
     }
 
     private BoardModel deletedParent() {
         return BoardModel.builder().id(7L).vendor(Vendor.ASUS).modelName("P13R-E")
-                .isEnabled(true).isDeprecated(false).isDeleted(true).build();
+                .ownEnabled(true).ownDeprecated(false).isDeleted(true).build();
     }
 
     @Test
@@ -203,18 +224,19 @@ class BoardModelCascadeTest {
     }
 
     @Test
-    @DisplayName("R3-1 undeprecate : 부모 undeprecate → board-scoped Subprogram(deprecated) undeprecate")
-    void undeprecate_cascadesToSubprogram() {
-        BoardModel p = parent(true, true);
-        Subprogram dep = subprogram(301L, p, true, true, false);
+    @DisplayName("R4-1 undeprecate : 부모 undeprecate → 부모가 강제 deprecated 했던(own active) board-scoped Subprogram 복원")
+    void undeprecate_recoversBoardScopedSubprogram() {
+        BoardModel p = parent(true, true);                          // 부모 deprecated
+        Subprogram forced = subprogram(301L, p, true, false, false); // own active → 부모 deprecated 라 effective deprecated(강제)
         given(boardModelRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(p));
         given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(7L)).willReturn(List.of());
         given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(7L)).willReturn(List.of());
-        given(subprogramRepository.findAllByBoardModel_Id(7L)).willReturn(List.of(dep));
+        given(subprogramRepository.findAllByBoardModel_Id(7L)).willReturn(List.of(forced));
 
+        assertThat(forced.isDeprecated()).isTrue();   // 강제된 상태 확인
         boardModelService.undeprecate(7L);
 
-        assertThat(dep.isDeprecated()).isFalse();
+        assertThat(forced.isDeprecated()).isFalse();  // own active → 부모 해제 시 복원
     }
 
     @Test
