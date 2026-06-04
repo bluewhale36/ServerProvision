@@ -26,14 +26,14 @@ public class GuestServerCustom extends BaseTimeEntity {
 
     /**
      * 서버에 대한 사내 모델명.<br/>ex. RE2108<br/>
-     * 사용자에게 입력 받아 진단 리눅스에서 <code>ipmitool</code> 명령을 통해 모델명 변경 시 사용된다.
+     * 사용자에게 입력 받아 진단 리눅스에서 {@code ipmitool} 명령을 통해 모델명 변경 시 사용된다.
      */
     @Column(name = "model_name", length = 7)
     private String productModelName;
 
     /**
      * 서버에 대한 사내 시리얼 번호.<br/>ex. RE210826510512<br/>
-     * 사용자에게 입력 받아 진단 리눅스에서 <code>ipmitool</code> 명령을 통해 시리얼 번호 변경 시 사용된다.
+     * 사용자에게 입력 받아 진단 리눅스에서 {@code ipmitool} 명령을 통해 시리얼 번호 변경 시 사용된다.
      */
     @Column(name = "serial_number", length = 20, unique = true)
     private String productSerialNumber;

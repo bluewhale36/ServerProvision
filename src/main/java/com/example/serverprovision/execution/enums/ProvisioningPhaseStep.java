@@ -17,7 +17,7 @@ public enum ProvisioningPhaseStep {
     INIT_PERSISTING(ProvisioningPhase.BOOTSTRAPPING),
 
     /**
-     * <code>dmidecode</code> 등의 명령으로 메인보드 시리얼번호 등의 2차 정보를 수집하는 단계.
+     * {@code dmidecode} 등의 명령으로 메인보드 시리얼번호 등의 2차 정보를 수집하는 단계.
      */
     INFORMATION_COLLECTING(ProvisioningPhase.DIAGNOSE_LINUX),
     /**
@@ -25,7 +25,7 @@ public enum ProvisioningPhaseStep {
      */
     INFORMATION_PERSISTING(ProvisioningPhase.DIAGNOSE_LINUX),
     /**
-     * <code>ipmitool</code> 명령으로 커스텀 정보를 저장하는 단계.
+     * {@code ipmitool} 명령으로 커스텀 정보를 저장하는 단계.
      */
     IPMI_SETTING(ProvisioningPhase.DIAGNOSE_LINUX),
 
