@@ -1,6 +1,10 @@
 package com.example.serverprovision.execution.entity;
 
+import com.example.serverprovision.execution.converter.IpAddressConverter;
+import com.example.serverprovision.execution.converter.MacAddressConverter;
 import com.example.serverprovision.execution.enums.IpSource;
+import com.example.serverprovision.execution.vo.IpAddressVO;
+import com.example.serverprovision.execution.vo.MacAddressVO;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -27,11 +31,13 @@ public class HostNicBinding {
     @JoinColumn(name = "guest_server_id", nullable = false)
     private GuestServer guestServer;
 
+    @Convert(converter = MacAddressConverter.class)
     @Column(name = "host_mac", nullable = false, unique = true, length = 17)
-    private String macAddress; // TODO : VO 로 교체
+    private MacAddressVO macAddress;
 
-    @Column(name = "lan_ip", length = 45)
-    private String ipAddress; // TODO : VO 로 교체
+    @Convert(converter = IpAddressConverter.class)
+    @Column(name = "lan_ip", length = 15) // ipv4 수용의 선언.
+    private IpAddressVO ipAddress;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "ip_source", nullable = false, length = 16)
