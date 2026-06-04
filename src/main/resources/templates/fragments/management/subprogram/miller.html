@@ -171,9 +171,9 @@
                                 <span class="n-badge"
                                       th:classappend="${sp.enabled} ? 'n-badge-green' : 'n-badge-orange'"
                                       th:text="${sp.enabled} ? '활성화' : '비활성화'"></span>
-                                <!-- R2-2-1 — 활성화 방향이 부모 메인보드 상태(비활성/Deprecated/삭제)로 막히면 disabled + tooltip -->
+                                <!-- R2-2-1 / R4-1 — 활성화 방향이 부모 비활성/삭제로 막히면 disabled + tooltip (deprecated 는 차단 안 함, 차원 독립) -->
                                 <span th:if="${!sp.enabled and sp.parentBlocksEnable}" class="n-btn-tooltip-wrap"
-                                      data-tooltip="부모 메인보드가 비활성 / Deprecated / 삭제 상태입니다. 부모를 먼저 정상화해주세요.">
+                                      data-tooltip="부모 메인보드가 비활성 / 삭제 상태입니다. 부모를 먼저 정상화해주세요.">
                                     <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
                                 </span>
                                 <form th:unless="${!sp.enabled and sp.parentBlocksEnable}"

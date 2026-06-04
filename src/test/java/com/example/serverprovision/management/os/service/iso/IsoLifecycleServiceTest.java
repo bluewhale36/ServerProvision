@@ -89,16 +89,17 @@ class IsoLifecycleServiceTest {
 	}
 
 	@Test
-	@DisplayName("자식 ISO enable 시도 — 부모 deprecated 면 거절")
-	void toggleEnable_parentDeprecated_rejects() {
-		OSMetadata parent = buildParent(1L, true, true, false);  // active + deprecated
-		ISO disabledIso = buildChild(101L, parent, false, false, false);
+	@DisplayName("자식 ISO enable — 부모 deprecated 이어도 허용 (R4-1 차원 독립: deprecated ≠ disabled)")
+	void toggleEnable_parentDeprecated_allows() {
+		OSMetadata parent = buildParent(1L, true, true, false);  // enabled + deprecated
+		ISO disabledIso = buildChild(101L, parent, false, false, false);  // own_en=false
 		given(isoRepository.findById(101L)).willReturn(Optional.of(disabledIso));
 		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
 
-		assertThatThrownBy(() -> isoLifecycleService.toggleEnabled(101L))
-				.isInstanceOf(ChildLifecycleBlockedByParentException.class)
-				.extracting("parentState").isEqualTo("DEPRECATED");
+		isoLifecycleService.toggleEnabled(101L);
+
+		assertThat(disabledIso.isEnabled()).isTrue();        // 활성화 허용 (부모 deprecated 무관)
+		assertThat(disabledIso.isDeprecated()).isTrue();      // 부모 deprecated 라 effective deprecated 유지
 	}
 
 	@Test

@@ -193,11 +193,13 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 
 	/**
 	 * 자식 enable(활성화) 차단 사유 라벨. {@code null} = 차단 안 함.
-	 * 부모가 fully-active (¬삭제 · ¬비활성 · ¬deprecated) 가 아니면 차단한다 (DELETED comprehensive).
+	 * 부모가 <b>비활성 또는 삭제</b> 상태면 차단한다. <b>deprecated 는 차단하지 않는다</b> — 차원 독립
+	 * (deprecated ≠ disabled). 부모가 deprecated 이어도 enabled 면 자식은 양방향(활성↔비활성) 가능.
+	 * <p>참고 : {@code is_enabled = own_en AND 부모_en} 이라 부모 비활성 시 자식 enable 은 effective 무효 → 차단 유지.</p>
 	 * toggle 가드 + {@code ChildLifecycleBlockedByParentException} 의 parentState 가 공용으로 쓴다.
 	 */
 	public String childEnableBlockReason() {
-		return isDeleted ? "DELETED" : !isEnabled ? "DISABLED" : isDeprecated ? "DEPRECATED" : null;
+		return isDeleted ? "DELETED" : !isEnabled ? "DISABLED" : null;
 	}
 
 	public boolean blocksChildEnable() {

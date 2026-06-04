@@ -509,7 +509,7 @@ C (추종·활성)     false(default)   eff = F OR T = dep      eff = F OR F = �
   // effective (서버 식 재현)
   const effDep = c => c.ownDeprecated || S.parent.deprecated;
   const effEn  = c => c.ownEnabled && S.parent.enabled;   // 차원 독립 : 부모 deprecated 는 enabled 무관
-  const parentRestrictive = () => !S.parent.enabled || S.parent.deprecated;   // R2-2 차단 사유
+  const parentBlocksEnable = () => !S.parent.enabled;   // R2-2/R4-1 — enable 차단은 부모 비활성만(deprecated 는 차원 독립으로 무관)
 
   // 부모 cascade
   function pDep(on){ if(S.parent.deprecated===on){ msg('error', on?'이미 Deprecated':'이미 활성'); return; } S.parent.deprecated=on; msg('success', on?'부모 Deprecated → 자식 전부 강제 deprecated (own 불변)':'부모 해제 → own=활성 자식만 복원, own=deprecated 보존'); render(); }
@@ -524,7 +524,7 @@ C (추종·활성)     false(default)   eff = F OR T = dep      eff = F OR F = �
   }
   function cEn(i,on){
     const c=S.children[i];
-    if(on && parentRestrictive()){ msg('error', `부모가 비활성/Deprecated → ${c.name} 활성 차단(R2-2).`); return; }
+    if(on && parentBlocksEnable()){ msg('error', `부모가 비활성 → ${c.name} 활성 차단(R2-2). deprecated 는 무관(차원 독립).`); return; }
     c.ownEnabled=on; msg('success', `${c.name} own_enabled=${on} 설정 → effective 재계산`); render();
   }
 
@@ -541,7 +541,7 @@ C (추종·활성)     false(default)   eff = F OR T = dep      eff = F OR F = �
       const ed=effDep(c), ee=effEn(c);
       const stateBadge = ed?'<span class="badge dep">Deprecated</span>':(ee?'<span class="badge on">활성</span>':'<span class="badge off">비활성</span>');
       const ownBadge = `<span class="badge own" title="운영자 본래 의도">own: ${c.ownDeprecated?'dep':'·'}/${c.ownEnabled?'en':'dis'}</span>`;
-      const forced = (ed!==c.ownDeprecated || ee!==(c.ownEnabled && true)) && parentRestrictive() ? '<span class="forced">← 부모 강제</span>' : '';
+      const forced = (ed!==c.ownDeprecated || ee!==c.ownEnabled) ? '<span class="forced">← 부모 강제</span>' : '';   // effective ≠ own → 부모가 강제 중
       // deprecate 토글 버튼 (effective 기준 + R2-2)
       let depBtn;
       if(ed){ const blocked=S.parent.deprecated; depBtn = `<span class="tip"${blocked?' data-tip="부모가 Deprecated 입니다. 부모를 먼저 해제하세요. (R2-2)"':''}><button class="n-demo-btn" ${blocked?'disabled':''} onclick="cDep(${i},false)">Deprecated 해제</button></span>`; }
@@ -549,7 +549,7 @@ C (추종·활성)     false(default)   eff = F OR T = dep      eff = F OR F = �
       // enable 토글
       let enBtn;
       if(ee){ enBtn = `<button class="n-demo-btn" onclick="cEn(${i},false)">비활성화</button>`; }
-      else { const blocked=parentRestrictive() && c.ownEnabled; enBtn = `<span class="tip"${blocked?' data-tip="부모가 비활성/Deprecated 입니다. (R2-2)"':''}><button class="n-demo-btn" ${blocked?'disabled':''} onclick="cEn(${i},true)">활성화</button></span>`; }
+      else { const blocked=parentBlocksEnable(); enBtn = `<span class="tip"${blocked?' data-tip="부모가 비활성 상태입니다. (R2-2) — deprecated 는 활성화를 막지 않음"':''}><button class="n-demo-btn" ${blocked?'disabled':''} onclick="cEn(${i},true)">활성화</button></span>`; }
       return `<div class="ux-row child"><span class="label">${c.name}</span>${stateBadge}${ownBadge}${forced}${depBtn}${enBtn}</div>`;
     }).join('');
 
