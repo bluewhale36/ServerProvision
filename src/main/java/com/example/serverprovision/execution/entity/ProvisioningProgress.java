@@ -30,7 +30,8 @@ public class ProvisioningProgress {
     @Column(name = "current_phase", length = 25)
     private ProvisioningPhase currentPhase;
 
-    // TODO : private String phase_meta: JSON
+    @Column(name = "phase_meta", columnDefinition = "json")
+    private String phaseMeta;
 
     @LastModifiedDate
     @Column(name = "last_transition_at", nullable = false)

@@ -39,7 +39,8 @@ public class SetupStep {
     @Column(name = "status", length = 25)
     private ProvisioningStatus status;
 
-    // TODO :  private String statusMeta: JSON
+    @Column(name = "status_meta", columnDefinition = "json")
+    private String statusMeta;
 
     /**
      * {@link ProvisioningStatus#PENDING} 상태의 경우 {@code null} .
