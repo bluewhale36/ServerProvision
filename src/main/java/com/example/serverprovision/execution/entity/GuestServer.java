@@ -1,22 +1,18 @@
 package com.example.serverprovision.execution.entity;
 
+import com.example.serverprovision.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
+import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "guest_server")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SuperBuilder
-public class GuestServer {
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
+public class GuestServer extends BaseTimeEntity {
 
     @Id
     private UUID id;
@@ -32,13 +28,4 @@ public class GuestServer {
 
     @Column(name = "memo")
     private String memo;
-
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
 }

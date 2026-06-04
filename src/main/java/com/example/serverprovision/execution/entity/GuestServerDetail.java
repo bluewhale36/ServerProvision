@@ -1,27 +1,23 @@
 package com.example.serverprovision.execution.entity;
 
 import com.example.serverprovision.execution.enums.DiscoveryStage;
+import com.example.serverprovision.global.entity.BaseTimeEntity;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
+import lombok.*;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "guest_server")
+@Table(name = "guest_server_detail")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SuperBuilder
-public class GuestServerDetail {
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
+public class GuestServerDetail extends BaseTimeEntity {
 
     @Id
     private UUID id;
@@ -49,12 +45,4 @@ public class GuestServerDetail {
 
     @Version
     private Long version;
-
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 }
