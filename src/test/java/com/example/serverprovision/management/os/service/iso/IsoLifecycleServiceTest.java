@@ -89,16 +89,17 @@ class IsoLifecycleServiceTest {
 	}
 
 	@Test
-	@DisplayName("자식 ISO enable 시도 — 부모 deprecated 면 거절")
-	void toggleEnable_parentDeprecated_rejects() {
-		OSMetadata parent = buildParent(1L, true, true, false);  // active + deprecated
-		ISO disabledIso = buildChild(101L, parent, false, false, false);
+	@DisplayName("자식 ISO enable — 부모 deprecated 이어도 허용 (R4-1 차원 독립: deprecated ≠ disabled)")
+	void toggleEnable_parentDeprecated_allows() {
+		OSMetadata parent = buildParent(1L, true, true, false);  // enabled + deprecated
+		ISO disabledIso = buildChild(101L, parent, false, false, false);  // own_en=false
 		given(isoRepository.findById(101L)).willReturn(Optional.of(disabledIso));
 		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent));
 
-		assertThatThrownBy(() -> isoLifecycleService.toggleEnabled(101L))
-				.isInstanceOf(ChildLifecycleBlockedByParentException.class)
-				.extracting("parentState").isEqualTo("DEPRECATED");
+		isoLifecycleService.toggleEnabled(101L);
+
+		assertThat(disabledIso.isEnabled()).isTrue();        // 활성화 허용 (부모 deprecated 무관)
+		assertThat(disabledIso.isDeprecated()).isTrue();      // 부모 deprecated 라 effective deprecated 유지
 	}
 
 	@Test
@@ -228,26 +229,30 @@ class IsoLifecycleServiceTest {
 	// ==== fixtures =====================================================
 
 	private static OSMetadata buildParent(Long id, boolean enabled, boolean deprecated, boolean deleted) {
-		return OSMetadata.builder()
+		OSMetadata p = OSMetadata.builder()
 				.id(id)
 				.osName(OSName.ROCKY_LINUX)
 				.osVersion("9.6")
-				.isEnabled(enabled)
-				.isDeprecated(deprecated)
+				.ownEnabled(enabled)
+				.ownDeprecated(deprecated)
 				.isDeleted(deleted)
 				.build();
+		p.recomputeEffective();   // R4-1 — 루트 → effective = own
+		return p;
 	}
 
 	private static ISO buildChild(Long id, OSMetadata parent, boolean enabled, boolean deprecated, boolean deleted) {
-		return ISO.builder()
+		ISO iso = ISO.builder()
 				.id(id)
 				.osMetadata(parent)
 				.isoPath("/var/iso/dvd.iso")
 				.checksum("hash")
 				.manifestHash("hash")
-				.isEnabled(enabled)
-				.isDeprecated(deprecated)
+				.ownEnabled(enabled)
+				.ownDeprecated(deprecated)
 				.isDeleted(deleted)
 				.build();
+		iso.recomputeEffective();   // R4-1 — effective = own ⊕ 부모
+		return iso;
 	}
 }

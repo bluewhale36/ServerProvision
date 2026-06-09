@@ -69,7 +69,7 @@ class BmcControllerTest {
     @DisplayName("GET /{boardId}/new : 신규 폼 렌더")
     void newForm() throws Exception {
         given(boardModelService.findById(1L))
-                .willReturn(new BoardModelResponse(1L, Vendor.GIGABYTE, "MS03", "", 0, 0, true, false, false, com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE));
+                .willReturn(new BoardModelResponse(1L, Vendor.GIGABYTE, "MS03", "", 0, 0, 0, true, false, false, com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE));
 
         mvc.perform(get("/management/bmc/1/new"))
                 .andExpect(status().isOk())
@@ -162,7 +162,7 @@ class BmcControllerTest {
     @DisplayName("GET /{boardId}/bmc/{bmcId}/edit : 수정 폼 렌더")
     void editForm() throws Exception {
         given(boardModelService.findById(1L))
-                .willReturn(new BoardModelResponse(1L, Vendor.GIGABYTE, "MS03", "", 0, 0, true, false, false, com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE));
+                .willReturn(new BoardModelResponse(1L, Vendor.GIGABYTE, "MS03", "", 0, 0, 0, true, false, false, com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE));
         given(bmcService.findBmc(1L, 2L))
                 .willReturn(new BmcResponse(2L, 1L, "AST2600", "12.61", "/opt/fw/bmc", "flash.nsh", "hash", 3, 2048L,
                         "", IntegrityStatus.NOT_VERIFIED, true, false, false, false, false, false));

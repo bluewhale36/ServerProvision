@@ -305,6 +305,7 @@ class TrashLifecycleServiceTest {
         }
 
         @Override protected Long resourceId() { return id; }
+        @Override protected LifecycleEntity parentLifecycle() { return null; }
         @Override public Long getResourceId() { return id; }
         @Override public ResourceType getResourceType() { return ResourceType.OS_ISO; }
         @Override public Path getResourcePath() { return path; }

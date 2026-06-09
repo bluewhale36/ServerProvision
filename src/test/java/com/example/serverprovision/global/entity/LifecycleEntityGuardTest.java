@@ -43,13 +43,13 @@ class LifecycleEntityGuardTest {
 	}
 
 	@Test
-	@DisplayName("DEPRECATED 부모 : enable + undeprecate 차단 (reason=DEPRECATED)")
-	void deprecated_blocksEnableAndUndeprecate() {
-		OSMetadata p = parent(true, true, false);
-		assertThat(p.childEnableBlockReason()).isEqualTo("DEPRECATED");
-		assertThat(p.blocksChildEnable()).isTrue();
+	@DisplayName("DEPRECATED 부모 : R4-1 차원 독립 — enable 은 허용(차단 안 함), undeprecate 만 차단")
+	void deprecated_allowsEnable_blocksUndeprecate() {
+		OSMetadata p = parent(true, true, false);   // enabled + deprecated
+		assertThat(p.childEnableBlockReason()).isNull();      // deprecated 는 enable 을 막지 않음 (deprecated ≠ disabled)
+		assertThat(p.blocksChildEnable()).isFalse();
 		assertThat(p.blocksChildRestore()).isFalse();
-		assertThat(p.blocksChildUndeprecate()).isTrue();
+		assertThat(p.blocksChildUndeprecate()).isTrue();      // undeprecate 는 여전히 차단(deprecated 차원)
 	}
 
 	@Test

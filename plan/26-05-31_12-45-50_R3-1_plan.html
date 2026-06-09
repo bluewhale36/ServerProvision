@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3-1 Plan — BoardModel ↔ Subprogram 관계성 재정립 (cascade parity)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); } h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .ok { color:var(--green); font-weight:700; } .no { color:var(--red); font-weight:700; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);} .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; } ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); } .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); } .split-card.after h4 { color:var(--green); }
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* 🎬 cascade demo */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:150px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg.modeseg { font-size:11px; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row strong { min-width:170px; } .ux-row .label { flex:1; color:var(--text-muted); font-size:12px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .sync-ok { font-size:10px; color:var(--green); border:1px solid var(--green); border-radius:6px; padding:1px 5px; margin-left:6px; font-weight:600; }
+  .sync-bad { font-size:10px; color:var(--red); border:1px solid var(--red); border-radius:6px; padding:1px 5px; margin-left:6px; font-weight:600; }
+  .sync-na { font-size:10px; color:var(--text-muted); border:1px solid var(--border); border-radius:6px; padding:1px 5px; margin-left:6px; font-weight:600; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R3-1 — BoardModel ↔ Subprogram 관계성 재정립 <span class="v2-badge">cascade parity</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R3-1 (refactor)</span>
+    <span><strong>상위</strong> R3 (BoardModel 도메인 리팩토링)</span>
+    <span><strong>scope</strong> BoardModel 전 lifecycle cascade + purge + 모달 + 집계에 board-scoped Subprogram 합류</span>
+    <span><strong>생성</strong> 2026-05-31 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (cascade BEFORE/AFTER)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / open questions</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단 — workflow wmjx7pfcz)</summary>
+      <div class="body">
+        <div class="callout danger">
+          <b>근본 원인</b> — <code>BoardModelService</code> 가 <code>biosRepository</code> / <code>bmcRepository</code> + <code>@Lazy biosService</code> / <code>bmcService</code> 두 도메인 의존만 갖고 <b>subprogram* 의존이 0</b> 이다 (필드 주석 L50-51 이 "A5 추가 시 DriverRepository 도 함께 주입… 3회 반복 확보 후 이벤트 기반 리팩터 검토" 를 <b>예고만 하고 미이행</b>). Subprogram(MA5)이 BIOS(MA3)/BMC(MA4) cascade 기계 완성 뒤 합류하며 관계 배선이 빠졌다. 단순 cascade 누락이 아니라 <b>BoardModel 이 Subprogram 도메인을 아예 인지하지 못함</b>.
+        </div>
+        <h4>cascade/집계/모달 7+ 지점 전수 — 전부 BIOS/BMC 만 인지</h4>
+        <table>
+          <thead><tr><th>지점 (BoardModelService)</th><th>현재 (BIOS/BMC)</th><th>Subprogram</th></tr></thead>
+          <tbody>
+            <tr><td><code>toggleEnabled</code> 249-252 (disable cascade)</td><td>entity-direct <code>BoardBIOS::toggleEnabled</code> (enabled 필터)</td><td class="no">❌ 없음</td></tr>
+            <tr><td><code>deprecate</code> 262-267</td><td>entity-direct, filter <code>!deleted &amp;&amp; !deprecated</code></td><td class="no">❌</td></tr>
+            <tr><td><code>undeprecate</code> 277-282</td><td>entity-direct, filter <code>!deleted &amp;&amp; deprecated</code></td><td class="no">❌</td></tr>
+            <tr><td><code>softDelete</code> 299-302</td><td>service 위임 <code>biosService.softDelete(id,biosId)</code> (board.softDelete 前)</td><td class="no">❌ → 보드 삭제돼도 Subprogram active 잔존 (스샷)</td></tr>
+            <tr><td><code>restore(id,cascade)</code> 339-346</td><td>service 위임 <code>biosService.restore(id,biosId)</code> (board.restore 後, opt-in)</td><td class="no">❌</td></tr>
+            <tr><td><code>purge(board)</code> 397-399</td><td><code>hasBios||hasBmc</code> 잔존검사 → 거절</td><td class="no">❌ → dangling: FK <code>@OnDelete(CASCADE)</code>로 row 는 지워지나 디스크 트리/마커 orphan</td></tr>
+            <tr><td><code>findDeletedChildLabels</code> 357-360 / 집계 83-99</td><td>BIOS/BMC 라벨 + biosCount/bmcCount</td><td class="no">❌ 모달/현재연결 카피 누락</td></tr>
+          </tbody>
+        </table>
+        <h4>4 자식 도메인 cascade 현황 — Subprogram 만 비대칭</h4>
+        <table>
+          <thead><tr><th>자식</th><th>disable</th><th>deprecate</th><th>undeprecate</th><th>softDelete</th><th>restore</th><th>purge 검사</th><th>모달/집계</th></tr></thead>
+          <tbody>
+            <tr><td>BIOS</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+            <tr><td>BMC</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+            <tr><td><b>Subprogram(보드전용)</b></td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>진단 심각도</b> : I2(cascade 누락, <b>high</b> — invariant "자식 ≤ 부모 상태" 위반) · I3(purge dangling, <b>medium</b>) · I4(모달 거짓/누락 안내 + deprecate form 은 자식 언급 0, <b>low</b>). I4 는 cascade(I2) 의 표면 증상 → 단일 SSOT 로 묶어 처리.</div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 + 비목표</summary>
+      <div class="body">
+        <p>채택 = <b>BoardModelService 가 Subprogram 도메인을 1급으로 인지하도록 의존 배선</b> + BIOS/BMC 와 <b>동형</b>으로 board-scoped Subprogram 을 전 lifecycle cascade · purge 잔존검사 · 확인모달 · 집계에 합류. <b>공용(boardModel=null)</b> 은 <code>boardModel.id</code> 매칭 쿼리로 자연 제외.</p>
+        <ol>
+          <li><b>의존 주입</b> — <code>BoardModelService</code> 에 <code>subprogramRepository</code> + <code>@Lazy subprogramService</code> 추가 (L50-51 미이행 주석 이행).</li>
+          <li><b>cascade 5 전이</b> — disable-toggle / deprecate / undeprecate (entity-direct) + softDelete / restore (service 위임) 에 board-scoped Subprogram 루프 추가.</li>
+          <li><b>purge 잔존검사</b> — <code>hasSubprogram</code> OR 합류 (자식 먼저 정리 강제).</li>
+          <li><b>집계 + 모달</b> — <code>BoardModelResponse.subprogramCount</code> + board/list.html 모달 카피(delete/deprecate/restore) 동적화 + "현재 연결" Subprogram 노출.</li>
+          <li><b>Repository SPI</b> — <code>SubprogramRepository</code> 에 board-scoped(kind 무관) + 삭제상태별 파생 쿼리 추가.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>includeDeleted/Miller 선택 보존 parity (진단 I1)</b> — cascade 와 직교 → 별도 CH 슬라이스.</li>
+            <li><b>BIOS/BMC/Subprogram 3중 복붙 cascade 루프의 추상화</b> (child-service 인터페이스 / <code>@EventListener</code>) — over-abstraction 위험 평가 후 <b>R3-2(후보)</b>. 본 슬라이스는 동형 루프 추가(최소-안전).</li>
+            <li>모달 자식요약을 BE(<code>ConfirmModalType</code>)로 옮기는 아키텍처 변경 — 현 JS+data-* 패턴 유지(개수만 동적 산출).</li>
+            <li><b>R2-2-2</b>(restore 중복키) 보류. <b>형제 BIOS/BMC 코드</b> 무수정.</li>
+            <li>cascade 위임 시그니처 통일(2-인자) — open question(§8 Q1).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — cascade BEFORE/AFTER 라이브</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>부모 메인보드 액션</b>을 눌러보세요(비활성화 / Deprecated / 삭제 / 복구). 자식 4종이 <b>형제 BIOS 기준</b>으로 따라가는지 라이브로 보입니다. <b>BEFORE</b> 에서 비활성화/Deprecated/삭제하면 — BIOS/BMC 는 전이되는데 <b>보드전용 Subprogram 만 잔존</b>(<span class="no">⚠ 비대칭</span>). <b>AFTER</b> 면 형제와 동일하게 전이. 단 <b>활성화(enable)</b> 는 양쪽 다 cascade 안 함(자식 개별 활성 — OS↔ISO 동형 "비활성화는 전이 · 활성화는 전이 X"), <b>공용 Subprogram</b> 은 부모가 없어 항상 제외됩니다. (모드 전환 시 초기화)</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">부모 메인보드 액션 :</span>
+            <button class="seg" onclick="r31Act('disable')">비활성화</button>
+            <button class="seg" onclick="r31Act('enable')">활성화</button>
+            <button class="seg" onclick="r31Act('deprecate')">Deprecated</button>
+            <button class="seg" onclick="r31Act('undeprecate')">Dep 해제</button>
+            <button class="seg" onclick="r31Act('delete')">삭제</button>
+            <button class="seg" onclick="r31Act('restore')">복구</button>
+            <button class="seg" onclick="r31Reset()">↺ 초기화</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">모드 :</span>
+            <button class="seg modeseg" data-mode="BEFORE" onclick="r31SetMode('BEFORE')">BEFORE — 현재 (Subprogram 미cascade)</button>
+            <button class="seg modeseg" data-mode="AFTER" onclick="r31SetMode('AFTER')">AFTER — R3-1 (형제와 동일)</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="r31-parent">
+              <strong>메인보드 (MS03-CE0)</strong><span class="label">Gigabyte</span>
+              <span class="badge on" id="r31-parent-badge">활성화</span>
+            </div>
+            <div class="ux-row child" id="r31-bios"></div>
+            <div class="ux-row child" id="r31-bmc"></div>
+            <div class="ux-row child" id="r31-spb"></div>
+            <div class="ux-row child" id="r31-spc"></div>
+          </div>
+          <div class="ux-caps" id="r31-caps"></div>
+          <div class="ux-message" id="r31-message"></div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>BEFORE — Subprogram 의존 0</h4>
+            <pre><code>// BoardModelService.softDelete (현재)
+biosRepository...forEach(b -&gt; biosService.softDelete(id, b.id));
+bmcRepository...forEach(b -&gt; bmcService.softDelete(id, b.id));
+// Subprogram 루프 없음 → board 삭제돼도 active 잔존
+board.softDelete();</code></pre>
+          </div>
+          <div class="split-card after">
+            <h4>AFTER — BIOS/BMC 동형 루프 추가</h4>
+            <pre><code>...biosService / bmcService 위임 (그대로)
+subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(id)
+    .forEach(sp -&gt; subprogramService.softDelete(sp.getId()));
+// 공용(boardModel=null)은 boardModel.id 매칭이라 쿼리 차원 제외
+board.softDelete();</code></pre>
+          </div>
+        </div>
+        <div class="callout success"><b>핵심</b> — (1) cascade 판정 단일 소스 = <code>BoardModelService</code> board-scoped 자식 루프, 공용 제외는 <code>findAllByBoardModel_Id*</code> 가 <code>null</code> FK 자동 배제(분기 0). (2) 토글은 <b>비활성화는 전이 · 활성화는 전이 X</b> — <code>OSMetadataLifecycleService.toggleEnabled</code>(OS↔ISO) / <code>BoardModelService.toggleEnabled</code>(BIOS/BMC <b>이미 정합, 무수정</b>) 와 동형으로 Subprogram 도 disable-only.</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p>URL / 엔드포인트 <b>변경 0</b>. 기존 BoardModel 상태전이 액션이 자식 cascade 범위만 확장.</p>
+        <div class="seq">
+          <div class="actor a1">BoardModelController</div>
+          <div class="actor a2">BoardModelService</div>
+          <div class="actor a3">자식 (BIOS/BMC/Subprogram)</div>
+          <div class="step a1"><code>POST /management/board/{id}/{delete,deprecate,restore…}</code></div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">부모 전이 + board-scoped 자식 조회 (repo, 공용 제외)</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">toggle/deprecate/undeprecate → <b>entity-direct</b> / softDelete·restore → <b>service 위임</b></div><div class="step a3">상태 전이 (BIOS=BMC=Subprogram 동형)</div>
+          <div class="step a1">redirect (list)</div><div class="step a2">단일 <code>@Transactional</code> — 자식 충돌 시 전체 롤백</div><div class="step a3"></div>
+        </div>
+        <table>
+          <thead><tr><th>전이</th><th>자식 호출 방식</th><th>순서 / 필터</th></tr></thead>
+          <tbody>
+            <tr><td>disable / enable</td><td>entity-direct <code>Subprogram::toggleEnabled</code> (enabled 자식만)</td><td><b>비활성화만 전이 · 활성화는 전이 X</b> (enable 은 early-return, 부모 ceiling만 상승·자식 개별 활성) — <code>OSMetadataLifecycleService.toggleEnabled</code>(OS↔ISO) / <code>BoardModelService.toggleEnabled</code>(BIOS/BMC, <b>이미 그러함</b>) 동형</td></tr>
+            <tr><td>deprecate / undeprecate</td><td>entity-direct <code>Subprogram::(un)deprecate</code></td><td>filter <code>!deleted &amp;&amp; (!)deprecated</code> (entity 가드 회피)</td></tr>
+            <tr><td>softDelete</td><td>service <code>subprogramService.softDelete(spId)</code></td><td>active 자식, board.softDelete <b>前</b> (trash 이동)</td></tr>
+            <tr><td>restore (opt-in cascade)</td><td>service <code>subprogramService.restore(spId)</code></td><td>deleted 자식, board.restore <b>後</b> → R2-2-1 부모가드 통과</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>1) SubprogramRepository — board-scoped 파생 쿼리 4 추가 (BIOS/BMC 동형, @Query 불필요)</h4>
+        <pre><code>List&lt;Subprogram&gt; findAllByBoardModel_Id(Long boardModelId);                 // purge 잔존검사 + toggle/deprecate/undeprecate
+List&lt;Subprogram&gt; findAllByBoardModel_IdAndIsDeletedFalse(Long boardModelId);  // softDelete cascade + active count
+List&lt;Subprogram&gt; findAllByBoardModel_IdAndIsDeletedTrue(Long boardModelId);   // restore cascade + deleted 라벨
+List&lt;Subprogram&gt; findAllByBoardModel_IdIn(List&lt;Long&gt; boardModelIds);          // findAllGrouped batch count</code></pre>
+        <div class="callout"><b>공용 자동 제외</b> — <code>boardModel.id = :id</code> 매칭이라 <code>boardModel IS NULL</code>(공용) 행은 쿼리 차원에서 빠진다. 별도 분기 0. (BoardModel FK 가 nullable 인 Subprogram 고유 특성이 오히려 안전하게 작동.)</div>
+        <h4>2) BoardModelService — 의존 주입 + cascade 7 지점 (BIOS/BMC 동형)</h4>
+        <pre><code>// 필드 (L52-59 옆)
+private final SubprogramRepository subprogramRepository;
+@Lazy private final SubprogramService subprogramService;
+
+// toggleEnabled (243-253 동형) — entity-direct. 비활성화만 cascade, 활성화는 early-return (OS↔ISO 동일)
+if (!parent.isEnabled())   // 부모가 방금 disable 된 경우에만
+    subprogramRepository.findAllByBoardModel_Id(id).stream()
+        .filter(Subprogram::isEnabled).forEach(Subprogram::toggleEnabled);
+// deprecate (262-267 동형) — entity-direct
+subprogramRepository.findAllByBoardModel_Id(id).stream()
+    .filter(s -&gt; !s.isDeleted() &amp;&amp; !s.isDeprecated()).forEach(Subprogram::deprecate);
+// softDelete (299-302 동형) — service 위임 (board.softDelete 前)
+subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(id)
+    .forEach(sp -&gt; subprogramService.softDelete(sp.getId()));
+// restore cascade (339-346 동형, board.restore 後)
+for (Subprogram sp : subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(id)) {
+    subprogramService.restore(sp.getId()); restored++; }
+// purge 잔존검사 (397-399) — OR 합류
+boolean hasSubprogram = !subprogramRepository.findAllByBoardModel_Id(id).isEmpty();
+if (hasBios || hasBmc || hasSubprogram) throw new IllegalBoardModelStateException(...);</code></pre>
+        <div class="callout success"><b>R2-2-1 양방향 공존</b> — R2-2-1(자식→부모 promote 가드)과 R3-1(부모→자식 cascade)이 <code>SubprogramService.restore/undeprecate/toggleEnabled</code> 를 공유한다. (1) toggle/deprecate/undeprecate cascade 는 <b>entity-direct</b> 라 service 가드 미경유. (2) softDelete cascade 는 board.softDelete <b>前</b> 호출 + softDelete 엔 부모가드 없음. (3) restore cascade 는 board.restore <b>後</b> 호출 → <code>parent.blocksChildRestore()=false</code> 통과. BIOS/BMC 가 이미 검증한 동형 양립.</div>
+        <h4>3) BoardModelResponse — subprogramCount 추가</h4>
+        <pre><code>record BoardModelResponse(… biosCount, bmcCount, int subprogramCount, …)
+// toResponse(board, biosCount, bmcCount, subprogramCount), findById/findAllGrouped 집계에 board-scoped active count 합류
+// (findAllGrouped 는 findAllByBoardModel_IdIn batch 로 N+1 회피 — BIOS/BMC 패턴 그대로)</code></pre>
+        <h4>4) board/list.html 모달 카피 동적화 (I4)</h4>
+        <ul>
+          <li><b>delete</b>(187) <code>data-resource-extra</code> → <code>th:attr</code> 동적 : "하위 BIOS N · BMC M · 드라이버/유틸리티 K 도 함께 삭제돼요."</li>
+          <li><b>restore</b>(196-197) <code>data-cascade-true-title/desc</code> → Subprogram 포함.</li>
+          <li><b>deprecate</b>(171-177) — <code>data-resource-extra</code> <b>신설</b> (현재 자식 언급 0): "BIOS / BMC / Subprogram 도 함께 Deprecated 표시돼요."</li>
+          <li>"현재 연결"(223-224) — Subprogram 개수 동반 + (선택) "Driver 등록" 링크.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>R3-1 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~5</td><td>뷰(board/list.html 모달 카피·현재연결) · Controller(변경 0) · DTO(BoardModelResponse +subprogramCount) · Service 시그니처(의존 주입 + cascade 7)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6~7</td><td>Repository(SubprogramRepository +4 파생) · Entity(변경 0, 스키마 0)</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8~9</td><td>cascade 본체 + purge 검사 + 단위/통합 테스트 + 스키마 0</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 메인보드 삭제/Deprecate/복구 시 Subprogram 동반 + 공용 불변 + purge 거절</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><b>A. cascade 정합</b></td><td>board softDelete → board-scoped Subprogram active 동반 trash ; deprecate/undeprecate/disable → 동반 전이 ; restore(cascade=true) → 동반 복구 (BIOS/BMC + Subprogram)</td><td>~5</td></tr>
+            <tr><td><b>B. 공용 제외</b></td><td>같은 kind/name 의 <b>공용(boardModel=null)</b> Subprogram 은 board 전 전이에서 불변 (cascade/집계/모달 0)</td><td>~3</td></tr>
+            <tr><td><b>C. purge 잔존검사</b></td><td>board-scoped Subprogram 잔존 시 board purge 거절(IllegalBoardModelStateException) ; 자식 0 이면 허용</td><td>~2</td></tr>
+            <tr><td><b>D. 집계 / 모달</b></td><td>BoardModelResponse.subprogramCount 정확(active board-scoped만) ; 모달 trigger data-* 에 Subprogram 개수 노출(MockMvc 렌더)</td><td>~3</td></tr>
+            <tr><td><b>E. R2-2-1 회귀</b></td><td>restore cascade(board.restore 後 자식 위임)가 R2-2-1 부모가드에 막히지 않음 ; 자식 단독 restore 는 여전히 부모 삭제 시 409(R2-2-1 보존)</td><td>~2</td></tr>
+            <tr><td><b>F. 충돌 롤백</b></td><td>restore cascade 중 자식이 활성 동일키와 충돌 → DuplicateSubprogramVersionException → 부모/전 자식 전체 롤백</td><td>~1</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">신규 예외 0. 회귀 핵심 = BIOS/BMC cascade 동작 보존 + R2-2-1 부모가드 공존(E). 전체 <code>./gradlew test</code> green.</div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 (변경 0)</summary>
+      <div class="body">
+        <p><b>신규 예외 0</b>. cascade 는 기존 entity 메서드 / <code>subprogramService.softDelete·restore</code> 재사용. purge 잔존검사는 기존 <code>IllegalBoardModelStateException</code> 메시지에 Subprogram 추가만.</p>
+        <ul>
+          <li>restore cascade 중 자식 충돌 → 기존 <code>DuplicateSubprogramVersionException</code> (BIOS/BMC 의 <code>DuplicateBios/BmcVersionException</code> 와 동형, 전체 롤백).</li>
+          <li>purge 거절 → <code>IllegalBoardModelStateException</code> 문구에 "Subprogram(드라이버/유틸리티)" 합류.</li>
+          <li>R2-2-1 의 <code>ChildLifecycleBlockedByParentException</code> — restore cascade 순서(board.restore 後)로 자연 통과, throw 안 됨.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / open questions</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>cascade 위임 시그니처 — R2-2-1 의 단일 인자 <code>subprogramService.softDelete(spId)/restore(spId)</code> 재사용 vs BIOS/BMC 식 <code>(boardId, childId)</code> 2-인자 통일?</td><td><b>단일 인자 재사용</b>(최소 변경). 2-인자 통일은 단독 컨트롤러 경로와 시그니처 분기 발생 + R2-2-1 이 이미 단일 인자 가드를 박음</td></tr>
+            <tr><td><b>Q2</b></td><td>purge 잔존검사에 Subprogram 추가는 <b>동작 변경</b> — 이전엔 Subprogram 남아도 board purge 가능 → 이제 거절. 회귀 가능. 본 슬라이스에 포함?</td><td><b>포함 + 안내 문구 동반</b> (BIOS/BMC 와 일관 = invariant 정합). I3 dangling 방어가 목적</td></tr>
+            <tr><td>Q3</td><td>3중 복붙 cascade(이제 7 메서드 × 3 도메인)의 추상화(child-service 인터페이스 / @EventListener)를 본 슬라이스에 포함?</td><td><b>비포함 — R3-2 로 분리</b>. CLAUDE.md 중복금지 vs over-abstraction 균형, 동형 루프 먼저 안정화 후 추상</td></tr>
+            <tr><td>Q4</td><td>"현재 연결" 섹션에 "Driver/Utility 등록" 링크(현재 BIOS/BMC 만)도 추가?</td><td>개수 노출은 포함, 등록 링크는 선택(스코프 경계 — 사용자 결정)</td></tr>
+          </tbody>
+        </table>
+        <h4>주의</h4>
+        <ul>
+          <li><b>cascade 방식 혼재 유지</b> — toggle/deprecate/undeprecate=entity-direct, softDelete/restore=service 위임. BIOS/BMC 가 이미 이 혼재 패턴이라 Subprogram 도 동형. (entity-direct 가 service 가드 우회 = R2-2-1 충돌 회피의 부수 효과.)</li>
+          <li><b>N+1</b> — findAllGrouped 집계는 <code>findAllByBoardModel_IdIn</code> batch 로 BIOS/BMC 와 동일하게 회피.</li>
+          <li><b>CLAUDE.md</b> 수정 0. R3/R3-1 Notion 신설 완료.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r3-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> (record 필드 + 생성자 호출처)</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 — A~F + 형제/R2-2-1 회귀</span></label></li>
+          <li><label><input type="checkbox" data-key="dep"> <span>BoardModelService 에 subprogramRepository + @Lazy subprogramService 주입, cascade 7 지점 BIOS/BMC 동형</span></label></li>
+          <li><label><input type="checkbox" data-key="common"> <span>공용(boardModel=null) Subprogram 전 전이/집계/purge 에서 불변 (쿼리 차원 제외)</span></label></li>
+          <li><label><input type="checkbox" data-key="repo"> <span>SubprogramRepository 파생 4 + N+1 회피(IdIn batch)</span></label></li>
+          <li><label><input type="checkbox" data-key="modal"> <span>board/list.html 모달 카피(delete/deprecate/restore) + 현재연결 Subprogram 동적</span></label></li>
+          <li><label><input type="checkbox" data-key="r221"> <span>R2-2-1 부모가드 공존 — restore cascade 통과 + 자식 단독 restore 409 보존</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자) — 메인보드 삭제 시 Subprogram 동반 (스샷 재현 해소)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>…/subprogram/repository/SubprogramRepository.java</code></td><td>board-scoped 파생 4 (findAllByBoardModel_Id / …IsDeletedFalse / …IsDeletedTrue / …IdIn)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>…/board/service/BoardModelService.java</code></td><td>subprogramRepository + @Lazy subprogramService 주입 + cascade 7 지점(toggle/deprecate/undeprecate/softDelete/restore/findDeletedChildLabels/집계) + purge 잔존검사 + toResponse subprogramCount</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>…/board/dto/response/BoardModelResponse.java</code></td><td>subprogramCount 필드 + of()/생성자</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/board/list.html</code></td><td>delete/restore data-* 에 Subprogram 동적 + deprecate data-resource-extra 신설 + 현재연결 count</td></tr>
+            <tr><td><span class="chip mod">테스트</span></td><td><code>BoardModelServiceTest</code> + <code>BoardModelController*FlowTest</code></td><td>A~F 시나리오 + 기존 BIOS/BMC cascade 회귀</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>SubprogramService</code>(단일 인자 재사용) · 형제 BIOS/BMC · LifecycleEntity · Entity/스키마 · 예외 · CLAUDE.md</td><td>변경 0 (신규 예외/스키마/클래스 0)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R3-1 완료 시</b> — 4 자식 도메인 전체가 BoardModel cascade·purge·모달·집계에 일관 등록. invariant "자식 ≤ 부모 상태" 전 도메인 회복.</li>
+          <li><b>R3-2 (후보)</b> — 3중 복붙 cascade(7 메서드 × 3 도메인)의 child-service 인터페이스 / @EventListener 추상화 (L50-51 예고의 "이벤트 기반 리팩터"). over-abstraction 평가 후.</li>
+          <li><b>CH 슬라이스 (직교)</b> — includeDeleted/Miller 선택 보존 parity (진단 I1).</li>
+          <li><b>R2-2-2</b> — restore 중복키 UI 차단 (보류 해제 시).</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href'); if (!href || !href.startsWith('#')) return;
+      e.preventDefault(); const t = document.querySelector(href); if (!t) return;
+      t.open = true; window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () => document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () => document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; } else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage; const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key]; cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => { stored[cb.dataset.key] = cb.checked; localStorage.setItem(key, JSON.stringify(stored)); cb.closest('label').classList.toggle('done', cb.checked); });
+    });
+  });
+
+  // 🎬 cascade 액션 시뮬 — 비활성화/Deprecated/삭제/복구는 cascade(전이), 활성화(enable)는 cascade 없음 (OS↔ISO 동형).
+  // 자식 상태를 독립 추적해 enable-no-cascade 를 정확히 재현. 보드전용 Subprogram 은 형제 BIOS 와 같아야 정합.
+  let r31Mode = 'AFTER', r31S;
+  function r31badge(o){ if (o.d) return ['삭제됨','del']; if (!o.e) return ['비활성화','off']; if (o.p) return ['Deprecated','dep']; return ['활성화','on']; }
+  function r31Reset(){ r31S = { parent:{e:1,p:0,d:0}, bios:{e:1,p:0,d:0}, bmc:{e:1,p:0,d:0}, spb:{e:1,p:0,d:0}, spc:{e:1,p:0,d:0} }; r31Render(); }
+  function r31SetMode(m){ r31Mode = m; r31Reset(); }
+  function r31Act(a){
+    const after = (r31Mode === 'AFTER');
+    const P = r31S.parent;
+    const tg = ['bios','bmc'].concat(after ? ['spb'] : []);   // 공용(spc)은 절대 미포함
+    if (a === 'disable')        { P.e = 0; tg.forEach(k => { if (r31S[k].e && !r31S[k].d) r31S[k].e = 0; }); }
+    else if (a === 'enable')    { P.e = 1; /* 활성화 = cascade 없음 (자식 개별 활성) */ }
+    else if (a === 'deprecate') { P.p = 1; tg.forEach(k => { if (!r31S[k].d && !r31S[k].p) r31S[k].p = 1; }); }
+    else if (a === 'undeprecate'){ P.p = 0; tg.forEach(k => { if (!r31S[k].d && r31S[k].p) r31S[k].p = 0; }); }
+    else if (a === 'delete')    { P.d = 1; tg.forEach(k => { if (!r31S[k].d) r31S[k].d = 1; }); }
+    else if (a === 'restore')   { P.d = 0; tg.forEach(k => { if (r31S[k].d) r31S[k].d = 0; }); }
+    r31Render();
+  }
+  function r31Row(title, name, o, role){
+    const [lbl, cls] = r31badge(o);
+    let mark = '';
+    if (role === 'spc') mark = '<span class="sync-na">부모 없음 · 제외</span>';
+    else if (role === 'spb') { const b = r31badge(r31S.bios)[0]; mark = (lbl === b) ? '<span class="sync-ok">✓ 형제 정합</span>' : '<span class="sync-bad">⚠ 비대칭</span>'; }
+    return '<strong>' + title + '</strong><span class="label">' + name + '</span><span class="badge ' + cls + '">' + lbl + '</span>' + mark;
+  }
+  function r31Render(){
+    document.querySelectorAll('#s2-preview .ux-toolbar .seg[data-mode]').forEach(s => s.classList.toggle('active', s.dataset.mode === r31Mode));
+    const pb = r31badge(r31S.parent), pe = document.getElementById('r31-parent-badge');
+    pe.textContent = pb[0]; pe.className = 'badge ' + pb[1];
+    document.getElementById('r31-parent').classList.toggle('muted', r31S.parent.d === 1);
+    document.getElementById('r31-bios').innerHTML = r31Row('BIOS', 'firmware v3.21', r31S.bios, 'sib');
+    document.getElementById('r31-bmc').innerHTML = r31Row('BMC', 'bmc v1.40', r31S.bmc, 'sib');
+    document.getElementById('r31-spb').innerHTML = r31Row('Subprogram (보드전용)', 'i40e-driver 2.1', r31S.spb, 'spb');
+    document.getElementById('r31-spc').innerHTML = r31Row('Subprogram (공용)', 'raid-cli 1.0', r31S.spc, 'spc');
+    const biosB = r31badge(r31S.bios)[0], spbB = r31badge(r31S.spb)[0], sync = (biosB === spbB);
+    document.getElementById('r31-caps').innerHTML =
+      '형제 BIOS 기준 정합 (보드전용 Subprogram 은 BIOS 와 같아야 함)\n' +
+      '  BIOS                 = ' + biosB + '\n' +
+      '  Subprogram(보드전용) = ' + spbB + '   ' + (sync ? '<span class="f">정합</span>' : '<span class="t">비대칭</span>') + '\n' +
+      '  Subprogram(공용)     = ' + r31badge(r31S.spc)[0] + '   (부모 없음 · cascade 제외)';
+    const msg = document.getElementById('r31-message');
+    if (!sync) { msg.className = 'ux-message error'; msg.textContent = '⚠ BEFORE — 보드전용 Subprogram 이 형제 BIOS 와 달라졌습니다. BoardModelService 가 Subprogram cascade 를 안 해 발생 (비활성화/Deprecated/삭제 후 잔존). 스샷의 그 상태.'; }
+    else { msg.className = 'ux-message success'; msg.textContent = '✓ 보드전용 Subprogram = 형제 BIOS. 비활성화/Deprecated/삭제/복구는 cascade(전이), 활성화(enable)는 양쪽 다 cascade 없음 — OS↔ISO 동형. 공용은 부모 없어 제외.'; }
+  }
+  r31Reset();
+</script>
+</body>
+</html>

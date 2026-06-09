@@ -57,12 +57,14 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	public void toggleEnabled(Long id) {
 		OSMetadata parent = requireActiveImage(id);
 		parent.toggleEnabled();
-		if (parent.isEnabled()) {
-			return;   // 활성화는 cascade 안 함 — 자식 활성은 운영자 개별 액션.
-		}
+		recomputeIsos(parent);   // R4-1 — 양방향 : own 보존, 부모 effective 변화만 자식에 반영
+	}
+
+	/** R4-1 — 자식 ISO effective 재계산. own 보존, soft-deleted ISO 제외(restore 시 개별 재계산). */
+	private void recomputeIsos(OSMetadata parent) {
 		parent.getIsos().stream()
-				.filter(ISO::isEnabled)
-				.forEach(ISO::toggleEnabled);
+				.filter(iso -> !iso.isDeleted())
+				.forEach(ISO::recomputeEffective);
 	}
 
 	// ==== soft delete / restore ========================================
@@ -124,31 +126,27 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	// ==== deprecate / undeprecate ======================================
 
 	/**
-	 * S5-2-3-1 — OS deprecate + 자식 ISO 강제 cascade.
-	 * 자식이 이미 deprecated 거나 deleted 면 skip (entity 가드 회피).
+	 * R4-1 — OS deprecate + 자식 ISO effective 재계산.
 	 */
 	@Override
 	@Transactional
 	public void deprecate(Long id) {
 		OSMetadata parent = requireActiveImage(id);
 		parent.deprecate();
-		parent.getIsos().stream()
-				.filter(iso -> !iso.isDeleted() && !iso.isDeprecated())
-				.forEach(ISO::deprecate);
+		recomputeIsos(parent);
 	}
 
 	/**
-	 * S5-2-3-1 — OS undeprecate + 자식 ISO 강제 cascade.
-	 * 자식이 deprecated 인 것만 undeprecate. active / deleted 자식은 skip.
+	 * R4-1 — OS undeprecate + 자식 ISO effective 재계산.
+	 * <p>own 불변 → 운영자가 직접 deprecate 한 ISO(own_deprecated=true)는 보존, 부모 추종 ISO 만 활성 복원.
+	 * 기존 "deprecated ISO 전량 환원" 결함 해소.</p>
 	 */
 	@Override
 	@Transactional
 	public void undeprecate(Long id) {
 		OSMetadata parent = requireActiveImage(id);
 		parent.undeprecate();
-		parent.getIsos().stream()
-				.filter(iso -> !iso.isDeleted() && iso.isDeprecated())
-				.forEach(ISO::undeprecate);
+		recomputeIsos(parent);
 	}
 
 	// ==== purge ========================================================

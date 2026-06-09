@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<!--
+  R4-1 plan (v2, Option A) — own/effective 분리로 lifecycle cascade 재정의
+  단일 boolean+1bit 모델(parked: 26-05-31_21-16-34) 폐기 → 권위 5종 수렴 Option A 채택.
+  근거 report : report/26-06-01_18-45-25_R4-state-preservation-redesign_report.html
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4-1 Plan v2 — own/effective 분리 lifecycle cascade</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.own{background:var(--purple-bg);color:var(--purple);}
+  .chip.eff{background:var(--blue-bg);color:var(--blue);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  /* 🎬 데모 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:74px; }
+  .ux-row { display:flex; align-items:center; gap:9px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.55; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); }
+  .ux-row .badge.own { background:var(--purple-bg); color:var(--purple); font-size:9.5px; }
+  .ux-row .forced { font-size:10px; color:var(--orange); font-weight:600; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.warn { border-color:var(--yellow); color:var(--yellow); } .n-demo-btn.warn:hover:not(:disabled) { background:var(--yellow-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); white-space:normal; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-message.info { background:var(--blue-bg); border-color:var(--blue); color:var(--blue); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R4-1 — own/effective 분리 lifecycle cascade <span class="v2-badge">v2 · Option A</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R4-1 (refactor)</span>
+    <span><strong>상위</strong> R4 : Lifecycle cascade 개념 및 구현 재정의</span>
+    <span><strong>scope</strong> own_* 컬럼 + effective 캐시 재정의 · cascade=재계산 · force-down-while-explicit 해결</span>
+    <span><strong>생성</strong> 2026-06-01 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>진입 / 이력</h4>
+        <ul>
+          <li><b>R2-2 / R2-2-1 완료</b> — 부모 상태로 자식 액션 차단(<code>childEnableBlockReason</code> / <code>blocksChildUndeprecate</code> / <code>blocksChildRestore</code>)이 (서버 throw + 뷰 disabled) SSOT. <b>본 슬라이스에서 그대로 유지.</b></li>
+          <li><b>R3-1 완료(green)</b> — board-scoped Subprogram 이 cascade 묶음에 합류.</li>
+          <li><b>parked : <code>plan/26-05-31_21-16-34_R4-1_plan.html</code></b> (단일 boolean + <code>cascade_origin</code> 1bit 안) — <b>force-down-while-explicit 미해결</b>로 폐기.</li>
+          <li><b>재조사 : <code>report/26-06-01_18-45-25_R4-state-preservation-redesign_report.html</code></b> — 권위 5종(Windows ACL · OverlayFS · K8s · CSS · PostgreSQL GUC) 수렴 → <b>Option A</b> 채택. 본 plan 이 그 구현안.</li>
+        </ul>
+        <div class="callout danger">
+          <b>1bit 안이 막힌 케이스 (force-down-while-explicit)</b> — 자식 A(직접 관리·활성)가 부모 deprecate 로 강제 deprecated 된 뒤, 부모 undeprecate 시 A 가 영구 deprecated 로 갇힘. 단일 boolean 이 A 의 <b>본래 의도값(활성)</b> 을 기억 못 해 "운영자가 직접 deprecate 한 자식"과 구별 불가.
+        </div>
+        <div class="callout success">
+          <b>해법 (5종 수렴)</b> — own(본래 의도)을 effective(현재값)와 <b>분리 저장</b>. cascade 는 own 불가침, effective 만 재계산. 복원 = "제약 제거 시 손대지 않은 own 이 자동으로 effective 로 재계산". A.own=활성 ≠ B.own=deprecated 로 즉시 구별 → A 복원, B 보존.
+        </div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>확정 (사용자 결정)</h4>
+        <ol>
+          <li><b>값 표현 재정의</b> — 자식에 <span class="chip own">own_enabled</span> · <span class="chip own">own_deprecated</span>(운영자 본래 의도) 신규. 기존 <span class="chip eff">is_enabled</span> · <span class="chip eff">is_deprecated</span> 는 <b>effective(현재 적용값) 캐시</b>로 의미 재정의.</li>
+          <li><b>effective 식 (차원 독립)</b> — <code>is_deprecated = own_deprecated OR 부모.is_deprecated</code> · <code>is_enabled = own_enabled AND 부모.is_enabled</code>. <b>제약(부모)은 OR/AND 로 항상 강제, own 은 보존.</b> 두 차원은 간섭하지 않는다 — 부모 deprecate 는 자식 enabled 를 끄지 않음(deprecated ≠ disabled).</li>
+          <li><b>cascade = 재계산</b> — 부모 상태 변경 시 자식 effective 만 재계산(own 불변). 기존 undeprecate 의 "deprecated 자식 전량 환원" 결함이 <b>구조적으로 소멸</b>(필터 자체가 사라짐).</li>
+          <li><b>force-down-while-explicit 해결</b> — A(own_dep=false): 부모 deprecate→effective dep, 부모 undeprecate→<b>활성 복원</b>. B(own_dep=true): 항상 deprecated <b>보존</b>.</li>
+          <li><b>'자동' 체크박스 제거</b> — own_* 가 자동/직접 구분을 흡수. 운영자는 <b>기존 활성/Deprecated 버튼으로 own 을 설정</b>하고, 부모 제약은 자동 반영. <b>R2-2 가드(버튼 disable + tooltip)는 그대로 유지</b>(masking 액션 사전 차단).</li>
+          <li><b>신규 자식 own default = 부모 추종(inherit)</b> — <code>own_enabled=true, own_deprecated=false</code>(중립값). 등록 직후 effective 가 부모 상태와 일치하고, 부모를 따라 내려가고 올라온다.</li>
+          <li><b>derived query 무변경</b> — <code>is_enabled/is_deprecated</code> 가 effective(materialized)라 수십 개 Spring Data 파생 쿼리가 그대로 effective 를 읽음(=원하던 값). 회귀 0.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b>
+          <ul>
+            <li><b>deleted 차원 provenance</b> — 본 슬라이스 enabled+deprecated 만. deleted 는 trash/TTL/ghost 물리부작용으로 기존 soft-delete cascade 유지 → <b>R4-2</b>.</li>
+            <li><b>source enum 명시 저장(report Option B)</b> — 2단계 위계라 <code>effective≠own</code> 으로 "부모 강제중" 판별 가능 → 불요. 다단계/감사 요구 시 R4-2.</li>
+            <li><b>'자동' 체크박스 / cascade-origin 엔드포인트</b> — Option A 에서 불필요 → 신설 안 함.</li>
+            <li>마이그레이션 — 미배포라 0(신규 컬럼 default + 1회 effective 재계산).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — own/effective 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">메인보드(부모) + BIOS 3(자식). 각 자식은 <b>own(본래 의도 · 보라)</b> 과 <b>effective(현재값 · 파랑)</b> 를 따로 가진다. 부모/자식 버튼을 눌러
+          <b>① B 를 직접 Deprecated → ② 부모 Deprecated(A·B·C 모두 강제) → ③ 부모 해제</b> 순서로 확인 : <b>own=활성인 A·C 만 복원, own=deprecated 인 B 는 보존</b>. (데모 판정 = 서버 <code>recomputeEffective()</code> 식 1:1 재현)</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">부모 :</span>
+            <button class="n-demo-btn warn" id="p-dep" onclick="pDep(true)">Deprecated 표시</button>
+            <button class="n-demo-btn" id="p-undep" onclick="pDep(false)">Deprecated 해제</button>
+            <button class="n-demo-btn" id="p-dis" onclick="pEn(false)">비활성화</button>
+            <button class="n-demo-btn" id="p-en" onclick="pEn(true)">활성화</button>
+            <button class="n-demo-btn" onclick="demoReset()" style="border-color:var(--text-muted);color:var(--text-muted);">↺ 초기화</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-parent">
+              <strong>메인보드</strong><span class="label">Gigabyte MS03-CE0</span>
+              <span class="badge on" id="p-badge">활성</span>
+            </div>
+            <div id="demo-children"></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message info" id="demo-message">own(보라) = 운영자 본래 의도, effective(파랑) = 부모 제약 반영 현재값. cascade 는 own 을 안 건드립니다.</div>
+        </div>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — undeprecate 결함</h4><pre><code>// 부모 undeprecate
+parent.undeprecate();
+children.filter(c -&gt; c.isDeprecated())   // 값만
+  .forEach(c -&gt; c.undeprecate());        // 운영자 수동
+                                         // deprecate 자식도 환원
+// + force-down 시 own 소실 → A 영구 갇힘</code></pre></div>
+          <div class="split-card after"><h4>AFTER — recomputeEffective</h4><pre><code>// 부모 어떤 전이든 → 자식 재계산
+children.forEach(LifecycleEntity::recomputeEffective);
+// recomputeEffective():
+//   is_deprecated = own_deprecated OR 부모.is_deprecated
+//   is_enabled    = own_enabled AND 부모.is_enabled   (차원 독립)
+// own 불변 → 필터 없음, 결함 소멸</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모 판정 = 서버 <code>recomputeEffective()</code> 단일 식. 필터/분기 없음.</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>엔드포인트 — 전부 시그니처 무변경 (신규 0)</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL (BIOS 예시, 4 자원 대칭)</th><th>내부 변경</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/.../toggle</code></td><td><span class="chip mod">내부</span> <code>own_enabled</code> flip → <code>recomputeEffective()</code></td></tr>
+            <tr><td>POST</td><td><code>/.../deprecate</code> · <code>/.../undeprecate</code></td><td><span class="chip mod">내부</span> <code>own_deprecated</code> set → 재계산</td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/deprecate</code> 등 부모</td><td><span class="chip mod">내부</span> 부모 own set → 자식 forEach <code>recomputeEffective()</code></td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px;color:var(--text-muted);">신규 엔드포인트·DTO 없음. '자동' 체크박스 제거로 cascade-origin 엔드포인트도 불요.</p>
+
+        <h4>흐름 (3 경로)</h4>
+        <pre><code>[조회 렌더]  GET list → toResponse(): is_enabled/is_deprecated (= effective, 그대로)
+            + R2-2 capability(차단) → Thymeleaf 버튼 disable+tooltip (현행 유지)
+
+[자식 직접]  [비활성화]/[Deprecated] → own_* set → recomputeEffective()
+            (R2-2 가드가 masking 되는 액션을 사전 차단 = 버튼 disabled)
+
+[부모 cascade] 부모 [Deprecated 표시/해제] → 부모 own set + 재계산
+            → 자식 forEach recomputeEffective() (자식이 부모 effective 참조)
+            → own 불변 ⟹ 부모 회복 시 own=활성 자식 자동 복원</code></pre>
+
+        <h4>derived query 영향 — <b>전수 무변경</b></h4>
+        <p><code>is_enabled/is_deprecated</code> 컬럼이 effective(materialized) 로 유지 → <code>findByIsDeprecatedTrue…</code> 등 모든 파생 쿼리가 effective 를 읽음(원하던 값). <b>Step 3 에서 6 repository 전수 재확인(변경 0 검증).</b></p>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4><code>LifecycleEntity</code> (@MappedSuperclass) 변경 — 6 엔티티 일괄</h4>
+        <pre><code>@Column(name="own_enabled")    private boolean ownEnabled = true;     // 운영자 의도 (신규)
+@Column(name="own_deprecated") private boolean ownDeprecated = false;  // 운영자 의도 (신규)
+@Column(name="is_enabled")     private boolean isEnabled;    // effective 캐시 (의미 재정의)
+@Column(name="is_deprecated")  private boolean isDeprecated; // effective 캐시 (의미 재정의)
+// is_deleted : 변경 없음 (R4-2)
+
+// 자식이 부모를 참조 (사용자 아이디어) — 루트/공용은 null
+protected abstract LifecycleEntity parentLifecycle();
+
+// effective 재계산 — own ⊕ 부모. final = 도메인 단일 로직(중복/파생 0)
+public final void recomputeEffective() {
+    LifecycleEntity p = parentLifecycle();
+    boolean pDep = (p != null) && p.isDeprecated();   // 부모 effective
+    boolean pEn  = (p == null) || p.isEnabled();
+    this.isDeprecated = ownDeprecated || pDep;                 // OR  : 부모 deprecate → 자식 deprecate
+    this.isEnabled    = ownEnabled && pEn;                     // AND : 부모 disable → 자식 disable (deprecated 무관, 차원 독립)
+}
+
+// 운영자 직접 (자식 액션) — own 변경 후 재계산
+public final void operatorSetEnabled(boolean v)    { this.ownEnabled = v; recomputeEffective(); }
+public final void operatorSetDeprecated(boolean v) { this.ownDeprecated = v; recomputeEffective(); }
+
+// R2-2 가드 (유지) — 부모 effective 로 자식 액션 차단. 서버 throw + 뷰 disabled SSOT.
+public final boolean parentBlocksEnable()      { /* 기존 그대로 */ }
+public final boolean blocksChildUndeprecate()  { /* 기존 그대로 */ }
+public final boolean blocksChildRestore()      { /* 기존 그대로 */ }</code></pre>
+        <div class="callout"><b>parentLifecycle() 구현</b> : <code>BoardBIOS→boardModel</code> · <code>BoardBMC→boardModel</code> · <code>ISO→osMetadata</code> · <code>Subprogram→boardModel</code>(공용=null) · <code>BoardModel/OSMetadata→null</code>(루트). 루트는 부모 없음 → <code>effective = own</code>.</div>
+
+        <h4>cascade 책임 경계</h4>
+        <pre><code>자식 직접 (child service)   resource.operatorSetEnabled/Deprecated(v)   // own + 재계산
+부모 cascade (부모 service)  부모.operatorSet*(v) [부모 effective 갱신]
+                            → children.forEach(recomputeEffective)     // own 불변, 부모 참조
+재계산 순서                  부모 먼저 → 자식 (자식이 부모의 새 effective 를 읽으므로)</code></pre>
+        <div class="callout warn"><b>materialized 캐시 동기화 규율</b> — effective 가 컬럼이므로 <b>부모/own 이 바뀌는 모든 지점에서 recomputeEffective() 호출</b>이 보장돼야 함(누락 시 stale). workflow 인벤토리(<code>wf_50ca1724-953</code>)가 전 write-site 를 식별 → Step 8 에서 그 지점들이 모두 재계산을 호출하는지 검증. (현행 cascade 도 이미 전 자식을 write 하므로 추가 부담 미미.)</div>
+
+        <h4>상태 + own/effective 전이 (deprecated 예시)</h4>
+        <div class="state-flow">자식            own_deprecated   부모 deprecate          부모 undeprecate         결과
+A (직접·활성)    false            eff = F OR T = dep      eff = F OR F = 활성       복원 ✓
+B (직접 deprecate) true            eff = T OR T = dep      eff = T OR F = dep        보존 ✓
+C (추종·활성)     false(default)   eff = F OR T = dep      eff = F OR F = 활성       복원 ✓
+// own 은 어느 단계에서도 안 바뀜. effective 만 재계산.</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>R4-1 산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html(본 문서) + Notion R4-1 갱신</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 — 변경 최소(체크박스 없음). 상세표는 effective 표시 + R2-2 가드 현행 유지. (선택) effective≠own 시 "(부모 따라)" 힌트</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — 시그니처 무변경. 6 repository derived query 무변경 전수 확인</td></tr>
+            <tr><td>4</td><td>DTO — 변경 최소(응답은 effective 그대로). 신규 DTO 없음</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — 부모 cascade = forEach recomputeEffective / 자식 = operatorSet* 로 전환</td></tr>
+            <tr><td>6</td><td>(신규 repository 없음)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — <code>LifecycleEntity</code> own_* 필드 + <code>recomputeEffective</code>(final) + abstract <code>parentLifecycle()</code> 6 구현</td></tr>
+            <tr><td>8</td><td>Service 본체 — 2 부모 cascade + 4 child service operator 메서드 + 단위/통합 테스트(§6)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <code>own_enabled</code>/<code>own_deprecated</code> 6 테이블 일괄(ddl-auto=update → SHOW CREATE → validate) + 1회 effective 재계산</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 부모 deprecate→undeprecate 사이클서 수동 deprecate 자식 보존 + 직접 활성 자식 복원 (사용자 단독)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 (Service / Entity) — own/effective 핵심</h4>
+        <ul>
+          <li><b>(★ force-down-while-explicit)</b> <code>BoardModelServiceCascadeTest</code> : A(own_dep=false)·B(own_dep=true)·C(own_dep=false). 부모 deprecate → A·B·C 모두 <code>is_deprecated=true</code>(강제) + <b>own 불변</b>. 부모 undeprecate → <b>A·C 활성 복원 + B 보존</b>. ISO 측 동형.</li>
+          <li>enabled 비대칭 : 부모 disable → 자식 <code>is_enabled=false</code>(own_en 불변). 부모 enable → own_en=true 자식 복원, own_en=false(직접 비활성) 자식 보존.</li>
+          <li><code>LifecycleEntityTest</code> : <code>recomputeEffective</code> 진리표(own × 부모) + 루트(parentLifecycle=null) → effective=own.</li>
+          <li>신규 자식 default(own_en=true,own_dep=false) → 등록 직후 effective=부모 상태.</li>
+        </ul>
+        <h4>사용자 액션 통합 (MockMvc)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>자식 deprecate/undeprecate/toggle 302 + 응답 effective 검증 · 부모 cascade 후 자식 effective 재계산 검증(4 자원)</td><td>8</td></tr>
+            <tr><td>409</td><td>R2-2 가드 재사용 — 부모 deprecated 인데 자식 undeprecate 시도 → <code>ChildLifecycleBlockedByParentException</code>(own 모델서도 유지 회귀)</td><td>3</td></tr>
+            <tr><td>404</td><td>없는 resourceId 로 toggle/deprecate</td><td>2</td></tr>
+            <tr><td>회귀</td><td>derived query : 부모 deprecate 후 <code>findByIsDeprecatedTrue</code> 가 강제된 자식 포함(effective materialized 확인)</td><td>2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>ChildLifecycleBlockedByParentException</code></td><td>409</td><td><span class="chip keep">재사용</span> R2-2 가드. own 모델서도 masking 액션 차단에 그대로</td></tr>
+            <tr><td><code>IllegalDeprecationStateException</code> 등 entity self-guard</td><td>409/400</td><td><span class="chip keep">재사용</span> 안전망</td></tr>
+            <tr><td><code>*NotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>신규 예외 0</b> — own/effective 분리는 "상태 표현 변경"이지 새 거절 사유가 아님.</div>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정</summary>
+      <div class="body">
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>effective≠own 일 때(부모 강제중) UI 표시</td><td>기본 <b>무표시(단순)</b>. (선택) 상세표에 "(부모 따라 Deprecated)" 작은 힌트 — 운영자 혼란 방지용. CP2 에서 결정</td></tr>
+            <tr><td>Q2</td><td>부모 강제중 자식에 own 을 미리 설정(예: 강제 deprecated 중 own_dep=true 로 굳히기)</td><td>현행 버튼은 effective 기준이라 강제중엔 own 선설정 불가 → <b>부모 회복 후 설정</b>(허용 가능한 제약). 필요 시 R4-2 에서 own 직접 편집 UI</td></tr>
+            <tr><td>Q3</td><td>기존 dev row 의 own_* 초기화</td><td>미배포라 마이그레이션 0. 컬럼 default(en=true,dep=false) + 부팅 1회 또는 토글 1회로 effective 재계산. 신규 DB 면 무관</td></tr>
+            <tr><td>Q4</td><td><code>parentLifecycle()</code> lazy 로딩</td><td>cascade·operator 는 모두 <code>@Transactional</code> 내 → lazy 접근 안전. 별도 fetch 불요</td></tr>
+          </tbody>
+        </table>
+        <h4>CLAUDE.md 수정</h4>
+        <ul>
+          <li>인벤토리에 <b>R4 / R4-1</b> 추가 — "own/effective 분리 cascade(권위 5종 수렴)". <code>cascade_origin</code> 1bit 안은 폐기 기록.</li>
+        </ul>
+        <h4>동반 수정 / 잔존</h4>
+        <ul>
+          <li>UI 변경 <b>최소</b> — '자동' 체크박스는 애초 미구현(parked plan)이라 신설 안 함이 곧 변경. 상세표/버튼/R2-2 가드 현행 유지.</li>
+          <li><b>deleted 차원 + source 명시저장(B안) + own 직접 편집 UI = R4-2</b>.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R4-1v2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과(기존 cascade/lifecycle 회귀 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span><code>own_enabled</code>/<code>own_deprecated</code> 6 테이블 반영 — SHOW CREATE TABLE</span></label></li>
+          <li><label><input type="checkbox" data-key="forcedown"> <span><b>기능 ★</b> : 직접 활성 자식 A — 부모 deprecate→deprecated, 부모 undeprecate→<b>활성 복원</b></span></label></li>
+          <li><label><input type="checkbox" data-key="preserve"> <span><b>기능</b> : 직접 deprecate 자식 B — 부모 사이클 후에도 deprecated 보존</span></label></li>
+          <li><label><input type="checkbox" data-key="query"> <span><b>회귀</b> : derived query 가 effective(강제 포함)를 정확히 반영(materialized)</span></label></li>
+          <li><label><input type="checkbox" data-key="r22"> <span><b>회귀</b> : R2-2 가드 4종 + LifecycleStage 무변경</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/entity/LifecycleEntity.java</code></td><td>own_* 필드 + <code>recomputeEffective</code>(final) + abstract <code>parentLifecycle()</code> + operatorSet*</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>board/entity/BoardModel</code> · <code>os/.../OSMetadata</code> · <code>BoardBIOS</code> · <code>BoardBMC</code> · <code>ISO</code> · <code>Subprogram</code></td><td><code>parentLifecycle()</code> 6 구현(루트 null / 자식 부모 FK)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>board/service/BoardModelService</code> · <code>os/.../OSMetadataLifecycleService</code></td><td>cascade 5메서드 → 자식 <code>forEach recomputeEffective</code>(필터/결함 제거)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>IsoLifecycleService</code> · <code>BiosService</code> · <code>BmcService</code> · <code>SubprogramService</code></td><td>operator deprecate/undeprecate/toggle → <code>operatorSet*</code></td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>6 repository · <code>LifecycleStage</code> · R2-2 가드 4종 · 4 child list.html · controller/DTO</td><td>변경 0 — effective 컬럼 유지(derived query·R2-2 무변경), UI 체크박스 미신설</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R4-2</b> — deleted 차원 own/effective 적용(trash 위임 경로에 재계산 통합) + source 명시저장(감사/다단계) + own 직접 편집 UI(필요 시).</li>
+          <li><b>R4 마감</b> 후 → Stage 3 Provisioning <b>U1 세팅 정의서</b>.</li>
+        </ol>
+        <div class="callout"><b>본 plan 이 받는 R4 책임</b> : own/effective 인프라 + enabled/deprecated 양 차원 + force-down-while-explicit 해결. <b>이연</b> : deleted · source저장 · own 편집 UI = R4-2.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // 4 불가침 로직
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const t = document.querySelector(href); if (!t) return;
+      t.open = true; window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 108, behavior:'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () => document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () => document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; } else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage; const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key]; cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => { stored[cb.dataset.key] = cb.checked; localStorage.setItem(key, JSON.stringify(stored)); cb.closest('label').classList.toggle('done', cb.checked); });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 own/effective 라이브 시뮬 — 서버 recomputeEffective() 1:1 재현 (드리프트 0)
+  //    is_deprecated = own_deprecated OR 부모.is_deprecated
+  //    is_enabled    = own_enabled AND 부모.is_enabled   (차원 독립 : 부모 deprecate 는 enabled 무관)
+  //  cascade = own 불변, effective 만 재계산. 운영자 버튼 = own 설정(+R2-2 가드).
+  // ─────────────────────────────────────────────────────────────
+  const INIT = () => ({
+    parent: { enabled:true, deprecated:false },
+    children: [
+      { name:'BIOS-A v2.01', ownEnabled:true, ownDeprecated:false },
+      { name:'BIOS-B v2.03', ownEnabled:true, ownDeprecated:false },
+      { name:'BIOS-C v2.05', ownEnabled:true, ownDeprecated:false }
+    ]
+  });
+  let S = INIT();
+  function demoReset(){ S = INIT(); msg('info', "권장 : ① B [Deprecated 표시] → ② 부모 [Deprecated 표시] (A·B·C 강제) → ③ 부모 [해제]. own=활성인 A·C 복원, own=deprecated B 보존."); render(); }
+  function msg(c,t){ const m=document.getElementById('demo-message'); m.className='ux-message '+c; m.textContent=t; }
+
+  // effective (서버 식 재현)
+  const effDep = c => c.ownDeprecated || S.parent.deprecated;
+  const effEn  = c => c.ownEnabled && S.parent.enabled;   // 차원 독립 : 부모 deprecated 는 enabled 무관
+  const parentBlocksEnable = () => !S.parent.enabled;   // R2-2/R4-1 — enable 차단은 부모 비활성만(deprecated 는 차원 독립으로 무관)
+
+  // 부모 cascade
+  function pDep(on){ if(S.parent.deprecated===on){ msg('error', on?'이미 Deprecated':'이미 활성'); return; } S.parent.deprecated=on; msg('success', on?'부모 Deprecated → 자식 전부 강제 deprecated (own 불변)':'부모 해제 → own=활성 자식만 복원, own=deprecated 보존'); render(); }
+  function pEn(on){ if(S.parent.enabled===on){ msg('error', on?'이미 활성':'이미 비활성'); return; } S.parent.enabled=on; msg('success', on?'부모 활성 → own=활성 자식 복원':'부모 비활성 → 자식 전부 강제 비활성(own 불변)'); render(); }
+
+  // 자식 직접 (own 설정) — R2-2 가드
+  function cDep(i,on){
+    const c=S.children[i];
+    if(on && effDep(c)){ msg('error', `${c.name} 는 이미 Deprecated`); return; }
+    if(!on && S.parent.deprecated){ msg('error', `부모가 Deprecated → ${c.name} 해제 차단(R2-2). 부모를 먼저 해제하세요.`); return; }
+    c.ownDeprecated=on; msg('success', `${c.name} own_deprecated=${on} 설정 → effective 재계산`); render();
+  }
+  function cEn(i,on){
+    const c=S.children[i];
+    if(on && parentBlocksEnable()){ msg('error', `부모가 비활성 → ${c.name} 활성 차단(R2-2). deprecated 는 무관(차원 독립).`); return; }
+    c.ownEnabled=on; msg('success', `${c.name} own_enabled=${on} 설정 → effective 재계산`); render();
+  }
+
+  function render(){
+    const pb=document.getElementById('p-badge');
+    pb.textContent = S.parent.deprecated?'Deprecated':(S.parent.enabled?'활성':'비활성');
+    pb.className = 'badge '+(S.parent.deprecated?'dep':(S.parent.enabled?'on':'off'));
+    document.getElementById('p-dep').disabled=S.parent.deprecated;
+    document.getElementById('p-undep').disabled=!S.parent.deprecated;
+    document.getElementById('p-dis').disabled=!S.parent.enabled;
+    document.getElementById('p-en').disabled=S.parent.enabled;
+
+    document.getElementById('demo-children').innerHTML = S.children.map((c,i)=>{
+      const ed=effDep(c), ee=effEn(c);
+      const stateBadge = ed?'<span class="badge dep">Deprecated</span>':(ee?'<span class="badge on">활성</span>':'<span class="badge off">비활성</span>');
+      const ownBadge = `<span class="badge own" title="운영자 본래 의도">own: ${c.ownDeprecated?'dep':'·'}/${c.ownEnabled?'en':'dis'}</span>`;
+      const forced = (ed!==c.ownDeprecated || ee!==c.ownEnabled) ? '<span class="forced">← 부모 강제</span>' : '';   // effective ≠ own → 부모가 강제 중
+      // deprecate 토글 버튼 (effective 기준 + R2-2)
+      let depBtn;
+      if(ed){ const blocked=S.parent.deprecated; depBtn = `<span class="tip"${blocked?' data-tip="부모가 Deprecated 입니다. 부모를 먼저 해제하세요. (R2-2)"':''}><button class="n-demo-btn" ${blocked?'disabled':''} onclick="cDep(${i},false)">Deprecated 해제</button></span>`; }
+      else { depBtn = `<button class="n-demo-btn warn" onclick="cDep(${i},true)">Deprecated 표시</button>`; }
+      // enable 토글
+      let enBtn;
+      if(ee){ enBtn = `<button class="n-demo-btn" onclick="cEn(${i},false)">비활성화</button>`; }
+      else { const blocked=parentBlocksEnable(); enBtn = `<span class="tip"${blocked?' data-tip="부모가 비활성 상태입니다. (R2-2) — deprecated 는 활성화를 막지 않음"':''}><button class="n-demo-btn" ${blocked?'disabled':''} onclick="cEn(${i},true)">활성화</button></span>`; }
+      return `<div class="ux-row child"><span class="label">${c.name}</span>${stateBadge}${ownBadge}${forced}${depBtn}${enBtn}</div>`;
+    }).join('');
+
+    const tf=v=>v?'<span class="t">T</span>':'<span class="f">F</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'parent: enabled='+tf(S.parent.enabled)+'  deprecated='+tf(S.parent.deprecated)+'\n'+
+      S.children.map(c=>`${c.name.slice(0,8)}  own(en=${tf(c.ownEnabled)},dep=${tf(c.ownDeprecated)})  →  effective(en=${tf(effEn(c))},dep=${tf(effDep(c))})`).join('\n');
+  }
+  render();   // ⚠ 파일 끝 1회
+</script>
+</body>
+</html>

@@ -42,6 +42,8 @@ class BoardModelServiceTest {
     @Mock NudgeRegistry nudgeRegistry;
     @Mock BiosService biosService;
     @Mock BmcService bmcService;
+    @Mock com.example.serverprovision.management.subprogram.repository.SubprogramRepository subprogramRepository;
+    @Mock com.example.serverprovision.management.subprogram.service.SubprogramService subprogramService;
     @InjectMocks BoardModelService boardModelService;
 
     @Test
