@@ -49,3 +49,9 @@ CLAUDE.local.md
 # Claude Code session logs and agent memory (per-session, not source)
 2026-*.txt
 .claude/agent-memory/
+
+# Redfish Materials
+redfish_materials/
+redfish_materials/*
+**/BiosAttributeRegistry_*.json
+**/SetupData_*.xml

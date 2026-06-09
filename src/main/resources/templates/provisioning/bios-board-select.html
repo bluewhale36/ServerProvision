@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>BIOS Setup — 메인보드 선택</title>
+	<link rel="stylesheet" th:href="@{/provisioning/bios-setup.css}">
+</head>
+<body class="bios-body bios-select-body">
+<main class="bios-select">
+	<h1 class="bios-select-title">BIOS Setup</h1>
+	<p class="bios-select-sub">설정할 GIGABYTE 메인보드를 선택하세요.</p>
+
+	<div class="bios-board-grid">
+		<a class="bios-board-card"
+		   th:each="board : ${boards}"
+		   th:href="@{/provisioning/bios-setup/{key}(key=${board.key})}">
+			<span class="bios-board-key" th:text="${board.key}">MS74-HB0</span>
+			<span class="bios-board-go">BIOS Setup ▶</span>
+		</a>
+	</div>
+
+	<p class="bios-select-empty" th:if="${#lists.isEmpty(boards)}">
+		등록된 보드가 없습니다. (application.properties 의 provisioning.bios.boards 설정 확인)
+	</p>
+</main>
+</body>
+</html>
