@@ -25,10 +25,10 @@
 
 * { box-sizing: border-box; }
 
+/* 공통 베이스 — 높이/overflow 는 여기서 제약하지 않는다 (스크롤 필요 페이지가 있음).
+   BIOS 풀스크린은 .bios-screen 자신이 height:100vh 로 보장. */
 body.bios-body {
 	margin: 0;
-	height: 100vh;
-	overflow: hidden;
 	background: var(--bios-bg-deep);
 	color: var(--bios-fg);
 	font-family: var(--bios-mono);
@@ -393,7 +393,7 @@ body.bios-body {
 }
 
 /* ───────── 보드 선택 랜딩 (bios-board-select.html) ───────── */
-.bios-select-body { overflow: auto; }
+/* (body 는 베이스에서 높이/overflow 제약이 없으므로 선택/BMC 페이지는 자연스럽게 문서 스크롤된다.) */
 
 .bios-select {
 	max-width: 880px;
@@ -444,3 +444,67 @@ body.bios-body {
 .bios-board-go { color: var(--bios-cyan); font-size: 13px; }
 
 .bios-select-empty { color: var(--bios-reset); margin-top: 28px; }
+
+.bios-select-links { margin-top: 32px; }
+
+.bios-select-links a {
+	color: var(--bios-cyan);
+	font-size: 13px;
+	text-decoration: none;
+}
+
+.bios-select-links a:hover { text-decoration: underline; }
+
+/* ───────── BMC 비밀번호 변경 (bmc-password.html) ───────── */
+.bmc-page { max-width: 640px; text-align: left; }
+
+.bmc-page .bios-select-title,
+.bmc-page .bios-select-sub { text-align: center; }
+
+.bmc-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	background: var(--bios-help-bg);
+	border: 1px solid var(--bios-leader);
+	border-radius: 6px;
+	padding: 24px;
+}
+
+.bmc-field { display: flex; flex-direction: column; gap: 5px; }
+
+.bmc-label { color: var(--bios-fg-bright); font-size: 13px; font-weight: 600; }
+.bmc-opt { color: var(--bios-fg-dim); font-style: normal; font-weight: 400; }
+
+.bmc-input {
+	background: var(--bios-bg-deep);
+	border: 1px solid var(--bios-leader);
+	border-radius: 4px;
+	color: var(--bios-fg);
+	font-family: inherit;
+	font-size: 14px;
+	padding: 8px 10px;
+}
+
+.bmc-input:focus { outline: none; border-color: var(--bios-cyan); }
+
+.bmc-hint { color: var(--bios-fg-dim); font-size: 12px; }
+
+.bmc-error { color: var(--bios-error); margin: 0; font-size: 13px; }
+
+.bmc-actions {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	margin-top: 6px;
+}
+
+.bmc-actions .bios-btn { text-decoration: none; display: inline-flex; align-items: center; }
+
+.bmc-result { margin-top: 28px; }
+
+.bmc-result-title { color: var(--bios-yellow); font-size: 17px; margin: 0 0 6px; }
+
+.bmc-result-sub { color: var(--bios-fg-dim); font-size: 13px; margin: 10px 0 6px; }
+
+.bmc-note { color: var(--bios-reset); font-size: 13px; margin-top: 12px; }

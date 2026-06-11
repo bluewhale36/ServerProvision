@@ -4,7 +4,8 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>BIOS Setup — 메인보드 선택</title>
-	<link rel="stylesheet" th:href="@{/provisioning/bios-setup.css}">
+	<!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
+	<link rel="stylesheet" th:href="@{/provisioning/bios-setup.css(v=2)}">
 </head>
 <body class="bios-body bios-select-body">
 <main class="bios-select">
@@ -22,6 +23,10 @@
 
 	<p class="bios-select-empty" th:if="${#lists.isEmpty(boards)}">
 		등록된 보드가 없습니다. (application.properties 의 provisioning.bios.boards 설정 확인)
+	</p>
+
+	<p class="bios-select-links">
+		<a th:href="@{/provisioning/bmc-password}">BMC 비밀번호 변경 ›</a>
 	</p>
 </main>
 </body>

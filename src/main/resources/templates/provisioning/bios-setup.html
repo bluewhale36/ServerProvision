@@ -8,7 +8,8 @@
 		BIOS 셋업 화면은 실제 펌웨어 화면 재현이 목적이라 관리자 포털 navbar/공통 CSS 를 일부러 포함하지 않는다
 		(Bootstrap/Notion 테마가 BIOS 룩을 깨뜨림). 전용 bios-setup.css 만 로드한다 — 이 파일은 본 페이지에서만 링크된다.
 	-->
-	<link rel="stylesheet" th:href="@{/provisioning/bios-setup.css}">
+	<!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
+	<link rel="stylesheet" th:href="@{/provisioning/bios-setup.css(v=2)}">
 </head>
 <body class="bios-body">
 
