@@ -90,6 +90,16 @@ public class TrashService {
 	}
 
 	/**
+	 * 자원-키(resourceType, resourceId) 와 무관하게 두 경로 사이 파일을 안전 이동한다.
+	 * trash 의 (PK 기반) 디렉토리 규칙을 쓰지 않는 오펀 ISO 격리/복원이 동일한 검증된 mv 로직
+	 * ({@link #moveWithRetry} — 3회 ATOMIC_MOVE → fallback) 을 재사용하기 위한 진입점 (CLAUDE.md §중복 지양).
+	 */
+	public void relocate(Path source, Path target) {
+		moveWithRetry(source, target);
+		log.info("[trash] relocate from={} to={}", source, target);
+	}
+
+	/**
 	 * 원본 파일명 + ms timestamp + UUID8 suffix 합성. 같은 ms 안에 두 번 호출되어도 UUID 로 고유 보장.
 	 */
 	private String generateTrashedFileName(Path resourcePath) {

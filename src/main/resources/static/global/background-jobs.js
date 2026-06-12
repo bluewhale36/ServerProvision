@@ -321,6 +321,9 @@
                                 type: j.type,
                                 subtitle: j.subtitle,
                                 title: j.title,
+                                // FAILED job 의 사유 문자열. NUDGE_REQUIRED: / ORPHAN_RECOVERY: 같은
+                                // marker prefix 를 페이지 핸들러(os-list 등)가 파싱해 후속 UX 를 분기한다.
+                                errorMessage: j.errorMessage,
                                 metadata: j.metadata || {}
                             }
                         }

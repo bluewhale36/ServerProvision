@@ -172,10 +172,7 @@ public class IsoRegistrationService {
 					"[finalize] client hash mismatch! osMetadataId={}, client={}, server={}",
 					prepared.osMetadataId(), prepared.clientHash(), manifestHash
 			);
-			if (prepared.uploadedFile()) {
-				deleteQuietly(target);
-				deleteQuietly(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
-			}
+			cleanupUploadedArtifacts(prepared.uploadedFile(), target);
 			throw new IsoClientHashMismatchException(prepared.clientHash(), manifestHash);
 		}
 
@@ -188,10 +185,7 @@ public class IsoRegistrationService {
 
 		// 활성 ISO 와의 해시 충돌 → fail-fast.
 		isoRepository.findFirstByChecksumAndIsDeletedFalse(manifestHash).ifPresent(existing -> {
-			if (prepared.uploadedFile()) {
-				deleteQuietly(target);
-				deleteQuietly(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
-			}
+			cleanupUploadedArtifacts(prepared.uploadedFile(), target);
 			throw new DuplicateISOContentException(existing.getIsoPath());
 		});
 
@@ -259,10 +253,7 @@ public class IsoRegistrationService {
 
 		// confirm 시점에 활성 ISO 와 해시가 또 충돌하면 fail-fast (다른 사용자가 그 사이 같은 자원을 등록).
 		isoRepository.findFirstByChecksumAndIsDeletedFalse(manifestHash).ifPresent(existing -> {
-			if (uploadedFile) {
-				deleteQuietly(target);
-				deleteQuietly(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
-			}
+			cleanupUploadedArtifacts(uploadedFile, target);
 			throw new DuplicateISOContentException(existing.getIsoPath());
 		});
 
@@ -383,7 +374,13 @@ public class IsoRegistrationService {
 		);
 		String signature = markerService.computeSignature(unsigned);
 		saved.reissueMarker(manifestHash, signature);
-		markerService.write(target, MarkerLayout.SIDECAR, unsigned.withSignature(signature));
+		// 마커 기록 IO 실패를 도메인 예외로 wrap — runner 가 INFRA/TRANSIENT 로 분류해 파일을 격리(삭제 X)하도록.
+		// (이 시점 파일은 디스크에 있고 @Transactional 이 DB row 를 롤백하므로 결과는 오펀 파일이다.)
+		try {
+			markerService.write(target, MarkerLayout.SIDECAR, unsigned.withSignature(signature));
+		} catch (RuntimeException e) {
+			throw new IsoMarkerWriteFailedException("ISO 마커(sidecar) 기록 실패. path=" + target, e);
+		}
 		// S3.1 (B1) + S3.2 (K12) — sidecar 경로는 ProvisionMarkerService 의 resolveMarkerFile 로 계산.
 		fileSystemHardener.applyDefaultPermissionsForFile(
 				markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
@@ -453,6 +450,19 @@ public class IsoRegistrationService {
 		} catch (IOException ignore) {
 			// 중복 판정 직후의 파일 제거 실패는 핵심 흐름을 막지 않는다 — 운영자가 별도로 정리할 대상.
 		}
+	}
+
+	/**
+	 * 콘텐츠/영구 실패(해시 불일치·중복) 시 우리가 업로드한 파일 + sidecar 마커를 정리한다.
+	 * "우리가 소유한 업로드인가" 의 단일 판정({@code uploadedFile}) — in-place 등록 파일(운영자 자산)은 건드리지 않는다.
+	 * (3곳에 복붙돼 있던 보상 로직을 단일화 — CLAUDE.md §중복 지양.)
+	 */
+	private void cleanupUploadedArtifacts(boolean uploadedFile, Path target) {
+		if (!uploadedFile) {
+			return;
+		}
+		deleteQuietly(target);
+		deleteQuietly(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR));
 	}
 
 	/**

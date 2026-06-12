@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  ISO 오펀(등록 실패 격리) 복구 — durable 목록 페이지
+  ─────────────────────────────────────────────────────────
+  Model:
+    orphans : List<OrphanIsoQuarantineResponse> — PENDING 격리 자원
+                · recoveryId      : String (복구 액션의 키)
+                · osMetadataId    : Long
+                · resolvedPath    : String (등록하려던 경로)
+                · originalFilename: String
+                · failureReason   : String (사람이 읽는 중단 사유)
+                · state           : String (PENDING)
+                · createdAt       : LocalDateTime
+                · retryCount      : int
+
+  액션 (행별 [복구] → OrphanRecovery 모달):
+    · 재시도 → POST /maintenance/quarantine/{recoveryId}/retry  → 새 등록 job + redirect
+    · 폐기   → POST /maintenance/quarantine/{recoveryId}/discard (typed-name 가드)
+
+  이 페이지는 알림 센터의 in-memory job 이 10분 후 prune 되어 사라진 뒤에도 복구할 수 있는 fallback 진입점이다.
+  CSS: table-list.css 재사용. 신규 CSS 0.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('격리 복구')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/table-list.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">ISO 격리 복구</h1>
+        <div class="n-header-actions">
+            <span class="n-hint" style="margin-right: 12px;">
+                ISO 등록이 인프라/일시 오류로 중단되면 업로드 파일이 삭제되지 않고 격리됩니다. 같은 파일로 재시도하거나 폐기할 수 있습니다.
+            </span>
+            <a th:href="@{/maintenance/reconciliation}" class="n-btn n-btn-secondary n-btn-sm"
+               title="경로 점검 페이지로">← 경로 점검</a>
+        </div>
+    </div>
+
+    <!--/* 빈 상태 */-->
+    <div th:if="${#lists.isEmpty(orphans)}" class="n-empty-state">
+        <div class="n-empty-title">복구 대기 중인 격리 항목이 없습니다.</div>
+        <div class="n-hint">ISO 등록이 중단되어 파일이 격리되면 여기에 표시됩니다.</div>
+    </div>
+
+    <!--/* 격리 목록 */-->
+    <table th:if="${not #lists.isEmpty(orphans)}" class="n-table">
+        <thead>
+        <tr>
+            <th>파일</th>
+            <th>등록 경로</th>
+            <th>중단 사유</th>
+            <th>격리 시각</th>
+            <th>재시도</th>
+            <th>액션</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="o : ${orphans}">
+            <td><code style="font-size: 12px;" th:text="${o.originalFilename}"></code></td>
+            <td><code style="font-size: 11px; word-break: break-all;" th:text="${o.resolvedPath}"></code></td>
+            <td style="color: var(--n-text-muted);" th:text="${o.failureReason}"></td>
+            <td th:text="${#temporals.format(o.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+            <td th:text="${o.retryCount} + '회'"></td>
+            <td>
+                <button type="button"
+                        class="n-btn n-btn-sm n-btn-primary"
+                        th:data-recovery-id="${o.recoveryId}">복구
+                </button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 복구 modal + 공통 모듈. 행 [복구] 버튼이 OrphanRecovery.open(recoveryId) 호출. -->
+<div th:replace="~{fragments/management/orphan-recovery-modal :: orphanModal('orphan')}"></div>
+<script th:src="@{/global/orphan-recovery.js}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('button[data-recovery-id]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (!window.OrphanRecovery) return;
+                window.OrphanRecovery.open(btn.dataset.recoveryId, {
+                    // 재시도 → 새 등록 job 의 redirect 로 이동. 폐기/나중에 → 목록 갱신.
+                    afterDiscard: function () { window.location.reload(); },
+                    afterLater: function () { /* 그대로 — 항목 유지 */ }
+                });
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

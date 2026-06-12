@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  ISO 오펀 복구 modal fragment.
+  ─────────────────────────────────────────────────────────
+  ISO 등록의 비동기 finalize 가 인프라/일시 실패로 좌절되면 업로드 파일이 격리(quarantine)되고
+  durable 레코드가 남는다. 본 modal 이 사용자에게 [재시도 / 폐기 / 나중에] 3택을 제시한다.
+
+  · 재시도 — 격리 파일을 원래 경로로 복원하고 새 등록 job 시작 (안전한 기본 액션).
+  · 폐기   — 격리 파일 영구 삭제. 파괴적이므로 파일명 typed-name 일치 후에만 확정 (휴지통 영구삭제 정책과 동일).
+  · 나중에 — modal 만 닫음. 격리는 PENDING 으로 유지되어 [경로 점검 ▸ 격리 복구] 페이지에서 재진입 가능.
+
+  파라미터:
+    - prefix : modal element id 접두사 (페이지에 여러 modal 충돌 회피). JS 가 prefix + suffix 로 element 를 잡는다.
+
+  생성 element id (prefix="orphan" 기준):
+    orphanModal · orphanBackdrop · orphanFilename · orphanPath · orphanReason ·
+    orphanTypedNameWrap · orphanTypedNameExpected · orphanTypedName ·
+    orphanLaterBtn · orphanDiscardBtn · orphanRetryBtn
+
+  CSS: 기존 .n-card / .n-alert / .n-btn / .n-hint 재사용. 신규 CSS 토큰 0.
+*/-->
+<div th:fragment="orphanModal(prefix)"
+     th:id="${prefix} + 'Modal'"
+     hidden
+     style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050;
+            display: flex; align-items: center; justify-content: center; padding: 24px;">
+
+    <!-- backdrop -->
+    <div th:id="${prefix} + 'Backdrop'"
+         style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.45);"></div>
+
+    <!-- card -->
+    <div class="n-card" role="dialog" aria-modal="true"
+         style="position: relative; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto;">
+        <div class="n-card-body">
+            <h2 style="margin: 0 0 12px 0; font-size: 1.15rem;">ISO 등록이 중단되었습니다</h2>
+
+            <div class="n-alert n-alert-warning" style="margin-bottom: 14px;">
+                업로드한 파일은 <strong>삭제되지 않고 격리</strong> 되었습니다. 같은 파일로 다시 등록하거나, 더 이상 필요 없으면 폐기할 수 있습니다.
+            </div>
+
+            <table class="n-detail-table" style="margin-bottom: 16px;">
+                <tbody>
+                <tr>
+                    <th style="width: 96px;">파일</th>
+                    <td><code th:id="${prefix} + 'Filename'" style="font-size: 12px;"></code></td>
+                </tr>
+                <tr>
+                    <th>등록 경로</th>
+                    <td><code th:id="${prefix} + 'Path'" style="font-size: 12px; word-break: break-all;"></code></td>
+                </tr>
+                <tr>
+                    <th>중단 사유</th>
+                    <td th:id="${prefix} + 'Reason'" style="color: var(--n-text-muted);"></td>
+                </tr>
+                </tbody>
+            </table>
+
+            <div class="n-hint" style="margin-bottom: 14px;">
+                <strong>재시도</strong> : 격리 파일을 원래 경로로 되돌리고 등록을 다시 시작<br>
+                <strong>폐기</strong> : 격리 파일을 영구 삭제 (파일명 입력으로 확정)<br>
+                <strong>나중에</strong> : 닫기만 함 — 격리는 유지되어 [경로 점검] 에서 다시 처리 가능
+            </div>
+
+            <!-- 폐기 확정용 typed-name. [폐기…] 클릭 시 JS 가 노출 + 파일명 일치 시 [폐기 확정] 활성화. -->
+            <div th:id="${prefix} + 'TypedNameWrap'"
+                 hidden
+                 style="border-top: 1px solid var(--n-border-soft); padding-top: 12px; margin-bottom: 12px;">
+                <label th:for="${prefix} + 'TypedName'"
+                       style="display: block; font-size: 0.9rem; margin-bottom: 6px;">
+                    폐기를 확정하려면 아래 파일명을 정확히 입력하세요 :
+                </label>
+                <code th:id="${prefix} + 'TypedNameExpected'"
+                      style="display: block; font-size: 12px; padding: 6px 8px; background: var(--n-bg, #f6f8fa); border-radius: 4px; margin-bottom: 6px;"></code>
+                <input type="text"
+                       th:id="${prefix} + 'TypedName'"
+                       autocomplete="off"
+                       spellcheck="false"
+                       placeholder="파일명 입력"
+                       style="width: 100%; padding: 6px 8px;">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+                <button type="button"
+                        th:id="${prefix} + 'LaterBtn'"
+                        class="n-btn n-btn-secondary">나중에
+                </button>
+                <button type="button"
+                        th:id="${prefix} + 'DiscardBtn'"
+                        class="n-btn n-btn-outline-danger">폐기…
+                </button>
+                <button type="button"
+                        th:id="${prefix} + 'RetryBtn'"
+                        class="n-btn n-btn-primary">재시도
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -55,6 +55,9 @@
             <button type="button" id="reissueBtn" class="n-btn n-btn-outline-danger"
                     th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
             </button>
+            <!-- ISO 등록 중단(인프라/일시 실패)으로 격리된 파일의 복구 진입점. job prune 후 fallback. -->
+            <a th:href="@{/maintenance/quarantine}" class="n-btn n-btn-secondary"
+               title="ISO 등록 중단으로 격리된 파일 복구 (재시도 / 폐기)">격리 복구</a>
         </div>
     </div>
 

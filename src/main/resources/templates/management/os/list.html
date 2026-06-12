@@ -541,6 +541,9 @@
 -->
 <div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/nudge')}"></div>
 
+<!-- ISO 오펀(등록 실패 격리) 복구 modal. bgjob:failed 의 ORPHAN_RECOVERY: marker 수신 시 os-list.js 가 띄운다. -->
+<div th:replace="~{fragments/management/orphan-recovery-modal :: orphanModal('orphan')}"></div>
+
 <!-- MK3-2 — softDelete reject modal fragment. 사전조건 위반 시 본 modal 이 사용자 3택 제시. -->
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>
 
@@ -550,6 +553,8 @@
 
 <!-- S5-4 — '삭제된 항목 포함' 토글 시 selectId 등 querystring 보존. -->
 <script th:src="@{/global/include-deleted-toggle.js}"></script>
+<!-- ISO 오펀 복구 modal 공통 모듈 (os-list.js 보다 먼저 로드해 window.OrphanRecovery 노출). -->
+<script th:src="@{/global/orphan-recovery.js}"></script>
 <!-- Miller 컬럼 상호작용 스크립트 -->
 <script th:src="@{/management/os/os-list.js}"></script>
 <!-- "지금 검증" 버튼 일반 핸들러 (data-verify-url) — BIOS 측 핸들러를 그대로 재사용. ISO 무결성 검증에 동일 로직. -->

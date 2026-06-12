@@ -413,9 +413,27 @@
         }
     });
 
+    const ORPHAN_FAIL_PREFIX = 'ORPHAN_RECOVERY:';
+
     document.addEventListener('bgjob:failed', e => {
         const d = e.detail || {};
         if (d.type === 'ISO_REGISTRATION') {
+            const osId = d.metadata && d.metadata.osId ? d.metadata.osId : null;
+            const panel = osId ? findPanelByOsId(osId) : null;
+            // 실패 시에도 '등록 중' placeholder 를 정리한다 (completed 와 동일하게 섹션 재조회).
+            // job 이 비활성(FAILED)이 되어 서버 fragment 의 isActive() placeholder 합성에서 빠지므로
+            // '등록 중' row 가 사라진다 — DB 영속 실패 시 placeholder 가 영원히 '등록 중' 으로 남던 혼란 해소.
+            if (panel) refreshIsoSection(panel, osId);
+
+            // 인프라/일시 실패로 파일이 격리된 경우 — 단순 토스트 대신 복구(재시도/폐기) 모달.
+            // marker = 'ORPHAN_RECOVERY:<recoveryId>'. 재시도 시 새 job 이 시작되며 redirect 로 placeholder 재노출.
+            const errMsg = d.errorMessage || '';
+            if (errMsg.indexOf(ORPHAN_FAIL_PREFIX) === 0 && window.OrphanRecovery) {
+                const recoveryId = errMsg.substring(ORPHAN_FAIL_PREFIX.length);
+                window.OrphanRecovery.open(recoveryId);
+                return;
+            }
+
             if (window.bgjobToast) {
                 window.bgjobToast('ISO 등록 실패: ' + (d.subtitle || d.title || ''), {variant: 'error'});
             }
