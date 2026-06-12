@@ -59,21 +59,29 @@ public class PathPolicyService {
 		if (input.startsWith("~")) {
 			throw new PathTraversalException("쉘 메타문자 (~) 로 시작하는 경로는 허용되지 않습니다.");
 		}
-		// S4.x — 절대경로 + 정규형만 허용. `..` 시그먼트 입력은 normalize() 가 cwd 기준으로 silent 변형해
-		// allowedRoots 안으로 통과되는 사고를 차단한다 (예: cwd=/opt/iso/rocky 에서 "../log" → "/opt/iso/log").
-		// 상대경로 / `..` / `.` 시그먼트 모두 fail-fast.
-		if (!input.startsWith("/")) {
-			throw new PathTraversalException("절대경로만 허용됩니다 : " + input);
-		}
-		if (input.contains("/../") || input.endsWith("/..") || input.contains("/./") || input.endsWith("/.")) {
-			throw new PathTraversalException("정규형 경로만 허용 (`..` / `.` 시그먼트 금지) : " + input);
-		}
-		Path target;
+		// OS 무관 절대경로 + 정규형 검증. 구분자(`/` vs `\`) 하드코딩 대신 Path 가 분해한 결과로 판별한다.
+		// (이전: startsWith("/") + "/../" 문자열 검사 → POSIX 전용이라 Windows 절대경로 C:\... 를 거절했다.)
+		Path raw;
 		try {
-			target = Path.of(input).toAbsolutePath().normalize();
+			raw = Path.of(input);
 		} catch (InvalidPathException e) {
 			throw new PathTraversalException("경로 파싱 실패 : " + e.getMessage());
 		}
+		// 상대경로 거절 — POSIX `/...`, Windows `C:\...` / `\\server\share` 모두 isAbsolute=true.
+		// `..` 시그먼트 입력은 normalize() 가 cwd 기준으로 silent 변형해 allowedRoots 안으로 통과되는 사고를
+		// 차단해야 하므로, isAbsolute 가 false 면 fail-fast (normalize 가 cwd 를 끌어들이기 전에).
+		if (!raw.isAbsolute()) {
+			throw new PathTraversalException("절대경로만 허용됩니다 : " + input);
+		}
+		// `..` / `.` 시그먼트 거절 — normalize() 전에 raw 의 name element 를 직접 검사 (구분자 무관).
+		// 정규형이 깨진 입력을 normalize() 가 silent 하게 collapse 하기 전에 fail-fast.
+		for (Path segment : raw) {
+			String seg = segment.toString();
+			if (seg.equals("..") || seg.equals(".")) {
+				throw new PathTraversalException("정규형 경로만 허용 (`..` / `.` 시그먼트 금지) : " + input);
+			}
+		}
+		Path target = raw.toAbsolutePath().normalize();
 		List<Path> roots = normalizedAllowedRoots();
 		if (roots.isEmpty()) {
 			// SecurityPropertiesValidator 가 boot 시점에 막아야 하지만 방어적 가드.

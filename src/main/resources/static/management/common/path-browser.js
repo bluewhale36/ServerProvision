@@ -10,6 +10,17 @@
 (function (global) {
     'use strict';
 
+    // 서버가 반환한 경로의 OS 구분자 추론 (Windows: '\\', POSIX: '/'). 디렉토리 구분자 하드코딩(`/`) 제거.
+    function pathSep(p) {
+        return (p && p.indexOf('\\') >= 0) ? '\\' : '/';
+    }
+
+    // base 경로에 자식명을 OS 구분자로 안전하게 결합 (이미 구분자로 끝나면 중복 추가 안 함).
+    function joinPath(base, name) {
+        const endsWithSep = base.endsWith('/') || base.endsWith('\\');
+        return base + (endsWithSep ? '' : pathSep(base)) + name;
+    }
+
     /**
      * 디렉토리 탐색 패널을 input 에 연결한다.
      * @param {Object} opts
@@ -18,7 +29,7 @@
      *   - panelPrefix    : fragment prefix (default 'browse')
      *   - includeFiles   : true 면 디렉토리 + 파일 / false 면 디렉토리만 (default true)
      *   - fileHighlight  : (entry) => bool — 파일 강조 여부 (예: ISO 만 파란색)
-     *   - onApply        : (path) => void — directory 모드 적용 버튼 클릭 시. 미지정 시 input.value = path + '/'
+     *   - onApply        : (path) => void — directory 모드 적용 버튼 클릭 시. 미지정 시 input.value = path + OS구분자
      *   - onPickFile     : (path) => void — 파일 클릭 시. 미지정 시 input.value = path
      */
     function attach(opts) {
@@ -38,7 +49,8 @@
         const onApply = typeof opts.onApply === 'function'
             ? opts.onApply
             : (path) => {
-                inputEl.value = path.endsWith('/') ? path : path + '/';
+                const endsWithSep = path.endsWith('/') || path.endsWith('\\');
+                inputEl.value = endsWithSep ? path : path + pathSep(path);
             };
         const onPickFile = typeof opts.onPickFile === 'function'
             ? opts.onPickFile
@@ -48,19 +60,22 @@
 
         if (!inputEl || !browseBtn || !panel || !browseUrl) return;
 
-        let currentPath = '/';
+        let currentPath = '';
+        let currentParentPath = null;
 
         function open() {
             if (panel.hidden) {
                 const seed = (inputEl.value || '').trim();
-                // S5-1 — 빈 input 진입 시 fallback `'/'` 사용하면 백엔드 assertReadablePath 가
-                // allowed-roots 외라 거절. 빈 문자열 그대로 보내고 백엔드의 firstAllowedRoot 자동 치환에 위임.
+                // S5-1 — 빈 input / 구분자 없는 입력은 빈 문자열로 보내 백엔드 firstAllowedRoot 자동 치환에 위임.
+                // 값이 있으면 구분자(/ 또는 \) 기준으로 디렉토리 부분만 추출(파일/하위명 제거).
                 let initial = '';
                 if (seed) {
-                    if (seed.endsWith('/')) initial = seed;
-                    else {
-                        const idx = seed.lastIndexOf('/');
-                        initial = idx >= 0 ? (seed.substring(0, idx) || '/') : '/';
+                    const endsWithSep = seed.endsWith('/') || seed.endsWith('\\');
+                    if (endsWithSep) {
+                        initial = seed; // 이미 디렉토리
+                    } else {
+                        const idx = Math.max(seed.lastIndexOf('/'), seed.lastIndexOf('\\'));
+                        initial = idx >= 0 ? seed.substring(0, idx + 1) : '';
                     }
                 }
                 panel.hidden = false;
@@ -83,6 +98,7 @@
                 }
                 const data = await resp.json();
                 currentPath = data.path;
+                currentParentPath = data.parentPath; // 서버가 OS 구분자 기준으로 계산해 줌 (클라 재계산 X).
                 currentEl.textContent = data.path;
                 // 서버가 parentPath=null 로 알려주면 allowed-roots 경계 도달 → '상위' 버튼 비활성화.
                 if (upBtn) {
@@ -136,11 +152,9 @@
                 }
                 li.addEventListener('click', () => {
                     if (isDir) {
-                        const sep = currentPath.endsWith('/') ? '' : '/';
-                        load(currentPath + sep + e.name);
+                        load(joinPath(currentPath, e.name));
                     } else {
-                        const sep = currentPath.endsWith('/') ? '' : '/';
-                        onPickFile(currentPath + sep + e.name);
+                        onPickFile(joinPath(currentPath, e.name));
                         panel.hidden = true;
                     }
                 });
@@ -169,10 +183,9 @@
         if (upBtn) {
             upBtn.addEventListener('click', () => {
                 if (upBtn.dataset.atTop === 'true') return;
-                if (!currentPath || currentPath === '/') return;
-                const trimmed = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
-                const idx = trimmed.lastIndexOf('/');
-                load(idx <= 0 ? '/' : trimmed.substring(0, idx));
+                // 상위 경로는 서버가 OS 구분자 기준으로 계산한 parentPath 를 그대로 사용 (클라 lastIndexOf('/') 재계산 X).
+                if (!currentParentPath) return; // 서버가 null → allowed-roots 최상위 경계.
+                load(currentParentPath);
             });
         }
         if (applyBtn) {
