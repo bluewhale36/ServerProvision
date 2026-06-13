@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3-3 Plan — BoardModelService 책임 3분할 (Metadata / Lifecycle / Nudge) + scanner 의존 단방향화</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg.disabled { opacity:0.4; cursor:not-allowed; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.clean { background:var(--red-bg); color:var(--red); }
+  .badge.preserve { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.quar { background:var(--blue-bg); color:var(--blue); }
+  .badge.fat { background:var(--red-bg); color:var(--red); }
+  .badge.narrow { background:var(--green-bg); color:var(--green); }
+  .badge.gone { background:var(--purple-bg); color:var(--purple); }
+  .badge.lazy { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.eager { background:var(--blue-bg); color:var(--blue); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.clean { background:var(--red-bg); border-color:var(--red); }
+  .ux-message.preserve { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.quar { background:var(--blue-bg); border-color:var(--blue); }
+  .ux-message.warn { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); }
+  .dag { font-family:var(--mono); font-size:11.5px; line-height:1.7; white-space:pre; overflow-x:auto;
+    background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; margin-top:10px; }
+  .dag .cycle { color:var(--red); font-weight:700; }
+  .dag .ok { color:var(--green); font-weight:700; }
+  .dag .touch { color:var(--orange); font-weight:700; }
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:10.5px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 10px; font-size:11.5px; line-height:1.5; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R3-3 — <code>BoardModelService</code> 책임 3분할 (Metadata / Lifecycle / Nudge) + scanner 의존 단방향화 <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R3-3 (refactor)</span>
+    <span><strong>상위</strong> R3 (Board — 메타 자원) · R1(OS) service 분할 선례 미러링 · 선행 R3-2(컨트롤러 3분할) 완료</span>
+    <span><strong>scope</strong> fat 458줄 <code>BoardModelService</code> → Metadata / Lifecycle / Nudge 분리 + scanner <code>ObjectProvider</code> re-point. 동작 100% 불변</span>
+    <span><strong>생성</strong> 2026-06-13 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (R1 미러 + R3-2 후속)</a></li>
+      <li><a href="#s1">§1 현재 상태 (책임군 진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (의존 DAG + A/B 탐색기)</a></li>
+      <li><a href="#s3">§3 구조 / 의존 DAG</a></li>
+      <li><a href="#s4">§4 도메인 모델 (메서드 재분배)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정 D1</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — R1(OS) service 분할의 Board 미러 + R3-2 후속</summary>
+      <div class="body">
+        <p style="margin-top:0;">R1 묶음에서 OS 도메인은 fat service 를 <code>os/service/metadata/OSMetadataService</code>(CRUD·조회) + <code>OSMetadataLifecycleService</code>(상태전이·cascade·purge, <code>implements LifecycleService</code>) + nudge 본체로 <b>책임 분리</b>했다. Board 도메인은 같은 작업을 아직 받지 못해 <code>BoardModelService</code> 한 클래스가 <b>458줄</b>로 CRUD·조회·상태전이·cascade·purge·nudge 를 모두 떠안고 있다.</p>
+        <ul>
+          <li><span class="diff-del">단일 fat service</span> — 한 클래스에 7개 책임군이 혼재. CLAUDE.md §중복·가독성 불가침(100줄 초과 메서드·책임 혼재 신호)과 긴장. <code>LifecycleService</code> 인터페이스 Javadoc 이 "BIOS / BMC / Subprogram / Board / ISO 도 같은 인터페이스 구현" 을 예고하나 Board 만 미구현.</li>
+          <li><span class="diff-del">scanner→service <code>ObjectProvider</code></span> — <code>BoardModelMarkableScanner</code> 가 <code>ObjectProvider&lt;BoardModelService&gt;</code> 로 fat service 전체를 lazy 참조(restore/purge/findDeletedChildLabels 3개만 실제 사용). 의존 표면이 458줄 service 전체로 넓고, scanner→service 잠재 사이클의 한 변.</li>
+        </ul>
+        <p>R3-2 가 <b>컨트롤러</b>를 Metadata / Lifecycle / Nudge 3분할로 끝냈으므로, R3-3 은 그 대칭으로 <span class="diff-add">service 계층을 같은 3 책임군으로 분리</span>하고 scanner 를 분리된 service 로 re-point 한다(행동 변화 0). 자식 컨트롤러(bios/bmc/subprogram)의 <code>boardModelService.findById/findAllGrouped</code> cross-feature read 는 <b>끊지 않고</b> <code>BoardModelMetadataService</code> 로 재배선한다.</p>
+        <div class="callout"><b>R 시리즈 정합</b> — R3-1(Subprogram cascade 합류) → R3-2(컨트롤러 3분할) → <b>R3-3(service 3분할)</b> → R3-4(자식 cascade 다형화). 본 슬라이스는 R1(OS) 이 이미 검증한 분할 형태를 Board 에 그대로 미러.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (책임군 진단)</summary>
+      <div class="body">
+        <h4>선행 완료 / 진입 전제</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> <b>R3-2</b> — <code>BoardModelController</code> 기능별 3분할(Metadata / Lifecycle / Nudge + Support). 분할된 3 컨트롤러가 현재 <code>BoardModelService</code> 단일 빈을 공유 주입 → 본 슬라이스에서 분리된 service 로 재배선 대상.</li>
+          <li><span class="chip keep">완료</span> <b>R3-1</b> — board-scoped Subprogram cascade 동반(softDelete/restore/cascadeRecompute 에 subprogram 합류).</li>
+          <li><span class="chip keep">선례</span> <b>R1(OS)</b> — <code>OSMetadataService</code> + <code>OSMetadataLifecycleService</code>(<code>implements LifecycleService</code>) 분할 + nudge 본체 이전. <code>LifecycleService</code> default <code>restore(Long)</code> → <code>restore(id,false)</code> 위임 형태 검증 완료.</li>
+        </ul>
+
+        <h4>BoardModelService(458줄) 메서드 책임군 분류</h4>
+        <table>
+          <thead><tr><th>책임군</th><th>메서드</th><th>이전 대상</th></tr></thead>
+          <tbody>
+            <tr><td><b>Metadata</b> (CRUD·조회)</td><td><code>findById</code> · <code>findAllGrouped</code> · <code>create</code> · <code>update</code> · <code>persistNewBoard</code> · <code>requireActiveBoard</code> · <code>toResponse</code></td><td><span class="chip new">BoardModelMetadataService</span></td></tr>
+            <tr><td><b>Lifecycle</b> (상태전이·cascade·purge)</td><td><code>toggleEnabled</code> · <code>deprecate</code> · <code>undeprecate</code> · <code>cascadeRecompute</code> · <code>softDelete</code> · <code>restore(Long)</code> · <code>restore(Long,boolean)</code> · <code>purge(Long)</code> · <code>purge(BoardModel)</code> · <code>purgeWithTypedNameCheck</code> · <code>findDeletedChildLabels</code></td><td><span class="chip new">BoardModelLifecycleService</span><br>(<code>implements LifecycleService</code>)</td></tr>
+            <tr><td><b>Nudge</b> (충돌 후보·세션)</td><td><code>completePendingBoardFromNudge</code> · <code>purgeBoardForNudge</code> · <code>collectMetaNudgeCandidates</code> · <code>buildBoardNudgePayload</code></td><td><span class="chip mod">BoardModelNudgeService</span> (본체 이전)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>주의 — <code>requireActiveBoard</code> / <code>persistNewBoard</code> 공유</b> : create(Metadata)·completePendingBoardFromNudge(Nudge) 가 <code>persistNewBoard</code> 를 공유, lifecycle 다수가 <code>requireActiveBoard</code> 공유. 분리 시 <b>두 헬퍼의 소속</b>(Metadata 가 소유하고 Nudge/Lifecycle 이 의존)을 §4 에서 확정 — 중복 복붙 금지(불가침).</div>
+
+        <h4>scanner→service <code>ObjectProvider</code> 현황</h4>
+        <pre><code>// BoardModelMarkableScanner (현재)
+private final ObjectProvider&lt;BoardModelService&gt; boardModelServiceProvider;
+  restoreFromTrash(id, cascade) → provider.getObject().restore(id, cascade)
+  restoreFromTrash(id)         → provider.getObject().restore(id, false)
+  purgeFromTrash(id)           → provider.getObject().purge(id)
+  findDeletedChildLabels(id)   → provider.getObject().findDeletedChildLabels(id)
+// → 실사용 3 메서드 전부 Lifecycle 책임군. 의존 표면을 fat service → Lifecycle 로 좁힐 수 있음.</code></pre>
+        <div class="callout danger"><b>잠재 사이클</b> — <code>SoftDeleteIntentService</code> 가 <code>@Lazy List&lt;MarkableScanner&gt;</code> + <code>@Lazy PathReconciliationService</code> 로 scanner 들을 들고, scanner 가 도메인 service 를 의존(현재 ObjectProvider 로 우회). scanner→service 를 <b>직접주입</b>으로 바꾸면 이 사이클이 재형성될 수 있어 메커니즘 선택(§8 D1)이 핵심. <b>본 슬라이스는 production 코드를 아직 건드리지 않는 plan 단계</b>.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>Metadata / Lifecycle 분리</b> — <code>board/service/metadata/</code> 아래 <code>BoardModelMetadataService</code>(CRUD·조회) + <code>BoardModelLifecycleService</code>(상태전이·cascade·purge, <code>implements LifecycleService</code>). R1(OS) 형태 미러.</li>
+          <li><b>Nudge 본체 이전</b> — nudge 4 메서드를 <code>BoardModelNudgeService</code> 로 이전. (nudge 컨트롤러는 R3-2 에서 이미 분리됨 → service 본체만 합류.)</li>
+          <li><b>scanner re-point</b> — <code>BoardModelMarkableScanner</code> 가 <code>BoardModelService</code> 대신 분리된 service 를 참조. 메커니즘(ObjectProvider 유지 vs 직접주입)은 <b>D1 결정 종속</b>(§8).</li>
+          <li><b>cross-feature read 보존(불가침)</b> — 자식 컨트롤러(bios/bmc/subprogram)의 <code>boardModelService.findById/findAllGrouped</code> 호출을 <code>BoardModelMetadataService</code> 로 <b>재배선(끊지 않음)</b>.</li>
+          <li><b>R3-2 컨트롤러 재배선</b> — 분할된 3 컨트롤러(Metadata/Lifecycle/Nudge)의 service 주입을 각 책임 service 로 교체.</li>
+          <li><b>행동 보존(불가침)</b> — URL·HTTP status·cascade 동작·nudge 흐름·typed-name 가드 전부 동일. 기존 컨트롤러/서비스 테스트가 회귀망.</li>
+        </ol>
+        <div class="callout warn"><b>cross-feature read 보존 (불가침)</b> — bios/bmc/subprogram 컨트롤러가 board 메타를 읽는 호출은 도메인 경계를 넘는 정당한 read 다. R3-3 은 이 호출의 <b>대상 빈만</b> <code>BoardModelMetadataService</code> 로 바꾸고, 호출 자체를 제거하거나 이벤트로 우회하지 않는다.</div>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스 / D1 종속)</b>
+          <ul>
+            <li><b>ObjectProvider 메커니즘 자체의 제거</b> — D1 권고(Option B)대로면 R3-3 은 <b>타입 narrowing</b> 까지만(<code>ObjectProvider&lt;BoardModelLifecycleService&gt;</code>), 실제 제거 + edge 소멸은 <b>R7-3(Board)</b> 가 SPI(4-sealed) 로 일괄. Option A 채택 시에만 R3-3 이 직접주입으로 제거 + bootRun 사이클 검증 Step 추가. → §8 D1.</li>
+            <li><b>자식 cascade 다형화</b> — softDelete/restore 가 bios/bmc/subprogram service 를 형제 <code>@Lazy</code> 로 직접 호출하는 구조의 다형화는 <b>R3-4</b>.</li>
+            <li><b>전 도메인 MarkableScanner SPI 4-sealed 분리</b>(MarkableInventory/DriftApplier/TrashOperator/GhostOperator) — <b>R7</b> 전담. 본 슬라이스는 Board scanner 의 service 대상만 재배선.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 의존 단방향화 DAG + A/B 결정 탐색기 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 toolbar 로 <b>리팩터 단계</b>를 바꾸면 <code>BoardModelMarkableScanner</code> 가 가리키는 빈·주입 메커니즘·사이클 위험·해당 단계에서 scanner 가 터치되는지가 라이브로 갱신됩니다. <b>R3-3 적용</b> 단계에서는 <b>A/B 서브토글</b>로 메커니즘을 바꿔 <b>scanner 메커니즘 터치 횟수</b>(A=2회·B=1회)를 직접 대조 → §8 <b>D1 권고(B)</b>를 손으로 검증하세요. 이 시뮬레이션은 §3 의존 DAG·§8 결정표와 단일 소스입니다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">리팩터 단계 :</span>
+            <button class="seg" data-stage="now" onclick="dagStage('now')">① 현재 (R3-2 후)</button>
+            <button class="seg" data-stage="r33" onclick="dagStage('r33')">② R3-3 적용</button>
+            <button class="seg" data-stage="r73" onclick="dagStage('r73')">③ R7-3 (SPI)</button>
+          </div>
+          <div class="ux-toolbar" id="ab-toolbar">
+            <span class="group-label">②의 메커니즘 :</span>
+            <button class="seg" data-ab="A" onclick="dagAb('A')">A · 직접주입 (eager)</button>
+            <button class="seg" data-ab="B" onclick="dagAb('B')">B · ObjectProvider (lazy) · 권장</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row">
+              <strong>scanner 가 가리키는 빈</strong><span class="label" id="dag-target">—</span>
+              <span class="badge" id="dag-target-b">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>주입 메커니즘</strong><span class="label" id="dag-mech">—</span>
+              <span class="badge" id="dag-mech-b">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>사이클 위험</strong><span class="label" id="dag-cycle">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>이 단계에서 scanner 터치?</strong><span class="label" id="dag-touch">—</span>
+            </div>
+          </div>
+
+          <div class="dag" id="dag-graph"></div>
+          <div class="ux-caps" id="dag-caps"></div>
+          <div class="ux-message" id="dag-message">단계 버튼을 눌러보세요. ② R3-3 적용 단계에서 A/B 를 토글하면 메커니즘 터치 횟수가 대조됩니다.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — scanner → fat 458줄 service (lazy)</h4><pre><code>// BoardModelMarkableScanner
+ObjectProvider&lt;BoardModelService&gt; provider;   // 458줄 전체 의존표면
+  → provider.getObject().restore / purge / findDeletedChildLabels</code></pre></div>
+          <div class="split-card after"><h4>AFTER — narrowing (B, 권장) → Lifecycle 만</h4><pre><code>// BoardModelMarkableScanner
+ObjectProvider&lt;BoardModelLifecycleService&gt; provider;  // 의존표면 좁힘, lazy 유지
+  → provider.getObject().restore / purge / findDeletedChildLabels
+// 실제 ObjectProvider 제거 + edge 소멸은 R7-3 가 SPI 로 일괄 (scanner 1회 터치)</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 단계/메커니즘 판정 = §3 의존 DAG = §8 D1 결정표. B 가 scanner 메커니즘을 <b>1회</b>만 터치(R7-3)하고 A 는 <b>2회</b>(R3-3 직접주입 + R7-3 SPI) 터치 + 사이클 검증 2회임을 데모가 정량 대조 → D1 권고가 화면에서 증명됩니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 구조 / 의존 DAG ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 구조 / 의존 DAG</summary>
+      <div class="body">
+        <h4>분리 후 service 의존 (Metadata ↔ Lifecycle ↔ Nudge)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — fat 단일 service</h4><pre><code>BoardModelService (458줄)
+├ CRUD/조회      (Metadata)
+├ 상태전이/cascade (Lifecycle)
+└ nudge          (Nudge)
+↑ 3 컨트롤러 · scanner(ObjectProvider) · 자식 컨트롤러 read
+  전부 fat 빈 1개에 매달림</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 책임군 3 service (DAG)</h4><pre><code>BoardModelMetadataService   (CRUD·조회·persistNewBoard·requireActiveBoard)
+   ▲              ▲
+   │              │ (requireActiveBoard 공유)
+BoardModelNudgeService   BoardModelLifecycleService  (implements LifecycleService)
+   │ (persistNewBoard)      │ (cascade: bios/bmc/subprogram service @Lazy — R3-4 까지 유지)
+   └── nudge proceed/replace  └── scanner re-point 대상</code></pre></div>
+        </div>
+
+        <h4>scanner 의존 변천 (🎬 데모와 동일 소스)</h4>
+        <pre class="dag">① 현재 (R3-2 후) : scanner ──ObjectProvider&lt;BoardModelService(fat)&gt;──▶ <span class="cycle">458줄 전체</span>
+② R3-3 (B·권장)  : scanner ──ObjectProvider&lt;BoardModelLifecycleService&gt;──▶ Lifecycle  (lazy 유지·narrow)
+② R3-3 (A)       : scanner ──직접주입 BoardModelLifecycleService──▶ Lifecycle  (eager·<span class="cycle">사이클 재검증 필요</span>)
+③ R7-3           : scanner <span class="ok">implements MarkableTrashOperator</span> ──▶ (edge 소멸·ObjectProvider 제거)</pre>
+
+        <h4>URL — 변경 0 (refactor)</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/board</code> · <code>/management/board/{id}</code></td><td>조회 (Miller)</td><td><span class="chip keep">유지</span> Metadata service 로 재배선</td></tr>
+            <tr><td>POST</td><td><code>/management/board</code> · <code>/{id}/update</code></td><td>생성 / 수정</td><td><span class="chip keep">유지</span> Metadata</td></tr>
+            <tr><td>POST</td><td><code>/{id}/toggle</code> · <code>/deprecate</code> · <code>/undeprecate</code> · <code>/delete</code> · <code>/restore</code> · <code>/purge</code></td><td>상태전이 / 휴지통</td><td><span class="chip keep">유지</span> Lifecycle</td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/proceed</code> · <code>/replace</code></td><td>nudge 결정</td><td><span class="chip keep">유지</span> Nudge</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">엔드포인트·HTTP status·뷰·자식 컨트롤러 read 결과 모두 불변. 내부 빈 경계만 재배치.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (메서드 재분배 — SSOT)</summary>
+      <div class="body">
+        <h4>① BoardModelMetadataService (신규 · CRUD·조회)</h4>
+        <table>
+          <thead><tr><th>메서드</th><th>시그니처</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>조회</td><td><code>BoardModelResponse findById(Long)</code> · <code>List&lt;VendorGroupResponse&gt; findAllGrouped(boolean)</code></td><td>자식 컨트롤러 cross-feature read 진입점</td></tr>
+            <tr><td>생성·수정</td><td><code>Long create(BoardModelCreateRequest)</code> · <code>void update(Long, BoardModelUpdateRequest)</code></td><td>create 는 nudge 후보 발견 시 <code>BoardModelNudgeRequiredException</code> throw</td></tr>
+            <tr><td>공유 헬퍼 <b>(소유)</b></td><td><code>BoardModel requireActiveBoard(Long)</code> · <code>Long persistNewBoard(Vendor, String, String)</code> · <code>toResponse(...)</code></td><td>Lifecycle/Nudge 가 <b>주입받아 호출</b>(복붙 금지). package-private 또는 Metadata 메서드 위임</td></tr>
+          </tbody>
+        </table>
+
+        <h4>② BoardModelLifecycleService (신규 · <code>implements LifecycleService</code>)</h4>
+        <pre><code>@Service @Transactional(readOnly = true)
+public class BoardModelLifecycleService implements LifecycleService {
+    // LifecycleService 계약 구현 (R1 OSMetadataLifecycleService 미러)
+    void toggleEnabled(Long id);
+    void softDelete(Long id);
+    // default restore(Long) → restore(id, false) 는 인터페이스 default 그대로 사용
+    RestoreResponse restore(Long id, boolean cascade);
+    void deprecate(Long id);  void undeprecate(Long id);
+    void purge(Long id);  void purgeWithTypedNameCheck(Long id, String typedName);
+    // Lifecycle 고유
+    List&lt;String&gt; findDeletedChildLabels(Long boardId);   // scanner preview 진입점
+    private void cascadeRecompute(Long id);               // bios/bmc/subprogram recomputeEffective
+    private void purge(BoardModel board);                 // 공통 hard-delete 본체
+}</code></pre>
+        <div class="callout"><b>cascade 의존 유지</b> — softDelete/restore 가 형제 <code>biosService/bmcService/subprogramService</code>(@Lazy) 를 호출하는 현 구조는 <b>R3-4 까지 그대로</b> Lifecycle service 로 이주. 본 슬라이스에서 다형화하지 않음(§2 비목표).</div>
+
+        <h4>③ BoardModelNudgeService (본체 이전)</h4>
+        <table>
+          <thead><tr><th>메서드</th><th>책임</th></tr></thead>
+          <tbody>
+            <tr><td><code>completePendingBoardFromNudge(NudgeSession)</code></td><td>PROCEED — 신규 자원만 ACTIVE 등록 (Metadata.persistNewBoard 주입 호출)</td></tr>
+            <tr><td><code>purgeBoardForNudge(BoardModel)</code></td><td>REPLACE — 충돌 후보 hard-delete</td></tr>
+            <tr><td><code>collectMetaNudgeCandidates(...)</code> · <code>buildBoardNudgePayload(...)</code></td><td>create 충돌 후보 수집 + nudge payload (NudgeRegistry 발급)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>④ scanner re-point (D1 종속)</h4>
+        <pre><code>// Option B (권장) — 타입 narrowing, lazy 유지
+ObjectProvider&lt;BoardModelLifecycleService&gt; provider;
+// Option A — 직접주입 (eager), bootRun 사이클 검증 Step 추가
+private final BoardModelLifecycleService lifecycleService;   // @Lazy 필요 여부는 bootRun 으로 실측</code></pre>
+        <div class="callout success"><b>SSOT</b> — <code>requireActiveBoard</code>/<code>persistNewBoard</code> 의 단일 소스는 <b>Metadata service</b>. lifecycle 명령 표면의 단일 계약은 <code>LifecycleService</code> 인터페이스. scanner 가 호출하는 restore/purge/findDeletedChildLabels 의 단일 소스는 <b>Lifecycle service</b>.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (refactor 특성 반영)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>(뷰 변경 0 — refactor) Miller / 휴지통 / nudge modal 그대로</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — R3-2 의 3 컨트롤러 주입을 분리 service 로 재배선 + 자식(bios/bmc/subprogram) 컨트롤러 read 를 <code>BoardModelMetadataService</code> 로</td></tr>
+            <tr><td>4</td><td>DTO — 변경 0 (Request/Response 동일)</td></tr>
+            <tr><td>5</td><td>Service <b>시그니처</b> — <code>BoardModelMetadataService</code> / <code>BoardModelLifecycleService</code>(implements LifecycleService) / <code>BoardModelNudgeService</code> 시그니처 + scanner re-point 시그니처(D1)</td></tr>
+            <tr><td>6</td><td>Repository — 변경 0 (<code>BoardModelRepository</code> 등 기존 쿼리 그대로)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — 변경 0 (<code>BoardModel</code> 도메인 메서드 불변)</td></tr>
+            <tr><td>8</td><td><b>본체</b> — 3 service 본체 메서드 이주 + 공유 헬퍼 주입 배선 + scanner re-point. 단위/통합 테스트(§6). <b>D1=A 면 bootRun 사이클 0건 검증 Step 추가</b></td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — 변경 0 (엔티티 불변). <code>ddl-auto=update</code> diff 없음 확인</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — board 생성/수정/토글/삭제/복구/nudge + 자식 페이지 board 메타 표시 회귀</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>마이그레이션 없음</b> — 엔티티·스키마·DTO 변경 0. 순수 빈 경계 재배치 refactor 이므로 schema drop 커밋 불필요. 회귀 위험은 (1) 공유 헬퍼 복붙 드리프트, (2) scanner re-point 사이클 두 곳에 집중 → §9 가 정조준.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 — 분리된 service 별 happy + 실패</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>검증 (성공 · 실패)</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelMetadataServiceTest</code></td><td>create 성공 / create 활성중복 → <code>DuplicateBoardModelException</code>(409) / update 성공 / update modelName 중복 → 409 / findById 없는 id → <code>BoardModelNotFoundException</code>(404)</td><td>5</td></tr>
+            <tr><td><code>BoardModelLifecycleServiceTest</code></td><td>toggle+cascadeRecompute 성공 / deprecate·undeprecate own 보존 / softDelete 자식 동반 trash / restore(cascade) 자식 복구 / restore 활성중복 → 409 / purge 자식잔존 → <code>IllegalBoardModelStateException</code> / purgeWithTypedNameCheck 불일치 → <code>TypedNameMismatchException</code>(400)</td><td>7</td></tr>
+            <tr><td><code>BoardModelNudgeServiceTest</code></td><td>completePending PROCEED 성공 / payload 타입 불일치 → <code>IllegalBoardModelStateException</code> / purgeBoardForNudge 활성자원 → 거절 / collectMetaNudgeCandidates 후보 수집</td><td>4</td></tr>
+            <tr><td><b>cascade 회귀</b> (핵심)</td><td>분리 전후 cascadeRecompute 가 bios/bmc/subprogram effective 동일 재계산 — own 보존·공용 Subprogram 제외 불변</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (컨트롤러) — 회귀 보존 (URL·status 불변)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>board list 200 / detail 200 / create redirect / toggle·delete·restore redirect / nudge proceed·replace</td><td>5</td></tr>
+            <tr><td>400</td><td>purge typed-name 불일치 → <code>TypedNameMismatchException</code> 400</td><td>1</td></tr>
+            <tr><td>404</td><td>없는 boardId 의 detail/update/toggle → <code>BoardModelNotFoundException</code> 404</td><td>1</td></tr>
+            <tr><td>409</td><td>(vendor, modelName) 활성중복 create / restore → <code>DuplicateBoardModelException</code> 409</td><td>1</td></tr>
+            <tr><td>cross-feature</td><td>bios/bmc/subprogram 컨트롤러 read 가 <code>BoardModelMetadataService</code> 로 재배선돼도 board 메타 200 정상 노출</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">기존 <code>BoardModelService</code> 테스트를 책임군별로 분리·이전하며 위 표로 정합. <b>새 HTTP 행동 0 → 통합 테스트는 회귀 성격</b>이 정상. 자식 컨트롤러 cross-feature read 테스트로 §2 보존 요구를 검증.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelNotFoundException</code></td><td>404</td><td><span class="chip keep">유지</span> Metadata service 로 이동(throw 위치만)</td></tr>
+            <tr><td><code>DuplicateBoardModelException</code></td><td>409</td><td><span class="chip keep">유지</span> Metadata(create/update) + Lifecycle(restore) + Nudge(race)</td></tr>
+            <tr><td><code>IllegalBoardModelStateException</code></td><td>400/409</td><td><span class="chip keep">유지</span> Lifecycle(purge/restore) + Nudge(payload)</td></tr>
+            <tr><td><code>BoardModelNudgeRequiredException</code></td><td>(nudge 흐름)</td><td><span class="chip keep">유지</span> Metadata.create 가 throw (후보는 Nudge service 가 수집)</td></tr>
+            <tr><td><code>TypedNameMismatchException</code></td><td>400</td><td><span class="chip keep">유지</span> global, 재사용</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>신규 예외 0</b> — 순수 빈 분리 refactor. 예외 클래스·status 매핑·advice 전부 불변. throw 하는 service 만 책임군에 따라 이동.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / ★ 결정 D1</summary>
+      <div class="body">
+        <div class="callout danger"><b>★ 결정 D1 (이 plan 의 핵심) — scanner→service <code>ObjectProvider</code> 제거를 R3-3 에서 할지 R7 에서 할지</b></div>
+        <p style="margin-top:6px;"><b>배경</b> — R3-3 의 사용자 원제 = "Service Class ObjectProvider 사용 패턴 개선 / ObjectProvider 지양의 의존성 단방향 개선". 그러나 신규 <b>R7 단계가 전 자원 도메인 ObjectProvider 제거(MarkableScanner 4-sealed SPI 분리)의 최종 전담</b>이다. <code>BoardModelService</code> 가 R3-3 에서 분리·삭제되므로 scanner re-point 는 어느 경우든 필요하나, <b>ObjectProvider 메커니즘 자체를 R3-3 에서 없앨지 R7 로 미룰지</b>가 결정 사안.</p>
+        <table>
+          <thead><tr><th>옵션</th><th>R3-3 에서 하는 일</th><th>장점</th><th>단점 / 리스크</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>A</b><br>(R3-3 에서 제거)</td>
+              <td>scanner <code>ObjectProvider&lt;BoardModelService&gt;</code> → <b>직접주입 <code>BoardModelLifecycleService</code></b>. ObjectProvider 즉시 제거.</td>
+              <td>R3-3 원제(ObjectProvider 제거) <b>완전 충족</b>. 의존표면 최소화.</td>
+              <td>직접주입이 사이클(SoftDeleteIntentService→<code>List&lt;MarkableScanner&gt;</code>→scanner→Lifecycle→…)을 재형성하지 않는지 <b>bootRun 실측 필요</b>(분석상 안전 주장은 speculative). R7-3(Board)에서 scanner 를 <b>또 변경</b>(직접주입→<code>implements MarkableTrashOperator</code>) = <b>scanner 2회 터치 + 사이클 검증 2회</b>.</td>
+            </tr>
+            <tr>
+              <td><b>B</b><br>(R7 에서 제거)<br><span class="chip new">권장</span></td>
+              <td>Service 분리 + scanner 를 <code>ObjectProvider&lt;BoardModelLifecycleService&gt;</code>로 re-point(<b>타입만 narrowing</b>, lazy 메커니즘 유지).</td>
+              <td>ObjectProvider 제거를 전담 단계(R7)에 <b>응집</b> → 전 5 도메인 동형 처리. scanner 메커니즘 <b>1회</b> 터치, 사이클 검증 1회. R3-3 은 저위험 "분리 + 타입 narrowing".</td>
+              <td>R3-3 원제 "ObjectProvider 제거"는 narrowing 까지만 — 완전 제거는 <b>R7-3 가 완성</b>(원제 의미를 R7 이 이행).</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><b>권고 : Option B.</b> 근거 — (1) R7 이 ObjectProvider 제거 전담이라는 현 로드맵과 정합, (2) scanner 더블 터치·더블 사이클검증 회피, (3) R3-3 은 Service 분리에 집중해 리스크 격리. <b>단, R3-3 의 정체성(제목)을 사용자가 직접 적었으므로 최종 채택은 CP1 사용자 결정 사안으로 남긴다</b> — 본 plan 은 B 를 default 권고로 제시하되 A/B 선택을 사용자에게 위임.</p>
+        <h4>채택 영향 표</h4>
+        <table>
+          <thead><tr><th>축</th><th>Option B (권장)</th><th>Option A</th></tr></thead>
+          <tbody>
+            <tr><td>R3-3 scope</td><td>Service 분리 + nudge 응집 + scanner ObjectProvider <b>타입 narrowing</b></td><td>Service 분리 + scanner ObjectProvider <b>직접주입 제거</b> + <b>bootRun 사이클 검증 Step</b> 추가</td></tr>
+            <tr><td>ObjectProvider 제거 완성</td><td><b>R7-3</b> 가 SPI 로 완성</td><td>R3-3 가 완성 (R3-3 제목 완전 충족)</td></tr>
+            <tr><td>scanner 메커니즘 터치</td><td>1회 (R7-3)</td><td>2회 (R3-3 + R7-3)</td></tr>
+            <tr><td>사이클 검증</td><td>1회 (R7)</td><td>2회 (R3-3 + R7)</td></tr>
+            <tr><td>§9 Verification</td><td>narrowing 컴파일·타입 확인</td><td>bootRun 사이클 0건 실측 + @Lazy 필요 여부 판정</td></tr>
+          </tbody>
+        </table>
+
+        <h4>잔존 책임 / 의도된 임시 비대칭</h4>
+        <ul>
+          <li>R3-3 후 Lifecycle service 의 cascade 는 여전히 형제 service 를 <code>@Lazy</code> 직접 호출(다형화 X) — <b>의도된 임시 구조</b>, R3-4 에서 해소. (Notion 페이지 본문에 명시 — CLAUDE.md §Notion 규약)</li>
+          <li>Option B 채택 시 scanner 는 <code>ObjectProvider</code> 를 R7-3 까지 유지 — <b>의도된 임시 잔존</b>, 제거 시점은 R7-3. Notion 본문 ③ 잔존 책임 항목에 기재.</li>
+          <li>다른 <code>@Lazy</code>(SoftDeleteIntentService 의 scanners/reconciliation, PathReconciliationService self-ref) 는 본 슬라이스 범위 밖 — R7 SPI 와 엮인 별도 과제.</li>
+        </ul>
+        <h4>CLAUDE.md 갱신</h4>
+        <ul>
+          <li>인벤토리 코드에 <b>R3-3</b>(+예고 R3-4 / R7) 추가. "Board service R1 미러 3분할(Metadata/Lifecycle/Nudge), scanner ObjectProvider 는 R7 SPI 에서 제거" 1줄.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R3-3-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="split"> <span><code>BoardModelService</code> 삭제 + 3 service(Metadata/Lifecycle/Nudge) 신설, 메서드 책임군 정확 이주</span></label></li>
+          <li><label><input type="checkbox" data-key="lifecycle"> <span><code>BoardModelLifecycleService implements LifecycleService</code> — default <code>restore(Long)</code> 위임 동작</span></label></li>
+          <li><label><input type="checkbox" data-key="mech"> <span><b>D1=B</b> : scanner 가 <code>ObjectProvider&lt;BoardModelLifecycleService&gt;</code>로 narrowing(컴파일·타입 확인) <b>／ D1=A</b> : <code>./gradlew bootRun</code> 기동 시 <b>순환 의존 0건</b>(BeanCurrentlyInCreation 등 無) 실측</span></label></li>
+          <li><label><input type="checkbox" data-key="crossread"> <span>cross-feature read — bios/bmc/subprogram 컨트롤러가 <code>BoardModelMetadataService</code> 로 재배선돼도 board 메타 정상 노출(끊김 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (특히 cascade 회귀 + 기존 컨트롤러 회귀)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span>스키마 diff 0 — 엔티티 불변, <code>ddl-auto=update</code> 변경 없음 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규 (management/board/service/metadata/)</h4>
+        <div class="pkg-tree">management/board/service/metadata/
+├── BoardModelMetadataService.java     (CRUD·조회·persistNewBoard·requireActiveBoard·toResponse)
+└── BoardModelLifecycleService.java    (implements global/lifecycle/LifecycleService —
+                                         toggle/deprecate/undeprecate/cascadeRecompute/
+                                         softDelete/restore/purge/purgeWithTypedNameCheck/findDeletedChildLabels)</div>
+        <h4>수정</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelNudgeService</code></td><td><span class="chip mod">수정</span> nudge 4 메서드 본체 합류 (completePending/purgeBoardForNudge/collectMetaNudgeCandidates/buildBoardNudgePayload), Metadata.persistNewBoard 주입 호출</td></tr>
+            <tr><td><code>BoardModelMarkableScanner</code></td><td><span class="chip mod">수정</span> scanner re-point — <b>B</b>: <code>ObjectProvider&lt;BoardModelLifecycleService&gt;</code> / <b>A</b>: 직접주입 <code>BoardModelLifecycleService</code> (D1)</td></tr>
+            <tr><td>R3-2 분할 3 컨트롤러 (Metadata/Lifecycle/Nudge)</td><td><span class="chip mod">수정</span> service 주입을 각 책임 service 로 교체</td></tr>
+            <tr><td>자식 컨트롤러 (bios/bmc/subprogram)</td><td><span class="chip mod">수정</span> <code>boardModelService.findById/findAllGrouped</code> → <code>BoardModelMetadataService</code> 재배선 (read 보존)</td></tr>
+            <tr><td>기존 <code>BoardModelService</code> 테스트</td><td><span class="chip mod">수정</span> 책임군별 3 테스트 클래스로 분리·이전</td></tr>
+          </tbody>
+        </table>
+        <h4>삭제</h4>
+        <table>
+          <tbody>
+            <tr><td><code>BoardModelService</code> (458줄)</td><td><span class="chip del">삭제</span> 3 service 로 책임 전량 이주 후 제거</td></tr>
+          </tbody>
+        </table>
+        <h4>유지 (KEEP — 변경 0)</h4>
+        <ul>
+          <li><code>BoardModelRepository</code> · <code>BiosRepository</code> · <code>BmcRepository</code> · <code>SubprogramRepository</code> — 쿼리 그대로.</li>
+          <li><code>BoardModel</code> 엔티티·VO·enum · DTO(Request/Response) · 뷰(Miller/휴지통/nudge modal) · advice/예외 매핑.</li>
+          <li>형제 <code>biosService/bmcService/subprogramService</code> cascade 위임 구조 — <b>R3-4 까지 유지</b>(다형화 비목표).</li>
+          <li><code>global/lifecycle/LifecycleService</code> 인터페이스 — Board 가 새 구현체로 합류만, 인터페이스 자체 불변.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R3-4</b> — 자식 cascade 다형화. Lifecycle service 의 softDelete/restore/cascadeRecompute 가 형제 service 를 <code>@Lazy</code> 직접 호출하는 구조를, <code>List&lt;LifecycleService&gt;</code> 또는 <code>Map&lt;ResourceType, LifecycleService&gt;</code> 기반 다형 cascade 로 전환. 형제 <code>@Lazy</code> 3곳 정리.</li>
+          <li><b>R7 (전 도메인)</b> — <code>MarkableScanner</code> → 4-sealed SPI(<code>MarkableInventory</code> / <code>MarkableDriftApplier</code> / <code>MarkableTrashOperator</code> / <code>MarkableGhostOperator</code>) 분리. <b>R7-3(Board)</b> 가 scanner 의 <code>ObjectProvider</code> 를 <code>implements MarkableTrashOperator</code>로 대체해 <b>edge 소멸 + ObjectProvider 완전 제거</b>(D1=B 의 제거 완성 지점). <code>SoftDeleteIntentService</code> 의 <code>@Lazy List&lt;MarkableScanner&gt;</code> 도 SPI 로 narrowing.</li>
+          <li><b>(연계)</b> R7 완료 후 프로젝트 누적 <code>@Lazy</code> 인벤토리 재점검 — 형제·scanner 변이 소멸로 남는 self-ref(<code>PathReconciliationService</code>) 만 별도 성격으로 잔존.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → open + scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 의존 단방향화 DAG + A/B 결정 탐색기
+  //  ⚠ 단계/메커니즘 판정 = §3 의존 DAG = §8 D1 결정표 (드리프트 0).
+  //  state : { stage: 'now'|'r33'|'r73', ab: 'A'|'B' }
+  // ─────────────────────────────────────────────────────────────
+  const state = { stage: 'now', ab: 'B' };
+
+  // scanner 메커니즘 '터치' 횟수 = scanner 의 주입 코드를 손대는 단계 수.
+  //  A : R3-3(ObjectProvider→직접주입) + R7-3(직접주입→implements) = 2
+  //  B : R3-3(타입 narrowing, 같은 ObjectProvider 메커니즘 유지) + R7-3(ObjectProvider→implements) = 1 (메커니즘 변경은 R7-3 한 번)
+  function touchCount(ab) { return ab === 'A' ? 2 : 1; }
+
+  function dagModel() {
+    const s = state.stage, ab = state.ab;
+    if (s === 'now') {
+      return {
+        target: 'BoardModelService (fat 458줄)', targetB: ['fat','FAT'],
+        mech: 'ObjectProvider<…> (lazy)', mechB: ['lazy','LAZY'],
+        cycle: { risk:false, text:'없음 — ObjectProvider 가 lazy 우회 (단, 의존표면이 458줄 전체)' },
+        touched: '— (분리 전 기준 단계)',
+        graph: 'scanner ──ObjectProvider<BoardModelService(fat)>──▶ <span class="cycle">458줄 전체</span>',
+        caps: '의존표면 = fat service 전체\n실사용 = restore / purge / findDeletedChildLabels (전부 Lifecycle 책임군)',
+        msgCls:'warn',
+        msg: '<b>① 현재</b> — scanner 가 fat service 전체를 lazy 참조. 실제로 쓰는 3 메서드는 모두 Lifecycle 책임군이라, 분리 후 narrowing 여지가 있습니다.'
+      };
+    }
+    if (s === 'r33') {
+      if (ab === 'A') {
+        return {
+          target: 'BoardModelLifecycleService', targetB: ['narrow','NARROW'],
+          mech: '직접주입 (eager)', mechB: ['eager','EAGER'],
+          cycle: { risk:true, text:'재형성 가능 — SoftDeleteIntentService→List<MarkableScanner>→scanner→Lifecycle→… (bootRun 실측 필요)' },
+          touched: '<span class="touch">예 — scanner 주입 코드 변경 (ObjectProvider→직접주입)</span>',
+          graph: 'scanner ──직접주입 BoardModelLifecycleService──▶ Lifecycle  (<span class="cycle">eager·사이클 재검증</span>)',
+          caps: 'scanner 메커니즘 터치 : <span class="t">A=2회</span> (R3-3 직접주입 + R7-3 SPI)\n사이클 검증 : <span class="t">2회</span> (R3-3 bootRun + R7)',
+          msgCls:'warn',
+          msg: '<b>② R3-3 · Option A</b> — ObjectProvider 즉시 제거(원제 완전 충족). 그러나 직접주입이 eager 라 사이클 재형성 위험 → <b>bootRun 실측 필요</b>. 게다가 R7-3 에서 scanner 를 또 바꿔야 해 <b>메커니즘 2회 터치</b>.'
+        };
+      }
+      return {
+        target: 'BoardModelLifecycleService', targetB: ['narrow','NARROW'],
+        mech: 'ObjectProvider<…> (lazy 유지·타입만 narrowing)', mechB: ['lazy','LAZY'],
+        cycle: { risk:false, text:'없음 — lazy 메커니즘 그대로 유지, 타입만 좁힘' },
+        touched: '예 — 단 타입 파라미터만 narrowing (메커니즘 불변)',
+        graph: 'scanner ──ObjectProvider<BoardModelLifecycleService>──▶ Lifecycle  (<span class="ok">lazy·narrow</span>)',
+        caps: 'scanner 메커니즘 터치 : <span class="f">B=1회</span> (R7-3 SPI 에서 한 번)\n사이클 검증 : <span class="f">1회</span> (R7)',
+        msgCls:'success',
+        msg: '<b>② R3-3 · Option B (권장)</b> — 의존표면만 Lifecycle 로 좁히고 lazy 메커니즘 유지. 사이클 위험 0·저위험. ObjectProvider 완전 제거는 전담 단계 R7-3 로 응집 → <b>메커니즘 1회 터치</b>.'
+      };
+    }
+    // r73
+    return {
+      target: '(없음 — edge 소멸)', targetB: ['gone','GONE'],
+      mech: 'implements MarkableTrashOperator (SPI)', mechB: ['gone','SPI'],
+      cycle: { risk:false, text:'없음 — scanner 가 SPI 구현체가 되어 service→scanner 호출로 방향 통일' },
+      touched: '<span class="touch">예 — ObjectProvider 제거 + SPI 구현 (제거 완성 지점)</span>',
+      graph: 'scanner <span class="ok">implements MarkableTrashOperator</span> ──▶ (ObjectProvider 제거·edge 소멸)',
+      caps: 'R7-3 가 4-sealed SPI 로 전 5 도메인 동형 처리\nB 경로 : 여기서 ObjectProvider 최초이자 유일하게 제거',
+      msgCls:'success',
+      msg: '<b>③ R7-3</b> — scanner 가 <code>MarkableTrashOperator</code> 구현체가 되어 ObjectProvider 자체가 사라지고 의존 edge 가 소멸. <b>D1=B</b> 면 ObjectProvider 제거가 이 단계에서 처음·전부 일어나 전 도메인과 동형.'
+    };
+  }
+
+  function dagAb(ab) { state.ab = ab; dagRender(); }
+  function dagStage(s) { state.stage = s; dagRender(); }
+
+  function dagRender() {
+    // 단계 seg active
+    document.querySelectorAll('.ux-toolbar .seg[data-stage]').forEach(b =>
+      b.classList.toggle('active', b.dataset.stage === state.stage));
+    // A/B 서브토글은 R3-3 단계에서만 의미 → 그 외엔 disabled 표시
+    const abActive = state.stage === 'r33';
+    document.querySelectorAll('.ux-toolbar .seg[data-ab]').forEach(b => {
+      b.classList.toggle('active', abActive && b.dataset.ab === state.ab);
+      b.classList.toggle('disabled', !abActive);
+    });
+
+    const m = dagModel();
+    document.getElementById('dag-target').textContent = m.target;
+    const tb = document.getElementById('dag-target-b'); tb.className = 'badge ' + m.targetB[0]; tb.textContent = m.targetB[1];
+    document.getElementById('dag-mech').textContent = m.mech;
+    const mb = document.getElementById('dag-mech-b'); mb.className = 'badge ' + m.mechB[0]; mb.textContent = m.mechB[1];
+
+    const cy = document.getElementById('dag-cycle');
+    cy.innerHTML = (m.cycle.risk ? '<span style="color:var(--red);font-weight:700;">⚠ 위험 (점선)</span> — ' : '<span style="color:var(--green);font-weight:700;">안전</span> — ') + m.cycle.text;
+    document.getElementById('dag-touch').innerHTML = m.touched;
+
+    document.getElementById('dag-graph').innerHTML = m.graph;
+
+    // 터치 횟수 대조 (R3-3 단계에서 A/B 정량 비교)
+    let caps = m.caps;
+    if (state.stage === 'r33') {
+      caps += '\n\n— A vs B 메커니즘 터치 대조 —\n'
+        + '  A(직접주입) : <span class="t">' + touchCount('A') + '회</span>  (R3-3 + R7-3)\n'
+        + '  B(narrowing): <span class="f">' + touchCount('B') + '회</span>  (R7-3) ← 권장';
+    }
+    document.getElementById('dag-caps').innerHTML = caps;
+
+    const msg = document.getElementById('dag-message');
+    msg.className = 'ux-message ' + m.msgCls;
+    msg.innerHTML = m.msg;
+  }
+  dagRender();   // 불가침 : 파일 끝 1회 호출
+</script>
+</body>
+</html>

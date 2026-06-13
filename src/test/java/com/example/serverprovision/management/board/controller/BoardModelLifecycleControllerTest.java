@@ -5,7 +5,7 @@ import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelLifecycleService;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code BoardModelControllerPurgeFlowTest} 의 purge typed-name 시나리오 +
  * {@code BoardModelControllerRestoreFlowTest} 의 restore cascade 변이 시나리오를 흡수했다.</p>
  *
- * <p>Mocking 은 {@link BoardModelService} 단까지만. controller 의 redirect +
+ * <p>Mocking 은 {@link BoardModelLifecycleService} 단까지만. controller 의 redirect +
  * {@code @ControllerAdvice} 의 예외 → status 매핑은 실제로 실행된다.</p>
  *
  * <p>시나리오 12 : 성공 9 (toggle / restore×3 / deprecate / undeprecate / delete / purge + restore cascade=true)
@@ -42,7 +42,7 @@ class BoardModelLifecycleControllerTest {
 
     @Autowired MockMvc mvc;
 
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelLifecycleService boardModelService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     // ==== 성공 2xx ====================================================

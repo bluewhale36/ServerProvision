@@ -5,7 +5,7 @@ import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.bios.service.BiosUploadIntentService;
 import com.example.serverprovision.management.bios.service.BiosVerificationLauncher;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ class BiosControllerSecurityFlowTest {
     @MockitoBean BiosService biosService;
     @MockitoBean BiosUploadIntentService biosUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosNudgeService biosNudgeService;
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean BiosVerificationLauncher biosVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;

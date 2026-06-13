@@ -4,7 +4,7 @@ import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.bmc.service.BmcService;
 import com.example.serverprovision.management.bmc.service.BmcUploadIntentService;
 import com.example.serverprovision.management.bmc.service.BmcVerificationLauncher;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,7 +40,7 @@ class BmcControllerPurgeFlowTest {
     @MockitoBean BmcService bmcService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcNudgeService bmcNudgeService;
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean BmcVerificationLauncher bmcVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;

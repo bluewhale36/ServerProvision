@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramCreateRequest;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest;
@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.*;
 public class SubprogramController {
 
 	private final SubprogramService subprogramService;
-	private final BoardModelService boardModelService;
+	private final BoardModelMetadataService boardModelService;
 
 	/* ─────────────────────────── 메인 페이지 ─────────────────────────── */
 

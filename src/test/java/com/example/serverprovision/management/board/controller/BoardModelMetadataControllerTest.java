@@ -6,7 +6,7 @@ import com.example.serverprovision.management.board.dto.response.VendorGroupResp
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.exception.BoardModelNudgeRequiredException;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>fat {@code BoardModelController} 3분할 후의 회귀 안전망 — 분할로 advice 매핑 / HTTP status 가
  * 깨지지 않았음을 보장한다. 순수 리팩토링이므로 새 HTTP 행동은 없다.</p>
  *
- * <p>Mocking 은 {@link BoardModelService} 단까지만. controller 의 redirect / view 선택 +
+ * <p>Mocking 은 {@link BoardModelMetadataService} 단까지만. controller 의 redirect / view 선택 +
  * {@code @ControllerAdvice} (Web / Api) 의 예외 → status 매핑은 실제로 실행된다.</p>
  *
  * <p>시나리오 9 : 성공 5 (list / newForm / editForm / create / update) + 400 2 (create 검증 / update 검증)
@@ -50,7 +50,7 @@ class BoardModelMetadataControllerTest {
 
     @Autowired MockMvc mvc;
 
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static BoardModelResponse activeBoard() {

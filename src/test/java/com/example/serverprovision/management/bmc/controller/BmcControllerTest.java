@@ -20,7 +20,7 @@ import com.example.serverprovision.management.bmc.service.BmcVerificationLaunche
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -65,7 +65,7 @@ class BmcControllerTest {
     @MockitoBean BmcService bmcService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcNudgeService bmcNudgeService;
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean BmcVerificationLauncher bmcVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;

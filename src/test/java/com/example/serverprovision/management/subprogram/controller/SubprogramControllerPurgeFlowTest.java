@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.subprogram.controller;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.subprogram.service.SubprogramService;
 import com.example.serverprovision.management.subprogram.service.SubprogramUploadIntentService;
@@ -34,7 +34,7 @@ class SubprogramControllerPurgeFlowTest {
     @MockitoBean SubprogramUploadIntentService subprogramUploadIntentService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramNudgeService subprogramNudgeService;
     @MockitoBean SubprogramVerificationLauncher subprogramVerificationLauncher;
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;

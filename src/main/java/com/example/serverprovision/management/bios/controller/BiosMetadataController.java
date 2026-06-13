@@ -5,7 +5,7 @@ import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class BiosMetadataController {
 
 	private final BiosService biosService;
-	private final BoardModelService boardModelService;
+	private final BoardModelMetadataService boardModelService;
 
 	// ==== 목록 ========================================================
 

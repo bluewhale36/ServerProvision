@@ -5,7 +5,7 @@ import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.board.enums.Vendor;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse;
@@ -52,7 +52,7 @@ class SubprogramControllerLifecycleFlowTest {
     @MockitoBean SubprogramUploadIntentService subprogramUploadIntentService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramNudgeService subprogramNudgeService;
     @MockitoBean SubprogramVerificationLauncher subprogramVerificationLauncher;
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;

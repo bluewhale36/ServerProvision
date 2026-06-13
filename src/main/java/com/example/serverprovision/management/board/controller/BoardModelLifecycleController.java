@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.board.controller;
 
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelLifecycleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  * <p>R3-2 — 단일 fat {@code BoardModelController} 분할. 메타 CRUD 는 {@link BoardModelMetadataController},
  * nudge confirm 은 {@link BoardModelNudgeController} 가 관할.</p>
  *
- * <p>본 컨트롤러의 의존성은 {@link BoardModelService} 단독. 성공 시 Miller 의 selectId 를 보존하며
+ * <p>본 컨트롤러의 의존성은 {@link BoardModelLifecycleService} 단독 (R3-3). 성공 시 Miller 의 selectId 를 보존하며
  * 목록으로 리다이렉트한다 (softDelete / purge 는 row 가 시야에서 사라지므로 고정 목록으로 이동).</p>
  */
 @Controller
@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequiredArgsConstructor
 public class BoardModelLifecycleController {
 
-	private final BoardModelService boardModelService;
+	private final BoardModelLifecycleService boardModelService;
 
 	// ==== 상태 전이 ===================================================
 

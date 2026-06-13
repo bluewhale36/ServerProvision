@@ -5,7 +5,7 @@ import com.example.serverprovision.management.board.dto.request.BoardModelUpdate
 import com.example.serverprovision.management.board.dto.response.BoardModelCreateResponse;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import com.example.serverprovision.management.board.enums.Vendor;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +26,7 @@ import java.util.List;
  *   <li>nudge confirm (proceed / replace / cancel) : {@link BoardModelNudgeController}</li>
  * </ul>
  *
- * <p>본 컨트롤러의 의존성은 {@link BoardModelService} 단독.</p>
+ * <p>본 컨트롤러의 의존성은 {@link BoardModelMetadataService} 단독 (R3-3 — Service metadata 분리).</p>
  *
  * <p>레이어 약속 :
  * <ul>
@@ -42,7 +42,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BoardModelMetadataController {
 
-	private final BoardModelService boardModelService;
+	private final BoardModelMetadataService boardModelService;
 
 	// ==== 목록 ========================================================
 

@@ -3,6 +3,7 @@ package com.example.serverprovision.management.board.service;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
 import com.example.serverprovision.management.common.nudge.NudgeSession;
@@ -24,7 +25,8 @@ import java.util.UUID;
 public class BoardModelNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
-	private final BoardModelService boardModelService;
+	// R3-3 — Service metadata 분리. nudge confirm 의 실제 생성/교체는 Metadata 로 단방향 위임.
+	private final BoardModelMetadataService boardModelService;
 	private final BoardModelRepository boardModelRepository;
 
 	@Transactional

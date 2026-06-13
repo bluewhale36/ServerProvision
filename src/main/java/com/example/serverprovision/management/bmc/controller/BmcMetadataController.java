@@ -4,7 +4,7 @@ import com.example.serverprovision.management.bmc.dto.request.BmcUpdateRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
 import com.example.serverprovision.management.bmc.service.BmcService;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class BmcMetadataController {
 
 	private final BmcService bmcService;
-	private final BoardModelService boardModelService;
+	private final BoardModelMetadataService boardModelService;
 
 	@GetMapping
 	public String list(

@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.bios.controller;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
-import com.example.serverprovision.management.board.service.BoardModelService;
+import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.bios.service.BiosUploadIntentService;
 import com.example.serverprovision.management.bios.service.BiosVerificationLauncher;
@@ -43,7 +43,7 @@ class BiosControllerPurgeFlowTest {
     @MockitoBean BiosService biosService;
     @MockitoBean BiosUploadIntentService biosUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosNudgeService biosNudgeService;
-    @MockitoBean BoardModelService boardModelService;
+    @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean BiosVerificationLauncher biosVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;

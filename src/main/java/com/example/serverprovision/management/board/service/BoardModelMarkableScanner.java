@@ -4,6 +4,7 @@ import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.management.board.service.metadata.BoardModelLifecycleService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +22,11 @@ import java.util.stream.Collectors;
 public class BoardModelMarkableScanner implements MarkableScanner {
 
 	private final BoardModelRepository boardModelRepository;
-	private final org.springframework.beans.factory.ObjectProvider<BoardModelService> boardModelServiceProvider;
+	private final org.springframework.beans.factory.ObjectProvider<BoardModelLifecycleService> boardModelServiceProvider;
 
 	public BoardModelMarkableScanner(
 			BoardModelRepository boardModelRepository,
-			org.springframework.beans.factory.ObjectProvider<BoardModelService> boardModelServiceProvider
+			org.springframework.beans.factory.ObjectProvider<BoardModelLifecycleService> boardModelServiceProvider
 	) {
 		this.boardModelRepository = boardModelRepository;
 		this.boardModelServiceProvider = boardModelServiceProvider;
@@ -81,7 +82,8 @@ public class BoardModelMarkableScanner implements MarkableScanner {
 	}
 
 	/**
-	 * 휴지통 영구삭제 — BoardModelService.purge 위임 (자식 BIOS / BMC 잔존 시 거절).
+	 * 휴지통 영구삭제 — BoardModelLifecycleService.purge 위임 (자식 BIOS / BMC 잔존 시 거절).
+	 * R3-3 (D1=B) — ObjectProvider 타입 narrowing(BoardModelService→Lifecycle). ObjectProvider 제거는 R7-3.
 	 */
 	@Override
 	public void purgeFromTrash(Long resourceId) {
