@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3-2 Plan — BoardModelController 기능별 3분할 (Metadata / Lifecycle / Nudge + Support)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.clean { background:var(--red-bg); color:var(--red); }
+  .badge.preserve { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.quar { background:var(--blue-bg); color:var(--blue); }
+  .badge.meta { background:var(--blue-bg); color:var(--blue); }
+  .badge.life { background:var(--orange-bg); color:var(--orange); }
+  .badge.nudge { background:var(--purple-bg); color:var(--purple); }
+  .badge.support { background:var(--green-bg); color:var(--green); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.meta { background:var(--blue-bg); border-color:var(--blue); }
+  .ux-message.life { background:var(--orange-bg); border-color:var(--orange); }
+  .ux-message.nudge { background:var(--purple-bg); border-color:var(--purple); }
+  .ux-message.support { background:var(--green-bg); border-color:var(--green); }
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:10.5px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 10px; font-size:11.5px; line-height:1.5; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R3-2 — <code>BoardModelController</code> 기능별 3분할 (Metadata / Lifecycle / Nudge + Support) <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R3-2 (refactor)</span>
+    <span><strong>상위</strong> R3 (Board — 메타 자원, 파일 없음) · R1(OS) 컨트롤러 분할 선례 미러링</span>
+    <span><strong>scope</strong> 단일 fat <code>BoardModelController</code> → 책임군 3 컨트롤러 + <code>BoardControllerSupport</code> 추출. URL·동작 100% 불변</span>
+    <span><strong>생성</strong> 2026-06-13 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (fat 컨트롤러 분할)</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (분배 탐색기)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 컨트롤러 분배 모델</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — fat 단일 컨트롤러의 책임 혼재 정리</summary>
+      <div class="body">
+        <p style="margin-top:0;">현재 <code>BoardModelController</code>(<b>211 줄 / 엔드포인트 14 개</b>)는 <b>CRUD(메타) · lifecycle(toggle/delete/restore/purge/deprecate) · nudge confirm</b> 세 책임군이 한 파일에 뒤섞여 있다. R1(OS) 도메인이 이미 fat 컨트롤러를 <b>8 컨트롤러</b>(Upload/Integrity/Browse 등)로 분할한 선례를 따라, Board 도 책임군 경계로 쪼갠다.</p>
+        <ul>
+          <li><span class="diff-del">책임 혼재</span> — 한 컨트롤러가 메타 CRUD · 상태 전이 · nudge 까지 떠안아, 신규 lifecycle 동작이나 nudge 변형이 추가될 때마다 같은 파일이 비대해진다.</li>
+          <li><span class="diff-del">헬퍼 복붙 위험</span> — <code>redirectToListWithSelect</code> / <code>nullToEmpty</code> / <code>BindingResult→ApiErrorResponse</code> 변환은 분할 후 <b>3~4 컨트롤러가 동시에</b> 필요로 한다. 그대로 분할하면 같은 헬퍼를 복붙하게 되어 CLAUDE.md §중복 금지(불가침) 위반.</li>
+        </ul>
+        <div class="callout"><b>CLAUDE.md §조건 분기 / try-catch 복붙 회귀 경계</b> — "신규 컨트롤러 추가 시 같은 catch 블록을 또 복붙하는 회귀(S3.3→S3.4 사고)" 가 본 프로젝트에서 반복됐다. 본 슬라이스는 분할과 동시에 공통 헬퍼를 <code>BoardControllerSupport</code>(final + private ctor 정적 유틸)로 추출해 복붙 진원지를 사전 차단한다.</div>
+        <div class="callout success"><b>refactor 불변식</b> — URL · HTTP status · 응답 바디 · 리다이렉트 타깃 · 뷰 모두 100% 동일. 순수하게 controller 클래스 경계만 재배치한다. 행동 변화 0.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>선행 완료 / 진입 전제</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> R3-1 — Board 도메인 R 시리즈 진입(서비스 책임 정리 선행). 본 슬라이스는 그 위에서 <b>controller 층</b> 만 분할.</li>
+          <li><span class="chip keep">선례</span> R1(OS) 컨트롤러 8 분할 — Upload/Integrity/Browse/Metadata/Lifecycle/Nudge 등 책임군 단위. Board 는 <b>메타(비파일) 자원</b>이라 Upload/Integrity/Browse 가 불필요 → 3 컨트롤러로 축약.</li>
+          <li><span class="chip keep">유지</span> <code>BoardModelService</code> / <code>BoardModelNudgeService</code> / <code>TypedNameVerifier</code> — 본 슬라이스는 service 를 건드리지 않는다(주입 재배선만). service 의 metadata/ 서브패키지 분리는 R3-3.</li>
+        </ul>
+
+        <h4>현 컨트롤러 엔드포인트 → 기능군 분류 (14 개)</h4>
+        <table>
+          <thead><tr><th>#</th><th>메서드</th><th>Method · URL</th><th>기능군</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>list</code></td><td>GET <code>/management/board</code></td><td><span class="badge meta">Metadata</span></td></tr>
+            <tr><td>2</td><td><code>newForm</code></td><td>GET <code>/management/board/new</code></td><td><span class="badge meta">Metadata</span></td></tr>
+            <tr><td>3</td><td><code>create</code></td><td>POST <code>/management/board</code> (JSON)</td><td><span class="badge meta">Metadata</span></td></tr>
+            <tr><td>4</td><td><code>editForm</code></td><td>GET <code>/management/board/{id}/edit</code></td><td><span class="badge meta">Metadata</span></td></tr>
+            <tr><td>5</td><td><code>update</code></td><td>POST <code>/management/board/{id}/edit</code></td><td><span class="badge meta">Metadata</span></td></tr>
+            <tr><td>6</td><td><code>toggle</code></td><td>POST <code>/management/board/{id}/toggle</code></td><td><span class="badge life">Lifecycle</span></td></tr>
+            <tr><td>7</td><td><code>delete</code> (softDelete)</td><td>POST <code>/management/board/{id}/delete</code></td><td><span class="badge life">Lifecycle</span></td></tr>
+            <tr><td>8</td><td><code>restore</code></td><td>POST <code>/management/board/{id}/restore</code></td><td><span class="badge life">Lifecycle</span></td></tr>
+            <tr><td>9</td><td><code>purge</code></td><td>POST <code>/management/board/{id}/purge</code></td><td><span class="badge life">Lifecycle</span></td></tr>
+            <tr><td>10</td><td><code>deprecate</code></td><td>POST <code>/management/board/{id}/deprecate</code></td><td><span class="badge life">Lifecycle</span></td></tr>
+            <tr><td>11</td><td><code>undeprecate</code></td><td>POST <code>/management/board/{id}/undeprecate</code></td><td><span class="badge life">Lifecycle</span></td></tr>
+            <tr><td>12</td><td><code>nudgeProceed</code></td><td>POST <code>/management/board/nudge/{nudgeId}/proceed</code></td><td><span class="badge nudge">Nudge</span></td></tr>
+            <tr><td>13</td><td><code>nudgeReplace</code></td><td>POST <code>/management/board/nudge/{nudgeId}/replace</code></td><td><span class="badge nudge">Nudge</span></td></tr>
+            <tr><td>14</td><td><code>nudgeCancel</code></td><td>POST <code>/management/board/nudge/{nudgeId}/cancel</code></td><td><span class="badge nudge">Nudge</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>공통 헬퍼 (분할 시 복붙 후보 → Support 추출)</h4>
+        <table>
+          <thead><tr><th>헬퍼</th><th>현 위치</th><th>분할 후 호출자</th></tr></thead>
+          <tbody>
+            <tr><td><code>redirectToListWithSelect(Long)</code></td><td>private 메서드 (line 204)</td><td>Metadata(update) · Lifecycle(toggle/restore/deprecate/undeprecate) — <b>2 컨트롤러</b></td></tr>
+            <tr><td><code>nullToEmpty(String)</code></td><td>private static (line 208)</td><td>Metadata(editForm)</td></tr>
+            <tr><td><code>BindingResult → ApiErrorResponse</code> 변환</td><td><code>create()</code> 인라인 (line 76~86)</td><td>Metadata(create). XHR JSON 검증 응답을 쓰는 모든 컨트롤러가 잠재 호출자</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>도메인 특이사항</b> — Board 는 4 도메인(OS/Board/BIOS/BMC) 중 <b>유일한 메타(비파일) 자원</b>이다. 업로드/무결성/디렉토리 브라우즈 책임이 없으므로 OS 의 Upload/Integrity/Browse 컨트롤러 대응물이 존재하지 않는다 → 3 컨트롤러로 축약.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>3 컨트롤러 분할</b> — <code>BoardModelMetadataController</code>(CRUD: list/new/create/edit/update) · <code>BoardModelLifecycleController</code>(toggle/delete/restore/purge/deprecate/undeprecate) · <code>BoardModelNudgeController</code>(nudge proceed/replace/cancel).</li>
+          <li><b>Support 추출</b> — <code>BoardControllerSupport</code>(<code>final</code> + <code>private</code> ctor 정적 유틸): <code>redirectToListWithSelect</code> · <code>nullToEmpty</code> · <code>BindingResult → ApiErrorResponse</code> 변환. 복붙 0 보장.</li>
+          <li><b>URL / 동작 100% 불변</b> — 14 엔드포인트의 Method · URL · @RequestMapping prefix(<code>/management/board</code>) · produces · @ResponseBody · 응답 바디 · 리다이렉트 타깃 모두 그대로. 순수 controller 재배치.</li>
+          <li><b>service 주입만 재배선</b> — 분할된 3 컨트롤러가 각자 필요한 service(<code>BoardModelService</code> / <code>BoardModelNudgeService</code> / <code>TypedNameVerifier</code>)만 <code>@RequiredArgsConstructor</code> 주입. service 본체 변경 0.</li>
+          <li><b>뷰 변경 0</b> — Thymeleaf 템플릿(<code>management/board/list|new|edit</code>)·폼 action URL 모두 불변이므로 뷰 수정 불필요(Step 2 산출물 없음).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스로 위임)</b>
+          <ul>
+            <li><b>nudgeReplace 의 <code>typedNameVerifier</code> 직접 호출 SSOT 통일</b> — 현재 controller 가 <code>typedNameVerifier.verify(...)</code> 를 인라인 호출한다(도메인 검증 누수). 본 슬라이스는 이 호출을 일단 <code>BoardModelNudgeController</code> 로 <b>그대로 이동</b>만 하고, 검증 위치를 service 로 끌어올리는 SSOT 통일은 <b>R3-5</b> 로 미룬다.</li>
+            <li><b>BoardModelService 의 metadata/ 서브패키지 분리</b> — service 층 재구성은 <b>R3-3</b>. 본 슬라이스는 controller 층만.</li>
+            <li><b>browse 류 컨트롤러</b> — Board 는 메타 자원이라 애초에 없음(생성 안 함).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 엔드포인트 분배 탐색기 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 칩은 <b>원 <code>BoardModelController</code> 의 14 엔드포인트 + 3 공통 헬퍼</b>입니다. 칩을 클릭하면 우측에 <b>이동 대상 컨트롤러 + 이동 이유(책임군)</b> 가 라이브로 갱신됩니다. 헬퍼 칩은 "Support 로 추출(N 컨트롤러 공유)" 로 표시되어 복붙 제거가 시각화됩니다. 이 매핑은 §3 / §4 의 실제 분배와 <b>1:1 동일</b>(드리프트 0)입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">엔드포인트 :</span>
+            <button class="seg" data-e="list" onclick="demoSet('list')">list</button>
+            <button class="seg" data-e="newForm" onclick="demoSet('newForm')">newForm</button>
+            <button class="seg" data-e="create" onclick="demoSet('create')">create</button>
+            <button class="seg" data-e="editForm" onclick="demoSet('editForm')">editForm</button>
+            <button class="seg" data-e="update" onclick="demoSet('update')">update</button>
+            <button class="seg" data-e="toggle" onclick="demoSet('toggle')">toggle</button>
+            <button class="seg" data-e="delete" onclick="demoSet('delete')">delete</button>
+            <button class="seg" data-e="restore" onclick="demoSet('restore')">restore</button>
+            <button class="seg" data-e="purge" onclick="demoSet('purge')">purge</button>
+            <button class="seg" data-e="deprecate" onclick="demoSet('deprecate')">deprecate</button>
+            <button class="seg" data-e="undeprecate" onclick="demoSet('undeprecate')">undeprecate</button>
+            <button class="seg" data-e="nudgeProceed" onclick="demoSet('nudgeProceed')">nudgeProceed</button>
+            <button class="seg" data-e="nudgeReplace" onclick="demoSet('nudgeReplace')">nudgeReplace</button>
+            <button class="seg" data-e="nudgeCancel" onclick="demoSet('nudgeCancel')">nudgeCancel</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">공통 헬퍼 :</span>
+            <button class="seg" data-e="h_redirect" onclick="demoSet('h_redirect')">redirectToListWithSelect</button>
+            <button class="seg" data-e="h_nullToEmpty" onclick="demoSet('h_nullToEmpty')">nullToEmpty</button>
+            <button class="seg" data-e="h_binding" onclick="demoSet('h_binding')">BindingResult→ApiErrorResponse</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row">
+              <strong>엔드포인트</strong><span class="label" id="demo-url">—</span>
+              <span class="badge" id="demo-dest">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>이동 대상</strong><span class="label" id="demo-ctrl">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>URL 보존</strong><span class="label" id="demo-keep">—</span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">엔드포인트 또는 헬퍼 칩을 눌러 분배를 확인하세요.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 분배 매핑 = §3 URL 표 + §4 분배 모델의 단일 소스. Support 헬퍼 3종은 "추출 → N 컨트롤러 공유" 로 표시되어 복붙 제거(불가침 §중복 금지)를 손으로 검증할 수 있습니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 (분할 전후 1:1 보존)</summary>
+      <div class="body">
+        <h4>URL 표 — 14 엔드포인트, 전부 <span class="chip keep">유지</span></h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작 (응답)</th><th>이동 대상 컨트롤러</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/board</code></td><td>Miller 목록 (HTML view)</td><td><span class="badge meta">Metadata</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>GET</td><td><code>/management/board/new</code></td><td>신규 폼 (HTML view)</td><td><span class="badge meta">Metadata</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board</code></td><td>생성 → JSON (200 / 400 / 409)</td><td><span class="badge meta">Metadata</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>GET</td><td><code>/management/board/{id}/edit</code></td><td>수정 폼 (HTML view)</td><td><span class="badge meta">Metadata</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/edit</code></td><td>수정 → redirect(selectId)</td><td><span class="badge meta">Metadata</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/toggle</code></td><td>활성/비활성 → redirect(selectId)</td><td><span class="badge life">Lifecycle</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/delete</code></td><td>softDelete → redirect(목록)</td><td><span class="badge life">Lifecycle</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/restore</code></td><td>복원(cascade) → redirect(selectId)</td><td><span class="badge life">Lifecycle</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/purge</code></td><td>hard-delete(typed-name) → redirect(includeDeleted)</td><td><span class="badge life">Lifecycle</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/deprecate</code></td><td>deprecate → redirect(selectId)</td><td><span class="badge life">Lifecycle</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/{id}/undeprecate</code></td><td>undeprecate → redirect(selectId)</td><td><span class="badge life">Lifecycle</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/nudge/{nudgeId}/proceed</code></td><td>nudge 진행 → JSON</td><td><span class="badge nudge">Nudge</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/nudge/{nudgeId}/replace</code></td><td>nudge 교체(typed-name) → JSON</td><td><span class="badge nudge">Nudge</span> <span class="chip keep">URL 유지</span></td></tr>
+            <tr><td>POST</td><td><code>/management/board/nudge/{nudgeId}/cancel</code></td><td>nudge 취소 → 204</td><td><span class="badge nudge">Nudge</span> <span class="chip keep">URL 유지</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>전 컨트롤러 동일 prefix</b> — 분할 3 컨트롤러 모두 <code>@RequestMapping("/management/board")</code> 를 유지한다. Spring 은 한 base path 에 여러 <code>@Controller</code> 매핑을 허용하므로 URL 충돌 없이 그대로 보존된다.</div>
+
+        <h4>브라우저 ↔ 서버 흐름 (예: update — 헬퍼 공유 시연)</h4>
+        <div class="seq">
+          <div class="actor a1">Browser (form)</div><div class="actor a2">MetadataController</div><div class="actor a3">BoardControllerSupport</div><div class="actor a4">BoardModelService</div>
+          <div class="step a1">POST <code>{id}/edit</code></div><div class="step a2"><code>update(id, req, br)</code></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">검증 OK</div><div class="step a3"></div><div class="step a4"><code>service.update(id)</code></div>
+          <div class="step a1"></div><div class="step a2">redirect 조립 위임</div><div class="step a3"><code>redirectToListWithSelect(id)</code></div><div class="step a4"></div>
+          <div class="step a1">302 → <code>?selectId=id</code></div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+        </div>
+        <div class="callout success">같은 <code>redirectToListWithSelect</code> 를 Lifecycle 의 toggle/restore/deprecate/undeprecate 도 호출한다 → Support 단일 소스. 복붙 0.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 컨트롤러 분배 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 컨트롤러 분배 모델 (책임군 + Support)</summary>
+      <div class="body">
+        <h4>① <code>BoardModelMetadataController</code> — CRUD (메타)</h4>
+        <table>
+          <thead><tr><th>엔드포인트</th><th>의존 service</th><th>Support 호출</th></tr></thead>
+          <tbody>
+            <tr><td><code>list</code> / <code>newForm</code> / <code>editForm</code></td><td><code>BoardModelService</code></td><td><code>nullToEmpty</code>(editForm)</td></tr>
+            <tr><td><code>create</code> (POST JSON)</td><td><code>BoardModelService</code></td><td><code>toValidationError(BindingResult)</code></td></tr>
+            <tr><td><code>update</code> (POST)</td><td><code>BoardModelService</code></td><td><code>redirectToListWithSelect</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>② <code>BoardModelLifecycleController</code> — 상태 전이</h4>
+        <table>
+          <thead><tr><th>엔드포인트</th><th>의존 service</th><th>Support 호출</th></tr></thead>
+          <tbody>
+            <tr><td><code>toggle</code> / <code>restore</code> / <code>deprecate</code> / <code>undeprecate</code></td><td><code>BoardModelService</code></td><td><code>redirectToListWithSelect</code></td></tr>
+            <tr><td><code>delete</code> (softDelete)</td><td><code>BoardModelService</code></td><td>— (고정 목록 redirect)</td></tr>
+            <tr><td><code>purge</code> (typed-name)</td><td><code>BoardModelService</code></td><td>— (고정 includeDeleted redirect)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>③ <code>BoardModelNudgeController</code> — nudge confirm</h4>
+        <table>
+          <thead><tr><th>엔드포인트</th><th>의존</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>nudgeProceed</code> / <code>nudgeCancel</code></td><td><code>BoardModelNudgeService</code></td><td>JSON / 204</td></tr>
+            <tr><td><code>nudgeReplace</code></td><td><code>BoardModelNudgeService</code> + <code>TypedNameVerifier</code></td><td><span class="chip mod">잔존</span> <code>typedNameVerifier.verify(...)</code> 직접 호출을 그대로 이동(SSOT 통일은 R3-5)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>④ <code>BoardControllerSupport</code> — 공통 헬퍼 (복붙 제거)</h4>
+        <pre><code>public final class BoardControllerSupport {
+    private BoardControllerSupport() {}   // 인스턴스화 금지
+
+    public static String redirectToListWithSelect(Long selectId) {
+        return "redirect:/management/board?selectId=" + selectId;
+    }
+    public static String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+    // create() 인라인 BindingResult → ApiErrorResponse 변환 추출
+    public static ApiErrorResponse toValidationError(BindingResult br) {
+        var fields = br.getFieldErrors().stream()
+            .map(fe -> new ApiErrorResponse.FieldError(
+                fe.getField(),
+                fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"))
+            .toList();
+        return ApiErrorResponse.ofValidation(
+            "입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields);
+    }
+}</code></pre>
+        <div class="callout success"><b>SSOT</b> — redirect 문자열 / null 정규화 / 검증 오류 변환의 단일 소스가 <code>BoardControllerSupport</code> 로 모인다. 3~4 컨트롤러가 공유 → 향후 변경 시 1곳만 수정.</div>
+        <div class="callout warn"><b>도메인 특이사항 (3 컨트롤러로 축약)</b> — Board 는 메타 자원이라 OS 의 <code>*UploadController</code> / <code>*IntegrityController</code> / <code>*BrowseController</code> 에 대응하는 컨트롤러가 없다. Upload/Integrity/Browse 책임 자체가 도메인에 부재.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음 (refactor 특성)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (refactor 특성 반영)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td><b>뷰 변경 0</b> — 폼 action URL 불변, 템플릿 그대로 (산출물 없음)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><b>Controller 재배치(핵심)</b> — <code>BoardModelMetadataController</code> / <code>BoardModelLifecycleController</code> / <code>BoardModelNudgeController</code> + <code>BoardControllerSupport</code> 생성, 원본 <code>BoardModelController</code> 삭제. service 주입 재배선</td></tr>
+            <tr><td>4</td><td>DTO — 변경 0 (기존 Request/Response 재사용)</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — 변경 0 (주입만 재배선, 본체 R3-3)</td></tr>
+            <tr><td>6</td><td>Repository — 변경 0</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — 변경 0</td></tr>
+            <tr><td>8</td><td>통합 테스트 — 컨트롤러별 파일 분리(<code>*MetadataControllerTest</code> / <code>*LifecycleControllerTest</code> / <code>*NudgeControllerTest</code>). 분할 후에도 advice 매핑이 실제 실행됨을 회귀(§6)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — 변경 0 (controller refactor)</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — Board 목록/생성/수정/lifecycle/nudge 모달 회귀 (URL 불변 확인)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>refactor 슬라이스 특성</b> — Step 2·4~7·9 는 산출물 없음(뷰/DTO/Service본체/Entity/스키마 불변). 실질 작업은 <b>Step 3(controller 재배치) + Step 8(테스트 분리)</b> 에 집중된다. 그래서 CP2 가 사실상 본 슬라이스의 핵심 체크포인트.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오 (컨트롤러별 분리)</summary>
+      <div class="body">
+        <p style="margin-top:0;">원본 <code>BoardModelControllerTest</code> 를 책임군별 3 파일로 분리한다. 분할 후에도 각 컨트롤러의 try/catch · GlobalExceptionHandler(Web/Api advice) 매핑이 <b>실제로 실행</b>되어 동일 HTTP status 를 반환함을 회귀 검증한다(Service 단까지만 mocking).</p>
+
+        <h4>① <code>BoardModelMetadataControllerTest</code></h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>list 200 / newForm 200 / editForm 200 / create 200(+redirectUrl) / update 302(selectId)</td><td>5</td></tr>
+            <tr><td>400</td><td>create 검증 실패 → ApiErrorResponse(fields) / update 검증 실패 → 폼 뷰 재렌더</td><td>2</td></tr>
+            <tr><td>404</td><td>editForm/update 없는 id → <code>BoardModelNotFound</code> 404 (advice)</td><td>1</td></tr>
+            <tr><td>409</td><td>create 메타 충돌 → <code>NudgeRequired</code> 409 (advice)</td><td>1</td></tr>
+          </tbody>
+        </table>
+
+        <h4>② <code>BoardModelLifecycleControllerTest</code></h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>toggle/restore/deprecate/undeprecate 302(selectId) / delete 302(목록) / purge 302(includeDeleted)</td><td>6</td></tr>
+            <tr><td>400</td><td>purge typed-name 불일치 → <code>TypedNameMismatch</code> 400 (advice)</td><td>1</td></tr>
+            <tr><td>404</td><td>없는 id 의 toggle/delete/restore/purge/deprecate → <code>BoardModelNotFound</code> 404</td><td>1</td></tr>
+            <tr><td>409</td><td>lifecycle invariant 위반(예: 부모-자식 가드) → <code>Conflict</code> 409</td><td>1</td></tr>
+          </tbody>
+        </table>
+
+        <h4>③ <code>BoardModelNudgeControllerTest</code></h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>nudgeProceed JSON(id+selectUrl) / nudgeReplace JSON / nudgeCancel 204</td><td>3</td></tr>
+            <tr><td>400</td><td>nudgeReplace typedName 불일치 → <code>TypedNameMismatch</code> 400 (verifier 실제 실행)</td><td>1</td></tr>
+            <tr><td>404</td><td>없는 nudgeId 의 proceed/replace/cancel → <code>NudgeNotFound</code> 404</td><td>1</td></tr>
+            <tr><td>409</td><td>이미 처리된 nudge 재진행 → <code>NudgeAlreadyResolved</code> 409</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>시나리오 총합 ≈ 24</b> (Metadata 9 · Lifecycle 9 · Nudge 6). <b>새 HTTP 행동 0 → 통합 테스트는 회귀 성격</b>이 정상이며, 분할로 인해 advice 매핑이 깨지지 않았음을 보장하는 안전망이다. <code>typedNameVerifier</code> 실호출(nudgeReplace 400) 은 모킹하지 않고 실제 verify 가 돌도록 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 / 타입</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelNotFoundException</code></td><td>404</td><td><span class="chip keep">유지</span> advice 매핑 불변</td></tr>
+            <tr><td><code>NudgeRequiredException</code> (create 메타 충돌)</td><td>409</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td><code>NudgeNotFound / NudgeAlreadyResolved</code></td><td>404 / 409</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td><code>TypedNameMismatchException</code> (purge / nudgeReplace)</td><td>400</td><td><span class="chip keep">유지</span> (global/trash, 재사용)</td></tr>
+            <tr><td>BindingResult 검증 실패</td><td>400</td><td><span class="chip keep">유지</span> Support 로 변환 로직 이전(행동 동일)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>신규 예외 0 (refactor)</b> — 본 슬라이스는 예외를 추가/삭제하지 않는다. 예외 → HTTP 매핑은 전부 기존 <code>WebExceptionHandler</code>(HTML) / <code>ApiExceptionHandler</code>(JSON) advice 가 그대로 담당한다.</div>
+        <div class="callout warn"><b>cross-cutting 승급 (해당 도메인 한정)</b> — OS 분할 선례에서는 browse <code>try/catch</code> 를 <code>@RestControllerAdvice</code> 로 승급했으나, <span class="chip mod">N/A</span> Board 는 browse 컨트롤러가 없어 본 슬라이스에는 승급 대상이 없다. 잔존 인라인 분기는 <code>nudgeReplace</code> 의 <code>typedNameVerifier</code> 직접 호출(R3-5 로 이관)뿐.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>컨트롤러 분할 단위 — 3 컨트롤러(책임군) vs 더 잘게(엔드포인트별)</td><td><b>3 컨트롤러</b> — R1(OS) 책임군 분할 선례와 정합. 메타 자원이라 Upload/Integrity/Browse 부재 → 자연스럽게 3 으로 축약</td></tr>
+            <tr><td>Q2</td><td>Support 형태 — <code>final</code>+private ctor 정적 유틸 vs <code>@Component</code> bean</td><td><b>정적 유틸</b> — 무상태 순수 함수(redirect 문자열/null 정규화/변환)라 DI 불필요. 인스턴스화 금지로 오용 차단</td></tr>
+            <tr><td><b>Q3</b></td><td><b>nudgeReplace 의 <code>typedNameVerifier</code> 직접 호출 — 이번에 service 로 끌어올릴까?</b></td><td><b>아니오 (이동만)</b> — 검증 위치 SSOT 통일은 R3-5 범위. 본 슬라이스는 controller 재배치에 집중, 도메인 검증 누수는 <u>의도된 임시 잔존</u> ← <u>사용자 확인 필요</u></td></tr>
+            <tr><td>Q4</td><td>테스트 분리 — 1 파일 유지 vs 컨트롤러별 3 파일</td><td><b>3 파일</b> — CLAUDE.md §통합 테스트 "컨트롤러 단위로 파일 분리" 규약 준수</td></tr>
+          </tbody>
+        </table>
+        <h4>잔존 책임 / 의도된 임시 비대칭</h4>
+        <ul>
+          <li><b><code>BoardModelNudgeController</code> 의 도메인 검증 누수</b> — <code>typedNameVerifier.verify(...)</code> 를 controller 가 직접 호출하는 구조가 R3-2 후에도 잔존한다. <b>의도된 임시 잔존</b>이며 <b>R3-5</b>(검증 위치 SSOT 통일)에서 service 층으로 끌어올려 해소한다. (Notion 페이지 본문에 명시 — CLAUDE.md §Notion 규약)</li>
+          <li><b>service 주입 비대칭</b> — 3 컨트롤러가 각자 <code>BoardModelService</code> 를 주입하나, service 자체는 아직 단일 fat 클래스다. <b>R3-3</b> 에서 metadata/ 서브패키지로 분리하며 각 컨트롤러의 주입 대상이 좁아진다.</li>
+        </ul>
+        <h4>cross-cutting 동반 수정</h4>
+        <ul>
+          <li>원본 <code>BoardModelController</code> 를 참조하던 통합 테스트(<code>@WebMvcTest(BoardModelController.class)</code>)를 3 컨트롤러 타깃으로 분리. 그 외 동반 수정 없음(browse advice 승급은 Board 에 N/A).</li>
+          <li>CLAUDE.md 인벤토리에 <b>R3-2</b>(+예고 R3-3 / R3-5) 1줄 추가.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="R3-2-verify">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (분리 3 테스트 파일 포함)</span></label></li>
+        </ul>
+        <h4>기능</h4>
+        <ul class="check-list" data-storage="R3-2-verify-fn">
+          <li><label><input type="checkbox" data-key="split"> <span>원본 <code>BoardModelController</code> 삭제 + 3 컨트롤러 + <code>BoardControllerSupport</code> 생성 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="nodup"> <span><code>grep -rn "redirect:/management/board?selectId"</code> → 직접 문자열 0건 (전부 Support 경유)</span></label></li>
+          <li><label><input type="checkbox" data-key="endpoint"> <span>14 엔드포인트 Method · URL · produces · @ResponseBody 전부 불변</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="R3-2-verify-reg">
+          <li><label><input type="checkbox" data-key="advice"> <span>404 / 409 / 400 advice 매핑이 분할 후에도 동일 status 반환 (통합 테스트)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자) — 목록/생성/수정/lifecycle/nudge 모달 동작 동일</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규 (management/board/controller)</h4>
+        <div class="pkg-tree">management/board/controller/
+├── BoardModelMetadataController.java    (list/new/create/edit/update)
+├── BoardModelLifecycleController.java   (toggle/delete/restore/purge/deprecate/undeprecate)
+├── BoardModelNudgeController.java       (nudge proceed/replace/cancel — typedNameVerifier 일시 직접 호출)
+└── BoardControllerSupport.java          (final + private ctor: redirectToListWithSelect / nullToEmpty / toValidationError)</div>
+
+        <h4>신규 (test)</h4>
+        <div class="pkg-tree">management/board/controller/
+├── BoardModelMetadataControllerTest.java   (성공 5 · 400 2 · 404 1 · 409 1)
+├── BoardModelLifecycleControllerTest.java  (성공 6 · 400 1 · 404 1 · 409 1)
+└── BoardModelNudgeControllerTest.java      (성공 3 · 400 1 · 404 1 · 409 1)</div>
+
+        <h4>삭제</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelController.java</code> (211줄)</td><td><span class="chip del">삭제</span> → 3 컨트롤러 + Support 로 분할</td></tr>
+            <tr><td><code>BoardModelControllerTest.java</code></td><td><span class="chip del">삭제</span> → 3 테스트 파일로 분리</td></tr>
+          </tbody>
+        </table>
+
+        <h4>유지 (KEEP — 변경 0)</h4>
+        <ul>
+          <li><code>BoardModelService</code> · <code>BoardModelNudgeService</code> · <code>TypedNameVerifier</code> — 본체 불변(주입만 재배선). service 분리는 R3-3.</li>
+          <li>Thymeleaf 뷰(<code>management/board/list|new|edit</code>) · Request/Response DTO · Entity · Repository · 스키마 — 전부 불변.</li>
+          <li><code>WebExceptionHandler</code> / <code>ApiExceptionHandler</code> advice — 예외 → HTTP 매핑 무변경.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R3-3</b> — <code>BoardModelService</code> 를 <code>metadata/</code> 서브패키지로 분리(metadata / lifecycle / nudge 책임 단위)하고, 본 슬라이스에서 분할한 3 컨트롤러의 service 주입을 좁은 대상으로 <b>재배선</b>. R1(OS) 의 service 분리 선례 미러링.</li>
+          <li><b>R3-5</b> — <code>nudgeReplace</code> 의 <code>typedNameVerifier</code> 직접 호출(도메인 검증 누수)을 service 층으로 끌어올려 검증 위치 SSOT 통일. 본 슬라이스의 의도된 임시 잔존을 해소.</li>
+          <li><b>(정합)</b> R3 묶음 완료 후 4 도메인(OS/Board/BIOS/BMC) 컨트롤러 분할 패턴 일관성 검토 — 메타 자원(Board)과 파일 자원(나머지)의 분할 차수(3 vs 8) 차이를 문서화.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → open + scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 엔드포인트 분배 탐색기
+  //  ⚠ ENDPOINT 매핑은 §3 URL 표 + §4 분배 모델과 1:1 동일해야 함 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  let demoE = 'list';
+  // dest : meta / life / nudge / support
+  const ENDPOINT = {
+    // ── Metadata ──
+    list        : { url:'GET  /management/board',                 dest:'meta',  ctrl:'BoardModelMetadataController',  why:'메타 CRUD — Miller 목록 조회', keep:true },
+    newForm     : { url:'GET  /management/board/new',             dest:'meta',  ctrl:'BoardModelMetadataController',  why:'메타 CRUD — 신규 등록 폼', keep:true },
+    create      : { url:'POST /management/board (JSON)',          dest:'meta',  ctrl:'BoardModelMetadataController',  why:'메타 CRUD — 생성. BindingResult→ApiErrorResponse 변환은 Support 로 추출', keep:true },
+    editForm    : { url:'GET  /management/board/{id}/edit',       dest:'meta',  ctrl:'BoardModelMetadataController',  why:'메타 CRUD — 수정 폼. nullToEmpty(Support) 사용', keep:true },
+    update      : { url:'POST /management/board/{id}/edit',       dest:'meta',  ctrl:'BoardModelMetadataController',  why:'메타 CRUD — 수정. redirectToListWithSelect(Support) 사용', keep:true },
+    // ── Lifecycle ──
+    toggle      : { url:'POST /management/board/{id}/toggle',     dest:'life',  ctrl:'BoardModelLifecycleController', why:'상태 전이 — 활성/비활성. redirectToListWithSelect(Support)', keep:true },
+    delete      : { url:'POST /management/board/{id}/delete',     dest:'life',  ctrl:'BoardModelLifecycleController', why:'상태 전이 — softDelete', keep:true },
+    restore     : { url:'POST /management/board/{id}/restore',    dest:'life',  ctrl:'BoardModelLifecycleController', why:'상태 전이 — 복원(cascade). redirectToListWithSelect(Support)', keep:true },
+    purge       : { url:'POST /management/board/{id}/purge',      dest:'life',  ctrl:'BoardModelLifecycleController', why:'상태 전이 — hard-delete(typed-name 가드)', keep:true },
+    deprecate   : { url:'POST /management/board/{id}/deprecate',  dest:'life',  ctrl:'BoardModelLifecycleController', why:'상태 전이 — deprecate. redirectToListWithSelect(Support)', keep:true },
+    undeprecate : { url:'POST /management/board/{id}/undeprecate',dest:'life',  ctrl:'BoardModelLifecycleController', why:'상태 전이 — undeprecate. redirectToListWithSelect(Support)', keep:true },
+    // ── Nudge ──
+    nudgeProceed: { url:'POST /management/board/nudge/{nudgeId}/proceed', dest:'nudge', ctrl:'BoardModelNudgeController', why:'nudge confirm — 진행', keep:true },
+    nudgeReplace: { url:'POST /management/board/nudge/{nudgeId}/replace', dest:'nudge', ctrl:'BoardModelNudgeController', why:'nudge confirm — 교체. typedNameVerifier.verify() 직접 호출을 그대로 이동(SSOT 통일은 R3-5)', keep:true, leak:true },
+    nudgeCancel : { url:'POST /management/board/nudge/{nudgeId}/cancel',  dest:'nudge', ctrl:'BoardModelNudgeController', why:'nudge confirm — 취소(204)', keep:true },
+    // ── Support (헬퍼 추출) ──
+    h_redirect    : { url:'redirectToListWithSelect(Long)',          dest:'support', ctrl:'BoardControllerSupport', why:'복붙 제거 — Metadata(update) + Lifecycle(toggle/restore/deprecate/undeprecate) 2 컨트롤러 공유', shared:'2 컨트롤러' },
+    h_nullToEmpty : { url:'nullToEmpty(String)',                     dest:'support', ctrl:'BoardControllerSupport', why:'복붙 제거 — Metadata(editForm) 사용', shared:'1 컨트롤러' },
+    h_binding     : { url:'BindingResult → ApiErrorResponse',        dest:'support', ctrl:'BoardControllerSupport', why:'복붙 제거 — create() 인라인 변환 추출. XHR JSON 검증 응답 단일 소스', shared:'1+ 컨트롤러' }
+  };
+  const DEST_LABEL = { meta:'Metadata', life:'Lifecycle', nudge:'Nudge', support:'Support (추출)' };
+  function demoSet(e) { demoE = e; demoRender(); }
+  function demoRender() {
+    const m = ENDPOINT[demoE];
+    document.querySelectorAll('.ux-toolbar .seg[data-e]').forEach(s => s.classList.toggle('active', s.dataset.e === demoE));
+    document.getElementById('demo-url').textContent = m.url;
+    const dest = document.getElementById('demo-dest');
+    dest.className = 'badge ' + m.dest;
+    dest.textContent = DEST_LABEL[m.dest];
+    document.getElementById('demo-ctrl').textContent = m.ctrl;
+
+    const keepEl = document.getElementById('demo-keep');
+    if (m.dest === 'support') keepEl.textContent = '헬퍼 (URL 없음) — ' + m.shared + ' 공유';
+    else keepEl.innerHTML = '<b>URL 100% 유지</b> (refactor 불변식)';
+
+    const caps = document.getElementById('demo-caps');
+    if (m.dest === 'support') {
+      caps.innerHTML = '// 공통 헬퍼 → BoardControllerSupport 로 추출 (final + private ctor)\n'
+        + m.url + '\n'
+        + '    공유 : <span class="f">' + m.shared + '</span>   // 복붙 0 (불가침 §중복 금지)';
+    } else if (m.leak) {
+      caps.innerHTML = m.ctrl + '\n'
+        + '    ' + m.url + '\n'
+        + '    <span class="t">typedNameVerifier.verify(...)</span> 직접 호출 잔존 → R3-5 에서 service 로 승급';
+    } else {
+      caps.innerHTML = m.ctrl + '\n    ' + m.url + '\n    → ' + DEST_LABEL[m.dest] + ' 책임군';
+    }
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message ' + m.dest;
+    if (m.dest === 'support')      msg.innerHTML = '<b>Support 로 추출</b> — ' + m.why;
+    else if (m.leak)              msg.innerHTML = '<b>' + DEST_LABEL[m.dest] + '</b> — ' + m.why + ' <i>(의도된 임시 잔존)</i>';
+    else                          msg.innerHTML = '<b>' + DEST_LABEL[m.dest] + '</b> — ' + m.why;
+  }
+  demoRender();   // 불가침 : 파일 끝 1회 호출
+</script>
+</body>
+</html>

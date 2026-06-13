@@ -1,12 +1,10 @@
 package com.example.serverprovision.management.board.controller;
 
-import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.management.board.dto.request.BoardModelCreateRequest;
 import com.example.serverprovision.management.board.dto.request.BoardModelUpdateRequest;
 import com.example.serverprovision.management.board.dto.response.BoardModelCreateResponse;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import com.example.serverprovision.management.board.enums.Vendor;
-import com.example.serverprovision.management.board.service.BoardModelNudgeService;
 import com.example.serverprovision.management.board.service.BoardModelService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,10 +15,20 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
- * A2. 메인보드 모델 관리 MVC 컨트롤러.
+ * A2. 메인보드 모델 메타 자원의 CRUD 진입점 — 목록 / 신규 폼 / 생성 / 수정 폼 / 수정.
+ *
+ * <p>R3-2 — 단일 fat {@code BoardModelController} 를 책임군으로 분할 :
+ * <ul>
+ *   <li>메타 CRUD : 본 컨트롤러</li>
+ *   <li>상태 전이 (toggle / delete / restore / purge / deprecate / undeprecate) : {@link BoardModelLifecycleController}</li>
+ *   <li>nudge confirm (proceed / replace / cancel) : {@link BoardModelNudgeController}</li>
+ * </ul>
+ *
+ * <p>본 컨트롤러의 의존성은 {@link BoardModelService} 단독.</p>
+ *
+ * <p>레이어 약속 :
  * <ul>
  *   <li>뷰에는 Request / Response 만 넘긴다 (엔티티 직접 노출 금지).</li>
  *   <li>성공 시 {@code /management/board?selectId=...} 로 리다이렉트해 Miller 초기 선택을 복원한다.</li>
@@ -32,11 +40,9 @@ import java.util.UUID;
 @Controller
 @RequestMapping("/management/board")
 @RequiredArgsConstructor
-public class BoardModelController {
+public class BoardModelMetadataController {
 
 	private final BoardModelService boardModelService;
-	private final BoardModelNudgeService boardModelNudgeService;
-	private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
 	// ==== 목록 ========================================================
 
@@ -74,15 +80,8 @@ public class BoardModelController {
 			BindingResult bindingResult
 	) {
 		if (bindingResult.hasErrors()) {
-			List<ApiErrorResponse.FieldError> fields = bindingResult.getFieldErrors().stream()
-					.map(fe -> new ApiErrorResponse.FieldError(
-							fe.getField(),
-							fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"
-					))
-					.toList();
 			return ResponseEntity.badRequest().body(
-					ApiErrorResponse.ofValidation(
-							"입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields));
+					BoardControllerSupport.toValidationError(bindingResult));
 		}
 		Long id = boardModelService.create(request);
 		return ResponseEntity.ok(new BoardModelCreateResponse(id, "/management/board?selectId=" + id));
@@ -96,7 +95,7 @@ public class BoardModelController {
 		model.addAttribute(
 				"boardModelForm", new BoardModelUpdateRequest(
 						board.modelName(),
-						nullToEmpty(board.description())
+						BoardControllerSupport.nullToEmpty(board.description())
 				)
 		);
 		model.addAttribute("boardModelId", id);
@@ -118,94 +117,6 @@ public class BoardModelController {
 			return "management/board/edit";
 		}
 		boardModelService.update(id, request);
-		return redirectToListWithSelect(id);
-	}
-
-	// ==== 상태 전이 ===================================================
-
-	@PostMapping("/{id}/toggle")
-	public String toggle(@PathVariable Long id) {
-		boardModelService.toggleEnabled(id);
-		return redirectToListWithSelect(id);
-	}
-
-	@PostMapping("/{id}/delete")
-	public String delete(@PathVariable Long id) {
-		boardModelService.softDelete(id);
-		// 삭제된 항목은 기본 보기에서 사라지므로 선택 복원 없이 전체 목록으로 이동
-		return "redirect:/management/board";
-	}
-
-	@PostMapping("/{id}/restore")
-	public String restore(
-			@PathVariable Long id,
-			@RequestParam(name = "cascade", defaultValue = "false") boolean cascade
-	) {
-		boardModelService.restore(id, cascade);
-		return redirectToListWithSelect(id);
-	}
-
-	// ==== S5-2-2 — hard-delete with typed-name 검증 ====================
-	@PostMapping("/{id}/purge")
-	public String purge(
-			@PathVariable Long id,
-			@RequestParam("typedName") String typedName
-	) {
-		boardModelService.purgeWithTypedNameCheck(id, typedName);
-		return "redirect:/management/board?includeDeleted=true";
-	}
-
-	// ==== MK2 — Deprecate / Undeprecate ===============================
-
-	@PostMapping("/{id}/deprecate")
-	public String deprecate(@PathVariable Long id) {
-		boardModelService.deprecate(id);
-		return redirectToListWithSelect(id);
-	}
-
-	@PostMapping("/{id}/undeprecate")
-	public String undeprecate(@PathVariable Long id) {
-		boardModelService.undeprecate(id);
-		return redirectToListWithSelect(id);
-	}
-
-	// ==== MK2 WAVE 1 — BoardModel 메타 nudge confirm ===================
-
-	@PostMapping(path = "/nudge/{nudgeId}/proceed")
-	@ResponseBody
-	public BoardModelCreateResponse nudgeProceed(@PathVariable("nudgeId") UUID nudgeId) {
-		Long id = boardModelNudgeService.proceed(nudgeId);
-		return new BoardModelCreateResponse(id, "/management/board?selectId=" + id);
-	}
-
-	@PostMapping(path = "/nudge/{nudgeId}/replace")
-	@ResponseBody
-	public BoardModelCreateResponse nudgeReplace(
-			@PathVariable("nudgeId") UUID nudgeId,
-			@RequestParam("targetId") Long targetId,
-			@RequestParam(value = "typedName", required = false) String typedName
-	) {
-		if (typedName != null && !typedName.isBlank()) {
-			typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.BOARD_MODEL, targetId, typedName);
-		}
-		Long id = boardModelNudgeService.replace(nudgeId, targetId);
-		return new BoardModelCreateResponse(id, "/management/board?selectId=" + id);
-	}
-
-	@PostMapping(path = "/nudge/{nudgeId}/cancel")
-	@ResponseBody
-	public ResponseEntity<Void> nudgeCancel(@PathVariable("nudgeId") UUID nudgeId) {
-		boardModelNudgeService.cancel(nudgeId);
-		return ResponseEntity.noContent().build();
-	}
-
-	// ==== 헬퍼 =========================================================
-
-	private String redirectToListWithSelect(Long selectId) {
-		return "redirect:/management/board?selectId=" + selectId;
-	}
-
-	private static String nullToEmpty(String value) {
-		return value == null ? "" : value;
+		return BoardControllerSupport.redirectToListWithSelect(id);
 	}
 }
