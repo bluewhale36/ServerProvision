@@ -1,9 +1,13 @@
-package com.example.serverprovision.management.os.enums;
+package com.example.serverprovision.global.orphan.enums;
 
 /**
- * ISO 등록 실패가 INFRA/TRANSIENT 로 분류돼 격리(quarantine)될 때의 원인 분류.
- * <p>분류는 {@code IsoRegistrationRunner} 의 <b>예외 타입별 catch</b>(Java dispatch)로 결정되며, 본 enum 은
+ * 등록 실패가 INFRA/TRANSIENT 로 분류돼 격리(quarantine)될 때의 원인 분류.
+ *
+ * <p>분류는 등록 실패 예외의 {@code RegistrationFailure.disposition()} (다형성)으로 결정되며, 본 enum 은
  * 그 결과를 도메인 값으로 보존하고 사용자 표시 문구를 상수별 메서드로 제공한다(분기문 대신 다형성).</p>
+ *
+ * <p>R1-4-4 — {@code management/os/enums} 에서 {@code global/orphan/enums} 로 승격
+ * (도메인 무관 오펀 saga 인프라의 일부).</p>
  */
 public enum OrphanFailureClass {
 

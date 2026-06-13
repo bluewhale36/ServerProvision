@@ -1,6 +1,8 @@
 package com.example.serverprovision.management.os.exception;
 
 import com.example.serverprovision.global.exception.DomainException;
+import com.example.serverprovision.global.registration.FailureDisposition;
+import com.example.serverprovision.global.registration.RegistrationFailure;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -17,11 +19,17 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * 사용자에게는 "업로드 중 파일이 손상되었거나 client 가 보낸 fingerprint 가 일치하지 않습니다." 안내.</p>
  */
 @ResponseStatus(HttpStatus.BAD_REQUEST)
-public class IsoClientHashMismatchException extends DomainException {
+public class IsoClientHashMismatchException extends DomainException implements RegistrationFailure {
 
 	public IsoClientHashMismatchException(String clientHash, String serverHash) {
 		super("업로드 파일의 fingerprint 가 일치하지 않습니다. 파일 손상 또는 client 변조 의심. "
 					  + "client=" + abbr(clientHash) + ", server=" + abbr(serverHash));
+	}
+
+	/** 콘텐츠/영구 실패 — finalize 가 이미 업로드 파일을 정리했으므로 격리하지 않는다. */
+	@Override
+	public FailureDisposition disposition() {
+		return FailureDisposition.CLEANUP;
 	}
 
 	private static String abbr(String hash) {

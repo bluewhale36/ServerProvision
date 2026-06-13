@@ -4,9 +4,10 @@
   ISO 오펀(등록 실패 격리) 복구 — durable 목록 페이지
   ─────────────────────────────────────────────────────────
   Model:
-    orphans : List<OrphanIsoQuarantineResponse> — PENDING 격리 자원
+    orphans : List<OrphanQuarantineResponse> — PENDING 격리 자원 (R1-4-4 — 도메인 무관 saga)
                 · recoveryId      : String (복구 액션의 키)
-                · osMetadataId    : Long
+                · resourceType    : ResourceType (OS_ISO 등)
+                · parentId        : Long (도메인 부모 자원 PK)
                 · resolvedPath    : String (등록하려던 경로)
                 · originalFilename: String
                 · failureReason   : String (사람이 읽는 중단 사유)

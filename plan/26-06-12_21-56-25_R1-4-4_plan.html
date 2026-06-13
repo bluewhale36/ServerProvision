@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R1-4-4 Plan — 등록 실패 보상을 도메인-횡단 다형성 saga 로 일반화 + @Lazy 순환 제거</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.clean { background:var(--red-bg); color:var(--red); }
+  .badge.preserve { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.quar { background:var(--blue-bg); color:var(--blue); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.clean { background:var(--red-bg); border-color:var(--red); }
+  .ux-message.preserve { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.quar { background:var(--blue-bg); border-color:var(--blue); }
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:10.5px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 10px; font-size:11.5px; line-height:1.5; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R1-4-4 — 등록 실패 보상을 도메인-횡단 다형성 saga 로 일반화 + <code>@Lazy</code> 순환 제거 <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R1-4-4 (refactor)</span>
+    <span><strong>상위</strong> R1-4 (ISO 도메인 책임 분리) · 직선행 8ab2bf2</span>
+    <span><strong>scope</strong> 실패 처분(disposition)을 예외 다형성으로 + 오펀 saga 를 global SPI 로 승격 (ISO 가 첫 구현체)</span>
+    <span><strong>생성</strong> 2026-06-12 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (사후 패치의 정리)</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 구조 / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — "예외 중의 예외" 사후 패치의 구조 정리</summary>
+      <div class="body">
+        <p style="margin-top:0;">직전 커밋 <code>8ab2bf2</code> 는 ISO 등록의 <b>FS-then-DB 비원자성</b> 결함(파일은 디스크에 써졌으나 후속 DB insert/update·마커 발급 실패 시 트랜잭션이 파일을 되돌리지 못해 오펀 발생)을 오펀 복구 saga 로 메웠다. 이 상황은 Notion 설계 단계에서 <b>고려조차 못 했던 진짜 예외</b>였기에 사후 패치 성격이며, 다음 두 부채를 남겼다.</p>
+        <ul>
+          <li><span class="diff-del">Runner 의 multi-catch</span> — 실패 종류가 늘 때마다 <code>catch</code> 줄이 자라는 분기문. CLAUDE.md §조건분기 무분별 확장 금지(불가침)와 정면 긴장. 누락 시 silent 오분류 사고(아래 §1).</li>
+          <li><span class="diff-del">@Lazy 순환</span> — <code>Launcher→Runner→OrphanIsoRecoveryService→Launcher</code> 생성자 순환을 <code>@Lazy</code> 로 임시 차단. 프로젝트의 <b>4번째</b> <code>@Lazy</code> 누적 — 구조 신호.</li>
+        </ul>
+        <p>또한 같은 FS-then-DB 위험은 <b>BIOS · BMC · Subprogram</b> 에도 동일하게 존재하나, 이들은 <code>cleanupFailedUpload</code> 로 <b>무조건 파괴적 정리</b>(일시 장애에도 업로드 트리 유실)한다 → ISO 만 보호받는 비대칭. R1-4-4 는 이 패치를 <span class="diff-add">예외 다형성 + global SPI</span> 로 끌어올려 <b>도메인 횡단으로 적용 가능한 seam</b> 으로 정리한다(행동 변화 0).</p>
+        <div class="callout"><b>R 시리즈 정합</b> — R1-4-1~3 이 ISO 의 lifecycle/registration/integrity 책임을 service 로 <b>분리</b>한 연장선. 본 슬라이스는 그 위에 쌓인 사후 패치를 같은 "분리 + 다형성" 방식으로 정돈한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>선행 완료 / 진입 전제</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> R1-4-1/2/3 — <code>IsoLifecycleService</code> / <code>IsoRegistrationService</code> / <code>IsoIntegrityService</code> 분리.</li>
+          <li><span class="chip keep">완료</span> <code>8ab2bf2</code> — ISO 오펀 복구 saga(<code>OrphanIsoQuarantine</code> + <code>OrphanIsoRecoveryService</code> + Reaper + 복구 UX). <b>동작은 정상</b> — 본 슬라이스는 그 동작을 보존한 채 구조만 정돈.</li>
+          <li><span class="chip keep">선례</span> <code>global/trash/*</code>(인프라) + <code>maintenance/trash/*</code>(UI) 분리 = global 일반화 패턴. <code>NudgePayload</code>·<code>PurgeResult</code> = sealed 다형성. <code>PurgeLogDetails</code> + Converter = sealed payload JSON 영속.</li>
+        </ul>
+
+        <h4>결손 1 — Runner multi-catch 의 silent 오분류 경로</h4>
+        <div class="callout danger"><b>구체적 사고 시나리오</b> : 미래에 새 CONTENT 계열 예외(=finalize 가 파일을 이미 정리)가 추가되고 Runner catch 에 누락되면 → fallback <code>catch(RuntimeException)→UNEXPECTED→quarantine</code> 로 흐름 → <code>recordOrphan</code> 이 <code>Files.exists(resolved)=false</code> 인데 PENDING row 생성 → <code>quarantinePath=null</code>. 사용자엔 "재시도 가능" 으로 보이나 재시도 시 파일 없음. <b>S3→S4 catch 누락 사고와 동형</b>.</div>
+
+        <h4>결손 2 — @Lazy 4 누적</h4>
+        <table>
+          <thead><tr><th>위치</th><th>순환</th><th>성격</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelService</code></td><td>형제 Bios/Bmc/Subprogram service</td><td>cascade 구조 — 본 슬라이스 범위 밖</td></tr>
+            <tr><td><code>SoftDeleteIntentService</code></td><td>reconciliation/scanner</td><td>범위 밖</td></tr>
+            <tr><td><code>PathReconciliationService</code></td><td>self-ref (@Async+@Tx self-call)</td><td>성격 다름 — 범위 밖</td></tr>
+            <tr><td><b><code>OrphanIsoRecoveryService</code></b></td><td><b>Launcher→Runner→Service→Launcher</b></td><td><b>본 슬라이스 대상</b> — 한 서비스가 두 소비자(record/retry) 책임 혼합</td></tr>
+          </tbody>
+        </table>
+
+        <h4>결손 3 — 도메인 비대칭</h4>
+        <pre><code>ISO       : 인프라 실패 → 격리 + 복구 saga (대용량 업로드 보존)
+BIOS/BMC/Subprogram : 모든 RuntimeException → cleanupFailedUpload (트리 파괴) — 일시 장애도 유실</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>실패 처분의 다형성</b> — 등록 실패 예외가 <code>RegistrationFailure.disposition()</code> 으로 자기 처분(CLEANUP / PRESERVE / QUARANTINE)을 선언. Runner 의 분류 catch 체인 소멸 → <code>catch(RegistrationFailure)</code> 단일 + 프레임워크 경계 어댑터 1곳.</li>
+          <li><b>sealed exhaustiveness</b> — 새 등록 실패 예외 추가 시 처분 선언을 <b>컴파일 타임에 강제</b>(누락 불가). §1 결손1 사고 구조적 차단.</li>
+          <li><b>오펀 saga 의 global 승격</b> — <code>OrphanIsoQuarantine</code> → <code>global/orphan/OrphanQuarantine</code>(<code>resource_type</code> 키). 격리/복구 본체를 도메인 무관 인프라로. 도메인은 <code>OrphanRecoverySpi</code> 구현체로 "재등록 방법" 만 공급.</li>
+          <li><b>@Lazy 제거</b> — record/purge(<code>OrphanQuarantineService</code>, launcher 무관) ↔ retry/discard(<code>OrphanRecoveryService</code>→SPI→Launcher) 분리로 의존 그래프 DAG화.</li>
+          <li><b>행동 보존(불가침)</b> — ISO 의 기존 동작·URL·복구 UX·typed-name 가드·TTL reaper 전부 동일. 기존 <code>OrphanIsoRecoveryControllerTest</code> 가 회귀망.</li>
+          <li><b>retry 멱등 보강</b> — <code>retry()</code> 의 relocate 가 "이미 active 에 있으면 skip" 이도록(복구 경로 안의 FS-DB 비원자성 재귀 방어, §8).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스로 위임)</b>
+          <ul>
+            <li><b>BIOS/BMC/Subprogram 실제 onboarding</b> — 본 슬라이스는 <b>seam(SPI + 동기 등록용 disposition 적용 지점)까지만</b> 완성. 3 도메인의 <code>cleanupFailedUpload</code> → disposition 전환은 <b>R1-4-5 / R1-4-6</b>. (사용자 요구 "타 도메인에 <i>적용시킬 수 있도록</i>" = 확장 가능 seam 구축이 목표.) → §8 Q4 에서 확인.</li>
+            <li><b>다른 @Lazy 3곳</b>(BoardModel 형제 등) — cascade 구조와 엮여 범위 폭발. 별도 인벤토리.</li>
+            <li><b>쓰기 순서 재배치</b>(DB 커밋 선행 → 마커 후행으로 마커 실패를 reconciliation 영역으로 흡수) — MK DriftKind 매트릭스와 엮인 별도 검토 과제. §11.</li>
+            <li><b>Audit Event Bus</b> — <code>OrphanQuarantine</code> 의 최종 흡수처. 미진입.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모 (실패 → 처분 → 파일 운명)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 toolbar 로 <b>등록 실패 종류</b>를 바꾸면, 그 예외의 <code>disposition()</code> 판정과 그에 따른 <b>업로드 파일 운명 · 복구 레코드 생성 여부</b>가 라이브로 갱신됩니다. 이 판정 로직(<code>demoDisposition()</code>)은 서버의 <code>RegistrationFailure.disposition()</code> 과 <b>1:1 동일</b>(드리프트 0) — 데모가 곧 SSOT 증명입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">실패 종류 :</span>
+            <button class="seg" data-f="HASH_MISMATCH" onclick="demoSet('HASH_MISMATCH')">HashMismatch</button>
+            <button class="seg" data-f="DUPLICATE" onclick="demoSet('DUPLICATE')">DuplicateContent</button>
+            <button class="seg" data-f="FILENAME" onclick="demoSet('FILENAME')">DuplicateFilename</button>
+            <button class="seg" data-f="NUDGE" onclick="demoSet('NUDGE')">NudgeRequired</button>
+            <button class="seg" data-f="STORAGE_IO" onclick="demoSet('STORAGE_IO')">StorageIO</button>
+            <button class="seg" data-f="DB_CONSTRAINT" onclick="demoSet('DB_CONSTRAINT')">DataIntegrity*</button>
+            <button class="seg" data-f="MARKER_WRITE" onclick="demoSet('MARKER_WRITE')">MarkerWrite</button>
+            <button class="seg" data-f="UNKNOWN" onclick="demoSet('UNKNOWN')">알 수 없는 RTE</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row">
+              <strong>예외</strong><span class="label" id="demo-exc">—</span>
+              <span class="badge" id="demo-disp">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>업로드 파일</strong><span class="label" id="demo-file">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>복구 레코드</strong><span class="label" id="demo-row">—</span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">실패 종류 버튼을 눌러보세요. <code>*</code> = <code>DataIntegrityViolationException</code> 은 Spring 클래스라 인터페이스 구현 불가 → Runner 의 단일 어댑터 catch 가 QUARANTINE(DB_CONSTRAINT) 으로 매핑(프레임워크 경계, 정당).</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — Runner multi-catch (자라는 분기)</h4><pre><code>catch (IsoNudge e)            { preserve }
+catch (HashMismatch
+     | Duplicate
+     | UploadIntentConflict
+     | DuplicateFilename e)    { fail }     // ← CONTENT
+catch (ISOFileStorage e)      { quarantine(STORAGE_IO) }
+catch (DataIntegrity e)       { quarantine(DB_CONSTRAINT) }
+catch (IsoMarkerWriteFailed e){ quarantine(MARKER_WRITE) }
+catch (RuntimeException e)    { quarantine(UNEXPECTED) } // ← 누락분 silent 흡수</code></pre></div>
+          <div class="split-card after"><h4>AFTER — disposition() 다형성</h4><pre><code>try { ... }
+catch (RegistrationFailure f) {   // 예외가 자기 처분 보유
+    switch (f.disposition()) {
+      case Cleanup c   -> failOnly(...)
+      case Preserve p  -> failPreserve(...)
+      case Quarantine q-> quarantine(q.failureClass())
+    }                              // sealed → exhaustive
+}
+catch (DataIntegrityViolationException e) {   // Spring 경계 어댑터 (유일 잔존)
+    quarantine(DB_CONSTRAINT);
+}</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 처분 판정 = 서버 <code>RegistrationFailure.disposition()</code> 단일 소스. 새 예외는 정의 시점에 <code>disposition()</code> 을 선언해야 컴파일되므로 §1 결손1(silent 오분류)이 구조적으로 불가능.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 구조 / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 구조 / 데이터 흐름</summary>
+      <div class="body">
+        <h4>의존 그래프 — BEFORE(순환) → AFTER(DAG)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE (@Lazy 로 차단)</h4><pre><code>Launcher ──▶ Runner ──▶ OrphanIsoRecoveryService
+   ▲                              │ (retry: launcher 필요)
+   └──────────────@Lazy───────────┘   순환</code></pre></div>
+          <div class="split-card after"><h4>AFTER (책임 분리 = DAG)</h4><pre><code>Launcher ─▶ Runner ─▶ OrphanQuarantineService   (record/purge·leaf)
+RecoveryService ─▶ OrphanRecoverySpi ─▶ IsoOrphanRecoverySpi ─▶ Launcher
+   (retry/discard)        (registry)                      └─▶ (재등록)
+순환 없음 → @Lazy 삭제</code></pre></div>
+        </div>
+
+        <h4>실패 → 처분 → saga 흐름 (4-actor)</h4>
+        <div class="seq">
+          <div class="actor a1">Runner (async)</div><div class="actor a2">RegistrationFailure</div><div class="actor a3">OrphanQuarantineService</div><div class="actor a4">RecoverySpi</div>
+          <div class="step a1"><code>finalize()</code> 던짐</div><div class="step a2"><code>disposition()</code></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">switch(disposition)</div><div class="step a2">Cleanup/Preserve/Quarantine</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">QUARANTINE 시 위임</div><div class="step a2"></div><div class="step a3"><code>record(resourceType, payload)</code> → 격리 mv + DB row</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">retry 시 SPI 조회</div><div class="step a4"><code>relaunch(row)</code> → 도메인 Launcher</div>
+        </div>
+
+        <h4>URL — 변경 0 (refactor)</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/maintenance/quarantine</code></td><td>durable 격리 목록</td><td><span class="chip keep">유지</span> (일반화돼도 URL 동일)</td></tr>
+            <tr><td>GET</td><td><code>/maintenance/quarantine/{recoveryId}</code></td><td>단일 상세 JSON</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/maintenance/quarantine/{recoveryId}/retry</code></td><td>복원 + 재등록</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/maintenance/quarantine/{recoveryId}/discard</code></td><td>폐기 (typed-name 가드)</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">엔드포인트·HTTP status·복구 모달·알림 marker(<code>ORPHAN_RECOVERY:</code>) 모두 불변. 내부 패키지/책임만 재배치.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>① 처분 계약 (global/registration) — 다형성 핵심</h4>
+        <pre><code>// 등록 실패 예외가 구현. 처분을 "정의 지점" 에서 선언.
+public interface RegistrationFailure {
+    FailureDisposition disposition();
+}
+
+// 처분 = sealed (Quarantine 은 OrphanFailureClass 동반 데이터)
+public sealed interface FailureDisposition
+        permits FailureDisposition.Cleanup,
+                FailureDisposition.Preserve,
+                FailureDisposition.Quarantine {
+    record Cleanup()   implements FailureDisposition {}          // finalize 가 파일 정리 — 격리 X
+    record Preserve()  implements FailureDisposition {}          // nudge — 임시 보존
+    record Quarantine(OrphanFailureClass failureClass) implements FailureDisposition {}  // 인프라/일시 — 격리
+    Cleanup  CLEANUP  = new Cleanup();
+    Preserve PRESERVE = new Preserve();
+}</code></pre>
+
+        <h4>② ISO 예외의 처분 선언 (관리/os/exception — implements 추가만)</h4>
+        <table>
+          <thead><tr><th>예외</th><th>disposition()</th><th>현 catch 위치</th></tr></thead>
+          <tbody>
+            <tr><td><code>IsoClientHashMismatchException</code></td><td><code>CLEANUP</code></td><td>CONTENT</td></tr>
+            <tr><td><code>DuplicateISOContentException</code></td><td><code>CLEANUP</code></td><td>CONTENT</td></tr>
+            <tr><td><code>DuplicateFilenameException</code></td><td><code>CLEANUP</code></td><td>CONTENT</td></tr>
+            <tr><td><code>IsoUploadIntentConflictException</code></td><td><code>CLEANUP</code></td><td>CONTENT</td></tr>
+            <tr><td><code>IsoNudgeRequiredException</code></td><td><code>PRESERVE</code></td><td>NUDGE</td></tr>
+            <tr><td><code>ISOFileStorageException</code></td><td><code>Quarantine(STORAGE_IO)</code></td><td>INFRA</td></tr>
+            <tr><td><code>IsoMarkerWriteFailedException</code></td><td><code>Quarantine(MARKER_WRITE)</code></td><td>INFRA</td></tr>
+            <tr><td><code>DataIntegrityViolationException</code> (Spring)</td><td>— (구현 불가)</td><td>Runner 어댑터 1곳 → <code>Quarantine(DB_CONSTRAINT)</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>③ 오펀 격리 (global/orphan/OrphanQuarantine 엔티티) — 일반화</h4>
+        <pre><code>// 기존 OrphanIsoQuarantine 에서 일반화 (변경점만 표기)
++ ResourceType resourceType;        // BIOS_BUNDLE / OS_ISO / BMC_FIRMWARE / SUBPROGRAM 키
+~ Long parentId;                    // (구) osMetadataId — 도메인 부모 PK 일반화
++ OrphanRecoveryPayload payload;    // sealed + JSON Converter (PurgeLogDetails 선례) — 도메인별 재시도 페이로드
+  String recoveryId; resolvedPath; quarantinePath; originalFilename;
+  OrphanFailureClass failureClass; OrphanRecoveryState state; ...  // 유지</code></pre>
+        <pre><code>// 재시도 페이로드 = sealed (도메인이 자기 등록에 필요한 값을 durable 직렬화)
+public sealed interface OrphanRecoveryPayload permits IsoRecoveryPayload /*, BiosRecoveryPayload(후속) */ {
+    ResourceType resourceType();
+}
+record IsoRecoveryPayload(Long osMetadataId, String description,
+                          boolean uploadedFile, String clientHash) implements OrphanRecoveryPayload { ... }</code></pre>
+
+        <h4>④ 도메인 SPI (global/orphan/OrphanRecoverySpi) — 재등록 위임</h4>
+        <pre><code>public interface OrphanRecoverySpi {
+    ResourceType supportedType();
+    String relaunch(OrphanQuarantine row);   // 도메인 Launcher 로 재등록 job 시작 → jobId
+}
+// management/os : IsoOrphanRecoverySpi → IsoRegistrationLauncher (launcher 의존은 여기로 이동)</code></pre>
+
+        <h4>⑤ 서비스 분리 (@Lazy 제거의 핵심)</h4>
+        <table>
+          <thead><tr><th>서비스</th><th>책임</th><th>의존</th><th>호출자</th></tr></thead>
+          <tbody>
+            <tr><td><code>OrphanQuarantineService</code></td><td>record / purgeExpired / list / get</td><td>repo, trashService, markerService <b>(launcher 無)</b></td><td>Runner · Reaper · Controller(조회)</td></tr>
+            <tr><td><code>OrphanRecoveryService</code></td><td>retry / discard</td><td>repo, trashService, <code>Map&lt;ResourceType,OrphanRecoverySpi&gt;</code></td><td>Controller(액션)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>SSOT</b> — 처분 판정의 단일 소스는 <code>RegistrationFailure.disposition()</code> (서버 dispatch + 🎬 데모가 공유). 격리 가능 자원의 단일 식별은 <code>ResourceType</code> + <code>OrphanRecoverySpi.supportedType()</code>.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (refactor 특성 반영)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>(뷰 변경 0 — refactor) 복구 모달/quarantine 페이지 그대로</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — URL 동일, <code>OrphanRecoveryController</code> 의 의존을 분리된 2 서비스로 재배선</td></tr>
+            <tr><td>4</td><td>DTO — <code>OrphanQuarantineResponse</code>(+resourceType), 나머지 유지</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — <code>RegistrationFailure</code>/<code>FailureDisposition</code>/<code>OrphanRecoverySpi</code> 인터페이스 + 2 서비스 분리 시그니처</td></tr>
+            <tr><td>6</td><td>Repository — <code>OrphanQuarantineRepository</code>(이전·일반화, 쿼리 동일)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — <code>OrphanQuarantine</code>(+<code>resource_type</code>, payload Converter), enum/sealed 이전</td></tr>
+            <tr><td>8</td><td>본체 — Runner disposition dispatch 전환 + ISO 예외 implements + 2 서비스 본체 + IsoOrphanRecoverySpi + @Lazy 삭제 + retry 멱등. 단위/통합 테스트(§6)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <code>orphan_iso_quarantine</code>→<code>orphan_quarantine</code> + <code>resource_type</code>/<code>payload</code> 컬럼. <code>ddl-auto=update</code> 반영 → <code>SHOW CREATE TABLE</code></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 인프라 실패 유발(예: DB 권한 차단) → 격리 → 복구 모달 재시도/폐기 회귀</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>마이그레이션 주의</b> — 기존 <code>orphan_iso_quarantine</code> 테이블 rename + 컬럼 추가. dev DB 에 PENDING 격리가 남아있지 않다면 drop&recreate 가 단순(§8 Q2/Q5). 운영 데이터 없음 전제이면 <code>chore(schema): drop orphan_iso_quarantine</code> 선행 커밋 1개 허용.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 — 다형성 진리표 (신규, 핵심)</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>검증</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>RegistrationFailureDispositionTest</code></td><td>ISO 예외 7종 각각 <code>disposition()</code> 이 기대값(CLEANUP×4·PRESERVE×1·QUARANTINE×2) 반환</td><td>7</td></tr>
+            <tr><td><code>IsoRegistrationRunnerDispatchTest</code></td><td>각 disposition → 올바른 행동(cleanup 없이 fail / 보존 / quarantineService.record 호출). DataIntegrity 어댑터 catch → DB_CONSTRAINT</td><td>5</td></tr>
+            <tr><td><code>OrphanQuarantineServiceTest</code></td><td>record(격리 mv + row) / purgeExpired(TTL) / 격리 이동 실패 시 파일 원위치 보존</td><td>4</td></tr>
+            <tr><td><code>OrphanRecoveryServiceTest</code></td><td>retry(SPI relaunch + RECOVERED) / discard(typed-name 가드) / retry 멱등(이미 active면 relocate skip)</td><td>5</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (컨트롤러) — 회귀 보존 (URL 불변)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>list 페이지 200 / detail 200 / retry → jobId+redirect / discard 204</td><td>4</td></tr>
+            <tr><td>400</td><td>discard typed-name 불일치 → <code>TypedNameMismatch</code> 400</td><td>1</td></tr>
+            <tr><td>404</td><td>없는 recoveryId 의 detail/retry/discard → <code>OrphanRecoveryNotFound</code> 404</td><td>1</td></tr>
+            <tr><td>409</td><td>이미 RECOVERED/DISCARDED 인 row 재시도 → <code>OrphanRecoveryAlreadyResolved</code> 409</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">기존 <code>OrphanIsoRecoveryControllerTest</code>(167줄) 를 <code>OrphanRecoveryControllerTest</code> 로 이전하며 위 표로 정합. <b>새 HTTP 행동 0 → 통합 테스트는 회귀 성격</b>이 정상.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 / 타입</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>RegistrationFailure</code> (interface)</td><td>—</td><td><span class="chip new">신규</span> 마커 인터페이스 (예외 아님, 처분 계약)</td></tr>
+            <tr><td><code>FailureDisposition</code> (sealed)</td><td>—</td><td><span class="chip new">신규</span> 처분 값</td></tr>
+            <tr><td>ISO 예외 7종</td><td>기존 유지</td><td><span class="chip mod">수정</span> <code>implements RegistrationFailure</code> 추가만 (status 매핑 불변)</td></tr>
+            <tr><td><code>OrphanRecoveryNotFoundException</code></td><td>404</td><td><span class="chip move">이전</span> os/exception → global/orphan/exception</td></tr>
+            <tr><td><code>OrphanRecoveryAlreadyResolvedException</code></td><td>409</td><td><span class="chip move">이전</span></td></tr>
+            <tr><td><code>IsoMarkerWriteFailedException</code></td><td>500</td><td><span class="chip keep">유지</span> (ISO 도메인 잔류 + RegistrationFailure 구현)</td></tr>
+            <tr><td><code>TypedNameMismatchException</code></td><td>400</td><td><span class="chip keep">유지</span> (global/trash, 재사용)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>신규 예외 0 (기능적)</b> — disposition/SPI 는 예외가 아님. 기존 예외는 implements 추가·패키지 이전만. status 매핑 advice 무변경.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>일반화 깊이 — (a) <code>global/orphan</code> 승격 + <code>ResourceType</code> 키 vs (b) ISO 유지하고 interface 만 추출</td><td><b>(a)</b> — <code>global/trash</code> 선례와 정합, 도메인 횡단 목표에 부합</td></tr>
+            <tr><td>Q2</td><td>재시도 페이로드 durable 저장 — sealed <code>OrphanRecoveryPayload</code>+JSON Converter vs 평면 컬럼</td><td><b>sealed+JSON</b> — <code>PurgeLogDetails</code> 선례. 도메인별 필드가 갈라지므로</td></tr>
+            <tr><td>Q3</td><td><code>DataIntegrityViolationException</code>(Spring) 처분 — interface 구현 불가 → Runner 어댑터 1곳 catch 허용?</td><td><b>허용</b> — 외부 프레임워크 경계 어댑터는 정당(불가침 §의 "framework primitive" 취지)</td></tr>
+            <tr><td><b>Q4</b></td><td><b>BIOS/BMC/Subprogram 을 이번에 onboard?</b> 아니면 seam 만(SPI 추가로 가능하도록)?</td><td><b>seam 만</b> — 3 도메인은 <b>동기</b> 등록이라 disposition 적용 지점이 다름(Runner 아님). 한 슬라이스에 4 도메인 = 범위 폭발. <b>R1-4-5(BIOS)·R1-4-6(BMC/Sub)</b> 로 분리. ← <u>사용자 확인 필요</u></td></tr>
+            <tr><td>Q5</td><td>마이그레이션 — 테이블 rename vs drop&recreate</td><td>dev 에 PENDING 격리 없으면 <b>drop&recreate</b>(선행 chore 커밋). 있으면 rename+alter</td></tr>
+          </tbody>
+        </table>
+        <h4>잔존 책임 / 의도된 임시 비대칭</h4>
+        <ul>
+          <li>R1-4-4 후 <code>OrphanRecoverySpi</code> 구현체는 <b>ISO 1개</b> — BIOS/BMC/Subprogram 은 여전히 <code>cleanupFailedUpload</code>(파괴적). <b>의도된 임시 비대칭</b>, R1-4-5/6 에서 해소. (Notion 페이지 본문에 명시 — CLAUDE.md §Notion 규약)</li>
+          <li>retry 의 FS-DB 비원자성은 멱등 relocate 로 <b>완화</b>이지 제거는 아님 — 근본 해소는 §11 쓰기순서 재배치 과제.</li>
+        </ul>
+        <h4>CLAUDE.md 갱신</h4>
+        <ul>
+          <li>인벤토리 코드에 <b>R1-4-4</b>(+예고 R1-4-5/6) 추가. "오펀 복구 = global/orphan 다형성 saga, 도메인은 OrphanRecoverySpi 로 plug" 1줄.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R1-4-4-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="lazy"> <span><code>grep -rn "@Lazy" .../os/</code> → OrphanRecovery 관련 <b>0</b>건 (순환 제거 증명)</span></label></li>
+          <li><label><input type="checkbox" data-key="dispo"> <span><code>RegistrationFailureDispositionTest</code> 7종 진리표 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (특히 기존 컨트롤러 회귀)</span></label></li>
+          <li><label><input type="checkbox" data-key="behavior"> <span>행동 보존 — ISO 인프라 실패 → 격리 → 재시도/폐기 동작 동일 (E2E)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span><code>orphan_quarantine</code> 스키마 <code>resource_type</code>/<code>payload</code> 반영 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규 (global)</h4>
+        <div class="pkg-tree">global/registration/
+├── RegistrationFailure.java        (interface — disposition 계약)
+└── FailureDisposition.java         (sealed: Cleanup/Preserve/Quarantine)
+global/orphan/
+├── OrphanQuarantine.java           (entity — 이전·일반화: +resource_type, payload)
+├── OrphanRecoveryPayload.java      (sealed + Converter)
+├── OrphanRecoverySpi.java          (interface — 도메인 재등록 위임)
+├── OrphanQuarantineService.java    (record/purge — launcher 無)
+├── OrphanRecoveryService.java      (retry/discard — SPI 의존)
+├── enums/{OrphanFailureClass, OrphanRecoveryState}.java   (이전)
+└── exception/{OrphanRecoveryNotFound, OrphanRecoveryAlreadyResolved}.java  (이전)</div>
+        <h4>신규 (management/os) — 첫 SPI 구현체</h4>
+        <div class="pkg-tree">management/os/service/iso/IsoOrphanRecoverySpi.java   (OrphanRecoverySpi 구현, Launcher 의존 이동)
+management/os/.../IsoRecoveryPayload.java             (OrphanRecoveryPayload 구현)</div>
+        <h4>수정</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>IsoRegistrationRunner</code></td><td><span class="chip mod">수정</span> multi-catch → <code>catch(RegistrationFailure)</code> dispatch + DataIntegrity 어댑터 1곳. QuarantineService 위임</td></tr>
+            <tr><td>ISO 예외 7종</td><td><span class="chip mod">수정</span> <code>implements RegistrationFailure</code> + <code>disposition()</code></td></tr>
+            <tr><td><code>OrphanIsoRecoveryController</code> → <code>OrphanRecoveryController</code></td><td><span class="chip mod">수정</span> 분리된 2 서비스로 재배선 (URL 불변)</td></tr>
+            <tr><td><code>OrphanIsoRecoveryService</code></td><td><span class="chip del">삭제</span> → 2 서비스로 분리 (책임 이전)</td></tr>
+            <tr><td><code>OrphanIsoQuarantine(Reaper/Repository/Response)</code></td><td><span class="chip move">이전</span> global/orphan 으로, 일반화</td></tr>
+            <tr><td><code>application.properties</code></td><td><span class="chip keep">유지</span> <code>iso.quarantine.*</code> 키명 유지(또는 <code>orphan.quarantine.*</code> 로 — Q5 와 함께)</td></tr>
+          </tbody>
+        </table>
+        <h4>유지 (KEEP — 변경 0)</h4>
+        <ul>
+          <li><code>trashService.relocate</code> · typed-name 가드 · TTL reaper 로직 · 복구 모달/JS · <code>ORPHAN_RECOVERY:</code> marker 흐름 — 전부 재사용.</li>
+          <li>BIOS/BMC/Subprogram service — <b>이번엔 손대지 않음</b>(Q4 비목표).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1-4-5</b> — BIOS 등록을 disposition + OrphanRecoverySpi 로 onboard. 동기 등록이라 <code>BiosService.addBios</code> 의 <code>catch(RuntimeException)→cleanupFailedUpload</code> 를 <code>catch(RegistrationFailure)</code> dispatch 로 전환. <code>BiosOrphanRecoverySpi</code> 추가.</li>
+          <li><b>R1-4-6</b> — BMC · Subprogram 동반 onboard (BIOS 와 동형, fragment 화 여지).</li>
+          <li><b>(검토 과제)</b> 쓰기 순서 재배치 — finalize 를 "DB 커밋 선행 → 마커 후행" 으로 빼 마커 실패를 MK1 reconciliation 의 드리프트(재발급)로 흡수. BIOS 2-phase save 선례. MK DriftKind 3축 매트릭스와 엮어 별도 슬라이스.</li>
+          <li><b>(장기)</b> Audit Event Bus 도입 시 <code>OrphanQuarantine</code> 흡수.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → open + scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 실패 종류 → disposition() → 파일 운명
+  //  ⚠ demoDisposition() 은 서버 RegistrationFailure.disposition() 과 1:1 동일해야 함 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  let demoF = 'STORAGE_IO';
+  // 실패 종류 → { 예외명, disposition, isSpringAdapter }
+  const FAIL = {
+    HASH_MISMATCH : { exc:'IsoClientHashMismatchException', disp:'CLEANUP'   },
+    DUPLICATE     : { exc:'DuplicateISOContentException',   disp:'CLEANUP'   },
+    FILENAME      : { exc:'DuplicateFilenameException',     disp:'CLEANUP'   },
+    NUDGE         : { exc:'IsoNudgeRequiredException',      disp:'PRESERVE'  },
+    STORAGE_IO    : { exc:'ISOFileStorageException',        disp:'QUARANTINE', fc:'STORAGE_IO'   },
+    DB_CONSTRAINT : { exc:'DataIntegrityViolationException',disp:'QUARANTINE', fc:'DB_CONSTRAINT', adapter:true },
+    MARKER_WRITE  : { exc:'IsoMarkerWriteFailedException',  disp:'QUARANTINE', fc:'MARKER_WRITE'  },
+    UNKNOWN       : { exc:'(알 수 없는) RuntimeException',   disp:'QUARANTINE', fc:'UNEXPECTED', fallback:true }
+  };
+  // 서버 판정 1:1 재현 — disposition 으로부터 파일운명/복구레코드 도출
+  function demoOutcome(d) {
+    if (d === 'CLEANUP')  return { file:'삭제됨 (finalize 가 우리 업로드 + sidecar 정리)', fileCls:'clean',    row:'생성 안 함 (결정적 실패 — 재시도 무의미)' };
+    if (d === 'PRESERVE') return { file:'보존 (nudge confirm 시 정식 등록에 재사용)',      fileCls:'preserve', row:'생성 안 함 (nudge 흐름)' };
+    return { file:'삭제 X — active 트리 밖으로 격리(mv)', fileCls:'quar', row:'OrphanQuarantine PENDING (재시도/폐기 가능)' };
+  }
+  function demoSet(f) { demoF = f; demoRender(); }
+  function demoRender() {
+    const m = FAIL[demoF], o = demoOutcome(m.disp);
+    document.querySelectorAll('.ux-toolbar .seg[data-f]').forEach(s => s.classList.toggle('active', s.dataset.f === demoF));
+    document.getElementById('demo-exc').textContent = m.exc;
+    const disp = document.getElementById('demo-disp');
+    const dCls = m.disp === 'CLEANUP' ? 'clean' : m.disp === 'PRESERVE' ? 'preserve' : 'quar';
+    disp.className = 'badge ' + dCls;
+    disp.textContent = m.disp + (m.fc ? '(' + m.fc + ')' : '');
+    document.getElementById('demo-file').textContent = o.file;
+    document.getElementById('demo-row').textContent = o.row;
+
+    const caps = document.getElementById('demo-caps');
+    if (m.adapter) {
+      caps.innerHTML = '// Spring 클래스 → interface 구현 불가\n'
+        + 'catch (DataIntegrityViolationException e)  // Runner 어댑터 (유일 잔존 분기, 프레임워크 경계)\n'
+        + '    → quarantine(<span class="t">DB_CONSTRAINT</span>)';
+    } else {
+      caps.innerHTML = m.exc + '.disposition()\n'
+        + '    = <span class="' + (m.disp==='CLEANUP'?'t':'f') + '">' + m.disp + (m.fc?'('+m.fc+')':'') + '</span>'
+        + (m.fallback ? '   // 미분류 RTE → 안전하게 격리(대용량 업로드 보존)' : '');
+    }
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message ' + dCls;
+    if (m.disp === 'CLEANUP')       msg.innerHTML = '<b>CLEANUP</b> — 내 업로드 파일이라 정리. 콘텐츠/영구 실패는 재시도해도 같은 결과 → 격리 불필요.';
+    else if (m.disp === 'PRESERVE') msg.innerHTML = '<b>PRESERVE</b> — nudge 결정 대기. 임시 파일은 confirm 시 정식 등록에 재사용되므로 보존.';
+    else if (m.fallback)            msg.innerHTML = '<b>QUARANTINE</b> — 미분류 예외도 안전 기본값으로 격리. 수 GB 업로드를 일시 장애로 잃지 않음. (BEFORE 의 silent 오분류 위험을 AFTER 는 sealed exhaustive 로 차단)';
+    else if (m.adapter)             msg.innerHTML = '<b>QUARANTINE</b> — Spring 예외라 <code>disposition()</code> 불가 → Runner 의 단일 어댑터 catch 가 DB_CONSTRAINT 로 매핑. 유일하게 허용되는 잔존 분기(프레임워크 경계).';
+    else                            msg.innerHTML = '<b>QUARANTINE</b> — 인프라/일시 실패. 파일 보존 + 격리 + durable 레코드 → 재시도 가능. (' + m.fc + ')';
+  }
+  demoRender();   // 불가침 : 파일 끝 1회 호출
+</script>
+</body>
+</html>
