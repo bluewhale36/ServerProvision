@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4-1 Plan — BiosController 6분할 (Metadata/Lifecycle/Upload/Nudge/Integrity/Browse + Support)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.clean { background:var(--red-bg); color:var(--red); }
+  .badge.preserve { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.quar { background:var(--blue-bg); color:var(--blue); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.clean { background:var(--red-bg); border-color:var(--red); }
+  .ux-message.preserve { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.quar { background:var(--blue-bg); border-color:var(--blue); }
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:10.5px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 10px; font-size:11.5px; line-height:1.5; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R4-1 — <code>BiosController</code> 6분할 (Metadata / Lifecycle / Upload / Nudge / Integrity / Browse + Support) <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R4-1 (refactor — controller 책임 분리)</span>
+    <span><strong>상위</strong> R4 (BIOS 도메인 구조 정돈) · 직선행 8ab2bf2</span>
+    <span><strong>scope</strong> fat <code>BiosController</code>(24 엔드포인트 · 471줄)를 기능군별 6 컨트롤러 + Support 헬퍼로 재배치. URL/동작 100% 불변</span>
+    <span><strong>생성</strong> 2026-06-13 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (fat 컨트롤러)</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (분배 탐색기)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 컨트롤러 분배 모델</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — fat 단일 컨트롤러의 책임 혼재</summary>
+      <div class="body">
+        <p style="margin-top:0;"><code>BiosController</code> 1개 클래스가 <b>24 엔드포인트 · 471줄</b>로 부풀었다. 한 파일 안에 (1) Miller/폼 메타 CRUD, (2) lifecycle 상태 전이(toggle/delete/deprecate/restore/purge), (3) 번들 업로드 2단 핸드셰이크, (4) nudge confirm 6종, (5) 무결성 검증/조회, (6) 서버 경로 탐색이 뒤섞여, 어느 책임을 고치려 해도 무관한 8개 의존(<code>biosService</code> · <code>biosUploadIntentService</code> · <code>biosNudgeService</code> · <code>boardModelService</code> · <code>biosVerificationLauncher</code> · <code>directoryBrowseService</code> · <code>deleteIntentRegistry</code> · <code>typedNameVerifier</code>)을 한꺼번에 끌어안는다.</p>
+        <p>본 슬라이스는 R1(OS) 묶음의 <b>8 컨트롤러 분할 선례</b>를 BIOS 로 미러링한다. 다만 BIOS 는 <b>파일 자원</b>이라 OS(ISO) 와 달리 <b>Upload / Integrity / Browse</b> 컨트롤러가 추가되어 <b>6 컨트롤러</b>가 된다. BIOS 가 이후 <b>BIOS / BMC / Subprogram 공통 6 컨트롤러 분해의 기준 도메인</b>이다.</p>
+        <div class="callout warn"><b>CLAUDE.md §조건 분기문 legacy 확장 금지 (불가침)</b> — 본 프로젝트는 "신규 컨트롤러 추가 시 같은 <code>try/catch</code> 를 또 복붙하는 회귀 사고"를 반복 경험했다(S3.3→S3.4 의 4 컨트롤러 multi-catch 누락). 6분할은 그 위험을 늘리지 않도록 <code>browse()</code> 4-catch 와 nudge typed-name <code>if</code> 복제를 <b>Support 헬퍼 + @RestControllerAdvice 승급</b>으로 흡수한 뒤에 분할한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>선행 완료 / 진입 전제</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> R3-1 등 BIOS 도메인 service 정비 — <code>BiosService</code> / <code>BiosUploadIntentService</code> / <code>BiosNudgeService</code> / <code>BiosVerificationLauncher</code> 분리 존재.</li>
+          <li><span class="chip keep">완료</span> <code>8ab2bf2</code> (직선행) — ISO 오펀 saga. BIOS 는 본 R4 묶음에서 구조부터 정돈.</li>
+          <li><span class="chip keep">선례</span> R1(OS) 8 컨트롤러 분할 — Metadata/Lifecycle/Upload/Nudge/Integrity/Browse 기능군 분해 패턴. 본 슬라이스가 BIOS 로 이를 미러링.</li>
+        </ul>
+
+        <h4>현 컨트롤러의 기능군 혼재 진단 (24 엔드포인트 → 6 기능군)</h4>
+        <table>
+          <thead><tr><th>기능군</th><th>현 메서드</th><th>엔드포인트 수</th><th>전용 의존</th></tr></thead>
+          <tbody>
+            <tr><td><b>Metadata</b> (Miller/폼/CRUD)</td><td><code>list · newForm · newFormWithoutBoard · editForm · update</code></td><td>5</td><td><code>biosService · boardModelService</code></td></tr>
+            <tr><td><b>Lifecycle</b> (상태 전이)</td><td><code>toggle · delete · deleteWithIntent · restore · deprecate · undeprecate · purge</code></td><td>7</td><td><code>biosService · deleteIntentRegistry</code></td></tr>
+            <tr><td><b>Upload</b> (2단 핸드셰이크)</td><td><code>intent · uploadBundle · registerExisting</code></td><td>3</td><td><code>biosUploadIntentService · biosService</code></td></tr>
+            <tr><td><b>Nudge</b> (confirm 6종)</td><td><code>nudgeProceed · nudgeReplace · nudgeCancel · intentNudgeProceed · intentNudgeReplace · intentNudgeCancel</code></td><td>6</td><td><code>biosNudgeService · typedNameVerifier</code></td></tr>
+            <tr><td><b>Integrity</b> (검증/조회)</td><td><code>verify · integrityStatus</code></td><td>2</td><td><code>biosVerificationLauncher · biosService</code></td></tr>
+            <tr><td><b>Browse</b> (경로 탐색)</td><td><code>browse</code></td><td>1</td><td><code>directoryBrowseService</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>결손 1 — <code>browse()</code> 의 4-catch 복붙 씨앗</h4>
+        <div class="callout danger"><b>구체적 사고 시나리오</b> : <code>browse()</code> 가 <code>InvalidBrowsePath</code>(400) · <code>BrowseTargetNotFound</code>(404) · <code>BrowseTargetNotDirectory</code>(409) · <code>DirectoryBrowseIoException</code>(500) 4 예외를 컨트롤러 내부 <code>try/catch</code> 로 직접 status 매핑. OS 컨트롤러에도 동일한 4-catch 가 이미 복붙돼 있고, BMC/Driver 가 같은 기능을 받으면 또 복붙된다 → <b>S3.3→S3.4 multi-catch 누락 회귀와 동형</b>. 6분할이 이 복붙을 <code>Browse</code> 컨트롤러 4곳에 흩뿌리기 전에 <code>@RestControllerAdvice</code> 로 승급해야 한다.</div>
+
+        <h4>결손 2 — nudge typed-name <code>if</code> 복제</h4>
+        <pre><code>// nudgeReplace 와 intentNudgeReplace 에 동일 블록이 복붙
+if (typedName != null &amp;&amp; !typedName.isBlank()) {
+    typedNameVerifier.verify(ResourceType.BIOS_BUNDLE, targetId, typedName);
+}
+// → BiosControllerSupport.verifyTypedNameIfPresent(targetId, typedName) 로 추출</code></pre>
+
+        <h4>결손 3 — redirect/폼컨텍스트/nullToEmpty 헬퍼의 분할 후 산란 위험</h4>
+        <pre><code>redirectToListWithSelect(Long)   // Metadata·Lifecycle 양쪽이 호출
+populateFormContext(...)          // Metadata 전용이나 firstFieldError 와 함께 추출
+nullToEmpty(String)               // editForm 사용 — Support 로
+firstFieldError(BindingResult)    // intent/upload/registerExisting 의 badRequest 메시지 조립 3회 복붙</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>URL/동작 100% 불변 (불가침)</b> — 24 엔드포인트의 Method · URL · 응답 status · 응답 바디 · redirect 타깃 전부 동일. 순수 controller 재배치이며 기능 변화 0.</li>
+          <li><b>기능군별 6 컨트롤러</b> — <code>BiosMetadataController</code> · <code>BiosLifecycleController</code> · <code>BiosUploadController</code> · <code>BiosNudgeController</code> · <code>BiosIntegrityController</code> · <code>BiosBrowseController</code>. 각 컨트롤러는 자기 기능군의 전용 의존만 주입(8 의존 분산).</li>
+          <li><b>공통 헬퍼 → Support 추출</b> — <code>BiosControllerSupport</code> 가 <code>redirectToListWithSelect</code> · <code>populateFormContext</code> · <code>firstFieldError</code> · <code>nullToEmpty</code> · <code>verifyTypedNameIfPresent</code> 를 보유. 복붙 제거.</li>
+          <li><b><code>@RequestMapping("/management/bios")</code> 보존</b> — 6 컨트롤러 모두 동일 base 경로. 각 메서드의 sub-path 도 글자 그대로 이전.</li>
+          <li><b><code>browse()</code> 4-catch → advice 승급</b> — BIOS(+OS) 의 browse 예외를 <code>@RestControllerAdvice</code> 단일 진입점으로 끌어올려 <code>BiosBrowseController.browse()</code> 는 <code>try/catch</code> 없이 1줄. (CLAUDE.md §framework primitive 활용)</li>
+        </ol>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스로 위임)</b>
+          <ul>
+            <li><b>BMC browse 4-catch 정비</b> — 본 슬라이스는 browse advice 를 <b>BIOS + OS 만</b> 승급. BMC 의 browse 4-catch 는 <b>R5-1</b> 동반 정비로 미룬다. (S3.3→S3.4 multi-catch 누락 회귀 선례를 의식해, 미루는 잔존을 §8 에 명시.)</li>
+            <li><b>marker 4단 복붙 제거</b> — <code>BiosMarkerWriter</code> 추출은 <b>R4-2</b>. 본 슬라이스는 service 본체 미변경(controller 만 재배치)이라 marker 코드는 손대지 않음.</li>
+            <li><b><code>BiosService</code>(659줄) 서브패키지 분리</b> — <b>R4-3</b>. 본 슬라이스는 service 시그니처/본체 불변.</li>
+            <li><b>OS/BMC/Subprogram 컨트롤러 분할</b> — BIOS 가 기준 도메인. 동형 분할은 별도 슬라이스(R5-x).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 엔드포인트 분배 탐색기 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 칩은 <b>원 <code>BiosController</code> 의 24 엔드포인트 전부</b>입니다. 칩을 클릭하면 우측에 <b>이동 대상 컨트롤러 + 이동 이유(책임군) + 사용 의존</b>이 하이라이트됩니다. 하단 <b>Support 추출</b> 칩들은 N 컨트롤러가 공유하는 공통 헬퍼로, 클릭하면 어느 컨트롤러들이 복붙 대신 Support 를 호출하는지 보여줍니다. 이 분배는 §3 / §4 의 실제 매핑과 <b>1:1 동일(드리프트 0)</b>입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-endpoints"></div>
+          <div class="ux-toolbar" id="demo-helpers" style="margin-top:8px;"></div>
+          <div style="margin-top:12px;">
+            <div class="ux-row">
+              <strong>엔드포인트</strong><span class="label" id="demo-ep">—</span>
+              <span class="badge" id="demo-target">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>이동 이유</strong><span class="label" id="demo-reason">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>사용 의존</strong><span class="label" id="demo-dep">—</span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">엔드포인트 칩을 눌러보세요. 6 기능군 색으로 분배가 구분됩니다.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 1 컨트롤러 471줄</h4><pre><code>@Controller @RequestMapping("/management/bios")
+class BiosController {
+  // 8 의존 전부 주입
+  biosService; biosUploadIntentService; biosNudgeService;
+  boardModelService; biosVerificationLauncher;
+  directoryBrowseService; deleteIntentRegistry; typedNameVerifier;
+
+  list/new/edit/update          // Metadata
+  toggle/delete/.../purge       // Lifecycle
+  intent/upload/registerExisting// Upload
+  nudge*/intent-nudge*          // Nudge
+  verify/integrity-status       // Integrity
+  browse + try/catch×4          // Browse
+  redirect/populateFormContext/nullToEmpty/firstFieldError  // 복붙 헬퍼
+}</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 6 컨트롤러 + Support</h4><pre><code>BiosMetadataController   (biosService, boardModelService)
+BiosLifecycleController  (biosService, deleteIntentRegistry)
+BiosUploadController     (biosUploadIntentService, biosService)
+BiosNudgeController      (biosNudgeService)
+BiosIntegrityController  (biosVerificationLauncher, biosService)
+BiosBrowseController     (directoryBrowseService)  // try/catch 0 → advice
+BiosControllerSupport    (redirect/formContext/firstFieldError/
+                          nullToEmpty/verifyTypedNameIfPresent)
+@RestControllerAdvice    browse 4예외 → status 매핑 (BIOS+OS)</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 엔드포인트→컨트롤러 매핑 = §3 URL 표 = §4 분배 모델 단일 소스. URL/동작은 단 1개도 바뀌지 않으므로 사용자가 클릭으로 "어디로 가는지"만 검증하면 된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 — 분할 전후 1:1 보존</summary>
+      <div class="body">
+        <p style="margin-top:0;">base <code>@RequestMapping("/management/bios")</code> 는 6 컨트롤러 모두 동일. 아래 표의 URL/Method/동작은 <b>전부 <span class="chip keep">유지</span></b> — 바뀌는 건 "어느 클래스가 받느냐"뿐.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL (base 생략)</th><th>메서드</th><th>동작</th><th>이동 대상</th><th>URL</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/</code></td><td><code>list</code></td><td>Miller 목록 (보드 grouped)</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/{boardId}/new</code></td><td><code>newForm</code></td><td>신규 폼 (AJAX fragment 분기)</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/new</code></td><td><code>newFormWithoutBoard</code></td><td>보드 선택 진입 폼</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/{boardId}/bios/{biosId}/edit</code></td><td><code>editForm</code></td><td>메타 수정 폼</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/edit</code></td><td><code>update</code></td><td>메타 수정 submit</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/toggle</code></td><td><code>toggle</code></td><td>enabled 토글</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/delete</code></td><td><code>delete</code></td><td>soft-delete</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/delete-intent/{token}</code></td><td><code>deleteWithIntent</code></td><td>intent 토큰 소비 후 삭제 (XHR JSON)</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/restore</code></td><td><code>restore</code></td><td>복원</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/deprecate</code></td><td><code>deprecate</code></td><td>Active→Deprecated</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/undeprecate</code></td><td><code>undeprecate</code></td><td>Deprecated→Active</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/purge</code></td><td><code>purge</code></td><td>typed-name 가드 후 영구 삭제</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/upload-intent</code></td><td><code>intent</code></td><td>업로드 intent 핸드셰이크 (JSON)</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/upload</code></td><td><code>uploadBundle</code></td><td>번들 업로드 본체 (JSON)</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/register-existing</code></td><td><code>registerExisting</code></td><td>기존 트리 claim (JSON)</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/proceed</code></td><td><code>nudgeProceed</code></td><td>nudge 강행</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/replace</code></td><td><code>nudgeReplace</code></td><td>nudge 교체 (typed-name)</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/cancel</code></td><td><code>nudgeCancel</code></td><td>nudge 취소</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/proceed</code></td><td><code>intentNudgeProceed</code></td><td>intent nudge 강행 (새 token)</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/replace</code></td><td><code>intentNudgeReplace</code></td><td>intent nudge 교체 (typed-name)</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/cancel</code></td><td><code>intentNudgeCancel</code></td><td>intent nudge 취소</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bios/{biosId}/verify</code></td><td><code>verify</code></td><td>무결성 재검증 job 시작 (jobId)</td><td>Integrity</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/{boardId}/bios/{biosId}/integrity-status</code></td><td><code>integrityStatus</code></td><td>무결성 badge JSON</td><td>Integrity</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/browse</code></td><td><code>browse</code></td><td>서버 경로 탐색 (디렉토리만)</td><td>Browse</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">총 <b>24 엔드포인트</b> (GET 7 · POST 17). 분할 후에도 등록 URL 패턴은 한 글자도 바뀌지 않으며, 같은 base 경로를 6 클래스가 공유하므로 Spring 라우팅 충돌 없음(메서드 시그니처가 모두 distinct).</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 컨트롤러 분배 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 컨트롤러 분배 모델 + Support 추출</summary>
+      <div class="body">
+        <h4>6 신규 컨트롤러가 받는 엔드포인트 + 의존</h4>
+        <table>
+          <thead><tr><th>컨트롤러</th><th>받는 엔드포인트</th><th>주입 의존</th><th>응답 형태</th></tr></thead>
+          <tbody>
+            <tr><td><code>BiosMetadataController</code></td><td><code>list · newForm · newFormWithoutBoard · editForm · update</code> (5)</td><td><code>biosService · boardModelService · BiosControllerSupport</code></td><td>SSR view / fragment</td></tr>
+            <tr><td><code>BiosLifecycleController</code></td><td><code>toggle · delete · deleteWithIntent · restore · deprecate · undeprecate · purge</code> (7)</td><td><code>biosService · deleteIntentRegistry · BiosControllerSupport</code></td><td>redirect / 204 JSON</td></tr>
+            <tr><td><code>BiosUploadController</code></td><td><code>intent · uploadBundle · registerExisting</code> (3)</td><td><code>biosUploadIntentService · biosService · BiosControllerSupport</code></td><td>JSON (<code>@ResponseBody</code>)</td></tr>
+            <tr><td><code>BiosNudgeController</code></td><td><code>nudgeProceed/replace/cancel · intentNudgeProceed/replace/cancel</code> (6)</td><td><code>biosNudgeService · typedNameVerifier · BiosControllerSupport</code></td><td>JSON</td></tr>
+            <tr><td><code>BiosIntegrityController</code></td><td><code>verify · integrityStatus</code> (2)</td><td><code>biosVerificationLauncher · biosService</code></td><td>JSON</td></tr>
+            <tr><td><code>BiosBrowseController</code></td><td><code>browse</code> (1)</td><td><code>directoryBrowseService</code></td><td>JSON (<code>try/catch</code> 제거 → advice)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Support 로 추출되는 공통 헬퍼 (복붙 제거)</h4>
+        <table>
+          <thead><tr><th>헬퍼</th><th>현 위치</th><th>추출 후 공유 컨트롤러</th></tr></thead>
+          <tbody>
+            <tr><td><code>redirectToListWithSelect(Long)</code></td><td>private 헬퍼 (update/toggle/restore/deprecate/undeprecate 5회 호출)</td><td>Metadata · Lifecycle</td></tr>
+            <tr><td><code>populateFormContext(Model, boardId, biosId, board)</code></td><td>private (newForm/editForm/update)</td><td>Metadata</td></tr>
+            <tr><td><code>firstFieldError(BindingResult)</code></td><td><b>인라인 복붙 3회</b> (intent/uploadBundle/registerExisting 의 badRequest 메시지 조립)</td><td>Upload (+ Metadata update 분기 재사용 여지)</td></tr>
+            <tr><td><code>nullToEmpty(String)</code></td><td>private static (editForm)</td><td>Metadata</td></tr>
+            <tr><td><code>verifyTypedNameIfPresent(targetId, typedName)</code></td><td><b>인라인 복붙 2회</b> (nudgeReplace/intentNudgeReplace 의 typed-name <code>if</code>)</td><td>Nudge</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>SSOT</b> — 5 공통 헬퍼는 <code>BiosControllerSupport</code> 단일 소스. <code>firstFieldError</code>(3회) · <code>verifyTypedNameIfPresent</code>(2회) 인라인 복붙이 사라지고, redirect/formContext 산란이 봉쇄된다. <code>browse</code> 의 status 분기는 헬퍼가 아니라 <b>advice 로 승급</b>(예외→status 는 framework 책임).</div>
+
+        <h4>browse 4-catch → @RestControllerAdvice 승급</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 컨트롤러 내부 4-catch</h4><pre><code>try { return ok(browse(...)); }
+catch (InvalidBrowsePath e)        { 400 }
+catch (BrowseTargetNotFound e)     { 404 }
+catch (BrowseTargetNotDirectory e) { 409 }
+catch (DirectoryBrowseIo e)        { 500 }
+// OS 컨트롤러에 동일 복붙 존재</code></pre></div>
+          <div class="split-card after"><h4>AFTER — advice 단일 진입점</h4><pre><code>// BiosBrowseController
+return ok(directoryBrowseService.browse(req));  // try/catch 0
+
+// @RestControllerAdvice (BIOS+OS browse 도메인)
+@ExceptionHandler(InvalidBrowsePathException.class)        → 400
+@ExceptionHandler(BrowseTargetNotFoundException.class)     → 404
+@ExceptionHandler(BrowseTargetNotDirectoryException.class) → 409
+@ExceptionHandler(DirectoryBrowseIoException.class)        → 500</code></pre></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (refactor 특성 반영)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td><b>뷰 변경 0</b> — Thymeleaf 템플릿/JS/폼 action URL 전부 불변(URL 보존이라 수정 불필요)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — 6 신규 컨트롤러로 메서드 그대로 이전 + <code>BiosControllerSupport</code> 추출 + browse <code>@RestControllerAdvice</code> 신설. 원 <code>BiosController</code> 삭제</td></tr>
+            <tr><td>4</td><td>DTO — <b>변경 0</b>. 기존 Request/Response 그대로 재사용(이전 import 만)</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — <b>변경 0</b>. service 4종 시그니처 불변(컨트롤러가 호출처만 분산)</td></tr>
+            <tr><td>6</td><td>Repository — <b>변경 0</b></td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — <b>변경 0</b> (refactor — 스키마 무관)</td></tr>
+            <tr><td>8</td><td>본체 — 컨트롤러별 통합 테스트 파일 분리(§6) + Support 단위 테스트 + browse advice status 매핑 회귀 테스트</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <b>확인 불필요</b> (DDL 변화 0). compileJava + 전체 test 그린만 확인</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — Miller/업로드/nudge/verify/browse/lifecycle 모든 UI 액션이 분할 후에도 동일 동작 회귀</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>refactor 특성</b> — Step 4~7(DTO/Service/Repo/Entity) 산출물이 모두 "변경 0". 실질 작업은 <b>Step 3(controller 재배치) + Step 8(테스트 파일 분리)</b> 에 집중된다. 스키마 drop/커밋 선행 불필요.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <p style="margin-top:0;">기존 <code>BiosController*FlowTest</code> 묶음을 <b>컨트롤러별 파일로 분리</b>. 분할 후에도 advice 매핑이 실제 실행되는지(특히 browse 4 status 가 advice 로 옮긴 뒤에도 그대로 나오는지) 회귀 보존. <b>새 HTTP 행동 0 → 통합 테스트는 회귀 성격이 정상</b>.</p>
+        <h4>컨트롤러별 통합 테스트 (분리)</h4>
+        <table>
+          <thead><tr><th>테스트 파일</th><th>2xx</th><th>400</th><th>404</th><th>409</th><th>소계</th></tr></thead>
+          <tbody>
+            <tr><td><code>BiosMetadataControllerTest</code> (list/new/edit/update)</td><td>4</td><td>1 (update 검증 실패→폼 재표시)</td><td>1 (없는 biosId edit)</td><td>—</td><td>6</td></tr>
+            <tr><td><code>BiosLifecycleControllerTest</code> (toggle/delete/restore/deprecate/undeprecate/purge/delete-intent)</td><td>7</td><td>1 (purge typed-name 불일치)</td><td>1 (없는 biosId)</td><td>2 (부적합 상태 deprecate/purge)</td><td>11</td></tr>
+            <tr><td><code>BiosUploadControllerTest</code> (intent/upload/register-existing)</td><td>3</td><td>1 (BindingResult 실패)</td><td>1 (없는 boardId)</td><td>1 (DuplicateBiosVersion/IntentConflict)</td><td>6</td></tr>
+            <tr><td><code>BiosNudgeControllerTest</code> (nudge×3 / intent-nudge×3)</td><td>6</td><td>1 (typed-name 불일치 replace)</td><td>1 (NudgeNotFound)</td><td>1 (NudgeSessionExpired)</td><td>9</td></tr>
+            <tr><td><code>BiosIntegrityControllerTest</code> (verify/integrity-status)</td><td>2</td><td>—</td><td>1 (없는 biosId)</td><td>—</td><td>3</td></tr>
+            <tr><td><code>BiosBrowseControllerTest</code> (browse — advice 매핑 회귀)</td><td>1</td><td>1 (InvalidBrowsePath)</td><td>1 (NotFound)</td><td>1 (NotDirectory)</td><td>4 (+500 IoException 1 = 5)</td></tr>
+          </tbody>
+        </table>
+        <h4>단위 — Support 헬퍼</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>검증</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>BiosControllerSupportTest</code></td><td><code>firstFieldError</code>(에러 有/無) · <code>nullToEmpty</code> · <code>redirectToListWithSelect</code> 문자열 · <code>verifyTypedNameIfPresent</code>(null/blank skip vs verify 호출)</td><td>5</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">통합 합계 <b>40 시나리오</b> (Metadata 6 · Lifecycle 11 · Upload 6 · Nudge 9 · Integrity 3 · Browse 5) + 단위 5. <b>browse advice 의 4+1 status 매핑</b>이 실제 실행되는지가 본 슬라이스 회귀의 핵심 — Mockito mocking 은 service 단까지만, advice 는 실 실행.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 / 타입</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><b>신규 예외</b></td><td>—</td><td><span class="chip keep">0</span> refactor — 새 예외 추가 없음</td></tr>
+            <tr><td><code>InvalidBrowsePathException</code></td><td>400</td><td><span class="chip mod">매핑 이전</span> 컨트롤러 <code>catch</code> → <code>@RestControllerAdvice</code> (BIOS+OS)</td></tr>
+            <tr><td><code>BrowseTargetNotFoundException</code></td><td>404</td><td><span class="chip mod">매핑 이전</span> advice 승급</td></tr>
+            <tr><td><code>BrowseTargetNotDirectoryException</code></td><td>409</td><td><span class="chip mod">매핑 이전</span> advice 승급</td></tr>
+            <tr><td><code>DirectoryBrowseIoException</code></td><td>500</td><td><span class="chip mod">매핑 이전</span> advice 승급</td></tr>
+            <tr><td>nudge/upload/lifecycle 도메인 예외 전체</td><td>기존 유지</td><td><span class="chip keep">유지</span> 이미 <code>ApiExceptionHandler</code>/advice 가 일괄 매핑 — 변경 0</td></tr>
+            <tr><td><code>TypedNameMismatchException</code></td><td>400</td><td><span class="chip keep">유지</span> Support 의 <code>verifyTypedNameIfPresent</code> 가 던지되 status 매핑 advice 불변</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>신규 예외 0</b> — 본 슬라이스는 예외를 새로 만들지 않는다. browse 4 예외의 <b>status 매핑 책임만</b> 컨트롤러 <code>try/catch</code> 에서 <code>@RestControllerAdvice</code> 로 옮긴다(framework primitive 활용, CLAUDE.md §분기문 금지 정합). BMC browse 의 동일 4-catch 는 R5-1 까지 잔존(§8).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>6 컨트롤러가 같은 <code>@RequestMapping("/management/bios")</code> 를 공유 — 라우팅 충돌?</td><td><b>없음</b> — 각 메서드 sub-path/시그니처가 distinct. Spring 은 핸들러 메서드 단위로 매핑하므로 클래스 분리 무관</td></tr>
+            <tr><td>Q2</td><td>browse advice 의 적용 범위 — BIOS 만 vs BIOS+OS</td><td><b>BIOS+OS</b> — 두 도메인의 browse 4-catch 가 동형. 한 advice 로 흡수해 복붙 즉시 제거. BMC 는 R5-1(아직 browse 미보유 또는 별도)</td></tr>
+            <tr><td>Q3</td><td>Support 를 <code>@Component</code> 빈 vs static util</td><td><b>@Component</b> — <code>verifyTypedNameIfPresent</code> 가 <code>typedNameVerifier</code> 협력자를 호출하므로 빈 주입이 자연스러움. <code>nullToEmpty</code>/<code>firstFieldError</code> 는 static 유지 가능(혼재 회피 위해 빈으로 통일)</td></tr>
+            <tr><td>Q4</td><td>기존 <code>BiosController*FlowTest</code> — 분리 vs 유지</td><td><b>컨트롤러별 분리</b> — CLAUDE.md §통합테스트 "컨트롤러 단위로 파일 분리" 규칙 준수. 6 파일로 재배치</td></tr>
+          </tbody>
+        </table>
+        <h4>cross-cutting 동반 수정</h4>
+        <ul>
+          <li><b>OS browse</b> — BIOS 와 같은 advice 로 끌어올리며 OS 컨트롤러의 browse 4-catch 도 함께 제거(복붙 동시 해소). OS 측 browse 통합 테스트는 advice 회귀로 보존.</li>
+          <li>뷰/JS — 폼 action URL 불변이라 <b>수정 0</b>. (URL 보존이 곧 프론트 무수정의 근거.)</li>
+        </ul>
+        <h4>잔존 책임 / 의도된 임시 비대칭</h4>
+        <ul>
+          <li><b>BMC browse 4-catch 잔존</b> — browse advice 를 BIOS+OS 만 승급하면 BMC 의 동일 4-catch 가 남는다. <b>R5-1 에서 동반 정비</b>. <u>S3.3→S3.4 multi-catch 누락 회귀를 의식해, 이 잔존을 Notion 페이지 본문에 명시</u>(CLAUDE.md §Notion 규약).</li>
+          <li><b>marker 4단 복붙</b> — controller 분할이라 service 본체 미변경 → marker 복붙은 그대로. <b>R4-2 BiosMarkerWriter</b> 에서 해소.</li>
+        </ul>
+        <h4>CLAUDE.md 갱신</h4>
+        <ul>
+          <li>인벤토리 코드에 <b>R4-1</b> 추가 — "BIOS controller 6분할(Metadata/Lifecycle/Upload/Nudge/Integrity/Browse + Support), BIOS/BMC/Subprogram 공통 6 컨트롤러 분해의 기준 도메인. browse 4-catch → @RestControllerAdvice(BIOS+OS) 승급" 1줄.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R4-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="split"> <span>6 컨트롤러 + <code>BiosControllerSupport</code> + browse advice 생성, 원 <code>BiosController</code> 삭제</span></label></li>
+          <li><label><input type="checkbox" data-key="endpoints"> <span>24 엔드포인트 라우팅 회귀 — <code>./gradlew test</code> 의 6 컨트롤러 FlowTest 전부 그린 (URL/status 불변)</span></label></li>
+          <li><label><input type="checkbox" data-key="browse"> <span>browse 4+1 status(400/404/409/500) advice 로 옮긴 뒤에도 동일 응답 (BIOS+OS)</span></label></li>
+          <li><label><input type="checkbox" data-key="support"> <span><code>firstFieldError</code>·<code>verifyTypedNameIfPresent</code> 인라인 복붙 0건 — <code>grep</code> 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (단위 + 통합 회귀)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자) — Miller/업로드/nudge/verify/browse/lifecycle 전부 동일</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규 (management/bios/controller)</h4>
+        <div class="pkg-tree">management/bios/controller/
+├── BiosMetadataController.java     (list/new/newFormWithoutBoard/editForm/update)
+├── BiosLifecycleController.java    (toggle/delete/deleteWithIntent/restore/deprecate/undeprecate/purge)
+├── BiosUploadController.java       (intent/uploadBundle/registerExisting)
+├── BiosNudgeController.java        (nudge×3 / intentNudge×3)
+├── BiosIntegrityController.java    (verify/integrityStatus)
+├── BiosBrowseController.java       (browse — try/catch 0)
+└── BiosControllerSupport.java      (@Component: redirect/formContext/firstFieldError/
+                                     nullToEmpty/verifyTypedNameIfPresent)
+management/common/filesystem/  (또는 global)
+└── DirectoryBrowseExceptionAdvice.java  (@RestControllerAdvice — browse 4예외 status, BIOS+OS)</div>
+        <h4>삭제</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>BiosController.java</code> (471줄)</td><td><span class="chip del">삭제</span> → 6 컨트롤러 + Support 로 책임 이전</td></tr>
+          </tbody>
+        </table>
+        <h4>수정 (cross-cutting)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>OS browse 컨트롤러</td><td><span class="chip mod">수정</span> browse 4-catch 제거 → 공유 advice 위임</td></tr>
+            <tr><td><code>BiosController*FlowTest</code> 묶음</td><td><span class="chip move">분리</span> 컨트롤러별 6 테스트 파일로 재배치 + Support 단위</td></tr>
+          </tbody>
+        </table>
+        <h4>유지 (KEEP — 변경 0)</h4>
+        <ul>
+          <li><code>BiosService</code> · <code>BiosUploadIntentService</code> · <code>BiosNudgeService</code> · <code>BiosVerificationLauncher</code> — 시그니처/본체 전부 불변.</li>
+          <li>Request/Response DTO · Entity · Repository · 모든 Thymeleaf 템플릿/JS — 변경 0.</li>
+          <li>nudge/upload/lifecycle 도메인 예외 + 기존 advice — 매핑 불변.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R4-2</b> — <code>BiosMarkerWriter</code> 추출. <code>BiosService</code> 본체에 4단으로 복붙된 marker 발급/서명 코드를 단일 협력자로 빼 복붙 제거. (controller 가 분리된 본 슬라이스 위에서 service 정돈을 진행.)</li>
+          <li><b>R4-3</b> — <code>BiosService</code>(659줄) 서브패키지 분리. lifecycle/registration/integrity/nudge 책임별로 sub-service 분해(R1-4 ISO 의 service 분리와 동형).</li>
+          <li><b>R5-1</b> — BMC 컨트롤러 6분할 + BMC browse 4-catch 정비(본 슬라이스의 잔존 책임 해소). BIOS 6분할을 기준 템플릿으로 재사용.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → open + scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 엔드포인트 분배 탐색기
+  //  ⚠ 아래 매핑은 §3 URL 표 / §4 분배 모델과 1:1 동일해야 함 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  // 기능군 → 색 클래스 (재사용 badge: clean=red / preserve=yellow / quar=blue)
+  const GROUP = {
+    Metadata : { cls:'quar',     label:'BiosMetadataController',  dep:'biosService · boardModelService',          reason:'Miller 목록 / 신규·수정 폼 / 메타 CRUD — 화면 렌더 책임' },
+    Lifecycle: { cls:'preserve', label:'BiosLifecycleController',  dep:'biosService · deleteIntentRegistry',        reason:'enabled·deleted·deprecated 상태 전이 + intent 토큰 소비' },
+    Upload   : { cls:'clean',    label:'BiosUploadController',     dep:'biosUploadIntentService · biosService',     reason:'번들 바이트 2단 핸드셰이크 + 기존 트리 claim (파일 자원 특이)' },
+    Nudge    : { cls:'quar',     label:'BiosNudgeController',      dep:'biosNudgeService · typedNameVerifier',      reason:'메타 충돌 nudge confirm (proceed/replace/cancel × 본/intent)' },
+    Integrity: { cls:'preserve', label:'BiosIntegrityController',  dep:'biosVerificationLauncher · biosService',    reason:'manifest 무결성 재검증 job + badge 상태 조회 (파일 자원 특이)' },
+    Browse   : { cls:'clean',    label:'BiosBrowseController',     dep:'directoryBrowseService',                    reason:'서버 경로 탐색 — 4-catch 를 advice 로 승급해 try/catch 0 (파일 자원 특이)' }
+  };
+  // 24 엔드포인트 (§3 표 그대로)
+  const ENDPOINTS = [
+    { m:'GET',  u:'/',                                              g:'Metadata'  },
+    { m:'GET',  u:'/{boardId}/new',                                 g:'Metadata'  },
+    { m:'GET',  u:'/new',                                           g:'Metadata'  },
+    { m:'GET',  u:'/{boardId}/bios/{biosId}/edit',                  g:'Metadata'  },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/edit',                  g:'Metadata'  },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/toggle',                g:'Lifecycle' },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/delete',                g:'Lifecycle' },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/delete-intent/{token}', g:'Lifecycle' },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/restore',               g:'Lifecycle' },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/deprecate',             g:'Lifecycle' },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/undeprecate',           g:'Lifecycle' },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/purge',                 g:'Lifecycle' },
+    { m:'POST', u:'/{boardId}/upload-intent',                       g:'Upload'    },
+    { m:'POST', u:'/{boardId}/upload',                              g:'Upload'    },
+    { m:'POST', u:'/{boardId}/register-existing',                   g:'Upload'    },
+    { m:'POST', u:'/nudge/{nudgeId}/proceed',                       g:'Nudge'     },
+    { m:'POST', u:'/nudge/{nudgeId}/replace',                       g:'Nudge'     },
+    { m:'POST', u:'/nudge/{nudgeId}/cancel',                        g:'Nudge'     },
+    { m:'POST', u:'/intent-nudge/{nudgeId}/proceed',                g:'Nudge'     },
+    { m:'POST', u:'/intent-nudge/{nudgeId}/replace',                g:'Nudge'     },
+    { m:'POST', u:'/intent-nudge/{nudgeId}/cancel',                 g:'Nudge'     },
+    { m:'POST', u:'/{boardId}/bios/{biosId}/verify',                g:'Integrity' },
+    { m:'GET',  u:'/{boardId}/bios/{biosId}/integrity-status',      g:'Integrity' },
+    { m:'GET',  u:'/browse',                                        g:'Browse'    }
+  ];
+  // Support 추출 헬퍼 (§4 표 그대로) — 복붙 제거 시각화
+  const HELPERS = {
+    redirectToListWithSelect : { share:'Metadata · Lifecycle', note:'private 헬퍼 5회 호출 → Support 단일 소스' },
+    populateFormContext      : { share:'Metadata',             note:'newForm/editForm/update 공유' },
+    firstFieldError          : { share:'Upload (+Metadata)',   note:'badRequest 메시지 조립 인라인 복붙 3회 제거' },
+    nullToEmpty              : { share:'Metadata',             note:'editForm description 보정' },
+    verifyTypedNameIfPresent : { share:'Nudge',                note:'typed-name if 인라인 복붙 2회 제거' }
+  };
+
+  let selEp = ENDPOINTS[0].u;     // 선택 엔드포인트
+  let selHelper = null;           // 선택 헬퍼
+
+  function demoRenderChips() {
+    const epWrap = document.getElementById('demo-endpoints');
+    epWrap.innerHTML = '<span class="group-label">엔드포인트 24 :</span>';
+    ENDPOINTS.forEach(ep => {
+      const b = document.createElement('button');
+      b.className = 'seg' + (ep.u === selEp && !selHelper ? ' active' : '');
+      b.textContent = ep.m + ' ' + ep.u;
+      b.onclick = () => { selEp = ep.u; selHelper = null; demoRender(); };
+      epWrap.appendChild(b);
+    });
+    const hWrap = document.getElementById('demo-helpers');
+    hWrap.innerHTML = '<span class="group-label">Support 추출 :</span>';
+    Object.keys(HELPERS).forEach(h => {
+      const b = document.createElement('button');
+      b.className = 'seg' + (h === selHelper ? ' active' : '');
+      b.textContent = h + '()';
+      b.onclick = () => { selHelper = h; demoRender(); };
+      hWrap.appendChild(b);
+    });
+  }
+
+  function demoRender() {
+    demoRenderChips();
+    const epRow = document.getElementById('demo-ep');
+    const target = document.getElementById('demo-target');
+    const reason = document.getElementById('demo-reason');
+    const dep = document.getElementById('demo-dep');
+    const caps = document.getElementById('demo-caps');
+    const msg = document.getElementById('demo-message');
+
+    if (selHelper) {
+      const h = HELPERS[selHelper];
+      epRow.textContent = 'BiosControllerSupport.' + selHelper + '()';
+      target.className = 'badge';
+      target.textContent = 'Support';
+      reason.innerHTML = '공통 헬퍼 — <b>' + h.share + '</b> 컨트롤러가 공유';
+      dep.textContent = '(협력자 주입 또는 static)';
+      caps.innerHTML = '// 복붙 제거\nBiosControllerSupport.' + selHelper + '(...)\n'
+        + '    ← <span class="f">' + h.share + '</span> 에서 단일 호출 (' + h.note + ')';
+      msg.className = 'ux-message';
+      msg.innerHTML = '<b>Support 로 추출</b> — ' + h.note + '. 6분할이 헬퍼를 N 컨트롤러에 흩뿌리는 회귀를 차단(SSOT).';
+      return;
+    }
+
+    const ep = ENDPOINTS.find(e => e.u === selEp);
+    const g = GROUP[ep.g];
+    epRow.textContent = ep.m + ' /management/bios' + (ep.u === '/' ? '' : ep.u);
+    target.className = 'badge ' + g.cls;
+    target.textContent = g.label;
+    reason.textContent = g.reason;
+    dep.textContent = g.dep;
+
+    const fileSpecial = (ep.g === 'Upload' || ep.g === 'Integrity' || ep.g === 'Browse');
+    caps.innerHTML = ep.m + ' ' + ep.u + '\n'
+      + '    → <span class="f">' + g.label + '</span>'
+      + (ep.g === 'Browse' ? '   // 4-catch → @RestControllerAdvice (try/catch 0)' : '')
+      + (fileSpecial ? '\n// ⓘ 파일 자원 특이 컨트롤러 (OS=ISO 대비 BIOS 가 추가로 갖는 6번째 그룹)' : '');
+
+    msg.className = 'ux-message ' + g.cls;
+    if (ep.g === 'Browse') {
+      msg.innerHTML = '<b>' + g.label + '</b> — URL <code>' + ep.u + '</code> 그대로. 내부 4-catch(400/404/409/500)를 <code>@RestControllerAdvice</code> 로 승급 → 컨트롤러 body 1줄. BMC browse 잔존은 R5-1.';
+    } else if (fileSpecial) {
+      msg.innerHTML = '<b>' + g.label + '</b> — BIOS 는 <b>파일 자원</b>이라 OS(ISO) 대비 Upload/Integrity/Browse 가 추가돼 6 컨트롤러가 된다. URL <code>' + ep.u + '</code> 불변.';
+    } else {
+      msg.innerHTML = '<b>' + g.label + '</b> 로 이동 — ' + g.reason + '. URL <code>' + ep.u + '</code> 한 글자도 안 바뀜(refactor).';
+    }
+  }
+  demoRender();   // 불가침 : 파일 끝 1회 호출
+</script>
+</body>
+</html>

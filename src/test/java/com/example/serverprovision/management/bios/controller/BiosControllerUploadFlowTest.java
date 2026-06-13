@@ -53,7 +53,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * A3 v3 BIOS 번들 컨트롤러 통합 테스트. plan v3 §6 커버리지 — Intent 6 / Upload 7 / Verify+CRUD 4 = 17 시나리오.
  */
-@WebMvcTest(controllers = BiosController.class)
+@WebMvcTest(controllers = {
+        BiosUploadController.class,
+        BiosIntegrityController.class,
+        BiosLifecycleController.class,
+        BiosNudgeController.class,
+        BiosBrowseController.class
+})
 class BiosControllerUploadFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 

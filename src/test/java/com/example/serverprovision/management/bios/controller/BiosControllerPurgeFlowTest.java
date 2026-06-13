@@ -31,7 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * S5-2-2 — BIOS 영구 삭제 (purge) 의 typed-name 검증 흐름 통합 테스트. 2 시나리오.
  */
-@WebMvcTest(controllers = BiosController.class)
+@WebMvcTest(controllers = {
+        BiosLifecycleController.class,
+        BiosMetadataController.class
+})
 class BiosControllerPurgeFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 

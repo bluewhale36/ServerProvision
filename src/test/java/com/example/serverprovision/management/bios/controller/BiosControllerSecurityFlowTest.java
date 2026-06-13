@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code catch (DomainException e)} 가 무심코 흡수하면 415 가 아닌 500 으로 응답이 새는 사고가 발생한다.
  * 본 테스트는 실 컨트롤러를 통과해 415 가 응답되는지 검증한다.</p>
  */
-@WebMvcTest(controllers = BiosController.class)
+@WebMvcTest(controllers = BiosUploadController.class)
 class BiosControllerSecurityFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
