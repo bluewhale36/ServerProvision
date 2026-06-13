@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>{@code catch (DomainException e) → 500} 이 보안 예외 (zip bomb / path policy 등) 를 무심코 흡수해
  * 분류된 status code (415/403/413) 가 silent 500 으로 새는 회귀를 차단.</p>
  */
-@WebMvcTest(controllers = BmcController.class)
+@WebMvcTest(controllers = BmcUploadController.class)
 class BmcControllerSecurityFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 

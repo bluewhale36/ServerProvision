@@ -49,7 +49,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-@WebMvcTest(controllers = BmcController.class)
+@WebMvcTest(controllers = {
+        BmcMetadataController.class,
+        BmcUploadController.class,
+        BmcNudgeController.class,
+        BmcJobController.class,
+        BmcBrowseController.class
+})
 class BmcControllerTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R5-1 Plan — BmcController 6분할 (Metadata/Lifecycle/Upload/Nudge/Job/Browse + Support)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.clean { background:var(--red-bg); color:var(--red); }
+  .badge.preserve { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.quar { background:var(--blue-bg); color:var(--blue); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.clean { background:var(--red-bg); border-color:var(--red); }
+  .ux-message.preserve { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.quar { background:var(--blue-bg); border-color:var(--blue); }
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:10.5px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 10px; font-size:11.5px; line-height:1.5; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R5-1 — <code>BmcController</code> 6분할 (Metadata / Lifecycle / Upload / Nudge / Job / Browse + Support) <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R5-1 (controller 기능별 분할 — refactor)</span>
+    <span><strong>상위</strong> R5 (BMC 도메인 책임 분리) · BIOS R4-1 8분할 선례 미러</span>
+    <span><strong>scope</strong> fat 단일 <code>BmcController</code>(409줄·24 엔드포인트) → 6 기능 컨트롤러 + 1 Support. URL·동작 100% 불변, 순수 재배치</span>
+    <span><strong>생성</strong> 2026-06-13 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (fat 컨트롤러 분할)</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (분배 탐색기)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 컨트롤러 분배 모델</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — fat 단일 컨트롤러의 책임 혼재 정리</summary>
+      <div class="body">
+        <p style="margin-top:0;">현재 <code>BmcController</code> 는 <b>409줄 · 24 엔드포인트</b> 한 클래스에 <b>조회 / 메타데이터 편집 / lifecycle(toggle·delete·restore·deprecate·purge) / 업로드(intent·upload·register-existing·form) / nudge(6) / job(verify·integrity) / browse</b> 7 기능군이 뒤섞여 있다. 의존 필드만 8개(<code>BmcService</code>·<code>BmcUploadIntentService</code>·<code>BmcNudgeService</code>·<code>BoardModelService</code>·<code>BmcVerificationLauncher</code>·<code>DirectoryBrowseService</code>·<code>DeleteIntentRegistry</code>·<code>TypedNameVerifier</code>)로, 한 컨트롤러가 떠안기엔 책임이 과적이다.</p>
+        <p>이 분할은 OS 도메인 R1 의 <b>8 컨트롤러 분할</b>, BIOS 도메인 <b>R4-1</b> 의 동형 분할 선례를 <b>BMC 에 미러링</b>하는 작업이다. BMC 는 BIOS 와 동형(<code>treeRootPath</code> + <code>IN_TREE</code> 마커 번들)이므로 분배 경계가 거의 1:1 대응한다.</p>
+        <div class="callout"><b>CLAUDE.md §조건 분기문 legacy 무분별 확장 경계 정합</b> — 본 프로젝트는 컨트롤러 try/catch 를 신규 컨트롤러에 <b>복붙으로 번지게 한 회귀</b>(S3.3→S3.4 4 컨트롤러 multi-catch 누락)를 반복했다. R5-1 은 분할 과정에서 BMC 의 잔존 try/catch 2곳(<code>uploadBundle</code> multi-catch · <code>browse</code> 4-catch)을 <code>@RestControllerAdvice</code> 로 승급해 <b>분할이 곧 분기 제거</b>가 되도록 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>선행 완료 / 진입 전제</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> BMC 도메인 기능 자체(MA4)는 완성 — 본 슬라이스는 동작을 보존한 채 <b>컨트롤러 구조만</b> 정돈.</li>
+          <li><span class="chip keep">선례</span> OS R1 8 컨트롤러 분할 · BIOS <b>R4-1</b> 동형 분할 — 같은 분배 경계 / Support 헬퍼 추출 패턴을 그대로 미러.</li>
+          <li><span class="chip keep">선례</span> OS / BIOS <code>browse</code> 의 try/catch → <code>@RestControllerAdvice</code> 승급 작업이 선행되어 있어, BMC 가 합류하면 <b>3 도메인 단일 advice</b> 로 수렴.</li>
+        </ul>
+
+        <h4>현 24 엔드포인트의 기능군 혼재 (진단)</h4>
+        <table>
+          <thead><tr><th>#</th><th>메서드</th><th>Method · URL</th><th>혼재된 기능군</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>list</code></td><td>GET <code>/management/bmc</code></td><td>조회 / 메타데이터</td></tr>
+            <tr><td>2</td><td><code>newForm</code></td><td>GET <code>/{boardId}/new</code> <span class="chip mod">AJAX formCard</span></td><td>업로드 폼</td></tr>
+            <tr><td>3</td><td><code>newFormWithoutBoard</code></td><td>GET <code>/new</code></td><td>업로드 폼</td></tr>
+            <tr><td>4</td><td><code>intent</code></td><td>POST <code>/{boardId}/upload-intent</code></td><td>업로드</td></tr>
+            <tr><td>5</td><td><code>uploadBundle</code></td><td>POST <code>/{boardId}/upload</code> <span class="chip del">multi-catch</span></td><td>업로드 (try/catch ①)</td></tr>
+            <tr><td>6</td><td><code>registerExisting</code></td><td>POST <code>/{boardId}/register-existing</code></td><td>업로드</td></tr>
+            <tr><td>7</td><td><code>editForm</code></td><td>GET <code>/{boardId}/bmc/{bmcId}/edit</code></td><td>메타데이터</td></tr>
+            <tr><td>8</td><td><code>update</code></td><td>POST <code>/{boardId}/bmc/{bmcId}/edit</code></td><td>메타데이터</td></tr>
+            <tr><td>9</td><td><code>toggle</code></td><td>POST <code>.../toggle</code></td><td>lifecycle</td></tr>
+            <tr><td>10</td><td><code>delete</code></td><td>POST <code>.../delete</code></td><td>lifecycle</td></tr>
+            <tr><td>11</td><td><code>deleteWithIntent</code></td><td>POST <code>.../delete-intent/{token}</code></td><td>lifecycle</td></tr>
+            <tr><td>12</td><td><code>restore</code></td><td>POST <code>.../restore</code></td><td>lifecycle</td></tr>
+            <tr><td>13</td><td><code>deprecate</code></td><td>POST <code>.../deprecate</code></td><td>lifecycle</td></tr>
+            <tr><td>14</td><td><code>undeprecate</code></td><td>POST <code>.../undeprecate</code></td><td>lifecycle</td></tr>
+            <tr><td>15</td><td><code>purge</code></td><td>POST <code>.../purge</code></td><td>lifecycle</td></tr>
+            <tr><td>16</td><td><code>nudgeProceed</code></td><td>POST <code>/nudge/{nudgeId}/proceed</code></td><td>nudge</td></tr>
+            <tr><td>17</td><td><code>nudgeReplace</code></td><td>POST <code>/nudge/{nudgeId}/replace</code> <span class="chip mod">typedName 복붙</span></td><td>nudge</td></tr>
+            <tr><td>18</td><td><code>nudgeCancel</code></td><td>POST <code>/nudge/{nudgeId}/cancel</code></td><td>nudge</td></tr>
+            <tr><td>19</td><td><code>intentNudgeProceed</code></td><td>POST <code>/intent-nudge/{nudgeId}/proceed</code></td><td>nudge</td></tr>
+            <tr><td>20</td><td><code>intentNudgeReplace</code></td><td>POST <code>/intent-nudge/{nudgeId}/replace</code> <span class="chip mod">typedName 복붙</span></td><td>nudge</td></tr>
+            <tr><td>21</td><td><code>intentNudgeCancel</code></td><td>POST <code>/intent-nudge/{nudgeId}/cancel</code></td><td>nudge</td></tr>
+            <tr><td>22</td><td><code>verify</code></td><td>POST <code>.../verify</code></td><td>job (검증 실행)</td></tr>
+            <tr><td>23</td><td><code>integrityStatus</code></td><td>GET <code>.../integrity-status</code></td><td>job (상태 조회)</td></tr>
+            <tr><td>24</td><td><code>browse</code></td><td>GET <code>/browse</code> <span class="chip del">4-catch</span></td><td>browse (try/catch ②)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>잔존 try/catch 2개 + bindingResult / typedNameVerifier 복붙</b> — ① <code>uploadBundle</code>(L135-150) 의 <code>NotFound/FieldBoundConflict/Conflict/DomainException</code> multi-catch, ② <code>browse</code>(L378-392) 의 <code>InvalidBrowsePath/NotFound/NotDirectory/IoException</code> 4-catch 가 BMC 의 유일한 잔존 try/catch. 추가로 <b>3 엔드포인트</b>(intent·uploadBundle·registerExisting)에 <code>bindingResult.hasErrors()</code> 블록이 복붙, <b>2 엔드포인트</b>(nudgeReplace·intentNudgeReplace)에 <code>typedNameVerifier.verify</code> guard 가 복붙되어 있다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>URL · 동작 100% 불변 (불가침)</b> — 24 엔드포인트의 Method / URL / 응답 status / 응답 바디 / produces 속성 전부 동일. 순수 controller 재배치(뷰 변경 0, Service 변경 0).</li>
+          <li><b>기능군 6 컨트롤러 분배</b> — <code>BmcMetadataController</code>(list·edit form·update) · <code>BmcLifecycleController</code>(toggle·delete·restore·deprecate·purge) · <code>BmcUploadController</code>(new form·intent·upload·register-existing) · <code>BmcNudgeController</code>(nudge×3 + intent-nudge×3) · <code>BmcJobController</code>(verify·integrity-status) · <code>BmcBrowseController</code>(browse).</li>
+          <li><b>try/catch 2곳 → advice 승급</b> — <code>uploadBundle</code> multi-catch / <code>browse</code> 4-catch 를 <code>@RestControllerAdvice</code> 로 끌어올려 OS·BIOS browse advice 와 <b>3 도메인 단일화</b>. 분할 = 분기 제거.</li>
+          <li><b>복붙 헬퍼 Support 추출</b> — <code>redirectToListWithSelect</code> / <code>nullToEmpty</code> / <code>populateFormContext</code> + bindingResult 첫-에러 추출 + typedNameVerifier guard 를 <code>BmcControllerSupport</code> 정적 헬퍼로. N 컨트롤러 공유로 복붙 제거.</li>
+          <li><b>AJAX formCard produces 보존 (불가침)</b> — <code>newForm</code> 의 <code>X-Requested-With</code> 분기 + <code>"... :: formCard"</code> fragment 반환 경로를 그대로 보존. 분할 시 라우팅 회귀 가능 지점.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스로 위임)</b>
+          <ul>
+            <li><b><code>BmcVerificationLauncher</code> 분리</b> — Launcher / Runner 2 책임으로 가르고 <code>IntegrityStatus.displayMessage</code> 를 도메인으로 이관하는 작업은 <b>R5-2</b>. 본 슬라이스는 <code>verify</code>/<code>integrity-status</code> 를 Job 컨트롤러로 옮기기만 한다.</li>
+            <li><b><code>BmcService</code>(647줄) 분리</b> — service 본체의 기능별 분리(lifecycle / registration / integrity)는 <b>R5-3</b>. 본 슬라이스는 service 를 손대지 않는다.</li>
+            <li><b>statusMessage / Launcher 분리</b> — <b>R5-2</b> 로 위임.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 엔드포인트 분배 탐색기 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 칩은 원 <code>BmcController</code> 의 <b>24 엔드포인트 전부</b>(+ Support 로 추출되는 공통 헬퍼 3종)입니다. 칩을 클릭하면 우측에 <b>이동 대상 컨트롤러</b>와 <b>이동 이유(책임군)</b>, 그리고 해당 엔드포인트가 가진 특이사항(try/catch · produces · typedName 복붙)이 라이브로 표시됩니다. 이 분배는 §3 / §4 의 실제 매핑과 <b>1:1 동일</b>(드리프트 0)입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-chips">
+            <span class="group-label">엔드포인트 :</span>
+          </div>
+          <div class="ux-toolbar" style="margin-top:4px;">
+            <span class="group-label">공통 헬퍼 :</span>
+            <span id="demo-helper-chips"></span>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row">
+              <strong>엔드포인트</strong><span class="label" id="demo-ep">—</span>
+              <span class="badge" id="demo-target">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>이동 이유</strong><span class="label" id="demo-reason">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>특이사항</strong><span class="label" id="demo-note">—</span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">엔드포인트 칩을 눌러 분배 대상을 확인하세요. 색은 컨트롤러별로 구분됩니다.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — BmcController (409줄·24 EP·try/catch 2)</h4><pre><code>@Controller /management/bmc
+  list · newForm(AJAX) · newFormWithoutBoard
+  intent · uploadBundle(multi-catch) · registerExisting
+  editForm · update
+  toggle · delete · deleteWithIntent · restore
+  deprecate · undeprecate · purge
+  nudge{proceed,replace*,cancel}
+  intentNudge{proceed,replace*,cancel}
+  verify · integrityStatus
+  browse(4-catch)
+  + populateFormContext / redirectToListWithSelect / nullToEmpty
+  의존 8개  ·  bindingResult 복붙×3  ·  typedName 복붙×2</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 6 컨트롤러 + Support</h4><pre><code>BmcMetadataController   list · editForm · update
+BmcLifecycleController  toggle·delete·deleteWithIntent
+                        ·restore·deprecate·undeprecate·purge
+BmcUploadController     newForm(AJAX)·newFormWithoutBoard
+                        ·intent·uploadBundle·registerExisting
+BmcNudgeController      nudge×3 · intentNudge×3
+BmcJobController        verify · integrityStatus
+BmcBrowseController     browse
+BmcControllerSupport    redirectToListWithSelect·nullToEmpty
+                        ·populateFormContext·firstError·typedNameGuard
+try/catch 2 → @RestControllerAdvice (OS/BIOS 와 3 도메인 단일)</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 분배 매핑은 §3 URL 표 / §4 분배 모델과 단일 소스. 24 EP 가 6 컨트롤러 + Support 로 빠짐없이 흘러가며 URL 은 1:1 보존됩니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 (분할 전후 1:1 보존)</summary>
+      <div class="body">
+        <h4>전체 엔드포인트 — Method · URL · 동작 · 이동 대상 컨트롤러</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>이동 대상</th><th>URL</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/bmc</code></td><td>목록 (Miller, includeDeleted/select)</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/{boardId}/bmc/{bmcId}/edit</code></td><td>편집 폼</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bmc/{bmcId}/edit</code></td><td>메타 수정 (BindingResult)</td><td>Metadata</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>.../toggle</code></td><td>활성 토글</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>.../delete</code></td><td>soft-delete</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>.../delete-intent/{token}</code></td><td>의도 검증 삭제 (XHR JSON)</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>.../restore</code></td><td>복원</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>.../deprecate</code></td><td>deprecated 전환</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>.../undeprecate</code></td><td>deprecated 해제</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>.../purge</code></td><td>영구 삭제 (typedName)</td><td>Lifecycle</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/{boardId}/new</code></td><td>신규 폼 (AJAX → formCard)</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/new</code></td><td>보드 미지정 신규 진입</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/upload-intent</code></td><td>업로드 의도 발급 (JSON)</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/upload</code></td><td>번들 업로드 + 등록</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/register-existing</code></td><td>기존 디렉토리 claim</td><td>Upload</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/proceed</code></td><td>nudge 진행</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/replace</code></td><td>nudge 교체 (typedName guard)</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/cancel</code></td><td>nudge 취소</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/proceed</code></td><td>intent nudge 진행 (JSON 응답)</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/replace</code></td><td>intent nudge 교체 (typedName guard)</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/cancel</code></td><td>intent nudge 취소</td><td>Nudge</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>POST</td><td><code>/{boardId}/bmc/{bmcId}/verify</code></td><td>검증 job 시작 (jobId)</td><td>Job</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>.../integrity-status</code></td><td>무결성 상태 조회 (JSON)</td><td>Job</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>GET</td><td><code>/browse</code></td><td>디렉토리 브라우즈 (JSON, 4-catch)</td><td>Browse</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>흐름 — 분할 후 요청 라우팅</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">기능별 컨트롤러</div><div class="actor a3">Support (정적)</div><div class="actor a4">Service / advice</div>
+          <div class="step a1">동일 URL 호출</div><div class="step a2"><code>@RequestMapping</code> 매핑 동일</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">검증·redirect·form 조립</div><div class="step a3"><code>firstError</code>/<code>redirectToListWithSelect</code> 등 공용</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">위임</div><div class="step a3"></div><div class="step a4">Service 호출 (불변)</div>
+          <div class="step a1">동일 응답</div><div class="step a2">try/catch 제거</div><div class="step a3"></div><div class="step a4"><code>@RestControllerAdvice</code> 가 예외 → status 매핑</div>
+        </div>
+        <div class="callout"><b>produces 보존 주의</b> — <code>newForm</code>(AJAX formCard) 와 <code>deleteWithIntent</code>(<code>produces="application/json"</code>)·intent-nudge proceed/replace(JSON 바디 반환) 의 반환 타입·produces 속성을 분할 후에도 그대로 유지. 라우팅 회귀 1순위 점검 대상.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 컨트롤러 분배 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 컨트롤러 분배 모델 + Support 헬퍼</summary>
+      <div class="body">
+        <h4>6 신규 컨트롤러 — 받는 엔드포인트 / 의존</h4>
+        <table>
+          <thead><tr><th>컨트롤러</th><th>받는 엔드포인트</th><th>의존</th></tr></thead>
+          <tbody>
+            <tr><td><code>BmcMetadataController</code></td><td><code>list</code> · <code>editForm</code> · <code>update</code></td><td><code>BmcService</code>, <code>BoardModelService</code></td></tr>
+            <tr><td><code>BmcLifecycleController</code></td><td><code>toggle</code> · <code>delete</code> · <code>deleteWithIntent</code> · <code>restore</code> · <code>deprecate</code> · <code>undeprecate</code> · <code>purge</code></td><td><code>BmcService</code>, <code>DeleteIntentRegistry</code></td></tr>
+            <tr><td><code>BmcUploadController</code></td><td><code>newForm</code> · <code>newFormWithoutBoard</code> · <code>intent</code> · <code>uploadBundle</code> · <code>registerExisting</code></td><td><code>BmcService</code>, <code>BmcUploadIntentService</code>, <code>BoardModelService</code></td></tr>
+            <tr><td><code>BmcNudgeController</code></td><td><code>nudgeProceed/replace/cancel</code> · <code>intentNudgeProceed/replace/cancel</code></td><td><code>BmcNudgeService</code>, <code>TypedNameVerifier</code></td></tr>
+            <tr><td><code>BmcJobController</code></td><td><code>verify</code> · <code>integrityStatus</code></td><td><code>BmcVerificationLauncher</code>, <code>BmcService</code></td></tr>
+            <tr><td><code>BmcBrowseController</code></td><td><code>browse</code></td><td><code>DirectoryBrowseService</code></td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>의존 분산</b> — 단일 컨트롤러 8 의존 → 컨트롤러당 1~3 의존으로 분산. 각 컨트롤러는 자기 기능군이 필요로 하는 service 만 주입받는다.</div>
+
+        <h4>Support 로 추출되는 공통 헬퍼 (복붙 제거)</h4>
+        <table>
+          <thead><tr><th>헬퍼</th><th>원 위치</th><th>중복</th><th>공유 컨트롤러</th></tr></thead>
+          <tbody>
+            <tr><td><code>redirectToListWithSelect(id)</code></td><td>private</td><td>update·toggle·restore·deprecate·undeprecate (5회)</td><td>Metadata · Lifecycle</td></tr>
+            <tr><td><code>nullToEmpty(s)</code></td><td>static</td><td>editForm</td><td>Metadata (+잠재 공유)</td></tr>
+            <tr><td><code>populateFormContext(...)</code></td><td>private</td><td>newForm·editForm·update (3회)</td><td>Metadata · Upload</td></tr>
+            <tr><td><code>firstError(bindingResult)</code></td><td>인라인 복붙</td><td>intent·uploadBundle·registerExisting (3회)</td><td>Upload</td></tr>
+            <tr><td><code>typedNameGuard(type,id,name)</code></td><td>인라인 복붙</td><td>nudgeReplace·intentNudgeReplace (2회)</td><td>Nudge</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>Support = 정적 헬퍼 클래스</b> (<code>BmcControllerSupport</code>) — 상태 없는 순수 함수만 모은다. <code>typedNameGuard</code> 는 <code>TypedNameVerifier</code> 를 인자로 받는 정적 함수(컨트롤러가 주입받은 verifier 를 넘김)로 두어 Support 가 Spring bean 의존을 갖지 않게 한다. CLAUDE.md §over-abstraction 경계 — 도메인을 가로지르지 않는 BMC 전용 헬퍼이므로 BMC 패키지 내 정적 클래스로 유지.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (refactor 특성 반영)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td><b>뷰 변경 0</b> — list/new/edit 템플릿·JS·fragment 그대로. (refactor 라 신규 뷰 없음)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><b>핵심</b> — 6 컨트롤러 신설 + 엔드포인트 재배치 + <code>BmcControllerSupport</code> 추출 + try/catch 2곳 → <code>@RestControllerAdvice</code> 승급. 원 <code>BmcController</code> 삭제</td></tr>
+            <tr><td>4</td><td>DTO — <b>변경 0</b> (기존 Request/Response 재사용)</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — <b>변경 0</b> (Service 불변, R5-3 위임)</td></tr>
+            <tr><td>6</td><td>Repository — <b>변경 0</b></td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — <b>변경 0</b> (스키마 무변경)</td></tr>
+            <tr><td>8</td><td>테스트 — 컨트롤러별 통합 테스트 파일 분리 + advice 승급 회귀(§6). 기존 <code>BmcController*Test</code> 를 6 파일로 재배치</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <b>확인 불필요</b> (DDL 무변경). 컴파일 + 전체 테스트 그린만 확인</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 24 엔드포인트 회귀 (목록/편집/lifecycle/업로드/nudge/verify/browse 각 1회) — <b>사용자 단독</b></td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>refactor 특성</b> — Step 4~7 산출물이 사실상 "변경 0" 이다. 본 슬라이스의 무게는 <b>Step 3(controller 재배치 + advice 승급)</b> 과 <b>Step 8(컨트롤러별 테스트 분리 + advice 회귀)</b> 에 집중된다. CP2 가 가장 무겁고, CP3 는 형식적 통과.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <h4>컨트롤러별 테스트 파일 분리 (URL 불변 → 회귀 성격)</h4>
+        <table>
+          <thead><tr><th>테스트 파일</th><th>성공 2xx</th><th>400</th><th>404</th><th>409</th><th>소계</th></tr></thead>
+          <tbody>
+            <tr><td><code>BmcMetadataControllerTest</code></td><td>list 200 · editForm 200 · update redirect (3)</td><td>update 검증 실패 폼 반환 (1)</td><td>없는 bmcId edit/update → NotFound (1)</td><td>—</td><td>5</td></tr>
+            <tr><td><code>BmcLifecycleControllerTest</code></td><td>toggle·delete·restore·deprecate·undeprecate·purge·deleteWithIntent 204/redirect (7)</td><td>purge typedName 불일치 → 400 (1)</td><td>없는 bmcId 액션 → NotFound (1)</td><td>parent-child lifecycle 가드 위반 → 409 (1)</td><td>10</td></tr>
+            <tr><td><code>BmcUploadControllerTest</code></td><td>newForm(AJAX formCard)·newFormWithoutBoard·intent·upload·registerExisting (5)</td><td>bindingResult 실패 → 400 (intent/upload/register 각 1, 3)</td><td>없는 boardId upload → NotFound 404 (1)</td><td>upload 중복/필드충돌 → Conflict 409 · nudge-required 409 (2)</td><td>11</td></tr>
+            <tr><td><code>BmcNudgeControllerTest</code></td><td>nudge proceed/replace/cancel + intent-nudge proceed/replace/cancel 204/JSON (6)</td><td>replace typedName 불일치 → 400 (1)</td><td>없는 nudgeId → NotFound 404 (1)</td><td>이미 처리된 nudge → Conflict 409 (1)</td><td>9</td></tr>
+            <tr><td><code>BmcJobControllerTest</code></td><td>verify → jobId 200 · integrity-status JSON 200 (2)</td><td>—</td><td>없는 bmcId verify/status → NotFound 404 (1)</td><td>—</td><td>3</td></tr>
+            <tr><td><code>BmcBrowseControllerTest</code></td><td>browse 정상 200 (1)</td><td>InvalidBrowsePath → 400 (1)</td><td>BrowseTargetNotFound → 404 (1)</td><td>BrowseTargetNotDirectory → 409 (1)</td><td>4</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>총 42 시나리오</b> — advice 승급 후에도 <b>실제 매핑이 실행</b>되도록 Mockito mocking 은 Service 단까지만. <code>@RestControllerAdvice</code> 의 예외→status 매핑은 MockMvc 경로에서 실제 실행되어야 한다(<code>uploadBundle</code> multi-catch 제거 후 <code>NotFound 404</code>/<code>Conflict 409</code>/<code>DomainException 500</code> 이 advice 로 동일하게 나오는지가 핵심 회귀). <code>browse</code> 4-catch 제거 후 4 status 가 advice 에서 동일하게 매핑되는지도 검증.</div>
+        <div class="callout danger"><b>DomainException 500 누수 회귀 (S3 사고 동형)</b> — <code>uploadBundle</code> 의 <code>catch(DomainException)→500</code> 은 보안 예외를 흡수하지 않도록 SecurityException 계층이 통과해야 한다. advice 승급 후 <b>SecurityException 이 advice 의 보안 핸들러로 정확히 매핑</b>되는지 별도 시나리오로 못박는다(silent 500 누수 방지).</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 / 처리</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>NotFoundException</code> (upload)</td><td>404</td><td><span class="chip mod">advice 승급</span> 컨트롤러 catch 제거 → <code>@RestControllerAdvice</code></td></tr>
+            <tr><td><code>FieldBoundConflictException</code> (upload)</td><td>409</td><td><span class="chip mod">advice 승급</span> fieldErrors 동봉 매핑 advice 로 이관</td></tr>
+            <tr><td><code>ConflictException</code> (upload)</td><td>409</td><td><span class="chip mod">advice 승급</span></td></tr>
+            <tr><td><code>DomainException</code> (upload fallback)</td><td>500</td><td><span class="chip mod">advice 승급</span> SecurityException 누수 방지 보존</td></tr>
+            <tr><td><code>InvalidBrowsePathException</code> (browse)</td><td>400</td><td><span class="chip mod">advice 승급</span> OS/BIOS browse advice 와 3 도메인 단일화</td></tr>
+            <tr><td><code>BrowseTargetNotFoundException</code> (browse)</td><td>404</td><td><span class="chip mod">advice 승급</span></td></tr>
+            <tr><td><code>BrowseTargetNotDirectoryException</code> (browse)</td><td>409</td><td><span class="chip mod">advice 승급</span></td></tr>
+            <tr><td><code>DirectoryBrowseIoException</code> (browse)</td><td>500</td><td><span class="chip mod">advice 승급</span></td></tr>
+            <tr><td><code>TypedNameMismatchException</code> (nudge·purge)</td><td>400</td><td><span class="chip keep">유지</span> 기존 advice 매핑 그대로</td></tr>
+            <tr><td>nudge / intent-nudge 도메인 예외</td><td>404/409</td><td><span class="chip keep">유지</span> 이미 advice 처리 (try/catch 없음)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>신규 예외 0 (refactor)</b> — 새 예외 클래스는 없다. 변경의 본질은 <b>컨트롤러 try/catch 2곳을 advice 로 끌어올림</b>이다. browse advice 는 OS / BIOS 가 이미 사용 중인 핸들러에 BMC 가 합류 → <b>3 도메인 단일 핸들러</b>. status 매핑값은 전부 동일.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>분할 단위 — 7 기능군을 6 컨트롤러(조회+메타 합침)로 vs 7 컨트롤러로</td><td><b>6</b> — list 는 메타데이터 조회 성격이라 <code>BmcMetadataController</code> 에 합침. BIOS R4-1 선례와 정합</td></tr>
+            <tr><td>Q2</td><td>browse advice — BMC 전용 advice vs OS/BIOS 와 공유하는 단일 <code>@RestControllerAdvice</code></td><td><b>공유 단일</b> — browse 예외 4종은 <code>common/filesystem</code> 소속(도메인 무관). 3 도메인 단일 advice 가 SSOT</td></tr>
+            <tr><td>Q3</td><td><code>uploadBundle</code> multi-catch advice 승급 시 <code>DomainException→500</code> fallback 도 advice 로? 보안 예외 누수 위험</td><td><b>advice 로</b> — 단 SecurityException 계층이 advice 의 별도 보안 핸들러로 먼저 잡히는지 테스트로 못박음(§6 danger callout)</td></tr>
+            <tr><td>Q4</td><td><code>typedNameGuard</code> 를 Support 정적 헬퍼 vs Nudge 컨트롤러 private</td><td><b>Support 정적</b>(verifier 인자 전달) — nudge/intent-nudge 2회 복붙 제거. Support 가 bean 의존 갖지 않게</td></tr>
+            <tr><td>Q5</td><td>기존 <code>BmcController*Test</code> 를 6 파일로 쪼갬 vs 단일 유지</td><td><b>6 파일</b> — CLAUDE.md §컨트롤러 단위 파일 분리 규칙. 컨트롤러와 1:1</td></tr>
+          </tbody>
+        </table>
+        <h4>cross-cutting 동반 수정</h4>
+        <ul>
+          <li><b>browse <code>@RestControllerAdvice</code></b> — BMC browse 의 4-catch 제거에 맞춰 OS/BIOS 와 공유하는 advice 에 BMC import 경로가 이미 커버되는지 확인(예외 클래스가 <code>common/filesystem/exception</code> 공통이라 추가 핸들러 불필요할 가능성 높음).</li>
+          <li><b>upload multi-catch advice</b> — <code>NotFound/FieldBoundConflict/Conflict/DomainException</code> 매핑이 global advice 에 이미 있다면 컨트롤러 catch 만 제거. 없으면 advice 에 핸들러 1회 추가(이후 OS/BIOS 업로드도 합류 가능).</li>
+        </ul>
+        <h4>잔존 책임 / 해소 시점 (Notion 본문 기재 대상)</h4>
+        <ul>
+          <li><b><code>BmcVerificationLauncher</code> 미분리</b> — <code>verify</code>/<code>integrity-status</code> 를 <code>BmcJobController</code> 로 옮기되 Launcher 자체는 그대로. Launcher/Runner 분리 + <code>IntegrityStatus.displayMessage</code> 도메인 이관은 <b>R5-2</b> (의도된 임시 상태).</li>
+          <li><b><code>BmcService</code>(647줄) 미분리</b> — service 본체는 본 슬라이스에서 손대지 않음. lifecycle/registration/integrity 분리는 <b>R5-3</b>.</li>
+          <li><b>AJAX formCard produces 보존</b> — <code>newForm</code> 의 fragment 반환·<code>deleteWithIntent</code> produces·intent-nudge JSON 반환이 분할 시 라우팅 회귀 가능. Step 8 통합 테스트로 못박음.</li>
+        </ul>
+        <h4>CLAUDE.md 갱신</h4>
+        <ul>
+          <li>인벤토리 코드에 <b>R5-1</b>(+예고 R5-2/R5-3) 추가. "BmcController 6 기능 컨트롤러 + Support 정적 헬퍼, browse/upload try/catch → 3 도메인 단일 advice" 1줄.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R5-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="split"> <span>6 컨트롤러 + <code>BmcControllerSupport</code> 신설 · 원 <code>BmcController</code> 삭제 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="trycatch"> <span><code>grep -rn "try {" .../bmc/controller/</code> → <b>0</b>건 (upload·browse try/catch advice 승급 증명)</span></label></li>
+          <li><label><input type="checkbox" data-key="endpoints"> <span>24 엔드포인트 매핑 회귀 — Method/URL/produces/응답 status 전부 동일 (통합 테스트 42 시나리오 그린)</span></label></li>
+          <li><label><input type="checkbox" data-key="produces"> <span><code>newForm</code> AJAX formCard · <code>deleteWithIntent</code>/intent-nudge JSON produces 보존 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="advice"> <span>upload·browse 예외 → advice 매핑이 OS/BIOS 와 동일 status 반환 (3 도메인 단일)</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (컨트롤러 6 파일 + 기존 회귀)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자) — 7 기능군 각 1회 클릭 회귀</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규 (management/bmc/controller)</h4>
+        <div class="pkg-tree">management/bmc/controller/
+├── BmcMetadataController.java    (list · editForm · update)
+├── BmcLifecycleController.java   (toggle·delete·deleteWithIntent·restore
+│                                  ·deprecate·undeprecate·purge)
+├── BmcUploadController.java      (newForm[AJAX]·newFormWithoutBoard
+│                                  ·intent·uploadBundle·registerExisting)
+├── BmcNudgeController.java       (nudge×3 · intentNudge×3)
+├── BmcJobController.java         (verify · integrityStatus)
+├── BmcBrowseController.java      (browse)
+└── BmcControllerSupport.java     (정적 헬퍼: redirectToListWithSelect
+                                   ·nullToEmpty·populateFormContext
+                                   ·firstError·typedNameGuard)</div>
+        <h4>삭제</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>BmcController.java</code> (409줄)</td><td><span class="chip del">삭제</span> 24 엔드포인트 → 6 컨트롤러로 전량 이전</td></tr>
+          </tbody>
+        </table>
+        <h4>수정 (cross-cutting)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>browse <code>@RestControllerAdvice</code> (OS/BIOS 공유)</td><td><span class="chip mod">수정</span> BMC browse 4-catch 흡수 (예외 공통이면 추가 핸들러 불필요)</td></tr>
+            <tr><td>upload 예외 advice</td><td><span class="chip mod">수정</span> <code>NotFound/FieldBoundConflict/Conflict/DomainException</code> 매핑 (없으면 1회 추가)</td></tr>
+            <tr><td>기존 <code>BmcController*Test</code></td><td><span class="chip move">이전</span> 컨트롤러별 6 테스트 파일로 재배치 (§6)</td></tr>
+          </tbody>
+        </table>
+        <h4>유지 (KEEP — 변경 0)</h4>
+        <ul>
+          <li><code>BmcService</code>(647줄) · <code>BmcUploadIntentService</code> · <code>BmcNudgeService</code> · <code>BmcVerificationLauncher</code> — <b>전부 불변</b> (R5-2/R5-3 위임).</li>
+          <li>모든 Thymeleaf 뷰 · JS · fragment · DTO · Entity · Repository · 스키마 — 변경 0.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R5-2</b> — <code>BmcVerificationLauncher</code> → <b>Launcher / Runner 2 책임 분리</b> + <code>IntegrityStatus.displayMessage</code> 를 도메인(상태 enum/VO)으로 이관. <code>BmcJobController</code> 가 분리된 Launcher 를 주입받도록 재배선.</li>
+          <li><b>R5-3</b> — <code>BmcService</code>(647줄) 를 lifecycle / registration / integrity service 로 분리 (OS R1-4 · BIOS 선례 미러). 본 슬라이스에서 분리한 컨트롤러들이 각자 필요한 분리 service 만 주입.</li>
+          <li><b>(정합 과제)</b> upload 예외 advice 가 1회 추가되면 OS / BIOS 업로드 컨트롤러도 동일 advice 로 합류 가능 → 도메인 횡단 업로드 예외 단일화 후보.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → open + scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 엔드포인트 분배 탐색기
+  //  ⚠ 매핑은 §3 URL 표 / §4 분배 모델과 1:1 동일해야 함 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  // 컨트롤러별 색 (badge 클래스 재사용)
+  const CTRL = {
+    Metadata  : { label:'BmcMetadataController',  cls:'quar'     },
+    Lifecycle : { label:'BmcLifecycleController', cls:'preserve' },
+    Upload    : { label:'BmcUploadController',    cls:'clean'    },
+    Nudge     : { label:'BmcNudgeController',     cls:'preserve' },
+    Job       : { label:'BmcJobController',       cls:'quar'     },
+    Browse    : { label:'BmcBrowseController',    cls:'clean'    }
+  };
+  // 24 엔드포인트 — { 이름, url, 대상, 이유, 특이사항 }
+  const EP = [
+    { id:'list',                ep:'GET /management/bmc',                    t:'Metadata',  r:'조회 / 메타데이터 목록 (Miller)',                note:'—' },
+    { id:'editForm',            ep:'GET /{boardId}/bmc/{bmcId}/edit',        t:'Metadata',  r:'메타데이터 편집 폼',                            note:'populateFormContext·nullToEmpty 사용 → Support' },
+    { id:'update',              ep:'POST /{boardId}/bmc/{bmcId}/edit',       t:'Metadata',  r:'메타데이터 수정 (BindingResult)',               note:'redirectToListWithSelect → Support' },
+    { id:'toggle',              ep:'POST .../toggle',                        t:'Lifecycle', r:'활성 토글',                                     note:'redirectToListWithSelect → Support' },
+    { id:'delete',              ep:'POST .../delete',                        t:'Lifecycle', r:'soft-delete',                                   note:'—' },
+    { id:'deleteWithIntent',    ep:'POST .../delete-intent/{token}',         t:'Lifecycle', r:'의도 검증 삭제',                                note:'⚠ produces="application/json" 보존' },
+    { id:'restore',             ep:'POST .../restore',                       t:'Lifecycle', r:'복원',                                          note:'redirectToListWithSelect → Support' },
+    { id:'deprecate',           ep:'POST .../deprecate',                     t:'Lifecycle', r:'deprecated 전환',                               note:'redirectToListWithSelect → Support' },
+    { id:'undeprecate',         ep:'POST .../undeprecate',                   t:'Lifecycle', r:'deprecated 해제',                               note:'redirectToListWithSelect → Support' },
+    { id:'purge',               ep:'POST .../purge',                         t:'Lifecycle', r:'영구 삭제 (typedName)',                          note:'—' },
+    { id:'newForm',             ep:'GET /{boardId}/new',                     t:'Upload',    r:'신규 등록 폼',                                  note:'⚠ AJAX → formCard fragment produces 보존' },
+    { id:'newFormWithoutBoard', ep:'GET /new',                              t:'Upload',    r:'보드 미지정 신규 진입',                          note:'populateFormContext → Support' },
+    { id:'intent',              ep:'POST /{boardId}/upload-intent',          t:'Upload',    r:'업로드 의도 발급 (JSON)',                        note:'firstError(bindingResult) 복붙 → Support' },
+    { id:'uploadBundle',        ep:'POST /{boardId}/upload',                 t:'Upload',    r:'번들 업로드 + 등록',                            note:'⚠ multi-catch → @RestControllerAdvice 승급' },
+    { id:'registerExisting',    ep:'POST /{boardId}/register-existing',      t:'Upload',    r:'기존 디렉토리 claim',                            note:'firstError(bindingResult) 복붙 → Support' },
+    { id:'nudgeProceed',        ep:'POST /nudge/{id}/proceed',               t:'Nudge',     r:'nudge 진행',                                    note:'—' },
+    { id:'nudgeReplace',        ep:'POST /nudge/{id}/replace',               t:'Nudge',     r:'nudge 교체',                                    note:'typedNameGuard 복붙 → Support' },
+    { id:'nudgeCancel',         ep:'POST /nudge/{id}/cancel',                t:'Nudge',     r:'nudge 취소',                                    note:'—' },
+    { id:'intentNudgeProceed',  ep:'POST /intent-nudge/{id}/proceed',        t:'Nudge',     r:'intent nudge 진행 (JSON 응답)',                  note:'⚠ JSON 바디 반환 produces 보존' },
+    { id:'intentNudgeReplace',  ep:'POST /intent-nudge/{id}/replace',        t:'Nudge',     r:'intent nudge 교체 (JSON 응답)',                  note:'typedNameGuard 복붙 → Support' },
+    { id:'intentNudgeCancel',   ep:'POST /intent-nudge/{id}/cancel',         t:'Nudge',     r:'intent nudge 취소',                              note:'—' },
+    { id:'verify',              ep:'POST .../verify',                        t:'Job',       r:'검증 job 시작 (jobId)',                          note:'BmcVerificationLauncher 의존 (분리는 R5-2)' },
+    { id:'integrityStatus',     ep:'GET .../integrity-status',               t:'Job',       r:'무결성 상태 조회 (JSON)',                        note:'displayMessage 도메인 이관은 R5-2' },
+    { id:'browse',              ep:'GET /browse',                            t:'Browse',    r:'디렉토리 브라우즈 (JSON)',                       note:'⚠ 4-catch → @RestControllerAdvice (3 도메인 단일)' }
+  ];
+  // Support 로 추출되는 공통 헬퍼 칩
+  const HELPERS = [
+    { id:'redirectToListWithSelect', label:'redirectToListWithSelect', share:'Metadata · Lifecycle (5회)' },
+    { id:'populateFormContext',      label:'populateFormContext',      share:'Metadata · Upload (3회)' },
+    { id:'nullToEmpty',              label:'nullToEmpty',              share:'Metadata' },
+    { id:'firstError',               label:'firstError(bindingResult)', share:'Upload (3회 복붙)' },
+    { id:'typedNameGuard',           label:'typedNameGuard',           share:'Nudge (2회 복붙)' }
+  ];
+
+  let demoSel = 'uploadBundle';
+
+  function buildChips() {
+    const bar = document.getElementById('demo-chips');
+    EP.forEach(e => {
+      const b = document.createElement('button');
+      b.className = 'seg';
+      b.dataset.id = e.id;
+      b.textContent = e.id;
+      b.onclick = () => demoSelect(e.id);
+      bar.appendChild(b);
+    });
+    const hbar = document.getElementById('demo-helper-chips');
+    HELPERS.forEach(h => {
+      const c = document.createElement('span');
+      c.className = 'chip move';
+      c.style.marginRight = '6px';
+      c.style.cursor = 'pointer';
+      c.title = 'Support 로 추출 — ' + h.share;
+      c.textContent = h.label + ' → Support';
+      c.onclick = () => demoSelectHelper(h);
+      hbar.appendChild(c);
+    });
+  }
+
+  function demoSelect(id) { demoSel = id; demoRender(); }
+
+  function demoSelectHelper(h) {
+    document.querySelectorAll('#demo-chips .seg').forEach(s => s.classList.remove('active'));
+    document.getElementById('demo-ep').textContent = h.label + '()';
+    const tg = document.getElementById('demo-target');
+    tg.className = 'badge'; tg.textContent = 'BmcControllerSupport';
+    document.getElementById('demo-reason').textContent = '공통 헬퍼 — ' + h.share + ' 에서 복붙되던 로직을 정적 헬퍼로 추출';
+    document.getElementById('demo-note').textContent = '복붙 제거 (N 컨트롤러 공유)';
+    document.getElementById('demo-caps').innerHTML =
+      'BmcControllerSupport.<span class="f">' + h.id + '</span>(...)\n'
+      + '    // 공유 : ' + h.share;
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message';
+    msg.innerHTML = '<b>Support 추출</b> — <code>' + h.label + '</code> 는 여러 컨트롤러에서 복붙되던 헬퍼입니다. 상태 없는 정적 함수로 모아 <b>단일 소스</b>화 → CLAUDE.md §중복 금지 정합.';
+  }
+
+  function demoRender() {
+    const e = EP.find(x => x.id === demoSel);
+    const c = CTRL[e.t];
+    document.querySelectorAll('#demo-chips .seg').forEach(s => s.classList.toggle('active', s.dataset.id === demoSel));
+
+    document.getElementById('demo-ep').textContent = e.ep;
+    const tg = document.getElementById('demo-target');
+    tg.className = 'badge ' + c.cls;
+    tg.textContent = c.label;
+    document.getElementById('demo-reason').textContent = e.r;
+    document.getElementById('demo-note').textContent = e.note;
+
+    const caps = document.getElementById('demo-caps');
+    const isAdvice = e.note.indexOf('Advice') !== -1 || e.note.indexOf('catch') !== -1;
+    const isProduces = e.note.indexOf('produces') !== -1 || e.note.indexOf('formCard') !== -1 || e.note.indexOf('JSON 바디') !== -1;
+    caps.innerHTML =
+      '@RequestMapping("/management/bmc")  →  <span class="f">' + c.label + '</span>\n'
+      + e.ep + '   (URL <span class="f">불변</span>)'
+      + (isAdvice ? '\n    <span class="t">// try/catch 제거 → @RestControllerAdvice 가 status 매핑</span>' : '')
+      + (isProduces ? '\n    <span class="t">// produces / fragment 반환 속성 보존 (라우팅 회귀 주의)</span>' : '');
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message ' + c.cls;
+    let extra = '';
+    if (isAdvice)        extra = ' 이 엔드포인트의 try/catch 는 <b>advice 로 승급</b>되어 OS/BIOS 와 3 도메인 단일 핸들러로 수렴합니다.';
+    else if (isProduces) extra = ' 이 엔드포인트는 <b>produces / fragment 반환</b> 속성을 가지므로 분할 시 보존이 1순위 점검 대상입니다.';
+    else if (e.note.indexOf('Support') !== -1) extra = ' 복붙 헬퍼는 <code>BmcControllerSupport</code> 로 추출됩니다.';
+    msg.innerHTML = '<b>' + c.label + '</b> 로 이동 — ' + e.r + '.' + extra + ' <b>URL · 동작은 불변</b>입니다.';
+  }
+
+  buildChips();
+  demoRender();   // 불가침 : 파일 끝 1회 호출
+</script>
+</body>
+</html>
