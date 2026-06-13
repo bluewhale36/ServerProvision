@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R6-1 Plan — Subprogram Controller 기능별 분리 (CRUD+lifecycle / Upload / Nudge / Browse + Support)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.clean { background:var(--red-bg); color:var(--red); }
+  .badge.preserve { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.quar { background:var(--blue-bg); color:var(--blue); }
+  .badge.crud { background:var(--blue-bg); color:var(--blue); }
+  .badge.upload { background:var(--green-bg); color:var(--green); }
+  .badge.nudge { background:var(--purple-bg); color:var(--purple); }
+  .badge.browse { background:var(--orange-bg); color:var(--orange); }
+  .badge.support { background:var(--yellow-bg); color:var(--yellow); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.crud { background:var(--blue-bg); border-color:var(--blue); }
+  .ux-message.upload { background:var(--green-bg); border-color:var(--green); }
+  .ux-message.nudge { background:var(--purple-bg); border-color:var(--purple); }
+  .ux-message.browse { background:var(--orange-bg); border-color:var(--orange); }
+  .ux-message.support { background:var(--yellow-bg); border-color:var(--yellow); }
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:10.5px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 10px; font-size:11.5px; line-height:1.5; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R6-1 — Subprogram Controller 기능별 분리 <span style="font-size:13px;color:var(--text-muted);font-weight:500;">(CRUD+lifecycle / Upload / Nudge / Browse + Support)</span> <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R6-1 (refactor)</span>
+    <span><strong>상위</strong> R6 (Subprogram — kind 다형 + 공용 nullable FK, Miller 2축)</span>
+    <span><strong>scope</strong> fat 단일 컨트롤러를 4 컨트롤러 + Support 로 분할 (URL·동작 100% 불변, 순수 controller 재배치)</span>
+    <span><strong>생성</strong> 2026-06-13 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (fat 컨트롤러 분할)</a></li>
+      <li><a href="#s1">§1 현재 상태 (기능군 혼재 진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (엔드포인트 분배 탐색기)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름 (1:1 보존)</a></li>
+      <li><a href="#s4">§4 컨트롤러 분배 모델</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — fat 단일 컨트롤러의 책임 혼재 정리</summary>
+      <div class="body">
+        <p style="margin-top:0;">현재 <code>SubprogramController</code> 는 <b>394 줄 / 25 엔드포인트 / 8 협력자 주입</b>을 한 클래스에 담는다. Miller 메인 페이지 · 신규/편집 폼 · lifecycle 전이(toggle/delete/restore/deprecate/undeprecate/purge) · REST 조회(detail/items/integrity-status) · 업로드(intent/upload/register-existing) · 검증 작업(verify) · soft-delete intent XHR · nudge 6 종 · 디렉토리 탐색 — <b>서로 다른 기능군이 한 파일에 혼재</b>한다. 한 파일이 100 줄을 넘기고 여러 책임이 뒤섞이면 가독성·유지보수가 급격히 저하된다(CLAUDE.md §중복/가독성 불가침).</p>
+        <ul>
+          <li><span class="diff-del">try/catch 복붙 회귀의 온상</span> — 본 프로젝트는 컨트롤러에 같은 catch 블록을 복붙하는 회귀를 반복했다(S3.3→S3.4 의 4 컨트롤러 multi-catch 누락 사고). 기능군별로 컨트롤러를 갈라두면 advice/resolver 로 끌어올리기가 쉬워지고, 한 컨트롤러의 변경이 무관한 기능군을 건드릴 위험이 사라진다.</li>
+          <li><span class="diff-add">R1(OS) 8 컨트롤러 분할 선례 미러링</span> — OS 도메인은 이미 CRUD / Upload / Lifecycle / Nudge / Browse 등으로 컨트롤러를 분할했다. Subprogram 도 동형으로 정렬해 도메인 간 구조 일관성을 회복한다. 단, Subprogram 은 <b>단일 엔티티(Driver+Utility 통합)</b>라 OS 만큼 잘게 쪼갤 실익이 없어 <b>4 컨트롤러</b>로 절제(§2 over-split 회피).</li>
+        </ul>
+        <div class="callout"><b>R6 시리즈 정합</b> — R6-1(controller 분할) → R6-2(<code>SubprogramMarkableScanner</code> <code>ObjectProvider</code> 선차단) → R6-3(<code>SubprogramService</code> 750 줄 분리). 컨트롤러를 먼저 갈라야 후속 service 분리 시 호출자 경계가 또렷해진다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (기능군 혼재 진단)</summary>
+      <div class="body">
+        <h4>선행 완료 / 진입 전제</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> R6 본체 — Subprogram(Driver+Utility) kind 다형 + 공용 nullable FK + Miller 2축 페이지가 동작 중. 본 슬라이스는 그 동작을 <b>보존한 채 controller 만 재배치</b>.</li>
+          <li><span class="chip keep">완료</span> MK2 — 도메인 예외 → HTTP 매핑은 <code>ApiExceptionHandler</code>/<code>WebExceptionHandler</code> 가 일괄 책임. 컨트롤러 try/catch 없음(도메인 예외 propagate). <b>browse 만 예외</b> — §7 참조.</li>
+          <li><span class="chip keep">선례</span> R1(OS) — CRUD / Upload / Lifecycle / Nudge / Browse / Support 컨트롤러 8 분할 패턴. 본 슬라이스가 미러링 대상.</li>
+        </ul>
+
+        <h4>진단 — 현 <code>SubprogramController</code> 의 25 엔드포인트 기능군 분류</h4>
+        <table>
+          <thead><tr><th>기능군</th><th>엔드포인트 (메서드)</th><th>현 책임</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip move">CRUD+lifecycle</span></td><td><code>list</code> · <code>newForm</code> · <code>editForm</code> · <code>update</code> · <code>toggle</code> · <code>delete</code> · <code>restore</code> · <code>deprecate</code> · <code>undeprecate</code> · <code>purge</code> · <code>items</code> · <code>detail</code> · <code>integrityStatus</code></td><td>Miller 페이지 + 폼 + 단순 redirect 전이 + REST 조회 (13)</td></tr>
+            <tr><td><span class="chip new">Upload</span></td><td><code>intent</code> · <code>uploadBundle</code> · <code>registerExisting</code> · <code>verify</code> · <code>deleteWithIntent</code></td><td>업로드 2-phase + 기존 디렉토리 claim + 검증 job + soft-delete intent XHR (5)</td></tr>
+            <tr><td><span class="chip new">Nudge</span></td><td><code>nudgeProceed/Replace/Cancel</code> · <code>intentNudgeProceed/Replace/Cancel</code></td><td>중복 충돌 nudge confirm 6 종 (6)</td></tr>
+            <tr><td><span class="chip new">Browse</span></td><td><code>browse</code></td><td>디렉토리 탐색 1 (1)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>혼재의 비용</b> — 8 협력자(<code>subprogramService</code>, <code>subprogramUploadIntentService</code>, <code>subprogramVerificationLauncher</code>, <code>subprogramNudgeService</code>, <code>boardModelService</code>, <code>directoryBrowseService</code>, <code>deleteIntentRegistry</code>, <code>typedNameVerifier</code>)가 한 생성자에 묶여, 어느 의존이 어느 기능군의 것인지 호출 그래프 추적이 어렵다. 분할 후 각 컨트롤러는 자기 기능군이 필요로 하는 의존만 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>URL / 동작 100% 불변</b> — 25 엔드포인트의 Method·URL·status·응답 바디 전부 동일. 순수 controller 재배치(method body 이동)일 뿐, Service/뷰/JS 변경 0.</li>
+          <li><b>4 컨트롤러 분배</b> — <code>SubprogramController</code>(슬림: CRUD+lifecycle+REST 조회) · <code>SubprogramUploadController</code> · <code>SubprogramNudgeController</code> · <code>SubprogramBrowseController</code>. 모두 <code>@RequestMapping("/management/subprogram")</code> 공유(같은 prefix 다중 컨트롤러 — Spring 정상 지원).</li>
+          <li><b>공통 헬퍼 추출</b> — <code>redirectToListWithSelect</code> · <code>firstFieldError</code> · <code>nullToEmpty</code> 를 <code>SubprogramControllerSupport</code> 로 추출해 복붙 제거(여러 컨트롤러 공유).</li>
+          <li><b>over-split 회피(절제)</b> — Subprogram 은 자원이 <b>단일 엔티티</b>라 OS 처럼 LifecycleController 를 또 분리할 실익이 없다 → lifecycle redirect 를 슬림 컨트롤러에 잔류. verify 1 개뿐이라 JobController 신설 안 함(Upload 합류).</li>
+          <li><b>SSOT 변형 유지(불가침)</b> — <code>redirectToListWithSelect</code> 는 R6 의 Miller 2축(<code>selectKind</code>/<code>selectKey</code>) 보존 변형이라 OS 의 헬퍼와 <b>시그니처가 다르다</b>. OS/Subprogram 공통화는 도메인을 가로지르므로 <b>금지</b>(over-abstraction 경계, CLAUDE.md §over-abstraction).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스로 위임)</b>
+          <ul>
+            <li><b>Service 분리</b> — <code>SubprogramService</code> 750 줄 분리는 <b>R6-3</b>. 본 슬라이스는 controller 만 손댄다(Service 시그니처·본체 불변).</li>
+            <li><b><code>SubprogramMarkableScanner</code> <code>ObjectProvider</code> 선차단</b> — <b>R6-2</b>. 의존 순환 정비는 별도.</li>
+            <li><b>OS/Subprogram 헬퍼 공통화</b> — <code>redirectToListWithSelect</code> 의 kind/key 변형이 도메인을 가로질러 의미를 잃으므로 <b>영구 금지</b>(over-abstraction). 잔존 책임 아님 = 의도된 비공통화.</li>
+            <li><b>browse advice 승급 외의 예외 정비</b> — 본 슬라이스는 browse 의 try/catch(있다면)를 <code>@RestControllerAdvice</code> 로 끌어올리는 cross-cutting 동반 수정만(§7/§8). ProblemDetail·errorCode 정비는 별도.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 엔드포인트 분배 탐색기 (어느 컨트롤러로, 왜)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 칩은 <b>현 <code>SubprogramController</code> 의 25 엔드포인트 전부</b>(+ 추출되는 3 공통 헬퍼)입니다. 칩을 클릭하면 우측에 <b>이동 대상 컨트롤러 + 이동 이유(책임군) + URL 보존 여부</b>가 라이브로 갱신됩니다. 이 매핑은 §3/§4 의 실제 표와 <b>1:1 동일</b>(드리프트 0) — 데모가 곧 분배 SSOT 증명입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">엔드포인트 :</span>
+            <span id="demo-chips" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row">
+              <strong>엔드포인트</strong><span class="label" id="demo-ep">—</span>
+              <span class="badge" id="demo-target">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>이동 대상</strong><span class="label" id="demo-ctrl">—</span>
+            </div>
+            <div class="ux-row">
+              <strong>URL</strong><span class="label" id="demo-url">—</span>
+              <span class="badge keep" id="demo-keep" style="background:var(--bg);color:var(--text-muted);">—</span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">엔드포인트 칩을 눌러 어느 컨트롤러로 가는지 확인하세요. <code>SUPPORT</code> 칩(노란색)은 메서드가 아니라 <b>여러 컨트롤러가 공유하는 헬퍼</b> — 복붙 제거를 위해 <code>SubprogramControllerSupport</code> 로 추출됩니다.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 1 컨트롤러 (혼재)</h4><pre><code>SubprogramController (394줄 / 25 EP / 8 주입)
+├ list newForm edit update            CRUD
+├ toggle delete restore deprecate     lifecycle
+│ undeprecate purge
+├ items detail integrityStatus        REST 조회
+├ intent upload registerExisting      Upload
+│ verify deleteWithIntent
+├ nudge×3  intentNudge×3               Nudge
+├ browse                              Browse
+└ redirectToListWithSelect            (private helper)
+  firstFieldError nullToEmpty</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 4 컨트롤러 + Support</h4><pre><code>SubprogramController        (슬림: CRUD+lifecycle+REST 조회·13)
+SubprogramUploadController  (intent/upload/register/verify/delete-intent·5)
+SubprogramNudgeController   (nudge×3 + intent-nudge×3·6)
+SubprogramBrowseController  (browse·1)
+SubprogramControllerSupport (redirectToListWithSelect·
+                             firstFieldError·nullToEmpty — N 공유)
+URL·동작 100% 불변</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 칩→컨트롤러 매핑 = §3 URL 표 + §4 분배 표 단일 소스. 25 EP 가 어디로 가는지 한 곳에서만 정의되므로 분배 누락이 구조적으로 드러납니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 (분할 전후 1:1 보존)</summary>
+      <div class="body">
+        <p style="margin-top:0;">전 엔드포인트 URL·Method·동작 불변. <span class="chip keep">유지</span> = URL 그대로, 이동 대상 컨트롤러만 바뀜.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>이동 대상 컨트롤러</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/subprogram</code></td><td>Miller 2축 메인 (driver/utility 그룹)</td><td><span class="chip keep">유지</span> Subprogram (슬림)</td></tr>
+            <tr><td>GET</td><td><code>/new</code></td><td>kind 별 신규 등록 폼 (boardScope prefill)</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>GET</td><td><code>/{id}/edit</code></td><td>편집 폼</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{id}/edit</code></td><td>업데이트 → redirect</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{id}/toggle</code></td><td>enable 토글 → redirect</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{id}/delete</code></td><td>soft-delete → redirect</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{id}/restore</code></td><td>복원 → redirect</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{id}/deprecate</code></td><td>Active→Deprecated → redirect</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{id}/undeprecate</code></td><td>Deprecated→Active → redirect</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{id}/purge</code></td><td>영구 삭제 (typedName 가드) → redirect</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>GET</td><td><code>/items</code></td><td>scope 별 자원 목록 JSON</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>GET</td><td><code>/{id}</code></td><td>단일 상세 JSON</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>GET</td><td><code>/{id}/integrity-status</code></td><td>무결성 상태 JSON</td><td><span class="chip keep">유지</span> Subprogram</td></tr>
+            <tr><td>POST</td><td><code>/{kind}/{boardScope}/upload-intent</code></td><td>업로드 사전 intent 발급</td><td><span class="chip move">이동</span> Upload</td></tr>
+            <tr><td>POST</td><td><code>/{kind}/{boardScope}/upload</code></td><td>번들 업로드 + 등록</td><td><span class="chip move">이동</span> Upload</td></tr>
+            <tr><td>POST</td><td><code>/{kind}/{boardScope}/register-existing</code></td><td>기존 디렉토리 claim 등록</td><td><span class="chip move">이동</span> Upload</td></tr>
+            <tr><td>POST</td><td><code>/{id}/verify</code></td><td>무결성 검증 job 시작 (jobId)</td><td><span class="chip move">이동</span> Upload</td></tr>
+            <tr><td>POST</td><td><code>/{id}/delete-intent/{token}</code></td><td>soft-delete reject modal 2차 (XHR JSON)</td><td><span class="chip move">이동</span> Upload</td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/proceed</code></td><td>nudge 강행 confirm</td><td><span class="chip move">이동</span> Nudge</td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/replace</code></td><td>기존 자원 교체 (typedName)</td><td><span class="chip move">이동</span> Nudge</td></tr>
+            <tr><td>POST</td><td><code>/nudge/{nudgeId}/cancel</code></td><td>nudge 취소</td><td><span class="chip move">이동</span> Nudge</td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/proceed</code></td><td>intent 단계 nudge 강행</td><td><span class="chip move">이동</span> Nudge</td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/replace</code></td><td>intent 단계 교체 (typedName)</td><td><span class="chip move">이동</span> Nudge</td></tr>
+            <tr><td>POST</td><td><code>/intent-nudge/{nudgeId}/cancel</code></td><td>intent 단계 취소</td><td><span class="chip move">이동</span> Nudge</td></tr>
+            <tr><td>GET</td><td><code>/browse</code></td><td>디렉토리 탐색 JSON</td><td><span class="chip move">이동</span> Browse</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>다중 컨트롤러, 단일 prefix</b> — 4 컨트롤러 모두 <code>@RequestMapping("/management/subprogram")</code> 를 가진다. Spring 은 메서드 단위로 핸들러를 매핑하므로 URL 충돌 없이 동작한다. 클라이언트(브라우저·JS·테스트)는 URL 만 보므로 분할을 인지하지 못한다 = 행동 보존.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 컨트롤러 분배 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 컨트롤러 분배 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>각 컨트롤러가 받는 엔드포인트 + 주입 의존</h4>
+        <table>
+          <thead><tr><th>컨트롤러</th><th>엔드포인트</th><th>주입 의존</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="chip keep">슬림</span> <code>SubprogramController</code></td>
+              <td><code>list</code> · <code>newForm</code> · <code>editForm</code> · <code>update</code> · <code>toggle</code> · <code>delete</code> · <code>restore</code> · <code>deprecate</code> · <code>undeprecate</code> · <code>purge</code> · <code>items</code> · <code>detail</code> · <code>integrityStatus</code> <b>(13)</b></td>
+              <td><code>subprogramService</code> · <code>boardModelService</code> · <code>ControllerSupport</code></td>
+            </tr>
+            <tr>
+              <td><span class="chip new">신규</span> <code>SubprogramUploadController</code></td>
+              <td><code>intent</code> · <code>uploadBundle</code> · <code>registerExisting</code> · <code>verify</code> · <code>deleteWithIntent</code> <b>(5)</b></td>
+              <td><code>subprogramService</code> · <code>subprogramUploadIntentService</code> · <code>subprogramVerificationLauncher</code> · <code>deleteIntentRegistry</code> · <code>ControllerSupport</code></td>
+            </tr>
+            <tr>
+              <td><span class="chip new">신규</span> <code>SubprogramNudgeController</code></td>
+              <td><code>nudgeProceed/Replace/Cancel</code> · <code>intentNudgeProceed/Replace/Cancel</code> <b>(6)</b></td>
+              <td><code>subprogramNudgeService</code> · <code>typedNameVerifier</code></td>
+            </tr>
+            <tr>
+              <td><span class="chip new">신규</span> <code>SubprogramBrowseController</code></td>
+              <td><code>browse</code> <b>(1)</b></td>
+              <td><code>directoryBrowseService</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>Support 로 추출되는 공통 헬퍼 (복붙 제거)</h4>
+        <table>
+          <thead><tr><th>헬퍼</th><th>책임</th><th>공유 컨트롤러</th></tr></thead>
+          <tbody>
+            <tr><td><code>redirectToListWithSelect(id[, kind, key])</code></td><td>list 로 redirect 하며 R6 Miller 2축(<code>selectKind</code>/<code>selectKey</code>) 보존 — <b>OS 와 다른 변형</b></td><td>Subprogram (lifecycle/update redirect)</td></tr>
+            <tr><td><code>firstFieldError(BindingResult)</code></td><td>첫 필드 검증 에러 메시지 추출 → <code>ApiErrorResponse</code></td><td>Upload (intent/upload/register)</td></tr>
+            <tr><td><code>nullToEmpty(String)</code></td><td>null → 빈 문자열 (폼 prefill 안전)</td><td>Subprogram (editForm)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>SSOT</b> — 분배의 단일 소스는 본 표 + §3 URL 표. <code>redirectToListWithSelect</code> 는 Subprogram 전용 변형이며 OS 와 공통화하지 않는다(도메인 가로지름 = over-abstraction). <code>firstFieldError</code>/<code>nullToEmpty</code> 같은 무도메인 유틸만 Support 로 모으되, 도메인 의미를 갖는 redirect 헬퍼는 Subprogram 도메인 안에 머문다.</div>
+        <div class="callout warn"><b>over-split 절제 결정</b> — lifecycle(toggle/delete/restore/deprecate/undeprecate/purge)은 모두 단순 service 호출 + redirect 라 별도 <code>LifecycleController</code> 신설 시 의존 중복(<code>subprogramService</code>·<code>ControllerSupport</code>)만 늘고 응집은 안 는다. 슬림 컨트롤러에 잔류 = 절제. verify 도 1 개라 Upload 합류(JobController 신설 안 함).</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음 (refactor 특성)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (refactor 특성 반영)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>(뷰 변경 <b>0</b> — refactor) Miller 페이지·폼·nudge modal·JS 전부 그대로. URL 불변이라 <code>th:action</code>/fetch 도 무변경</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — 4 컨트롤러로 method body 이동(<code>SubprogramController</code> 슬림화 + Upload/Nudge/Browse 신설). URL 동일</td></tr>
+            <tr><td>4</td><td>DTO — <b>변경 0</b>(기존 Request/Response 재사용, 신규 DTO 없음)</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — <b>변경 0</b>(Service 불변). 신설은 <code>SubprogramControllerSupport</code> 헬퍼 컴포넌트뿐</td></tr>
+            <tr><td>6</td><td>Repository — <b>변경 0</b></td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — <b>변경 0</b>(<code>@Entity</code> 무관)</td></tr>
+            <tr><td>8</td><td>본체 — 4 컨트롤러 + Support 본체 + 통합 테스트 컨트롤러별 분리(§6). browse advice 승급(있을 경우)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <b>변경 0</b>(DDL 무관, refactor). 회귀 확인만</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — Miller 선택 보존(selectKind/selectKey) · 업로드 · nudge · browse 전 경로 회귀 — <b>사용자</b></td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>refactor 의 단계 축소</b> — Step 2(뷰)·4(DTO)·5(Service)·6(Repo)·7(Entity)·9(스키마)가 전부 변경 0. 실질 작업은 <b>Step 3(controller 재배치)</b> + <b>Step 8(통합 테스트 컨트롤러별 분리 + browse advice)</b>. CP2 는 "구조 재배치 검토", CP4 는 "회귀망 보존 검증"이 핵심.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오 (컨트롤러별 분리)</summary>
+      <div class="body">
+        <p style="margin-top:0;">기존 단일 테스트를 <b>컨트롤러 단위 파일로 분리</b>한다. 분할 후에도 <code>ApiExceptionHandler</code>/<code>WebExceptionHandler</code> 의 예외 매핑이 <b>실제로 실행</b>되는지 회귀로 검증(Mockito 는 Service 단까지만, advice 매핑은 실 실행).</p>
+        <table>
+          <thead><tr><th>테스트 파일</th><th>분류 / 시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="4"><code>SubprogramControllerCrudFlowTest</code></td><td>성공 2xx — list 200 / new·edit 폼 200 / update redirect / toggle·delete·restore·deprecate·undeprecate·purge redirect / items·detail·integrityStatus 200</td><td>11</td></tr>
+            <tr><td>400 — update BindingResult 에러 → 폼 재표시 200(에러 모델) / purge typedName 누락</td><td>2</td></tr>
+            <tr><td>404 — detail/edit 없는 id → <code>SubprogramNotFound</code> 404</td><td>2</td></tr>
+            <tr><td>409 — purge active 자원(soft-delete 아님) → 도메인 가드 409 / undeprecate 부적격 상태</td><td>2</td></tr>
+            <tr><td rowspan="4"><code>SubprogramUploadControllerFlowTest</code></td><td>성공 2xx — intent 200 / upload 200(id+redirect) / register-existing 200 / verify 200(jobId) / delete-intent 204</td><td>5</td></tr>
+            <tr><td>400 — intent/upload/register BindingResult → <code>ApiErrorResponse</code> 400</td><td>3</td></tr>
+            <tr><td>404 — verify/delete-intent 없는 id → 404</td><td>2</td></tr>
+            <tr><td>409 — upload-intent 충돌(<code>SubprogramUploadIntentConflict</code>) / delete-intent token 만료·불일치</td><td>2</td></tr>
+            <tr><td rowspan="4"><code>SubprogramNudgeControllerFlowTest</code></td><td>성공 2xx — nudge proceed/replace/cancel 204 / intent-nudge proceed·replace 200(IntentResponse)·cancel 204</td><td>6</td></tr>
+            <tr><td>400 — replace typedName 불일치 → <code>TypedNameMismatch</code> 400</td><td>1</td></tr>
+            <tr><td>404 — 없는 nudgeId proceed/replace/cancel → 404</td><td>1</td></tr>
+            <tr><td>409 — 이미 해소된 nudge 재 confirm → 409</td><td>1</td></tr>
+            <tr><td rowspan="2"><code>SubprogramBrowseControllerFlowTest</code></td><td>성공 2xx — browse 200(디렉토리 목록 JSON)</td><td>1</td></tr>
+            <tr><td>400/403 — 경로 탐색 위반(<code>InvalidPath</code>/탐색 차단) → advice 매핑 검증(browse advice 승급 회귀)</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>총 시나리오</b> — CRUD 17 + Upload 12 + Nudge 9 + Browse 3 = <b>41 시나리오</b>. 분할 전 단일 테스트의 커버리지를 4 파일로 재배치하되, 컨트롤러별 advice 실 실행을 빠짐없이 유지. <b>새 HTTP 행동 0 → 통합 테스트는 회귀 성격</b>이 정상.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 / 매핑</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>도메인 예외 전반 (SubprogramNotFound / Conflict / TypedNameMismatch …)</td><td>기존 유지</td><td><span class="chip keep">유지</span> <code>ApiExceptionHandler</code>/<code>WebExceptionHandler</code> 가 일괄 매핑 (컨트롤러 try/catch 없음)</td></tr>
+            <tr><td><code>browse</code> 디렉토리 탐색 위반</td><td>400/403</td><td><span class="chip mod">승급</span> 컨트롤러 내 인라인 처리가 있다면 <code>@RestControllerAdvice</code> 로 끌어올림 (해당 도메인) — cross-cutting 동반 수정</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>신규 예외 0 (refactor)</b> — 본 슬라이스는 새 예외 클래스를 추가하지 않는다. browse 의 예외 표면을 advice 로 승급하는 것 외에는 예외 계층 무변경. status 매핑 advice 도 기존 그대로(컨트롤러가 4 개로 갈려도 advice 는 클래스 무관하게 적용).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 결정 사항</summary>
+      <div class="body">
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>분할 입도 — 4 컨트롤러 vs OS 동형 다분할(Lifecycle 별도 등)</td><td><b>4 컨트롤러</b> — Subprogram 은 단일 엔티티라 over-split 실익 없음. lifecycle 은 슬림 컨트롤러 잔류</td></tr>
+            <tr><td>Q2</td><td><code>verify</code> 단독 JobController 신설?</td><td><b>안 함</b> — 1 엔드포인트라 응집 이득 없음. Upload 합류(업로드 직후 검증 흐름과 인접)</td></tr>
+            <tr><td>Q3</td><td><code>redirectToListWithSelect</code> 를 OS 헬퍼와 공통화?</td><td><b>금지</b> — R6 Miller 2축(kind/key) 보존 변형이라 OS 와 시그니처 상이. 도메인 가로지름 = over-abstraction</td></tr>
+            <tr><td>Q4</td><td>Support 를 static util vs <code>@Component</code></td><td><code>nullToEmpty</code>/<code>firstFieldError</code> 는 <b>static</b>, <code>redirectToListWithSelect</code> 는 무상태라 static 가능 — 의존 없으니 클래스 1 개에 static 으로 모음(주입 부담 0)</td></tr>
+            <tr><td>Q5</td><td>browse advice 승급을 본 슬라이스에서?</td><td><b>예</b> — 컨트롤러를 가르는 김에 인라인 예외를 advice 로 정리(cross-cutting 동반 수정). 단 해당 도메인 한정</td></tr>
+          </tbody>
+        </table>
+        <h4>cross-cutting 동반 수정</h4>
+        <ul>
+          <li>browse 예외 표면 → <code>@RestControllerAdvice</code> 승급(§7). 본 슬라이스 한정.</li>
+          <li>4 컨트롤러 모두 같은 <code>@RequestMapping</code> prefix 공유 — 컴포넌트 스캔 충돌 없음 확인(빈 이름 자동 = 클래스명 기반, 충돌 없음).</li>
+        </ul>
+        <h4>잔존 책임 / 의도된 임시 상태</h4>
+        <ul>
+          <li><b>Service 분리(750 줄)는 R6-3</b> — 본 슬라이스 후에도 <code>SubprogramService</code> 는 그대로 비대. controller 경계가 또렷해진 상태에서 R6-3 진입. (의도된 후속, Notion 본문 명시 — CLAUDE.md §Notion 규약)</li>
+          <li><b><code>redirectToListWithSelect</code> 의 kind/key 변형 비공통화는 영구</b> — OS 와 합치지 않는 것이 결정. 잔존 책임이 아니라 의도된 도메인 분리.</li>
+          <li><b><code>SubprogramMarkableScanner</code> <code>ObjectProvider</code> 순환은 R6-2</b> — 본 슬라이스 범위 밖.</li>
+        </ul>
+        <h4>CLAUDE.md 갱신</h4>
+        <ul>
+          <li>인벤토리 코드에 <b>R6-1</b>(+예고 R6-2/R6-3) 추가. "Subprogram controller 4 분할(CRUD+lifecycle / Upload / Nudge / Browse) + Support, OS 미러링·over-split 절제" 1 줄.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="R6-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="slim"> <span><code>SubprogramController</code> 가 13 엔드포인트로 슬림화 + 4 컨트롤러 + Support 분리 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="dup"> <span><code>grep -rn "redirectToListWithSelect\|firstFieldError\|nullToEmpty"</code> → 정의 <b>Support 1 곳</b>, 호출만 컨트롤러 (복붙 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="endpoint"> <span>25 엔드포인트 Method·URL·status 회귀 — 분할 전후 동일</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (4 컨트롤러 FlowTest 41 시나리오 + 기존 회귀)</span></label></li>
+          <li><label><input type="checkbox" data-key="advice"> <span>browse advice 승급 후 경로 탐색 위반 → 동일 status (advice 실 실행)</span></label></li>
+          <li><label><input type="checkbox" data-key="behavior"> <span>행동 보존 — Miller 선택(selectKind/selectKey) · 업로드 · nudge · browse 동작 동일</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규 (controller)</h4>
+        <div class="pkg-tree">management/subprogram/controller/
+├── SubprogramUploadController.java   (intent/upload/register-existing/verify/delete-intent — 5)
+├── SubprogramNudgeController.java    (nudge×3 + intent-nudge×3 — 6)
+├── SubprogramBrowseController.java   (browse — 1)
+└── SubprogramControllerSupport.java  (redirectToListWithSelect·firstFieldError·nullToEmpty — N 공유)</div>
+        <h4>수정</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>SubprogramController</code></td><td><span class="chip mod">슬림화</span> 25→13 엔드포인트(CRUD+lifecycle+REST 조회). Upload/Nudge/Browse method body 이전. 헬퍼 호출은 Support 로</td></tr>
+            <tr><td>기존 통합 테스트</td><td><span class="chip move">분리</span> → <code>SubprogramControllerCrudFlowTest</code> · <code>...UploadControllerFlowTest</code> · <code>...NudgeControllerFlowTest</code> · <code>...BrowseControllerFlowTest</code> (41 시나리오 재배치)</td></tr>
+            <tr><td>browse 예외 표면</td><td><span class="chip mod">승급</span> 인라인 처리 → <code>@RestControllerAdvice</code> (해당 도메인, §7)</td></tr>
+          </tbody>
+        </table>
+        <h4>유지 (KEEP — 변경 0)</h4>
+        <ul>
+          <li><code>SubprogramService</code> · <code>SubprogramUploadIntentService</code> · <code>SubprogramVerificationLauncher</code> · <code>SubprogramNudgeService</code> — <b>본체·시그니처 불변</b>(분리는 R6-3).</li>
+          <li>모든 Request/Response DTO · Entity · Repository · enums(<code>SubprogramKind</code>) · VO(<code>BoardScope</code>) — 무변경.</li>
+          <li>Thymeleaf 뷰(<code>list</code>/<code>subprogram-new</code>/<code>subprogram-edit</code>) · nudge modal JS · fetch URL — 무변경(URL 불변).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R6-2</b> — <code>SubprogramMarkableScanner</code> 의 <code>ObjectProvider</code> 선차단. 의존 순환/지연 주입을 정비해 DAG 화. (controller 경계가 또렷해진 위에서 진입.)</li>
+          <li><b>R6-3</b> — <code>SubprogramService</code>(750 줄) 기능별 분리. R1(OS)의 service 다분할 선례 미러링. 본 슬라이스에서 컨트롤러가 기능군별로 갈려, 어느 service 메서드가 어느 호출자에 속하는지가 또렷해진 상태가 전제.</li>
+          <li><b>(정합)</b> R6 시리즈 종료 시 OS/Subprogram 도메인의 controller·service 구조 입도 일관성 회복. 단 <code>redirectToListWithSelect</code> 류 도메인 의미 헬퍼는 끝까지 분리 유지(over-abstraction 회피).</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → open + scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 엔드포인트 분배 탐색기
+  //  ⚠ 칩→컨트롤러 매핑은 §3 URL 표 + §4 분배 표와 1:1 동일해야 함 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  // target: CRUD | UPLOAD | NUDGE | BROWSE | SUPPORT
+  const EP = [
+    { key:'list',            label:'GET /',                              target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'Miller 2축 메인 — CRUD+조회 잔류',           url:'/management/subprogram' },
+    { key:'newForm',         label:'GET /new',                           target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'kind 별 신규 폼 — 폼 잔류',                  url:'/new' },
+    { key:'editForm',        label:'GET /{id}/edit',                     target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'편집 폼 — 폼 잔류',                          url:'/{id}/edit' },
+    { key:'update',          label:'POST /{id}/edit',                    target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'업데이트 → redirect (Support 헬퍼 호출)',   url:'/{id}/edit' },
+    { key:'toggle',          label:'POST /{id}/toggle',                  target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'lifecycle 단순 redirect — over-split 회피로 잔류', url:'/{id}/toggle' },
+    { key:'delete',          label:'POST /{id}/delete',                  target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'soft-delete redirect — lifecycle 잔류',     url:'/{id}/delete' },
+    { key:'restore',         label:'POST /{id}/restore',                 target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'복원 redirect — lifecycle 잔류',            url:'/{id}/restore' },
+    { key:'deprecate',       label:'POST /{id}/deprecate',               target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'Active→Deprecated — lifecycle 잔류',         url:'/{id}/deprecate' },
+    { key:'undeprecate',     label:'POST /{id}/undeprecate',             target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'Deprecated→Active — lifecycle 잔류',         url:'/{id}/undeprecate' },
+    { key:'purge',           label:'POST /{id}/purge',                   target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'영구 삭제(typedName) — lifecycle 잔류',      url:'/{id}/purge' },
+    { key:'items',           label:'GET /items',                         target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'scope 별 목록 REST 조회 잔류',              url:'/items' },
+    { key:'detail',          label:'GET /{id}',                          target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'단일 상세 REST 조회 잔류',                  url:'/{id}' },
+    { key:'integrityStatus', label:'GET /{id}/integrity-status',         target:'CRUD',    ctrl:'SubprogramController (슬림)',       reason:'무결성 상태 REST 조회 잔류',                url:'/{id}/integrity-status' },
+    { key:'intent',          label:'POST /{kind}/{boardScope}/upload-intent', target:'UPLOAD', ctrl:'SubprogramUploadController',    reason:'업로드 2-phase intent 발급 — Upload 군',    url:'/{kind}/{boardScope}/upload-intent' },
+    { key:'upload',          label:'POST /{kind}/{boardScope}/upload',   target:'UPLOAD',  ctrl:'SubprogramUploadController',        reason:'번들 업로드 + 등록 — Upload 군',            url:'/{kind}/{boardScope}/upload' },
+    { key:'register',        label:'POST /{kind}/{boardScope}/register-existing', target:'UPLOAD', ctrl:'SubprogramUploadController', reason:'기존 디렉토리 claim — Upload 군',           url:'/{kind}/{boardScope}/register-existing' },
+    { key:'verify',          label:'POST /{id}/verify',                  target:'UPLOAD',  ctrl:'SubprogramUploadController',        reason:'검증 job 1 개뿐 → JobController 신설 안 함, Upload 합류', url:'/{id}/verify' },
+    { key:'deleteIntent',    label:'POST /{id}/delete-intent/{token}',   target:'UPLOAD',  ctrl:'SubprogramUploadController',        reason:'soft-delete reject XHR — intent/token 군과 인접',  url:'/{id}/delete-intent/{token}' },
+    { key:'nudgeProceed',    label:'POST /nudge/{id}/proceed',           target:'NUDGE',   ctrl:'SubprogramNudgeController',         reason:'중복 충돌 nudge confirm — Nudge 군',         url:'/nudge/{nudgeId}/proceed' },
+    { key:'nudgeReplace',    label:'POST /nudge/{id}/replace',           target:'NUDGE',   ctrl:'SubprogramNudgeController',         reason:'기존 자원 교체(typedName) — Nudge 군',       url:'/nudge/{nudgeId}/replace' },
+    { key:'nudgeCancel',     label:'POST /nudge/{id}/cancel',            target:'NUDGE',   ctrl:'SubprogramNudgeController',         reason:'nudge 취소 — Nudge 군',                     url:'/nudge/{nudgeId}/cancel' },
+    { key:'iNudgeProceed',   label:'POST /intent-nudge/{id}/proceed',    target:'NUDGE',   ctrl:'SubprogramNudgeController',         reason:'intent 단계 nudge 강행 — Nudge 군',          url:'/intent-nudge/{nudgeId}/proceed' },
+    { key:'iNudgeReplace',   label:'POST /intent-nudge/{id}/replace',    target:'NUDGE',   ctrl:'SubprogramNudgeController',         reason:'intent 단계 교체(typedName) — Nudge 군',     url:'/intent-nudge/{nudgeId}/replace' },
+    { key:'iNudgeCancel',    label:'POST /intent-nudge/{id}/cancel',     target:'NUDGE',   ctrl:'SubprogramNudgeController',         reason:'intent 단계 취소 — Nudge 군',                url:'/intent-nudge/{nudgeId}/cancel' },
+    { key:'browse',          label:'GET /browse',                        target:'BROWSE',  ctrl:'SubprogramBrowseController',       reason:'디렉토리 탐색 — Browse 군 (advice 승급 동반)', url:'/browse' },
+    // 공통 헬퍼 (메서드 아님 — Support 추출 시각화)
+    { key:'h_redirect',      label:'⚙ redirectToListWithSelect',         target:'SUPPORT', ctrl:'SubprogramControllerSupport',      reason:'list redirect + Miller 2축(selectKind/selectKey) 보존 변형 — OS 와 공통화 금지(도메인 가로지름)', url:'(헬퍼)', helper:true },
+    { key:'h_firstErr',      label:'⚙ firstFieldError',                  target:'SUPPORT', ctrl:'SubprogramControllerSupport',      reason:'첫 필드 검증 에러 추출 — Upload 3 엔드포인트 공유(복붙 제거)', url:'(헬퍼)', helper:true },
+    { key:'h_nullToEmpty',   label:'⚙ nullToEmpty',                      target:'SUPPORT', ctrl:'SubprogramControllerSupport',      reason:'null→빈문자 폼 prefill 안전 — 무도메인 유틸', url:'(헬퍼)', helper:true }
+  ];
+  const TARGET_BADGE = { CRUD:'crud', UPLOAD:'upload', NUDGE:'nudge', BROWSE:'browse', SUPPORT:'support' };
+  const TARGET_NAME  = { CRUD:'CRUD+lifecycle+REST', UPLOAD:'Upload', NUDGE:'Nudge', BROWSE:'Browse', SUPPORT:'Support(공유 헬퍼)' };
+  let demoKey = 'verify';
+
+  function demoChips() {
+    const box = document.getElementById('demo-chips');
+    box.innerHTML = '';
+    EP.forEach(ep => {
+      const b = document.createElement('button');
+      b.className = 'seg';
+      b.dataset.k = ep.key;
+      b.textContent = ep.label;
+      if (ep.helper) { b.style.borderColor = 'var(--yellow)'; b.style.color = 'var(--yellow)'; }
+      b.onclick = () => { demoKey = ep.key; demoRender(); };
+      box.appendChild(b);
+    });
+  }
+  function demoRender() {
+    const ep = EP.find(e => e.key === demoKey);
+    document.querySelectorAll('#demo-chips .seg').forEach(s => s.classList.toggle('active', s.dataset.k === demoKey));
+    document.getElementById('demo-ep').textContent = ep.label;
+    const tb = document.getElementById('demo-target');
+    tb.className = 'badge ' + TARGET_BADGE[ep.target];
+    tb.textContent = ep.target;
+    document.getElementById('demo-ctrl').textContent = ep.ctrl;
+    document.getElementById('demo-url').textContent = ep.url;
+    const keep = document.getElementById('demo-keep');
+    if (ep.helper) {
+      keep.textContent = '추출';
+      keep.style.background = 'var(--yellow-bg)'; keep.style.color = 'var(--yellow)';
+    } else if (ep.target === 'CRUD') {
+      keep.textContent = 'URL 유지 (잔류)';
+      keep.style.background = 'var(--bg)'; keep.style.color = 'var(--text-muted)';
+    } else {
+      keep.textContent = 'URL 유지 (이동)';
+      keep.style.background = 'var(--blue-bg)'; keep.style.color = 'var(--blue)';
+    }
+
+    const caps = document.getElementById('demo-caps');
+    if (ep.helper) {
+      caps.innerHTML = ep.label.replace('⚙ ', '') + '  →  <span class="f">SubprogramControllerSupport</span>\n'
+        + '// 메서드가 아니라 여러 컨트롤러가 공유하는 헬퍼 → 복붙 제거 추출';
+    } else {
+      caps.innerHTML = ep.label + '\n  →  <span class="f">' + ep.ctrl + '</span>\n'
+        + '// URL·동작 불변 (' + (ep.target === 'CRUD' ? '슬림 컨트롤러 잔류' : '기능군 이동') + ')';
+    }
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message ' + TARGET_BADGE[ep.target];
+    if (ep.helper) {
+      msg.innerHTML = '<b>SUPPORT</b> — ' + ep.reason;
+    } else {
+      msg.innerHTML = '<b>' + TARGET_NAME[ep.target] + '</b> — ' + ep.reason
+        + ' <span style="color:var(--text-muted);">(URL <code>' + ep.url + '</code> 그대로)</span>';
+    }
+  }
+  demoChips();
+  demoRender();   // 불가침 : 파일 끝 1회 호출
+</script>
+</body>
+</html>

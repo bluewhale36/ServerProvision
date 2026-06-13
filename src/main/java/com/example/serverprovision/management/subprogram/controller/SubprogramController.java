@@ -1,42 +1,33 @@
 package com.example.serverprovision.management.subprogram.controller;
 
-import com.example.serverprovision.global.exception.ApiErrorResponse;
-import com.example.serverprovision.global.job.dto.response.JobStartResponse;
 import com.example.serverprovision.management.board.service.BoardModelService;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
-import com.example.serverprovision.management.common.filesystem.dto.DirectoryBrowseRequest;
-import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramCreateRequest;
-import com.example.serverprovision.management.subprogram.dto.request.SubprogramRegisterExistingRequest;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest;
-import com.example.serverprovision.management.subprogram.dto.request.SubprogramUploadIntentRequest;
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse;
-import com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse;
-import com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadResponse;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
-import com.example.serverprovision.management.subprogram.enums.SubprogramUploadMode;
-import com.example.serverprovision.management.subprogram.service.SubprogramNudgeService;
 import com.example.serverprovision.management.subprogram.service.SubprogramService;
-import com.example.serverprovision.management.subprogram.service.SubprogramUploadIntentService;
-import com.example.serverprovision.management.subprogram.service.SubprogramVerificationLauncher;
 import com.example.serverprovision.management.subprogram.vo.BoardScope;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.UUID;
 
 /**
- * MA5 Subprogram (Driver + Utility) 관리 MVC + REST 컨트롤러.
+ * MA5 Subprogram (Driver + Utility) 관리 MVC + REST 컨트롤러 — CRUD + lifecycle + REST 조회 (슬림).
  *
  * <p>BIOS / BMC 와 달리 페이지에 Miller 2 개 (Driver / Utility) 가 동시에 떠 있고, 등록 폼은 kind 별로
  * 별도 진입한다.</p>
+ *
+ * <p>R6-1 — 기능군 분리. 업로드 (intent/upload/register-existing/verify/delete-intent) 는
+ * {@link SubprogramUploadController}, nudge confirm 6 종은 {@link SubprogramNudgeController},
+ * 디렉토리 탐색 (browse) 은 {@link SubprogramBrowseController} 가 관할. 본 컨트롤러는 Miller 메인 +
+ * 신규/편집 폼 + 단순 lifecycle 전이 (toggle/delete/restore/deprecate/undeprecate/purge) + REST 조회
+ * (items/detail/integrity-status) 만 잔류. lifecycle 은 단순 service 호출 + redirect 라 별도
+ * LifecycleController 신설 시 의존 중복만 늘어 over-split 절제 (슬림 컨트롤러 잔류).</p>
  *
  * <p>MK2 — 도메인 예외 → HTTP 응답 매핑은 {@code ApiExceptionHandler} / {@code WebExceptionHandler} 가
  * 일괄 책임진다. 본 컨트롤러에는 try/catch 없음 (도메인 예외는 그대로 propagate).</p>
@@ -47,13 +38,7 @@ import java.util.UUID;
 public class SubprogramController {
 
 	private final SubprogramService subprogramService;
-	private final SubprogramUploadIntentService subprogramUploadIntentService;
-	private final SubprogramVerificationLauncher subprogramVerificationLauncher;
-	private final SubprogramNudgeService subprogramNudgeService;
 	private final BoardModelService boardModelService;
-	private final DirectoryBrowseService directoryBrowseService;
-	private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
-	private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
 	/* ─────────────────────────── 메인 페이지 ─────────────────────────── */
 
@@ -115,8 +100,8 @@ public class SubprogramController {
 				"subprogramForm", new SubprogramUpdateRequest(
 						sp.name(),
 						sp.version(),
-						nullToEmpty(sp.description()),
-						nullToEmpty(sp.entrypointRelativePath())
+						SubprogramControllerSupport.nullToEmpty(sp.description()),
+						SubprogramControllerSupport.nullToEmpty(sp.entrypointRelativePath())
 				)
 		);
 		model.addAttribute("kind", sp.kind());
@@ -139,7 +124,7 @@ public class SubprogramController {
 			return "management/subprogram/subprogram-edit";
 		}
 		subprogramService.update(id, request);
-		return redirectToListWithSelect(id);
+		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
 	/* ─────────────────────────── 단순 액션 (redirect) ─────────────────────────── */
@@ -147,7 +132,7 @@ public class SubprogramController {
 	@PostMapping("/{id:[0-9]+}/toggle")
 	public String toggle(@PathVariable("id") Long id) {
 		subprogramService.toggleEnabled(id);
-		return redirectToListWithSelect(id);
+		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
 	@PostMapping("/{id:[0-9]+}/delete")
@@ -156,30 +141,10 @@ public class SubprogramController {
 		return "redirect:/management/subprogram";
 	}
 
-	/**
-	 * MK3-2 (DCM3-2.3) — softDelete reject modal 의 두 번째 호출 (XHR JSON).
-	 */
-	@PostMapping(path = "/{id:[0-9]+}/delete-intent/{token}", produces = "application/json")
-	@ResponseBody
-	public ResponseEntity<Void> deleteWithIntent(
-			@PathVariable("id") Long id,
-			@PathVariable("token") String token,
-			@Valid @RequestBody com.example.serverprovision.management.common.dto.request.DeleteIntentRequest request
-	) {
-		com.example.serverprovision.global.lifecycle.DeleteIntentToken parsed =
-				com.example.serverprovision.global.lifecycle.DeleteIntentToken.parse(token);
-		deleteIntentRegistry.consume(
-				parsed,
-				com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, id
-		);
-		subprogramService.softDeleteWithIntent(id, request.action());
-		return ResponseEntity.noContent().build();
-	}
-
 	@PostMapping("/{id:[0-9]+}/restore")
 	public String restore(@PathVariable("id") Long id) {
 		subprogramService.restore(id);
-		return redirectToListWithSelect(id);
+		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
 	/**
@@ -188,7 +153,7 @@ public class SubprogramController {
 	@PostMapping("/{id:[0-9]+}/deprecate")
 	public String deprecate(@PathVariable("id") Long id) {
 		subprogramService.deprecate(id);
-		return redirectToListWithSelect(id);
+		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
 	/**
@@ -197,7 +162,7 @@ public class SubprogramController {
 	@PostMapping("/{id:[0-9]+}/undeprecate")
 	public String undeprecate(@PathVariable("id") Long id) {
 		subprogramService.undeprecate(id);
-		return redirectToListWithSelect(id);
+		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
 	/**
@@ -236,159 +201,5 @@ public class SubprogramController {
 	@ResponseBody
 	public IntegrityStatusResponse integrityStatus(@PathVariable("id") Long id) {
 		return subprogramService.findIntegrityStatus(id);
-	}
-
-	@PostMapping("/{id:[0-9]+}/verify")
-	@ResponseBody
-	public JobStartResponse verify(@PathVariable("id") Long id) {
-		String jobId = subprogramVerificationLauncher.startVerification(id);
-		return new JobStartResponse(jobId);
-	}
-
-	/* ─────────────────────────── REST: 업로드 intent / upload ─────────────────────────── */
-
-	@PostMapping("/{kind}/{boardScope}/upload-intent")
-	@ResponseBody
-	public ResponseEntity<?> intent(
-			@PathVariable("kind") String kindToken,
-			@PathVariable("boardScope") String boardScopeToken,
-			@Valid @RequestBody SubprogramUploadIntentRequest request,
-			BindingResult bindingResult
-	) {
-		if (bindingResult.hasErrors()) {
-			return ResponseEntity.badRequest().body(new ApiErrorResponse(firstFieldError(bindingResult)));
-		}
-		SubprogramKind kind = SubprogramKind.fromPathToken(kindToken);
-		BoardScope scope = BoardScope.fromPathToken(boardScopeToken);
-		SubprogramUploadIntentResponse body = subprogramUploadIntentService.issue(kind, scope, request);
-		return ResponseEntity.ok(body);
-	}
-
-	@PostMapping("/{kind}/{boardScope}/upload")
-	@ResponseBody
-	public ResponseEntity<?> uploadBundle(
-			@PathVariable("kind") String kindToken,
-			@PathVariable("boardScope") String boardScopeToken,
-			@Valid @ModelAttribute SubprogramCreateRequest request,
-			BindingResult bindingResult,
-			@RequestParam("uploadMode") SubprogramUploadMode uploadMode,
-			@RequestParam(value = "folderFiles", required = false) MultipartFile[] folderFiles,
-			@RequestParam(value = "zipFile", required = false) MultipartFile zipFile,
-			@RequestParam(value = "singleFile", required = false) MultipartFile singleFile,
-			@RequestHeader(name = "X-Upload-Token", required = false) String uploadToken
-	) {
-		if (bindingResult.hasErrors()) {
-			return ResponseEntity.badRequest().body(new ApiErrorResponse(firstFieldError(bindingResult)));
-		}
-		SubprogramKind kind = SubprogramKind.fromPathToken(kindToken);
-		BoardScope scope = BoardScope.fromPathToken(boardScopeToken);
-		subprogramUploadIntentService.consume(kind, scope, uploadToken);
-		Long id = subprogramService.addSubprogram(kind, scope, request, uploadMode, folderFiles, zipFile, singleFile);
-		return ResponseEntity.ok(new SubprogramUploadResponse(id, "/management/subprogram?selectId=" + id));
-	}
-
-	/**
-	 * 기존 디렉토리 등록 — 업로드 없이 이미 콘텐츠가 차 있는 트리를 Subprogram 자원으로 claim.
-	 */
-	@PostMapping("/{kind}/{boardScope}/register-existing")
-	@ResponseBody
-	public ResponseEntity<?> registerExisting(
-			@PathVariable("kind") String kindToken,
-			@PathVariable("boardScope") String boardScopeToken,
-			@Valid @RequestBody SubprogramRegisterExistingRequest request,
-			BindingResult bindingResult
-	) {
-		if (bindingResult.hasErrors()) {
-			return ResponseEntity.badRequest().body(new ApiErrorResponse(firstFieldError(bindingResult)));
-		}
-		SubprogramKind kind = SubprogramKind.fromPathToken(kindToken);
-		BoardScope scope = BoardScope.fromPathToken(boardScopeToken);
-		Long id = subprogramService.registerExisting(kind, scope, request);
-		return ResponseEntity.ok(new SubprogramUploadResponse(id, "/management/subprogram?selectId=" + id));
-	}
-
-	/* ─────────────────────────── REST: nudge confirm (MK2) ─────────────────────────── */
-
-	@PostMapping("/nudge/{nudgeId}/proceed")
-	@ResponseBody
-	public ResponseEntity<Void> nudgeProceed(@PathVariable("nudgeId") UUID nudgeId) {
-		subprogramNudgeService.proceed(nudgeId);
-		return ResponseEntity.noContent().build();
-	}
-
-	@PostMapping("/nudge/{nudgeId}/replace")
-	@ResponseBody
-	public ResponseEntity<Void> nudgeReplace(
-			@PathVariable("nudgeId") UUID nudgeId,
-			@RequestParam("targetId") Long targetId,
-			@RequestParam(value = "typedName", required = false) String typedName
-	) {
-		if (typedName != null && !typedName.isBlank()) {
-			typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, targetId, typedName);
-		}
-		subprogramNudgeService.replace(nudgeId, targetId);
-		return ResponseEntity.noContent().build();
-	}
-
-	@PostMapping("/nudge/{nudgeId}/cancel")
-	@ResponseBody
-	public ResponseEntity<Void> nudgeCancel(@PathVariable("nudgeId") UUID nudgeId) {
-		subprogramNudgeService.cancel(nudgeId);
-		return ResponseEntity.noContent().build();
-	}
-
-	/* ─── MK2 WAVE 2 — Intent (단계 A) Nudge confirm ─── */
-
-	@PostMapping("/intent-nudge/{nudgeId}/proceed")
-	@ResponseBody
-	public com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse intentNudgeProceed(
-			@PathVariable("nudgeId") UUID nudgeId
-	) {
-		return subprogramNudgeService.proceedIntent(nudgeId);
-	}
-
-	@PostMapping("/intent-nudge/{nudgeId}/replace")
-	@ResponseBody
-	public com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse intentNudgeReplace(
-			@PathVariable("nudgeId") UUID nudgeId,
-			@RequestParam("targetId") Long targetId,
-			@RequestParam(value = "typedName", required = false) String typedName
-	) {
-		if (typedName != null && !typedName.isBlank()) {
-			typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, targetId, typedName);
-		}
-		return subprogramNudgeService.replaceIntent(nudgeId, targetId);
-	}
-
-	@PostMapping("/intent-nudge/{nudgeId}/cancel")
-	@ResponseBody
-	public ResponseEntity<Void> intentNudgeCancel(@PathVariable("nudgeId") UUID nudgeId) {
-		subprogramNudgeService.cancelIntent(nudgeId);
-		return ResponseEntity.noContent().build();
-	}
-
-	/* ─────────────────────────── REST: 디렉토리 탐색 ─────────────────────────── */
-
-	@GetMapping("/browse")
-	@ResponseBody
-	public Object browse(@RequestParam(name = "path", required = false) String pathParam) {
-		return directoryBrowseService.browse(new DirectoryBrowseRequest(pathParam, true));
-	}
-
-	/* ─────────────────────────── helpers ─────────────────────────── */
-
-	private String redirectToListWithSelect(Long id) {
-		return "redirect:/management/subprogram?selectId=" + id;
-	}
-
-	private static String firstFieldError(BindingResult bindingResult) {
-		return bindingResult.getFieldErrors().stream()
-				.findFirst()
-				.map(err -> err.getField() + ": " + err.getDefaultMessage())
-				.orElse("입력값이 올바르지 않습니다.");
-	}
-
-	private static String nullToEmpty(String value) {
-		return value == null ? "" : value;
 	}
 }

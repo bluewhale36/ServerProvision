@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>참고 : 본래 권장안에는 {@code POST /management/subprogram/upload-intent} 가 적혀 있으나, 실 라우트는
  * {@code /{kind}/{boardScope}/upload-intent} 로 path variable 을 포함한다. 보안 의미는 동일하므로 실제 라우트로 검증.</p>
  */
-@WebMvcTest(controllers = SubprogramController.class)
+@WebMvcTest(controllers = {SubprogramController.class, SubprogramUploadController.class, SubprogramBrowseController.class})
 class SubprogramControllerSecurityFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
