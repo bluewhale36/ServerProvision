@@ -2,26 +2,17 @@ package com.example.serverprovision.management.board.service.metadata;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.lifecycle.LifecycleService;
-import com.example.serverprovision.management.bios.entity.BoardBIOS;
-import com.example.serverprovision.management.bios.repository.BiosRepository;
-import com.example.serverprovision.management.bios.service.BiosService;
-import com.example.serverprovision.management.bmc.entity.BoardBMC;
-import com.example.serverprovision.management.bmc.repository.BmcRepository;
-import com.example.serverprovision.management.bmc.service.BmcService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
-import com.example.serverprovision.management.subprogram.entity.Subprogram;
-import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
-import com.example.serverprovision.management.subprogram.service.SubprogramService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -29,44 +20,25 @@ import java.util.List;
  *
  * <ul>
  *   <li>toggle / deprecate / undeprecate — 부모 own flip + 자식 effective 재계산(cascadeRecompute).</li>
- *   <li>softDelete / restore — 자식 BIOS/BMC/Subprogram 동반 trash 이동·복구(자식 service 위임).</li>
+ *   <li>softDelete / restore — 자식 BIOS/BMC/Subprogram 동반 trash 이동·복구.</li>
  *   <li>purge / purgeWithTypedNameCheck — 자식 잔존 검사 후 영구 삭제.</li>
  * </ul>
  *
- * <p>자식 service 는 cascade 재사용 위해 {@code @Lazy} 직접 주입 — 형제 service / scanner 를 거쳐
- * 본 service 를 의존할 경우의 circular-ref 차단(기존 BoardModelService 와 동일). 다형 순회 전환은 <b>R3-4</b>,
- * scanner 의 ObjectProvider 제거(4-sealed SPI)는 <b>R7-3</b>.</p>
+ * <p>R3-4 — 자식 cascade 를 {@link BoardScopedChildLifecycle} 다형 순회로 통일. 기존 자식 BIOS/BMC/Subprogram
+ * repository·service 직접 주입(7 필드)을 {@code List<BoardScopedChildLifecycle>} 1 필드로 대체. 자식 1종 추가 시
+ * 어댑터 1개 등록만으로 5 메서드(cascadeRecompute / softDelete / restore / purge / findDeletedChildLabels)에
+ * 합류(Open/Closed). 순회 순서는 어댑터의 {@code @Order}(BIOS→BMC→Subprogram)로 고정 — 기존 동반 순서·라벨
+ * 순서 보존. @Lazy(speculative 순환 차단)는 어댑터로 이동(D3). scanner ObjectProvider 제거는 <b>R7-3</b>.</p>
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BoardModelLifecycleService implements LifecycleService {
 
 	private final BoardModelRepository boardModelRepository;
-	private final BiosRepository biosRepository;
-	private final BmcRepository bmcRepository;
-	private final SubprogramRepository subprogramRepository;
-	private final BiosService biosService;
-	private final BmcService bmcService;
-	private final SubprogramService subprogramService;
-
-	public BoardModelLifecycleService(
-			BoardModelRepository boardModelRepository,
-			BiosRepository biosRepository,
-			BmcRepository bmcRepository,
-			SubprogramRepository subprogramRepository,
-			@Lazy BiosService biosService,
-			@Lazy BmcService bmcService,
-			@Lazy SubprogramService subprogramService
-	) {
-		this.boardModelRepository = boardModelRepository;
-		this.biosRepository = biosRepository;
-		this.bmcRepository = bmcRepository;
-		this.subprogramRepository = subprogramRepository;
-		this.biosService = biosService;
-		this.bmcService = bmcService;
-		this.subprogramService = subprogramService;
-	}
+	// R3-4 — board-scoped 자식(BIOS/BMC/Subprogram) cascade 어댑터. @Order 로 순회 순서 고정.
+	private final List<BoardScopedChildLifecycle> children;
 
 	/**
 	 * R4-1 — Board 활성/비활성 토글 + 자식 effective 재계산 (양방향).
@@ -107,35 +79,24 @@ public class BoardModelLifecycleService implements LifecycleService {
 
 	/**
 	 * R4-1 — board-scoped 자식(BIOS / BMC / Subprogram) 의 effective(is_enabled/is_deprecated) 재계산.
-	 * own 보존, 부모 effective 변화만 반영. 휴지통(soft-deleted) 자식은 restore 시 개별 재계산되므로 제외.
-	 * 공용 Subprogram(boardModel=null) 은 boardModel.id 매칭에서 자연 제외 → effective=own 유지.
+	 * R3-4 — 자식 3종 복붙을 어댑터 다형 순회로 통일. own 보존, 부모 effective 변화만 반영. 휴지통(soft-deleted)
+	 * 자식은 restore 시 개별 재계산되므로 어댑터가 제외. 공용 Subprogram(boardModel=null)은 어댑터 내부에서 자연 제외.
 	 */
 	private void cascadeRecompute(Long id) {
-		biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted()).forEach(BoardBIOS::recomputeEffective);
-		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).stream()
-				.filter(b -> !b.isDeleted()).forEach(BoardBMC::recomputeEffective);
-		subprogramRepository.findAllByBoardModel_Id(id).stream()
-				.filter(s -> !s.isDeleted()).forEach(Subprogram::recomputeEffective);
+		children.forEach(child -> child.recomputeEffective(id));
 	}
 
 	/**
 	 * S5-2-3 정합화 — Board soft-delete + 자식 BIOS / BMC / Subprogram 동반 trash 이동.
-	 * <p>service.softDelete 위임 (trash 이동 + DB 갱신). 이미 삭제된 자식은 건드리지 않는다.</p>
+	 * <p>R3-4 — 자식 동반 trash 이동을 어댑터 다형 순회로 위임(어댑터가 자식 service.softDelete 호출).
+	 * board.softDelete 前에 자식부터(기존 순서 보존). 이미 삭제된 자식은 어댑터가 활성만 선별해 건드리지 않는다.</p>
 	 */
 	@Override
 	@Transactional
 	public void softDelete(Long id) {
 		BoardModel board = BoardModelGuards.requireActiveBoard(boardModelRepository, id);
-		// 자식 BIOS / BMC 활성 자원 동반 trash 이동 — service.softDelete 위임 (trash 이동 + DB 갱신).
-		biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id)
-				.forEach(bios -> biosService.softDelete(id, bios.getId()));
-		bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id)
-				.forEach(bmc -> bmcService.softDelete(id, bmc.getId()));
-		// R3-1 — board-scoped Subprogram 동반 trash 이동 (단일 인자 service 위임, board.softDelete 前).
-		subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(id)
-				.forEach(sp -> subprogramService.softDelete(sp.getId()));
-		// Board 자체 — 메타 자원 lifecycle 메타만 갱신.
+		children.forEach(child -> child.softDeleteActive(id));
+		// Board 자체 — 메타 자원 lifecycle 메타만 갱신 (자식 동반 이동 後).
 		board.softDelete();
 		board.markTrashed(null);
 	}
@@ -151,9 +112,9 @@ public class BoardModelLifecycleService implements LifecycleService {
 	/**
 	 * S5-2-3 — Board restore + 하위 BIOS / BMC / Subprogram 일괄 복구 옵션.
 	 *
-	 * <p>cascade=true 면 soft-deleted 자식을 일괄 복구. 각 자식의 restore 는 기존 {@code *Service.restore}
-	 * 위임 — duplicate version 검증 + trashLifecycleService.restoreFromTrash 흐름 재사용. 자식 복구 중 활성
-	 * 자원과 충돌하면 해당 service 가 Duplicate*Exception 던지고 {@code @Transactional} 전체 롤백.</p>
+	 * <p>cascade=true 면 soft-deleted 자식을 일괄 복구. R3-4 — 자식 복구를 어댑터 다형 순회로 위임하고 복구 수를
+	 * 합산. 각 자식의 restore 는 자식 service 위임(duplicate version 검증 재사용). 자식 복구 중 활성 자원과
+	 * 충돌하면 해당 service 가 Duplicate*Exception 던지고 {@code @Transactional} 전체 롤백.</p>
 	 */
 	@Override
 	@Transactional
@@ -170,37 +131,21 @@ public class BoardModelLifecycleService implements LifecycleService {
 		if (!cascade) {
 			return RestoreResponse.none();
 		}
-		int restored = 0;
-		for (BoardBIOS bios : biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(id)) {
-			biosService.restore(id, bios.getId());
-			restored++;
-		}
-		for (BoardBMC bmc : bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(id)) {
-			bmcService.restore(id, bmc.getId());
-			restored++;
-		}
-		// R3-1 — board-scoped Subprogram 동반 복구 (board.restore 後 → R2-2-1 부모가드 통과). 활성 동일키 충돌 시 전체 롤백.
-		for (Subprogram sp : subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(id)) {
-			subprogramService.restore(sp.getId());
-			restored++;
-		}
+		// R3-1 — board-scoped 자식 동반 복구 (board.restore 後 → R2-2-1 부모가드 통과). 활성 동일키 충돌 시 전체 롤백.
+		int restored = children.stream().mapToInt(child -> child.restoreDeleted(id)).sum();
 		log.info("[restore] BoardModel id={} cascade=true → 하위 자원 {}건 복구", id, restored);
 		return new RestoreResponse(restored);
 	}
 
 	/**
 	 * S5-2+ — 휴지통 cascade preview 용 — 본 보드에 종속된 soft-deleted BIOS / BMC / Subprogram 이름 라벨.
+	 * R3-4 — 어댑터 다형 순회로 라벨 수집(도메인별 접두/포맷은 어댑터 내부). 순서는 @Order 고정.
 	 * 호출자 : BoardModelMarkableScanner.findDeletedChildLabels. (LifecycleService 인터페이스 외 Board 고유 메서드.)
 	 */
 	public List<String> findDeletedChildLabels(Long boardId) {
-		List<String> labels = new ArrayList<>();
-		biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)
-				.forEach(bios -> labels.add("BIOS: " + bios.getName()));
-		bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)
-				.forEach(bmc -> labels.add("BMC: " + bmc.getName()));
-		subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)
-				.forEach(sp -> labels.add(sp.getKind().getDisplayName() + ": " + sp.getName()));
-		return labels;
+		return children.stream()
+				.flatMap(child -> child.deletedLabels(boardId).stream())
+				.toList();
 	}
 
 	/**
@@ -234,13 +179,11 @@ public class BoardModelLifecycleService implements LifecycleService {
 
 	/**
 	 * 공통 hard-delete 본체 — 자식 잔존 검사 + DB row 제거.
+	 * R3-4 — 자식 잔존 검사를 어댑터 다형 순회(anyMatch)로 통일.
 	 */
 	private void purge(BoardModel board) {
 		Long id = board.getId();
-		boolean hasBios = !biosRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
-		boolean hasBmc = !bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(id).isEmpty();
-		boolean hasSubprogram = !subprogramRepository.findAllByBoardModel_Id(id).isEmpty();
-		if (hasBios || hasBmc || hasSubprogram) {
+		if (children.stream().anyMatch(child -> child.hasAny(id))) {
 			throw new IllegalBoardModelStateException(
 					"자식 BIOS / BMC / Subprogram(드라이버·유틸리티) 자원이 남아 있어 메인보드 모델을 영구 삭제할 수 없습니다. "
 							+ "자식을 먼저 모두 영구 삭제해주세요. id=" + id);
