@@ -4,8 +4,10 @@ import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParen
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.lifecycle.SoftDeleteIntentService;
 import com.example.serverprovision.global.marker.MarkerLayout;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
+import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.enums.OSName;
@@ -28,8 +30,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * R1-4-1 CP4 — IsoLifecycleService 단위 테스트.
@@ -45,6 +49,8 @@ class IsoLifecycleServiceTest {
 	@Mock TrashLifecycleService trashLifecycleService;
 	@Mock SoftDeleteIntentService softDeleteIntentService;
 	@Mock ProvisionMarkerService markerService;
+	// R1-5 — typed-name 검증을 공통 컴포넌트로 위임 (복붙된 private helper 제거). mock 으로 격리.
+	@Mock TypedNameVerifier typedNameVerifier;
 
 	@InjectMocks IsoLifecycleService isoLifecycleService;
 
@@ -215,14 +221,45 @@ class IsoLifecycleServiceTest {
 	}
 
 	@Test
-	@DisplayName("purgeWithTypedNameCheck : typed-name 불일치 → TypedNameMismatchException")
-	void purgeWithTypedNameCheck_mismatch_throws() {
+	@DisplayName("purgeWithTypedNameCheck(happy) : verifier no-op → purge 진행 (soft-deleted ISO row 삭제)")
+	void purgeWithTypedNameCheck_verifierPasses_purges() {
+		OSMetadata parent = buildParent(1L, true, false, false);
+		ISO softDeletedIso = buildChild(101L, parent, false, false, true);  // soft-deleted
+		given(isoRepository.findById(101L)).willReturn(Optional.of(softDeletedIso));
+		given(markerService.resolveMarkerFile(any(), eq(MarkerLayout.SIDECAR)))
+				.willReturn(Path.of("/var/trash/iso/dvd.iso.provision.json"));
+
+		isoLifecycleService.purgeWithTypedNameCheck(101L, "Rocky Linux 9.6 dvd.iso");
+
+		// R1-5 — 검증을 공통 verifier 에 위임. 일치 시 verify() no-op 후 purge 본체로 진행.
+		verify(typedNameVerifier).verify(ResourceType.OS_ISO, 101L, "Rocky Linux 9.6 dvd.iso");
+		verify(isoRepository).delete(softDeletedIso);
+	}
+
+	@Test
+	@DisplayName("purgeWithTypedNameCheck(mismatch) : verifier 가 TypedNameMismatchException → 전파 + 삭제 미호출")
+	void purgeWithTypedNameCheck_verifierThrows_propagatesAndNoDelete() {
 		OSMetadata parent = buildParent(1L, true, false, false);
 		ISO softDeletedIso = buildChild(101L, parent, false, false, true);
 		given(isoRepository.findById(101L)).willReturn(Optional.of(softDeletedIso));
+		// R1-5 — 불일치 판정은 공통 verifier 책임. service 는 예외를 흡수하지 않고 그대로 전파해야 한다.
+		willThrow(new TypedNameMismatchException("Rocky Linux 9.6 dvd.iso", "wrong"))
+				.given(typedNameVerifier).verify(ResourceType.OS_ISO, 101L, "wrong");
 
 		assertThatThrownBy(() -> isoLifecycleService.purgeWithTypedNameCheck(101L, "wrong"))
 				.isInstanceOf(TypedNameMismatchException.class);
+		verify(isoRepository, never()).delete(any());
+	}
+
+	@Test
+	@DisplayName("purgeWithTypedNameCheck(상태위반) : ISO 부재 → ISONotFoundException, verifier 미호출")
+	void purgeWithTypedNameCheck_isoMissing_throwsBeforeVerify() {
+		given(isoRepository.findById(404L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> isoLifecycleService.purgeWithTypedNameCheck(404L, "anything"))
+				.isInstanceOf(ISONotFoundException.class);
+		// R1-5 — 자원 lookup 실패는 verify 진입 전에 차단 → verifier 와 상호작용 0.
+		verifyNoInteractions(typedNameVerifier);
 		verify(isoRepository, never()).delete(any());
 	}
 

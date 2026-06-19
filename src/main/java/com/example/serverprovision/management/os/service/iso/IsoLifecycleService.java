@@ -1,16 +1,15 @@
 package com.example.serverprovision.management.os.service.iso;
 
 import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException;
-import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.lifecycle.DeleteAction;
 import com.example.serverprovision.global.lifecycle.LifecycleService;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.lifecycle.SoftDeleteIntentService;
-import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
+import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
@@ -57,6 +56,8 @@ public class IsoLifecycleService implements LifecycleService {
 	private final TrashLifecycleService trashLifecycleService;
 	private final SoftDeleteIntentService softDeleteIntentService;
 	private final ProvisionMarkerService markerService;
+	// R1-5 — typed-name 검증을 공통 TypedNameVerifier 로 위임 (복붙된 private helper 사본 제거).
+	private final TypedNameVerifier typedNameVerifier;
 
 	// ==== URL forging 가드 (controller 가 lifecycle 호출 직전에 호출) =========
 
@@ -221,9 +222,9 @@ public class IsoLifecycleService implements LifecycleService {
 	@Override
 	@Transactional
 	public void purgeWithTypedNameCheck(Long isoId, String typedName) {
-		ISO iso = isoRepository.findById(isoId)
+		isoRepository.findById(isoId)
 				.orElseThrow(() -> new ISONotFoundException(null, isoId));
-		verifyTypedNameOrThrow(iso, typedName);
+		typedNameVerifier.verify(ResourceType.OS_ISO, isoId, typedName);
 		purge(isoId);
 	}
 
@@ -279,13 +280,6 @@ public class IsoLifecycleService implements LifecycleService {
 		Long parentId = iso.getOsMetadata().getId();
 		return osMetadataRepository.findByIdAndIsDeletedFalse(parentId)
 				.orElseThrow(() -> new OSMetadataNotFoundException(parentId));
-	}
-
-	private static void verifyTypedNameOrThrow(Markable resource, String typedName) {
-		String expected = resource.displayName();
-		if (!expected.equals(typedName)) {
-			throw new TypedNameMismatchException(expected, typedName);
-		}
 	}
 
 	private static void deleteQuietly(Path p) {

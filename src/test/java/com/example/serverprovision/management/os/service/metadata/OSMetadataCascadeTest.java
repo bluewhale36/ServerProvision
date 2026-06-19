@@ -40,6 +40,8 @@ class OSMetadataCascadeTest {
     com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
     @Mock SoftDeleteIntentService softDeleteIntentService;
     @Mock com.example.serverprovision.global.marker.service.ProvisionMarkerService markerService;
+    // R1-5 — 두 lifecycle service 가 typed-name 검증을 공통 컴포넌트로 위임. cascade 시나리오에선 purge 미사용이라 no-op mock.
+    @Mock com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
     @InjectMocks OSMetadataService osMetadataService;
 
@@ -48,9 +50,10 @@ class OSMetadataCascadeTest {
     @BeforeEach
     void initLifecycleService() {
         isoLifecycleService = new com.example.serverprovision.management.os.service.iso.IsoLifecycleService(
-                isoRepository, osMetadataRepository, trashLifecycleService, softDeleteIntentService, markerService);
+                isoRepository, osMetadataRepository, trashLifecycleService, softDeleteIntentService, markerService,
+                typedNameVerifier);
         osMetadataLifecycleService = new OSMetadataLifecycleService(
-                osMetadataRepository, trashLifecycleService, isoLifecycleService);
+                osMetadataRepository, trashLifecycleService, isoLifecycleService, typedNameVerifier);
     }
 
     // ==== helper ===================================================

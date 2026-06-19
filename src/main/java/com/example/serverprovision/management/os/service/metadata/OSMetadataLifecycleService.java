@@ -1,8 +1,8 @@
 package com.example.serverprovision.management.os.service.metadata;
 
-import com.example.serverprovision.global.exception.TypedNameMismatchException;
-import com.example.serverprovision.global.marker.Markable;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
+import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
@@ -41,6 +41,8 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	// R1-4-1 — 자식 ISO 의 cascade restore / sidecar 정리는 IsoLifecycleService 에 위임.
 	// 옛 R1-3 의 OSMetadataService 의존을 IsoLifecycleService 로 교체 — parent → leaf 단방향, cycle 없음.
 	private final IsoLifecycleService isoLifecycleService;
+	// R1-5 — typed-name 검증을 공통 TypedNameVerifier 로 위임 (복붙된 private helper 사본 제거).
+	private final TypedNameVerifier typedNameVerifier;
 
 	// ==== enabled 토글 =================================================
 
@@ -158,10 +160,10 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	@Override
 	@Transactional
 	public void purgeWithTypedNameCheck(Long id, String typedName) {
-		OSMetadata image = osMetadataRepository.findByIdAndIsDeletedTrue(id)
+		osMetadataRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalOSMetadataStateException(
 						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
-		verifyTypedNameOrThrow(image, typedName);
+		typedNameVerifier.verify(ResourceType.OS_IMAGE, id, typedName);
 		purge(id);
 	}
 
@@ -184,16 +186,6 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	}
 
 	// ==== helper =======================================================
-
-	/**
-	 * typed-name 일치 검증 — entity.displayName() 이 곧 기대값.
-	 */
-	private static void verifyTypedNameOrThrow(Markable resource, String typedName) {
-		String expected = resource.displayName();
-		if (!expected.equals(typedName)) {
-			throw new TypedNameMismatchException(expected, typedName);
-		}
-	}
 
 	/**
 	 * D-1 안 A — over-abstraction 회피 차원에서 OSMetadataService 의 동명 helper 사본.

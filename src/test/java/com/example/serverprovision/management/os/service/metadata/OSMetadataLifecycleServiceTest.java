@@ -1,7 +1,9 @@
 package com.example.serverprovision.management.os.service.metadata;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
+import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.enums.OSName;
@@ -23,9 +25,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * R1-3 — OSMetadataLifecycleService 단위 테스트.
@@ -39,6 +43,8 @@ class OSMetadataLifecycleServiceTest {
 	@Mock OSMetadataRepository osMetadataRepository;
 	@Mock TrashLifecycleService trashLifecycleService;
 	@Mock com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
+	// R1-5 — typed-name 검증을 공통 컴포넌트로 위임 (복붙된 private helper 제거). mock 으로 격리.
+	@Mock TypedNameVerifier typedNameVerifier;
 
 	@InjectMocks OSMetadataLifecycleService osMetadataLifecycleService;
 
@@ -120,12 +126,15 @@ class OSMetadataLifecycleServiceTest {
 	// ==== purgeWithTypedNameCheck =====================================
 
 	@Test
-	@DisplayName("purgeWithTypedNameCheck(400) : typed-name 불일치 → TypedNameMismatchException, entity 삭제 안 됨")
-	void purgeWithTypedNameCheck_whenMismatch_throws() {
+	@DisplayName("purgeWithTypedNameCheck(mismatch) : verifier 가 TypedNameMismatchException → 전파 + entity 삭제 안 됨")
+	void purgeWithTypedNameCheck_verifierThrows_propagatesAndNoDelete() {
 		OSMetadata image = OSMetadata.builder()
 				.id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
 				.isEnabled(false).isDeprecated(false).isDeleted(true).build();
 		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.of(image));
+		// R1-5 — 불일치 판정은 공통 verifier 책임. service 는 예외를 흡수하지 않고 그대로 전파해야 한다.
+		willThrow(new TypedNameMismatchException(image.displayName(), "wrong"))
+				.given(typedNameVerifier).verify(ResourceType.OS_IMAGE, 1L, "wrong");
 
 		assertThatThrownBy(() -> osMetadataLifecycleService.purgeWithTypedNameCheck(1L, "wrong"))
 				.isInstanceOf(TypedNameMismatchException.class);
@@ -133,8 +142,8 @@ class OSMetadataLifecycleServiceTest {
 	}
 
 	@Test
-	@DisplayName("purgeWithTypedNameCheck(happy) : typed-name 일치 → purge 본체 호출, row 삭제")
-	void purgeWithTypedNameCheck_whenMatches_purges() {
+	@DisplayName("purgeWithTypedNameCheck(happy) : verifier no-op → purge 본체 호출, row 삭제")
+	void purgeWithTypedNameCheck_verifierPasses_purges() {
 		OSMetadata image = OSMetadata.builder()
 				.id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
 				.isEnabled(false).isDeprecated(false).isDeleted(true).build();
@@ -143,6 +152,21 @@ class OSMetadataLifecycleServiceTest {
 
 		osMetadataLifecycleService.purgeWithTypedNameCheck(1L, image.displayName());
 
+		// R1-5 — 일치 시 verify() no-op → 공통 컴포넌트에 정확한 (type, id, name) 위임 검증.
+		verify(typedNameVerifier).verify(ResourceType.OS_IMAGE, 1L, image.displayName());
 		verify(osMetadataRepository, times(1)).delete(image);
+	}
+
+	@Test
+	@DisplayName("purgeWithTypedNameCheck(상태위반) : soft-deleted 가 아니면 IllegalOSMetadataStateException, verifier 미호출")
+	void purgeWithTypedNameCheck_notSoftDeleted_throwsBeforeVerify() {
+		// soft-deleted 자원이 없음 → 상태 가드가 verify 진입 전에 차단.
+		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> osMetadataLifecycleService.purgeWithTypedNameCheck(1L, "anything"))
+				.isInstanceOf(IllegalOSMetadataStateException.class);
+		// R1-5 — 상태 위반은 verify 진입 전에 차단 → verifier 와 상호작용 0.
+		verifyNoInteractions(typedNameVerifier);
+		verify(osMetadataRepository, never()).delete(any());
 	}
 }
