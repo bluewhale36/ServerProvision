@@ -4,7 +4,7 @@ import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
-import org.springframework.context.annotation.Lazy;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -15,23 +15,18 @@ import java.util.List;
  * R3-4 — BoardModel cascade 의 BIOS 자식 어댑터. {@code BoardModelLifecycleService} 의 BIOS 전용
  * 3-블록 복붙을 흡수. {@code @Order(10)} 로 기존 순회 순서(BIOS → BMC → Subprogram) 선두 고정.
  *
- * <p>{@code @Lazy BiosService} — 형제·scanner 를 거친 speculative 순환 차단(기존 BoardModelLifecycleService
- * 의 @Lazy 가 어댑터로 이동, D3). R3-4 본체 rewire(CP4) 후 bootRun 실측에서 순환 0 이면 제거 가능.</p>
+ * <p>{@code BiosService} 는 eager 주입. (구 {@code @Lazy} 는 speculative 과방어였다 — 자식 service 가 Board /
+ * cascade 어댑터로 되돌아오는 생성자 의존이 0건이고, 시스템의 진짜 생성자 순환은
+ * {@code SoftDeleteIntentService} 의 @Lazy 에서 이미 차단돼 본 cascade 경로를 통과하지 않음이 확인됨.
+ * bootRun 실측 순환 0 으로 @Lazy 제거.)</p>
  */
 @Component
+@RequiredArgsConstructor
 @Order(10)
 public class BiosBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final BiosRepository biosRepository;
 	private final BiosService biosService;
-
-	public BiosBoardScopedChildLifecycle(
-			BiosRepository biosRepository,
-			@Lazy BiosService biosService
-	) {
-		this.biosRepository = biosRepository;
-		this.biosService = biosService;
-	}
 
 	@Override
 	public void recomputeEffective(Long boardId) {

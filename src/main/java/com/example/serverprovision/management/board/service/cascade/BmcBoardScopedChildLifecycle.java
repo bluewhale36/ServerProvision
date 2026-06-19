@@ -4,7 +4,7 @@ import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.bmc.service.BmcService;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
-import org.springframework.context.annotation.Lazy;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -15,22 +15,16 @@ import java.util.List;
  * R3-4 — BoardModel cascade 의 BMC 자식 어댑터. {@code BoardModelLifecycleService} 의 BMC 전용
  * 3-블록 복붙을 흡수. {@code @Order(20)} 로 기존 순회 순서(BIOS → BMC → Subprogram) 중간 고정.
  *
- * <p>{@code @Lazy BmcService} — speculative 순환 차단(D3). 구조는 BIOS 어댑터와 동형(IN_TREE 자식).</p>
+ * <p>{@code BmcService} 는 eager 주입 — 구 {@code @Lazy}(speculative) 제거. 사유는 BIOS 어댑터와 동일
+ * (cascade 경로에 진짜 순환 없음, 실측 bootRun 순환 0). 구조는 BIOS 어댑터와 동형(IN_TREE 자식).</p>
  */
 @Component
+@RequiredArgsConstructor
 @Order(20)
 public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final BmcRepository bmcRepository;
 	private final BmcService bmcService;
-
-	public BmcBoardScopedChildLifecycle(
-			BmcRepository bmcRepository,
-			@Lazy BmcService bmcService
-	) {
-		this.bmcRepository = bmcRepository;
-		this.bmcService = bmcService;
-	}
 
 	@Override
 	public void recomputeEffective(Long boardId) {

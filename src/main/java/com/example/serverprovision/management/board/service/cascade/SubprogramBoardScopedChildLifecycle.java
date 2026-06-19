@@ -4,7 +4,7 @@ import com.example.serverprovision.management.board.service.BoardScopedChildLife
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
 import com.example.serverprovision.management.subprogram.service.SubprogramService;
-import org.springframework.context.annotation.Lazy;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -25,19 +25,12 @@ import java.util.List;
  * 공용 Subprogram(boardModel=null)은 board.id 매칭에서 자연 제외 → cascade 대상 아님.</p>
  */
 @Component
+@RequiredArgsConstructor
 @Order(30)
 public class SubprogramBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final SubprogramRepository subprogramRepository;
 	private final SubprogramService subprogramService;
-
-	public SubprogramBoardScopedChildLifecycle(
-			SubprogramRepository subprogramRepository,
-			@Lazy SubprogramService subprogramService
-	) {
-		this.subprogramRepository = subprogramRepository;
-		this.subprogramService = subprogramService;
-	}
 
 	@Override
 	public void recomputeEffective(Long boardId) {

@@ -29,7 +29,9 @@ import java.util.List;
  * repository·service 직접 주입(7 필드)을 {@code List<BoardScopedChildLifecycle>} 1 필드로 대체. 자식 1종 추가 시
  * 어댑터 1개 등록만으로 5 메서드(cascadeRecompute / softDelete / restore / purge / findDeletedChildLabels)에
  * 합류(Open/Closed). 순회 순서는 어댑터의 {@code @Order}(BIOS→BMC→Subprogram)로 고정 — 기존 동반 순서·라벨
- * 순서 보존. @Lazy(speculative 순환 차단)는 어댑터로 이동(D3). scanner ObjectProvider 제거는 <b>R7-3</b>.</p>
+ * 순서 보존. 어댑터의 자식 service 는 eager 주입 — 구 @Lazy(speculative)는 진짜 순환 부재 확인 후 제거
+ * (cascade 경로에 자식→Board 되돌이 의존 0, 실제 순환은 SoftDeleteIntentService 에서 차단, bootRun 실측 0).
+ * scanner ObjectProvider 제거는 <b>R7-3</b>.</p>
  */
 @Slf4j
 @Service
