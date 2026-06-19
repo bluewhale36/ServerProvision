@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3-5 Plan — LifecycleService default 흡수(restore 오버로드 제거) + typed-name 검증 SSOT(verifier 위임)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg.disabled { opacity:0.4; cursor:not-allowed; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.clean { background:var(--red-bg); color:var(--red); }
+  .badge.preserve { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.quar { background:var(--blue-bg); color:var(--blue); }
+  .badge.safe { background:var(--green-bg); color:var(--green); }
+  .badge.breaks { background:var(--red-bg); color:var(--red); }
+  .badge.noop { background:var(--bg); color:var(--text-muted); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.clean { background:var(--red-bg); border-color:var(--red); }
+  .ux-message.preserve { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.quar { background:var(--blue-bg); border-color:var(--blue); }
+  .ux-message.warn { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); }
+  .dag { font-family:var(--mono); font-size:11.5px; line-height:1.7; white-space:pre; overflow-x:auto;
+    background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; margin-top:10px; }
+  .dag .cycle { color:var(--red); font-weight:700; }
+  .dag .ok { color:var(--green); font-weight:700; }
+  .dag .touch { color:var(--orange); font-weight:700; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .impl-mono { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R3-5 — <code>LifecycleService</code> default 흡수 (restore 오버로드 제거) + typed-name 검증 SSOT (<code>TypedNameVerifier</code> 위임) <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R3-5 (refactor)</span>
+    <span><strong>상위</strong> R3 (Board — 메타 자원) · 선행 R3-4(자식 cascade 다형화) 완료</span>
+    <span><strong>scope</strong> <code>BoardModelLifecycleService</code> 의 (1) 중복 <code>restore(Long)</code> override 삭제 → 인터페이스 default 흡수, (2) <code>purgeWithTypedNameCheck</code> inline typed-name 비교 → 공통 <code>TypedNameVerifier</code> 위임. <b>Board 한정</b>. 동작·HTTP status 100% 보존</span>
+    <span><strong>생성</strong> 2026-06-14 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (이미 있는 자산을 Board 가 안 씀)</a></li>
+      <li><a href="#s1">§1 현재 상태 (restore 3구현체 비대칭 + typed-name 복붙)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (restore-override 제거 안전성 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 신구 비교 — restore / purge / 주입 전수</a></li>
+      <li><a href="#s4">§4 도메인 모델 (신규 0 · 기존 자산 재사용)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합/단위 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층 (신규 0)</a></li>
+      <li><a href="#s8">§8 부산물 / 결정 D1~D3</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — 이미 존재하는 SSOT 자산을 Board 가 우회·복붙 중</summary>
+      <div class="body">
+        <p style="margin-top:0;">R3-3(service 3분할) → R3-4(자식 cascade 다형화)로 <code>BoardModelLifecycleService</code> 는 상태전이·cascade 책임이 깔끔히 응집됐다. 그러나 그 안에 <b>이미 framework/인프라에 존재하는 단일 소스를 안 쓰고 우회·복붙</b>한 잔재 2가지가 남아 있다 — R3-5 가 이 둘을 제거해 Board lifecycle service 의 마지막 중복을 청산한다.</p>
+        <ol>
+          <li><span class="diff-del">중복 <code>restore(Long)</code> override</span> — <code>LifecycleService</code> 인터페이스가 <b>이미</b> <code>default void restore(Long id){ restore(id,false); }</code> 를 제공(L45-47)하는데, <code>BoardModelLifecycleService</code> 가 동일 본문을 <b>다시 명시 선언</b>(L104-110). 그 자리에 주석으로 "R3-5 에서 default 흡수로 제거 예정" 이 직접 적혀 있다 — <b>예고된 청산</b>.</li>
+          <li><span class="diff-del">inline typed-name 비교 복붙</span> — <code>purgeWithTypedNameCheck</code> 가 <code>board.displayName().equals(typedName)</code> 비교 + <code>throw TypedNameMismatchException</code> 를 메서드 안에 직접 박았다(L156-164). 그런데 <b>이 검증식의 단일 소스</b>인 <code>global/trash/service/TypedNameVerifier</code>(+<code>Impl</code>)가 <b>이미 존재</b>하고 BoardModel scanner 도 SPI 등록(<code>BOARD_MODEL</code>)이 끝나 있다 — purge 경로만 이 SSOT 를 안 쓰고 우회 중.</li>
+        </ol>
+        <div class="callout"><b>R 시리즈 정합</b> — R3-2(컨트롤러 3분할) → R3-3(service 3분할) → R3-4(cascade 다형화) → <b>R3-5(중복 청산: default 흡수 + typed-name SSOT)</b>. 본 plan 의 CP1 가치 = <b>"무엇을 지우고, 무엇을 이미 있는 자산으로 대체하는가"</b> 의 신구 코드 대조 — §3·🎬 데모가 추상 설명이 아니라 실제 삭제/위임을 전수로 보인다.</div>
+        <div class="callout danger"><b>이 슬라이스의 핵심 함정 (CP1 에서 반드시 합의)</b> — "restore 오버로드 제거" 는 순진하게 보면 "<code>LifecycleService</code> 전 구현체에서 일괄 제거" 로 읽힌다. 그러나 <b>구현체 3개(Board / ISO / OSMetadata)는 제거 가능성이 서로 다르다</b> — ISO 는 default 의 <b>self-invocation 이 <code>@Transactional</code> 프록시를 우회</b>(HF-1 버그)하기 때문에 override 가 <u>트랜잭션 경계 진입점</u>으로 필요해 <b>제거 불가</b>다. R3-5 는 <b>Board 만</b> 안전하게 제거한다(§1·D1).</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (restore 3구현체 비대칭 + typed-name 복붙 위치)</summary>
+      <div class="body">
+        <h4>선행 완료 / 진입 전제</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> <b>R3-4</b> — <code>BoardModelLifecycleService</code> 의 자식 cascade 가 <code>List&lt;BoardScopedChildLifecycle&gt;</code> 다형 순회로 응집. 본체 필드 = <code>boardModelRepository</code> + <code>children</code> 2개. R3-5 는 이 깔끔해진 본체 위에서 마지막 중복 2건을 청산.</li>
+          <li><span class="chip keep">기존 자산</span> <code>LifecycleService.restore(Long)</code> <b>default 이미 존재</b>(L45-47) — <code>restore(id,false)</code> 위임. 진짜 구현 대상은 abstract <code>restore(Long,boolean)</code>(L57).</li>
+          <li><span class="chip keep">기존 자산</span> <code>global/trash/service/TypedNameVerifier</code>(인터페이스) + <code>internal/TypedNameVerifierImpl</code>(@Component, <code>List&lt;MarkableScanner&gt;</code> 주입) <b>이미 존재</b>. <code>verify(ResourceType, Long, String)</code> 가 <code>Markable.displayName()</code> 다형성 기준으로 검증 — <b>typed-name 검증의 SSOT</b>. 현재는 nudge 경로만 사용.</li>
+          <li><span class="chip keep">기존 자산</span> <code>BoardModelMarkableScanner.supportedType()=BOARD_MODEL</code> 로 SPI 등록 완료 → <code>TypedNameVerifierImpl</code> 의 <code>scannerByType</code> 맵에 자동 포함. <b>R3-5 신규 배선 불필요</b>.</li>
+        </ul>
+
+        <h4>① restore(Long) 흡수 — 구현체 3개의 비대칭 (전수)</h4>
+        <p style="margin:0;"><code>LifecycleService</code> 구현체는 정확히 <b>3개</b>다(grep <code>implements LifecycleService</code>). BIOS/BMC/Subprogram <code>*Service</code> 는 이 인터페이스를 구현하지 않으며(R3-4 의 <code>BoardScopedChildLifecycle</code> 어댑터로 cascade 합류), restore 시그니처도 <code>(boardId, childId)</code>/<code>(childId)</code> 라 본 청산 대상이 아니다.</p>
+        <table>
+          <thead><tr><th>구현체</th><th><code>restore(Long)</code> override?</th><th>single-arg 외부 호출자</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>BoardModelLifecycleService</code><br><span class="impl-mono">L104-110</span></td>
+              <td><span class="chip del">중복</span> <code>restore(id,false)</code> 단순 위임 (default 와 동일). 주석에 "R3-5 제거 예정" 명시</td>
+              <td><b>0건</b> — controller:48 = <code>restore(id,cascade)</code> 2-arg, scanner:76/81 = <code>restore(id,cascade)</code>/<code>restore(id,false)</code> 2-arg(ObjectProvider 프록시)</td>
+              <td><span class="badge safe" style="padding:2px 7px;border-radius:8px;">제거 SAFE</span> — single-arg 진입점이 호출되지 않아 default 의 self-invocation 자체가 일어나지 않음 → HF-1 불가</td>
+            </tr>
+            <tr>
+              <td><code>IsoLifecycleService</code><br><span class="impl-mono">L145-149</span></td>
+              <td><span class="chip keep">의도적 보존</span> 본문은 동일하나 HF-1(CP5) 주석이 트랜잭션 경계 진입점임을 명시</td>
+              <td><b>존재</b> — "controller / scanner 의 단일 인자 restore 호출이 본 메서드를 거쳐 트랜잭션 경계 안에서 실행"(HF-1 주석)</td>
+              <td><span class="badge breaks" style="padding:2px 7px;border-radius:8px;">제거 BREAKS</span> — default self-invocation 이 <code>@Transactional</code> 프록시 우회 → DB flush 누락(partial-restore). <b>+ ISO 는 OS 도메인 = R3 범위 밖</b></td>
+            </tr>
+            <tr>
+              <td><code>OSMetadataLifecycleService</code><br><span class="impl-mono">L91</span></td>
+              <td><span class="chip keep">없음</span> override 안 함 — 이미 인터페이스 default 활용("R1-3 — default 가 자동 처리" 주석)</td>
+              <td>0건</td>
+              <td><span class="badge noop" style="padding:2px 7px;border-radius:8px;">NO-OP</span> — 이미 R3-5 목표 상태. 손댈 것 없음(+ OS 도메인 = R3 범위 밖)</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>self-invocation 한계 (Spring AOP)</b> — 인터페이스 <code>default</code> 메서드는 <u>트랜잭션 프록시를 만들지 못한다</u>. default 안의 <code>restore(id,false)</code> 는 <code>this.</code> 호출(self-invocation)이라 프록시를 우회한다. 따라서 <b>single-arg restore 가 외부에서 직접 호출되는 트랜잭션 경계인 도메인(ISO)만</b> override 가 필요하다. Board 는 그런 외부 호출자가 0 이라 default 만으로 충분 — <b>이 차이가 D1 의 전부</b>다.</div>
+
+        <h4>② typed-name 검증 — compare+throw 가 6+곳에 복붙 (SSOT 미사용)</h4>
+        <p style="margin:0;"><code>displayName()</code> <b>합성식</b> 자체는 이미 <code>Markable.displayName()</code> 다형성으로 SSOT 화돼 있다(BoardModel = <code>vendor.getDisplayName()+" "+modelName</code>). 청산 대상은 그 <b>주변의 compare+throw</b> 다 — 이게 도메인마다 복붙돼 있다.</p>
+        <table>
+          <thead><tr><th>위치</th><th>형태</th><th>R3-5 에서</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelLifecycleService</code> L156-164</td><td>inline <code>board.displayName().equals()</code> + throw</td><td><span class="chip mod">전환 대상</span> verifier 위임</td></tr>
+            <tr><td><code>BiosService</code> L502-514</td><td>inline displayName 비교 + throw</td><td><span class="chip keep">R4-x</span> (BIOS 도메인)</td></tr>
+            <tr><td><code>BmcService</code> L633-645</td><td>inline displayName 비교 + throw</td><td><span class="chip keep">R5-x</span> (BMC 도메인)</td></tr>
+            <tr><td><code>SubprogramService</code> L659-671</td><td>inline displayName 비교 + throw</td><td><span class="chip keep">R6-x</span> (Subprogram 도메인)</td></tr>
+            <tr><td><code>IsoLifecycleService</code> L223-228 · <code>OSMetadataLifecycleService</code> L160-165</td><td>private static <code>verifyTypedNameOrThrow</code> helper (sibling copy — L199 주석이 복붙 인정)</td><td><span class="chip keep">OS 정리 후속</span> (OS 도메인)</td></tr>
+            <tr><td><code>MarkableScanner</code> L133-142 (trash SPI default <code>purgeFromTrash</code>)</td><td>displayName 비교 + throw (parallel canon)</td><td><span class="chip keep">R7</span> (SPI 분리 시 자연 흡수)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>왜 Board 만?</b> — 공통 <code>TypedNameVerifier</code> 는 cross-cutting 컴포넌트지만, R3 는 <b>Board 도메인 슬라이스</b>다. 각 도메인은 자기 R*-x 에서 같은 1줄 전환을 한다(BIOS→R4, BMC→R5, Subprogram→R6). OS helper 복붙·trash SPI canon 은 OS 정리/ R7 의 몫. R3-5 는 <b>Board 의 1곳만</b> SSOT 로 끌어와, 그 패턴이 후속 도메인의 선례가 된다(§8 D2).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>중복 <code>restore(Long)</code> override 삭제</b> — <code>BoardModelLifecycleService</code> L104-110 제거. 인터페이스 <code>default restore(Long)</code> 가 <code>restore(id,false)</code> 를 위임. Board 의 restore 외부 호출자는 전부 2-arg 이므로 default 진입점 미호출 → HF-1 불가(§1·D1).</li>
+          <li><b><code>purgeWithTypedNameCheck</code> typed-name 검증을 공통 verifier 로 위임</b> — inline <code>displayName().equals()</code> + <code>throw TypedNameMismatchException</code> 을 <code>typedNameVerifier.verify(ResourceType.BOARD_MODEL, id, typedName)</code> 1줄로 대체. soft-deleted 선행 가드(<code>findByIdAndIsDeletedTrue</code>)와 <code>purge(board)</code> 는 그대로 유지.</li>
+          <li><b><code>TypedNameVerifier</code> 주입</b> — <code>BoardModelLifecycleService</code> 에 <code>private final TypedNameVerifier typedNameVerifier;</code> 추가(@RequiredArgsConstructor). cross-package 의존(board → global/trash)이 생기지만 순환은 scanner 의 <code>ObjectProvider</code> 가 차단(§8 D3, CP4 bootRun 실측).</li>
+          <li><b>동작·HTTP status 100% 보존(불가침)</b> — purge typed-name 불일치 시 던지는 예외 타입이 <code>TypedNameMismatchException</code>(400) 으로 <b>동일</b>(verifier 가 같은 예외 throw). soft-deleted 아님 = <code>IllegalBoardModelStateException</code>(409) 동일. restore 동작 동일. 기존 통합/단위 테스트가 회귀망.</li>
+        </ol>
+        <div class="callout warn"><b>검증 의미 동치 보존 (불가침)</b> — 기존 inline 은 이미 fetch 한 soft-deleted <code>board.displayName()</code> 와 비교. verifier 는 <code>findActiveMarkableById(id).or(findTrashedById(id))</code> 로 lookup → 휴지통 board 를 찾아 <code>displayName()</code> 비교. soft-deleted board 는 trashed lookup 으로 동일 자원·동일 합성식에 도달 → <b>판정 결과 동일</b>. 단, 선행 <code>findByIdAndIsDeletedTrue</code> 가드는 "반드시 soft-deleted" 전제를 유지하므로 그대로 둔다(verifier 는 active 도 허용하므로 가드를 대체하지 않음).</li></div>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스 / 타 도메인)</b>
+          <ul>
+            <li><b>ISO / OSMetadata restore override</b> — ISO 는 HF-1 로 보존 필수, OSMetadata 는 이미 흡수 완료. 둘 다 OS 도메인 = R3 범위 밖. R3-5 는 건드리지 않는다.</li>
+            <li><b>BIOS / BMC / Subprogram purge typed-name SSOT 전환</b> — 각 <code>R4-x / R5-x / R6-x</code> 에서 동일 패턴으로. OS helper 복붙은 OS 정리 후속, trash SPI canon 은 <b>R7</b>.</li>
+            <li><b><code>purgeWithTypedNameCheck</code> 를 인터페이스에서 제거 / controller 로 끌어올림</b> — 검증 위치를 service→controller 로 옮기는 재배치는 blast radius 가 ISO/OSMetadata 까지 번지므로 비목표(§8 D3 Option B 기각).</li>
+            <li><b>scanner ObjectProvider 제거</b> — <code>R7-3</code> 전담.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — restore-override 제거 안전성 시뮬레이터 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스의 비자명한 판단은 <b>"어느 구현체에서 <code>restore(Long)</code> override 를 지워도 되는가"</b> 입니다. 도메인을 고르고, <b>"single-arg 외부 호출자 존재" fact 를 토글</b>하면 — 같은 규칙(<code>removable = override 보유 &amp;&amp; single-arg 외부 호출자 없음</code>)으로 <span class="f">SAFE</span> / <span class="t">BREAKS</span> / NO-OP 판정과 <b>「override 제거」 버튼의 enable/disable</b> 이 라이브로 갱신됩니다. flip 으로 "ISO 에 single-arg 호출자가 사라진다면?" 같은 가정도 손으로 검증하세요. §1 표·§3 코드·§8 D1 과 단일 소스(드리프트 0)입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">구현체 :</span>
+            <button class="seg" data-d="Board" onclick="selD('Board')">BoardModelLifecycleService</button>
+            <button class="seg" data-d="ISO" onclick="selD('ISO')">IsoLifecycleService</button>
+            <button class="seg" data-d="OSMetadata" onclick="selD('OSMetadata')">OSMetadataLifecycleService</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">fact 탐구 :</span>
+            <button class="seg" id="btn-flip" onclick="flipCaller()">⇄ single-arg 호출자 존재 여부 반전</button>
+            <button class="seg" id="btn-reset" onclick="resetSim()">↺ 실측값으로 리셋</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row"><strong>선택 구현체</strong><span class="label" id="s-domain">BoardModelLifecycleService</span><span class="badge" id="s-domainscope">R3 대상</span></div>
+            <div class="ux-row"><strong><code>restore(Long)</code> override 보유</strong><span class="label" id="s-override"></span></div>
+            <div class="ux-row"><strong>single-arg 외부 호출자</strong><span class="label" id="s-caller"></span><span class="badge" id="s-callerb"></span></div>
+          </div>
+
+          <div class="ux-caps" id="s-caps"></div>
+          <div class="ux-message" id="s-msg"></div>
+
+          <div class="ux-toolbar" style="margin-top:12px;">
+            <button class="seg" id="btn-remove" onclick="doRemove()">🗑 single-arg override 제거</button>
+          </div>
+          <div class="ux-message" id="s-result" style="margin-top:8px;">「override 제거」 버튼은 판정이 SAFE 일 때만 활성화됩니다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 시뮬레이터의 판정 규칙 = §1 비대칭 표 = §3 신구 코드 = §8 D1 과 단일 소스. 실측값(Board=호출자0 / ISO=호출자있음 / OSMetadata=override없음)에서 <b>오직 Board 만 제거 버튼이 켜진다</b> → R3-5 가 Board 만 청산함을 손으로 증명.</div>
+        <div class="callout"><b>두 번째 청산(typed-name SSOT)</b> — compare+throw 복붙은 현재 <span class="t">6+곳</span>(Board·BIOS·BMC·Subprogram·ISO helper·OSMetadata helper·trash SPI). 공통 <code>TypedNameVerifier.verify()</code> 1곳으로 모으는 SSOT 중, <b>R3-5 = Board 1곳 전환</b>. 나머지는 R4/R5/R6/OS 정리/R7(§1 ② 표).</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 신구 비교 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 신구 비교 (split-grid) — restore / purge / 주입 전수</summary>
+      <div class="body">
+        <p style="margin-top:0;">R3-5 의 production 변경은 <b><code>BoardModelLifecycleService</code> 단 1파일</b>(+ 그 단위 테스트)이다. 아래 3 쌍이 변경 전부다.</p>
+
+        <h4>① <code>restore(Long)</code> 명시 override — 삭제 (default 흡수)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE (L104-110 — 중복)</h4><pre><code>@Override
+@Transactional
+public void restore(Long id) {
+    // 기존 단일 인자 시그니처 — cascade=false 와
+    // 동일하게 위임 (호환 보존).
+    // R3-5 에서 LifecycleService default 흡수로
+    // 본 명시 오버로드 제거 예정.
+    restore(id, false);
+}</code></pre></div>
+          <div class="split-card after"><h4>AFTER (메서드 삭제)</h4><pre><code>// 메서드 자체 제거.
+//
+// LifecycleService.restore(Long id) default 가
+//   restore(id, false) 를 위임한다(L45-47).
+// Board 의 restore 외부 호출자는 전부 2-arg :
+//   · BoardModelLifecycleController:48  restore(id,cascade)
+//   · BoardModelMarkableScanner:76/81   restore(id,cascade|false)
+// → single-arg default 진입점이 호출되지 않으므로
+//   self-invocation(HF-1) 자체가 발생 불가.</code></pre></div>
+        </div>
+
+        <h4>② <code>purgeWithTypedNameCheck</code> — inline 비교 → verifier 위임</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE (L154-165 — inline 복붙)</h4><pre><code>@Override
+@Transactional
+public void purgeWithTypedNameCheck(Long id, String typedName) {
+    BoardModel board = boardModelRepository
+        .findByIdAndIsDeletedTrue(id)
+        .orElseThrow(() -> new IllegalBoardModelStateException(
+            "soft-deleted 상태가 아니어서 영구 삭제할 수 "
+            + "없습니다. id=" + id));
+    String expected = board.displayName();
+    if (!expected.equals(typedName)) {      // ← 복붙
+        throw new TypedNameMismatchException(expected, typedName);
+    }
+    purge(board);
+}</code></pre></div>
+          <div class="split-card after"><h4>AFTER (verifier 위임 — SSOT)</h4><pre><code>@Override
+@Transactional
+public void purgeWithTypedNameCheck(Long id, String typedName) {
+    BoardModel board = boardModelRepository
+        .findByIdAndIsDeletedTrue(id)
+        .orElseThrow(() -> new IllegalBoardModelStateException(
+            "soft-deleted 상태가 아니어서 영구 삭제할 수 "
+            + "없습니다. id=" + id));
+    // typed-name 검증 단일 소스에 위임
+    //   (불일치 시 TypedNameMismatchException — 동일).
+    typedNameVerifier.verify(
+        ResourceType.BOARD_MODEL, id, typedName);
+    purge(board);
+}</code></pre></div>
+        </div>
+        <div class="callout warn" style="margin-top:6px;"><b>가드 보존</b> — <code>findByIdAndIsDeletedTrue</code> 는 "반드시 soft-deleted" 전제 가드 + <code>purge(board)</code> 용 엔티티 확보 책임으로 <b>유지</b>. verifier 는 active→trashed 양쪽을 허용하므로 이 가드를 대체하지 않는다(§2 검증 의미 동치).</div>
+
+        <h4>③ 주입 필드 / import</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE</h4><pre><code>private final BoardModelRepository boardModelRepository;
+private final List&lt;BoardScopedChildLifecycle&gt; children;
+
+import ...global.exception.TypedNameMismatchException;
+// (ResourceType / TypedNameVerifier import 없음)</code></pre></div>
+          <div class="split-card after"><h4>AFTER</h4><pre><code>private final BoardModelRepository boardModelRepository;
+private final List&lt;BoardScopedChildLifecycle&gt; children;
+<span class="diff-add">private final TypedNameVerifier typedNameVerifier;</span>
+
+<span class="diff-del">- import ...global.exception.TypedNameMismatchException;</span>
+<span class="diff-add">+ import ...global.marker.ResourceType;</span>
+<span class="diff-add">+ import ...global.trash.service.TypedNameVerifier;</span></code></pre></div>
+        </div>
+        <div class="callout success"><b>변경 표면 요약</b> — 1 메서드 삭제 + 1 메서드 본문 3줄 치환 + 1 필드 추가 + import 3건 정비. <b>새 클래스 0 · 새 메서드 0 · 새 예외 0 · 엔티티/스키마 변경 0</b>. 순수 중복 청산.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 — 신규 0, 기존 자산 재사용 표</summary>
+      <div class="body">
+        <p style="margin-top:0;">R3-5 는 <b>신규 타입을 만들지 않는다</b>. 이미 있는 SSOT 자산에 Board 를 합류시킬 뿐. 재사용 자산:</p>
+        <table>
+          <thead><tr><th>자산</th><th>위치</th><th>역할 / R3-5 에서의 쓰임</th></tr></thead>
+          <tbody>
+            <tr><td><code>LifecycleService.restore(Long)</code> <b>default</b></td><td><code>global/lifecycle</code> L45-47</td><td><code>restore(id,false)</code> 위임. Board override 삭제 후 이 default 가 자동 처리.</td></tr>
+            <tr><td><code>TypedNameVerifier</code> (interface)</td><td><code>global/trash/service</code></td><td><code>verify(ResourceType, Long, String)</code> — 불일치 시 <code>TypedNameMismatchException</code>. Board 가 주입해 호출.</td></tr>
+            <tr><td><code>TypedNameVerifierImpl</code> (@Component)</td><td><code>global/trash/service/internal</code></td><td><code>List&lt;MarkableScanner&gt;</code> 주입 → <code>active.or(trashed)</code> lookup → <code>displayName().equals()</code>. BoardModel scanner 이미 포함.</td></tr>
+            <tr><td><code>Markable.displayName()</code></td><td><code>global/marker</code></td><td>typed-name 합성식 SSOT. BoardModel override = <code>vendor.getDisplayName()+" "+modelName</code>. <b>변경 없음</b>.</td></tr>
+            <tr><td><code>ResourceType.BOARD_MODEL</code></td><td><code>global/marker</code></td><td>verify 호출 시 scanner dispatch 키. <code>BoardModelMarkableScanner.supportedType()</code> 이 이미 반환.</td></tr>
+            <tr><td><code>RestoreResponse(int)</code> + <code>none()</code></td><td><code>management/common/dto/response</code></td><td><code>restore(Long,boolean)</code> 반환형. <b>변경 없음</b>(restore(Long,boolean) 본체 불변).</td></tr>
+          </tbody>
+        </table>
+        <h4>의존 그래프 — verifier 주입의 순환 안전성 (D3 근거)</h4>
+        <div class="dag">BoardModelLifecycleService
+   └─&gt; TypedNameVerifier (TypedNameVerifierImpl)        <span class="touch">[R3-5 신규 의존]</span>
+          └─&gt; List&lt;MarkableScanner&gt;  ⊇  BoardModelMarkableScanner
+                                              └─&gt; ObjectProvider&lt;BoardModelLifecycleService&gt;   <span class="ok">[lazy — 순환 차단]</span>
+
+판정 : <span class="ok">eager 순환 없음</span>. scanner→service 역간선은 ObjectProvider(지연 해소)라
+       BoardModelLifecycleService 생성 시점에 service 빈을 즉시 요구하지 않음.
+       (CP4 bootRun 실측으로 최종 확인)</div>
+        <div class="callout"><b>엔티티 / VO / Enum 변경</b> — <b>0건</b>. 7단계(Entity) 산출물 없음 → CP3 는 형식상 통과(변경 없음). R3-5 는 service 계층 내부 리팩터.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10단계 + 체크포인트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (R3-5)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>본 plan html (신구 비교 + 결정 D1~D3)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 — <b>변경 0</b> (UI/HTTP 불변)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — <b>변경 0</b> (lifecycle/purge 컨트롤러 시그니처 불변)</td></tr>
+            <tr><td>4</td><td>DTO — <b>변경 0</b></td></tr>
+            <tr><td>5</td><td>Service 시그니처 — <code>BoardModelLifecycleService</code> 에 <code>TypedNameVerifier</code> 필드 1개 추가(생성자), <code>restore(Long)</code> 시그니처 삭제(public 표면에서 default 로 흡수). <b>인터페이스 불변</b></td></tr>
+            <tr><td>6</td><td>Repository — <b>변경 0</b></td><td rowspan="2"><span class="chip cp3">CP3</span> (N/A — 엔티티/레포 없음)</td></tr>
+            <tr><td>7</td><td>Entity — <b>변경 0</b> (<code>@Entity</code> 미작성)</td></tr>
+            <tr><td>8</td><td><b>본체 변경</b> : restore override 삭제 + purgeWithTypedNameCheck verifier 위임 + 필드/ import 정비. <b>단위 테스트 조정</b> : verify mock 전환 + restore(Long) default 위임 회귀</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <b>변경 0</b> (DDL 무관)</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — restore / purge(typed-name 일치·불일치) 1 사이클 — <b>사용자 단독</b></td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>본 슬라이스 분업 (사용자 지시 정합)</b> — CP4 의 <b>본체(source) 변경은 Claude 직접</b>, <b>테스트 코드 작성·실행은 background agent 위임</b>. (R3-3 / R3-4 와 동일 패턴.)</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 / 단위 테스트 시나리오 (Step 8)</summary>
+      <div class="body">
+        <h4>단위 테스트 — <code>BoardModelLifecycleServiceTest</code> 조정 (mock 전환 + 회귀)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr><td>전환 (typed-name)</td><td>purgeWithTypedNameCheck — typedName 일치</td><td><code>typedNameVerifier.verify(BOARD_MODEL,id,name)</code> no-throw stub → <code>purge</code> 도달(자식 잔존 없을 때 <code>delete</code> 호출). <b>verify 1회 호출 검증</b></td></tr>
+            <tr><td>전환 (typed-name)</td><td>purgeWithTypedNameCheck — 불일치</td><td><code>verify(...)</code> 가 <code>TypedNameMismatchException</code> throw 하도록 stub → 예외 전파 + <code>purge</code>/<code>delete</code> 미호출 검증</td></tr>
+            <tr><td>가드 보존</td><td>purgeWithTypedNameCheck — soft-deleted 아님</td><td><code>findByIdAndIsDeletedTrue</code> empty → <code>IllegalBoardModelStateException</code>, <b>verify 호출 전</b> 차단(verifyNoInteractions)</td></tr>
+            <tr><td>default 흡수 회귀</td><td>restore(id) single-arg 호출</td><td>override 삭제 후에도 default 가 <code>restore(id,false)</code> 동작 — board.restore()/clearTrashed() + cascade=false → <code>RestoreResponse.none()</code> 경로 동일(plain 객체라 self-invocation 정상)</td></tr>
+            <tr><td>회귀 (불변)</td><td>restore(id,true) cascade · softDelete · toggle/deprecate/undeprecate · purge 자식잔존 거절</td><td>R3-4 의 21 시나리오 그대로 통과 (orchestration 불변)</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 테스트 — Board lifecycle/purge controller flow (기존 회귀, <b>변경 없이 통과</b>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>성공</td><td>purge typed-name 일치 (@MockitoBean service no-throw)</td><td>2xx</td></tr>
+            <tr><td>400</td><td>purge typed-name 불일치 → service 가 <code>TypedNameMismatchException</code></td><td><b>400</b> (@ResponseStatus BAD_REQUEST — advice 통과)</td></tr>
+            <tr><td>409</td><td>soft-deleted 아님 → <code>IllegalBoardModelStateException</code></td><td>409</td></tr>
+            <tr><td>성공</td><td>restore(2-arg) happy</td><td>2xx + redirect</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>HTTP 회귀 안전</b> — purge 불일치가 던지는 예외 타입이 <b>R3-5 전후 동일</b>(<code>TypedNameMismatchException</code>)하므로, @WebMvcTest 의 service mock 이 그 예외를 던지는 통합 시나리오는 <b>코드 수정 없이 통과</b>. R3-5 는 "service 가 그 예외를 어떻게 계산하는가"의 내부 리팩터일 뿐, 외부 계약은 불변.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0, 전부 재사용</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>부모 / status</th><th>R3-5 에서</th></tr></thead>
+          <tbody>
+            <tr><td><code>TypedNameMismatchException(expected, typed)</code></td><td><code>DomainException</code> · <b>@ResponseStatus 400</b></td><td><span class="chip keep">재사용</span> verifier 내부에서 throw (기존엔 service inline throw). 타입·status 동일</td></tr>
+            <tr><td><code>IllegalBoardModelStateException(msg)</code></td><td><code>ConflictException</code> · <b>409</b></td><td><span class="chip keep">재사용</span> soft-deleted 가드 throw — 불변</td></tr>
+            <tr><td><code>DuplicateBoardModelException</code> / <code>BoardModelNotFoundException</code></td><td>409 / 404</td><td><span class="chip keep">재사용</span> restore/조회 경로 — 불변</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>advice 매핑 확인</b> — <code>ApiExceptionHandler.handleDomain</code> fallback 이 <code>AnnotationUtils.findAnnotation(...ResponseStatus.class)</code> 로 <code>@ResponseStatus(400)</code> 를 존중 → verifier 경유로 throw 돼도 정확히 400. 신규 예외·신규 핸들러 0.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 결정 D1~D3 / 잔존 책임</summary>
+      <div class="body">
+
+        <div class="callout danger"><b>★ 결정 D1 — restore(Long) override 제거 범위</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>대상</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> Board 만 제거</td><td>Board override 삭제 / ISO 보존 / OSMetadata 무변경</td><td>self-invocation 한계 + 도메인 범위에 정확히 부합. 실측 안전</td></tr>
+            <tr><td>전 구현체 일괄 제거</td><td>Board + ISO + OSMetadata</td><td><b>ISO 에서 HF-1 partial-restore 재발</b>(default 가 트랜잭션 경계 못 만듦). 위험</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : Board 만 제거.</b> 근거 — (1) Board 의 restore 외부 호출자는 controller:48 / scanner:76,81 전부 2-arg → single-arg default 진입점 미호출 → self-invocation 자체가 발생 불가(제거 SAFE). (2) ISO 는 single-arg 외부 호출자가 존재하고 override 가 트랜잭션 경계 진입점이라 제거 시 DB flush 누락(HF-1) 재발 + ISO 는 OS 도메인이라 R3 범위 밖. (3) OSMetadata 는 이미 default 활용(목표 상태) — 손댈 것 없음.</p>
+
+        <div class="callout danger"><b>★ 결정 D2 — typed-name SSOT 적용 범위</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>범위</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> Board only</td><td>Board purgeWithTypedNameCheck 1곳만 verifier 전환</td><td>R3 = Board 도메인 슬라이스 일관성. 후속 도메인의 선례가 됨</td></tr>
+            <tr><td>전 도메인 일괄</td><td>BIOS/BMC/Subprogram/ISO/OSMetadata + trash SPI 동시 전환</td><td>verifier 가 cross-cutting 이라 가능은 하나, 도메인 순차 슬라이스 규율 위반 + blast radius 과대(6+파일)</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : Board only.</b> 근거 — (1) 캠페인은 도메인별 순차(R3=Board, R4=BIOS, R5=BMC, R6=Subprogram). 각 도메인은 자기 슬라이스에서 동일 1줄 전환. (2) OS helper 복붙(ISO/OSMetadata)은 OS 정리 후속, trash SPI canon 은 R7 의 SPI 분리에서 자연 흡수. (3) Board 1곳 전환이 후속 도메인이 따라올 <b>레퍼런스 패턴</b>을 확립.</p>
+
+        <div class="callout danger"><b>★ 결정 D3 — typed-name 검증 배선 위치</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>형태</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> service 가 verifier 주입·위임</td><td><code>BoardModelLifecycleService.purgeWithTypedNameCheck</code> 가 <code>typedNameVerifier.verify(...)</code> 호출. 트랜잭션 경계 유지</td><td>최소 변경. 인터페이스 불변. 순환은 ObjectProvider 가 차단</td></tr>
+            <tr><td>검증을 controller 로 끌어올림</td><td>service 는 <code>purge(Long)</code> 만, controller 가 verify 후 호출. nudge 경로와 통일</td><td><code>purgeWithTypedNameCheck</code> 를 <code>LifecycleService</code> 인터페이스에서 제거 → ISO/OSMetadata controller 까지 동반 수정. 비목표(blast radius)</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : service 가 verifier 주입·위임(Option A).</b> 근거 — (1) <code>purgeWithTypedNameCheck</code> 가 <code>LifecycleService</code> 계약에 있으므로 service 에 두는 게 최소 변경. (2) board → global/trash 의 cross-package 의존이 생기지만 <code>TypedNameVerifierImpl → List&lt;MarkableScanner&gt; → BoardModelMarkableScanner → ObjectProvider&lt;BoardModelLifecycleService&gt;</code> 에서 ObjectProvider 가 eager 순환을 끊음(§4 그래프). CP4 bootRun 으로 실측 확인.</p>
+
+        <h4>잔존 책임 / 의도된 임시 비대칭 (Notion 본문 기재 대상)</h4>
+        <ul class="impl-mono">
+          <li>ISO <code>restore(Long)</code> override 보존 — R3-5 가 의도적으로 남김(HF-1). 근본 해소(self-invocation 우회 없는 트랜잭션 경계 설계)는 OS 도메인 별도 검토. 본 비대칭은 <b>버그가 아니라 안전망</b>.</li>
+          <li>BIOS/BMC/Subprogram purge typed-name inline 복붙 — R4-x/R5-x/R6-x 에서 동일 패턴 전환 예정.</li>
+          <li>OS helper(<code>verifyTypedNameOrThrow</code>) 복붙 2곳 + trash SPI <code>purgeFromTrash</code> canon — OS 정리 후속 / R7 SPI 분리에서 흡수.</li>
+        </ul>
+
+        <h4>CLAUDE.md 갱신</h4>
+        <ul>
+          <li>R3-5 완료 후 인벤토리 노트에 "Board lifecycle service 중복 청산(restore default 흡수 + typed-name verifier 위임) 완료" 반영(필요 시). 신규 규칙 추가는 없음.</li>
+          <li>(이미 반영됨) §체크포인트 ↔ Notion 단계 동기화 — 본 슬라이스부터 각 CP 종료 시 Notion 갱신을 background agent 에 위임.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R3-5-verify">
+          <li><label><input type="checkbox" data-key="b1"> <span><b>빌드</b> — <code>./gradlew compileJava compileTestJava</code> BUILD SUCCESSFUL</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>빌드</b> — <code>BoardModelLifecycleService</code> 에서 <code>restore(Long)</code> 메서드 / <code>TypedNameMismatchException</code> import 가 사라지고 <code>TypedNameVerifier</code>/<code>ResourceType</code> import 추가됨</span></label></li>
+          <li><label><input type="checkbox" data-key="r1"> <span><b>부팅</b> — <code>./gradlew bootRun</code> 기동 성공 (verifier 주입 후 <b>순환 의존 0</b> 실측 — D3)</span></label></li>
+          <li><label><input type="checkbox" data-key="t1"> <span><b>테스트</b> — <code>BoardModelLifecycleServiceTest</code> 전 시나리오 green (verify mock 전환 + restore default 회귀 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="t2"> <span><b>테스트</b> — Board lifecycle/purge 통합 테스트 <b>무수정</b> 통과 (400/409 매핑 불변)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3"> <span><b>회귀</b> — 전체 <code>./gradlew test --rerun-tasks</code> 0 fail (타 도메인 미영향)</span></label></li>
+          <li><label><input type="checkbox" data-key="f1"> <span><b>기능</b> — purge typed-name 일치 시 삭제, 불일치 시 400, soft-deleted 아님 409, restore 정상 (CP5 사용자 E2E)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>수정 (production — 1파일)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>chip</th></tr></thead>
+          <tbody>
+            <tr><td><code>management/board/service/metadata/BoardModelLifecycleService.java</code></td><td><code>restore(Long)</code> override 삭제 · <code>purgeWithTypedNameCheck</code> verifier 위임 · <code>TypedNameVerifier</code> 필드 추가 · import 3건 정비</td><td><span class="chip mod">mod</span></td></tr>
+          </tbody>
+        </table>
+        <h4>수정 (test — 1파일)</h4>
+        <table>
+          <tbody>
+            <tr><td><code>test/.../board/service/metadata/BoardModelLifecycleServiceTest.java</code></td><td>purge 시나리오 verify mock 전환 + restore(Long) default 위임 회귀 (background agent 위임)</td><td><span class="chip mod">mod</span></td></tr>
+          </tbody>
+        </table>
+        <h4>유지 (KEEP — 변경 없이 재사용)</h4>
+        <ul>
+          <li><code>global/lifecycle/LifecycleService.java</code> — default <code>restore(Long)</code> 그대로 (Board 가 흡수)</li>
+          <li><code>global/trash/service/TypedNameVerifier(+Impl)</code> · <code>global/marker/Markable.displayName()</code> · <code>ResourceType.BOARD_MODEL</code> — 그대로</li>
+          <li><code>BoardModelMarkableScanner</code> (SPI 등록) · <code>BoardModelLifecycleController</code> · <code>BoardModel</code> 엔티티 — 변경 0</li>
+          <li><code>IsoLifecycleService</code> / <code>OSMetadataLifecycleService</code> — <b>건드리지 않음</b> (OS 도메인, D1)</li>
+        </ul>
+        <div class="callout"><b>신규 파일 0</b> — R3-5 는 클래스/예외/DTO/엔티티/마이그레이션을 신설하지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R3-6 (선택)</b> — cascade 이벤트화(부모→자식 컴파일타임 의존 끊기, <code>@EventListener</code>). over-abstraction 우려로 <b>보류 권고</b> 유지. R3 도메인은 R3-5 로 사실상 마감.</li>
+          <li><b>R4-x / R5-x / R6-x</b> — BIOS / BMC / Subprogram 의 Controller·Service 분리. 각 도메인 purge typed-name 도 R3-5 와 동일하게 verifier 위임 전환(레퍼런스 = 본 슬라이스).</li>
+          <li><b>R7</b> — 전 도메인 순환 참조 일소(<code>MarkableScanner</code> 4-sealed SPI 분리, ObjectProvider 제거). trash SPI <code>purgeFromTrash</code> typed-name canon 도 여기서 자연 흡수.</li>
+          <li><b>R8</b> — BrowseController 통합 + browse advice 승급.</li>
+        </ol>
+        <div class="callout success"><b>R3 도메인 종착</b> — R3-2(컨트롤러 분할) → R3-3(service 분할) → R3-4(cascade 다형화) → <b>R3-5(중복 청산)</b> 으로 Board 도메인의 Controller/Service 리팩터가 완결된다. 남은 Board 잔재(ISO HF-1 보존·scanner ObjectProvider)는 의도적으로 R7/OS 정리로 이월된 cross-cutting 항목.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+// ① ToC 클릭 → 대상 섹션 open + smooth scroll (sticky 헤더 offset -108)
+document.querySelectorAll('#toc-list a').forEach(function (a) {
+  a.addEventListener('click', function (e) {
+    e.preventDefault();
+    var id = a.getAttribute('href').slice(1);
+    var target = document.getElementById(id);
+    if (!target) return;
+    target.open = true;
+    var y = target.getBoundingClientRect().top + window.pageYOffset - 108;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  });
+});
+
+// ② 전부 펴기 / 접기
+document.getElementById('btn-expand').addEventListener('click', function () {
+  document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+});
+document.getElementById('btn-collapse').addEventListener('click', function () {
+  document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+});
+
+// ③ filter — 매칭 섹션만 표시
+document.getElementById('filter').addEventListener('input', function (e) {
+  var q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('details.section').forEach(function (d) {
+    if (!q) { d.classList.remove('hidden'); return; }
+    var hit = d.textContent.toLowerCase().indexOf(q) !== -1;
+    d.classList.toggle('hidden', !hit);
+    if (hit) d.open = true;
+  });
+});
+
+// ④ check-list localStorage 동기화
+document.querySelectorAll('ul.check-list[data-storage]').forEach(function (ul) {
+  var store = ul.getAttribute('data-storage');
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(store) || '{}'); } catch (_) {}
+  ul.querySelectorAll('input[type="checkbox"][data-key]').forEach(function (cb) {
+    var key = cb.getAttribute('data-key');
+    if (saved[key]) { cb.checked = true; cb.closest('label').classList.add('done'); }
+    cb.addEventListener('change', function () {
+      cb.closest('label').classList.toggle('done', cb.checked);
+      saved[key] = cb.checked;
+      localStorage.setItem(store, JSON.stringify(saved));
+    });
+  });
+});
+
+/* ===== 🎬 restore-override 제거 안전성 시뮬레이터 ===== */
+// 현재 코드 실측 facts
+var SIM_BASE = {
+  Board:      { overrides:true,  caller:false, scope:'R3 대상',
+                callers:'controller:48 restore(id,cascade) · scanner:76/81 restore(id,cascade|false) — 전부 2-arg' },
+  ISO:        { overrides:true,  caller:true,  scope:'OS 도메인 (R3 밖)',
+                callers:'controller/scanner 단일 인자 restore(isoId) — HF-1 주석이 트랜잭션 경계 진입점으로 명시' },
+  OSMetadata: { overrides:false, caller:false, scope:'OS 도메인 (R3 밖)',
+                callers:'— (이미 default 활용, single-arg 호출자 없음)' }
+};
+var sim = { domain:'Board', flip:false };
+
+function selD(d){ sim.domain = d; sim.flip = false; renderSim(); }
+function flipCaller(){ sim.flip = !sim.flip; renderSim(); }
+function resetSim(){ sim.flip = false; renderSim(); }
+
+function judge(domain, flip){
+  var f = SIM_BASE[domain];
+  var hasCaller = flip ? !f.caller : f.caller;   // flip = "호출자 존재 여부 가정 반전"
+  if (!f.overrides) return { v:'noop', removable:false,
+    text:'NO-OP — 명시 override 없음. 이미 인터페이스 default 활용(R3-5 목표 상태).' };
+  if (hasCaller) return { v:'breaks', removable:false,
+    text:'BREAKS — single-arg 외부 호출자 존재 → default 의 self-invocation(restore(id,false))이 @Transactional 프록시 우회 → DB flush 누락(HF-1 partial-restore 재발). override 보존 필수.' };
+  return { v:'safe', removable:true,
+    text:'SAFE — single-arg 외부 호출자 0 → default 진입점 미호출 → override 는 순수 중복. 제거 가능.' };
+}
+
+function renderSim(){
+  var f = SIM_BASE[sim.domain];
+  var hasCaller = sim.flip ? !f.caller : f.caller;
+  var jr = judge(sim.domain, sim.flip);
+
+  document.querySelectorAll('#s2-preview .seg[data-d]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-d') === sim.domain);
+  });
+  document.getElementById('btn-flip').classList.toggle('active', sim.flip);
+
+  document.getElementById('s-domain').textContent = sim.domain + 'LifecycleService';
+  var dscope = document.getElementById('s-domainscope');
+  dscope.textContent = f.scope;
+  dscope.className = 'badge ' + (sim.domain === 'Board' ? 'safe' : 'noop');
+
+  document.getElementById('s-override').innerHTML = f.overrides
+    ? '<b style="color:var(--red)">보유</b> (restore(id,false) 단순 위임)'
+    : '<b style="color:var(--text-muted)">없음</b> (default 사용)';
+
+  document.getElementById('s-caller').textContent =
+    (hasCaller ? '존재' : '0건') + (sim.flip ? '  [⇄ 실측 반전 가정]' : '  (실측)') + ' — ' + f.callers;
+  var cb = document.getElementById('s-callerb');
+  cb.textContent = hasCaller ? 'single-arg' : 'all 2-arg';
+  cb.className = 'badge ' + (hasCaller ? 'breaks' : 'safe');
+
+  var caps = 'removable = (override 보유) && (single-arg 외부 호출자 없음)\n'
+    + '  override 보유      : ' + (f.overrides ? '<span class="t">true</span>' : '<span class="f">false</span>') + '\n'
+    + '  single-arg 호출자  : ' + (hasCaller ? '<span class="t">존재</span>' : '<span class="f">없음</span>') + '\n'
+    + '  ──────────────────────────────\n'
+    + '  판정              : ' + (jr.removable ? '<span class="f">SAFE · 제거 가능</span>'
+                                              : '<span class="t">' + jr.v.toUpperCase() + ' · 제거 불가</span>');
+  document.getElementById('s-caps').innerHTML = caps;
+
+  var msg = document.getElementById('s-msg');
+  msg.textContent = jr.text;
+  msg.className = 'ux-message ' + (jr.v === 'safe' ? 'success' : jr.v === 'breaks' ? 'warn' : 'quar');
+
+  var rm = document.getElementById('btn-remove');
+  rm.classList.toggle('disabled', !jr.removable);
+  var res = document.getElementById('s-result');
+  res.textContent = jr.removable
+    ? '버튼 활성 — ' + sim.domain + ' 에서 restore(Long) override 를 삭제하면 default 가 인계합니다. (R3-5 가 실제로 하는 작업)'
+    : '버튼 비활성 — ' + (jr.v === 'noop' ? '제거할 override 가 없습니다.' : '제거 시 HF-1 트랜잭션 우회로 partial-restore 가 재발합니다.');
+  res.className = 'ux-message ' + (jr.removable ? 'success' : jr.v === 'breaks' ? 'warn' : 'quar');
+}
+
+function doRemove(){
+  var jr = judge(sim.domain, sim.flip);
+  var res = document.getElementById('s-result');
+  if (!jr.removable){
+    res.textContent = '✗ 차단됨 — ' + (jr.v === 'noop'
+      ? 'override 가 없어 제거할 대상이 없습니다.'
+      : 'single-arg 호출자가 default 의 self-invocation 을 거쳐 트랜잭션 없이 실행 → DB flush 누락. override 를 남겨야 합니다.');
+    res.className = 'ux-message warn';
+    return;
+  }
+  res.textContent = '✓ ' + sim.domain + 'LifecycleService.restore(Long) 삭제 완료(시뮬). 인터페이스 default restore(id,false) 가 인계. 호출자 전부 2-arg 라 런타임 경로 불변.';
+  res.className = 'ux-message success';
+}
+
+renderSim();
+</script>
+</body>
+</html>

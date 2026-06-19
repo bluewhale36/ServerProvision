@@ -1,6 +1,8 @@
 package com.example.serverprovision.management.board.service.metadata;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
+import com.example.serverprovision.global.marker.ResourceType;
+import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
@@ -22,8 +24,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * R3-4 — {@link BoardModelLifecycleService} 단위 테스트 (오케스트레이션 검증).
@@ -47,13 +51,17 @@ class BoardModelLifecycleServiceTest {
     @Mock BoardScopedChildLifecycle bmcChild;
     @Mock BoardScopedChildLifecycle subprogramChild;
 
+    // R3-5 — typed-name 검증을 휴지통 공통 컴포넌트(displayName SSOT)에 위임. 서비스는 더 이상
+    // 직접 displayName 비교를 수행하지 않고 verifier 에 위임만 한다.
+    @Mock TypedNameVerifier typedNameVerifier;
+
     BoardModelLifecycleService boardModelService;
 
     @BeforeEach
     void initService() {
         // @Order 순회 순서(BIOS → BMC → Subprogram)를 리스트 순서로 고정해 주입.
         boardModelService = new BoardModelLifecycleService(
-                boardModelRepository, List.of(biosChild, bmcChild, subprogramChild));
+                boardModelRepository, List.of(biosChild, bmcChild, subprogramChild), typedNameVerifier);
     }
 
     // ==== helper =====================================================
@@ -295,7 +303,7 @@ class BoardModelLifecycleServiceTest {
     // ==== purgeWithTypedNameCheck — typed-name 검증 + 자식 잔존 ====
 
     @Test
-    @DisplayName("purgeWithTypedNameCheck(happy) : typedName 일치(displayName) + 자식 없음 → 영구 삭제")
+    @DisplayName("purgeWithTypedNameCheck(happy) : verifier no-op(이름 일치) + 자식 없음 → 영구 삭제 + verify 1회 위임")
     void purgeWithTypedNameCheck_match_deletes() {
         BoardModel p = deletedParent();
         given(boardModelRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.of(p));
@@ -303,17 +311,21 @@ class BoardModelLifecycleServiceTest {
         given(bmcChild.hasAny(7L)).willReturn(false);
         given(subprogramChild.hasAny(7L)).willReturn(false);
 
-        // displayName = vendor.displayName + " " + modelName = "Asus P13R-E"
+        // R3-5 — typedName 일치 검증은 verifier 에 위임. no-op stub(예외 없음) = 이름 일치 통과.
         boardModelService.purgeWithTypedNameCheck(7L, "Asus P13R-E");
 
+        verify(typedNameVerifier).verify(ResourceType.BOARD_MODEL, 7L, "Asus P13R-E");
         verify(boardModelRepository).delete(p);
     }
 
     @Test
-    @DisplayName("purgeWithTypedNameCheck(mismatch) : typedName 불일치 → TypedNameMismatchException, 자식 검사 전 거절")
+    @DisplayName("purgeWithTypedNameCheck(mismatch) : verifier 가 TypedNameMismatchException → 전파, 자식 검사·delete 전 거절")
     void purgeWithTypedNameCheck_mismatch_throws() {
         BoardModel p = deletedParent();
         given(boardModelRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.of(p));
+        // R3-5 — 이름 불일치 시 verifier 가 던지는 예외가 서비스를 그대로 통과해야 한다.
+        willThrow(new TypedNameMismatchException("Asus P13R-E", "wrong"))
+                .given(typedNameVerifier).verify(ResourceType.BOARD_MODEL, 7L, "wrong");
 
         assertThatThrownBy(() -> boardModelService.purgeWithTypedNameCheck(7L, "wrong"))
                 .isInstanceOf(TypedNameMismatchException.class);
@@ -321,12 +333,13 @@ class BoardModelLifecycleServiceTest {
     }
 
     @Test
-    @DisplayName("purgeWithTypedNameCheck : soft-deleted 가 아니면 IllegalBoardModelStateException")
+    @DisplayName("purgeWithTypedNameCheck : soft-deleted 가 아니면 IllegalBoardModelStateException, verifier 미호출")
     void purgeWithTypedNameCheck_notSoftDeleted_throws() {
         given(boardModelRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> boardModelService.purgeWithTypedNameCheck(7L, "Asus P13R-E"))
                 .isInstanceOf(IllegalBoardModelStateException.class);
+        verifyNoInteractions(typedNameVerifier);
     }
 
     // ==== findDeletedChildLabels — flatMap 순서 보존 수집 ====
