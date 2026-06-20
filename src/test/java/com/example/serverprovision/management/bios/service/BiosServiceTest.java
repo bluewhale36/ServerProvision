@@ -35,6 +35,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,6 +49,7 @@ class BiosServiceTest {
     @Mock BundleEntrypointDetector bundleEntrypointDetector;
     @Mock BundleManifestService bundleManifestService;
     @Mock ProvisionMarkerService provisionMarkerService;
+    @Mock BiosMarkerWriter biosMarkerWriter;
     @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
     @Mock BundleTreeCleanupService bundleTreeCleanupService;
     @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
@@ -77,7 +79,8 @@ class BiosServiceTest {
         // entrypoint 탐지 + manifest
         given(bundleEntrypointDetector.detect(any(), any(), any())).willReturn("X99E-WS.CAP");
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 100L));
-        given(provisionMarkerService.computeSignature(any())).willReturn("sig123");
+        // R4-2 — marker 4-step 은 BiosMarkerWriter 로 위임됐다. 여기선 그 협력만 검증하고
+        // 서명 대상 바이트·기록 순서는 BiosMarkerWriterTest 가 단독으로 커버한다.
         // save 후 id 부여
         given(biosRepository.save(any(BoardBIOS.class))).willAnswer(inv -> {
             BoardBIOS arg = inv.getArgument(0);
@@ -98,7 +101,8 @@ class BiosServiceTest {
         assertThat(id).isEqualTo(77L);
         verify(bundleExtractionService).extractSingleFile(any(), any());
         verify(biosRepository).save(any(BoardBIOS.class));
-        verify(provisionMarkerService).write(any(), any(), any());
+        // R4-2 — marker 기록은 BiosMarkerWriter 위임으로 전환. saved 엔티티 + targetDir + manifestHash 가 그대로 넘어가는지 검증.
+        verify(biosMarkerWriter).writeSignedMarker(any(BoardBIOS.class), eq(target), eq(10L), eq("1.0"), eq("X99E-WS.CAP"), eq("abc123"));
     }
 
     @Test

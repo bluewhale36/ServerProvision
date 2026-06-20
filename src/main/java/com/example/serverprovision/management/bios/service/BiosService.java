@@ -4,7 +4,6 @@ import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
-import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.security.PathPolicyService;
@@ -70,6 +69,7 @@ public class BiosService {
 	private final BundleEntrypointDetector bundleEntrypointDetector;
 	private final BundleManifestService bundleManifestService;
 	private final ProvisionMarkerService provisionMarkerService;
+	private final BiosMarkerWriter biosMarkerWriter;
 	private final TargetDirectoryPolicyService targetDirectoryPolicyService;
 	private final BundleTreeCleanupService bundleTreeCleanupService;
 	private final PathPolicyService pathPolicyService;
@@ -220,23 +220,9 @@ public class BiosService {
 														  .isDeleted(false)
 														  .build());
 
-			// 8) biosId 를 포함한 marker 생성 + 서명 + entity 갱신 + 파일 기록
-			MarkerContent unsigned = new MarkerContent(
-					ResourceType.BIOS_BUNDLE.name(),
-					saved.getId(),
-					Map.of(
-							"boardId", String.valueOf(boardId),
-							"version", request.version(),
-							"entrypointRelativePath", entrypoint
-					),
-					Instant.now(),
-					manifest.manifestHash(),
-					null
-			);
-			String signature = provisionMarkerService.computeSignature(unsigned);
-			MarkerContent signed = unsigned.withSignature(signature);
-			saved.reissueMarker(manifest.manifestHash(), signature);
-			provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, signed);
+			// 8) biosId 를 포함한 marker 생성 + 서명 + entity 갱신 + 파일 기록 (R4-2 — BiosMarkerWriter 위임)
+			biosMarkerWriter.writeSignedMarker(
+					saved, targetDir, boardId, request.version(), entrypoint, manifest.manifestHash());
 
 			log.info(
 					"[addBios] 등록 완료. biosId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
@@ -330,21 +316,8 @@ public class BiosService {
 													  .isDeleted(false)
 													  .build());
 
-		MarkerContent unsigned = new MarkerContent(
-				ResourceType.BIOS_BUNDLE.name(),
-				saved.getId(),
-				Map.of(
-						"boardId", String.valueOf(boardId),
-						"version", request.version(),
-						"entrypointRelativePath", entrypoint
-				),
-				Instant.now(),
-				manifest.manifestHash(),
-				null
-		);
-		String signature = provisionMarkerService.computeSignature(unsigned);
-		saved.reissueMarker(manifest.manifestHash(), signature);
-		provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, unsigned.withSignature(signature));
+		biosMarkerWriter.writeSignedMarker(
+				saved, targetDir, boardId, request.version(), entrypoint, manifest.manifestHash());
 
 		log.info(
 				"[registerExistingBios] 등록 완료. biosId={}, boardId={}, version={}, fileCount={}, totalBytes={}",
@@ -633,22 +606,8 @@ public class BiosService {
 													  .isDeleted(false)
 													  .build());
 
-		MarkerContent unsigned = new MarkerContent(
-				ResourceType.BIOS_BUNDLE.name(),
-				saved.getId(),
-				Map.of(
-						"boardId", String.valueOf(boardId),
-						"version", payload.version(),
-						"entrypointRelativePath", entrypoint
-				),
-				Instant.now(),
-				payload.manifestHash(),
-				null
-		);
-		String signature = provisionMarkerService.computeSignature(unsigned);
-		MarkerContent signed = unsigned.withSignature(signature);
-		saved.reissueMarker(payload.manifestHash(), signature);
-		provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, signed);
+		biosMarkerWriter.writeSignedMarker(
+				saved, targetDir, boardId, payload.version(), entrypoint, payload.manifestHash());
 		log.info("[persistFromNudge] biosId={}, boardId={}, version={}", saved.getId(), boardId, payload.version());
 		return saved.getId();
 	}
