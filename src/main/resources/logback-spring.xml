@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LOG L1 — 로그 설정 (현행 G5: logback 설정 파일 0 해소).
+  · dev/기본 프로파일: 콘솔 평문 패턴에 [%X{requestId}] 슬롯 추가 — RequestCorrelationFilter / MdcTaskDecorator 가 심은 requestId 방출.
+  · prod 프로파일(ECS JSON + AsyncAppender + 마스킹)은 LOG L4 에서 추가한다.
+  · 반드시 logback-spring.xml 명명(logback.xml 은 <springProfile> 미해석).
+-->
+<configuration>
+	<springProfile name="!prod">
+		<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+			<encoder>
+				<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-no-req}] %logger{36} - %msg%n</pattern>
+			</encoder>
+		</appender>
+		<root level="INFO">
+			<appender-ref ref="CONSOLE"/>
+		</root>
+	</springProfile>
+</configuration>
