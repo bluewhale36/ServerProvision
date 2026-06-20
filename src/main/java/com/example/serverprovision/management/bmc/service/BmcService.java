@@ -441,6 +441,7 @@ public class BmcService {
 			}
 		}
 		bmc.toggleEnabled();
+		log.info("[lifecycle.toggle] resource=BMC_FIRMWARE#{} enabled={} outcome=toggled", bmcId, nextEnabled);
 	}
 
 	/**
@@ -583,6 +584,7 @@ public class BmcService {
 	@Transactional
 	public void deprecate(Long boardId, Long bmcId) {
 		requireLiveBmc(boardId, bmcId).deprecate();
+		log.info("[lifecycle.deprecate] resource=BMC_FIRMWARE#{} outcome=deprecated", bmcId);
 	}
 
 	/**
@@ -605,6 +607,7 @@ public class BmcService {
 			);
 		}
 		requireLiveBmc(boardId, bmcId).undeprecate();
+		log.info("[lifecycle.undeprecate] resource=BMC_FIRMWARE#{} outcome=undeprecated", bmcId);
 	}
 
 	/**
@@ -623,7 +626,7 @@ public class BmcService {
 		}
 		bundleTreeCleanupService.purgeExistingTree(Path.of(bmc.getTreeRootPath()), "purgeBmc");
 		bmcRepository.delete(bmc);
-		log.info("[purgeBmc] 영구 삭제 완료. bmcId={}, boardId={}", bmcId, boardId);
+		log.info("[lifecycle.purge] resource=BMC_FIRMWARE#{} outcome=purged", bmcId);
 	}
 
 	/**

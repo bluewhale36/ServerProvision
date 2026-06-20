@@ -60,6 +60,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 		OSMetadata parent = requireActiveImage(id);
 		parent.toggleEnabled();
 		recomputeIsos(parent);   // R4-1 — 양방향 : own 보존, 부모 effective 변화만 자식에 반영
+		log.info("[lifecycle.toggle] resource=OS_IMAGE#{} enabled={} outcome=toggled", id, parent.isEnabled());
 	}
 
 	/** R4-1 — 자식 ISO effective 재계산. own 보존, soft-deleted ISO 제외(restore 시 개별 재계산). */
@@ -136,6 +137,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 		OSMetadata parent = requireActiveImage(id);
 		parent.deprecate();
 		recomputeIsos(parent);
+		log.info("[lifecycle.deprecate] resource=OS_IMAGE#{} outcome=deprecated", id);
 	}
 
 	/**
@@ -149,6 +151,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 		OSMetadata parent = requireActiveImage(id);
 		parent.undeprecate();
 		recomputeIsos(parent);
+		log.info("[lifecycle.undeprecate] resource=OS_IMAGE#{} outcome=undeprecated", id);
 	}
 
 	// ==== purge ========================================================
@@ -182,7 +185,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 			isoLifecycleService.cleanupArtifacts(iso);   // R1-4-1 — IsoLifecycleService 로 위임
 		}
 		osMetadataRepository.delete(image);
-		log.info("[purgeImage] OS 메타데이터 영구 삭제 완료. id={}", id);
+		log.info("[lifecycle.purge] resource=OS_IMAGE#{} outcome=purged", id);
 	}
 
 	// ==== helper =======================================================

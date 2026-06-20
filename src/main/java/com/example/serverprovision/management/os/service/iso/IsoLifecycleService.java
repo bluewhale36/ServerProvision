@@ -100,6 +100,7 @@ public class IsoLifecycleService implements LifecycleService {
 			}
 		}
 		iso.toggleEnabled();
+		log.info("[lifecycle.toggle] resource=OS_ISO#{} enabled={} outcome=toggled", isoId, nextEnabled);
 	}
 
 	// ==== soft delete / restore ========================================
@@ -192,6 +193,7 @@ public class IsoLifecycleService implements LifecycleService {
 	@Transactional
 	public void deprecate(Long isoId) {
 		requireLiveIso(isoId).deprecate();
+		log.info("[lifecycle.deprecate] resource=OS_ISO#{} outcome=deprecated", isoId);
 	}
 
 	/**
@@ -212,6 +214,7 @@ public class IsoLifecycleService implements LifecycleService {
 			);
 		}
 		iso.undeprecate();
+		log.info("[lifecycle.undeprecate] resource=OS_ISO#{} outcome=undeprecated", isoId);
 	}
 
 	// ==== purge ========================================================
@@ -242,7 +245,7 @@ public class IsoLifecycleService implements LifecycleService {
 		}
 		cleanupArtifacts(iso);
 		isoRepository.delete(iso);
-		log.info("[purgeIso] ISO 영구 삭제 완료. isoId={}", isoId);
+		log.info("[lifecycle.purge] resource=OS_ISO#{} outcome=purged", isoId);
 	}
 
 	// ==== 외부 위임용 public helper ====================================

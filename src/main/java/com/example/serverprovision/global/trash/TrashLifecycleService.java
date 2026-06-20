@@ -68,8 +68,8 @@ public class TrashLifecycleService {
 			Files.deleteIfExists(activeMarker);
 		} catch (IOException e) {
 			log.warn(
-					"[trash] active 마커 삭제 실패 — TRASH_MARKER_STALE 후속 정리. path={}, msg={}",
-					activeMarker, e.getMessage()
+					"[trash.markerDelete.fail] resource={}#{} path={} outcome=marker-stale-followup msg={}",
+					entity.getResourceType(), entity.getResourceId(), activeMarker, e.getMessage()
 			);
 		}
 
@@ -81,9 +81,16 @@ public class TrashLifecycleService {
 				try {
 					Files.deleteIfExists(movedMarker);
 				} catch (IOException e) {
-					log.warn("[trash] trash 내부 마커 삭제 실패. path={}, msg={}", movedMarker, e.getMessage());
+					log.warn(
+							"[trash.markerDelete.fail] resource={}#{} path={} outcome=in-trash-marker-stale msg={}",
+							entity.getResourceType(), entity.getResourceId(), movedMarker, e.getMessage()
+					);
 				}
 				entity.markTrashed(trashed.toString());
+				log.info(
+						"[lifecycle.softDelete] resource={}#{} outcome=trashed",
+						entity.getResourceType(), entity.getResourceId()
+				);
 			} catch (RuntimeException e) {
 				// HF-1 (요구 ③) — moveToTrash 와 markTrashed 사이 예외 시 대칭 역보상.
 				// 자원을 원위치로 되돌려 @Transactional 롤백 (softDelete 취소) 과 FS 를 동방향으로 맞춘다.
@@ -92,7 +99,7 @@ public class TrashLifecycleService {
 			}
 		} else {
 			log.warn(
-					"[trash] 자원 부재 (A2 케이스) — DB 만 정리. type={} id={} path={}",
+					"[trash.resourceMissing] resource={}#{} path={} outcome=db-only",
 					entity.getResourceType(), entity.getResourceId(), resourcePath
 			);
 		}
@@ -127,6 +134,10 @@ public class TrashLifecycleService {
 			}
 			entity.restore();
 			entity.clearTrashed();
+			log.info(
+					"[lifecycle.restore] resource={}#{} outcome=restored",
+					entity.getResourceType(), entity.getResourceId()
+			);
 			return;
 		}
 
@@ -169,6 +180,10 @@ public class TrashLifecycleService {
 			entity.reissueMarker(entity.getManifestHash(), signature);
 			entity.restore();
 			entity.clearTrashed();
+			log.info(
+					"[lifecycle.restore] resource={}#{} outcome=restored",
+					entity.getResourceType(), entity.getResourceId()
+			);
 		} catch (RuntimeException e) {
 			compensateRestore(entity, originalPath, trashedPath);
 			throw e;   // @Transactional 롤백 유발 — FS(역보상) 와 동방향 (둘 다 trash)
@@ -190,7 +205,10 @@ public class TrashLifecycleService {
 		try {
 			Files.deleteIfExists(writtenMarker);
 		} catch (IOException io) {
-			log.warn("[trash] 역보상 중 마커 삭제 실패 (계속 진행). path={}, msg={}", writtenMarker, io.getMessage());
+			log.warn(
+					"[trash.compensate.markerDelete.fail] resource={}#{} path={} outcome=continue msg={}",
+					entity.getResourceType(), entity.getResourceId(), writtenMarker, io.getMessage()
+			);
 		}
 		trashService.moveBackReverse(originalPath, trashedPath);
 	}
@@ -220,7 +238,7 @@ public class TrashLifecycleService {
 			entity.restore();
 			entity.clearTrashed();
 			log.info(
-					"[trash] restore self-heal (원O·trashX) — partial-restore 잔여 DB 정합. type={} id={} path={}",
+					"[lifecycle.restore.selfHeal] resource={}#{} path={} outcome=self-healed",
 					entity.getResourceType(), entity.getResourceId(), originalPath
 			);
 			return true;

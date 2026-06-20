@@ -6,6 +6,7 @@ import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
 import com.example.serverprovision.management.subprogram.service.SubprogramService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Order(30)
+@Slf4j
 public class SubprogramBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final SubprogramRepository subprogramRepository;
@@ -50,7 +52,11 @@ public class SubprogramBoardScopedChildLifecycle implements BoardScopedChildLife
 		int restored = 0;
 		for (Subprogram sp : subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)) {
 			// ghost(FS 소실 dead row)는 복구 불가 → cascade 에서 건너뜀(부모 restore 차단 방지). 정리는 휴지통/purge.
-			if (GhostEvaluator.isGhost(sp)) continue;
+			if (GhostEvaluator.isGhost(sp)) {
+				log.warn("[cascade.ghostSkip] resource=SUBPROGRAM#{} parent=BOARD_MODEL#{} reason=ghost_fs_lost outcome=skipped",
+						sp.getId(), boardId);
+				continue;
+			}
 			subprogramService.restore(sp.getId());
 			restored++;
 		}

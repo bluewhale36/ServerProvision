@@ -6,6 +6,7 @@ import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.bmc.service.BmcService;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Order(20)
+@Slf4j
 public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final BmcRepository bmcRepository;
@@ -44,7 +46,11 @@ public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 		int restored = 0;
 		for (BoardBMC bmc : bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)) {
 			// ghost(FS 소실 dead row)는 복구 불가 → cascade 에서 건너뜀(부모 restore 차단 방지). 정리는 휴지통/purge.
-			if (GhostEvaluator.isGhost(bmc)) continue;
+			if (GhostEvaluator.isGhost(bmc)) {
+				log.warn("[cascade.ghostSkip] resource=BMC_FIRMWARE#{} parent=BOARD_MODEL#{} reason=ghost_fs_lost outcome=skipped",
+						bmc.getId(), boardId);
+				continue;
+			}
 			bmcService.restore(boardId, bmc.getId());
 			restored++;
 		}

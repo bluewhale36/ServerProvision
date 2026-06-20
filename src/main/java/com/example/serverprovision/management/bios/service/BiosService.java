@@ -359,6 +359,7 @@ public class BiosService {
 			}
 		}
 		bios.toggleEnabled();
+		log.info("[lifecycle.toggle] resource=BIOS_BUNDLE#{} enabled={} outcome=toggled", biosId, nextEnabled);
 	}
 
 	/**
@@ -430,6 +431,7 @@ public class BiosService {
 	@Transactional
 	public void deprecate(Long boardId, Long biosId) {
 		requireLiveBios(boardId, biosId).deprecate();
+		log.info("[lifecycle.deprecate] resource=BIOS_BUNDLE#{} outcome=deprecated", biosId);
 	}
 
 	/**
@@ -450,6 +452,7 @@ public class BiosService {
 			);
 		}
 		requireLiveBios(boardId, biosId).undeprecate();
+		log.info("[lifecycle.undeprecate] resource=BIOS_BUNDLE#{} outcome=undeprecated", biosId);
 	}
 
 	/**
@@ -465,7 +468,7 @@ public class BiosService {
 		}
 		bundleTreeCleanupService.purgeExistingTree(Path.of(bios.getTreeRootPath()), "purgeBios");
 		biosRepository.delete(bios);
-		log.info("[purge] biosId={}, boardId={}, treeRoot={}", biosId, boardId, bios.getTreeRootPath());
+		log.info("[lifecycle.purge] resource=BIOS_BUNDLE#{} outcome=purged", biosId);
 	}
 
 	/**

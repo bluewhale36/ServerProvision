@@ -251,7 +251,9 @@ public class ApiExceptionHandler {
 	 */
 	@ExceptionHandler(SecurityException.class)
 	public ResponseEntity<ApiErrorResponse> handleSecurity(SecurityException ex) {
-		log.warn("[security] {} : {}", ex.getClass().getSimpleName(), ex.getMessage());
+		// guard 가 file 컨텍스트로 WARN SSOT 이므로 advice 는 boundary 만 DEBUG (예외당 1 WARN 유지).
+		log.debug("[advice.security] type={} status={} variant=json outcome=4xx",
+				ex.getClass().getSimpleName(), ex.httpStatus().value());
 		return ResponseEntity.status(ex.httpStatus()).body(new ApiErrorResponse(ex.getMessage()));
 	}
 
@@ -261,9 +263,10 @@ public class ApiExceptionHandler {
 	 */
 	@ExceptionHandler(ZipBombInspectionFailedException.class)
 	public ResponseEntity<ApiErrorResponse> handleZipInspectionFailed(ZipBombInspectionFailedException ex) {
-		// 운영 IO 실패(500) = 작업 완료 불가 → ERROR+stack (콘텐츠 위협 4xx WARN 과 분리된 sub-class = 레벨 차이).
-		log.error("[advice.zipInspectionFailed] type=ZipBombInspectionFailedException status={} outcome=500",
-				ex.httpStatus().value(), ex);
+		// 운영 IO 실패(500). 근본 IO 원인+stack 은 ZipBombGuard 의 guard.zipInspectionFailed(ERROR)가 SSOT 로 기록하므로
+		// 여기선 응답 boundary 흔적만 DEBUG (동일 stack 중복 방출 회피, '예외당 1 stack').
+		log.debug("[advice.zipInspectionFailed] type=ZipBombInspectionFailedException status={} outcome=500",
+				ex.httpStatus().value());
 		return ResponseEntity.status(ex.httpStatus()).body(new ApiErrorResponse(ex.getMessage()));
 	}
 

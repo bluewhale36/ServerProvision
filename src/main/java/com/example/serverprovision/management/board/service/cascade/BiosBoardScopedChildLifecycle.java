@@ -6,6 +6,7 @@ import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Order(10)
+@Slf4j
 public class BiosBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final BiosRepository biosRepository;
@@ -47,7 +49,11 @@ public class BiosBoardScopedChildLifecycle implements BoardScopedChildLifecycle 
 		for (BoardBIOS bios : biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)) {
 			// ghost(FS 소실 dead row)는 복구 불가 → cascade 에서 건너뜀(부모 restore 가 ghost 한 건에 막히지 않게).
 			// 남은 ghost 는 부모 restore 後 휴지통/purge 또는 reconciliation GHOST_DB_ROW 로 정리.
-			if (GhostEvaluator.isGhost(bios)) continue;
+			if (GhostEvaluator.isGhost(bios)) {
+				log.warn("[cascade.ghostSkip] resource=BIOS_BUNDLE#{} parent=BOARD_MODEL#{} reason=ghost_fs_lost outcome=skipped",
+						bios.getId(), boardId);
+				continue;
+			}
 			biosService.restore(boardId, bios.getId());
 			restored++;
 		}

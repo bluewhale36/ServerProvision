@@ -527,6 +527,7 @@ public class SubprogramService {
 			}
 		}
 		sp.toggleEnabled();
+		log.info("[lifecycle.toggle] resource=SUBPROGRAM#{} enabled={} outcome=toggled", sp.getId(), sp.isEnabled());
 	}
 
 	/**
@@ -608,6 +609,7 @@ public class SubprogramService {
 		Subprogram sp = subprogramRepository.findById(subprogramId)
 				.orElseThrow(() -> new SubprogramNotFoundException(subprogramId));
 		sp.deprecate();
+		log.info("[lifecycle.deprecate] resource=SUBPROGRAM#{} outcome=deprecated", sp.getId());
 	}
 
 	/**
@@ -627,6 +629,7 @@ public class SubprogramService {
 					parent.displayName());
 		}
 		sp.undeprecate();   // self-state 가드(!isDeprecated) 안전망 유지
+		log.info("[lifecycle.undeprecate] resource=SUBPROGRAM#{} outcome=undeprecated", sp.getId());
 	}
 
 	/**
@@ -645,10 +648,7 @@ public class SubprogramService {
 		}
 		bundleTreeCleanupService.purgeExistingTree(Path.of(sp.getTreeRootPath()), "purgeSubprogram");
 		subprogramRepository.delete(sp);
-		log.info(
-				"[purge] Subprogram 영구 삭제. id={}, kind={}, name={}, version={}",
-				sp.getId(), sp.getKind(), sp.getName(), sp.getVersion()
-		);
+		log.info("[lifecycle.purge] resource=SUBPROGRAM#{} outcome=purged", sp.getId());
 	}
 
 	/**

@@ -61,13 +61,18 @@ public class ContentGuard {
 	 */
 	public void assertSafeZip(MultipartFile zipFile) {
 		if (zipFile == null || zipFile.isEmpty()) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD reason=empty-zip outcome=rejected");
 			throw new MaliciousContentSuspectedException("ZIP 파일이 비어있습니다.");
 		}
 		byte[] head = readHead(zipFile, 4);
 		if (head.length < 4) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=zip-too-short outcome=rejected",
+					sanitizeForLog(zipFile.getOriginalFilename()));
 			throw new MaliciousContentSuspectedException("ZIP 파일 길이가 너무 짧습니다.");
 		}
 		if (!startsWith(head, PK_LOCAL) && !startsWith(head, PK_EMPTY) && !startsWith(head, PK_SPANNED)) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=zip-magic-mismatch outcome=rejected",
+					sanitizeForLog(zipFile.getOriginalFilename()));
 			throw new MaliciousContentSuspectedException(
 					"ZIP magic byte 불일치 — 실제 콘텐츠가 zip 이 아닙니다 : " + zipFile.getOriginalFilename());
 		}
@@ -81,18 +86,22 @@ public class ContentGuard {
 	 */
 	public void assertSafeZip(java.nio.file.Path zipPath) {
 		if (zipPath == null || !java.nio.file.Files.exists(zipPath)) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD reason=empty-zip outcome=rejected");
 			throw new MaliciousContentSuspectedException("ZIP 파일이 비어있습니다.");
 		}
 		byte[] head;
 		try (InputStream in = java.nio.file.Files.newInputStream(zipPath)) {
 			head = in.readNBytes(4);
 		} catch (IOException e) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD reason=zip-read-failed outcome=rejected");
 			throw new MaliciousContentSuspectedException("ZIP 파일 읽기 실패 : " + e.getMessage());
 		}
 		if (head.length < 4) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD reason=zip-too-short outcome=rejected");
 			throw new MaliciousContentSuspectedException("ZIP 파일 길이가 너무 짧습니다.");
 		}
 		if (!startsWith(head, PK_LOCAL) && !startsWith(head, PK_EMPTY) && !startsWith(head, PK_SPANNED)) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD reason=zip-magic-mismatch outcome=rejected");
 			throw new MaliciousContentSuspectedException("ZIP magic byte 불일치 — 실제 콘텐츠가 zip 이 아닙니다.");
 		}
 	}
@@ -105,11 +114,15 @@ public class ContentGuard {
 		if (mime == null || !EXECUTABLE_MIMES.contains(mime)) return;
 		String name = file.getOriginalFilename();
 		switch (policy) {
-			case DENY -> throw new ExecutableContentRejectedException(); // S3.1 (B4) — 메시지 일반화
+			case DENY -> {
+				log.warn("[guard.executableDeny] resource=UPLOAD file={} mime={} reason=executable-binary-deny outcome=rejected",
+						sanitizeForLog(name), sanitizeForLog(mime));
+				throw new ExecutableContentRejectedException(); // S3.1 (B4) — 메시지 일반화
+			}
 			case WARN -> {
 				// S3.1 (B5) — 사용자 입력 sanitize 후 log.
 				log.warn(
-						"[content] 실행 가능 binary 감지 (WARN). file={}, mime={}",
+						"[guard.executableWarn] resource=UPLOAD file={} mime={} reason=executable-binary-warn outcome=allowed",
 						sanitizeForLog(name), sanitizeForLog(mime)
 				);
 				if (collector != null) {
@@ -158,9 +171,12 @@ public class ContentGuard {
 			for (String ext : SUSPICIOUS_EXTENSIONS) {
 				if (lower.endsWith(ext)) {
 					if (policy == SuspiciousFilenamesPolicy.DENY) {
+						log.warn("[guard.suspiciousFilename] resource=UPLOAD file={} reason=suspicious-filename outcome=rejected",
+								sanitizeForLog(name));
 						throw new SuspiciousFilenameException();
 					} else {
-						log.warn("[content] suspicious filename (WARN) : {}", sanitizeForLog(name));
+						log.warn("[guard.suspiciousFilename] resource=UPLOAD file={} reason=suspicious-filename outcome=allowed",
+								sanitizeForLog(name));
 					}
 				}
 			}
@@ -180,10 +196,13 @@ public class ContentGuard {
 	 */
 	public String sanitizeFilenameOrThrow(String name) {
 		if (name == null || name.isEmpty()) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD reason=empty-filename outcome=rejected");
 			throw new MaliciousContentSuspectedException("파일명이 비어있습니다.");
 		}
 		// K5 — UTF-8 byte 단위 검증 (Java char.length 가 아니라 실제 디스크 저장 byte 기준)
 		if (name.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 255) {
+			log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=filename-too-long outcome=rejected",
+					sanitizeForLog(name));
 			throw new MaliciousContentSuspectedException("파일명이 255 byte 를 초과했습니다 (UTF-8 기준).");
 		}
 		// K6 — char by char 검사. surrogate pair 도 고려.
@@ -191,6 +210,8 @@ public class ContentGuard {
 			char c = name.charAt(i);
 			// ASCII control + DEL + C1 control
 			if (c == '\0' || (c < 0x20 && c != '\t') || c == 0x7F || (c >= 0x80 && c < 0xA0)) {
+				log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=filename-control-char outcome=rejected",
+						sanitizeForLog(name));
 				throw new MaliciousContentSuspectedException(
 						"파일명에 제어 문자 또는 null byte 가 포함되었습니다.");
 			}
@@ -200,6 +221,8 @@ public class ContentGuard {
 					|| type == Character.SURROGATE
 					|| type == Character.LINE_SEPARATOR
 					|| type == Character.PARAGRAPH_SEPARATOR) {
+				log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=filename-unicode-spoof outcome=rejected",
+						sanitizeForLog(name));
 				throw new MaliciousContentSuspectedException(
 						"파일명에 Unicode 위험 코드포인트 (RLO / LRM / BOM / Zero-Width / Surrogate / Line Separator 등) 가 포함되었습니다.");
 			}
@@ -242,7 +265,8 @@ public class ContentGuard {
 		try (InputStream is = file.getInputStream()) {
 			return tika.detect(is, file.getOriginalFilename());
 		} catch (IOException e) {
-			log.warn("[content] MIME 검출 실패 : {} ({})", file.getOriginalFilename(), e.getMessage());
+			log.warn("[guard.mimeDetectFailed] resource=UPLOAD file={} reason=mime-detect-io-failed outcome=skipped",
+					sanitizeForLog(file.getOriginalFilename()), e);
 			return null;
 		}
 	}

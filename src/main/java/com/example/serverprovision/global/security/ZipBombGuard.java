@@ -4,6 +4,7 @@ import com.example.serverprovision.global.security.config.UploadSecurityProperti
 import com.example.serverprovision.global.security.exception.ZipBombInspectionFailedException;
 import com.example.serverprovision.global.security.exception.ZipBombSuspectedException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,6 +29,7 @@ import java.util.zip.ZipFile;
  * <p>C7 — {@code compressed=0} (stored entry — 무압축) 인 경우 ratio 검사를 skip 하던 분기에 단일 entry size
  * 임계 ({@link UploadSecurityProperties#maxStoredEntryBytes()}) 를 추가 적용한다.</p>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ZipBombGuard {
@@ -48,9 +50,11 @@ public class ZipBombGuard {
 		} catch (java.util.zip.ZipException ze) {
 			// S3.4 (K17) — corrupted zip (구조 손상) 은 사용자 콘텐츠 위협 분류로 415 (ZipBombSuspected) 와 동일 매핑.
 			// ZipException 은 IOException 의 하위지만 의미가 운영 IO 오류가 아니라 콘텐츠 무결성 문제다.
+			log.warn("[guard.zipBomb] resource=UPLOAD reason=corrupted-zip outcome=rejected");
 			throw new ZipBombSuspectedException("zip 구조 손상 (corrupted) : " + ze.getMessage());
 		} catch (IOException ex) {
 			// S3.2 (K17) — IO 실패는 zip bomb 의심과 의미가 다르다 (운영 환경 이슈). 별도 예외로 분류.
+			log.error("[guard.zipInspectionFailed] resource=UPLOAD reason=inspection-io-failed outcome=failed", ex);
 			throw new ZipBombInspectionFailedException(ex.getMessage(), ex);
 		} finally {
 			if (tempZip != null) {
@@ -70,9 +74,11 @@ public class ZipBombGuard {
 			inspect(zipPath);
 		} catch (java.util.zip.ZipException ze) {
 			// S3.4 (K17) — corrupted zip 은 콘텐츠 무결성 문제로 415 매핑.
+			log.warn("[guard.zipBomb] resource=UPLOAD reason=corrupted-zip outcome=rejected");
 			throw new ZipBombSuspectedException("zip 구조 손상 (corrupted) : " + ze.getMessage());
 		} catch (IOException ex) {
 			// S3.2 (K17) — IO 실패는 zip bomb 의심과 의미가 다르다 (운영 환경 이슈). 별도 예외로 분류.
+			log.error("[guard.zipInspectionFailed] resource=UPLOAD reason=inspection-io-failed outcome=failed", ex);
 			throw new ZipBombInspectionFailedException(ex.getMessage(), ex);
 		}
 	}
@@ -92,31 +98,41 @@ public class ZipBombGuard {
 				ZipEntry e = en.nextElement();
 				entryCount++;
 				if (entryCount > maxEntries) {
+					log.warn("[guard.zipBomb] resource=UPLOAD reason=too-many-entries entryCount={} maxEntries={} outcome=rejected",
+							entryCount, maxEntries);
 					throw new ZipBombSuspectedException("entry 갯수 > " + maxEntries);
 				}
 				long size = e.getSize();
 				long compressed = e.getCompressedSize();
 				// S3.1 (B3) — central directory 에도 size 가 미기록(-1) 이면 거절 (메타데이터 조작 의심).
 				if (size < 0) {
+					log.warn("[guard.zipBomb] resource=UPLOAD reason=uncompressed-size-unknown size={} outcome=rejected", size);
 					throw new ZipBombSuspectedException(
 							"entry 의 uncompressed size 가 알려지지 않음 (size=-1) — 거절");
 				}
 				// S3.2 (K8) — compressedSize 도 -1 이면 메타데이터 조작 의심.
 				if (compressed < 0) {
+					log.warn("[guard.zipBomb] resource=UPLOAD reason=compressed-size-unknown compressed={} outcome=rejected", compressed);
 					throw new ZipBombSuspectedException(
 							"entry 의 compressed size 가 알려지지 않음 (compressed=-1) — 거절");
 				}
 				totalUncompressed += size;
 				if (totalUncompressed > maxUncompressed) {
+					log.warn("[guard.zipBomb] resource=UPLOAD reason=total-uncompressed-exceeded totalUncompressed={} maxUncompressed={} outcome=rejected",
+							totalUncompressed, maxUncompressed);
 					throw new ZipBombSuspectedException(
 							"entry 합 " + totalUncompressed + " > 한도 " + maxUncompressed);
 				}
 				// C7 — stored entry (compressed=0) 의 단일 size 임계. ratio 검사가 skip 되는 분기 보강.
 				if (compressed == 0 && size > 0 && maxStored > 0 && size > maxStored) {
+					log.warn("[guard.zipBomb] resource=UPLOAD reason=stored-entry-too-large size={} maxStored={} outcome=rejected",
+							size, maxStored);
 					throw new ZipBombSuspectedException(
 							"stored entry size " + size + " > stored 임계 " + maxStored);
 				}
 				if (size > 0 && compressed > 0 && (size / compressed) > ratio) {
+					log.warn("[guard.zipBomb] resource=UPLOAD reason=compression-ratio-exceeded ratio={} maxRatio={} outcome=rejected",
+							(size / compressed), ratio);
 					throw new ZipBombSuspectedException(
 							"압축률 " + (size / compressed) + " > 임계 " + ratio);
 				}

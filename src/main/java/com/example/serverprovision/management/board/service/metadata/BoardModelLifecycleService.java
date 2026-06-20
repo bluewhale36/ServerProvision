@@ -56,6 +56,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 		BoardModel parent = BoardModelGuards.requireActiveBoard(boardModelRepository, id);
 		parent.toggleEnabled();
 		cascadeRecompute(id);
+		log.info("[lifecycle.toggle] resource=BOARD_MODEL#{} enabled={} outcome=toggled", id, parent.isEnabled());
 	}
 
 	/**
@@ -67,6 +68,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 		BoardModel parent = BoardModelGuards.requireActiveBoard(boardModelRepository, id);
 		parent.deprecate();
 		cascadeRecompute(id);
+		log.info("[lifecycle.deprecate] resource=BOARD_MODEL#{} outcome=deprecated", id);
 	}
 
 	/**
@@ -80,6 +82,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 		BoardModel parent = BoardModelGuards.requireActiveBoard(boardModelRepository, id);
 		parent.undeprecate();
 		cascadeRecompute(id);
+		log.info("[lifecycle.undeprecate] resource=BOARD_MODEL#{} outcome=undeprecated", id);
 	}
 
 	/**
@@ -183,9 +186,6 @@ public class BoardModelLifecycleService implements LifecycleService {
 							+ "자식을 먼저 모두 영구 삭제해주세요. id=" + id);
 		}
 		boardModelRepository.delete(board);
-		log.info(
-				"[purge] BoardModel 영구 삭제. id={}, vendor={}, modelName={}",
-				id, board.getVendor(), board.getModelName()
-		);
+		log.info("[lifecycle.purge] resource=BOARD_MODEL#{} outcome=purged", id);
 	}
 }
