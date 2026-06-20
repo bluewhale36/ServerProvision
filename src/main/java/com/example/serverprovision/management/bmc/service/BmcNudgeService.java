@@ -69,10 +69,8 @@ public class BmcNudgeService {
 				bmcUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
 		);
 		nudgeRegistry.remove(nudgeId);
-		log.info(
-				"[bmc-nudge.intent.proceed] nudgeId={}, boardId={}, newToken={}",
-				nudgeId, session.boardId(), response.uploadToken()
-		);
+		// 마스킹 — upload token 평문 로깅 금지.
+		log.info("[bmc-nudge.intent.proceed] nudgeId={}, boardId={}", nudgeId, session.boardId());
 		return response;
 	}
 
@@ -88,10 +86,8 @@ public class BmcNudgeService {
 				bmcUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
 		);
 		nudgeRegistry.remove(nudgeId);
-		log.info(
-				"[bmc-nudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
-				nudgeId, targetId, response.uploadToken()
-		);
+		// 마스킹 — upload token 평문 로깅 금지.
+		log.info("[bmc-nudge.intent.replace] nudgeId={}, replacedTarget={}", nudgeId, targetId);
 		return response;
 	}
 

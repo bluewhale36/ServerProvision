@@ -68,7 +68,8 @@ public class SubprogramNudgeService {
 		SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
 				reissue.kind(), reissue.scope(), reissue.request());
 		nudgeRegistry.remove(nudgeId);
-		log.info("[subprogram-nudge.intent.proceed] nudgeId={}, newToken={}", nudgeId, response.uploadToken());
+		// 마스킹 — upload token 평문 로깅 금지.
+		log.info("[subprogram-nudge.intent.proceed] nudgeId={}", nudgeId);
 		return response;
 	}
 
@@ -83,10 +84,8 @@ public class SubprogramNudgeService {
 		SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
 				reissue.kind(), reissue.scope(), reissue.request());
 		nudgeRegistry.remove(nudgeId);
-		log.info(
-				"[subprogram-nudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
-				nudgeId, targetId, response.uploadToken()
-		);
+		// 마스킹 — upload token 평문 로깅 금지.
+		log.info("[subprogram-nudge.intent.replace] nudgeId={}, replacedTarget={}", nudgeId, targetId);
 		return response;
 	}
 

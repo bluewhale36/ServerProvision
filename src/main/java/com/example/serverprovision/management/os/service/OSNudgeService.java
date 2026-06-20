@@ -137,8 +137,9 @@ public class OSNudgeService {
 	 * WAVE 3 — sealed IsoUploadIntentResponse 의 phase 별 요약 (logging 용). Java 17 호환 instanceof 패턴.
 	 */
 	private static String summarize(IsoUploadIntentResponse response) {
-		if (response instanceof IsoUploadIntentResponse.IntentTokenIssued tok) {
-			return "TOKEN_ISSUED(" + tok.uploadToken() + ")";
+		if (response instanceof IsoUploadIntentResponse.IntentTokenIssued) {
+			// 마스킹 — upload token 평문 로깅 금지 (phase 만 요약).
+			return "TOKEN_ISSUED";
 		}
 		if (response instanceof IsoUploadIntentResponse.HashCheckRequired chk) {
 			return "HASH_CHECK_REQUIRED(" + chk.candidates().size() + ")";

@@ -1,19 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  LOG L1 — 로그 설정 (현행 G5: logback 설정 파일 0 해소).
-  · dev/기본 프로파일: 콘솔 평문 패턴에 [%X{requestId}] 슬롯 추가 — RequestCorrelationFilter / MdcTaskDecorator 가 심은 requestId 방출.
-  · prod 프로파일(ECS JSON + AsyncAppender + 마스킹)은 LOG L4 에서 추가한다.
+  LOG 로그 설정 (현행 G5: logback 설정 파일 0 해소).
+  · dev/기본 프로파일(L1): 콘솔 평문 패턴 + [%X{requestId}] 슬롯 + %replace 마스킹 안전망.
+  · prod 프로파일(L4): ECS(Elastic Common Schema) JSON — Spring Boot 4 네이티브 structured logging(외부 인코더 의존성 0) + AsyncAppender.
   · 반드시 logback-spring.xml 명명(logback.xml 은 <springProfile> 미해석).
 -->
 <configuration>
+	<!-- L4 마스킹 정규식 안전망 — 코드 1차 마스킹(평문 미출력) 위의 defense-in-depth. password/secret/token/signature 의 =value 를 ***로. -->
+	<property name="MASK_PATTERN" value="(?i)(password|secret|token|signature)=\S+"/>
+
 	<springProfile name="!prod">
 		<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
 			<encoder>
-				<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-no-req}] %logger{36} - %msg%n</pattern>
+				<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-no-req}] %logger{36} - %replace(%msg){'${MASK_PATTERN}', '$1=***'}%n</pattern>
 			</encoder>
 		</appender>
 		<root level="INFO">
 			<appender-ref ref="CONSOLE"/>
+		</root>
+	</springProfile>
+
+	<springProfile name="prod">
+		<!-- ECS JSON — MDC requestId 가 JSON 필드로 자동 포함. structured 출력은 메시지 본문이 이미 코드 1차 마스킹됨을 전제. -->
+		<appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+			<encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+				<format>ecs</format>
+			</encoder>
+		</appender>
+		<!-- 무손실 Async — queueSize 1024 · discardingThreshold 0 · neverBlock false. -->
+		<appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+			<queueSize>1024</queueSize>
+			<discardingThreshold>0</discardingThreshold>
+			<neverBlock>false</neverBlock>
+			<appender-ref ref="JSON"/>
+		</appender>
+		<root level="INFO">
+			<appender-ref ref="ASYNC"/>
 		</root>
 	</springProfile>
 </configuration>

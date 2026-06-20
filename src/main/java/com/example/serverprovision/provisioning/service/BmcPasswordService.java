@@ -38,9 +38,9 @@ public class BmcPasswordService {
 
 		Map<String, Object> body = Map.of("Password", request.newPassword());
 
-		log.info("[bmc-password] {} {} account={}{} body={\"Password\":\"********\"} (실값 미출력 — 화면 echo 로만 확인)",
-				METHOD, target, request.accountId(),
-				request.userName() == null || request.userName().isBlank() ? "" : " userName=" + request.userName());
+		// 마스킹 — 비밀번호(********)에 더해 userName(자격증명 식별자)도 로그 미출력. 화면 echo 로만 확인.
+		log.info("[bmc-password] {} {} account={} body={\"Password\":\"********\"} (password·userName 미출력)",
+				METHOD, target, request.accountId());
 
 		return new BmcPasswordPlanResponse(METHOD, target, headers, body, request.userName(),
 				"BMC 계정 변경은 재부팅 없이 즉시 적용됩니다. 428 응답 시 If-Match 헤더(* 또는 계정 리소스 ETag)가 필수입니다. "

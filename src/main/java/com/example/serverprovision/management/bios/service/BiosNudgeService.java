@@ -96,10 +96,8 @@ public class BiosNudgeService {
 				biosUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
 		);
 		nudgeRegistry.remove(nudgeId);
-		log.info(
-				"[nudge.intent.proceed] nudgeId={}, boardId={}, newToken={}",
-				nudgeId, session.boardId(), response.uploadToken()
-		);
+		// 마스킹 — upload token 평문 로깅 금지 (발급 사실만).
+		log.info("[nudge.intent.proceed] nudgeId={}, boardId={}", nudgeId, session.boardId());
 		return response;
 	}
 
@@ -118,10 +116,8 @@ public class BiosNudgeService {
 				biosUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
 		);
 		nudgeRegistry.remove(nudgeId);
-		log.info(
-				"[nudge.intent.replace] nudgeId={}, replacedTarget={}, newToken={}",
-				nudgeId, targetId, response.uploadToken()
-		);
+		// 마스킹 — upload token 평문 로깅 금지.
+		log.info("[nudge.intent.replace] nudgeId={}, replacedTarget={}", nudgeId, targetId);
 		return response;
 	}
 
