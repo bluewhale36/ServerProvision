@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.board.service.cascade;
 
+import com.example.serverprovision.global.trash.GhostEvaluator;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.bmc.service.BmcService;
@@ -42,6 +43,8 @@ public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 	public int restoreDeleted(Long boardId) {
 		int restored = 0;
 		for (BoardBMC bmc : bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)) {
+			// ghost(FS 소실 dead row)는 복구 불가 → cascade 에서 건너뜀(부모 restore 차단 방지). 정리는 휴지통/purge.
+			if (GhostEvaluator.isGhost(bmc)) continue;
 			bmcService.restore(boardId, bmc.getId());
 			restored++;
 		}

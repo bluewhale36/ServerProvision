@@ -564,10 +564,13 @@ public class BiosService {
 
 	/**
 	 * MK2 — 상태 무관 단건 조회. SoftDeleted 자원에 대한 restore / purge 가 사용한다.
-	 * 보드는 활성 상태여야 한다 (삭제된 보드의 BIOS 영구 삭제는 보드 삭제 cascade 가 처리).
+	 *
+	 * <p>보드 <b>활성</b> 여부는 요구하지 않는다 — join({@code findByIdAndBoardModel_Id})이 board 연관을 이미
+	 * 검증하고, soft-deleted 부모 아래의 ghost / soft-deleted 자식 정리(purge)도 가능해야 하기 때문(ghost catch-22
+	 * 차단 : soft-delete 는 자식을 hard-delete 하지 않으므로 "보드 삭제 cascade 가 처리" 가정이 성립하지 않는다).
+	 * restore 는 호출 전 {@code blocksChildRestore} 부모 가드가 선행하므로 본 메서드의 활성 board 검증은 불필요.</p>
 	 */
 	private BoardBIOS requireExistingBios(Long boardId, Long biosId) {
-		requireActiveBoard(boardId);
 		return biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
 				.orElseThrow(() -> new BiosNotFoundException(boardId, biosId));
 	}

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.board.service.cascade;
 
+import com.example.serverprovision.global.trash.GhostEvaluator;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
@@ -48,6 +49,8 @@ public class SubprogramBoardScopedChildLifecycle implements BoardScopedChildLife
 	public int restoreDeleted(Long boardId) {
 		int restored = 0;
 		for (Subprogram sp : subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)) {
+			// ghost(FS 소실 dead row)는 복구 불가 → cascade 에서 건너뜀(부모 restore 차단 방지). 정리는 휴지통/purge.
+			if (GhostEvaluator.isGhost(sp)) continue;
 			subprogramService.restore(sp.getId());
 			restored++;
 		}

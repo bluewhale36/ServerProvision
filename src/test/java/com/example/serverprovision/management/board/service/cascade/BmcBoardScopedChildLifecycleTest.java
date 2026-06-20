@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +53,11 @@ class BmcBoardScopedChildLifecycleTest {
         return p;
     }
 
+    /**
+     * 정상 trashed 자식. soft-deleted 면 trashedAt/trashedPath 가 채워져 있어 {@link
+     * com.example.serverprovision.global.trash.GhostEvaluator#isGhost} 가 조건2(trashedAt!=null)에서 false 를
+     * 반환한다(ghost 아님 → cascade restore 대상).
+     */
     private BoardBMC bmc(Long id, BoardModel parent, boolean deleted) {
         BoardBMC b = BoardBMC.builder()
                 .id(id).boardModel(parent).name("BMC-" + id).version("2." + id)
@@ -59,7 +65,27 @@ class BmcBoardScopedChildLifecycleTest {
                 .entrypointRelativePath("flash.nsh")
                 .manifestHash("hash").markerSignature("sig").fileCount(2).totalBytes(128L)
                 .ownEnabled(true).ownDeprecated(false).isDeleted(deleted)
+                // 정상 trashed 자식은 trashedAt 이 채워져 있으므로 isGhost 조건2 에서 false (ghost 아님).
+                .trashedAt(deleted ? Instant.now() : null)
+                .trashedPath(deleted ? "/trash/bmc/" + id : null)
                 .build();
+        b.recomputeEffective();
+        return b;
+    }
+
+    /**
+     * MK3-1 ghost 자식. isDeleted=true + trashedAt/trashedPath=null + 존재하지 않는 resourcePath →
+     * isGhost==true. Fix A 회귀 검증용 — cascade restore 가 건너뛰어야 한다.
+     */
+    private BoardBMC ghostBmc(Long id, BoardModel parent) {
+        BoardBMC b = BoardBMC.builder()
+                .id(id).boardModel(parent).name("BMC-" + id).version("2." + id)
+                .treeRootPath("/nonexistent/ghost-bmc-" + id)   // Files.notExists → ghost
+                .legacyFilePath("/nonexistent/ghost-bmc-" + id).boardModelIdMirror(BOARD_ID)
+                .entrypointRelativePath("flash.nsh")
+                .manifestHash("hash").markerSignature("sig").fileCount(2).totalBytes(128L)
+                .ownEnabled(true).ownDeprecated(false).isDeleted(true)
+                .build();   // trashedAt / trashedPath 미설정 = null
         b.recomputeEffective();
         return b;
     }
@@ -132,6 +158,22 @@ class BmcBoardScopedChildLifecycleTest {
 
         assertThat(adapter.restoreDeleted(BOARD_ID)).isZero();
         verify(bmcService, never()).restore(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    @DisplayName("restoreDeleted(Fix A) : ghost 자식은 건너뛰고 정상 trashed 자식만 복구 (catch-22 차단)")
+    void restoreDeleted_skipsGhostChild() {
+        BoardModel p = parent(true, false);
+        BoardBMC normal = bmc(201L, p, true);   // 정상 trashed (trashedAt non-null)
+        BoardBMC ghost = ghostBmc(202L, p);     // ghost (trashedAt=null, resourcePath 부재)
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(BOARD_ID))
+                .willReturn(List.of(normal, ghost));
+
+        int restored = adapter.restoreDeleted(BOARD_ID);
+
+        assertThat(restored).isEqualTo(1);
+        verify(bmcService).restore(BOARD_ID, 201L);                       // 정상만 복구
+        verify(bmcService, never()).restore(BOARD_ID, 202L);              // ghost 미복구
     }
 
     // ==== hasAny ====

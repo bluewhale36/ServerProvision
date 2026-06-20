@@ -613,7 +613,8 @@ public class BmcService {
 	 */
 	@Transactional
 	public void purge(Long boardId, Long bmcId) {
-		requireActiveBoard(boardId);
+		// soft-deleted BMC purge 는 활성 부모 board 를 요구하지 않는다(ghost catch-22 차단).
+		// join 이 board 연관을 검증하고, 아래 isDeleted 가드가 활성 자원 우발 삭제를 막는다.
 		BoardBMC bmc = bmcRepository.findByIdAndBoardModel_Id(bmcId, boardId)
 				.orElseThrow(() -> new BmcNotFoundException(boardId, bmcId));
 		if (!bmc.isDeleted()) {
@@ -631,7 +632,7 @@ public class BmcService {
 	 */
 	@Transactional
 	public void purgeWithTypedNameCheck(Long boardId, Long bmcId, String typedName) {
-		requireActiveBoard(boardId);
+		// soft-deleted BMC purge 는 활성 부모 board 를 요구하지 않는다(ghost catch-22 차단). join 이 board 연관 검증.
 		BoardBMC bmc = bmcRepository.findByIdAndBoardModel_Id(bmcId, boardId)
 				.orElseThrow(() -> new BmcNotFoundException(boardId, bmcId));
 		if (!bmc.isDeleted()) {

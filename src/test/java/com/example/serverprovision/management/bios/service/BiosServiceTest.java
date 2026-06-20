@@ -246,6 +246,28 @@ class BiosServiceTest {
         assertThat(bios.getLastVerifiedAt()).isNotNull();
     }
 
+    @Test
+    @DisplayName("purge(Fix B) : 부모 board 가 soft-deleted 여도 soft-deleted BIOS 영구 삭제 성공 (ghost catch-22 차단)")
+    void purge_softDeletedBios_underSoftDeletedBoard_succeeds() {
+        // Fix B — requireExistingBios 가 requireActiveBoard 를 호출하지 않으므로
+        // boardModelRepository.findByIdAndIsDeletedFalse stub 없이도(=빈 Optional 이어도) 진행해야 한다.
+        BoardBIOS softDeleted = BoardBIOS.builder()
+                .id(1L).boardModel(activeBoard())
+                .name("x").version("1.0")
+                .treeRootPath("/trash/bios/1").entrypointRelativePath("f.nsh")
+                .manifestHash("h").markerSignature("s")
+                .fileCount(2).totalBytes(100L)
+                .isEnabled(true).isDeleted(true).build();
+        given(biosRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(softDeleted));
+
+        biosService.purge(10L, 1L);
+
+        // 활성 board 검증 없이 진행 → BoardModelNotFoundException 미발생, 트리 정리 + DB row 삭제 호출.
+        verify(bundleTreeCleanupService).purgeExistingTree(Path.of("/trash/bios/1"), "purgeBios");
+        verify(biosRepository).delete(softDeleted);
+        verify(boardModelRepository, never()).findByIdAndIsDeletedFalse(any());
+    }
+
     private BoardBIOS buildActiveBios() {
         return BoardBIOS.builder()
                 .id(1L).boardModel(activeBoard())

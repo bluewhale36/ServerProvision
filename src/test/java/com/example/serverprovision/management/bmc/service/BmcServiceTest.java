@@ -267,4 +267,25 @@ class BmcServiceTest {
         assertThat(bmc.getLastIntegrityStatus()).isEqualTo(IntegrityStatus.SIGNATURE_INVALID);
         assertThat(bmc.getLastVerifiedAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("purge(Fix B) : 부모 board 가 soft-deleted 여도 soft-deleted BMC 영구 삭제 성공 (ghost catch-22 차단)")
+    void purge_softDeletedBmc_underSoftDeletedBoard_succeeds() {
+        // Fix B — purge 가 requireActiveBoard 를 호출하지 않으므로
+        // boardModelRepository.findByIdAndIsDeletedFalse stub 없이도(=빈 Optional 이어도) 진행해야 한다.
+        BoardBMC softDeleted = BoardBMC.builder()
+                .id(1L).boardModel(activeBoard()).name("AST2600").version("13.06.25")
+                .treeRootPath("/trash/bmc/1").legacyFilePath("/trash/bmc/1").boardModelIdMirror(10L)
+                .entrypointRelativePath("flash.nsh").manifestHash("hash").markerSignature("sig")
+                .fileCount(2).totalBytes(128L)
+                .isEnabled(true).isDeleted(true).build();
+        given(bmcRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(softDeleted));
+
+        bmcService.purge(10L, 1L);
+
+        // 활성 board 검증 없이 진행 → BoardModelNotFoundException 미발생, 트리 정리 + DB row 삭제 호출.
+        verify(bundleTreeCleanupService).purgeExistingTree(Path.of("/trash/bmc/1"), "purgeBmc");
+        verify(bmcRepository).delete(softDeleted);
+        verify(boardModelRepository, never()).findByIdAndIsDeletedFalse(any());
+    }
 }

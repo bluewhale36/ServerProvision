@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.board.service.cascade;
 
+import com.example.serverprovision.global.trash.GhostEvaluator;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BiosService;
@@ -44,6 +45,9 @@ public class BiosBoardScopedChildLifecycle implements BoardScopedChildLifecycle 
 	public int restoreDeleted(Long boardId) {
 		int restored = 0;
 		for (BoardBIOS bios : biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(boardId)) {
+			// ghost(FS 소실 dead row)는 복구 불가 → cascade 에서 건너뜀(부모 restore 가 ghost 한 건에 막히지 않게).
+			// 남은 ghost 는 부모 restore 後 휴지통/purge 또는 reconciliation GHOST_DB_ROW 로 정리.
+			if (GhostEvaluator.isGhost(bios)) continue;
 			biosService.restore(boardId, bios.getId());
 			restored++;
 		}

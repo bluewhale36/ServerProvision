@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,13 +59,37 @@ class SubprogramBoardScopedChildLifecycleTest {
         return p;
     }
 
+    /**
+     * 정상 trashed 자식. soft-deleted 면 trashedAt/trashedPath 가 채워져 있어 {@link
+     * com.example.serverprovision.global.trash.GhostEvaluator#isGhost} 가 조건2(trashedAt!=null)에서 false 를
+     * 반환한다(ghost 아님 → cascade restore 대상).
+     */
     private Subprogram subprogram(Long id, BoardModel parent, SubprogramKind kind, boolean deleted) {
         Subprogram s = Subprogram.builder()
                 .id(id).kind(kind).boardModel(parent)
                 .name("sp-" + id).version("1." + id).treeRootPath("/sp/" + id)
                 .manifestHash("h").fileCount(1).totalBytes(1L)
                 .ownEnabled(true).ownDeprecated(false).isDeleted(deleted)
+                // 정상 trashed 자식은 trashedAt 이 채워져 있으므로 isGhost 조건2 에서 false (ghost 아님).
+                .trashedAt(deleted ? Instant.now() : null)
+                .trashedPath(deleted ? "/trash/sp/" + id : null)
                 .build();
+        s.recomputeEffective();
+        return s;
+    }
+
+    /**
+     * MK3-1 ghost 자식. isDeleted=true + trashedAt/trashedPath=null + 존재하지 않는 resourcePath →
+     * isGhost==true. Fix A 회귀 검증용 — cascade restore 가 건너뛰어야 한다.
+     */
+    private Subprogram ghostSubprogram(Long id, BoardModel parent, SubprogramKind kind) {
+        Subprogram s = Subprogram.builder()
+                .id(id).kind(kind).boardModel(parent)
+                .name("sp-" + id).version("1." + id)
+                .treeRootPath("/nonexistent/ghost-sp-" + id)   // Files.notExists → ghost
+                .manifestHash("h").fileCount(1).totalBytes(1L)
+                .ownEnabled(true).ownDeprecated(false).isDeleted(true)
+                .build();   // trashedAt / trashedPath 미설정 = null
         s.recomputeEffective();
         return s;
     }
@@ -141,6 +166,22 @@ class SubprogramBoardScopedChildLifecycleTest {
 
         assertThat(adapter.restoreDeleted(BOARD_ID)).isZero();
         verify(subprogramService, never()).restore(org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    @DisplayName("restoreDeleted(Fix A) : ghost 자식은 건너뛰고 정상 trashed 자식만 복구 (catch-22 차단, 1-arg restore)")
+    void restoreDeleted_skipsGhostChild() {
+        BoardModel p = parent(true, false);
+        Subprogram normal = subprogram(301L, p, SubprogramKind.DRIVER, true);   // 정상 trashed
+        Subprogram ghost = ghostSubprogram(302L, p, SubprogramKind.UTILITY);    // ghost
+        given(subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(BOARD_ID))
+                .willReturn(List.of(normal, ghost));
+
+        int restored = adapter.restoreDeleted(BOARD_ID);
+
+        assertThat(restored).isEqualTo(1);
+        verify(subprogramService).restore(301L);                       // 정상만 복구 (1-arg)
+        verify(subprogramService, never()).restore(302L);              // ghost 미복구
     }
 
     // ==== hasAny ====
