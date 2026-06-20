@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
  * SSR (Thymeleaf) 흐름 전용 예외 핸들러. {@code Accept: text/html} 요청에 대해
@@ -57,13 +59,31 @@ public class WebExceptionHandler {
 
 	@ExceptionHandler(value = NotFoundException.class, produces = MediaType.TEXT_HTML_VALUE)
 	public String handleNotFound(NotFoundException ex, Model model, HttpServletResponse response) {
+		ExceptionLogPolicy.record("advice.notFound", ex, HttpStatus.NOT_FOUND, "html");
 		response.setStatus(HttpStatus.NOT_FOUND.value());
 		populate(model, 404, "Not Found", ex.getMessage());
 		return "error";
 	}
 
+	/**
+	 * 부모-자식 lifecycle 가드 거절(409, SSR 채널). {@link ConflictException} 보다 구체적이라 우선 매핑.
+	 * G4 — 6 필드 구조화 로그를 HTML 채널에서도 동형 방출(SSR 직접 폼 흐름의 우회 신호).
+	 */
+	@ExceptionHandler(value = ChildLifecycleBlockedByParentException.class, produces = MediaType.TEXT_HTML_VALUE)
+	public String handleChildLifecycleBlocked(
+			ChildLifecycleBlockedByParentException ex, Model model, HttpServletResponse response) {
+		log.warn("[guard.childLifecycleBlocked] resource={}#{} parent={}#{} parentState={} action={} variant=html outcome=409",
+				ex.getChildResourceType(), ex.getChildResourceId(),
+				ex.getParentResourceType(), ex.getParentResourceId(),
+				ex.getParentState(), ex.getRequestedAction());
+		response.setStatus(HttpStatus.CONFLICT.value());
+		populate(model, 409, "Conflict", ex.getMessage());
+		return "error";
+	}
+
 	@ExceptionHandler(value = ConflictException.class, produces = MediaType.TEXT_HTML_VALUE)
 	public String handleConflict(ConflictException ex, Model model, HttpServletResponse response) {
+		ExceptionLogPolicy.record("advice.conflict", ex, HttpStatus.CONFLICT, "html");
 		response.setStatus(HttpStatus.CONFLICT.value());
 		populate(model, 409, "Conflict", ex.getMessage());
 		return "error";
@@ -85,8 +105,16 @@ public class WebExceptionHandler {
 
 	@ExceptionHandler(value = DomainException.class, produces = MediaType.TEXT_HTML_VALUE)
 	public String handleDomain(DomainException ex, Model model, HttpServletResponse response) {
-		// NotFound / Conflict / FieldBound 하위를 제외한 도메인 예외는 잠재적 버그로 간주
-		log.warn("Unhandled DomainException: {}", ex.getMessage(), ex);
+		// @ResponseStatus 4xx 도메인 예외(TypedNameMismatch 400 등)는 그 status 로 — 기존 SSR 이 전부 500 으로 새던
+		// Api 비대칭 정정. 그 외(@ResponseStatus 없는 storage/IO)는 작업 완료 불가 5xx ERROR+stack.
+		ResponseStatus rs = AnnotationUtils.findAnnotation(ex.getClass(), ResponseStatus.class);
+		if (rs != null && rs.value().is4xxClientError()) {
+			ExceptionLogPolicy.record("advice.domain.mapped", ex, rs.value(), "html");
+			response.setStatus(rs.value().value());
+			populate(model, rs.value().value(), rs.value().getReasonPhrase(), ex.getMessage());
+			return "error";
+		}
+		ExceptionLogPolicy.record("advice.domain.unmapped", ex, HttpStatus.INTERNAL_SERVER_ERROR, "html");
 		response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		populate(model, 500, "Internal Error", ex.getMessage());
 		return "error";

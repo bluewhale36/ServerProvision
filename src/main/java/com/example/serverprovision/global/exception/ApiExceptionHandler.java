@@ -70,6 +70,7 @@ public class ApiExceptionHandler {
 
 	@ExceptionHandler(value = NotFoundException.class, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<ApiErrorResponse> handleNotFound(NotFoundException ex) {
+		ExceptionLogPolicy.record("advice.notFound", ex, HttpStatus.NOT_FOUND, "json");
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(ex.getMessage()));
 	}
 
@@ -96,9 +97,10 @@ public class ApiExceptionHandler {
 		var intent = ex.intent();
 		long ttlSec = java.time.Duration.between(java.time.Instant.now(), intent.expiresAt()).getSeconds();
 		if (ttlSec < 0) ttlSec = 0;
+		// 마스킹 — DeleteIntent token 평문 로깅 금지 (5분 1회용이라도 평문 미출력).
 		log.info(
-				"[softdelete-reject] 409 issued : type={} id={} token={} ttl={}s",
-				intent.resourceType(), intent.resourceId(), intent.token().asString(), ttlSec
+				"[softdelete-reject] type={} id={} ttl={}s outcome=409",
+				intent.resourceType(), intent.resourceId(), ttlSec
 		);
 		DeleteRejectResponse body = new DeleteRejectResponse(
 				DeleteRejectResponse.CODE,
@@ -161,8 +163,22 @@ public class ApiExceptionHandler {
 				.body(ApiErrorResponse.ofFieldBound(ex.getMessage(), ex.fieldName()));
 	}
 
+	/**
+	 * 부모-자식 lifecycle 가드 거절 (409). {@link ConflictException} 일반 핸들러보다 구체적이라 우선 매핑.
+	 * G4 — 6 필드(parent/child type·id, parentState, action)를 구조화 로그로 방출. UI 우회 direct POST 신호이므로 WARN.
+	 */
+	@ExceptionHandler(value = ChildLifecycleBlockedByParentException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<ApiErrorResponse> handleChildLifecycleBlocked(ChildLifecycleBlockedByParentException ex) {
+		log.warn("[guard.childLifecycleBlocked] resource={}#{} parent={}#{} parentState={} action={} variant=json outcome=409",
+				ex.getChildResourceType(), ex.getChildResourceId(),
+				ex.getParentResourceType(), ex.getParentResourceId(),
+				ex.getParentState(), ex.getRequestedAction());
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(ex.getMessage()));
+	}
+
 	@ExceptionHandler(value = ConflictException.class, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex) {
+		ExceptionLogPolicy.record("advice.conflict", ex, HttpStatus.CONFLICT, "json");
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(ex.getMessage()));
 	}
 
@@ -188,10 +204,12 @@ public class ApiExceptionHandler {
 				org.springframework.core.annotation.AnnotationUtils.findAnnotation(
 						ex.getClass(), org.springframework.web.bind.annotation.ResponseStatus.class);
 		if (rs != null) {
-			log.info("Domain exception with @ResponseStatus({}): {}", rs.value(), ex.getMessage());
+			// @ResponseStatus 매핑(대개 4xx) → 레벨은 status 다형성으로 결정(4xx WARN). log.info 오분류 정정.
+			ExceptionLogPolicy.record("advice.domain.mapped", ex, rs.value(), "json");
 			return ResponseEntity.status(rs.value()).body(new ApiErrorResponse(ex.getMessage()));
 		}
-		log.warn("Unhandled DomainException: {}", ex.getMessage(), ex);
+		// @ResponseStatus 없는 storage/IO 도메인 예외 = 작업 완료 불가 → 5xx ERROR+stack (log.warn 오분류 정정).
+		ExceptionLogPolicy.record("advice.domain.unmapped", ex, HttpStatus.INTERNAL_SERVER_ERROR, "json");
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiErrorResponse(ex.getMessage()));
 	}
 
@@ -243,7 +261,9 @@ public class ApiExceptionHandler {
 	 */
 	@ExceptionHandler(ZipBombInspectionFailedException.class)
 	public ResponseEntity<ApiErrorResponse> handleZipInspectionFailed(ZipBombInspectionFailedException ex) {
-		log.warn("[security] ZipBombInspectionFailedException : {}", ex.getMessage(), ex);
+		// 운영 IO 실패(500) = 작업 완료 불가 → ERROR+stack (콘텐츠 위협 4xx WARN 과 분리된 sub-class = 레벨 차이).
+		log.error("[advice.zipInspectionFailed] type=ZipBombInspectionFailedException status={} outcome=500",
+				ex.httpStatus().value(), ex);
 		return ResponseEntity.status(ex.httpStatus()).body(new ApiErrorResponse(ex.getMessage()));
 	}
 

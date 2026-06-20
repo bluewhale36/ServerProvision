@@ -44,8 +44,7 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 				log.debug("[http.request.start] method={} path={}", request.getMethod(), path(request));
 			}
 			chain.doFilter(request, response);
-			log.info("[http.request.complete] method={} path={} status={} durationMs={}",
-					request.getMethod(), path(request), response.getStatus(), elapsedMs(startNanos));
+			logComplete(request, response.getStatus(), startNanos);
 		} catch (Exception e) {
 			// 두 advice 를 빠져나간 미처리 예외의 최후 안전망 — advice.unexpected 와 이중화. stack 포함.
 			log.error("[http.request.unhandled] method={} path={} durationMs={} outcome=failed",
@@ -62,6 +61,20 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 		String p = request.getRequestURI();
 		return p.startsWith("/css/") || p.startsWith("/js/") || p.startsWith("/static/")
 				|| p.startsWith("/images/") || p.equals("/favicon.ico");
+	}
+
+	/**
+	 * 요청 경계 canonical line. 5xx 는 advice 가 처리 못 한 미처리 500 도 requestId·path 와 함께 가시화하기 위해 WARN,
+	 * 그 외는 INFO. (advice 가 처리한 5xx 는 advice.* ERROR+stack 으로 별도 1회 — eventCode 가 달라 중복 아님.)
+	 */
+	private void logComplete(HttpServletRequest request, int status, long startNanos) {
+		String fmt = "[http.request.complete] method={} path={} status={} durationMs={}";
+		Object[] args = {request.getMethod(), path(request), status, elapsedMs(startNanos)};
+		if (status >= 500) {
+			log.warn(fmt, args);
+		} else {
+			log.info(fmt, args);
+		}
 	}
 
 	private static String headerOrNew(String header) {
