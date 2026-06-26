@@ -12,6 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
+@ToString
 public class GuestServer extends BaseTimeEntity {
 
     @Id
@@ -28,4 +29,12 @@ public class GuestServer extends BaseTimeEntity {
 
     @Column(name = "memo")
     private String memo;
+
+    /**
+     * 상세 화면 인라인 수정 — 운영자 표시 정보(이름·메모) 갱신.
+     */
+    public void updateBasicInfo(String name, String memo) {
+        this.name = name;
+        this.memo = memo;
+    }
 }

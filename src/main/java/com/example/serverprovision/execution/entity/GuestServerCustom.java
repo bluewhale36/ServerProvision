@@ -14,6 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
+@ToString
 public class GuestServerCustom extends BaseTimeEntity {
 
     @Id
@@ -37,4 +38,12 @@ public class GuestServerCustom extends BaseTimeEntity {
      */
     @Column(name = "serial_number", length = 20, unique = true)
     private String productSerialNumber;
+
+    /**
+     * 상세 화면 인라인 수정 — 사내 모델명·시리얼 번호 갱신.
+     */
+    public void updateIdentity(String productModelName, String productSerialNumber) {
+        this.productModelName = productModelName;
+        this.productSerialNumber = productSerialNumber;
+    }
 }

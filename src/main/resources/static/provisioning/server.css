@@ -1,0 +1,68 @@
+/* ============================================================
+   server.css — 게스트 서버 조회 페이지 (목록 / 상세) 전용 보조 스타일
+   기본 레이아웃/색은 global/style.css · table-list.css 를 재사용하고,
+   여기서는 목록 행 클릭과 상세 페이지 섹션 간격만 보강한다.
+   ============================================================ */
+
+/* ---- 목록 : 행 전체 클릭 ---------------------------------- */
+.n-row-clickable {
+    cursor: pointer;
+}
+
+.n-row-clickable:hover td {
+    background: var(--n-bg-hover, #f5f5f4);
+}
+
+.n-row-link {
+    font-weight: 600;
+    color: var(--n-text);
+    text-decoration: none;
+}
+
+.n-row-link:hover {
+    text-decoration: underline;
+}
+
+/* 모노스페이스 셀(UUID / IP / MAC) 공통 */
+.n-mono {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+/* 값 없음(—) / 비활성 텍스트 */
+.n-muted {
+    color: var(--n-text-muted);
+}
+
+/* ---- 상세 : 섹션 ------------------------------------------ */
+.n-detail-section {
+    margin-top: 28px;
+}
+
+.n-detail-section > .n-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--n-text);
+}
+
+.n-detail-section > .n-section-hint {
+    font-size: 12px;
+    color: var(--n-text-muted);
+    margin-bottom: 12px;
+}
+
+/* 카드 안 소규모 "데이터 없음" 표시 — n-empty(80px) 대신 컴팩트 muted 한 줄 */
+.n-detail-empty {
+    color: var(--n-text-muted);
+    font-size: 13px;
+    margin: 0;
+    padding: 4px 0;
+}
+
+/* 카드 내부에 들어가는 detail-table 의 기본 하단 마진 제거(카드 패딩이 여백 담당) */
+.n-card-body > .n-detail-table:last-child {
+    margin-bottom: 0;
+}
+
+/* primary NIC 강조 배지는 기존 n-badge 재사용 — 별도 색 정의 없음 */

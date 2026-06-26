@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  등록된 게스트 서버 목록 페이지
+  ─────────────────────────────────────────────────────────
+  Model:
+    servers : List<GuestServerSummaryResponse>
+                · id                  : UUID
+                · name                : String (nullable — 운영자 미지정)
+                · systemUuid          : UUID
+                · vendor              : Vendor (nullable)
+                · boardModelName      : String (nullable)
+                · discoveryStage      : DiscoveryStage (nullable)
+                · primaryIp / primaryMac : IpAddressVO / MacAddressVO (nullable)
+                · currentPhase        : ProvisioningPhase (nullable — 프로비저닝 미시작)
+                · createdAt           : LocalDateTime
+
+  행 클릭 시 /provisioning/server/{id} 상세로 이동.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('게스트 서버')}"></th:block>
+    <link rel="stylesheet" th:href="@{/provisioning/server.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('server')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">게스트 서버</h1>
+        <div class="n-header-actions">
+            <span class="n-hint">iPXE 부팅으로 등록된 물리 서버 목록입니다. 행을 클릭하면 상세 정보를 볼 수 있습니다.</span>
+        </div>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div th:if="${#lists.isEmpty(servers)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 게스트 서버가 없습니다.</div>
+            <div class="n-empty-desc">서버가 PXE 부팅으로 <code>/api/pxe/v1/boot</code> 에 진입하면 이곳에 표시됩니다.</div>
+        </div>
+    </div>
+
+    <!-- 서버 목록 -->
+    <div th:unless="${#lists.isEmpty(servers)}" class="n-card">
+    <table class="n-table" id="serverTable">
+        <thead>
+        <tr>
+            <th>이름</th>
+            <th>SMBIOS UUID</th>
+            <th>제조사</th>
+            <th>보드 모델</th>
+            <th>수집 단계</th>
+            <th>호스트 IP</th>
+            <th>호스트 MAC</th>
+            <th>진행 단계</th>
+            <th>등록 시각</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="server : ${servers}"
+            class="n-row-clickable"
+            th:data-href="@{/provisioning/server/{id}(id=${server.id})}">
+            <td>
+                <a class="n-row-link"
+                   th:href="@{/provisioning/server/{id}(id=${server.id})}"
+                   th:text="${server.name != null} ? ${server.name} : '(이름 미지정)'">srv-01</a>
+            </td>
+            <td><code class="n-mono" th:text="${server.systemUuid}">uuid</code></td>
+            <td th:text="${server.vendor != null} ? ${server.vendor.displayName} : '—'">Gigabyte</td>
+            <td th:text="${server.boardModelName != null} ? ${server.boardModelName} : '—'">MS03-CE0</td>
+            <td>
+                <span th:if="${server.discoveryStage != null}"
+                      class="n-badge n-badge-blue" th:text="${server.discoveryStage.description}">iPXE 등록</span>
+                <span th:unless="${server.discoveryStage != null}" class="n-muted">—</span>
+            </td>
+            <td><code class="n-mono" th:text="${server.primaryIp != null} ? ${server.primaryIp.value} : '—'">192.168.1.1</code></td>
+            <td><code class="n-mono" th:text="${server.primaryMac != null} ? ${server.primaryMac.value} : '—'">00:11:22:33:44:55</code></td>
+            <td>
+                <span th:if="${server.currentPhase != null}"
+                      class="n-badge n-badge-green" th:text="${server.currentPhase.description}">부트스트래핑</span>
+                <span th:unless="${server.currentPhase != null}" class="n-muted">미시작</span>
+            </td>
+            <td>
+                <span th:if="${server.createdAt != null}"
+                      th:text="${#temporals.format(server.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2026-06-26 12:00:00</span>
+                <span th:unless="${server.createdAt != null}" class="n-muted">—</span>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<!-- 행 전체 클릭 → 상세 이동. 셀 내부 <a> 는 자체 동작하므로 중복 내비게이션 방지. -->
+<script th:src="@{/provisioning/server-list.js}"></script>
+
+</body>
+</html>

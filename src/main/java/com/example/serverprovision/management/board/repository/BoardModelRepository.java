@@ -51,4 +51,10 @@ public interface BoardModelRepository extends JpaRepository<BoardModel, Long> {
 	 * S5-2-3+ — soft-deleted Board (메타 자원). 휴지통 표시용.
 	 */
 	List<BoardModel> findAllByIsDeletedTrue();
+
+	/**
+	 * PXE 부팅 등록 — iPXE 가 보고한 (vendor, modelName) 으로 활성 보드 모델 단건 조회.
+	 * 정확 일치 + soft-delete 제외로, 폐기/미등록 모델에 서버를 매핑하는 사고를 차단한다.
+	 */
+	Optional<BoardModel> findByVendorAndModelNameAndIsDeletedFalse(Vendor vendor, String modelName);
 }

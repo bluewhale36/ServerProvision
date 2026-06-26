@@ -88,7 +88,9 @@
 
     <!-- Provisioning -->
     <span class="n-nav-link" aria-disabled="true" title="미구현">세팅 정의서</span>
-    <span class="n-nav-link" aria-disabled="true" title="미구현">서버</span>
+    <a th:href="@{/provisioning/server}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'server'} ? ' active'">서버</a>
 
     <!-- 오른쪽 끝: 배경 작업 조회 아이콘 + 드롭다운 패널 -->
     <div class="n-nav-spacer"></div>

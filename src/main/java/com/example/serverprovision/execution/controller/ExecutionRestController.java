@@ -19,6 +19,6 @@ public class ExecutionRestController {
     public ResponseEntity<?> initialBoot(@ModelAttribute BootIPXEInfoRequest initialRequest) {
         log.info("신규 서버 등록 요청 : info={}", initialRequest.toString());
         registrationService.initialRegistry(initialRequest);
-        return null;
+        return ResponseEntity.ok(null);
     }
 }
