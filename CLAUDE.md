@@ -37,6 +37,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - **UI 차단 조건과 서버 가드 조건은 반드시 단일 소스 (SSOT) 를 공유** 한다 (도메인 메서드 1개를 (1) 서버 가드 (2) 뷰모델 disabled 플래그가 함께 호출). 두 곳에 같은 조건을 복붙하면 드리프트 사고 — 위 §중복 금지 / §조건 분기문 원칙과 정합.
   - 도입 슬라이스 : **R2-2** (부모-자식 lifecycle 가드의 UI 1차 차단, 전 도메인 ISO / BIOS / BMC × toggle / restore / undeprecate). 이후 R2-3~ 에서 잔존 예외의 advice 통합 / ProblemDetail / errorCode 정비.
 
+### 설명 · 답변 · 문서 작성 규칙 (불가침)
+- **사실을 풀어서 설명한다 — 과장 · 과도한 함축 금지.** "X 가 핵심이다 / 결정적이다" 류의 단정·압축으로 뭉뚱그리지 말고, 무엇이 어떤 이유로 그러한지를 단계적으로 풀어 쓴다. 인과·전제·예외를 생략해 한 줄로 압축하면 사용자가 그 함축을 스스로 풀어야 하므로 금지. (예 : "GhostOperator 주입이 순환 해소의 핵심" 처럼 인과를 비약하지 말고, "순환은 Trash 작업을 LifecycleService 로 옮겨 scanner 가 repo 직접 빈이 되기 때문에 풀린다 — GhostOperator 주입 여부와는 무관하다" 처럼 실제 기제를 풀어 쓴다.) 답변 · plan/report html · Notion · 코드 주석 모두에 적용.
+- **프로그램 내 객체(클래스 / 인터페이스 / 메서드 / 패키지) 이름을 임의로 줄여 쓰지 않는다.** `SoftDeleteIntentService` 를 `SDIS` 로 쓰는 식의 즉석 약어 금지 — 항상 코드에 실재하는 전체 이름을 쓴다. 임의 약어는 (a) 사용자가 어느 객체인지 추적 불가, (b) `ISP`(Interface Segregation Principle) 같은 설계 전문 용어 약어와 혼동된다.
+- **설계 전문 용어 약어는 객체 약어와 구분하고, 처음 등장 시 풀어서 명시한다.** 예 : `SPI`(Service Provider Interface — 도메인이 구현해 끼워 넣는 확장 지점 인터페이스), `ISP`(Interface Segregation Principle — 인터페이스 분리 원칙), `DI`(Dependency Injection). 이들은 특정 객체의 줄임말이 아니라 일반 설계 용어이며, 본문에서 처음 쓸 때 괄호로 원어 + 한 줄 뜻을 병기한다.
+
 ### 아키텍처 설계 시 주의점
 - 서버의 리소스를 효율적으로 사용하도록 할 것. 예를 들어, 대용량 파일 업로드 시 스트리밍 처리, 불필요한 데이터 로딩, 비교 방지 등.
 - 보안 고려: 민감한 정보(예: IPMI 자격 증명)는 안전하게 저장하고 전송한다. 예를 들어, 데이터베이스에 암호화하여 저장하거나, 환경 변수로 관리한다.
