@@ -7,7 +7,7 @@ import com.example.serverprovision.management.bios.service.BundleEntrypointDetec
 import com.example.serverprovision.management.bios.service.BundleExtractionService;
 import com.example.serverprovision.management.bios.service.BundleManifestService;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse;
 import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;

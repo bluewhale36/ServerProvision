@@ -11,7 +11,7 @@ import com.example.serverprovision.management.common.filesystem.exception.Target
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.board.entity.BoardModel;

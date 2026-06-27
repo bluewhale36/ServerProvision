@@ -1,10 +1,11 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.global.job.IntegrityJobReporter;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.job.stage.IntegrityVerificationStage;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.exception.SubprogramNotFoundException;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
@@ -18,6 +19,8 @@ import java.util.Map;
 
 /**
  * Subprogram 무결성 검증 BackgroundJob 시작자. BMC / BIOS Launcher 와 동일 패턴.
+ *
+ * <p>R5-2 — 결과 enum → Job stage 전이는 공통 {@link IntegrityJobReporter} 로 위임(4 launcher 복제 제거).</p>
  */
 @Slf4j
 @Component
@@ -27,6 +30,7 @@ public class SubprogramVerificationLauncher {
 	private final SubprogramService subprogramService;
 	private final SubprogramRepository subprogramRepository;
 	private final BackgroundJobService backgroundJobService;
+	private final IntegrityJobReporter integrityJobReporter;
 
 	public String startVerification(Long subprogramId) {
 		Subprogram sp = subprogramRepository.findById(subprogramId)
@@ -56,38 +60,10 @@ public class SubprogramVerificationLauncher {
 		try {
 			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
 			IntegrityStatus status = subprogramService.verifyAndRecordIntegrity(subprogramId);
-			applyStatus(jobId, status);
+			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] Subprogram 검증 실패. id={}", subprogramId, e);
 			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
 		}
-	}
-
-	private void applyStatus(String jobId, IntegrityStatus status) {
-		switch (status) {
-			case MARKER_MISSING, SIGNATURE_INVALID -> backgroundJobService.fail(jobId, statusMessage(status));
-			case TAMPERED -> {
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-				backgroundJobService.fail(jobId, statusMessage(status));
-			}
-			case ORIGINAL -> {
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.complete(jobId);
-			}
-			case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
-		}
-	}
-
-	private String statusMessage(IntegrityStatus status) {
-		return switch (status) {
-			case ORIGINAL -> "원본 유지";
-			case TAMPERED -> "변조 감지 (해시 불일치)";
-			case SIGNATURE_INVALID -> "서명 무효";
-			case MARKER_MISSING -> "마커 파일 없음";
-			case NOT_VERIFIED -> "미검증";
-		};
 	}
 }

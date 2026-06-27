@@ -1,13 +1,14 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.job.IntegrityJobReporter;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.job.stage.IntegrityVerificationStage;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -19,7 +20,8 @@ import java.util.Map;
  * BIOS 트리 무결성 검증 Job 시작자. {@link BiosService#verifyIntegrity(Long, Long)} 동기 호출을
  * BackgroundJob 으로 감싼다. 트리 manifest 재계산은 파일 수에 비례해 시간이 늘어나므로 비동기화 효과가 크다.
  *
- * <p>구조는 {@link com.example.serverprovision.management.os.service.iso.IsoVerificationLauncher} 와 대칭.</p>
+ * <p>구조는 {@link com.example.serverprovision.management.os.service.iso.IsoVerificationLauncher} 와 대칭.
+ * R5-2 — 결과 enum → Job stage 전이는 공통 {@link IntegrityJobReporter} 로 위임(4 launcher 복제 제거).</p>
  */
 @Slf4j
 @Component
@@ -29,6 +31,7 @@ public class BiosVerificationLauncher {
 	private final BiosService biosService;
 	private final BiosRepository biosRepository;
 	private final BackgroundJobService backgroundJobService;
+	private final IntegrityJobReporter integrityJobReporter;
 
 	public String startVerification(Long boardId, Long biosId) {
 		BoardBIOS bios = biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
@@ -53,38 +56,10 @@ public class BiosVerificationLauncher {
 		try {
 			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
 			IntegrityStatus status = biosService.verifyAndRecordIntegrity(boardId, biosId);
-			applyStatus(jobId, status);
+			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] BIOS 검증 실패. biosId={}", biosId, e);
 			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
 		}
-	}
-
-	private void applyStatus(String jobId, IntegrityStatus status) {
-		switch (status) {
-			case MARKER_MISSING, SIGNATURE_INVALID -> backgroundJobService.fail(jobId, statusMessage(status));
-			case TAMPERED -> {
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-				backgroundJobService.fail(jobId, statusMessage(status));
-			}
-			case ORIGINAL -> {
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.complete(jobId);
-			}
-			case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
-		}
-	}
-
-	private String statusMessage(IntegrityStatus status) {
-		return switch (status) {
-			case ORIGINAL -> "원본 유지";
-			case TAMPERED -> "변조 감지 (해시 불일치)";
-			case SIGNATURE_INVALID -> "서명 무효";
-			case MARKER_MISSING -> "마커 파일 없음";
-			case NOT_VERIFIED -> "미검증";
-		};
 	}
 }

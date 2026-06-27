@@ -18,7 +18,7 @@ import com.example.serverprovision.management.os.repository.OSPackageGroupReposi
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

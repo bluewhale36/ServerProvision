@@ -20,7 +20,7 @@ import com.example.serverprovision.management.bios.exception.DuplicateBiosVersio
 import com.example.serverprovision.management.bios.exception.IllegalBiosStateException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;

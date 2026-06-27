@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.bmc.dto.response;
 
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 
 /**
  * BMC 단건 응답.

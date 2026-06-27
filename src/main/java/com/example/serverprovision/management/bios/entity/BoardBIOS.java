@@ -96,8 +96,8 @@ public class BoardBIOS extends LifecycleEntity implements Markable {
 	@Enumerated(EnumType.STRING)
 	@Column(name = "last_integrity_status", nullable = false, length = 32)
 	@Builder.Default
-	private com.example.serverprovision.management.bios.vo.IntegrityStatus lastIntegrityStatus =
-			com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED;
+	private com.example.serverprovision.global.marker.IntegrityStatus lastIntegrityStatus =
+			com.example.serverprovision.global.marker.IntegrityStatus.NOT_VERIFIED;
 
 	/**
 	 * 마지막 검증 수행 시각. 미검증 자원은 null.
@@ -174,7 +174,7 @@ public class BoardBIOS extends LifecycleEntity implements Markable {
 	}
 
 	public void recordIntegritySnapshot(
-			com.example.serverprovision.management.bios.vo.IntegrityStatus integrityStatus,
+			com.example.serverprovision.global.marker.IntegrityStatus integrityStatus,
 			Instant verifiedAt
 	) {
 		this.lastIntegrityStatus = integrityStatus;

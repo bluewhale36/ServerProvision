@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.common.dto.response;
 
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.common.view.IntegrityStatusView;
 
 import java.time.Instant;

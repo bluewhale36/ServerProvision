@@ -116,7 +116,7 @@ class SubprogramControllerSecurityFlowTest {
                 1,
                 1024L,
                 "",
-                com.example.serverprovision.management.bios.vo.IntegrityStatus.NOT_VERIFIED,
+                com.example.serverprovision.global.marker.IntegrityStatus.NOT_VERIFIED,
                 true,
                 false,
                 false,

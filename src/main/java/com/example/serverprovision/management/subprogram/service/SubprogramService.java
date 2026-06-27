@@ -13,7 +13,7 @@ import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.bios.service.BundleExtractionService;
 import com.example.serverprovision.management.bios.service.BundleManifestService;
 import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;

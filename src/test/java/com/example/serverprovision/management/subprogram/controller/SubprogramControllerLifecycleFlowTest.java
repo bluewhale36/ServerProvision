@@ -3,7 +3,7 @@ package com.example.serverprovision.management.subprogram.controller;
 import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;

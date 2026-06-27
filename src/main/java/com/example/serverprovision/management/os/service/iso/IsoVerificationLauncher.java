@@ -1,10 +1,11 @@
 package com.example.serverprovision.management.os.service.iso;
 
+import com.example.serverprovision.global.job.IntegrityJobReporter;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.job.stage.IntegrityVerificationStage;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.exception.ISONotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
@@ -27,6 +28,8 @@ import java.util.Map;
  * 같은 클래스 내부 메서드 호출은 프록시를 우회한다. {@link IsoIntegrityService} 안에 두면 self-proxy
  * 패턴이 필요한데 {@code @RequiredArgsConstructor} 와 충돌한다. launcher 를 별도 빈으로 분리하면
  * Service 본체 변경 없이 비동기 진입점만 추가로 갖는다.</p>
+ *
+ * <p>R5-2 — 결과 enum → Job stage 전이는 공통 {@link IntegrityJobReporter} 로 위임(4 launcher 복제 제거).</p>
  */
 @Slf4j
 @Component
@@ -36,6 +39,7 @@ public class IsoVerificationLauncher {
 	private final IsoIntegrityService isoIntegrityService;
 	private final ISORepository isoRepository;
 	private final BackgroundJobService backgroundJobService;
+	private final IntegrityJobReporter integrityJobReporter;
 
 	/**
 	 * 검증 Job 등록 후 비동기 실행. 호출 스레드는 jobId 만 받고 즉시 반환.
@@ -71,38 +75,10 @@ public class IsoVerificationLauncher {
 		try {
 			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
 			IntegrityStatus status = isoIntegrityService.verifyAndRecord(osMetadataId, isoId);
-			applyStatus(jobId, status);
+			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] ISO 검증 실패. isoId={}", isoId, e);
 			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
 		}
-	}
-
-	private void applyStatus(String jobId, IntegrityStatus status) {
-		switch (status) {
-			case MARKER_MISSING, SIGNATURE_INVALID -> backgroundJobService.fail(jobId, statusMessage(status));
-			case TAMPERED -> {
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-				backgroundJobService.fail(jobId, statusMessage(status));
-			}
-			case ORIGINAL -> {
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.startStage(jobId, IntegrityVerificationStage.RECOMPUTE_HASH);
-				backgroundJobService.completeStage(jobId);
-				backgroundJobService.complete(jobId);
-			}
-			case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
-		}
-	}
-
-	private String statusMessage(IntegrityStatus status) {
-		return switch (status) {
-			case ORIGINAL -> "원본 유지";
-			case TAMPERED -> "변조 감지 (해시 불일치)";
-			case SIGNATURE_INVALID -> "서명 무효";
-			case MARKER_MISSING -> "마커 파일 없음";
-			case NOT_VERIFIED -> "미검증";
-		};
 	}
 }

@@ -3,7 +3,7 @@ package com.example.serverprovision.management.os.controller;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;

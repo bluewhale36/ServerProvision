@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.bmc.controller;
 
 import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.exception.BrowseTargetNotDirectoryException;

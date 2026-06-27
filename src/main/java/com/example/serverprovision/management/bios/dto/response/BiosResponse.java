@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.bios.dto.response;
 
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 
 /**
  * BIOS 단건 응답 (v3 — 번들 기반).

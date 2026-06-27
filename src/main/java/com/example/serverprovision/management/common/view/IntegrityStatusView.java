@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.common.view;
 
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 
 /**
  * 무결성 상태를 badge 렌더링 규칙으로 변환한다.

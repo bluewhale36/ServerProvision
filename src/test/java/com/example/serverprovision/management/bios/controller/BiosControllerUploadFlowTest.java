@@ -3,7 +3,7 @@ package com.example.serverprovision.management.bios.controller;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.dto.DirectoryListingResponse;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;

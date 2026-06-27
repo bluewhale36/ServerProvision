@@ -5,7 +5,7 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;

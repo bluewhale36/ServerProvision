@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.subprogram.dto.response;
 
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
 
 /**

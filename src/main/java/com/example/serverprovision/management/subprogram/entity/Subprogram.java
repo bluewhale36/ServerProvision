@@ -3,7 +3,7 @@ package com.example.serverprovision.management.subprogram.entity;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
 import jakarta.persistence.*;

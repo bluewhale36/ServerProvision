@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
-import com.example.serverprovision.management.bios.vo.IntegrityStatus;
+import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
