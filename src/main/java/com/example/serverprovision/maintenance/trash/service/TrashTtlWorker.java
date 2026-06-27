@@ -2,7 +2,7 @@ package com.example.serverprovision.maintenance.trash.service;
 
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.marker.Markable;
-import com.example.serverprovision.global.marker.MarkableScanner;
+import com.example.serverprovision.global.marker.MarkableInventory;
 import com.example.serverprovision.global.trash.PurgeRequest;
 import com.example.serverprovision.global.trash.service.NotificationDispatcher;
 import com.example.serverprovision.global.trash.service.PurgeExecutor;
@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * S5-2-4 CP4 — TTL 30일 경과 자원 자동 hard-delete worker.
  *
- * <p>{@link MarkableScanner} SPI 다형성 활용 — 도메인별 scanner 가 자기 trashed 자원 조회 / 만료
+ * <p>{@link MarkableInventory} SPI 다형성 활용 — 도메인별 scanner 가 자기 trashed 자원 조회 / 만료
  * 검사를 수행하고 본 worker 는 합산만. PurgeExecutor 위임으로 retry / log INSERT 인프라 공유.</p>
  *
  * <p>실패 자원은 휴지통에 남아있으므로 다음 cron tick 에서 자연스럽게 재시도 후보로 식별 —
@@ -31,7 +31,7 @@ import java.util.List;
 public class TrashTtlWorker {
 
 	private final TrashSettingsService settingsService;
-	private final List<MarkableScanner> scanners;
+	private final List<MarkableInventory> scanners;
 	private final PurgeExecutor purgeExecutor;
 	private final NotificationDispatcher notificationDispatcher;
 
@@ -50,7 +50,7 @@ public class TrashTtlWorker {
 		Instant threshold = Instant.now().minus(settingsService.getTtl());
 		int totalAttempted = 0;
 		int totalSuccess = 0;
-		for (MarkableScanner scanner : scanners) {
+		for (MarkableInventory scanner : scanners) {
 			List<Markable> expired = scanner.findTrashedBefore(threshold);
 			if (expired.isEmpty()) continue;
 			log.info(
@@ -96,7 +96,7 @@ public class TrashTtlWorker {
 		for (int d : settingsService.getNotifyDaysBeforeList()) {
 			Instant start = now.minus(ttl).plus(Duration.ofDays(d - 1));
 			Instant end = now.minus(ttl).plus(Duration.ofDays(d));
-			for (MarkableScanner scanner : scanners) {
+			for (MarkableInventory scanner : scanners) {
 				List<Markable> targets = scanner.findTrashedBetween(start, end);
 				if (targets.isEmpty()) continue;
 				log.info("[trash:ttl] type={} D-{} 임박 자원 {}건", scanner.supportedType(), d, targets.size());

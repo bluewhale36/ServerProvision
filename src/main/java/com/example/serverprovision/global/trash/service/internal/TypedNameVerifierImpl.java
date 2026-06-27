@@ -2,7 +2,7 @@ package com.example.serverprovision.global.trash.service.internal;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.global.marker.Markable;
-import com.example.serverprovision.global.marker.MarkableScanner;
+import com.example.serverprovision.global.marker.MarkableInventory;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.global.ui.exception.ModalContextNotFoundException;
@@ -32,15 +32,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TypedNameVerifierImpl implements TypedNameVerifier {
 
-	private final List<MarkableScanner> scanners;
+	private final List<MarkableInventory> scanners;
 
-	private Map<ResourceType, MarkableScanner> scannerByType() {
-		return scanners.stream().collect(Collectors.toMap(MarkableScanner::supportedType, s -> s));
+	private Map<ResourceType, MarkableInventory> scannerByType() {
+		return scanners.stream().collect(Collectors.toMap(MarkableInventory::supportedType, s -> s));
 	}
 
 	@Override
 	public void verify(ResourceType resourceType, Long resourceId, String typedName) {
-		MarkableScanner scanner = scannerByType().get(resourceType);
+		MarkableInventory scanner = scannerByType().get(resourceType);
 		if (scanner == null) {
 			throw new IllegalStateException("지원하지 않는 자원 종류 : " + resourceType);
 		}
@@ -62,7 +62,7 @@ public class TypedNameVerifierImpl implements TypedNameVerifier {
 
 	@Override
 	public String resolveExpectedName(ResourceType resourceType, Long resourceId) {
-		MarkableScanner scanner = scannerByType().get(resourceType);
+		MarkableInventory scanner = scannerByType().get(resourceType);
 		if (scanner == null) {
 			throw new IllegalStateException("지원하지 않는 자원 종류 : " + resourceType);
 		}

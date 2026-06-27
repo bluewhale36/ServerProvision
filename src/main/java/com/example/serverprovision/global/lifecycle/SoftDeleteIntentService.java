@@ -3,7 +3,7 @@ package com.example.serverprovision.global.lifecycle;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.lifecycle.exception.SoftDeleteRequiresIntentException;
 import com.example.serverprovision.global.marker.Markable;
-import com.example.serverprovision.global.marker.MarkableScanner;
+import com.example.serverprovision.global.marker.MarkableGhostOperator;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
@@ -39,7 +39,8 @@ public class SoftDeleteIntentService {
 	private final ResourceExistenceChecker resourceExistenceChecker;
 	private final DeleteIntentRegistry deleteIntentRegistry;
 	private final PathReconciliationService pathReconciliationService;
-	private final List<MarkableScanner> scanners;
+	// R7-1 — forcedClear 가 호출하는 scanner 메서드는 applyForcedClear(ghost) 하나뿐이라 좁은 MarkableGhostOperator 만 주입(ISP).
+	private final List<MarkableGhostOperator> scanners;
 
 	/**
 	 * DCM3-2.10 — feature flag 게이팅. default false (도입 직후) → 운영 검증 후 true.
@@ -58,7 +59,7 @@ public class SoftDeleteIntentService {
 			ResourceExistenceChecker resourceExistenceChecker,
 			DeleteIntentRegistry deleteIntentRegistry,
 			@Lazy PathReconciliationService pathReconciliationService,
-			@Lazy List<MarkableScanner> scanners
+			@Lazy List<MarkableGhostOperator> scanners
 	) {
 		this.resourceExistenceChecker = resourceExistenceChecker;
 		this.deleteIntentRegistry = deleteIntentRegistry;
@@ -170,10 +171,10 @@ public class SoftDeleteIntentService {
 	 * 4 scanner 의 {@link MarkableScanner#applyForcedClear} 신규 SPI 호출.
 	 */
 	public void forcedClear(ResourceType type, Long resourceId) {
-		MarkableScanner scanner = scanners.stream()
+		MarkableGhostOperator scanner = scanners.stream()
 				.filter(s -> s.supportedType() == type)
 				.findFirst()
-				.orElseThrow(() -> new IllegalStateException("No MarkableScanner for type: " + type));
+				.orElseThrow(() -> new IllegalStateException("No MarkableGhostOperator for type: " + type));
 		scanner.applyForcedClear(resourceId);
 		log.info("[softdelete-saga] forcedClear 완료. type={} id={}", type, resourceId);
 	}
