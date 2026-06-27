@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R5-2 plan — IntegrityStatus method-per-constant 다형성화</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--orange:#dd5b00;--orange-bg:rgba(221,91,0,.10);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--green:#1a7f37;--green-bg:#dafbe1;
+    --red:#bf2626;--red-bg:rgba(191,38,38,.09);--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);
+    padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .chip.keep{background:var(--green-bg);color:var(--green)}
+  .chip.mod{background:var(--orange-bg);color:var(--orange)}
+  .chip.del{background:var(--red-bg);color:var(--red)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);
+    border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px;counter-reset:s}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .split-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+  .split-card{border:1px solid var(--border);border-radius:8px;padding:11px 13px}
+  .split-card.before{background:var(--red-bg);border-color:rgba(191,38,38,.25)}
+  .split-card.after{background:var(--green-bg);border-color:rgba(26,127,55,.25)}
+  .split-card h5{margin:0 0 6px;font-size:12px}
+  .hidden{display:none}
+  /* live demo */
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-bottom:1px solid var(--border)}
+  .ux-toolbar .grp{display:flex;gap:4px;align-items:center;padding:3px 8px;background:var(--card);border:1px solid var(--border);border-radius:7px}
+  .ux-toolbar .grp b{font-size:10.5px;color:var(--muted);margin-right:4px;text-transform:uppercase;letter-spacing:.4px}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .st-row{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--soft)}
+  .st-btn{border:1px solid var(--border);background:var(--card);padding:5px 10px;font-size:12px;border-radius:7px;cursor:pointer;font-family:var(--mono)}
+  .st-btn.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .ux-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .ux-col{padding:12px 14px}
+  .ux-col+.ux-col{border-left:1px solid var(--soft)}
+  .ux-col h5{margin:0 0 8px;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600}
+  .n-badge-green{background:var(--green-bg);color:var(--green)}
+  .n-badge-red{background:var(--red-bg);color:var(--red)}
+  .n-badge-orange{background:var(--orange-bg);color:var(--orange)}
+  .n-badge-gray{background:var(--soft);color:var(--muted)}
+  .jobline{font-family:var(--mono);font-size:11.5px;padding:2px 0;color:var(--text)}
+  .jobline .ok{color:var(--green)} .jobline .fail{color:var(--red)} .jobline .stg{color:var(--blue)}
+  .ux-caps{padding:11px 14px;background:var(--bg);border-top:1px solid var(--soft);font-size:12.5px;display:flex;gap:18px;flex-wrap:wrap}
+  .ux-caps .k{font-weight:700}
+  .ocnum{font-family:var(--mono);font-weight:700}
+  .ocnum.bad{color:var(--red)} .ocnum.good{color:var(--green)}
+  .check-list{list-style:none;padding:0}
+  .check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}
+  .check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}.split-grid,.ux-body{grid-template-columns:1fr}.ux-col+.ux-col{border-left:none;border-top:1px solid var(--soft)}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R5-2 — IntegrityStatus method-per-constant 다형성화 <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R5-2 (재정의 · refactor)</span>
+    <span><strong>scope</strong> 4 verification launcher 의 statusMessage/applyStatus 복제 제거 → enum + 공통 reporter</span>
+    <span><strong>전제</strong> 없음 (독립 · 순환 무관)</span>
+    <span><strong>생성</strong> 2026-06-27 KST</span>
+    <span><strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 요약</a></li>
+      <li><a href="#s2">§2 요구사항 (확정)</a></li>
+      <li><a href="#sd">🎬 라이브 미리보기</a></li>
+      <li><a href="#s3">§3 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 + 결정</a></li>
+      <li><a href="#s5">§5 수직 슬라이스 10단계</a></li>
+      <li><a href="#s6">§6 Step 8 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 예상 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 요약</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>R5-2 는 재검증으로 재정의됐다.</b> 원안의 두 명제 중 <span class="chip del">DELETE</span> <code>BmcVerificationLauncher → Launcher/Runner 분리</code>는 폐기(God-class 부재·87줄, <code>IsoVerificationLauncher</code> javadoc 이 register+runAsync 단일클래스를 <code>@Async</code> proxy 의도로 못박음, 4 launcher 중 Runner 짝 0 = 분리 시 비대칭 churn). 남은 <span class="chip mod">PROCEED</span> 명제 — <b>중복 switch 의 다형성화 + 공통화</b> — 만 본 슬라이스로 진행하며 scope 를 확대한다.</p>
+        <h4>실측 중복 (4 verification launcher)</h4>
+        <table>
+          <thead><tr><th>메서드</th><th>BIOS</th><th>ISO</th><th>BMC</th><th>Subprogram</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">statusMessage(IntegrityStatus)</td><td class="mono">81-88</td><td class="mono">99-106</td><td class="mono">78-85</td><td class="mono">84-91</td><td><b>글자단위 동일</b> (5-case → 한국어 라벨, 외부 의존 0)</td></tr>
+            <tr><td class="mono">applyStatus(jobId, status)</td><td class="mono">63-78</td><td class="mono">81-97</td><td class="mono">60-75</td><td class="mono">66-82</td><td><b>동일</b> (Job stage 부수효과 보유)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>§중복 불가침 위반</b> — 동일 switch 가 4 곳에 복붙. 새 <code>IntegrityStatus</code> 상수를 추가하면 <b>8 개 switch</b>(4 launcher × 2 메서드)를 모두 고쳐야 하고, 하나라도 빠뜨리면 컴파일은 통과(exhaustive switch 라 새 상수 누락 시 컴파일 에러는 나지만, 메시지/전이 누락은 런타임까지 잠복) — Open/Closed 위반.</div>
+        <p class="dim">진입 전제 : 없음. 순환/SPI/서비스 분리와 완전히 분리된 영역(verification launcher + IntegrityStatus enum). 권고 로드맵상 가장 먼저 진행 가능.</p>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2">
+      <summary>§2. 페이지 요구사항 (확정 규칙)</summary>
+      <div class="body">
+        <ol>
+          <li><b>displayMessage → enum 흡수.</b> 4× <code>statusMessage</code> 를 <code>IntegrityStatus.getDisplayMessage()</code> 단일 소스로. 순수 string 이라 enum 자기 책임(도메인 설명)에 정합 — 외부 의존 0.</li>
+          <li><b>applyStatus → 공통 reporter 추출 (enum 오염 회피).</b> Job stage 전이(<code>backgroundJobService</code> · <code>IntegrityVerificationStage</code>)는 인프라 부수효과라 <b>enum 에 넣지 않는다</b>. 신규 <code>@Component IntegrityJobReporter</code> 가 흡수, 4 launcher 가 위임.</li>
+          <li><b>badgeClass 정합.</b> <code>IntegrityStatusView.badgeClass</code> 는 이미 단일 소스(common/view) — 중복 대상 아님. presentation(CSS) 책임이라 View 에 유지. enum 의 displayMessage(도메인) ↔ View 의 badgeClass(표현) 레이어 분리 확인 + 둘 다 5 상수 exhaustive 임을 회귀로 고정.</li>
+          <li><b>동작 100% 보존 (불가침).</b> 4 launcher 의 verify 결과(Job 성공/실패 · stage 전이 · 메시지 텍스트 · badge)는 글자단위 동일하게 유지. 순수 구조 refactor.</li>
+          <li><b>Launcher/Runner 분리 안 함.</b> 원안 R5-2a 폐기 — 4 launcher 의 register+runAsync 단일클래스 구조 유지.</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- 🎬 LIVE DEMO -->
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 미리보기 — status 를 골라 message/badge/Job전이 + Open/Closed 비용을 직접 확인</summary>
+      <div class="body">
+        <p style="margin-top:0">아래는 <b>실제 도메인 규칙을 그대로 시뮬레이션</b>하는 위젯이다. <code>IntegrityStatus</code> 상수를 고르면 <code>displayMessage</code>·<code>badgeClass</code>·<code>applyStatus</code>(Job stage 전이)가 어떻게 해석되는지 보여주고, <b>before(4× switch) / after(enum + reporter)</b> 토글로 "새 status 추가 시 수정 위치 수"를 정량 비교한다. 도메인(BIOS/BMC/ISO/Subprogram)을 바꿔도 <b>before 는 같은 코드가 4벌</b>임을 드러낸다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <div class="grp"><b>view</b>
+              <button class="ux-btn" data-view="before">현재 (4× switch)</button>
+              <button class="ux-btn on" data-view="after">개편 후 (enum + reporter)</button>
+            </div>
+            <div class="grp"><b>domain</b>
+              <button class="ux-btn on" data-dom="BIOS">BIOS</button>
+              <button class="ux-btn" data-dom="BMC">BMC</button>
+              <button class="ux-btn" data-dom="ISO">ISO</button>
+              <button class="ux-btn" data-dom="SUB">Subprogram</button>
+            </div>
+          </div>
+          <div class="st-row" id="stRow"></div>
+          <div class="ux-body">
+            <div class="ux-col">
+              <h5>해석 결과 (verify → status)</h5>
+              <div id="resolve"></div>
+            </div>
+            <div class="ux-col">
+              <h5>코드 위치 (이 로직이 사는 곳)</h5>
+              <div id="located" class="mono" style="font-size:11.5px;line-height:1.7"></div>
+            </div>
+          </div>
+          <div class="ux-caps" id="caps"></div>
+        </div>
+        <p class="dim">판정 로직은 §4 의 enum/reporter 설계를 그대로 재현 — 데모에서 본 message/badge/Job전이가 곧 구현 후 동작이다.</p>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 데이터 흐름 (URL 변경 없음 — 내부 refactor)</summary>
+      <div class="body">
+        <p style="margin-top:0">R5-2 는 신규 엔드포인트/페이지가 없다. 각 도메인의 기존 <code>verify</code> 엔드포인트(예 <code>POST /management/bios/.../verify</code>)가 그대로 유지되며, 그 뒤 <code>@Async</code> 후처리 경로의 중복만 정리한다.</p>
+        <div class="split-grid">
+          <div class="split-card before"><h5>현재 (도메인마다 동일 사본)</h5>
+<pre>@Async runAsync(jobId, ...) {
+  status = service.verifyAndRecord(...)
+  applyStatus(jobId, status)   // ← 4벌 복붙
+}
+private applyStatus(jobId, status){ switch(status){...} } // 4벌
+private statusMessage(status){ switch(status){...} }       // 4벌</pre></div>
+          <div class="split-card after"><h5>개편 후 (단일 소스 위임)</h5>
+<pre>@Async runAsync(jobId, ...) {
+  status = service.verifyAndRecord(...)
+  integrityJobReporter.report(jobId, status) // 위임 1줄
+}
+// statusMessage 삭제 → IntegrityStatus.getDisplayMessage()
+// applyStatus 삭제 → IntegrityJobReporter (공통 @Component)</pre></div>
+        </div>
+        <h4>전이 규칙 (applyStatus → reporter, 보존)</h4>
+        <table>
+          <thead><tr><th>IntegrityStatus</th><th>Job 전이</th><th>displayMessage</th><th>badgeClass</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">ORIGINAL</td><td>completeStage → start(RECOMPUTE_HASH) → completeStage → <b>complete</b></td><td>원본 유지</td><td><span class="badge n-badge-green">n-badge-green</span></td></tr>
+            <tr><td class="mono">TAMPERED</td><td>completeStage → start(RECOMPUTE_HASH) → <b>fail</b>(msg)</td><td>변조 감지 (해시 불일치)</td><td><span class="badge n-badge-red">n-badge-red</span></td></tr>
+            <tr><td class="mono">SIGNATURE_INVALID</td><td><b>fail</b>(msg)</td><td>서명 무효</td><td><span class="badge n-badge-orange">n-badge-orange</span></td></tr>
+            <tr><td class="mono">MARKER_MISSING</td><td><b>fail</b>(msg)</td><td>마커 파일 없음</td><td><span class="badge n-badge-gray">n-badge-gray</span></td></tr>
+            <tr><td class="mono">NOT_VERIFIED</td><td><b>fail</b>("검증 결과를 받지 못했습니다.")</td><td>미검증</td><td><span class="badge n-badge-gray">n-badge-gray</span></td></tr>
+          </tbody>
+        </table>
+        <p class="dim">※ <code>NOT_VERIFIED</code> 의 fail 문구는 displayMessage("미검증")가 아니라 별도 안내 문자열 — reporter 가 그대로 보존(현행 동작).</p>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 + 결정 (D1~D3)</summary>
+      <div class="body">
+        <h4>IntegrityStatus (enum) → global/marker 이동</h4>
+        <p style="margin-top:0">5 상수 + <code>displayMessage</code> 흡수, 그리고 <b><code>management/bios/vo/</code> → <code>global/marker/</code> 로 이동</b>(사용자 요청, R5-2 포함). <code>IntegrityStatus</code> 는 마커 검증 결과(서명·manifestHash·마커존재)라 <code>global/marker</code> 의 <code>DriftKind</code>·<code>ResourceType</code> 형제 — BIOS 패키지가 4 도메인 공용 타입을 소유하던 smell 해소.</p>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>선택지</th><th>권장</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>displayMessage 표현 형태</td><td>(A) 생성자 필드 <code>IntegrityStatus(String displayMessage)</code> + getter <br>(B) abstract method-per-constant</td><td><b>(A)</b> — 순수 데이터(string)라 생성자 필드가 idiom. behavior 가 없으므로 abstract method 는 과함. <span class="dim">("method-per-constant"는 분기 다형성화의 일반 표현이고, 데이터 라벨엔 enum field 가 그 구현형)</span></td></tr>
+            <tr><td><b>D2</b></td><td>applyStatus 추출 대상</td><td>(A) <code>@Component IntegrityJobReporter</code> <br>(B) enum method <br>(C) static util</td><td><b>(A)</b> — <code>BackgroundJobService</code> bean 의존이라 @Component 필수. enum 에 넣으면 도메인 enum 이 Job 인프라에 의존(오염). static util 은 bean 주입 불가.</td></tr>
+            <tr><td><b>D3</b></td><td>badgeClass 처리</td><td>(A) View 유지(단일 소스 확인만) <br>(B) enum 으로 이동</td><td><b>(A)</b> — badgeClass 는 CSS 표현 책임 → presentation 레이어(View) 유지가 layering 정합. 이미 단일 소스라 dedup 불요. displayMessage(도메인) ↔ badgeClass(표현) 분리.</td></tr>
+            <tr><td><b>D4</b></td><td>IntegrityStatus 위치</td><td>(A) <code>global/marker/</code> 이동 <br>(B) <code>bios/vo</code> 유지 <br>(C) <code>management/common</code></td><td><b>(A)</b> — 마커 검증 결과 = 마커 개념(DriftKind 형제). 도메인 무관·15 파일 4 도메인 참조라 bios 소유는 smell. import churn ~11 파일은 경로 한 줄씩(무위험). IntegrityJobReporter 위치는 <b>global/job</b> 권장(부수효과·stage 의존이 job).</td></tr>
+          </tbody>
+        </table>
+        <h4>이동 대상 / 비대상 (타입별)</h4>
+        <table>
+          <thead><tr><th>타입</th><th>현재 → 목적지</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">IntegrityStatus (enum)</td><td><b>bios/vo → global/marker</b></td><td>마커 검증 결과, DriftKind 형제, 도메인 무관</td></tr>
+            <tr><td class="mono">IntegrityStatusView (badgeClass)</td><td>common/view <b>유지</b></td><td>status→CSS = presentation, 마커 인프라가 CSS 알면 안 됨</td></tr>
+            <tr><td class="mono">IntegrityVerificationStage</td><td>global/job/stage <b>유지</b></td><td>Job stage enum, 이미 정위치</td></tr>
+            <tr><td class="mono">IntegrityJobReporter (신규)</td><td>→ <b>global/job</b></td><td>BackgroundJobService·Stage 의존 + Job 부수효과 = job 소관</td></tr>
+            <tr><td class="mono">IntegrityStatusResponse (DTO)</td><td>common/dto <b>유지</b></td><td>response transport</td></tr>
+          </tbody>
+        </table>
+        <h4>IntegrityJobReporter (신규 @Component, global/job)</h4>
+        <pre>@Component
+@RequiredArgsConstructor
+public class IntegrityJobReporter {
+    private final BackgroundJobService backgroundJobService;
+    public void report(String jobId, IntegrityStatus status) {
+        switch (status) {  // ← 4벌 → 1벌 (Job 전이 SSOT)
+            case MARKER_MISSING, SIGNATURE_INVALID -> backgroundJobService.fail(jobId, status.getDisplayMessage());
+            case TAMPERED -> { ... fail(status.getDisplayMessage()); }
+            case ORIGINAL -> { ... complete(jobId); }
+            case NOT_VERIFIED -> backgroundJobService.fail(jobId, "검증 결과를 받지 못했습니다.");
+        }
+    }
+}</pre>
+        <p class="dim">위치 : <code>global/job/</code> (또는 <code>global/job/service/</code>) — <code>BackgroundJobService</code>·<code>IntegrityVerificationStage</code> 의존이 둘 다 job 이고 입력만 <code>global/marker.IntegrityStatus</code>. import: <code>IntegrityStatus</code> 는 이동 후 global/marker 에서.</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10단계 (refactor 적응)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>本 plan html (CP1)</td><td>CP1</td></tr>
+            <tr><td>2~5</td><td>신규 엔티티/DTO/URL 없음 → <b>해당 없음</b>. (refactor 라 뷰/컨트롤러/DTO 변경 0)</td><td>—</td></tr>
+            <tr><td>6</td><td>Repository 변경 없음</td><td>—</td></tr>
+            <tr><td>7</td><td>Entity 변경 없음. <code>IntegrityStatus</code> enum 에 displayMessage 필드 추가(엔티티 아님)</td><td>CP3</td></tr>
+            <tr><td>8</td><td><b>핵심</b> — IntegrityStatus.displayMessage + IntegrityJobReporter 구현 + 4 launcher 위임 전환 + statusMessage/applyStatus 삭제. 단위 테스트(enum 5-case · reporter 5-status) + 4 launcher 회귀(동작 불변)</td><td>CP4</td></tr>
+            <tr><td>9</td><td>스키마 변경 없음 (enum 은 영속 타입 아님 — 코드 상수)</td><td>CP4</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 4 도메인 verify 버튼 → badge/Job 알림 동일 확인 (사용자 단독)</td><td>CP5</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">CP2/CP3 가 비는 refactor 슬라이스 — CP1 승인 후 CP4 까지 무중단 진행이 자연스럽다.</p>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <p style="margin-top:0">신규 엔드포인트가 없어 HTTP 통합 시나리오(성공/400/404/409/500)는 비대상. 대신 <b>다형성 단위 + 동작 불변 회귀</b>가 핵심.</p>
+        <table>
+          <thead><tr><th>레이어</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>단위 — IntegrityStatus</td><td>5 상수 각각의 <code>getDisplayMessage()</code> 가 정확한 라벨 반환 (parameterized)</td><td>5</td></tr>
+            <tr><td>단위 — IntegrityJobReporter</td><td>5 status 각각 <code>report()</code> 호출 시 <code>BackgroundJobService</code> mock 의 fail/complete/stage 호출 시퀀스 검증 (ORIGINAL=4콜 / TAMPERED=3콜 / SIGNATURE_INVALID·MARKER_MISSING=1 fail / NOT_VERIFIED=1 fail+안내문구). InOrder</td><td>5</td></tr>
+            <tr><td>회귀 — 4 launcher</td><td>각 launcher 가 <code>integrityJobReporter.report(jobId, status)</code> 로 위임하는지 (verify→status→report 경로). 기존 launcher 단위/flow 테스트가 동작 불변으로 green</td><td>4</td></tr>
+            <tr><td>회귀 — badgeClass</td><td><code>IntegrityStatusView.badgeClass</code> 5 상수 매핑 불변 (이미 있으면 유지)</td><td>5</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">새 예외 클래스 0 → 예외 트리거 시나리오 추가 없음.</p>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>신규 0 · 재사용 0.</b> R5-2 는 예외 흐름을 건드리지 않는다 — verify 실패는 기존대로 <code>BackgroundJobService.fail</code> 로 Job 상태에 기록(예외 throw 아님). enum/reporter 추출은 예외 계층과 무관.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의</summary>
+      <div class="body">
+        <ul>
+          <li><b>applyStatus 를 enum 에 넣지 않는다 (불가침).</b> Job stage 전이는 인프라 부수효과 — 도메인 enum 에 넣으면 <code>IntegrityStatus</code> 가 <code>BackgroundJobService</code>·<code>IntegrityVerificationStage</code> 에 의존하게 되어 오염. displayMessage(순수 데이터)만 enum.</li>
+          <li><b>IntegrityStatus → global/marker 이동 포함 (사용자 요청, D4).</b> 4 도메인 공용 마커 검증 결과가 <code>bios/vo</code> 에 있던 smell 해소. 이동 대상은 <b>enum 1개뿐</b> — View(presentation)·Stage(job)·Response(dto)·Reporter(job)는 각자 레이어 유지. import churn = 15 참조 파일의 경로 한 줄씩(로직 변경 0, IDE move-refactor). R5-2 가 이미 enum + 4 launcher 를 편집하므로 동반 비용 최소.</li>
+          <li><b>(범위 밖, 향후 후보) verifyIntegrity 자체의 도메인별 중복.</b> <code>BiosService.verifyIntegrity</code> / <code>IsoIntegrityService</code> / <code>BmcService</code> / <code>SubprogramService</code> 가 모두 "마커 read → verifySignature → verifyManifestHash → IntegrityStatus 매핑"을 반복. IntegrityStatus 가 global/marker 로 가면 <code>ProvisionMarkerService.verify(Markable) → IntegrityStatus</code> 단일화 여지가 생긴다 — 단 blast radius 큼, R5-2 밖(후속 슬라이스).</li>
+          <li><b>badgeClass 는 그대로.</b> 이미 단일 소스라 손대지 않음. "정합"은 displayMessage/badgeClass 가 각각 exhaustive 단일 소스임을 확인하는 것까지.</li>
+          <li><b>동작 불변 보증.</b> reporter 의 switch 는 현행 applyStatus 와 호출 시퀀스가 글자단위 동일해야 함 — CP4 단위 테스트가 InOrder 로 고정.</li>
+          <li><b>CLAUDE.md 수정 없음.</b> 인벤토리 코드/아키텍처 변동 없는 내부 refactor.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="r52-build">
+          <li><input type="checkbox"><span><code>./gradlew compileJava</code> SUCCESS — 4 launcher 의 statusMessage/applyStatus 삭제 후에도 컴파일</span></li>
+          <li><input type="checkbox"><span><code>./gradlew test</code> 전체 green (827+)</span></li>
+        </ul>
+        <h4>기능 (동작 불변)</h4>
+        <ul class="check-list" data-storage="r52-func">
+          <li><input type="checkbox"><span>4 도메인 verify → 5 status 별 Job 전이/메시지/badge 가 개편 전과 동일</span></li>
+          <li><input type="checkbox"><span>새 status 추가 시뮬레이션: enum 1 + reporter 1 + view 1 = 3곳만 수정으로 충분(컴파일러가 강제)</span></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="r52-reg">
+          <li><input type="checkbox"><span>기존 *VerificationLauncher 단위/flow 테스트 green</span></li>
+          <li><input type="checkbox"><span>statusMessage/applyStatus private 메서드가 4 launcher 에서 완전 제거됨(잔존 0, grep 확인)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <ul>
+          <li class="mono">global/job/IntegrityJobReporter.java — applyStatus 흡수 @Component</li>
+          <li class="mono">test: IntegrityStatusTest · IntegrityJobReporterTest</li>
+        </ul>
+        <h4>이동 (D4)</h4>
+        <ul>
+          <li class="mono">management/bios/vo/IntegrityStatus.java → <b>global/marker/IntegrityStatus.java</b> (+ displayMessage 필드/getter) — 참조 15 파일 import 경로 갱신(BiosResponse/ISOResponse/BmcResponse/SubprogramResponse · IntegrityStatusResponse · IntegrityStatusView · Bios/Bmc/Subprogram Service · IsoIntegrityService · Subprogram entity · 4 launcher)</li>
+        </ul>
+        <h4>수정</h4>
+        <ul>
+          <li class="mono">management/bios/service/BiosVerificationLauncher.java — statusMessage/applyStatus 삭제 + reporter 위임</li>
+          <li class="mono">management/os/service/iso/IsoVerificationLauncher.java — 동일</li>
+          <li class="mono">management/bmc/service/BmcVerificationLauncher.java — 동일</li>
+          <li class="mono">management/subprogram/service/SubprogramVerificationLauncher.java — 동일</li>
+        </ul>
+        <h4>유지 (변경 없음)</h4>
+        <ul>
+          <li class="mono">management/common/view/IntegrityStatusView.java — badgeClass 단일 소스 그대로 (import 만 갱신)</li>
+          <li class="mono">global/job/stage/IntegrityVerificationStage.java · BackgroundJobService — 호출만, 위치 변경 0</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <p style="margin-top:0">재정렬 로드맵 순서:</p>
+        <ol>
+          <li><b>R5-2</b> (본 슬라이스) — 독립, 전제 0.</li>
+          <li><b>R7-1</b> — MarkableScanner 5~6 sub-interface 분리(인프라). R7 전체 + ping-pong 없는 fat-service 분리의 토대.</li>
+          <li><b>R7-2 (OS) + R7-3 (Board)</b> — REAL ObjectProvider 제거 (service 분리 불요, 즉시 가능).</li>
+          <li><b>R4-3 → R7-4 / R5-3 → R7-5 / R6-3 → R7-6</b> — fat-service 분리(typed-name inline 유지) → scanner back-edge 제거.</li>
+        </ol>
+        <p class="dim">R5-2 는 위 어느 것에도 의존하지 않으므로, 본 슬라이스 완료 후 R7-1 CP1 으로 진입한다.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ToC / 접기 / 검색
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  // localStorage 체크리스트
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  // ===== 🎬 라이브 데모 =====
+  const STATUS = {
+    ORIGINAL:        {msg:'원본 유지',            badge:'n-badge-green',  job:[['stg','completeStage'],['stg','startStage(RECOMPUTE_HASH)'],['stg','completeStage'],['ok','complete ✓']]},
+    TAMPERED:        {msg:'변조 감지 (해시 불일치)', badge:'n-badge-red',    job:[['stg','completeStage'],['stg','startStage(RECOMPUTE_HASH)'],['fail','fail("변조 감지 (해시 불일치)")']]},
+    SIGNATURE_INVALID:{msg:'서명 무효',           badge:'n-badge-orange', job:[['fail','fail("서명 무효")']]},
+    MARKER_MISSING:  {msg:'마커 파일 없음',        badge:'n-badge-gray',   job:[['fail','fail("마커 파일 없음")']]},
+    NOT_VERIFIED:    {msg:'미검증',               badge:'n-badge-gray',   job:[['fail','fail("검증 결과를 받지 못했습니다.")']]},
+  };
+  const DOM = {BIOS:'BiosVerificationLauncher', BMC:'BmcVerificationLauncher', ISO:'IsoVerificationLauncher', SUB:'SubprogramVerificationLauncher'};
+  const st={view:'after', dom:'BIOS', status:'ORIGINAL'};
+
+  const stRow=document.getElementById('stRow');
+  Object.keys(STATUS).forEach(k=>{
+    const b=document.createElement('button');
+    b.className='st-btn'+(k===st.status?' on':'');b.textContent=k;b.dataset.s=k;
+    b.addEventListener('click',()=>{st.status=k;sync();render();});
+    stRow.appendChild(b);
+  });
+  function sync(){
+    document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===st.view));
+    document.querySelectorAll('[data-dom]').forEach(b=>b.classList.toggle('on',b.dataset.dom===st.dom));
+    document.querySelectorAll('[data-s]').forEach(b=>b.classList.toggle('on',b.dataset.s===st.status));
+  }
+  document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{st.view=b.dataset.view;sync();render();}));
+  document.querySelectorAll('[data-dom]').forEach(b=>b.addEventListener('click',()=>{st.dom=b.dataset.dom;sync();render();}));
+
+  function render(){
+    const s=STATUS[st.status];
+    // 해석 결과
+    let html=`<div style="margin-bottom:9px"><span class="dim">displayMessage</span><br><b>"${s.msg}"</b></div>`;
+    html+=`<div style="margin-bottom:9px"><span class="dim">badgeClass</span><br><span class="badge ${s.badge}">${s.badge}</span></div>`;
+    html+=`<div><span class="dim">applyStatus → Job 전이</span><br>`+
+      s.job.map(j=>`<div class="jobline"><span class="${j[0]}">${j[1].includes('fail')?'✗':'›'}</span> ${j[1]}</div>`).join('')+`</div>`;
+    document.getElementById('resolve').innerHTML=html;
+
+    // 코드 위치
+    let loc='';
+    if(st.view==='before'){
+      loc=`<span style="color:var(--red)">▸ ${DOM[st.dom]}.statusMessage()</span>  switch 5-case
+<span style="color:var(--red)">▸ ${DOM[st.dom]}.applyStatus()</span>     switch 5-case
+<span class="dim">…그리고 나머지 3 launcher 에 똑같은 사본이 또 있음</span>
+<span style="color:var(--blue)">▸ IntegrityStatusView.badgeClass()</span> (이미 단일)`;
+    } else {
+      loc=`<span style="color:var(--green)">▸ IntegrityStatus.${st.status}</span> → getDisplayMessage()  <span class="dim">(enum 단일 소스)</span>
+<span style="color:var(--green)">▸ IntegrityJobReporter.report()</span>   switch 5-case  <span class="dim">(공통 @Component 단일)</span>
+<span style="color:var(--blue)">▸ IntegrityStatusView.badgeClass()</span> (유지)
+<span class="dim">${DOM[st.dom]} → integrityJobReporter.report(jobId, status) 위임 1줄</span>`;
+    }
+    document.getElementById('located').innerHTML=loc;
+
+    // Open/Closed 정량
+    const cap=document.getElementById('caps');
+    if(st.view==='before'){
+      cap.innerHTML=`<span><span class="k">새 IntegrityStatus 추가 시 수정 위치 :</span> <span class="ocnum bad">9곳</span> (4 launcher × statusMessage+applyStatus = 8 + View 1)</span>
+        <span class="k" style="color:var(--red)">§중복 위반 · Open/Closed 위반</span>`;
+    } else {
+      cap.innerHTML=`<span><span class="k">새 IntegrityStatus 추가 시 수정 위치 :</span> <span class="ocnum good">3곳</span> (enum 1 + reporter 1 + View 1, 전부 exhaustive switch → 컴파일러 강제)</span>
+        <span class="k" style="color:var(--green)">단일 소스 · Open/Closed 준수</span>`;
+    }
+  }
+  sync();render();
+</script>
+</body>
+</html>

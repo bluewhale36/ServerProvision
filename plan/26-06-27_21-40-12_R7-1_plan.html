@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R7-1 plan — MarkableScanner SPI 분리 (순환 근본해결 인프라)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--orange:#dd5b00;--orange-bg:rgba(221,91,0,.10);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--green:#1a7f37;--green-bg:#dafbe1;
+    --red:#bf2626;--red-bg:rgba(191,38,38,.09);--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);
+    padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .chip.inv{background:var(--green-bg);color:var(--green)}.chip.drift{background:var(--blue-bg);color:var(--blue)}
+  .chip.ghost{background:var(--purple-bg);color:var(--purple)}.chip.trash{background:var(--orange-bg);color:var(--orange)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1340px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);
+    border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  /* live demo */
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-bottom:1px solid var(--border)}
+  .ux-toolbar .grp{display:flex;gap:4px;align-items:center;padding:3px 8px;background:var(--card);border:1px solid var(--border);border-radius:7px}
+  .ux-toolbar .grp b{font-size:10.5px;color:var(--muted);margin-right:4px;text-transform:uppercase;letter-spacing:.4px}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .cs-row{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--soft)}
+  .cs-btn{border:1px solid var(--border);background:var(--card);padding:5px 9px;font-size:11.5px;border-radius:7px;cursor:pointer;font-family:var(--mono)}
+  .cs-btn.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.9;white-space:pre-wrap}
+  .ux-flow .node{color:#79c0ff}.ux-flow .iface{color:#3fb950}.ux-flow .svc{color:#ff7b72}
+  .ux-flow .repo{color:#8b949e}.ux-flow .cut{color:#f85149;font-weight:700}.ux-flow .ok{color:#3fb950;font-weight:700}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft)}
+  .ux-verdict.good{background:var(--green-bg)} .ux-verdict.bad{background:var(--red-bg)}
+  .badge-if{display:inline-block;padding:1px 7px;border-radius:5px;font-size:10.5px;font-weight:600;font-family:var(--mono)}
+  .check-list{list-style:none;padding:0}
+  .check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}
+  .check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R7-1 — MarkableScanner SPI 분리 <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R7-1 (인프라 · R7 전체 전제)</span>
+    <span><strong>scope</strong> God-SPI(19메서드) → 4 sub-interface + 7 호출부 narrow 재배선 (動作 불변)</span>
+    <span><strong>전제</strong> R3~R6 의 *LifecycleService (R7-2~6 이 사용) · 본 단계 자체는 전제 없음</span>
+    <span><strong>생성</strong> 2026-06-27 KST</span>
+    <span><strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 · 문제</a></li>
+      <li><a href="#s2">§2 요구사항 (5점)</a></li>
+      <li><a href="#sd">🎬 라이브 의존그래프</a></li>
+      <li><a href="#s3">§3 SPI 분할 설계</a></li>
+      <li><a href="#s4">§4 호출부 재배선 + 결정</a></li>
+      <li><a href="#s5">§5 순환 기제 · Ghost 취급</a></li>
+      <li><a href="#s6">§6 10단계</a></li>
+      <li><a href="#s7">§7 Step 8 테스트</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 · 문제 (God-SPI ISP 위반)</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>R5-2 완료</b>(commit 201ec90). R7-1 은 R7(전 도메인 순환 근본해결)의 <b>인프라 전제</b>다. <code>global/marker/MarkableScanner</code> 는 <b>19 메서드</b>가 4 관심사(inventory / drift / trash / ghost)를 혼재해 <b>ISP 위반</b> — SPI 자체가 두 곳에서 <code>TODO(MK3-3): SPI 분리 시 MarkableInventory/MarkableGhostOperator 로 이전</code> 으로 자인한다(L33, L192).</p>
+        <h4>왜 R7 의 토대인가 — 순환 2종</h4>
+        <table>
+          <thead><tr><th>순환</th><th>구조</th><th>현재 차단</th></tr></thead>
+          <tbody>
+            <tr><td><b>cycle #1</b></td><td><code>TypedNameVerifier → List&lt;MarkableScanner&gt; → scanner → (service) → TypedNameVerifier</code></td><td>scanner 의 <code>ObjectProvider</code> (OS/Board/Iso, REAL)</td></tr>
+            <tr><td><b>cycle #2</b></td><td><code>SoftDeleteIntentService → @Lazy List&lt;MarkableScanner&gt; → scanner → (service) → SoftDeleteIntentService</code></td><td>SoftDeleteIntentService 의 <code>@Lazy</code> (전역)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>핵심 관찰</b> — 두 순환 모두 <code>scanner → service</code> 변(restoreFromTrash/purgeFromTrash 가 도메인 service.restore/purge 역호출) 때문에 닫힌다. 그런데 verifier 와 SoftDeleteIntentService 가 실제로 호출하는 건 <b>service 무의존 read/ghost 메서드뿐</b>(아래 §2). SPI 를 그 경계로 쪼개 호출부가 <b>좁은 인터페이스만 주입</b>하면, R7-2~6 이 service 변을 LifecycleService 로 옮길 때 순환이 근본 소멸한다.</div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2">
+      <summary>§2. 요구사항 — 재검증 5점 보강 (확정)</summary>
+      <div class="body">
+        <p style="margin-top:0">Notion 원안(4 관심사 sealed 분리)은 ISP 만 풀고 순환 경계와 어긋났다. 재검증으로 5점 보강 확정:</p>
+        <ol>
+          <li><b>read / operation 2차축 포함.</b> 4 관심사만으론 부족 — <code>trash</code> 라벨 안에 cycle-free read(<code>findTrashedById</code>)와 cycle-bearing operation(<code>restore/purgeFromTrash</code>)이 공존. read 는 Inventory 로, service-back-edge operation 만 TrashOperator 로 분리.</li>
+          <li><b>7 호출부 재배선</b>(원안 "3곳"은 과소). 실측: PathReconciliation · SoftDeleteIntent · TrashController · TtlWorker · TtlExtensionService · TypedNameVerifier · PurgeExecutor.</li>
+          <li><b>verifier → Inventory 응집.</b> <code>TypedNameVerifierImpl</code> 과 <code>PurgeExecutorImpl</code> 의 read lookup(<code>findActiveMarkableById/findTrashedById</code>)을 순환 없는 read 인터페이스로 모은다 — 원안 재배선 목록에 verifier 자체가 부재한 게 결함.</li>
+          <li><b>SoftDeleteIntentService → GhostOperator.</b> SoftDeleteIntentService 가 scanner 에서 실제로 호출하는 메서드는 <code>applyForcedClear</code>(L177, GHOST 연산) 하나뿐이다 — 원안의 <code>List&lt;MarkableTrashOperator&gt;</code> 주입은 사용하지 않는 메서드까지 끌어오는 오분류. 실제 사용에 맞춰 <code>List&lt;MarkableGhostOperator&gt;</code> 로 좁힌다(인터페이스 분리 원칙 = ISP). 이는 순환을 푸는 장치가 아니라 ghost 의존을 명시적으로 드러내는 것 — 순환 자체는 §5(1)의 계층 정리로 풀린다.</li>
+          <li><b>sealed 금지 → 일반 interface.</b> 도메인 외부(management/* 4 + os/iso)가 구현하는 <b>개방형 SPI</b>. sealed(permits 폐쇄)면 신규 도메인 추가가 parent 수정을 강제.</li>
+        </ol>
+        <div class="callout warn"><b>動作 불변 (불가침).</b> R7-1 은 <b>인터페이스 분리 + 주입 타입 narrow</b> 만. 자원 동작 · ObjectProvider · @Lazy 제거는 <b>전혀 안 함</b> — 그것은 R7-2~6 / capstone 소관(§5, §11). bootRun · 전체 테스트가 동일해야 한다.</div>
+      </div>
+    </details>
+
+    <!-- 🎬 LIVE DEMO -->
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 의존그래프 — 호출부를 골라 순환 차단을 직접 검증</summary>
+      <div class="body">
+        <p style="margin-top:0">호출부를 고르고 <b>before(God-SPI 주입) / after(narrow 주입)</b> 를 토글하면, 그 호출부가 어떤 sub-interface 를 주입하고 <b>service 역변(순환)이 생기는지 / 끊기는지</b>를 그래프로 보여준다. R7-1(narrow 분리) + R7-2~6(service 변 이동) 후 cycle #1·#2 가 어떻게 소멸하는지가 한눈에 드러난다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <div class="grp"><b>단계</b>
+              <button class="ux-btn" data-view="before">현재 (God-SPI)</button>
+              <button class="ux-btn on" data-view="after">R7 후 (narrow + service 이동)</button>
+            </div>
+          </div>
+          <div class="cs-row" id="csRow"></div>
+          <div class="ux-flow" id="flow"></div>
+          <div class="ux-verdict" id="verdict"></div>
+        </div>
+        <p class="dim">판정은 §3·§4 의 sub-interface 배치와 실측 호출 메서드를 그대로 재현 — 데모의 순환 판정이 곧 bootRun 결과 예측이다.</p>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. SPI 분할 설계 — 4 sub-interface (메서드 배치)</summary>
+      <div class="body">
+        <p style="margin-top:0">19 메서드를 <b>service-back-edge 유무</b> 기준으로 분할. 핵심 : <span class="chip inv">Inventory</span> <span class="chip drift">DriftApplier</span> <span class="chip ghost">GhostOperator</span> 는 모두 <b>repository-direct(service 무의존)</b> 라 scanner 가 계속 구현, <span class="chip trash">TrashOperator</span> 만 service 를 호출하므로 R7-2~6 에서 LifecycleService 로 이동.</p>
+        <table>
+          <thead><tr><th>sub-interface</th><th>메서드</th><th>구현 주체</th><th>service 변</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip inv">MarkableInventory</span><br><span class="dim">read</span></td><td class="mono">supportedType · findActiveMarkables · findActiveMarkableById · findSoftDeletedResourceIds · findTrashed · findTrashedBefore · findTrashedBetween · findTrashedById · isGhost · findGhostMarkables</td><td>scanner</td><td class="ok-cell"><b>없음</b> (repo 직접)</td></tr>
+            <tr><td><span class="chip drift">MarkableDriftApplier</span></td><td class="mono">applyDriftedPath · recomputeManifestHash</td><td>scanner</td><td><b>없음</b> (repo 직접)</td></tr>
+            <tr><td><span class="chip ghost">MarkableGhostOperator</span><br><span class="dim">repo-direct</span></td><td class="mono">applyGhostClear · applyForcedClear</td><td>scanner</td><td><b>없음</b> (repo.delete 직접 — 실측 IsoMarkableScanner)</td></tr>
+            <tr><td><span class="chip trash">MarkableTrashOperator</span><br><span class="dim">service back-edge</span></td><td class="mono">restoreFromTrash · restoreFromTrash(cascade) · purgeFromTrash · purgeFromTrash(typedName) · findDeletedChildLabels · extendTrashTtl</td><td><b>scanner → (R7-2~6) → *LifecycleService</b></td><td><b>있음</b> (service.restore/purge)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>composite 유지 (D2).</b> 기존 <code>MarkableScanner</code> 는 <code>interface MarkableScanner extends MarkableInventory, MarkableDriftApplier, MarkableGhostOperator, MarkableTrashOperator {}</code> 로 재정의 — 도메인 scanner 구현체가 R7-1 시점엔 그대로 컴파일·동작(動作 불변). R7-2~6 이 도메인별로 TrashOperator 를 LifecycleService 로 옮기며 scanner 의 composition 에서 떼어낸다.</div>
+        <p class="dim">※ <code>extendTrashTtl</code> · <code>purgeFromTrash(typedName)</code> 배치는 §4 D6 참조(repo-direct vs read+op 혼합 default).</p>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 7 호출부 재배선 + 결정 (D1~D6)</summary>
+      <div class="body">
+        <h4>호출부 → 주입 인터페이스 (실측 호출 메서드 기준)</h4>
+        <table>
+          <thead><tr><th>호출부</th><th>실측 호출</th><th>주입(narrow)</th><th>순환?</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">TypedNameVerifierImpl</td><td class="mono">findActiveMarkableById · findTrashedById</td><td><span class="chip inv">List&lt;MarkableInventory&gt;</span></td><td class="ok">cycle-free</td></tr>
+            <tr><td class="mono">SoftDeleteIntentService</td><td class="mono">applyForcedClear · supportedType</td><td><span class="chip ghost">List&lt;MarkableGhostOperator&gt;</span></td><td class="ok">cycle-free (D4)</td></tr>
+            <tr><td class="mono">TrashTtlWorker</td><td class="mono">findTrashedBefore · findTrashedBetween · supportedType</td><td><span class="chip inv">List&lt;MarkableInventory&gt;</span></td><td class="ok">cycle-free</td></tr>
+            <tr><td class="mono">PathReconciliationService</td><td class="mono">findActiveMarkables · findSoftDeletedResourceIds · recomputeManifestHash · applyDriftedPath · findGhostMarkables · applyGhostClear · findActiveMarkableById</td><td><span class="chip inv">Inventory</span> + <span class="chip drift">DriftApplier</span> + <span class="chip ghost">GhostOperator</span></td><td class="ok">cycle-free</td></tr>
+            <tr><td class="mono">TrashController</td><td class="mono">findTrashed · findGhostMarkables · restoreFromTrash · findDeletedChildLabels · applyGhostClear</td><td><span class="chip inv">Inventory</span> + <span class="chip ghost">GhostOperator</span> + <span class="chip trash">TrashOperator</span></td><td>TrashOp 경유 (정상)</td></tr>
+            <tr><td class="mono">PurgeExecutorImpl</td><td class="mono">findTrashedById · purgeFromTrash</td><td><span class="chip inv">Inventory</span> + <span class="chip trash">TrashOperator</span></td><td>TrashOp 경유 (정상)</td></tr>
+            <tr><td class="mono">TrashTtlExtensionService</td><td class="mono">extendTrashTtl</td><td><span class="chip trash">TrashOperator</span> (D6)</td><td>TrashOp 경유</td></tr>
+          </tbody>
+        </table>
+        <h4>결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>권장</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>sub-interface 개수</td><td><b>4</b> (Inventory/DriftApplier/GhostOperator/TrashOperator). read/op + 관심사 2축. extendTrashTtl·typedName-purge 는 D6 으로 흡수(별 인터페이스 신설 안 함 — over-split 회피)</td></tr>
+            <tr><td><b>D2</b></td><td>MarkableScanner 존치</td><td><b>composite 유지</b> (4 sub 를 extends). 도메인 scanner 가 R7-2~6 으로 점진 전환 — 動作 불변 보장</td></tr>
+            <tr><td><b>D3</b></td><td>호출부 주입 narrow</td><td><b>전부 narrow</b> — 각 호출부가 실측 호출하는 메서드의 인터페이스만. Spring 이 composite scanner 빈을 각 sub 타입으로 주입</td></tr>
+            <tr><td><b>D4</b></td><td>SoftDeleteIntentService 주입 타입</td><td><b>(A) List&lt;MarkableGhostOperator&gt; (명시적 narrow)</b> 채택. SoftDeleteIntentService 는 applyForcedClear(ghost) 하나만 쓰므로 ISP 상 좁은 인터페이스가 맞고, 그 ghost 의존을 타입으로 드러내면 미래 ghost 정리 슬라이스가 의존처를 컴파일러로 짚을 수 있다(§5-3). <b>순환 해소와는 무관</b> — 순환은 §5(1) 계층 정리로 풀림. <span class="dim">(대안 B: composite 유지 — 의존을 통합 인터페이스 뒤에 숨김, 비채택)</span></td></tr>
+            <tr><td><b>D5</b></td><td>sealed vs interface</td><td><b>일반 interface</b> — 개방형 SPI(도메인 외부 구현). sealed 금지</td></tr>
+            <tr><td><b>D6</b></td><td>extendTrashTtl · purgeFromTrash(typedName) 배치</td><td><b>TrashOperator 에 둠.</b> extendTrashTtl 은 repo-direct지만 "휴지통 운영" 의미상 TrashOperator 응집(R7-2~6 에서 LifecycleService 가 함께 구현, repo-direct라 순환 무관). typedName-purge default 는 findTrashedById(Inventory)+purgeFromTrash 혼합 → PurgeExecutor 가 이미 둘 다 주입하므로 <b>SPI default 제거하고 PurgeExecutor 로 이관</b> 검토(CP2 확정)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 순환 해소의 진짜 기제 + GhostOperator 의 provisional 취급</summary>
+      <div class="body">
+        <h4>(1) 순환이 끊기는 이유 — Ghost 때문이 아니라 계층 정리 때문</h4>
+        <p style="margin-top:0">초안에서 "<code>SoftDeleteIntentService</code> 가 <code>GhostOperator</code> 를 주입하는 것이 순환 해소의 핵심" 이라고 적었는데, 그것은 인과를 잘못 압축한 표현이었다. 정확히 풀어 쓰면 :</p>
+        <p>순환 #2(<code>SoftDeleteIntentService → scanner → service → SoftDeleteIntentService</code>)가 끊기는 진짜 이유는 <b>R7-2~6 이 "복구 / 영구삭제"(MarkableTrashOperator) 같은 <u>도메인 service 를 호출하는 작업</u>을 scanner 에서 LifecycleService 로 옮기기 때문</b>이다. 그 이동이 끝나면 scanner 는 Inventory / DriftApplier / GhostOperator 만 남아 <b>전부 repository 직접 호출</b>이 되고, service 를 전혀 의존하지 않는 빈이 된다. 그렇게 되면 <b>scanner 를 주입하는 쪽이 좁은 인터페이스든 통합 인터페이스든 상관없이</b> 순환이 생기지 않는다.</p>
+        <div class="callout"><b>그래서 <code>SoftDeleteIntentService</code> 의 <code>@Lazy</code> 제거는 GhostOperator 주입 덕이 아니다.</b> scanner 가 service 의존을 0 으로 떨군 결과(R7-2~6)로 따라오는 것이다. 즉 순환 해소는 <b>"작업을 알맞은 계층(LifecycleService)으로 올린다"</b> 는 정공법으로 풀리며, provisional 한 ghost 로직에 기대지 않는다.</p>
+        <h4>(2) Ghost 의존은 R7 이 새로 얹는 게 아니라 이미 존재</h4>
+        <p style="margin-top:0"><code>SoftDeleteIntentService.forcedClear</code> 는 지금도 <code>scanner.applyForcedClear()</code>(L177)를 호출한다 — 이것은 MK3-2 의 "강제 정리" modal 선택지의 실제 구현이다. R7-1 은 이 의존을 <b>새로 만들지 않고</b>, 단지 <b>명시적 타입(GhostOperator)으로 드러낼지 / 통합 인터페이스 뒤에 숨길지</b> 만 정한다(아래 D4).</p>
+        <p>그리고 <code>applyForcedClear</code> · <code>applyGhostClear</code> · <code>isGhost</code> · <code>findGhostMarkables</code> 는 모두 <b>한시적 fail-safe</b> 로 설계된 ghost 처리 로직이다(CLAUDE.md MK3-1 : "운영 안정 후 별도 정리 슬라이스 DCM3-2.9 에서 전체 삭제 가능"). Ghost 가 더 이상 생기지 않음이 확정되면 "강제 정리" 선택지와 <code>forcedClear</code> 도 함께 사라진다 — 둘은 같은 fail-safe 운명 공동체다.</p>
+        <h4>(3) GhostOperator 는 영구 계층의 동급이 아니라 "격리 칸"</h4>
+        <p style="margin-top:0">ghost 로직이 한시적이므로, <code>MarkableGhostOperator</code> 를 별도 인터페이스로 떼는 것은 <b>provisional 코드에 의존을 더 얹는 게 아니라, 나중에 통째로 떼어내기 쉽게 한 곳에 격리(quarantine)하는 것</b>이다. 인터페이스 javadoc 에 "한시적 fail-safe (MK3-1) — DCM3-2.9 정리 슬라이스에서 본 인터페이스 + 구현 + 주입처 일괄 제거" 를 명시해, 영구 계층(Inventory / DriftApplier / TrashOperator)과 동급이 아니라 <b>지워질 임시 칸</b>임을 코드가 정직하게 드러내게 한다.</p>
+        <div class="callout ok"><b>격리가 오히려 삭제를 돕는다.</b> 모든 ghost 의존을 하나의 인터페이스 타입으로 묶으면, 미래의 "Ghost 정리 슬라이스" 가 그 인터페이스를 지울 때 <b>컴파일러가 의존처(SoftDeleteIntentService.forcedClear 등)를 정확히 짚어준다</b>. 통합 인터페이스 뒤에 숨기면 그 의존이 암묵적이 되어 정리 시 누락 위험이 커진다.</p>
+        <h4>(4) R7-6 capstone 전망 (정정)</h4>
+        <p style="margin-top:0">재검증(cluster F)은 "<code>SoftDeleteIntentService → MarkableTrashOperator(=LifecycleService) → checkPrecondition → SoftDeleteIntentService</code> 로 순환이 이전되어 @Lazy 제거에 checkPrecondition 분리가 필요"로 보았다. 그러나 <b>실측상 <code>SoftDeleteIntentService</code> 는 MarkableTrashOperator 를 호출하지 않는다</b> — <code>applyForcedClear</code>(GHOST, repository 직접, IsoMarkableScanner L185)만 쓴다. 따라서 R7-2~6 후 scanner 가 service 무의존이 되면 cycle #2 는 끊기고, <b>checkPrecondition 분리 substep 없이도 전역 <code>@Lazy</code> 제거가 가능할 전망</b>이다. 단 DI(Dependency Injection — 의존성 주입) 순환은 정적 분석만으로 단정하지 않고 <b>R7-6 에서 bootRun 으로 최종 확정</b>한다(예상 못 한 변이 남으면 그때 checkPrecondition 분리를 fallback). 두 번째 <code>@Lazy</code>(<code>SoftDeleteIntentService:60 PathReconciliationService</code>)는 별개 변으로 capstone 에서 함께 평가하며, 본 R7-1 범위 밖이다.</p>
+        <p class="dim">→ R7-1 에서 하는 것은 (a) GhostOperator 를 provisional 격리 인터페이스로 분리(javadoc 명시), (b) D4 로 <code>SoftDeleteIntentService</code> 가 그 인터페이스를 명시적으로 주입하게 narrow. 실제 <code>@Lazy</code> 제거는 R7-6.</p>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 수직 슬라이스 10단계 (인프라 적응)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>本 plan (CP1)</td><td>CP1</td></tr>
+            <tr><td>2~5</td><td>UI/Controller/DTO/Service 시그니처 변경 없음(인프라). 단 <b>7 호출부의 주입 필드 타입 변경</b>(List&lt;MarkableScanner&gt; → narrow)이 CP2 범위</td><td>CP2</td></tr>
+            <tr><td>6</td><td>Repository 변경 없음</td><td>—</td></tr>
+            <tr><td>7</td><td>Entity 변경 없음. SPI(interface) 4종 신규 + MarkableScanner composite 재정의 = CP3</td><td>CP3</td></tr>
+            <tr><td>8</td><td><b>핵심</b> — 4 sub-interface 추출 + composite 재정의 + 7 호출부 narrow 재배선. 動作 불변 단위/통합 회귀 + <b>bootRun 부팅(순환 무변)</b></td><td>CP4</td></tr>
+            <tr><td>9</td><td>스키마 변경 없음</td><td>CP4</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 휴지통/재조정/검증 전 경로 동일 동작 (사용자 단독)</td><td>CP5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <p style="margin-top:0">動作 불변 인프라라 신규 동작 테스트보다 <b>회귀 + 부팅(DI) 검증</b>이 핵심.</p>
+        <table>
+          <thead><tr><th>레이어</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>부팅(DI)</td><td><b>bootRun 성공</b> — narrow 재배선 후에도 순환 0(ObjectProvider/@Lazy 는 그대로 유지하므로 동일하게 부팅). 7 호출부의 좁은 빈 주입이 Spring 으로 해석됨</td></tr>
+            <tr><td>회귀 — 재조정</td><td>PathReconciliationService 의 scan/drift-apply/ghost-clear 가 narrow 인터페이스로도 동일 결과 (기존 ReconciliationRestControllerTest 등 green)</td></tr>
+            <tr><td>회귀 — 휴지통</td><td>TrashController restore/purge/ghost-clear · TtlWorker · TtlExtension · PurgeExecutor · TypedNameVerifier 가 narrow 주입으로 동일 동작 (기존 trash/typed-name 테스트 green)</td></tr>
+            <tr><td>단위 — composite</td><td>도메인 scanner 가 4 sub-interface 를 모두 만족(컴파일) + composite MarkableScanner 로도 주입 가능 확인</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">신규 예외 0. SPI 시그니처(메서드 자체)는 불변 — 분배만 바뀜.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의</summary>
+      <div class="body">
+        <ul>
+          <li><b>ObjectProvider/@Lazy 제거 안 함 (불가침).</b> R7-1 은 인터페이스 분리 + 주입 narrow 만. scanner 가 아직 TrashOperator(→service)를 composite 로 구현하므로 service 변이 남아 순환 차단 기제(ObjectProvider/@Lazy)는 그대로 유지. 제거는 R7-2~6/capstone.</li>
+          <li><b>D4(SoftDeleteIntentService → GhostOperator narrow)는 R7-1 에서 적용.</b> 주입 타입만 좁히고 실제 @Lazy 제거는 R7-6. 이는 ghost 의존을 명시적으로 드러내는 ISP 정리이며, 순환 해소 장치가 아니다(순환은 §5(1) 계층 정리로 풀림). GhostOperator 인터페이스에는 "한시적 fail-safe — DCM3-2.9 에서 일괄 제거" javadoc 을 박아 provisional 임을 명시.</li>
+          <li><b>typedName-purge default 이관(D6)</b> 은 PurgeExecutor 로 옮길지 CP2 확정 — 옮기면 TrashOperator 가 read 의존(findTrashedById) 0 으로 더 깨끗.</li>
+          <li><b>Notion R7-6 본문 갱신 후보</b> — §5 refinement(@Lazy 제거가 checkPrecondition 분리 없이 가능)를 R7-6 진입 시 반영. 본 R7-1 에서는 plan 기록만.</li>
+          <li><b>CLAUDE.md</b> — 인벤토리/아키텍처 변동 없음(SPI 내부 분리). <code>global/marker</code> 패키지에 4 interface 추가.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r71-v">
+          <li><input type="checkbox"><span><code>compileJava</code> SUCCESS — 도메인 scanner 6종이 4 sub-interface(composite) 만족</span></li>
+          <li><input type="checkbox"><span><b>bootRun 성공</b> — narrow 재배선 후 순환 0, 7 호출부 좁은 빈 주입 해석</span></li>
+          <li><input type="checkbox"><span><code>./gradlew test</code> 전체 green (動作 불변)</span></li>
+          <li><input type="checkbox"><span>TypedNameVerifier 가 <code>List&lt;MarkableInventory&gt;</code>, SoftDeleteIntentService 가 <code>List&lt;MarkableGhostOperator&gt;</code> 주입 (grep 확인)</span></li>
+          <li><input type="checkbox"><span>MarkableScanner = 4 sub 의 composite(extends), 메서드 추가/삭제 0</span></li>
+          <li><input type="checkbox"><span>ObjectProvider/@Lazy 잔존 동일(제거 0, R7-2~6 대상)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규 (global/marker/)</h4>
+        <ul>
+          <li class="mono">MarkableInventory.java · MarkableDriftApplier.java · MarkableGhostOperator.java · MarkableTrashOperator.java</li>
+        </ul>
+        <h4>수정</h4>
+        <ul>
+          <li class="mono">global/marker/MarkableScanner.java — 4 sub 의 composite 로 재정의(메서드 본문은 sub 로 이동)</li>
+          <li class="mono">global/trash/service/internal/TypedNameVerifierImpl.java — List&lt;MarkableInventory&gt;</li>
+          <li class="mono">global/lifecycle/SoftDeleteIntentService.java — @Lazy List&lt;MarkableGhostOperator&gt; (D4)</li>
+          <li class="mono">global/trash/service/internal/PurgeExecutorImpl.java — Inventory + TrashOperator (+ typedName-purge 이관 시)</li>
+          <li class="mono">maintenance/reconciliation/service/PathReconciliationService.java — Inventory + DriftApplier + GhostOperator</li>
+          <li class="mono">maintenance/trash/controller/TrashController.java — Inventory + GhostOperator + TrashOperator</li>
+          <li class="mono">maintenance/trash/service/TrashTtlWorker.java — Inventory</li>
+          <li class="mono">maintenance/trash/service/TrashTtlExtensionService.java — TrashOperator</li>
+        </ul>
+        <h4>유지 (변경 없음)</h4>
+        <ul>
+          <li class="mono">6 도메인 scanner — composite MarkableScanner 구현 그대로(動作 불변). ObjectProvider 도 그대로(R7-2~6)</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R7-1</b> (본 슬라이스) — SPI 분리 인프라.</li>
+          <li><b>R7-2 (OS) + R7-3 (Board)</b> — *LifecycleService implements MarkableTrashOperator → scanner 에서 trash 떼고 <b>REAL ObjectProvider 제거</b>. LifecycleService 이미 존재 → R7-1 직후 즉시.</li>
+          <li><b>R4-3 → R7-4 / R5-3 → R7-5 / R6-3 → R7-6</b> — fat-service 분리(typed-name inline) → scanner back-edge 제거.</li>
+          <li><b>R7-6 capstone</b> — SoftDeleteIntentService→Ghost(D4 적용 완료) + 전역 @Lazy List 제거(§5 — checkPrecondition 분리 없이 가능 예상, bootRun 확정). 두 번째 @Lazy(PathReconciliation) 별도 평가.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  // ===== 🎬 라이브 의존그래프 =====
+  const SITES = {
+    TypedNameVerifier: {uses:'findActiveMarkableById · findTrashedById', iface:'Inventory', kind:'inv',
+      cycle1:true, note:'typed-name lookup(read) — cycle #1 의 verifier 변'},
+    SoftDeleteIntentService: {uses:'applyForcedClear (GHOST)', iface:'GhostOperator', kind:'ghost',
+      cycle2:true, note:'강제정리(ghost) — cycle #2 의 SoftDeleteIntentService 변. ★ Trash 아님(D4)'},
+    PathReconciliation: {uses:'findActive · recomputeHash · applyDrift · findGhost · applyGhostClear', iface:'Inventory+DriftApplier+GhostOperator', kind:'inv',
+      note:'재조정 — 전부 repo-direct'},
+    TrashController: {uses:'findTrashed · restoreFromTrash · findDeletedChildLabels · applyGhostClear', iface:'Inventory+GhostOperator+TrashOperator', kind:'trash',
+      note:'휴지통 페이지 — TrashOperator(restore) 경유는 정상 호출'},
+    PurgeExecutor: {uses:'findTrashedById · purgeFromTrash', iface:'Inventory+TrashOperator', kind:'trash',
+      note:'영구삭제 — TrashOperator(purge) 경유'},
+    TtlWorker: {uses:'findTrashedBefore · findTrashedBetween', iface:'Inventory', kind:'inv',
+      note:'TTL 만료/알림 — read only'},
+  };
+  const IFCOLOR = {inv:'#1a7f37', ghost:'#6f4cdd', trash:'#dd5b00', drift:'#0075de'};
+  const st={view:'after', site:'SoftDeleteIntentService'};
+  const csRow=document.getElementById('csRow');
+  Object.keys(SITES).forEach(k=>{
+    const b=document.createElement('button');
+    b.className='cs-btn'+(k===st.site?' on':'');b.textContent=k;b.dataset.s=k;
+    b.addEventListener('click',()=>{st.site=k;sync();render();});
+    csRow.appendChild(b);
+  });
+  function sync(){
+    document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===st.view));
+    document.querySelectorAll('[data-s]').forEach(b=>b.classList.toggle('on',b.dataset.s===st.site));
+  }
+  document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{st.view=b.dataset.view;sync();render();}));
+
+  function render(){
+    const s=SITES[st.site];
+    const flow=document.getElementById('flow');
+    const vd=document.getElementById('verdict');
+    if(st.view==='before'){
+      // God-SPI: 모두 List<MarkableScanner> 주입 → scanner → service(restore/purge 보유) → 역변
+      flow.innerHTML =
+`<span class="node">${st.site}</span>
+   └─ 주입 <span class="svc">List&lt;MarkableScanner&gt;</span>   (God-SPI, 19메서드)
+       └─ <span class="node">domain scanner</span>
+           └─ <span class="svc">restore/purgeFromTrash → domain service</span>   ← service 역변 상존
+               └─ service → (TypedNameVerifier / SoftDeleteIntentService) <span class="cut">↺ 순환</span>`;
+      vd.className='ux-verdict bad';
+      vd.innerHTML = `<b>현재</b> · 모든 호출부가 God-SPI 를 주입 → scanner 가 service 변(restore/purge)을 늘 보유 → ${s.cycle1?'cycle #1':''}${s.cycle1&&s.cycle2?' / ':''}${s.cycle2?'cycle #2':''}${(!s.cycle1&&!s.cycle2)?'순환 변 잠복':''} 이 <span style="color:#bf2626;font-weight:700">ObjectProvider/@Lazy 로만 차단</span>. ${s.note}`;
+    } else {
+      const col=IFCOLOR[s.kind]||'#0075de';
+      const repoDirect = (s.kind==='inv'||s.kind==='ghost'||st.site==='PathReconciliation');
+      flow.innerHTML =
+`<span class="node">${st.site}</span>
+   └─ 주입 <span class="iface" style="color:${col}">${s.iface}</span>   (narrow)
+       └─ <span class="node">${repoDirect?'domain scanner (Inventory/Ghost/Drift)':'*LifecycleService (TrashOperator)'}</span>
+           └─ ${repoDirect?'<span class="repo">repository.delete / findById</span>   <span class="ok">✗ service 역변 없음</span>':'<span class="svc">service.restore/purge</span>   (정상 호출, 순환 아님)'}`;
+      if(s.cycle1||s.cycle2){
+        vd.className='ux-verdict good';
+        vd.innerHTML = `<b>R7 후</b> · narrow 주입 + (R7-2~6) scanner 에서 trash 변 이동 → 이 경로는 <span class="repo" style="color:#1a7f37">repo-direct</span> → <span style="color:#1a7f37;font-weight:700">${s.cycle1?'cycle #1 끊김 → ObjectProvider 제거':''}${s.cycle2?'cycle #2 끊김 → @Lazy 제거 (checkPrecondition 분리 불요)':''}</span>. ${s.note}`;
+      } else {
+        vd.className='ux-verdict good';
+        vd.innerHTML = `<b>R7 후</b> · ${st.site} 는 ${s.iface} 만 주입 — ${s.note}. service 역변 없거나 TrashOperator 경유 정상 호출(순환 아님).`;
+      }
+    }
+  }
+  sync();render();
+</script>
+</body>
+</html>

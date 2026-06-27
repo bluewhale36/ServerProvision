@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3-6 Plan — cascade 이벤트화 (첫 ApplicationEventPublisher 도입) : 동기 @EventListener 파일럿 + S5-13 관례 확립</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg.spi.active { background:var(--purple); border-color:var(--purple); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.cmd { background:var(--green-bg); color:var(--green); }
+  .badge.ret { background:var(--red-bg); color:var(--red); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.ok { background:var(--green-bg); border-color:var(--green); }
+  .ux-message.bad { background:var(--red-bg); border-color:var(--red); }
+  .ux-message.warn { background:var(--yellow-bg); border-color:var(--yellow); }
+  .ux-message.spi { background:var(--purple-bg); border-color:var(--purple); }
+  .dag { font-family:var(--mono); font-size:11.5px; line-height:1.7; white-space:pre; overflow-x:auto;
+    background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; margin-top:10px; }
+  .dag .cycle { color:var(--red); font-weight:700; }
+  .dag .ok { color:var(--green); font-weight:700; }
+  .dag .touch { color:var(--orange); font-weight:700; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .impl-mono { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R3-6 — cascade 이벤트화 : 프로젝트 첫 <code>ApplicationEventPublisher</code> 도입 (동기 <code>@EventListener</code> 파일럿) <span class="v2-badge">refactor · event</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R3-6 (refactor · 첫 이벤트 도입)</span>
+    <span><strong>상위</strong> R3 (Board) · 선행 R3-5 완료 (R3 도메인 마지막)</span>
+    <span><strong>scope</strong> Board cascade 의 <b>void command 2개</b>(softDelete / recompute)를 동기 <code>@EventListener</code>(같은 트랜잭션)로 단방향화. 반환/쿼리 3개는 SPI 잔류(하이브리드). <b>S5-13 이 재사용할 이벤트 관례 확립</b></span>
+    <span><strong>생성</strong> 2026-06-19 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (보류→진행 전환 + S5-13 전제)</a></li>
+      <li><a href="#s1">§1 현재 상태 (cascade 5연산 적합성 + invariant)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표 (정직한 한계)</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (연산×phase 적합성 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 신구 비교 — softDelete / recompute / SPI 축소</a></li>
+      <li><a href="#s4">§4 도메인 모델 (이벤트 · listener · 패키지)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 (첫 이벤트 통합 패턴)</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정 D1~D4</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤 (S5-13)</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — "보류 권고" 에서 "진행" 으로, S5-13 을 위한 첫 이벤트 도입</summary>
+      <div class="body">
+        <p style="margin-top:0;">R3-4 plan §8 과 R3-5 §11 은 R3-6(cascade 이벤트화)을 <b>"over-abstraction 보류 권고"</b>로 표기했다. 단순 디커플링만 보면 R3-4 의 <code>BoardScopedChildLifecycle</code> SPI 가 이미 의존을 충분히 응집해 두었기 때문이다. 그러나 사용자가 방향을 정했다 — <b>이벤트 기반 설계로 조금씩 전환</b>하고, 특히 <b>보류 중인 S5-13(자원 등록 후 무결성 검증 자동화)이 EventListener 를 핵심 수단으로 채택</b>했으므로, R3-6 에서 프로젝트 최초의 이벤트 관례를 먼저 확립해 둔다.</p>
+        <div class="callout"><b>프로젝트 현황 (조사 결과)</b> — 코드베이스에 <b><code>ApplicationEventPublisher</code> 사용 0건, 도메인 이벤트 클래스 0건</b>. 유일한 <code>@EventListener</code> 는 <code>PathReconciliationService</code> 의 <code>ApplicationReadyEvent</code> 수신뿐(Spring 생명주기). 즉 R3-6 은 <b>프로젝트 첫 ApplicationEventPublisher 도입</b>이다. 현행 비동기 디커플링은 전부 <code>@Async</code> + <code>BackgroundJobService</code> 직접 호출.</div>
+        <h4>왜 cascade 가 첫 이벤트의 무대인가 + S5-13 과의 관계</h4>
+        <table>
+          <thead><tr><th></th><th>R3-6 (본 슬라이스)</th><th>S5-13 (보류, 재사용 대상)</th></tr></thead>
+          <tbody>
+            <tr><td>무엇</td><td>부모 Board lifecycle → 자식 BIOS/BMC/Subprogram cascade(softDelete/recompute)</td><td>자원 등록 직후 → 무결성 검증 Job 자동 트리거</td></tr>
+            <tr><td>발행 주체</td><td><code>BoardModelLifecycleService</code></td><td>4 등록 Service(Bios/Bmc/Subprogram/Iso)</td></tr>
+            <tr><td>listener phase</td><td><b>동기 <code>@EventListener</code></b> (같은 트랜잭션 — 원자성)</td><td><b><code>@TransactionalEventListener(AFTER_COMMIT)</code></b> (commit 후 Job)</td></tr>
+            <tr><td>재사용되는 것</td><td colspan="2"><b>literal 이벤트 클래스가 아님</b> — ① <code>ApplicationEventPublisher</code> 주입 패턴, ② 이벤트 record 네이밍/패키지 관례, ③ 이벤트 통합 테스트 관례(<code>@RecordApplicationEvents</code>). <b>phase 는 서로 다름</b>(동기 vs AFTER_COMMIT)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>의존 비대칭 명시 (Notion 기재 대상)</b> — R3-6 이 진입하지 않으면 S5-13 이 "프로젝트 첫 이벤트 도입" 부담을 단독으로 진다. R3-6 이 publisher/네이밍/테스트 관례를 먼저 확립하면 S5-13 은 <b>phase(AFTER_COMMIT) 만 바꿔</b> 그대로 미러링한다. 이것이 "이번에 가져가는" 실익의 본질이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 — cascade 5연산의 이벤트 적합성 + R3-4 보존 invariant</summary>
+      <div class="body">
+        <h4>선행 / 현 구조 (R3-4)</h4>
+        <ul>
+          <li><span class="chip keep">완료</span> <b>R3-4</b> — <code>BoardModelLifecycleService</code> 가 <code>List&lt;BoardScopedChildLifecycle&gt; children</code>(어댑터 3종 @Order 10/20/30, @Lazy 자식 service)을 <b>동기 다형 순회</b>로 cascade. 5 메서드 SPI.</li>
+          <li><span class="chip keep">완료</span> <b>R3-5</b> — restore default 흡수 + typed-name verifier 위임. R3 도메인 사실상 마감, R3-6 은 그 위 마지막(선택) 슬라이스.</li>
+        </ul>
+
+        <h4>★ 핵심 — cascade 5연산의 이벤트 적합성 분류</h4>
+        <p style="margin:0;">이벤트(<code>publishEvent</code>)는 <b>fire-and-forget(void)</b> 이다. 호출자에게 값을 돌려줄 수 없다. 이 한 가지 사실이 R3-6 의 범위를 결정한다.</p>
+        <table>
+          <thead><tr><th>cascade 연산</th><th>반환</th><th>이벤트?</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td><code>softDeleteActive(boardId)</code></td><td><code>void</code> <span class="badge cmd" style="padding:2px 7px;border-radius:8px;">command</span></td><td><span class="chip new">가능(동기만)</span></td><td>순수 side-effect. 단 <b>동기 같은-트랜잭션</b> 리스너라야 원자성·순서 보존</td></tr>
+            <tr><td><code>recomputeEffective(boardId)</code></td><td><code>void</code> <span class="badge cmd" style="padding:2px 7px;border-radius:8px;">command</span></td><td><span class="chip new">가능(동기만)</span></td><td>부모 own flip 後 자식 effective 재계산. 동기 같은-트랜잭션 필수</td></tr>
+            <tr><td><code>restoreDeleted(boardId)</code></td><td><code>int</code> <span class="badge ret" style="padding:2px 7px;border-radius:8px;">return</span></td><td><span class="chip del">불가</span></td><td>복구 건수를 <code>.sum()</code> 으로 합산해 <code>RestoreResponse</code> 반환 — 이벤트가 핸들러 결과를 발행자에 못 모아줌</td></tr>
+            <tr><td><code>hasAny(boardId)</code></td><td><code>boolean</code> <span class="badge ret" style="padding:2px 7px;border-radius:8px;">query</span></td><td><span class="chip del">불가</span></td><td>purge 선결 가드 — 그 자리에서 boolean 받아 거절 분기. fire-and-forget 불가</td></tr>
+            <tr><td><code>deletedLabels(boardId)</code></td><td><code>List&lt;String&gt;</code> <span class="badge ret" style="padding:2px 7px;border-radius:8px;">query</span></td><td><span class="chip del">불가</span></td><td>휴지통 preview read — 라벨 수집 반환 필요</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>결론 — 하이브리드가 유일한 정합</b> : 이벤트화 가능 = <b>void command 2개</b>(softDelete / recompute), 그것도 <b>동기 <code>@EventListener</code> 한정</b>. 반환/쿼리 <b>3개는 SPI(<code>BoardScopedChildLifecycle</code>) 직접 호출로 잔류</b>. SPI 는 5 → 3 메서드로 축소.</div>
+
+        <h4>R3-4 가 못박은 보존 invariant (이벤트화가 깨면 안 되는 4가지)</h4>
+        <table>
+          <thead><tr><th>invariant</th><th>동기 <code>@EventListener</code></th><th><code>@TransactionalEventListener(AFTER_COMMIT)</code></th></tr></thead>
+          <tbody>
+            <tr><td>(a) 자식 충돌 시 @Transactional 전체 롤백</td><td><span class="chip new">보존</span> 같은 트랜잭션 — 리스너 예외가 발행자로 전파</td><td><span class="chip del">붕괴</span> 부모 이미 commit → 부분 적용</td></tr>
+            <tr><td>(b) @Order 순회 순서(BIOS→BMC→Subprogram)</td><td>리스너 @Order 로 재현 가능하나 <b>command 2개는 자식 간 순서 무관</b>(아래)</td><td><span class="chip del">붕괴</span></td></tr>
+            <tr><td>(c) 예외 전파</td><td><span class="chip new">보존</span> 동기 전파</td><td><span class="chip del">붕괴</span> commit 후라 못 끌어옴</td></tr>
+            <tr><td>(d) softDelete : 자식 우선 → board.softDelete 後</td><td><span class="chip new">보존</span> <b>발행 지점</b>으로 보장(board.softDelete 前에 publish)</td><td><span class="chip del">붕괴</span> 순서 역전</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>다행한 정합</b> — 이벤트화 후보 2개(softDelete/recompute)는 <b>자식 간 순서가 무관</b>하다(BIOS 먼저든 BMC 먼저든 결과 동일). 순서가 중요한 것은 restore count·labels(둘 다 SPI 잔류)다. 따라서 2 command 리스너에는 <b>@Order 결합이 불필요</b> → "발행자-구독자 비결합"이라는 이벤트 본래 취지가 살아난다. 부모-자식 순서(d)는 <b>발행 지점</b>(board.softDelete 직전 publish)으로 자연 보존.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표 (정직한 한계)</summary>
+      <div class="body">
+        <ol>
+          <li><b>첫 이벤트 인프라 도입</b> — <code>BoardModelLifecycleService</code> 에 <code>ApplicationEventPublisher</code> 주입. 신규 이벤트 record 2종(<code>management/board/event/</code>). 동기 <code>@EventListener</code> 리스너(자식 도메인).</li>
+          <li><b>void command 2개 이벤트화</b> — <code>softDeleteActive</code> / <code>recomputeEffective</code> 를 SPI 직접 호출 → 이벤트 발행으로 전환. 발행 지점은 기존 호출 지점과 동일(softDelete: board.softDelete 前 / recompute: 부모 own flip 後).</li>
+          <li><b>SPI 축소 + 잔류</b> — <code>BoardScopedChildLifecycle</code> 에서 2 command 제거 → 3 메서드(<code>restoreDeleted</code>/<code>hasAny</code>/<code>deletedLabels</code>)만 남김. <code>BoardModelLifecycleService</code> 는 <code>List&lt;BoardScopedChildLifecycle&gt;</code>(3 SPI)를 <b>계속 주입</b> + <code>ApplicationEventPublisher</code> 추가.</li>
+          <li><b>invariant 100% 보존(불가침)</b> — (a)(c) 동기 같은-트랜잭션으로, (d) 발행 지점으로 보존. 기존 <code>BoardModelLifecycleServiceTest</code> 회귀가 망(단, 검증 방식은 "자식 직접 호출" → "이벤트 발행" 으로 전환 — §6).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표 / 정직한 한계 (불가침 — over-abstraction 경계)</b>
+          <ul>
+            <li><b>Board→자식 컴파일타임 의존 "완전" 단절 아님</b> — 반환/쿼리 3개가 SPI 로 남으므로 <code>BoardModelLifecycleService</code> 는 <code>List&lt;BoardScopedChildLifecycle&gt;</code> 타입 의존을 <b>유지</b>한다. 이벤트는 2 command 의 <b>메서드 호출 엣지</b>만 제거. <b>@Lazy 도 대체로 잔류</b>(어댑터가 3 SPI 위해 자식 service 보유).</li>
+            <li><b>AFTER_COMMIT 비동기 이벤트 도입 아님</b> — R3-6 은 동기 cascade 전용. AFTER_COMMIT 패턴은 S5-13 의 몫(R3-6 은 publisher 관례만 선공급).</li>
+            <li><b>다른 도메인(OS/BIOS 자체) 이벤트화 아님</b> — R3-6 은 Board cascade 2 연산 파일럿. 확산은 후속.</li>
+            <li><b>BackgroundJobService 의 이벤트 대체 아님</b> — S1 Job 허브는 그대로. 무분별한 이벤트화는 중복 — cascade 의 적합 2 연산에만 한정.</li>
+          </ul>
+        </div>
+        <div class="callout danger"><b>CP1 에서 반드시 합의</b> — 본 슬라이스의 실익은 <b>제한적</b>이다(5연산 중 2개, SPI·@Lazy 잔류). 1차 가치는 "Board cascade 완전 디커플링"이 <b>아니라</b> ① <b>S5-13 이 재사용할 첫 이벤트 관례 확립</b> + ② 적합 2 연산의 이벤트 파일럿이다. 이 가치 판단에 동의하는지가 D1 의 본질.</div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — cascade 연산 × listener phase 적합성 시뮬레이터 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">cascade 연산과 전달 방식을 골라 보세요. 같은 판정 규칙으로 <b>3대 불변식(원자 롤백 / 순서 / 반환값 수집)</b>이 보존되는지 ✅/❌ 가 라이브로 갱신됩니다. <span class="t">반환/쿼리 연산은 어떤 이벤트로도 ❌</span>, <span class="f">void command 는 "동기 @EventListener" 에서만 ✅</span>, AFTER_COMMIT 은 command 도 깨뜨립니다 — R3-6 이 왜 "동기 한정 + 2 연산만 + SPI 하이브리드" 인지 손으로 검증하는 위젯입니다. §1 적합성 표·§8 D1/D2 와 단일 소스(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">cascade 연산 :</span>
+            <button class="seg" data-op="softDelete" onclick="selOp('softDelete')">softDeleteActive</button>
+            <button class="seg" data-op="recompute" onclick="selOp('recompute')">recomputeEffective</button>
+            <button class="seg" data-op="restore" onclick="selOp('restore')">restoreDeleted</button>
+            <button class="seg" data-op="hasAny" onclick="selOp('hasAny')">hasAny</button>
+            <button class="seg" data-op="labels" onclick="selOp('labels')">deletedLabels</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">전달 방식 :</span>
+            <button class="seg" data-ph="sync" onclick="selPh('sync')">동기 @EventListener</button>
+            <button class="seg" data-ph="after" onclick="selPh('after')">@TxEventListener AFTER_COMMIT</button>
+            <button class="seg spi" data-ph="spi" onclick="selPh('spi')">SPI 직접 호출 (현행)</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row"><strong>연산 성격</strong><span class="label" id="m-kind"></span><span class="badge" id="m-kindb"></span></div>
+            <div class="ux-row"><strong>전달 방식</strong><span class="label" id="m-ph"></span></div>
+          </div>
+
+          <div class="ux-caps" id="m-caps"></div>
+          <div class="ux-message" id="m-msg"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 시뮬레이터의 판정 = §1 적합성 표 = §8 D1/D2. 실측 결론: <b>softDelete/recompute + 동기 @EventListener 두 조합만 ✅</b>, AFTER_COMMIT 은 command 도 invariant 붕괴, 반환/쿼리 3개는 SPI 만 ✅ → R3-6 의 하이브리드 설계가 유일 정합임을 화면에서 증명.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 신구 비교 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 신구 비교 (split-grid) — softDelete / recompute / SPI 축소</summary>
+      <div class="body">
+        <h4>① softDelete — SPI 직접 호출 → 이벤트 발행</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE (R3-4/R3-5)</h4><pre><code>@Override @Transactional
+public void softDelete(Long id) {
+  BoardModel board =
+    BoardModelGuards.requireActiveBoard(repo, id);
+  children.forEach(c -> c.softDeleteActive(id)); // 직접
+  board.softDelete();
+  board.markTrashed(null);
+}</code></pre></div>
+          <div class="split-card after"><h4>AFTER (R3-6)</h4><pre><code>@Override @Transactional
+public void softDelete(Long id) {
+  BoardModel board =
+    BoardModelGuards.requireActiveBoard(repo, id);
+  // board.softDelete 前 발행 → 동기 리스너가
+  // 같은 트랜잭션에서 자식 먼저 처리 (순서 d 보존)
+  events.publishEvent(new BoardSoftDeletedEvent(id));
+  board.softDelete();
+  board.markTrashed(null);
+}</code></pre></div>
+        </div>
+
+        <h4>② recompute — 3 호출부(toggle/deprecate/undeprecate) 공통</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE</h4><pre><code>private void cascadeRecompute(Long id) {
+  children.forEach(c -> c.recomputeEffective(id));
+}
+// toggle: parent.toggleEnabled(); cascadeRecompute(id);</code></pre></div>
+          <div class="split-card after"><h4>AFTER</h4><pre><code>private void cascadeRecompute(Long id) {
+  events.publishEvent(new BoardEffectiveChangedEvent(id));
+}
+// toggle: parent.toggleEnabled(); cascadeRecompute(id);
+// (호출부 불변 — 발행 지점 = 부모 own flip 後 유지)</code></pre></div>
+        </div>
+
+        <h4>③ 자식 측 — SPI command → 동기 @EventListener (BIOS 예시)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 어댑터 SPI 5 메서드</h4><pre><code>@Component @Order(10)
+class BiosBoardScopedChildLifecycle
+        implements BoardScopedChildLifecycle {
+  @Override public void softDeleteActive(Long b){...}
+  @Override public void recomputeEffective(Long b){...}
+  @Override public int  restoreDeleted(Long b){...}
+  @Override public boolean hasAny(Long b){...}
+  @Override public List&lt;String&gt; deletedLabels(Long b){...}
+}</code></pre></div>
+          <div class="split-card after"><h4>AFTER — SPI 3 + 리스너 2 (D4)</h4><pre><code>@Component @Order(10)
+class BiosBoardScopedChildLifecycle
+        implements BoardScopedChildLifecycle {
+  // SPI (반환/쿼리) 잔류
+  @Override public int  restoreDeleted(Long b){...}
+  @Override public boolean hasAny(Long b){...}
+  @Override public List&lt;String&gt; deletedLabels(Long b){...}
+  // command → 동기 이벤트 리스너 (같은 트랜잭션)
+  @EventListener void onSoftDeleted(BoardSoftDeletedEvent e){...}
+  @EventListener void onEffectiveChanged(BoardEffectiveChangedEvent e){...}
+}</code></pre></div>
+        </div>
+
+        <h4>④ SPI 인터페이스 축소 (5 → 3)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE</h4><pre><code>interface BoardScopedChildLifecycle {
+  void recomputeEffective(Long boardId);  // ← 제거
+  void softDeleteActive(Long boardId);    // ← 제거
+  int  restoreDeleted(Long boardId);
+  boolean hasAny(Long boardId);
+  List&lt;String&gt; deletedLabels(Long boardId);
+}</code></pre></div>
+          <div class="split-card after"><h4>AFTER</h4><pre><code>interface BoardScopedChildLifecycle {
+  int  restoreDeleted(Long boardId);
+  boolean hasAny(Long boardId);
+  List&lt;String&gt; deletedLabels(Long boardId);
+}
+// 2 command 는 이벤트 리스너로 이주(인터페이스 밖)</code></pre></div>
+        </div>
+        <div class="callout"><b>주입 변화</b> — <code>BoardModelLifecycleService</code> : <code>+ ApplicationEventPublisher events</code>, <code>List&lt;BoardScopedChildLifecycle&gt; children</code> <b>유지</b>(restore/hasAny/labels). 어댑터: 자식 service 주입 <b>유지</b>(SPI 3 + 리스너 2 모두 사용) → @Lazy 잔류 가능성(CP4 bootRun 실측).</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 — 이벤트 · listener · 패키지 (신규)</summary>
+      <div class="body">
+        <h4>신규 이벤트 record (2)</h4>
+        <table>
+          <thead><tr><th>이벤트</th><th>발행 지점</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardSoftDeletedEvent(Long boardId)</code></td><td><code>softDelete</code> 의 board.softDelete() <b>직전</b></td><td>"이 보드가 같은 트랜잭션에서 soft-delete 됨 — 자식도 동반 trash 이동"</td></tr>
+            <tr><td><code>BoardEffectiveChangedEvent(Long boardId)</code></td><td><code>cascadeRecompute</code>(toggle/deprecate/undeprecate 의 부모 own flip 後)</td><td>"부모 effective 변화 — 자식 effective 재계산"</td></tr>
+          </tbody>
+        </table>
+        <p style="margin:0;">plain <code>record</code>(Spring 4.2+ 임의 객체 이벤트). <code>ApplicationEvent</code> 상속 불필요. 패키지 <code>management/board/event/</code>(발행 도메인 소유 — S5-13 은 <code>management/bios/event/</code> 등 미러링).</p>
+
+        <h4>리스너 배치 (D4)</h4>
+        <p style="margin:0;">권장: 기존 어댑터(<code>BiosBoardScopedChildLifecycle</code> 등)에 <code>@EventListener</code> 메서드 추가(동일 컴포넌트가 "자식 X 의 Board-cascade 참여" 응집) — 대안은 전용 <code>*CascadeListener</code> 신설(§8 D4).</p>
+
+        <h4>의존 그래프 — 순환 점검 (R1-5 교훈)</h4>
+        <div class="dag">BoardModelLifecycleService
+   ├─&gt; ApplicationEventPublisher        <span class="ok">[Spring 내장 — 순환 없음]</span>
+   └─&gt; List&lt;BoardScopedChildLifecycle&gt;   <span class="touch">[3 SPI 유지 — 타입 의존 잔류]</span>
+
+BiosBoardScopedChildLifecycle (어댑터=리스너)
+   └─&gt; @Lazy BiosService                <span class="touch">[SPI 3 + 리스너 2 모두 사용 — @Lazy 잔류 가능]</span>
+
+판정 : 이벤트는 엣지를 <span class="ok">제거</span>(Board→자식 command 호출)하지 추가하지 않음.
+       새 순환 위험 낮으나 <b>CP4 bootRun 으로 실측</b>(R1-5 처럼 스캐너 비대칭 잔존 확인).</div>
+        <div class="callout"><b>엔티티/스키마 변경 0</b> — 7단계(Entity) 산출물 없음. R3-6 은 service/이벤트 계층 리팩터.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10단계 + 체크포인트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (R3-6)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>본 plan html (적합성 분석 + 결정 D1~D4)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 — <b>변경 0</b> (UI/HTTP 불변)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — <b>변경 0</b></td></tr>
+            <tr><td>4</td><td>DTO — <b>변경 0</b></td></tr>
+            <tr><td>5</td><td>이벤트 record 2 + 시그니처 — <code>ApplicationEventPublisher</code> 주입, SPI 인터페이스 5→3, 리스너 메서드 시그니처</td></tr>
+            <tr><td>6</td><td>Repository — <b>변경 0</b></td><td rowspan="2"><span class="chip cp3">CP3</span> (N/A — 엔티티/레포 없음)</td></tr>
+            <tr><td>7</td><td>Entity — <b>변경 0</b></td></tr>
+            <tr><td>8</td><td><b>본체 변경</b> : 발행 전환(softDelete/recompute) + 어댑터 리스너 이주 + SPI 축소. <b>테스트</b> : 발행 verify 단위 + 리스너 단위 + <b>첫 이벤트 통합 테스트</b>(§6)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <b>변경 0</b> · <b>bootRun 순환 실측</b></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — toggle/deprecate/softDelete 후 자식 cascade 정상 + 롤백 — <b>사용자 단독</b></td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>분업</b> — CP4 본체(source)는 Claude 직접, 테스트는 background agent 위임(R3-5/R1-5 선례). 단 <b>첫 이벤트 통합 테스트 패턴</b>은 S5-13 선례가 되므로 신중히.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 테스트 — 이벤트 도입에 따른 검증 구조 변화 (첫 패턴)</summary>
+      <div class="body">
+        <div class="callout warn"><b>핵심 변화</b> — 이벤트화로 <code>BoardModelLifecycleService.softDelete</code> 는 더 이상 자식을 <b>직접 호출하지 않는다</b>. 따라서 service 단위 테스트는 "자식 softDelete 호출 검증" → "<b>이벤트 발행 검증</b>" 으로 바뀐다. 자식 cascade 동작은 리스너 단위 + 통합 테스트로 분리 검증. <b>이 3층 구조가 S5-13 이 차용할 선례.</b></div>
+        <h4>① service 단위 — 발행 검증 (Mockito)</h4>
+        <ul>
+          <li>softDelete → <code>verify(events).publishEvent(new BoardSoftDeletedEvent(id))</code> + board.softDelete 호출 + (자식 직접 호출 검증은 제거).</li>
+          <li>toggle/deprecate/undeprecate → <code>BoardEffectiveChangedEvent</code> 발행 검증.</li>
+          <li>restore/purge/labels → <b>기존 SPI mock 검증 그대로</b>(이벤트화 안 됨).</li>
+        </ul>
+        <h4>② 리스너 단위 — 자식 cascade 동작 (Mockito)</h4>
+        <ul>
+          <li><code>BiosBoardScopedChildLifecycle.onSoftDeleted</code> → 활성 자식 조회 후 <code>biosService.softDelete</code> 호출 검증(기존 softDeleteActive 검증을 리스너로 이동).</li>
+        </ul>
+        <h4>③ 통합 — 발행→구독 와이어링 + 원자 롤백 (신규 패턴)</h4>
+        <ul>
+          <li><code>@SpringBootTest</code> + <code>@RecordApplicationEvents</code> — softDelete 호출 시 이벤트 1건 발행 + 3 리스너 동기 수신 확인.</li>
+          <li><b>롤백 보존 검증(불가침)</b> — 한 자식 리스너가 예외 throw → 전체 트랜잭션 롤백(부모 board 도 미삭제)로 invariant (a)(c) 실증.</li>
+        </ul>
+        <div class="callout"><b>범주 커버리지</b> — 이벤트 경로는 HTTP status 무변(컨트롤러 불변)이라 기존 @WebMvcTest 회귀는 그대로. 신규는 발행/리스너/롤백 시나리오.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0</summary>
+      <div class="body">
+        <p style="margin-top:0;">신규 예외 0. 동기 <code>@EventListener</code> 는 리스너 예외를 발행자 트랜잭션으로 그대로 전파하므로 기존 자식 service 예외(<code>Duplicate*</code> 등)와 롤백 의미가 불변. <code>IllegalBoardModelStateException</code>(purge 가드, SPI 잔류) 등도 그대로.</p>
+        <div class="callout warn"><b>주의 — 이벤트의 예외 전파</b> : 동기 발행은 리스너 예외를 즉시 던진다(보존). 만약 향후 누가 리스너를 <code>@Async</code> 로 바꾸면 예외가 발행자에서 사라진다 — R3-6 리스너는 <b>동기(@Async 금지)</b> 임을 주석으로 못박는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 결정 D1~D4 / 잔존 책임</summary>
+      <div class="body">
+
+        <div class="callout danger"><b>★ 결정 D1 — 이벤트화 범위 (가치 판단 포함)</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>범위</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> void command 2개</td><td>softDelete + recompute 이벤트화 / 반환·쿼리 3 SPI</td><td>"void→이벤트, return/query→SPI" 깔끔한 경계. 이벤트 인프라 2 타입으로 검증. 관례 확립</td></tr>
+            <tr><td>softDelete 1개만</td><td>최소 파일럿</td><td>가장 보수적이나 recompute 가 SPI 에 남아 경계가 자의적</td></tr>
+            <tr><td>보류(진입 안 함)</td><td>—</td><td>over-abstraction 우려는 정당하나, S5-13 이 첫 도입 부담을 단독으로 짐</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : void command 2개.</b> 근거 — (1) 적합성 분석상 이벤트 가능 연산이 정확히 이 2개이며 자식 간 순서도 무관해 깔끔히 비결합. (2) 2 이벤트 타입으로 관례를 충분히 실증 → S5-13 차용 폭 ↑. (3) "void→이벤트 / return·query→SPI" 가 자의적이지 않은 경계.</p>
+
+        <div class="callout danger"><b>★ 결정 D2 — listener phase</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> 동기 <code>@EventListener</code> (같은 트랜잭션)</td><td>invariant (a)(c)(d) 전부 보존. cascade 원자성 유지의 <b>유일</b> 안전안</td></tr>
+            <tr><td><code>@TransactionalEventListener(AFTER_COMMIT)</code></td><td><b>금지</b> — 부모 commit 後 자식 처리 → 부분 적용·순서 역전·롤백 붕괴. (이건 S5-13 의 phase 이지 R3-6 의 것이 아님)</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : 동기 <code>@EventListener</code>.</b> R3-6 과 S5-13 의 <b>유일한 본질 차이가 phase</b> 임을 plan/Notion 에 명시 — 공유되는 건 publisher·네이밍·테스트 관례.</p>
+
+        <div class="callout danger"><b>★ 결정 D3 — 이벤트 패키지 / 타입 형태</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> <code>management/board/event/</code> + plain record 2개</td><td>발행 도메인이 이벤트 계약 소유. S5-13 은 <code>bios/event/</code> 등 미러링. record 가 가장 단순</td></tr>
+            <tr><td><code>global/event/</code> 공용 패키지</td><td>cross-domain dumping 우려. 이벤트는 발행 도메인 소유가 관례</td></tr>
+            <tr><td>sealed <code>BoardCascadeEvent</code> 1개 + 변형</td><td>2개뿐이라 과설계. record 2개가 명료</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : 도메인-로컬 <code>management/board/event/</code> + record 2개.</b> "발행 도메인 소유 event 패키지" 관례를 R3-6 이 확립 → S5-13 따름.</p>
+
+        <div class="callout danger"><b>★ 결정 D4 — 리스너 배치</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> 기존 어댑터에 <code>@EventListener</code> 추가</td><td>"자식 X 의 Board-cascade 참여"로 응집. 신규 파일 0. 자식 service 주입 재사용. S5-13 의 "기존 Launcher 에 리스너 추가"와 동형</td></tr>
+            <tr><td>전용 <code>*CascadeListener</code> 신설</td><td>SPI(쿼리)와 리스너(command) 관심사 분리는 깔끔하나 3 파일 + 자식 service 주입 중복</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : 기존 어댑터에 리스너 메서드 추가.</b> 단 어댑터가 "SPI 3 + 동기 리스너 2" 의 이중 역할임을 주석으로 명확히. (대안 채택 시 D4 만 조정, 나머지 동일.)</p>
+
+        <h4>잔존 책임 / 의도된 임시 비대칭 (Notion 본문 기재 대상)</h4>
+        <ul class="impl-mono">
+          <li><b>부분 디커플링</b> — restore/hasAny/labels SPI + @Lazy 잔류. 반환/쿼리의 이벤트 부적합은 구조적 한계(버그 아님). 향후 CQRS 류로 더 끊을지는 별개 검토.</li>
+          <li><b>S5-13 의존</b> — R3-6 이 확립한 publisher/네이밍/테스트 관례를 S5-13 이 AFTER_COMMIT phase 로 재사용. R3-6 미진입 시 S5-13 이 첫 도입 부담.</li>
+          <li><b>@Async 금지 주석</b> — 동기 리스너가 롤백 보존의 전제. 후속자가 비동기화하지 않도록 명시.</li>
+        </ul>
+
+        <h4>CLAUDE.md 갱신</h4>
+        <ul>
+          <li>(검토) 이벤트 관례가 정착되면 §아키텍처에 "도메인 이벤트 = 발행 도메인 <code>event/</code> 패키지 + 동기/AFTER_COMMIT phase 의식적 선택 + @RecordApplicationEvents 통합 테스트" 1줄 추가 후보. R3-6 단독으로 규칙화는 과함 → S5-13 까지 2 사례 후 정식화 권장.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R3-6-verify">
+          <li><label><input type="checkbox" data-key="b1"> <span><b>빌드</b> — <code>compileJava compileTestJava</code> SUCCESSFUL</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>구조</b> — SPI 5→3, 이벤트 record 2 신설, 어댑터에 동기 <code>@EventListener</code> 2(@Async 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="r1"> <span><b>부팅</b> — <code>bootRun</code> Started · <b>순환 0 실측</b>(이벤트가 Board→자식 호출 엣지 제거 후 그래프 DAG)</span></label></li>
+          <li><label><input type="checkbox" data-key="t1"> <span><b>테스트</b> — service 발행 검증 + 리스너 단위 + 통합(@RecordApplicationEvents) green</span></label></li>
+          <li><label><input type="checkbox" data-key="t2"> <span><b>invariant</b> — 통합 테스트로 자식 예외 시 <b>전체 롤백</b>(부모 미삭제) 실증</span></label></li>
+          <li><label><input type="checkbox" data-key="t3"> <span><b>회귀</b> — 전체 <code>test --rerun-tasks</code> 0 fail. @WebMvcTest HTTP 매핑 불변</span></label></li>
+          <li><label><input type="checkbox" data-key="f1"> <span><b>기능</b> — toggle/deprecate/softDelete 후 자식 effective/trash cascade 정상 (CP5 E2E)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <div class="pkg-tree">management/board/event/
+├── BoardSoftDeletedEvent.java        (record, boardId)
+└── BoardEffectiveChangedEvent.java   (record, boardId)</div>
+        <h4>수정</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>chip</th></tr></thead>
+          <tbody>
+            <tr><td><code>board/service/metadata/BoardModelLifecycleService.java</code></td><td><code>+ApplicationEventPublisher</code> · softDelete/cascadeRecompute 발행 전환 · <code>children</code> 유지(SPI 3)</td><td><span class="chip mod">mod</span></td></tr>
+            <tr><td><code>board/service/BoardScopedChildLifecycle.java</code></td><td>SPI 5→3 (recompute/softDeleteActive 제거)</td><td><span class="chip mod">mod</span></td></tr>
+            <tr><td><code>board/service/cascade/Bios·Bmc·Subprogram BoardScopedChildLifecycle.java</code></td><td>command 2 → <code>@EventListener</code> 메서드(동기) · SPI 3 유지 (D4)</td><td><span class="chip mod">mod</span></td></tr>
+          </tbody>
+        </table>
+        <h4>수정 (test)</h4>
+        <ul>
+          <li><code>BoardModelLifecycleServiceTest</code> — 발행 검증 전환 · <code>@Mock ApplicationEventPublisher</code></li>
+          <li>어댑터별 리스너 단위 테스트 + 신규 <code>BoardCascadeEventIntegrationTest</code>(@SpringBootTest @RecordApplicationEvents)</li>
+        </ul>
+        <h4>유지 (KEEP)</h4>
+        <ul>
+          <li>Controller / DTO / Entity / Repository — 변경 0. restore/purge/labels SPI 경로 불변.</li>
+          <li><code>BoardModelMarkableScanner</code>(deletedLabels SPI 호출) 불변.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>S5-13 (재개 후보)</b> — 자원 등록 후 무결성 검증 자동화. R3-6 이 확립한 <code>ApplicationEventPublisher</code> + event record + 테스트 관례를 <b>phase 만 <code>@TransactionalEventListener(AFTER_COMMIT)</code> 로 바꿔</b> 4 도메인(Bios/Bmc/Subprogram/Iso)에 미러링. "[삭제]/보류" 페이지 재활성 검토.</li>
+          <li><b>R4-x / R5-x / R6-x</b> — BIOS/BMC/Subprogram Controller/Service 분리(R3 패턴 확장). 필요 시 자체 cascade 이벤트도 동일 관례.</li>
+          <li><b>R7</b> — 전 도메인 순환 일소(스캐너 SPI 분리/ObjectProvider). R3-6 이 Board command 의존 엣지를 줄여 사전 정지작업 일부 기여.</li>
+          <li><b>이벤트 관례 정식화</b> — R3-6(동기) + S5-13(AFTER_COMMIT) 2 사례 확보 후 CLAUDE.md §아키텍처에 도메인 이벤트 규약 1문단 추가 검토.</li>
+        </ol>
+        <div class="callout success"><b>R3 도메인 종착</b> — R3-2(컨트롤러) → R3-3(service) → R3-4(cascade 다형화) → R3-5(중복 청산) → <b>R3-6(첫 이벤트 도입)</b>. R3-6 은 Board cascade 의 적합 2 연산을 이벤트화하며 프로젝트의 이벤트 기반 전환의 <b>첫 발</b>을 뗀다 — 완전 디커플링이 아닌, 정직하게 제한된 파일럿.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+// ① ToC 클릭 → 대상 섹션 open + smooth scroll (sticky 헤더 offset -108)
+document.querySelectorAll('#toc-list a').forEach(function (a) {
+  a.addEventListener('click', function (e) {
+    e.preventDefault();
+    var id = a.getAttribute('href').slice(1);
+    var target = document.getElementById(id);
+    if (!target) return;
+    target.open = true;
+    var y = target.getBoundingClientRect().top + window.pageYOffset - 108;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  });
+});
+
+// ② 전부 펴기 / 접기
+document.getElementById('btn-expand').addEventListener('click', function () {
+  document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+});
+document.getElementById('btn-collapse').addEventListener('click', function () {
+  document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+});
+
+// ③ filter — 매칭 섹션만 표시
+document.getElementById('filter').addEventListener('input', function (e) {
+  var q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('details.section').forEach(function (d) {
+    if (!q) { d.classList.remove('hidden'); return; }
+    var hit = d.textContent.toLowerCase().indexOf(q) !== -1;
+    d.classList.toggle('hidden', !hit);
+    if (hit) d.open = true;
+  });
+});
+
+// ④ check-list localStorage 동기화
+document.querySelectorAll('ul.check-list[data-storage]').forEach(function (ul) {
+  var store = ul.getAttribute('data-storage');
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(store) || '{}'); } catch (_) {}
+  ul.querySelectorAll('input[type="checkbox"][data-key]').forEach(function (cb) {
+    var key = cb.getAttribute('data-key');
+    if (saved[key]) { cb.checked = true; cb.closest('label').classList.add('done'); }
+    cb.addEventListener('change', function () {
+      cb.closest('label').classList.toggle('done', cb.checked);
+      saved[key] = cb.checked;
+      localStorage.setItem(store, JSON.stringify(saved));
+    });
+  });
+});
+
+/* ===== 🎬 cascade 연산 × phase 적합성 시뮬레이터 ===== */
+var OPS = {
+  softDelete: { label:'softDeleteActive', kind:'command', ret:'void',
+    note:'부모 soft-delete 동반 자식 trash. 자식 간 순서 무관, board.softDelete 前 발행으로 부모-자식 순서 보존.' },
+  recompute:  { label:'recomputeEffective', kind:'command', ret:'void',
+    note:'부모 own flip 後 자식 effective 재계산. 자식 간 순서 무관.' },
+  restore:    { label:'restoreDeleted', kind:'return', ret:'int',
+    note:'복구 건수를 합산해 RestoreResponse 로 반환 — 발행자가 핸들러 결과를 수집해야 함.' },
+  hasAny:     { label:'hasAny', kind:'query', ret:'boolean',
+    note:'purge 선결 가드 — 그 자리에서 boolean 받아 거절 분기.' },
+  labels:     { label:'deletedLabels', kind:'query', ret:'List<String>',
+    note:'휴지통 preview — 자식 라벨 수집 반환.' }
+};
+var PHASES = {
+  sync:  '동기 @EventListener (같은 트랜잭션)',
+  after: '@TransactionalEventListener(AFTER_COMMIT)',
+  spi:   'SPI 직접 호출 (현행 R3-4)'
+};
+var sim = { op:'softDelete', ph:'sync' };
+
+function selOp(o){ sim.op=o; renderSim(); }
+function selPh(p){ sim.ph=p; renderSim(); }
+
+// 3대 불변식 판정 : [원자 롤백, 순서, 반환값 수집]
+function judge(op, ph){
+  var isCmd = OPS[op].kind === 'command';
+  if (ph === 'spi'){
+    // SPI 직접 호출 — 모든 연산 안전(현행). 단 command 는 컴파일타임 결합 잔존.
+    return { verdict: isCmd ? 'OK-COUPLED' : 'OK',
+      rollback:true, order:true, collect:true,
+      msg: isCmd ? 'OK(현행) — 안전하나 Board→자식 컴파일타임 결합 유지. R3-6 은 이걸 이벤트로 끊는다.'
+                 : 'OK — 반환/쿼리는 SPI 직접 호출이 정답(R3-6 도 SPI 잔류).' };
+  }
+  // 이벤트(sync/after)
+  if (!isCmd){
+    return { verdict:'INVALID', rollback:null, order:null, collect:false,
+      msg: '✗ 부적합 — ' + OPS[op].ret + ' 반환 연산. fire-and-forget 이벤트는 핸들러 결과를 발행자에 모아줄 수 없음 → SPI 직접 호출만 가능.' };
+  }
+  if (ph === 'sync'){
+    return { verdict:'VALID', rollback:true, order:true, collect:true,
+      msg: '✓ 안전 — 동기 같은-트랜잭션. 리스너 예외가 발행자로 전파(롤백 보존), 자식 간 순서 무관, 부모-자식 순서는 발행 지점으로 보존. R3-6 이 채택하는 유일 안전안.' };
+  }
+  // after_commit + command
+  return { verdict:'BROKEN', rollback:false, order:false, collect:true,
+    msg: '✗ invariant 붕괴 — AFTER_COMMIT 은 부모 commit 後 자식 처리. 자식 실패해도 부모 이미 삭제(부분 적용·롤백 붕괴), 순서 역전. cascade 에 금지(이건 S5-13 의 phase).' };
+}
+
+function renderSim(){
+  document.querySelectorAll('#s2-preview .seg[data-op]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-op')===sim.op);
+  });
+  document.querySelectorAll('#s2-preview .seg[data-ph]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-ph')===sim.ph);
+  });
+
+  var op = OPS[sim.op];
+  document.getElementById('m-kind').textContent = op.label + ' : ' + op.ret + ' — ' + op.note;
+  var kb = document.getElementById('m-kindb');
+  kb.textContent = op.kind;
+  kb.className = 'badge ' + (op.kind==='command' ? 'cmd' : 'ret');
+  document.getElementById('m-ph').textContent = PHASES[sim.ph];
+
+  var j = judge(sim.op, sim.ph);
+  function mark(v){ return v===true ? '<span class="f">✓ 보존</span>' : v===false ? '<span class="t">✗ 붕괴</span>' : '<span class="m">— N/A</span>'; }
+  document.getElementById('m-caps').innerHTML =
+    '연산 = ' + op.label + ' (' + op.kind + ', ' + op.ret + ')\n' +
+    '전달 = ' + PHASES[sim.ph] + '\n' +
+    '──────────────────────────────\n' +
+    '  (a) 원자 롤백   : ' + mark(j.rollback) + '\n' +
+    '  (b/d) 순서      : ' + mark(j.order) + '\n' +
+    '  반환값 수집     : ' + (j.collect ? '<span class="f">✓ 가능</span>' : '<span class="t">✗ 불가</span>') + '\n' +
+    '──────────────────────────────\n' +
+    '  판정            : ' + (j.verdict==='VALID' ? '<span class="f">VALID ✓ (R3-6 채택)</span>'
+                          : j.verdict==='OK' ? '<span class="f">OK (SPI 잔류)</span>'
+                          : j.verdict==='OK-COUPLED' ? '<span class="m">OK·결합잔존</span>'
+                          : '<span class="t">' + j.verdict + ' ✗</span>');
+
+  var msg = document.getElementById('m-msg');
+  msg.textContent = j.msg;
+  msg.className = 'ux-message ' + (j.verdict==='VALID' ? 'ok'
+      : j.verdict==='BROKEN' || j.verdict==='INVALID' ? 'bad'
+      : j.verdict==='OK-COUPLED' ? 'warn' : 'spi');
+}
+renderSim();
+</script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R7-2 plan (Option D) — OS 도메인 typed-name 가드 전환 + REAL ObjectProvider 제거</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--orange:#dd5b00;--orange-bg:rgba(221,91,0,.10);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--green:#1a7f37;--green-bg:#dafbe1;
+    --red:#bf2626;--red-bg:rgba(191,38,38,.09);--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1340px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section.key>summary{background:linear-gradient(90deg,var(--green-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;border-bottom:1px solid var(--border)}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .dm-row{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--soft)}
+  .dm-btn{border:1px solid var(--border);background:var(--card);padding:5px 10px;font-size:12px;border-radius:7px;cursor:pointer;font-family:var(--mono)}
+  .dm-btn.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.9;white-space:pre-wrap}
+  .ux-flow .node{color:#79c0ff}.ux-flow .svc{color:#ff7b72}.ux-flow .repo{color:#8b949e}.ux-flow .lazy{color:#e3b341;font-weight:700}.ux-flow .cut{color:#f85149;font-weight:700}.ux-flow .ok{color:#3fb950;font-weight:700}.ux-flow .guard{color:#3fb950}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft)}
+  .ux-verdict.bad{background:var(--red-bg)}.ux-verdict.good{background:var(--green-bg)}
+  .opt{border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin:8px 0}
+  .opt.pick{border-color:var(--green);background:var(--green-bg)} .opt.drop{border-color:var(--border);background:#fafbfc}
+  .opt h5{margin:0 0 5px;font-size:12.5px} .opt .tag{font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px}
+  .opt.pick .tag{background:var(--green);color:#fff} .opt.drop .tag{background:var(--soft);color:var(--muted)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R7-2 — OS typed-name 가드 전환 + REAL ObjectProvider 제거 <span class="chip cp1">CP1 · Option D</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R7-2 (R7-3 와 TypedNameGuard 추출 공유)</span>
+    <span><strong>scope</strong> OS/Iso LifecycleService 가 TypedNameVerifier(빈) → TypedNameGuard(static) 로 전환 → scanner 의 ObjectProvider 2개 제거. MarkableScanner 통합 유지</span>
+    <span><strong>전제</strong> R7-1 완료 · OSMetadata/Iso LifecycleService 존재</span>
+    <span><strong>생성</strong> 2026-06-28 KST · Option D 재작성</span>
+    <span><strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 · 목표</a></li>
+      <li><a href="#s0" class="">§2 설계 — 어느 변을 끊나 (A vs D)</a></li>
+      <li><a href="#sd">🎬 라이브 — 순환 제거</a></li>
+      <li><a href="#s3">§3 변경 상세 (TypedNameGuard)</a></li>
+      <li><a href="#s4">§4 결정 D1~D4 (비채택 포함)</a></li>
+      <li><a href="#s5">§5 10단계</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 부산물 / 주의</a></li>
+      <li><a href="#s8">§8 Verification</a></li>
+      <li><a href="#s9">§9 Critical Files</a></li>
+      <li><a href="#s10">§10 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 · 목표</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>R7-1 완료</b>(commit 876b749) — MarkableScanner 가 4 책임으로 분리됨. R7-2 는 OS 도메인의 REAL ObjectProvider 2개(OSMetadata·ISO scanner)를 제거한다.</p>
+        <h4>지금 OS scanner 의 순환 (REAL — 별도 bootRun 으로 실증된 사슬)</h4>
+        <pre>IsoLifecycleService → typedNameVerifierImpl → isoMarkableScanner → IsoLifecycleService ↺
+(직접 주입 전환 시 BeanCurrentlyInCreationException 으로 부팅 실패 — 실측)</pre>
+        <p>순환의 세 변을 풀어 쓰면 :</p>
+        <pre>(A) TypedNameVerifier → scanner            scanner 가 displayName lookup 제공
+(B) scanner → 도메인 service               scanner 의 복구/영구삭제가 service 역호출
+(C) 도메인 service → TypedNameVerifier      LifecycleService.purgeWithTypedNameCheck 가 verify() 호출
+                                            (OSMetadataLifecycleService:166 / IsoLifecycleService:227)</pre>
+        <div class="callout"><b>목표를 풀어 쓰면</b> — 이 순환을 끊되 <code>MarkableScanner</code> 의 통합(4 책임 한 SPI)을 깨지 않는다. 변 (C)를 끊는다 — OS/Iso 의 <code>LifecycleService</code> 가 <code>TypedNameVerifier</code>(빈)를 주입하는 대신 의존성 없는 static 가드를 쓰게 해, <code>service → verifier</code> 변을 없앤다. 그러면 scanner 는 복구/영구삭제를 그대로 들고(직접 주입, <code>ObjectProvider</code> 불요), <code>MarkableScanner</code> 는 통합 그대로다. 동작(휴지통 복구·영구삭제·재조정·검증)은 모두 불변.</div>
+      </div>
+    </details>
+
+    <details class="section key" id="s0" open>
+      <summary>§2. 설계 — 어느 변을 끊나 (대안 비교: A vs D vs E)</summary>
+      <div class="body">
+        <p style="margin-top:0">순환에는 끊을 수 있는 변이 둘((B) <code>scanner→service</code>, (C) <code>service→verifier</code>)이다. 어느 변을 끊느냐로 설계가 갈린다. 세 대안을 비교한다.</p>
+
+        <div class="opt drop"><span class="tag">대안 A — 비채택</span><h5>변 (B) 절단 : trash 를 scanner→LifecycleService 로 이전</h5>
+          <p style="margin:5px 0 0">MarkableTrashOperator 를 scanner 에서 떼어 LifecycleService 가 구현. <b>탈락 사유</b> : <code>MarkableScanner</code> 가 쪼개져 "1 도메인 = 1 SPI 구현" 통일성이 반감되고(사용자 지적), composite 재정의 + TrashController/PurgeExecutor 재배선 + BIOS/BMC/Subprogram scanner 에 <code>MarkableTrashOperator</code> 추가 선언까지 변경량이 크다.</p></div>
+
+        <div class="opt pick"><span class="tag">대안 D — 채택</span><h5>변 (C) 절단 : LifecycleService 의 typed-name 을 TypedNameVerifier(빈) → TypedNameGuard(static)로</h5>
+          <p style="margin:5px 0 0"><code>LifecycleService.purgeWithTypedNameCheck</code> 는 이미 엔티티를 손에 들고 있으므로(아래 §3), id→엔티티 재조회가 필요한 <code>TypedNameVerifier</code> 빈 대신 <b>의존성 0 인 static 가드</b>로 검증한다. <code>service → verifier</code> 변이 사라져 순환이 끊기고, scanner 는 복구/영구삭제를 그대로 들고 <b><code>ObjectProvider</code> 없이 직접 주입</b>으로 전환된다. <code>MarkableScanner</code> 통합 유지, 소비자 재배선 0.</p>
+          <p style="margin:5px 0 0"><b>게다가 이미 절반은 이 모양</b> : BIOS/BMC/Subprogram 은 지금도 inline <code>displayName().equals()</code>(verifier 미주입)이라 scanner 가 service 를 직접 주입해도 순환·ObjectProvider 가 없다. 즉 R1-5/R3-5 가 OS/Board/Iso 만 verifier 위임으로 바꾼 것이 순환의 원인 — 대안 D 는 6 도메인을 일관된 패턴으로 모은다(중복은 TypedNameGuard 가 흡수).</p></div>
+
+        <div class="opt drop"><span class="tag">대안 E — 보류</span><h5>D + checkPrecondition 분리로 전역 @Lazy 까지 제거</h5>
+          <p style="margin:5px 0 0">대안 D 는 ObjectProvider 3개를 없애지만, scanner→service 변이 남아 <code>SoftDeleteIntentService</code> 의 전역 <code>@Lazy</code> 는 유지된다(아래 트레이드오프). 그 @Lazy 까지 0으로 만들려면 <code>checkPrecondition</code> 을 LifecycleService 밖으로 빼는 추가 분리가 필요. <b>보류 사유</b> : 그 <code>@Lazy</code> 는 cross-cutting helper 의 <b>정당한</b> 순환 차단(ObjectProvider 검증 보고서에서 "REAL"로 분류)이라 제거가 결함 해소가 아니다 — 추가 분리의 복잡도 대비 이득이 작다. "정당한 @Lazy 1개 허용" 으로 R7 capstone 목표를 완화한다.</p></div>
+
+        <table>
+          <thead><tr><th></th><th>A (변 B)</th><th>D (변 C, 채택)</th></tr></thead>
+          <tbody>
+            <tr><td>MarkableScanner 통합</td><td class="cut">깨짐</td><td><b>유지</b></td></tr>
+            <tr><td>변경량</td><td>큼(composite·소비자·BIOS/BMC/Subprogram)</td><td><b>작음</b>(LifecycleService 3 + 가드)</td></tr>
+            <tr><td>REAL ObjectProvider 3개</td><td>제거</td><td><b>제거</b></td></tr>
+            <tr><td>중복 조회</td><td>유지</td><td><b>제거</b>(엔티티 재사용)</td></tr>
+            <tr><td>전역 @Lazy(SoftDeleteIntentService)</td><td>(R7-6) 제거</td><td>남음(정당)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>정직한 트레이드오프.</b> 대안 D 는 scanner→service 변을 남기므로 <code>SoftDeleteIntentService</code> 의 <code>@Lazy</code> 가 유지된다. 이 <code>@Lazy</code> 는 cross-cutting helper 가 양방향(scanner 의존 + service 가 본 helper 의존)으로 엮인 정당한 순환 차단이라, 남는 것이 결함은 아니다. 전역 @Lazy 0 이 꼭 필요하면 대안 E(별도 작업)로 후속 평가.</div>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 — 도메인을 골라 변 (C) 절단이 순환을 푸는지 검증</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <button class="ux-btn" data-view="before">R7-2 전</button>
+            <button class="ux-btn on" data-view="after">R7-2 후 (Option D)</button>
+          </div>
+          <div class="dm-row" id="dmRow"></div>
+          <div class="ux-flow" id="flow"></div>
+          <div class="ux-verdict" id="verdict"></div>
+        </div>
+        <p class="dim">판정은 §3 설계 재현 — bootRun 결과 예측.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 변경 상세 (TypedNameGuard 추출 · 엔티티 재사용)</summary>
+      <div class="body">
+        <h4>현재 코드 — 엔티티를 로딩해 버린 뒤 verifier 가 재조회 (중복)</h4>
+        <pre>// OSMetadataLifecycleService:165
+public void purgeWithTypedNameCheck(Long id, String typedName) {
+    osMetadataRepository.findByIdAndIsDeletedTrue(id)            // 로딩 → 버림(존재만 확인)
+            .orElseThrow(() -&gt; new IllegalOSMetadataStateException("…id=" + id));
+    typedNameVerifier.verify(ResourceType.OS_IMAGE, id, typedName);   // 다시 id→scanner→findById (중복 조회) + service→verifier 변
+    purge(id);
+}</pre>
+        <h4>Option D — 로딩한 엔티티를 가드에 그대로 전달</h4>
+        <pre>// 신규 — 의존성 0 (scanner·service 무관)
+public final class TypedNameGuard {
+    public static void verify(Markable resource, String typedName) {
+        String expected = resource.displayName();
+        if (!expected.equals(typedName)) throw new TypedNameMismatchException(expected, typedName);
+    }
+}
+
+// OSMetadataLifecycleService (전환 후)
+public void purgeWithTypedNameCheck(Long id, String typedName) {
+    OSMetadata image = osMetadataRepository.findByIdAndIsDeletedTrue(id)   // 엔티티 보존
+            .orElseThrow(() -&gt; new IllegalOSMetadataStateException("…id=" + id));
+    TypedNameGuard.verify(image, typedName);   // 재조회 없음 · verifier 빈 미주입 → 변 (C) 소멸
+    purge(id);
+}</pre>
+        <p class="dim">IsoLifecycleService:227 동일(findById 한 ISO 엔티티 재사용). 두 service 에서 <code>private final TypedNameVerifier typedNameVerifier</code> 필드 삭제.</p>
+        <h4>scanner — ObjectProvider → 직접 주입</h4>
+        <ul>
+          <li><code>OSMetadataMarkableScanner</code> : <code>ObjectProvider&lt;OSMetadataLifecycleService&gt;</code> → <code>OSMetadataLifecycleService</code> 직접 필드. <code>restoreFromTrash/purgeFromTrash</code> 가 <code>getObject().restore/purge</code> → <code>osMetadataLifecycleService.restore/purge</code>. trash 메서드 그대로 유지(이전 안 함).</li>
+          <li><code>IsoMarkableScanner</code> : <code>ObjectProvider&lt;IsoLifecycleService&gt;</code> → 직접 주입. 동일.</li>
+        </ul>
+        <h4>BIOS/BMC/Subprogram inline → TypedNameGuard (공통 dedup, R7-2 에서 1회)</h4>
+        <p style="margin:0">세 service 의 <code>purgeWithTypedNameCheck</code> 에 글자단위 복제된 3줄(<code>String expected = e.displayName(); if(!expected.equals(typedName)) throw …</code>)을 <code>TypedNameGuard.verify(entity, typedName)</code> 한 줄로 치환(§중복 해소). 이들은 verifier 를 원래 안 써 순환·ObjectProvider 가 없고, 본 치환도 동작 불변.</p>
+        <div class="callout ok"><b>TypedNameVerifier(빈)는 남는다.</b> nudge 교체·모달 컨트롤러(BiosNudgeController/TrashController/ConfirmModalFragmentController 등)는 엔티티가 아직 없어 id→조회가 필요하므로 빈이 맞다. "엔티티가 손에 있으면 TypedNameGuard(static), 없으면 TypedNameVerifier(빈)" 의 자연스러운 분리.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 결정 D1~D4 (비채택 대안 + 탈락 사유 포함)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택 / 비채택 사유</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>순환을 끊는 변</td><td><b>(C) service→verifier 절단</b>(Option D). 비채택 (B) scanner→service 절단(A)은 MarkableScanner 통합을 깨고 변경량이 큼. (C)는 통합 유지 + 변경량 최소 + BIOS/BMC/Subprogram 와 일관(§2)</td></tr>
+            <tr><td><b>D2</b></td><td>typed-name 검증 형태</td><td><b>TypedNameGuard static 헬퍼</b>(엔티티 인자). 비채택 (a) 각 service inline 6벌 → §중복 위반 (b) verifier 빈 유지 → 순환 잔존. static 헬퍼는 의존성 0 이라 순환 무관 + 중복 0</td></tr>
+            <tr><td><b>D3</b></td><td>BIOS/BMC/Subprogram 처리</td><td><b>inline → TypedNameGuard 치환(R7-2 공통)</b>. 6 도메인 일관 + dedup. 동작 불변(verifier 미사용이라 순환 영향 0). <span class="dim">원하면 R7-4~6 으로 이연 가능하나 trivial 이라 지금 권장</span></td></tr>
+            <tr><td><b>D4</b></td><td>전역 @Lazy 처리</td><td><b>유지(정당한 cross-cutting 차단)</b>. 비채택 (대안 E) checkPrecondition 분리로 제거 → 복잡도 대비 이득 작음. R7 capstone 목표를 "정당한 @Lazy 1개 허용"으로 완화</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 10단계</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>本 plan (CP1)</td><td>CP1</td></tr>
+            <tr><td>2~5</td><td>UI/DTO/URL 무변경. TypedNameGuard 신규 + OS/Iso LifecycleService 전환 + scanner ObjectProvider→직접 + BIOS/BMC/Subprogram 치환 = CP2</td><td>CP2</td></tr>
+            <tr><td>6~7</td><td>Repository/Entity 무변경</td><td>CP3</td></tr>
+            <tr><td>8</td><td><b>핵심</b> — 구현 + 동작 불변 회귀 + <b>bootRun(OS/Iso ObjectProvider 2개 제거 후 순환 0 + 부팅)</b></td><td>CP4</td></tr>
+            <tr><td>9</td><td>스키마 무변경</td><td>CP4</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — OS/ISO 휴지통 복구·영구삭제(typed-name 입력 확인 포함)·재조정·검증 동일 (사용자 단독)</td><td>CP5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>레이어</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>부팅(DI) — 최우선</td><td><b>bootRun 성공</b> + <code>ObjectProvider&lt;OSMetadataLifecycleService&gt;|&lt;IsoLifecycleService&gt;</code> grep 0. 변 (C) 절단으로 순환 근본 소멸 → 직접 주입으로 부팅</td></tr>
+            <tr><td>단위 — TypedNameGuard</td><td>일치 → 통과, 불일치 → TypedNameMismatchException(expected, typed). null/빈 typedName 경계</td></tr>
+            <tr><td>회귀 — purge typed-name</td><td>OS/ISO(+BIOS/BMC/Subprogram) purgeWithTypedNameCheck 가 이름 일치 시 purge, 불일치 시 400. 기존 purge flow 테스트 green (TypedNameVerifierTest 의 service 위임 케이스는 가드 호출로 정합)</td></tr>
+            <tr><td>회귀 — 휴지통/재조정</td><td>OS/ISO 복구·cascade·영구삭제·재조정·검증 동일(scanner trash 그대로라 영향 최소)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 부산물 / 주의</summary>
+      <div class="body">
+        <ul>
+          <li><b>MarkableScanner 통합 유지.</b> R7-1 의 4-인터페이스 분리(ISP)는 그대로 유효 — narrow 주입(verifier→Inventory, SoftDeleteIntentService→Ghost)도 그대로. MarkableTrashOperator 는 scanner 가 계속 구현하는 살아있는 경계로 남는다(낭비 아님).</li>
+          <li><b>전역 @Lazy 유지(정당).</b> scanner→service 변이 남아 SoftDeleteIntentService 의 @Lazy 가 지킨다. R7 capstone 의 "전역 @Lazy 제거" 목표는 "정당한 @Lazy 1개 허용"으로 완화(§2 대안 E 보류). Notion R7-6 본문 이 방향으로 갱신 권고.</li>
+          <li><b>R1-5/R3-5 의 verifier 위임을 부분 환원.</b> service 측 typed-name 만 가드로 되돌리고, controller 측 verifier 는 유지. R1-5/R3-5 의 dedup 의도는 TypedNameGuard 가 더 낫게 충족(중복 조회까지 제거).</li>
+          <li>R7-3(Board)은 TypedNameGuard 추출(본 plan)을 전제 — R7-2 와 같은 commit 묶음 또는 직후.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s8">
+      <summary>§8. Verification</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r72d-v">
+          <li><input type="checkbox"><span>compileJava SUCCESS</span></li>
+          <li><input type="checkbox"><span><b>bootRun 성공</b> + ObjectProvider&lt;OSMetadataLifecycleService&gt;/&lt;IsoLifecycleService&gt; grep 0</span></li>
+          <li><input type="checkbox"><span>전체 테스트 843 green</span></li>
+          <li><input type="checkbox"><span>OSMetadata/Iso LifecycleService 에 TypedNameVerifier 주입 0 (가드 사용)</span></li>
+          <li><input type="checkbox"><span>MarkableScanner 정의 변경 0 (통합 유지) · TrashController/PurgeExecutor 변경 0</span></li>
+          <li><input type="checkbox"><span>TypedNameVerifier 빈은 controller 경로에서 그대로 사용</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>§9. Critical Files</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <ul><li class="mono">global/trash/service/TypedNameGuard.java (또는 global/marker/) — static verify(Markable, String)</li><li class="mono">test: TypedNameGuardTest</li></ul>
+        <h4>수정 — OS</h4>
+        <ul>
+          <li class="mono">os/service/metadata/OSMetadataLifecycleService.java — TypedNameVerifier 필드 삭제, 엔티티 보존+TypedNameGuard</li>
+          <li class="mono">os/service/iso/IsoLifecycleService.java — 동일</li>
+          <li class="mono">os/service/metadata/OSMetadataMarkableScanner.java · os/service/iso/IsoMarkableScanner.java — ObjectProvider→직접 주입</li>
+        </ul>
+        <h4>수정 — 공통 dedup (D3)</h4>
+        <ul><li class="mono">bios/service/BiosService.java · bmc/service/BmcService.java · subprogram/service/SubprogramService.java — inline → TypedNameGuard</li></ul>
+        <h4>유지 (변경 없음)</h4>
+        <ul><li class="mono">MarkableScanner(4 책임) · TrashController · PurgeExecutorImpl · PathReconciliationService · TypedNameVerifierImpl(controller 용)</li></ul>
+      </div>
+    </details>
+
+    <details class="section" id="s10">
+      <summary>§10. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R7-2(본 슬라이스) + R7-3(Board)</b> — TypedNameGuard 추출 공유. OS·Board 의 REAL ObjectProvider 3개 제거. MarkableScanner 통합 유지.</li>
+          <li><b>R4-3 / R5-3 / R6-3</b> — BIOS/BMC/Subprogram fat-service 분리(typed-name 은 이미 TypedNameGuard). 이들은 이미 ObjectProvider 없음.</li>
+          <li><b>R7 capstone(완화)</b> — 전 도메인 ObjectProvider 0 확인. 전역 @Lazy(SoftDeleteIntentService)는 정당한 cross-cutting 차단으로 유지(또는 대안 E 별도 평가).</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+  const DOMS={
+    'OS_IMAGE':{svc:'OSMetadataLifecycleService',scanner:'OSMetadataMarkableScanner'},
+    'OS_ISO':{svc:'IsoLifecycleService',scanner:'IsoMarkableScanner'},
+  };
+  const st={view:'after',dom:'OS_IMAGE'};
+  const dmRow=document.getElementById('dmRow');
+  Object.keys(DOMS).forEach(k=>{const b=document.createElement('button');b.className='dm-btn'+(k===st.dom?' on':'');b.textContent=k;b.dataset.d=k;
+    b.addEventListener('click',()=>{st.dom=k;sync();render();});dmRow.appendChild(b);});
+  function sync(){
+    document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===st.view));
+    document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('on',b.dataset.d===st.dom));
+  }
+  document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{st.view=b.dataset.view;sync();render();}));
+  function render(){
+    const d=DOMS[st.dom],flow=document.getElementById('flow'),vd=document.getElementById('verdict');
+    if(st.view==='before'){
+      flow.innerHTML =
+`<span class="node">TypedNameVerifier</span> → <span class="node">${d.scanner}</span>
+    └─ <span class="lazy">ObjectProvider&lt;${d.svc}&gt;</span> → <span class="svc">${d.svc}</span>
+         └─ purgeWithTypedNameCheck → <span class="svc">typedNameVerifier.verify()</span> → <span class="node">TypedNameVerifier</span> ↺
+   <span class="lazy">▲ 변 (C) service→verifier 가 순환을 닫음. ObjectProvider lazy 가 차단(REAL)</span>`;
+      vd.className='ux-verdict bad';
+      vd.innerHTML = `<b>R7-2 전</b> · ${d.svc} 가 verify() 호출 → service→verifier→scanner→service 순환 → ObjectProvider 로만 차단.`;
+    } else {
+      flow.innerHTML =
+`<span class="node">TypedNameVerifier</span> → <span class="node">${d.scanner}</span> (직접 주입)
+    └─ <span class="svc">${d.svc}</span>
+         └─ purgeWithTypedNameCheck → <span class="guard">TypedNameGuard.verify(엔티티, typedName)</span>  (static, 의존성 0)
+   <span class="cut">✗ 변 (C) 소멸</span> → 순환 미폐합 → <span class="ok">ObjectProvider 제거</span>
+<span class="dim">scanner 는 복구/영구삭제(→service) 그대로 — MarkableScanner 통합 유지</span>`;
+      vd.className='ux-verdict good';
+      vd.innerHTML = `<b>R7-2 후 (Option D)</b> · ${d.svc} 가 verifier 빈 대신 static 가드 사용 → service→verifier 변 소멸 → <span style="color:#1a7f37;font-weight:700">순환 끊김, ObjectProvider 제거</span>. MarkableScanner 안 쪼갬.`;
+    }
+  }
+  sync();render();
+</script>
+</body>
+</html>

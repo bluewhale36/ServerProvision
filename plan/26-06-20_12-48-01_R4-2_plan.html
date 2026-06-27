@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4-2 Plan — BIOS 등록 흐름 marker 4-step 중복 제거 : BiosMarkerWriter 추출</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:19px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:90px; }
+  .ux-toolbar .seg { padding:5px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.dup { background:var(--red-bg); color:var(--red); } .badge.one { background:var(--green-bg); color:var(--green); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.dup { background:var(--red-bg); border-color:var(--red); }
+  .ux-message.one { background:var(--green-bg); border-color:var(--green); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .impl-mono { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R4-2 — BIOS 등록 흐름 <code>marker 4-step</code> 중복 제거 : <code>BiosMarkerWriter</code> 추출 <span class="v2-badge">refactor · dedup</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R4-2 (refactor · split 전 독립 commit)</span>
+    <span><strong>상위</strong> R4 (BIOS 도메인) · 선행 R4-1(컨트롤러 6분할) 완료</span>
+    <span><strong>scope</strong> <code>addBios</code> / <code>registerExisting</code> / <code>persistFromNudge</code> 의 marker 4-step(MarkerContent build → computeSignature → reissueMarker → write) 3곳 복붙을 <code>BiosMarkerWriter</code> 1 호출로. <b>BiosService 내부 dedup 만 · 서비스 분할 아님</b></span>
+    <span><strong>생성</strong> 2026-06-20 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 동기 (split 전 dedup)</a></li>
+      <li><a href="#s1">§1 현재 상태 (3 복붙 + 표기 불일치)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (3복붙→1호출 탐색기)</a></li>
+      <li><a href="#s3">§3 신구 비교 — 3 call site + 신설</a></li>
+      <li><a href="#s4">§4 도메인 모델 (BiosMarkerWriter)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층 (신규 0)</a></li>
+      <li><a href="#s8">§8 부산물 / 결정 D1~D2</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤 (R4-3)</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §0 -->
+    <details class="section" id="s0" open>
+      <summary>§0. 동기 — 서비스 분할(R4-3) 전 독립 dedup</summary>
+      <div class="body">
+        <p style="margin-top:0;">R4-1 이 BIOS 컨트롤러를 6갈래(Metadata/Lifecycle/Upload/Nudge/Integrity/Browse + Support)로 분리했다. 다음은 R4-3 의 <b>서비스 분할</b>(fat <code>BiosService</code> → Lifecycle/Upload/Integrity/Metadata, R3-3 미러링)이지만, 그 전에 <b>분할을 깔끔하게 만드는 작은 독립 dedup</b> 을 먼저 커밋한다 — BIOS 등록 3 경로에 <span class="diff-del">marker 4-step 블록이 복붙</span>돼 있어, 분할 시 어느 새 서비스로 가든 이 복붙이 따라다니기 때문이다. 먼저 <code>BiosMarkerWriter</code> 로 접어두면 R4-3 분할이 이 한 컴포넌트만 이동시키면 된다.</p>
+        <div class="callout"><b>R4 시퀀스</b> — R4-1(컨트롤러 분리) → <b>R4-2(marker dedup, 본 슬라이스)</b> → R4-3(서비스 분할) → R4-4(cascade) → R4-5(@Lazy 제거, <b>이미 완료</b>). 본 슬라이스는 가장 작은 dedup 으로 R4-3 의 사전 정지작업.</div>
+      </div>
+    </details>
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 — marker 4-step 3 복붙 + 표기 불일치</summary>
+      <div class="body">
+        <h4>복붙 위치 (3곳, 거의 동일)</h4>
+        <table>
+          <thead><tr><th>호출부</th><th>라인</th><th>version / manifestHash 출처</th></tr></thead>
+          <tbody>
+            <tr><td><code>addBios</code> (폴더/zip/단일 업로드)</td><td>224–239</td><td><code>request.version()</code> / <code>manifest.manifestHash()</code></td></tr>
+            <tr><td><code>registerExisting</code> (기존 디렉토리 등록)</td><td>333–347</td><td><code>request.version()</code> / <code>manifest.manifestHash()</code></td></tr>
+            <tr><td><code>persistFromNudge</code> (nudge "기존 삭제 후 등록")</td><td>636–651</td><td><code>payload.version()</code> / <code>payload.manifestHash()</code></td></tr>
+          </tbody>
+        </table>
+        <h4>4-step 블록 (3곳 공통)</h4>
+        <pre><code>// ① biosId 포함 unsigned MarkerContent 조립 (BIOS attributes : boardId / version / entrypointRelativePath)
+MarkerContent unsigned = new MarkerContent(
+    ResourceType.BIOS_BUNDLE.name(), saved.getId(),
+    Map.of("boardId", String.valueOf(boardId), "version", &lt;ver&gt;, "entrypointRelativePath", entrypoint),
+    Instant.now(), &lt;manifestHash&gt;, null);
+// ② 서명
+String signature = provisionMarkerService.computeSignature(unsigned);
+// ③ entity 2-phase 갱신
+saved.reissueMarker(&lt;manifestHash&gt;, signature);
+// ④ 파일 기록
+provisionMarkerService.write(targetDir, MarkerLayout.IN_TREE, &lt;signed&gt;);</code></pre>
+        <div class="callout warn"><b>표기 불일치(Notion scope 명시)</b> — <code>addBios</code>(237)·<code>persistFromNudge</code>(649)는 <code>MarkerContent signed = unsigned.withSignature(signature);</code> 변수로 받고 ④에서 <code>signed</code> 사용. 반면 <code>registerExisting</code>(347)은 <span class="diff-del">변수 없이 <code>provisionMarkerService.write(..., unsigned.withSignature(signature))</code> 인라인</span>. 동일 의미가 두 표기로 갈려 가독성·grep 저하 — R4-2 가 단일 표기로 통일.</div>
+        <div class="callout danger"><b>본 슬라이스는 plan 단계</b> — production 미변경. 위 복붙·표기차가 R4-2 가 <code>BiosMarkerWriter</code> 로 접을 대상이다.</div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b><code>BiosMarkerWriter</code> 추출</b> — <code>management/bios/service/BiosMarkerWriter</code> (@Component, <code>ProvisionMarkerService</code> 주입). 메서드 <code>void writeSignedMarker(BoardBIOS bios, Path targetDir, Long boardId, String version, String entrypoint, String manifestHash)</code> — BIOS attributes 조립 + ①~④ 4-step 을 내부 캡슐화.</li>
+          <li><b>3 call site 단일화</b> — addBios / registerExisting / persistFromNudge 의 4-step 블록을 <code>biosMarkerWriter.writeSignedMarker(saved, targetDir, boardId, ver, entrypoint, manifestHash)</code> 한 줄로. signed/unsigned.withSignature 표기 불일치 자연 소멸.</li>
+          <li><b>동작·서명·HMAC 100% 보존(불가침)</b> — MarkerContent 필드(resourceType / resourceId=biosId / attributes / createdAt / manifestHash / signature) 동일, 2-phase save 순서(엔티티 선저장 → biosId → 서명 → reissue → write) 동일. 서명 입력 바이트 불변 → 기존 마커 검증 회귀 없음.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표 (다음 슬라이스)</b>
+          <ul>
+            <li><b>서비스 분할</b> — fat <code>BiosService</code> → Lifecycle/Upload/Integrity/Metadata 분할은 <b>R4-3</b>. 본 슬라이스는 <b>BiosService 내부 dedup 만</b>(분할 아님). BiosMarkerWriter 는 R4-3 에서 Upload 서비스가 그대로 주입해 재사용.</li>
+            <li><b>타 도메인</b> — BMC/Subprogram 의 동종 marker 복붙은 <b>R5/R6</b> 가 각자 <code>BmcMarkerWriter</code> 등으로(횡단 일반화는 over-abstraction 보류 — 도메인별 attributes 상이).</li>
+            <li><b>typed-name verifier 위임 / LifecycleService 구현</b> — R1-5/R3-5 의 SSOT 패턴(<code>purgeWithTypedNameCheck</code> inline → verifier)과 <code>implements LifecycleService</code> 는 <b>R4-3/R4-4</b>. 본 슬라이스 범위 밖.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — marker 4-step 3복붙 → 1호출 탐색기 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">등록 경로 칩을 토글하면 그 경로의 <b>BEFORE(4-step 복붙)</b> vs <b>AFTER(<code>writeSignedMarker</code> 1 호출)</b> 가 대조됩니다. <b>"marker 필드 1개 추가(예: vendor)"</b> 버튼은 — <span class="t">BEFORE 는 3 경로 전부 수정(3곳, 빨강)</span>, <span class="f">AFTER 는 BiosMarkerWriter 1곳만(초록)</span> — dedup 의 Open/Closed 이득을 정량으로 보입니다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">등록 경로 :</span>
+            <button class="seg" data-p="addBios" onclick="selP('addBios')">addBios</button>
+            <button class="seg" data-p="registerExisting" onclick="selP('registerExisting')">registerExisting</button>
+            <button class="seg" data-p="persistFromNudge" onclick="selP('persistFromNudge')">persistFromNudge</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">변경 비용 :</span>
+            <button class="seg" id="btn-addfield" onclick="addField()">＋ marker 필드 1개 추가 (vendor)</button>
+            <button class="seg" id="btn-reset" onclick="resetField()">↺ 리셋</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row"><strong>marker 작성 지점 수</strong><span class="label" id="m-count"></span><span class="badge" id="m-count-b"></span></div>
+            <div class="ux-row"><strong>선택 경로</strong><span class="label" id="m-path"></span></div>
+          </div>
+          <div class="split-grid">
+            <div class="split-card before"><h4>BEFORE — 4-step 복붙</h4><pre><code id="b-code"></code></pre></div>
+            <div class="split-card after"><h4>AFTER — writeSignedMarker 1줄</h4><pre><code id="a-code"></code></pre></div>
+          </div>
+          <div class="ux-caps" id="m-caps"></div>
+          <div class="ux-message" id="m-msg">경로 칩을 눌러 before/after 대조. "＋ 필드 추가" 로 변경 비용 차이를 확인하세요.</div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 before/after = §1 복붙 위치 = §3 코드 대조. "필드 추가" 가 BEFORE 3곳 vs AFTER 1곳을 정량 증명 → dedup 이 Open/Closed 를 만족.</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 신구 비교 (split-grid)</summary>
+      <div class="body">
+        <h4>① 3 call site — 4-step 블록 → 1 호출 (addBios 대표)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE (addBios 224–239)</h4><pre><code>MarkerContent unsigned = new MarkerContent(
+    ResourceType.BIOS_BUNDLE.name(), saved.getId(),
+    Map.of("boardId", String.valueOf(boardId),
+           "version", request.version(),
+           "entrypointRelativePath", entrypoint),
+    Instant.now(), manifest.manifestHash(), null);
+String signature =
+    provisionMarkerService.computeSignature(unsigned);
+MarkerContent signed = unsigned.withSignature(signature);
+saved.reissueMarker(manifest.manifestHash(), signature);
+provisionMarkerService.write(
+    targetDir, MarkerLayout.IN_TREE, signed);</code></pre></div>
+          <div class="split-card after"><h4>AFTER</h4><pre><code>biosMarkerWriter.writeSignedMarker(
+    saved, targetDir, boardId,
+    request.version(), entrypoint,
+    manifest.manifestHash());
+
+// registerExisting : payload→request 동일 형태 1줄
+// persistFromNudge : payload.version()/manifestHash() 1줄
+// → signed vs unsigned.withSignature 표기 불일치 소멸</code></pre></div>
+        </div>
+
+        <h4>② 신설 — <code>BiosMarkerWriter</code></h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 없음 (3 복붙)</h4><pre><code>// addBios / registerExisting / persistFromNudge
+// 각자 4-step 블록을 보유 (15줄 × 3)
+// + signed 표기 불일치 (변수 vs 인라인)</code></pre></div>
+          <div class="split-card after"><h4>AFTER — bios/service/BiosMarkerWriter</h4><pre><code>@Component @RequiredArgsConstructor
+public class BiosMarkerWriter {
+  private final ProvisionMarkerService markerService;
+
+  /** biosId 포함 unsigned 조립 → 서명 → 2-phase reissue → IN_TREE write. */
+  public void writeSignedMarker(BoardBIOS bios, Path targetDir,
+        Long boardId, String version, String entrypoint, String manifestHash) {
+    MarkerContent unsigned = new MarkerContent(
+        ResourceType.BIOS_BUNDLE.name(), bios.getId(),
+        Map.of("boardId", String.valueOf(boardId),
+               "version", version, "entrypointRelativePath", entrypoint),
+        Instant.now(), manifestHash, null);
+    String signature = markerService.computeSignature(unsigned);
+    bios.reissueMarker(manifestHash, signature);
+    markerService.write(targetDir, MarkerLayout.IN_TREE,
+                        unsigned.withSignature(signature));
+  }
+}</code></pre></div>
+        </div>
+
+        <h4>③ BiosService 주입 변화</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE</h4><pre><code>private final ProvisionMarkerService provisionMarkerService;
+// addBios/registerExisting/persistFromNudge 가 직접 사용
+// (verifyIntegrity 도 read 로 사용)</code></pre></div>
+          <div class="split-card after"><h4>AFTER</h4><pre><code><span class="diff-add">private final BiosMarkerWriter biosMarkerWriter;</span>
+private final ProvisionMarkerService provisionMarkerService;
+//  ↑ verifyIntegrity(518) 의 read 용도로 <b>유지</b>
+//    (write 4-step 만 BiosMarkerWriter 로 이동)</code></pre></div>
+        </div>
+        <div class="callout success"><b>변경 표면</b> — 신규 1 클래스(<code>BiosMarkerWriter</code>) + <code>BiosService</code> 에 필드 1 추가 · 3 블록(각 ~13줄) → 1 호출. <code>provisionMarkerService</code> 는 integrity read 용도로 잔류. <b>엔티티/스키마/마커 포맷 변경 0 · 서명 입력 불변</b>.</div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 — BiosMarkerWriter (신규 1)</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <div class="pkg-tree">management/bios/service/
+└── BiosMarkerWriter.java   (@Component) — ProvisionMarkerService 주입
+    void writeSignedMarker(BoardBIOS bios, Path targetDir, Long boardId,
+                           String version, String entrypoint, String manifestHash)</div>
+        <h4>재사용 (변경 없음)</h4>
+        <table>
+          <thead><tr><th>자산</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>MarkerContent</code> (record) · <code>ResourceType.BIOS_BUNDLE</code> · <code>MarkerLayout.IN_TREE</code></td><td>마커 조립 — 동일</td></tr>
+            <tr><td><code>ProvisionMarkerService</code> (computeSignature / write)</td><td>서명·기록 — BiosMarkerWriter 가 위임</td></tr>
+            <tr><td><code>BoardBIOS.reissueMarker(hash, sig)</code></td><td>2-phase save 갱신 — 동일</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>엔티티 / VO / Enum / 스키마 변경 0</b> — 7단계(Entity) 산출물 없음 → CP3 형식 통과. 순수 service 계층 dedup.</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10단계 + 체크포인트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물 (R4-2)</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>본 plan html</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 — <b>변경 0</b></td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — <b>변경 0</b></td></tr>
+            <tr><td>4</td><td>DTO — <b>변경 0</b></td></tr>
+            <tr><td>5</td><td><code>BiosMarkerWriter</code> 시그니처 + <code>BiosService</code> 에 필드 주입(생성자)</td></tr>
+            <tr><td>6</td><td>Repository — <b>변경 0</b></td><td rowspan="2"><span class="chip cp3">CP3</span> (N/A — 엔티티 없음)</td></tr>
+            <tr><td>7</td><td>Entity — <b>변경 0</b></td></tr>
+            <tr><td>8</td><td><b>본체</b> : BiosMarkerWriter 본문 + 3 call site 치환. <b>테스트</b> : BiosMarkerWriter 단위 + addBios/registerExisting/persistFromNudge 회귀(동작 불변)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <b>변경 0</b></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — BIOS 등록(폴더/zip/단일) + 기존디렉토리 + nudge 후 마커 정상 발급 — <b>사용자 단독</b></td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>분업</b> — CP4 본체(source)는 Claude 직접, 테스트는 background agent 위임(선례 동일).</div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 테스트 시나리오 (Step 8)</summary>
+      <div class="body">
+        <h4>단위 — <code>BiosMarkerWriterTest</code> (신규)</h4>
+        <ul>
+          <li>happy: <code>writeSignedMarker</code> 호출 → (1) <code>markerService.computeSignature(unsigned)</code> 호출 검증(unsigned 의 resourceType=BIOS_BUNDLE / resourceId=bios.id / attributes boardId·version·entrypoint / manifestHash 일치), (2) <code>bios.reissueMarker(manifestHash, signature)</code> 호출, (3) <code>markerService.write(targetDir, IN_TREE, signed)</code> 호출(signed = withSignature 적용본). 순서 검증(서명 → reissue → write).</li>
+          <li>attributes 정확성: entrypoint null 처리 등 기존 호출부와 동일 매핑 확인.</li>
+        </ul>
+        <h4>회귀 — <code>BiosService</code> 등록 3 경로 (동작 불변)</h4>
+        <ul>
+          <li>addBios / registerExisting / persistFromNudge happy: 기존 테스트가 <b>BiosMarkerWriter mock</b> 으로 전환되어 "writeSignedMarker 가 올바른 인자로 1회 호출" 검증(직접 provisionMarkerService.write 검증 → BiosMarkerWriter 위임 검증으로 이동). 반환 biosId·log·2-phase save 순서 회귀.</li>
+          <li>기존 <code>OSImageControllerUploadFlowTest</code> 선례처럼 BIOS upload flow @WebMvcTest 가 있으면 HTTP 회귀(무수정 통과 — 서명 동작 불변).</li>
+        </ul>
+        <div class="callout success"><b>동작 불변 보증</b> — MarkerContent 필드·서명 입력 바이트·2-phase 순서가 동일하므로, 디스크 마커와 DB markerSignature 가 R4-2 전후 바이트 동일. 등록 후 reconciliation/verifyIntegrity 회귀 0.</div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0</summary>
+      <div class="body">
+        <p style="margin-top:0;">신규 예외 0. <code>BiosMarkerWriter</code> 는 기존 <code>ProvisionMarkerService.write</code> 의 예외(<code>MarkerWriteFailedException</code> 등)를 그대로 전파 — 호출부가 이미 보상(<code>bundleTreeCleanupService.cleanupFailedUpload</code>)으로 감싸고 있어 거동 불변. 마커 write 실패 시 임시 트리 정리 + 예외 전파 경로 동일.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 결정 D1~D2 / 잔존</summary>
+      <div class="body">
+        <div class="callout danger"><b>★ 결정 D1 — BiosMarkerWriter 형태</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> 별도 <code>@Component BiosMarkerWriter</code></td><td>Notion 제목이 명시("BiosMarkerWriter 추출"). 독립 단위 테스트 용이 + R4-3 Upload 서비스 분리 시 그대로 이동. ProvisionMarkerService 의존을 BiosService 에서 떼어냄(write 측)</td></tr>
+            <tr><td><code>BiosService</code> private 메서드</td><td>가장 작으나 분리 테스트 불가 + R4-3 분할 시 다시 떼어내야 함(이중 작업)</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : 별도 @Component.</b> 근거 — (1) Notion scope 가 컴포넌트 추출 명시, (2) R4-3 서비스 분할이 이 컴포넌트를 그대로 Upload 서비스에 주입 재사용(사전 정지작업의 목적), (3) 독립 단위 테스트로 서명·순서 회귀를 컴포넌트 레벨에 고정.</p>
+
+        <div class="callout danger"><b>★ 결정 D2 — 메서드 시그니처 / 반환</b></div>
+        <table>
+          <thead><tr><th>옵션</th><th>판단</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">권장</span> <code>void writeSignedMarker(bios, targetDir, boardId, version, entrypoint, manifestHash)</code></td><td>호출부가 이미 가진 값을 그대로 전달. reissue+write 를 내부 완결 → 호출부는 1줄. 반환 불필요(부수효과)</td></tr>
+            <tr><td>MarkerContent / signature 반환</td><td>호출부가 signature 를 쓰지 않으므로 불필요. 반환하면 호출부가 다시 처리할 여지 = dedup 취지 약화</td></tr>
+          </tbody>
+        </table>
+        <p><b>권고 : void + 6 인자.</b> attributes(boardId/version/entrypoint) 는 BIOS 고정이라 내부 조립. <code>bios.getId()</code> 는 메서드 내부에서 읽음(2-phase 후 saved 전달).</p>
+
+        <h4>잔존 책임 / 후속 (Notion 본문 기재)</h4>
+        <ul class="impl-mono">
+          <li>R4-3 — fat BiosService 서비스 분할(Lifecycle/Upload/Integrity/Metadata). BiosMarkerWriter 는 Upload 서비스로 이동(재주입).</li>
+          <li>R4-3/R4-4 — purgeWithTypedNameCheck inline → TypedNameVerifier 위임(R1-5/R3-5 SSOT), BiosLifecycleService implements LifecycleService(시그니처 (boardId,biosId) 재조정).</li>
+          <li>R5/R6 — BMC/Subprogram 의 동종 marker 복붙은 각 도메인이 BmcMarkerWriter 등으로(횡단 일반화 보류).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R4-2-verify">
+          <li><label><input type="checkbox" data-key="b1"> <span><b>빌드</b> — <code>compileJava compileTestJava</code> SUCCESSFUL</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>구조</b> — <code>BiosMarkerWriter</code> 신설, BiosService 3 call site 가 1 호출로, signed 표기 불일치 소멸, provisionMarkerService 는 integrity read 로 잔류</span></label></li>
+          <li><label><input type="checkbox" data-key="t1"> <span><b>테스트</b> — BiosMarkerWriterTest(서명·순서) + BIOS 등록 3 경로 회귀 green</span></label></li>
+          <li><label><input type="checkbox" data-key="t2"> <span><b>동작 불변</b> — MarkerContent 필드·서명 입력·2-phase 순서 동일(마커 바이트 불변)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3"> <span><b>회귀</b> — 전체 <code>test --rerun-tasks</code> 0 fail</span></label></li>
+          <li><label><input type="checkbox" data-key="f1"> <span><b>기능</b> — BIOS 등록(폴더/zip/단일)·기존디렉토리·nudge 후 디스크 <code>.provision.json</code> 정상 발급 (CP5 E2E)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <ul><li><code>management/bios/service/BiosMarkerWriter.java</code> <span class="chip new">new</span></li></ul>
+        <h4>수정</h4>
+        <table>
+          <tbody>
+            <tr><td><code>management/bios/service/BiosService.java</code></td><td><code>+BiosMarkerWriter</code> 필드 · addBios(224–239)/registerExisting(333–347)/persistFromNudge(636–651) 4-step → 1 호출</td><td><span class="chip mod">mod</span></td></tr>
+          </tbody>
+        </table>
+        <h4>수정 (test)</h4>
+        <ul>
+          <li><code>test/.../bios/service/BiosMarkerWriterTest.java</code> <span class="chip new">new</span></li>
+          <li>기존 <code>BiosServiceTest</code> — 등록 3 경로 검증을 BiosMarkerWriter mock 위임으로 전환</li>
+        </ul>
+        <h4>유지 (KEEP)</h4>
+        <ul><li><code>ProvisionMarkerService</code> / <code>MarkerContent</code> / <code>BoardBIOS.reissueMarker</code> — 변경 0. 컨트롤러/DTO/엔티티 0.</li></ul>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R4-3 — BiosService 서비스 분할</b> (R3-3 미러링): fat <code>BiosService</code> → BiosLifecycleService(implements LifecycleService) / BiosUploadService(+BiosMarkerWriter 주입, persistFromNudge) / BiosIntegrityService / 잔여 BiosMetadataService + Guards. 본 R4-2 가 marker 를 먼저 접어 분할이 깔끔.</li>
+          <li><b>R4-4</b> — typed-name verifier 위임(R1-5/R3-5 SSOT) + lifecycle 시그니처 정합.</li>
+          <li><b>R5 / R6</b> — BMC / Subprogram 동일 패턴(BmcMarkerWriter 등 + 서비스 분할).</li>
+        </ol>
+        <div class="callout success"><b>R4 진행</b> — R4-1(컨트롤러) → <b>R4-2(marker dedup)</b> → R4-3(서비스 분할) → R4-4(SSOT) → R4-5(@Lazy, 완료). 본 슬라이스는 BIOS god-service 해체의 첫 사전 정지작업.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+// ① ToC 클릭 → open + smooth scroll (offset -108)
+document.querySelectorAll('#toc-list a').forEach(function (a) {
+  a.addEventListener('click', function (e) {
+    e.preventDefault();
+    var t = document.getElementById(a.getAttribute('href').slice(1));
+    if (!t) return; t.open = true;
+    window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - 108, behavior: 'smooth' });
+  });
+});
+// ② 전부 펴기 / 접기
+document.getElementById('btn-expand').addEventListener('click', function () {
+  document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+});
+document.getElementById('btn-collapse').addEventListener('click', function () {
+  document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+});
+// ③ filter
+document.getElementById('filter').addEventListener('input', function (e) {
+  var q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('details.section').forEach(function (d) {
+    if (!q) { d.classList.remove('hidden'); return; }
+    var hit = d.textContent.toLowerCase().indexOf(q) !== -1;
+    d.classList.toggle('hidden', !hit); if (hit) d.open = true;
+  });
+});
+// ④ check-list localStorage
+document.querySelectorAll('ul.check-list[data-storage]').forEach(function (ul) {
+  var store = ul.getAttribute('data-storage'); var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(store) || '{}'); } catch (_) {}
+  ul.querySelectorAll('input[type="checkbox"][data-key]').forEach(function (cb) {
+    var key = cb.getAttribute('data-key');
+    if (saved[key]) { cb.checked = true; cb.closest('label').classList.add('done'); }
+    cb.addEventListener('change', function () {
+      cb.closest('label').classList.toggle('done', cb.checked);
+      saved[key] = cb.checked; localStorage.setItem(store, JSON.stringify(saved));
+    });
+  });
+});
+
+/* ===== 🎬 marker dedup 탐색기 ===== */
+var PATHS = {
+  addBios:          { src:'request.version() / manifest.manifestHash()' },
+  registerExisting: { src:'request.version() / manifest.manifestHash()  (signed 인라인)' },
+  persistFromNudge: { src:'payload.version() / payload.manifestHash()' }
+};
+var demo = { path:'addBios', extraField:false };
+function selP(p){ demo.path=p; render(); }
+function addField(){ demo.extraField=true; render(); }
+function resetField(){ demo.extraField=false; render(); }
+function before(p){
+  var ver = p==='persistFromNudge' ? 'payload.version()' : 'request.version()';
+  var hash = p==='persistFromNudge' ? 'payload.manifestHash()' : 'manifest.manifestHash()';
+  var attrs = '"boardId",String.valueOf(boardId),\n         "version",'+ver+',\n         "entrypointRelativePath",entrypoint';
+  if (demo.extraField) attrs += ',\n         "vendor",vendor   // ← 3곳 전부 추가';
+  var write = p==='registerExisting'
+    ? 'write(targetDir,IN_TREE,unsigned.withSignature(sig));'
+    : 'MarkerContent signed=unsigned.withSignature(sig);\nwrite(targetDir,IN_TREE,signed);';
+  return 'MarkerContent unsigned=new MarkerContent(\n  BIOS_BUNDLE,saved.getId(),Map.of(\n         '+attrs+'),\n  Instant.now(),'+hash.replace('()','()')+',null);\nString sig=computeSignature(unsigned);\nsaved.reissueMarker('+hash+',sig);\n'+write;
+}
+function render(){
+  document.querySelectorAll('#s2-preview .seg[data-p]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-p')===demo.path);
+  });
+  document.getElementById('btn-addfield').classList.toggle('active', demo.extraField);
+  document.getElementById('m-path').textContent = demo.path + '  —  ' + PATHS[demo.path].src;
+  document.getElementById('m-count').textContent = '3 (addBios · registerExisting · persistFromNudge)';
+  var cb=document.getElementById('m-count-b'); cb.textContent='복붙 3'; cb.className='badge dup';
+  document.getElementById('b-code').textContent = before(demo.path);
+  var ver = demo.path==='persistFromNudge' ? 'payload.version()' : 'request.version()';
+  var hash = demo.path==='persistFromNudge' ? 'payload.manifestHash()' : 'manifest.manifestHash()';
+  var aExtra = demo.extraField ? ', vendor' : '';
+  document.getElementById('a-code').textContent =
+    'biosMarkerWriter.writeSignedMarker(\n    saved, targetDir, boardId,\n    '+ver+', entrypoint, '+hash+aExtra+');'
+    + (demo.extraField ? '\n// 필드 추가는 BiosMarkerWriter 1곳 + 시그니처만' : '');
+  var caps = demo.extraField
+    ? 'marker 필드 1개 추가(vendor) 비용\n  BEFORE : <span class="t">3 경로 전부 수정 (addBios·registerExisting·persistFromNudge)</span>\n  AFTER  : <span class="f">BiosMarkerWriter 1곳 + writeSignedMarker 시그니처</span>\n  → dedup Open/Closed 이득 정량 확인'
+    : '동일 4-step 이 3 경로에 복붙 (각 ~13줄)\n  표기 불일치 : addBios/persistFromNudge=signed 변수, registerExisting=인라인\n  "＋ 필드 추가" 로 변경 비용 차이를 확인하세요.';
+  document.getElementById('m-caps').innerHTML = caps;
+  var msg=document.getElementById('m-msg');
+  msg.textContent = demo.extraField
+    ? '필드 1개 추가가 BEFORE 3곳 vs AFTER 1곳 — BiosMarkerWriter 가 marker 작성을 단일 소스로 만든다.'
+    : '선택 경로의 4-step 복붙(BEFORE) vs writeSignedMarker 1호출(AFTER) 을 대조하세요.';
+  msg.className = 'ux-message ' + (demo.extraField ? 'one' : 'dup');
+}
+render();
+</script>
+</body>
+</html>
