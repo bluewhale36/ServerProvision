@@ -1,8 +1,7 @@
 package com.example.serverprovision.management.board.service.metadata;
 
 import com.example.serverprovision.global.lifecycle.LifecycleService;
-import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.global.trash.service.TypedNameVerifier;
+import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
@@ -31,7 +30,8 @@ import java.util.List;
  * 합류(Open/Closed). 순회 순서는 어댑터의 {@code @Order}(BIOS→BMC→Subprogram)로 고정 — 기존 동반 순서·라벨
  * 순서 보존. 어댑터의 자식 service 는 eager 주입 — 구 @Lazy(speculative)는 진짜 순환 부재 확인 후 제거
  * (cascade 경로에 자식→Board 되돌이 의존 0, 실제 순환은 SoftDeleteIntentService 에서 차단, bootRun 실측 0).
- * scanner ObjectProvider 제거는 <b>R7-3</b>.</p>
+ * scanner ObjectProvider 제거는 <b>R7-3</b> 에서 완료 — service→verifier 변 절단(TypedNameGuard)으로 순환 소멸,
+ * eager 직접 주입 환원.</p>
  */
 @Slf4j
 @Service
@@ -42,8 +42,6 @@ public class BoardModelLifecycleService implements LifecycleService {
 	private final BoardModelRepository boardModelRepository;
 	// R3-4 — board-scoped 자식(BIOS/BMC/Subprogram) cascade 어댑터. @Order 로 순회 순서 고정.
 	private final List<BoardScopedChildLifecycle> children;
-	// R3-5 — typed-name 검증 응집점 위임. 휴지통 공통 컴포넌트(displayName SSOT) 재사용.
-	private final TypedNameVerifier typedNameVerifier;
 
 	/**
 	 * R4-1 — Board 활성/비활성 토글 + 자식 effective 재계산 (양방향).
@@ -157,7 +155,8 @@ public class BoardModelLifecycleService implements LifecycleService {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalBoardModelStateException(
 						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
-		typedNameVerifier.verify(ResourceType.BOARD_MODEL, id, typedName);
+		// R7-3 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
+		TypedNameGuard.verify(board, typedName);
 		purge(board);
 	}
 

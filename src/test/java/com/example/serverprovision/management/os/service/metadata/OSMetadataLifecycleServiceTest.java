@@ -1,10 +1,7 @@
 package com.example.serverprovision.management.os.service.metadata;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
-import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameVerifier;
-import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.enums.OSName;
 import com.example.serverprovision.management.os.exception.DuplicateOSMetadataException;
@@ -23,13 +20,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * R1-3 — OSMetadataLifecycleService 단위 테스트.
@@ -43,9 +37,9 @@ class OSMetadataLifecycleServiceTest {
 	@Mock OSMetadataRepository osMetadataRepository;
 	@Mock TrashLifecycleService trashLifecycleService;
 	@Mock com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
-	// R1-5 — typed-name 검증을 공통 컴포넌트로 위임 (복붙된 private helper 제거). mock 으로 격리.
-	@Mock TypedNameVerifier typedNameVerifier;
 
+	// R7-2 — purgeWithTypedNameCheck 가 의존성 0 인 static TypedNameGuard 를 직접 호출하므로
+	// TypedNameVerifier 빈 주입/mock 이 사라졌다. typed-name 일치/불일치는 entity 의 displayName() 으로 결정.
 	@InjectMocks OSMetadataLifecycleService osMetadataLifecycleService;
 
 	// ==== restore default 위임 =========================================
@@ -126,47 +120,43 @@ class OSMetadataLifecycleServiceTest {
 	// ==== purgeWithTypedNameCheck =====================================
 
 	@Test
-	@DisplayName("purgeWithTypedNameCheck(mismatch) : verifier 가 TypedNameMismatchException → 전파 + entity 삭제 안 됨")
-	void purgeWithTypedNameCheck_verifierThrows_propagatesAndNoDelete() {
+	@DisplayName("purgeWithTypedNameCheck(mismatch) : 입력명이 displayName 과 불일치 → TypedNameMismatchException 전파 + entity 삭제 안 됨")
+	void purgeWithTypedNameCheck_nameMismatch_propagatesAndNoDelete() {
 		OSMetadata image = OSMetadata.builder()
 				.id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
 				.isEnabled(false).isDeprecated(false).isDeleted(true).build();
 		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.of(image));
-		// R1-5 — 불일치 판정은 공통 verifier 책임. service 는 예외를 흡수하지 않고 그대로 전파해야 한다.
-		willThrow(new TypedNameMismatchException(image.displayName(), "wrong"))
-				.given(typedNameVerifier).verify(ResourceType.OS_IMAGE, 1L, "wrong");
 
+		// R7-2 — static TypedNameGuard 가 로딩한 image 의 displayName 과 입력("wrong") 불일치를 판정해 예외를 던진다.
+		// service 는 흡수하지 않고 그대로 전파해야 하고, purge 본체 진입 전이라 delete 미호출.
 		assertThatThrownBy(() -> osMetadataLifecycleService.purgeWithTypedNameCheck(1L, "wrong"))
 				.isInstanceOf(TypedNameMismatchException.class);
 		verify(osMetadataRepository, never()).delete(any());
 	}
 
 	@Test
-	@DisplayName("purgeWithTypedNameCheck(happy) : verifier no-op → purge 본체 호출, row 삭제")
-	void purgeWithTypedNameCheck_verifierPasses_purges() {
+	@DisplayName("purgeWithTypedNameCheck(happy) : 입력명이 displayName 과 일치 → purge 본체 호출, row 삭제")
+	void purgeWithTypedNameCheck_nameMatches_purges() {
 		OSMetadata image = OSMetadata.builder()
 				.id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
 				.isEnabled(false).isDeprecated(false).isDeleted(true).build();
 		// purgeWithTypedNameCheck 가 내부에서 findByIdAndIsDeletedTrue 를 2 번 호출 (자기 + purge 위임).
 		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.of(image));
 
+		// R7-2 — typedName = image.displayName() → static guard no-op → purge 진행.
 		osMetadataLifecycleService.purgeWithTypedNameCheck(1L, image.displayName());
 
-		// R1-5 — 일치 시 verify() no-op → 공통 컴포넌트에 정확한 (type, id, name) 위임 검증.
-		verify(typedNameVerifier).verify(ResourceType.OS_IMAGE, 1L, image.displayName());
 		verify(osMetadataRepository, times(1)).delete(image);
 	}
 
 	@Test
-	@DisplayName("purgeWithTypedNameCheck(상태위반) : soft-deleted 가 아니면 IllegalOSMetadataStateException, verifier 미호출")
-	void purgeWithTypedNameCheck_notSoftDeleted_throwsBeforeVerify() {
-		// soft-deleted 자원이 없음 → 상태 가드가 verify 진입 전에 차단.
+	@DisplayName("purgeWithTypedNameCheck(상태위반) : soft-deleted 가 아니면 IllegalOSMetadataStateException (검증 진입 전 차단)")
+	void purgeWithTypedNameCheck_notSoftDeleted_throwsBeforeCheck() {
+		// soft-deleted 자원이 없음 → 상태 가드가 typed-name 검증 진입 전에 차단.
 		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> osMetadataLifecycleService.purgeWithTypedNameCheck(1L, "anything"))
 				.isInstanceOf(IllegalOSMetadataStateException.class);
-		// R1-5 — 상태 위반은 verify 진입 전에 차단 → verifier 와 상호작용 0.
-		verifyNoInteractions(typedNameVerifier);
 		verify(osMetadataRepository, never()).delete(any());
 	}
 }

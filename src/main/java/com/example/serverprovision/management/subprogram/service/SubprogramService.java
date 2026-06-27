@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.subprogram.service;
 
 import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException;
-import com.example.serverprovision.global.exception.TypedNameMismatchException;
+import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
@@ -663,10 +663,7 @@ public class SubprogramService {
 			throw new IllegalSubprogramStateException(
 					"활성 상태에서는 영구 삭제할 수 없습니다. 먼저 삭제(soft-delete)를 수행하세요. id=" + subprogramId);
 		}
-		String expected = sp.displayName();
-		if (!expected.equals(typedName)) {
-			throw new TypedNameMismatchException(expected, typedName);
-		}
+		TypedNameGuard.verify(sp, typedName);
 		purge(subprogramId);
 	}
 

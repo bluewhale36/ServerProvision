@@ -9,7 +9,7 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameVerifier;
+import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
@@ -56,8 +56,6 @@ public class IsoLifecycleService implements LifecycleService {
 	private final TrashLifecycleService trashLifecycleService;
 	private final SoftDeleteIntentService softDeleteIntentService;
 	private final ProvisionMarkerService markerService;
-	// R1-5 — typed-name 검증을 공통 TypedNameVerifier 로 위임 (복붙된 private helper 사본 제거).
-	private final TypedNameVerifier typedNameVerifier;
 
 	// ==== URL forging 가드 (controller 가 lifecycle 호출 직전에 호출) =========
 
@@ -225,9 +223,10 @@ public class IsoLifecycleService implements LifecycleService {
 	@Override
 	@Transactional
 	public void purgeWithTypedNameCheck(Long isoId, String typedName) {
-		isoRepository.findById(isoId)
+		ISO iso = isoRepository.findById(isoId)
 				.orElseThrow(() -> new ISONotFoundException(null, isoId));
-		typedNameVerifier.verify(ResourceType.OS_ISO, isoId, typedName);
+		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
+		TypedNameGuard.verify(iso, typedName);
 		purge(isoId);
 	}
 

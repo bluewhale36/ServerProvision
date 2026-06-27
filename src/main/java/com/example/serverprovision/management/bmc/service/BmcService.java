@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.bmc.service;
 
-import com.example.serverprovision.global.exception.TypedNameMismatchException;
+import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
@@ -642,10 +642,7 @@ public class BmcService {
 			throw new IllegalBmcStateException(
 					"영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
 		}
-		String expected = bmc.displayName();
-		if (!expected.equals(typedName)) {
-			throw new TypedNameMismatchException(expected, typedName);
-		}
+		TypedNameGuard.verify(bmc, typedName);
 		purge(boardId, bmcId);
 	}
 }

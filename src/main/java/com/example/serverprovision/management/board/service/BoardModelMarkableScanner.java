@@ -5,6 +5,7 @@ import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.board.service.metadata.BoardModelLifecycleService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,18 +20,12 @@ import java.util.stream.Collectors;
  * S5-2-3+ — BoardModel 도메인 어댑터. 메타 자원 — 휴지통 노출용 lifecycle 메타만 노출.
  */
 @Service
+@RequiredArgsConstructor
 public class BoardModelMarkableScanner implements MarkableScanner {
 
 	private final BoardModelRepository boardModelRepository;
-	private final org.springframework.beans.factory.ObjectProvider<BoardModelLifecycleService> boardModelServiceProvider;
-
-	public BoardModelMarkableScanner(
-			BoardModelRepository boardModelRepository,
-			org.springframework.beans.factory.ObjectProvider<BoardModelLifecycleService> boardModelServiceProvider
-	) {
-		this.boardModelRepository = boardModelRepository;
-		this.boardModelServiceProvider = boardModelServiceProvider;
-	}
+	// R7-3 — 구 ObjectProvider lazy 주입 → eager 직접 주입. service→verifier 변 소멸(TypedNameGuard)로 순환 부재(bootRun 실측).
+	private final BoardModelLifecycleService boardModelService;
 
 	@Override
 	public ResourceType supportedType() {
@@ -73,21 +68,21 @@ public class BoardModelMarkableScanner implements MarkableScanner {
 
 	@Override
 	public void restoreFromTrash(Long resourceId, boolean cascade) {
-		boardModelServiceProvider.getObject().restore(resourceId, cascade);
+		boardModelService.restore(resourceId, cascade);
 	}
 
 	@Override
 	public void restoreFromTrash(Long resourceId) {
-		boardModelServiceProvider.getObject().restore(resourceId, false);
+		boardModelService.restore(resourceId, false);
 	}
 
 	/**
 	 * 휴지통 영구삭제 — BoardModelLifecycleService.purge 위임 (자식 BIOS / BMC 잔존 시 거절).
-	 * R3-3 (D1=B) — ObjectProvider 타입 narrowing(BoardModelService→Lifecycle). ObjectProvider 제거는 R7-3.
+	 * R3-3 (D1=B) → R7-3 — ObjectProvider 제거 완료, eager 직접 주입.
 	 */
 	@Override
 	public void purgeFromTrash(Long resourceId) {
-		boardModelServiceProvider.getObject().purge(resourceId);
+		boardModelService.purge(resourceId);
 	}
 
 	/**
@@ -96,6 +91,6 @@ public class BoardModelMarkableScanner implements MarkableScanner {
 	@Override
 	@Transactional(readOnly = true)
 	public List<String> findDeletedChildLabels(Long resourceId) {
-		return boardModelServiceProvider.getObject().findDeletedChildLabels(resourceId);
+		return boardModelService.findDeletedChildLabels(resourceId);
 	}
 }

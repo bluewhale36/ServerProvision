@@ -11,7 +11,6 @@ import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +37,9 @@ import java.util.Set;
 public class IsoMarkableScanner implements MarkableScanner {
 
 	private final ISORepository isoRepository;
-	// R1-5 — IsoLifecycleService 가 TypedNameVerifier(→ List<MarkableScanner> → 본 스캐너) 를 주입받으면서
-	// 닫히는 eager 생성자 순환을 ObjectProvider 지연 주입으로 차단. 형제 OSMetadata/Board 스캐너와 동형.
-	private final ObjectProvider<IsoLifecycleService> isoLifecycleServiceProvider;
+	// R7-2 — LifecycleService 가 typed-name 을 TypedNameGuard(static)로 바꿔 service→verifier 변이 사라지면서
+	// scanner→service 순환이 소멸. ObjectProvider 지연 주입을 직접 주입으로 환원.
+	private final IsoLifecycleService isoLifecycleService;
 
 	@Override
 	public ResourceType supportedType() {
@@ -139,14 +138,14 @@ public class IsoMarkableScanner implements MarkableScanner {
 	public void restoreFromTrash(Long resourceId) {
 		ISO iso = isoRepository.findById(resourceId)
 				.orElseThrow(() -> new IllegalStateException("ISO not found for trash restore: " + resourceId));
-		isoLifecycleServiceProvider.getObject().restore(resourceId);
+		isoLifecycleService.restore(resourceId);
 	}
 
 	@Override
 	public void purgeFromTrash(Long resourceId) {
 		ISO iso = isoRepository.findById(resourceId)
 				.orElseThrow(() -> new IllegalStateException("ISO not found for trash purge: " + resourceId));
-		isoLifecycleServiceProvider.getObject().purge(resourceId);
+		isoLifecycleService.purge(resourceId);
 	}
 
 	// ---- MK3-1 — Ghost SPI -------------------------------------------

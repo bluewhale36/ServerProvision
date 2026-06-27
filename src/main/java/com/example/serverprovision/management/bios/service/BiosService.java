@@ -1,6 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.global.exception.TypedNameMismatchException;
+import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
@@ -482,10 +482,7 @@ public class BiosService {
 			throw new IllegalBiosStateException(
 					"활성/Deprecated 자원은 영구 삭제할 수 없습니다. 먼저 휴지통으로 이동하세요. biosId=" + biosId);
 		}
-		String expected = bios.displayName();
-		if (!expected.equals(typedName)) {
-			throw new TypedNameMismatchException(expected, typedName);
-		}
+		TypedNameGuard.verify(bios, typedName);
 		purge(boardId, biosId);
 	}
 

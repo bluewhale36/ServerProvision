@@ -4,6 +4,7 @@ import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,18 +24,14 @@ import java.util.stream.Collectors;
  * is_deleted=true 인 OSMetadata 를 가져와 Markable 목록으로 반환.</p>
  */
 @Service
+@RequiredArgsConstructor
 public class OSMetadataMarkableScanner implements MarkableScanner {
 
 	private final OSMetadataRepository osMetadataRepository;
-	private final org.springframework.beans.factory.ObjectProvider<OSMetadataLifecycleService> osMetadataLifecycleServiceProvider;
+	// R7-2 — LifecycleService 가 typed-name 을 TypedNameGuard(static)로 바꿔 service→verifier 변이 사라지면서
+	// scanner→service 순환이 소멸. ObjectProvider 지연 주입을 직접 주입으로 환원.
+	private final OSMetadataLifecycleService osMetadataLifecycleService;
 
-	public OSMetadataMarkableScanner(
-			OSMetadataRepository osMetadataRepository,
-			org.springframework.beans.factory.ObjectProvider<OSMetadataLifecycleService> osMetadataLifecycleServiceProvider
-	) {
-		this.osMetadataRepository = osMetadataRepository;
-		this.osMetadataLifecycleServiceProvider = osMetadataLifecycleServiceProvider;
-	}
 
 	@Override
 	public ResourceType supportedType() {
@@ -95,7 +92,7 @@ public class OSMetadataMarkableScanner implements MarkableScanner {
 	 */
 	@Override
 	public void restoreFromTrash(Long resourceId, boolean cascade) {
-		osMetadataLifecycleServiceProvider.getObject().restore(resourceId, cascade);
+		osMetadataLifecycleService.restore(resourceId, cascade);
 	}
 
 	/**
@@ -103,7 +100,7 @@ public class OSMetadataMarkableScanner implements MarkableScanner {
 	 */
 	@Override
 	public void restoreFromTrash(Long resourceId) {
-		osMetadataLifecycleServiceProvider.getObject().restore(resourceId, false);
+		osMetadataLifecycleService.restore(resourceId, false);
 	}
 
 	/**
@@ -111,7 +108,7 @@ public class OSMetadataMarkableScanner implements MarkableScanner {
 	 */
 	@Override
 	public void purgeFromTrash(Long resourceId) {
-		osMetadataLifecycleServiceProvider.getObject().purge(resourceId);
+		osMetadataLifecycleService.purge(resourceId);
 	}
 
 	/**
