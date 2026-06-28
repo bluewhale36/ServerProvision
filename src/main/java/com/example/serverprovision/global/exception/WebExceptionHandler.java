@@ -57,13 +57,8 @@ public class WebExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(WebExceptionHandler.class);
 
-	@ExceptionHandler(value = NotFoundException.class, produces = MediaType.TEXT_HTML_VALUE)
-	public String handleNotFound(NotFoundException ex, Model model, HttpServletResponse response) {
-		ExceptionLogPolicy.record("advice.notFound", ex, HttpStatus.NOT_FOUND, "html");
-		response.setStatus(HttpStatus.NOT_FOUND.value());
-		populate(model, 404, "Not Found", ex.getMessage());
-		return "error";
-	}
+	// R2-3 — handleNotFound/handleConflict(HTML)는 NotFoundException@404 / ConflictException@409 의 @ResponseStatus 를
+	// handleDomain(아래, is4xxClientError 분기)이 흡수하므로 수렴(삭제). ChildLifecycleBlocked(6필드 로그)/OptimisticLock 유지.
 
 	/**
 	 * 부모-자식 lifecycle 가드 거절(409, SSR 채널). {@link ConflictException} 보다 구체적이라 우선 매핑.
@@ -76,14 +71,6 @@ public class WebExceptionHandler {
 				ex.getChildResourceType(), ex.getChildResourceId(),
 				ex.getParentResourceType(), ex.getParentResourceId(),
 				ex.getParentState(), ex.getRequestedAction());
-		response.setStatus(HttpStatus.CONFLICT.value());
-		populate(model, 409, "Conflict", ex.getMessage());
-		return "error";
-	}
-
-	@ExceptionHandler(value = ConflictException.class, produces = MediaType.TEXT_HTML_VALUE)
-	public String handleConflict(ConflictException ex, Model model, HttpServletResponse response) {
-		ExceptionLogPolicy.record("advice.conflict", ex, HttpStatus.CONFLICT, "html");
 		response.setStatus(HttpStatus.CONFLICT.value());
 		populate(model, 409, "Conflict", ex.getMessage());
 		return "error";

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R2-3 plan — 예외 라우팅 드리프트 구조적 차단 (재초점)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .chip.mod{background:var(--blue-bg);color:var(--blue)}.chip.keep{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-btn.t2.on{background:var(--purple);border-color:var(--purple)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap}
+  .ux-flow .api{color:#79c0ff}.ux-flow .web{color:#d2a8ff}.ux-flow .ok{color:#3fb950;font-weight:700}.ux-flow .bad{color:#f85149;font-weight:700}.ux-flow .dim{color:#8b949e}.ux-flow .new{color:#e3b341;font-weight:700}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft)}
+  .ux-verdict.good{background:var(--green-bg)}.ux-verdict.bad{background:var(--red-bg)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R2-3 — 예외 라우팅 드리프트 구조적 차단 (재초점) <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R2-3 (재검증 후 재초점 — 물리 통합/@Order 제거 제외)</span>
+    <span><strong>scope</strong> @ResponseStatus 다형화 + 일반핸들러 수렴 + browse 4-catch advice 승급 + (선택)produces + 회귀 가드. 2-advice produces 구조 KEEP</span>
+    <span><strong>전제</strong> R2-1 조사 · R2-2 완료 · R1-4-1 v3 라우팅 안정. 재검증 보고서 <code>report/26-06-28_18-20-17_R2-remaining-revalidation</code></span>
+    <span><strong>생성</strong> 2026-06-28 KST · <strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 · 목표</a></li>
+      <li><a href="#s2">§2 현 라우팅 위상</a></li>
+      <li><a href="#sd">🎬 라이브 — 라우팅 시뮬</a></li>
+      <li><a href="#s3">§3 변경 상세 (4 항목)</a></li>
+      <li><a href="#s4">§4 핵심 결정 (D1~D6)</a></li>
+      <li><a href="#s5">§5 10단계 · Step 8 테스트</a></li>
+      <li><a href="#s6">§6 예외·부산물·주의</a></li>
+      <li><a href="#s7">§7 Verification · Critical Files · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 · 목표</summary>
+      <div class="body">
+        <p style="margin-top:0">R2 재검증(2026-06-28, 10-agent workflow)으로 R2-3 을 "단일 advice 물리 통합 + @Order 제거"에서 <b>"라우팅 드리프트를 구조적으로 닫기"</b>로 재초점했다. 물리 통합 헤드라인은 제외 — live 결함을 안 닫고(v3 가 라우팅·HTML-bleed 이미 차단) R1-4-1 3차 회귀 계열(HIGHEST_PRECEDENCE 산술 / Accept */* fallthrough) + webflux 공존 blind spot 의 흉터 위험만 진다.</p>
+        <div class="callout"><b>목표</b> — 예외→HTTP status 매핑을 <b>@ResponseStatus 다형(SSOT)</b>으로 끌어올려 분기를 줄이고, <b>browse 컨트롤러 try/catch 안티패턴을 advice 로 승급</b>(R4-1 이 명시적으로 R2-3 으로 이월해 둔 작업)하며, 라우팅 invariant 를 <b>회귀 가드로 고정</b>한다. 동작 불변 — 사용자가 보는 status·바디는 그대로다.</div>
+        <div class="callout ok"><b>코드가 이미 절반 준비됨</b> — 양 advice 의 <code>handleDomain</code> 이 이미 <code>AnnotationUtils.findAnnotation(@ResponseStatus)</code> 로 status 를 흡수한다(ApiExceptionHandler:203 / WebExceptionHandler:110). browse 예외도 이미 도메인 계층 정합(<code>BrowseTargetNotFoundException extends NotFoundException</code>, <code>BrowseTargetNotDirectoryException extends ConflictException</code>). 본 슬라이스는 그 토대 위에 super 어노테이션을 달고 catch 를 떼는 일이다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 현 라우팅 위상 (실측)</summary>
+      <div class="body">
+        <p style="margin-top:0">두 advice 모두 <code>@Order(HIGHEST_PRECEDENCE)</code> + produces 매처로 Accept 헤더에 따라 분리:</p>
+        <ul>
+          <li><code>ApiExceptionHandler</code>(@RestControllerAdvice) — JSON 16핸들러. produces=json. <code>handleDomain</code> fallback 이 @ResponseStatus 흡수(없으면 500).</li>
+          <li><code>WebExceptionHandler</code>(@ControllerAdvice) — HTML 5핸들러(NotFound/ChildLifecycleBlocked/Conflict/OptimisticLock/Domain fallback). produces=text/html. <code>handleDomain</code> 이 @ResponseStatus 4xx 흡수(없으면 500).</li>
+        </ul>
+        <h4>드리프트·잔여 결함 (재검증)</h4>
+        <table>
+          <thead><tr><th>지점</th><th>현 상태</th><th>등급</th></tr></thead>
+          <tbody>
+            <tr><td>도메인 super 의 status 매핑</td><td>NotFound/Conflict/FieldBoundBadRequest super 에 <code>@ResponseStatus</code> <b>없음</b> → 전용 핸들러가 status 를 hard-code, 일반 fallback 은 500</td><td>구조</td></tr>
+            <tr><td>FieldBoundBadRequest SSR</td><td>Web variant 부재 + @ResponseStatus 없음 → SSR 시 handleDomain 500</td><td>latent(throw site 전부 XHR)</td></tr>
+            <tr><td>JSON-전용 4핸들러</td><td><code>handleMethodArgumentNotValid</code>/<code>handleSecurity</code>/<code>handleZipInspectionFailed</code>/<code>handleMaxUploadSize</code> produces 미지정 → text/html 에도 매칭 가능(raw JSON bleed)</td><td>latent(XHR 전용 엔드포인트)</td></tr>
+            <tr><td>browse 컨트롤러</td><td>Bios(5)/OS(7)/Bmc(5) 가 try/catch 로 status 인라인 매핑 — CLAUDE.md 안티패턴. R4-1 이 "advice 승급 후속 이월" 명시</td><td><b>live(안티패턴)</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 — 예외 라우팅 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0" class="dim">예외 + Accept 헤더를 골라 어느 advice/핸들러가 받고 status 가 무엇인지 확인하라. <b>R2-3 전/후</b>를 토글해 @ResponseStatus 수렴·browse 승급의 효과를 체험할 수 있다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">예외</span>
+            <button class="ux-btn on" data-ex="browseNotFound">browse NotFound</button>
+            <button class="ux-btn" data-ex="fieldBad">FieldBoundBadRequest</button>
+            <button class="ux-btn" data-ex="security">Security(Forbidden)</button>
+            <button class="ux-btn" data-ex="conflict">Conflict</button>
+            <span class="lbl" style="margin-left:6px">Accept</span>
+            <button class="ux-btn on" data-ac="json">application/json (XHR)</button>
+            <button class="ux-btn" data-ac="html">text/html (SSR)</button>
+            <span class="lbl" style="margin-left:6px">시점</span>
+            <button class="ux-btn t2" data-ph="before">R2-3 전</button>
+            <button class="ux-btn t2 on" data-ph="after">R2-3 후</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+          <div class="ux-verdict" id="verdict"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 변경 상세 (4 항목)</summary>
+      <div class="body">
+        <h4>① 상태 매핑 다형화 (@ResponseStatus SSOT)</h4>
+        <pre>// global/exception 도메인 super 에 어노테이션 부착 (additive — 현재 모두 미부착)
+@ResponseStatus(HttpStatus.NOT_FOUND)   abstract class NotFoundException
+@ResponseStatus(HttpStatus.CONFLICT)    abstract class ConflictException
+@ResponseStatus(HttpStatus.BAD_REQUEST) abstract class FieldBoundBadRequestException</pre>
+        <p>효과: 양 advice <code>handleDomain</code> 이 hierarchy 로 status 흡수 → <b>FieldBoundBadRequest SSR 비대칭(latent) 소멸</b>(@ResponseStatus(400) → Web handleDomain 이 400 매핑). ConflictException 부착으로 그 하위(FieldBoundConflict 포함)도 일관.</p>
+        <h4>② 일반 핸들러 수렴 (분기 감소)</h4>
+        <p style="margin-top:0">①의 결과로 <b>plain-body</b> 전용 핸들러 <code>handleNotFound</code>·<code>handleConflict</code>(양 advice 4개)가 <code>handleDomain</code> 과 중복 → <b>삭제·수렴</b>. <b>특수 body 핸들러는 유지</b>(FieldBoundConflict/FieldBoundBadRequest=fieldErrors, Nudge=NudgeRequiredResponse, SoftDeleteReject=DeleteRejectResponse, ChildLifecycleBlocked=6필드 로그, OptimisticLock=메시지 치환). 로그 라벨이 <code>advice.notFound</code>→<code>advice.domain.mapped</code> 로 바뀌는 것만 수용.</p>
+        <h4>③ browse 4-catch → advice 승급</h4>
+        <pre>// InvalidBrowsePathException 만 @ResponseStatus 추가 (나머지 3종은 이미 계층 정합)
+@ResponseStatus(HttpStatus.BAD_REQUEST) class InvalidBrowsePathException extends DomainException
+//   BrowseTargetNotFoundException   extends NotFoundException  → 404 (자동)
+//   BrowseTargetNotDirectoryException extends ConflictException → 409 (자동)
+//   DirectoryBrowseIoException       extends DomainException    → 500 (handleDomain)
+
+// Bios/OS/Bmc BrowseController.browse() : try/catch 삭제 → 한 줄 위임
+return ResponseEntity.ok(directoryBrowseService.browse(new DirectoryBrowseRequest(pathParam, false)));</pre>
+        <p>browse 는 <code>@ResponseBody</code> XHR → advice 의 JSON 핸들러가 동일 <code>ApiErrorResponse</code> 로 응답. <b>동작 100% 보존.</b> Subprogram browse 는 이미 0-catch.</p>
+        <h4>④ produces 명시 + 회귀 가드 (D4 결정 따름)</h4>
+        <p style="margin-top:0">JSON-전용 4핸들러의 raw JSON bleed(latent) 대응 — <b>D4</b>에서 (A)produces 부착+whitelabel 수용 vs (B)가드만으로 invariant 고정 중 택. 어느 쪽이든 <code>AdviceExceptionMappingTest</code> 에 native-form·browse·@ResponseStatus 수렴·<code>*/*</code> 회귀 가드 신설은 <b>필수</b>(critique).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 핵심 결정 (D1~D6, 비채택 병기)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택 / 비채택</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>advice 구조</td><td><b>2-advice produces 유지(KEEP)</b>(Boot 4 canonical). <u>비채택: 단일 advice 물리 통합 + @Order 제거</u>(원안) — live 결함 0 + R1-4-1 3차 회귀(v1 underflow/v2 28건) 흉터 위험 + ExceptionLogPolicy 존재이유(2-advice drift 방지) 소멸 + webflux blind spot.</td></tr>
+            <tr><td><b>D2</b></td><td>status 매핑</td><td><b>@ResponseStatus(404/409/400) super 부착</b> → handleDomain 흡수(이미 findAnnotation). 비채택: 전용 핸들러에 status 계속 hard-code(분기 잔존).</td></tr>
+            <tr><td><b>D3</b></td><td>핸들러 수렴</td><td><b>plain-body handleNotFound/handleConflict 수렴(삭제)</b>, 특수 body 핸들러 유지. 비채택: 전부 유지(로그 라벨 보존하나 분기 미감소).</td></tr>
+            <tr><td><b>D4</b></td><td>JSON-전용 4핸들러 bleed</td><td><b>(권장 B) produces 미부착 + 회귀 가드로 invariant 고정</b> — latent(XHR 전용)에 Accept-매처 변(3차 회귀 계열) 위험을 안 들임. <b>(A) produces 부착 + whitelabel 수용</b>도 가능(구조적 close, 단 SSR 시 whitelabel fall-through + 가드 필수). <u>사용자 택 1 요망.</u></td></tr>
+            <tr><td><b>D5</b></td><td>browse 승급</td><td><b>InvalidBrowsePathException @ResponseStatus(400) + Bios/OS/Bmc browse try/catch 삭제</b>. R4-1 이 R2-3 으로 명시 이월. 비채택: 유지(안티패턴 잔존).</td></tr>
+            <tr><td><b>D6</b></td><td>회귀 가드</td><td><b>AdviceExceptionMappingTest 신설/확장 필수</b>: @ResponseStatus 수렴(NotFound/Conflict/FieldBoundBadRequest XHR+SSR status), browse 4 예외 status, native-form bleed/whitelabel(D4), <code>*/*</code> pin. critique: 가드는 선택이 아니라 전제.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>D4 가 유일한 미결 결정</b> — 나머지는 권장안 확정. D4 는 (B)가드-only(변경 최소·안전, 권장) vs (A)produces+whitelabel(구조적 close) 중 사용자 선택을 요청한다. 둘 다 회귀 가드는 필수.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 10단계 매핑 · Step 8 테스트</summary>
+      <div class="body">
+        <p style="margin-top:0">예외 인프라 리팩터(엔티티 무변경) — Step 6·7·9 N/A. 핵심은 Step 8 회귀.</p>
+        <ul>
+          <li><b>CP2(Step 2~5)</b> — ① 도메인 super 3종 + InvalidBrowsePathException 에 @ResponseStatus 부착. ② handleNotFound/handleConflict 수렴(양 advice). ③ Bios/OS/Bmc BrowseController try/catch 삭제. ④ (D4 택) produces. 뷰/DTO 변경 없음(Service 시그니처 불변).</li>
+          <li><b>CP4(Step 8~9)</b> — compileJava + bootRun + <b>전체 회귀 green</b> + <code>AdviceExceptionMappingTest</code> 신설/확장.</li>
+          <li><b>CP5</b> — 브라우저 E2E(사용자): browse 404/409/400, lifecycle 차단 409, 업로드 검증 — status·바디 불변 확인.</li>
+        </ul>
+        <h4>Step 8 시나리오 (advice 매핑 회귀가 본 슬라이스의 본질)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>status 수렴</td><td>NotFound/Conflict/FieldBoundBadRequest 를 XHR(json)·SSR(html) 양쪽에서 던져 404/409/400 + 바디 형식 검증(수렴 후에도 status 불변)</td></tr>
+            <tr><td>browse 승급</td><td>4 예외(InvalidBrowsePath 400 / NotFound 404 / NotDirectory 409 / Io 500) 를 browse 엔드포인트에서 트리거 → catch 삭제 후에도 동일 status·ApiErrorResponse</td></tr>
+            <tr><td>특수 body 보존</td><td>Nudge 409(NudgeRequiredResponse) / SoftDeleteReject 409(DeleteRejectResponse) / FieldBound fieldErrors — 수렴에 휩쓸리지 않음 검증</td></tr>
+            <tr><td>native-form / bleed</td><td>(D4 택) text/html 요청이 JSON-전용 핸들러 도달 시 raw JSON 미노출(whitelabel 또는 차단) — invariant lock</td></tr>
+            <tr><td><code>*/*</code> pin</td><td>Accept 모호 시 현 동작 동결(우발적 변경 감지)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 예외 계층 · 부산물 · 주의</summary>
+      <div class="body">
+        <h4>예외 계층</h4>
+        <p style="margin-top:0"><b>신규 0</b>. 기존 super 3종(NotFound/Conflict/FieldBoundBadRequest) + InvalidBrowsePathException 에 <code>@ResponseStatus</code> <b>어노테이션만</b> 추가. 클래스 신설·삭제 없음.</p>
+        <h4>부산물 / 주의</h4>
+        <ul>
+          <li><b>로그 라벨 변화</b> — 수렴된 NotFound/Conflict 가 <code>advice.notFound</code>→<code>advice.domain.mapped</code>. ExceptionLogPolicy 의 status 다형 레벨(4xx WARN)은 불변.</li>
+          <li><b>ChildLifecycleBlockedByParentException</b> 은 이미 @ResponseStatus(409) + 전용 핸들러(6필드 로그) 보유 → 전용 핸들러 유지(로그 때문). 수렴 대상 아님.</li>
+          <li><b>R2-5 병합 아님</b> — nudge-expired errorCode 수리는 R2-6 에서. 본 슬라이스는 backend status 라우팅만.</li>
+          <li><b>browse 승급은 Bios/OS/Bmc 3 컨트롤러</b>. Subprogram 은 이미 0-catch. Metadata 컨트롤러의 browse 외 catch 는 본 슬라이스 범위 밖(있다면 별도 식별).</li>
+        </ul>
+        <h4>CLAUDE.md 정합</h4>
+        <ul>
+          <li>§조건분기 다형성화 — 전용 핸들러 분기 + browse try/catch 를 @ResponseStatus 다형 + advice 로 수렴(net 분기 감소).</li>
+          <li>§예외=프로그램예외 — status 매핑만 정비, 예외 발생 정책 불변. UI 1차 차단(R2-2)과 직교.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. Verification · Critical Files · 다음</summary>
+      <div class="body">
+        <h4>Verification</h4>
+        <ul class="check-list" data-storage="r23-v">
+          <li><input type="checkbox"><span>compileJava + bootRun 성공</span></li>
+          <li><input type="checkbox"><span>전체 테스트 green + <code>AdviceExceptionMappingTest</code> 신설(수렴·browse·native-form·*/* 가드)</span></li>
+          <li><input type="checkbox"><span>NotFound/Conflict/FieldBoundBadRequest XHR·SSR status 불변(404/409/400)</span></li>
+          <li><input type="checkbox"><span>browse 4 예외 status·바디 불변(catch 삭제 후)</span></li>
+          <li><input type="checkbox"><span>특수 body(Nudge/DeleteReject/FieldBound) 보존</span></li>
+          <li><input type="checkbox"><span>@Order·물리 통합 미변경(3차 회귀 벡터 미접촉)</span></li>
+        </ul>
+        <h4>Critical Files</h4>
+        <ul>
+          <li class="mono">M: global/exception/{NotFoundException,ConflictException,FieldBoundBadRequestException}.java — @ResponseStatus 부착</li>
+          <li class="mono">M: management/common/filesystem/exception/InvalidBrowsePathException.java — @ResponseStatus(400)</li>
+          <li class="mono">M: global/exception/{ApiExceptionHandler,WebExceptionHandler}.java — handleNotFound/handleConflict 수렴(+D4 produces)</li>
+          <li class="mono">M: {bios,os,bmc}/controller/*BrowseController.java — try/catch 삭제</li>
+          <li class="mono">N: global/exception/AdviceExceptionMappingTest 확장(회귀 가드)</li>
+        </ul>
+        <h4>다음</h4>
+        <ol>
+          <li><b>R2-6</b>(+R2-5 nudge 흡수) — frontend ErrorModal.fromResponse helper 중앙화 + alert 라우팅. backend 독립.</li>
+          <li>R2 묶음 종료 — 6단계 → 2단계(R2-3 + R2-6) 수렴, R2-4 drop.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+  // 라우팅 시뮬: 예외별 (status, 특수body, throw채널) + advice 선택
+  const EX={
+    browseNotFound:{label:'BrowseTargetNotFoundException',ext:'NotFoundException',st:404,body:'ApiErrorResponse',ch:'XHR(browse @ResponseBody)',
+      beforeNote:'컨트롤러 try/catch 가 404 인라인 매핑(안티패턴)', afterNote:'catch 삭제 → NotFoundException 계층 → advice 404'},
+    fieldBad:{label:'FieldBoundBadRequestException',ext:'DomainException',st:400,body:'ApiErrorResponse(fieldErrors)',ch:'XHR',
+      beforeNote:'@ResponseStatus 없음 → SSR 시 handleDomain 500(비대칭, latent)', afterNote:'@ResponseStatus(400) → XHR·SSR 모두 400'},
+    security:{label:'ForbiddenException (SecurityException)',ext:'SecurityException',st:403,body:'ApiErrorResponse',ch:'XHR(upload/browse)',
+      beforeNote:'handleSecurity produces 미지정 → text/html 도 매칭 가능(bleed, latent)', afterNote:'(D4-B)가드로 invariant lock / (D4-A)produces+whitelabel'},
+    conflict:{label:'ConflictException',ext:'DomainException',st:409,body:'ApiErrorResponse',ch:'XHR·SSR',
+      beforeNote:'전용 handleConflict 가 409 hard-code(양 advice)', afterNote:'@ResponseStatus(409) → handleDomain 수렴(분기 감소)'},
+  };
+  const st={ex:'browseNotFound',ac:'json',ph:'after'};
+  function sync(){
+    document.querySelectorAll('[data-ex]').forEach(b=>b.classList.toggle('on',b.dataset.ex===st.ex));
+    document.querySelectorAll('[data-ac]').forEach(b=>b.classList.toggle('on',b.dataset.ac===st.ac));
+    document.querySelectorAll('[data-ph]').forEach(b=>b.classList.toggle('on',b.dataset.ph===st.ph));
+  }
+  document.querySelectorAll('[data-ex],[data-ac],[data-ph]').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.ex)st.ex=b.dataset.ex; if(b.dataset.ac)st.ac=b.dataset.ac; if(b.dataset.ph)st.ph=b.dataset.ph; sync();render();
+  }));
+  function render(){
+    const e=EX[st.ex], flow=document.getElementById('flow'), vd=document.getElementById('verdict');
+    const adv = st.ac==='json' ? '<span class="api">ApiExceptionHandler</span> (produces=json)' : '<span class="web">WebExceptionHandler</span> (produces=text/html)';
+    const handler = st.ph==='after' ? 'handleDomain (@ResponseStatus 흡수)' : '전용 핸들러 / try-catch';
+    const note = st.ph==='after' ? e.afterNote : e.beforeNote;
+    flow.innerHTML =
+`예외  : <span class="new">${e.label}</span>  extends ${e.ext}
+Accept: ${st.ac==='json'?'application/json (XHR)':'text/html (SSR)'}   채널: <span class="dim">${e.ch}</span>
+
+→ ${adv}
+   └─ ${handler}  →  <span class="ok">HTTP ${e.st}</span>  body=${e.body}
+
+<span class="dim">[${st.ph==='after'?'R2-3 후':'R2-3 전'}] ${note}</span>`;
+    vd.className='ux-verdict good';
+    vd.innerHTML = st.ph==='after'
+      ? `<b>R2-3 후</b> · status 가 <b>@ResponseStatus 다형(SSOT)</b>으로 결정 → 분기 감소 + SSR 비대칭 소멸. browse 는 catch 없이 advice 가 처리. <span style="color:#1a7f37;font-weight:700">동작(status·바디) 불변</span>.`
+      : `<b>R2-3 전</b> · 전용 핸들러/try-catch 가 status 를 hard-code → 분기 잔존 + 일부 latent 결함(SSR 비대칭·bleed). <span class="dim">동작은 같으나 구조가 드리프트.</span>`;
+  }
+  sync();render();
+</script>
+</body>
+</html>

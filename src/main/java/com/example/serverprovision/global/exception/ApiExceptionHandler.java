@@ -67,12 +67,9 @@ public class ApiExceptionHandler {
 	private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
 	/* ─────────────────────────── 도메인 (JSON variant) ─────────────────────────── */
-
-	@ExceptionHandler(value = NotFoundException.class, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ApiErrorResponse> handleNotFound(NotFoundException ex) {
-		ExceptionLogPolicy.record("advice.notFound", ex, HttpStatus.NOT_FOUND, "json");
-		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(ex.getMessage()));
-	}
+	// R2-3 — handleNotFound/handleConflict(plain-body)는 NotFoundException@404 / ConflictException@409 의
+	// @ResponseStatus 를 handleDomain 이 흡수하므로 수렴(삭제). 특수 body 핸들러(FieldBound/Nudge/DeleteReject/
+	// ChildLifecycleBlocked)는 유지. 로그 라벨만 advice.notFound→advice.domain.mapped 로 이동.
 
 	/**
 	 * MK2 — nudge 결정 대기 (모든 도메인). {@link NudgeRequiredException} 추상 super 매칭으로
@@ -176,12 +173,6 @@ public class ApiExceptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(ex.getMessage()));
 	}
 
-	@ExceptionHandler(value = ConflictException.class, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex) {
-		ExceptionLogPolicy.record("advice.conflict", ex, HttpStatus.CONFLICT, "json");
-		return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(ex.getMessage()));
-	}
-
 	/**
 	 * JPA 낙관적 락 충돌 → 409. 동시 갱신 시 사용자에게 "다시 시도" 안내.
 	 */
@@ -233,6 +224,17 @@ public class ApiExceptionHandler {
 		log.warn("[validation] MethodArgumentNotValid : {} fields", fieldErrors.size());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 				.body(ApiErrorResponse.ofValidation(summary, fieldErrors));
+	}
+
+	/**
+	 * 잘못된 인자 (400) — VO 가드 / UUID 파싱 등이 던지는 {@link IllegalArgumentException}.
+	 * U1 §D10 : iPXE 등록의 형식 오류(systemUUID/MAC/IP)를 컨트롤러 try/catch 없이 단일 진입점에서 400 으로 매핑한다.
+	 * 클라이언트 입력 형식 오류이므로 WARN(4xx).
+	 */
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ApiErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+		log.warn("[validation] IllegalArgument : {}", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiErrorResponse(ex.getMessage()));
 	}
 
 	/* ─────────────────────────── 보안 예외 (S3) — 항상 JSON ─────────────────────────── */
