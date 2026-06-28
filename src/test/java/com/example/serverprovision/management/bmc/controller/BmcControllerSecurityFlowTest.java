@@ -47,6 +47,7 @@ class BmcControllerSecurityFlowTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean BmcService bmcService;
+    @MockitoBean com.example.serverprovision.management.bmc.service.BmcRegistrationService bmcRegistrationService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcNudgeService bmcNudgeService;
     @MockitoBean BoardModelMetadataService boardModelService;
@@ -62,7 +63,7 @@ class BmcControllerSecurityFlowTest {
                 .willReturn(new BmcUploadIntentService.Intent(
                         1L, "/opt/bmc/x", BmcUploadMode.ZIP, 1, 100L, "1.0", "", Instant.now()));
         willThrow(new ZipBombSuspectedException("compression ratio > limit"))
-                .given(bmcService).addBmc(eq(1L), any(), any(), any(), any(), any());
+                .given(bmcRegistrationService).addBmc(eq(1L), any(), any(), any(), any(), any());
 
         mvc.perform(multipart("/management/bmc/1/upload")
                         .file(new MockMultipartFile("zipFile", "bomb.zip", "application/zip", "PKbomb".getBytes()))
@@ -102,7 +103,7 @@ class BmcControllerSecurityFlowTest {
                 .willReturn(new BmcUploadIntentService.Intent(
                         1L, "/opt/bmc/x", BmcUploadMode.ZIP, 1, 100L, "1.0", "", Instant.now()));
         willThrow(new UploadLimitExceededException("entry size > limit"))
-                .given(bmcService).addBmc(eq(1L), any(), any(), any(), any(), any());
+                .given(bmcRegistrationService).addBmc(eq(1L), any(), any(), any(), any(), any());
 
         mvc.perform(multipart("/management/bmc/1/upload")
                         .file(new MockMultipartFile("zipFile", "huge.zip", "application/zip", "PKx".getBytes()))
@@ -125,7 +126,7 @@ class BmcControllerSecurityFlowTest {
                 .willReturn(new BmcUploadIntentService.Intent(
                         1L, "/opt/bmc/x", BmcUploadMode.ZIP, 1, 100L, "1.0", "", Instant.now()));
         willThrow(new ZipBombInspectionFailedException("disk full", new RuntimeException("io")))
-                .given(bmcService).addBmc(eq(1L), any(), any(), any(), any(), any());
+                .given(bmcRegistrationService).addBmc(eq(1L), any(), any(), any(), any(), any());
 
         mvc.perform(multipart("/management/bmc/1/upload")
                         .file(new MockMultipartFile("zipFile", "x.zip", "application/zip", "PK".getBytes()))

@@ -63,12 +63,13 @@ class BmcControllerTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean BmcService bmcService;
+    @MockitoBean com.example.serverprovision.management.bmc.service.BmcRegistrationService bmcRegistrationService;
+    @MockitoBean com.example.serverprovision.management.bmc.service.BmcIntegrityService bmcIntegrityService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcNudgeService bmcNudgeService;
     @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean BmcVerificationLauncher bmcVerificationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
-    @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
@@ -122,7 +123,7 @@ class BmcControllerTest {
             given(bmcUploadIntentService.consume(eq(1L), eq("token-abc")))
                     .willReturn(new BmcUploadIntentService.Intent(
                             1L, "/mnt/bmc/x", BmcUploadMode.FOLDER, 2, 1024L, "13.06.25", "", Instant.now()));
-            given(bmcService.addBmc(eq(1L), any(), eq(BmcUploadMode.FOLDER), any(), any(), any()))
+            given(bmcRegistrationService.addBmc(eq(1L), any(), eq(BmcUploadMode.FOLDER), any(), any(), any()))
                     .willReturn(42L);
 
             mvc.perform(multipart("/management/bmc/1/upload")
@@ -147,7 +148,7 @@ class BmcControllerTest {
                     .willReturn(new BmcUploadIntentService.Intent(
                             1L, "/mnt/bmc/x", BmcUploadMode.SINGLE_FILE, 1, 10L, "1.0", "", Instant.now()));
             willThrow(new TargetDirectoryNotEmptyException("/mnt/bmc/x"))
-                    .given(bmcService).addBmc(eq(1L), any(), any(), any(), any(), any());
+                    .given(bmcRegistrationService).addBmc(eq(1L), any(), any(), any(), any(), any());
 
             mvc.perform(multipart("/management/bmc/1/upload")
                             .file(new MockMultipartFile("singleFile", "firmware.bin", null, "x".getBytes()))
@@ -191,7 +192,7 @@ class BmcControllerTest {
     @Test
     @DisplayName("GET /{boardId}/bmc/{bmcId}/integrity-status : 200 + status/badgeClass")
     void integrityStatus() throws Exception {
-        given(bmcService.findIntegrityStatus(1L, 2L))
+        given(bmcIntegrityService.findIntegrityStatus(1L, 2L))
                 .willReturn(IntegrityStatusResponse.of(2L, IntegrityStatus.TAMPERED, null));
 
         mvc.perform(get("/management/bmc/1/bmc/2/integrity-status"))

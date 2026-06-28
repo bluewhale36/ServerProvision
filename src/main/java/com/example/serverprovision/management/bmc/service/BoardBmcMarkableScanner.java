@@ -27,7 +27,7 @@ public class BoardBmcMarkableScanner implements MarkableScanner {
 
 	private final BmcRepository bmcRepository;
 	private final com.example.serverprovision.management.bios.service.BundleManifestService bundleManifestService;
-	private final BmcService bmcService;
+	private final BmcLifecycleService bmcLifecycleService;
 
 	@Override
 	public ResourceType supportedType() {
@@ -116,16 +116,13 @@ public class BoardBmcMarkableScanner implements MarkableScanner {
 
 	@Override
 	public void restoreFromTrash(Long resourceId) {
-		com.example.serverprovision.management.bmc.entity.BoardBMC bmc = bmcRepository.findById(resourceId)
-				.orElseThrow(() -> new IllegalStateException("BMC not found for trash restore: " + resourceId));
-		bmcService.restore(bmc.getBoardModel().getId(), resourceId);
+		// R5-3 — 1-arg 위임. 부모 boardId 는 lifecycle service 가 entity 관계로 내부 resolve.
+		bmcLifecycleService.restore(resourceId);
 	}
 
 	@Override
 	public void purgeFromTrash(Long resourceId) {
-		com.example.serverprovision.management.bmc.entity.BoardBMC bmc = bmcRepository.findById(resourceId)
-				.orElseThrow(() -> new IllegalStateException("BMC not found for trash purge: " + resourceId));
-		bmcService.purge(bmc.getBoardModel().getId(), resourceId);
+		bmcLifecycleService.purge(resourceId);
 	}
 
 	// ---- MK3-1 — Ghost SPI -------------------------------------------

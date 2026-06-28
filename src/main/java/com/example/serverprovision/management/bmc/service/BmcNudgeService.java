@@ -20,7 +20,8 @@ import java.util.UUID;
 public class BmcNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
-	private final BmcService bmcService;
+	private final BmcRegistrationService bmcRegistrationService;
+	private final BmcLifecycleService bmcLifecycleService;
 	private final BmcUploadIntentService bmcUploadIntentService;
 
 	// ============================================================
@@ -30,7 +31,7 @@ public class BmcNudgeService {
 	public Long proceed(UUID nudgeId) {
 		NudgeSession session = requireBmcSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		Long bmcId = bmcService.persistFromNudge(session.boardId(), payload);
+		Long bmcId = bmcRegistrationService.persistFromNudge(session.boardId(), payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[bmc-nudge.proceed] nudgeId={}, bmcId={}", nudgeId, bmcId);
 		return bmcId;
@@ -42,8 +43,8 @@ public class BmcNudgeService {
 		if (!session.conflictTargetIds().contains(targetId)) {
 			throw new InvalidReplaceTargetException(targetId);
 		}
-		bmcService.purge(session.boardId(), targetId);
-		Long bmcId = bmcService.persistFromNudge(session.boardId(), payload);
+		bmcLifecycleService.purge(targetId);
+		Long bmcId = bmcRegistrationService.persistFromNudge(session.boardId(), payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[bmc-nudge.replace] nudgeId={}, replacedTarget={}, bmcId={}", nudgeId, targetId, bmcId);
 		return bmcId;
@@ -52,7 +53,7 @@ public class BmcNudgeService {
 	public void cancel(UUID nudgeId) {
 		NudgeSession session = requireBmcSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		bmcService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
+		bmcRegistrationService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
 		nudgeRegistry.remove(nudgeId);
 		log.info("[bmc-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
 	}
@@ -80,7 +81,7 @@ public class BmcNudgeService {
 		if (!session.conflictTargetIds().contains(targetId)) {
 			throw new InvalidReplaceTargetException(targetId);
 		}
-		bmcService.purge(session.boardId(), targetId);
+		bmcLifecycleService.purge(targetId);
 		BmcUploadIntentResponse response = bmcUploadIntentService.issueAfterNudge(
 				session.boardId(),
 				bmcUploadIntentService.reconstructRequestFromAttributes(payload.attributes())

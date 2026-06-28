@@ -3,7 +3,7 @@ package com.example.serverprovision.management.board.service.cascade;
 import com.example.serverprovision.global.trash.GhostEvaluator;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
-import com.example.serverprovision.management.bmc.service.BmcService;
+import com.example.serverprovision.management.bmc.service.BmcLifecycleService;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,8 +17,11 @@ import java.util.List;
  * R3-4 — BoardModel cascade 의 BMC 자식 어댑터. {@code BoardModelLifecycleService} 의 BMC 전용
  * 3-블록 복붙을 흡수. {@code @Order(20)} 로 기존 순회 순서(BIOS → BMC → Subprogram) 중간 고정.
  *
- * <p>{@code BmcService} 는 eager 주입 — 구 {@code @Lazy}(speculative) 제거. 사유는 BIOS 어댑터와 동일
+ * <p>{@code BmcLifecycleService} 는 eager 주입 — 구 {@code @Lazy}(speculative) 제거. 사유는 BIOS 어댑터와 동일
  * (cascade 경로에 진짜 순환 없음, 실측 bootRun 순환 0). 구조는 BIOS 어댑터와 동형(IN_TREE 자식).</p>
+ *
+ * <p>R5-3 — 위임 대상을 {@code BmcService} → {@link BmcLifecycleService}(1-arg)로 전환. softDelete/restore 는
+ * boardId 인자 없이 bmcId 만 넘기고, 부모는 lifecycle service 가 entity 관계로 내부 resolve.</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -27,7 +30,7 @@ import java.util.List;
 public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final BmcRepository bmcRepository;
-	private final BmcService bmcService;
+	private final BmcLifecycleService bmcLifecycleService;
 
 	@Override
 	public void recomputeEffective(Long boardId) {
@@ -38,7 +41,7 @@ public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 	@Override
 	public void softDeleteActive(Long boardId) {
 		bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(boardId)
-				.forEach(bmc -> bmcService.softDelete(boardId, bmc.getId()));
+				.forEach(bmc -> bmcLifecycleService.softDelete(bmc.getId()));
 	}
 
 	@Override
@@ -51,7 +54,7 @@ public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 						bmc.getId(), boardId);
 				continue;
 			}
-			bmcService.restore(boardId, bmc.getId());
+			bmcLifecycleService.restore(bmc.getId());
 			restored++;
 		}
 		return restored;

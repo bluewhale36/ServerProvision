@@ -2,7 +2,7 @@ package com.example.serverprovision.management.board.service.cascade;
 
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
-import com.example.serverprovision.management.bmc.service.BmcService;
+import com.example.serverprovision.management.bmc.service.BmcLifecycleService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,8 +24,8 @@ import static org.mockito.Mockito.verify;
  * R3-4 — {@link BmcBoardScopedChildLifecycle} 어댑터 단위 테스트.
  *
  * <p>구 {@code BoardModelLifecycleServiceTest} 의 BMC per-child cascade 검증을 본 어댑터로 분산 흡수.
- * BIOS 어댑터와 동형(IN_TREE 자식, service 2-arg) — softDelete/restore 가 {@code (boardId, childId)} 2-arg,
- * 라벨 고정 접두 {@code "BMC: "}.</p>
+ * R5-3 — 위임 대상이 {@code BmcService} → {@link BmcLifecycleService}(1-arg)로 전환됐다. softDelete/restore 는
+ * boardId 없이 {@code (bmcId)} 1-arg, 라벨 고정 접두 {@code "BMC: "}.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class BmcBoardScopedChildLifecycleTest {
@@ -33,13 +33,13 @@ class BmcBoardScopedChildLifecycleTest {
     private static final Long BOARD_ID = 7L;
 
     @Mock BmcRepository bmcRepository;
-    @Mock BmcService bmcService;
+    @Mock BmcLifecycleService bmcLifecycleService;
 
     BmcBoardScopedChildLifecycle adapter;
 
     @BeforeEach
     void initAdapter() {
-        adapter = new BmcBoardScopedChildLifecycle(bmcRepository, bmcService);
+        adapter = new BmcBoardScopedChildLifecycle(bmcRepository, bmcLifecycleService);
     }
 
     // ==== helper =====================================================
@@ -109,19 +109,19 @@ class BmcBoardScopedChildLifecycleTest {
         assertThat(deleted.isEnabled()).isTrue();   // soft-deleted → 제외
     }
 
-    // ==== softDeleteActive — service.softDelete(boardId, childId) [2-arg] ====
+    // ==== softDeleteActive — service.softDelete(bmcId) [1-arg] ====
 
     @Test
-    @DisplayName("softDeleteActive : 활성 자식 각각 service.softDelete(boardId, bmcId) 2-arg 위임")
-    void softDeleteActive_delegatesTwoArg() {
+    @DisplayName("softDeleteActive : 활성 자식 각각 service.softDelete(bmcId) 1-arg 위임")
+    void softDeleteActive_delegatesOneArg() {
         BoardModel p = parent(true, false);
         given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(BOARD_ID))
                 .willReturn(List.of(bmc(201L, p, false), bmc(202L, p, false)));
 
         adapter.softDeleteActive(BOARD_ID);
 
-        verify(bmcService).softDelete(BOARD_ID, 201L);
-        verify(bmcService).softDelete(BOARD_ID, 202L);
+        verify(bmcLifecycleService).softDelete(201L);
+        verify(bmcLifecycleService).softDelete(202L);
     }
 
     @Test
@@ -132,13 +132,13 @@ class BmcBoardScopedChildLifecycleTest {
 
         adapter.softDeleteActive(BOARD_ID);
 
-        verify(bmcService, never()).softDelete(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        verify(bmcLifecycleService, never()).softDelete(org.mockito.ArgumentMatchers.anyLong());
     }
 
     // ==== restoreDeleted — soft-deleted 자식 → service.restore + count ====
 
     @Test
-    @DisplayName("restoreDeleted : soft-deleted 자식 각각 service.restore(boardId, bmcId) 위임 + 복구 수 반환")
+    @DisplayName("restoreDeleted : soft-deleted 자식 각각 service.restore(bmcId) 위임 + 복구 수 반환")
     void restoreDeleted_delegatesAndCounts() {
         BoardModel p = parent(true, false);
         given(bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(BOARD_ID))
@@ -147,8 +147,8 @@ class BmcBoardScopedChildLifecycleTest {
         int restored = adapter.restoreDeleted(BOARD_ID);
 
         assertThat(restored).isEqualTo(2);
-        verify(bmcService).restore(BOARD_ID, 201L);
-        verify(bmcService).restore(BOARD_ID, 202L);
+        verify(bmcLifecycleService).restore(201L);
+        verify(bmcLifecycleService).restore(202L);
     }
 
     @Test
@@ -157,7 +157,7 @@ class BmcBoardScopedChildLifecycleTest {
         given(bmcRepository.findAllByBoardModel_IdAndIsDeletedTrue(BOARD_ID)).willReturn(List.of());
 
         assertThat(adapter.restoreDeleted(BOARD_ID)).isZero();
-        verify(bmcService, never()).restore(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        verify(bmcLifecycleService, never()).restore(org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -172,8 +172,8 @@ class BmcBoardScopedChildLifecycleTest {
         int restored = adapter.restoreDeleted(BOARD_ID);
 
         assertThat(restored).isEqualTo(1);
-        verify(bmcService).restore(BOARD_ID, 201L);                       // 정상만 복구
-        verify(bmcService, never()).restore(BOARD_ID, 202L);              // ghost 미복구
+        verify(bmcLifecycleService).restore(201L);                       // 정상만 복구
+        verify(bmcLifecycleService, never()).restore(202L);              // ghost 미복구
     }
 
     // ==== hasAny ====

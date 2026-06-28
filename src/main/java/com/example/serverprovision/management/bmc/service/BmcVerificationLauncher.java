@@ -26,7 +26,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BmcVerificationLauncher {
 
-	private final BmcService bmcService;
+	private final BmcIntegrityService bmcIntegrityService;
 	private final BmcRepository bmcRepository;
 	private final BackgroundJobService backgroundJobService;
 	private final IntegrityJobReporter integrityJobReporter;
@@ -53,7 +53,7 @@ public class BmcVerificationLauncher {
 	public void runAsync(String jobId, Long boardId, Long bmcId) {
 		try {
 			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
-			IntegrityStatus status = bmcService.verifyAndRecordIntegrity(boardId, bmcId);
+			IntegrityStatus status = bmcIntegrityService.verifyAndRecordIntegrity(boardId, bmcId);
 			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] BMC 검증 실패. bmcId={}", bmcId, e);

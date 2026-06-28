@@ -1,6 +1,9 @@
 package com.example.serverprovision.management.bmc.controller;
 
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
+import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
+import com.example.serverprovision.management.bmc.service.BmcLifecycleService;
+import com.example.serverprovision.management.bmc.service.BmcRegistrationService;
 import com.example.serverprovision.management.bmc.service.BmcService;
 import com.example.serverprovision.management.bmc.service.BmcUploadIntentService;
 import com.example.serverprovision.management.bmc.service.BmcVerificationLauncher;
@@ -38,6 +41,8 @@ class BmcControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BmcService bmcService;
+    @MockitoBean BmcLifecycleService bmcLifecycleService;
+    @MockitoBean BmcRegistrationService bmcRegistrationService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcNudgeService bmcNudgeService;
     @MockitoBean BoardModelMetadataService boardModelService;
@@ -49,8 +54,9 @@ class BmcControllerPurgeFlowTest {
     @Test
     @DisplayName("BMC purge — typedName 일치 → 302 redirect")
     void purge_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(bmcService)
-                .purgeWithTypedNameCheck(eq(2L), eq(5L), eq("GIGABYTE BMC Firmware 13.06.25"));
+        willDoNothing().given(bmcLifecycleService).assertBelongsToBoard(eq(5L), eq(2L));
+        willDoNothing().given(bmcLifecycleService)
+                .purgeWithTypedNameCheck(eq(5L), eq("GIGABYTE BMC Firmware 13.06.25"));
 
         mvc.perform(post("/management/bmc/2/bmc/5/purge")
                         .param("typedName", "GIGABYTE BMC Firmware 13.06.25"))
@@ -62,12 +68,25 @@ class BmcControllerPurgeFlowTest {
     @Test
     @DisplayName("BMC purge — typedName 불일치 → 400")
     void purge_typedNameMismatch_returns400() throws Exception {
+        willDoNothing().given(bmcLifecycleService).assertBelongsToBoard(eq(5L), eq(2L));
         willThrow(new TypedNameMismatchException("GIGABYTE BMC Firmware 13.06.25", "x"))
-                .given(bmcService)
-                .purgeWithTypedNameCheck(eq(2L), eq(5L), eq("x"));
+                .given(bmcLifecycleService)
+                .purgeWithTypedNameCheck(eq(5L), eq("x"));
 
         mvc.perform(post("/management/bmc/2/bmc/5/purge").param("typedName", "x"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("BMC purge — boardId forging(불일치) → assertBelongsToBoard 가 BmcNotFoundException → 404")
+    void purge_boardIdForging_returns404() throws Exception {
+        // URL boardId(99) ≠ entity 부모 boardId → lifecycle op 진입 전 assertBelongsToBoard 가 차단.
+        willThrow(new BmcNotFoundException(99L, 5L))
+                .given(bmcLifecycleService).assertBelongsToBoard(eq(5L), eq(99L));
+
+        mvc.perform(post("/management/bmc/99/bmc/5/purge")
+                        .param("typedName", "GIGABYTE BMC Firmware 13.06.25"))
+                .andExpect(status().isNotFound());
     }
 
     // S5-4 — '삭제된 항목 포함' 체크박스의 마커 검증 + inline onchange 부재 회귀.
