@@ -31,6 +31,8 @@ class SubprogramControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean SubprogramService subprogramService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
     @MockitoBean SubprogramUploadIntentService subprogramUploadIntentService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramNudgeService subprogramNudgeService;
     @MockitoBean SubprogramVerificationLauncher subprogramVerificationLauncher;
@@ -42,7 +44,7 @@ class SubprogramControllerPurgeFlowTest {
     @Test
     @DisplayName("Subprogram purge — typedName 일치 → 302 redirect")
     void purge_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(subprogramService)
+        willDoNothing().given(subprogramLifecycleService)
                 .purgeWithTypedNameCheck(eq(7L), eq("ASPEED_1-15-03_MS03-CE0"));
 
         mvc.perform(post("/management/subprogram/7/purge")
@@ -56,7 +58,7 @@ class SubprogramControllerPurgeFlowTest {
     @DisplayName("Subprogram purge — typedName 불일치 → 400")
     void purge_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("ASPEED_1-15-03_MS03-CE0", "wrong"))
-                .given(subprogramService)
+                .given(subprogramLifecycleService)
                 .purgeWithTypedNameCheck(eq(7L), eq("wrong"));
 
         mvc.perform(post("/management/subprogram/7/purge").param("typedName", "wrong"))

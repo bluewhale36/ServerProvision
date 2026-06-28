@@ -20,7 +20,8 @@ import java.util.UUID;
 public class SubprogramNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
-	private final SubprogramService subprogramService;
+	private final SubprogramRegistrationService subprogramRegistrationService;
+	private final SubprogramLifecycleService subprogramLifecycleService;
 	private final SubprogramUploadIntentService subprogramUploadIntentService;
 
 	// ============================================================
@@ -30,7 +31,7 @@ public class SubprogramNudgeService {
 	public Long proceed(UUID nudgeId) {
 		NudgeSession session = requireSubprogramSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		Long id = subprogramService.persistFromNudge(payload);
+		Long id = subprogramRegistrationService.persistFromNudge(payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
 		return id;
@@ -42,8 +43,8 @@ public class SubprogramNudgeService {
 		if (!session.conflictTargetIds().contains(targetId)) {
 			throw new InvalidReplaceTargetException(targetId);
 		}
-		subprogramService.purge(targetId);
-		Long id = subprogramService.persistFromNudge(payload);
+		subprogramLifecycleService.purge(targetId);
+		Long id = subprogramRegistrationService.persistFromNudge(payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
 		return id;
@@ -52,7 +53,7 @@ public class SubprogramNudgeService {
 	public void cancel(UUID nudgeId) {
 		NudgeSession session = requireSubprogramSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		subprogramService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
+		subprogramRegistrationService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
 		nudgeRegistry.remove(nudgeId);
 		log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
 	}
@@ -79,7 +80,7 @@ public class SubprogramNudgeService {
 		if (!session.conflictTargetIds().contains(targetId)) {
 			throw new InvalidReplaceTargetException(targetId);
 		}
-		subprogramService.purge(targetId);
+		subprogramLifecycleService.purge(targetId);
 		var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
 		SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
 				reissue.kind(), reissue.scope(), reissue.request());

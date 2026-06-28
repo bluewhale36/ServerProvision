@@ -4,7 +4,7 @@ import com.example.serverprovision.global.trash.GhostEvaluator;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
-import com.example.serverprovision.management.subprogram.service.SubprogramService;
+import com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -19,7 +19,7 @@ import java.util.List;
  *
  * <p>BIOS / BMC 와의 비대칭을 어댑터 내부로 흡수 :
  * <ul>
- *   <li>service 시그니처 — {@code subprogramService.softDelete(spId)} / {@code restore(spId)} (1-arg,
+ *   <li>service 시그니처 — {@code subprogramLifecycleService.softDelete(spId)} / {@code restore(spId)} (1-arg,
  *       board-scoped 가 아닌 단일 인자). BIOS/BMC 의 (boardId, childId) 2-arg 와 다름.</li>
  *   <li>라벨 포맷 — {@code kind.getDisplayName() + ": " + name} (BIOS/BMC 의 고정 접두 "BIOS: "/"BMC: " 와 다름).</li>
  *   <li>repo 메서드명 — {@code findAllByBoardModel_Id} 계열(ORder/version 무관).</li>
@@ -33,7 +33,7 @@ import java.util.List;
 public class SubprogramBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	private final SubprogramRepository subprogramRepository;
-	private final SubprogramService subprogramService;
+	private final SubprogramLifecycleService subprogramLifecycleService;
 
 	@Override
 	public void recomputeEffective(Long boardId) {
@@ -44,7 +44,7 @@ public class SubprogramBoardScopedChildLifecycle implements BoardScopedChildLife
 	@Override
 	public void softDeleteActive(Long boardId) {
 		subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(boardId)
-				.forEach(sp -> subprogramService.softDelete(sp.getId()));
+				.forEach(sp -> subprogramLifecycleService.softDelete(sp.getId()));
 	}
 
 	@Override
@@ -57,7 +57,7 @@ public class SubprogramBoardScopedChildLifecycle implements BoardScopedChildLife
 						sp.getId(), boardId);
 				continue;
 			}
-			subprogramService.restore(sp.getId());
+			subprogramLifecycleService.restore(sp.getId());
 			restored++;
 		}
 		return restored;

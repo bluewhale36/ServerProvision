@@ -29,7 +29,7 @@ public class SubprogramMarkableScanner implements MarkableScanner {
 
 	private final SubprogramRepository subprogramRepository;
 	private final BundleManifestService bundleManifestService;
-	private final SubprogramService subprogramService;
+	private final SubprogramLifecycleService subprogramLifecycleService;
 
 	@Override
 	public ResourceType supportedType() {
@@ -121,12 +121,12 @@ public class SubprogramMarkableScanner implements MarkableScanner {
 
 	@Override
 	public void restoreFromTrash(Long resourceId) {
-		subprogramService.restore(resourceId);
+		subprogramLifecycleService.restore(resourceId);
 	}
 
 	@Override
 	public void purgeFromTrash(Long resourceId) {
-		subprogramService.purge(resourceId);
+		subprogramLifecycleService.purge(resourceId);
 	}
 
 	// ---- MK3-1 — Ghost SPI -------------------------------------------

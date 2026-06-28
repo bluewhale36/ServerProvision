@@ -9,7 +9,8 @@ import com.example.serverprovision.management.subprogram.dto.response.Subprogram
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadResponse;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
 import com.example.serverprovision.management.subprogram.enums.SubprogramUploadMode;
-import com.example.serverprovision.management.subprogram.service.SubprogramService;
+import com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService;
+import com.example.serverprovision.management.subprogram.service.SubprogramRegistrationService;
 import com.example.serverprovision.management.subprogram.service.SubprogramUploadIntentService;
 import com.example.serverprovision.management.subprogram.service.SubprogramVerificationLauncher;
 import com.example.serverprovision.management.subprogram.vo.BoardScope;
@@ -36,7 +37,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class SubprogramUploadController {
 
-	private final SubprogramService subprogramService;
+	private final SubprogramRegistrationService subprogramRegistrationService;
+	private final SubprogramLifecycleService subprogramLifecycleService;
 	private final SubprogramUploadIntentService subprogramUploadIntentService;
 	private final SubprogramVerificationLauncher subprogramVerificationLauncher;
 	private final com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
@@ -64,7 +66,7 @@ public class SubprogramUploadController {
 				parsed,
 				com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, id
 		);
-		subprogramService.softDeleteWithIntent(id, request.action());
+		subprogramLifecycleService.softDeleteWithIntent(id, request.action());
 		return ResponseEntity.noContent().build();
 	}
 
@@ -106,7 +108,7 @@ public class SubprogramUploadController {
 		SubprogramKind kind = SubprogramKind.fromPathToken(kindToken);
 		BoardScope scope = BoardScope.fromPathToken(boardScopeToken);
 		subprogramUploadIntentService.consume(kind, scope, uploadToken);
-		Long id = subprogramService.addSubprogram(kind, scope, request, uploadMode, folderFiles, zipFile, singleFile);
+		Long id = subprogramRegistrationService.addSubprogram(kind, scope, request, uploadMode, folderFiles, zipFile, singleFile);
 		return ResponseEntity.ok(new SubprogramUploadResponse(id, "/management/subprogram?selectId=" + id));
 	}
 
@@ -126,7 +128,7 @@ public class SubprogramUploadController {
 		}
 		SubprogramKind kind = SubprogramKind.fromPathToken(kindToken);
 		BoardScope scope = BoardScope.fromPathToken(boardScopeToken);
-		Long id = subprogramService.registerExisting(kind, scope, request);
+		Long id = subprogramRegistrationService.registerExisting(kind, scope, request);
 		return ResponseEntity.ok(new SubprogramUploadResponse(id, "/management/subprogram?selectId=" + id));
 	}
 }

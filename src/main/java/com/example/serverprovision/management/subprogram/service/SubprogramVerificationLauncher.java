@@ -27,7 +27,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SubprogramVerificationLauncher {
 
-	private final SubprogramService subprogramService;
+	private final SubprogramIntegrityService subprogramIntegrityService;
 	private final SubprogramRepository subprogramRepository;
 	private final BackgroundJobService backgroundJobService;
 	private final IntegrityJobReporter integrityJobReporter;
@@ -59,7 +59,7 @@ public class SubprogramVerificationLauncher {
 	public void runAsync(String jobId, Long subprogramId) {
 		try {
 			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
-			IntegrityStatus status = subprogramService.verifyAndRecordIntegrity(subprogramId);
+			IntegrityStatus status = subprogramIntegrityService.verifyAndRecordIntegrity(subprogramId);
 			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] Subprogram 검증 실패. id={}", subprogramId, e);

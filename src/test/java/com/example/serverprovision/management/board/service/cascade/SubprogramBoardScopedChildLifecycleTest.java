@@ -5,7 +5,7 @@ import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
-import com.example.serverprovision.management.subprogram.service.SubprogramService;
+import com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,13 +39,13 @@ class SubprogramBoardScopedChildLifecycleTest {
     private static final Long BOARD_ID = 7L;
 
     @Mock SubprogramRepository subprogramRepository;
-    @Mock SubprogramService subprogramService;
+    @Mock SubprogramLifecycleService subprogramLifecycleService;
 
     SubprogramBoardScopedChildLifecycle adapter;
 
     @BeforeEach
     void initAdapter() {
-        adapter = new SubprogramBoardScopedChildLifecycle(subprogramRepository, subprogramService);
+        adapter = new SubprogramBoardScopedChildLifecycle(subprogramRepository, subprogramLifecycleService);
     }
 
     // ==== helper =====================================================
@@ -126,8 +126,8 @@ class SubprogramBoardScopedChildLifecycleTest {
 
         adapter.softDeleteActive(BOARD_ID);
 
-        verify(subprogramService).softDelete(301L);   // 단일 인자
-        verify(subprogramService).softDelete(302L);
+        verify(subprogramLifecycleService).softDelete(301L);   // 단일 인자
+        verify(subprogramLifecycleService).softDelete(302L);
     }
 
     @Test
@@ -138,7 +138,7 @@ class SubprogramBoardScopedChildLifecycleTest {
 
         adapter.softDeleteActive(BOARD_ID);
 
-        verify(subprogramService, never()).softDelete(org.mockito.ArgumentMatchers.anyLong());
+        verify(subprogramLifecycleService, never()).softDelete(org.mockito.ArgumentMatchers.anyLong());
     }
 
     // ==== restoreDeleted — service.restore(spId) [1-arg] + count ====
@@ -155,8 +155,8 @@ class SubprogramBoardScopedChildLifecycleTest {
         int restored = adapter.restoreDeleted(BOARD_ID);
 
         assertThat(restored).isEqualTo(2);
-        verify(subprogramService).restore(301L);
-        verify(subprogramService).restore(302L);
+        verify(subprogramLifecycleService).restore(301L);
+        verify(subprogramLifecycleService).restore(302L);
     }
 
     @Test
@@ -165,7 +165,7 @@ class SubprogramBoardScopedChildLifecycleTest {
         given(subprogramRepository.findAllByBoardModel_IdAndIsDeletedTrue(BOARD_ID)).willReturn(List.of());
 
         assertThat(adapter.restoreDeleted(BOARD_ID)).isZero();
-        verify(subprogramService, never()).restore(org.mockito.ArgumentMatchers.anyLong());
+        verify(subprogramLifecycleService, never()).restore(org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -180,8 +180,8 @@ class SubprogramBoardScopedChildLifecycleTest {
         int restored = adapter.restoreDeleted(BOARD_ID);
 
         assertThat(restored).isEqualTo(1);
-        verify(subprogramService).restore(301L);                       // 정상만 복구 (1-arg)
-        verify(subprogramService, never()).restore(302L);              // ghost 미복구
+        verify(subprogramLifecycleService).restore(301L);                       // 정상만 복구 (1-arg)
+        verify(subprogramLifecycleService, never()).restore(302L);              // ghost 미복구
     }
 
     // ==== hasAny ====

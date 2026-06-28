@@ -7,6 +7,8 @@ import com.example.serverprovision.management.subprogram.dto.request.SubprogramU
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
+import com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService;
+import com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService;
 import com.example.serverprovision.management.subprogram.service.SubprogramService;
 import com.example.serverprovision.management.subprogram.vo.BoardScope;
 import jakarta.validation.Valid;
@@ -38,6 +40,8 @@ import org.springframework.web.bind.annotation.*;
 public class SubprogramController {
 
 	private final SubprogramService subprogramService;
+	private final SubprogramLifecycleService subprogramLifecycleService;
+	private final SubprogramIntegrityService subprogramIntegrityService;
 	private final BoardModelMetadataService boardModelService;
 
 	/* ─────────────────────────── 메인 페이지 ─────────────────────────── */
@@ -131,19 +135,19 @@ public class SubprogramController {
 
 	@PostMapping("/{id:[0-9]+}/toggle")
 	public String toggle(@PathVariable("id") Long id) {
-		subprogramService.toggleEnabled(id);
+		subprogramLifecycleService.toggleEnabled(id);
 		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
 	@PostMapping("/{id:[0-9]+}/delete")
 	public String delete(@PathVariable("id") Long id) {
-		subprogramService.softDelete(id);
+		subprogramLifecycleService.softDelete(id);
 		return "redirect:/management/subprogram";
 	}
 
 	@PostMapping("/{id:[0-9]+}/restore")
 	public String restore(@PathVariable("id") Long id) {
-		subprogramService.restore(id);
+		subprogramLifecycleService.restore(id);
 		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
@@ -152,7 +156,7 @@ public class SubprogramController {
 	 */
 	@PostMapping("/{id:[0-9]+}/deprecate")
 	public String deprecate(@PathVariable("id") Long id) {
-		subprogramService.deprecate(id);
+		subprogramLifecycleService.deprecate(id);
 		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
@@ -161,7 +165,7 @@ public class SubprogramController {
 	 */
 	@PostMapping("/{id:[0-9]+}/undeprecate")
 	public String undeprecate(@PathVariable("id") Long id) {
-		subprogramService.undeprecate(id);
+		subprogramLifecycleService.undeprecate(id);
 		return SubprogramControllerSupport.redirectToListWithSelect(id);
 	}
 
@@ -174,7 +178,7 @@ public class SubprogramController {
 			@PathVariable("id") Long id,
 			@RequestParam("typedName") String typedName
 	) {
-		subprogramService.purgeWithTypedNameCheck(id, typedName);
+		subprogramLifecycleService.purgeWithTypedNameCheck(id, typedName);
 		return "redirect:/management/subprogram?includeDeleted=true";
 	}
 
@@ -200,6 +204,6 @@ public class SubprogramController {
 	@GetMapping("/{id:[0-9]+}/integrity-status")
 	@ResponseBody
 	public IntegrityStatusResponse integrityStatus(@PathVariable("id") Long id) {
-		return subprogramService.findIntegrityStatus(id);
+		return subprogramIntegrityService.findIntegrityStatus(id);
 	}
 }

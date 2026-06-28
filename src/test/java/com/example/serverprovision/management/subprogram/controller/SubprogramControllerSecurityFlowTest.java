@@ -50,6 +50,9 @@ class SubprogramControllerSecurityFlowTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean SubprogramService subprogramService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramRegistrationService subprogramRegistrationService;
     @MockitoBean SubprogramUploadIntentService subprogramUploadIntentService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramNudgeService subprogramNudgeService;
     @MockitoBean SubprogramVerificationLauncher subprogramVerificationLauncher;

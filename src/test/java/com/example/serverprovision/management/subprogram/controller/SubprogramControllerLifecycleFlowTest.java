@@ -49,6 +49,8 @@ class SubprogramControllerLifecycleFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean SubprogramService subprogramService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
     @MockitoBean SubprogramUploadIntentService subprogramUploadIntentService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramNudgeService subprogramNudgeService;
     @MockitoBean SubprogramVerificationLauncher subprogramVerificationLauncher;
@@ -100,7 +102,7 @@ class SubprogramControllerLifecycleFlowTest {
     @Test
     @DisplayName("POST /toggle : 부모 DISABLED 우회 → 409 ChildLifecycleBlockedByParent")
     void toggle_parentBlocked_409() throws Exception {
-        willThrow(parentBlocked("DISABLED", "enable")).given(subprogramService).toggleEnabled(5L);
+        willThrow(parentBlocked("DISABLED", "enable")).given(subprogramLifecycleService).toggleEnabled(5L);
         mvc.perform(post("/management/subprogram/5/toggle").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message", containsString("부모")));
@@ -109,7 +111,7 @@ class SubprogramControllerLifecycleFlowTest {
     @Test
     @DisplayName("POST /undeprecate : 부모 DEPRECATED 우회 → 409")
     void undeprecate_parentBlocked_409() throws Exception {
-        willThrow(parentBlocked("DEPRECATED", "undeprecate")).given(subprogramService).undeprecate(5L);
+        willThrow(parentBlocked("DEPRECATED", "undeprecate")).given(subprogramLifecycleService).undeprecate(5L);
         mvc.perform(post("/management/subprogram/5/undeprecate").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict());
     }
@@ -117,7 +119,7 @@ class SubprogramControllerLifecycleFlowTest {
     @Test
     @DisplayName("POST /restore : 부모 DELETED 우회 → 409")
     void restore_parentBlocked_409() throws Exception {
-        willThrow(parentBlocked("DELETED", "restore")).given(subprogramService).restore(5L);
+        willThrow(parentBlocked("DELETED", "restore")).given(subprogramLifecycleService).restore(5L);
         mvc.perform(post("/management/subprogram/5/restore").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict());
     }
@@ -127,7 +129,7 @@ class SubprogramControllerLifecycleFlowTest {
     void restore_duplicateKey_409() throws Exception {
         willThrow(new DuplicateSubprogramVersionException(
                 SubprogramKind.DRIVER, BoardScope.COMMON, "a", "1.0"))
-                .given(subprogramService).restore(5L);
+                .given(subprogramLifecycleService).restore(5L);
         mvc.perform(post("/management/subprogram/5/restore").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict());
     }
@@ -137,7 +139,7 @@ class SubprogramControllerLifecycleFlowTest {
     @Test
     @DisplayName("POST /toggle : 존재하지 않는 자원 → 404")
     void toggle_notFound_404() throws Exception {
-        willThrow(new SubprogramNotFoundException(99L)).given(subprogramService).toggleEnabled(99L);
+        willThrow(new SubprogramNotFoundException(99L)).given(subprogramLifecycleService).toggleEnabled(99L);
         mvc.perform(post("/management/subprogram/99/toggle").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }

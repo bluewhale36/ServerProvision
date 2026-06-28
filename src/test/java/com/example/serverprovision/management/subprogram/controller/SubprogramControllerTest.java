@@ -49,6 +49,9 @@ class SubprogramControllerTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean SubprogramService subprogramService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
+    @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramRegistrationService subprogramRegistrationService;
     @MockitoBean SubprogramUploadIntentService subprogramUploadIntentService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramNudgeService subprogramNudgeService;
     @MockitoBean SubprogramVerificationLauncher subprogramVerificationLauncher;
@@ -191,7 +194,7 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("GET /{id}/integrity-status : 저장된 status 반환")
     void integrity_status_200() throws Exception {
-        given(subprogramService.findIntegrityStatus(5L))
+        given(subprogramIntegrityService.findIntegrityStatus(5L))
                 .willReturn(IntegrityStatusResponse.of(5L, IntegrityStatus.ORIGINAL, Instant.parse("2026-04-28T00:00:00Z")));
 
         mvc.perform(get("/management/subprogram/5/integrity-status"))
