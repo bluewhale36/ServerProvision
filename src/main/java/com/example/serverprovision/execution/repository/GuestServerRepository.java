@@ -25,4 +25,9 @@ public interface GuestServerRepository extends JpaRepository<GuestServer, UUID> 
      * 인라인 수정 — 이름(유니크) 중복 검사. 자기 자신은 제외.
      */
     boolean existsByNameAndIdNot(String name, UUID id);
+
+    /**
+     * 인라인 수정 — 사내 시리얼 번호(유니크) 중복 검사. 자기 자신은 제외. (U1 §D1: serial 이 guest_server 로 흡수됨)
+     */
+    boolean existsBySerialNumberAndIdNot(String serialNumber, UUID id);
 }

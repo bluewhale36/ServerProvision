@@ -1,7 +1,7 @@
 package com.example.serverprovision.execution.controller;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
-import com.example.serverprovision.execution.service.ServerRegistrationService;
+import com.example.serverprovision.execution.service.GuestServerRegistrationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ExecutionRestController {
 
-    private final ServerRegistrationService registrationService;
+    private final GuestServerRegistrationService registrationService;
 
     @GetMapping("/boot")
     public ResponseEntity<?> initialBoot(@ModelAttribute BootIPXEInfoRequest initialRequest) {

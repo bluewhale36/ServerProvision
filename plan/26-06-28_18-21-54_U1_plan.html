@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U1 Plan — 게스트 서버 데이터 모델 정비 + 진입점/CRUD</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#7048c4; --purple-bg:rgba(112,72,196,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%); border-bottom:1px solid var(--border);
+    padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1320px; margin:0 auto; padding:24px; }
+  nav.toc { align-self:start; position:sticky; top:108px; max-height:calc(100vh - 130px); overflow-y:auto;
+    background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  main { min-width:0; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);} .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.rm{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .chip.defer{background:var(--purple-bg);color:var(--purple);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout.spine { border-color:var(--purple); background:var(--purple-bg); }
+  ul,ol { padding-left:22px; }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  .hidden { display:none !important; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .dec { margin:14px 0; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .dec > .dec-h { background:var(--bg); padding:9px 13px; font-weight:700; font-size:13px; display:flex; gap:9px; align-items:center; }
+  .dec .dec-b { padding:11px 14px; }
+  .dec .opt { font-size:12.5px; padding:3px 0; }
+  .dec .opt .x { color:var(--red); font-weight:700; } .dec .opt .o { color:var(--green); font-weight:700; }
+  .tag-pick { background:var(--green); color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:8px; }
+
+  /* 🎬 live demo */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg.tog.active { background:var(--red); border-color:var(--red); }
+  .gs-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-top:12px; }
+  .gs-top { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border-soft); padding-bottom:10px; margin-bottom:10px; }
+  .gs-top .nm { font-weight:700; font-size:15px; } .gs-top .uuid { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+  .gs-status { margin-left:auto; font-size:12px; font-weight:700; padding:3px 11px; border-radius:9px; }
+  .gs-status.reg { background:var(--blue-bg); color:var(--blue); }
+  .gs-status.prov { background:var(--yellow-bg); color:var(--yellow); }
+  .gs-status.done { background:var(--green-bg); color:var(--green); }
+  .gs-status.fail { background:var(--red-bg); color:var(--red); }
+  .gs-status.dec { background:rgba(0,0,0,0.07); color:var(--text-muted); }
+  .gs-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 16px; font-size:12.5px; }
+  .gs-fields .k { color:var(--text-muted); } .gs-fields .v { font-family:var(--mono); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; }
+  .ux-caps .src { color:var(--purple); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+
+  /* 🎬 CRUD 화면 목업 */
+  .crud-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:14px; margin:12px 0; }
+  .crud-bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .crud-crumb { font-family:var(--mono); font-size:12px; color:var(--text); background:var(--card); border:1px solid var(--border-soft); padding:3px 9px; border-radius:6px; }
+  .crud-hint { font-size:11px; color:var(--text-muted); margin-left:auto; }
+  .crud-table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; overflow:hidden; font-size:12.5px; margin:0; }
+  .crud-table th { background:var(--bg); font-size:11px; color:var(--text-muted); padding:8px 10px; text-align:left; font-weight:600; }
+  .crud-table td { padding:9px 10px; border-top:1px solid var(--border-soft); }
+  .crud-row { cursor:pointer; }
+  .crud-row:hover td { background:var(--blue-bg); }
+  .crud-muted { color:var(--text-muted); font-style:italic; }
+  .crud-detail { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px 16px; }
+  .crud-dh { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border-soft); padding-bottom:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .crud-dh .nm { font-weight:700; font-size:15px; }
+  .crud-dh .uuid { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+  .crud-dh .sp { margin-left:auto; display:flex; gap:6px; }
+  .crud-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .crud-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .crud-btn:disabled { opacity:0.45; cursor:not-allowed; border-color:var(--border); color:var(--text-muted); }
+  .crud-btn.primary { background:var(--blue); color:#fff; } .crud-btn.primary:hover { background:#005fb3; }
+  .crud-btn.danger { border-color:var(--red); color:var(--red); } .crud-btn.danger:hover:not(:disabled) { background:var(--red-bg); }
+  .crud-btn.ghost { border-color:var(--border); color:var(--text-muted); }
+  .crud-sec { margin:12px 0; }
+  .crud-sec h5 { margin:0 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); }
+  .crud-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 16px; font-size:12.5px; }
+  .crud-grid .k { color:var(--text-muted); } .crud-grid .v { font-family:var(--mono); }
+  .crud-form { display:grid; grid-template-columns:150px 1fr; gap:9px 12px; align-items:center; font-size:12.5px; }
+  .crud-form label { color:var(--text-muted); }
+  .crud-form input { width:100%; padding:6px 9px; font-size:12.5px; border:1px solid var(--border); border-radius:5px; font-family:inherit; }
+  .crud-form input.err { border-color:var(--red); background:var(--red-bg); }
+  .crud-err { color:var(--red); font-size:11.5px; grid-column:2; margin-top:-5px; }
+  .crud-empty { font-size:12px; color:var(--text-muted); font-style:italic; background:var(--bg); border:1px dashed var(--border); border-radius:6px; padding:9px 11px; }
+  .crud-actions { display:flex; gap:6px; margin-top:14px; }
+  .crud-nic { width:100%; border-collapse:collapse; font-size:12px; }
+  .crud-nic th { background:var(--bg); color:var(--text-muted); font-size:10.5px; padding:5px 8px; text-align:left; }
+  .crud-nic td { padding:5px 8px; border-top:1px solid var(--border-soft); font-family:var(--mono); }
+  .pri-badge { font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:7px; background:var(--green-bg); color:var(--green); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} .split-grid{grid-template-columns:1fr;} nav.toc{position:static;max-height:none;} header.page-header{position:static;} .gs-fields{grid-template-columns:1fr;} .crud-grid{grid-template-columns:1fr;} .crud-form{grid-template-columns:1fr;} .crud-err{grid-column:1;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U1 — 게스트 서버 데이터 모델 정비 + 진입점/CRUD <span class="v2-badge">목적 적합성 재설계</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U1 (사용 계층, 진입점 + 물리 서버 정보 CRUD)</span>
+    <span><strong>상위</strong> Stage 3 Provisioning · 2단계(a) 게스트 데이터 모델</span>
+    <span><strong>scope</strong> 게스트 서버 5엔티티 재모델링 + 등록 진입점 + 조회/인라인수정</span>
+    <span><strong>생성</strong> 2026-06-28 18:21 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단 요약)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 1 (상태 도출 라이브 데모)</a></li>
+      <li><a href="#s2-preview2" class="preview">🎬 미리보기 2 (CRUD 화면 목업)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (재설계 + 결정)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (목적 적합성 검토 진단 요약)</summary>
+      <div class="body">
+        <p><b>전제</b> — execution 의 게스트 서버 골격(6 엔티티 + VO + 등록/조회/수정)이 이미 존재한다. 목적 적합성 검토(report <code>26-06-28_18-08-49_…_purpose-fit-review</code>)가 도출한 결론: <b>식별(서버→보드모델 join) 절반은 견고, 실행(무엇으로/어떻게/무엇이 일어났나) 절반은 비거나 결함</b>. U1 은 이 진단을 데이터 모델 정비로 흡수한다.</p>
+        <table>
+          <thead><tr><th>코드</th><th>진단</th><th>U1 처리</th></tr></thead>
+          <tbody>
+            <tr><td>F1</td><td><code>SetupStep</code> 이 <code>@OneToOne</code> → 서버당 단계이력 1행 한정</td><td><b>1:N 전환</b> (D7)</td></tr>
+            <tr><td>F2</td><td><code>ProvisioningProgress</code> 감사 리스너 누락 → <code>last_transition_at</code> 미충전, INSERT 결함</td><td><b>BaseTimeEntity 상속 + 명시 set</b> (D6)</td></tr>
+            <tr><td>F3</td><td><code>GuestServer.model_name</code> 고아 컬럼 ↔ <code>custom.product_model_name</code> 의미 중복</td><td><b>custom 흡수 + 단일화</b> (D1/D3)</td></tr>
+            <tr><td>F4</td><td>progress 에 <code>@Version</code> 누락 (다회 전이 lost-update)</td><td><b>@Version 추가</b> (D6)</td></tr>
+            <tr><td>F5/Q2</td><td><code>detail.vendor</code> 가 <code>boardModel.vendor</code> 와 중복(드리프트)</td><td><b>파생으로 전환, 컬럼 제거</b> (D2)</td></tr>
+            <tr><td>G1</td><td>서버 ↔ 세팅 정의서/OS 연결 부재 (자동화의 척추)</td><td><b>설계 예약 + 자리/카디널리티 확정</b> (D5)</td></tr>
+            <tr><td>G4</td><td>서버 운영 상태(완료/실패/유휴/회수) 표현 부재</td><td><b>도출형 status + 회수 마커</b> (D4)</td></tr>
+            <tr><td>Q1</td><td>3중 1:1 과잉 정규화 (등록 시 셋 다 eager 생성)</td><td><b>3→2 테이블 통합</b> (D1)</td></tr>
+            <tr><td>Q3</td><td>"현재 단계" 커서 이중화(progress vs 최신 step)</td><td><b>progress.current_phase 를 SSOT 로 명문화</b> (D7)</td></tr>
+            <tr><td>F9</td><td>created_at/updated_at 적용 비일관</td><td><b>전 본체 BaseTimeEntity 표준화</b> (D9)</td></tr>
+            <tr><td>F11</td><td>등록 입력 검증 부재 → 500 누수</td><td><b>검증 + advice 라우팅</b> (D10)</td></tr>
+            <tr><td>F7</td><td>게스트 애그리거트가 execution/provisioning 두 패키지 분열</td><td><b>소유 경계 확정</b> (D11)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>U1 의 성격</b> — 신규 기능보다 <b>한 애그리거트의 데이터 모델 정합화 리팩터 + 진입점/CRUD 마감</b>이다. 단일 슬라이스치고 표면이 넓지만(엔티티 6→5 재형), 한 도메인에 집중돼 CP 경계로 관리 가능하다. <b>프로비저닝 엔진(단계 전이·setup_step 적재)·세팅 정의서·BMC 접속은 U1 밖</b>(§2 비목표).</div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 + 비목표</summary>
+      <div class="body">
+        <h4>확정 요구사항</h4>
+        <ol>
+          <li><b>데이터 모델 통합·정합화</b> — 3중 1:1(<code>guest_server</code>/<code>detail</code>/<code>custom</code>)을 2테이블로 통합, vendor 파생화, <code>setup_step</code> 1:N, <code>provisioning_progress</code> 감사/락 정비, 파생·고아 필드 제거, 전 본체 감사필드 표준화.</li>
+          <li><b>운영 상태 도출</b> — 서버의 운영 상태(등록됨/프로비저닝중/완료/실패/회수됨)를 <b>저장 컬럼이 아니라 (progress + 회수 마커)에서 도출</b>하는 뷰모델 enum 으로 노출. 목록/상세가 한눈에 상태를 보여준다.</li>
+          <li><b>등록 진입점 마감</b> — iPXE 부팅 등록이 <code>guest_server</code> + <code>detail</code> + <code>host_nic_binding(primary)</code> + <code>provisioning_progress(seed)</code> 를 한 트랜잭션에 적재(빈 <code>custom</code> 생성 제거). 입력 형식 오류는 advice 단일 진입점에서 400.</li>
+          <li><b>조회 + 인라인 수정 CRUD</b> — 목록/상세 페이지, 상세에서 운영자 식별 4필드(name/model_name/serial_number/memo) 인라인 수정 + 유니크(name/serial) 충돌 BindingResult 인라인 표시. 서버 회수(decommission) 액션.</li>
+          <li><b>척추 예약</b> — 서버 ↔ 세팅 정의서 연결의 <b>자리와 카디널리티를 설계로 확정</b>하고 후속 슬라이스로 명시 위임(dead 컬럼은 추가 안 함, §D5).</li>
+        </ol>
+        <div class="callout warn">
+          <b>비 목표 (out of scope → 어느 슬라이스로 가는가)</b>
+          <ul>
+            <li><b>세팅 정의서 도메인 + 서버↔정의서 할당 로직</b> → 후속 <b>setting 슬라이스</b>. U1 은 연결 자리만 설계 확정(D5).</li>
+            <li><b>프로비저닝 엔진</b>(단계 전이, <code>setup_step</code> 행 적재, phase_meta 기록) → <b>Stage 4</b>. U1 은 <code>setup_step</code> 의 <b>모양만</b> 바로잡고 적재는 안 한다.</li>
+            <li><b>BMC 접속(bmc_binding/credential_ref)</b> · <b>hardware/software_spec 적재</b>(컬럼은 U1 에 추가하되 수집·적재는 이연 — §D8 수정) · <b>location_assignment</b> · <b>transition_log</b> → 각 후속 슬라이스. phase enum 에 FIRMWARE/BMC 가 있으나 수행 데이터는 그 슬라이스에서.</li>
+            <li><b>명세 충실도 / PXE 계약 재검토</b> — 본 슬라이스 검토 범위 밖(사용자 지시). 진입점은 데이터 적재 측면만 정비.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 PREVIEW -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 운영 상태 "도출" 라이브 데모 (저장 컬럼 아님)</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>서버에 실제로 일어난 사실(progress 전이 · 회수 여부)을 바꿔보세요.</b> 상세 카드의 <b>운영 상태 배지</b>가 즉시 다시 계산됩니다. 핵심: 운영 상태는 <b>네 번째 status 컬럼을 새로 저장하는 것이 아니라</b>, 이미 있는 사실에서 <b>도출(derive)</b>합니다(D4). 그래서 progress 와 상태가 어긋날 수 없습니다(SSOT). vendor 도 같은 원리로 <code>boardModel</code>에서 도출됩니다(D2).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">프로비저닝 진행 :</span>
+            <button class="seg" data-prog="REGISTERED" onclick="u1Set('prog','REGISTERED')">등록 직후</button>
+            <button class="seg" data-prog="RUNNING" onclick="u1Set('prog','RUNNING')">진행 중</button>
+            <button class="seg" data-prog="DONE" onclick="u1Set('prog','DONE')">완료(TESTING✓)</button>
+            <button class="seg" data-prog="FAILED" onclick="u1Set('prog','FAILED')">실패</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">진행 단계(RUNNING 시) :</span>
+            <button class="seg" data-phase="FIRMWARE_UPDATING" onclick="u1Set('phase','FIRMWARE_UPDATING')">펌웨어 업데이트</button>
+            <button class="seg" data-phase="OS_INSTALLING" onclick="u1Set('phase','OS_INSTALLING')">OS 설치</button>
+            <button class="seg" data-phase="OS_SETTING" onclick="u1Set('phase','OS_SETTING')">OS 설정</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">운영자 액션 :</span>
+            <button class="seg tog" id="u1-dec" onclick="u1Toggle('dec')">회수(decommission)</button>
+            <button class="seg" onclick="u1Reset()">초기화</button>
+          </div>
+
+          <div class="gs-card">
+            <div class="gs-top">
+              <span class="nm" id="u1-nm">RE2108-03</span>
+              <span class="uuid">system_uuid 4f3c…a91</span>
+              <span class="gs-status" id="u1-status">등록됨</span>
+            </div>
+            <div class="gs-fields">
+              <div><span class="k">vendor(도출)</span> <span class="v" id="u1-vendor">Gigabyte</span></div>
+              <div><span class="k">board_model(FK)</span> <span class="v">MS73-HB1-000</span></div>
+              <div><span class="k">discovery_stage</span> <span class="v" id="u1-disc">IPXE_REGISTERED</span></div>
+              <div><span class="k">current_phase</span> <span class="v" id="u1-phase">BOOTSTRAPPING</span></div>
+            </div>
+          </div>
+
+          <div class="ux-caps" id="u1-caps"></div>
+          <div class="ux-message" id="u1-msg">진행/회수 버튼을 눌러 운영 상태가 어떻게 도출되는지 보세요.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>BEFORE — 3중 1:1 + 중복/고아/결함</h4>
+            <pre><code>guest_server(model_name 고아·항상 null)
+guest_server_detail(vendor 중복)
+guest_server_custom(model_name·serial)   // 2칸, version·json 없음
+setup_step  @OneToOne   // 서버당 1행 한정
+provisioning_progress   // @LastModifiedDate inert
+                        // @Version 없음
+운영 상태 = ???          // 어디에도 없음</code></pre>
+          </div>
+          <div class="split-card after">
+            <h4>AFTER — 2테이블 + 도출 + 정비</h4>
+            <pre><code>guest_server{name,model_name,serial_number,
+             memo,decommissioned_at}      // custom 흡수
+guest_server_detail{board_model FK,
+             board_serial,discovery_stage,@Version}
+             // vendor 는 boardModel 에서 도출
+setup_step  @ManyToOne                    // 1:N 이력
+provisioning_progress{@Version,BaseTime}  // SSOT 커서
+운영 상태 = derive(progress, 회수)         // 저장 0</code></pre>
+          </div>
+        </div>
+        <div class="callout success"><b>도출 = 드리프트 0</b> — 위 데모의 배지 판정 로직(<code>derive(progress, decommissioned)</code>)이 곧 서버 뷰모델의 판정이다. 상태를 따로 저장하지 않으니 progress 와 어긋날 자리가 없다.</div>
+      </div>
+    </details>
+
+    <!-- 🎬 PREVIEW 2 — CRUD 화면 -->
+    <details class="section preview" id="s2-preview2" open>
+      <summary>🎬 미리보기 2 — CRUD 화면 라이브 목업 (목록 · 상세 · 인라인수정 · 회수)</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>실제 화면 흐름을 클릭해보세요.</b> 목록의 <b>행</b>을 누르면 상세로, 상세에서 <b>수정</b>을 누르면 운영자 4필드 인라인 편집, <b>회수</b>를 누르면 운영 상태가 <code>회수됨</code>으로 바뀝니다. 인라인 수정에서 이름을 다른 서버와 같게(<code>web-01</code>) 바꾸면 유니크 충돌이 <b>BindingResult 필드 에러</b>로 인라인 표시됩니다(예외 아님 — §7). vendor·운영상태는 미리보기 1 의 <b>도출</b> 규칙 그대로이고, <code>setup_step</code> 이력은 엔진 미가동이라 "아직 없음"으로 표시(스코프 경계 그대로).</p>
+
+        <div class="crud-wrap">
+          <div class="crud-bar">
+            <span class="crud-crumb" id="crud-crumb">/provisioning/server</span>
+            <span class="crud-hint" id="crud-hint">행을 클릭해 상세로 이동</span>
+          </div>
+          <div id="crud-screen"><!-- JS 렌더 --></div>
+          <div class="ux-message" id="crud-msg" style="margin-top:10px;">목록에서 서버를 선택하세요.</div>
+        </div>
+
+        <div class="callout"><b>화면 = 백엔드 데이터의 거울</b> — 목록/상세의 vendor·운영상태는 도출값(저장 0), 인라인 4필드(name·model_name·serial_number·memo)는 모두 <code>guest_server</code> 한 테이블에 저장(custom 흡수, D1), 회수는 <code>decommissioned_at</code> 한 필드만 기록(D4). 화면 구성은 기존 <code>table-list.css</code> / <code>form-validation.css</code> 재사용 — 신규 CSS 0 목표(DESIGN.md 준수).</div>
+        <div class="callout warn"><b>화면 범위 메모(큰 단계 인식)</b> — U1 의 UI 표면은 (1) 목록 (2) 상세 (3) 상세 인라인 수정 (4) 회수 액션 네 가지. 등록(<code>/api/pxe/v1/boot</code>)은 iPXE 가 호출하는 머신 진입점이라 사람 화면 없음. 진단 보강·세팅 할당·진행 모니터링 화면은 후속 슬라이스(§11).</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>URL (변경 최소 — 기존 엔드포인트 유지, 적재/도출만 보강)</h4>
+        <table>
+          <thead><tr><th>Method · URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /api/pxe/v1/boot</code></td><td>iPXE 등록(진입점) — server+detail+nic+<b>progress seed</b> 적재(빈 custom 생성 제거)</td><td>200 (계약 측면은 스코프 밖)</td></tr>
+            <tr><td><code>GET /provisioning/server</code></td><td>목록 — 도출 vendor/운영상태 포함</td><td>SSR <code>server-list</code></td></tr>
+            <tr><td><code>GET /provisioning/server/{id}</code></td><td>상세 — 정체성+인벤토리+NIC+progress+step이력(빈)</td><td>SSR <code>server-detail</code></td></tr>
+            <tr><td><code>POST /provisioning/server/{id}/edit</code></td><td>인라인 수정 — name/model_name/serial_number/memo (모두 <code>guest_server</code>)</td><td>redirect 또는 재렌더(field error)</td></tr>
+            <tr><td><code>POST /provisioning/server/{id}/decommission</code> <span class="chip new">신규</span></td><td>회수 — <code>decommissioned_at</code> 기록</td><td>redirect</td></tr>
+          </tbody>
+        </table>
+        <pre><code>[등록] GET /api/pxe/v1/boot ──▶ GuestServerRegistrationService.initialRegistry (1 tx)
+   guest_server(system_uuid, status=도출:등록됨)         // 운영자 4필드는 null
+   guest_server_detail(boardModel FK, discovery=IPXE_REGISTERED)   // vendor 파생
+   host_nic_binding(primary, DHCP)
+   provisioning_progress(current_phase=BOOTSTRAPPING, last_transition_at=now)  // seed
+   ※ guest_server_custom 생성 없음 (테이블 폐지)
+
+[조회] GET /provisioning/server ──▶ QueryService.findAll
+   각 서버: detail(boardModel fetch-join) + primary NIC + progress 를 각 1쿼리 일괄(N+1 회피)
+   vendor    = detail.boardModel.vendor            (도출)
+   status    = derive(progress, decommissionedAt)  (도출)  ← 새 status 컬럼 없음
+
+[수정] POST …/edit ──▶ CommandService.update (1 tx)  name/serial 유니크 충돌 → BindingResult 인라인</code></pre>
+        <div class="callout"><b>도출 위치</b> — vendor·운영상태는 Query/Command 서비스의 매핑 단계에서 계산해 Response 에 싣는다(엔티티 그래프에 이미 boardModel·progress 가 있어 추가 조회 0). 뷰는 도출 결과(enum/VO)만 읽는다.</div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (재설계 + 결정 D1~D11)</summary>
+      <div class="body">
+        <p>대안을 복수 비교하고 채택안 + <b>비채택 사유</b>를 함께 적는다(CP1 불가침). 필드 길이 등 상세는 코드가 SSOT.</p>
+
+        <!-- D1 -->
+        <div class="dec">
+          <div class="dec-h">D1 · 3중 1:1 통합 <span class="tag-pick">채택 B: custom→guest_server 흡수, detail 유지</span></div>
+          <div class="dec-b">
+            <div class="opt"><span class="x">✗ A</span> 3테이블 유지 + custom/detail lazy 생성 — 2칸짜리 테이블을 위해 lazy 분기 추가. 복잡도만 늘고 이득 없음.</div>
+            <div class="opt"><span class="o">✓ B</span> <b>custom 을 guest_server 로 흡수</b>(model_name·serial_number 컬럼화), <b>detail 은 분리 유지</b>.</div>
+            <div class="opt"><span class="x">✗ C</span> detail 까지 전부 guest_server 로 통합(1테이블) — detail 의 <code>@Version</code> 격리(운영자 인라인 수정 vs 진단 다회 갱신의 false-conflict 회피)와 hw/sw JSON 성장 여지를 잃음.</div>
+            <p><b>근거</b> — custom 은 운영자 부여 식별자라 name/memo 와 같은 인라인 폼에서 함께 수정된다(같은 write 시점·주체). version·JSON 도 없다 → 분리 정당성 0, 흡수가 맞다. 반면 detail 은 <b>하드웨어가 보고한 사실</b>(운영자 부여와 개념적으로 다름) + <b>다회 갱신 주체</b>(진단/검증) → <code>@Version</code> + 향후 JSON 으로 분리 정당. "쪼개 놓고 한꺼번에 생성" 모순은 custom 에서만 발생했으므로 custom 흡수로 해소.</p>
+          </div>
+        </div>
+
+        <!-- D2 -->
+        <div class="dec">
+          <div class="dec-h">D2 · vendor <span class="tag-pick">채택: 컬럼 제거 → boardModel 에서 도출</span></div>
+          <div class="dec-b">
+            <div class="opt"><span class="o">✓</span> <code>detail.vendor</code> 삭제, <code>detail.boardModel.getVendor()</code> 로 도출(Response 에 적재).</div>
+            <div class="opt"><span class="x">✗</span> 스냅샷 보존용 유지 — 보드 교체 시 boardModel FK 자체가 바뀌므로 스냅샷 가치 낮고 드리프트(detail.vendor≠boardModel.vendor) 위험만 남음.</div>
+            <p><b>근거</b> — vendor 는 boardModel 의 속성이라 항상 파생 가능. 목록 N+1 은 이미 boardModel fetch-join 으로 해결돼 있어 도출 비용 0.</p>
+          </div>
+        </div>
+
+        <!-- D3 -->
+        <div class="dec">
+          <div class="dec-h">D3 · model_name 고아/중복 <span class="tag-pick">채택: 단일화 (custom 쪽 의미 채택)</span></div>
+          <div class="dec-b">
+            <p>D1 의 흡수로 자연 해소. <code>guest_server.model_name</code>(고아, 항상 null)을 폐기하고, custom 의 "운영자 부여 + ipmitool 각인 모델명" 의미를 <code>guest_server.model_name</code> 단일 컬럼이 갖는다. serial_number 도 동일하게 guest_server 로. → 한 화면 한 필드, 중복 0.</p>
+          </div>
+        </div>
+
+        <!-- D4 -->
+        <div class="dec">
+          <div class="dec-h">D4 · 운영 상태 <span class="tag-pick">채택 C: 도출 + 회수 마커만 저장</span></div>
+          <div class="dec-b">
+            <div class="opt"><span class="x">✗ A</span> <code>GuestServerStatus</code> 컬럼 저장 — progress 와 중복되는 4번째 상태축. 동기화 드리프트(내가 직전 검토에서 비판한 바로 그 안티패턴).</div>
+            <div class="opt"><span class="o">✓ C</span> <b>도출형</b> — 상태는 <code>derive(progress, decommissionedAt)</code> 로 계산. 도출 불가한 사실(운영자 회수)만 <code>decommissioned_at</code>(nullable) 1필드 추가.</div>
+            <div class="opt"><span class="x">✗ B</span> 전부 도출(회수도 progress 로) — 회수는 progress 와 무관한 운영자 결정이라 progress 로 표현 부자연.</div>
+            <p><b>도출 규칙</b> : <code>decommissionedAt≠null → 회수됨</code> · <code>progress 실패 → 실패</code> · <code>progress 완료(TESTING✓) → 완료</code> · <code>progress 가 BOOTSTRAPPING 초과 진행 → 프로비저닝중(phase)</code> · 그 외 → <code>등록됨</code>. enum <code>GuestServerStatus</code> 는 <b>뷰모델 전용(미영속)</b> — Primitive Obsession 금지 준수.</p>
+          </div>
+        </div>
+
+        <!-- D5 spine -->
+        <div class="dec">
+          <div class="dec-h">D5 · 서버 ↔ 세팅 정의서 (자동화의 척추) <span class="tag-pick">채택 D: 설계 예약, 컬럼 미추가</span></div>
+          <div class="dec-b">
+            <div class="opt"><span class="x">✗ A</span> 아무 것도 안 함 — 척추를 침묵으로 누락(직전 검토가 지적한 위험).</div>
+            <div class="opt"><span class="x">✗ B</span> dangling <code>UUID assigned_setting_definition_id</code> 컬럼 추가 — 대상 테이블 부재로 FK 미강제 + Primitive Obsession + "갈라지기 전 분리" 금지 위반.</div>
+            <div class="opt"><span class="o">✓ D</span> <b>자리·카디널리티를 설계로 확정</b>하고 컬럼/FK 는 SettingDefinition 슬라이스에서 실제 추가.</div>
+            <div class="callout spine"><b>예약 명세(확정)</b> — 연결은 <code>guest_server</code> 에 <code>@ManyToOne(nullable) settingDefinition</code> 로 둔다(서버는 1개의 정의서를 할당받고, 한 정의서는 여러 서버에 재사용 → N:1). 미할당=null. 이 FK 와 enforcement 는 <b>setting 슬라이스</b>에서 SettingDefinition 엔티티와 함께 도입한다. U1 은 dead 컬럼을 만들지 않되 이 결정을 못박아 "비워둔 채 잊는 것"을 방지한다.</div>
+            <p><b>근거</b> — CLAUDE.md "미래에 갈라질 수 있으니 미리 분리 금지 — 갈라지는 시점에 분리". 대상 엔티티가 없는 지금 컬럼만 박으면 unenforced + primitive. 그러나 척추인 만큼 설계는 지금 확정해 후속 슬라이스의 전제로 박는다.</p>
+          </div>
+        </div>
+
+        <!-- D6 -->
+        <div class="dec">
+          <div class="dec-h">D6 · provisioning_progress 정비 + seed <span class="tag-pick">채택: BaseTimeEntity + @Version + 등록 시 seed</span></div>
+          <div class="dec-b">
+            <ul>
+              <li><b>감사 정비(F2)</b> — <code>BaseTimeEntity</code> 상속(created/updated 확보 + 리스너 부착). <code>last_transition_at</code> 은 <code>@LastModifiedDate</code> 의존을 버리고 <b>전이 시 명시 set</b> 하는 도메인 필드로(엔진이 채움). 등록 seed 시 <code>now</code>.</li>
+              <li><b>락(F4)</b> — <code>@Version</code> 추가. 비동기 엔진의 다회 전이 lost-update 방지.</li>
+              <li><b>seed</b> — 등록 트랜잭션이 <code>current_phase=BOOTSTRAPPING</code> 1행 생성 → 1:1 불변 유지, 상세 UI 가 phase 를 표시.</li>
+            </ul>
+            <div class="opt"><span class="x">✗ 대안</span> seed 안 하고 엔진이 최초 생성 — 상세가 null progress 가 되고 1:0..1 의 lazy/eager 비일관 재발. seed 가 깔끔.</div>
+          </div>
+        </div>
+
+        <!-- D7 -->
+        <div class="dec">
+          <div class="dec-h">D7 · setup_step 1:N + 커서 SSOT <span class="tag-pick">채택: @ManyToOne, phase_code 도출, progress=커서</span></div>
+          <div class="dec-b">
+            <ul>
+              <li><b>1:N(F1)</b> — <code>@OneToOne</code>→<code>@ManyToOne(optional=false)</code>. 서버당 다수 단계이력 저장 가능(엔진이 적재; U1 은 모양만).</li>
+              <li><b>phase_code 도출(Q2)</b> — <code>step_code(ProvisioningPhaseStep).getPhaseType()</code> 로 항상 파생되므로 컬럼 제거, Response 에서 도출.</li>
+              <li><b>커서 SSOT(Q3)</b> — "현재 단계"의 권위는 <code>provisioning_progress.current_phase</code>. <code>setup_step</code> 은 append-only 실행 이력/감사. 상세 UI 는 progress 를 헤드라인, step 리스트를 이력으로.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- D8 -->
+        <div class="dec">
+          <div class="dec-h">D8 · hardware_spec/software_spec(JSON) <span class="tag-pick">채택(수정): U1 에서 컬럼 추가, 적재는 진단 슬라이스</span></div>
+          <div class="dec-b">
+            <div class="callout warn" style="margin-top:0;"><b>CP3 중 사용자 지시로 결정 번복</b> — 최초 채택안은 "설계 예약 · U1 미추가"(아래 ✗)였으나, 사용자가 <b>지금 컬럼을 생성</b>하도록 지시. 엔티티를 어차피 재형하는 시점에 nullable JSON 2 컬럼을 함께 두어 후속 ALTER 한 번을 절약한다.</div>
+            <div class="opt"><span class="o">✓ 채택</span> <code>guest_server_detail</code> 에 <code>hardwareSpec</code> / <code>softwareSpec</code> 를 <code>String + columnDefinition="json"</code>(nullable)로 추가. 저장 형식은 기존 <code>phaseMeta</code>/<code>statusMeta</code> 관례와 동일. <b>적재·수집·앱측 sealed record 타입 매핑·DTO/화면 노출은 진단 리눅스 수집 슬라이스</b>가 담당(등록 시 항상 null). <code>JSON_VALID</code> CHECK 도 그 슬라이스에서.</div>
+            <div class="opt"><span class="x">✗ 최초안</span> 설계 예약 + U1 미추가(dead 컬럼 회피, "갈라지는 시점에 분리") — 사용자 지시로 폐기.</div>
+          </div>
+        </div>
+
+        <!-- D9 -->
+        <div class="dec">
+          <div class="dec-h">D9 · 감사필드 표준화 <span class="tag-pick">채택: 전 본체 BaseTimeEntity</span></div>
+          <div class="dec-b">
+            <p><code>HostNicBinding</code>·<code>ProvisioningProgress</code>·<code>SetupStep</code> 도 <code>BaseTimeEntity</code> 상속. 도메인 시각(boundedAt/startedAt/finishedAt/lastTransitionAt)은 created/updated 와 의미가 달라 공존(주석으로 구분). <code>GuestServerCustom</code> 은 폐지(D1).</p>
+          </div>
+        </div>
+
+        <!-- D10 -->
+        <div class="dec">
+          <div class="dec-h">D10 · 등록 진입점 정비 <span class="tag-pick">채택: 검증 + advice, custom 생성 제거, progress seed</span></div>
+          <div class="dec-b">
+            <p>입력 형식 검증(UUID/MAC/IP)을 두고, 형식 오류는 컨트롤러 try/catch 가 아니라 <b><code>@ControllerAdvice</code>/<code>@RestControllerAdvice</code> 단일 진입점</b>에서 400 으로(분기 증식 금지 원칙). 등록 write-set 을 D1/D6 에 맞춰 조정(빈 custom 제거, progress seed 추가). VO 가드(MacAddressVO/IpAddressVO) 예외도 advice 로 일관 매핑.</p>
+          </div>
+        </div>
+
+        <!-- D11 -->
+        <div class="dec">
+          <div class="dec-h">D11 · 패키지 소유 경계 <span class="tag-pick">채택: execution=애그리거트 소유, provisioning=UI</span></div>
+          <div class="dec-b">
+            <div class="opt"><span class="o">✓</span> <b>execution</b> 이 게스트 서버 애그리거트(엔티티·리포지토리·등록·조회/수정 application service)를 소유. <b>provisioning</b> 의 <code>GuestServerController</code>+뷰 DTO 는 execution 의 <b>application service 만</b> 호출(리포지토리 직접 주입 제거).</div>
+            <div class="opt"><span class="x">✗ A</span> 현행 유지(provisioning 서비스가 execution repo 직접 주입) — feature 경계 침범 지속.</div>
+            <div class="opt"><span class="x">✗ C</span> 전부 provisioning 으로 이동 — execution 의 존재 의의(진입점/실행 영역) 약화 + Stage 4 엔진과의 응집 깨짐.</div>
+            <p><b>실행</b> — <code>GuestServerQueryService</code>/<code>GuestServerCommandService</code> 를 execution 으로 이동(자기 repo 사용). provisioning 은 컨트롤러+뷰 Response 만 보유하고 execution 서비스를 호출. <b>레이어 경계(Controller↔Service=Request/Response, 뷰에 엔티티 직접 노출 금지) 준수.</b></p>
+          </div>
+        </div>
+
+        <!-- D12 -->
+        <div class="dec">
+          <div class="dec-h">D12 · iPXE 보고 모델명 ↔ 카탈로그 매칭 <span class="tag-pick">채택: 제조사별 정규화 → exact (CP4 중 추가)</span></div>
+          <div class="dec-b">
+            <div class="callout warn" style="margin-top:0;"><b>문제</b> — iPXE <code>${product}</code> 는 Gigabyte 의 경우 카탈로그 모델명 뒤에 <code>-000</code> 접미사를 붙여 보고한다(ex. 카탈로그 <code>MS03-CE0</code> ↔ 보고 <code>MS03-CE0-000</code>). 운영자는 접미사를 모르고 입력하지 않으며, <code>contains</code>/prefix 로 풀면 유사·파생 모델이 다중 매칭돼 자동화가 붕괴한다.</div>
+            <div class="opt"><span class="o">✓ A</span> <b>제조사별 정규화(canonicalization) → exact 매칭.</b> 이건 "퍼지 검색"이 아니라 "정규화" 문제 — 정규화 후 exact 면 결과는 항상 0/1건이라 모호성이 원천 제거된다. <code>Vendor.canonicalizeReportedModel</code>(method-per-constant: GIGABYTE 만 <code>-000</code> 제거, 그 외 항등). 등록은 <b>① 원본 exact → ② miss 면 정규화 exact → ③ 둘 다 miss 면 404(보고 원본 동봉)</b>.</div>
+            <div class="opt"><span class="x">✗ contains/prefix</span> 다중 매칭 → 자동화 불가(사용자 지적). 퍼지로 불확실성을 추측해 메우는 방식.</div>
+            <div class="opt"><span class="x">✗ 운영자 입력</span> 접미사를 모르므로 입력 불가.</div>
+            <div class="opt"><span class="defer" style="color:var(--purple)">↪ 후속(필요 시)</span> 미관측 제조사 quirk 가 실제 등장하면 — 트리거는 <b>"보고 원본 문자열을 담은 404 로그"</b>. 그때 해당 Vendor 규칙 1줄 추가하거나 <b>학습형 별칭 매핑</b>(미인식 보고를 운영자가 카탈로그에 1회 매핑)으로 승격. 지금은 알려진 quirk(Gigabyte <code>-000</code>)만 있어 A 로 충분("갈라지는 시점에 분리").</div>
+            <p><b>안전장치</b> — ① <b>원본 exact 우선</b>이라 실제로 <code>-000</code> 으로 끝나는 모델이 있어도 과잉 제거 없음. ② 정규화는 보수적(끝 접미사만, 임의 절단·중간 매칭 금지). ③ 비 Gigabyte 는 항등(미관측 규약 추측 안 함). 사용자 확인 : 현재 사용 예정 보드의 Gigabyte 규약은 <code>-000</code> 고정.</p>
+          </div>
+        </div>
+
+        <h4>재설계 후 엔티티 한눈에 (상세는 코드 SSOT)</h4>
+        <table>
+          <thead><tr><th>엔티티</th><th>관계</th><th>핵심 필드 변화</th><th>표식</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServer</code></td><td>앵커</td><td>+model_name(운영자, 흡수)·+serial_number(흡수)·+decommissioned_at / model_name 고아 제거 / [예약] settingDefinition FK</td><td><span class="chip mod">변경</span></td></tr>
+            <tr><td><code>GuestServerDetail</code></td><td>1:1</td><td>−vendor(도출) / +@Version·BaseTime 유지 / <b>+hardware_spec·software_spec(json 컬럼)</b> — 적재는 진단 슬라이스(§D8 수정)</td><td><span class="chip mod">변경</span></td></tr>
+            <tr><td><code>GuestServerCustom</code></td><td>—</td><td>폐지(guest_server 로 흡수)</td><td><span class="chip rm">제거</span></td></tr>
+            <tr><td><code>HostNicBinding</code></td><td>1:N</td><td>+BaseTimeEntity</td><td><span class="chip mod">변경</span></td></tr>
+            <tr><td><code>ProvisioningProgress</code></td><td>1:1</td><td>+@Version·+BaseTime / last_transition_at 명시 set / 등록 seed</td><td><span class="chip mod">변경</span></td></tr>
+            <tr><td><code>SetupStep</code></td><td>1:N</td><td>@OneToOne→@ManyToOne / −phase_code(도출) / +BaseTime</td><td><span class="chip mod">변경</span></td></tr>
+            <tr><td><code>GuestServerStatus</code></td><td>enum(미영속)</td><td>도출형 운영 상태 뷰모델</td><td><span class="chip new">신규</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 10단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>U1 적용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~5</td><td>뷰(server-list/detail 운영상태·vendor 도출 반영, 회수 액션, 인라인 4필드) · Controller(decommission 추가, advice 라우팅) · DTO(Response 도출필드 + UpdateRequest) · Service 시그니처(execution 이동, 도출 매핑)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6~7</td><td>Repository(custom repo 폐지, 도출 위한 fetch-join 유지) · Entity 재형(D1·D2·D6·D7·D9 + GuestServerStatus enum)</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8~9</td><td>등록/조회/수정/회수 service 본체 + 단위·통합 테스트 + 스키마 확인(drop table/컬럼 — §8 마이그레이션)</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 등록→목록(도출상태)→상세→인라인수정→회수 (사용자 단독)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>CP 경계</b> — 핵심은 CP3(엔티티 재형 + 마이그레이션 위험)과 CP4(등록 write-set 변경 + 도출 매핑 + 테스트). CP3 진입 전 §8 의 drop 마이그레이션을 선행 커밋으로 분리.</div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 통합 테스트 시나리오 (사용자 액션 기반)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><b>성공(2xx)</b></td><td>등록 성공(server+detail+nic+progress 적재, custom 미생성) · 목록 도출(vendor/status) · 상세 매핑 · 인라인 수정 성공 · 회수 성공(상태 도출=회수됨)</td><td>~6</td></tr>
+            <tr><td><b>멱등</b></td><td>동일 system_uuid 재부팅 → 중복 등록 생략</td><td>1</td></tr>
+            <tr><td><b>검증실패(400)</b></td><td>등록 시 malformed UUID/MAC/IP → advice 400 (500 누수 아님) · 인라인 수정 size 초과 → field error</td><td>~4</td></tr>
+            <tr><td><b>리소스없음(404)</b></td><td>없는 서버 상세/수정/회수 → <code>GuestServerNotFoundException</code> 404</td><td>~3</td></tr>
+            <tr><td><b>도메인충돌(409/필드)</b></td><td>미등록 boardModel 등록 → <code>BoardModelNotFoundException</code> · 알 수 없는 vendor → <code>VendorNotFoundException</code> · name/serial 유니크 충돌 → BindingResult 인라인</td><td>~4</td></tr>
+            <tr><td><b>도출 단위</b></td><td><code>GuestServerStatus.derive(progress, decommissionedAt)</code> 진리표(등록됨/진행중/완료/실패/회수됨) · vendor 도출 = boardModel.vendor</td><td>~7</td></tr>
+            <tr><td><b>보드 매칭(D12)</b></td><td><code>VendorTest</code>: Gigabyte <code>-000</code> 제거 / 중간 접미사 불변 / 비-Gigabyte 항등 / null 안전. 등록: 정규화 매칭 성공 · 원본 exact 우선(정규화 쿼리 미시도) · 비-Gigabyte 미제거 404</td><td>5+3</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">신규 예외 0(기존 NotFound/BoardModelNotFound/VendorNotFound 재사용). 형식 오류는 advice 로 400 단일화. 도출 로직은 순수 함수라 단위 테스트로 진리표 고정 → 뷰/서비스 드리프트 차단.</div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <ul>
+          <li><b>재사용</b> — <code>GuestServerNotFoundException</code>(404), <code>BoardModelNotFoundException</code>·<code>VendorNotFoundException</code>(등록 도메인 검증).</li>
+          <li><b>신규 0</b> — name/serial 유니크 충돌은 예외가 아니라 <b>BindingResult 인라인</b>(예외=프로그램 예외 전용 원칙). 형식 오류는 VO 가드 <code>IllegalArgumentException</code> → advice 400 매핑(컨트롤러 try/catch 금지).</li>
+          <li><b>회수</b> — 정상 UX(이미 회수된 서버 재회수 등)는 UI disabled 로 1차 차단, 서버 invariant 가드는 안전망으로만(필요 시 기존 패턴 재사용).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의</summary>
+      <div class="body">
+        <h4>D-1. 스키마 마이그레이션 (ddl-auto=update 한계)</h4>
+        <p><code>ddl-auto=update</code> 는 <b>컬럼/테이블을 자동 삭제하지 않는다</b>. 따라서 다음은 수동 DDL + 선행 <code>chore(schema)</code> 커밋 필요: <code>DROP TABLE guest_server_custom</code>(데이터 이행 후), <code>guest_server_detail.vendor</code>·<code>setup_step.phase_code</code> 컬럼 제거, <code>guest_server.model_name</code> 의미 재정의(고아→운영자 모델명), <code>setup_step</code> FK 의 unique 제약 제거(1:1→1:N). 신규: <code>decommissioned_at</code>, progress <code>version</code>·created/updated, nic/step created/updated. <b>현 단계는 운영 데이터가 거의 없으니(엔진 미가동) 이행 비용 낮음 — custom 의 model/serial 만 guest_server 로 복사.</b></p>
+        <h4>D-2. 데이터 이행</h4>
+        <p>기존 <code>guest_server_custom</code> 행의 model_name/serial_number → <code>guest_server</code> 동명 컬럼으로 복사 후 테이블 drop. 운영 데이터 적으면 1회 UPDATE…JOIN.</p>
+        <h4>D-3. 패키지 이동(D11)</h4>
+        <p><code>GuestServerQueryService</code>/<code>CommandService</code> 를 <code>provisioning.service</code> → <code>execution.service</code> 로 이동. provisioning 은 컨트롤러+뷰 Response 만. import 경로 정리. (R 캠페인의 Controller/Service 분리 관례와 정합.)</p>
+        <h4>D-4. CLAUDE.md / Notion</h4>
+        <p>패키지 구조 절의 "execution=예약" 을 "execution=게스트 서버 애그리거트 소유(진입점/실행)"으로 갱신 제안(D11). Notion U1 페이지 본문 4항목(scope/비목표/잔존책임/후속) 갱신은 CP1 직후 background agent 위임(불가침 동기화 규약).</p>
+        <h4>D-5. 도출 vs 중복 — 자기 점검</h4>
+        <ul>
+          <li><b>도출 채택</b>(vendor·운영상태·phase_code) — 같은 사실을 두 곳에 저장하지 않음. SSOT 원칙 정합.</li>
+          <li><b>분리 유지 정당</b>(detail) — @Version 격리 + 하드웨어/운영자 개념 분리 + JSON 성장. 도메인 가로지르는 과추상 아님.</li>
+          <li><b>예약(미추가)</b>(settingDefinition FK) — "갈라지는 시점에 분리" 준수. <i>(hw/sw JSON 컬럼은 D8 최초 예약 대상이었으나 사용자 지시로 U1 에 추가 — 적재만 진단 슬라이스로 이연)</i></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="u1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과 (custom 폐지·서비스 이동 후 호출처 정리)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span>선행 <code>chore(schema)</code>: custom drop·vendor/phase_code drop·setup_step FK unique 해제 반영, <code>SHOW CREATE TABLE</code> 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="entity"> <span>엔티티 재형: guest_server(흡수+decommissioned_at) / detail(−vendor,@Version,+hw/sw json 컬럼) / setup_step(@ManyToOne,−phase_code) / progress(@Version,BaseTime) / nic·step BaseTime</span></label></li>
+          <li><label><input type="checkbox" data-key="derive"> <span>도출: GuestServerStatus.derive 진리표 단위테스트 통과, vendor=boardModel.vendor, 뷰는 도출값만 읽음(중복 판정 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="reg"> <span>등록 write-set: server+detail+nic+progress(seed) 적재, custom 미생성, 형식오류 advice 400</span></label></li>
+          <li><label><input type="checkbox" data-key="crud"> <span>목록/상세/인라인수정(name·model·serial·memo)/회수 동작 + 유니크 충돌 인라인</span></label></li>
+          <li><label><input type="checkbox" data-key="pkg"> <span>Query/Command service execution 이동, provisioning 컨트롤러가 repo 직접 주입 0</span></label></li>
+          <li><label><input type="checkbox" data-key="spine"> <span>D5 척추 예약 문서화(settingDefinition N:1 자리) — 후속 setting 슬라이스 전제로 기록</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 — §6 시나리오 (성공/멱등/400/404/409/도출)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자) — 등록→목록→상세→수정→회수</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/entity/GuestServer.java</code></td><td>model_name(의미 재정의)·serial_number·decommissioned_at 흡수, 고아 제거, [예약 주석] settingDefinition</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/entity/GuestServerDetail.java</code></td><td>vendor 제거(도출), @Version/BaseTime 정리, hardware_spec·software_spec(json) 컬럼 추가(§D8 수정 — 적재는 진단 슬라이스)</td></tr>
+            <tr><td><span class="chip rm">제거</span></td><td><code>execution/entity/GuestServerCustom.java</code> · <code>repository/GuestServerCustomRepository.java</code></td><td>guest_server 흡수로 폐지</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/entity/ProvisioningProgress.java</code> · <code>SetupStep.java</code> · <code>HostNicBinding.java</code></td><td>progress(@Version·BaseTime·명시 transition) / setup_step(@ManyToOne·−phase_code·BaseTime) / nic(BaseTime)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/enums/GuestServerStatus.java</code></td><td>도출형 운영 상태(미영속 뷰모델)</td></tr>
+            <tr><td><span class="chip mod">이동</span></td><td><code>…/service/GuestServerQueryService.java</code> · <code>GuestServerCommandService.java</code></td><td>provisioning→execution 이동, vendor/status 도출 매핑, custom 의존 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerRegistrationService.java</code></td><td>custom 생성 제거 + progress seed + 형식검증 + 보드 모델 2단계 매칭(D12, <code>resolveBoardModel</code>)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/board/enums/Vendor.java</code></td><td>D12 — <code>canonicalizeReportedModel</code>(method-per-constant, GIGABYTE 만 <code>-000</code> 제거)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/controller/ExecutionRestController.java</code> · advice</td><td>형식오류 advice 400 라우팅(try/catch 금지)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/controller/GuestServerController.java</code> · dto/response · UpdateGuestServerRequest</td><td>execution 서비스 호출, decommission 액션, Response 도출필드, 인라인 4필드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-list.html</code> · <code>server-detail.html</code></td><td>도출 vendor/운영상태 배지, 회수 버튼, 인라인 4필드(serial 포함)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>MacAddressVO/IpAddressVO(+Converter)</code> · <code>ProvisioningPhase/PhaseStep/Status/DiscoveryStage</code> · <code>BoardModel</code> · <code>BaseTimeEntity</code></td><td>변경 0</td></tr>
+            <tr><td><span class="chip defer">예약</span></td><td>SettingDefinition FK · bmc_binding · setup_step 적재 · hardware_spec/software_spec <b>적재</b>(컬럼은 U1 에 존재)</td><td>U1 밖(후속 슬라이스)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>setting 슬라이스</b> — SettingDefinition + SettingProcess(다형) 도입 + <b>D5 척추 연결</b>(guest_server.settingDefinition FK + 할당 UI). 이게 자동 프로비저닝의 "무엇으로" 를 채운다.</li>
+          <li><b>진단 수집 슬라이스</b> — DIAGNOSE_LINUX 단계에서 board_serial + hardware_spec/software_spec(컬럼은 U1 에 존재, 여기서 수집·적재 + sealed record 타입 매핑) + discovery_stage→DIAGNOSTIC_ENRICHED.</li>
+          <li><b>BMC 슬라이스</b> — bmc_binding + credential_ref(Vault). FIRMWARE/BMC phase 의 "어떻게 접속" 을 채운다.</li>
+          <li><b>Stage 4 프로비저닝 엔진</b> — provisioning_progress 전이 + setup_step 적재(U1 이 모양을 갖춰둔 위에서) + 적용 산출물 링크.</li>
+        </ol>
+        <p>U1 자체는 데이터 모델 정합화 + 진입점/CRUD 마감. 신규 예외 0, 신규 도메인(setting/bmc) 0, 엔진 0. 표면은 넓으나 한 애그리거트에 국한.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ToC / expand / filter / checklist (plan html 규약)
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior:'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.addEventListener('change', () => { stored[cb.dataset.key] = cb.checked; localStorage.setItem(key, JSON.stringify(stored)); });
+    });
+  });
+
+  // ── 🎬 운영 상태 "도출" 시뮬레이터 (서버 뷰모델 GuestServerStatus.derive 와 동일 로직) ──
+  const PHASE_KR = { BOOTSTRAPPING:'부트스트래핑', FIRMWARE_UPDATING:'펌웨어 업데이트', OS_INSTALLING:'OS 설치', OS_SETTING:'OS 설정', TESTING:'테스트' };
+  const u1 = { prog:'REGISTERED', phase:'FIRMWARE_UPDATING', dec:false };
+
+  // 핵심: 운영 상태는 저장이 아니라 (progress, decommissionedAt) 에서 도출
+  function deriveStatus(s) {
+    if (s.dec) return { code:'DECOMMISSIONED', label:'회수됨', cls:'dec', src:'decommissioned_at ≠ null' };
+    if (s.prog === 'FAILED')  return { code:'FAILED', label:'실패', cls:'fail', src:'progress 실패 단계' };
+    if (s.prog === 'DONE')    return { code:'PROVISIONED', label:'완료', cls:'done', src:'progress = TESTING ✓ (종단)' };
+    if (s.prog === 'RUNNING') return { code:'PROVISIONING', label:'프로비저닝중 · ' + PHASE_KR[s.phase], cls:'prov', src:'progress.current_phase > BOOTSTRAPPING' };
+    return { code:'REGISTERED', label:'등록됨', cls:'reg', src:'progress = BOOTSTRAPPING (seed), 회수 아님' };
+  }
+  function effectivePhase(s) {
+    if (s.dec) return 'BOOTSTRAPPING';
+    if (s.prog === 'RUNNING') return s.phase;
+    if (s.prog === 'DONE') return 'TESTING';
+    if (s.prog === 'FAILED') return s.phase;       // 실패한 그 단계에 멈춤
+    return 'BOOTSTRAPPING';                          // 등록 직후 seed
+  }
+  function u1Set(k, v) { u1[k] = v; if (k === 'prog' && v === 'RUNNING' && !u1.phase) u1.phase = 'FIRMWARE_UPDATING'; u1Render(); }
+  function u1Toggle(k) { u1[k] = !u1[k]; u1Render(); }
+  function u1Reset() { u1.prog='REGISTERED'; u1.phase='FIRMWARE_UPDATING'; u1.dec=false; u1Render(); }
+
+  function u1Render() {
+    document.querySelectorAll('.ux-toolbar .seg[data-prog]').forEach(s => s.classList.toggle('active', s.dataset.prog === u1.prog));
+    document.querySelectorAll('.ux-toolbar .seg[data-phase]').forEach(s => {
+      s.classList.toggle('active', s.dataset.phase === u1.phase && u1.prog === 'RUNNING');
+      s.style.opacity = (u1.prog === 'RUNNING') ? '1' : '0.4';
+    });
+    document.getElementById('u1-dec').classList.toggle('active', u1.dec);
+
+    const st = deriveStatus(u1), ph = effectivePhase(u1);
+    const badge = document.getElementById('u1-status');
+    badge.textContent = st.label; badge.className = 'gs-status ' + st.cls;
+    document.getElementById('u1-phase').textContent = ph;
+    // discovery_stage 는 운영 상태와 별개 축(데이터 완성도) — 진행하면 진단 보강으로
+    document.getElementById('u1-disc').textContent = (u1.prog === 'REGISTERED') ? 'IPXE_REGISTERED' : 'DIAGNOSTIC_ENRICHED';
+
+    document.getElementById('u1-caps').innerHTML =
+      'GuestServerStatus.derive(progress, decommissionedAt)\n' +
+      '  → ' + st.code + '  (label: ' + st.label + ')\n' +
+      '  <span class="src">도출 근거</span> : ' + st.src + '\n' +
+      'vendor       = detail.boardModel.vendor        → Gigabyte   (저장 0, 도출)\n' +
+      'current_phase = provisioning_progress           → ' + ph + '   (커서 SSOT)';
+
+    const msg = document.getElementById('u1-msg');
+    if (u1.dec) msg.textContent = '회수됨 — progress 와 무관한 운영자 결정이라 decommissioned_at 1필드만 저장하고 나머지는 도출.';
+    else if (u1.prog === 'REGISTERED') msg.textContent = '등록 직후 — progress 는 seed(BOOTSTRAPPING) 1행. 운영자 4필드는 아직 null 일 수 있음.';
+    else if (u1.prog === 'FAILED') msg.textContent = '실패 — 새 status 컬럼이 아니라 progress 가 실패 단계임을 그대로 반영. 상태/progress 어긋남 불가.';
+    else if (u1.prog === 'DONE') msg.textContent = '완료 — progress 가 종단(TESTING✓)에 도달. 역시 도출.';
+    else msg.textContent = '프로비저닝중 — current_phase(커서 SSOT)가 곧 진행 단계. setup_step 은 이력(append-only).';
+  }
+  u1Render();
+
+  // ── 🎬 CRUD 화면 라이브 목업 (목록 ↔ 상세 ↔ 인라인수정 ↔ 회수) ──
+  const CRUD = {
+    screen:'list', sel:null, err:null,
+    servers:[
+      { id:'a1', name:'web-01', uuid:'4f3c…a91', vendor:'Gigabyte', board:'MS73-HB1-000', boardSerial:'GB23A0145',
+        disc:'DIAGNOSTIC_ENRICHED', prog:'DONE', phase:'TESTING', dec:false,
+        model:'RE2108', pserial:'RE210826510512', memo:'프론트 라인 #1', created:'2026-06-26',
+        nics:[ {mac:'aa:bb:cc:00:11:01', ip:'10.20.3.11', src:'DHCP', host:'web-01', primary:true, bond:'bond0'},
+               {mac:'aa:bb:cc:00:11:02', ip:'',           src:'DHCP', host:'',       primary:false, bond:'bond0'} ] },
+      { id:'b2', name:'web-02', uuid:'7d10…2cc', vendor:'Asus', board:'Z13PE-D16', boardSerial:'',
+        disc:'DIAGNOSTIC_ENRICHED', prog:'RUNNING', phase:'OS_INSTALLING', dec:false,
+        model:'RE2108', pserial:'', memo:'', created:'2026-06-27',
+        nics:[ {mac:'aa:bb:cc:00:22:01', ip:'10.20.3.12', src:'DHCP', host:'web-02', primary:true, bond:''} ] },
+      { id:'c3', name:'', uuid:'9a22…f07', vendor:'Fujitsu', board:'D3934-B1', boardSerial:'',
+        disc:'IPXE_REGISTERED', prog:'REGISTERED', phase:'BOOTSTRAPPING', dec:false,
+        model:'', pserial:'', memo:'', created:'2026-06-28',
+        nics:[ {mac:'aa:bb:cc:00:33:01', ip:'10.20.3.13', src:'DHCP', host:'', primary:true, bond:''} ] }
+    ]
+  };
+  const PHASE_KR2 = { BOOTSTRAPPING:'부트스트래핑', FIRMWARE_UPDATING:'펌웨어 업데이트', OS_INSTALLING:'OS 설치', OS_SETTING:'OS 설정', TESTING:'테스트' };
+  function crudStatus(s) {
+    if (s.dec) return { l:'회수됨', c:'dec' };
+    if (s.prog === 'FAILED')  return { l:'실패', c:'fail' };
+    if (s.prog === 'DONE')    return { l:'완료', c:'done' };
+    if (s.prog === 'RUNNING') return { l:'프로비저닝중', c:'prov' };
+    return { l:'등록됨', c:'reg' };
+  }
+  function crudFind(id) { return CRUD.servers.find(x => x.id === id); }
+  function crudMsg(t) { document.getElementById('crud-msg').textContent = t; }
+  function crudGo(screen, id) { CRUD.screen = screen; if (id !== undefined) CRUD.sel = id; CRUD.err = null; crudRender(); }
+  function dash(v) { return (v === null || v === undefined || v === '') ? '<span class="crud-muted">—</span>' : v; }
+
+  function crudListHtml() {
+    let rows = CRUD.servers.map(s => {
+      const st = crudStatus(s);
+      const nm = s.name ? s.name : '<span class="crud-muted">(미지정)</span>';
+      const pri = s.nics.find(n => n.primary) || {};
+      return '<tr class="crud-row" onclick="crudGo(\'detail\',\'' + s.id + '\')">' +
+        '<td><b>' + nm + '</b></td>' +
+        '<td class="crud-muted" style="font-family:var(--mono)">' + s.uuid + '</td>' +
+        '<td>' + s.vendor + '</td>' +
+        '<td style="font-family:var(--mono)">' + s.board + '</td>' +
+        '<td><span class="gs-status ' + st.c + '" style="font-size:11px">' + st.l + '</span></td>' +
+        '<td style="font-family:var(--mono)">' + dash(pri.ip) + '</td>' +
+        '<td class="crud-muted">' + s.created + '</td></tr>';
+    }).join('');
+    return '<table class="crud-table"><thead><tr>' +
+      '<th>이름</th><th>system_uuid</th><th>vendor<sup>도출</sup></th><th>보드모델</th>' +
+      '<th>운영상태<sup>도출</sup></th><th>primary IP</th><th>등록일</th></tr></thead><tbody>' +
+      rows + '</tbody></table>';
+  }
+
+  function crudDetailHtml(s) {
+    const st = crudStatus(s);
+    const nm = s.name ? s.name : '<span class="crud-muted">(미지정)</span>';
+    const nicRows = s.nics.map(n =>
+      '<tr><td>' + n.mac + (n.primary ? ' <span class="pri-badge">primary</span>' : '') + '</td>' +
+      '<td>' + dash(n.ip) + '</td><td>' + n.src + '</td><td>' + dash(n.host) + '</td><td>' + dash(n.bond) + '</td></tr>').join('');
+    const lastTrans = (s.prog === 'REGISTERED') ? '등록 시 seed' : '진행 중 갱신';
+    return '<div class="crud-detail">' +
+      '<div class="crud-dh"><span class="nm">' + nm + '</span><span class="uuid">' + s.uuid + '</span>' +
+        '<span class="gs-status ' + st.c + '" style="font-size:11px">' + st.l + '</span>' +
+        '<span class="sp">' +
+          '<button class="crud-btn ghost" onclick="crudGo(\'list\')">← 목록</button>' +
+          '<button class="crud-btn" onclick="crudGo(\'edit\',\'' + s.id + '\')">수정</button>' +
+          '<button class="crud-btn danger" ' + (s.dec ? 'disabled' : '') + ' onclick="crudDecommission(\'' + s.id + '\')">' + (s.dec ? '회수됨' : '회수') + '</button>' +
+        '</span></div>' +
+
+      '<div class="crud-sec"><h5>정체성 (guest_server · 운영자 입력)</h5><div class="crud-grid">' +
+        '<div><span class="k">이름</span> <span class="v">' + dash(s.name) + '</span></div>' +
+        '<div><span class="k">사내 모델명</span> <span class="v">' + dash(s.model) + '</span></div>' +
+        '<div><span class="k">사내 시리얼</span> <span class="v">' + dash(s.pserial) + '</span></div>' +
+        '<div><span class="k">메모</span> <span class="v">' + dash(s.memo) + '</span></div>' +
+      '</div></div>' +
+
+      '<div class="crud-sec"><h5>인벤토리 (guest_server_detail · 하드웨어 보고)</h5><div class="crud-grid">' +
+        '<div><span class="k">vendor <sup>도출</sup></span> <span class="v">' + s.vendor + '</span></div>' +
+        '<div><span class="k">board_model (FK)</span> <span class="v">' + s.board + '</span></div>' +
+        '<div><span class="k">board_serial</span> <span class="v">' + dash(s.boardSerial) + '</span></div>' +
+        '<div><span class="k">discovery_stage</span> <span class="v">' + s.disc + '</span></div>' +
+      '</div></div>' +
+
+      '<div class="crud-sec"><h5>호스트 NIC (host_nic_binding · 1:N)</h5>' +
+        '<table class="crud-nic"><thead><tr><th>MAC</th><th>IP</th><th>source</th><th>hostname</th><th>bond</th></tr></thead>' +
+        '<tbody>' + nicRows + '</tbody></table></div>' +
+
+      '<div class="crud-sec"><h5>진행 (provisioning_progress · 커서 SSOT)</h5><div class="crud-grid">' +
+        '<div><span class="k">current_phase</span> <span class="v">' + s.phase + ' (' + PHASE_KR2[s.phase] + ')</span></div>' +
+        '<div><span class="k">last_transition_at</span> <span class="v">' + lastTrans + '</span></div>' +
+      '</div></div>' +
+
+      '<div class="crud-sec"><h5>단계 이력 (setup_step · append-only)</h5>' +
+        '<div class="crud-empty">아직 없음 — 프로비저닝 엔진(Stage 4)이 적재. U1 은 1:N 모양만 갖춰둠.</div></div>' +
+    '</div>';
+  }
+
+  function crudEditHtml(s) {
+    const errName = (CRUD.err === 'name');
+    return '<div class="crud-detail">' +
+      '<div class="crud-dh"><span class="nm">인라인 수정</span><span class="uuid">' + s.uuid + '</span></div>' +
+      '<div class="crud-form">' +
+        '<label>이름 (name · UK)</label><input id="ce-name" value="' + (s.name || '') + '" class="' + (errName ? 'err' : '') + '">' +
+        (errName ? '<div class="crud-err">이미 사용 중인 이름입니다. (BindingResult 필드 에러 — 예외 아님)</div>' : '') +
+        '<label>사내 모델명 (model_name)</label><input id="ce-model" value="' + (s.model || '') + '">' +
+        '<label>사내 시리얼 (serial_number · UK)</label><input id="ce-serial" value="' + (s.pserial || '') + '">' +
+        '<label>메모 (memo)</label><input id="ce-memo" value="' + (s.memo || '') + '">' +
+      '</div>' +
+      '<div class="crud-actions">' +
+        '<button class="crud-btn primary" onclick="crudSave(\'' + s.id + '\')">저장</button>' +
+        '<button class="crud-btn ghost" onclick="crudGo(\'detail\',\'' + s.id + '\')">취소</button>' +
+      '</div>' +
+      '<p style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">네 필드 모두 <code>guest_server</code> 한 테이블(custom 흡수). 저장 시 name/serial 유니크 충돌은 서버가 boolean 질의로 미리 확인해 필드 에러로 표시.</p>' +
+    '</div>';
+  }
+
+  function crudSave(id) {
+    const s = crudFind(id);
+    const name = document.getElementById('ce-name').value.trim();
+    // 유니크 충돌 — 다른 서버가 같은 이름을 이미 쓰는가 (CommandService.isNameTakenByOther 와 동일 의미)
+    const dup = name && CRUD.servers.some(x => x.id !== id && x.name === name);
+    if (dup) { CRUD.err = 'name'; crudRender(); crudMsg('✗ 저장 거부 — 이름 "' + name + '" 은 이미 다른 서버가 사용 중 (인라인 필드 에러).'); return; }
+    s.name = name;
+    s.model = document.getElementById('ce-model').value.trim();
+    s.pserial = document.getElementById('ce-serial').value.trim();
+    s.memo = document.getElementById('ce-memo').value.trim();
+    crudGo('detail', id);
+    crudMsg('✓ 저장 완료 — guest_server 4필드 갱신 후 상세로 리다이렉트.');
+  }
+  function crudDecommission(id) {
+    const s = crudFind(id); s.dec = true;
+    crudGo('detail', id);
+    crudMsg('✓ 회수 완료 — decommissioned_at 기록. 운영 상태가 "회수됨" 으로 도출(저장 컬럼 추가 아님).');
+  }
+
+  function crudRender() {
+    const scr = document.getElementById('crud-screen');
+    const crumb = document.getElementById('crud-crumb');
+    const hint = document.getElementById('crud-hint');
+    if (CRUD.screen === 'list') {
+      scr.innerHTML = crudListHtml();
+      crumb.textContent = '/provisioning/server'; hint.textContent = '행을 클릭해 상세로 이동';
+    } else {
+      const s = crudFind(CRUD.sel);
+      if (CRUD.screen === 'edit') {
+        scr.innerHTML = crudEditHtml(s);
+        crumb.textContent = 'POST /provisioning/server/' + s.id + '/edit'; hint.textContent = '이름을 web-01 로 바꿔 충돌을 보세요';
+      } else {
+        scr.innerHTML = crudDetailHtml(s);
+        crumb.textContent = 'GET /provisioning/server/' + s.id; hint.textContent = '수정 / 회수 를 눌러보세요';
+      }
+    }
+  }
+  crudRender();
+</script>
+</body>
+</html>

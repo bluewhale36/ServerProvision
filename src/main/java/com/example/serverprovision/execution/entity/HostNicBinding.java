@@ -5,18 +5,17 @@ import com.example.serverprovision.execution.converter.MacAddressConverter;
 import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
+import com.example.serverprovision.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 게스트 서버 호스트 측 NIC(LAN) 바인딩.
- * 한 서버가 LAN1 / LAN2 등 여러 NIC 을 가질 수 있으므로 guest_server 와 1:N 으로 묶인다
- * (BMC 관리 포트와는 별개 네트워크 노드 — bmc_binding 으로 분리).
+ * 게스트 서버 호스트 측 NIC(LAN) 바인딩. 한 서버가 여러 NIC 을 가지므로 guest_server 와 1:N
+ * (BMC 관리 포트와는 별개 네트워크 노드). U1 §D9 : 본체 표준으로 {@link BaseTimeEntity} 상속(감사필드).
  */
 @Entity
 @Table(name = "host_nic_binding")
@@ -25,7 +24,7 @@ import java.util.UUID;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @ToString
-public class HostNicBinding {
+public class HostNicBinding extends BaseTimeEntity {
 
     @Id
     private UUID id;
@@ -56,6 +55,4 @@ public class HostNicBinding {
     @Column(name = "bond_group", length = 64)
     private String bondGroup;
 
-    @Column(name = "bounded_at", nullable = false, updatable = false)
-    private LocalDateTime boundedAt;
 }

@@ -4,16 +4,15 @@
   등록된 게스트 서버 목록 페이지
   ─────────────────────────────────────────────────────────
   Model:
-    servers : List<GuestServerSummaryResponse>
-                · id                  : UUID
-                · name                : String (nullable — 운영자 미지정)
-                · systemUuid          : UUID
-                · vendor              : Vendor (nullable)
-                · boardModelName      : String (nullable)
-                · discoveryStage      : DiscoveryStage (nullable)
-                · primaryIp / primaryMac : IpAddressVO / MacAddressVO (nullable)
-                · currentPhase        : ProvisioningPhase (nullable — 프로비저닝 미시작)
-                · createdAt           : LocalDateTime
+    servers : List<GuestServerSummaryResponse>  (execution.dto.response)
+                · id              : UUID
+                · name            : String (nullable — 운영자 미지정)
+                · systemUuid      : UUID
+                · vendor          : Vendor (nullable, boardModel 에서 도출 — U1 §D2)
+                · boardModelName  : String (nullable)
+                · status          : GuestServerStatus (도출 — progress + 회수, U1 §D4)
+                · primaryIp       : IpAddressVO (nullable)
+                · createdAt       : LocalDateTime
 
   행 클릭 시 /provisioning/server/{id} 상세로 이동.
 -->
@@ -49,10 +48,8 @@
             <th>SMBIOS UUID</th>
             <th>제조사</th>
             <th>보드 모델</th>
-            <th>수집 단계</th>
+            <th>운영 상태</th>
             <th>호스트 IP</th>
-            <th>호스트 MAC</th>
-            <th>진행 단계</th>
             <th>등록 시각</th>
         </tr>
         </thead>
@@ -68,18 +65,15 @@
             <td><code class="n-mono" th:text="${server.systemUuid}">uuid</code></td>
             <td th:text="${server.vendor != null} ? ${server.vendor.displayName} : '—'">Gigabyte</td>
             <td th:text="${server.boardModelName != null} ? ${server.boardModelName} : '—'">MS03-CE0</td>
-            <td>
-                <span th:if="${server.discoveryStage != null}"
-                      class="n-badge n-badge-blue" th:text="${server.discoveryStage.description}">iPXE 등록</span>
-                <span th:unless="${server.discoveryStage != null}" class="n-muted">—</span>
+            <td th:switch="${server.status != null} ? ${server.status.name()} : 'NONE'">
+                <span th:case="'REGISTERED'"     class="n-badge n-badge-blue"  th:text="${server.status.description}">등록됨</span>
+                <span th:case="'PROVISIONING'"   class="n-badge n-badge-green" th:text="${server.status.description}">프로비저닝 중</span>
+                <span th:case="'PROVISIONED'"    class="n-badge n-badge-teal"  th:text="${server.status.description}">완료</span>
+                <span th:case="'FAILED'"         class="n-badge n-badge-red"   th:text="${server.status.description}">실패</span>
+                <span th:case="'DECOMMISSIONED'" class="n-badge n-badge-gray"  th:text="${server.status.description}">회수됨</span>
+                <span th:case="*" class="n-muted">—</span>
             </td>
             <td><code class="n-mono" th:text="${server.primaryIp != null} ? ${server.primaryIp.value} : '—'">192.168.1.1</code></td>
-            <td><code class="n-mono" th:text="${server.primaryMac != null} ? ${server.primaryMac.value} : '—'">00:11:22:33:44:55</code></td>
-            <td>
-                <span th:if="${server.currentPhase != null}"
-                      class="n-badge n-badge-green" th:text="${server.currentPhase.description}">부트스트래핑</span>
-                <span th:unless="${server.currentPhase != null}" class="n-muted">미시작</span>
-            </td>
             <td>
                 <span th:if="${server.createdAt != null}"
                       th:text="${#temporals.format(server.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2026-06-26 12:00:00</span>

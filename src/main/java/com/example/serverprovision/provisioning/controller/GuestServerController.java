@@ -1,9 +1,9 @@
 package com.example.serverprovision.provisioning.controller;
 
-import com.example.serverprovision.provisioning.dto.request.UpdateGuestServerRequest;
-import com.example.serverprovision.provisioning.dto.response.GuestServerDetailResponse;
-import com.example.serverprovision.provisioning.service.GuestServerCommandService;
-import com.example.serverprovision.provisioning.service.GuestServerQueryService;
+import com.example.serverprovision.execution.dto.request.UpdateGuestServerRequest;
+import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
+import com.example.serverprovision.execution.service.GuestServerCommandService;
+import com.example.serverprovision.execution.service.GuestServerQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -19,11 +19,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import java.util.UUID;
 
 /**
- * 등록된 게스트 서버 조회 + 인라인 수정 페이지.
+ * 등록된 게스트 서버 조회 + 인라인 수정 + 회수 페이지 (사용자 영역 진입점).
+ * 게스트 서버 애그리거트의 application service 는 execution 이 소유하고(U1 §D11), 본 컨트롤러는 그 서비스만 호출한다
+ * (리포지토리 직접 주입 없음).
  * <ul>
- *   <li>{@code GET  /provisioning/server}        — 목록</li>
- *   <li>{@code GET  /provisioning/server/{id}}    — 상세 (이름·메모·사내 식별자는 인라인 input)</li>
- *   <li>{@code POST /provisioning/server/{id}/edit} — 상세 화면의 4 필드 저장</li>
+ *   <li>{@code GET  /provisioning/server}              — 목록</li>
+ *   <li>{@code GET  /provisioning/server/{id}}          — 상세 (이름·사내모델·사내시리얼·메모는 인라인 input)</li>
+ *   <li>{@code POST /provisioning/server/{id}/edit}     — 상세 화면의 4 필드 저장</li>
+ *   <li>{@code POST /provisioning/server/{id}/decommission} — 서버 회수</li>
  * </ul>
  */
 @Controller
@@ -44,12 +47,9 @@ public class GuestServerController {
     public String detail(@PathVariable("id") UUID id, Model model) {
         GuestServerDetailResponse server = guestServerQueryService.findDetail(id);
         model.addAttribute("server", server);
-        // 수정 폼 초깃값 — 상세 응답의 현재 값으로 채운다.
+        // 수정 폼 초깃값 — 상세 응답의 현재 값으로 채운다 (4 필드 모두 guest_server).
         model.addAttribute("updateForm", new UpdateGuestServerRequest(
-                server.name(),
-                server.memo(),
-                server.custom() != null ? server.custom().productModelName() : null,
-                server.custom() != null ? server.custom().productSerialNumber() : null));
+                server.name(), server.modelName(), server.serialNumber(), server.memo()));
         return "provisioning/server-detail";
     }
 
@@ -60,14 +60,14 @@ public class GuestServerController {
             BindingResult bindingResult,
             Model model
     ) {
-        // 유니크 컬럼(name / serial_number) 의 외부 상태 검증 → 인라인 필드 에러로 표시.
+        // 유니크 컬럼(name / serial_number) 의 외부 상태 검증 → 인라인 필드 에러로 표시 (예외 아님).
         if (StringUtils.hasText(request.name())
                 && guestServerCommandService.isNameTakenByOther(id, request.name().trim())) {
             bindingResult.rejectValue("name", "duplicate", "이미 사용 중인 이름입니다.");
         }
-        if (StringUtils.hasText(request.productSerialNumber())
-                && guestServerCommandService.isSerialTakenByOther(id, request.productSerialNumber().trim())) {
-            bindingResult.rejectValue("productSerialNumber", "duplicate", "이미 사용 중인 시리얼 번호입니다.");
+        if (StringUtils.hasText(request.serialNumber())
+                && guestServerCommandService.isSerialTakenByOther(id, request.serialNumber().trim())) {
+            bindingResult.rejectValue("serialNumber", "duplicate", "이미 사용 중인 시리얼 번호입니다.");
         }
 
         if (bindingResult.hasErrors()) {
@@ -77,6 +77,12 @@ public class GuestServerController {
         }
 
         guestServerCommandService.update(id, request);
+        return "redirect:/provisioning/server/" + id;
+    }
+
+    @PostMapping("/{id}/decommission")
+    public String decommission(@PathVariable("id") UUID id) {
+        guestServerCommandService.decommission(id);
         return "redirect:/provisioning/server/" + id;
     }
 }

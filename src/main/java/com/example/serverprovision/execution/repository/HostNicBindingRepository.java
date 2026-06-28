@@ -21,6 +21,6 @@ public interface HostNicBindingRepository extends JpaRepository<HostNicBinding, 
     /**
      * 상세용 — 단일 서버의 모든 NIC. primary 우선, 이후 바인딩 시각 순.
      */
-    @Query("select n from HostNicBinding n where n.guestServer.id = :serverId order by n.isPrimary desc, n.boundedAt asc")
+    @Query("select n from HostNicBinding n where n.guestServer.id = :serverId order by n.isPrimary desc, n.createdAt asc")
     List<HostNicBinding> findAllByServerIdOrderByPrimary(@Param("serverId") UUID serverId);
 }

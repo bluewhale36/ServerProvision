@@ -4,15 +4,17 @@
   게스트 서버 상세 페이지
   ─────────────────────────────────────────────────────────
   Model:
-    server     : GuestServerDetailResponse   (읽기 전용 표시 데이터)
-                  · 도메인 값은 VO / Enum / UUID 로 전달 — 템플릿에서 .value / .description / .displayName 으로 표시
-                  · inventory.vendor : Vendor, inventory.discoveryStage : DiscoveryStage
+    server     : GuestServerDetailResponse  (execution.dto.response, 읽기 전용 표시 데이터)
+                  · 도메인 값은 VO / Enum / UUID 로 전달 — .value / .description / .displayName 으로 표시
+                  · status : GuestServerStatus (도출 — U1 §D4), decommissionedAt : LocalDateTime (nullable)
+                  · modelName / serialNumber : 운영자 입력 식별자 (guest_server 최상위 — U1 §D1, custom 흡수)
+                  · inventory.vendor : Vendor (boardModel 도출), inventory.discoveryStage : DiscoveryStage
                   · nics[].macAddress : MacAddressVO, nics[].ipAddress : IpAddressVO, nics[].ipSource : IpSource
-                  · progress.currentPhase : ProvisioningPhase, steps[].phase/step/status : Enum
-    updateForm : UpdateGuestServerRequest     (인라인 수정 폼 — name / memo / productModelName / productSerialNumber)
+                  · progress.currentPhase : ProvisioningPhase (현재 단계 커서 SSOT), steps[] : 단계 이력(엔진 적재 — 현재 빈 목록)
+    updateForm : UpdateGuestServerRequest    (인라인 수정 폼 — name / modelName / serialNumber / memo)
 
-  수정 가능 필드 : 기본 정보의 이름·메모, 사내 식별자의 사내 모델명·시리얼 번호.
-  → 두 카드를 하나의 <form> 으로 감싸 한 번의 저장으로 4 필드를 갱신한다.
+  수정 가능 필드 4개 모두 guest_server 한 테이블 → 단일 <form> 한 번의 저장으로 갱신.
+  회수(decommission)는 별도 <form> POST — 상태 변경 액션이라 수정 폼과 분리.
   레이아웃 규약 : .n-card 는 패딩이 없으므로 내용은 항상 .n-card-body 로 감싼다.
 -->
 <head>
@@ -29,17 +31,24 @@
             <h1 class="n-page-title" style="margin-top: 12px;"
                 th:text="${server.name != null} ? ${server.name} : '(이름 미지정)'">srv-01</h1>
             <code class="n-mono" th:text="${server.systemUuid}">uuid</code>
+            <span th:if="${server.status != null}" th:switch="${server.status.name()}" style="margin-left: 10px;">
+                <span th:case="'REGISTERED'"     class="n-badge n-badge-blue"  th:text="${server.status.description}">등록됨</span>
+                <span th:case="'PROVISIONING'"   class="n-badge n-badge-green" th:text="${server.status.description}">프로비저닝 중</span>
+                <span th:case="'PROVISIONED'"    class="n-badge n-badge-teal"  th:text="${server.status.description}">완료</span>
+                <span th:case="'FAILED'"         class="n-badge n-badge-red"   th:text="${server.status.description}">실패</span>
+                <span th:case="'DECOMMISSIONED'" class="n-badge n-badge-gray"  th:text="${server.status.description}">회수됨</span>
+            </span>
         </div>
     </div>
 
-    <!-- ===== 인라인 수정 폼 (이름·메모 + 사내 식별자) ===== -->
+    <!-- ===== 인라인 수정 폼 (운영자 입력 4필드 — 모두 guest_server) ===== -->
     <form th:object="${updateForm}"
           th:action="@{/provisioning/server/{id}/edit(id=${server.id})}"
           method="post" novalidate>
 
-        <!-- 1) 기본 정보 -->
         <div class="n-detail-section">
-            <div class="n-section-title">기본 정보</div>
+            <div class="n-section-title">기본 정보 (운영자 입력)</div>
+            <div class="n-section-hint">이름·메모와 사내 식별자(모델명·시리얼)는 운영자가 부여하며, 사내 식별자는 진단 리눅스에서 <code>ipmitool</code> 로 하드웨어에 각인됩니다.</div>
             <div class="n-card">
                 <div class="n-card-body">
                     <table class="n-detail-table">
@@ -55,11 +64,21 @@
                         </tr>
                         <tr>
                             <th>사내 모델명</th>
-                            <td th:text="${server.modelName != null} ? ${server.modelName} : '—'">RE2108</td>
+                            <td>
+                                <input type="text" th:field="*{modelName}" class="n-input"
+                                       maxlength="32" placeholder="예: RE2108"
+                                       th:classappend="${#fields.hasErrors('modelName')} ? 'is-invalid'">
+                                <div class="n-error" th:if="${#fields.hasErrors('modelName')}" th:errors="*{modelName}"></div>
+                            </td>
                         </tr>
                         <tr>
-                            <th>SMBIOS UUID</th>
-                            <td><code class="n-mono" th:text="${server.systemUuid}">uuid</code></td>
+                            <th>사내 시리얼 번호</th>
+                            <td>
+                                <input type="text" th:field="*{serialNumber}" class="n-input"
+                                       maxlength="32" placeholder="예: RE210826510512"
+                                       th:classappend="${#fields.hasErrors('serialNumber')} ? 'is-invalid'">
+                                <div class="n-error" th:if="${#fields.hasErrors('serialNumber')}" th:errors="*{serialNumber}"></div>
+                            </td>
                         </tr>
                         <tr>
                             <th>메모</th>
@@ -69,6 +88,10 @@
                                           th:classappend="${#fields.hasErrors('memo')} ? 'is-invalid'"></textarea>
                                 <div class="n-error" th:if="${#fields.hasErrors('memo')}" th:errors="*{memo}"></div>
                             </td>
+                        </tr>
+                        <tr>
+                            <th>SMBIOS UUID</th>
+                            <td><code class="n-mono" th:text="${server.systemUuid}">uuid</code></td>
                         </tr>
                         <tr>
                             <th>등록 시각</th>
@@ -84,78 +107,46 @@
             </div>
         </div>
 
-        <!-- 2) 하드웨어 인벤토리 (읽기 전용) -->
-        <div class="n-detail-section">
-            <div class="n-section-title">하드웨어 인벤토리</div>
-            <div class="n-card">
-                <div class="n-card-body">
-                    <table th:if="${server.inventory != null}" class="n-detail-table">
-                        <tbody>
-                        <tr>
-                            <th>제조사</th>
-                            <td th:text="${server.inventory.vendor.displayName}">Gigabyte</td>
-                        </tr>
-                        <tr>
-                            <th>보드 모델</th>
-                            <td th:text="${server.inventory.boardModelName}">MS03-CE0</td>
-                        </tr>
-                        <tr>
-                            <th>보드 시리얼</th>
-                            <td th:text="${server.inventory.boardSerial != null} ? ${server.inventory.boardSerial} : '— (진단 단계에서 수집)'">—</td>
-                        </tr>
-                        <tr>
-                            <th>수집 단계</th>
-                            <td>
-                                <span class="n-badge n-badge-blue" th:text="${server.inventory.discoveryStage.description}">iPXE 등록</span>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                    <p th:unless="${server.inventory != null}" class="n-detail-empty">인벤토리 정보가 아직 없습니다.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3) 사내 식별자 -->
-        <div class="n-detail-section">
-            <div class="n-section-title">사내 식별자</div>
-            <div class="n-section-hint">진단 리눅스에서 <code>ipmitool</code> 로 기록되는 사내 모델명·시리얼 번호입니다.</div>
-            <div class="n-card">
-                <div class="n-card-body">
-                    <table class="n-detail-table">
-                        <tbody>
-                        <tr>
-                            <th>사내 모델명</th>
-                            <td>
-                                <input type="text" th:field="*{productModelName}" class="n-input"
-                                       maxlength="7" placeholder="예: RE2108"
-                                       th:classappend="${#fields.hasErrors('productModelName')} ? 'is-invalid'">
-                                <div class="n-error" th:if="${#fields.hasErrors('productModelName')}" th:errors="*{productModelName}"></div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>사내 시리얼 번호</th>
-                            <td>
-                                <input type="text" th:field="*{productSerialNumber}" class="n-input"
-                                       maxlength="20" placeholder="예: RE210826510512"
-                                       th:classappend="${#fields.hasErrors('productSerialNumber')} ? 'is-invalid'">
-                                <div class="n-error" th:if="${#fields.hasErrors('productSerialNumber')}" th:errors="*{productSerialNumber}"></div>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 저장 액션 (이름·메모 + 사내 식별자 4 필드 일괄 저장) -->
+        <!-- 저장 액션 (4 필드 일괄 저장) -->
         <div class="n-form-actions">
             <a th:href="@{/provisioning/server/{id}(id=${server.id})}" class="n-btn n-btn-secondary">변경 취소</a>
             <button type="submit" class="n-btn n-btn-primary">변경 사항 저장</button>
         </div>
     </form>
 
-    <!-- 4) 호스트 NIC (읽기 전용) -->
+    <!-- 하드웨어 인벤토리 (읽기 전용) -->
+    <div class="n-detail-section">
+        <div class="n-section-title">하드웨어 인벤토리</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <table th:if="${server.inventory != null}" class="n-detail-table">
+                    <tbody>
+                    <tr>
+                        <th>제조사</th>
+                        <td th:text="${server.inventory.vendor.displayName}">Gigabyte</td>
+                    </tr>
+                    <tr>
+                        <th>보드 모델</th>
+                        <td th:text="${server.inventory.boardModelName}">MS03-CE0</td>
+                    </tr>
+                    <tr>
+                        <th>보드 시리얼</th>
+                        <td th:text="${server.inventory.boardSerial != null} ? ${server.inventory.boardSerial} : '— (진단 단계에서 수집)'">—</td>
+                    </tr>
+                    <tr>
+                        <th>수집 단계</th>
+                        <td>
+                            <span class="n-badge n-badge-blue" th:text="${server.inventory.discoveryStage.description}">iPXE 등록</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:unless="${server.inventory != null}" class="n-detail-empty">인벤토리 정보가 아직 없습니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 호스트 NIC (읽기 전용) -->
     <div class="n-detail-section">
         <div class="n-section-title">호스트 NIC</div>
         <div class="n-card">
@@ -183,7 +174,7 @@
                             <span th:unless="${nic.primary}" class="n-muted">—</span>
                         </td>
                         <td th:text="${nic.bondGroup != null} ? ${nic.bondGroup} : '—'">—</td>
-                        <td th:text="${nic.boundedAt != null} ? ${#temporals.format(nic.boundedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">2026-06-26 12:00:00</td>
+                        <td th:text="${nic.createdAt != null} ? ${#temporals.format(nic.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">2026-06-26 12:00:00</td>
                     </tr>
                     </tbody>
                 </table>
@@ -192,7 +183,7 @@
         </div>
     </div>
 
-    <!-- 5) 프로비저닝 진행 (읽기 전용) -->
+    <!-- 프로비저닝 진행 (읽기 전용) -->
     <div class="n-detail-section">
         <div class="n-section-title">프로비저닝 진행</div>
         <div class="n-card">
@@ -217,7 +208,7 @@
                     <p class="n-detail-empty"><strong>프로비저닝 미시작</strong> — 이 서버는 아직 프로비저닝 단계에 진입하지 않았습니다.</p>
                 </div>
 
-                <!-- 세부 단계 이력 -->
+                <!-- 세부 단계 이력 (append-only) — 프로비저닝 엔진(Stage 4)이 적재. 현재는 비어 있음. -->
                 <table th:if="${not #lists.isEmpty(server.steps)}" class="n-table" style="margin-top: 20px;">
                     <thead>
                     <tr>
@@ -240,6 +231,25 @@
                     </tr>
                     </tbody>
                 </table>
+                <p th:if="${#lists.isEmpty(server.steps)}" class="n-detail-empty" style="margin-top: 16px;">세부 단계 이력은 프로비저닝 엔진이 단계를 실행하면서 기록됩니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 서버 회수 (상태 변경 액션 — 수정 폼과 분리) -->
+    <div class="n-detail-section">
+        <div class="n-section-title">서버 회수</div>
+        <div class="n-section-hint">회수하면 운영 상태가 <strong>회수됨</strong>으로 표시되어 프로비저닝 대상에서 제외됩니다.</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <div th:if="${server.decommissionedAt != null}">
+                    <p class="n-detail-empty">이미 회수된 서버입니다.
+                        (<span th:text="${#temporals.format(server.decommissionedAt, 'yyyy-MM-dd HH:mm:ss')}">—</span>)</p>
+                </div>
+                <form th:unless="${server.decommissionedAt != null}"
+                      th:action="@{/provisioning/server/{id}/decommission(id=${server.id})}" method="post">
+                    <button type="submit" class="n-btn n-btn-danger">이 서버 회수</button>
+                </form>
             </div>
         </div>
     </div>
