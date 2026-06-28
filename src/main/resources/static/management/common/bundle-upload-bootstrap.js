@@ -13,7 +13,7 @@
             uploadModeInput, folderPane, zipPane, singlePane, existingPane,
             folderInput, zipInput, singleInput,
             tabFolder, tabZip, tabSingle, tabExisting,
-            onModeChange
+            onModeChange, onFilesChange
         } = opts;
 
         if (!uploadModeInput || !folderPane || !zipPane || !singlePane ||
@@ -60,6 +60,12 @@
         tabZip.addEventListener('click', () => setMode('ZIP'));
         tabSingle.addEventListener('click', () => setMode('SINGLE_FILE'));
         if (tabExisting) tabExisting.addEventListener('click', () => setMode('EXISTING_DIRECTORY'));
+        // HF-4 — 파일 선택이 바뀌면 콜백(예: 검증 에러 박스 클리어). 3 도메인 공통 배선.
+        [folderInput, zipInput, singleInput].forEach(input => {
+            if (input && typeof onFilesChange === 'function') {
+                input.addEventListener('change', () => onFilesChange());
+            }
+        });
         setMode(uploadModeInput.value);
 
         return {setMode};

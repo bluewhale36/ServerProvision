@@ -85,7 +85,8 @@
                 tabFolder, tabZip, tabSingle, tabExisting,
                 onModeChange(mode) {
                     if (submitBtn) submitBtn.textContent = mode === 'EXISTING_DIRECTORY' ? '기존 디렉토리 등록' : '번들 등록';
-                }
+                },
+                onFilesChange: resetError
             });
         }
 
@@ -115,6 +116,7 @@
             if (window.FormError && typeof window.FormError.clear === 'function') {
                 window.FormError.clear(form);
             }
+            resetError();   // HF-4 — uploadError 박스도 초기화(재제출 stale 방지)
             const mode = uploadModeInput.value;
 
             // 기존 디렉토리 등록 — 업로드 분기 진입 전 별도 처리 (intent / XHR 우회).

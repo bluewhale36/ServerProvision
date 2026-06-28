@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF-4 plan — 업로드 폼 UX 2건 (검증 메시지 잔존 + 디렉토리 생성 라벨)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .split-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+  .split-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px}
+  .split-card.before{background:var(--red-bg);border-color:#f0c5c5}.split-card.after{background:var(--green-bg);border-color:#aee0bd}
+  .split-card h5{margin:0 0 6px;font-size:12px}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-stage{padding:16px;background:var(--card)}
+  .ux-stage .fake-input{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:13px}
+  .ux-stage .fake-input button{border:1px solid var(--border);background:var(--bg);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+  .ux-stage .submit{background:var(--blue);color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;margin-top:6px}
+  .ux-errbox{margin-top:10px;padding:9px 12px;border:1px solid #f0c5c5;background:var(--red-bg);color:var(--red);border-radius:6px;font-size:13px}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}.split-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>HF-4 — 업로드 폼 UX 2건 (검증 메시지 잔존 + 디렉토리 생성 라벨) <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF-4 (브라우저 테스트 발견, R2-3 commit 후 hotfix)</span>
+    <span><strong>scope</strong> ① uploadError 박스 파일변경 시 클리어(JS, DRY 공통화) ② '디렉토리 생성 허용' 라벨/힌트 정정(부모-게이팅 의도 확정)</span>
+    <span><strong>전제</strong> R2-3 commit(ba8dc73) 완료. frontend-only — 컴파일/U2 WIP 무관</span>
+    <span><strong>생성</strong> 2026-06-28 KST · <strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 · 목표</a></li>
+      <li><a href="#s2">§2 설계 (DRY 공통화 / 라벨)</a></li>
+      <li><a href="#sd">🎬 라이브 — 메시지 클리어</a></li>
+      <li><a href="#s3">§3 변경 상세</a></li>
+      <li><a href="#s4">§4 결정 (D1~D2)</a></li>
+      <li><a href="#s5">§5 단계 · 테스트</a></li>
+      <li><a href="#s6">§6 부산물 · 주의 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 · 목표</summary>
+      <div class="body">
+        <p style="margin-top:0">브라우저 테스트(2026-06-28)에서 발견된 업로드 폼 UX 2건. 둘 다 R2-3(백엔드 예외 라우팅)과 무관한 frontend/라벨 이슈로, R2-3 commit 후 본 hotfix 로 처리.</p>
+        <h4>① 검증 메시지 잔존 (UX 버그)</h4>
+        <p style="margin-top:0">파일 0개로 "번들 등록" 클릭 → <code>showError('업로드할 파일이 없습니다.')</code>(<code>uploadError</code> 박스). 이후 파일을 선택해 <b>조건이 충족돼도 에러 메시지가 안 사라진다</b>. 원인: <code>resetError()</code> 가 <code>startXhrUpload()</code> 안(성공 경로)에서만 호출되고, 파일 input 변경을 듣는 클리어 핸들러가 없다. submit 시작부의 <code>FormError.clear(form)</code> 은 필드 에러만 지우지 uploadError 박스는 안 건드림. <b>bmc-new.js:109 / bios-new.js:130 / subprogram-new.js:143 동일 복붙.</b></p>
+        <h4>② 디렉토리 생성 라벨 (의도 확정, option 1)</h4>
+        <p style="margin-top:0"><code>DefaultTargetDirectoryPolicyService</code> 는 <code>allowCreateDirectory</code> 로 <b>target 의 '부모' 디렉토리 생성만</b> 게이팅(<code>.getParent()</code> 검사). 말단 target 은 번들 추출이 항상 생성(부모 존재 시). 미체크라도 1-depth 는 생성, 2-depth(부모 부재)부터 거절 — <b>부모-게이팅이 의도된 설계로 확정(정책 코드 무변경)</b>. 단 라벨 "디렉토리 생성 허용 / 경로가 존재하지 않을 경우 디렉토리를 생성합니다"가 "미체크=무생성"으로 오해를 부르므로 <b>라벨/힌트만 정정</b>.</p>
+        <div class="callout"><b>목표</b> — ① 파일 선택 즉시 "없습니다" 메시지가 사라지게(공통 1곳 수정으로 3 도메인 동시) ② 라벨/힌트를 부모-게이팅 실제 동작에 맞게 정정. <b>frontend/template 만</b> — 백엔드·정책·예외 라우팅 무변경.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 설계 (DRY 공통화 / 라벨 정정)</summary>
+      <div class="body">
+        <h4>① — 공통 배선(bundle-upload-bootstrap.js)</h4>
+        <p style="margin-top:0"><code>bindModeTabs</code> 가 이미 파일 input 3종(folder/zip/single)을 다룬다(mode 전환 시 <code>clearIfPresent</code>). 여기에 <b>파일 input <code>change</code> → 콜백</b> 배선을 추가하고, 각 도메인이 <code>onFilesChange: resetError</code> 를 넘긴다. 3곳 복붙 대신 <b>공통 1곳 + 도메인당 콜백 1줄</b> — CLAUDE.md §중복 금지 정합.</p>
+        <pre>// bundle-upload-bootstrap.js  bindModeTabs(opts) 내부 — 신규 배선
+[folderInput, zipInput, singleInput].forEach(inp => {
+    if (inp) inp.addEventListener('change', () => {
+        if (typeof opts.onFilesChange === 'function') opts.onFilesChange();
+    });
+});
+
+// 각 도메인 new.js — bootstrap.bindModeTabs({ ..., onFilesChange: resetError })
+// + submit 시작부에 resetError() 1줄(재제출 stale 방지)</pre>
+        <h4>② — 라벨/힌트 정정(template)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h5>현재 (오해 유발)</h5><div class="mono">디렉토리 생성 허용<br><span class="dim">경로가 존재하지 않을 경우 디렉토리를 생성합니다.</span></div></div>
+          <div class="split-card after"><h5>정정안 (실제 동작)</h5><div class="mono">상위 디렉토리 생성 허용<br><span class="dim">대상 경로의 상위(부모) 디렉토리가 없을 때 함께 생성합니다. 대상 디렉토리 자체는 업로드 시 생성됩니다.</span></div></div>
+        </div>
+        <p class="dim">문구는 예시 — D2 에서 확정. 정책 로직은 건드리지 않는다.</p>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 — 파일 선택 시 메시지 클리어</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">동작</span>
+            <button class="ux-btn" data-ph="before">수정 전</button>
+            <button class="ux-btn on" data-ph="after">수정 후</button>
+            <span class="dim" style="margin-left:8px">① "등록"(파일 0개) → 에러 → ② "파일 선택"</span>
+          </div>
+          <div class="ux-stage">
+            <div class="fake-input">
+              <button id="dPick">파일 선택</button>
+              <span id="dCount" class="dim">파일 0개</span>
+            </div>
+            <button class="submit" id="dSubmit">번들 등록</button>
+            <div id="dErr" class="ux-errbox hidden">업로드할 파일이 없습니다.</div>
+          </div>
+        </div>
+        <p class="dim">수정 전: 파일을 선택해도 에러가 그대로. 수정 후: 파일 선택 즉시 에러가 사라짐(파일 input change → resetError).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 변경 상세</summary>
+      <div class="body">
+        <h4>① 파일 (frontend JS)</h4>
+        <ul>
+          <li class="mono">static/management/common/bundle-upload-bootstrap.js — bindModeTabs 에 onFilesChange 콜백 배선(파일 input change → 콜백)</li>
+          <li class="mono">static/management/bmc-new.js / bios/bios-new.js / subprogram/subprogram-new.js — bindModeTabs 호출에 onFilesChange: resetError + submit 시작부 resetError()</li>
+        </ul>
+        <h4>② 파일 (template)</h4>
+        <ul>
+          <li class="mono">templates/management/bmc/bmc-new.html:103/105 · subprogram/subprogram-new.html:114/116 — 라벨/힌트 정정</li>
+          <li class="mono">templates/management/bios/bios-new.html — 동일 라벨/힌트 (정확한 라인은 CP2 에서 확인; 공유 fragment 면 fragment 1곳)</li>
+        </ul>
+        <div class="callout warn"><b>주의</b> — bios-new 의 라벨이 인라인인지 공유 fragment(directory-browse-panel 류)인지 CP2 에서 확인. fragment 면 1곳 수정으로 3 도메인 반영(더 DRY). 인라인이면 3곳.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 핵심 결정 (D1~D2)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택 / 비채택</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>① 메시지 클리어 트리거</td><td><b>파일 input change → resetError + submit 시작부 resetError</b>(둘 다). 공통 배선은 bundle-upload-bootstrap.js 1곳. 비채택: 각 도메인 new.js 에 직접 change 리스너 복붙(3곳 중복).</td></tr>
+            <tr><td><b>D2</b></td><td>② 라벨 문구</td><td><b>"상위 디렉토리 생성 허용" + 부모-게이팅 설명</b>으로 정정(정책 로직 무변경). 사용자가 다른 문구를 원하면 그대로 반영. 비채택: 정책을 target-게이팅으로 변경(= option 2, 사용자가 option 1 선택해 기각).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 단계 · 테스트</summary>
+      <div class="body">
+        <p style="margin-top:0">frontend/template 전용 — 백엔드/엔티티/스키마 무변경(Step 6·7·9 N/A). Java 컴파일 영향 없음(U2 WIP 빌드 이슈와 무관).</p>
+        <ul>
+          <li><b>CP2</b> — ①②  구현(bootstrap 공통 배선 + 3 도메인 콜백 + 라벨 정정). bios 라벨 위치 확인.</li>
+          <li><b>CP4</b> — 가능 시 가벼운 검증: 기존 *ControllerUploadFlowTest 가 여전히 green(프론트 변경이라 영향 없음 예상). JS 단위 테스트 인프라는 없으므로 ①은 CP5 수동 검증에 의존.</li>
+          <li><b>CP5(사용자)</b> — BMC/BIOS/Subprogram 신규 폼에서 : 파일 0개로 "등록"→"업로드할 파일이 없습니다" → 파일 선택 시 <b>메시지 즉시 사라짐</b> 확인. 라벨/힌트가 부모-게이팅 설명으로 바뀐 것 확인.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 부산물 · 주의 · 다음</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="hf4-v">
+          <li><input type="checkbox"><span>파일 선택 즉시 uploadError 사라짐(BMC/BIOS/Subprogram)</span></li>
+          <li><input type="checkbox"><span>재제출 시 stale 메시지 없음</span></li>
+          <li><input type="checkbox"><span>라벨/힌트가 부모-게이팅 설명으로 정정(3 도메인)</span></li>
+          <li><input type="checkbox"><span>업로드 정상 경로 회귀 없음(파일 선택→등록→성공)</span></li>
+        </ul>
+        <h4>주의</h4>
+        <ul>
+          <li><b>frontend-only</b> — Java 무변경. 작업 트리의 U1/U2 병행 WIP(다른 세션)는 <b>일절 미접촉</b>, commit 시 HF-4 파일만 add.</li>
+          <li><b>정책 로직 불변</b> — ②는 라벨만. <code>DefaultTargetDirectoryPolicyService</code> 안 건드림.</li>
+        </ul>
+        <h4>Critical Files</h4>
+        <ul>
+          <li class="mono">M: bundle-upload-bootstrap.js · bmc-new.js · bios-new.js · subprogram-new.js</li>
+          <li class="mono">M: bmc-new.html · subprogram-new.html · bios-new.html(또는 공유 fragment)</li>
+        </ul>
+        <h4>다음</h4>
+        <ol>
+          <li>HF-4 후 → R2 잔여 <b>R2-6</b>(+R2-5 nudge 흡수) 또는 사용자 지시.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+  // 라이브 데모 — 수정 전/후로 파일 선택 시 에러 클리어 동작 시뮬
+  const st={ph:'after', count:0, submitted:false};
+  const dErr=document.getElementById('dErr'), dCount=document.getElementById('dCount');
+  function sync(){document.querySelectorAll('[data-ph]').forEach(b=>b.classList.toggle('on',b.dataset.ph===st.ph));}
+  function renderErr(){
+    // 에러는 submit(파일0) 시 표시. 파일 선택 시 — 수정후: 사라짐 / 수정전: 그대로.
+    const show = st.submitted && (st.count===0 || st.ph==='before');
+    dErr.classList.toggle('hidden', !show);
+    dCount.textContent = '파일 ' + st.count + '개';
+  }
+  document.querySelectorAll('[data-ph]').forEach(b=>b.addEventListener('click',()=>{st.ph=b.dataset.ph;sync();renderErr();}));
+  document.getElementById('dPick').addEventListener('click',()=>{
+    st.count = st.count===0 ? 23 : 0;   // toggle 선택
+    renderErr();
+  });
+  document.getElementById('dSubmit').addEventListener('click',()=>{
+    st.submitted = true;
+    renderErr();
+  });
+  sync();renderErr();
+</script>
+</body>
+</html>

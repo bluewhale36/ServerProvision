@@ -126,9 +126,9 @@
                     <label class="n-check"
                            style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
-                        <span>디렉토리 생성 허용</span>
+                        <span>상위 디렉토리 생성 허용</span>
                     </label>
-                    <div class="n-hint">경로가 존재하지 않을 경우 자동으로 생성합니다.</div>
+                    <div class="n-hint">대상 경로의 상위(부모) 디렉토리가 없을 때 함께 생성합니다. 대상 디렉토리 자체는 업로드 시 생성됩니다.</div>
                 </div>
 
                 <!-- 업로드 방식 선택 탭 -->
