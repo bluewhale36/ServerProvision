@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4-3 / R5-3 / R6-3 plan — BIOS · BMC · Subprogram fat-Service 분리</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .chip.mod{background:var(--blue-bg);color:var(--blue)}
+  .chip.keep{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .sep{width:1px;height:22px;background:var(--border);margin:0 4px}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-btn.warnon.on{background:var(--red);border-color:var(--red)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap}
+  .ux-flow .node{color:#79c0ff}.ux-flow .svc{color:#ff7b72}.ux-flow .repo{color:#8b949e}.ux-flow .lazy{color:#e3b341;font-weight:700}.ux-flow .cut{color:#f85149;font-weight:700}.ux-flow .ok{color:#3fb950;font-weight:700}.ux-flow .guard{color:#3fb950}.ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft)}
+  .ux-verdict.bad{background:var(--red-bg)}.ux-verdict.good{background:var(--green-bg)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  .split-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+  .split-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px}
+  .split-card.before{background:var(--red-bg);border-color:#f0c5c5}.split-card.after{background:var(--green-bg);border-color:#aee0bd}
+  .split-card h5{margin:0 0 6px;font-size:12px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}.split-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R4-3 / R5-3 / R6-3 — BIOS · BMC · Subprogram fat-Service 분리 <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R4-3(BIOS) · R5-3(BMC) · R6-3(Subprogram) — 통합 계획, 도메인별 순차 구현</span>
+    <span><strong>scope</strong> 각 fat *Service(621/648/747줄)를 LifecycleService · RegistrationService · MarkerWriter · IntegrityService · 잔류 Service 로 5분할. OS/Iso·Board 선례 미러</span>
+    <span><strong>전제</strong> R7-1~R7-3 완료(scanner SPI 분리 + TypedNameGuard + ObjectProvider 0). controller *LifecycleController 기분리(BIOS/BMC)</span>
+    <span><strong>생성</strong> 2026-06-28 KST</span>
+    <span><strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 · 목표</a></li>
+      <li><a href="#s2">§2 설계 대안 (A/B/C)</a></li>
+      <li><a href="#sd">🎬 라이브 — 분해 + 순환 가드</a></li>
+      <li><a href="#s3">§3 도메인별 분해 상세</a></li>
+      <li><a href="#s4">§4 핵심 결정 (D1~D6)</a></li>
+      <li><a href="#s5">§5 10단계 · Step 8 테스트</a></li>
+      <li><a href="#s6">§6 예외 · 부산물 · 주의</a></li>
+      <li><a href="#s7">§7 Verification · Critical Files · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 · 목표</summary>
+      <div class="body">
+        <p style="margin-top:0">R3-2~R6-5 리팩토링 캠페인은 OS(R1/R3)의 Controller/Service 분리를 leaf 도메인으로 확장한다. <b>Board(R3-3)는 이미 분리 완료</b>(BoardModelMetadataService / BoardModelLifecycleService / BoardModelMarkableScanner / BoardModelNudteService). 남은 fat 은 board-scoped leaf 3종이다.</p>
+        <table>
+          <thead><tr><th>도메인</th><th>fat Service</th><th>이미 분리된 sibling</th><th>핵심 잔존 문제</th></tr></thead>
+          <tbody>
+            <tr><td><b>BIOS</b> (R4-3)</td><td class="mono">BiosService 621줄</td><td>BiosMarkerWriter · BiosNudgeService · BiosUploadIntentService · BiosVerificationLauncher · BoardBiosMarkableScanner · Bundle{Extraction,Entrypoint,Manifest}</td><td>addBios 117줄 · nudge 발급 복붙(168-205 vs 265-302) · lifecycle 8 메서드 내장</td></tr>
+            <tr><td><b>BMC</b> (R5-3)</td><td class="mono">BmcService 648줄</td><td>BmcNudgeService · BmcUploadIntentService · BmcVerificationLauncher · BoardBmcMarkableScanner <span class="dim">(MarkerWriter 없음)</span></td><td>addBmc 127줄 · <b>marker 4-step inline 3중복</b>(215-229/327-341/384-398) · lifecycle 내장</td></tr>
+            <tr><td><b>Subprogram</b> (R6-3)</td><td class="mono">SubprogramService 747줄(최대)</td><td>SubprogramNudgeService · SubprogramUploadIntentService · SubprogramVerificationLauncher · SubprogramMarkableScanner <span class="dim">(MarkerWriter 없음)</span></td><td>addSubprogram 140줄 · marker 3중복 + buildMarkerAttributes(474-486) · lifecycle 내장</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>목표</b> — 세 fat *Service 를 OS/Iso·Board 와 동형으로 5분할: <b>*LifecycleService</b>(상태 전이 8 + forging 가드) · <b>*RegistrationService</b>(등록 3경로 + 복붙 dedup) · <b>*MarkerWriter</b>(marker 4-step) · <b>*IntegrityService</b>(무결성 검증, <code>IsoIntegrityService</code> 선례) · <b>잔류 *Service</b>(read+update). 복붙·marker 중복을 실제로 제거하되(churn 금지), R7 이 막 제거한 <code>service→verifier→scanner→service</code> 순환을 재생성하지 않는다.</div>
+        <div class="callout ok"><b>전제 충족</b> — R7-1(scanner 4-sealed SPI) · R7-2(TypedNameGuard static) · R7-3(ObjectProvider 0) 완료. 3 fat service 의 typed-name 은 이미 <code>TypedNameGuard.verify</code>(static), 생성자 deps 에 scanner/verifier/ObjectProvider 0건. 따라서 본 분해는 순환 토대가 깨끗한 상태에서 시작한다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 설계 대안 (A 채택 / B · C 비채택)</summary>
+      <div class="body">
+        <h4>대안 비교</h4>
+        <table>
+          <thead><tr><th>안</th><th>접근</th><th>trade-off</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>(A)</b><br>선례 미러</td>
+              <td>도메인당 독립 5분할: <code>*LifecycleService</code>(global <code>LifecycleService</code> impl) + <code>*RegistrationService</code> + <code>*MarkerWriter</code> + <code>*IntegrityService</code>(<code>IsoIntegrityService</code> 선례) + 잔류 <code>*Service</code>(read+update). OS/Iso 와 동형.</td>
+              <td>변경량 가장 큼(도메인당 신규 3클래스 + scanner/cascade re-point). 잔존중복 0. 책임축 1클래스=1책임으로 가장 명료. BIOS/BMC 는 *LifecycleController 가 이미 분리돼 service 와 1:1 정렬되는 이점 실재.</td>
+              <td><span class="chip keep">채택</span></td>
+            </tr>
+            <tr>
+              <td>(B)<br>최소 분해</td>
+              <td>MarkerWriter + 내부 private helper 로 복붙만 제거, lifecycle/registration 은 fat service 잔류(BIOS R4-2 가 한 그대로).</td>
+              <td>변경량 최소·re-point 0 으로 안전하나 fat(~690줄)이 잔존. <b>캠페인 목적(fat 해소) 미달</b> — read+lifecycle+registration+verify 4책임 혼재. *LifecycleController 가 이미 분리됐는데 service 만 monolith 면 controller↔service 비대칭 영구화.</td>
+              <td>비채택</td>
+            </tr>
+            <tr>
+              <td>(C)<br>공통 추상</td>
+              <td>3 도메인의 marker 4-step·등록 골격·lifecycle 을 <code>AbstractLeaf*</code> base/template-method 로 통합.</td>
+              <td>표면상 중복 최대 제거지만, marker attribute(Subprogram <code>buildMarkerAttributes</code> scope 분기 vs BIOS/BMC flat) · 등록 가드(단일축 vs 이중 scope) · entity 타입이 도메인별로 갈려 base 가 generic/hook 으로 비대. 한 도메인 변경이 타 도메인에 파급(over-coupling).</td>
+              <td>비채택</td>
+            </tr>
+          </tbody>
+        </table>
+        <h4>비채택 사유 (인과)</h4>
+        <ul>
+          <li><b>(B) 탈락</b> — 이 캠페인의 목적은 marker 복붙 제거가 아니라 <b>fat-service 해소</b>다. (B)는 복붙만 없애고 4책임 혼재를 남긴다. BIOS R4-2 가 lifecycle 을 남긴 것은 "그 시점 미완"이지 최적 종착이 아니며, OS/Iso 가 full split 한 사실이 더 성숙한 종착을 보여준다.</li>
+          <li><b>(C) 탈락</b> — CLAUDE.md §중복 금지의 단서("분리하려는 추상이 도메인을 가로질러 의미를 잃게 하면 분리하지 않는다 — over-abstraction 도 유지보수 비용")에 정면 위배. <code>SubprogramService:474-486 buildMarkerAttributes</code> 의 kind/scope/boardId 분기, BMC 의 <code>boardModelIdMirror</code> builder 처럼 attribute 조립이 도메인별로 <b>실제로 갈라져</b> 있다. <code>BiosMarkerWriter</code> 가 이미 per-domain <code>@Component</code> 인 사실이 "이 축은 per-domain 이 옳다"는 선결 판정.</li>
+        </ul>
+        <h4>공유 추상 판정 (sharedAbstractionDecision)</h4>
+        <div class="callout warn"><b>per-domain 으로 둔다.</b> 복붙 제거는 <b>도메인 내부 private helper</b>(<code>issueHashNudge</code> / <code>persistBundle</code>) 차원에서만 하고, <b>도메인 간 공통 클래스</b>로는 올리지 않는다. BIOS↔BMC 의 marker attribute 가 거의 동일해 "둘만 공유" 유혹이 있으나, 3-way 일관성 + <code>BiosMarkerWriter</code> per-domain 선례가 per-domain 을 지지한다. <code>ResourceType</code> enum 1개만 다른 거의 동일한 <code>*MarkerWriter</code> 3개를 두는 비용은, entity 타입(BoardBIOS/BoardBMC/Subprogram)이 달라 generic 화가 타입 파라미터를 강제하는 점에서 수용 가능한 잔여다 — "지금 비슷하니 묶자"를 거부하고 "갈라지는 시점(이미 갈라짐)에 분리"한 정상 상태.</div>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 — 분해 탐색 + 순환 가드 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0" class="dim">도메인을 고르고 <b>typed-name 전략</b>을 바꿔 보라. <b>verifier 빈 주입</b>을 고르면 R7 이 막 제거한 순환이 되살아나는 것을(bootRun 실패 예측) 직접 확인할 수 있다. 채택안은 <b>static 가드 유지</b>.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">도메인</span>
+            <button class="ux-btn on" data-dom="bios">BIOS</button>
+            <button class="ux-btn" data-dom="bmc">BMC</button>
+            <button class="ux-btn" data-dom="subprogram">Subprogram</button>
+            <span class="sep"></span>
+            <span class="lbl">보기</span>
+            <button class="ux-btn" data-view="before">분해 전(fat)</button>
+            <button class="ux-btn on" data-view="after">분해 후(5클래스)</button>
+            <span class="sep"></span>
+            <span class="lbl">typed-name 전략</span>
+            <button class="ux-btn on" data-strat="guard">static 가드(채택)</button>
+            <button class="ux-btn warnon" data-strat="verifier">verifier 빈 주입(금지)</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+          <div class="ux-verdict" id="verdict"></div>
+        </div>
+        <p class="dim">분해 후 의존: registration→lifecycle / cascade→lifecycle / scanner→lifecycle 모두 부모·외부 → leaf-lifecycle <b>단방향</b>. lifecycle 은 scanner/registration 을 역참조하지 않는다(IsoLifecycleService↔IsoMarkableScanner 선례 동일).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 도메인별 분해 상세 (target 클래스 + dedup)</summary>
+      <div class="body">
+        <h4>R4-3 · BIOS <span class="chip mod">신규 3 + 잔류 1</span></h4>
+        <table>
+          <thead><tr><th>클래스</th><th>kind</th><th>소유(이동 메서드)</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">BiosLifecycleService</td><td>new</td><td><code>LifecycleService</code> 구현. toggleEnabled/softDelete/softDeleteWithIntent/restore/deprecate/undeprecate/purge/purgeWithTypedNameCheck(343-487) + <code>assertBelongsToBoard</code>(forging 가드) + requireLive/requireExisting. typed-name = <code>TypedNameGuard.verify</code> static.</td></tr>
+            <tr><td class="mono">BiosRegistrationService</td><td>new</td><td>addBios(124-240)/registerExisting(247-327)/persistFromNudge(581-613)/purgeNudgeTempTree(618-620). REPLACE 시 <code>BiosLifecycleService.purge</code> 위임(registration→lifecycle 단방향).</td></tr>
+            <tr><td class="mono">BiosIntegrityService</td><td><b>new</b></td><td>findIntegrityStatus(113-120)/verifyIntegrity(491-508)/verifyAndRecordIntegrity(510-515). <code>IsoIntegrityService</code>(findStatus/verify/verifyAndRecord) 선례 정합. <code>BiosVerificationLauncher</code> 가 verifyAndRecord 를 여기로 re-point(2-arg 유지 — LifecycleService 무관).</td></tr>
+            <tr><td class="mono">BiosService</td><td>keep</td><td>findAllGrouped/findBios/update/toResponse. <b>read+update 만 잔류</b>(verify 분리).</td></tr>
+            <tr><td class="mono">BiosMarkerWriter</td><td>existing</td><td>이미 분리(R4-2). 이동 없음 — BIOS 는 marker 추출 완료 도메인.</td></tr>
+          </tbody>
+        </table>
+        <p class="dim"><b>dedup</b> : ① nudge 발급 복붙(168-205 vs 265-302) → <code>issueHashNudge(...)</code> helper 1개. ② save 골격(builder→save→writeSignedMarker→log) → <code>persistBundle(...)</code> helper(이득은 3~5줄로 과대평가 금지 — churn 은 아님). ③ re-point: <code>BoardBiosMarkableScanner</code>(restore/purge) · <code>BiosBoardScopedChildLifecycle</code>(softDelete/restore) → BiosLifecycleService(단방향). ④ <code>BiosVerificationLauncher</code> → BiosIntegrityService.verifyAndRecord re-point.</p>
+
+        <h4>R5-3 · BMC <span class="chip mod">신규 4 + 잔류 1</span></h4>
+        <table>
+          <thead><tr><th>클래스</th><th>kind</th><th>소유</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">BmcMarkerWriter</td><td><b>new</b></td><td>BMC IN_TREE marker 서명. <code>writeSignedMarker(bmc, dir, boardId, version, entrypoint, hash)</code> — BiosMarkerWriter 시그니처 복제, <code>ResourceType.BMC_FIRMWARE</code> 만 차이. <code>@Component</code>, dep=ProvisionMarkerService 1개. <b>R4-7 ② 필수 추출.</b></td></tr>
+            <tr><td class="mono">BmcLifecycleService</td><td>new</td><td><code>LifecycleService</code> 구현. toggle~purgeWithTypedNameCheck(425-647) + assertBelongsToBoard.</td></tr>
+            <tr><td class="mono">BmcRegistrationService</td><td>new</td><td>addBmc(117-243)/registerExisting/persistFromNudge.</td></tr>
+            <tr><td class="mono">BmcIntegrityService</td><td><b>new</b></td><td>findIntegrityStatus(108-115)/verifyIntegrity(514-531)/verifyAndRecordIntegrity(533-538). IsoIntegrityService 선례. <code>BmcVerificationLauncher</code> re-point.</td></tr>
+            <tr><td class="mono">BmcService</td><td>keep</td><td>findAllGrouped/findBmc/update/toResponse. read+update 만.</td></tr>
+          </tbody>
+        </table>
+        <p class="dim"><b>dedup</b> : marker 4-step(215-229/327-341/384-398) → <code>BmcMarkerWriter</code> 위임(누락 시 churn) · nudge 블록(159-196 vs 271-308) · 진입 가드(126-143 vs 251-263) · save 블록 → registration helper · purge 이중가드(623-626 vs 639-644) 단일화. re-point: BoardBmcMarkableScanner · BmcBoardScopedChildLifecycle.</p>
+
+        <h4>R6-3 · Subprogram <span class="chip mod">신규 4 + 잔류 1</span></h4>
+        <table>
+          <thead><tr><th>클래스</th><th>kind</th><th>소유</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">SubprogramMarkerWriter</td><td><b>new</b></td><td>marker 4-step + <code>buildMarkerAttributes</code>(474-486) 흡수. 시그니처에 kind/scope/boardId 분기 내포 → BIOS/BMC 와 달라 <b>per-domain 정당</b>(공통 base 불가).</td></tr>
+            <tr><td class="mono">SubprogramLifecycleService</td><td>new</td><td>toggle~purgeWithTypedNameCheck(515-668). <b>이미 1-arg</b>(sp.getBoardModel() resolve) — BIOS/BMC 와 달리 시그니처 재성형 불요.</td></tr>
+            <tr><td class="mono">SubprogramRegistrationService</td><td>new</td><td>addSubprogram(154-293)/registerExisting/persistFromNudge.</td></tr>
+            <tr><td class="mono">SubprogramIntegrityService</td><td><b>new</b></td><td>findIntegrityStatus(143-150)/verifyIntegrity(672-689)/verifyAndRecordIntegrity(691-696). IsoIntegrityService 선례. <code>SubprogramVerificationLauncher</code> re-point.</td></tr>
+            <tr><td class="mono">SubprogramService</td><td>keep</td><td>findAllGrouped/findByScope/findSubprogram/update/toResponse. read+update 만.</td></tr>
+          </tbody>
+        </table>
+        <p class="dim"><b>주의</b> : FK nullable(공용 가능) → 중복키 검사가 common/board <b>이중 scope</b>. cascade <code>SubprogramBoardScopedChildLifecycle</code>:47/60 가 <b>1-arg</b> softDelete(id)/restore(id) 진입점 — 시그니처 보존 필수. <code>SubprogramController</code> 는 monolithic(lifecycle endpoint 132-177 이 CRUD 와 혼재) — *LifecycleController 분리는 <b>본 슬라이스 scope 밖</b>(선택적 후속).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 핵심 결정 (D1~D6, 비채택 병기)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택 / 비채택 사유</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>분해 형태</td><td><b>(A) 선례 미러 5분할</b>(Lifecycle/Registration/Marker/Integrity/잔류). 비채택 (B) 최소분해 = fat 잔존으로 캠페인 목적 미달, (C) 공통추상 = over-abstraction(§2).</td></tr>
+            <tr><td><b>D2</b></td><td>BIOS/BMC lifecycle <b>1-arg 재성형</b></td><td><b>채택: 1-arg + <code>LifecycleService</code> 구현 + <code>assertBelongsToBoard(childId, boardId)</code> 별도 forging 가드</b>. <code>IsoLifecycleService.assertBelongsToOs(isoId, osId)</code>(L68) 를 controller 가 lifecycle 직전 호출하는 선례 정확 미러 — 부모는 <code>bios.getBoardModel()</code> 내부 resolve. <b>비채택: 2-arg 구체타입 유지(인터페이스 포기)</b> — controller↔service 비대칭 영구화 + 다형 일관성 상실. (현재 2-arg <code>toggleEnabled(boardId,biosId)</code> 는 LifecycleService 1-arg 와 모순이라 둘 중 하나를 반드시 확정해야 컴파일.)</td></tr>
+            <tr><td><b>D3</b></td><td>*MarkerWriter per-domain</td><td><b>per-domain 3개</b>(BIOS 기존 + BMC/Subprogram 신규). 공통 base 비채택 — attribute 조립이 도메인별로 갈림(§2 sharedAbstractionDecision).</td></tr>
+            <tr><td><b>D4</b></td><td>typed-name / 순환</td><td><b>TypedNameGuard static 유지, verifier 빈 미주입</b>. *LifecycleService/*RegistrationService 어디에도 TypedNameVerifier·scanner·ObjectProvider 주입 금지 → <code>service→verifier→scanner→service</code> 재생성 차단(R7 산출 보존). scanner ObjectProvider 도입도 금지(보호할 순환 없음).</td></tr>
+            <tr><td><b>D5</b></td><td>진행 순서</td><td><b>R4-3(BIOS) → R5-3(BMC) → R6-3(Subprogram)</b>. BIOS 선두 = MarkerWriter 이미 추출돼 lifecycle/registration 분리에만 집중하는 깨끗한 레퍼런스. BIOS 가 1-arg 재성형 첫 적용처 → 그 결정이 R5-3/R6-3 템플릿을 일관시킨다. Subprogram 마지막 = 최대 fat + scope 분기 marker + 1-arg cascade 비대칭으로 변형 최대.</td></tr>
+            <tr><td><b>D6</b></td><td>공유 가드 헬퍼</td><td>잔류 *Service(update/find)와 *LifecycleService 가 함께 쓰는 <code>requireActiveBoard/requireLive*</code> → 복제 대신 <b><code>*Guards</code> static 추출</b> 고려(<code>BoardModelGuards</code> 선례). 도메인별 판단(중복 2곳 미만이면 보류).</td></tr>
+            <tr><td><b>D7</b></td><td>잔류 네이밍 + Integrity 추출</td><td><b>잔류 = <code>*Service</code> 유지(개명 안 함) + <code>*IntegrityService</code> 신규 추출</b>. <u>비채택: <code>*QueryService</code> 개명</u> — (1) 관리 도메인에 선례 부재: <code>QueryService</code> 는 provisioning <code>GuestServerQueryService</code> 의 CQRS read-only(↔<code>GuestServerCommandService</code> write) 쌍에만 존재. (2) 잔류가 <code>update</code>(쓰기)를 보유해 "Query"는 misnomer이며, BIOS 엔 단일 Command 짝이 없다(쓰기가 Lifecycle/Registration 으로 분산). (3) <code>OSMetadataService</code>(잔류 hub, create/update 보유)가 <code>*Service</code> 유지 선례. <code>*IntegrityService</code> 는 <code>IsoIntegrityService</code> 선례대로 findStatus/verify/verifyAndRecord 전담 → 잔류는 read+update 만 남아 더 얇아진다.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>D2 가 본 CP1 의 가장 중요한 결정.</b> adversarial critique 가 "implements LifecycleService + 2-arg 유지 = 컴파일 불가"를 잡았고, Iso 선례(<code>assertBelongsToOs</code> + 1-arg)가 해소책을 확정했다. 이 결정을 R4-3 에서 확정해야 R5-3/R6-3 이 드리프트 없이 복제된다. Subprogram 은 이미 1-arg 라 무관 — 3 도메인을 같은 "implements" 템플릿으로 뭉뚱그리지 않고 BIOS/BMC 만 재성형으로 분리 기술.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 10단계 매핑 · Step 8 통합 테스트</summary>
+      <div class="body">
+        <p style="margin-top:0">통합 계획(본 CP1) 승인 후 <b>도메인별로 CP2~CP5 순차</b> 진행(R4-3 → R5-3 → R6-3). Entity/Repository 무변경이라 도메인별 CP3 는 N/A.</p>
+        <h4>10단계 (도메인 1개 기준)</h4>
+        <ul>
+          <li><b>Step 2~5 (CP2)</b> — *LifecycleService(+assertBelongsToBoard) · *RegistrationService · *IntegrityService · (BMC/Subprogram)*MarkerWriter 신규. *Controller(*LifecycleController/*NudgeController) 호출을 1-arg + assertBelongsToBoard 로 re-point. scanner/cascade/*VerificationLauncher(→*IntegrityService) re-point. 잔류 *Service(read+update) 정리.</li>
+          <li><b>Step 6~7 (CP3)</b> — N/A(엔티티/스키마 무변경).</li>
+          <li><b>Step 8~9 (CP4)</b> — 단위(분리된 각 service happy+실패) + 사용자 액션 통합(아래) + <code>compileJava</code> + <b>bootRun 순환 0</b> + 전체 회귀 green.</li>
+          <li><b>Step 10 (CP5)</b> — 브라우저 E2E(사용자 단독).</li>
+        </ul>
+        <h4>Step 8 통합 시나리오 (도메인별 — 기존 *ControllerFlowTest 회귀 + 신규)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>등록(add/registerExisting/nudge proceed) · toggle/deprecate/restore · purge(typedName 일치) · 무결성 검증 — 각 redirect/JSON 검증</td></tr>
+            <tr><td>입력검증 400</td><td>업로드 누락/형식 위반 → BindingResult 필드 메시지</td></tr>
+            <tr><td>충돌 409</td><td>동일 (board,version) Duplicate · nudge 필요(ContentNudge) · 자식/부모 lifecycle 차단</td></tr>
+            <tr><td>없음 404</td><td>없는 child id · <b>forging(다른 boardId 의 child) → assertBelongsToBoard 가 404</b></td></tr>
+            <tr><td>purge 거절</td><td>typedName 불일치 → TypedNameMismatchException · soft-deleted 아님 → IllegalState</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>회귀 핵심</b> — 1-arg 재성형으로 controller 호출 시그니처가 바뀌므로, 기존 <code>*ControllerLifecycleFlowTest</code> / <code>*ControllerPurgeFlowTest</code> / <code>*ControllerSecurityFlowTest</code>(forging 404 검증 포함) 가 모두 green 이어야 한다. assertBelongsToBoard 의 forging 404 시나리오는 반드시 보존·검증.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 예외 계층 · 부산물 · 주의 · CLAUDE.md</summary>
+      <div class="body">
+        <h4>예외 계층</h4>
+        <p style="margin-top:0"><b>신규 0</b>. 전부 재사용 — <code>TypedNameMismatchException</code>(가드) · <code>Illegal{Bios,Bmc,Subprogram}StateException</code> · <code>{...}NotFoundException</code>(forging) · <code>ChildLifecycleBlockedByParentException</code> · <code>*NudgeRequiredException</code> · Duplicate*. 메서드 이동만, 예외 의미 불변.</p>
+        <h4>부산물 / 주의</h4>
+        <ul>
+          <li><b>controller TypedNameVerifier 유지.</b> *NudgeController 는 id→entity 조회가 필요해 빈 그대로(서비스 분리와 무관).</li>
+          <li><b>전역 @Lazy 유지.</b> SoftDeleteIntentService 의 @Lazy 는 본 분해 경로 미통과 — 건드리지 않음.</li>
+          <li><b>BIOS persistBundle helper 이득 과대평가 금지.</b> writeSignedMarker 가 이미 1줄이라 3~5줄 절감 수준 — 그래도 복붙 자체는 제거(churn 아님).</li>
+          <li><b>Subprogram controller 분리 보류.</b> *LifecycleController 부재(monolithic) — service-side 분리만 본 슬라이스, controller 정렬은 선택적 후속.</li>
+          <li><b>cascade @Order</b>(Bios=10/Bmc=20/Sub=30) — re-point 대상은 @Order 가 아니라 <b>클래스명+호출라인</b>으로 적시(혼동 방지).</li>
+        </ul>
+        <h4>CLAUDE.md 정합</h4>
+        <ul>
+          <li>§중복 금지 — 복붙(nudge/marker/save/purge-guard) 실제 제거. over-abstraction 회피(per-domain).</li>
+          <li>§조건분기 다형성 — lifecycle 을 LifecycleService 다형으로 정렬(BIOS/BMC 1-arg 재성형).</li>
+          <li>§예외 = 프로그램 예외 — forging/purge 거절은 비정상 경로 가드로 유지(UI 1차 차단과 별개 안전망).</li>
+          <li>CLAUDE.md 본문 수정 <b>없음</b>(인벤토리 코드 R4-3/R5-3/R6-3 는 기존 캠페인 항목).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. Verification · Critical Files · 다음</summary>
+      <div class="body">
+        <h4>Verification (도메인별)</h4>
+        <ul class="check-list" data-storage="r463-v">
+          <li><input type="checkbox"><span>compileJava SUCCESS</span></li>
+          <li><input type="checkbox"><span><b>bootRun 순환 0</b>(BeanCurrentlyInCreation 없음) — service→verifier 변 미생성 확인</span></li>
+          <li><input type="checkbox"><span>전체 테스트 green(846 기준 ± 신규 단위)</span></li>
+          <li><input type="checkbox"><span>*LifecycleService 가 <code>implements LifecycleService</code>(1-arg) + assertBelongsToBoard forging 404 보존</span></li>
+          <li><input type="checkbox"><span>BMC/Subprogram marker 4-step inline 중복 0 (*MarkerWriter 위임)</span></li>
+          <li><input type="checkbox"><span>*LifecycleService/*RegistrationService 에 verifier/scanner/ObjectProvider 주입 0</span></li>
+          <li><input type="checkbox"><span>잔류 *Service ≤ ~150줄(read+update) + *IntegrityService 분리(IsoIntegrityService 선례)</span></li>
+        </ul>
+        <h4>Critical Files (도메인별, 신규 N / 수정 M)</h4>
+        <ul>
+          <li class="mono">N: {bios,bmc,subprogram}/service/*LifecycleService · *RegistrationService · *IntegrityService</li>
+          <li class="mono">N: {bmc,subprogram}/service/*MarkerWriter (BIOS 는 기존)</li>
+          <li class="mono">M: *Service(잔류 read+update) · *LifecycleController/*NudgeController(1-arg+assertBelongsToBoard) · *VerificationLauncher(→*IntegrityService) · Board*MarkableScanner · *BoardScopedChildLifecycle(re-point)</li>
+          <li class="mono">유지: global/*(LifecycleService·TypedNameGuard·TrashLifecycleService·ProvisionMarkerService)</li>
+        </ul>
+        <h4>다음 마일스톤</h4>
+        <ol>
+          <li><b>R4-3(BIOS) CP2</b> — 1-arg 재성형 + assertBelongsToBoard 확정(레퍼런스). 승인 후 R5-3 → R6-3.</li>
+          <li><b>(선택) Subprogram *LifecycleController 분리</b> — controller 정렬 후속.</li>
+          <li><b>캠페인 종료</b> — 6 도메인(OS/Iso/Board/BIOS/BMC/Subprogram) 전부 Controller/Service 분리 + lifecycle 다형 정렬 완료.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  const DOM={
+    bios:{label:'BIOS',lines:621,oneArg:false,mw:'기존(BiosMarkerWriter)',
+      keep:['findAllGrouped','findBios','update','toResponse'],
+      integ:['findIntegrityStatus','verifyIntegrity','verifyAndRecordIntegrity'],
+      life:['toggleEnabled','softDelete','softDeleteWithIntent','restore','deprecate','undeprecate','purge','purgeWithTypedNameCheck','assertBelongsToBoard*'],
+      reg:['addBios','registerExisting','persistFromNudge','purgeNudgeTempTree','issueHashNudge*','persistBundle*'],
+      mwNew:false},
+    bmc:{label:'BMC',lines:648,oneArg:false,mw:'신규(BmcMarkerWriter)',
+      keep:['findAllGrouped','findBmc','update','toResponse'],
+      integ:['findIntegrityStatus','verifyIntegrity','verifyAndRecordIntegrity'],
+      life:['toggleEnabled','softDelete','softDeleteWithIntent','restore','deprecate','undeprecate','purge','purgeWithTypedNameCheck','assertBelongsToBoard*'],
+      reg:['addBmc','registerExisting','persistFromNudge','issueHashNudge*','persistBundle*'],
+      mwNew:true},
+    subprogram:{label:'Subprogram',lines:747,oneArg:true,mw:'신규(SubprogramMarkerWriter)',
+      keep:['findAllGrouped','findByScope','findSubprogram','update','toResponse'],
+      integ:['findIntegrityStatus','verifyIntegrity','verifyAndRecordIntegrity'],
+      life:['toggleEnabled','softDelete','softDeleteWithIntent','restore','deprecate','undeprecate','purge','purgeWithTypedNameCheck'],
+      reg:['addSubprogram','registerExisting','persistFromNudge','issueHashNudge*','persistBundle*'],
+      mwNew:true}
+  };
+  const st={dom:'bios',view:'after',strat:'guard'};
+  function sync(){
+    document.querySelectorAll('[data-dom]').forEach(b=>b.classList.toggle('on',b.dataset.dom===st.dom));
+    document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===st.view));
+    document.querySelectorAll('[data-strat]').forEach(b=>b.classList.toggle('on',b.dataset.strat===st.strat));
+  }
+  document.querySelectorAll('[data-dom]').forEach(b=>b.addEventListener('click',()=>{st.dom=b.dataset.dom;sync();render();}));
+  document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{st.view=b.dataset.view;sync();render();}));
+  document.querySelectorAll('[data-strat]').forEach(b=>b.addEventListener('click',()=>{st.strat=b.dataset.strat;sync();render();}));
+
+  function listLines(arr){return arr.map(m=>'      · '+m).join('\n');}
+  function render(){
+    const d=DOM[st.dom], flow=document.getElementById('flow'), vd=document.getElementById('verdict');
+    const armText = d.oneArg
+      ? '<span class="ok">이미 1-arg</span> (sp.getBoardModel() resolve) — 재성형 불요'
+      : '<span class="new">1-arg 재성형</span> + <span class="guard">assertBelongsToBoard(childId, boardId)</span> (controller 가 lifecycle 직전 호출, Iso 선례)';
+    if(st.view==='before'){
+      flow.innerHTML =
+`<span class="svc">${d.label}Service</span>  (fat · ${d.lines}줄)  ── read + lifecycle + registration + marker + integrity 혼재
+${listLines(d.keep.concat(d.integ, d.life.filter(x=>!x.endsWith('*')), d.reg.filter(x=>!x.endsWith('*'))).slice(0,9))}
+      · … (${d.lines}줄 전부 한 클래스)
+   <span class="lazy">▲ 5책임 혼재 — addX 117~140줄 + marker/nudge 복붙</span>`;
+    } else {
+      const mwLine = d.mwNew
+        ? `<span class="new">${d.label}MarkerWriter</span> <span class="cut">(신규)</span> — marker 4-step 추출 (R4-7 ② 필수)`
+        : `<span class="keep">${d.label}MarkerWriter</span> (기존) — 이동 없음`;
+      flow.innerHTML =
+`<span class="new">${d.label}LifecycleService</span>  implements <span class="guard">LifecycleService</span>
+${listLines(d.life)}
+<span class="new">${d.label}RegistrationService</span>  (등록 + 복붙 dedup helper)
+${listLines(d.reg)}
+${mwLine}
+<span class="new">${d.label}IntegrityService</span>  (IsoIntegrityService 선례)
+${listLines(d.integ)}
+<span class="keep">${d.label}Service</span> (잔류 · read+update ≤~150줄)
+${listLines(d.keep)}
+
+   forging 가드: ${armText}`;
+    }
+    if(st.strat==='verifier'){
+      vd.className='ux-verdict bad';
+      vd.innerHTML = `<b>✗ verifier 빈 주입 (금지)</b> · ${d.label}LifecycleService 가 TypedNameVerifier 를 주입하면 <span class="mono">${d.label}LifecycleService → TypedNameVerifier → ${d.label}MarkableScanner → (lazy) → ${d.label}LifecycleService</span> 순환 재형성 → <b style="color:#bf2626">BeanCurrentlyInCreation / bootRun 실패</b>. R7 이 막 제거한 변을 되살림. → scanner 가 ObjectProvider 를 다시 끼워야 하는 악순환.`;
+    } else {
+      vd.className='ux-verdict good';
+      vd.innerHTML = `<b>✓ static 가드 유지 (채택)</b> · typed-name 은 <span class="guard">TypedNameGuard.verify(${st.dom}, typedName)</span>(의존성 0). *LifecycleService/*RegistrationService 는 repo·trash·markerWriter 등 <b>단방향 leaf</b> 빈만 주입 → verifier 변 미생성 → <b style="color:#1a7f37">순환 0, bootRun 성공 예측</b>. scanner→lifecycle 직접 주입(R7-3 형태).`;
+    }
+  }
+  sync();render();
+</script>
+</body>
+</html>
