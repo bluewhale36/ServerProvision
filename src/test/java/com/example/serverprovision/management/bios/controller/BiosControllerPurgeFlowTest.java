@@ -41,6 +41,9 @@ class BiosControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BiosService biosService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosLifecycleService biosLifecycleService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosRegistrationService biosRegistrationService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosIntegrityService biosIntegrityService;
     @MockitoBean BiosUploadIntentService biosUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosNudgeService biosNudgeService;
     @MockitoBean BoardModelMetadataService boardModelService;
@@ -52,8 +55,8 @@ class BiosControllerPurgeFlowTest {
     @Test
     @DisplayName("BIOS purge — typedName 일치 → 302 redirect")
     void purge_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(biosService)
-                .purgeWithTypedNameCheck(eq(2L), eq(5L), eq("R23_MS73-HB1_Uni"));
+        willDoNothing().given(biosLifecycleService)
+                .purgeWithTypedNameCheck(eq(5L), eq("R23_MS73-HB1_Uni"));
 
         mvc.perform(post("/management/bios/2/bios/5/purge")
                         .param("typedName", "R23_MS73-HB1_Uni"))
@@ -66,11 +69,22 @@ class BiosControllerPurgeFlowTest {
     @DisplayName("BIOS purge — typedName 불일치 → 400")
     void purge_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("R23_MS73-HB1_Uni", "wrong"))
-                .given(biosService)
-                .purgeWithTypedNameCheck(eq(2L), eq(5L), eq("wrong"));
+                .given(biosLifecycleService)
+                .purgeWithTypedNameCheck(eq(5L), eq("wrong"));
 
         mvc.perform(post("/management/bios/2/bios/5/purge").param("typedName", "wrong"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("BIOS purge — URL forging (다른 board) → 404 via assertBelongsToBoard")
+    void purge_forgedBoardId_returns404() throws Exception {
+        // R4-3 — controller 가 purge 직전 assertBelongsToBoard 로 forging 차단.
+        willThrow(new com.example.serverprovision.management.bios.exception.BiosNotFoundException(99L, 5L))
+                .given(biosLifecycleService).assertBelongsToBoard(eq(5L), eq(99L));
+
+        mvc.perform(post("/management/bios/99/bios/5/purge").param("typedName", "anything"))
+                .andExpect(status().isNotFound());
     }
 
     // S5-4 — '삭제된 항목 포함' 체크박스의 마커 검증 + inline onchange 부재 회귀.

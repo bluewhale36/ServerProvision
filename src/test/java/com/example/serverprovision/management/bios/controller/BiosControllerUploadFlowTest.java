@@ -67,6 +67,9 @@ class BiosControllerUploadFlowTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean BiosService biosService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosLifecycleService biosLifecycleService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosRegistrationService biosRegistrationService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosIntegrityService biosIntegrityService;
     @MockitoBean BiosUploadIntentService biosUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosNudgeService biosNudgeService;
     @MockitoBean BoardModelMetadataService boardModelService;
@@ -188,7 +191,7 @@ class BiosControllerUploadFlowTest {
             given(biosUploadIntentService.consume(eq(1L), eq("token-abc")))
                     .willReturn(new BiosUploadIntentService.Intent(
                             1L, "/mnt/x", BiosUploadMode.FOLDER, 2, 1024L, "2.03", "", Instant.now()));
-            given(biosService.addBios(eq(1L), any(), eq(BiosUploadMode.FOLDER), any(), any(), any()))
+            given(biosRegistrationService.addBios(eq(1L), any(), eq(BiosUploadMode.FOLDER), any(), any(), any()))
                     .willReturn(42L);
 
             mvc.perform(multipart("/management/bios/1/upload")
@@ -212,7 +215,7 @@ class BiosControllerUploadFlowTest {
             given(biosUploadIntentService.consume(eq(1L), anyString()))
                     .willReturn(new BiosUploadIntentService.Intent(
                             1L, "/mnt/y", BiosUploadMode.ZIP, 1, 2000L, "2.04", "", Instant.now()));
-            given(biosService.addBios(eq(1L), any(), eq(BiosUploadMode.ZIP), any(), any(), any()))
+            given(biosRegistrationService.addBios(eq(1L), any(), eq(BiosUploadMode.ZIP), any(), any(), any()))
                     .willReturn(43L);
 
             mvc.perform(multipart("/management/bios/1/upload")
@@ -252,7 +255,7 @@ class BiosControllerUploadFlowTest {
                     .willReturn(new BiosUploadIntentService.Intent(
                             1L, "/mnt/x", BiosUploadMode.FOLDER, 2, 10L, "1.0", "", Instant.now()));
             willThrow(new EntrypointNotFoundException("번들에 .nsh 없음"))
-                    .given(biosService).addBios(eq(1L), any(), any(), any(), any(), any());
+                    .given(biosRegistrationService).addBios(eq(1L), any(), any(), any(), any(), any());
 
             mvc.perform(multipart("/management/bios/1/upload")
                             .file(new MockMultipartFile("folderFiles", "Pkg/a.bin", null, "x".getBytes()))
@@ -273,7 +276,7 @@ class BiosControllerUploadFlowTest {
                     .willReturn(new BiosUploadIntentService.Intent(
                             1L, "/mnt/x", BiosUploadMode.FOLDER, 2, 10L, "1.0", "", Instant.now()));
             willThrow(new EntrypointAmbiguousException(List.of("a.nsh", "b.nsh")))
-                    .given(biosService).addBios(eq(1L), any(), any(), any(), any(), any());
+                    .given(biosRegistrationService).addBios(eq(1L), any(), any(), any(), any(), any());
 
             mvc.perform(multipart("/management/bios/1/upload")
                             .file(new MockMultipartFile("folderFiles", "Pkg/a.nsh", null, "x".getBytes()))
@@ -294,7 +297,7 @@ class BiosControllerUploadFlowTest {
                     .willReturn(new BiosUploadIntentService.Intent(
                             1L, "/mnt/x", BiosUploadMode.FOLDER, 0, 0L, "1.0", "", Instant.now()));
             willThrow(new EmptyBundleException())
-                    .given(biosService).addBios(eq(1L), any(), any(), any(), any(), any());
+                    .given(biosRegistrationService).addBios(eq(1L), any(), any(), any(), any(), any());
 
             mvc.perform(multipart("/management/bios/1/upload")
                             .param("uploadMode", "FOLDER")
@@ -314,7 +317,7 @@ class BiosControllerUploadFlowTest {
                     .willReturn(new BiosUploadIntentService.Intent(
                             1L, "/mnt/x", BiosUploadMode.ZIP, 1, 100L, "1.0", "", Instant.now()));
             willThrow(new BundleExtractionException("디스크 가득"))
-                    .given(biosService).addBios(eq(1L), any(), any(), any(), any(), any());
+                    .given(biosRegistrationService).addBios(eq(1L), any(), any(), any(), any(), any());
 
             mvc.perform(multipart("/management/bios/1/upload")
                             .file(new MockMultipartFile("zipFile", "p.zip", null, "x".getBytes()))
@@ -347,7 +350,7 @@ class BiosControllerUploadFlowTest {
         @Test
         @DisplayName("15. integrity-status — 200 + status/badgeClass")
         void integrityStatus_returnsBody() throws Exception {
-            given(biosService.findIntegrityStatus(1L, 5L))
+            given(biosIntegrityService.findIntegrityStatus(1L, 5L))
                     .willReturn(IntegrityStatusResponse.of(5L, IntegrityStatus.ORIGINAL, null));
 
             mvc.perform(get("/management/bios/1/bios/5/integrity-status"))
@@ -361,19 +364,31 @@ class BiosControllerUploadFlowTest {
         @DisplayName("16. toggle — 삭제된 BIOS → 409 IllegalBiosState (HTML 에러 뷰)")
         void toggle_onDeleted() throws Exception {
             willThrow(new IllegalBiosStateException("삭제된 BIOS"))
-                    .given(biosService).toggleEnabled(anyLong(), anyLong());
+                    .given(biosLifecycleService).toggleEnabled(anyLong());
 
             mvc.perform(post("/management/bios/1/bios/5/toggle"))
                     .andExpect(status().isConflict());
         }
 
         @Test
-        @DisplayName("17. delete — 없는 BIOS → 404 BiosNotFound")
+        @DisplayName("17. delete — 없는 BIOS → 404 BiosNotFound (assertBelongsToBoard 가 차단)")
         void delete_notFound() throws Exception {
+            // R4-3 — controller 가 lifecycle 호출 직전 assertBelongsToBoard 로 entity 부재/부모 mismatch 차단.
             willThrow(new BiosNotFoundException(1L, 999L))
-                    .given(biosService).softDelete(anyLong(), anyLong());
+                    .given(biosLifecycleService).assertBelongsToBoard(eq(999L), eq(1L));
 
             mvc.perform(post("/management/bios/1/bios/999/delete"))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("17b. toggle — URL forging (다른 board 의 BIOS) → 404 via assertBelongsToBoard")
+        void toggle_forgedBoardId_returns404() throws Exception {
+            // 사용자가 boardId=99 로 URL 을 forging 했지만 biosId=5 의 실제 부모는 다른 board.
+            willThrow(new BiosNotFoundException(99L, 5L))
+                    .given(biosLifecycleService).assertBelongsToBoard(eq(5L), eq(99L));
+
+            mvc.perform(post("/management/bios/99/bios/5/toggle"))
                     .andExpect(status().isNotFound());
         }
     }

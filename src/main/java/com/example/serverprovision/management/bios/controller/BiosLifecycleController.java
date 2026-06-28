@@ -3,7 +3,7 @@ package com.example.serverprovision.management.bios.controller;
 import com.example.serverprovision.global.lifecycle.DeleteIntentRegistry;
 import com.example.serverprovision.global.lifecycle.DeleteIntentToken;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.management.bios.service.BiosService;
+import com.example.serverprovision.management.bios.service.BiosLifecycleService;
 import com.example.serverprovision.management.common.dto.request.DeleteIntentRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class BiosLifecycleController {
 
-	private final BiosService biosService;
+	private final BiosLifecycleService biosLifecycleService;
 	private final DeleteIntentRegistry deleteIntentRegistry;
 
 	// ==== 상태 전이 =====================================================
@@ -34,7 +34,8 @@ public class BiosLifecycleController {
 			@PathVariable("boardId") Long boardId,
 			@PathVariable("biosId") Long biosId
 	) {
-		biosService.toggleEnabled(boardId, biosId);
+		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
+		biosLifecycleService.toggleEnabled(biosId);
 		return BiosControllerSupport.redirectToListWithSelect(biosId);
 	}
 
@@ -43,7 +44,8 @@ public class BiosLifecycleController {
 			@PathVariable("boardId") Long boardId,
 			@PathVariable("biosId") Long biosId
 	) {
-		biosService.softDelete(boardId, biosId);
+		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
+		biosLifecycleService.softDelete(biosId);
 		return "redirect:/management/bios?selectBoardId=" + boardId;
 	}
 
@@ -58,9 +60,10 @@ public class BiosLifecycleController {
 			@PathVariable("token") String token,
 			@Valid @RequestBody DeleteIntentRequest request
 	) {
+		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
 		DeleteIntentToken parsed = DeleteIntentToken.parse(token);
 		deleteIntentRegistry.consume(parsed, ResourceType.BIOS_BUNDLE, biosId);
-		biosService.softDeleteWithIntent(boardId, biosId, request.action());
+		biosLifecycleService.softDeleteWithIntent(biosId, request.action());
 		return ResponseEntity.noContent().build();
 	}
 
@@ -69,7 +72,8 @@ public class BiosLifecycleController {
 			@PathVariable("boardId") Long boardId,
 			@PathVariable("biosId") Long biosId
 	) {
-		biosService.restore(boardId, biosId);
+		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
+		biosLifecycleService.restore(biosId);
 		return BiosControllerSupport.redirectToListWithSelect(biosId);
 	}
 
@@ -84,7 +88,8 @@ public class BiosLifecycleController {
 			@PathVariable("boardId") Long boardId,
 			@PathVariable("biosId") Long biosId
 	) {
-		biosService.deprecate(boardId, biosId);
+		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
+		biosLifecycleService.deprecate(biosId);
 		return BiosControllerSupport.redirectToListWithSelect(biosId);
 	}
 
@@ -96,7 +101,8 @@ public class BiosLifecycleController {
 			@PathVariable("boardId") Long boardId,
 			@PathVariable("biosId") Long biosId
 	) {
-		biosService.undeprecate(boardId, biosId);
+		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
+		biosLifecycleService.undeprecate(biosId);
 		return BiosControllerSupport.redirectToListWithSelect(biosId);
 	}
 
@@ -109,7 +115,8 @@ public class BiosLifecycleController {
 			@PathVariable("biosId") Long biosId,
 			@RequestParam("typedName") String typedName
 	) {
-		biosService.purgeWithTypedNameCheck(boardId, biosId, typedName);
+		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
+		biosLifecycleService.purgeWithTypedNameCheck(biosId, typedName);
 		return "redirect:/management/bios?selectBoardId=" + boardId + "&includeDeleted=true";
 	}
 }

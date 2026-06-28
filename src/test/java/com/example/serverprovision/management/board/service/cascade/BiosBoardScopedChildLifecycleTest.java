@@ -2,7 +2,7 @@ package com.example.serverprovision.management.board.service.cascade;
 
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
-import com.example.serverprovision.management.bios.service.BiosService;
+import com.example.serverprovision.management.bios.service.BiosLifecycleService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,8 +27,8 @@ import static org.mockito.Mockito.verify;
  * 5 SPI 메서드(recomputeEffective / softDeleteActive / restoreDeleted / hasAny / deletedLabels)별로 자식
  * repo·service 위임을 검증한다. {@code @Lazy} 생성자 주입이라 {@code @InjectMocks} 대신 mock 을 직접 넘겨 조립.</p>
  *
- * <p>BIOS 의 service 시그니처는 {@code softDelete(boardId, childId)} / {@code restore(boardId, childId)} 2-arg —
- * Subprogram 의 1-arg 와 비대칭. 라벨 포맷은 고정 접두 {@code "BIOS: "}.</p>
+ * <p>R4-3 — BIOS lifecycle 1-arg 재성형 후 어댑터가 {@code BiosLifecycleService.softDelete(childId)} /
+ * {@code restore(childId)} 를 1-arg 로 위임한다. 라벨 포맷은 고정 접두 {@code "BIOS: "}.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class BiosBoardScopedChildLifecycleTest {
@@ -36,13 +36,13 @@ class BiosBoardScopedChildLifecycleTest {
     private static final Long BOARD_ID = 7L;
 
     @Mock BiosRepository biosRepository;
-    @Mock BiosService biosService;
+    @Mock BiosLifecycleService biosLifecycleService;
 
     BiosBoardScopedChildLifecycle adapter;
 
     @BeforeEach
     void initAdapter() {
-        adapter = new BiosBoardScopedChildLifecycle(biosRepository, biosService);
+        adapter = new BiosBoardScopedChildLifecycle(biosRepository, biosLifecycleService);
     }
 
     // ==== helper =====================================================
@@ -108,19 +108,19 @@ class BiosBoardScopedChildLifecycleTest {
         assertThat(deleted.isEnabled()).isTrue();    // soft-deleted → recompute 제외 (초기값 유지)
     }
 
-    // ==== softDeleteActive — 활성 자식 → service.softDelete(boardId, childId) [2-arg] ====
+    // ==== softDeleteActive — 활성 자식 → lifecycleService.softDelete(childId) [1-arg] ====
 
     @Test
-    @DisplayName("softDeleteActive : 활성 자식 각각 service.softDelete(boardId, biosId) 2-arg 위임")
-    void softDeleteActive_delegatesTwoArg() {
+    @DisplayName("softDeleteActive : 활성 자식 각각 lifecycleService.softDelete(biosId) 1-arg 위임")
+    void softDeleteActive_delegatesOneArg() {
         BoardModel p = parent(true, false);
         given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(BOARD_ID))
                 .willReturn(List.of(bios(101L, p, false), bios(102L, p, false)));
 
         adapter.softDeleteActive(BOARD_ID);
 
-        verify(biosService).softDelete(BOARD_ID, 101L);
-        verify(biosService).softDelete(BOARD_ID, 102L);
+        verify(biosLifecycleService).softDelete(101L);
+        verify(biosLifecycleService).softDelete(102L);
     }
 
     @Test
@@ -131,13 +131,13 @@ class BiosBoardScopedChildLifecycleTest {
 
         adapter.softDeleteActive(BOARD_ID);
 
-        verify(biosService, never()).softDelete(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        verify(biosLifecycleService, never()).softDelete(org.mockito.ArgumentMatchers.anyLong());
     }
 
     // ==== restoreDeleted — soft-deleted 자식 → service.restore + count ====
 
     @Test
-    @DisplayName("restoreDeleted : soft-deleted 자식 각각 service.restore(boardId, biosId) 위임 + 복구 수 반환")
+    @DisplayName("restoreDeleted : soft-deleted 자식 각각 lifecycleService.restore(biosId) 위임 + 복구 수 반환")
     void restoreDeleted_delegatesAndCounts() {
         BoardModel p = parent(true, false);
         given(biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(BOARD_ID))
@@ -146,8 +146,8 @@ class BiosBoardScopedChildLifecycleTest {
         int restored = adapter.restoreDeleted(BOARD_ID);
 
         assertThat(restored).isEqualTo(2);
-        verify(biosService).restore(BOARD_ID, 101L);
-        verify(biosService).restore(BOARD_ID, 102L);
+        verify(biosLifecycleService).restore(101L);
+        verify(biosLifecycleService).restore(102L);
     }
 
     @Test
@@ -156,7 +156,7 @@ class BiosBoardScopedChildLifecycleTest {
         given(biosRepository.findAllByBoardModel_IdAndIsDeletedTrue(BOARD_ID)).willReturn(List.of());
 
         assertThat(adapter.restoreDeleted(BOARD_ID)).isZero();
-        verify(biosService, never()).restore(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        verify(biosLifecycleService, never()).restore(org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -171,8 +171,8 @@ class BiosBoardScopedChildLifecycleTest {
         int restored = adapter.restoreDeleted(BOARD_ID);
 
         assertThat(restored).isEqualTo(1);
-        verify(biosService).restore(BOARD_ID, 101L);                       // 정상만 복구
-        verify(biosService, never()).restore(BOARD_ID, 102L);              // ghost 미복구
+        verify(biosLifecycleService).restore(101L);                        // 정상만 복구
+        verify(biosLifecycleService, never()).restore(102L);               // ghost 미복구
     }
 
     // ==== hasAny — 자식 존재 여부 ====

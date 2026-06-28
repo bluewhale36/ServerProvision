@@ -1,7 +1,7 @@
 package com.example.serverprovision.management.bios.controller;
 
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
-import com.example.serverprovision.management.bios.service.BiosService;
+import com.example.serverprovision.management.bios.service.BiosIntegrityService;
 import com.example.serverprovision.management.bios.service.BiosVerificationLauncher;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class BiosIntegrityController {
 
 	private final BiosVerificationLauncher biosVerificationLauncher;
-	private final BiosService biosService;
+	private final BiosIntegrityService biosIntegrityService;
 
 	/**
 	 * 현재 트리의 무결성 재검증을 BackgroundJob 으로 비동기 실행. 호출 측은 jobId 만 받고,
@@ -49,7 +49,7 @@ public class BiosIntegrityController {
 			@PathVariable("boardId") Long boardId,
 			@PathVariable("biosId") Long biosId
 	) {
-		return biosService.findIntegrityStatus(boardId, biosId);
+		return biosIntegrityService.findIntegrityStatus(boardId, biosId);
 	}
 
 	// 단건 marker 재발급 endpoint 는 위험도가 높아 제거됨. 일괄 재발급은

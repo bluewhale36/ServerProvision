@@ -1,65 +1,40 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
+import com.example.serverprovision.global.marker.IntegrityStatus;
+import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
-import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
-import com.example.serverprovision.management.bios.exception.IllegalBiosStateException;
-import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
-import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
-import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
-import com.example.serverprovision.management.bios.service.BundleManifestService.ManifestSummary;
-import com.example.serverprovision.global.marker.IntegrityStatus;
-import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
-import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockMultipartFile;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
+/**
+ * R4-3 — 5분할 후 잔류 {@code BiosService}(read + update 코어) 단위 테스트.
+ *
+ * <p>lifecycle / 등록 / 무결성 시나리오는 각각 {@code BiosLifecycleServiceTest} / {@code BiosRegistrationServiceTest}
+ * / {@code BiosIntegrityServiceTest} 로 이동했다. 본 file 은 조회(findBios / findAllGrouped) + 메타 수정(update) 만 검증.</p>
+ */
 @ExtendWith(MockitoExtension.class)
 class BiosServiceTest {
 
     @Mock BiosRepository biosRepository;
     @Mock BoardModelRepository boardModelRepository;
-    @Mock BundleExtractionService bundleExtractionService;
-    @Mock BundleEntrypointDetector bundleEntrypointDetector;
-    @Mock BundleManifestService bundleManifestService;
-    @Mock ProvisionMarkerService provisionMarkerService;
-    @Mock BiosMarkerWriter biosMarkerWriter;
-    @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
-    @Mock BundleTreeCleanupService bundleTreeCleanupService;
-    @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
     @InjectMocks BiosService biosService;
-
-    @org.junit.jupiter.api.BeforeEach
-    void stubSecurity() {
-        org.mockito.Mockito.lenient().when(pathPolicyService.assertWritablePath(org.mockito.ArgumentMatchers.anyString()))
-                .thenAnswer(inv -> java.nio.file.Path.of(inv.getArgument(0, String.class)).toAbsolutePath().normalize());
-    }
 
     private BoardModel activeBoard() {
         return BoardModel.builder()
@@ -67,114 +42,17 @@ class BiosServiceTest {
                 .isEnabled(true).isDeleted(false).build();
     }
 
-    @Test
-    @DisplayName("addBios(happy) : SINGLE_FILE 모드 - 전개 + manifest + 2-phase save + marker 기록 호출")
-    void addBios_happy_singleFile(@TempDir Path tmp) {
-        Path target = tmp.resolve("target");
-        // board 활성
-        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        // 중복 없음
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        // MK2 — 자동 purge 인라인 제거로 findFirstByBoardModel_IdAndVersionAndIsDeletedTrue stub 불필요.
-        // entrypoint 탐지 + manifest
-        given(bundleEntrypointDetector.detect(any(), any(), any())).willReturn("X99E-WS.CAP");
-        given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 100L));
-        // R4-2 — marker 4-step 은 BiosMarkerWriter 로 위임됐다. 여기선 그 협력만 검증하고
-        // 서명 대상 바이트·기록 순서는 BiosMarkerWriterTest 가 단독으로 커버한다.
-        // save 후 id 부여
-        given(biosRepository.save(any(BoardBIOS.class))).willAnswer(inv -> {
-            BoardBIOS arg = inv.getArgument(0);
-            return BoardBIOS.builder()
-                    .id(77L).boardModel(arg.getBoardModel()).name(arg.getName()).version(arg.getVersion())
-                    .treeRootPath(arg.getTreeRootPath()).entrypointRelativePath(arg.getEntrypointRelativePath())
-                    .manifestHash(arg.getManifestHash()).markerSignature(arg.getMarkerSignature())
-                    .fileCount(arg.getFileCount()).totalBytes(arg.getTotalBytes())
-                    .description(arg.getDescription()).isEnabled(true).isDeleted(false).build();
-        });
-
-        Long id = biosService.addBios(10L,
-                new BiosCreateRequest("Test", "1.0", target.toString(), null, true, ""),
-                BiosUploadMode.SINGLE_FILE,
-                null, null,
-                new MockMultipartFile("singleFile", "X99E-WS.CAP", "application/octet-stream", "cap".getBytes()));
-
-        assertThat(id).isEqualTo(77L);
-        verify(bundleExtractionService).extractSingleFile(any(), any());
-        verify(biosRepository).save(any(BoardBIOS.class));
-        // R4-2 — marker 기록은 BiosMarkerWriter 위임으로 전환. saved 엔티티 + targetDir + manifestHash 가 그대로 넘어가는지 검증.
-        verify(biosMarkerWriter).writeSignedMarker(any(BoardBIOS.class), eq(target), eq(10L), eq("1.0"), eq("X99E-WS.CAP"), eq("abc123"));
+    private BoardBIOS buildActiveBios() {
+        return BoardBIOS.builder()
+                .id(1L).boardModel(activeBoard())
+                .name("x").version("1.0")
+                .treeRootPath("/tmp/x").entrypointRelativePath("f.nsh")
+                .manifestHash("h").markerSignature("s")
+                .fileCount(2).totalBytes(100L)
+                .isEnabled(true).isDeleted(false).build();
     }
 
-    @Test
-    @DisplayName("addBios(fail) : 활성 (board, version) 중복 → DuplicateBiosVersionException")
-    void addBios_duplicateActive_throws(@TempDir Path tmp) {
-        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(true);
-
-        assertThatThrownBy(() -> biosService.addBios(10L,
-                new BiosCreateRequest("x", "1.0", tmp.resolve("t").toString(), null, true, ""),
-                BiosUploadMode.FOLDER, new org.springframework.web.multipart.MultipartFile[0], null, null))
-                .isInstanceOf(DuplicateBiosVersionException.class);
-        verify(biosRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("addBios(fail) : targetDirectory 에 다른 marker 존재 → MarkerConflictException")
-    void addBios_markerConflict_throws(@TempDir Path tmp) {
-        Path target = tmp.resolve("t");
-        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        // MK2 — 자동 purge 인라인 제거로 findFirstByBoardModel_IdAndVersionAndIsDeletedTrue stub 불필요.
-        org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
-                .given(targetDirectoryPolicyService).prepareForUpload(target, true);
-
-        assertThatThrownBy(() -> biosService.addBios(10L,
-                new BiosCreateRequest("x", "1.0", target.toString(), null, true, ""),
-                BiosUploadMode.SINGLE_FILE, null, null,
-                new MockMultipartFile("singleFile", "a.cap", null, "x".getBytes())))
-                .isInstanceOf(MarkerConflictException.class);
-    }
-
-    @Test
-    @DisplayName("addBios(fail) : targetDirectory 비어있지 않고 marker 없음 → TargetDirectoryNotEmpty")
-    void addBios_targetNotEmpty_throws(@TempDir Path tmp) {
-        Path target = tmp.resolve("t");
-        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
-        // MK2 — 자동 purge 인라인 제거로 findFirstByBoardModel_IdAndVersionAndIsDeletedTrue stub 불필요.
-        org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
-                .given(targetDirectoryPolicyService).prepareForUpload(target, true);
-
-        assertThatThrownBy(() -> biosService.addBios(10L,
-                new BiosCreateRequest("x", "1.0", target.toString(), null, true, ""),
-                BiosUploadMode.SINGLE_FILE, null, null,
-                new MockMultipartFile("singleFile", "a.cap", null, "x".getBytes())))
-                .isInstanceOf(TargetDirectoryNotEmptyException.class);
-    }
-
-    @Test
-    @DisplayName("toggleEnabled(happy) : 활성 BIOS 는 토글")
-    void toggleEnabled_happy() {
-        BoardBIOS bios = buildActiveBios();
-        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(bios));
-
-        biosService.toggleEnabled(10L, 1L);
-
-        assertThat(bios.isEnabled()).isFalse();
-    }
-
-    @Test
-    @DisplayName("toggleEnabled(fail) : 삭제된 BIOS 에는 IllegalBiosStateException")
-    void toggleEnabled_deleted_throws() {
-        BoardBIOS bios = buildActiveBios();
-        bios.softDelete();
-        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(bios));
-
-        assertThatThrownBy(() -> biosService.toggleEnabled(10L, 1L))
-                .isInstanceOf(IllegalBiosStateException.class);
-    }
+    // ==== 조회 ========================================================
 
     @Test
     @DisplayName("findBios(fail) : 없는 BIOS → BiosNotFoundException")
@@ -217,68 +95,30 @@ class BiosServiceTest {
         assertThat(groups.get(0).biosList().get(0).integrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
     }
 
+    // ==== 메타 수정 ===================================================
+
     @Test
-    @DisplayName("verifyAndRecordIntegrity : 계산 결과를 엔티티 스냅샷에 기록한다")
-    void verifyAndRecordIntegrity_recordsSnapshot(@TempDir Path tmp) throws Exception {
-        Path tree = tmp.resolve("bios");
-        Files.createDirectories(tree);
-        Files.writeString(tree.resolve("flash.nsh"), "echo");
-
-        BoardBIOS bios = BoardBIOS.builder()
-                .id(1L).boardModel(activeBoard())
-                .name("x").version("1.0")
-                .treeRootPath(tree.toString()).entrypointRelativePath("flash.nsh")
-                .manifestHash("old").markerSignature("sig")
-                .fileCount(1).totalBytes(4L)
-                .isEnabled(true).isDeleted(false).build();
-        var marker = new com.example.serverprovision.global.marker.MarkerContent(
-                com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE.name(),
-                1L, java.util.Map.of(), Instant.now(), "old", "sig");
-
+    @DisplayName("update(happy) : 메타 갱신 (버전 동일 → 중복 검사 생략)")
+    void update_happy() {
+        BoardBIOS bios = buildActiveBios();
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(bios));
-        given(provisionMarkerService.read(tree, com.example.serverprovision.global.marker.MarkerLayout.IN_TREE))
-                .willReturn(marker);
-        given(provisionMarkerService.verifySignature(marker)).willReturn(true);
-        given(bundleManifestService.compute(tree)).willReturn(new ManifestSummary("new-hash", 1, 4L));
-        given(provisionMarkerService.verifyManifestHash(marker, "new-hash")).willReturn(false);
 
-        IntegrityStatus status = biosService.verifyAndRecordIntegrity(10L, 1L);
+        biosService.update(10L, 1L, new BiosUpdateRequest("new-name", "1.0", "desc"));
 
-        assertThat(status).isEqualTo(IntegrityStatus.TAMPERED);
-        assertThat(bios.getLastIntegrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
-        assertThat(bios.getLastVerifiedAt()).isNotNull();
+        assertThat(bios.getName()).isEqualTo("new-name");
+        assertThat(bios.getDescription()).isEqualTo("desc");
     }
 
     @Test
-    @DisplayName("purge(Fix B) : 부모 board 가 soft-deleted 여도 soft-deleted BIOS 영구 삭제 성공 (ghost catch-22 차단)")
-    void purge_softDeletedBios_underSoftDeletedBoard_succeeds() {
-        // Fix B — requireExistingBios 가 requireActiveBoard 를 호출하지 않으므로
-        // boardModelRepository.findByIdAndIsDeletedFalse stub 없이도(=빈 Optional 이어도) 진행해야 한다.
-        BoardBIOS softDeleted = BoardBIOS.builder()
-                .id(1L).boardModel(activeBoard())
-                .name("x").version("1.0")
-                .treeRootPath("/trash/bios/1").entrypointRelativePath("f.nsh")
-                .manifestHash("h").markerSignature("s")
-                .fileCount(2).totalBytes(100L)
-                .isEnabled(true).isDeleted(true).build();
-        given(biosRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(softDeleted));
+    @DisplayName("update(fail) : 버전 변경 시 (board, version) 중복 → DuplicateBiosVersionException")
+    void update_duplicateVersion_throws() {
+        BoardBIOS bios = buildActiveBios();
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(biosRepository.findByIdAndBoardModel_Id(1L, 10L)).willReturn(Optional.of(bios));
+        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.0")).willReturn(true);
 
-        biosService.purge(10L, 1L);
-
-        // 활성 board 검증 없이 진행 → BoardModelNotFoundException 미발생, 트리 정리 + DB row 삭제 호출.
-        verify(bundleTreeCleanupService).purgeExistingTree(Path.of("/trash/bios/1"), "purgeBios");
-        verify(biosRepository).delete(softDeleted);
-        verify(boardModelRepository, never()).findByIdAndIsDeletedFalse(any());
-    }
-
-    private BoardBIOS buildActiveBios() {
-        return BoardBIOS.builder()
-                .id(1L).boardModel(activeBoard())
-                .name("x").version("1.0")
-                .treeRootPath("/tmp/x").entrypointRelativePath("f.nsh")
-                .manifestHash("h").markerSignature("s")
-                .fileCount(2).totalBytes(100L)
-                .isEnabled(true).isDeleted(false).build();
+        assertThatThrownBy(() -> biosService.update(10L, 1L, new BiosUpdateRequest("x", "2.0", "")))
+                .isInstanceOf(DuplicateBiosVersionException.class);
     }
 }

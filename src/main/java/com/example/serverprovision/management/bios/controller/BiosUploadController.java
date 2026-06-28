@@ -6,7 +6,7 @@ import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentR
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadResponse;
 import com.example.serverprovision.management.bios.enums.BiosUploadMode;
-import com.example.serverprovision.management.bios.service.BiosService;
+import com.example.serverprovision.management.bios.service.BiosRegistrationService;
 import com.example.serverprovision.management.bios.service.BiosUploadIntentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class BiosUploadController {
 
 	private final BiosUploadIntentService biosUploadIntentService;
-	private final BiosService biosService;
+	private final BiosRegistrationService biosRegistrationService;
 
 	/**
 	 * 업로드 Intent 핸드셰이크 — 번들 바이트 전송 이전 하드 검증 + 토큰 발급.
@@ -72,7 +72,7 @@ public class BiosUploadController {
 			return BiosControllerSupport.badRequestFromBinding(bindingResult);
 		}
 		biosUploadIntentService.consume(boardId, uploadToken);
-		Long id = biosService.addBios(boardId, request, uploadMode, folderFiles, zipFile, singleFile);
+		Long id = biosRegistrationService.addBios(boardId, request, uploadMode, folderFiles, zipFile, singleFile);
 		String redirect = "/management/bios?selectId=" + id;
 		return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
 	}
@@ -91,7 +91,7 @@ public class BiosUploadController {
 		if (bindingResult.hasErrors()) {
 			return BiosControllerSupport.badRequestFromBinding(bindingResult);
 		}
-		Long id = biosService.registerExisting(boardId, request);
+		Long id = biosRegistrationService.registerExisting(boardId, request);
 		String redirect = "/management/bios?selectId=" + id;
 		return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
 	}

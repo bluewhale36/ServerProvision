@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 
 /**
- * BIOS 트리 무결성 검증 Job 시작자. {@link BiosService#verifyIntegrity(Long, Long)} 동기 호출을
+ * BIOS 트리 무결성 검증 Job 시작자. {@link BiosIntegrityService#verifyAndRecordIntegrity(Long, Long)} 동기 호출을
  * BackgroundJob 으로 감싼다. 트리 manifest 재계산은 파일 수에 비례해 시간이 늘어나므로 비동기화 효과가 크다.
  *
  * <p>구조는 {@link com.example.serverprovision.management.os.service.iso.IsoVerificationLauncher} 와 대칭.
@@ -28,7 +28,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BiosVerificationLauncher {
 
-	private final BiosService biosService;
+	private final BiosIntegrityService biosIntegrityService;
 	private final BiosRepository biosRepository;
 	private final BackgroundJobService backgroundJobService;
 	private final IntegrityJobReporter integrityJobReporter;
@@ -55,7 +55,7 @@ public class BiosVerificationLauncher {
 	public void runAsync(String jobId, Long boardId, Long biosId) {
 		try {
 			backgroundJobService.startStage(jobId, IntegrityVerificationStage.VERIFY_SIGNATURE);
-			IntegrityStatus status = biosService.verifyAndRecordIntegrity(boardId, biosId);
+			IntegrityStatus status = biosIntegrityService.verifyAndRecordIntegrity(boardId, biosId);
 			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] BIOS 검증 실패. biosId={}", biosId, e);

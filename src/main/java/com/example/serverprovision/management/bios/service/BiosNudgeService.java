@@ -33,7 +33,8 @@ import java.util.UUID;
 public class BiosNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
-	private final BiosService biosService;
+	private final BiosRegistrationService biosRegistrationService;
+	private final BiosLifecycleService biosLifecycleService;
 	private final BiosUploadIntentService biosUploadIntentService;
 
 	// ============================================================
@@ -46,7 +47,7 @@ public class BiosNudgeService {
 	public Long proceed(UUID nudgeId) {
 		NudgeSession session = requireBiosSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		Long biosId = biosService.persistFromNudge(session.boardId(), payload);
+		Long biosId = biosRegistrationService.persistFromNudge(session.boardId(), payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[nudge.proceed] nudgeId={}, biosId={}", nudgeId, biosId);
 		return biosId;
@@ -62,8 +63,8 @@ public class BiosNudgeService {
 		if (!session.conflictTargetIds().contains(targetId)) {
 			throw new InvalidReplaceTargetException(targetId);
 		}
-		biosService.purge(session.boardId(), targetId);
-		Long biosId = biosService.persistFromNudge(session.boardId(), payload);
+		biosLifecycleService.purge(targetId);
+		Long biosId = biosRegistrationService.persistFromNudge(session.boardId(), payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[nudge.replace] nudgeId={}, replacedTarget={}, biosId={}", nudgeId, targetId, biosId);
 		return biosId;
@@ -75,7 +76,7 @@ public class BiosNudgeService {
 	public void cancel(UUID nudgeId) {
 		NudgeSession session = requireBiosSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		biosService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
+		biosRegistrationService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
 		nudgeRegistry.remove(nudgeId);
 		log.info("[nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
 	}
@@ -110,7 +111,7 @@ public class BiosNudgeService {
 		if (!session.conflictTargetIds().contains(targetId)) {
 			throw new InvalidReplaceTargetException(targetId);
 		}
-		biosService.purge(session.boardId(), targetId);
+		biosLifecycleService.purge(targetId);
 		BiosUploadIntentResponse response = biosUploadIntentService.issueAfterNudge(
 				session.boardId(),
 				biosUploadIntentService.reconstructRequestFromAttributes(payload.attributes())

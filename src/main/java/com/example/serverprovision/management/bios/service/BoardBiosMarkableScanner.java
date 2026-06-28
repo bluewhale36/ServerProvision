@@ -28,7 +28,7 @@ public class BoardBiosMarkableScanner implements MarkableScanner {
 
 	private final BiosRepository biosRepository;
 	private final BundleManifestService bundleManifestService;
-	private final BiosService biosService;
+	private final BiosLifecycleService biosLifecycleService;
 
 	@Override
 	public ResourceType supportedType() {
@@ -116,16 +116,12 @@ public class BoardBiosMarkableScanner implements MarkableScanner {
 
 	@Override
 	public void restoreFromTrash(Long resourceId) {
-		BoardBIOS bios = biosRepository.findById(resourceId)
-				.orElseThrow(() -> new IllegalStateException("BIOS not found for trash restore: " + resourceId));
-		biosService.restore(bios.getBoardModel().getId(), resourceId);
+		biosLifecycleService.restore(resourceId);
 	}
 
 	@Override
 	public void purgeFromTrash(Long resourceId) {
-		BoardBIOS bios = biosRepository.findById(resourceId)
-				.orElseThrow(() -> new IllegalStateException("BIOS not found for trash purge: " + resourceId));
-		biosService.purge(bios.getBoardModel().getId(), resourceId);
+		biosLifecycleService.purge(resourceId);
 	}
 
 	// ---- MK3-1 — Ghost SPI -------------------------------------------

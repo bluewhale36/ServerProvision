@@ -41,6 +41,7 @@ class BiosControllerSecurityFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BiosService biosService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosRegistrationService biosRegistrationService;
     @MockitoBean BiosUploadIntentService biosUploadIntentService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosNudgeService biosNudgeService;
     @MockitoBean BoardModelMetadataService boardModelService;
@@ -57,7 +58,7 @@ class BiosControllerSecurityFlowTest {
                 .willReturn(new BiosUploadIntentService.Intent(
                         1L, "/opt/bios/x", BiosUploadMode.ZIP, 1, 100L, "1.0", "", Instant.now()));
         willThrow(new ZipBombSuspectedException("compression ratio 1:9000 (limit 1:1000)"))
-                .given(biosService).addBios(eq(1L), any(), any(), any(), any(), any());
+                .given(biosRegistrationService).addBios(eq(1L), any(), any(), any(), any(), any());
 
         mvc.perform(multipart("/management/bios/1/upload")
                         .file(new MockMultipartFile("zipFile", "bomb.zip", "application/zip", "PKbomb".getBytes()))
