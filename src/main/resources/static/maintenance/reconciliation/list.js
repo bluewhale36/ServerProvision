@@ -50,7 +50,7 @@
                 btn.textContent = btn.dataset.originalLabel;
             }, 3000);
         }).catch(err => {
-            alert(err.message || '스캔 시작 실패');
+            ErrorModal.show({message: err.message || '스캔 시작 실패', status: 0});
             btn.disabled = false;
             btn.textContent = btn.dataset.originalLabel;
         });

@@ -16,28 +16,37 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ApiErrorResponse(
 		String message,
-		List<FieldError> fieldErrors
+		List<FieldError> fieldErrors,
+		String code
 ) {
 
 	/**
-	 * 단일 메시지만 보내는 기존 호환 생성자. fieldErrors 는 null 로 직렬화에서 생략된다.
+	 * 단일 메시지만 보내는 기존 호환 생성자. fieldErrors / code 는 null 로 직렬화에서 생략된다.
 	 */
 	public ApiErrorResponse(String message) {
-		this(message, null);
+		this(message, null, null);
 	}
 
 	/**
 	 * 단일 필드 직결 도메인 예외용 생성자. message 와 함께 fieldErrors 1건을 동봉한다.
 	 */
 	public static ApiErrorResponse ofFieldBound(String message, String fieldName) {
-		return new ApiErrorResponse(message, List.of(new FieldError(fieldName, message)));
+		return new ApiErrorResponse(message, List.of(new FieldError(fieldName, message)), null);
 	}
 
 	/**
 	 * Layer A (Bean Validation) 위반 시 BindingResult 의 FieldError 목록을 매핑한 응답.
 	 */
 	public static ApiErrorResponse ofValidation(String message, List<FieldError> fieldErrors) {
-		return new ApiErrorResponse(message, fieldErrors);
+		return new ApiErrorResponse(message, fieldErrors, null);
+	}
+
+	/**
+	 * R2-6/R2-5 — 머신 가독 {@code code} 동봉(예: {@code NUDGE_SESSION_EXPIRED}). frontend 가 message 문자열
+	 * 대신 code 로 분기하도록 한다. NON_NULL 직렬화라 code 가 null 인 기존 응답은 영향 없다.
+	 */
+	public static ApiErrorResponse ofCode(String code, String message) {
+		return new ApiErrorResponse(message, null, code);
 	}
 
 	/**

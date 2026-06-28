@@ -173,9 +173,9 @@
         onSuccess: () => window.location.reload(),
         onRejected: (_form, status, payload) => {
             const msg = (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')');
-            alert(msg);
+            ErrorModal.show({message: msg, status: status});
         },
-        onNetworkError: () => alert('서버와 통신할 수 없어요.')
+        onNetworkError: () => ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0})
     };
 
     /**
@@ -208,13 +208,13 @@
             });
             if (!resp.ok) {
                 if (opts.onError) opts.onError(new Error('HTTP ' + resp.status));
-                else alert('modal 을 불러오지 못했어요. (HTTP ' + resp.status + ')');
+                else ErrorModal.show({message: 'modal 을 불러오지 못했어요. (HTTP ' + resp.status + ')', status: resp.status});
                 return;
             }
             html = await resp.text();
         } catch (err) {
             if (opts.onError) opts.onError(err);
-            else alert('서버와 통신할 수 없어요.');
+            else ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
             return;
         }
 

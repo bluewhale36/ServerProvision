@@ -69,7 +69,7 @@
                     openModal(prefix, body, action);
                     return;
                 }
-                alert((body && body.message) || '삭제 충돌이 발생했습니다.');
+                ErrorModal.show({message: (body && body.message) || '삭제 충돌이 발생했습니다.', status: resp.status});
                 return;
             }
 
@@ -79,10 +79,10 @@
                 body = await resp.json();
             } catch (_) { /* ignore */
             }
-            alert((body && body.message) || ('삭제 실패 (HTTP ' + resp.status + ')'));
+            ErrorModal.show({message: (body && body.message) || ('삭제 실패 (HTTP ' + resp.status + ')'), status: resp.status});
         } catch (err) {
             console.error(TAG, 'submit error', err);
-            alert('네트워크 오류 : ' + err.message);
+            ErrorModal.show({message: '네트워크 오류 : ' + err.message, status: 0});
         }
     }
 
@@ -97,7 +97,7 @@
         const errorEl = document.getElementById(prefix + 'Error');
 
         if (!modal || !correctBtn || !forcedBtn || !cancelBtn) {
-            alert(payload.code + ' — modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+            ErrorModal.show({message: payload.code + ' — modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.'});
             return;
         }
 

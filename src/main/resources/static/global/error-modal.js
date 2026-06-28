@@ -72,6 +72,21 @@
         if (root) root.hidden = true;
     }
 
+    // R2-6 — fetch 응답 1개를 받아 content-type 을 보고 바디를 통일 파싱한 뒤 modal 로 표시.
+    // 호출부마다 흩어진 resp.json()/text() + show() 복붙을 단일 진입점으로 응집한다.
+    async function fromResponse(resp, opts) {
+        opts = opts || {};
+        const ct = (resp.headers && resp.headers.get('content-type')) || '';
+        let message;
+        if (ct.indexOf('json') >= 0) {   // application/json · application/problem+json 모두 포함
+            const body = await resp.json().catch(() => ({}));
+            message = body.detail || body.message || opts.fallback;
+        } else {
+            message = (await resp.text().catch(() => '')).slice(0, 500) || opts.fallback;
+        }
+        show({title: opts.title, message: message || '요청을 처리하지 못했어요.', status: resp.status});
+    }
+
     // confirm-modal-base 의 submitAsync 가 호출하는 AsyncSubmitResult 통합 핸들러.
     // 페이지별로 override 한 경우 (예: trash-action) 는 그대로 보존 — 없을 때만 본 modal 사용.
     if (!window.AsyncSubmitResult) {
@@ -87,5 +102,5 @@
         };
     }
 
-    window.ErrorModal = {show, hide};
+    window.ErrorModal = {show, hide, fromResponse};
 })();

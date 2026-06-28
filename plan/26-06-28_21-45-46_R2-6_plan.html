@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R2-6 plan — frontend alert → ErrorModal 중앙화 (+R2-5 nudge code 흡수)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.t{background:var(--blue-bg);color:var(--blue)}.badge.keep{background:var(--green-bg);color:var(--green)}.badge.no{background:var(--red-bg);color:var(--red)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-stage{padding:16px;min-height:150px;position:relative;background:var(--card)}
+  .ux-stage .trigger{background:var(--blue);color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+  .fake-alert{margin-top:12px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:10px 12px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .fake-alert.native{border-style:dashed;color:var(--muted)}
+  .fake-modal{margin-top:12px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.18);overflow:hidden}
+  .fake-modal .fm-title{padding:10px 14px;font-weight:700;font-size:13px;border-bottom:1px solid var(--soft)}
+  .fake-modal .fm-status{padding:4px 14px;font-size:11px;color:var(--muted);background:var(--bg)}
+  .fake-modal .fm-msg{padding:12px 14px;font-size:13px}
+  .fake-modal .fm-act{padding:10px 14px;text-align:right;border-top:1px solid var(--soft)}
+  .fake-modal .fm-act button{border:1px solid var(--blue);background:var(--blue);color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft);background:var(--green-bg)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R2-6 — frontend alert → ErrorModal 중앙화 (+R2-5 nudge code 흡수) <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R2-6 (R2 묶음 마지막 잔여, R2-5 축소분 흡수)</span>
+    <span><strong>scope</strong> ① ErrorModal.fromResponse helper 신설 ② 진짜 에러 alert() → ErrorModal 라우팅 ③ R2-5: NudgeSessionExpired 안정 code + isExpiredResponse</span>
+    <span><strong>전제</strong> R2-3 commit(ba8dc73). error-modal.js / nudge-modal.js 존재. R2-4 drop</span>
+    <span><strong>생성</strong> 2026-06-28 KST · <strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 · 목표</a></li>
+      <li><a href="#s2">§2 alert() 분류 (대상/보존)</a></li>
+      <li><a href="#sd">🎬 라이브 — alert vs ErrorModal</a></li>
+      <li><a href="#s3">§3 변경 상세 (3 항목)</a></li>
+      <li><a href="#s4">§4 핵심 결정 (D1~D4)</a></li>
+      <li><a href="#s5">§5 단계 · 테스트</a></li>
+      <li><a href="#s6">§6 부산물 · 주의 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 · 목표</summary>
+      <div class="body">
+        <p style="margin-top:0">R2 묶음의 마지막 잔여. frontend 에 흩어진 <code>alert()</code> 에러 표시를 공통 <code>ErrorModal</code> 로 수렴하고, 재검증에서 R2-5 를 축소·흡수(nudge 만료 판정을 메시지 문자열 → 안정 머신 code 로). R2-4(ProblemDetail)는 drop.</p>
+        <h4>현 상태 (실측)</h4>
+        <ul>
+          <li><code>error-modal.js</code> — <code>show({title,message,status})</code> / <code>hide()</code> 만 export. <b><code>fromResponse</code> 없음</b> → 호출부가 직접 <code>await resp.json(); ErrorModal.show(...)</code> 하거나 <code>alert()</code>.</li>
+          <li><code>alert()</code> 가 7 파일에 잔존 — 일부는 진짜 에러 표시(modal 화 대상), 일부는 confirm/결과알림/fallback(비대상).</li>
+          <li><code>nudge-modal.js:89</code> — <code>body.message.indexOf('만료') >= 0</code> 로 만료 판정(fragile string). <code>NudgeSessionExpiredException</code> 은 409 지만 응답에 <code>code</code> 없음.</li>
+        </ul>
+        <div class="callout"><b>목표</b> — ① <code>ErrorModal.fromResponse(resp,opts)</code> 로 "응답 바디 파싱(json detail||message / text) → modal 표시"를 1곳에 응집. ② 진짜 에러 <code>alert()</code> 만 ErrorModal 로 라우팅(confirm·결과알림·delete-reject 사전체크는 보존). ③ R2-5: NudgeSessionExpired 에 <code>code="NUDGE_SESSION_EXPIRED"</code> 부여 + 프론트는 message 대신 code 로 판정.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. alert() 분류 (대상 / 보존)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>위치</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>delete-reject-modal.js:72/82/85</td><td>삭제 충돌/실패/네트워크 에러</td><td><span class="badge t">대상</span> → ErrorModal</td></tr>
+            <tr><td>delete-reject-modal.js:100</td><td>modal 요소 부재(인프라)</td><td><span class="badge t">대상</span> → ErrorModal</td></tr>
+            <tr><td><b>delete-reject-modal.js:68</b></td><td><code>body.code==='SOFTDELETE_REQUIRES_INTENT'</code> → reject modal 오픈</td><td><span class="badge keep">보존</span> (에러 아님 — 사전체크)</td></tr>
+            <tr><td>confirm-modal-base.js:176/178</td><td>defaultAsyncResult 거절/네트워크</td><td><span class="badge t">대상</span> → ErrorModal</td></tr>
+            <tr><td>confirm-modal-base.js:211/217</td><td>modal lazy-load 실패(fallback)</td><td><span class="badge t">대상</span> → ErrorModal</td></tr>
+            <tr><td>bios-list.js:87/94</td><td>검증 시작/요청 실패</td><td><span class="badge t">대상</span> → ErrorModal.fromResponse</td></tr>
+            <tr><td>reconciliation/list.js:53</td><td>스캔 시작 실패</td><td><span class="badge t">대상</span> → ErrorModal</td></tr>
+            <tr><td>bios-new.js:454 / iso-new.js:745</td><td><code>showError</code> 의 errorBox 부재 fallback</td><td><span class="badge keep">저우선</span> (1차 경로는 inline errorBox) — 선택적 ErrorModal.show</td></tr>
+            <tr><td>trash-action.js:17</td><td>ConfirmModal 부재 시 <b>결과 알림</b> fallback</td><td><span class="badge no">비대상</span> (에러 아닌 info/result)</td></tr>
+            <tr><td>각 폼의 <code>confirm()</code></td><td>파괴적 동작 확인(replace 등)</td><td><span class="badge no">비대상</span> (네이티브 확인 유지)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>핵심 보존</b> — delete-reject :68 의 <code>SOFTDELETE_REQUIRES_INTENT</code> 분기는 에러가 아니라 <b>reject modal 진입점</b>이다. ErrorModal 로 싸잡으면 정상 reject 흐름이 깨진다(재검증 경고). <code>confirm()</code> 파괴적 확인도 modal 화 대상 아님.</div>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 — alert vs ErrorModal.fromResponse</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">방식</span>
+            <button class="ux-btn" data-mode="alert">현재 (alert)</button>
+            <button class="ux-btn on" data-mode="modal">R2-6 (ErrorModal)</button>
+            <span class="lbl" style="margin-left:8px">응답</span>
+            <button class="ux-btn on" data-resp="json409">JSON 409 {message}</button>
+            <button class="ux-btn" data-resp="text500">text/html 500</button>
+            <button class="ux-btn" data-resp="expired">nudge 만료(code)</button>
+          </div>
+          <div class="ux-stage">
+            <button class="trigger" id="dGo">에러 발생시키기</button>
+            <div id="dOut"></div>
+          </div>
+          <div class="ux-verdict" id="dVerdict"></div>
+        </div>
+        <p class="dim">현재(alert)는 브라우저 기본 경고창 + 바디 파싱이 호출부마다 제각각. R2-6 은 <code>fromResponse</code> 가 content-type 보고 detail||message/text 를 통일 파싱해 스타일 modal 로 표시. nudge 만료는 message 문자열이 아니라 <code>code</code> 로 판정.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 변경 상세 (3 항목)</summary>
+      <div class="body">
+        <h4>① ErrorModal.fromResponse(resp, opts) — error-modal.js</h4>
+        <pre>async function fromResponse(resp, opts) {
+    opts = opts || {};
+    const ct = resp.headers.get('content-type') || '';
+    let message;
+    if (ct.includes('json')) {                 // problem+json(미래)·application/json 모두 포함
+        const body = await resp.json().catch(() => ({}));
+        message = body.detail || body.message || opts.fallback;   // detail = R2-4 미래 무코스트 선반영
+    } else {
+        message = (await resp.text().catch(() => '')).slice(0, 500) || opts.fallback;
+    }
+    show({title: opts.title, message: message || '요청을 처리하지 못했어요.', status: resp.status});
+}
+// window.ErrorModal = {show, hide, fromResponse}</pre>
+        <h4>② alert() → ErrorModal 라우팅 (§2 대상만)</h4>
+        <ul>
+          <li>응답 객체가 있는 곳: <code>await ErrorModal.fromResponse(resp, {fallback})</code>. 단순 메시지: <code>ErrorModal.show({message})</code>.</li>
+          <li>delete-reject :68 / confirm() / trash-action 결과알림 / showError inline 경로 <b>보존</b>.</li>
+        </ul>
+        <h4>③ R2-5 흡수 — nudge 만료 안정 code</h4>
+        <ul>
+          <li><b>backend</b>: <code>ApiErrorResponse</code> 에 optional <code>code</code> 필드(@JsonInclude NON_NULL) + <code>ofCode(code,message)</code> factory. <code>ApiExceptionHandler</code> 에 전용 <code>handleNudgeSessionExpired</code>(409 + <code>code="NUDGE_SESSION_EXPIRED"</code>) — 특수 body 핸들러라 R2-3 수렴 원칙과 정합(handleNudgeRequired/SoftDeleteReject 와 동류).</li>
+          <li><b>frontend</b>: <code>nudge-modal.js:89</code> <code>body.message.indexOf('만료')</code> → <code>body.code === 'NUDGE_SESSION_EXPIRED'</code> (404 NudgeNotFound 분기는 유지).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 핵심 결정 (D1~D4)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택 / 비채택</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>fromResponse helper</td><td><b>error-modal.js 에 신설, {show,hide,fromResponse} export</b>. 바디 파싱(ct.includes('json') / detail||message)을 1곳에. 비채택: 호출부마다 resp.json()+show 복붙(현 상태 유지).</td></tr>
+            <tr><td><b>D2</b></td><td>alert 라우팅 범위</td><td><b>진짜 에러 표시만 ErrorModal</b>(§2 표). delete-reject :68·confirm()·trash 결과알림·inline errorBox 1차경로 <b>보존</b>. 비채택: 모든 alert 일괄 치환(정상 reject/confirm 흐름 파손).</td></tr>
+            <tr><td><b>D3</b></td><td>R2-5 nudge code</td><td><b>ApiErrorResponse.code(optional) + 전용 handleNudgeSessionExpired + frontend body.code</b>. 비채택: 109-클래스 errorCode() default 메커니즘(재검증서 over-abstraction 으로 기각). 비채택: message 문자열 판정 유지(fragile).</td></tr>
+            <tr><td><b>D4</b></td><td>showError fallback(bios-new/iso-new) · trash-action</td><td><b>저우선/비대상</b>. showError 의 errorBox 부재 fallback 은 선택적으로 ErrorModal.show 로 격상(가능 시), trash-action 결과알림은 에러 아니라 미대상. 비채택: 강제 일괄 modal 화.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 단계 · 테스트</summary>
+      <div class="body">
+        <ul>
+          <li><b>CP2</b> — ① error-modal.js fromResponse + export. ② 대상 alert() 라우팅(delete-reject/confirm-modal-base/bios-list/reconciliation). ③ backend(ApiErrorResponse.code + handleNudgeSessionExpired) + nudge-modal.js code 판정.</li>
+          <li><b>CP3</b> — N/A(엔티티 무변경).</li>
+          <li><b>CP4</b> — backend: <code>AdviceExceptionMappingTest</code> 에 NudgeSessionExpired → 409 + <code>code="NUDGE_SESSION_EXPIRED"</code> 가드. compileJava + 전체 회귀. frontend: <code>node --check</code>(JS 문법). JS 단위 인프라 없어 ②동작은 CP5 의존.</li>
+          <li><b>CP5(사용자)</b> — 에러 케이스(삭제 충돌/검증 실패/스캔 실패/modal 로드 실패)에서 <b>브라우저 기본 경고창 대신 스타일 ErrorModal</b> 표시 확인. nudge 만료 시 만료 UX 정상(메시지 문구 바뀌어도). delete-reject 정상 흐름·confirm() 파괴 확인 보존.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 부산물 · 주의 · 다음</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r26-v">
+          <li><input type="checkbox"><span>ErrorModal.fromResponse 신설 + export, node --check green</span></li>
+          <li><input type="checkbox"><span>대상 alert() → ErrorModal (delete-reject/confirm-modal-base/bios-list/reconciliation)</span></li>
+          <li><input type="checkbox"><span>delete-reject :68 SOFTDELETE 사전체크 + confirm() 파괴확인 보존</span></li>
+          <li><input type="checkbox"><span>NudgeSessionExpired → 409 + code="NUDGE_SESSION_EXPIRED"(AdviceExceptionMappingTest) + 전체 회귀 green</span></li>
+          <li><input type="checkbox"><span>nudge-modal.js 만료 판정 body.code 로 전환(404 분기 유지)</span></li>
+        </ul>
+        <h4>주의</h4>
+        <ul>
+          <li><b>D3 전용 핸들러는 R2-3 수렴과 충돌 아님</b> — 특수 body(code 동봉) 핸들러는 R2-3 이 유지한 부류(Nudge/DeleteReject)와 동류. plain-body 수렴 원칙 불변.</li>
+          <li><b>작업 트리 U1/U2 병행 WIP</b> 미접촉. commit 시 R2-6 파일만 add. (bmc-new.js 등 frontend 위치 이동이 더 일어날 수 있으니 commit 직전 재확인.)</li>
+          <li>R2-4(ProblemDetail)는 drop — fromResponse 의 <code>detail||message</code> 는 미래 무코스트 선반영(speculative trivial).</li>
+        </ul>
+        <h4>Critical Files</h4>
+        <ul>
+          <li class="mono">M: static/global/error-modal.js (fromResponse) · nudge-modal.js (code 판정)</li>
+          <li class="mono">M: static/management/common/{delete-reject-modal,confirm-modal-base}.js · bios/bios-list.js · maintenance/reconciliation/list.js</li>
+          <li class="mono">M: global/exception/ApiErrorResponse.java (code) · ApiExceptionHandler.java (handleNudgeSessionExpired)</li>
+        </ul>
+        <h4>다음</h4>
+        <ol><li>R2-6 완료 → <b>R2 묶음 종료</b>(R2-3 + R2-6 수렴, R2-4 drop / R2-5 흡수).</li></ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+  const RESP={
+    json409:{ct:'application/json', body:{message:'같은 메인보드에 같은 버전이 이미 존재합니다.'}, status:409, parsed:'body.message'},
+    text500:{ct:'text/html', text:'<html>500 Internal Error…</html>', status:500, parsed:'text(앞 500자)'},
+    expired:{ct:'application/json', body:{code:'NUDGE_SESSION_EXPIRED', message:'세션이 만료되었습니다.'}, status:409, parsed:'body.code 로 만료 판정'}
+  };
+  const st={mode:'modal', resp:'json409'};
+  function sync(){
+    document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===st.mode));
+    document.querySelectorAll('[data-resp]').forEach(b=>b.classList.toggle('on',b.dataset.resp===st.resp));
+  }
+  document.querySelectorAll('[data-mode],[data-resp]').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.mode)st.mode=b.dataset.mode; if(b.dataset.resp)st.resp=b.dataset.resp; sync();
+    document.getElementById('dOut').innerHTML=''; document.getElementById('dVerdict').innerHTML='위 "에러 발생시키기" 를 눌러 결과를 보세요.';
+  }));
+  document.getElementById('dGo').addEventListener('click',()=>{
+    const r=RESP[st.resp], out=document.getElementById('dOut'), vd=document.getElementById('dVerdict');
+    const msg = r.body ? (r.body.detail||r.body.message) : (r.text.slice(0,500));
+    if(st.mode==='alert'){
+      out.innerHTML = `<div class="fake-alert native">⚠️ ${st.resp==='text500' ? '[object Response] 또는 raw text — 호출부마다 파싱 제각각' : msg}<div class="dim" style="margin-top:6px">— 브라우저 기본 alert(). status 표기 없음, 스타일 없음.</div></div>`;
+      vd.style.background='var(--yellow-bg)';
+      vd.innerHTML = `<b>현재(alert)</b> · 바디 파싱이 호출부마다 다르고 text/html 응답은 종종 [object] 노출. ${st.resp==='expired'?'만료 판정은 message 문자열(만료) 의존 — 문구 바꾸면 깨짐.':''}`;
+    } else {
+      out.innerHTML = `<div class="fake-modal"><div class="fm-title">오류가 발생했어요</div><div class="fm-status">HTTP ${r.status}</div><div class="fm-msg">${msg}</div><div class="fm-act"><button>확인</button></div></div>`;
+      out.querySelector('.fm-act button').addEventListener('click',()=>out.innerHTML='');
+      vd.style.background='var(--green-bg)';
+      vd.innerHTML = `<b>R2-6(ErrorModal.fromResponse)</b> · content-type 보고 <span class="mono">${r.parsed}</span> 로 통일 파싱 → 스타일 modal + status. ${st.resp==='expired'?'만료는 <b>body.code</b> 로 판정(문구 무관).':''}`;
+    }
+  });
+  sync();
+  document.getElementById('dVerdict').innerHTML='위 "에러 발생시키기" 를 눌러 결과를 보세요.';
+</script>
+</body>
+</html>

@@ -13,6 +13,7 @@ import com.example.serverprovision.management.common.filesystem.exception.Direct
 import com.example.serverprovision.management.common.filesystem.exception.InvalidBrowsePathException;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
+import com.example.serverprovision.management.common.nudge.exception.NudgeSessionExpiredException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -102,6 +103,25 @@ class AdviceExceptionMappingTest {
 		mvc.perform(get("/_test/advice").param("kind", "child-lifecycle-blocked")
 						.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").exists());
+	}
+
+	/* ───────────── R2-6 — NudgeSessionExpired 전용 핸들러 (409 + 머신 code) ───────────── */
+
+	/**
+	 * R2-6 — {@link NudgeSessionExpiredException}(extends ConflictException) 의 전용 핸들러가
+	 * ConflictException 일반 흡수보다 우선 매핑되어 409 + {@code code="NUDGE_SESSION_EXPIRED"} 를 동봉함을 단언.
+	 * frontend(nudge-modal.js)가 message 문자열이 아니라 안정 머신 code 로 만료를 판정하므로, 회귀 시
+	 * (전용 핸들러 삭제 또는 ofCode 미사용) code 누락으로 즉시 실패한다.
+	 */
+	@Test
+	@DisplayName("XHR(application/json) — NudgeSessionExpired → 409 + code=NUDGE_SESSION_EXPIRED + message 존재")
+	void nudgeSessionExpired_xhr_409_code() throws Exception {
+		mvc.perform(get("/_test/advice").param("kind", "nudge-session-expired")
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isConflict())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.code").value("NUDGE_SESSION_EXPIRED"))
 				.andExpect(jsonPath("$.message").exists());
 	}
 
@@ -376,6 +396,8 @@ class AdviceExceptionMappingTest {
 				case "conflict" -> throw new IllegalBoardModelStateException("이미 삭제된 메인보드입니다.");
 				case "field-bound-conflict" -> throw new DuplicateBoardModelException(Vendor.GIGABYTE, "MS03-CE0");
 				case "field-bound-bad-request" -> throw new InvalidReplaceTargetException(42L);
+				case "nudge-session-expired" ->
+						throw new NudgeSessionExpiredException(java.util.UUID.randomUUID());
 				case "security-path-traversal" -> throw new PathTraversalException("null byte 포함");
 				default -> { return "ok"; }
 			}

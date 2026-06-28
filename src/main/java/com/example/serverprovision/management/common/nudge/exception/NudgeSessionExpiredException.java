@@ -9,6 +9,9 @@ import java.util.UUID;
  */
 public class NudgeSessionExpiredException extends ConflictException {
 
+	/** R2-6/R2-5 — frontend 가 만료를 메시지 문자열 대신 안정 머신 code 로 판정하도록 응답에 동봉하는 code. */
+	public static final String CODE = "NUDGE_SESSION_EXPIRED";
+
 	public NudgeSessionExpiredException(UUID nudgeId) {
 		super("nudge 세션이 만료되었습니다. 다시 업로드해주세요. (nudgeId=" + nudgeId + ")");
 	}

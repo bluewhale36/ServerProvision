@@ -82,16 +82,15 @@
 
         try {
             const resp = await fetch(url, {method: 'POST', headers: {'Accept': 'application/json'}});
-            const body = await resp.json().catch(() => ({}));
             if (!resp.ok) {
-                alert('검증 시작 실패 : ' + (body.message || ('HTTP ' + resp.status)));
+                await ErrorModal.fromResponse(resp, {title: '검증 시작 실패'});
                 setButtonIdle(btn);
                 return;
             }
             // 성공 시에는 disabled 유지. bgjob:completed/failed 도착 시 restoreButton 으로 풀린다.
         } catch (err) {
             console.error(TAG, err);
-            alert('검증 요청 중 오류 : ' + err.message);
+            ErrorModal.show({message: '검증 요청 중 오류 : ' + err.message, status: 0});
             setButtonIdle(btn);
         }
     });

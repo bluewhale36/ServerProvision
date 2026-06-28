@@ -86,8 +86,8 @@
      */
     function isExpiredResponse(status, body) {
         if (status === 404) return true; // NudgeNotFound (pruner 가 정리한 후)
-        if (status === 409 && body && typeof body.message === 'string'
-            && body.message.indexOf('만료') >= 0) return true;
+        // R2-5 — 만료 판정을 message 문자열('만료') 대신 안정 머신 code 로. backend handleNudgeSessionExpired 가 발행.
+        if (status === 409 && body && body.code === 'NUDGE_SESSION_EXPIRED') return true;
         return false;
     }
 

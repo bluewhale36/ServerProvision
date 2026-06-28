@@ -9,6 +9,7 @@ import com.example.serverprovision.management.common.dto.response.DeleteRejectRe
 import com.example.serverprovision.management.common.exception.PathCorrectionFailedException;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.common.nudge.exception.NudgeRequiredException;
+import com.example.serverprovision.management.common.nudge.exception.NudgeSessionExpiredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -83,6 +84,17 @@ public class ApiExceptionHandler {
 				ex.payload().nudgeId(), ex.payload().conflicts().size()
 		);
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.payload());
+	}
+
+	/**
+	 * R2-6/R2-5 — nudge_session TTL 만료(409). frontend 가 message 문자열이 아니라 안정 code 로 만료를
+	 * 판정하도록 {@code code="NUDGE_SESSION_EXPIRED"} 동봉. ConflictException 일반 매핑보다 구체적이라 우선 매핑.
+	 */
+	@ExceptionHandler(value = NudgeSessionExpiredException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<ApiErrorResponse> handleNudgeSessionExpired(NudgeSessionExpiredException ex) {
+		log.info("[nudge] session expired : {}", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(ApiErrorResponse.ofCode(NudgeSessionExpiredException.CODE, ex.getMessage()));
 	}
 
 	/**
