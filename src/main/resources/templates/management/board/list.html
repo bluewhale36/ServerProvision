@@ -193,6 +193,7 @@
                             <form th:action="@{/management/board/{id}/restore(id=${board.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-restore=""
+                                  data-async-submit=""
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
                                   data-cascade-true-title="하위 BIOS / BMC / 드라이버·유틸리티 도 함께 복구"
                                   data-cascade-true-desc="이 보드에 종속된 휴지통의 BIOS / BMC / 드라이버·유틸리티 자원을 일괄 복구해요.">

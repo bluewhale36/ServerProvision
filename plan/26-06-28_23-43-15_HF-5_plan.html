@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF-5 plan — board restore 409 렌더 비일관 (data-async-submit 누락)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .split-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+  .split-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px}
+  .split-card.before{background:var(--red-bg);border-color:#f0c5c5}.split-card.after{background:var(--green-bg);border-color:#aee0bd}
+  .split-card h5{margin:0 0 6px;font-size:12px}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-stage{padding:16px;background:var(--card);position:relative;min-height:230px}
+  .browser{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .urlbar{background:#eef1f4;border-bottom:1px solid var(--border);padding:5px 10px;font-family:var(--mono);font-size:11px;color:#57606a;display:flex;gap:6px;align-items:center}
+  .urlbar .dot{width:8px;height:8px;border-radius:50%;background:#cbd2d9}
+  .viewport{padding:14px;background:#fff;min-height:150px;position:relative}
+  .row-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--soft);border-radius:6px;margin-bottom:8px;font-size:13px}
+  .row-item .restore{background:#e6f6ee;color:#1a7f37;border:1px solid #aee0bd;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px}
+  .errpage{padding:18px}
+  .errpage .ttl{font-size:15px;font-weight:700;margin-bottom:10px}
+  .errpage .alert{border:1px solid #f0c5c5;background:var(--red-bg);color:#7d1f1f;border-radius:8px;padding:12px 14px}
+  .errpage .back{margin-top:14px;display:inline-block;border:1px solid var(--border);padding:5px 12px;border-radius:6px;font-size:12px;color:#57606a;cursor:pointer}
+  .modal-back{position:absolute;inset:0;background:rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;border-radius:0 0 8px 8px}
+  .modal-card{background:#fff;border-radius:10px;padding:16px 18px;width:300px;box-shadow:0 12px 32px rgba(0,0,0,.25)}
+  .modal-card .mh{font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between}
+  .modal-card .ms{font-size:12.5px;color:#57606a}
+  .modal-card .mb{text-align:right;margin-top:12px}
+  .modal-card .mb span{background:var(--blue);color:#fff;padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}.split-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>HF-5 — board restore 409 렌더 비일관 (data-async-submit 누락) <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF-5 (R2-2-2/3 필요성 조사 report 후속 hotfix)</span>
+    <span><strong>scope</strong> BoardModel 관리목록 restore 폼에 <code>data-async-submit</code> 1개 추가 — 형제 5도메인과 동일 inline ErrorModal 로 일관</span>
+    <span><strong>전제</strong> frontend/template-only. 백엔드·advice·정책 무변경. U1/U2 WIP 무관</span>
+    <span><strong>생성</strong> 2026-06-28 KST · <strong>CP 상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 · 목표 (정정 반영)</a></li>
+      <li><a href="#s2">§2 설계 · 안전성 검증</a></li>
+      <li><a href="#sd">🎬 라이브 — 이탈 vs inline</a></li>
+      <li><a href="#s3">§3 변경 상세 (1줄)</a></li>
+      <li><a href="#s4">§4 결정 (D1~D2)</a></li>
+      <li><a href="#s5">§5 단계 · 테스트</a></li>
+      <li><a href="#s6">§6 부산물 · 주의 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 · 목표 (report 정정 반영)</summary>
+      <div class="body">
+        <div class="callout warn"><b>report 정정</b> — R2-2-2/3 조사 report 는 board restore 409 를 "raw JSON 노출"로 적었으나, CP1 적대 검증에서 <b>틀린 단정</b>으로 확인됐다. native form POST 는 <code>Accept: text/html</code> 을 보내고, <code>DuplicateBoardModelException → FieldBoundConflictException → ConflictException → DomainException</code> 이 <code>WebExceptionHandler.handleDomain</code>(produces=text/html)에 흡수돼 <b><code>error.html</code>(스타일된 전체 페이지 에러)</b>로 렌더된다. raw JSON 아님. 5월의 raw JSON 증상은 R1-4-1 v3 + R2-3 의 dual-advice produces 라우팅이 이미 해소했다.</div>
+        <h4>실제 결함 — 렌더 비일관 (경미하나 실재)</h4>
+        <table>
+          <thead><tr><th></th><th>BoardModel restore (현재)</th><th>형제 5개 (OS·ISO·BIOS·BMC·Subprogram)</th></tr></thead>
+          <tbody>
+            <tr><td>폼 마커</td><td><code>data-async-submit</code> <b>없음</b> (<code>board/list.html:193</code>, grep -c=0)</td><td><b>있음</b> (os:199 / bios / bmc / subprogram / iso)</td></tr>
+            <tr><td>제출</td><td><code>form.requestSubmit()</code> → native 내비게이션</td><td><code>submitAsync(fetch)</code></td></tr>
+            <tr><td>409 시</td><td><b>전체 페이지 이탈</b> → <code>error.html</code> (목록에서 벗어남, "이전 페이지로" 눌러 복귀)</td><td>inline <b>ErrorModal</b> (목록 페이지 유지)</td></tr>
+          </tbody>
+        </table>
+        <p>충돌 시나리오(정상 흐름 도달 가능): board 'Dell R740' 삭제 → 같은 (vendor, modelName) 재등록(삭제본은 유일키 점유 안 함, nudge 없음) → 휴지통 옛 board <b>[복구]</b> → <code>BoardModelLifecycleService:124</code> 가 <code>DuplicateBoardModelException</code>(409). cascade 자식복구 충돌(<code>:131</code>)도 같은 폼.</p>
+        <div class="callout"><b>목표</b> — board restore 폼을 형제 5개와 동일하게 <code>data-async-submit</code> 으로 맞춰, 409 가 <b>전체 페이지 이탈 대신 inline ErrorModal</b> 로 뜨게 한다. 6개 restore 표면의 렌더 동작을 단일화(대칭 회복). <b>1줄 변경, 백엔드/advice/정책 무변경.</b></div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 설계 · 안전성 검증 (CP1 실측)</summary>
+      <div class="body">
+        <h4>변경</h4>
+        <pre>&lt;!-- templates/management/board/list.html  restore 폼 (현재 :193) --&gt;
+&lt;form th:action="@{/management/board/{id}/restore(id=${board.id})}"
+      method="post" style="display:inline;"
+      data-confirm-restore=""
+<span class="dim">+</span>     data-async-submit=""          <span class="dim">&lt;-- 이 한 줄 추가 (형제 5폼과 동일)</span>
+      th:data-resource-label="…"
+      data-cascade-true-title="…" data-cascade-true-desc="…"&gt;</pre>
+        <h4>왜 안전한가 — 4가지 실측 확인</h4>
+        <table>
+          <thead><tr><th>위험</th><th>확인 결과</th></tr></thead>
+          <tbody>
+            <tr><td>board 페이지가 async 스택을 로드하나?</td><td><b>예</b>. <code>error-modal.js</code> = <code>layout.html:56</code> commonHead(board 사용). <code>confirm-modal-base.js</code>+<code>confirm-restore.js</code> = <code>confirm-modals :: lazyShell</code>(board <code>list.html:239</code> include). <code>ErrorModal</code>/<code>submitAsync</code>/<code>approveAndSubmit</code> 모두 가용.</td></tr>
+            <tr><td>성공 경로가 깨지나?</td><td><b>아니오</b>. board restore 는 <code>redirect:/management/board?select…</code>(302), OS restore 도 동일(302, flash 없음). <code>submitAsync</code> 가 <code>redirect:'follow'</code> 로 302 추종 → <code>resp.redirected</code> → <code>onSuccess</code> → reload. OS 가 이미 async+cascade 로 동일 동작.</td></tr>
+            <tr><td>cascade(자식 동반복구) 옵션이 유실되나?</td><td><b>아니오</b>. <code>confirm-restore.js</code> 가 <code>writeHiddenCascade</code> 로 hidden input 채움 → <code>submitAsync</code> 의 <code>new FormData(form)</code> 이 포함 전송. native·async 둘 다 동일 전달.</td></tr>
+            <tr><td>409 가 ErrorModal 로 가나?</td><td><b>예</b>. async 면 fetch(Accept: application/json…) → <code>ApiExceptionHandler.handleFieldBoundConflict</code>(:158, produces=json) → 409 JSON → <code>onRejected</code> → <code>ErrorModal.show({message,status})</code>. (native 의 text/html → error.html 경로와 분리.)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><b>핵심</b> — 이 변경은 board restore 의 제출 채널을 native(text/html)에서 XHR(application/json)로 바꾸는 효과다. 그 결과 409 가 <code>WebExceptionHandler→error.html</code>(전체페이지) 대신 <code>ApiExceptionHandler→JSON→ErrorModal</code>(inline)로 라우팅된다. advice 코드는 한 줄도 안 바뀌고, 이미 존재하는 두 채널 중 어디로 갈지가 바뀔 뿐.</div>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 라이브 — restore 409 : 전체페이지 이탈 vs inline 모달</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">상태</span>
+            <button class="ux-btn" data-ph="before">수정 전 (native)</button>
+            <button class="ux-btn on" data-ph="after">수정 후 (async)</button>
+            <span class="dim" style="margin-left:8px">휴지통/목록의 옛 'Dell R740' [복구] 클릭 → 활성 동일키 충돌(409)</span>
+          </div>
+          <div class="ux-stage">
+            <div class="browser">
+              <div class="urlbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span id="durl">localhost/management/board?includeDeleted=true</span></div>
+              <div class="viewport" id="dview"></div>
+            </div>
+          </div>
+        </div>
+        <p class="dim">수정 전: 복구 클릭 → 주소가 <code>/restore</code> 로 바뀌며 <b>전체 페이지 에러(error.html)</b> 로 이탈("이전 페이지로" 눌러야 복귀). 수정 후: 페이지 그대로 + <b>inline ErrorModal</b> 로 사유 안내.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 변경 상세</summary>
+      <div class="body">
+        <h4>파일 (template, 1곳)</h4>
+        <ul>
+          <li class="mono">templates/management/board/list.html — restore 폼(현 :193)에 <code>data-async-submit=""</code> 1줄 추가</li>
+        </ul>
+        <p class="dim">deprecate/undeprecate/soft-delete/purge 폼은 건드리지 않는다(§6 주의 참조). 백엔드·JS·CSS·advice·정책 무변경.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 핵심 결정 (D1~D2)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택 / 비채택</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>수리 범위</td><td><b>board restore 폼만</b>(채택). report 가 식별·검증한 결함이 정확히 이것. 비채택: board 의 deprecate/undeprecate/soft-delete 까지 일괄 async 화 — 이 폼들이 실제 409 를 내는지 미검증이고, scope 가 "긴급 국소 HF" 를 벗어남(필요 시 별도 audit).</td></tr>
+            <tr><td><b>D2</b></td><td>회귀 가드(테스트)</td><td><b>기존 advice 테스트 green 확인 + (선택) board restore 409 JSON 채널 단언 1건</b>. template 속성 1줄이라 JS 자동 테스트 인프라 없음(HF-4 선례) → 실검증은 CP5 브라우저. 비채택: 무거운 신규 테스트 스위트(과함).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 단계 · 테스트</summary>
+      <div class="body">
+        <p style="margin-top:0">frontend/template 전용 — Step 6·7·9(Repository/Entity/스키마) N/A. Java 무변경 → U2 WIP 빌드 이슈와 무관.</p>
+        <ul>
+          <li><b>CP2</b> — <code>board/list.html</code> restore 폼에 <code>data-async-submit=""</code> 추가.</li>
+          <li><b>CP4</b> — 기존 <code>AdviceExceptionMappingTest</code> + board controller 테스트 green 확인(프론트 변경이라 영향 없음 예상). 선택: <code>POST /management/board/{id}/restore</code> + <code>Accept: application/json</code> + 활성 동일키 존재 → <b>409 + ApiErrorResponse JSON</b> 단언(async 경로가 ErrorModal 에 먹일 바디를 보장).</li>
+          <li><b>CP5(사용자)</b> — board 'A' 삭제 → 같은 (vendor, modelName) 재등록 → 휴지통/목록에서 옛 'A' [복구] → <b>페이지 이탈 없이 inline ErrorModal</b> 로 "이미 같은 메인보드가 있습니다" 표시 확인. 정상 복구(충돌 없을 때)는 그대로 목록 reload 되는지 회귀 확인.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 부산물 · 주의 · 다음</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="hf5-v">
+          <li><input type="checkbox"><span>board restore 409 → 전체페이지 이탈 없이 inline ErrorModal</span></li>
+          <li><input type="checkbox"><span>정상 복구(충돌 없음) 회귀 없음 — 목록 reload + 자원 복원</span></li>
+          <li><input type="checkbox"><span>cascade(자식 동반복구) 옵션 정상 전달</span></li>
+          <li><input type="checkbox"><span>6개 restore 표면 렌더 동작 일관</span></li>
+        </ul>
+        <h4>주의 · scope 경계</h4>
+        <ul>
+          <li><b>board 의 deprecate/undeprecate/soft-delete 도 native</b>(async 0, <code>DeleteRejectModal.bind</code> 없음 — os/bios/subprogram 과 달리). 단 본 HF 는 report 가 검증한 <b>restore 만</b> 수리. 그 폼들의 409 가능성/렌더는 미검증이라 <b>scope 밖</b>(board 는 Markable 이나 메타전용 — soft-delete intent 흐름이 디스크 자원과 같은지 별도 확인 필요. follow-up 후보).</li>
+          <li><b>frontend/template-only</b> — Java/advice/정책 무변경. 작업 트리의 U1/U2 병행 WIP 일절 미접촉, commit 시 HF-5 파일만 add.</li>
+          <li><b>report 정정</b> — R2-2-2/3 조사 report 의 "raw JSON" 표현을 "HTML error 페이지 전체 이탈"로 정정 예정(별도).</li>
+        </ul>
+        <h4>Critical Files</h4>
+        <ul>
+          <li class="mono">M: templates/management/board/list.html (restore 폼 1 속성)</li>
+          <li class="dim mono">(선택) M: test/.../board/*ControllerTest 또는 AdviceExceptionMappingTest — board restore 409 JSON 가드</li>
+        </ul>
+        <h4>다음</h4>
+        <ol>
+          <li>HF-5 후 → R2-2-2/3 <b>DROP/보류</b> 정리 + R2 부모 완료 → R2 묶음 종료.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  /* 라이브 데모 — restore 409 렌더: native(전체페이지 이탈) vs async(inline 모달) */
+  const st={ph:'after'};
+  const dview=document.getElementById('dview'), durl=document.getElementById('durl');
+  const LIST_URL='localhost/management/board?includeDeleted=true';
+  const REST_URL='localhost/management/board/7/restore';
+  function syncBtns(){document.querySelectorAll('[data-ph]').forEach(b=>b.classList.toggle('on',b.dataset.ph===st.ph));}
+  function listView(){
+    return `<div class="row-item"><span>🗑 메인보드 'Dell R740' <span class="dim">(삭제됨 · 휴지통)</span></span>`
+      +`<span class="restore" id="dRestore">복구</span></div>`
+      +`<div class="row-item"><span>메인보드 'Dell R740' <span class="dim">(활성 · 동일 키)</span></span><span class="dim">—</span></div>`;
+  }
+  function render(){
+    durl.textContent=LIST_URL;
+    dview.innerHTML=listView();
+    const btn=document.getElementById('dRestore');
+    if(btn) btn.addEventListener('click', onRestore);
+  }
+  function onRestore(){
+    if(st.ph==='before'){
+      // native: 주소가 /restore 로 바뀌고 전체 페이지가 error.html 로 교체
+      durl.textContent=REST_URL+'  ← 페이지 이탈';
+      dview.innerHTML=`<div class="errpage">
+        <div class="ttl">요청을 처리할 수 없습니다</div>
+        <div class="alert"><b>409 Conflict</b><div style="margin-top:6px;font-size:12.5px">이미 같은 vendor·modelName 의 활성 메인보드가 있습니다.</div></div>
+        <span class="back" id="dBack">← 이전 페이지로</span>
+      </div>`;
+      const bk=document.getElementById('dBack'); if(bk) bk.addEventListener('click',render);
+    } else {
+      // async: 페이지 유지 + inline ErrorModal 오버레이
+      dview.innerHTML=listView()+`<div class="modal-back"><div class="modal-card">
+        <div class="mh"><span>⚠ 복구할 수 없습니다</span><span style="color:#bf2626;font-size:11px">HTTP 409</span></div>
+        <div class="ms">이미 같은 vendor·modelName 의 활성 메인보드가 있어 복구할 수 없어요.</div>
+        <div class="mb"><span id="dClose">확인</span></div>
+      </div></div>`;
+      const c=document.getElementById('dClose'); if(c) c.addEventListener('click',render);
+    }
+  }
+  document.querySelectorAll('[data-ph]').forEach(b=>b.addEventListener('click',()=>{st.ph=b.dataset.ph;syncBtns();render();}));
+  syncBtns();render();
+</script>
+</body>
+</html>

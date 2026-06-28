@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -20,7 +21,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -34,8 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Mocking 은 {@link BoardModelLifecycleService} 단까지만. controller 의 redirect +
  * {@code @ControllerAdvice} 의 예외 → status 매핑은 실제로 실행된다.</p>
  *
- * <p>시나리오 12 : 성공 9 (toggle / restore×3 / deprecate / undeprecate / delete / purge + restore cascade=true)
- * + 400 1 (purge typed-name 불일치) + 404 1 (없는 id toggle) + 409 2 (lifecycle invariant / restore 충돌).</p>
+ * <p>시나리오 13 : 성공 9 (toggle / restore×3 / deprecate / undeprecate / delete / purge + restore cascade=true)
+ * + 400 1 (purge typed-name 불일치) + 404 1 (없는 id toggle) + 409 3 (lifecycle invariant / restore 충돌 /
+ * restore 충돌 JSON 채널 = HF-5).</p>
  */
 @WebMvcTest(controllers = BoardModelLifecycleController.class)
 class BoardModelLifecycleControllerTest {
@@ -173,5 +177,24 @@ class BoardModelLifecycleControllerTest {
 
         mvc.perform(post("/management/board/3/restore").param("cascade", "true"))
                 .andExpect(status().isConflict());
+    }
+
+    /**
+     * HF-5 — board restore 폼이 {@code data-async-submit} 으로 XHR(Accept: application/json)
+     * 제출되면, 활성 (vendor, modelName) 충돌 시 409 가 {@code ApiExceptionHandler.handleFieldBoundConflict}
+     * (produces=application/json)로 라우팅되어 JSON 바디를 돌려줌을 단언한다. 이 JSON 의 message 가
+     * 프론트 {@code ErrorModal} 에 먹이는 입력 — 전체페이지 error.html 이탈이 아니라 inline 모달로 수렴하는
+     * async 경로의 전제를 회귀 가드로 고정. (DuplicateBoardModelException → FieldBoundConflictException.)
+     */
+    @Test
+    @DisplayName("POST /{id}/restore — Accept: application/json + 활성 (vendor, modelName) 충돌 → 409 + JSON message (HF-5 async 채널)")
+    void restore_duplicate_xhr_returns409Json() throws Exception {
+        willThrow(new DuplicateBoardModelException(Vendor.ASUS, "P13R-E"))
+                .given(boardModelService).restore(eq(3L), eq(false));
+
+        mvc.perform(post("/management/board/3/restore").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").exists());
     }
 }
