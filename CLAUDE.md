@@ -1,349 +1,141 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+이 파일은 Claude Code(claude.ai/code)가 이 저장소에서 작업할 때의 가이드다. **"무엇을 만드는가"(목적·현황)와 "어떻게 일하는가"(불가침 프로세스·철학)만 담는다.** 단계별 상태·일정의 SSOT(Single Source of Truth, 단일 진실 출처)는 Notion DB, 엔티티 필드·메서드 상세의 SSOT는 코드다 — 둘을 여기 중복 나열하면 drift(불일치 표류)가 생기므로 하지 않는다.
 
-**현재 상태**: `renew/main` 브랜치에서 Top-down 재설계 진행 중. 기존 `dev` 브랜치 구현은 `archive/legacy/` 에 참조용으로 보존. 상세 플랜은 `.claude/plans/server-provision-peppy-lightning.md` 또는 `plan/*.html` 에 있다.
+## 프로젝트 개요 (무엇을 만드는가)
 
-## 작업 규칙
+**ServerProvision = 물리 서버 프로비저닝 자동화 시스템.** 데이터센터 운영자가 베어메탈 서버에 OS·펌웨어·드라이버를 일관되게 자동 설치·설정하기 위한 관리 시스템이다.
+
+- **관리자(Management)** 가 프로비저닝에 쓸 자원을 등록·관리한다 — OS 이미지/ISO, 메인보드 모델, BIOS·BMC 펌웨어, Subprogram(드라이버·유틸리티). 각 자원은 디스크 파일 + **HMAC 서명 마커**(`.provision.json` in-tree 또는 sidecar)로 무결성을 추적한다.
+- **운영자(Maintenance)** 영역은 자가 점검·복구 — 파일 경로가 바뀌면 마커 기준으로 DB 를 재조정(reconciliation), soft-delete 자원은 휴지통(`.soft-deleted/`)으로 격리, DB/FS 불일치(ghost·orphan) 정합화.
+- **사용자(Provisioning)** 가 세팅 정의서로 프로비저닝 절차(OS 설치 등 다형 단계)를 정의해 서버에 할당한다. 물리 서버가 **PXE 부팅**(`/pxe/v1/entry/boot`, Stage 4)하면 이 정의에 따라 자동 프로비저닝된다.
+- **스택**: Spring Boot 4 + Thymeleaf SSR 관리 UI(일부 XHR) + Spring Data JPA + MariaDB.
+
+## 현재 상태 (어디까지 왔는가)
+
+- 브랜치 **`renew/main`** — 구 `dev` 구현(`archive/legacy/`, 실행경로 외 참조용)을 Top-down 재설계 중.
+- **구현됨**: Management 자원관리(`os`/`board`/`bios`/`bmc`/`subprogram`) + Maintenance(`reconciliation`/`trash`/`orphan`) + Provisioning(`setting`/`server`) 골격 + global 인프라(`marker`/`job`/`lifecycle`/`security`/`ui` 등).
+- **리팩토링 캠페인 R1~R7** 로 6 도메인(OS/Iso/Board/BIOS/BMC/Subprogram)의 Controller/Service 분리 + `LifecycleService` 다형 정렬 + `MarkableScanner` SPI(Service Provider Interface) 분리 + `ObjectProvider`/생성자 순환 제거 완료.
+- **잔여**: R2(예외 처리 모델 개편) 의 R2-3(advice 통합)/R2-4(ProblemDetail)/R2-5(errorCode)/R2-6(frontend alert 정리). Stage 4(PXE Boot 연동) 미착수.
+- **단계별 상태·scope·이력은 Notion DB `Provisioning Server 개발 상세` 가 SSOT.** 현황이 궁금하면 CLAUDE.md 가 아니라 그 DB 와 코드를 본다.
+
+## 작업 규칙 (불가침 철학)
 
 ### 코딩 스타일
-- 코드 주석은 한국어로 작성한다.
-- 최신 Java (17+) 기능과 Spring Boot 4.x 관례를 적극 활용한다.
-- Git 커밋 메시지는 한국어로 작성한다.
-- 프론트엔드와 백엔드가 적절히 결합되어야 하거나, 백엔드를 활용하여 구현 가능한 프론트엔드의 기능은 백엔드에 기능 구현을 더 집중하되, 지나치게 복잡해지지 않도록 적절히 분리한다.
-- WHY 가 비자명할 때만 주석을 남긴다. 의미 없는 Javadoc 금지.
-- **중복된 코드와 가독성이 떨어지는 코드는 유지보수에 매우 까다로우므로 절대 지양한다 (불가침)**.
-  - 동일 로직이 두 곳 이상에 복붙으로 존재하면 즉시 공통 모듈/유틸/fragment 로 추출한다 (예: `path-browser.js` / `bundle-upload-shell.js` / `directory-browse-panel.html` 처럼).
-  - 한 함수 안에 검증 / 변환 / IO / 응답 조립이 뒤섞이면 작은 함수로 쪼갠다.
-  - 매직 상수 / 무명 boolean 인자 / 중첩 5단계 이상 / 100줄 초과 메서드는 모두 가독성 저해 신호 — 발견 즉시 정비한다.
-  - 중복은 "지금은 비슷해 보이지만 미래에 갈라질 수 있어 분리해두는 게 안전" 류의 변명으로 정당화하지 않는다 — 갈라지는 시점에 분리하면 된다.
-  - 단, 분리하려는 추상이 도메인을 가로질러 의미를 잃게 하면 분리하지 않는다 (over-abstraction 도 동일하게 유지보수 비용).
+- 코드 주석·커밋 메시지는 **한국어**. 최신 Java(21) 기능과 Spring Boot 4.x 관례를 적극 활용.
+- WHY 가 비자명할 때만 주석. 의미 없는 Javadoc 금지. 파일 헤더에 AI 작성 마커(`// Claude` 등) 금지.
+- 프론트엔드/백엔드 결합이 필요한 기능은 백엔드 구현에 집중하되 과복잡해지지 않게 적절히 분리한다.
 
-- **조건 분기문 (try-catch / if-else / switch case) 의 legacy 무분별 확장 절대 지양 (불가침)**.
-  - 신규 케이스 / 신규 예외 / 신규 도메인 타입이 추가될 때 분기문에 줄을 늘리는 방식으로 처리하지 않는다. 분기문은 도메인 의미가 추가될 때마다 거의 항상 같이 자라며, 누락 / 회귀 / silent 흡수 사고의 진원지가 된다 (S3 + S4 사이 `catch (DomainException)` 가 보안 예외 흡수해 silent 500 으로 새던 사고가 대표 사례).
-  - 대신 **Java 의 다형성** (interface / abstract class / sealed type / enum 의 method-per-constant / strategy pattern) 과 **Spring Framework primitive** (`@ControllerAdvice` / `@RestControllerAdvice` / `HandlerExceptionResolver` / `@ResponseStatus` / `BindingResult` 자동 매핑 / AOP / `@EventListener` / `MessageSource` / `Converter` / `HandlerMethodArgumentResolver`) 를 적극 활용해 framework 측이 분기를 떠맡도록 설계한다.
-  - 신규 분기문 추가가 **유일한 옵션** 이라면 직전에 다음 질문을 던져본다 :
-    1. 이 분기는 도메인 다형성으로 표현 가능한가? (예: 7 보안 예외별 HTTP status → enum 의 abstract method 또는 `@ResponseStatus` 어노테이션)
-    2. Spring 이 이미 제공하는 framework primitive 가 있는가? (예: SSR/XHR 응답 분기 → `@ControllerAdvice` + `@RestControllerAdvice` 분리, 컨트롤러별 try/catch 대신 `HandlerExceptionResolver` 단일 진입점)
-    3. 분기 조건이 곧 새 sub-class 의 책임으로 흡수될 수 있는가? (Open/Closed Principle 준수)
-  - 위 세 질문 중 하나라도 yes 라면 분기문 추가 대신 다형성 / framework 활용으로 전환한다.
-  - 컨트롤러의 try/catch 블록은 특히 경계해야 한다. 신규 컨트롤러 추가 시 같은 catch 블록을 또 복붙하는 회귀 사고가 본 프로젝트에서 반복적으로 발생했다 (S3.3 → S3.4 의 4 컨트롤러 multi-catch 누락 사고). framework 단의 advice / resolver 로 끌어올린다.
-  - 단, **도메인 invariant 검증의 imperative if-throw** 는 정당한 사용처다 (예: `if (token == null) throw InvalidTokenException`) — 이 항목은 분기문 자체를 금지하는 것이 아니라 **분기문 줄 추가로 책임을 늘리는 패턴** 을 금지한다.
+### 중복·가독성 금지 (불가침)
+- 동일 로직이 두 곳 이상 복붙되면 즉시 공통 모듈/유틸/fragment 로 추출한다. 한 함수에 검증/변환/IO/응답조립이 뒤섞이면 작은 함수로 쪼갠다.
+- 매직 상수 / 무명 boolean 인자 / 중첩 5단계+ / 100줄+ 메서드는 가독성 저해 신호 — 발견 즉시 정비.
+- "미래에 갈라질 수 있으니 미리 분리" 류 변명 금지 — **갈라지는 시점에 분리**한다. 반대로, 분리하려는 추상이 **도메인을 가로질러 의미를 잃으면 분리하지 않는다**(over-abstraction 도 동일한 유지보수 비용).
 
-- **예외는 "프로그램 예외 상황" 전용. 사용자의 UX 논리 모순은 UI 에서 1차 차단한다 (불가침)**.
-  - 정상 UX 흐름에서 사용자가 일으키는 논리적 모순 (예: 부모 자원이 비활성인데 자식 자원 활성화 시도) 은 backend 예외 (`throw`) 로 거절하지 않는다. 예외는 **direct POST / 동시성 / stale 상태 / 외부 변조 같은 진짜 비정상 상황** 에서만 발생해야 한다.
-  - 대신 모순을 부를 액션을 **UI 단에서 사전 차단** 한다 — 버튼 `disabled` + tooltip 으로 클릭 자체를 막는다. 그러면 frontend 가 backend 예외를 케이스별로 처리하지 않아도 되고 (SSR form 의 raw JSON 노출 / XHR alert 분기 누락 같은 반복 사고 회피), 사용자는 "왜 못 하는지" 를 즉시 안내받는다.
-  - **서버 가드 (도메인 invariant 검증의 if-throw) 는 제거하지 않고 안전망으로 유지** 한다. UI 가 정상 흐름을 막으므로 그 가드 예외는 이제 비정상 경로에서만 발동 = 진짜 예외 상황. invariant 의 DB-층 보호가 유지된다.
-  - **UI 차단 조건과 서버 가드 조건은 반드시 단일 소스 (SSOT) 를 공유** 한다 (도메인 메서드 1개를 (1) 서버 가드 (2) 뷰모델 disabled 플래그가 함께 호출). 두 곳에 같은 조건을 복붙하면 드리프트 사고 — 위 §중복 금지 / §조건 분기문 원칙과 정합.
-  - 도입 슬라이스 : **R2-2** (부모-자식 lifecycle 가드의 UI 1차 차단, 전 도메인 ISO / BIOS / BMC × toggle / restore / undeprecate). 이후 R2-3~ 에서 잔존 예외의 advice 통합 / ProblemDetail / errorCode 정비.
+### 조건분기 legacy 확장 금지 → 다형성/Framework primitive (불가침)
+- 신규 케이스/예외/도메인 타입이 추가될 때 분기문(try-catch/if-else/switch)에 줄을 늘리지 않는다. 분기문은 도메인 의미가 늘 때마다 같이 자라며 누락/회귀/silent 흡수 사고의 진원지다(과거 `catch(DomainException)` 가 보안 예외를 흡수해 silent 500 으로 새던 사고).
+- 대신 **Java 다형성**(interface/abstract/sealed/enum method-per-constant/strategy)과 **Spring primitive**(`@ControllerAdvice`/`@RestControllerAdvice`/`HandlerExceptionResolver`/`@ResponseStatus`/`BindingResult` 자동매핑/AOP/`@EventListener`/`MessageSource`/`Converter`)로 framework 가 분기를 떠맡게 설계. 컨트롤러 try/catch 복붙은 특히 경계 — advice/resolver 로 끌어올린다.
+- 신규 분기가 유일한 옵션이면 자문한다: ① 도메인 다형성으로 표현 가능한가 ② Spring primitive 가 이미 있는가 ③ 곧 새 sub-class 책임으로 흡수될 분기인가(OCP). 하나라도 yes 면 다형성으로 전환.
+- 단, **도메인 invariant 의 imperative if-throw**(`if (token == null) throw ...`)는 정당하다 — 금지 대상은 "분기 줄 추가로 책임을 늘리는 패턴"이다.
 
-### 설명 · 답변 · 문서 작성 규칙 (불가침)
-- **사실을 풀어서 설명한다 — 과장 · 과도한 함축 금지.** "X 가 핵심이다 / 결정적이다" 류의 단정·압축으로 뭉뚱그리지 말고, 무엇이 어떤 이유로 그러한지를 단계적으로 풀어 쓴다. 인과·전제·예외를 생략해 한 줄로 압축하면 사용자가 그 함축을 스스로 풀어야 하므로 금지. (예 : "GhostOperator 주입이 순환 해소의 핵심" 처럼 인과를 비약하지 말고, "순환은 Trash 작업을 LifecycleService 로 옮겨 scanner 가 repo 직접 빈이 되기 때문에 풀린다 — GhostOperator 주입 여부와는 무관하다" 처럼 실제 기제를 풀어 쓴다.) 답변 · plan/report html · Notion · 코드 주석 모두에 적용.
-- **프로그램 내 객체(클래스 / 인터페이스 / 메서드 / 패키지) 이름을 임의로 줄여 쓰지 않는다.** `SoftDeleteIntentService` 를 `SDIS` 로 쓰는 식의 즉석 약어 금지 — 항상 코드에 실재하는 전체 이름을 쓴다. 임의 약어는 (a) 사용자가 어느 객체인지 추적 불가, (b) `ISP`(Interface Segregation Principle) 같은 설계 전문 용어 약어와 혼동된다.
-- **설계 전문 용어 약어는 객체 약어와 구분하고, 처음 등장 시 풀어서 명시한다.** 예 : `SPI`(Service Provider Interface — 도메인이 구현해 끼워 넣는 확장 지점 인터페이스), `ISP`(Interface Segregation Principle — 인터페이스 분리 원칙), `DI`(Dependency Injection). 이들은 특정 객체의 줄임말이 아니라 일반 설계 용어이며, 본문에서 처음 쓸 때 괄호로 원어 + 한 줄 뜻을 병기한다.
+### 예외 = 프로그램 예외 전용, UX 모순은 UI 1차 차단 (불가침)
+- 정상 UX 흐름에서 사용자가 일으키는 논리적 모순(예: 부모 비활성인데 자식 활성화 시도)은 backend 예외로 거절하지 않는다. 예외는 **direct POST / 동시성 / stale / 외부변조 같은 진짜 비정상**에서만 발생해야 한다.
+- 모순을 부를 액션은 **UI 에서 사전 차단**(버튼 `disabled` + tooltip). frontend 가 예외를 케이스별 처리할 필요가 없어지고 사용자는 이유를 즉시 안내받는다.
+- **서버 가드(invariant if-throw)는 안전망으로 유지** — UI 가 정상 흐름을 막으므로 그 가드는 비정상 경로에서만 발동.
+- **UI 차단 조건과 서버 가드 조건은 반드시 단일 SSOT 공유**(도메인 메서드 1개를 서버 가드 + 뷰모델 disabled 플래그가 함께 호출). 두 곳에 복붙하면 drift. (선례: `childEnableBlockReason()` / `blocksChild*()`.)
 
-### 아키텍처 설계 시 주의점
-- 서버의 리소스를 효율적으로 사용하도록 할 것. 예를 들어, 대용량 파일 업로드 시 스트리밍 처리, 불필요한 데이터 로딩, 비교 방지 등.
-- 보안 고려: 민감한 정보(예: IPMI 자격 증명)는 안전하게 저장하고 전송한다. 예를 들어, 데이터베이스에 암호화하여 저장하거나, 환경 변수로 관리한다.
-- 확장성 고려: 향후 새로운 기능이나 자원 유형이 추가될 수 있으므로, 유연한 설계를 지향한다. 예를 들어, 세팅 정의서의 프로세스 단계가 다양해질 수 있으므로, 다형성을 활용하여 확장 가능한 구조로 설계한다.
-- 에러 처리: 예상 가능한 예외 상황에 대한 명확한 에러 메시지와 HTTP 상태 코드를 반환하도록 한다. 예를 들어, 권한 부족 시 403, 잘못된 입력 시 400, 서버 오류 시 500 등을 적절히 사용한다.
+### 설명·답변·문서 작성 규칙 (불가침)
+- **사실을 풀어서 설명한다 — 과장·과도한 함축 금지.** "X 가 핵심/결정적" 류 단정으로 뭉뚱그리지 말고 무엇이 어떤 이유로 그러한지 인과·전제·예외를 단계적으로 푼다. 답변·plan/report html·Notion·코드 주석 모두 적용.
+- **프로그램 객체(클래스/인터페이스/메서드/패키지) 이름을 임의 약어로 줄이지 않는다.** `SoftDeleteIntentService` 를 `SDIS` 로 쓰지 않는다 — 항상 코드에 실재하는 전체 이름.
+- **설계 전문 용어 약어는 처음 등장 시 풀어 쓴다**: `SPI`(Service Provider Interface — 도메인이 구현해 끼우는 확장점), `ISP`(Interface Segregation Principle), `DI`(Dependency Injection), `SSOT`(Single Source of Truth) 등.
 
-### 네이밍 규칙
-- 패키지명은 모두 소문자, **feature-first** 로 구성한다 (예: `com.example.serverprovision.management.os`).
-- 클래스 접미사:
-  - MVC Controller: `*Controller`
-  - REST Controller: `*RestController`
-  - Service: `*Service`
-  - Repository: `*Repository`
-  - 요청 DTO: `*Request` (접미사 `DTO` 사용하지 않음)
-  - 응답 DTO: `*Response`
-  - 엔티티: `*Entity`
-  - 열거형: 도메인 목적을 직접 드러내는 명칭 (예: `OSName`, `Vendor`, `ProvisioningStatus`)
-  - Value Object: 도메인 개념 기반 (예: `MacAddress`, `IpAddress`, `ProvisioningProgress`)
+### 네이밍
+- 패키지: 전부 소문자, **feature-first**(`com.example.serverprovision.management.os`).
+- 접미사: MVC `*Controller` / REST `*RestController` / `*Service` / `*Repository` / 요청 `*Request`(접미사 `DTO` 금지) / 응답 `*Response` / 엔티티 `*Entity` 또는 도메인명. Enum·Value Object 는 도메인 의미를 직접 드러내는 명칭(`OSName`/`Vendor`/`MacAddress`/`IpAddress`).
 
-### Primitive Obsession 금지 (불가침 원칙)
-- 도메인 의미가 있는 값(MAC, IP, 버전, 진행률, 파일 경로 등)은 **반드시 Value Object 또는 Enum 으로 타입화** 한다.
-- `int currentStepIndex`, `String mac` 같이 **주요 비즈니스 상태를 원시 필드로 표현/전달하지 않는다**.
-- 엔티티 필드, Service 메서드 시그니처, Request/Response 필드 모두에 동일하게 적용.
-- 매 코드 작성 시 "이 원시값이 도메인 의미를 가지는가" 를 점검한다.
+### Primitive Obsession 금지 (불가침)
+- 도메인 의미가 있는 값(MAC/IP/버전/진행률/파일경로 등)은 **반드시 Value Object 또는 Enum 으로 타입화**한다. `int currentStepIndex` / `String mac` 처럼 주요 비즈니스 상태를 원시 필드로 표현·전달하지 않는다. 엔티티 필드·Service 시그니처·Request/Response 모두 동일. Value Object(`@Embeddable`/record)는 `vo/` 로 entity 와 물리 분리.
 
 ### UI 디자인
-- `DESIGN.md` 파일에 명세된 UI 디자인을 엄격히 준수한다.
-- 기존 CSS 파일 재사용이 원칙: `static/css/global/style.css`, `miller.css`, `table-list.css`, `form-validation.css`.
-- 인라인 스타일 금지. CSS 클래스 적극 활용.
-
-### Notion 작업
-- 작업할 Notion 페이지 이름은 'Provisioning Server' 이고 주요 데이터베이스 이름은 'Provisioning Server 개발 상세' 이다.
-- Notion 페이지에 댓글을 달 때는 [Claude] 접두사를 사용하여 구분한다.
-- **페이지 신설 / 상태 갱신 / scope 변경 시 Claude 가 판단한 세부 사항 (향후 슬라이스에서 처리될 사항, 비 목표, 잔존 책임, 의존 비대칭, 의도된 임시 상태 등) 은 페이지 본문 (content) 에 반드시 기재한다 (불가침)**.
-  - 예 : R1-4-1 분리 후 `purgeIsoForNudge` 가 OSMetadataService 에 잠시 잔류해 의존 비대칭이 발생한 상태 → R1-4-2 에서 IsoRegistrationService 로 이동 예정. 이런 결정을 plan html 의 §11 / §2 에만 적고 Notion 페이지에는 빈 본문으로 두면 사용자가 추후 Notion 만 보고 의문이 생긴다.
-  - plan html / report html 은 산출물 별도 자산. Notion 페이지는 단독으로도 슬라이스 의도 / 비 목표 / 후속 처리 / 의도된 임시 상태를 파악할 수 있어야 한다.
-  - 새 슬라이스 페이지 신설 시 본문에 최소 다음 4 항목을 기재 : ① scope 요약, ② 비 목표 (out of scope, 다음 슬라이스 어디로 갈지 명시), ③ 잔존 책임 / 임시 비대칭이 있다면 그 사유 + 해소 시점, ④ 후속 마일스톤 1~2 줄.
-  - 사용자가 페이지를 직접 신설해 본문이 비어 있다면 Claude 가 첫 상태 갱신 시점에 위 4 항목을 채워 넣는다. 임의로 빈 본문을 두지 않는다.
-
-### 코드 소유권
-- **커밋은 사용자 지시가 있을 때만 수행**. Claude 는 `git commit` 을 자동 호출하지 않는다.
-- 사용자가 커밋 지시를 내린 경우, 커밋 메시지에 반드시 AI 가 참가했다는 사실을 명시한다(github 에서 CLAUDE CODE 참여 여부가 명확히 드러나도록).
-- 각 페이지 수직 슬라이스의 **2~9 단계까지만 Claude 가 작성**한다. 10 단계(브라우저 end-to-end) 는 사용자 단독 수행.
-- 파일 헤더에 AI 작성 마커 주석(`// Claude`, `// AI-generated` 등) 금지.
-- 플랜 범위 밖의 코드 이동/공통화는 사용자 명시 요청 시에만.
-
-## 빌드 및 실행
-
-`CLAUDE.local.md` 파일 참고.
-
-### 로컬 테스트 DB 계정
-
-#### `readonly_user` — SELECT 전용
-- **용도**: Claude Code 의 로컬 자체 테스트에서 읽기 경로 + 필드 검증 경로 회귀.
-- **접근 가능 DB**: `server_provision` (localhost:3306) 에만 권한 있음.
-- **환경변수**:
-  ```
-  DB_URL=jdbc:mariadb://localhost:3306/server_provision
-  DB_USERNAME=readonly_user
-  DB_PASSWORD=readonly_claude
-  ```
-- **한계**: INSERT/UPDATE/DELETE 가 필요한 경로는 JPA 단계에서 `INSERT command denied` 로 실패하여 500 `INTERNAL_ERROR` 로 끊긴다. 이 실패는 코드 버그가 **아니라** DB 권한 제약이며, 서버 로그의 SQL 예외로 구분 가능하다. 성공 경로의 end-to-end 영속화 회귀가 필요하면 쓰기 권한 유저를 별도로 주입해야 한다.
-
-## 기술 스택
-
-- **Spring Boot 4.x** + **Jackson 3** — 어노테이션(`@JsonCreator`, `@JsonProperty`, `@JsonTypeInfo`, `@JsonSubTypes` 등)은 backward-compat 용도로 `com.fasterxml.jackson.annotation.*` 에 유지되지만, 런타임 클래스(`ObjectMapper`, `JacksonException` 등 `core`/`databind` 패키지)는 **`tools.jackson.*`** 를 사용한다. `com.fasterxml.jackson.core/databind` 는 클래스패스에 없다.
-- **Spring MVC + Thymeleaf** — 관리자 UI 는 `@ModelAttribute` + `BindingResult` 폼 제출 방식
-- **Spring Data JPA** + MariaDB
-- **Lombok** — `@Builder`, `@Getter`, `@RequiredArgsConstructor` 등 전반적으로 사용
+- `DESIGN.md` 명세를 엄격 준수. 기존 CSS 재사용 원칙(`static/css/global/style.css`, `miller.css`, `table-list.css`, `form-validation.css`). 인라인 스타일 금지, CSS 클래스 활용.
 
 ## 아키텍처
 
-### 영역 분할 (3 도메인 영역 + 진입점 + 글로벌)
+### 영역 분할
+- **Management** (`/management/*`) — 자원 관리. `os`(OSMetadata 1:N ISO) / `board`(BoardModel) / `bios`(BoardBIOS) / `bmc`(BoardBMC) / `subprogram`(드라이버·유틸, FK nullable=공용). BoardModel 1:N {BIOS, BMC, Subprogram}.
+- **Maintenance** (`/maintenance/*`) — 자가 점검·복구. `reconciliation`(경로 드리프트), trash·orphan 정합화.
+- **Provisioning** (`/provisioning/*`) — 사용자 영역. `setting`(SettingDefinition + SettingProcess 다형) / `server`(Server, MacAddress/IpAddress VO).
+- **Entry** (`/pxe/v1/entry/boot`) — PXE 부팅 진입점(Stage 4). 호환성 위해 `/pxe/v1` prefix 유지.
+- **global** — 영역 무관 인프라: `marker`(ProvisionMarkerService + `Markable` + `MarkableScanner` SPI) / `job`(BackgroundJob) / `lifecycle`(`LifecycleService`/`SoftDeleteIntentService`/`TypedNameGuard`) / `trash` / `orphan` / `registration` / `security` / `exception` / `ui` / `entity`(BaseTimeEntity) / `config`.
 
-- **Management** (`/management/*`) — 어플리케이션 자원 관리 (Manage-Application). OS / Board / BIOS / BMC / Driver
-- **Maintenance** (`/maintenance/*`) — 어플리케이션-서버 간 운영 (Manage-Kernel). 경로 재조정 등 자가 점검·복구
-- **Provisioning** (`/provisioning/*`) — 사용자 영역. 세팅 정의서, 서버
-- **Entry** (`/pxe/v1/entry/boot`) — 물리 서버 PXE 부팅 요청 진입점 (Stage 4 도입). **다른 영역과 달리 `/pxe/v1` prefix 유지** — PXE 클라이언트 호환성
-- **Jobs** (`/jobs/*`) — BackgroundJob 글로벌 인프라 (S1, root 직속)
+각 feature 하위는 `controller/`·`service/`·`repository/`·`entity/`·`vo/`·`dto/`·`enums/`·`exception/` 로 세분. **엔티티 필드·도메인 메서드의 상세는 코드가 SSOT** — 여기 나열하지 않는다.
 
-### 패키지 구조 (feature-first)
-
-```
-com.example.serverprovision/
-├── management/                    # 어플리케이션 자원 관리 (Manage-Application)
-│   ├── os/           # OSImage + ISO (1:N) + OSEnvironment + OSPackageGroup
-│   ├── board/        # BoardModel
-│   ├── bios/         # BoardBIOS (.provision.json 마커 + HMAC)
-│   ├── bmc/          # BoardBMC                  (MA4)
-│   └── driver/       # DriverPackage             (MA5)
-├── maintenance/                   # 어플리케이션-서버 운영 (Manage-Kernel)
-│   └── reconciliation/            # PathReconciliationService (MK1)
-├── provisioning/                  # 사용자 영역
-│   ├── setting/      # SettingDefinition + SettingProcess 다형성
-│   ├── server/       # Server + 세팅 할당
-│   └── pxe/          # (Stage 4) PXEBootRestController, ProvisioningStrategy, NodeStepExecution, ProvisioningProgressService
-├── execution/                     # (예약, Stage 4 진입 시점에 결정)
-└── global/
-    ├── marker/       # ProvisionMarkerService, MarkerContent, Markable, MarkableScanner (MK1 후 추가)
-    ├── job/          # BackgroundJob 인프라 (S1)
-    ├── exception/    # 도메인 예외 + @ControllerAdvice + ApiErrorResponse
-    ├── entity/       # BaseTimeEntity (JPA Auditing)
-    └── config/       # AsyncConfig 등
-```
-
-각 feature 하위는 `controller/`, `service/`, `repository/`, `entity/`, `vo/`, `dto/`, `enums/`, `exception/` 레이어로 세분화. Value Object(`@Embeddable` / record) 는 `vo/` 로 **entity 와 물리적으로 분리**한다 — 엔티티 파일이 쏟아질수록 VO 와의 혼재가 가독성을 떨어뜨리기 때문.
-
-### 핵심 도메인 모델
-
-#### Management (어플리케이션 자원)
-- **OSImage** — `id`, `osName`(`OSName` Enum), `osVersion`, `description`, `isEnabled`. 1:N `ISO`.
-- **ISO** — `id`, `osImage` FK, `isoPath`, `description`, `isEnabled`. 한 OS 버전이 여러 ISO 를 가질 수 있다. (MK1 후 `markerSignature` / `manifestHash` 추가)
-- **BoardModel** — `id`, `vendor`(`Vendor` Enum), `model`, `description`, `isEnabled`. 1:N `BoardBIOS` / `BoardBMC` / `DriverPackage`.
-- **BoardBIOS** — `id`, `name`, `version`, `treeRootPath`, `entrypointRelativePath`, `manifestHash`, `markerSignature`(nullable, 2-phase save), `description`, `isEnabled`, `isDeleted`, `boardModel` FK. v3 번들 + `.provision.json` 마커.
-- **BoardBMC** (MA4) — `id`, `name`, `version`, `fileUrl`, `description`, `isEnabled`, `boardModel` FK + Markable 구현 (sidecar 마커).
-- **DriverPackage** (MA5) — `id`, `name`, `version`, `boardModel` FK (**nullable**; null 일 때 "공용"), `filePath`, `description`, `isEnabled` + Markable 구현.
-
-#### Maintenance (어플리케이션-서버 운영)
-- **DriftReport** (record, MK1) — `Instant scannedAt`, `Duration scanDuration`, `boolean deep`, `int totalChecked`, `List<Drift> drifts`. 메모리 보관, 영속화 안 함.
-- **Drift** (record, MK1) — 1건 드리프트. `driftId`, `resourceType`, `resourceId`, `oldPath`, `newPath`, `kind`, `detectedAt`, `detail`.
-
-#### Provisioning (사용자 영역)
-- **SettingDefinition** — `id`, `name`, `process`(JSON, `SettingProcessConverter` 담당), `status`(`PENDING`/`IN_PROGRESS`/`COMPLETED`/`FAILED`).
-- **SettingProcess 다형성** — `AbstractSettingProcess` + `BasicUpdate` + `OSInstallation` (Jackson `@JsonTypeInfo`, `@JsonSubTypes`). MVP 범위 외 `BasicSetting` / `OSSetting` 은 스텁으로 두고 Stage 4 에서 채운다.
-- **Server** — `macAddress`(`MacAddress` VO), `ipmiIp`(`IpAddress` VO), `ipmiUser`, `ipmiPassword`, `hostname`, `assignedIp`(`IpAddress` VO), `boardModel` FK, `settingDefinition` FK(nullable), `status`(`IDLE`/`ASSIGNED`/`IN_PROGRESS`/`DONE`/`FAILED`), `assignedAt`, `completedAt`. **`currentStepIndex` 없음** (Primitive Obsession 금지 원칙 적용).
-- **NodeStepExecution** (Stage 4) — `Server` 의 단계 실행 이력.
-- **ProvisioningProgress** (VO, Stage 4) — "다음 수행 단계" 를 타입화해 표현. `ProvisioningProgressService` 가 `NodeStepExecution` 이력을 바탕으로 계산해 반환.
-
-#### 마커 인프라 (`global/marker/`, MK1 후)
-- **MarkerContent** (record) — `resourceType`, `resourceId`, `attributes(Map)`, `createdAt`, `manifestHash`, `signature`. 도메인 무관.
-- **ResourceType** (Enum) — `BIOS_BUNDLE(IN_TREE)`, `OS_ISO(SIDECAR)`, `BMC_FIRMWARE(SIDECAR)`, `DRIVER(?)`. 각 상수가 default `MarkerLayout` 보유.
-- **Markable** (interface) — DB 엔티티 어댑터. `getResourceId / getResourceType / getResourcePath / getMarkerLayout / getManifestHash / getMarkerSignature / reissueMarker`.
+### 핵심 설계 패턴 (코드 읽기 전 알아둘 것)
+- **lifecycle 다형**: 모든 자원 도메인은 `global.lifecycle.LifecycleService`(1-arg: `toggleEnabled(id)`/`softDelete(id)`/`restore(id,cascade)`/`deprecate`/`undeprecate`/`purge`/`purgeWithTypedNameCheck`)를 구현한다. fat `*Service` 는 `*LifecycleService`/`*RegistrationService`/`*IntegrityService`/`*MarkerWriter`/잔류 `*Service`(read+update)로 5분할하는 것이 표준(R4~R6 선례).
+- **마커 인프라**: 공용 엔진 `ProvisionMarkerService`(서명/기록/검증, 도메인 무관 1개) + 도메인별 thin `*MarkerWriter`(attribute 조립). 엔티티는 `Markable` 구현, 스캐너는 `MarkableScanner`(4 sub-interface 합성).
+- **typed-name 검증**: 영구삭제 전 사용자가 자원명을 직접 입력 → static `TypedNameGuard.verify(Markable, String)`(의존성 0). controller 의 id→entity 조회는 `TypedNameVerifier` 빈. **service 에 `TypedNameVerifier`/scanner/`ObjectProvider` 를 주입하면 생성자 순환이 재생성되므로 금지**(R7 이 제거함).
+- **forging 가드**: 부모-자식 URL(`/{boardId}/bios/{biosId}/...`)은 `*LifecycleService.assertBelongsTo*(childId, parentId)` 별도 메서드로 검증하고 controller 가 lifecycle 직전 호출(`IsoLifecycleService.assertBelongsToOs` 선례). 단 공용 FK(부모 없음)·boardId 없는 URL 은 미적용.
 
 ### 레이어 경계
-- Controller ↔ Service: `*Request` / `*Response` 만 주고받는다.
-- Service ↔ Repository: 엔티티 직접 사용.
-- 뷰(Thymeleaf Model) 에 엔티티를 직접 노출하지 않는다.
-- `@Transactional` 은 Service 메서드 경계. Controller 에 `@Transactional` 금지.
+- Controller ↔ Service: `*Request`/`*Response` 만. 뷰(Thymeleaf Model)에 엔티티 직접 노출 금지.
+- Service ↔ Repository: 엔티티 직접 사용. `@Transactional` 은 Service 경계(Controller 금지).
+- 입력 검증은 `@Valid` + `BindingResult`. 도메인 예외는 `global/exception/`(또는 `global/security/exception/`), advice 가 HTTP 응답으로 변환.
 
-### 예외 / 입력 검증
-- 도메인 예외는 `global/exception/` 에 정의.
-- `@ControllerAdvice` 하나로 예외 → HTTP 응답 변환 통합.
-- 입력 검증은 `@Valid` + `BindingResult` 조합.
+## 기술 스택
+- **Spring Boot 4.x** + **Jackson 3** — 어노테이션(`@JsonCreator`/`@JsonTypeInfo` 등)은 backward-compat 로 `com.fasterxml.jackson.annotation.*` 유지되나, 런타임 클래스(`ObjectMapper` 등)는 **`tools.jackson.*`** 를 쓴다. `com.fasterxml.jackson.core/databind` 는 클래스패스에 없다.
+- Spring MVC + Thymeleaf(관리자 UI = `@ModelAttribute` + `BindingResult` 폼 제출) · Spring Data JPA + MariaDB · Lombok(`@Builder`/`@Getter`/`@RequiredArgsConstructor`).
 
-## 개발 흐름
+## 개발 흐름 (어떻게 일하는가)
 
-### Stage
-- **Stage 0** — 초기화 (archive/legacy/ 이동 + 빈 스켈레톤 + `./gradlew bootRun` smoke)
-- **Stage 1** — Management (MA1 OS 이미지 → MA1-1 환경/그룹 추출 → [S1 Background Job] → MA2 메인보드 모델 → MA3 BIOS → [M0 리네임] → [Stage 2 / MK1] → MA4 BMC → MA5 Driver)
-- **Stage 2** — Maintenance (MK1 경로 재조정 — Stage 1 의 MA3 직후 진입. 어플리케이션-서버 운영)
-- **Stage 3** — Provisioning (U1 세팅 정의서 → U2 서버)
-- **Stage 4** — PXE Boot 연동 (PXEBootRestController, ProvisioningStrategy, Kickstart, NodeStepExecution, ProvisioningProgressService)
+작업은 **인벤토리 코드**(작업 단위 식별자)로 부른다: `MA*`(Manage-Application) / `MK*`(Manage-Kernel/Maintenance) / `U*`(Provisioning) / `S*`(cross-cutting infra) / `R*`(리팩토링 캠페인) / `HF*`(hotfix) / `M0`(리네임) / `CH*`(housekeeping). 코드 번호는 식별자이지 실행 순서가 아니다. **각 코드의 상태·이력은 Notion DB 가 SSOT** — CLAUDE.md 에 이력을 적지 않는다.
 
-> **참고**: Stage 1 과 Stage 2 의 진행은 직선이 아니다. MA3 가 끝나면 M0 리네임 → MK1 (Stage 2) 가 먼저 들어가고, 이후 Stage 1 의 MA4 / MA5 가 마저 진행된다. Stage 번호는 도메인 묶음 식별자이지 실행 순서가 아니다.
+### 수직 슬라이스 (페이지/작업당 10 단계)
+1. URL/데이터 흐름 스케치 — **plan html 산출**(아래 규약) 2. Thymeleaf 뷰(더미, 기존 CSS 재사용) 3. Controller(`@ModelAttribute`+`BindingResult`, Model 엔 Response 만) 4. Request/Response DTO(`@Valid`) 5. Service 인터페이스+시그니처(`@Transactional` 경계) 6. Repository(Spring Data 네임규칙) 7. Entity(`BaseTimeEntity` 상속, **7단계 전 `@Entity` 작성 금지**) 8. Service 본체 + 테스트(아래 규율) 9. 스키마 확인(`ddl-auto=update`, `SHOW CREATE TABLE`) 10. 브라우저 E2E — **사용자 단독**.
+- 리팩토링 슬라이스(엔티티 무변경)는 6·7·9 단계가 N/A 가 될 수 있다.
 
-### 인벤토리 코드 어휘
-- **MA1 ~ MA5** — Manage-Application (Stage 1 Management)
-- **MK1 ~ MK4** — Manage-Kernel (Stage 2 Maintenance)
-  - **MK1** — 경로 재조정 (완료)
-  - **MK2** — Soft-delete / Restore / Purge 정합화 (완료, WAVE 1/2/3)
-  - **MK3** — Trash 패턴 도입 (완료) — soft-delete 자원을 `.soft-deleted/` 디렉토리로 격리. active 트리는 항상 깨끗 + reconciliation 의 (resourceType, resourceId) 매칭 신뢰성 회복. 6 신규 DriftKind + TTL worker + 휴지통 페이지
-  - **MK3-1** — Ghost row 일급 개념 도입 (CP4 완료, 의미 재해석). DB-truth + FS-truth 양쪽이 음수인 dead row 를 4 영역에서 일관된 멘탈 모델로 처리. `DriftKind.GHOST_DB_ROW` + `MarkableScanner.isGhost/findGhostMarkables/applyGhostClear` SPI + `GhostRowRestoreNotAllowedException`. **외부 비판 검토 결과 (2026-05-07) : 사후 패치 성격으로 재해석. 본 슬라이스 코드는 한시적 안전망 + 마이그레이션 도구로 위치 변경. MK3-2 운영 안정 후 별도 정리 슬라이스에서 전체 삭제 가능**
-  - **MK3-2** — softDelete Reject 정책 (예정 / 진입 대기). 외부 비판 1+4 해소 — softDelete 진입 시 `Files.exists(DB.path)` 사전조건 강화로 Ghost 신규 생성 차단. modal 3택 (위치 정정 후 삭제 / 강제 정리 / 취소) + DeleteIntentRegistry 5분 TTL token + feature flag 게이팅. 이중 의도 검증 명제의 시스템 전체 일관성 회복
-  - **MK4** — ApplicationFileMover (예정 / 미진입). UI 에서 파일을 옮기면 마커 + DB 가 동시 갱신. MK1 의 `applyDriftedPath` 를 역방향으로 호출
-  - 그 외 후속 슬라이스 후보 (외부 비판 검토 도출, 2026-05-07) :
-    - **SPI 분리** — `MarkableScanner` → 4 sealed interface (`MarkableInventory` / `MarkableDriftApplier` / `MarkableTrashOperator` / `MarkableGhostOperator`). 비판 3 / ISP 위반 해소
-    - **Marker DB backup 컬럼** — `(resourceType, resourceId)` 매핑의 SPOF 방어. 비판 5 + HMAC secret 회전 (§7.3) 연계
-    - **DriftKind 3 축 매트릭스 UI** — 12 enum 평면화를 lifecycle / FS 위치 / 마커 상태 3 축으로 재구성. 비판 6 + PATH_DRIFT↔RESOURCE_RENAMED 자연 해소
-    - **ReferenceTracker** — Job 사용 중 자원 hard-delete 차단 (다이어그램 통찰). 본 슬라이스와 별개 결함
-    - **Audit Event Bus** — append-only audit 영속화 인프라. MK3-2 의 7종 이벤트 흡수
-    - **Ghost 코드 정리 슬라이스** — MK3-2 운영 안정 후 한시적 fail-safe 코드 전체 삭제 (DCM3-2.9)
-  - 인벤토리 외 후보 (마커 재발급 마이그레이션 / 분산 스캔 / Stage 4 자원 강제 검증) 는 `plan/26-04-28_21-33-00_MK_expected_plan.docx` 에 archived
-- **U1 ~ U2** — User (Stage 3 Provisioning)
-- **S1** — Cross-cutting infrastructure (Background Job)
-- **S3 / S3.1 / S3.2** — Cross-cutting Security Hardening
-- **M0** — Cross-cutting 1회성 리네임 슬라이스 (영역 재구성)
-- **CH1 ~ CH4** — Cross-cutting Housekeeping (정리 / 정합화)
+### 체크포인트 (CP1~CP5)
+10 단계를 5 체크포인트로 묶어 **단계별 사용자 승인 후 다음으로** 진행한다(승인 전 선행 구현 금지).
 
-### 수직 슬라이스 (페이지당 10 단계)
-1. URL / 데이터 흐름 스케치 — **`plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html` 산출** (아래 §Step 1 — plan html 규약 참조)
-2. Thymeleaf 뷰 (더미 데이터, `fragments/layout.html` + 기존 CSS 재사용)
-3. Controller (`@ModelAttribute` + `BindingResult`, Model 에 Response 만)
-4. Request / Response DTO (`@Valid`)
-5. Service 인터페이스 + 시그니처 (`@Transactional` 경계)
-6. Repository (Spring Data JPA 메서드 네임 규칙 위주)
-7. Entity (`BaseTimeEntity` 상속) — **7 단계 이전 `@Entity` 작성 금지**
-8. Service 본체 + 단위 테스트 (happy 1 + 실패 1) + **사용자 액션 기반 통합 테스트** (아래 규칙 참조)
-9. 스키마 확인 (`ddl-auto=update` 로컬 반영, `SHOW CREATE TABLE` 로그 확인)
-10. 브라우저 end-to-end — **사용자 단독 수행**
+| CP | 범위 | 동작 |
+|---|---|---|
+| **CP1** | Step 1 | Claude 가 plan html 생성·제시 → 승인 |
+| **CP2** | Step 2~5 | 뷰·Controller·DTO·Service 시그니처 구현 후 보고 → 승인 |
+| **CP3** | Step 6~7 | Repository·Entity(+VO/Enum) 후 보고 → 승인 |
+| **CP4** | Step 8~9 | Service 본체·테스트·스키마 확인 후 보고 → 승인 |
+| **CP5** | Step 10 | 사용자 단독 브라우저 E2E → 완료 통보 대기 |
 
-### 테스트 규율 (불가침)
-
-단위 테스트만으로는 "예외 → HTTP 응답" 매핑 사고나 컨트롤러 분기 누락 같은 문제가 드러나지 않는다.
-Stage S1 에서 `MissingFilenameException` 이 500 으로 새는 사고가 대표적 예시. 단위 테스트는 통과했지만
-실제 사용자 액션을 따라가는 테스트가 없어서 프로덕션 경로의 상태 코드를 놓쳤다.
-
-Step 8 의 테스트는 **두 레이어를 모두** 작성한다:
-
-1. **단위 테스트** — Service 본체의 분기별 happy 1 + 실패 1. JUnit + Mockito.
-2. **사용자 액션 기반 통합 테스트** — 각 페이지의 사용자가 수행할 수 있는 **모든 액션**을 HTTP 계층에서
-   실제 상태 코드·응답 바디로 검증한다. Spring `@WebMvcTest` + `MockMvc` + `@MockitoBean` 조합.
-
-#### 사용자 액션 기반 통합 테스트 작성 규칙
-
-- **컨트롤러 단위** 로 파일 분리 : `*ControllerUploadFlowTest`, `*ControllerExtractFlowTest` 등 플로우별.
-- **시나리오 커버리지** : 각 엔드포인트에 대해 아래 네 범주를 모두 포함한다.
-  - **성공 경로** — 2xx + 응답 바디 필드 값 검증
-  - **입력 검증 실패** — 400 + 필드 메시지
-  - **도메인 충돌** — 409 (모든 `ConflictException` 하위 클래스를 실제로 트리거)
-  - **리소스 없음** — 404 (모든 `NotFoundException` 하위 클래스)
-- **Mockito mocking** 은 Service 단까지만. Controller 내부의 try/catch + GlobalExceptionHandler 매핑은
-  실제로 실행되어야 한다.
-- 새 예외 클래스를 추가하면 **해당 예외를 발생시키는 시나리오 테스트를 반드시 함께 추가**한다.
-  추가하지 않으면 "개발자의 예상" 과 "실제 HTTP 응답" 이 어긋난 채 머문다.
-- 참고 선례 : `OSImageControllerUploadFlowTest` (Intent 6 / Upload 6 / Extract 3 = 15 시나리오).
-
-이 규율을 어긴 테스트 묶음은 CP4 승인 대상이 아니다. 단위 테스트만 있고 통합 시나리오가 누락됐다면
-사용자는 해당 CP 를 거절한다.
+> **모든 CP 중 Claude 가 가장 많은 사고를 쏟아야 하는 단계는 CP1(계획)이다 (불가침).** 코드 구현(CP2~CP4)은 좋은 계획만 있으면 기계적이지만, 설계 결함은 CP1 에서 못 잡으면 그대로 굳는다. plan 을 쓰기 전 반드시: ① **설계 대안을 복수 생성·비교**(첫 떠오른 안 하나로 쓰지 않는다 — 2~3 접근의 trade-off 명시 후 최선 선택) ② **자기 선택을 적대적으로 비판**(통일성 깨지 않는가/churn 만들지 않는가/더 간단한 길은/숨은 순환·결함은 — 막히면 코드를 더 읽어 확인) ③ **결정에 채택안 + 비채택 대안 + 탈락 사유를 함께 기록**(사용자가 "더 나은 방안 없냐" 되묻지 않아도 최적 설계가 plan 에 담겨야 한다). 필요하면 CP1 에 workflow/Agent 를 적극 동원한다 — CP1 토큰은 CP2~CP4 재작업을 막는 투자다.
 
 ### Step 1 — plan html 규약 (불가침)
+- **경로**: `plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html`, timestamp 는 **KST(Asia/Seoul)**. 페이지키 = 인벤토리 코드.
+- **방식**: html 을 직접 Write. html 인 본질은 **인터랙티브** — ① 🎬 라이브 데모로 설계 동작을 클릭·체험 검증, ② 검색/접기 ToC, ③ localStorage 체크리스트. **골격·CSS·JS 는 묻지 말고 최근 `plan/*.html` 을 직접 읽어 복제**한다.
+- 골격: sticky `header.page-header` + sticky `nav.toc`(top:108px) + `<main>`. 섹션 = `<details class="section" id="sN">`. `<input class="filter-box">` 검색. 말미 `<script>` 4 로직(불가침): ToC 클릭→open+smooth scroll(offset −108) / 전부 펴기·접기 / filter→매칭 섹션만 / `check-list[data-storage]` localStorage.
+- **🎬 미리보기 = 진짜 인터랙티브(불가침, §2 직후)**: 단순 텍스트/도식 박스 금지. 위젯에서 **상태를 직접 바꿔 결과(상태전이/차단/cascade/순환)를 체험**할 수 있어야 한다 — `state` 객체 + `render()` + `action()` 으로 그 슬라이스의 도메인 규칙을 JS 로 시뮬레이션(서버 판정을 재현). 선례: `plan/26-05-30_10-55-11_R2-2_plan.html`(부모상태→자식버튼 disable+tooltip), `plan/26-06-28_03-33-59_R4-3_R5-3_R6-3_plan.html`(분해+순환 가드).
+- **필수 섹션(11)**: ①현재 상태 ②요구사항 ③URL/데이터 흐름 ④도메인 모델 ⑤10단계 매핑 ⑥Step 8 테스트 시나리오 ⑦예외 계층(신규·재사용) ⑧부산물/주의(scope 경계·미루는 리팩터·CLAUDE.md 수정·동반 수정) ⑨Verification(빌드·기능·회귀) ⑩Critical Files(신규·수정·유지) ⑪다음 마일스톤.
 
-Step 1 은 "대화로 스케치" 가 아니라 **공식 산출물을 문서화** 하는 단계다. 매 페이지(수직 슬라이스) 진입 시 Claude 는
-아래 경로에 plan html 을 생성하고 사용자의 CP1 승인을 받아야 한다. 이 문서 없이 Step 2 이후를 선행 구현하지 않는다.
+### 테스트 규율 (불가침)
+단위 테스트만으로는 "예외→HTTP 응답" 매핑 사고나 컨트롤러 분기 누락이 안 드러난다(과거 `MissingFilenameException` 이 500 으로 새던 사고). Step 8 은 **두 레이어 모두** 작성:
+1. **단위 테스트** — Service 분기별 happy 1 + 실패 1 (JUnit + Mockito).
+2. **사용자 액션 통합 테스트** — 각 엔드포인트의 모든 액션을 HTTP 계층에서 실제 상태코드·바디로 검증(`@WebMvcTest` + `MockMvc` + `@MockitoBean`). 컨트롤러 단위 파일 분리(`*ControllerUploadFlowTest` 등). 4 범주 필수: **성공 2xx**(바디 필드값) / **400**(필드 메시지) / **409**(모든 `ConflictException` 하위 실제 트리거) / **404**(모든 `NotFoundException` 하위, forging 포함). Mockito mocking 은 Service 단까지만 — 컨트롤러 try/catch + advice 매핑은 실제 실행되어야 한다.
+- **새 예외 클래스를 추가하면 그 예외를 발생시키는 시나리오 테스트를 반드시 함께 추가**한다. 단위만 있고 통합 시나리오가 빠진 묶음은 CP4 승인 대상이 아니다.
 
-> **모든 체크포인트 중 Claude 가 가장 많은 사고를 쏟아야 하는 단계는 CP1 (계획) 이다 (불가침).** 코드 구현(CP2~CP4)은 좋은 계획만 있으면 기계적이지만, 설계 결함은 CP1 에서 잡지 못하면 그대로 굳는다. 따라서 plan html 을 쓰기 전에 반드시 :
-> 1. **설계 대안을 복수로 생성·비교한다.** 첫 떠오른 방안 하나로 plan 을 쓰지 않는다. 적어도 2~3 개 접근을 나열하고 trade-off (유지보수 / 결합도 / 변경량 / 잔존 결함) 를 명시해 최선을 고른다. (예 : 순환을 끊는 변이 두 개면 둘 다 검토 — "scanner→service 절단" vs "service→verifier 절단" 처럼.)
-> 2. **자기 선택을 적대적으로 비판한다.** 채택안에 대해 "이게 SPI 통일성을 깨지 않는가 / churn(넣었다 빼기)을 만들지 않는가 / 더 간단히 끊을 변은 없는가 / 숨은 순환·잔존 @Lazy 는 없는가" 를 스스로 묻고, 막히면 코드를 더 읽어 확인한다.
-> 3. **결정(Decision)에는 채택안뿐 아니라 비채택 대안과 그 탈락 사유를 함께 적는다.** 사용자가 "더 나은 방안 없냐" 고 되묻지 않아도 최적 설계가 plan 에 담겨 있어야 한다. 사용자의 추가 질문으로 더 나은 설계가 드러났다면, 그것은 CP1 에서 끝냈어야 할 사고를 못 한 것이다.
->
-> 필요하면 CP1 진입 시 설계 대안 탐색·자기비판에 workflow / Agent 를 적극 동원한다. CP1 에 드는 토큰·시간은 CP2~CP4 의 재작업을 막는 투자다.
+### 체크포인트 ↔ Notion 동기화 (background agent 위임, 불가침)
+- 각 CP 보고 **직후** 1회, 해당 슬라이스가 Notion DB 에 존재하면 상태/일정 갱신을 **background agent 에 위임**(`Agent` `run_in_background:true`). main loop 은 결과를 안 기다리고 승인 대기/다음 작업을 잇는다.
+- **시작 경계**(CP1/CP2 진입): 해당+상위 단계 `상태`='진행 중', `시작 일자`=당일(KST), 이미 진행 중이면 no-op. **종료 경계**(CP5 완료 통보 후): `상태`='완료', `종료 일자`=완료일(KST). **중간(CP2~CP4)**: 상태/일정 변화 없으면 생략. **`완료` 처리는 CP5 사용자 완료 통보 이후에만** — 임의 선완료 금지.
+- Notion 에 단계가 없으면 위임 생략(임의 신설 금지).
 
-- **경로** : `plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html` (예 : `plan/26-05-29_20-04-35_HF-1_plan.html`). 파일명 timestamp 는 **KST (Asia/Seoul) 기준**.
-- **생성 방식** : html 파일을 직접 Write. plan 을 html 로 쓰는 **본질은 인터랙티브** 다 — 정적 문서면 markdown 으로 충분하고, html 은 ① **🎬 라이브 UX 데모로 설계 동작을 직접 클릭·체험해 검증**, ② 검색 / 접기 ToC 로 긴 문서 탐색, ③ localStorage 체크리스트로 진행 추적 — 이 3 가지를 위해 채택한다. (구 docx + pandoc 방식은 2026-05-11 폐기.)
-- **페이지키** : 인벤토리 코드 (`MA1`, `MK1`, `R1-4-2`, `HF-1` 등). 구 코드 산출물은 그대로 보존.
+### Notion 작업 규약
+- 페이지 'Provisioning Server', DB 'Provisioning Server 개발 상세'. 댓글은 `[Claude]` 접두사.
+- **페이지 신설/상태 갱신/scope 변경 시 본문(content)에 4 항목 필수 기재(불가침)**: ① scope 요약 ② 비 목표(out of scope + 다음 슬라이스 어디로) ③ 잔존 책임/임시 비대칭 + 해소 시점 ④ 후속 마일스톤. plan/report 는 별도 자산 — Notion 페이지는 단독으로도 슬라이스 의도를 파악할 수 있어야 한다. 본문을 빈 채로 두지 않는다.
 
-**골격 구조 (기존 `plan/*.html` 선례 그대로 — 묻지 말고 최근 plan 을 직접 읽어 복제)** :
-- `<header class="page-header">` (h1 + `.meta` flex : 슬라이스 / scope / 생성일 / CP 상태) → `<div class="layout">` (grid `240px 1fr`) → `<nav class="toc">` + `<main>`.
-- `header.page-header` 와 `nav.toc` 는 **top sticky** : header `position:sticky; top:0; z-index:100`, `nav.toc` `position:sticky; top:108px; align-self:start; max-height:calc(100vh - 130px); overflow-y:auto`. `<ol id="toc-list">` 링크 + "전부 펴기 / 접기" 버튼. ToC 클릭 시 스크롤 offset 은 헤더 높이만큼 `-108` (sticky 헤더 뒤로 가리지 않게). (구 "top sticky 금지" 는 일부 한시적 문제-보고 문서에만 적용됐던 조건으로, plan html 일반 규약 아님.)
-- 각 섹션 = `<details class="section" id="sN"><summary>…</summary><div class="body">…</div></details>` (CSS `summary::before` 쉐브론 회전).
-- `<input class="filter-box" id="filter">` 섹션 검색.
-- 말미 `<script>` 4 로직 (불가침) : ① ToC `a` 클릭 → `target.open=true` + smooth scroll, ② 전부 펴기 / 접기, ③ filter 입력 → 매칭 섹션만 표시 (`.hidden` 토글 + open), ④ `ul.check-list[data-storage]` localStorage 동기화.
-- 재사용 class : `.callout(.warn/.success/.danger)` · `.chip.cp1~5/.mod/.keep` · `.split-grid` + `.split-card.before/.after` · `.state-flow` · `.check-list`. **테마 색 팔레트는 자유 — 구조·인터랙티비티가 본질이지 색이 아니다.**
+### 코드 소유권 · 커밋 경계 (불가침)
+- **커밋은 사용자 지시가 있을 때만.** 필요하면 제안하고 승인을 기다린다 — 절대 임의 커밋하지 않는다.
+- 커밋 메시지에 AI 참여를 명시한다(GitHub 에서 Claude Code 참여가 드러나도록). 페이지 완성 전 임시 커밋 금지(스키마 drop 선행 커밋 1개는 허용).
+- 각 슬라이스의 **2~9 단계만 Claude 가 작성**, 10 단계(브라우저 E2E)는 사용자 단독. plan 범위 밖 코드 이동/공통화는 사용자 명시 요청 시에만.
 
-**🎬 미리보기 = 진짜 인터랙티브 (불가침, §2 직후 배치)** :
-- **단순 텍스트 / 도식 박스 금지.** 사용자가 위젯 안에서 **상태를 직접 바꿔 결과 (상태 전이 / 차단 / cascade) 를 체험·검증** 할 수 있어야 한다. before/after 코드 비교는 보조일 뿐, 핵심은 클릭하면 동작하는 데모다.
-- 패턴 : `.ux-wrap` + `.ux-toolbar` (상태 변경 버튼) + `.ux-row`/`.badge` (자원 위계·상태) + 실제 액션 버튼 (`disabled` + tooltip) + `.ux-message`/`.ux-caps` (판정 / 결과 읽기). JS = `state` 객체 + `render()` + `action()` 핸들러로 **해당 슬라이스의 도메인 규칙을 그대로 시뮬레이션** (서버 로직과 같은 판정을 JS 로 재현해 사용자가 설계를 손으로 검증).
-- 선례 : `plan/26-05-14_21-03-34_S5-2-3-1_plan.html` (부모-자식 cascade 시뮬), `plan/26-05-30_10-55-11_R2-2_plan.html` (부모 상태 → 자식 버튼 disable + tooltip 라이브 + capability 읽기). 최근 R1 / HF 묶음 plan 들이 정적 텍스트 미리보기로 퇴화했으니 **답습하지 말 것**.
-
-**필수 섹션** (참고 선례 : 최근 `plan/*.html`, 예 `plan/26-05-28_20-12-57_R1-4-2_plan.html`) :
-
-1. **현재 상태 요약** — 선행 슬라이스 완료 / 미완 여부, 본 슬라이스 진입 전제 조건
-2. **페이지 요구사항 (확정)** — UI 기능 / 제약 / 중복 방지 등 규칙
-3. **URL / 데이터 흐름 스케치** — URL 표 (Method · URL · 동작 · 응답) + 브라우저↔서버 흐름도 + Miller / 응답 구조
-4. **도메인 모델** — Entity 필드 표, VO / Enum, 도메인 메서드
-5. **수직 슬라이스 10 단계** — 각 Step 의 산출물 + CP 대응
-6. **Step 8 통합 테스트 시나리오** — 사용자 액션 범주별 (성공 · 400 · 404 · 409 · 500) 시나리오 목록과 시나리오 수
-7. **예외 계층** — 신규 · 재사용 구분
-8. **예상 부산물 / 주의** — 스코프 경계, 미루는 리팩터, CLAUDE.md 수정사항, 관련 페이지 동반 수정
-9. **Verification 체크리스트** — 빌드 / 기능 / 회귀 3분할
-10. **Critical Files** — 신규 / 수정 / 유지 3분할
-11. **다음 마일스톤** — 후속 슬라이스 예고
-
-이 구조를 따르면 CP1 에서 사용자가 "승인/수정/거절" 을 판별하기 쉽고, Step 8 테스트 시나리오가 초기에 합의되어
-CP4 시점의 분쟁이 줄어든다. Claude 는 plan html 을 만드는 방법을 묻지 않는다 — 기존 `plan/*.html` 선례를 직접 읽고 따른다.
-
-### 승인 흐름 (슬라이스 내부 체크포인트)
-
-페이지별 10 단계는 아래 5 개의 체크포인트로 묶어 사용자 승인을 받은 뒤 다음 묶음으로 진행한다. 승인 없이 다음 묶음을 선행 구현하지 않는다.
-
-| 체크포인트 | 범위 | 주체 / 동작 |
-|---|---|---|
-| **CP1** | Step 1 | Claude 가 `plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html` 를 생성하여 제시 → 사용자 승인 (§Step 1 — plan html 규약 준수) |
-| **CP2** | Step 2 ~ 5 | Claude 가 4 단계(뷰 · Controller · DTO · Service 시그니처)를 구현한 뒤 핵심 변경 사항을 요약 보고 → 사용자 승인 |
-| **CP3** | Step 6 ~ 7 | Claude 가 Repository · Entity(+VO/Enum)를 구현한 뒤 보고 → 사용자 승인 |
-| **CP4** | Step 8 ~ 9 | Claude 가 Service 본체 · 단위 테스트 · 스키마 확인까지 마친 뒤 보고 → 사용자 승인 |
-| **CP5** | Step 10 | 사용자 단독으로 브라우저 E2E 수행 → 사용자 완료 통보 대기 |
-
-체크포인트 승인이 떨어지기 전까지 다음 묶음 작업을 시작하지 않는다. 사용자가 수정 지시를 내리면 해당 체크포인트 범위 안에서 재작업 후 재승인을 받는다.
-
-### 체크포인트 ↔ Notion 단계 동기화 (background agent 위임, 불가침)
-
-각 체크포인트(CP1~CP5)를 마친 **직후**, 해당 슬라이스가 Notion DB `Provisioning Server 개발 상세` 에 단계 페이지로 존재하면 **그 페이지의 상태/일정 갱신을 background agent 에 위임**한다 (`Agent` tool, `run_in_background: true`). main loop 은 background agent 의 결과를 기다리지 않고 사용자 승인 대기 / 다음 체크포인트 작업을 이어간다 — Notion 갱신은 부수적 기록이므로 main 추론 흐름을 막지 않는다.
-
-- **위임 트리거** : 매 체크포인트 보고 직후 1회. 사용자 승인 대기와 **병렬**로 background agent 가 Notion 을 갱신한다.
-- **갱신 내용** (단계 경계별) :
-  - **단계 시작 경계** (CP1 또는 CP2 진입 시점) — 해당 단계 + 그 상위(부모) 단계의 `상태`='진행 중', `시작 일자`=당일(KST). 이미 '진행 중'이면 no-op.
-  - **단계 종료 경계** (CP5 사용자 완료 통보 후) — `상태`='완료', `종료 일자`=완료일(KST).
-  - **중간 체크포인트** (CP2~CP4) — 상태/일정 변화가 없으면 갱신 생략. 단 제목·설명이 plan 과 어긋나면 그 정합화만 위임.
-- **해당 단계가 Notion 에 없으면** 위임 자체를 생략(no-op). background agent 가 임의로 페이지를 신설하지 않는다 (페이지 신설은 §Notion 작업 규약 + 사용자 합의 사항).
-- 위임받은 background agent 는 §Notion 작업 의 본문 4항목(scope / 비 목표 / 잔존 책임·임시 비대칭 / 후속 마일스톤) 기재 규약과 plan/report 파일명 외 **일자 KST 규약**을 함께 준수한다.
-- **상태='완료' 처리는 CP5 사용자 완료 통보 이후에만**. main loop 도 background agent 도 임의 선완료하지 않는다 (기존 코드 소유권 규율 유지).
-
-### 커밋 경계
-- **커밋은 절대 사용자의 허가 없이 임의로 하지 않는다. 커밋이 필요하다고 생각되는 경우 사용자에게 커밋을 제안하고 그 승인 여부를 기다린다. (불가침)**
-- 10 단계 완료 후 단일 커밋: `feat(<area>/<page>): <페이지명> 1차 구현`
-- 스키마 drop 필요 시 선행 커밋 `chore(schema): drop <table>` 1개 허용
-- 페이지 완성 전 임시 커밋 금지
+## 빌드 · 실행 · DB
+- 빌드/실행 명령과 환경변수는 **`CLAUDE.local.md`** 참고(`SERVER_PORT`/`DB_URL`/`DB_USERNAME`/`DB_PASSWORD` 등 주입 필수).
+- **로컬 테스트 DB 계정 `readonly_user`**(SELECT 전용, `server_provision`@localhost:3306, pw `readonly_claude`) — 읽기/필드검증 경로 회귀용. INSERT/UPDATE/DELETE 경로는 JPA 단계에서 `INSERT command denied` → 500 으로 끊긴다(코드 버그 아닌 권한 제약, 서버 로그 SQL 예외로 구분). 쓰기 회귀는 쓰기 권한 유저를 별도 주입.
+- macOS 환경: `timeout` 명령 없음. bootRun 은 서버라 자체 종료 안 함 — detached 실행 후 로그 폴링으로 마커 확인.
 
 ## 아카이브 (`archive/legacy/`)
-
-이전 `dev` 브랜치 구현의 참조용 복사본. **실행 경로에 포함되지 않는다.**
-
-- 엔티티 필드 구성 / 컨트롤러 구조 / Thymeleaf 템플릿 구조는 참고 가능.
-- 스타일이나 관례는 **답습하지 않는다** — 본 파일의 네이밍/아키텍처 원칙을 따른다.
-- 주요 참조 대상: `archive/legacy/domain/board/**` (BoardModel/BIOS/BMC 엔티티), `archive/legacy/templates/admin/os/os-list.html` (Miller Columns 패턴).
+구 `dev` 브랜치 구현의 참조용 복사본. **실행 경로 아님.** 엔티티 필드/컨트롤러 구조/Thymeleaf 구조는 참고 가능하나 스타일·관례는 **답습하지 않고** 본 파일의 원칙을 따른다.
