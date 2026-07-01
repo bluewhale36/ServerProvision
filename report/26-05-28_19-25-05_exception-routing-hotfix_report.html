@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>예외 처리 routing hotfix — backend/frontend 변경 보고서</title>
+<style>
+    :root {
+        --bg: #0f1115;
+        --panel: #161a22;
+        --panel-2: #1c2230;
+        --panel-3: #202736;
+        --border: #2a3142;
+        --border-soft: #232938;
+        --text: #e6e9ef;
+        --muted: #8a93a6;
+        --accent: #7aa2f7;
+        --accent-2: #bb9af7;
+        --ok: #9ece6a;
+        --warn: #e0af68;
+        --bad: #f7768e;
+        --info: #7dcfff;
+        --browser: #c0caf5;
+        --be-web: #7aa2f7;
+        --be-api: #bb9af7;
+        --fe: #9ece6a;
+        --exc: #f7768e;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0; padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, "SF Pro Text", "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        font-size: 14.5px;
+        line-height: 1.62;
+    }
+    code, .mono {
+        font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+    }
+
+    header.banner {
+        padding: 28px 36px 18px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, #1a1f2c 0%, #0f1115 100%);
+        position: sticky; top: 0; z-index: 10;
+    }
+    header.banner h1 { margin: 0; font-size: 23px; font-weight: 600; letter-spacing: -0.01em; }
+    header.banner .sub { color: var(--muted); margin-top: 8px; font-size: 13.5px; }
+
+    main { max-width: 1320px; margin: 0 auto; padding: 24px 36px 64px; }
+
+    .toc {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 26px;
+    }
+    .toc ol { margin: 6px 0 0; padding-left: 22px; }
+    .toc li { padding: 2px 0; }
+    .toc a { color: var(--muted); text-decoration: none; }
+    .toc a:hover { color: var(--accent); }
+    .toc-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+    section { margin-bottom: 36px; }
+    h2 { font-size: 18px; font-weight: 600; margin: 24px 0 12px; padding-bottom: 6px;
+         border-bottom: 1px solid var(--border-soft); }
+    h3 { font-size: 15.5px; font-weight: 600; margin: 18px 0 8px; color: var(--accent); }
+    h4 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: var(--muted); }
+
+    p { margin: 8px 0; }
+    p .em { color: var(--info); font-weight: 600; }
+
+    pre {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px 14px;
+        overflow-x: auto;
+        font-family: "SF Mono", Menlo, monospace;
+        font-size: 12.5px;
+        line-height: 1.55;
+    }
+    pre code { background: none; padding: 0; }
+    code:not(pre code) {
+        background: var(--panel-2);
+        padding: 1px 6px;
+        border-radius: 3px;
+        color: var(--info);
+    }
+
+    .pill {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: "SF Mono", Menlo, monospace;
+        vertical-align: middle;
+        margin-left: 6px;
+    }
+    .pill.before { background: rgba(247,118,142,0.16); color: var(--bad); }
+    .pill.after  { background: rgba(158,206,106,0.16); color: var(--ok); }
+    .pill.ssr    { background: rgba(122,162,247,0.16); color: var(--be-web); }
+    .pill.xhr    { background: rgba(187,154,247,0.16); color: var(--be-api); }
+    .pill.fe     { background: rgba(158,206,106,0.16); color: var(--fe); }
+
+    .badge-bug   { background: var(--bad); color: white; padding: 1px 7px; border-radius: 9px;
+                   font-size: 11px; font-weight: 600; margin-right: 6px; }
+    .badge-fix   { background: var(--ok); color: black; padding: 1px 7px; border-radius: 9px;
+                   font-size: 11px; font-weight: 600; margin-right: 6px; }
+
+    /* request flow diagram */
+    .flow {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px;
+        margin: 14px 0 20px;
+        overflow-x: auto;
+    }
+    .flow-row {
+        display: grid;
+        grid-template-columns: 100px repeat(5, 1fr);
+        gap: 6px;
+        align-items: stretch;
+        margin-bottom: 6px;
+    }
+    .flow-row.header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-bottom: 8px; border-bottom: 1px dashed var(--border-soft); margin-bottom: 12px; }
+    .flow-cell {
+        background: var(--panel-2);
+        border: 1px solid var(--border-soft);
+        border-radius: 6px;
+        padding: 10px 12px;
+        min-width: 0;
+        font-size: 12.5px;
+        word-break: break-word;
+    }
+    .flow-cell.label { background: rgba(255,255,255,0.04); border-color: transparent; font-family: "SF Mono", Menlo, monospace; font-size: 11px; color: var(--muted); display: flex; align-items: center; }
+    .flow-cell.actor { background: rgba(122,162,247,0.06); color: var(--be-web); border-color: rgba(122,162,247,0.3); }
+    .flow-cell.actor.api { background: rgba(187,154,247,0.06); color: var(--be-api); border-color: rgba(187,154,247,0.3); }
+    .flow-cell.actor.fe  { background: rgba(158,206,106,0.06); color: var(--fe); border-color: rgba(158,206,106,0.3); }
+    .flow-cell.bug { background: rgba(247,118,142,0.10); color: var(--bad); border-color: rgba(247,118,142,0.5); }
+    .flow-cell.fix { background: rgba(158,206,106,0.10); color: var(--ok); border-color: rgba(158,206,106,0.5); }
+    .flow-cell.empty { background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.012) 6px, rgba(255,255,255,0.012) 8px); border-color: transparent; }
+    .flow-arrow { font-family: "SF Mono", Menlo, monospace; color: var(--muted); font-size: 11px; padding-left: 4px; }
+
+    /* compare table */
+    table.compare {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0 18px;
+        font-size: 13px;
+    }
+    table.compare th, table.compare td {
+        padding: 9px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-soft);
+        vertical-align: top;
+    }
+    table.compare th {
+        background: var(--panel-2);
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border);
+    }
+    table.compare td.label { font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--accent-2); }
+    table.compare td.before { background: rgba(247,118,142,0.05); }
+    table.compare td.after  { background: rgba(158,206,106,0.05); }
+
+    .reason {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent-2);
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin: 10px 0;
+    }
+    .reason h4 { margin-top: 0; color: var(--accent-2); }
+    .reason .why { color: var(--muted); font-size: 12.5px; font-style: italic; margin-top: 6px; }
+
+    .note {
+        background: rgba(125,207,255,0.06);
+        border-left: 3px solid var(--info);
+        padding: 10px 14px;
+        margin: 10px 0;
+        font-size: 13px;
+        border-radius: 0 6px 6px 0;
+    }
+    .note strong { color: var(--info); }
+    .note.warn { background: rgba(224,175,104,0.06); border-color: var(--warn); }
+    .note.warn strong { color: var(--warn); }
+    .note.danger { background: rgba(247,118,142,0.06); border-color: var(--bad); }
+    .note.danger strong { color: var(--bad); }
+    .note.success { background: rgba(158,206,106,0.06); border-color: var(--ok); }
+    .note.success strong { color: var(--ok); }
+
+    /* matrix grid */
+    .matrix {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 12px 0 20px;
+    }
+    .matrix table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .matrix th, .matrix td {
+        padding: 8px 10px;
+        border-right: 1px solid var(--border-soft);
+        border-bottom: 1px solid var(--border-soft);
+        text-align: center;
+        vertical-align: middle;
+    }
+    .matrix th { background: var(--panel-2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .matrix tr td:first-child, .matrix tr th:first-child { text-align: left; padding-left: 14px; font-family: "SF Mono", Menlo, monospace; }
+    .matrix .yes { color: var(--ok); font-weight: 600; }
+    .matrix .no  { color: var(--bad); font-weight: 600; }
+    .matrix .partial { color: var(--warn); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header class="banner">
+    <h1>예외 처리 routing hotfix — <code>WebExceptionHandler</code> ↔ <code>ApiExceptionHandler</code> 분리</h1>
+    <div class="sub">
+        backend (2 advice 의 @Order 분리 + 예외 계층 보강)
+        · frontend (Accept 명시 + 공통 <code>ErrorModal</code>)
+        · 사용자 보고 raw JSON 노출 케이스 진단 + 해소
+        · 생성 : 2026-05-28 19:25:05 KST
+    </div>
+</header>
+
+<main>
+
+<div class="toc">
+    <div class="toc-title">목차</div>
+    <ol>
+        <li><a href="#s0">§0. 한 줄 요약과 hotfix 의 4 가지 변경</a></li>
+        <li><a href="#s1">§1. 옛 흐름의 결함 — 두 advice 가 ambiguous</a></li>
+        <li><a href="#s2">§2. 새 흐름 — request 입구부터 사용자 화면까지 시퀀스</a></li>
+        <li><a href="#s3">§3. backend 변경 — 코드 diff + 효과 설명</a></li>
+        <li><a href="#s4">§4. frontend 변경 — 공통 <code>ErrorModal</code> + Accept 명시</a></li>
+        <li><a href="#s5">§5. 매처 매트릭스 — Accept × 예외 × 응답 형식</a></li>
+        <li><a href="#s6">§6. 사용자 보고 두 케이스 — 옛 흐름 / 새 흐름 비교</a></li>
+        <li><a href="#s7">§7. 미해결 영역 + 후속</a></li>
+        <li><a href="#s8">§8. Critical Files</a></li>
+    </ol>
+</div>
+
+<!-- §0 -->
+<section id="s0">
+    <h2>0. 한 줄 요약과 hotfix 의 4 가지 변경</h2>
+    <p>
+        SSR controller 의 <code>form POST</code> 가 brower 에 raw JSON 으로 응답되던 회귀를 <span class="em">advice level 의 우선순위</span> 에서 일괄 차단.
+        예외별 ad-hoc 매처 추가가 아니라 두 advice 의 책임 경계를 numeric <code>@Order</code> 로 명시.
+        frontend 는 XHR 의 <code>Accept</code> 를 단순화하고 거절 응답을 <span class="em">공통 <code>ErrorModal</code></span> 로 통합.
+    </p>
+
+    <table class="compare">
+        <thead><tr><th>영역</th><th>변경</th><th>효과</th></tr></thead>
+        <tbody>
+            <tr>
+                <td class="label">backend (1)</td>
+                <td><code>WebExceptionHandler @Order(HIGHEST_PRECEDENCE - 100)</code> 로 우선 명시</td>
+                <td>두 advice 가 동일 우선순위였던 ambiguity 제거. SSR 의 <code>Accept: text/html</code> 호환 매처가 무조건 우선 잡힘</td>
+            </tr>
+            <tr>
+                <td class="label">backend (2)</td>
+                <td><code>ChildLifecycleBlockedByParentException extends ConflictException</code> (이전 hotfix)</td>
+                <td>도메인 예외가 advice 의 일반 매처 (<code>ConflictException</code>) 에 잡혀 ad-hoc 매처 불요</td>
+            </tr>
+            <tr>
+                <td class="label">frontend (3)</td>
+                <td><code>submitAsync</code> 의 <code>Accept: application/json</code> 명시 (text/html q 제거)</td>
+                <td>XHR 은 무조건 JSON 매처 (<code>ApiExceptionHandler</code>) 로 fall-through</td>
+            </tr>
+            <tr>
+                <td class="label">frontend (4)</td>
+                <td><code>global/error-modal.js</code> + <code>.gem-*</code> CSS + layout include</td>
+                <td>XHR 거절 응답이 <code>alert(msg)</code> 가 아닌 공통 modal 로 표시. 호출자별 <code>window.AsyncSubmitResult</code> override 보존</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- §1 -->
+<section id="s1">
+    <h2>1. 옛 흐름의 결함 — 두 advice 가 ambiguous</h2>
+
+    <h3>1.1 두 advice 의 책임 표기</h3>
+
+    <pre><code>// WebExceptionHandler.java (옛)
+@ControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class WebExceptionHandler {
+    @ExceptionHandler(value = NotFoundException.class, produces = MediaType.TEXT_HTML_VALUE)
+    public String handleNotFound(NotFoundException ex, Model model, ...) { ... return "error"; }
+    @ExceptionHandler(value = ConflictException.class, produces = MediaType.TEXT_HTML_VALUE)
+    public String handleConflict(ConflictException ex, ...) { ... return "error"; }
+    @ExceptionHandler(value = DomainException.class, produces = MediaType.TEXT_HTML_VALUE)
+    public String handleDomain(DomainException ex, ...) { ... return "error"; }
+}
+
+// ApiExceptionHandler.java (옛)
+@RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)   // ← 동일 우선순위
+public class ApiExceptionHandler {
+    @ExceptionHandler(value = NotFoundException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;ApiErrorResponse&gt; handleNotFound(NotFoundException ex) { ... }
+    @ExceptionHandler(value = ConflictException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;ApiErrorResponse&gt; handleConflict(ConflictException ex) { ... }
+    @ExceptionHandler(value = DomainException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;ApiErrorResponse&gt; handleDomain(DomainException ex) { ... }
+}</code></pre>
+
+    <h3>1.2 매처 우선순위가 모호</h3>
+
+    <p>
+        Spring 의 <code>ExceptionHandlerExceptionResolver</code> 는 advice 들을 <code>@Order</code> 순으로 시도.
+        두 advice 가 <span class="em">동일 <code>@Order(HIGHEST_PRECEDENCE)</code></span> 라 어느 쪽이 우선 잡힐지는 등록 순서 (보통 Bean 이름의 알파벳 순) 에 의존.
+        <code>ApiExceptionHandler</code> 가 <code>A</code> 로 시작 → 알파벳 우선 → JSON 매처가 SSR Accept 헤더와도 매칭 (<code>*/*</code> 호환) → raw JSON 응답.
+    </p>
+
+    <div class="note danger">
+        <strong>❌ 사용자 보고 화면</strong> — <code>{"message":"부모 자원 'Rocky Linux 9.5' 이(가) 삭제 상태라 자식의 restore 액션이 거절됐어요. 부모부터 복구해주세요."}</code><br>
+        브라우저 form POST 가 SSR error 페이지가 아닌 raw JSON 을 그대로 표시. SSR 사용자에게 친화적이지 않음.
+    </div>
+
+    <h3>1.3 옛 흐름 도식</h3>
+    <div class="flow">
+        <div class="flow-row header">
+            <div></div><div>Browser</div><div>Spring Resolver</div><div>WebExceptionHandler</div><div>ApiExceptionHandler</div><div>Response</div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">form POST</div>
+            <div class="flow-cell actor">submit (Accept: text/html, …, */*)</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">예외 throw</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell">ConflictException 매처 검색</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">매처 ambig</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell bug">@Order 동일 → 등록 순으로 ApiExceptionHandler 우선</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell bug">handleConflict produces=APPLICATION_JSON 매처</div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">JSON 응답</div>
+            <div class="flow-cell bug">raw JSON 브라우저에 노출</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell bug">ResponseEntity&lt;ApiErrorResponse&gt;</div>
+            <div class="flow-cell bug">{ "message": "..." }</div>
+        </div>
+    </div>
+</section>
+
+<!-- §2 -->
+<section id="s2">
+    <h2>2. 새 흐름 — request 입구부터 사용자 화면까지 시퀀스</h2>
+
+    <h3>2.1 SSR 흐름 (form POST navigation)</h3>
+    <div class="flow">
+        <div class="flow-row header">
+            <div></div><div>Browser</div><div>Spring Resolver</div><div>WebExceptionHandler</div><div>ApiExceptionHandler</div><div>Response</div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">form POST</div>
+            <div class="flow-cell actor">submit (Accept: text/html, …, */*)</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">예외 throw</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell">ConflictException 매처 검색</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">@Order 비교</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell fix">Web (HIGHEST - 100) &lt; Api (HIGHEST) → Web 우선</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">produces 매처</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell">Accept 에 text/html 포함 → produces=TEXT_HTML 매처</div>
+            <div class="flow-cell fix">handleConflict → return "error"</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">SSR 응답</div>
+            <div class="flow-cell fix">error.html 친화 페이지 표시</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell fix">Model(message, status, statusLabel)</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell fix">HTML (status 409)</div>
+        </div>
+    </div>
+
+    <h3>2.2 XHR 흐름 (confirm-modal-base submitAsync)</h3>
+    <div class="flow">
+        <div class="flow-row header">
+            <div></div><div>Browser</div><div>Spring Resolver</div><div>WebExceptionHandler</div><div>ApiExceptionHandler</div><div>Frontend</div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">submitAsync</div>
+            <div class="flow-cell actor">fetch (Accept: application/json)</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">예외 throw</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell">ConflictException 매처 검색</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">Web 매처 시도</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell">produces=TEXT_HTML — Accept 에 text/html 없음 → 미호환</div>
+            <div class="flow-cell">skip</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">Api fallback</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell fix">produces=APPLICATION_JSON 매처</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell fix">handleConflict → ResponseEntity</div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">JSON 응답</div>
+            <div class="flow-cell">resp.status=409, body=ApiErrorResponse</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell fix">{ "message": "..." }</div>
+            <div class="flow-cell empty"></div>
+        </div>
+        <div class="flow-row">
+            <div class="flow-cell label">ErrorModal</div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell empty"></div>
+            <div class="flow-cell fix">AsyncSubmitResult.onRejected → ErrorModal.show({message, status})</div>
+        </div>
+    </div>
+
+    <div class="note success">
+        <strong>핵심 통찰</strong> — request 의 <code>Accept</code> 헤더가 routing 의 1차 결정자.
+        SSR 은 text/html 포함, XHR 은 application/json 만 → produces 매처로 자연 분리.
+        <code>@Order</code> 의 numeric 차이가 동률 시 우선순위를 명시적으로 강제.
+    </div>
+</section>
+
+<!-- §3 -->
+<section id="s3">
+    <h2>3. backend 변경 — 코드 diff + 효과 설명</h2>
+
+    <h3>3.1 <code>WebExceptionHandler.java</code> — <code>@Order</code> numeric 우선</h3>
+<pre><code>// 옛
+@ControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class WebExceptionHandler { ... }
+
+// 새
+@ControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE - 100)   // ← ApiExceptionHandler 보다 명시적 우선
+public class WebExceptionHandler { ... }</code></pre>
+
+    <div class="reason">
+        <h4>Why -100 ?</h4>
+        <p>Spring 의 <code>@Order</code> 는 int 값이 작을수록 우선. <code>HIGHEST_PRECEDENCE = Integer.MIN_VALUE</code> 이지만 산술적 비교라 <code>HIGHEST_PRECEDENCE - 100</code> 으로 정확히 <code>HIGHEST_PRECEDENCE</code> 보다 우선. 다른 advice 가 끼어들 여지를 100 단위로 두어 향후 확장성도 확보.</p>
+        <p class="why"><strong>대안 검토</strong> — annotations=Controller.class 로 적용 범위 제한도 시도했으나, hybrid controller (@Controller 가 @ResponseBody 메서드 보유) 의 JSON 응답이 깨져 28 test fail. @Order 분리가 hybrid 도 지원.</p>
+    </div>
+
+    <h3>3.2 <code>ApiExceptionHandler.java</code> — annotations 원복, <code>@Order</code> 유지</h3>
+<pre><code>// hotfix 시도 1 (실패) — annotations = RestController.class 로 제한
+@RestControllerAdvice(annotations = RestController.class)   // ← hybrid controller 의 JSON 응답 깨짐
+@Order(Ordered.HIGHEST_PRECEDENCE)
+
+// hotfix 시도 2 (실패) — @Order LOWEST 로 낮춤
+@RestControllerAdvice
+@Order(Ordered.LOWEST_PRECEDENCE)   // ← XHR test 의 매처 우선순위 깨짐
+
+// hotfix 시도 3 (성공) — @Order HIGHEST 유지, Web 이 더 우선
+@RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)   // ← Web 의 -100 으로 자동 후순위</code></pre>
+
+    <h3>3.3 <code>ChildLifecycleBlockedByParentException.java</code> — extends 변경 (이전 hotfix)</h3>
+<pre><code>// 옛
+public class ChildLifecycleBlockedByParentException extends DomainException { ... }
+
+// 새
+public class ChildLifecycleBlockedByParentException extends ConflictException { ... }</code></pre>
+
+    <div class="reason">
+        <h4>예외 계층의 의도</h4>
+        <p><code>DomainException</code> 의 fallback 매처는 500 INTERNAL_ERROR 로 잡힘 — "잠재적 버그" 로 간주. 본 예외는 명시적 409 Conflict 인데 <code>DomainException</code> 직접 상속이라 의도와 맞지 않음. <code>ConflictException</code> 으로 상속 변경 → 두 advice 의 <code>handleConflict</code> 매처에 자동 catch.</p>
+    </div>
+</section>
+
+<!-- §4 -->
+<section id="s4">
+    <h2>4. frontend 변경 — 공통 <code>ErrorModal</code> + Accept 명시</h2>
+
+    <h3>4.1 <code>confirm-modal-base.js</code> — Accept 단순화</h3>
+<pre><code>// 옛
+headers: {'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json,text/html;q=0.9,*/*;q=0.5'},
+
+// 새
+headers: {'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'},</code></pre>
+
+    <div class="reason">
+        <h4>Why?</h4>
+        <p>옛 헤더는 text/html (q=0.9) 도 매처 가능 → WebExceptionHandler 의 produces=TEXT_HTML 매처가 잡힐 가능성 → XHR 이 HTML 응답 받음 → resp.text() 의 첫 500 자가 modal 에 보임. 새 헤더는 <span class="em">application/json 만 명시</span> → WebExceptionHandler 매처 미호환 → ApiExceptionHandler fallback 매처 확정 → JSON 응답 보장.</p>
+    </div>
+
+    <h3>4.2 <code>global/error-modal.js</code> — 신규 (전역 modal)</h3>
+<pre><code>// 핵심 구조
+window.ErrorModal = { show, hide };
+
+// AsyncSubmitResult 의 onRejected 통합 — 옛 alert(msg) 대체
+if (!window.AsyncSubmitResult) {
+    window.AsyncSubmitResult = {
+        onSuccess: () =&gt; window.location.reload(),
+        onRejected: (_form, status, payload) =&gt; {
+            const msg = (payload &amp;&amp; payload.message) || '요청이 거절되었어요.';
+            show({ message: msg, status: status });
+        },
+        onNetworkError: () =&gt; show({ message: '서버와 통신할 수 없어요. …', status: 0 })
+    };
+}</code></pre>
+
+    <h3>4.3 layout 에 include</h3>
+<pre><code>&lt;script th:src="@{/global/form-error.js}" defer&gt;&lt;/script&gt;
+&lt;!-- R1-4-1 hotfix — 전역 error modal. submitAsync 의 onRejected 가 본 modal 호출 (alert 대체). --&gt;
+&lt;link rel="stylesheet" th:href="@{/css/confirm-modal.css}"&gt;
+&lt;script th:src="@{/global/error-modal.js}" defer&gt;&lt;/script&gt;</code></pre>
+
+    <div class="note">
+        <strong>호출자별 override 보존</strong> — <code>trash-action.js</code> 같은 곳이 페이지별로 <code>window.AsyncSubmitResult</code> 를 override 하면 그쪽 우선. <code>error-modal.js</code> 는 <code>if (!window.AsyncSubmitResult)</code> 가드로 default 만 차지.
+    </div>
+</section>
+
+<!-- §5 -->
+<section id="s5">
+    <h2>5. 매처 매트릭스 — Accept × 예외 × 응답 형식</h2>
+
+    <h3>5.1 옛 동작</h3>
+    <div class="matrix">
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">Accept</th>
+                    <th colspan="3">SSR endpoint (form POST navigation)</th>
+                    <th colspan="3">XHR endpoint (submitAsync fetch)</th>
+                </tr>
+                <tr>
+                    <th>NotFound</th><th>Conflict</th><th>Domain fallback</th>
+                    <th>NotFound</th><th>Conflict</th><th>Domain fallback</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>text/html, *, */*</td>
+                    <td class="no">JSON ⛔</td><td class="no">JSON ⛔</td><td class="no">JSON ⛔</td>
+                    <td class="no">JSON ⛔</td><td class="no">JSON ⛔</td><td class="no">JSON ⛔</td>
+                </tr>
+                <tr>
+                    <td>application/json, text/html;q=0.9</td>
+                    <td class="no">N/A</td><td class="no">N/A</td><td class="no">N/A</td>
+                    <td class="partial">HTML/JSON 혼재 ⚠</td><td class="partial">혼재 ⚠</td><td class="partial">혼재 ⚠</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p style="font-size: 12.5px; color: var(--muted);">⛔ = SSR 사용자가 raw JSON 본 케이스. ⚠ = XHR 이 HTML 응답 받을 가능성.</p>
+
+    <h3>5.2 새 동작</h3>
+    <div class="matrix">
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">Accept</th>
+                    <th colspan="3">SSR endpoint (form POST navigation)</th>
+                    <th colspan="3">XHR endpoint (submitAsync fetch)</th>
+                </tr>
+                <tr>
+                    <th>NotFound</th><th>Conflict</th><th>Domain fallback</th>
+                    <th>NotFound</th><th>Conflict</th><th>Domain fallback</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>text/html, *, */*</td>
+                    <td class="yes">error.html ✅</td><td class="yes">error.html ✅</td><td class="yes">error.html (500) ✅</td>
+                    <td>N/A</td><td>N/A</td><td>N/A</td>
+                </tr>
+                <tr>
+                    <td>application/json (만)</td>
+                    <td>N/A</td><td>N/A</td><td>N/A</td>
+                    <td class="yes">JSON ✅</td><td class="yes">JSON ✅</td><td class="yes">JSON (500) ✅</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="note success">
+        <strong>완전 분리</strong> — Accept 헤더만으로 routing 이 결정. 각 흐름에 친화 응답.
+    </div>
+</section>
+
+<!-- §6 -->
+<section id="s6">
+    <h2>6. 사용자 보고 두 케이스 — 옛 흐름 / 새 흐름 비교</h2>
+
+    <h3>6.1 케이스 A — 부모 deleted 상태에서 자식 ISO restore 시도</h3>
+    <table class="compare">
+        <thead><tr><th>단계</th><th class="before">옛 흐름</th><th class="after">새 흐름</th></tr></thead>
+        <tbody>
+            <tr>
+                <td class="label">UI</td>
+                <td class="before">자식 ISO 복구 버튼 활성. 사용자가 클릭 가능.</td>
+                <td class="after">자식 ISO 복구 버튼 disabled + tooltip "부모 OS 버전이 삭제 상태입니다. 부모부터 복구해주세요."</td>
+            </tr>
+            <tr>
+                <td class="label">backend 예외</td>
+                <td class="before"><code>ChildLifecycleBlockedByParentException extends DomainException</code></td>
+                <td class="after"><code>extends ConflictException</code> → advice 의 ConflictException 매처 자동 catch</td>
+            </tr>
+            <tr>
+                <td class="label">매처</td>
+                <td class="before">두 advice 모두 catch 가능. 등록 순으로 Api 우선 → JSON 응답</td>
+                <td class="after">Web (@Order -100) 우선 catch. produces=text/html 매처 → error.html</td>
+            </tr>
+            <tr>
+                <td class="label">사용자 화면</td>
+                <td class="before"><code>{"message": "부모 자원 ..."}</code> raw JSON</td>
+                <td class="after">버튼이 disabled 라 거의 발생 안 함. URL forging 시 error.html 친화 페이지</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>6.2 케이스 B — OS 만 복구 후 자식 ISO 복구 시도 (trash 파일 부재)</h3>
+    <table class="compare">
+        <thead><tr><th>단계</th><th class="before">옛 흐름</th><th class="after">새 흐름</th></tr></thead>
+        <tbody>
+            <tr>
+                <td class="label">UI redirect</td>
+                <td class="before"><code>IsoLifecycleController</code> 의 lifecycle action 후 <code>selectKey / includeDeleted</code> 사라짐. 사용자가 '삭제된 항목' 다시 켜야 ISO 보임</td>
+                <td class="after">7 endpoint 모두 <code>@RequestParam selectKey, includeDeleted</code> + <code>redirectToList(osId, selectKey, includeDeleted)</code>. list.html 의 ISO form 6 개에 hidden 추가</td>
+            </tr>
+            <tr>
+                <td class="label">backend 예외</td>
+                <td class="before"><code>RestoreTrashLostException extends NotFoundException</code></td>
+                <td class="after"><span class="em">변경 없음</span> — 본 예외 계층은 이미 정상</td>
+            </tr>
+            <tr>
+                <td class="label">매처</td>
+                <td class="before">Api advice 우선 catch → JSON 응답</td>
+                <td class="after">Web advice 우선 catch → error.html 친화 페이지</td>
+            </tr>
+            <tr>
+                <td class="label">사용자 화면</td>
+                <td class="before"><code>{"message": "휴지통 자원 부재 — 외부에서 정리된 것으로 보입니다 : path"}</code> raw JSON</td>
+                <td class="after">error.html (status 404 + message). selectKey/includeDeleted 유지로 stale view 차단</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="note warn">
+        <strong>⚠ 케이스 B 의 근본 원인 (trash 파일이 사라진 이유) 은 별도 진단 필요</strong> — 본 hotfix 는 UI redirect 보존 + 친화 응답까지. trash 파일이 disk 에서 사라진 진짜 메커니즘은 §7 참조.
+    </div>
+</section>
+
+<!-- §7 -->
+<section id="s7">
+    <h2>7. 미해결 영역 + 후속</h2>
+
+    <h3>7.1 사용자 보고 케이스 B 의 진짜 원인 — 진단 보류</h3>
+    <p>
+        사용자 흐름 :
+    </p>
+    <ol>
+        <li>OS 버전 삭제 → 자식 ISO 도 cascade trash 이동 (trashed_path 설정, disk 의 ISO 가 trash 위치로 mv)</li>
+        <li>OS 만 복구 (nudge 의 메타 부분만, cascade=false) → 자식 ISO 의 trashed_path / trash disk 파일은 그대로 있어야 정상</li>
+        <li>자식 ISO 단독 복구 시도 → trashService.moveBack 가 trash 파일 → 원래 위치 mv. 트랜잭션 commit. <span class="em">redirect 후 selectKey/includeDeleted 사라짐 → 사용자 view 에서 ISO 안 보임</span></li>
+        <li>사용자가 다시 '삭제된 항목' 체크 + 같은 ISO 클릭 → trashed_path 가 disk 에 부재 → <code>RestoreTrashLostException</code></li>
+    </ol>
+    <p>
+        본 hotfix 는 단계 3 의 <strong>redirect 보존 부재</strong> 만 해소. 단계 4 의 <strong>"왜 trashed_path 가 disk 에 없는가"</strong> 는 trans rollback / 다른 흐름의 silent cleanup 의심. 단독 진단 슬라이스 필요.
+    </p>
+
+    <div class="note danger">
+        <strong>의심 영역</strong>
+        <ul>
+            <li>nudge 의 OS 만 복구 흐름 (<code>OSNudgeService</code> 또는 <code>OSMetadataNudgeController</code>) 이 자식 ISO 의 trashed file 을 silent 정리할 가능성</li>
+            <li>첫 ISO restore 시도가 부분 성공 (trash mv → entity update) 후 어떤 후속 가드 (markerService.write 등) 실패로 트랜잭션 rollback. trash 파일은 이미 mv 됨 + entity 변경은 rollback. 다음 시도 시 trash 부재.</li>
+            <li>S5-2-3 시점에 자식 ISO 의 trashed_path 가 잘못 설정되어 처음부터 disk 부재인 경우 (Ghost 분류)</li>
+        </ul>
+    </div>
+
+    <h3>7.2 본 hotfix 의 범위 밖</h3>
+    <ul>
+        <li>다른 도메인 (BIOS / BMC / Subprogram / Board) 의 lifecycle controller 도 selectKey/includeDeleted 보존 fix 필요 — 본 hotfix 는 OS area 만</li>
+        <li><code>updateISO</code> endpoint 의 redirect 도 보존 미적용 (간단 옵션 추가 필요)</li>
+        <li><code>OSNudgeService</code> 의 confirm 흐름의 redirect — 미점검</li>
+    </ul>
+
+    <h3>7.3 후속 슬라이스 후보</h3>
+    <ul>
+        <li><strong>P0 진단 슬라이스</strong> — case B 의 trashed_path/disk 불일치 원인 추적</li>
+        <li><strong>R1-4-2</strong> 에 포함될 영역 — IsoRegistrationService 분리 시 nudge / trash 흐름 정리 동반</li>
+        <li>다른 도메인의 selectKey 보존 (R2 영역)</li>
+    </ul>
+</section>
+
+<!-- §8 -->
+<section id="s8">
+    <h2>8. Critical Files</h2>
+    <table class="compare">
+        <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+        <tbody>
+            <tr><td class="label">backend</td><td><code>WebExceptionHandler.java</code></td><td><code>@Order(HIGHEST_PRECEDENCE - 100)</code> 명시 — SSR 우선 매처</td></tr>
+            <tr><td class="label">backend</td><td><code>ApiExceptionHandler.java</code></td><td><code>@Order(HIGHEST_PRECEDENCE)</code> 유지 — XHR fallback 매처</td></tr>
+            <tr><td class="label">backend</td><td><code>ChildLifecycleBlockedByParentException.java</code></td><td><code>extends ConflictException</code> — advice 의 일반 매처 활용</td></tr>
+            <tr><td class="label">backend</td><td><code>IsoLifecycleController.java</code></td><td>7 endpoint 에 <code>@RequestParam selectKey, includeDeleted</code> + <code>redirectToList</code> 호출</td></tr>
+            <tr><td class="label">frontend</td><td><code>confirm-modal-base.js</code></td><td><code>submitAsync</code> 의 <code>Accept: application/json</code> 단순화</td></tr>
+            <tr><td class="label">frontend</td><td><code>global/error-modal.js</code></td><td>신규 — 공통 modal + <code>window.AsyncSubmitResult</code> default</td></tr>
+            <tr><td class="label">frontend</td><td><code>confirm-modal.css</code></td><td><code>.gem-*</code> 클래스 추가 — global error modal 스타일</td></tr>
+            <tr><td class="label">frontend</td><td><code>fragments/layout.html</code></td><td><code>error-modal.js</code> + <code>confirm-modal.css</code> 전역 include</td></tr>
+            <tr><td class="label">frontend</td><td><code>templates/management/os/list.html</code></td><td>ISO 6 form 에 hidden <code>selectKey / includeDeleted</code> 추가 + 부모 deleted 시 ISO restore 버튼 disabled + tooltip</td></tr>
+        </tbody>
+    </table>
+</section>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>예외 처리 패턴 — 현 코드 스타일에 맞춘 권고 매핑 보고서</title>
+<style>
+    :root {
+        --bg: #0f1115;
+        --panel: #161a22;
+        --panel-2: #1c2230;
+        --panel-3: #202736;
+        --border: #2a3142;
+        --border-soft: #232938;
+        --text: #e6e9ef;
+        --muted: #8a93a6;
+        --accent: #7aa2f7;
+        --accent-2: #bb9af7;
+        --ok: #9ece6a;
+        --warn: #e0af68;
+        --bad: #f7768e;
+        --info: #7dcfff;
+        --quote-bg: #1a2030;
+        --quote-border: #4a5d8a;
+        --style-bg: #1e2a1e;
+        --style-border: #3d5a3d;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0; padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, "SF Pro Text", "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        font-size: 14.5px;
+        line-height: 1.66;
+    }
+    code, .mono {
+        font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+    }
+
+    header.banner {
+        padding: 28px 36px 18px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, #1a1f2c 0%, #0f1115 100%);
+    }
+    header.banner h1 { margin: 0; font-size: 23px; font-weight: 600; letter-spacing: -0.01em; }
+    header.banner .sub { color: var(--muted); margin-top: 8px; font-size: 13.5px; }
+
+    main { max-width: 1180px; margin: 0 auto; padding: 24px 36px 64px; }
+
+    .toc {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 26px;
+    }
+    .toc h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 500; }
+    .toc ol { margin: 6px 0 0; padding-left: 22px; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    section { margin-bottom: 32px; }
+    h2 {
+        font-size: 18.5px;
+        font-weight: 600;
+        margin: 0 0 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-soft);
+    }
+    h3 { font-size: 15.5px; font-weight: 600; margin: 22px 0 8px; color: var(--accent-2); }
+    h4 { font-size: 14.5px; font-weight: 600; margin: 16px 0 6px; color: var(--info); }
+
+    p { margin: 8px 0; }
+
+    .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin: 12px 0;
+    }
+    .card-ok { border-left: 3px solid var(--ok); }
+    .card-warn { border-left: 3px solid var(--warn); }
+    .card-bad { border-left: 3px solid var(--bad); }
+    .card-info { border-left: 3px solid var(--info); }
+    .card-style {
+        background: var(--style-bg);
+        border: 1px solid var(--style-border);
+        border-left: 3px solid var(--ok);
+    }
+
+    blockquote {
+        background: var(--quote-bg);
+        border-left: 3px solid var(--quote-border);
+        margin: 10px 0;
+        padding: 10px 16px;
+        border-radius: 0 6px 6px 0;
+        font-style: italic;
+        color: #c8d0e2;
+    }
+    blockquote .src {
+        display: block;
+        margin-top: 6px;
+        font-style: normal;
+        font-size: 12.5px;
+        color: var(--muted);
+    }
+
+    pre {
+        background: #0a0d13;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        overflow-x: auto;
+        font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.55;
+        margin: 10px 0;
+    }
+    .k-keyword { color: #bb9af7; }
+    .k-anno    { color: #e0af68; }
+    .k-type    { color: #7dcfff; }
+    .k-str     { color: #9ece6a; }
+    .k-comment { color: #565f89; font-style: italic; }
+    .k-num     { color: #ff9e64; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0 16px;
+        font-size: 13.5px;
+    }
+    th, td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border-soft);
+        vertical-align: top;
+    }
+    th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:hover td { background: var(--panel-2); }
+
+    .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        margin-right: 6px;
+    }
+    .pill-ok { background: rgba(158, 206, 106, 0.18); color: var(--ok); }
+    .pill-warn { background: rgba(224, 175, 104, 0.18); color: var(--warn); }
+    .pill-bad { background: rgba(247, 118, 142, 0.18); color: var(--bad); }
+    .pill-info { background: rgba(125, 207, 255, 0.18); color: var(--info); }
+    .pill-accent { background: rgba(122, 162, 247, 0.18); color: var(--accent); }
+    .pill-style { background: rgba(158, 206, 106, 0.18); color: var(--ok); }
+
+    sup.fn a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 11px;
+        padding: 0 2px;
+        font-weight: 600;
+    }
+    sup.fn a:hover { text-decoration: underline; }
+
+    .analogy {
+        background: linear-gradient(180deg, #1a2a3a 0%, #18222e 100%);
+        border: 1px solid #2a4458;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin: 14px 0;
+    }
+    .analogy .label {
+        display: inline-block;
+        background: rgba(125, 207, 255, 0.2);
+        color: var(--info);
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+
+    .style-quote {
+        background: var(--style-bg);
+        border: 1px solid var(--style-border);
+        border-left: 4px solid var(--ok);
+        padding: 12px 18px;
+        margin: 12px 0;
+        border-radius: 0 6px 6px 0;
+    }
+    .style-quote .label {
+        display: inline-block;
+        background: rgba(158, 206, 106, 0.18);
+        color: var(--ok);
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-right: 6px;
+    }
+
+    .mapping {
+        display: grid;
+        grid-template-columns: 1fr 16px 1fr;
+        gap: 6px;
+        margin: 12px 0;
+        align-items: stretch;
+    }
+    .mapping .src-col, .mapping .dst-col {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+    }
+    .mapping .src-col { border-left: 3px solid var(--accent); }
+    .mapping .dst-col { border-left: 3px solid var(--ok); }
+    .mapping .arr {
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+    .mapping h5 { margin: 0 0 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    hr.section-divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 28px 0;
+    }
+
+    footer.sources {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px 22px;
+        margin-top: 40px;
+    }
+    footer.sources h2 {
+        margin-top: 0;
+        border-bottom: 1px solid var(--border-soft);
+    }
+    footer.sources ol { padding-left: 22px; }
+    footer.sources li { margin-bottom: 8px; font-size: 13.5px; }
+    footer.sources a { color: var(--accent); text-decoration: none; }
+    footer.sources a:hover { text-decoration: underline; }
+    footer.sources .pub { color: var(--muted); font-size: 12.5px; margin-left: 6px; }
+    footer.sources .access { color: var(--muted); font-size: 11.5px; display: block; margin-top: 2px; }
+
+    .verdict {
+        background: linear-gradient(180deg, #1c2230 0%, #161a22 100%);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 14px 0;
+    }
+    .verdict .v-label {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin-bottom: 6px;
+    }
+    .verdict.adopt .v-label { background: rgba(158, 206, 106, 0.18); color: var(--ok); }
+    .verdict.adapt .v-label { background: rgba(125, 207, 255, 0.18); color: var(--info); }
+    .verdict.reject .v-label { background: rgba(247, 118, 142, 0.18); color: var(--bad); }
+    .verdict.defer .v-label { background: rgba(224, 175, 104, 0.18); color: var(--warn); }
+</style>
+</head>
+<body>
+
+<header class="banner">
+    <h1>예외 처리 패턴 — 현 코드 스타일에 맞춘 권고 매핑 보고서</h1>
+    <div class="sub">
+        Spring 공식 · RFC 9457 · Google AIP-193 · Microsoft Azure API Guidelines 4 출처에서 도출한 권고를,
+        본 프로젝트의 코딩 철학 (CLAUDE.md 의 다형성·framework primitive 우선, 분기문 확장 회피, feature-first 패키지) 에 자연스럽게 흡수시키는 방안.
+        작성 : 2026-05-28 KST · 출처 5종 본문 §11 + 본문 각주 번호 인용.
+    </div>
+</header>
+
+<main>
+
+<div class="toc">
+    <h3>목차</h3>
+    <ol>
+        <li><a href="#sec1">왜 이 보고서를 따로 쓰는가</a></li>
+        <li><a href="#sec2">예외 처리의 두 축 — 라우팅과 본문 형식</a></li>
+        <li><a href="#sec3">현 코드의 스타일 진단 — 이미 무엇이 잘 되어 있나</a></li>
+        <li><a href="#sec4">출처 ① — Spring 공식이 권장하는 단일 advice + dual produces 패턴</a></li>
+        <li><a href="#sec5">출처 ② — RFC 9457 Problem Details 표준</a></li>
+        <li><a href="#sec6">출처 ③ — Google AIP-193 단일 일관 모델 + 머신 가독 식별자</a></li>
+        <li><a href="#sec7">출처 ④ — Microsoft API Guidelines code/message/target/details</a></li>
+        <li><a href="#sec8">우리 스타일에 권고를 흡수 — 4가지 변경의 모양</a></li>
+        <li><a href="#sec9">단계별 로드맵 — 즉시 / 중기 / 장기</a></li>
+        <li><a href="#sec10">자주 빠지는 함정 — 본 작업 중 실제 사례</a></li>
+        <li><a href="#sec11">출처 (Sources)</a></li>
+    </ol>
+</div>
+
+<!-- ============================================================ -->
+<section id="sec1">
+    <h2>1. 왜 이 보고서를 따로 쓰는가</h2>
+
+    <p>
+        지난 며칠간 예외 처리 한 가지가 R1-4-1 hotfix 단계를 세 번 가로막았다 :
+    </p>
+    <ul>
+        <li><span class="pill pill-bad">v1</span> <code>@Order(HIGHEST_PRECEDENCE - 100)</code> 산술 underflow → 의도와 정반대 우선순위가 됨</li>
+        <li><span class="pill pill-bad">v2</span> <code>annotations</code> 속성으로 advice 스코프 좁힘 → hybrid controller 28건 회귀</li>
+        <li><span class="pill pill-bad">v2'</span> <code>@Order(HIGHEST_PRECEDENCE + 100)</code> 양수 offset → <code>Accept: */*</code> 의 MockMvc 28건 회귀</li>
+        <li><span class="pill pill-ok">v3</span> 양 advice 모두 <code>HIGHEST_PRECEDENCE</code> + ContentNegotiation 위임 → 안정 (현재 상태)</li>
+    </ul>
+
+    <p>
+        반복된 회귀의 진짜 원인은 "두 개의 advice 를 어떻게 협조시킬까" 라는 우리의 출발점 자체가
+        Spring 의 권장 모델과 어긋났기 때문이다. 그러나 단순히 "Spring 권고대로 따르세요" 라는 보고서는
+        본 프로젝트에는 부족하다. 본 프로젝트는 CLAUDE.md 에 매우 구체적인 코딩 철학이 명시되어 있고,
+        실제 코드가 그 철학을 이미 상당 부분 따르고 있기 때문이다.
+    </p>
+
+    <div class="card card-info">
+        <strong>본 보고서의 목적</strong> — 두 단계 :
+        <ol>
+            <li>먼저 <strong>현재 코드가 이미 따르고 있는 스타일</strong> 을 §3 에서 정리한다 (대부분 옳은 방향).</li>
+            <li>그 위에 4 권위 출처의 권고를 <strong>스타일을 깨지 않고 자연스럽게 흡수</strong> 하는 형태로 §8 에서 매핑한다.</li>
+        </ol>
+        결과 : "Spring 권장 = 단일 advice" 같은 추상 권고가 아니라
+        "현 <code>ApiExceptionHandler</code> 안의 <code>SecurityException.httpStatus()</code> 다형성 패턴을 그대로 살리되 produces 매처 한 행을 추가" 같은
+        구체 매핑이 나온다.
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec2">
+    <h2>2. 예외 처리의 두 축 — 라우팅과 본문 형식</h2>
+
+    <p>
+        본문에 들어가기 전 어휘를 통일한다. 예외 처리는 <strong>독립된 두 결정</strong> 이다.
+    </p>
+
+    <table>
+        <thead>
+            <tr><th style="width: 16%;">축</th><th style="width: 44%;">결정 내용</th><th>현 시스템 답변</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>① 라우팅</strong></td>
+                <td>"어떤 핸들러 메서드가 이 예외를 잡을 것인가?"<br>→ 예외 타입 + Accept 헤더 (produces) 매칭</td>
+                <td>두 개 advice (<code>WebExceptionHandler</code> + <code>ApiExceptionHandler</code>) 분리</td>
+            </tr>
+            <tr>
+                <td><strong>② 본문</strong></td>
+                <td>"JSON / HTML 응답 필드 스키마는 무엇인가?"<br>→ 응답 DTO + view model</td>
+                <td>자체 정의 <code>ApiErrorResponse(message, fieldErrors)</code> + Thymeleaf <code>error.html</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="analogy">
+        <span class="label">비유</span>
+        호텔 컨시어지로 비유하자.
+        <ul style="margin: 6px 0 0;">
+            <li><strong>축 ①</strong> = "한국어 손님은 한국인 직원, 영어 손님은 영어 직원" — 라우팅 규칙.</li>
+            <li><strong>축 ②</strong> = "어느 직원이 응대하든 답변 양식은 같은 문서 템플릿" — 응답 표준.</li>
+        </ul>
+        현 코드는 ① 을 위해 두 직원(advice)을 두고 손짓 약속(<code>@Order</code>) 으로 순서를 정하려 했다.
+        Spring 권장은 <strong>"한 직원이 두 언어를 다 소화하되 호출 받은 언어에 맞춰 답변"</strong> 하는 것이다 (§4).
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec3">
+    <h2>3. 현 코드의 스타일 진단 — 이미 무엇이 잘 되어 있나</h2>
+
+    <p>
+        본 프로젝트의 CLAUDE.md 는 코딩 철학에 매우 구체적이다. 그중 본 보고서와 관련된 두 불가침 원칙 :
+    </p>
+
+    <div class="style-quote">
+        <span class="label">CLAUDE.md 인용</span>
+        <strong>조건 분기문의 legacy 무분별 확장 절대 지양 (불가침)</strong>.
+        신규 케이스 / 신규 예외 / 신규 도메인 타입이 추가될 때 분기문에 줄을 늘리는 방식으로 처리하지 않는다.
+        대신 <strong>Java 의 다형성</strong> (interface / abstract class / sealed type / enum 의 method-per-constant / strategy pattern)
+        과 <strong>Spring Framework primitive</strong> (<code>@ControllerAdvice</code> / <code>@RestControllerAdvice</code> /
+        <code>HandlerExceptionResolver</code> / <code>@ResponseStatus</code> / <code>BindingResult</code> 자동 매핑 / AOP /
+        <code>@EventListener</code> / <code>MessageSource</code> / <code>Converter</code>) 를 적극 활용해
+        <strong>framework 측이 분기를 떠맡도록 설계</strong>한다.
+    </div>
+
+    <p>
+        이 원칙이 코드 곳곳에 이미 실현되어 있다. 보고서는 권고를 흡수할 때 이 그릇을 깨지 않아야 한다.
+    </p>
+
+    <h3>3.1 보안 예외 다형성 — 가장 성숙한 패턴</h3>
+
+    <p>
+        <code>SecurityException</code> 은 abstract super-class 이고, sub-class 가
+        <code>httpStatus()</code> 를 다형적으로 구현한다 :
+    </p>
+
+    <pre><span class="k-keyword">public abstract class</span> <span class="k-type">SecurityException</span> <span class="k-keyword">extends</span> <span class="k-type">RuntimeException</span> {
+    <span class="k-keyword">public abstract</span> <span class="k-type">HttpStatus</span> httpStatus();   <span class="k-comment">// 다형성으로 status 결정</span>
+}
+
+<span class="k-keyword">public class</span> <span class="k-type">PathTraversalException</span> <span class="k-keyword">extends</span> <span class="k-type">SecurityException</span> {
+    <span class="k-anno">@Override</span>
+    <span class="k-keyword">public</span> <span class="k-type">HttpStatus</span> httpStatus() { <span class="k-keyword">return</span> <span class="k-type">HttpStatus</span>.BAD_REQUEST; }
+}
+<span class="k-comment">// PathOutsideAllowedRootsException → 400
+// UnsupportedMediaTypeException → 415
+// UploadLimitExceededException → 413
+// ZipBombSuspectedException → 415
+// ForbiddenException → 403
+// EntrypointInvalidException → 400</span></pre>
+
+    <p>그리고 단일 핸들러 하나가 if-else / switch 없이 폴리모픽으로 받는다 :</p>
+
+    <pre><span class="k-anno">@ExceptionHandler</span>(SecurityException.class)
+<span class="k-keyword">public</span> <span class="k-type">ResponseEntity</span>&lt;ApiErrorResponse&gt; handleSecurity(<span class="k-type">SecurityException</span> ex) {
+    <span class="k-keyword">return</span> <span class="k-type">ResponseEntity</span>.status(ex.httpStatus()).body(<span class="k-keyword">new</span> <span class="k-type">ApiErrorResponse</span>(ex.getMessage()));
+}</pre>
+
+    <div class="card card-style">
+        <span class="pill pill-style">스타일 평가</span>
+        <strong>매우 성숙</strong>. 7개 보안 sub-class 가 분기 없이 동일 핸들러로 처리. 새 보안 예외 추가 시
+        sub-class 의 <code>httpStatus()</code> 만 정의하면 자동 흡수. 4 권위 출처 모두 이 패턴을 권장한다 (특히 AIP-193 의
+        "표준화된 단일 응답 모델"<sup class="fn"><a href="#fn-google-aip">[4]</a></sup>).
+    </div>
+
+    <h3>3.2 <code>@ResponseStatus</code> 어노테이션 자동 흡수 — Spring primitive 적극 활용</h3>
+
+    <p>
+        도메인 예외 sub-class 에 <code>@ResponseStatus</code> 만 붙이면 advice 의 fallback 핸들러가
+        <code>AnnotationUtils.findAnnotation</code> 으로 그것을 읽어 자동 매핑한다 :
+    </p>
+
+    <pre><span class="k-anno">@ResponseStatus</span>(HttpStatus.CONFLICT)
+<span class="k-keyword">public class</span> <span class="k-type">ChildLifecycleBlockedByParentException</span> <span class="k-keyword">extends</span> <span class="k-type">ConflictException</span> { ... }
+
+<span class="k-anno">@ResponseStatus</span>(HttpStatus.BAD_REQUEST)
+<span class="k-keyword">public class</span> <span class="k-type">TypedNameMismatchException</span> <span class="k-keyword">extends</span> <span class="k-type">DomainException</span> { ... }
+
+<span class="k-anno">@ResponseStatus</span>(HttpStatus.SERVICE_UNAVAILABLE)
+<span class="k-keyword">public class</span> <span class="k-type">PurgeIoFailedException</span> <span class="k-keyword">extends</span> <span class="k-type">DomainException</span> { ... }</pre>
+
+    <p>그리고 <code>ApiExceptionHandler.handleDomain</code> 의 fallback :</p>
+
+    <pre><span class="k-anno">@ExceptionHandler</span>(DomainException.class)
+<span class="k-keyword">public</span> <span class="k-type">ResponseEntity</span>&lt;ApiErrorResponse&gt; handleDomain(<span class="k-type">DomainException</span> ex) {
+    <span class="k-type">ResponseStatus</span> rs = <span class="k-type">AnnotationUtils</span>.findAnnotation(ex.getClass(), <span class="k-type">ResponseStatus</span>.class);
+    <span class="k-keyword">if</span> (rs != null) {
+        <span class="k-keyword">return</span> <span class="k-type">ResponseEntity</span>.status(rs.value()).body(<span class="k-keyword">new</span> <span class="k-type">ApiErrorResponse</span>(ex.getMessage()));
+    }
+    <span class="k-comment">// fallback : 500</span>
+    <span class="k-keyword">return</span> <span class="k-type">ResponseEntity</span>.status(HttpStatus.INTERNAL_SERVER_ERROR).body(<span class="k-keyword">new</span> <span class="k-type">ApiErrorResponse</span>(ex.getMessage()));
+}</pre>
+
+    <div class="card card-style">
+        <span class="pill pill-style">스타일 평가</span>
+        <strong>Spring primitive 의 모범 활용</strong>. 신규 도메인 예외 추가 시 sub-class + 어노테이션 한 줄로 끝.
+        advice 코드 0줄 추가. CLAUDE.md 원칙 ("framework 가 분기를 떠맡도록") 그대로다. Spring 공식 문서<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup>
+        도 이 어노테이션을 권장한다.
+    </div>
+
+    <h3>3.3 도메인 super-class 계층 — 의미 단위로 분류</h3>
+
+    <pre><span class="k-type">DomainException</span> (abstract)
+├── <span class="k-type">NotFoundException</span>     → 404
+├── <span class="k-type">ConflictException</span>     → 409
+│   ├── <span class="k-type">FieldBoundConflictException</span>   (abstract, fieldName 보유)
+│   │   └── <span class="k-comment">// DuplicateISOContentException, DuplicateFilenameException 등 sub-class</span>
+│   ├── <span class="k-type">NudgeRequiredException</span>       (abstract, payload 보유)
+│   └── <span class="k-comment">// ChildLifecycleBlockedByParent, IllegalOSMetadataState 등</span>
+├── <span class="k-type">FieldBoundBadRequestException</span>  (abstract)
+└── <span class="k-comment">// 그 외 SoftDeleteRequiresIntent, PathCorrectionFailed, ...</span>
+
+<span class="k-type">SecurityException</span> (abstract, 별도 계층 — DomainException 흡수 차단)
+├── <span class="k-comment">// 7 sub-class 가 httpStatus() 다형성</span></pre>
+
+    <p>
+        도메인 예외 100+ 클래스가 <strong>의미 단위 super-class</strong> 로 묶여 있어 advice 가 super-class 한 줄에 핸들러 1개로 다형성 흡수 가능.
+        새 예외 추가 시 적절한 super 선택 + sub-class 작성으로 끝난다.
+    </p>
+
+    <div class="card card-style">
+        <span class="pill pill-style">스타일 평가</span>
+        <strong>Google AIP-193 의 "표준 에러 코드 적은 수 + 자원 많은 수" 원칙<sup class="fn"><a href="#fn-google-aip">[4]</a></sup> 과 일치</strong>.
+        "다양한 종류의 NotFound" 가 아니라 단일 <code>NotFoundException</code> + 메시지로 분기. 권장 흐름 그대로.
+    </div>
+
+    <h3>3.4 보안 예외 계층 분리 — 사고 회피의 학습</h3>
+
+    <p>
+        <code>SecurityException</code> 이 <code>DomainException</code> 하위가 아닌 별도 계층인 이유가 코드 주석에 명시되어 있다 :
+    </p>
+
+    <blockquote>
+        "컨트롤러의 <code>catch (DomainException)</code> 가 보안 예외를 흡수해 500 으로 새는 사고
+        (S3.3 silent-500 회귀) 를 차단하기 위함이다."
+        <span class="src">— <code>global/security/exception/SecurityException.java</code> 주석</span>
+    </blockquote>
+
+    <p>
+        이 한 줄은 CLAUDE.md 의 분기문 확장 회피 원칙이 단순 미학이 아닌 <strong>실제 사고로부터 학습된 결정</strong> 임을 보여준다.
+        본 보고서의 매핑은 이 학습을 보존해야 한다.
+    </p>
+
+    <h3>3.5 frontend 의 글로벌 핸들링 — backend 와 동일한 흡수 패턴</h3>
+
+    <p>
+        <code>global/error-modal.js</code> 는 <code>window.AsyncSubmitResult</code> 라는 글로벌 polymorphic dispatch 를 둔다 :
+    </p>
+
+    <pre><span class="k-keyword">if</span> (!window.AsyncSubmitResult) {
+    window.AsyncSubmitResult = {
+        onSuccess: () =&gt; window.location.reload(),
+        onRejected: (form, status, payload) =&gt; show({ message: payload?.message, status }),
+        onNetworkError: () =&gt; show({ message: <span class="k-str">'서버와 통신할 수 없어요.'</span>, status: <span class="k-num">0</span> })
+    };
+}</pre>
+
+    <p>
+        페이지별 override (예: <code>trash-action</code>) 가 있으면 그것을 보존, 없으면 글로벌 modal.
+        backend 의 advice 패턴과 정확히 같은 "default + specialize" 모델.
+    </p>
+
+    <div class="card card-style">
+        <span class="pill pill-style">스타일 평가</span>
+        <strong>backend/frontend 가 동일 철학 공유</strong>. 신규 페이지 추가 시 별도 override 없이 글로벌 흡수 — 분기문 확장 0줄.
+        Microsoft API Guidelines 의 "centralized common error handling logic"<sup class="fn"><a href="#fn-microsoft-api">[5]</a></sup> 권고와 일치.
+    </div>
+
+    <h3>3.6 진단 요약</h3>
+
+    <table>
+        <thead>
+            <tr><th>스타일 측면</th><th>평가</th><th>관련 4 출처 권고와의 정합성</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>도메인 예외 super-class 계층</td><td><span class="pill pill-ok">우수</span></td><td>AIP-193 표준 모델과 일치<sup class="fn"><a href="#fn-google-aip">[4]</a></sup></td></tr>
+            <tr><td>SecurityException 다형성</td><td><span class="pill pill-ok">우수</span></td><td>Spring 권장 "구체적 시그니처"<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup></td></tr>
+            <tr><td><code>@ResponseStatus</code> 어노테이션 활용</td><td><span class="pill pill-ok">우수</span></td><td>Spring primitive 모범 활용<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup></td></tr>
+            <tr><td>frontend 글로벌 흡수</td><td><span class="pill pill-ok">우수</span></td><td>MS Guidelines 의 centralized handling<sup class="fn"><a href="#fn-microsoft-api">[5]</a></sup></td></tr>
+            <tr><td>advice 분리 (두 클래스)</td><td><span class="pill pill-warn">개선 여지</span></td><td>Spring 권장은 단일 advice + dual produces<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup></td></tr>
+            <tr><td>응답 DTO (자체 <code>ApiErrorResponse</code>)</td><td><span class="pill pill-warn">개선 여지</span></td><td>RFC 9457 ProblemDetail 표준<sup class="fn"><a href="#fn-rfc9457">[3]</a></sup></td></tr>
+            <tr><td>도메인 특화 응답 (Nudge/DeleteReject)</td><td><span class="pill pill-info">현 패턴 유지 가능</span></td><td>ProblemDetail extension members 로 흡수 가능 (선택적)<sup class="fn"><a href="#fn-rfc9457">[3]</a></sup></td></tr>
+            <tr><td>머신 가독 코드 (errorCode)</td><td><span class="pill pill-info">미적용</span></td><td>AIP-193 ErrorInfo 권장<sup class="fn"><a href="#fn-google-aip">[4]</a></sup></td></tr>
+        </tbody>
+    </table>
+
+    <div class="card card-info">
+        <strong>핵심 결론</strong> — 8 측면 중 <strong>4 측면이 이미 권장 패턴</strong>. 본 보고서의 §8 권고는
+        나머지 4 측면을 <strong>이미 우수한 4 측면을 깨지 않고</strong> 점진 도입하는 형태로 설계되어야 한다.
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec4">
+    <h2>4. 출처 ① — Spring 공식이 권장하는 단일 advice + dual produces 패턴</h2>
+
+    <p>
+        Spring Framework 공식 reference 의 <em>"Exceptions"</em> 페이지<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup>
+        가 동일 예외 타입의 응답 형식 분기에 대해 명시한 패턴 :
+    </p>
+
+    <blockquote>
+        "In addition to exception types, <code>@ExceptionHandler</code> methods can also declare producible media types.
+        This allows to refine error responses depending on the media types requested by HTTP clients,
+        typically in the <em>Accept</em> HTTP request header."
+        <span class="src">— Spring Framework Reference, Media Type Mapping<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup></span>
+    </blockquote>
+
+    <p>공식 문서가 보여주는 정형 코드 :</p>
+
+    <pre><span class="k-anno">@ExceptionHandler</span>(produces = <span class="k-str">"application/json"</span>)
+<span class="k-keyword">public</span> <span class="k-type">ResponseEntity</span>&lt;ErrorMessage&gt; handleJson(<span class="k-type">IllegalArgumentException</span> exc) { ... }
+
+<span class="k-anno">@ExceptionHandler</span>(produces = <span class="k-str">"text/html"</span>)
+<span class="k-keyword">public</span> <span class="k-type">String</span> handleHtml(<span class="k-type">IllegalArgumentException</span> exc, <span class="k-type">Model</span> model) { ... }</pre>
+
+    <p>
+        같은 advice 안의 두 메서드. Spring 공식은 이를 "중복 정의가 아니다" 라고 분명히 명시한다.
+        <code>ExceptionHandlerExceptionResolver</code> 가 Accept 헤더와 매칭되는 메서드를 자동 선택.
+    </p>
+
+    <h3>왜 우리의 두 advice 분리보다 안전한가</h3>
+
+    <table>
+        <thead>
+            <tr><th>비교 항목</th><th>두 개 advice (현재)</th><th>단일 advice + dual produces (Spring 권장)</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>매칭 순위</td>
+                <td><code>@Order</code> 정수 비교 (overflow 위험)</td>
+                <td>produces vs Accept 호환성 한 가지로 결정 (<code>@Order</code> 불필요)</td>
+            </tr>
+            <tr>
+                <td>Hybrid controller</td>
+                <td><code>annotations</code> 속성으로 좁히면 깨짐 (v2 사고)</td>
+                <td>스코프 좁힐 필요 자체가 없음</td>
+            </tr>
+            <tr>
+                <td>같은 예외에 신규 케이스 추가</td>
+                <td>두 advice 양쪽에 핸들러 추가</td>
+                <td>한 advice 의 produces 다른 메서드 두 개 추가</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>cause vs root 매칭 규칙</h3>
+
+    <blockquote>
+        "A root exception match is generally preferred to a cause exception match. (...)
+        This means a cause match on a higher-priority <code>@ControllerAdvice</code> bean
+        is preferred to any match (for example, root) on a lower-priority <code>@ControllerAdvice</code> bean."
+        <span class="src">— Spring Framework Reference, Exception Mapping<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup></span>
+    </blockquote>
+
+    <p>
+        이 문장에서 advice 간 우선순위가 진짜 의미를 갖는 케이스는 같은 예외를 root 와 cause 양쪽에서 매칭하려 할 때 뿐임을 알 수 있다.
+        우리 코드처럼 produces 만 다른 advice 두 개는 단일 advice 의 produces 다른 메서드 두 개로 합쳐도 의미 손실 없음.
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec5">
+    <h2>5. 출처 ② — RFC 9457 Problem Details</h2>
+
+    <p>
+        응답 본문의 표준은 IETF 가 2023년 발행한 <strong>RFC 9457 "Problem Details for HTTP APIs"</strong><sup class="fn"><a href="#fn-rfc9457">[3]</a></sup>. RFC 7807 후속 + 호환.
+    </p>
+
+    <blockquote>
+        "This document defines a 'problem detail' to carry machine-readable details of errors in HTTP response content
+        to avoid the need to define new error response formats for HTTP APIs."
+        <span class="src">— RFC 9457, §1<sup class="fn"><a href="#fn-rfc9457">[3]</a></sup></span>
+    </blockquote>
+
+    <h3>표준 필드 5종 + extension members</h3>
+
+    <table>
+        <thead><tr><th>필드</th><th>역할</th><th>예시</th></tr></thead>
+        <tbody>
+            <tr><td><code>type</code></td><td>문제 유형 URI</td><td><code>https://api.example/errors/iso-conflict</code></td></tr>
+            <tr><td><code>title</code></td><td>사람이 읽는 짧은 제목</td><td><code>"ISO 등록 충돌"</code></td></tr>
+            <tr><td><code>status</code></td><td>HTTP 상태 사본</td><td><code>409</code></td></tr>
+            <tr><td><code>detail</code></td><td>이번 발생의 구체 메시지</td><td><code>"동일 경로의 deprecated ISO 가 있어요."</code></td></tr>
+            <tr><td><code>instance</code></td><td>이번 발생 URI (trace 등)</td><td><code>/management/os/1/iso/upload</code></td></tr>
+        </tbody>
+    </table>
+
+    <blockquote>
+        "Problem type definitions MAY extend the problem details object with additional members
+        that are specific to that problem type."
+        <span class="src">— RFC 9457, §3.2<sup class="fn"><a href="#fn-rfc9457">[3]</a></sup></span>
+    </blockquote>
+
+    <p>
+        즉 우리가 현재 별도 응답 타입 (<code>NudgeRequiredResponse</code>, <code>DeleteRejectResponse</code>) 으로 쓰는
+        도메인별 필드 (<code>nudgeId</code>, <code>token</code>, <code>ttlSec</code>) 는 ProblemDetail 의 extension 으로 흡수 가능.
+    </p>
+
+    <h3>Media Type 자동 분리</h3>
+
+    <blockquote>
+        "When serialized in a JSON document, that format is identified with the 'application/problem+json' media type."
+        <span class="src">— RFC 9457, §3<sup class="fn"><a href="#fn-rfc9457">[3]</a></sup></span>
+    </blockquote>
+
+    <p>
+        Spring 6+ 의 <code>ProblemDetail</code> 클래스 (Spring Framework Reference Error Responses<sup class="fn"><a href="#fn-baeldung-pd">[2]</a></sup>)
+        는 응답 시 자동으로 이 content-type 으로 직렬화한다. frontend 가 <code>response.headers.get('content-type')</code> 만 봐도
+        표준 에러 응답임을 인식 가능.
+    </p>
+
+    <h3>설계 가이드 — 과도한 type URI 자제</h3>
+
+    <blockquote>
+        "Truly generic problems are usually better expressed as plain status codes.
+        For example, a 'write access disallowed' problem is probably unnecessary,
+        since a 403 Forbidden status code in response to a PUT request is self-explanatory."
+        <span class="src">— RFC 9457, §4.2<sup class="fn"><a href="#fn-rfc9457">[3]</a></sup></span>
+    </blockquote>
+
+    <p>
+        모든 예외에 type URI 를 만들지 말고, 진짜 도메인 의미가 있는 것만 부여하라는 균형감각. 즉 우리의
+        <code>NotFoundException</code> 처럼 의미가 단일한 것은 type 생략 (<code>about:blank</code>), <code>NudgeRequiredException</code>
+        같은 도메인 특화는 type URI 부여.
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec6">
+    <h2>6. 출처 ③ — Google AIP-193 (단일 일관 모델 + 머신 가독 식별자)</h2>
+
+    <p>
+        Google API Improvement Proposals (AIP) 193번 — <em>"Errors"</em><sup class="fn"><a href="#fn-google-aip">[4]</a></sup>.
+        Google 사내 모든 API 가 따르는 강제 가이드라인.
+    </p>
+
+    <blockquote>
+        "Services MUST return a <code>google.rpc.Status</code> message when an API error occurs."
+        <span class="src">— AIP-193, Guidance<sup class="fn"><a href="#fn-google-aip">[4]</a></sup></span>
+    </blockquote>
+
+    <blockquote>
+        "All error responses MUST include an <code>ErrorInfo</code> within <code>details</code>."
+        <span class="src">— AIP-193, ErrorInfo<sup class="fn"><a href="#fn-google-aip">[4]</a></sup></span>
+    </blockquote>
+
+    <p>핵심 통찰 :</p>
+
+    <blockquote>
+        "If the RPC has <em>always</em> returned <code>ErrorInfo</code> with machine-readable information,
+        the content of <code>Status.message</code> MAY change over time."
+        <span class="src">— AIP-193<sup class="fn"><a href="#fn-google-aip">[4]</a></sup></span>
+    </blockquote>
+
+    <p>
+        <strong>"메시지 텍스트는 변경 가능, 머신 가독 식별자는 고정"</strong> 분리. 우리 <code>ApiErrorResponse</code> 가
+        <code>message</code> 한 줄로 결정되는 것이 문제 — 한국어 메시지를 다듬으면 frontend 분기 (예: 텍스트 매칭) 가 깨질 수 있다.
+    </p>
+
+    <blockquote>
+        "APIs SHOULD NOT support partial errors. Partial errors add significant complexity for users."
+        <span class="src">— AIP-193<sup class="fn"><a href="#fn-google-aip">[4]</a></sup></span>
+    </blockquote>
+
+    <p>
+        이 권고는 R1-4-1 의 케이스 B (OS 만 복구 후 ISO 단독 복구 silent fail) 와 정확히 맞닿아 있다.
+        AIP-193 관점에서 "OS 만 복구" 부분 액션 자체가 위험 — 전체 cascade saga 의 단일 실패 모델 권장.
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec7">
+    <h2>7. 출처 ④ — Microsoft Azure API Guidelines</h2>
+
+    <p>
+        Microsoft 가 Azure / Graph API 에 강제하는 가이드라인<sup class="fn"><a href="#fn-microsoft-api">[5]</a></sup>.
+        RFC 9457 보다 한 단계 더 구체적인 응답 스키마.
+    </p>
+
+    <pre>{
+  <span class="k-str">"error"</span>: {
+    <span class="k-str">"code"</span>: <span class="k-str">"notFound"</span>,            <span class="k-comment">// camelCase, HTTP status description 과 1:1</span>
+    <span class="k-str">"message"</span>: <span class="k-str">"리소스 X를 찾을 수 없어요."</span>,   <span class="k-comment">// 개발자용, 최종 사용자 노출 부적합</span>
+    <span class="k-str">"target"</span>: <span class="k-str">"isoPath"</span>,             <span class="k-comment">// 오류 대상 (필드명 등)</span>
+    <span class="k-str">"details"</span>: [...],
+    <span class="k-str">"innererror"</span>: { ... }            <span class="k-comment">// 더 깊은 원인 (계층 가능)</span>
+  }
+}</pre>
+
+    <blockquote>
+        "For transient errors that may be retried, services SHOULD include a Retry-After HTTP header
+        indicating the minimum number of seconds that clients SHOULD wait before attempting the operation again."
+        <span class="src">— Microsoft Azure REST API Guidelines<sup class="fn"><a href="#fn-microsoft-api">[5]</a></sup></span>
+    </blockquote>
+
+    <p>
+        우리 <code>OptimisticLockingFailureException</code> 처리에 그대로 Retry-After 헤더 추가 가능.
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec8">
+    <h2>8. 우리 스타일에 권고를 흡수 — 4가지 변경의 모양</h2>
+
+    <p>
+        §3 의 스타일 진단과 §4~§7 의 4 출처 권고를 결합하면, 본 프로젝트에 의미 있는 변경은 정확히 4가지다.
+        각 변경은 §3 의 우수한 4 측면을 깨지 않는다.
+    </p>
+
+    <!-- ===== 변경 1 ===== -->
+    <div class="verdict adopt">
+        <span class="v-label">즉시 채택</span>
+        <h3 style="margin: 0;">변경 1 — advice 통합 : <code>WebExceptionHandler</code> → <code>ApiExceptionHandler</code> 흡수</h3>
+    </div>
+
+    <div class="mapping">
+        <div class="src-col">
+            <h5>현 코드</h5>
+            <pre style="margin: 0;"><span class="k-comment">// WebExceptionHandler.java (HTML 응답 전용)</span>
+<span class="k-anno">@ControllerAdvice</span>
+<span class="k-anno">@Order</span>(HIGHEST_PRECEDENCE)
+<span class="k-keyword">class</span> <span class="k-type">WebExceptionHandler</span> {
+    <span class="k-anno">@ExceptionHandler</span>(NotFoundException.class,
+                     produces = TEXT_HTML_VALUE)
+    <span class="k-type">String</span> handleNotFound(...)  <span class="k-comment">// view "error"</span>
+}
+
+<span class="k-comment">// ApiExceptionHandler.java (JSON 응답 전용)</span>
+<span class="k-anno">@RestControllerAdvice</span>
+<span class="k-anno">@Order</span>(HIGHEST_PRECEDENCE)
+<span class="k-keyword">class</span> <span class="k-type">ApiExceptionHandler</span> {
+    <span class="k-anno">@ExceptionHandler</span>(NotFoundException.class,
+                     produces = APPLICATION_JSON_VALUE)
+    <span class="k-type">ResponseEntity</span>... handleNotFound(...)
+}</pre>
+        </div>
+        <div class="arr">→</div>
+        <div class="dst-col">
+            <h5>매핑 후</h5>
+            <pre style="margin: 0;"><span class="k-comment">// GlobalExceptionHandler.java — 단일 advice</span>
+<span class="k-anno">@ControllerAdvice</span>    <span class="k-comment">// @RestControllerAdvice 아님</span>
+<span class="k-keyword">class</span> <span class="k-type">GlobalExceptionHandler</span> {
+
+    <span class="k-anno">@ExceptionHandler</span>(value = NotFoundException.class,
+                     produces = TEXT_HTML_VALUE)
+    <span class="k-type">String</span> handleNotFoundHtml(...)
+
+    <span class="k-anno">@ExceptionHandler</span>(value = NotFoundException.class,
+                     produces = APPLICATION_JSON_VALUE)
+    <span class="k-anno">@ResponseBody</span>
+    <span class="k-type">ResponseEntity</span>... handleNotFoundJson(...)
+}</pre>
+        </div>
+    </div>
+
+    <h4>스타일 보존 검증</h4>
+    <ul>
+        <li><strong>§3.1 보안 예외 다형성</strong> — 그대로. <code>handleSecurity(SecurityException)</code> 한 메서드가 7 sub-class 다형 흡수. produces 미명시 (XHR-only 흐름이므로 JSON).</li>
+        <li><strong>§3.2 <code>@ResponseStatus</code></strong> — 그대로. <code>handleDomain</code> 의 <code>findAnnotation</code> 흐름 유지.</li>
+        <li><strong>§3.3 도메인 super-class 계층</strong> — 그대로. NotFound/Conflict/FieldBound 분류는 그대로 유지하고 각 super 에 produces 짝만 추가.</li>
+        <li><strong>§3.4 보안 계층 분리</strong> — 그대로. SecurityException 은 여전히 DomainException 하위 아님.</li>
+    </ul>
+
+    <h4>왜 v3 hotfix 보다 더 안전한가</h4>
+    <ul>
+        <li><code>@Order</code> 산술 overflow 함정 영구 제거 (advice 1개 → <code>@Order</code> 불필요)</li>
+        <li>같은 advice 안의 produces 다중은 Spring 이 ambiguity 를 명시 거부 → silent 회귀 차단</li>
+        <li>Hybrid controller 의 모든 메서드가 동일 advice 의 매처로 잡힘 → v2 사고 원천 차단</li>
+    </ul>
+
+    <!-- ===== 변경 2 ===== -->
+    <div class="verdict adapt" style="margin-top: 28px;">
+        <span class="v-label">중기 채택 (Adapter)</span>
+        <h3 style="margin: 0;">변경 2 — <code>ApiErrorResponse</code> 를 <code>ProblemDetail</code> 어댑터로 점진 전환</h3>
+    </div>
+
+    <p>
+        <strong>현 <code>ApiErrorResponse</code> 를 즉시 폐기하지 않는다</strong> — 본 프로젝트 전반의 응답이 모두 이 record 에 묶여 있고
+        frontend 가 <code>payload.message</code> 를 기대한다. 대신 <strong>겸용</strong> :
+    </p>
+
+    <div class="mapping">
+        <div class="src-col">
+            <h5>현 응답</h5>
+            <pre style="margin: 0;">{
+  <span class="k-str">"message"</span>: <span class="k-str">"동일 경로 ISO 가 있어요."</span>,
+  <span class="k-str">"fieldErrors"</span>: [
+    { <span class="k-str">"field"</span>: <span class="k-str">"isoPath"</span>,
+      <span class="k-str">"message"</span>: <span class="k-str">"..."</span> }
+  ]
+}
+<span class="k-comment">// Content-Type:
+// application/json</span></pre>
+        </div>
+        <div class="arr">→</div>
+        <div class="dst-col">
+            <h5>RFC 9457 흡수 후</h5>
+            <pre style="margin: 0;">{
+  <span class="k-str">"type"</span>: <span class="k-str">"https://sp.local/errors/iso-conflict"</span>,
+  <span class="k-str">"title"</span>: <span class="k-str">"ISO 등록 충돌"</span>,
+  <span class="k-str">"status"</span>: <span class="k-num">409</span>,
+  <span class="k-str">"detail"</span>: <span class="k-str">"동일 경로 ISO 가 있어요."</span>,    <span class="k-comment">// = message</span>
+  <span class="k-str">"instance"</span>: <span class="k-str">"/management/os/1/iso/upload"</span>,
+  <span class="k-str">"errorCode"</span>: <span class="k-str">"ISO_PATH_DUPLICATE"</span>,         <span class="k-comment">// AIP-193 [4]</span>
+  <span class="k-str">"fieldErrors"</span>: [...]                          <span class="k-comment">// 호환 보존</span>
+}
+<span class="k-comment">// Content-Type:
+// application/problem+json</span></pre>
+        </div>
+    </div>
+
+    <h4>스타일 보존 검증</h4>
+    <ul>
+        <li>frontend 의 <code>payload.message</code> 호환을 위해 <code>detail</code> 외에 <code>message</code> 도 동봉 (deprecation 기간 둠)</li>
+        <li><code>fieldErrors</code> 는 RFC 9457 extension members 로 그대로 유지 — 본 record 에 박혀 있던 도메인 의미를 잃지 않음</li>
+        <li>frontend 의 <code>FormError.renderResponse</code> 가 <code>fieldErrors</code> 를 본 것은 변경 불필요</li>
+    </ul>
+
+    <h4>Spring 6+ 의 <code>ProblemDetail</code> 활용 — Spring primitive 우선 (§3.2 와 동일 철학)</h4>
+
+    <pre><span class="k-anno">@ExceptionHandler</span>(value = ConflictException.class, produces = APPLICATION_JSON_VALUE)
+<span class="k-anno">@ResponseBody</span>
+<span class="k-keyword">public</span> <span class="k-type">ProblemDetail</span> handleConflictJson(<span class="k-type">ConflictException</span> ex) {
+    <span class="k-type">ProblemDetail</span> pd = <span class="k-type">ProblemDetail</span>.forStatusAndDetail(<span class="k-type">HttpStatus</span>.CONFLICT, ex.getMessage());
+    pd.setTitle(<span class="k-str">"리소스 충돌"</span>);
+    pd.setProperty(<span class="k-str">"errorCode"</span>, ex.errorCode());   <span class="k-comment">// §변경 3 의 enum</span>
+    pd.setProperty(<span class="k-str">"message"</span>, ex.getMessage());    <span class="k-comment">// frontend 호환</span>
+    <span class="k-keyword">return</span> pd;   <span class="k-comment">// Content-Type 자동 application/problem+json [3]</span>
+}</pre>
+
+    <p>
+        Spring <code>ProblemDetail</code> 은 framework primitive — CLAUDE.md 원칙 "framework 측이 분기를 떠맡도록" 그대로다.
+    </p>
+
+    <!-- ===== 변경 3 ===== -->
+    <div class="verdict defer" style="margin-top: 28px;">
+        <span class="v-label">장기 채택 (점진)</span>
+        <h3 style="margin: 0;">변경 3 — <code>errorCode</code> 를 도메인 예외 super-class 메서드로 (다형성 유지)</h3>
+    </div>
+
+    <p>
+        AIP-193 의 머신 가독 식별자 권고<sup class="fn"><a href="#fn-google-aip">[4]</a></sup> 를 적용하되,
+        <strong>§3.1 SecurityException 의 <code>httpStatus()</code> 다형성 패턴을 그대로 흉내낸다</strong>.
+        별도 enum class 도입이 아닌 super-class 의 abstract method 추가.
+    </p>
+
+    <div class="mapping">
+        <div class="src-col">
+            <h5>옛 패턴 (현 코드)</h5>
+            <pre style="margin: 0;"><span class="k-keyword">public abstract class</span> <span class="k-type">DomainException</span>
+        <span class="k-keyword">extends</span> <span class="k-type">RuntimeException</span> {
+    <span class="k-comment">// errorCode 없음
+    // status 는 @ResponseStatus 어노테이션</span>
+}</pre>
+        </div>
+        <div class="arr">→</div>
+        <div class="dst-col">
+            <h5>매핑 후 (§3.1 패턴 흉내)</h5>
+            <pre style="margin: 0;"><span class="k-keyword">public abstract class</span> <span class="k-type">DomainException</span>
+        <span class="k-keyword">extends</span> <span class="k-type">RuntimeException</span> {
+
+    <span class="k-comment">// default: 풀네임 기반 자동 생성 — sub-class 가 override 가능</span>
+    <span class="k-keyword">public</span> <span class="k-type">String</span> errorCode() {
+        <span class="k-keyword">return</span> getClass().getSimpleName()
+            .replaceAll(<span class="k-str">"Exception$"</span>, <span class="k-str">""</span>);
+        <span class="k-comment">// "DuplicateISOContentException" → "DuplicateISOContent"</span>
+    }
+}</pre>
+        </div>
+    </div>
+
+    <h4>왜 enum class 가 아니고 메서드인가</h4>
+
+    <p>
+        본 프로젝트의 도메인 예외는 이미 100+ sub-class. 별도 enum 으로 옮기면 <strong>새 예외 추가 시
+        두 곳 (예외 클래스 + enum) 을 동기화</strong> 해야 한다. CLAUDE.md 의 "분기문 / 매핑 테이블 확장 회피"
+        원칙에 어긋난다. <strong>예외 클래스 자체가 errorCode 의 source of truth</strong> 가 되도록 default 메서드로 둔다.
+    </p>
+
+    <p>도메인 의미가 다르면 sub-class 가 override 가능 :</p>
+
+    <pre><span class="k-keyword">public class</span> <span class="k-type">DuplicateISOContentException</span> <span class="k-keyword">extends</span> <span class="k-type">FieldBoundConflictException</span> {
+    <span class="k-anno">@Override</span>
+    <span class="k-keyword">public</span> <span class="k-type">String</span> errorCode() { <span class="k-keyword">return</span> <span class="k-str">"ISO_DUPLICATE_CONTENT"</span>; }   <span class="k-comment">// 더 명료한 이름</span>
+}</pre>
+
+    <h4>frontend 활용</h4>
+
+    <pre>onRejected: (form, status, payload) =&gt; {
+    <span class="k-keyword">if</span> (payload?.errorCode === <span class="k-str">'DELETE_INTENT_EXPIRED'</span>) {
+        <span class="k-comment">// 특별 처리 — 새로고침 후 modal 재호출 등</span>
+        location.reload();
+        <span class="k-keyword">return</span>;
+    }
+    <span class="k-comment">// 일반 케이스 : 전역 modal</span>
+    show({ message: payload?.message ?? payload?.detail, status });
+}</pre>
+
+    <p>
+        한국어 메시지 변경 자유 + frontend 분기는 errorCode 로 안정.
+    </p>
+
+    <!-- ===== 변경 4 ===== -->
+    <div class="verdict adapt" style="margin-top: 28px;">
+        <span class="v-label">선택적 채택</span>
+        <h3 style="margin: 0;">변경 4 — transient 실패에 <code>Retry-After</code> 헤더 추가</h3>
+    </div>
+
+    <p>
+        Microsoft 권고<sup class="fn"><a href="#fn-microsoft-api">[5]</a></sup> 를 우리 <code>OptimisticLockingFailureException</code>,
+        <code>PurgeIoFailedException</code>, <code>PurgeRetryExhaustedException</code> 에 적용. 1줄 변경 :
+    </p>
+
+    <pre><span class="k-anno">@ExceptionHandler</span>(OptimisticLockingFailureException.class)
+<span class="k-keyword">public</span> <span class="k-type">ResponseEntity</span>&lt;ApiErrorResponse&gt; handleOptimisticLock(<span class="k-type">OptimisticLockingFailureException</span> ex) {
+    <span class="k-keyword">return</span> <span class="k-type">ResponseEntity</span>.status(<span class="k-type">HttpStatus</span>.CONFLICT)
+            .header(<span class="k-type">HttpHeaders</span>.RETRY_AFTER, <span class="k-str">"2"</span>)   <span class="k-comment">// + 1줄</span>
+            .body(<span class="k-keyword">new</span> <span class="k-type">ApiErrorResponse</span>(<span class="k-str">"동시 수정 충돌, 잠시 후 다시 시도."</span>));
+}</pre>
+
+    <p>frontend <code>error-modal.js</code> 에 retry 카운트다운 표시 가능 (선택).</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec9">
+    <h2>9. 단계별 로드맵 — 즉시 / 중기 / 장기</h2>
+
+    <table>
+        <thead>
+            <tr><th style="width: 10%;">단계</th><th style="width: 24%;">변경</th><th style="width: 16%;">출처 근거</th><th>회귀 위험</th><th>예상 작업량</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="pill pill-ok">즉시</span></td>
+                <td>변경 1 (advice 통합)</td>
+                <td>Spring 공식<sup class="fn"><a href="#fn-spring-exh">[1]</a></sup></td>
+                <td>낮음 — 테스트 623 으로 즉시 포착</td>
+                <td>2~3 시간</td>
+            </tr>
+            <tr>
+                <td><span class="pill pill-warn">중기</span></td>
+                <td>변경 2 (ProblemDetail adapter)</td>
+                <td>RFC 9457<sup class="fn"><a href="#fn-rfc9457">[3]</a></sup>, Spring<sup class="fn"><a href="#fn-baeldung-pd">[2]</a></sup></td>
+                <td>중간 — frontend 동시 변경 필요. <code>message</code> 호환 유지로 점진 가능</td>
+                <td>1 슬라이스 (CP1~CP5)</td>
+            </tr>
+            <tr>
+                <td><span class="pill pill-info">장기</span></td>
+                <td>변경 3 (errorCode 다형성)</td>
+                <td>AIP-193<sup class="fn"><a href="#fn-google-aip">[4]</a></sup></td>
+                <td>낮음 — default 메서드라 sub-class 점진 override</td>
+                <td>1~2 슬라이스 점진</td>
+            </tr>
+            <tr>
+                <td><span class="pill pill-info">선택</span></td>
+                <td>변경 4 (Retry-After)</td>
+                <td>MS Azure<sup class="fn"><a href="#fn-microsoft-api">[5]</a></sup></td>
+                <td>없음 — 1줄 추가</td>
+                <td>30 분</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>9.1 추천 : 변경 1 → 변경 4 → 변경 3 → 변경 2 순서</h3>
+
+    <p>
+        <strong>변경 2 (ProblemDetail) 가 마지막인 이유</strong> : frontend 동시 변경 위험이 가장 큼.
+        변경 1 (advice 통합) 으로 라우팅 안정화 → 변경 4 (Retry-After) 로 헤더 활용 사례 누적 →
+        변경 3 (errorCode) 로 frontend 분기 안정화 → 마지막에 본문 형식 표준화 (변경 2).
+        매 단계가 다음 단계의 회귀 안전망을 만든다.
+    </p>
+
+    <p>
+        한 슬라이스 안에 변경 1 + 4 를 묶고, 별도 슬라이스에 변경 3, 또 별도 슬라이스에 변경 2 가 자연스러울 것이다.
+    </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="sec10">
+    <h2>10. 자주 빠지는 함정 — 본 작업 중 실제 사례</h2>
+
+    <div class="card card-bad">
+        <h3 style="margin-top: 0;">10.1 <code>@Order(HIGHEST_PRECEDENCE ± N)</code> 산술 overflow</h3>
+        <p>
+            <code>Ordered.HIGHEST_PRECEDENCE = Integer.MIN_VALUE</code>.
+            <code>MIN_VALUE - 100</code> → underflow → wraparound → 양수 영역.
+            의도와 정반대 우선순위가 된다.
+        </p>
+        <p><strong>회피</strong> : <code>@Order</code> 값에 <code>HIGHEST_PRECEDENCE</code> +/- 산술 자체를 금지.
+        다중 advice 우선순위는 명시적 작은 양수 (<code>@Order(1)</code>, <code>@Order(2)</code>) 사용.
+        가장 안전한 건 §8 변경 1 처럼 advice 를 합쳐 우선순위 자체를 제거.</p>
+    </div>
+
+    <div class="card card-bad">
+        <h3 style="margin-top: 0;">10.2 <code>annotations = RestController.class</code> 의 hybrid controller 함정</h3>
+        <p>
+            <code>@ControllerAdvice(annotations = RestController.class)</code> 로 advice 스코프를 좁히면
+            <code>@Controller</code> 인데 일부 메서드만 <code>@ResponseBody</code> 인 hybrid controller
+            (예: <code>OSImageController.isoProvisions</code>) 가 advice 대상에서 빠진다.
+            결과 : JSON 기대 XHR 이 generic 500 으로 새거나 빈 응답.
+        </p>
+        <p><strong>회피</strong> : annotations 속성으로 스코프를 좁히지 말고 모든 controller 를 단일 advice 가 담당 + produces 분기.</p>
+    </div>
+
+    <div class="card card-warn">
+        <h3 style="margin-top: 0;">10.3 MockMvc 기본 <code>Accept: */*</code></h3>
+        <p>
+            <code>mockMvc.perform(post(...))</code> 만 호출하면 Accept 미지정 → <code>*/*</code> → 양 advice 모두 매처 호환 →
+            등록 순서 의존성. 우리의 R1-4-1 v2' 시도가 여기서 28건 회귀.
+        </p>
+        <p><strong>회피</strong> : 통합 테스트에서 실제 XHR 흐름 모사 시 <code>.accept(MediaType.APPLICATION_JSON)</code> 명시.
+        SSR form 흐름 모사 시 <code>.accept(MediaType.TEXT_HTML, MediaType.ALL)</code>.
+        §8 변경 1 의 단일 advice 로 이 함정 자체 제거 가능.</p>
+    </div>
+
+    <div class="card card-warn">
+        <h3 style="margin-top: 0;">10.4 frontend fetch 의 Accept 기본값</h3>
+        <p>
+            <code>fetch</code> 기본 Accept 가 <code>*/*</code> → advice 매칭 우선순위 영향.
+            우리 hotfix v3 의 <code>confirm-modal-base.js</code> 가 명시적 <code>Accept: application/json</code> 보내도록 한 것이 옳았다.
+        </p>
+        <p><strong>회피</strong> : XHR 호출은 항상 <code>headers: {'Accept': 'application/json'}</code> 명시.
+        브라우저 form submit 은 자동으로 <code>text/html,...,*/*;q=0.8</code> 보내므로 추가 처리 불필요.</p>
+    </div>
+
+    <div class="card card-info">
+        <h3 style="margin-top: 0;">10.5 "raw JSON 화면 노출" 의 진짜 원인 분류</h3>
+        <ol>
+            <li><strong>SSR form submit 이 application/json 응답 받음</strong> — advice 매처 분리 실패 (§10.1, §10.2)</li>
+            <li><strong>XHR fetch 가 페이지로 navigate 됨</strong> — form 의 <code>onsubmit</code> 가 <code>preventDefault</code> 안 함</li>
+            <li><strong>error-modal 로딩 실패</strong> — <code>defer</code> 순서 문제, CSS 미로드</li>
+        </ol>
+        <p>
+            진단 시 가장 먼저 봐야 할 것은 <code>DevTools → Network → 해당 요청 → Response Headers → Content-Type</code>.
+            JSON 인데 화면에 표시됐다면 ①, HTML 인데 분기 깨졌다면 ②, JSON 인데 modal 안 떴다면 ③.
+        </p>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<hr class="section-divider">
+
+<footer class="sources" id="sec11">
+    <h2 id="sources">11. 출처 (Sources)</h2>
+
+    <p style="color: var(--muted); font-size: 13px;">
+        출처 선정 기준 : (a) 표준 제정 기관 (IETF) 직접 발행 문서, (b) framework 의 공식 reference,
+        (c) 글로벌 IT 회사 (Microsoft / Google) 의 사내 강제 가이드라인.
+        기술 블로그·출처 불분명 게시물은 인용에 포함하지 않았다.
+        본문의 모든 인용 부분은 <sup class="fn">[n]</sup> 각주 번호로 본 출처 ID 와 1:1 대응.
+    </p>
+
+    <ol>
+        <li id="fn-spring-exh">
+            <strong>Spring Framework Reference — "Exceptions" (Spring MVC controller exception handling)</strong>.
+            <span class="pub">VMware / Broadcom (Spring Framework 공식 문서, 최신 버전)</span>
+            <a href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html"
+               target="_blank">docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html</a>
+            <span class="access">접속 : 2026-05-28</span>
+        </li>
+        <li id="fn-baeldung-pd">
+            <strong>Spring Framework Reference — "Error Responses" (Spring MVC RFC 9457 통합)</strong>.
+            <span class="pub">VMware / Broadcom (Spring Framework 공식 문서)</span>
+            <a href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html"
+               target="_blank">docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html</a>
+            <span class="access">접속 : 2026-05-28</span>
+        </li>
+        <li id="fn-rfc9457">
+            <strong>RFC 9457 — Problem Details for HTTP APIs</strong>.
+            <span class="pub">Internet Engineering Task Force (IETF), 2023년 7월 발행. Proposed Standard</span>
+            <a href="https://www.rfc-editor.org/rfc/rfc9457.html"
+               target="_blank">www.rfc-editor.org/rfc/rfc9457.html</a>
+            <span class="access">접속 : 2026-05-28</span>
+        </li>
+        <li id="fn-google-aip">
+            <strong>AIP-193 — Errors (Google API Improvement Proposals)</strong>.
+            <span class="pub">Google Inc. (Google 사내 모든 API 강제 가이드라인)</span>
+            <a href="https://google.aip.dev/193" target="_blank">google.aip.dev/193</a>
+            <span class="access">접속 : 2026-05-28</span>
+        </li>
+        <li id="fn-microsoft-api">
+            <strong>Microsoft Azure REST API Guidelines — Error Response Design</strong>.
+            <span class="pub">Microsoft Corporation (Azure 및 Microsoft Graph API 가 따르는 사내 가이드라인)</span>
+            <a href="https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md"
+               target="_blank">github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md</a>
+            <span class="access">접속 : 2026-05-28</span>
+        </li>
+    </ol>
+</footer>
+
+</main>
+</body>
+</html>

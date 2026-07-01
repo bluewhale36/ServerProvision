@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-7 CP4 — 구현 보고서 (ISO 등록 후 자동 작업 + Strategy 다형성)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  main { min-width: 0; }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.success { background: var(--green-bg); color: var(--green); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  ul, ol { padding-left: 22px; }
+  .diff-add { background: rgba(26,174,57,0.10); color: #156f28; padding: 0 2px; }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; padding: 16px; } nav.toc { position: static; } }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-7 CP4 — ISO 등록 후 자동 작업 (PostCreationTaskStrategy 다형성) 구현 보고서</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-21 23:35</strong></span>
+    <span>슬라이스 : <strong>S5-7</strong></span>
+    <span>변경 범위 : <strong>+3 신규 (interface + 2 impl) / OSImageService +1 의존성 / +1 호출</strong></span>
+    <span>회귀 : <strong>./gradlew test BUILD SUCCESSFUL</strong></span>
+    <span>신규 테스트 : <strong>6</strong></span>
+    <span>상태 : <span class="chip success">CP4 통과 — CP5 manual 대기</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 요약 + D1~D5 결정</a></li>
+    <li><a href="#s2">2. 신규 클래스</a></li>
+    <li><a href="#s3">3. OSImageService 변경</a></li>
+    <li><a href="#s4">4. 통합 테스트</a></li>
+    <li><a href="#s5">5. 사용자 가시 변경</a></li>
+    <li><a href="#s6">6. CP5 manual 항목</a></li>
+    <li><a href="#s7">7. Critical Files</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<details class="section" id="s1" open>
+  <summary>1. 요약 + D1~D5 결정</summary>
+  <div class="body">
+    <p>OS ISO 등록 후 자동 작업 (RHEL 의 comps 추출 등) 을 <strong>Strategy 패턴</strong>으로 흡수. CLAUDE.md 의 "조건 분기문 무분별 확장 금지" 원칙 준수.</p>
+
+    <table>
+      <thead><tr><th>결정</th><th>채택</th></tr></thead>
+      <tbody>
+        <tr><td>D1 트리거 시점</td><td>A — <code>OSImageService.finalizePreparedIsoRegistration()</code> 의 마지막 (ISO 영속화 직후)</td></tr>
+        <tr><td>D2 분기 방식</td><td>C — PostCreationTaskStrategy 인터페이스 + Spring 빈 list 주입</td></tr>
+        <tr><td>D3 실패 정책</td><td>B — ISO 등록 성공 + Job 실패 알림 (try-catch 흡수)</td></tr>
+        <tr><td>D4 범위</td><td>A — RHEL_BASED 만 자동, 나머지는 Noop strategy</td></tr>
+        <tr><td>D5 직렬화</td><td>A — 병렬. ISO_REGISTRATION + COMPS_EXTRACTION 동시 진행</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout success">
+      <strong>핵심 가치</strong> 관리자가 ISO 등록 → 알림 패널에서 두 Job (등록 + comps 추출) 동시 관찰. 사용자 액션 1 단계 (별도 추출 클릭) 제거.
+    </div>
+  </div>
+</details>
+
+<details class="section" id="s2">
+  <summary>2. 신규 클래스 — 3 개</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">2.1 PostCreationTaskStrategy (interface)</h3>
+<pre><code>public interface PostCreationTaskStrategy {
+    boolean supports(OSFamily family);
+    /**
+     * @return 트리거된 Job 의 id. 자동 작업이 없는 경우 null.
+     */
+    String trigger(OSImage osImage, ISO iso);
+}</code></pre>
+
+    <h3>2.2 RhelPostCreationTaskStrategy</h3>
+<pre><code>@Component
+@RequiredArgsConstructor
+public class RhelPostCreationTaskStrategy implements PostCreationTaskStrategy {
+    private final CompsExtractionLauncher compsExtractionLauncher;
+
+    public boolean supports(OSFamily family) { return family == OSFamily.RHEL_BASED; }
+
+    public String trigger(OSImage osImage, ISO iso) {
+        String jobId = compsExtractionLauncher.startExtraction(osImage.getId(), iso.getId());
+        log.info("[S5-7] RHEL ISO 등록 후 comps 추출 자동 트리거. osImageId={}, isoId={}, compsJobId={}",
+                osImage.getId(), iso.getId(), jobId);
+        return jobId;
+    }
+}</code></pre>
+
+    <h3>2.3 NoopPostCreationTaskStrategy</h3>
+<pre><code>@Component
+public class NoopPostCreationTaskStrategy implements PostCreationTaskStrategy {
+    public boolean supports(OSFamily family) {
+        return family == OSFamily.DEBIAN_BASED || family == OSFamily.WINDOWS_BASED;
+    }
+    public String trigger(OSImage osImage, ISO iso) {
+        return null;  // 의도된 noop
+    }
+}</code></pre>
+  </div>
+</details>
+
+<details class="section" id="s3">
+  <summary>3. OSImageService 변경</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">3.1 의존성 추가</h3>
+<pre><code><span class="diff-add">// S5-7 — OS family 별 자동 작업 트리거. RhelPostCreationTaskStrategy + NoopPostCreationTaskStrategy
+// 가 Spring 빈으로 자동 주입. 새 family 추가 시 strategy 구현체만 추가.
+private final List&lt;PostCreationTaskStrategy&gt; postCreationTaskStrategies;</span></code></pre>
+
+    <h3>3.2 finalizePreparedIsoRegistration 끝부분 + 헬퍼</h3>
+<pre><code>finalizeMarker(saved, prepared, manifestHash, target);
+
+log.info("[finalizePreparedIsoRegistration] 등록 완료. ...");
+
+<span class="diff-add">// S5-7 — ISO 등록 후 자동 작업 트리거 (OS family 별 strategy 다형성).
+// 실패는 ISO 등록 자체 영향 없도록 fail-safe — D3 정책 B (등록 성공 + Job 실패 알림).
+triggerPostCreationTask(parent, saved);</span>
+
+return saved.getId();
+
+<span class="diff-add">private void triggerPostCreationTask(OSImage osImage, ISO iso) {
+    // 단위 테스트 @InjectMocks 환경에서 List 자동 주입이 null 인 경우 방어.
+    if (postCreationTaskStrategies == null || postCreationTaskStrategies.isEmpty()) return;
+    try {
+        postCreationTaskStrategies.stream()
+                .filter(s -&gt; s.supports(osImage.getOsName().getFamily()))
+                .findFirst()
+                .ifPresent(s -&gt; s.trigger(osImage, iso));
+    } catch (RuntimeException e) {
+        log.error("[S5-7] PostCreationTask 트리거 실패 (ISO 등록은 영속됨). osImageId={}, isoId={}, family={}",
+                osImage.getId(), iso.getId(), osImage.getOsName().getFamily(), e);
+    }
+}</span></code></pre>
+
+    <h3>3.3 fail-safe 정당화</h3>
+    <ul>
+      <li>strategy 의 RuntimeException 흡수 → ISO 영속화 트랜잭션 보존 (D3 B)</li>
+      <li>실패는 서버 로그 + BackgroundJob 의 FAILED 상태로 사용자 인지 가능</li>
+      <li>List null 방어 — 단위 테스트의 @InjectMocks 환경에서 List&lt;PostCreationTaskStrategy&gt; 가 null 주입되어도 noop</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s4">
+  <summary>4. 통합 테스트</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">신규 시나리오 — 6 (Rhel 3 + Noop 3)</h3>
+    <table>
+      <thead><tr><th>테스트</th><th>검증</th></tr></thead>
+      <tbody>
+        <tr><td>Rhel.supports : RHEL_BASED true / 나머지 false</td><td>family 매칭</td></tr>
+        <tr><td>Rhel.trigger : Rocky Linux → startExtraction 호출 + jobId 반환</td><td>위임</td></tr>
+        <tr><td>Rhel.trigger : CentOS → 동일 위임</td><td>family 내 다중 OS</td></tr>
+        <tr><td>Noop.supports : DEBIAN / WINDOWS true, RHEL false</td><td>family 매칭</td></tr>
+        <tr><td>Noop.trigger : Ubuntu → null</td><td>의도된 noop</td></tr>
+        <tr><td>Noop.trigger : Windows → null</td><td>의도된 noop</td></tr>
+      </tbody>
+    </table>
+
+    <h3>회귀</h3>
+    <ul>
+      <li><code>./gradlew test</code> → BUILD SUCCESSFUL</li>
+      <li>OSImageServiceTest 기존 시나리오 — defensive null guard 덕에 List null 주입에도 통과</li>
+      <li>CompsExtractionServiceTest / CompsExtractionLauncher / IsoRegistrationLauncher 모두 영향 없음</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s5">
+  <summary>5. 사용자 가시 변경</summary>
+  <div class="body">
+    <ul>
+      <li><strong>Before</strong> : Rocky/CentOS ISO 등록 → ISO_REGISTRATION Job 만 노출 → 관리자가 별도로 "환경·패키지 추출" 클릭해야 comps 작업 시작</li>
+      <li><strong>After</strong> : Rocky/CentOS ISO 등록 → ISO_REGISTRATION + COMPS_EXTRACTION 두 Job 알림 패널에 자동 동시 노출 → 별도 사용자 액션 없이 환경·패키지 그룹 추출 완료</li>
+      <li>Ubuntu / Windows ISO 등록 → ISO_REGISTRATION 만 노출 (변화 없음)</li>
+      <li>S5-8 의 단계 라벨 노출과 시너지 — 각 Job 의 현재 단계가 "comps.xml 파싱 중" 같이 명확히 표시</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s6">
+  <summary>6. CP5 manual 검증 항목</summary>
+  <div class="body">
+    <ul>
+      <li>[ ] Rocky 9 ISO 등록 → 알림 패널에 두 Job 자동 노출 + 두 Job 모두 RUNNING 진행</li>
+      <li>[ ] CentOS 7 ISO 등록 → 동일</li>
+      <li>[ ] Ubuntu 22.04 ISO 등록 → ISO_REGISTRATION 만 노출 (COMPS_EXTRACTION 자동 트리거 없음)</li>
+      <li>[ ] 두 Job 병렬 진행 중 정상 동작 (서버 로그에 ISO_REGISTRATION 의 read + COMPS_EXTRACTION 의 read 동시 confirm)</li>
+      <li>[ ] 의도적 실패 (예: CompsExtractionLauncher 강제 throw) → ISO 등록은 영속, errorLog 출력</li>
+      <li>[ ] 기 수동 추출 흐름 회귀 없음 — RHEL 자원 등록 후 알림 패널 X 닫은 뒤 별 도메인 작업 진행</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s7">
+  <summary>7. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">신규</h3>
+    <ul>
+      <li><code>src/main/java/.../management/os/service/PostCreationTaskStrategy.java</code></li>
+      <li><code>src/main/java/.../management/os/service/RhelPostCreationTaskStrategy.java</code></li>
+      <li><code>src/main/java/.../management/os/service/NoopPostCreationTaskStrategy.java</code></li>
+      <li><code>src/test/java/.../management/os/service/RhelPostCreationTaskStrategyTest.java</code></li>
+      <li><code>src/test/java/.../management/os/service/NoopPostCreationTaskStrategyTest.java</code></li>
+    </ul>
+    <h3>수정</h3>
+    <ul>
+      <li><code>OSImageService.java</code> — List 의존성 + finalizePreparedIsoRegistration 끝 + 헬퍼 triggerPostCreationTask</li>
+    </ul>
+    <h3>변경 없음</h3>
+    <ul>
+      <li>OSName / OSFamily enum</li>
+      <li>CompsExtractionLauncher / CompsExtractionService / RHELCompsExtractor</li>
+      <li>BackgroundJobService / JobType</li>
+      <li>OSImageController / Request DTO</li>
+    </ul>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+</body>
+</html>

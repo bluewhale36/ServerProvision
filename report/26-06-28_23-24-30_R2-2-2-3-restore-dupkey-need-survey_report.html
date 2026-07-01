@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R2-2-2 / R2-2-3 (restore 중복키 차단) 필요성 조사 — 보고서</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rev{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-right:2px}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap;min-height:150px}
+  .ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}.ux-flow .drop{color:#f85149;font-weight:700}.ux-flow .dim{color:#8b949e}.ux-flow .ok{color:#3fb950;font-weight:700}.ux-flow .warn{color:#e3b341;font-weight:700}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft)}
+  .ux-verdict.good{background:var(--green-bg)}.ux-verdict.warn{background:var(--yellow-bg)}.ux-verdict.bad{background:var(--red-bg)}
+  .render-box{margin-top:10px;border-radius:8px;overflow:hidden;border:1px solid #30363d}
+  .render-cap{font-size:10.5px;font-weight:700;padding:4px 10px;color:#fff}
+  .render-cap.raw{background:#7d2020}.render-cap.modal{background:#1a5f2e}.render-cap.none{background:#1f5276}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R2-2-2 / R2-2-3 — restore 중복키 차단, 실제로 필요한가 <span class="chip rev">NEED-SURVEY</span></h1>
+  <div class="meta">
+    <span><strong>대상</strong> 보류 중인 R2-2-2(restore 중복키 처리 개편)·R2-2-3(restore 중복키 UI 차단)의 등장 배경 · 논의 · 현재 필요성</span>
+    <span><strong>방법</strong> restore 흐름 6 표면 + 5 도메인 dup-key 가드 + advice 라우팅 file:line 실측</span>
+    <span><strong>작성</strong> 2026-06-28 KST</span>
+    <span><strong>결론</strong> 슬라이스로는 <b>불요(DROP/보류 유지)</b> — 잔존 결함은 BoardModel 1곳, 1줄 hotfix 로 닫힘</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 결론 요약</a></li>
+      <li><a href="#s2">§2 등장 배경 — 어쩌다 생겼나</a></li>
+      <li><a href="#s3">§3 논의된 두 갈래 · 보류 결정</a></li>
+      <li><a href="#sd">🎬 restore 중복키 시뮬레이터</a></li>
+      <li><a href="#s4">§4 현재 동작 실측 (raw JSON 검증)</a></li>
+      <li><a href="#s5">§5 충돌 도달 가능성</a></li>
+      <li><a href="#s6">§6 판정 — 필요한가</a></li>
+      <li><a href="#s7">§7 권고 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 결론 요약</summary>
+      <div class="body">
+        <div class="callout danger"><b>[정정 — 2026-06-28, HF-5 CP1 재검증]</b> 본문이 board restore 409 를 "raw JSON"으로 적은 것은 <b>부정확</b>하다. native form POST 는 <code>Accept: text/html</code> 을 보내고, <code>DuplicateBoardModelException → FieldBoundConflictException → ConflictException → DomainException</code> 이 <code>WebExceptionHandler.handleDomain</code>(produces=text/html)에 흡수돼 <b><code>error.html</code>(스타일된 전체 페이지 에러)</b>로 렌더된다 — raw JSON 덤프가 아니다. 5월의 raw JSON 증상은 R1-4-1 v3 + R2-3 의 dual-advice produces 라우팅이 이미 해소했다. <b>구조적 결론(board 만 <code>data-async-submit</code> 누락 → 형제 5개와 렌더 비일관, 1줄 fix)은 유효</b>하나, 심각도는 "raw JSON 파손" → <b>"전체페이지 에러 이탈 vs inline 모달 비일관"(경미)</b>로 하향한다. 아래 "raw JSON" 표현은 모두 이 정정으로 읽는다.</div>
+        <table>
+          <thead><tr><th>물음</th><th>답</th><th>핵심</th></tr></thead>
+          <tbody>
+            <tr><td>왜 R2-2-2/3 가 생겼나</td><td>R2-2-1 audit 의 부산물</td><td>"버튼 보이는데 누르면 예외" 패턴을 확산하다가, 부모-자식(세로) 외에 <b>restore 중복키</b>(가로=cross-row 유일성)라는 같은 부류의 잔존 모순을 발견 → scope 분리</td></tr>
+            <tr><td>원래 무엇이 문제였나</td><td>restore 409 가 <b>raw JSON</b> 노출</td><td>복구 버튼을 누르면 <code>Duplicate*Exception</code>(409)이 full-page 로 떠 JSON 이 화면에 덤프되던 UX 파손 (사용자 기억과 일치)</td></tr>
+            <tr><td>지금도 그런가</td><td><b>거의 해소됨</b></td><td>6개 restore 표면 중 <b>5개</b>(OS·ISO·BIOS·BMC·Subprogram)는 <code>data-async-submit</code> → ErrorModal 로 이미 완화. 비일관(전체페이지 <code>error.html</code> 이탈)은 <b>BoardModel management-list 1곳만</b> 잔존</td></tr>
+            <tr><td>슬라이스 구현이 필요한가</td><td><span class="badge drop">불요</span></td><td>5도메인 UI capability(per-row dup-key 질의 + <code>toResponse</code> static→instance 리팩터)는 <b>over-engineering</b>. 잔존 결함은 board restore 폼에 <code>data-async-submit</code> 한 줄 추가로 닫힘</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>한 줄 결론</b> — R2-2-2/3 을 촉발한 본질(raw JSON UX 파손)은 그 사이 도입된 <b>async-submit 인프라 + R2-6 ErrorModal</b> 로 5/6 표면에서 이미 사라졌다. 남은 단 하나의 진짜 구멍은 <b>BoardModel 의 management-list restore 폼이 <code>data-async-submit</code> 을 빠뜨린 비대칭(누락 추정)</b>이며, 형제 5폼과 동일하게 마커 한 줄을 붙이면 ErrorModal 로 수렴한다. "복구 버튼을 렌더 시점에 미리 disable+tooltip" 하는 R2-2-3 안 A 는 fix 가 아니라 polish 이고, 5도메인 질의·리팩터 비용 대비 가치가 낮아 <b>보류 유지/DROP</b> 을 권고한다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 등장 배경 — 어쩌다 생겼나</summary>
+      <div class="body">
+        <p style="margin-top:0">R2-2 가족은 모두 <b>"버튼은 보이는데 누르면 예외"</b> UX 를 없애는 작업이다. 그 안에서 두 개의 <u>성격이 다른</u> 모순을 다룬다.</p>
+        <table>
+          <thead><tr><th>단계</th><th>다루는 모순</th><th>관계 축</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td><b>R2-2</b></td><td>부모 비활성/삭제/deprecated 인데 자식 활성화·복구·undeprecate 버튼 클릭 → 409</td><td>세로(부모-자식)</td><td><span class="badge keep">완료</span> ISO/BIOS/BMC</td></tr>
+            <tr><td><b>R2-2-1</b></td><td>위 패턴을 프로그램 전반 확산 → audit 결과 Subprogram 단일 도메인 수렴</td><td>세로(부모-자식)</td><td><span class="badge keep">완료</span> Subprogram</td></tr>
+            <tr><td><b>R2-2-2</b></td><td>soft-deleted 자원 <b>복구</b> 시 같은 유일키의 활성 자원이 있으면 <code>Duplicate*Exception</code> 409</td><td>가로(cross-row 유일성)</td><td><span class="badge drop">보류</span></td></tr>
+            <tr><td><b>R2-2-3</b></td><td>R2-2-2 의 안 A(UI 차단)를 구체화 — restore 버튼 렌더 시점 disable+tooltip</td><td>가로(cross-row 유일성)</td><td><span class="badge drop">보류</span></td></tr>
+          </tbody>
+        </table>
+        <h4>분리 경위</h4>
+        <p style="margin-top:0">R2-2-1 의 18-에이전트 audit 가 "UI 1차 차단을 어디까지 확산할까"를 전수 조사하던 중, 부모-자식 lifecycle 말고 <b>restore 경로</b>에서 똑같은 "클릭해야 비로소 거절당하는" 패턴을 추가로 발견했다. 시나리오:</p>
+        <pre>1. 드라이버 'a' 등록            → 활성
+2. 'a' 삭제                    → 휴지통 (isDeleted=true)
+3. 같은 키 'a' 재등록           → 활성 ('a' 가 다시 생김 — 삭제본은 유일키 점유 안 함)
+4. 휴지통의 옛 'a' [복구] 클릭  → DuplicateSubprogramVersionException (409)</pre>
+        <p>이건 부모-자식(세로)이 아니라 <b>같은 테이블 안 두 행의 유일키 충돌(가로)</b>이라 R2-2-1 에 섞으면 scope 가 흐려진다. 그래서 별도 슬라이스로 떼어낸 것이 R2-2-2 이고, 그 해법 중 "UI 차단" 안만 따로 구체화한 것이 R2-2-3 이다.</p>
+        <div class="callout"><b>audit 가 같이 확인한 사실</b> — 이 충돌은 Subprogram 만의 특수상황이 아니라 <b>5 도메인(BoardModel·OSMetadata·BIOS·BMC·Subprogram)이 restore 시점에 동일하게 <code>Duplicate*Exception</code> 을 throw</b> 한다(ISO 만 content-hash 식별이라 키 충돌 개념 자체가 없음). 따라서 Subprogram 만 UI 차단하면 "5 중 1만 차단"의 새 비대칭이 생긴다 → "전 도메인 일괄" 또는 "미적용" 둘 중 하나여야 한다는 제약이 R2-2-2 의 출발점이었다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 논의된 두 갈래 · 보류 결정</summary>
+      <div class="body">
+        <p style="margin-top:0">R2-2-2 페이지는 "예외를 어떻게 없앨까"를 두 갈래로 적어두고 진입 시 택일하기로 했다.</p>
+        <h4>안 A — restore 시점 UI 1차 차단 <span class="dim">(= R2-2-3 으로 구체화)</span></h4>
+        <ul>
+          <li>각 도메인 list 응답에 <code>restoreBlockedByActiveDuplicate</code> capability 적재 → 복구 버튼 disable + tooltip("같은 이름·버전의 활성 자원이 이미 있어 복구할 수 없어요").</li>
+          <li>서버 가드(<code>Duplicate*Exception</code> throw)는 안전망 유지, capability 와 동일 질의 SSOT 공유(<code>hasActiveDuplicateKey()</code> 류 추출).</li>
+          <li><b>비용</b> — deleted 행마다 활성-동일키 per-row 질의(N+1 회피 위해 batch 필요) + 일부 도메인 <code>toResponse</code> static→instance 전환.</li>
+        </ul>
+        <h4>안 B — 등록 시점에 충돌을 원천 차단</h4>
+        <ul>
+          <li>충돌은 등록 때 "그래도 진행"으로 <b>의도적으로</b> 만든 것 → 등록 nudge 의 <b>replace</b> 가 휴지통 자원을 purge 하면 애초에 restore 충돌이 안 생긴다. 또는 "그래도 진행" 시 "기존 삭제본은 복구 불가"를 명시.</li>
+          <li>restore 자체는 그대로 두고 모순 발생을 입구에서 막는 접근.</li>
+        </ul>
+        <h4>보류 결정 (2026-05-31, 사용자)</h4>
+        <div class="callout warn">근거 3가지가 Notion 본문에 기록돼 있다 — ① <b>restore 가 이미 async</b>(<code>data-async-submit</code>)라 409 가 full-page 가 아닌 alert/modal 로 떠 이미 완화 ② per-row 중복키 질의 + <code>toResponse</code> static→instance 리팩터 <b>비용</b> ③ Subprogram 만 차단하면 <b>새 비대칭</b>. → 재개 시점 미정으로 보류.<br><span class="dim">본 보고서는 이 ①의 "이미 완화" 전제가 현재 코드에서 정말 성립하는지를 표면별로 실측해 검증한다(§4).</span></div>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 restore 중복키 시뮬레이터 — 도메인 × 표면에 따라 무엇이 렌더되나</summary>
+      <div class="body">
+        <p style="margin-top:0" class="dim">도메인과 "어디서 복구를 눌렀는지(표면)"를 골라 복구를 시도하면, 그 409 가 <b>error.html 전체페이지 이탈</b>인지 <b>inline ErrorModal</b> 인지 실제 코드 기준으로 시뮬레이션한다. 이게 "이미 완화됐다"가 어디까지 참인지를 보여준다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">도메인</span>
+            <button class="ux-btn on" data-dom="board">BoardModel</button>
+            <button class="ux-btn" data-dom="os">OSMetadata</button>
+            <button class="ux-btn" data-dom="bios">BIOS</button>
+            <button class="ux-btn" data-dom="bmc">BMC</button>
+            <button class="ux-btn" data-dom="sub">Subprogram</button>
+            <button class="ux-btn" data-dom="iso">ISO</button>
+            <span class="ux-sep"></span>
+            <span class="lbl">복구 표면</span>
+            <button class="ux-btn on" data-surf="list">관리 목록 페이지</button>
+            <button class="ux-btn" data-surf="trash">휴지통 페이지</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+          <div class="ux-verdict" id="verdict"></div>
+        </div>
+        <p class="dim">판정 기준: 복구 폼이 <code>data-async-submit</code> 을 가지면 fetch → <code>AsyncSubmitResult.onRejected</code> → ErrorModal(inline 스타일 모달). 없으면 <code>form.requestSubmit()</code> → native 내비게이션 → 409 가 <code>WebExceptionHandler</code> → <code>error.html</code> 전체페이지로 이탈. ISO 는 dup-key 가드 자체가 없어 충돌 불가.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 현재 동작 실측 — "raw JSON" 은 지금도 참인가</summary>
+      <div class="body">
+        <h4>① restore 폼 제출 방식 (6 표면)</h4>
+        <table>
+          <thead><tr><th>표면</th><th>폼 위치</th><th><code>data-async-submit</code></th><th>409 렌더</th></tr></thead>
+          <tbody>
+            <tr><td>휴지통 (전 타입)</td><td><code>maintenance/trash/list.html:123</code></td><td>✓ 있음</td><td><span class="badge keep">ErrorModal</span></td></tr>
+            <tr><td>관리목록 — OS</td><td><code>management/os/list.html:196</code></td><td>✓ 있음</td><td><span class="badge keep">ErrorModal</span></td></tr>
+            <tr><td>관리목록 — ISO</td><td><code>management/os/list.html:399</code></td><td>✓ 있음</td><td><span class="dim">충돌 없음(키 개념 없음)</span></td></tr>
+            <tr><td>관리목록 — BIOS</td><td><code>management/bios/list.html:287</code></td><td>✓ 있음</td><td><span class="badge keep">ErrorModal</span></td></tr>
+            <tr><td>관리목록 — BMC</td><td><code>management/bmc/list.html:244</code></td><td>✓ 있음</td><td><span class="badge keep">ErrorModal</span></td></tr>
+            <tr><td>관리목록 — Subprogram</td><td><code>fragments/management/subprogram/miller.html:228</code></td><td>✓ 있음</td><td><span class="badge keep">ErrorModal</span></td></tr>
+            <tr><td><b>관리목록 — BoardModel</b></td><td><code>management/board/list.html:193</code></td><td><b>✗ 없음</b> (<code>grep -c</code> = 0)</td><td><span class="badge drop">전체페이지 이탈</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>유일한 잔존 결함</b> — BoardModel 의 관리목록 restore 폼만 <code>data-async-submit</code> 이 없다. 형제 5폼은 전부 가지고 있으므로 이는 설계 결정이 아니라 <b>마커 누락(오버사이트 추정)</b>으로 보인다. 이 폼은 <code>ConfirmModal.approveAndSubmit</code>(<code>confirm-modal-base.js:124</code>)에서 async 분기를 타지 못하고 <code>form.requestSubmit()</code> 로 native POST → 409 가 <code>WebExceptionHandler.handleDomain</code> → <b><code>error.html</code> 전체 페이지로 이탈</b>(목록에서 벗어남). <span class="dim">[정정] raw JSON 아님 — §1 정정 배너 참조.</span></div>
+        <h4>② 왜 5표면은 raw JSON 이 아닌가 (라우팅 실측)</h4>
+        <pre>data-async-submit 有 → submitAsync(form)                  confirm-modal-base.js:133
+   fetch(Accept: application/json,text/html;q=0.9,*/*;q=0.5)
+   resp.ok? → onSuccess(reload)  :  onRejected(form,status,payload)   :169
+       handler = window.AsyncSubmitResult || defaultAsyncResult        :144
+       defaultAsyncResult.onRejected → ErrorModal.show({message,status}):176
+   (handler 미설정 시 error-modal.js:92-93 가 AsyncSubmitResult 자동 정의 → 역시 ErrorModal)
+   (휴지통은 trash-action.js:83 가 trash-result-modal 로 override — 역시 스타일 처리)</pre>
+        <p>즉 async 경로는 <b>예외 없이 스타일 모달</b>로 끝난다. raw JSON 이 화면에 뜨는 유일한 조건은 "복구 폼이 native POST" 인데, 그 조건을 만족하는 건 BoardModel 관리목록 하나뿐이다.</p>
+        <h4>③ restore dup-key 가드는 실재 (5 도메인 throw)</h4>
+        <table>
+          <thead><tr><th>도메인</th><th>restore 가드 throw</th><th>예외 계층</th></tr></thead>
+          <tbody>
+            <tr><td>BoardModel</td><td><code>BoardModelLifecycleService.java:124</code></td><td><code>DuplicateBoardModelException</code> → FieldBoundConflict(409)</td></tr>
+            <tr><td>BIOS</td><td><code>BiosLifecycleService.java:169</code></td><td><code>DuplicateBiosVersionException</code> → FieldBoundConflict(409)</td></tr>
+            <tr><td>BMC</td><td><code>BmcLifecycleService.java:173</code></td><td><code>DuplicateBmcVersionException</code> → FieldBoundConflict(409)</td></tr>
+            <tr><td>Subprogram</td><td><code>SubprogramLifecycleService.java:153</code></td><td><code>DuplicateSubprogramVersionException</code> → FieldBoundConflict(409)</td></tr>
+            <tr><td>OSMetadata</td><td><code>existsByOsNameAndOsVersionAndIsDeletedFalse</code> 경유</td><td><code>DuplicateOSMetadataException</code> → Conflict(409)</td></tr>
+            <tr><td>ISO</td><td>없음</td><td>content-hash 식별 — 키 충돌 개념 없음</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><b>요약</b> — 사용자 기억의 "raw JSON 노출"은 <b>과거(5월) 증상</b>이며, 그 사이 ① restore 폼 async 화 ② R1-4-1 v3 + R2-3 의 dual-advice produces 라우팅(native text/html → <code>error.html</code> HTML 페이지로, raw JSON bleed 차단)으로 <b>raw JSON 자체는 전 표면에서 사라졌다.</b> 현재 남은 것은 <b>BoardModel 관리목록 1곳의 렌더 비일관</b> — 형제 5개는 inline ErrorModal 인데 board 만 <code>error.html</code> 전체페이지로 이탈한다. 보류 결정의 ①"이미 async 라 완화" 전제는 <b>BoardModel 을 제외하고 성립</b>한다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 충돌 도달 가능성 — 정상 흐름에서 진짜 일어나나</summary>
+      <div class="body">
+        <p style="margin-top:0">"필요한가"를 따지려면 이 충돌이 실제 사용자 흐름에서 닿는지를 봐야 한다. 도메인별로 충돌을 만들려면 "삭제본이 있는데 같은 키의 활성본을 새로 만들 수 있어야" 한다.</p>
+        <h4>BoardModel — nudge 없이 도달 (가장 노출 큼)</h4>
+        <ul>
+          <li>등록 가드 <code>BoardModelMetadataService.java:111</code> 는 <code>existsByVendorAndModelNameAndIsDeletedFalse</code> = <b>활성만</b> 검사. 삭제본(isDeleted=true)은 카운트 안 됨 → 같은 (vendor, modelName) 활성본을 <b>그냥 재등록 가능</b>.</li>
+          <li>BoardModel 은 파일 업로드/nudge 가 없는 단순 폼이라 "그래도 진행" 마찰조차 없다 → 충돌 생성이 가장 쉽다.</li>
+          <li>그렇게 만든 활성본이 있는 채로 휴지통의 옛 board 를 복구 → <code>BoardModelLifecycleService:124</code> 가 409. <b>그리고 그게 <code>error.html</code> 전체페이지로 이탈한다(§4).</b> board 는 도달 용이성·렌더 비일관 두 축에서 모두 최악.</li>
+        </ul>
+        <h4>업로드 자원(OS·BIOS·BMC·Subprogram) — nudge 경유, 렌더는 ErrorModal</h4>
+        <ul>
+          <li>같은 키의 활성본을 새로 만들려면 등록 시 충돌 nudge 에서 "그래도 진행"을 택해야 한다(의도적). 도달은 가능하나 한 단계 마찰이 있다.</li>
+          <li>도달하더라도 restore 409 는 async → ErrorModal(명확한 메시지)로 끝난다 — raw JSON 아님.</li>
+          <li>안 B(nudge replace=purge 로 입구 차단)는 이 업로드 도메인에 한정된 접근이며, <b>BoardModel 에는 nudge 자체가 없어 적용 불가</b>. 즉 안 B 만으로는 가장 심한 board 케이스를 못 닫는다.</li>
+        </ul>
+        <div class="callout"><b>함의</b> — 충돌은 board 에서 <b>마찰 없이 + 전체페이지 이탈</b>로 닿고, 업로드 자원에서는 <b>nudge 마찰 + inline ErrorModal</b> 로 닿는다. 그러므로 "전 도메인 일괄 UI capability"보다, <b>board 의 전체페이지 이탈만 inline ErrorModal 로 끌어올리는 국소 수리</b>가 비용 대비 효과의 임계점이다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 판정 — R2-2-2/3 구현이 필요한가</summary>
+      <div class="body">
+        <h4>R2-2-2/3 (5도메인 UI pre-disable capability) <span class="badge drop">불요 — 보류 유지/DROP</span></h4>
+        <ul>
+          <li><b>촉발 원인이 거의 소멸</b> — raw JSON UX 파손은 6표면 중 5표면에서 async+ErrorModal 로 이미 해결. 남은 board 1곳은 슬라이스가 아니라 1줄로 닫힘.</li>
+          <li><b>잔여 가치는 polish 수준</b> — async 화 이후 restore 409 는 "버튼 누르면 명확한 모달". R2-2-3 이 추가하는 건 "버튼을 아예 못 누르게(disable+tooltip)"인데, 명확한 모달이 이미 이유를 알려주므로 한계효용이 작다.</li>
+          <li><b>비용은 작지 않음</b> — deleted 행마다 per-row 활성-동일키 질의(N+1 회피 batch 설계) + 5도메인 <code>toResponse</code> static→instance 리팩터. CLAUDE.md 의 over-abstraction/churn 경계에 정확히 걸린다.</li>
+          <li><b>안 B(nudge replace=purge)도 단독으론 불완전</b> — board 엔 nudge 가 없어 적용 불가. 가장 심한 케이스를 못 막는 해법은 채택 근거가 약하다.</li>
+        </ul>
+        <h4>잔존 결함 1건 <span class="badge mod">국소 hotfix 권고</span></h4>
+        <div class="callout danger"><b>BoardModel 관리목록 restore = native POST → <code>error.html</code> 전체페이지 이탈.</b> <code>management/board/list.html:193</code> 의 복구 폼에 형제 5폼과 동일하게 <code>data-async-submit=""</code> 한 줄을 추가하면, 그 409 가 inline ErrorModal 로 수렴한다. cascade 복구(<code>BoardModelLifecycleService:131</code>, 자식 동일키 충돌 시 전체 롤백 → 409)도 같은 폼이라 함께 구제된다. <b>이것이 이 묶음에서 실제로 갚아야 할 유일한 빚이다.</b></div>
+        <h4>적대적 점검 (반대 입장 검토)</h4>
+        <table>
+          <thead><tr><th>반론</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>"버튼 누르고 모달 뜨는 것보다 disable 이 더 좋은 UX 아닌가"</td><td>맞다(국소적으로). 그러나 그 이득은 polish 이고, R2-2-3 의 5도메인 질의·리팩터 비용을 정당화하지 못한다. 부모-자식 차단(R2-2)은 부모 상태가 list 응답에 <b>이미</b> 있어 공짜였지만, dup-key 는 별도 per-row 질의를 새로 사야 한다 — 성격이 다르다.</td></tr>
+            <tr><td>"board 만 async 화하면 또 다른 비대칭 아닌가"</td><td>반대다. 지금이 비대칭(5 async / 1 native)이고, board async 화가 <b>대칭을 회복</b>한다. 6표면 전부 ErrorModal 로 일관.</td></tr>
+            <tr><td>"async 라도 결국 클릭 후 거절 — R2-2 원칙(UI 1차 차단) 위반 아닌가"</td><td>R2-2 원칙은 "정상 UX 흐름의 논리 모순을 UI 가 사전 차단"이다. dup-key restore 충돌은 삭제본+동일키 활성본이 공존하는 <b>비정상에 가까운 상태</b>에서만 나며, 빈도가 낮다. 명확한 모달로 사후 안내하는 것이 안전망으로 충분하고, 사전 차단은 비용이 이득을 넘는다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 권고 · 다음</summary>
+      <div class="body">
+        <h4>권고</h4>
+        <ol>
+          <li><b>R2-2-2 / R2-2-3 — DROP(또는 보류 유지).</b> 슬라이스로 진입하지 않는다. 사유: 촉발 원인 소멸 + over-abstraction 비용 + polish 수준 가치.</li>
+          <li><b>국소 hotfix(HF) 1건 — BoardModel restore 폼 async 화.</b> <code>management/board/list.html:193</code> 에 <code>data-async-submit=""</code> 추가. 유일한 전체페이지-이탈 비일관 폐쇄 + 6표면 대칭 회복. (선택: <code>AdviceExceptionMappingTest</code> 에 board restore 409 가 JSON 채널로 떨어지는지 가드 1건.)</li>
+          <li><b>R2 묶음 종료.</b> 위 1·2 를 반영하면 R2-2-2/3 의 미결이 정리되어 R2 부모를 완료로 닫을 수 있다.</li>
+        </ol>
+        <h4>scope 밖 (명시)</h4>
+        <ul>
+          <li>5도메인 <code>restoreBlockedByActiveDuplicate</code> capability / <code>hasActiveDuplicateKey()</code> 추출 — 하지 않음.</li>
+          <li>등록 nudge replace=purge 의미 강화(안 B) — 별개 주제, 본 결정 대상 아님.</li>
+          <li>ISO — dup-key 개념 없음, 영구 비대상.</li>
+        </ul>
+        <h4>다음 (진행 순서)</h4>
+        <ul class="check-list" data-storage="r2dupkey">
+          <li><input type="checkbox"><span>① 본 필요성 조사 report (완료)</span></li>
+          <li><input type="checkbox"><span>② 사용자 결정 — R2-2-2/3 DROP vs 보류 유지 / board HF 진행 여부</span></li>
+          <li><input type="checkbox"><span>③ (승인 시) HF — board restore 폼 <code>data-async-submit</code> + 회귀 가드</span></li>
+          <li><input type="checkbox"><span>④ Notion — R2-2-2/3 상태 정리(DROP/보류) → R2 부모 완료</span></li>
+        </ul>
+        <div class="callout"><b>참고</b> — 원 슬라이스: <code>plan/26-05-31_10-15-54_R2-2-1_plan.html</code> + Notion R2-2-2(<code>371ef0e8…9aed</code>) / R2-2-3(<code>371ef0e8…834a</code>). 본 보고서의 모든 라우팅·가드 판정은 현 <code>renew/main</code> 코드 file:line 실측.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  /* ── restore 중복키 시뮬레이터 ── */
+  const DOM={
+    board:{label:'BoardModel', key:'(vendor, modelName)',      guard:true,  listAsync:false, nudge:false,
+           ex:'DuplicateBoardModelException', svc:'BoardModelLifecycleService:124'},
+    os:   {label:'OSMetadata', key:'(osName, osVersion)',      guard:true,  listAsync:true,  nudge:true,
+           ex:'DuplicateOSMetadataException', svc:'existsByOsNameAndOsVersionAndIsDeletedFalse'},
+    bios: {label:'BIOS',       key:'(boardId, version)',       guard:true,  listAsync:true,  nudge:true,
+           ex:'DuplicateBiosVersionException', svc:'BiosLifecycleService:169'},
+    bmc:  {label:'BMC',        key:'(boardId, version)',       guard:true,  listAsync:true,  nudge:true,
+           ex:'DuplicateBmcVersionException', svc:'BmcLifecycleService:173'},
+    sub:  {label:'Subprogram', key:'(kind, scope, name, version)', guard:true, listAsync:true, nudge:true,
+           ex:'DuplicateSubprogramVersionException', svc:'SubprogramLifecycleService:153'},
+    iso:  {label:'ISO',        key:'content-hash (유일키 없음)', guard:false, listAsync:true, nudge:false,
+           ex:'—', svc:'—'}
+  };
+  let curDom='board', curSurf='list';
+
+  function outcome(d,surf){
+    // 휴지통은 전 타입 async. 관리목록은 도메인의 listAsync 에 따름.
+    const async = surf==='trash' ? true : d.listAsync;
+    if(!d.guard) return {kind:'none'};
+    return {kind: async ? 'modal' : 'raw'};
+  }
+
+  function render(){
+    const d=DOM[curDom];
+    const surfLabel = curSurf==='trash' ? '휴지통 페이지' : '관리 목록 페이지';
+    const o=outcome(d,curSurf);
+    const lines=[];
+    lines.push(`<span class="dim">// ${d.label} · ${surfLabel}</span>`);
+    if(!d.guard){
+      lines.push(`1. 자원 등록 → 삭제(휴지통) → 같은 키 재등록`);
+      lines.push(`   <span class="dim">${d.label} 은 ${d.key} — 유일키 충돌 개념이 없음</span>`);
+      lines.push(`2. 휴지통의 옛 자원 <span class="ok">[복구]</span> → <span class="ok">성공</span> (가드 없음)`);
+    } else {
+      const reg = d.nudge ? '같은 키 재등록 <span class="warn">(nudge "그래도 진행" 필요)</span>'
+                          : '같은 키 재등록 <span class="drop">(마찰 없음 — 삭제본은 키 점유 안 함)</span>';
+      lines.push(`1. 자원 등록 → 삭제(휴지통)`);
+      lines.push(`2. ${reg}  → 활성본 생성`);
+      lines.push(`3. ${surfLabel} 에서 옛 자원 <span class="new">[복구]</span> 클릭`);
+      const mode = (curSurf==='trash'||d.listAsync)
+        ? 'data-async-submit <span class="ok">有</span> → fetch → onRejected'
+        : 'data-async-submit <span class="drop">無</span> → form.requestSubmit() → native POST';
+      lines.push(`4. 서버 가드 <span class="dim">${d.svc}</span> → <span class="drop">${d.ex} (409)</span>`);
+      lines.push(`5. 제출 방식: ${mode}`);
+    }
+    document.getElementById('flow').innerHTML=lines.join('\n');
+
+    const v=document.getElementById('verdict');
+    const rb=document.getElementById('renderBox');
+    let cls,html,cap,capcls,body;
+    if(o.kind==='none'){
+      cls='good';
+      html=`<b>충돌 불가</b> · ${d.label} 은 유일키가 없어 restore 중복키 자체가 발생하지 않음 (영구 비대상).`;
+      cap='렌더 결과 — 정상 복구 (충돌 없음)'; capcls='none';
+      body=`<pre style="margin:0;border-radius:0">{ "restored": 1, "redirect": "/management/..." }  ← 200 OK</pre>`;
+    } else if(o.kind==='modal'){
+      cls='warn';
+      html=`<b>ErrorModal</b> · 409 가 스타일 모달로 표시 — raw JSON 아님. <span class="dim">async 경로(${curSurf==='trash'?'휴지통은 전 타입 async':'폼에 data-async-submit'}) → ErrorModal.show</span>. 명확한 안내. <b>이 표면은 이미 완화됨.</b>`;
+      cap='렌더 결과 — ErrorModal (스타일 모달)'; capcls='modal';
+      body=`<div style="background:#fff;color:#1f2328;padding:16px 18px">
+        <div style="font-weight:700;margin-bottom:6px">⚠ 복구할 수 없습니다 <span style="float:right;color:#bf2626;font-size:11px">HTTP 409</span></div>
+        <div style="font-size:13px;color:#57606a">같은 ${d.key} 의 활성 자원이 이미 있어 복구할 수 없어요.</div>
+        <div style="text-align:right;margin-top:12px"><span style="background:#0075de;color:#fff;padding:4px 12px;border-radius:6px;font-size:12px">확인</span></div>
+      </div>`;
+    } else {
+      cls='bad';
+      html=`<b>전체 페이지 이탈</b> · native POST → 409 가 <code>WebExceptionHandler.handleDomain</code> → <code>error.html</code> 로 full-page 내비게이션. <span class="drop">목록에서 벗어나 "이전 페이지로" 눌러야 복귀</span>. <span class="dim">[정정] raw JSON 아님 — §1 정정 배너 참조. 현재 코드에서 <b>이 조합만</b> 비일관.</span>`;
+      cap='렌더 결과 — error.html 전체 페이지 (주소창이 /restore 로 바뀜)'; capcls='raw';
+      body=`<div style="background:#fff;color:#1f2328;padding:16px 18px">
+        <div style="font-weight:700;margin-bottom:8px">요청을 처리할 수 없습니다</div>
+        <div style="border:1px solid #f0c5c5;background:rgba(191,38,38,.09);color:#7d1f1f;border-radius:8px;padding:12px 14px">
+          <b>409 Conflict</b><div style="font-size:12.5px;margin-top:6px">이미 같은 vendor·modelName 의 활성 메인보드가 있습니다.</div></div>
+        <div style="margin-top:12px"><span style="border:1px solid #d0d7de;padding:5px 12px;border-radius:6px;font-size:12px;color:#57606a">← 이전 페이지로</span></div>
+      </div>`;
+    }
+    v.className='ux-verdict '+cls;
+    v.innerHTML=html
+      +`<div class="render-box" id="renderBox"><div class="render-cap ${capcls}">${cap}</div>${body}</div>`;
+  }
+
+  document.querySelectorAll('.ux-btn[data-dom]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.ux-btn[data-dom]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');curDom=b.dataset.dom;render();
+  }));
+  document.querySelectorAll('.ux-btn[data-surf]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.ux-btn[data-surf]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');curSurf=b.dataset.surf;render();
+  }));
+  render();
+</script>
+</body>
+</html>

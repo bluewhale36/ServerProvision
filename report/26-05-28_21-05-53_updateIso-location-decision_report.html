@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>updateIso 위치 결정 — 5 senior 의견 종합 보고서</title>
+<style>
+    :root {
+        --bg: #0f1115;
+        --panel: #161a22;
+        --panel-2: #1c2230;
+        --panel-3: #202736;
+        --border: #2a3142;
+        --border-soft: #232938;
+        --text: #e6e9ef;
+        --muted: #8a93a6;
+        --accent: #7aa2f7;
+        --accent-2: #bb9af7;
+        --ok: #9ece6a;
+        --warn: #e0af68;
+        --bad: #f7768e;
+        --info: #7dcfff;
+        --quote-bg: #1a2030;
+        --quote-border: #4a5d8a;
+        --verdict-bg: #1b2a1b;
+        --verdict-border: #4a7a4a;
+        --debate-bg: #1a1f2a;
+        --debate-border: #3a4258;
+
+        --s1: #7aa2f7;
+        --s2: #9ece6a;
+        --s3: #e0af68;
+        --s4: #bb9af7;
+        --s5: #f7768e;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0; padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, "SF Pro Text", "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        font-size: 14.5px;
+        line-height: 1.66;
+    }
+    code, .mono {
+        font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+        background: rgba(125, 207, 255, 0.08);
+        padding: 1px 5px;
+        border-radius: 3px;
+    }
+    pre code { background: transparent; padding: 0; }
+
+    header.banner {
+        padding: 28px 36px 18px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, #1a1f2c 0%, #0f1115 100%);
+    }
+    header.banner h1 { margin: 0; font-size: 23px; font-weight: 600; letter-spacing: -0.01em; }
+    header.banner .sub { color: var(--muted); margin-top: 8px; font-size: 13.5px; }
+    header.banner .meta { color: var(--muted); margin-top: 6px; font-size: 12.5px; }
+    header.banner .v-badge {
+        display: inline-block;
+        background: rgba(224, 175, 104, 0.18);
+        color: var(--warn);
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 999px;
+        margin-right: 8px;
+        letter-spacing: 0.04em;
+    }
+
+    main { max-width: 1180px; margin: 0 auto; padding: 24px 36px 64px; }
+
+    .toc {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 26px;
+    }
+    .toc h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 500; }
+    .toc ol { margin: 6px 0 0; padding-left: 22px; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    section { margin-bottom: 36px; }
+    h2 {
+        font-size: 18.5px;
+        font-weight: 600;
+        margin: 0 0 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-soft);
+    }
+    h3 { font-size: 15.5px; font-weight: 600; margin: 22px 0 8px; color: var(--accent-2); }
+    h4 { font-size: 14.5px; font-weight: 600; margin: 16px 0 6px; color: var(--info); }
+    p { margin: 8px 0; }
+
+    .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin: 12px 0;
+    }
+    .card-ok { border-left: 3px solid var(--ok); }
+    .card-warn { border-left: 3px solid var(--warn); }
+    .card-bad { border-left: 3px solid var(--bad); }
+    .card-info { border-left: 3px solid var(--info); }
+
+    .verdict {
+        background: var(--verdict-bg);
+        border: 2px solid var(--verdict-border);
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin: 18px 0;
+        position: relative;
+    }
+    .verdict .verdict-label {
+        position: absolute;
+        top: -12px;
+        left: 18px;
+        background: var(--ok);
+        color: #0a1a0a;
+        font-size: 11.5px;
+        font-weight: 800;
+        padding: 3px 10px;
+        border-radius: 4px;
+        letter-spacing: 0.06em;
+    }
+    .verdict .verdict-headline {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--ok);
+        margin: 6px 0 10px;
+    }
+
+    blockquote {
+        background: var(--quote-bg);
+        border-left: 3px solid var(--quote-border);
+        margin: 10px 0;
+        padding: 10px 16px;
+        border-radius: 0 6px 6px 0;
+        font-style: italic;
+        color: #c8d0e2;
+    }
+    blockquote .src {
+        display: block;
+        margin-top: 6px;
+        font-style: normal;
+        font-size: 12.5px;
+        color: var(--muted);
+    }
+
+    pre {
+        background: #0a0d13;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        overflow-x: auto;
+        font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.55;
+        margin: 10px 0;
+    }
+    .k-keyword { color: #bb9af7; }
+    .k-anno    { color: #e0af68; }
+    .k-type    { color: #7dcfff; }
+    .k-str     { color: #9ece6a; }
+    .k-comment { color: #565f89; font-style: italic; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0 16px;
+        font-size: 13.5px;
+    }
+    th, td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border-soft);
+        vertical-align: top;
+    }
+    th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:hover td { background: var(--panel-2); }
+
+    .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        margin-right: 6px;
+    }
+    .pill-ok { background: rgba(158, 206, 106, 0.18); color: var(--ok); }
+    .pill-warn { background: rgba(224, 175, 104, 0.18); color: var(--warn); }
+    .pill-bad { background: rgba(247, 118, 142, 0.18); color: var(--bad); }
+    .pill-info { background: rgba(125, 207, 255, 0.18); color: var(--info); }
+    .pill-accent { background: rgba(122, 162, 247, 0.18); color: var(--accent); }
+
+    .chip {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 4px;
+        font-size: 11.5px;
+        font-weight: 700;
+        margin-right: 6px;
+        letter-spacing: 0.04em;
+    }
+    .chip-s1 { background: rgba(122, 162, 247, 0.22); color: var(--s1); border: 1px solid var(--s1); }
+    .chip-s2 { background: rgba(158, 206, 106, 0.22); color: var(--s2); border: 1px solid var(--s2); }
+    .chip-s3 { background: rgba(224, 175, 104, 0.22); color: var(--s3); border: 1px solid var(--s3); }
+    .chip-s4 { background: rgba(187, 154, 247, 0.22); color: var(--s4); border: 1px solid var(--s4); }
+    .chip-s5 { background: rgba(247, 118, 142, 0.22); color: var(--s5); border: 1px solid var(--s5); }
+
+    sup.fn a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 11px;
+        padding: 0 2px;
+        font-weight: 600;
+    }
+    sup.fn a:hover { text-decoration: underline; }
+
+    .debate {
+        background: var(--debate-bg);
+        border: 1px solid var(--debate-border);
+        border-radius: 10px;
+        padding: 0;
+        margin: 14px 0;
+        overflow: hidden;
+    }
+    .debate-header {
+        background: var(--panel-3);
+        padding: 10px 16px;
+        font-weight: 600;
+        font-size: 13.5px;
+        color: var(--accent-2);
+        border-bottom: 1px solid var(--debate-border);
+    }
+    .debate-body { padding: 12px 16px; }
+    .speaker {
+        margin: 10px 0;
+        padding-left: 12px;
+        border-left: 2px solid var(--border-soft);
+    }
+    .speaker.s1 { border-left-color: var(--s1); }
+    .speaker.s2 { border-left-color: var(--s2); }
+    .speaker.s3 { border-left-color: var(--s3); }
+    .speaker.s4 { border-left-color: var(--s4); }
+    .speaker.s5 { border-left-color: var(--s5); }
+    .speaker .who { font-weight: 700; font-size: 12.5px; margin-bottom: 3px; display: block; }
+    .speaker.s1 .who { color: var(--s1); }
+    .speaker.s2 .who { color: var(--s2); }
+    .speaker.s3 .who { color: var(--s3); }
+    .speaker.s4 .who { color: var(--s4); }
+    .speaker.s5 .who { color: var(--s5); }
+    .speaker .quote {
+        font-size: 13.5px;
+        color: #c8d0e2;
+        font-style: italic;
+    }
+
+    .callout {
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin: 12px 0;
+        font-size: 13.5px;
+    }
+    .callout.warn {
+        background: rgba(224, 175, 104, 0.08);
+        border: 1px solid rgba(224, 175, 104, 0.4);
+        color: #f0d9a0;
+    }
+    .callout.info {
+        background: rgba(125, 207, 255, 0.06);
+        border: 1px solid rgba(125, 207, 255, 0.4);
+        color: #b8e3f8;
+    }
+    .callout.bad {
+        background: rgba(247, 118, 142, 0.08);
+        border: 1px solid rgba(247, 118, 142, 0.4);
+        color: #f4b6c2;
+    }
+
+    .footnotes {
+        margin-top: 40px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+        font-size: 12.5px;
+        color: var(--muted);
+    }
+    .footnotes ol { padding-left: 24px; }
+    .footnotes li { margin: 6px 0; }
+    .footnotes a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header class="banner">
+    <h1><span class="v-badge">DECISION</span>R1-4-3 § <code>updateIso</code> 위치 결정 — 5 senior 의견 종합 보고서</h1>
+    <div class="sub">5 senior 의 권장안 검토 · 토론 라운드 시뮬레이션 · 단일 권장안 도출 · R1-4-3 plan D-1 옵션 표 갱신 권고</div>
+    <div class="meta">생성 2026-05-28 21:05 KST · 코드 수정 없음 · 보고서 산출물 1 파일</div>
+</header>
+
+<main>
+
+<!-- ============== ToC ============== -->
+<nav class="toc">
+    <h3>목차</h3>
+    <ol>
+        <li><a href="#s1">요약 (TL;DR)</a></li>
+        <li><a href="#s2">문제 정의</a></li>
+        <li><a href="#s3">5 senior 의견 매트릭스</a></li>
+        <li><a href="#s4">합의점 / 충돌점 추출</a></li>
+        <li><a href="#s5">🎭 토론 라운드 시뮬레이션 (1 ~ 2 R)</a></li>
+        <li><a href="#s6">결정 분기 — 정책 질문</a></li>
+        <li><a href="#s7">본 agent 의 최종 판단</a></li>
+        <li><a href="#s8">R1-4-3 plan D-1 옵션 표 갱신 권고</a></li>
+        <li><a href="#s9">R2 묶음 확장성 평가</a></li>
+        <li><a href="#s10">잠재 버그 / 부수 발견</a></li>
+        <li><a href="#s11">출처</a></li>
+    </ol>
+</nav>
+
+<!-- ============== §1 요약 ============== -->
+<section id="s1">
+    <h2>§1. 요약 (TL;DR)</h2>
+
+    <div class="verdict">
+        <span class="verdict-label">VERDICT</span>
+        <div class="verdict-headline">단일 권장안 : 옵션 C 잔류 → 정책 질문 (isoPath 가변성) 선결 후 R1-4-3 의 후속 슬라이스에서 옵션 A 또는 옵션 L 로 흡수</div>
+        <p>
+            본 agent 의 최종 판단은 <b>R1-4-3 본 슬라이스에서 <code>updateIso</code> 를 이동하지 않는 것</b>.
+            그 근거는 5 senior 중 <b>3 명 (#2 · #3 · #5)</b> 이 공통으로 짚은 사실 — 현 <code>OSMetadataService.updateISO</code> 본문이
+            <b>marker 재발급도 sidecar 이동도 manifestHash 재계산도 하지 않는 단순 2 줄 (검증 + setter)</b><sup class="fn"><a href="#fn-source-1">[1]</a></sup> —
+            이 본질적 결함을 안고 있는 메서드를 어디로 옮기든 <b>silent corruption 위험</b> 은 그대로라는 점이다.
+            즉 R1-4-3 의 D-1 은 <b>위치 결정 문제</b> 가 아니라 <b>도메인 정책 결정 문제</b> 이며,
+            정책 결정 (isoPath 가변성 인정 / 부정) 이 선행되어야 위치 결정이 자명해진다.
+        </p>
+        <p style="color: var(--muted); font-size: 13px;">
+            <b>핵심 trade-off</b> — "지금 이동 (B/A) 하면 R1-4 묶음이 깔끔하게 닫히지만, 본질적 결함을 가진 메서드의 책임 위치가 잘못 표준화된다.
+            지금 잔류 (C) 시키면 R1-4 묶음 종료가 한 슬라이스 미뤄지지만, 정책 결정 후 자연스러운 위치가 도출된다."
+        </p>
+    </div>
+
+    <div class="callout info">
+        <b>정책 분기 미리보기</b><br>
+        ① <b>isoPath 가변성 인정 (현 동작 유지 + 무결성 회복 강화)</b> → <span class="pill pill-ok">옵션 A</span> (IsoIntegrityService 로 이동, finalizeMarker 동형 강화 동반)<br>
+        ② <b>isoPath 가변성 부정 (description-only 환원)</b> → <span class="pill pill-bad">옵션 L</span> (편집 UI 자체 축소, updateIso 책임 소멸 → 위치 결정 무의미화)<br>
+        ③ <b>판단 보류 (R2 까지 미루기)</b> → <span class="pill pill-warn">옵션 C 잔류</span> (R1-4-3 은 무결성 분리만, ISO 책임 100% 분리는 R1-4-4 또는 R2 로 이연)
+    </div>
+</section>
+
+<!-- ============== §2 문제 정의 ============== -->
+<section id="s2">
+    <h2>§2. 문제 정의</h2>
+    <p>
+        R1-4-3 슬라이스는 <code>OSMetadataService</code> 에서 ISO 무결성 책임 4 메서드를 <code>IsoIntegrityService</code> 로 분리하면서
+        R1-4 묶음 (R1-4-1 lifecycle / R1-4-2 registration / R1-4-3 integrity) 을 닫는다.
+        본 슬라이스 종료 시점에 <code>OSMetadataService</code> 에 <b>유일하게 잔류하는 ISO 책임</b> 이 <code>updateISO(osMetadataId, isoId, request)</code> 한 메서드<sup class="fn"><a href="#fn-source-1">[1]</a></sup>.
+    </p>
+    <h4>왜 모호한가</h4>
+    <ul>
+        <li><b>등록 (registration)</b> 도 아님 — 이미 영속화된 자원의 속성 갱신</li>
+        <li><b>무결성 (integrity)</b> 도 아님 — verify / verifyAndRecord 와 다른 의미 축</li>
+        <li><b>lifecycle 상태 전이</b> 도 아님 — toggle / softDelete / restore / deprecate 의 4 boolean 축에 속하지 않음</li>
+        <li><b>편집 (mutation)</b> 이라는 별도 축 — 본 프로젝트의 service 분할 명세에 없음</li>
+    </ul>
+    <p>이 모호함이 5 senior 가 서로 다른 위치를 권장하는 원인이다.</p>
+
+    <h4>현재 본문 (line 242-247)</h4>
+<pre><span class="k-anno">@Transactional</span>
+<span class="k-keyword">public void</span> updateISO(<span class="k-type">Long</span> osMetadataId, <span class="k-type">Long</span> isoId, <span class="k-type">ISOUpdateRequest</span> request) {
+    <span class="k-comment">// S4.x — isoPath 를 PathPolicyService 로 검증해 ".." 등 traversal 입력이 DB 에 silent 저장되는 사고 차단.</span>
+    <span class="k-type">Path</span> validated = pathPolicyService.assertWritablePath(request.isoPath());
+    requireLiveISO(osMetadataId, isoId).update(validated.toString(), request.description());
+}</pre>
+    <p>
+        <b>실측 사실</b> — marker 재발급 호출 없음. sidecar 이동 없음. manifestHash 재계산 없음.
+        <code>ISO.update(isoPath, description)</code> 은 <code>this.isoPath = isoPath; this.description = description;</code>
+        의 2 줄 setter<sup class="fn"><a href="#fn-source-2">[2]</a></sup>.
+    </p>
+</section>
+
+<!-- ============== §3 5 senior 매트릭스 ============== -->
+<section id="s3">
+    <h2>§3. 5 senior 의견 매트릭스</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>입장</th>
+                <th>권장 옵션</th>
+                <th>핵심 근거 (1 문장 요약)</th>
+                <th>위치 강도</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="chip chip-s1">#1</span></td>
+                <td>Spring/Java 일반</td>
+                <td><span class="pill pill-accent">옵션 B</span> (IsoLifecycleService)</td>
+                <td>controller javadoc 의 "편집" 위치 + markerService 의존 + requireLiveIso 재사용 — 3 정황 부합.</td>
+                <td><span class="pill pill-warn">보통</span></td>
+            </tr>
+            <tr>
+                <td><span class="chip chip-s2">#2</span></td>
+                <td>Code Reviewer</td>
+                <td><span class="pill pill-accent">옵션 D</span> (= B + interface 미포함)</td>
+                <td>옵션 A 의 "marker 재발급 인접" 근거가 <b>현 코드에 부재</b> — "미래 가정 분리 금지" 규정<sup class="fn"><a href="#fn-source-3">[3]</a></sup> 위반.</td>
+                <td><span class="pill pill-warn">보통</span></td>
+            </tr>
+            <tr>
+                <td><span class="chip chip-s3">#3</span></td>
+                <td>자유 발상</td>
+                <td><span class="pill pill-bad">옵션 K+L</span> (도메인 정당성 부재 → description-only 환원)</td>
+                <td><code>ISO.updateIsoPath</code> 가 별도 존재 (Scanner 전용) + MK1 / MK4 와 경로 편집 책임 중복 → <b>isoPath 편집 자체가 잘못된 책임</b>.</td>
+                <td><span class="pill pill-ok">강함</span></td>
+            </tr>
+            <tr>
+                <td><span class="chip chip-s4">#4</span></td>
+                <td>DDD Aggregate Root</td>
+                <td><span class="pill pill-accent">옵션 B (Phase 1)</span></td>
+                <td>ISO 는 "느슨한 단일 aggregate" — child Application Service 가 mutation 진입점. 옵션 G (부모 위임) 4 근거로 기각.</td>
+                <td><span class="pill pill-ok">강함</span></td>
+            </tr>
+            <tr>
+                <td><span class="chip chip-s5">#5</span></td>
+                <td>적대적 비판</td>
+                <td><span class="pill pill-warn">옵션 C 잔류 → R1-4-3 후속 슬라이스에서 옵션 A</span></td>
+                <td>옵션 B 정면 거절 (6 반박). <b>updateIso 의 진짜 책임 = sidecar 이동 + manifestHash 재계산 + 재서명 = finalizeMarker 동형 = 무결성 회복</b>.</td>
+                <td><span class="pill pill-ok">강함</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>표 옵션 코드 범례</h3>
+    <ul>
+        <li><b>옵션 A</b> — <code>IsoIntegrityService</code> 로 이동</li>
+        <li><b>옵션 B</b> — <code>IsoLifecycleService</code> 로 이동, LifecycleService interface 에 추가</li>
+        <li><b>옵션 C</b> — <code>OSMetadataService</code> 잔류</li>
+        <li><b>옵션 D</b> — <code>IsoLifecycleService</code> 로 이동, interface 에는 미포함 (B 의 정교화)</li>
+        <li><b>옵션 E</b> — <code>IsoService</code> facade 신설</li>
+        <li><b>옵션 G</b> — 부모 <code>OSMetadataService</code> 가 자식 update 위임</li>
+        <li><b>옵션 K</b> — 편집 UI 자체 제거</li>
+        <li><b>옵션 L</b> — description-only 로 축소 (isoPath 편집 자체 제거)</li>
+    </ul>
+</section>
+
+<!-- ============== §4 합의점 / 충돌점 ============== -->
+<section id="s4">
+    <h2>§4. 합의점 / 충돌점 추출</h2>
+
+    <h3>🟢 모두 합의한 사실 / 결정</h3>
+    <table>
+        <thead><tr><th>항목</th><th>전원 합의</th><th>비고</th></tr></thead>
+        <tbody>
+            <tr>
+                <td>옵션 G (부모 위임) 기각</td>
+                <td>5/5</td>
+                <td>#4 가 4 근거 (infrastructure 결합 / 컬렉션 비용 / transaction 비대화 / Scanner 충돌) 로 명시 기각, 나머지도 침묵 동의</td>
+            </tr>
+            <tr>
+                <td>현 <code>OSMetadataService.updateISO</code> 가 ISO 무결성 회복을 안 하고 있음</td>
+                <td>5/5</td>
+                <td>#2/#3/#5 명시, #1/#4 의 권장 (이동 후 강화) 도 이 사실을 전제</td>
+            </tr>
+            <tr>
+                <td>OSMetadataService 의 ISO 책임을 R1-4 묶음에서 100% 분리하는 의도는 정당</td>
+                <td>5/5</td>
+                <td>다만 #5 는 "옵션 C 한 슬라이스 더 잔류" 가 그 의도와 충돌하지 않는다고 봄</td>
+            </tr>
+            <tr>
+                <td>현 본문에 silent corruption 잠재 위험 존재</td>
+                <td>3/5 명시 (#2 #3 #5)</td>
+                <td>#1 #4 도 부정하지 않음 — 다만 자신들의 권장과 직교한 이슈로 판단</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>🔴 갈라지는 지점</h3>
+    <table>
+        <thead><tr><th>축</th><th>한쪽 입장</th><th>반대편 입장</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><b>"lifecycle" 의미</b></td>
+                <td>#1 #4 — controller URL prefix + Application Service 응집점 (편집도 lifecycle 의 한 단계)</td>
+                <td>#5 — 4 boolean 상태 전이만 lifecycle (toggle / softDelete / restore / deprecate). 속성 mutation 은 별개 축</td>
+            </tr>
+            <tr>
+                <td><b>"미래 가정" 의 정당성</b></td>
+                <td>#1 — marker 재발급이 미래에 필요할 가능성으로 옵션 A 권장 (간접적)</td>
+                <td>#2 #5 — 현 코드 사실 기반 결정. 미래 가정으로 위치 선택 금지<sup class="fn"><a href="#fn-source-3">[3]</a></sup></td>
+            </tr>
+            <tr>
+                <td><b>"R1-4 묶음 종료 압박" vs "이동 횟수 최소화"</b></td>
+                <td>#1 #2 #4 — R1-4 묶음 종료를 위해 이번에 이동</td>
+                <td>#5 — 잘못된 위치로 옮겨 두 번 이동하느니 정책 결정까지 잔류</td>
+            </tr>
+            <tr>
+                <td><b>isoPath 가변성 자체의 정당성</b></td>
+                <td>#1 #2 #4 — 가변성 인정 (위치 결정만 다룸)</td>
+                <td>#3 #5 — 가변성 자체 의문 (#3: 완전 제거, #5: 가변 시 무결성 회복 강제)</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============== §5 토론 라운드 ============== -->
+<section id="s5">
+    <h2>§5. 🎭 토론 라운드 시뮬레이션 (1 ~ 2 R)</h2>
+
+    <p style="color: var(--muted); font-size: 13px;">
+        본 agent 가 5 senior 의 입장을 모두 internalize 한 상태에서 각 권장에 대한 다른 senior 들의 반박을 대리 진행.
+        화자 칩 색상은 senior 번호에 대응.
+    </p>
+
+    <!-- 라운드 1A : 옵션 B 검증 -->
+    <div class="debate">
+        <div class="debate-header">Round 1 · 주제 A : <span class="chip chip-s1">#1</span><span class="chip chip-s4">#4</span> 의 옵션 B 권장 검증</div>
+        <div class="debate-body">
+            <div class="speaker s1">
+                <span class="who">#1 — 옵션 B 주장</span>
+                <span class="quote">"<code>IsoLifecycleController</code> 의 javadoc 이 이미 '편집 / toggle / softDelete / ...' 를 한 묶음으로 본다.
+                <code>IsoLifecycleService</code> 는 이미 <code>markerService</code> 의존을 보유하고 있고 <code>requireLiveIso</code> helper 도 가지고 있다.
+                이동 비용은 줄 수 단위로 최소다."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — 반박 a · 가짜 일치</span>
+                <span class="quote">"markerService 의존 일치는 <b>가짜</b>다. <code>IsoLifecycleService.cleanupArtifacts</code> 는 <code>deleteQuietly(markerService.resolveMarkerFile(...))</code>
+                — <b>cleanup 방향</b> 으로만 사용 (line 247-251)<sup class="fn"><a href="#fn-source-1">[1]</a></sup>. <code>updateIso</code> 가 필요로 하는 건 <b>reissue 방향</b> (서명 재발급).
+                같은 의존 객체를 쓴다고 책임이 같은 게 아니다."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — 반박 b · javadoc ≠ 책임 정합</span>
+                <span class="quote">"controller javadoc 의 '편집/toggle/...' 은 <b>URL prefix 일치</b> 일 뿐.
+                URL 같다고 service 책임이 같은 게 아니다. <code>IsoUploadController</code> 가 별도 controller 로 분리된 것처럼,
+                URL prefix 일치는 단순 그루핑 결정이다."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — 반박 c · SRP 위반</span>
+                <span class="quote">"<code>IsoLifecycleService</code> 의 단일 책임은 <b>4 boolean 상태 전이</b> (active/disabled, live/soft-deleted, current/deprecated, alive/purged).
+                <code>updateIso</code> 는 속성 변경 — 동일 service 에 두면 '상태 전이' 와 '속성 변경' 두 책임이 응집점을 잃는다."</span>
+            </div>
+
+            <div class="speaker s4">
+                <span class="who">#4 — 옵션 B 재방어</span>
+                <span class="quote">"DDD application service 관점에서 'use-case 응집점' 이 핵심. 사용자가 ISO 의 toggle 도 update 도 동일 controller (= 동일 application service) 에서 호출하는 게 자연스럽다.
+                #5 의 '상태 전이만 lifecycle' 정의는 본 프로젝트가 채택하지 않은 좁은 정의일 뿐."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — 재반박</span>
+                <span class="quote">"본 프로젝트는 <code>LifecycleService</code> interface 를 명시 정의했고 메서드 명단은 <code>toggleEnabled / softDelete / restore / deprecate / undeprecate / purge</code>.
+                <b>코드가 이미 좁은 정의를 채택</b> 했다. #4 의 '좁은 정의는 본 프로젝트가 채택 안 함' 은 사실 오인."</span>
+            </div>
+
+            <div class="speaker s2">
+                <span class="who">#2 — 옵션 D (옵션 B 의 정교화) 제안</span>
+                <span class="quote">"#5 의 interface 우려는 옵션 D 로 흡수 가능 — service 에는 두되 interface 에는 미포함.
+                도메인별 DTO 다양성으로 interface 추상화 자연성 떨어진다는 점은 옵션 B 의 plan 본문도 인정한 약점<sup class="fn"><a href="#fn-source-4">[4]</a></sup>."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — D 에도 반박</span>
+                <span class="quote">"interface 회피로 우회한다 해도 '<b>같은 service 안에서 상태 전이와 속성 mutation 이 섞이는 문제</b>' 는 해소 안 됨.
+                interface 포함 여부가 아니라 service 내부 응집의 문제."</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 라운드 1B : 옵션 A 검증 -->
+    <div class="debate">
+        <div class="debate-header">Round 1 · 주제 B : <span class="chip chip-s5">#5</span> 의 옵션 A (단 강화 조건) 권장 검증</div>
+        <div class="debate-body">
+            <div class="speaker s5">
+                <span class="who">#5 — 옵션 A 주장</span>
+                <span class="quote">"<code>updateIso</code> 가 진짜 해야 할 일은 (a) sidecar 를 옛 경로에서 새 경로로 이동, (b) manifestHash 재계산, (c) markerSignature 재서명.
+                이건 <code>IsoRegistrationService.finalizeMarker</code> (line 367-390)<sup class="fn"><a href="#fn-source-5">[5]</a></sup> 와 <b>동형</b>. 즉 <code>updateIso</code> 는 <b>무결성 회복</b> 의 일종.
+                옵션 A 가 본질적으로 자연스럽다."</span>
+            </div>
+
+            <div class="speaker s2">
+                <span class="who">#2 — 옵션 A 반박</span>
+                <span class="quote">"#5 의 옵션 A 권장은 <b>현 코드의 사실이 아니라 미래에 강화되어야 할 모습</b>. CLAUDE.md '미래 가정 분리 금지' 규정<sup class="fn"><a href="#fn-source-3">[3]</a></sup>
+                정면 위반. 강화는 강화대로, 이동은 이동대로 — 강화 자체가 별도 슬라이스로 분리되어야 한다."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — 재반박</span>
+                <span class="quote">"동의. 그래서 내 권장은 <b>옵션 C 잔류 → R1-4-3 후속 슬라이스에서 강화와 함께 옵션 A 흡수</b>.
+                지금 옵션 A 로 이동시키는 게 아니다. 옵션 B 가 잘못된 위치로 빨리 이동하는 비용 > 옵션 C 가 한 슬라이스 더 잔류시키는 비용."</span>
+            </div>
+
+            <div class="speaker s1">
+                <span class="who">#1 — 옵션 C 잔류 반박</span>
+                <span class="quote">"옵션 C 잔류 시 R1-4 묶음이 '깔끔하게 닫히지 않음'. R1-4 의 의도가 'OSMetadataService 의 ISO 책임 100% 분리' 라면 1 메서드 잔류는 의도 미달."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — 재반박</span>
+                <span class="quote">"R1-4 묶음 종료 압박 vs 정책 결정 압박의 우선순위 문제.
+                <b>잘못된 위치에 깔끔하게 닫힌 묶음</b> 보다 <b>한 슬라이스 더 열려 있지만 본질 결정이 된 묶음</b> 이 낫다.
+                특히 R2 에서 4 도메인 동형 표준화 시점에 옵션 B 가 잘못된 표준으로 굳어지면 4 곳에 동시에 잘못된 위치가 박힌다."</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 라운드 1C : 옵션 K+L 검증 -->
+    <div class="debate">
+        <div class="debate-header">Round 1 · 주제 C : <span class="chip chip-s3">#3</span> 의 옵션 K+L (도메인 정당성 부재) 권장 검증</div>
+        <div class="debate-body">
+            <div class="speaker s3">
+                <span class="who">#3 — 옵션 K+L 주장</span>
+                <span class="quote">"<code>ISO.updateIsoPath(String)</code> 가 entity 에 별도 존재 (line 159)<sup class="fn"><a href="#fn-source-2">[2]</a></sup> — <code>IsoMarkableScanner</code> 의 PATH_DRIFT 자동 적용 전용.
+                즉 '경로 변경' 은 이미 MK1 reconciliation 의 책임으로 위치 결정됐다. UI 의 isoPath 편집은 MK1 + 미래의 MK4 와 책임 중복.
+                description 만 편집 가능하게 하면 모든 모호함이 소멸한다."</span>
+            </div>
+
+            <div class="speaker s4">
+                <span class="who">#4 — 반박</span>
+                <span class="quote">"옵션 K+L 은 본 슬라이스 (R1-4-3) 의 scope 를 벗어남. R1-4-3 은 '무결성 책임 분리'.
+                UI 기능 제거는 별도 도메인 결정 (사용자가 isoPath 를 수동 편집할 use-case 가 있는가?). 본 슬라이스에서 결정할 일이 아니다."</span>
+            </div>
+
+            <div class="speaker s3">
+                <span class="who">#3 — 재반박</span>
+                <span class="quote">"동의. 그래서 옵션 K+L 은 '본 슬라이스에서 결정' 이 아니라 '본 슬라이스 진입 전 결정해야 할 정책 질문' 으로 격상.
+                정책 결정 결과에 따라 위치 결정이 자명해진다 — isoPath 가변 인정 → 옵션 A, 부정 → 옵션 L."</span>
+            </div>
+
+            <div class="speaker s5">
+                <span class="who">#5 — 동의 + 보완</span>
+                <span class="quote">"이 격상이 정확하다. 본 D-1 은 '<b>위치 결정 문제</b>' 가 아니라 '<b>정책 결정 문제</b>'.
+                내 권장 (C 잔류) 도 결국 같은 결론 — 정책 결정 전까지는 위치 결정 금지."</span>
+            </div>
+
+            <div class="speaker s1">
+                <span class="who">#1 — 보수적 반박</span>
+                <span class="quote">"실용적으로 isoPath 편집 use-case 가 0 인가? 운영자가 ISO 파일을 수동으로 옮긴 후 DB 의 isoPath 만 정정하는 시나리오가 있을 수 있다.
+                MK4 ApplicationFileMover 가 도입 전인 현 시점에는 UI 의 isoPath 편집이 임시 우회 진입점일 수 있다."</span>
+            </div>
+
+            <div class="speaker s3">
+                <span class="who">#3 — 재재반박</span>
+                <span class="quote">"#1 의 '운영자 수동 이동 후 DB 정정' 시나리오는 정확히 MK1 reconciliation 의 책임 범위.
+                Scanner 가 PATH_DRIFT 를 자동 감지해 <code>updateIsoPath</code> 를 호출한다. UI 의 isoPath 편집은 이 자동 흐름과 동일한 효과 + 무결성 보장 부재.
+                <b>silent corruption 위험 추가</b> 만 함."</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 라운드 2 : 최종 수렴 -->
+    <div class="debate">
+        <div class="debate-header">Round 2 · 최종 수렴 — 5 senior 의 공통 분모 도출</div>
+        <div class="debate-body">
+            <div class="speaker s2">
+                <span class="who">#2</span>
+                <span class="quote">"옵션 A 권장이 미래 가정 위반인 건 변함없지만, #5 의 '<b>C 잔류 → 강화 동반 A 흡수</b>' 는 미래 가정을 직접 코드에 박지 않으면서
+                강화 시점을 명시 — 규정 위반 회피. 이 흐름이라면 옵션 D 보다 우월하다."</span>
+            </div>
+            <div class="speaker s1">
+                <span class="who">#1</span>
+                <span class="quote">"옵션 B 권장은 유지하지만, 한 슬라이스 더 미루는 비용이 본질 결정에 비해 작다는 #5 의 trade-off 인정.
+                특히 R2 표준화 시 잘못된 표준 박힘 위험은 실재."</span>
+            </div>
+            <div class="speaker s4">
+                <span class="who">#4</span>
+                <span class="quote">"DDD 관점에서 옵션 B 가 자연스럽다는 입장은 유지. 다만 #3 의 옵션 L (도메인 정당성 부재 환원) 시나리오가 진실이라면
+                옵션 B 가 무의미 — 위치를 옮길 메서드 자체가 사라지므로. 정책 결정 선결이 정당."</span>
+            </div>
+            <div class="speaker s3">
+                <span class="who">#3</span>
+                <span class="quote">"옵션 K+L 권장의 핵심 메시지는 '<b>본 D-1 은 정책 질문이 누락된 거짓 위치 결정 문제</b>'. 다른 senior 4 명이 이 격상에 수렴.
+                정책 답이 나오면 위치는 자명."</span>
+            </div>
+            <div class="speaker s5">
+                <span class="who">#5</span>
+                <span class="quote">"수렴 합의 : (1) 옵션 G 기각 — 5/5. (2) 옵션 B 단순 채택 위험 인정 — 4/5. (3) 정책 질문 (isoPath 가변성) 선결 필요 — 5/5.
+                (4) 정책 답에 따라 옵션 A (가변 + 강화) 또는 옵션 L (불변) 로 자연 흡수 — 5/5."</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============== §6 결정 분기 정책 질문 ============== -->
+<section id="s6">
+    <h2>§6. 결정 분기 — 정책 질문</h2>
+    <p>
+        토론 라운드의 수렴 결과 : <b>D-1 의 위치 결정 이전에 다음 정책 질문이 답해져야 한다</b>.
+    </p>
+
+    <div class="callout warn">
+        <b>정책 질문</b><br>
+        <span style="font-size: 15px; font-weight: 600;">"OS ISO 의 <code>isoPath</code> 를 사용자가 UI 에서 편집하는 use-case 는 정당한가?"</span>
+    </div>
+
+    <h4>정책 답 매트릭스</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>정책 답</th>
+                <th>의미</th>
+                <th>도출되는 위치 결정</th>
+                <th>R1-4-3 결과</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="pill pill-ok">A. 정당하다 (가변성 인정)</span></td>
+                <td>
+                    isoPath 편집 UI 유지. 단 현 silent corruption 위험을 해소하려면 sidecar 이동 + manifestHash 재계산 + 재서명을 본문에 추가해야 한다.
+                    이 강화된 본문은 <code>finalizeMarker</code> 와 동형이라 무결성 회복 범주에 속한다.
+                </td>
+                <td><span class="pill pill-ok">옵션 A</span> (IsoIntegrityService 로 이동, 강화 동반)</td>
+                <td>R1-4-3 본 슬라이스는 무결성 분리만 완료. <code>updateIso</code> 강화 + 이동은 <b>R1-4-3.1 또는 R1-4-4</b> 후속 슬라이스에서 처리.</td>
+            </tr>
+            <tr>
+                <td><span class="pill pill-bad">B. 정당하지 않다 (가변성 부정)</span></td>
+                <td>
+                    isoPath 는 등록 시점 이후 불변. UI 의 isoPath 입력 필드 제거. <code>ISO.update(isoPath, desc)</code> → <code>ISO.updateDescription(desc)</code> 로 좁힘.
+                    경로 변경은 MK1 reconciliation 의 자동 흐름과 미래 MK4 ApplicationFileMover 가 전담.
+                </td>
+                <td><span class="pill pill-bad">옵션 L</span> (description-only 환원, updateIso 책임 자체 소멸)</td>
+                <td>R1-4-3 본 슬라이스는 무결성 분리만 완료. UI 환원은 별도 도메인 결정 슬라이스에서 처리.</td>
+            </tr>
+            <tr>
+                <td><span class="pill pill-warn">C. 판단 보류 (R2 까지 미룸)</span></td>
+                <td>
+                    현 동작 (silent corruption 잠재 위험 보유) 유지. 정책 결정을 R2 표준화 시점으로 미룸.
+                </td>
+                <td><span class="pill pill-warn">옵션 C 잔류</span></td>
+                <td>R1-4-3 본 슬라이스는 무결성 분리만 완료. <code>updateIso</code> 는 OSMetadataService 에 1 메서드 잔류. R1-4 묶음 종료 의미가 한 메서드만큼 약해짐.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="callout info">
+        <b>본 agent 의 정책 추천</b> — <b>B (가변성 부정 → 옵션 L)</b> 가 가장 우월하지만 사용자 정책 영역.
+        근거 : (1) MK1 의 PATH_DRIFT 자동 흐름과 직접 중복, (2) 미래 MK4 와 책임 중복 예약, (3) <code>ISO.updateIsoPath</code> entity 메서드가 이미 별도 존재 — UI 편집 진입점은 <b>이 entity 메서드의 도메인 정당성을 침범</b>.
+        다만 운영자 use-case 확인이 안 된 시점이라 <b>C (보류)</b> 를 안전한 폴백으로 제시.
+    </div>
+</section>
+
+<!-- ============== §7 본 agent 최종 판단 ============== -->
+<section id="s7">
+    <h2>§7. 본 agent 의 최종 판단</h2>
+
+    <div class="verdict">
+        <span class="verdict-label">FINAL</span>
+        <div class="verdict-headline">R1-4-3 본 슬라이스 : 옵션 C 잔류. 정책 결정 후 R1-4-3.1 (또는 R1-4-4) 에서 옵션 A 또는 옵션 L 로 자연 흡수.</div>
+        <p>
+            본 agent 는 <span class="chip chip-s5">#5</span> 의 입장에 가장 가깝게 수렴하되, <span class="chip chip-s3">#3</span> 의 정책 격상 제안을 본질로 받아들인다.
+        </p>
+    </div>
+
+    <h3>근거 (4 점)</h3>
+
+    <h4>1. "위치 결정" 이전에 "정책 결정" 이 선행되어야 한다</h4>
+    <p>
+        토론 라운드의 5/5 합의 — D-1 은 거짓 위치 결정 문제. isoPath 가변성 정책이 답해지면 위치는 자명.
+        정책 미결 상태에서 위치 결정을 강행하면 R2 표준화 시점에 4 도메인 (OS/BIOS/BMC/Subprogram) 에 잘못된 위치가 박힐 위험.
+    </p>
+
+    <h4>2. 현 본문의 silent corruption 위험은 위치 이동으로 해소되지 않는다</h4>
+    <p>
+        <code>OSMetadataService.updateISO</code> → <code>IsoLifecycleService.update</code> 로 옮겨도
+        <code>this.isoPath = isoPath; this.description = description;</code> 의 2 줄 setter 는 그대로 sidecar 가 옛 경로에 남는 위험을 유지.
+        <b>위치 결정 이전에 본문 강화 또는 책임 환원이 필요</b>.
+    </p>
+
+    <h4>3. CLAUDE.md "미래 가정 분리 금지" 규정 준수</h4>
+    <p>
+        <span class="chip chip-s2">#2</span> 의 지적이 정확 — 현 코드는 marker 재발급을 하지 않는다.
+        "미래에 강화될 가능성" 으로 옵션 A 위치를 정당화하면 미래 가정 의존.
+        반대로 옵션 C 잔류는 미래 가정에 의존하지 않고 단지 "정책 결정 후 처리" 를 명시.
+    </p>
+
+    <h4>4. R1-4 묶음 종료 압박 vs 본질 결정 압박의 trade-off</h4>
+    <p>
+        R1-4 묶음을 깔끔하게 닫는 가치 < 본질 결정 (isoPath 가변성 정책) 이 잘못된 위치로 굳어지는 비용.
+        R1-4 종료는 한 슬라이스 더 미뤄도 됨 — Notion 페이지 본문에 "잔존 책임 1 = updateIso, 해소 시점 = R1-4-3.1" 로 명시하면 CLAUDE.md 규정 (페이지 본문 §11) 도 충족.
+    </p>
+
+    <h3>본 권장이 거부될 경우의 차선</h3>
+    <ol>
+        <li><b>차선 1 (R1-4 종료 압박이 본질 결정 압박보다 강한 경우)</b> — 옵션 D (= 옵션 B + interface 미포함) 채택.
+            단, <code>IsoLifecycleService</code> 의 javadoc 에 "lifecycle = 상태 전이 + 속성 mutation" 으로 책임 정의 확장을 명시.
+            R2 표준화 시점에 4 도메인 동형 검토 필요.</li>
+        <li><b>차선 2 (정책 답이 "B. 부정" 으로 확정된 경우)</b> — 옵션 L 즉시 채택. <code>ISO.update(isoPath, desc)</code> → <code>ISO.updateDescription(desc)</code>.
+            UI 폼의 isoPath 입력 필드 제거. <code>ISOUpdateRequest.isoPath</code> 필드 deprecation 후 다음 슬라이스 제거.</li>
+        <li><b>차선 3 (정책 답이 "A. 인정" 으로 확정된 경우)</b> — 옵션 A 채택. 단 본문 강화 (sidecar 이동 + manifestHash 재계산 + 재서명) 동반 필수.
+            강화 없이 옵션 A 위치만 이동시키는 건 silent corruption 위험을 무결성 service 로 옮기는 안티 패턴.</li>
+    </ol>
+</section>
+
+<!-- ============== §8 R1-4-3 plan 갱신 권고 ============== -->
+<section id="s8">
+    <h2>§8. R1-4-3 plan D-1 옵션 표 갱신 권고</h2>
+
+    <p>
+        현 plan <code>plan/26-05-28_21-30-00_R1-4-3_plan.html</code> 의 §8 D-1 옵션 표는 A/B/C 3 옵션 + Claude 권장 A.
+        5 senior 검토 결과를 반영해 다음과 같이 갱신 권고.
+    </p>
+
+    <h3>갱신 안 — 옵션 표 본문 재구성</h3>
+
+    <div class="card card-warn">
+        <h4>1) 옵션 표 위에 "정책 질문 박스" 신설</h4>
+<pre><span class="k-comment">&lt;!-- §8 D-1 옵션 표 직전에 삽입 --&gt;</span>
+&lt;div class="callout warn"&gt;
+  &lt;b&gt;정책 질문 (선결 필요)&lt;/b&gt;&lt;br&gt;
+  isoPath 를 사용자가 UI 에서 편집하는 use-case 는 정당한가?
+  답 A (가변 인정) → 옵션 A 흐름. 답 B (가변 부정) → 옵션 L 흐름. 답 C (보류) → 옵션 C 잔류.
+&lt;/div&gt;</pre>
+        <p style="font-size: 12.5px; color: var(--muted);">5 senior 토론의 핵심 수렴점. 위치 결정 문제를 정책 결정 문제로 격상.</p>
+    </div>
+
+    <div class="card card-warn">
+        <h4>2) 옵션 표에 D, L 추가 + 권장 컬럼 재산정</h4>
+        <table style="margin-top: 8px;">
+            <thead><tr><th>옵션</th><th>이동/처리</th><th>5 senior 지지</th><th>강도</th><th>전제 정책 답</th></tr></thead>
+            <tbody>
+                <tr><td><b>A</b></td><td>IsoIntegrityService 로 이동 + 본문 강화</td><td>#5 (조건부)</td><td>강함</td><td>A (가변 인정)</td></tr>
+                <tr><td><b>B</b></td><td>IsoLifecycleService 로 이동 (interface 포함)</td><td>#1 #4</td><td>보통</td><td>A (가변 인정)</td></tr>
+                <tr><td><b>C</b> <span class="pill pill-ok">권장</span></td><td>OSMetadataService 잔류</td><td>#5 (1차) · 본 agent</td><td>강함</td><td>모두 안전</td></tr>
+                <tr><td><b>D</b></td><td>IsoLifecycleService 이동 (interface 미포함)</td><td>#2</td><td>보통</td><td>A (가변 인정)</td></tr>
+                <tr><td><b>L</b></td><td>description-only 환원 (위치 결정 무의미화)</td><td>#3 · 본 agent (조건부)</td><td>강함</td><td>B (가변 부정)</td></tr>
+            </tbody>
+        </table>
+        <p style="font-size: 12.5px; color: var(--muted);">현 plan 의 "Claude 권장 — 옵션 A" 는 5 senior 검토 후 "옵션 C 잔류 (본질 결정 보류)" 로 권장 변경.</p>
+    </div>
+
+    <div class="card card-warn">
+        <h4>3) §4 매트릭스 / §6 시나리오 #18 / §10 Critical Files 표 재산정</h4>
+        <ul>
+            <li><b>§4 매트릭스</b> — D-1 결정이 옵션 C 로 바뀌면 <code>OSMetadataService.updateISO</code> 행 유지 (이동 0). 다른 행 영향 없음.</li>
+            <li><b>§6 시나리오 #18</b> — "옵션 A/B 시 updateIso 시나리오 — happy / PathTraversal 400" 은 옵션 C 채택 시 <b>현 상태 유지</b>. 신규 시나리오 추가 0.</li>
+            <li><b>§10 Critical Files 표</b> — IsoIntegrityService 신규 분량 +150 / OSMetadataService 분량 -60 (updateIso 60 line 잔류 분 보존). 옵션 A 가정의 -70 대신 -60.</li>
+        </ul>
+    </div>
+
+    <div class="card card-warn">
+        <h4>4) §8 D-10 Notion 페이지 본문 갱신 — ③ 잔존 책임 추가</h4>
+<pre><span class="k-comment">// Notion 페이지 본문 ③ 잔존 책임 / 임시 비대칭 — 옵션 C 채택 시</span>
+③ 잔존 책임 : OSMetadataService 에 <code>updateISO</code> 1 메서드 잔존.
+   해소 시점 : R1-4-3.1 (또는 R1-4-4). 정책 결정 (isoPath 가변성) 선결 후
+   - 가변 인정 → IsoIntegrityService 로 이동 + 본문 강화 (sidecar 이동 + manifestHash 재계산 + 재서명)
+   - 가변 부정 → ISO.update 를 description-only 로 좁힘 (위치 결정 무의미화)
+   이유 : 현 본문에 silent corruption 위험 잠재 — 위치 이동만으로 해소 불가.
+       단순 위치 이동은 위험을 다른 service 로 옮기는 안티 패턴.</pre>
+    </div>
+</section>
+
+<!-- ============== §9 R2 묶음 확장성 ============== -->
+<section id="s9">
+    <h2>§9. R2 묶음 확장성 평가 — 4 도메인 (BIOS / BMC / Driver / Subprogram) 동형 적용</h2>
+
+    <p>
+        본 결정이 R2 의 4 도메인 표준화에 어떻게 적용되는지 검토. 본 D-1 은 ISO 에 국한된 문제가 아니라 모든 자식 자원의 mutation 위치 결정의 첫 사례.
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>자원</th>
+                <th>현재 update 위치</th>
+                <th>경로 가변성</th>
+                <th>marker / signature 인접성</th>
+                <th>옵션 A 적용성</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>OS ISO</td>
+                <td>OSMetadataService</td>
+                <td>경로 가변 (UI 노출)</td>
+                <td>sidecar marker + manifestHash + signature</td>
+                <td>본 D-1 의 사례</td>
+            </tr>
+            <tr>
+                <td>BIOS</td>
+                <td>BIOS service (별도)</td>
+                <td>tree 번들 — treeRootPath / entrypointRelativePath</td>
+                <td>in-tree marker (.provision.json) + signature</td>
+                <td>옵션 A 자연 적용 — 마커 인접 책임</td>
+            </tr>
+            <tr>
+                <td>BMC</td>
+                <td>BMC service</td>
+                <td>fileUrl 가변</td>
+                <td>sidecar marker</td>
+                <td>옵션 A 자연 적용 — ISO 동형</td>
+            </tr>
+            <tr>
+                <td>Driver</td>
+                <td>Driver service</td>
+                <td>filePath 가변</td>
+                <td>sidecar marker</td>
+                <td>옵션 A 자연 적용 — ISO 동형</td>
+            </tr>
+            <tr>
+                <td>Subprogram</td>
+                <td>(미정)</td>
+                <td>(미정)</td>
+                <td>(미정)</td>
+                <td>R2 시점 결정</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>R2 표준화 권고</h4>
+    <ul>
+        <li><b>표준 A</b> — 자원 경로 가변성이 인정되면 마커 인접 service (Integrity / Lifecycle 의 정의 정렬에 따라 명명) 가 mutation 의 단일 진입점이며 본문은 sidecar 이동 + hash 재계산 + 재서명을 동반.
+            <b>전제 : isoPath 가변성 정책 답 = A</b>.</li>
+        <li><b>표준 B</b> — 자원 경로 불변 정책이 채택되면 description 등 metadata-only mutation 만 허용, 경로 변경은 reconciliation 도메인 (Scanner / FileMover) 으로 표준화.
+            <b>전제 : isoPath 가변성 정책 답 = B</b>.</li>
+        <li><b>경고</b> — 본 D-1 에서 옵션 B 를 단순 채택하면 R2 의 4 도메인 표준이 "lifecycle service 가 update 까지 담당" 으로 굳어진다.
+            이는 본 프로젝트의 <code>LifecycleService</code> interface 정의 (4 boolean 상태 전이) 와 충돌하는 책임 확장 — 4 도메인에 동시에 잘못된 표준이 박힘.</li>
+    </ul>
+
+    <div class="callout info">
+        <b>R2 확장성 요약</b> — D-1 의 정책 답이 R2 표준의 갈래를 결정한다. 위치 결정 (A/B/D) 보다 정책 결정 (가변/불변) 이 4 배 큰 결정.
+    </div>
+</section>
+
+<!-- ============== §10 잠재 버그 / 부수 발견 ============== -->
+<section id="s10">
+    <h2>§10. 잠재 버그 / 부수 발견</h2>
+
+    <h3>버그 #1. <code>OSMetadataService.updateISO</code> — silent sidecar 부정합 <span class="pill pill-bad">위험 - 중</span></h3>
+    <p>
+        <span class="chip chip-s2">#2</span> <span class="chip chip-s3">#3</span> <span class="chip chip-s5">#5</span> 공통 발견.
+        현재 흐름 : <code>pathPolicyService.assertWritablePath(request.isoPath())</code> + <code>ISO.update(validated, request.description())</code>.
+    </p>
+    <h4>재현 시나리오</h4>
+    <ol>
+        <li>ISO 등록 — <code>/data/iso/ubuntu-22.iso</code> + sidecar <code>/data/iso/.ubuntu-22.iso.marker</code> 생성</li>
+        <li>UI 편집 — isoPath 를 <code>/data/iso-new/ubuntu-22.iso</code> 로 변경</li>
+        <li>저장 — DB 의 isoPath 만 <code>/data/iso-new/ubuntu-22.iso</code> 로 갱신. sidecar 는 옛 위치에 그대로</li>
+        <li>이후 동작 — <code>resolveMarkerFile(/data/iso-new/ubuntu-22.iso, SIDECAR)</code> 는 <code>/data/iso-new/.ubuntu-22.iso.marker</code> 찾지만 부재</li>
+        <li>결과 — Scanner 가 MARKER_MISSING drift 보고. 옛 위치의 orphan sidecar 도 별도 drift 로 보고. 사용자 보기에 silent corruption.</li>
+    </ol>
+    <h4>권고</h4>
+    <p>
+        위치 결정 (D-1) 과 별개로 본 버그는 <b>현 동작이 정상이 아니라는 사실 자체</b>. 다음 중 하나로 처리 필요 :
+    </p>
+    <ul>
+        <li>(권장) 정책 답 B 채택 — UI 의 isoPath 편집 제거 (옵션 L). 버그 자체 소멸.</li>
+        <li>(차선) 정책 답 A 채택 — updateIso 본문 강화 (옵션 A + 강화 동반). sidecar 이동 + manifestHash 재계산 + 재서명.</li>
+        <li>(임시) <code>ISOUpdateRequest</code> 의 isoPath 필드를 <code>@AssertEquals("현재값")</code> 류 검증으로 묶어 등록 시 값 그대로만 허용 (실질 description-only). plan 외 핫픽스.</li>
+    </ul>
+
+    <h3>발견 #2. <code>ISO.updateIsoPath(String)</code> 와 <code>ISO.update(String, String)</code> 의 책임 중복</h3>
+    <p>
+        <span class="chip chip-s3">#3</span> 발견. entity 에 두 update 메서드 공존.
+    </p>
+<pre><span class="k-keyword">public void</span> update(<span class="k-type">String</span> isoPath, <span class="k-type">String</span> description) {  <span class="k-comment">// line 125</span>
+    <span class="k-keyword">this</span>.isoPath = isoPath;
+    <span class="k-keyword">this</span>.description = description;
+}
+
+<span class="k-comment">/**
+ * PATH_DRIFT 자동 적용 시 IsoMarkableScanner 가 호출 — DB 의 isoPath 만 갱신.
+ */</span>
+<span class="k-keyword">public void</span> updateIsoPath(<span class="k-type">String</span> isoPath) {  <span class="k-comment">// line 159</span>
+    <span class="k-keyword">this</span>.isoPath = isoPath;
+}</pre>
+    <p>
+        <code>updateIsoPath</code> 가 명시적으로 "Scanner 전용" 으로 의도된 메서드. <code>update</code> 의 isoPath 인자는 UI 편집 경로 — 두 메서드의 isoPath 갱신 책임이 중복.
+        정책 답 B (옵션 L) 채택 시 <code>update</code> 를 <code>updateDescription</code> 으로 좁히면 두 메서드 책임 분리가 자연스러워짐.
+    </p>
+
+    <h3>발견 #3. plan §6 시나리오 #18 의 "happy" 시나리오가 silent corruption 을 통과시킴</h3>
+    <p>
+        본 agent 발견. plan §6 시나리오 #18 (D-1 옵션 A/B 시 updateIso happy / PathTraversal 400) 의 happy 시나리오는 DB 의 isoPath 갱신 성공 여부만 검증.
+        sidecar 부정합은 검증 범위 밖. 옵션 A 채택 시에도 강화 본문 없으면 happy 시나리오는 통과하지만 실제 sidecar 부정합은 누락된 채 머무름.
+    </p>
+    <h4>권고</h4>
+    <p>
+        옵션 A 채택 시 시나리오 #18 의 happy 에 sidecar 마이그레이션 검증 (옛 경로 sidecar 부재 + 새 경로 sidecar 존재 + signature 재계산값 일치) 추가.
+        옵션 C 잔류 시 본 시나리오 자체 미작성 (현 상태 유지).
+    </p>
+</section>
+
+<!-- ============== §11 출처 ============== -->
+<section id="s11" class="footnotes">
+    <h2>§11. 출처</h2>
+    <h4>5 senior 의견 transcript</h4>
+    <ol>
+        <li>Senior #1 (Spring/Java 일반) — 본 대화 task-notification 이력 #1 묶음. 옵션 B 권장, 옵션 E (R2) 후속 권고.</li>
+        <li>Senior #2 (Code Reviewer) — 본 대화 task-notification 이력 #2 묶음. 옵션 D 권장. 옵션 A 의 "marker 재발급 인접" 근거가 현 코드 사실 아님 발견.</li>
+        <li>Senior #3 (자유 발상) — 본 대화 task-notification 이력 #3 묶음. 옵션 K+L 권장, 옵션 A 차선. silent corruption + Scanner 중복 발견.</li>
+        <li>Senior #4 (DDD Aggregate Root) — 본 대화 task-notification 이력 #4 묶음. 옵션 B (Phase 1) 권장. 옵션 G 4 근거 기각. Phase 2 표준 권고.</li>
+        <li>Senior #5 (적대적 비판) — 본 대화 task-notification 이력 #5 묶음. 옵션 C 잔류 → R1-4-3 후속에서 옵션 A 흡수. 옵션 B 6 반박.</li>
+    </ol>
+
+    <h4>코드 / 문서 출처 (각주 본문)</h4>
+    <ol>
+        <li id="fn-source-1"><a href="#s2">↑</a> <code>src/main/java/com/example/serverprovision/management/os/service/iso/IsoLifecycleService.java</code> · <code>OSMetadataService.java</code> line 242-247.</li>
+        <li id="fn-source-2"><a href="#s2">↑</a> <code>src/main/java/com/example/serverprovision/management/os/entity/ISO.java</code> line 125 <code>update</code> · line 159 <code>updateIsoPath</code>.</li>
+        <li id="fn-source-3"><a href="#s4">↑</a> <code>CLAUDE.md</code> — "조건 분기문 legacy 무분별 확장 절대 지양" 섹션 + "중복된 코드와 가독성이 떨어지는 코드는 절대 지양" 섹션의 "미래 가정으로 분리하지 않음" 원칙.</li>
+        <li id="fn-source-4"><a href="#s5">↑</a> <code>plan/26-05-28_21-30-00_R1-4-3_plan.html</code> §8 D-1 옵션 B 비용 컬럼 — "도메인별 DTO 가 달라 추상화 자연성 떨어짐".</li>
+        <li id="fn-source-5"><a href="#s5">↑</a> <code>src/main/java/com/example/serverprovision/management/os/service/iso/IsoRegistrationService.java</code> line 367-390 <code>finalizeMarker</code>.</li>
+    </ol>
+</section>
+
+</main>
+
+</body>
+</html>

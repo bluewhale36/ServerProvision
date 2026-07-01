@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게스트서버 DB 설계 보고서 v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1815;
+    --ink-2: #3d3a35;
+    --ink-3: #6b6660;
+    --paper: #f5f1e8;
+    --paper-2: #ede7d8;
+    --paper-3: #e2dac7;
+    --rule: #c9bfa6;
+    --accent: #8b3a2e;
+    --accent-2: #c47e3c;
+    --teal: #2d5d4f;
+    --teal-soft: #d4dfd8;
+    --warn: #a85d1e;
+    --warn-soft: #f0dcc0;
+    --diff-add: #c8d8c3;
+    --diff-rm: #e6c8c2;
+    --diff-mod: #e8d8b8;
+    --code-bg: #2a2620;
+    --code-ink: #e8dfc8;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter Tight', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(circle at 10% 10%, rgba(196, 126, 60, 0.04) 0%, transparent 40%),
+      radial-gradient(circle at 90% 90%, rgba(45, 93, 79, 0.04) 0%, transparent 40%);
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .toc {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    border-right: 1px solid var(--rule);
+    padding: 48px 24px 48px 36px;
+    overflow-y: auto;
+    background: var(--paper);
+  }
+
+  .toc-brand {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .toc-version {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--accent);
+    color: var(--paper);
+    border-radius: 3px;
+    margin-left: 8px;
+    vertical-align: middle;
+    letter-spacing: 0.05em;
+  }
+
+  .toc-title {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.2;
+    margin-bottom: 36px;
+    color: var(--ink);
+  }
+
+  .toc-list { list-style: none; }
+  .toc-list li { margin-bottom: 2px; }
+
+  .toc-list a {
+    display: block;
+    padding: 7px 10px 7px 12px;
+    color: var(--ink-3);
+    text-decoration: none;
+    font-size: 13.5px;
+    border-left: 2px solid transparent;
+    transition: all 0.18s ease;
+    line-height: 1.4;
+  }
+
+  .toc-list a:hover {
+    color: var(--ink);
+    border-left-color: var(--accent-2);
+    background: var(--paper-2);
+  }
+
+  .toc-list a.active {
+    color: var(--ink);
+    border-left-color: var(--accent);
+    background: var(--paper-2);
+    font-weight: 500;
+  }
+
+  .toc-list .toc-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-right: 10px;
+    font-weight: 500;
+  }
+
+  .main {
+    padding: 80px 80px 120px;
+    max-width: 980px;
+  }
+
+  .cover {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 60px;
+    margin-bottom: 64px;
+  }
+
+  .cover-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    margin-bottom: 28px;
+  }
+
+  .cover-eyebrow::before,
+  .cover-eyebrow::after {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .cover h1 {
+    font-family: var(--serif);
+    font-size: 60px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+  }
+
+  .cover h1 em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--accent);
+  }
+
+  .cover-sub {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--ink-2);
+    margin-bottom: 40px;
+    max-width: 720px;
+    line-height: 1.4;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+
+  .cover-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cover-meta-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-3);
+  }
+
+  .cover-meta-value {
+    font-family: var(--serif);
+    font-size: 16px;
+    color: var(--ink);
+  }
+
+  section {
+    margin-bottom: 72px;
+    scroll-margin-top: 32px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .section-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .section-header h2 {
+    font-family: var(--serif);
+    font-size: 38px;
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+
+  h3 {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 500;
+    margin: 40px 0 16px;
+    line-height: 1.25;
+  }
+
+  h4 {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin: 28px 0 12px;
+  }
+
+  p { margin-bottom: 16px; color: var(--ink-2); }
+  p strong { color: var(--ink); font-weight: 600; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    background: var(--paper-2);
+    padding: 2px 7px;
+    border-radius: 3px;
+    color: var(--accent);
+    border: 1px solid var(--paper-3);
+  }
+
+  .term {
+    border-bottom: 1px dashed var(--accent-2);
+    cursor: help;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .term:hover { background: var(--warn-soft); }
+
+  .tooltip {
+    position: fixed;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 340px;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    font-family: var(--sans);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  }
+
+  .tooltip.show { opacity: 1; }
+
+  .callout {
+    background: var(--paper-2);
+    border-left: 3px solid var(--accent);
+    padding: 20px 24px;
+    margin: 24px 0;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .callout-warn { background: var(--warn-soft); border-left-color: var(--warn); }
+  .callout-info { background: var(--teal-soft); border-left-color: var(--teal); }
+
+  .callout-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .callout-warn .callout-label { color: var(--warn); }
+  .callout-info .callout-label { color: var(--teal); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 24px 28px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 20px 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    border: 1px solid #3d3830;
+  }
+
+  pre code {
+    background: transparent;
+    border: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  .sql-kw { color: #d99a4e; font-weight: 500; }
+  .sql-fn { color: #88b4a8; }
+  .sql-str { color: #c4a373; }
+  .sql-comm { color: #6b6660; font-style: italic; }
+  .sql-num { color: #d99a4e; }
+  .sql-type { color: #b8d4c4; }
+
+  /* === Changelog === */
+  .changelog {
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 20px 0 28px;
+  }
+
+  .changelog-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-3);
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  .change-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--rule);
+    font-size: 14px;
+  }
+
+  .change-row:last-child { border-bottom: none; }
+
+  .change-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    margin-top: 2px;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .tag-add { background: var(--diff-add); color: #1f4a18; }
+  .tag-rm  { background: var(--diff-rm);  color: #6b2a20; }
+  .tag-mod { background: var(--diff-mod); color: #5a3f12; }
+
+  .change-text { color: var(--ink-2); line-height: 1.55; }
+  .change-text code { font-size: 12.5px; }
+
+  /* === Table cards === */
+  .table-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin: 24px 0 32px;
+  }
+
+  .table-card {
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 20px 22px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: var(--ink);
+    display: block;
+    position: relative;
+  }
+
+  .table-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(139, 58, 46, 0.1);
+  }
+
+  .table-card-name {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .table-card-role {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .table-card-desc {
+    font-size: 13px;
+    color: var(--ink-3);
+    line-height: 1.5;
+  }
+
+  .card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .badge-new { background: var(--diff-add); color: #1f4a18; }
+  .badge-mod { background: var(--diff-mod); color: #5a3f12; }
+
+  /* === Schema block === */
+  .schema-block {
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    margin: 32px 0;
+    background: var(--paper);
+    overflow: hidden;
+  }
+
+  .schema-block.highlight {
+    border-color: var(--accent-2);
+    box-shadow: 0 0 0 3px rgba(196, 126, 60, 0.12);
+  }
+
+  .schema-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 26px;
+    background: var(--paper-2);
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .schema-head-left {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .schema-name {
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .schema-role-label {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-style: italic;
+    color: var(--ink-2);
+  }
+
+  .schema-status {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .schema-status.new { background: var(--diff-add); color: #1f4a18; }
+  .schema-status.mod { background: var(--diff-mod); color: #5a3f12; }
+
+  .schema-toggle {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    transition: transform 0.2s;
+  }
+
+  .schema-block.open .schema-toggle { transform: rotate(90deg); }
+
+  .schema-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+
+  .schema-block.open .schema-body { max-height: 6000px; }
+
+  .schema-body-inner { padding: 28px; }
+
+  .col-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+
+  .col-table th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--paper-2);
+    border-bottom: 2px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+
+  .col-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--paper-3);
+    vertical-align: top;
+  }
+
+  .col-table tr:hover td { background: var(--paper-2); }
+
+  .col-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .col-type {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--teal);
+    white-space: nowrap;
+  }
+
+  .col-flag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 4px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .flag-pk { background: #8b3a2e; color: #fff; }
+  .flag-fk { background: #2d5d4f; color: #fff; }
+  .flag-uk { background: #c47e3c; color: #fff; }
+  .flag-nn { background: var(--paper-3); color: var(--ink-2); }
+  .flag-json { background: #4a3a5c; color: #fff; }
+  .flag-chk { background: #5c4a3a; color: #fff; }
+
+  .col-note {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    line-height: 1.5;
+  }
+
+  /* === JSON example === */
+  .json-example {
+    background: #1e1c18;
+    color: #d4cbb6;
+    border-radius: 8px;
+    padding: 18px 22px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    margin: 14px 0;
+    overflow-x: auto;
+    border: 1px solid #3d3830;
+  }
+
+  .json-key { color: #88b4a8; }
+  .json-str { color: #c4a373; }
+  .json-num { color: #d99a4e; }
+  .json-punc { color: #6b6660; }
+
+  /* === Diff block === */
+  .diff-block {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+
+  .diff-head {
+    background: var(--paper-2);
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule);
+    font-weight: 600;
+  }
+
+  .diff-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+
+  .diff-side {
+    padding: 16px 18px;
+    line-height: 1.7;
+  }
+
+  .diff-side:first-child {
+    background: var(--diff-rm);
+    color: #5a1f15;
+    border-right: 1px solid var(--rule);
+  }
+
+  .diff-side:last-child {
+    background: var(--diff-add);
+    color: #1f4a18;
+  }
+
+  .diff-side-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .diff-side-line {
+    padding: 1px 0;
+  }
+
+  .diff-side-line.changed { background: rgba(255,255,255,0.35); border-radius: 3px; padding: 1px 4px; margin: 0 -4px; }
+
+  /* === Phase / relation === */
+  .rel-viz {
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 28px;
+    margin: 24px 0;
+    overflow-x: auto;
+  }
+
+  .rel-viz svg {
+    width: 100%;
+    height: auto;
+    min-width: 760px;
+  }
+
+  /* === Open points === */
+  .qa-block { margin: 32px 0; }
+
+  .qa-item {
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 0;
+  }
+
+  .qa-q {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    line-height: 1.35;
+  }
+
+  .qa-q::before {
+    content: 'Q';
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--paper-2);
+    padding: 3px 8px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+
+  .qa-marker {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--ink-3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .qa-item.open .qa-marker { transform: rotate(45deg); }
+
+  .qa-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding-left: 38px;
+  }
+
+  .qa-item.open .qa-a {
+    max-height: 1400px;
+    padding-top: 14px;
+  }
+
+  .qa-a p { font-size: 14.5px; line-height: 1.65; }
+
+  footer {
+    margin-top: 100px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-3);
+    font-size: 12px;
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 1024px) {
+    .shell { grid-template-columns: 1fr; }
+    .toc {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 24px;
+    }
+    .main { padding: 40px 32px 80px; }
+    .cover h1 { font-size: 40px; }
+    .section-header h2 { font-size: 28px; }
+    .table-grid { grid-template-columns: 1fr; }
+    .diff-body { grid-template-columns: 1fr; }
+    .diff-side:first-child { border-right: none; border-bottom: 1px solid var(--rule); }
+  }
+</style>
+</head>
+<body>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="shell">
+
+  <aside class="toc">
+    <div class="toc-brand">Design Report<span class="toc-version">v2</span></div>
+    <div class="toc-title">게스트서버<br>DB 설계</div>
+    <nav>
+      <ul class="toc-list">
+        <li><a href="#changelog"><span class="toc-num">00</span>v2 변경 요약</a></li>
+        <li><a href="#principles"><span class="toc-num">01</span>설계 원칙</a></li>
+        <li><a href="#tables"><span class="toc-num">02</span>테이블 한눈에</a></li>
+        <li><a href="#schema"><span class="toc-num">03</span>각 테이블 상세</a></li>
+        <li><a href="#json-spec"><span class="toc-num">04</span>JSON 컬럼 설계</a></li>
+        <li><a href="#relations"><span class="toc-num">05</span>관계와 카디널리티</a></li>
+        <li><a href="#decisions"><span class="toc-num">06</span>설계 결정 Q&amp;A</a></li>
+        <li><a href="#openpoints"><span class="toc-num">07</span>미확정 사항</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <header class="cover">
+      <div class="cover-eyebrow">Internal · Provisioning Server · v2</div>
+      <h1>게스트서버 스키마,<br><em>두 번째 정제본</em></h1>
+      <div class="cover-sub">
+        guest_server를 가벼운 식별자로 좁히고, 하드웨어·소프트웨어 정보는 detail로 분리합니다.
+        NIC는 1:N으로 확장 가능하고, location은 단순화됩니다.
+      </div>
+      <div class="cover-meta">
+        <div class="cover-meta-item">
+          <span class="cover-meta-label">Stack</span>
+          <span class="cover-meta-value">Spring Boot · Java 21</span>
+        </div>
+        <div class="cover-meta-item">
+          <span class="cover-meta-label">Database</span>
+          <span class="cover-meta-value">MariaDB · Redis</span>
+        </div>
+        <div class="cover-meta-item">
+          <span class="cover-meta-label">Schema Revision</span>
+          <span class="cover-meta-value">v0.2 — Draft</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 00 CHANGELOG -->
+    <section id="changelog">
+      <div class="section-header">
+        <span class="section-num">00</span>
+        <h2>v2 변경 요약</h2>
+      </div>
+      <p>
+        v1에서 v2로 넘어오면서 일어난 구조적 변화를 한 줄씩 정리합니다. 가장 큰 변화는
+        <strong>정체성(guest_server)과 인벤토리(guest_server_detail)의 분리</strong>입니다.
+      </p>
+
+      <div class="changelog">
+        <div class="changelog-title">스키마 변경 내역</div>
+
+        <div class="change-row">
+          <span class="change-tag tag-mod">변경</span>
+          <span class="change-text">
+            <code>guest_server</code> 슬림화 — id / system_uuid / name / model_name / memo만 남김.
+            board_serial · manufacturer · discovery_stage · product_name 등은 detail로 이동.
+          </span>
+        </div>
+        <div class="change-row">
+          <span class="change-tag tag-add">신설</span>
+          <span class="change-text">
+            <code>guest_server_detail</code> 추가 — vendor / board_model / board_serial /
+            hardware_spec(JSON) / software_spec(JSON) / discovery_stage.
+            guest_server와 1:0..1 매핑.
+          </span>
+        </div>
+        <div class="change-row">
+          <span class="change-tag tag-mod">변경</span>
+          <span class="change-text">
+            <code>host_nic_binding</code> 1:1 → 1:N — is_primary, bond_group 컬럼 추가.
+            한 서버에 여러 NIC 표현 가능.
+          </span>
+        </div>
+        <div class="change-row">
+          <span class="change-tag tag-mod">변경</span>
+          <span class="change-text">
+            <code>location_assignment</code> 슬림화 — datacenter/rack_id/rack_unit/role 제거,
+            <code>location</code> 문자열과 <code>kvm</code> 한 자리 양수로 단순화.
+          </span>
+        </div>
+        <div class="change-row">
+          <span class="change-tag tag-rm">제거</span>
+          <span class="change-text">
+            <code>bmc_binding.vendor</code> 삭제 — vendor가 guest_server_detail로 옮겨가서 중복 제거.
+          </span>
+        </div>
+        <div class="change-row">
+          <span class="change-tag tag-mod">변경</span>
+          <span class="change-text">
+            낙관적 락 위치 재배치 — <code>version</code> 컬럼은 잦은 갱신 가능성이 있는
+            <code>guest_server_detail</code>과 <code>provisioning_progress</code>에만 둠.
+          </span>
+        </div>
+      </div>
+
+      <div class="diff-block">
+        <div class="diff-head">guest_server 컬럼 비교</div>
+        <div class="diff-body">
+          <div class="diff-side">
+            <div class="diff-side-label">v1 (이전)</div>
+            <div class="diff-side-line">id</div>
+            <div class="diff-side-line">system_uuid</div>
+            <div class="diff-side-line changed">system_serial</div>
+            <div class="diff-side-line changed">manufacturer</div>
+            <div class="diff-side-line changed">product_name</div>
+            <div class="diff-side-line changed">board_serial</div>
+            <div class="diff-side-line changed">discovery_stage</div>
+            <div class="diff-side-line">first_seen_at</div>
+            <div class="diff-side-line">last_seen_at</div>
+            <div class="diff-side-line changed">version</div>
+          </div>
+          <div class="diff-side">
+            <div class="diff-side-label">v2 (현재)</div>
+            <div class="diff-side-line">id</div>
+            <div class="diff-side-line">system_uuid</div>
+            <div class="diff-side-line changed">name</div>
+            <div class="diff-side-line changed">model_name</div>
+            <div class="diff-side-line changed">memo</div>
+            <div class="diff-side-line">created_at</div>
+            <div class="diff-side-line">updated_at</div>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        이동된 컬럼들은 <code>guest_server_detail</code>에 다시 등장합니다 (vendor는 manufacturer의 개명,
+        board_model은 product_name의 개명에 가깝습니다).
+      </p>
+    </section>
+
+    <!-- 01 PRINCIPLES -->
+    <section id="principles">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2>설계 원칙</h2>
+      </div>
+
+      <h4>원칙 1 — 정체성과 인벤토리의 분리</h4>
+      <p>
+        <code>guest_server</code>는 운영자가 보는 "이 서버는 이런 이름의 이런 모델"이라는 가벼운 신원만
+        담습니다. CPU·메모리·BIOS 버전 같은 인벤토리는 <code>guest_server_detail</code>에 있습니다. 둘은 같이
+        만들어지지 않습니다 — 운영자가 UI에서 서버를 먼저 등록할 수도 있고, iPXE 등록이 먼저 일어날 수도
+        있으며, 진단 리눅스가 떠야만 detail이 채워집니다.
+      </p>
+
+      <h4>원칙 2 — 자격증명은 DB에 두지 않는다</h4>
+      <p>
+        v1과 동일. <code>bmc_credential_ref</code>는 Vault 경로만 갖고, 실제 비밀번호는 Vault에서 조회합니다.
+      </p>
+
+      <h4>원칙 3 — 스펙은 JSON, 분기는 다형성</h4>
+      <p>
+        <code>hardware_spec</code>·<code>software_spec</code>은 JSON 컬럼입니다. CPU 종류·메모리 슬롯
+        구성·디스크 개수가 모델마다 다르고, 시간에 따라 우리가 수집할 수 있는 정보의 형태도 진화합니다.
+        스키마를 미리 못 박는 대신 어플리케이션의 sealed record로 형태를 강제하고, DB는 JSON으로 자유롭게
+        둡니다.
+      </p>
+
+      <h4>원칙 4 — 낙관적 락은 "갱신이 잦은 곳"에만</h4>
+      <p>
+        <code>@Version</code> 컬럼은 비용이 있습니다 — 모든 갱신마다 version을 체크하고 충돌 시
+        <code>ObjectOptimisticLockingFailureException</code>을 처리해야 합니다. 그래서 거의 불변인
+        테이블에는 두지 않습니다. v2에서는 <code>guest_server_detail</code>과
+        <code>provisioning_progress</code>에만 둡니다.
+      </p>
+
+      <h4>원칙 5 — 모든 본체 테이블에 created_at / updated_at</h4>
+      <p>
+        감사·디버깅에서 필수입니다. "이 행이 언제 만들어졌고, 마지막으로 언제 갱신됐나"는 운영적
+        가치가 매우 큽니다. v2에서는 모든 본체 테이블에 두 컬럼을 표준으로 둡니다.
+      </p>
+    </section>
+
+    <!-- 02 TABLE OVERVIEW -->
+    <section id="tables">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2>테이블 한눈에 보기</h2>
+      </div>
+      <p>
+        v2는 9개 테이블로 한 게스트서버를 표현합니다 (v1 대비 detail 한 개 추가). 카드를 클릭하면
+        상세 섹션으로 이동합니다.
+      </p>
+
+      <div class="table-grid">
+        <a class="table-card" href="#t-guest_server">
+          <span class="card-badge badge-mod">변경</span>
+          <div class="table-card-name">guest_server</div>
+          <div class="table-card-role">가벼운 신원</div>
+          <div class="table-card-desc">운영자가 부여한 이름·모델명·메모. SMBIOS UUID만 시스템적으로 매칭. 단순한 식별 테이블.</div>
+        </a>
+        <a class="table-card" href="#t-guest_server_detail">
+          <span class="card-badge badge-new">신규</span>
+          <div class="table-card-name">guest_server_detail</div>
+          <div class="table-card-role">하드웨어·소프트웨어 인벤토리</div>
+          <div class="table-card-desc">vendor / 보드 모델·시리얼 / hardware_spec(JSON) / software_spec(JSON) / discovery_stage. guest_server와 1:0..1.</div>
+        </a>
+        <a class="table-card" href="#t-host_nic_binding">
+          <span class="card-badge badge-mod">변경</span>
+          <div class="table-card-name">host_nic_binding</div>
+          <div class="table-card-role">호스트 NIC (1:N)</div>
+          <div class="table-card-desc">LAN1·LAN2 등 여러 NIC을 표현. is_primary와 bond_group으로 본딩 그룹 표현 가능.</div>
+        </a>
+        <a class="table-card" href="#t-bmc_binding">
+          <span class="card-badge badge-mod">변경</span>
+          <div class="table-card-name">bmc_binding</div>
+          <div class="table-card-role">BMC 신원</div>
+          <div class="table-card-desc">vendor 컬럼 제거 (detail로 이동). BMC MAC·IP·fw_version과 credential_ref 참조만 유지.</div>
+        </a>
+        <a class="table-card" href="#t-bmc_credential_ref">
+          <div class="table-card-name">bmc_credential_ref</div>
+          <div class="table-card-role">Vault 참조</div>
+          <div class="table-card-desc">DB에 비밀번호 없음. Vault 경로와 사용자명, 회전 시각만 보관. v1과 동일.</div>
+        </a>
+        <a class="table-card" href="#t-location_assignment">
+          <span class="card-badge badge-mod">변경</span>
+          <div class="table-card-name">location_assignment</div>
+          <div class="table-card-role">위치 (단순화)</div>
+          <div class="table-card-desc">location 문자열 + kvm 한 자리 양수. v1의 datacenter·rack·role은 제거.</div>
+        </a>
+        <a class="table-card" href="#t-provisioning_progress">
+          <div class="table-card-name">provisioning_progress</div>
+          <div class="table-card-role">큰 단계 진행 상태</div>
+          <div class="table-card-desc">current_phase + phase_meta(JSON). 1:1로 게스트서버에 묶임. version 컬럼 유지.</div>
+        </a>
+        <a class="table-card" href="#t-setup_step">
+          <div class="table-card-name">setup_step</div>
+          <div class="table-card-role">세부 체크포인트</div>
+          <div class="table-card-desc">Phase 안의 개별 작업 단위. 성공·실패·스킵을 기록. v1과 동일.</div>
+        </a>
+        <a class="table-card" href="#t-transition_log">
+          <div class="table-card-name">provisioning_transition_log</div>
+          <div class="table-card-role">전이 이력 (append-only)</div>
+          <div class="table-card-desc">언제 어떤 Phase로 옮겨갔는지 기록. v1과 동일.</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- 03 SCHEMA DETAIL -->
+    <section id="schema">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2>각 테이블 상세</h2>
+      </div>
+      <p>
+        v2에서 변경된 테이블 다섯 개 (guest_server, guest_server_detail, host_nic_binding, bmc_binding,
+        location_assignment)를 중심으로 살펴봅니다. 변경 없는 테이블은 간략히만 다룹니다. 헤더를 클릭하면
+        펼쳐집니다.
+      </p>
+
+      <!-- guest_server -->
+      <div class="schema-block highlight" id="t-guest_server">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">guest_server</span>
+            <span class="schema-role-label">가벼운 신원</span>
+            <span class="schema-status mod">v2 변경</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>
+              v2의 핵심 변경입니다. 이제 이 테이블은 단순합니다 — 시스템 식별자(<code>system_uuid</code>)
+              하나와 운영자가 보는 표시 정보(<code>name</code>, <code>model_name</code>, <code>memo</code>)
+              그리고 타임스탬프뿐. 하드웨어·소프트웨어 스펙은 모두 <code>guest_server_detail</code>에 있습니다.
+            </p>
+
+            <div class="callout callout-info">
+              <div class="callout-label">왜 version을 뺐나</div>
+              <p>
+                v1에서는 모든 본체 테이블에 <code>version</code>을 두는 것을 표준으로 잡았지만, 이 테이블은
+                생성 후 거의 갱신이 없습니다 (name·memo 정도). 낙관적 락의 비용이 이득보다 큽니다.
+                동시 갱신 충돌이 운영적으로 보고된다면 그때 추가합니다.
+              </p>
+            </div>
+
+            <table class="col-table">
+              <thead>
+                <tr><th>컬럼</th><th>타입</th><th>제약</th><th>설명</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="col-name">id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-pk">PK</span></td><td class="col-note">UUID v7. 시간 정렬 가능한 UUID.</td></tr>
+                <tr><td class="col-name">system_uuid</td><td class="col-type">CHAR(36)</td><td><span class="col-flag flag-uk">UK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">SMBIOS Type 1 UUID. iPXE 등록 시 보고되는 시스템적 식별자.</td></tr>
+                <tr><td class="col-name">name</td><td class="col-type">VARCHAR(128)</td><td><span class="col-flag flag-uk">UK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">운영자가 임의로 부여하는 식별 이름. 시스템 내에서 유일해야 함.</td></tr>
+                <tr><td class="col-name">model_name</td><td class="col-type">VARCHAR(128)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">사내 서버 모델명. 같은 모델이 여러 대 존재 가능하므로 UNIQUE 아님.</td></tr>
+                <tr><td class="col-name">memo</td><td class="col-type">TEXT</td><td></td><td class="col-note">자유 메모. nullable.</td></tr>
+                <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMP(3)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">자동 입력.</td></tr>
+                <tr><td class="col-name">updated_at</td><td class="col-type">TIMESTAMP(3)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">자동 갱신.</td></tr>
+              </tbody>
+            </table>
+
+<pre><code><span class="sql-kw">CREATE TABLE</span> guest_server (
+    id           <span class="sql-type">BINARY(16)</span>    <span class="sql-kw">PRIMARY KEY</span>,
+    system_uuid  <span class="sql-type">CHAR(36)</span>      <span class="sql-kw">NOT NULL</span>,
+    name         <span class="sql-type">VARCHAR(128)</span>  <span class="sql-kw">NOT NULL</span>,
+    model_name   <span class="sql-type">VARCHAR(128)</span>  <span class="sql-kw">NOT NULL</span>,
+    memo         <span class="sql-type">TEXT</span>,
+    created_at   <span class="sql-type">TIMESTAMP(3)</span>  <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>),
+    updated_at   <span class="sql-type">TIMESTAMP(3)</span>  <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>)
+                    <span class="sql-kw">ON UPDATE</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>),
+    <span class="sql-kw">CONSTRAINT</span> uk_guest_server_uuid <span class="sql-kw">UNIQUE</span> (system_uuid),
+    <span class="sql-kw">CONSTRAINT</span> uk_guest_server_name <span class="sql-kw">UNIQUE</span> (name),
+    <span class="sql-kw">INDEX</span> idx_guest_server_model    (model_name)
+) <span class="sql-kw">ENGINE</span>=InnoDB <span class="sql-kw">DEFAULT CHARSET</span>=utf8mb4 <span class="sql-kw">COLLATE</span>=utf8mb4_0900_ai_ci;</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- guest_server_detail -->
+      <div class="schema-block highlight" id="t-guest_server_detail">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">guest_server_detail</span>
+            <span class="schema-role-label">하드웨어·소프트웨어 인벤토리</span>
+            <span class="schema-status new">v2 신규</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>
+              guest_server에서 분리되어 나온 인벤토리 테이블입니다. 진단 리눅스가 떴거나 운영자가 수동으로
+              스펙을 입력해야 행이 생깁니다. <strong>1:0..1 관계</strong>입니다 — guest_server가 있어도 detail은
+              없을 수 있습니다.
+            </p>
+
+            <div class="callout">
+              <div class="callout-label">왜 1:1이 아닌 1:0..1인가</div>
+              <p>
+                iPXE 등록 직후엔 우리가 vendor·board_serial을 아직 모릅니다. 이때 NULL이 줄줄이 늘어선
+                detail 행을 미리 만드는 것보다, 정보가 확보된 뒤에 INSERT하는 게 깔끔합니다. 어플리케이션
+                레이어에서는 <code>Optional&lt;GuestServerDetail&gt;</code>로 받습니다.
+              </p>
+            </div>
+
+            <h4>JSON 컬럼의 역할</h4>
+            <p>
+              <code>hardware_spec</code>은 CPU·메모리·디스크·NIC 모델 등의 하드웨어 정보를,
+              <code>software_spec</code>은 최초 BIOS 버전·BMC 버전·펌웨어 인벤토리를 담습니다. 모델별로 다른
+              스펙 구조를 갖기 때문에 컬럼화하면 NULL 천국이 됩니다. JSON으로 두고 어플리케이션의 sealed
+              record가 구조를 강제합니다. 04 섹션에 JSON 스키마 예시가 있습니다.
+            </p>
+
+            <h4>왜 version을 뒀나</h4>
+            <p>
+              guest_server와 달리 detail은 진단 리눅스가 부분 갱신, 운영자가 수동 보강, 정기 검증 작업이
+              덮어쓰기 등 여러 주체가 갱신합니다. 낙관적 락이 충돌 감지에 유용합니다.
+            </p>
+
+            <table class="col-table">
+              <thead>
+                <tr><th>컬럼</th><th>타입</th><th>제약</th><th>설명</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="col-name">id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-pk">PK</span></td><td class="col-note">UUID v7.</td></tr>
+                <tr><td class="col-name">guest_server_id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-fk">FK</span><span class="col-flag flag-uk">UK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">1:0..1. UNIQUE이므로 guest_server당 최대 하나.</td></tr>
+                <tr><td class="col-name">vendor</td><td class="col-type">VARCHAR(64)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">v1의 manufacturer 개명. <code>GIGABYTE</code>, <code>Supermicro</code> 등. Redfish 분기 키.</td></tr>
+                <tr><td class="col-name">board_model</td><td class="col-type">VARCHAR(128)</td><td></td><td class="col-note">메인보드 모델 (예: <code>MZ72-HB0</code>). v1의 product_name에 해당.</td></tr>
+                <tr><td class="col-name">board_serial</td><td class="col-type">VARCHAR(128)</td><td><span class="col-flag flag-uk">UK</span></td><td class="col-note">SMBIOS Type 2 보드 시리얼. nullable + UNIQUE.</td></tr>
+                <tr><td class="col-name">hardware_spec</td><td class="col-type">JSON</td><td><span class="col-flag flag-json">JSON</span></td><td class="col-note">CPU·메모리·디스크·NIC. 04 섹션 참조.</td></tr>
+                <tr><td class="col-name">software_spec</td><td class="col-type">JSON</td><td><span class="col-flag flag-json">JSON</span></td><td class="col-note">최초 BIOS·BMC 버전 등 펌웨어 인벤토리. 04 섹션 참조.</td></tr>
+                <tr><td class="col-name">discovery_stage</td><td class="col-type">VARCHAR(32)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note"><code>IPXE_REGISTERED</code> 또는 <code>DIAGNOSTIC_ENRICHED</code>. 정보 수집 깊이.</td></tr>
+                <tr><td class="col-name">version</td><td class="col-type">BIGINT</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">JPA <code>@Version</code>. 낙관적 락.</td></tr>
+                <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMP(3)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">자동 입력.</td></tr>
+                <tr><td class="col-name">updated_at</td><td class="col-type">TIMESTAMP(3)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">자동 갱신.</td></tr>
+              </tbody>
+            </table>
+
+<pre><code><span class="sql-kw">CREATE TABLE</span> guest_server_detail (
+    id              <span class="sql-type">BINARY(16)</span>   <span class="sql-kw">PRIMARY KEY</span>,
+    guest_server_id <span class="sql-type">BINARY(16)</span>   <span class="sql-kw">NOT NULL</span>,
+    vendor          <span class="sql-type">VARCHAR(64)</span>  <span class="sql-kw">NOT NULL</span>,
+    board_model     <span class="sql-type">VARCHAR(128)</span>,
+    board_serial    <span class="sql-type">VARCHAR(128)</span>,
+    hardware_spec   <span class="sql-type">JSON</span>,
+    software_spec   <span class="sql-type">JSON</span>,
+    discovery_stage <span class="sql-type">VARCHAR(32)</span>  <span class="sql-kw">NOT NULL</span>,
+    version         <span class="sql-type">BIGINT</span>       <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-num">0</span>,
+    created_at      <span class="sql-type">TIMESTAMP(3)</span> <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>),
+    updated_at      <span class="sql-type">TIMESTAMP(3)</span> <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>)
+                       <span class="sql-kw">ON UPDATE</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>),
+    <span class="sql-kw">CONSTRAINT</span> uk_detail_server <span class="sql-kw">UNIQUE</span> (guest_server_id),
+    <span class="sql-kw">CONSTRAINT</span> uk_detail_board  <span class="sql-kw">UNIQUE</span> (board_serial),
+    <span class="sql-kw">CONSTRAINT</span> fk_detail_server <span class="sql-kw">FOREIGN KEY</span> (guest_server_id)
+        <span class="sql-kw">REFERENCES</span> guest_server(id) <span class="sql-kw">ON DELETE CASCADE</span>,
+    <span class="sql-kw">CONSTRAINT</span> chk_detail_hw_json <span class="sql-kw">CHECK</span> (hardware_spec <span class="sql-kw">IS NULL OR</span> <span class="sql-fn">JSON_VALID</span>(hardware_spec)),
+    <span class="sql-kw">CONSTRAINT</span> chk_detail_sw_json <span class="sql-kw">CHECK</span> (software_spec <span class="sql-kw">IS NULL OR</span> <span class="sql-fn">JSON_VALID</span>(software_spec)),
+    <span class="sql-kw">INDEX</span> idx_detail_vendor (vendor),
+    <span class="sql-kw">INDEX</span> idx_detail_stage  (discovery_stage)
+) <span class="sql-kw">ENGINE</span>=InnoDB <span class="sql-kw">DEFAULT CHARSET</span>=utf8mb4 <span class="sql-kw">COLLATE</span>=utf8mb4_0900_ai_ci;</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- host_nic_binding -->
+      <div class="schema-block highlight" id="t-host_nic_binding">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">host_nic_binding</span>
+            <span class="schema-role-label">호스트 NIC (1:N)</span>
+            <span class="schema-status mod">v2 변경</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>
+              v1의 1:1 제약을 풀어 1:N으로 만들었습니다. 한 서버에 여러 NIC을 가질 수 있고, 그중 하나가
+              <code>is_primary = TRUE</code>로 표시됩니다. 같은 본딩 그룹에 속한 NIC들은 동일한
+              <code>bond_group</code> 값을 공유합니다.
+            </p>
+
+            <div class="callout callout-warn">
+              <div class="callout-label">DB로 강제 못 하는 제약</div>
+              <p>
+                "서버 하나에 primary NIC는 하나뿐"이라는 제약은 MariaDB에서 깔끔하게 DDL로 표현이
+                안 됩니다 — PostgreSQL의 partial index가 없기 때문입니다. 이 제약은
+                <strong>어플리케이션 레이어</strong>에서 보장합니다. sealed interface로 NIC role을
+                표현하고, 도메인 서비스에서 새 primary가 지정될 때 기존 primary를 unset하는 트랜잭션을
+                돌립니다. 트리거로 강제할 수도 있지만, 비즈니스 로직이 DB에 흩어지는 게 더 큰 비용이라
+                권장하지 않습니다.
+              </p>
+            </div>
+
+            <table class="col-table">
+              <thead><tr><th>컬럼</th><th>타입</th><th>제약</th><th>설명</th></tr></thead>
+              <tbody>
+                <tr><td class="col-name">id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-pk">PK</span></td><td class="col-note">UUID v7.</td></tr>
+                <tr><td class="col-name">guest_server_id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-fk">FK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">1:N. UNIQUE 제약 제거 (한 서버에 여러 NIC 가능).</td></tr>
+                <tr><td class="col-name">host_mac</td><td class="col-type">CHAR(17)</td><td><span class="col-flag flag-uk">UK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">MAC은 전역 유일.</td></tr>
+                <tr><td class="col-name">lan1_ip</td><td class="col-type">VARCHAR(45)</td><td></td><td class="col-note">IPv6까지 표현 가능. OS 부팅 전엔 NULL.</td></tr>
+                <tr><td class="col-name">ip_source</td><td class="col-type">VARCHAR(16)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note"><code>DHCP</code> / <code>STATIC</code> / <code>RESERVED</code>.</td></tr>
+                <tr><td class="col-name">hostname</td><td class="col-type">VARCHAR(253)</td><td></td><td class="col-note">FQDN까지 담을 수 있게 253자.</td></tr>
+                <tr><td class="col-name">is_primary</td><td class="col-type">BOOLEAN</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">기본 FALSE. 서버당 정확히 한 NIC이 TRUE가 되도록 어플리케이션이 보장.</td></tr>
+                <tr><td class="col-name">bond_group</td><td class="col-type">VARCHAR(64)</td><td></td><td class="col-note">본딩 그룹 식별자. 같은 그룹의 NIC끼리 묶임. nullable.</td></tr>
+                <tr><td class="col-name">bound_at</td><td class="col-type">TIMESTAMP(3)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">바인딩 생성 시각.</td></tr>
+              </tbody>
+            </table>
+
+<pre><code><span class="sql-kw">CREATE TABLE</span> host_nic_binding (
+    id              <span class="sql-type">BINARY(16)</span>   <span class="sql-kw">PRIMARY KEY</span>,
+    guest_server_id <span class="sql-type">BINARY(16)</span>   <span class="sql-kw">NOT NULL</span>,
+    host_mac        <span class="sql-type">CHAR(17)</span>     <span class="sql-kw">NOT NULL</span>,
+    lan1_ip         <span class="sql-type">VARCHAR(45)</span>,
+    ip_source       <span class="sql-type">VARCHAR(16)</span>  <span class="sql-kw">NOT NULL</span>,
+    hostname        <span class="sql-type">VARCHAR(253)</span>,
+    is_primary      <span class="sql-type">BOOLEAN</span>      <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-kw">FALSE</span>,
+    bond_group      <span class="sql-type">VARCHAR(64)</span>,
+    bound_at        <span class="sql-type">TIMESTAMP(3)</span> <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>),
+    <span class="sql-kw">CONSTRAINT</span> uk_nic_mac    <span class="sql-kw">UNIQUE</span> (host_mac),
+    <span class="sql-kw">CONSTRAINT</span> fk_nic_server <span class="sql-kw">FOREIGN KEY</span> (guest_server_id)
+        <span class="sql-kw">REFERENCES</span> guest_server(id) <span class="sql-kw">ON DELETE CASCADE</span>,
+    <span class="sql-kw">INDEX</span> idx_nic_server  (guest_server_id),
+    <span class="sql-kw">INDEX</span> idx_nic_primary (guest_server_id, is_primary),
+    <span class="sql-kw">INDEX</span> idx_nic_bond    (guest_server_id, bond_group)
+) <span class="sql-kw">ENGINE</span>=InnoDB <span class="sql-kw">DEFAULT CHARSET</span>=utf8mb4 <span class="sql-kw">COLLATE</span>=utf8mb4_0900_ai_ci;</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- location_assignment -->
+      <div class="schema-block highlight" id="t-location_assignment">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">location_assignment</span>
+            <span class="schema-role-label">위치 (단순화)</span>
+            <span class="schema-status mod">v2 변경</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>
+              v1의 datacenter / rack_id / rack_unit / role을 모두 제거하고, 운영자가 자유롭게 적는
+              <code>location</code> 문자열과 한 자리 양수 <code>kvm</code> 두 컬럼만 남겼습니다.
+            </p>
+
+            <div class="callout callout-info">
+              <div class="callout-label">kvm 컬럼 — 한 자리 양수의 의미</div>
+              <p>
+                KVM 스위치 포트 번호로 해석했습니다. TINYINT UNSIGNED는 본래 0~255 범위지만, CHECK 제약으로
+                <strong>1~9 범위</strong>를 강제합니다. 만약 "0번 포트"를 허용해야 한다면 CHECK 제약을
+                <code>kvm BETWEEN 0 AND 9</code>로 바꿔야 합니다 — 알려주시면 수정하겠습니다.
+              </p>
+            </div>
+
+            <table class="col-table">
+              <thead><tr><th>컬럼</th><th>타입</th><th>제약</th><th>설명</th></tr></thead>
+              <tbody>
+                <tr><td class="col-name">id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-pk">PK</span></td><td class="col-note">UUID v7.</td></tr>
+                <tr><td class="col-name">guest_server_id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-fk">FK</span><span class="col-flag flag-uk">UK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">1:1. 한 서버에 위치는 하나.</td></tr>
+                <tr><td class="col-name">location</td><td class="col-type">VARCHAR(255)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">자유 문자열. 운영자가 표기.</td></tr>
+                <tr><td class="col-name">kvm</td><td class="col-type">TINYINT UNSIGNED</td><td><span class="col-flag flag-nn">NN</span><span class="col-flag flag-chk">CHK</span></td><td class="col-note">KVM 포트 번호. 1~9 범위 강제.</td></tr>
+                <tr><td class="col-name">assigned_at</td><td class="col-type">TIMESTAMP(3)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">위치 지정 시각.</td></tr>
+              </tbody>
+            </table>
+
+<pre><code><span class="sql-kw">CREATE TABLE</span> location_assignment (
+    id              <span class="sql-type">BINARY(16)</span>       <span class="sql-kw">PRIMARY KEY</span>,
+    guest_server_id <span class="sql-type">BINARY(16)</span>       <span class="sql-kw">NOT NULL</span>,
+    location        <span class="sql-type">VARCHAR(255)</span>     <span class="sql-kw">NOT NULL</span>,
+    kvm             <span class="sql-type">TINYINT UNSIGNED</span> <span class="sql-kw">NOT NULL</span>,
+    assigned_at     <span class="sql-type">TIMESTAMP(3)</span>     <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">CURRENT_TIMESTAMP</span>(<span class="sql-num">3</span>),
+    <span class="sql-kw">CONSTRAINT</span> uk_location_server <span class="sql-kw">UNIQUE</span> (guest_server_id),
+    <span class="sql-kw">CONSTRAINT</span> fk_location_server <span class="sql-kw">FOREIGN KEY</span> (guest_server_id)
+        <span class="sql-kw">REFERENCES</span> guest_server(id) <span class="sql-kw">ON DELETE CASCADE</span>,
+    <span class="sql-kw">CONSTRAINT</span> chk_kvm_one_digit  <span class="sql-kw">CHECK</span> (kvm <span class="sql-kw">BETWEEN</span> <span class="sql-num">1</span> <span class="sql-kw">AND</span> <span class="sql-num">9</span>)
+) <span class="sql-kw">ENGINE</span>=InnoDB <span class="sql-kw">DEFAULT CHARSET</span>=utf8mb4 <span class="sql-kw">COLLATE</span>=utf8mb4_0900_ai_ci;</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- bmc_binding -->
+      <div class="schema-block highlight" id="t-bmc_binding">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">bmc_binding</span>
+            <span class="schema-role-label">BMC 신원</span>
+            <span class="schema-status mod">v2 변경</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>
+              v1과 거의 동일하지만 <code>vendor</code> 컬럼이 제거되었습니다. vendor가
+              <code>guest_server_detail</code>로 옮겨갔으므로 중복을 피합니다. Redfish 호출 시 vendor가
+              필요하면 detail을 JOIN해서 가져옵니다.
+            </p>
+            <table class="col-table">
+              <thead><tr><th>컬럼</th><th>타입</th><th>제약</th><th>설명</th></tr></thead>
+              <tbody>
+                <tr><td class="col-name">id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-pk">PK</span></td><td class="col-note">UUID v7.</td></tr>
+                <tr><td class="col-name">guest_server_id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-fk">FK</span><span class="col-flag flag-uk">UK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">1:1.</td></tr>
+                <tr><td class="col-name">bmc_mac</td><td class="col-type">CHAR(17)</td><td><span class="col-flag flag-uk">UK</span><span class="col-flag flag-nn">NN</span></td><td class="col-note">호스트 MAC과 다른 별개 NIC.</td></tr>
+                <tr><td class="col-name">bmc_ip</td><td class="col-type">VARCHAR(45)</td><td></td><td class="col-note">관리망 IP.</td></tr>
+                <tr><td class="col-name">ip_source</td><td class="col-type">VARCHAR(16)</td><td><span class="col-flag flag-nn">NN</span></td><td class="col-note">DHCP / STATIC 등.</td></tr>
+                <tr><td class="col-name">fw_version</td><td class="col-type">VARCHAR(64)</td><td></td><td class="col-note">BMC 펌웨어 버전. 펌웨어 업데이트 단계 후 갱신.</td></tr>
+                <tr><td class="col-name">credential_ref_id</td><td class="col-type">BINARY(16)</td><td><span class="col-flag flag-fk">FK</span></td><td class="col-note">bmc_credential_ref 참조. 자격증명 확보 전엔 NULL.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 나머지 v1과 동일 -->
+      <div class="schema-block" id="t-bmc_credential_ref">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">bmc_credential_ref</span>
+            <span class="schema-role-label">Vault 참조 (v1과 동일)</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>v1과 동일합니다. DB에 비밀번호 없음, Vault 경로와 사용자명만 보관.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="schema-block" id="t-provisioning_progress">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">provisioning_progress</span>
+            <span class="schema-role-label">큰 단계 진행 상태 (v1과 동일)</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>
+              v1과 동일. <code>current_phase</code> 코드 + <code>phase_meta</code> JSON +
+              <code>version</code> (낙관적 락) + 타임스탬프.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="schema-block" id="t-setup_step">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">setup_step</span>
+            <span class="schema-role-label">세부 체크포인트 (v1과 동일)</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>v1과 동일. Phase 안의 개별 작업 단위와 상태 (PENDING/RUNNING/SUCCEEDED/FAILED/SKIPPED).</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="schema-block" id="t-transition_log">
+        <div class="schema-head" onclick="toggleSchema(this)">
+          <div class="schema-head-left">
+            <span class="schema-name">provisioning_transition_log</span>
+            <span class="schema-role-label">전이 이력 (v1과 동일)</span>
+          </div>
+          <span class="schema-toggle">▶</span>
+        </div>
+        <div class="schema-body">
+          <div class="schema-body-inner">
+            <p>v1과 동일. append-only 이력 테이블.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 JSON SPEC -->
+    <section id="json-spec">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2>JSON 컬럼 설계</h2>
+      </div>
+      <p>
+        <code>guest_server_detail.hardware_spec</code>과 <code>software_spec</code>의 권장 스키마입니다.
+        DB는 <code>JSON_VALID</code>만 강제하지만, 어플리케이션 sealed record가 형태를 보장합니다.
+      </p>
+
+      <h3>hardware_spec — 하드웨어 인벤토리</h3>
+      <p>
+        CPU·메모리·디스크·NIC의 모델과 수량을 담습니다. 모델 정보는 진단 리눅스의 <code>dmidecode</code>,
+        <code>lspci</code>, <code>lsblk</code> 출력에서 추출합니다.
+      </p>
+      <div class="json-example">
+<span class="json-punc">{</span>
+  <span class="json-key">"cpu"</span><span class="json-punc">:</span> <span class="json-punc">{</span>
+    <span class="json-key">"model"</span><span class="json-punc">:</span> <span class="json-str">"AMD EPYC 7773X 64-Core"</span><span class="json-punc">,</span>
+    <span class="json-key">"sockets"</span><span class="json-punc">:</span> <span class="json-num">2</span><span class="json-punc">,</span>
+    <span class="json-key">"cores_per_socket"</span><span class="json-punc">:</span> <span class="json-num">64</span><span class="json-punc">,</span>
+    <span class="json-key">"threads_per_core"</span><span class="json-punc">:</span> <span class="json-num">2</span>
+  <span class="json-punc">},</span>
+  <span class="json-key">"memory"</span><span class="json-punc">:</span> <span class="json-punc">{</span>
+    <span class="json-key">"total_gib"</span><span class="json-punc">:</span> <span class="json-num">1024</span><span class="json-punc">,</span>
+    <span class="json-key">"modules"</span><span class="json-punc">:</span> <span class="json-punc">[</span>
+      <span class="json-punc">{</span><span class="json-key">"slot"</span><span class="json-punc">:</span> <span class="json-str">"DIMM_A1"</span><span class="json-punc">,</span> <span class="json-key">"size_gib"</span><span class="json-punc">:</span> <span class="json-num">64</span><span class="json-punc">,</span> <span class="json-key">"speed_mts"</span><span class="json-punc">:</span> <span class="json-num">3200</span><span class="json-punc">,</span> <span class="json-key">"vendor"</span><span class="json-punc">:</span> <span class="json-str">"Samsung"</span><span class="json-punc">}</span>
+    <span class="json-punc">]</span>
+  <span class="json-punc">},</span>
+  <span class="json-key">"disks"</span><span class="json-punc">:</span> <span class="json-punc">[</span>
+    <span class="json-punc">{</span><span class="json-key">"bay"</span><span class="json-punc">:</span> <span class="json-num">0</span><span class="json-punc">,</span> <span class="json-key">"model"</span><span class="json-punc">:</span> <span class="json-str">"Samsung PM9A3"</span><span class="json-punc">,</span> <span class="json-key">"size_tb"</span><span class="json-punc">:</span> <span class="json-num">3.84</span><span class="json-punc">,</span> <span class="json-key">"interface"</span><span class="json-punc">:</span> <span class="json-str">"NVMe"</span><span class="json-punc">}</span>
+  <span class="json-punc">],</span>
+  <span class="json-key">"nics"</span><span class="json-punc">:</span> <span class="json-punc">[</span>
+    <span class="json-punc">{</span><span class="json-key">"slot"</span><span class="json-punc">:</span> <span class="json-str">"onboard-1"</span><span class="json-punc">,</span> <span class="json-key">"model"</span><span class="json-punc">:</span> <span class="json-str">"Intel X710"</span><span class="json-punc">,</span> <span class="json-key">"speed_gbps"</span><span class="json-punc">:</span> <span class="json-num">10</span><span class="json-punc">}</span>
+  <span class="json-punc">]</span>
+<span class="json-punc">}</span>
+      </div>
+
+      <h3>software_spec — 펌웨어·소프트웨어 인벤토리</h3>
+      <p>
+        최초 등장 시점의 BIOS·BMC·옵션 펌웨어 버전을 기록합니다. Phase 1 (BIOS/BMC 업데이트) 완료 후에는
+        bmc_binding.fw_version과 guest_server_detail.software_spec.bmc.version이 갱신됩니다.
+      </p>
+      <div class="json-example">
+<span class="json-punc">{</span>
+  <span class="json-key">"bios"</span><span class="json-punc">:</span> <span class="json-punc">{</span>
+    <span class="json-key">"vendor"</span><span class="json-punc">:</span> <span class="json-str">"American Megatrends"</span><span class="json-punc">,</span>
+    <span class="json-key">"version"</span><span class="json-punc">:</span> <span class="json-str">"R12"</span><span class="json-punc">,</span>
+    <span class="json-key">"release_date"</span><span class="json-punc">:</span> <span class="json-str">"2024-08-15"</span>
+  <span class="json-punc">},</span>
+  <span class="json-key">"bmc"</span><span class="json-punc">:</span> <span class="json-punc">{</span>
+    <span class="json-key">"vendor"</span><span class="json-punc">:</span> <span class="json-str">"AMI MegaRAC"</span><span class="json-punc">,</span>
+    <span class="json-key">"version"</span><span class="json-punc">:</span> <span class="json-str">"12.84.10"</span><span class="json-punc">,</span>
+    <span class="json-key">"redfish_version"</span><span class="json-punc">:</span> <span class="json-str">"1.18.0"</span>
+  <span class="json-punc">},</span>
+  <span class="json-key">"option_firmware"</span><span class="json-punc">:</span> <span class="json-punc">[</span>
+    <span class="json-punc">{</span><span class="json-key">"component"</span><span class="json-punc">:</span> <span class="json-str">"raid-controller"</span><span class="json-punc">,</span> <span class="json-key">"model"</span><span class="json-punc">:</span> <span class="json-str">"Broadcom 9560-16i"</span><span class="json-punc">,</span> <span class="json-key">"version"</span><span class="json-punc">:</span> <span class="json-str">"5.230.02"</span><span class="json-punc">}</span>
+  <span class="json-punc">]</span>
+<span class="json-punc">}</span>
+      </div>
+
+      <div class="callout">
+        <div class="callout-label">JSON 검색을 피하라</div>
+        <p>
+          MariaDB의 <code>JSON_EXTRACT</code> 조건 검색은 가능하지만, 일상 쿼리에서는 피하시길 권합니다.
+          만약 "CPU가 EPYC인 서버를 다 찾아라" 같은 쿼리가 자주 발생한다면, 그건 컬럼화 신호입니다 —
+          JSON에서 끄집어내 정규 컬럼이나 별도 인덱스 테이블로 옮기는 게 운영적으로 안정적입니다.
+        </p>
+      </div>
+    </section>
+
+    <!-- 05 RELATIONS -->
+    <section id="relations">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2>관계와 카디널리티</h2>
+      </div>
+      <p>
+        v2의 관계 그래프입니다. guest_server가 중심이고, detail이 새로 1:0..1로 붙었으며,
+        host_nic_binding이 1:N으로 풀렸습니다.
+      </p>
+
+      <div class="rel-viz">
+        <svg viewBox="0 0 760 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="dot" viewBox="-5 -5 10 10" refX="0" refY="0" markerWidth="6" markerHeight="6">
+              <circle r="3" fill="#8b3a2e"/>
+            </marker>
+            <marker id="crow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+              <path d="M0,1 L11,6 L0,11 M0,6 L11,6" stroke="#8b3a2e" fill="none" stroke-width="1.4"/>
+            </marker>
+          </defs>
+
+          <!-- guest_server center -->
+          <g>
+            <rect x="290" y="180" width="180" height="80" rx="10" fill="#8b3a2e" stroke="#6b2a20" stroke-width="1.5"/>
+            <text x="380" y="210" text-anchor="middle" font-family="Inter Tight" font-size="14" font-weight="600" fill="#f5f1e8">guest_server</text>
+            <text x="380" y="232" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="12" fill="#e2dac7">가벼운 신원</text>
+            <text x="380" y="250" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#c9bfa6">v2 — slim</text>
+          </g>
+
+          <!-- detail (left side) -->
+          <g>
+            <rect x="40" y="200" width="180" height="64" rx="8" fill="#d4dfd8" stroke="#2d5d4f" stroke-width="1.5"/>
+            <text x="130" y="222" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">guest_server_detail</text>
+            <text x="130" y="240" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#2d5d4f">하드웨어·소프트웨어 · 1:0..1</text>
+            <text x="130" y="256" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#2d5d4f">v2 — NEW</text>
+          </g>
+
+          <!-- top row -->
+          <g>
+            <rect x="240" y="40" width="160" height="64" rx="8" fill="#ede7d8" stroke="#c9bfa6"/>
+            <text x="320" y="62" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">host_nic_binding</text>
+            <text x="320" y="80" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#6b6660">LAN 신원 · 1:N</text>
+            <text x="320" y="95" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#8b3a2e">v2 — modified</text>
+          </g>
+          <g>
+            <rect x="420" y="40" width="160" height="64" rx="8" fill="#ede7d8" stroke="#c9bfa6"/>
+            <text x="500" y="62" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">bmc_binding</text>
+            <text x="500" y="80" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#6b6660">BMC 신원 · 1:1</text>
+            <text x="500" y="95" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#8b3a2e">v2 — modified</text>
+          </g>
+          <g>
+            <rect x="600" y="40" width="140" height="64" rx="8" fill="#ede7d8" stroke="#c9bfa6"/>
+            <text x="670" y="62" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">location_assignment</text>
+            <text x="670" y="80" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#6b6660">위치 · 1:1</text>
+            <text x="670" y="95" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#8b3a2e">v2 — modified</text>
+          </g>
+
+          <!-- credential ref (top far right) -->
+          <g>
+            <rect x="600" y="160" width="140" height="60" rx="8" fill="#d4dfd8" stroke="#2d5d4f"/>
+            <text x="670" y="184" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">bmc_credential_ref</text>
+            <text x="670" y="202" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#2d5d4f">Vault 참조</text>
+          </g>
+
+          <!-- bottom row -->
+          <g>
+            <rect x="60" y="340" width="180" height="64" rx="8" fill="#ede7d8" stroke="#c9bfa6"/>
+            <text x="150" y="364" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">provisioning_progress</text>
+            <text x="150" y="382" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#6b6660">큰 단계 · 1:1</text>
+          </g>
+          <g>
+            <rect x="290" y="340" width="180" height="64" rx="8" fill="#ede7d8" stroke="#c9bfa6"/>
+            <text x="380" y="364" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">setup_step</text>
+            <text x="380" y="382" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#6b6660">세부 체크포인트 · 1:N</text>
+          </g>
+          <g>
+            <rect x="520" y="340" width="200" height="64" rx="8" fill="#ede7d8" stroke="#c9bfa6"/>
+            <text x="620" y="364" text-anchor="middle" font-family="Inter Tight" font-size="12" font-weight="600" fill="#1a1815">provisioning_transition_log</text>
+            <text x="620" y="382" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="#6b6660">전이 이력 · 1:N</text>
+          </g>
+
+          <!-- guest_server -> detail (dashed, 1:0..1) -->
+          <path d="M 290 220 L 220 230" stroke="#2d5d4f" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#dot)"/>
+
+          <!-- 1:1 to top -->
+          <path d="M 360 180 Q 340 130 320 104" stroke="#8b3a2e" stroke-width="1.4" fill="none" marker-end="url(#crow)"/>
+          <path d="M 410 180 Q 460 130 500 104" stroke="#8b3a2e" stroke-width="1.4" fill="none" marker-end="url(#dot)"/>
+          <path d="M 440 180 Q 540 130 660 104" stroke="#8b3a2e" stroke-width="1.4" fill="none" marker-end="url(#dot)"/>
+
+          <!-- bmc_binding -> credential (dashed nullable) -->
+          <path d="M 580 90 Q 640 130 670 158" stroke="#2d5d4f" stroke-width="1.4" fill="none" stroke-dasharray="4 3" marker-end="url(#dot)"/>
+
+          <!-- 1:N to bottom -->
+          <path d="M 330 260 Q 280 310 180 340" stroke="#8b3a2e" stroke-width="1.4" fill="none" marker-end="url(#dot)"/>
+          <path d="M 380 260 L 380 340" stroke="#8b3a2e" stroke-width="1.4" fill="none" marker-end="url(#crow)"/>
+          <path d="M 430 260 Q 480 310 600 340" stroke="#8b3a2e" stroke-width="1.4" fill="none" marker-end="url(#crow)"/>
+
+          <!-- legend -->
+          <g transform="translate(30, 422)">
+            <line x1="0" y1="0" x2="30" y2="0" stroke="#8b3a2e" stroke-width="1.4"/>
+            <circle cx="30" cy="0" r="3" fill="#8b3a2e"/>
+            <text x="38" y="4" font-family="JetBrains Mono" font-size="10" fill="#6b6660">1:1</text>
+
+            <g transform="translate(90, 0)">
+              <line x1="0" y1="0" x2="30" y2="0" stroke="#8b3a2e" stroke-width="1.4"/>
+              <path d="M 24,-3 L 30,0 L 24,3 M 24,0 L 30,0" stroke="#8b3a2e" fill="none" stroke-width="1.4"/>
+              <text x="38" y="4" font-family="JetBrains Mono" font-size="10" fill="#6b6660">1:N</text>
+            </g>
+
+            <g transform="translate(150, 0)">
+              <line x1="0" y1="0" x2="30" y2="0" stroke="#2d5d4f" stroke-width="1.5" stroke-dasharray="5 3"/>
+              <text x="38" y="4" font-family="JetBrains Mono" font-size="10" fill="#6b6660">선택적 (NULL 허용)</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <h4>왜 detail은 1:0..1인가</h4>
+      <p>
+        guest_server가 만들어졌어도 detail이 아직 없을 수 있습니다. 이는 두 가지 시나리오에서 자연스럽게
+        발생합니다.
+      </p>
+      <p>
+        <strong>① 운영자가 UI에서 먼저 등록</strong> — 입고 예정인 서버를 미리 시스템에 등록하는 경우.
+        physical 박스가 아직 연결되지 않았으므로 system_uuid는 어떻게 채우냐가 문제가 됩니다. 이 경우엔
+        임시 placeholder UUID를 발급하거나, system_uuid를 nullable로 풀어야 합니다 — 이 부분은 미확정
+        사항으로 분류하겠습니다 (07 섹션).
+      </p>
+      <p>
+        <strong>② iPXE 등록만 끝남, 진단 리눅스 미진입</strong> — 가장 흔한 케이스. SMBIOS UUID는 확보됐지만
+        vendor·board_serial을 아직 모름. detail 행 자체가 없습니다.
+      </p>
+    </section>
+
+    <!-- 06 Q&A -->
+    <section id="decisions">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2>설계 결정 Q&amp;A</h2>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-item">
+          <div class="qa-q" onclick="toggleQA(this)">왜 guest_server에는 version을 안 두고 detail에는 두는가?<span class="qa-marker">+</span></div>
+          <div class="qa-a">
+            <p>
+              <code>version</code> 컬럼은 비용입니다. 모든 UPDATE에 WHERE 조건이 추가되고, 충돌 시
+              <code>OptimisticLockingException</code> 핸들링이 필요합니다. 그래서 "갱신이 잦고 동시에
+              일어날 가능성이 있는" 테이블에만 둡니다. <code>guest_server</code>는 name·memo 정도가 가끔
+              바뀌고 동시 갱신이 거의 없습니다. <code>guest_server_detail</code>은 진단 리눅스가 부분 갱신,
+              운영자 수동 보강, 검증 작업의 덮어쓰기 등 여러 주체가 갱신하므로 둡니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <div class="qa-q" onclick="toggleQA(this)">hardware_spec과 software_spec을 별도 컬럼이 아니라 한 JSON에 합치면?<span class="qa-marker">+</span></div>
+          <div class="qa-a">
+            <p>
+              합칠 수도 있지만 두 정보의 갱신 주기가 다릅니다. hardware_spec은 진단 리눅스 시점에 한 번
+              채워지고 거의 변하지 않습니다 (디스크 교체 정도). software_spec은 펌웨어 업데이트 단계마다
+              갱신됩니다. 분리해두면 어플리케이션 레이어에서 부분 갱신 시 의도하지 않은 덮어쓰기를 피할
+              수 있습니다. JSON 컬럼 전체를 매번 다시 쓰는 게 아니라 둘 중 하나만 갱신 가능합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <div class="qa-q" onclick="toggleQA(this)">vendor가 guest_server_detail에 있는데 Redfish 호출 시 매번 JOIN해야 하나?<span class="qa-marker">+</span></div>
+          <div class="qa-a">
+            <p>
+              네, 또는 어플리케이션 레이어에서 vendor를 Redis에 캐싱하는 두 가지 선택지가 있습니다.
+              vendor는 거의 불변이고 잦게 조회되므로 Redis 캐시가 유리합니다 — 키는
+              <code>vendor:guest:{guestServerId}</code>, TTL은 길게 (예: 1시간) 잡고 detail 갱신 시 invalidate.
+              JOIN 비용을 매번 내는 것보다 깔끔합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <div class="qa-q" onclick="toggleQA(this)">host_nic_binding 1:N에서 "primary NIC 하나"는 어떻게 보장?<span class="qa-marker">+</span></div>
+          <div class="qa-a">
+            <p>
+              MariaDB는 PostgreSQL의 partial unique index를 지원하지 않아 DB 레벨로 깔끔하게 강제 못 합니다.
+              세 가지 방법이 있는데, 어플리케이션 레이어 보장을 권합니다.
+            </p>
+            <p>
+              <strong>① 어플리케이션 (권장)</strong> — <code>NicAssignmentService.markAsPrimary(serverId, nicId)</code>가
+              트랜잭션 안에서 기존 primary를 false로, 새 primary를 true로 함께 갱신. sealed interface
+              <code>NicRole</code>로 컴파일 타임 안전성 추가.
+            </p>
+            <p>
+              <strong>② 트리거</strong> — BEFORE INSERT/UPDATE에서 같은 guest_server_id의 다른 primary를
+              false로 갱신. 비즈니스 로직이 DB에 흩어져 추적이 어려워집니다.
+            </p>
+            <p>
+              <strong>③ 데이터 모델 변경</strong> — host_nic_binding 1:1을 유지하고, 추가 NIC은 별도 테이블로
+              두기. 본딩 표현이 복잡해집니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <div class="qa-q" onclick="toggleQA(this)">kvm 컬럼을 왜 JSON이 아닌 정수로?<span class="qa-marker">+</span></div>
+          <div class="qa-a">
+            <p>
+              "한 자리 양수"라는 명시적 요구를 받았기 때문에 TINYINT UNSIGNED + CHECK 제약으로 범위를
+              강제합니다. 만약 미래에 "KVM 포트가 두 개 이상이면" 같은 요구가 생기면 JSON이나 별도
+              테이블로 옮기는 게 맞습니다. 지금은 단일 정수가 가장 정직한 표현입니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <div class="qa-q" onclick="toggleQA(this)">discovery_stage가 detail로 옮겨가면, 운영자가 등록만 한 서버의 stage는 어떻게 표현?<span class="qa-marker">+</span></div>
+          <div class="qa-a">
+            <p>
+              detail 행 자체가 없으면 stage는 "아직 시작 안 함"으로 해석됩니다. 어플리케이션 레이어에서
+              <code>Optional&lt;GuestServerDetail&gt;</code>로 받고, 없으면 <code>DiscoveryStage.NOT_STARTED</code>로
+              매핑합니다. sealed interface로 표현하면 모든 stage가 컴파일 타임에 망라됩니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 OPEN POINTS -->
+    <section id="openpoints">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h2>미확정 사항</h2>
+      </div>
+      <p>
+        v2를 정리하면서 새로 떠오른 결정 포인트들입니다.
+      </p>
+
+      <div class="callout">
+        <div class="callout-label">미결 ①</div>
+        <p>
+          <strong>system_uuid를 NOT NULL로 유지할지</strong> — 운영자가 입고 전에 UI로 서버를 등록하는
+          시나리오가 있다면 system_uuid가 NULL일 수 있습니다. 만약 그런 시나리오가 없다면 (모든
+          guest_server는 iPXE 등록을 통해서만 만들어진다면) 현재 NOT NULL 유지가 맞습니다. 알려주시면
+          정합니다.
+        </p>
+      </div>
+
+      <div class="callout">
+        <div class="callout-label">미결 ②</div>
+        <p>
+          <strong>kvm 컬럼 범위</strong> — "한 자리 양수"를 1~9로 해석했는데, 0을 포함해야 하면 0~9로
+          바꿔야 합니다 (TINYINT UNSIGNED + CHECK 제약 수정).
+        </p>
+      </div>
+
+      <div class="callout">
+        <div class="callout-label">미결 ③</div>
+        <p>
+          <strong>hardware_spec / software_spec의 JSON 스키마 확정</strong> — 04 섹션의 예시는 권장안입니다.
+          실제 진단 리눅스가 어떤 형태로 수집해서 보고할지에 따라 키 구조가 달라질 수 있습니다. 어플리케이션
+          sealed record 정의 시점에 함께 확정하는 게 자연스럽습니다.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <span>Provisioning Server · Internal Design Report</span>
+      <span>v0.2 — Schema Revision</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+  const tooltip = document.getElementById('tooltip');
+  document.querySelectorAll('.term').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      tooltip.textContent = e.target.dataset.tip;
+      tooltip.classList.add('show');
+    });
+    el.addEventListener('mousemove', e => {
+      const x = e.clientX + 14;
+      const y = e.clientY + 14;
+      const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
+      const finalX = (x + tw > window.innerWidth - 12) ? e.clientX - tw - 14 : x;
+      const finalY = (y + th > window.innerHeight - 12) ? e.clientY - th - 14 : y;
+      tooltip.style.left = finalX + 'px';
+      tooltip.style.top = finalY + 'px';
+    });
+    el.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('show');
+    });
+  });
+
+  function toggleSchema(head) {
+    head.parentElement.classList.toggle('open');
+  }
+  // Open highlighted (v2 changed) schemas by default
+  document.querySelectorAll('.schema-block.highlight').forEach(b => b.classList.add('open'));
+
+  function toggleQA(q) {
+    q.parentElement.classList.toggle('open');
+  }
+
+  const sections = document.querySelectorAll('section[id]');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        tocLinks.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+
+  tocLinks.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  document.querySelectorAll('.table-card').forEach(card => {
+    card.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(card.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('open');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

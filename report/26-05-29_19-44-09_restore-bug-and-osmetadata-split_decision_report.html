@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>의사결정 보고서 — Restore FS-DB 무결성 버그 + OSMetadataService 분리 토론</title>
+<style>
+    :root {
+        --bg: #0f1115; --panel: #161a22; --panel-2: #1c2230; --panel-3: #202736;
+        --border: #2a3142; --border-soft: #232938;
+        --text: #e6e9ef; --muted: #8a93a6;
+        --accent: #7aa2f7; --accent-2: #bb9af7;
+        --ok: #9ece6a; --warn: #e0af68; --bad: #f7768e; --info: #7dcfff;
+        --partA: #f7768e; --partB: #7aa2f7;
+        --decide-bg: #2a2415; --decide-border: #6a5a2a;
+        --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+        font-family: -apple-system, "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        font-size: 14.5px; line-height: 1.66; }
+    code, .mono { font-family: var(--mono); font-size: 12.8px; }
+
+    header.banner { padding: 28px 36px 20px; border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, #1a1f2c 0%, #0f1115 100%); }
+    header.banner h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+    header.banner .sub { color: var(--muted); margin-top: 8px; font-size: 13px; }
+
+    main { max-width: 1180px; margin: 0 auto; padding: 22px 36px 80px; }
+
+    .toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .toolbar input { flex: 1; min-width: 200px; padding: 8px 12px; font-size: 13px;
+        border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); }
+    .toolbar button { border: 1px solid var(--border); background: var(--panel); color: var(--text);
+        padding: 8px 14px; font-size: 12.5px; border-radius: 6px; cursor: pointer; }
+    .toolbar button:hover { background: var(--panel-2); }
+
+    .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+        padding: 14px 18px; margin-bottom: 26px; }
+    .toc h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 32px; }
+    .toc li { padding: 2px 0; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .toc a.partA { color: var(--partA); }
+    .toc a.partB { color: var(--partB); }
+    .toc a.decide { color: var(--warn); font-weight: 600; }
+
+    .part-divider { display: flex; align-items: center; gap: 14px; margin: 40px 0 20px; }
+    .part-divider .tag { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; padding: 4px 12px; border-radius: 6px; }
+    .part-divider.A .tag { background: rgba(247,118,142,0.18); color: var(--partA); border: 1px solid rgba(247,118,142,0.4); }
+    .part-divider.B .tag { background: rgba(122,162,247,0.18); color: var(--partB); border: 1px solid rgba(122,162,247,0.4); }
+    .part-divider h2 { margin: 0; font-size: 20px; font-weight: 700; }
+    .part-divider .line { flex: 1; height: 1px; background: var(--border); }
+
+    section { margin-bottom: 26px; scroll-margin-top: 16px; }
+    h3 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-soft); }
+    h4 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; color: var(--info); }
+    p { margin: 8px 0; }
+
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 12px 0; }
+    .card-bad { border-left: 3px solid var(--bad); }
+    .card-ok { border-left: 3px solid var(--ok); }
+    .card-info { border-left: 3px solid var(--info); }
+    .card-warn { border-left: 3px solid var(--warn); }
+
+    blockquote { background: #1a2030; border-left: 3px solid #4a5d8a; margin: 10px 0;
+        padding: 8px 14px; border-radius: 0 6px 6px 0; color: #c8d0e2; font-size: 13.5px; }
+
+    pre { background: #0a0d13; border: 1px solid var(--border); border-radius: 8px;
+        padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 12.3px; line-height: 1.55; margin: 10px 0; }
+    .k-kw { color: #bb9af7; } .k-ty { color: #7dcfff; } .k-st { color: #9ece6a; }
+    .k-cm { color: #565f89; font-style: italic; } .k-nm { color: #ff9e64; } .k-an { color: #e0af68; }
+
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 13px; }
+    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+    th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:hover td { background: var(--panel-2); }
+
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .pill-split { background: rgba(158,206,106,0.18); color: var(--ok); }
+    .pill-keep { background: rgba(138,147,166,0.18); color: var(--muted); }
+    .pill-later { background: rgba(224,175,104,0.18); color: var(--warn); }
+    .pill-bad { background: rgba(247,118,142,0.18); color: var(--bad); }
+    .pill-ok { background: rgba(158,206,106,0.18); color: var(--ok); }
+    .pill-info { background: rgba(125,207,255,0.18); color: var(--info); }
+    .pill-done { background: rgba(158,206,106,0.28); color: var(--ok); }
+
+    /* decision block */
+    .decision { background: var(--decide-bg); border: 1px solid var(--decide-border);
+        border-left: 4px solid var(--warn); border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 14px 0; position: relative; }
+    .decision .dlabel { position: absolute; top: -10px; left: 14px; background: var(--warn); color: #1a1209;
+        font-size: 10.5px; font-weight: 800; padding: 1px 10px; border-radius: 4px; letter-spacing: 0.05em; }
+    .decision h4 { margin: 6px 0 8px; color: var(--warn); font-size: 14.5px; }
+    .decision .opts { margin: 8px 0 0; }
+    .decision .opt { display: flex; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--border-soft); }
+    .decision .opt:first-child { border-top: none; }
+    .decision .opt .mark { font-weight: 700; color: var(--accent); min-width: 64px; }
+    .decision .rec { color: var(--ok); font-weight: 700; }
+    .decision.resolved { border-left-color: var(--ok); background: #1a241a; border-color: #3d5a3d; }
+    .decision.resolved .dlabel { background: var(--ok); }
+    .decision.resolved h4 { color: var(--ok); }
+
+    .flow { background: #0a0d13; border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px;
+        margin: 12px 0; font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto; color: #c8d0e2; }
+
+    ul, ol { padding-left: 22px; }
+    .hidden { display: none !important; }
+    .fn { color: var(--muted); font-size: 12px; }
+    .meta-row { display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+    .meta-row b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header class="banner">
+    <h1>의사결정 보고서 — Restore FS-DB 무결성 버그 &amp; OSMetadataService 분리 토론</h1>
+    <div class="sub">
+        두 multi-agent Workflow 의 결론을 의사결정 중심으로 정리. Part A = 심각 버그 근본 해결, Part B = 책임 분리 토론.
+        각 Part 끝에 <span style="color:var(--warn)">⬢ 결정 사항</span> 블록 — 무엇을 선택해야 하는지 + 권장.
+    </div>
+    <div class="meta-row">
+        <span>작성 <b>2026-05-29 KST</b></span>
+        <span>Part A <b>16 에이전트 / 168만 토큰 / 적대적 검증</b></span>
+        <span>Part B <b>10 에이전트 / 80만 토큰 / 5관점+4후보 토론</b></span>
+        <span>코드 인용 <b>file:line 확정</b></span>
+    </div>
+</header>
+
+<main>
+
+<div class="toolbar">
+    <input type="text" id="filter" placeholder="섹션 / 단어 검색 …">
+    <button id="expand">전부 펴기</button>
+    <button id="collapse">전부 접기</button>
+</div>
+
+<div class="toc">
+    <h3>목차</h3>
+    <ol>
+        <li><a href="#summary">0. 한눈에 (TL;DR)</a></li>
+        <li><a href="#a-def" class="partA">A1. 두 버그 정의</a></li>
+        <li><a href="#a-bug1" class="partA">A2. 버그1 근본원인 (FS-DB)</a></li>
+        <li><a href="#a-bug2" class="partA">A3. 버그2 근본원인 (raw 에러)</a></li>
+        <li><a href="#a-cross" class="partA">A4. 횡단 영향 (4 도메인)</a></li>
+        <li><a href="#a-design" class="partA">A5. 채택 설계 + 후보 비교</a></li>
+        <li><a href="#a-decide" class="decide">A6. ⬢ 결정 사항 (Part A)</a></li>
+        <li><a href="#b-now" class="partB">B1. 현재 책임 5영역</a></li>
+        <li><a href="#b-debate" class="partB">B2. 4 후보 토론 결과</a></li>
+        <li><a href="#b-r16" class="partB">B3. R1-6 scope + 최종 형태</a></li>
+        <li><a href="#b-decide" class="decide">B4. ⬢ 결정 사항 (Part B)</a></li>
+        <li><a href="#final" class="decide">C. 전체 결정 체크리스트 + 진행 순서</a></li>
+    </ol>
+</div>
+
+<!-- ============ 0. SUMMARY ============ -->
+<section id="summary">
+    <h3>0. 한눈에 (TL;DR)</h3>
+    <div class="card card-info">
+        <table>
+            <thead><tr><th style="width:14%">구분</th><th style="width:43%">Part A — Restore 버그</th><th style="width:43%">Part B — 분리 토론</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><b>성격</b></td>
+                    <td>사용자 보고 <span class="pill pill-bad">심각 버그</span> — FS-DB 무결성 깨짐 + raw 에러</td>
+                    <td>설계 질문 <span class="pill pill-info">리팩토링</span> — "더 분리할 책임?"</td>
+                </tr>
+                <tr>
+                    <td><b>핵심 결론</b></td>
+                    <td><code>TrashLifecycleService.restoreFromTrash</code> 가 비가역 FS 작업을 DB 보다 먼저·보상 없이 실행 → partial-restore</td>
+                    <td><b>C1 (nudge 영속화) 만 분리</b> = R1-6 슬라이스. C2/C3/C4 는 KEEP</td>
+                </tr>
+                <tr>
+                    <td><b>채택안</b></td>
+                    <td>멱등 사전게이트 + FS-first 역보상 + 404→409 + async-submit 마커. <span class="pill pill-done">설계 동의 받음</span></td>
+                    <td>4 메서드 → 기존 <code>OSMetadataNudgeService</code> 흡수 (권장)</td>
+                </tr>
+                <tr>
+                    <td><b>횡단</b></td>
+                    <td>ISO/BIOS/BMC/Subprogram <b>4 도메인 공통</b> — 1곳 수정으로 동시 해결</td>
+                    <td>BoardModel 이 동일 구조 → R1-6 가 R2 템플릿</td>
+                </tr>
+                <tr>
+                    <td><b>남은 결정</b></td>
+                    <td>3건 (404→409 / Subprogram cascade / self-heal 안내)</td>
+                    <td>3건 (흡수처 / Board 동시 / Bios 콜백)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ==================================================== -->
+<!-- ===================== PART A ======================= -->
+<!-- ==================================================== -->
+<div class="part-divider A">
+    <span class="tag">PART A</span>
+    <h2>Restore FS-DB 무결성 + raw 에러 (심각 버그)</h2>
+    <span class="line"></span>
+</div>
+
+<section id="a-def">
+    <h3>A1. 두 버그 정의 — 사용자 재현 시나리오</h3>
+    <div class="flow">1. OS 버전 soft-delete  →  자식 ISO 도 cascade soft-delete
+     ISO: is_deleted=true, trashed_path=.soft-deleted/OS_ISO/&lt;id&gt;/dvd_….iso, 파일은 trash 로 이동
+2. "삭제된 항목 보기"  →  OS 버전만 복구 (cascade=false)
+3. ISO 단독 복구 클릭  →  "페이지는 넘어가나 실제 복원 안 됨, 삭제항목 체크 사라짐"
+4. 삭제항목 다시 체크 → ISO 재복구  →  ★ 브라우저에 raw 에러 + "휴지통에서 복원된 것으로 보임"
+5. 사용자 진단: FS 의 .soft-deleted/OS_ISO/&lt;id&gt;/ 는 비어있고 ISO 는 원위치 복구됨.
+   그러나 DB 는 is_deleted=true, trashed_path=유효경로 (stale). 렌더링은 DB 기준 → 여전히 삭제로 보임.</div>
+    <table>
+        <thead><tr><th style="width:18%">버그</th><th>정의</th></tr></thead>
+        <tbody>
+            <tr><td><span class="pill pill-bad">버그 1</span> FS-DB 무결성</td><td>partial-restore 로 <b>FS 는 복구됐으나 DB 는 stale</b> → "dangling stale row" 양산</td></tr>
+            <tr><td><span class="pill pill-bad">버그 2</span> raw 에러</td><td>재시도 시 <code>RestoreTrashLostException</code> 메시지가 <b>가공 없이 화면 노출</b>. R1-4-1 hotfix 가 못 막음</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="a-bug1">
+    <h3>A2. 버그1 근본원인 — FS↔DB 작업 순서 (적대적 검증 완료)</h3>
+    <p><code>TrashLifecycleService.restoreFromTrash</code> 의 실행 순서 (try/catch <b>0건</b> 확인):</p>
+    <div class="flow">L137  trashService.moveBack(trashedPath, originalPath)   <span class="k-cm">← FS, 비가역</span>
+L147  computeSignature(content)
+L148  markerService.write(originalPath, SIDECAR, …)        <span class="k-cm">← FS, 가장 유력한 예외원</span>
+L149  entity.reissueMarker(hash, sig)                       <span class="k-cm">← DB</span>
+L151  entity.restore()                                      <span class="k-cm">← DB</span>
+L152  entity.clearTrashed()                                 <span class="k-cm">← DB</span>
+
+전체가 caller @Transactional (IsoLifecycleService:144) 안.</div>
+    <div class="card card-bad">
+        <b>고정 비대칭의 메커니즘</b><br>
+        moveBack(L137) 성공 후 어느 단계든 <code>RuntimeException</code> (가장 유력 = <code>MarkerWriteFailedException</code>, <code>ProvisionMarkerService:111-112</code>) →
+        <b>FS 는 이미 원위치 복구 (트랜잭션 관할 밖, 롤백 불가)</b> + <b>DB 는 @Transactional 롤백</b> 으로 <code>is_deleted=true</code> + <code>trashed_path=stale 유효경로</code> 그대로.
+        FS-비가역-우선 + DB-나중 순서라 partial-failure 시 <b>항상 FS복구·DB-stale 방향</b>으로 고정.
+    </div>
+    <div class="card card-info">
+        <b>결정적 비대칭 (두 버그 공통 핵심)</b> — <code>trashed_path==null</code> 분기 (L114-120) 는 이미 "FS 존재 → DB만 정합" <b>self-heal</b> 을 보유.
+        그러나 <code>trashed_path!=null</code> 분기 (L123-152) 에는 그 사전검사가 <b>없음</b>. 이 비대칭이 버그1·2 의 공통 진원지.
+    </div>
+    <blockquote>
+        <b>정정 (적대적 검증)</b> — 이 stale row 는 <code>GhostEvaluator.isGhost</code> 의 4조건(<code>trashed_path=null</code> 포함)을 <b>불만족</b> →
+        기존 ghost 처리(MK3-1)가 못 잡는 "빈 trash 를 가리키는 dangling stale row". (스카우트 가설 "manifestHash null → NPE" 는 코드상 반박됨 — null 도 정상 HMAC.)
+    </blockquote>
+</section>
+
+<section id="a-bug2">
+    <h3>A3. 버그2 근본원인 — raw 에러 전파 (중대 정정 포함)</h3>
+    <p>두 직교 원인의 합:</p>
+    <ol>
+        <li><b>(a) self-heal 부재</b> — <code>restoreFromTrash:126-128</code> 이 재시도 시 trash 빈 상태(<code>Files.exists(trashedPath)=false</code>)에서 <code>originalPath</code> 존재 여부를 선검사하지 않고 곧장 <code>RestoreTrashLostException</code>(404) throw.</li>
+        <li><b>(b) message 무가공</b> — <code>error.html:24-28</code> 의 <code>th:text="${message}"</code> 가 도메인 예외 message 를 그대로 출력.</li>
+    </ol>
+    <div class="card card-warn">
+        <b>중대 정정</b> — 사용자가 본 것은 <b>"raw JSON 페이지"가 아니라</b> native nav 로 렌더된 <code>error.html</code>(스타일된 404 페이지) <b>본문에 노출된 도메인 메시지</b>다.<br>
+        OS list 의 ISO restore form 에 <code>data-async-submit</code> 마커 <b>부재</b>(trash list 엔 존재) → <code>form.requestSubmit()</code> native POST(Accept:text/html) → <code>WebExceptionHandler.handleNotFound</code> → <code>error.html</code> 렌더.
+    </div>
+    <h4>R1-4-1 hotfix v3 가 못 막은 이유</h4>
+    <p>v3 변경은 <code>@Order</code> 통일 + 주석뿐 (content-type routing 만 손댐). (a)self-heal 부재 / (b)message 무가공 / (c)OS list restore form 의 async-submit 비대칭 — <b>셋 다 안 건드림</b>. 또 <code>RestoreTrashLost</code> 만 404 이고 형제 3개(<code>RestorePathOccupied</code>/<code>RestoreTargetUnreachable</code>/<code>GhostRowRestoreNotAllowed</code>)는 모두 409 — 계층 내부 불일치.</p>
+</section>
+
+<section id="a-cross">
+    <h3>A4. 횡단 영향 — 4 도메인 공통 + 별도 결함 1건</h3>
+    <div class="card card-bad">
+        <b>두 버그는 4 도메인 공통</b> — 진원지 <code>TrashLifecycleService.restoreFromTrash/softDeleteToTrash</code> 는 ISO(<code>IsoLifecycleService:163</code>) / BIOS(<code>BiosService:444</code>) / BMC(<code>BmcService:504</code>) / Subprogram(<code>SubprogramService:565</code>) 이 모두 위임 호출하는 공통 인프라. 네 자식 restore 전부 <code>@Transactional</code> → ISO 에서 보고된 버그가 <b>코드 동일성으로 4 도메인 전부 존재</b>.<br>
+        <b>→ TrashLifecycleService 1곳 + 예외 1줄 + restore form 마커 수정으로 4 도메인 동시 해결.</b>
+    </div>
+    <div class="card card-warn">
+        <b>별도 발견 (직교 결함, partial-failure 계열 아님)</b> — <code>BoardModelService</code> 의 cascade 가 <b>Subprogram 을 전혀 안 다룸</b>
+        (softDelete/restore/purge 가 BIOS/BMC 만 위임). board-scoped Subprogram 은 부모 Board soft-delete 시 active 잔류 → <b>부모 deleted / 자식 active 불일치 + orphan Subprogram</b>.
+        → 본 슬라이스 <b>비목표로 분리</b> 권장 (아래 결정 A-3).
+    </div>
+</section>
+
+<section id="a-design">
+    <h3>A5. 채택 설계 + 후보 비교 (judge panel)</h3>
+    <h4>채택안 (judge 권장 후보3 hybrid — afterCommit 명시 배제)</h4>
+    <table>
+        <thead><tr><th style="width:6%">#</th><th style="width:30%">요소</th><th>내용</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td><b>멱등 사전게이트</b> (최우선 근본 수정)</td><td>restoreFromTrash 진입 직후 FS 2비트(<code>exists(original)</code>,<code>exists(trash)</code>)로 4상태 분류. <b>(원O·trashX) = partial-restore 잔여 → DB만 정합 후 return</b> (사용자 5단계 self-heal, 예외 미발생 = 버그2 소멸) / (원X·trashO)=정상 / (원X·trashX)=진짜분실 409 / (원O·trashO)=점유 409</td></tr>
+            <tr><td>2</td><td><b>FS-first + 즉시 역보상</b></td><td>moveBack/write 를 try 로 감싸 실패 시 역 mv 보상(<code>TrashService.moveBackReverse</code>) → 롤백과 FS 보상 <b>동방향(둘 다 trash)</b> = ghost 0. <span class="pill pill-info">afterCommit 배제</span> 근거: 코드베이스 선례 0건 + cascade N자식 콜백 복잡도 → CLAUDE.md 단순성</td></tr>
+            <tr><td>3</td><td>softDelete 대칭 보강</td><td>moveToTrash↔markTrashed 사이 역보상 (narrow window 방어)</td></tr>
+            <tr><td>4</td><td><b>버그2 봉쇄</b></td><td><code>RestoreTrashLost</code> 404→409 (형제 일관성, advice polymorphic 흡수 = 신규 핸들러 0) + restore form 에 <code>data-async-submit</code> 마커 (공통 fragment)</td></tr>
+        </tbody>
+    </table>
+    <h4>후보 4종 judge 순위</h4>
+    <table>
+        <thead><tr><th>후보</th><th>정확성</th><th>단순성</th><th>횡단</th><th>CLAUDE.md</th><th>종합</th></tr></thead>
+        <tbody>
+            <tr><td><b>후보3</b> 멱등+FS-first 역보상 <span class="pill pill-ok">채택</span></td><td>8.5</td><td>9</td><td>9</td><td>9</td><td><b>8.8</b></td></tr>
+            <tr><td>후보1 DB-first + afterCommit</td><td>8</td><td>7.5</td><td>9</td><td>8.5</td><td>8.1</td></tr>
+            <tr><td>후보2 sealed enum state + afterCommit</td><td>8</td><td>6.5</td><td>9</td><td>7.5</td><td>7.7</td></tr>
+            <tr><td>후보4 reconciliation 자동흡수</td><td>8.5</td><td>5.5</td><td>8.5</td><td>7</td><td>7.3</td></tr>
+        </tbody>
+    </table>
+    <p class="fn">4 후보 모두 "멱등 self-heal 게이트"를 공통 제안 — 이것이 사용자 시나리오를 실제 근절하는 진짜 근본. 차이는 잔여 partial-failure 처리(afterCommit vs 동기 역보상)와 단순성.</p>
+</section>
+
+<!-- ===== A 결정 ===== -->
+<section id="a-decide">
+    <h3>A6. ⬢ 결정 사항 — Part A</h3>
+
+    <div class="decision resolved">
+        <span class="dlabel">결정 A-0 · 완료</span>
+        <h4>설계 방향 — FS-first + 역보상 채택, CP1 진입 ✓</h4>
+        <p>이미 동의받음. judge 권장 hybrid (멱등 사전게이트 + FS-first 역보상 + 404→409 + async-submit 마커) 채택. afterCommit 2-phase 무결성은 별도 후속 슬라이스로 분리.</p>
+    </div>
+
+    <div class="decision">
+        <span class="dlabel">결정 A-1</span>
+        <h4><code>RestoreTrashLostException</code> 의 status 를 404 → 409 로 변경?</h4>
+        <p>현재 <code>RestoreTrashLost</code> 만 <code>NotFoundException</code>(404), 형제 3개는 <code>ConflictException</code>(409). 계층 일관성 회복 + <code>GhostRow</code> 의미 합치. advice 가 polymorphic 흡수라 신규 핸들러 0.</p>
+        <div class="opts">
+            <div class="opt"><span class="mark rec">권장 ✓</span><span><b>409 로 변경</b> — 형제 일관성 회복. 단 기존 테스트의 status assert 동반 갱신 필요(<code>OSMetadataControllerRestoreFlowTest</code> 404→409)</span></div>
+            <div class="opt"><span class="mark">대안</span><span>404 유지 — 외부 API 계약 의존이 있을 경우만</span></div>
+        </div>
+    </div>
+
+    <div class="decision">
+        <span class="dlabel">결정 A-2</span>
+        <h4>멱등 (원O·trashX) self-heal 시 사용자 안내?</h4>
+        <p>FS 는 이미 복구됐고 DB만 정합하는 경우, 사용자에게 어떻게 보일지.</p>
+        <div class="opts">
+            <div class="opt"><span class="mark rec">권장 ✓</span><span><b>조용히 DB 정합 후 성공(2xx)</b> — 매끄러운 흐름. 사용자는 "복구됨"만 인지</span></div>
+            <div class="opt"><span class="mark">대안</span><span>"이미 복구되어 있어 동기화했습니다" 토스트 노출 — 인지 강화</span></div>
+        </div>
+    </div>
+
+    <div class="decision">
+        <span class="dlabel">결정 A-3</span>
+        <h4><code>BoardModel→Subprogram</code> cascade 누락 (별도 결함) 을 본 슬라이스에 포함?</h4>
+        <p>partial-failure 계열이 아닌 cascade 범위 누락. 부모 Board 삭제 시 Subprogram orphan.</p>
+        <div class="opts">
+            <div class="opt"><span class="mark rec">권장 ✓</span><span><b>별도 cascade-asymmetry 슬라이스로 분리</b> + Notion 본문에 잔존 책임 기재. 본 버그(restore FS-DB)와 결이 다름</span></div>
+            <div class="opt"><span class="mark">대안</span><span>본 슬라이스에 포함 — scope 비대 위험</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================================================== -->
+<!-- ===================== PART B ======================= -->
+<!-- ==================================================== -->
+<div class="part-divider B">
+    <span class="tag">PART B</span>
+    <h2>OSMetadataService 추가 책임 분리 토론</h2>
+    <span class="line"></span>
+</div>
+
+<section id="b-now">
+    <h3>B1. 현재 책임 5영역 (381줄)</h3>
+    <table>
+        <thead><tr><th style="width:8%">영역</th><th style="width:42%">메서드</th><th>전용 의존</th></tr></thead>
+        <tbody>
+            <tr><td>조회</td><td>findById / findISO / findAllGrouped</td><td>—</td></tr>
+            <tr><td>명령</td><td>create (nudge 발화 포함) / update</td><td>—</td></tr>
+            <tr><td>OS nudge</td><td>completePendingOSMetadataFromNudge / purgeOSMetadataForNudge / buildOSMetadataNudgePayload / persistNewOSMetadata</td><td><code>nudgeRegistry</code> (전용)</td></tr>
+            <tr><td>ISO 편집</td><td>updateISO (D-1 옵션C 잔류)</td><td><code>pathPolicyService</code> (전용)</td></tr>
+            <tr><td>응답조립</td><td>buildEnvResponses / buildGroupResponses / assembleIsoResponses + 헬퍼</td><td><code>envRepository</code>/<code>grpRepository</code>/<code>backgroundJobService</code> (전용)</td></tr>
+        </tbody>
+    </table>
+    <div class="card card-info">
+        <b>확정된 비대칭</b> — <code>OSMetadataNudgeService</code> 가 이미 존재(proceed/replace/cancel)하지만 영속화 로직은 <code>OSMetadataService</code> 잔류 →
+        <code>OSMetadataNudgeService → osMetadataService.completePendingOSMetadataFromNudge</code> 역호출. <b>ISO 의 R1-4-2 직전 비대칭과 정확히 동형</b> (ISO 는 IsoRegistrationService 로 이동해 해소).
+    </div>
+</section>
+
+<section id="b-debate">
+    <h3>B2. 4 후보 토론 결과 — 합의: C1 만 분리</h3>
+    <table>
+        <thead><tr><th style="width:8%">후보</th><th style="width:14%">결론</th><th>사유</th></tr></thead>
+        <tbody>
+            <tr>
+                <td><b>C1</b> nudge 영속화</td>
+                <td><span class="pill pill-split">SPLIT</span></td>
+                <td><code>nudgeRegistry</code> 의존 전용 + caller 2건뿐 = 깨끗한 절단면. ISO R1-4-2 동형 선례. <b>= R1-6 슬라이스</b></td>
+            </tr>
+            <tr>
+                <td><b>C2</b> Query/CQRS</td>
+                <td><span class="pill pill-keep">KEEP</span></td>
+                <td>codebase QueryService 0건 + Board twin 도 query+command 동거 표준 + <code>assembleIsoResponses</code> 의 BackgroundJob 의존 따라가 순수 read 불가 → "도메인 가로질러 의미 잃음" 저촉</td>
+            </tr>
+            <tr>
+                <td><b>C3</b> create nudge 분기</td>
+                <td><span class="pill pill-keep">KEEP</span><span class="pill pill-later" style="margin-left:4px">C1 동반</span></td>
+                <td>LifecycleStage 3분기는 등록 invariant — 분해 안 함. buildPayload/persistNew 만 C1 과 함께 이동</td>
+            </tr>
+            <tr>
+                <td><b>C4</b> updateISO</td>
+                <td><span class="pill pill-keep">KEEP</span></td>
+                <td>silent corruption 은 위치 이동으로 해소 불가, MK4 ApplicationFileMover 흡수 예정 (D-1 결론 재확인)</td>
+            </tr>
+        </tbody>
+    </table>
+    <blockquote>
+        5 관점(응집/SRP · CQRS · ISO동형 · over-engineering 반대 · 부모횡단) 중 4곳이 C1 분리 가치 인정, C2/C4 는 전원 KEEP 수렴.
+        핵심: "OS metadata 는 파일 없는 순수 메타 자원이라 ISO 만큼 무겁지 않다(R1-6 '간소화' 근거) → C1 만 떼면 충분, ISO 식 다단계 분리는 과분리".
+    </blockquote>
+</section>
+
+<section id="b-r16">
+    <h3>B3. R1-6 scope + 분리 후 최종 형태</h3>
+    <h4>R1-6 = "nudge 영속화 단일 이동" (ISO R1-4-2 의 간소화판)</h4>
+    <p>4 메서드(<code>completePendingOSMetadataFromNudge</code>:191 / <code>purgeOSMetadataForNudge</code>:211 / <code>buildOSMetadataNudgePayload</code>:145 / <code>persistNewOSMetadata</code>:175)를 <code>OSMetadataService</code> → 흡수 service 로 이동.</p>
+    <ul>
+        <li><b>이동처 권장</b>: 기존 <code>OSMetadataNudgeService</code> 흡수 (신규 service 신설 X — 메타 부모는 <code>persistNew</code>=builder.save 한 줄이라 ISO 식 신설은 micro-class)</li>
+        <li><b>동반 작업</b>: ① <code>create()</code> 정상 등록도 흡수 service.persistNew 위임 (중복 차단) ② NudgeService 콜백 → self-contained 단방향 전환 ③ 테스트 동시 이동 ④ stale javadoc 정정</li>
+    </ul>
+    <div class="card card-ok">
+        <b>분리 후 OSMetadataService 최종 형태 (~200줄)</b> — "OSMetadata 부모 도메인의 조회 + 명령(등록 충돌 invariant 포함)" 단일 책임.
+        <code>nudgeRegistry</code> 의존 완전 제거. ISO 의 <code>OSNudgeService→IsoRegistrationService</code> 단방향과 동형.
+    </div>
+    <p class="fn">비목표: C2 CQRS / C4 updateISO / requireActiveImage 공통화 / 신규 등록 service 신설 — 모두 R1-6 스코프 밖.</p>
+</section>
+
+<!-- ===== B 결정 ===== -->
+<section id="b-decide">
+    <h3>B4. ⬢ 결정 사항 — Part B</h3>
+
+    <div class="decision">
+        <span class="dlabel">결정 B-0</span>
+        <h4>분리 토론 결론 (C1 만 분리 = R1-6, 나머지 KEEP) 채택?</h4>
+        <div class="opts">
+            <div class="opt"><span class="mark rec">권장 ✓</span><span><b>채택</b> — C1(nudge 영속화 4메서드)만 R1-6 별도 슬라이스로 분리. C2/C3/C4 KEEP</span></div>
+            <div class="opt"><span class="mark">대안</span><span>추가 검토 — 특정 후보 재론</span></div>
+        </div>
+    </div>
+
+    <div class="decision">
+        <span class="dlabel">결정 B-1</span>
+        <h4>C1 4 메서드의 이동처?</h4>
+        <div class="opts">
+            <div class="opt"><span class="mark rec">권장 ✓ (A)</span><span><b>기존 <code>OSMetadataNudgeService</code> 흡수</b> — 클래스 수 증가 0. 메타 부모는 nudge service 가 가벼워 흡수 가능. "orchestration+persistence 응집"이 메타 부모 표준</span></div>
+            <div class="opt"><span class="mark">(B)</span><span>신규 <code>OSMetadataRegistrationService</code> 신설 + create colocate — IsoRegistrationService 토폴로지와 정확 동형이나 micro-class 위험</span></div>
+        </div>
+    </div>
+
+    <div class="decision">
+        <span class="dlabel">결정 B-2</span>
+        <h4>BoardModel 동형 정합 시점? (Board 가 글자 그대로 동일 구조)</h4>
+        <div class="opts">
+            <div class="opt"><span class="mark rec">권장 ✓</span><span><b>R1-6 → R2 순차</b> — R1-6 가 R2(Board) 복제 템플릿. R1-6 plan 에 "Board 동형 복제 예정" 명기</span></div>
+            <div class="opt"><span class="mark">대안</span><span>OS+Board 동시 정합 — cross-domain 일관성 즉시 확보하나 scope 2배</span></div>
+        </div>
+    </div>
+
+    <div class="decision">
+        <span class="dlabel">결정 B-3</span>
+        <h4><code>BiosNudgeService</code> 콜백 패턴 불일치 처리?</h4>
+        <p>Bios 는 <code>biosNudgeService → biosService</code> 콜백이 이미 출시된 정상 패턴. OS/Board 만 단방향 전환 시 Bios 와 불일치.</p>
+        <div class="opts">
+            <div class="opt"><span class="mark rec">권장 ✓</span><span><b>OS 만 단방향 전환, Bios 는 그대로</b> — 파일 있는 Bios 는 콜백이 자연스러움 (ISO 가 단방향인 것은 파일 무게 때문)</span></div>
+            <div class="opt"><span class="mark">대안</span><span>콜백을 메타 부모 표준으로 유지 + R1-6 를 no-op/문서화로 종료 (over-engineering 반대 관점 제안)</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ C. 전체 결정 체크리스트 ============ -->
+<section id="final">
+    <h3>C. 전체 결정 체크리스트 + 진행 순서</h3>
+    <table>
+        <thead><tr><th style="width:10%">결정</th><th style="width:48%">질문</th><th style="width:24%">권장</th><th>상태</th></tr></thead>
+        <tbody>
+            <tr><td><b>A-0</b></td><td>Restore 설계 방향</td><td>FS-first + 역보상</td><td><span class="pill pill-done">완료</span></td></tr>
+            <tr><td><b>A-1</b></td><td><code>RestoreTrashLost</code> 404→409</td><td>409 변경</td><td><span class="pill pill-warn">대기</span></td></tr>
+            <tr><td><b>A-2</b></td><td>self-heal 시 사용자 안내</td><td>조용히 2xx</td><td><span class="pill pill-warn">대기</span></td></tr>
+            <tr><td><b>A-3</b></td><td>Subprogram cascade 누락</td><td>별도 슬라이스 분리</td><td><span class="pill pill-warn">대기</span></td></tr>
+            <tr><td><b>B-0</b></td><td>분리 결론 채택 (C1만=R1-6)</td><td>채택</td><td><span class="pill pill-warn">대기</span></td></tr>
+            <tr><td><b>B-1</b></td><td>C1 이동처</td><td>(A) 기존 NudgeService 흡수</td><td><span class="pill pill-warn">대기</span></td></tr>
+            <tr><td><b>B-2</b></td><td>Board 동형 시점</td><td>R1-6→R2 순차</td><td><span class="pill pill-warn">대기</span></td></tr>
+            <tr><td><b>B-3</b></td><td>Bios 콜백 불일치</td><td>OS만 전환</td><td><span class="pill pill-warn">대기</span></td></tr>
+        </tbody>
+    </table>
+
+    <h4>권장 진행 순서</h4>
+    <div class="flow">1순위  Part A (심각 버그) CP1 plan 산출 진입       <span class="k-cm">← 사용자 "철저히 해결" 지시 + 설계 동의 완료</span>
+        ↳ A-1/A-2/A-3 결정 확정 후 plan §도메인모델/§예외계층 반영
+2순위  R1-4 CP5 사용자 브라우저 E2E (진행 중 마무리)
+3순위  R1-6 (Part B 결론) CP1 plan         <span class="k-cm">← B-1/B-2/B-3 결정 후. ISO R1-4 안정화 뒤가 안전</span>
+4순위  R2 BoardModel 동형 (R1-6 템플릿 복제)
+별도   Subprogram cascade-asymmetry 슬라이스 (A-3) / MK4 ApplicationFileMover (updateISO 흡수)</div>
+
+    <div class="card card-info">
+        <b>요청 가능한 다음 액션</b> — (1) A-1~A-3, B-0~B-3 의 권장안을 일괄 승인하면 Part A CP1 plan html 산출 진입 /
+        (2) 특정 결정만 다른 선택 지정 / (3) 두 작업 plan 을 병행 background 산출.
+    </div>
+</section>
+
+</main>
+
+<script>
+  document.querySelectorAll('.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (!t) return; e.preventDefault();
+      const y = t.getBoundingClientRect().top + window.scrollY - 12;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    });
+  });
+  const secs = Array.from(document.querySelectorAll('main section'));
+  document.getElementById('expand').onclick = () => secs.forEach(s => s.classList.remove('hidden'));
+  document.getElementById('collapse').onclick = () => secs.forEach(s => { if (s.id !== 'summary') s.classList.add('hidden'); });
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    secs.forEach(s => {
+      if (!q) { s.classList.remove('hidden'); return; }
+      s.classList.toggle('hidden', !s.textContent.toLowerCase().includes(q));
+    });
+  });
+</script>
+</body>
+</html>

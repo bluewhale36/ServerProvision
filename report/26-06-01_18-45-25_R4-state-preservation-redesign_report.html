@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4 lifecycle cascade — own/effective 분리 재설계 보고서 (force-down-while-explicit)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a22; --panel-2:#1c2230; --panel-3:#202736;
+    --border:#2a3142; --border-soft:#232938; --text:#e6e9ef; --muted:#8a93a6;
+    --accent:#7aa2f7; --accent-2:#bb9af7; --ok:#9ece6a; --warn:#e0af68; --bad:#f7768e; --info:#7dcfff;
+    --mono:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:14.5px;line-height:1.66;}
+  code,.mono{font-family:var(--mono);font-size:12.8px;background:var(--panel-3);padding:1px 5px;border-radius:4px;color:#cdd6f4;}
+  pre{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5;}
+  pre code{background:none;padding:0;}
+  a{color:var(--accent);text-decoration:none;} a:hover{text-decoration:underline;}
+  header.banner{background:linear-gradient(180deg,#1a2030,#12151c);border-bottom:1px solid var(--border);padding:22px 28px;}
+  header.banner h1{margin:0 0 8px;font-size:21px;font-weight:750;letter-spacing:-0.2px;}
+  .v-badge{background:rgba(122,162,247,0.16);color:var(--accent);font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;vertical-align:middle;}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);}
+  .meta b{color:var(--text);font-weight:600;}
+  main{max-width:1080px;margin:0 auto;padding:24px 28px 80px;}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:26px;font-size:13px;}
+  .toc b{display:block;text-transform:uppercase;font-size:11px;color:var(--muted);letter-spacing:0.6px;margin-bottom:6px;}
+  .toc ol{margin:0;padding-left:20px;columns:2;}
+  .toc li{padding:2px 0;}
+  section{margin:0 0 30px;}
+  h2{font-size:17px;font-weight:700;margin:0 0 12px;padding-bottom:7px;border-bottom:1px solid var(--border-soft);}
+  h3{font-size:14.5px;color:var(--accent);margin:18px 0 7px;}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:left;vertical-align:top;}
+  th{background:var(--panel-2);color:var(--muted);font-weight:600;font-size:12px;}
+  tbody tr:nth-child(odd){background:rgba(255,255,255,0.012);}
+  .card{background:var(--panel);border:1px solid var(--border);border-left-width:3px;border-radius:8px;padding:12px 16px;margin:12px 0;}
+  .card.ok{border-left-color:var(--ok);} .card.warn{border-left-color:var(--warn);}
+  .card.bad{border-left-color:var(--bad);} .card.info{border-left-color:var(--info);} .card.rec{border-left-color:var(--accent-2);background:var(--panel-2);}
+  .card h4{margin:0 0 6px;font-size:13.5px;}
+  .src{display:block;color:var(--muted);font-size:11.5px;margin-top:5px;}
+  .chip{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;letter-spacing:0.3px;}
+  .chip.std{background:rgba(158,206,106,0.16);color:var(--ok);}
+  .chip.vendor{background:rgba(125,207,255,0.16);color:var(--info);}
+  .chip.acad{background:rgba(187,154,247,0.16);color:var(--accent-2);}
+  .chip.rec{background:rgba(187,154,247,0.16);color:var(--accent-2);}
+  .chip.no{background:rgba(247,118,142,0.16);color:var(--bad);}
+  sup.fn a{font-size:10.5px;color:var(--info);padding:0 1px;}
+  .t-no{color:var(--bad);font-weight:700;} .t-ok{color:var(--ok);font-weight:700;}
+  ol.sources{font-size:12.3px;color:var(--muted);line-height:1.7;padding-left:26px;}
+  ol.sources li{margin:2px 0;} ol.sources b{color:var(--text);}
+  blockquote{border-left:3px solid var(--border);background:var(--panel-2);margin:10px 0;padding:8px 14px;color:var(--muted);font-size:13px;border-radius:0 6px 6px 0;}
+</style>
+</head>
+<body>
+
+<header class="banner">
+  <h1>R4 lifecycle cascade — own/effective 분리 재설계 <span class="v-badge">권위 출처 only</span></h1>
+  <div class="meta">
+    <span>생성 : <b>2026-06-01 KST</b></span>
+    <span>동기 : <b>R4-1 단순 bitmask 모델이 force-down-while-explicit 복원 미해결 (2026-05-31 사용자 판정)</b></span>
+    <span>방법 : <b>5-시스템 병렬 workflow (wf_b2b1d1cb · 공식/표준/벤더 only · research 5 + verify 5 = 전수 keep)</b></span>
+    <span>관련 : <b>선행 survey report(26-05-31) · plan R4-1(26-05-31, PARKED) · Notion R4</b></span>
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <b>목차</b>
+  <ol>
+    <li><a href="#s1">1. 왜 재조사인가 — 1-bit 의 벽</a></li>
+    <li><a href="#s2">2. 핵심 통찰 — 5 시스템 1 답</a></li>
+    <li><a href="#s3">3. 권위 사례 5 시스템</a></li>
+    <li><a href="#s4">4. force-down-while-explicit 해소</a></li>
+    <li><a href="#s5">5. 적용 설계안 3 (A / B / C)</a></li>
+    <li><a href="#s6">6. 권고 + 미결(자동 UX)</a></li>
+    <li><a href="#s7">7. 방법론 / 검증 메모</a></li>
+    <li><a href="#s8">8. 출처 (28)</a></li>
+  </ol>
+</div>
+
+<!-- 1 -->
+<section id="s1">
+  <h2>1. 왜 재조사인가 — 단일 boolean + 1-bit 의 벽</h2>
+  <p>선행 survey(2026-05-31)는 "explicit 우선 · 1-bit provenance · 방향성 비대칭" 4 원리를 도출했고, R4-1 plan 은 그에 따라 <code>cascade_origin</code> 1-bit(자동/직접) 모델을 설계했다. 그러나 사용자 검증 중 <b>단일 boolean(현재값) + 1-bit(자동/직접) 만으로는 풀 수 없는 케이스</b>가 드러났다.</p>
+  <div class="card bad">
+    <h4>미해결 케이스 — force-down-while-explicit</h4>
+    <p>① 자식 A = <b>자동 OFF(직접) + 활성</b> (운영자가 직접 관리, 활성 유지 의도). ② 부모 deprecate (DOWN 제약, 부모&gt;자동) → A 강제 deprecate. ③ 부모 undeprecate (UP 허용, 자동&gt;부모) → 자동 ON 자식만 환원 → <b>A 는 직접(자동 OFF)이라 환원 안 됨 → 영구 deprecated 잔존.</b></p>
+    <span class="src">근본 원인 : 2단계 후 A 의 <code>{deprecated, 직접}</code> 가 <b>운영자가 직접 deprecate 한 자식 B 의 <code>{deprecated, 직접}</code> 와 구별 불가</b>. 단일 boolean 이 A 의 cascade 이전 <b>본래 의도값(활성)</b> 을 기억 못 함. (본래 의도값 · 부모강제 여부 · 추종모드 3 정보를 1 boolean + 1 bit 로 표현 불가.)</span>
+  </div>
+  <p>즉 1-bit provenance 는 "이 값이 cascade 로 깔렸나"를 표지하지만, <b>cascade 가 explicit 값을 강제로 덮어쓴 순간 원래 explicit 값 자체가 소실</b>된다. 본 재조사는 "상위 제약이 하위 값을 강제 override 하되 <b>원래 값을 파괴하지 않고</b>, 제약 제거 시 원래 값이 복원되는" 표현을 권위 시스템에서 다시 찾는다.</p>
+</section>
+
+<!-- 2 -->
+<section id="s2">
+  <h2>2. 핵심 통찰 — 5 시스템이 한 답으로 수렴</h2>
+  <p>독립적으로 조사한 5 시스템이 <b>동일한 골격</b>으로 수렴한다 :</p>
+  <blockquote>자식의 <b>own(본래 의도)값</b>을 <b>effective(현재 적용값)</b>과 <b>한 칸에 합치지 말고 분리 저장</b>한다. cascade 는 own 을 절대 건드리지 않고 effective 만 바꾼다. 복원은 "백업을 되돌리는 액션"이 아니라 <b>"제약 레이어를 제거하면 손대지 않은 채 남아 있던 own 이 자동으로 effective 로 재계산"</b> 되는 자연 귀결이다.</blockquote>
+  <table>
+    <thead><tr><th style="width:130px;">시스템</th><th>own (보존, cascade 불가침)</th><th>제약 / override</th><th>effective</th><th>복원 의미론</th></tr></thead>
+    <tbody>
+      <tr><td><b>Windows ACL</b> <sup class="fn"><a href="#src1">[1]</a><a href="#src3">[3]</a></sup></td><td>explicit ACE (<code>ID</code> 플래그 OFF)</td><td>inherited ACE (<code>INHERITED_ACE</code>=0x10 ON)</td><td>canonical order 평가</td><td>"inherited 사본만 제거" → explicit 그대로 잔존</td></tr>
+      <tr><td><b>OverlayFS</b> <sup class="fn"><a href="#src7">[7]</a></sup></td><td>lower(base) 레이어</td><td>upper override / whiteout</td><td>upper-over-lower 조회</td><td>upper 제거 → lower 가 그대로 드러남(비파괴)</td></tr>
+      <tr><td><b>Kubernetes</b> <sup class="fn"><a href="#src9">[9]</a><a href="#src11">[11]</a></sup></td><td><code>spec</code> (desired, 운영자 소유)</td><td>taint / finalizer (객체 밖 별도)</td><td><code>status</code> (reconcile 산출)</td><td>제약 clear → 불변 spec 에서 재조정(스냅샷 없음)</td></tr>
+      <tr><td><b>CSS Cascade</b> <sup class="fn"><a href="#src15">[15]</a></sup></td><td>하위 layer/origin 선언</td><td>상위 layer/origin 선언</td><td>cascaded winner(최상위)</td><td><code>revert-layer</code> → 하위 선언 reveal(재계산)</td></tr>
+      <tr><td><b>PostgreSQL GUC</b> <sup class="fn"><a href="#src21">[21]</a><a href="#src19">[19]</a></sup></td><td><code>reset_val</code> (복귀값)</td><td><code>SET</code> → <code>setting</code></td><td><code>setting</code> (current)</td><td><code>RESET</code> → reset_val (자동 복귀)</td></tr>
+    </tbody>
+  </table>
+  <div class="card ok">
+    <h4>왜 1-bit 가 실패했고 이 모델이 성공하나</h4>
+    <p>1-bit 모델은 own 과 effective 를 <b>같은 컬럼(is_deprecated)</b> 에 합쳐, cascade 가 강제 override 할 때 own 을 파괴했다. 5 시스템은 own 을 <b>별 칸</b>에 두므로, override 가 effective 를 가려도 own 은 무손실 → 제약 제거 시 own 이 그대로 다시 effective 가 된다. <b>"복원할 값"을 따로 기억(history/snapshot)할 필요가 없다</b> — own 이 처음부터 권위 소스였기 때문.</p>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="s3">
+  <h2>3. 권위 사례 5 시스템</h2>
+
+  <div class="card info">
+    <h4>① Windows 보안 ACL — inherited vs explicit ACE 분리 <span class="chip std">standard / MS-DTYP</span></h4>
+    <p>ACE 를 단일 boolean 이 아니라 <code>AceFlags</code> 의 <code>INHERITED_ACE(ID,0x10)</code> 1비트로 출처를 표지한다. own = ID OFF(운영자 직접), 부모유래 = ID ON(<code>ComputeInheritedACLfromParent</code> 가 매번 새로 계산한 사본). canonical order 가 explicit 그룹을 inherited 그룹 앞에 배치("All explicit ACEs are placed in a group before any inherited ACEs"). 부모 inheritable ACE 제거 시 <b>"automatic inheritance removes any copies of the ACE that were inherited"</b> — inherited 사본만 지우고 explicit 은 불가침. <code>SE_DACL_PROTECTED</code> 는 전파를 차단해 explicit 만 유효화. <b>우리 자동/직접 1-bit 의 1:1 선례이되, 결정적 차이는 own 값을 effective 와 별도 슬롯에 보존한다는 점.</b></p>
+    <span class="src">— MS-DTYP ComputeInheritedACLfromParent · Win32 Automatic Propagation / Order of ACEs / ACE Inheritance Rules / SE_DACL_PROTECTED <sup class="fn"><a href="#src1">[1]</a><a href="#src2">[2]</a><a href="#src3">[3]</a><a href="#src4">[4]</a><a href="#src5">[5]</a><a href="#src6">[6]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>② Linux OverlayFS / union mount — lower + upper + whiteout <span class="chip std">standard / kernel.org</span></h4>
+    <p>두 물리 트리를 합성 view 로 보이되 어느 쪽도 변형하지 않는다. lower = pristine base(own), upper = override. "the object in the 'upper' filesystem is visible while the object in the 'lower' filesystem is ... hidden". 삭제도 파괴가 아니라 upper 의 <b>whiteout</b> 으로 표현. 핵심 불변식 : <b>"overlay ... does not change the lower filesystem"</b> — upper override(또는 whiteout)를 제거하면 조회가 lower 로 fall-through 해 원본이 자동 복원. 저장된 옛값을 되돌리는 게 아니라 <b>레이어 규칙의 기본 귀결</b>.</p>
+    <span class="src">— kernel.org Documentation/filesystems/overlayfs (Upper/Lower, whiteout, non-modification 보장) <sup class="fn"><a href="#src7">[7]</a><a href="#src8">[8]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>③ Kubernetes — spec(desired) vs status(observed) + 제약 레이어 <span class="chip vendor">vendor-official / CNCF</span></h4>
+    <p>거의 모든 객체가 <code>spec</code>(desired, 운영자가 영속 기록) 과 <code>status</code>(observed, 시스템이 기록) 를 물리 분리. 현실이 어긋나도 <b>desired 는 안 덮어쓰고 status 만 움직인다</b>. 제약은 객체 밖 별도 레이어(node taint, finalizer, deletionTimestamp). scheduler 알고리즘이 명시적 : "start with all of a node's taints, then ignore the ones for which the pod has a matching toleration" → effective = desired ⊕ 현 제약을 매 reconcile 재계산, 평탄화 저장 안 함. taint 제거 시 "does not retroactively modify existing pod configurations" — 불변 spec 에서 재조정만. <b>복원에 "기억된 옛값"이 불필요</b>(desired 가 처음부터 권위).</p>
+    <span class="src">— kubernetes.io Objects(spec/status) · Controllers · Taints and Tolerations · Garbage Collection · Finalizers <sup class="fn"><a href="#src9">[9]</a><a href="#src10">[10]</a><a href="#src11">[11]</a><a href="#src12">[12]</a><a href="#src13">[13]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>④ W3C CSS Cascade — specified/cascaded value + revert-layer <span class="chip std">standard / W3C</span></h4>
+    <p>속성별로 모든 적용 선언을 <b>정렬된 리스트로 보존</b>하고, cascade 는 승자만 "선택"한다("The cascaded value ... is the declared value that wins the cascade") — 패자는 지워지지 않고 레이어에 그대로 남는다. <code>revert-layer</code> 는 "the specified value is calculated <b>as if no rules were specified in the current cascade layer</b>" — 상위 기여분만 벗기면 하위 선언이 손실 없이 재계산되어 드러난다. own = 하위 layer 선언, effective = 현재 우선순위 승자. <b>제약 layer 를 떼면 운영자 layer 의 enabled 가 정확히 복원.</b></p>
+    <span class="src">— W3C CSS Cascading and Inheritance Level 5 §Cascade Layers / Level 4 §Value Processing, §Defaulting(revert, revert-layer) <sup class="fn"><a href="#src15">[15]</a><a href="#src16">[16]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>⑤ 정책/설정 layering — PostgreSQL GUC · NIST RBAC · GCP IAM <span class="chip vendor">vendor + standard</span></h4>
+    <p><b>가장 직역되는 선례.</b> PostgreSQL <code>pg_settings</code> 가 한 파라미터에 <code>setting</code>(현재 override 적용 effective) · <code>reset_val</code>(제약 제거 시 복귀할 own) · <code>source</code>(현재값 출처)를 <b>동시 별도 보존</b>. <code>SET</code> 은 setting 만 덮고 reset_val 은 불가침 → <code>RESET</code>(= <code>SET ... TO DEFAULT</code>)이 보존된 reset_val 로 자동 복귀. NIST RBAC 는 user-role / perm-role 두 관계를 분리 저장해 effective 를 decision-time 합성(저장 안 함). GCP IAM 은 allow/deny 를 별도 리소스로 보존하고 "deny checked before allow" 로 합성 — deny 제거 시 보존된 allow 가 다시 effective. Org Policy 의 <code>inheritFromParent</code> + <code>reset</code> 도 동일 골격.</p>
+    <span class="src">— postgresql.org SET / RESET / pg_settings / config-setting · NIST SP 800-162, RBAC FAQ/project · GCP Org Policy hierarchy / IAM policy-types / deny-overview <sup class="fn"><a href="#src19">[19]</a><a href="#src20">[20]</a><a href="#src21">[21]</a><a href="#src22">[22]</a><a href="#src23">[23]</a><a href="#src24">[24]</a><a href="#src25">[25]</a><a href="#src26">[26]</a><a href="#src27">[27]</a><a href="#src28">[28]</a></sup></span>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="s4">
+  <h2>4. force-down-while-explicit 가 어떻게 풀리나</h2>
+  <p>own 을 effective 와 분리하면 1-bit 가 못 풀던 A/B 모호성이 즉시 사라진다. 핵심은 <code>effective = own 을 부모 제약으로 게이트한 값</code> 이고 cascade 는 effective 만 만진다는 것.</p>
+  <pre><code>effective_deprecated = own_deprecated OR  부모.is_deprecated   // deprecated 차원
+effective_enabled    = own_enabled    AND 부모.is_enabled      // enabled 차원 (독립)
+// 두 차원 독립 : 부모 deprecate 는 자식 enabled 를 끄지 않음(deprecated ≠ disabled).
+// cascade(부모 상태 변경) = 자식 effective 재계산. own_* 는 절대 안 건드림.</code></pre>
+  <table>
+    <thead><tr><th>자식</th><th>own</th><th>부모 deprecate (DOWN)</th><th>부모 undeprecate (UP)</th><th>결과</th></tr></thead>
+    <tbody>
+      <tr><td><b>A</b> (직접·활성)</td><td><code>own_dep=false</code></td><td>effective=deprecated (강제), own 불변</td><td>effective = own_dep(false) = <b>활성</b></td><td class="t-ok">자동 복원 ✓</td></tr>
+      <tr><td><b>B</b> (운영자 직접 deprecate)</td><td><code>own_dep=true</code></td><td>이미 deprecated</td><td>effective = own_dep(true) = deprecated</td><td class="t-ok">보존 ✓</td></tr>
+      <tr><td><b>C</b> (자동·활성)</td><td><code>own_dep=false</code></td><td>effective=deprecated (강제)</td><td>effective = false = 활성</td><td class="t-ok">복원 ✓</td></tr>
+    </tbody>
+  </table>
+  <div class="card ok">
+    <h4>A 와 B 가 구별되는 이유</h4>
+    <p>1-bit 모델에서 DOWN 직후 A·B 모두 <code>{deprecated, 직접}</code> 으로 동일했다. own 분리 모델에선 <code>A.own_dep=false ≠ B.own_dep=true</code> — 부모가 회복되면 effective 가 각자의 own 으로 재계산되어 A 는 활성, B 는 deprecated 로 <b>자동 분기</b>한다. <code>source</code> 비트조차 불필요 : 부모-자식 2단계 위계에선 <code>effective ≠ own</code> 자체가 "부모 강제 중" 을 의미하므로 계산으로 판별된다.</p>
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="s5">
+  <h2>5. 적용 설계안 3 (A / B / C)</h2>
+
+  <div class="card rec">
+    <h4>Option A — own + materialized effective <span class="chip rec">권장</span></h4>
+    <p><b>저장</b> : 자식 엔티티에 <code>own_enabled</code> · <code>own_deprecated</code> BOOLEAN 추가(운영자 의도). 기존 <code>is_enabled</code> · <code>is_deprecated</code> 는 <b>effective 캐시</b>로 의미 재정의(위 §4 식으로 cascade 시 write-through 재계산). cascade 는 own 불가침.</p>
+    <ul>
+      <li><b>derived query 100% 무변경</b> — 수십 개 Spring Data 파생 쿼리가 여전히 effective(<code>is_*</code>)를 읽음. 사용자 선호("boolean 컬럼 유지") 충족.</li>
+      <li>force-down-while-explicit 완전 해결(§4). <code>source</code> 비트 불필요(2단계 위계).</li>
+      <li>history/snapshot 테이블 불필요 — own 이 권위 소스.</li>
+      <li>근거 : 5 시스템 전부. PostgreSQL <code>setting/reset_val</code> · K8s <code>spec/status</code> 직역.</li>
+    </ul>
+    <p class="src">복잡도 : 낮음~중(자식당 BOOLEAN 2 + cascade 시 재계산 write 1). SSOT : <code>effective=f(own,부모상태)</code> 도메인 메서드 1개가 (1)서버 가드 (2)뷰모델 disabled 플래그를 함께 산출(CLAUDE.md §UI 1차 차단/SSOT 정합).</p>
+  </div>
+
+  <div class="card info">
+    <h4>Option B — A + source enum 명시 저장</h4>
+    <p>A 에 더해 <code>enabled_source</code> · <code>deprecated_source</code>(<code>SELF | PARENT_FORCED</code>) 를 계산이 아닌 <b>저장</b>. 장점 : 감사(audit) 용이, 다단계 위계(손자 자원)·복수 제약원 대비. 단점 : 컬럼/동기화 부담↑. PostgreSQL <code>pg_settings.source</code> · Windows <code>INHERITED_ACE</code> 비트 직역. <b>현 2단계 위계에선 A 로 충분</b>(source 계산 가능) — 위계가 깊어질 때 도입.</p>
+  </div>
+
+  <div class="card bad">
+    <h4>Option C — effective 미materialize(read-time 계산) <span class="chip no">거부</span></h4>
+    <p>own_* 만 저장하고 effective 를 read-time 에 부모 JOIN 으로 계산(K8s-pure). 정합성은 가장 깨끗하나 <code>is_enabled/is_deprecated</code> derived query 가 JPQL JOIN/native 로 깨짐 → 사용자 선호 위반. 선행 survey 의 'A안(effective 계산형)' 거부 사유와 동일.</p>
+  </div>
+</section>
+
+<!-- 6 -->
+<section id="s6">
+  <h2>6. 권고 + 미결</h2>
+  <div class="card rec">
+    <h4>권고 : Option A</h4>
+    <p>프로젝트 핵심 동기(<b>단순한 구현 · 명확한 UX · 이론적 가치 &lt; 복잡도 회피</b>) + derived query 보존 선호로 weigh 하면 <b>Option A</b> 가 최소 비용으로 force-down-while-explicit 를 완전 해결한다. 컬럼 2개 추가 + cascade 시 effective 재계산 한 번이 전부이며, 5 권위 시스템이 모두 이 분리 패턴으로 수렴한다. 감사/다단계가 실제 요구로 떠오르면 그때 B 로 승격.</p>
+  </div>
+  <h3>Open Decisions (CP1)</h3>
+  <table>
+    <thead><tr><th style="width:42px;">#</th><th>결정</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td><b>'자동' 체크박스 UX 의 거취</b> — own_* 가 자동/직접을 사실상 흡수</td><td>① 제거(버튼이 own 설정, 복원 자동) / ② 읽기전용 status("🔒 부모 강제중 — 해제 시 복원", <code>effective≠own</code> 일 때) / ③ own 설정 affordance 로 잔존. <b>사용자 아이디어 대기</b></td></tr>
+      <tr><td>D2</td><td>적용 차원 범위</td><td>enabled + deprecated. deleted 는 물리부작용(trash/TTL/ghost)로 별도(R4-2)</td></tr>
+      <tr><td>D3</td><td>Option A vs B (source 명시 저장)</td><td>2단계 위계 → A 권장. 감사/다단계 요구 시 B</td></tr>
+      <tr><td>D4</td><td>own_* default</td><td>신규 자식 = own 이 부모 추종 기본값(활성/비deprecated)인지, 등록 시점 입력값인지</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 7 -->
+<section id="s7">
+  <h2>7. 방법론 / 검증 메모</h2>
+  <p>병렬 workflow <code>wf_b2b1d1cb-153</code> (11 에이전트 : research 5 → verify 5 → synthesize 1). 각 research 에이전트는 ToolSearch→WebSearch/WebFetch 로 <b>공식 명세·표준·벤더 공식만</b> 인용(개인 블로그·Medium·StackOverflow·튜토리얼·AI생성 배제). 각 verify 에이전트가 인용 URL 원문을 재fetch 해 출처 권위성 + 메커니즘 정확성을 적대 검증.</p>
+  <table>
+    <thead><tr><th>시스템</th><th>verify 판정</th><th>출처 권위</th><th>메커니즘 정확</th></tr></thead>
+    <tbody>
+      <tr><td>Windows ACL</td><td class="t-ok">keep</td><td>✓ (6/6 MS 공식)</td><td>✓ (4건 verbatim 대조)</td></tr>
+      <tr><td>OverlayFS</td><td class="t-ok">keep</td><td>✓ (kernel.org)</td><td>✓</td></tr>
+      <tr><td>Kubernetes</td><td class="t-ok">keep</td><td>✓ (kubernetes.io)</td><td>✓</td></tr>
+      <tr><td>CSS Cascade</td><td class="t-ok">keep</td><td>✓ (W3C)</td><td>✓</td></tr>
+      <tr><td>정책 layering</td><td class="t-ok">keep</td><td>✓ (postgresql/NIST/GCP)</td><td>✓</td></tr>
+    </tbody>
+  </table>
+  <div class="card warn">
+    <h4>한계 / 주의</h4>
+    <ul>
+      <li><b>종합 에이전트 stall</b> : workflow 의 11번째 synthesize 에이전트가 6 회 재시도 모두 180s no-progress 로 멈춰 workflow 자체는 failed. 그러나 research 5 + verify 5 결과는 전수 완료되어 회수, 본 보고서는 그 검증된 원자료를 <b>수작업 종합</b>한 것. (직전 인벤토리 workflow 도 동일 synth-stall — 종합 단계 안정성은 별도 점검 필요.)</li>
+      <li>Windows ACL verify 가 경미 지적 : 의사코드 변수 <code>ExplicitACL</code> 의 해석 한 단계 부정확(결론 무영향), <code>INHERITED_ACE=0x10</code> 값은 동일 doc family 의 별도 페이지 출처, "동형(isomorphic)" → "유비(analogy)" 가 정확. load-bearing 아님.</li>
+      <li>다단계 위계(손자 자원)·복수 제약원이 생기면 단일 <code>source</code> 1bit 부족 → GCP 식 per-source 보존(Option B 확장) 필요. 현 2단계엔 불요.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 8 -->
+<section id="s8">
+  <h2>8. 출처 (28 · 공식/표준/벤더 only)</h2>
+  <h3>Windows 보안 ACL (MS-DTYP / Win32 SecAuthZ)</h3>
+  <ol class="sources">
+    <li id="src1"><span class="chip std">std</span> <b>Microsoft (MS-DTYP)</b> — ComputeInheritedACLfromParent. <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/3d27668e-cbcd-4639-97fe-8d18a35230ac">learn.microsoft.com</a></li>
+    <li id="src2"><span class="chip std">std</span> <b>Microsoft (MS-DTYP)</b> — Setting the INHERITED_ACE Flag. <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/180e7c76-12de-4d1b-8dfd-44667140336b">learn.microsoft.com</a></li>
+    <li id="src3"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — Automatic Propagation of Inheritable ACEs. <a href="https://learn.microsoft.com/en-us/windows/win32/secauthz/automatic-propagation-of-inheritable-aces">learn.microsoft.com</a></li>
+    <li id="src4"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — Order of ACEs in a DACL. <a href="https://learn.microsoft.com/en-us/windows/win32/secauthz/order-of-aces-in-a-dacl">learn.microsoft.com</a></li>
+    <li id="src5"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — ACE Inheritance Rules. <a href="https://learn.microsoft.com/en-us/windows/win32/secauthz/ace-inheritance-rules">learn.microsoft.com</a></li>
+    <li id="src6"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — Protecting Objects from the Effects of Inherited Rights (SE_DACL_PROTECTED). <a href="https://learn.microsoft.com/en-us/windows/win32/ad/protecting-objects-from-the-effects-of-inherited-rights">learn.microsoft.com</a></li>
+  </ol>
+  <h3>Linux OverlayFS</h3>
+  <ol class="sources" start="7">
+    <li id="src7"><span class="chip std">std</span> <b>kernel.org</b> — Overlay Filesystem (Documentation/filesystems/overlayfs). <a href="https://docs.kernel.org/filesystems/overlayfs.html">docs.kernel.org</a></li>
+    <li id="src8"><span class="chip std">std</span> <b>kernel.org</b> — overlayfs.rst (raw kernel docs source). <a href="https://www.kernel.org/doc/Documentation/filesystems/overlayfs.rst">kernel.org</a></li>
+  </ol>
+  <h3>Kubernetes (CNCF)</h3>
+  <ol class="sources" start="9">
+    <li id="src9"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Objects In Kubernetes (spec vs status). <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/">kubernetes.io</a></li>
+    <li id="src10"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Controllers (control loop, desired state). <a href="https://kubernetes.io/docs/concepts/architecture/controller/">kubernetes.io</a></li>
+    <li id="src11"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Taints and Tolerations. <a href="https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/">kubernetes.io</a></li>
+    <li id="src12"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Garbage Collection (ownerReferences, cascade). <a href="https://kubernetes.io/docs/concepts/architecture/garbage-collection/">kubernetes.io</a></li>
+    <li id="src13"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Finalizers. <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/">kubernetes.io</a></li>
+    <li id="src14"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Use Cascading Deletion in a Cluster. <a href="https://kubernetes.io/docs/tasks/administer-cluster/use-cascading-deletion/">kubernetes.io</a></li>
+  </ol>
+  <h3>W3C CSS Cascade</h3>
+  <ol class="sources" start="15">
+    <li id="src15"><span class="chip std">std</span> <b>W3C</b> — CSS Cascading and Inheritance Level 5 (§Cascade Layers, §Defaulting: revert / revert-layer). <a href="https://www.w3.org/TR/css-cascade-5/">w3.org/TR/css-cascade-5</a></li>
+    <li id="src16"><span class="chip std">std</span> <b>W3C</b> — CSS Cascading and Inheritance Level 4 (§Value Processing: declared/cascaded/specified). <a href="https://www.w3.org/TR/css-cascade-4/">w3.org/TR/css-cascade-4</a></li>
+  </ol>
+  <h3>설정 / 정책 layering (PostgreSQL · NIST · GCP)</h3>
+  <ol class="sources" start="17">
+    <li id="src17"><span class="chip vendor">vendor</span> <b>PostgreSQL</b> — Setting Parameters (config-setting). <a href="https://www.postgresql.org/docs/current/config-setting.html">postgresql.org</a></li>
+    <li id="src18"><span class="chip vendor">vendor</span> <b>PostgreSQL</b> — pg_settings view (setting / boot_val / reset_val / source). <a href="https://www.postgresql.org/docs/current/view-pg-settings.html">postgresql.org</a></li>
+    <li id="src19"><span class="chip vendor">vendor</span> <b>PostgreSQL</b> — SET. <a href="https://www.postgresql.org/docs/current/sql-set.html">postgresql.org</a></li>
+    <li id="src20"><span class="chip vendor">vendor</span> <b>PostgreSQL</b> — RESET. <a href="https://www.postgresql.org/docs/current/sql-reset.html">postgresql.org</a></li>
+    <li id="src21"><span class="chip acad">acad</span> <b>NIST / CSRC</b> — SP 800-162 Guide to ABAC. <a href="https://csrc.nist.gov/pubs/sp/800/162/upd2/final">csrc.nist.gov</a></li>
+    <li id="src22"><span class="chip std">std</span> <b>NIST / CSRC</b> — RBAC FAQ (permissions only through roles, computed at access time). <a href="https://csrc.nist.gov/projects/role-based-access-control/faqs">csrc.nist.gov</a></li>
+    <li id="src23"><span class="chip std">std</span> <b>NIST / CSRC</b> — Role Based Access Control project (INCITS 359). <a href="https://csrc.nist.gov/projects/role-based-access-control">csrc.nist.gov</a></li>
+    <li id="src24"><span class="chip vendor">vendor</span> <b>Google Cloud</b> — Organization Policy: hierarchy evaluation (inheritFromParent, reset, DENY precedence). <a href="https://cloud.google.com/resource-manager/docs/organization-policy/understanding-hierarchy">cloud.google.com</a></li>
+    <li id="src25"><span class="chip vendor">vendor</span> <b>Google Cloud</b> — IAM Policy types (allow/deny stored separately, compiled). <a href="https://docs.cloud.google.com/iam/docs/policy-types">cloud.google.com</a></li>
+    <li id="src26"><span class="chip vendor">vendor</span> <b>Google Cloud</b> — IAM Deny policies (deny checked before allow). <a href="https://docs.cloud.google.com/iam/docs/deny-overview">cloud.google.com</a></li>
+  </ol>
+  <h3>관련 내부 산출물</h3>
+  <ol class="sources" start="27">
+    <li id="src27"><span class="chip rec">내부</span> <b>선행 survey</b> — 계층형 자원 상태 cascade 보존 &amp; 방향성 패턴 조사. <code>report/26-05-31_20-16-04_cascade-state-propagation-survey_report.html</code></li>
+    <li id="src28"><span class="chip rec">내부</span> <b>R4-1 plan (PARKED)</b> — Lifecycle cascade 출처 + 자동 추종 UI. <code>plan/26-05-31_21-16-34_R4-1_plan.html</code></li>
+  </ol>
+</section>
+
+</main>
+</body>
+</html>

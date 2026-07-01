@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3-5 + R1-5 — typed-name SSOT / restore default 흡수 : 병렬 워크플로우 + 직접 검토 보고서</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--orange:#dd5b00;--orange-bg:rgba(221,91,0,.10);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--green:#1a7f37;--green-bg:#dafbe1;
+    --red:#bf2626;--red-bg:rgba(191,38,38,.09);--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);
+    padding:18px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .badge-ok{background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .layout{display:grid;grid-template-columns:230px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);
+    border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc a.diag{color:var(--purple);font-weight:600}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.diag>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:var(--bg);padding:11px 13px;border-radius:6px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.5}
+  pre code{background:none;padding:0}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .chip{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:600}
+  .chip.new{background:var(--green-bg);color:var(--green)} .chip.mod{background:var(--yellow-bg);color:var(--yellow)}
+  .chip.del{background:var(--red-bg);color:var(--red)} .chip.move{background:var(--blue-bg);color:var(--blue)}
+  .chip.keep{background:var(--bg);color:var(--muted)}
+  .chip.a1{background:var(--blue-bg);color:var(--blue)} .chip.a2{background:var(--green-bg);color:var(--green)}
+  .chip.me{background:var(--purple-bg);color:var(--purple)}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  /* ── 도식 캔버스 ── */
+  .diagram{background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:18px 20px;margin:14px 0;overflow-x:auto}
+  .diagram pre{margin:0;font-family:var(--mono);font-size:12px;line-height:1.55;color:#c9d1d9;white-space:pre;background:none;padding:0}
+  .diagram .cap{color:#7d8590;font-size:11px;margin-bottom:10px;font-family:var(--mono)}
+  .diagram .b{color:#79c0ff} .diagram .g{color:#56d364} .diagram .r{color:#ff7b72} .diagram .y{color:#e3b341}
+  .diagram .p{color:#d2a8ff} .diagram .m{color:#7d8590} .diagram .w{color:#e6edf3;font-weight:700}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+  .split .card{border:1px solid var(--soft);border-radius:8px;padding:12px;min-width:0;overflow:hidden}
+  .split .before{border-color:var(--red);border-width:2px;background:var(--red-bg)}
+  .split .after{border-color:var(--green);border-width:2px;background:var(--green-bg)}
+  .split h4{margin:0 0 6px;font-family:var(--mono);font-size:12px}
+  .split .before h4{color:var(--red)} .split .after h4{color:var(--green)}
+  .legend{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:6px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}.split{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R3-5 + R1-5 — typed-name 검증 SSOT / <code>restore</code> default 흡수 : 병렬 워크플로우 + 직접 검토 <span class="badge-ok">CP4 완료 · 검증 GREEN</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R3-5 (Board) · R1-5 (OS, 신설)</span>
+    <span><strong>오케스트레이션</strong> 워크플로우 <code>w04v20wu2</code> — 소스 트랙 / 테스트 트랙 분리 × 2 도메인 병렬</span>
+    <span><strong>작성</strong> 2026-06-14 KST</span>
+    <span><strong>검증</strong> bootRun Started · circular 0 · 820 tests / 0 fail</span>
+    <span><strong>상태</strong> CP5(E2E)·커밋 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc">
+      <li><a href="#s1">§1 한눈 요약</a></li>
+      <li><a href="#s2" class="diag">§2 ◑ 워크플로우 작업 분리 도식</a></li>
+      <li><a href="#s3">§3 에이전트별 산출 (4 agent)</a></li>
+      <li><a href="#s4">§4 Claude 직접 검토 범위</a></li>
+      <li><a href="#s5" class="diag">§5 ◑ 순환 참조 분석 (핵심)</a></li>
+      <li><a href="#s6">§6 설계 검토 판정 (순환 외)</a></li>
+      <li><a href="#s7">§7 검증 결과 (bootRun · 820 tests)</a></li>
+      <li><a href="#s8">§8 변경 파일 목록</a></li>
+      <li><a href="#s9">§9 잔존 책임 / 후속</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 한눈 요약</summary>
+      <div class="body">
+        <h4>무엇을 / 왜</h4>
+        <p style="margin-top:0">두 자원 도메인의 lifecycle service 에서 <b>중복 청산</b> 2건을 동시에 수행했다. (1) <b>R3-5(Board)</b> — <code>BoardModelLifecycleService</code> 의 중복 <code>restore(Long)</code> override 를 인터페이스 default 로 흡수 + <code>purgeWithTypedNameCheck</code> 의 inline typed-name 비교를 공통 <code>TypedNameVerifier</code> 위임으로 전환. (2) <b>R1-5(OS, 신설)</b> — 같은 typed-name SSOT 전환을 <code>IsoLifecycleService</code> · <code>OSMetadataLifecycleService</code> 의 복붙된 <code>verifyTypedNameOrThrow</code> 사본에 적용. 두 도메인은 <b>수정 파일이 비중첩</b>이라 단일 워크플로우로 <b>병렬</b> 처리했다.</p>
+
+        <h4>오케스트레이션 모델 (사용자 지시)</h4>
+        <ul>
+          <li><b>소스 트랙 / 테스트 트랙 분리</b> — 워크플로우 안에서 "본체 변경" 과 "테스트 작성+실행" 을 별개 Phase 로 나눴다.</li>
+          <li><b>2 도메인 병렬</b> — 각 Phase 안에서 R3-5(Board) · R1-5(OS) 가 동시 실행.</li>
+          <li><b>Claude 직접 최종 검토</b> — 워크플로우 종료 후 본인이 diff · 순환 · 회귀를 실측 검증(본 보고서 §4·§5·§7).</li>
+        </ul>
+
+        <h4>결과 한 줄</h4>
+        <div class="callout ok"><b>GREEN.</b> production 4파일(Board 1 + OS 3) · 테스트 4파일 변경. <b>워크플로우가 잠복 DI 순환을 사전 탐지</b>했고(미수정 보고), Claude 가 검토 단계에서 <code>IsoMarkableScanner</code> 를 <code>ObjectProvider</code> 로 전환해 끊음. <b>bootRun 전체 컨텍스트 기동 성공(circular 0)</b>, <code>./gradlew test --rerun-tasks</code> = <b>820 tests / 0 fail / 0 error / 6 skip</b>(기존 @Disabled).</div>
+
+        <h4>핵심 메시지 (설계 문제 검토)</h4>
+        <p style="margin:0">이번 변경으로 <b>새 설계 문제(순환)가 1건 잠복</b>했었다 — R1-5 가 <code>IsoLifecycleService</code> 에 <code>TypedNameVerifier</code> 의존을 추가하면서, OS 도메인 고유의 스캐너 비대칭(<code>IsoMarkableScanner</code> 만 lifecycle service 를 직접 주입)과 맞물려 eager 생성자 사이클이 닫혔다. 워크플로우 소스 에이전트가 이를 정확히 식별·보고(scope 밖이라 미수정)했고 검토 단계에서 해소했다. 그 외 추가 순환/회귀는 <b>없음</b>(§5·§6).</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section diag" id="s2" open>
+      <summary>§2. ◑ 워크플로우 작업 분리 도식</summary>
+      <div class="body">
+        <p style="margin-top:0">워크플로우 <code>w04v20wu2</code> = 2 Phase. Phase 1(소스) 은 gradle 미실행·파일 비중첩이라 자유 병렬, 그 사이 <b>배리어</b>(소스 전부 안정화), Phase 2(테스트) 는 소스 완료 위에서 병렬. 에이전트 타입을 작업 성격에 맞춰 배정.</p>
+        <div class="diagram"><div class="cap">workflow w04v20wu2 — phase × domain 매트릭스</div><pre>
+  <span class="w">PHASE 1 · Source — 본체 변경</span>   <span class="m">(agentType: java-spring-senior-engineer · gradle 미실행)</span>
+  ┌──────────────────────────────┐        ┌──────────────────────────────┐
+  │ <span class="b">src:R3-5 (Board)</span>              │   ║    │ <span class="g">src:R1-5 (OS)</span>                 │
+  │ BoardModelLifecycleService    │  병렬  │ IsoLifecycleService           │
+  │  · restore(Long) override 삭제 │  ═══   │ OSMetadataLifecycleService    │
+  │  · purge → verify 위임         │   ║    │  · verifyTypedNameOrThrow 제거 │
+  │  · TypedNameVerifier 필드      │        │  · purge → verify 위임         │
+  └──────────────────────────────┘        │  <span class="r">⚠ 순환 위험 발견·보고(미수정)</span>  │
+                                           └──────────────────────────────┘
+  ══════════════════════ <span class="y">BARRIER (소스 전부 디스크 안정화)</span> ══════════════════════
+  <span class="w">PHASE 2 · Test — 작성+실행</span>     <span class="m">(agentType: code-tester · scoped gradle, project-lock 직렬화)</span>
+  ┌──────────────────────────────┐        ┌──────────────────────────────┐
+  │ <span class="b">test:R3-5 (Board)</span>             │   ║    │ <span class="g">test:R1-5 (OS)</span>                │
+  │ BoardModelLifecycleServiceTest│  병렬  │ Iso/OSMetadata LifecycleTest  │
+  │  21 unit + 29 @WebMvcTest     │  ═══   │  + OSMetadataCascadeTest      │
+  │                               │   ║    │  33 pass (--rerun-tasks)      │
+  └──────────────────────────────┘        └──────────────────────────────┘
+                              │
+                              ▼
+                  <span class="p">Claude 직접 최종 검토</span>  <span class="m">(§4)</span>
+            diff · 순환 수정(IsoMarkableScanner) · bootRun · 전체 test
+        </pre></div>
+        <div class="callout warn"><b>왜 트랙을 나눴나</b> — 소스 에이전트가 gradle 을 돌리면 동시 편집 중 transient 컴파일 깨짐(필드 추가 ↔ import 미정비 사이)이 다른 에이전트의 컴파일을 false-fail 시킨다. 그래서 <b>소스 Phase 는 편집만</b>, 컴파일/테스트는 배리어 뒤 Phase 2 로 미뤘다. 테스트 Phase 의 두 에이전트는 같은 gradle 프로젝트를 쓰지만 project-lock 이 직렬화해 빌드 디렉토리 경합이 없다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 에이전트별 산출 (4 agent)</summary>
+      <div class="body">
+        <h4><span class="chip a1">Phase1</span> src:R3-5 (Board) — <span class="impl">java-spring-senior-engineer</span></h4>
+        <table>
+          <thead><tr><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>restore(Long) 삭제</td><td>중복 override(주석 포함) 전체 삭제. <code>LifecycleService.restore(Long)</code> default 가 <code>restore(id,false)</code> 위임. Board 의 restore 외부 호출자 전부 2-arg(controller:48 / scanner:76,81) → self-invocation 불가</td></tr>
+            <tr><td>typed-name 위임</td><td><code>board.displayName().equals()</code> + throw → <code>typedNameVerifier.verify(ResourceType.BOARD_MODEL, id, typedName)</code>. <code>findByIdAndIsDeletedTrue</code> 가드·<code>purge(board)</code> 유지</td></tr>
+            <tr><td>필드 / import</td><td><code>+ private final TypedNameVerifier typedNameVerifier</code> · <code>−TypedNameMismatchException</code> · <code>+ResourceType +TypedNameVerifier</code></td></tr>
+          </tbody>
+        </table>
+        <p class="legend">산출: 1파일 변경, self-verify 통과, gradle 미실행(지시 준수).</p>
+
+        <h4><span class="chip a1">Phase1</span> src:R1-5 (OS) — <span class="impl">java-spring-senior-engineer</span></h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>IsoLifecycleService</code></td><td>private static <code>verifyTypedNameOrThrow</code> 사본 삭제 → <code>verify(ResourceType.OS_ISO, isoId, typedName)</code>. 필드/ import 정비. <b>restore(Long) override 보존</b>. ResourceType 은 <code>IsoMarkableScanner.supportedType()</code> 직접 읽어 확정</td></tr>
+            <tr><td><code>OSMetadataLifecycleService</code></td><td>private static <code>verifyTypedNameOrThrow</code> 사본 삭제 → <code>verify(ResourceType.OS_IMAGE, id, typedName)</code>. <code>requireActiveImage</code> 보존. ResourceType 은 scanner 에서 확정(<b>OS_METADATA 아님 → OS_IMAGE</b>)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>이 에이전트의 결정적 기여</b> — 2파일 scope 를 지키면서, 검증 항목 [확인3] 에서 <b>R1-5 가 닫는 잠복 DI 순환을 정확히 식별·보고</b>했다(스코프 밖이라 임의 수정 안 함). "다음 Phase 컴파일 전 <code>IsoMarkableScanner → ObjectProvider</code> 전환을 먼저 적용할 것을 권고." → 이 보고가 §5 의 검토·수정으로 이어졌다.</div>
+
+        <h4><span class="chip a2">Phase2</span> test:R3-5 (Board) — <span class="impl">code-tester</span></h4>
+        <ul>
+          <li><code>BoardModelLifecycleServiceTest</code> — <code>@Mock TypedNameVerifier</code> 주입. purge 3 시나리오 전환(happy=verify no-op→delete+verify 1회 / mismatch=willThrow→전파+delete never / not-soft-deleted=상태예외+<code>verifyNoInteractions</code>). restore 단일 인자는 plain 객체라 default 경유로 무수정 통과.</li>
+          <li>결과: 단위 <b>21 pass</b> + @WebMvcTest 회귀 <b>29 pass</b>(Lifecycle 12 + Metadata 11 + Nudge 6) — 예외 타입 불변이라 400/404/409 매핑 무수정 통과.</li>
+          <li>주의: 초기 <code>compileTestJava</code> 가 <b>병렬 OS 작업</b>의 <code>OSMetadataCascadeTest</code>(생성자 미갱신) 때문에 실패 → 스코프 밖이라 직접 수정 않고 polling 후 재시도, OS 에이전트가 갱신하자 통과.</li>
+        </ul>
+
+        <h4><span class="chip a2">Phase2</span> test:R1-5 (OS) — <span class="impl">code-tester</span></h4>
+        <ul>
+          <li><code>IsoLifecycleServiceTest</code>(15) · <code>OSMetadataLifecycleServiceTest</code>(8) — <code>@Mock TypedNameVerifier</code>, purge 3 시나리오로 재편. 기존 회귀 유지.</li>
+          <li><code>OSMetadataCascadeTest</code>(6) — 두 service 생성자에 <code>TypedNameVerifier</code> 인자 추가돼 수동 와이어링 컴파일 깨짐 → <code>@Mock</code> 추가·인자 전달로 복구(테스트 코드 오류로 분류, production 미수정).</li>
+          <li><code>OSMetadataControllerPurgeFlowTest</code>(4) — @WebMvcTest, 400/redirect 회귀 확인.</li>
+          <li>결과: <b>33 pass / 0 fail</b>. <code>--rerun-tasks</code> 로 <b>:test UP-TO-DATE false-green 회피</b>(동일 필터 재실행 시 캐시 주의).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. Claude 직접 검토 범위</summary>
+      <div class="body">
+        <p style="margin-top:0">워크플로우 종료 후 사용자 지시("수정된 부분이 의도된대로 변경되었는지 직접 검토")에 따라 본인이 수행한 항목:</p>
+        <table>
+          <thead><tr><th>#</th><th>검토 행위</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>git diff</code> production 3파일 정독 — restore override 삭제 / verify 위임 / helper 제거 / 필드·import 가 의도와 일치하는지</td><td><span class="chip new">일치</span></td></tr>
+            <tr><td>2</td><td>소스 에이전트가 보고한 <b>순환 위험 실증</b> — <code>IsoMarkableScanner</code> 정독 → <code>IsoLifecycleService</code> <b>직접 final 주입</b> 확인(형제 스캐너는 ObjectProvider). 사이클 폐쇄 경로 확정(§5)</td><td><span class="chip del">문제 확인</span></td></tr>
+            <tr><td>3</td><td><b>순환 수정</b> — <code>IsoMarkableScanner</code> 의 필드를 <code>ObjectProvider&lt;IsoLifecycleService&gt;</code> 로 전환(import + 필드 + <code>restoreFromTrash</code>/<code>purgeFromTrash</code> 2 호출부 <code>.getObject()</code>). 형제 스캐너와 동형</td><td><span class="chip me">직접 수정</span></td></tr>
+            <tr><td>4</td><td><code>./gradlew compileJava</code> — 편집 무결성</td><td><span class="chip new">EXIT 0</span></td></tr>
+            <tr><td>5</td><td><b>bootRun 전체 컨텍스트 기동</b> — 순환 부재 실측(3회, env 보강 §7)</td><td><span class="chip new">Started · circular 0</span></td></tr>
+            <tr><td>6</td><td><code>./gradlew test --rerun-tasks</code> — 전체 회귀(false-green 회피)</td><td><span class="chip new">820 / 0 fail</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>분업의 경계</b> — 워크플로우(에이전트)는 <b>도메인별 소스·테스트</b>를, Claude 는 <b>도메인을 가로지르는 통합 검증</b>(전체 컨텍스트 기동·순환·전 도메인 회귀)과 <b>scope 밖 3번째 파일 수정</b>(IsoMarkableScanner)을 맡았다. 단위/슬라이스 테스트는 순환을 못 잡으므로(아래) 통합 검증은 본인이 직접 해야 했다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section diag" id="s5" open>
+      <summary>§5. ◑ 순환 참조 분석 (이번 변경의 핵심 설계 이슈)</summary>
+      <div class="body">
+        <h4>왜 R1-5 가 순환을 닫았나</h4>
+        <p style="margin-top:0">R1-5 전에는 <code>IsoLifecycleService</code> 가 <code>TypedNameVerifier</code> 에 의존하지 않았다. R1-5 가 이 의존을 추가하면서, OS 도메인 고유의 스캐너 비대칭과 맞물려 <b>eager 생성자 사이클</b>이 닫혔다.</p>
+        <div class="diagram"><div class="cap">BEFORE 수정 — R1-5 가 추가한 의존이 닫는 사이클</div><pre>
+  <span class="g">TypedNameVerifierImpl</span>  <span class="m">(@Component)</span>
+     └─ <span class="y">List&lt;MarkableScanner&gt;</span>   <span class="m">생성자에서 eager — scannerByType 맵 구성 → 모든 스캐너 즉시 인스턴스화</span>
+          └─ <span class="r">IsoMarkableScanner</span>
+               └─ <span class="r">IsoLifecycleService</span>   <span class="m">← 직접 final 주입 (이 스캐너만 ObjectProvider 미사용)</span>
+                    └─ <span class="g">TypedNameVerifier</span>   <span class="r">◀── R1-5 가 추가한 의존</span>
+                         ╰─────────────────────────╮
+  <span class="r">◀═══════════════════════ 사이클 폐쇄 ═══════════════════════╯</span>
+  ⇒ spring.main.allow-circular-references 미설정 → <span class="r">BeanCurrentlyInCreationException</span> 로 bootRun 실패
+        </pre></div>
+
+        <h4>왜 Board(R3-5)는 같은 변경에도 멀쩡했나 — 스캐너 비대칭</h4>
+        <table>
+          <thead><tr><th>스캐너</th><th>lifecycle service 주입 방식</th><th>R1-5/R3-5 후 순환</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardModelMarkableScanner</code></td><td><code>ObjectProvider&lt;BoardModelLifecycleService&gt;</code> <span class="chip keep">R3-3 에서 이미</span></td><td><span class="chip new">없음</span> — 지연 주입이 back-edge 차단</td></tr>
+            <tr><td><code>OSMetadataMarkableScanner</code></td><td><code>ObjectProvider&lt;OSMetadataLifecycleService&gt;</code></td><td><span class="chip new">없음</span></td></tr>
+            <tr><td><code>IsoMarkableScanner</code></td><td><b><code>IsoLifecycleService</code> 직접 final</b> <span class="chip del">유일한 예외 (R1-4-1 잔재)</span></td><td><span class="chip del">발생 → 수정함</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>수정 — 형제 스캐너와 동형화</h4>
+        <div class="split">
+          <div class="card before"><h4>BEFORE</h4><pre><code>@RequiredArgsConstructor
+class IsoMarkableScanner ... {
+  private final ISORepository isoRepository;
+  private final IsoLifecycleService
+                    isoLifecycleService;
+  ...
+  void restoreFromTrash(Long id){
+    isoLifecycleService.restore(id);
+  }
+  void purgeFromTrash(Long id){
+    isoLifecycleService.purge(id);
+  }
+}</code></pre></div>
+          <div class="card after"><h4>AFTER</h4><pre><code>@RequiredArgsConstructor
+class IsoMarkableScanner ... {
+  private final ISORepository isoRepository;
+  private final ObjectProvider&lt;IsoLifecycleService&gt;
+                    isoLifecycleServiceProvider;
+  ...
+  void restoreFromTrash(Long id){
+    isoLifecycleServiceProvider.getObject().restore(id);
+  }
+  void purgeFromTrash(Long id){
+    isoLifecycleServiceProvider.getObject().purge(id);
+  }
+}</code></pre></div>
+        </div>
+        <div class="diagram"><div class="cap">AFTER 수정 — 지연 주입으로 eager 그래프가 DAG</div><pre>
+  <span class="g">TypedNameVerifierImpl</span>
+     └─ <span class="y">List&lt;MarkableScanner&gt;</span>
+          └─ <span class="b">IsoMarkableScanner</span>
+               └─ <span class="g">ObjectProvider&lt;IsoLifecycleService&gt;</span>   <span class="m">생성자에서 미해소(프록시만 보유)</span>
+                    ┆ getObject() 는 restoreFromTrash / purgeFromTrash <span class="m">본문 실행 시점에만 해소</span>
+  ⇒ eager 의존 그래프에 back-edge 없음 → <span class="g">사이클 없음 (bootRun Started 실측)</span>
+        </pre></div>
+
+        <div class="callout ok"><b>덤으로 확인된 정합 (D1 재확인)</b> — <code>IsoMarkableScanner.restoreFromTrash</code> 는 <b>단일 인자</b> <code>restore(resourceId)</code> 를 호출한다. ObjectProvider 가 반환하는 프록시의 single-arg <code>restore</code>(= ISO 가 보존한 override)가 <code>@Transactional</code> 진입점이 된다. <b>이 호출자의 존재가 "ISO 는 restore override 를 제거하면 안 된다"(R3-5 D1)를 코드로 재확인</b>한다 — Board 는 그런 single-arg 호출자가 0 이라 제거 SAFE, ISO 는 존재하라 보존 필수.</div>
+
+        <div class="callout warn"><b>왜 테스트로는 안 잡혔나</b> — 단위 테스트는 plain Mockito(Spring 컨텍스트 없음), @WebMvcTest 는 컨트롤러+모킹 빈만 로드하는 슬라이스라 <code>verifier→scanner→service</code> 전체 그래프를 와이어링하지 않는다. <b>순환은 full context refresh 에서만 터진다</b> → 그래서 Claude 의 <code>bootRun</code> 통합 검증이 필수였다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 설계 검토 판정 (순환 외)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>검토 항목</th><th>판정</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>그 외 추가 DI 순환</td><td><span class="chip new">없음</span></td><td>bootRun 전체 컨텍스트 Started — verifier 가 끌어들이는 모든 스캐너·lifecycle service 가 cycle 없이 인스턴스화</td></tr>
+            <tr><td>ISO <code>restore(Long)</code> override 보존</td><td><span class="chip keep">의도된 비대칭</span></td><td>HF-1 — default 의 self-invocation 이 <code>@Transactional</code> 우회 → DB flush 누락. 보존이 옳음(버그 아님). §5 의 scanner 호출자가 이를 재확인</td></tr>
+            <tr><td>typed-name 검증 의미 동치</td><td><span class="chip new">보존</span></td><td>verifier 는 <code>findActiveMarkableById().or(findTrashedById())</code>. soft-deleted 자원은 trashed lookup 으로 동일 자원·동일 <code>displayName()</code> 도달 → 판정 동일. <code>findByIdAndIsDeletedTrue</code>/<code>findById</code> 선행 가드는 "soft-deleted 전제" 유지 위해 보존</td></tr>
+            <tr><td>HTTP 계약 (status code)</td><td><span class="chip new">불변</span></td><td>불일치 예외가 <code>TypedNameMismatchException</code>(@ResponseStatus 400) 로 동일 — verifier 가 같은 예외 throw. 통합 테스트 무수정 통과(400/409 회귀 0)</td></tr>
+            <tr><td>OS 도메인이 SSOT 에서 뒤처져 있던 점</td><td><span class="chip mod">R1-5 로 해소</span></td><td>공통 <code>TypedNameVerifier</code> 는 trash 도메인(S5-2-4/S5-6)에서 생겨 R1 당시엔 적용 대상이 없었음 → OS 가 사본을 들고 있던 부채를 R1-5 가 청산. "R1=레퍼런스" 가정의 빈틈 보정</td></tr>
+            <tr><td>잔여 inline typed-name 복붙</td><td><span class="chip keep">후속 이월</span></td><td>BIOS/BMC/Subprogram(R4/R5/R6) · trash SPI <code>purgeFromTrash</code> canon(R7) 으로 명시 이월. 본 세션 scope 밖</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><b>종합</b> — 이번 변경이 유발한 설계 문제는 <b>IsoMarkableScanner 잠복 순환 1건뿐이며 검토 단계에서 해소</b>됐다. 그 외에는 새 결함 0 — 오히려 OS 도메인의 typed-name SSOT 부채와 scanner 비대칭(IsoMarkableScanner 직접 주입)을 함께 정리해 R7(ObjectProvider 일소)의 사전 정지작업이 됐다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 검증 결과 (bootRun · 820 tests)</summary>
+      <div class="body">
+        <h4>bootRun — 순환 부재 실측 (3회, env 보강)</h4>
+        <table>
+          <thead><tr><th>회차</th><th>추가 env</th><th>도달 지점</th><th>circular?</th></tr></thead>
+          <tbody>
+            <tr><td>#1</td><td>(기본 4개만)</td><td><code>securityPropertiesValidator</code> init 실패 — <code>PROVISION_ALLOWED_ROOTS</code> 누락</td><td><span class="chip new">아님(env)</span></td></tr>
+            <tr><td>#2</td><td>+ <code>PROVISION_ALLOWED_ROOTS=/tmp</code> · <code>PROVISION_MARKER_SECRET</code></td><td>validator 통과 → <code>pathReconciliationService</code> 에서 <code>RECONCILIATION_SCAN_EXTRA_ROOTS</code> placeholder 누락. <b>스캐너·verifier·lifecycle 빈 생성은 통과</b></td><td><span class="chip new">아님(env)</span></td></tr>
+            <tr><td>#3</td><td>+ <code>RECONCILIATION_SCAN_EXTRA_ROOTS=</code></td><td><b><code>Started ServerProvisionApplication in 4.353s</code></b> · Tomcat 7779</td><td><span class="chip new">circular 0 ✅</span></td></tr>
+          </tbody>
+        </table>
+        <p class="legend">참고: ALTER command denied(claude_code) 경고는 <code>ddl-auto=update</code> 가 권한 없는 스키마 변경을 시도한 것으로 <b>비치명</b>(컨텍스트는 통과). CLAUDE.local.md 의 bootRun env 가 <code>PROVISION_ALLOWED_ROOTS</code>/<code>PROVISION_MARKER_SECRET</code>/<code>RECONCILIATION_SCAN_EXTRA_ROOTS</code> 를 누락하고 있음(문서 보강 후보).</p>
+
+        <h4>전체 테스트 — <code>./gradlew test --rerun-tasks</code></h4>
+        <div class="callout ok"><b>124 test classes · 820 tests · 0 failures · 0 errors · 6 skipped</b>(기존 @Disabled). <code>--rerun-tasks</code> 로 컴파일·테스트 강제 재실행(BUILD SUCCESSFUL). 이번 세션 직접 관련 테스트: R3-5 21+29, R1-5 15+8+6+4 — 전부 GREEN 으로 820 안에 포함.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 변경 파일 목록</summary>
+      <div class="body">
+        <h4>Production (4)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>슬라이스</th><th>주체</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>board/service/metadata/BoardModelLifecycleService.java</code></td><td>R3-5</td><td><span class="chip a1">workflow</span></td><td>restore override 삭제 · verify 위임 · 필드/ import <span class="chip mod">mod</span></td></tr>
+            <tr><td><code>os/service/iso/IsoLifecycleService.java</code></td><td>R1-5</td><td><span class="chip a1">workflow</span></td><td>helper 제거 · verify(OS_ISO) 위임 · 필드/ import <span class="chip mod">mod</span></td></tr>
+            <tr><td><code>os/service/metadata/OSMetadataLifecycleService.java</code></td><td>R1-5</td><td><span class="chip a1">workflow</span></td><td>helper 제거 · verify(OS_IMAGE) 위임 · 필드/ import <span class="chip mod">mod</span></td></tr>
+            <tr><td><code>os/service/iso/IsoMarkableScanner.java</code></td><td>R1-5</td><td><span class="chip me">Claude 검토</span></td><td>직접 주입 → <code>ObjectProvider</code> 순환 차단 <span class="chip mod">mod</span></td></tr>
+          </tbody>
+        </table>
+        <h4>Test (4)</h4>
+        <table>
+          <tbody>
+            <tr><td><code>board/service/metadata/BoardModelLifecycleServiceTest.java</code></td><td>R3-5</td><td>verify mock 전환 + restore default 회귀 <span class="chip mod">mod</span></td></tr>
+            <tr><td><code>os/service/iso/IsoLifecycleServiceTest.java</code></td><td>R1-5</td><td>verify mock 전환 (15) <span class="chip mod">mod</span></td></tr>
+            <tr><td><code>os/service/metadata/OSMetadataLifecycleServiceTest.java</code></td><td>R1-5</td><td>verify mock 전환 (8) <span class="chip mod">mod</span></td></tr>
+            <tr><td><code>os/service/metadata/OSMetadataCascadeTest.java</code></td><td>R1-5</td><td>생성자 wiring 갱신 (6) <span class="chip mod">mod</span></td></tr>
+          </tbody>
+        </table>
+        <h4>문서 / 산출물</h4>
+        <ul>
+          <li><code>CLAUDE.md</code> — §체크포인트 ↔ Notion 단계 동기화(background agent 위임) 규약 추가 <span class="chip new">new</span></li>
+          <li><code>plan/26-06-14_22-05-32_R3-5_plan.html</code> — R3-5 CP1 산출물 <span class="chip new">new</span></li>
+          <li>Notion — R3-5 진행 중(시작 06-14) · <b>R1-5 신설</b>(R1 부모, 진행 중, 본문 4항목 + CP4 순환수정 정합)</li>
+          <li>(R1-5 는 사용자 지시로 plan html 미산출 — 설계 검토 완료 후 Notion 신설 + 즉시 CP4)</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 잔존 책임 / 후속</summary>
+      <div class="body">
+        <ul>
+          <li><b>CP5 (브라우저 E2E)</b> — 두 슬라이스 모두 사용자 단독. purge typed-name(일치/불일치) · restore · 휴지통 복원/영구삭제 1 사이클.</li>
+          <li><b>커밋</b> — 사용자 지시 대기. 도메인 분리 → 슬라이스별 2커밋 제안(R3-5 / R1-5). CP5 통과 후 Notion 완료 처리(종료 일자).</li>
+          <li><b>R4-x / R5-x / R6-x</b> — BIOS / BMC / Subprogram 의 inline typed-name 복붙을 동일 verifier 위임으로(레퍼런스 = R3-5/R1-5).</li>
+          <li><b>R7 (스캐너 SPI 분리 / ObjectProvider 일소)</b> — 본 세션이 <code>IsoMarkableScanner</code> 를 ObjectProvider 로 정렬해 사전 정지작업을 마침. trash SPI <code>purgeFromTrash</code> 의 typed-name canon 도 R7 에서 흡수.</li>
+          <li><b>문서 보강(범위 외)</b> — CLAUDE.local.md 의 bootRun env 목록에 <code>PROVISION_ALLOWED_ROOTS</code>/<code>PROVISION_MARKER_SECRET</code>/<code>RECONCILIATION_SCAN_EXTRA_ROOTS</code> 추가 권장(사용자 자산).</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let open=true;
+  document.getElementById('toggle').addEventListener('click',()=>{open=!open;
+    document.querySelectorAll('details.section').forEach(d=>d.open=open);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.style.display='';return;}
+      const m=d.textContent.toLowerCase().includes(q);d.style.display=m?'':'none';if(m)d.open=true;
+    });
+  });
+</script>
+</body>
+</html>

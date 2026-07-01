@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R2 잔여(예외 처리 개편) 재검증 — 보고서</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rev{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap}
+  .ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}.ux-flow .drop{color:#f85149;font-weight:700}.ux-flow .dim{color:#8b949e}.ux-flow .ok{color:#3fb950;font-weight:700}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft)}
+  .ux-verdict.good{background:var(--green-bg)}.ux-verdict.warn{background:var(--yellow-bg)}.ux-verdict.bad{background:var(--red-bg)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R2 잔여(예외 처리 개편) 재검증 <span class="chip rev">REVALIDATION</span></h1>
+  <div class="meta">
+    <span><strong>대상</strong> R2 묶음의 미실시 단계(R2-3 advice 통합 / R2-4 ProblemDetail / R2-5 errorCode / R2-6 alert)를 현재 Spring Boot 4 + R3~R7 변경 코드 기준으로 재판정</span>
+    <span><strong>방법</strong> 10-agent workflow (Assess 4 → Validate 4 → Synthesize → Critique), 전 판정 file:line 실측</span>
+    <span><strong>작성</strong> 2026-06-28 KST</span>
+    <span><strong>결론</strong> R2-3 재초점(modify) · R2-4 <b>DROP</b> · R2-5 축소→R2-6 병합 · R2-6 helper 중앙화. 6단계 → 2단계</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 세 질문 판정 요약</a></li>
+      <li><a href="#s2">§2 Q1 — R2-1 조사 적절성</a></li>
+      <li><a href="#s3">§3 Q2 — 구현 예외 로직 적절성</a></li>
+      <li><a href="#sd">🎬 잔여 단계 재판정</a></li>
+      <li><a href="#s4">§4 Q3 — 미실시 단계 재설계</a></li>
+      <li><a href="#s5">§5 critique 보정 (필수 반영)</a></li>
+      <li><a href="#s6">§6 잔여 R2 수정 계획 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 세 질문 판정 요약</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>질문</th><th>판정</th><th>핵심</th></tr></thead>
+          <tbody>
+            <tr><td><b>Q1</b> R2-1 조사 적절성</td><td><b>적절(sound)</b></td><td>4(실질 5) 권위 출처 정확 인용 + v2 적대 보강. 코드-레벨 주의가 현 코드에서 재현. 약점: 회귀 가드 미산출</td></tr>
+            <tr><td><b>Q2</b> 구현 예외 로직 적절성</td><td><b>혼재(mixed)</b></td><td>강점(보안 다형 핸들러·ExceptionLogPolicy SSOT) + 잔여 결함 3(대부분 latent)</td></tr>
+            <tr><td><b>Q3</b> 미실시 단계 타당성</td><td><b>일부 재설계</b></td><td>5월 4단계 그대로 실행 부적절 — R2-3 재초점 / R2-4 DROP / R2-5 축소 / R2-6 helper</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>한 줄 결론</b> — R2 의 미실시 단계는 방향성(예외 라우팅을 구조적으로 닫고 frontend 일관)은 유효하나, R3~R7 캠페인 drift + R1-4-1 v3 의 선구현 + Spring Boot 4 네이티브 진화로 <b>5월 6단계가 2단계(R2-3 재초점 + R2-6)로 수렴</b>한다. ProblemDetail(R2-4)·109-클래스 errorCode(R2-5)는 <b>over-abstraction 으로 DROP/축소</b> — 이 admin 앱은 외부 머신 컨슈머가 없고 응답 바디가 3종 이질 스키마라 RFC 9457 flat 봉투로 평탄화되지 않는다(YAGNI).</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. Q1 — R2-1 조사는 적절했는가 (sound)</summary>
+      <div class="body">
+        <p style="margin-top:0">3종 보고서(<code>report/26-05-28_19-25-05</code> hotfix / <code>19-43-32</code> survey v1 / <code>20-21-08</code> survey v2)가 권위 출처를 표준 원문과 부합하게 인용했고, v1 직후 senior-engineer agent 의 적대적 재검토(v2)로 정밀도를 실측 보강했다.</p>
+        <table>
+          <thead><tr><th>출처</th><th>인용</th><th>현 시점 유효성</th></tr></thead>
+          <tbody>
+            <tr><td>Spring Reference (@ExceptionHandler producible media types + cause/root 우선)</td><td>정확</td><td>Boot 4(=Framework 7)에서도 canonical — 단일/이중 advice + produces 매처 패턴 유지</td></tr>
+            <tr><td>Spring native ProblemDetail / RFC 9457</td><td>정확</td><td>Framework 6/Boot 3 도입 후 Boot 4 일급. <code>spring.mvc.problemdetails.enabled</code> 현재 미설정(default off)</td></tr>
+            <tr><td>Google AIP-193 (ErrorInfo, message 가변/code 고정)</td><td>정확</td><td>유효하나 "message 가변" 을 MessageSource(i18n)와 연결 못한 gap</td></tr>
+            <tr><td>MS Azure Error Response</td><td>정확</td><td>봉투 미채택(RFC 9457 로 정함) — 실효는 Retry-After 뿐, 우선순위 낮음</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>약점 1개</b> — 조사가 회귀 가드/테스트를 남기지 않아, 보고서가 경계한 "분기문 legacy 확장"이 이후 실제 발생: advice 핸들러가 <b>21개</b>(Api 16 + Web 5)로 늘고 <code>ChildLifecycleBlockedByParentException</code> 이 super-matcher 자동흡수 대신 양 advice 전용 핸들러로 박혔다. 정적 스냅샷 진단의 한계.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. Q2 — 구현된 예외 로직은 적절한가 (mixed)</summary>
+      <div class="body">
+        <h4>현재 라우팅 위상 (실측)</h4>
+        <p style="margin-top:0">두 advice 모두 <code>@Order(HIGHEST_PRECEDENCE)</code> + produces 매처로 분리: <code>ApiExceptionHandler</code>(@RestControllerAdvice, JSON 16핸들러), <code>WebExceptionHandler</code>(@ControllerAdvice, HTML 5핸들러 = NotFound/ChildLifecycleBlocked/Conflict/OptimisticLock/Domain fallback). 양쪽 <code>handleDomain</code> 이 이미 <code>AnnotationUtils.findAnnotation(@ResponseStatus)</code> 로 status 흡수.</p>
+        <h4>강점 (코드 검증)</h4>
+        <ul>
+          <li><b>보안 예외 다형 단일 핸들러</b> — <code>handleSecurity</code>(ApiExceptionHandler:252)가 <code>SecurityException.httpStatus()</code> 로 400/403/413/415/500 을 if/switch/Map <b>0건</b> 매핑. 과거 <code>catch(DomainException)</code> 가 보안 예외 흡수해 silent 500 으로 새던 회귀를 <b>계층 설계</b>로 차단 — CLAUDE.md "분기 대신 다형성"에 정합.</li>
+          <li><b>ExceptionLogPolicy</b> — <code>is5xxServerError()</code> 다형으로 양 advice 로그레벨 SSOT(4xx WARN/no-stack, 5xx ERROR+stack). 2-advice 복붙 drift 방지.</li>
+          <li><b>@Order 산술 금지</b> 주석 명문화(v1 underflow / v2 28건 회귀 흉터 기록).</li>
+        </ul>
+        <h4>잔여 결함 (대부분 latent — critique 가 다운그레이드)</h4>
+        <ul>
+          <li><span class="badge mod">latent</span> <b>FieldBoundBadRequest XHR400/SSR500 비대칭</b> — <code>WebExceptionHandler</code> 에 전용 핸들러 부재 + <code>FieldBoundBadRequestException</code> 에 <code>@ResponseStatus</code> 없음 → SSR 이 만나면 handleDomain fallback 500. <b>단 throw site 가 전부 XHR 채널</b>(InvalidBiosValueException=RestController, InvalidReplaceTargetException=nudge)이라 오늘 SSR 500 불가 = latent foot-gun.</li>
+          <li><span class="badge mod">latent</span> <b>JSON-전용 핸들러 4개 produces 미지정</b> — <code>handleMethodArgumentNotValid</code>/<code>handleSecurity</code>/<code>handleZipInspectionFailed</code>/<code>handleMaxUploadSize</code> 가 produces 미지정이라 text/html 요청에도 매칭 가능 → raw JSON bleed 잠재. 단 발생 엔드포인트가 XHR 전용이라 SSR 진입 경로 부재.</li>
+          <li><span class="badge mod">latent</span> <b><code>*/*</code> Accept 등록순서 의존</b> — 양 advice 동순위라 <code>*/*</code> 는 bean 등록 순서 의존(주석이 자인). 단 1st-party JS 는 명시 Accept 송신, <code>*/*</code> 는 curl/Accept-less fetch 에서만.</li>
+          <li><span class="badge mod">live</span> <b>browse/upload 컨트롤러 try/catch</b> — CLAUDE.md 가 반복 사고 진원으로 지목한 컨트롤러 catch 복붙(browse 4-catch)이 advice 로 안 올라간 채 잔존.</li>
+        </ul>
+        <div class="callout"><b>판정</b> — 명시적 Accept 경로는 견고하나, R1-4-1 hotfix 가 표면화시킨 문제군을 "오늘 그런 경로 없음" 한시 invariant 로 가려둔 잔여가 있다. 이는 정확히 R2-3 이 닫으려던 지점이므로 방향성은 유효(다만 우선순위 R2-3 &gt; R2-4/5).</div>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 잔여 단계 재판정 — 5월 원안 vs 재설계</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">단계</span>
+            <button class="ux-btn on" data-st="R2-3">R2-3</button>
+            <button class="ux-btn" data-st="R2-4">R2-4</button>
+            <button class="ux-btn" data-st="R2-5">R2-5</button>
+            <button class="ux-btn" data-st="R2-6">R2-6</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+          <div class="ux-verdict" id="verdict"></div>
+        </div>
+        <p class="dim">재판정 기준: ① 현재 코드에 live 결함이 있는가 ② Spring Boot 4 네이티브로 끝낼 수 있는가 ③ over-abstraction/외부 컨슈머 부재인가 ④ R1-4-1 3차 회귀 벡터를 건드리는가.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. Q3 — 미실시 단계 재설계</summary>
+      <div class="body">
+        <h4>R2-3 advice 통합 <span class="badge mod">MODIFY (재초점)</span></h4>
+        <p style="margin-top:0">"단일 advice 물리 통합 + @Order 제거" 헤드라인은 <b>제외</b> — live 결함을 안 닫고(v3 가 라우팅·HTML-bleed 이미 차단) R1-4-1 3차 회귀 계열(HIGHEST_PRECEDENCE 산술 / Accept */* fallthrough) + webflux 공존 blind spot 의 흉터 위험만 진다. 대신 의도(라우팅 드리프트를 <b>구조적으로</b> 닫기)로 재초점:</p>
+        <ol>
+          <li><b>상태 매핑 다형화</b> — <code>NotFoundException</code>@404 / <code>ConflictException</code>@409 / <code>FieldBoundBadRequestException</code>@400 super 에 <code>@ResponseStatus</code> 부착. 양 advice <code>handleDomain</code> 이 이미 findAnnotation 하므로 hierarchy 로 status 흡수 → FieldBoundBadRequest SSR 비대칭 root 소멸 + 일반 <code>handleNotFound</code>/<code>handleConflict</code>(plain body)를 <code>handleDomain</code> 으로 <b>수렴=분기 감소</b>(특수 body 핸들러 FieldBound/Nudge/DeleteReject/ChildLifecycleBlocked 는 유지).</li>
+          <li><b>produces 명시</b> — JSON-전용 4핸들러에 <code>produces=application/json</code> 부착, raw JSON bleed 차단. <b>(critique: 이는 Accept-매처 변이라 Web variant 추가 또는 whitelabel 수용 결정 + 회귀 가드 필수 — §5)</b></li>
+          <li><b>browse/upload 4-catch → advice 승급</b> — 컨트롤러 try/catch 안티패턴 제거(선행: <code>InvalidBrowsePathException</code>@400 등).</li>
+          <li><b>회귀 가드</b> — <code>AdviceExceptionMappingTest</code> 에 <code>*/*</code>, native-form bleed, browse status 회귀 가드 신설.</li>
+        </ol>
+        <h4>R2-4 ProblemDetail <span class="badge drop">DROP</span></h4>
+        <ul>
+          <li>외부 머신 컨슈머 부재 — 1st-party SSR+XHR 앱, PXE 진입점은 kickstart 반환(에러봉투 파싱 안 함).</li>
+          <li>3종 이질 409 바디(<code>ApiErrorResponse</code> / <code>NudgeRequiredResponse</code> / <code>DeleteRejectResponse</code>)를 RFC 9457 flat <code>{type,title,status,detail}</code> 로 평탄화 불가.</li>
+          <li>네이티브 ProblemDetail 활성 시 <code>form-error.js</code> fieldErrors 계약 회귀. 52 jsonPath 단언 + 20 JS 파일 blast radius 에 사용자 가치 0.</li>
+          <li><b>YAGNI</b> — 표준 봉투가 미래에 진짜 필요해지면(외부 컨슈머 출현) 그린필드 재진입. <b>독립 슬라이스 신설 안 함.</b></li>
+        </ul>
+        <h4>R2-5 errorCode 다형성 <span class="badge mod">MODIFY (축소 → R2-6 병합)</span></h4>
+        <ul>
+          <li><code>DomainException</code>/<code>SecurityException</code> 에 <code>errorCode()</code> default 추가하는 109-클래스 cross-cutting 메커니즘 <b>폐기</b>(over-abstraction + 클래스명→wire silent 결합 + 응답 record 상수와 SSOT 중복).</li>
+          <li>실 결함은 <code>nudge-modal.js:89</code> 의 <code>body.message.indexOf('만료')</code> fragile string 분기 1건뿐 → <code>NudgeSessionExpiredException</code> 에 안정 머신코드(<code>NUDGE_SESSION_EXPIRED</code>) 부여 + 프론트 1라인 교체. 기존 두 record 코드(NUDGE/SOFTDELETE)는 SSOT 유지. <b>R2-6 에 흡수.</b></li>
+        </ul>
+        <h4>R2-6 alert→ErrorModal <span class="badge mod">MODIFY (helper 중앙화)</span></h4>
+        <ul>
+          <li>단순 <code>alert()→ErrorModal.show()</code> 치환 금지(파싱 N복제 잔존). <code>ErrorModal.fromResponse(resp,opts)</code> async helper 신설 — 바디 shape 단일화(<code>ct.includes('json')</code> 로 problem+json substring 버그 회피, <code>detail||message</code> 동시 수용).</li>
+          <li>진짜 타깃 라우팅: delete-reject(<b>:68 의 409+SOFTDELETE 사전체크 보존</b>)/bios-list/reconciliation/confirm-modal-base. <code>confirm()</code> 파괴적 확인은 비대상.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. critique 보정 (R2-3 plan 에 필수 반영)</summary>
+      <div class="body">
+        <div class="callout danger"><b>(1) produces 미지정 핸들러 목록 정정</b> — synth 가 <code>handleNudgeRequired:82</code>/<code>handleSoftDeleteRequiresIntent:95</code> 로 오기했으나 이 둘은 <b>이미 produces 보유</b>(no-op). 실제 대상은 <b>4개</b>: <code>handleMethodArgumentNotValid:222</code> / <code>handleSecurity:252</code> / <code>handleZipInspectionFailed:264</code> / <code>handleMaxUploadSize:278</code>. (코드 직접 확인.)</div>
+        <div class="callout danger"><b>(2) produces 부착은 그 자체가 Accept-매처 변이</b> — R1-4-1 3차 회귀와 동일 계열이다. 4핸들러에 produces 를 달면 SSR(text/html) 요청은 Web variant 부재로 whitelabel 로 fall-through(현재는 raw JSON bleed). <b>→ Web variant 추가 또는 whitelabel 수용을 명시 결정하고, native-form 회귀 가드(AdviceExceptionMappingTest)는 선택이 아니라 필수 전제.</b></div>
+        <div class="callout"><b>(3) FieldBoundBadRequest 비대칭은 latent</b> — throw site 가 전부 XHR 이라 SSR 500 발생 불가. "live 결함" 표기를 "latent(invariant-gated foot-gun)" 로 재프레이밍. 수리(@ResponseStatus(400))는 여전히 가치 있음(미래 SSR throw site 방어 + 분기 수렴).</div>
+        <div class="callout ok"><b>(4) advice 물리 미통합 = ExceptionLogPolicy 보존</b> — advice 를 합치면 ExceptionLogPolicy 의 존재 이유(2-advice drift 방지)가 부분 소멸하는데, "물리 통합 제외" 판정이 이를 역으로 보존한다. R2-6 <code>fromResponse</code> 의 <code>detail||</code> 수용은 drop 된 R2-4 의 speculative 선반영이나 비용 trivial + DRY 실가치라 무해.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 잔여 R2 수정 계획 · 다음</summary>
+      <div class="body">
+        <h4>재구성 (6단계 → 2단계)</h4>
+        <table>
+          <thead><tr><th>단계</th><th>판정</th><th>실행</th></tr></thead>
+          <tbody>
+            <tr><td>R2-3</td><td><span class="badge mod">modify</span></td><td><b>1순위</b>. @ResponseStatus 다형화 + produces(4) + browse 4-catch 승급 + 회귀 가드. backend.</td></tr>
+            <tr><td>R2-4</td><td><span class="badge drop">drop</span></td><td>슬라이스 신설 안 함(YAGNI).</td></tr>
+            <tr><td>R2-5</td><td><span class="badge mod">축소</span></td><td>nudge-expired 1건 → R2-6 에 병합.</td></tr>
+            <tr><td>R2-6</td><td><span class="badge mod">modify</span></td><td><b>2순위</b>. fromResponse helper + alert 라우팅 + R2-5 nudge 흡수. frontend(backend 독립).</td></tr>
+          </tbody>
+        </table>
+        <h4>다음 (진행 순서)</h4>
+        <ul class="check-list" data-storage="r2rev">
+          <li><input type="checkbox"><span>① 본 재검증 report (완료)</span></li>
+          <li><input type="checkbox"><span>② Notion 재구성 — R2-4 drop 표기 / R2-5 → R2-6 병합 / R2-3·R2-6 설명 갱신</span></li>
+          <li><input type="checkbox"><span>③ <b>R2-3 CP1 plan</b> — 위 재설계 + §5 보정(4 핸들러 / Web variant·whitelabel 결정 / 필수 회귀 가드) 반영</span></li>
+          <li><input type="checkbox"><span>④ R2-3 CP2~CP5 → R2-6(+R2-5)</span></li>
+        </ul>
+        <div class="callout"><b>참고 산출물</b> — 본 보고서는 10-agent workflow(`wuz255j1a`) 산출을 종합. 원 plan: <code>plan/26-05-30_10-55-11_R2-2_plan.html</code>(R2-2, 완료) + R2-1 조사 보고서 3종.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+  const ST={
+    'R2-3':{v:'modify',vc:'warn',t:'advice 통합',
+      before:'5월 원안: 두 advice → 단일 @ControllerAdvice 물리 통합 + @Order 제거',
+      after:`<span class="keep">KEEP</span> 2-advice produces 구조(Boot4 canonical)
+<span class="drop">제외</span> 물리 통합 / @Order 제거 (live 결함 0 + 3차 회귀 흉터)
+<span class="new">+</span> @ResponseStatus super 부착(404/409/400) → handleDomain 흡수 → 분기 수렴
+<span class="new">+</span> produces(4 핸들러) + browse 4-catch advice 승급 + 회귀 가드`,
+      vd:'<b>MODIFY</b> · 물리통합 헤드라인 제외(회귀 회피), 의도(드리프트 구조적 차단)로 재초점. 1순위.'},
+    'R2-4':{v:'drop',vc:'bad',t:'ProblemDetail',
+      before:'5월 원안: ApiErrorResponse → RFC 9457 ProblemDetail 어댑터 + frontend 매처 갱신',
+      after:`<span class="drop">DROP</span> 독립 슬라이스 신설 안 함
+<span class="dim">· 외부 머신 컨슈머 부재(1st-party SSR+XHR, PXE=kickstart)
+· 3종 이질 409 바디 → flat 봉투 평탄화 불가
+· 네이티브 활성 시 form-error fieldErrors 회귀
+· 52 jsonPath + 20 JS blast radius, 사용자 가치 0</span>`,
+      vd:'<b>DROP</b> · YAGNI. 표준 봉투가 진짜 필요해지면 그린필드 재진입.'},
+    'R2-5':{v:'modify',vc:'warn',t:'errorCode 다형성',
+      before:'5월 원안: DomainException super 에 errorCode() default (109 클래스 다형)',
+      after:`<span class="drop">폐기</span> 109-클래스 default 메커니즘 (over-abstraction + 클래스명→wire 결합)
+<span class="new">대신</span> 실결함 1건 외과수술: NudgeSessionExpiredException 안정코드
+       + nudge-modal.js 만료 substring 분기 → body.code 교체
+<span class="keep">→ R2-6 에 병합</span>`,
+      vd:'<b>축소</b> · 다형 메커니즘 폐기, nudge-expired 1건만 수리해 R2-6 흡수.'},
+    'R2-6':{v:'modify',vc:'good',t:'alert → ErrorModal',
+      before:'5월 원안: 9파일 alert() 흐름을 ErrorModal 로 단순 흡수',
+      after:`<span class="new">+</span> ErrorModal.fromResponse(resp,opts) helper 신설
+       (바디 shape 단일화, ct.includes('json'), detail||message)
+<span class="new">→</span> delete-reject(:68 사전체크 보존)/bios-list/reconciliation 라우팅
+<span class="keep">제외</span> confirm() 파괴적 확인 / FormError 필드경로`,
+      vd:'<b>MODIFY</b> · 단순 치환 금지, helper 로 파싱 중앙화. 2순위(backend 독립).'},
+  };
+  const st={k:'R2-3'};
+  function sync(){document.querySelectorAll('[data-st]').forEach(b=>b.classList.toggle('on',b.dataset.st===st.k));}
+  document.querySelectorAll('[data-st]').forEach(b=>b.addEventListener('click',()=>{st.k=b.dataset.st;sync();render();}));
+  function render(){
+    const s=ST[st.k], flow=document.getElementById('flow'), vd=document.getElementById('verdict');
+    flow.innerHTML = `<span class="dim">[${st.k} · ${s.t}]</span>\n<span class="dim">${s.before}</span>\n\n${s.after}`;
+    vd.className='ux-verdict '+s.vc;
+    vd.innerHTML = s.vd;
+  }
+  sync();render();
+</script>
+</body>
+</html>

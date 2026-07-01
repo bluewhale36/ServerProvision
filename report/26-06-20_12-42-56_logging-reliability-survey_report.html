@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신뢰할 수 있는 로깅 — 조사 결과 보고서 (현행 진단 + 베스트프랙티스 + 개편 권고)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--orange:#dd5b00;--orange-bg:rgba(221,91,0,.10);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--green:#1a7f37;--green-bg:#dafbe1;
+    --red:#bf2626;--red-bg:rgba(191,38,38,.09);--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);
+    padding:18px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .badge-survey{background:var(--purple-bg);color:var(--purple);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);
+    border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc a.diag{color:var(--red);font-weight:600}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.diag>summary{background:linear-gradient(90deg,var(--red-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .chip{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:600}
+  .chip.p1{background:var(--red-bg);color:var(--red)} .chip.p2{background:var(--orange-bg);color:var(--orange)}
+  .chip.p3{background:var(--yellow-bg);color:var(--yellow)} .chip.p4{background:var(--blue-bg);color:var(--blue)}
+  .chip.gap{background:var(--red-bg);color:var(--red)} .chip.ok{background:var(--green-bg);color:var(--green)}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .ref{font-size:11px;color:var(--muted);font-family:var(--mono);word-break:break-all}
+  a.src{color:var(--blue);text-decoration:none;font-size:11px;font-family:var(--mono)} a.src:hover{text-decoration:underline}
+  .barwrap{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px}
+  .bar{height:14px;border-radius:3px}
+  .bar.info{background:var(--blue)} .bar.warn{background:var(--yellow)} .bar.error{background:var(--red)} .bar.debug{background:var(--muted)}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>신뢰할 수 있는 로깅 — 조사 결과 보고서 <span class="badge-survey">survey · research</span></h1>
+  <div class="meta">
+    <span><strong>목적</strong> "에러가 나든 자원이 등록되든 로그가 구체적이지 않아 혼자 디버깅이 어렵다" 의 원인 진단 + 신뢰할 수 있는 로깅 방법 조사 → 개편 토대</span>
+    <span><strong>대상</strong> ServerProvision (Spring Boot 4.0.3 · Java 21 · Logback+SLF4J)</span>
+    <span><strong>방법</strong> 4축 병렬 워크플로우 (현행 감사 + 베스트프랙티스 + 예외·상관관계 + 도구·설정)</span>
+    <span><strong>작성</strong> 2026-06-20 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc">
+      <li><a href="#s1">§1 한눈 요약</a></li>
+      <li><a href="#s2">§2 조사 범위·방법</a></li>
+      <li><a href="#s3" class="diag">§3 현행 진단 — 5대 공백</a></li>
+      <li><a href="#s4" class="diag">§4 통증 사례 (live)</a></li>
+      <li><a href="#s5">§5 베스트프랙티스 (조사)</a></li>
+      <li><a href="#s6">§6 도구·설정</a></li>
+      <li><a href="#s7">§7 권고 개편안</a></li>
+      <li><a href="#s8">§8 부록 — 정량·출처</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 한눈 요약</summary>
+      <div class="body">
+        <p style="margin-top:0">현행 로깅은 <b>Spring Boot 기본 설정 그대로</b>(logback 설정 파일 0, <code>logging.*</code> 프로퍼티 0)이며, 신뢰할 수 있는 로깅의 가장 큰 결손은 <b>요청 상관관계(correlation) ID 가 전무</b>하다는 점이다. 여기에 <b>사용자 액션 실패가 서버 로그에 거의 남지 않고</b>(NotFound·일반 Conflict 핸들러 무로깅, ERROR 14건이 전부 비동기 경로), <b>lifecycle 상태 전이 성공도 무로깅</b>이라, 한 요청에서 무슨 일이 일어났는지·왜 실패했는지를 <b>로그만 보고 복원할 수 없다</b>. 방금 디버깅한 ghost catch-22 와 BIOS 펌웨어 업로드 차단(executable-DENY) 이 그 산 증거다.</p>
+        <div class="callout danger"><b>핵심 결론</b> — 통증의 1차 근원은 "무엇을 로깅하느냐" 보다 <b>① correlation 부재 + ② 실패·전이 경로의 무로깅 + ③ 구조화 컨텍스트 미방출 + ④ 로그 설정 전무</b> 의 복합이다. 다행히 해법은 <b>추가 의존성 0</b> 으로 가능하다 — Spring Boot 4 네이티브 구조적 로깅 + MDC requestId 필터 1개 + <code>@ControllerAdvice</code> 단일 진입점의 예외 로깅 표준화 + lifecycle 전이 로깅.</div>
+        <h4>권고 한 줄</h4>
+        <p style="margin:0"><b>P1</b> MDC requestId(상관관계) → <b>P2</b> advice 예외 로깅 표준화(레벨 규율 + 자원 컨텍스트, SSOT) → <b>P3</b> 전이/거절/skip 로깅 → <b>P4</b> 운영 JSON(ECS) + Async + 마스킹 2차. 모두 <b>의존성 추가 없이</b> <code>logback-spring.xml</code> 신설 + 필터 1개 + advice·서비스 로깅 보강으로 달성.</p>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2">
+      <summary>§2. 조사 범위·방법</summary>
+      <div class="body">
+        <p style="margin-top:0">4개 축을 병렬 조사했다. (1) 현행 소스 감사(grep 정량 + 예외/서비스/설정 정독), (2) 업계 베스트프랙티스(WebSearch), (3) 예외·상관관계·작업경계 로깅(WebSearch + 매핑), (4) 도구·설정(Spring Boot 4 / Logback / 구조화).</p>
+        <table>
+          <thead><tr><th>축</th><th>핵심 질문</th></tr></thead>
+          <tbody>
+            <tr><td>현행 감사</td><td>레벨 분포·밀도, 예외 경로 로깅, 성공 경로 로깅, correlation, 로그 설정 — "로그만으로 원인을 못 짚는" 지점의 실증</td></tr>
+            <tr><td>베스트프랙티스</td><td>무엇을 로깅(actionable 5W), 레벨 규율(ERROR vs WARN), 구조화, 안티패턴</td></tr>
+            <tr><td>예외·상관관계</td><td>MDC correlationId, advice 단일 진입점 로깅, 작업 경계 로깅, async 전파</td></tr>
+            <tr><td>도구·설정</td><td>Spring Boot 4 네이티브 structured logging, logback-spring.xml, 마스킹, async/성능</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section diag" id="s3" open>
+      <summary>§3. 현행 진단 — 5대 공백 (실측)</summary>
+      <div class="body">
+        <h4>레벨 분포 (grep 전수)</h4>
+        <p style="margin:0">main 466 java 중 <code>@Slf4j</code> 67(14%). 호출 총계 — INFO 139 · WARN 64 · ERROR 14 · DEBUG 7 · TRACE 0.</p>
+        <div style="margin:8px 0">
+          <div class="barwrap"><span style="width:54px">INFO</span><div class="bar info" style="width:60%"></div><span>139 (63%)</span></div>
+          <div class="barwrap"><span style="width:54px">WARN</span><div class="bar warn" style="width:28%"></div><span>64 (29%)</span></div>
+          <div class="barwrap"><span style="width:54px">ERROR</span><div class="bar error" style="width:6%"></div><span>14 (6%)</span></div>
+          <div class="barwrap"><span style="width:54px">DEBUG</span><div class="bar debug" style="width:3%"></div><span>7 (3%)</span></div>
+        </div>
+        <div class="callout warn"><b>ERROR 14건이 전부 비동기/백그라운드</b>(검증 launcher 4 · IsoRegistrationRunner 2 · reconciliation 2 · TTL worker · orphan quarantine · PostCreationTask). <b>동기 사용자 요청 경로(CRUD·lifecycle)에 ERROR 0건</b> — 사용자 액션이 409/500 으로 실패해도 서비스 계층은 ERROR 한 줄을 안 남긴다. Board(lifecycle 핵심 도메인)는 INFO 7·WARN 0·ERROR 0 으로 가장 침묵.</div>
+
+        <table>
+          <thead><tr><th>#</th><th>공백</th><th>실측 증거</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip gap">G1</span></td><td><b>상관관계(correlation) 0</b> — 1차 근원</td><td><code>MDC</code>·<code>X-Request-Id</code>·<code>traceId</code> grep <b>0건</b>. <code>OncePerRequestFilter</code>/<code>HandlerInterceptor</code>/요청로깅필터 0. micrometer-tracing/actuator 의존성 0(build.gradle). → 동시 업로드/복구 로그를 묶을 식별자가 전혀 없어 사후 복원 불가</td></tr>
+            <tr><td><span class="chip gap">G2</span></td><td><b>사용자 액션 실패 무로깅</b></td><td><code>ApiExceptionHandler:71</code>/<code>WebExceptionHandler:58</code> <code>handleNotFound</code> 로그 <b>0줄</b>(NotFound 하위 15종). <code>ApiExceptionHandler:164</code>/<code>WebExceptionHandler:65</code> 일반 <code>handleConflict</code> <b>0줄</b>(ConflictException 하위 42종 중 별도 핸들러 가진 소수만 로깅, 나머지 다수—Duplicate*/Ghost*/IllegalState*/TypedNameMismatch—전부 침묵)</td></tr>
+            <tr><td><span class="chip gap">G3</span></td><td><b>lifecycle 전이 성공 무로깅</b></td><td><code>BiosService</code> softDelete(395)·restore(427)·deprecate(458)·undeprecate(467)·toggleEnabled(371) 성공 시 <b>0줄</b>. Board 도 restore 만 INFO, 나머지 무로깅. "무엇이 어떤 상태로 바뀌었는지" 흔적 없음</td></tr>
+            <tr><td><span class="chip gap">G4</span></td><td><b>구조화 컨텍스트 미방출</b></td><td>자원 type/id/operation 이 예외 <b>메시지 안에만</b>. <code>ChildLifecycleBlockedByParentException</code> 의 6필드(parent/child type·id·state·action)는 production 에서 <b>getter 0회 read</b> — 구조화 컨텍스트를 갖고도 로그·응답 어디에도 안 싣는다</td></tr>
+            <tr><td><span class="chip gap">G5</span></td><td><b>로그 설정 전무</b></td><td><code>logback-spring.xml</code>/<code>logback.xml</code> 0. application.properties 내 <code>logging.*</code> <b>0줄</b>. → 콘솔 단일 + 기본 패턴(<code>%d %level %logger %msg</code>). 파일출력·롤링·JSON·MDC 슬롯 전무 → correlation 을 켜도 패턴에 슬롯이 없어 안 찍힘</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>메시지 일관성</b> — <code>[addBios]</code>/<code>[purge]</code>/<code>[trash]</code> 류 대괄호 prefix 관례는 일부 자리잡았으나 전역 표준이 아님. 자원키도 어디는 <code>biosId=,boardId=</code>(구조화, 양호), 어디는 한국어 문장에 섞여 grep·파싱 불가. WARN 64건 중 절반이 advice(10)·reconciliation(9)·cleanup(5)·trash(5) 에 집중, Board 도메인 WARN 0 — lifecycle 거절이 가장 잦은 도메인이 가장 침묵.</div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section diag" id="s4">
+      <summary>§4. 통증 사례 (live) — "로그만 보고 원인 못 짚는" 실제</summary>
+      <div class="body">
+        <h4>사례 A — ghost catch-22 (3 지점 무로깅)</h4>
+        <table>
+          <thead><tr><th>지점</th><th>무엇이 안 찍히나</th></tr></thead>
+          <tbody>
+            <tr><td><code>cascade/BiosBoardScopedChildLifecycle:50</code> (BMC 47 · Subprogram 53)</td><td>cascade restore 가 <code>if(GhostEvaluator.isGhost) continue;</code> 로 ghost 자식을 <b>조용히 skip</b>. 부모 단 <code>[restore] ... 하위 N건 복구</code> 한 줄뿐 — <b>skip 된 ghost 가 몇 건·어느 id 인지 0줄</b>. "복구했는데 자식 하나가 안 올라왔다"를 로그로 절대 못 짚음</td></tr>
+            <tr><td><code>BoardModelGuards.requireActiveBoard:20</code> (BIOS/BMC/Subprogram 동명 헬퍼)</td><td><code>findByIdAndIsDeletedFalse</code> 실패 시 <code>BoardModelNotFoundException(id)</code> throw, <b>로그 0줄</b>. toggle/restore/undeprecate 가 비활성 부모로 막힐 때 "어느 board 가 왜 막혔는지" 무흔적</td></tr>
+            <tr><td><code>ChildLifecycleBlockedByParentException:26</code> + <code>TrashLifecycleService:125,230</code></td><td>6필드 컨텍스트 보유하고도 throw 지점·핸들러 모두 무로깅. ghost 복구 거절(<code>GhostRowRestoreNotAllowed</code>)도 throw 직전 로그 없음 — 같은 메서드의 self-heal(222)·보상실패(193)는 로깅하는데 정작 <b>사용자가 마주치는 거절 경로만 침묵</b></td></tr>
+          </tbody>
+        </table>
+        <h4>사례 B — BIOS 펌웨어 업로드 차단 (executable-DENY)</h4>
+        <p style="margin:0"><code>ContentGuard:108</code> DENY 분기는 <code>throw new ExecutableContentRejectedException();</code> 만 — <b>로그 0줄</b>. 41개 파일 중 <b>어느 파일이 어떤 MIME 으로</b> 걸렸는지 서버 로그에 안 남는다. WARN 분기(111)는 file+mime 를 찍는데 DENY 는 안 찍고, <code>(filename, mime)</code> 생성자(17)는 인자를 받고도 <code>super(GENERIC_MESSAGE)</code> 로 버린다. 사용자는 "실행 가능 형식의 파일은 업로드할 수 없습니다" 만 보고 원인 파일을 못 짚음.</p>
+        <div class="callout danger"><b>패턴</b> — 두 사례 모두 <b>거절/skip 지점에 자원 컨텍스트(type·id·이유)를 가진 채 로그를 안 남긴다</b>. 개편의 핵심 타겟이 바로 이 "조용한 실패" 다.</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 베스트프랙티스 (외부 조사 종합)</summary>
+      <div class="body">
+        <h4>① actionable 로그 — 5W 기준</h4>
+        <p style="margin:0">판정 기준 : "로그만으로 <b>who/what/where/when/why</b> 를 답할 수 있는가". 답하면 actionable, 못 하면 노이즈. 에러는 <b>에러 자체 + 직전 이벤트</b>를 함께 남겨 재현 가능하게. 각 로그가 담을 필드 : timestamp · severity · 메시지 · 컨텍스트(<code>request_id</code>/<code>resourceType</code>/<code>resourceId</code>/<code>duration_ms</code>/status) · 스택트레이스(에러 시). <span class="ref">출처: lanre.wtf, betterstack, honeycomb</span></p>
+        <h4>② 레벨 규율 — ERROR vs WARN 결정 트리 (불가침)</h4>
+        <table>
+          <thead><tr><th>레벨</th><th>언제</th></tr></thead>
+          <tbody>
+            <tr><td><b>ERROR</b></td><td>요청한 <b>작업을 완료할 수 없음</b>(DB 연결 실패, 재시도 소진 외부 타임아웃, 결제 실패) → 고우선 알림</td></tr>
+            <tr><td><b>WARN</b></td><td>시스템이 <b>복구/우회</b>했거나(재시도 성공, fallback) <b>예상된 실패</b>(잘못된 입력·인증, deprecated 호출)</td></tr>
+            <tr><td><b>INFO</b></td><td>의미 있는 <b>비즈니스 이벤트</b>(기동, 인증, 트랜잭션 완료) — "시스템의 서사"</td></tr>
+            <tr><td><b>DEBUG</b></td><td>변수·페이로드·분기 등 진단용. <b>프로덕션 OFF</b>, 조사 시 임시 ON 후 원복(Actuator <code>/loggers</code>)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>안티패턴</b> — 입력검증·인증 실패를 ERROR 로 찍으면 <b>alert fatigue</b> → WARN/DEBUG. 본 프로젝트 "예외=진짜 예외, UX 모순은 UI 차단, 서버 가드는 안전망" 원칙과 정합 : <b>정상 흐름에서 도메인 가드가 발동하면 그건 direct POST/동시성/stale 같은 진짜 비정상 → WARN 이상으로 조사 대상화</b>. 과거 보안예외 silent 흡수 사고(catch(DomainException))는 "삼키기" 그 자체. <span class="ref">출처: oneuptime, betterstack, edgedelta</span></div>
+        <h4>③ 경계 1회 로깅 + 삼키기 금지</h4>
+        <ul>
+          <li><b>Either log OR throw, never both</b> — 스택트레이스는 <b>최상위 경계(<code>@ControllerAdvice</code>)에서 단 1회</b>. 잡아서 로깅+재던짐 → 상위가 또 로깅(중복).</li>
+          <li><b>삼키기 금지</b> — catch 후 "로깅하거나 래핑하거나 재던지거나" 셋 중 하나는 필수.</li>
+          <li><b>메시지만 말고 <code>ex</code> 객체 전달</b> — <code>log.error("...", ex)</code> (SLF4J 가 스택 처리). <code>e.getMessage()</code> 만 = 스택 소실. <code>printStackTrace()</code> 금지.</li>
+          <li><b>over-catching 금지</b> — <code>catch(Exception)</code> 광범위 포획은 보안예외까지 흡수 → 가장 구체적 타입을 잡는다. (본 프로젝트 보안 silent 500 사고와 직결.)</li>
+        </ul>
+        <div class="callout ok"><b>정합</b> — 본 프로젝트의 <code>@ControllerAdvice</code> 단일 진입점이 "경계 1회 로깅" 의 이상적 위치. 컨트롤러별 try/catch 개별 로깅(복붙 회귀 진원)을 advice 의 타입별 1회 로깅 + 레벨 결정으로 끌어올리면 ① 스택 중복 제거 ② 보안예외 흡수 차단 ③ 레벨 규율 SSOT 를 동시 달성. <span class="ref">출처: gaetanopiazzolla java exception anti-patterns</span></div>
+        <h4>④ 상관관계 · 작업 경계 · 구조화</h4>
+        <ul>
+          <li><b>MDC correlationId</b> — thread-local 맵으로 모든 로그 줄에 자동 부착. 서블릿 필터에서 <code>X-Request-Id</code> 수신/없으면 UUID → <code>MDC.put</code>, <code>finally</code> 에서 <code>MDC.clear</code>(누수 방지), 응답 헤더 반영. 비동기는 <code>TaskDecorator</code> 로 MDC 복사. <span class="ref">출처: spring docs tracing, fati.dev, javabyexamples</span></li>
+          <li><b>작업 경계 / canonical log line</b> — 요청·saga·배치 경계마다 시작/종료, 가능하면 종료 시 단일 요약 엔트리(입력·신원·소요시간·결과). 단편 로그로 흩뿌리지 말 것.</li>
+          <li><b>구조화(JSON/key-value)</b> — Elasticsearch/Datadog 가 정규식 없이 필드 인덱싱 → 검색·상관·집계 가속. 일관된 키 네이밍(OpenTelemetry semantic conventions), 구조/비구조 혼용 금지. <span class="ref">출처: signoz, baeldung, digma</span></li>
+          <li><b>민감정보 마스킹</b> — 비밀번호·토큰·PII 평문 금지. "개발자 기억"에 의존 말고 <b>시스템 레벨(필터/Converter)에서 강제</b>. 본 프로젝트 직결: <code>Server.ipmiPassword</code> · BMC 자격증명 · HMAC secret. <span class="ref">출처: skyflow, betterstack sensitive-data</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. 도구·설정 — Spring Boot 4 / Logback (의존성 추가 0)</summary>
+      <div class="body">
+        <div class="callout ok"><b>핵심</b> — Spring Boot 3.4+(4.0.3 동일)는 <b>네이티브 구조적 로깅</b>을 내장한다. <code>logging.structured.format.console=ecs|logstash|gelf</code> 로 <b>외부 인코더 의존성 없이</b> JSON 로그 가능. 본 프로젝트(단일/소수 인스턴스 관리 도구)엔 <b>ECS(Elastic Common Schema)</b> 권장 — logstash-logback-encoder 도입은 over-engineering(필요 시 후일 도입). <span class="ref">출처: spring.io blog 2024-08, docs.spring.io logging</span></div>
+        <h4>권장 구성 — <code>logback-spring.xml</code> 신설 + <code>&lt;springProfile&gt;</code> 분리</h4>
+        <pre>&lt;configuration&gt;
+  &lt;springProfile name="dev"&gt;
+    &lt;appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender"&gt;
+      &lt;encoder&gt;&lt;pattern&gt;%d{HH:mm:ss.SSS} [%X{requestId}] %-5level %logger{36} - %msg%n&lt;/pattern&gt;&lt;/encoder&gt;
+    &lt;/appender&gt;
+    &lt;root level="DEBUG"&gt;&lt;appender-ref ref="CONSOLE"/&gt;&lt;/root&gt;
+  &lt;/springProfile&gt;
+  &lt;springProfile name="prod"&gt;
+    &lt;appender name="JSON" class="ch.qos.logback.core.ConsoleAppender"&gt;
+      &lt;encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder"&gt;
+        &lt;format&gt;ecs&lt;/format&gt;
+      &lt;/encoder&gt;
+    &lt;/appender&gt;
+    &lt;appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender"&gt;
+      &lt;queueSize&gt;1024&lt;/queueSize&gt;&lt;discardingThreshold&gt;0&lt;/discardingThreshold&gt;&lt;neverBlock&gt;false&lt;/neverBlock&gt;
+      &lt;appender-ref ref="JSON"/&gt;
+    &lt;/appender&gt;
+    &lt;root level="INFO"&gt;&lt;appender-ref ref="ASYNC"/&gt;&lt;/root&gt;
+  &lt;/springProfile&gt;
+&lt;/configuration&gt;</pre>
+        <ul>
+          <li>반드시 <code>logback-spring.xml</code> 명명(<code>logback.xml</code> 은 <code>&lt;springProfile&gt;</code> 미해석).</li>
+          <li>MDC 값은 ECS/structured 출력 시 JSON 에 자동 포함. dev 콘솔은 <code>%X{requestId}</code> 슬롯.</li>
+          <li><b>AsyncAppender</b> 무손실 구성: <code>queueSize=1024 · discardingThreshold=0 · neverBlock=false</code>. 운영 파일 appender 에만. <span class="ref">출처: logback.qos.ch/performance</span></li>
+          <li><b>correlationId</b>: Micrometer Tracing 이 클래스패스에 없어 내장 traceId 미작동 → 직접 MDC 필터(의존성 0) 권장. 단일 인스턴스라 분산추적 불요.</li>
+          <li><b>마스킹 2차</b>: 코드 1차(이미 <code>BmcPasswordService:41</code>·<code>BiosRedfishPayloadAssembler:67</code> 가 값 미출력) + logback <code>%replace</code> 정규식 치환(커스텀 클래스 불필요). <span class="ref">출처: baeldung logback-mask</span></li>
+        </ul>
+        <div class="callout"><b>추가 의존성 : 0개</b>. 변경 = <code>logback-spring.xml</code> 신설 + 소수 <code>logging.*</code>(ECS service.name 등) + (선택) MDC 필터 1개. JPA show-sql 은 이미 false(application.properties:17)로 적절.</div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 권고 개편안 (우선순위 · 슬라이스)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>P</th><th>슬라이스(후보)</th><th>내용</th><th>해소 공백</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip p1">P1</span></td><td>L1 — 상관관계</td><td><code>RequestCorrelationFilter</code>(OncePerRequestFilter, MDC requestId, 응답헤더 X-Request-Id, finally clear) + <code>logback-spring.xml</code>(패턴 <code>%X{requestId}</code>) + 비동기 <code>TaskDecorator</code></td><td>G1, G5</td></tr>
+            <tr><td><span class="chip p2">P2</span></td><td>L2 — advice 예외 로깅 SSOT</td><td><code>Api/WebExceptionHandler</code> 에서 예외 타입별 <b>1회</b> 로깅 표준화 — 4xx 예상 충돌=WARN(메시지+자원컨텍스트), 5xx/보안 비정상=ERROR(+stack). <code>ExceptionLogPolicy</code> 추출, 레벨은 <code>@ResponseStatus</code>/is5xx 다형성으로 결정. 비-Domain 500 fallback advice 추가</td><td>G2, G4</td></tr>
+            <tr><td><span class="chip p3">P3</span></td><td>L3 — 전이·거절·skip 로깅</td><td>lifecycle 전이(softDelete/restore/toggle/deprecate/undeprecate)에 <code>[lifecycle] type#id op old→new</code> 표준 1줄(전 도메인). cascade ghost-skip WARN. ghost 복구거절·가드거절 경로 로깅. ContentGuard DENY 에 file+mime</td><td>G2, G3, 사례 A·B</td></tr>
+            <tr><td><span class="chip p4">P4</span></td><td>L4 — 운영 JSON + 마스킹</td><td>prod 프로파일 ECS JSON + AsyncAppender + logback <code>%replace</code> 마스킹 2차(IPMI/secret). <code>logging.structured.*</code> 토글</td><td>G5</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><b>설계 정합</b> — L2 의 "advice 단일 진입점 1회 로깅" 은 CLAUDE.md 의 <b>§분기문 legacy 확장 금지</b>(컨트롤러 try/catch 복붙 회귀 제거) + <b>framework 위임</b>(레벨/상태코드를 <code>@ResponseStatus</code>/HandlerExceptionResolver 다형성에) 원칙과 정확히 맞물린다. L3 의 전이 로깅은 <b>도메인 lifecycle SSOT</b>(R3-3 의 <code>*LifecycleService</code>)에 1줄씩 표준화하면 분기 확장 없이 전 도메인 일관 적용.</div>
+        <div class="callout warn"><b>주의</b> — 과다 로깅 회피(ISO 대용량·reconciliation 스캔·N+1 batch 의 DEBUG 남발 금지). 모니터링은 로그가 아닌 metrics 로(추세·이상은 metrics, 로그는 ERROR 알림). 개편은 <b>의존성 0</b> 으로 점진 슬라이스(L1→L4) 권장.</div>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부록 — 정량 분포 · 참고 출처</summary>
+      <div class="body">
+        <h4>도메인별 INFO 편중</h4>
+        <p style="margin:0">OS 44 · BIOS 16 · BMC 15 · Subprogram 15 에 INFO 집중. Board(lifecycle 핵심) INFO 7 · WARN 0 · ERROR 0. 성공 로깅은 "생성·영구삭제"(addBios:241 · persistFromNudge:652 · purge:495 · nudge:200/311)에 편중, "전이"(toggle/softDelete/restore/deprecate)는 무로깅.</p>
+        <h4>핵심 참고 출처 (외부 조사)</h4>
+        <ul class="ref">
+          <li><a class="src" href="https://docs.spring.io/spring-boot/reference/features/logging.html">docs.spring.io — Spring Boot logging (native structured)</a></li>
+          <li><a class="src" href="https://spring.io/blog/2024/08/23/structured-logging-in-spring-boot-3-4/">spring.io — Structured logging in Spring Boot 3.4</a></li>
+          <li><a class="src" href="https://docs.spring.io/spring-boot/reference/actuator/tracing.html">docs.spring.io — Tracing / correlation</a></li>
+          <li><a class="src" href="https://oneuptime.com/blog/post/2026-01-30-logging-level-guidelines/view">oneuptime — Logging level guidelines (ERROR vs WARN)</a></li>
+          <li><a class="src" href="https://betterstack.com/community/guides/logging/logging-best-practices/">betterstack — Logging best practices</a></li>
+          <li><a class="src" href="https://www.honeycomb.io/blog/engineers-checklist-logging-best-practices">honeycomb — Engineer's logging checklist (canonical log line)</a></li>
+          <li><a class="src" href="https://gaetanopiazzolla.github.io/java/exception/patterns/2024/07/01/java-exception-anti-patterns.html">Java exception anti-patterns (swallow / log-and-throw)</a></li>
+          <li><a class="src" href="https://www.baeldung.com/logback-mask-sensitive-data">baeldung — Logback mask sensitive data</a></li>
+          <li><a class="src" href="https://logback.qos.ch/performance.html">logback — performance (AsyncAppender)</a></li>
+          <li><a class="src" href="https://www.baeldung.com/spring-boot-structured-logging">baeldung — Spring Boot structured logging</a></li>
+        </ul>
+        <p class="ref">조사 산출 원본: 워크플로우 <code>wqne6q1wl</code> (4 agent · 현행 감사 / 베스트프랙티스 / 예외·상관관계 / 도구·설정).</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let open=true;
+  document.getElementById('toggle').addEventListener('click',()=>{open=!open;
+    document.querySelectorAll('details.section').forEach(d=>d.open=open);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.style.display='';return;}
+      const m=d.textContent.toLowerCase().includes(q);d.style.display=m?'':'none';if(m)d.open=true;
+    });
+  });
+</script>
+</body>
+</html>

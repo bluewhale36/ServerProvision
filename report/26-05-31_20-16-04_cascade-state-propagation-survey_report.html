@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>계층형 자원 상태 cascade — 보존 & 방향성 패턴 조사 보고서</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a22; --panel-2:#1c2230; --panel-3:#202736;
+    --border:#2a3142; --border-soft:#232938; --text:#e6e9ef; --muted:#8a93a6;
+    --accent:#7aa2f7; --accent-2:#bb9af7; --ok:#9ece6a; --warn:#e0af68; --bad:#f7768e; --info:#7dcfff;
+    --mono:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:14.5px;line-height:1.66;}
+  code,.mono{font-family:var(--mono);font-size:12.8px;background:var(--panel-3);padding:1px 5px;border-radius:4px;color:#cdd6f4;}
+  pre{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5;}
+  pre code{background:none;padding:0;}
+  a{color:var(--accent);text-decoration:none;} a:hover{text-decoration:underline;}
+  header.banner{background:linear-gradient(180deg,#1a2030,#12151c);border-bottom:1px solid var(--border);padding:22px 28px;}
+  header.banner h1{margin:0 0 8px;font-size:21px;font-weight:750;letter-spacing:-0.2px;}
+  .v-badge{background:rgba(122,162,247,0.16);color:var(--accent);font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;vertical-align:middle;}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);}
+  .meta b{color:var(--text);font-weight:600;}
+  main{max-width:1080px;margin:0 auto;padding:24px 28px 80px;}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:26px;font-size:13px;}
+  .toc b{display:block;text-transform:uppercase;font-size:11px;color:var(--muted);letter-spacing:0.6px;margin-bottom:6px;}
+  .toc ol{margin:0;padding-left:20px;columns:2;}
+  .toc li{padding:2px 0;}
+  section{margin:0 0 30px;}
+  h2{font-size:17px;font-weight:700;margin:0 0 12px;padding-bottom:7px;border-bottom:1px solid var(--border-soft);}
+  h3{font-size:14.5px;color:var(--accent);margin:18px 0 7px;}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:left;vertical-align:top;}
+  th{background:var(--panel-2);color:var(--muted);font-weight:600;font-size:12px;}
+  tbody tr:nth-child(odd){background:rgba(255,255,255,0.012);}
+  .card{background:var(--panel);border:1px solid var(--border);border-left-width:3px;border-radius:8px;padding:12px 16px;margin:12px 0;}
+  .card.ok{border-left-color:var(--ok);} .card.warn{border-left-color:var(--warn);}
+  .card.bad{border-left-color:var(--bad);} .card.info{border-left-color:var(--info);} .card.rec{border-left-color:var(--accent-2);background:var(--panel-2);}
+  .card h4{margin:0 0 6px;font-size:13.5px;}
+  .src{display:block;color:var(--muted);font-size:11.5px;margin-top:5px;}
+  .chip{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;letter-spacing:0.3px;}
+  .chip.std{background:rgba(158,206,106,0.16);color:var(--ok);}
+  .chip.vendor{background:rgba(125,207,255,0.16);color:var(--info);}
+  .chip.acad{background:rgba(187,154,247,0.16);color:var(--accent-2);}
+  .chip.rec{background:rgba(187,154,247,0.16);color:var(--accent-2);}
+  .chip.no{background:rgba(247,118,142,0.16);color:var(--bad);}
+  sup.fn a{font-size:10.5px;color:var(--info);padding:0 1px;}
+  .t-no{color:var(--bad);font-weight:700;} .t-ok{color:var(--ok);font-weight:700;}
+  ol.sources{font-size:12.3px;color:var(--muted);line-height:1.7;padding-left:26px;}
+  ol.sources li{margin:2px 0;} ol.sources b{color:var(--text);}
+  blockquote{border-left:3px solid var(--border);background:var(--panel-2);margin:10px 0;padding:8px 14px;color:var(--muted);font-size:13px;border-radius:0 6px 6px 0;}
+</style>
+</head>
+<body>
+
+<header class="banner">
+  <h1>계층형 자원 상태 cascade — 보존 &amp; 방향성 패턴 조사 <span class="v-badge">권위 출처 only</span></h1>
+  <div class="meta">
+    <span>생성 : <b>2026-05-31 KST</b></span>
+    <span>동기 : <b>R3-1 cascade 검토 중 사용자 제기 — cascade 가 자식 수동 선택을 덮어씀 + 차원별 방향 불일치</b></span>
+    <span>방법 : <b>6-분야 병렬 workflow (개인 블로그 배제, standard-body / vendor-official / academic 30 출처)</b></span>
+    <span>관련 : <b>R3-1 (진행) · 후속 R3-2/R4 (provenance 개편) 후보</b></span>
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <b>목차</b>
+  <ol>
+    <li><a href="#s1">1. 왜 이 조사인가 (문제 정의)</a></li>
+    <li><a href="#s2">2. 핵심 통찰 — 4 원리</a></li>
+    <li><a href="#s3">3. 산업 사례 6 분야</a></li>
+    <li><a href="#s4">4. 본 앱 적용안 3 (A / B / C)</a></li>
+    <li><a href="#s5">5. cascade 방향성 일관 정책</a></li>
+    <li><a href="#s6">6. 권고 (2단계)</a></li>
+    <li><a href="#s7">7. Open Decisions</a></li>
+    <li><a href="#s8">8. 출처 (30)</a></li>
+  </ol>
+</div>
+
+<!-- 1 -->
+<section id="s1">
+  <h2>1. 왜 이 조사인가 (문제 정의)</h2>
+  <p>계층형 자원 — 부모 <code>BoardModel</code> / <code>OSMetadata</code> → 자식 <code>BIOS</code> / <code>BMC</code> / <code>Subprogram</code> / <code>ISO</code> — 은 <code>LifecycleEntity @MappedSuperclass</code> 의 3 boolean(<code>is_enabled</code> / <code>is_deprecated</code> / <code>is_deleted</code>)을 공유한다. 현재 <code>BoardModelService</code> · <code>OSMetadataLifecycleService</code> 의 cascade 는 <b>write-based(eager)</b> — 부모 상태 전이가 자식 엔티티 boolean 을 <b>직접 덮어쓴다</b>.</p>
+  <div class="card bad">
+    <h4>결함 시나리오 — 자식 수동 선택의 소실</h4>
+    <p>운영자가 자식 A <b>하나만 수동으로 deprecate</b> 해뒀다고 하자. 이후 부모를 deprecate 했다가 다시 <b>undeprecate</b> 하면, <code>undeprecate()</code> 의 자식 루프가 <code>filter(b -&gt; b.isDeprecated())</code> 로 <b>deprecated 자식 전부</b>를 되돌려 — 운영자가 명시적으로 deprecate 해둔 자식 A 까지 undeprecate 시킨다. write-cascade 가 <b>inherited(cascade-derived)</b> 와 <b>explicit(수동)</b> 을 구분하지 못하기 때문.</p>
+    <span class="src">근거 코드 : <code>BoardModelService.deprecate()/undeprecate()</code> 의 <code>children.forEach(BoardBIOS::deprecate)</code> · <code>OSMetadataLifecycleService</code> 대칭.</span>
+  </div>
+  <p>naive 해법 — 차원마다 <code>is_*_cascaded</code> 플래그 3개 추가 — 는 <b>컬럼 3배 폭증</b>으로 기각(사용자 지적). 또한 부수적으로 <b>차원별 cascade 방향이 불일치</b>한다 : <code>enabled</code>=단방향(disable만), <code>restore</code>=opt-in, <code>deprecate/undeprecate</code>=양방향 항상. 본 조사는 ① 보존(explicit↔inherited) ② 방향성 일관화 두 축을, 컬럼 폭증 없이 푸는 정립 패턴을 권위 출처로 찾는다.</p>
+</section>
+
+<!-- 2 -->
+<section id="s2">
+  <h2>2. 핵심 통찰 — 6 분야가 공유하는 4 원리</h2>
+  <p>6 분야가 한 골격으로 수렴한다 : <b><code>effective = explicit ?? inherited</code> 를 write 가 아니라 read-time 에 resolve 하고, explicit/inherited 구분은 "값을 저장했는가(provenance)" 단일 비트로만 표현한다.</b></p>
+  <table>
+    <thead><tr><th style="width:42px;">#</th><th>원리</th><th>요지</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>explicit 우선 단계함수</td><td>explicit(declared/directly-applied) 값이 있으면 inheritance 분기는 <b>평가조차 안 됨</b> → "cascade 가 explicit 을 덮는 사건"이 구조적으로 발생 불가 <sup class="fn"><a href="#src1">[1]</a><a href="#src9">[9]</a></sup></td></tr>
+      <tr><td>2</td><td>inherited 는 값이 아니라 부재 시 fallback</td><td>자식은 자기 명시값만 저장, 상속분 미저장 → <code>NULL</code>(부재) 자체가 "inherited" 비트를 겸함. 추가 플래그 컬럼 0 <sup class="fn"><a href="#src1">[1]</a><a href="#src20">[20]</a></sup></td></tr>
+      <tr><td>3</td><td>저장이 불가피하면 1비트 provenance</td><td>Windows <code>INHERITED_ACE</code>(0x10) 단일 비트가 entry 출처를 표지 → 재전파는 inherited 항목만, explicit 보존. 차원×플래그 곱셈을 entry당 1비트로 압축 <sup class="fn"><a href="#src8">[8]</a><a href="#src25">[25]</a></sup></td></tr>
+      <tr><td>4</td><td>방향성 비대칭</td><td>restrictive 하향은 자동, permissive 상향(역전파)은 <b>표준에 부재</b> — SQL <code>ON DELETE CASCADE</code> 는 있어도 "ON UNDELETE"는 없다 <sup class="fn"><a href="#src26">[26]</a><a href="#src27">[27]</a><a href="#src30">[30]</a></sup></td></tr>
+    </tbody>
+  </table>
+  <p>종합 : 자식 행을 cascade-write 하지 않으면 부모 되돌림 시 건드릴 explicit 이 없어 "수동 선택 보존"이 자동 성립한다. 가장 강력한 해법은 <b>cascade-write 제거(effective 계산형)</b>, write 를 유지해야 하면 <b>1비트 provenance</b> 가 차선이다.</p>
+</section>
+
+<!-- 3 -->
+<section id="s3">
+  <h2>3. 산업 사례 6 분야</h2>
+
+  <div class="card info">
+    <h4>① CSS Cascade &amp; Inheritance <span class="chip std">standard-body</span></h4>
+    <p>explicit(declared)이 있으면 specified value=그 값, 없을 때만 inherited=부모 computed value. inheritance 는 저장 값이 아닌 <b>fallback 규칙</b> → cascade 가 explicit 을 못 덮는 구조적 보장. <code>revert</code>/<code>unset</code> 이 특정 origin/layer 기여분만 1토큰으로 롤백 → 플래그 0.</p>
+    <span class="src">— W3C CSS Cascading and Inheritance Level 5 §4 Value Processing, §7 Defaulting <sup class="fn"><a href="#src1">[1]</a><a href="#src4">[4]</a><a href="#src5">[5]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>② Windows ACL 자동 상속 <span class="chip std">standard-body</span> <span class="chip vendor">vendor-official</span></h4>
+    <p>상속된 ACE 에만 <code>INHERITED_ACE</code>(0x10) 비트 표지, directly-applied(explicit)는 무표지+앞쪽 배치+항상 우선. 부모 inheritable ACE 제거 시 자동 상속이 <b>inherited 복사본만 제거</b>("removes any copies that were inherited")하고 explicit 은 보존. <code>SE_DACL_PROTECTED</code> 로 자식이 상속 자체를 차단.</p>
+    <span class="src">— [MS-DTYP] ComputeInheritedACLfromParent / Automatic Propagation of Inheritable ACEs <sup class="fn"><a href="#src8">[8]</a><a href="#src9">[9]</a><a href="#src11">[11]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>③ IAM 정책 계층 (GCP / AWS / Azure) <span class="chip vendor">vendor-official</span></h4>
+    <p>정책은 attach 노드에만 1벌 저장; 자식 effective 는 평가 시점에 ancestor chain 합성(GCP union, AWS <code>@@assign/@@append/@@remove</code>, Azure additive+deny override). 부모 변경이 자식 저장정책을 <b>물리적으로 안 건드림</b> → 수동 선택 자동 보존. attachment point 가 곧 explicit/inherited 구분자 → 자식 플래그 컬럼 0.</p>
+    <span class="src">— GCP IAM resource-hierarchy / effective policies · AWS Organizations inheritance · Azure RBAC scope <sup class="fn"><a href="#src13">[13]</a><a href="#src14">[14]</a><a href="#src15">[15]</a><a href="#src18">[18]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>④ 계층형 설정 / feature flag 3-state <span class="chip vendor">vendor-official</span></h4>
+    <p>tri-state nullable(<code>null</code>=inherit / true / false). Kubernetes <code>*bool</code> 은 nil(unset)과 explicit-false 를 <b>반드시 구별</b>(zero value 가 valid choice) → pointer 필수로 규정. 단일 nullable 필드가 값+출처를 동시 인코딩 → 추가 컬럼 0. LaunchDarkly prerequisite 도 평가(read) 시점에 부모 먼저 본다.</p>
+    <span class="src">— Kubernetes API Conventions (Optional vs Required, *bool) · LaunchDarkly flag hierarchy <sup class="fn"><a href="#src20">[20]</a><a href="#src22">[22]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>⑤ DB 모델링 (PostgreSQL) <span class="chip vendor">vendor-official</span></h4>
+    <p>naive 6컬럼(차원당 값+is_cascaded) 대신 ① <code>bit(3)</code> provenance bitmask 단일 컬럼(차원별 1비트 압축) 또는 ② nullable override + <b>VIRTUAL generated column</b>("occupies no storage, computed when read")로 effective 무저장. STORED(write-time) vs VIRTUAL(read-time) trade-off.</p>
+    <span class="src">— PostgreSQL 18 §5.4 Generated Columns, §8.10 Bit String Types <sup class="fn"><a href="#src24">[24]</a><a href="#src25">[25]</a></sup></span>
+  </div>
+
+  <div class="card info">
+    <h4>⑥ Cascade 방향성 (SQL 참조동작 / K8s GC / RBAC ceiling) <span class="chip std">standard-body</span> <span class="chip acad">academic</span></h4>
+    <p>SQL <code>ON DELETE CASCADE·RESTRICT·SET NULL</code> 은 단방향 파괴적 전파만 — 역방향 restore 동작 없음. K8s <code>propagationPolicy</code> 도 Foreground/Background/Orphan 만, un-deletion 전파 부재. <b>undeprecate 양방향 전파는 "restore cascade 가 표준에 없는 것"과 동형인 비표준 안티패턴.</b> RBAC: effective ≤ granted ceiling, 상향(permit)은 명시 grant 필요 — 비대칭의 보안 근거.</p>
+    <span class="src">— PostgreSQL §5.5 Referential Actions · K8s Garbage Collection · NIST RBAC <sup class="fn"><a href="#src26">[26]</a><a href="#src27">[27]</a><a href="#src29">[29]</a><a href="#src30">[30]</a></sup></span>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="s4">
+  <h2>4. 본 앱 적용안 3 (<code>is_cascaded</code> 3컬럼 폭증 회피)</h2>
+
+  <div class="card ok">
+    <h4>안 A — effective 계산형 (자식 nullable override + read-time resolve, cascade-write 제거)</h4>
+    <p><b>메커니즘</b> : 3 boolean → 3 nullable override(NULL=상속, TRUE/FALSE=명시). 부모 전이는 자식 행을 write 하지 않고, <code>effectiveDeprecated() = override != null ? override : parent.effectiveDeprecated()</code> 를 read-time 계산. <code>enabled</code> 는 CSS 비상속 property 대응.</p>
+    <p><b>스키마</b> : NOT NULL boolean → nullable 변경이라 <b>순증 0</b>. effective 는 무저장(또는 VIRTUAL generated). <b>보존</b> : 구조적 보장(cascade-write 가 없어 덮어쓰기 불가). <b>비용</b> : 모든 read 경로(getter→effective*())·뷰모델·서버가드 전면 개편 + <code>deleted</code> 의 물리 부작용(trash 이동)으로 차원별 모델 혼재 → "단순 구현"과 상충. <code>read-path 전면</code>.</p>
+  </div>
+
+  <div class="card rec">
+    <h4>안 B — provenance 압축형 <span class="chip rec">권장</span></h4>
+    <p><b>메커니즘</b> : write-based cascade 유지 + 자식 각 차원에 "cascade-set 인가" 1비트. Windows 자동 전파 차용 — 부모 deprecate→자식이 <b>explicit(origin=0)이면 skip</b>, inherited(=1)면 set+origin=1. 부모 undeprecate→<b>origin=1 자식만 환원</b>, 수동 deprecate(origin=0)한 자식 A 보존.</p>
+    <p><b>스키마</b> : 3 boolean 폭증 대신 단일 <code>bit(3) cascade_origin</code>(또는 nullable Boolean 3 — NULL=inherited, 값+출처 겸용) <b>1~3 컬럼·순증 최소</b>. enabled 는 단방향이라 항상 explicit 취급(실질 2비트).</p>
+    <p><b>read 영향 거의 0</b> — effective=저장 boolean 이라 기존 getter·<code>LifecycleStage.of()</code> 그대로. <b>write</b> — cascade 루프 filter 에 origin 검사 1줄 추가, 수동 전이 시 origin=EXPLICIT 마킹. <b>보존</b> — Windows "removes any copies that were inherited"와 1:1. <b>비용</b> — bitmask 가독성(@Convert), origin set/clear 누락 회귀(테스트 방어 필수).</p>
+    <p class="src"><b>적합성</b> : 현 cascade 루프 구조를 거의 그대로 두고 filter 만 보강 → <b>R3-1 코드와 마찰 최소</b>. LifecycleEntity 1컬럼 + 4 service 루프 보강 + R2-2 capability 공유로 끝나는 얇은 후속 슬라이스.</p>
+  </div>
+
+  <div class="card warn">
+    <h4>안 C — monotonic 무-역전파 cascade (방향성 일관화 + 컬럼 0)</h4>
+    <p><b>메커니즘</b> : 역전파(undeprecate/restore cascade)를 아예 제거 — 하향 restrict 만 cascade. <b>스키마</b> : 추가 0(출처 구분 불필요). <b>보존</b> : 역전파가 없어 덮어쓸 일 원천 부재. <b>비용</b> : 부모를 undeprecate 해도 자식이 자동 복구 안 됨 → 운영자가 자식을 일일이 풀어야 함("명확한 사용성" UX 회귀).</p>
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="s5">
+  <h2>5. cascade 방향성 일관 정책</h2>
+  <blockquote>원칙(조사 ⑥) : <b>restrictive 하향 전파(부모가 자식을 막음)는 invariant 보호를 위해 자동/opt-out 이 적절하고, permissive 상향 역전파(부모가 자식을 품)는 표준 부재 → 자동 전파가 안티패턴</b>이다. 자식 ≤ 부모 invariant 를 깨는 방향만 자동 전파하고, 푸는 방향은 명시 동작으로 게이팅.</blockquote>
+  <table>
+    <thead><tr><th style="width:90px;">차원</th><th>현행</th><th>권고</th><th>근거</th></tr></thead>
+    <tbody>
+      <tr><td><b>enabled</b></td><td>disable=하향 cascade / <b>enable=역전파 없음</b></td><td class="t-ok">✓ 현행이 정답 = reference model</td><td>CSS 비상속 property / RBAC ceiling 과 정합. 부모 enable 이 운영자가 개별 비활성한 자식을 임의 부활 안 함.</td></tr>
+      <tr><td><b>deprecated</b></td><td class="t-no">양방향 항상 전파 ← 결함 진원</td><td>deprecate=하향 유지 / <b>undeprecate=역전파 제거 또는 inherited-only 환원</b></td><td>undeprecate 양방향 전파가 "restore cascade 가 표준에 없는 것"과 동형인 비표준. 자식 수동 deprecate 의도 소실의 직접 원인.</td></tr>
+      <tr><td><b>deleted</b></td><td>delete=하향 cascade / restore=opt-in</td><td class="t-ok">✓ 현행 유지</td><td>SQL <code>ON DELETE CASCADE</code> + restore 표준부재(=명시 opt-in)와 정확히 일치. 물리 부작용 때문에 write-cascade 유지가 합리적.</td></tr>
+    </tbody>
+  </table>
+  <div class="card bad">
+    <b>유일한 실질 수정점 = <code>undeprecate</code> 양방향 전파</b> (말씀하신 그 불일치). 3 차원을 <code>enabled</code> 의 비대칭(하향 restrict 자동 / 상향 permit 비전파-또는-opt-in)으로 정렬하면 끝난다. undeprecate 처리는 채택 옵션에 따라 — (안 C) 자식 루프 삭제 / (안 B) origin=INHERITED 자식만 환원·EXPLICIT 보존(절충 권장) / (안 A) 개념 자체 소멸.
+  </div>
+</section>
+
+<!-- 6 -->
+<section id="s6">
+  <h2>6. 권고 — 2단계</h2>
+  <div class="card rec">
+    <h4>(1) 지금 — R3-1 은 현행 write-cascade 패턴으로 완료</h4>
+    <p>R3-1 의 목표는 "Subprogram 을 형제(BIOS/BMC)와 동일 수준으로". Subprogram 만 undeprecate cascade 를 빼면 형제와 <b>새 비대칭</b>이 생겨 R3-1 취지에 역행한다. 따라서 R3-1 은 <b>전 자식 도메인이 동형</b>인 현 상태로 마치고, undeprecate 방향성 교정은 전 도메인 일괄 후속으로 미룬다. (단 CLAUDE.md §조건분기 legacy 무분별 확장 금지 정합 — 무비판 확장이 아니라 의도된 parity 임을 plan/§에 명기.)</p>
+  </div>
+  <div class="card rec">
+    <h4>(2) 후속 — 안 B(provenance) + undeprecate 방향성 교정을 얇은 별도 슬라이스(R3-2/R4)</h4>
+    <p>본 프로젝트 동기("명확한 사용성 + 단순 구현 &gt; 이론적 가치, 컬럼폭증 회피, 상태전이 빈도 낮음")에 <b>안 B 가 가장 정합</b> :</p>
+    <ul>
+      <li><b>단순 구현</b> — read-path 무개편(기존 boolean=effective 유지). 안 A 는 모든 getter 호출처 교체라 정면 배치.</li>
+      <li><b>컬럼폭증 회피</b> — <code>is_*_cascaded</code> 3컬럼 → 단일 bit(3)/nullable 1비트.</li>
+      <li><b>전이 빈도 낮음</b> — read-time 재계산(안 A)의 이론적 이점이 실익 적음.</li>
+      <li><b>마찰 최소</b> — 현 cascade 루프 유지 + filter 보강만, R3-1 코드 재작업 0.</li>
+    </ul>
+    <p>안 C(monotonic)는 가장 단순하나 "undeprecate 했는데 자식 안 풀림" UX 회귀가 "명확한 사용성"을 해친다. 도입 시 <b>origin 비트 set/clear 누락 회귀</b>를 Step8 통합 테스트(부모 deprecate→undeprecate 사이클 후 수동 deprecated 자식 보존 검증)로 반드시 방어.</p>
+  </div>
+</section>
+
+<!-- 7 -->
+<section id="s7">
+  <h2>7. Open Decisions (후속 슬라이스 CP1 에서)</h2>
+  <ol>
+    <li>undeprecate 역전파 — 안 B(origin=INHERITED 자식만 환원, 자동복구 유지) vs 안 C(역전파 완전 제거, 수동 복구). "명확한 사용성"이면 안 B 절충.</li>
+    <li>provenance 저장 형식 — <code>bit(3)</code> bitmask(컬럼 1, @Convert 비용) vs nullable Boolean 3(NULL=inherited, 순증 0, 가독성↑). <b>MariaDB JPA 매핑 난이도상 nullable Boolean 3 이 더 단순할 수 있음.</b></li>
+    <li>deleted 차원 포함 여부 — restore 가 이미 opt-in 이라 역전파 문제가 deprecated 만큼 첨예하지 않음. <b>deprecated 차원에만 적용하는 최소안</b>도 가능.</li>
+    <li>R3-1 의 Subprogram undeprecate cascade — (a)양방향 그대로 vs (b)deprecate 하향만 추가하고 undeprecate 보류. 재작업 최소화 관점 (b) 가 안전(단 형제 비대칭 trade-off).</li>
+    <li>자식의 영구 cascade 거부(<code>SE_DACL_PROTECTED</code> 대응 isolated 비트) — 현재 요구에 없음 → 과설계 경계, 보류 권장.</li>
+    <li><code>effective*()</code> ↔ R2-2 capability 가드 · UI disabled SSOT 공유 — 안 B 면 origin 비트가, 안 A 면 effective*() 가 단일 소스. <code>ChildLifecycleBlockedByParentException</code> 가드와 드리프트 0 유지.</li>
+  </ol>
+</section>
+
+<!-- 8 -->
+<section id="s8">
+  <h2>8. 출처 (30 — 개인 블로그 0)</h2>
+  <h3>CSS Cascade &amp; Inheritance</h3>
+  <ol class="sources">
+    <li id="src1"><span class="chip std">std</span> <b>W3C</b> — CSS Cascading and Inheritance Level 5, §4 Value Processing &amp; §7 Defaulting. <a href="https://www.w3.org/TR/css-cascade-5/">w3.org/TR/css-cascade-5</a></li>
+    <li id="src2"><span class="chip std">std</span> <b>W3C</b> — CSS Cascading and Inheritance Level 4 (cascaded value / inherit / unset / revert). <a href="https://www.w3.org/TR/css-cascade-4/">w3.org/TR/css-cascade-4</a></li>
+    <li id="src3"><span class="chip std">std</span> <b>W3C</b> — CSS2 §6 Assigning property values, Cascading, and Inheritance. <a href="https://www.w3.org/TR/CSS2/cascade.html">w3.org/TR/CSS2/cascade</a></li>
+    <li id="src4"><span class="chip vendor">vendor</span> <b>MDN</b> — CSS property value processing (declared/cascaded/specified/computed). <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Cascade/Property_value_processing">MDN</a></li>
+    <li id="src5"><span class="chip vendor">vendor</span> <b>MDN</b> — <code>revert</code> keyword. <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/revert">MDN</a></li>
+    <li id="src6"><span class="chip vendor">vendor</span> <b>MDN</b> — <code>all</code> shorthand (initial/inherit/unset/revert/revert-layer). <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/all">MDN</a></li>
+    <li id="src7"><span class="chip vendor">vendor</span> <b>MDN</b> — Inheritance (CSS cascade). <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascade/Inheritance">MDN</a></li>
+  </ol>
+  <h3>ACL 상속 (Windows / POSIX)</h3>
+  <ol class="sources" start="8">
+    <li id="src8"><span class="chip std">std</span> <b>[MS-DTYP]</b> ComputeInheritedACLfromParent (Windows Protocols Open Spec). <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/3d27668e-cbcd-4639-97fe-8d18a35230ac">learn.microsoft.com</a></li>
+    <li id="src9"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — Automatic Propagation of Inheritable ACEs (Win32). <a href="https://learn.microsoft.com/en-us/windows/win32/secauthz/automatic-propagation-of-inheritable-aces">learn.microsoft.com</a></li>
+    <li id="src10"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — ACE Inheritance (Win32). <a href="https://learn.microsoft.com/en-us/windows/win32/secauthz/ace-inheritance">learn.microsoft.com</a></li>
+    <li id="src11"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — ACE Inheritance Rules (Win32). <a href="https://learn.microsoft.com/en-us/windows/win32/secauthz/ace-inheritance-rules">learn.microsoft.com</a></li>
+    <li id="src12"><span class="chip std">std</span> <b>man7</b> — acl(5) POSIX.1e Access Control Lists (default ACL). <a href="https://man7.org/linux/man-pages/man5/acl.5.html">man7.org</a></li>
+  </ol>
+  <h3>IAM 정책 계층</h3>
+  <ol class="sources" start="13">
+    <li id="src13"><span class="chip vendor">vendor</span> <b>Google Cloud</b> — Using resource hierarchy for access control. <a href="https://cloud.google.com/iam/docs/resource-hierarchy-access-control">cloud.google.com</a></li>
+    <li id="src14"><span class="chip vendor">vendor</span> <b>Google Cloud</b> — View effective IAM policies (Cloud Asset Inventory). <a href="https://cloud.google.com/asset-inventory/docs/view-effective-policies">cloud.google.com</a></li>
+    <li id="src15"><span class="chip vendor">vendor</span> <b>AWS</b> — Inheritance operators (Organizations). <a href="https://docs.aws.amazon.com/organizations/latest/userguide/policy-operators.html">docs.aws.amazon.com</a></li>
+    <li id="src16"><span class="chip vendor">vendor</span> <b>AWS</b> — Inheritance terminology (Organizations). <a href="https://docs.aws.amazon.com/organizations/latest/userguide/inheritance-terminology.html">docs.aws.amazon.com</a></li>
+    <li id="src17"><span class="chip vendor">vendor</span> <b>AWS</b> — SCP evaluation (Organizations). <a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps_evaluation.html">docs.aws.amazon.com</a></li>
+    <li id="src18"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — Understand scope for Azure RBAC. <a href="https://learn.microsoft.com/en-us/azure/role-based-access-control/scope-overview">learn.microsoft.com</a></li>
+    <li id="src19"><span class="chip vendor">vendor</span> <b>Microsoft Learn</b> — What is Azure RBAC?. <a href="https://learn.microsoft.com/en-us/azure/role-based-access-control/overview">learn.microsoft.com</a></li>
+  </ol>
+  <h3>설정 / feature flag tri-state</h3>
+  <ol class="sources" start="20">
+    <li id="src20"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — API Conventions (Optional vs Required, *bool). <a href="https://github.com/kubernetes/community/blob/main/contributors/devel/sig-architecture/api-conventions.md">github.com/kubernetes</a></li>
+    <li id="src21"><span class="chip vendor">vendor</span> <b>Kubebuilder Book</b> — CRD Validation markers (+optional/+nullable/+default). <a href="https://book.kubebuilder.io/reference/markers/crd-validation">book.kubebuilder.io</a></li>
+    <li id="src22"><span class="chip vendor">vendor</span> <b>LaunchDarkly</b> — Feature flag hierarchy (prerequisites). <a href="https://launchdarkly.com/docs/guides/flags/flag-hierarchy">launchdarkly.com</a></li>
+    <li id="src23"><span class="chip vendor">vendor</span> <b>LaunchDarkly</b> — Flag prerequisites / off variation. <a href="https://launchdarkly.com/docs/home/flags/prereqs">launchdarkly.com</a></li>
+  </ol>
+  <h3>DB 모델링 / 방향성</h3>
+  <ol class="sources" start="24">
+    <li id="src24"><span class="chip vendor">vendor</span> <b>PostgreSQL 18</b> — §5.4 Generated Columns. <a href="https://www.postgresql.org/docs/current/ddl-generated-columns.html">postgresql.org</a></li>
+    <li id="src25"><span class="chip vendor">vendor</span> <b>PostgreSQL 18</b> — §8.10 Bit String Types. <a href="https://www.postgresql.org/docs/current/datatype-bit.html">postgresql.org</a></li>
+    <li id="src26"><span class="chip vendor">vendor</span> <b>PostgreSQL 18</b> — §5.5 Constraints / Referential Actions. <a href="https://www.postgresql.org/docs/current/ddl-constraints.html">postgresql.org</a></li>
+    <li id="src27"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Garbage Collection (Cascading Deletion). <a href="https://kubernetes.io/docs/concepts/architecture/garbage-collection/">kubernetes.io</a></li>
+    <li id="src28"><span class="chip vendor">vendor</span> <b>Kubernetes</b> — Use Cascading Deletion in a Cluster. <a href="https://kubernetes.io/docs/tasks/administer-cluster/use-cascading-deletion/">kubernetes.io</a></li>
+    <li id="src29"><span class="chip acad">acad</span> <b>NIST</b> — The NIST Model for RBAC: Towards A Unified Standard (Sandhu, Ferraiolo, Kuhn). <a href="https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=916402">nist.gov</a></li>
+    <li id="src30"><span class="chip std">std</span> <b>NIST CSRC</b> — Role Based Access Control (RBAC) FAQs. <a href="https://csrc.nist.gov/projects/role-based-access-control/faqs">csrc.nist.gov</a></li>
+  </ol>
+</section>
+
+</main>
+</body>
+</html>

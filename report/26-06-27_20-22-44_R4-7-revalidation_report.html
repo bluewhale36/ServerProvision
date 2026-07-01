@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4~R7 미구현 단계 재검증 — 결정 대시보드</title>
+<style>
+  :root{
+    --bg:#0f1115;--panel:#161a21;--panel2:#1c2129;--line:#283039;--soft:#222831;
+    --text:#e6edf3;--muted:#8b97a5;--dim:#6b7684;
+    --blue:#4493f8;--blue-bg:rgba(68,147,248,.13);
+    --green:#3fb950;--green-bg:rgba(63,185,80,.13);
+    --amber:#d29922;--amber-bg:rgba(210,153,34,.14);
+    --red:#f85149;--red-bg:rgba(248,81,73,.13);
+    --purple:#a371f7;--purple-bg:rgba(163,113,247,.14);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif}
+  header.top{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,#11151b,#0f1115);
+    border-bottom:1px solid var(--line);padding:14px 26px}
+  header.top h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.2px}
+  header.top .sub{color:var(--muted);font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:12px}
+  header.top .sub b{color:var(--text);font-weight:600}
+  .wrap{max-width:1200px;margin:0 auto;padding:22px 26px 60px}
+  h2{font-size:15px;margin:30px 0 10px;display:flex;align-items:center;gap:9px}
+  h2 .ix{font-size:11px;color:var(--bg);background:var(--blue);border-radius:5px;padding:2px 7px;font-weight:700}
+  h3{font-size:13px;color:var(--blue);margin:16px 0 6px}
+  p{margin:7px 0}
+  code{font-family:var(--mono);font-size:.86em;background:var(--soft);padding:1px 5px;border-radius:4px;color:#c9d6e2}
+  .mono{font-family:var(--mono)}
+  .muted{color:var(--muted)} .dim{color:var(--dim);font-size:12px}
+  /* verdict chips */
+  .v{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.3px;white-space:nowrap}
+  .v.proceed{background:var(--green-bg);color:var(--green)}
+  .v.modify{background:var(--amber-bg);color:var(--amber)}
+  .v.delete{background:var(--red-bg);color:var(--red)}
+  .v.merge{background:var(--purple-bg);color:var(--purple)}
+  /* hero stat bar */
+  .hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:6px 0 4px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .stat .n{font-size:26px;font-weight:800;line-height:1}
+  .stat .l{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .stat.del .n{color:var(--red)} .stat.mod .n{color:var(--amber)}
+  .stat.pro .n{color:var(--green)} .stat.tot .n{color:var(--blue)}
+  /* matrix */
+  .filters{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 10px}
+  .fbtn{border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12px;
+    padding:5px 11px;border-radius:7px;cursor:pointer}
+  .fbtn.on{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+  .matrix{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:11px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 15px;
+    border-left-width:4px;transition:.12s;cursor:pointer}
+  .card:hover{background:var(--panel2)}
+  .card.proceed{border-left-color:var(--green)} .card.modify{border-left-color:var(--amber)}
+  .card.delete{border-left-color:var(--red)}
+  .card .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .card .code{font-family:var(--mono);font-weight:700;font-size:13px}
+  .card .ttl{font-size:12px;color:var(--muted);margin-bottom:7px}
+  .card .one{font-size:12.5px;line-height:1.55}
+  .card .detail{display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12px}
+  .card.open .detail{display:block}
+  .card .ev{font-family:var(--mono);font-size:11px;color:var(--dim);display:block;padding:1.5px 0;word-break:break-all}
+  .card .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .tag{font-size:10px;padding:1.5px 7px;border-radius:5px;background:var(--soft);color:var(--muted)}
+  .tag.dep{background:var(--blue-bg);color:var(--blue)}
+  .tag.harm{background:var(--red-bg);color:var(--red)}
+  /* insight callouts */
+  .insight{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0;
+    border-left:4px solid var(--red)}
+  .insight.two{border-left-color:var(--purple)}
+  .insight .k{font-size:12px;font-weight:700;color:var(--red);letter-spacing:.4px;margin-bottom:6px}
+  .insight.two .k{color:var(--purple)}
+  .insight h4{margin:0 0 8px;font-size:14.5px}
+  /* dep graph */
+  .graph-wrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 8px 16px;margin:12px 0}
+  .gtabs{display:flex;gap:6px;padding:8px 8px 12px}
+  .gtab{border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:12.5px;
+    padding:6px 14px;border-radius:8px;cursor:pointer}
+  .gtab.on{background:var(--blue);color:#06121f;border-color:var(--blue);font-weight:700}
+  .gview{padding:6px 14px}
+  .gview.hide{display:none}
+  .chain{font-family:var(--mono);font-size:12px;line-height:2;padding:10px 12px;border-radius:8px;
+    background:#0c0f14;border:1px solid var(--line);overflow-x:auto;white-space:pre}
+  .node{color:var(--blue)} .edge{color:var(--muted)} .lazy{color:var(--green);font-weight:700}
+  .op{color:var(--amber)} .cut{color:var(--red);font-weight:700} .ok{color:var(--green);font-weight:700}
+  .verdict-line{margin-top:10px;font-size:13px;padding:9px 13px;border-radius:8px}
+  .verdict-line.bad{background:var(--red-bg);border:1px solid rgba(248,81,73,.3)}
+  .verdict-line.good{background:var(--green-bg);border:1px solid rgba(63,185,80,.3)}
+  /* roadmap */
+  .road{display:flex;flex-direction:column;gap:2px;margin:10px 0}
+  .step{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px}
+  .step .num{font-family:var(--mono);font-weight:800;color:var(--blue);min-width:22px;font-size:13px}
+  .step .body{font-size:12.5px}
+  .step .body b{font-family:var(--mono)}
+  .arrow{color:var(--dim);text-align:center;font-size:14px;line-height:1}
+  /* risk */
+  ul.risk{list-style:none;padding:0;margin:8px 0}
+  ul.risk li{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);
+    border-radius:8px;padding:9px 13px;margin-bottom:7px;font-size:12.5px}
+  ul.risk li b{color:var(--amber)}
+  .legend{font-size:11.5px;color:var(--muted);margin:6px 0 0}
+  a.toclink{color:var(--muted)}
+  table.cmp{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+  table.cmp th,table.cmp td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  table.cmp th{background:var(--panel2);color:var(--muted);font-weight:600;font-size:11px}
+  @media(max-width:760px){.hero{grid-template-columns:repeat(2,1fr)}.matrix{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>R4~R7 미구현 단계 재검증 <span class="v" style="background:var(--blue-bg);color:var(--blue)">decision dashboard</span></h1>
+  <div class="sub">
+    <span><b>질문</b> R3·R3-5 완료 시점 — R4~6 미구현 하위단계 + R7(순환 근본해결)의 구현 타당성</span>
+    <span><b>방법</b> 6 클러스터 적대 재검증 워크플로우(7 agent) + 코드 실측 file:line</span>
+    <span><b>기준</b> R = refactor = 유지보수 개선 · churn 금지 (CLAUDE.md)</span>
+    <span><b>작성</b> 2026-06-27 KST</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== 0. 한 문장 결론 ===== -->
+  <div class="insight" style="border-left-color:var(--blue);margin-top:6px">
+    <div class="k" style="color:var(--blue)">HEADLINE</div>
+    <p style="margin:0;font-size:14px">
+      <b>R7 후 "전역 @Lazy 제거"는 단정 불가 = 조건부다.</b> R7 은 <span class="ok">cycle #1</span>(verifier ↔ scanner, ObjectProvider 가 막던 REAL 순환)만 정적으로 해소하고,
+      <span class="cut">cycle #2</span>(SoftDeleteIntentService ↔ 도메인 lifecycle)는 <b>"scanner 경유 → lifecycle 직결"로 이전</b>할 뿐 — @Lazy 가 그대로 필요하다.
+      따라서 fat-Service 3분할(R4-3/R5-3/R6-3)은 <b>typed-name inline 유지</b>로 진행하되, ObjectProvider 도입 3단계(R4-4/R5-4/R6-2)는 <b>ping-pong churn 으로 폐기</b>하고, capstone 은 <code>checkPrecondition</code> 분리를 선행 전제로 하향해야 한다.
+    </p>
+  </div>
+
+  <!-- ===== 1. 한눈 통계 ===== -->
+  <h2><span class="ix">1</span> 13개 미구현 단계 — 판정 한눈에</h2>
+  <div class="hero">
+    <div class="stat tot"><div class="n">13</div><div class="l">재검증 대상 (시작 전)</div></div>
+    <div class="stat del"><div class="n">4</div><div class="l">DELETE — churn/불요</div></div>
+    <div class="stat mod"><div class="n">9</div><div class="l">MODIFY — 보강 후 진행</div></div>
+    <div class="stat pro"><div class="n">0</div><div class="l">원안 그대로 PROCEED</div></div>
+  </div>
+  <p class="legend">완료/비대상 7개(R4-1·R4-2·R4-5·R5-1·R5-5·R6-1·R6-4)는 제외. <b>원안 그대로 진행할 단계가 0</b> — 모두 수정 또는 폐기가 필요하다는 게 본 재검증의 골자.</p>
+
+  <!-- ===== 2. Verdict 매트릭스 (필터·클릭 확장) ===== -->
+  <h2><span class="ix">2</span> Verdict 매트릭스 <span class="dim" style="font-weight:400">— 칩 클릭 = 필터, 카드 클릭 = 근거 펼침</span></h2>
+  <div class="filters" id="filters">
+    <button class="fbtn on" data-f="all">전체 13</button>
+    <button class="fbtn" data-f="delete">DELETE 4</button>
+    <button class="fbtn" data-f="modify">MODIFY 9</button>
+  </div>
+  <div class="matrix" id="matrix"></div>
+
+  <!-- ===== 3. 방향 전환을 만든 2대 통찰 ===== -->
+  <h2><span class="ix">3</span> 계획 수정을 만든 2대 통찰</h2>
+
+  <div class="insight">
+    <div class="k">통찰 ① — ObjectProvider 도입↔제거 PING-PONG (R4-4 / R5-4 / R6-2 폐기)</div>
+    <h4>"BMC 로컬 무방비 순환"은 현재 코드에 실재하지 않는다.</h4>
+    <p>BIOS/BMC/Subprogram 스캐너는 지금 도메인 fat-service 를 <b>eager 직접주입</b>(<code class="mono">BoardBiosMarkableScanner:31</code> 등, ObjectProvider 0개)인데도 부팅된다. 이 service 들이 <code>TypedNameVerifier</code>·<code>MarkableScanner</code> 에 eager 로 닿지 않기 때문이다 — 유일한 잠복 back-edge(<code>service→SoftDeleteIntentService→@Lazy List&lt;MarkableScanner&gt;</code>)는 <code class="mono">SoftDeleteIntentService:61</code> 의 <span class="lazy">@Lazy</span> 가 <b>4 도메인 공통으로 전역 차단</b>한다.</p>
+    <table class="cmp">
+      <tr><th>도메인</th><th>현재 스캐너→service</th><th>Notion 계획</th><th>비대칭</th></tr>
+      <tr><td><b>Board</b> (R3-3 / R7-3)</td><td>애초부터 <span class="lazy">lazy</span> (ObjectProvider)</td><td>R3-3 = 타입 narrow → R7-3 = 제거</td><td class="ok">정당 (narrow→remove)</td></tr>
+      <tr><td><b>BIOS/BMC/Subprog</b> (R4-4 / R5-4 / R6-2)</td><td>현재 <span class="op">eager</span> 직접주입</td><td>R4-4 = eager→lazy <b>신규 도입</b> → R7-4 = 제거</td><td class="cut">왕복 churn (도입→즉시제거)</td></tr>
+    </table>
+    <p style="margin-bottom:0">Notion 이 R4-4 를 Board 의 R3-3 과 같은 부류로 취급한 게 오류다. R4-3 이 typed-name 을 <b>inline 유지</b>하면 보호할 순환 자체가 안 생겨 ObjectProvider 도입이 통째로 불요해진다. <code>fb094f8</code> 의 cascade @Lazy speculative 제거와 <b>동형 안티패턴</b>.</p>
+  </div>
+
+  <div class="insight two">
+    <div class="k">통찰 ② — R7 은 순환을 제거하지 않고 "이전"한다 (capstone 과대주장)</div>
+    <h4>cycle #2 는 scanner 를 떼도 <code>LifecycleService.softDelete → checkPrecondition</code> 으로 다시 닫힌다.</h4>
+    <p>R7 capstone 은 "scanner→service edge 를 없애면 <code class="mono">SoftDeleteIntentService:61</code> 의 @Lazy 도 불요 → 전역 @Lazy 제거"라고 주장한다. 적대 추적 결과 <b>거짓</b>: scanner 의 trash 메서드를 <code>*LifecycleService</code> 로 옮기면(R7), R4-3 후 <code>softDelete</code>(=<code>checkPrecondition</code> 호출자)도 그 LifecycleService 에 있으므로 <code class="mono">BiosLifecycleService → SoftDeleteIntentService</code> 변이 새로 생긴다. 그리고 <code>SoftDeleteIntentService → List&lt;TrashOperator&gt;(=BiosLifecycleService)</code> 가 되돌이 변이라 <b>순환이 lifecycle 직결로 닫힌다.</b> 실재 선례: <code class="mono">IsoLifecycleService:57+115</code>.</p>
+    <p style="margin-bottom:0">부차 결함 2건 — <b>(a)</b> capstone 이 <code>List&lt;MarkableTrashOperator&gt;</code> 주입을 명시했으나 SoftDeleteIntentService 의 실제 scanner 사용처(<code class="mono">:177 applyForcedClear</code>)는 <b>GHOST 연산</b>(<code>MarkableGhostOperator</code>)이라 trash 축 이전으로 해소 안 됨. <b>(b)</b> <code class="mono">SoftDeleteIntentService:60</code> 의 두 번째 @Lazy(<code>PathReconciliationService</code>)는 capstone scope 밖 — "전역" 주장이면 별도 처리 필요.</p>
+  </div>
+
+  <!-- ===== 4. 의존 그래프 — 현재 / R7 후 토글 ===== -->
+  <h2><span class="ix">4</span> 의존 그래프 — 현재 vs R7 후 <span class="dim" style="font-weight:400">(탭으로 순환 해소 vs 이전 비교)</span></h2>
+  <div class="graph-wrap">
+    <div class="gtabs">
+      <button class="gtab on" data-g="now">현재 (2 순환, @Lazy/ObjectProvider 차단)</button>
+      <button class="gtab" data-g="r7">R7 후 (cycle#1 해소 · cycle#2 이전)</button>
+    </div>
+
+    <div class="gview" id="g-now">
+      <h3>cycle #1 — verifier ↔ scanner (REAL, ObjectProvider 가 차단)</h3>
+      <div class="chain"><span class="node">TypedNameVerifierImpl</span> <span class="edge">─주입 List&lt;MarkableScanner&gt;→</span> <span class="node">OSMetadataMarkableScanner</span>
+   <span class="edge">─</span><span class="lazy">ObjectProvider(lazy)</span><span class="edge">→</span> <span class="node">OSMetadataLifecycleService</span> <span class="edge">─주입 TypedNameVerifier→</span> <span class="node">TypedNameVerifierImpl</span>
+                                                              <span class="lazy">▲ 여기 lazy 가 순환 차단 (제거 시 부팅실패 = REAL)</span></div>
+      <p class="dim">동형: Board(BoardModelMarkableScanner→BoardModelLifecycleService), ISO. ← OS/Board/Iso 스캐너만 ObjectProvider 보유.</p>
+
+      <h3>cycle #2 — SoftDeleteIntentService ↔ 도메인 service (전역 @Lazy 가 차단)</h3>
+      <div class="chain"><span class="node">SoftDeleteIntentService</span> <span class="edge">─</span><span class="lazy">@Lazy List&lt;MarkableScanner&gt;</span><span class="edge">→</span> <span class="node">scanner</span><span class="op">.applyForcedClear/restore/purge</span>
+   <span class="edge">→</span> <span class="node">BiosService</span> <span class="edge">─주입 SoftDeleteIntentService + :372 checkPrecondition→</span> <span class="node">SoftDeleteIntentService</span>
+   <span class="lazy">▲ SoftDeleteIntentService:61 @Lazy 가 4 도메인 공통 전역 차단</span></div>
+      <p class="dim">BIOS/BMC/Subprogram 스캐너가 eager 직접주입인데도 부팅되는 이유 = 이 @Lazy.</p>
+      <div class="verdict-line bad">현재 2개 순환이 <span class="lazy">@Lazy</span>/<span class="lazy">ObjectProvider</span> 로 가려져 있음. R4-4/R5-4/R6-2 가 겨냥한 "무방비"는 cycle #2 의 전역 @Lazy 가 이미 막고 있어 로컬 도입이 불요.</div>
+    </div>
+
+    <div class="gview hide" id="g-r7">
+      <h3>cycle #1 — <span class="ok">정적 해소 ✓</span> (R7-2/R7-3, ObjectProvider 진짜 불요)</h3>
+      <div class="chain"><span class="node">*LifecycleService</span> <span class="ok">implements MarkableTrashOperator</span>  →  scanner 의 restore/purge 변 <span class="cut">제거</span>
+<span class="node">TypedNameVerifier</span> <span class="edge">→</span> <span class="node">inventory-scanner</span><span class="edge">.findActiveMarkableById/findTrashedById</span> <span class="ok">(read-only, service 무의존)</span>
+   <span class="ok">▲ scanner→service back-edge 소멸 → 순환 미폐합 → ObjectProvider 불요 (REAL 해소)</span></div>
+
+      <h3>cycle #2 — <span class="cut">이전됨 (해소 아님)</span> · @Lazy 여전히 필요</h3>
+      <div class="chain"><span class="node">SoftDeleteIntentService</span> <span class="edge">─List&lt;TrashOperator&gt;→</span> <span class="node">BiosLifecycleService</span>
+   <span class="edge">─(softDelete→</span><span class="op">checkPrecondition</span><span class="edge">)→</span> <span class="node">SoftDeleteIntentService</span>
+   <span class="cut">▲ scanner 를 떼도 lifecycle 직결로 다시 닫힘 (IsoLifecycleService:57+115 선례)</span></div>
+      <div class="verdict-line bad"><b>@Lazy 제거 조건(iii)</b> : (a) <code>checkPrecondition</code> 을 LifecycleService 밖(별도 PreconditionService)으로 분리 + (b) ghost 연산을 GhostOperator 로 유지 + (c) 두 번째 @Lazy(PathReconciliation) 별도 해소 — 셋 다 선행해야 SDIS:61 의 @Lazy 1건만 제거 가능. capstone 원안은 이를 누락.</div>
+      <div class="verdict-line good"><b>그래도 R7 은 가치 있음</b> : cycle #1 의 REAL ObjectProvider 3종(OS/Board/Iso)을 진짜로 없애고, God-SPI(19시그니처·4관심사 ISP 위반)를 분리한다. "전역 @Lazy 제거"만 과대주장이고 나머지는 정당.</div>
+    </div>
+  </div>
+
+  <!-- ===== 5. 권고 진행 순서 ===== -->
+  <h2><span class="ix">5</span> 재정렬된 권고 로드맵</h2>
+  <div class="road">
+    <div class="step"><div class="num">0</div><div class="body"><b>R5-2b</b> <span class="v proceed">독립</span> — <code>statusMessage + applyStatus</code> switch → <code>IntegrityStatus.displayMessage()/applyTo()</code> method-per-constant (4 launcher × 2메서드 공통화). 순환 무관, 어떤 전제도 없음. <span class="dim">※ R5-2a(Launcher/Runner 분리)는 DELETE.</span></div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="num">1</div><div class="body"><b>R7-1</b> <span class="v modify">보강</span> — MarkableScanner → <b>5~6 sub-interface</b>(read/operation 2차축 포함, sealed 아닌 일반 interface). 7 호출부 재배선 + <b>TypedNameVerifier/PurgeExecutor 의 read lookup 을 Inventory 로 응집</b> + SoftDeleteIntentService→GhostOperator 정정. <span class="dim">R7 전체의 인프라 전제.</span></div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="num">2</div><div class="body"><b>R7-2 (OS) + R7-3 (Board)</b> <span class="v modify">보강</span> — <code>*LifecycleService implements TrashOperator</code> → <b>REAL ObjectProvider 제거</b>. 이미 LifecycleService 가 분리돼 있어 R4-3 류 전제 불요 — R7-1 직후 즉시 가능. <span class="ok">cycle #1 정적 해소 시작.</span></div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="num">3</div><div class="body"><b>R4-3 (BIOS 분리, typed-name inline)</b> → <b>R7-4</b> (scanner back-edge 제거). <span class="v delete">R4-4 삭제</span> — ObjectProvider 도입 없이 eager scanner 가 곧장 lifecycle 어댑터로 전환.</div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="num">4</div><div class="body"><b>R5-3 (BMC 분리 + BmcMarkerWriter 추출, inline)</b> → <b>R7-5</b>. <span class="v delete">R5-4 삭제</span>.</div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="num">5</div><div class="body"><b>R6-3 (Subprogram 분리 + SubprogramMarkerWriter, inline)</b> → <b>R7-6 + capstone</b>. <span class="v delete">R6-2 삭제</span>.</div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="num">6</div><div class="body"><b>R7-6 capstone 마무리</b> <span class="v modify">하향</span> — cycle #2 평가 → <code>checkPrecondition</code> 을 별도 <code>SoftDeletePreconditionService</code> 로 분리(선행 substep) + ghost-operator 분리 유지 + 두 번째 @Lazy 처리. <b>조건 충족 시에만</b> SDIS:61 @Lazy 제거, 미충족 시 "전역 제거" 주장 철회.</div></div>
+  </div>
+
+  <!-- ===== 6. 리스크 ===== -->
+  <h2><span class="ix">6</span> Top 리스크</h2>
+  <ul class="risk">
+    <li><b>capstone 과대주장</b> — R7-6 원안대로 "전역 @Lazy 제거"를 단정하면 R7 후에도 닫혀있는 cycle #2 를 만나 <code>BeanCurrentlyInCreation</code> 부팅실패 또는 @Lazy 재도입 churn. <code>checkPrecondition</code> 분리 선행 없이는 목표 미달.</li>
+    <li><b>ping-pong 자초</b> — R4-4/R5-4/R6-2 를 독립 선행하면 보호할 순환이 없는데 ObjectProvider 를 넣고 R7-4/5/6 이 즉시 제거. <code>fb094f8</code> speculative @Lazy 제거와 동형 = refactor 부적격.</li>
+    <li><b>typed-name verifier 위임 유혹</b> — R4-3/R5-3/R6-3 에서 R3 의 TypedNameVerifier SSOT 매력에 끌려 verifier 를 주입하면 BIOS/BMC/Subprogram 에 순환을 새로 닫음. 제거할 복붙 helper 가 없는데(<code>displayName().equals()</code> 단 1줄) 순환만 자초.</li>
+    <li><b>R7-1 seam 오설계</b> — Notion 4관심사 분할은 ISP 만 풀고 read/operation 경계와 어긋남. <code>findTrashedById</code>(read)를 cycle-bearing <code>restore/purgeFromTrash</code> 와 같은 TrashOperator 에 묶으면 verifier/PurgeExecutor 가 순환 변을 떠안아 cycle-break 무력화.</li>
+    <li><b>부분 중복 잔존</b> — R5-3/R6-3 에서 Registration 분리만 하고 *MarkerWriter 추출(marker 4-step 3중복)을 빠뜨리면 복붙이 새 클래스로 이사만 가는 churn. R5-2b 에서 displayMessage 만 빼고 applyStatus 4중복을 남기면 중복 금지 절반만 충족.</li>
+  </ul>
+
+  <p class="dim" style="margin-top:26px;border-top:1px solid var(--line);padding-top:12px">
+    재검증 워크플로우 <code>wsnirhc3z</code> (7 agent · A 서비스분리 / B R5-2 / C ObjectProvider ping-pong / D R7-1 seam / E R7-2·3 REAL제거 / F capstone @Lazy 적대추적 + 종합). 모든 verdict 는 코드 실측 file:line 근거. Notion R4~R7 단계 본문 + 현재 의존성 그래프 대조. 본 보고서는 <b>재검증 산출물</b> — 실제 진입은 단계별 CP1 plan html 에서.
+  </p>
+</div>
+
+<script>
+  // ---- verdict 매트릭스 데이터 ----
+  const CARDS = [
+    {code:'R4-3', v:'modify', t:'BIOS fat-Service 분리', one:'분리 정당(624줄·addBios 117줄·nudge-session 복붙). <b>typed-name inline 유지</b> — 제거할 복붙 없고 verifier 주입 시 순환 자초.', dep:['R7-4 전제'], harm:'verifier 위임 금지', ev:['BiosService:124-240 addBios 117줄','BiosService:172-205 vs 269-302 복붙','BiosService:485-487 inline equals 1줄','TypedNameVerifierImpl:35,47-48 read-only']},
+    {code:'R4-4', v:'delete', t:'BIOS scanner ObjectProvider 도입', one:'보호할 순환 부재(BiosService verifier 미주입). R4-3 inline 유지 시 도입 불요. <b>ping-pong churn</b>.', dep:[], harm:'speculative', ev:['BoardBiosMarkableScanner:31 eager 직접주입','SoftDeleteIntentService:61 전역 @Lazy 가 이미 차단','Notion P7 자인 도입→R7-4 즉시제거']},
+    {code:'R5-2a', v:'delete', t:'BmcVerificationLauncher → Launcher/Runner 분리', one:'God-class 부재(87줄). IsoVerificationLauncher javadoc 이 단일클래스=@Async 의도로 못박음. Runner 짝 없음 = 비대칭 churn.', dep:[], harm:'churn', ev:['BmcVerificationLauncher 87줄','IsoVerificationLauncher:26-29 단일클래스 의도','verification launcher 4종 중 Runner 짝 0']},
+    {code:'R5-2b', v:'proceed', t:'statusMessage switch → displayMessage() 다형성', one:'중복 실재·CLAUDE.md §분기 다형성화 정합·순환 무관. <b>scope 확대</b>: 4 launcher × (statusMessage+applyStatus) byte-identical 공통화.', dep:['전제 없음'], harm:'', ev:['3~4 launcher 동일 switch(IntegrityStatus) 복제','applyStatus 도 4중복 — 함께 묶을 것','IntegrityStatusView.badgeClass 정합']},
+    {code:'R5-3', v:'modify', t:'BMC fat-Service 분리', one:'분리 정당(651줄·addBmc 127줄·marker 4-step inline 3중복). <b>BmcMarkerWriter 추출 동반 필수</b>. typed-name inline 유지.', dep:['R7-5 전제'], harm:'Writer 누락 시 churn', ev:['BmcService:117-243 addBmc 127줄','BmcService:215-229/327-341/384-398 marker 3중복','BiosMarkerWriter = 선례','BmcService:645-647 inline equals']},
+    {code:'R5-4', v:'delete', t:'BMC scanner ObjectProvider 도입', one:'"BMC 로컬 무방비 cycle"(P3) 실재하지 않음 — deps 에 verifier/scanner 0, 전역 @Lazy 공통 차단. ping-pong.', dep:[], harm:'speculative', ev:['BoardBmcMarkableScanner:30 eager','BmcService deps grep: verifier/scanner 0','전역 @Lazy 가 4도메인 차단']},
+    {code:'R6-2', v:'delete', t:'Subprogram scanner ObjectProvider 선차단', one:'Subprogram 은 부모 cascade 없어 topology 최단순, 위험 가장 약함. R6-3 inline 유지 시 도입 불요.', dep:[], harm:'speculative', ev:['SubprogramMarkableScanner:32 eager','부모 cascade 부재','R7-6 즉시 제거 예정']},
+    {code:'R6-3', v:'modify', t:'Subprogram fat-Service 분리', one:'분리 정당(750줄 최대·addSubprogram 140줄·marker 3중복). <b>SubprogramMarkerWriter 추출</b>(buildMarkerAttributes 흡수). BoardScope 다형성 유지. inline 유지.', dep:['R7-6 전제'], harm:'', ev:['SubprogramService:154-293 addSubprogram 140줄','SubprogramService:269-279/394-404/450-460 marker 3중복','SubprogramService:666-668 inline equals','SubprogramService:474-486 buildMarkerAttributes helper']},
+    {code:'R7-1', v:'modify', t:'MarkableScanner 4-sealed SPI 분리 (인프라)', one:'ISP 위반 실재(19시그니처·4관심사, SPI 가 TODO 로 자인). <b>5점 보강</b>: read/operation 2차축 · 7 호출부 · verifier→Inventory 응집 · Ghost 정정 · sealed→open.', dep:['R7 전체 전제'], harm:'seam 오설계 위험', ev:['MarkableScanner:33,192 분리 TODO 자인','TypedNameVerifierImpl:47-48 / PurgeExecutorImpl:65 read lookup','호출부 실측 7곳(plan 3곳)','SoftDeleteIntentService:177 applyForcedClear = ghost']},
+    {code:'R7-2', v:'modify', t:'OS — LifecycleService implements TrashOperator', one:'REAL 순환 정적 해소 확인(scanner service 참조 0). 본질 PROCEED — R7-1 선행 + restore/purge 시그니처 어댑터 보정.', dep:['R7-1 선행'], harm:'', ev:['OSMetadataMarkableScanner:29,98,106,114 getObject 역호출','verifier→inventory read-only = back-edge 0']},
+    {code:'R7-3', v:'modify', t:'Board — LifecycleService implements TrashOperator', one:'REAL 순환 해소(주석이 "ObjectProvider 제거는 R7-3" 명시). findDeletedChildLabels 가 이미 Lifecycle 위임이라 이관 깔끔.', dep:['R7-1, R3-3'], harm:'', ev:['BoardModelMarkableScanner:25,76,86,90,99','BoardModelLifecycleService:145 위임']},
+    {code:'R7-4', v:'modify', t:'BIOS — LifecycleService implements TrashOperator', one:'R4-3 전제. R4-4 삭제로 <b>ping-pong 소멸</b> — eager scanner 가 그대로 lifecycle 어댑터로. back-edge 제거가 핵심.', dep:['R4-3 전제','R7-1'], harm:'', ev:['BoardBiosMarkableScanner:121,128 back-edge']},
+    {code:'R7-5', v:'modify', t:'BMC — LifecycleService implements TrashOperator', one:'R5-3 전제. R5-4 삭제로 ping-pong 소멸. back-edge 제거.', dep:['R5-3 전제','R7-1'], harm:'', ev:['BoardBmcMarkableScanner:121,128 back-edge']},
+    {code:'R7-6', v:'modify', t:'Subprogram + capstone', one:'R6-3 전제. capstone "전역 @Lazy 제거"를 <b>조건부로 하향</b>(checkPrecondition 분리 전제). 주입 타입 Ghost 정정 + 2번째 @Lazy 처리 추가.', dep:['R6-3 전제','R7-1'], harm:'capstone 과대주장', ev:['SoftDeleteIntentService:60,61 @Lazy 2건','IsoLifecycleService:57+115 cycle#2 선례','MarkableScanner:192 ghost 규정']},
+  ];
+  const vlabel = {proceed:'PROCEED', modify:'MODIFY', delete:'DELETE'};
+  const matrix = document.getElementById('matrix');
+  function render(filter){
+    matrix.innerHTML='';
+    CARDS.filter(c=>filter==='all'||c.v===filter).forEach(c=>{
+      const el=document.createElement('div');
+      el.className='card '+c.v;
+      const tags=[...(c.dep||[]).map(d=>`<span class="tag dep">${d}</span>`),
+                  ...(c.harm?[`<span class="tag harm">${c.harm}</span>`]:[])].join('');
+      el.innerHTML=`<div class="hd"><span class="code">${c.code}</span><span class="v ${c.v}">${vlabel[c.v]}</span></div>
+        <div class="ttl">${c.t}</div><div class="one">${c.one}</div>
+        <div class="detail"><div class="meta">${tags}</div>
+          <div style="margin-top:8px">${c.ev.map(e=>`<span class="ev">· ${e}</span>`).join('')}</div></div>`;
+      el.addEventListener('click',()=>el.classList.toggle('open'));
+      matrix.appendChild(el);
+    });
+  }
+  render('all');
+  document.querySelectorAll('#filters .fbtn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#filters .fbtn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); render(b.dataset.f);
+  }));
+  // ---- dep graph 토글 ----
+  document.querySelectorAll('.gtab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.gtab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    document.getElementById('g-now').classList.toggle('hide', t.dataset.g!=='now');
+    document.getElementById('g-r7').classList.toggle('hide', t.dataset.g!=='r7');
+  }));
+</script>
+</body>
+</html>

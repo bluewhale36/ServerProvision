@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5-2-4 CP4 — 구현 보고서 (유스케이스 · 객체 흐름 · DB 변화)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --yellow: #C29343; --yellow-bg: #FAF3DD;
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --purple: #6f4cdd; --purple-bg: rgba(111,76,221,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; max-width: 1320px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0 0 12px; }
+  nav.toc li { padding: 3px 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  nav.toc a.live { color: var(--blue); font-weight: 600; }
+
+  main { min-width: 0; }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .chip.user { background: var(--blue-bg); color: var(--blue); }
+  .chip.nudge { background: var(--purple-bg); color: var(--purple); }
+  .chip.ttl { background: var(--orange-bg); color: var(--orange); }
+  .chip.success { background: var(--green-bg); color: var(--green); }
+  .chip.failed { background: var(--red-bg); color: var(--red); }
+  .chip.entity { background: var(--purple-bg); color: var(--purple); }
+  .chip.service { background: var(--blue-bg); color: var(--blue); }
+  .chip.repo { background: var(--green-bg); color: var(--green); }
+  .chip.ctrl { background: var(--yellow-bg); color: var(--yellow); }
+
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn { border-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.crit { border-color: var(--red); background: var(--red-bg); }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  .callout strong { display: inline-block; margin-right: 4px; }
+
+  ul, ol { padding-left: 22px; }
+  li { padding: 2px 0; }
+
+  /* Sequence diagram */
+  .seq { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; margin: 12px 0; overflow-x: auto; }
+  .seq-title { font-family: var(--mono); font-weight: 700; color: var(--blue); margin-bottom: 12px; font-size: 13px; }
+  .seq-grid { display: grid; gap: 0; min-width: 850px; }
+  .seq-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 4px 0;
+    border-bottom: 1px dotted var(--border-soft); align-items: center; }
+  .seq-header { font-family: var(--mono); font-size: 10px; color: var(--text-muted); padding: 6px 4px;
+    background: var(--bg); text-align: center; border-bottom: 2px solid var(--border); font-weight: 700; }
+  .seq-header.actor-user { color: var(--blue); }
+  .seq-header.actor-ctrl { color: var(--yellow); }
+  .seq-header.actor-verifier { color: var(--green); }
+  .seq-header.actor-executor { color: var(--purple); }
+  .seq-header.actor-scanner { color: var(--orange); }
+  .seq-header.actor-repo { color: var(--green); }
+  .seq-header.actor-db { color: var(--red); }
+  .seq-header.actor-worker { color: var(--orange); }
+  .seq-call { background: var(--bg); padding: 6px 8px; border-radius: 4px; font-family: var(--mono);
+    font-size: 11px; text-align: center; }
+  .seq-call.req { background: var(--blue-bg); color: var(--blue); }
+  .seq-call.verify { background: var(--green-bg); color: var(--green); }
+  .seq-call.invoke { background: var(--purple-bg); color: var(--purple); }
+  .seq-call.scan { background: var(--orange-bg); color: var(--orange); }
+  .seq-call.dao { background: var(--green-bg); color: var(--green); }
+  .seq-call.sql { background: var(--red-bg); color: var(--red); }
+  .seq-call.error { background: var(--red-bg); color: var(--red); font-weight: 700; }
+  .seq-call.success { background: var(--green-bg); color: var(--green); font-weight: 700; }
+  .seq-arrow { text-align: center; font-family: var(--mono); color: var(--text-muted); font-size: 12px; }
+  .seq-note { grid-column: span 8; background: var(--yellow-bg); color: var(--yellow);
+    padding: 4px 8px; border-radius: 4px; font-size: 11px; font-style: italic; text-align: center; }
+  .seq-step-num { font-family: var(--mono); font-size: 10px; color: var(--text-muted); padding: 2px 4px; }
+
+  /* Lifecycle diagram */
+  .lifecycle { display: flex; align-items: center; gap: 8px; padding: 12px 0; flex-wrap: wrap; justify-content: center; }
+  .lc-box { background: var(--card); border: 2px solid var(--border); border-radius: 6px; padding: 8px 12px;
+    text-align: center; font-size: 11px; min-width: 110px; }
+  .lc-box.create { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); }
+  .lc-box.transform { border-color: var(--purple); background: var(--purple-bg); color: var(--purple); }
+  .lc-box.persist { border-color: var(--green); background: var(--green-bg); color: var(--green); }
+  .lc-box.destroy { border-color: var(--red); background: var(--red-bg); color: var(--red); font-style: italic; }
+  .lc-arrow { color: var(--text-muted); font-size: 16px; font-family: var(--mono); }
+
+  /* DB diagram */
+  .db-row { background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; margin: 6px 0; font-family: var(--mono); font-size: 11px; }
+  .db-row.success { border-left: 4px solid var(--green); }
+  .db-row.failed { border-left: 4px solid var(--red); }
+  .db-row .db-title { font-weight: 700; color: var(--text-muted); margin-bottom: 4px; font-size: 10px; text-transform: uppercase; }
+  .db-row .col-pair { display: inline-block; margin-right: 14px; }
+  .db-row .col-name { color: var(--text-muted); }
+  .db-row .col-val { color: var(--text); }
+  .db-row .json-detail { background: var(--bg); padding: 6px 8px; border-radius: 4px; margin-top: 6px; white-space: pre-wrap; }
+
+  /* Decision flow */
+  .flow-box { background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px; margin: 8px 0; }
+  .flow-box .flow-title { font-weight: 700; color: var(--blue); margin-bottom: 6px; font-size: 12px; }
+  .flow-tree { font-family: var(--mono); font-size: 12px; white-space: pre; line-height: 1.7; }
+  .flow-branch { color: var(--purple); font-weight: 700; }
+  .flow-action { color: var(--green); }
+  .flow-reject { color: var(--red); }
+
+  /* Class diagram */
+  .class-box { display: inline-block; vertical-align: top; background: var(--card); border: 2px solid var(--purple);
+    border-radius: 6px; padding: 10px 14px; margin: 6px; min-width: 180px; font-size: 11px; }
+  .class-box.interface { border-color: var(--blue); border-style: dashed; }
+  .class-box.record { border-color: var(--green); }
+  .class-box .class-name { font-family: var(--mono); font-weight: 700; color: var(--purple); margin-bottom: 4px;
+    padding-bottom: 4px; border-bottom: 1px solid var(--border-soft); font-size: 12px; }
+  .class-box.interface .class-name { color: var(--blue); font-style: italic; }
+  .class-box.record .class-name { color: var(--green); }
+  .class-box ul { margin: 4px 0; padding-left: 14px; font-size: 10.5px; }
+  .class-box li { padding: 1px 0; color: var(--text-muted); }
+
+  .matrix-table th, .matrix-table td { text-align: center; padding: 8px; }
+  .matrix-table .yes { color: var(--green); font-weight: 700; }
+  .matrix-table .no { color: var(--red); }
+
+  .scenario-banner { padding: 14px 18px; border-radius: 8px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px; font-size: 14px; }
+  .scenario-banner.user { background: var(--blue-bg); border-left: 4px solid var(--blue); }
+  .scenario-banner.nudge { background: var(--purple-bg); border-left: 4px solid var(--purple); }
+  .scenario-banner.ttl { background: var(--orange-bg); border-left: 4px solid var(--orange); }
+  .scenario-banner .icon { font-size: 24px; }
+  .scenario-banner strong { font-size: 15px; }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; }
+    nav.toc { position: static; max-height: none; }
+    .seq-grid { min-width: 700px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S5-2-4 CP4 — 구현 보고서</h1>
+  <div class="meta">
+    <span>작성 : <strong>2026-05-20</strong></span>
+    <span>범위 : <strong>유스케이스 · 객체 생성/소멸 · 데이터 흐름 · DB 변화</strong></span>
+    <span>슬라이스 : <strong>TTL 자동 hard-delete + 단일 purge_log + nudge typed-name</strong></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 개요</a></li>
+    <li><a href="#s2">2. 도메인 객체 지도</a></li>
+    <li><a href="#s3">3. 정책 매트릭스</a></li>
+    <li><a href="#s4">4. 시나리오 A : USER_DIRECT</a></li>
+    <li><a href="#s5">5. 시나리오 B : TTL_AUTO</a></li>
+    <li><a href="#s6">6. 시나리오 C : NUDGE_REPLACE</a></li>
+    <li><a href="#s7">7. 객체 생명주기</a></li>
+    <li><a href="#s8">8. DB 변화 상세</a></li>
+    <li><a href="#s9">9. 운영자 회고 시나리오</a></li>
+    <li><a href="#s10">10. 의도적 단순화</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ============================== §1 ============================== -->
+<details class="section" id="s1" open>
+  <summary>1. 개요 — S5-2-4 가 해결하는 문제</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">1.1 결손 영역</h3>
+    <p>S5-2-2 가 사용자 직접 hard-delete 에 typed-name 검증을 도입한 뒤에도, 사용자 입력이 부재한 <strong>시스템 진입 경로</strong> 가 결손 상태였다 :</p>
+    <ul>
+      <li><strong>TTL 자동 만료</strong> — <code>TrashTtlWorker.purgeExpired()</code> 가 식별 + log 만. 실제 hard-delete 미구현</li>
+      <li><strong>nudge REPLACE</strong> — service 의 purge 직접 호출. typed-name 검증 우회</li>
+    </ul>
+
+    <h3>1.2 본 슬라이스의 약속</h3>
+    <table>
+      <thead><tr><th>축</th><th>달성 내용</th></tr></thead>
+      <tbody>
+        <tr><td>typed-name</td><td>휴지통 페이지 + nudge REPLACE 모두 동일 <code>TypedNameVerifier</code> 통과</td></tr>
+        <tr><td>TTL 자동 hard-delete</td><td><code>TrashTtlWorker</code> → <code>PurgeExecutor</code> 위임, retry 3회 backoff</td></tr>
+        <tr><td>감사 영속화</td><td>단일 <code>purge_log</code> 테이블 — 성공/실패 모두 1행씩 누적</td></tr>
+        <tr><td>운영 설정</td><td><code>trash_settings</code> singleton 테이블 — TTL/cron/알림/retry 일원화</td></tr>
+        <tr><td>회고</td><td>자원별 <code>WHERE resource_id=? ORDER BY occurred_at</code> 단일 쿼리로 전체 이력 조회</td></tr>
+      </tbody>
+    </table>
+
+    <h3>1.3 산출물 개요</h3>
+    <ul>
+      <li><strong>17 신규 + 14 수정 java 파일</strong> — enum 3 / record 3 / exception 2 / service interface 5 / service impl 5 / controller 3 신규 + 6 nudge controller 의 10 replace endpoint 수정</li>
+      <li><strong>2 신규 DB 테이블</strong> — <code>purge_log</code> (9 컬럼 / 3 인덱스) + <code>trash_settings</code> (11 컬럼 / singleton)</li>
+      <li><strong>14 신규 단위 테스트</strong> — PurgeExecutor 7 / TrashSettings 3 / TypedNameVerifier 4</li>
+      <li><strong>전체 540 tests 통과 / 0 failed</strong></li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §2 ============================== -->
+<details class="section" id="s2" open>
+  <summary>2. 도메인 객체 지도</summary>
+  <div class="body">
+    <p style="margin-top:0;">본 슬라이스가 추가한 14 종 도메인 객체 + 5 종 인터페이스/구현체 짝. 색상 의미 — <span class="chip entity">entity</span> <span class="chip service">interface</span> <span class="chip repo">repo</span> <span class="chip ctrl">controller</span></p>
+
+    <div style="text-align: center;">
+
+      <!-- 영속화 layer -->
+      <div class="class-box record">
+        <div class="class-name">PurgeRequest (record)</div>
+        <ul>
+          <li>resourceType</li>
+          <li>resourceId</li>
+          <li>origin (PurgeOrigin)</li>
+          <li>triggeredBy</li>
+          <li>typedName</li>
+          <li>+3 팩토리 static method</li>
+        </ul>
+      </div>
+
+      <div class="class-box record">
+        <div class="class-name">PurgeResult (sealed)</div>
+        <ul>
+          <li>Success(request, logId)</li>
+          <li>Failed(request, logId, cause)</li>
+        </ul>
+      </div>
+
+      <div class="class-box record">
+        <div class="class-name">PurgeLogDetails (sealed)</div>
+        <ul>
+          <li>Success { triggeredBy, paths, manifestHash, ... attemptCount }</li>
+          <li>Failed { triggeredBy, attemptNumber, tickAttemptCount, exceptionClass, failureReason }</li>
+        </ul>
+      </div>
+
+      <div class="class-box record">
+        <div class="class-name">ResourceKey (record)</div>
+        <ul>
+          <li>resourceType</li>
+          <li>resourceId</li>
+        </ul>
+      </div>
+
+      <br>
+
+      <!-- entity -->
+      <div class="class-box">
+        <div class="class-name">PurgeLog @Entity</div>
+        <ul>
+          <li>9 컬럼</li>
+          <li>3 인덱스</li>
+          <li>+success / failure 팩토리</li>
+        </ul>
+      </div>
+
+      <div class="class-box">
+        <div class="class-name">TrashSettings @Entity</div>
+        <ul>
+          <li>BaseTimeEntity 상속</li>
+          <li>11 컬럼</li>
+          <li>+defaults() / apply(request)</li>
+        </ul>
+      </div>
+
+      <br>
+
+      <!-- service interface -->
+      <div class="class-box interface">
+        <div class="class-name">PurgeExecutor</div>
+        <ul><li>execute(PurgeRequest)</li></ul>
+      </div>
+
+      <div class="class-box interface">
+        <div class="class-name">TrashSettingsService</div>
+        <ul><li>current / update</li><li>+8 getter (TTL/retry/cron/...)</li></ul>
+      </div>
+
+      <div class="class-box interface">
+        <div class="class-name">PurgeLogService</div>
+        <ul><li>findByResource</li><li>findPage(Spec)</li><li>countFailedForResource</li><li>findResourcesWithLastOutcomeFailed</li></ul>
+      </div>
+
+      <div class="class-box interface">
+        <div class="class-name">TypedNameVerifier</div>
+        <ul><li>verify(type, id, typedName)</li></ul>
+      </div>
+
+      <div class="class-box interface">
+        <div class="class-name">NotificationDispatcher</div>
+        <ul><li>dispatch(type, channels, title, body)</li></ul>
+      </div>
+
+    </div>
+
+    <h3>의존 관계 (서비스 계층)</h3>
+    <pre><code>TrashTtlWorker  ──(cron)──►  PurgeExecutor  ──►  scanner.purgeFromTrash(id)
+                                   │                       │
+                                   ├──►  PurgeLogRepository.save(...)
+                                   │
+                                   └──◄  TrashSettingsService (retry policy)
+
+
+TrashController  ──(POST /purge)──►  TypedNameVerifier.verify(...)
+                                    └──►  PurgeExecutor.execute(USER_DIRECT)
+
+
+NudgeController  ──(POST /replace)─►  TypedNameVerifier.verify(...) (typedName 보유 시)
+                                    └──►  NudgeService.replace(nudgeId, targetId) (기존 흐름)
+
+
+TrashTtlWorker.notifyUpcoming  ──►  NotificationDispatcher  ──►  BackgroundJobService</code></pre>
+  </div>
+</details>
+
+<!-- ============================== §3 ============================== -->
+<details class="section" id="s3" open>
+  <summary>3. 정책 매트릭스 — origin × 책임</summary>
+  <div class="body">
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th rowspan="2">정책 항목</th>
+          <th><span class="chip user">USER_DIRECT</span></th>
+          <th><span class="chip nudge">NUDGE_REPLACE</span></th>
+          <th><span class="chip ttl">TTL_AUTO</span></th>
+        </tr>
+        <tr>
+          <th>휴지통/5 list 페이지</th>
+          <th>6 nudge controller</th>
+          <th>TrashTtlWorker cron</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align: left;">typed-name 검증</td>
+          <td class="yes">✅ 필수</td>
+          <td class="yes">✅ optional (점진)</td>
+          <td class="no">❌ (시스템 진입)</td>
+        </tr>
+        <tr>
+          <td style="text-align: left;">사전 알림 (D-7 / D-1)</td>
+          <td class="no">—</td>
+          <td class="no">—</td>
+          <td class="yes">✅ TTL_NOTIFY Job</td>
+        </tr>
+        <tr>
+          <td style="text-align: left;">PurgeExecutor 통과</td>
+          <td class="yes">✅ (휴지통 페이지만)</td>
+          <td class="no">❌ (본 슬라이스 단순화)</td>
+          <td class="yes">✅</td>
+        </tr>
+        <tr>
+          <td style="text-align: left;">retry (3회 exponential backoff)</td>
+          <td class="no">❌</td>
+          <td class="no">❌</td>
+          <td class="yes">✅</td>
+        </tr>
+        <tr>
+          <td style="text-align: left;">purge_log 영속화</td>
+          <td class="yes">✅ 1행 (휴지통)</td>
+          <td class="no">❌ (후속)</td>
+          <td class="yes">✅ 1행</td>
+        </tr>
+        <tr>
+          <td style="text-align: left;">BackgroundJob 알림</td>
+          <td class="no">—</td>
+          <td class="no">—</td>
+          <td class="yes">✅ 3종</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>본 슬라이스의 단순화</strong> 5 list 페이지의 purge endpoint 와 nudge REPLACE 의 PurgeExecutor 통합은 회귀 위험으로 분리. 다음 슬라이스 (또는 후속 정합화 작업) 에서 purge_log 가 모든 hard-delete 경로를 흡수.
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §4 ============================== -->
+<details class="section" id="s4" open>
+  <summary>4. 시나리오 A — USER_DIRECT (휴지통 페이지에서 사용자가 영구삭제)</summary>
+  <div class="body">
+
+    <div class="scenario-banner user">
+      <span class="icon">🗑</span>
+      <div>
+        <strong>관리자가 휴지통의 자원을 영구삭제</strong><br>
+        <span style="color: var(--text-muted);">예 : ISO id=27 "Rocky Linux 9.5 dvd.iso" — typed-name 입력 후 PurgeExecutor 통과</span>
+      </div>
+    </div>
+
+    <h3>4.1 Sequence — 호출 흐름</h3>
+    <div class="seq">
+      <div class="seq-title">POST /maintenance/trash/OS_ISO/27/purge?typedName=Rocky+Linux+9.5+dvd.iso</div>
+      <div class="seq-grid">
+        <div class="seq-row">
+          <div class="seq-header actor-user">사용자<br>(브라우저)</div>
+          <div class="seq-header actor-ctrl">TrashController</div>
+          <div class="seq-header actor-verifier">TypedNameVerifier</div>
+          <div class="seq-header actor-scanner">IsoMarkable<br>Scanner</div>
+          <div class="seq-header actor-executor">PurgeExecutor</div>
+          <div class="seq-header actor-scanner">scanner<br>.purgeFromTrash</div>
+          <div class="seq-header actor-repo">PurgeLog<br>Repository</div>
+          <div class="seq-header actor-db">DB</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">①</div>
+          <div class="seq-call req">POST</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">②</div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call verify">verify(OS_ISO, 27L, "Rocky...")</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">③</div>
+          <div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call scan">findActiveMarkableById(27L)</div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-note">활성에 없으면 → scanner.findTrashedById(27L) fallback</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">④</div>
+          <div></div>
+          <div class="seq-arrow">←</div>
+          <div class="seq-call scan">Markable {displayName: "Rocky..."}</div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑤</div>
+          <div></div>
+          <div class="seq-call verify">expected == typed ✓</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑥</div>
+          <div></div>
+          <div class="seq-arrow">←</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑦</div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div class="seq-call invoke">execute(PurgeRequest.forUserDirect)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑧</div>
+          <div></div><div></div>
+          <div class="seq-arrow">←</div>
+          <div class="seq-call scan">findTrashedById(27L)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑨</div>
+          <div></div><div></div>
+          <div class="seq-call scan">Markable snapshot</div>
+          <div class="seq-arrow">→</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑩</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call scan">purgeFromTrash(27L)</div>
+          <div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-note">→ osImageService.purgeIso(...) 가 자원 hard-delete + cascade 처리</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑪</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">←</div>
+          <div class="seq-call success">완료</div>
+          <div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑫</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div></div>
+          <div class="seq-call dao">save(PurgeLog.success(...))</div>
+          <div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑬</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call sql">INSERT INTO purge_log</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑭</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">←</div>
+          <div class="seq-call success">log_id=1234</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑮</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-call success">PurgeResult.Success(1234)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑯</div>
+          <div></div>
+          <div class="seq-call success">redirect:/maintenance/trash</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑰</div>
+          <div class="seq-call success">302 → 휴지통 페이지 reload</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>4.2 객체 생성/소멸 — 호출 1회 안에서</h3>
+    <div class="lifecycle">
+      <div class="lc-box create">PurgeRequest<br>(record, stack)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box transform">PurgeExecutor.execute<br>(local scope)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box transform">PurgeLogDetails.Success<br>(record)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box persist">PurgeLog @Entity<br>(JPA managed)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box persist">DB row<br>(영속화)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box transform">PurgeResult.Success<br>(record)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box destroy">호출 종료<br>(GC 대상)</div>
+    </div>
+
+    <h3>4.3 DB 변화</h3>
+    <div class="db-row success">
+      <div class="db-title">purge_log INSERT (단일 행)</div>
+      <span class="col-pair"><span class="col-name">id</span> = <span class="col-val">1234</span></span>
+      <span class="col-pair"><span class="col-name">resource_type</span> = <span class="col-val">OS_ISO</span></span>
+      <span class="col-pair"><span class="col-name">resource_id</span> = <span class="col-val">27</span></span>
+      <span class="col-pair"><span class="col-name">display_name</span> = <span class="col-val">"Rocky Linux 9.5 dvd.iso"</span></span>
+      <span class="col-pair"><span class="col-name">origin</span> = <span class="col-val">USER_DIRECT</span></span>
+      <span class="col-pair"><span class="col-name">outcome</span> = <span class="col-val">SUCCESS</span></span>
+      <span class="col-pair"><span class="col-name">occurred_at</span> = <span class="col-val">2026-05-20 19:45:01.123</span></span>
+      <span class="col-pair"><span class="col-name">purged_at</span> = <span class="col-val">2026-05-20 19:45:01.567</span></span>
+      <div class="json-detail">details (JSON) :
+{
+  "type"            : "SUCCESS",
+  "triggeredBy"     : null,
+  "trashedPath"     : "/opt/.../OS_ISO/27/dvd.iso_…",
+  "originalPath"    : "/opt/.../OS_ISO/27/dvd.iso_…",
+  "manifestHash"    : "sha256:7f3a…",
+  "markerSignature" : "abc…",
+  "attemptCount"    : 1
+}</div>
+    </div>
+
+    <h3>4.4 자원 entity 의 영향</h3>
+    <ul>
+      <li><strong>iso 테이블</strong> — id=27 row 가 도메인 service 의 cascade hard-delete 로 삭제됨</li>
+      <li><strong>trash 디렉토리</strong> — <code>/opt/.../OS_ISO/27/</code> 디렉토리 + 파일 정리</li>
+      <li><strong>purge_log</strong> — 새 1행 영속화 (위 §4.3)</li>
+    </ul>
+  </div>
+</details>
+
+<!-- ============================== §5 ============================== -->
+<details class="section" id="s5" open>
+  <summary>5. 시나리오 B — TTL_AUTO (cron 자동 hard-delete + retry)</summary>
+  <div class="body">
+
+    <div class="scenario-banner ttl">
+      <span class="icon">⏰</span>
+      <div>
+        <strong>휴지통의 30일 경과 자원이 cron 에 의해 자동 영구삭제</strong><br>
+        <span style="color: var(--text-muted);">예 : ISO id=27 trashed_at 이 D+30 도달 → @Scheduled trashTtlWorker.purgeExpired 진입</span>
+      </div>
+    </div>
+
+    <h3>5.1 Sequence — 정상 흐름 (1회 시도 성공)</h3>
+    <div class="seq">
+      <div class="seq-title">@Scheduled(cron = "0 0 * * * *") TrashTtlWorker.purgeExpired()</div>
+      <div class="seq-grid">
+        <div class="seq-row">
+          <div class="seq-header actor-worker">TrashTtl<br>Worker</div>
+          <div class="seq-header actor-verifier">TrashSettings<br>Service</div>
+          <div class="seq-header actor-scanner">List&lt;Markable<br>Scanner&gt;</div>
+          <div class="seq-header actor-executor">PurgeExecutor</div>
+          <div class="seq-header actor-scanner">scanner<br>.purgeFromTrash</div>
+          <div class="seq-header actor-repo">PurgeLog<br>Repository</div>
+          <div class="seq-header actor-db">DB</div>
+          <div class="seq-header actor-ctrl">Notify<br>Dispatcher</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">①</div>
+          <div class="seq-call invoke">cron tick</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">②</div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call verify">isAutoPurgeEnabled() ✓</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">③</div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call verify">getTtl() = 30 days</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">④</div>
+          <div></div>
+          <div></div>
+          <div class="seq-call scan">scanner.findTrashedBefore(threshold)</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑤</div>
+          <div></div>
+          <div></div>
+          <div class="seq-call scan">[Markable(27)]</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑥</div>
+          <div class="seq-arrow">→</div>
+          <div></div>
+          <div></div>
+          <div class="seq-call invoke">execute(PurgeRequest.forTtlAuto)</div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑦</div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call scan">purgeFromTrash(27L)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑧</div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div class="seq-arrow">←</div>
+          <div class="seq-call success">OK</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑨</div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div class="seq-arrow">→</div>
+          <div></div>
+          <div class="seq-call dao">save(PurgeLog.success)</div>
+          <div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑩</div>
+          <div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call sql">INSERT</div>
+          <div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑪</div>
+          <div></div><div></div><div></div>
+          <div class="seq-call success">PurgeResult.Success</div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑫</div>
+          <div class="seq-call success">완료 (success++)</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>5.2 Sequence — 실패 흐름 (3회 retry 모두 실패)</h3>
+    <div class="seq">
+      <div class="seq-title">TTL_AUTO 진입 + 디스크 read-only 등 I/O 실패</div>
+      <div class="seq-grid">
+        <div class="seq-row">
+          <div class="seq-header actor-executor">PurgeExecutor</div>
+          <div class="seq-header actor-scanner">scanner<br>.purgeFromTrash</div>
+          <div class="seq-header actor-repo">PurgeLog<br>Repository</div>
+          <div class="seq-header actor-db">DB</div>
+          <div class="seq-header actor-worker">Thread</div>
+          <div class="seq-header actor-worker">Trash<br>TtlWorker</div>
+          <div class="seq-header actor-ctrl">Notify<br>Dispatcher</div>
+          <div class="seq-header actor-ctrl">Job<br>Service</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">①</div>
+          <div class="seq-call invoke">tickAttempt=1</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">②</div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call error">throw IOException</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">③</div>
+          <div></div>
+          <div></div>
+          <div></div><div></div>
+          <div class="seq-call scan">Thread.sleep(1000ms)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">④</div>
+          <div class="seq-call invoke">tickAttempt=2</div>
+          <div class="seq-call error">throw IOException</div>
+          <div></div><div></div>
+          <div class="seq-call scan">sleep(2000ms)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑤</div>
+          <div class="seq-call invoke">tickAttempt=3</div>
+          <div class="seq-call error">throw IOException</div>
+          <div></div><div></div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-note">3회 모두 실패 → markFailed 단계 진입</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑥</div>
+          <div class="seq-arrow">→</div>
+          <div></div>
+          <div class="seq-call dao">countByResourceAndOutcome(FAILED) = 2</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-note">→ details.attemptNumber = 2 + 1 = 3 (누적)</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑦</div>
+          <div class="seq-arrow">→</div>
+          <div></div>
+          <div class="seq-call dao">save(PurgeLog.failure)</div>
+          <div class="seq-call sql">INSERT FAILED row</div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑧</div>
+          <div class="seq-call error">PurgeResult.Failed</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑨</div>
+          <div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-call invoke">dispatch(TRASH_PURGE_FAILED, ...)</div>
+          <div class="seq-arrow">→</div>
+          <div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑩</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call dao">register Job</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-note">자원이 휴지통에 그대로 → 다음 cron tick 에 자연스럽게 재시도 후보</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>5.3 자원별 누적 lifecycle (3 cron tick 시뮬레이션)</h3>
+    <table>
+      <thead><tr><th>cron tick</th><th>시도 횟수</th><th>결과</th><th>purge_log row 추가</th><th>자원 상태</th></tr></thead>
+      <tbody>
+        <tr style="background: var(--red-bg);">
+          <td>D+30 00:00:01</td>
+          <td>1~3 (모두 실패)</td>
+          <td><span class="chip failed">FAILED</span></td>
+          <td>+1 (attemptNumber=1)</td>
+          <td>휴지통에 잔존</td>
+        </tr>
+        <tr style="background: var(--red-bg);">
+          <td>D+30 01:00:00</td>
+          <td>1~3 (모두 실패)</td>
+          <td><span class="chip failed">FAILED</span></td>
+          <td>+1 (attemptNumber=2 누적)</td>
+          <td>휴지통에 잔존</td>
+        </tr>
+        <tr style="background: var(--green-bg);">
+          <td>D+30 02:00:00</td>
+          <td>1 (성공)</td>
+          <td><span class="chip success">SUCCESS</span></td>
+          <td>+1 (purged_at = 02:00:01.234)</td>
+          <td>hard-delete 완료</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>운영자 조회 :</p>
+    <pre><code>SELECT id, origin, outcome, occurred_at, purged_at
+FROM purge_log
+WHERE resource_type = 'OS_ISO' AND resource_id = 27
+ORDER BY occurred_at;
+
+-- 결과 (3행)
+-- 1234 | TTL_AUTO | FAILED  | 2026-06-14 00:00:01.123 | NULL
+-- 1235 | TTL_AUTO | FAILED  | 2026-06-14 01:00:00.892 | NULL
+-- 1236 | TTL_AUTO | SUCCESS | 2026-06-14 02:00:00.501 | 2026-06-14 02:00:01.234</code></pre>
+
+    <div class="callout success">
+      <strong>설계의 우아함</strong> "다음 cron 재시도 후보" 를 별도 SPI / 컬럼으로 식별하지 않는다. 자원이 휴지통에 그대로 있다 = 아직 SUCCESS 안 됨 = 자연스러운 다음 cron 후보. 사용자 결정 (v3 D8).
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §6 ============================== -->
+<details class="section" id="s6" open>
+  <summary>6. 시나리오 C — NUDGE_REPLACE (충돌 자원 영구삭제 후 신규 등록)</summary>
+  <div class="body">
+
+    <div class="scenario-banner nudge">
+      <span class="icon">⚠</span>
+      <div>
+        <strong>업로드 시 충돌 자원 발견 → 사용자가 "기존 영구 삭제 후 등록" 선택</strong><br>
+        <span style="color: var(--text-muted);">예 : ISO 업로드 중 nudge modal → 사용자가 typedName 입력 + REPLACE 버튼</span>
+      </div>
+    </div>
+
+    <h3>6.1 Sequence — typed-name 검증 + 기존 nudge 흐름 위임</h3>
+    <div class="seq">
+      <div class="seq-title">POST /management/os/nudge/{nudgeId}/replace?targetId=27&amp;typedName=Rocky+Linux+9.5+dvd.iso</div>
+      <div class="seq-grid">
+        <div class="seq-row">
+          <div class="seq-header actor-user">사용자<br>(브라우저)</div>
+          <div class="seq-header actor-ctrl">OSImage<br>Controller</div>
+          <div class="seq-header actor-verifier">TypedName<br>Verifier</div>
+          <div class="seq-header actor-scanner">IsoScanner</div>
+          <div class="seq-header actor-service">OsNudge<br>Service</div>
+          <div class="seq-header actor-service">OSImage<br>Service</div>
+          <div class="seq-header actor-repo">ISORepo</div>
+          <div class="seq-header actor-db">DB</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">①</div>
+          <div class="seq-call req">POST<br>nudgeId=abc<br>targetId=27<br>typedName=...</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">②</div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call verify">verify(OS_ISO, 27L, "Rocky...")</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">③</div>
+          <div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call scan">findActiveMarkableById(27L)</div>
+          <div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">④</div>
+          <div></div>
+          <div class="seq-call verify">expected == typed ✓</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑤</div>
+          <div></div>
+          <div class="seq-arrow">←</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑥</div>
+          <div></div>
+          <div class="seq-arrow">→</div>
+          <div></div>
+          <div></div>
+          <div class="seq-call invoke">osNudgeService.replace(nudgeId, 27L)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑦</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call invoke">purgeIsoForNudge(27L)</div>
+          <div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑧</div>
+          <div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call dao">delete ISO id=27</div>
+          <div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑨</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call sql">DELETE FROM iso</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑩</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-call invoke">persistFromNudge(...)</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑪</div>
+          <div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call dao">save new ISO</div>
+          <div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑫</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call sql">INSERT INTO iso</div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑬</div>
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-call success">newIsoId=99</div>
+          <div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑭</div>
+          <div></div>
+          <div class="seq-call success">{ isoId: 99 }</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-step-num">⑮</div>
+          <div class="seq-call success">200 OK</div>
+          <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+
+        <div class="seq-row">
+          <div class="seq-note">⚠ 본 슬라이스는 NUDGE_REPLACE 의 purge_log INSERT 를 생략 — 후속 슬라이스에서 통합</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>6.2 Sequence — typed-name 불일치 (거절)</h3>
+    <div class="seq">
+      <div class="seq-title">사용자가 typedName 을 잘못 입력</div>
+      <div class="seq-grid">
+        <div class="seq-row">
+          <div class="seq-header actor-user">사용자</div>
+          <div class="seq-header actor-ctrl">OSImage<br>Controller</div>
+          <div class="seq-header actor-verifier">TypedName<br>Verifier</div>
+          <div class="seq-header actor-ctrl">ApiException<br>Handler</div>
+          <div class="seq-header actor-user">브라우저</div>
+          <div class="seq-header actor-service">OsNudge<br>Service</div>
+          <div class="seq-header actor-db">DB</div>
+          <div></div>
+        </div>
+        <div class="seq-row">
+          <div class="seq-call req">POST<br>typedName="typo"</div>
+          <div class="seq-arrow">→</div>
+          <div class="seq-call verify">verify(...)</div>
+          <div></div><div></div><div></div><div></div><div></div>
+        </div>
+        <div class="seq-row">
+          <div></div><div></div>
+          <div class="seq-call error">expected != typed<br>throw TypedNameMismatchException</div>
+          <div class="seq-arrow">→</div><div></div><div></div><div></div><div></div>
+        </div>
+        <div class="seq-row">
+          <div></div><div></div><div></div>
+          <div class="seq-call error">400 BAD_REQUEST<br>+ ApiErrorResponse</div>
+          <div class="seq-arrow">→</div><div></div><div></div><div></div>
+        </div>
+        <div class="seq-row">
+          <div></div><div></div><div></div><div></div>
+          <div class="seq-call error">modal 에 에러 표시</div>
+          <div></div><div></div><div></div>
+        </div>
+        <div class="seq-row">
+          <div class="seq-note">NudgeService.replace 호출 안 됨 + DB 변화 0 — 사용자에게 즉시 피드백</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</details>
+
+<!-- ============================== §7 ============================== -->
+<details class="section" id="s7" open>
+  <summary>7. 객체 생명주기 — record / entity / Spring bean</summary>
+  <div class="body">
+
+    <h3 style="margin-top:0;">7.1 record 의 짧은 lifetime (호출 1회 안)</h3>
+    <table>
+      <thead><tr><th>객체</th><th>생성 시점</th><th>소멸 (GC 대상)</th><th>JVM lifetime</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>PurgeRequest</code> (record)</td>
+          <td>controller 가 path/param 으로부터 factory 호출</td>
+          <td>execute 메서드 반환 직후</td>
+          <td>수 ms</td>
+        </tr>
+        <tr>
+          <td><code>PurgeResult.Success/Failed</code> (sealed record)</td>
+          <td>PurgeExecutor 가 결과 합성 시</td>
+          <td>호출자 (controller / worker) 가 검사 후</td>
+          <td>수 ms</td>
+        </tr>
+        <tr>
+          <td><code>PurgeLogDetails.Success/Failed</code> (sealed record)</td>
+          <td>PurgeExecutor 가 PurgeLog.success/failure 호출 직전</td>
+          <td>JPA managed entity 의 @Convert 가 JSON 직렬화 직후</td>
+          <td>수 ms (DB 안에는 String 으로 영속화)</td>
+        </tr>
+        <tr>
+          <td><code>ResourceKey</code> (record)</td>
+          <td>PurgeLogRepository 의 JPQL constructor 매핑</td>
+          <td>retry-failed controller 의 Set 변환 후</td>
+          <td>수 ms</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>7.2 @Entity 의 영속화 lifetime</h3>
+    <div class="lifecycle">
+      <div class="lc-box create">new PurgeLog<br>(transient)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box transform">repository.save(log)<br>(managed)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box persist">DB row<br>(영속)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box transform">트랜잭션 commit<br>(detached)</div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-box destroy">GC 대상<br>(DB row 만 남음)</div>
+    </div>
+    <p style="font-size: 12px; color: var(--text-muted);">PurgeLog 는 <strong>INSERT only</strong> — 한 번 영속화되면 UPDATE 안 됨. JVM 안에서의 lifetime 은 commit 직후 종료.</p>
+
+    <h3>7.3 Singleton Spring bean</h3>
+    <table>
+      <thead><tr><th>Bean</th><th>생성</th><th>의존성 주입</th><th>소멸</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>PurgeExecutorImpl</code></td>
+          <td>application start (singleton)</td>
+          <td>List&lt;MarkableScanner&gt; · TrashSettingsService · PurgeLogRepository</td>
+          <td>application shutdown</td>
+        </tr>
+        <tr>
+          <td><code>TrashSettingsServiceImpl</code></td>
+          <td>application start + @PostConstruct (singleton row seed)</td>
+          <td>TrashSettingsRepository</td>
+          <td>application shutdown</td>
+        </tr>
+        <tr>
+          <td><code>TrashTtlWorker</code></td>
+          <td>application start (Scheduler 가 cron 등록)</td>
+          <td>TrashSettingsService · List&lt;MarkableScanner&gt; · PurgeExecutor · NotificationDispatcher</td>
+          <td>application shutdown</td>
+        </tr>
+        <tr>
+          <td><code>TypedNameVerifierImpl</code></td>
+          <td>application start (singleton)</td>
+          <td>List&lt;MarkableScanner&gt;</td>
+          <td>application shutdown</td>
+        </tr>
+        <tr>
+          <td><code>BackgroundJobNotificationAdapter</code></td>
+          <td>application start</td>
+          <td>BackgroundJobService</td>
+          <td>application shutdown</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>7.4 cache 의 lifetime — TrashSettings cached 필드</h3>
+    <pre><code>// TrashSettingsServiceImpl
+private volatile TrashSettings cached;  // 마지막 조회/갱신 row
+
+@PostConstruct
+void seedOrReconcile() {
+    // 1) count == 0 → defaults() insert → cached = result
+    // 2) count == 1 → findFirstByOrderByIdAsc() → cached
+    // 3) count >= 2 → 첫 row + 나머지 delete → cached
+}
+
+public TrashSettingsResponse update(TrashSettingsRequest req) {
+    // entity.apply(req) → save() → cached = saved
+}</code></pre>
+    <p>cached 는 worker / executor 가 매번 DB 조회하지 않도록 in-memory 보관 — application lifetime 동안 유지. update() 호출 시점에 갱신.</p>
+  </div>
+</details>
+
+<!-- ============================== §8 ============================== -->
+<details class="section" id="s8" open>
+  <summary>8. DB 변화 상세 — 자원 1건의 lifecycle 추적</summary>
+  <div class="body">
+
+    <h3 style="margin-top:0;">8.1 자원 등록부터 자동 영구삭제까지 — 시간순</h3>
+
+    <div style="display: grid; gap: 8px; margin: 16px 0;">
+
+      <div style="background: var(--blue-bg); border-left: 4px solid var(--blue); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+        <strong>T+0 — ISO 등록</strong>
+        <div style="font-family: var(--mono); font-size: 11px; margin-top: 4px;">
+          <code>INSERT INTO iso (id=27, iso_path='/opt/.../dvd.iso', is_deleted=false, ...)</code>
+        </div>
+      </div>
+
+      <div style="background: var(--yellow-bg); border-left: 4px solid var(--yellow); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+        <strong>T+10 days — 사용자가 soft-delete</strong>
+        <div style="font-family: var(--mono); font-size: 11px; margin-top: 4px;">
+          <code>UPDATE iso SET is_deleted=true, trashed_at=T+10d, trashed_path='/opt/.../soft-deleted/OS_ISO/27/dvd.iso_...' WHERE id=27</code>
+        </div>
+      </div>
+
+      <div style="background: var(--bg); border-left: 4px solid var(--text-muted); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+        <strong>T+10~30 days — 휴지통 잔존 (TTL 30일 보장)</strong>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">cron 진입하지만 (T+30d) 이전 자원이라 skip. notify_days_before (7,1) 도달 시 TTL_NOTIFY Job 등록</div>
+      </div>
+
+      <div style="background: var(--orange-bg); border-left: 4px solid var(--orange); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+        <strong>T+30 days 00:00 — cron tick + TTL 만료</strong>
+        <div style="font-family: var(--mono); font-size: 11px; margin-top: 4px;">
+          <code>SELECT * FROM iso WHERE is_deleted=true AND trashed_at &lt;= T+30d - 30 days</code><br>
+          <code>→ [iso 27]</code>
+        </div>
+      </div>
+
+      <div class="db-row success">
+        <div class="db-title">T+30 days 00:00:01.567 — purge_log INSERT (SUCCESS)</div>
+        <code>id=1234 · OS_ISO · 27 · "Rocky..." · TTL_AUTO · SUCCESS · occurred_at=00:00:01.123 · purged_at=00:00:01.567</code>
+        <div class="json-detail">details = {"type":"SUCCESS", "triggeredBy":null, "trashedPath":"...", "originalPath":"...", "manifestHash":"sha256:7f3a...", "markerSignature":"abc...", "attemptCount":1}</div>
+      </div>
+
+      <div style="background: var(--red-bg); border-left: 4px solid var(--red); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+        <strong>T+30 days 00:00:01.5 — iso 테이블 hard-delete</strong>
+        <div style="font-family: var(--mono); font-size: 11px; margin-top: 4px;">
+          <code>DELETE FROM iso WHERE id=27</code><br>
+          <code>→ trash 디렉토리 정리</code>
+        </div>
+      </div>
+
+    </div>
+
+    <h3>8.2 실패 후 재시도 시나리오 — 누적 row</h3>
+
+    <div style="display: grid; gap: 8px;">
+      <div class="db-row failed">
+        <div class="db-title">cron tick 1 — D+30 00:00 / 3회 retry 모두 실패</div>
+        <code>id=1234 · OS_ISO · 27 · TTL_AUTO · FAILED · occurred_at=00:00:01 · purged_at=NULL</code>
+        <div class="json-detail">details = {"type":"FAILED", "triggeredBy":null, "attemptNumber":1, "tickAttemptCount":3, "exceptionClass":"PurgeIoFailedException", "failureReason":"read-only filesystem"}</div>
+      </div>
+
+      <div class="db-row failed">
+        <div class="db-title">cron tick 2 — D+30 01:00 / 또 3회 실패</div>
+        <code>id=1235 · OS_ISO · 27 · TTL_AUTO · FAILED · occurred_at=01:00:00 · purged_at=NULL</code>
+        <div class="json-detail">details = {... "attemptNumber":2 ← 누적, "tickAttemptCount":3, ...}</div>
+      </div>
+
+      <div class="db-row success">
+        <div class="db-title">cron tick 3 — D+30 02:00 / 1회 시도 후 성공</div>
+        <code>id=1236 · OS_ISO · 27 · TTL_AUTO · SUCCESS · occurred_at=02:00:00.501 · purged_at=02:00:01.234</code>
+        <div class="json-detail">details = {"type":"SUCCESS", "manifestHash":"sha256:...", "attemptCount":1}</div>
+      </div>
+    </div>
+
+    <h3>8.3 trash_settings — singleton 영속화</h3>
+    <div class="db-row success">
+      <div class="db-title">application start 직후 (count==0 → defaults() 시드)</div>
+      <code>id=1 · ttl_days=30 · auto_purge_enabled=true · purge_cron='0 0 * * * *' · notify_cron='0 0 * * * *' · notify_days_before='7,1' · notification_channels='BACKGROUND_JOB,SERVER_LOG' · retry_max_attempts=3 · retry_backoff_base_ms=1000</code>
+    </div>
+
+    <h3>8.4 데이터 누적 추정 (운영 1년)</h3>
+    <table>
+      <thead><tr><th>요인</th><th>값</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>일 평균 자원 hard-delete 수</td><td>~50 건 가정</td><td>휴지통 30일 후 자동 + 사용자 직접</td></tr>
+        <tr><td>평균 retry 시도 (TTL_AUTO)</td><td>1.1 cron tick</td><td>대부분 1회 성공, 가끔 실패</td></tr>
+        <tr><td>일 평균 purge_log 행</td><td>~55 행</td><td>50 SUCCESS + 5 FAILED retry</td></tr>
+        <tr><td>1년 누적 row</td><td>~20,000 행</td><td>매년 정리 cron 도입 시 작은 부담</td></tr>
+        <tr><td>인덱스 활용</td><td>idx_purge_log_resource / idx_purge_log_outcome_occurred</td><td>일반 조회는 100ms 이하 예상</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+</details>
+
+<!-- ============================== §9 ============================== -->
+<details class="section" id="s9" open>
+  <summary>9. 운영자 회고 시나리오</summary>
+  <div class="body">
+    <h3 style="margin-top:0;">9.1 자원별 회고 — 어떤 자원의 lifecycle 추적</h3>
+    <pre><code>-- 자원 27 의 전체 hard-delete 이력
+SELECT id, origin, outcome, occurred_at, purged_at, details
+FROM purge_log
+WHERE resource_type = 'OS_ISO' AND resource_id = 27
+ORDER BY occurred_at;</code></pre>
+
+    <h3>9.2 실패 자원 추적 — 마지막 outcome 이 FAILED 인 자원 셋</h3>
+    <pre><code>WITH last_log AS (
+  SELECT resource_type, resource_id,
+         ROW_NUMBER() OVER (PARTITION BY resource_type, resource_id
+                            ORDER BY occurred_at DESC) AS rn,
+         outcome
+  FROM purge_log
+)
+SELECT resource_type, resource_id
+FROM last_log
+WHERE rn = 1 AND outcome = 'FAILED';</code></pre>
+
+    <h3>9.3 3회 초과 누적 실패 자원 — 운영자 격상</h3>
+    <pre><code>-- details.attemptNumber > 3 인 자원 (JSON 컬럼 조회)
+SELECT resource_type, resource_id, MAX(occurred_at) AS last_attempted_at
+FROM purge_log
+WHERE outcome = 'FAILED'
+  AND JSON_EXTRACT(details, '$.attemptNumber') &gt; 3
+GROUP BY resource_type, resource_id;</code></pre>
+
+    <h3>9.4 운영자 페이지 — /maintenance/trash/purge-log</h3>
+    <ul>
+      <li>필터 : resource_type / origin / outcome / 기간</li>
+      <li>정렬 : occurred_at DESC (최신순)</li>
+      <li>Pageable : Spring Data JPA 의 Specification 동적 합성</li>
+      <li>JSON details : "JSON 펼치기" details summary 로 사용자가 클릭해서 조회</li>
+    </ul>
+
+    <h3>9.5 운영자 액션 — 수동 재시도</h3>
+    <p>POST <code>/maintenance/trash/retry-failed</code> 호출 시 :</p>
+    <ol>
+      <li>PurgeLogRepository.findResourceKeysWithLastOutcomeFailed() → ResourceKey 셋 N개</li>
+      <li>각 ResourceKey 마다 PurgeRequest.forTtlAuto() → PurgeExecutor.execute()</li>
+      <li>성공 → purge_log SUCCESS row 추가 / 자원 hard-delete</li>
+      <li>실패 → purge_log FAILED row 추가, 자원 잔존</li>
+      <li>응답 : redirect:/maintenance/trash/purge-log (사용자가 새 로그 확인)</li>
+    </ol>
+  </div>
+</details>
+
+<!-- ============================== §10 ============================== -->
+<details class="section" id="s10" open>
+  <summary>10. 의도적 단순화 — 후속 작업으로 분리</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>분리한 항목</th><th>이유</th><th>후속 위치</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>5 list 페이지 purge 의 PurgeExecutor 통합</td>
+          <td>기존 service.purge() 흐름의 회귀 위험 (cascade / nudge 후처리)</td>
+          <td>후속 정합화 슬라이스</td>
+        </tr>
+        <tr>
+          <td>nudge REPLACE 의 PurgeExecutor 통합</td>
+          <td>NudgeService 의 replace 본체 변경 — 6 도메인 동시 작업 필요</td>
+          <td>후속 정합화 슬라이스 (audit_log 통합)</td>
+        </tr>
+        <tr>
+          <td>운영 인덱스 (3종)</td>
+          <td>claude_code 사용자가 INDEX 권한 없음 — JPA 가 부여 못 함</td>
+          <td>운영 DBA 가 별도 SQL 적용</td>
+        </tr>
+        <tr>
+          <td>외부 알림 채널 (EMAIL / SLACK)</td>
+          <td>D5 알림 도메인 신설 시 통합</td>
+          <td>후속 알림 도메인 슬라이스</td>
+        </tr>
+        <tr>
+          <td>분산 cron lock (ShedLock)</td>
+          <td>단일 JVM 전제</td>
+          <td>멀티 노드 진입 시점</td>
+        </tr>
+        <tr>
+          <td>purge_log 자동 정리 cron</td>
+          <td>운영 1년 ~20K row — 즉시 부담 없음</td>
+          <td>운영 데이터 증가 후</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>이 보고서의 핵심</strong> 본 슬라이스는 TTL 자동 + 휴지통 페이지 purge audit + nudge typed-name 까지 명확하게 달성했다. nudge REPLACE 의 audit_log 영속화 / 5 list 페이지의 PurgeExecutor 통합은 후속 정합화 슬라이스에서 audit_log 가 모든 hard-delete 경로를 흡수하도록 마무리. 본 슬라이스의 변경량 = 약 1700 line / 신규 17 + 수정 14 java 파일 / 신규 14 unit test.
+    </div>
+
+    <div class="callout success">
+      <strong>검증 결과 요약</strong><br>
+      ✅ compileJava / compileTestJava 통과<br>
+      ✅ 540 tests / 0 failed / 5 skipped<br>
+      ✅ JPA EntityManagerFactory Initialized (validate 모드)<br>
+      ✅ purge_log + trash_settings 테이블 생성 + 컬럼 11/9 정확<br>
+      ⚠ INDEX 권한 부족은 별도 SQL 적용 필요<br>
+      ⚠ seed row + CP5 (브라우저 E2E) 는 환경 secret 설정 후 사용자 단독 수행
+    </div>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+<script>
+  const sections = document.querySelectorAll('details.section');
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  function highlightToc() {
+    let active = null;
+    sections.forEach(s => {
+      const r = s.getBoundingClientRect();
+      if (r.top < 200) active = s.id;
+    });
+    tocLinks.forEach(a => a.classList.toggle('live', a.getAttribute('href') === '#' + active));
+  }
+  document.addEventListener('scroll', highlightToc, { passive: true });
+  highlightToc();
+
+  // 부드러운 anchor scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.open = true;
+      const top = target.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+</script>
+
+</body>
+</html>

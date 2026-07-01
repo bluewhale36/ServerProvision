@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ObjectProvider lazy 주입 필요성 — 순환참조 검증 보고서 (R4~6 / R7 진입 참조용)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--orange:#dd5b00;--orange-bg:rgba(221,91,0,.10);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--green:#1a7f37;--green-bg:#dafbe1;
+    --red:#bf2626;--red-bg:rgba(191,38,38,.09);--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);
+    padding:18px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .badge-survey{background:var(--purple-bg);color:var(--purple);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);
+    border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc a.key{color:var(--green);font-weight:600}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.key>summary{background:linear-gradient(90deg,var(--green-bg) 0%,transparent 60%)}
+  details.section.proof>summary{background:linear-gradient(90deg,var(--red-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .chip{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:600}
+  .chip.real{background:var(--red-bg);color:var(--red)} .chip.spec{background:var(--soft);color:var(--muted)}
+  .chip.none{background:var(--green-bg);color:var(--green)}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .ref{font-size:11px;color:var(--muted);font-family:var(--mono);word-break:break-all}
+  .mono{font-family:var(--mono)}
+  .cyc{background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;padding:14px 16px;border-radius:8px;line-height:1.7;white-space:pre;overflow-x:auto}
+  .cyc .lazy{color:#3fb950;font-weight:700}.cyc .eager{color:#ff7b72}.cyc .node{color:#79c0ff}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>ObjectProvider lazy 주입 필요성 — 순환참조 검증 보고서 <span class="badge-survey">verification · DI graph</span></h1>
+  <div class="meta">
+    <span><strong>질문</strong> R4~6 마지막 하위단계에서 cascade @Lazy 제거 후, 각 스캐너의 ObjectProvider lazy 주입이 여전히 필요한가</span>
+    <span><strong>대상</strong> ServerProvision (Spring Boot 4.0.3 · 생성자 주입)</span>
+    <span><strong>방법</strong> 정적 DI 그래프 추적 + bootRun 실증</span>
+    <span><strong>작성</strong> 2026-06-20 KST</span>
+    <span><strong>용도</strong> R7(ObjectProvider 일소) / R4~6 typed-name SSOT 진입 시 참조</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc">
+      <li><a href="#s1" class="key">§1 결론 (verdict)</a></li>
+      <li><a href="#s2">§2 검증 질문·배경</a></li>
+      <li><a href="#s3">§3 정적 분석 — 단일 변수</a></li>
+      <li><a href="#s4" class="key">§4 실증 (bootRun)</a></li>
+      <li><a href="#s5">§5 R4~6 가 다른 이유</a></li>
+      <li><a href="#s6">§6 R7 함의 · 권고</a></li>
+      <li><a href="#s7">§7 잔존 @Lazy 분류</a></li>
+      <li><a href="#s8">§8 부록 — 파일·라인 인덱스</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <!-- §1 -->
+    <details class="section key" id="s1" open>
+      <summary>§1. 결론 (verdict)</summary>
+      <div class="body">
+        <p style="margin-top:0">3곳의 <code>ObjectProvider</code>(Board / OS-metadata / OS-iso 스캐너)는 <b>speculative 가 아니라 real</b> — 직접 주입으로 바꾸면 부팅이 깨진다(bootRun 실증). 반면 <b>R4~6(BIOS / BMC / Subprogram) 스캐너에는 ObjectProvider 가 애초에 없으며, 있을 필요도 없다.</b></p>
+        <table>
+          <thead><tr><th>도메인</th><th>typed-name 검증 위치</th><th>LifecycleService→TypedNameVerifier 주입</th><th>scanner ObjectProvider</th><th>순환</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><b>Board</b> (R3)</td><td class="mono">BoardModelLifecycleService:157 verify()</td><td>✅</td><td>✅ 있음</td><td>있음</td><td><span class="chip real">REAL · 제거 불가</span></td></tr>
+            <tr><td><b>OS-metadata</b> (R1)</td><td class="mono">OSMetadataLifecycleService:166 verify()</td><td>✅</td><td>✅ 있음</td><td>있음</td><td><span class="chip real">REAL · 제거 불가</span></td></tr>
+            <tr><td><b>OS-iso</b> (R1)</td><td class="mono">IsoLifecycleService:227 verify()</td><td>✅</td><td>✅ 있음</td><td>있음</td><td><span class="chip real">REAL · 제거 불가</span></td></tr>
+            <tr><td><b>BIOS</b> (R4)</td><td class="mono">BiosService:482 inline equals</td><td>❌</td><td>❌ 없음</td><td>없음</td><td><span class="chip none">불필요 (현 상태 정답)</span></td></tr>
+            <tr><td><b>BMC</b> (R5)</td><td class="mono">BmcService:643 inline equals</td><td>❌</td><td>❌ 없음</td><td>없음</td><td><span class="chip none">불필요 (현 상태 정답)</span></td></tr>
+            <tr><td><b>Subprogram</b> (R6)</td><td class="mono">SubprogramService:667 inline equals</td><td>❌</td><td>❌ 없음</td><td>없음</td><td><span class="chip none">불필요 (현 상태 정답)</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><b>사용자 가설 확정</b> — "R3 를 먼저 끝내면 R4~6 하위단계가 달라질 것"은 정확했다. R3/R1 은 "verify 를 LifecycleService 로 끌어올림 → scanner 에 ObjectProvider 추가" 패턴을 박았고 <b>이게 순환의 원인</b>이다. R4~6 가 이 패턴을 답습하면 동일 순환이 재발해 ObjectProvider 가 또 필요해진다. <b>R4~6 는 inline 유지가 옳다</b>(cycle-free, ObjectProvider 불요).</div>
+        <div class="callout warn"><b>핵심 구분</b> — cascade <code>@Lazy</code>(commit <code>fb094f8</code>에서 제거)는 <b>speculative</b>였다(자식 service 가 Board 로 역참조 0). 그러나 스캐너 ObjectProvider 가 끊는 순환은 <b>실재하는 닫힌 생성자 순환</b>이다 — 둘은 다른 사안.</div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2">
+      <summary>§2. 검증 질문·배경</summary>
+      <div class="body">
+        <p style="margin-top:0">R4~6 = BIOS / BMC / Subprogram 도메인. 각 도메인의 마지막 하위단계(R4-5 / R5-5 / R6-4)에서 cascade <code>@Lazy</code> 를 일괄 제거했다(<code>fb094f8</code>, "speculative 확정"). 이 시점에 제기된 질문 :</p>
+        <ul>
+          <li>각 단계에 존재하는 <code>ObjectProvider</code> lazy 주입이 여전히 필요한가, 아니면 <code>@Lazy</code> 처럼 speculative 인가?</li>
+          <li>(사용자 통찰) R3 와 R4~6 은 동일 출발이었으나 R3 만 먼저 완주한 이유는 "R3 를 다 구현하면 R4~6 하위단계가 변할 것"이라는 예상 때문. 그 예상이 맞는지?</li>
+        </ul>
+        <h4>전수 조사 결과 — ObjectProvider 는 3곳뿐</h4>
+        <table>
+          <thead><tr><th>스캐너</th><th>주입 형태</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">BoardModelMarkableScanner:25</td><td class="mono">ObjectProvider&lt;BoardModelLifecycleService&gt; (주석: "제거는 R7-3")</td></tr>
+            <tr><td class="mono">OSMetadataMarkableScanner:29</td><td class="mono">ObjectProvider&lt;OSMetadataLifecycleService&gt;</td></tr>
+            <tr><td class="mono">IsoMarkableScanner:43</td><td class="mono">ObjectProvider&lt;IsoLifecycleService&gt;</td></tr>
+            <tr><td class="mono">BoardBios / BoardBmc / Subprogram MarkableScanner</td><td><b>ObjectProvider 없음</b> — 직접 주입 또는 미주입</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. 정적 분석 — 단일 변수: "LifecycleService 가 TypedNameVerifier 를 주입하는가"</summary>
+      <div class="body">
+        <p style="margin-top:0">ObjectProvider 의 유무를 가르는 변수는 단 하나다. <b>해당 도메인의 <code>purgeWithTypedNameCheck</code> 가 typed-name 검증을 <code>TypedNameVerifierImpl</code> 로 위임하는가, 아니면 엔티티 <code>displayName()</code> 으로 inline 비교하는가.</b></p>
+        <div class="cyc"><span class="node">TypedNameVerifierImpl</span>  ──<span class="eager">eager List&lt;MarkableScanner&gt;</span>──▶  <span class="node">{그}MarkableScanner</span>
+        ▲                                                  │
+        │                                                  │  <span class="lazy">ObjectProvider (LAZY) ← 유일한 break</span>
+        └────<span class="eager">eager TypedNameVerifier</span>──── <span class="node">{그}LifecycleService</span> ◀┘</div>
+        <ul>
+          <li><code>TypedNameVerifierImpl:35</code> 가 <code>List&lt;MarkableScanner&gt;</code> 를 <b>eager</b>(생성자, <code>@RequiredArgsConstructor</code>) 주입 — expected name 을 scanner 의 <code>displayName()</code> 으로 해석하기 위해.</li>
+          <li>Board/OS/Iso 의 <code>LifecycleService</code> 가 <code>TypedNameVerifier</code> 를 <b>eager</b> 주입 (purge 시 <code>verify()</code> 호출).</li>
+          <li>그 사이 <code>scanner → LifecycleService</code> 변만 <code>ObjectProvider</code> 로 <b>lazy</b>. 전부 생성자 주입이므로 이 lazy 가 사라지면 <b>닫힌 생성자 순환</b>이 되어 Spring 이 자체 해소 불가(<code>BeanCurrentlyInCreationException</code>).</li>
+        </ul>
+        <div class="callout"><b>왜 controller 의 verify() 는 순환을 안 만드나</b> — <code>BiosNudgeController:50</code> 등도 <code>typedNameVerifier.verify()</code> 를 호출하지만, <b>컨트롤러는 스캐너가 역주입하지 않으므로</b> 순환이 닫히지 않는다. 순환은 오직 "스캐너가 주입하는 service" 가 verifier 를 주입할 때만 형성된다.</div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section proof" id="s4">
+      <summary>§4. 실증 (bootRun) — @Lazy 제거 때와 동일 잣대</summary>
+      <div class="body">
+        <p style="margin-top:0">정적 논증(닫힌 생성자 순환)만으로 충분하지만, cascade <code>@Lazy</code> 제거가 "bootRun 실측 순환 0"으로 정당화됐던 것과 동일한 잣대로 실증했다. <code>IsoMarkableScanner</code> 의 <code>ObjectProvider&lt;IsoLifecycleService&gt;</code> 만 직접 주입으로 바꿔 bootRun :</p>
+        <pre>org.springframework.beans.factory.UnsatisfiedDependencyException:
+  Error creating bean 'orphanRecoveryService'
+   → 'isoOrphanRecoverySpi' → 'isoRegistrationLauncher' → 'isoRegistrationRunner'
+   → 'isoRegistrationService' (param 8)
+   → 'isoLifecycleService' (param 5)
+   → 'typedNameVerifierImpl' (param 0)
+   → 'isoMarkableScanner' (param 1)
+   → 'isoLifecycleService': <b>Requested bean is currently in creation:
+       Is there an unresolvable circular reference?</b>
+
+APPLICATION FAILED TO START
+Relying upon circular references is discouraged and they are prohibited by default.</pre>
+        <p style="margin:6px 0 0">핵심 닫힌 고리 : <code class="mono">isoLifecycleService → typedNameVerifierImpl → isoMarkableScanner → isoLifecycleService</code> — §3 예측과 정확히 일치. 변경은 즉시 <code>git checkout</code> 으로 revert, compile SUCCESSFUL 확인.</p>
+        <div class="callout danger"><b>대칭</b> — cascade <code>@Lazy</code> = "실측 순환 0 → speculative → 제거". 스캐너 ObjectProvider = <b>"실측 순환 발생 → real → 유지"</b>. 같은 방법론, 반대 결과.</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. R4~6 가 다른 이유 — inline displayName 이 이미 SSOT</summary>
+      <div class="body">
+        <p style="margin-top:0">BIOS/BMC/Subprogram 의 <code>purgeWithTypedNameCheck</code> 는 verifier 를 경유하지 않고 엔티티에서 직접 비교한다 :</p>
+        <pre>// BiosService:481-484 (BMC:643 / Subprogram:667 동형)
+String expected = bios.displayName();        // ← SSOT 소스 (Markable.displayName())
+if (!expected.equals(typedName)) {
+    throw new TypedNameMismatchException(expected, typedName);
+}</pre>
+        <ul>
+          <li>service 가 <code>TypedNameVerifier</code> 를 주입하지 않음 → §3 의 순환 변이 닫히지 않음 → scanner 가 service 를 직접(eager) 주입해도 안전 → <b>ObjectProvider 불요.</b></li>
+          <li>inline 의 <code>expected</code> 가 이미 <code>displayName()</code>(= SSOT 소스)이므로 <b>typed-name SSOT 요구는 verifier 경유 없이도 충족</b>된다.</li>
+          <li>purge 경로는 이미 엔티티를 로딩(<code>requireExisting…</code>)하므로 verifier 의 "active→trash lookup + 부재 응집" 이 <b>중복</b> — service 에서는 불필요한 책임.</li>
+        </ul>
+        <div class="callout ok"><b>함의</b> — R4~6 는 R3/R1 보다 <b>더 단순하고 순환이 없는 상태</b>다. R4~6 의 남은 typed-name SSOT 하위단계는 R3 의 "verify→LifecycleService + scanner ObjectProvider" 패턴을 <b>답습하면 안 된다</b>. 답습하면 ObjectProvider 가 또 생긴다.</div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. R7 함의 · 권고 — 기계적 제거는 부팅을 깬다</summary>
+      <div class="body">
+        <p style="margin-top:0">R7 을 "스캐너에서 ObjectProvider 만 빼기"로 하면 §4 대로 부팅이 깨진다. 진짜 선택지 :</p>
+        <table>
+          <thead><tr><th>안</th><th>방법</th><th>효과</th><th>평가</th></tr></thead>
+          <tbody>
+            <tr><td><b>R7-a</b><br>(권고)</td><td>Board/OS/Iso 의 <code>LifecycleService.purgeWithTypedNameCheck</code> 를 R4~6 처럼 <b>inline <code>entity.displayName().equals()</code></b> 로 환원 → service→verifier 변 제거</td><td><b>순환 소멸 → ObjectProvider 3개 자연 제거.</b> nudge controller 의 <code>verify()</code> 는 유지(순환 무관)</td><td>service purge 경로는 이미 엔티티 보유 → verifier lookup 불필요, 손실 없음. <b>패턴 B 로 전 도메인 통일</b></td></tr>
+            <tr><td>R7-b</td><td><code>TypedNameVerifierImpl</code> 이 <code>List&lt;MarkableScanner&gt;</code> 를 lazy(ObjectProvider/@Lazy)로 받기</td><td>scanner ObjectProvider 제거 가능하나 lazy 를 verifier 쪽으로 이동</td><td>문제를 옮길 뿐. 비권장</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>R7-a 검증 필수</b> — verify 를 inline 으로 환원했을 때 LifecycleService 에 verifier 외 다른 eager 역참조(scanner 로 닫히는)가 없는지 bootRun 으로 재확인. <code>SoftDeleteIntentService</code> 의 <code>@Lazy List&lt;MarkableScanner&gt;</code> 가 이미 그 방향 변을 끊어두어 통과 가능성이 높으나 실측 권장.</div>
+        <div class="callout"><b>적용 시점</b> — 본 보고서는 R7(ObjectProvider 일소) 또는 R4~6 의 typed-name SSOT 하위단계 진입 시 참조용. <b>지금 코드 변경은 하지 않았다</b>(검증 한정). R4~6 진입 시: inline 유지(현 상태)가 정답. R7 진입 시: R7-a 로 R3/R1 을 패턴 B 에 수렴.</div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 잔존 @Lazy 분류 — 무엇이 real 이고 무엇이 표준 패턴인가</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>위치</th><th>형태</th><th>분류</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">SoftDeleteIntentService:60-61</td><td><code>@Lazy PathReconciliationService</code> + <code>@Lazy List&lt;MarkableScanner&gt;</code></td><td><span class="chip real">REAL 순환 break</span> — <code>fb094f8</code> 결론과 정합("진짜 순환은 SoftDeleteIntentService"). service→intent→scanner→service 고리를 끊음</td></tr>
+            <tr><td class="mono">PathReconciliationService:66</td><td><code>@Lazy PathReconciliationService self</code></td><td><span class="chip none">표준 패턴</span> — <code>@Async/@Scheduled</code> self-invocation 프록시용 자기참조. 정당, 제거 대상 아님</td></tr>
+            <tr><td class="mono">board/service/cascade/{Bios,Bmc,Subprogram}BoardScopedChildLifecycle</td><td>(제거됨) 구 <code>@Lazy childService</code></td><td><span class="chip spec">SPECULATIVE</span> — <code>fb094f8</code> 에서 제거. 자식 service 가 Board 로 역참조 0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>요약</b> — DI 순환 방어 기제 3종 공존: ① 스캐너 ObjectProvider(real, 본 보고서) ② SoftDeleteIntentService @Lazy(real) ③ PathReconciliation self-@Lazy(표준 패턴). 제거됐던 cascade @Lazy 만 speculative 였다.</div>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부록 — 파일·라인 인덱스</summary>
+      <div class="body">
+        <h4>ObjectProvider (real, 유지)</h4>
+        <ul class="ref">
+          <li>management/board/service/BoardModelMarkableScanner.java:25</li>
+          <li>management/os/service/metadata/OSMetadataMarkableScanner.java:29</li>
+          <li>management/os/service/iso/IsoMarkableScanner.java:43</li>
+        </ul>
+        <h4>verify() 경유 LifecycleService (순환 원인)</h4>
+        <ul class="ref">
+          <li>management/board/service/metadata/BoardModelLifecycleService.java:157</li>
+          <li>management/os/service/metadata/OSMetadataLifecycleService.java:166</li>
+          <li>management/os/service/iso/IsoLifecycleService.java:227</li>
+          <li>global/trash/service/internal/TypedNameVerifierImpl.java:35 (List&lt;MarkableScanner&gt; eager)</li>
+        </ul>
+        <h4>inline equals (순환 없음, ObjectProvider 불요)</h4>
+        <ul class="ref">
+          <li>management/bios/service/BiosService.java:482</li>
+          <li>management/bmc/service/BmcService.java:643</li>
+          <li>management/subprogram/service/SubprogramService.java:667</li>
+        </ul>
+        <h4>잔존 @Lazy</h4>
+        <ul class="ref">
+          <li>global/lifecycle/SoftDeleteIntentService.java:60-61 (real)</li>
+          <li>maintenance/reconciliation/service/PathReconciliationService.java:66 (self, 표준)</li>
+        </ul>
+        <p class="ref">검증 방법: 정적 grep + Read, IsoMarkableScanner 직접주입 1회 bootRun 실증(즉시 revert). 코드 변경 없음.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let open=true;
+  document.getElementById('toggle').addEventListener('click',()=>{open=!open;
+    document.querySelectorAll('details.section').forEach(d=>d.open=open);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.style.display='';return;}
+      const m=d.textContent.toLowerCase().includes(q);d.style.display=m?'':'none';if(m)d.open=true;
+    });
+  });
+</script>
+</body>
+</html>

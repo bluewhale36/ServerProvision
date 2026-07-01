@@ -1,0 +1,3821 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <title>management/os 유스케이스 호출 흐름 보고서</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #161a22;
+            --panel-2: #1c2230;
+            --border: #2a3142;
+            --text: #e6e9ef;
+            --muted: #8a93a6;
+            --accent: #7aa2f7;
+            --accent-2: #bb9af7;
+            --ok: #9ece6a;
+            --warn: #e0af68;
+            --bad: #f7768e;
+            --async: #f7768e;
+            --ctrl: #7aa2f7;
+            --svc: #9ece6a;
+            --launcher: #e0af68;
+            --runner: #ff9e64;
+            --repo: #bb9af7;
+            --db: #2ac3de;
+            --fs: #cfc9c2;
+            --browser: #c0caf5;
+            --row-h: 28px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, "SF Pro Text", "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            font-size: 14.5px;
+            line-height: 1.58;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        code, .mono {
+            font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+            font-size: 13.5px;
+        }
+
+        /* 메서드 시그니처 / 호출 텍스트 줄바꿈 차단 — findById() 의 소괄호 쌍까지 한 줄에 유지 */
+        .seq-call, .pill.method, .uc-row .mono, .matrix .rowlabel {
+            white-space: nowrap;
+        }
+
+        header.banner {
+            padding: 28px 32px 16px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, #1a1f2c 0%, #0f1115 100%);
+        }
+
+        header.banner h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        header.banner .sub {
+            color: var(--muted);
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        header.banner .meta {
+            margin-top: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        header.banner .meta b {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        main {
+            max-width: 1480px;
+            margin: 0 auto;
+            padding: 24px 32px 80px;
+        }
+
+        section.block {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 22px 26px;
+            margin: 22px 0;
+        }
+
+        section.block > h2 {
+            margin: 0 0 6px;
+            font-size: 18.5px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        section.block > .lede {
+            color: var(--muted);
+            margin-bottom: 18px;
+            font-size: 13.5px;
+        }
+
+        /* Stats grid */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+        }
+
+        .stat {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .stat .n {
+            font-size: 26px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .stat .l {
+            font-size: 11.5px;
+            color: var(--muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .stat.alert .n {
+            color: var(--bad);
+        }
+
+        .stat.warn .n {
+            color: var(--warn);
+        }
+
+        .stat.ok .n {
+            color: var(--ok);
+        }
+
+        /* Inventory tables */
+        .inv {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+
+        .inv th, .inv td {
+            padding: 8px 11px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .inv th {
+            color: var(--muted);
+            font-weight: 500;
+            font-size: 12.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            background: var(--panel-2);
+            position: sticky;
+            top: 0;
+        }
+
+        .inv td.mono {
+            font-family: "SF Mono", Menlo, monospace;
+            font-size: 12.5px;
+        }
+
+        .inv tr:hover {
+            background: rgba(122, 162, 247, 0.04);
+        }
+
+        /* Pills */
+        .pill {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 500;
+            vertical-align: middle;
+        }
+
+        .pill.ctrl {
+            background: rgba(122, 162, 247, 0.16);
+            color: var(--ctrl);
+            border: 1px solid rgba(122, 162, 247, 0.3);
+        }
+
+        .pill.svc {
+            background: rgba(158, 206, 106, 0.14);
+            color: var(--svc);
+            border: 1px solid rgba(158, 206, 106, 0.3);
+        }
+
+        .pill.launcher {
+            background: rgba(224, 175, 104, 0.14);
+            color: var(--launcher);
+            border: 1px solid rgba(224, 175, 104, 0.3);
+        }
+
+        .pill.runner {
+            background: rgba(255, 158, 100, 0.14);
+            color: var(--runner);
+            border: 1px solid rgba(255, 158, 100, 0.3);
+        }
+
+        .pill.repo {
+            background: rgba(187, 154, 247, 0.14);
+            color: var(--repo);
+            border: 1px solid rgba(187, 154, 247, 0.3);
+        }
+
+        .pill.async {
+            background: rgba(247, 118, 142, 0.14);
+            color: var(--async);
+            border: 1px solid rgba(247, 118, 142, 0.3);
+        }
+
+        .pill.tx {
+            background: rgba(42, 195, 222, 0.10);
+            color: var(--db);
+            border: 1px solid rgba(42, 195, 222, 0.3);
+        }
+
+        .pill.method {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            border: 1px solid var(--border);
+            font-family: "SF Mono", Menlo, monospace;
+            font-size: 12px;
+            padding: 1px 8px;
+        }
+
+        .pill.bad {
+            background: rgba(247, 118, 142, 0.14);
+            color: var(--bad);
+            border: 1px solid rgba(247, 118, 142, 0.3);
+        }
+
+        .pill.warn {
+            background: rgba(224, 175, 104, 0.14);
+            color: var(--warn);
+            border: 1px solid rgba(224, 175, 104, 0.3);
+        }
+
+        .pill.cat {
+            background: var(--panel-2);
+            color: var(--accent-2);
+            border: 1px solid var(--border);
+        }
+
+        .pill.http-get {
+            background: rgba(158, 206, 106, 0.18);
+            color: var(--ok);
+            border: 1px solid rgba(158, 206, 106, 0.4);
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .pill.http-post {
+            background: rgba(224, 175, 104, 0.18);
+            color: var(--warn);
+            border: 1px solid rgba(224, 175, 104, 0.4);
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        /* Sequence diagram */
+        /* .seq 자체가 grid 컨테이너. .seq-header / .seq-row 는 subgrid 로 .seq 의 컬럼을 상속 → 모든 행의 cell X 좌표가 정확히 정렬. 인라인 style 의 grid-template-columns 무력화를 위해 !important 사용. */
+        .seq {
+            display: grid;
+            gap: 0;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 0 18px;
+            overflow-x: auto;
+            min-width: 100%;
+        }
+
+        .seq-header {
+            display: grid !important;
+            grid-template-columns: subgrid !important;
+            grid-column: 1 / -1 !important;
+            padding: 0 14px 10px;
+            border-bottom: 1px dashed var(--border);
+            margin-bottom: 6px;
+            box-sizing: border-box;
+        }
+
+        .seq-lane-label {
+            font-size: 12px;
+            text-align: center;
+            color: var(--muted);
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .seq-lane-label.browser {
+            background: rgba(192, 202, 245, 0.10);
+            color: var(--browser);
+        }
+
+        .seq-lane-label.ctrl {
+            background: rgba(122, 162, 247, 0.10);
+            color: var(--ctrl);
+        }
+
+        .seq-lane-label.svc {
+            background: rgba(158, 206, 106, 0.10);
+            color: var(--svc);
+        }
+
+        .seq-lane-label.launcher {
+            background: rgba(224, 175, 104, 0.10);
+            color: var(--launcher);
+        }
+
+        .seq-lane-label.runner {
+            background: rgba(255, 158, 100, 0.10);
+            color: var(--runner);
+        }
+
+        .seq-lane-label.repo {
+            background: rgba(187, 154, 247, 0.10);
+            color: var(--repo);
+        }
+
+        .seq-lane-label.db {
+            background: rgba(42, 195, 222, 0.10);
+            color: var(--db);
+        }
+
+        .seq-lane-label.fs {
+            background: rgba(207, 201, 194, 0.10);
+            color: var(--fs);
+        }
+
+        /* .seq-row 는 .seq 의 subgrid — 헤더와 동일한 컬럼 너비 공유. 인라인 grid-template-columns 무력화. */
+        .seq-row {
+            display: grid !important;
+            grid-template-columns: subgrid !important;
+            grid-column: 1 / -1 !important;
+            align-items: center;
+            min-height: var(--row-h);
+            padding: 0 14px;
+            box-sizing: border-box;
+        }
+
+        .seq-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* 박스는 컨텐츠 너비만큼 확장 (스크롤 X / clamp X) — 다이어그램이 viewport 보다 커지면 .seq 가 통째로 가로 스크롤. */
+        .seq-call {
+            padding: 5px 11px;
+            border-radius: 4px;
+            font-family: "SF Mono", Menlo, monospace;
+            font-size: 12.5px;
+            position: relative;
+            border: 1px solid;
+            width: max-content;
+        }
+
+        .seq-call.call {
+            background: rgba(122, 162, 247, 0.08);
+            border-color: rgba(122, 162, 247, 0.4);
+            color: var(--accent);
+        }
+
+        .seq-call.svc-call {
+            background: rgba(158, 206, 106, 0.08);
+            border-color: rgba(158, 206, 106, 0.4);
+            color: var(--svc);
+        }
+
+        .seq-call.repo-call {
+            background: rgba(187, 154, 247, 0.08);
+            border-color: rgba(187, 154, 247, 0.4);
+            color: var(--repo);
+        }
+
+        .seq-call.async-call {
+            background: rgba(247, 118, 142, 0.10);
+            border-color: rgba(247, 118, 142, 0.4);
+            color: var(--async);
+        }
+
+        .seq-call.io {
+            background: rgba(207, 201, 194, 0.06);
+            border-color: rgba(207, 201, 194, 0.3);
+            color: var(--fs);
+        }
+
+        .seq-call.ret {
+            background: transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.18);
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        .seq-call.throw {
+            background: rgba(247, 118, 142, 0.10);
+            border-color: rgba(247, 118, 142, 0.5);
+            color: var(--bad);
+        }
+
+        .seq-call .arg {
+            color: var(--muted);
+        }
+
+        .seq-note {
+            padding: 4px 11px;
+            font-size: 12.5px;
+            color: var(--muted);
+            font-style: italic;
+            grid-column: 1 / -1;
+            border-left: 2px solid var(--accent-2);
+            margin-left: 8px;
+        }
+
+        .seq-bar {
+            background: rgba(255, 255, 255, 0.06);
+            height: 1px;
+            grid-column: 1 / -1;
+            margin: 4px 0;
+        }
+
+        /* UC card */
+        .uc {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin: 16px 0;
+            scroll-margin-top: 80px;
+        }
+
+        .uc.hidden {
+            display: none;
+        }
+
+        .uc h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .uc h3 .id {
+            font-family: "SF Mono", Menlo, monospace;
+            color: var(--accent-2);
+            background: var(--panel-2);
+            padding: 1px 9px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .uc h3 .url {
+            font-family: "SF Mono", Menlo, monospace;
+            color: var(--accent);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .uc .uc-meta {
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-size: 13.5px;
+        }
+
+        .uc .uc-meta b {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* 두 번째 컬럼 1fr → minmax(0, 1fr) — nowrap mono 박스의 min-content 가 행을 viewport 밖으로 확장하는 회귀 차단. */
+        .uc .uc-row {
+            display: grid;
+            grid-template-columns: 130px minmax(0, 1fr);
+            gap: 8px 14px;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .uc .uc-row .k {
+            color: var(--muted);
+        }
+
+        .uc .uc-row > div:not(.k) {
+            overflow-x: auto;
+            min-width: 0;
+        }
+
+        .payload {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 9px 13px;
+            font-family: "SF Mono", Menlo, monospace;
+            font-size: 12.5px;
+            color: var(--text);
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .payload .field {
+            color: var(--accent);
+        }
+
+        .payload .typ {
+            color: var(--accent-2);
+        }
+
+        .payload .lit {
+            color: var(--ok);
+        }
+
+        /* Toolbar — section 내부 정적 박스 (sticky 제거 : 인덱스 행이 toolbar 뒤로 숨어 가려지는 회귀 차단) */
+        .toolbar {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin: 4px 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar input[type=text] {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 7px 11px;
+            font-size: 13.5px;
+            min-width: 280px;
+        }
+
+        .toolbar input[type=text]::placeholder {
+            color: var(--muted);
+        }
+
+        .toolbar select {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 6px 9px;
+            font-size: 13px;
+        }
+
+        .toolbar .count {
+            color: var(--muted);
+            font-size: 13px;
+            margin-left: auto;
+        }
+
+        .toolbar button {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 6px 13px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .toolbar button:hover {
+            background: var(--panel);
+            border-color: var(--accent);
+        }
+
+        /* Index */
+        .idx {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 7px 12px;
+            margin-top: 8px;
+        }
+
+        .idx a {
+            padding: 6px 10px;
+            border-radius: 4px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            font-size: 13px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .idx a:hover {
+            border-color: var(--accent);
+            text-decoration: none;
+        }
+
+        .idx a .uid {
+            font-family: "SF Mono", Menlo, monospace;
+            color: var(--accent-2);
+            min-width: 54px;
+        }
+
+        .idx a .ut {
+            color: var(--text);
+        }
+
+        .idx a .um {
+            color: var(--muted);
+            font-size: 11px;
+            margin-left: auto;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 12.5px;
+            color: var(--muted);
+            margin-top: 12px;
+            align-items: center;
+        }
+
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend i {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        /* Toggle */
+        details {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 9px 14px;
+            margin: 11px 0;
+        }
+
+        details > summary {
+            cursor: pointer;
+            font-size: 13.5px;
+            color: var(--accent);
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        details > summary:hover {
+            color: var(--accent-2);
+        }
+
+        details[open] > summary {
+            margin-bottom: 8px;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 6px;
+        }
+
+        /* Diagnosis */
+        /* grid 트랙 min 을 0 으로 강제 — 자식 .diag-card 의 min-content (긴 .ev pre 한 줄) 가 트랙을 viewport 밖으로 확장하던 회귀 차단. */
+        .diagnosis {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 10px;
+        }
+
+        .diag-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 18px;
+            background: var(--panel-2);
+            position: relative;
+            min-width: 0;
+        }
+
+        .diag-card .sev {
+            position: absolute;
+            top: -8px;
+            right: 14px;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .diag-card .sev.critical {
+            background: var(--bad);
+            color: #fff;
+        }
+
+        .diag-card .sev.high {
+            background: var(--warn);
+            color: #1a1500;
+        }
+
+        .diag-card .sev.medium {
+            background: var(--accent-2);
+            color: #1a0a30;
+        }
+
+        .diag-card h4 {
+            margin: 0 0 6px;
+            font-size: 14.5px;
+            font-weight: 600;
+        }
+
+        .diag-card p {
+            margin: 4px 0;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .diag-card .ev {
+            font-family: "SF Mono", Menlo, monospace;
+            font-size: 12.5px;
+            color: var(--text);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 11px;
+            border-radius: 4px;
+            margin-top: 6px;
+            overflow-x: auto;
+            white-space: pre;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .diag-card .fix {
+            background: rgba(158, 206, 106, 0.07);
+            border-left: 2px solid var(--ok);
+            padding: 9px 13px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* matrix */
+        .matrix-wrap {
+            overflow-x: auto;
+        }
+
+        .matrix {
+            border-collapse: collapse;
+            font-size: 12.5px;
+        }
+
+        .matrix th, .matrix td {
+            border: 1px solid var(--border);
+            padding: 5px 8px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .matrix th.lr {
+            text-align: left;
+            background: var(--panel-2);
+            position: sticky;
+            left: 0;
+            z-index: 2;
+        }
+
+        .matrix th.tr {
+            background: var(--panel-2);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .matrix th.tr.h {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            padding: 8px 4px;
+            height: 110px;
+        }
+
+        .matrix td.has {
+            background: rgba(122, 162, 247, 0.18);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .matrix td.has-tx {
+            background: rgba(187, 154, 247, 0.18);
+            color: var(--accent-2);
+            font-weight: 600;
+        }
+
+        .matrix td.has-async {
+            background: rgba(247, 118, 142, 0.18);
+            color: var(--async);
+            font-weight: 600;
+        }
+
+        .matrix .rowlabel {
+            text-align: left;
+            padding-left: 10px;
+            font-family: "SF Mono", Menlo, monospace;
+        }
+
+        /* 세로 컬럼 헤더 — 길이 제한 제거. 가장 긴 클래스명 (24자 OSPackageGroupRepository) 까지 잘리지 않도록 자동 확장 + min-height 보장. */
+        .matrix th.tr.h {
+            height: auto !important;
+            min-height: 220px;
+            padding: 10px 4px 14px;
+            vertical-align: middle;
+            line-height: 1.1;
+        }
+
+        /* TOC */
+        .toc {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 8px 16px;
+        }
+
+        .toc a {
+            padding: 4px 0;
+            font-size: 12.5px;
+        }
+
+        footer {
+            padding: 28px 32px;
+            color: var(--muted);
+            font-size: 11.5px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+<header class="banner">
+    <h1>management/os 패키지 — 유스케이스별 호출 흐름 보고서</h1>
+    <div class="sub">컨트롤러 endpoint → 서비스 → 리포지토리 / 파일시스템 / 비동기 Job 호출 체인을 유스케이스 단위로 도식화. 사용자(개발자)가 리팩토링 전 코드 구조를 직접 점검할
+        수 있도록 작성.
+    </div>
+    <div class="meta">
+        <span>경로 <b>src/main/java/com/example/serverprovision/management/os/</b></span>
+        <span>최초 분석 <b>2026-05-23 14:11 KST</b></span>
+        <span>최종 갱신 <b>2026-05-23 15:42 KST (controller 7 분리 후)</b></span>
+        <span>스코프 <b>40 유스케이스 / 67 파일 / 7 컨트롤러 / 14 서비스 / 4 리포지토리</b></span>
+        <span>방법 <b>Controller endpoint 별 정적 호출 추적 (소스 직독)</b></span>
+    </div>
+    <div class="meta" style="margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
+        <span style="color: var(--ok);"><b>2026-05-23 분리 작업 반영</b> — OSImageController(40 endpoint hub) 가 7 controller 로 분할되었고, 의존성 fan-out 이
+            12 → 1~3 으로 줄었다. §13-D2 의 controller 측면이 해결됨. 변경된 항목은 §2.1 / §3 / §5 카드 헤더 / §13-D2.</span>
+    </div>
+</header>
+
+<main>
+
+    <!-- ===== 0. 보고서 사용법 ===== -->
+    <section class="block">
+        <h2>0. 보고서 사용법</h2>
+        <div class="lede">기존 plan / report html 과 다르게 "도식화" 에 특화. 좌→우 가로축은 호출 액터(레인), 위→아래 세로축은 시간. 한 행 = 한 메서드 호출.
+        </div>
+        <div class="legend">
+            <span><i style="background: var(--browser)"></i>Browser</span>
+            <span><i style="background: var(--ctrl)"></i>Controller</span>
+            <span><i style="background: var(--launcher)"></i>Launcher (Job 등록)</span>
+            <span><i style="background: var(--runner)"></i>Runner (@Async)</span>
+            <span><i style="background: var(--svc)"></i>Service / @Transactional</span>
+            <span><i style="background: var(--repo)"></i>Repository</span>
+            <span><i style="background: var(--db)"></i>DB</span>
+            <span><i style="background: var(--fs)"></i>FileSystem</span>
+        </div>
+        <div class="legend" style="margin-top: 8px">
+            <span class="pill async">@Async</span> 비동기 호출 — 호출 스레드 즉시 반환
+            <span class="pill tx">@Transactional</span> 트랜잭션 경계
+            <span class="pill bad">throw</span> 예외 분기
+        </div>
+        <details style="margin-top: 14px">
+            <summary>차이점 — 기존 plan / report html 대비</summary>
+            <ul style="margin: 6px 0 0 18px; color: var(--muted); font-size: 12px;">
+                <li>11 섹션 정형 구조 (현재 상태 / 요구사항 / 도메인 모델 / 10 단계 / ...) 를 따르지 않는다. <b>유스케이스 카드</b> 단위가 1급 단위.</li>
+                <li>각 유스케이스는 (HTTP signature + 호출 sequence diagram + DTO 전달값) 3 블록의 카드로 구성.</li>
+                <li>코드 분량을 줄이려고 <b>본문 인용 대신 호출 시그니처 만</b> 다이어그램에 박는다. 검색 / 필터로 인덱싱.</li>
+                <li>마지막 섹션은 plan 의 "다음 마일스톤" 대신 <b>표면화된 비대화 / 중복 신호 + 리팩토링 제언</b>.</li>
+            </ul>
+        </details>
+    </section>
+
+    <!-- ===== 1. 요약 통계 ===== -->
+    <section class="block">
+        <h2>1. 패키지 통계 (한눈에)</h2>
+        <div class="stats">
+            <div class="stat">
+                <div class="n">40</div>
+                <div class="l">유스케이스 (endpoint)</div>
+            </div>
+            <div class="stat">
+                <div class="n">67</div>
+                <div class="l">.java 파일</div>
+            </div>
+            <div class="stat ok">
+                <div class="n">7</div>
+                <div class="l">@Controller (1 → 7 분리 완료)</div>
+            </div>
+            <div class="stat warn">
+                <div class="n">14</div>
+                <div class="l">@Service 클래스</div>
+            </div>
+            <div class="stat">
+                <div class="n">4</div>
+                <div class="l">Repository</div>
+            </div>
+            <div class="stat">
+                <div class="n">4</div>
+                <div class="l">Entity</div>
+            </div>
+            <div class="stat">
+                <div class="n">17</div>
+                <div class="l">도메인 예외</div>
+            </div>
+            <div class="stat alert">
+                <div class="n">30+</div>
+                <div class="l">OSImageService public method <span
+                        style="font-size: 10px; color: var(--bad);">(잔존)</span></div>
+            </div>
+            <div class="stat alert">
+                <div class="n">12</div>
+                <div class="l">OSImageService 직접 의존성 <span style="font-size: 10px; color: var(--bad);">(잔존)</span></div>
+            </div>
+            <div class="stat ok">
+                <div class="n">1~3</div>
+                <div class="l">Controller 의존성 (이전 10) <span style="font-size: 10px; color: var(--ok);">✓ 해결</span></div>
+            </div>
+            <div class="stat warn">
+                <div class="n">6</div>
+                <div class="l">@Async 진입점</div>
+            </div>
+            <div class="stat">
+                <div class="n">3</div>
+                <div class="l">Nudge service (도메인별 분기)</div>
+            </div>
+        </div>
+        <p style="color: var(--muted); margin-top: 16px; font-size: 12.5px;">
+            빨간 숫자는 §13 진단에서 다루는 "비대화 신호" 의 정량 근거. <b>OSImageService.30+ method / 12 의존성</b> 은 §13-D2 의
+            잔존 service-측 hub. <b>3 nudge service</b> 는 §13-D1 의 도메인별 분기 중복.
+            초록 숫자는 분리 작업으로 <b>해소된 항목</b> — Controller fan-out 이 10 → 1~3 으로 줄어 §13-D2 의 controller 측면은
+            완료. 자세한 변화는 §2.1 / §3 매트릭스 참조.
+        </p>
+    </section>
+
+    <!-- ===== 2. 클래스 인벤토리 ===== -->
+    <section class="block">
+        <h2>2. 클래스 인벤토리</h2>
+        <div class="lede">레이어별 분리. <b>의존성 칼럼</b> 은 해당 클래스가 생성자 주입으로 받는 협력자 (management/os 내부 + global 의 핵심만).</div>
+
+        <details open>
+            <summary>2.1 Controller (7 개) — <span style="color: var(--ok);">2026-05-23 분리 완료</span></summary>
+            <p style="color: var(--muted); margin: 4px 0 10px; font-size: 12px;">
+                이전엔 <code>OSImageController</code> 1 개에 40 endpoint + 10 의존성이 몰려 있었음. <b>호출 흐름 + 의존성 중복 최소화</b> 두 기준으로
+                7 개로 분할 — controller 끼리 공유하는 의존성은 <code>OSImageService</code> (hub-service, 4 곳)와
+                <code>TypedNameVerifier</code> (nudge replace 검증, 2 곳) 뿐.
+                공통 view 헬퍼는 <code>OSControllerSupport</code> (정적 util) 로 추출.
+            </p>
+            <table class="inv">
+                <thead>
+                <tr>
+                    <th>클래스</th>
+                    <th>역할</th>
+                    <th>의존성</th>
+                    <th>endpoint</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td class="mono">OSImageController</td>
+                    <td>OS 이미지 (메타) 의 lifecycle / 목록 / 폼 / 부분 fragment. ISO 흐름은 모두 위임됨.</td>
+                    <td class="mono">OSImageService <span class="pill"
+                                                          style="background: rgba(158,206,106,0.18); color: var(--ok);">1</span>
+                    </td>
+                    <td><b>13</b></td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoUploadController</td>
+                    <td>ISO 등록 흐름 — 폼 / SSR 제출 / XHR Intent 핸드셰이크 / XHR 실제 업로드.</td>
+                    <td class="mono">OSImageService, IsoUploadIntentService, IsoRegistrationLauncher <span class="pill"
+                                                                                                           style="background: rgba(158,206,106,0.18); color: var(--ok);">3</span>
+                    </td>
+                    <td><b>4</b></td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoLifecycleController</td>
+                    <td>ISO 의 등록 이후 lifecycle — edit / toggle / softDelete / restore / deprecate / undeprecate / purge /
+                        provisions.
+                    </td>
+                    <td class="mono">OSImageService, DeleteIntentRegistry <span class="pill"
+                                                                                style="background: rgba(158,206,106,0.18); color: var(--ok);">2</span>
+                    </td>
+                    <td><b>10</b></td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoNudgeController</td>
+                    <td>ISO 도메인 nudge confirm — content nudge (단계 B) + intent path nudge (단계 A) 6 액션.</td>
+                    <td class="mono">OsNudgeService, TypedNameVerifier <span class="pill"
+                                                                             style="background: rgba(158,206,106,0.18); color: var(--ok);">2</span>
+                    </td>
+                    <td><b>6</b></td>
+                </tr>
+                <tr>
+                    <td class="mono">OSImageNudgeController</td>
+                    <td>OS 이미지 메타 nudge confirm — proceed / replace / cancel.</td>
+                    <td class="mono">OSImageNudgeService, TypedNameVerifier <span class="pill"
+                                                                                  style="background: rgba(158,206,106,0.18); color: var(--ok);">2</span>
+                    </td>
+                    <td><b>3</b></td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoJobController</td>
+                    <td>ISO 의 BackgroundJob 트리거 / 조회 — 무결성 검증 / integrity-status / comps 추출 시작.</td>
+                    <td class="mono">OSImageService, IsoVerificationLauncher, CompsExtractionLauncher <span class="pill"
+                                                                                                            style="background: rgba(158,206,106,0.18); color: var(--ok);">3</span>
+                    </td>
+                    <td><b>3</b></td>
+                </tr>
+                <tr>
+                    <td class="mono">OSBrowseController</td>
+                    <td>ISO 등록 폼의 경로 입력 보조 — 서버 디렉토리 탐색 단일 endpoint.</td>
+                    <td class="mono">DirectoryBrowseService <span class="pill"
+                                                                  style="background: rgba(158,206,106,0.18); color: var(--ok);">1</span>
+                    </td>
+                    <td><b>1</b></td>
+                </tr>
+                </tbody>
+            </table>
+            <p style="color: var(--muted); margin-top: 8px; font-size: 12px;">
+                보조: <code>OSControllerSupport</code> (정적 util, 4 controller 가 재사용) — redirect URL 조립 / 폼 컨텍스트 채움 / null
+                보정.
+                테스트 영향: 4 개 <code>@WebMvcTest</code> 의 <code>controllers = ...</code> 배열을 호출 endpoint 가 속한 controller 들로
+                갱신했고,
+                <code>./gradlew test</code> 통과 확인됨.
+            </p>
+            </table>
+        </details>
+
+        <details open>
+            <summary>2.2 Service / Launcher / Runner (14 개)</summary>
+            <table class="inv">
+                <thead>
+                <tr>
+                    <th>클래스</th>
+                    <th>분류</th>
+                    <th>역할</th>
+                    <th>의존성 (요약)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td class="mono">OSImageService</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>OSImage / ISO lifecycle 전체. 30+ public 메서드. 사실상 모든 흐름의 hub.</td>
+                    <td class="mono">OSImageRepository, ISORepository, OSEnvironmentRepository,
+                        OSPackageGroupRepository, ProvisionMarkerService, BackgroundJobService, PathPolicyService,
+                        FileSystemHardener, NudgeRegistry, TrashLifecycleService, SoftDeleteIntentService, List&lt;PostCreationTaskStrategy&gt;
+                        <span class="pill bad">12</span></td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoUploadIntentService</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>업로드 핸드셰이크 (intent → token 발급). 메모리 ConcurrentMap. Phase 1 (hash check) / Phase 2 (hash match) /
+                        path nudge 분기.
+                    </td>
+                    <td class="mono">OSImageRepository, ISORepository, NudgeRegistry</td>
+                </tr>
+                <tr>
+                    <td class="mono">OsNudgeService</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>OS_ISO 도메인 nudge confirm (proceed / replace / cancel + intent path 변형).</td>
+                    <td class="mono">NudgeRegistry, OSImageService, ISORepository, IsoUploadIntentService</td>
+                </tr>
+                <tr>
+                    <td class="mono">OSImageNudgeService</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>OS_IMAGE 도메인 nudge confirm (메타 단독). OsNudgeService 와 패턴 거의 동일.</td>
+                    <td class="mono">NudgeRegistry, OSImageService, OSImageRepository</td>
+                </tr>
+                <tr>
+                    <td class="mono">CompsExtractionService</td>
+                    <td><span class="pill svc">SVC</span> <span class="pill async">@Async</span></td>
+                    <td>comps.xml 추출 파이프라인 (PREPARE_ISO → SCAN_REPO → PARSE_COMPS → MERGE_SAVE).</td>
+                    <td class="mono">List&lt;CompsExtractorStrategy&gt;, IsoPreparationService, CompsMergeService,
+                        BackgroundJobService
+                    </td>
+                </tr>
+                <tr>
+                    <td class="mono">CompsMergeService</td>
+                    <td><span class="pill svc">SVC</span> <span class="pill tx">@Transactional</span></td>
+                    <td>추출 결과 → DB upsert (환경/그룹 / N:M / ISO 제공 관계). self-invocation 회피용 분리.</td>
+                    <td class="mono">OSImageRepository, ISORepository, OSEnvironmentRepository,
+                        OSPackageGroupRepository
+                    </td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoPreparationService</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>.iso 마운트 / 추출 / passthrough — AutoCloseable PreparedIsoPath.</td>
+                    <td class="mono">(none)</td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoMarkableScanner</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>OS_ISO MarkableScanner SPI 어댑터. reconciliation / trash / ghost.</td>
+                    <td class="mono">ISORepository, OSImageService</td>
+                </tr>
+                <tr>
+                    <td class="mono">OSImageMarkableScanner</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>OS_IMAGE MarkableScanner SPI (메타 자원). 휴지통 페이지용.</td>
+                    <td class="mono">OSImageRepository, <b>ObjectProvider</b>&lt;OSImageService&gt; <span
+                            class="pill warn">순환 회피</span></td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoRegistrationLauncher</td>
+                    <td><span class="pill launcher">LCH</span></td>
+                    <td>ISO 등록 Job 등록 + Runner trigger.</td>
+                    <td class="mono">BackgroundJobService, IsoRegistrationRunner</td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoRegistrationRunner</td>
+                    <td><span class="pill runner">RUN</span> <span class="pill async">@Async</span></td>
+                    <td>OSImageService.finalizePreparedIsoRegistration 호출 + Job 상태 보고.</td>
+                    <td class="mono">OSImageService, BackgroundJobService</td>
+                </tr>
+                <tr>
+                    <td class="mono">IsoVerificationLauncher</td>
+                    <td><span class="pill launcher">LCH</span> <span class="pill async">@Async</span></td>
+                    <td>무결성 검증 Job 등록 + 직접 비동기 실행 (Runner 없음 — 패턴 불일치).</td>
+                    <td class="mono">OSImageService, ISORepository, BackgroundJobService</td>
+                </tr>
+                <tr>
+                    <td class="mono">CompsExtractionLauncher</td>
+                    <td><span class="pill launcher">LCH</span></td>
+                    <td>추출 Job 등록 + 활성 Job 재사용 + CompsExtractionService trigger.</td>
+                    <td class="mono">OSImageRepository, ISORepository, BackgroundJobService, CompsExtractionService</td>
+                </tr>
+                <tr>
+                    <td class="mono">RhelPostCreationTaskStrategy</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>OSFamily.RHEL_BASED → ISO 등록 직후 comps 추출 자동 트리거.</td>
+                    <td class="mono">CompsExtractionLauncher</td>
+                </tr>
+                <tr>
+                    <td class="mono">NoopPostCreationTaskStrategy</td>
+                    <td><span class="pill svc">SVC</span></td>
+                    <td>매칭 strategy 없는 fallback (현재 사용 안 함 — 향후 다른 OS 가족용).</td>
+                    <td class="mono">(none)</td>
+                </tr>
+                </tbody>
+            </table>
+        </details>
+
+        <details>
+            <summary>2.3 Repository (4 개)</summary>
+            <table class="inv">
+                <thead>
+                <tr>
+                    <th>리포지토리</th>
+                    <th>핵심 쿼리</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td class="mono">OSImageRepository</td>
+                    <td class="mono">
+                        findByIdAndIsDeletedFalse(Long)<br>
+                        findByIdAndIsDeletedTrue(Long)<br>
+                        findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()<br>
+                        findAllByOrderByOsNameAscCreatedAtDesc()<br>
+                        findAllByIsDeletedTrue()<br>
+                        existsByOsNameAndOsVersionAndIsDeletedFalse(OSName, String)<br>
+                        findFirstByOsNameAndOsVersionAndIsDeletedTrue(OSName, String)<br>
+                        findAllByOsNameAndOsVersionAndIsDeletedTrue(OSName, String)<br>
+                        findAllByOsNameAndOsVersionAndIsDeprecatedTrueAndIsDeletedFalse(OSName, String)
+                    </td>
+                </tr>
+                <tr>
+                    <td class="mono">ISORepository</td>
+                    <td class="mono">
+                        findByIdAndOsImage_Id(Long, Long)<br>
+                        findFirstByChecksumAndIsDeletedFalse(String)<br>
+                        findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(Long, String)<br>
+                        findFirstByOsImage_IdAndIsoPathAndIsDeletedTrue(Long, String)<br>
+                        @Query findIntentPathNudgeCandidates(Long, String)<br>
+                        @Query findIntentHashCheckCandidates(Long)<br>
+                        @Query findIntentHashNudgeCandidates(Long, String)<br>
+                        @Query findByManifestHashAndIsDeletedTrueOrIsDeprecatedTrue(String)<br>
+                        findAllByIsDeletedFalse()<br>
+                        @Query findIdsByIsDeletedTrue()<br>
+                        findByIsDeletedTrueAndTrashedAtBefore(Instant)<br>
+                        findByIsDeletedTrueAndTrashedAtBetween(Instant, Instant)<br>
+                        findByIsDeletedTrueOrderByTrashedAtDesc()<br>
+                        findByIsDeletedTrueAndTrashedPathIsNull()
+                    </td>
+                </tr>
+                <tr>
+                    <td class="mono">OSEnvironmentRepository</td>
+                    <td class="mono">
+                        findAllByOsImage_IdOrderByEnvironmentCode_ValueAsc(Long)<br>
+                        findByOsImage_IdAndEnvironmentCode_Value(Long, String)
+                    </td>
+                </tr>
+                <tr>
+                    <td class="mono">OSPackageGroupRepository</td>
+                    <td class="mono">
+                        findAllByOsImage_IdOrderByGroupCode_ValueAsc(Long)<br>
+                        findByOsImage_IdAndGroupCode_Value(Long, String)
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </details>
+
+        <details>
+            <summary>2.4 Entity (4 개) + VO + Enum</summary>
+            <table class="inv">
+                <thead>
+                <tr>
+                    <th>엔티티</th>
+                    <th>핵심 도메인 메서드 (Markable 외)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td class="mono">OSImage</td>
+                    <td class="mono">update(osVersion, description) · softDelete() / restore() · deprecate() /
+                        undeprecate() · toggleEnabled() · markTrashed(path) / clearTrashed() · getIsos()
+                    </td>
+                </tr>
+                <tr>
+                    <td class="mono">ISO</td>
+                    <td class="mono">update(isoPath, description) · updateIsoPath(path) · replaceProvisions(envs, grps)
+                        · markExtracted() / isExtractionComplete() · toggleEnabled() · deprecate() / undeprecate() ·
+                        recordIntegritySnapshot(status, at) · displayName()
+                    </td>
+                </tr>
+                <tr>
+                    <td class="mono">OSEnvironment</td>
+                    <td class="mono">update(displayName, description, isDefault) · replaceGroups(List)</td>
+                </tr>
+                <tr>
+                    <td class="mono">OSPackageGroup</td>
+                    <td class="mono">update(displayName, description, isDefault)</td>
+                </tr>
+                </tbody>
+            </table>
+            <p style="color: var(--muted); margin: 8px 0 0; font-size: 12px;">VO : <span class="mono">EnvironmentCode, PackageGroupCode</span>
+                · Enum : <span class="mono">OSName, OSFamily</span></p>
+        </details>
+    </section>
+
+    <!-- ===== 3. 의존성 매트릭스 ===== -->
+    <section class="block">
+        <h2>3. 클래스 ↔ Repository / Service 의존 매트릭스</h2>
+        <div class="lede">행 = 클래스, 열 = 협력자. <span class="pill"
+                                                  style="background: rgba(122,162,247,0.18); color: var(--accent);">호출</span>
+            / <span class="pill"
+                    style="background: rgba(187,154,247,0.18); color: var(--accent-2);">@Transactional 호출</span> / <span
+                    class="pill" style="background: rgba(247,118,142,0.18); color: var(--async);">@Async 진입</span></div>
+        <div class="matrix-wrap" style="margin-top: 14px;">
+            <table class="matrix">
+                <thead>
+                <tr>
+                    <th class="lr">클래스 \ 협력자</th>
+                    <th class="tr h">OSImageRepository</th>
+                    <th class="tr h">ISORepository</th>
+                    <th class="tr h">OSEnvironmentRepository</th>
+                    <th class="tr h">OSPackageGroupRepository</th>
+                    <th class="tr h">OSImageService</th>
+                    <th class="tr h">IsoUploadIntentService</th>
+                    <th class="tr h">CompsExtractionService</th>
+                    <th class="tr h">CompsMergeService</th>
+                    <th class="tr h">CompsExtractionLauncher</th>
+                    <th class="tr h">IsoRegistrationRunner</th>
+                    <th class="tr h">IsoRegistrationLauncher</th>
+                    <th class="tr h">NudgeRegistry</th>
+                    <th class="tr h">BackgroundJobService</th>
+                    <th class="tr h">ProvisionMarkerService</th>
+                    <th class="tr h">TrashLifecycleService</th>
+                    <th class="tr h">PathPolicyService</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td class="rowlabel">OSImageController</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoUploadController</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoLifecycleController</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoNudgeController</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">OSImageNudgeController</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoJobController</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">OSBrowseController</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">OSImageService</td>
+                    <td class="has-tx">✓</td>
+                    <td class="has-tx">✓</td>
+                    <td class="has-tx">✓</td>
+                    <td class="has-tx">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td class="has">✓</td>
+                    <td class="has">✓</td>
+                    <td class="has">✓</td>
+                    <td class="has">✓</td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoUploadIntentService</td>
+                    <td class="has">✓</td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">OsNudgeService</td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td class="has-tx">✓</td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">OSImageNudgeService</td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has-tx">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">CompsExtractionLauncher</td>
+                    <td class="has">✓</td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">CompsExtractionService</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has-async">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">CompsMergeService</td>
+                    <td class="has-tx">✓</td>
+                    <td class="has-tx">✓</td>
+                    <td class="has-tx">✓</td>
+                    <td class="has-tx">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoMarkableScanner</td>
+                    <td></td>
+                    <td class="has-tx">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">OSImageMarkableScanner</td>
+                    <td class="has-tx">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓ (ObjectProvider)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoRegistrationLauncher</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has-async">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoRegistrationRunner</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has-async">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">IsoVerificationLauncher</td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td class="has-async">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="rowlabel">RhelPostCreationTaskStrategy</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="has">✓</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="color: var(--muted); margin-top: 14px; font-size: 12px;">
+            관찰 1 — <b>OSImageService 의 ↑열 의존이 여전히 많다</b> (16개 협력자 가운데 6개 호출 + 본인이 다른 4개 클래스의 협력자) —
+            <b>service 측 hub 는 잔존</b>. controller 측 hub 는 7 분리로 해소됨. §13-D2 잔여 진단.<br>
+            관찰 2 — <b>ISORepository</b> 는 8~9 개 클래스가 직접 접근. Repository 가 service 보다 더 광범위하게 share 됨 — §13-D3 진단.<br>
+            관찰 3 — <b>OSImageMarkableScanner → OSImageService</b> 는 <span class="mono">ObjectProvider</span> 우회 — 직접
+            의존하면 순환 (OSImageService → TrashLifecycleService → OSImageMarkableScanner). §13-D5.<br>
+            <span style="color: var(--ok);">관찰 4 (신규)</span> — 7 controller 행은 각각 협력자 ≤ 3 개로 깔끔하게 떨어졌다.
+            공유 의존성은 OSImageService (4 controller — hub 잔존 영향) 와 TypedNameVerifier (2 controller — 본질적 nudge replace 검증)
+            뿐.
+        </p>
+    </section>
+
+    <!-- ===== 4. 유스케이스 인덱스 ===== -->
+    <section class="block">
+        <h2>4. 유스케이스 인덱스 (40 개)</h2>
+        <div class="lede" style="margin-bottom: 8px;">
+            <b>Controller 매핑 (2026-05-23 분리 후)</b> :
+            <span class="pill ctrl">OSImageController</span> UC-01~UC-11, UC-37~UC-38 ·
+            <span class="pill ctrl">IsoUploadController</span> UC-12~UC-15 ·
+            <span class="pill ctrl">IsoLifecycleController</span> UC-16~UC-24, UC-39 ·
+            <span class="pill ctrl">IsoNudgeController</span> UC-25~UC-27, UC-31~UC-33 ·
+            <span class="pill ctrl">OSImageNudgeController</span> UC-28~UC-30 ·
+            <span class="pill ctrl">IsoJobController</span> UC-34~UC-36 ·
+            <span class="pill ctrl">OSBrowseController</span> UC-40
+        </div>
+        <div class="toolbar">
+            <input type="text" id="search" placeholder="유스케이스 / URL / 메서드 검색...">
+            <select id="cat">
+                <option value="">모든 카테고리</option>
+                <option value="osimage">OS Image lifecycle (11)</option>
+                <option value="iso">ISO lifecycle (13)</option>
+                <option value="nudge-iso">Nudge — ISO content (3)</option>
+                <option value="nudge-img">Nudge — OS Image meta (3)</option>
+                <option value="nudge-intent">Nudge — Intent path (3)</option>
+                <option value="integrity">Integrity (2)</option>
+                <option value="extract">Extraction (4)</option>
+                <option value="browse">Browse (1)</option>
+            </select>
+            <button onclick="expandAll(true)">모두 펼치기</button>
+            <button onclick="expandAll(false)">모두 접기</button>
+            <span class="count" id="count">40 / 40 표시 중</span>
+        </div>
+        <div class="idx">
+            <a href="#uc-01"><span class="uid">UC-01</span><span class="ut">OS 이미지 목록 조회</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-02"><span class="uid">UC-02</span><span class="ut">OS 이미지 신규 폼</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-03"><span class="uid">UC-03</span><span class="ut">OS 이미지 생성</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-04"><span class="uid">UC-04</span><span class="ut">OS 이미지 편집 폼</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-05"><span class="uid">UC-05</span><span class="ut">OS 이미지 수정</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-06"><span class="uid">UC-06</span><span class="ut">OS 이미지 enable 토글</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-07"><span class="uid">UC-07</span><span class="ut">OS 이미지 softDelete</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-08"><span class="uid">UC-08</span><span class="ut">OS 이미지 restore (cascade?)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-09"><span class="uid">UC-09</span><span class="ut">OS 이미지 deprecate</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-10"><span class="uid">UC-10</span><span class="ut">OS 이미지 undeprecate</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-11"><span class="uid">UC-11</span><span class="ut">OS 이미지 purge (typedName)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-12"><span class="uid">UC-12</span><span class="ut">ISO 신규 폼</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-13"><span class="uid">UC-13</span><span class="ut">ISO 등록 (SSR)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-14"><span class="uid">UC-14</span><span class="ut">ISO 업로드 intent</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-15"><span class="uid">UC-15</span><span class="ut">ISO 업로드 (XHR)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-16"><span class="uid">UC-16</span><span class="ut">ISO 편집 폼</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-17"><span class="uid">UC-17</span><span class="ut">ISO 수정</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-18"><span class="uid">UC-18</span><span class="ut">ISO enable 토글</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-19"><span class="uid">UC-19</span><span class="ut">ISO softDelete</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-20"><span class="uid">UC-20</span><span class="ut">ISO softDelete with intent</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-21"><span class="uid">UC-21</span><span class="ut">ISO restore</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-22"><span class="uid">UC-22</span><span class="ut">ISO deprecate</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-23"><span class="uid">UC-23</span><span class="ut">ISO undeprecate</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-24"><span class="uid">UC-24</span><span class="ut">ISO purge (typedName)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-25"><span class="uid">UC-25</span><span class="ut">nudge proceed (OS_ISO)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-26"><span class="uid">UC-26</span><span class="ut">nudge replace (OS_ISO)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-27"><span class="uid">UC-27</span><span class="ut">nudge cancel (OS_ISO)</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-28"><span class="uid">UC-28</span><span class="ut">osImage nudge proceed</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-29"><span class="uid">UC-29</span><span class="ut">osImage nudge replace</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-30"><span class="uid">UC-30</span><span class="ut">osImage nudge cancel</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-31"><span class="uid">UC-31</span><span class="ut">intent nudge proceed</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-32"><span class="uid">UC-32</span><span class="ut">intent nudge replace</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-33"><span class="uid">UC-33</span><span class="ut">intent nudge cancel</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-34"><span class="uid">UC-34</span><span class="ut">ISO 무결성 검증 시작</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-35"><span class="uid">UC-35</span><span class="ut">ISO 무결성 상태 조회</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-36"><span class="uid">UC-36</span><span class="ut">comps 추출 시작</span><span
+                    class="um pill http-post">POST</span></a>
+            <a href="#uc-37"><span class="uid">UC-37</span><span class="ut">env-groups fragment</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-38"><span class="uid">UC-38</span><span class="ut">iso-section fragment</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-39"><span class="uid">UC-39</span><span class="ut">ISO provisions JSON</span><span
+                    class="um pill http-get">GET</span></a>
+            <a href="#uc-40"><span class="uid">UC-40</span><span class="ut">서버 디렉토리 탐색</span><span
+                    class="um pill http-get">GET</span></a>
+        </div>
+    </section>
+
+    <!-- ===== 5. 유스케이스 카드들 (40 개) ===== -->
+    <section class="block">
+        <h2>5. 유스케이스 카드 — 호출 흐름 도식</h2>
+        <div class="lede">레인 헤더가 액터를 표시한다. 각 행이 한 메서드 호출이며 화살표 위치 = 호출 방향. 같은 행 안의 두 박스는 동시 발생(같은 메서드 안의 두 행위).</div>
+
+        <!-- UC-01 -->
+        <div class="uc" data-cat="osimage" id="uc-01">
+            <h3><span class="id">UC-01</span> OS 이미지 목록 조회 <span class="pill http-get">GET</span> <span class="url">/management/os</span>
+            </h3>
+            <div class="uc-meta">includeDeleted 토글로 휴지통 항목 포함 / Miller 선택 (selectId, selectKey) 복원. ISO 등록 진행 중
+                placeholder 합성도 이 흐름이 책임.
+            </div>
+            <div class="uc-row">
+                <div class="k">Controller</div>
+                <div><span class="pill ctrl">OSImageController</span><span class="pill method">list(includeDeleted, selectId, selectKey, Model)</span>
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="payload"><span class="field">includeDeleted</span>:<span class="typ">boolean</span>=<span
+                        class="lit">false</span>, <span class="field">selectId</span>:<span class="typ">Long</span>(opt),
+                    <span class="field">selectKey</span>:<span class="typ">String</span>(opt)
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">반환 뷰</div>
+                <div class="mono">management/os/list (Model: osGroups, includeDeleted, selectId, selectKey)</div>
+            </div>
+
+            <h4 style="margin: 14px 0 6px; font-size: 13px;">호출 시퀀스</h4>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label browser">Browser</div>
+                    <div class="seq-lane-label ctrl">OSImageController</div>
+                    <div class="seq-lane-label svc">OSImageService</div>
+                    <div class="seq-lane-label repo">OSImageRepository</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">GET /management/os →</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">list(...) → findAllGrouped(includeDeleted)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">findAllGrouped(includeDeleted)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">findAllBy[IsDeletedFalse]Order...() / findAllByOrder...()</div>
+                </div>
+                <div class="seq-note">그룹화 by OSName → 각 OSImage 마다 assembleIsoResponses(img, includeDeleted) +
+                    buildEnvResponses(img) + buildGroupResponses(img) 호출.
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">assembleIsoResponses(image, includeDeleted)</div>
+                    <div></div>
+                </div>
+                <div class="seq-note">backgroundJobService.snapshot() 로 진행 중 COMPS_EXTRACTION / ISO_REGISTRATION Job 을
+                    합성해 placeholder ISOResponse 추가 (S5-12).
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">buildEnvResponses(image)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">OSEnvironmentRepository.findAllByOsImage_IdOrder...()</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">buildGroupResponses(image)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">OSPackageGroupRepository.findAllByOsImage_IdOrder...()</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">← Model 채워서 management/os/list 렌더</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+            <details>
+                <summary>전달 DTO / 응답 구조</summary>
+                <div class="payload">List&lt;OSGroupResponse&gt; osGroups
+                    └ OSGroupResponse(osName, List&lt;OSImageResponse&gt; images)
+                    └ OSImageResponse(id, osName, osVersion, description, isEnabled, isDeleted, isDeprecated,
+                    lifecycleStage, isos, environments, packageGroups)
+                    ├ List&lt;ISOResponse&gt; isos (실 ISO + placeholder 합성)
+                    ├ List&lt;OSEnvironmentResponse&gt; environments
+                    └ List&lt;OSPackageGroupResponse&gt; packageGroups
+                </div>
+            </details>
+        </div>
+
+        <!-- UC-02 -->
+        <div class="uc" data-cat="osimage" id="uc-02">
+            <h3><span class="id">UC-02</span> OS 이미지 신규 폼 <span class="pill http-get">GET</span> <span class="url">/management/os/new</span>
+            </h3>
+            <div class="uc-meta">빈 OSImageCreateRequest 와 MVP_OS_NAMES (3종) 를 Model 에 주입해 폼 렌더.</div>
+            <div class="uc-row">
+                <div class="k">Controller</div>
+                <div><span class="pill ctrl">OSImageController</span><span class="pill method">newForm(Model)</span>
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="mono">(없음 — 빈 폼)</div>
+            </div>
+            <div class="uc-row">
+                <div class="k">반환 뷰</div>
+                <div class="mono">management/os/new (osImageForm: 빈 OSImageCreateRequest, osNameOptions: [ROCKY_LINUX,
+                    CENTOS, UBUNTU])
+                </div>
+            </div>
+            <p style="margin: 8px 0 0; color: var(--muted); font-size: 12px;">서비스 호출 없음. <b>MVP_OS_NAMES</b> 가
+                controller 의 <code>private static final</code> 상수로 박혀 있다 (§13-D6 — 도메인 어휘가 controller 에 누출).</p>
+        </div>
+
+        <!-- UC-03 -->
+        <div class="uc" data-cat="osimage" id="uc-03">
+            <h3><span class="id">UC-03</span> OS 이미지 생성 <span class="pill http-post">POST</span> <span class="url">/management/os</span>
+                <span class="pill async">JSON</span></h3>
+            <div class="uc-meta">활성 중복 → 409 즉시. soft-deleted / deprecated 후보 있으면 NudgeRequiredException 발생 →
+                ApiExceptionHandler 가 409 + NudgeRequiredResponse 로 매핑.
+            </div>
+            <div class="uc-row">
+                <div class="k">Controller</div>
+                <div><span class="pill ctrl">OSImageController</span><span class="pill method">create(@Valid OSImageCreateRequest, BindingResult)</span>
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="payload">OSImageCreateRequest(<span class="field">osName</span>:<span
+                        class="typ">OSName</span>, <span class="field">osVersion</span>:<span class="typ">String</span>(NotBlank),
+                    <span class="field">description</span>:<span class="typ">String</span>)
+                </div>
+            </div>
+
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label repo">OSImageRepository</div>
+                    <div class="seq-lane-label svc">NudgeRegistry</div>
+                    <div class="seq-lane-label db">DB</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div class="seq-call call">create(req)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">existsByOsNameAndOsVersionAndIsDeletedFalse(osName, osVersion)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">existsBy... → boolean</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">true → findAllBy...IsDeprecatedTrueAndIsDeletedFalse() 로 active+deprecated 분기. 없으면
+                    즉시 DuplicateOSImageException(409).
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">collectMetaNudgeCandidates(osName, osVersion)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">findAllBy...IsDeletedTrue +
+                        findAllBy...IsDeprecatedTrueAndIsDeletedFalse
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">후보 없음 → persistNewOSImage() — repo.save(OSImage builder). 끝.</div>
+                <div class="seq-note">후보 ≥ 1 개 → buildOSImageNudgePayload 으로 진입 ↓</div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">buildOSImageNudgePayload(req, candidates)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">register(OS_IMAGE, null, conflictIds, IntentMetaNudgePayload{osName,
+                        osVersion, description})
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div class="seq-call throw">throw OSImageNudgeRequiredException(payload) → ApiExceptionHandler →
+                        409
+                    </div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">OSImage INSERT (성공 경로)</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 0.9fr;">
+                    <div class="seq-call ret">200 OSImageCreateResponse(id, redirect)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-04 -->
+        <div class="uc" data-cat="osimage" id="uc-04">
+            <h3><span class="id">UC-04</span> OS 이미지 편집 폼 <span class="pill http-get">GET</span> <span class="url">/management/os/{id}/edit</span>
+            </h3>
+            <div class="uc-row">
+                <div class="k">Controller</div>
+                <div><span class="pill ctrl">OSImageController</span><span
+                        class="pill method">editForm(id, Model)</span></div>
+            </div>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.findById(id) → requireActiveImage →
+                    OSImageRepository.findByIdAndIsDeletedFalse / 부수적으로 buildEnvResponses + buildGroupResponses +
+                    assembleIsoResponses
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">반환 뷰</div>
+                <div class="mono">management/os/edit (osImageForm: OSImageUpdateRequest(version, description),
+                    osImageId, osNameLabel)
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-05 -->
+        <div class="uc" data-cat="osimage" id="uc-05">
+            <h3><span class="id">UC-05</span> OS 이미지 수정 <span class="pill http-post">POST</span> <span class="url">/management/os/{id}/edit</span>
+            </h3>
+            <div class="uc-row">
+                <div class="k">Controller</div>
+                <div><span class="pill ctrl">OSImageController</span><span class="pill method">update(id, @Valid OSImageUpdateRequest, BindingResult, Model)</span>
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="payload">OSImageUpdateRequest(<span class="field">osVersion</span>:<span
+                        class="typ">String</span>(NotBlank), <span class="field">description</span>:<span class="typ">String</span>)
+                </div>
+            </div>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label repo">OSImageRepository</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div class="seq-call call">update(id, req)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">requireActiveImage(id)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">findByIdAndIsDeletedFalse(id) → OSImage</div>
+                </div>
+                <div class="seq-note">버전이 바뀌었고 (osName, newVersion) 활성 자원이 이미 있으면 DuplicateOSImageException.</div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">image.update(osVersion, description) — 엔티티 dirty 상태로 트랜잭션 종료 시
+                        UPDATE
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div class="seq-call ret">redirect:/management/os?selectId={id}</div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-06 -->
+        <div class="uc" data-cat="osimage" id="uc-06">
+            <h3><span class="id">UC-06</span> OS 이미지 enable 토글 (+ 자식 cascade) <span class="pill http-post">POST</span>
+                <span class="url">/management/os/{id}/toggle</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.toggleEnabled(id) → requireActiveImage(id) → OSImage.toggleEnabled() →
+                    image.getIsos().filter(!deleted && !deprecated && !target일치).forEach(ISO::toggleEnabled)
+                </div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">cascade 정책 — 부모 활성 상태와 자식 활성 상태가 다른 자식만
+                동기화 (S5-2-3-1).</p>
+        </div>
+
+        <!-- UC-07 -->
+        <div class="uc" data-cat="osimage" id="uc-07">
+            <h3><span class="id">UC-07</span> OS 이미지 softDelete (+ 자식 trash) <span class="pill http-post">POST</span>
+                <span class="url">/management/os/{id}/delete</span></h3>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label svc">TrashLifecycleService</div>
+                    <div class="seq-lane-label fs">FileSystem + DB</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">softDelete(id)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">requireActiveImage(id) → OSImage</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">image.getIsos() loop — 각 ISO 가 !deleted 면
+                    TrashLifecycleService.softDeleteToTrash(iso) 위임 (active ISO 만 trash 이동, 이미 삭제된 자식은 skip).
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">softDeleteToTrash(iso) — disk move + ISO.softDelete +
+                        markTrashed(newPath)
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">Files.move(isoPath → .soft-deleted/...) + DB UPDATE</div>
+                </div>
+                <div class="seq-note">OSImage 자체는 메타 자원 — 디스크 파일 없음. entity 의 softDelete() + markTrashed(null) 만 호출.
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">image.softDelete() + image.markTrashed(null)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">redirect:/management/os</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-08 -->
+        <div class="uc" data-cat="osimage" id="uc-08">
+            <h3><span class="id">UC-08</span> OS 이미지 restore (cascade?) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{id}/restore?cascade={bool}</span></h3>
+            <div class="uc-row">
+                <div class="k">Controller</div>
+                <div><span class="pill ctrl">OSImageController</span><span
+                        class="pill method">restore(id, cascade)</span> → osImageService.restore(id, cascade)
+                </div>
+            </div>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label repo">OSImageRepository</div>
+                    <div class="seq-lane-label svc">TrashLifecycleService</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">restore(id, cascade)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">findByIdAndIsDeletedTrue(id) → OSImage (없으면
+                        IllegalOSImageStateException)
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">existsByOsNameAndOsVersionAndIsDeletedFalse → 동일 메타 활성 자원 있으면
+                        DuplicateOSImageException
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">image.restore() + image.clearTrashed()</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">cascade=true 면 image.getIsos() 중 isDeleted=true 각각에 대해 restoreISO(id, isoId) 재귀
+                    호출.
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">restoreISO(id, iso.id) — UC-21 참조</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">restoreFromTrash(iso, attrsBuilder)</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">RestoreResponse(restoredCount) — redirect</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-09 -->
+        <div class="uc" data-cat="osimage" id="uc-09">
+            <h3><span class="id">UC-09</span> OS 이미지 deprecate (+cascade) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{id}/deprecate</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">deprecateImage(id) → requireActiveImage → OSImage.deprecate() →
+                    image.getIsos().filter(!deleted && !deprecated).forEach(ISO::deprecate)
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-10 -->
+        <div class="uc" data-cat="osimage" id="uc-10">
+            <h3><span class="id">UC-10</span> OS 이미지 undeprecate (+cascade) <span class="pill http-post">POST</span>
+                <span class="url">/management/os/{id}/undeprecate</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">undeprecateImage(id) → requireActiveImage → OSImage.undeprecate() →
+                    image.getIsos().filter(!deleted && isDeprecated).forEach(ISO::undeprecate)
+                </div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">UC-06 / UC-09 / UC-10 의 self-cascade 패턴이
+                거의 동일하다 — §13-D7 (cascade 패턴 통합 대상).</p>
+        </div>
+
+        <!-- UC-11 -->
+        <div class="uc" data-cat="osimage" id="uc-11">
+            <h3><span class="id">UC-11</span> OS 이미지 purge (typedName 검증) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{id}/purge?typedName={...}</span></h3>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label repo">OSImageRepository</div>
+                    <div class="seq-lane-label fs">FileSystem</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">purgeOs(id, typedName)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">purgeImageWithTypedNameCheck(id, typedName)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">findByIdAndIsDeletedTrue(id) → OSImage</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">verifyTypedNameOrThrow(image, typedName) —
+                        image.displayName().equals(typedName) 아니면 TypedNameMismatchException
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">purgeImage(id)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">image.getIsos().forEach(iso → cleanupIsoArtifacts(iso)) — sidecar 파일 + 본체 파일
+                    deleteQuietly. 그 다음 osImageRepository.delete(image) 로 자식 ISO row 까지 DB CASCADE.
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">Files.deleteIfExists(*.provision.json + *.iso)</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">delete(image) → ISO CASCADE</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">redirect:/management/os?includeDeleted=true</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-12 -->
+        <div class="uc" data-cat="iso" id="uc-12">
+            <h3><span class="id">UC-12</span> ISO 신규 폼 <span class="pill http-get">GET</span> <span class="url">/management/os/{osId}/iso/new</span>
+            </h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.findById(osId) → populateIsoFormContext(model, osId, null, os) → 뷰
+                    management/os/iso-new
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">Model</div>
+                <div class="mono">isoForm: new ISOCreateRequest("", "", false), osId, contextLabel</div>
+            </div>
+        </div>
+
+        <!-- UC-13 -->
+        <div class="uc" data-cat="iso" id="uc-13">
+            <h3><span class="id">UC-13</span> ISO 등록 (SSR 폼 제출) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso</span></h3>
+            <div class="uc-meta">SSR fallback 경로. 실제 XHR 흐름은 UC-14 + UC-15. 동기 prepare → Launcher 가 비동기 finalize.</div>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="payload">@ModelAttribute ISOCreateRequest(<span class="field">isoPath</span>:<span
+                        class="typ">String</span>, <span class="field">description</span>:<span
+                        class="typ">String</span>, <span class="field">allowCreateDirectory</span>:<span class="typ">boolean</span>)
+                    + MultipartFile file
+                </div>
+            </div>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label launcher">IsoRegistrationLauncher</div>
+                    <div class="seq-lane-label runner">IsoRegistrationRunner <span class="pill async">@Async</span>
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">addIso(osId, req, file)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">prepareIsoRegistration(osId, req, file) — requireActiveImage /
+                        IsoPathResolver / ensureParentDirectory / pathPolicyService.assertWritablePath / sidecar 충돌 검사 /
+                        storeUploadedFile / fileSystemHardener
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">→ PreparedIsoRegistration(osImageId, resolvedPath, description, originalFilename,
+                    uploadedFile, clientHash=null)
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">startRegistration(prepared)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">backgroundJobService.register(ISO_REGISTRATION, ...)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">runAsync(jobId, prepared) — UC-15 의 finalize 흐름과 동일</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">redirect:/management/os?selectId={osId} (즉시)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-14 -->
+        <div class="uc" data-cat="iso" id="uc-14">
+            <h3><span class="id">UC-14</span> ISO 업로드 intent (핸드셰이크) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso/upload-intent</span></h3>
+            <div class="uc-meta">실제 바이트 전송 전 사전 검증 — 동일 경로 활성 ISO / path nudge / hash nudge / 디스크 공간 / 파일시스템 충돌. 성공 시
+                1회용 upload token 발급.
+            </div>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="payload">IsoUploadIntentRequest(<span class="field">isoPath</span>, <span class="field">filename</span>,
+                    <span class="field">size</span>:<span class="typ">long</span>, <span class="field">allowCreateDirectory</span>:<span
+                            class="typ">boolean</span>, <span class="field">clientHash</span>:<span
+                            class="typ">String</span>?)
+                </div>
+            </div>
+
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">IsoUploadIntentService</div>
+                    <div class="seq-lane-label repo">ISORepository</div>
+                    <div class="seq-lane-label svc">NudgeRegistry</div>
+                    <div class="seq-lane-label fs">FileSystem</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">intent(osId, req)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">issue(osId, req)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">OSImageRepository.findByIdAndIsDeletedFalse(osId)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">IsoPathResolver.resolve(rawPath, filename, errFactory) — path 정규화.</div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse(osId, resolvedPath)
+                        — 활성 동일 경로 있으면 IsoUploadIntentConflictException
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">findIntentPathNudgeCandidates(osId, resolvedPath)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">후보 ≥1 → registerIntentNudge → IsoNudgeRequiredException (WAVE 2 path nudge).</div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">clientHash null/blank ? findIntentHashCheckCandidates :
+                        findIntentHashNudgeCandidates
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">Phase 1 (hash 미동봉) — 후보 있으면 HashCheckRequired 응답 (sentinel). Phase 2 (hash 동봉) —
+                    후보 있으면 hash nudge IsoNudgeRequiredException.
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">validateFilesystem — Files.exists / FileStore.getUsableSpace / 디스크 공간 검증
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">중복 파일 → DuplicateFilenameException, 상위 디렉토리 없음 → DirectoryMissingException,
+                        공간 부족 → InsufficientDiskSpaceException
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">intents.put(token, Intent{osImageId, resolvedPath, filename, size,
+                        clientHash, issuedAt})
+                    </div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">200 IsoUploadIntentResponse.IntentTokenIssued(uploadToken, warnings[])
+                    </div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+            <details>
+                <summary>IsoUploadIntentResponse sealed 계층</summary>
+                <div class="payload">sealed interface IsoUploadIntentResponse {
+                    ├ record IntentTokenIssued(String uploadToken, List&lt;String&gt; warnings)
+                    └ record HashCheckRequired(List&lt;NudgeConflictEntry&gt; candidates, String hashAlgorithm)
+                    }
+                </div>
+            </details>
+        </div>
+
+        <!-- UC-15 -->
+        <div class="uc" data-cat="iso" id="uc-15">
+            <h3><span class="id">UC-15</span> ISO 업로드 (XHR 실제 전송) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso/upload</span></h3>
+            <div class="uc-meta">요청 스레드는 파일 저장까지만 동기. SHA-256 / DB / 마커 발급은 IsoRegistrationRunner @Async 가 수행.</div>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="payload">ISOCreateRequest + MultipartFile file + Header <span
+                        class="field">X-Upload-Token</span></div>
+            </div>
+
+            <div class="seq" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">IsoUploadIntentService</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label launcher">IsoRegistrationLauncher</div>
+                    <div class="seq-lane-label runner">Runner <span class="pill async">@Async</span></div>
+                    <div class="seq-lane-label fs">FS / DB / Marker</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">uploadIso(osId, req, file, X-Upload-Token)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">consume(osId, uploadToken) → Intent{clientHash} (token 만료 →
+                        InvalidUploadTokenException)
+                    </div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">prepareIsoRegistration(osId, req, file, clientHash)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-note">prepare 흐름 (동기) — requireActiveImage → IsoPathResolver.resolve →
+                    ensureParentDirectory → pathPolicyService.assertWritablePath →
+                    ISORepository.findFirstBy...IsoPathAndIsDeletedFalse 중복 검사 → markerService.resolveMarkerFile +
+                    SidecarConflictException 검사 → storeUploadedFile (Files.copy) →
+                    fileSystemHardener.applyDefaultPermissionsForFile
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">Files.copy(uploadedFile.getInputStream() → resolvedPath)</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">→ PreparedIsoRegistration</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">startRegistration(prepared)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">backgroundJobService.register(ISO_REGISTRATION, title=ISO 등록,
+                        subtitle=resolvedPath, metadata{osId})
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">runAsync(jobId, prepared) ← 즉시 반환</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">200 IsoUploadResponse(jobId, redirect)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-bar"></div>
+                <div class="seq-note">━━━ 비동기 스레드 (별도 트랜잭션) ━━━</div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">backgroundJobService.startStage(jobId, COMPUTE_HASH)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">finalizePreparedIsoRegistration(jobId, prepared)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">computeFileSha256(target) — SHA-256 (대용량 ISO 수십초~수분)</div>
+                </div>
+                <div class="seq-note">clientHash != computedHash → IsoClientHashMismatchException(400) + 업로드 파일 +
+                    sidecar deleteQuietly.
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">startStage(CHECK_DUPLICATE) →
+                        ISORepository.findFirstByOsImage_IdAndIsoPathAndIsDeletedFalse —
+                        IsoUploadIntentConflictException 검사
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">findFirstByChecksumAndIsDeletedFalse(hash) — 활성과 충돌 →
+                        DuplicateISOContentException + 파일 정리
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">findByManifestHashAndIsDeletedTrueOrIsDeprecatedTrue(hash) → GhostEvaluator
+                        필터 → 후보 ≥1 → registerIsoNudgeSession + IsoNudgeRequiredException
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">startStage(PERSIST_METADATA) → isoRepository.save(ISO builder) →
+                        finalizeMarker(saved, prepared, hash, target)
+                    </div>
+                </div>
+                <div class="seq-note">finalizeMarker — MarkerContent 생성 → markerService.computeSignature →
+                    iso.reissueMarker(hash, sig) → markerService.write(target, SIDECAR, contentWithSig) →
+                    fileSystemHardener.applyDefaultPermissionsForFile(marker)
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">triggerPostCreationTask(parent, saved) —
+                        postCreationTaskStrategies.stream().filter(supports(family)).findFirst().ifPresent(s →
+                        s.trigger(...))
+                    </div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">RhelPostCreationTaskStrategy.trigger →
+                        CompsExtractionLauncher.startExtraction(osImageId, isoId) → 새 Job (COMPS_EXTRACTION) 등록
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">backgroundJobService.complete(jobId)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call throw">IsoNudgeRequiredException → fail(jobId, "NUDGE_REQUIRED:{nudgeId}") — UI
+                        가 알림 패널 jobId 클릭 시 modal 표시
+                    </div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-16 -->
+        <div class="uc" data-cat="iso" id="uc-16">
+            <h3><span class="id">UC-16</span> ISO 편집 폼 <span class="pill http-get">GET</span> <span class="url">/management/os/{osId}/iso/{isoId}/edit</span>
+            </h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.findISO(osId, isoId) → requireLiveISO →
+                    ISORepository.findByIdAndOsImage_Id(isoId, osId) + osImageService.findById(osId) (form context)
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-17 -->
+        <div class="uc" data-cat="iso" id="uc-17">
+            <h3><span class="id">UC-17</span> ISO 수정 <span class="pill http-post">POST</span> <span class="url">/management/os/{osId}/iso/{isoId}/edit</span>
+            </h3>
+            <div class="uc-row">
+                <div class="k">전달값</div>
+                <div class="payload">ISOUpdateRequest(<span class="field">isoPath</span>:<span class="typ">String</span>,
+                    <span class="field">description</span>:<span class="typ">String</span>)
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.updateISO(osId, isoId, req) →
+                    pathPolicyService.assertWritablePath(isoPath) → requireLiveISO(osId, isoId).update(validated,
+                    description)
+                </div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">보안 예외 (PathTraversal /
+                PathOutsideAllowedRoots) 는 controller try/catch 로 BindingResult.rejectValue 후 폼 재렌더 — SSR view context
+                보존 위해 advice 우회 (controller 본문 §337–348 의 javadoc 참조).</p>
+        </div>
+
+        <!-- UC-18 -->
+        <div class="uc" data-cat="iso" id="uc-18">
+            <h3><span class="id">UC-18</span> ISO enable 토글 (부모 가드) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso/{isoId}/toggle</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">toggleIsoEnabled(osId, isoId) → requireActiveImage / requireLiveISO. 부모가
+                    DISABLED/DEPRECATED 이면 enable 거절 → ChildLifecycleBlockedByParentException. 통과 시 iso.toggleEnabled().
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-19 -->
+        <div class="uc" data-cat="iso" id="uc-19">
+            <h3><span class="id">UC-19</span> ISO softDelete <span class="pill http-post">POST</span> <span class="url">/management/os/{osId}/iso/{isoId}/delete</span>
+            </h3>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label svc">SoftDeleteIntentService</div>
+                    <div class="seq-lane-label svc">TrashLifecycleService</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">deleteIso(osId, isoId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">softDeleteISO(osId, isoId) → requireLiveISO</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">checkPrecondition(iso) — Files.exists(DB.path) ? 통과 :
+                        SoftDeletePathMissingException + token 발급 (MK3-2 DCM3-2.1)
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">softDeleteToTrash(iso) — disk move + DB UPDATE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-20 -->
+        <div class="uc" data-cat="iso" id="uc-20">
+            <h3><span class="id">UC-20</span> ISO softDelete with intent (modal 2차 호출) <span
+                    class="pill http-post">POST</span> <span class="url">/management/os/{osId}/iso/{isoId}/delete-intent/{token}</span>
+            </h3>
+            <div class="uc-meta">UC-19 가 SoftDeletePathMissingException 으로 거절될 때 사용자가 modal 에서 선택한 action
+                (CORRECT_PATH_THEN_DELETE / FORCED_CLEAR) 으로 진행.
+            </div>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">deleteIntentRegistry.consume(parsedToken, OS_ISO, isoId) →
+                    osImageService.softDeleteISOWithIntent(osId, isoId, action) → switch(action) {
+                    CORRECT_PATH_THEN_DELETE → softDeleteIntentService.reconcileThenDelete(saga 4단계 + 통과 후
+                    trashLifecycleService.softDeleteToTrash); FORCED_CLEAR → softDeleteIntentService.forcedClear }
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-21 -->
+        <div class="uc" data-cat="iso" id="uc-21">
+            <h3><span class="id">UC-21</span> ISO restore <span class="pill http-post">POST</span> <span class="url">/management/os/{osId}/iso/{isoId}/restore</span>
+            </h3>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label repo">Repository</div>
+                    <div class="seq-lane-label svc">TrashLifecycleService</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">restoreIso(osId, isoId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">restoreISO(osId, isoId)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">OSImageRepository.findById(osId) (deleted 포함)</div>
+                    <div></div>
+                </div>
+                <div class="seq-note">parent.isDeleted() → ChildLifecycleBlockedByParentException — 자식 단독 restore 거절
+                    (부모도 같이 살려야 함).
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">ISORepository.findByIdAndOsImage_Id(isoId, osId)</div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">restoreFromTrash(iso, attrsBuilder) — disk move back + DB UPDATE +
+                        marker 재발급
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-22 -->
+        <div class="uc" data-cat="iso" id="uc-22">
+            <h3><span class="id">UC-22</span> ISO deprecate <span class="pill http-post">POST</span> <span class="url">/management/os/{osId}/iso/{isoId}/deprecate</span>
+            </h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">deprecateIso(osId, isoId) → requireLiveISO.deprecate()</div>
+            </div>
+        </div>
+
+        <!-- UC-23 -->
+        <div class="uc" data-cat="iso" id="uc-23">
+            <h3><span class="id">UC-23</span> ISO undeprecate (부모 가드) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso/{isoId}/undeprecate</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">undeprecateIso(osId, isoId) → requireActiveImage(osId). 부모 isDeprecated →
+                    ChildLifecycleBlockedByParentException. requireLiveISO.undeprecate().
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-24 -->
+        <div class="uc" data-cat="iso" id="uc-24">
+            <h3><span class="id">UC-24</span> ISO purge (typedName 검증) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso/{isoId}/purge?typedName={...}</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">purgeIsoWithTypedNameCheck(osId, isoId, typedName) → requireActiveImage +
+                    ISORepository.findByIdAndOsImage_Id + verifyTypedNameOrThrow + purgeIso(osId, isoId) →
+                    currentStage==SOFT_DELETED 확인 + cleanupIsoArtifacts (sidecar + 본체 deleteQuietly) +
+                    isoRepository.delete(iso)
+                </div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">UC-11 / UC-24 의 typed-name 검증 + cleanup +
+                delete 흐름이 거의 동일 — §13-D8 (purge 공통화 대상).</p>
+        </div>
+
+        <!-- UC-25 -->
+        <div class="uc" data-cat="nudge-iso" id="uc-25">
+            <h3><span class="id">UC-25</span> nudge proceed (OS_ISO content) <span class="pill http-post">POST</span>
+                <span class="url">/management/os/nudge/{nudgeId}/proceed</span></h3>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label svc">OsNudgeService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label svc">NudgeRegistry</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">nudgeProceed(nudgeId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">proceed(nudgeId)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">require(nudgeId) → NudgeSession (도메인 어긋남 →
+                        NudgeAlreadyResolvedException)
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">completePendingIsoFromNudge(session) — ContentNudgePayload 검증 + 재race
+                        검사 + isoRepository.save + finalizeMarker
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">remove(nudgeId) → false → NudgeAlreadyResolvedException</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">200 NudgeProceedResponse(isoId, redirect)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-26 -->
+        <div class="uc" data-cat="nudge-iso" id="uc-26">
+            <h3><span class="id">UC-26</span> nudge replace (OS_ISO) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/nudge/{nudgeId}/replace?targetId={..}&typedName={..}</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">typedNameVerifier.verify(OS_ISO, targetId, typedName) (선택) →
+                    osNudgeService.replace(nudgeId, targetId) → NudgeRegistry.require + conflictTargetIds 검증 +
+                    ISORepository.findById + osImageService.purgeIsoForNudge(target) +
+                    osImageService.completePendingIsoFromNudge(session) + nudgeRegistry.remove
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-27 -->
+        <div class="uc" data-cat="nudge-iso" id="uc-27">
+            <h3><span class="id">UC-27</span> nudge cancel (OS_ISO) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/nudge/{nudgeId}/cancel</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osNudgeService.cancel(nudgeId) → ContentNudgePayload.tempFilePath 이면
+                    Files.deleteIfExists + nudgeRegistry.remove
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-28 -->
+        <div class="uc" data-cat="nudge-img" id="uc-28">
+            <h3><span class="id">UC-28</span> osImage nudge proceed (OS_IMAGE meta) <span
+                    class="pill http-post">POST</span> <span
+                    class="url">/management/os/image-nudge/{nudgeId}/proceed</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageNudgeService.proceed(nudgeId) → require +
+                    completePendingOSImageFromNudge(session) → IntentMetaNudgePayload 검증 + existsBy...IsDeletedFalse
+                    race 검사 + persistNewOSImage → remove
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-29 -->
+        <div class="uc" data-cat="nudge-img" id="uc-29">
+            <h3><span class="id">UC-29</span> osImage nudge replace <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/image-nudge/{nudgeId}/replace?targetId&typedName</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">typedNameVerifier.verify(OS_IMAGE, targetId, typedName) →
+                    osImageNudgeService.replace(nudgeId, targetId) → require + conflict 검증 +
+                    osImageRepository.findById(targetId) + osImageService.purgeOSImageForNudge(target) +
+                    completePendingOSImageFromNudge → remove
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-30 -->
+        <div class="uc" data-cat="nudge-img" id="uc-30">
+            <h3><span class="id">UC-30</span> osImage nudge cancel <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/image-nudge/{nudgeId}/cancel</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageNudgeService.cancel(nudgeId) → require + remove (메타 단독 — 임시 파일 없음)</div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">UC-25 ~ UC-27 (OsNudgeService) 와 UC-28 ~
+                UC-30 (OSImageNudgeService) 가 같은 패턴 (proceed / replace / cancel) 을 도메인별로 중복 구현. §13-D1 참조.</p>
+        </div>
+
+        <!-- UC-31 -->
+        <div class="uc" data-cat="nudge-intent" id="uc-31">
+            <h3><span class="id">UC-31</span> intent nudge proceed (path/hash nudge) <span
+                    class="pill http-post">POST</span> <span
+                    class="url">/management/os/intent-nudge/{nudgeId}/proceed</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osNudgeService.proceedIntent(nudgeId) → require + requireIntentMetaPayload →
+                    isoUploadIntentService.reconstructFromAttributes(payload.attributes) →
+                    isoUploadIntentService.issueAfterNudge(osImageId, req) → nudgeRegistry.remove
+                </div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">반환값은 IsoUploadIntentResponse — 클라이언트가 새
+                uploadToken 으로 실제 업로드 재시도.</p>
+        </div>
+
+        <!-- UC-32 -->
+        <div class="uc" data-cat="nudge-intent" id="uc-32">
+            <h3><span class="id">UC-32</span> intent nudge replace <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/intent-nudge/{nudgeId}/replace?targetId&typedName</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">typedNameVerifier.verify(OS_ISO, targetId, typedName) →
+                    osNudgeService.replaceIntent(nudgeId, targetId) → conflict 검증 + ISORepository.findById +
+                    osImageService.purgeIsoForNudge(target) + reconstructFromAttributes + issueAfterNudge → remove
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-33 -->
+        <div class="uc" data-cat="nudge-intent" id="uc-33">
+            <h3><span class="id">UC-33</span> intent nudge cancel <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/intent-nudge/{nudgeId}/cancel</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osNudgeService.cancelIntent(nudgeId) → require + requireIntentMetaPayload + remove
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-34 -->
+        <div class="uc" data-cat="integrity" id="uc-34">
+            <h3><span class="id">UC-34</span> ISO 무결성 검증 시작 (async Job) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso/{isoId}/verify</span></h3>
+            <div class="seq" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label launcher">IsoVerificationLauncher</div>
+                    <div class="seq-lane-label svc">OSImageService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label fs">Marker / FS</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call call">verifyIso(osId, isoId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">startVerification(osId, isoId)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">ISORepository.findByIdAndOsImage_Id +
+                        backgroundJobService.register(INTEGRITY_VERIFICATION, ...)
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call async-call">runAsync(jobId, osImageId, isoId) ← @Async 자체 진입</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div class="seq-call ret">200 JobStartResponse(jobId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-bar"></div>
+                <div class="seq-note">━━━ 비동기 ━━━</div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div class="seq-call async-call">startStage(VERIFY_SIGNATURE)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">verifyAndRecordIntegrity(osImageId, isoId) → verifyIntegrity +
+                        iso.recordIntegritySnapshot(status, now)
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call io">markerService.read(target, SIDECAR) → verifySignature → SHA-256(file) →
+                        verifyManifestHash
+                    </div>
+                </div>
+                <div class="seq-note">상태별 분기 : MARKER_MISSING / SIGNATURE_INVALID → fail(jobId, ...). TAMPERED →
+                    completeStage(VERIFY_SIGNATURE) + startStage(RECOMPUTE_HASH) + fail. ORIGINAL → 모두 complete.
+                </div>
+            </div>
+            <p style="color: var(--warn); margin: 8px 0 0; font-size: 12px;"><b>주의</b> — IsoVerificationLauncher 는
+                Launcher + Runner 가 한 클래스에 합쳐져 있다 (BIOS / BMC / Subprogram 의 *VerificationLauncher 와 동일 패턴).
+                IsoRegistrationLauncher / IsoRegistrationRunner 의 분리 패턴과 불일치 — §13-D4.</p>
+        </div>
+
+        <!-- UC-35 -->
+        <div class="uc" data-cat="integrity" id="uc-35">
+            <h3><span class="id">UC-35</span> ISO 무결성 상태 조회 <span class="pill http-get">GET</span> <span class="url">/management/os/{osId}/iso/{isoId}/integrity-status</span>
+            </h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.findIntegrityStatus(osId, isoId) → requireLiveISO →
+                    IntegrityStatusResponse.of(isoId, lastIntegrityStatus ?? NOT_VERIFIED, lastVerifiedAt)
+                </div>
+            </div>
+            <div class="uc-row">
+                <div class="k">반환</div>
+                <div class="payload">IntegrityStatusResponse(<span class="field">id</span>, <span
+                        class="field">status</span>:<span class="typ">IntegrityStatus</span>, <span class="field">verifiedAt</span>:<span
+                        class="typ">Instant</span>?)
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-36 -->
+        <div class="uc" data-cat="extract" id="uc-36">
+            <h3><span class="id">UC-36</span> comps 추출 시작 (async Job) <span class="pill http-post">POST</span> <span
+                    class="url">/management/os/{osId}/iso/{isoId}/extract</span></h3>
+            <div class="seq" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                <div class="seq-header" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div class="seq-lane-label ctrl">Controller</div>
+                    <div class="seq-lane-label launcher">CompsExtractionLauncher</div>
+                    <div class="seq-lane-label svc">CompsExtractionService <span class="pill async">@Async</span></div>
+                    <div class="seq-lane-label svc">CompsMergeService <span class="pill tx">@Tx</span></div>
+                    <div class="seq-lane-label repo">Repo / DB</div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div class="seq-call call">startExtract(osId, isoId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">startExtraction(osId, isoId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">findByIdAndIsDeletedFalse + findByIdAndOsImage_Id</div>
+                </div>
+                <div class="seq-note">findActiveExtractionJob(isoPath) — 활성 Job 있으면 그 jobId 재사용 (중복 트리거 방지).
+                    iso.isExtractionComplete() → AlreadyExtractedException(409).
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div class="seq-call svc-call">backgroundJobService.register(COMPS_EXTRACTION, title, isoPath)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">extractAsync(osImage, iso, jobId) ← 즉시 반환</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div class="seq-call ret">200 JobStartResponse(jobId)</div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-bar"></div>
+                <div class="seq-note">━━━ 비동기 (compsExtractionExecutor) ━━━</div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">startStage(PREPARE_ISO) → IsoPreparationService.prepare(isoPath) →
+                        AutoCloseable PreparedIsoPath
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">startStage(SCAN_REPO) →
+                        strategies.stream().filter(supports(OSName)).findFirst() → RHELCompsExtractor
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">startStage(PARSE_COMPS) → strategy.extract(effectivePath) →
+                        CompsExtractionResult
+                    </div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">startStage(MERGE_SAVE) → mergeAndSave(osId, isoId, result)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call svc-call">mergeAndSave : (1) env upsert (2) group upsert (3) env↔group N:M 재구성
+                        (4) ISO 제공 관계 재구성 (5) iso.markExtracted()
+                    </div>
+                    <div></div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call repo-call">OSEnvironmentRepository.findByOsImage_IdAndEnvironmentCode_Value /
+                        save · OSPackageGroupRepository 동일 · ISO.replaceProvisions
+                    </div>
+                </div>
+                <div class="seq-row" style="grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr;">
+                    <div></div>
+                    <div></div>
+                    <div class="seq-call async-call">backgroundJobService.complete(jobId)</div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-37 -->
+        <div class="uc" data-cat="extract" id="uc-37">
+            <h3><span class="id">UC-37</span> env-groups fragment (추출 완료 후 부분 갱신) <span class="pill http-get">GET</span>
+                <span class="url">/management/os/{osId}/env-groups-fragment</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.findById(osId) → 뷰 management/os/list :: envGroups (Thymeleaf fragment
+                    만 렌더)
+                </div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">전체 페이지 reload 회피용 partial render — 사용자가
+                열어둔 다른 항목의 펼침 상태 보존.</p>
+        </div>
+
+        <!-- UC-38 -->
+        <div class="uc" data-cat="extract" id="uc-38">
+            <h3><span class="id">UC-38</span> iso-section fragment (ISO 등록 완료 후) <span class="pill http-get">GET</span>
+                <span class="url">/management/os/{osId}/iso-section-fragment</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.findById(osId) → 뷰 management/os/list :: isoSection</div>
+            </div>
+        </div>
+
+        <!-- UC-39 -->
+        <div class="uc" data-cat="extract" id="uc-39">
+            <h3><span class="id">UC-39</span> 단일 ISO provisions JSON <span class="pill http-get">GET</span> <span
+                    class="url">/management/os/{osId}/iso/{isoId}/provisions</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">osImageService.findISO(osId, isoId) → requireLiveISO → ISOResponse.from(iso) (JSON)
+                </div>
+            </div>
+        </div>
+
+        <!-- UC-40 -->
+        <div class="uc" data-cat="browse" id="uc-40">
+            <h3><span class="id">UC-40</span> 서버 디렉토리 탐색 (폼 입력 보조) <span class="pill http-get">GET</span> <span
+                    class="url">/management/os/browse?path&includeFiles</span></h3>
+            <div class="uc-row">
+                <div class="k">호출 체인</div>
+                <div class="mono">directoryBrowseService.browse(new DirectoryBrowseRequest(path, includeFiles)) →
+                    DirectoryListingResponse
+                </div>
+            </div>
+            <p style="color: var(--muted); margin: 6px 0 0; font-size: 12px;">컨트롤러 내 try/catch 4중첩 (InvalidBrowsePath /
+                NotFound / NotDirectory / Io) — XHR 응답 시 advice 의 HTML 핸들러로 빠지는 것을 막기 위한 framework 회피용. §13-D9.</p>
+        </div>
+
+    </section>
+
+    <!-- ===== 13. 비대화 / 중복 / 순환 신호 ===== -->
+    <section class="block">
+        <h2>13. 비대화 · 중복 · 순환 진단</h2>
+        <div class="lede">사용자가 보고한 3 가지 (중복 / 클래스 수 과다 / 순환 참조 부담) 의 실증 근거. 각 진단에 <b>증거 (코드 위치)</b> + <b>리팩토링 제언</b>.
+        </div>
+
+        <div class="diagnosis" style="margin-top: 14px;">
+
+            <div class="diag-card">
+                <span class="sev high">D1 · HIGH</span>
+                <h4>Nudge 도메인 3-way 중복 — proceed / replace / cancel 패턴이 3 서비스에 각각 박혀 있음</h4>
+                <p>UC-25 ~ UC-33 의 9 endpoint 가 3 service (OsNudgeService, OSImageNudgeService, OsNudgeService.intent*)
+                    에 분산. 각 서비스는 같은 4 단계 (require session + 도메인 검증 + 핵심 행위 + consumeSession) 를 별도 코드로 구현.</p>
+                <div class="ev">OsNudgeService.proceed:51 / replace:64 / cancel:87 ← OS_ISO content payload<br>
+                    OSImageNudgeService.proceed:34 / replace:43 / cancel:61 ← OS_IMAGE meta payload<br>
+                    OsNudgeService.proceedIntent:101 / replaceIntent:114 / cancelIntent:149 ← intent path/hash
+                    payload<br>
+                    공통 헬퍼 : requireXxxSession + consumeSession — 두 service 에 거의 동일 구현
+                </div>
+                <div class="fix">
+                    <b>제언</b> — <code>NudgeOrchestrator</code> 단일 service + <code>NudgePayloadHandler</code> 다형성 (3
+                    sealed type : ContentNudgePayload / IntentMetaNudgePayload — 이미 존재. handler 가 도메인 종속 로직 캡슐화).
+                    CLAUDE.md 의 <b>"신규 분기 추가 시 다형성/strategy 우선"</b> 원칙과 부합. 9 endpoint 의 controller 도 1 endpoint 묶음으로 축소
+                    가능.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev high">D2 · HIGH <span
+                        style="font-size: 9.5px; background: var(--ok); color: #102000; padding: 1px 6px; border-radius: 8px; margin-left: 4px;">PARTIAL FIX</span></span>
+                <h4>OSImageService 가 hub-class — controller 측면은 해결됨 (2026-05-23), service 측 hub 잔존</h4>
+                <p><b>2026-05-23 분리 작업</b>으로 controller 측 hub (40 endpoint + 10 의존성을 가진 단일
+                    <code>OSImageController</code>) 는 7 controller (각 의존 ≤ 3) 로 분할 완료. <b>그러나 service 측 hub
+                        (<code>OSImageService</code> 자체) 는 잔존</b>. 의존성 매트릭스 (§3) 에서 OSImageService 의 호출 입출 차수가 여전히
+                    압도적. <b>finalizePreparedIsoRegistration</b> (1126 줄짜리 파일에서 §502~584) 안에서 path 검증 / hash 계산 /
+                    활성 충돌 / nudge 후보 / 영속화 / 마커 발급 / post-creation strategy trigger 7 책임을 한 메서드가 수행. 사용자가 "기능 추가 시 순환 참조
+                    신경 써야 한다" 고 한
+                    근본 원인의 절반은 여전 진행 중.</p>
+                <div class="ev">OSImageService — public method 30+ : findById, findISO, findAllGrouped,
+                    findIntegrityStatus, create, update, toggleEnabled, softDelete, restore(×2), deprecateImage,
+                    undeprecateImage, purgeImage*, purgeIso*, addISO, prepareIsoRegistration(×2),
+                    finalizePreparedIsoRegistration, completePendingOSImageFromNudge, completePendingIsoFromNudge,
+                    purgeOSImageForNudge, purgeIsoForNudge, updateISO, toggleIsoEnabled, softDeleteISO,
+                    softDeleteISOWithIntent, restoreISO, deprecateIso, undeprecateIso, verifyIntegrity,
+                    verifyAndRecordIntegrity ...<br>
+                    의존성 12 : 4 Repo + ProvisionMarkerService + BackgroundJobService + PathPolicyService +
+                    FileSystemHardener + NudgeRegistry + TrashLifecycleService + SoftDeleteIntentService + List&lt;PostCreationTaskStrategy&gt;<br>
+                    역호출 5 : OsNudgeService, OSImageNudgeService, IsoMarkableScanner, OSImageMarkableScanner
+                    (ObjectProvider), IsoRegistrationRunner, IsoVerificationLauncher
+                </div>
+                <div class="fix">
+                    <b>완료된 작업 (2026-05-23)</b> — Controller 분할 7 종 :
+                    <ul style="margin: 4px 0 8px 16px;">
+                        <li><code>OSImageController</code> (13 endpoint, OSImageService 단독)</li>
+                        <li><code>IsoUploadController</code> (4, OSImageService + IsoUploadIntentService +
+                            IsoRegistrationLauncher)
+                        </li>
+                        <li><code>IsoLifecycleController</code> (10, OSImageService + DeleteIntentRegistry)</li>
+                        <li><code>IsoNudgeController</code> (6, OsNudgeService + TypedNameVerifier)</li>
+                        <li><code>OSImageNudgeController</code> (3, OSImageNudgeService + TypedNameVerifier)</li>
+                        <li><code>IsoJobController</code> (3, OSImageService + IsoVerificationLauncher +
+                            CompsExtractionLauncher)
+                        </li>
+                        <li><code>OSBrowseController</code> (1, DirectoryBrowseService)</li>
+                    </ul>
+                    공통 view 헬퍼는 <code>OSControllerSupport</code> 정적 util 로 추출. <code>./gradlew test</code> 통과 확인.
+                    <hr style="border: 0; border-top: 1px dashed var(--border); margin: 10px 0;">
+                    <b>잔존 작업 — service 측 분리</b>. <code>OSImageService</code> 가 여전히 30+ method + 12 의존성. feature
+                    단위 분리 제언 :
+                    <ul style="margin: 4px 0 0 16px;">
+                        <li><code>OSImageLifecycleService</code> — create / update / softDelete / restore / deprecate* /
+                            purge* / toggleEnabled (메타 자원 lifecycle 만)
+                        </li>
+                        <li><code>OSImageQueryService</code> — findById / findISO / findAllGrouped / findIntegrityStatus
+                            / assembleIsoResponses / build*Responses (읽기 전용)
+                        </li>
+                        <li><code>IsoLifecycleService</code> — addISO / softDeleteISO* / restoreISO / deprecateIso /
+                            undeprecateIso / purgeIso / toggleIsoEnabled
+                        </li>
+                        <li><code>IsoRegistrationService</code> — prepareIsoRegistration /
+                            finalizePreparedIsoRegistration / completePendingIsoFromNudge / purgeIsoForNudge /
+                            triggerPostCreationTask + finalizeMarker
+                        </li>
+                        <li><code>OSImageNudgeOrchestrator</code> — completePendingOSImageFromNudge /
+                            purgeOSImageForNudge
+                        </li>
+                        <li><code>IsoIntegrityService</code> — verifyIntegrity / verifyAndRecordIntegrity</li>
+                    </ul>
+                    분리 후 각 서비스의 협력자가 4 개 이하로 자연스럽게 떨어지며, service hub 가 사라져 신규 기능 추가 시 순환 참조 위험도 낮아진다.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev high">D3 · HIGH</span>
+                <h4>ISORepository — 9 클래스가 직접 access. service 보다 더 광범위.</h4>
+                <p>OSImageService, OsNudgeService, OSImageNudgeService 일부, CompsExtractionLauncher, CompsMergeService,
+                    IsoUploadIntentService, IsoVerificationLauncher, IsoMarkableScanner, IsoRegistrationRunner (간접) — 9
+                    곳이 ISORepository 의 14 쿼리 메서드를 직접 호출. Service 가 Repository 를 wrapping 하지 못해 같은 lookup (예: <code>findByIdAndOsImage_Id</code>)
+                    이 여러 곳에 흩어져 있음.</p>
+                <div class="ev">findByIdAndOsImage_Id 직접 호출처 — OSImageService (5회) / OsNudgeService (2회) /
+                    CompsExtractionLauncher (1회) / IsoVerificationLauncher (1회) / IsoMarkableScanner (다수)<br>
+                    findFirstByChecksumAndIsDeletedFalse — OSImageService 의 prepareIsoRegistration /
+                    finalizePreparedIsoRegistration / completePendingIsoFromNudge 3 곳에서 중복
+                </div>
+                <div class="fix"><b>제언</b> — <code>IsoQueryHelper</code> 또는 D2 에서 분리된 <code>IsoLifecycleService</code> 에
+                    lookup 메서드를 집중 (예 : <code>requireLiveIso(osId, isoId)</code>, <code>requireSoftDeletedIso</code>,
+                    <code>findActiveByPath</code>). 직접 Repository 접근은 Launcher / Scanner 만.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev medium">D4 · MEDIUM</span>
+                <h4>Launcher / Runner 패턴 불일치 — IsoRegistration 만 분리, ISO Verify / Comps Extract / BIOS / BMC /
+                    Subprogram Verify 는 통합</h4>
+                <p>IsoRegistrationLauncher (Job 등록) + IsoRegistrationRunner (<code>@Async</code> 실행) 가 두 클래스로 분리된 반면,
+                    IsoVerificationLauncher / BiosVerificationLauncher / BmcVerificationLauncher /
+                    SubprogramVerificationLauncher / CompsExtractionLauncher 는 모두 Launcher 한 클래스에 등록 +
+                    <code>@Async</code> 실행을 합쳤다. 일관성 부재. 또 4 *VerificationLauncher 의 <code>applyStatus</code> + <code>statusMessage</code>
+                    메서드가 거의 완전히 동일.</p>
+                <div class="ev">IsoRegistrationLauncher.startRegistration → isoRegistrationRunner.runAsync — 분리 형식<br>
+                    IsoVerificationLauncher.startVerification + IsoVerificationLauncher.runAsync (@Async) — 동일 클래스
+                    통합<br>
+                    BiosVerificationLauncher / BmcVerificationLauncher / SubprogramVerificationLauncher — 동일 패턴 +
+                    applyStatus + statusMessage 4 곳 중복
+                </div>
+                <div class="fix">
+                    <b>제언</b> — <code>AbstractIntegrityVerificationLauncher&lt;T extends Markable&gt;</code> 추출 + 도메인별
+                    (BIOS/ISO/BMC/Subprogram) <code>VerificationStrategy</code> 4 종 구현 (resource lookup +
+                    verifyAndRecord 함수 reference 만 다름). applyStatus / statusMessage 는 추상 클래스로 끌어올리면 4 → 1.<br>
+                    Launcher / Runner 분리는 <b>self-invocation 회피 (proxy bypass)</b> 가 필요할 때만 사용. self-call 없으면 통합 형식 유지가
+                    옳음 — IsoRegistrationLauncher 만 분리한 이유가 명확하지 않다면 통합으로 회귀 검토.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev high">D5 · HIGH</span>
+                <h4>OSImageMarkableScanner → OSImageService 순환 회피용 ObjectProvider — 설계 신호</h4>
+                <p>OSImageMarkableScanner 는 OSImageService 를 <code>ObjectProvider</code> 로 lazy resolution. 직접 의존하면 순환
+                    (OSImageService → TrashLifecycleService → MarkableScanner SPI → OSImageMarkableScanner →
+                    OSImageService). 사용자가 보고한 "기능 추가 시 순환 참조" 현상의 가시화.</p>
+                <div class="ev">OSImageMarkableScanner.java:29 — ObjectProvider&lt;OSImageService&gt;
+                    osImageServiceProvider<br>
+                    restoreFromTrash:97 → osImageServiceProvider.getObject().restore(resourceId, cascade)<br>
+                    purgeFromTrash:113 → osImageServiceProvider.getObject().purgeImage(resourceId)
+                </div>
+                <div class="fix"><b>제언</b> — D2 분리 후 <code>OSImageLifecycleService</code> (restore / purge 만) 가 Scanner
+                    의존성을 받게 되면 순환 자체 소멸. lifecycle 분리가 곧 순환 해소.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev medium">D6 · MEDIUM</span>
+                <h4>도메인 어휘가 Controller 에 누출 — MVP_OS_NAMES</h4>
+                <p>OSImageController:48 의 <code>private static final List&lt;OSName&gt; MVP_OS_NAMES =
+                    List.of(ROCKY_LINUX, CENTOS, UBUNTU);</code> 는 도메인 정책 (어떤 OS 가 등록 가능한지) 이 controller 에 박혀 있음. Stage
+                    3 에서 WINDOWS 가 열릴 때 controller 를 수정해야 함.</p>
+                <div class="fix"><b>제언</b> — <code>OSName.isUploadable()</code> default method 또는 <code>OSCapabilityPolicy</code>
+                    service. controller 는 <code>Arrays.stream(OSName.values()).filter(OSName::isUploadable)</code>.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev medium">D7 · MEDIUM</span>
+                <h4>OSImage ↔ ISO self-cascade 패턴 4 중복</h4>
+                <p>toggleEnabled / softDelete / deprecateImage / undeprecateImage / restore 5 메서드 모두 OSImage.method() 호출
+                    후 <code>image.getIsos().stream().filter(...).forEach(ISO::method)</code> 동일 패턴. filter 조건만 미세하게 다름.
+                </p>
+                <div class="ev">toggleEnabled:266-272 — filter(!deleted && !deprecated && enabled != target)<br>
+                    deprecateImage:347-352 — filter(!deleted && !deprecated)<br>
+                    undeprecateImage:359-365 — filter(!deleted && isDeprecated)<br>
+                    restore (cascade):330-335 — for ISO if (isDeleted) restoreISO(id, isoId)<br>
+                    softDelete:286-296 — for ISO if (!deleted) trashLifecycleService.softDeleteToTrash(iso)
+                </div>
+                <div class="fix"><b>제언</b> — <code>OSImage.cascadeToActiveChildren(predicate, action)</code> 또는 <code>LifecycleCascadePolicy</code>
+                    enum (TOGGLE / SOFT_DELETE / DEPRECATE / UNDEPRECATE / RESTORE) 의 method-per-constant. 각 정책이 자신만의
+                    filter + action 보유.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev medium">D8 · MEDIUM</span>
+                <h4>purge 2 종 (OSImage / ISO) — typed-name 검증 + cleanup + delete 동일 흐름</h4>
+                <p>purgeImageWithTypedNameCheck + purgeImage / purgeIsoWithTypedNameCheck + purgeIso : Markable 추상화 위에
+                    동일한 4 단계 (find soft-deleted → verifyTypedName → cleanup artifacts → repo.delete).</p>
+                <div class="fix"><b>제언</b> — <code>GenericPurgeService&lt;T extends Markable&gt;.purgeWithTypedName(T,
+                    String)</code> + 도메인별 <code>artifactCleaner</code> 함수. 본 보고서 분석 자체에 OSImage 의
+                    <code>displayName()</code> 이 이미 Markable interface 의 일부라 (verifyTypedNameOrThrow:401) 일반화 진입 장벽 낮음.
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev medium">D9 · MEDIUM</span>
+                <h4>Controller 내 try/catch — 도메인 예외 → HTTP 매핑 우회 (4 곳)</h4>
+                <p>updateIso (보안 예외 → BindingResult.rejectValue) / browse (4 도메인 예외 → HttpStatus 4 종) / uploadIso (이전엔
+                    있었던 catch — 현재는 advice 위임) / intent (이전엔 있었던 catch — 현재 advice 위임). CLAUDE.md 의 <b>"신규 컨트롤러
+                        try/catch 회귀 사고 반복"</b> 명시적 경계 대상.</p>
+                <div class="ev">OSImageController:322-332 — PathTraversal / PathOutsideAllowedRoots →
+                    bindingResult.rejectValue("isoPath", "security", ...) (SSR 폼 재렌더)<br>
+                    OSImageController:648-662 — Invalid / NotFound / NotDirectory / Io → 400/404/409/500 4 분기
+                </div>
+                <div class="fix"><b>제언</b> — (1) updateIso 는 advice 가 BindingResult 못 받는 framework 한계 — 현재 형태 유지 합당. (2)
+                    browse 의 4 분기는 <code>@ResponseStatus</code> 어노테이션을 각 예외 클래스에 직접 부착 + advice 의
+                    produces=APPLICATION_JSON 강제 → controller 의 try/catch 자체 제거 가능 (해당 javadoc 도 후속 슬라이스 후보 명시).
+                </div>
+            </div>
+
+            <div class="diag-card">
+                <span class="sev medium">D10 · MEDIUM</span>
+                <h4>DTO 응답 합성 위치가 service 와 dto record 양쪽에 분산</h4>
+                <p><code>OSImageResponse.ofAssembled(image, isoResponses, envResponses, grpResponses)</code> 가 dto
+                    record 의 factory 인데, 동시에 OSImageService 내부에 <code>assembleIsoResponses</code> / <code>buildEnvResponses</code>
+                    / <code>buildGroupResponses</code> 3 개 private 헬퍼가 있다. 호출자는 항상 4 호출을 묶어 사용 — assemble 책임이 두 곳에 흩어짐.
+                </p>
+                <div class="fix"><b>제언</b> — D2 의 <code>OSImageQueryService</code> 가 모든 response 조립을 단일 위치에 집중. dto
+                    factory 는 단순 from(entity) 만 유지.
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ===== 14. 리팩토링 우선순위 ===== -->
+    <section class="block">
+        <h2>14. 리팩토링 우선순위 (사용자가 직접 검토)</h2>
+        <div class="lede">진단을 risk × effort 로 정렬. 사용자가 어떤 작업을 먼저 진행할지 직접 판단할 근거.</div>
+        <table class="inv" style="margin-top: 10px;">
+            <thead>
+            <tr>
+                <th>순위</th>
+                <th>대상</th>
+                <th>예상 effort</th>
+                <th>예상 effect</th>
+                <th>전제 작업</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr style="background: rgba(158,206,106,0.06);">
+                <td><b>0</b></td>
+                <td class="mono">D2 controller 측 분리 <span
+                        style="background: var(--ok); color: #102000; padding: 1px 6px; border-radius: 8px; font-size: 10px; margin-left: 4px;">DONE 2026-05-23</span>
+                </td>
+                <td>S (반나절)</td>
+                <td>controller fan-out 10 → 1~3 (완료)</td>
+                <td>독립 — 선행 완료</td>
+            </tr>
+            <tr>
+                <td><b>1</b></td>
+                <td class="mono">D2 service 측 분리 (잔존)</td>
+                <td>L (3~5일)</td>
+                <td>OSImageService hub 해소 + D5 순환 자연 소멸 + D3 일부 해소</td>
+                <td>없음 — 다음 우선</td>
+            </tr>
+            <tr>
+                <td><b>2</b></td>
+                <td class="mono">D1 Nudge orchestrator 통합</td>
+                <td>M (1~2일)</td>
+                <td>9 endpoint → 3 endpoint, 2 service 제거</td>
+                <td>D2 후 IsoLifecycleService 협력자 명확화 후</td>
+            </tr>
+            <tr>
+                <td><b>3</b></td>
+                <td class="mono">D4 *VerificationLauncher 추상화</td>
+                <td>S (반나절)</td>
+                <td>4 클래스 중복 패턴 → 1 abstract + strategy 4종. 본 패키지 외 BIOS/BMC/Subprogram 동반 정리.</td>
+                <td>D2 와 독립 — 병행 가능</td>
+            </tr>
+            <tr>
+                <td><b>4</b></td>
+                <td class="mono">D7 cascade 정책 추출</td>
+                <td>S (반나절)</td>
+                <td>5 메서드 → 단일 enum-driven cascade</td>
+                <td>D2 의 OSImageLifecycleService 이후</td>
+            </tr>
+            <tr>
+                <td><b>5</b></td>
+                <td class="mono">D8 purge 일반화 (Markable&lt;T&gt;)</td>
+                <td>M (1일)</td>
+                <td>4 메서드 → 1 generic + 도메인별 cleanup 람다. management 전 영역 적용 가능.</td>
+                <td>D2 + D7 이후</td>
+            </tr>
+            <tr>
+                <td><b>6</b></td>
+                <td class="mono">D9 browse try/catch 제거</td>
+                <td>S (1시간)</td>
+                <td>controller 깔끔 + @ResponseStatus 전파</td>
+                <td>독립</td>
+            </tr>
+            <tr>
+                <td><b>7</b></td>
+                <td class="mono">D6 MVP_OS_NAMES 제거</td>
+                <td>XS</td>
+                <td>도메인 누출 회수</td>
+                <td>독립</td>
+            </tr>
+            <tr>
+                <td><b>8</b></td>
+                <td class="mono">D3 ISORepository fan-out 축소</td>
+                <td>M</td>
+                <td>D2 분리 결과로 자연 해소되는 부분 + 잔여는 helper 추출</td>
+                <td>D2 이후</td>
+            </tr>
+            <tr>
+                <td><b>9</b></td>
+                <td class="mono">D10 응답 조립 집중</td>
+                <td>S</td>
+                <td>D2 의 부산물로 흡수</td>
+                <td>D2 이후</td>
+            </tr>
+            </tbody>
+        </table>
+        <p style="margin-top: 14px; color: var(--muted); font-size: 12px;">
+            공통 원칙 — CLAUDE.md 의 <b>"신규 케이스 / 신규 예외 / 신규 도메인 타입이 추가될 때 분기문에 줄을 늘리지 않는다"</b> 와 <b>"Spring framework
+            primitive 적극 활용"</b> 을 본 9 진단 모두 따른다. D2 는 분리(decomposition), D1 / D4 / D7 / D8 은 다형성(polymorphism), D9 는
+            framework primitive (@ControllerAdvice + @ResponseStatus) 활용.
+        </p>
+    </section>
+
+    <!-- ===== 마지막: 직접 점검 체크리스트 ===== -->
+    <section class="block">
+        <h2>15. 사용자 직접 점검 체크리스트</h2>
+        <div class="lede">사용자가 본 보고서를 닫기 전에 IDE 와 같이 보면서 직접 확인할 사항. AI 의존 회피용.</div>
+        <ul style="margin: 8px 0 0 20px; font-size: 12.5px;">
+            <li>OSImageService.java 열어서 의존성 12 개 + 30+ public method 개수 직접 카운트 — service 측 hub 가 여전히 잔존하는지 확인 (§13-D2
+                잔여)
+            </li>
+            <li><b>controller 디렉토리 (분리 후)</b> — OSImageController / IsoUploadController / IsoLifecycleController /
+                IsoNudgeController /
+                OSImageNudgeController / IsoJobController / OSBrowseController + OSControllerSupport util 8 파일 존재 확인
+                (§2.1)
+            </li>
+            <li>각 controller 의 의존성이 §2.1 표와 일치하는지 직접 확인 — 특히 OSImageService 가 4 controller 가 공유하는 유일한 hub-service 임을 확인
+                (§3 매트릭스 관찰 4)
+            </li>
+            <li>IsoRegistrationLauncher / IsoVerificationLauncher 두 패턴 비교 — §13-D4 의 불일치 (Launcher/Runner 분리 vs 통합) 확인
+            </li>
+            <li>OSImageMarkableScanner.java:29 의 ObjectProvider 라인 직접 확인 — §13-D5 가 실제로 순환 회피 코드인지 검증</li>
+            <li>finalizePreparedIsoRegistration (OSImageService:502-584) 직접 읽고 책임 7 개 (path 검증 / hash / 활성 충돌 / nudge /
+                영속화 / 마커 / post-creation) 가 한 메서드에 있는지 확인 — §13-D2 잔존 evidence
+            </li>
+            <li>본 보고서가 빠뜨린 흐름이 있다면 (예 : @Scheduled prune, ApplicationReadyEvent 리스너) 사용자 인지 후 다음 작업 계획에 추가</li>
+            <li>다음 리팩토링 1순위 (D2 service 측 분리) 진입 전 — 기존 단위 / 통합 테스트가 OSImageService 의 새 분할 service 들로 자연 분할되는지 사전 검증
+                (테스트 인덱스 확인 권장)
+            </li>
+        </ul>
+    </section>
+
+</main>
+
+<footer>
+    본 보고서는 사용자 (개발자) 의 코드 직접 검토 / 리팩토링 의사 결정을 돕기 위한 정적 분석 산출물.
+    최초 분석 <b>2026-05-23 14:11 KST</b> · 최종 갱신 <b>2026-05-23 15:42 KST (controller 7 분리 반영)</b><br>
+    분석 대상 — <b>renew/main</b> 브랜치, management/os 패키지 전체. Claude Opus 4.7 에 의해 작성됨.
+</footer>
+
+<script>
+    (function () {
+        const search = document.getElementById('search');
+        const cat = document.getElementById('cat');
+        const count = document.getElementById('count');
+        const ucs = Array.from(document.querySelectorAll('.uc'));
+
+        function applyFilter() {
+            const q = (search.value || '').toLowerCase().trim();
+            const c = cat.value;
+            let shown = 0;
+            ucs.forEach(uc => {
+                const text = uc.textContent.toLowerCase();
+                const matchQ = !q || text.includes(q);
+                const matchC = !c || uc.dataset.cat === c;
+                if (matchQ && matchC) {
+                    uc.classList.remove('hidden');
+                    shown++;
+                } else {
+                    uc.classList.add('hidden');
+                }
+            });
+            count.textContent = shown + ' / ' + ucs.length + ' 표시 중';
+        }
+
+        search.addEventListener('input', applyFilter);
+        cat.addEventListener('change', applyFilter);
+        window.expandAll = function (open) {
+            document.querySelectorAll('details').forEach(d => d.open = open);
+        };
+    })();
+</script>
+
+</body>
+</html>

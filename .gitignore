@@ -45,7 +45,6 @@ out/
 
 ### Claude Code ###
 CLAUDE.local.md
-/report/
 
 # Claude Code session logs and agent memory (per-session, not source)
 2026-*.txt

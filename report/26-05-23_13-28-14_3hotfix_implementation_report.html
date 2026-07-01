@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3 hotfix — browse hidden + 추출 중복 + 무결성 자동 검증</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --text-muted: #57606a;
+    --border: #d0d7de; --border-soft: #eaecef;
+    --blue: #0075de; --blue-bg: #e6f0ff;
+    --orange: #dd5b00; --orange-bg: rgba(221,91,0,0.10);
+    --green: #1aae39; --green-bg: rgba(26,174,57,0.10);
+    --red: #bf2626; --red-bg: rgba(191,38,38,0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+  header.page-header { background: linear-gradient(180deg, #fff 0%, #fbfcfd 100%);
+    border-bottom: 1px solid var(--border); padding: 18px 24px; position: sticky; top: 0; z-index: 100; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 24px; max-width: 1300px; margin: 0 auto; padding: 24px; }
+  nav.toc { position: sticky; top: 108px; align-self: start; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; }
+  nav.toc strong { display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; }
+  nav.toc a { color: var(--text-muted); text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; }
+  nav.toc a:hover { background: var(--bg); color: var(--blue); }
+  main { min-width: 0; }
+  details.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+  details.section > summary { cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 600;
+    list-style: none; user-select: none; display: flex; align-items: center; gap: 10px; }
+  details.section > summary::before { content: '›'; color: var(--text-muted); font-size: 18px;
+    transition: transform 0.15s; display: inline-block; width: 14px; }
+  details.section[open] > summary::before { transform: rotate(90deg); color: var(--blue); }
+  details.section .body { padding: 0 18px 18px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--border-soft); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; font-family: var(--mono); }
+  pre { background: var(--bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px;
+    font-family: var(--mono); line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+  .chip.success { background: var(--green-bg); color: var(--green); }
+  .chip.h1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.h2 { background: var(--orange-bg); color: var(--orange); }
+  .chip.h3 { background: var(--green-bg); color: var(--green); }
+  .callout { border-left: 3px solid var(--blue); background: var(--blue-bg); padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 13px; }
+  .callout.success { border-color: var(--green); background: var(--green-bg); }
+  ul, ol { padding-left: 22px; }
+  .diff-add { background: rgba(26,174,57,0.10); color: #156f28; padding: 0 2px; }
+  .diff-del { background: rgba(191,38,38,0.10); color: #b91c1c; text-decoration: line-through; padding: 0 2px; }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; padding: 16px; } nav.toc { position: static; } }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>3 hotfix — browse hidden 일관화 + 추출 중복 방지 + 무결성 자동 검증</h1>
+  <div class="meta">
+    <span>생성 : <strong>2026-05-23 21:00</strong></span>
+    <span>범위 : <strong>S5-9 / S5-12 / 신규 자동 검증</strong></span>
+    <span>회귀 : <strong>./gradlew test BUILD SUCCESSFUL</strong></span>
+    <span>상태 : <span class="chip success">CP4 통과 — 사용자 manual 검증 대기</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <strong>섹션</strong>
+  <ol>
+    <li><a href="#s1">1. 요약</a></li>
+    <li><a href="#h1">2. hotfix 1 — bundle-upload-bootstrap hidden</a></li>
+    <li><a href="#h2">3. hotfix 2 — 추출 버튼 중복 방지</a></li>
+    <li><a href="#h3">4. hotfix 3 — 무결성 자동 검증</a></li>
+    <li><a href="#s5">5. 회귀</a></li>
+    <li><a href="#s6">6. Critical Files</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<details class="section" id="s1" open>
+  <summary>1. 요약</summary>
+  <div class="body">
+    <table>
+      <thead><tr><th>hotfix</th><th>문제</th><th>해결</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="chip h1">1</span></td>
+          <td>BIOS / BMC / Subprogram 의 탐색 패널에서 dot-prefix / OS-hidden 파일이 일반 색상으로 표시 (OS ISO 만 정상). S5-9 의 적용 누락.</td>
+          <td><code>bundle-upload-bootstrap.js</code> 의 renderEntries 에 <code>e.hidden</code> 시 muted + opacity 0.55 추가</td>
+        </tr>
+        <tr>
+          <td><span class="chip h2">2</span></td>
+          <td>RHEL ISO 등록 후 자동 comps 추출 (S5-7) + 사용자 수동 '추출' 버튼 클릭으로 중복 트리거 가능. placeholder 활성화 직후 버튼이 enabled 상태.</td>
+          <td>ISOResponse 에 <code>extractionInProgress</code> 필드 추가 → OSImageService 가 COMPS_EXTRACTION active job 매칭 → list.html 의 추출 버튼 disabled + 라벨 "추출 중…"</td>
+        </tr>
+        <tr>
+          <td><span class="chip h3">3</span></td>
+          <td>모든 자원 (BIOS / BMC / Subprogram / OS ISO) 등록 후 .provision.json 마커 발급되지만 무결성 검증은 사용자 수동 클릭. 일관성 결여.</td>
+          <td>4 service 의 등록 메서드 (총 7 곳 — addBios / registerExisting / persistFromNudge ...) 마지막에 <code>{...}VerificationLauncher.startVerification()</code> 자동 트리거 + fail-safe</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout success">
+      <strong>일관 패턴</strong> S5-7 의 RHEL 자동 comps 추출 + 본 hotfix 3 의 자동 무결성 검증 → 등록 직후 BackgroundJob 의 자동 트리거 사상이 4 자원에 통일.
+    </div>
+  </div>
+</details>
+
+<details class="section" id="h1" open>
+  <summary>2. hotfix 1 — bundle-upload-bootstrap.js 의 hidden 시각 처리</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">원인</h3>
+    <p>S5-9 에서 OS ISO 의 탐색 (path-browser.js) 에는 hidden 시각 처리 추가. 그러나 BIOS / BMC / Subprogram 의 탐색은 <strong>별도 JS 인 bundle-upload-bootstrap.js</strong> 의 <code>bindDirectoryBrowse</code> 를 사용. 그 안의 renderEntries 가 별도 구현이며 S5-9 패치에서 누락.</p>
+
+    <h3>수정</h3>
+<pre><code>for (const entry of visible) {
+    ...
+    const isDir = entry.type === 'DIR';
+    <span class="diff-add">// S5-9 회귀 : path-browser.js 와 같은 hidden 시각 처리.
+    const isHidden = entry.hidden === true;</span>
+    li.textContent = (isDir ? '📁 ' : '📄 ') + entry.name;
+    <span class="diff-add">if (isHidden) {
+        li.style.color = 'var(--n-text-muted)';
+        li.style.opacity = '0.55';
+    }</span>
+    ...
+}</code></pre>
+    <p>BE 측 <code>DirectoryListingResponse.Entry.hidden</code> 은 이미 S5-9 에서 추가됨 — FE 패치만 필요.</p>
+
+    <h3>적용 범위</h3>
+    <ul>
+      <li>BIOS 등록 폼 (<code>bios-new.html</code>) — bundle-upload-bootstrap 사용</li>
+      <li>BMC 등록 폼 (<code>bmc-new.html</code>) — 동일</li>
+      <li>Subprogram 등록 폼 (<code>subprogram-new.html</code>, <code>subprogram-edit.html</code>) — 동일</li>
+      <li>OS ISO — path-browser.js (이미 S5-9 cover)</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="h2" open>
+  <summary>3. hotfix 2 — 추출 버튼 중복 방지</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">원인</h3>
+    <p>S5-7 의 RHEL 자동 comps 추출 + S5-12 의 placeholder 가 합쳐지면서, ISO 등록 → background job COMPS_EXTRACTION 자동 트리거 → 사용자가 알림 패널 또는 목록을 보다가 ISO 가 정상 상태로 표시되는 직후 '추출' 버튼이 enabled 상태인 것을 봄 → 또 한 번 클릭 시 같은 자원 중복 추출 시도.</p>
+    <p><code>CompsExtractionLauncher</code> 가 동일 isoPath 의 active job 재사용 정책을 가지고 있어 실제 데이터 손상은 발생 안 함. 그러나 UX 측 혼란 + 사용자가 "왜 또 추출되지?" 잘못된 멘탈 모델.</p>
+
+    <h3>수정 — BE</h3>
+<pre><code>// ISOResponse +1 필드
+public record ISOResponse(..., boolean inProgress, <span class="diff-add">boolean extractionInProgress</span>) {
+    public static ISOResponse from(ISO entity) { /* ... extractionInProgress=false */ }
+    public static ISOResponse inProgress(String isoPath) { /* ... extractionInProgress=false */ }
+
+    <span class="diff-add">/** COMPS_EXTRACTION job 이 동일 isoPath 에 대해 active 인 경우 플래그 갱신. */
+    public ISOResponse withExtractionInProgress(boolean value) { ... }</span>
+}
+
+// OSImageService.assembleIsoResponses 강화
+var snapshot = backgroundJobService.snapshot();
+<span class="diff-add">Set&lt;String&gt; extractionInProgressPaths = snapshot.stream()
+        .filter(j -&gt; j.getType() == JobType.COMPS_EXTRACTION)
+        .filter(j -&gt; j.getStatus().isActive())
+        .map(BackgroundJob::getSubtitle)
+        .collect(Collectors.toSet());</span>
+
+List&lt;ISOResponse&gt; base = visibleISOs(image.getIsos(), includeDeleted).stream()
+        .map(ISOResponse::from)
+        <span class="diff-add">.map(r -&gt; extractionInProgressPaths.contains(r.isoPath())
+                ? r.withExtractionInProgress(true)
+                : r)</span>
+        .collect(Collectors.toCollection(ArrayList::new));
+// ... 기존 ISO_REGISTRATION placeholder 합성 그대로</code></pre>
+
+    <h3>수정 — FE (list.html)</h3>
+<pre><code>&lt;button type="button"
+        class="n-btn n-btn-sm n-btn-extract"
+        <span class="diff-del">th:classappend="${iso.extracted} ? ' n-btn-outline-success' : ' n-btn-primary'"
+        th:disabled="${iso.extracted}"
+        th:text="${iso.extracted} ? '추출됨' : '추출'"</span>
+        <span class="diff-add">th:classappend="${iso.extracted} ? ' n-btn-outline-success' : (${iso.extractionInProgress} ? ' n-btn-secondary' : ' n-btn-primary')"
+        th:disabled="${iso.extracted or iso.extractionInProgress}"
+        th:text="${iso.extracted} ? '추출됨' : (${iso.extractionInProgress} ? '추출 중…' : '추출')"</span>
+        ...&gt;&lt;/button&gt;</code></pre>
+
+    <h3>3 상태 시각</h3>
+    <table>
+      <thead><tr><th>상태</th><th>버튼 라벨</th><th>스타일</th><th>disabled</th></tr></thead>
+      <tbody>
+        <tr><td>추출 안 됨 + COMPS_EXTRACTION 0</td><td>"추출"</td><td>n-btn-primary</td><td>false</td></tr>
+        <tr><td>COMPS_EXTRACTION active</td><td>"추출 중…"</td><td>n-btn-secondary</td><td><strong>true</strong></td></tr>
+        <tr><td>추출 완료</td><td>"추출됨"</td><td>n-btn-outline-success</td><td>true</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="section" id="h3" open>
+  <summary>4. hotfix 3 — 4 자원 등록 후 무결성 자동 검증</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">정책</h3>
+    <p>모든 자원 (BIOS / BMC / Subprogram / OS ISO) 의 등록 메서드가 .provision.json 마커 발급 + manifest 영속 직후 곧장 <code>{...}VerificationLauncher.startVerification()</code> 호출. S5-7 의 RHEL 자동 추출과 같은 사상.</p>
+
+    <h3>적용 위치 (총 7 호출 추가)</h3>
+    <table>
+      <thead><tr><th>Service</th><th>메서드</th><th>호출 헬퍼</th></tr></thead>
+      <tbody>
+        <tr><td>BiosService</td><td>addBios</td><td><code>triggerAutoVerification(boardId, biosId)</code></td></tr>
+        <tr><td>BiosService</td><td>registerExisting</td><td>동일</td></tr>
+        <tr><td>BiosService</td><td>persistFromNudge</td><td>동일</td></tr>
+        <tr><td>BmcService</td><td>addBmc</td><td><code>triggerAutoVerification(boardId, bmcId)</code></td></tr>
+        <tr><td>BmcService</td><td>registerExisting</td><td>동일</td></tr>
+        <tr><td>BmcService</td><td>persistFromNudge</td><td>동일</td></tr>
+        <tr><td>SubprogramService</td><td>addSubprogram</td><td><code>triggerAutoVerification(subprogramId)</code></td></tr>
+        <tr><td>SubprogramService</td><td>registerExisting</td><td>동일</td></tr>
+        <tr><td>SubprogramService</td><td>persistFromNudge</td><td>동일</td></tr>
+        <tr><td>OSImageService</td><td>finalizePreparedIsoRegistration</td><td><code>triggerAutoVerification(osImageId, isoId)</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>fail-safe</h3>
+<pre><code>private void triggerAutoVerification(Long ...) {
+    try {
+        {...}VerificationLauncher.startVerification(...);
+    } catch (RuntimeException e) {
+        log.error("[XXX hotfix] 자동 무결성 검증 트리거 실패 (등록은 영속됨). ...", e);
+    }
+}</code></pre>
+    <p>verification launcher 실패는 등록 트랜잭션과 무관 — 등록은 영속됐고, 검증 자체가 실패하면 BackgroundJob 의 FAILED 상태로 알림 패널에 노출. 사용자가 인지하고 수동 재검증 가능.</p>
+
+    <h3>의존성 추가</h3>
+    <ul>
+      <li>BiosService → <code>BiosVerificationLauncher</code></li>
+      <li>BmcService → <code>BmcVerificationLauncher</code></li>
+      <li>SubprogramService → <code>SubprogramVerificationLauncher</code></li>
+      <li>OSImageService → <code>IsoVerificationLauncher</code></li>
+    </ul>
+    <p>각 launcher 는 이미 존재 (사용자 수동 검증 흐름에서 사용). 본 hotfix 는 등록 직후 자동 호출만 추가.</p>
+
+    <h3>사용자 가시 변경</h3>
+    <ul>
+      <li>BIOS / BMC / Subprogram / OS ISO 등록 → 알림 패널에 자동으로 INTEGRITY_VERIFICATION job 카드 등장</li>
+      <li>"서명 검증 중 → 해시 재계산 중 → 완료" 진행 표시 (S5-8 의 chunk + 단계 라벨)</li>
+      <li>완료 후 자원의 무결성 status (ORIGINAL / SIGNATURE_INVALID / TAMPERED) 가 즉시 UI 에 반영</li>
+    </ul>
+
+    <h3>RHEL ISO 의 경우 동시 트리거되는 3 job</h3>
+    <ol>
+      <li>ISO_REGISTRATION (S1 / 본래) — 해시 계산 / 중복 검사 / 메타 저장</li>
+      <li>COMPS_EXTRACTION (S5-7) — RHEL family 자동 comps 추출</li>
+      <li><strong>INTEGRITY_VERIFICATION (본 hotfix)</strong> — .provision.json 서명 검증 + manifestHash 재계산</li>
+    </ol>
+    <p>모두 병렬 진행 — 각 job 의 첫 stage 가 파일 존재 / 읽기 가능성 확인하므로 안전. 사용자는 알림 패널에서 3 job 동시 진행 관찰.</p>
+  </div>
+</details>
+
+<details class="section" id="s5">
+  <summary>5. 회귀</summary>
+  <div class="body">
+    <ul>
+      <li><code>./gradlew test</code> → <strong>BUILD SUCCESSFUL</strong> (10s)</li>
+      <li>OSImageServiceTest 의 S5-12 7 시나리오 + 기존 시나리오 — 모두 통과</li>
+      <li>BiosServiceTest / BmcServiceTest / SubprogramServiceTest — verify launcher 호출이 추가됐으나 기존 mock 환경에서 launcher 는 @Mock 없이 null 주입 가능. fail-safe try-catch 가 NPE 흡수 — 사실상 noop. 회귀 없음</li>
+      <li>모든 launcher 호출은 fail-safe — 등록 트랜잭션 영향 0</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section" id="s6">
+  <summary>6. Critical Files</summary>
+  <div class="body">
+    <h3 style="margin-top: 0;">hotfix 1</h3>
+    <ul>
+      <li><code>src/main/resources/static/management/common/bundle-upload-bootstrap.js</code> — renderEntries 의 hidden 시각 처리</li>
+    </ul>
+
+    <h3>hotfix 2</h3>
+    <ul>
+      <li><code>src/main/java/.../management/os/dto/response/ISOResponse.java</code> — <code>extractionInProgress</code> 필드 + <code>withExtractionInProgress(boolean)</code></li>
+      <li><code>src/main/java/.../management/os/service/OSImageService.java</code> — <code>assembleIsoResponses</code> 에 COMPS_EXTRACTION active set 합성</li>
+      <li><code>src/main/resources/templates/management/os/list.html</code> — 추출 버튼 3 상태 분기</li>
+    </ul>
+
+    <h3>hotfix 3</h3>
+    <ul>
+      <li><code>src/main/java/.../management/bios/service/BiosService.java</code> — <code>BiosVerificationLauncher</code> 의존 + <code>triggerAutoVerification</code> 헬퍼 + 3 호출처</li>
+      <li><code>src/main/java/.../management/bmc/service/BmcService.java</code> — <code>BmcVerificationLauncher</code> 의존 + 헬퍼 + 3 호출처</li>
+      <li><code>src/main/java/.../management/subprogram/service/SubprogramService.java</code> — <code>SubprogramVerificationLauncher</code> 의존 + 헬퍼 + 3 호출처</li>
+      <li><code>src/main/java/.../management/os/service/OSImageService.java</code> — <code>IsoVerificationLauncher</code> 의존 + 헬퍼 + 1 호출처 (finalizePreparedIsoRegistration)</li>
+    </ul>
+
+    <h3>변경 없음</h3>
+    <ul>
+      <li>4 VerificationLauncher (이미 존재)</li>
+      <li>BackgroundJobService / JobType / BackgroundJob — 마지막 호출 추가만</li>
+      <li>Controller / Request DTO</li>
+      <li>DB 스키마</li>
+    </ul>
+
+    <h3>manual 검증 항목</h3>
+    <ul>
+      <li>[ ] BIOS / BMC / Subprogram 등록 폼 → 탐색 → <code>.provision.json</code> / <code>.git</code> 등 회색 표시 (hotfix 1)</li>
+      <li>[ ] Rocky 9 ISO 등록 → placeholder 활성 후 정상 ISO 로 교체 → 추출 버튼이 "추출 중…" disabled (hotfix 2)</li>
+      <li>[ ] COMPS_EXTRACTION 완료 후 → 추출 버튼 "추출됨" 으로 전환</li>
+      <li>[ ] 4 자원 등록 직후 알림 패널에 INTEGRITY_VERIFICATION job 자동 등장 → "서명 검증 중 → 해시 재계산 중 → 완료" (hotfix 3)</li>
+      <li>[ ] 자원 상세의 무결성 status 가 검증 완료 후 자동 갱신</li>
+      <li>[ ] RHEL ISO 등록 시 ISO_REGISTRATION + COMPS_EXTRACTION + INTEGRITY_VERIFICATION 3 job 동시 진행</li>
+    </ul>
+  </div>
+</details>
+
+</main>
+
+</div>
+
+</body>
+</html>

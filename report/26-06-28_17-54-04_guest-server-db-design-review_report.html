@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게스트서버 데이터 모델링 검토 보고서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1815;
+    --ink-2: #3d3a35;
+    --ink-3: #6b6660;
+    --paper: #f5f1e8;
+    --paper-2: #ede7d8;
+    --paper-3: #e2dac7;
+    --rule: #c9bfa6;
+    --accent: #8b3a2e;
+    --accent-2: #c47e3c;
+    --teal: #2d5d4f;
+    --teal-soft: #d4dfd8;
+    --warn: #a85d1e;
+    --warn-soft: #f0dcc0;
+    --crit: #8b2e2e;
+    --crit-soft: #ecc9c4;
+    --high: #a8451e;
+    --high-soft: #f0d3c0;
+    --med: #9a7a1e;
+    --med-soft: #ece1bf;
+    --low: #2d5d4f;
+    --low-soft: #d4dfd8;
+    --info: #4a4a5c;
+    --info-soft: #d8d8e2;
+    --good: #2f6b3a;
+    --good-soft: #cfe2cf;
+    --code-bg: #2a2620;
+    --code-ink: #e8dfc8;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter Tight', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(circle at 10% 8%, rgba(196, 126, 60, 0.05) 0%, transparent 42%),
+      radial-gradient(circle at 92% 88%, rgba(45, 93, 79, 0.05) 0%, transparent 42%);
+  }
+  .shell { display: grid; grid-template-columns: 270px 1fr; max-width: 1440px; margin: 0 auto; }
+
+  /* TOC */
+  .toc {
+    position: sticky; top: 0; height: 100vh; border-right: 1px solid var(--rule);
+    padding: 44px 22px 44px 34px; overflow-y: auto; background: var(--paper);
+  }
+  .toc-brand {
+    font-family: var(--serif); font-weight: 600; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.18em; color: var(--accent); margin-bottom: 4px;
+  }
+  .toc-title { font-family: var(--serif); font-size: 21px; font-weight: 500; line-height: 1.2; margin-bottom: 30px; }
+  .toc-list { list-style: none; }
+  .toc-list li { margin-bottom: 1px; }
+  .toc-list a {
+    display: block; padding: 7px 10px 7px 12px; color: var(--ink-3); text-decoration: none;
+    font-size: 13px; border-left: 2px solid transparent; transition: all 0.18s ease; line-height: 1.35;
+  }
+  .toc-list a:hover { color: var(--ink); border-left-color: var(--accent-2); background: var(--paper-2); }
+  .toc-list a.active { color: var(--ink); border-left-color: var(--accent); background: var(--paper-2); font-weight: 500; }
+  .toc-num { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-right: 9px; font-weight: 500; }
+
+  .main { padding: 72px 76px 120px; max-width: 1000px; }
+
+  /* Cover */
+  .cover { border-bottom: 1px solid var(--rule); padding-bottom: 48px; margin-bottom: 56px; }
+  .cover-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.2em; color: var(--accent); margin-bottom: 26px;
+  }
+  .cover-eyebrow::before, .cover-eyebrow::after { content: ''; width: 24px; height: 1px; background: var(--accent); }
+  .cover h1 { font-family: var(--serif); font-size: 52px; font-weight: 400; line-height: 1.07; letter-spacing: -0.02em; margin-bottom: 22px; }
+  .cover h1 em { font-style: italic; font-weight: 300; color: var(--accent); }
+  .cover-sub { font-family: var(--serif); font-size: 21px; font-weight: 300; font-style: italic; color: var(--ink-2); margin-bottom: 36px; max-width: 760px; line-height: 1.4; }
+  .cover-meta { display: flex; gap: 44px; flex-wrap: wrap; font-size: 13px; }
+  .cover-meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .cover-meta-label { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-3); }
+  .cover-meta-value { font-family: var(--serif); font-size: 16px; color: var(--ink); }
+
+  section { margin-bottom: 64px; scroll-margin-top: 28px; }
+  .section-header { display: flex; align-items: baseline; gap: 18px; margin-bottom: 24px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+  .section-num { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 500; flex-shrink: 0; }
+  .section-header h2 { font-family: var(--serif); font-size: 34px; font-weight: 500; line-height: 1.15; letter-spacing: -0.015em; }
+  h3 { font-family: var(--serif); font-size: 23px; font-weight: 500; margin: 36px 0 14px; line-height: 1.25; }
+  h4 { font-family: var(--sans); font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent); margin: 26px 0 10px; }
+  p { margin-bottom: 15px; color: var(--ink-2); }
+  p strong { color: var(--ink); font-weight: 600; }
+  ul, ol { margin: 0 0 16px 22px; color: var(--ink-2); }
+  li { margin-bottom: 7px; }
+
+  code {
+    font-family: var(--mono); font-size: 13px; background: var(--paper-2); padding: 2px 6px;
+    border-radius: 3px; color: var(--accent); border: 1px solid var(--paper-3);
+  }
+  pre {
+    background: var(--code-bg); color: var(--code-ink); padding: 20px 24px; border-radius: 8px;
+    overflow-x: auto; margin: 18px 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; border: 1px solid #3d3830;
+  }
+  pre code { background: transparent; border: none; color: inherit; padding: 0; font-size: inherit; }
+  .c-kw { color: #d99a4e; } .c-cm { color: #6b6660; font-style: italic; } .c-an { color: #88b4a8; } .c-st { color: #c4a373; } .c-bad { color: #e58a7a; } .c-good { color: #9fc99f; }
+
+  /* Callout */
+  .callout { background: var(--paper-2); border-left: 3px solid var(--accent); padding: 18px 22px; margin: 22px 0; border-radius: 0 6px 6px 0; }
+  .callout-warn { background: var(--warn-soft); border-left-color: var(--warn); }
+  .callout-info { background: var(--teal-soft); border-left-color: var(--teal); }
+  .callout-good { background: var(--good-soft); border-left-color: var(--good); }
+  .callout-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.13em; margin-bottom: 7px; color: var(--accent); font-weight: 600; }
+  .callout-warn .callout-label { color: var(--warn); }
+  .callout-info .callout-label { color: var(--teal); }
+  .callout-good .callout-label { color: var(--good); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* Verdict band */
+  .verdict { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 26px 0 8px; }
+  .vcard { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 9px; padding: 16px 18px; }
+  .vcard-num { font-family: var(--serif); font-size: 34px; font-weight: 500; line-height: 1; }
+  .vcard-lbl { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); margin-top: 8px; }
+  .vcard.crit .vcard-num { color: var(--crit); } .vcard.high .vcard-num { color: var(--high); }
+  .vcard.med .vcard-num { color: var(--med); } .vcard.good .vcard-num { color: var(--good); }
+
+  /* Tables */
+  .grid-table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13.5px; }
+  .grid-table th { text-align: left; padding: 10px 12px; background: var(--paper-2); border-bottom: 2px solid var(--rule); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); font-weight: 600; }
+  .grid-table td { padding: 11px 12px; border-bottom: 1px solid var(--paper-3); vertical-align: top; }
+  .grid-table tr:hover td { background: var(--paper-2); }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  .pill { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; }
+  .p-done { background: var(--good-soft); color: var(--good); }
+  .p-partial { background: var(--med-soft); color: var(--med); }
+  .p-defer { background: var(--info-soft); color: var(--info); }
+  .p-add { background: var(--low-soft); color: var(--low); }
+  .p-miss { background: var(--crit-soft); color: var(--crit); }
+
+  /* Findings */
+  .filterbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 18px; }
+  .fbtn { font-family: var(--mono); font-size: 11.5px; padding: 6px 13px; border-radius: 18px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink-2); cursor: pointer; transition: all 0.15s; font-weight: 500; }
+  .fbtn:hover { border-color: var(--accent-2); }
+  .fbtn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .finding { border: 1px solid var(--rule); border-radius: 10px; margin: 14px 0; background: var(--paper); overflow: hidden; }
+  .finding-head { display: flex; align-items: center; gap: 14px; padding: 15px 20px; cursor: pointer; user-select: none; }
+  .finding-id { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-3); flex-shrink: 0; min-width: 30px; }
+  .sev { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em; flex-shrink: 0; text-transform: uppercase; }
+  .sev-crit { background: var(--crit); color: #fff; } .sev-high { background: var(--high); color: #fff; }
+  .sev-med { background: var(--med); color: #fff; } .sev-low { background: var(--low); color: #fff; }
+  .sev-info { background: var(--info); color: #fff; }
+  .finding-title { font-family: var(--sans); font-size: 15.5px; font-weight: 600; color: var(--ink); flex: 1; line-height: 1.35; }
+  .finding-toggle { font-family: var(--mono); font-size: 13px; color: var(--ink-3); transition: transform 0.2s; flex-shrink: 0; }
+  .finding.open .finding-toggle { transform: rotate(90deg); }
+  .finding-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+  .finding.open .finding-body { max-height: 2600px; }
+  .finding-body-inner { padding: 4px 20px 22px 20px; border-top: 1px dashed var(--rule); margin-top: -2px; }
+  .finding-body-inner p:first-child { margin-top: 14px; }
+  .loc { font-family: var(--mono); font-size: 12px; color: var(--teal); background: var(--teal-soft); padding: 2px 7px; border-radius: 3px; }
+  .fix-label { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--good); font-weight: 700; margin: 14px 0 4px; }
+
+  /* split */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+  .split-card { border-radius: 8px; padding: 14px 16px; font-size: 13px; }
+  .split-bad { background: var(--crit-soft); border: 1px solid #d8a99f; }
+  .split-good { background: var(--good-soft); border: 1px solid #a9c9a9; }
+  .split-card .sc-h { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin-bottom: 8px; }
+  .split-bad .sc-h { color: var(--crit); } .split-good .sc-h { color: var(--good); }
+  .split-card code { background: rgba(255,255,255,0.5); border-color: transparent; color: var(--ink); }
+
+  footer { margin-top: 90px; padding-top: 28px; border-top: 1px solid var(--rule); color: var(--ink-3); font-size: 12px; font-family: var(--mono); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+  @media (max-width: 1024px) {
+    .shell { grid-template-columns: 1fr; }
+    .toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--rule); padding: 22px; }
+    .main { padding: 36px 26px 80px; }
+    .cover h1 { font-size: 36px; }
+    .section-header h2 { font-size: 26px; }
+    .verdict { grid-template-columns: repeat(2, 1fr); }
+    .split { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="toc">
+    <div class="toc-brand">Review Report</div>
+    <div class="toc-title">게스트서버<br>데이터 모델링 검토</div>
+    <nav>
+      <ul class="toc-list">
+        <li><a href="#summary"><span class="toc-num">00</span>검토 요약 · 판정</a></li>
+        <li><a href="#context"><span class="toc-num">01</span>프로젝트 맥락 · 구현 현황</a></li>
+        <li><a href="#scope"><span class="toc-num">02</span>스코프 정합 (보고서 ↔ 구현)</a></li>
+        <li><a href="#entities"><span class="toc-num">03</span>엔티티별 검토</a></li>
+        <li><a href="#findings"><span class="toc-num">04</span>발견 사항 (심각도별)</a></li>
+        <li><a href="#strengths"><span class="toc-num">05</span>잘 된 점</a></li>
+        <li><a href="#next"><span class="toc-num">06</span>권고 · 다음 작업</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <!-- COVER -->
+    <header class="cover">
+      <div class="cover-eyebrow">Internal · Provisioning Server · Design Review</div>
+      <h1>게스트서버 데이터 모델링,<br><em>설계는 타당하고 골격은 충실하나</em><br>양산 전 고칠 결함이 있다</h1>
+      <div class="cover-sub">
+        <code>execution</code> 패키지의 게스트서버 엔티티·VO·등록 경로와, 이를 떠받치는 두 설계 보고서(v1·v2)가
+        Notion 에 명시된 스코프와 얼마나 정합하는지, 엔티티 구현이 정확한지를 검토한다.
+      </div>
+      <div class="cover-meta">
+        <div class="cover-meta-item"><span class="cover-meta-label">검토 대상</span><span class="cover-meta-value">execution · provisioning(guest)</span></div>
+        <div class="cover-meta-item"><span class="cover-meta-label">기준 문서</span><span class="cover-meta-value">v1·v2 보고서 · Notion U1 · 2단계(a)</span></div>
+        <div class="cover-meta-item"><span class="cover-meta-label">작성일</span><span class="cover-meta-value">2026-06-28 (KST)</span></div>
+        <div class="cover-meta-item"><span class="cover-meta-label">단계</span><span class="cover-meta-value">2단계(a) 골격 · 진행 중</span></div>
+      </div>
+    </header>
+
+    <!-- 00 SUMMARY -->
+    <section id="summary">
+      <div class="section-header"><span class="section-num">00</span><h2>검토 요약 · 판정</h2></div>
+
+      <p>
+        결론부터 적는다. <strong>데이터 모델링의 방향(정체성·인벤토리·네트워크·진행상태 분리, VO 타입화)은 타당하며,
+        가장 중요한 등록 경로는 Notion U1 명세와 글자 단위로 일치한다.</strong> 다만 양산(실사용) 진입 전에 반드시
+        고쳐야 할 <strong>구조적 결함 3건</strong>이 있고, 설계 보고서 v2 가 그린 목표 모델과 실제 구현 사이에는
+        스코프 차이로 설명되는 간극과, 스코프로는 설명 안 되는 누락이 섞여 있다.
+      </p>
+
+      <div class="verdict">
+        <div class="vcard crit"><div class="vcard-num">1</div><div class="vcard-lbl">치명 (Critical)</div></div>
+        <div class="vcard high"><div class="vcard-num">2</div><div class="vcard-lbl">높음 (High)</div></div>
+        <div class="vcard med"><div class="vcard-num">5</div><div class="vcard-lbl">중간 (Medium)</div></div>
+        <div class="vcard good"><div class="vcard-num">10</div><div class="vcard-lbl">잘 된 점</div></div>
+      </div>
+
+      <div class="callout callout-warn">
+        <div class="callout-label">반드시 먼저 고칠 3건</div>
+        <p>
+          <strong>F1 (치명)</strong> — <code>SetupStep</code> 이 <code>@OneToOne</code> 으로 묶여 서버당 단계 이력이
+          <em>한 행</em>만 저장된다. "단계 실행이력" 의 본질(서버당 다수 행)과 정면 충돌하며, 자기 리포지토리의
+          <code>List</code> 조회 메서드와도 모순된다. → <code>@ManyToOne</code>.<br>
+          <strong>F2 (높음)</strong> — <code>ProvisioningProgress</code> 가 <code>@LastModifiedDate</code> 를 쓰면서
+          감사 리스너(<code>@EntityListeners</code>)를 달지 않아 <code>last_transition_at</code> 이 채워지지 않는데
+          <code>nullable=false</code> → 최초 INSERT 가 깨진다.<br>
+          <strong>F3 (높음)</strong> — <code>GuestServer.modelName</code> 컬럼은 <em>어디에서도 기록되지 않는</em> 고아
+          필드다(항상 null). 같은 화면에 노출되는 <code>GuestServerCustom.productModelName</code> 과 의미가 겹친다.
+        </p>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-label">스코프에 대한 핵심 인식</div>
+        <p>
+          Notion <strong>"2단계 · 사용 페이지 (a)"</strong> 는 이 작업을 <em>"골격(skeleton)"</em> 으로 명시하고
+          범위를 <strong>Guest 서버 · 상세 · NIC 바인딩 · 단계 실행이력 · 진행상태 + 공정 단계 열거형</strong> 5종으로
+          한정한다. 따라서 보고서 v2 의 9개 테이블 중 <code>bmc_binding · bmc_credential_ref · location_assignment ·
+          transition_log</code> 4종이 미구현인 것은 <strong>결함이 아니라 의도된 이연</strong>이다. 반면 같은 스코프 안에
+          있으면서도 누락·오류인 항목(F1~F3 등)은 별개로 다룬다.
+        </p>
+      </div>
+    </section>
+
+    <!-- 01 CONTEXT -->
+    <section id="context">
+      <div class="section-header"><span class="section-num">01</span><h2>프로젝트 맥락 · 구현 현황</h2></div>
+
+      <h3>프로그램이 하려는 일</h3>
+      <p>
+        Provisioning Server 는 생산 공정에 투입되는 물리 서버(=<strong>게스트 서버</strong>)를 PXE 부팅으로 받아,
+        <strong>BIOS/BMC 업데이트 → BIOS 세팅 → BMC 세팅 → OS 설치 → OS 세팅</strong> 의 공정을 자동화한다(Notion KPI 초안).
+        서버마다 하드웨어가 달라 "이 서버에는 어떤 생산 자료가 필요한가" 를 자동 식별해야 하므로, 게스트 서버를
+        DB 에 정확히 데이터화하는 것이 본 작업(2단계 a)의 목적이다.
+      </p>
+
+      <h3>게스트 서버는 두 패키지에 걸쳐 산다</h3>
+      <p>이 점이 구조 파악의 출발점이다. 같은 "게스트 서버" 애그리거트가 물리적으로 두 패키지에 나뉘어 있다.</p>
+      <table class="grid-table">
+        <thead><tr><th>패키지</th><th>책임</th><th>주요 산출물</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">execution</td>
+            <td>영속 모델 + 부팅 등록(쓰기)</td>
+            <td class="mono">GuestServer · GuestServerDetail · GuestServerCustom · HostNicBinding · ProvisioningProgress · SetupStep · 6 Repository · MacAddressVO/IpAddressVO(+Converter) · 5 Enum · ServerRegistrationService · ExecutionRestController</td>
+          </tr>
+          <tr>
+            <td class="mono">provisioning</td>
+            <td>운영자 조회·인라인 수정(읽기/UI)</td>
+            <td class="mono">GuestServerController · GuestServerQueryService · GuestServerCommandService · GuestServer{Summary,Detail}Response · UpdateGuestServerRequest · server-list/detail.html</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        <code>provisioning</code> 의 서비스가 <code>execution</code> 의 리포지토리를 직접 주입해 쓴다. 기능별(feature-first)
+        패키징 원칙과 CLAUDE.md("server 는 provisioning, execution 은 예약") 사이에서 경계가 모호해진 상태다(→ F7).
+      </p>
+
+      <h3>등록 흐름 — Notion U1 과의 대조</h3>
+      <p>
+        iPXE 가 <code>boot.ipxe</code> 를 해석하면 아래 체인 URL 로 게스트 서버 정보를 보고한다. 이는 Notion U1 페이지에
+        적힌 명세 <em>그대로</em>다.
+      </p>
+<pre><code><span class="c-cm"># Notion U1 명세 (= 실제 구현된 컨트롤러 매핑)</span>
+chain http://localhost:7779<span class="c-an">/api/pxe/v1/boot</span>
+        ?macAddress=${mac} &amp;ipAddress=${ip} &amp;systemUUID=${uuid}
+        &amp;vendor=${manufacturer} &amp;boardModel=${product}
+<span class="c-cm"># 예: ${manufacturer}=Giga Computing, ${product}=MS73-HB1-000</span></code></pre>
+      <p>
+        <code>ServerRegistrationService.initialRegistry()</code> 는 이 한 요청으로 <code>guest_server</code>(id, system_uuid),
+        <code>guest_server_detail</code>(vendor, board_model, discovery_stage=IPXE_REGISTERED),
+        <code>host_nic_binding</code>(host_mac, lan_ip, ip_source=DHCP, is_primary=true) 를 적재한다 —
+        U1 의 적재 명세와 정확히 일치한다(추가로 빈 <code>guest_server_custom</code> 1행 생성). 등록 경로의 충실도는
+        본 구현에서 가장 잘 된 부분이다(→ §05).
+      </p>
+
+      <div class="callout">
+        <div class="callout-label">진행 단계 모델 (열거형)</div>
+        <p>
+          <code>ProvisioningPhase</code>(7) = BOOTSTRAPPING · DIAGNOSE_LINUX · FIRMWARE_UPDATING · FIRMWARE_SETTING ·
+          OS_INSTALLING · OS_SETTING · TESTING. 각 Phase 아래 <code>ProvisioningPhaseStep</code>(12)이 enum 상수마다
+          소속 Phase 를 들고 있다(예: <code>NETWORK_ALLOCATING → BOOTSTRAPPING</code>). 공정 5단계 + 부팅/진단/테스트가
+          열거형으로 잘 골격화되어 있다.
+        </p>
+      </div>
+    </section>
+
+    <!-- 02 SCOPE -->
+    <section id="scope">
+      <div class="section-header"><span class="section-num">02</span><h2>스코프 정합 — 보고서 ↔ Notion ↔ 구현</h2></div>
+      <p>
+        설계 문서는 두 단계로 진화했다. <strong>v1</strong>(8 테이블, <code>guest_server</code> 에 신원 집중) →
+        <strong>v2</strong>(9 테이블, 신원/인벤토리 분리 + NIC 1:N + JSON 스펙). 실제 구현은 v2 의 방향을 따르되
+        Notion 2단계(a) 의 골격 스코프(5종)로 범위를 좁혔다. 아래 표가 세 축을 한눈에 맞춘 것이다.
+      </p>
+
+      <table class="grid-table">
+        <thead><tr><th>보고서 v2 테이블</th><th>구현 엔티티</th><th>상태</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">guest_server</td><td class="mono">GuestServer</td><td><span class="pill p-partial">변형 구현</span></td><td>model_name 고아 컬럼(F3). name/model_name 은 등록 시 미상이라 nullable 로 완화(타당).</td></tr>
+          <tr><td class="mono">guest_server_detail</td><td class="mono">GuestServerDetail</td><td><span class="pill p-partial">부분 구현</span></td><td>board_model 을 <em>문자열→FK(BoardModel)</em> 로 격상(개선). 단 hardware_spec/software_spec JSON 미구현(F6) + vendor 중복(F5).</td></tr>
+          <tr><td class="mono">host_nic_binding</td><td class="mono">HostNicBinding</td><td><span class="pill p-done">구현</span></td><td>1:N + is_primary + bond_group 반영. created_at/updated_at 미상속(F9). 컬럼명 lan_ip(↔spec lan1_ip).</td></tr>
+          <tr><td class="mono">provisioning_progress</td><td class="mono">ProvisioningProgress</td><td><span class="pill p-partial">부분 구현</span></td><td>@Version 누락(F4) + 감사 리스너 누락으로 INSERT 결함(F2).</td></tr>
+          <tr><td class="mono">setup_step</td><td class="mono">SetupStep</td><td><span class="pill p-miss">결함</span></td><td>@OneToOne → 서버당 1행 한정(F1). 1:N 이어야 함.</td></tr>
+          <tr><td class="mono">— (없음)</td><td class="mono">GuestServerCustom</td><td><span class="pill p-add">추가</span></td><td>보고서·Notion 모두에 없는 신규 테이블(사내 모델/시리얼, ipmitool 기록 대상). 문서화 필요(I2).</td></tr>
+          <tr><td class="mono">bmc_binding</td><td>—</td><td><span class="pill p-defer">이연</span></td><td>골격 스코프 밖. 의도된 미구현.</td></tr>
+          <tr><td class="mono">bmc_credential_ref</td><td>—</td><td><span class="pill p-defer">이연</span></td><td>Vault 참조. 골격 스코프 밖.</td></tr>
+          <tr><td class="mono">location_assignment</td><td>—</td><td><span class="pill p-defer">이연</span></td><td>골격 스코프 밖.</td></tr>
+          <tr><td class="mono">provisioning_transition_log</td><td>—</td><td><span class="pill p-defer">이연</span></td><td>append-only 이력. 골격 스코프 밖.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info">
+        <div class="callout-label">보고서 자체에 대한 권고</div>
+        <p>
+          보고서 v2 는 <strong>목표 설계</strong>로서는 잘 쓰였다(분리 근거·낙관적 락 위치·JSON vs 컬럼 트레이드오프가
+          설득력 있다). 다만 지금 시점에 읽으면 "9 테이블이 다 있는 것처럼" 읽혀 구현과 어긋난다. v2 보고서에
+          <strong>현재 스코프(골격 5종) vs 이연(4종)</strong> 표식과, 구현이 보고서를 벗어난 3가지 결정
+          (<code>board_model</code> FK화 · <code>guest_server_custom</code> 신설 · IPv4 전용)을 changelog 로 반영하면
+          단독으로도 신뢰할 수 있는 문서가 된다.
+        </p>
+      </div>
+    </section>
+
+    <!-- 03 ENTITIES -->
+    <section id="entities">
+      <div class="section-header"><span class="section-num">03</span><h2>엔티티별 검토</h2></div>
+
+      <h3>GuestServer — 가벼운 신원</h3>
+      <p>
+        <code>id · systemUUID · name · modelName · memo</code> + 감사필드. v2 의 "정체성/인벤토리 분리" 를 충실히 따랐다.
+        등록 시 <code>name/modelName</code> 을 모르므로 보고서의 NN 제약을 풀어 nullable 로 둔 것은 <strong>올바른 보정</strong>이다
+        (보고서가 내부 모순이었고, 구현이 더 정확하다). <code>name</code> 은 <code>unique=true</code> + 인라인 수정으로 채운다.
+        다만 <code>modelName</code> 은 어떤 코드 경로에서도 set 되지 않는 <strong>고아 컬럼</strong>이다(→ F3).
+      </p>
+
+      <h3>GuestServerDetail — 하드웨어·소프트웨어 인벤토리</h3>
+      <p>
+        <code>vendor · boardModel(FK) · boardSerial · discoveryStage · @Version</code>. 두 가지가 눈에 띈다.
+        ① 보고서가 자유 문자열로 둔 <code>board_model</code> 을 관리 카탈로그 <code>BoardModel</code> 로의 <strong>FK 로 격상</strong>한 것은
+        설계 개선이다 — 등록 시 미등록 모델을 <code>BoardModelNotFoundException</code> 으로 거절해 검증된 인벤토리와 묶인다.
+        ② 그러나 <code>BoardModel</code> 이 이미 <code>vendor</code> 를 보유하므로 <code>detail.vendor</code> 는 파생 가능한 중복이다(→ F5).
+        또한 페이지 목적("하드웨어 스펙 자동 식별")의 핵심인 <code>hardware_spec/software_spec</code> 이 빠져 있다(→ F6).
+      </p>
+
+      <h3>GuestServerCustom — 사내 식별자 슬롯 <span class="pill p-add">보고서 외</span></h3>
+      <p>
+        <code>productModelName(7자) · productSerialNumber(20자)</code>. "진단 리눅스에서 <code>ipmitool</code> 로 하드웨어에
+        기록할 운영자 지정 모델/시리얼" 이라는 개념은 합리적이다 — <em>하드웨어가 보고한 값</em>(detail.boardSerial)과
+        <em>운영자가 부여해 새겨 넣을 값</em>을 분리하는 것은 의미가 있다. 다만 (a) 두 보고서·Notion 어디에도 없어
+        문서화가 필요하고(I2), (b) <code>productModelName</code> 이 <code>GuestServer.modelName</code> 과 의미가 겹친다(F3).
+        둘 중 하나로 단일화해야 §중복 금지 원칙에 맞는다.
+      </p>
+
+      <h3>HostNicBinding — 호스트 NIC (1:N)</h3>
+      <p>
+        <code>@ManyToOne</code> 으로 1:N 을 올바로 구현했고 <code>is_primary · bond_group</code> 도 반영했다.
+        MAC/IP 를 VO 로 받아 정규화·검증한다(우수). "서버당 primary 1개" 는 보고서대로 DB 가 아닌 어플리케이션이
+        보장하는 설계지만, 아직 그 보장 로직(기존 primary unset 트랜잭션)은 없다 — 단일 NIC 등록만 하는 현 골격에서는
+        문제되지 않으나 NIC 추가 기능 도입 시 필요하다. 감사필드 비상속은 F9.
+      </p>
+
+      <h3>ProvisioningProgress — 큰 단계 진행 상태 (1:1)</h3>
+      <p>
+        <code>@OneToOne</code> 1:1 은 올바르다. 그러나 (a) <code>@LastModifiedDate</code> 가 감사 리스너 없이 선언돼
+        동작하지 않으며 <code>nullable=false</code> 와 결합해 INSERT 를 깨고(F2), (b) 보고서가 명시한 <code>@Version</code>
+        낙관적 락이 빠졌다(F4). 진행 상태는 "여러 주체가 자주 갱신" 한다는 보고서 전제상 락이 가장 필요한 테이블이다.
+      </p>
+
+      <h3>SetupStep — 세부 단계 체크포인트</h3>
+      <p>
+        역할(Phase 내 개별 작업의 성공/실패/스킵 + 시각 기록)은 잘 잡혔다. 그러나 관계가
+        <code>@OneToOne(guestServer)</code> 으로 잘못 매핑돼 서버당 한 행만 들어간다(F1, 치명). "단계 실행이력" 의
+        정의(서버당 12 step × 다수 시도)와 자기 리포지토리의 <code>List</code> 반환 조회와 모두 모순된다.
+        부차적으로 <code>phaseCode</code> 는 <code>stepCode.getPhaseType()</code> 으로 파생 가능해 드리프트 여지가 있다(F10).
+      </p>
+    </section>
+
+    <!-- 04 FINDINGS -->
+    <section id="findings">
+      <div class="section-header"><span class="section-num">04</span><h2>발견 사항 (심각도별)</h2></div>
+      <p>버튼으로 심각도를 필터링할 수 있다. 카드를 클릭하면 근거·위치·수정안이 펼쳐진다.</p>
+
+      <div class="filterbar">
+        <button class="fbtn active" data-f="all">전체</button>
+        <button class="fbtn" data-f="crit">치명</button>
+        <button class="fbtn" data-f="high">높음</button>
+        <button class="fbtn" data-f="med">중간</button>
+        <button class="fbtn" data-f="low">낮음</button>
+        <button class="fbtn" data-f="info">정보</button>
+      </div>
+
+      <!-- F1 -->
+      <div class="finding" data-sev="crit">
+        <div class="finding-head"><span class="finding-id">F1</span><span class="sev sev-crit">치명</span><span class="finding-title">SetupStep 이 @OneToOne — 서버당 단계 이력이 1행으로 잘린다</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">SetupStep.java:25</span></p>
+          <p>
+            <code>SetupStep.guestServer</code> 가 <code>@OneToOne</code> 으로 매핑돼 있어 Hibernate 가
+            <code>guest_server_id</code> 에 UNIQUE 제약을 건다. 결과적으로 한 서버는 단 하나의 <code>setup_step</code>
+            행만 가질 수 있다. 그러나 <code>ProvisioningPhaseStep</code> 은 12개이고, 각 step 은 PENDING→RUNNING→
+            SUCCEEDED/FAILED/SKIPPED 로 여러 번 기록될 수 있다. Notion 도 이 테이블을 <strong>"단계 실행이력"</strong>
+            (복수)으로 규정한다.
+          </p>
+          <p>결정적으로, 자기 자신의 리포지토리가 이미 다수 행을 전제로 짜여 있다:</p>
+          <div class="split">
+            <div class="split-card split-bad"><div class="sc-h">현재 (모순)</div><code>@OneToOne ... private GuestServer guestServer;</code><br>→ 서버당 1 step 만 INSERT 가능</div>
+            <div class="split-card split-good"><div class="sc-h">기대</div><code>findAllByServerIdOrderByStartedAt → List&lt;SetupStep&gt;</code><br>→ 서버당 N step 을 시각순 조회</div>
+          </div>
+          <div class="fix-label">수정안</div>
+          <p><code>@OneToOne</code> → <code>@ManyToOne(fetch = LAZY, optional = false)</code>. 두 번째 step 을 저장하는
+          통합 테스트를 함께 추가해 회귀를 잡는다(현재 테스트 0건이라 이 결함이 드러나지 않았다).</p>
+        </div></div>
+      </div>
+
+      <!-- F2 -->
+      <div class="finding" data-sev="high">
+        <div class="finding-head"><span class="finding-id">F2</span><span class="sev sev-high">높음</span><span class="finding-title">ProvisioningProgress 의 @LastModifiedDate 가 동작하지 않아 INSERT 가 깨진다</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">ProvisioningProgress.java:8, 36-38</span></p>
+          <p>
+            이 엔티티는 <code>@LastModifiedDate</code> 를 쓰지만 <code>BaseTimeEntity</code> 를 상속하지도,
+            <code>@EntityListeners(AuditingEntityListener.class)</code> 를 선언하지도 않는다.
+            <code>@EnableJpaAuditing</code> 은 전역으로 켜져 있어도, 감사 콜백은 <em>엔티티에 리스너가 부착된 경우에만</em>
+            동작한다(본 프로젝트는 <code>BaseTimeEntity</code> 의 <code>@EntityListeners</code> 로 부착). 따라서
+            <code>lastTransitionAt</code> 은 자동으로 채워지지 않는다.
+          </p>
+          <p>
+            그런데 컬럼은 <code>@Column(name="last_transition_at", nullable=false)</code> 다. 진행 상태 행을 처음
+            저장하는 순간 값이 null → NOT NULL 위반으로 INSERT 가 실패한다(또는 DB 설정에 따라 조용히 null).
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>
+            세 갈래 중 택1 — ① <code>ProvisioningProgress extends BaseTimeEntity</code> (createdAt/updatedAt 일관성도 동시 확보, F9 해소),
+            ② 클래스에 <code>@EntityListeners(AuditingEntityListener.class)</code> 직접 부착,
+            ③ 감사에 의존하지 말고 전이 서비스에서 <code>lastTransitionAt</code> 을 명시적으로 set. ①을 권한다.
+          </p>
+        </div></div>
+      </div>
+
+      <!-- F3 -->
+      <div class="finding" data-sev="high">
+        <div class="finding-head"><span class="finding-id">F3</span><span class="sev sev-high">높음</span><span class="finding-title">GuestServer.modelName 은 기록되지 않는 고아 컬럼 — productModelName 과 의미 중복</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">GuestServer.java:27-28, 36-39</span> · <span class="loc">GuestServerCustom.java:32-33</span></p>
+          <p>
+            전체 코드를 검색해도 <code>GuestServer.modelName</code> 에 값을 넣는 경로가 없다. 등록 빌더는
+            <code>id + systemUUID</code> 만 채우고, 인라인 수정 <code>updateBasicInfo(name, memo)</code> 는 name/memo 만
+            건드린다. 즉 이 컬럼은 <strong>항상 null</strong>인데, 상세 응답
+            (<code>GuestServerDetailResponse.modelName</code>)으로 버젓이 노출된다.
+          </p>
+          <p>
+            동시에 <code>GuestServerCustom.productModelName</code>(인라인 수정 가능, 같은 상세 화면에 노출)이 사실상 동일한
+            "사내 모델명" 을 담당한다. 길이도 128 vs 7 로 엇갈려 혼동을 키운다. 이는 §중복 금지 원칙(불가침)에 어긋난다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>
+            의미를 하나로 정한다. "사내 모델명" 을 <code>guest_server_custom</code> 의 책임으로 본다면
+            <code>GuestServer.modelName</code> 컬럼과 응답 필드를 제거한다. 반대로 <code>guest_server</code> 에 남길 거라면
+            인라인 수정 폼이 이 필드를 쓰도록 배선하고 <code>productModelName</code> 과의 역할 차이를 문서화한다.
+            (실서버 보고값이 아니라 운영자 부여값이므로 custom 쪽 단일화가 자연스럽다.)
+          </p>
+        </div></div>
+      </div>
+
+      <!-- F4 -->
+      <div class="finding" data-sev="med">
+        <div class="finding-head"><span class="finding-id">F4</span><span class="sev sev-med">중간</span><span class="finding-title">ProvisioningProgress 에 @Version 낙관적 락 누락</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">ProvisioningProgress.java</span></p>
+          <p>
+            보고서 v1·v2 모두 진행 상태 테이블에 <code>version</code> 을 두는 것을 명시한다("여러 주체가 갱신하므로
+            낙관적 락이 충돌 감지에 유용"). 구현 엔티티에는 <code>@Version</code> 이 없다. 공정이 비동기로 phase 를
+            전이시키는 Stage 4 진입 시 동시 갱신이 그대로 통과해 마지막 쓰기가 이긴다(lost update).
+          </p>
+          <div class="fix-label">수정안</div>
+          <p><code>@Version private Long version;</code> 추가. 흥미롭게도 거의 불변인 <code>GuestServerDetail</code> 에는
+          @Version 이 있는데 정작 잦게 갱신되는 progress 에는 없어 위치가 뒤바뀐 인상이다 — 보고서 의도대로 정렬.</p>
+        </div></div>
+      </div>
+
+      <!-- F5 -->
+      <div class="finding" data-sev="med">
+        <div class="finding-head"><span class="finding-id">F5</span><span class="sev sev-med">중간</span><span class="finding-title">vendor 중복 — detail.vendor 와 boardModel.vendor</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">GuestServerDetail.java:31-38</span> · <span class="loc">BoardModel.java:32-34</span></p>
+          <p>
+            <code>GuestServerDetail</code> 은 <code>BoardModel</code> 로의 FK 를 들면서 <code>vendor</code> 를 또 저장한다.
+            그런데 <code>BoardModel</code> 이 이미 <code>vendor</code> 를 보유한다 — vendor 는 보드 모델의 속성이므로
+            <code>detail.getBoardModel().getVendor()</code> 로 항상 파생된다. 따로 저장하면 <code>detail.vendor=GIGABYTE</code>,
+            <code>boardModel.vendor=ASUS</code> 같은 모순이 가능해진다(드리프트 위험).
+          </p>
+          <p>
+            아이러니하게도 v2 보고서가 <code>bmc_binding.vendor</code> 를 제거한 이유가 바로 "vendor 중복 제거" 였는데,
+            <code>board_model</code> 을 FK 로 격상하면서 그 중복이 detail↔boardModel 로 자리만 옮겨 재등장했다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>
+            <code>detail.vendor</code> 를 제거하고 <code>boardModel.getVendor()</code> 로 파생하는 것이 정석.
+            조회 편의(목록 N+1)가 걱정이면 보고서 Q&amp;A 가 제안한 대로 캐시하거나, 지금처럼 fetch join 으로 boardModel 을
+            함께 적재하면 된다(이미 그렇게 하고 있다). 유지한다면 "보드 교체 시 vendor 변동을 스냅샷으로 보존" 같은
+            명시적 사유를 문서화.
+          </p>
+        </div></div>
+      </div>
+
+      <!-- F6 -->
+      <div class="finding" data-sev="med">
+        <div class="finding-head"><span class="finding-id">F6</span><span class="sev sev-med">중간</span><span class="finding-title">hardware_spec / software_spec(JSON) 미구현 — 페이지 목적의 핵심</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">GuestServerDetail.java</span></p>
+          <p>
+            v2 보고서는 §03/§04 전체를 할애해 <code>hardware_spec</code>(CPU·메모리·디스크·NIC)와
+            <code>software_spec</code>(BIOS/BMC/옵션 펌웨어 버전) JSON 컬럼을 설계했다. 구현 엔티티에는 두 컬럼이 없다.
+            이는 단순 누락이라기보다, Notion 2단계(a) 의 명시 목적 <em>"서버마다 하드웨어 스펙이 달라 필요한 생산
+            자료를 자동 식별"</em> 의 데이터 근거가 아직 비어 있다는 뜻이다 — 무엇으로 "식별" 할지가 모델에 없다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>
+            골격 단계의 의도된 이연일 수 있으나, 그렇다면 보고서/Notion 에 "JSON 스펙은 진단 리눅스 수집 단계와 함께
+            도입" 으로 명시하라. 도입 시에는 보고서 미결③(JSON 스키마 확정)대로 sealed record 와 함께 키 구조를 고정하고,
+            DB 는 <code>JSON_VALID</code> CHECK 만 건다. <code>tools.jackson</code> 직렬화로 record↔JSON 매핑.
+          </p>
+        </div></div>
+      </div>
+
+      <!-- F7 -->
+      <div class="finding" data-sev="med">
+        <div class="finding-head"><span class="finding-id">F7</span><span class="sev sev-med">중간</span><span class="finding-title">게스트 서버 애그리거트가 execution / provisioning 두 패키지로 분열</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">GuestServerQueryService.java:9-14</span> (provisioning → execution repo 직접 주입)</p>
+          <p>
+            엔티티·리포지토리는 <code>execution</code> 에, 조회·수정 서비스 + 컨트롤러 + DTO + 템플릿은
+            <code>provisioning</code> 에 있다. <code>provisioning</code> 서비스가 <code>execution</code> 의 리포지토리 6종을
+            직접 주입한다. feature-first 패키징에서 한 애그리거트의 영속/응용 레이어가 두 기능 패키지로 갈라진 형태다.
+            CLAUDE.md 는 "server 는 provisioning 영역, execution 은 예약(Stage 4 진입 시 결정)" 이라 적어 둔 상태라
+            소유권이 모호하다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>
+            애그리거트의 단일 거처를 정한다. (a) 게스트 서버 전체를 <code>provisioning.server</code> 로 모으거나,
+            (b) <code>execution</code> 을 게스트 서버 영속 도메인으로 확정하고 provisioning 은 그 <em>응용 서비스</em>만
+            호출(리포지토리 직접 접근 금지, execution 이 공개 서비스 API 제공)하도록 경계를 명문화. 어느 쪽이든
+            CLAUDE.md 의 패키지 구조 절을 갱신해야 한다.
+          </p>
+        </div></div>
+      </div>
+
+      <!-- F8 -->
+      <div class="finding" data-sev="med">
+        <div class="finding-head"><span class="finding-id">F8</span><span class="sev sev-med">중간</span><span class="finding-title">테스트 0건 — 불가침 테스트 규율 미충족</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">src/test/.../execution → 없음</span></p>
+          <p>
+            등록 서비스·조회/수정 서비스·컨트롤러에 대한 단위 테스트도, 사용자 액션 기반 통합 테스트(@WebMvcTest +
+            MockMvc)도 전무하다. CLAUDE.md 의 "테스트 규율(불가침)" 은 Step 8 에서 두 레이어를 모두 요구한다.
+            실제로 F1(@OneToOne) 같은 결함이 통합 테스트 부재로 드러나지 않았다 — 두 번째 step 저장 시나리오가 있었다면
+            즉시 잡혔을 결함이다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>
+            골격 단계임을 감안하더라도, CP4 상응 시점 전 최소: 등록 멱등성(이미 등록된 systemUUID 재부팅) · 미등록
+            boardModel 거절(404/도메인 예외) · 잘못된 MAC/IP/UUID 형식 거절 · 인라인 수정의 name/serial 중복 거절 ·
+            상세 조회 매핑 + <strong>SetupStep 다수 행 저장/조회</strong>(F1 회귀 가드)를 추가한다.
+          </p>
+        </div></div>
+      </div>
+
+      <!-- F9 -->
+      <div class="finding" data-sev="low">
+        <div class="finding-head"><span class="finding-id">F9</span><span class="sev sev-low">낮음</span><span class="finding-title">created_at / updated_at 적용이 엔티티마다 들쭉날쭉</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">HostNicBinding · ProvisioningProgress · SetupStep</span> 은 BaseTimeEntity 미상속</p>
+          <p>
+            <code>GuestServer/Detail/Custom</code> 은 <code>BaseTimeEntity</code> 를 상속해 감사필드를 갖지만,
+            <code>HostNicBinding</code>(boundedAt 만) · <code>ProvisioningProgress</code>(inert 한 lastTransitionAt 만) ·
+            <code>SetupStep</code>(started/finished 만) 은 상속하지 않는다. v2 보고서 원칙5 는 "모든 본체 테이블에
+            created_at/updated_at" 을 표준으로 못박았다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>세 엔티티도 <code>BaseTimeEntity</code> 를 상속(ProvisioningProgress 는 F2 와 함께 해소). 단 setup_step 처럼
+          started/finished 가 별도 의미를 가지면 created_at 과 공존시키되 의미를 주석으로 구분.</p>
+        </div></div>
+      </div>
+
+      <!-- F10 -->
+      <div class="finding" data-sev="low">
+        <div class="finding-head"><span class="finding-id">F10</span><span class="sev sev-low">낮음</span><span class="finding-title">SetupStep.phaseCode 는 stepCode 로부터 파생 가능 (드리프트 여지)</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">SetupStep.java:31-36</span> · <span class="loc">ProvisioningPhaseStep.java:48</span></p>
+          <p>
+            <code>ProvisioningPhaseStep</code> 는 상수마다 소속 <code>phaseType</code> 을 들고 있다
+            (예: <code>BIOS_UPDATING.getPhaseType() == FIRMWARE_UPDATING</code>). 그런데 <code>SetupStep</code> 은
+            <code>phaseCode</code> 를 별도로 저장한다. <code>phaseCode ≠ stepCode.getPhaseType()</code> 인 행이 만들어질 수 있다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>조회 편의를 위한 비정규화면 유지하되 저장 시 <code>phaseCode = stepCode.getPhaseType()</code> 를 강제(빌더/도메인
+          메서드 단일 진입점). 아니면 컬럼을 빼고 파생.</p>
+        </div></div>
+      </div>
+
+      <!-- F11 -->
+      <div class="finding" data-sev="low">
+        <div class="finding-head"><span class="finding-id">F11</span><span class="sev sev-low">낮음</span><span class="finding-title">부팅 등록 입력 검증 부재 — 잘못된 파라미터가 500 으로 샌다</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">ExecutionRestController.java:19</span> · <span class="loc">ServerRegistrationService.java:47</span></p>
+          <p>
+            <code>BootIPXEInfoRequest</code> 에 검증 애너테이션이 없고, 서비스가 <code>UUID.fromString(req.systemUUID())</code> 를
+            바로 호출한다. iPXE 가 <code>${uuid}</code>/<code>${mac}</code> 를 비우거나 깨진 값으로 보내면
+            <code>IllegalArgumentException</code> → 500 으로 샌다(VO 가드도 IllegalArgumentException). PXE 클라이언트는
+            신뢰 대상이지만, 5종 파라미터 누락/형식 오류에 400 + 명확한 메시지를 주는 편이 진단에 낫다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>요청 record 에 형식 검증(또는 진입부 가드)을 두고, 형식 오류는 <code>@ControllerAdvice</code> 단일 진입점에서
+          400 으로 변환(컨트롤러 try/catch 증식 금지 원칙 준수).</p>
+        </div></div>
+      </div>
+
+      <!-- F12 -->
+      <div class="finding" data-sev="low">
+        <div class="finding-head"><span class="finding-id">F12</span><span class="sev sev-low">낮음</span><span class="finding-title">IpAddressVO IPv4 전용 + lan_ip VARCHAR(15) — 의도 확인 필요</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">IpAddressVO.java</span> · <span class="loc">HostNicBinding.java:42-44</span></p>
+          <p>
+            VO 가 IPv4 만 허용하고 컬럼은 <code>lan_ip VARCHAR(15)</code> 다(보고서는 IPv6 수용용 VARCHAR(45)
+            <code>lan1_ip</code>). "PXE/DHCP 는 IPv4 환경" 이라는 근거가 주석에 있어 <strong>의도된 결정</strong>으로 보이지만,
+            이는 향후 IPv6/BMC 관리망 표현을 영구히 막는다. 컬럼명도 <code>lan_ip</code> 로 spec(<code>lan1_ip</code>)과 다르다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>의도가 확정이면 보고서를 IPv4 전용으로 정정(미결 사항에서 닫기). bmc_binding(관리망 IP) 도입 시 동일 VO 를
+          재사용할지 여기서 결정해 두면 좋다.</p>
+        </div></div>
+      </div>
+
+      <!-- F13 -->
+      <div class="finding" data-sev="low">
+        <div class="finding-head"><span class="finding-id">F13</span><span class="sev sev-low">낮음</span><span class="finding-title">용어 드리프트 — CLAUDE.md 의 ProvisioningProgress(VO)/NodeStepExecution 과 불일치</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p><span class="loc">CLAUDE.md §핵심 도메인 모델 (Provisioning)</span></p>
+          <p>
+            CLAUDE.md 는 <code>ProvisioningProgress</code> 를 "Stage 4 의 <strong>VO</strong>, ProvisioningProgressService 가
+            NodeStepExecution 이력으로 계산해 반환" 으로, 단계 이력은 <code>NodeStepExecution</code> 으로 예고했다.
+            구현은 <code>ProvisioningProgress</code> 를 <em>영속 엔티티</em>로, 단계 이력을 <code>SetupStep</code> 으로 명명했다.
+            기능상 문제는 아니나 같은 이름이 다른 것을 가리켜 추적을 어렵게 한다.
+          </p>
+          <div class="fix-label">수정안</div>
+          <p>이름 체계를 한쪽으로 정렬하고 CLAUDE.md 의 Stage 4 도메인 모델 절을 실제 구현명(SetupStep / 엔티티형
+          ProvisioningProgress)으로 갱신하거나, 구현명을 문서 용어에 맞춘다.</p>
+        </div></div>
+      </div>
+
+      <!-- I1 -->
+      <div class="finding" data-sev="info">
+        <div class="finding-head"><span class="finding-id">I1</span><span class="sev sev-info">정보</span><span class="finding-title">보고서 v2 의 4개 테이블 미구현은 결함이 아니라 의도된 이연</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p>
+            <code>bmc_binding · bmc_credential_ref · location_assignment · provisioning_transition_log</code> 는
+            Notion 2단계(a) 골격 스코프(5종) 밖이다. 미구현이 정상이다. 단 보고서 v2 가 이를 표식하지 않아
+            "다 있는 듯" 읽히므로, 보고서에 in-scope/deferred 구분을 넣을 것(→ §02 권고).
+          </p>
+        </div></div>
+      </div>
+
+      <!-- I2 -->
+      <div class="finding" data-sev="info">
+        <div class="finding-head"><span class="finding-id">I2</span><span class="sev sev-info">정보</span><span class="finding-title">guest_server_custom 은 보고서 외 신규 — 문서화 + 중복 해소 필요</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p>
+            두 보고서·Notion 어디에도 없는 테이블이다. "하드웨어가 보고한 식별자(detail) vs 운영자가 부여해 ipmitool 로
+            새길 식별자(custom)" 분리 개념 자체는 타당하다. (a) 설계 문서에 추가하고, (b) <code>GuestServer.modelName</code>
+            과의 의미 중복을 단일화하라(F3).
+          </p>
+        </div></div>
+      </div>
+
+      <!-- I3 -->
+      <div class="finding" data-sev="info">
+        <div class="finding-head"><span class="finding-id">I3</span><span class="sev sev-info">정보</span><span class="finding-title">/boot 가 빈 200 반환 — 다음 부팅 스크립트 미반환(7단계 이연)</span><span class="finding-toggle">▶</span></div>
+        <div class="finding-body"><div class="finding-body-inner">
+          <p>
+            <code>ExecutionRestController.initialBoot()</code> 는 <code>ResponseEntity.ok(null)</code> 을 돌려준다. iPXE 체인
+            관점에서 "다음에 부팅할 진단 리눅스 스크립트" 를 돌려주지 않는다. Notion 상 부팅 오케스트레이션은 7단계
+            이연이므로 현 스코프에서는 정상. 7단계 진입 시 진단 리눅스로의 chain 응답이 채워져야 함을 기록해 둔다.
+          </p>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- 05 STRENGTHS -->
+    <section id="strengths">
+      <div class="section-header"><span class="section-num">05</span><h2>잘 된 점</h2></div>
+      <div class="callout callout-good">
+        <div class="callout-label">유지·계승할 설계</div>
+        <p>비판이 길어졌지만, 골격으로서 이 구현은 여러 면에서 모범적이다.</p>
+      </div>
+      <ul>
+        <li><strong>등록 경로의 명세 충실도</strong> — <code>guest_server / detail / host_nic_binding</code> 적재가 Notion U1 의
+          필드·상수(<code>ip_source=DHCP, is_primary=true, discovery_stage=IPXE_REGISTERED</code>)와 정확히 일치.</li>
+        <li><strong>PXE 계약 일치</strong> — <code>GET /api/pxe/v1/boot</code> + 5 쿼리 파라미터가 iPXE <code>chain</code> URL 과 동일.
+          (CLAUDE.md 의 <code>/pxe/v1/entry/boot</code> 표기는 구버전 — Notion/구현이 최신 권위.)</li>
+        <li><strong>재부팅 멱등성</strong> — <code>existsBySystemUUID</code> 로 매 부팅 중복 등록을 사전 차단.</li>
+        <li><strong>Value Object 설계</strong> — <code>MacAddressVO/IpAddressVO</code> 가 검증+정규화(구분자/대소문자 흡수),
+          <code>AttributeConverter</code> 가 DB→VO 로드 시점에도 재검증. Primitive Obsession 금지 원칙 준수.</li>
+        <li><strong>board_model 의 FK 격상</strong> — 보고서의 자유 문자열을 관리 카탈로그 <code>BoardModel</code> FK 로 올려,
+          미등록 모델을 <code>BoardModelNotFoundException</code> 으로 거절. 검증된 인벤토리와 결합(설계 개선).</li>
+        <li><strong>정체성/인벤토리 분리</strong> — slim <code>guest_server</code> + <code>guest_server_detail</code> 로 희소 NULL
+          광폭 테이블을 회피(v2 원칙 충실).</li>
+        <li><strong>DTO 의 타입 보존</strong> — 응답이 원시 문자열이 아니라 VO/Enum/UUID 를 그대로 전달.</li>
+        <li><strong>N+1 회피 + CQRS 적 분리</strong> — 목록 조회가 detail/primary NIC/progress 를 각 1쿼리로 일괄 적재,
+          읽기(Query)·쓰기(Command) 서비스 분리, <code>@Transactional(readOnly=true)</code> 적용.</li>
+        <li><strong>UUID v7 PK</strong> — 시간 정렬 가능한 식별자로 클러스터링 이점.</li>
+        <li><strong>인라인 수정 검증 흐름</strong> — name/serial 유니크 충돌을 서비스 boolean 질의 → <code>BindingResult</code>
+          필드 에러로 인라인 표시(예외 남발 대신 UI 차단/검증 — 프로젝트 예외 사용 원칙과 정합).</li>
+      </ul>
+    </section>
+
+    <!-- 06 NEXT -->
+    <section id="next">
+      <div class="section-header"><span class="section-num">06</span><h2>권고 · 다음 작업</h2></div>
+
+      <h4>지금 즉시 (양산/Stage 4 진입 전 차단 항목)</h4>
+      <ol>
+        <li><strong>F1</strong> <code>SetupStep</code> <code>@OneToOne → @ManyToOne</code> + 다수 step 통합 테스트.</li>
+        <li><strong>F2</strong> <code>ProvisioningProgress</code> 감사 리스너 문제 해소(<code>BaseTimeEntity</code> 상속 권장).</li>
+        <li><strong>F3</strong> <code>GuestServer.modelName</code> vs <code>productModelName</code> 단일화(custom 쪽 권장).</li>
+      </ol>
+
+      <h4>이어서 (스코프 내 정합화)</h4>
+      <ol>
+        <li><strong>F4</strong> progress 에 <code>@Version</code> 추가.</li>
+        <li><strong>F5</strong> <code>detail.vendor</code> 파생화 또는 보존 사유 명시.</li>
+        <li><strong>F8</strong> 등록·조회·수정 + F1 회귀 통합 테스트 묶음 작성.</li>
+        <li><strong>F9</strong> 감사필드 표준 일괄 적용.</li>
+        <li><strong>F7</strong> 게스트 서버 애그리거트의 패키지 소유권 확정 + CLAUDE.md 갱신.</li>
+      </ol>
+
+      <h4>문서 측 (보고서/Notion/CLAUDE.md)</h4>
+      <ol>
+        <li>보고서 v2 에 <strong>현 스코프 vs 이연</strong> 표식 + 구현이 보고서를 벗어난 3결정(board_model FK · guest_server_custom · IPv4 전용) changelog 반영(I1·I2·F12).</li>
+        <li><code>guest_server_custom</code> 을 설계 문서에 추가(I2).</li>
+        <li>용어 정렬: CLAUDE.md 의 <code>ProvisioningProgress(VO)/NodeStepExecution</code> ↔ 구현명 일치(F13).</li>
+        <li><code>hardware_spec/software_spec</code> 도입 시점을 진단 리눅스 수집 단계로 명시(F6).</li>
+      </ol>
+
+      <div class="callout">
+        <div class="callout-label">한 줄 판정</div>
+        <p>
+          <strong>설계 방향과 골격 구현은 승인 가능한 수준이며, 특히 등록 경로는 명세에 충실하다.</strong> 단
+          <strong>F1·F2·F3 세 건은 데이터가 실제로 흐르기 시작하면 곧바로 사고가 되는 구조 결함</strong>이므로 다음
+          작업 묶음에서 최우선으로 닫고, 보고서 v2 는 "목표 설계" 와 "현 스코프" 를 구분하도록 한 번 정정하길 권한다.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <span>Provisioning Server · Guest Server Data Model — Design Review</span>
+      <span>2026-06-28 (KST) · 검토 범위: execution + provisioning(guest)</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+  // TOC active highlight
+  const sections = document.querySelectorAll('section[id]');
+  const tocLinks = document.querySelectorAll('.toc-list a');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        tocLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  sections.forEach(s => obs.observe(s));
+  tocLinks.forEach(l => l.addEventListener('click', e => {
+    e.preventDefault();
+    const t = document.querySelector(l.getAttribute('href'));
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+
+  // Finding cards toggle
+  document.querySelectorAll('.finding-head').forEach(h => {
+    h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
+  });
+
+  // Severity filter
+  const fbtns = document.querySelectorAll('.fbtn');
+  const findings = document.querySelectorAll('.finding');
+  fbtns.forEach(b => b.addEventListener('click', () => {
+    fbtns.forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const f = b.dataset.f;
+    findings.forEach(card => {
+      card.style.display = (f === 'all' || card.dataset.sev === f) ? '' : 'none';
+    });
+  }));
+</script>
+</body>
+</html>

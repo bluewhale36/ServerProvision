@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R4-3 / R5-3 / R6-3 결과 보고 — BIOS · BMC · Subprogram fat-Service 5분할</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.done{background:var(--green-bg);color:var(--green)}
+  .chip.wait{background:var(--yellow-bg);color:var(--yellow)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;background:var(--card)}
+  .stat .n{font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:2px}
+  .stat.g .n{color:var(--green)} .stat.b .n{color:var(--blue)} .stat.p .n{color:var(--purple)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap}
+  .ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}.ux-flow .svc{color:#ff7b72}.ux-flow .dim{color:#8b949e}.ux-flow .num{color:#79c0ff;font-weight:700}
+  .ux-verdict{padding:11px 14px;font-size:13px;border-top:1px solid var(--soft);background:var(--green-bg)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}.stat-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R4-3 / R5-3 / R6-3 결과 보고 — BIOS · BMC · Subprogram fat-Service 5분할 <span class="chip done">CP2~CP4 완료</span> <span class="chip wait">CP5 대기</span></h1>
+  <div class="meta">
+    <span><strong>범위</strong> 세 fat *Service 를 Lifecycle · Registration · Marker · Integrity · 잔류 Service 로 5분할 (BIOS→BMC→Subprogram 순차)</span>
+    <span><strong>전제</strong> CP1 plan(26-06-28_03-33-59) 승인, 결정 D1~D7 권장안 채택</span>
+    <span><strong>작성</strong> 2026-06-28 KST</span>
+    <span><strong>상태</strong> compile+bootRun(순환0)+테스트(890 green) 검증 완료 · 브라우저 E2E(CP5)는 사용자 단독 · 미커밋</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 결과 요약 (한눈에)</a></li>
+      <li><a href="#sd">🎬 도메인별 분해 결과</a></li>
+      <li><a href="#s2">§2 도메인별 산출물</a></li>
+      <li><a href="#s3">§3 결정(D1~D7) 적용 결과</a></li>
+      <li><a href="#s4">§4 검증 — compile · boot · 순환</a></li>
+      <li><a href="#s5">§5 테스트 결과 (890 green)</a></li>
+      <li><a href="#s6">§6 잔여 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 결과 요약 (한눈에)</summary>
+      <div class="body">
+        <div class="stat-grid">
+          <div class="stat g"><div class="n">2016 → 401</div><div class="l">fat *Service 합계 줄수 (잔류)</div></div>
+          <div class="stat b"><div class="n">14</div><div class="l">신규 service 클래스</div></div>
+          <div class="stat g"><div class="n">0</div><div class="l">bootRun 순환 (3 도메인)</div></div>
+          <div class="stat p"><div class="n">890</div><div class="l">테스트 green (884/0/6, +44)</div></div>
+        </div>
+        <p>세 board-scoped leaf 도메인의 fat <code>*Service</code>(BIOS 621 · BMC 648 · Subprogram 747줄)를 OS/Iso·Board 선례와 동형으로 <b>5분할</b>했다. 잔류 <code>*Service</code> 는 read+update 코어만 남아 <b>110 · 110 · 181줄</b>로 축소(합계 2016→401). 동작은 불변(상태전이·등록·검증·forging 404 모두 보존), 순환 토대(R7 산출)도 보존됐다.</p>
+        <div class="callout ok"><b>핵심 성과</b> — (1) fat-service 4~5책임 혼재 해소 → 1클래스=1책임. (2) marker 4-step 복붙을 BMC/Subprogram 에서 <code>*MarkerWriter</code> 로 실제 제거(BIOS 는 기존 재사용). (3) BIOS/BMC lifecycle 을 <code>LifecycleService</code>(1-arg) 로 정렬 + forging 가드를 <code>assertBelongsToBoard</code> 로 분리(보안 무손실). (4) typed-name 은 <code>TypedNameGuard</code> static 유지 → verifier 변 재생성 0, ObjectProvider 0.</div>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 도메인별 분해 결과 (before fat → after 5클래스)</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">도메인</span>
+            <button class="ux-btn on" data-dom="bios">BIOS (R4-3)</button>
+            <button class="ux-btn" data-dom="bmc">BMC (R5-3)</button>
+            <button class="ux-btn" data-dom="subprogram">Subprogram (R6-3)</button>
+            <span class="lbl" style="margin-left:8px">보기</span>
+            <button class="ux-btn" data-view="before">분해 전</button>
+            <button class="ux-btn on" data-view="after">분해 후</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+          <div class="ux-verdict" id="verdict"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 도메인별 산출물</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>도메인</th><th>잔류 *Service</th><th>신규 service</th><th>MarkerWriter</th></tr></thead>
+          <tbody>
+            <tr><td><b>BIOS</b> R4-3</td><td class="mono">621 → 110줄</td><td>BiosLifecycleService · BiosRegistrationService · BiosIntegrityService · BiosGuards <span class="dim">(4)</span></td><td>BiosMarkerWriter <b>기존 재사용</b></td></tr>
+            <tr><td><b>BMC</b> R5-3</td><td class="mono">648 → 110줄</td><td>Bmc{Lifecycle,Registration,Integrity}Service · BmcGuards · <b>BmcMarkerWriter</b> <span class="dim">(5)</span></td><td>BmcMarkerWriter <b>신규</b> (marker inline 0)</td></tr>
+            <tr><td><b>Subprogram</b> R6-3</td><td class="mono">747 → 181줄</td><td>Subprogram{Lifecycle,Registration,Integrity}Service · SubprogramGuards · <b>SubprogramMarkerWriter</b> <span class="dim">(5)</span></td><td>SubprogramMarkerWriter <b>신규</b> (scope 분기 흡수, inline 0)</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">잔류 Subprogram 이 181줄로 다소 큰 이유 : 공용/board <b>이중 scope</b> 조회(<code>findByScope</code>) + nullable FK 처리가 read 계층에 남기 때문(도메인 본질). 신규 service 의 주입에 verifier/scanner/ObjectProvider 0 — 전 도메인 동일.</p>
+        <h4>re-point (호출처 재배선)</h4>
+        <ul>
+          <li><b>controller</b> — BIOS/BMC *LifecycleController : <code>assertBelongsToBoard(id, boardId)</code> 선행 + 1-arg op. Subprogram : monolithic controller 내부 호출만 새 service 로(컨트롤러 미분할).</li>
+          <li><b>scanner</b> — Board*MarkableScanner : restore/purge → *LifecycleService 1-arg(boardId 재구성 제거, IsoMarkableScanner 형태).</li>
+          <li><b>cascade</b> — *BoardScopedChildLifecycle : softDelete/restore → *LifecycleService 1-arg(단방향).</li>
+          <li><b>launcher</b> — *VerificationLauncher : verifyAndRecordIntegrity → *IntegrityService.</li>
+          <li><b>nudge</b> — *NudgeService : persist/purge → *RegistrationService / *LifecycleService.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 결정(D1~D7) 적용 결과</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>적용 결과</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>5분할(A)</td><td>✅ 3 도메인 모두 Lifecycle/Registration/Marker/Integrity/잔류.</td></tr>
+            <tr><td>D2</td><td>BIOS/BMC 1-arg 재성형 + assertBelongsToBoard</td><td>✅ 2-arg→1-arg, 부모 <code>entity.getBoardModel()</code> resolve, forging 가드 별도 메서드(IsoLifecycleService 미러). controller 14 endpoint(BIOS 7 + BMC 7~8) re-point. <b>Subprogram 은 이미 1-arg → 재성형/assertBelongsToBoard 없음</b>(URL 에 boardId 부재 + 공용 FK).</td></tr>
+            <tr><td>D3</td><td>per-domain MarkerWriter</td><td>✅ BMC/Subprogram 신규 추출(inline 0), BIOS 기존 재사용. 공통 base 미도입(over-abstraction 회피). Subprogram writer 는 kind/scope 분기 내포(시그니처 상이).</td></tr>
+            <tr><td>D4</td><td>TypedNameGuard static 유지</td><td>✅ 신규 service 에 TypedNameVerifier/scanner/ObjectProvider 주입 0. <code>ObjectProvider&lt;*LifecycleService&gt;</code> 코드베이스 전체 0. 순환 재생성 차단.</td></tr>
+            <tr><td>D5</td><td>BIOS→BMC→Subprogram 순서</td><td>✅ BIOS 를 레퍼런스로 먼저 완성·검증 후 BMC/Subprogram 이 미러.</td></tr>
+            <tr><td>D6</td><td>*Guards static</td><td>✅ Bios/Bmc/Subprogram Guards (package-private final + static, repo 인자) — 2곳 이상 공유 가드 단일화(BoardModelGuards 미러).</td></tr>
+            <tr><td>D7</td><td>잔류 *Service 유지 + *IntegrityService 추출</td><td>✅ <code>*QueryService</code> 개명 비채택(관리 도메인 선례 부재 + update 보유 misnomer). *IntegrityService 추출(IsoIntegrityService 선례) → 잔류는 read+update.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 검증 — compile · bootRun · 순환</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>도메인</th><th>compileJava</th><th>bootRun</th><th>순환</th><th>주입 검사</th></tr></thead>
+          <tbody>
+            <tr><td>BIOS</td><td>SUCCESS</td><td>Started 4.56s</td><td>0</td><td>verifier/scanner/ObjectProvider 0</td></tr>
+            <tr><td>BMC</td><td>SUCCESS</td><td>Started 4.436s</td><td>0</td><td>0</td></tr>
+            <tr><td>Subprogram</td><td>SUCCESS</td><td>Started 4.474s</td><td>0</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><b>순환 0 의 의미</b> — 신규 <code>*LifecycleService</code>/<code>*RegistrationService</code>/<code>*IntegrityService</code> 가 repo·trash·markerWriter 등 <b>단방향 leaf 빈만</b> 주입하고 typed-name 은 static <code>TypedNameGuard.verify</code> 라, <code>service→verifier→scanner→service</code> 변을 새로 닫지 않는다(R7 산출 보존). scanner→*LifecycleService 는 단방향 직접 주입(IsoMarkableScanner 형태). bootRun 에 <code>BeanCurrentlyInCreation</code> 0.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 테스트 결과 (890 green)</summary>
+      <div class="body">
+        <p style="margin-top:0"><code>./gradlew test</code> <b>BUILD SUCCESSFUL</b> — 총 <b>890</b> (846 → 890, <b>+44</b>) : 통과 <b>884</b> / 실패 0 / 오류 0 / 스킵 6(기존, 무관). production 무수정 — 테스트만 정비.</p>
+        <h4>신규 테스트 (9)</h4>
+        <p class="dim">도메인별 <code>*LifecycleServiceTest</code>(1-arg + assertBelongsToBoard happy/mismatch/missing + 부모가드 + purge typed-name via 실제 displayName) · <code>*RegistrationServiceTest</code>(add happy + Duplicate/markerConflict/targetNotEmpty) · <code>*IntegrityServiceTest</code>(verifyAndRecord 2-arg, TAMPERED) — BIOS/BMC/Subprogram 각 3.</p>
+        <h4>정비한 기존 테스트</h4>
+        <ul>
+          <li>*ControllerFlowTest(Upload/Purge/Security) — 신규 service <code>@MockitoBean</code> 추가, stub 재타겟(add→Registration / integrity→Integrity / lifecycle 1-arg→Lifecycle).</li>
+          <li>*ServiceTest — 잔류 read/update 만으로 trim. *BoardScopedChildLifecycleTest — 1-arg 로 verify 수정. *ParentGuardTest — *LifecycleServiceTest 로 흡수(삭제).</li>
+        </ul>
+        <h4>forging-404 커버리지 (핵심 보존)</h4>
+        <ul>
+          <li><b>BIOS/BMC</b> — 다른 boardId 의 자식 toggle/delete/purge → <code>assertBelongsToBoard</code> 가 <code>*NotFoundException</code> 404. controller flow + service 단위 양쪽 검증.</li>
+          <li><b>Subprogram</b> — assertBelongsToBoard 없음(URL boardId 부재) → 기존 op-level 404(<code>SubprogramNotFoundException</code>) 방식 보존.</li>
+          <li>전 endpoint 성공 2xx / 400 / 404 / 409(Duplicate·Nudge·부모차단) 유지. 동작 불변이라 신규 예외 경로 0.</li>
+        </ul>
+        <div class="callout"><b>production 버그</b> — 0. 세 도메인 분할이 내부 정합. 초기 실패 2건은 테스트 픽스처 이슈(Subprogram <code>board()</code> 픽스처가 <code>recomputeEffective()</code> 미호출 → 부모가드가 미초기화 effective 를 읽음)로, 픽스처 수정으로 해소(production 무관).</div>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 잔여 · 다음</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r463-result">
+          <li><input type="checkbox"><span><b>CP5 브라우저 E2E</b> — 사용자 단독. 3 도메인 등록/lifecycle/purge(typed-name)/forging UI 확인.</span></li>
+          <li><input type="checkbox"><span><b>커밋</b> — R4-3/R5-3/R6-3 source + 테스트 미커밋. 사용자 지시 시 커밋(도메인별 또는 일괄).</span></li>
+          <li><input type="checkbox"><span><b>Subprogram *LifecycleController 분리</b> — 선택적 후속(현 monolithic, 본 슬라이스 scope 밖).</span></li>
+          <li><input type="checkbox"><span><b>ISO IsoMarkerWriter 추출</b> — 별도 검토 보고서(<code>26-06-28_04-40-45_IsoMarkerWriter-extraction-review</code>)에서 Option C 저우선 권고. de-dup 이득 0(이미 단일 helper)이라 결함 아님.</span></li>
+        </ul>
+        <div class="callout warn"><b>캠페인 위치</b> — 본 슬라이스로 6 도메인(OS/Iso/Board/BIOS/BMC/Subprogram) 전부 Controller/Service 분리 + lifecycle 다형(<code>LifecycleService</code>) 정렬 완료. R3-2~R6-5 + R7 리팩토링 캠페인의 fat-service 해소 축이 마무리된다(CP5 사용자 확인 후 종료).</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    boxes.forEach((b,i)=>{b.checked=!!saved[i];b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+  const DOM={
+    bios:{label:'BIOS',before:621,after:110,mwNew:false,oneArg:false,
+      classes:['BiosLifecycleService  (implements LifecycleService, 1-arg + assertBelongsToBoard)','BiosRegistrationService  (add/registerExisting/persistFromNudge + dedup helper)','BiosIntegrityService  (findStatus/verify/verifyAndRecord)','BiosGuards  (static)','BiosMarkerWriter  (기존 재사용)']},
+    bmc:{label:'BMC',before:648,after:110,mwNew:true,oneArg:false,
+      classes:['BmcLifecycleService  (implements LifecycleService, 1-arg + assertBelongsToBoard)','BmcRegistrationService','BmcIntegrityService','BmcGuards  (static)','BmcMarkerWriter  (신규, BMC_FIRMWARE)']},
+    subprogram:{label:'Subprogram',before:747,after:181,mwNew:true,oneArg:true,
+      classes:['SubprogramLifecycleService  (implements LifecycleService, 이미 1-arg)','SubprogramRegistrationService  (공용/board 이중 scope)','SubprogramIntegrityService','SubprogramGuards  (static)','SubprogramMarkerWriter  (신규, kind/scope 분기)']}
+  };
+  const st={dom:'bios',view:'after'};
+  function sync(){
+    document.querySelectorAll('[data-dom]').forEach(b=>b.classList.toggle('on',b.dataset.dom===st.dom));
+    document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===st.view));
+  }
+  document.querySelectorAll('[data-dom]').forEach(b=>b.addEventListener('click',()=>{st.dom=b.dataset.dom;sync();render();}));
+  document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{st.view=b.dataset.view;sync();render();}));
+  function render(){
+    const d=DOM[st.dom], flow=document.getElementById('flow'), vd=document.getElementById('verdict');
+    if(st.view==='before'){
+      flow.innerHTML =
+`<span class="svc">${d.label}Service</span>  (fat · <span class="num">${d.before}</span>줄)
+   ── read + lifecycle + registration + marker + integrity 5책임 혼재
+   ── addX 117~140줄, marker 4-step ${d.mwNew?'inline 3중복':'(BIOS 는 기존 분리)'}, ${d.oneArg?'lifecycle 이미 1-arg':'lifecycle 2-arg'}`;
+      vd.style.background='var(--red-bg)';
+      vd.innerHTML = `<b>분해 전</b> · 단일 클래스에 5책임 혼재 (${d.before}줄).`;
+    } else {
+      flow.innerHTML =
+d.classes.map(c=>{
+  const isNew = c.includes('기존')? false : true;
+  const cls = c.includes('기존')? 'keep' : 'new';
+  return `<span class="${cls}">${c.split('  ')[0]}</span>  <span class="dim">${c.split('  ').slice(1).join('  ')}</span>`;
+}).join('\n') +
+`\n<span class="keep">${d.label}Service</span>  <span class="dim">(잔류 · read+update · <span class="num">${d.after}</span>줄)</span>`;
+      vd.style.background='var(--green-bg)';
+      vd.innerHTML = `<b>분해 후</b> · ${d.label} ${d.before}→<span style="color:#1a7f37;font-weight:700">${d.after}</span>줄 + 신규 ${d.mwNew?5:4}클래스. ${d.oneArg?'이미 1-arg(재성형 없음)':'1-arg 재성형 + assertBelongsToBoard'}. 순환 0.`;
+    }
+  }
+  sync();render();
+</script>
+</body>
+</html>
