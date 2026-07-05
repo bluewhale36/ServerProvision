@@ -26,7 +26,8 @@ import org.springframework.web.bind.annotation.*;
  *
  * <p>R6-1 — 기능군 분리. 업로드 (intent/upload/register-existing/verify/delete-intent) 는
  * {@link SubprogramUploadController}, nudge confirm 6 종은 {@link SubprogramNudgeController},
- * 디렉토리 탐색 (browse) 은 {@link SubprogramBrowseController} 가 관할. 본 컨트롤러는 Miller 메인 +
+ * 디렉토리 탐색 (browse) 은 통합 {@link com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController}
+ * (R8-2) 가 관할. 본 컨트롤러는 Miller 메인 +
  * 신규/편집 폼 + 단순 lifecycle 전이 (toggle/delete/restore/deprecate/undeprecate/purge) + REST 조회
  * (items/detail/integrity-status) 만 잔류. lifecycle 은 단순 service 호출 + redirect 라 별도
  * LifecycleController 신설 시 의존 중복만 늘어 over-split 절제 (슬림 컨트롤러 잔류).</p>

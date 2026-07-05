@@ -2,7 +2,7 @@ package com.example.serverprovision.global.exception;
 
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.security.exception.PathTraversalException;
-import com.example.serverprovision.management.bios.controller.BiosBrowseController;
+import com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
@@ -49,7 +49,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       → {@link Convergence} 가 JSON/HTML 양 채널에서 status·바디 보존을 단언.</li>
  *   <li><b>browse 4-catch 승급</b> — {@code Bios/OS/Bmc BrowseController} 의 try/catch 삭제. browse 예외 4종이
  *       advice 로 전파(InvalidBrowsePath@400 / NotFound@404 / NotDirectory@409 / Io→handleDomain 500).
- *       → {@link Browse} 가 실제 {@link BiosBrowseController} + mock 서비스로 4 status·JSON 바디를 단언.</li>
+ *       → {@link Browse} 가 실제 browse 컨트롤러 + mock 서비스로 4 status·JSON 바디를 단언.
+ *       (R8-2 — 도메인별 4 BrowseController 가 단일 {@link DirectoryBrowseController} 로 통합되어 하니스 이관.)</li>
  *   <li><b>D4=B (native-form bleed invariant)</b> — JSON-전용 4핸들러(security/validation/multipart)는 produces
  *       미부착 유지. text/html 요청이라도 JSON 으로 응답(대안 HTML 핸들러 부재). → {@link NativeFormBleed} 가
  *       SecurityException 으로 이 invariant 를 명시 단언.</li>
@@ -218,10 +219,11 @@ class AdviceExceptionMappingTest {
 	/* ═══════════ R2-3 — browse 4-catch 승급 (컨트롤러 try/catch 삭제 후 advice 전파) ═══════════ */
 
 	/**
-	 * R2-3 — 실제 {@link BiosBrowseController}(try/catch 삭제됨) + mock {@link DirectoryBrowseService} 로,
+	 * R2-3 — 실제 browse 컨트롤러(try/catch 없음) + mock {@link DirectoryBrowseService} 로,
 	 * 호출처(path-browser.js)와 동일한 {@code Accept: application/json} 요청에서 browse 예외 4종이 advice 로
-	 * 전파되어 동일 status·{@code ApiErrorResponse} JSON 으로 응답됨을 단언. os/bmc BrowseController 도 동형이므로
-	 * bios 1종으로 라우팅 인프라를 대표 검증한다(컨트롤러는 1줄 위임으로 동일).
+	 * 전파되어 동일 status·{@code ApiErrorResponse} JSON 으로 응답됨을 단언.
+	 * R8-2 — 도메인별 4 BrowseController 가 단일 {@link DirectoryBrowseController}(/management/browse)로
+	 * 통합되어 하니스를 이관했다(가드 시맨틱 동일, 진입 URL 만 교체).
 	 */
 	@Nested
 	@DisplayName("R2-3 browse 승급 — BrowseController try/catch 삭제 후 advice 전파")
@@ -229,7 +231,7 @@ class AdviceExceptionMappingTest {
 
 		private final DirectoryBrowseService browseService = Mockito.mock(DirectoryBrowseService.class);
 		private final MockMvc browseMvc = MockMvcBuilders
-				.standaloneSetup(new BiosBrowseController(browseService))
+				.standaloneSetup(new DirectoryBrowseController(browseService))
 				.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler())
 				.build();
 
@@ -237,7 +239,7 @@ class AdviceExceptionMappingTest {
 		@DisplayName("InvalidBrowsePath(@ResponseStatus 400) → 400 + JSON")
 		void invalidPath_400() throws Exception {
 			given(browseService.browse(any())).willThrow(new InvalidBrowsePathException("..%2f"));
-			browseMvc.perform(get("/management/bios/browse").param("path", "..%2f")
+			browseMvc.perform(get("/management/browse").param("path", "..%2f")
 							.accept(MediaType.APPLICATION_JSON))
 					.andExpect(status().isBadRequest())
 					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -248,7 +250,7 @@ class AdviceExceptionMappingTest {
 		@DisplayName("BrowseTargetNotFound(extends NotFoundException) → 404 + JSON")
 		void notFound_404() throws Exception {
 			given(browseService.browse(any())).willThrow(new BrowseTargetNotFoundException("/opt/missing"));
-			browseMvc.perform(get("/management/bios/browse").param("path", "/opt/missing")
+			browseMvc.perform(get("/management/browse").param("path", "/opt/missing")
 							.accept(MediaType.APPLICATION_JSON))
 					.andExpect(status().isNotFound())
 					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -259,7 +261,7 @@ class AdviceExceptionMappingTest {
 		@DisplayName("BrowseTargetNotDirectory(extends ConflictException) → 409 + JSON")
 		void notDirectory_409() throws Exception {
 			given(browseService.browse(any())).willThrow(new BrowseTargetNotDirectoryException("/opt/file.txt"));
-			browseMvc.perform(get("/management/bios/browse").param("path", "/opt/file.txt")
+			browseMvc.perform(get("/management/browse").param("path", "/opt/file.txt")
 							.accept(MediaType.APPLICATION_JSON))
 					.andExpect(status().isConflict())
 					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -271,7 +273,7 @@ class AdviceExceptionMappingTest {
 		void io_500() throws Exception {
 			given(browseService.browse(any()))
 					.willThrow(new DirectoryBrowseIoException("디렉토리 열람 중 오류", new java.io.IOException("boom")));
-			browseMvc.perform(get("/management/bios/browse").param("path", "/opt/x")
+			browseMvc.perform(get("/management/browse").param("path", "/opt/x")
 							.accept(MediaType.APPLICATION_JSON))
 					.andExpect(status().isInternalServerError())
 					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -288,7 +290,7 @@ class AdviceExceptionMappingTest {
 		void security_browse_xhr_routesJson() throws Exception {
 			given(browseService.browse(any()))
 					.willThrow(new PathTraversalException("null byte 포함"));
-			browseMvc.perform(get("/management/bios/browse").param("path", "../etc")
+			browseMvc.perform(get("/management/browse").param("path", "../etc")
 							.accept(MediaType.APPLICATION_JSON))
 					.andExpect(status().isBadRequest())
 					.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))

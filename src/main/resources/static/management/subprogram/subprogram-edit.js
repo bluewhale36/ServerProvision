@@ -67,7 +67,9 @@
 
         let body;
         try {
-            const resp = await fetch(browseUrl + '?path=' + encodeURIComponent(absPath), {
+            // R8-2 — 통합 browse 는 기본 includeFiles=false. entrypoint 상대경로 선택엔 파일 표시가
+            // 필수라 명시한다 (구 SubprogramBrowseController 의 서버 하드코딩 true 를 대체).
+            const resp = await fetch(browseUrl + '?path=' + encodeURIComponent(absPath) + '&includeFiles=true', {
                 headers: {'Accept': 'application/json'}
             });
             body = await resp.json().catch(() => ({}));

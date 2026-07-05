@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R8-2 구현 보고 — BrowseController 4→1 단일 통합</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rep{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-right:2px}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap;min-height:120px}
+  .ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}.ux-flow .drop{color:#f85149;font-weight:700}.ux-flow .dim{color:#8b949e}.ux-flow .ok{color:#3fb950;font-weight:700}.ux-flow .warn{color:#e3b341;font-weight:700}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:8px 16px;background:var(--card);text-align:center}
+  .stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R8-2 구현 보고 — BrowseController 4→1 단일 통합 <span class="chip rep">CP4 완료</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R8-2 (R8 : BrowseController 통합)</span>
+    <span><strong>plan</strong> plan/26-07-01_20-06-58_R8-2_plan.html (CP1 승인, D1~D4 권장안)</span>
+    <span><strong>결과</strong> 컨트롤러 4→1 · 테스트 <b>951 green (0 실패)</b> · 사용자 체감 동작 6/6 보존</span>
+    <span><strong>작성</strong> 2026-07-05 KST · <strong>다음</strong> CP5 (사용자 브라우저 E2E)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 결과 요약</a></li>
+      <li><a href="#s2">§2 무엇이 어떻게 바뀌었나</a></li>
+      <li><a href="#sd">🎬 전후 diff 뷰어</a></li>
+      <li><a href="#s3">§3 동작 보존 검증 (includeFiles)</a></li>
+      <li><a href="#s4">§4 plan 대비 실측 차이 2건</a></li>
+      <li><a href="#s5">§5 테스트 · Verification</a></li>
+      <li><a href="#s6">§6 CP5 가이드 (사용자)</a></li>
+      <li><a href="#s7">§7 잔여 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 결과 요약</summary>
+      <div class="body">
+        <div class="stat-row">
+          <div class="stat"><b>4 → 1</b><span>BrowseController</span></div>
+          <div class="stat"><b>142 → 45</b><span>browse controller 줄수</span></div>
+          <div class="stat"><b>951</b><span>테스트 green (실패 0)</span></div>
+          <div class="stat"><b>6/6</b><span>호출처 동작 보존</span></div>
+          <div class="stat"><b>0</b><span>Service/정책/advice 변경</span></div>
+        </div>
+        <p>도메인 로직 없이 <code>DirectoryBrowseService</code> 에 위임만 하던 동형 4 컨트롤러(OS/BIOS/BMC/Subprogram)를 단일 <code>DirectoryBrowseController</code>(<code>GET /management/browse</code>)로 흡수했다. 4곳에 하드코딩돼 있던 <code>includeFiles</code> 는 요청 param(기본 false)으로 이동해 표시 정책 결정권이 호출처(frontend)로 넘어갔고, frontend 6 호출처는 템플릿의 <code>data-browse-url</code> 교체만으로 원자적으로 이행됐다. 사용자 체감 동작(파일 표시 여부·에러 응답)은 6 호출처 전부 보존 — 유일한 동작성 수정은 <code>subprogram-edit.js</code> 의 <code>includeFiles=true</code> 명시 1건이며, 이는 구 컨트롤러의 서버 하드코딩 true 를 클라이언트 명시로 대체한 것이다.</p>
+        <div class="callout ok"><b>R8 묶음 관점</b> — R8-1(browse 예외 advice 승급)은 R2-3(ba8dc73)이 이미 흡수 완료(Notion reconcile 됨), 본 R8-2 로 R8 의 실질 작업이 모두 끝났다. CP5(사용자 브라우저 E2E) 통과 시 R8 묶음 종결.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 무엇이 어떻게 바뀌었나 (파일별)</summary>
+      <div class="body">
+        <h4>backend — 신규 1 · 삭제 4</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">management/common/filesystem/controller/DirectoryBrowseController.java</td><td><span class="badge new">신규</span></td><td><code>@RequestMapping("/management/browse")</code> + <code>@GetMapping</code>. <code>path</code>(optional) + <code>includeFiles</code>(기본 false) param → <code>DirectoryBrowseRequest</code> 조립 1줄 위임. browse 기능의 풀스택(service/dto/exception/controller)이 <code>management/common/filesystem</code> 한 feature 폴더에 수렴(D3).</td></tr>
+            <tr><td class="mono">OSBrowseController · BiosBrowseController · BmcBrowseController · SubprogramBrowseController</td><td><span class="badge drop">삭제</span></td><td>142줄(40/39/32/31) 동형 껍데기 제거. 이행기 alias 없음(D4 — 소비자가 자사 frontend 뿐).</td></tr>
+          </tbody>
+        </table>
+        <h4>frontend — 템플릿 6 · JS 1</h4>
+        <table>
+          <thead><tr><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">iso-new.html · iso-edit.html · bios-new.html · bmc-new.html · subprogram-new.html · subprogram-edit.html</td><td><code>data-browse-url</code> 을 도메인 URL → <code>@{/management/browse}</code> 로 교체(각 1줄). JS 3계열(path-browser / bundle-upload-bootstrap / subprogram-edit)은 이 속성을 읽으므로 내부 로직 무변경.</td></tr>
+            <tr><td class="mono">subprogram-edit.js:70</td><td>fetch query 에 <code>&amp;includeFiles=true</code> 명시 + WHY 주석. entrypoint 상대경로 선택은 파일 표시가 필수인데, 이 호출처만 클라 필터 없이 구 서버 하드코딩 true 에 암묵 의존하고 있었다(§3).</td></tr>
+          </tbody>
+        </table>
+        <h4>테스트 — 신규 1 · 이관 5 (§4 참조)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">DirectoryBrowseControllerTest.java</td><td><span class="badge new">신규 6</span></td><td>성공 2(기본 false 전달 검증 + 명시 true 전달 검증, ArgumentCaptor) + 예외 4종(400/404/409/500 JSON) — 통합 endpoint 의 param 계약과 advice 채널 보존을 고정.</td></tr>
+            <tr><td class="mono">AdviceExceptionMappingTest.java</td><td><span class="badge mod">이관</span></td><td>Browse nested 하니스 <code>BiosBrowseController</code> → <code>DirectoryBrowseController</code>, URL 5곳 교체. 가드 시맨틱(4종 status + 보안 예외 JSON 라우팅) 그대로.</td></tr>
+            <tr><td class="mono">BmcControllerTest · BiosControllerUploadFlowTest · OSMetadataControllerUploadFlowTest · SubprogramControllerSecurityFlowTest</td><td><span class="badge mod">이관</span></td><td>@WebMvcTest controllers 배열의 구 클래스 → 통합 클래스, browse URL 9곳 교체. 시나리오 시맨틱 무변경(browse 성공/404/409/500/403 가드 전부 유지).</td></tr>
+          </tbody>
+        </table>
+        <h4>주석 정정 3 (stale 참조 제거)</h4>
+        <p class="mono" style="font-size:12px">OSMetadataController · SubprogramController · BmcMetadataController — 클래스 javadoc 의 "browse 는 {구 컨트롤러} 관할" 을 통합 컨트롤러 참조(R8-2 표기)로 갱신. 같은 패키지 {@link} 라 컴파일엔 무해했으나 깨진 javadoc 링크로 남는 것을 정리.</p>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 전후 diff 뷰어 — 계층별 변화</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">계층</span>
+            <button class="ux-btn on" data-layer="ctrl">Controller</button>
+            <button class="ux-btn" data-layer="tpl">템플릿/JS</button>
+            <button class="ux-btn" data-layer="test">테스트</button>
+            <button class="ux-btn" data-layer="wire">wire (요청/응답)</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. 동작 보존 검증 — includeFiles 전이 매트릭스 (실측)</summary>
+      <div class="body">
+        <p style="margin-top:0">통합의 유일한 의미 변화는 "서버 하드코딩 → param 기본 false". 보존 논거의 핵심은 <b>클라이언트가 이미 <code>includeFiles</code> 설정으로 렌더를 필터</b>한다는 실측(<code>bundle-upload-bootstrap.js renderEntries</code> 의 <code>entries.filter(type==='DIR')</code>)이다:</p>
+        <table>
+          <thead><tr><th>호출처</th><th>통합 전: wire / 서버값 / <b>표시</b></th><th>통합 후: wire / 서버값 / <b>표시</b></th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>iso-new / iso-edit</td><td><code>includeFiles=true</code> 명시 / true / 📁+📄</td><td>동일 명시 / true / 📁+📄</td><td><span class="badge keep">보존</span></td></tr>
+            <tr><td>bios-new</td><td>미전송 / false(하드코딩) / 📁</td><td>미전송 / false(기본) / 📁</td><td><span class="badge keep">보존</span></td></tr>
+            <tr><td>bmc-new · subprogram-new</td><td>미전송 / <b>true(하드코딩)</b> / 📁 (클라 필터가 📄 숨김)</td><td>미전송 / false(기본) / 📁 (📄 가 wire 에서도 사라져 페이로드 감소)</td><td><span class="badge keep">보존</span></td></tr>
+            <tr><td>subprogram-edit</td><td>미전송 / true(하드코딩) / 📁+📄 (필터 없음 — 하드코딩 의존)</td><td><b><code>includeFiles=true</code> 명시(신규 수정)</b> / true / 📁+📄</td><td><span class="badge mod">수정 1건으로 보존</span></td></tr>
+          </tbody>
+        </table>
+        <p class="dim">에러 응답 경로도 불변 — 호출처 전부 명시 <code>Accept: application/json</code> → <code>ApiExceptionHandler</code> JSON 채널(R2-3=R8-1 라우팅 그대로), 신규 테스트가 4종 status 를 통합 URL 에서 재고정.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. plan 대비 실측 차이 2건 (CP2/CP4 중 발견)</summary>
+      <div class="body">
+        <h4>① 테스트 blast radius 확장 — 수정 1개 예상 → 5개 실측</h4>
+        <p style="margin-top:0">plan §10 은 테스트 동반 수정을 <code>AdviceExceptionMappingTest</code> 1개로 예상했으나, CP4 진입 시 전수 grep 결과 <b>도메인 flow 테스트 4개가 추가로 구 컨트롤러를 @WebMvcTest 하니스에 포함하고 구 URL 을 직접 호출</b>하고 있었다(BmcControllerTest 5곳 / OSMetadataControllerUploadFlowTest 2곳 / BiosControllerUploadFlowTest 1곳 / SubprogramControllerSecurityFlowTest 1곳). 전부 <code>browse(any())</code> mock 이라 <b>하니스 클래스와 URL 교체만으로 이관</b>됐고 시나리오 시맨틱(성공/404/409/500/403 단언)은 한 글자도 바뀌지 않았다 — scope 확장이 아니라 D4(구 컨트롤러 삭제)의 기계적 파급.</p>
+        <h4>② production 주석 stale 참조 3건</h4>
+        <p>구 컨트롤러 삭제 후 grep 검증에서 형제 컨트롤러 3개의 클래스 javadoc 이 삭제된 클래스를 {@link} 참조함을 발견 — 같은 패키지라 컴파일은 통과하지만 stale 문서라 통합 컨트롤러 참조로 정정했다(변경 상세 §2).</p>
+        <div class="callout"><b>plan 결정 이행 현황</b> — D1(중립 <code>/management/browse</code>) · D2(param 기본 false + subprogram-edit 명시 true) · D3(<code>management/common/filesystem/controller</code> 위치, <code>@Controller</code>+<code>@ResponseBody</code> 형태) · D4(구 4개 즉시 삭제, alias 없음) 모두 plan 그대로 이행. 이탈 0.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 테스트 · Verification 결과</summary>
+      <div class="body">
+        <h4>테스트 (CP4)</h4>
+        <table>
+          <thead><tr><th>구분</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>전체 스위트 (<code>./gradlew test</code>, clean compile)</td><td><b>총 951 / 실패 0 / 오류 0 / 스킵 6</b> — 직전 baseline 944 + HF-5 가드 1 + 본 슬라이스 신규 6 = 951 정합</td></tr>
+            <tr><td>신규 <code>DirectoryBrowseControllerTest</code></td><td>6/6 green — param 계약 2(captor 로 <code>DirectoryBrowseRequest.includeFiles</code> false/true 전달 검증) + 예외 4종 status·JSON</td></tr>
+            <tr><td>이관 <code>AdviceExceptionMappingTest$Browse</code></td><td>5/5 green — 통합 URL 에서 4종 status + PathTraversal(보안) JSON 라우팅 가드 유지</td></tr>
+            <tr><td>이관 flow 4클래스 (Bmc 11 · Bios 1 · OS 3 · Subprogram 3 = browse 관련 포함 전체)</td><td>전부 green — browse 성공/404/409/500/403 시나리오 통합 URL 에서 재검증</td></tr>
+          </tbody>
+        </table>
+        <h4>정적 검증</h4>
+        <ul class="check-list" data-storage="r8-2-report-verify">
+          <li><input type="checkbox" checked><span>구 컨트롤러 클래스 참조 잔존 0 — 코드/테스트 전체 grep (주석 3건 발견 즉시 정정, 잔여는 subprogram-edit.js 의 WHY 주석 내 역사 서술뿐)</span></li>
+          <li><input type="checkbox" checked><span>구 browse URL 잔존 0 — <code>src/</code> 전체 grep 0건</span></li>
+          <li><input type="checkbox" checked><span><code>node --check subprogram-edit.js</code> 통과</span></li>
+          <li><input type="checkbox" checked><span>clean compile (compileJava 재실행) — U1/U2 병행 WIP 간섭 없음(작업 트리에 R8-2 변경만)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. CP5 가이드 — 사용자 브라우저 E2E</summary>
+      <div class="body">
+        <p style="margin-top:0">확인 포인트는 "경로 탐색이 여전히 되는가 + 파일 표시 규칙이 그대로인가" 두 가지다. 개발자도구 Network 에서 요청이 <code>/management/browse</code> 로 나가는지 함께 보면 확실하다.</p>
+        <ol>
+          <li><b>BIOS / BMC / Subprogram 신규 폼</b> — "대상 디렉토리" 옆 [탐색] → 패널이 뜨고 <b>디렉토리만</b> 나열, 하위 진입/상위 이동/선택 적용 정상.</li>
+          <li><b>OS ISO 신규/편집 폼</b> — [탐색] → 디렉토리 + <b>📄 파일(.iso)</b> 도 표시되고 파일 클릭 시 경로 입력 채워짐.</li>
+          <li><b>Subprogram 편집 폼</b> — entrypoint 상대경로 선택 트리에 <b>📄 파일이 표시</b>되는지 (이번 슬라이스의 유일한 동작성 수정 지점 — 여기서 파일이 안 보이면 즉시 보고).</li>
+          <li><b>에러 케이스(선택)</b> — 탐색 패널에서 존재하지 않는 경로 직접 입력 시 패널 status 줄에 오류 메시지(404)가 뜨는지.</li>
+        </ol>
+        <div class="callout warn">CP5 승인 후 commit 은 R8-2 파일만 명시 add — 작업 트리의 <code>report/26-07-05_…_U2-substep…_report.html</code> 은 병행 세션(U2) 산출물이라 제외한다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 잔여 · 다음 마일스톤</summary>
+      <div class="body">
+        <ul>
+          <li><b>잔존 책임 / 임시 비대칭 — 없음.</b> 껍데기 잔존 0, 이행기 이중 URL 없음, Service/정책/advice 무변경.</li>
+          <li><b>CP5</b>(사용자) → 승인 시 <b>commit</b>(R8-2 파일만) → <b>Notion R8-2 완료 + R8 묶음 종결</b>(R8-1 은 R2-3 흡수 reconcile 완료 상태).</li>
+          <li>R8 종결 후 잔여 대형 마일스톤은 <b>Stage 4 (PXE Boot 연동)</b> — U1/U2 병행 세션과 조율.</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  const LAYERS={
+    ctrl:`<span class="dim">// Controller 계층</span>
+<span class="drop">- OSBrowseController        /management/os/browse         includeFiles=param(기본 false)   40줄</span>
+<span class="drop">- BiosBrowseController      /management/bios/browse       includeFiles=false 하드코딩      39줄</span>
+<span class="drop">- BmcBrowseController       /management/bmc/browse        includeFiles=true  하드코딩      32줄</span>
+<span class="drop">- SubprogramBrowseController /management/subprogram/browse includeFiles=true  하드코딩      31줄</span>
+<span class="new">+ DirectoryBrowseController /management/browse            includeFiles=param(기본 false)   45줄</span>
+  <span class="dim">위치: management/common/filesystem/controller — browse 풀스택이 한 feature 폴더에 수렴</span>
+  <span class="keep">DirectoryBrowseService / DTO / 예외 4종 / advice 라우팅 — 무변경</span>`,
+    tpl:`<span class="dim">// 템플릿 6곳 — data-browse-url 교체 (JS 는 속성만 읽으므로 내부 무변경)</span>
+iso-new · iso-edit       <span class="drop">@{/management/os/browse}</span> → <span class="new">@{/management/browse}</span>
+bios-new                 <span class="drop">@{/management/bios/browse}</span> → <span class="new">@{/management/browse}</span>
+bmc-new                  <span class="drop">@{/management/bmc/browse}</span> → <span class="new">@{/management/browse}</span>
+subprogram-new · -edit   <span class="drop">@{/management/subprogram/browse}</span> → <span class="new">@{/management/browse}</span>
+
+<span class="dim">// subprogram-edit.js:70 — 유일한 동작성 수정</span>
+<span class="drop">- fetch(browseUrl + '?path=' + encodeURIComponent(absPath), …)</span>
+<span class="new">+ fetch(browseUrl + '?path=' + encodeURIComponent(absPath) + '&includeFiles=true', …)</span>
+  <span class="dim">구 컨트롤러의 서버 하드코딩 true → 클라이언트 명시로 대체 (entrypoint 파일 표시 필수)</span>`,
+    test:`<span class="dim">// 신규 — DirectoryBrowseControllerTest (6)</span>
+<span class="new">+ 기본 false 전달(captor) / 명시 true 전달(captor) / 400 / 404 / 409 / 500 JSON</span>
+
+<span class="dim">// 이관 5클래스 — 하니스·URL 만 교체, 시나리오 시맨틱 무변경</span>
+AdviceExceptionMappingTest$Browse   <span class="drop">new BiosBrowseController(mock)</span> → <span class="new">new DirectoryBrowseController(mock)</span>  URL 5곳
+BmcControllerTest                   @WebMvcTest 배열 교체 + URL 5곳   <span class="keep">browse 성공/404/409/500 가드 유지</span>
+BiosControllerUploadFlowTest        배열 교체 + URL 1곳
+OSMetadataControllerUploadFlowTest  배열 교체 + URL 2곳
+SubprogramControllerSecurityFlowTest 배열 교체 + URL 1곳   <span class="keep">403 보안 가드 유지</span>
+
+<span class="ok">결과: 총 951 / 실패 0 / 오류 0 / 스킵 6</span>`,
+    wire:`<span class="dim">// 요청/응답 계약 — 통합 후</span>
+GET <span class="new">/management/browse</span>?path=/opt/firmware[&includeFiles=true]   Accept: application/json
+ → 200 { path, parentPath, entries[{type,name,size,hidden}], truncated }
+ → 400 InvalidBrowsePath / 404 BrowseTargetNotFound / 409 BrowseTargetNotDirectory / 500 Io
+   <span class="keep">(전부 ApiErrorResponse JSON — R2-3=R8-1 advice 채널 그대로)</span>
+
+<span class="dim">// 변화: bmc-new / subprogram-new 의 응답 페이로드에서 불필요한 📄 목록이 사라짐(클라가 어차피 숨기던 것)</span>
+<span class="dim">// 불변: 표시 결과 6/6 · 에러 status · 보안검증(service 단)</span>`
+  };
+  const flowEl=document.getElementById('flow');
+  function show(l){flowEl.innerHTML=LAYERS[l];}
+  document.querySelectorAll('[data-layer]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-layer]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');show(b.dataset.layer);
+  }));
+  show('ctrl');
+</script>
+</body>
+</html>

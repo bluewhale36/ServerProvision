@@ -42,7 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>참고 : 본래 권장안에는 {@code POST /management/subprogram/upload-intent} 가 적혀 있으나, 실 라우트는
  * {@code /{kind}/{boardScope}/upload-intent} 로 path variable 을 포함한다. 보안 의미는 동일하므로 실제 라우트로 검증.</p>
  */
-@WebMvcTest(controllers = {SubprogramController.class, SubprogramUploadController.class, SubprogramBrowseController.class})
+@WebMvcTest(controllers = {SubprogramController.class, SubprogramUploadController.class,
+        com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController.class})
 class SubprogramControllerSecurityFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
@@ -83,7 +84,7 @@ class SubprogramControllerSecurityFlowTest {
         willThrow(new PathOutsideAllowedRootsException())
                 .given(directoryBrowseService).browse(any());
 
-        mvc.perform(get("/management/subprogram/browse").param("path", "/etc"))
+        mvc.perform(get("/management/browse").param("path", "/etc"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").exists());
     }

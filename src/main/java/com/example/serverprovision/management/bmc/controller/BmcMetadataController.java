@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.*;
  *
  * <p>R5-1 분할 — 단일 {@code BmcController} 에서 조회 / 메타데이터 편집 책임을 분리.
  * lifecycle 은 {@link BmcLifecycleController}, 업로드는 {@link BmcUploadController},
- * nudge 는 {@link BmcNudgeController}, job 은 {@link BmcJobController}, browse 는
- * {@link BmcBrowseController} 가 각각 관할한다.</p>
+ * nudge 는 {@link BmcNudgeController}, job 은 {@link BmcJobController}, browse 는 통합
+ * {@link com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController} (R8-2) 가 각각 관할한다.</p>
  */
 @Controller
 @RequestMapping("/management/bmc")

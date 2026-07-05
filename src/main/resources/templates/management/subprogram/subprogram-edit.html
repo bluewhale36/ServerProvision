@@ -25,7 +25,7 @@
             <form id="subprogramEditForm"
                   th:action="@{/management/subprogram/{id}/edit(id=${subprogram.id})}"
                   th:data-tree-root="${subprogram.treeRootPath}"
-                  th:data-browse-url="@{/management/subprogram/browse}"
+                  th:data-browse-url="@{/management/browse}"
                   th:object="${subprogramForm}"
                   method="post"
                   novalidate>

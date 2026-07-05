@@ -29,7 +29,7 @@ import java.util.List;
  *   <li>ISO nudge (content / intent path) : {@link IsoNudgeController}</li>
  *   <li>OS 메타데이터 nudge (메타) : {@link OSMetadataNudgeController}</li>
  *   <li>무결성 검증 / comps 추출 : {@link IsoJobController}</li>
- *   <li>서버 경로 탐색 : {@link OSBrowseController}</li>
+ *   <li>서버 경로 탐색 : {@link com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController} (R8-2 통합)</li>
  * </ul>
  *
  * <p>본 컨트롤러의 의존성은 {@link OSMetadataService} 단독.</p>

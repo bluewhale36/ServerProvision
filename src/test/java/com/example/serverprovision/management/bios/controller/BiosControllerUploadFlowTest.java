@@ -58,7 +58,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         BiosIntegrityController.class,
         BiosLifecycleController.class,
         BiosNudgeController.class,
-        BiosBrowseController.class
+        com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController.class
 })
 class BiosControllerUploadFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
@@ -86,7 +86,7 @@ class BiosControllerUploadFlowTest {
                         "/opt/bios", "/opt",
                         List.of(DirectoryListingResponse.Entry.directory("MS03-CE0"))));
 
-        mvc.perform(get("/management/bios/browse").param("path", "/opt/bios"))
+        mvc.perform(get("/management/browse").param("path", "/opt/bios"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.path").value("/opt/bios"))
                 .andExpect(jsonPath("$.entries[0].type").value("DIR"))

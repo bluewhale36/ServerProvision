@@ -54,7 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         BmcUploadController.class,
         BmcNudgeController.class,
         BmcJobController.class,
-        BmcBrowseController.class
+        com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController.class
 })
 class BmcControllerTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
@@ -210,7 +210,7 @@ class BmcControllerTest {
                         "/opt/bmc", null,
                         List.of(DirectoryListingResponse.Entry.directory("VENDOR_A"))));
 
-        mvc.perform(get("/management/bmc/browse"))
+        mvc.perform(get("/management/browse"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.path").value("/opt/bmc"))
                 .andExpect(jsonPath("$.entries[0].name").value("VENDOR_A"));
@@ -224,7 +224,7 @@ class BmcControllerTest {
                         "/opt/bmc", "/opt",
                         List.of(DirectoryListingResponse.Entry.directory("GIGABYTE"))));
 
-        mvc.perform(get("/management/bmc/browse").param("path", "/opt/bmc"))
+        mvc.perform(get("/management/browse").param("path", "/opt/bmc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.path").value("/opt/bmc"))
                 .andExpect(jsonPath("$.entries[0].type").value("DIR"))
@@ -237,7 +237,7 @@ class BmcControllerTest {
         willThrow(new BrowseTargetNotFoundException("/no/such/path"))
                 .given(directoryBrowseService).browse(any());
 
-        mvc.perform(get("/management/bmc/browse").param("path", "/no/such/path"))
+        mvc.perform(get("/management/browse").param("path", "/no/such/path"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(containsString("경로를 찾을 수 없습니다")));
     }
@@ -248,7 +248,7 @@ class BmcControllerTest {
         willThrow(new BrowseTargetNotDirectoryException("/opt/bmc/fw.bin"))
                 .given(directoryBrowseService).browse(any());
 
-        mvc.perform(get("/management/bmc/browse").param("path", "/opt/bmc/fw.bin"))
+        mvc.perform(get("/management/browse").param("path", "/opt/bmc/fw.bin"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value(containsString("디렉토리가 아닙니다")));
     }
@@ -259,7 +259,7 @@ class BmcControllerTest {
         willThrow(new DirectoryBrowseIoException("io fail", new RuntimeException("x")))
                 .given(directoryBrowseService).browse(any());
 
-        mvc.perform(get("/management/bmc/browse").param("path", "/opt/bmc"))
+        mvc.perform(get("/management/browse").param("path", "/opt/bmc"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value(containsString("io fail")));
     }

@@ -54,7 +54,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>목적 : Service 단 mock 만으로는 "예외 → HTTP status" 매핑 사고 (500 으로 새는 경우 등) 가 드러나지 않는다.
  * 컨트롤러의 try/catch 분기 + @ControllerAdvice 의 매핑을 함께 실행해 실제 응답 status · body 를 확인한다.</p>
  */
-@WebMvcTest(controllers = { IsoUploadController.class, IsoJobController.class, OSBrowseController.class, IsoNudgeController.class })
+@WebMvcTest(controllers = { IsoUploadController.class, IsoJobController.class,
+        com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController.class, IsoNudgeController.class })
 class OSMetadataControllerUploadFlowTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
@@ -85,7 +86,7 @@ class OSMetadataControllerUploadFlowTest {
                         "/opt/iso", "/opt",
                         java.util.List.of(DirectoryListingResponse.Entry.file("dvd.iso", 1024L))));
 
-        mvc.perform(get("/management/os/browse")
+        mvc.perform(get("/management/browse")
                         .param("path", "/opt/iso")
                         .param("includeFiles", "true"))
                 .andExpect(status().isOk())
@@ -101,7 +102,7 @@ class OSMetadataControllerUploadFlowTest {
         willThrow(new InvalidBrowsePathException("bad"))
                 .given(directoryBrowseService).browse(any());
 
-        mvc.perform(get("/management/os/browse").param("path", "bad"))
+        mvc.perform(get("/management/browse").param("path", "bad"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(containsString("경로 형식")));
     }
