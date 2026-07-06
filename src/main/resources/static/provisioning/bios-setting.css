@@ -1,7 +1,10 @@
 /*
- * AMI Aptio Setup Utility 룩 재현 — provisioning BIOS 셋업 PoC 전용.
- * 본 파일은 bios-setup.html 에서만 링크되므로 body 까지 스타일링해도 다른 페이지에 영향 없음.
+ * AMI Aptio Setup Utility 룩 재현 — BIOS 세팅 템플릿 화면 전용 (구 bios-setup.css 이관).
+ * 링크 페이지: bios-setting-editor.html · bios-setting-board-select.html · bmc-password.html
+ *            · bios-setting-detail.html (말미의 .bsd-* 상세 보조 클래스만 소비 — 포털 n-* 테마).
  * 범용 admin CSS(흰 CRUD 테마)로는 파란 모노스페이스 BIOS 콘솔을 낼 수 없어 전용 스타일을 둔다.
+ * 편집기/보드선택은 commonHead(style.css) 뒤에 로드된다 — navbar 등 n-* 컴포넌트는 아래
+ * "포털 chrome 공존" 절이 BIOS mono 상속에서 보호한다.
  */
 :root {
 	--bios-bg: #0a1a6b;          /* 본문 파랑 (클래식 AMI 보다 약간 부드럽게) */
@@ -25,8 +28,7 @@
 
 * { box-sizing: border-box; }
 
-/* 공통 베이스 — 높이/overflow 는 여기서 제약하지 않는다 (스크롤 필요 페이지가 있음).
-   BIOS 풀스크린은 .bios-screen 자신이 height:100vh 로 보장. */
+/* 공통 베이스 — 높이/overflow 는 여기서 제약하지 않는다 (스크롤 필요 페이지가 있음). */
 body.bios-body {
 	margin: 0;
 	background: var(--bios-bg-deep);
@@ -36,12 +38,54 @@ body.bios-body {
 	line-height: 1.5;
 }
 
+/* ───────── 포털 chrome 공존 (navbar + 템플릿 메타 입력) ─────────
+   본 파일이 style.css 뒤에 로드되며 body 에 mono 폰트를 깔므로, 포털 컴포넌트 영역은
+   포털 폰트로 되돌린다 (bmc-password.html 은 navbar 없이 단독 로드 — body mono 유지 필요). */
+body.bios-body .n-nav,
+body.bios-body .bios-setting-meta {
+	font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+/* 편집기 페이지: navbar(sticky) + 메타 입력 아래에서 BIOS 스크린이 잔여 뷰포트를 채운다.
+   flex-basis 0 으로 스크린 높이를 잔여 공간으로 고정해 내부 스크롤(.bios-items)을 유지한다. */
+body.bios-editor-body {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+/* 템플릿 메타 입력 스트립 — n-* 폼 클래스(n-form-group/n-label/n-input/n-textarea) 를 담는 흰 배경 영역. */
+.bios-setting-meta {
+	background: #fff;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+	padding: 14px 40px 2px;
+}
+
+.bios-setting-meta-fields {
+	display: grid;
+	grid-template-columns: minmax(260px, 1fr) 2fr;
+	gap: 0 24px;
+	align-items: start;
+}
+
+@media (max-width: 768px) {
+	.bios-setting-meta-fields {
+		grid-template-columns: 1fr;
+	}
+}
+
 .bios-screen {
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
 	background: var(--bios-bg);
 	border: 2px solid var(--bios-bar);
+}
+
+body.bios-editor-body .bios-screen {
+	flex: 1 1 0;
+	height: auto;
+	min-height: 480px;
 }
 
 /* ───────── 헤더 / 탭바 ───────── */
@@ -242,7 +286,6 @@ body.bios-body {
 .bios-select { padding-right: 2px; }
 .bios-select option { background: var(--bios-bg-deep); color: var(--bios-fg); }
 .bios-int { width: 80px; cursor: text; }
-.bios-pass { width: 140px; cursor: text; }
 .bios-input:focus { outline: 1px dotted var(--bios-hl-fg); }
 
 .bios-reset {
@@ -321,6 +364,14 @@ body.bios-body {
 
 .bios-btn:hover { background: #b3bbdd; }
 
+/* 저장 사전 차단(disabled) — 사유는 wrapper(.n-btn-tooltip-wrap) tooltip 이 안내한다. */
+.bios-btn:disabled {
+	opacity: .45;
+	cursor: not-allowed;
+}
+
+.bios-btn:disabled:hover { background: transparent; }
+
 .bios-btn--primary {
 	background: var(--bios-bg-deep);
 	color: var(--bios-yellow);
@@ -329,57 +380,10 @@ body.bios-body {
 
 .bios-btn--primary:hover { background: #04123f; }
 
-/* ───────── 저장 결과 모달 ───────── */
-.bios-modal {
-	position: fixed;
-	inset: 0;
-	background: rgba(2, 6, 30, .72);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 50;
-}
+.bios-btn--primary:disabled:hover { background: var(--bios-bg-deep); }
 
-.bios-modal[hidden] { display: none; }
-
-.bios-modal-box {
-	width: min(680px, 92vw);
-	max-height: 84vh;
-	display: flex;
-	flex-direction: column;
-	background: var(--bios-bg);
-	border: 2px solid var(--bios-cyan);
-	box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
-}
-
-.bios-modal-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 10px 14px;
-	background: var(--bios-bg-deep);
-	border-bottom: 1px solid var(--bios-leader);
-}
-
-.bios-modal-head h3 { margin: 0; color: var(--bios-yellow); font-size: 15px; }
-
-.bios-modal-close {
-	appearance: none;
-	border: 0;
-	background: transparent;
-	color: var(--bios-fg);
-	font-size: 16px;
-	cursor: pointer;
-}
-
-.bios-modal-body { padding: 14px; overflow-y: auto; }
-.bios-modal-note { margin: 0 0 8px; }
-.bios-modal-sub { margin: 6px 0; color: var(--bios-fg-dim); font-size: 13px; }
-.bios-reset-note { color: var(--bios-reset); }
-.bios-modal-error { color: var(--bios-error); font-weight: 700; margin: 0 0 8px; }
-.bios-modal-fields { margin: 4px 0 0; padding-left: 18px; }
-.bios-modal-fields code, .bios-modal-sub code { color: var(--bios-cyan); }
-
+/* ───────── Redfish 요청 프리뷰 블록 (bmc-password.html) ─────────
+   구 저장 결과 모달(.bios-modal*) 스타일은 편집기의 echo 프리뷰 폐지(U2-2-1)와 함께 제거됨. */
 .bios-json {
 	background: var(--bios-bg-deep);
 	border: 1px solid var(--bios-leader);
@@ -392,7 +396,7 @@ body.bios-body {
 	overflow-x: auto;
 }
 
-/* ───────── 보드 선택 랜딩 (bios-board-select.html) ───────── */
+/* ───────── 보드 선택 랜딩 (bios-setting-board-select.html) ───────── */
 /* (body 는 베이스에서 높이/overflow 제약이 없으므로 선택/BMC 페이지는 자연스럽게 문서 스크롤된다.) */
 
 .bios-select {
@@ -508,3 +512,106 @@ body.bios-body {
 .bmc-result-sub { color: var(--bios-fg-dim); font-size: 13px; margin: 10px 0 6px; }
 
 .bmc-note { color: var(--bios-reset); font-size: 13px; margin-top: 12px; }
+
+/* ───────── 템플릿 상세 페이지 (bios-setting-detail.html) ─────────
+   상세는 BIOS 콘솔 룩이 아니라 포털 흰 테마(n-*) 위에 얹히는 보조 클래스만 필요하다.
+   색은 global/style.css 의 --n-* 변수만 사용 — bios-* 변수(파란 콘솔 팔레트)와 무관.
+   body 에 bios-body 클래스가 없으므로 위의 콘솔 스타일과 간섭하지 않는다. */
+
+/* menuPath 그룹 */
+.bsd-group { margin-bottom: 22px; }
+.bsd-group:last-child { margin-bottom: 0; }
+
+.bsd-group-title {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--n-text-sec);
+	letter-spacing: 0.4px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--n-border);
+	margin-bottom: 2px;
+}
+
+.bsd-rows { list-style: none; margin: 0; padding: 0; }
+
+.bsd-row {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	flex-wrap: wrap;
+	padding: 9px 4px;
+	border-bottom: 1px solid var(--n-border-row);
+}
+
+.bsd-row:last-child { border-bottom: none; }
+
+/* 라벨 = DisplayName(주) + AttributeName(mono 보조 — global code 스타일의 배지 배경을 끈다) */
+.bsd-row-label { font-size: 14px; font-weight: 600; color: var(--n-text); }
+
+.bsd-attr-name {
+	font-size: 11px;
+	color: var(--n-text-muted);
+	background: transparent;
+	border: none;
+	padding: 0;
+}
+
+/* 기본값 → 저장값 대비 (default 는 muted, stored 가 강조) */
+.bsd-values {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: baseline;
+	gap: 8px;
+	font-size: 14px;
+}
+
+.bsd-value-default { color: var(--n-text-muted); }
+.bsd-value-arrow { color: var(--n-text-muted); font-size: 12px; }
+.bsd-value-stored { font-weight: 600; color: var(--n-blue); }
+
+/* stale 행(카탈로그에 없는 저장 속성) — 경고 톤(n-alert-danger 와 동일 orange 계열) */
+.bsd-stale-note {
+	margin: 0 0 10px;
+	font-size: 13px;
+	color: var(--n-orange);
+}
+
+.bsd-row-stale .bsd-attr-name { color: var(--n-orange); font-size: 12px; }
+.bsd-row-stale .bsd-value-stored { color: var(--n-text-sec); font-weight: 500; }
+
+/* Redfish Request Body 프리뷰 */
+.bsd-redfish-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-bottom: 10px;
+}
+
+.bsd-redfish-target { font-size: 13px; word-break: break-all; }
+
+.bsd-redfish-pre {
+	background: var(--n-bg);
+	border: 1px solid var(--n-border);
+	border-radius: 6px;
+	padding: 14px 16px;
+	margin: 0;
+	font-family: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+	font-size: 12.5px;
+	line-height: 1.55;
+	color: var(--n-text);
+	white-space: pre;
+	overflow-x: auto;
+}
+
+.bsd-redfish-reset {
+	margin-top: 18px;
+	padding-top: 14px;
+	border-top: 1px dashed var(--n-border);
+}
+
+.bsd-redfish-reset-note {
+	margin: 0 0 10px;
+	font-size: 13px;
+	color: var(--n-text-sec);
+}

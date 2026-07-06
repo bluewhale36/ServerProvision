@@ -49,6 +49,17 @@ public enum BiosAttributeType {
 
 	/** 비밀번호 문자열. 위젯=password, 빈 값은 '미변경' 으로 취급(전송 제외), wire=문자열. */
 	PASSWORD("Password", "password") {
+		/**
+		 * U2-2-1 — 템플릿 배제 (승인 결정): 평문 BIOS 비밀번호를 DB 에 저장하지 않으며, Redfish 도
+		 * Attributes 가 아닌 별도 Bios.ChangePassword 액션(BMC 연관)이라 flat values 에 실을 수 없다.
+		 * 이 판정이 단일 SSOT — 템플릿 편집기 뷰모델은 위젯을 미출력(구조적 UI 차단)하고,
+		 * 서버는 같은 판정으로 direct POST 를 400 거절(안전망)한다.
+		 */
+		@Override
+		public boolean templatable() {
+			return false;
+		}
+
 		@Override
 		public void validate(BiosAttribute attr, String raw) {
 			if (raw == null || raw.isEmpty()) {
@@ -95,6 +106,11 @@ public enum BiosAttributeType {
 	/** Thymeleaf 위젯 분기 및 클라이언트 {@code data-type} 값. */
 	public String widgetKind() {
 		return widgetKind;
+	}
+
+	/** BIOS 세팅 템플릿(정의서)에 담을 수 있는 타입인지 — PASSWORD 만 상수별 override 로 false. */
+	public boolean templatable() {
+		return true;
 	}
 
 	/** 검증 실패 시 {@link InvalidBiosValueException}(400). */

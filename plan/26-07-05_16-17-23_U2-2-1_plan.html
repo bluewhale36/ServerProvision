@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U2-2-1 Plan — BIOS 세팅 템플릿: 저장 모델 + 생성·목록 + PoC 이관·폐지</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .chip.defer{background:var(--purple-bg);color:var(--purple);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card li { font-size:12px; line-height:1.55; }
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  /* 🎬 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.on { background:var(--green); color:#fff; border-color:var(--green); }
+  .ux-attr { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:5px; font-size:12.5px; }
+  .ux-attr .aname { font-family:var(--mono); font-size:11px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .ux-attr .atype { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:700; background:var(--blue-bg); color:var(--blue); }
+  .ux-attr .atype.pw { background:var(--red-bg); color:var(--red); }
+  .ux-attr .atype.ro { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-attr select, .ux-attr input[type="number"] { font-size:12px; padding:3px 6px; border:1px solid var(--border); border-radius:4px; background:var(--card); font-family:var(--mono); }
+  .ux-attr.changed { border-color:var(--green); background:var(--green-bg); }
+  .ux-attr.excluded { opacity:.55; border-style:dashed; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-json { font-family:var(--mono); font-size:11.5px; background:#1f2328; color:#d0d7de; border-radius:6px; padding:12px 14px; margin-top:10px; white-space:pre; overflow-x:auto; line-height:1.55; }
+  .ux-json .k { color:#79c0ff; } .ux-json .s { color:#a5d6ff; } .ux-json .n { color:#ffa657; } .ux-json .d { color:#ff7b72; font-weight:700; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U2-2-1 — BIOS 세팅 템플릿: 저장 모델 + 생성·목록 + PoC 이관·폐지 <span class="v2-badge">U2-2 묶음 1/3</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U2-2-1 (feature)</span>
+    <span><strong>상위</strong> U2-2 BIOS 세팅 정의서 CRUD (설계 report 승인 2026-07-05)</span>
+    <span><strong>scope</strong> BiosSettingTemplate 영속 + 생성·목록 + 기존 편집기 이관(move)·구 라우트 폐지</span>
+    <span><strong>생성</strong> 2026-07-05 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p><b>설계는 이미 확정됐다</b> — 본 slice 의 아키텍처 결정(flat diff JSON·lifecycle 비적용·boardKey 유지·PoC 이관·REFERENCE)은
+          7-agent 설계 workflow 를 거쳐 <code>report/26-07-05_16-05-56_U2-2-bios-setting-design_report.html</code> 로 승인됐다
+          (수정 1건: 보드 자동 감지 시 복수 템플릿 — U2-2-3 범위). 본 plan 은 그 결정을 <b>승계</b>하고 구현 수준 결정만 추가한다.</p>
+        <table>
+          <thead><tr><th style="width:30%">항목</th><th style="width:12%">상태</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>BIOS 셋업 PoC</td><td><span class="chip move">이관 대상</span></td><td><code>/provisioning/bios-setup</code> 3 URL — 무상태(파일 로드→렌더→검증→로그 echo). 편집기 자산(<code>bios-setup.html</code> 148줄 + <code>bios-setup.js</code> 338줄: 트리 렌더·diff 수집·의존성 라이브 평가, <code>bios-board-select.html</code>)은 재작성 불필요한 성숙 자산 — <b>복제가 아니라 이관(move)</b>한다.</td></tr>
+            <tr><td>검증·coerce 엔진</td><td><span class="chip keep">재사용</span></td><td><code>BiosAttributeType</code> 4상수 다형(<code>validate()/coerce()</code>) + <code>BiosSetupLoader.load(boardKey)</code> 단일 seam + 파서 3종 — 무변경. <code>BiosSetupService.save()</code> 의 검증 루프만 신규 CommandService 로 이동.</td></tr>
+            <tr><td>영속</td><td><span class="chip del">공백</span></td><td>provisioning 패키지에 <code>@Entity</code> 0. 신규 테이블 1개가 이 slice 에서 생긴다 — <code>ddl-auto=validate</code>(커밋 2b7f397) 이후 <b>첫 신규 테이블</b>이라 수동 DDL 필요(Step 9).</td></tr>
+            <tr><td>navbar</td><td><span class="chip mod">추가</span></td><td>구 bios-setup 은 nav 미등재(직접 URL 접근이었음). 신규 'BIOS 세팅' 링크를 Provisioning 그룹(세팅 정의서와 서버 사이)에 추가 — <code>activePage='bios-setting'</code>.</td></tr>
+            <tr><td>U2-1</td><td><span class="chip keep">완료</span></td><td>CP5 승인 완료. guest 정의서 화면·계약(스텁) 가동 중 — 본 slice 는 setting 패키지를 건드리지 않는다(연동은 U2-2-3).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>영속 모델</b> — <code>BiosSettingTemplate</code> 엔티티(BaseTimeEntity 상속, lifecycle/Markable 비상속): id / name(전역 unique, 409) / description / <code>boardKey</code>(BoardKey VO, 생성 후 불변) / <code>values</code>(BiosSettingValues VO — flat diff, 최소 1속성) + <code>BiosSettingValuesConverter</code>(JSON 컬럼) + <code>BoardKeyConverter</code> + Repository.</li>
+          <li><b>서비스</b> — <code>BiosSettingTemplateQueryService</code>(목록·보드 카탈로그·편집기 뷰모델) / <code>BiosSettingTemplateCommandService</code>(create — 기존 <code>BiosSetupService.save()</code> 검증·coerce 루프를 <b>이동</b> 재사용). <code>BiosAttributeType.templatable()</code> 상수별 다형 추가(PASSWORD 만 false).</li>
+          <li><b>화면 3</b> — 목록(table-list.css) · 보드 선택(<code>bios-board-select.html</code> 이관) · 작성 편집기(<code>bios-setup.html/js</code> 이관 개조: name/description 입력 추가, PASSWORD 위젯은 <code>templatable()</code> 판정으로 뷰모델에서 미출력, 저장을 POST XHR 로 전환).</li>
+          <li><b>생성 API</b> — <code>POST /provisioning/bios-setting</code> (201 + Location). 검증: name @NotBlank / 빈 diff 400 / unknown 속성 400 / 타입 검증 400 / PASSWORD 400 / name 중복 409 / 미등록 boardKey 404.</li>
+          <li><b>구 라우트 폐지</b> — <code>/provisioning/bios-setup</code> 3 URL + <code>BiosSetupController/BiosSetupRestController</code> + echo 계약(<code>BiosSettingsSaveRequest/Response</code>) 삭제. redirect 없음(승인된 Q4).</li>
+          <li><b>navbar</b> — 'BIOS 세팅' 링크 추가.</li>
+          <li><b>Step 9 수동 DDL</b> — <code>bios_setting_template</code> CREATE TABLE 스크립트 산출·적용·<code>SHOW CREATE TABLE</code> 확인.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>상세·수정·삭제(재조인 렌더 + pre-fill overlay) — <b>→ U2-2-2</b>. 목록 행은 이름 표기만(링크는 -2 에서 활성).</li>
+            <li>guest 연동(BasicSettingRequest 복수 템플릿 계약) · 사용중 삭제 차단 SPI — <b>→ U2-2-3</b>.</li>
+            <li>boardKey↔BoardModel 병합 · Redfish 실호출 — <b>→ Stage 4 준비/execution</b>. <code>BiosRedfishPayloadAssembler</code> 는 무손실 보존.</li>
+            <li>setting 패키지 수정 일절 없음.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 편집기 diff 수집 → flat JSON → 저장 판정 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 slice 의 본질은 <b>"registry 기반 편집 → 변경분(diff)만 flat JSON → 검증 → 영속"</b> 이다.
+          아래 미니 편집기에서 값을 바꾸면 ① 기본값과 달라진 행만 diff 에 실리고(같으면 자동 탈락) ② 전송 JSON 이 라이브 조립되며
+          ③ 저장 버튼 차단 판정(name @NotBlank / 빈 diff)이 갱신된다. <b>PASSWORD 속성은 위젯 자체가 출력되지 않음</b>(구조적 UI 차단)과
+          readOnly 스킵도 재현했다 — 판정 SSOT 는 <code>BiosAttributeType.templatable()</code>/<code>readOnly()</code> 로 서버와 동일(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">템플릿 명칭 :</span>
+            <button class="seg" id="seg-name" onclick="demoToggleName()">이름 입력됨 ✓</button>
+            <span class="group-label" style="margin-left:14px;">보드 :</span>
+            <span class="mono" style="font-family:var(--mono);font-size:12px;">MS74-HB0 (선택 완료 — 랜딩에서 확정, 이후 불변)</span>
+          </div>
+          <div id="demo-attrs"></div>
+          <div class="ux-attr excluded">
+            <span class="aname">SETUP001_AdministratorPassword</span>
+            <span class="atype pw">PASSWORD</span>
+            <span style="font-size:11px;color:var(--text-muted);">templatable()=false → 뷰모델에서 미출력 (위젯 없음 — 구조적 차단, 서버는 같은 판정으로 400 안전망)</span>
+          </div>
+          <div class="ux-attr excluded">
+            <span class="aname">SETUP003_FirmwareVersion</span>
+            <span class="atype ro">READONLY</span>
+            <span style="font-size:11px;color:var(--text-muted);">읽기 전용 — diff 수집 제외(기존 PoC 정책 승계)</span>
+          </div>
+          <div class="ux-toolbar" style="margin-top:10px;">
+            <span class="group-label">POST /provisioning/bios-setting :</span>
+            <span id="demo-submit"></span>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-json" id="demo-json"></div>
+          <div class="ux-message" id="demo-message">값을 바꿔보세요 — 기본값과 같아지면 diff 에서 자동으로 빠집니다.</div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 diff 수집(기본값 비교)·PASSWORD 미출력·빈 diff/name 차단 =
+          기존 <code>bios-setup.js</code> 수집 정책 + 신규 <code>templatable()</code> + <code>BiosSettingValues</code> 최소 1속성 invariant + <code>@NotBlank</code> 의 1:1 재현.
+          JSON 의 값 타입(문자열/숫자/불리언)이 coerce 후 저장·Redfish 페이로드와 동형임도 표시된다.</p>
+        </div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>컨트롤러</th><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="3"><code>BiosSettingTemplateController</code><br>(SSR)</td>
+              <td>GET</td><td><code>/provisioning/bios-setting</code></td><td>템플릿 목록(name/boardKey 뱃지/변경 속성 수/수정일)</td><td><code>provisioning/bios-setting-list</code></td></tr>
+            <tr><td>GET</td><td><code>/provisioning/bios-setting/new</code></td><td>보드 선택 랜딩(카탈로그 카드)</td><td><code>provisioning/bios-setting-board-select</code></td></tr>
+            <tr><td>GET</td><td><code>/provisioning/bios-setting/new/{boardKey}</code></td><td>작성 편집기(트리 렌더 + name/description)</td><td><code>provisioning/bios-setting-editor</code> / 404</td></tr>
+            <tr><td><code>BiosSettingTemplateRestController</code><br>(XHR)</td>
+              <td>POST</td><td><code>/provisioning/bios-setting</code></td><td>생성 — <code>{name, description, boardKey, attributes:{flat diff}}</code></td><td>201+Location / 400 / 404 / 409</td></tr>
+            <tr><td colspan="2"><span class="chip del">삭제</span></td><td><code>/provisioning/bios-setup</code> · <code>/{boardKey}</code> · <code>/{boardKey}/save</code></td><td>구 PoC 3 URL + 컨트롤러 쌍 + echo DTO — redirect 없이 제거(Q4 승인)</td><td>404 회귀 테스트</td></tr>
+            <tr><td colspan="2"><span class="chip defer">-2/-3</span></td><td><code>GET/{id}</code>·<code>/{id}/edit</code>·<code>PUT</code>·<code>DELETE</code></td><td>상세/수정/삭제 → U2-2-2 · 사용중 409 → U2-2-3</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="seq">
+          <div class="actor a1">브라우저 (bios-setting-editor.js)</div><div class="actor a2">Controller/Service</div><div class="actor a3">Loader + DB</div>
+          <div class="step a1">보드 선택 → 편집기 진입</div><div class="step a2">Query.editorView(boardKey) → 뷰모델(PASSWORD 미출력)</div><div class="step a3">Loader.load(boardKey) — registry+트리(캐시)</div>
+          <div class="step a1">값 편집 → 기본값 대비 diff 수집</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"><code>POST /provisioning/bios-setting</code></div><div class="step a2">Command.create — registry 재검증·coerce → VO 조립</div><div class="step a3">unique(name) 확인 → INSERT (values=JSON)</div>
+          <div class="step a1">201 → 목록 이동</div><div class="step a2"></div><div class="step a3"></div>
+        </div>
+        <pre><code>[정상]   diff flat → 서버 registry 전건 재검증(coerce) → BiosSettingValues 조립 → 201
+[400]    name blank / 빈 diff / unknown 속성 / 타입 위반 / PASSWORD 속성 포함 (클라 diff 수집이 registry 기반이라 뒤 3개는 direct POST 만)
+[404]    미등록 boardKey (BiosBoardNotFoundException 재사용)
+[409]    name 전역 중복 (DuplicateBiosSettingTemplateNameException 신규)</code></pre>
+        <h4>Step 9 — 수동 DDL (ddl-auto=validate 하 첫 신규 테이블)</h4>
+        <pre><code>CREATE TABLE bios_setting_template (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(128)  NOT NULL,
+  description VARCHAR(1024) NULL,
+  board_key   VARCHAR(64)   NOT NULL,
+  values_json JSON          NOT NULL,
+  created_at  DATETIME(6)   NOT NULL,
+  updated_at  DATETIME(6)   NOT NULL,
+  CONSTRAINT uk_bios_setting_template_name UNIQUE (name)
+);  -- 적용 후 SHOW CREATE TABLE 로 확인. 스크립트는 CP4 보고에 포함.</code></pre>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4" open>
+      <summary>§4. 도메인 모델 (SSOT) + 구현 결정</summary>
+      <div class="body">
+        <div class="pkg-tree">com.example.serverprovision.provisioning.biossetting/     (신규 feature 패키지)
+├── controller/  BiosSettingTemplateController · BiosSettingTemplateRestController
+├── service/     BiosSettingTemplateQueryService · BiosSettingTemplateCommandService
+│                (검증·coerce 루프는 BiosSetupService.save 에서 '이동' — PoC save 는 같은 슬라이스에서 폐지)
+├── repository/  BiosSettingTemplateRepository
+├── entity/      BiosSettingTemplate (BaseTimeEntity — Lifecycle/Markable 비상속)
+├── vo/          BoardKey(record) · BiosSettingValues(record — Map&lt;BiosAttributeName,BiosAttributeValue&gt; 래핑,
+│                최소 1속성 invariant) + converter: BoardKeyConverter · BiosSettingValuesConverter
+├── dto/         request: BiosSettingTemplateCreateRequest(name/description/boardKey/attributes Map&lt;String,String&gt;)
+│                response: BiosSettingTemplateSummaryResponse · BiosSettingEditorResponse(기존 트리 뷰모델 승계)
+└── exception/   DuplicateBiosSettingTemplateNameException(409)
+                 ※ NotFound(404)는 상세가 생기는 U2-2-2 에서 신설 — 이 슬라이스 은 조회-by-id 가 없다
+
+provisioning/ (기존 — 개조 최소)
+├── domain/enums/BiosAttributeType   ★ templatable() 상수별 다형 추가 (PASSWORD=false, 나머지 true)
+├── service/BiosSetupService         ★ save() 삭제(로직 이동) · listBoards()/renderMenu() 잔류(카탈로그 공급자)
+└── controller/BiosSetup*Controller  ✕ 삭제 (echo DTO 2종 포함)</div>
+        <h4>구현 수준 결정 (설계 report 승계분 외 신규)</h4>
+        <table>
+          <thead><tr><th style="width:6%">#</th><th style="width:30%">결정</th><th>근거 / 대안</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>VO 매핑 = <code>AttributeConverter</code> 2종 (autoApply=false)</td><td>U1 선례(<code>IpAddressConverter/MacAddressConverter</code>) 그대로. values 컬럼은 <code>columnDefinition="json"</code>(U1 <code>hardware_spec</code> 선례). @Embeddable record 대안은 선례 이탈이라 기각.</td></tr>
+            <tr><td>D2</td><td>요청의 attributes 는 <code>Map&lt;String,String&gt;</code>(폼 문자열) — 서버가 coerce 후 VO 화</td><td>기존 PoC 계약(<code>BiosSettingsSaveRequest</code>)과 동일한 wire — 이관되는 JS 수집 로직 무변경. 타입화는 저장 경계에서.</td></tr>
+            <tr><td>D3</td><td>편집기 뷰모델의 PASSWORD 제외는 <b>뷰모델 조립 시점</b>(Query 서비스)</td><td><code>templatable()</code> 단일 SSOT — 템플릿 편집기에는 위젯이 아예 없고(구조적 차단), Command 는 같은 판정으로 direct POST 를 400 거절. 구 PoC 렌더(<code>renderMenu</code>)는 무변경(BmcPassword 등 다른 소비자 고려 — 실제로는 소비자가 없어져 잔류 비대칭, §8).</td></tr>
+            <tr><td>D4</td><td>목록의 "변경 속성 수" = <code>values.size()</code> 파생</td><td>denorm 컬럼 기각(설계 report) — 상태 복제 drift 방지.</td></tr>
+            <tr><td>D5</td><td>편집기 화면·JS 파일명 = <code>bios-setting-editor.html/js</code> 로 이관(git mv 후 개조)</td><td>이관(move) 원칙 — diff 로 개조 내역이 추적됨. 복제 승격 기각(중복 금지).</td></tr>
+            <tr><td>D6</td><td>navbar 'BIOS 세팅' — '세팅 정의서' 와 '서버' 사이</td><td>guest 정의서 작성 전에 템플릿을 먼저 만드는 흐름을 nav 순서로 암시.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>적대적 자기비판</b> — ① <i>NotFound 예외 없이 목록·생성만으로 슬라이스가 성립하나?</i> 성립한다 — 조회-by-id 표면이 없으므로 404 대상은 boardKey(기존 예외 재사용)뿐. 목록 행의 상세 링크는 -2 에서 활성화(그 전까지 비링크 텍스트 — §8 잔존). ② <i>검증 루프 '이동' 이 PoC save 폐지와 원자적인가?</i> 같은 슬라이스의 같은 CP2~CP4 안에서 수행 — 두 소비자 창 0(설계 report 의 이관 원칙). ③ <i>BiosSettingValues 최소 1속성 invariant 와 "빈 diff 400" 이 중복 아닌가?</i> 아니다 — 같은 SSOT 다: Request 검증(@AssertTrue 또는 서비스 가드)이 VO invariant 를 호출-전 방어로 쓰고, VO 는 생성자에서 최종 강제(도메인 invariant if-throw — 정당한 imperative 가드). ④ <i>숨은 순환?</i> biossetting → provisioning.domain/service(카탈로그) 단방향. setting 참조 없음(-3 에서 SPI 로 단방향 유지 예정). 순환 소지 없음.</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>목록·보드선택·편집기 3화면(이관 개조) + navbar</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller 2종 + 구 컨트롤러 쌍 삭제</td></tr>
+            <tr><td>4</td><td>Create Request/Response DTO + echo DTO 삭제</td></tr>
+            <tr><td>5</td><td>Query/Command 서비스 인터페이스 시그니처</td></tr>
+            <tr><td>6·7</td><td>Repository · <b>BiosSettingTemplate 엔티티 + VO/Converter</b> (이 묶음 첫 실엔티티)</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>서비스 본체(검증 루프 이동 + templatable()) + 단위/통합 테스트</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td><b>수동 DDL 적용 + SHOW CREATE TABLE 확인</b></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — U2-2 묶음 공유 CP5 방침(중간 확인 가능)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 (JUnit + Mockito)</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>BiosSettingTemplateCommandService</code></td><td>happy(coerce 타입 보존 확인) / name 중복 409 / unknown 속성 / 타입 위반 / PASSWORD 거절 / 빈 diff</td><td>6</td></tr>
+            <tr><td><code>BiosSettingValuesConverter</code></td><td>직렬화↔역직렬화 왕복(String/Long/Boolean 타입 보존) / 빈 map 거절</td><td>2</td></tr>
+            <tr><td><code>BiosAttributeType.templatable()</code></td><td>4상수 판정(PASSWORD 만 false)</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (@WebMvcTest ×2 — Service 까지만 mock, advice 매핑 실행)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>SSR 목록/보드선택/편집기 200 + 모델 속성 · POST 201+Location+바디</td><td>4</td></tr>
+            <tr><td>400</td><td>name blank(fieldErrors) / 빈 attributes / unknown 속성 / invalid enum 값 / PASSWORD 포함 — 각 advice 경로 확인</td><td>5</td></tr>
+            <tr><td>404</td><td>편집기 GET 미등록 boardKey / POST 미등록 boardKey (<code>BiosBoardNotFoundException</code> 재사용 — 통합 경로 신규라 시나리오 의무)</td><td>2</td></tr>
+            <tr><td>409</td><td>name 중복 (<code>DuplicateBiosSettingTemplateNameException</code> 신규 — 시나리오 의무)</td><td>1</td></tr>
+            <tr><td>회귀</td><td>구 <code>/provisioning/bios-setup</code> 3 URL → 404 (폐지 확인)</td><td>3</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>DuplicateBiosSettingTemplateNameException</code></td><td>409</td><td><span class="chip new">신규</span></td><td><code>ConflictException</code> 하위 — advice 다형 매핑(핸들러 추가 불요). 트리거 통합 테스트 의무.</td></tr>
+            <tr><td><code>InvalidBiosValueException</code></td><td>400</td><td><span class="chip mod">팩토리 추가</span></td><td>기존 <code>blankKey()</code> 패턴에 <code>notTemplatable(name)</code>·<code>emptyDiff()</code> 정적 팩토리 추가 — 신규 클래스 없이 사유만 확장.</td></tr>
+            <tr><td><code>UnknownBiosAttributeException</code> · <code>BiosBoardNotFoundException</code></td><td>400 · 404</td><td><span class="chip keep">재사용</span></td><td>신규 통합 경로에서 시나리오 재검증.</td></tr>
+            <tr><td><code>BiosSettingTemplateNotFoundException</code></td><td>404</td><td><span class="chip defer">U2-2-2</span></td><td>조회-by-id 표면이 생길 때 신설.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>의도된 잔존 / 임시 비대칭 (+ 해소 시점)</h4>
+        <ul>
+          <li><b>목록 행이 비링크</b> — 상세 화면이 없으므로. <b>U2-2-2</b> 에서 링크 활성.</li>
+          <li><b>삭제·수정 UI 없음</b> — 생성만 가능. <b>U2-2-2</b>(PUT/DELETE) · <b>U2-2-3</b>(사용중 409).</li>
+          <li><b><code>BiosSetupService</code> 잔류 비대칭</b> — save() 를 잃고 listBoards/renderMenu 만 남은 카탈로그 공급자(자체 엔드포인트 없음). 카탈로그 엔진 패키지 정비는 후속 R 후보(설계 report §04).</li>
+          <li><b>renderMenu 의 PASSWORD 미필터</b> — 구 PoC 렌더 경로가 사라져 실소비자는 신규 Query 서비스뿐이나, 시그니처 정리는 -2(overlay 오버로드 추가 시)에서 일괄.</li>
+          <li><b>카탈로그는 여전히 파일 기반</b>(application.properties boards[]) — 병합은 Stage 4 준비 슬라이스(Q3 승인).</li>
+        </ul>
+        <h4>주의</h4>
+        <ul>
+          <li>수동 DDL 은 로컬 DB(claude_code 계정)에 적용 — 권한 부족 시 스크립트를 사용자에게 전달(커밋은 추후 지시라 마이그레이션 파일 커밋 없음).</li>
+          <li>구 라우트 삭제로 기존 북마크는 404 — Q4 승인 사항(내부 도구).</li>
+          <li>CLAUDE.md 수정 불요. Notion U2-2-1 은 CP1 진입 처리 완료 — CP2~CP4 는 상태 변화 없어 생략, CP4 보고 후 'CP4 완료' 갱신.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U2-2-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과(기존 회귀 0 — 특히 setting 23건)</span></label></li>
+          <li><label><input type="checkbox" data-key="poc404"> <span>구 bios-setup 3 URL 404 회귀 green</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>수동 DDL 적용 + <code>SHOW CREATE TABLE bios_setting_template</code> 확인 + <code>ddl-auto=validate</code> 기동 무오류</span></label></li>
+          <li><label><input type="checkbox" data-key="pw"> <span>편집기 뷰모델에 PASSWORD 위젯 0건(코드+화면 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 확인 — U2-2 묶음 공유 CP5 (사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/biossetting/</code> — controller 2 · service 2 · repository 1 · entity 1 · vo 2+converter 2 · dto 3 · exception 1 (~14 클래스)</td><td>§4 pkg-tree</td></tr>
+            <tr><td><span class="chip move">이관</span></td><td><code>bios-board-select.html</code> → <code>bios-setting-board-select.html</code> · <code>bios-setup.html/js</code> → <code>bios-setting-editor.html/js</code> (+ <code>bios-setup.css</code> → <code>bios-setting.css</code>)</td><td>git mv 후 개조 — name/description 입력·PASSWORD 미출력·POST 전환</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/provisioning/bios-setting-list.html</code></td><td>table-list.css 재사용</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>fragments/layout.html</code>(navbar +1) · <code>BiosAttributeType</code>(templatable()) · <code>BiosSetupService</code>(save 삭제) · <code>InvalidBiosValueException</code>(팩토리 2)</td><td>—</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>BiosSetupController</code> · <code>BiosSetupRestController</code> · <code>BiosSettingsSaveRequest</code> · <code>BiosSettingsSaveResponse</code></td><td>구 PoC 표면 — 검증 루프는 CommandService 로 이동 후</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트 4파일(§6) + DDL 스크립트</td><td>—</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>Loader·파서·도메인 모델·VO·트리 뷰모델·<code>BiosRedfishPayloadAssembler</code>·BmcPassword 계열·<code>setting/**</code></td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>U2-2-2 상세·수정·삭제</b> — flat→registry 재조인 페이지 그룹 렌더 + edit pre-fill overlay(renderMenu 오버로드) + stale 속성 경고 + <code>BiosSettingTemplateNotFoundException</code> 신설.</li>
+          <li><b>U2-2-3 guest 연동</b> — <code>BasicSettingRequest</code> 에 <code>biosSettingTemplateIds</code> 목록(승인된 복수 템플릿 규칙: 보드 SPECIFIED ⇒ 1개, AUTO ⇒ N개·boardKey 중복 금지) + SPI 사용중 삭제 차단.</li>
+          <li><b>U2-3/U2-4</b> — guest 영속(in-use 실효·SettingStatus 재심사) → OS 다형. <b>Stage 4 준비</b> — boardKey 병합·감지 정규화·불일치 skip+PARTIAL_SUCCESS 의미론(승인 확정).</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ── 🎬 미니 편집기 — diff 수집·flat 조립·저장 판정의 서버 규칙 1:1 재현 ──
+  //  서버 판정 원본: @NotBlank name / BiosSettingValues 최소 1속성(빈 diff 400) /
+  //  BiosAttributeType.templatable()(PASSWORD 위젯 미출력) / readOnly 스킵 / coerce 타입 보존.
+  const REGISTRY = [
+    { name: 'BirchStream0064_PowerPerformanceTuning', type: 'ENUM', options: ['BIOS Controls EPB', 'OS Controls EPB'], def: 'BIOS Controls EPB' },
+    { name: 'IIO0012_LinkTrainingTimeout', type: 'INT', min: 10, max: 10000, def: 1000 },
+    { name: 'SETUP012_QuietBoot', type: 'BOOL', options: ['Enabled', 'Disabled'], def: 'Disabled' }
+  ];
+  const state = { nameFilled: true, values: {} };
+  REGISTRY.forEach(a => state.values[a.name] = a.def);
+
+  function coerce(attr, raw) {
+    if (attr.type === 'INT') return Number(raw);
+    if (attr.type === 'BOOL') return raw === 'Enabled';
+    return raw; // ENUM → 문자열 (Redfish ValueName)
+  }
+  function diff() {
+    const d = {};
+    REGISTRY.forEach(a => { if (state.values[a.name] !== a.def) d[a.name] = coerce(a, state.values[a.name]); });
+    return d;
+  }
+  function demoToggleName() { state.nameFilled = !state.nameFilled; render(); }
+  function demoSet(name, val) { state.values[name] = val; render(); }
+  function demoSubmit(blocked) {
+    const msg = document.getElementById('demo-message');
+    if (blocked) { msg.className = 'ux-message error'; msg.textContent = '저장 차단 — 좌측 판정이 서버에서도 동일하게 400 을 만듭니다 (같은 SSOT).'; return; }
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ POST → registry 전건 재검증·coerce → BiosSettingValues 조립 → INSERT → 201 + Location';
+  }
+  function render() {
+    document.getElementById('seg-name').textContent = state.nameFilled ? '이름 입력됨 ✓' : '이름 비움 (blank)';
+    document.getElementById('seg-name').classList.toggle('on', state.nameFilled);
+
+    document.getElementById('demo-attrs').innerHTML = REGISTRY.map(a => {
+      const cur = state.values[a.name], changed = cur !== a.def;
+      let widget;
+      if (a.type === 'INT') {
+        widget = '<input type="number" min="' + a.min + '" max="' + a.max + '" value="' + cur + '" onchange="demoSet(\'' + a.name + '\', this.value === \'\' ? \'' + a.def + '\' : Number(this.value))">';
+      } else {
+        widget = '<select onchange="demoSet(\'' + a.name + '\', this.value)">' +
+          a.options.map(o => '<option' + (o === cur ? ' selected' : '') + '>' + o + '</option>').join('') + '</select>';
+      }
+      return '<div class="ux-attr' + (changed ? ' changed' : '') + '"><span class="aname">' + a.name + '</span>' +
+        '<span class="atype">' + a.type + '</span>' + widget +
+        '<span style="font-size:10px;color:var(--text-muted);">기본 ' + a.def + (changed ? ' → diff 포함' : ' (미변경 — 제외)') + '</span></div>';
+    }).join('');
+
+    const d = diff();
+    const empty = Object.keys(d).length === 0;
+    const blocked = !state.nameFilled || empty;
+    const reasons = [];
+    if (!state.nameFilled) reasons.push('템플릿 명칭은 필수 입력값입니다 (@NotBlank)');
+    if (empty) reasons.push('기본값에서 변경된 속성이 없습니다 (BiosSettingValues 최소 1속성)');
+    document.getElementById('demo-submit').innerHTML =
+      '<span class="tip"' + (blocked ? ' data-tip="' + reasons.join(' · ') + '"' : '') +
+      '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') + ' onclick="demoSubmit(' + blocked + ')">템플릿 저장</button></span>';
+
+    const tf = bad => bad ? '<span class="t">true</span> → 400 차단' : '<span class="f">false</span> → 통과';
+    document.getElementById('demo-caps').innerHTML =
+      'nameBlank   (@NotBlank name)                = ' + tf(!state.nameFilled) + '\n' +
+      'emptyDiff   (BiosSettingValues ≥1 invariant) = ' + tf(empty) + '\n' +
+      'PASSWORD    (templatable()=false)            = 위젯 미출력 — 구조적 차단 (direct POST 는 400 안전망)';
+
+    const rows = Object.entries(d).map(([k, v]) =>
+      '  <span class="k">"' + k + '"</span>: ' + (typeof v === 'string' ? '<span class="s">"' + v + '"</span>' : '<span class="n">' + v + '</span>'));
+    document.getElementById('demo-json').innerHTML =
+      '{\n  <span class="k">"name"</span>: ' + (state.nameFilled ? '<span class="s">"Rocky9 웹서버 표준 BIOS"</span>' : '<span class="d">""  ⚠</span>') +
+      ',\n  <span class="k">"boardKey"</span>: <span class="s">"MS74-HB0"</span>,\n  <span class="k">"attributes"</span>: ' +
+      (rows.length ? '{\n' + rows.join(',\n') + '\n  }' : '<span class="d">{}  ⚠ 빈 diff</span>') + '\n}' +
+      '\n<span style="color:#6b6660;">// 값 타입(문자열/숫자/불리언)은 coerce 후 저장 JSON·Redfish Attributes 페이로드와 동형</span>';
+  }
+  render();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

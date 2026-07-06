@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  BIOS 세팅 템플릿 목록 페이지 (U2-2-1 · U2-2-2 행 상세 링크 활성화)
+  ─────────────────────────────────────────────────────────
+  Model:
+    templates : List<BiosSettingTemplateSummaryResponse>
+                  · id             : Long
+                  · name           : String
+                  · description    : String (nullable — 행에는 미표기, 명칭 셀 title 로만 노출)
+                  · boardModelId   : Long (management BoardModel FK — 행에는 미표기)
+                  · boardModelName : String (뱃지 — 대상 보드 모델명)
+                  · attributeCount : int (기본값 대비 변경 속성 수)
+                  · inUse          : boolean (세팅 정의서 BASIC_SETTING 단계에서 참조 중 — U2-2-3.
+                                     목록엔 삭제 버튼이 없어 '사용 중' 뱃지만 표시, 삭제 차단은 상세 페이지)
+                  · updatedAt      : LocalDateTime
+
+  행 클릭 시 /provisioning/bios-setting/{id} 상세로 이동 (setting-list.html 과 동일 패턴).
+  setting.css 는 목록 행 클릭 스타일(n-row-clickable / n-row-link) 재사용 목적.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 세팅 템플릿')}"></th:block>
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bios-setting')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BIOS 세팅 템플릿</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/provisioning/bios-setting/new}" class="n-btn n-btn-primary">새 템플릿 작성</a>
+        </div>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div th:if="${#lists.isEmpty(templates)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 BIOS 세팅 템플릿이 없습니다.</div>
+            <div class="n-empty-desc">새 템플릿 작성 버튼을 눌러 보드를 선택하고 첫 번째 템플릿을 만들어보세요.</div>
+        </div>
+    </div>
+
+    <!-- 템플릿 목록 -->
+    <div th:unless="${#lists.isEmpty(templates)}" class="n-card">
+        <table class="n-table" id="biosSettingTable">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>명칭</th>
+                <th>대상 보드</th>
+                <th>변경 속성 수</th>
+                <th>수정일시</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="template : ${templates}"
+                class="n-row-clickable"
+                th:data-href="@{/provisioning/bios-setting/{id}(id=${template.id})}">
+                <td class="n-td-id" th:text="${template.id}">1</td>
+                <td>
+                    <a class="n-row-link"
+                       th:href="@{/provisioning/bios-setting/{id}(id=${template.id})}"
+                       th:text="${template.name}"
+                       th:title="${template.description}">템플릿 명칭</a>
+                    <span th:if="${template.inUse}" class="n-badge n-badge-blue">사용 중</span>
+                </td>
+                <td><span class="n-badge n-badge-blue" th:text="${template.boardModelName}">MS74-HB0</span></td>
+                <td th:text="${template.attributeCount}">3</td>
+                <td>
+                    <span th:if="${template.updatedAt != null}"
+                          th:text="${#temporals.format(template.updatedAt, 'yyyy-MM-dd HH:mm')}">2026-07-05 12:00</span>
+                    <span th:unless="${template.updatedAt != null}" class="n-table-muted">-</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 행 전체 클릭 → 상세 이동. 셀 내부 <a>(명칭 링크)는 자체 동작하므로 중복 내비게이션을 막는다.
+     (setting-list.html 과 동일한 페이지 내 최소 스크립트 — 전용 스크립트 파일을 늘리지 않는다) -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('#biosSettingTable .n-row-clickable').forEach(function (row) {
+            row.addEventListener('click', function (e) {
+                if (e.target.closest('a')) return;
+                const href = row.getAttribute('data-href');
+                if (href) window.location.href = href;
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

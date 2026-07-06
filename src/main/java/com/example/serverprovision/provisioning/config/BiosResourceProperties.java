@@ -19,10 +19,7 @@ import java.util.Optional;
 @ConfigurationProperties(prefix = "provisioning.bios")
 public record BiosResourceProperties(String resourceBase, List<Board> boards) {
 
-	/**
-	 * @param initialSettings 보드 실제 현재값(Redfish GET .../Bios) 파일명. nullable — 없으면 레지스트리 기본값만 사용.
-	 */
-	public record Board(String key, String registry, String setupData, String initialSettings) {
+	public record Board(String key, String registry, String setupData) {
 	}
 
 	public Optional<Board> findBoard(String boardKey) {

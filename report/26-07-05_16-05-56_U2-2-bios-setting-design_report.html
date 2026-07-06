@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U2-2 BIOS 세팅 정의서 — 설계 + 하위 단계 구성</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#1a1815; --ink-2:#3d3a35; --ink-3:#6b6660;
+    --paper:#f5f1e8; --paper-2:#ede7d8; --paper-3:#e2dac7; --rule:#c9bfa6;
+    --accent:#8b3a2e; --accent-2:#c47e3c; --teal:#2d5d4f; --teal-soft:#d4dfd8;
+    --warn:#a85d1e; --warn-soft:#f0dcc0;
+    --ok:#2f6b3a; --ok-soft:#cfe2cf;
+    --partial:#9a7a1e; --partial-soft:#ece1bf;
+    --gap:#8b2e2e; --gap-soft:#ecc9c4;
+    --defer:#4a4a5c; --defer-soft:#d8d8e2;
+    --code-bg:#2a2620; --code-ink:#e8dfc8;
+    --serif:'Fraunces',Georgia,serif; --sans:'Inter Tight',-apple-system,sans-serif; --mono:'JetBrains Mono',Menlo,monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:var(--sans); background:var(--paper); color:var(--ink); line-height:1.7; font-size:16px; -webkit-font-smoothing:antialiased;
+    background-image: radial-gradient(circle at 12% 8%, rgba(196,126,60,.05) 0%, transparent 42%), radial-gradient(circle at 90% 90%, rgba(45,93,79,.05) 0%, transparent 42%); }
+  .shell { display:grid; grid-template-columns:270px 1fr; max-width:1440px; margin:0 auto; }
+
+  .toc { position:sticky; top:0; height:100vh; border-right:1px solid var(--rule); padding:44px 22px 44px 34px; overflow-y:auto; background:var(--paper); }
+  .toc-brand { font-family:var(--serif); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.18em; color:var(--accent); margin-bottom:4px; }
+  .toc-title { font-family:var(--serif); font-size:21px; font-weight:500; line-height:1.2; margin-bottom:30px; }
+  .toc-list { list-style:none; } .toc-list li { margin-bottom:1px; }
+  .toc-list a { display:block; padding:7px 10px 7px 12px; color:var(--ink-3); text-decoration:none; font-size:13px; border-left:2px solid transparent; transition:all .18s; line-height:1.35; }
+  .toc-list a:hover { color:var(--ink); border-left-color:var(--accent-2); background:var(--paper-2); }
+  .toc-list a.active { color:var(--ink); border-left-color:var(--accent); background:var(--paper-2); font-weight:500; }
+  .toc-num { font-family:var(--mono); font-size:10.5px; color:var(--ink-3); margin-right:9px; font-weight:500; }
+
+  .main { padding:72px 76px 120px; max-width:1010px; }
+
+  .cover { border-bottom:1px solid var(--rule); padding-bottom:48px; margin-bottom:56px; }
+  .cover-eyebrow { display:inline-flex; align-items:center; gap:12px; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.2em; color:var(--accent); margin-bottom:26px; }
+  .cover-eyebrow::before,.cover-eyebrow::after { content:''; width:24px; height:1px; background:var(--accent); }
+  .cover h1 { font-family:var(--serif); font-size:46px; font-weight:400; line-height:1.1; letter-spacing:-.02em; margin-bottom:22px; }
+  .cover h1 em { font-style:italic; font-weight:300; color:var(--accent); }
+  .cover-sub { font-family:var(--serif); font-size:20px; font-weight:300; font-style:italic; color:var(--ink-2); margin-bottom:36px; max-width:800px; line-height:1.45; }
+  .cover-meta { display:flex; gap:44px; flex-wrap:wrap; font-size:13px; }
+  .cover-meta-item { display:flex; flex-direction:column; gap:4px; }
+  .cover-meta-label { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.15em; color:var(--ink-3); }
+  .cover-meta-value { font-family:var(--serif); font-size:16px; }
+
+  section { margin-bottom:64px; scroll-margin-top:28px; }
+  .section-header { display:flex; align-items:baseline; gap:18px; margin-bottom:24px; padding-bottom:14px; border-bottom:1px solid var(--rule); }
+  .section-num { font-family:var(--mono); font-size:13px; color:var(--accent); font-weight:500; flex-shrink:0; }
+  .section-header h2 { font-family:var(--serif); font-size:31px; font-weight:500; line-height:1.15; letter-spacing:-.015em; }
+  h3 { font-family:var(--serif); font-size:22px; font-weight:500; margin:34px 0 14px; line-height:1.25; }
+  h4 { font-family:var(--sans); font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--accent); margin:24px 0 10px; }
+  p { margin-bottom:15px; color:var(--ink-2); }
+  p strong { color:var(--ink); font-weight:600; }
+  ul,ol { margin:0 0 16px 22px; color:var(--ink-2); } li { margin-bottom:7px; }
+  code { font-family:var(--mono); font-size:13px; background:var(--paper-2); padding:2px 6px; border-radius:3px; color:var(--accent); border:1px solid var(--paper-3); }
+  pre { background:var(--code-bg); color:var(--code-ink); padding:20px 24px; border-radius:8px; overflow-x:auto; margin:18px 0; font-family:var(--mono); font-size:12.5px; line-height:1.65; border:1px solid #3d3830; }
+  pre code { background:transparent; border:none; color:inherit; padding:0; }
+
+  .callout { background:var(--paper-2); border-left:3px solid var(--accent); padding:18px 22px; margin:22px 0; border-radius:0 6px 6px 0; }
+  .callout-warn { background:var(--warn-soft); border-left-color:var(--warn); }
+  .callout-info { background:var(--teal-soft); border-left-color:var(--teal); }
+  .callout-ok { background:var(--ok-soft); border-left-color:var(--ok); }
+  .callout-label { font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.13em; margin-bottom:7px; color:var(--accent); font-weight:600; }
+  .callout-warn .callout-label{color:var(--warn);} .callout-info .callout-label{color:var(--teal);} .callout-ok .callout-label{color:var(--ok);}
+  .callout p:last-child { margin-bottom:0; }
+
+  .gauge { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:26px 0 10px; }
+  .gcard { background:var(--paper-2); border:1px solid var(--rule); border-radius:9px; padding:18px 20px; }
+  .gcard .gh { font-family:var(--serif); font-size:18px; font-weight:600; margin-bottom:4px; }
+  .gcard .gd { font-size:13px; color:var(--ink-3); }
+  .gcard.ok { border-top:3px solid var(--ok); } .gcard.ok .gh{color:var(--ok);}
+  .gcard.partial { border-top:3px solid var(--partial); } .gcard.partial .gh{color:var(--partial);}
+  .gcard.gap { border-top:3px solid var(--gap); } .gcard.gap .gh{color:var(--gap);}
+  .gcard.defer { border-top:3px solid var(--defer); } .gcard.defer .gh{color:var(--defer);}
+
+  table.matrix { width:100%; border-collapse:collapse; margin:18px 0; font-size:13.5px; }
+  table.matrix th { text-align:left; padding:10px 12px; background:var(--paper-2); border-bottom:2px solid var(--rule); font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600; }
+  table.matrix td { padding:11px 12px; border-bottom:1px solid var(--paper-3); vertical-align:top; }
+  table.matrix tr:hover td { background:var(--paper-2); }
+  .mono { font-family:var(--mono); font-size:12.5px; }
+  .st { display:inline-block; font-family:var(--mono); font-size:10px; padding:3px 9px; border-radius:11px; font-weight:700; letter-spacing:.03em; white-space:nowrap; text-transform:uppercase; }
+  .st-ok{background:var(--ok-soft);color:var(--ok);} .st-partial{background:var(--partial-soft);color:var(--partial);}
+  .st-gap{background:var(--gap-soft);color:var(--gap);} .st-defer{background:var(--defer-soft);color:var(--defer);}
+
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0; }
+  .scard { border-radius:8px; padding:14px 16px; font-size:13px; }
+  .scard.bad { background:var(--gap-soft); border:1px solid #d8a99f; }
+  .scard.good { background:var(--ok-soft); border:1px solid #a9c9a9; }
+  .scard.neutral { background:var(--paper-2); border:1px solid var(--rule); }
+  .scard .sh { font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.1em; font-weight:700; margin-bottom:8px; }
+  .scard.bad .sh{color:var(--gap);} .scard.good .sh{color:var(--ok);} .scard.neutral .sh{color:var(--ink-3);}
+  .scard code { background:rgba(255,255,255,.5); border-color:transparent; color:var(--ink); }
+
+  .flow { display:flex; flex-wrap:wrap; gap:6px; align-items:stretch; margin:18px 0; }
+  .fstep { flex:1; min-width:150px; border:1px solid var(--rule); border-radius:8px; padding:11px 12px; background:var(--paper-2); position:relative; }
+  .fstep .fn { font-family:var(--mono); font-size:9.5px; color:var(--ink-3); letter-spacing:.06em; }
+  .fstep .ft { font-family:var(--serif); font-size:14px; font-weight:500; margin:4px 0 6px; line-height:1.2; }
+  .fstep .fb { font-size:11.5px; line-height:1.45; }
+  .fstep.ok { border-bottom:3px solid var(--ok); } .fstep.gap { border-bottom:3px solid var(--gap); } .fstep.partial { border-bottom:3px solid var(--partial); } .fstep.defer { border-bottom:3px solid var(--defer); }
+
+  footer { margin-top:90px; padding-top:28px; border-top:1px solid var(--rule); color:var(--ink-3); font-size:12px; font-family:var(--mono); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+
+  @media (max-width:1024px){
+    .shell{grid-template-columns:1fr;}
+    .toc{position:static;height:auto;border-right:none;border-bottom:1px solid var(--rule);padding:22px;}
+    .main{padding:36px 26px 80px;} .cover h1{font-size:32px;} .section-header h2{font-size:24px;}
+    .gauge{grid-template-columns:1fr 1fr;} .split{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="toc">
+    <div class="toc-brand">Design · U2-2</div>
+    <div class="toc-title">BIOS 세팅 정의서<br>설계 + 하위 단계</div>
+    <nav><ul class="toc-list">
+      <li><a href="#verdict"><span class="toc-num">00</span>결론 — 확정 설계 4 기둥 + 3분할</a></li>
+      <li><a href="#method"><span class="toc-num">01</span>설계 방법 (workflow)</a></li>
+      <li><a href="#assets"><span class="toc-num">02</span>기존 자산 진단</a></li>
+      <li><a href="#nesting"><span class="toc-num">03</span>핵심 판정 — 중첩 JSON 검증</a></li>
+      <li><a href="#design"><span class="toc-num">04</span>확정 설계 상세</a></li>
+      <li><a href="#substeps"><span class="toc-num">05</span>하위 단계 U2-2-1/2/3</a></li>
+      <li><a href="#rejected"><span class="toc-num">06</span>비채택 대안과 사유</a></li>
+      <li><a href="#questions"><span class="toc-num">07</span>열린 질문 (사용자 결정)</a></li>
+      <li><a href="#next"><span class="toc-num">08</span>다음 단계</a></li>
+    </ul></nav>
+  </aside>
+
+  <main class="main">
+
+    <header class="cover">
+      <div class="cover-eyebrow">Internal · Provisioning Server · U2-2 Design</div>
+      <h1>BIOS 세팅을 <em>정의서로</em> —<br>템플릿화 설계와 3분할</h1>
+      <div class="cover-sub">
+        기존 무상태 BIOS 셋업 PoC 위에 "이름 붙은 정의서" 를 얹고, guest server 세팅 정의서가 그 템플릿을
+        선택하게 한다. 3 lens 독립 설계 → 교차 적대 비판 → 종합의 workflow 로 검증했고,
+        사용자의 "중첩 JSON" 직관은 사실 검증을 거쳐 그 자리를 다시 정했다.
+      </div>
+      <div class="cover-meta">
+        <div class="cover-meta-item"><span class="cover-meta-label">목적</span><span class="cover-meta-value">U2-2 설계 + 하위 단계 구성</span></div>
+        <div class="cover-meta-item"><span class="cover-meta-label">방법</span><span class="cover-meta-value">인벤토리 조사 + 7-agent 설계 workflow</span></div>
+        <div class="cover-meta-item"><span class="cover-meta-label">결론</span><span class="cover-meta-value">U2-2-1 → -2 → -3 (3 슬라이스)</span></div>
+        <div class="cover-meta-item"><span class="cover-meta-label">작성일</span><span class="cover-meta-value">2026-07-05 (KST)</span></div>
+      </div>
+    </header>
+
+    <!-- 00 VERDICT -->
+    <section id="verdict">
+      <div class="section-header"><span class="section-num">00</span><h2>결론 — 확정 설계 4 기둥 + 3분할</h2></div>
+      <div class="gauge">
+        <div class="gcard ok"><div class="gh">flat diff JSON</div><div class="gd">값은 변경분만 flat 1-depth 저장. 중첩의 자리는 DB 가 아니라 렌더 계층(§03) — Redfish PATCH Attributes 와 동형이라 execution 이 무변환 소비.</div></div>
+        <div class="gcard ok"><div class="gh">REFERENCE 참조</div><div class="gd">guest 의 BASIC_SETTING 은 <code>biosSettingTemplateId</code> 만 운반(살아있는 참조) — "계약은 의도만, 해석은 execution" 형제 철학과 동형. 3 설계 만장일치.</div></div>
+        <div class="gcard partial"><div class="gh">lifecycle 비적용</div><div class="gd">파일 없는 순수 데이터 자원 — marker/휴지통/soft-delete 는 지킬 대상이 없어 미적용. 사용중 삭제 차단(409) + confirm-modal hard delete 로 충분.</div></div>
+        <div class="gcard defer"><div class="gh">boardKey 유지</div><div class="gd">BoardModel FK 병합은 이연(사상 부재 — 가짜 검증 금지). 템플릿-보드 정합의 최종 판정은 execution 단일 지점. AUTO+템플릿은 모순이 아니라 지연된 단언.</div></div>
+      </div>
+      <div class="flow">
+        <div class="fstep ok"><div class="fn">U2-2-1</div><div class="ft">저장 모델 + 생성·목록 + PoC 이관·폐지</div><div class="fb">BiosSettingTemplate 엔티티 + 편집기 이관(move) + 구 bios-setup 라우트 즉시 삭제(복붙 공존 창 0).</div></div>
+        <div class="fstep partial"><div class="fn">U2-2-2</div><div class="ft">상세·수정·삭제 — 재조인 렌더</div><div class="fb">flat 저장값 → registry 재조인 페이지 그룹 렌더 + edit pre-fill overlay. 최난도 UI 집중.</div></div>
+        <div class="fstep gap"><div class="fn">U2-2-3</div><div class="ft">guest 연동 + 사용중 삭제 차단</div><div class="fb">BasicSettingRequest 실체화(@NotNull templateId) + 최대 1개 규칙 + SPI 기반 in-use 가드.</div></div>
+      </div>
+      <div class="callout callout-info">
+        <div class="callout-label">채택 골격</div>
+        <p>기반 = <strong>단순성 렌즈 설계</strong> (프로젝트 본 동기와 "파일 없는 자원" 판정, AUTO+템플릿 허용, 병합 이연이 가장 정확).
+          여기에 도메인 정합 렌즈에서 <code>BiosAttributeType.templatable()</code> 상수별 다형(PASSWORD 배제의 단일 SSOT)과
+          <code>BiosSettingValues</code> VO 를, 진화 내성 렌즈에서 "복제 승격이 아닌 이관(move) + 동일 슬라이스 라우트 폐지" 를 이식했고,
+          교차 비판의 지적 7건(VO 경계 관철·in-use 가드 도입 시점·SPI 단방향 의존·BASIC_SETTING 최대 1개 등)을 수용했다.</p>
+      </div>
+    </section>
+
+    <!-- 01 METHOD -->
+    <section id="method">
+      <div class="section-header"><span class="section-num">01</span><h2>설계 방법 (workflow)</h2></div>
+      <p>이전 U2 분해와 같은 밀도로, 이번에는 <strong>설계 자체를 workflow 로 경쟁·검증</strong>시켰다.</p>
+      <table class="matrix">
+        <thead><tr><th style="width:22%">단계</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">사전 인벤토리</td><td>Explore agent 가 provisioning 의 BIOS 셋업 자산 전수 조사(도메인 8클래스·enum/VO 9종·파서 3종·서비스 3종·뷰 2장·리소스 파일) — 질문 6개에 파일:라인 근거로 답변. 본 report §02 의 사실 기반.</td></tr>
+          <tr><td class="mono">설계안 생성 (3 병렬)</td><td><b>단순성</b> / <b>도메인 정합</b> / <b>진화 내성</b> 3 lens 가 각자 실코드를 읽으며 Q1~Q6(중첩 검증·참조 방식·보드 스코프·URL·재사용·분할)에 답하는 완결 설계를 독립 생성.</td></tr>
+          <tr><td class="mono">교차 적대 비판 (3 병렬)</td><td>i 번 설계를 (i+1) 렌즈의 비판자가 공격(자기 비판 방지) — 불가침 위반·churn·더 단순한 길·누락·CP4 부담 5축. 사실 오류 2건 적발(설계 2 의 Markable-메타 선례 오독, 설계 3 의 modelName 브리지 가짜 검증).</td></tr>
+          <tr><td class="mono">종합 (1)</td><td>승자 선정 + 타 설계 우수 요소 이식 + 비판 수용/반박 판정 + 비채택 16건 사유 기록. 총 7 agents · 약 656k tokens.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 02 ASSETS -->
+    <section id="assets">
+      <div class="section-header"><span class="section-num">02</span><h2>기존 자산 진단 — 무엇 위에 짓는가</h2></div>
+      <p>기존 <code>/provisioning/bios-setup</code> 은 <strong>완전 무상태 PoC</strong> 다: 보드별 리소스 파일을 읽어 화면을 만들고,
+        저장하면 검증 후 Redfish 적용 계획을 <em>로그로만</em> 출력한다. 영속도, 이름 붙은 정의서도, 목록도 없다.</p>
+      <table class="matrix">
+        <thead><tr><th style="width:26%">자산</th><th>사실</th></tr></thead>
+        <tbody>
+          <tr><td>데이터 원천</td><td>보드별 파일 2+1종 — registry JSON(속성 메타: 4타입 enum <code>ENUMERATION/INTEGER/PASSWORD/BOOLEAN</code> 이 <code>validate()/coerce()</code> 다형 보유) + SetupData XML(페이지 재귀 트리) + 선택적 initial settings(Redfish GET 덤프).</td></tr>
+          <tr><td>화면 계층</td><td>menuBar → <code>BiosPage</code>(parentId 트리, 깊이 상한 없음) → <code>BiosControl</code> sealed(leaf 속성 | submenu 링크) + Dependencies(HIDDEN/GRAYOUT 클라 라이브 평가). <strong>계층의 SSOT 는 SetupData XML</strong>.</td></tr>
+          <tr><td>저장값 형태</td><td>기본값 대비 <strong>변경분(diff)만 flat</strong> <code>Map&lt;AttributeName, String&gt;</code> → 서버 coerce 후 <code>{이름: 타입보존값}</code> flat. 속성명은 보드/칩셋 세대별 byte-exact(예: <code>BirchStream0064_…</code>).</td></tr>
+          <tr><td>Redfish 표면</td><td><code>PATCH /redfish/v1/Systems/Self/Bios/SD {"Attributes":{flat}}</code> · 비밀번호는 별도 <code>Bios.ChangePassword</code> 액션 · 적용은 <code>ComputerSystem.Reset(ForceRestart)</code>. URL 은 코드 상수(<code>BiosRedfishPayloadAssembler</code>). 실호출 없음.</td></tr>
+          <tr><td>보드 스코프</td><td><code>boardKey</code> 문자열(application.properties boards[] 4종). management 의 <code>BoardModel</code>(DB)과 <strong>미병합</strong> — 코드 주석에 "향후 병합, 해석은 <code>BiosSetupLoader.load(boardKey)</code> 단일 seam 유지" TODO 기존재.</td></tr>
+          <tr><td>간극 5</td><td>정의서 <b>명명</b> / <b>영속</b> / <b>목록·조회</b> / <b>보드 귀속 영속</b> / <b>guest seam</b>(BasicSettingRequest 필드 0 스텁) — 전부 신규.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 03 NESTING -->
+    <section id="nesting">
+      <div class="section-header"><span class="section-num">03</span><h2>핵심 판정 — "중첩 JSON 필요" 직관의 검증</h2></div>
+      <p>지시에 담긴 직관("BIOS 세팅은 내부적으로 JSON 이 중첩되어 들어가야 할 필요가 있어 보임")을 사실로 검증했다.
+        결론: <strong>저장 모델은 flat 이 옳다 — 다만 직관의 정당한 핵 2가지는 설계에 수용된다.</strong></p>
+      <h4>flat 이 옳은 인과 (4단계)</h4>
+      <ol>
+        <li><strong>최종 적용 표면이 flat 이다</strong> — Redfish <code>PATCH …/Bios/SD</code> 의 <code>Attributes</code> 페이로드는 flat 객체다. 중첩으로 저장하면 적용 직전 flatten 변환이 영구적으로 필요해진다.</li>
+        <li><strong>화면의 중첩은 렌더 모델이다</strong> — 사용자가 본 계층(메뉴→페이지 트리→위젯)의 SSOT 는 SetupData XML 파일이다. 저장 JSON 에 계층을 복제하면 SSOT 이중화가 되고, BIOS 버전업으로 페이지 배치가 바뀌는 순간 저장본과 파일이 drift 한다.</li>
+        <li><strong>계층은 언제든 복원 가능하다</strong> — 조사로 확정된 사실대로, flat 저장값을 registry/SetupData 와 재조인하면 페이지 경로별 그룹 렌더가 복원된다(기존 PoC 의 저장 계약도 이미 flat diff 다).</li>
+        <li><strong>속성 1건에는 중첩할 하위 구조가 없다</strong> — 유일한 구조는 값 타입 혼재(문자열/정수/불리언)인데, 그것은 중첩이 아니라 JSON 스칼라 타입 보존의 문제다.</li>
+      </ol>
+      <div class="callout callout-ok">
+        <div class="callout-label">직관의 정당한 핵 — 수용 2건</div>
+        <p><b>(a) "JSON 으로 들어가야 한다" 는 맞다</b> — 속성 스키마가 보드/세대별로 달라 행 분해(EAV)는 무의미하므로
+          <strong>JSON 문서 컬럼</strong>을 채택한다(guest 정의서의 process JSON 방향과도 결이 같다).
+          <b>(b) 사람이 읽는 화면은 반드시 중첩이어야 한다</b> — 상세/편집 화면은 재조인으로 페이지 경로별 그룹(중첩) 렌더를 한다.
+          즉 <strong>중첩의 자리는 DB 가 아니라 표시 계층</strong>이다.</p>
+      </div>
+      <pre><code>-- bios_setting_template.values_json (flat 1-depth · diff 만 · coerce 후 타입 보존)
+{
+  "BirchStream0064_PowerPerformanceTuning": "OS Controls EPB",
+  "IIO0012_LinkTrainingTimeout": 1000,
+  "SETUP012_QuietBoot": true
+}
+-- 이 형태 그대로 Redfish PATCH {"Attributes": …} 에 투입 가능 (execution 무변환 소비)</code></pre>
+    </section>
+
+    <!-- 04 DESIGN -->
+    <section id="design">
+      <div class="section-header"><span class="section-num">04</span><h2>확정 설계 상세</h2></div>
+
+      <h3>데이터 모델</h3>
+      <table class="matrix">
+        <thead><tr><th style="width:24%">항목</th><th>결정</th></tr></thead>
+        <tbody>
+          <tr><td>패키지</td><td>신규 feature <code>provisioning.biossetting</code> (controller/service/repository/entity/vo/dto/exception). 카탈로그 엔진(domain/parser/loader)은 현 위치 유지 — 소비자가 biossetting 과 Stage 4 execution 둘이 될 예정이라 특정 feature 로의 이동은 오귀속.</td></tr>
+          <tr><td>엔티티</td><td><code>BiosSettingTemplate extends BaseTimeEntity</code> — <b>LifecycleEntity·Markable 비상속</b>. 필드: id / name(전역 unique, 중복 409) / description / <code>boardKey</code>(@Embedded <code>BoardKey</code> record VO, <b>생성 후 불변</b> — PUT 계약 미포함) / <code>values</code>(<code>BiosSettingValues</code> VO = <code>Map&lt;BiosAttributeName, BiosAttributeValue&gt;</code> 래핑, 최소 1속성 invariant, @Convert JSON 컬럼). 기존 <code>provisioning.domain.vo</code> 의 VO 2종 재사용.</td></tr>
+          <tr><td>검증</td><td>저장 시 <code>BiosSetupLoader.load()</code> 로 registry 를 얻어 기존 <code>validate()/coerce()</code> 다형 루프를 신규 CommandService 로 <b>이동</b> 재사용(별도 공용 컴포넌트 추출 안 함 — PoC save 가 같은 슬라이스에서 폐지돼 소비자 복수 창이 없음). unknown 속성은 서버 항상 400(엄격).</td></tr>
+          <tr><td>PASSWORD 정책</td><td>템플릿에서 <b>배제</b> — 근거: 평문 DB 저장 회피 + Redfish 도 Attributes 가 아닌 별도 액션이라 flat values 에 실을 수 없음. 단일 SSOT 는 <code>BiosAttributeType.templatable()</code> 상수별 다형(PASSWORD 만 false): 편집기 뷰모델이 이 판정으로 위젯을 아예 미출력(구조적 UI 차단), 서버는 같은 판정으로 400(안전망). → §07 Q1 로 사용자 확인.</td></tr>
+          <tr><td>서비스</td><td>Query/Command 2분할(U2-1 선례). lifecycle 없으므로 R4~R6 식 5분할은 over-abstraction. 신규 예외 3(NotFound 404 / DuplicateName 409 / InUse 409) + 기존 4 재사용.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>템플릿 참조 — REFERENCE (3 설계 만장일치)</h3>
+      <p>guest 의 BASIC_SETTING 은 <code>biosSettingTemplateId</code> 만 운반한다. <b>수정은 자유</b>(사용 중 정의서 N건에 실행 시점 반영됨을 편집 화면에 고지),
+        <b>삭제는 사용중 차단</b> — 판정 SSOT 는 biossetting 이 소유한 1-메서드 SPI <code>BiosSettingTemplateUsageChecker.isInUse(id)</code> 를 setting 이 구현
+        (패키지 의존을 setting→biossetting 단방향으로 유지, <code>MarkableScanner</code> SPI 선례 동형). 목록/편집의 삭제 버튼 disabled+tooltip 과
+        DELETE 409 가 같은 메서드를 호출한다. SNAPSHOT 은 SSOT drift·정의서 비대·개선 미반영으로 기각, HYBRID(실행 시점 고정)는 별도 메커니즘이
+        아니라 execution 이 킥오프 시 resolved 값을 실행 레코드에 기록하면 자연 충족되므로 지금 설계할 것이 없다.</p>
+
+      <h3>보드 스코프와 자동 감지 정합</h3>
+      <div class="split">
+        <div class="scard good">
+          <div class="sh">채택 — execution 단일 판정</div>
+          "템플릿-보드 정합의 최종 판정 지점은 execution 단 한 곳: 실행 시점에 확정된 보드의 boardKey ≠ 템플릿의 boardKey 면 해당 단계 적용 거부."
+          보드 <b>AUTO + 템플릿 선택은 모순이 아니라 지연된 단언</b> — 사용자의 명시 시나리오(자동 감지→최신 펌웨어→BIOS 세팅)가 정확히 이 조합이다.
+          U2-2 의 UI 책임은 차단이 아닌 <b>인지 보조</b>: 템플릿 select 에 boardKey 뱃지 + "실행 시점 보드와 다르면 적용 거부" 정적 안내문.
+        </div>
+        <div class="scard bad">
+          <div class="sh">기각 — 설계 시점 차단 시도 2종</div>
+          ① "AUTO ⇒ 템플릿 금지" @AssertTrue: BASIC_UPDATE 의 'AUTO⇒LATEST' 와 달리 보드-무관 선택지(LATEST 템플릿)가 성립 불가(속성명 byte-exact)라
+          금지하면 본 기능이 죽는다. ② SPECIFIED 보드와의 비교 가드: boardModelId(DB)↔boardKey(파일) 사상이 부재 + 폼 보드 선택지가 아직 더미 —
+          존재하지 않는 매핑 위에 가짜 검증을 만들지 않는다. 병합 슬라이스(Stage 4 준비)에서 실사상과 함께 도입.
+        </div>
+      </div>
+      <p>추가로 설계 시점에 확정 가능한 모순 1건은 지금 막는다: <strong>정의서당 BASIC_SETTING 최대 1개</strong>(@AssertTrue, 요청-로컬) —
+        복수 템플릿 간 boardKey 불일치와 속성 충돌 규칙(later-wins?)이라는 두 구멍을 추가 개념 0개로 동시에 닫는다.
+        완화(허용)는 추후 데이터 비파괴로 가능하지만 그 역은 저장 데이터를 깬다.</p>
+
+      <h3>URL 계획과 기존 화면의 운명</h3>
+      <table class="matrix">
+        <thead><tr><th style="width:8%">단계</th><th style="width:42%">URL</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td>-1</td><td class="mono">GET /provisioning/bios-setting</td><td>목록 — name / boardKey 뱃지 / 변경 속성 수 / 수정일</td></tr>
+          <tr><td>-1</td><td class="mono">GET /provisioning/bios-setting/new</td><td>보드 선택 랜딩(기존 bios-board-select 이관)</td></tr>
+          <tr><td>-1</td><td class="mono">GET /provisioning/bios-setting/new/{boardKey}</td><td>작성 편집기 — 기존 bios-setup 화면·JS(트리 렌더+diff 수집+의존성 평가 ~520줄) <b>이관(move) 개조</b>: name/description 입력 추가, PASSWORD 위젯 미출력, 저장 XHR 전환</td></tr>
+          <tr><td>-1</td><td class="mono">POST /provisioning/bios-setting</td><td>생성 201+Location — 검증·coerce 후 영속</td></tr>
+          <tr><td>-2</td><td class="mono">GET /provisioning/bios-setting/{id}[/edit] · PUT /{id}</td><td>상세(재조인 페이지 그룹 렌더 + stale 속성 경고) · 수정(저장값 overlay pre-fill, boardKey 불변)</td></tr>
+          <tr><td>-2</td><td class="mono">DELETE /provisioning/bios-setting/{id}</td><td>confirm-modal 후 hard delete (-3 부터 사용중 409)</td></tr>
+          <tr><td>-1</td><td class="mono">✕ /provisioning/bios-setup 3 URL</td><td><b>폐지</b> — 컨트롤러 쌍 + echo 계약 DTO 삭제, nav 교체. 복제 승격이 아닌 이관이라 ~520줄 복붙 공존 창이 0(중복 금지).</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <div class="callout-label">재사용 요약</div>
+        <p><b>무변경</b>: 로더·파서 3종·도메인 모델·VO 6종·예외 4종·트리 뷰모델·<code>BiosRedfishPayloadAssembler</code>(Stage 4 자산으로 무손실 보존)·BmcPassword 계열.
+          <b>개조</b>: BiosSetupService(검증 루프는 이동, listBoards/renderMenu 는 카탈로그 공급자로 잔류 — 자체 엔드포인트 없는 잔존 비대칭은 §8 명명),
+          renderMenu 에 저장값 overlay 오버로드, BiosAttributeType.templatable() 추가, 화면 3장 이관 개조.
+          <b>삭제</b>: BiosSetup 컨트롤러 쌍 + echo 계약.</p>
+      </div>
+    </section>
+
+    <!-- 05 SUBSTEPS -->
+    <section id="substeps">
+      <div class="section-header"><span class="section-num">05</span><h2>하위 단계 U2-2-1 / -2 / -3</h2></div>
+      <table class="matrix">
+        <thead><tr><th style="width:10%">코드</th><th style="width:26%">이름</th><th>scope 와 핵심 결정</th><th style="width:18%">CP4 부담</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>U2-2-1</strong></td>
+            <td>저장 모델 + 생성·목록 + PoC 이관·폐지</td>
+            <td>신규 패키지 + 엔티티/VO/Converter/Repository + Query·Command 서비스(검증 루프 이동, templatable() 추가) + 목록·보드선택·작성 편집기(이관 개조) + POST 생성 + nav 교체 + <b>구 bios-setup 3 URL 동일 슬라이스 폐지</b> + 수동 DDL(ddl-auto=validate 하 첫 신규 테이블 — Step 9 명시). 결정: flat diff 확정, lifecycle 비상속, name 전역 unique, BoardKey VO 경계 관철, 빈 diff 400.</td>
+            <td>표준 — 201/400 5종/404/409 + 폐지 라우트 404 회귀</td>
+          </tr>
+          <tr>
+            <td><strong>U2-2-2</strong></td>
+            <td>상세·수정·삭제 — 재조인 렌더와 pre-fill</td>
+            <td>상세(flat→registry 재조인 페이지 그룹 렌더 + stale 속성 경고 행 + 카탈로그 소실 보드 degraded 렌더·edit 차단) + edit(저장값 overlay pre-fill — 이 묶음 최난도 UI, CP1 🎬 데모로 병합 의미론 체험 검증) + PUT(boardKey 불변) + DELETE(confirm-modal, in-use 가드는 아직 아님 — 참조가 -3 에서 생김). 엔티티 무변경(6·7·9 N/A).</td>
+            <td>표준 — PUT 200/400/404/409 + DELETE 204/404</td>
+          </tr>
+          <tr>
+            <td><strong>U2-2-3</strong></td>
+            <td>guest 연동 + 사용중 삭제 차단</td>
+            <td><code>BasicSettingRequest</code> 실체화(<code>@NotNull Long biosSettingTemplateId</code> — deserializer 등록 무변경) + 정의서당 최대 1개 @AssertTrue + 템플릿 존재 서버 가드 + 폼 select(boardKey 뱃지+정합 안내문)·상세 렌더(dangling id 경고)·pre-fill 왕복 + <b>SPI <code>BiosSettingTemplateUsageChecker</code></b>(setting 이 스텁 스캔으로 구현) 기반 삭제 버튼 disabled/DELETE 409 + 스텁 Javadoc drift 동반 수정. 엔티티 무변경.</td>
+            <td>중간 — 다형 왕복 / 400 3종 / 409 / 렌더 2종</td>
+          </tr>
+        </tbody>
+      </table>
+      <h4>guest 연동을 U2-3 이 아닌 U2-2-3 에 두는 이유</h4>
+      <p>템플릿화("guest 정의서에서 선택")는 U2-2 의 명시 요구 그 자체이고, <code>BasicSettingRequest</code> 는 아직 미영속 계약(스텁 저장)이라
+        개정 비용이 지금 최소다 — U2-1 의 해당 Javadoc 도 "필드가 실체화되는 시점에 채운다" 로 이 순간을 예약해 두었다.
+        단, <b>가드의 실효는 U2-3 에서 완성</b>된다: U2-2 기간의 in-use 판정은 InMemorySettingStub 스캔이라 재시작 시 휘발(임시 비대칭 — §8 명기),
+        U2-3 의 JPA 구현(BASIC_SETTING process 행의 templateId exists 쿼리 + FK 기본안)이 seam 교체로 해소한다.</p>
+    </section>
+
+    <!-- 06 REJECTED -->
+    <section id="rejected">
+      <div class="section-header"><span class="section-num">06</span><h2>비채택 대안과 탈락 사유 (주요 10)</h2></div>
+      <table class="matrix">
+        <thead><tr><th style="width:34%">대안</th><th>탈락 사유</th></tr></thead>
+        <tbody>
+          <tr><td>중첩(페이지 계층) JSON 저장</td><td>§03 — SSOT 이중화 + BIOS 버전업 drift + 적용 직전 영구 flatten 비용. 중첩의 자리는 렌더 계층.</td></tr>
+          <tr><td>LifecycleEntity + soft-delete/typed-name 전체 lifecycle</td><td>파일 없는 재생성 용이 데이터에 소비자 없는 선제 분리. parentLifecycle 반쪽 채택은 stale effective 컬럼(보드 복구 후 is_enabled=false 잔존) 확증 — 비판이 사실 오류(Markable-메타 선례 오독)도 적발.</td></tr>
+          <tr><td>SNAPSHOT / HYBRID 참조</td><td>SNAPSHOT: 값 복제 → drift + 정의서 비대 + 템플릿 개선 미반영. HYBRID: execution 킥오프 기록으로 자연 충족 — 지금 설계할 것 없음.</td></tr>
+          <tr><td>BoardModel FK 즉시 병합 (biosCatalogKey 브리지)</td><td>management 폼에 provisioning 설정 역주입 + BASIC_UPDATE 폼 보드 선택지가 아직 더미라 병합해도 정합 가드 성립 불능 + U2-2 요구와 직교한 churn.</td></tr>
+          <tr><td>AUTO ⇒ 템플릿 금지 @AssertTrue</td><td>사용자 명시 시나리오(자동 감지→BIOS 세팅 적용)가 정확히 이 조합 — 금지하면 기능이 죽는다. 보드-무관 대안(LATEST 템플릿)이 성립 불가라 'AUTO⇒LATEST' 선례의 일반화 불가.</td></tr>
+          <tr><td>무영속 스텁-먼저 4분할 (U2-1 방식 답습)</td><td>U2-1 스텁의 사유는 "엔티티 미확정" — 여기서는 본 설계가 엔티티를 확정했고 FK 0 단일 테이블이라 U2-2-1 에 영속 포함해도 CP4 표준 크기. throwaway 스텁은 낭비.</td></tr>
+          <tr><td>BasicSettingRequest 의 selector 래퍼({mode, id})</td><td>mode 의 대안 축(LATEST 류 보드-무관 선택지)이 부재 — 단일 필수 id 에 래퍼는 over-abstraction. 갈라지면 deserializer 관용 개정으로 흡수.</td></tr>
+          <tr><td>기존 화면 '복제 승격' 후 구 라우트 한시 공존</td><td>트리 렌더+diff 수집 ~520줄이 두 live 라우트에 복붙되는 창 — 중복 금지 위반. 이관(move)+동일 슬라이스 폐지로 대체.</td></tr>
+          <tr><td>BASIC_SETTING 복수 허용 + 속성 충돌 규칙</td><td>boardKey 불일치·later-wins 라는 신규 개념 2개 요구 — 최대 1개 @AssertTrue 가 개념 0개로 닫고, 복수 수요는 통합 템플릿 1개로 대체 가능. 완화는 추후 비파괴.</td></tr>
+          <tr><td>hard delete 에 typed-name 검증</td><td>typed-name 은 파일 동반 영구삭제(복구 불가)의 위험 등급용 — 재생성 가능한 경량 데이터엔 사용중 차단+confirm-modal 이 적정. 등급 불일치.</td></tr>
+        </tbody>
+      </table>
+      <p class="mono" style="color:var(--ink-3);">전체 16건의 비채택 기록은 workflow 산출물(journal)에 보존.</p>
+    </section>
+
+    <!-- 07 QUESTIONS -->
+    <section id="questions">
+      <div class="section-header"><span class="section-num">07</span><h2>열린 질문 — 사용자 결정 필요 (5)</h2></div>
+      <table class="matrix">
+        <thead><tr><th style="width:6%">#</th><th style="width:34%">질문</th><th>배경 / 기본안</th></tr></thead>
+        <tbody>
+          <tr><td><b>Q1</b></td><td>PASSWORD 속성의 템플릿 배제에 동의하는가</td><td>평문 DB 저장 회피 + Redfish 도 별도 액션이라 flat values 에 실을 수 없음. 포함하려면 암호화 저장(vault 급) 별도 설계가 U2-2 에 추가됨. <b>기본안: 배제</b>(BmcPassword 흐름은 별개 보존).</td></tr>
+          <tr><td><b>Q2</b></td><td>실행 시 "감지 보드 ≠ 템플릿 보드" 의 실패 의미론</td><td>해당 BASIC_SETTING 단계만 실패(skip 후 계속) vs 프로비저닝 전체 중단(abort — 단, 펌웨어는 이미 적용된 뒤의 부분 실패 문제). 지금 정하면 plan §11 에 고정해 Stage 4 CP1 재론을 막음.</td></tr>
+          <tr><td><b>Q3</b></td><td>boardKey↔BoardModel 병합 슬라이스의 시점·코드</td><td>Stage 4 준비(감지 결과 정규화)에 묶을지, 독립 R 코드로 뺄지.</td></tr>
+          <tr><td><b>Q4</b></td><td>폐지되는 /provisioning/bios-setup 에 redirect 잔류 여부</td><td>내부 도구라 <b>기본안: 즉시 제거</b>. 북마크 관행이 있으면 302 잔류.</td></tr>
+          <tr><td><b>Q5</b></td><td>SettingStatus 6종 재심사의 U2-3 재이연 동의</td><td>U2-1 §8 이연 항목 — U2-2 는 상태 개념을 건드리지 않으므로 정의서 영속이 생기는 U2-3 CP1 로. <b>기본안: 동의</b>.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 08 NEXT -->
+    <section id="next">
+      <div class="section-header"><span class="section-num">08</span><h2>다음 단계</h2></div>
+      <ol>
+        <li><b>본 설계 승인 + Q1~Q5 지시</b> → Notion 에 U2-2-1/2/3 하위 행 생성(본문 4항목 포함) + U2-2 본문을 §00~§05 요지로 갱신.</li>
+        <li><b>U2-2-1 CP1 plan html</b> 작성 진입(설계 대안 비교는 본 report 를 승계, 🎬 라이브 데모는 "flat 저장 ↔ 재조인 렌더" 왕복 시뮬).</li>
+        <li>잔여 트랙: U2-1 은 CP4 완료·브라우저 확인 대기 상태 유지(자동/최신 selector 포함). U2-3(영속+flat)·U2-4(OS-다형)는 시작 전.</li>
+      </ol>
+    </section>
+
+    <footer>
+      <span>Provisioning Server · U2-2 BIOS 세팅 정의서 — 설계 + 하위 단계 구성</span>
+      <span>2026-07-05 (KST) · 7-agent 설계 workflow + 사전 인벤토리 조사 기반</span>
+    </footer>
+  </main>
+</div>
+<script>
+  const sections=document.querySelectorAll('section[id]');
+  const links=document.querySelectorAll('.toc-list a');
+  const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')==='#'+id));}});},{rootMargin:'-25% 0px -65% 0px'});
+  sections.forEach(s=>obs.observe(s));
+  links.forEach(l=>l.addEventListener('click',e=>{e.preventDefault();const t=document.querySelector(l.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth',block:'start'});}));
+</script>
+</body>
+</html>

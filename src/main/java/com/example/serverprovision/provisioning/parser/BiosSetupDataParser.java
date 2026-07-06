@@ -42,8 +42,7 @@ import java.util.Map;
 @Component
 public class BiosSetupDataParser {
 
-	public BiosSetupMenu parse(InputStream xml, ParsedRegistry registry,
-	                           Map<BiosAttributeName, String> currentValues, String boardKey) {
+	public BiosSetupMenu parse(InputStream xml, ParsedRegistry registry, String boardKey) {
 		Document doc = parseSecure(xml);
 		Element root = doc.getDocumentElement();
 		String rootName = localOrNodeName(root);
@@ -109,8 +108,7 @@ public class BiosSetupDataParser {
 		}
 
 		return new BiosSetupMenu(boardKey, List.copyOf(menuBarOrder),
-				Collections.unmodifiableMap(pages), registry.attributes(), registry.dependencies(),
-				currentValues == null ? Map.of() : currentValues);
+				Collections.unmodifiableMap(pages), registry.attributes(), registry.dependencies());
 	}
 
 	private List<RawControl> readControls(Element pageEl) {

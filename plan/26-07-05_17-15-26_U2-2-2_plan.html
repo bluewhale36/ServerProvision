@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U2-2-2 Plan — 상세·수정·삭제: 재조인 렌더와 Redfish 프리뷰</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .chip.defer{background:var(--purple-bg);color:var(--purple);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  /* 🎬 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:105px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.on { background:var(--green); color:#fff; border-color:var(--green); }
+  .ux-toolbar .seg.mode { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-group { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; overflow:hidden; }
+  .ux-group .gh { font-family:var(--mono); font-size:11px; font-weight:700; color:var(--text-muted); padding:6px 12px; background:var(--bg); border-bottom:1px solid var(--border-soft); }
+  .ux-entry { display:flex; align-items:center; gap:10px; padding:7px 12px; font-size:12.5px; border-bottom:1px solid var(--border-soft); }
+  .ux-entry:last-child { border-bottom:none; }
+  .ux-entry .dn { flex:1; font-weight:600; }
+  .ux-entry .an { font-family:var(--mono); font-size:10px; color:var(--text-muted); }
+  .ux-entry .val { font-family:var(--mono); font-size:11.5px; }
+  .ux-entry .val .old { color:var(--text-muted); text-decoration:line-through; margin-right:6px; }
+  .ux-entry .val .new { color:var(--green); font-weight:700; }
+  .ux-entry.stale { background:var(--yellow-bg); }
+  .ux-entry.stale .dn { color:var(--yellow); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover { background:var(--blue-bg); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-json { font-family:var(--mono); font-size:11.5px; background:#1f2328; color:#d0d7de; border-radius:6px; padding:12px 14px; margin-top:10px; white-space:pre; overflow-x:auto; line-height:1.55; }
+  .ux-json .k { color:#79c0ff; } .ux-json .s { color:#a5d6ff; } .ux-json .n { color:#ffa657; } .ux-json .m { color:#7ee787; font-weight:700; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U2-2-2 — 상세·수정·삭제: 재조인 렌더와 Redfish 프리뷰 <span class="v2-badge">U2-2 묶음 2/3</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U2-2-2 (feature)</span>
+    <span><strong>상위</strong> U2-2 BIOS 세팅 정의서 CRUD</span>
+    <span><strong>scope</strong> 상세(변경 속성 한눈에 + Redfish Request Body) · 수정(pre-fill 편집기) · 삭제</span>
+    <span><strong>생성</strong> 2026-07-05 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th style="width:30%">항목</th><th style="width:12%">상태</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>U2-2-1</td><td><span class="chip keep">CP4 완료</span></td><td>생성·목록 가동(DB 에 스모크 행 1건). 목록 행은 <b>비링크</b>(의도된 잔존) — 본 slice 가 활성화.</td></tr>
+            <tr><td>조회-by-id 표면</td><td><span class="chip del">공백</span></td><td><code>GET /{id}</code>·수정·삭제 엔드포인트 및 <code>BiosSettingTemplateNotFoundException</code> 미존재(-1 §7 이연분).</td></tr>
+            <tr><td>Redfish 조립기</td><td><span class="chip keep">보존</span></td><td><code>BiosRedfishPayloadAssembler</code> — PoC 폐지 후 소비자 0으로 보존해 둔 Stage 4 자산. <b>사용자 지시로 첫 실소비자(상세 프리뷰)가 생겼다</b> — 설계 report 의 "프리뷰 기각(#8)" 은 사유(소비자 없음)가 소멸해 반전.</td></tr>
+            <tr><td>그룹핑 근거</td><td><span class="chip keep">확인</span></td><td>registry 의 <code>MenuPath</code> 가 파서로 채워짐(<code>BiosAttribute.menuPath</code>, 예: <code>./Advanced/Trusted Computing</code>) — 페이지 트리 워킹 없이 메뉴 경로 그룹 렌더 가능.</td></tr>
+            <tr><td><code>BiosSetupService.renderMenu</code></td><td><span class="chip del">죽은 코드</span></td><td>PoC 폐지 후 소비자 0 확인(grep) — 본 slice 에서 삭제. <code>listBoards</code> 는 소비자 1(Query)로 유지.</td></tr>
+            <tr><td>MS74-HB0 / initial-settings</td><td><span class="chip mod">해소·은퇴</span></td><td>사용자 확정(2026-07-05): <b>기본 세팅 값의 SSOT = registry JSON(DefaultValue) + SetupData XML</b>, 기존 <code>initial_settings.md</code> 는 임시물. properties 라인은 선적용 제거 완료(MS74-HB0 즉시 정상화) — md 파서 사슬 제거는 본 slice 요구 6.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정 — 사용자 지시 3건 + 설계 승계) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>상세 화면 — 변경 속성 한눈에</b>: 저장 flat 값을 registry 와 재조인해 <b>메뉴 경로(MenuPath) 그룹</b>으로 렌더. 각 행 = <b>DisplayName 라벨</b>(사용자 지시 승계) + 저장값(ENUMERATION 은 옵션 표시명 <code>valueDisplayName</code> 병기) + <b>기본값 대비</b>(default → 저장값) + AttributeName(mono 보조). registry 에서 사라진 저장 속성은 <b>stale 경고 행</b>, 카탈로그 소실 보드는 raw flat + 경고 배너(degraded)로.</li>
+          <li><b>Redfish Request Body 프리뷰</b>: 상세 화면에 실행 시 전송될 요청을 표시 — <code>PATCH /redfish/v1/Systems/Self/Bios/SD</code> + <code>{"Attributes":{…}}</code>(pretty JSON, 타입 보존) + 저장 속성 중 <code>resetRequired</code> 존재 시 <code>POST …/ComputerSystem.Reset {"ResetType":"ForceRestart"}</code> 안내. 조립은 보존된 <code>BiosRedfishPayloadAssembler.assembleAttributes()</code> + 상수 <b>재사용</b>(중복 조립 금지).</li>
+          <li><b>수정</b>: 상세의 '수정' 버튼 → <b>생성과 동일한 편집기 화면</b>(bios-setting-editor 재사용, edit 모드) + 저장값 pre-fill → <code>PUT /{id}</code>. name(자기 제외 중복 409)·description·attributes 재검증(create 루프 재사용), <b>boardKey 는 계약 미포함(불변)</b>.</li>
+          <li><b>삭제</b>: 상세·목록에서 confirm-modal 후 <code>DELETE /{id}</code> → 204 → 목록. hard delete — 사용중 가드는 참조가 생기는 U2-2-3 에서(설계 확정).</li>
+          <li><b>목록 행 링크 활성화</b> → 상세.</li>
+          <li><b>initial-settings(md) 메커니즘 제거</b> (사용자 확정 — md 는 임시물, 기본값 SSOT 는 registry/XML): <code>BiosInitialSettingsParser</code> 삭제 · <code>BiosResourceProperties.Board.initialSettings</code> 컴포넌트 제거 · <code>BiosSetupLoader.readInitialSettings</code> 제거 · <code>BiosSetupMenu.currentValues</code> 필드와 <code>BiosSetupDataParser.parse</code> 파라미터 제거 · <code>BiosWidgetRowResponse.resolveBaseline</code> 의 currentValue 분기 제거(baseline = registry DefaultValue 단일화) · <code>BiosPageResponse</code> 의 currentValue 조회 제거. 전부 소비 사슬이 명확한 기계적 제거 — "보드 실제 현재값" 개념은 Stage 4 의 Redfish 라이브 GET 으로 재도입 후보(§8).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> : 사용중 삭제 차단 SPI·guest 연동(→ <b>U2-2-3</b>) · Redfish 실호출(→ Stage 4) · MS74-HB0 파일 이슈(별도 결정) · boardKey 변경 기능(불변 설계).</div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — flat 저장 ↔ 재조인 상세 ↔ Redfish body 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 slice 의 본질은 <b>"flat 저장값 하나가 세 얼굴로 렌더된다"</b> 는 것이다: ① 재조인 상세(메뉴 경로 그룹 + DisplayName + 기본값 대비)
+          ② Redfish Request Body(실행 시 전송분 — 저장 JSON 과 구조 동형) ③ 수정 편집기의 pre-fill(위젯 선택값만 저장값으로, diff 기준선은 불변).
+          아래에서 저장값을 바꾸고 stale 시나리오를 토글하면 세 뷰가 동시에 갱신된다 — 판정·조립 로직은 서버(registry 재조인 + assembler)와 1:1.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">저장값 편집 :</span>
+            <button class="seg" id="seg-tpm" onclick="demoToggle('tpm')">TCG003 = Enable</button>
+            <button class="seg" id="seg-timeout" onclick="demoToggle('timeout')">IIO0012 = 500 포함</button>
+            <button class="seg" id="seg-stale" onclick="demoToggle('stale')">stale 속성 시나리오 (registry 에서 제거됨)</button>
+          </div>
+
+          <h4 style="margin-top:12px;">① 상세 — 재조인 그룹 렌더 (어떤 속성이 어떻게 바뀌는지 한눈에)</h4>
+          <div id="demo-detail"></div>
+
+          <h4>② Redfish Request Body (실행 시 전송분 — BiosRedfishPayloadAssembler 조립과 동형)</h4>
+          <div class="ux-json" id="demo-redfish"></div>
+
+          <div class="ux-toolbar" style="margin-top:12px;">
+            <span class="group-label">③ 수정 진입 :</span>
+            <span id="demo-edit-btn"></span>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">저장값 토글로 상세·Redfish body 가 함께 바뀌는 것을 확인하세요. stale 토글은 BIOS 카탈로그 개정 시나리오입니다.</div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 그룹 경로 = registry <code>MenuPath</code>(SSOT), 라벨 = <code>DisplayName</code>,
+          Redfish body = 저장 flat 값의 무변환 투영(<code>assembleAttributes</code> 재사용), 수정 pre-fill 은 <b>위젯 선택값만</b> 저장값으로 세팅하고
+          diff 기준선(data-default)은 생성 때와 동일 — 사용자가 기본값으로 되돌리면 PUT diff 에서 자연 탈락한다.</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>컨트롤러</th><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="2"><code>BiosSettingTemplateController</code><br>(SSR — 기존에 추가)</td>
+              <td>GET</td><td><code>/provisioning/bios-setting/{id}</code></td><td>상세(재조인 그룹 + Redfish 프리뷰 + stale 경고)</td><td><code>bios-setting-detail</code> / 404</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/bios-setting/{id}/edit</code></td><td>수정 편집기(생성 화면 재사용 + pre-fill). 카탈로그 소실 보드는 상세에서 버튼 disabled+tooltip(UI 차단) + 서버 404 안전망</td><td><code>bios-setting-editor</code> / 404</td></tr>
+            <tr><td rowspan="2"><code>BiosSettingTemplateRestController</code><br>(XHR — 기존에 추가)</td>
+              <td>PUT</td><td><code>/provisioning/bios-setting/{id}</code></td><td>수정 — <code>{name, description, attributes}</code> (boardKey 미포함=불변)</td><td>200 / 400 / 404 / 409</td></tr>
+            <tr><td>DELETE</td><td><code>/provisioning/bios-setting/{id}</code></td><td>confirm-modal 후 hard delete</td><td>204 / 404</td></tr>
+            <tr><td colspan="2"><span class="chip mod">수정</span></td><td><code>bios-setting-list.html</code></td><td>행 링크 → 상세 활성화</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Query/Command</div><div class="actor a3">Loader + Assembler + DB</div>
+          <div class="step a1">상세 진입 GET /{id}</div><div class="step a2">findDetail — 엔티티 + registry 재조인 + Redfish 조립</div><div class="step a3">DB 행 + load(boardKey) + assembleAttributes</div>
+          <div class="step a1">'수정' → GET /{id}/edit</div><div class="step a2">editorView(boardKey, 저장값 overlay)</div><div class="step a3">storedValue 를 위젯 행에 주입</div>
+          <div class="step a1">편집 → PUT /{id}</div><div class="step a2">update — create 검증 루프 재사용 + 자기 제외 중복 검사</div><div class="step a3">UPDATE (values_json 교체)</div>
+          <div class="step a1">confirm-modal → DELETE /{id}</div><div class="step a2">delete — 존재 확인 후 hard delete</div><div class="step a3">DELETE 행</div>
+        </div>
+        <pre><code>[상세 정상]  flat values → registry 재조인 → MenuPath 그룹 + DisplayName + default→stored / Redfish body 병렬 조립
+[상세 stale] 저장 키가 registry 에 없음 → 해당 행만 경고 표시(원본 raw 값 노출) — Redfish body 에는 저장분 그대로 포함(경고 문구 병기)
+[상세 degraded] 보드 카탈로그 소실(BiosBoardNotFound) → 재조인 없이 raw flat 표시 + 경고 배너, edit 버튼 disabled+tooltip
+[404]        없는 id — 상세/edit/PUT/DELETE 전 경로 (BiosSettingTemplateNotFoundException 신규)
+[409]        PUT name 이 다른 행과 중복 (자기 제외)</code></pre>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4" open>
+      <summary>§4. 도메인 모델 (SSOT) + 구현 결정</summary>
+      <div class="body">
+        <div class="pkg-tree">provisioning/biossetting/  (기존 패키지에 추가)
+├── dto/response/BiosSettingTemplateDetailResponse   (신규 — 상세 뷰모델)
+│     { id, name, description, boardKey, createdAt, updatedAt,
+│       groups:  [ { menuPath, entries: [ { attributeName, displayName, widgetKind,
+│                     defaultDisplay, storedDisplay, storedRaw } ] } ],   // MenuPath 그룹, 문서 순서 보존
+│       stale:   [ { attributeName, storedRaw } ],                        // registry 에 없어진 저장 속성
+│       redfish: { method, target, bodyJson(pretty), resetRequired, resetTarget, resetBodyJson },
+│       catalogMissing: boolean }                                          // degraded 렌더 + edit 차단 판정 (UI·서버 공유)
+├── dto/request/BiosSettingTemplateUpdateRequest     (신규 — name/description/attributes, boardKey 없음)
+├── exception/BiosSettingTemplateNotFoundException    (신규 404 — GuestServerNotFound 선례)
+├── service/BiosSettingTemplateQueryService          ★ findDetail(id) · editorView(boardKey, overlay) 추가
+└── service/BiosSettingTemplateCommandService        ★ update(id, request) · delete(id) 추가 (검증 루프 재사용)
+
+provisioning/ (기존 개조)
+├── dto/response/BiosWidgetRowResponse               ★ storedValue 필드 추가 (edit pre-fill 용, 생성 화면에선 null)
+├── service/BiosSetupService                          ★ renderMenu 삭제 (소비자 0 죽은 코드), listBoards 만 잔류
+└── service/BiosRedfishPayloadAssembler               ★ 첫 실소비 — assembleAttributes + 상수 재사용 (무수정 목표)</div>
+        <h4>구현 수준 결정</h4>
+        <table>
+          <thead><tr><th style="width:6%">#</th><th style="width:32%">결정</th><th>근거 / 대안</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>상세 그룹 = registry <code>MenuPath</code> 문자열 기준(문서 순서 보존)</td><td>페이지 트리 워킹 대안 기각 — MenuPath 가 registry 에 실재하는 경로 SSOT 이고, 상세는 편집기와 달리 트리 내비게이션이 불필요(평면 그룹이 "한눈에" 요구에 부합).</td></tr>
+            <tr><td>D2</td><td>ENUMERATION 저장값은 <code>valueDisplayName</code> 으로 표시(원시 ValueName 은 mono 보조)</td><td>DisplayName 라벨 지시의 값-측 일관 적용. 기본값도 동일 규칙.</td></tr>
+            <tr><td>D3</td><td>Redfish 프리뷰는 <b>조회 시점 조립</b>(저장 안 함) + <code>assembleAttributes</code>/상수 재사용</td><td>body 를 저장하면 값과 이중 진실. 프리뷰 = 저장 flat 의 무변환 투영이므로 조립 비용 무시 가능. 별도 프리뷰 조립기 신설 기각(중복).</td></tr>
+            <tr><td>D4</td><td><code>resetRequired</code> = 저장 속성들의 registry 재조인 OR — stale 속성은 판정 불가로 제외하고 경고에 병기</td><td>실행 의미(재부팅 필요)의 표시용 근사 — 최종 판정은 Stage 4. 상세에만 표시, 저장 안 함.</td></tr>
+            <tr><td>D5</td><td>edit pre-fill = <code>BiosWidgetRowResponse.storedValue</code> 신필드(위젯 선택값만 세팅), <b>data-default(diff 기준선)는 생성과 동일</b></td><td>저장값을 baseline 으로 쓰는 대안 기각 — 그러면 "저장값에서 안 바꾼 속성"이 diff 에서 빠져 PUT 시 기존 값이 유실된다. 기준선 불변이라 되돌리기(기본값 복귀)도 자연스럽게 diff 탈락.</td></tr>
+            <tr><td>D6</td><td>PUT 검증 = create 의 <code>validateAndCoerce</code> 그대로 재사용 + <code>existsByNameAndIdNot</code> 중복 검사</td><td>같은 서비스 내 private 재사용 — 분리 추상 불요.</td></tr>
+            <tr><td>D7</td><td><code>catalogMissing</code> 플래그가 상세의 degraded 렌더 + edit 버튼 disabled + 서버 404 의 <b>단일 판정</b></td><td>UI 차단 조건과 서버 가드 조건의 SSOT 공유(불가침) — Query 가 로더 실패(BiosBoardNotFound)를 흡수해 플래그화하고, editorView 는 같은 로더 호출이 404 로 남는다(안전망).</td></tr>
+            <tr><td>D8</td><td><code>renderMenu</code> 삭제</td><td>PoC 폐지 후 소비자 0 — 죽은 코드. <code>listBoards</code> 는 소비자 1 유지(Stage 4 재소비 예정 — 공급자 계층 churn 회피).</td></tr>
+            <tr><td>D9</td><td>initial-settings(md) 사슬 전체 제거 — baseline = registry <code>DefaultValue</code> 단일화</td><td>사용자 확정(임시물 은퇴). 제거 후 <code>currentValues</code> 의 쓰기 지점이 0 이 되므로 dormant 유지 대안은 죽은 코드 존치 — 기각. MS74-HB0/기타 보드의 편집기·diff 의미론이 "공장 기본값 대비"로 전 보드 균일해진다.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>적대적 자기비판</b> — ① <i>stale 속성을 Redfish body 에 포함하는 게 맞나?</i> 포함이 정직하다: 저장분은 실행 시 그대로 전송될 값이고, 임의 제외는 silent drop(경고 병기가 올바른 처리; 제거는 사용자가 수정 화면에서 재저장으로 수행 — -1 확정 의미론). ② <i>DetailResponse 가 비대하지 않나?</i> 상세 한 화면의 전속 뷰모델 — 재사용 목적이 없어 분해 이득 0. ③ <i>degraded 상세에서 Redfish 프리뷰는?</i> 표시한다 — body 는 registry 없이도 저장 flat 만으로 조립 가능(그룹 렌더만 불가). ④ <i>PUT 에서 values 전체 교체 의미론</i> — diff 수집이 전체 기준선 대비라 부분 patch 아님(전체 교체가 계약) — JS 가 저장값 포함 전 변경분을 재수집하므로 유실 없음(D5). ⑤ <i>순환?</i> 신규 의존 없음(biossetting → provisioning.domain/service 단방향 유지).</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>상세 화면 신규 + 편집기 edit 모드 개조 + 목록 링크</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>SSR 2 + XHR 2 엔드포인트 추가</td></tr>
+            <tr><td>4</td><td>DetailResponse · UpdateRequest + <code>storedValue</code> 필드</td></tr>
+            <tr><td>5</td><td>findDetail/editorView(overlay)/update/delete 시그니처</td></tr>
+            <tr><td>6·7</td><td><span class="chip na">N/A</span> — 엔티티·스키마 변경 0</td><td><span class="chip cp3">CP3</span> (보고만)</td></tr>
+            <tr><td>8</td><td>서비스 본체 + 단위/통합 테스트</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td><span class="chip na">N/A</span> — DDL 변경 0 확인만</td></tr>
+            <tr><td>10</td><td>브라우저 — U2-2 묶음 공유 CP5</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>Query.findDetail</td><td>재조인 그룹(MenuPath·DisplayName·enum 표시값·default→stored) / stale 분리 / redfish body(타입 보존)·resetRequired OR / 카탈로그 소실 degraded(catalogMissing=true, 그룹 없이 raw)</td><td>4</td></tr>
+            <tr><td>Query.editorView(overlay)</td><td>storedValue 주입 + data-default 불변(기준선 보존)</td><td>1</td></tr>
+            <tr><td>Command.update / delete</td><td>update happy(값 교체) / 자기 제외 name 중복 409 / 없는 id 404 / delete happy·404</td><td>4</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (@WebMvcTest — 기존 2 파일에 추가)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>상세 200(모델 검증) · edit 200 · PUT 200(바디) · DELETE 204</td><td>4</td></tr>
+            <tr><td>400</td><td>PUT name blank / 잘못된 속성 값(FieldBound)</td><td>2</td></tr>
+            <tr><td>404</td><td><b>신규 <code>BiosSettingTemplateNotFoundException</code> — 상세/edit/PUT/DELETE 4경로 전부</b>(신규 예외 시나리오 의무)</td><td>4</td></tr>
+            <tr><td>409</td><td>PUT name 타 행 중복</td><td>1</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>BiosSettingTemplateNotFoundException</code></td><td>404</td><td><span class="chip new">신규</span></td><td><code>NotFoundException</code> 하위 — 4경로 트리거 테스트 의무.</td></tr>
+            <tr><td><code>DuplicateBiosSettingTemplateNameException</code></td><td>409</td><td><span class="chip keep">재사용</span></td><td>PUT 자기 제외 검사에서 재트리거.</td></tr>
+            <tr><td><code>InvalidBiosValueException</code>·<code>UnknownBiosAttributeException</code>·<code>BiosBoardNotFoundException</code></td><td>400·404·404</td><td><span class="chip keep">재사용</span></td><td>PUT 재검증·edit 안전망 경로.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>의도된 잔존 / 임시 비대칭 (+ 해소 시점)</h4>
+        <ul>
+          <li><b>hard delete 에 사용중 가드 없음</b> — 참조가 존재하지 않는 기간(guest 연동 전). <b>U2-2-3</b> 에서 SPI 가드 + 삭제 버튼 disabled 도입.</li>
+          <li><b>stale 속성은 표시·경고까지만</b> — 실행 시 처리(전송 여부 최종 판정)는 Stage 4. 재저장 시 자연 탈락(-1 확정).</li>
+          <li><b>"보드 실제 현재값" 표시 기능의 공백</b> — md 메커니즘 은퇴로 전 보드가 공장 기본값 baseline. 실물 보드 현재값은 <b>Stage 4 의 Redfish 라이브 <code>GET …/Bios</code> 연동</b>이 자연스러운 재도입 지점(임시 파일 자산 없이).</li>
+        </ul>
+        <h4>주의</h4>
+        <ul>
+          <li>confirm-modal 은 기존 자산(<code>confirm-modal.css</code> + 모달 JS 패턴) 재사용 — U2-1 잔존 지적이었던 native <code>confirm()</code> 를 새로 늘리지 않는다.</li>
+          <li>설계 report "프리뷰 기각(#8)" 반전은 사용자 지시(상세에서 Redfish body 표시)에 의한 것 — 기각 사유(소비자 없음)가 소멸했으므로 모순 아님. Notion U2-2-2 본문에 반영.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U2-2-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과(회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="redfish"> <span>상세 Redfish body = DB values_json 과 값·타입 동형(스모크)</span></label></li>
+          <li><label><input type="checkbox" data-key="prefill"> <span>edit pre-fill 후 무변경 PUT → 저장값 보존 / 기본값 복귀 → diff 탈락(스모크)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span>스키마 변경 0 (validate 기동 무오류)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 — U2-2 묶음 공유 CP5 (사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>bios-setting-detail.html</code> · <code>BiosSettingTemplateDetailResponse</code> · <code>BiosSettingTemplateUpdateRequest</code> · <code>BiosSettingTemplateNotFoundException</code></td><td>—</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>Query/Command 서비스 · SSR/REST 컨트롤러 · <code>BiosWidgetRowResponse</code>(+storedValue) · <code>bios-setting-editor.html/js</code>(edit 모드) · <code>bios-setting-list.html</code>(링크) · <code>bios-setting.css</code></td><td>—</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>BiosSetupService.renderMenu</code> · <code>BiosInitialSettingsParser</code> · <code>Board.initialSettings</code>/<code>readInitialSettings</code>/<code>currentValues</code> 사슬(요구 6 — 선적용된 properties 라인 포함)</td><td>md 메커니즘 은퇴(D9)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BiosRedfishPayloadAssembler</code>(무수정 소비) · 엔티티/DDL · <code>setting/**</code></td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>U2-2-3 guest 연동</b> — <code>biosSettingTemplateIds</code> 복수 선택(보드 SPECIFIED ⇒ 1개, AUTO ⇒ N개·boardKey 중복 금지) + SPI 사용중 삭제 차단(본 slice 의 무가드 hard delete 해소).</li>
+          <li><b>U2-3/U2-4 · Stage 4 준비</b> — 기존 로드맵 유지. stale 속성 실행 처리·감지보드 판정은 Stage 4.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ── 🎬 데모 — "flat 저장값 하나, 세 얼굴" : 재조인 상세 / Redfish body / edit pre-fill 의미론 ──
+  //  서버 로직 1:1: MenuPath 그룹(registry SSOT), DisplayName/valueDisplayName 라벨,
+  //  assembleAttributes 무변환 투영, resetRequired OR 판정, stale 분리(경고+body 포함).
+  const REGISTRY = {
+    'TCG003':  { display: 'TPM v1.2 Support', path: './Advanced/Trusted Computing', type: 'ENUM',
+                 def: 'Disable', options: { Disable: '비활성', Enable: '활성' }, reset: true },
+    'IIO0012': { display: 'Link Training Timeout', path: './Chipset/IIO Configuration', type: 'INT',
+                 def: 1000, reset: false }
+  };
+  // stale 시나리오용 — 저장돼 있으나 registry 개정으로 사라진 속성.
+  const STALE_KEY = 'OLD0001_RemovedKnob';
+  const state = { tpm: true, timeout: false, stale: false };
+
+  function storedValues() {
+    const v = {};
+    if (state.tpm) v['TCG003'] = 'Enable';
+    if (state.timeout) v['IIO0012'] = 500;
+    if (state.stale) v[STALE_KEY] = 'Legacy';
+    return v;
+  }
+  function demoToggle(k) { state[k] = !state[k]; render(); }
+  function render() {
+    document.getElementById('seg-tpm').classList.toggle('on', state.tpm);
+    document.getElementById('seg-timeout').classList.toggle('on', state.timeout);
+    document.getElementById('seg-stale').classList.toggle('on', state.stale);
+
+    const values = storedValues();
+    // ① 재조인 상세 — MenuPath 그룹 + stale 분리 (서버 findDetail 조립 재현)
+    const groups = {};
+    const stale = [];
+    Object.entries(values).forEach(([k, v]) => {
+      const reg = REGISTRY[k];
+      if (!reg) { stale.push([k, v]); return; }
+      (groups[reg.path] = groups[reg.path] || []).push([k, v, reg]);
+    });
+    let html = '';
+    Object.entries(groups).forEach(([path, entries]) => {
+      html += '<div class="ux-group"><div class="gh">' + path + '</div>' + entries.map(([k, v, reg]) => {
+        const shown = reg.type === 'ENUM' ? (reg.options[v] + ' (' + v + ')') : v;
+        const defShown = reg.type === 'ENUM' ? reg.options[reg.def] : reg.def;
+        return '<div class="ux-entry"><span class="dn">' + reg.display +
+          (reg.reset ? ' <span style="font-size:10px;color:var(--orange);">⟳ 재부팅 필요</span>' : '') +
+          '</span><span class="an">' + k + '</span><span class="val"><span class="old">' + defShown +
+          '</span>→ <span class="new">' + shown + '</span></span></div>';
+      }).join('') + '</div>';
+    });
+    stale.forEach(([k, v]) => {
+      html += '<div class="ux-group"><div class="ux-entry stale"><span class="dn">⚠ 카탈로그에 없는 저장 속성 — BIOS 개정으로 제거됨. 재저장 시 탈락(경고까지만, 실행 처리는 Stage 4)</span>' +
+        '<span class="an">' + k + '</span><span class="val"><span class="new">' + v + '</span></span></div></div>';
+    });
+    if (!html) html = '<div class="ux-group"><div class="ux-entry"><span class="dn" style="color:var(--text-muted);">저장 속성 없음 — 템플릿은 최소 1속성 invariant 로 이 상태가 될 수 없다(전부 끄면 -1 의 emptyDiff 400)</span></div></div>';
+    document.getElementById('demo-detail').innerHTML = html;
+
+    // ② Redfish body — 저장 flat 의 무변환 투영 (stale 포함 — silent drop 금지)
+    const rows = Object.entries(values).map(([k, v]) =>
+      '    <span class="k">"' + k + '"</span>: ' + (typeof v === 'string' ? '<span class="s">"' + v + '"</span>' : '<span class="n">' + v + '</span>'));
+    const resetRequired = Object.keys(values).some(k => REGISTRY[k] && REGISTRY[k].reset);
+    document.getElementById('demo-redfish').innerHTML =
+      '<span class="m">PATCH</span> /redfish/v1/Systems/Self/Bios/SD\n{\n  <span class="k">"Attributes"</span>: ' +
+      (rows.length ? '{\n' + rows.join(',\n') + '\n  }' : '{}') + '\n}' +
+      (resetRequired ? '\n\n<span class="m">POST</span> /redfish/v1/Systems/Self/Actions/ComputerSystem.Reset\n{ <span class="k">"ResetType"</span>: <span class="s">"ForceRestart"</span> }  <span style="color:#6b6660;">// resetRequired 속성 포함 — 적용에 재부팅 필요</span>' : '');
+
+    // ③ edit pre-fill 의미론 패널
+    document.getElementById('demo-edit-btn').innerHTML =
+      '<button class="n-demo-btn" onclick="demoEdit()">수정 (생성과 동일 편집기로)</button>';
+    const tf = v => v ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'storedValue 주입   = 위젯 선택값만 저장값으로 세팅 (pre-fill)\n' +
+      'data-default 기준선 = 생성 때와 동일 (불변) → 기본값 복귀 시 PUT diff 자연 탈락\n' +
+      'resetRequired(OR)  = ' + tf(resetRequired) + '   catalogMissing = ' + tf(false) + ' (소실 시 degraded 렌더 + edit 차단 단일 판정)';
+  }
+  function demoEdit() {
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ GET /{id}/edit → 생성과 동일한 편집기가 열리고, 저장된 속성 위젯만 storedValue 로 선택돼 있다. 수정 후 PUT /{id} (boardKey 불변).';
+  }
+  render();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

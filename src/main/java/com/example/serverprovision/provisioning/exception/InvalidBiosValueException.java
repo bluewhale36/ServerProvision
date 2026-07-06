@@ -21,4 +21,15 @@ public class InvalidBiosValueException extends FieldBoundBadRequestException {
 	public static InvalidBiosValueException blankKey() {
 		return new InvalidBiosValueException("attributes", "빈 속성 키(AttributeName)는 허용되지 않습니다.");
 	}
+
+	/** U2-2-1 — 템플릿에 담을 수 없는 타입(PASSWORD). UI 가 위젯을 미출력하므로 direct POST 안전망. */
+	public static InvalidBiosValueException notTemplatable(BiosAttributeName name) {
+		return new InvalidBiosValueException(name,
+				"BIOS 세팅 템플릿에 담을 수 없는 속성 타입입니다 (비밀번호는 BMC 비밀번호 변경 흐름에서 별도 처리).");
+	}
+
+	/** U2-2-1 — 유효 변경분 0건(빈 diff). 템플릿은 최소 1개 변경 속성을 가져야 한다. */
+	public static InvalidBiosValueException emptyDiff() {
+		return new InvalidBiosValueException("attributes", "기본값에서 변경된 속성이 없습니다. 최소 1개 속성을 변경해야 합니다.");
+	}
 }

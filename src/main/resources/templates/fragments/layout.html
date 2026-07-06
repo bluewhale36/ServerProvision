@@ -87,7 +87,12 @@
        th:classappend="${activePage == 'trash'} ? ' active'">휴지통</a>
 
     <!-- Provisioning -->
-    <span class="n-nav-link" aria-disabled="true" title="미구현">세팅 정의서</span>
+    <a th:href="@{/provisioning/setting}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'setting'} ? ' active'">세팅 정의서</a>
+    <a th:href="@{/provisioning/bios-setting}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'bios-setting'} ? ' active'">BIOS 세팅</a>
     <a th:href="@{/provisioning/server}"
        class="n-nav-link"
        th:classappend="${activePage == 'server'} ? ' active'">서버</a>

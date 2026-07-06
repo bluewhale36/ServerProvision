@@ -13,7 +13,13 @@ import java.util.List;
 /**
  * 속성 위젯 행. 클라이언트 diff 계약(data-default/data-type)과 위젯 렌더에 필요한 옵션/범위를 모두 포함한다.
  *
+ * <p>U2-2-2 — baseline({@code defaultValue}) 은 registry {@code DefaultValue} 단일 SSOT 다
+ * (임시물이던 initial_settings 현재값 우선 로직 은퇴). {@code storedValue} 는 수정(edit) pre-fill 전용:
+ * 위젯의 <b>선택값만</b> 저장값으로 세팅하고 diff 기준선(data-default)은 생성 때와 동일하게 둔다 —
+ * 사용자가 기본값으로 되돌리면 PUT diff 에서 자연 탈락한다.</p>
+ *
  * @param conditional null 이 아니면 "조건부 활성" orphan 위젯 — controller 속성 값에 따라 클라이언트가 활성/강제한다.
+ * @param storedValue edit pre-fill 용 저장값(폼 문자열). 생성 화면·미저장 속성은 null.
  */
 public record BiosWidgetRowResponse(
 		String attributeName,
@@ -21,6 +27,7 @@ public record BiosWidgetRowResponse(
 		String helpText,
 		String widgetKind,
 		String defaultValue,
+		String storedValue,
 		boolean resetRequired,
 		boolean readOnly,
 		List<BiosEnumOption> options,
@@ -43,24 +50,20 @@ public record BiosWidgetRowResponse(
 		return "widget";
 	}
 
-	/**
-	 * @param currentValue 보드 실제 현재값(initial_settings). null/blank 이면 레지스트리 기본값으로 표시.
-	 *                     화면 표시값이자 "변경분만 전송" 의 diff 기준값(data-default).
-	 */
-	public static BiosWidgetRowResponse of(BiosAttributeControl control, BiosAttribute attr, String currentValue) {
-		return build(attr, currentValue, control.complex().name(), null);
+	public static BiosWidgetRowResponse of(BiosAttributeControl control, BiosAttribute attr, String storedValue) {
+		return build(attr, storedValue, control.complex().name(), null);
 	}
 
 	/**
 	 * XML 에 없는 조건부 orphan 위젯 생성 (예외 주입). controller 값에 종속해 활성/강제된다.
 	 */
-	public static BiosWidgetRowResponse conditionalOf(BiosAttribute attr, String currentValue, BiosConditionalInjection injection) {
+	public static BiosWidgetRowResponse conditionalOf(BiosAttribute attr, String storedValue, BiosConditionalInjection injection) {
 		ConditionalEnable conditional = new ConditionalEnable(
 				injection.afterAttribute().value(), injection.enableWhenValue(), injection.forcedValue());
-		return build(attr, currentValue, "NONE", conditional);
+		return build(attr, storedValue, "NONE", conditional);
 	}
 
-	private static BiosWidgetRowResponse build(BiosAttribute attr, String currentValue, String complex, ConditionalEnable conditional) {
+	private static BiosWidgetRowResponse build(BiosAttribute attr, String storedValue, String complex, ConditionalEnable conditional) {
 		IntegerBounds b = attr.bounds();
 		PasswordLength pw = attr.passwordLength();
 		return new BiosWidgetRowResponse(
@@ -68,7 +71,8 @@ public record BiosWidgetRowResponse(
 				attr.trimmedDisplayName(),
 				attr.helpText(),
 				attr.type().widgetKind(),
-				resolveBaseline(attr, currentValue),
+				baseline(attr),
+				storedValue,
 				attr.resetRequired(),
 				attr.readOnly(),
 				attr.options(),
@@ -83,41 +87,8 @@ public record BiosWidgetRowResponse(
 		);
 	}
 
-	// 화면에 표시할 baseline 값 결정: 현재값 우선, 없거나 부적합하면 레지스트리 기본값.
-	// Enumeration 은 현재값을 옵션 ValueName 과 대소문자 무시 매칭해 canonical ValueName 으로 정규화
-	// (예: 현재값 "AUTO" → 옵션 "Auto"). 그래야 select 가 올바른 옵션을 선택하고 diff 가 정확하다.
-	private static String resolveBaseline(BiosAttribute attr, String currentValue) {
-		if (attr.type() == BiosAttributeType.PASSWORD) {
-			return null; // 비밀번호는 표시/기본값 없음 (항상 빈 입력).
-		}
-		if (currentValue == null || currentValue.isBlank()) {
-			return attr.defaultValue();
-		}
-		if (attr.type() == BiosAttributeType.ENUMERATION) {
-			for (BiosEnumOption option : attr.options()) {
-				if (option.valueName().equalsIgnoreCase(currentValue)) {
-					return option.valueName();
-				}
-			}
-			return attr.defaultValue(); // 옵션에 없는 현재값 → 기본값으로 안전 fallback.
-		}
-		if (attr.type() == BiosAttributeType.INTEGER) {
-			try {
-				return String.valueOf(Long.parseLong(currentValue.trim()));
-			} catch (NumberFormatException e) {
-				return attr.defaultValue();
-			}
-		}
-		if (attr.type() == BiosAttributeType.BOOLEAN) {
-			String v = currentValue.trim();
-			if (v.equalsIgnoreCase("true")) {
-				return "true";
-			}
-			if (v.equalsIgnoreCase("false")) {
-				return "false";
-			}
-			return attr.defaultValue(); // "true"/"false" 외 현재값 → 기본값.
-		}
-		return attr.defaultValue();
+	// baseline = registry DefaultValue (기본 세팅 값의 SSOT). 비밀번호는 표시/기본값 없음(항상 빈 입력).
+	private static String baseline(BiosAttribute attr) {
+		return attr.type() == BiosAttributeType.PASSWORD ? null : attr.defaultValue();
 	}
 }

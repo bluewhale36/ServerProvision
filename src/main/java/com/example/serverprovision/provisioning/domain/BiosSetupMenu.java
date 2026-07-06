@@ -15,16 +15,14 @@ import java.util.Optional;
  *
  * @param menuBarOrder  최상위 탭(PageParentID=0x0) 의 문서 순서
  * @param pages         PageId → 페이지 (문서 순서 보존 LinkedHashMap)
- * @param registry      AttributeName → 속성 메타
- * @param currentValues AttributeName → 보드 실제 현재값(initial_settings). 비어있으면 레지스트리 기본값으로 표시.
+ * @param registry      AttributeName → 속성 메타 — 기본 세팅 값(DefaultValue)의 SSOT (U2-2-2, md 메커니즘 은퇴)
  */
 public record BiosSetupMenu(
 		String boardKey,
 		List<PageId> menuBarOrder,
 		Map<PageId, BiosPage> pages,
 		Map<BiosAttributeName, BiosAttribute> registry,
-		List<BiosDependency> dependencies,
-		Map<BiosAttributeName, String> currentValues
+		List<BiosDependency> dependencies
 ) {
 
 	public Optional<BiosAttribute> attribute(BiosAttributeName name) {

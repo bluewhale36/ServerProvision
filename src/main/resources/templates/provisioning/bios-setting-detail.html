@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  BIOS 세팅 템플릿 상세 페이지 (U2-2-2)
+  ─────────────────────────────────────────────────────────
+  Model:
+    template : BiosSettingTemplateDetailResponse
+      · id / name / description / boardModelId / boardModelName / createdAt / updatedAt
+      · inUse : 세팅 정의서 BASIC_SETTING 단계에서 참조 중 (U2-2-3) — true 면 삭제 버튼
+          disabled + tooltip 으로 1차 차단. 서버 DELETE 409(BiosSettingTemplateInUseException)와
+          동일 판정(BiosSettingTemplateUsageChecker) 단일 SSOT — 409 는 direct DELETE 안전망.
+      · catalogMissing : 이 보드의 BIOS 카탈로그(registry/SetupData)가 등록되어 있지 않은 degraded 판정
+          (보드는 FK 라 항상 존재 — 소실이 아니라 카탈로그 미보유 의미).
+          degraded 배너 + '수정' 버튼 disabled 를 함께 구동하며, 서버 editorViewFor 의
+          카탈로그 로드 404(BiosBoardNotFoundException) 안전망과 같은 단일 SSOT
+          (BiosSettingTemplateQueryService 의 카탈로그 로드 판정) — UI 1차 차단이 정상
+          흐름을 막으므로 404 는 direct GET 에서만 발동한다.
+      · groups : registry MenuPath 그룹(첫 등장 순서). entry 라벨은 DisplayName(주) +
+          AttributeName(mono 보조), 값은 defaultDisplay → storedDisplay 대비
+          (ENUMERATION 표시명은 서버가 이미 적용).
+      · stale  : 카탈로그에 없는 저장 속성(BIOS 개정 or 카탈로그 미보유) — raw 표시, 재저장 시 탈락.
+      · redfish : 실행 시 전송될 Redfish 계획(method/target/bodyJson + reset 액션) — 조회 시점 조립.
+
+  삭제는 confirm-modal 자산 재사용 + XHR DELETE (204 → 목록 이동, 실패 → 상단 배너) — bios-setting-detail.js.
+  setting.css 는 상세 골격 클래스(n-detail-section / n-section-title / n-page-title-stacked / n-mono) 재사용 목적.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 세팅 템플릿 상세')}"></th:block>
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
+    <!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
+    <link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=3)}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('bios-setting')}"></nav>
+
+<div class="n-page-md">
+    <!-- 액션 거절 배너 (삭제 XHR 실패 등) — bios-setting-detail.js 가 토글 -->
+    <div id="templateActionBanner" class="n-alert n-alert-danger" role="alert" hidden></div>
+
+    <div class="n-page-header">
+        <div>
+            <a th:href="@{/provisioning/bios-setting}" class="n-back-link">← 목록으로</a>
+            <h1 class="n-page-title n-page-title-stacked" th:text="${template.name}">템플릿 명칭</h1>
+            <span class="n-badge n-badge-blue" th:text="${template.boardModelName}">MS74-HB0</span>
+        </div>
+        <div class="n-header-actions">
+            <!-- 수정 UI 차단 판정 = template.catalogMissing — 서버 editorViewFor 의 카탈로그 로드
+                 404 안전망과 같은 SSOT. 두 곳에 별도 조건을 복붙하지 않고 이 단일 판정만 소비한다. -->
+            <span th:if="${template.catalogMissing}" class="n-btn-tooltip-wrap"
+                  data-tooltip="보드 카탈로그가 없어 편집기를 열 수 없습니다">
+                <a class="n-btn n-btn-secondary n-btn-disabled" aria-disabled="true">수정</a>
+            </span>
+            <a th:unless="${template.catalogMissing}"
+               th:href="@{/provisioning/bios-setting/{id}/edit(id=${template.id})}"
+               class="n-btn n-btn-secondary">수정</a>
+            <!-- 삭제 UI 차단 판정 = template.inUse — 서버 DELETE 409 안전망과 같은 SSOT.
+                 활성 상태의 tooltip noise 회피는 data-tooltip-active 토글(S5-3-2 관례). -->
+            <span class="n-btn-tooltip-wrap"
+                  th:data-tooltip-active="${template.inUse} ? 'true' : 'false'"
+                  data-tooltip="정의서에서 사용 중인 템플릿은 삭제할 수 없습니다">
+                <button type="button" id="templateDeleteBtn" class="n-btn n-btn-danger"
+                        th:disabled="${template.inUse}"
+                        th:data-delete-url="@{/provisioning/bios-setting/{id}(id=${template.id})}"
+                        th:data-list-url="@{/provisioning/bios-setting}"
+                        th:data-resource-label="${template.name}">삭제
+                </button>
+            </span>
+        </div>
+    </div>
+
+    <!-- degraded 배너 — 카탈로그 미보유 시 groups 는 비고 모든 저장 속성이 아래 stale(원시 값)로 내려간다 -->
+    <div th:if="${template.catalogMissing}" class="n-alert n-alert-danger" role="alert">
+        이 보드의 BIOS 카탈로그가 등록되어 있지 않아 재조인 렌더가 불가합니다 — 저장 속성을 원시 값으로 표시합니다.
+    </div>
+
+    <!-- 기본 정보 -->
+    <div class="n-detail-section">
+        <div class="n-section-title">기본 정보</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <table class="n-detail-table">
+                    <tbody>
+                    <tr>
+                        <th>템플릿 ID</th>
+                        <td><code class="n-mono" th:text="${template.id}">1</code></td>
+                    </tr>
+                    <tr>
+                        <th>설명</th>
+                        <td th:text="${template.description != null and !#strings.isEmpty(template.description)} ? ${template.description} : '—'">—</td>
+                    </tr>
+                    <tr>
+                        <th>생성일시</th>
+                        <td th:text="${template.createdAt != null} ? ${#temporals.format(template.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                    </tr>
+                    <tr>
+                        <th>수정일시</th>
+                        <td th:text="${template.updatedAt != null} ? ${#temporals.format(template.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 변경 속성 — menuPath 그룹별 기본값 → 저장값 대비 -->
+    <div class="n-detail-section">
+        <div class="n-section-title">변경 속성</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <p th:if="${#lists.isEmpty(template.groups)}" class="n-detail-empty">
+                    카탈로그와 재조인된 변경 속성이 없습니다.</p>
+                <div class="bsd-group" th:each="group : ${template.groups}">
+                    <div class="bsd-group-title" th:text="${group.menuPath}">Advanced › CPU Configuration</div>
+                    <ul class="bsd-rows">
+                        <li class="bsd-row" th:each="entry : ${group.entries}">
+                            <span class="bsd-row-label" th:text="${entry.displayName}">속성 라벨</span>
+                            <span th:if="${entry.resetRequired}" class="n-badge n-badge-orange"
+                                  title="변경 시 재부팅 필요">⟳ 재부팅 필요</span>
+                            <code class="bsd-attr-name" th:text="${entry.attributeName}">AttributeName</code>
+                            <span class="bsd-values">
+                                <span class="bsd-value-default"
+                                      th:text="${entry.defaultDisplay != null ? entry.defaultDisplay : '—'}">기본값</span>
+                                <span class="bsd-value-arrow">→</span>
+                                <span class="bsd-value-stored" th:text="${entry.storedDisplay}">저장값</span>
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- stale — 카탈로그에 없는 저장 속성 (경고) -->
+    <div class="n-detail-section" th:if="${!#lists.isEmpty(template.stale)}">
+        <div class="n-section-title">카탈로그에 없는 저장 속성</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <p class="bsd-stale-note">
+                    현재 보드 카탈로그에 존재하지 않는 저장 속성입니다(BIOS 개정) — 편집기에서 재저장하면 탈락합니다.</p>
+                <ul class="bsd-rows">
+                    <li class="bsd-row bsd-row-stale" th:each="staleEntry : ${template.stale}">
+                        <code class="bsd-attr-name" th:text="${staleEntry.attributeName}">AttributeName</code>
+                        <span class="bsd-values">
+                            <span class="bsd-value-stored" th:text="${staleEntry.storedRaw}">raw 값</span>
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Redfish Request Body — 실행 시 전송될 계획 (서버가 조회 시점 조립, pretty JSON) -->
+    <div class="n-detail-section">
+        <div class="n-section-title">Redfish Request Body</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <div class="bsd-redfish-head">
+                    <span class="n-badge n-badge-blue" th:text="${template.redfish.method}">PATCH</span>
+                    <code class="bsd-redfish-target" th:text="${template.redfish.target}">/redfish/v1/Systems/1/Bios/Settings</code>
+                </div>
+                <pre class="bsd-redfish-pre" th:text="${template.redfish.bodyJson}">{ "Attributes": {} }</pre>
+                <div th:if="${template.redfish.resetRequired}" class="bsd-redfish-reset">
+                    <p class="bsd-redfish-reset-note">
+                        재부팅 필요 속성이 포함되어 적용 후 아래 reset 액션이 함께 전송됩니다.</p>
+                    <div class="bsd-redfish-head">
+                        <code class="bsd-redfish-target" th:text="${template.redfish.resetTarget}">/redfish/v1/Systems/1/Actions/ComputerSystem.Reset</code>
+                    </div>
+                    <pre class="bsd-redfish-pre" th:text="${template.redfish.resetBodyJson}">{"ResetType": "GracefulRestart"}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 삭제 확인 — 기존 confirm-modal 자산 재사용: fragment 마크업 + base opener(ConfirmModal.open).
+     confirm-modal.css 는 commonHead 가 이미 공급하므로 재링크하지 않는다. form-marker 스크립트
+     (confirm-soft-delete.js 등)는 form submit 가로채기용이라 XHR DELETE 흐름에는 불필요. -->
+<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmSoftDelete')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/provisioning/bios-setting-detail.js}"></script>
+</body>
+</html>

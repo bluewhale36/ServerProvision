@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  BIOS 세팅 템플릿 작성/수정 편집기 (U2-2-1 작성 · U2-2-2 수정 모드 추가, 구 bios-setup.html 이관)
+  ─────────────────────────────────────────────────────────
+  Model:
+    bios         : BiosSetupPageResponse (boardKey = 카탈로그 키 문자열, menuBar, pages, dependencies)
+                   · PASSWORD 위젯은 서버 뷰모델이 templatable() 필터로 제외해 내려오지 않는다
+                     (구조적 UI 차단 — 서버 400 안전망과 단일 SSOT).
+                   · 수정 모드에서는 위젯 행에 storedValue(저장값 overlay)가 실려 온다 — data-stored 로 렌더.
+    boardModelId : Long — management BoardModel FK (생성 payload 의 data-board-model-id 소스).
+    editTemplate : BiosSettingTemplateEditViewResponse — 수정 모드에서만 존재.
+                   id/name/description 메타 pre-fill + boardModelId/boardModelName(표시용)
+                   + 저장/이동 URL 분기를 구동한다.
+
+  저장 계약(bios-setting-editor.js):
+    생성  POST /provisioning/bios-setting        body { name, description, boardModelId, attributes }
+          201 → 목록(/provisioning/bios-setting) 이동.
+    수정  PUT  /provisioning/bios-setting/{id}   body { name, description, attributes } — boardModelId 는 계약에 없다(생성 후 불변).
+          200 → 상세(/provisioning/bios-setting/{id}) 이동.
+    attributes 는 기준선(data-default = registry 기본값) 대비 변경분(diff) — 수정 모드도 기준선이 동일해
+    "전체 변경분 재수집" 이 PUT 의 전체 교체 의미론을 충족한다.
+    400/404/409 → 배너 + fieldErrors 위젯/메타 매핑.
+
+  BIOS 트리 영역은 실제 펌웨어 화면 재현이 목적이라 bios-* 전용 스타일(bios-setting.css)을 유지한다.
+  포털 흐름 편입으로 navbar + 메타 입력(n-* 폼)이 추가되었고, 공통 head 는 FormError(폼 에러 매핑)도 공급한다.
+-->
+<head>
+	<!-- 보드 표기 — 수정 모드는 editTemplate.boardModelName(BoardModel 표시명), 생성 모드는 bios.boardKey(카탈로그 키) -->
+	<th:block th:replace="~{fragments/layout :: commonHead(${editTemplate != null ? 'BIOS 세팅 템플릿 수정 — ' + editTemplate.boardModelName : 'BIOS 세팅 템플릿 작성 — ' + bios.boardKey})}"></th:block>
+	<!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
+	<link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=3)}">
+</head>
+<body class="bios-body bios-editor-body">
+<nav th:replace="~{fragments/layout :: navbar('bios-setting')}"></nav>
+
+<!-- 템플릿 메타 입력 — name(필수)/description(선택). 수정 모드는 editTemplate 값으로 pre-fill.
+     서버 fieldErrors(name/description)가 이 영역에 매핑된다. -->
+<section class="bios-setting-meta">
+	<div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+	<div class="bios-setting-meta-fields">
+		<div class="n-form-group">
+			<label class="n-label strong" for="templateName">템플릿 명칭</label>
+			<input type="text" id="templateName" class="n-input" maxlength="128"
+			       data-error-field="name"
+			       th:value="${editTemplate != null ? editTemplate.name : null}"
+			       placeholder="예: MS74-HB0 가상화 서버 표준">
+		</div>
+		<div class="n-form-group">
+			<label class="n-label" for="templateDescription">설명 (선택)</label>
+			<textarea id="templateDescription" class="n-textarea" rows="2" maxlength="1024"
+			          data-error-field="description"
+			          th:text="${editTemplate != null ? editTemplate.description : null}"
+			          placeholder="템플릿 용도 메모 (1024자 이하)"></textarea>
+		</div>
+	</div>
+</section>
+
+<!-- data-save-method/data-save-url/data-done-url — 생성(POST → 목록) / 수정(PUT → 상세) 분기의 단일 소스.
+     JS 는 이 속성만 읽고 모드를 알지 못한다. -->
+<form class="bios-screen" id="biosForm"
+      th:data-save-url="${editTemplate != null} ? @{/provisioning/bios-setting/{id}(id=${editTemplate.id})} : @{/provisioning/bios-setting}"
+      th:data-save-method="${editTemplate != null ? 'PUT' : 'POST'}"
+      th:data-done-url="${editTemplate != null} ? @{/provisioning/bios-setting/{id}(id=${editTemplate.id})} : @{/provisioning/bios-setting}"
+      th:data-board-model-id="${boardModelId}">
+
+	<!-- ① 헤더 + 탭바 -->
+	<header class="bios-header">
+		<div class="bios-brand">
+<!-- 뒤로가기 — 생성: 보드 선택 랜딩 / 수정: 해당 템플릿 상세 -->
+			<a class="bios-brand-back"
+			   th:href="${editTemplate != null} ? @{/provisioning/bios-setting/{id}(id=${editTemplate.id})} : @{/provisioning/bios-setting/new}"
+			   th:title="${editTemplate != null ? '템플릿 상세로' : '보드 선택으로'}"
+			   th:text="${editTemplate != null ? '‹ 상세' : '‹ 보드 선택'}">‹ 보드 선택</a>
+			<span class="bios-brand-name">Aptio Setup Utility</span>
+			<!-- 벤더 하드코딩 제거 — FK 전환으로 보드 벤더가 데이터가 되었으므로 서버가 주는 보드 표기만 렌더 -->
+			<span class="bios-brand-sub" th:text="${editTemplate != null ? editTemplate.boardModelName : bios.boardKey}">MS74-HB0</span>
+		</div>
+		<nav class="bios-tabs">
+			<button type="button" class="bios-tab"
+			        th:each="tab : ${bios.menuBar}"
+			        th:attr="data-menu=${tab.pageId}"
+			        th:text="${tab.title}">Advanced</button>
+		</nav>
+	</header>
+
+	<!-- ② 브레드크럼 -->
+	<div class="bios-breadcrumb" id="biosBreadcrumb"></div>
+
+	<!-- ③ 본문: 항목 영역 + 도움말 -->
+	<div class="bios-main">
+		<section class="bios-items" id="biosItems">
+			<div class="bios-page" th:each="page : ${bios.pages}"
+			     th:attr="data-page=${page.pageId}, data-parent=${page.parentId}"
+			     th:classappend="${(!#lists.isEmpty(bios.menuBar) and page.pageId == bios.menuBar[0].pageId) ? 'is-active' : ''}">
+				<h2 class="bios-page-title" th:text="${page.title}">Page Title</h2>
+				<ul class="bios-rows">
+					<th:block th:each="row : ${page.rows}" th:switch="${row.kind()}">
+
+						<!-- 위젯 행 — password 위젯 분기는 제거됨: PASSWORD 속성은 templatable() 필터로 뷰모델에서 제외되어 죽은 분기였다.
+						     data-stored(수정 모드 저장값 overlay)는 JS 가 로드 시 선택값으로만 적용 —
+						     data-default(diff 기준선)는 생성 때와 동일하게 둔다 (의미론은 bios-setting-editor.js 참고). -->
+						<li th:case="'widget'" class="bios-row bios-row--widget"
+						    th:classappend="${row.indentDepth > 0 ? 'is-indent-' + row.indentDepth : ''}"
+						    th:attr="data-row=${row.attributeName}, data-help=${row.helpText}, data-reset=${row.resetRequired}">
+							<span class="bios-label" th:text="${row.displayName}">Label</span>
+							<span class="bios-leader"></span>
+							<span class="bios-value" th:switch="${row.widgetKind}">
+								<select th:case="'select'" class="bios-input bios-select"
+								        th:disabled="${row.readOnly}"
+								        th:attr="data-attr=${row.attributeName}, data-type='select', data-default=${row.defaultValue}, data-stored=${row.storedValue}, data-readonly=${row.readOnly},
+								                 data-enable-when=${row.conditional != null ? row.conditional.controllerAttribute : null},
+								                 data-enable-value=${row.conditional != null ? row.conditional.enableValue : null},
+								                 data-forced=${row.conditional != null ? row.conditional.forcedValue : null}">
+									<option th:each="opt : ${row.options}"
+									        th:value="${opt.valueName}"
+									        th:text="${opt.valueDisplayName}"
+									        th:selected="${opt.valueName == row.defaultValue}">Option</option>
+								</select>
+								<input th:case="'number'" type="number" class="bios-input bios-int"
+								       th:disabled="${row.readOnly}"
+								       th:value="${row.defaultValue}"
+								       th:attr="data-attr=${row.attributeName}, data-type='number', data-default=${row.defaultValue}, data-stored=${row.storedValue}, data-readonly=${row.readOnly}, min=${row.lower}, max=${row.upper}, step=${row.step},
+								                data-enable-when=${row.conditional != null ? row.conditional.controllerAttribute : null},
+								                data-enable-value=${row.conditional != null ? row.conditional.enableValue : null},
+								                data-forced=${row.conditional != null ? row.conditional.forcedValue : null}">
+								<select th:case="'boolean'" class="bios-input bios-select"
+								        th:disabled="${row.readOnly}"
+								        th:attr="data-attr=${row.attributeName}, data-type='boolean', data-default=${row.defaultValue}, data-stored=${row.storedValue}, data-readonly=${row.readOnly},
+								                 data-enable-when=${row.conditional != null ? row.conditional.controllerAttribute : null},
+								                 data-enable-value=${row.conditional != null ? row.conditional.enableValue : null},
+								                 data-forced=${row.conditional != null ? row.conditional.forcedValue : null}">
+									<option value="true" th:selected="${row.defaultValue == 'true'}">Enabled</option>
+									<option value="false" th:selected="${row.defaultValue == 'false'}">Disabled</option>
+								</select>
+							</span>
+							<span class="bios-reset" th:if="${row.resetRequired}" title="변경 시 재부팅 필요">↻</span>
+						</li>
+
+						<!-- submenu 행 -->
+						<li th:case="'submenu'" class="bios-row bios-row--submenu"
+						    th:classappend="${row.navigable ? '' : 'is-disabled'}"
+						    th:attr="data-help=${row.helpText}, data-goto=${row.navigable ? row.destPageId : null}">
+							<span class="bios-label" th:text="${row.label}">Submenu</span>
+							<span class="bios-leader"></span>
+							<span class="bios-value bios-arrow" th:text="${row.navigable ? '▶' : ''}"></span>
+						</li>
+
+					</th:block>
+				</ul>
+				<p class="bios-empty" th:if="${#lists.isEmpty(page.rows)}">— 이 페이지에 표시할 항목이 없습니다 —</p>
+			</div>
+		</section>
+
+		<!-- 도움말 패널 -->
+		<aside class="bios-help">
+			<h3 class="bios-help-title">Item Help</h3>
+			<p class="bios-help-text" id="biosHelpText">항목에 포커스하거나 마우스를 올리면 설명이 표시됩니다.</p>
+			<p class="bios-help-meta" id="biosHelpMeta"></p>
+		</aside>
+	</div>
+
+	<!-- ④ 푸터: 키 레전드 + 액션 -->
+	<footer class="bios-footer">
+		<ul class="bios-keys">
+			<li><kbd>↑↓</kbd> Select Item</li>
+			<li><kbd>Enter</kbd> Select</li>
+			<li><kbd>+/-</kbd> Change Opt</li>
+			<li><kbd>F3</kbd> Defaults</li>
+			<li><kbd>F4</kbd> Save</li>
+			<li><kbd>Esc</kbd> Back</li>
+		</ul>
+		<div class="bios-actions">
+			<button type="button" class="bios-btn" id="biosResetDefaults">F3 기본값 복원</button>
+			<!-- 저장 사전 차단(서버 판정과 동일 SSOT: name 비어있음 / 변경분 0건) — disabled + wrapper tooltip (S5-3-2 자산) -->
+			<span class="n-btn-tooltip-wrap" id="biosSaveWrap" data-tooltip-active="false">
+				<button type="submit" class="bios-btn bios-btn--primary" id="biosSave">F4 템플릿 저장</button>
+			</span>
+		</div>
+	</footer>
+
+	<!-- 의존성 데이터(클라이언트 동적 Hidden/GrayOut 평가용) -->
+	<div id="biosDepData" hidden>
+		<span class="bios-dep" th:each="d : ${bios.dependencies}"
+		      th:attr="data-from=${d.fromAttribute}, data-fromval=${d.fromValue}, data-to=${d.toAttribute}, data-prop=${d.toProperty}"></span>
+	</div>
+</form>
+
+<script th:src="@{/provisioning/bios-setting-editor.js}"></script>
+</body>
+</html>
