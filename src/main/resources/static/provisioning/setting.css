@@ -1,0 +1,262 @@
+/* ============================================================
+   setting.css — 세팅 정의서 페이지 (목록 / 상세 / 작성 / 수정) 전용 보조 스타일
+   기본 레이아웃/색은 global/style.css · table-list.css · accordion.css ·
+   form-validation.css 를 재사용하고, 여기서는 단계 카드 폼과
+   상세 다형 카드에 필요한 최소 클래스만 보강한다.
+   ============================================================ */
+
+/* ---- 공통 : 목록 행 클릭 / 모노 / muted ------------------- */
+.n-row-clickable {
+    cursor: pointer;
+}
+
+.n-row-clickable:hover td {
+    background: var(--n-bg-hover, #f5f5f4);
+}
+
+.n-row-link {
+    font-weight: 600;
+    color: var(--n-text);
+    text-decoration: none;
+}
+
+.n-row-link:hover {
+    text-decoration: underline;
+}
+
+.n-mono {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.n-muted {
+    color: var(--n-text-muted);
+}
+
+/* 배지를 여러 개 나열하는 셀/필드 공통 래퍼 */
+.n-badge-list {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* 패키지명 등 코드성 배지 */
+.n-badge-mono {
+    font-family: 'Courier New', monospace;
+}
+
+/* ---- 상세 : 섹션 / 다형 단계 카드 -------------------------- */
+.n-detail-section {
+    margin-top: 28px;
+}
+
+.n-detail-section > .n-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--n-text);
+}
+
+.n-detail-empty {
+    color: var(--n-text-muted);
+    font-size: 13px;
+    margin: 0;
+    padding: 4px 0;
+}
+
+.n-card-body > .n-detail-table:last-child {
+    margin-bottom: 0;
+}
+
+/* 단계 카드 헤더 — 타입 배지(+ OS 계열 배지) */
+.n-process-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--n-border);
+    background: var(--n-bg);
+}
+
+/* 단계 카드 내부 하위 블록 (파티션/사용자/계열별 옵션) */
+.n-process-subsection {
+    margin-top: 24px;
+}
+
+.n-process-subsection > .n-label.strong {
+    margin-bottom: 12px;
+}
+
+.n-process-subsection > .n-detail-table {
+    margin-bottom: 0;
+}
+
+/* back-link 아래로 내려오는 페이지 제목 (상세/수정 헤더) */
+.n-page-title-stacked {
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
+
+/* ---- 폼 : 단계 추가 / 단계 카드 ---------------------------- */
+.n-step-add-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+/* 단계 카드 summary — 제목이 flex:1 이므로 제거 버튼은 자연히 우측 정렬 */
+.n-step-card > .n-accordion-head .n-btn {
+    flex-shrink: 0;
+}
+
+.n-step-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* 단계 카드 내부 폼 그룹 간격 (accordion-body 기본 패딩 위에 보강) */
+.n-step-card .n-accordion-body {
+    padding: 18px 20px 20px;
+}
+
+/* OS 미선택 안내 블록 (레거시 osVersionGuide 상당) */
+.n-step-guide {
+    text-align: center;
+    padding: 28px 16px;
+    color: var(--n-text-sec);
+    font-size: 13px;
+}
+
+.n-step-guide-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* 라벨 + 우측 버튼이 한 줄에 놓이는 그룹 헤더 (파티션 자동 생성 등) */
+.n-group-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.n-group-head .n-label {
+    margin-bottom: 0;
+}
+
+/* n-row 안에서 입력 필드와 나란히 놓이는 체크박스 — 바닥선 정렬 */
+.n-checkbox-bottom {
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 4px;
+}
+
+/* 입력 + 체크박스 짝 (root 비밀번호 행 등) — 기본 n-row 보다 좁은 하단 여백 */
+.n-row.n-row-tight {
+    margin-bottom: 0;
+}
+
+/* "기존 비밀번호 유지" 체크 (수정 폼 pre-fill 시에만 표시) */
+.n-keep-password {
+    padding: 0 0 6px;
+}
+
+/* ---- OS 계열별 pane / 버전 특화 박스 ----------------------- */
+.n-os-family-pane {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--n-border);
+}
+
+.n-pane-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--n-text-muted);
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+
+/* 패키지 그룹 체크박스 패널 */
+.n-check-panel {
+    border: 1px solid var(--n-border);
+    border-radius: 6px;
+    background: var(--n-surface);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 44px;
+}
+
+.n-check-panel .n-checkbox {
+    padding: 3px 2px;
+}
+
+/* ---- 폼 인라인 테이블 (파티션/사용자/서비스) ---------------- */
+/* n-tbl-list(고정 레이아웃) 셀 안에서는 축소된 입력 크기를 쓴다 */
+.n-tbl-list .n-input,
+.n-tbl-list .n-select {
+    font-size: 13px;
+    padding: 4px 8px;
+}
+
+/* colgroup 폭 지정 (인라인 스타일 금지 — 클래스로 표현) */
+.n-col-8  { width: 8%; }
+.n-col-10 { width: 10%; }
+.n-col-11 { width: 11%; }
+.n-col-12 { width: 12%; }
+.n-col-13 { width: 13%; }
+.n-col-14 { width: 14%; }
+.n-col-15 { width: 15%; }
+.n-col-18 { width: 18%; }
+.n-col-22 { width: 22%; }
+.n-col-30 { width: 30%; }
+.n-col-36 { width: 36%; }
+.n-col-55 { width: 55%; }
+
+/* ---- 동적 선택지 필터 -------------------------------------- */
+/* 선택 불가 option / 패키지 그룹 행 숨김 (JS 가 토글) */
+.unavailable {
+    display: none !important;
+}
+
+/* ---- disabled select tooltip ------------------------------- */
+/* S5-3-2 의 .n-btn-tooltip-wrap 은 inline-block 이라 width:100% select 를 감싸면
+   shrink-to-fit 으로 폭이 무너진다 — 폼 select 전용 block 변형.
+   (보드 자동 감지로 잠긴 BIOS/BMC select 의 차단 사유 tooltip 에 사용) */
+.n-btn-tooltip-wrap.n-tooltip-block {
+    display: block;
+}
+
+/* deprecated 자원 뱃지(U2-3 lifecycle) — 라벨 아래 줄에 렌더되므로 select 와의 상하 간격 확보 */
+.n-form-group [data-deprecated-badge] {
+    display: inline-block;
+    margin: 2px 0 8px;
+}
+
+/* BASIC_SETTING 템플릿 패널(U2-2-3) — 보드 selector 규칙상 선택 불가한 항목은
+   커서로도 직관 표현(사용자 지시). :has() 로 checkbox disabled 상태를 행 전체에 반영. */
+#bsTemplatePanel label.n-checkbox:has(input[type="checkbox"]:disabled),
+#bsTemplatePanel label.n-checkbox input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+}
+
+/* BASIC_SETTING 템플릿 뱃지 링크(U2-2-3) — 뱃지 시각 유지 + 클릭 affordance */
+.n-badge-list a.n-badge { text-decoration: none; }
+.n-badge-list a.n-badge:hover { text-decoration: underline; }
+
+/* 펌웨어 부재 경고 힌트(U2-2-3) — deprecated 뱃지와 같은 노란 팔레트로 강조(사용자 지시).
+   select 아래 한 줄 배너 형태: 배경+테두리로 n-hint 보다 시인성을 높인다. */
+.n-hint-warn {
+    display: block;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--n-yellow-bg);
+    color: var(--n-yellow);
+    border: 1px solid var(--n-yellow);
+    font-weight: 600;
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  세팅 정의서 목록 페이지
+  ─────────────────────────────────────────────────────────
+  Model:
+    settings : List<SettingSummaryResponse>
+                 · id           : Long
+                 · name         : String
+                 · processTypes : List<SettingProcessType> (단계 요약 배지)
+                 · createdAt    : LocalDateTime
+
+  행 클릭 시 /provisioning/setting/{id} 상세로 이동.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('세팅 정의서')}"></th:block>
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">세팅 정의서</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/provisioning/setting/new}" class="n-btn n-btn-primary">새 정의서 작성</a>
+        </div>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div th:if="${#lists.isEmpty(settings)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">등록된 세팅 정의서가 없습니다.</div>
+            <div class="n-empty-desc">새 정의서 작성 버튼을 눌러 첫 번째 정의서를 만들어보세요.</div>
+        </div>
+    </div>
+
+    <!-- 정의서 목록 -->
+    <div th:unless="${#lists.isEmpty(settings)}" class="n-card">
+        <table class="n-table" id="settingTable">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>정의서 명칭</th>
+                <th>포함 단계</th>
+                <th>생성일시</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="setting : ${settings}"
+                class="n-row-clickable"
+                th:data-href="@{/provisioning/setting/{id}(id=${setting.id})}">
+                <td class="n-td-id" th:text="${setting.id}">1</td>
+                <td>
+                    <a class="n-row-link"
+                       th:href="@{/provisioning/setting/{id}(id=${setting.id})}"
+                       th:text="${setting.name}">정의서 명칭</a>
+                </td>
+                <td>
+                    <span th:if="${#lists.isEmpty(setting.processTypes)}" class="n-table-muted">-</span>
+                    <span th:unless="${#lists.isEmpty(setting.processTypes)}" class="n-badge-list">
+                        <span class="n-badge n-badge-blue"
+                              th:each="type : ${setting.processTypes}"
+                              th:text="${type.displayName}">단계</span>
+                    </span>
+                </td>
+                <td>
+                    <span th:if="${setting.createdAt != null}"
+                          th:text="${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-01 12:00</span>
+                    <span th:unless="${setting.createdAt != null}" class="n-table-muted">-</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 행 전체 클릭 → 상세 이동. 셀 내부 <a>(명칭 링크)는 자체 동작하므로 중복 내비게이션을 막는다.
+     (setting 목록 전용 스크립트 파일을 늘리지 않기 위해 페이지 내 최소 스크립트로 처리 — server-list.js 와 동일 로직) -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('#settingTable .n-row-clickable').forEach(function (row) {
+            row.addEventListener('click', function (e) {
+                if (e.target.closest('a')) return;
+                const href = row.getAttribute('data-href');
+                if (href) window.location.href = href;
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

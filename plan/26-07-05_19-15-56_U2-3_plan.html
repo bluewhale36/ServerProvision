@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U2-3 Plan — guest 정의서 영속 + 조회·flat 쓰기 실동작</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .chip.defer{background:var(--purple-bg);color:var(--purple);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card li { font-size:12px; line-height:1.55; }
+  /* 🎬 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:105px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.on { background:var(--green); color:#fff; border-color:var(--green); }
+  .db-table { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:8px; overflow:hidden; }
+  .db-table .dbh { font-family:var(--mono); font-size:11px; font-weight:700; padding:6px 12px; background:var(--bg); border-bottom:1px solid var(--border-soft); color:var(--text-muted); }
+  .db-table table { margin:0; font-size:11.5px; font-family:var(--mono); }
+  .db-table td, .db-table th { padding:5px 10px; }
+  .db-table .fk { color:var(--purple); font-weight:700; }
+  .db-table .json-cell { color:var(--blue); max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U2-3 — guest 정의서 영속 + 조회·flat 쓰기 실동작 <span class="v2-badge">엔티티 등장 (full 10단계)</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U2-3 (feature)</span>
+    <span><strong>상위</strong> U2 세팅 정의서 CRUD</span>
+    <span><strong>scope</strong> SettingDefinition+SettingProcess 영속 · InMemory 스텁 대체 · 선택지 실데이터 · SettingStatus 재심사</span>
+    <span><strong>생성</strong> 2026-07-05 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기 (Q1 결정 포함)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT) + 설계 대안</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th style="width:30%">항목</th><th style="width:12%">상태</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>guest 정의서 (U2-1)</td><td><span class="chip keep">완료·스텁</span></td><td>화면·계약 가동 — <code>SettingSaveRequest</code>(다형 processList, BASIC_UPDATE selector 포함) + <code>InMemorySettingStub</code>(재시작 소실). Query/Command <b>인터페이스 seam</b> 이 이 슬라이스의 교체 지점.</td></tr>
+            <tr><td>BIOS 템플릿 (U2-2-1/2)</td><td><span class="chip keep">완료</span></td><td>실영속 + board_model FK 가동. <b>선례 확보</b>: management repository 직접 주입, 수동 DDL, "수정 자유 + 참조 차단" 템플릿 철학, JSON 컬럼 Converter.</td></tr>
+            <tr><td>U2-2-3 (guest↔템플릿 연결)</td><td><span class="chip defer">후순위</span></td><td>사용자 재배열 — U2-3·U2-4 완료 후. <b>본 slice 의 저장 구조가 그 연결의 기반</b>(BASIC_SETTING 행의 template FK/exists 가드)이 되도록 설계해야 재작업이 없다.</td></tr>
+            <tr><td>선택지 데이터</td><td><span class="chip del">더미</span></td><td>boardOptions/osOptions 가 스텁 하드코딩 — management 에는 BoardModel/BoardBIOS/BoardBMC/OSMetadata/OSEnvironment/OSPackageGroup 실데이터·repository 가 전부 존재.</td></tr>
+            <tr><td>SettingStatus</td><td><span class="chip mod">재심사 대상</span></td><td>레거시 6종(PENDING~CANCELED) 임시 채택 상태 — U2-1 §8 이연 + Q5 재이연분. 본 CP1 의 결정 항목.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>영속 모델</b> — <code>SettingDefinition</code>(정의서) + <code>SettingProcess</code>(단계 행, 다형 payload) 엔티티(CLAUDE.md 아키텍처 명세 명칭) + Converter + Repository + 수동 DDL 2 테이블.</li>
+          <li><b>스텁 대체</b> — JPA 기반 <code>SettingQueryService/SettingCommandService</code> 구현, <code>InMemorySettingStub</code> 삭제. 인터페이스 seam 무변(기존 통합 테스트 23건의 mock 대상 유지).</li>
+          <li><b>선택지 실데이터</b> — boardOptions(BoardModel+BIOS/BMC 목록)·osOptions(OSMetadata+환경/패키지그룹)를 management repository 로 실조회(BIOS 템플릿 FK 전환 선례의 주입 방식). <code>SettingBoardOptionResponse/SettingOSOptionResponse</code> 계약 무변.</li>
+          <li><b>flat 단계 쓰기 완결</b> — BASIC_UPDATE(selector)·BASIC_SETTING(스텁) 단계의 생성·수정이 실영속으로 완결. <b>OS 단계 포함 저장도 수용</b>(payload 왕복은 이미 다형 전체 가능) — 단 OS 전용 3차 검증·폼 완성은 U2-4(§8 명시).</li>
+          <li><b>SettingStatus 재심사 반영</b> — §4 D2 (Q1 사용자 결정).</li>
+          <li><b>selector id 실존 가드</b> — SPECIFIED 보드/펌웨어/OS id 의 존재 검증(direct POST 안전망 — UI 는 select 라 정상 흐름 불발).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> : OS-다형 3차 검증·rhel/debian 폼 실동작 완성(→ <b>U2-4</b>) · BASIC_SETTING 의 템플릿 연결·in-use 가드(→ <b>U2-2-3</b>, 재배열됨) · 서버 할당/실행(→ U3/Stage 4) · <code>SettingProcessType↔ProvisioningPhaseStep</code> 매핑 메서드(소비자 부재 — 실행 엔진 등장 시).</div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 정의서 → 두 테이블 분해 저장 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 slice 의 본질은 <b>"다형 processList 가 DB 에 어떤 모양으로 앉는가"</b> 다(분해 report Q1 의 최종 답).
+          아래에서 단계를 토글하면 채택안(D1 — 행 기반)의 <code>setting_definition</code> + <code>setting_process</code> 두 테이블에
+          행이 어떻게 분해·적재되는지, 그리고 <b>U2-2-3 이 쓸 in-use 질의가 왜 공짜로 생기는지</b>(BASIC_SETTING 행의 template FK exists)를 체험한다.
+          payload 는 U2-1 계약(wire flat + 판별자)의 <b>무변환 직렬화</b> — 계약=저장 SSOT.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">단계 구성 :</span>
+            <button class="seg on" data-k="bu" onclick="demoToggle('bu')">BASIC_UPDATE (보드 AUTO+최신)</button>
+            <button class="seg" data-k="bs" onclick="demoToggle('bs')">BASIC_SETTING (스텁)</button>
+            <button class="seg" data-k="os" onclick="demoToggle('os')">OS_INSTALLATION (RHEL)</button>
+          </div>
+          <div id="demo-tables"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">단계 토글로 행 분해가 바뀌는 것을 확인하세요. 타입당 1행(UNIQUE) — 순서는 enum 선언 순으로 재조립됩니다.</div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — payload = <code>AbstractProcessRequest</code> 직렬화 원문(판별자 포함, <code>ProcessRequestDeserializer</code> 로 왕복) ·
+          <code>process_type</code> 컬럼 = <code>processType()</code> accessor 파생(질의용 — §4 D1 에 중복 허용 근거) · 조회는 sort_order 재조립으로 계약 복원.</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p><b>URL 표면 무변</b> — 스텁이 실구현으로 교체될 뿐 U2-1 의 8 엔드포인트 계약 그대로. 달라지는 것은 이면의 데이터 흐름:</p>
+        <pre><code>[생성]  POST /provisioning/setting → 다형 역직렬화·@Valid → selector id 실존 가드(management 조회)
+        → SettingDefinition 1행 + SettingProcess N행(process_type UNIQUE, payload_json) INSERT → 201
+[조회]  목록 = definition + 단계 타입 요약(process_type 컬럼 질의) · 상세/수정 pre-fill = payload 재조립(SettingProcessType 선언 순)
+[수정]  PUT /{id} → 전체 교체(definition 갱신 + process 행 delete-insert — 단계 순서·구성이 자유 변형되므로 diff 병합보다 단순·정확)
+[선택지] GET /new·/{id}/edit → management repository 실조회(BoardModel→BIOS/BMC, OSMetadata→환경/패키지그룹)
+[삭제]  본 slice 도입 안 함 — U2-1 표면에 없었음(정의서 삭제는 서버 할당 참조가 생기는 U3 와 함께 §11)</code></pre>
+        <h4>Step 9 — 수동 DDL (2 테이블)</h4>
+        <pre><code>CREATE TABLE setting_definition (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(128) NOT NULL,
+  created_at DATETIME(6) NOT NULL, updated_at DATETIME(6) NOT NULL,
+  CONSTRAINT uk_setting_definition_name UNIQUE (name)   -- D3: 이름 전역 유일(BIOS 템플릿과 동일 철학)
+);
+CREATE TABLE setting_process (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  setting_definition_id BIGINT NOT NULL,
+  process_type VARCHAR(32) NOT NULL,        -- SettingProcessType 파생(질의·요약용)
+  payload_json JSON NOT NULL,               -- AbstractProcessRequest 직렬화 원문(판별자 포함)
+  CONSTRAINT fk_setting_process_definition FOREIGN KEY (setting_definition_id)
+    REFERENCES setting_definition (id) ON DELETE CASCADE,
+  CONSTRAINT uk_setting_process_type UNIQUE (setting_definition_id, process_type)
+    -- D7: 타입당 최대 1행 — 실행 순서는 타입 내장(execution 소유)이라 sort 컬럼 없음(사용자 지적으로 제거).
+    --     재조립·표시 순서 = SettingProcessType enum 선언 순.
+);  -- U2-2-3 때 bios_setting_template_id BIGINT NULL FK 컬럼이 이 테이블에 추가된다(§11)</code></pre>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4" open>
+      <summary>§4. 도메인 모델 (SSOT) + 설계 대안</summary>
+      <div class="body">
+        <h4>D1 — 저장 구조 (분해 report Q1 의 최종 답): 행 기반 채택</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>① definition + process 행 ✓ 채택</h4>
+            <ul><li>CLAUDE.md 아키텍처 명세 그대로("SettingDefinition + SettingProcess 다형")</li>
+              <li><b>U2-2-3 의 기반</b>: BASIC_SETTING 행에 template FK 컬럼 추가 + in-use exists 쿼리가 스키마 재작업 없이 얹힌다</li>
+              <li>단계 타입 요약(목록 배지)이 JSON 파싱 없이 <code>process_type</code> 질의로</li>
+              <li>payload = Request 직렬화 원문(판별자 포함) — 계약=저장 SSOT, 변환 계층 0</li></ul></div>
+          <div class="card v-orange"><h4>② 단일 process JSON 컬럼 (레거시)</h4>
+            <ul><li>테이블 1개 단순성</li>
+              <li>탈락 — U2-2-3 의 in-use 판정이 JSON 역참조(LIKE/JSON_SEARCH)가 되어 FK 무결성·인덱스 상실. 목록 요약도 매번 역직렬화. 지금 단순 이득이 두 슬라이스 뒤 재작업으로 돌아옴</li></ul></div>
+          <div class="card v-purple"><h4>③ 저장 전용 도메인 모델 (레거시 resolve 방식)</h4>
+            <ul><li>Request→도메인 변환 후 저장</li>
+              <li>탈락 — 해석기(Builder/Resolver)가 execution 이연 상태라 소비자 없는 계층 + Request 와 필드 중복(중복 금지). 실행 해석은 Stage 4 가 payload 원문에서 수행</li></ul></div>
+        </div>
+        <p><code>process_type</code> 컬럼과 payload 내 판별자의 <b>중복 허용 근거</b>: 전자는 질의·인덱스용 파생(쓰기 시 <code>processType()</code> accessor 에서 단방향 생성), 후자가 SSOT.
+          파생 컬럼은 읽기 경로에서 payload 재조립에 관여하지 않으므로 drift 가 정합성 사고로 이어질 표면이 없다.</p>
+
+        <h4>D2 — SettingStatus 재심사 (Q1 · 사용자 결정)</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>권고: 상태 제거 + 수정 자유</h4>
+            <ul><li>정의서 = <b>재사용 템플릿</b> — 실행 상태(IN_PROGRESS/COMPLETED/FAILED…)는 서버 개별 실행의 속성이고 이미 execution 의 <code>ProvisioningProgress/SetupStep</code> 이 소유. 정의서에 실행 상태를 두면 "여러 서버가 같은 정의서" 순간 거짓이 된다</li>
+              <li>BIOS 템플릿과 철학 통일: 수정 자유(실행 시점 반영) + 삭제는 참조 차단(U3 서버 할당 시) — PENDING 가드(409)·상태 전이 전부 불요</li>
+              <li>파급: <code>SettingStatus</code> enum·Response 의 status 필드·목록 상태 배지 제거(계약 축소 — 스텁 시절이라 저비용)</li></ul></div>
+          <div class="card v-orange"><h4>대안: 레거시 6종 유지 + PENDING 가드</h4>
+            <ul><li>Notion 본문의 기존 서술</li>
+              <li>난점 — 상태를 전이시킬 주체가 없다(실행이 정의서를 소유하지 않음). CANCELED/PARTIAL_SUCCESS 는 영원히 미도달 상태로 남아 죽은 enum. PENDING 가드는 "수정 자유" 템플릿 철학과 충돌</li></ul></div>
+        </div>
+
+        <h4>D3~D6</h4>
+        <table>
+          <thead><tr><th style="width:6%">#</th><th style="width:32%">결정</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>D3</td><td>정의서 name 전역 unique(409) 도입</td><td>U2-1 스텁은 미검증이었음 — BIOS 템플릿과 동일 철학(select 식별). <code>DuplicateSettingDefinitionNameException</code> 신규.</td></tr>
+            <tr><td>D4</td><td>수정 = process 행 delete-insert 전체 교체</td><td>단계 구성·순서가 자유 변형 — diff 병합은 복잡도만. definition 행은 update(생성일 보존).</td></tr>
+            <tr><td>D5</td><td>선택지 실조회 — setting 서비스가 management repository 직접 주입</td><td>biossetting FK 전환 선례. 조회 전용(쓰기 없음). soft-delete 제외 + enabled 우선 정렬은 구현 판단.</td></tr>
+            <tr><td>D6</td><td>selector 실존 가드 = management 예외 재사용(<code>BoardModelNotFoundException</code> 등 404)</td><td>UI select 가 정상 흐름 차단 — direct POST 안전망. AUTO/LATEST 는 id 없으므로 가드 불발(자연).</td></tr>
+            <tr><td>D7</td><td><b>sort 컬럼 없음</b> + <code>UNIQUE(definition_id, process_type)</code> + 요청-로컬 @AssertTrue(타입 중복 금지 400)</td><td>사용자 지적 수용 — 실행 순서는 타입 내장(execution 소유), 표시·재조립은 enum 선언 순으로 결정적. wire 배열 순서는 도메인 정보가 아님. UNIQUE 가 U2-1 폼의 "타입당 1개" UI 규칙에 DB 안전망을 부여(SSOT). 완화는 추후 비파괴.</td></tr>
+          </tbody>
+        </table>
+        <div class="pkg-tree">provisioning/setting/  (기존 패키지에 추가·교체)
+├── entity/   SettingDefinition (BaseTimeEntity — status 없음(D2 권고 시), name unique)
+│             SettingProcess   (definition FK CASCADE, sortOrder, processType enum(STRING), payload)
+├── vo/       ProcessPayload(record — AbstractProcessRequest 1건 래핑) + ProcessPayloadConverter
+│             (ObjectMapper 주입형 AttributeConverter — ProcessRequestDeserializer 등록 맵으로 왕복,
+│              레거시 SettingProcessConverter 선례. Boot mapper 를 스프링 주입: @Converter + @RequiredArgsConstructor)
+├── repository/ SettingDefinitionRepository (+existsByName/existsByNameAndIdNot)
+├── service/  JpaSettingQueryService · JpaSettingCommandService  (인터페이스 구현 — seam 무변)
+│             ✕ InMemorySettingStub 삭제
+└── exception/ DuplicateSettingDefinitionNameException(409)</div>
+        <div class="callout"><b>적대적 자기비판</b> — ① <i>ProcessPayloadConverter 가 Boot ObjectMapper 를 주입받을 수 있나?</i> JPA Converter 는 Hibernate 가 생성하면 DI 불가 — Spring 관리 Converter 는 Boot 가 지원(레거시 선례 실증: <code>SettingProcessConverter</code> 가 ObjectMapper 주입 AttributeConverter 였음). 실패 시 대안: 서비스 계층 직렬화(Converter 는 String 통과). CP2 에서 실증 후 확정. ② <i>수정 delete-insert 가 U2-2-3 의 in-use FK 와 충돌?</i> — 행 교체 시 FK 대상(템플릿)이 잠깐 사라졌다 재삽입되는 것은 무해(같은 트랜잭션). ③ <i>OS 단계 payload 저장 허용이 U2-4 침범?</i> — 저장 왕복은 U2-1 계약이 이미 보장, U2-4 는 검증·폼 완성. 막으면 퇴행. ④ <i>status 제거 시 Response 계약 파괴?</i> — 스텁 시절 필드라 소비자는 자사 화면뿐. 배지 제거로 목록이 단순해짐.</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~4</td><td>화면 소폭(상태 배지 제거 등 D2 파급) · Response 계약 조정 · 컨트롤러 무변</td><td rowspan="2"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td>서비스 구현 골격(인터페이스 무변 — 시그니처 재확인만)</td></tr>
+            <tr><td>6·7</td><td>Repository · <b>SettingDefinition/SettingProcess 엔티티 + Converter</b></td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>JPA 서비스 본체(스텁 삭제·실데이터 옵션·가드) + 테스트</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>수동 DDL 2테이블 + SHOW CREATE TABLE + validate 기동</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — U2-3 단독 CP5 가능(guest 정의서 전 흐름 실영속)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>ProcessPayloadConverter</code></td><td>다형 4타입 왕복(판별자·selector·중첩 하위요청 보존) / 미등록 판별자 저장본 거절</td><td>3</td></tr>
+            <tr><td><code>JpaSettingCommandService</code></td><td>create 행 분해(type/payload) / 타입 중복 @AssertTrue 400 / name 중복 409 / selector id 부존재 404 / update 전체 교체 / 없는 id 404</td><td>5</td></tr>
+            <tr><td><code>JpaSettingQueryService</code></td><td>목록 타입 요약(process_type 질의) / 상세 재조립(enum 선언 순) / 옵션 실데이터 매핑(board→BIOS/BMC, os→환경/그룹)</td><td>4</td></tr>
+          </tbody>
+        </table>
+        <h4>통합</h4>
+        <p><b>기존 23건 유지가 곧 회귀 검증</b> — @MockitoBean 대상이 인터페이스라 무변(D2 로 status 필드 제거 시 픽스처·jsonPath 만 조정).
+          추가: 신규 409(name 중복)·404(selector id) advice 경로 2~3건.</p>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>DuplicateSettingDefinitionNameException</code></td><td>409</td><td><span class="chip new">신규</span></td><td>ConflictException 하위 — 트리거 테스트 의무.</td></tr>
+            <tr><td><code>SettingNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td>스텁→JPA 로 발생 주체만 교체.</td></tr>
+            <tr><td><code>BoardModelNotFoundException</code> 등 management 404</td><td>404</td><td><span class="chip keep">재사용</span></td><td>selector id 실존 가드(direct POST 안전망).</td></tr>
+            <tr><td>PENDING 409 가드</td><td>—</td><td><span class="chip del">불채택</span></td><td>D2 권고(상태 제거) 채택 시 — 근거 §4.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>Open Question (CP1 결정 — 사용자)</h4>
+        <table>
+          <thead><tr><th style="width:6%">#</th><th style="width:34%">질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td><b>Q1</b></td><td>SettingStatus 처리 — 제거(상태 없음+수정 자유) vs 레거시 6종 유지+PENDING 가드</td><td><b>제거 권고</b>(§4 D2) — 정의서=템플릿, 실행 상태는 execution 소유. BIOS 템플릿 철학 통일.</td></tr>
+          </tbody>
+        </table>
+        <h4>의도된 잔존 (+ 해소 시점)</h4>
+        <ul>
+          <li><b>OS 단계는 저장만 되고 3차 검증·폼 완성 없음</b> → U2-4.</li>
+          <li><b>BASIC_SETTING payload 는 여전히 빈 스텁</b>({"type":"BASIC_SETTING"}) → U2-2-3 에서 <code>biosSettingTemplateIds</code> 실체화 + 조인 테이블 <code>setting_process_bios_template</code>(process CASCADE/template RESTRICT — 복수 참조라 단일 컬럼 불가) 추가, payload=SSOT·조인=파생 인덱스(§3 DDL 주석 예고).</li>
+          <li><b>정의서 삭제 표면 없음</b>(U2-1 부터) → 서버 할당 참조가 생기는 U3 에서 참조 차단과 함께.</li>
+          <li><b>Javadoc drift 동반 수정</b>: <code>InMemorySettingStub</code>(삭제)·<code>SettingBoardOptionResponse</code>·<code>SettingCommandService</code> 등의 "U2-2 가 대체/연결" 문구 — 재번호 후 실제 수행 슬라이스는 U2-3(본).</li>
+        </ul>
+        <h4>주의</h4>
+        <ul>
+          <li>DDL 권한: CREATE/ALTER/REFERENCES 확보 상태 — 즉시 적용 가능.</li>
+          <li>기존 스텁 시드 2건(더미 정의서)은 소멸 — 실영속 전환 후 CP5 에서 새로 작성.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U2-3-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과(기존 setting 23건 포함 회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="roundtrip"> <span>payload 왕복: 저장→재조립→pre-fill JSON 이 원 계약과 동형(스모크)</span></label></li>
+          <li><label><input type="checkbox" data-key="options"> <span>작성 폼 선택지 = management 실데이터(더미 아님) 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 2테이블 적용 + validate 기동 무오류</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E — 사용자 (U2-3 단독 CP5)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>setting/entity/</code> 2 · <code>vo/ProcessPayload(+Converter)</code> · <code>repository/</code> 1 · <code>service/Jpa*</code> 2 · <code>exception/</code> 1 · DDL 스크립트</td><td>§4 pkg-tree</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>InMemorySettingStub</code> (+ D2 채택 시 <code>SettingStatus</code> enum)</td><td>스텁 소명 완료</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>Response 2~3(status 필드 파급) · <code>setting-list.html</code>(배지) · 관련 테스트 픽스처 · Javadoc drift</td><td>D2 파급</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>컨트롤러 2 · Request 계약 전체 · deserializer · 편집기 JS · <code>biossetting/**</code></td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>U2-4 OS-다형 검증·폼 완성</b> — rhel/debian 실동작 + 3차 검증 + validate 재도입.</li>
+          <li><b>U2-2-3 guest↔템플릿 연결</b>(재배열분) — 조인 테이블 <code>setting_process_bios_template</code> 추가(복수 참조) + 복수 템플릿 규칙(SPECIFIED⇒1·AUTO⇒N·boardModelId 중복 금지·동등성 검증) + in-use 가드(본 slice 의 행 구조 위에 테이블 1개 추가로).</li>
+          <li><b>U3</b> — 서버 할당(U1 D5 예약 FK) + 정의서 삭제 참조 차단.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ── 🎬 데모 — 정의서 → 두 테이블 행 분해 (D1 행 기반 채택안의 1:1 재현) ──
+  const state = { bu: true, bs: false, os: false };
+  const PAYLOADS = {
+    bu: { type: 'BASIC_UPDATE', body: '{"type":"BASIC_UPDATE","boardModel":{"mode":"AUTO"},"bios":{"mode":"LATEST"},"bmc":{"mode":"LATEST"}}' },
+    bs: { type: 'BASIC_SETTING', body: '{"type":"BASIC_SETTING"}' },
+    os: { type: 'OS_INSTALLATION', body: '{"type":"OS_INSTALLATION","osFamily":"RHEL_BASED","osMetadataId":1,"timezone":{...},"partitions":[...],"environmentId":1,...}' }
+  };
+  function demoToggle(k) { state[k] = !state[k]; render(); }
+  function render() {
+    document.querySelectorAll('.ux-toolbar .seg').forEach(b => b.classList.toggle('on', state[b.dataset.k]));
+    const active = ['bu', 'bs', 'os'].filter(k => state[k]);
+    let defRow = '<div class="db-table"><div class="dbh">setting_definition</div><table>' +
+      '<tr><th>id</th><th>name</th></tr>' +
+      (active.length ? '<tr><td>1</td><td>표준 Rocky9 웹서버 세팅</td></tr>' : '<tr><td colspan="2" style="color:var(--text-muted);">단계 0개 — @NotEmpty 400 (정의서 자체가 생성되지 않음)</td></tr>') +
+      '</table></div>';
+    let procRows = active.map((k, i) =>
+      '<tr><td>' + (i + 1) + '</td><td class="fk">1</td><td>' + PAYLOADS[k].type + '</td><td class="json-cell">' + PAYLOADS[k].body.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</td></tr>').join('');
+    let procTable = '<div class="db-table"><div class="dbh">setting_process &nbsp;(타입당 1행 UNIQUE · payload = 계약 원문 · 순서는 enum 선언 순으로 재조립)</div><table>' +
+      '<tr><th>id</th><th>definition_id <span class="fk">FK</span></th><th>process_type</th><th>payload_json</th></tr>' +
+      (procRows || '<tr><td colspan="4" style="color:var(--text-muted);">행 없음</td></tr>') + '</table></div>';
+    document.getElementById('demo-tables').innerHTML = defRow + procTable;
+
+    const tf = v => v ? '<span class="f">가능</span>' : '<span class="t">해당 행 없음</span>';
+    document.getElementById('demo-caps').innerHTML =
+      '목록 단계 요약     = SELECT process_type WHERE definition_id=1  (JSON 파싱 0회)\n' +
+      '상세/pre-fill 재조립 = payload_json 을 SettingProcessType 선언 순으로 → ProcessRequestDeserializer 왕복\n' +
+      'U2-2-3 in-use 예고  = 조인 테이블(process↔template) 파생 → template_id exists 쿼리: ' + tf(state.bs) + '\n' +
+      '수정(PUT)          = definition UPDATE + process 행 delete-insert (전체 교체 의미론)';
+  }
+  render();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

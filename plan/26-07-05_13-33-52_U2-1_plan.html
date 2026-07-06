@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U2-1 Plan — 화면 + 요청/응답 계약 이식</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .chip.defer{background:var(--purple-bg);color:var(--purple);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* 🎬 인터랙티브 미리보기 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg.on { background:var(--green); color:#fff; border-color:var(--green); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-json { font-family:var(--mono); font-size:11.5px; background:#1f2328; color:#d0d7de; border-radius:6px; padding:12px 14px; margin-top:10px; white-space:pre; overflow-x:auto; line-height:1.55; }
+  .ux-json .k { color:#79c0ff; } .ux-json .s { color:#a5d6ff; } .ux-json .d { color:#ffa657; font-weight:700; }
+  .ux-form-preview { background:var(--card); border:1px dashed var(--border); border-radius:6px; padding:10px 14px; margin-top:8px; font-size:12px; }
+  .ux-form-preview .fld { display:inline-block; background:var(--bg); border:1px solid var(--border-soft); border-radius:4px; padding:2px 8px; margin:2px 3px; font-family:var(--mono); font-size:11px; }
+
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U2-1 — 화면 + 요청/응답 계약 이식 <span class="v2-badge">U2 묶음 1/3</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U2-1 (feature · 이식)</span>
+    <span><strong>상위</strong> U2 세팅 정의서 CRUD</span>
+    <span><strong>scope</strong> 레거시 화면 4+fragment 4 + *Request 계층 + Controller 골격(스텁) — 엔티티/영속 0</span>
+    <span><strong>생성</strong> 2026-07-05 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 계약 모델 (SSOT) + 설계 대안</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>U2 묶음 좌표</h4>
+        <p>U2 는 <code>report/26-07-05_13-17-17_U2-substep-decomposition-plan_report.html</code> 의 분할안대로
+          <b>U2-1(화면+계약) → U2-2(영속+flat 쓰기) → U2-3(OS-다형+검증)</b> 3 세부단계 + Builder/Resolver 이연으로 확정됐다
+          (사용자 승인 2026-07-05, Notion 개편 완료). 본 plan 은 그 첫 단계 U2-1 의 CP1 산출물이다.</p>
+        <h4>renew/main 현황 — 무엇이 갖춰졌고 무엇이 비었나</h4>
+        <table>
+          <thead><tr><th style="width:32%">항목</th><th style="width:12%">상태</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>세팅 정의서 구현</td><td><span class="chip del">공백</span></td><td><code>SettingDefinition/ServerSetting/SettingProcess</code> 계열 클래스 0건. navbar 에 비활성 placeholder 만 존재(<code>fragments/layout.html:90</code> — <code>&lt;span aria-disabled&gt;세팅 정의서&lt;/span&gt;</code>).</td></tr>
+            <tr><td>선택지 원천 데이터</td><td><span class="chip keep">존재</span></td><td>management 도메인에 <code>BoardModel</code>/<code>BoardBIOS</code>/<code>BoardBMC</code>/<code>OSMetadata</code>/<code>OSEnvironment</code>/<code>OSPackageGroup</code> 엔티티·Repository 모두 구현됨. 단 세팅 폼용 집계 뷰모델 메서드(레거시 <code>getViewModelList()</code>/<code>getInstallationViewList()</code> 대응물)는 없음.</td></tr>
+            <tr><td>provisioning 영역 형제 관례</td><td><span class="chip keep">확립</span></td><td>U1 <code>GuestServerController</code> + BiosSetup/BmcPassword: URL <code>/provisioning/*</code>, 뷰 <code>templates/provisioning/&lt;페이지&gt;-&lt;뷰&gt;.html</code>(flat hyphen), per-page CSS <code>static/provisioning/*.css</code>, MVC <code>*Controller</code>/XHR <code>*RestController</code> 분리(REST 도 같은 <code>/provisioning/...</code> prefix, <code>/api</code> 세그먼트 없음), <code>*QueryService</code>/<code>*CommandService</code> 분리.</td></tr>
+            <tr><td>단계 모델</td><td><span class="chip keep">존재</span></td><td><code>execution.enums.ProvisioningPhase</code>/<code>ProvisioningPhaseStep</code> — 레거시 <code>SettingProcessStep</code> 의 정제판. <b>부활 금지(중복 금지)</b>, 정합은 U2-2 범위.</td></tr>
+            <tr><td>REST 오류 advice</td><td><span class="chip mod">부분</span></td><td><code>ApiExceptionHandler</code> 가 <code>MethodArgumentNotValidException</code>(400 fieldErrors)·<code>DomainException</code> 계열은 처리하나, <b><code>HttpMessageNotReadableException</code> 핸들러 부재</b> — 다형 <code>@RequestBody</code> 의 알 수 없는 <code>type</code> 판별자가 현재로선 500 으로 샌다. U2-1 이 renew 최초의 다형 JSON 바디를 도입하므로 이 매핑을 함께 보강해야 한다.</td></tr>
+          </tbody>
+        </table>
+        <h4>레거시 이식 원본 인벤토리 (<code>archive/legacy/</code>)</h4>
+        <table>
+          <thead><tr><th style="width:22%">분류</th><th>원본</th></tr></thead>
+          <tbody>
+            <tr><td>뷰 4장</td><td><code>templates/setting/{list(92) · new(577) · detail(311) · edit(825)}.html</code></td></tr>
+            <tr><td>OS fragment 4장</td><td><code>templates/fragments/setting/os-installation/{rhel-based(100) · debian-based(57) · detail-rhel(53) · detail-debian(36)}.html</code></td></tr>
+            <tr><td>폼 JS</td><td><code>static/js/setting-form.js</code> (933줄 — 동적 단계 추가/OS 분기/JSON 조립/validate 호출)</td></tr>
+            <tr><td>Request 12종</td><td><code>SettingCreateRequest</code> + <code>AbstractProcessRequest</code>(1단 <code>type</code> 판별) + <code>BasicUpdateRequest·BasicSettingRequest(스텁)·OSInstallationRequest</code>(2단 <code>osFamily</code> 판별)<code>·RHELInstallationRequest·UbuntuInstallationRequest·OSSettingRequest</code>(2단)<code>·RHELOSSettingRequest</code> + 하위 <code>TimezoneRequest·PartitionRequest·RootPasswordRequest·UserRequest</code></td></tr>
+            <tr><td>Response 4종</td><td><code>SettingCreateResponse·SettingUpdateResponse</code>(id/name/status) <code>·SettingValidationResponse·ValidationWarning</code>(→ U2-3 이연분 포함)</td></tr>
+            <tr><td>계약 누수 타입</td><td><code>FileSystem·SizeUnit·ServiceAction</code> enum + <code>ServiceDirective</code> record + <code>PartitionPreset</code> — 전부 <b><code>domain/os</code> 패키지에 있으면서 Request 가 참조</b>(레거시 계층 누수, 이식 시 계약측으로 정정)</td></tr>
+            <tr><td>제외</td><td><code>templates/admin/settings.html</code> — 이름만 유사한 <b>노드 수정 페이지</b>(세팅 정의서 무관). 이식 대상 아님.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>핵심 진단</b> — 이식은 복붙이 아니다. ① 레거시 화면은 구 디자인 → renew <code>n-*</code> 디자인 시스템(DESIGN.md)으로 재작성, ② Request 계층은 domain 누수·명명 결함(<code>BASIC_UPDATES</code> 복수형, create 요청을 update 에 재사용)을 정정하며 이식, ③ 저장/검증 로직은 U2-2·U2-3 몫이므로 <b>스텁 뒤에 계약만 굳힌다</b>.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>화면 이식</b> — 목록/작성/상세/수정 4 페이지 + OS 계열 fragment 4 장을 <code>/provisioning/setting</code> 아래 renew 디자인(<code>n-*</code> 클래스, 기존 CSS 재사용 + per-page <code>setting.css</code>)으로 재작성. 인라인 스타일 금지. navbar placeholder 활성화(<code>activePage='setting'</code>).</li>
+          <li><b>Request 계약 이식</b> — 2단 다형(<code>type</code> → <code>osFamily</code>) <code>@JsonTypeInfo/@JsonSubTypes/@JsonCreator</code> 구조 유지(Jackson 3 backward-compat annotation). Bean Validation(<code>@Valid</code> 재귀) 포함. 판별자 <code>BASIC_UPDATES</code> → <code>BASIC_UPDATE</code> 정정(renew DB 기존 데이터 0 → 호환 부담 없음).</li>
+          <li><b>Response 계약 정의</b> — <code>SettingSummaryResponse</code>/<code>SettingDetailResponse</code>(형제 GuestServer 명명 관례) + <code>SettingSaveResponse</code>(id/name/status) + 폼 선택지 <code>SettingBoardOptionResponse</code>/<code>SettingOSOptionResponse</code> + <code>PartitionPresetResponse</code>.</li>
+          <li><b>Controller 골격</b> — SSR <code>SettingController</code>(GET 4) + XHR <code>SettingRestController</code>(POST 생성 201+Location · PUT 수정 200 · GET default-partitions 200). 모든 응답은 스텁 데이터.</li>
+          <li><b>Service 시그니처 + 스텁</b> — <code>SettingQueryService</code>/<code>SettingCommandService</code> 인터페이스 확정 + 임시 <code>InMemorySettingStub</code> 단일 구현(두 인터페이스 동시 구현, 더미 정의서 2건 시드) — U2-2 가 JPA 구현으로 대체.</li>
+          <li><b>계약측 타입 정착</b> — <code>SettingProcessType</code>(4 상수, 표시명+판별자 문자열 보유) 신설 + <code>FileSystem·SizeUnit·ServiceAction</code> enum 을 <code>provisioning/setting/enums/</code> 로, <code>ServiceDirective</code> → <code>ServiceDirectiveRequest</code> record 로 이식(Primitive Obsession 금지 유지, domain 누수 정정).</li>
+          <li><b>예외/advice</b> — <code>SettingNotFoundException</code>(404, <code>NotFoundException</code> 하위) 신설 + <code>ApiExceptionHandler</code> 에 <code>HttpMessageNotReadableException</code> → 400 매핑 보강(알 수 없는 판별자 대응). 각각 통합 테스트 필수.</li>
+          <li><b>Step 8 테스트</b> — <code>@WebMvcTest</code> 2 파일: 다형 역직렬화 성공(4 type × osFamily) / 400(필드·판별자) / 404 / SSR 뷰 렌더.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>엔티티·Repository·영속·스키마 — <b>→ U2-2</b>. 이 슬라이스는 Step 6/7/9 가 N/A.</li>
+            <li><code>ProvisioningPhase/ProvisioningPhaseStep</code> 과의 단계 모델 정합 — <b>→ U2-2</b> (저장 형태가 정해질 때 함께).</li>
+            <li>OS-다형 단계의 실제 저장·rhel/debian 폼 동적 완성·3차 검증·<code>POST /validate</code> — <b>→ U2-3</b>. 이식 JS 에서 validate 호출 경로는 제거.</li>
+            <li>Builder/Resolver 2-tier(16+ 클래스) — <b>→ execution 도메인 편입 슬라이스(U3/Stage 4 국면)</b>. 소비자 없는 추출 금지.</li>
+            <li>서버↔정의서 연결(U1 D5 예약 FK) — <b>→ U3</b>.</li>
+            <li>기존 provisioning 패키지의 layer-first 형제(GuestServer/BiosSetup/BmcPassword) 재배치 — 범위 밖(plan 범위 밖 코드 이동 금지).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 정의서 작성 폼 계약 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">U2-1 이 굳히는 것은 <b>"폼 → 다형 JSON → <code>@Valid</code> 판정"이라는 계약</b>이다.
+          아래에서 단계 토글·OS 계열·정의서 명칭을 바꾸면 ① 전송될 JSON 이 판별자(<code>type</code>/<code>osFamily</code>)와 함께 라이브 조립되고
+          ② 제출 버튼의 차단(disabled+tooltip)이 갱신된다. 데모 판정 = <code>SettingSaveRequest</code> Bean Validation 과 동일 로직(같은 SSOT, 드리프트 0) —
+          U2-1 은 서버 상태 가드가 없는 계약 슬라이스이므로, 여기서 재현하는 판정이 곧 이 슬라이스 서버 판정의 전부다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">정의서 명칭 :</span>
+            <button class="seg" id="seg-name" onclick="demoToggleName()">이름 입력됨 ✓</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">단계 구성 (토글) :</span>
+            <button class="seg" data-step="BASIC_UPDATE" onclick="demoToggleStep('BASIC_UPDATE')">펌웨어 업데이트</button>
+            <button class="seg" data-step="BASIC_SETTING" onclick="demoToggleStep('BASIC_SETTING')">BIOS 설정 (스텁)</button>
+            <button class="seg" data-step="OS_INSTALLATION" onclick="demoToggleStep('OS_INSTALLATION')">OS 설치</button>
+            <button class="seg" data-step="OS_SETTING" onclick="demoToggleStep('OS_SETTING')">OS 후처리</button>
+          </div>
+          <div class="ux-toolbar" id="row-osfamily" style="display:none;">
+            <span class="group-label">OS 계열 (2단 판별) :</span>
+            <button class="seg" data-fam="RHEL_BASED" onclick="demoSetFam('RHEL_BASED')">RHEL_BASED</button>
+            <button class="seg" data-fam="DEBIAN_BASED" onclick="demoSetFam('DEBIAN_BASED')">DEBIAN_BASED</button>
+          </div>
+
+          <div id="demo-form-preview"></div>
+
+          <div class="ux-row" style="margin-top:10px;">
+            <span class="label"><b>POST /provisioning/setting</b> — 조립된 요청 바디가 <code>@Valid @RequestBody SettingSaveRequest</code> 로 수신된다</span>
+            <span id="demo-submit"></span>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-json" id="demo-json"></div>
+          <div class="ux-message" id="demo-message">단계 토글을 눌러 JSON 조립과 제출 판정 변화를 확인하세요. 차단된 제출 버튼에 마우스를 올리면 사유 tooltip 이 뜹니다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 제출 차단 판정 = <code>SettingSaveRequest</code> 의
+          <code>@NotBlank(name)</code> + <code>@NotEmpty(processList)</code> + OS 단계의 <code>osFamily</code> 판별 필수 = Jackson/Bean Validation 이 서버에서 내리는 판정과 1:1.
+          레거시가 이 계약을 <code>processList[i].</code> prefix 필드 오류로 응답하던 방식은 <code>MethodArgumentNotValidException</code> advice 의 fieldErrors 로 승계된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>URL 설계 — 레거시 <code>/pxe/v1/setting</code> → renew <code>/provisioning/setting</code></h4>
+        <p>CLAUDE.md 영역 분할상 <code>/pxe/v1</code> prefix 는 Entry(PXE boot)만 유지한다. 관리 UI 는 형제(<code>/provisioning/server</code> 등)와 같은 네임스페이스.
+          XHR 도 형제 관례(<code>BiosSetupRestController</code>)대로 <b>같은 prefix 를 공유하고 <code>/api</code> 세그먼트를 두지 않는다</b>.</p>
+        <table>
+          <thead><tr><th>컨트롤러</th><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="4"><code>SettingController</code><br>(SSR)</td>
+                <td>GET</td><td><code>/provisioning/setting</code></td><td>목록</td><td><code>provisioning/setting-list</code> 뷰</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/new</code></td><td>작성 폼(선택지 Model 적재)</td><td><code>provisioning/setting-new</code> 뷰</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/{id}</code></td><td>상세</td><td>뷰 / 404(<code>SettingNotFoundException</code>)</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/{id}/edit</code></td><td>수정 폼(initialSettingJson 사전채움)</td><td>뷰 / 404</td></tr>
+            <tr><td rowspan="3"><code>SettingRestController</code><br>(XHR)</td>
+                <td>POST</td><td><code>/provisioning/setting</code></td><td>정의서 생성(다형 JSON 바디)</td><td>201+Location / 400 / (스텁)</td></tr>
+            <tr><td>PUT</td><td><code>/provisioning/setting/{id}</code></td><td>정의서 수정</td><td>200 / 400 / 404</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/default-partitions?osName=</code></td><td>OS 별 파티션 프리셋(폼 편의)</td><td>200 (스텁 프리셋)</td></tr>
+            <tr><td><span class="chip defer">이연</span></td><td>POST</td><td><code>…/validate</code></td><td>3차 검증 (resolver 의존)</td><td>→ U2-3</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>경로 충돌 주의</b> — SSR <code>GET /{id}</code> 와 XHR <code>GET /default-partitions</code> 가 같은 prefix 를 공유한다.
+          Spring MVC 패턴 매칭은 리터럴 세그먼트가 템플릿 변수보다 우선이므로 정상 라우팅되지만, Step 8 통합 테스트에 <code>GET /default-partitions</code> 가 404/변환오류 없이 200 인 시나리오를 넣어 명시 검증한다.</div>
+        <h4>데이터 흐름 (스텁 구조)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저 (setting-form.js)</div><div class="actor a2">Controller 2종</div><div class="actor a3">InMemorySettingStub</div>
+          <div class="step a1">작성 폼 진입 <code>GET /new</code></div><div class="step a2">선택지 Response 적재 → 뷰</div><div class="step a3">더미 보드/OS 옵션 반환</div>
+          <div class="step a1">단계 추가·입력 → JSON 조립</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"><code>POST /provisioning/setting</code></div><div class="step a2">Jackson 2단 다형 역직렬화 + <code>@Valid</code></div><div class="step a3"><code>create()</code> — 메모리 저장, id 발급</div>
+          <div class="step a1">201 Location 따라 상세 이동</div><div class="step a2"><code>GET /{id}</code> → 상세 뷰</div><div class="step a3"><code>findDetail()</code> / 없으면 <code>SettingNotFoundException</code></div>
+        </div>
+        <pre><code>[정상]   폼 JSON → 다형 역직렬화 → @Valid 통과 → stub 저장 → 201 + Location
+[400-a]  @Valid 위반(name blank / processList empty / 하위 필드) → MethodArgumentNotValid advice → fieldErrors JSON
+[400-b]  알 수 없는 type/osFamily 판별자 → HttpMessageNotReadable advice(신규 보강) → 400 + 머신코드
+[404]    존재하지 않는 id 의 상세/수정/PUT → SettingNotFoundException → advice 404 (레거시의 redirect 흡수 방식 폐기)</code></pre>
+        <h4>뷰 · 정적 자산 배치 (형제 관례)</h4>
+        <table>
+          <thead><tr><th>자산</th><th>레거시</th><th>renew 목적지</th></tr></thead>
+          <tbody>
+            <tr><td>페이지 4</td><td><code>templates/setting/*.html</code></td><td><code>templates/provisioning/setting-{list,new,detail,edit}.html</code></td></tr>
+            <tr><td>OS fragment 4</td><td><code>templates/fragments/setting/os-installation/*.html</code></td><td><code>templates/fragments/provisioning/setting/os-installation/*.html</code> (구조 보존, provisioning 네임스페이스)</td></tr>
+            <tr><td>JS</td><td><code>static/js/setting-form.js</code></td><td><code>static/provisioning/setting-form.js</code> (validate 호출 제거·정리 이식)</td></tr>
+            <tr><td>CSS</td><td>(구 디자인 내장)</td><td><code>static/provisioning/setting.css</code> 신규 + 공용 <code>accordion.css/form-validation.css/table-list.css</code> 재사용</td></tr>
+            <tr><td>navbar</td><td>—</td><td><code>fragments/layout.html:90</code> placeholder span → <code>&lt;a href="/provisioning/setting"&gt;</code> + <code>activePage='setting'</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 계약 모델 (SSOT) + 설계 대안 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 계약 모델 (SSOT) + 설계 대안 비교</summary>
+      <div class="body">
+        <p>이 슬라이스는 엔티티가 없다(Step 7 N/A). <b>SSOT 는 계약 — Request/Response 타입 계층</b>이며, U2-2 의 엔티티와 U2-3 의 검증이 이 계약을 따라온다.</p>
+        <h4>패키지 배치 (D1) — 대안 비교</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>A. provisioning.setting feature-first ✓ 채택</h4>
+            <ul><li>CLAUDE.md 아키텍처 명세 그대로(<code>provisioning/*</code> 하위 <code>setting</code>)</li><li>management 6 도메인과 동일한 feature-first 통일성</li><li>12+ Request·컨트롤러 2·화면 4 의 무게 → 자체 패키지 정당(이미 갈라진 시점)</li></ul></div>
+          <div class="card v-orange"><h4>B. 기존 layer-first 편승</h4>
+            <ul><li><code>provisioning/controller·dto</code> 에 합류(GuestServer/BiosSetup 방식)</li><li>탈락 — 그 형태는 BIOS 툴링 슬라이스의 유산(비대칭)이지 규범이 아님. 12+ 클래스가 layer 디렉토리를 비대화</li></ul></div>
+          <div class="card v-purple"><h4>C. execution 소유(U1 D11 방식)</h4>
+            <ul><li>U1 은 게스트 서버 aggregate 를 execution 에 두고 controller 만 provisioning</li><li>탈락 — 그 배치의 근거는 "실행 엔진이 소유하는 런타임 데이터"였음. 정의서는 사용자가 작성하는 <b>사용자 영역 자원</b>이라 전제가 다름</li></ul></div>
+        </div>
+        <div class="pkg-tree">com.example.serverprovision.provisioning.setting/        (신규 feature 패키지)
+├── controller/
+│   ├── SettingController.java            (SSR 4 GET)
+│   └── SettingRestController.java        (XHR: POST · PUT/{id} · GET default-partitions)
+├── service/
+│   ├── SettingQueryService.java          (인터페이스: findAll / findDetail / findBoardOptions / findOSOptions / findDefaultPartitions)
+│   ├── SettingCommandService.java        (인터페이스: create / update)
+│   └── InMemorySettingStub.java          (임시 — 두 인터페이스 동시 구현, U2-2 가 JPA 구현으로 대체)
+├── dto/
+│   ├── request/
+│   │   ├── SettingSaveRequest.java       (name + processList — 생성·수정 공용)
+│   │   ├── AbstractProcessRequest.java   (1단 판별 type: 4 subtype)
+│   │   ├── BasicUpdateRequest.java  BasicSettingRequest.java(스텁)
+│   │   ├── OSInstallationRequest.java    (2단 판별 osFamily) ← RHELInstallationRequest · UbuntuInstallationRequest
+│   │   ├── OSSettingRequest.java         (2단 판별 osFamily) ← RHELOSSettingRequest
+│   │   └── TimezoneRequest · PartitionRequest · RootPasswordRequest · UserRequest · ServiceDirectiveRequest
+│   └── response/
+│       ├── SettingSummaryResponse · SettingDetailResponse · SettingSaveResponse(id/name/status)
+│       └── SettingBoardOptionResponse · SettingOSOptionResponse · PartitionPresetResponse
+├── enums/
+│   ├── SettingProcessType.java           (신규 — BASIC_UPDATE/BASIC_SETTING/OS_INSTALLATION/OS_SETTING, 표시명+판별자)
+│   ├── SettingStatus.java                (PENDING 등 — 상세/목록 표시용, 엔티티 귀속은 U2-2 에서 재확인)
+│   └── FileSystem · SizeUnit · ServiceAction  (레거시 domain/os 누수 → 계약측 정착)
+└── exception/
+    └── SettingNotFoundException.java     (NotFoundException 하위, GuestServerNotFoundException 선례)</div>
+        <h4>계약 이식 시 정정 사항 (레거시 → renew)</h4>
+        <table>
+          <thead><tr><th>항목</th><th>레거시</th><th>renew (정정 근거)</th></tr></thead>
+          <tbody>
+            <tr><td>1단 판별자</td><td><code>BASIC_UPDATES</code>(복수형 불일치)</td><td><code>BASIC_UPDATE</code> — 기존 저장 데이터 0 이라 호환 부담 없음. <code>SettingProcessType</code> 상수와 1:1</td></tr>
+            <tr><td>생성/수정 요청</td><td><code>SettingCreateRequest</code> 를 PUT 에 재사용(명명 결함)</td><td><code>SettingSaveRequest</code> 단일 타입(중복 금지 — 스키마 동일하므로 분리하지 않음, 갈라지면 그때 분리)</td></tr>
+            <tr><td>ServiceDirective</td><td><code>domain/os/model/setting</code> record 를 Request 가 참조(계층 누수)</td><td><code>ServiceDirectiveRequest</code> record 로 계약측 정착. execution 이연 슬라이스가 도메인판을 다시 만들 때 매핑</td></tr>
+            <tr><td>FileSystem/SizeUnit/ServiceAction</td><td><code>domain/os/model/enums</code></td><td><code>provisioning/setting/enums</code> — 현재 유일 소비자는 계약. execution 이 소비하게 되면 그 시점에 공유 위치 재결정(§8 잔존)</td></tr>
+            <tr><td>단계 순서 enum</td><td><code>SettingProcessStep</code>(order 1~5)</td><td><b>부활 금지</b>. U2-1 은 <code>SettingProcessType</code>(표시·판별용)만 도입, <code>ProvisioningPhaseStep</code> 정합은 U2-2</td></tr>
+            <tr><td>404 처리</td><td>목록으로 silent redirect</td><td><code>SettingNotFoundException</code> throw → advice 404 (예외=프로그램 예외 원칙, silent 흡수 제거)</td></tr>
+          </tbody>
+        </table>
+        <h4>더미 데이터 전략 (D5) — 대안 비교</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>a. 스텁 전면 더미 ✓ 채택</h4>
+            <ul><li><code>InMemorySettingStub</code> 이 정의서 2건 + 보드/OS 선택지 더미를 시드</li><li>선택지 <b>Response 타입(계약)은 지금 확정</b>, 실데이터 연결만 U2-2 로</li><li>management 도메인 무수정 — cross-domain 결합을 영속 슬라이스로 일원화</li></ul></div>
+          <div class="card v-orange"><h4>b. management 실데이터 즉시 연결</h4>
+            <ul><li>화면이 진짜 데이터로 렌더되는 장점</li><li>탈락 — 레거시 <code>getViewModelList()</code> 대응 집계 메서드를 management 서비스에 신설해야 함 = U2-1 범위 밖 타 도메인 수정. 계약 확정에는 더미로 충분</li></ul></div>
+        </div>
+        <div class="callout"><b>적대적 자기비판</b> — ① <i>스텁 서비스는 speculative 아닌가?</i> 아니다 — Step 5(Service 시그니처)의 산출물이며, 컨트롤러-인라인 더미(대안)는 U2-2 에서 컨트롤러 재작성 churn 을 만든다. 인터페이스를 지금 굳히면 U2-2 는 구현 교체만 한다. ② <i><code>SettingStatus</code> 를 엔티티 없이 도입하는 게 순서 위반 아닌가?</i> — 목록/상세 화면이 상태 배지를 렌더하므로 계약의 일부다. 단 값 집합(레거시 6종)의 확정은 U2-2 CP1 에서 재심사한다고 §8 에 못박는다. ③ <i>fragment 를 4장 다 이식하면 U2-3 범위 침범 아닌가?</i> — 화면 골격(마크업)은 U2-1 의 "화면 이식" 범위, 그 폼이 실제로 저장·검증되게 하는 것이 U2-3. 골격 없이는 U2-3 이 화면+행동을 동시에 만들게 되어 분할 취지(계약 먼저)가 무너진다. ④ <i>숨은 순환은?</i> — setting → management 참조 0(더미), setting → execution 참조 0(정합은 U2-2). 신규 패키지는 global 예외 계층에만 의존. 순환 소지 없음.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 4 + fragment 4 + <code>setting.css</code>/<code>setting-form.js</code> + navbar 활성화</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>SettingController</code>/<code>SettingRestController</code></td></tr>
+            <tr><td>4</td><td>Request 12+1종 · Response 6종 · enums 5종 (<code>@Valid</code> 포함)</td></tr>
+            <tr><td>5</td><td><code>SettingQueryService</code>/<code>SettingCommandService</code> 인터페이스 시그니처</td></tr>
+            <tr><td>6·7</td><td><span class="chip na">N/A</span> — Repository·Entity 없음 (U2-2 몫)</td><td><span class="chip cp3">CP3</span> (보고만)</td></tr>
+            <tr><td>8</td><td><code>InMemorySettingStub</code> 구현 + <code>@WebMvcTest</code> 2 파일 + advice 보강</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td><span class="chip na">N/A</span> — 스키마 변경 0 확인만</td></tr>
+            <tr><td>10</td><td>브라우저 확인 — <b>U2 묶음 공유 CP5</b> 방침이나, U2-1 단독으로도 화면 골격·더미 흐름 확인 가능</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">묶음 방침(분할 report §06): U2-1/2/3 은 각자 CP1~CP4 를 돌고 <b>최종 브라우저 E2E 는 U2 묶음 공유 CP5</b> 로 함께 닫는다. U2-1 CP5 는 "화면 골격이 더미로 돌아간다" 수준의 중간 확인으로 축소.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <p>파일 2개: <code>SettingControllerViewTest</code>(SSR) · <code>SettingRestControllerSaveFlowTest</code>(XHR). <code>@WebMvcTest</code> + <code>@MockitoBean</code>(Service 단까지만 mock — Jackson 역직렬화·advice 매핑은 실제 실행).</p>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="2">성공 2xx</td><td>SSR: 목록/작성폼/상세/수정폼 200 + 모델 속성(선택지·initialSettingJson) 검증</td><td>4</td></tr>
+            <tr><td>XHR: POST 201+Location (flat 2타입 · RHEL · DEBIAN · OS_SETTING/RHEL 각 1 = 다형 매트릭스) · PUT 200 · GET default-partitions 200(경로충돌 검증 포함)</td><td>7</td></tr>
+            <tr><td rowspan="3">400</td><td><code>name</code> blank → fieldErrors[<code>name</code>]</td><td>1</td></tr>
+            <tr><td><code>processList</code> empty / 하위 필드 위반(<code>partitions</code> empty, <code>selinuxMode</code> 패턴, <code>timezone</code> blank — <code>processList[i].</code> 경로 확인)</td><td>4</td></tr>
+            <tr><td>알 수 없는 <code>type</code> / 알 수 없는 <code>osFamily</code> 판별자 → <b>신규 <code>HttpMessageNotReadable</code> advice</b> 400 + 머신코드 (500 으로 새지 않음을 명시 검증)</td><td>2</td></tr>
+            <tr><td>404</td><td>없는 id: 상세 GET · 수정폼 GET · PUT — <code>SettingNotFoundException</code> 트리거(신규 예외 시나리오 의무)</td><td>3</td></tr>
+            <tr><td>409</td><td>없음 — 상태 가드(PENDING 수정 제한 등)는 영속과 함께 U2-2 에서 도입되므로 이 슬라이스에 <code>ConflictException</code> 하위 신규 0</td><td>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>SettingNotFoundException</code></td><td>404</td><td><span class="chip new">신규</span></td><td><code>global.exception.NotFoundException</code> 하위(<code>GuestServerNotFoundException</code> 선례). 상세/수정폼/PUT 3 경로 트리거 테스트.</td></tr>
+            <tr><td><code>HttpMessageNotReadableException</code> 매핑</td><td>400</td><td><span class="chip mod">advice 보강</span></td><td>renew 최초의 다형 <code>@RequestBody</code> 도입에 따른 <code>ApiExceptionHandler</code> 신규 <code>@ExceptionHandler</code> 1건 — 판별자 오류·JSON 파손을 400+머신코드로. 컨트롤러 try/catch 금지 원칙대로 advice 레벨에서만.</td></tr>
+            <tr><td><code>MethodArgumentNotValidException</code></td><td>400</td><td><span class="chip keep">재사용</span></td><td>기존 fieldErrors 매핑이 <code>processList[i].field</code> 중첩 경로를 그대로 실어줌 — 레거시 수동 prefix 방식을 프레임워크가 대체.</td></tr>
+            <tr><td><code>ConflictException</code> 계열</td><td>409</td><td><span class="chip na">해당 없음</span></td><td>상태 가드 부재(영속 없음). U2-2 에서 PENDING 가드와 함께 도입.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>확정 결정 (D)</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택 / 탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>패키지 = <code>provisioning.setting</code> feature-first</td><td>§4 대안 A/B/C 비교 — CLAUDE.md 명세 + 무게 정당. 기존 layer-first 형제는 불이동.</td></tr>
+            <tr><td>D2</td><td>URL <code>/provisioning/setting</code>, XHR 동일 prefix(<code>/api</code> 없음), 뷰 flat hyphen + fragment 는 <code>fragments/provisioning/setting/</code></td><td>형제 관례(BiosSetupRestController·server-list.html) 준수.</td></tr>
+            <tr><td>D3</td><td>SSR/XHR 컨트롤러 분리</td><td>renew 관례 <code>*Controller</code>/<code>*RestController</code>. 레거시 단일 혼합형 폐기.</td></tr>
+            <tr><td>D4</td><td>Service 인터페이스 2 + <code>InMemorySettingStub</code> 1</td><td>§4 자기비판 ① — 계약 고정 + U2-2 구현 교체만. 컨트롤러-인라인 더미 탈락(churn).</td></tr>
+            <tr><td>D5</td><td>선택지 전면 더미(Response 타입만 확정)</td><td>§4 대안 a/b — management 무수정.</td></tr>
+            <tr><td>D6</td><td>판별자 <code>BASIC_UPDATE</code> 정정 + <code>SettingSaveRequest</code> 통합 + 누수 타입 계약측 정착</td><td>§4 정정 표 — 기존 데이터 0 시점이 정정 적기.</td></tr>
+            <tr><td>D7</td><td><code>POST /validate</code> + JS validate 흐름 제거 이식</td><td>resolver 의존 기능 — 스텁 endpoint 는 죽은 계약. U2-3 재도입.</td></tr>
+            <tr><td>D8</td><td><code>BasicSettingRequest</code> 필드 0 스텁 유지</td><td>BIOS 설정 필드 설계는 별도 과제(레거시도 스텁). 갈라지는 시점에.</td></tr>
+          </tbody>
+        </table>
+        <h4>의도된 잔존 / 임시 비대칭 (+ 해소 시점)</h4>
+        <ul>
+          <li><b><code>InMemorySettingStub</code></b> — 재시작 시 소실되는 더미 저장소. <b>U2-2 에서 JPA 구현으로 대체·삭제.</b></li>
+          <li><b>OS-다형 폼은 골격만</b> — rhel/debian fragment 가 렌더되지만 저장 시 stub 통과일 뿐 실 검증·영속 없음. <b>U2-2(flat)·U2-3(OS)에서 실동작.</b></li>
+          <li><b><code>SettingStatus</code> 값 집합(레거시 6종) 임시 채택</b> — 엔티티 귀속·상태 전이는 <b>U2-2 CP1 에서 재심사</b>(실행 상태와 정의서 상태의 분리 여부 포함).</li>
+          <li><b><code>FileSystem/SizeUnit/ServiceAction</code> 의 계약측 위치</b> — execution 이연 슬라이스가 소비자가 되는 시점에 공유 위치 재결정.</li>
+          <li><b>process JSON 저장 형태 미결(분할 report Q1)</b> — U2-1 은 저장하지 않으므로 결정 불요. <b>U2-2 CP1 최대 설계 결정</b>으로 이월.</li>
+        </ul>
+        <h4>동반 수정 / 기타</h4>
+        <ul>
+          <li><code>fragments/layout.html</code> 1곳 수정(placeholder → 링크). 그 외 기존 파일 수정 없음.</li>
+          <li>CLAUDE.md 수정 불요(아키텍처 기술과 일치하는 방향으로 구현). Notion U2-1 행은 CP1 승인 후 CP2 진입 시 background agent 로 갱신.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U2-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과(기존 회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="poly"> <span>다형 역직렬화 매트릭스(4 type × osFamily) 통합 테스트 green</span></label></li>
+          <li><label><input type="checkbox" data-key="advice"> <span>알 수 없는 판별자 → 400(500 아님) 검증</span></label></li>
+          <li><label><input type="checkbox" data-key="nav"> <span>navbar '세팅 정의서' 활성 + 4 화면 더미 렌더(부트런 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span>스키마 변경 0 확인(<code>ddl-auto=validate</code> 기동 무오류)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 확인 — U2 묶음 공유 CP5 (사용자)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/controller/</code> 2 · <code>service/</code> 3 · <code>dto/request/</code> 13 · <code>dto/response/</code> 6 · <code>enums/</code> 5 · <code>exception/</code> 1</td><td>§4 pkg-tree 전체 (~30 클래스)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/provisioning/setting-{list,new,detail,edit}.html</code> + <code>templates/fragments/provisioning/setting/os-installation/</code> 4</td><td>레거시 UX 구조 보존 + n-* 재작성</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/provisioning/setting.css</code> · <code>static/provisioning/setting-form.js</code></td><td>JS 는 validate 흐름 제거 이식</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>test/…/setting/SettingControllerViewTest</code> · <code>SettingRestControllerSaveFlowTest</code></td><td>§6 시나리오 21건</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/fragments/layout.html</code></td><td>:90 placeholder → 링크 + activePage 키</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/exception/ApiExceptionHandler.java</code></td><td><code>HttpMessageNotReadableException</code> → 400 핸들러 1건 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>management 전 도메인 · <code>execution/*</code> · 기존 provisioning 형제</td><td>변경 0 — 더미 전략(D5)으로 결합 차단</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>archive/legacy/**</code></td><td>원본 불변(참조 전용)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>U2-2 영속 + 조회 + flat 단계 생성·수정</b> — ServerSetting 엔티티(process JSON 형태 결정 = CP1 최대 설계 결정), <code>InMemorySettingStub</code> 대체·삭제, <code>ProvisioningPhaseStep</code> 정합, PENDING 가드(409) 도입, 선택지 실데이터 연결, <code>SettingStatus</code> 재심사.</li>
+          <li><b>U2-3 OS-다형 단계 생성·수정 + 검증</b> — rhel/debian 폼 실동작, 3차 검증, <code>POST /validate</code> + JS validate 흐름 재도입.</li>
+          <li><b>execution 이연 슬라이스(U3/Stage 4 국면)</b> — Builder/Resolver 편입 시 계약측 enum(FileSystem 등) 공유 위치 재결정.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — SettingSaveRequest 계약(Bean Validation + 다형 판별자)의 JS 1:1 재현
+  //  서버 판정 원본:
+  //    · @NotBlank name                          (SettingSaveRequest)
+  //    · @NotEmpty processList                   (SettingSaveRequest)
+  //    · OS 단계는 osFamily 판별자 필수           (Jackson @JsonTypeInfo — 누락 시 HttpMessageNotReadable 400)
+  //  U2-1 은 영속·상태 가드가 없으므로 위 3 판정이 서버 판정의 전부 — 드리프트 0.
+  // ─────────────────────────────────────────────────────────────
+  const demoState = {
+    nameFilled: true,
+    steps: { BASIC_UPDATE: true, BASIC_SETTING: false, OS_INSTALLATION: false, OS_SETTING: false },
+    osFamily: null  // OS_INSTALLATION/OS_SETTING 활성 시 2단 판별자
+  };
+  const STEP_META = {
+    BASIC_UPDATE:    { label: '펌웨어 업데이트', fields: ['boardModelId','boardBIOSId','boardBMCId'] },
+    BASIC_SETTING:   { label: 'BIOS 설정 (스텁)', fields: [] },
+    OS_INSTALLATION: { label: 'OS 설치', fields: ['osMetadataId','timezone','partitions[]','rootPassword','users[]'] },
+    OS_SETTING:      { label: 'OS 후처리', fields: ['osMetadataId','selinuxMode','services[]','additionalPackages[]'] }
+  };
+  const FAM_EXTRA = {
+    RHEL_BASED:   ['environmentId','packageGroupIds[]','isKDumpEnabled','allowSshRoot'],
+    DEBIAN_BASED: ['hostname','packages[]']
+  };
+
+  // 서버 판정 1:1 재현 — @NotBlank/@NotEmpty/판별자 필수
+  function demoValidate(s) {
+    const hasOsStep = s.steps.OS_INSTALLATION || s.steps.OS_SETTING;
+    const count = Object.values(s.steps).filter(Boolean).length;
+    return {
+      nameBlank: !s.nameFilled,                          // @NotBlank → 400 fieldErrors[name]
+      processEmpty: count === 0,                         // @NotEmpty → 400 fieldErrors[processList]
+      famMissing: hasOsStep && !s.osFamily               // 판별자 누락 → HttpMessageNotReadable 400
+    };
+  }
+
+  function demoToggleName() { demoState.nameFilled = !demoState.nameFilled; demoRender(); }
+  function demoToggleStep(k) {
+    demoState.steps[k] = !demoState.steps[k];
+    if (!demoState.steps.OS_INSTALLATION && !demoState.steps.OS_SETTING) demoState.osFamily = null;
+    demoRender();
+  }
+  function demoSetFam(f) { demoState.osFamily = f; demoRender(); }
+  function demoSubmit(blocked) {
+    const msg = document.getElementById('demo-message');
+    if (blocked) {
+      msg.className = 'ux-message error';
+      msg.textContent = '제출 차단 — 좌측 판정 패널의 위반 항목이 서버에서도 동일하게 400 을 만듭니다 (UI 차단 = 서버 판정, 같은 SSOT).';
+      return;
+    }
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ POST /provisioning/setting → Jackson 2단 다형 역직렬화 + @Valid 통과 → InMemorySettingStub.create() → 201 + Location';
+  }
+
+  function demoJson(s) {
+    const esc = t => '<span class="s">"' + t + '"</span>';
+    const key = t => '<span class="k">"' + t + '"</span>';
+    const disc = t => '<span class="d">"' + t + '"</span>';
+    const items = [];
+    if (s.steps.BASIC_UPDATE) items.push('    { ' + key('type') + ': ' + disc('BASIC_UPDATE') + ', ' + key('boardModelId') + ': 1, ' + key('boardBIOSId') + ': 3, ' + key('boardBMCId') + ': 2 }');
+    if (s.steps.BASIC_SETTING) items.push('    { ' + key('type') + ': ' + disc('BASIC_SETTING') + ' }');
+    if (s.steps.OS_INSTALLATION) {
+      const fam = s.osFamily ? disc(s.osFamily) : '<span class="d">⚠ 누락</span>';
+      const extra = s.osFamily === 'DEBIAN_BASED'
+        ? key('hostname') + ': ' + esc('node-01') + ', ' + key('packages') + ': [' + esc('openssh-server') + ']'
+        : key('environmentId') + ': 4, ' + key('packageGroupIds') + ': [7], ' + key('isKDumpEnabled') + ': false';
+      items.push('    { ' + key('type') + ': ' + disc('OS_INSTALLATION') + ', ' + key('osFamily') + ': ' + fam + ',\n      ' +
+        key('osMetadataId') + ': 5, ' + key('timezone') + ': {…}, ' + key('partitions') + ': […], ' + extra + ' }');
+    }
+    if (s.steps.OS_SETTING) {
+      const fam = s.osFamily ? disc(s.osFamily) : '<span class="d">⚠ 누락</span>';
+      items.push('    { ' + key('type') + ': ' + disc('OS_SETTING') + ', ' + key('osFamily') + ': ' + fam + ', ' +
+        key('osMetadataId') + ': 5, ' + key('selinuxMode') + ': ' + esc('enforcing') + ', ' + key('services') + ': […] }');
+    }
+    return '{\n  ' + key('name') + ': ' + (s.nameFilled ? esc('표준 Rocky9 웹서버 세팅') : '<span class="d">""  ⚠ blank</span>') + ',\n  ' +
+      key('processList') + ': [\n' + (items.length ? items.join(',\n') : '    <span class="d">⚠ 비어 있음</span>') + '\n  ]\n}';
+  }
+
+  function demoRender() {
+    const s = demoState, v = demoValidate(s);
+    // 토글 상태 반영
+    document.getElementById('seg-name').textContent = s.nameFilled ? '이름 입력됨 ✓' : '이름 비움 (blank)';
+    document.getElementById('seg-name').classList.toggle('on', s.nameFilled);
+    document.querySelectorAll('.ux-toolbar .seg[data-step]').forEach(b => b.classList.toggle('active', s.steps[b.dataset.step]));
+    const hasOs = s.steps.OS_INSTALLATION || s.steps.OS_SETTING;
+    document.getElementById('row-osfamily').style.display = hasOs ? 'flex' : 'none';
+    document.querySelectorAll('.ux-toolbar .seg[data-fam]').forEach(b => b.classList.toggle('active', s.osFamily === b.dataset.fam));
+
+    // 활성 단계의 폼 필드 프리뷰 (osFamily 에 따라 OS 필드 세트 분기 — fragment 교체 재현)
+    let fp = '';
+    Object.keys(s.steps).filter(k => s.steps[k]).forEach(k => {
+      let fields = STEP_META[k].fields.slice();
+      if (k === 'OS_INSTALLATION' && s.osFamily) fields = fields.concat(FAM_EXTRA[s.osFamily]);
+      fp += '<div style="margin:4px 0;"><span class="badge on" style="margin-right:6px;">' + STEP_META[k].label + '</span>' +
+        (fields.length ? fields.map(f => '<span class="fld">' + f + '</span>').join('') : '<span class="fld" style="opacity:.6">필드 없음 (스텁)</span>') + '</div>';
+    });
+    document.getElementById('demo-form-preview').innerHTML = fp
+      ? '<div class="ux-form-preview"><b style="font-size:11px;color:var(--text-muted);">아코디언 폼 구성 (fragment 분기 재현)</b>' + fp + '</div>' : '';
+
+    // 제출 버튼 + tooltip
+    const blocked = v.nameBlank || v.processEmpty || v.famMissing;
+    const reasons = [];
+    if (v.nameBlank) reasons.push('정의서 명칭이 비어 있습니다 (@NotBlank)');
+    if (v.processEmpty) reasons.push('하나 이상의 단계를 선택해야 합니다 (@NotEmpty)');
+    if (v.famMissing) reasons.push('OS 단계는 OS 계열(osFamily 판별자)을 선택해야 합니다');
+    const tip = reasons.join(' · ');
+    document.getElementById('demo-submit').innerHTML =
+      '<span class="tip"' + (blocked ? ' data-tip="' + tip + '"' : '') + '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoSubmit(' + blocked + ')">정의서 제출</button></span>';
+
+    // 판정 패널 (서버 판정 = UI 판정 시각 증명)
+    const tf = bad => bad ? '<span class="t">true</span> → 400 차단' : '<span class="f">false</span> → 통과';
+    document.getElementById('demo-caps').innerHTML =
+      'nameBlank      (@NotBlank name)          = ' + tf(v.nameBlank) + '\n' +
+      'processEmpty   (@NotEmpty processList)   = ' + tf(v.processEmpty) + '\n' +
+      'famMissing     (osFamily 판별자 필수)     = ' + tf(v.famMissing) + '   ← HttpMessageNotReadable advice(신규)';
+
+    document.getElementById('demo-json').innerHTML = demoJson(s);
+  }
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

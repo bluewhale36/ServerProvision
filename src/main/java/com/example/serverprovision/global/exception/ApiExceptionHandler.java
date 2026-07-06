@@ -18,6 +18,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -236,6 +237,20 @@ public class ApiExceptionHandler {
 		log.warn("[validation] MethodArgumentNotValid : {} fields", fieldErrors.size());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 				.body(ApiErrorResponse.ofValidation(summary, fieldErrors));
+	}
+
+	/**
+	 * {@code @RequestBody} JSON 해석 실패 (400). U2-1 이 다형 {@code @RequestBody}
+	 * ({@code @JsonTypeInfo} type/osFamily 판별)를 처음 도입하면서 필요해진 매핑 —
+	 * 알 수 없는 판별자(예: 미등록 {@code WINDOWS})·JSON 파손이 이 예외로 도달한다.
+	 * 클라이언트 입력 오류이므로 500 으로 새지 않게 400 + 머신코드로 응답한다.
+	 */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ApiErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+		log.warn("[validation] HttpMessageNotReadable : {}", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(ApiErrorResponse.ofCode("MALFORMED_REQUEST_BODY",
+						"요청 본문을 해석할 수 없습니다. JSON 형식과 type/osFamily 판별자 값을 확인해주세요."));
 	}
 
 	/**

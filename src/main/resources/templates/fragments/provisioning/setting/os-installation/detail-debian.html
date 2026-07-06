@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Debian 계열 (Ubuntu) OS 설치 단계의 상세 뷰 전용 블록.
+  ─────────────────────────────────────────────────────────
+  사용 컨텍스트 : provisioning/setting-detail 의 OS_INSTALLATION 카드에서
+                 process.osFamily() 분기로 선택된다.
+  파라미터      : inst — UbuntuInstallationRequest (계약 DTO 를 그대로 렌더, U2-1)
+-->
+<th:block th:fragment="body(inst)">
+    <div class="n-process-subsection">
+        <div class="n-label strong">Debian 계열 설치 옵션</div>
+        <table class="n-detail-table">
+            <tbody>
+            <tr>
+                <th>호스트명</th>
+                <td>
+                    <code class="n-mono" th:if="${!#strings.isEmpty(inst.hostname)}"
+                          th:text="${inst.hostname}">node-01</code>
+                    <span class="n-muted" th:if="${#strings.isEmpty(inst.hostname)}">미설정 (기본값: ubuntu-server)</span>
+                </td>
+            </tr>
+            <tr>
+                <th>추가 설치 패키지 (APT)</th>
+                <td>
+                    <span th:if="${#lists.isEmpty(inst.packages)}" class="n-muted">없음 (기본 이미지 그대로 설치)</span>
+                    <span th:unless="${#lists.isEmpty(inst.packages)}" class="n-badge-list">
+                        <span class="n-badge n-badge-gray n-badge-mono"
+                              th:each="pkg : ${inst.packages}"
+                              th:text="${pkg}">openssh-server</span>
+                    </span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</th:block>
+</body>
+</html>

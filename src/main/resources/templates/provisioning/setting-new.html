@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  세팅 정의서 작성 폼 + 공용 폼 프래그먼트(settingForm) 정의
+  ─────────────────────────────────────────────────────────
+  Model:
+    processTypes : List<SettingProcessType>            단계 추가 버튼 (name()/displayName)
+    boardOptions : List<SettingBoardOptionGroupResponse>  BASIC_UPDATE 선택지 — 제조사(Vendor) optgroup 단위
+    osOptions    : List<SettingOSOptionGroupResponse>      OS 선택지 — OS 유형(OSName) optgroup 단위
+    biosTemplateOptions : List<BiosTemplateOptionResponse>  BASIC_SETTING 템플릿 선택지
+                   (id/name/boardModelId/boardModelName — 체크 패널 + 보드 뱃지)
+    fileSystems  : List<FileSystem>                    파티션 행 템플릿 (name()/displayName)
+    sizeUnits    : List<SizeUnit>                      파티션 행 템플릿 (name()/symbol)
+    (setting     : 수정 폼에서만 존재 — settingForm 프래그먼트가 setting 유무로 create/edit 모드를 판별)
+
+  공유 구조 :
+    - 폼 본체는 th:fragment="settingForm" 으로 정의되어 setting-edit.html 이 th:replace 로 재사용한다
+      (작성/수정 폼 마크업 중복 금지 — 별도 fragment 파일을 늘리지 않고 본 페이지가 호스트).
+    - 제출은 setting-form.js 가 XHR JSON 으로 수행한다 :
+        create → POST /provisioning/setting (201 + Location)
+        edit   → PUT  /provisioning/setting/{id} (200)
+      레거시의 /api/validate 사전검증 흐름은 이식하지 않는다 (U2-3 재도입 예정).
+    - 단계 카드 4종은 서버가 미리 렌더한 hidden <details> 아코디언이며,
+      "단계 추가" 버튼이 표시를 토글한다 (타입당 1개 — 추가된 타입 버튼은 비활성).
+    - 자원 lifecycle : disabled 자원은 서버가 옵션에서 배제하고, deprecated 자원은
+      data-deprecated / data-deprecated-at 메타로 렌더 — setting-form.js 가 선택 시
+      확인 modal(deprecatedUse) 과 라벨 옆 '지원 중단' 뱃지로 안내한다 (저장은 막지 않음).
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('신규 세팅 정의서 작성')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">신규 세팅 정의서 작성</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/provisioning/setting}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         공용 폼 프래그먼트 — 본 페이지는 그대로 렌더(생성 모드),
+         setting-edit.html 은 th:replace 로 재사용(수정 모드).
+         모드 판별 : Model 에 setting(상세 응답)이 있으면 edit.
+         ========================================================== -->
+    <form th:fragment="settingForm"
+          th:with="isEdit=${setting != null}"
+          id="settingForm" novalidate
+          th:data-mode="${isEdit ? 'edit' : 'create'}"
+          th:data-setting-id="${isEdit ? setting.id : ''}"
+          th:data-endpoint="@{/provisioning/setting}"
+          th:data-partitions-endpoint="@{/provisioning/setting/default-partitions}">
+
+        <!-- S4 폼 배너 — 필드 매핑에 실패한 서버 오류/폼 전체 오류 표시 슬롯 -->
+        <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+        <!-- 1. 정의서 식별 정보 -->
+        <div class="n-card">
+            <div class="n-card-body">
+                <div class="n-section">정의서 식별 정보</div>
+                <div class="n-form-group">
+                    <label class="n-label strong" for="settingName">정의서 명칭</label>
+                    <input type="text" id="settingName" class="n-input"
+                           data-error-field="name"
+                           placeholder="예: Rocky Linux 9 표준 웹 서버 구성">
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 프로비저닝 단계 구성 -->
+        <div class="n-card">
+            <div class="n-card-body">
+                <div class="n-section">프로비저닝 단계 구성</div>
+
+                <div data-error-field="processList">
+                    <!-- 단계 추가 : 타입당 1개, 이미 추가된 타입은 비활성 -->
+                    <div class="n-form-group">
+                        <label class="n-label strong">단계 추가</label>
+                        <div class="n-step-add-row">
+                            <button type="button"
+                                    class="n-btn n-btn-secondary n-btn-sm"
+                                    th:each="type : ${processTypes}"
+                                    th:data-step-add="${type.name()}"
+                                    th:text="'+ ' + ${type.displayName}">+ 단계</button>
+                        </div>
+                        <div class="n-hint">추가할 프로비저닝 단계를 선택하세요. 단계 타입은 정의서당 1개씩만 추가할 수 있습니다.</div>
+                    </div>
+
+                    <div id="stepEmptyNotice" class="n-accordion-empty">
+                        추가된 단계가 없습니다. 위에서 단계를 추가하면 입력 폼이 나타납니다.
+                    </div>
+
+                    <div class="n-accordion">
+
+                        <!-- ==================== BASIC_UPDATE ==================== -->
+                        <details class="n-accordion-item n-step-card" data-process-card="BASIC_UPDATE" hidden>
+                            <summary class="n-accordion-head">
+                                <span class="n-accordion-chevron"></span>
+                                <span class="n-accordion-title n-step-title">펌웨어 업데이트</span>
+                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                            </summary>
+                            <div class="n-accordion-body">
+                                <!--
+                                  selector 계약 (BasicUpdateRequest) :
+                                    보드 = AUTO(자동 감지) | SPECIFIED(#id), BIOS/BMC = LATEST(최신 버전) | SPECIFIED(#id).
+                                  option value 의 AUTO/LATEST 센티널은 mode enum 상수명이고 숫자는 SPECIFIED 대상 id 다.
+                                  SSOT 규칙(BasicUpdateRequest.isFirmwareSelectionCoherent) : 보드 AUTO ⇒ BIOS/BMC 는 LATEST 만 —
+                                  UI 는 같은 규칙으로 펌웨어 select 를 '최신 버전' 고정 + disabled 처리하고(1차 차단),
+                                  서버 @AssertTrue 400 은 direct POST 안전망으로만 발동한다.
+                                -->
+                                <div class="n-form-group" data-error-field="boardModel">
+                                    <label class="n-label strong" for="buBoardModel">메인보드 모델</label>
+                                    <select id="buBoardModel" class="n-select">
+                                        <option value="AUTO" selected>자동 감지 — 실행 시점에 서버에서 보드 모델을 감지</option>
+                                        <optgroup th:each="group : ${boardOptions}" th:label="${group.vendor}">
+                                            <option th:each="board : ${group.boards}"
+                                                    th:value="${board.boardModelId}"
+                                                    th:text="${board.name}"
+                                                    th:data-deprecated="${board.deprecated}"
+                                                    th:data-deprecated-at="${board.deprecatedAtDisplay}"
+                                                    th:data-description="${board.description}"></option>
+                                        </optgroup>
+                                    </select>
+                                    <div class="n-hint">자동 감지를 선택하면 BIOS/BMC 는 감지된 보드의 최신 등록 펌웨어로 고정됩니다.</div>
+                                </div>
+                                <div class="n-row" data-error-field="firmwareSelectionCoherent">
+                                    <div class="n-form-group" data-error-field="bios">
+                                        <label class="n-label strong" for="buBios">업데이트할 BIOS 버전</label>
+                                        <!-- disabled select 는 native title 이 표시되지 않으므로 wrapper tooltip 사용 (S5-3-2 자산 재사용) -->
+                                        <span class="n-btn-tooltip-wrap n-tooltip-block"
+                                              data-tooltip="보드 모델 자동 감지 시 BIOS/BMC 는 최신 버전만 선택할 수 있습니다.">
+                                            <select id="buBios" class="n-select" disabled>
+                                                <option value="LATEST" selected>최신 버전 — 대상 보드의 최신 등록 펌웨어</option>
+                                                <th:block th:each="group : ${boardOptions}">
+                                                <th:block th:each="board : ${group.boards}">
+                                                    <option th:each="fw : ${board.biosList}"
+                                                            th:value="${fw.id}"
+                                                            th:text="${fw.version}"
+                                                            th:data-board-id="${board.boardModelId}"
+                                                            th:data-deprecated="${fw.deprecated}"
+                                                            th:data-deprecated-at="${fw.deprecatedAtDisplay}"
+                                                            th:data-description="${fw.description}"
+                                                            class="unavailable" disabled></option>
+                                                </th:block>
+                                                </th:block>
+                                            </select>
+                                        </span>
+                                        <!-- SPECIFIED 보드에 등록 펌웨어 0개 — 저장은 허용(실행 시 skip), deprecated 와 같은 노란 강조(사용자 지시) -->
+                                        <span class="n-hint n-hint-warn" id="buBiosEmptyHint" hidden>
+                                            이 보드에 등록된 BIOS 펌웨어가 없습니다 — 실행 시점까지 등록되지 않으면 이 항목은 건너뜁니다.</span>
+                                    </div>
+                                    <div class="n-form-group" data-error-field="bmc">
+                                        <label class="n-label strong" for="buBmc">업데이트할 BMC 버전</label>
+                                        <span class="n-btn-tooltip-wrap n-tooltip-block"
+                                              data-tooltip="보드 모델 자동 감지 시 BIOS/BMC 는 최신 버전만 선택할 수 있습니다.">
+                                            <select id="buBmc" class="n-select" disabled>
+                                                <option value="LATEST" selected>최신 버전 — 대상 보드의 최신 등록 펌웨어</option>
+                                                <th:block th:each="group : ${boardOptions}">
+                                                <th:block th:each="board : ${group.boards}">
+                                                    <option th:each="fw : ${board.bmcList}"
+                                                            th:value="${fw.id}"
+                                                            th:text="${fw.version}"
+                                                            th:data-board-id="${board.boardModelId}"
+                                                            th:data-deprecated="${fw.deprecated}"
+                                                            th:data-deprecated-at="${fw.deprecatedAtDisplay}"
+                                                            th:data-description="${fw.description}"
+                                                            class="unavailable" disabled></option>
+                                                </th:block>
+                                                </th:block>
+                                            </select>
+                                        </span>
+                                        <!-- SPECIFIED 보드에 등록 펌웨어 0개 — 저장은 허용(실행 시 skip), deprecated 와 같은 노란 강조(사용자 지시) -->
+                                        <span class="n-hint n-hint-warn" id="buBmcEmptyHint" hidden>
+                                            이 보드에 등록된 BMC 펌웨어가 없습니다 — 실행 시점까지 등록되지 않으면 이 항목은 건너뜁니다.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- ==================== BASIC_SETTING ==================== -->
+                        <details class="n-accordion-item n-step-card" data-process-card="BASIC_SETTING" hidden>
+                            <summary class="n-accordion-head">
+                                <span class="n-accordion-chevron"></span>
+                                <span class="n-accordion-title n-step-title">BIOS 설정</span>
+                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                            </summary>
+                            <div class="n-accordion-body">
+                                <!--
+                                  템플릿 선택 규칙 (U2-2-3) — 서버 400 안전망(SettingSaveRequest @AssertTrue)과 동일 SSOT :
+                                    보드 SPECIFIED(#buBoardModel) ⇒ 그 보드의 템플릿만 활성 + 1개(라디오 의미론 — 교체),
+                                    보드 AUTO / 펌웨어 단계 없음   ⇒ 전체 활성하되 보드당 1개.
+                                  setting-form.js refreshBsTemplateRules() 가 활성/비활성 정렬 + 위반 체크 자동 해제를 구동한다.
+                                -->
+                                <!-- 자체 보드 selector (사용자 확정 2026-07-07) — BIOS 설정만 있는 정의서도 보드 의도를
+                                     명시한다. 펌웨어 업데이트 단계와 공존하면 그 쪽 선택을 미러링해 고정(JS syncBsBoardLock,
+                                     OS 설치↔후처리 동기화와 동일 패턴) — 서버 @AssertTrue(boardSelectionConsistent) 안전망. -->
+                                <div class="n-form-group" data-error-field="boardModel">
+                                    <label class="n-label strong" for="bsBoardModel">메인보드 모델</label>
+                                    <select id="bsBoardModel" class="n-select">
+                                        <option value="AUTO" selected>자동 감지 — 실행 시점에 서버에서 보드 모델을 감지</option>
+                                        <optgroup th:each="group : ${boardOptions}" th:label="${group.vendor}">
+                                            <option th:each="board : ${group.boards}"
+                                                    th:value="${board.boardModelId}"
+                                                    th:text="${board.name}"
+                                                    th:data-deprecated="${board.deprecated}"
+                                                    th:data-deprecated-at="${board.deprecatedAtDisplay}"
+                                                    th:data-description="${board.description}"></option>
+                                        </optgroup>
+                                    </select>
+                                    <div class="n-hint">펌웨어 업데이트 단계가 함께 있으면 그 단계의 보드 선택을 따라 고정됩니다.</div>
+                                </div>
+                                <!-- 수정 pre-fill 시 저장본의 템플릿이 선택지에서 사라졌으면(삭제 레이스) 경고 — JS 가 표시 -->
+                                <div class="n-hint" id="bsPrefillWarning" hidden>
+                                    저장 당시 선택했던 일부 템플릿이 삭제되어 선택에서 제외되었습니다. 저장 시 현재 체크된 템플릿만 반영됩니다.
+                                </div>
+                                <div class="n-form-group" data-error-field="biosSettingTemplateIds">
+                                    <label class="n-label strong">적용할 BIOS 세팅 템플릿</label>
+                                    <div id="bsTemplatePanel" class="n-check-panel">
+                                        <span class="n-hint" th:if="${#lists.isEmpty(biosTemplateOptions)}">
+                                            등록된 BIOS 세팅 템플릿이 없습니다 — BIOS 세팅 관리에서 먼저 작성하세요.</span>
+                                        <label class="n-checkbox" th:each="tpl : ${biosTemplateOptions}">
+                                            <input type="checkbox" th:value="${tpl.id}" th:data-board-model-id="${tpl.boardModelId}">
+                                            <span th:text="${tpl.name}">템플릿 명칭</span>
+                                            <span class="n-badge n-badge-gray" th:text="${tpl.boardModelName}">MS74-HB0</span>
+                                        </label>
+                                    </div>
+                                    <div class="n-hint">자동 감지 시 실행 시점에 감지된 보드와 일치하는 템플릿 1개가 적용되고 나머지는 건너뜁니다.</div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- ==================== OS_INSTALLATION ==================== -->
+                        <details class="n-accordion-item n-step-card" data-process-card="OS_INSTALLATION" hidden>
+                            <summary class="n-accordion-head">
+                                <span class="n-accordion-chevron"></span>
+                                <span class="n-accordion-title n-step-title">OS 설치</span>
+                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                            </summary>
+                            <div class="n-accordion-body">
+                                <div class="n-form-group">
+                                    <label class="n-label strong" for="oiOsSelect">설치할 OS</label>
+                                    <select id="oiOsSelect" class="n-select" data-error-field="osMetadataId">
+                                        <option value="">OS 를 선택하세요</option>
+                                        <optgroup th:each="group : ${osOptions}" th:label="${group.osLabel}">
+                                            <option th:each="os : ${group.osList}"
+                                                    th:value="${os.osMetadataId}"
+                                                    th:text="${os.osName} + ' ' + ${os.version}"
+                                                    th:data-os-family="${os.osFamily.name()}"
+                                                    th:data-os-name="${os.osName}"
+                                                    th:data-os-version="${os.version}"
+                                                    th:data-deprecated="${os.deprecated}"
+                                                    th:data-deprecated-at="${os.deprecatedAtDisplay}"
+                                                    th:data-description="${os.description}"></option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+
+                                <!-- OS 미선택 안내 → 선택 시 상세 필드 노출 (레거시 UX 보존) -->
+                                <div id="oiGuide" class="n-step-guide">
+                                    <div class="n-step-guide-title">OS 를 먼저 선택해 주세요</div>
+                                    <div>선택한 OS 에 맞는 상세 설치 항목이 표시됩니다.</div>
+                                </div>
+
+                                <div id="oiDetailFields" hidden>
+                                    <!-- 타임존 -->
+                                    <div class="n-row">
+                                        <div class="n-form-group">
+                                            <label class="n-label strong" for="oiTimezone">타임존</label>
+                                            <input type="text" id="oiTimezone" class="n-input"
+                                                   data-error-field="timezone" placeholder="예: Asia/Seoul">
+                                        </div>
+                                        <div class="n-form-group n-checkbox-bottom">
+                                            <label class="n-checkbox">
+                                                <input type="checkbox" id="oiIsUtc"> 하드웨어 시계(RTC) UTC 기준
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- 파티션 구성 -->
+                                    <div class="n-form-group" data-error-field="partitions">
+                                        <div class="n-group-head">
+                                            <label class="n-label strong">파티션 구성</label>
+                                            <button type="button" id="oiDefaultPartitions"
+                                                    class="n-btn n-btn-ghost n-btn-sm" disabled>기본 파티션 자동 생성</button>
+                                        </div>
+                                        <div class="n-hint">필수 마운트포인트: /, /boot, /boot/efi, swap</div>
+                                        <table class="table table-sm table-bordered n-tbl-list" id="oiPartitionTable">
+                                            <colgroup>
+                                                <col class="n-col-22"><!-- 마운트포인트 -->
+                                                <col class="n-col-14"><!-- 파일시스템 -->
+                                                <col class="n-col-13"><!-- 디스크명 -->
+                                                <col class="n-col-12"><!-- 크기 -->
+                                                <col class="n-col-11"><!-- 단위 -->
+                                                <col class="n-col-8"><!-- Grow -->
+                                                <col class="n-col-10"><!-- 삭제 -->
+                                            </colgroup>
+                                            <thead>
+                                            <tr>
+                                                <th>마운트포인트</th>
+                                                <th>파일시스템</th>
+                                                <th>디스크명</th>
+                                                <th>크기</th>
+                                                <th>단위</th>
+                                                <th>Grow</th>
+                                                <th></th>
+                                            </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button type="button" id="oiAddPartition" class="n-btn n-btn-ghost n-btn-sm">+ 파티션 추가</button>
+                                    </div>
+
+                                    <!-- root 계정 비밀번호 — RHEL 계열 전용(Kickstart rootpw).
+                                         Ubuntu 는 root 잠금 기본 + identity 사용자 필수라 이 그룹을 JS 가 숨긴다. -->
+                                    <div class="n-form-group" data-error-field="rootPassword" id="oiRootPasswordGroup">
+                                        <label class="n-label strong">root 계정 비밀번호</label>
+                                        <div class="n-hint">
+                                            비워두면 root 계정이 잠긴 상태로 설치됩니다. 이 경우 아래 일반 사용자를 반드시 1명 이상 추가해야 합니다.
+                                        </div>
+                                        <!-- 수정 폼에서 기존 비밀번호가 있을 때만 표시 — 체크 해제 시에만 새 비밀번호 입력 -->
+                                        <label class="n-checkbox n-keep-password" id="oiRootKeepWrap" hidden>
+                                            <input type="checkbox" id="oiRootKeep" checked>
+                                            기존 비밀번호 유지 (해제하면 새 비밀번호를 입력합니다)
+                                        </label>
+                                        <div class="n-row n-row-tight">
+                                            <div>
+                                                <input type="password" id="oiRootPassword" class="n-input"
+                                                       autocomplete="new-password" placeholder="비워두면 root 계정 잠금">
+                                            </div>
+                                            <div class="n-checkbox-bottom">
+                                                <label class="n-checkbox">
+                                                    <input type="checkbox" id="oiRootEncrypted"> 비밀번호 암호화(사전 해시값)
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <!-- Rocky 10 전용 root SSH 허용 — rootpw --allow-ssh 는 root 비밀번호와 한 묶음의
+                                             결정이라 이 그룹에 함께 둔다(rhel-based fragment 에서 이동). 표시는 JS 버전 토글. -->
+                                        <div class="n-version-specific" id="oiAllowSshBox"
+                                             data-os-name="ROCKY_LINUX" data-os-version-prefix="10." hidden>
+                                            <label class="n-checkbox">
+                                                <input type="checkbox" id="oiAllowSshRoot">
+                                                root SSH 로그인 허용 <span class="n-muted">(Rocky Linux 10 전용)</span>
+                                            </label>
+                                            <div class="n-hint">
+                                                Rocky Linux 10 기본 설치는 root SSH 로그인을 차단합니다.
+                                                체크 시 Kickstart <code>rootpw --allow-ssh</code> 가 적용되어 초기 원격 관리가 가능합니다.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 일반 사용자 -->
+                                    <div class="n-form-group" data-error-field="users">
+                                        <label class="n-label strong">일반 사용자 설정</label>
+                                        <div class="n-hint">
+                                            RHEL 계열은 root 비밀번호가 없을 때 필수, Ubuntu 계열은 항상 1명 이상 필수입니다(root 잠금 기본).
+                                            기존 사용자의 비밀번호는 보안상 표시되지 않습니다 — "기존 비밀번호 유지" 를 해제한 경우에만 새 비밀번호를 입력합니다.
+                                        </div>
+                                        <table class="table table-sm table-bordered n-tbl-list" id="oiUserTable">
+                                            <colgroup>
+                                                <col class="n-col-22"><!-- 사용자명 -->
+                                                <col class="n-col-36"><!-- 비밀번호 -->
+                                                <col class="n-col-10"><!-- sudo -->
+                                                <col class="n-col-18"><!-- 암호화 -->
+                                                <col class="n-col-14"><!-- 삭제 -->
+                                            </colgroup>
+                                            <thead>
+                                            <tr>
+                                                <th>사용자명</th>
+                                                <th>비밀번호</th>
+                                                <th>sudo</th>
+                                                <th>비밀번호 암호화</th>
+                                                <th></th>
+                                            </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button type="button" id="oiAddUser" class="n-btn n-btn-ghost n-btn-sm">+ 사용자 추가</button>
+                                    </div>
+
+                                    <!-- OS 계열별 전용 입력 블록 — 선택 OS 의 osFamily 에 따라 하나만 표시 -->
+                                    <div th:replace="~{fragments/provisioning/setting/os-installation/rhel-based :: form}"></div>
+                                    <div th:replace="~{fragments/provisioning/setting/os-installation/debian-based :: form}"></div>
+                                </div><!-- /oiDetailFields -->
+                            </div>
+                        </details>
+
+                        <!-- ==================== OS_SETTING ==================== -->
+                        <details class="n-accordion-item n-step-card" data-process-card="OS_SETTING" hidden>
+                            <summary class="n-accordion-head">
+                                <span class="n-accordion-chevron"></span>
+                                <span class="n-accordion-title n-step-title">OS 후처리 설정</span>
+                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                            </summary>
+                            <div class="n-accordion-body">
+                                <div class="n-alert n-alert-info">
+                                    OS 후처리 설정은 현재 RHEL 계열(Rocky Linux 등)에서만 지원됩니다. 다른 계열은 지원 추가 예정입니다.
+                                </div>
+                                <div class="n-form-group">
+                                    <label class="n-label strong" for="osOsSelect">대상 OS</label>
+                                    <select id="osOsSelect" class="n-select" data-error-field="osMetadataId">
+                                        <option value="">OS 를 선택하세요</option>
+                                        <!-- RHEL 계열 외 옵션은 backend 계약(RHEL_BASED 만 등록)에 맞춰 UI 에서 사전 차단 -->
+                                        <optgroup th:each="group : ${osOptions}" th:label="${group.osLabel}">
+                                            <option th:each="os : ${group.osList}"
+                                                    th:value="${os.osMetadataId}"
+                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.osFamily.name() != 'RHEL_BASED'} ? ' (지원 예정)' : '')"
+                                                    th:data-os-family="${os.osFamily.name()}"
+                                                    th:data-deprecated="${os.deprecated}"
+                                                    th:data-deprecated-at="${os.deprecatedAtDisplay}"
+                                                    th:data-description="${os.description}"
+                                                    th:disabled="${os.osFamily.name() != 'RHEL_BASED'}"></option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+
+                                <div id="osGuide" class="n-step-guide">
+                                    <div class="n-step-guide-title">대상 OS 를 먼저 선택해 주세요</div>
+                                    <div>선택한 OS 에 맞는 상세 설정 항목이 표시됩니다.</div>
+                                </div>
+
+                                <div id="osDetailFields" hidden>
+                                    <div class="n-form-group">
+                                        <label class="n-label strong" for="osSelinuxMode">SELinux 모드</label>
+                                        <select id="osSelinuxMode" class="n-select" data-error-field="selinuxMode">
+                                            <option value="enforcing" selected>enforcing (권장)</option>
+                                            <option value="permissive">permissive</option>
+                                            <option value="disabled">disabled</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="n-form-group" data-error-field="services">
+                                        <label class="n-label strong">서비스 활성화/비활성화 목록</label>
+                                        <div class="n-hint">
+                                            서비스명을 입력하고 systemctl enable / disable 중 수행할 동작을 선택합니다. 비워두면 이 단계를 생략합니다.
+                                        </div>
+                                        <table class="table table-sm table-bordered n-tbl-list" id="osServicesTable">
+                                            <colgroup>
+                                                <col class="n-col-55"><!-- 서비스명 -->
+                                                <col class="n-col-30"><!-- 동작 -->
+                                                <col class="n-col-15"><!-- 삭제 -->
+                                            </colgroup>
+                                            <thead>
+                                            <tr>
+                                                <th>서비스명</th>
+                                                <th>동작</th>
+                                                <th></th>
+                                            </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button type="button" id="osAddService" class="n-btn n-btn-ghost n-btn-sm">+ 서비스 추가</button>
+                                    </div>
+
+                                    <div class="n-form-group">
+                                        <label class="n-label strong" for="osAdditionalPackages">추가 패키지 설치 목록</label>
+                                        <input type="text" id="osAdditionalPackages" class="n-input"
+                                               data-error-field="additionalPackages"
+                                               placeholder="예: vim, curl, wget (콤마로 구분)">
+                                        <div class="n-hint">dnf install 로 설치할 패키지명을 콤마로 구분해 입력합니다. 비워두면 이 단계를 생략합니다.</div>
+                                    </div>
+                                </div><!-- /osDetailFields -->
+                            </div>
+                        </details>
+
+                    </div><!-- /n-accordion -->
+                </div><!-- /data-error-field=processList -->
+            </div>
+        </div>
+
+        <!-- 동적 행 템플릿 — Thymeleaf 가 서버 enum 선택지를 렌더하고 JS 는 복제만 한다 (JS 내 HTML 문자열 조립 금지) -->
+        <template id="tplPartitionRow">
+            <tr>
+                <td><input type="text" class="n-input pMountPoint" placeholder="/boot"></td>
+                <td>
+                    <select class="n-select pFileSystem">
+                        <option th:each="fs : ${fileSystems}"
+                                th:value="${fs.name()}"
+                                th:text="${fs.displayName}"></option>
+                    </select>
+                </td>
+                <td><input type="text" class="n-input pDiskName" placeholder="sda"></td>
+                <td><input type="number" class="n-input pSize" min="1" placeholder="10"></td>
+                <td>
+                    <select class="n-select pSizeUnit">
+                        <option th:each="unit : ${sizeUnits}"
+                                th:value="${unit.name()}"
+                                th:text="${unit.symbol}"></option>
+                    </select>
+                </td>
+                <td class="n-td-center"><input type="checkbox" class="pGrow"></td>
+                <td class="n-td-center">
+                    <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
+                </td>
+            </tr>
+        </template>
+
+        <template id="tplUserRow">
+            <tr>
+                <td><input type="text" class="n-input uUsername" placeholder="사용자명"></td>
+                <td>
+                    <label class="n-checkbox n-keep-password uKeepWrap" hidden>
+                        <input type="checkbox" class="uKeep" checked> 기존 비밀번호 유지
+                    </label>
+                    <input type="password" class="n-input uPassword" autocomplete="new-password" placeholder="비밀번호">
+                </td>
+                <td class="n-td-center"><input type="checkbox" class="uSudoer"></td>
+                <td class="n-td-center"><input type="checkbox" class="uEncrypted"></td>
+                <td class="n-td-center">
+                    <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
+                </td>
+            </tr>
+        </template>
+
+        <template id="tplServiceRow">
+            <tr>
+                <td><input type="text" class="n-input svcName" placeholder="예: nginx, firewalld, sshd"></td>
+                <td>
+                    <!-- 값은 ServiceAction enum 상수명과 일치해야 한다 (Model 미제공 — 계약 드리프트 시 통합 테스트에서 검출) -->
+                    <select class="n-select svcAction">
+                        <option value="ENABLE" selected>활성화 (enable)</option>
+                        <option value="DISABLE">비활성화 (disable)</option>
+                    </select>
+                </td>
+                <td class="n-td-center">
+                    <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
+                </td>
+            </tr>
+        </template>
+
+        <!-- 최종 액션 -->
+        <div class="n-form-actions">
+            <a class="n-btn n-btn-secondary"
+               th:href="${isEdit} ? @{/provisioning/setting/{id}(id=${setting.id})} : @{/provisioning/setting}">취소</a>
+            <button type="submit" class="n-btn n-btn-primary"
+                    th:text="${isEdit} ? '변경 사항 저장' : '정의서 생성'">정의서 생성</button>
+        </div>
+    </form>
+</div>
+
+<!-- 지원 중단(Deprecated) 자원 선택 확인 modal — 기존 generic fragment 재사용(신규 fragment 금지).
+     ConfirmModal.open() 이 title/message/confirmLabel 을 전부 덮어쓰므로 (S5-6 선례)
+     fragment 의 기본 문구('자원 삭제')는 노출되지 않는다.
+     confirm-modal.css 는 commonHead 가 이미 공급하므로 재링크하지 않는다. -->
+<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('deprecatedUse')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/provisioning/setting-form.js}"></script>
+</body>
+</html>

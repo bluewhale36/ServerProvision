@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  세팅 정의서 수정 폼
+  ─────────────────────────────────────────────────────────
+  Model:
+    setting            : SettingDetailResponse — id/name (헤더·모드 판별용)
+    initialSettingJson : String — 저장된 {name, processList} JSON.
+                         비밀번호는 서버가 제거하고 keepExistingPassword=true 로 대체했다.
+    processTypes / boardOptions / osOptions / fileSystems / sizeUnits
+                       : setting-new 와 동일한 폼 선택지 (settingForm 프래그먼트가 사용)
+
+  구조 :
+    - 폼 본체는 provisioning/setting-new :: settingForm 을 th:replace 로 재사용한다.
+      프래그먼트는 Model 의 setting 존재로 edit 모드를 판별해 PUT 제출/취소 링크를 구성한다.
+    - 기존 값 pre-fill 은 setting-form.js 가 window.SETTING_INITIAL(json)을 파싱해 수행한다.
+    - PENDING 외 상태의 수정 진입 차단(UI disabled + 서버 가드)은 상태 전이가
+      실체화되는 U2-2 에서 도입한다 (SettingController 주석과 동일 결정).
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('세팅 정의서 수정')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
+    <!-- 기존 데이터 주입 — setting-form.js 의 edit pre-fill 이 JSON.parse 해 사용한다 -->
+    <script th:inline="javascript">
+        window.SETTING_INITIAL = {
+            id:   /*[[${setting.id}]]*/ 0,
+            json: /*[[${initialSettingJson}]]*/ '{}'
+        };
+    </script>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <div>
+            <a th:href="@{/provisioning/setting/{id}(id=${setting.id})}" class="n-back-link">← 상세로</a>
+            <h1 class="n-page-title n-page-title-stacked">
+                세팅 정의서 수정 — <span th:text="${setting.name}">정의서 명칭</span>
+            </h1>
+        </div>
+    </div>
+
+    <!-- 공용 폼 프래그먼트 재사용 (setting-new.html 이 호스트) -->
+    <th:block th:replace="~{provisioning/setting-new :: settingForm}"></th:block>
+</div>
+
+<!-- 지원 중단(Deprecated) 자원 선택 확인 modal — setting-new 와 동일한 generic fragment 재사용.
+     폼 fragment(settingForm)는 setting-new 를 th:replace 하므로 옵션의 data-deprecated 속성은 자동이지만,
+     modal 은 body 말단 자산이라 자체 body 를 가진 본 페이지에 별도 include 가 필요하다.
+     ConfirmModal.open() 이 title/message/confirmLabel 을 전부 덮어쓴다 (S5-6 선례). -->
+<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('deprecatedUse')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/provisioning/setting-form.js}"></script>
+</body>
+</html>

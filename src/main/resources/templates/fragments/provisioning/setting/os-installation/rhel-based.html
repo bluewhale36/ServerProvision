@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  RHEL 계열 (Rocky Linux 등) OS 설치 폼 전용 입력 블록.
+  ─────────────────────────────────────────────────────────
+  사용 컨텍스트 : provisioning/setting-new :: settingForm 의 OS_INSTALLATION 카드 내부.
+  필요 Model    : osOptions (List<SettingOSOptionGroupResponse> — OS 유형 그룹, U2-3 optgroup 전환)
+
+  가시성 규칙 :
+    - data-os-family="RHEL_BASED" — setting-form.js 가 선택된 OS 옵션의
+      data-os-family 와 대조해 pane 하나만 표시한다 (계열 분기).
+    - 환경/패키지 그룹 선택지는 osMetadataId 단위(data-os-id)로 flat 렌더 후
+      JS 가 .unavailable 토글로 필터링한다 — 레거시와 같은 서버렌더+클라이언트필터 방식.
+    - allowSshRoot 박스는 data-os-name + data-os-version-prefix 매칭 시에만 표시
+      (Rocky Linux 10 전용 Kickstart rootpw &#45;&#45;allow-ssh).
+-->
+<section th:fragment="form" class="n-os-family-pane" data-os-family="RHEL_BASED" hidden>
+    <div class="n-pane-title">RHEL 계열 전용 설정</div>
+
+    <!-- 설치 환경 (Kickstart %packages @^environment) -->
+    <div class="n-form-group">
+        <label class="n-label strong" for="oiEnvironment">설치 환경</label>
+        <select id="oiEnvironment" class="n-select" data-error-field="environmentId" disabled>
+            <option value="" data-placeholder>OS 를 먼저 선택하세요</option>
+            <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
+                <option th:each="env : ${os.environments}"
+                        th:value="${env.id}"
+                        th:text="${env.name}"
+                        th:data-os-id="${os.osMetadataId}"
+                        th:data-group-ids="${#strings.listJoin(env.groupIds, ',')}"
+                        class="unavailable" disabled></option>
+            </th:block></th:block>
+        </select>
+    </div>
+
+    <!-- 추가 패키지 그룹 (Kickstart %packages @group) -->
+    <div class="n-form-group" data-error-field="packageGroupIds">
+        <div class="n-group-head">
+            <label class="n-label strong">추가 패키지 그룹</label>
+            <!-- 전체 선택 토글 — 현재 환경에서 선택 가능한(unavailable 아님) 그룹만 대상. 라벨은 JS 가 상태에 따라 전환. -->
+            <button type="button" id="oiPkgToggleAll" class="n-btn n-btn-ghost n-btn-sm" hidden>전체 선택</button>
+        </div>
+        <div id="oiPackageGroups" class="n-check-panel">
+            <span class="n-hint" id="oiPkgPlaceholder">설치 환경을 선택하면 선택 가능한 패키지 그룹이 표시됩니다.</span>
+            <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
+                <label class="n-checkbox n-pkg-group unavailable"
+                       th:each="pkg : ${os.packageGroups}"
+                       th:data-os-id="${os.osMetadataId}">
+                    <input type="checkbox" th:value="${pkg.id}">
+                    <span th:text="${pkg.name}">패키지 그룹</span>
+                </label>
+            </th:block></th:block>
+        </div>
+    </div>
+
+    <!-- KDump (Kickstart %addon com_redhat_kdump) -->
+    <div class="n-form-group">
+        <label class="n-checkbox">
+            <input type="checkbox" id="oiKdump"> KDump(커널 크래시 덤프) 활성화
+        </label>
+    </div>
+
+    <!--
+      Rocky Linux 10 전용 옵션 — rootpw &#45;&#45;allow-ssh.
+      data-os-name 은 SettingOSOptionResponse.osName 문자열과 대조된다 (스텁 기준 "ROCKY_LINUX").
+      setting-form.js 가 선택된 OS 의 data-os-name / data-os-version 접두사로 표시 여부를 토글한다.
+    -->
+    <!-- Rocky 10 root SSH 허용은 root 비밀번호 그룹으로 이동(setting-new.html — 사용자 지시 2026-07-05:
+         rootpw --allow-ssh 는 root 비밀번호와 한 묶음의 결정이라 같은 그룹에 배치). -->
+</section>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  세팅 정의서 상세 페이지
+  ─────────────────────────────────────────────────────────
+  Model:
+    setting : SettingDetailResponse
+                · id / name / createdAt / updatedAt
+                · deprecatedUsages : List<DeprecatedUsageResponse{processType, resourceNames}>
+                  — deprecated 자원을 사용 중인 단계 표시 (조회 시점 판정).
+                    단계 카드 head 에 '지원 중단 자원 사용' 뱃지 + title 툴팁(자원명 목록)으로 렌더.
+                · executionWarnings : List<ExecutionWarningResponse{processType, warnings}>
+                  — 실행 시 건너뜀 가능 안내(예: SPECIFIED 보드+최신 버전, 등록 펌웨어 0개) — 동일 뱃지 관용구.
+                · processList : List<AbstractProcessRequest> — 다형 단계 목록.
+                  타입 분기는 instanceof 사다리가 아닌 다형 accessor 로 수행한다 :
+                    process.processType() : SettingProcessType (1단 판별)
+                    process.osFamily()    : OSFamily (OS 단계의 2단 판별 → detail-rhel/debian fragment)
+                · references.templates : Map<Long,String> (BIOS 세팅 템플릿 id→이름 — U2-2-3,
+                  BASIC_SETTING 단계의 process.biosSettingTemplateIds 뱃지 명칭 해석)
+
+  주의 : U2-1 은 계약 슬라이스라 보드/BIOS/BMC/OS/환경이 ID 로만 표시된다 —
+        management 실데이터 명칭 해석은 U2-2 의 책임.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('세팅 정의서 상세')}"></th:block>
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <div>
+            <a th:href="@{/provisioning/setting}" class="n-back-link">← 목록으로</a>
+            <h1 class="n-page-title n-page-title-stacked" th:text="${setting.name}">정의서 명칭</h1>
+        </div>
+        <div class="n-header-actions">
+            <!-- U2-3 Q1 — 정의서는 수정 자유(상태 개념 없음, BIOS 템플릿 철학 통일). 삭제·참조 차단은 U3. -->
+            <a th:href="@{/provisioning/setting/{id}/edit(id=${setting.id})}"
+               class="n-btn n-btn-secondary">수정</a>
+        </div>
+    </div>
+
+    <!-- 메타 정보 -->
+    <div class="n-detail-section">
+        <div class="n-section-title">기본 정보</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <table class="n-detail-table">
+                    <tbody>
+                    <tr>
+                        <th>정의서 ID</th>
+                        <td><code class="n-mono" th:text="${setting.id}">1</code></td>
+                    </tr>
+                    <tr>
+                        <th>생성일시</th>
+                        <td th:text="${setting.createdAt != null} ? ${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                    </tr>
+                    <tr>
+                        <th>수정일시</th>
+                        <td th:text="${setting.updatedAt != null} ? ${#temporals.format(setting.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 프로비저닝 단계 -->
+    <div class="n-detail-section">
+        <div class="n-section-title">프로비저닝 단계</div>
+
+        <!-- 단계 없음 -->
+        <div th:if="${#lists.isEmpty(setting.processList)}" class="n-card">
+            <div class="n-card-body">
+                <p class="n-detail-empty">등록된 프로비저닝 단계가 없습니다.</p>
+            </div>
+        </div>
+
+        <!-- 단계별 카드 (다형 렌더) -->
+        <div class="n-card n-process-card" th:each="process : ${setting.processList}">
+            <div class="n-process-card-head">
+                <span class="n-badge n-badge-blue" th:text="${process.processType().displayName}">단계명</span>
+                <span th:if="${process.processType().name() == 'OS_INSTALLATION' or process.processType().name() == 'OS_SETTING'}"
+                      class="n-badge n-badge-gray" th:text="${process.osFamily().displayName}">계열</span>
+                <!-- deprecated 자원 사용 단계 — 타입은 정의서당 1개라 매칭 usage 도 최대 1개, 툴팁에 자원명 목록 -->
+                <th:block th:each="usage : ${setting.deprecatedUsages}">
+                    <span th:if="${usage.processType.name() == process.processType().name()}"
+                          class="n-badge n-badge-yellow"
+                          th:title="${#strings.listJoin(usage.resourceNames, ', ')}">지원 중단 자원 사용</span>
+                </th:block>
+                <!-- 실행 시 건너뜀 가능(사용자 확정 2026-07-06) — 예: SPECIFIED 보드+최신 버전인데 등록 펌웨어 0개.
+                     저장을 막지 않는 안내(정의서=재사용 템플릿) — 실행 의미론은 skip+PARTIAL_SUCCESS(Stage 4). -->
+                <th:block th:each="warn : ${setting.executionWarnings}">
+                    <span th:if="${warn.processType.name() == process.processType().name()}"
+                          class="n-badge n-badge-yellow"
+                          th:title="${#strings.listJoin(warn.warnings, ' / ')}">실행 시 건너뜀 가능</span>
+                </th:block>
+            </div>
+
+            <div class="n-card-body" th:switch="${process.processType().name()}">
+
+                <!-- ==================== BASIC_UPDATE ==================== -->
+                <th:block th:case="'BASIC_UPDATE'">
+                    <table class="n-detail-table">
+                        <tbody>
+<!--
+                        selector 계약 : AUTO/LATEST 는 실행 시점 해석 의도이므로 배지로,
+                        SPECIFIED 는 대상 id(#) 로 표시한다 (명칭 해석은 U2-2 의 책임).
+                        -->
+                        <tr>
+                            <th>메인보드 모델</th>
+                            <td th:switch="${process.boardModel.mode.name()}">
+                                <span th:case="'AUTO'" class="n-badge n-badge-blue"
+                                      th:text="${process.boardModel.mode.displayName}">자동 감지</span>
+                                <code th:case="'SPECIFIED'" class="n-mono"
+                                      th:text="${setting.references.boards.get(process.boardModel.boardModelId)} ?: ('#' + ${process.boardModel.boardModelId})">MS73-HB1</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>BIOS 펌웨어</th>
+                            <td th:switch="${process.bios.mode.name()}">
+                                <span th:case="'LATEST'" class="n-badge n-badge-blue"
+                                      th:text="${process.bios.mode.displayName}">최신 버전</span>
+                                <code th:case="'SPECIFIED'" class="n-mono"
+                                      th:text="${setting.references.biosVersions.get(process.bios.firmwareId)} ?: ('#' + ${process.bios.firmwareId})">F10</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>BMC 펌웨어</th>
+                            <td th:switch="${process.bmc.mode.name()}">
+                                <span th:case="'LATEST'" class="n-badge n-badge-blue"
+                                      th:text="${process.bmc.mode.displayName}">최신 버전</span>
+                                <code th:case="'SPECIFIED'" class="n-mono"
+                                      th:text="${setting.references.bmcVersions.get(process.bmc.firmwareId)} ?: ('#' + ${process.bmc.firmwareId})">12.61.09</code>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </th:block>
+
+                <!-- ==================== BASIC_SETTING ==================== -->
+                <th:block th:case="'BASIC_SETTING'">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>메인보드 모델</th>
+                            <td th:switch="${process.boardModel != null} ? ${process.boardModel.mode.name()} : 'LEGACY'">
+                                <span th:case="'AUTO'" class="n-badge n-badge-blue"
+                                      th:text="${process.boardModel.mode.displayName}">자동 감지</span>
+                                <code th:case="'SPECIFIED'" class="n-mono"
+                                      th:text="${setting.references.boards.get(process.boardModel.boardModelId)} ?: ('#' + ${process.boardModel.boardModelId})">MS73-HB1</code>
+                                <span th:case="'LEGACY'" class="n-muted">미지정 (구 형식 저장본)</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <!-- 선택 템플릿 뱃지 목록 — 명칭 해석은 references.templates(Map<Long,String>).
+                         SpEL 대괄호 인덱서는 루프 변수를 문자열 리터럴로 오인하므로 반드시 .get(tplId) 형태를 쓴다. -->
+                    <p th:if="${#lists.isEmpty(process.biosSettingTemplateIds)}" class="n-detail-empty">
+                        선택된 템플릿 없음 (구 형식 저장본)</p>
+                    <!-- 뱃지 = 템플릿 상세로 이동하는 링크 (사용자 지시 2026-07-06) -->
+                    <div th:unless="${#lists.isEmpty(process.biosSettingTemplateIds)}" class="n-badge-list">
+                        <a class="n-badge n-badge-blue"
+                           th:each="tplId : ${process.biosSettingTemplateIds}"
+                           th:href="@{/provisioning/bios-setting/{id}(id=${tplId})}"
+                           th:text="${setting.references.templates.get(tplId)} ?: ('#' + ${tplId})">템플릿 명칭</a>
+                    </div>
+                </th:block>
+
+                <!-- ==================== OS_INSTALLATION ==================== -->
+                <th:block th:case="'OS_INSTALLATION'">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>대상 OS</th>
+                            <td><code class="n-mono" th:text="${setting.references.osNames.get(process.osMetadataId)} ?: ('#' + ${process.osMetadataId})">Rocky Linux 9.4</code></td>
+                        </tr>
+                        <tr>
+                            <th>타임존</th>
+                            <td>
+                                <span th:text="${process.timezone != null} ? ${process.timezone.timezone} : '—'">Asia/Seoul</span>
+                                <span th:if="${process.timezone != null and process.timezone.isUTC()}"
+                                      class="n-badge n-badge-blue">RTC=UTC</span>
+                                <span th:if="${process.timezone != null and !process.timezone.isUTC()}"
+                                      class="n-badge n-badge-gray">RTC=로컬</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>root 비밀번호</th>
+                            <td>
+                                <span th:if="${process.rootPassword != null}" class="n-badge n-badge-green">설정됨</span>
+                                <span th:unless="${process.rootPassword != null}" class="n-badge n-badge-orange">미설정 (root 잠금)</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 파티션 구성 -->
+                    <div class="n-process-subsection">
+                        <div class="n-label strong">파티션 구성</div>
+                        <table class="n-table">
+                            <thead>
+                            <tr>
+                                <th>마운트포인트</th>
+                                <th>파일시스템</th>
+                                <th>디스크</th>
+                                <th>크기</th>
+                                <th>Grow</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="partition : ${process.partitions}">
+                                <td class="n-table-mono" th:text="${partition.mountPoint}">/boot</td>
+                                <td th:text="${partition.fileSystem.displayName}">xfs</td>
+                                <td>
+                                    <span th:if="${#strings.isEmpty(partition.diskName)}" class="n-table-muted">자동</span>
+                                    <span th:unless="${#strings.isEmpty(partition.diskName)}"
+                                          class="n-table-mono" th:text="${partition.diskName}">sda</span>
+                                </td>
+                                <td>
+                                    <span th:if="${partition.isGrow()}" class="n-table-muted">—</span>
+                                    <span th:unless="${partition.isGrow()}"
+                                          th:text="${partition.size} + ' ' + ${partition.sizeUnit.symbol}">1 GiB</span>
+                                </td>
+                                <td>
+                                    <span th:if="${partition.isGrow()}" class="n-badge n-badge-blue">Yes</span>
+                                    <span th:unless="${partition.isGrow()}" class="n-table-muted">—</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 사용자 계정 -->
+                    <div class="n-process-subsection" th:if="${process.users != null and !#lists.isEmpty(process.users)}">
+                        <div class="n-label strong">사용자 계정</div>
+                        <table class="n-table">
+                            <thead>
+                            <tr>
+                                <th>사용자명</th>
+                                <th>sudo 권한</th>
+                                <th>비밀번호 방식</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="user : ${process.users}">
+                                <td class="n-table-mono" th:text="${user.username}">admin</td>
+                                <td>
+                                    <span th:if="${user.isSudoer != null and user.isSudoer}" class="n-badge n-badge-green">Yes</span>
+                                    <span th:unless="${user.isSudoer != null and user.isSudoer}" class="n-table-muted">—</span>
+                                </td>
+                                <td>
+                                    <span th:if="${user.isPasswordEncrypted()}" class="n-badge n-badge-gray">암호화</span>
+                                    <span th:unless="${user.isPasswordEncrypted()}" class="n-badge n-badge-gray">평문</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- OS 계열별 전용 상세 블록 — 다형 accessor 로 fragment 선택 -->
+                    <th:block th:switch="${process.osFamily().name()}">
+                        <th:block th:case="'RHEL_BASED'"
+                                  th:insert="~{fragments/provisioning/setting/os-installation/detail-rhel :: body(inst=${process})}"></th:block>
+                        <th:block th:case="'DEBIAN_BASED'"
+                                  th:insert="~{fragments/provisioning/setting/os-installation/detail-debian :: body(inst=${process})}"></th:block>
+                    </th:block>
+                </th:block>
+
+                <!-- ==================== OS_SETTING ==================== -->
+                <th:block th:case="'OS_SETTING'">
+                    <th:block th:switch="${process.osFamily().name()}">
+                        <th:block th:case="'RHEL_BASED'">
+                            <table class="n-detail-table">
+                                <tbody>
+                                <tr>
+                                    <th>대상 OS</th>
+                                    <td><code class="n-mono" th:text="${setting.references.osNames.get(process.osMetadataId)} ?: ('#' + ${process.osMetadataId})">Rocky Linux 9.4</code></td>
+                                </tr>
+                                <tr>
+                                    <th>SELinux 모드</th>
+                                    <td><code class="n-mono" th:text="${process.selinuxMode}">enforcing</code></td>
+                                </tr>
+                                <tr>
+                                    <th>서비스 지시</th>
+                                    <td>
+                                        <span th:if="${#lists.isEmpty(process.services)}" class="n-muted">없음</span>
+                                        <span th:unless="${#lists.isEmpty(process.services)}" class="n-badge-list">
+                                            <span th:each="svc : ${process.services}">
+                                                <code class="n-mono" th:text="${svc.name}">nginx</code>
+                                                <span class="n-badge"
+                                                      th:classappend="${svc.action.name() == 'ENABLE'} ? 'n-badge-green' : 'n-badge-gray'"
+                                                      th:text="${svc.action.name() == 'ENABLE'} ? 'enable' : 'disable'">enable</span>
+                                            </span>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>추가 패키지</th>
+                                    <td>
+                                        <span th:if="${#lists.isEmpty(process.additionalPackages)}" class="n-muted">없음</span>
+                                        <span th:unless="${#lists.isEmpty(process.additionalPackages)}"
+                                              th:text="${#strings.listJoin(process.additionalPackages, ', ')}">vim, curl</span>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </th:block>
+                        <th:block th:case="*">
+                            <p class="n-detail-empty">이 OS 계열의 후처리 설정 표시는 아직 지원되지 않습니다.</p>
+                        </th:block>
+                    </th:block>
+                </th:block>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

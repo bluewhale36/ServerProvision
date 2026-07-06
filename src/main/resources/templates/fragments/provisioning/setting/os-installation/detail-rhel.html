@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  RHEL 계열 OS 설치 단계의 상세 뷰 전용 블록.
+  ─────────────────────────────────────────────────────────
+  사용 컨텍스트 : provisioning/setting-detail 의 OS_INSTALLATION 카드에서
+                 process.osFamily() 분기로 선택된다.
+  파라미터      : inst — RHELInstallationRequest (계약 DTO 를 그대로 렌더, U2-1)
+  주의          : 환경/패키지그룹은 아직 ID 로만 표시된다 — management 실데이터
+                 집계 연결(명칭 해석)은 U2-2 의 책임.
+-->
+<th:block th:fragment="body(inst)">
+    <div class="n-process-subsection">
+        <div class="n-label strong">RHEL 계열 설치 옵션</div>
+        <table class="n-detail-table">
+            <tbody>
+            <tr>
+                <th>설치 환경</th>
+                <td th:text="${setting.references.environments.get(inst.environmentId)} ?: ('#' + ${inst.environmentId})">Minimal Install</td>
+            </tr>
+            <tr>
+                <th>추가 패키지 그룹</th>
+                <td>
+                    <span th:if="${#lists.isEmpty(inst.packageGroupIds)}" class="n-muted">없음</span>
+                    <span th:unless="${#lists.isEmpty(inst.packageGroupIds)}" class="n-badge-list">
+                        <span class="n-badge n-badge-gray"
+                              th:each="pkgId : ${inst.packageGroupIds}"
+                              th:text="${setting.references.packageGroups.get(pkgId)} ?: ('#' + ${pkgId})">Development Tools</span>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <th>KDump</th>
+                <td>
+                    <span th:if="${inst.isKDumpEnabled()}" class="n-badge n-badge-green">활성화</span>
+                    <span th:unless="${inst.isKDumpEnabled()}" class="n-badge n-badge-gray">비활성화</span>
+                </td>
+            </tr>
+            <!-- allowSshRoot 는 Rocky 10 전용 — 전송되지 않은(null) 정의서에는 행 자체를 표시하지 않는다. -->
+            <tr th:if="${inst.allowSshRoot != null}">
+                <th>root SSH 로그인</th>
+                <td>
+                    <span th:if="${inst.allowSshRoot}" class="n-badge n-badge-blue">허용 (--allow-ssh)</span>
+                    <span th:unless="${inst.allowSshRoot}" class="n-badge n-badge-gray">차단 (기본)</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</th:block>
+</body>
+</html>

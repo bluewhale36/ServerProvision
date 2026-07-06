@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U2-2-3 Plan — guest 정의서 ↔ BIOS 세팅 템플릿 연결</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card li { font-size:12px; line-height:1.55; }
+  /* 🎬 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:110px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.on { background:var(--green); color:#fff; border-color:var(--green); }
+  .tpl-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; margin:8px 0; }
+  .tpl-item { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:8px 10px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px; user-select:none; }
+  .tpl-item.checked { border-color:var(--green); background:var(--green-bg); }
+  .tpl-item.blocked { opacity:0.45; cursor:not-allowed; }
+  .tpl-item .tb { font-family:var(--mono); font-size:10.5px; background:var(--bg); border:1px solid var(--border-soft); border-radius:9px; padding:0 6px; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:8px; }
+  .ux-message.err { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.ok { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:8px; white-space:pre-wrap; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U2-2-3 — guest 정의서 ↔ BIOS 세팅 템플릿 연결 <span class="v2-badge">BASIC_SETTING 실체화 (full 10단계)</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U2-2-3 (U2-2 하위 · 사용자 지시로 U2-4 앞으로)</span>
+    <span><strong>scope</strong> biosSettingTemplateIds 계약 + 복수 템플릿 규칙 + 조인 테이블 파생 + 사용중 삭제 차단</span>
+    <span><strong>전제</strong> U2-3 완료(행 기반 영속 · inspector SPI · no-op 자리) + board_model FK(동일 식별자 축)</span>
+    <span><strong>생성</strong> 2026-07-06 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (선택 규칙 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 + 설계 대안</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 — 연결의 전제가 전부 준비됨</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th style="width:34%">전제</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>BIOS 세팅 템플릿 (U2-2-1/2)</td><td>실영속 + <b>board_model FK</b> — guest 보드 selector 와 같은 <code>boardModelId</code> 축(FK 전환의 예고된 효용). 삭제는 현재 무조건 hard delete — 사용중 차단 없음.</td></tr>
+            <tr><td>guest 정의서 (U2-3)</td><td>행 기반 영속(<code>setting_process</code>) — 조인 테이블이 스키마 재작업 없이 얹히는 구조(D1 의 예고). <code>BasicSettingRequest</code> 는 필드 0 스텁.</td></tr>
+            <tr><td>검증 자리 (U2-3-1)</td><td><code>BasicSettingReferenceInspector</code> no-op 선생성 — "U2-2-3 이 로직 주입" 이라고 명기된 그 자리.</td></tr>
+            <tr><td>복수 템플릿 규칙</td><td>사용자 기확정: 정의서당 BIOS 템플릿은 보드 <b>SPECIFIED ⇒ 1개</b>(그 보드의 것), <b>AUTO ⇒ N개</b>(보드 중복 금지). 실행 시 감지 보드와 일치하는 1개 적용·불일치 skip.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>계약 실체화</b> — <code>BasicSettingRequest.biosSettingTemplateIds: List&lt;Long&gt;</code>(@NotEmpty — 단계를 추가했다면 템플릿 1+; 목록 내 중복 금지 @AssertTrue).</li>
+          <li><b>복수 템플릿 규칙 3층 검증</b> — Layer A(개수: SPECIFIED⇒1) + inspector(실존 404 / 템플릿 간 보드 중복 400 / SPECIFIED 보드 일치 400) — §4 D2·D3.</li>
+          <li><b>조인 테이블 파생</b> — <code>setting_process_bios_template</code>(process CASCADE / template <b>RESTRICT</b>) — payload 가 SSOT, 조인은 질의·무결성 전용 파생(U2-3 D1 논리의 확장, 기록됨).</li>
+          <li><b>사용중 삭제 차단</b> — 템플릿이 정의서에서 사용 중이면: UI 삭제 버튼 disabled+tooltip(1차) + 서버 409(안전망) + DB RESTRICT(레이스) — 3층 모두 같은 SSOT(<code>BiosSettingTemplateUsageChecker</code>).</li>
+          <li><b>폼/상세</b> — BASIC_SETTING 카드에 템플릿 체크 패널(보드 뱃지 표기, 보드 selector 연동 필터), 상세 카드에 템플릿 이름 표시(references 사상 확장), edit pre-fill.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> : 실행 시 적용/skip 로직(Stage 4 — 계약은 의도만 운반) · BASIC_SETTING 제조사별 다형 분기(U2-3-1 확정 — 차이가 실재로 확인될 때) · 템플릿 lifecycle(deprecated 등 — BIOS 템플릿은 lifecycle 비대상 설계 유지) · U2-4(OS 3차 검증)."</div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 보드 모드 × 템플릿 선택 규칙 + 삭제 차단 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">보드 selector 모드를 바꾸고 템플릿을 클릭해 <b>UI 1차 차단 규칙</b>(SPECIFIED: 타보드 비활성+1개 제한 / AUTO: 보드당 1개)을 체험한다.
+          하단은 이 선택이 만드는 <b>실행 시 의미</b>(감지 보드 → 적용/skip)와 <b>삭제 차단</b> 판정이다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">보드 selector :</span>
+            <button class="seg on" data-m="AUTO" onclick="setMode('AUTO')">자동 감지 (AUTO)</button>
+            <button class="seg" data-m="SPECIFIED" onclick="setMode('SPECIFIED')">MS73-HB1 지정 (SPECIFIED)</button>
+          </div>
+          <div class="tpl-list" id="demo-templates"></div>
+          <div class="ux-message" id="demo-message"></div>
+          <div class="ux-caps" id="demo-exec"></div>
+        </div>
+        <div class="callout success"><b>체험 포인트</b> — ① SPECIFIED 로 바꾸면 타보드 템플릿이 즉시 비활성 + 규칙 위반 선택은 자동 해제. ② AUTO 에서 같은 보드 2개째는 클릭이 차단된다(보드당 1개). ③ 선택된 템플릿은 목록 화면에서 삭제 버튼이 잠긴다 — 서버 409·DB RESTRICT 와 같은 판정(exists 쿼리).</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <pre><code>[폼 옵션] GET /provisioning/setting/new·/{id}/edit
+          Model 에 biosTemplateOptions 추가 — List&lt;BiosTemplateOptionResponse{id, name, boardModelId, boardModelName}&gt;
+          (SettingQueryService 가 BiosSettingTemplateRepository 직조회 — biossetting FK 선례의 역방향 아님:
+           의존 방향은 setting → biossetting 단방향)
+[저장]   POST/PUT — BASIC_SETTING payload 에 biosSettingTemplateIds 포함(원문 SSOT)
+          → SettingProcess 저장 시 조인 테이블 행 파생(@ElementCollection — 같은 트랜잭션, drift 표면 없음)
+[상세]   references 사상에 templates(Map&lt;Long,String&gt;) 추가 — BASIC_SETTING 카드에 이름 뱃지
+[삭제 차단] biossetting 목록/상세: Summary/Detail 에 inUse 플래그 → 버튼 disabled+tooltip
+          DELETE /provisioning/bios-setting/{id} → 사용 중이면 409(BiosSettingTemplateInUseException)</code></pre>
+        <h4>Step 9 — 수동 DDL</h4>
+        <pre><code>CREATE TABLE setting_process_bios_template (
+    setting_process_id        BIGINT NOT NULL,
+    bios_setting_template_id  BIGINT NOT NULL,
+    PRIMARY KEY (setting_process_id, bios_setting_template_id),
+    CONSTRAINT fk_spbt_process  FOREIGN KEY (setting_process_id)
+        REFERENCES setting_process (id) ON DELETE CASCADE,          -- 정의서/단계 삭제 시 참조 정리
+    CONSTRAINT fk_spbt_template FOREIGN KEY (bios_setting_template_id)
+        REFERENCES bios_setting_template (id)                        -- RESTRICT(기본): 사용중 템플릿 삭제 차단(레이스 안전망)
+);</code></pre>
+        <div class="callout">보드 purge 연쇄(기록 재확인): BoardModel purge → 템플릿 CASCADE 삭제 시도 → 사용 중이면 이 RESTRICT 가 연쇄를 중단시켜 <b>보드 purge 도 실패(409)</b> — silent 참조 소실 방지가 의도된 동작. management 보드 purge 화면의 안내 문구 정비는 §8 잔존.</div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4" open>
+      <summary>§4. 도메인 모델 + 설계 대안 (SSOT)</summary>
+      <div class="body">
+        <h4>D1 — 조인 테이블 파생 매핑: @ElementCollection 채택</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>① @ElementCollection ✓ 채택</h4>
+            <ul><li><code>SettingProcess</code> 에 <code>Set&lt;Long&gt; templateRefs</code>(@CollectionTable) — 별도 엔티티 없이 파생 행 관리</li>
+              <li>쓰기 시 payload 에서 단방향 생성(같은 트랜잭션 — process_type 파생 컬럼과 동일 지위), 읽기 재조립 미관여</li>
+              <li>D4 전체 교체(orphanRemoval) 시 컬렉션도 함께 소멸·재생성 — 관리 코드 0</li></ul></div>
+          <div class="card v-orange"><h4>② 조인 엔티티(SettingProcessBiosTemplate)</h4>
+            <ul><li>행에 추가 속성(적용 순서 등)이 생기면 필요 — 지금은 순수 참조뿐이라 기반 코드만 늘림. 속성이 생기는 시점에 승격(갈라지는 시점). 기각</li></ul></div>
+          <div class="card v-purple"><h4>③ 파생 없이 JSON 역참조</h4>
+            <ul><li>U2-3 D1 에서 이미 기각한 안의 재림 — in-use 판정이 JSON_SEARCH, FK 무결성 상실. 기각</li></ul></div>
+        </div>
+        <p><b>payload → 파생 추출의 다형화</b>: 엔티티가 <code>instanceof BasicSettingRequest</code> 를 하지 않도록,
+          <code>AbstractProcessRequest</code> 에 <code>@JsonIgnore referencedBiosSettingTemplateIds()</code>(기본 빈 목록)를 두고
+          <code>BasicSettingRequest</code> 만 override — wire 에 나가지 않는 파생 전용 다형 accessor(<code>processType()</code> 관용구).</p>
+
+        <h4>D2 — 검증 3층 배치 (기존 층위 원칙 그대로)</h4>
+        <table>
+          <thead><tr><th style="width:30%">규칙</th><th style="width:22%">층</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>templateIds 1+ / 목록 내 중복 금지</td><td>Layer A (BasicSettingRequest)</td><td>요청-로컬 값 규칙</td></tr>
+            <tr><td><b>보드 SPECIFIED ⇒ 템플릿 1개</b></td><td>Layer A (<code>SettingSaveRequest</code> @AssertTrue)</td><td>cross-process 지만 순수 값 비교 — <code>osSelectionConsistent</code> 선례와 동일 지위</td></tr>
+            <tr><td>템플릿 실존(404) / 템플릿 간 보드 중복(400) / <b>SPECIFIED 보드 일치(400)</b></td><td>inspector (<code>BasicSettingReferenceInspector</code>)</td><td>영속 조회 필요 — 단, 보드 일치는 형제 단계(BASIC_UPDATE)를 봐야 하는 <b>cross-process 영속 검증</b> → D3</td></tr>
+            <tr><td>사용중 템플릿 삭제(409) + RESTRICT</td><td>biossetting Command + DDL</td><td>D5</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D3 — inspector 시그니처에 검증 컨텍스트 도입 (SPI 1회 확장)</h4>
+        <pre><code>public record ProcessValidationContext(List&lt;AbstractProcessRequest&gt; processList) {
+    public Optional&lt;BasicUpdateRequest&gt; firmwareStep() { ... }   // 형제 단계 조회 헬퍼
+}
+// SPI: void validateReferences(AbstractProcessRequest process, ProcessValidationContext context)</code></pre>
+        <ul>
+          <li>"SPECIFIED 보드 ↔ 템플릿 보드 일치"는 영속 조회(템플릿의 boardModelId)와 형제 단계(BASIC_UPDATE 의 selector)가 동시에 필요 — Layer A 도, 컨텍스트 없는 inspector 도 담을 수 없다. <b>컨텍스트 파라미터가 유일하게 층위 원칙을 깨지 않는 자리</b>다.</li>
+          <li>대안 비교: Command 에 별도 cross-validator 단계(기각 — 사다리의 재림, 지식이 inspector 밖으로 분산) / BASIC_SETTING payload 에 보드 모드 중복 저장(기각 — SSOT 위반, drift). 기존 inspector 7파일은 파라미터 추가만 받고 무시(기계적 변경) — U2-4 계열 검증도 이 컨텍스트를 쓸 수 있다.</li>
+          <li><code>describeDeprecatedReferences</code> 는 컨텍스트 불요 — 시그니처 유지(비대칭은 필요의 반영).</li>
+        </ul>
+
+        <h4>D4 — 사용중 판정 SSOT: BiosSettingTemplateUsageChecker</h4>
+        <pre><code>// biossetting 도메인이 인터페이스 소유(자기 삭제 규칙의 SPI) — setting 이 구현 제공
+public interface BiosSettingTemplateUsageChecker { boolean isInUse(Long templateId); }
+// setting 측 구현: 조인 테이블 exists 네이티브 쿼리 (@Query — @ElementCollection 은 파생 쿼리 불가)</code></pre>
+        <ul>
+          <li>의존 방향: setting → biossetting(계약 참조) 은 이미 존재. 역방향(biossetting 이 사용처를 앎)은 <b>인터페이스만</b> — MarkableScanner SPI 관용구. 순환 없음(구현은 setting_process 조인 테이블만 조회).</li>
+          <li>UI(목록·상세 inUse 플래그)와 서버 409, DB RESTRICT 가 전부 이 판정 하나에서 나온다.</li>
+        </ul>
+
+        <h4>D5 — UI 선택 규칙 (패키지 그룹 패널 관용구 재사용)</h4>
+        <ul>
+          <li>BASIC_SETTING 카드: 템플릿 체크 패널(이름 + 보드 뱃지). 보드 selector 상태와 연동: SPECIFIED → 타보드 항목 비활성 + 1개 제한(두 번째 체크 시 기존 해제 or 차단 — <b>기존 해제(라디오 의미론) 채택</b>: 1개 제한에서 교체가 잦은 UX), AUTO → 같은 보드 두 번째 항목 비활성.</li>
+          <li>보드 selector 변경 시 재평가(규칙 위반 선택 자동 해제 + 안내), 카드 추가/제거·pre-fill 훅 — OS 동기화(<code>syncOsSelectionLock</code>)와 같은 배선 패턴.</li>
+          <li>실행 의미 안내 힌트: "자동 감지 시 실행 시점에 감지된 보드와 일치하는 템플릿 1개가 적용되고 나머지는 건너뜁니다."</li>
+        </ul>
+
+        <div class="pkg-tree">변경 지도
+provisioning/setting/
+├── dto/request/BasicSettingRequest          biosSettingTemplateIds 실체화(+@AssertTrue 중복금지)
+│                AbstractProcessRequest      referencedBiosSettingTemplateIds() 파생 accessor(@JsonIgnore)
+│                SettingSaveRequest          @AssertTrue basicSettingTemplateCount (SPECIFIED⇒1)
+├── dto/response/BiosTemplateOptionResponse  폼 옵션(신규) · ReferenceNamesResponse +templates 맵
+├── entity/SettingProcess                    @ElementCollection templateRefs (조인 테이블 파생)
+├── service/JpaSettingQueryService           findBiosTemplateOptions + references.templates
+├── service/reference/                       SPI 시그니처 +context · BasicSettingReferenceInspector 실로직
+│                                            BiosSettingTemplateUsageChecker 구현(exists)
+provisioning/biossetting/
+├── (신규) BiosSettingTemplateUsageChecker   인터페이스(SPI)
+├── exception/BiosSettingTemplateInUseException  409
+├── service/Command.delete                   사용중 409 가드 / Query — Summary·Detail +inUse
+└── 뷰: bios-setting-list/detail             삭제 버튼 disabled+tooltip
+setting 폼/상세 뷰 + setting-form.js         BASIC_SETTING 카드 실체화 · prefill · 상세 뱃지</div>
+
+        <div class="callout"><b>적대적 자기비판</b> — ① <i>@ElementCollection 이 D4 전체 교체(delete-insert)와 충돌?</i> 컬렉션 소유자는 SettingProcess 행 자체 — 행이 orphanRemoval 로 지워지면 컬렉션 테이블도 CASCADE. flush seam 은 기존 그대로. ② <i>usage checker 를 setting 이 구현하면 biossetting 테스트가 setting 을 알아야?</i> — @WebMvcTest 는 mock, 단위는 인터페이스 mock — 실구현 결합은 부트 조립에서만. ③ <i>SPECIFIED⇒1 을 Layer A 에 두면 UI 라디오 의미론과 이중?</i> — UI 1차 차단 + 서버 안전망의 표준 구도이며 판정식("SPECIFIED 면 1개")이 단순 값 비교라 drift 표면이 없다. ④ <i>템플릿에 lifecycle 이 없는데 삭제 차단이 정합적인가?</i> — 템플릿 삭제는 hard delete 뿐이므로 참조 차단이 유일한 보호막 — 설계 일관(U2-2 확정: 파일 없는 순수 데이터라 marker/휴지통 비대상).</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~4</td><td>BASIC_SETTING 카드·상세 뱃지·biossetting 버튼(뷰) + 계약(Request/@AssertTrue/옵션 Response) + 컨트롤러 Model</td><td rowspan="2"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td>SPI 컨텍스트 시그니처 + UsageChecker 인터페이스</td></tr>
+            <tr><td>6·7</td><td><code>SettingProcess</code> @ElementCollection + exists 쿼리</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8·9</td><td>inspector 실로직 + 409 가드 + inUse 플래그 + 테스트 + DDL·validate·스모크</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 사용자</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><code>BasicSettingReferenceInspectorTest</code></td><td>실존 404 / 템플릿 간 보드 중복 400 / SPECIFIED 보드 불일치 400(컨텍스트 경유) / AUTO+상이 보드 N개 통과 / BASIC_UPDATE 부재 시 AUTO 취급</td></tr>
+            <tr><td>Layer A 통합</td><td>SPECIFIED⇒2개 400(fieldErrors) / templateIds 빈 목록 400 / 목록 내 중복 400</td></tr>
+            <tr><td><code>SettingProcess</code> 파생</td><td>저장 시 templateRefs 채움(BASIC_SETTING) / 타 타입은 빈 컬렉션 — Command 단위 captor</td></tr>
+            <tr><td>UsageChecker + 409</td><td>사용 중 삭제 → <code>BiosSettingTemplateInUseException</code> 409(단위+통합, 신규 예외 의무) / 미사용 삭제 204 유지</td></tr>
+            <tr><td>기존 회귀</td><td>inspector 7파일 시그니처 변경 — 기존 테스트 컨텍스트 인자만 추가, 단언 무변. 통합 전체 그린</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>BiosSettingTemplateInUseException</code></td><td>409 (ConflictException)</td><td><span class="chip new">신규</span> — 사용중 삭제 거절(트리거 테스트 의무)</td></tr>
+            <tr><td><code>InvalidBiosTemplateSelectionException</code></td><td>400 (FieldBoundBadRequest, field=biosSettingTemplateIds)</td><td><span class="chip new">신규</span> — 보드 중복/SPECIFIED 불일치(팩토리 2)</td></tr>
+            <tr><td><code>BiosSettingTemplateNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span> — 실존 가드</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의</summary>
+      <div class="body">
+        <ul>
+          <li><b>실행 의미론은 기록만</b>: AUTO+N 의 적용/skip 판정("지연된 단언")은 Stage 4 — 계약·힌트 문구가 의도를 운반.</li>
+          <li><b>보드 purge 연쇄 안내</b>: RESTRICT 로 "사용중 템플릿 보유 보드 purge 실패(409)" 경로가 생김 — management purge 화면 문구 정비는 별도 잔존(§3 callout).</li>
+          <li><b>편집 중 템플릿 삭제 레이스</b>: pre-fill 된 템플릿이 사라진 경우 — 옵션 부재 항목은 pre-fill 시 안내 후 선택 해제(펌웨어 fallback 관용구), 최종은 inspector 404.</li>
+          <li>BASIC_SETTING 제조사 다형 미형성(U2-3-1 확정 유지). SPI 컨텍스트 도입으로 U2-3-1 plan D2 의 시그니처가 1회 개정됨 — U2-3-1 페이지에 기록 위임(CP4 보고 시).</li>
+          <li>커밋 없음 — 사용자 지시 대기(누적).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U2-2-3-verify">
+          <li><label><input type="checkbox" data-key="build"> <span>컴파일 + 전체 스위트 그린(기존 통합 무수정)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 적용(RESTRICT 확인) + validate 기동</span></label></li>
+          <li><label><input type="checkbox" data-key="rules"> <span>스모크: SPECIFIED 1개 초과 400 / 보드 중복 400 / 불일치 400 / AUTO N개 201 + 조인 행 파생 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="inuse"> <span>스모크: 사용 중 템플릿 DELETE 409 + 목록 버튼 disabled / 정의서 삭제 후 204</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E — 사용자 (CP5)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>BiosTemplateOptionResponse</code> · <code>ProcessValidationContext</code> · <code>BiosSettingTemplateUsageChecker</code>(+setting 구현) · 예외 2 · DDL 스크립트 · inspector 테스트 확장</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BasicSettingRequest</code>/<code>AbstractProcessRequest</code>/<code>SettingSaveRequest</code> · <code>SettingProcess</code> · Query/Command 서비스 · inspector 8파일(시그니처) · biossetting Command/Query/Response 2 · 뷰 5(setting 폼/상세 + bios-setting 목록/상세) + <code>setting-form.js</code>/<code>bios-setting-detail.js</code></td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>URL 표면 전체 · 마커/lifecycle 인프라 · 템플릿 CRUD 계약(삭제 409 추가 외)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>U2-4 OS-다형 검증·폼 완성</b> — 계열 검사기 내부 성장(+SPI 컨텍스트 활용 가능).</li>
+          <li><b>U3 서버 할당</b> — 정의서 삭제 참조 차단(이번 usage checker 관용구 재사용).</li>
+          <li><b>Stage 4</b> — AUTO 감지·템플릿 적용/skip 실행 의미론 실체화.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ── 🎬 데모 — 보드 모드 × 템플릿 선택 규칙(서버 판정 재현) + 삭제 차단 ──
+  const TEMPLATES = [
+    { id: 1, name: 'MS73 TPM 활성 표준', board: 'MS73-HB1' },
+    { id: 2, name: 'MS73 성능 프로파일', board: 'MS73-HB1' },
+    { id: 3, name: 'MS03 공장 표준', board: 'MS03-CE0' },
+    { id: 4, name: 'MD72 가상화 세팅', board: 'MD72-HB3' },
+    { id: 5, name: 'MS04 저전력 세팅', board: 'MS04-CE0' }
+  ];
+  const state = { mode: 'AUTO', checked: [] };
+  function setMode(mode) {
+    state.mode = mode;
+    // 모드 전환 시 규칙 위반 선택 자동 해제 (실제 UI 동작 재현)
+    if (mode === 'SPECIFIED') {
+      state.checked = state.checked.filter(id => TEMPLATES.find(t => t.id === id).board === 'MS73-HB1').slice(0, 1);
+    }
+    render('보드 selector 를 ' + (mode === 'AUTO' ? '자동 감지로 전환 — 보드당 1개씩 여러 장 선택 가능' : 'MS73-HB1 지정으로 전환 — 그 보드의 템플릿 1개만, 위반 선택은 자동 해제') + '.');
+  }
+  function clickTpl(id) {
+    const tpl = TEMPLATES.find(t => t.id === id);
+    const idx = state.checked.indexOf(id);
+    if (idx >= 0) { state.checked.splice(idx, 1); render(tpl.name + ' 선택 해제.'); return; }
+    if (state.mode === 'SPECIFIED') {
+      if (tpl.board !== 'MS73-HB1') { render('차단 — 지정 보드(MS73-HB1)의 템플릿만 선택할 수 있습니다.', 'err'); return; }
+      state.checked = [id]; // 라디오 의미론 — 기존 선택 교체
+      render(tpl.name + ' 선택 (SPECIFIED 는 1개 — 기존 선택 교체).', 'ok'); return;
+    }
+    const sameBoard = state.checked.map(c => TEMPLATES.find(t => t.id === c)).find(t => t.board === tpl.board);
+    if (sameBoard) { render('차단 — 보드 ' + tpl.board + ' 의 템플릿(' + sameBoard.name + ')이 이미 선택됨. 보드당 1개.', 'err'); return; }
+    state.checked.push(id);
+    render(tpl.name + ' 선택 — 실행 시 감지 보드가 ' + tpl.board + ' 면 이 템플릿이 적용됩니다.', 'ok');
+  }
+  function render(msg, kind) {
+    document.querySelectorAll('.ux-toolbar .seg').forEach(b => b.classList.toggle('on', b.dataset.m === state.mode));
+    document.getElementById('demo-templates').innerHTML = TEMPLATES.map(t => {
+      const checked = state.checked.indexOf(t.id) >= 0;
+      let blocked = false;
+      if (!checked) {
+        if (state.mode === 'SPECIFIED') blocked = t.board !== 'MS73-HB1';
+        else blocked = state.checked.some(c => TEMPLATES.find(x => x.id === c).board === t.board);
+      }
+      return '<div class="tpl-item' + (checked ? ' checked' : '') + (blocked ? ' blocked' : '') + '" onclick="clickTpl(' + t.id + ')">' +
+        '<input type="checkbox" ' + (checked ? 'checked' : '') + (blocked ? ' disabled' : '') + ' tabindex="-1"> ' + t.name +
+        ' <span class="tb">' + t.board + '</span></div>';
+    }).join('');
+    const el = document.getElementById('demo-message');
+    el.textContent = msg || '템플릿을 클릭해 선택 규칙을 체험하세요.';
+    el.className = 'ux-message' + (kind ? ' ' + kind : '');
+    const names = state.checked.map(c => TEMPLATES.find(t => t.id === c));
+    document.getElementById('demo-exec').innerHTML =
+      '실행 시 의미(Stage 4, 계약은 의도만 운반) —\n' +
+      (names.length === 0 ? '  선택 없음 (BASIC_SETTING 단계는 템플릿 1+ 필수 — @NotEmpty 400)' :
+        names.map(t => '  감지 보드 == ' + t.board + ' → <span class="f">' + t.name + ' 적용</span> / 그 외 보드 → skip').join('\n')) +
+      '\n삭제 차단 — ' + (names.length ? names.map(t => t.name).join(', ') + ' : <span class="t">사용 중(삭제 버튼 잠김 · DELETE 409 · DB RESTRICT)</span>' : '선택된 템플릿 없음(전부 삭제 가능)');
+  }
+  render();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Debian 계열 (Ubuntu) OS 설치 폼 전용 입력 블록.
+  ─────────────────────────────────────────────────────────
+  사용 컨텍스트 : provisioning/setting-new :: settingForm 의 OS_INSTALLATION 카드 내부.
+  Ubuntu 는 Kickstart 대신 Subiquity autoinstall YAML 을 쓰므로 RHEL 의
+  환경/패키지그룹 개념이 없고, identity.hostname 과 packages 목록으로 매핑된다.
+  data-os-family="DEBIAN_BASED" — setting-form.js 가 선택 OS 계열에 맞춰 표시를 토글한다.
+-->
+<section th:fragment="form" class="n-os-family-pane" data-os-family="DEBIAN_BASED" hidden>
+    <div class="n-pane-title">Debian 계열 전용 설정</div>
+
+    <!-- 호스트명 (autoinstall identity.hostname) -->
+    <div class="n-form-group">
+        <label class="n-label strong" for="oiHostname">호스트명</label>
+        <input type="text" id="oiHostname" class="n-input"
+               data-error-field="hostname"
+               placeholder="예: ubuntu-server">
+        <div class="n-hint">autoinstall <code>identity.hostname</code> 필드로 매핑됩니다.</div>
+    </div>
+
+    <!-- APT 패키지 목록 (autoinstall packages) -->
+    <div class="n-form-group">
+        <label class="n-label strong" for="oiPackages">추가 설치 패키지 (APT)</label>
+        <input type="text" id="oiPackages" class="n-input"
+               data-error-field="packages"
+               placeholder="예: vim, curl, openssh-server (콤마로 구분)">
+        <div class="n-hint">
+            autoinstall <code>packages</code> 섹션에 포함될 APT 패키지명을 콤마로 구분해 입력합니다.
+            비워두면 기본 이미지 그대로 설치됩니다.
+        </div>
+    </div>
+</section>
+</body>
+</html>
