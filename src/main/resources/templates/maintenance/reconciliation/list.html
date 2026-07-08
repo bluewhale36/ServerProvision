@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  MK1. 경로 재조정 (Path Reconciliation) 페이지 — Miller Columns
+  MK1. 자원 무결성 점검 (Path Reconciliation) 페이지 — Miller Columns. R9-4 — 명칭 단일화 + 정보구조 재배치.
   ─────────────────────────────────────────────────────────
   Model:
     reports        : List<DriftReportResponse> — 페이지네이션된 이력 (default size=20)
@@ -25,7 +25,7 @@
        기존 os-list.js 의 data-os-key / data-os-id 일반화 바인딩 그대로 활용.
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('경로 재조정')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('자원 무결성 점검')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/miller.css}">
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
 </head>
@@ -34,31 +34,51 @@
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">자원 경로 점검</h1>
+        <h1 class="n-page-title">자원 무결성 점검</h1>
         <div class="n-header-actions">
             <!--
-              수동 스캔 / Deep 스캔 — JS fetch 로 트리거. form submit 이 아니라 페이지는 그대로 두고
-              jobId 를 작업 조회 아이콘이 자동 픽업하게 한다. 완료 후 사용자 수동 reload 또는
-              자동 reload(완료 감지 — 후속 개선) 로 새 보고서 확인.
+              R9-4 — 헤더는 일상 점검 2버튼만 (2계층화). 마커 서명 재발급은 하단 '관리 도구' 구획,
+              업로드 실패 복구는 navbar 독립 메뉴로 이동. JS fetch 트리거 + R9-1 완료 반영(자기 트리거
+              자동 reload / 외부 완료 배너)은 그대로.
             -->
             <button type="button" id="scanBtn" class="n-btn n-btn-primary"
-                    th:data-scan-url="@{/maintenance/reconciliation/scan}">수동 스캔
+                    title="등록 정보와 디스크 상태의 불일치를 바로 점검합니다."
+                    th:data-scan-url="@{/maintenance/reconciliation/scan}">지금 점검
             </button>
             <button type="button" id="scanDeepBtn" class="n-btn n-btn-ghost"
-                    th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">Deep 스캔
+                    title="파일 내용까지 검사합니다 — 용량에 따라 수 분이 걸릴 수 있어요."
+                    th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">정밀 점검
             </button>
-            <!--
-              (권고1) Secret 회전용 admin 액션. 모든 자원의 marker signature 만 현재 secret 으로 재발급.
-              manifestHash 는 그대로 유지되어 변조된 자원의 hash 가 굳어지지 않는다.
-              위험한 액션 — 강한 confirm 후에만 실행.
-            -->
-            <button type="button" id="reissueBtn" class="n-btn n-btn-outline-danger"
-                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
-            </button>
-            <!-- ISO 등록 중단(인프라/일시 실패)으로 격리된 파일의 복구 진입점. job prune 후 fallback. -->
-            <a th:href="@{/maintenance/quarantine}" class="n-btn n-btn-secondary"
-               title="ISO 등록 중단으로 격리된 파일 복구 (재시도 / 폐기)">격리 복구</a>
         </div>
+    </div>
+
+    <!-- R9-4 — 도메인 설명 + 최신 점검 요약. 처음 온 사용자가 첫 화면에서 도메인의 역할을 파악하는 진입 문구.
+         latestReport 는 페이지네이션과 무관한 전체 최신 1건 (컨트롤러가 별도 조회). -->
+    <div class="n-banner n-banner-info">
+        <div>등록된 자원 정보(DB)와 디스크의 실제 파일·마커가 서로 일치하는지 점검하고, 불일치(드리프트)를 정합합니다.</div>
+        <div th:if="${latestReport != null}" style="margin-top: 4px; color: var(--n-text-muted);">
+            마지막 점검
+            <strong th:text="${#temporals.format(latestReport.scannedAt, 'yyyy-MM-dd HH:mm')}"></strong>
+            <span th:if="${latestReport.deep}">(정밀)</span>
+            · 자원 <strong th:text="${latestReport.totalChecked}"></strong>건
+            · 드리프트 <strong th:text="${latestReport.driftCount}"></strong>건
+        </div>
+    </div>
+
+    <!-- R9-4 — 업로드 실패 격리 대기 안내 (이 페이지 렌더에만 count 조회 — 전역 navbar 배지는 비용으로 기각). -->
+    <div th:if="${quarantinePendingCount != null and quarantinePendingCount > 0}"
+         class="n-banner n-banner-warn">
+        <span>업로드 실패로 격리된 파일 <strong th:text="${quarantinePendingCount}"></strong>건이 복구를 기다립니다.</span>
+        <a th:href="@{/maintenance/quarantine}" class="n-btn n-btn-sm n-btn-secondary">업로드 실패 복구</a>
+    </div>
+
+    <!--
+      R9-1 — 이 페이지가 트리거하지 않은 스캔(주기 스캔 등)이 완료됐을 때 list.js 가 표시하는 안내 배너.
+      자동 reload 는 열람 중 화면 리셋을 만들므로 하지 않는다 — 사용자가 [새로고침] 을 눌러 반영.
+    -->
+    <div id="newReportBanner" hidden class="n-banner n-banner-warn">
+        <span>새 점검 보고서가 도착했습니다.</span>
+        <button type="button" id="newReportReloadBtn" class="n-btn n-btn-sm n-btn-secondary">새로고침</button>
     </div>
 
     <!-- 빈 상태 : 한번도 스캔된 적이 없는 경우 -->
@@ -66,9 +86,8 @@
         <div class="n-empty">
             <div class="n-empty-title">아직 보고된 스캔 이력이 없습니다.</div>
             <div class="n-empty-desc">
-                상단의 <strong>수동 스캔</strong> 버튼을 눌러 첫 점검을 시작하세요.
-                부팅 시 자동 스캔이 활성화되어 있다면(<code>reconciliation.scan.startup-enabled=true</code>)
-                다음 부팅 시점에 자동 보고됩니다.
+                상단의 <strong>지금 점검</strong> 버튼을 눌러 첫 점검을 시작하세요.
+                부팅 시 자동 점검이 켜져 있다면 다음 부팅 시점에 자동으로 보고됩니다.
             </div>
         </div>
     </div>
@@ -142,18 +161,21 @@
                     드리프트 없음 — 모든 자원이 정상.
                 </div>
 
+                <!--/* R9-2 — C2 배지는 사용자 라벨(enum 원시명은 C3 보조 표기). 색은 autoApplicable SSOT.
+                     R9-5 — 주표기는 자원 실명(스냅샷). 도입 이전 행(null)은 종전 "TYPE #id" 로 fallback. */-->
                 <button th:each="drift : ${report.drifts}"
                         type="button"
                         class="n-miller-item n-miller-item-split"
                         th:data-os-id="${drift.id}">
-                    <span class="n-miller-version-label">
-                        <span th:text="${drift.resourceType}">OS_ISO</span>
+                    <span class="n-miller-version-label"
+                          style="display: flex; flex-direction: column; align-items: flex-start; gap: 1px; line-height: 1.25;">
+                        <span th:text="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">Rocky Linux 9.6</span>
                         <span style="font-size: 11px; color: var(--n-text-muted);"
-                              th:text="' #' + ${drift.resourceId}"> #42</span>
+                              th:text="${drift.resourceType}">OS_ISO</span>
                     </span>
                     <span class="n-miller-status-tag"
-                          th:classappend="${drift.kind.name() == 'PATH_DRIFT'} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
-                          th:text="${drift.kind}">PATH_DRIFT</span>
+                          th:classappend="${drift.kind.autoApplicable} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:text="${drift.kind.label}">경로 이동됨</span>
                 </button>
             </div>
         </div>
@@ -174,6 +196,11 @@
                                 <code style="font-size: 11px;" th:text="${drift.id}"></code>
                             </dd>
                         </div>
+                        <!--/* R9-5 — 실명 스냅샷. 도입 이전 행은 "—(이전 점검 기록)". */-->
+                        <div class="n-accordion-field">
+                            <dt>자원 이름</dt>
+                            <dd th:text="${drift.displayName != null ? drift.displayName : '— (이전 점검 기록)'}"></dd>
+                        </div>
                         <div class="n-accordion-field">
                             <dt>자원 종류</dt>
                             <dd>
@@ -184,17 +211,24 @@
                             <dt>자원 ID</dt>
                             <dd th:text="${drift.resourceId}"></dd>
                         </div>
+                        <!--/* R9-2 — 종류는 라벨 + enum 보조 표기. 색·버튼 노출은 DriftKind.autoApplicable 단일 소스
+                             (과거 4종 하드코딩 ×3곳이 서버 5종 나열과 갈라져 GHOST_DB_ROW 버튼이 누락돼 있었다). */-->
                         <div class="n-accordion-field">
                             <dt>드리프트 종류</dt>
                             <dd>
-                                <!--/* MK3 — 자동 ON 분기 (4종) 는 오렌지, 그 외는 회색. CP4 에서 detail 메시지 + 위험도별 색 분기 정밀화 검토. */-->
                                 <span class="n-badge"
-                                      th:classappend="${drift.kind.name() == 'PATH_DRIFT'
-                                                         or drift.kind.name() == 'RESOURCE_RENAMED'
-                                                         or drift.kind.name() == 'SOFTDEL_ESCAPE_TO_ORIGINAL'
-                                                         or drift.kind.name() == 'TRASH_MARKER_STALE'} ? 'n-badge-orange' : 'n-badge-gray'"
-                                      th:text="${drift.kind}"></span>
+                                      th:classappend="${drift.kind.autoApplicable} ? 'n-badge-orange' : 'n-badge-gray'"
+                                      th:text="${drift.kind.label}"></span>
+                                <code style="font-size: 10px; margin-left: 6px;" th:text="${drift.kind}"></code>
                             </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>감지 내용</dt>
+                            <dd th:text="${drift.kind.description}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>권장 조치</dt>
+                            <dd th:text="${drift.kind.recommendedAction}"></dd>
                         </div>
                         <div class="n-accordion-field">
                             <dt>이전 경로</dt>
@@ -220,48 +254,63 @@
                         </div>
                     </dl>
 
-                    <!--/* MK3 — 자동 적용 가능 분기 4종 :
-                         PATH_DRIFT / RESOURCE_RENAMED / SOFTDEL_ESCAPE_TO_ORIGINAL / TRASH_MARKER_STALE.
-                         그 외는 보고만 + dismiss 옵션. SOFTDEL_ESCAPE_TO_OTHER 는 사용자 명시 (DCN-NEW13) 로
-                         별도 액션 옵션 미제공 — dismiss 만. */-->
+                    <!--/* R9-2 — 버튼 노출 = DriftKind.autoApplicable (서버 가드와 동일 SSOT).
+                         전역 auto-apply OFF 는 disabled + tooltip 으로 1차 차단 — 서버 409 는 direct POST 안전망.
+                         R9-3 — 전용 확인 modal(DRIFT_APPLY/DRIFT_DISMISS, list.js 로컬 바인딩) + async 제출.
+                         거절(409 등)은 ErrorModal, 성공은 토스트+reload — 전체 페이지 이탈 없음. */-->
                     <div class="n-form-actions">
-                        <form th:if="${drift.kind.name() == 'PATH_DRIFT'
-                                       or drift.kind.name() == 'RESOURCE_RENAMED'
-                                       or drift.kind.name() == 'SOFTDEL_ESCAPE_TO_ORIGINAL'
-                                       or drift.kind.name() == 'TRASH_MARKER_STALE'}"
+                        <form th:if="${drift.kind.autoApplicable}"
                               th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
                               method="post"
-                              data-confirm-restore=""
-                              th:data-resource-label="|${drift.kind} 드리프트|"
-                              data-resource-extra="시스템이 무결성을 자동 정합 시켜요.">
-                            <button type="submit" class="n-btn n-btn-primary">자동 적용</button>
+                              data-confirm-drift-apply=""
+                              data-async-submit=""
+                              th:data-resource-type="${drift.resourceType}"
+                              th:data-resource-id="${drift.resourceId}"
+                              th:data-resource-label="|'${drift.kind.label}' 드리프트|"
+                              th:data-resource-extra="${drift.kind.recommendedAction}">
+                            <button type="submit" class="n-btn n-btn-primary"
+                                    th:disabled="${!autoApplyEnabled}"
+                                    th:title="${!autoApplyEnabled} ? '전역 자동 적용이 꺼져 있어요 (reconciliation.auto-apply). 켠 뒤 다시 시도하세요.' : null">자동 적용</button>
                         </form>
                         <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/dismiss(driftId=${drift.id})}"
                               method="post"
-                              data-confirm-soft-delete=""
-                              th:data-resource-label="|${drift.kind} 드리프트|"
-                              data-resource-extra="다음 스캔에서 다시 보고될 수 있어요.">
-                            <button type="submit" class="n-btn n-btn-outline-danger">무시</button>
+                              data-confirm-drift-dismiss=""
+                              data-async-submit=""
+                              th:data-resource-type="${drift.resourceType}"
+                              th:data-resource-id="${drift.resourceId}"
+                              th:data-resource-label="|'${drift.kind.label}' 드리프트|"
+                              data-resource-extra="보고 목록에서만 제외됩니다. 파일과 자원은 변경되지 않으며 다음 점검에서 다시 보고될 수 있어요.">
+                            <button type="submit" class="n-btn n-btn-outline-danger">보고 닫기</button>
                         </form>
-                    </div>
-
-                    <div class="n-hint"
-                         th:unless="${drift.kind.name() == 'PATH_DRIFT'
-                                      or drift.kind.name() == 'RESOURCE_RENAMED'
-                                      or drift.kind.name() == 'SOFTDEL_ESCAPE_TO_ORIGINAL'
-                                      or drift.kind.name() == 'TRASH_MARKER_STALE'}"
-                         style="margin-top: 8px;">
-                        <strong th:text="${drift.kind}"></strong> 종류는 자동 적용이 허용되지 않습니다.
-                        관리자가 직접 자원을 점검·복구한 뒤 재스캔하세요.
                     </div>
                 </div>
             </th:block>
+        </div>
+    </div>
+
+    <!--
+      R9-4 — 관리 도구 구획. 서명 키(secret) 회전 후 1회용 도구를 일상 점검 버튼과 분리해 하단 배치.
+      무엇인지/언제 쓰는지를 confirm 을 열기 전에 상시 안내한다 (종전엔 native confirm 안에서만 설명).
+    -->
+    <div class="n-card" style="margin-top: 16px;">
+        <div style="padding: 12px 16px;">
+            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">관리 도구</div>
+            <div style="font-size: 12.5px; color: var(--n-text-muted); margin-bottom: 8px;">
+                <strong>마커 서명 재발급</strong> — 서명 키(secret)를 교체한 직후 1회 실행하는 도구입니다.
+                모든 자원의 마커 서명을 현재 키로 다시 계산해, 다음 점검에서 전 자원이 '마커 서명 불일치'로
+                오탐되는 것을 막습니다. 파일 내용 해시는 유지되어 변조된 자원은 이후 정밀 점검에서 그대로 감지됩니다.
+            </div>
+            <button type="button" id="reissueBtn" class="n-btn n-btn-sm n-btn-outline-danger"
+                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
+            </button>
         </div>
     </div>
 </div>
 
 <!-- S5-2 — 4 종 자원 상태 변경 modal 묶음. S5-6-1 — 일관성을 위해 nonPurge 로 교체 (본 페이지에 purge form 없음). -->
 <div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
+<!-- R9-3 — Deep 스캔 / 마커 서명 재발급 확인용 정적 generic modal (페이지 액션 — lazy endpoint 의 자원 시그니처와 무관). -->
+<div th:replace="~{fragments/maintenance/reconciliation-modals :: genericConfirmModal('reconConfirm')}"></div>
 
 <!--
   Miller 컬럼 상호작용은 os-list.js (data-os-key / data-os-id 일반화) 를 그대로 재사용.

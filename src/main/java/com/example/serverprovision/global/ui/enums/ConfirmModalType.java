@@ -119,6 +119,47 @@ public enum ConfirmModalType {
 	},
 
 	/**
+	 * R9-3 — 드리프트 적용 확인 modal. 자원 lookup 불요 — 문구(라벨·권장 조치)는 JS 가 form 의
+	 * data 속성(R9-2 산출)에서 inject. 종전에는 restore modal 을 차용해 "복구할까요?" 가 떠
+	 * GHOST_DB_ROW(행 영구 삭제)와 반대 의미를 안내하던 것의 해소.
+	 */
+	DRIFT_APPLY {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/maintenance/reconciliation-modals :: applyModalCard";
+		}
+	},
+
+	/**
+	 * R9-3 — 드리프트 보고 닫기 확인 modal. 종전 soft-delete modal 차용(제목 "자원 삭제")이
+	 * "자원이 지워진다" 로 읽히던 것의 해소 — 실동작은 보고 행 제거뿐(자원 무변경, 재보고 가능).
+	 */
+	DRIFT_DISMISS {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/maintenance/reconciliation-modals :: dismissModalCard";
+		}
+	},
+
+	/**
 	 * S5-6-3 — 휴지통 액션 결과 안내 modal. 자원 lookup 불요 — JS 가 title / message / hint 모두 inject.
 	 * resourceType / resourceId 는 endpoint signature 일관성을 위해 받지만 사용하지 않음.
 	 */

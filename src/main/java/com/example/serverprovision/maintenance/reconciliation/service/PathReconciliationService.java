@@ -181,8 +181,8 @@ public class PathReconciliationService {
 		}
 		String jobId = backgroundJobService.register(
 				JobType.PATH_RECONCILIATION,
-				deep ? "Deep 스캔" : "경로 점검",
-				deep ? "manifestHash 재계산" : "마커 서명 검증",
+				deep ? "정밀 점검" : "자원 무결성 점검",
+				deep ? "파일 내용 해시 재계산 포함" : "마커 서명 검증",
 				BackgroundJobService.stagesOf(ReconciliationStage.values())
 		);
 		// self proxy 경유 — 그래야 @Async 가 살아 별도 스레드에서 실행되고 호출 스레드(보통 HTTP 요청 스레드)가
@@ -203,7 +203,10 @@ public class PathReconciliationService {
 					"[reconciliation] 스캔 완료. deep={}, totalChecked={}, drifts={}",
 					deep, report.getTotalChecked(), report.getDriftCount()
 			);
-			backgroundJobService.complete(jobId);
+			// R9-1 — 완료 시점 결과 수치를 Job 에 탑재. 페이지가 bgjob:completed 토스트 문구에 사용.
+			backgroundJobService.complete(jobId, Map.of(
+					"driftCount", String.valueOf(report.getDriftCount())
+			));
 		} catch (RuntimeException e) {
 			log.error("[reconciliation] 스캔 실패", e);
 			backgroundJobService.fail(jobId, "스캔 실패 : " + e.getMessage());
@@ -228,7 +231,8 @@ public class PathReconciliationService {
 				JobType.MARKER_REISSUE,
 				"마커 서명 재발급",
 				"현재 secret 으로 모든 자원의 signature 재계산",
-				BackgroundJobService.stagesOf(ReconciliationStage.values())
+				// R9-1 — 스캔용 3단계 차용(거짓 진행바) 해소. 재발급은 단일 단계.
+				BackgroundJobService.stagesOf(ReissueStage.values())
 		);
 		self.runReissueAsync(jobId);
 		return jobId;
@@ -237,13 +241,17 @@ public class PathReconciliationService {
 	@Async
 	public void runReissueAsync(String jobId) {
 		try {
-			backgroundJobService.startStage(jobId, ReconciliationStage.SCANNING);
+			backgroundJobService.startStage(jobId, ReissueStage.RESIGNING);
 			ReissueResult result = self.performReissue();
 			log.warn(
 					"[AUDIT] 마커 서명 재발급 완료 — successCount={}, failedCount={}, failures={}",
 					result.successCount(), result.failures().size(), result.failures()
 			);
-			backgroundJobService.complete(jobId);
+			// R9-1 — 로그로만 새던 부분 실패 건수를 Job 결과로 탑재 → 페이지 토스트로 표면화.
+			backgroundJobService.complete(jobId, Map.of(
+					"reissueSucceeded", String.valueOf(result.successCount()),
+					"reissueFailed", String.valueOf(result.failures().size())
+			));
 		} catch (RuntimeException e) {
 			log.error("[reconciliation] 마커 재발급 실패", e);
 			backgroundJobService.fail(jobId, "재발급 실패 : " + e.getMessage());
@@ -318,6 +326,9 @@ public class PathReconciliationService {
 		Map<MarkerKey, MarkerHit> diskMarkers = collectDiskMarkers(scanRoots, failedScanRoots);
 
 		// (4) drift 분류
+		// R9-1 — 실경계 stage 계측. startStage 는 RUNNING 표시일 뿐이라 트랜잭션 롤백 시
+		// runAsync 의 fail() 이 해당 단계를 ERROR 로 마킹 — 허위 "완료" 표시가 생기지 않는다.
+		backgroundJobService.startStage(jobId, ReconciliationStage.CLASSIFYING);
 		List<Drift> drifts = new ArrayList<>();
 		Set<MarkerKey> matchedMarkers = new HashSet<>();
 		Instant now = Instant.now();
@@ -413,6 +424,9 @@ public class PathReconciliationService {
 			drifts.add(Drift.builder()
 							   .resourceType(key.resourceType())
 							   .resourceId(key.resourceId())
+							   // R9-5 — ORPHAN 은 DB 매칭 자원(Markable)이 없어 마커 본체 파일명이 실명 fallback.
+							   .displayName(e.getValue().resourcePath().getFileName() != null
+									   ? e.getValue().resourcePath().getFileName().toString() : null)
 							   .kind(DriftKind.ORPHAN)
 							   .oldPath(e.getValue().resourcePath().toString())
 							   .newPath(null)
@@ -434,6 +448,7 @@ public class PathReconciliationService {
 		}
 
 		// (6) DriftReport 영속화
+		backgroundJobService.startStage(jobId, ReconciliationStage.PERSISTING);
 		long durationMs = Duration.between(start, Instant.now()).toMillis();
 		DriftReport report = DriftReport.builder()
 				.scannedAt(start)
@@ -451,7 +466,8 @@ public class PathReconciliationService {
 		pruneOldReports();
 
 		// (8) 자동 적용 (옵트인, D13) — PATH_DRIFT / MK3-1 GHOST_DB_ROW.
-		if (Boolean.FALSE.equals(autoApplyEnabled)) {
+		// R9 최종 리뷰 — 전역 술어를 isAutoApplyEnabled() 로 통일 (같은 술어의 두 표기 잔존 정리).
+		if (!isAutoApplyEnabled()) {
 			// 전역 OFF — 자동 적용 건너뜀.
 		} else {
 			for (Drift d : saved.getDrifts()) {
@@ -591,6 +607,8 @@ public class PathReconciliationService {
 		return Drift.builder()
 				.resourceType(resource.getResourceType())
 				.resourceId(resource.getResourceId())
+				// R9-5 — 스캔 시점 실명 스냅샷. 인벤토리를 이미 들고 있어 추가 조회 0.
+				.displayName(resource.displayName())
 				.kind(kind)
 				.oldPath(oldPath)
 				.newPath(newPath)
@@ -638,14 +656,15 @@ public class PathReconciliationService {
 		Drift drift = driftRepository.findById(driftId)
 				.orElseThrow(() -> new DriftNotFoundException(driftId));
 		if (!forced) {
-			// MK3 — 자동 적용 허용 분기 4종 + MK3-1 GHOST_DB_ROW 1종.
-			// 전역 OFF 옵션 (DCN-NEW11) 활성 시 자동 ON 분기도 거절 — 운영 환경 안전망.
-			if (!isAutoApplicable(drift.getKind())) {
-				throw new DriftAutoApplyNotAllowedException(drift.getKind());
+			// R9-2 — 허용 종류는 DriftKind.autoApplicable 이 SSOT (템플릿 버튼 노출과 동일 소스).
+			// 전역 OFF 옵션 (DCN-NEW11) 은 UI 가 disabled+tooltip 으로 1차 차단하므로,
+			// 이 가드는 direct POST / stale 화면 안전망으로만 발동한다.
+			if (!drift.getKind().isAutoApplicable()) {
+				throw DriftAutoApplyNotAllowedException.notApplicable(drift.getKind());
 			}
-			if (Boolean.FALSE.equals(autoApplyEnabled)) {
+			if (!isAutoApplyEnabled()) {
 				log.warn("[reconciliation] auto-apply 전역 OFF — drift {} 거절", driftId);
-				throw new DriftAutoApplyNotAllowedException(drift.getKind());
+				throw DriftAutoApplyNotAllowedException.globalOff();
 			}
 		} else {
 			log.info("[reconciliation] forced apply — driftId={}, kind={}", driftId, drift.getKind());
@@ -764,16 +783,14 @@ public class PathReconciliationService {
 	}
 
 	/**
-	 * MK3 — 자동 적용 가능 DriftKind 인지 판단. {@link DriftKind} 자체에 메서드 두는 대안도 있으나 본체 단계에서는
-	 * service 안 명시 분기 — 다른 곳에서 같은 분기가 반복되면 enum method-per-constant 로 승격.
-	 * <p>MK3-1 — GHOST_DB_ROW 추가 (drift apply = DB row hard-delete).</p>
+	 * R9-2 — 전역 자동 적용 활성 여부. 서버 가드({@link #apply(Long, boolean)})와 페이지 뷰모델
+	 * (버튼 disabled+tooltip)이 이 한 메서드를 공유하는 SSOT — 두 곳에 조건을 복붙하면 drift 가 생긴다
+	 * ({@code childEnableBlockReason()} 선례). {@code Boolean} wrapper 라 null(=미주입) 은 활성으로 본다.
+	 * <p>허용 종류 판단은 {@link DriftKind#isAutoApplicable()} 로 승격 완료 — 과거 이 자리에 있던
+	 * 5종 나열 분기는 템플릿 4종 하드코딩과 갈라져 SSOT 위반을 만들고 있었다.</p>
 	 */
-	private boolean isAutoApplicable(DriftKind kind) {
-		return kind == DriftKind.PATH_DRIFT
-				|| kind == DriftKind.RESOURCE_RENAMED
-				|| kind == DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL
-				|| kind == DriftKind.TRASH_MARKER_STALE
-				|| kind == DriftKind.GHOST_DB_ROW;
+	public boolean isAutoApplyEnabled() {
+		return !Boolean.FALSE.equals(autoApplyEnabled);
 	}
 
 	@Transactional
@@ -796,15 +813,33 @@ public class PathReconciliationService {
 		List<DriftResponse> drifts = r.getDrifts().stream()
 				.sorted(Comparator.comparing(Drift::getDetectedAt))
 				.map(d -> new DriftResponse(
-						d.getId(), d.getResourceType(), d.getResourceId(),
+						d.getId(), d.getResourceType(), d.getResourceId(), d.getDisplayName(),
 						d.getKind(), d.getOldPath(), d.getNewPath(), d.getDetectedAt(), d.getDetail()
 				))
 				.collect(Collectors.toList());
 		return new DriftReportResponse(
 				r.getId(), r.getScannedAt(),
-				r.getScanDuration().toString(), r.isDeep(), r.getTotalChecked(),
+				formatDuration(r.getScanDuration()), r.isDeep(), r.getTotalChecked(),
 				r.getDriftCount(), r.getFailedScanRootList(), drifts
 		);
+	}
+
+	/**
+	 * R9-2 — ISO-8601 원문(PT0.45S)이 화면에 노출되던 것을 사람이 읽는 문구로. 초 단위 미만은 소수 둘째 자리.
+	 * 분 단위는 초를 반올림하되 60초로 올라가면 분으로 이월("1분 60초" 방지 — R9 최종 리뷰).
+	 */
+	private static String formatDuration(Duration d) {
+		long minutes = d.toMinutes();
+		double seconds = (d.toMillis() % 60_000) / 1000.0;
+		if (minutes > 0) {
+			long rounded = Math.round(seconds);
+			if (rounded == 60) {
+				minutes++;
+				rounded = 0;
+			}
+			return minutes + "분 " + rounded + "초";
+		}
+		return String.format("%.2f초", seconds);
 	}
 
 	// ==== 내부 키 ======================================================

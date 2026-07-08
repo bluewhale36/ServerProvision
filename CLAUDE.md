@@ -89,7 +89,7 @@
 작업은 **인벤토리 코드**(작업 단위 식별자)로 부른다: `MA*`(Manage-Application) / `MK*`(Manage-Kernel/Maintenance) / `U*`(Provisioning) / `S*`(cross-cutting infra) / `R*`(리팩토링 캠페인) / `HF*`(hotfix) / `M0`(리네임) / `CH*`(housekeeping). 코드 번호는 식별자이지 실행 순서가 아니다. **각 코드의 상태·이력은 Notion DB 가 SSOT** — CLAUDE.md 에 이력을 적지 않는다.
 
 ### 수직 슬라이스 (페이지/작업당 10 단계)
-1. URL/데이터 흐름 스케치 — **plan html 산출**(아래 규약) 2. Thymeleaf 뷰(더미, 기존 CSS 재사용) 3. Controller(`@ModelAttribute`+`BindingResult`, Model 엔 Response 만) 4. Request/Response DTO(`@Valid`) 5. Service 인터페이스+시그니처(`@Transactional` 경계) 6. Repository(Spring Data 네임규칙) 7. Entity(`BaseTimeEntity` 상속, **7단계 전 `@Entity` 작성 금지**) 8. Service 본체 + 테스트(아래 규율) 9. 스키마 확인(`ddl-auto=update`, `SHOW CREATE TABLE`) 10. 브라우저 E2E — **사용자 단독**.
+1. URL/데이터 흐름 스케치 — **plan html 산출**(아래 규약) 2. Thymeleaf 뷰(더미, 기존 CSS 재사용) 3. Controller(`@ModelAttribute`+`BindingResult`, Model 엔 Response 만) 4. Request/Response DTO(`@Valid`) 5. Service 인터페이스+시그니처(`@Transactional` 경계) 6. Repository(Spring Data 네임규칙) 7. Entity(`BaseTimeEntity` 상속, **7단계 전 `@Entity` 작성 금지**) 8. Service 본체 + 테스트(아래 규율) 9. 스키마 확인(`ddl-auto=validate` — 수동 DDL 을 `sql/` 에 산출·적용 후 `SHOW CREATE TABLE` 검증. ALTER 권한 계정 필요 — `claude_code` 는 ALTER 불가) 10. 브라우저 E2E — **사용자 단독**.
 - 리팩토링 슬라이스(엔티티 무변경)는 6·7·9 단계가 N/A 가 될 수 있다.
 
 ### 체크포인트 (CP1~CP5)

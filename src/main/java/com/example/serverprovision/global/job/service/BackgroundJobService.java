@@ -114,6 +114,16 @@ public class BackgroundJobService {
 		j.complete();
 	}
 
+	/**
+	 * R9-1 — 완료 시점에만 확정되는 결과 수치(driftCount 등)를 함께 기록하는 완료 오버로드.
+	 * 결과 키는 등록 metadata 키와 충돌 금지 — {@link BackgroundJob#getResultMetadata()} 규약 참조.
+	 */
+	public void complete(String jobId, Map<String, String> resultMetadata) {
+		BackgroundJob j = jobs.get(jobId);
+		if (j == null) return;
+		j.complete(resultMetadata);
+	}
+
 	public void fail(String jobId, String message) {
 		BackgroundJob j = jobs.get(jobId);
 		if (j == null) return;

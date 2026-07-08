@@ -122,6 +122,32 @@ class ConfirmModalFragmentControllerTest {
                 .andExpect(content().string(containsString("data-modal-cascade-true")));
     }
 
+    // ==== R9-3 : reconciliation 드리프트 확인 modal (자원 lookup 없음) ====
+
+    @Test
+    @DisplayName("DRIFT_APPLY — 자원 lookup 없이 '드리프트 적용' fragment 응답")
+    void renders_drift_apply_modal() throws Exception {
+        mvc.perform(get("/ui/confirm-modal/DRIFT_APPLY")
+                        .param("resourceType", "OS_ISO")
+                        .param("resourceId", "42"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("드리프트 적용")))
+                .andExpect(content().string(containsString("data-modal-active")))
+                .andExpect(content().string(containsString("data-modal-confirm")));
+    }
+
+    @Test
+    @DisplayName("DRIFT_DISMISS — 자원 lookup 없이 '보고 닫기' fragment 응답")
+    void renders_drift_dismiss_modal() throws Exception {
+        mvc.perform(get("/ui/confirm-modal/DRIFT_DISMISS")
+                        .param("resourceType", "OS_ISO")
+                        .param("resourceId", "42"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("보고 닫기")))
+                .andExpect(content().string(containsString("data-modal-active")))
+                .andExpect(content().string(containsString("data-modal-confirm")));
+    }
+
     // ==== S5-6-3 : trash-result-modal 의 lazy-load (자원 lookup / param 무관) ====
 
     @Test

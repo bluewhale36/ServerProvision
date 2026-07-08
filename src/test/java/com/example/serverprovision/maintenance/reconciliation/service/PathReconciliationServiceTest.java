@@ -260,7 +260,7 @@ class PathReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("apply : PATH_DRIFT 외 종류 → DriftAutoApplyNotAllowedException")
+    @DisplayName("apply : 자동 적용 불가 종류 (DriftKind.autoApplicable=false) → 409 예외 (enum SSOT 위임 후 동일 발동)")
     void apply_nonPathDrift_throws() {
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.SIGNATURE_INVALID)
@@ -269,7 +269,33 @@ class PathReconciliationServiceTest {
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
         assertThatThrownBy(() -> service.apply(1L))
-                .isInstanceOf(DriftAutoApplyNotAllowedException.class);
+                .isInstanceOf(DriftAutoApplyNotAllowedException.class)
+                .hasMessageContaining("마커 서명 불일치");
+    }
+
+    @Test
+    @DisplayName("R9-2 apply : 전역 auto-apply OFF → 허용 종류(PATH_DRIFT)도 409 (globalOff 안전망)")
+    void apply_globalOff_rejectsEvenApplicableKind() {
+        ReflectionTestUtils.setField(service, "autoApplyEnabled", Boolean.FALSE);
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
+                .oldPath("/x").newPath("/y").detectedAt(Instant.now()).build();
+        ReflectionTestUtils.setField(drift, "id", 1L);
+        given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
+
+        assertThatThrownBy(() -> service.apply(1L))
+                .isInstanceOf(DriftAutoApplyNotAllowedException.class)
+                .hasMessageContaining("reconciliation.auto-apply");
+    }
+
+    @Test
+    @DisplayName("R9-2 isAutoApplyEnabled : FALSE 일 때만 false — null(미주입)/TRUE 는 true (서버 가드·뷰모델 공유 SSOT)")
+    void isAutoApplyEnabled_nullMeansEnabled() {
+        assertThat(service.isAutoApplyEnabled()).isTrue(); // 미주입(null)
+        ReflectionTestUtils.setField(service, "autoApplyEnabled", Boolean.TRUE);
+        assertThat(service.isAutoApplyEnabled()).isTrue();
+        ReflectionTestUtils.setField(service, "autoApplyEnabled", Boolean.FALSE);
+        assertThat(service.isAutoApplyEnabled()).isFalse();
     }
 
     @Test
@@ -354,5 +380,106 @@ class PathReconciliationServiceTest {
 
         verify(isoScanner, times(1)).applyGhostClear(99L);
         assertThat(report.getDrifts()).isEmpty();
+    }
+
+    // ==== R9-5 — 자원 실명 스냅샷 ====================================================
+
+    @Test
+    @DisplayName("R9-5 : drift 에 Markable.displayName() 이 스냅샷된다")
+    void scan_snapshotsDisplayName(@TempDir Path tmp) {
+        // 마커가 어디에도 없는 자원 → MISSING drift. displayName 스텁이 그대로 기록되어야 한다.
+        Path iso = tmp.resolve("dvd.iso");
+        Markable m = isoAt(42L, iso);
+        given(m.displayName()).willReturn("Rocky Linux 9.6 dvd.iso");
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDrifts()).hasSize(1);
+        Drift drift = saved.getDrifts().iterator().next();
+        assertThat(drift.getKind()).isEqualTo(DriftKind.MISSING);
+        assertThat(drift.getDisplayName()).isEqualTo("Rocky Linux 9.6 dvd.iso");
+    }
+
+    @Test
+    @DisplayName("R9-5 : ORPHAN 은 Markable 이 없어 마커 본체 파일명이 실명 fallback")
+    void scan_orphanFallsBackToFilename(@TempDir Path tmp) throws Exception {
+        // DB 인벤토리는 비어 있고 디스크에만 마커 존재 → ORPHAN. 실명 = 본체 파일명.
+        Path stray = tmp.resolve("stray.iso");
+        Files.writeString(stray, "fake-iso");
+        writeMarker(stray, MarkerLayout.SIDECAR, 99L, "hash-x");
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDrifts()).hasSize(1);
+        Drift drift = saved.getDrifts().iterator().next();
+        assertThat(drift.getKind()).isEqualTo(DriftKind.ORPHAN);
+        assertThat(drift.getDisplayName()).isEqualTo("stray.iso");
+    }
+
+    // ==== R9-1 — 완료 결과 metadata + stage 계측 ====================================
+
+    @Test
+    @DisplayName("R9-1 : performScan 이 CLASSIFYING → PERSISTING 순서로 stage 를 계측")
+    void performScan_instrumentsStageBoundaries(@TempDir Path tmp) {
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(backgroundJobService);
+        inOrder.verify(backgroundJobService).startStage("job-1", ReconciliationStage.CLASSIFYING);
+        inOrder.verify(backgroundJobService).startStage("job-1", ReconciliationStage.PERSISTING);
+    }
+
+    @Test
+    @DisplayName("R9-1 : runAsync 성공 시 driftCount 결과 metadata 와 함께 complete")
+    void runAsync_completesWithDriftCountMetadata(@TempDir Path tmp) {
+        ReflectionTestUtils.setField(service, "self", service);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+
+        service.runAsync("job-1", false);
+
+        verify(backgroundJobService).complete("job-1", Map.of("driftCount", "0"));
+    }
+
+    @Test
+    @DisplayName("R9-1 : runAsync 중 예외 → fail 호출 (complete 미호출)")
+    void runAsync_failureMarksJobFailed(@TempDir Path tmp) {
+        ReflectionTestUtils.setField(service, "self", service);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        given(driftReportRepository.save(any(DriftReport.class))).willThrow(new IllegalStateException("DB down"));
+
+        service.runAsync("job-1", false);
+
+        verify(backgroundJobService).fail(org.mockito.ArgumentMatchers.eq("job-1"), anyString());
+        verify(backgroundJobService, never()).complete(anyString(), org.mockito.ArgumentMatchers.<Map<String, String>>any());
+    }
+
+    @Test
+    @DisplayName("R9-1 : 재발급 Job 은 ReissueStage 단일 단계로 등록 + 성공/실패 건수 metadata 로 complete")
+    void reissue_usesReissueStageAndCompletesWithCounts() {
+        ReflectionTestUtils.setField(service, "self", service);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+
+        service.triggerReissueAllSignatures();
+
+        verify(backgroundJobService).register(
+                org.mockito.ArgumentMatchers.eq(com.example.serverprovision.global.job.enums.JobType.MARKER_REISSUE),
+                anyString(), anyString(),
+                org.mockito.ArgumentMatchers.eq(List.of("마커 재서명"))
+        );
+        verify(backgroundJobService).startStage("job-1", ReissueStage.RESIGNING);
+        verify(backgroundJobService).complete("job-1", Map.of(
+                "reissueSucceeded", "0",
+                "reissueFailed", "0"
+        ));
     }
 }

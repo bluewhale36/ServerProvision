@@ -23,21 +23,20 @@
   CSS: table-list.css 재사용. 신규 CSS 0.
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('격리 복구')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('업로드 실패 복구')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/table-list.css}">
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
+<!-- R9-4 — navbar 독립 메뉴 (무결성 점검과 별개 도메인 — 업로드 실패 saga). 제목도 도메인 중립화. -->
+<nav th:replace="~{fragments/layout :: navbar('quarantine')}"></nav>
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">ISO 격리 복구</h1>
+        <h1 class="n-page-title">업로드 실패 복구</h1>
         <div class="n-header-actions">
             <span class="n-hint" style="margin-right: 12px;">
-                ISO 등록이 인프라/일시 오류로 중단되면 업로드 파일이 삭제되지 않고 격리됩니다. 같은 파일로 재시도하거나 폐기할 수 있습니다.
+                자원 등록이 인프라/일시 오류로 중단되면 업로드 파일이 삭제되지 않고 격리됩니다. 같은 파일로 재시도하거나 폐기할 수 있습니다.
             </span>
-            <a th:href="@{/maintenance/reconciliation}" class="n-btn n-btn-secondary n-btn-sm"
-               title="경로 점검 페이지로">← 경로 점검</a>
         </div>
     </div>
 

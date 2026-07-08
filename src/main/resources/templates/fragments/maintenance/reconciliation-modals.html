@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/*
+  R9-3 — Reconciliation 전용 확인 modal 묶음.
+  ─────────────────────────────────────────────────────────
+  · applyModalCard / dismissModalCard : /ui/confirm-modal/DRIFT_APPLY | DRIFT_DISMISS 의
+    lazy-load 응답 (ConfirmModalType 확장). 문구는 list.js 가 form 의 data-resource-label /
+    data-resource-extra (R9-2 가 DriftKind 라벨·권장 조치로 채움) 에서 inject.
+  · genericConfirmModal(prefix) : Deep 스캔 / 마커 서명 재발급 같은 페이지 액션용 정적 modal.
+    drift 항목이 아니라 (resourceType, resourceId) 가 없으므로 lazy endpoint 대신
+    ConfirmModal.open(prefix, opts) — title / message / 버튼을 호출 시점에 주입한다.
+  스타일은 confirm-modal.css 의 .cm-* 재사용. 인라인 style 0.
+*/-->
+
+<div th:fragment="applyModalCard" class="cm-overlay" data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title">드리프트 적용</h2>
+            <p class="cm-message" data-modal-message>이 드리프트를 적용할까요?</p>
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
+                <button type="button" class="n-btn n-btn-primary" data-modal-confirm>적용</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:fragment="dismissModalCard" class="cm-overlay" data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title">보고 닫기</h2>
+            <p class="cm-message" data-modal-message>이 드리프트 보고를 닫을까요?</p>
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
+                <button type="button" class="n-btn n-btn-primary" data-modal-confirm>보고 닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:fragment="genericConfirmModal(prefix)"
+     th:id="${prefix} + 'Modal'"
+     class="cm-overlay"
+     hidden>
+    <div th:id="${prefix} + 'Backdrop'" class="cm-backdrop"></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 th:id="${prefix} + 'Title'" class="cm-title">확인</h2>
+            <p th:id="${prefix} + 'Message'" class="cm-message">계속할까요?</p>
+            <div class="cm-actions">
+                <button type="button" th:id="${prefix} + 'CancelBtn'"
+                        class="n-btn n-btn-secondary">취소
+                </button>
+                <button type="button" th:id="${prefix} + 'ConfirmBtn'"
+                        class="n-btn n-btn-primary">확인
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

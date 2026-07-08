@@ -11,6 +11,7 @@ import java.time.Instant;
  * @param id           DB PK — 단일 admin 환경이라 외부 식별자로 그대로 사용
  * @param resourceType 자원 종류
  * @param resourceId   자원 PK (도메인별)
+ * @param displayName  R9-5 — 스캔 시점 자원 표시명 스냅샷. 도입 이전 행은 null (화면이 종전 표기로 fallback)
  * @param kind         드리프트 종류
  * @param oldPath      DB 가 알고 있던 경로 (스캔 시점 기준)
  * @param newPath      재발견된 경로. PATH_DRIFT 일 때만 의미. 그 외엔 null
@@ -21,6 +22,7 @@ public record DriftResponse(
 		Long id,
 		ResourceType resourceType,
 		Long resourceId,
+		String displayName,
 		DriftKind kind,
 		String oldPath,
 		String newPath,

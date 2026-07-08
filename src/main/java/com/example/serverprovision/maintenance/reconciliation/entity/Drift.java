@@ -51,6 +51,15 @@ public class Drift {
 	@Column(name = "resource_id", nullable = false)
 	private Long resourceId;
 
+	/**
+	 * R9-5 — 스캔 시점의 자원 표시명 스냅샷({@code Markable.displayName()}). 자원이 이후 purge 되어도
+	 * 보고서에 이름이 남는다 — {@code PurgeLog.display_name} 과 동일 개념·동일 명명. ORPHAN 처럼
+	 * DB 매칭 자원이 없는 drift 는 마커가 가리키는 본체 파일명이 fallback. 도입 이전 행은 null
+	 * (백필 없음 — 화면이 종전 "TYPE #id" 표기로 fallback, FIFO retention 으로 자연 해소).
+	 */
+	@Column(name = "display_name", length = 255)
+	private String displayName;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "kind", nullable = false, length = 24)
 	private DriftKind kind;

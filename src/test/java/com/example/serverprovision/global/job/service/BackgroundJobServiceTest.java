@@ -97,6 +97,46 @@ class BackgroundJobServiceTest {
     }
 
     @Test
+    @DisplayName("R9-1 complete(결과 map) : 등록 metadata 와 병합되어 응답 metadata 로 노출")
+    void completeWithResultMetadata_mergedIntoResponse() {
+        String id = service.register(JobType.PATH_RECONCILIATION, "경로 점검", "sub",
+                BackgroundJobService.stagesOf(TestStage.values()), java.util.Map.of("osId", "42"));
+        service.startStage(id, TestStage.PREPARE);
+
+        service.complete(id, java.util.Map.of("driftCount", "3"));
+
+        BackgroundJob j = service.find(id).orElseThrow();
+        assertThat(j.getStatus()).isEqualTo(JobStatus.COMPLETED);
+        assertThat(j.getResultMetadata()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of("driftCount", "3"));
+        // 응답 병합 — 등록 키(osId) 와 결과 키(driftCount) 가 한 map 으로 내려간다 (wire 계약 무변경 근거).
+        var response = com.example.serverprovision.global.job.dto.response.BackgroundJobResponse.from(j);
+        assertThat(response.metadata())
+                .containsEntry("osId", "42")
+                .containsEntry("driftCount", "3");
+    }
+
+    @Test
+    @DisplayName("R9-1 기존 complete(jobId) : 결과 metadata 빈 map — 응답은 등록 metadata 그대로")
+    void completeWithoutResult_preservesLegacyBehavior() {
+        String id = service.register(JobType.COMPS_EXTRACTION, "추출", "sub",
+                BackgroundJobService.stagesOf(TestStage.values()), java.util.Map.of("osId", "7"));
+
+        service.complete(id);
+
+        BackgroundJob j = service.find(id).orElseThrow();
+        assertThat(j.getResultMetadata()).isEmpty();
+        var response = com.example.serverprovision.global.job.dto.response.BackgroundJobResponse.from(j);
+        assertThat(response.metadata()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of("osId", "7"));
+    }
+
+    @Test
+    @DisplayName("R9-1 complete(결과 map) : 미존재 jobId 는 no-op (기존 계약 유지)")
+    void completeWithResultMetadata_unknownJobIsNoOp() {
+        service.complete("no-such-job", java.util.Map.of("driftCount", "1"));
+        assertThat(service.snapshot()).isEmpty();
+    }
+
+    @Test
     @DisplayName("fail : 현재 stage ERROR + 이후 stage 는 PENDING 그대로 + Job FAILED")
     void failMarksOnlyCurrentStageAsError() {
         String id = register("추출");

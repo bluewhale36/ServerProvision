@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-3 plan — Reconciliation modal·폼 정합</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .sim-stage{padding:16px;background:var(--card);min-height:150px}
+  .cmodal{max-width:430px;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);background:var(--card);padding:16px 18px;margin:6px 0}
+  .cmodal h5{margin:0 0 8px;font-size:14px}
+  .cmodal p{margin:0 0 12px;font-size:12.5px}
+  .cmodal .acts{display:flex;gap:8px;justify-content:flex-end}
+  .sim-toast{background:#1f2328;color:#fff;font-size:12px;padding:7px 12px;border-radius:6px;display:inline-block;margin-top:8px}
+  .sim-err{border:2px solid var(--red);border-radius:8px;padding:10px 14px;font-size:12px;margin-top:8px}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9-3 — Reconciliation modal·폼 정합 <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R9-3 (R9 : 3/5)</span>
+    <span><strong>scope</strong> 전용 확인 modal(DRIFT_APPLY/DRIFT_DISMISS) + "무시"→"보고 닫기" + async 전환 + native confirm 2곳 제거</span>
+    <span><strong>해소</strong> R9-2 잔존 문구 비대칭 + 409 전체 페이지 이탈 + R2-6 잔여분 흡수(Q3 확정)</span>
+    <span><strong>생성</strong> 2026-07-07 KST · CP4 까지 무중단 (밤샘 자율 모드)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 · 설계 결정 D1~D5</a></li>
+      <li><a href="#sd">🎬 modal·피드백 시뮬레이터</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 10단계 매핑</a></li>
+      <li><a href="#s6">§6 Step 8 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (코드 실측)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>증상</th><th>실측 근거</th></tr></thead>
+          <tbody>
+            <tr><td>apply 폼이 restore modal 차용 — "…복구할까요?" (GHOST_DB_ROW 는 hard-delete 인데 반대 의미)</td><td><code>list.html</code> apply 폼 <code>data-confirm-restore</code> + <code>confirm-restore.js:9</code> TEMPLATE "…복구할까요?"</td></tr>
+            <tr><td>dismiss 폼이 soft-delete modal 차용 — 제목 "자원 삭제" + "…삭제할까요?" (자원이 지워진다고 읽힘)</td><td><code>data-confirm-soft-delete</code> + <code>confirm-soft-delete.html:19</code> 제목 "자원 삭제"</td></tr>
+            <tr><td>apply/dismiss 가 native form submit — 409 거절 시 전체 페이지 이탈 (R2-6 잔여)</td><td>두 폼에 <code>data-async-submit</code> 없음 → <code>approveAndSubmit</code> 이 <code>form.requestSubmit()</code>(<code>confirm-modal-base.js:124-131</code>)</td></tr>
+            <tr><td>native <code>confirm()</code> 2곳 잔존 — Deep 스캔 / 마커 서명 재발급 (R2-6 이 management 만 처리)</td><td><code>list.js</code> trigger() 내 confirm 2곳 (R9-1 에서 R9-3 소관으로 명시 유지)</td></tr>
+            <tr><td>flash 문구 stale — kind 무관 "PATH_DRIFT 적용 완료"</td><td><code>ReconciliationRestController.java:86</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 · 설계 결정 (D1~D5, 대안 비교)</summary>
+      <div class="body">
+        <h4>D1. 전용 modal 공급 — <code>ConfirmModalType</code> 상수 2개 + fragment (enum 다형성 확장) <span class="badge new">채택</span></h4>
+        <p><code>DRIFT_APPLY</code>("드리프트 적용"/확인 버튼 "적용")·<code>DRIFT_DISMISS</code>("보고 닫기"/확인 버튼 "보고 닫기") 상수를 추가한다. <code>SOFT_DELETE</code> 선례처럼 <b>자원 lookup 없음</b> — 문구는 JS 가 form 의 data 속성(R9-2 가 이미 라벨·권장조치를 채움)에서 주입. fragment 는 신규 <code>fragments/maintenance/reconciliation-modals.html</code> 에 2개. 이 방식은 enum abstract method 다형성이라 <b>분기 추가가 아니라 OCP 확장</b>이고, drift 의 (resourceType, resourceId) 가 실재하므로 기존 endpoint 시그니처와도 그대로 맞는다(사전 조사의 "lazy 파이프라인 불합치" 우려는 SOFT_DELETE 계열이 자원 lookup 을 안 한다는 실측으로 해소).<br>
+        <span class="dim">비채택: ⓐ 정적 modal 마크업을 페이지에 사전 렌더 — lazy-load 로 통일된 S5-6-2 방향과 역행. ⓑ 기존 restore/soft-delete modal 에 문구 override 계속 — 제목("자원 삭제")이 fragment 에 박혀 있어 근본 해소 불가.</span></p>
+        <h4>D2. 바인딩은 reconciliation <code>list.js</code> 페이지 로컬 <span class="badge new">채택</span></h4>
+        <p><code>ConfirmModal.bindFormSubmit('data-confirm-drift-apply', …)</code> 등록을 이 페이지 JS 에서 수행 — 전역 <code>confirm-modals.html</code> lazyShell 스크립트 목록을 건드리지 않아 <b>전 management 페이지 blast radius 0</b> (사전 조사 실행성 렌즈 지적 반영).</p>
+        <h4>D3. async 전환 + 성공 피드백 = sessionStorage 토스트 (R9-1 패턴 재사용) <span class="badge new">채택</span></h4>
+        <p>두 폼에 <code>data-async-submit</code> 부여. 거절(409/404/500)은 전역 <code>AsyncSubmitResult</code>(error-modal.js 가 전 페이지에 제공)의 <code>ErrorModal</code> 경로. 성공은 페이지 로컬로 <code>window.AsyncSubmitResult</code> 를 <b>기존 핸들러 위임 + onSuccess 만 교체</b>(trash-action.js 선례) — sessionStorage 토스트("드리프트를 적용했습니다"/"보고를 닫았습니다") 기록 후 reload. R9-1 의 TOAST_KEY 소비 로직을 그대로 재사용(읽는 즉시 삭제).<br>
+        <span class="dim">백엔드는 PRG(RedirectView+flash) 유지 — <code>submitAsync</code> 가 redirect 를 따라가 <code>resp.redirected</code>=true 로 onSuccess 판정하므로 계약이 이미 맞고, JS 불능 환경의 native submit fallback 도 보존된다. flash 문구만 kind 중립으로 정정("드리프트 적용 완료"/"드리프트 보고를 닫았습니다"). 비채택: 204 JSON 화 — fallback 상실 + 기존 redirect 단언 테스트 churn 대비 이득이 fetch 1회 절약뿐.</span></p>
+        <h4>D4. native confirm 2곳 → <code>ConfirmModal.openLazy</code> + 신규 <code>SCAN_CONFIRM</code>… 대신 <b>정적 generic modal 1개</b> <span class="badge new">채택</span></h4>
+        <p>Deep 스캔·재발급 confirm 은 drift 항목이 아니라 <b>페이지 액션</b>이라 (resourceType, resourceId) 개념이 없다 — lazy endpoint 시그니처에 억지 dummy 를 넣는 것보다, <code>reconciliation-modals.html</code> 에 <code>genericConfirmModal('reconConfirm')</code> 정적 fragment 1개를 두고 <code>ConfirmModal.open(prefix, opts)</code>(S5-2 base API — title/message/버튼을 호출 시점에 주입) 로 여는 쪽이 정직하다. 문구는 기존 confirm 내용을 계승하되 구현 용어(manifestHash) 를 "파일 내용 해시"로 순화(전면 용어 재편은 R9-4).<br>
+        <span class="dim">비채택: dummy resourceType 로 lazy 신규 타입 — endpoint 의미 오염. 전역 토스트/모달 자산 개조 — scope 밖.</span></p>
+        <h4>D5. 버튼 개명 — "무시" → "보고 닫기" <span class="badge new">채택</span></h4>
+        <p>실동작(보고서에서 해당 행 제거, 자원 무변경, 재보고 가능)과 일치하는 명칭. dismiss modal 문구: "'{label}' 드리프트 보고를 닫을까요? 보고 목록에서만 제외됩니다. 파일과 자원은 변경되지 않으며 다음 점검에서 다시 보고될 수 있어요."</p>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 modal·피드백 시뮬레이터 — 액션별 확인창과 결과를 체험</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">액션</span>
+            <button class="ux-btn on" data-act="apply-path">적용 (경로 이동됨)</button>
+            <button class="ux-btn" data-act="apply-ghost">적용 (유령 DB 기록)</button>
+            <button class="ux-btn" data-act="dismiss">보고 닫기</button>
+            <button class="ux-btn" data-act="deep">Deep 스캔 버튼</button>
+            <button class="ux-btn" data-act="reissue">재발급 버튼</button>
+            <span class="lbl" style="margin-left:8px">서버 응답</span>
+            <button class="ux-btn on" id="resp-toggle">200</button>
+          </div>
+          <div class="sim-stage" id="stage"></div>
+        </div>
+        <p class="dim">Before 와 비교: 적용 확인창은 "복구할까요?"(restore 차용), 보고 닫기는 제목 "자원 삭제"+"삭제할까요?"(soft-delete 차용), 409 는 raw 응답 페이지로 이탈, Deep/재발급은 브라우저 native confirm 이었다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+<pre>[적용]  submit 가로채기(list.js 로컬 bindFormSubmit) → GET /ui/confirm-modal/<span style="color:#d2a8ff">DRIFT_APPLY</span>?resourceType=..&resourceId=..
+        → fragment inject → 문구 = form data-resource-label + data-resource-extra(=recommendedAction, R9-2 산출)
+        → [적용] 클릭 → approveAndSubmit → <span style="color:#d2a8ff">data-async-submit → submitAsync fetch</span>
+          성공(redirect follow) → 로컬 onSuccess: sessionStorage 토스트 + reload (R9-1 TOAST_KEY 재사용)
+          거절 409/404 → 전역 AsyncSubmitResult.onRejected → <span style="color:#d2a8ff">ErrorModal</span> (페이지 이탈 없음)
+[보고 닫기]  동일 흐름, DRIFT_DISMISS + 전용 문구
+[Deep 스캔/재발급]  ConfirmModal.open('reconConfirm', {title, message, confirmLabel…}) → 기존 fetch 트리거(R9-1) 그대로
+[native fallback]  JS 불능 시 폼 native submit → PRG redirect + flash("드리프트 적용 완료") — 경로 보존</pre>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (엔티티 무변경)</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><code>ConfirmModalType</code> + <code>DRIFT_APPLY</code>/<code>DRIFT_DISMISS</code> — resolveModel 은 자원 lookup 없음(디버그 attribute 만), fragmentView → <code>fragments/maintenance/reconciliation-modals :: applyModalCard | dismissModalCard</code>.</li>
+          <li>신규 fragment 파일 1: modalCard 2종 + <code>genericConfirmModal(prefix)</code> 정적 1종 (모두 <code>.cm-*</code> 기존 CSS, 인라인 style 0).</li>
+          <li>Request/Response/엔티티/Repository 변경 0.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 10단계 매핑 (리팩토링 슬라이스)</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td>1</td><td>본 plan html</td></tr>
+            <tr><td>2</td><td><code>reconciliation-modals.html</code> 신규 + <code>list.html</code> 마커·버튼명·정적 modal include</td></tr>
+            <tr><td>3</td><td><code>ReconciliationRestController</code> flash 문구 2건 정정</td></tr>
+            <tr><td>4·6·7·9</td><td><b>N/A</b></td></tr>
+            <tr><td>5</td><td><code>ConfirmModalType</code> 상수 2 (시그니처 변화 없음 — enum 확장)</td></tr>
+            <tr><td>8</td><td><code>list.js</code>(로컬 바인딩 + AsyncSubmitResult 로컬 override + confirm 교체) + 테스트(§6)</td></tr>
+            <tr><td>10</td><td>CP5 — 사용자 복귀 후</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s6" open>
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><code>ConfirmModalFragmentControllerTest</code> <span class="badge mod">+2</span></td><td>DRIFT_APPLY — 200 + <code>data-modal-active</code>/<code>data-modal-confirm</code> + 제목 "드리프트 적용" / DRIFT_DISMISS — 200 + 제목 "보고 닫기" (기존 SOFT_DELETE 케이스와 동일 패턴 — 자원 lookup 없음)</td></tr>
+            <tr><td><code>ReconciliationRestControllerTest</code> <span class="badge keep">기존 green</span></td><td>apply/dismiss redirect 단언 무변경(PRG 유지 증명). 409 ErrorModal 라우팅의 HTTP 계층(JSON 채널)은 R2-3 advice 테스트가 기보유</td></tr>
+            <tr><td>정적 검증</td><td><code>node --check list.js</code> / 템플릿 렌더는 기존 alias 테스트가 커버(마커 치환 후에도 green 이어야 함)</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">신규 예외 0. modal fragment 는 표시 전용이라 실패 시나리오는 기존 400(잘못된 modalType enum) 케이스가 커버.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body"><p style="margin-top:0">신규 예외 없음. 409 는 기존 <code>DriftAutoApplyNotAllowedException</code>(R9-2 factory) — 본 슬라이스는 그 표시 채널을 전체 페이지 이탈 → ErrorModal 로 바꾼다.</p></div>
+    </details>
+
+    <details class="section" id="s8" open>
+      <summary>§8. 부산물 · 주의</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>R2-6 경계 확정(Q3)</b>: reconciliation 잔여분(native confirm 2곳 + async 미적용)을 본 슬라이스가 흡수 — Notion R2-6 쪽 이력에 별도 기재는 R9 종합 보고에서.</li>
+          <li><b>공유 표면</b>: <code>ConfirmModalType</code>/<code>ConfirmModalFragmentControllerTest</code> 는 전 도메인 공용 — 상수 추가만이라 기존 상수 동작 무변경(기존 테스트가 증명).</li>
+          <li><b>미루는 것</b>: Deep 스캔/재발급 modal 의 문구 전면 재설계와 버튼 라벨("수동 스캔" 등) 개편 — R9-4 정보구조 슬라이스에서 명칭 체계와 함께.</li>
+          <li>R9-2 가 남긴 dismiss 폼 <code>data-resource-extra</code>("다음 스캔에서 다시 보고될 수 있어요")를 전용 문구로 교체.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>§9. Verification</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r9-3-plan-verify" style="margin-top:0">
+          <li><input type="checkbox"><span>전체 테스트 그린</span></li>
+          <li><input type="checkbox"><span>grep: reconciliation 페이지에 <code>confirm(</code> 잔존 0 / <code>data-confirm-restore</code>·<code>data-confirm-soft-delete</code> 잔존 0</span></li>
+          <li><input type="checkbox"><span>두 폼 모두 <code>data-async-submit</code> 보유</span></li>
+          <li><input type="checkbox"><span>전역 confirm-modals.html·confirm-modal-base.js 무변경 (git diff)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td class="mono">global/ui/enums/ConfirmModalType.java</td><td><span class="badge mod">수정</span> 상수 2 추가</td></tr>
+            <tr><td class="mono">templates/fragments/maintenance/reconciliation-modals.html</td><td><span class="badge new">신규</span> modalCard 2 + generic 정적 1</td></tr>
+            <tr><td class="mono">templates/maintenance/reconciliation/list.html</td><td><span class="badge mod">수정</span> 마커 교체 + data-async-submit + "보고 닫기" + generic include</td></tr>
+            <tr><td class="mono">static/maintenance/reconciliation/list.js</td><td><span class="badge mod">수정</span> 로컬 바인딩 2 + AsyncSubmitResult 로컬 override + confirm 2곳 교체</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/controller/ReconciliationRestController.java</td><td><span class="badge mod">수정</span> flash 문구 2건</td></tr>
+            <tr><td class="mono">ConfirmModalFragmentControllerTest.java</td><td><span class="badge mod">+2</span></td></tr>
+          </tbody>
+        </table>
+        <p class="dim">유지: confirm-modal-base.js, confirm-modals.html(lazyShell), error-modal.js, 서비스·엔티티 전부.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body"><p style="margin-top:0">CP4 → report html + Notion 'CP4 완료' → <b>R9-4</b>(정보구조 재배치 + 명칭 "자원 무결성 점검" 단일화 + DESIGN.md).</p></div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  /* 🎬 modal·피드백 시뮬레이터 */
+  const stage=document.getElementById('stage');
+  const state={act:'apply-path',ok:true,phase:'modal'};
+  const ACTS={
+    'apply-path':{title:'드리프트 적용',msg:"'경로 이동됨' 드리프트 을(를) 적용할까요? 적용하면 DB 의 경로를 새 위치로 갱신합니다. 파일은 변경하지 않습니다.",confirm:'적용',toast:'드리프트를 적용했습니다. 목록을 갱신합니다.'},
+    'apply-ghost':{title:'드리프트 적용',msg:"'유령 DB 기록' 드리프트 을(를) 적용할까요? 적용하면 남은 DB 기록을 영구 삭제합니다. 복구할 파일이 없어 안전한 정리입니다.",confirm:'적용',toast:'드리프트를 적용했습니다. 목록을 갱신합니다.'},
+    'dismiss':{title:'보고 닫기',msg:"'경로 이동됨' 드리프트 보고를 닫을까요? 보고 목록에서만 제외됩니다. 파일과 자원은 변경되지 않으며 다음 점검에서 다시 보고될 수 있어요.",confirm:'보고 닫기',toast:'드리프트 보고를 닫았습니다.'},
+    'deep':{title:'정밀 점검 (Deep 스캔)',msg:'모든 자원의 파일 내용 해시를 다시 계산합니다. 용량이 큰 ISO 는 수십 초에서 수 분이 걸릴 수 있어요. 계속할까요?',confirm:'시작',toast:'자원 점검을 시작했습니다.'},
+    'reissue':{title:'마커 서명 재발급',msg:'서명 키(secret) 회전 직후에만 실행하세요. 모든 자원의 마커 서명이 현재 키로 다시 계산됩니다. 파일 내용 해시는 유지되어 변조 자원은 이후 정밀 점검에서 그대로 감지됩니다. 계속할까요?',confirm:'재발급',toast:'마커 서명 재발급을 시작했습니다.'}
+  };
+  function render(){
+    const a=ACTS[state.act];let h='';
+    if(state.phase==='modal'){
+      h=`<div class="cmodal"><h5>${a.title}</h5><p>${a.msg}</p>
+        <div class="acts"><button class="ux-btn" id="m-cancel">취소</button>
+        <button class="ux-btn on" id="m-ok">${a.confirm}</button></div></div>
+        <div class="dim" style="font-size:11px">lazy fragment (DRIFT_*) 또는 정적 generic modal — 기존 .cm-* CSS</div>`;
+    }else if(state.phase==='done'){
+      h= state.ok
+        ? `<div class="sim-toast">${a.toast}</div><div class="dim" style="font-size:11px;margin-top:6px">${state.act.startsWith('apply')||state.act==='dismiss'?'sessionStorage 토스트 → reload → 소비(즉시 삭제) — R9-1 패턴 재사용':'R9-1 의 시작 토스트 → 완료는 bgjob:completed 경로'}</div>`
+        : `<div class="sim-err"><b>ErrorModal</b> — 409 : "전역 자동 적용 옵션(reconciliation.auto-apply)이 꺼져 있어 적용이 거절되었습니다…" <div class="dim" style="margin-top:4px">Before: raw 응답으로 전체 페이지 이탈 → After: 페이지 유지 + modal</div></div>`;
+      h+=`<div style="margin-top:10px"><button class="ux-btn" id="m-again">다시</button></div>`;
+    }
+    stage.innerHTML=h;
+    const ok=document.getElementById('m-ok'),ca=document.getElementById('m-cancel'),ag=document.getElementById('m-again');
+    if(ok)ok.addEventListener('click',()=>{state.phase='done';render();});
+    if(ca)ca.addEventListener('click',()=>{stage.innerHTML='<span class="dim">취소됨 — 액션을 다시 선택하세요.</span>';});
+    if(ag)ag.addEventListener('click',()=>{state.phase='modal';render();});
+  }
+  document.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-act]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');state.act=b.dataset.act;state.phase='modal';render();}));
+  document.getElementById('resp-toggle').addEventListener('click',e=>{
+    state.ok=!state.ok;e.target.textContent=state.ok?'200':'409';e.target.classList.toggle('on',state.ok);});
+  render();
+</script>
+</body>
+</html>

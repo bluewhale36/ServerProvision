@@ -134,6 +134,15 @@ public class OrphanQuarantineService {
 		return OrphanQuarantineResponse.from(repository.getByRecoveryIdOrThrow(recoveryId));
 	}
 
+	/**
+	 * R9-4 — 복구 대기(PENDING) 격리 건수. 자원 무결성 점검 페이지가 안내 배너 노출 판단에 사용
+	 * (해당 페이지 렌더에만 얹는 count — 전역 navbar 배지는 전 페이지 렌더 비용으로 기각).
+	 */
+	@Transactional(readOnly = true)
+	public long countPending() {
+		return repository.countByState(OrphanRecoveryState.PENDING);
+	}
+
 	private static String originalNameOf(String provided, Path resolved) {
 		if (provided != null && !provided.isBlank()) {
 			return provided;

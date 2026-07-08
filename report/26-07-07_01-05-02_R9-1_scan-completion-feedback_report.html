@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-1 구현 보고 — 스캔·재발급 완료의 화면 자동 반영</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rep{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap;min-height:120px}
+  .ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}.ux-flow .drop{color:#f85149;font-weight:700}.ux-flow .dim{color:#8b949e}.ux-flow .ok{color:#3fb950;font-weight:700}.ux-flow .warn{color:#e3b341;font-weight:700}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:8px 16px;background:var(--card);text-align:center}
+  .stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9-1 구현 보고 — 스캔·재발급 완료의 화면 자동 반영 <span class="chip rep">CP4 완료</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R9-1 (R9 : Reconciliation 사용성 개선 — 1/5)</span>
+    <span><strong>plan</strong> plan/26-07-07_00-53-53_R9-1_plan.html (D1~D6 전부 이행)</span>
+    <span><strong>결과</strong> 전체 <b>1067 테스트 / 실패 0</b> (신규 11) · 사용자 불만 ① 완결 해소 + ③ 일부(부분 실패 표면화)</span>
+    <span><strong>작성</strong> 2026-07-07 KST (밤샘 자율 모드) · <strong>다음</strong> CP5 는 사용자 복귀 후</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 결과 요약</a></li>
+      <li><a href="#s2">§2 무엇이 어떻게 바뀌었나</a></li>
+      <li><a href="#sd">🎬 계층별 전후 diff</a></li>
+      <li><a href="#s3">§3 완료 반영 정책 매트릭스</a></li>
+      <li><a href="#s4">§4 plan 대비 실측 차이</a></li>
+      <li><a href="#s5">§5 테스트 · Verification</a></li>
+      <li><a href="#s6">§6 CP5 가이드 (사용자)</a></li>
+      <li><a href="#s7">§7 잔여 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 결과 요약</summary>
+      <div class="body">
+        <div class="stat-row">
+          <div class="stat"><b>0 → 2</b><span>완료 이벤트 리스너 (completed/failed)</span></div>
+          <div class="stat"><b>3s 타이머</b><span>제거 — 이벤트 기반 원복</span></div>
+          <div class="stat"><b>1067</b><span>테스트 green (신규 11 · 실패 0)</span></div>
+          <div class="stat"><b>3단계</b><span>진행바 실경계 계측 (기존 1)</span></div>
+          <div class="stat"><b>0</b><span>엔티티/스키마 변경</span></div>
+        </div>
+        <p>사용자 불만 ① "스캔 후 화면을 새로고침 할 필요가 있다"를 해소했다. 이 페이지에서 트리거한 스캔이 완료되면 <b>완료 토스트("점검 완료 — 드리프트 N건")와 함께 자동 새로고침</b>되고, 사용자가 트리거하지 않은 완료(1시간 주기 스캔 등)는 열람 중 화면이 리셋되지 않도록 <b>배너("새 점검 보고서가 도착했습니다 — [새로고침]")</b>로만 안내한다. 마커 서명 재발급은 보고서를 만들지 않으므로 새로고침 없이 <b>성공/실패 건수 토스트</b>만 표시 — 기존에 서버 로그로만 새던 부분 실패(불만 ③의 일부)가 처음으로 화면에 도달한다.</p>
+        <p>구현의 골격은 신규 발명이 아니라 접속이다: 완료 감지는 이미 전 페이지에서 돌던 알림 센터 폴링(<code>background-jobs.js</code>)의 <code>bgjob:completed/failed</code> 이벤트를 구독했고, 완료 시점 결과 수치는 <code>BackgroundJobService.complete(jobId, 결과 map)</code> 오버로드가 등록 metadata 와 병합해 <b>기존 wire 계약(<code>metadata</code> 필드) 그대로</b> 내려보낸다 — 전역 JS 는 한 줄도 바뀌지 않았다.</p>
+        <div class="callout ok"><b>부수 결함 2건 동반 수정</b> — ⓐ 재발급 Job 이 스캔용 3단계 라벨("디스크 스캔/드리프트 분류/보고서 저장")을 차용해 알림 센터 진행바가 거짓 단계를 표시하던 것을 전용 <code>ReissueStage</code>("마커 재서명" 1단계)로 교체. ⓑ Miller 드릴다운 후 새로고침하면 선택 위치가 항상 초기화되던 것(os-list.js 의 URL 동기화 파라미터 <code>selectKey/selectId</code> 를 컨트롤러가 안 읽음)을 alias 수용으로 수정 — 자동 reload UX 의 전제 결함이었다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 무엇이 어떻게 바뀌었나 (파일별)</summary>
+      <div class="body">
+        <h4>global/job — 완료 결과 metadata 기구 (공유 인프라, 하위 호환)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">BackgroundJob.java</td><td><span class="badge mod">수정</span></td><td>volatile <code>resultMetadata</code> 필드 + <code>complete(Map)</code> 오버로드(기존 <code>complete()</code> 는 빈 map 위임). 키 충돌 금지 규약 javadoc — 등록 키는 도메인 식별자(osId 등), 결과 키는 완료 수치 전용.</td></tr>
+            <tr><td class="mono">service/BackgroundJobService.java</td><td><span class="badge mod">수정</span></td><td><code>complete(jobId, resultMetadata)</code> 오버로드. 미존재 jobId no-op 계약 유지.</td></tr>
+            <tr><td class="mono">dto/response/BackgroundJobResponse.java</td><td><span class="badge mod">수정</span></td><td><code>mergedMetadata()</code> — 등록 ∪ 결과 병합해 기존 <code>metadata</code> 필드로 응답. 결과가 비면 등록 map 그대로(기존 Job 형태 보존).</td></tr>
+          </tbody>
+        </table>
+        <h4>reconciliation — 계측·결과 탑재·위치 보존</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">service/ReissueStage.java</td><td><span class="badge new">신규</span></td><td><code>RESIGNING("마커 재서명")</code> 단일 단계 enum (<code>JobStage</code> 구현).</td></tr>
+            <tr><td class="mono">service/PathReconciliationService.java</td><td><span class="badge mod">수정</span></td><td>ⓐ <code>performScan</code> (4)분류/(6)저장 직전 <code>startStage(CLASSIFYING/PERSISTING)</code> — dead 파라미터였던 jobId 활용. startStage 는 RUNNING 표시일 뿐이라 롤백 시 <code>fail()</code> 이 해당 단계 ERROR 마킹(허위 완료 표시 없음). ⓑ <code>runAsync</code> 완료 시 <code>complete(jobId, {driftCount})</code>. ⓒ 재발급 register 를 <code>ReissueStage</code> 로 교체 + 완료 시 <code>{reissueSucceeded, reissueFailed}</code> 탑재.</td></tr>
+            <tr><td class="mono">controller/ReconciliationController.java</td><td><span class="badge mod">수정</span></td><td><code>selectKey/selectId</code> alias 수용(명시 파라미터 우선) — reload 시 Miller 선택 위치 보존.</td></tr>
+            <tr><td class="mono">templates/…/reconciliation/list.html</td><td><span class="badge mod">수정</span></td><td>새 보고서 도착 배너(hidden div + [새로고침] 버튼, 기존 warn 스타일 계열) + 헤더 주석의 "후속 개선" 문구를 현행화.</td></tr>
+            <tr><td class="mono">static/…/reconciliation/list.js</td><td><span class="badge mod">재작성</span></td><td>이벤트 구독 2종 + 자기 트리거 식별(<code>selfJobs</code> Map) + sessionStorage 토스트(읽는 즉시 삭제) + 고정 3초 타이머 제거(버튼은 terminal 이벤트로 원복) + 시작 토스트. native confirm 2곳은 R9-3 소관으로 유지.</td></tr>
+          </tbody>
+        </table>
+        <h4>테스트 — 신규 11</h4>
+        <table>
+          <thead><tr><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">BackgroundJobServiceTest <span class="badge mod">+3</span></td><td>결과 병합 / 기존 complete 형태 보존 / 미존재 jobId no-op</td></tr>
+            <tr><td class="mono">PathReconciliationServiceTest <span class="badge mod">+4</span></td><td>stage 순서(InOrder CLASSIFYING→PERSISTING) / runAsync 성공 driftCount metadata / 예외 시 fail+complete 미호출 / 재발급 ReissueStage 등록+건수 metadata</td></tr>
+            <tr><td class="mono">BackgroundJobControllerTest <span class="badge new">신규 2</span></td><td>GET /jobs 응답에서 metadata 병합(<code>$.jobs[0].metadata.driftCount</code>) / 결과 없는 Job 기존 형태 보존</td></tr>
+            <tr><td class="mono">ReconciliationRestControllerTest <span class="badge mod">+2</span></td><td>alias → 모델 매핑 / 명시 파라미터 우선</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 계층별 전후 diff</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <button class="ux-btn on" data-layer="front">프론트 (list.js)</button>
+            <button class="ux-btn" data-layer="job">global/job</button>
+            <button class="ux-btn" data-layer="stage">진행바 계측</button>
+            <button class="ux-btn" data-layer="pos">위치 보존</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3" open>
+      <summary>§3. 완료 반영 정책 매트릭스 (구현 결과)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>이벤트</th><th>Before</th><th>After</th></tr></thead>
+          <tbody>
+            <tr><td><code>completed</code> · 스캔 · <b>자기 트리거</b></td><td>버튼만 3초 후 원복 — 화면 무변화, 수동 F5 필요</td><td>sessionStorage 토스트 기록 → 자동 reload → "점검 완료 — 드리프트 N건" 토스트 + 새 보고서 표시. 토스트 키는 읽는 즉시 삭제(재방문 시 재노출 방지)</td></tr>
+            <tr><td><code>completed</code> · 스캔 · 외부(주기)</td><td>화면 무변화</td><td>배너 "새 점검 보고서가 도착했습니다 — [새로고침]" (열람 중 리셋 방지 — 자동 reload 없음)</td></tr>
+            <tr><td><code>completed</code> · 재발급 · 자기 트리거</td><td>화면 무변화, 부분 실패는 로그로만</td><td>reload 없이 토스트 "마커 재서명 완료 — 성공 N건, 실패 M건" (실패&gt;0 → error variant + 8초)</td></tr>
+            <tr><td><code>failed</code> · 자기 트리거</td><td>화면 무변화 (버튼은 3초 후 원복돼 실패 인지 불가)</td><td>error 토스트(사유 포함) + 버튼 원복</td></tr>
+            <tr><td>reload 직후 재발화</td><td>—</td><td>없음 — <code>background-jobs.js</code> 의 <code>seedTerminalSeen</code> 이 첫 폴링의 기존 종료 Job 을 침묵 등록 (실측 확인)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. plan 대비 실측 차이 1건</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>alias 테스트의 배치</b> — plan §6 은 <code>ReconciliationControllerTest</code> 신규 클래스를 예정했으나, 기존 <code>ReconciliationRestControllerTest</code> 의 <code>@WebMvcTest</code> 하니스가 이미 <code>ReconciliationController.class</code> 를 포함하고 있어 신규 클래스 없이 그 파일에 2 케이스를 추가했다(파일 수 절약, 시맨틱 동일). 그 외 D1~D6 전부 plan 그대로 이행 — 이탈 0.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 테스트 · Verification 결과</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>구분</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>전체 스위트 (<code>./gradlew test</code>)</td><td><b>총 1067 / 실패 0 / 오류 0 / 스킵 6</b> — U2 커밋 후 베이스라인 1056 + 신규 11 = 1067 정합</td></tr>
+            <tr><td>관련 패키지 (global/job + reconciliation)</td><td>79/79 green</td></tr>
+          </tbody>
+        </table>
+        <ul class="check-list" data-storage="r9-1-report-verify">
+          <li><input type="checkbox" checked><span><code>node --check list.js</code> 통과</span></li>
+          <li><input type="checkbox" checked><span>list.js 내 고정 <code>setTimeout</code> 잔존 0 (grep)</span></li>
+          <li><input type="checkbox" checked><span>기존 <code>complete(jobId)</code> 호출처 4곳(IsoRegistrationRunner · CompsExtractionService · IntegrityJobReporter · BackgroundJobNotificationAdapter) 무변경 (grep)</span></li>
+          <li><input type="checkbox" checked><span>clean compile — U1/U2 간섭 없음 (작업 트리에 R9 변경만)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. CP5 가이드 — 사용자 브라우저 E2E</summary>
+      <div class="body">
+        <ol style="margin-top:0">
+          <li><b>수동 스캔</b> — 자원 경로 점검 페이지에서 [수동 스캔] 클릭 → 시작 토스트 → 버튼 "스캔 중…" 유지 → 완료 시 <b>자동 새로고침 + "점검 완료 — 드리프트 N건" 토스트</b>. 알림 센터(서류가방) 카드의 진행바가 3단계(디스크 스캔→드리프트 분류→보고서 저장)로 채워지는지 확인.</li>
+          <li><b>위치 보존</b> — 스캔 이력에서 보고서·드리프트를 드릴다운한 상태로 F5 → 선택 위치가 유지되는지 (URL 의 <code>selectKey/selectId</code>).</li>
+          <li><b>마커 서명 재발급</b> — 클릭(confirm 통과) → 완료 시 새로고침 없이 "성공 N건, 실패 M건" 토스트. 알림 센터 카드 진행바가 "마커 재서명" 1단계인지.</li>
+          <li><b>주기 스캔 배너(선택)</b> — 페이지를 열어둔 채 다른 브라우저 탭/세션에서 스캔 트리거 → 열람 중 화면이 리셋되지 않고 상단 배너 + [새로고침] 버튼이 뜨는지.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 잔여 · 다음</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>잔존 책임</b>: 재발급 부분 실패의 상세 목록은 서버 로그로만(건수는 토스트) — 필요 대두 시 별도 슬라이스. native confirm 2곳은 R9-3 에서 ConfirmModal 로.</li>
+          <li><b>다음</b>: R9-2 (DriftKind 사용자 언어화 + <code>isAutoApplicable</code> SSOT 승격 + auto-apply OFF 시 disabled/tooltip). Notion R9-1 은 'CP4 완료' 로 표기 — CP5(브라우저 E2E)는 사용자 복귀 후.</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  const LAYERS={
+    front:`<span class="dim">// list.js — 트리거 후</span>
+<span class="drop">- setTimeout(()=>{ 버튼 원복 }, 3000)   // 실제 완료와 무관</span>
+<span class="new">+ selfJobs.set(data.jobId, btn) + 시작 토스트</span>
+<span class="new">+ document.addEventListener('bgjob:completed', …)   // 자기/외부 · 스캔/재발급 분기 (§3 매트릭스)</span>
+<span class="new">+ document.addEventListener('bgjob:failed', …)      // error 토스트 + 버튼 원복</span>
+<span class="new">+ sessionStorage 'reconciliation:pendingToast' — reload 직후 읽고 즉시 삭제</span>
+  <span class="keep">background-jobs.js / os-list.js / ErrorModal — 무변경</span>`,
+    job:`<span class="dim">// global/job — 완료 결과 기구 (하위 호환 오버로드)</span>
+BackgroundJob      <span class="new">+ volatile resultMetadata</span> · <span class="new">+ complete(Map)</span>  <span class="dim">(기존 complete() → complete(Map.of()))</span>
+BackgroundJobService <span class="new">+ complete(jobId, map)</span>  <span class="dim">미존재 jobId no-op 유지</span>
+BackgroundJobResponse <span class="new">metadata = 등록 ∪ 결과 병합</span>  <span class="dim">→ wire 계약 무변경 (프론트가 이미 metadata 를 detail 로 수신)</span>
+  <span class="keep">기존 호출처 4곳 complete(jobId) 그대로 — 회귀 0 (전체 1067 green)</span>`,
+    stage:`<span class="dim">// 진행바 계측 — 실경계</span>
+runAsync: startStage(SCANNING) → performScan{
+  (1)~(3) 인벤토리·walk           <span class="dim">← SCANNING</span>
+  <span class="new">+ startStage(CLASSIFYING)</span>  (4)~(5.5) 분류·ORPHAN·ghost
+  <span class="new">+ startStage(PERSISTING)</span>   (6)~(8) 저장·prune·자동적용
+} → 리턴(=커밋) → <span class="new">complete(jobId, {driftCount})</span>
+<span class="dim">롤백 시: runAsync catch → fail() → 현재 단계 ERROR (startStage 는 RUNNING 표시일 뿐 — 허위 완료 없음)</span>
+
+reissue: <span class="drop">- ReconciliationStage 3단계 차용 (거짓 라벨)</span>
+         <span class="new">+ ReissueStage RESIGNING("마커 재서명") 1단계</span> → <span class="new">complete(jobId, {reissueSucceeded, reissueFailed})</span>`,
+    pos:`<span class="dim">// reload 위치 보존 — 선행 결함 수정 (비판 검증 발견)</span>
+os-list.js URL 동기화:  ?selectKey=10&selectId=1   <span class="dim">(management 공용 — 무변경)</span>
+<span class="drop">- ReconciliationController 는 selectReportId/selectDriftId 만 읽음 → reload 마다 선택 초기화</span>
+<span class="new">+ alias 수용: selectReportId ?: selectKey / selectDriftId ?: selectId (명시 우선)</span>
+  <span class="keep">→ 자동 reload · 수동 F5 · 배너 [새로고침] 모두 위치 보존</span>`
+  };
+  const flowEl=document.getElementById('flow');
+  function show(l){flowEl.innerHTML=LAYERS[l];}
+  document.querySelectorAll('[data-layer]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-layer]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');show(b.dataset.layer);
+  }));
+  show('front');
+</script>
+</body>
+</html>

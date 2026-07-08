@@ -57,7 +57,20 @@ public record BackgroundJobResponse(
 				job.getErrorMessage(),
 				job.getCreatedAt(),
 				job.getCompletedAt(),
-				job.getMetadata()
+				mergedMetadata(job)
 		);
+	}
+
+	/**
+	 * R9-1 — 등록 metadata ∪ 완료 결과 metadata. 키 충돌 금지 규약(등록 = 도메인 식별자,
+	 * 결과 = 완료 수치)이 전제라 순서 무관 병합. 프론트({@code background-jobs.js})는 기존
+	 * {@code metadata} 필드 하나만 읽으므로 wire 계약 무변경.
+	 */
+	private static Map<String, String> mergedMetadata(BackgroundJob job) {
+		Map<String, String> result = job.getResultMetadata();
+		if (result.isEmpty()) return job.getMetadata();
+		Map<String, String> merged = new java.util.HashMap<>(job.getMetadata());
+		merged.putAll(result);
+		return Map.copyOf(merged);
 	}
 }

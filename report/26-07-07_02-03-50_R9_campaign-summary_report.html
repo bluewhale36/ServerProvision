@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9 캠페인 종합 보고 — Reconciliation 사용성 전면 개선 (5/5 CP4)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rep{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}.badge.hi{background:var(--red-bg);color:var(--red)}.badge.mid{background:var(--yellow-bg);color:var(--yellow)}.badge.lo{background:var(--soft);color:var(--muted)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:8px 16px;background:var(--card);text-align:center}
+  .stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap;min-height:140px}
+  .ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}.ux-flow .drop{color:#f85149;font-weight:700}.ux-flow .dim{color:#8b949e}.ux-flow .ok{color:#3fb950;font-weight:700}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9 캠페인 종합 보고 — Reconciliation 사용성 전면 개선 <span class="chip rep">5/5 슬라이스 CP4 완료</span></h1>
+  <div class="meta">
+    <span><strong>기간</strong> 2026-07-06 조사 → 07-07 새벽 구현 (밤샘 자율 모드, CP4 까지 무중단)</span>
+    <span><strong>결과</strong> 최종 <b>1078 테스트 / 실패 0</b> (베이스라인 1056 + 신규 22) · 최종 적대 리뷰 발견 7건 전부 반영</span>
+    <span><strong>선행 조건</strong> ⚠ 앱 기동 전 <code>sql/R9-5_drift_display_name.sql</code> 적용 (§4)</span>
+    <span><strong>다음</strong> CP5 — 사용자 브라우저 E2E (5 슬라이스 일괄) → 커밋 지시</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 캠페인 결과 — 불만 4건의 해소</a></li>
+      <li><a href="#s2">§2 슬라이스 5개 요약 · 산출물 색인</a></li>
+      <li><a href="#sd">🎬 사용자 여정 전후 diff</a></li>
+      <li><a href="#s3">§3 최종 적대 리뷰 (발견 → 반영)</a></li>
+      <li><a href="#s4">§4 ⚠ CP5 통합 가이드 (DDL 선행)</a></li>
+      <li><a href="#s5">§5 남긴 것 · 후속 후보</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 캠페인 결과 — 사용자 불만 4건의 해소</summary>
+      <div class="body">
+        <div class="stat-row">
+          <div class="stat"><b>5/5</b><span>슬라이스 CP4</span></div>
+          <div class="stat"><b>1078</b><span>테스트 (실패 0 · 신규 22)</span></div>
+          <div class="stat"><b>30 + 16</b><span>수정 + 신규 파일 (plan/report 제외 시 신규 5)</span></div>
+          <div class="stat"><b>7건</b><span>최종 리뷰 발견 → 전부 반영</span></div>
+          <div class="stat"><b>0</b><span>미커밋 외 부수 효과 (커밋은 사용자 지시 대기)</span></div>
+        </div>
+        <table>
+          <thead><tr><th>사용자 불만 (원문)</th><th>해소 슬라이스</th><th>해소 방식</th></tr></thead>
+          <tbody>
+            <tr><td>① "스캔 후 화면을 새로고침 할 필요가 있다"</td><td><b>R9-1</b></td><td>자기 트리거 스캔 완료 → 토스트+자동 새로고침(위치 보존). 주기 스캔 완료 → 배너 안내. 재발급 → 성공/실패 건수 토스트(로그로만 새던 부분 실패 표면화). 고정 3초 가짜 타이머 폐기.</td></tr>
+            <tr><td>② "'격리 복구'는 도대체 어떤 기능인가?"</td><td><b>R9-4</b>(+3)</td><td>navbar 독립 메뉴 <b>"업로드 실패 복구"</b> 로 승격 — 이름이 실체(업로드 실패 saga)를 말한다. 스캔 버튼 옆 오배치 제거, 페이지 제목 도메인 중립화, 격리 대기 N건 안내 배너.</td></tr>
+            <tr><td>③ "'마커 서명 재발급'도 어떤 기능인가?"</td><td><b>R9-4</b>(+1·3)</td><td>하단 <b>'관리 도구' 구획</b>으로 격리 + 무엇/언제 쓰는지 상시 설명문. 확인은 페이지 modal(native confirm 폐기). 부분 실패 건수가 화면 도달.</td></tr>
+            <tr><td>④ (암묵) "drift 가 나도 어떤 대처를 해야 할지 감을 못 잡음"</td><td><b>R9-2·3·5</b></td><td>12종 전부 <b>라벨·감지 내용·권장 조치</b> 3단(enum SSOT — 곧 사용자 가이드 원문) + 자원 <b>실명</b> 표시 + 실동작과 일치하는 확인창("드리프트 적용"/"보고 닫기") + 409 는 ErrorModal(페이지 이탈 없음).</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><b>불가침 위반 2건 동반 해소</b> — ⓐ autoApplicable 이 서버 5종 나열 vs 템플릿 4종 하드코딩 ×3 으로 갈라져 있던 SSOT 위반 → <code>DriftKind.autoApplicable</code> 단일 소스(GHOST_DB_ROW 버튼 정상 노출). ⓑ 전역 auto-apply OFF 시 정상 클릭이 409 로 거절되던 "예외를 UX 제어에 사용" → <code>isAutoApplyEnabled()</code> 한 메서드를 서버 가드·버튼 disabled 가 공유(UI 1차 차단).</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2" open>
+      <summary>§2. 슬라이스 5개 요약 · 산출물 색인</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>슬라이스</th><th>핵심 변경</th><th>테스트</th><th>plan / report</th></tr></thead>
+          <tbody>
+            <tr><td><b>R9-1</b> 완료 반영</td><td><code>complete(jobId, 결과 map)</code> 오버로드(응답 metadata 병합 — 전역 JS 무변경) · performScan 실경계 stage 계측 · <code>ReissueStage</code>(거짓 진행바 수정) · list.js 이벤트 구독 · selectKey/selectId alias(reload 위치 소실 수정)</td><td>+11</td><td class="mono dim">00-53-53 / 01-05-02</td></tr>
+            <tr><td><b>R9-2</b> 언어화·SSOT</td><td>DriftKind 4필드(12종) · 가드 enum 위임 · <code>isAutoApplyEnabled()</code> 공유 · 예외 factory 2종 · 스캔 소요 포맷 · disabled+tooltip</td><td>+6</td><td class="mono dim">01-08-38 / 01-16-52</td></tr>
+            <tr><td><b>R9-3</b> modal·폼</td><td><code>DRIFT_APPLY/DISMISS</code> 상수+전용 fragment · "무시"→"보고 닫기" · data-async-submit(409→ErrorModal) · native confirm 2곳 → 페이지 modal · 페이지 로컬 바인딩(전역 자산 무변경)</td><td>+2</td><td class="mono dim">01-19-57 / 01-26-50</td></tr>
+            <tr><td><b>R9-4</b> 정보구조</td><td>명칭 "자원 무결성 점검" 단일화(4종→1) · 버튼 2계층+관리 도구 카드 · "업로드 실패 복구" navbar 독립 · 요약·대기 배너 · DESIGN.md 패턴 기록</td><td>+1</td><td class="mono dim">01-30-34 / 01-38-52</td></tr>
+            <tr><td><b>R9-5</b> 실명 스냅샷</td><td><code>Drift.display_name</code>(PurgeLog 선례) · buildDrift 1줄+ORPHAN 파일명 fallback · C2/C3 실명 표시 · <b>수동 DDL</b>(§4) · CLAUDE.md Step 9 현행화</td><td>+2</td><td class="mono dim">01-43-48 / 01-48-28</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">사전 조사: report/26-07-06_22-53-04_R9_reconciliation-ux-survey_report.html (workflow 11 에이전트). 열린 질문 5건은 추가 비판 검증 workflow(sonnet 2 에이전트)로 확정 — Q1 명칭=(b) 자원 무결성 점검(management 기존 어휘 정합·"경로"는 12종 중 3종만 포괄), Q2 자기 트리거만 자동 reload(+MARKER_REISSUE 는 reload 무의미 발견), Q3 R2-6 잔여분 R9-3 흡수, Q4 R9-5 포함(컬럼명 displayName 으로 정정), Q5 GHOST_DB_ROW 노출(modal 어휘 정합 선행 — R9-3 이행). Notion: R9 + 하위 5 페이지 전부 '상태=CP4 완료' + 본문 4항목 + [Claude] 댓글.</p>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 사용자 여정 전후 diff</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <button class="ux-btn on" data-layer="scan">점검 실행 여정</button>
+            <button class="ux-btn" data-layer="drift">드리프트 대처 여정</button>
+            <button class="ux-btn" data-layer="page">첫 방문 화면</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3" open>
+      <summary>§3. 최종 적대 리뷰 — 발견 7건 → 전부 반영</summary>
+      <div class="body">
+        <p style="margin-top:0">구현 완료 후 R9 전체 diff 를 2렌즈(버그·회귀 / 철학·UX 정합) workflow 로 적대 검증했다. <b>高 심각도 0건</b>. 발견 전건을 즉시 수정하고 전체 스위트로 재검증(1078/0):</p>
+        <table>
+          <thead><tr><th>심각도</th><th>발견</th><th>반영</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge mid">中</span></td><td>"마지막 점검" 요약이 2페이지 이후에서 현재 페이지 첫 행(더 오래된 보고서)을 표시</td><td>컨트롤러가 <code>latestReport()</code>(페이지 무관 전체 최신 1건) 별도 조회</td></tr>
+            <tr><td><span class="badge mid">中</span></td><td>빈 상태 안내가 존재하지 않는 버튼명 "수동 스캔" 지칭 (R9-4 개명 누락)</td><td>"지금 점검" 으로 갱신</td></tr>
+            <tr><td><span class="badge mid">中</span></td><td>배너 3종 인라인 스타일 — 유령 CSS 변수 + Bootstrap 팔레트 이원화 + 동일 블록 복붙</td><td><code>.n-banner-info/.n-banner-warn</code> 클래스 신설(기존 토큰 <code>--n-blue/--n-yellow*</code> 재사용), DESIGN.md 색 표기 정정</td></tr>
+            <tr><td><span class="badge lo">低</span></td><td><code>formatDuration</code> 반올림 경계 — "1분 60초" 가능</td><td>60초 → 분 이월</td></tr>
+            <tr><td><span class="badge lo">低</span></td><td>전역 auto-apply 술어 표기 이원화 잔존 (스캔 자동 적용 경로의 직접 비교)</td><td><code>!isAutoApplyEnabled()</code> 로 통일</td></tr>
+            <tr><td><span class="badge lo">低</span></td><td>modal 제목에 구명칭 병기 "정밀 점검 (Deep 스캔)"</td><td>"정밀 점검"</td></tr>
+            <tr><td><span class="badge lo">低</span></td><td>dt 라벨 "무슨 일이" — 불완전한 구</td><td>"감지 내용"</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">리뷰가 정상 확인한 지점(발췌): reload 루프·중복 토스트 없음(seedTerminalSeen + 읽는 즉시 삭제) / metadata 병합의 기존 소비자(os-list.js) 회귀 없음 / AsyncSubmitResult 로컬 override 격리(이 페이지에서만 로드) / fragment 시그니처·id 규약 전수 일치 / DriftResponse 인자 순서 정상 / DDL ↔ 엔티티 매핑 일치 / 스캔 시 무인 자동 적용 범위 무변경.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4" open>
+      <summary>§4. ⚠ CP5 통합 가이드 — DDL 적용이 선행 조건</summary>
+      <div class="body">
+        <div class="callout danger"><b>0단계 (필수)</b> — <code>ddl-auto=validate</code> 라 아래 적용 전에는 앱이 기동되지 않는다. ALTER 권한 계정(root 등)으로:
+<pre style="margin:8px 0 0">mysql -u root -p server_provision &lt; sql/R9-5_drift_display_name.sql</pre>
+(<code>claude_code</code> 는 ALTER 권한 없음 실측 — 세션에서 대행 불가. 문법은 test DB 실검증 완료. 되돌리기: <code>ALTER TABLE drift DROP COLUMN display_name;</code>)</div>
+        <ol>
+          <li><b>R9-4 배치·명칭</b> — navbar/탭/제목/알림 센터 = "자원 무결성 점검". 헤더 [지금 점검][정밀 점검] + 하단 관리 도구 카드. navbar "업로드 실패 복구".</li>
+          <li><b>R9-1 완료 반영</b> — [지금 점검] → 시작 토스트 → 완료 시 자동 새로고침+"점검 완료 — 드리프트 N건". 드릴다운 후 F5 위치 보존. 다른 탭에서 스캔 트리거 → 열람 중 배너만.</li>
+          <li><b>R9-2·5 드리프트 카드</b> — 실명 주표기 + 라벨 배지 + 감지 내용/권장 조치. 옛 보고서 행은 "TYPE #id" fallback. GHOST_DB_ROW 에 [자동 적용] 노출. <code>reconciliation.auto-apply=false</code> 재기동 시 버튼 disabled+tooltip.</li>
+          <li><b>R9-3 확인창</b> — 적용/보고 닫기 전용 modal(어휘 정합), 409 재현 시 ErrorModal(이탈 없음), 정밀 점검/재발급도 페이지 modal.</li>
+          <li><b>재발급</b> — 관리 도구에서 실행 → "성공 N건, 실패 M건" 토스트, 진행바 "마커 재서명" 1단계.</li>
+        </ol>
+        <p class="dim">CP5 통과 후: 커밋(사용자 지시 — R9 파일만 명시 add) → Notion 5+1 페이지 '완료' 전환.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 남긴 것 · 후속 후보</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>후속 캠페인 후보 (Notion 기록 권장)</b>: MISSING/ORPHAN/SIGNATURE_INVALID/HASH_MISMATCH 의 in-app 복구 액션(탐지-조치 비대칭의 근본 해소 — 조사 §7-6, R9 는 권장 조치 텍스트까지) / 미생성 DriftKind 6종의 탐지 구현 또는 정리(MK3-2·MK3-X 소관) / 재발급 부분 실패 상세 목록 UI(현재 건수 토스트+로그).</li>
+          <li><b>R2-6 reconcile 노트</b>: reconciliation 페이지의 alert/confirm 잔여분은 R9-3 이 흡수 완료 — R2-6 이력에 참조 기재 권장.</li>
+          <li><b>사용자 가이드 초석</b>: R9-2 의 12종 문구 표(plan/26-07-07_01-08-38 §4)가 곧 가이드 원문 — 추후 가이드 문서 슬라이스에서 그대로 발췌 가능.</li>
+          <li><b>커밋 대기</b>: 작업 트리에 R9 산출물만 존재(수정 30 + 신규 16). 커밋은 사용자 지시 시 — 권장 분할: 슬라이스별 5커밋 또는 캠페인 1커밋.</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+
+  const LAYERS={
+    scan:`<span class="dim">// "점검을 돌리고 결과를 본다" 여정</span>
+<span class="drop">Before  [수동 스캔] 클릭 → 버튼이 3초 후 원복(가짜) → …언제 끝났지? → F5 연타 → 새 보고서 발견</span>
+<span class="new">After   [지금 점검] → "자원 점검을 시작했습니다" 토스트 → 알림 센터 진행바 3단계 실계측</span>
+<span class="new">        → 완료 순간 자동 새로고침 + "점검 완료 — 드리프트 2건" → 보던 위치 그대로 (selectKey 보존)</span>
+<span class="keep">        주기 스캔이 열람 중 끝나면 → 리셋 없이 배너 "새 점검 보고서 도착 — [새로고침]"</span>`,
+    drift:`<span class="dim">// "드리프트가 떴다, 어떻게 하지" 여정</span>
+<span class="drop">Before  [SIGNATURE_INVALID] [OS_ISO #42] …무슨 뜻? 42번이 뭐지? → [무시] 클릭 → "자원 삭제 —</span>
+<span class="drop">        삭제할까요?" (자원이 지워진다고?) → auto-apply OFF 면 [자동 적용] 클릭 → 409 raw 페이지 이탈</span>
+<span class="new">After   [마커 서명 불일치] Rocky Linux 9.6 dvd.iso · 감지 내용: 서명이 현재 키와 맞지 않습니다…</span>
+<span class="new">        · 권장 조치: 서명 키 교체 직후라면 '마커 서명 재발급'을… → [보고 닫기] → "보고 목록에서만</span>
+<span class="new">        제외됩니다. 파일과 자원은 변경되지 않으며…" → OFF 면 버튼 disabled + tooltip (409 는 안전망→ErrorModal)</span>`,
+    page:`<span class="dim">// 처음 온 사용자의 첫 화면</span>
+<span class="drop">Before  "경로 점검"(navbar) ≠ "경로 재조정"(탭) ≠ "자원 경로 점검"(제목) · 설명 0 ·</span>
+<span class="drop">        [수동 스캔][Deep 스캔][마커 서명 재발급][격리 복구] 4버튼 동렬 — 뭘 눌러야?</span>
+<span class="new">After   "자원 무결성 점검" (모든 표면 동일) · "등록된 자원 정보(DB)와 디스크의 실제 파일·마커가</span>
+<span class="new">        서로 일치하는지 점검하고 정합합니다" + 마지막 점검 요약 · [지금 점검][정밀 점검] 2버튼</span>
+<span class="new">        · 재발급은 하단 관리 도구(상시 설명) · 격리는 navbar "업로드 실패 복구" (+대기 N건 배너)</span>`
+  };
+  const flowEl=document.getElementById('flow');
+  function show(l){flowEl.innerHTML=LAYERS[l];}
+  document.querySelectorAll('[data-layer]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-layer]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');show(b.dataset.layer);
+  }));
+  show('scan');
+</script>
+</body>
+</html>

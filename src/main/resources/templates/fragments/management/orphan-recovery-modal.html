@@ -9,7 +9,7 @@
 
   · 재시도 — 격리 파일을 원래 경로로 복원하고 새 등록 job 시작 (안전한 기본 액션).
   · 폐기   — 격리 파일 영구 삭제. 파괴적이므로 파일명 typed-name 일치 후에만 확정 (휴지통 영구삭제 정책과 동일).
-  · 나중에 — modal 만 닫음. 격리는 PENDING 으로 유지되어 [경로 점검 ▸ 격리 복구] 페이지에서 재진입 가능.
+  · 나중에 — modal 만 닫음. 격리는 PENDING 으로 유지되어 [업로드 실패 복구] 페이지(navbar)에서 재진입 가능.
 
   파라미터:
     - prefix : modal element id 접두사 (페이지에 여러 modal 충돌 회피). JS 가 prefix + suffix 로 element 를 잡는다.
@@ -62,7 +62,7 @@
             <div class="n-hint" style="margin-bottom: 14px;">
                 <strong>재시도</strong> : 격리 파일을 원래 경로로 되돌리고 등록을 다시 시작<br>
                 <strong>폐기</strong> : 격리 파일을 영구 삭제 (파일명 입력으로 확정)<br>
-                <strong>나중에</strong> : 닫기만 함 — 격리는 유지되어 [경로 점검] 에서 다시 처리 가능
+                <strong>나중에</strong> : 닫기만 함 — 격리는 유지되어 [업로드 실패 복구] 페이지에서 다시 처리 가능
             </div>
 
             <!-- 폐기 확정용 typed-name. [폐기…] 클릭 시 JS 가 노출 + 파일명 일치 시 [폐기 확정] 활성화. -->

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-4 구현 보고 — 정보구조 재배치 + 명칭 '자원 무결성 점검' 단일화</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rep{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-flow{padding:14px;background:#0d1117;color:#c9d1d9;font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre-wrap;min-height:120px}
+  .ux-flow .new{color:#d2a8ff;font-weight:700}.ux-flow .keep{color:#7ee787}.ux-flow .drop{color:#f85149;font-weight:700}.ux-flow .dim{color:#8b949e}.ux-flow .ok{color:#3fb950;font-weight:700}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:8px 16px;background:var(--card);text-align:center}
+  .stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9-4 구현 보고 — 정보구조 재배치 + 명칭 '자원 무결성 점검' 단일화 <span class="chip rep">CP4 완료</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R9-4 (R9 : 4/5)</span>
+    <span><strong>plan</strong> plan/26-07-07_01-30-34_R9-4_plan.html (D1~D5 전부 이행)</span>
+    <span><strong>결과</strong> 전체 <b>1076 테스트 / 실패 0</b> (신규 1) · 불만 ②·③ 배치 차원 해소</span>
+    <span><strong>작성</strong> 2026-07-07 KST (밤샘 자율 모드)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 결과 요약</a></li>
+      <li><a href="#s2">§2 무엇이 어떻게 바뀌었나</a></li>
+      <li><a href="#sd">🎬 정보구조 전후 diff</a></li>
+      <li><a href="#s3">§3 plan 대비 실측 차이</a></li>
+      <li><a href="#s4">§4 테스트 · Verification</a></li>
+      <li><a href="#s5">§5 CP5 가이드</a></li>
+      <li><a href="#s6">§6 잔여 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 결과 요약</summary>
+      <div class="body">
+        <div class="stat-row">
+          <div class="stat"><b>4종 → 1</b><span>도메인 명칭 (navbar·탭·h1·알림 센터)</span></div>
+          <div class="stat"><b>4 → 2</b><span>헤더 버튼 (일상 점검만)</span></div>
+          <div class="stat"><b>+1</b><span>navbar 독립 메뉴 (업로드 실패 복구)</span></div>
+          <div class="stat"><b>1076</b><span>테스트 green (신규 1)</span></div>
+          <div class="stat"><b>0</b><span>URL·엔티티 변경</span></div>
+        </div>
+        <p>도메인 이름이 <b>자원 무결성 점검</b> 하나로 통일됐다 — navbar("경로 점검")·브라우저 탭("경로 재조정")·페이지 제목("자원 경로 점검")·알림 센터 타입 칩("경로 재조정")·Job 카드 제목("경로 점검"/"Deep 스캔")이 전부 같은 이름을 쓴다. "경로"는 감지 12종 중 3종만 포괄하는 부분집합 명칭이었고, "무결성"은 management 상세 화면들이 이미 쓰는 기존 어휘라는 것이 선정 근거다(Q1 비판 검증).</p>
+        <p>정보구조도 성격대로 재배치됐다: 헤더에는 일상 점검 2버튼([지금 점검]/[정밀 점검] + hover 설명)만 남고, <b>secret 회전 1회용 도구(마커 서명 재발급)는 하단 '관리 도구' 카드</b>로 — 무엇인지/언제 쓰는지 상시 설명문과 함께 이동했다. <b>'격리 복구'는 navbar 독립 메뉴 '업로드 실패 복구'로 승격</b> — 스캔 버튼 옆에 있어 "스캔이 찾은 것의 복구"로 오독되던 별개 도메인(업로드 실패 saga)이 이름부터 실체를 말하게 됐다. 헤더 아래에는 도메인 설명 1문장 + 최신 점검 요약 배너가 생겨 처음 온 사용자가 첫 화면에서 도메인의 역할을 파악한다. 격리 대기 항목이 있으면(PENDING&gt;0) 이 페이지에 한해 안내 배너로 연결한다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 무엇이 어떻게 바뀌었나 (파일별)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">fragments/layout.html</td><td><span class="badge mod">수정</span></td><td>navbar "경로 점검"→"자원 무결성 점검" + "업로드 실패 복구" 독립 메뉴(active id 'quarantine') + 주석 갱신.</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/list.html</td><td><span class="badge mod">수정</span></td><td>탭·h1 개명. 헤더 = [지금 점검][정밀 점검] 2버튼(+tooltip). 도메인 설명+최신 점검 요약 배너. 격리 대기 안내 배너(count&gt;0). 하단 '관리 도구' 카드(재발급 버튼 id 유지 → list.js 무변경). 격리 복구 링크 제거.</td></tr>
+            <tr><td class="mono">maintenance/quarantine/list.html</td><td><span class="badge mod">수정</span></td><td>제목 "ISO 격리 복구"→"업로드 실패 복구"(도메인 중립 — saga 는 ResourceType 무관 설계), navbar('quarantine'), "← 경로 점검" back-link 제거(navbar 대체), 안내 문구 중립화.</td></tr>
+            <tr><td class="mono">JobType.java · PathReconciliationService(register)</td><td><span class="badge mod">수정</span></td><td>알림 센터 typeLabel "경로 재조정"→"자원 무결성 점검", Job 제목 "정밀 점검"/"자원 무결성 점검", subtitle "파일 내용 해시 재계산 포함". enum 상수명·직렬화 불변.</td></tr>
+            <tr><td class="mono">os/list.html · bios/list.html · orphan-recovery-modal.html</td><td><span class="badge mod">수정</span></td><td>교차 참조 문구 갱신("[경로 점검]…"→"[자원 무결성 점검] 하단 '관리 도구'…", "[경로 점검 ▸ 격리 복구]"→"[업로드 실패 복구]").</td></tr>
+            <tr><td class="mono">OrphanQuarantineRepository · OrphanQuarantineService · ReconciliationController</td><td><span class="badge mod">수정</span></td><td><code>countByState</code> 파생 쿼리 + <code>countPending()</code> + <code>quarantinePendingCount</code> 모델 — 이 페이지 렌더에만 얹는 count(전역 navbar 배지는 비용으로 기각).</td></tr>
+            <tr><td class="mono">DESIGN.md</td><td><span class="badge mod">추가</span></td><td>§4 Distinctive Components 에 Maintenance 패턴 4종(도메인 배너/대기 안내 배너/관리 도구 카드/페이지 액션 modal) 기록.</td></tr>
+            <tr><td class="mono">ReconciliationRestControllerTest(+1)·SecurityFlowTest</td><td><span class="badge mod">확장</span></td><td>countPending 모델 검증 + 두 하니스에 신규 의존 @MockitoBean.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 정보구조 전후 diff</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <button class="ux-btn on" data-layer="name">명칭 단일화</button>
+            <button class="ux-btn" data-layer="layout">화면 재배치</button>
+            <button class="ux-btn" data-layer="nav">navbar·격리 복구</button>
+          </div>
+          <div class="ux-flow" id="flow"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3" open>
+      <summary>§3. plan 대비 실측 차이</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>이탈 0.</b> 추가 정리 2건: 명칭 잔존 grep 에서 발견된 javadoc 주석 2건(<code>ReconciliationRestController</code>·<code>DriftKind</code> 의 "경로 재조정")을 함께 갱신 — D1 의 "주석 포함 단일화" 범위 내.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 테스트 · Verification</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td>전체 스위트</td><td><b>1076 / 실패 0 / 스킵 6</b> (직전 1075 + 신규 1)</td></tr>
+            <tr><td>layout.html 파급</td><td>전 페이지 렌더 테스트 green — U1/U2 포함 회귀 없음</td></tr>
+          </tbody>
+        </table>
+        <ul class="check-list" data-storage="r9-4-report-verify">
+          <li><input type="checkbox" checked><span>사용자 노출 문자열에서 "경로 재조정"/"경로 점검" 잔존 0 (grep — 주석 2건도 정리)</span></li>
+          <li><input type="checkbox" checked><span>reconciliation 헤더에 재발급·격리 링크 잔존 0 / 하단 관리 도구 카드에 reissueBtn 존재</span></li>
+          <li><input type="checkbox" checked><span>quarantine 페이지 navbar active = 'quarantine'</span></li>
+          <li><input type="checkbox" checked><span>countPending 은 reconciliation 페이지 렌더에만 — layout(전역) 렌더 경로에 쿼리 없음</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. CP5 가이드 — 사용자 브라우저 E2E</summary>
+      <div class="body">
+        <ol style="margin-top:0">
+          <li><b>명칭</b> — navbar·브라우저 탭·페이지 제목·알림 센터 카드가 모두 "자원 무결성 점검"인지. 알림 센터에서 스캔 Job 제목이 "자원 무결성 점검"/"정밀 점검"인지.</li>
+          <li><b>재배치</b> — 헤더에 [지금 점검][정밀 점검]만, 하단에 '관리 도구' 카드(설명문 + [마커 서명 재발급])가 있는지. 재발급 동작(R9-1/R9-3 경로)이 그대로인지.</li>
+          <li><b>업로드 실패 복구</b> — navbar 에 독립 메뉴로 뜨고, 그 페이지 제목·active 하이라이트가 맞는지.</li>
+          <li><b>배너</b> — 상단 도메인 설명+마지막 점검 요약이 보이는지. (격리 PENDING 이 있다면 대기 안내 배너 → 이동 버튼.)</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 잔여 · 다음</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>잔존 책임 없음.</b> 불만 ②·③ 은 R9-2(문구)·R9-3(확인창)·R9-4(배치·명칭)로 3면 해소 완료.</li>
+          <li>Notion R9-4 'CP4 완료' 표기. 다음: <b>R9-5</b>(drift 자원 실명 스냅샷 — 유일한 엔티티 변경, <code>ddl-auto=validate</code> 환경 수동 DDL 절차 포함).</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  const LAYERS={
+    name:`<span class="dim">// 한 도메인에 이름 4종 → 1종</span>
+<span class="drop">- navbar "경로 점검" / 탭 "경로 재조정" / h1 "자원 경로 점검" / 알림 센터 "경로 재조정" · Job "경로 점검"·"Deep 스캔"</span>
+<span class="new">+ 전부 "자원 무결성 점검" (정밀 스캔 Job 은 "정밀 점검")</span>
+근거: "경로" 는 12종 드리프트 중 3종만 포괄(서명·내용 변조·유령 행은 경로 무관)
+      "무결성" 은 management 상세의 &lt;dt&gt;무결성&lt;/dt&gt; 필드·본 화면 확인 문구가 이미 쓰던 어휘
+교차 참조 동반 갱신: os/bios 상세 주석 · orphan modal "[업로드 실패 복구]"`,
+    layout:`<span class="dim">// 헤더 4버튼 동렬 → 성격별 재배치</span>
+<span class="drop">- [수동 스캔][Deep 스캔][마커 서명 재발급][격리 복구]  ← 일상/1회용 도구/타 도메인 링크 혼재</span>
+<span class="new">+ 헤더  [지금 점검][정밀 점검(tooltip: 파일 내용까지 — 수 분)]</span>
+<span class="new">+ 헤더 아래  도메인 설명 1문장 + "마지막 점검 {시각} · 자원 N건 · 드리프트 M건"</span>
+<span class="new">+ (조건) "업로드 실패로 격리된 파일 N건이 복구를 기다립니다 → [업로드 실패 복구]"</span>
+<span class="new">+ 하단  관리 도구 카드 — 재발급이 무엇/언제 쓰는지 상시 설명 + 버튼 (id 유지 → JS 무변경)</span>`,
+    nav:`<span class="dim">// '격리 복구' — 별개 도메인의 오배치 해소</span>
+<span class="drop">- 무결성 점검 헤더의 [격리 복구] 링크 — "스캔이 찾은 것의 복구" 로 오독</span>
+<span class="new">+ navbar 독립 메뉴 "업로드 실패 복구" (active id 'quarantine')</span>
+<span class="new">+ 페이지 제목 "ISO 격리 복구" → "업로드 실패 복구" (saga 는 도메인 무관 설계 — 제목만 ISO 한정이었음)</span>
+<span class="keep">URL 불변 (/maintenance/quarantine) · 발생 시점 modal 안내도 새 이름으로 정합</span>
+<span class="dim">PENDING count 는 reconciliation 페이지 렌더에만 조회 — 전역 navbar 배지(전 페이지 쿼리)는 기각</span>`
+  };
+  const flowEl=document.getElementById('flow');
+  function show(l){flowEl.innerHTML=LAYERS[l];}
+  document.querySelectorAll('[data-layer]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-layer]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');show(b.dataset.layer);
+  }));
+  show('name');
+</script>
+</body>
+</html>

@@ -42,12 +42,14 @@ class ReconciliationRestControllerTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean PathReconciliationService reconciliationService;
+    // R9-4 — ReconciliationController 의 격리 대기 배너용 의존.
+    @MockitoBean com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private DriftReportResponse sampleReport() {
-        DriftResponse drift = new DriftResponse(1L, ResourceType.OS_ISO, 42L,
+        DriftResponse drift = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso", Instant.now(), null);
-        return new DriftReportResponse(10L, Instant.now(), "PT0.45S", false, 17, 1, List.of(), List.of(drift));
+        return new DriftReportResponse(10L, Instant.now(), "0.45초", false, 17, 1, List.of(), List.of(drift));
     }
 
     // ==== 성공 경로 ====================================================
@@ -71,7 +73,9 @@ class ReconciliationRestControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(10))
                 .andExpect(jsonPath("$.driftCount").value(1))
-                .andExpect(jsonPath("$.drifts[0].kind").value("PATH_DRIFT"));
+                .andExpect(jsonPath("$.drifts[0].kind").value("PATH_DRIFT"))
+                // R9-5 — 실명 스냅샷의 REST 계약 확장 고정.
+                .andExpect(jsonPath("$.drifts[0].displayName").value("Rocky Linux 9.6 dvd.iso"));
     }
 
     @Test
@@ -99,6 +103,36 @@ class ReconciliationRestControllerTest {
         mvc.perform(post("/maintenance/reconciliation/drifts/1/dismiss"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/maintenance/reconciliation"));
+    }
+
+    // ==== R9-1 — Miller URL 동기화 alias (selectKey/selectId) ============
+
+    @Test
+    @DisplayName("GET list : selectKey/selectId alias 가 selectReportId/selectDriftId 모델로 매핑 (reload 위치 보존)")
+    void list_acceptsMillerSyncAliases() throws Exception {
+        Page<DriftReportResponse> page = new PageImpl<>(List.of(sampleReport()));
+        given(reconciliationService.history(org.mockito.ArgumentMatchers.any())).willReturn(page);
+
+        mvc.perform(get("/maintenance/reconciliation?selectKey=10&selectId=1"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .model().attribute("selectReportId", 10L))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .model().attribute("selectDriftId", 1L));
+    }
+
+    @Test
+    @DisplayName("GET list : 명시 파라미터(selectReportId/selectDriftId)가 alias 보다 우선")
+    void list_explicitParamsWinOverAliases() throws Exception {
+        Page<DriftReportResponse> page = new PageImpl<>(List.of(sampleReport()));
+        given(reconciliationService.history(org.mockito.ArgumentMatchers.any())).willReturn(page);
+
+        mvc.perform(get("/maintenance/reconciliation?selectReportId=10&selectDriftId=1&selectKey=99&selectId=88"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .model().attribute("selectReportId", 10L))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .model().attribute("selectDriftId", 1L));
     }
 
     // ==== 리소스 없음 ===================================================
@@ -133,13 +167,51 @@ class ReconciliationRestControllerTest {
     // ==== 도메인 충돌 ===================================================
 
     @Test
-    @DisplayName("POST /drifts/{id}/apply : PATH_DRIFT 외 종류 → 409")
+    @DisplayName("POST /drifts/{id}/apply : 자동 적용 불가 종류 → 409")
     void apply_notAllowedKind() throws Exception {
-        doThrow(new DriftAutoApplyNotAllowedException(DriftKind.SIGNATURE_INVALID))
+        doThrow(DriftAutoApplyNotAllowedException.notApplicable(DriftKind.SIGNATURE_INVALID))
                 .when(reconciliationService).apply(1L);
 
         mvc.perform(post("/maintenance/reconciliation/drifts/1/apply"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("POST /drifts/{id}/apply : 전역 auto-apply OFF (direct POST 안전망) → 409")
+    void apply_globalOff() throws Exception {
+        doThrow(DriftAutoApplyNotAllowedException.globalOff())
+                .when(reconciliationService).apply(1L);
+
+        mvc.perform(post("/maintenance/reconciliation/drifts/1/apply"))
+                .andExpect(status().isConflict());
+    }
+
+    // ==== R9-2 — 전역 auto-apply 뷰모델 플래그 =============================
+
+    @Test
+    @DisplayName("R9-4 GET list : 격리 대기 건수가 모델로 노출 (안내 배너 데이터 소스)")
+    void list_exposesQuarantinePendingCount() throws Exception {
+        Page<DriftReportResponse> page = new PageImpl<>(List.of(sampleReport()));
+        given(reconciliationService.history(org.mockito.ArgumentMatchers.any())).willReturn(page);
+        given(orphanQuarantineService.countPending()).willReturn(3L);
+
+        mvc.perform(get("/maintenance/reconciliation"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .model().attribute("quarantinePendingCount", 3L));
+    }
+
+    @Test
+    @DisplayName("GET list : autoApplyEnabled 플래그가 모델로 노출 (UI 1차 차단의 데이터 소스)")
+    void list_exposesAutoApplyEnabledFlag() throws Exception {
+        Page<DriftReportResponse> page = new PageImpl<>(List.of(sampleReport()));
+        given(reconciliationService.history(org.mockito.ArgumentMatchers.any())).willReturn(page);
+        given(reconciliationService.isAutoApplyEnabled()).willReturn(false);
+
+        mvc.perform(get("/maintenance/reconciliation"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .model().attribute("autoApplyEnabled", false));
     }
 
     @Test

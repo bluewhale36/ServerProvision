@@ -200,6 +200,20 @@ What makes Notion's visual language distinctive is its border philosophy. Rather
 - Description below in warm gray body text
 - Whisper-bordered card container
 
+**Maintenance Page Patterns** (R9-4 — 자원 무결성 점검 / 업로드 실패 복구)
+- *Domain Intro Banner*: page-header 직하. 도메인 역할 1문장 + 최신 상태 요약 1줄.
+  구현은 `.n-banner .n-banner-info` (global/style.css) — `--n-blue`(#0075de) 3px left-border
+  + `--n-bg` background, radius 4px, 13px body. 기존 토큰만 사용(팔레트 이원화 금지).
+- *Pending Alert Banner*: 타 도메인 대기 항목 안내(예: 격리 복구 대기 N건 → 이동 버튼).
+  구현은 `.n-banner .n-banner-warn` — `--n-yellow-bg`/`--n-yellow` 토큰. R9-1 의
+  "새 보고서 도착" 배너와 같은 클래스 공유(복붙 금지). 이동 액션은 `n-btn n-btn-sm n-btn-secondary`.
+- *Admin Tools Card*: 사용 빈도·위험도가 일상 액션과 다른 관리자 도구(마커 서명 재발급 등)를
+  본문 하단 `n-card` 로 격리. 구성 = 구획 제목("관리 도구") + 도구별 상시 설명문(12.5px muted)
+  + `n-btn-sm n-btn-outline-danger` 버튼. 헤더 버튼 줄에는 일상 액션만 남긴다.
+- *Page-Action Confirm Modal*: 자원 단위가 아닌 페이지 액션(정밀 점검 등)의 확인은
+  정적 generic modal(`genericConfirmModal(prefix)`, `.cm-*` 클래스) + `ConfirmModal.open()` —
+  자원 시그니처가 필요한 lazy-load(`/ui/confirm-modal/{type}`)와 구분한다.
+
 ## 5. Layout Principles
 
 ### Spacing System

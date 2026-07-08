@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-5 plan — Drift 자원 실명 스냅샷 (display_name 컬럼)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .sim-stage{padding:16px;background:var(--card);min-height:140px;font-size:12.5px}
+  .m-item{display:flex;justify-content:space-between;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin:4px 0;max-width:340px}
+  .m-item .tag{font-size:11px;background:var(--yellow-bg);color:var(--yellow);padding:1px 7px;border-radius:9px;font-weight:700}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9-5 — Drift 자원 실명 스냅샷 (display_name 컬럼) <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R9-5 (R9 : 5/5 — 유일한 엔티티 변경, 10단계 전부)</span>
+    <span><strong>scope</strong> Drift.display_name 스냅샷 + C2/C3 실명 표시 + 수동 DDL 절차 + CLAUDE.md Step 9 갱신</span>
+    <span><strong>해소</strong> 불만 ④ 잔여 — "OS_ISO #42 가 어떤 자원인지" 화면만으로 알 수 없음</span>
+    <span><strong>생성</strong> 2026-07-07 KST · CP4 까지 무중단 (밤샘 자율 모드)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 · 설계 결정 D1~D5</a></li>
+      <li><a href="#sd">🎬 표기 전후 미리보기</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 10단계 매핑</a></li>
+      <li><a href="#s6">§6 Step 8 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · 주의 (DDL 필수)</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (코드·DB 실측)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>항목</th><th>실측</th></tr></thead>
+          <tbody>
+            <tr><td>드리프트 자원 표기가 내부 PK</td><td>C2 = <code>resourceType + ' #' + resourceId</code> ("OS_ISO #42") — 어느 자원인지 알려면 Management 화면에서 ID 역추적 필요</td></tr>
+            <tr><td>실명 소스는 이미 존재</td><td><code>Markable.displayName()</code>(Markable.java:74) — 도메인별 합성식("Rocky Linux 9.6" 등), 휴지통·typed-name·modal 이 공용. <code>performScan</code> 은 스캔 시점에 이미 <code>Markable</code> 인벤토리를 들고 있어 기록 비용 0</td></tr>
+            <tr><td>동일 문제의 선례 존재</td><td><code>PurgeLog.display_name</code> — "hard-delete 후에도 남는 append-only 기록에 항상-존재 자원명" 을 컬럼 스냅샷으로 해결(주석: "JSON 에서 컬럼으로 발탁") — 컬럼명·개념 모두 재사용(Q4 비판 검증)</td></tr>
+            <tr><td>drift 테이블 현황</td><td><code>SHOW CREATE TABLE</code> 실측 — display_name 없음, AUTO_INCREMENT=1611(기존 행 존재 가능). <code>ddl-auto=validate</code>(커밋 2b7f397)</td></tr>
+            <tr><td class="mono" style="color:var(--red)">DDL 적용 권한 (실측 확정)</td><td><code>claude_code</code> = SELECT/INSERT/UPDATE/DELETE/CREATE 만 — <b>ALTER 거부 확인</b>(ERROR 1142). root 비밀번호 미보유·sudo 불가 → <b>본 세션에서 DDL 적용 불가, 사용자 실행 필요</b> (§8)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 · 설계 결정 (D1~D5)</summary>
+      <div class="body">
+        <h4>D1. 스냅샷 컬럼 — 이름은 <code>display_name</code> (PurgeLog 선례와 통일) <span class="badge new">채택</span></h4>
+        <p>스캔 시점에 <code>Markable.displayName()</code> 을 기록. 자원이 나중에 purge 되어도 이름이 남고, 읽기 경로에 도메인 횡단 조회가 없다.<br>
+        <span class="dim">비채택: ⓐ 렌더 시 실시간 resolve — purge 후 소실 + 페이지네이션 N+1 + append-only 설계(Drift.java:13-16)와 불일치. ⓑ 컬럼명 resourceName — 동일 개념에 두 용어(PurgeLog 는 display_name).</span></p>
+        <h4>D2. nullable + 백필 없음 — 템플릿 fallback <span class="badge new">채택</span></h4>
+        <p>기존 행은 null → 화면은 종전 표기("TYPE #id")로 fallback. drift 는 보고서 FIFO retention(기본 100건)의 소량 append-only 라 다음 스캔부터 자연 해소.<br>
+        <span class="dim">비채택: NOT NULL + 백필 — 기존 행의 실명을 재구성하려면 자원 조회가 필요한데 purge 된 자원은 불가. null 허용이 정직.</span></p>
+        <h4>D3. 기록 지점 3곳 — buildDrift 중앙 + ORPHAN fallback <span class="badge new">채택</span></h4>
+        <p>ⓐ <code>buildDrift(Markable …)</code> 에 <code>.displayName(resource.displayName())</code> 1줄 — 4a/4b/4c/ghost/scanForResource 경로 전부 커버. ⓑ ORPHAN(DB 매칭 없음 — Markable 부재, builder 직생성)은 <b>마커가 가리키는 본체 파일명</b>을 fallback 실명으로("rocky-9.6.iso"). ⓒ <code>persistAndForcedApply</code> 의 drift 는 <code>scanForResource</code>→buildDrift 산출물이라 자동 포함.</p>
+        <h4>D4. 표시 — C2 주표기 실명, C3 에 '자원 이름' 행 <span class="badge new">채택</span></h4>
+        <p>C2: 실명(null 이면 "TYPE #id") + 부라벨 resourceType. C3: '자원 이름' 행 추가(null 이면 "—(이전 점검 기록)"). REST 응답 <code>DriftResponse</code> 에 <code>displayName</code> 필드 추가(계약 확장 — 기존 필드 불변).</p>
+        <h4>D5. 스키마 절차 — DDL 스크립트 산출 + 사용자 적용 + CLAUDE.md Step 9 현행화 <span class="badge new">채택</span></h4>
+        <p>ALTER 권한 부재(실측)로 적용은 사용자 몫: <code>sql/R9-5_drift_display_name.sql</code> 1줄 스크립트 산출. <b><code>ddl-auto=validate</code> 라 적용 전에는 앱이 기동되지 않는다</b> — CP5 가이드·요약 메시지·Notion 에 최상단 명기(§8). CLAUDE.md Step 9 문구("ddl-auto=update")를 validate 절차로 갱신.</p>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 표기 전후 미리보기 — 신규/기존 행 토글</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <button class="ux-btn on" data-m="before">Before</button>
+            <button class="ux-btn" data-m="after-new">After — 새 점검 행</button>
+            <button class="ux-btn" data-m="after-old">After — 기존 행 (null fallback)</button>
+          </div>
+          <div class="sim-stage" id="stage"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+<pre>[기록]  performScan → buildDrift(resource,…).displayName(<span style="color:#d2a8ff">resource.displayName()</span>)
+        ORPHAN 패스 → .displayName(<span style="color:#d2a8ff">markerHit.resourcePath().getFileName()</span>)   ← Markable 부재 fallback
+[영속]  drift.display_name VARCHAR(255) NULL   ← <span style="color:#e3b341">사용자 DDL 1줄 적용 후 validate 통과</span>
+[응답]  DriftResponse(+displayName) → C2 주표기 / C3 '자원 이름' 행 (null → 종전 표기 fallback)</pre>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델</summary>
+      <div class="body">
+        <p style="margin-top:0"><code>Drift</code> + <code>displayName</code>(String, <code>@Column(name="display_name", length=255)</code> nullable, 스냅샷 — 수정 없음 원칙 유지). DDL:</p>
+        <pre>ALTER TABLE drift ADD COLUMN display_name VARCHAR(255) NULL AFTER resource_id;</pre>
+        <p class="dim">length 255 = PurgeLog.display_name 과 동일. 스냅샷이므로 자원 개명 시 과거 보고서는 기록 시점 이름 유지(감사 로그 의미론 — PurgeLog 와 동일).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 10단계 매핑 (엔티티 변경 — 전 단계)</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td>1</td><td>본 plan html</td></tr>
+            <tr><td>2</td><td>list.html — C2 주표기·C3 행</td></tr>
+            <tr><td>3</td><td>Controller 무변경</td></tr>
+            <tr><td>4</td><td>DriftResponse + displayName</td></tr>
+            <tr><td>5</td><td>Service — buildDrift/ORPHAN/toResponse</td></tr>
+            <tr><td>6</td><td>Repository 무변경</td></tr>
+            <tr><td>7</td><td>Drift 엔티티 + 필드</td></tr>
+            <tr><td>8</td><td>본체 + 테스트(§6)</td></tr>
+            <tr><td>9</td><td>스키마 — DDL 스크립트 산출 + <b>적용은 사용자</b>(ALTER 권한) + 적용 후 SHOW CREATE TABLE 검증. CLAUDE.md Step 9 문구 갱신</td></tr>
+            <tr><td>10</td><td>CP5 — 사용자 복귀 후 (DDL 적용이 선행 조건)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s6" open>
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><code>PathReconciliationServiceTest</code> <span class="badge mod">+2</span></td><td>ⓐ MISSING drift 에 <code>Markable.displayName()</code> 스텁 값이 스냅샷됨 ⓑ ORPHAN drift 에 마커 본체 파일명 fallback 스냅샷</td></tr>
+            <tr><td><code>ReconciliationRestControllerTest</code> <span class="badge mod">수정+1</span></td><td>sampleReport 에 displayName 인자 반영 + <code>$.drifts[0].displayName</code> 단언 1건(REST 계약 확장 고정)</td></tr>
+            <tr><td>템플릿 렌더</td><td>기존 렌더 테스트가 실명/{fallback} 분기 렌더를 커버 (sampleReport 에 실명 포함)</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">단위/통합 모두 실DB 불요(mock) — <b>테스트 green 은 DDL 적용과 무관</b>. validate 는 실 앱 기동 시에만 관여.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body"><p style="margin-top:0">신규 예외 없음.</p></div>
+    </details>
+
+    <details class="section" id="s8" open>
+      <summary>§8. 부산물 · 주의 — ⚠ 기동 전 DDL 필수</summary>
+      <div class="body">
+        <div class="callout danger"><b>사용자 실행 필요 (앱 기동 선행 조건)</b> — <code>ddl-auto=validate</code> 이므로 본 슬라이스 반영 후 DDL 적용 전에는 앱이 <code>Schema-validation: missing column [display_name]</code> 으로 기동 실패한다. ALTER 권한 계정(root 등)으로 1줄 실행:
+        <pre style="margin:8px 0 0">mysql -u root -p server_provision &lt; sql/R9-5_drift_display_name.sql</pre>
+        (claude_code 계정은 ALTER 권한이 없음을 실측 확인 — ERROR 1142. 적용 후 <code>SHOW CREATE TABLE drift</code> 로 display_name 확인.)</div>
+        <ul>
+          <li><b>CLAUDE.md 수정 1건</b>: 수직 슬라이스 Step 9 문구 "스키마 확인(<code>ddl-auto=update</code>, SHOW CREATE TABLE)" → validate 절차(수동 DDL 작성·적용 후 검증)로 현행화 — R9 조사에서 확인된 stale 문구.</li>
+          <li><b>미루는 것</b>: 기존 행 백필(불가·불요 — D2), DriftReport 쪽 스냅샷 확장.</li>
+          <li>병행 세션 영향 없음 — U1/U2 는 drift 테이블 미사용.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>§9. Verification</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r9-5-plan-verify" style="margin-top:0">
+          <li><input type="checkbox"><span>전체 테스트 그린 (실DB 무관)</span></li>
+          <li><input type="checkbox"><span>DDL 스크립트 산출 + 문법 검증(적용은 사용자)</span></li>
+          <li><input type="checkbox"><span>템플릿 fallback — displayName null 렌더 확인(기존 행 경로)</span></li>
+          <li><input type="checkbox"><span>CLAUDE.md Step 9 문구 갱신</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td class="mono">maintenance/reconciliation/entity/Drift.java</td><td><span class="badge mod">수정</span> displayName 필드</td></tr>
+            <tr><td class="mono">…/service/PathReconciliationService.java</td><td><span class="badge mod">수정</span> buildDrift·ORPHAN·toResponse</td></tr>
+            <tr><td class="mono">…/dto/response/DriftResponse.java</td><td><span class="badge mod">수정</span> +displayName</td></tr>
+            <tr><td class="mono">templates/maintenance/reconciliation/list.html</td><td><span class="badge mod">수정</span> C2 주표기 + C3 행</td></tr>
+            <tr><td class="mono">sql/R9-5_drift_display_name.sql</td><td><span class="badge new">신규</span> DDL 1줄 (사용자 적용)</td></tr>
+            <tr><td class="mono">CLAUDE.md</td><td><span class="badge mod">수정</span> Step 9 문구</td></tr>
+            <tr><td class="mono">PathReconciliationServiceTest(+2) · ReconciliationRestControllerTest(수정+1)</td><td><span class="badge mod">확장</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body"><p style="margin-top:0">CP4 → report + Notion 'CP4 완료' → <b>R9 종합 보고서</b>(5 슬라이스 통합 + CP5 통합 가이드) + R9 페이지 CP4 완료 표기.</p></div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  const stage=document.getElementById('stage');
+  const VIEWS={
+    'before':`<div class="dim" style="margin-bottom:6px">// C2 드리프트 목록 — Before</div>
+      <div class="m-item"><span><b>OS_ISO</b> <span class="dim">#42</span></span><span class="tag">경로 이동됨</span></div>
+      <div class="m-item"><span><b>BIOS_BUNDLE</b> <span class="dim">#7</span></span><span class="tag">자원 소실</span></div>
+      <div class="dim" style="margin-top:6px">"42번이 뭐지?" — Management 화면에서 ID 역추적 필요</div>`,
+    'after-new':`<div class="dim" style="margin-bottom:6px">// After — 새 점검 행 (displayName 스냅샷)</div>
+      <div class="m-item"><span><b>Rocky Linux 9.6 rocky-9.6.iso</b> <span class="dim">OS_ISO</span></span><span class="tag">경로 이동됨</span></div>
+      <div class="m-item"><span><b>R23_MS73-HB1_Uni</b> <span class="dim">BIOS_BUNDLE</span></span><span class="tag">자원 소실</span></div>
+      <div class="dim" style="margin-top:6px">C3 상세엔 '자원 이름' 행 추가. ORPHAN 은 마커 본체 파일명("rocky-9.6.iso") fallback</div>`,
+    'after-old':`<div class="dim" style="margin-bottom:6px">// After — DDL 이전에 쌓인 기존 행 (display_name = null)</div>
+      <div class="m-item"><span><b>OS_ISO #42</b> <span class="dim">OS_ISO</span></span><span class="tag">경로 이동됨</span></div>
+      <div class="dim" style="margin-top:6px">종전 표기로 fallback — 보고서 FIFO retention 으로 다음 점검부터 자연 해소 (백필 불요 D2)</div>`
+  };
+  document.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-m]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');stage.innerHTML=VIEWS[b.dataset.m];}));
+  stage.innerHTML=VIEWS['before'];
+</script>
+</body>
+</html>

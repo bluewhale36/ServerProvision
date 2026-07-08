@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9 후속 조치 후보 보고 — 탐지-조치 비대칭 · 미생성 DriftKind · 재발급 실패 표면화</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rep{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}.badge.s{background:var(--green-bg);color:var(--green)}.badge.m{background:var(--yellow-bg);color:var(--yellow)}.badge.l{background:var(--red-bg);color:var(--red)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .sim-stage{padding:16px;background:var(--card);min-height:170px;font-size:12.5px}
+  .sim-card{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:8px 0;background:var(--bg);max-width:640px}
+  .sim-card h5{margin:0 0 6px;font-size:13px}
+  .sim-card .row{font-size:12px;margin:3px 0}
+  .sim-card .row b.lab{color:var(--purple)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:8px 16px;background:var(--card);text-align:center}
+  .stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9 후속 조치 후보 보고 — Reconciliation 잔여 과제 3건 <span class="chip rep">착수 결정 대기</span></h1>
+  <div class="meta">
+    <span><strong>성격</strong> R9 캠페인이 의도적으로 scope 밖에 둔 항목의 조사·설계 방향 보고 (구현 아님)</span>
+    <span><strong>출처</strong> R9 사전 조사 §7 비채택 대안 + 구현 중 실측 (report/26-07-07_02-03-50 §5)</span>
+    <span><strong>권장 순서</strong> 후보 B(결정) → C(S 슬라이스) → A(캠페인)</span>
+    <span><strong>작성</strong> 2026-07-08 KST · Notion 페이지 신설은 착수 지시 시 (임의 신설 금지 규약)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 요약 · 우선순위</a></li>
+      <li><a href="#s2">§2 후보 A — in-app 복구 액션</a></li>
+      <li><a href="#sd">🎬 후보 A 액션 카드 탐색</a></li>
+      <li><a href="#s3">§3 후보 B — 미생성 6종 결정</a></li>
+      <li><a href="#s4">§4 후보 C — 재발급 실패 표면화</a></li>
+      <li><a href="#s5">§5 착수 조건 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 요약 · 우선순위</summary>
+      <div class="body">
+        <p style="margin-top:0">세 후보 모두 reconciliation(자원 무결성 점검) 도메인의 잔여 과제다 — R9 는 "화면이 사용자에게 말을 걸게" 만들었고, 이 후보들은 그 다음 층위인 <b>"시스템이 조치까지 대신하는 범위"</b>(A), <b>"약속했지만 만들지 않은 감지의 정리"</b>(B), <b>"마지막 남은 로그 전용 정보"</b>(C)를 다룬다.</p>
+        <table>
+          <thead><tr><th>후보</th><th>본질</th><th>규모</th><th>선행 조건</th><th>권장 순서</th></tr></thead>
+          <tbody>
+            <tr><td><b>A</b> — 4종 드리프트 in-app 복구 액션</td><td>탐지-조치 비대칭의 근본 해소: 심각한 드리프트일수록 조치가 "보고 닫기"뿐인 역설 제거</td><td><span class="badge l">캠페인 (3~5 슬라이스)</span></td><td>이중 의도 검증 명제 대조 설계 + CP5 후 운영 관찰(어떤 종류가 실제로 자주 뜨는가)</td><td>3순위</td></tr>
+            <tr><td><b>B</b> — 미생성 DriftKind 6종: 구현 vs 정리</td><td>문서-구현 괴리 해소: enum·라벨·허용 목록까지 있는데 탐지 코드가 없는 6종의 거취 결정</td><td><span class="badge s">결정 + 정리 S / 구현 시 M~L</span></td><td>발생 시나리오의 실재성 판단 (운영 경험)</td><td><b>1순위</b></td></tr>
+            <tr><td><b>C</b> — 재발급 부분 실패 상세 표면화</td><td>건수 토스트(R9-1)에서 한 걸음: 어느 자원이 왜 실패했는지 — 단, 공짜 해법 존재(§4)</td><td><span class="badge s">S (1 슬라이스)</span></td><td>없음 (후보 A 의 SIGNATURE_INVALID 액션과 자연 결합)</td><td>2순위</td></tr>
+          </tbody>
+        </table>
+        <p><b>순서 논거</b>: B 는 결정만 내리면 즉시 정리되면서 A 설계의 전제("어떤 kind 가 실재하는가")를 깨끗하게 만든다. C 는 비용 대비 효과가 가장 좋고 별도 UI 없이 기존 드리프트 화면을 재사용하는 해법이 있다. A 는 가치가 가장 크지만 종류별 쓰기 경로 설계가 필요해, CP5 이후 실제 운영에서 자주 만나는 드리프트부터 슬라이스를 고르는 것이 조사·설계 비용을 아낀다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s2" open>
+      <summary>§2. 후보 A — 4종 드리프트의 in-app 복구 액션 (탐지-조치 비대칭 해소)</summary>
+      <div class="body">
+        <h4>문제의 실체</h4>
+        <p>현재 실제로 감지되는 6종 중 화면에서 해결까지 되는 것은 2종뿐이다 — PATH_DRIFT(적용 = DB 경로 갱신)와 GHOST_DB_ROW(적용 = 잔존 행 삭제). 나머지 4종은 <b>더 심각한 불일치인데도 시스템이 제공하는 조치가 "보고 닫기"뿐</b>이다. R9-2 의 '권장 조치' 문구가 <i>무엇을 해야 하는지</i>는 알려주지만, 그 조치 자체(백업 확인·파일 복원·재등록·재검증)는 여전히 화면 밖 수작업이다. R9 조사 §7-6 이 "백엔드 신기능 캠페인 규모"로 판단해 의도적으로 제외했다.</p>
+        <h4>종류별 액션 설계 후보 (성격이 서로 다르다)</h4>
+        <table>
+          <thead><tr><th>종류</th><th>in-app 액션 후보</th><th>성격 · 리스크</th><th>규모</th></tr></thead>
+          <tbody>
+            <tr><td><b>MISSING</b> (자원 소실)</td><td>"복원 후 이 자원만 재점검" — 파일 복원은 시스템이 대신할 수 없으니(파일이 없다), 복원 확인용 <b>단일 자원 재점검 버튼</b>. <code>scanForResource</code> 가 이미 존재 — 진입점 노출이 전부</td><td>읽기 전용 — 리스크 최소. 4종 중 최저비용</td><td><span class="badge s">S</span></td></tr>
+            <tr><td><b>ORPHAN</b> (미등록 마커)</td><td>① 마커·파일을 휴지통 규약(<code>.soft-deleted/</code>)으로 정리 ② 관리 화면 등록 폼에 경로 프리필 재등록 진입</td><td>①은 FS 쓰기 — 확인 가드 필요. ②는 도메인별 등록 폼 연동(자원 종류 분기 아님 — URL 매핑)</td><td><span class="badge m">M</span></td></tr>
+            <tr><td><b>SIGNATURE_INVALID</b> (서명 불일치)</td><td><b>단일 자원 마커 재서명</b> — 현재는 전체 일괄 재발급뿐. 재서명 전 검증 절차 동반</td><td>변조 의심 자원을 사용자가 임의 "합법화"하는 통로가 될 수 있음 — 검증 선행이 전제</td><td><span class="badge m">M</span></td></tr>
+            <tr><td><b>HASH_MISMATCH</b> (내용 변경)</td><td>"현재 파일 내용을 새 기준으로 승인"(재해싱 + 마커 갱신) 또는 원본 재업로드 진입</td><td><b>가장 민감</b> — 승인은 사실상 변조의 정식화. typed-name 급 강한 가드 전제</td><td><span class="badge l">M~L</span></td></tr>
+          </tbody>
+        </table>
+        <h4>왜 캠페인 규모인가</h4>
+        <ul>
+          <li>각 액션이 FS+DB 정합 쓰기 경로 + 예외 계층 + 확인 UX + 4범주 통합 테스트를 갖는 <b>독립 수직 슬라이스</b>(종류당 1개, 3~5 슬라이스).</li>
+          <li>설계 단계에서 MK3 의 <b>이중 의도 검증 명제</b>("한 drift 의 처리가 둘 이상의 운영자 의도 변화를 동시에 포함하면 자동화 제외")와 액션별 대조가 선행되어야 한다 — 특히 HASH_MISMATCH 승인과 ORPHAN 정리.</li>
+          <li>R9-3 이 만든 modal 파이프라인(<code>ConfirmModalType</code> 확장)과 R9-2 의 recommendedAction 문구가 재사용 자산 — 액션이 생기면 해당 kind 의 권장 조치 문구를 "버튼 안내"로 갱신(enum 한 곳 수정).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 후보 A 액션 카드 탐색 — 종류를 골라 "생긴다면 이런 모양" 확인</summary>
+      <div class="body">
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">종류</span>
+            <button class="ux-btn on" data-k="MISSING">MISSING</button>
+            <button class="ux-btn" data-k="ORPHAN">ORPHAN</button>
+            <button class="ux-btn" data-k="SIGNATURE_INVALID">SIGNATURE_INVALID</button>
+            <button class="ux-btn" data-k="HASH_MISMATCH">HASH_MISMATCH</button>
+          </div>
+          <div class="sim-stage" id="stage"></div>
+        </div>
+        <p class="dim">카드의 액션 버튼·가드 구성은 설계 방향 예시 — 착수 시 각 슬라이스 CP1 에서 확정한다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3" open>
+      <summary>§3. 후보 B — 미생성 DriftKind 6종: 구현이냐 정리냐 (결정이 본체)</summary>
+      <div class="body">
+        <h4>문제의 실체</h4>
+        <p>enum 12종 중 6종(<code>RESOURCE_RENAMED</code>·<code>RESOURCE_RENAMED_ORPHAN</code>·<code>SOFTDEL_ESCAPE_TO_ORIGINAL</code>·<code>SOFTDEL_ESCAPE_TO_OTHER</code>·<code>TRASH_LOST</code>·<code>TRASH_MARKER_STALE</code>)은 javadoc 의미 정의·R9-2 라벨·(3종은) autoApplicable 허용까지 갖췄는데 <b>탐지 코드가 없다</b>. MK3-2 가 "12종 3축 매트릭스" 슬라이스로 미룬 문서-구현 괴리이며, R9-2 는 javadoc 에 "탐지 미구현(MK3-2 소관)" 을 명기하는 선에서 격리했다.</p>
+        <div class="callout warn"><b>잠복 결함 1건 (구현 노선 선택 시 함께 해소 필요)</b> — autoApplicable 3종이 만약 생성된다면, 현재 <code>apply()</code> 가 PATH_DRIFT 와 동일하게 <code>applyDriftedPath(newPath)</code> 를 호출한다(코드 주석 스스로 "다른 동작이 필요할 수 있음" 명시). <code>TRASH_MARKER_STALE</code> 은 newPath 가 null 이라 <b>NPE 경로</b>다 — 미생성이라 현재는 도달 불가하지만, 구현을 택하면 kind 별 apply 동작 정의가 필수다.</div>
+        <h4>갈림길과 판단 기준</h4>
+        <table>
+          <thead><tr><th>노선</th><th>내용</th><th>선택 조건</th></tr></thead>
+          <tbody>
+            <tr><td><b>① 구현</b> (MK3-2 노선)</td><td>파일명 변경(sidecar 1:1 매칭)·휴지통 이탈·잔여 마커 정리 탐지 패스 추가 + kind 별 apply 동작 정의</td><td>해당 시나리오(운영자가 파일명을 바꾸거나, 휴지통에서 수동으로 꺼내는 등)가 실운영에서 실제로 발생할 때</td></tr>
+            <tr><td><b>② 정리</b> (MK3-X 노선)</td><td>dead 상수 6종 삭제 + 라벨·화이트리스트·javadoc 정리 — ghost 코드를 "한시적 안전망"으로 재해석한 MK3-1 선례와 같은 결</td><td>발생 빈도가 무시 가능할 때. CLAUDE.md "갈라지는 시점에 분리"(선구현 금지) 원칙과 정합</td></tr>
+          </tbody>
+        </table>
+        <p>이 후보는 코드량이 아니라 <b>결정</b>이 본체다. 판단 재료(어떤 드리프트가 실제로 뜨는가)는 CP5 이후 운영 관찰이 가장 정직한 출처이므로, <b>지금 정리 노선을 가결하기보다 "관찰 기간 후 결정" 으로 기록해 두는 것</b>도 유효한 선택지다 — 다만 그 경우에도 위 NPE 잠복과 "문서가 약속한 감지가 동작하지 않는다"는 괴리는 결정 시점까지 잔존한다는 사실을 기록해야 한다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4" open>
+      <summary>§4. 후보 C — 재발급 부분 실패 상세 표면화 (공짜 해법 존재)</summary>
+      <div class="body">
+        <h4>문제의 실체</h4>
+        <p>R9-1 이 성공/실패 <b>건수</b>는 토스트로 표면화했지만("마커 재서명 완료 — 성공 41건, 실패 2건"), <b>어느 자원이 왜 실패했는지</b>(<code>ReissueResult.failures</code> 목록)는 여전히 서버 로그로만 남는다.</p>
+        <h4>설계 관찰 — 별도 UI 가 필요 없을 수 있다</h4>
+        <p>재서명에 실패한 마커는 <b>구 secret 서명인 채로 남는다</b>. 따라서 다음 quick 점검에서 전부 <code>SIGNATURE_INVALID</code> 드리프트로 자연히 잡히고, R9-2 가 만든 드리프트 화면(라벨·감지 내용·권장 조치·R9-5 실명)이 <b>실패 목록 역할을 그대로 한다</b>. 전용 화면을 만드는 대신:</p>
+        <pre>재발급 완료 & 실패 > 0
+  → 자동으로 quick 점검 1회 트리거 (또는 토스트에 "지금 점검을 실행해 실패 자원을 확인하세요" 안내 + 버튼)
+  → 실패 자원들이 SIGNATURE_INVALID 로 목록화 — 기존 화면 재사용, 신규 UI 0</pre>
+        <p>이 방식이면 <b>S 사이즈 슬라이스 1개</b>로 끝나고, 후보 A 의 SIGNATURE_INVALID 단일 재서명 액션과 자연 결합된다(실패 자원 카드에서 바로 개별 재시도). 유의점 1가지: 재발급 직후 자동 점검은 <code>running</code> 동시 실행 가드와 순서 조정이 필요하다(재발급 Job 종료 후 트리거 — <code>runReissueAsync</code> 의 finally 이후).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5" open>
+      <summary>§5. 착수 조건 · 다음</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>공통 선행</b>: R9 CP5(브라우저 E2E) 통과 — 특히 후보 A·B 는 운영 관찰(어떤 드리프트가 실제로 뜨는가)이 설계 재료다.</li>
+          <li><b>착수 지시 시</b>: Notion 에 후보별 페이지 신설(본문 4항목 규약) → 표준 체크포인트(CP1 plan 부터). 인벤토리 코드는 신규 캠페인이면 <code>R10*</code> 또는 기능 성격상 <code>MK*</code> 계열 — 부여는 사용자 결정.</li>
+          <li><b>이 보고서의 위치</b>: 세 후보의 조사·설계 방향 기록이 목적 — 착수 전 CP1 을 대체하지 않는다(각 슬라이스 CP1 에서 대안 비교·적대 검증을 다시 수행).</li>
+        </ul>
+        <h4>검토 체크리스트</h4>
+        <ul class="check-list" data-storage="r9-followup-review">
+          <li><input type="checkbox"><span>후보 B 노선 결정 (구현 / 정리 / 관찰 후 결정)</span></li>
+          <li><input type="checkbox"><span>후보 C 착수 여부 (S — 자동 점검 트리거 방식)</span></li>
+          <li><input type="checkbox"><span>후보 A 착수 시점·첫 슬라이스 종류 선택 (운영 관찰 후 권장)</span></li>
+          <li><input type="checkbox"><span>착수 결정 항목의 Notion 페이지 신설 + 인벤토리 코드 부여</span></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  /* 🎬 후보 A — 종류별 "생긴다면 이런 모양" 카드 */
+  const CARDS={
+    MISSING:{name:'Rocky Linux 9.6 dvd.iso',label:'자원 소실',
+      now:'권장 조치: 백업·이동 여부를 확인해 파일을 원래 경로로 복원한 뒤 다시 점검하세요. → [보고 닫기]만 제공',
+      after:'+ [이 자원만 재점검] 버튼 — 복원 후 전체 스캔 없이 즉시 확인 (scanForResource 재사용, 읽기 전용)',
+      guard:'가드 불요 (읽기 전용). 4종 중 최저비용 — 첫 슬라이스 후보',size:'S'},
+    ORPHAN:{name:'stray.iso',label:'미등록 마커',
+      now:'권장 조치: 불필요한 파일이면 정리하고, 필요한 자원이면 관리 화면에서 다시 등록하세요. → 수작업',
+      after:'+ [휴지통으로 정리] (FS 이동 — .soft-deleted/ 규약 재사용) / + [재등록 진입] (등록 폼에 경로 프리필)',
+      guard:'정리는 ConfirmModal 확인 가드. 재등록은 도메인별 폼 URL 매핑',size:'M'},
+    SIGNATURE_INVALID:{name:'R23_MS73-HB1_Uni',label:'마커 서명 불일치',
+      now:"권장 조치: 서명 키 교체 직후라면 '마커 서명 재발급'(전체 일괄)을… → 단일 자원 수단 없음",
+      after:'+ [이 자원만 재서명] — 검증 절차(본체 확인) 후 단일 마커 재서명. 후보 C 의 실패 재시도와 결합',
+      guard:'변조 의심 자원의 임의 합법화 통로가 되지 않도록 검증 선행 — CP1 에서 가드 수준 확정',size:'M'},
+    HASH_MISMATCH:{name:'Rocky Linux 9.6 dvd.iso',label:'내용 변경 감지',
+      now:'권장 조치: 원본 파일을 다시 업로드하거나 변경 경위를 확인하세요. → 수작업',
+      after:'+ [원본 재업로드 진입] / + [현재 내용을 새 기준으로 승인] (재해싱+마커 갱신)',
+      guard:'승인은 사실상 변조의 정식화 — typed-name 급 강한 가드 전제. 이중 의도 검증 명제 대조 필수',size:'M~L'}
+  };
+  const stage=document.getElementById('stage');
+  function render(k){
+    const c=CARDS[k];
+    stage.innerHTML=`<div class="sim-card"><h5>${c.name} <span class="badge drop">${c.label}</span> <span class="dim mono" style="font-size:10px">${k}</span></h5>
+      <div class="row"><b class="lab">현재 (R9 까지) :</b> ${c.now}</div>
+      <div class="row"><b class="lab">후보 A 적용 시 :</b> ${c.after}</div>
+      <div class="row"><b class="lab">가드·전제 :</b> ${c.guard}</div>
+      <div class="row dim">예상 규모: ${c.size} (독립 수직 슬라이스 — CP1 부터)</div></div>`;
+  }
+  document.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-k]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');render(b.dataset.k);}));
+  render('MISSING');
+</script>
+</body>
+</html>

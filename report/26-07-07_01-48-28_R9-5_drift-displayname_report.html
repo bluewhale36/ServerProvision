@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-5 구현 보고 — Drift 자원 실명 스냅샷 (display_name)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.rep{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+  .stat{border:1px solid var(--border);border-radius:8px;padding:8px 16px;background:var(--card);text-align:center}
+  .stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9-5 구현 보고 — Drift 자원 실명 스냅샷 (display_name) <span class="chip rep">CP4 완료</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R9-5 (R9 : 5/5 — 유일한 엔티티 변경)</span>
+    <span><strong>plan</strong> plan/26-07-07_01-43-48_R9-5_plan.html (D1~D5 전부 이행)</span>
+    <span><strong>결과</strong> 전체 <b>1078 테스트 / 실패 0</b> (신규 2) · ⚠ 앱 기동 전 DDL 1줄 적용 필요 (§4)</span>
+    <span><strong>작성</strong> 2026-07-07 KST (밤샘 자율 모드)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 결과 요약</a></li>
+      <li><a href="#s2">§2 무엇이 어떻게 바뀌었나</a></li>
+      <li><a href="#s3">§3 plan 대비 실측 차이</a></li>
+      <li><a href="#s4">§4 ⚠ DDL 적용 (사용자 필수 실행)</a></li>
+      <li><a href="#s5">§5 테스트 · Verification</a></li>
+      <li><a href="#s6">§6 CP5 가이드</a></li>
+      <li><a href="#s7">§7 잔여 · 다음</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 결과 요약</summary>
+      <div class="body">
+        <div class="stat-row">
+          <div class="stat"><b>1</b><span>신규 컬럼 (display_name)</span></div>
+          <div class="stat"><b>0</b><span>기록 시 추가 조회 (스캔 인벤토리 재사용)</span></div>
+          <div class="stat"><b>1078</b><span>테스트 green (신규 2)</span></div>
+          <div class="stat"><b>1줄</b><span>사용자 DDL (기동 선행 조건)</span></div>
+        </div>
+        <p>드리프트가 이제 <b>자원 실명</b>으로 표시된다 — C2 주표기와 C3 '자원 이름' 행에 "Rocky Linux 9.6 dvd.iso" 같은 스캔 시점 스냅샷(<code>Markable.displayName()</code>)이 뜨고, 내부 PK("OS_ISO #42")는 보조 정보로 물러났다. 스냅샷 방식이라 자원이 이후 영구 삭제되어도 보고서에 이름이 남으며(<code>PurgeLog.display_name</code> 선례와 동일 개념·명명), DB 매칭 자원이 없는 ORPHAN 은 마커가 가리키는 본체 파일명이 fallback 이다. 도입 이전에 쌓인 행(null)은 종전 표기로 fallback — FIFO retention 으로 다음 점검부터 자연 해소된다. 사용자 불만 ④ 의 마지막 잔여("어느 자원인지")가 해소됐다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>§2. 무엇이 어떻게 바뀌었나 (파일별)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">…/entity/Drift.java</td><td><span class="badge mod">수정</span></td><td><code>displayName</code> 필드(<code>display_name</code> VARCHAR(255) nullable) — append-only 스냅샷, 수정 없음 원칙 유지.</td></tr>
+            <tr><td class="mono">…/service/PathReconciliationService.java</td><td><span class="badge mod">수정</span></td><td><code>buildDrift</code> 에 <code>.displayName(resource.displayName())</code> 1줄(4a/4b/4c/ghost/scanForResource 전 경로 커버) + ORPHAN builder 에 본체 파일명 fallback + <code>toResponse</code> 매핑.</td></tr>
+            <tr><td class="mono">…/dto/response/DriftResponse.java</td><td><span class="badge mod">수정</span></td><td><code>+displayName</code> — REST 계약 확장(기존 필드 불변).</td></tr>
+            <tr><td class="mono">templates/…/reconciliation/list.html</td><td><span class="badge mod">수정</span></td><td>C2 주표기 = 실명(null → "TYPE #id" fallback) + 부라벨 resourceType. C3 '자원 이름' 행(null → "— (이전 점검 기록)").</td></tr>
+            <tr><td class="mono">sql/R9-5_drift_display_name.sql</td><td><span class="badge new">신규</span></td><td>ALTER 1줄 + 실행·확인 절차 주석. <b>적용은 사용자</b>(§4).</td></tr>
+            <tr><td class="mono">CLAUDE.md</td><td><span class="badge mod">수정</span></td><td>수직 슬라이스 Step 9 문구 — <code>ddl-auto=update</code>(stale) → validate 절차(수동 DDL 산출·적용 후 검증, ALTER 권한 필요) 현행화.</td></tr>
+            <tr><td class="mono">PathReconciliationServiceTest(+2) · ReconciliationRestControllerTest(수정+단언1)</td><td><span class="badge mod">확장</span></td><td>실명 스냅샷 / ORPHAN 파일명 fallback / REST <code>$.drifts[0].displayName</code> 고정. sampleReport 의 스캔 소요 문자열도 신 포맷("0.45초")으로 정리.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. plan 대비 실측 차이</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>이탈 0.</b> DDL 문법은 익명 계정이 ALTER 가능한 <code>test</code> DB 에 동형 테이블을 만들어 실검증했다(적용 결과 <code>display_name varchar(255) DEFAULT NULL</code> 확인 후 정리) — 사용자가 실행할 스크립트가 문법 오류로 실패할 가능성 제거.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4" open>
+      <summary>§4. ⚠ DDL 적용 — 사용자 필수 실행 (앱 기동 선행 조건)</summary>
+      <div class="body">
+        <div class="callout danger">
+          <b><code>ddl-auto=validate</code> 이므로 아래 1줄을 적용하기 전에는 앱이 기동되지 않는다</b>
+          (<code>Schema-validation: missing column [display_name] in table [drift]</code>).
+          <code>claude_code</code> 계정은 ALTER 권한이 없음을 실측 확인(ERROR 1142)했고 본 세션은 root 자격 증명이 없어 적용을 대행할 수 없었다.
+          ALTER 권한 계정(root 등)으로:
+          <pre style="margin:8px 0 0">mysql -u root -p server_provision &lt; sql/R9-5_drift_display_name.sql
+# 확인: mysql -u root -p server_provision -e "SHOW CREATE TABLE drift" | grep display_name</pre>
+        </div>
+        <p class="dim">R9-1~R9-4 만 먼저 확인하고 싶다면: <code>Drift.java</code>/<code>DriftResponse.java</code>/<code>PathReconciliationService.java</code>(R9-5 diff)/<code>list.html</code> 의 R9-5 표시부를 되돌리는 방법도 있으나, DDL 1줄 적용이 훨씬 간단하다(nullable 추가라 무중단·무손실, 되돌리려면 <code>DROP COLUMN</code>).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 테스트 · Verification</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td>전체 스위트</td><td><b>1078 / 실패 0 / 스킵 6</b> (직전 1076 + 신규 2) — 단위/통합 모두 mock 기반이라 실DB·DDL 과 무관하게 green</td></tr>
+            <tr><td>DDL 문법</td><td>test DB 동형 테이블에 실적용 검증 OK</td></tr>
+          </tbody>
+        </table>
+        <ul class="check-list" data-storage="r9-5-report-verify">
+          <li><input type="checkbox" checked><span>실명 스냅샷 — MISSING drift 에 displayName 기록 (단위)</span></li>
+          <li><input type="checkbox" checked><span>ORPHAN — 마커 본체 파일명 fallback (단위)</span></li>
+          <li><input type="checkbox" checked><span>REST 계약 — <code>$.drifts[0].displayName</code> (통합)</span></li>
+          <li><input type="checkbox" checked><span>CLAUDE.md Step 9 문구 갱신</span></li>
+          <li><input type="checkbox"><span><b>사용자</b>: DDL 적용 + <code>SHOW CREATE TABLE drift</code> 확인</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. CP5 가이드 — 사용자 브라우저 E2E</summary>
+      <div class="body">
+        <ol style="margin-top:0">
+          <li><b>(선행) §4 DDL 적용</b> → 앱 기동 확인.</li>
+          <li>[지금 점검] 실행 → 새 보고서의 드리프트 C2 주표기가 <b>자원 실명</b>인지 (예: ISO 파일명 포함 합성명).</li>
+          <li>C3 상세에 '자원 이름' 행이 있는지. DDL 이전에 쌓인 옛 보고서 행은 "— (이전 점검 기록)" / "TYPE #id" fallback 인지.</li>
+          <li>(가능하면) DB 에 없는 stray 마커 파일을 만들어 ORPHAN 의 실명이 파일명으로 뜨는지.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 잔여 · 다음</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>잔존</b>: 기존 행 실명 부재(백필 불가·불요 — fallback + FIFO 자연 해소). DDL 적용은 사용자 몫.</li>
+          <li>Notion R9-5 'CP4 완료' 표기 → <b>R9 종합 보고서</b> 산출 + R9 페이지 CP4 완료 표기로 캠페인 마감(CP5 는 5 슬라이스 일괄).</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+</script>
+</body>
+</html>

@@ -11,12 +11,12 @@
   navbar(activePage)
     · activePage 키
         Management   : 'os-metadata' | 'board' | 'bios' | 'bmc' | 'driver'
-        Maintenance  : 'reconciliation'
+        Maintenance  : 'reconciliation' | 'quarantine' | 'trash'
         Provisioning : 'setting' | 'server'
     · 구현 완료 메뉴는 <a>, 미구현은 <span aria-disabled="true"> 로 남겨
       페이지가 완성될 때 태그만 교체한다.
     · 오른쪽 끝에는 서류가방 아이콘(.n-nav-bgjob) 과 드롭다운 패널이 있어
-      장시간 실행되는 모든 배경 작업(추출·업로드·인덱싱·경로 재조정) 을 통합 표시한다.
+      장시간 실행되는 모든 배경 작업(추출·업로드·인덱싱·무결성 점검) 을 통합 표시한다.
   ─────────────────────────────────────────────────────────────
 -->
 
@@ -81,7 +81,11 @@
     <!-- Maintenance (어플리케이션-서버 운영) -->
     <a th:href="@{/maintenance/reconciliation}"
        class="n-nav-link"
-       th:classappend="${activePage == 'reconciliation'} ? ' active'">경로 점검</a>
+       th:classappend="${activePage == 'reconciliation'} ? ' active'">자원 무결성 점검</a>
+    <!-- R9-4 — 업로드 실패 복구(격리 saga)는 무결성 점검과 별개 도메인이라 독립 메뉴로 승격. -->
+    <a th:href="@{/maintenance/quarantine}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'quarantine'} ? ' active'">업로드 실패 복구</a>
     <a th:href="@{/maintenance/trash}"
        class="n-nav-link"
        th:classappend="${activePage == 'trash'} ? ' active'">휴지통</a>

@@ -52,6 +52,12 @@ public class BackgroundJob {
 	private volatile Instant completedAt;
 	private volatile String errorMessage;
 	/**
+	 * R9-1 — 완료 시점에만 확정되는 결과 수치(예: 스캔의 driftCount, 재발급의 성공/실패 건수).
+	 * 등록 시점 {@link #metadata} 와 키가 충돌하면 안 된다 — 등록 키는 도메인 식별자(osId 등),
+	 * 결과 키는 결과 수치 전용. 응답 시 {@code BackgroundJobResponse} 가 두 맵을 병합해 내려준다.
+	 */
+	private volatile Map<String, String> resultMetadata = Map.of();
+	/**
 	 * 마지막으로 처리 중인 단계 인덱스. 실패 시 그 단계가 ERROR 인 인덱스. -1 = 아직 시작 안 함.
 	 */
 	private volatile int currentStageIndex;
@@ -119,6 +125,15 @@ public class BackgroundJob {
 	 * 모든 단계 DONE + Job COMPLETED. 단계가 안 끝났어도 강제 완료 — 다 채워줌.
 	 */
 	public synchronized void complete() {
+		complete(Map.of());
+	}
+
+	/**
+	 * R9-1 — 완료 결과 수치를 함께 기록하는 완료. 결과 키는 등록 metadata 키와 충돌 금지
+	 * ({@link #resultMetadata} 규약 참조).
+	 */
+	public synchronized void complete(Map<String, String> resultMetadata) {
+		this.resultMetadata = resultMetadata == null ? Map.of() : Map.copyOf(resultMetadata);
 		for (int i = 0; i < stageStatuses.size(); i++) {
 			if (stageStatuses.get(i) != StageStatus.ERROR) {
 				stageStatuses.set(i, StageStatus.DONE);

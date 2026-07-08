@@ -16,7 +16,7 @@ import org.springframework.web.servlet.view.RedirectView;
 import java.util.Optional;
 
 /**
- * MK1 경로 재조정 REST 엔드포인트.
+ * MK1 자원 무결성 점검 REST 엔드포인트.
  * <p>POST 액션은 페이지에서 form submit 으로도 호출되므로 redirect 로 응답한다 (PRG 패턴).
  * 스캔 트리거만 BackgroundJob jobId 를 JSON 으로 반환 — 작업 조회 아이콘에서 추적.</p>
  */
@@ -83,7 +83,8 @@ public class ReconciliationRestController {
 	@PostMapping("/drifts/{driftId}/apply")
 	public RedirectView apply(@PathVariable Long driftId, RedirectAttributes redirectAttributes) {
 		reconciliationService.apply(driftId);
-		redirectAttributes.addFlashAttribute("flashMessage", "PATH_DRIFT 적용 완료");
+		// R9-3 — JS 경로는 async 제출(토스트+reload)이라 flash 미소비. 이 flash 는 JS 불능 native submit fallback 용.
+		redirectAttributes.addFlashAttribute("flashMessage", "드리프트 적용 완료");
 		return new RedirectView("/maintenance/reconciliation");
 	}
 
@@ -93,7 +94,7 @@ public class ReconciliationRestController {
 	@PostMapping("/drifts/{driftId}/dismiss")
 	public RedirectView dismiss(@PathVariable Long driftId, RedirectAttributes redirectAttributes) {
 		reconciliationService.dismiss(driftId);
-		redirectAttributes.addFlashAttribute("flashMessage", "드리프트 무시 처리됨");
+		redirectAttributes.addFlashAttribute("flashMessage", "드리프트 보고를 닫았습니다");
 		return new RedirectView("/maintenance/reconciliation");
 	}
 }

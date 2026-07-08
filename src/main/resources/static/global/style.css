@@ -1241,3 +1241,28 @@ code {
 .text-success {
     color: var(--n-green) !important;
 }
+
+/* ============================================================
+   R9-4 — Maintenance 페이지 배너 (DESIGN.md §4 Maintenance Page Patterns)
+   도메인 인트로(info) / 대기·도착 안내(warn). 기존 토큰 재사용 — 팔레트 이원화 금지.
+   ============================================================ */
+.n-banner {
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.n-banner-info {
+    background: var(--n-bg);
+    border-left: 3px solid var(--n-blue);
+}
+
+.n-banner-warn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--n-yellow-bg);
+    border-left: 3px solid var(--n-yellow);
+    color: var(--n-text);
+}

@@ -196,11 +196,14 @@ class ConfirmActionFragmentRenderTest {
         };
         for (Path p : callers) {
             String html = read(p);
+            // R9-3 — reconciliation 은 도메인 전용 마커(data-confirm-drift-*) 로 이행. 같은 boolean 마커 규약.
             boolean anyMarker =
                     html.contains("data-confirm-soft-delete")
                             || html.contains("data-confirm-deprecate")
                             || html.contains("data-confirm-restore")
-                            || html.contains("data-confirm-purge");
+                            || html.contains("data-confirm-purge")
+                            || html.contains("data-confirm-drift-apply")
+                            || html.contains("data-confirm-drift-dismiss");
             assertThat(anyMarker)
                     .as(p.getFileName() + " — boolean 마커 (data-confirm-{action}) 가 form 에 없음")
                     .isTrue();

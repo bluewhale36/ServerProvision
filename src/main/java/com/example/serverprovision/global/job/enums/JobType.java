@@ -15,7 +15,7 @@ public enum JobType {
 	ISO_REGISTRATION("ISO 등록"),
 	COMPS_EXTRACTION("환경·패키지 추출"),
 	REPO_INDEXING("저장소 인덱싱"),
-	PATH_RECONCILIATION("경로 재조정"),
+	PATH_RECONCILIATION("자원 무결성 점검"),
 	MARKER_REISSUE("마커 서명 재발급"),
 	INTEGRITY_VERIFICATION("무결성 검증"),
 	// S5-2-4 — 휴지통 자동 hard-delete + 사전 알림 + 실패 알림 3 종

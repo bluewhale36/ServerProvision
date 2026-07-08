@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-2 plan — DriftKind 사용자 언어화 + autoApplicable SSOT 승격</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-right:2px}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-btn:disabled{opacity:.45;cursor:not-allowed}
+  .sim-card{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 14px;background:var(--bg)}
+  .sim-card h5{margin:0 0 6px;font-size:13px}
+  .sim-card .row{font-size:12px;margin:3px 0}
+  .sim-card .row b.lab{color:var(--purple)}
+  .sim-actions{margin-top:9px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .tooltip-note{font-size:11px;color:var(--muted);font-style:italic}
+  .sim-modal{border:2px solid var(--red);background:var(--card);border-radius:8px;padding:10px 14px;margin:8px 14px;font-size:12px}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R9-2 — DriftKind 사용자 언어화 + autoApplicable SSOT 승격 <span class="chip cp1">CP1</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R9-2 (R9 : Reconciliation 사용성 개선 — 2/5)</span>
+    <span><strong>scope</strong> DriftKind 라벨·설명·권장조치 12종 + <code>autoApplicable</code> 승격(템플릿 4종 하드코딩 ×3 제거) + auto-apply OFF 시 UI 사전 차단</span>
+    <span><strong>해소</strong> 사용자 불만 ④ "drift 가 나도 어떤 대처를 해야 할지 감을 못 잡음" 핵심</span>
+    <span><strong>생성</strong> 2026-07-07 KST · CP4 까지 무중단 (밤샘 자율 모드)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 · 설계 결정 D1~D5</a></li>
+      <li><a href="#sd">🎬 드리프트 카드 미리보기</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (12종 문구 확정표)</a></li>
+      <li><a href="#s5">§5 10단계 매핑</a></li>
+      <li><a href="#s6">§6 Step 8 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (코드 실측)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>증상</th><th>실측 근거</th></tr></thead>
+          <tbody>
+            <tr><td>DriftKind 12종이 영문 enum 원시명 그대로 노출 — 라벨/설명/권장조치 메타 전무</td><td><code>DriftKind.java:34-49</code> 상수만 존재. 템플릿 <code>list.html:156,196</code> 이 <code>${drift.kind}</code> 직출력. <code>IntegrityStatus.displayMessage</code> 선례(<code>IntegrityStatus.java:23-29</code>)는 있으나 DriftKind 미적용</td></tr>
+            <tr><td><b>autoApplicable SSOT 위반 현존</b> — 서버 5종 vs 템플릿 4종 하드코딩 ×3곳</td><td>서버 <code>isAutoApplicable</code>(<code>PathReconciliationService.java:771-777</code>)은 GHOST_DB_ROW 포함 5종. 템플릿은 배지 색(<code>:192-195</code>)/apply 폼 조건(<code>:228-231</code>)/힌트 조건(<code>:249-252</code>) 4종 복붙 — GHOST_DB_ROW 는 서버가 허용하는데 UI 가 버튼을 숨기고 "허용되지 않습니다" 안내. 서비스 주석 스스로 "반복되면 enum 승격" 예고(<code>:767-768</code>)</td></tr>
+            <tr><td>전역 auto-apply OFF 시 정상 클릭이 409 예외 — "UI 1차 차단" 불가침 위반</td><td><code>reconciliation.auto-apply=false</code> 시 <code>apply()</code> 가 <code>DriftAutoApplyNotAllowedException</code>(<code>:646-649</code>). 컨트롤러는 플래그를 뷰모델로 노출하지 않아 버튼이 항상 활성 렌더</td></tr>
+            <tr><td>예외 메시지 stale — 두 발생 지점 모두 사실과 불일치</td><td><code>DriftAutoApplyNotAllowedException.java:13</code> "PATH_DRIFT 종류에만 허용" — 실허용은 5종이고, 전역 OFF 거절도 같은 문구</td></tr>
+            <tr><td>스캔 소요가 <code>PT0.45S</code>(ISO-8601 Duration 원문) 노출</td><td><code>toResponse</code> 가 <code>r.getScanDuration().toString()</code>(<code>:805</code>)</td></tr>
+            <tr><td>빈 상태 문구에 프로퍼티 키 노출</td><td><code>list.html:70</code> <code>reconciliation.scan.startup-enabled=true</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 · 설계 결정 (D1~D5, 대안 비교)</summary>
+      <div class="body">
+        <h4>D1. DriftKind 에 순수 데이터 4필드 — label · description · recommendedAction · autoApplicable <span class="badge new">채택</span></h4>
+        <p>생성자 필드 + 접근자(<code>IntegrityStatus.displayMessage</code> 선례와 동일 위치·동일 방식). 12종 전부 부여 — 미생성 6종(RESOURCE_RENAMED 계열 등)도 javadoc 의미가 이미 확정돼 있고, 상수별 유무 분기를 만들지 않는 쪽이 분기 금지 원칙에 부합. 각 상수 javadoc 에 "탐지 로직 미구현(MK3-2 소관)" 사실 명기. <br>
+        <span class="dim">비채택: ⓐ method-per-constant — 행위가 아닌 순수 데이터라 필드가 더 단순. ⓑ <code>MessageSource</code> i18n — 단일 언어 운영, enum 필드가 SSOT 로 더 단순(조사 보고 §7-7). ⓒ 라벨만 부여 — "무슨 일인지+뭘 하면 되는지"가 불만 ④ 의 본체라 3필드가 최소.</span></p>
+        <h4>D2. 소비 방식 — 템플릿이 enum 접근자를 직접 읽음, DriftResponse 무변경 <span class="badge new">채택</span></h4>
+        <p><code>DriftResponse.kind</code> 가 이미 <code>DriftKind</code> 타입이므로 Thymeleaf 가 <code>${drift.kind.label}</code>/<code>${drift.kind.autoApplicable}</code> 로 접근자를 직접 호출한다. DTO 필드 4개 복제가 사라지고 enum 이 유일 SSOT. REST JSON 은 기존대로 enum 이름 직렬화(외부 API 계약 무변경 — <code>ReconciliationRestControllerTest</code> 의 <code>$.drifts[0].kind</code> 단언 보존).<br>
+        <span class="dim">비채택: DriftResponse 에 label 등 4필드 추가 — 같은 값을 두 층에 복제(중복 금지 위반)하고 REST 소비자가 없는데 페이로드만 증가.</span></p>
+        <h4>D3. autoApplicable SSOT 3자 공유 — 서버 가드 · 버튼 노출 · 배지 색이 같은 접근자 호출 <span class="badge new">채택</span></h4>
+        <p><code>PathReconciliationService</code> 의 private <code>isAutoApplicable(kind)</code> 5종 나열을 삭제하고 가드가 <code>drift.getKind().isAutoApplicable()</code> 호출. 템플릿 3곳도 <code>${drift.kind.autoApplicable}</code> — 하드코딩 4종 나열 ×3 제거. <b>GHOST_DB_ROW 버튼이 자연 노출된다(Q5 확정)</b> — hard-delete 의미이나 대상 파일이 애초에 없어 안전한 정리이고, 같은 액션이 휴지통 화면에 이미 노출돼 있어(TrashController) 오히려 現비노출이 비일관. 문구는 D1 의 recommendedAction("복구할 파일이 없어 안전한 정리")이 안내하고, confirm modal 의 어휘 정합은 R9-3 이 담당.</p>
+        <h4>D4. 전역 auto-apply OFF → UI 사전 차단, 서버 가드와 단일 메서드 공유 <span class="badge new">채택</span></h4>
+        <p><code>PathReconciliationService</code> 에 public <code>isAutoApplyEnabled()</code> 신설(<code>!Boolean.FALSE.equals(autoApplyEnabled)</code> — null=활성 유지). <b>서버 가드(<code>apply</code>)와 컨트롤러 뷰모델(<code>autoApplyEnabled</code> 플래그)이 이 한 메서드를 함께 호출</b> — <code>childEnableBlockReason()</code> 선례의 SSOT 패턴. 템플릿: OFF 면 [자동 적용] 버튼 <code>disabled</code> + <code>title</code> tooltip("전역 자동 적용이 꺼져 있어요 (reconciliation.auto-apply). 켠 뒤 다시 시도하세요."). 서버 가드는 direct POST 안전망으로 유지(발동 시 문구는 D5).<br>
+        <span class="dim">주의(비판 검증 리스크 4): 참조 플래그는 반드시 <code>reconciliation.auto-apply</code>(수동 버튼 가드와 동일) — 스캔 중 무인 자동 적용용 <code>auto-apply-path-drift</code>/<code>auto-apply-ghost-row</code> 와 혼동 금지.</span></p>
+        <h4>D5. 예외 메시지 발생 지점별 정확화 — static factory 2종 <span class="badge new">채택</span></h4>
+        <p><code>DriftAutoApplyNotAllowedException.notApplicable(kind)</code>("'{label}' 종류는 시스템이 자동 정합할 수 없습니다…") / <code>.globalOff()</code>("전역 자동 적용 옵션이 꺼져 있어…"). 보조: <code>toResponse</code> 의 스캔 소요를 사람 문구로 포맷("0.45초"/"1분 3초"), 빈 상태 프로퍼티 키 제거. flash 문구는 R9-3 에서 응답 체계가 바뀌므로 본 슬라이스에서 건드리지 않는다.</p>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 드리프트 카드 미리보기 — 종류·전역 플래그를 바꿔 확인</summary>
+      <div class="body">
+        <p class="dim" style="margin:4px 0 8px">§4 확정 문구가 실제 C3 상세에 어떻게 얹히는지 시뮬레이션. "자동 적용" 클릭 시 서버 가드 응답도 재현된다 (전역 OFF + 버튼 강제 활성화 = direct POST 시나리오).</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">종류</span>
+            <select id="kind-sel" class="ux-btn"></select>
+            <span class="lbl" style="margin-left:8px">전역 자동 적용</span>
+            <button class="ux-btn on" id="aa-toggle">ON</button>
+            <button class="ux-btn" id="force-post" title="disabled 를 우회한 direct POST 재현">direct POST 재현</button>
+          </div>
+          <div id="card-area"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+<pre>GET /maintenance/reconciliation
+  ReconciliationController → model + <span style="color:#d2a8ff">autoApplyEnabled = service.isAutoApplyEnabled()</span>
+  템플릿: C2 배지 = ${drift.kind.<span style="color:#d2a8ff">label</span>} · 색 = kind.<span style="color:#d2a8ff">autoApplicable</span>
+          C3 상세 = 종류(label + enum 보조표기) / <span style="color:#d2a8ff">+ 무슨 일이(description) / + 권장 조치(recommendedAction)</span>
+          apply 폼 th:if = kind.autoApplicable (4종 나열 ×3 삭제) · 버튼 disabled = !autoApplyEnabled + tooltip
+POST /drifts/{id}/apply (안전망)
+  apply(): !kind.isAutoApplicable() → notApplicable(kind) 409 | !isAutoApplyEnabled() → globalOff() 409
+  <span style="color:#8b949e">(UI 가 정상 흐름을 차단하므로 이 409 는 direct POST / stale 화면에서만 발동)</span></pre>
+      </div>
+    </details>
+
+    <details class="section" id="s4" open>
+      <summary>§4. 도메인 모델 — 12종 문구 확정표 (엔티티 무변경)</summary>
+      <div class="body">
+        <table id="kind-table">
+          <thead><tr><th>enum</th><th>label</th><th>description (무슨 일이)</th><th>recommendedAction (권장 조치)</th><th>auto</th><th>생성</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="dim">"auto" = autoApplicable(수동 [자동 적용] 버튼 허용 5종 — 서버 <code>isAutoApplicable</code> 현행과 동일 집합). "생성" ✕ = 탐지 로직 미구현(MK3-2 소관) — javadoc 에 명기, 문구만 선부여. 이 표가 곧 추후 사용자 가이드의 원문이다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 10단계 매핑 (리팩토링 슬라이스)</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td>1</td><td>본 plan html</td></tr>
+            <tr><td>2</td><td><code>list.html</code> — 라벨/설명/권장조치/조건 치환 + disabled/tooltip + 빈 상태 문구</td></tr>
+            <tr><td>3</td><td><code>ReconciliationController</code> — autoApplyEnabled 모델 노출</td></tr>
+            <tr><td>4</td><td>DTO 무변경 (D2)</td></tr>
+            <tr><td>5</td><td><code>PathReconciliationService.isAutoApplyEnabled()</code> 시그니처</td></tr>
+            <tr><td>6·7·9</td><td><b>N/A</b> — 엔티티/스키마 무변경</td></tr>
+            <tr><td>8</td><td>enum 4필드 + 가드 위임 + 예외 factory + duration 포맷 + 테스트(§6)</td></tr>
+            <tr><td>10</td><td>CP5 — 사용자 복귀 후</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s6" open>
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><code>DriftKindTest</code> <span class="badge new">신규</span></td><td>ⓐ 12종 전부 label/description/recommendedAction 비어있지 않음 ⓑ autoApplicable=true 집합이 정확히 {PATH_DRIFT, RESOURCE_RENAMED, SOFTDEL_ESCAPE_TO_ORIGINAL, TRASH_MARKER_STALE, GHOST_DB_ROW} (서버 가드 현행 5종과 동일 — 회귀 고정)</td></tr>
+            <tr><td><code>PathReconciliationServiceTest</code> <span class="badge mod">수정+2</span></td><td>ⓐ 기존 not-applicable 409 케이스가 enum 위임 후에도 동일 발동 ⓑ 전역 OFF(<code>autoApplyEnabled=false</code>) 시 autoApplicable 종류도 409 (globalOff) ⓒ <code>isAutoApplyEnabled()</code> — false 일 때만 false (null/true = true)</td></tr>
+            <tr><td><code>ReconciliationRestControllerTest</code> <span class="badge mod">수정+1</span></td><td>ⓐ 기존 409 트리거를 factory 로 갱신 ⓑ GET list — <code>autoApplyEnabled</code> 모델 플래그 (true/false 각 1) ⓒ 기존 <code>$.drifts[0].kind</code> = "PATH_DRIFT" 단언 그대로 green(REST 계약 보존 증명)</td></tr>
+            <tr><td>템플릿 렌더</td><td>R9-1 의 alias 테스트 2건이 PATH_DRIFT 카드로 실제 렌더 — enum 접근자 오타 시 즉시 red (별도 테스트 불요)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0">신규 예외 클래스 0. <code>DriftAutoApplyNotAllowedException</code> 은 public 생성자 → private + static factory 2종(<code>notApplicable(kind)</code>/<code>globalOff()</code>)으로 재구성 — 409/<code>ConflictException</code> 계층 불변. 사용처 전수: <code>PathReconciliationService.apply</code> 2곳 + 테스트 2파일(동반 수정).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s8" open>
+      <summary>§8. 부산물 · 주의</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>GHOST_DB_ROW 버튼 노출의 modal 어휘 문제</b>(비판 검증 발견): apply 폼이 차용 중인 restore modal 은 "복구할까요?" 를 묻는다 — hard-delete 의미와 반대. <b>R9-3 이 kind 어휘 정합 modal 로 교체하기 전까지 한 슬라이스 동안 문구 비대칭이 존재</b>한다. 완화: data-resource-label 을 label 기반으로 바꾸고 recommendedAction 행이 실동작을 설명. 해소 시점: R9-3 (직후 슬라이스).</li>
+          <li><b>scope 경계</b>: 버튼 문구("자동 적용"/"무시") 개명·modal·async 는 R9-3. 명칭·배치·배너는 R9-4. flash 문구는 R9-3 에서 응답 체계 변경과 함께.</li>
+          <li>미생성 6종에 문구 선부여 — dead 상수 포장 위험은 javadoc "탐지 미구현(MK3-2)" 명기로 완화(조사 보고 §7-5).</li>
+          <li>CLAUDE.md 수정 없음.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>§9. Verification</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="r9-2-plan-verify" style="margin-top:0">
+          <li><input type="checkbox"><span>전체 테스트 그린 (1067 + 신규)</span></li>
+          <li><input type="checkbox"><span>grep: 템플릿에 DriftKind 4종 나열 잔존 0 / 서비스에 5종 나열 잔존 0</span></li>
+          <li><input type="checkbox"><span>grep: <code>PT0.45S</code> 형태 노출 경로 소멸 (toResponse 포맷 확인)</span></li>
+          <li><input type="checkbox"><span>REST JSON 의 kind 직렬화 불변 (기존 테스트 green 으로 증명)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td class="mono">global/marker/DriftKind.java</td><td><span class="badge mod">수정</span> 4필드 + 접근자 + javadoc</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/service/PathReconciliationService.java</td><td><span class="badge mod">수정</span> 가드 enum 위임 + isAutoApplyEnabled() + duration 포맷 + private isAutoApplicable 삭제</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/exception/DriftAutoApplyNotAllowedException.java</td><td><span class="badge mod">수정</span> factory 2종</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/controller/ReconciliationController.java</td><td><span class="badge mod">수정</span> autoApplyEnabled 모델</td></tr>
+            <tr><td class="mono">templates/maintenance/reconciliation/list.html</td><td><span class="badge mod">수정</span> 라벨·3단 표현·조건 치환·disabled/tooltip·빈 상태</td></tr>
+            <tr><td class="mono">DriftKindTest.java</td><td><span class="badge new">신규</span></td></tr>
+            <tr><td class="mono">PathReconciliationServiceTest · ReconciliationRestControllerTest</td><td><span class="badge mod">확장</span></td></tr>
+          </tbody>
+        </table>
+        <p class="dim">유지: DriftResponse, Drift 엔티티, REST JSON 계약, list.js(R9-1 산출 그대로).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <p style="margin-top:0">CP4 → report html + Notion 'CP4 완료' → <b>R9-3</b>(modal·폼 정합 — 본 슬라이스가 남긴 modal 어휘 비대칭 해소 + native confirm 제거 + async 전환).</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  /* 12종 확정 문구 — §4 표와 🎬 데모가 같은 데이터를 공유 (문구 SSOT 재현) */
+  const KINDS={
+    PATH_DRIFT:{label:'경로 이동됨',desc:'자원 파일과 마커가 다른 위치에서 온전히 발견되었습니다. DB 가 옛 경로를 가리키고 있습니다.',act:'적용하면 DB 의 경로를 새 위치로 갱신합니다. 파일은 변경하지 않습니다.',auto:true,gen:true},
+    MISSING:{label:'자원 소실',desc:'DB 에 등록된 자원의 파일과 마커를 어디에서도 찾지 못했습니다.',act:'백업·이동 여부를 확인해 파일을 원래 경로로 복원한 뒤 다시 점검하세요. 시스템이 자동 복구할 수 없습니다.',auto:false,gen:true},
+    ORPHAN:{label:'미등록 마커',desc:'디스크에 마커가 있으나 DB 에 매칭되는 자원이 없습니다.',act:'불필요한 파일이면 정리하고, 필요한 자원이면 관리 화면에서 다시 등록하세요.',auto:false,gen:true},
+    SIGNATURE_INVALID:{label:'마커 서명 불일치',desc:'마커 파일의 서명이 현재 서명 키와 맞지 않습니다. 마커 손상·외부 이식 또는 서명 키(secret) 변경이 원인일 수 있습니다.',act:"서명 키를 교체한 직후라면 '마커 서명 재발급'을 실행하고, 아니라면 자원 변조 여부를 확인하세요.",auto:false,gen:true},
+    HASH_MISMATCH:{label:'내용 변경 감지',desc:'자원 파일의 내용이 등록 시점과 다릅니다 (정밀 점검에서만 감지).',act:'원본 파일을 다시 업로드하거나 변경 경위를 확인하세요.',auto:false,gen:true},
+    RESOURCE_RENAMED:{label:'파일명 변경됨',desc:'같은 폴더 안에서 자원 파일과 마커가 다른 이름으로 함께 발견되었습니다.',act:'적용하면 DB 의 경로를 새 파일명으로 갱신합니다.',auto:true,gen:false},
+    RESOURCE_RENAMED_ORPHAN:{label:'새 이름 추론 불가',desc:'마커는 남아 있으나 자원 파일의 새 이름을 자동으로 알 수 없습니다.',act:'파일 위치와 이름을 직접 확인해 복원한 뒤 다시 점검하세요.',auto:false,gen:false},
+    SOFTDEL_ESCAPE_TO_ORIGINAL:{label:'삭제 자원 복귀',desc:'휴지통에 있어야 할 자원이 원래 위치로 돌아와 있습니다.',act:'적용하면 DB 상태를 실제 위치에 맞게 정합합니다.',auto:true,gen:false},
+    SOFTDEL_ESCAPE_TO_OTHER:{label:'삭제 자원 위치 이탈',desc:'휴지통에 있어야 할 자원이 예상 밖의 위치에서 발견되었습니다. 운영자 의도를 알 수 없습니다.',act:'자원의 위치와 삭제 의도를 직접 확인하세요.',auto:false,gen:false},
+    TRASH_LOST:{label:'휴지통 자원 소실',desc:'휴지통으로 이동된 자원이 그 위치에 없습니다. 외부에서 정리되었을 수 있습니다.',act:'복구가 필요하면 백업을 확인하세요. 불필요하면 이 보고를 닫아도 됩니다.',auto:false,gen:false},
+    TRASH_MARKER_STALE:{label:'잔여 마커 정리 필요',desc:'휴지통 자원 옆에 소프트 삭제 시 정리됐어야 할 마커가 남아 있습니다.',act:'적용하면 잔여 마커를 정리합니다.',auto:true,gen:false},
+    GHOST_DB_ROW:{label:'유령 DB 기록',desc:'삭제 표시된 자원이 휴지통에도 디스크에도 없습니다. DB 기록만 남아 있습니다.',act:'적용하면 남은 DB 기록을 영구 삭제합니다. 복구할 파일이 없어 안전한 정리입니다.',auto:true,gen:true}
+  };
+
+  // §4 표 채우기
+  const tbody=document.querySelector('#kind-table tbody');
+  Object.entries(KINDS).forEach(([k,v])=>{
+    tbody.innerHTML+=`<tr><td class="mono">${k}</td><td><b>${v.label}</b></td><td>${v.desc}</td><td>${v.act}</td><td>${v.auto?'<span class="badge new">O</span>':'—'}</td><td>${v.gen?'O':'<span class="dim">✕</span>'}</td></tr>`;
+  });
+
+  // 🎬 데모
+  const sel=document.getElementById('kind-sel');
+  Object.keys(KINDS).forEach(k=>{sel.innerHTML+=`<option value="${k}">${k}</option>`;});
+  const state={kind:'PATH_DRIFT',aa:true,modal:''};
+  const area=document.getElementById('card-area');
+  function render(){
+    const v=KINDS[state.kind];
+    let h=`<div class="sim-card"><h5>OS_ISO #42 <span class="badge new">${v.label}</span> <span class="dim mono" style="font-size:10px">${state.kind}</span></h5>
+      <div class="row"><b class="lab">무슨 일이 :</b> ${v.desc}</div>
+      <div class="row"><b class="lab">권장 조치 :</b> ${v.act}</div>
+      <div class="sim-actions">`;
+    if(v.auto){
+      h+= state.aa
+        ? `<button class="ux-btn" id="c-apply">자동 적용</button>`
+        : `<button class="ux-btn" disabled>자동 적용</button><span class="tooltip-note">tooltip: 전역 자동 적용이 꺼져 있어요 (reconciliation.auto-apply). 켠 뒤 다시 시도하세요.</span>`;
+    }
+    h+=`<button class="ux-btn">무시</button><span class="dim" style="font-size:11px">("무시"→"보고 닫기" 개명·modal 은 R9-3)</span></div></div>`;
+    if(state.modal==='ok') h+=`<div class="sim-modal" style="border-color:var(--blue)">서버: 200 — ${state.kind==='GHOST_DB_ROW'?'DB 기록 영구 삭제':'경로 정합 적용'} 완료, 보고서에서 제거</div>`;
+    if(state.modal==='409na') h+=`<div class="sim-modal">서버: 409 — "'${v.label}' 종류는 시스템이 자동 정합할 수 없습니다. 관리자 조치 후 다시 점검하세요." <span class="dim">(notApplicable factory — UI 가 버튼을 안 그리므로 direct POST 에서만)</span></div>`;
+    if(state.modal==='409off') h+=`<div class="sim-modal">서버: 409 — "전역 자동 적용 옵션(reconciliation.auto-apply)이 꺼져 있어 적용이 거절되었습니다." <span class="dim">(globalOff factory — disabled 우회 direct POST 안전망)</span></div>`;
+    area.innerHTML=h;
+    const ap=document.getElementById('c-apply');
+    if(ap)ap.addEventListener('click',()=>{state.modal = state.aa ? 'ok' : '409off'; render();});
+  }
+  sel.addEventListener('change',()=>{state.kind=sel.value;state.modal='';render();});
+  document.getElementById('aa-toggle').addEventListener('click',e=>{
+    state.aa=!state.aa;state.modal='';e.target.textContent=state.aa?'ON':'OFF';e.target.classList.toggle('on',state.aa);render();});
+  document.getElementById('force-post').addEventListener('click',()=>{
+    const v=KINDS[state.kind];
+    state.modal = !v.auto ? '409na' : (!state.aa ? '409off' : 'ok');render();});
+  render();
+</script>
+</body>
+</html>
