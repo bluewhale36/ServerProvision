@@ -161,7 +161,7 @@
                     드리프트 없음 — 모든 자원이 정상.
                 </div>
 
-                <!--/* R9-2 — C2 배지는 사용자 라벨(enum 원시명은 C3 보조 표기). 색은 autoApplicable SSOT.
+                <!--/* R9-2 — C2 배지는 사용자 라벨(enum 원시명은 C3 보조 표기). 색은 kind.mode SSOT (miller tag 는 on/off 2단 자산이라 manuallyResolvable 로 축약, 3단 색은 C3 배지).
                      R9-5 — 주표기는 자원 실명(스냅샷). 도입 이전 행(null)은 종전 "TYPE #id" 로 fallback. */-->
                 <button th:each="drift : ${report.drifts}"
                         type="button"
@@ -174,7 +174,7 @@
                               th:text="${drift.resourceType}">OS_ISO</span>
                     </span>
                     <span class="n-miller-status-tag"
-                          th:classappend="${drift.kind.autoApplicable} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:classappend="${drift.kind.manuallyResolvable} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
                           th:text="${drift.kind.label}">경로 이동됨</span>
                 </button>
             </div>
@@ -211,13 +211,13 @@
                             <dt>자원 ID</dt>
                             <dd th:text="${drift.resourceId}"></dd>
                         </div>
-                        <!--/* R9-2 — 종류는 라벨 + enum 보조 표기. 색·버튼 노출은 DriftKind.autoApplicable 단일 소스
+                        <!--/* R9-2 — 종류는 라벨 + enum 보조 표기. 색·버튼 노출은 DriftKind.mode 단일 소스 (AUTO 주황 / MANUAL 노랑 / NONE 회색)
                              (과거 4종 하드코딩 ×3곳이 서버 5종 나열과 갈라져 GHOST_DB_ROW 버튼이 누락돼 있었다). */-->
                         <div class="n-accordion-field">
                             <dt>드리프트 종류</dt>
                             <dd>
                                 <span class="n-badge"
-                                      th:classappend="${drift.kind.autoApplicable} ? 'n-badge-orange' : 'n-badge-gray'"
+                                      th:classappend="${drift.kind.mode.name() == 'AUTO'} ? 'n-badge-orange' : (${drift.kind.mode.name() == 'MANUAL'} ? 'n-badge-yellow' : 'n-badge-gray')"
                                       th:text="${drift.kind.label}"></span>
                                 <code style="font-size: 10px; margin-left: 6px;" th:text="${drift.kind}"></code>
                             </dd>
@@ -254,12 +254,12 @@
                         </div>
                     </dl>
 
-                    <!--/* R9-2 — 버튼 노출 = DriftKind.autoApplicable (서버 가드와 동일 SSOT).
+                    <!--/* R9-2 — 버튼 노출 = DriftKind.manuallyResolvable (서버 가드와 동일 SSOT — MANUAL 은 사용자 확인 후 시스템이 해결).
                          전역 auto-apply OFF 는 disabled + tooltip 으로 1차 차단 — 서버 409 는 direct POST 안전망.
                          R9-3 — 전용 확인 modal(DRIFT_APPLY/DRIFT_DISMISS, list.js 로컬 바인딩) + async 제출.
                          거절(409 등)은 ErrorModal, 성공은 토스트+reload — 전체 페이지 이탈 없음. */-->
                     <div class="n-form-actions">
-                        <form th:if="${drift.kind.autoApplicable}"
+                        <form th:if="${drift.kind.manuallyResolvable}"
                               th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
                               method="post"
                               data-confirm-drift-apply=""
@@ -269,8 +269,8 @@
                               th:data-resource-label="|'${drift.kind.label}' 드리프트|"
                               th:data-resource-extra="${drift.kind.recommendedAction}">
                             <button type="submit" class="n-btn n-btn-primary"
-                                    th:disabled="${!autoApplyEnabled}"
-                                    th:title="${!autoApplyEnabled} ? '전역 자동 적용이 꺼져 있어요 (reconciliation.auto-apply). 켠 뒤 다시 시도하세요.' : null">자동 적용</button>
+                                    th:disabled="${!resolutionEnabled}"
+                                    th:title="${!resolutionEnabled} ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.' : null">적용</button>
                         </form>
                         <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/dismiss(driftId=${drift.id})}"
                               method="post"
@@ -282,7 +282,30 @@
                               data-resource-extra="보고 목록에서만 제외됩니다. 파일과 자원은 변경되지 않으며 다음 점검에서 다시 보고될 수 있어요.">
                             <button type="submit" class="n-btn n-btn-outline-danger">보고 닫기</button>
                         </form>
+                        <!--/* S6-3-3 — [다시 점검] : 확인 액션 (해결 등급과 독립인 recheckable 축).
+                             상태를 바꾸지 않아 확인 modal 없이 즉시 실행 — 결과는 토스트로 구분. */-->
+                        <button type="button" class="n-btn n-btn-outline"
+                                th:if="${drift.kind.recheckable}"
+                                th:attr="data-recheck-url=@{/maintenance/reconciliation/drifts/{driftId}/recheck(driftId=${drift.id})}">다시 점검</button>
                     </div>
+                    <!--/* S6-3-4 — 내용 변경 수용 : 비동기 + 자원명 확인이라 표준 [적용] 계약과 분리된 전용 폼.
+                         소비처가 이 한 곳뿐이라 kind 직접 비교(축 신설은 과함 — plan 양안 비교 후 채택).
+                         판단 재료(감지 시각·정본 인정 시각·지문 전문)는 위 상세 dl 의 detail 에 표시됨. */-->
+                    <form class="n-form-actions" style="flex-direction:column;align-items:flex-start;gap:6px"
+                          th:if="${drift.kind.name() == 'HASH_MISMATCH'}"
+                          method="post"
+                          th:action="@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}"
+                          th:attr="data-accept-hash-url=@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}">
+                        <p class="n-form-hint" style="margin:0">원본 재업로드가 더 안전합니다 (검증 재통과).
+                            의도된 교체가 확실할 때만 자원명을 입력해 수용하세요 — 감사 기록에 남습니다.</p>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="text" name="typedName" class="n-input"
+                                   th:placeholder="|자원명 입력 : ${drift.displayName}|" autocomplete="off">
+                            <button type="submit" class="n-btn n-btn-outline-danger"
+                                    th:disabled="${!resolutionEnabled}"
+                                    th:title="${!resolutionEnabled} ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.' : null">현재 내용을 정본으로 수용</button>
+                        </div>
+                    </form>
                 </div>
             </th:block>
         </div>

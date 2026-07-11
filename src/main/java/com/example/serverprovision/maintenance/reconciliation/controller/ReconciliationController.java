@@ -64,8 +64,8 @@ public class ReconciliationController {
 		// 그 페이지의 첫 행(더 오래된 보고서)으로 잘못 표시되던 결함 수정.
 		model.addAttribute("latestReport", reconciliationService.latestReport().orElse(null));
 		// R9-2 — 전역 자동 적용 OFF 시 UI 가 버튼을 disabled+tooltip 으로 1차 차단.
-		// 서버 가드(apply)와 같은 isAutoApplyEnabled() 를 공유 — SSOT.
-		model.addAttribute("autoApplyEnabled", reconciliationService.isAutoApplyEnabled());
+		// 서버 가드(apply)와 같은 isResolutionEnabled() 를 공유 — SSOT.
+		model.addAttribute("resolutionEnabled", reconciliationService.isResolutionEnabled());
 		// R9-4 — 업로드 실패 격리 대기 안내 배너 (이 페이지 렌더에만 count 조회).
 		model.addAttribute("quarantinePendingCount", orphanQuarantineService.countPending());
 

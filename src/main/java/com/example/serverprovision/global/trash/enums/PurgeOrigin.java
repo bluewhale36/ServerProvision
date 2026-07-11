@@ -88,6 +88,33 @@ public enum PurgeOrigin {
 		public String displayName() {
 			return "자동 (TTL 만료)";
 		}
+	},
+
+	/**
+	 * S6-2-3 — 자원 무결성 점검의 "휴지통 자원 소실"(TRASH_LOST) 정리 진입. 사용자가 drift 카드에서
+	 * [적용]으로 확인한 뒤 호출된다. 실물이 이미 유실되어 잃을 것이 없는 기록 정리라 typed-name 을
+	 * 요구하지 않는다(유령 기록 정리 선례). 사용자 확인 기반 1회 실행 — retry 없음.
+	 */
+	DRIFT_TRASH_LOST {
+		@Override
+		public boolean retriesAllowed() {
+			return false;
+		}
+
+		@Override
+		public boolean requiresTypedName() {
+			return false;
+		}
+
+		@Override
+		public String jobTitle(String displayName) {
+			return "휴지통 소실 정리 — " + displayName;
+		}
+
+		@Override
+		public String displayName() {
+			return "점검 — 휴지통 소실 정리";
+		}
 	};
 
 	/**

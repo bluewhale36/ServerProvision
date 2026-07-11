@@ -46,12 +46,6 @@ public class SubprogramMarkableScanner implements MarkableScanner {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Set<Long> findSoftDeletedResourceIds() {
-		return subprogramRepository.findIdsByIsDeletedTrue();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
 	public Optional<Markable> findActiveMarkableById(Long resourceId) {
 		return subprogramRepository.findById(resourceId)
 				.filter(s -> !s.isDeleted())

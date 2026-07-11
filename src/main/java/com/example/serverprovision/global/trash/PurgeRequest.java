@@ -33,6 +33,13 @@ public record PurgeRequest(
 	}
 
 	/**
+	 * S6-2-3 — 점검의 "휴지통 자원 소실" 정리 진입용 팩토리. 사용자 [적용] 확인 후 호출.
+	 */
+	public static PurgeRequest forDriftTrashLost(ResourceType resourceType, Long resourceId) {
+		return new PurgeRequest(resourceType, resourceId, PurgeOrigin.DRIFT_TRASH_LOST, null, null);
+	}
+
+	/**
 	 * 사용자 직접 진입용 팩토리.
 	 */
 	public static PurgeRequest forUserDirect(

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6-3 plan — 안내만 하던 4종 드리프트에 실행 가능한 액션을</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:#ffebe9;
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;--orange-bg:#fff1e5;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;background:var(--purple-bg);color:var(--purple);vertical-align:2px}
+  .wrap{max-width:1060px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:16px;margin:28px 0 10px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono)}
+  .case{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:10px;padding:16px 18px;margin:12px 0}
+  .case.manual{border-left-color:var(--yellow)}
+  .case h3{margin:0 0 6px;font-size:15px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .kbadge{display:inline-block;padding:1px 9px;border-radius:9px;font-size:11px;font-weight:700}
+  .kbadge.check{background:var(--blue-bg);color:var(--blue)}.kbadge.manual{background:var(--yellow-bg);color:var(--yellow)}.kbadge.none{background:#f0f0f0;color:#666}
+  .slice{display:inline-block;padding:0 7px;border-radius:8px;font-size:10px;font-weight:700;background:var(--purple-bg);color:var(--purple)}
+  .case .ln{margin:5px 0;font-size:13.5px}
+  .case .ln b{color:var(--purple);font-weight:600;display:inline-block;min-width:92px;vertical-align:top}
+  .decide{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:10px 0}
+  .decide h4{margin:0 0 6px;font-size:13.5px;color:var(--blue)}
+  .decide p{margin:4px 0;font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .callout{border-left:3px solid var(--yellow);background:var(--yellow-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  details.appendix{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0}
+  details.appendix summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--muted)}
+  details.appendix .bd{padding:0 16px 14px;border-top:1px solid var(--soft);padding-top:12px}
+  ul{padding-left:20px} li{padding:2px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>S6-3 — 안내만 하던 4종 드리프트에 실행 가능한 액션을 <span class="chip">CP1 (하위 분해 확정)</span></h1>
+  <p>S6 캠페인 최종 단계 (후보 A) · 2026-07-11 KST · 결정 문서 지시 "액션별 설계는 S6-3 plan 으로 구체화"의 이행</p>
+</header>
+<div class="wrap">
+
+  <p style="font-size:14px">지금 회색 배지 4종(자원 소실·미등록 마커·서명 불일치·내용 변경)의 카드는 "이렇게 하세요"라는 <b>글만 보여주고 끝</b>납니다 — 조치는 전부 화면 밖(파일 조작·다른 메뉴)에서 해야 하고, 조치가 끝나도 카드는 다음 점검까지 남습니다. 이 단계는 각 카드에 <b>화면 안에서 끝나는 실행 버튼</b>을 붙입니다. 원칙: 시스템이 판정할 수 없는 것(어느 파일이 정본인가)은 여전히 판정하지 않고, <b>판정은 사람이·실행은 시스템이</b> 맡습니다.</p>
+
+  <h2>액션 4종 — 하위 슬라이스 분해</h2>
+
+  <div class="case"><h3><span class="kbadge check">다시 점검</span> 확인 액션 — 원인 4종 카드 공통 <span class="slice">3번째 슬라이스</span></h3>
+    <div class="ln"><b>상황 :</b> "자원 소실" 안내대로 파일을 원위치에 복원했다. 그런데 카드는 다음 자동 점검(최대 1시간)까지 그대로 — 정말 해결됐는지 화면에서 확인할 길이 없다.</div>
+    <div class="ln"><b>액션 :</b> 카드의 [다시 점검] — <b>그 자원 하나만</b> 즉시 재확인. 결과는 딱 두 가지: <b>① 문제가 사라졌으면 카드가 그 자리에서 소멸</b> ② 여전히(또는 다른 형태로) 문제면 <b>카드는 그대로 두고</b> "아직 해결되지 않았습니다 / 상태가 달라졌습니다 — 다음 점검 보고서에서 확인하세요"로 안내. <b>카드 내용을 고쳐 쓰지 않는다</b> — 점검 기록은 한 번 쓰면 불변이라는 기존 설계(감사 가능성)를 지키고, 재분류는 전체 점검의 몫으로 남긴다(적대적 검증 반영 — 원안의 "카드 갱신"은 불변 설계 위반이라 폐기).</div>
+    <div class="ln"><b>재확인 방법 :</b> 종류마다 "확인해야 할 것"이 다르므로 해결과 동형인 <b>종류별 재확인 전략</b>으로 — 자원 소실·서명 불일치는 "제자리에 마커·본체·유효 서명이 돌아왔나"(단일 자원 완전 판정 — 기존 단일 점검을 서명·본체까지 강화), 미등록 마커는 "그 자리에 마커가 아직 있고 여전히 주인이 없나"(주인이 생겼으면=재등록됐으면 해소). 원안의 "기존 단일 점검 재사용"만으로는 미등록 마커에서 항상 '정상' 오판이 나던 결함을 수정(적대적 검증 반영).</div>
+    <div class="ln"><b>노출 기준 :</b> 해결 등급(주황/노랑/회색)과 <b>독립인 별도 축</b> — 재확인 전략이 있는 종류(원인 4종)에 항상 노출된다. 뒤 슬라이스가 서명·미등록·내용 종류를 노랑으로 승격해도 [다시 점검]은 사라지지 않는다(파일만 손으로 고친 사용자가 여전히 필요로 함 — 적대적 검증이 잡은 노출 조건 모순의 해소).</div></div>
+
+  <div class="case manual"><h3><span class="kbadge manual">이 자원만 재서명</span> 서명 불일치 카드 <span class="slice">1번째 슬라이스</span></h3>
+    <div class="ln"><b>상황 :</b> 마커 하나가 손상됐거나 다른 서버에서 복사돼 서명이 안 맞는다. 전체 [마커 서명 재발급]은 키 교체용 도구라 자원 하나 때문에 돌리기엔 과하다.</div>
+    <div class="ln"><b>액션 :</b> [이 자원만 재서명] (확인 필요) — 확인 창에서 "변조가 아니라 손상·이식임을 확인했다"를 사용자가 답하면, 그 자원의 마커만 현재 키로 재서명. <b>내용 지문은 유지</b>되므로 실제 변조된 파일이라면 다음 정밀 점검이 여전히 잡는다(변조 은폐 불가 — 전체 재발급과 같은 안전 설계).</div>
+    <div class="ln"><b>한계(명시) :</b> ① 마커가 읽을 수 없을 만큼 심하게 손상된 경우는 재서명이 아니라 재발급(내용 재구성)이 필요 — 거절하고 안내한다(자원 정보 합성이 필요해 등급이 다른 작업, 후속 후보로 기록). ② 재서명으로 카드가 사라져도 <b>실제 변조 여부는 다음 정밀 점검(최대 하루) 전까지 화면에 안 보일 수 있다</b> — 내용 지문이 유지되어 은폐는 불가하지만 발각 시점이 늦다는 뜻이며, 확인 창에 이 조건을 명시한다(적대적 검증 반영).</div></div>
+
+  <div class="case manual"><h3><span class="kbadge manual">격리 회수</span> 미등록 마커 카드 <span class="slice">2번째 슬라이스</span></h3>
+    <div class="ln"><b>상황 :</b> 주인 없는 파일(마커 포함)이 자원 폴더에 굴러다닌다. "불필요하면 정리하세요"라는 안내는 결국 서버에 들어가 rm 하라는 뜻이었다.</div>
+    <div class="ln"><b>액션 :</b> [격리 회수] (확인 필요) — 파일과 마커를 자원 폴더에서 <b>격리 보관 구역으로 이동</b>(삭제 아님, 복구 가능). 점검 화면이 깨끗해지고, 실물은 보존된다. 필요한 자원이었다면 관리 화면에서 재등록하면 된다.</div>
+    <div class="ln"><b>안전장치 :</b> 실행 직전 재확인 — 그 사이 그 파일이 정식 등록됐으면(카드가 stale) 회수를 거절하고 재점검을 안내한다. 방금 등록한 멀쩡한 자원을 격리해 버리는 사고 차단(적대적 검증 반영).</div>
+    <div class="ln"><b>비채택 :</b> ① 즉시 삭제 — 미등록 자원은 이름·이력이 없어 자원명 입력 확인 같은 안전장치를 적용할 수 없고, 시스템이 가치를 판정할 수 없는 실물의 파괴는 원칙 위반. 격리(비파괴)가 안전 하한. ② 업로드 실패 복구 인프라 재사용 — 그 체계는 "특정 부모 자원의 업로드 실패" 문맥(부모 필수 + 복구 재시도 절차)이 전제라 주인 없는 임의 파일과 결이 안 맞음을 실측 확인, CP1 에서 기각(경량 신규 — 격리 이동 + 감사 로그).</div></div>
+
+  <div class="case manual"><h3><span class="kbadge manual">현재 내용을 정본으로 수용</span> 내용 변경 카드 <span class="slice">4번째 슬라이스 · 착수 시 세부 plan</span></h3>
+    <div class="ln"><b>상황 :</b> 파일을 의도적으로 교체했는데(패치판 ISO 등) 점검이 계속 "내용 변경 감지"를 띄운다. 지금은 같은 파일을 다시 업로드하는 우회밖에 없다.</div>
+    <div class="ln"><b>액션 :</b> [현재 내용을 정본으로 수용] (확인 필요 — <b>자원명 입력 확인</b>) — 등록 지문을 현재 파일 기준으로 다시 계산해 갱신. 이후 정밀 점검은 현재 내용을 기준으로 본다.</div>
+    <div class="ln"><b>왜 가장 무거운 확인인가 :</b> 이 액션은 "변조 가능성을 사람이 정본이라고 선언"하는 것 — 잘못 누르면 실제 변조가 정상으로 굳는다. 그래서 영구삭제와 같은 자원명 입력 확인을 요구하고, 감사 로그(경고 레벨)에 남긴다.</div>
+    <div class="ln"><b>실행 방식 :</b> 큰 ISO 는 지문 재계산에 수 분 — 화면을 잡아두지 않도록 <b>백그라운드 작업</b>으로 수행. 단, 이는 기존 [적용] 체계(누르면 그 자리에서 끝)와 다른 새 배선(작업↔카드 연결·완료 시 카드 정리·자원명 입력 창)이 필요해 — <b>착수 시 별도 세부 plan 으로 확정</b>한다(적대적 검증 반영: 동기 체계에 억지로 끼우면 타임아웃·이중 프레임 충돌).</div></div>
+
+  <h2>남는 것 — 자원 소실의 시스템 해결은 없음 (설계 확정)</h2>
+  <p>파일이 정말 사라진 상태에서 시스템이 할 수 있는 유일한 일은 "복원됐는지 확인"([다시 점검])뿐입니다. 없는 파일을 만들어낼 수는 없으므로 — 자원 소실 카드의 해결 등급은 안내 전용으로 남습니다(등록 해제·재등록은 관리 화면의 몫). S6-3 완료 시점의 최종 지형: <b>주황 4종 + 노랑 5종(서명·내용 승격 포함) + 안내 전용 1종(자원 소실, 단 [다시 점검]은 제공)</b>.</p>
+
+  <h2>공통 설계 결정</h2>
+  <div class="decide"><h4>[다시 점검]은 "해결"이 아니라 "확인" — 별도 축으로 둔다</h4>
+    <p>해결 버튼([적용])은 시스템이 상태를 바꾸는 것, [다시 점검]은 상태를 바꾸지 않고 판정만 갱신하는 것. 이 둘을 한 버튼에 섞으면 "적용했는데 왜 아무것도 안 바뀌지?"라는 혼란이 생긴다. 해결 등급(주황/노랑/회색)과 무관한 별도 버튼으로 분리한다.</p></div>
+  <div class="decide"><h4>재서명·수용의 승격은 노랑(확인 필요)까지만 — 절대 자동 아님</h4>
+    <p>둘 다 "사람의 판정을 시스템이 집행"하는 액션이라, 점검이 무인으로 실행하는 일은 원천적으로 없다(무인 자동 자격은 주황만). 수용은 자원명 입력까지 요구해 확인 강도를 한 단계 더 올린다.</p></div>
+  <div class="decide"><h4>진행 순서는 "기계적인 것 먼저" — 재서명 → 격리 → 재점검 → 수용</h4>
+    <p>재서명·격리는 기존 해결 전략 틀(3개 선례)을 그대로 답습하는 기계적 작업이고, 재점검은 종류별 재확인 전략이라는 새 축을, 수용은 백그라운드 배선이라는 새 배선을 만든다 — 위험이 큰 것을 뒤로 보내 앞 슬라이스에서 틀을 한 번 더 다진 뒤 착수한다(적대적 검증이 지적한 원안 순서의 근거 부재를 교정).</p></div>
+  <div class="decide"><h4>승격마다 회귀 고정표를 함께 갱신한다 (명시)</h4>
+    <p>해결 등급 배정표는 테스트가 상수 단위로 회귀 고정하고 있다 — 서명·미등록·내용의 노랑 승격은 그 표를 깨뜨리는 <b>의도된 변경</b>이므로, 각 슬라이스의 테스트 작업에 "배정표 기대값 갱신"을 명시적 항목으로 포함한다(누락 시 CP4 부적격).</p></div>
+
+  <h2>진행 순서·검증</h2>
+  <table>
+    <thead><tr><th style="width:16%">슬라이스</th><th>내용</th><th style="width:34%">핵심 검증</th></tr></thead>
+    <tbody>
+      <tr><td><b>S6-3-1</b> (1번째)</td><td>[이 자원만 재서명] — 서명 불일치 노랑 승격</td><td>재서명 후 정상 / 파싱 불가 손상 → 409 안내 / 내용 지문 불변 + 배정표 갱신</td></tr>
+      <tr><td><b>S6-3-2</b> (2번째)</td><td>[격리 회수] — 미등록 마커 노랑 승격</td><td>파일+마커 격리 이동(비파괴) / <b>그 사이 정식 등록됨 → 409 거절</b> / 이동 실패 역보상 + 배정표 갱신</td></tr>
+      <tr><td><b>S6-3-3</b> (3번째)</td><td>[다시 점검] — 원인 4종 확인 액션 (재분류 없음)</td><td>복원 후 → 카드 소멸 / 미복원 → 유지+안내 / <b>미등록 마커의 거짓 해소 없음</b>(재등록 시에만 소멸) / 노랑 승격과 무관하게 버튼 유지</td></tr>
+      <tr><td><b>S6-3-4</b> (4번째)</td><td>[현재 내용 수용] — 착수 시 세부 plan (백그라운드 배선·자원명 확인 창)</td><td>자원명 확인 통과 시만 / 수용 후 정밀 재점검 무보고 / 감사 로그 / 대용량 비차단</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><b>승계 원칙</b> — 각 슬라이스는 탐지·버튼·해결을 함께 켜고(S6-2 원칙), 실행 직전 재검증으로 stale 화면에 안전하며, 모든 거절은 409 + 이유 안내. 각 슬라이스마다 세부 plan 은 생략하고 본 문서의 카드가 CP1 을 겸한다 — 슬라이스별 report 는 산출.</div>
+
+  <details class="appendix">
+    <summary>부록 — 구현 좌표 (개발용)</summary>
+    <div class="bd">
+      <table><tbody>
+        <tr><td style="width:32%">S6-3-1 재서명 (1번째)</td><td><code>SignatureReissueResolution</code>(MANUAL) — <code>performReissue</code> 의 단일 자원 추출(read→withoutSignature→compute→write→reissueMarker, 파싱 실패는 <code>notApplicable</code> 계열 409, 실행 직전 <code>findActiveMarkableById</code> 재검증). <code>DriftKind.SIGNATURE_INVALID</code> mode NONE→MANUAL + recommendedAction 갱신 + <code>DriftKindTest.modeAssignments</code> 기대값 갱신</td></tr>
+        <tr><td>S6-3-2 격리 회수 (2번째)</td><td><code>OrphanMarkerQuarantineResolution</code>(MANUAL) — OrphanQuarantine 재사용 기각 확정(<code>parentId NOT NULL</code>+복구 SPI 문맥 불일치). 실행 직전 재검증: oldPath 마커 재파싱 + (활성·삭제) DB 매칭 재확인 — 매칭 생기면(재등록됨) <code>staleState</code> 409. FS 이동 <code>TrashService.relocate</code> → trash root 하위 <code>orphan/</code>(수색 제외 구역 — 재발 없음) + 역보상 + [AUDIT] 로그. <code>DriftKind.ORPHAN</code> mode NONE→MANUAL + 배정표 갱신</td></tr>
+        <tr><td>S6-3-3 재점검 (3번째)</td><td>확인 축 신설 — <code>DriftKind.recheckable</code>(mode 와 독립) + kind 별 재확인 전략(active 3종 공용 로직 = 단일 자원 4a 등가 판정 / ORPHAN 전용 = oldPath 마커 존재+미매칭 재확인) + <code>POST /drifts/{id}/recheck</code> — 해소 시 <code>removeDrift</code> 만, <b>Drift 필드 갱신 없음</b>(불변 설계 유지). 템플릿 [다시 점검] 버튼(async)</td></tr>
+        <tr><td>S6-3-4 내용 수용 (4번째)</td><td>착수 시 세부 plan 필수 — 확정할 것: BackgroundJob↔drift 연결·완료 시 카드 정리 프로토콜 / 자원명 입력 확인 창(영구삭제 확인 창 계열 재사용) / 점검 잠금 공유 여부. <code>HashAcceptResolution</code>(MANUAL)+<code>TypedNameGuard</code>+[AUDIT] WARN + 배정표 갱신</td></tr>
+        <tr><td>공통</td><td>배지 색·버튼 라벨은 SSOT(enum) 자동 반영. 자동(주황) 승격 없음. DDL 없음. 최종 배정: AUTO 4 / MANUAL 5 / NONE 1(MISSING — 단 recheckable)</td></tr>
+      </tbody></table>
+    </div>
+  </details>
+
+  <p class="dim">본 plan 은 적대적 비판 검증 1회(CRITICAL 2·MAJOR 3·MINOR 1)를 반영한 개정본 — 재분류 폐기(불변 설계 유지)·ORPHAN 거짓 해소 수정·노출 SSOT 독립 축·순서 재배치·격리 인프라 기각 확정·수용 세부 plan 분리. 다음: S6-3-1(재서명)부터 순차 구현(각 CP4 + report + Notion) → 캠페인 total report.</p>
+</div>
+</body>
+</html>

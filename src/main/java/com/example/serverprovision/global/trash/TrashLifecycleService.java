@@ -134,6 +134,7 @@ public class TrashLifecycleService {
 			}
 			entity.restore();
 			entity.clearTrashed();
+			ensureMarkerPresent(entity, attributeBuilder);   // S6-2-2 — 아래 주석 참조
 			log.info(
 					"[lifecycle.restore] resource={}#{} outcome=restored",
 					entity.getResourceType(), entity.getResourceId()
@@ -153,6 +154,7 @@ public class TrashLifecycleService {
 		// ① 멱등 사전게이트 — 원위치(O)·휴지통(T) FS 2비트의 4상태 분류.
 		//    self-heal (원O·trashX) 시 DB 만 정합 후 true 반환 → caller 추가 작업 없이 종료.
 		if (healOrThrowBeforeRestore(entity, originalPath, trashedPath)) {
+			ensureMarkerPresent(entity, attributeBuilder);   // S6-2-2 — 아래 주석 참조
 			return;
 		}
 
@@ -188,6 +190,33 @@ public class TrashLifecycleService {
 			compensateRestore(entity, originalPath, trashedPath);
 			throw e;   // @Transactional 롤백 유발 — FS(역보상) 와 동방향 (둘 다 trash)
 		}
+	}
+
+	/**
+	 * S6-2-2 — self-heal / trashed_path=null 단순 복원 분기의 마커 보강. 두 분기는 파일이 이미
+	 * 원위치에 있어 정상 복원의 마커 write 를 지나치는데, soft-delete 가 원위치 마커를 지우므로
+	 * 복원 결과가 "마커 없는 활성 자원"이 되어 다음 점검에서 곧장 MISSING(수동 조치 전용)으로
+	 * 떨어졌다 — SOFTDEL_ESCAPE_TO_ORIGINAL 자동 해결이 이 경로를 상시화하면서 드러난 결함
+	 * (S6-2-2 적대적 검증). 원위치에 마커가 없을 때만 합성·서명·기록한다 — 잔존 마커는 self-heal
+	 * 게이트의 manifestHash 검증을 이미 통과한 상태라 재발급이 불필요.
+	 */
+	private <T extends LifecycleEntity & Markable> void ensureMarkerPresent(
+			T entity, Function<T, Map<String, String>> attributeBuilder) {
+		Path markerFile = markerService.resolveMarkerFile(entity.getResourcePath(), entity.getMarkerLayout());
+		if (markerFile != null && Files.exists(markerFile)) {
+			return;
+		}
+		MarkerContent content = new MarkerContent(
+				entity.getResourceType().name(),
+				entity.getResourceId(),
+				attributeBuilder.apply(entity),
+				Instant.now(),
+				entity.getManifestHash(),
+				null
+		);
+		String signature = markerService.computeSignature(content);
+		markerService.write(entity.getResourcePath(), entity.getMarkerLayout(), content.withSignature(signature));
+		entity.reissueMarker(entity.getManifestHash(), signature);
 	}
 
 	/**

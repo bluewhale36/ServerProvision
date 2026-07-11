@@ -4,7 +4,7 @@ import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftReportResponse;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftResponse;
-import com.example.serverprovision.maintenance.reconciliation.exception.DriftAutoApplyNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
@@ -42,6 +42,12 @@ class ReconciliationRestControllerTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean PathReconciliationService reconciliationService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.example.serverprovision.maintenance.reconciliation.service.recheck.DriftRecheckService driftRecheckService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.example.serverprovision.maintenance.reconciliation.service.HashAcceptService hashAcceptService;
     // R9-4 — ReconciliationController 의 격리 대기 배너용 의존.
     @MockitoBean com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -169,7 +175,74 @@ class ReconciliationRestControllerTest {
     @Test
     @DisplayName("POST /drifts/{id}/apply : 자동 적용 불가 종류 → 409")
     void apply_notAllowedKind() throws Exception {
-        doThrow(DriftAutoApplyNotAllowedException.notApplicable(DriftKind.SIGNATURE_INVALID))
+        doThrow(DriftResolutionNotAllowedException.notApplicable(DriftKind.SIGNATURE_INVALID))
+                .when(reconciliationService).apply(1L);
+
+        mvc.perform(post("/maintenance/reconciliation/drifts/1/apply"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("S6-2-2 POST /drifts/{id}/apply : 휴지통 기존 사본 충돌로 회수 거절 → 409")
+    void apply_trashCopyConflict() throws Exception {
+        doThrow(DriftResolutionNotAllowedException.trashCopyConflict("/opt/.soft-deleted/iso/42/dvd_x.iso"))
+                .when(reconciliationService).apply(1L);
+
+        mvc.perform(post("/maintenance/reconciliation/drifts/1/apply"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("S6-3-3 POST /drifts/{id}/recheck : 해소/잔존이 JSON resolved 로 구분")
+    void recheck_returnsResolvedFlag() throws Exception {
+        given(driftRecheckService.recheck(1L)).willReturn(true);
+        mvc.perform(post("/maintenance/reconciliation/drifts/1/recheck"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.resolved").value(true));
+
+        given(driftRecheckService.recheck(2L)).willReturn(false);
+        mvc.perform(post("/maintenance/reconciliation/drifts/2/recheck"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.resolved").value(false));
+    }
+
+    @Test
+    @DisplayName("S6-3-4 POST /drifts/{id}/accept-hash : 자원명 확인 통과 → 200 + jobId")
+    void acceptHash_startsJob() throws Exception {
+        given(hashAcceptService.triggerAccept(1L, "Rocky Linux 9.6 dvd.iso")).willReturn("job-77");
+
+        mvc.perform(post("/maintenance/reconciliation/drifts/1/accept-hash")
+                        .param("typedName", "Rocky Linux 9.6 dvd.iso"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.jobId").value("job-77"));
+    }
+
+    @Test
+    @DisplayName("S6-3-4 POST /drifts/{id}/accept-hash : 스냅샷 부재·상태 변화 → 409")
+    void acceptHash_rejectsStale() throws Exception {
+        doThrow(DriftResolutionNotAllowedException.staleState())
+                .when(hashAcceptService).triggerAccept(2L, "x");
+
+        mvc.perform(post("/maintenance/reconciliation/drifts/2/accept-hash").param("typedName", "x"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("S6-3-3 POST /drifts/{id}/recheck : 미지원 종류(direct POST 안전망) → 409")
+    void recheck_notApplicable() throws Exception {
+        doThrow(DriftResolutionNotAllowedException.notApplicable(DriftKind.PATH_DRIFT))
+                .when(driftRecheckService).recheck(3L);
+        mvc.perform(post("/maintenance/reconciliation/drifts/3/recheck"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("S6-2-3 POST /drifts/{id}/apply : 보고 시점과 상태가 달라짐(stale) → 409")
+    void apply_staleState() throws Exception {
+        doThrow(DriftResolutionNotAllowedException.staleState())
                 .when(reconciliationService).apply(1L);
 
         mvc.perform(post("/maintenance/reconciliation/drifts/1/apply"))
@@ -179,7 +252,7 @@ class ReconciliationRestControllerTest {
     @Test
     @DisplayName("POST /drifts/{id}/apply : 전역 auto-apply OFF (direct POST 안전망) → 409")
     void apply_globalOff() throws Exception {
-        doThrow(DriftAutoApplyNotAllowedException.globalOff())
+        doThrow(DriftResolutionNotAllowedException.globalOff())
                 .when(reconciliationService).apply(1L);
 
         mvc.perform(post("/maintenance/reconciliation/drifts/1/apply"))
@@ -202,16 +275,16 @@ class ReconciliationRestControllerTest {
     }
 
     @Test
-    @DisplayName("GET list : autoApplyEnabled 플래그가 모델로 노출 (UI 1차 차단의 데이터 소스)")
+    @DisplayName("GET list : resolutionEnabled 플래그가 모델로 노출 (UI 1차 차단의 데이터 소스)")
     void list_exposesAutoApplyEnabledFlag() throws Exception {
         Page<DriftReportResponse> page = new PageImpl<>(List.of(sampleReport()));
         given(reconciliationService.history(org.mockito.ArgumentMatchers.any())).willReturn(page);
-        given(reconciliationService.isAutoApplyEnabled()).willReturn(false);
+        given(reconciliationService.isResolutionEnabled()).willReturn(false);
 
         mvc.perform(get("/maintenance/reconciliation"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .model().attribute("autoApplyEnabled", false));
+                        .model().attribute("resolutionEnabled", false));
     }
 
     @Test

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>조사 보고 — "변조를 정본으로 선언", 다른 시스템들은 어떻게 하나</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:#ffebe9;
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;--orange-bg:#fff1e5;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.68;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 24px 70px}
+  h2{font-size:17px;margin:32px 0 8px}
+  h2 .no{color:var(--blue);margin-right:6px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .pat{display:inline-block;padding:1px 9px;border-radius:9px;font-size:11px;font-weight:700}
+  .pat.a{background:var(--yellow-bg);color:var(--yellow)}.pat.b{background:#f0f0f0;color:#666}.pat.c{background:var(--blue-bg);color:var(--blue)}.pat.d{background:var(--purple-bg);color:var(--purple)}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)}
+  .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .decide{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:10px 0}
+  .decide h4{margin:0 0 6px;font-size:13.5px;color:var(--blue)}
+  .decide p{margin:4px 0;font-size:13px}
+  ul{padding-left:20px} li{padding:2px 0}
+  details.appendix{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0}
+  details.appendix summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--muted)}
+  details.appendix .bd{padding:0 16px 14px;border-top:1px solid var(--soft);padding-top:12px}
+  a{color:var(--blue)}
+</style>
+</head>
+<body>
+<header>
+  <h1>조사 보고 — "변조를 정본으로 선언", 다른 시스템들은 어떻게 하나</h1>
+  <p>S6-3-4(내용 변경 수용) 사전 조사 · 2026-07-11 KST · 7개 시스템·표준을 공식 문서로 검증 (근거 링크는 부록)</p>
+</header>
+<div class="wrap">
+
+  <p style="font-size:14.5px"><b>질문에 대한 직답</b> — 예, <b>"감지된 변경을 관리자가 새 정본으로 승인"하는 로직은 업계에 실재하며, 파일 무결성 감시(FIM) 제품군의 핵심 기능</b>입니다. 원조 격인 Tripwire 가 30년 가까이 이 워크플로(위반 항목별 체크박스 승인 + 키 암호 서명)를 제공해 왔고, PCI-DSS·NIST 같은 보안 표준은 오히려 <b>"사람의 승인 없이 자동으로 정본을 갱신하지 말 것"</b>을 요구합니다. 즉 S6-3-4 가 만들려는 기능은 특이한 발명이 아니라 업계 표준 관행이며, 관건은 "어떤 안전장치를 두느냐"입니다.</p>
+
+  <h2 id="p"><span class="no">①</span> 업계의 4가지 패턴</h2>
+  <table>
+    <thead><tr><th style="width:20%">패턴</th><th style="width:26%">대표 사례</th><th>동작 방식</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pat a">A. 명시 승인</span></td><td>Tripwire(OSS/Enterprise), 백신·EDR 허용목록, PCI-DSS·NIST 요구</td><td>감지된 변경을 <b>사람이 항목별로 검토·승인</b>해야 정본이 갱신된다. Tripwire OSS 는 리포트의 위반 항목마다 체크박스(<code>[x]</code>)를 두고, 승인 후 <b>키 암호(passphrase) 입력</b>으로 서명된 DB 에 반영. Enterprise 판은 승인(promote)을 변경관리 티켓(ServiceNow 등)과 대조해 자동화하기도 — "티켓이 있는 변경만 승인". EDR 은 탐지 파일을 해시 기준 허용목록에 등록(권한 있는 역할만 + 감사 로그)</td></tr>
+      <tr><td><span class="pat b">B. 자동 재기준선</span></td><td>OSSEC/Wazuh (syscheck)</td><td>승인 게이트가 <b>없다</b> — 변경 알림은 정보성 통지일 뿐이고, 저장된 기준 체크섬은 스캔 주기를 따라 자동 갱신. 같은 파일이 3회 연속 바뀌면 알림 자체를 억제(피로 방지). "알림이 곧 통제"라는 가장 느슨한 형태</td></tr>
+      <tr><td><span class="pat c">C. 불변·재발급</span></td><td>Docker/OCI(digest), Git(commit hash)</td><td>내용의 해시가 곧 신원이라 <b>"같은 신원으로 재승인"이 설계상 불가능</b>. 내용이 바뀌면 반드시 새 신원(새 digest)이고, 대응은 항상 "새 버전 발행 + 참조 이동". 재승인 문제를 원천적으로 소거한 모델</td></tr>
+      <tr><td><span class="pat d">D. 재서명 권한</span></td><td>Linux IMA/EVM (커널 무결성)</td><td>변경된 파일의 재유효화는 <b>암호학적 서명 키 보유자만</b> 가능(evmctl 재서명)하고, 그 개인키는 의도적으로 운영 시스템 밖(빌드 서버·HSM)에 보관. 콘솔의 승인 버튼이 아니라 키 소유가 곧 권한</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><b>표준·규제의 입장</b> — PCI-DSS 11.5(변경 탐지)는 FIM 알림을 변경관리 절차와 대조해 "승인된/미승인" 변경을 가리도록 요구하고, NIST SP 800-53 SI-7 은 기준선 갱신이 <b>정식 변경관리를 통해 명시적으로 승인된 경우에만</b> 이뤄져야 한다고 본다. 두 표준 모두 자동 재기준선(패턴 B)을 보안 중요 시스템에 허용하지 않는 방향 — <b>사람 승인 + 감사 추적이 규범</b>.</div>
+
+  <h2 id="s"><span class="no">②</span> S6-3-4 설계와의 대조 — 우리는 어디에 서 있나</h2>
+  <table>
+    <thead><tr><th style="width:30%">S6-3-4 설계 요소</th><th>업계 대응물</th><th style="width:12%">판정</th></tr></thead>
+    <tbody>
+      <tr><td>MANUAL 전용 — 무인 자동 수용 금지</td><td>PCI/NIST 의 "자동 정본화 금지" 규범, Tripwire 의 승인 게이트</td><td><span class="pat a">정합</span></td></tr>
+      <tr><td>자원명 입력 확인(typed-name)</td><td>Tripwire 의 키 암호 입력 — "승인 의식(ceremony)을 무겁게"라는 같은 취지. 우리는 키 대신 자원명 재입력으로 실수 방지 축에 무게</td><td><span class="pat a">정합</span></td></tr>
+      <tr><td>[AUDIT] 감사 로그</td><td>표준 요구(감사 추적) 및 EDR 허용목록의 감사 로그</td><td><span class="pat a">정합</span></td></tr>
+      <tr><td>카드(드리프트) 단위 승인</td><td>Tripwire 의 항목별 체크박스 — 전체 재기준선(AIDE 식)이 아닌 개별 승인이 더 엄격한 쪽</td><td><span class="pat a">정합</span></td></tr>
+      <tr><td>마커의 HMAC 서명(서버 secret)</td><td>Tripwire 의 서명된 DB / IMA 의 파일 서명과 같은 축. 단 저들은 <b>키를 운영 시스템과 분리</b>(site key 별도 보관, IMA 개인키는 시스템 밖) — 우리는 서버가 secret 을 보유하므로 "서버 자체가 뚫린 경우"까지는 못 막는다</td><td><span class="pat d">부분 정합 — 한계 명시</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="i"><span class="no">③</span> 조사가 S6-3-4 설계에 주는 시사점 (세부 plan 반영 제안)</h2>
+  <div class="decide"><h4>1. 확인 창에 "무엇이 어떻게 바뀌었나"를 보여줄 것 — Tripwire 검토 관행</h4>
+    <p>Tripwire 승인은 위반 리포트(무엇이 언제 어떻게 달라졌나)를 <b>보면서</b> 체크한다. 우리 확인 창도 자원명 입력만 요구하지 말고 <b>등록 시점 지문 vs 현재 지문, 파일 크기·수정 시각의 변화</b>를 함께 표시해 "보고 승인"이 되게 한다. (현재 설계는 빈 확인 창 + 이름 입력만 — 보강 권장)</p></div>
+  <div class="decide"><h4>2. "재업로드" 경로를 확인 창에서 1차 권장으로 안내 — 패턴 C 의 활용</h4>
+    <p>ServerProvision 에는 이미 불변·재발급형 경로(같은 파일을 정식 재업로드 → 새 지문으로 재발급)가 있다. 콘텐츠 주소 시스템들이 보여주듯 <b>재발급이 재승인보다 항상 안전</b>하다(업로드 절차의 검증을 다시 통과하므로). 수용 확인 창에 "정식 재업로드가 더 안전합니다 — 그래도 현재 파일을 그대로 정본화하려면 자원명을 입력하세요"를 명시해, 수용을 <b>2차 수단</b>으로 자리매김한다.</p></div>
+  <div class="decide"><h4>3. 자동 재기준선(패턴 B)은 기각 근거가 더 단단해짐</h4>
+    <p>OSSEC 식 "알림만 하고 자동 수용"은 표준(PCI/NIST) 관점에서 보안 중요 자원에 부적합 — 수용을 AUTO 등급으로 승격하자는 미래 제안이 나오면 이 조사가 기각 근거.</p></div>
+  <div class="decide"><h4>4. 장기 후보(이번 범위 밖) — 서명 키 분리·티켓 대조</h4>
+    <p>IMA/Tripwire 의 키 분리(승인 권한을 서버 밖 키 보유자로 한정), Enterprise 판의 변경관리 티켓 대조(promote by change request)는 인증·조직 프로세스가 갖춰진 뒤의 진화 방향으로 기록만 해 둔다 — 지금 도입하면 over-engineering.</p></div>
+  <div class="callout ok"><b>결론</b> — S6-3-4 의 방향(명시 승인 + 무거운 확인 + 감사 추적)은 업계 표준 패턴 A 와 정확히 일치하며, 규제 관행도 같은 것을 요구한다. 조사로 얻은 보강 2건(확인 창에 변경 내역 표시 / 재업로드 1차 권장 안내)을 세부 plan 에 반영해 구현 착수 시 포함할 것을 제안.</div>
+
+  <details class="appendix">
+    <summary>부록 — 근거 소스 (전 항목 공식 문서·신뢰 소스 검증)</summary>
+    <div class="bd">
+      <ul style="font-size:12px">
+        <li>Tripwire: <a href="https://linux.die.net/man/8/tripwire">tripwire(8) man</a> (update 모드 ballot box·passphrase) · <a href="https://www.tripwire.com/resources/datasheets/reducing-workload-through-auto-promotion-of-unexpected-changes">Enterprise promote/auto-promotion</a> · Change Reconciliation 101 (mtechpro PDF)</li>
+        <li>AIDE: <a href="https://aide.github.io/doc/">공식 매뉴얼</a> · <a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/6/html/security_guide/sec-aide_update">RHEL Security Guide — DB update</a> (aide.db.new 수동 교체, --limit 부분 갱신)</li>
+        <li>OSSEC/Wazuh: <a href="https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/how-it-works.html">syscheck how-it-works</a> · <a href="https://ossec-docs.readthedocs.io/en/latest/docs/faq/syscheck.html">OSSEC FAQ</a> (auto_ignore 3회) — "자동 갱신" 결론은 문서+FAQ 로부터의 추론임을 명시</li>
+        <li>IMA/EVM: <a href="https://ima-doc.readthedocs.io/en/latest/ima-concepts.html">IMA concepts</a> · <a href="https://linux-ima.sourceforge.net/evmctl.1.html">evmctl(1)</a> (개인키 분리 보관·재서명)</li>
+        <li>콘텐츠 주소: <a href="https://docs.cloud.google.com/kubernetes-engine/docs/concepts/about-container-images">GKE image digests</a> · git commit identity 해설 다수</li>
+        <li>EDR 허용목록: <a href="https://learn.microsoft.com/en-us/defender-endpoint/navigate-defender-endpoint-antivirus-exclusions">MS Defender exclusions</a> · Coro/Datto EDR allowlist 문서</li>
+        <li>표준: <a href="https://csf.tools/reference/nist-sp-800-53/r5/si/si-7/">NIST SP 800-53 SI-7</a> · PCI DSS 11.5 해설(pcidssguide, KirkpatrickPrice, Tripwire State of Security)</li>
+      </ul>
+    </div>
+  </details>
+</div>
+</body>
+</html>

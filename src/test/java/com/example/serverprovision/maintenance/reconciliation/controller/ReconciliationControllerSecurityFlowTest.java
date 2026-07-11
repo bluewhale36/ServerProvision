@@ -27,6 +27,12 @@ class ReconciliationControllerSecurityFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean PathReconciliationService reconciliationService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.example.serverprovision.maintenance.reconciliation.service.recheck.DriftRecheckService driftRecheckService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.example.serverprovision.maintenance.reconciliation.service.HashAcceptService hashAcceptService;
     // R9-4 — ReconciliationController 의 격리 대기 배너용 의존.
     @MockitoBean com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;

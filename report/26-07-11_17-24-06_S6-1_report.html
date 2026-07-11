@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6-1 report — 미구현 DriftKind 정리 + quick scan 본체 검사 (CP4)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp4{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>S6-1 report — 미구현 DriftKind 정리 + quick scan 본체 검사 <span class="chip cp4">CP4</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S6-1 (S6 캠페인 1번째)</span>
+    <span><strong>plan</strong> plan/26-07-11_16-53-09_S6-1_plan.html (CP1 승인 2026-07-11)</span>
+    <span><strong>테스트</strong> 전체 1081 / 실패 0 (신규 3)</span>
+    <span><strong>작성</strong> 2026-07-11 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol>
+      <li><a href="#r1">§1 구현 요약</a></li>
+      <li><a href="#r2">§2 plan 대비 이행 (D1~D4)</a></li>
+      <li><a href="#r3">§3 변경 파일 상세</a></li>
+      <li><a href="#r4">§4 테스트 결과</a></li>
+      <li><a href="#r5">§5 동작 변화 · CP5 안내</a></li>
+      <li><a href="#r6">§6 Verification 체크</a></li>
+      <li><a href="#r7">§7 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="r1" open>
+      <summary>§1. 구현 요약</summary>
+      <div class="body">
+        <p style="margin-top:0">plan 의 4개 결정을 전부 이행했다. 핵심은 두 가지가 한 쌍이라는 것 — <b>탐지 로직이 한 번도 생성한 적 없는 RESOURCE_RENAMED 계열 상수 2종을 삭제</b>(D1)하고, 그 정리가 남기는 서사 공백("파일명만 바뀐 자원은 어떻게 드러나나")을 <b>4a 본체 존재 검사</b>(D2·D3)와 <b>MISSING 권장 조치 문구 보강</b>(D4)이 메운다. DriftKind 는 12종 → <b>10종</b>, autoApplicable(자동 적용) 집합은 5종 → <b>4종</b>이 됐고, 종전 deep 주기(기본 24h)까지 침묵하던 "마커 有·본체 無" 상태가 quick scan(기본 1h)에서 즉시 MISSING 으로 보고된다.</p>
+        <p>엔티티·DB 스키마·HTTP 계약·템플릿 전부 무변경 — plan 대로 순수 리팩토링 슬라이스(Step 2~7·9 N/A)로 끝났다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="r2" open>
+      <summary>§2. plan 대비 이행 (D1~D4)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>결정</th><th>이행 내용</th><th>plan 과의 차이</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b> 상수 2종 완전 삭제</td><td><code>RESOURCE_RENAMED</code>·<code>RESOURCE_RENAMED_ORPHAN</code> 제거 + javadoc "MK3 신규" 섹션을 S6-2 소관 4종으로 재편 + <b>재도입 금지 근거를 javadoc 에 명기</b>(동시 리네임=PATH_DRIFT 키 매칭 / 단독 변경=4a MISSING / 영속 이력 0)</td><td>없음</td></tr>
+            <tr><td><b>D2</b> 4a 본체 검사</td><td>서명 검증 통과 직후·deep 해시 전에 <code>resourceBodyExists</code> 검사 → 실패 시 MISSING(detail "마커는 있으나 본체 파일 부재 — 파일명 변경 또는 삭제 가능성"). 보안 신호(SIGNATURE_INVALID) 우선 순서 유지</td><td>없음</td></tr>
+            <tr><td><b>D3</b> layout 술어 helper 공용화</td><td><code>resourceBodyExists(Path, MarkerLayout)</code> — SIDECAR=<code>isRegularFile</code>/IN_TREE=<code>isDirectory</code>. 4b 의 layout 별 검사 2벌이 이 helper 로 수렴하면서 <b>4b 의 두 분기가 한 분기로 축소</b>(detail 문구는 <code>hit.layout()</code> 병기로 layout 정보 보존)</td><td>없음 — 분기 축소는 plan 의 "세 사용처 공유"의 자연 결과</td></tr>
+            <tr><td><b>D4</b> MISSING 문구 보강</td><td>recommendedAction "백업·이동·<b>이름 변경</b> 여부를 확인해 파일을 원래 경로·<b>이름</b>으로 복원…" — label/description 불변</td><td>없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="r3" open>
+      <summary>§3. 변경 파일 상세 (4파일 + 1)</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td class="mono">global/marker/DriftKind.java</td><td><span class="badge mod">수정</span> 상수 2종 삭제 · javadoc 재편(MK3 섹션 → S6-2 소관 4종 + 재도입 금지 근거 문단) · MISSING recommendedAction 보강</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/service/PathReconciliationService.java</td><td><span class="badge mod">수정</span> 4a 본체 검사 블록(주석에 WHY — 서명 뒤 배치 이유) · <code>resourceBodyExists</code> helper 신설 · 4b 두 layout 분기 → helper 1분기 · apply() 의 <code>:677</code> 주석에서 RESOURCE_RENAMED 제거 + S6-2-1 디스패치 재설계 예고</td></tr>
+            <tr><td class="mono">test …/DriftKindTest.java</td><td><span class="badge mod">수정+1</span> 10종 문구·AUTO 4종 집합 갱신 + <b>신규</b> 삭제 회귀 고정(<code>values().length==10</code> + <code>valueOf</code> 2종 <code>IllegalArgumentException</code>)</td></tr>
+            <tr><td class="mono">test …/PathReconciliationServiceTest.java</td><td><span class="badge mod">수정+2</span> <b>신규</b> ⓐ quick scan 본체 부재 → MISSING("본체 파일 부재" detail 단언) ⓑ 마커 변조+본체 부재 → SIGNATURE_INVALID 우선(D2 순서 고정)</td></tr>
+            <tr><td class="mono">test …/PathReconciliationEdgeCaseTest.java</td><td><span class="badge mod">수정</span> §5 참조 — 구 침묵 동작을 기대값으로 문서화하던 2건을 새 동작 기준으로 갱신</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="r4" open>
+      <summary>§4. 테스트 결과</summary>
+      <div class="body">
+        <p style="margin-top:0"><b>전체 1081 / 실패 0 / 에러 0</b> (종전 1078 + 신규 3). 첫 전체 실행에서 실패 2건이 나왔고, 둘 다 결함이 아니라 <b>plan §8 이 예고한 의도된 동작 변화</b>가 기존 edge-case 문서화 테스트와 충돌한 것이었다:</p>
+        <table>
+          <thead><tr><th>실패했던 테스트</th><th>원인</th><th>조치</th></tr></thead>
+          <tbody>
+            <tr><td><code>PathReconciliationEdgeCaseTest</code> A5 "본체만 이동, sidecar 잔류 — happy 분류 (위험!)"</td><td>구 quick scan 침묵을 "현행 한계"로 <b>기대값 고정</b>해 둔 테스트 — S6-1 이 고치려던 바로 그 지점</td><td>새 동작(quick MISSING + "본체 파일 부재" detail) 기준으로 단언·표제 갱신</td></tr>
+            <tr><td>동 파일 A5-deep "본체 삭제 + sidecar 잔류 → deep recompute empty → MISSING"</td><td>본체 부재를 4a 가 먼저 잡아 deep 분기(detail "manifestHash 재계산 실패")에 도달하지 못함</td><td>시나리오를 분기의 잔존 목적("본체는 존재하나 IO 오류로 재계산 실패")으로 재구성 — <b>본체를 남기고 recompute 만 empty stub</b>. deep 분기 커버리지가 소멸하지 않고 보존됨</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="r5" open>
+      <summary>§5. 동작 변화 · CP5 안내</summary>
+      <div class="body">
+        <div class="callout warn"><b>CP5 에서 새 MISSING 이 나타날 수 있다 (정상)</b> — 기존 환경에 "마커만 남고 본체가 없는" 자원이 있었다면, 적용 후 첫 quick scan 부터 MISSING 으로 보고된다. 종전의 침묵이 버그였고 보고가 올바른 동작이다. detail 에 "본체 파일 부재 — 파일명 변경 또는 삭제 가능성"이 표기되고, 권장 조치가 이름 변경 복원까지 안내한다.</div>
+        <ul>
+          <li>4b 경유 MISSING 의 detail 이 layout 명 병기 형식("다른 위치에 SIDECAR 마커는 있으나 본체가 부재…")으로 통합 — 정보 손실 없음.</li>
+          <li>REST JSON·화면 계약 무변화. RESOURCE_RENAMED 는 화면·API 에 노출된 적이 없어(탐지 미생성) 사용자 관점 제거 흔적도 없다.</li>
+        </ul>
+        <h4>CP5 확인 시나리오 (사용자)</h4>
+        <ul class="check-list" data-storage="s6-1-report-cp5">
+          <li><input type="checkbox"><span>SIDECAR 자원(ISO 등)의 본체 파일만 다른 이름으로 mv → [지금 점검] → MISSING + "본체 파일 부재" detail + 보강된 권장 조치 확인</span></li>
+          <li><input type="checkbox"><span>파일을 원래 이름으로 복원 → 재점검 → drift 소멸</span></li>
+          <li><input type="checkbox"><span>본체+마커를 함께 다른 이름으로 mv → 재점검 → PATH_DRIFT + [적용] 동작(RESOURCE_RENAMED 없이 동등 서사)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="r6">
+      <summary>§6. Verification 체크 (plan §9)</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="s6-1-report-verify" style="margin-top:0">
+          <li><input type="checkbox" checked><span>전체 테스트 그린 — 1081/0</span></li>
+          <li><input type="checkbox" checked><span>grep: <code>RESOURCE_RENAMED</code> — <b>enum 상수 참조 잔존 0</b>. 남은 매치는 삭제 사실을 고정하는 자산뿐(javadoc 재도입 금지 근거 + <code>valueOf</code> 문자열 회귀 테스트) — 의도된 잔존</span></li>
+          <li><input type="checkbox" checked><span>4b layout 술어 2벌 → <code>resourceBodyExists</code> 공유로 수렴(중복 0)</span></li>
+          <li><input type="checkbox"><span>quick scan 실환경 확인 — CP5 (사용자)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="r7">
+      <summary>§7. 다음 마일스톤</summary>
+      <div class="body">
+        <p style="margin-top:0">Notion S6-1 'CP4 완료' 동기화 → <b>S6-2-1</b>(해결 디스패치 다형화 기반) slice plan 산출. 본 슬라이스가 AUTO 집합을 4종으로 정리해 두어 S6-2-1 의 <code>DriftResolutionMode</code> 배정표(AUTO 4 / MANUAL 2 / NONE 4)가 그대로 이식된다. apply() 주석도 디스패치 재설계 예고로 갱신해 둔 상태.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+</script>
+</body>
+</html>

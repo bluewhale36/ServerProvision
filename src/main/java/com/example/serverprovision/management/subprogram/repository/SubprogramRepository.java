@@ -137,9 +137,6 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 
 	/* ───── MK1 reconciliation 용 ───── */
 
-	@Query("select s.id from Subprogram s where s.isDeleted = true")
-	Set<Long> findIdsByIsDeletedTrue();
-
 	/* ───── MK2 — nudge 흐름 (소프트 삭제된 동일 키 후보) ───── */
 
 	/**

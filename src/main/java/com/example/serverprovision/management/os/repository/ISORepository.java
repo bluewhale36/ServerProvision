@@ -80,12 +80,6 @@ public interface ISORepository extends JpaRepository<ISO, Long> {
 	 */
 	List<ISO> findAllByIsDeletedFalse();
 
-	/**
-	 * soft-deleted 자원의 ID Set (D20). ORPHAN 분류 후처리에서 매칭 제외 용도.
-	 */
-	@Query("select i.id from ISO i where i.isDeleted = true")
-	Set<Long> findIdsByIsDeletedTrue();
-
 	// ---- MK3 — Trash TTL 정책 -------------------------------
 
 	/**

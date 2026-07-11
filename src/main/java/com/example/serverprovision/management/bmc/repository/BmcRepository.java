@@ -35,9 +35,6 @@ public interface BmcRepository extends JpaRepository<BoardBMC, Long> {
 
 	List<BoardBMC> findAllByIsDeletedFalse();
 
-	@Query("select b.id from BoardBMC b where b.isDeleted = true")
-	Set<Long> findIdsByIsDeletedTrue();
-
 	// ---- MK2 (단계 A · 메타) ------------------------------------------
 
 	/**

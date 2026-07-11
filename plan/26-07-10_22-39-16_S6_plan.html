@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6 plan — Reconciliation 도메인 기능 강화 (단계 캠페인)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);--orange:#dd5b00;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp1{background:var(--purple-bg);color:var(--purple)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section.demo>summary{background:linear-gradient(90deg,var(--purple-bg) 0%,transparent 60%)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  pre{background:#0d1117;color:#c9d1d9;padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:11.5px;font-family:var(--mono);line-height:1.55}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)} .callout.danger{border-color:var(--red);background:var(--red-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .badge.manual{background:var(--yellow-bg);color:var(--yellow)}
+  .ux-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  .ux-toolbar{background:var(--bg);padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center}
+  .ux-toolbar .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-right:2px}
+  .ux-btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:4px 9px;font-size:12px;border-radius:6px;cursor:pointer}
+  .ux-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .ux-btn:disabled{opacity:.45;cursor:not-allowed}
+  .sim-card{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 14px;background:var(--bg)}
+  .sim-card h5{margin:0 0 6px;font-size:13px}
+  .sim-card .row{font-size:12px;margin:3px 0}
+  .sim-card .row b.lab{color:var(--purple)}
+  .sim-actions{margin-top:9px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .tooltip-note{font-size:11px;color:var(--muted);font-style:italic}
+  .sim-modal{border:2px solid var(--red);background:var(--card);border-radius:8px;padding:10px 14px;margin:8px 14px;font-size:12px}
+  .fsbox{display:flex;gap:10px;flex-wrap:wrap;margin:8px 14px}
+  .fsbit{border:1px dashed var(--border);border-radius:8px;padding:8px 12px;font-size:12px;background:var(--card);cursor:pointer;user-select:none}
+  .fsbit.on{border-style:solid;border-color:var(--green);background:var(--green-bg)}
+  .fsbit .st{font-weight:700}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>S6 — Reconciliation 도메인 기능 강화 <span class="chip cp1">CP1 (단계 캠페인 plan)</span></h1>
+  <div class="meta">
+    <span><strong>단계</strong> S6 (신설 — 후보 B 승격, 2-1차 개발 소속)</span>
+    <span><strong>scope</strong> S6-1 미구현 DriftKind 정리 · S6-2 SOFTDEL/TRASH 계열 탐지+시스템 해결 완성(3 sub-slice) · S6-3 drift 액션 확충(후보 A) 예약 · 사이에 R9-6(후보 C)</span>
+    <span><strong>근거</strong> 결정 문서(decisions.rtf, 26-07-10) + v2 후속 보고서(26-07-08_19-55-48)</span>
+    <span><strong>생성</strong> 2026-07-10 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (코드 실측)</a></li>
+      <li><a href="#s2">§2 설계 결정 D1~D10</a></li>
+      <li><a href="#sd">🎬 soft-deleted 분류 시뮬레이터</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (분류 매트릭스)</a></li>
+      <li><a href="#s5">§5 슬라이스 분해 · 10단계 매핑</a></li>
+      <li><a href="#s6">§6 Step 8 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤 · Notion 구조</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (코드 실측)</summary>
+      <div class="body">
+        <p style="margin-top:0">v2 후속 보고서의 실측을 이어받되, 본 plan 작성 중 <b>새로 확인된 사실 3건</b>(굵게)이 설계 비용·순서를 바꾼다.</p>
+        <table>
+          <thead><tr><th>사실</th><th>실측 근거 (파일:줄)</th><th>영향</th></tr></thead>
+          <tbody>
+            <tr><td>SOFTDEL 계열 침묵 — soft-deleted ID 매칭 마커를 ORPHAN 오탐 방지용으로만 쓰고 버림</td><td><code>PathReconciliationService.java:422-423</code> (D20 <code>continue</code>)</td><td>이 제외 지점이 그대로 SOFTDEL_ESCAPE 분류 입력이 된다 — 신규 walk 불필요</td></tr>
+            <tr><td>TRASH 계열 침묵 — trash 디렉토리는 walk 에서 명시 제외</td><td><code>:533-535</code> (trashRoot startsWith 필터)</td><td>단, 탐지에 trash walk 재개는 필요 없다(아래 findTrashed 참조)</td></tr>
+            <tr><td>quick scan 은 마커 존재만 검사 — 본체 파일 부재는 deep 에서만 MISSING</td><td>4a <code>:342</code> 는 <code>Files.exists(expectedMarker)</code> 만. 본체 검사는 deep 분기 <code>:361-377</code></td><td>파일명 단독 변경·본체 단독 삭제가 최대 24h(deep 주기) 침묵 — D9 로 해소</td></tr>
+            <tr><td>apply() 비 GHOST 분기가 무조건 <code>Path.of(drift.getNewPath())</code> — newPath 없는 kind 에서 NPE 잠복</td><td><code>:679</code> + 주석 스스로 "다른 동작이 필요할 수 있으나" 예고 <code>:677-678</code></td><td>TRASH_MARKER_STALE 등 구현 전에 디스패치 재설계 필수 — S6-2-1 이 선행하는 이유</td></tr>
+            <tr><td>스캔 자동 적용이 kind 별 if-else + 개별 <code>@Value</code> 플래그(<code>autoApplyPathDrift</code>/<code>autoApplyGhostRow</code>)</td><td><code>:470-489</code>, <code>:100-104</code></td><td>auto kind 2종 추가 시 분기·설정 키가 같이 증식 — 조건분기 legacy 확장 금지 위반 예정지</td></tr>
+            <tr><td><b>kind 컬럼 varchar(24) &lt; 상수명 26자</b> — <code>SOFTDEL_ESCAPE_TO_ORIGINAL</code>(26자) 영속 시 DB 에러</td><td><code>Drift.java:64</code> <code>@Column(name="kind", length=24)</code></td><td>S6-2-2 에 DDL(<code>VARCHAR(32)</code>) 필수 — <code>claude_code</code> 계정 ALTER 불가(R9-5 선례 절차)</td></tr>
+            <tr><td><b>soft-deleted 전수 조회 SPI 는 이미 존재</b> — <code>findTrashed()</code> 를 6 scanner 전부 구현, <code>trashedPath</code> 접근은 <code>instanceof LifecycleEntity</code> 선례</td><td><code>MarkableInventory.java:45</code> + 6 scanner + <code>TrashController.java:158-162</code></td><td><b>v2 보고서의 "SPI 확장 + 6 도메인 파급(M~L)" 추정 정정</b> — 탐지용 신규 SPI 0, 비용 M 이하로 하향</td></tr>
+            <tr><td><b>단, 메타 자원 2종(OS_IMAGE/BOARD_MODEL)은 <code>getResourcePath()=null</code></b> — 파일 실체가 없고 soft-delete 도 <code>markTrashed(null)</code> 로 귀결. 전수 패스에 그대로 넣으면 <code>Files.exists(null)</code> NPE 또는 GHOST 오탐</td><td><code>OSMetadata:116-118</code> · <code>BoardModel:79-82</code> · <code>OSMetadataLifecycleService:87-88</code> · <code>TrashController:158-166</code> 의 <code>isMetadata()</code> 가드 선례</td><td><b>비판 검증 CRITICAL 반영</b> — 분류 패스는 메타 2종을 명시 제외(D2). 대상은 파일 자원 4 도메인</td></tr>
+            <tr><td><b>A2 복귀 케이스도 침묵</b> — <code>trashed_path=null</code> 인 deleted row 는 파일이 원위치에 <i>있으면</i> ghost 판정에서 빠져 아무 보고도 없음</td><td>ghost 패스 <code>:440-448</code> + <code>GhostEvaluator.java:38</code> (<code>!Files.exists</code> 조건)</td><td>SOFTDEL_ESCAPE_TO_ORIGINAL 의 두 번째 발생 경로 — 분류 매트릭스(§4)에 포함</td></tr>
+            <tr><td>restore 시점엔 이미 4상태 게이트가 존재 — 원O·trashX self-heal / 원X·trashX 분실 409</td><td><code>TrashLifecycleService.healOrThrowBeforeRestore:229-256</code></td><td>스캔이 같은 상태를 <i>선제</i> 보고하고, ESCAPE_TO_ORIGINAL 의 해결이 <code>restoreFromTrash</code> 재사용으로 끝나는 근거</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>사용자 결정(불가침 목표)</b> — "중요한 drift 일수록 시스템이 건들이지 못한다" 문제가 신규 kind 에서 재발하지 않도록, <b>탐지와 동시에 시스템 해결 로직까지 완성</b>한다. 이를 위해 "자동 적용 1축"을 "해결 방식 3단(NONE/MANUAL/AUTO)"으로 확장한다(D4).</div>
+      </div>
+    </details>
+
+    <details class="section" id="s2" open>
+      <summary>§2. 설계 결정 D1~D10 (대안 비교 · 탈락 사유)</summary>
+      <div class="body">
+        <h4>D1. 단계 분해 — S6-2 를 sub-slice 3개로, 후보 A 는 S6-3 유지 <span class="badge new">채택</span></h4>
+        <p><b>S6-1</b>(정리) → <b>S6-2-1</b>(해결 디스패치 다형화 기반) → <b>S6-2-2</b>(SOFTDEL 계열 탐지+해결) → <b>S6-2-3</b>(TRASH 계열 탐지+해결) → <b>R9-6</b>(후보 C) → <b>S6-3</b>(후보 A, 하위 분해는 S6-3 plan 에서). 결정 문서가 허용한 "계열별 최상위 분리(S6-2=SOFTDEL 총 / S6-3=TRASH 총 / S6-4=A)"를 검토했으나 비채택 —
+        <span class="dim">탈락 사유: ① 두 계열이 공유하는 디스패치 다형화 기반(S6-2-1)의 귀속이 애매해진다 ② 실측 결과 탐지 자체가 entity 별 <code>Files.exists</code> 검사로 가벼워 "방대" 조건에 해당하지 않는다 ③ "후보 A = S6-3" 라는 결정 문서의 기본 지정을 유지하는 쪽이 이력 추적이 단순하다.</span></p>
+
+        <h4>D2. 탐지 설계 — findTrashed() 전수 분류 패스 + D20 지점 분류 전환, 신규 walk 0 <span class="badge new">채택</span></h4>
+        <p>기존 (5.5) GHOST 패스를 <b>soft-deleted 전수 분류 패스로 확장·흡수</b>한다: scanner 별 <code>findTrashed()</code>(6 도메인 기구현)로 deleted entity 를 얻고, entity 의 <code>trashedPath</code>(T)·<code>resourcePath</code>(O) 두 경로에 대한 <code>Files.exists</code> 비트로 §4 매트릭스를 판정한다. <b>메타 자원 2종(OS_IMAGE/BOARD_MODEL)은 패스 진입 전 <code>supportedType().isMetadata()</code> 로 명시 제외</b>(비판 검증 CRITICAL — <code>getResourcePath()=null</code> 이라 NPE/GHOST 오탐, <code>TrashController:158-166</code> 가드 선례 재사용). TRASH_MARKER_STALE 은 trash 내 자원 옆 마커를 <code>markerService.resolveMarkerFile(T, layout)</code> 존재 검사로 직접 확인. SOFTDEL_ESCAPE_TO_OTHER 만 기존 디스크 마커 맵을 쓴다 — D20 제외 지점(<code>:423</code>)의 침묵 <code>continue</code> 를 분류로 교체하며, 이를 위해 인벤토리 단계에서 <code>Map&lt;MarkerKey, Markable&gt; deletedByKey</code> 를 함께 구성해 발견 마커의 원 DB.path 대조에 쓴다(현행 <code>Set&lt;Long&gt;</code> 만으로는 TO_ORIGINAL/TO_OTHER 구분 불가).<br>
+        <span class="dim">비채택: ⓐ trash root 를 walk 범위에 추가 — 마커 파일 기준 발견은 우회 경로이고, entity 가 이미 정확한 T 경로를 알고 있어 직접 검사가 정확·저렴. walk 제외(<code>:534</code>)는 그대로 유지. ⓑ <code>MarkableInventory</code> 에 trashed 경로 노출 메서드 신설 — <code>TrashController:158</code> 의 <code>instanceof LifecycleEntity</code> 패턴 매칭 선례가 이미 있고, 6 도메인 entity 전부 <code>LifecycleEntity</code> 상속이라 SPI 오염 없이 동일 접근 가능(비상속 구현이 등장하면 그때 승격 — "갈라지는 시점에 분리").</span></p>
+
+        <h4>D3. 해결 디스패치 다형화 — kind 별 DriftResolution 전략 bean (S6-2-1) <span class="badge new">채택</span></h4>
+        <p><code>apply()</code> 의 GHOST if-else(<code>:674-680</code>)와 스캔 자동 적용 if-else(<code>:475-481</code>)를 전략으로 치환한다: <code>DriftResolution</code> 인터페이스(<code>supportedKind()</code> + <code>resolve(Drift, MarkableScanner)</code>) + kind 별 구현 bean, <code>Map&lt;DriftKind, DriftResolution&gt;</code> 주입(Spring 이 List→Map 조립). 신규 kind = 새 bean 클래스 1개 — 서비스 본문 분기 증가 0(OCP). 미지원 kind 는 map miss → <code>DriftAutoApplyNotAllowedException.notApplicable</code> 로 거절하되, <b>이 널가드는 <code>forced</code> 우회 블록 밖(디스패치 지점)에 무조건 배치</b>한다 — forced 경로는 mode 가드만 우회하는 것이지 "해결 로직이 존재하지 않는 kind" 까지 통과시키는 게 아니다(<code>persistAndForcedApply</code> 가 kind 제약 없는 public 이라는 비판 검증 MAJOR 반영). S6-2-1 은 기존 2종(PATH_DRIFT→<code>applyDriftedPath</code> / GHOST_DB_ROW→<code>applyGhostClear</code>)의 <b>동작 등가 이전만</b> 수행(신규 kind 없음) — 회귀 면을 기반과 신규로 분리.<br>
+        <span class="dim">비채택: ⓐ DriftKind enum method-per-constant — 해결 로직은 scanner/trashService/markerService 의존이 필요한 <b>행위</b>인데 enum 은 DI 불가, global/marker 의 enum 이 maintenance 도메인 로직을 소유하는 방향 역전도 발생. ⓑ DriftKind 에 resolutionType 순수 데이터 필드 + 서비스 switch — 분기가 잔존하나 exhaustive switch 로 누락은 컴파일 차단되는 차선. bean 6개(각 15줄 내외)가 과하지 않아 ⓐⓑ 대비 전략 bean 이 CLAUDE.md "Spring primitive 로 framework 가 분기를 떠맡게" 에 정합.</span></p>
+
+        <h4>D4. 해결 방식 3단 — autoApplicable(boolean) → DriftResolutionMode { NONE, MANUAL, AUTO } <span class="badge new">채택</span></h4>
+        <p>"버튼 노출"과 "스캔 중 무인 자동 적용 자격"을 한 boolean 이 겸하던 것을 단일 enum 필드로 교체: <b>NONE</b>=시스템 해결 없음(안내만) / <b>MANUAL</b>=사용자 확인 후 시스템이 해결(버튼 O, 무인 자동 X) / <b>AUTO</b>=MANUAL + 스캔 중 무인 적용 자격. 파생 접근자 <code>isAutoApplicable()</code>(=AUTO)·<code>isManuallyResolvable()</code>(=NONE 아님)를 두어 서버 가드·템플릿의 기존 호출면 diff 를 최소화한다. 신규 배정: SOFTDEL_ESCAPE_TO_OTHER·TRASH_LOST = <b>MANUAL</b>(MK3 원정의 "액션 미제공"에서 상향 — 결정 문서의 "시스템이 해결" 목표 반영, 단 무인 자동은 이중 의도 명제 존중으로 불허). 배지 색도 3단으로 — 현행 <code>autoApplicable ? orange : gray</code> 2색이면 MANUAL 종류가 "회색 배지 + 활성 버튼"이라는 시각 모순이 생긴다(비판 검증 MINOR). 구체 클래스는 S6-2-1 slice plan 에서 DESIGN.md 토큰 내로 확정.<br>
+        <span class="dim">비채택: boolean 2개(<code>manuallyResolvable</code>+<code>autoApplicable</code>) — <code>manual=false·auto=true</code> 불법 조합이 표현 가능(Primitive Obsession 금지 위반). 3단 enum 은 불법 상태를 타입으로 차단.</span></p>
+
+        <h4>D5. 스캔 자동 적용 설정 통합 — <code>reconciliation.auto-apply.kinds</code> CSV 단일 키 <span class="badge new">채택</span></h4>
+        <p><code>auto-apply-path-drift</code>/<code>auto-apply-ghost-row</code> 개별 boolean 키를 <code>Set&lt;DriftKind&gt;</code> CSV 한 키로 통합(default 빈 = 현행 default 두 키 모두 false 와 동일 동작). 스캔 자동 적용 조건 = <code>kind.mode==AUTO && kinds.contains(kind) && isAutoApplyEnabled()</code> — AUTO kind 가 늘어도 설정 구조 불변. <b>기존 두 키는 제거(breaking)</b> — §8 명기.<br>
+        <span class="dim">비채택: kind 별 boolean 키 유지·증식 — AUTO 4종이면 키 4개+분기 4개, legacy 확장 금지 위반.</span><br>
+        <b>마스터 스위치 의미·명칭 정비(비판 검증 MAJOR 반영)</b>: 마스터의 실의미는 "시스템이 FS/DB 를 건드리는 <i>해결 전면</i> 차단"(MANUAL 버튼 포함 — R9-2 D4 의 차단 범위 유지)인데, MANUAL 개념이 생기는 순간 <code>reconciliation.auto-apply</code> 라는 이름과 "자동 적용이 꺼져 있어요" 문구가 사용자 혼란(R9 본 목적)을 재생산한다. mode 3단을 신설하는 지금이 개명의 유일한 자연 시점 — <code>reconciliation.resolution-enabled</code>(default true)로 개명하고 <code>globalOff()</code> 문구·버튼 tooltip 을 "시스템 해결 옵션이 꺼져 있어요" 계열로 함께 갱신한다. SSOT 메서드(<code>isAutoApplyEnabled()</code>→<code>isResolutionEnabled()</code>)와 뷰모델 플래그도 동반 개명. 설정 breaking 은 kinds 통합과 같은 슬라이스(S6-2-1)에 묶어 1회로 끝낸다.<br>
+        <span class="dim">비채택: ⓐ 마스터가 AUTO(무인)만 지배하고 MANUAL 버튼은 항상 활성 — "점검 전용(읽기만) 모드"를 원하는 운영자의 전면 차단 수단이 사라지고, R9-2 가 확정한 차단 범위의 회귀. ⓑ 이름 유지 + 문구만 손질 — 설정 키와 화면 문구가 서로 다른 어휘를 쓰는 어긋남이 남는다.</span></p>
+
+        <h4>D6. SOFTDEL_ESCAPE_TO_ORIGINAL 해결 = <code>scanner.restoreFromTrash(id)</code> 재사용, AUTO 유지 <span class="badge new">채택</span></h4>
+        <p>정합 방향은 MK3 원정의대로 <b>FS 가 진실, DB 가 따라감</b>(=복원): 운영자가 파일을 원위치로 되돌린 행위 자체가 복원 의도의 표현이라 의도가 단일화된다. 해결 경로는 기존 <code>MarkableTrashOperator.restoreFromTrash</code> 를 그대로 호출 — <code>healOrThrowBeforeRestore</code> 의 (원O·trashX) self-heal 분기와 <code>trashed_path=null</code> 단순 복원 분기(<code>TrashLifecycleService:127-142</code>)가 <b>두 발생 경로를 모두 이미 소화</b>한다. 신규 FS 로직 0.<br>
+        <span class="dim">비채택: 재격리 방향(FS 를 DB 에 맞춰 도로 trash 로) — 운영자의 외부 행위를 시스템이 되돌리는 의도 전쟁이 되고, 되돌려도 운영자가 다시 꺼내는 luta 만 반복된다.</span></p>
+
+        <h4>D7. SOFTDEL_ESCAPE_TO_OTHER 해결 = 재격리(MANUAL) <span class="badge new">채택</span></h4>
+        <p>발견 위치의 자원(+동반 마커)을 trash 로 회수하고 <code>markTrashed</code> 갱신. TO_ORIGINAL 과 <b>정합 방향이 반대</b>인 근거: 원위치 복귀는 복원 의도로 읽을 수 있으나, 임의 위치 출현은 백업 복사·실수 등 사고 가능성이 커 DB(deleted=운영자 최종 의사표시)를 진실로 본다. 사용자 확인(MANUAL) 후 시스템이 실행 — "위치·의도를 직접 확인하세요"로 끝나던 것에서 실행 가능한 해결로 상향. FS 이동은 <code>TrashService</code> 재사용, entity 갱신 경로(도메인 service 경유 여부)는 S6-2-2 plan 에서 확정.<br>
+        <b>S6-2-2 plan 필수 결정 2건(비판 검증 MAJOR 반영)</b>: ① 재격리는 FS mv + DB 갱신의 <b>신규 이중쓰기</b>이므로 HF-1 과 동일한 same-transaction 역보상(mv 후 어느 단계든 실패 시 원위치 복귀 — <code>softDeleteToTrash:94-99</code>/<code>compensateRestore</code> 선례)을 필수 제약으로 못박는다. ② 기존 <code>trashed_path</code> 가 아직 유효(trash 파일 존재)한 상태에서 TO_OTHER 를 재격리하면 <code>markTrashed</code> 덮어쓰기로 구 trash 파일이 참조를 잃고 영구 고아가 된다(trash 는 walk 제외라 재발견 불가) — 구 파일 동반 정리 또는 재격리 거절 중 택일을 결정 항목으로 명시.<br>
+        <span class="dim">비채택: ⓐ AUTO 승격 — lifecycle+path 이중 의도 명제(MK3) 위반. ⓑ 발견 위치를 새 정위치로 수용(restore+path 갱신) — 삭제 의사표시를 뒤집는 방향이 기본이 될 수 없음. 필요 시 운영자는 복원 후 이동이라는 기존 경로가 있다.</span></p>
+
+        <h4>D8. TRASH_LOST 해결 = row 정리(MANUAL) + PurgeLog 기록 <span class="badge new">채택</span></h4>
+        <p>trash 파일이 외부에서 사라진 dead row 를 사용자 확인 후 hard-delete — GHOST_DB_ROW 와 종착은 같으나 <b>파괴적(이력 종료)</b> 이고 외부 개입 정황이라 무인 자동은 불허(MANUAL). 정리 시 <code>PurgeLog</code>(S5-2-4 단일 감사 로그, <code>PurgeOrigin</code> 신규 값) 기록을 남겨 "언제 무엇이 왜 사라졌나"를 추적 가능하게 한다 — 기록 상세(origin 값·details 필드)는 S6-2-3 plan 에서 확정.<br>
+        <span class="dim">비채택: AUTO — 복구 불능 확정을 시스템이 무인 단행하는 것은 "안전한 정리"(GHOST — 애초에 기록만 남은 row)와 달리 외부 원인 규명 기회를 소거.</span></p>
+
+        <h4>D9. quick scan 본체 존재 검사 추가 (4a 보강, S6-1 포함) <span class="badge new">채택</span></h4>
+        <p>4a 에서 마커가 있어도 본체(<code>resourcePath</code>)가 없으면 quick scan 에서 즉시 MISSING 으로 보고(현재는 deep 주기까지 최대 24h 침묵). 비용 = active 자원당 <code>Files.exists</code> 1회. 이 보강이 있어야 "파일명 단독 변경" 시나리오가 deep 대기 없이 드러나 D10(RENAMED 정리)의 커버리지 논거가 완성된다.<br>
+        <span class="dim">비채택: 같은 디렉토리에서 이름만 바뀐 파일을 해시로 탐색해 자동 매칭(RESOURCE_RENAMED 본구현) — deep 해시 재계산 없이는 매칭 근거가 없고(12GB ISO 해시 수 분), 마커·파일 동시 리네임은 이미 PATH_DRIFT(<code>:381</code> 키 매칭이 파일명 무관)로 잡힌다. 남는 케이스는 MISSING 안내로 충분.</span></p>
+
+        <h4>D10. S6-1 정리 — RESOURCE_RENAMED · RESOURCE_RENAMED_ORPHAN 상수 삭제 <span class="badge drop">정리</span></h4>
+        <p>v2 실측대로 두 상수의 실질 커버리지가 기존 kind 에 흡수돼 있어(동시 리네임→PATH_DRIFT, 그 외→MISSING) 삭제한다. 탐지 로직이 한 번도 생성한 적 없는 값이라 <b>영속 데이터 이력 충돌 0</b>(안전). MISSING.recommendedAction 에 리네임 복원 안내 한 줄 보강. 파급: <code>DriftKindTest</code> 의 AUTO 집합 단언, <code>PathReconciliationService:677</code> 주석, DriftKind javadoc 재편(MK3 신규 섹션 정리 — "미구현" 딱지가 S6-2 로 해소되는 것까지 반영은 각 sub-slice 에서).</p>
+      </div>
+    </details>
+
+    <details class="section demo" id="sd" open>
+      <summary>🎬 soft-deleted 분류 시뮬레이터 — FS/DB 상태를 눌러 바꾸면 서버 판정·해결이 재현된다</summary>
+      <div class="body">
+        <p class="dim" style="margin:4px 0 8px">soft-delete 된 자원 1개(OS_ISO #42)의 DB 2비트 + FS 4비트를 직접 토글 → §4 매트릭스의 서버 분류가 즉시 갱신된다. [해결 실행]을 누르면 해당 resolution 이 상태를 실제로 전이시킨다(복원/재격리/row 정리/마커 정리). MANUAL kind 는 확인 modal, 전역 OFF 시 disabled+tooltip 까지 재현.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="lbl">전역 자동 적용(reconciliation.auto-apply)</span>
+            <button class="ux-btn on" id="aa-toggle">ON</button>
+            <span class="lbl" style="margin-left:8px">무인 자동 적용 kinds(auto-apply.kinds)</span>
+            <button class="ux-btn" id="kinds-toggle">비어 있음 (default)</button>
+            <button class="ux-btn" id="reset-sim" style="margin-left:auto">시나리오 초기화</button>
+          </div>
+          <div class="fsbox" id="bits"></div>
+          <div id="sim-area"></div>
+        </div>
+        <p class="dim">검증 포인트: ① trashed_path 有 + trash 파일 소실 + 원위치 출현 = "삭제 자원 복귀"(AUTO) — 해결하면 <b>row 가 활성으로 복원</b>되고 drift 소멸 ② 아무 흔적 없음 = "휴지통 자원 소실"(MANUAL) — 해결 = row 정리 + PurgeLog ③ trash 자원 옆 마커 = "잔여 마커 정리"(AUTO) — <b>원위치 점유 여부와 무관하게 독립 평가</b>(둘 다 켜면 drift 2건 동시 보고) ④ active 트리 다른 위치 마커 = "위치 이탈"(MANUAL, 재격리) — <b>원위치 파일과 동시 성립 시 모호 상태</b>로 detail 병기·restore 게이트 최종 판정 ⑤ 원위치·trash 양쪽 존재(점유, 마커 신호 없음)는 <b>의도적으로 drift 아님</b> — 동일 경로 재사용(새 자원 업로드)이 정상 워크플로이기 때문(§8). 메타 자원 2종은 이 시뮬레이터 자체의 대상이 아니다(D2 제외).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 (S6-2 완성 시점 기준)</summary>
+      <div class="body">
+<pre>performScan(deep, jobId)                                  <span style="color:#8b949e">// 패스 구조 변화</span>
+  (1) 인벤토리: active(기존) + <span style="color:#d2a8ff">softDeleted = scanner.findTrashed() 전수 (메타 2종 isMetadata() 제외)</span>
+      ID Set 수집 유지 + <span style="color:#d2a8ff">Map&lt;MarkerKey, Markable&gt; deletedByKey 구성</span> (D20 재분류의 DB.path 대조용)
+  (4) active 분류: 4a 마커 검사 <span style="color:#d2a8ff">+ 본체 Files.exists (D9, quick 서도 MISSING)</span> · 4b/4c 불변
+  (5) ORPHAN 패스: soft-deleted ID 매칭 시 <span style="color:#f85149">continue(침묵) 삭제</span> → <span style="color:#d2a8ff">SOFTDEL_ESCAPE 분류로 전환</span>
+      hit.resourcePath == deletedByKey.path → TO_ORIGINAL | 그 외 → TO_OTHER (newPath = 발견 위치)
+      원위치 파일도 존재하면 모호 상태 — TO_OTHER(MANUAL) + detail "원위치에도 파일 존재" 병기
+  (5.5) ghost 패스 → <span style="color:#d2a8ff">soft-deleted 전수 분류 패스로 확장·흡수 (§4 매트릭스)</span>
+      GHOST_DB_ROW · SOFTDEL_ESCAPE_TO_ORIGINAL · TRASH_LOST — FS 기반 판정 자원당 1건
+      + TRASH_MARKER_STALE 는 <span style="color:#d2a8ff">독립 신호</span> (원위치 점유 상태와 무관, 동시 보고 가능)
+  (8) 자동 적용: <span style="color:#f85149">kind별 if-else + 개별 플래그 삭제</span> → <span style="color:#d2a8ff">mode==AUTO && kinds.contains && isResolutionEnabled()
+      → resolutions.get(kind).resolve(drift, scanner)</span>
+
+POST /maintenance/reconciliation/drifts/{id}/apply        <span style="color:#8b949e">// 수동 해결 (R9-3 modal·async 유지)</span>
+  가드: !kind.isManuallyResolvable() → notApplicable 409 | !isResolutionEnabled() → globalOff 409 (D5 개명)
+  실행: <span style="color:#d2a8ff">resolution 널가드(map-miss → notApplicable 409, forced 도 미우회) 후 resolve(drift, scanner)</span>   <span style="color:#f85149">// :679 NPE 잠복 소멸</span>
+  템플릿: 버튼 th:if = ${drift.kind.<span style="color:#d2a8ff">manuallyResolvable</span>} · 배지 = mode 3단 색 · 문구 = label·recommendedAction (기존 SSOT 그대로)
+
+runReissueAsync (R9-6)
+  complete(...) 후 failures &gt; 0 → <span style="color:#d2a8ff">running 해제 후 triggerScan(false) 자동 후속</span> (AlreadyRunning 흡수)</pre>
+      </div>
+    </details>
+
+    <details class="section" id="s4" open>
+      <summary>§4. 도메인 모델 — soft-deleted 분류 매트릭스 · DriftKind 개편</summary>
+      <div class="body">
+        <h4>분류 매트릭스 (is_deleted=true 인 자원 1건 기준 · 🎬 데모와 동일 로직)</h4>
+        <table>
+          <thead><tr><th>trashed_path</th><th>trash 파일</th><th>원위치 파일</th><th>추가 신호</th><th>판정</th><th>해결(mode)</th></tr></thead>
+          <tbody>
+            <tr><td>null</td><td>—</td><td>無</td><td>trashed_at=null</td><td><b>GHOST_DB_ROW</b> <span class="dim">(기존)</span></td><td>row hard-delete (AUTO)</td></tr>
+            <tr><td>null</td><td>—</td><td><b>有</b></td><td></td><td><b>SOFTDEL_ESCAPE_TO_ORIGINAL</b> <span class="badge new">신규 경로②</span></td><td><code>restoreFromTrash</code> — 단순 복원 분기 (AUTO)</td></tr>
+            <tr><td>有</td><td>有</td><td>無</td><td>trash 옆 마커 無</td><td>정상 — drift 없음</td><td>—</td></tr>
+            <tr><td>有</td><td>有</td><td><b>any</b></td><td><b>trash 옆 마커 有</b></td><td><b>TRASH_MARKER_STALE</b> <span class="badge new">신규</span> — <b>원위치 상태와 독립 평가</b>(비판 검증: 점유 조기 반환에 가려지면 trash 는 walk 제외라 영구 누출)</td><td>잔여 마커 파일 삭제 (AUTO)</td></tr>
+            <tr><td>有</td><td><b>無</b></td><td><b>有</b></td><td></td><td><b>SOFTDEL_ESCAPE_TO_ORIGINAL</b> <span class="badge new">신규 경로①</span></td><td><code>restoreFromTrash</code> — self-heal 게이트 (AUTO)</td></tr>
+            <tr><td>有</td><td><b>無</b></td><td>無</td><td>다른 위치 마커도 無</td><td><b>TRASH_LOST</b> <span class="badge new">신규</span></td><td>row 정리 + PurgeLog (MANUAL)</td></tr>
+            <tr><td>any</td><td>any</td><td>無</td><td><b>active 트리 타 위치에 (type,id) 마커</b></td><td><b>SOFTDEL_ESCAPE_TO_OTHER</b> <span class="badge new">신규</span> — 자원 실체 발견이 구체 신호라 무존재 계열(GHOST/TRASH_LOST)보다 우선</td><td>재격리: 발견 위치→trash 회수 + markTrashed 갱신 (MANUAL)</td></tr>
+            <tr><td>any</td><td>any</td><td><b>有</b></td><td><b>타 위치 마커도 有</b></td><td><b>SOFTDEL_ESCAPE_TO_OTHER</b> (MANUAL) — 실체 후보가 둘인 모호 상태. detail 에 "원위치에도 파일 존재" 병기. AUTO 인 TO_ORIGINAL 로 기울이지 않는다(어느 쪽이 진짜인지 시스템이 판정 불가)</td><td>재격리 후 원위치 파일은 점유 상태로 남고, 그 진위는 restore 시점 게이트(<code>assertSameResourceOrThrow</code> manifestHash 검증)가 최종 판정 — 스캔이 억지 판정하지 않는 한계를 명시적으로 수용</td></tr>
+            <tr><td>有</td><td>有</td><td>有</td><td>trash 옆 마커 無</td><td><b>drift 아님(의도적)</b> — 원위치 점유는 동일 경로 재사용 정상 워크플로, restore 시점에 <code>RestorePathOccupiedException</code> 이 판정</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">매트릭스 적용 대상은 <b>파일 자원 4 도메인</b>(OS_ISO/BOARD_BIOS/BOARD_BMC/SUBPROGRAM) — 메타 2종은 <code>isMetadata()</code> 로 패스 진입 전 제외(D2, 비판 검증 CRITICAL). 자원당 FS 기반 판정 1건 + 필요 시 STALE 마커 신호 1건이 독립 성립할 수 있다(STALE 는 다른 판정을 가리지 않는다).</p>
+        <h4>DriftKind 개편 요약</h4>
+        <table>
+          <thead><tr><th>항목</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>RESOURCE_RENAMED</code> · <code>RESOURCE_RENAMED_ORPHAN</code></td><td><span class="badge drop">삭제</span> S6-1 (D10) — 12종 → 10종</td></tr>
+            <tr><td><code>autoApplicable</code> boolean 필드</td><td><span class="badge mod">교체</span> S6-2-1 — <code>DriftResolutionMode mode</code> (NONE/MANUAL/AUTO) + 파생 접근자 2종. AUTO = {PATH_DRIFT, SOFTDEL_ESCAPE_TO_ORIGINAL, TRASH_MARKER_STALE, GHOST_DB_ROW} / MANUAL = {SOFTDEL_ESCAPE_TO_OTHER, TRASH_LOST} / NONE = {MISSING, ORPHAN, SIGNATURE_INVALID, HASH_MISMATCH} (S6-3 이 액션 부여 시 재평가)</td></tr>
+            <tr><td>label/description/recommendedAction</td><td><span class="badge keep">유지</span> R9-2 문구 그대로 — TO_OTHER·TRASH_LOST 의 recommendedAction 만 해결 상향에 맞춰 개정("적용하면 휴지통으로 회수합니다" / "적용하면 남은 기록을 정리하고 감사 로그를 남깁니다")</td></tr>
+            <tr><td><code>Drift.kind</code> 컬럼</td><td><span class="badge mod">DDL</span> S6-2-2 — <code>VARCHAR(24)</code>→<code>VARCHAR(32)</code> (<code>SOFTDEL_ESCAPE_TO_ORIGINAL</code> 26자). <code>sql/S6-2-2_drift_kind_widen.sql</code> 산출, 적용 절차는 R9-5 선례</td></tr>
+            <tr><td>엔티티 신규 필드</td><td>없음 — <code>Drift.newPath</code> 가 TO_OTHER 발견 위치를 기존 의미대로 수용</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s5" open>
+      <summary>§5. 슬라이스 분해 · 10단계 매핑</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>순서</th><th>슬라이스</th><th>scope</th><th>10단계 성격</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><b>S6-1</b> 미구현 DriftKind 정리 + quick scan 본체 검사</td><td>D9 + D10 — 상수 2종 삭제, MISSING 문구 보강, 4a 본체 존재 검사</td><td>리팩토링 슬라이스 — 6·7·9 N/A. Step 8: DriftKindTest 집합 갱신 + 4a MISSING 시나리오</td></tr>
+            <tr><td>2</td><td><b>S6-2-1</b> 해결 디스패치 다형화 기반</td><td>D3 + D4 + D5 — DriftResolution SPI + mode 3단 + 설정 CSV 통합. 기존 2종 동작 등가 이전, 신규 kind 없음</td><td>리팩토링 슬라이스 — 6·7·9 N/A. Step 8: 등가 회귀 + map-miss 409 + AUTO 게이트</td></tr>
+            <tr><td>3</td><td><b>S6-2-2</b> SOFTDEL 계열 탐지+해결</td><td>D2 매트릭스 중 ESCAPE 2종 + D6 + D7 — D20 분류 전환 포함</td><td>전 단계 — Step 9 DDL(kind VARCHAR(32)) 포함. UI: 버튼·modal 은 R9-3 자산 재사용</td></tr>
+            <tr><td>4</td><td><b>S6-2-3</b> TRASH 계열 탐지+해결</td><td>D2 매트릭스 중 TRASH_LOST·TRASH_MARKER_STALE + D8(PurgeLog)</td><td>전 단계 — 엔티티 무변경(PurgeLog enum 값 추가는 6·7 경량). ghost 패스 흡수 완료 지점</td></tr>
+            <tr><td>5</td><td><b>R9-6</b> 재발급 실패 후속 점검 자동 트리거 (후보 C)</td><td>v2 §2 권장안 (a) — <code>runReissueAsync</code> 실패&gt;0 시 quick scan 자동 + 토스트 반영. <b>R9 캠페인 소속</b></td><td>리팩토링 슬라이스 — 6·7·9 N/A</td></tr>
+            <tr><td>6</td><td><b>S6-3</b> drift 액션 확충 (후보 A)</td><td>A-1 재점검 / A-2 단일 재서명 / A-3 ORPHAN 정리·재등록 / A-4 HASH 검토 — <b>하위 분해(S6-3-1…)와 액션별 설계는 S6-3 plan html 에서 확정</b>(결정 문서 지시). S6-2 의 resolution 프레임·mode 3단을 전제로 NONE 4종에 액션 부여</td><td>S6-3 plan 에서</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">각 슬라이스는 독립 CP1(plan html)→CP4(report html) 사이클을 돈다 — 본 문서는 단계 캠페인 plan 으로 슬라이스 plan 을 대체하지 않는다. 순서 근거: 결정 문서의 "B → C → A 순차" + "A 는 S6-2 선행 후".</p>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오 (슬라이스별 개요)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>슬라이스</th><th>핵심 시나리오 (상세는 각 슬라이스 plan)</th></tr></thead>
+          <tbody>
+            <tr><td>S6-1</td><td>ⓐ DriftKindTest — 10종·AUTO 집합에서 RENAMED 부재 ⓑ 4a: 마커 有+본체 無 → quick scan 에서 MISSING(deep 아님을 명시 단언) ⓒ 기존 PATH_DRIFT/MISSING 회귀 불변</td></tr>
+            <tr><td>S6-2-1</td><td>ⓐ PATH_DRIFT/GHOST apply 등가(기존 테스트 green 유지가 증명) ⓑ map-miss kind → notApplicable 409 — <b>forced=true 에서도 동일 발동</b>(널가드가 우회 블록 밖임을 고정) ⓒ 스캔 자동 적용: kinds CSV 미포함 AUTO kind 는 미적용, 포함 시 resolve 호출 ⓓ 마스터(resolution-enabled) OFF 우선 + 개명 후 뷰모델 플래그 회귀 ⓔ REST kind 직렬화 계약 불변</td></tr>
+            <tr><td>S6-2-2</td><td>ⓐ 매트릭스 행별 분류 단위 테스트(ESCAPE 2종 × 발생 경로 + <b>em·of 동시 성립 모호 상태 → TO_OTHER + detail 병기</b>) ⓑ TO_ORIGINAL resolve → restoreFromTrash 호출·drift 제거 ⓒ TO_OTHER resolve → 재격리 mv + markTrashed + <b>실패 시 역보상(HF-1 패턴)</b> ⓓ <b>메타 자원 2종은 분류 패스 미진입</b>(soft-deleted OSMetadata 존재 상태에서 스캔 → NPE 없음 + GHOST 오탐 0) ⓔ 통합: apply 성공 2xx / MANUAL kind 무인 자동 미발동 / direct POST 409 ⓕ 26자 kind 영속 round-trip(스키마 검증)</td></tr>
+            <tr><td>S6-2-3</td><td>ⓐ TRASH_LOST·MARKER_STALE 분류 — <b>STALE 는 원위치 점유 상태에서도 보고</b>(독립 신호 고정) ⓑ MARKER_STALE resolve → 마커 삭제 멱등 ⓒ TRASH_LOST resolve → row 삭제 + PurgeLog 기록 필드 ⓓ ghost 패스 흡수 후 GHOST_DB_ROW 회귀 불변 ⓔ 정상 trash 자원(마커 無)은 drift 0</td></tr>
+            <tr><td>R9-6</td><td>ⓐ 실패&gt;0 → 후속 스캔 트리거(AlreadyRunning 흡수) ⓑ 실패 0 → 미트리거 ⓒ 완료 metadata 에 후속 여부 표기</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">불가침 준수: 신규 분류·해결마다 단위(happy 1+실패 1) + HTTP 통합(2xx/400/409/404) 병행. MANUAL/AUTO 게이트는 direct POST 안전망 시나리오로 반드시 커버.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>신규 예외 클래스 0 (예정)</b> — 해결 실패는 기존 계층 재사용: 재격리 mv 실패 = <code>TrashMoveFailedException</code>, 마커 IO = <code>MarkerWriteFailedException</code>, 복원 충돌 = <code>RestorePathOccupiedException</code>/<code>RestoreTrashLostException</code>(TO_ORIGINAL resolve 중 상태가 또 바뀐 stale 경합 — advice 가 이미 409 매핑).</li>
+          <li><code>DriftAutoApplyNotAllowedException</code> 가드 기준이 <code>autoApplicable</code> → <code>manuallyResolvable</code> 로 이동. <code>notApplicable</code>·<code>globalOff</code> 두 factory 문구 모두 mode 어휘로 갱신(D5 마스터 개명과 동반 — "자동 적용" → "시스템 해결"). 409 계층 불변.</li>
+          <li>스캔 중 무인 자동 적용 실패는 현행대로 WARN 후 계속(<code>:482-487</code>) — 보고서 생성 자체를 죽이지 않는 원칙 유지.</li>
+          <li>각 sub-slice 에서 신규 예외가 필요해지면 해당 slice plan 의 §7 에서 확정 + 트리거 통합 테스트 동반(불가침).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s8" open>
+      <summary>§8. 부산물 · 주의</summary>
+      <div class="body">
+        <ul style="margin-top:0">
+          <li><b>DDL 1건 + 권한 제약</b> — <code>drift.kind VARCHAR(32)</code> 확장(S6-2-2). <code>claude_code</code> 는 ALTER 불가(실측 ERROR 1142) — <code>sql/</code> 스크립트 산출 후 사용자 적용(R9-5 선례). <span class="dim">현재 <code>application.properties</code> 가 사용자 변경으로 <code>ddl-auto=update</code> 상태라면 기동만으로 반영되나, validate 복귀 권장은 유효(스키마 안정화 커밋 2b7f397 의 취지).</span></li>
+          <li><b>설정 breaking (S6-2-1 에 일괄)</b> — ① <code>reconciliation.auto-apply-path-drift</code>/<code>auto-apply-ghost-row</code> 키 제거 → <code>reconciliation.auto-apply.kinds</code> CSV ② 마스터 <code>reconciliation.auto-apply</code> → <code>reconciliation.resolution-enabled</code> 개명(D5, MANUAL 도입에 따른 어휘 정합). 모든 키가 default 값으로 운영 중이라 실효 영향 0이나, 설정 파일에 구 키가 남아 있으면 무시됨을 report 에 명기.</li>
+          <li><b>findTrashed() 전수 패스 비용 가정</b> — quick scan(기본 1h 주기)마다 4 파일 도메인의 deleted row 전체 로드. 본 시스템의 자원 규모(도메인당 수십~수백)에서 무시 가능. 정렬 없는 전용 조회 메서드 신설은 비채택 — 호출 1곳을 위한 SPI 증식(over-abstraction), 규모가 문제 되는 시점에 분리.</li>
+          <li><b>원위치 점유(원O·trashO)는 의도적으로 drift 로 보고하지 않는다</b> — 같은 경로에 새 자원을 올리는 것이 정상 워크플로라 오탐이 됨. restore 시점의 <code>RestorePathOccupiedException</code> 이 SSOT. 이 결정을 소스 주석에도 남긴다.</li>
+          <li><b>trash 자원의 내용 검증(deep hash)은 비목표</b> — trash 는 복원 시점에 manifestHash 검증이 있고, 상시 검증은 스캔 비용 대비 이득이 없다. 필요해지면 S6-3(A-4) 와 함께 재검토.</li>
+          <li><b>R9-6 의 한계 유지</b> — 재발급 중 "entity 갱신만 실패" 유형은 디스크 마커가 유효해 후속 스캔에 안 잡힌다(v2 §2 명기, 사용자 인지 완료). 후속 스캔은 마커 파일 계열 실패의 표면화 수단.</li>
+          <li><b>v2 보고서 비용 추정 정정</b> — B-2 구현 노선 "M~L (SPI 확장 + 6 도메인 파급)" → 실측상 탐지 SPI 신설 0(<code>findTrashed</code> 재사용), 파급은 재격리 entity 갱신 경로 1건 내외. 종합 M 이하.</li>
+          <li><b>forced-apply saga 경로(<code>apply(id, true)</code>·<code>persistAndForcedApply</code>) 불변</b> — resolution 디스패치로 치환하되 forced 는 mode 가드만 우회(동작 동일). 회귀 테스트로 고정.</li>
+          <li>CLAUDE.md 수정 없음(현황 서술은 Notion SSOT). DESIGN.md — 배지 3단 색(D4)이 기존 토큰 밖 신규 클래스를 요구하면 S6-2-1 에서 §4 표기 추가(R9 선례), 기존 토큰 내면 수정 없음.</li>
+          <li><b>검증 이력</b> — 본 plan 은 작성 직후 적대적 비판 검증 1회(CRITICAL 1 · MAJOR 5 · MINOR 3)를 수행해 전부 반영한 개정본: 메타 자원 NPE/GHOST 오탐(D2 가드), 매트릭스 우선순위 은폐 2건(STALE 독립·모호 상태), forced 널가드(D3), 재격리 보상·구 trash 고아(D7), 마스터 설정명 의미 불일치(D5 개명), 배지 3단 색(D4), deletedByKey 인덱스(§3), findTrashed 비용 가정(§8).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>§9. Verification (단계 종료 기준)</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="s6-plan-verify" style="margin-top:0">
+          <li><input type="checkbox"><span>전체 테스트 그린(1078 + 슬라이스별 신규) — 각 슬라이스 CP4 마다</span></li>
+          <li><input type="checkbox"><span>grep: <code>RESOURCE_RENAMED</code> 소스 잔존 0 (plan/report 이력 제외)</span></li>
+          <li><input type="checkbox"><span>grep: <code>autoApplyPathDrift|autoApplyGhostRow</code> 잔존 0 · apply() 내 kind if-else 잔존 0(<code>:674-680</code> 소멸)</span></li>
+          <li><input type="checkbox"><span>D20 지점 침묵 <code>continue</code> 소멸 — SOFTDEL 매칭이 분류로 이어짐</span></li>
+          <li><input type="checkbox"><span><code>SHOW CREATE TABLE drift</code> — kind VARCHAR(32) 확인(S6-2-2)</span></li>
+          <li><input type="checkbox"><span>soft-deleted OSMetadata/BoardModel 존재 상태에서 스캔 → 무오류 + GHOST 오탐 0 (메타 제외 가드)</span></li>
+          <li><input type="checkbox"><span>수동 시나리오: trash 파일을 외부에서 mv/rm 한 뒤 스캔 → 매트릭스 판정·해결 버튼 동작(CP5, 사용자)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (단계 전체)</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td class="mono">global/marker/DriftKind.java</td><td><span class="badge mod">수정</span> S6-1 상수 삭제 · S6-2-1 mode 3단</td></tr>
+            <tr><td class="mono">global/marker/DriftResolutionMode.java</td><td><span class="badge new">신규</span> S6-2-1 — NONE/MANUAL/AUTO</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/service/resolution/ (DriftResolution + 구현 bean 6종)</td><td><span class="badge new">신규</span> S6-2-1 골격(2종) → S6-2-2/2-3 확충(4종)</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/service/PathReconciliationService.java</td><td><span class="badge mod">수정</span> 4a 본체 검사(S6-1) · 디스패치/자동적용 치환(S6-2-1) · soft-deleted 분류 패스(S6-2-2/2-3) · reissue 후속 트리거(R9-6)</td></tr>
+            <tr><td class="mono">maintenance/reconciliation/entity/Drift.java</td><td><span class="badge mod">수정</span> kind length 32 (S6-2-2)</td></tr>
+            <tr><td class="mono">sql/S6-2-2_drift_kind_widen.sql</td><td><span class="badge new">신규</span> DDL</td></tr>
+            <tr><td class="mono">global/marker/MarkableTrashOperator.java (재격리 경로)</td><td><span class="badge mod">검토</span> S6-2-2 plan 에서 확정 — 신규 default 1건 이내 예상</td></tr>
+            <tr><td class="mono">global/trash/enums/PurgeOrigin.java (+PurgeLog 기록 경로)</td><td><span class="badge mod">수정</span> S6-2-3 — TRASH_LOST 정리 origin</td></tr>
+            <tr><td class="mono">templates/maintenance/reconciliation/list.html · list.js</td><td><span class="badge mod">수정</span> 버튼 조건 <code>manuallyResolvable</code> 치환 + MANUAL 문구 — R9-3 modal/async 자산 그대로</td></tr>
+            <tr><td class="mono">application.properties (auto-apply 계열 키)</td><td><span class="badge mod">수정</span> S6-2-1 — kinds CSV 통합 + 마스터 <code>resolution-enabled</code> 개명</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">유지: MarkableScanner 4-SPI 구조(탐지 신규 SPI 0), TrashLifecycleService(재사용 — 무수정 목표), forced-apply saga, REST kind 직렬화 계약, R9 산출 UI 자산 전부.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s11" open>
+      <summary>§11. 다음 마일스톤 · Notion 구조</summary>
+      <div class="body">
+        <h4>Notion 등록 구조 (CP1 승인 후 신설)</h4>
+        <table>
+          <thead><tr><th>페이지</th><th>상위 항목</th><th>개발 단계 relation</th></tr></thead>
+          <tbody>
+            <tr><td><b>S6 : Reconciliation 도메인 기능 강화</b></td><td>(최상위)</td><td rowspan="6"><b>2-1차 개발</b><br><span class="dim mono" style="font-size:10px">36cef0e8-68f9-8058-a258-c6fcdd660115</span><br><span class="dim">R9 와 동일 소속 실측 확인 — 하위 슬라이스도 개별 relation 부여(S5 선례 패턴)</span></td></tr>
+            <tr><td>S6-1 : 미구현 DriftKind 정리 + quick scan 본체 검사</td><td>S6</td></tr>
+            <tr><td>S6-2 : SOFTDEL·TRASH 드리프트 탐지와 시스템 해결 완성</td><td>S6</td></tr>
+            <tr><td>S6-2-1 / S6-2-2 / S6-2-3</td><td>S6-2</td></tr>
+            <tr><td>R9-6 : 마커 재발급 실패의 후속 점검 자동화</td><td><b>R9</b> (기존 캠페인)</td></tr>
+            <tr><td>S6-3 : drift 액션 확충 (하위는 S6-3 plan 후)</td><td>S6</td></tr>
+          </tbody>
+        </table>
+        <h4>진행 규약</h4>
+        <p style="margin-top:0">본 plan 승인(CP1) → Notion 페이지 신설(본문 4항목 포함) → S6-1 slice plan 부터 각 슬라이스가 CP1~CP4 사이클 + 슬라이스별 plan/report html 산출. 이후 진행 지시는 결정 문서대로 각 대화를 따른다. S6-3 진입 시점에 별도 S6-3 plan html 로 액션별 설계·하위 분해 확정.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+
+  /* 🎬 soft-deleted 분류 시뮬레이터 — §4 매트릭스를 그대로 JS 로 재현 (서버 판정 시뮬레이션) */
+  const KINDMETA={
+    GHOST_DB_ROW:{label:'유령 DB 기록',mode:'AUTO',act:'적용하면 남은 DB 기록을 영구 삭제합니다. 복구할 파일이 없어 안전한 정리입니다.'},
+    SOFTDEL_ESCAPE_TO_ORIGINAL:{label:'삭제 자원 복귀',mode:'AUTO',act:'적용하면 DB 상태를 실제 위치에 맞게 정합합니다 (자원 복원).'},
+    SOFTDEL_ESCAPE_TO_OTHER:{label:'삭제 자원 위치 이탈',mode:'MANUAL',act:'적용하면 발견 위치의 자원을 휴지통으로 회수합니다.'},
+    TRASH_LOST:{label:'휴지통 자원 소실',mode:'MANUAL',act:'적용하면 남은 기록을 정리하고 감사 로그(PurgeLog)를 남깁니다.'},
+    TRASH_MARKER_STALE:{label:'잔여 마커 정리 필요',mode:'AUTO',act:'적용하면 잔여 마커를 정리합니다.'}
+  };
+  const BITS=[
+    {k:'tp',   lbl:'DB.trashed_path', on:'기록 있음', off:'null'},
+    {k:'tf',   lbl:'trash 파일',       on:'존재',      off:'없음', dep:'tp'},
+    {k:'of',   lbl:'원위치 파일',      on:'존재',      off:'없음'},
+    {k:'tm',   lbl:'trash 자원 옆 마커',on:'잔존',     off:'없음', dep:'tf'},
+    {k:'em',   lbl:'active 트리 타 위치 (type,id) 마커', on:'발견', off:'없음'}
+  ];
+  const initState=()=>({tp:true,tf:true,of:false,tm:false,em:false,deleted:true,aa:true,kinds:false,modal:null,note:''});
+  let S=initState();
+
+  /* 서버 분류 로직 재현 — §4 매트릭스와 1:1.
+     STALE 는 독립 신호(다른 판정을 가리지 않음), 실체 발견(em)은 무존재 계열(GHOST/TRASH_LOST)보다 우선,
+     em·of 동시 성립은 모호 상태로 TO_OTHER(MANUAL) + detail 병기. */
+  function classify(){
+    if(!S.deleted) return {finds:[],msg:'자원이 활성(복원됨) — soft-deleted 분류 대상 아님'};
+    const finds=[];let msg=null;
+    if(S.em){
+      finds.push({kind:'SOFTDEL_ESCAPE_TO_OTHER',
+        path:S.of?'모호 상태 — detail: "원위치에도 파일 존재" 병기. 진위는 restore 게이트(manifestHash)가 최종 판정':null});
+    }else if(!S.tp){
+      finds.push(S.of?{kind:'SOFTDEL_ESCAPE_TO_ORIGINAL',path:'경로② trashed_path=null + 원위치 출현'}
+                     :{kind:'GHOST_DB_ROW'});
+    }else if(!S.tf){
+      finds.push(S.of?{kind:'SOFTDEL_ESCAPE_TO_ORIGINAL',path:'경로① self-heal 게이트(원O·trashX)'}
+                     :{kind:'TRASH_LOST'});
+    }else if(S.of){
+      msg='원위치 점유(원O·trashO) — 의도적으로 drift 아님. 동일 경로 재사용(새 자원 업로드)이 정상 워크플로라 오탐이 되기 때문. restore 시점에 RestorePathOccupiedException 이 판정.';
+    }
+    if(S.tp&&S.tf&&S.tm) finds.push({kind:'TRASH_MARKER_STALE',path:'독립 신호 — 원위치 상태와 무관하게 평가'});
+    if(!finds.length&&!msg) msg='정상 soft-deleted 상태 — drift 없음';
+    return {finds,msg};
+  }
+
+  /* resolution 실행 — 상태를 실제로 전이시켜 "시스템이 해결"을 체험 */
+  function resolve(kind){
+    if(kind==='GHOST_DB_ROW'){S.note='row hard-delete — DB 기록 소멸. drift 제거.';S.deleted=true;S.tp=false;S.of=false;S.rowGone=true;}
+    else if(kind==='SOFTDEL_ESCAPE_TO_ORIGINAL'){S.deleted=false;S.tp=false;S.tf=false;S.note='restoreFromTrash 재사용 — DB 복원(is_deleted=false)·trashed 필드 정리·마커 재발급. drift 제거.';}
+    else if(kind==='SOFTDEL_ESCAPE_TO_OTHER'){const hadOf=S.of;S.em=false;S.tp=true;S.tf=true;S.tm=false;
+      S.note='재격리 — 발견 위치 자원을 trash 로 회수(mv), markTrashed 갱신, 동반 마커 정리. drift 제거.'
+        +(hadOf?' 원위치 파일은 점유 상태로 남음 — 이후 복원 시 restore 게이트가 진위 판정(§4 모호 상태 한계).':'');}
+    else if(kind==='TRASH_LOST'){S.rowGone=true;S.tp=false;S.note='row 정리 + PurgeLog(origin=TRASH_LOST 정리) 기록. drift 제거.';}
+    else if(kind==='TRASH_MARKER_STALE'){S.tm=false;S.note='trash 자원 옆 잔여 마커 파일 삭제. 자원·DB 불변. drift 제거.';}
+    S.modal=null;render();
+  }
+
+  const bitsEl=document.getElementById('bits'),area=document.getElementById('sim-area');
+  function render(){
+    /* 비트 토글 UI */
+    bitsEl.innerHTML=BITS.map(b=>{
+      const dis=(b.dep && !S[b.dep])||S.rowGone;
+      return `<div class="fsbit ${S[b.k]?'on':''}" data-k="${b.k}" style="${dis?'opacity:.4;pointer-events:none':''}">${b.lbl}<br><span class="st">${S[b.k]?b.on:b.off}</span></div>`;
+    }).join('');
+    bitsEl.querySelectorAll('.fsbit').forEach(el=>el.addEventListener('click',()=>{
+      const k=el.getAttribute('data-k');S[k]=!S[k];
+      if(k==='tp'&&!S.tp){S.tf=false;S.tm=false;} if(k==='tf'&&!S.tf){S.tm=false;}
+      S.modal=null;S.note='';render();
+    }));
+
+    if(S.rowGone){area.innerHTML=`<div class="sim-card"><h5>OS_ISO #42 — <span class="badge drop">row 소멸</span></h5><div class="row">${S.note}</div><div class="row dim">[시나리오 초기화]로 다시 시작</div></div>`;return;}
+
+    const c=classify();
+    let h='';
+    if(!c.finds.length){
+      h=`<div class="sim-card"><h5>OS_ISO #42 ${S.deleted?'<span class="badge keep">soft-deleted</span>':'<span class="badge new">활성</span>'}</h5>
+        <div class="row"><b class="lab">스캔 판정 :</b> ${c.msg}</div>${S.note?`<div class="row"><b class="lab">직전 해결 :</b> ${S.note}</div>`:''}</div>`;
+    }else{
+      if(c.msg) h+=`<div class="sim-card"><div class="row dim">${c.msg}</div></div>`;
+      c.finds.forEach(f=>{
+        const m=KINDMETA[f.kind];
+        h+=`<div class="sim-card"><h5>OS_ISO #42 <span class="badge ${m.mode==='AUTO'?'new':'manual'}">${m.label}</span> <span class="dim mono" style="font-size:10px">${f.kind} · ${m.mode}</span></h5>
+          ${f.path?`<div class="row dim">발생 경로: ${f.path}</div>`:''}
+          <div class="row"><b class="lab">해결 :</b> ${m.act}</div>
+          <div class="row dim">무인 자동 적용(스캔 중): ${m.mode==='AUTO'?(S.kinds&&S.aa?'다음 스캔에서 자동 실행됨 (kinds 포함)':'자격 있음 — auto-apply.kinds 미포함이라 수동 대기'):'불가(MANUAL) — 사용자 확인 필수'}</div>
+          <div class="sim-actions">
+            ${S.aa?`<button class="ux-btn apply-btn" data-kind="${f.kind}">해결 실행</button>`:`<button class="ux-btn" disabled>해결 실행</button><span class="tooltip-note">tooltip: 시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled — D5 개명 반영)</span>`}
+            <button class="ux-btn">보고 닫기</button>
+          </div></div>`;
+        if(S.modal===f.kind){
+          h+=`<div class="sim-modal" style="border-color:var(--yellow)"><b>확인 modal (R9-3 자산)</b> — "${m.label}" : ${m.act} 계속할까요? <button class="ux-btn" id="confirm-yes" data-kind="${f.kind}">확인</button> <button class="ux-btn" id="confirm-no">취소</button></div>`;
+        }
+      });
+      if(c.finds.length>1) h+=`<div class="sim-card"><div class="row dim">drift 2건 동시 보고 — STALE 는 독립 신호라 다른 판정을 가리지 않는다(§4 매트릭스 하단 규칙).</div></div>`;
+    }
+    area.innerHTML=h;
+    area.querySelectorAll('.apply-btn').forEach(b=>b.addEventListener('click',()=>{S.modal=b.getAttribute('data-kind');render();}));
+    const cy=document.getElementById('confirm-yes');
+    if(cy)cy.addEventListener('click',()=>resolve(cy.getAttribute('data-kind')));
+    const cn=document.getElementById('confirm-no');
+    if(cn)cn.addEventListener('click',()=>{S.modal=null;render();});
+  }
+  document.getElementById('aa-toggle').addEventListener('click',e=>{
+    S.aa=!S.aa;e.target.textContent=S.aa?'ON':'OFF';e.target.classList.toggle('on',S.aa);S.modal=null;render();});
+  document.getElementById('kinds-toggle').addEventListener('click',e=>{
+    S.kinds=!S.kinds;e.target.textContent=S.kinds?'AUTO 전종 포함':'비어 있음 (default)';e.target.classList.toggle('on',S.kinds);render();});
+  document.getElementById('reset-sim').addEventListener('click',()=>{const aa=S.aa,k=S.kinds;S=initState();S.aa=aa;S.kinds=k;
+    document.getElementById('aa-toggle').textContent=S.aa?'ON':'OFF';render();});
+  render();
+</script>
+</body>
+</html>

@@ -56,12 +56,6 @@ public class IsoMarkableScanner implements MarkableScanner {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Set<Long> findSoftDeletedResourceIds() {
-		return isoRepository.findIdsByIsDeletedTrue();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
 	public Optional<Markable> findActiveMarkableById(Long resourceId) {
 		return isoRepository.findById(resourceId)
 				.filter(i -> !i.isDeleted())

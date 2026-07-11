@@ -79,12 +79,6 @@ public interface BiosRepository extends JpaRepository<BoardBIOS, Long> {
 	 */
 	List<BoardBIOS> findAllByIsDeletedFalse();
 
-	/**
-	 * soft-deleted 자원의 ID Set (D20). ORPHAN 분류 후처리에서 매칭 제외 용도.
-	 */
-	@Query("select b.id from BoardBIOS b where b.isDeleted = true")
-	Set<Long> findIdsByIsDeletedTrue();
-
 	// ---- MK2 (단계 A · 메타 사전 매칭) --------------------------------
 
 	/**

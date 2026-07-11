@@ -38,11 +38,6 @@ public class BoardModelMarkableScanner implements MarkableScanner {
 	}
 
 	@Override
-	public Set<Long> findSoftDeletedResourceIds() {
-		return Collections.emptySet();
-	}
-
-	@Override
 	public void applyDriftedPath(Long resourceId, Path newPath) {
 		// 메타 자원 — no-op.
 	}

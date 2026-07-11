@@ -75,19 +75,19 @@ class PathReconciliationEdgeCaseTest {
 
         isoScanner = mock(MarkableScanner.class);
         given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
-        given(isoScanner.findSoftDeletedResourceIds()).willReturn(Set.of());
 
         biosScanner = mock(MarkableScanner.class);
         given(biosScanner.supportedType()).willReturn(ResourceType.BIOS_BUNDLE);
-        given(biosScanner.findSoftDeletedResourceIds()).willReturn(Set.of());
 
         // self proxy 자리는 단위 테스트 범위 외. null 주입.
         service = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
-                driftReportRepository, driftRepository, null);
+                driftReportRepository, driftRepository,
+                List.of(new com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution(),
+                        new com.example.serverprovision.maintenance.reconciliation.service.resolution.GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(service, "startupEnabled", true);
         ReflectionTestUtils.setField(service, "retentionCount", 100);
-        ReflectionTestUtils.setField(service, "autoApplyPathDrift", false);
+        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "");
         ReflectionTestUtils.setField(service, "extraRootsCsv", "");
     }
 
@@ -226,7 +226,7 @@ class PathReconciliationEdgeCaseTest {
     }
 
     @Test
-    @DisplayName("A5 : 본체만 이동, sidecar 는 그대로 — DB 위치 옆 sidecar 가 살아있어 happy 분류 (위험!)")
+    @DisplayName("A5 : 본체만 이동, sidecar 는 그대로 — S6-1 본체 검사로 quick scan 이 즉시 MISSING (종전 침묵 해소)")
     void bodyOnlyMoved_markerStays(@TempDir Path tmp) throws Exception {
         Path dvd = tmp.resolve("orig/dvd.iso");
         Files.createDirectories(dvd.getParent());
@@ -244,19 +244,24 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        // DB.path 옆에 sidecar 가 그대로 살아있으므로 quick scan 은 정상으로 본다 — 본체 분실을 못 잡는다.
-        // 이 사실을 확인 (quick 스캔의 한계).
-        assertThat(saved.getDrifts()).isEmpty();
+        // 종전에는 sidecar 가 살아있으면 quick scan 이 정상으로 봐서 본체 분실이 deep 주기까지 침묵했다.
+        // S6-1 — 4a 본체 존재 검사가 quick 에서 바로 MISSING 으로 보고한다.
+        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+            assertThat(d.getKind()).isEqualTo(DriftKind.MISSING);
+            assertThat(d.getResourceId()).isEqualTo(42L);
+            assertThat(d.getDetail()).contains("본체 파일 부재");
+        });
     }
 
     @Test
-    @DisplayName("A5-deep : 본체만 삭제 + sidecar 잔류 → deep scan recompute empty → MISSING drift")
+    @DisplayName("A5-deep : 본체는 존재하나 해시 재계산 실패(IO 오류) → deep scan recompute empty → MISSING drift")
     void bodyOnlyMoved_deepRecomputeMissing(@TempDir Path tmp) throws Exception {
         Path dvd = tmp.resolve("orig/dvd.iso");
         Files.createDirectories(dvd.getParent());
         Files.writeString(dvd, "body");
         writeIsoMarker(dvd, 42L, "hash-42");
-        Files.delete(dvd); // 파일만 삭제 (마커는 잔류) — recompute Optional.empty
+        // S6-1 이후 본체 부재는 4a 가 quick 에서 잡으므로, 본 분기의 잔존 목적은
+        // "본체는 존재하나 재계산이 실패(IO 오류)" 케이스다 — 본체를 남기고 recompute 만 empty 로 stub.
 
         Markable m = iso(42L, dvd);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
@@ -265,8 +270,8 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(true);
 
-        // (B-2 fix) recompute 가 empty 면 본체 자원 부재로 보고 MISSING drift 를 발행한다 —
-        // deep scan 도 자원 손실을 인지하지 못하던 기존 버그를 교정.
+        // (B-2 fix) recompute 가 empty 면 자원 접근 불능으로 보고 MISSING drift 를 발행한다 —
+        // deep scan 도 자원 손실을 인지하지 못하던 기존 버그의 교정 분기가 S6-1 이후에도 살아있음을 고정.
         assertThat(saved.getDrifts()).hasSize(1);
         assertThat(saved.getDrifts().get(0).getKind()).isEqualTo(DriftKind.MISSING);
         assertThat(saved.getDrifts().get(0).getResourceId()).isEqualTo(42L);
@@ -475,7 +480,7 @@ class PathReconciliationEdgeCaseTest {
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
         // ghost 디렉토리가 없으므로 scan root union 에 포함만 시키도록 extra-roots 사용
         ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
-        ReflectionTestUtils.setField(service, "autoApplyPathDrift", true);
+        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "PATH_DRIFT");
 
         // 첫 번째 자원 적용 시 RuntimeException
         doThrow(new RuntimeException("disk-fail"))
@@ -554,18 +559,20 @@ class PathReconciliationEdgeCaseTest {
     // ==== H. ORPHAN with mixed soft-delete IDs ========================
 
     @Test
-    @DisplayName("H : soft-deleted ID 셋이 다른 도메인의 마커는 보호 못 함 — 도메인별 분리 확인")
-    void softDeletedIds_isPerDomain(@TempDir Path tmp) throws Exception {
+    @DisplayName("H → S6-2-2 : 삭제 자원 대조는 (자원종류, 번호) 키 — 다른 도메인의 같은 번호는 보호 못 함")
+    void softDeletedMatching_isPerDomain(@TempDir Path tmp) throws Exception {
         Path iso = tmp.resolve("iso/x.iso");
         Files.createDirectories(iso.getParent());
         Files.writeString(iso, "x");
         writeIsoMarker(iso, 50L, "h");
 
-        // BIOS soft-deleted 셋에 50 이 있어도 — domain 다르므로 ISO 50 의 ORPHAN 분류 막지 못함
+        // BIOS 쪽에 50번 삭제 자원이 있어도 — 도메인이 다르므로 ISO 50 마커의 ORPHAN 분류를 막지 못함
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
-        given(isoScanner.findSoftDeletedResourceIds()).willReturn(Set.of()); // ISO 측엔 없음
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        given(biosScanner.findSoftDeletedResourceIds()).willReturn(Set.of(50L)); // BIOS 측 50 — 무관해야
+        Markable deletedBios = mock(Markable.class);
+        given(deletedBios.getResourceType()).willReturn(ResourceType.BIOS_BUNDLE);
+        given(deletedBios.getResourceId()).willReturn(50L);
+        given(biosScanner.findTrashed()).willReturn(List.of(deletedBios));
         ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);

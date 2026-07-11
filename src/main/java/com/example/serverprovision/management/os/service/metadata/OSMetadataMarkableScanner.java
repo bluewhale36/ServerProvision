@@ -47,14 +47,6 @@ public class OSMetadataMarkableScanner implements MarkableScanner {
 	}
 
 	/**
-	 * 메타 자원 — soft-deleted ID 셋은 reconciliation 의 ORPHAN 분류 제외용 SPI. 빈 셋 충분.
-	 */
-	@Override
-	public Set<Long> findSoftDeletedResourceIds() {
-		return Collections.emptySet();
-	}
-
-	/**
 	 * 메타 자원 — 디스크 path 없음. no-op.
 	 */
 	@Override

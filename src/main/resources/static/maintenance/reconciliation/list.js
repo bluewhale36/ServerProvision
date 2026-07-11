@@ -7,7 +7,8 @@
     · R9-1 — bgjob:completed / bgjob:failed 구독으로 완료를 화면에 반영:
         자기 트리거 스캔   → sessionStorage 토스트 + 자동 reload (위치는 selectKey alias 로 보존)
         외부(주기) 스캔    → 배너 안내만 (열람 중 화면 리셋 방지)
-        재발급             → reload 없이 결과 토스트 (보고서 불변 — 성공/실패 건수 표면화)
+        재발급             → reload 없이 결과 토스트. 실패>0 이면 서버가 후속 점검을 자동 시작(R9-6)
+                         — 그 완료는 외부 스캔과 동일하게 '새 보고서 도착' 배너가 안내
     · R9-3 — 확인 UI 정합:
         Deep 스캔/재발급 → 정적 generic modal (reconConfirm — 페이지 액션이라 자원 시그니처 무관)
         드리프트 적용/보고 닫기 → lazy modal (DRIFT_APPLY / DRIFT_DISMISS) + data-async-submit
@@ -120,13 +121,20 @@
             }
             return;
         }
+        if (d.type === 'HASH_ACCEPT' && selfJobs.has(d.id)) {
+            const m = d.metadata || {};
+            sessionStorage.setItem(TOAST_KEY,
+                '수용 완료 — ' + (m.acceptedResource || '자원') + ' 의 등록 지문을 현재 내용으로 갱신했습니다.');
+            window.location.reload();
+            return;
+        }
         if (d.type === 'MARKER_REISSUE' && selfJobs.has(d.id)) {
             // 재발급은 DriftReport 를 만들지 않으므로 reload 무의미 — 결과(부분 실패 포함)만 토스트.
             const m = d.metadata || {};
             const failed = parseInt(m.reissueFailed || '0', 10);
             const msg = '마커 재서명 완료 — 성공 ' + (m.reissueSucceeded != null ? m.reissueSucceeded : '?')
                 + '건, 실패 ' + (m.reissueFailed != null ? m.reissueFailed : '?') + '건'
-                + (failed > 0 ? ' (상세는 서버 로그 확인)' : '');
+                + (failed > 0 ? ' — 실패 자원 확인을 위한 점검이 자동으로 이어집니다' : '');
             toast(msg, failed > 0 ? {variant: 'error', duration: 8000} : {});
             restore(selfJobs.get(d.id));
             selfJobs.delete(d.id);
@@ -136,7 +144,7 @@
     document.addEventListener('bgjob:failed', ev => {
         const d = ev.detail || {};
         if (!selfJobs.has(d.id)) return;
-        const prefix = d.type === 'MARKER_REISSUE' ? '마커 재서명 실패' : '점검 실패';
+        const prefix = ({MARKER_REISSUE: '마커 재서명 실패', HASH_ACCEPT: '내용 수용 실패'})[d.type] || '점검 실패';
         toast(prefix + (d.errorMessage ? ' : ' + d.errorMessage : ''), {variant: 'error', duration: 8000});
         restore(selfJobs.get(d.id));
         selfJobs.delete(d.id);
@@ -162,7 +170,71 @@
         });
     }
 
+    // S6-3-3 — [다시 점검] : 확인 액션이라 modal 없이 즉시 실행. 해소면 토스트+reload(카드 소멸 반영),
+    // 잔존이면 카드 불변 + 안내 토스트만 (재분류는 다음 전체 점검의 몫).
+    function bindRecheckButtons() {
+        document.querySelectorAll('[data-recheck-url]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.disabled = true;
+                fetch(btn.dataset.recheckUrl, {method: 'POST', headers: {'Accept': 'application/json'}})
+                    .then(res => {
+                        if (!res.ok) return res.text().then(txt => { throw new Error('다시 점검 실패 (HTTP ' + res.status + ')'); });
+                        return res.json();
+                    })
+                    .then(data => {
+                        if (data.resolved) {
+                            sessionStorage.setItem(TOAST_KEY, '해소 확인 — 카드를 정리했습니다.');
+                            window.location.reload();
+                        } else {
+                            toast('아직 해결되지 않았습니다 — 안내된 조치 후 다시 시도하세요.', {duration: 6000});
+                            btn.disabled = false;
+                        }
+                    })
+                    .catch(err => {
+                        ErrorModal.show({message: err.message || '다시 점검 실패', status: 0});
+                        btn.disabled = false;
+                    });
+            });
+        });
+    }
+
+    // S6-3-4 — [현재 내용을 정본으로 수용] : 자원명 확인 + 비동기 작업 시작. 완료/실패는 bgjob 이벤트.
+    function bindAcceptHashForms() {
+        document.querySelectorAll('form[data-accept-hash-url]').forEach(form => {
+            form.addEventListener('submit', ev => {
+                ev.preventDefault();
+                const input = form.querySelector('input[name=typedName]');
+                const btn = form.querySelector('button[type=submit]');
+                if (!input.value.trim()) { input.focus(); return; }
+                btn.disabled = true;
+                fetch(form.dataset.acceptHashUrl, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'},
+                    body: 'typedName=' + encodeURIComponent(input.value.trim())
+                }).then(res => {
+                    if (!res.ok) {
+                        // R2-6 공용 파서 재사용 — raw JSON 노출 방지 (거절 사유를 정제된 문구로)
+                        ErrorModal.fromResponse(res, {fallback: '수용을 시작하지 못했어요.'});
+                        btn.disabled = false;
+                        return null;
+                    }
+                    return res.json();
+                }).then(data => {
+                    if (!data) return;
+                    selfJobs.set(data.jobId, btn);
+                    btn.textContent = '지문 재계산 중…';
+                    toast('내용 수용 작업을 시작했습니다 — 완료되면 알려드립니다.');
+                }).catch(() => {
+                    ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+                    btn.disabled = false;
+                });
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+        bindRecheckButtons();
+        bindAcceptHashForms();
         ['scanBtn', 'scanDeepBtn', 'reissueBtn'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.addEventListener('click', () => trigger(btn));

@@ -78,22 +78,46 @@ class TrashLifecycleServiceTest {
         }
 
         @Test
-        @DisplayName("(원O·trashX) partial-restore 잔여 — moveBack/write skip, DB 만 self-heal (2xx)")
+        @DisplayName("(원O·trashX) partial-restore 잔여 — moveBack skip + DB self-heal + 마커 재발급 (S6-2-2 보강)")
         void self_heal(@TempDir Path tmp) {
             Path trashed = tmp.resolve("gone.iso");     // 부재
             Path original = tmp.resolve("active/original.iso");
             writeFile(original);                          // 원위치 존재
             Path markerFile = original.resolveSibling("original.iso.provision.json"); // 마커 부재 → 선택 검증 skip
             given(markerService.resolveMarkerFile(original, MarkerLayout.SIDECAR)).willReturn(markerFile);
+            given(markerService.computeSignature(any())).willReturn("sig-heal");
 
             TestEntity entity = deletedEntity(2L, original, trashed, "h-2");
 
             service.restoreFromTrash(entity, e -> Map.of());
 
             verify(trashService, never()).moveBack(any(), any());
-            verify(markerService, never()).write(any(), any(), any());
+            // S6-2-2 — 종전엔 write 를 건너뛰어 "마커 없는 활성 자원"이 남았고, 다음 점검이 곧장
+            // MISSING 으로 떨어졌다. self-heal 도 마커가 없으면 재발급까지 마쳐야 복원이 완결된다.
+            verify(markerService).write(eqPath(original), eqLayout(), any());
             assertThat(entity.isDeleted()).isFalse();
             assertThat(entity.getTrashedPath()).isNull();
+            assertThat(entity.reissuedSignature).isEqualTo("sig-heal");
+        }
+
+        @Test
+        @DisplayName("(원O·trashX) self-heal — 원위치에 유효 마커가 이미 있으면 재발급하지 않음")
+        void self_heal_keepsExistingMarker(@TempDir Path tmp) throws Exception {
+            Path trashed = tmp.resolve("gone.iso");
+            Path original = tmp.resolve("active/original.iso");
+            writeFile(original);
+            Path markerFile = original.resolveSibling("original.iso.provision.json");
+            Files.writeString(markerFile, "{}"); // 잔존 마커 (partial-restore 가 write 후 끊긴 경우)
+            given(markerService.resolveMarkerFile(original, MarkerLayout.SIDECAR)).willReturn(markerFile);
+            given(markerService.read(original, MarkerLayout.SIDECAR)).willReturn(
+                    new MarkerContent("OS_ISO", 2L, Map.of(), java.time.Instant.now(), "h-2", "sig-old"));
+
+            TestEntity entity = deletedEntity(2L, original, trashed, "h-2");
+
+            service.restoreFromTrash(entity, e -> Map.of());
+
+            verify(markerService, never()).write(any(), any(), any()); // 검증 통과한 잔존 마커는 그대로
+            assertThat(entity.isDeleted()).isFalse();
         }
 
         @Test

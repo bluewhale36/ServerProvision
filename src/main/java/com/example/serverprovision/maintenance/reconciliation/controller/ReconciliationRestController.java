@@ -26,6 +26,8 @@ import java.util.Optional;
 public class ReconciliationRestController {
 
 	private final PathReconciliationService reconciliationService;
+	private final com.example.serverprovision.maintenance.reconciliation.service.recheck.DriftRecheckService driftRecheckService;
+	private final com.example.serverprovision.maintenance.reconciliation.service.HashAcceptService hashAcceptService;
 
 	/**
 	 * 가장 최근 보고서 1 건. 한번도 스캔된 적 없으면 204.
@@ -91,6 +93,28 @@ public class ReconciliationRestController {
 	/**
 	 * 단건 무시 처리 — 보고서에서 해당 drift 행 삭제.
 	 */
+	/**
+	 * S6-3-3 — [다시 점검] : 그 자원 하나만 즉시 재확인. 해소면 카드 제거 후 resolved=true,
+	 * 잔존이면 카드 불변 + resolved=false (프론트가 토스트로 구분 안내).
+	 */
+	@PostMapping("/drifts/{driftId}/recheck")
+	@org.springframework.web.bind.annotation.ResponseBody
+	public java.util.Map<String, Boolean> recheck(@PathVariable Long driftId) {
+		return java.util.Map.of("resolved", driftRecheckService.recheck(driftId));
+	}
+
+	/**
+	 * S6-3-4 — [현재 내용을 정본으로 수용] : 자원명 확인 통과 시 백그라운드 수용 작업 시작.
+	 * 완료는 bgjob 이벤트가 카드 제거를 화면에 반영 (표준 apply 와 다른 비동기 계약이라 전용 엔드포인트).
+	 */
+	@PostMapping("/drifts/{driftId}/accept-hash")
+	@org.springframework.web.bind.annotation.ResponseBody
+	public java.util.Map<String, String> acceptHash(
+			@PathVariable Long driftId,
+			@org.springframework.web.bind.annotation.RequestParam String typedName) {
+		return java.util.Map.of("jobId", hashAcceptService.triggerAccept(driftId, typedName));
+	}
+
 	@PostMapping("/drifts/{driftId}/dismiss")
 	public RedirectView dismiss(@PathVariable Long driftId, RedirectAttributes redirectAttributes) {
 		reconciliationService.dismiss(driftId);

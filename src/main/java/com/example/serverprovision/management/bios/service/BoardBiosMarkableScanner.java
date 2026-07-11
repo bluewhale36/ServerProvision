@@ -45,12 +45,6 @@ public class BoardBiosMarkableScanner implements MarkableScanner {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Set<Long> findSoftDeletedResourceIds() {
-		return biosRepository.findIdsByIsDeletedTrue();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
 	public Optional<Markable> findActiveMarkableById(Long resourceId) {
 		return biosRepository.findById(resourceId)
 				.filter(b -> !b.isDeleted())

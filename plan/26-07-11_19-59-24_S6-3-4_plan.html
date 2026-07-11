@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6-3-4 plan — 내용 변경 수용 (세부 설계)</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:#ffebe9;
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;background:var(--purple-bg);color:var(--purple);vertical-align:2px}
+  .wrap{max-width:1040px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:16px;margin:26px 0 10px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .decide{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:10px 0}
+  .decide h4{margin:0 0 6px;font-size:13.5px;color:var(--blue)}
+  .decide p{margin:4px 0;font-size:13px}
+  .callout{border-left:3px solid var(--yellow);background:var(--yellow-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  ul{padding-left:20px} li{padding:2px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>S6-3-4 — 내용 변경 수용 <span class="chip">CP1 세부 설계 (구현 대기)</span></h1>
+  <p>S6-3 마지막 슬라이스 · 2026-07-11 KST · CP1 승인(사용자) — 확인 창 표시는 감지 시각·정본 인정 시각 채택, 파일 수정 시각(mtime)은 위조 가능성으로 반려. 재업로드 1차 권장 원칙 반영</p>
+</header>
+<div class="wrap">
+
+  <p style="font-size:14px">"내용 변경 감지" 카드에서 <b>[현재 내용을 정본으로 수용]</b> — 의도된 파일 교체를 사람이 선언하면, 시스템이 등록 지문을 현재 파일 기준으로 다시 계산해 갱신합니다. 잘못 누르면 실제 변조가 정상으로 굳는 <b>가장 무거운 액션</b>이라 자원명 입력 확인 + 감사 기록을 요구하고, 대용량 파일의 지문 재계산(수 분) 때문에 백그라운드로 실행합니다.</p>
+
+  <h2>유보됐던 3가지 질문의 답</h2>
+  <div class="decide"><h4>① 백그라운드 작업과 카드의 연결 — "연결하지 않는다"가 답</h4>
+    <p>완료 시점에 서버가 카드를 제거하고, 화면은 <b>기존 완료 알림 체계</b>(점검·재발급과 같은 bgjob 이벤트)로 토스트를 받아 새로고침하면 끝 — 작업↔카드 매핑 테이블 같은 신규 배선이 필요 없다. 시작 시 응답으로 받은 작업 번호를 페이지가 기억(점검 버튼과 동일 패턴)하고, 완료 이벤트의 결과 값(자원 이름·성공 여부)을 토스트 문구에 쓴다. 실패 시 카드는 그대로 남아 재시도 가능(작업 실패 알림이 사유 표시).</p></div>
+  <div class="decide"><h4>② 자원명 입력 확인 창 — 영구삭제의 확인 창 계열을 재사용</h4>
+    <p>영구삭제·nudge 가 쓰는 자원명 입력 확인 자산(typed-name modal)이 이미 검증돼 있다 — 드리프트 카드용 변형 1종을 그 계열에 추가한다(신규 발명 없음). 검증은 서버의 기존 <code>TypedNameGuard</code>(자원 표시명 일치) 재사용.<br>
+    <span class="dim">비채택: 표준 [적용] 폼에 입력칸 추가 — [적용]은 "누르면 그 자리에서 끝"이라는 동기 계약이라, 비동기 + 입력 검증이 섞이면 두 계약이 오염된다.</span></p></div>
+  <div class="decide"><h4>③ 점검 잠금과의 관계 — 공유하지 않는다</h4>
+    <p>수용 작업 중 점검이 같은 마커를 읽어도 최악은 "일시적으로 옛 판정이 한 번 더 보고"되는 것 — 다음 점검에서 자연 소멸하는 무해한 경합이라 잠금 공유(=수 분간 점검 전면 차단)의 비용이 더 크다. 대신 <b>같은 카드의 중복 수용</b>은 시작 시점에 진행 중 작업 존재 여부로 거절한다.</p></div>
+
+  <h2>동작 설계</h2>
+  <table>
+    <thead><tr><th style="width:24%">단계</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>1. 버튼·확인</td><td>내용 변경 카드에 표시되는 판단 재료(승인 검토 정보): <b>감지 시각 · 정본 인정 시각(마커가 마지막으로 서명된 때) · 등록 지문 · 감지 시점의 현재 지문</b>(전문 — 벤더 공식 체크섬/변경 티켓과 대조용). 파일 수정 시각은 위조 가능성으로 표시하지 않음(반려 확정). 안내: "<b>원본 재업로드가 더 안전합니다</b>(검증 재통과). 의도된 교체가 확실할 때만 자원명을 입력해 수용하세요."</td></tr>
+      <tr><td>2. 시작(동기)</td><td>카드 유효성·자원 존재·자원명 일치(TypedNameGuard)·중복 작업 검증 → 통과 시 백그라운드 작업 등록, 작업 번호 응답. 거절은 전부 409 + 이유.</td></tr>
+      <tr><td>3. 실행(비동기)</td><td>내용 지문 재계산(대용량 수 분, 진행 단계 표시) → <b>감지 시점 지문과 대조 — 그 사이 파일이 또 바뀌었으면 실패 처리</b>(사용자가 확인한 내용과 다른 것이 정본화되는 사고 차단 — Tripwire high-security 모드 등가) → 마커에 새 지문·새 서명 기록 + DB 갱신 → 카드 제거 → 완료(결과에 자원 이름). [AUDIT] 경고 로그.</td></tr>
+      <tr><td>4. 완료(화면)</td><td>완료 알림 → "수용 완료 — {자원명}의 등록 지문을 현재 내용으로 갱신했습니다" 토스트 + 새로고침(카드 소멸 반영). 실패 → 사유 토스트, 카드 유지.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout" style="border-color:var(--green);background:var(--green-bg)"><b>CP1 승인 (2026-07-11)</b> — 아래 유보 사유는 승인으로 해소, CP4 까지 무중단 진행. 원문 보존: <b>구현 대기 사유(이력)</b> — 보안상 가장 민감한 액션(변조 수용 선언)인 데다 확인 창·백그라운드 완료 배선이 이 캠페인의 다른 슬라이스와 달리 화면 자산을 새로 조합한다. 장시간 자율 세션의 끝자락에서 서두르기보다, 본 세부 설계를 검토받은 뒤 새 세션에서 착수하는 것이 안전하다고 판단(자율 위임 범위 안에서의 신중 선택). 캠페인의 나머지 전부(드리프트 10종 실동작 + 액션 3종)는 완료 상태.</div>
+
+  <h2>검증 계획 (구현 시)</h2>
+  <ul>
+    <li>자원명 불일치 / 카드 stale(자원 소멸·내용 원복) / 중복 작업 → 각 409 + 디스크 무변경</li>
+    <li>수용 완료 후: 마커의 지문=현재 파일, 서명 유효, 카드 제거, 다음 정밀 점검 무보고</li>
+    <li>재계산 도중 실패(IO) → 마커·DB 무변경(원자성) + 작업 실패 알림 + 카드 유지</li>
+    <li><code>DriftKindTest</code> 배정표(HASH → MANUAL 또는 전용 축) 갱신 — 채택 형태는 구현 시 확정: 전용 엔드포인트+전용 버튼(잠정) vs resolution 프레임 편입(비동기 킥오프형) 양안을 코드 실측으로 판정</li>
+  </ul>
+</div>
+</body>
+</html>

@@ -44,12 +44,6 @@ public class BoardBmcMarkableScanner implements MarkableScanner {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Set<Long> findSoftDeletedResourceIds() {
-		return bmcRepository.findIdsByIsDeletedTrue();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
 	public Optional<Markable> findActiveMarkableById(Long resourceId) {
 		return bmcRepository.findById(resourceId)
 				.filter(b -> !b.isDeleted())

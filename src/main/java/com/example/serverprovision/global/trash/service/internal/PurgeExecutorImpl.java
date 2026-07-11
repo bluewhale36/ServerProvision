@@ -56,7 +56,11 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 	}
 
 	@Override
-	@Transactional
+	// S6-2-3 — 클래스 javadoc 이 명시한 REQUIRES_NEW 가 실제 어노테이션에 빠져 있었다. 종전 호출부
+	// (컨트롤러/cron)는 트랜잭션 밖이라 드러나지 않았으나, TrashLostClearResolution 이 @Transactional 인
+	// apply() 내부에서 처음 호출하면서 — 실패 시 FAILED 감사 로그가 호출자 롤백에 휩쓸려 소실되는
+	// 결함으로 실체화 (적대적 검증 발견). 분리 트랜잭션으로 감사 기록의 생존을 보장한다.
+	@Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
 	public PurgeResult execute(PurgeRequest request) {
 		MarkableScanner scanner = scannerByType().get(request.resourceType());
 		if (scanner == null) {
@@ -78,6 +82,14 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 		for (int tickAttempt = 1; tickAttempt <= maxAttempts; tickAttempt++) {
 			try {
 				scanner.purgeFromTrash(request.resourceId());
+				// S6-2-3 — 도메인 purge 는 원위치 부산물만 정리한다(soft-delete 가 원위치 경로를 보존하는
+				// 설계라 실물은 휴지통에 있음). 여기서 휴지통 실물을 함께 정리하지 않으면 영구삭제가
+				// 끝나도 파일이 휴지통(점검 수색 제외 구역)에 영원히 남는다 — 세 진입경로가 모두
+				// 지나는 단일 지점이라 이 한 곳 보강으로 전 도메인·전 경로에 적용된다.
+				if (snapshot instanceof com.example.serverprovision.global.entity.LifecycleEntity lifecycle
+						&& lifecycle.getTrashedPath() != null) {
+					deleteQuietly(lifecycle.getTrashedPath());
+				}
 				Instant purgedAt = Instant.now();
 				PurgeLogDetails.Success details = new PurgeLogDetails.Success(
 						request.triggeredBy(),
@@ -152,6 +164,18 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 				request, saved.getId(),
 				new PurgeIoFailedException("자원이 휴지통에 없습니다. id=" + request.resourceId())
 		);
+	}
+
+	/**
+	 * S6-2-3 — 휴지통 실물 정리는 best-effort. 실패해도 purge 자체(기록 삭제)는 성공으로 유지하고 로그만 남긴다.
+	 */
+	private static void deleteQuietly(String rawPath) {
+		try {
+			java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(rawPath));
+		} catch (java.io.IOException | java.nio.file.InvalidPathException e) {
+			// Path 해석 실패까지 함께 흡수 — 이미 성공한 purge 를 실물 정리 문제로 실패 처리하지 않는다.
+			log.warn("[purge-executor] 휴지통 실물 정리 실패. path={}, msg={}", rawPath, e.getMessage());
+		}
 	}
 
 	private static void sleepBackoff(int tickAttempt, long backoffBaseMs) {

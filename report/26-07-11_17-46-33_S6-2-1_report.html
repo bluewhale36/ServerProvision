@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6-2-1 report — 해결 디스패치 다형화 기반 (CP4)</title>
+<style>
+  :root{
+    --bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:rgba(191,38,38,.09);
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header.page-header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+  header h1{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+  .meta strong{color:var(--text);font-weight:600}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .chip.cp4{background:var(--green-bg);color:var(--green)}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:24px;max-width:1320px;margin:0 auto;padding:24px}
+  main{min-width:0}
+  nav.toc{position:sticky;top:108px;align-self:start;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:12px;max-height:calc(100vh - 130px);overflow-y:auto}
+  nav.toc strong{display:block;margin-bottom:6px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+  nav.toc ol{list-style:none;padding:0;margin:0 0 12px}
+  nav.toc li{padding:3px 0}
+  nav.toc a{color:var(--muted);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+  nav.toc a:hover{background:var(--bg);color:var(--blue)}
+  nav.toc button{border:1px solid var(--border);background:var(--card);padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;width:100%}
+  .filter-box{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;margin-bottom:14px;background:var(--card)}
+  details.section{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  details.section>summary{cursor:pointer;padding:14px 18px;font-size:15px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  details.section>summary::-webkit-details-marker{display:none}
+  details.section>summary::before{content:'›';color:var(--muted);font-size:18px;transition:transform .15s;display:inline-block;width:14px}
+  details.section[open]>summary::before{transform:rotate(90deg);color:var(--blue)}
+  details.section .body{padding:0 18px 18px;border-top:1px solid var(--soft);padding-top:14px}
+  h4{margin:18px 0 7px;font-size:13.5px;color:var(--blue)} h4:first-child{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--soft);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:600;font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.9em;font-family:var(--mono)}
+  ul,ol{padding-left:20px} li{padding:2px 0}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)} .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .mono{font-family:var(--mono)} .dim{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
+  .badge.keep{background:var(--green-bg);color:var(--green)}.badge.mod{background:var(--blue-bg);color:var(--blue)}.badge.drop{background:var(--red-bg);color:var(--red)}.badge.new{background:var(--purple-bg);color:var(--purple)}
+  .check-list{list-style:none;padding:0}.check-list li{padding:3px 0;display:flex;gap:8px;align-items:flex-start}.check-list input{margin-top:4px}
+  @media(max-width:1000px){.layout{grid-template-columns:1fr;padding:16px}nav.toc{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>S6-2-1 report — 해결 디스패치 다형화 기반 <span class="chip cp4">CP4</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S6-2-1 (S6-2 — 1/3)</span>
+    <span><strong>plan</strong> plan/26-07-11_17-32-29_S6-2-1_plan.html</span>
+    <span><strong>테스트</strong> 전체 1086 / 실패 0 (신규 5)</span>
+    <span><strong>작성</strong> 2026-07-11 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol>
+      <li><a href="#r1">§1 구현 요약</a></li>
+      <li><a href="#r2">§2 plan 대비 이행 (D1~D6)</a></li>
+      <li><a href="#r3">§3 변경 파일 상세</a></li>
+      <li><a href="#r4">§4 테스트 결과</a></li>
+      <li><a href="#r5">§5 동작·설정 변화 (CP5 안내)</a></li>
+      <li><a href="#r6">§6 Verification 체크</a></li>
+      <li><a href="#r7">§7 다음 마일스톤</a></li>
+    </ol>
+    <button id="toggle">전부 펴기 / 접기</button>
+  </nav>
+  <main>
+    <input class="filter-box" id="filter" placeholder="섹션 / 단어 검색 …">
+
+    <details class="section" id="r1" open>
+      <summary>§1. 구현 요약</summary>
+      <div class="body">
+        <p style="margin-top:0">S6-2 캠페인의 기반 슬라이스 — 신규 kind 를 아직 추가하지 않고, <b>신규 kind 가 안전하게 꽂힐 세 가지 구조</b>를 완성했다:</p>
+        <ul>
+          <li><b>해결 디스패치 다형화</b> — <code>apply()</code>/스캔 무인 적용의 kind if-else 를 <code>DriftResolution</code> 전략 bean Map 디스패치로 치환. 기존 2종(PATH_DRIFT/GHOST_DB_ROW)은 동작 등가 이전. <code>Path.of(null)</code> NPE 잠복 경로 소멸(테스트로 고정).</li>
+          <li><b>DriftResolutionMode 3단</b>(NONE/MANUAL/AUTO) — boolean 1축을 대체. MANUAL(사용자 확인 후 시스템이 해결) 개념이 타입으로 생겼고, 불법 조합(manual=false·auto=true)은 표현 자체가 불가.</li>
+          <li><b>설정 통합·개명(breaking 일괄 1회)</b> — kind 별 boolean 2키 → <code>reconciliation.auto-apply.kinds</code> CSV 1키, 마스터 <code>auto-apply</code> → <code>resolution-enabled</code>. 예외도 <code>DriftResolutionNotAllowedException</code> 으로 개명해 설정·가드·문구·UI tooltip 이 전부 "시스템 해결" 어휘로 정합.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="r2" open>
+      <summary>§2. plan 대비 이행 (D1~D6)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>결정</th><th>이행</th><th>차이</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b> mode 3단</td><td><code>DriftResolutionMode</code> 신설 + <code>DriftKind</code> 4번째 필드 교체 + 파생 접근자 <code>isAutoApplicable()</code>/<code>isManuallyResolvable()</code>. 배정: AUTO 4 / MANUAL 2 / NONE 4</td><td>없음</td></tr>
+            <tr><td><b>D2</b> 전략 bean 디스패치</td><td><code>resolution/</code> 패키지 — 인터페이스 + <code>PathDriftResolution</code>·<code>GhostDbRowClearResolution</code>. 생성자에서 <code>toUnmodifiableMap</code> 조립(중복 kind 는 조립 시점 즉시 실패). 스캔 무인 적용도 같은 bean 경유, drift 는 보고서에 기록 유지(동작 불변)</td><td>없음</td></tr>
+            <tr><td><b>D3</b> map-miss 널가드</td><td>forced 우회 블록 밖 무조건 배치 — forced apply + bean 미등록 kind → 409 를 테스트로 고정(종전엔 NPE 경로)</td><td>없음</td></tr>
+            <tr><td><b>D4</b> 설정 통합·개명</td><td>키 삭제 2 + 신설 1(<code>auto-apply.kinds=</code> 빈 default) + 개명 1. CSV 파싱은 <code>extraRootsCsv</code> 선례(String+helper), 무효 kind 명은 <code>IllegalArgumentException</code> 으로 시끄럽게 실패 → job 실패 UI 표면화</td><td>없음</td></tr>
+            <tr><td><b>D5</b> 예외 개명</td><td><code>git mv</code> 로 <code>DriftResolutionNotAllowedException</code> — factory 문구 2종 갱신, 409/<code>ConflictException</code> 계층 불변(기존 테스트 green 이 증명)</td><td>없음</td></tr>
+            <tr><td><b>D6</b> 템플릿</td><td>버튼 <code>th:if=manuallyResolvable</code> + 라벨 "자동 적용"→"적용" + C3 배지 mode 3단(orange/yellow/gray) + C2 miller tag 는 2단 자산이라 manuallyResolvable 축약(주석 명기) + tooltip 개명 문구</td><td>없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="r3">
+      <summary>§3. 변경 파일 상세 (신규 4 · 수정 6 · 개명 1)</summary>
+      <div class="body">
+        <table>
+          <tbody>
+            <tr><td class="mono">global/marker/DriftResolutionMode.java</td><td><span class="badge new">신규</span> 3단 enum + 채택 근거 javadoc</td></tr>
+            <tr><td class="mono">…/service/resolution/DriftResolution·PathDriftResolution·GhostDbRowClearResolution.java</td><td><span class="badge new">신규</span> SPI + 등가 이전 bean 2종</td></tr>
+            <tr><td class="mono">global/marker/DriftKind.java</td><td><span class="badge mod">수정</span> mode 필드 + 파생 접근자 + javadoc</td></tr>
+            <tr><td class="mono">…/service/PathReconciliationService.java</td><td><span class="badge mod">수정</span> 생성자 주입 + Map 조립 + apply 디스패치·널가드 + 스캔 루프 치환 + <code>isResolutionEnabled()</code> + <code>autoApplyKinds()</code></td></tr>
+            <tr><td class="mono">exception/DriftAutoApplyNotAllowedException → DriftResolutionNotAllowedException.java</td><td><span class="badge mod">개명</span> factory 문구 갱신</td></tr>
+            <tr><td class="mono">controller/ReconciliationController.java · templates/…/list.html · application.properties</td><td><span class="badge mod">수정</span> 뷰모델 개명 · D6 · 키 정비</td></tr>
+            <tr><td class="mono">DriftKindTest · PathReconciliationServiceTest · PathReconciliationEdgeCaseTest · ReconciliationRestControllerTest</td><td><span class="badge mod">수정</span> §4</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="r4" open>
+      <summary>§4. 테스트 결과 — 1086 / 실패 0 (신규 5)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>신규/재구성</th><th>고정하는 것</th></tr></thead>
+          <tbody>
+            <tr><td>DriftKindTest — mode 배정표 + 파생 접근자 일관성(전종)</td><td>AUTO 4/MANUAL 2/NONE 4 집합 + 불법 조합 원천 차단</td></tr>
+            <tr><td>forced apply + bean 미등록 kind(MISSING) → 409</td><td>널가드가 forced 우회 밖 — 종전 <code>Path.of(null)</code> NPE 경로의 소멸</td></tr>
+            <tr><td>스캔 자동: kinds=PATH_DRIFT → resolve 실행 + drift 보고서 기록 유지 / kinds 빈 → 미적용</td><td>CSV 옵트인 게이트 + 기록 보존 동작 불변</td></tr>
+            <tr><td>무효 kinds CSV("PATH_DRIFTT") → IllegalArgumentException</td><td>설정 오타의 시끄러운 실패(침묵 무시 금지)</td></tr>
+            <tr><td>기존 자동 적용 엣지(부분 실패 계속 진행·ghost 자동 정리)를 kinds CSV 로 재표현</td><td>등가 이전 증명 — 실패 1건 후 다음 자원 계속(WARN) 동작 불변</td></tr>
+          </tbody>
+        </table>
+        <p class="dim">기존 apply/globalOff/REST 409 테스트는 개명 반영 후 전부 green — 상태코드·바디 계약 불변의 증명.</p>
+      </div>
+    </details>
+
+    <details class="section" id="r5" open>
+      <summary>§5. 동작·설정 변화 (CP5 안내)</summary>
+      <div class="body">
+        <div class="callout warn"><b>설정 breaking (실효 영향 0, 파일 정리 권장)</b> — <code>reconciliation.auto-apply-path-drift</code>/<code>auto-apply-ghost-row</code>/<code>reconciliation.auto-apply</code> 세 키는 더 이상 읽히지 않는다(남아 있어도 조용히 무시). 대체: <code>reconciliation.resolution-enabled=true</code>(마스터) + <code>reconciliation.auto-apply.kinds=</code>(무인 자동 허용 kind CSV, 빈 default = 전부 수동). 저장소 <code>application.properties</code> 는 정비 완료 — 로컬/운영 override 파일에 구 키가 있으면 정리 필요.</div>
+        <ul>
+          <li>화면 변화: [자동 적용] 버튼 → <b>[적용]</b>, 마스터 OFF tooltip "시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled)". C3 배지가 3색(주황=자동 가능/노랑=확인 후 해결/회색=안내만) — 현재 노랑은 등장할 kind 가 없어 S6-2-2 부터 실표시.</li>
+          <li>409 거절 문구가 "자동 정합" → "시스템이 해결할 수 없습니다" 계열로 갱신(direct POST 안전망에서만 노출).</li>
+        </ul>
+        <h4>CP5 확인 시나리오</h4>
+        <ul class="check-list" data-storage="s6-2-1-report-cp5">
+          <li><input type="checkbox"><span>PATH_DRIFT 생성(파일+마커 mv) → [적용] 버튼 동작 + 배지 주황 확인</span></li>
+          <li><input type="checkbox"><span><code>reconciliation.resolution-enabled=false</code> 로 기동 → 버튼 disabled + 새 tooltip</span></li>
+          <li><input type="checkbox"><span><code>reconciliation.auto-apply.kinds=PATH_DRIFT</code> 로 기동 → 스캔 직후 자동 정합(보고서에 drift 기록은 유지됨)</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="r6">
+      <summary>§6. Verification 체크 (plan §9)</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="s6-2-1-report-verify" style="margin-top:0">
+          <li><input type="checkbox" checked><span>전체 테스트 그린 — 1086/0</span></li>
+          <li><input type="checkbox" checked><span>grep: 구 필드·키·예외명 기능 참조 잔존 0 — 남은 매치는 개명·통합 경위를 기록한 javadoc/주석뿐(의도된 잔존)</span></li>
+          <li><input type="checkbox" checked><span>apply() 내 kind if-else 잔존 0 (GHOST 분기 소멸)</span></li>
+          <li><input type="checkbox" checked><span>REST kind 직렬화·409 계약 불변(기존 테스트 green)</span></li>
+          <li><input type="checkbox"><span>CP5 — 사용자</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="r7">
+      <summary>§7. 다음 마일스톤</summary>
+      <div class="body">
+        <p style="margin-top:0">Notion 'CP4 완료' → <b>S6-2-2</b>(SOFTDEL 계열 탐지+해결) — 이 프레임 위에 ESCAPE 2종의 분류 패스(soft-deleted 전수, 메타 2종 제외)·resolution bean 2종(restoreFromTrash 재사용 / 재격리)·<code>drift.kind</code> VARCHAR(32) DDL 이 얹힌다.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const t=document.querySelector(a.getAttribute('href'));if(!t)return;e.preventDefault();t.open=true;
+    window.scrollTo({top:t.getBoundingClientRect().top+window.scrollY-108,behavior:'smooth'});
+  }));
+  let allOpen=true;
+  document.getElementById('toggle').addEventListener('click',()=>{allOpen=!allOpen;
+    document.querySelectorAll('details.section').forEach(d=>d.open=allOpen);});
+  document.getElementById('filter').addEventListener('input',e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d=>{
+      if(!q){d.classList.remove('hidden');return;}
+      const m=d.textContent.toLowerCase().includes(q);d.classList.toggle('hidden',!m);if(m)d.open=true;
+    });
+  });
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul=>{
+    const key=ul.getAttribute('data-storage');
+    const saved=JSON.parse(localStorage.getItem(key)||'null');
+    const boxes=ul.querySelectorAll('input[type=checkbox]');
+    if(saved) boxes.forEach((b,i)=>{b.checked=!!saved[i];});
+    boxes.forEach((b)=>{b.addEventListener('change',()=>{
+      localStorage.setItem(key,JSON.stringify([...boxes].map(x=>x.checked)));});});
+  });
+</script>
+</body>
+</html>

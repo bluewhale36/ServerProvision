@@ -33,13 +33,6 @@ public interface MarkableInventory {
 	}
 
 	/**
-	 * soft-deleted 자원의 ID 셋 (D20). 디스크에 마커가 그대로 남아있을 때
-	 * ORPHAN 으로 잘못 분류되지 않도록 ORPHAN 후처리에서 매칭 제외.
-	 * 복구 가능성을 위해 마커는 보존하되 활성 인벤토리엔 포함시키지 않는 절충.
-	 */
-	Set<Long> findSoftDeletedResourceIds();
-
-	/**
 	 * 휴지통 자원 전체 (TrashController.list 합본 용도). 도메인이 trash 적용이면 override.
 	 */
 	default List<Markable> findTrashed() {

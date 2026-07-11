@@ -1,5 +1,6 @@
 package com.example.serverprovision.maintenance.reconciliation.service;
 
+import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.marker.*;
@@ -9,11 +10,12 @@ import com.example.serverprovision.maintenance.reconciliation.dto.response.Drift
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftResponse;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
 import com.example.serverprovision.maintenance.reconciliation.entity.DriftReport;
-import com.example.serverprovision.maintenance.reconciliation.exception.DriftAutoApplyNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
+import com.example.serverprovision.maintenance.reconciliation.service.resolution.DriftResolution;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -63,6 +65,7 @@ public class PathReconciliationService {
 			BackgroundJobService backgroundJobService,
 			DriftReportRepository driftReportRepository,
 			DriftRepository driftRepository,
+			List<DriftResolution> resolutions,
 			@Lazy PathReconciliationService self
 	) {
 		this.scanners = scanners;
@@ -70,6 +73,9 @@ public class PathReconciliationService {
 		this.backgroundJobService = backgroundJobService;
 		this.driftReportRepository = driftReportRepository;
 		this.driftRepository = driftRepository;
+		// S6-2-1 — kind 별 해결 전략 bean 디스패치 (1 bean = 1 kind, 중복 등록은 조립 시점 즉시 실패).
+		this.resolutions = resolutions.stream()
+				.collect(Collectors.toUnmodifiableMap(DriftResolution::supportedKind, r -> r));
 		this.self = self;
 	}
 
@@ -78,6 +84,7 @@ public class PathReconciliationService {
 	private final BackgroundJobService backgroundJobService;
 	private final DriftReportRepository driftReportRepository;
 	private final DriftRepository driftRepository;
+	private final Map<DriftKind, DriftResolution> resolutions;
 
 	/**
 	 * 자기 자신의 Spring proxy 참조. {@code @Async} / {@code @Transactional} 어노테이션은 프록시 경로로
@@ -95,24 +102,25 @@ public class PathReconciliationService {
 	private int retentionCount;
 
 	/**
-	 * MK3-1 — GHOST_DB_ROW drift 자동 적용 (default OFF). 사용자 사후 검토 가능.
+	 * S6-2-1 — 스캔 중 무인 자동 적용을 허용할 kind CSV (예: PATH_DRIFT,GHOST_DB_ROW). default 빈 = 전부 수동.
+	 * 과거 kind 별 boolean 키(auto-apply-path-drift / auto-apply-ghost-row)가 AUTO kind 증가마다 키·분기를
+	 * 함께 늘리던 것을 단일 키로 통합. 파싱은 {@link #autoApplyKinds()}.
 	 */
-	@Value("${reconciliation.auto-apply-ghost-row:false}")
-	private boolean autoApplyGhostRow;
-
-	@Value("${reconciliation.auto-apply-path-drift:false}")
-	private boolean autoApplyPathDrift;
+	@Value("${reconciliation.auto-apply.kinds:}")
+	private String autoApplyKindsCsv;
 
 	@Value("${reconciliation.scan.extra-roots:}")
 	private String extraRootsCsv;
 
 	/**
-	 * MK3 — 자동 정합 전역 OFF 옵션 (DCN-NEW11). default true. false 시 자동 ON DriftKind 도 보고만.
+	 * MK3(DCN-NEW11) → S6-2-1 개명 — 시스템 해결 전면 차단 마스터. default true. false 시 수동 [적용] 버튼과
+	 * 스캔 무인 적용이 모두 차단된다(forced saga 만 통과). MANUAL 도입으로 "auto-apply" 어휘가 수동 해결까지
+	 * 덮지 못하게 되어 resolution-enabled 로 개명.
 	 * <p>Boolean wrapper 사용 — unit test mock 환경에서 @Value 미주입 시 null. {@code Boolean.FALSE.equals}
 	 * 로 비교하면 null = 활성 (운영자 의도 default = 활성).</p>
 	 */
-	@Value("${reconciliation.auto-apply:true}")
-	private Boolean autoApplyEnabled;
+	@Value("${reconciliation.resolution-enabled:true}")
+	private Boolean resolutionEnabled;
 
 	/**
 	 * MK3 — Trash 디렉토리 (walk 시 명시 제외). macOS 호환을 위해 `.soft-deleted` 사용.
@@ -240,9 +248,11 @@ public class PathReconciliationService {
 
 	@Async
 	public void runReissueAsync(String jobId) {
+		int failedCount = 0;
 		try {
 			backgroundJobService.startStage(jobId, ReissueStage.RESIGNING);
 			ReissueResult result = self.performReissue();
+			failedCount = result.failures().size();
 			log.warn(
 					"[AUDIT] 마커 서명 재발급 완료 — successCount={}, failedCount={}, failures={}",
 					result.successCount(), result.failures().size(), result.failures()
@@ -257,6 +267,18 @@ public class PathReconciliationService {
 			backgroundJobService.fail(jobId, "재발급 실패 : " + e.getMessage());
 		} finally {
 			running.set(false);
+		}
+		// R9-6 — 부분 실패가 있으면 점검을 곧바로 이어 돌린다. 재서명이 안 된 마커는 다음 주기(최대 1h)까지
+		// "서명 불일치"로 방치되는데, 후속 점검이 실패 자원들을 보고서 카드로 즉시 표면화한다.
+		// 잠금(running) 해제 이후에만 가능 — 점검과 재발급이 동시 실행 가드를 공유하기 때문.
+		// 한계(인지·수용): 마커 파일 재서명은 됐고 DB 기록 갱신만 실패한 유형은 마커가 유효해 안 잡힌다.
+		if (failedCount > 0) {
+			try {
+				triggerScan(false);
+				log.info("[reissue] 부분 실패 {}건 — 후속 자원 무결성 점검 자동 시작", failedCount);
+			} catch (ReconciliationAlreadyRunningException ignored) {
+				// 그 찰나에 주기 점검이 선점했으면 그것으로 충분 — 조용히 양보.
+			}
 		}
 	}
 
@@ -307,18 +329,24 @@ public class PathReconciliationService {
 	public DriftReport performScan(boolean deep, String jobId) {
 		Instant start = Instant.now();
 
-		// (1) 인벤토리 수집 — active + softDeleted ID Set 분리
+		// (1) 인벤토리 수집 — active + soft-deleted 전수 (S6-2-2).
+		// 메타 자원 2종(OS_IMAGE/BOARD_MODEL)은 파일 실체가 없어(resourcePath=null) 분류 대상에서 명시 제외
+		// (TrashController 의 isMetadata() 가드 선례 — 빠뜨리면 NPE/유령 오탐).
 		List<Markable> activeInventory = new ArrayList<>();
-		Map<ResourceType, Set<Long>> softDeletedIdsByType = new HashMap<>();
+		Map<MarkerKey, Markable> deletedByKey = new HashMap<>();
 		Map<ResourceType, MarkableScanner> scannersByType = new HashMap<>();
 		for (MarkableScanner scanner : scanners) {
 			scannersByType.put(scanner.supportedType(), scanner);
 			activeInventory.addAll(scanner.findActiveMarkables());
-			softDeletedIdsByType.put(scanner.supportedType(), scanner.findSoftDeletedResourceIds());
+			if (!scanner.supportedType().isMetadata()) {
+				for (Markable trashed : scanner.findTrashed()) {
+					deletedByKey.put(new MarkerKey(trashed.getResourceType(), trashed.getResourceId()), trashed);
+				}
+			}
 		}
 
-		// (2) 스캔 루트 동적 산출 — active+softDeleted 자원의 path.parent union + extra-roots
-		Set<Path> scanRoots = computeScanRoots(activeInventory, softDeletedIdsByType, scannersByType);
+		// (2) 스캔 루트 동적 산출 — active 자원의 path.parent union + extra-roots
+		Set<Path> scanRoots = computeScanRoots(activeInventory);
 
 		// (3) 디스크에서 마커 모두 수집 (파일명 패턴 *.provision.json)
 		// (권고6) 부분 실패 가시화 — walk IOException 등으로 일부 root 가 누락되면 failedScanRoots 에 누적
@@ -358,6 +386,16 @@ public class PathReconciliationService {
 					));
 					continue;
 				}
+				// S6-1 — 마커가 정상이어도 본체가 없으면 quick 에서 즉시 MISSING. 종전에는 deep 의
+				// manifestHash 재계산 실패로만 드러나 deep 주기(기본 24h)까지 침묵했다. 서명 검증 뒤에
+				// 두는 이유 : 변조 의심(보안 신호)이 자원 부재(운영 신호)보다 먼저 노출되어야 한다.
+				if (!resourceBodyExists(expectedPath, resource.getMarkerLayout())) {
+					drifts.add(buildDrift(
+							resource, DriftKind.MISSING, expectedPath.toString(),
+							null, now, "마커는 있으나 본체 파일 부재 — 파일명 변경 또는 삭제 가능성"
+					));
+					continue;
+				}
 				if (deep) {
 					Optional<String> recomputed = scannersByType.get(resource.getResourceType())
 							.recomputeManifestHash(resource);
@@ -369,10 +407,23 @@ public class PathReconciliationService {
 								null, now, "deep scan : manifestHash 재계산 실패 — 본체 자원 부재 또는 IO 오류"
 						));
 					} else if (!markerService.verifyManifestHash(content, recomputed.get())) {
-						drifts.add(buildDrift(
-								resource, DriftKind.HASH_MISMATCH, expectedPath.toString(),
-								null, now, "manifestHash 불일치 — 자원 내용 변조 가능성"
-						));
+						// S6-3-4 — 수용의 판단 재료를 감지 시점에 스냅샷 : 현재 지문(observedHash — 실행 시
+						// 재대조·외부 체크섬 대조용 전문)과 정본 인정 시각(마커가 마지막으로 서명된 때).
+						// 파일 수정 시각(mtime)은 위조 가능해 표시하지 않는다 (CP1 반려 확정).
+						drifts.add(Drift.builder()
+								.resourceType(resource.getResourceType())
+								.resourceId(resource.getResourceId())
+								.displayName(resource.displayName())
+								.kind(DriftKind.HASH_MISMATCH)
+								.oldPath(expectedPath.toString())
+								.newPath(null)
+								.detectedAt(now)
+								.observedHash(recomputed.get())
+								.detail("내용 지문 불일치 — 변조 또는 의도된 교체. 정본 인정(마커 서명) "
+										+ KST_MINUTE.format(content.createdAt())
+										+ " · 등록 지문 " + content.manifestHash()
+										+ " · 현재 지문 " + recomputed.get())
+								.build());
 					}
 				}
 				continue;
@@ -385,18 +436,10 @@ public class PathReconciliationService {
 			MarkerHit hit = diskMarkers.get(key);
 			if (hit != null) {
 				matchedMarkers.add(key);
-				if (hit.layout() == MarkerLayout.SIDECAR && !Files.isRegularFile(hit.resourcePath())) {
+				if (!resourceBodyExists(hit.resourcePath(), hit.layout())) {
 					drifts.add(buildDrift(
 							resource, DriftKind.MISSING, expectedPath.toString(),
-							null, now, "다른 위치에 sidecar 마커는 있으나 본체 파일이 부재 — 마커만 이동 가능성 (의심 경로 : "
-									+ hit.resourcePath() + ")"
-					));
-					continue;
-				}
-				if (hit.layout() == MarkerLayout.IN_TREE && !Files.isDirectory(hit.resourcePath())) {
-					drifts.add(buildDrift(
-							resource, DriftKind.MISSING, expectedPath.toString(),
-							null, now, "다른 위치에 IN_TREE 마커는 있으나 트리 디렉토리가 부재 (의심 경로 : "
+							null, now, "다른 위치에 " + hit.layout() + " 마커는 있으나 본체가 부재 — 마커만 이동 가능성 (의심 경로 : "
 									+ hit.resourcePath() + ")"
 					));
 					continue;
@@ -415,12 +458,20 @@ public class PathReconciliationService {
 			));
 		}
 
-		// (5) ORPHAN — 디스크 마커 중 DB 인벤토리에 매칭 안 된 것. softDeleted ID 와 매칭되면 제외 (D20)
+		// (5) ORPHAN — 디스크 마커 중 DB 인벤토리에 매칭 안 된 것.
+		// S6-2-2 — soft-deleted 매칭 마커는 종전의 침묵 제외(D20) 대신 ESCAPE 로 분류한다:
+		// 발견 위치가 원위치(본체 포함)면 "삭제 자원 복귀", 아니면 "삭제 자원 위치 이탈".
+		Set<MarkerKey> escapeReported = new HashSet<>();
 		for (Map.Entry<MarkerKey, MarkerHit> e : diskMarkers.entrySet()) {
 			MarkerKey key = e.getKey();
 			if (matchedMarkers.contains(key)) continue;
-			Set<Long> softIds = softDeletedIdsByType.getOrDefault(key.resourceType(), Set.of());
-			if (softIds.contains(key.resourceId())) continue;
+			Markable deleted = deletedByKey.get(key);
+			if (deleted != null) {
+				escapeReported.add(key);
+				Drift escape = classifyEscape(deleted, e.getValue(), now);
+				if (escape != null) drifts.add(escape);
+				continue;
+			}
 			drifts.add(Drift.builder()
 							   .resourceType(key.resourceType())
 							   .resourceId(key.resourceId())
@@ -435,14 +486,66 @@ public class PathReconciliationService {
 							   .build());
 		}
 
-		// (5.5) MK3-1 — Ghost row 감지 패스. is_deleted=true AND trashed_path=null AND FS 부재 인 dead row.
-		//       active 인벤토리에 없으므로 별도 패스. drift 의 oldPath = stale DB.path, newPath = null.
-		for (MarkableScanner scanner : scanners) {
-			for (Markable ghost : scanner.findGhostMarkables()) {
+		// (5.5a) S6-2-3 — soft-deleted 전수 대조 완성. 삭제 자원의 다섯 상태(정상/복귀/이탈/소실/유령)를
+		// 한 패스에서 판정한다. 종전의 별도 ghost 패스(findGhostMarkables 루프)는 여기로 흡수 —
+		// SPI 자체는 휴지통 화면(TrashController)이 계속 사용하므로 유지.
+		for (Map.Entry<MarkerKey, Markable> e : deletedByKey.entrySet()) {
+			Markable deleted = e.getValue();
+			if (!(deleted instanceof LifecycleEntity lifecycle)) continue;
+			String trashedPath = lifecycle.getTrashedPath();
+			boolean trashAlive = trashedPath != null && Files.exists(Path.of(trashedPath));
+
+			// 잔여 마커 — 독립 신호 (다른 판정·escapeReported 와 무관하게 동시 보고 가능).
+			// 휴지통은 수색(walk) 범위 밖이라, 기록이 가리키는 정확한 위치만 직접 들여다본다.
+			if (trashAlive) {
+				Path staleMarker = markerService.resolveMarkerFile(
+						Path.of(trashedPath), deleted.getMarkerLayout());
+				if (staleMarker != null && Files.exists(staleMarker)) {
+					drifts.add(buildDrift(
+							deleted, DriftKind.TRASH_MARKER_STALE,
+							trashedPath, null, now,
+							"휴지통 실물 옆에 삭제 시 정리됐어야 할 마커 잔존"
+					));
+				}
+			}
+
+			if (escapeReported.contains(e.getKey())) continue; // 마커 기반 ESCAPE 로 이미 보고됨
+			boolean bodyAtOriginal = resourceBodyExists(deleted.getResourcePath(), deleted.getMarkerLayout());
+
+			if (trashedPath == null) {
+				if (bodyAtOriginal) {
+					drifts.add(buildDrift(
+							deleted, DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL,
+							deleted.getResourcePath().toString(), deleted.getResourcePath().toString(), now,
+							"휴지통 기록이 없던 자원이 원위치에 출현 — 외부 복귀로 판단"
+					));
+				} else if (lifecycle.getTrashedAt() == null) {
+					// 유령 기록 — 휴지통 기록도 실물도 원위치 파일도 전부 없음 (GhostEvaluator 정의 등가).
+					drifts.add(buildDrift(
+							deleted, DriftKind.GHOST_DB_ROW,
+							deleted.getResourcePath().toString(), null, now,
+							"DB row 만 남은 ghost — FS 자원도 trash 도 없음. drift apply = DB row hard-delete."
+					));
+				}
+				continue;
+			}
+			if (trashAlive) {
+				// 정상 휴지통 보관(원위치 비어 있음) 또는 점유(원위치에 파일) — 둘 다 drift 아님.
+				// 점유 파일의 진위는 복원 시점 게이트(RestorePathOccupiedException)가 판정.
+				continue;
+			}
+			if (bodyAtOriginal) {
 				drifts.add(buildDrift(
-						ghost, DriftKind.GHOST_DB_ROW,
-						ghost.getResourcePath().toString(), null, now,
-						"DB row 만 남은 ghost — FS 자원도 trash 도 없음. drift apply = DB row hard-delete."
+						deleted, DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL,
+						trashedPath, deleted.getResourcePath().toString(), now,
+						"휴지통 파일이 없고 자원이 원위치에 복귀 — 외부 복귀로 판단"
+				));
+			} else {
+				// 휴지통 소실 — 기록은 있는데 실물이 어디에도 없음. 복구 불능 확정.
+				drifts.add(buildDrift(
+						deleted, DriftKind.TRASH_LOST,
+						trashedPath, null, now,
+						"휴지통 파일이 사라짐 — 외부 정리 의심. 복구 불가, 적용 시 기록 정리 + 감사 기록"
 				));
 			}
 		}
@@ -465,20 +568,19 @@ public class PathReconciliationService {
 		// (7) FIFO prune (D15)
 		pruneOldReports();
 
-		// (8) 자동 적용 (옵트인, D13) — PATH_DRIFT / MK3-1 GHOST_DB_ROW.
-		// R9 최종 리뷰 — 전역 술어를 isAutoApplyEnabled() 로 통일 (같은 술어의 두 표기 잔존 정리).
-		if (!isAutoApplyEnabled()) {
+		// (8) 무인 자동 적용 (옵트인, D13 → S6-2-1 디스패치 통합) — mode==AUTO 이고 auto-apply.kinds 에
+		// 포함된 kind 만. kind 별 if-else + 개별 boolean 키의 증식을 전략 bean 디스패치 + CSV 1키로 치환.
+		// 해결돼도 drift 는 보고서에 남긴다 (기록 보존 — 보고서에서의 제거는 수동 apply 전용).
+		if (!isResolutionEnabled()) {
 			// 전역 OFF — 자동 적용 건너뜀.
 		} else {
+			Set<DriftKind> enabledKinds = autoApplyKinds();
 			for (Drift d : saved.getDrifts()) {
+				if (!d.getKind().isAutoApplicable() || !enabledKinds.contains(d.getKind())) continue;
+				DriftResolution resolution = resolutions.get(d.getKind());
+				if (resolution == null) continue; // 해결 미구현 AUTO kind — 스캔을 죽이지 않고 skip
 				try {
-					if (d.getKind() == DriftKind.PATH_DRIFT && autoApplyPathDrift) {
-						scannersByType.get(d.getResourceType())
-								.applyDriftedPath(d.getResourceId(), Path.of(d.getNewPath()));
-					} else if (d.getKind() == DriftKind.GHOST_DB_ROW && autoApplyGhostRow) {
-						scannersByType.get(d.getResourceType())
-								.applyGhostClear(d.getResourceId());
-					}
+					resolution.resolve(d, scannersByType.get(d.getResourceType()));
 				} catch (RuntimeException ex) {
 					log.warn(
 							"[reconciliation] 자동 적용 실패. driftId={}, kind={}, msg={}",
@@ -491,21 +593,14 @@ public class PathReconciliationService {
 		return saved;
 	}
 
-	private Set<Path> computeScanRoots(
-			List<Markable> active,
-			Map<ResourceType, Set<Long>> softDeletedByType,
-			Map<ResourceType, MarkableScanner> scannersByType
-	) {
+	private Set<Path> computeScanRoots(List<Markable> active) {
 		Set<Path> roots = new HashSet<>();
 		for (Markable m : active) {
 			Path parent = m.getResourcePath().getParent();
 			if (parent != null) roots.add(parent);
 		}
-		// softDeleted 자원의 부모도 — 마커 보존 인지를 위해
-		for (Map.Entry<ResourceType, Set<Long>> e : softDeletedByType.entrySet()) {
-			// softDeleted 의 path 는 ID Set 만 알고 path 는 모름. 별도 fetch 불필요 — 마커 매칭 시 ORPHAN 제외만 하면 됨.
-			// 즉 scan 범위에는 softDeleted 의 parent 를 넣지 않아도 active inventory 의 parent 와 겹칠 가능성 큼.
-		}
+		// soft-deleted 자원의 부모는 넣지 않는다 — 복귀 감지는 walk 가 아니라 entity 별 존재 검사(5.5a)로 하고,
+		// 이탈 감지는 active 트리(위 roots) 안에서 발견되는 마커가 대상이라 범위 확장이 불필요.
 		// extra-roots — 명시 설정
 		if (extraRootsCsv != null && !extraRootsCsv.isBlank()) {
 			for (String r : extraRootsCsv.split(",")) {
@@ -517,6 +612,13 @@ public class PathReconciliationService {
 	}
 
 	private static final int WALK_MAX_DEPTH = 8;
+
+	/**
+	 * S6-3-4 — 카드 detail 의 사람용 시각 표기 (KST, 분 단위).
+	 */
+	private static final java.time.format.DateTimeFormatter KST_MINUTE =
+			java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+					.withZone(java.time.ZoneId.of("Asia/Seoul"));
 
 	private Map<MarkerKey, MarkerHit> collectDiskMarkers(Set<Path> scanRoots, List<String> failedRoots) {
 		Map<MarkerKey, MarkerHit> result = new HashMap<>();
@@ -600,6 +702,60 @@ public class PathReconciliationService {
 		}
 	}
 
+	/**
+	 * S6-1 — layout 별 본체 존재 술어. SIDECAR 는 단일 파일, IN_TREE 는 트리 디렉토리가 본체다.
+	 * 4a(본체 부재의 quick 조기 감지)와 4b(마커만 이동 시 PATH_DRIFT → MISSING 강등)가 같은 판정을 공유한다.
+	 */
+	private static boolean resourceBodyExists(Path resourcePath, MarkerLayout layout) {
+		return layout == MarkerLayout.IN_TREE
+				? Files.isDirectory(resourcePath)
+				: Files.isRegularFile(resourcePath);
+	}
+
+	/**
+	 * S6-2-2 — 삭제 자원의 마커가 active 트리에서 발견됐을 때의 분류.
+	 * 발견 위치가 원위치이고 본체도 있으면 "복귀"(자동 복원 가능), 그 외는 "이탈"(사용자 확인 후 회수).
+	 * 원위치에도 파일이 있는 모호 상태는 이탈로 분류하고 detail 에 병기 — 어느 쪽이 진짜인지
+	 * 시스템이 판정하지 않고 복원 시점 게이트(manifestHash 검증)에 맡긴다.
+	 */
+	private Drift classifyEscape(Markable deleted, MarkerHit hit, Instant now) {
+		Path found = hit.resourcePath().toAbsolutePath().normalize();
+		Path expected = deleted.getResourcePath().toAbsolutePath().normalize();
+		boolean bodyAtFound = resourceBodyExists(hit.resourcePath(), hit.layout());
+		boolean bodyAtOriginal = resourceBodyExists(deleted.getResourcePath(), deleted.getMarkerLayout());
+		String trashedPath = (deleted instanceof LifecycleEntity lifecycle) ? lifecycle.getTrashedPath() : null;
+		boolean trashCopyAlive = trashedPath != null && Files.exists(Path.of(trashedPath));
+		String oldPath = expectedTrashPath(deleted);
+		if (found.equals(expected) && bodyAtOriginal) {
+			if (trashCopyAlive) {
+				// 점유 상태(원O·trashO) — 마커까지 복귀했어도 drift 로 보고하지 않는다(5.5a 와 동일 결정).
+				// 보고하면 [적용]이 항상 409(RestorePathOccupied)로 끝나는 버튼이 노출된다.
+				// 그 파일의 진위·처리는 복원 시점 게이트가 SSOT (적대적 검증 반영).
+				return null;
+			}
+			return buildDrift(deleted, DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL,
+					oldPath, deleted.getResourcePath().toString(), now,
+					"삭제 자원의 마커와 본체가 원래 위치에서 발견 — 외부 복귀로 판단");
+		}
+		String detail = "삭제 자원이 다른 위치에서 발견"
+				+ (bodyAtFound ? "" : " — 마커만 발견(본체 부재), 회수 전 파일 확인 필요")
+				+ (bodyAtOriginal && !found.equals(expected) ? " — 원위치에도 파일 존재 (진위는 복원 시점 검증)" : "")
+				+ (trashCopyAlive ? " — 휴지통에 기존 사본 존재 (회수하려면 먼저 정리 필요)" : "");
+		return buildDrift(deleted, DriftKind.SOFTDEL_ESCAPE_TO_OTHER,
+				oldPath, hit.resourcePath().toString(), now, detail);
+	}
+
+	/**
+	 * S6-2-2 — ESCAPE drift 의 oldPath(기대 위치). 휴지통 기록이 없으면 DB 원위치가 유일 앵커
+	 * ({@code drift.old_path} not-null 제약).
+	 */
+	private static String expectedTrashPath(Markable deleted) {
+		if (deleted instanceof LifecycleEntity lifecycle && lifecycle.getTrashedPath() != null) {
+			return lifecycle.getTrashedPath();
+		}
+		return deleted.getResourcePath().toString();
+	}
+
 	private Drift buildDrift(
 			Markable resource, DriftKind kind, String oldPath, String newPath,
 			Instant detectedAt, String detail
@@ -647,8 +803,8 @@ public class PathReconciliationService {
 	}
 
 	/**
-	 * MK3-2 (DCM3-2.4) — 강제 적용 오버로드. {@code forced=true} 면 자동 적용 가능 분기 검증 + 전역 OFF
-	 * 옵션을 모두 우회한다. softDelete reject 의 saga "위치 정정 후 삭제" 흐름이 사용자 명시 액션이므로
+	 * MK3-2 (DCM3-2.4) — 강제 적용 오버로드. {@code forced=true} 면 mode 가드 + 전역 OFF
+	 * 옵션을 우회한다 (해결 로직 미등록 kind 의 널가드는 우회 불가). softDelete reject 의 saga "위치 정정 후 삭제" 흐름이 사용자 명시 액션이므로
 	 * 글로벌 설정과 무관하게 진행되어야 함.
 	 */
 	@Transactional
@@ -656,28 +812,27 @@ public class PathReconciliationService {
 		Drift drift = driftRepository.findById(driftId)
 				.orElseThrow(() -> new DriftNotFoundException(driftId));
 		if (!forced) {
-			// R9-2 — 허용 종류는 DriftKind.autoApplicable 이 SSOT (템플릿 버튼 노출과 동일 소스).
-			// 전역 OFF 옵션 (DCN-NEW11) 은 UI 가 disabled+tooltip 으로 1차 차단하므로,
+			// S6-2-1 — 허용 종류는 DriftKind.isManuallyResolvable() 이 SSOT (템플릿 버튼 노출과 동일 소스).
+			// 전역 OFF 옵션은 UI 가 disabled+tooltip 으로 1차 차단하므로,
 			// 이 가드는 direct POST / stale 화면 안전망으로만 발동한다.
-			if (!drift.getKind().isAutoApplicable()) {
-				throw DriftAutoApplyNotAllowedException.notApplicable(drift.getKind());
+			if (!drift.getKind().isManuallyResolvable()) {
+				throw DriftResolutionNotAllowedException.notApplicable(drift.getKind());
 			}
-			if (!isAutoApplyEnabled()) {
-				log.warn("[reconciliation] auto-apply 전역 OFF — drift {} 거절", driftId);
-				throw DriftAutoApplyNotAllowedException.globalOff();
+			if (!isResolutionEnabled()) {
+				log.warn("[reconciliation] resolution-enabled 전역 OFF — drift {} 거절", driftId);
+				throw DriftResolutionNotAllowedException.globalOff();
 			}
 		} else {
 			log.info("[reconciliation] forced apply — driftId={}, kind={}", driftId, drift.getKind());
 		}
 		MarkableScanner scanner = scannerFor(drift.getResourceType());
-		// MK3-1 — GHOST_DB_ROW 는 newPath 가 null 이고 액션이 row hard-delete 라 별도 분기.
-		if (drift.getKind() == DriftKind.GHOST_DB_ROW) {
-			scanner.applyGhostClear(drift.getResourceId());
-		} else {
-			// PATH_DRIFT / RESOURCE_RENAMED 는 newPath 로 갱신. SOFTDEL_ESCAPE_TO_ORIGINAL / TRASH_MARKER_STALE 는
-			// applyDriftedPath 와 다른 동작이 필요할 수 있으나 본 sub-slice 단계에서는 PATH_DRIFT 와 동일 호출 (newPath 기반).
-			scanner.applyDriftedPath(drift.getResourceId(), Path.of(drift.getNewPath()));
+		// S6-2-1 — kind 별 해결은 DriftResolution 전략 bean 디스패치. 널가드는 forced 우회 블록 밖 —
+		// forced 는 mode 가드만 우회하는 것이지 해결 로직이 없는 kind 까지 통과시키지 않는다.
+		DriftResolution resolution = resolutions.get(drift.getKind());
+		if (resolution == null) {
+			throw DriftResolutionNotAllowedException.notApplicable(drift.getKind());
 		}
+		resolution.resolve(drift, scanner);
 		drift.getReport().removeDrift(drift);
 	}
 
@@ -783,14 +938,35 @@ public class PathReconciliationService {
 	}
 
 	/**
-	 * R9-2 — 전역 자동 적용 활성 여부. 서버 가드({@link #apply(Long, boolean)})와 페이지 뷰모델
+	 * R9-2 → S6-2-1 개명 — 시스템 해결 전면 활성 여부. 서버 가드({@link #apply(Long, boolean)})와 페이지 뷰모델
 	 * (버튼 disabled+tooltip)이 이 한 메서드를 공유하는 SSOT — 두 곳에 조건을 복붙하면 drift 가 생긴다
 	 * ({@code childEnableBlockReason()} 선례). {@code Boolean} wrapper 라 null(=미주입) 은 활성으로 본다.
-	 * <p>허용 종류 판단은 {@link DriftKind#isAutoApplicable()} 로 승격 완료 — 과거 이 자리에 있던
-	 * 5종 나열 분기는 템플릿 4종 하드코딩과 갈라져 SSOT 위반을 만들고 있었다.</p>
+	 * <p>허용 종류 판단은 {@link DriftKind#isManuallyResolvable()} — 이 메서드는 전역 축만 담당.</p>
 	 */
-	public boolean isAutoApplyEnabled() {
-		return !Boolean.FALSE.equals(autoApplyEnabled);
+	public boolean isResolutionEnabled() {
+		return !Boolean.FALSE.equals(resolutionEnabled);
+	}
+
+	/**
+	 * S6-2-1 — 무인 자동 적용 허용 kind 집합. 파싱은 스캔 시점 — 무효 kind 명은 IllegalArgumentException
+	 * 으로 시끄럽게 실패시켜 job 실패 UI(R9-1)로 표면화한다 (설정 오타의 침묵 무시 금지).
+	 */
+	private Set<DriftKind> autoApplyKinds() {
+		if (autoApplyKindsCsv == null || autoApplyKindsCsv.isBlank()) {
+			return Set.of();
+		}
+		Set<DriftKind> kinds = EnumSet.noneOf(DriftKind.class);
+		for (String token : autoApplyKindsCsv.split(",")) {
+			String trimmed = token.trim();
+			if (trimmed.isEmpty()) continue;
+			try {
+				kinds.add(DriftKind.valueOf(trimmed));
+			} catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException(
+						"reconciliation.auto-apply.kinds 에 알 수 없는 DriftKind : '" + trimmed + "'", e);
+			}
+		}
+		return kinds;
 	}
 
 	@Transactional

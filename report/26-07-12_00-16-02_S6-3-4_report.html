@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6-3-4 report — 내용 변경 수용 (CP4)</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:#ffebe9;
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;background:var(--green-bg);color:var(--green);vertical-align:2px}
+  .wrap{max-width:1060px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:16px;margin:28px 0 10px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)}
+  .fix{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:10px;padding:13px 16px;margin:10px 0}
+  .fix h4{margin:0 0 5px;font-size:13.5px}
+  .fix p{margin:3px 0;font-size:13px}
+  details.appendix{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0}
+  details.appendix summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--muted)}
+  details.appendix .bd{padding:0 16px 14px;border-top:1px solid var(--soft);padding-top:12px}
+  ul{padding-left:20px} li{padding:2px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>S6-3-4 report — 내용 변경 수용 <span class="chip">CP4 · 캠페인 완결</span></h1>
+  <p>plan: plan/26-07-11_19-59-24_S6-3-4_plan.html (CP1 승인 — mtime 반려·시각 2종 채택) + 업계 조사 report 반영 · 전체 테스트 1145 / 실패 0 (신규 11) · DDL 적용 완료 · 2026-07-12 KST</p>
+</header>
+<div class="wrap">
+
+  <div class="callout ok"><b>이 슬라이스로 S6 캠페인이 완결됩니다</b> — 드리프트 10종 전부 탐지 + 9종 시스템 해결 + 확인 축. 남은 안내 전용은 "자원 소실" 1종(시스템이 파일을 만들 수 없음)뿐이며, 그마저 [다시 점검]을 제공합니다.</div>
+
+  <h2>무엇이 생겼나 (사용자 관점)</h2>
+  <p>"내용 변경 감지"(정밀 점검 전용) 카드에서 <b>[현재 내용을 정본으로 수용]</b> — 의도된 파일 교체를 선언하면 등록 지문이 현재 내용으로 갱신됩니다. 업계 조사와 CP1 협의를 그대로 반영했습니다:</p>
+  <table>
+    <thead><tr><th style="width:26%">요소</th><th>동작</th></tr></thead>
+    <tbody>
+      <tr><td><b>판단 재료 (카드 표시)</b></td><td>감지 시각 · <b>정본 인정 시각</b>(마커가 마지막으로 서명된 때) · 등록 지문·현재 지문 <b>전문</b> — 벤더 공식 체크섬이나 변경 티켓과 대조 가능. 파일 수정 시각(mtime)은 위조 가능성으로 표시하지 않음(반려 확정)</td></tr>
+      <tr><td><b>승인 의식</b></td><td>자원명 입력 확인(영구삭제와 동급) + "원본 재업로드가 더 안전합니다" 1차 권장 안내 + [AUDIT] 감사 로그(지문 전후 기록)</td></tr>
+      <tr><td><b>실행</b></td><td>백그라운드(대용량 지문 재계산 수 분) — 시작 토스트 → 완료 알림 "수용 완료 — {자원명}" + 카드 소멸. 실패 시 사유 알림 + 카드 유지</td></tr>
+      <tr><td><b>재변경 차단</b></td><td>실행 시점 재계산이 <b>카드에서 확인한 그 지문과 다르면 거절</b> — 사용자가 본 내용과 다른 것이 정본화되는 사고 차단 (Tripwire high-security 등가, <code>drift.observed_hash</code> 스냅샷)</td></tr>
+      <tr><td><b>동결 일관성</b></td><td>전면 차단 마스터(<code>resolution-enabled</code>) OFF 면 수용도 버튼 비활성 + 서버 409 — 조사 중 상태 동결이 가장 위험한 액션에도 적용</td></tr>
+    </tbody>
+  </table>
+
+  <h2>검증이 잡아 고친 결함 (적대적 검증)</h2>
+  <div class="fix"><h4>① [CRITICAL] 감사 기록 없이 정본화가 완료될 수 있던 순서 결함</h4>
+    <p><b>무슨 문제:</b> 마커 파일을 먼저 쓰고 카드 제거를 나중에 하던 순서에서, 재계산(수 분) 중 다른 사용자가 같은 카드를 닫으면(dismiss) DB 는 롤백되는데 <b>파일은 이미 새 내용을 정본으로 서명</b> — 감사 로그 한 줄 없이 정본화가 굳고 화면엔 "실패"만 뜨는 최악 조합.</p>
+    <p><b>고침:</b> 순서 반전 — DB 변이(카드 제거·엔티티 갱신)를 먼저 실행하고 즉시 flush 해 충돌을 <b>파일 쓰기 전에</b> 표면화. 충돌 시 마커 불변 + 실패 알림(테스트로 고정). 잔여 위험(커밋 자체 실패)은 다음 정밀 점검이 재보고하는 방향으로 수렴 — 침묵 소실 없음.</p></div>
+  <div class="fix"><h4>② [MAJOR] 중복 실행 가드가 카드 단위 → 자원 단위로 교정</h4>
+    <p>구 보고서의 잔존 카드와 최신 카드가 같은 자원을 가리킬 때 동시 수용이 뚫리던 틈 — 가드 키를 (자원 종류, 번호)로 변경.</p></div>
+  <div class="fix"><h4>③ [MAJOR] 전면 차단 마스터가 수용을 지배하지 않던 비일관</h4>
+    <p>관찰(동결) 모드에서 가장 파괴적인 정본화만 가능하던 모순 — 서버 가드 + 버튼 비활성을 SSOT(<code>isResolutionEnabled()</code>) 공유로 추가.</p></div>
+  <div class="fix"><h4>④ [MAJOR] 거절 사유가 raw JSON 으로 노출되던 프론트 버그</h4>
+    <p>공용 파서(<code>ErrorModal.fromResponse</code> — R2-6 자산) 재사용으로 교체. no-JS 폴백(form action)도 보강(MINOR).</p></div>
+
+  <h2>확인·검증 결과</h2>
+  <ul>
+    <li><b>전체 테스트 1145 / 실패 0</b> — 신규 11: 수용 성공(지문·서명·부속정보·카드·감사)/자원명 불일치/재변경 차단/스냅샷 부재·종류 안전망/마스터 동결/자원 단위 중복/경합 순서(충돌 시 마커 불변) + REST 2 + 탐지 스냅샷 단언.</li>
+    <li><b>DDL 적용 완료</b> — <code>drift.observed_hash</code>(varchar 64 null, <code>sql/S6-3-4_drift_observed_hash.sql</code>) 직접 적용·<code>SHOW CREATE TABLE</code> 검증.</li>
+    <li>plan 대비 차이 1건 — HASH 의 해결 등급을 MANUAL 로 승격하는 대신 <b>전용 폼 액션 + mode NONE 유지</b>(plan 의 양안 중 "전용 엔드포인트" 채택: 표준 [적용]의 동기 계약을 오염시키지 않기 위함). 배정표 테스트 불변으로 고정.</li>
+  </ul>
+
+  <details class="appendix">
+    <summary>부록 — 구현 상세 (개발용)</summary>
+    <div class="bd">
+      <table><tbody>
+        <tr><td style="width:34%"><code>HashAcceptService</code></td><td>triggerAccept(동기: 마스터→kind→스냅샷 존재→자원→TypedNameGuard→ResourceKey inFlight) → BackgroundJob(HASH_ACCEPT/HashAcceptStage) → @Async runAccept → @Transactional performAccept(재계산→<code>observedHash</code> 대조→reissueMarker+removeDrift+<b>flush 선행</b>→마커 write→[AUDIT])</td></tr>
+        <tr><td><code>Drift.observedHash</code> + 탐지</td><td>deep HASH 분기가 재계산 지문 스냅샷 + detail 에 "정본 인정(마커 서명) 시각 · 등록 지문 · 현재 지문"(KST) 기록 — mtime 미표시(CP1 반려)</td></tr>
+        <tr><td><code>ReconciliationRestController.acceptHash</code></td><td>POST /drifts/{id}/accept-hash?typedName → {jobId}. TypedNameMismatch→400, 거절류 409(기존 매핑)</td></tr>
+        <tr><td>list.html / list.js</td><td>HASH 전용 폼(kind 비교 1곳 — 단일 소비처 주석 명기, method+action no-JS 폴백, 마스터 disabled+tooltip) / fetch 시작→selfJobs→bgjob HASH_ACCEPT 완료·실패 분기, 거절은 <code>ErrorModal.fromResponse</code></td></tr>
+        <tr><td>신규 enum·factory</td><td><code>JobType.HASH_ACCEPT</code> · <code>HashAcceptStage</code> · <code>DriftResolutionNotAllowedException.acceptInProgress()</code></td></tr>
+        <tr><td>유지</td><td>DriftKind 배정(AUTO 4/MANUAL 4/NONE 2)·recheckable 3종 불변, 점검 잠금 비공유(plan ③), 자원 엔티티 @Version 부재는 후속 후보로 기록</td></tr>
+      </tbody></table>
+    </div>
+  </details>
+
+  <h2>다음</h2>
+  <p style="margin-top:0">Notion CP4(S6-3-4·S6-3·S6 상위 마감) → 캠페인 종료. 남은 것: <b>CP5 일괄 브라우저 E2E(사용자)</b> — 시뮬레이터가 재현 절차 안내를 겸함 · <b>커밋(지시 대기)</b>. total report 는 최종 상태로 현행화 완료.</p>
+</div>
+</body>
+</html>

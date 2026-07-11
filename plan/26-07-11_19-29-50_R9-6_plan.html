@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-6 plan — 마커 재발급 실패의 후속 점검 자동화</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red-bg:#ffebe9;
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;background:var(--purple-bg);color:var(--purple);vertical-align:2px}
+  .wrap{max-width:1020px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:16px;margin:26px 0 10px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .decide{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:10px 0}
+  .decide h4{margin:0 0 6px;font-size:13.5px;color:var(--blue)}
+  .decide p{margin:4px 0;font-size:13px}
+  .callout{border-left:3px solid var(--yellow);background:var(--yellow-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  details.appendix{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0}
+  details.appendix summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--muted)}
+  details.appendix .bd{padding:0 16px 14px;border-top:1px solid var(--soft);padding-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>R9-6 — 마커 재발급 실패의 후속 점검 자동화 <span class="chip">CP1</span></h1>
+  <p>R9 캠페인 6번째 (후보 C 권장안) · 2026-07-11 KST</p>
+</header>
+<div class="wrap">
+
+  <h2>상황</h2>
+  <p>서명 키를 교체한 뒤 실행하는 <b>[마커 서명 재발급]</b>은 자원별로 진행되어 일부만 실패할 수 있습니다(디스크 오류·잠긴 파일 등). 지금은 완료 알림에 "실패 N건 (상세는 서버 로그 확인)"이 뜨고 끝 — <b>실패한 자원이 정확히 무엇인지 화면에서 알 수 없고</b>, 그 자원들은 다음 자동 점검(최대 1시간 뒤)까지 "서명 불일치" 상태로 방치됩니다.</p>
+
+  <h2>바뀌는 것</h2>
+  <table>
+    <thead><tr><th style="width:26%"></th><th>지금</th><th>이후</th></tr></thead>
+    <tbody>
+      <tr><td><b>실패 자원 파악</b></td><td>서버 로그를 직접 열어야 함</td><td>재발급이 끝나면 <b>점검이 자동으로 이어 돌아</b>, 실패 자원들이 "마커 서명 불일치" 카드로 보고서에 표면화 — 화면의 "새 보고서 도착" 배너로 즉시 안내</td></tr>
+      <tr><td><b>완료 알림</b></td><td>"실패 N건 (상세는 서버 로그 확인)"</td><td>"실패 N건 — 실패 자원 확인을 위한 점검이 자동으로 이어집니다"</td></tr>
+      <tr><td><b>전부 성공한 경우</b></td><td colspan="2">변화 없음 — 불필요한 점검을 돌리지 않는다</td></tr>
+    </tbody>
+  </table>
+
+  <h2>설계 결정</h2>
+  <div class="decide"><h4>후속 점검은 "재발급 완료·잠금 해제 후"에만 시작한다</h4>
+    <p>재발급과 점검은 같은 동시 실행 잠금을 공유한다 — 재발급이 잠금을 놓은 직후에 점검을 요청하고, 그 찰나에 주기 점검이 먼저 잡았다면 그것으로 충분하므로 조용히 양보한다(중복 점검 안 만듦).</p></div>
+  <div class="decide"><h4>알려진 한계 1건 — 그대로 수용 (이미 인지·합의됨)</h4>
+    <p>실패 유형 중 "마커 파일 재서명은 됐는데 DB 기록 갱신만 실패"한 경우는 디스크 마커가 유효해 후속 점검에 잡히지 않는다. 후속 점검은 마커 파일 계열 실패(대다수)의 표면화 수단이며, 이 한계는 후보 검토 보고서에서 명기하고 수용하기로 확정된 사항.</p></div>
+
+  <h2>검증 계획</h2>
+  <table>
+    <thead><tr><th style="width:44%">상황</th><th>기대 결과</th></tr></thead>
+    <tbody>
+      <tr><td>재발급 중 일부 자원 실패</td><td>완료 처리 후 자원 무결성 점검이 자동 등록·실행</td></tr>
+      <tr><td>전부 성공</td><td>후속 점검 없음</td></tr>
+      <tr><td>후속 시작 찰나에 다른 점검이 선점</td><td>조용히 양보 (오류·중복 없음)</td></tr>
+    </tbody>
+  </table>
+
+  <details class="appendix">
+    <summary>부록 — 구현 좌표 (개발용)</summary>
+    <div class="bd">
+      <table><tbody>
+        <tr><td style="width:34%"><code>PathReconciliationService.runReissueAsync</code></td><td>실패 건수를 try 밖으로 들어 finally(<code>running.set(false)</code>) <b>이후</b> <code>failedCount &gt; 0 → triggerScan(false)</code>, <code>ReconciliationAlreadyRunningException</code> 은 흡수(주기 점검 선점 양보)</td></tr>
+        <tr><td><code>static/maintenance/reconciliation/list.js</code></td><td>재발급 완료 토스트의 실패 분기 문구 — "(상세는 서버 로그 확인)" → "— 실패 자원 확인을 위한 점검이 자동으로 이어집니다". 후속 점검 완료는 기존 외부 스캔 배너("새 보고서 도착")가 그대로 안내(신규 UI 0)</td></tr>
+        <tr><td>테스트</td><td><code>PathReconciliationServiceTest</code> +2 — 실패&gt;0 → PATH_RECONCILIATION job 등록 verify / 실패 0 → 미등록</td></tr>
+        <tr><td>10단계</td><td>리팩토링 슬라이스 — 2~7·9 N/A / 8=본체+테스트 / 10=CP5</td></tr>
+      </tbody></table>
+    </div>
+  </details>
+</div>
+</body>
+</html>

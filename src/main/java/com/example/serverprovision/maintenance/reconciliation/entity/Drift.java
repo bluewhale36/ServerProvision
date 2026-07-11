@@ -61,7 +61,8 @@ public class Drift {
 	private String displayName;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "kind", nullable = false, length = 24)
+	// S6-2-2 — SOFTDEL_ESCAPE_TO_ORIGINAL(26자) 수용을 위해 24→32 확장 (sql/S6-2-2_drift_kind_widen.sql 동반)
+	@Column(name = "kind", nullable = false, length = 32)
 	private DriftKind kind;
 
 	/**
@@ -84,6 +85,15 @@ public class Drift {
 	 */
 	@Column(name = "detail", length = 1024)
 	private String detail;
+
+	/**
+	 * S6-3-4 — HASH_MISMATCH 전용: 감지 시점(정밀 점검)에 재계산된 현재 내용의 지문 스냅샷.
+	 * 수용([정본으로 수용]) 실행 시 재계산 값과 대조해, 사용자가 확인한 내용과 다른 것이
+	 * 정본화되는 사고를 차단한다 (그 사이 파일이 또 바뀌면 거절 — Tripwire high-security 등가).
+	 * 다른 종류의 drift 에서는 null.
+	 */
+	@Column(name = "observed_hash", length = 64)
+	private String observedHash;
 
 	/**
 	 * 양방향 매핑 동기화 — DriftReport.addDrift() 가 호출.

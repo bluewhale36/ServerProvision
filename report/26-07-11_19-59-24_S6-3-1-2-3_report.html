@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S6-3-1·2·3 report — 재서명 · 격리 회수 · 다시 점검 (CP4)</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:#ffebe9;
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;background:var(--green-bg);color:var(--green);vertical-align:2px}
+  .wrap{max-width:1060px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:16px;margin:28px 0 10px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)}
+  ul{padding-left:20px} li{padding:2px 0}
+  details.appendix{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0}
+  details.appendix summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--muted)}
+  details.appendix .bd{padding:0 16px 14px;border-top:1px solid var(--soft);padding-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>S6-3-1·2·3 report — 재서명 · 격리 회수 · 다시 점검 <span class="chip">CP4 ×3</span></h1>
+  <p>plan: plan/26-07-11_19-33-57_S6-3_plan.html (본 문서가 3 슬라이스 report 를 겸함 — 같은 날 연속 구현) · 전체 테스트 1134 / 실패 0 (신규 16) · 2026-07-11 KST</p>
+</header>
+<div class="wrap">
+
+  <h2>무엇이 바뀌었나</h2>
+  <table>
+    <thead><tr><th style="width:24%">카드 / 버튼</th><th>동작</th><th style="width:30%">안전장치</th></tr></thead>
+    <tbody>
+      <tr><td><b>서명 불일치 → [적용]</b><br><span class="dim">S6-3-1 · 노랑 승격</span></td><td>이 자원의 마커만 현재 키로 재서명. 내용 지문은 유지 — 실제 변조라면 다음 정밀 점검이 여전히 잡는다(발각 시점이 늦을 수 있음을 안내 문구에 명시)</td><td>자원이 그 사이 삭제됨 → 409 / 마커가 파싱 불가 손상 → 409(재구성은 다른 등급 작업 — 안내)</td></tr>
+      <tr><td><b>미등록 마커 → [적용]</b><br><span class="dim">S6-3-2 · 노랑 승격</span></td><td>주인 없는 파일+마커를 격리 보관 구역(휴지통 하위 <code>orphan/</code>, 수색 제외)으로 <b>비파괴 이동</b>. 본체 없이 마커만 남은 경우 마커만 회수</td><td>실행 직전 재검증 — 마커의 신분이 바뀌었거나(교체·재발급) 그 사이 DB 에 주인이 생겼으면(재등록) 409 거절: 방금 등록한 멀쩡한 자원을 격리하는 사고 차단. 마커 이동 실패 시 본체 원위치 역보상</td></tr>
+      <tr><td><b>[다시 점검]</b><br><span class="dim">S6-3-3 · 확인 축 신설</span></td><td>자원 소실·서명 불일치·미등록 마커 카드에서 <b>그 자원 하나만</b> 즉시 재확인. 해소 → 카드가 그 자리에서 소멸 + 토스트 / 잔존 → 카드 불변 + "아직 해결되지 않았습니다" 안내</td><td>카드 내용을 고쳐 쓰지 않음(점검 기록 불변 — 재분류는 전체 점검의 몫) / 미등록 마커는 전용 판정으로 거짓 해소 방지 / 해결 등급과 독립이라 승격 후에도 버튼 유지</td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok"><b>해결 지형 최종(구현 기준)</b> — 자동 가능 4종(경로 이동·유령·복귀·잔여 마커) + 확인 후 해결 4종(이탈·소실·서명·미등록) + 안내 전용 2종(자원 소실 — [다시 점검] 제공 / 내용 변경 — S6-3-4 수용 액션 설계 완료·구현 대기).</div>
+
+  <h2>plan 대비 차이 (자율 판단 2건)</h2>
+  <ul>
+    <li><b>[다시 점검]에서 내용 변경 카드 제외</b> — 해소 판정에 내용 지문 재계산(대용량 수 분)이 필요해, 같은 문제를 가진 수용 액션(S6-3-4)의 백그라운드 배선과 함께 처리하는 것으로 조정. 원인 4종 → 3종. <code>DriftKind</code> javadoc 과 회귀 테스트에 사유 명기.</li>
+    <li><b>3 슬라이스 report 통합</b> — 같은 날 연속 구현이라 개별 3건 대신 본 문서 1건(카드별 섹션 구분). Notion 은 3 페이지 각각 CP4 처리.</li>
+  </ul>
+
+  <h2>확인·검증</h2>
+  <ul>
+    <li><b>전체 테스트 1134 / 실패 0</b> — 신규 16: 재서명 3(성공·손상 거절·소멸 거절) + 격리 5(본체+마커·마커만·주인 생김 거절·신분 변경 거절·역보상) + 재점검 6(해소·잔존 불변·거짓 해소 방지·주인/정리 해소·안전망 409) + REST 2 + 배정표·확인 축 회귀 고정 갱신.</li>
+    <li>DDL·설정 변경 없음. 화면은 기존 SSOT(배지 색·버튼 노출)가 승격을 자동 반영 + [다시 점검] 버튼 1종 추가.</li>
+  </ul>
+
+  <details class="appendix">
+    <summary>부록 — 구현 상세 (개발용)</summary>
+    <div class="bd">
+      <table><tbody>
+        <tr><td style="width:34%"><code>DriftKind</code></td><td>SIGNATURE_INVALID·ORPHAN mode NONE→MANUAL + recommendedAction 갱신. 신규 <code>recheckable</code> 축(MISSING/ORPHAN/SIGNATURE_INVALID, mode 와 독립) — HASH 제외 사유 javadoc</td></tr>
+        <tr><td><code>resolution/SignatureReissueResolution</code></td><td>performReissue 단일 자원판 — read 실패 <code>markerUnreadable()</code> 409 / 자원 소멸 <code>staleState()</code> / manifestHash 유지 / [AUDIT]</td></tr>
+        <tr><td><code>resolution/OrphanMarkerQuarantineResolution</code></td><td>재검증 2중(마커 신분 재파싱 + 활성·휴지통 매칭) → <code>trashRoot/orphan/drift{id}_</code> 접두 이동(<code>TrashService.relocate</code>) + SIDECAR 역보상 + [AUDIT]</td></tr>
+        <tr><td><code>recheck/</code> 패키지</td><td><code>DriftRecheck</code> SPI + <code>ActiveResourceRecheckSupport</code>(공용 완전 판정) + Missing/SignatureInvalid/Orphan 전략 + <code>DriftRecheckService</code>(별도 서비스 — 확인 축은 resolution-enabled 지배 밖, 해소 시 removeDrift 만)</td></tr>
+        <tr><td><code>ReconciliationRestController</code> + list.html/js</td><td><code>POST /drifts/{id}/recheck</code> → <code>{"resolved": bool}</code> / [다시 점검] 버튼(모달 없이 즉시 — 상태 불변 확인 액션) / resolved 분기 토스트</td></tr>
+        <tr><td>plan 대비</td><td>HASH recheck 제외(상기) 외 없음. <code>DriftKindTest</code> 배정표(AUTO 4/MANUAL 4/NONE 2)·recheckable 축 회귀 고정 갱신 — plan 의 명시 항목 이행</td></tr>
+      </tbody></table>
+    </div>
+  </details>
+
+  <h2>다음</h2>
+  <p style="margin-top:0">S6-3-4(내용 변경 수용) 세부 plan 산출 → 캠페인 total report(사용성·설계·불가침 준수 다각도). S6-3-4 구현은 세부 plan 검토 후 착수(보안 민감 + 신규 백그라운드 배선이라 신중 진행).</p>
+</div>
+</body>
+</html>

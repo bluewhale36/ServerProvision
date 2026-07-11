@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R9-6 report — 마커 재발급 실패의 후속 점검 자동화 (CP4)</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;
+    --purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;background:var(--green-bg);color:var(--green);vertical-align:2px}
+  .wrap{max-width:1020px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:16px;margin:26px 0 10px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  ul{padding-left:20px} li{padding:2px 0}
+  details.appendix{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0}
+  details.appendix summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--muted)}
+  details.appendix .bd{padding:0 16px 14px;border-top:1px solid var(--soft);padding-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>R9-6 report — 마커 재발급 실패의 후속 점검 자동화 <span class="chip">CP4</span></h1>
+  <p>plan: plan/26-07-11_19-29-50_R9-6_plan.html · 전체 테스트 1118 / 실패 0 (신규 2) · 2026-07-11 KST</p>
+</header>
+<div class="wrap">
+
+  <h2>무엇이 바뀌었나</h2>
+  <p>서명 키 교체 후 [마커 서명 재발급]에서 일부 자원이 실패하면, 이제 <b>점검이 자동으로 이어 돌아</b> 실패 자원들이 "마커 서명 불일치" 카드로 보고서에 드러납니다 — 서버 로그를 열 필요가 없어졌습니다. 완료 알림도 "실패 N건 — 실패 자원 확인을 위한 점검이 자동으로 이어집니다"로 안내하고, 후속 점검의 완료는 기존 "새 보고서 도착" 배너가 그대로 알려줍니다(신규 UI 없음). 전부 성공하면 불필요한 점검을 만들지 않습니다.</p>
+
+  <h2>확인·검증</h2>
+  <ul>
+    <li>전체 테스트 <b>1118 / 실패 0</b> — 신규 2: 부분 실패 → 후속 점검 job 등록 / 전부 성공 → 미등록.</li>
+    <li>동시 실행 안전 — 후속 시작은 재발급의 잠금 해제 이후이며, 그 찰나에 주기 점검이 선점하면 조용히 양보(중복 점검 없음).</li>
+    <li>알려진 한계 유지(합의 사항) — "마커 파일 재서명은 됐고 DB 기록 갱신만 실패"한 유형은 마커가 유효해 후속 점검에 안 잡힘. 소스 주석에 명기.</li>
+  </ul>
+
+  <details class="appendix">
+    <summary>부록 — 구현 상세 (개발용)</summary>
+    <div class="bd">
+      <table><tbody>
+        <tr><td style="width:36%"><code>PathReconciliationService.runReissueAsync</code></td><td>failedCount 를 try 밖으로 승격, finally(잠금 해제) 이후 <code>failedCount &gt; 0 → triggerScan(false)</code> + <code>ReconciliationAlreadyRunningException</code> 흡수</td></tr>
+        <tr><td><code>static/maintenance/reconciliation/list.js</code></td><td>재발급 실패 분기 토스트 문구 교체 + 파일 머리 주석 갱신</td></tr>
+        <tr><td>변경 없음</td><td>재발급 로직 자체·Job 계약·REST — 무변경</td></tr>
+      </tbody></table>
+    </div>
+  </details>
+
+  <h2>다음</h2>
+  <p style="margin-top:0">Notion 'CP4 완료' → <b>S6-3 plan</b> — 안내 전용 4종(자원 소실·미등록 마커·서명 불일치·내용 변경)에 실행 가능한 액션을 붙이는 설계 + 하위 슬라이스 분해.</p>
+</div>
+</body>
+</html>
