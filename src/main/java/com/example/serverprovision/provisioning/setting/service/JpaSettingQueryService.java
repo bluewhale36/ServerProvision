@@ -4,7 +4,9 @@ import com.example.serverprovision.management.board.repository.BoardModelReposit
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.global.entity.LifecycleEntity;
+import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
+import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
@@ -26,6 +28,7 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingDeta
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.TimezoneRegionResponse;
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import com.example.serverprovision.provisioning.setting.entity.SettingProcess;
 import com.example.serverprovision.provisioning.setting.enums.FileSystem;
@@ -62,6 +65,7 @@ public class JpaSettingQueryService implements SettingQueryService {
     private final BiosRepository biosRepository;
     private final BmcRepository bmcRepository;
     private final OSMetadataRepository osMetadataRepository;
+    private final ISORepository isoRepository;
     private final OSEnvironmentRepository osEnvironmentRepository;
     private final OSPackageGroupRepository osPackageGroupRepository;
     private final BiosSettingTemplateRepository biosSettingTemplateRepository;
@@ -131,10 +135,63 @@ public class JpaSettingQueryService implements SettingQueryService {
                 warnings.add("이 보드에 등록된 BMC 펌웨어가 없어 실행 시 BMC 업데이트를 건너뜁니다.");
             }
             if (!warnings.isEmpty()) {
-                result.add(new ExecutionWarningResponse(process.processType(), List.copyOf(warnings)));
+                result.add(new ExecutionWarningResponse(process.processType(), List.copyOf(warnings), false));
+            }
+        }
+        // ISO 소실/비활성 레이스(저장 시엔 유효했던 참조) — OS 설치는 건너뛸 수 없는 본체 단계라 blocking.
+        for (AbstractProcessRequest process : processList) {
+            if (process instanceof OSInstallationRequest install && install.getIsoId() != null) {
+                boolean usable = isoRepository.findById(install.getIsoId())
+                        .filter(iso -> !iso.isDeleted())
+                        .filter(LifecycleEntity::isEnabled)
+                        .isPresent();
+                if (!usable) {
+                    result.add(new ExecutionWarningResponse(process.processType(),
+                            List.of("선택한 설치 이미지(ISO)가 삭제되었거나 비활성화되어 실행이 실패합니다."), true));
+                }
             }
         }
         return List.copyOf(result);
+    }
+
+    /** IANA 대륙형 region — Etc/US 등 legacy alias 는 제외(설치기 UI 와 같은 목록). */
+    private static final java.util.Set<String> TZ_REGIONS = java.util.Set.of(
+            "Africa", "America", "Antarctica", "Arctic", "Asia",
+            "Atlantic", "Australia", "Europe", "Indian", "Pacific");
+
+    /** 타임존 선택지 — JVM 내장 IANA tzdb 를 대륙별로 그룹핑(사용자 확정 2026-07-12). */
+    @Override
+    public List<TimezoneRegionResponse> findTimezoneOptions() {
+        Map<String, List<String>> byRegion = new java.util.TreeMap<>();
+        for (String zoneId : java.time.ZoneId.getAvailableZoneIds()) {
+            int slash = zoneId.indexOf('/');
+            if (slash < 0) {
+                continue;
+            }
+            String region = zoneId.substring(0, slash);
+            if (!TZ_REGIONS.contains(region)) {
+                continue;
+            }
+            byRegion.computeIfAbsent(region, k -> new ArrayList<>()).add(zoneId.substring(slash + 1));
+        }
+        return byRegion.entrySet().stream()
+                .map(e -> new TimezoneRegionResponse(e.getKey(), e.getValue().stream().sorted().toList()))
+                .toList();
+    }
+
+    /** 사용 가능한(비삭제·enabled) ISO — 옵션 제외 판정과 선택지 조립이 같은 식(단일 SSOT). */
+    private List<ISO> availableIsos(OSMetadata os) {
+        return os.getIsos().stream()
+                .filter(iso -> !iso.isDeleted())
+                .filter(LifecycleEntity::isEnabled)
+                .toList();
+    }
+
+    /** ISO 표시명 — 경로의 파일명 세그먼트(버전 필드가 없어 파일명이 식별자). */
+    private static String isoDisplayName(ISO iso) {
+        String path = iso.getIsoPath();
+        int idx = path == null ? -1 : path.lastIndexOf('/');
+        return path == null ? "" : (idx >= 0 ? path.substring(idx + 1) : path);
     }
 
     /**
@@ -149,6 +206,7 @@ public class JpaSettingQueryService implements SettingQueryService {
         Map<Long, String> environments = new LinkedHashMap<>();
         Map<Long, String> packageGroups = new LinkedHashMap<>();
         Map<Long, String> templates = new LinkedHashMap<>();
+        Map<Long, String> isos = new LinkedHashMap<>();
         for (AbstractProcessRequest process : processList) {
             if (process instanceof BasicSettingRequest basicSetting) {
                 biosSettingTemplateRepository.findAllById(basicSetting.getBiosSettingTemplateIds())
@@ -172,6 +230,10 @@ public class JpaSettingQueryService implements SettingQueryService {
                 osMetadataRepository.findById(install.getOsMetadataId())
                         .ifPresent(os -> osNames.put(os.getId(),
                                 os.getOsName().getDisplayName() + " " + os.getOsVersion()));
+                if (install.getIsoId() != null) {
+                    isoRepository.findById(install.getIsoId())
+                            .ifPresent(iso -> isos.put(iso.getId(), isoDisplayName(iso)));
+                }
                 if (install instanceof RHELInstallationRequest rhel) {
                     osEnvironmentRepository.findById(rhel.getEnvironmentId())
                             .ifPresent(e -> environments.put(e.getId(), e.getDisplayName()));
@@ -186,7 +248,8 @@ public class JpaSettingQueryService implements SettingQueryService {
         }
         return new ReferenceNamesResponse(
                 Map.copyOf(boards), Map.copyOf(biosVersions), Map.copyOf(bmcVersions),
-                Map.copyOf(osNames), Map.copyOf(environments), Map.copyOf(packageGroups), Map.copyOf(templates));
+                Map.copyOf(osNames), Map.copyOf(environments), Map.copyOf(packageGroups),
+                Map.copyOf(templates), Map.copyOf(isos));
     }
 
     /**
@@ -247,6 +310,8 @@ public class JpaSettingQueryService implements SettingQueryService {
         osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc().stream()
                 .filter(LifecycleEntity::isEnabled)
                 .filter(os -> FAMILY_MAPPING.containsKey(os.getOsName().getFamily()))
+                // 사용 가능한 ISO 가 없는 OS 는 선택 자체가 불가(사용자 확정 2026-07-11) — 옵션에서 제외.
+                .filter(os -> !availableIsos(os).isEmpty())
                 .forEach(os -> groups.computeIfAbsent(os.getOsName().getDisplayName(), k -> new ArrayList<>())
                         .add(toOSOption(os)));
         return groups.entrySet().stream()
@@ -256,7 +321,7 @@ public class JpaSettingQueryService implements SettingQueryService {
 
     @Override
     public List<PartitionPresetResponse> findDefaultPartitions(String osName) {
-        // osName 무관 표준 프리셋(사용자 확정 2026-07-05) — OS 계열별 분기는 U2-4 의 책임.
+        // 계열 무관 표준 프리셋 — 분기하지 않기로 확정(사용자 2026-07-11: /boot·/ 는 ext4 고정).
         return List.of(
                 new PartitionPresetResponse("/boot/efi", FileSystem.EFI, 1L, SizeUnit.GB, false),
                 new PartitionPresetResponse("/boot", FileSystem.EXT4, 1L, SizeUnit.GB, false),
@@ -286,12 +351,28 @@ public class JpaSettingQueryService implements SettingQueryService {
                 os.isDeprecated(),
                 deprecatedAtDisplay(os),
                 os.getDescription(),
-                osEnvironmentRepository.findAllByOsMetadata_IdOrderByEnvironmentCode_ValueAsc(os.getId()).stream()
+                availableIsos(os).stream().map(this::toIsoOption).toList());
+    }
+
+    /**
+     * ISO 선택지 + 그 ISO 가 제공하는 환경/패키지 그룹(사용자 확정 2026-07-11 — comps.xml 은
+     * ISO 스코프). 환경의 groupIds 는 "환경 허용 그룹 ∩ ISO 제공 그룹" — UI·서버 가드가 같은 식.
+     */
+    private SettingOSOptionResponse.IsoOption toIsoOption(ISO iso) {
+        var providedGroupIds = iso.getProvidedPackageGroups().stream()
+                .map(com.example.serverprovision.management.os.entity.OSPackageGroup::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        return new SettingOSOptionResponse.IsoOption(
+                iso.getId(), isoDisplayName(iso), iso.isDeprecated(), deprecatedAtDisplay(iso),
+                iso.getProvidedEnvironments().stream()
                         .map(e -> new SettingOSOptionResponse.EnvironmentOption(
                                 e.getId(), e.getDisplayName(),
-                                e.getGroups().stream().map(com.example.serverprovision.management.os.entity.OSPackageGroup::getId).toList()))
+                                e.getGroups().stream()
+                                        .map(com.example.serverprovision.management.os.entity.OSPackageGroup::getId)
+                                        .filter(providedGroupIds::contains)
+                                        .toList()))
                         .toList(),
-                osPackageGroupRepository.findAllByOsMetadata_IdOrderByGroupCode_ValueAsc(os.getId()).stream()
+                iso.getProvidedPackageGroups().stream()
                         .map(g -> new SettingOSOptionResponse.Option(g.getId(), g.getDisplayName()))
                         .toList());
     }

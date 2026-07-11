@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U2-4 Plan — OS-다형 마감: 계열 프리셋·문자셋·ISO 경고</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp4{background:var(--orange-bg);color:var(--orange);} .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .chip.defer{background:var(--purple-bg);color:var(--purple);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card li { font-size:12px; line-height:1.55; }
+  /* 🎬 시뮬레이터 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:110px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.on { background:var(--green); color:#fff; border-color:var(--green); }
+  .sim-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .sim-col { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:12px; }
+  .sim-col .sc-head { font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:8px; border-bottom:1px solid var(--border-soft); padding-bottom:5px; }
+  .sim-input { width:100%; padding:7px 10px; font-size:13px; border:1px solid var(--border); border-radius:6px; font-family:var(--mono); margin:4px 0; }
+  .sim-input.bad { border-color:var(--red); background:var(--red-bg); }
+  .sim-input.good { border-color:var(--green); }
+  .sim-verdict { font-size:12px; min-height:18px; margin-bottom:8px; }
+  .sim-verdict.err { color:var(--red); font-weight:600; }
+  .sim-verdict.ok { color:var(--green); font-weight:600; }
+  .preset-table { width:100%; border-collapse:collapse; font-size:12px; font-family:var(--mono); }
+  .preset-table td, .preset-table th { border-bottom:1px solid var(--border-soft); padding:4px 8px; }
+  .preset-table .diff { background:var(--yellow-bg); font-weight:700; }
+  .warn-banner { display:block; margin-top:8px; padding:7px 10px; border-radius:6px; background:var(--yellow-bg); color:var(--yellow); border:1px solid var(--yellow); font-weight:600; font-size:12.5px; }
+  .fail-banner { background:var(--red-bg); color:var(--red); border-color:var(--red); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .sim-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U2-4 — OS-다형 마감 <span class="v2-badge">U2 최종 하위 단계 · 엔티티 무변</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U2-4 (U2 마지막 하위 — 완료 시 U2 전체 종료)</span>
+    <span><strong>scope</strong> 계열별 파티션 프리셋 · 입력 문자셋 마감 · ISO 부재 경고 · Debian 후처리 스코프 결정</span>
+    <span><strong>생성</strong> 2026-07-11 KST</span>
+    <span><strong>개정</strong> v2 — D1 폐기(ext4 고정)·D3→ISO 선택 계약 격상 (사용자 지시 2026-07-11)</span>
+    <span><strong>CP1</strong> 승인 (CP4 무중단)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 지금 사용자가 겪는 상황</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 시뮬레이터 (계열·검증·ISO)</a></li>
+      <li><a href="#s4">§4 설계 결정 + 대안</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 부록 — 기술 상세</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 지금 사용자가 겪는 상황 (유스케이스 진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">정의서의 OS 단계는 U2-1~U2-3 을 거치며 대부분 완성됐다 — 계열 선택, 환경·패키지 그룹 제약,
+          파티션 규칙, 접근성 규칙까지. 그러나 마지막 네 가지 상황에서 여전히 어색함이 남는다:</p>
+        <table>
+          <thead><tr><th style="width:34%">상황</th><th>지금 일어나는 일</th></tr></thead>
+          <tbody>
+            <tr><td>① Rocky Linux 정의서에서 <b>"기본 파티션 자동 생성"</b> 클릭</td>
+              <td>Ubuntu 와 똑같은 <code>ext4</code> 구성이 생성된다 — RHEL 계열 설치기의 관례 파일시스템은 <code>xfs</code> 인데, 사용자가 매번 손으로 바꾸거나 관례와 다른 구성으로 설치하게 된다.</td></tr>
+            <tr><td>② Ubuntu hostname 에 <code>My_Server!</code> 입력</td>
+              <td>그대로 저장된다 — 실행 시점(autoinstall)에야 잘못된 hostname 으로 실패한다. 패키지 이름·RHEL 등록 키도 마찬가지로 형식 검증이 없어 스크립트 주입 표면이 남아 있다.</td></tr>
+            <tr><td>③ ISO 를 아직 안 올린 OS 로 설치 단계 작성</td>
+              <td>아무 안내 없이 저장된다 — 펌웨어 부재(노란 경고)와 달리 ISO 부재는 침묵. 그런데 OS 설치는 펌웨어와 달리 <b>건너뛸 수 없는 단계</b>라 실행이 통째로 실패한다.</td></tr>
+            <tr><td>④ 코드 주석의 "U2-4 가 채운다" 약속들</td>
+              <td>5곳의 이연 마커 중 selinux 값·환경/그룹 실존은 <b>이미 해소</b>됐는데(U2-1 Layer A·U2-2-3) 주석은 여전히 미래형 — 문서 drift.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success">즉 U2-4 는 큰 구조 변화가 아니라 <b>OS 흐름의 마감 손질</b>이다 — 검증 그릇(계열 검사기 SPI·Layer A·ExecutionWarning 관용구)은 전부 준비되어 있고, 이번엔 그 안을 채운다. 엔티티·스키마 무변.</div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>[개정] 파티션 프리셋 분기 없음</b> — 사용자 확정: /boot·/ 등은 계열 무관 <b>ext4 고정</b>(현행 프리셋 유지). 이연 주석만 "분기하지 않기로 확정"으로 현행화.</li>
+          <li><b>입력 문자셋 마감(Layer A)</b> — hostname(RFC 1123), 패키지명(RHEL <code>additionalPackages</code>·Ubuntu <code>packages</code>), RHEL 등록 키 — Kickstart/autoinstall 주입 방지. §4 D2.</li>
+          <li><b>[개정·격상] ISO 선택 계약</b> — OS 버전 선택 후 <b>ISO 도 선택</b>한다(OS_INSTALLATION 베이스에 isoId 필수). 사용 가능한 ISO 가 없는 OS 는 <b>select 에 렌더하지 않고</b>(옵션 제외), backend 는 ISO 실존·OS 소속·enabled 를 검증(1단 검사기 공통 — forging 차단 포함). deprecated ISO 는 기존 관용구(modal+뱃지). 저장 후 ISO 소실/비활성 레이스는 상세 "실행 불가" 경고로 안내. §4 D3'.</li>
+          <li><b>이연 마커 정리</b> — 이미 해소된 약속(selinux·환경/그룹)의 주석 현행화 + 이번에 채우는 곳 반영.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> : Debian 계열 OS 후처리 단계(§4 Q1 — 보류 권고) · Windows 계열(확장 절차 문서화로 충분 — U2-3-1 D6) · 실행 엔진(Stage 4) · 파티션 프리셋의 디스크 다중 구성 편집기.</div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 시뮬레이터 — 계열 프리셋 · 입력 검증 · ISO 경고를 직접 체험</summary>
+      <div class="body">
+        <p style="margin-top:0;">OS 계열을 전환하고, 실제 값을 입력해 보라 — 이 슬라이스가 끝나면 폼이 정확히 이렇게 동작한다
+          (검증식은 서버 Layer A 와 동일한 정규식을 그대로 실행).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">설치할 OS :</span>
+            <button class="seg on" data-os="rocky" onclick="setOs('rocky')">Rocky Linux 9.4 (RHEL 계열)</button>
+            <button class="seg" data-os="ubuntu" onclick="setOs('ubuntu')">Ubuntu 22.04 (Debian 계열)</button>
+            <span class="group-label" style="margin-left:14px;">이 OS 의 ISO :</span>
+            <button class="seg on" data-iso="yes" onclick="toggleIso()">등록됨</button>
+          </div>
+
+          <div class="sim-grid">
+            <div class="sim-col">
+              <div class="sc-head">① "기본 파티션 자동 생성" 결과 — 계열 관례 파일시스템 (D1)</div>
+              <table class="preset-table" id="sim-preset"></table>
+              <div id="sim-iso-banner"></div>
+            </div>
+            <div class="sim-col">
+              <div class="sc-head" id="sim-input-head">② 입력 검증 (D2 — 서버와 같은 정규식)</div>
+              <div id="sim-inputs"></div>
+            </div>
+          </div>
+        </div>
+        <div class="callout success"><b>체험 포인트</b> — ① 계열 전환 시 파일시스템만 바뀌고 크기 구성은 유지된다(노란 강조가 분기 지점).
+          ② hostname 에 <code>My_Server!</code>, 패키지에 <code>vim; rm -rf /</code> 같은 값을 넣어보면 저장 전에 거절된다.
+          ③ ISO 토글을 끄면 경고가 뜬다 — 펌웨어의 노란 "건너뜀" 과 달리 <b>붉은 기운의 "실행 실패" 경고</b>(D3 의미론 구분).</div>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4" open>
+      <summary>§4. 설계 결정 + 대안 비교</summary>
+      <div class="body">
+        <h4>D1 — 파티션 프리셋: 크기 공통·파일시스템만 계열 분기</h4>
+        <ul>
+          <li>분기 축은 <b>OSFamily</b>(RHEL→xfs / Debian→ext4). 근거: Anaconda(RHEL 계열)의 기본 파일시스템은 xfs, Subiquity(Ubuntu)는 ext4 — 설치기 관례를 따르는 것이 "기본 생성"의 의미다. 크기 구성(1G EFI/1G boot/16G swap/grow root)은 사용자 확정값을 계열 공통으로 유지.</li>
+          <li>구현 위치: 조회 계약이 이미 <code>findDefaultPartitions(osName)</code> 로 파라미터를 받고 있었다(무시 중) — 파라미터를 <b>osFamily 로 교체</b>하고 폼 JS 가 선택 옵션의 계열을 넘긴다. 계열→fs 사상은 선언적 맵(검사기 SPI 를 새로 만들 규모가 아님 — 상수 2줄, 과분리 경계).</li>
+          <li>/boot/efi 는 EFI 유지(계열 무관 — 파티션 규칙 SSOT 와 일치), swap 도 공통.</li>
+        </ul>
+
+        <h4>D2 — 문자셋 마감: 전부 Layer A(@Pattern) — 검사기 아님</h4>
+        <table>
+          <thead><tr><th style="width:30%">필드</th><th>규칙</th></tr></thead>
+          <tbody>
+            <tr><td>Ubuntu <code>hostname</code></td><td>RFC 1123 label 열(<code>^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$</code>, 최대 253자) + <b>@NotBlank 승격</b>(autoinstall identity.hostname 은 필수인데 현재 무검증)</td></tr>
+            <tr><td>패키지명 (Ubuntu <code>packages</code> · RHEL <code>additionalPackages</code> 요소)</td><td><code>^[A-Za-z0-9][A-Za-z0-9._+-]*$</code> — dnf/apt 패키지명 문자셋(셸 메타문자 차단). 컨테이너 요소 제약(<code>List&lt;@Pattern String&gt;</code>)</td></tr>
+            <tr><td>RHEL <code>registrationKey</code></td><td>ASCII printable 비공백(<code>^[\\x21-\\x7E]+$</code>, null 허용) — 비밀번호류와 동일 주입 방지 수준(형식은 조직마다 달라 강제하지 않음)</td></tr>
+            <tr><td>RHEL <code>ServiceDirectiveRequest.name</code></td><td>systemd 유닛명 문자셋(<code>^[A-Za-z0-9:_.\\\\-]+$</code>) — 현재 @NotBlank 만인지 확인 후 보강</td></tr>
+          </tbody>
+        </table>
+        <p>전부 <b>형식 검증(값 그 자체의 규칙)</b>이므로 Layer A 소관 — 계열 검사기(Layer B)는 영속 참조·cross-field 만 담는 기존 층위 원칙 그대로. 검사기에 넣는 대안은 기각(불필요한 빈 성장 + 통합 400 경로가 fieldErrors 다건 렌더를 잃음).</p>
+
+        <h4>D3 — ISO 부재 경고: ExecutionWarning 관용구 확장 + 실패 의미론 구분</h4>
+        <ul>
+          <li>판정: OS 설치 단계의 선택 OS 에 <b>사용 가능한(enabled·비삭제) ISO 가 0개</b> — 조회 시점 판정(ISO 업로드 시 자동 해소), 저장은 막지 않음(정의서=재사용 템플릿, 펌웨어 방침과 동일).</li>
+          <li><b>의미론 구분(중요)</b>: 펌웨어 부재 = 해당 축 <b>skip</b>+PARTIAL_SUCCESS(선행 확정) / ISO 부재 = OS 설치 수행 불가 = <b>실행 실패</b>(OS 설치는 정의서의 본체 단계라 건너뛰면 이후 단계가 무의미). 문구: "설치 이미지(ISO)가 없습니다 — 실행 시점까지 등록되지 않으면 실행이 실패합니다." 상세 뱃지도 "실행 시 건너뜀 가능"(노랑)이 아닌 <b>"실행 불가"</b>(빨강 계열, n-badge-red) 로 구분.</li>
+          <li>폼: OS 선택 시 select 아래 경고 배너(펌웨어 경고와 같은 자리·강조 스타일, 붉은 변형) / 상세: OS_INSTALLATION 카드 head 뱃지. OS 후처리(OS_SETTING)는 ISO 불필요 — 대상 아님.</li>
+          <li>데이터: OS 옵션 응답에 <code>installable</code>(ISO 보유) 플래그 + 상세 조립 시 동일 판정 — 판정식 한 곳(Query 서비스 헬퍼)만.</li>
+        </ul>
+
+        <h4>Q1 — Debian 계열 OS 후처리 단계: 보류 권고 (사용자 결정)</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>권고: 이번에도 만들지 않음</h4>
+            <ul><li>wire 판별자(OS_SETTING × DEBIAN)·Request 하위층·실행 소비자(Stage 4) 모두 부재 — "갈라지는 시점에 분리" 원칙상 지금은 시점이 아님</li>
+              <li>폼은 현행 유지: OS 후처리 select 에서 Debian 계열 '(지원 예정)' 비활성 — 이미 UI 1차 차단이 서 있음</li>
+              <li>추가 시점: Stage 4 에서 autoinstall late-commands 실행이 실체화될 때 — Windows 확장 절차(U2-3-1 D6)와 같은 4단 관문 문서화로 족함</li></ul></div>
+          <div class="card v-orange"><h4>대안: 지금 실체화</h4>
+            <ul><li>DebianOSSettingRequest + 폼 활성화 — U2 안에서 "OS 다형"을 문자 그대로 완결</li>
+              <li>난점: 검증할 실행 의미(late-commands? snap?)가 미정이라 계약이 추측이 됨 — 추측 계약은 Stage 4 에서 재작업 확률이 높다. 기각 권고</li></ul></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~5</td><td>폼(프리셋 계열 전달·ISO 경고 배너)·계약(@Pattern 4종 + installable 플래그)·프리셋 시그니처(osFamily)</td><td rowspan="2"><span class="chip cp2">CP2</span>+<span class="chip cp4">CP4</span> 병합 제안</td></tr>
+            <tr><td>8</td><td>프리셋 분기·ISO 판정 조립 + 테스트 + 이연 주석 현행화 + 스모크</td></tr>
+            <tr><td>6·7·9</td><td><span class="chip na">N/A</span> — Repository 신규 파생쿼리 1개 외 Entity/스키마 무변</td><td>—</td></tr>
+            <tr><td>10</td><td>브라우저 E2E — 사용자 (U2 전체의 최종 CP5)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <p>규모가 마감 손질 수준이라 <b>CP2~CP4 1회 보고 병합</b>을 제안한다(승인 시 무중단 진행).</p>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>프리셋 (단위)</td><td>RHEL 계열 → /boot·/ 가 xfs / Debian 계열 → ext4 / 크기 구성 공통(1G·1G·16G·grow) / EFI·SWAP 계열 무관</td></tr>
+            <tr><td>문자셋 (통합 400)</td><td>hostname 대문자·특수문자 400 + 미입력 400(신규 @NotBlank — 신규 규칙 시나리오 의무) / 패키지명 셸 메타문자 400 / registrationKey 공백 400 / 정상값 201</td></tr>
+            <tr><td>ISO 경고 (단위)</td><td>enabled ISO 0개 OS → 옵션 installable=false + 상세 executionWarnings 에 실패 문구 / ISO 있는 OS → 플래그 true·경고 없음 / OS_SETTING 은 판정 제외</td></tr>
+            <tr><td>기존 회귀</td><td>전체 스위트 무수정 그린(계약 필드 추가·주석 변경뿐) — 단 기존 통합 body 의 hostname 값이 신규 @Pattern 에 걸리지 않는지 선점검</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0</summary>
+      <div class="body">
+        <p>이번 슬라이스는 전부 Bean Validation(Layer A)과 표시 메타(경고)라 <b>신규 예외 클래스가 없다</b> —
+          400 은 기존 <code>MethodArgumentNotValidException</code> 다건 fieldErrors 경로, 경고는 예외가 아닌 응답 필드.
+          기존 예외 전부 무변.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의</summary>
+      <div class="body">
+        <ul>
+          <li><b>Stage 4 실행 의미론 누적 기록</b>: 펌웨어 부재=skip+PARTIAL_SUCCESS / ISO 부재=<b>FAILED</b>(수행 불가) / 마커 무결성 실패=FAILED — 세 층이 Notion 에 모여 Stage 4 의 입력이 된다.</li>
+          <li><b>기존 저장본 영향</b>: hostname @NotBlank 승격으로 hostname 없는 구 Ubuntu 저장본은 <b>수정 저장 시</b> 400 — 조회·상세는 무영향(스모크 데이터는 정리된 상태라 실데이터 파장 없음).</li>
+          <li>U2-4 이연 마커 5곳 주석 현행화(§1 ④) — 이미 해소된 selinux(U2-1)·환경/그룹(U2-2-3) 명시.</li>
+          <li>U2-4 완료 = U2 전체 종료 → 다음 갈래는 U3(서버 할당) 또는 E0(Redfish 연결 준비) — §11.</li>
+          <li>커밋 없음(사용자 지시 대기). S·R 트랙 미커밋 변경(워킹트리의 reconciliation 파일들)은 이 세션에서 불가침.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U2-4-verify">
+          <li><label><input type="checkbox" data-key="build"> <span>전체 스위트 그린(기존 통합 무수정 — hostname 픽스처만 정합)</span></label></li>
+          <li><label><input type="checkbox" data-key="preset"> <span>스모크: 프리셋 API — RHEL=xfs / Debian=ext4, 크기 공통</span></label></li>
+          <li><label><input type="checkbox" data-key="charset"> <span>스모크: hostname/패키지/등록키 위반 400(fieldErrors 필드 귀속) · 정상 201</span></label></li>
+          <li><label><input type="checkbox" data-key="iso"> <span>스모크: ISO 없는 OS → 폼 경고 배너 + 상세 "실행 불가" 뱃지 / ISO 등록 후 자동 소멸</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E — 사용자 (U2 최종 CP5)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 부록 -->
+    <details class="section" id="s10">
+      <summary>§10. 부록 — 기술 상세 (변경 지점)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">계약</span></td><td><code>UbuntuInstallationRequest</code>(hostname @NotBlank+@Pattern, packages 요소 @Pattern) · <code>RHELOSSettingRequest</code>(additionalPackages 요소) · <code>RHELInstallationRequest</code>(registrationKey) · <code>ServiceDirectiveRequest</code>(name — 현황 확인 후) · <code>SettingOSOptionResponse</code>(+installable) · <code>SettingQueryService.findDefaultPartitions(OSFamily)</code></td></tr>
+            <tr><td><span class="chip mod">서비스</span></td><td><code>JpaSettingQueryService</code> — 프리셋 계열 분기 + ISO 보유 판정(옵션 installable·상세 executionWarnings, ISORepository 파생쿼리 1개) · <code>SettingRestController</code> 프리셋 파라미터</td></tr>
+            <tr><td><span class="chip mod">뷰/JS</span></td><td><code>setting-form.js</code>(프리셋 호출에 osFamily 전달·ISO 경고 배너 토글) · <code>setting-new.html</code>(OS select 아래 경고 슬롯 — 펌웨어 경고와 동일 자리) · <code>setting-detail.html</code>(실행 불가 뱃지 — n-badge-red 변형) · <code>setting.css</code>(.n-hint-warn 붉은 변형 1규칙)</td></tr>
+            <tr><td><span class="chip keep">무변</span></td><td>엔티티·스키마·예외 계층·검사기 SPI 구조(주석만 현행화)·biossetting 전체</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>U2 종료 보고</b> — U2-4 CP5 승인 시 U2 전체 완료 처리.</li>
+          <li><b>U3</b> — 정의서의 물리 서버 할당 + 세팅 흐름 가시화(정의서 삭제 참조 차단 포함).</li>
+          <li><b>E0/E0-2</b> — Redfish 연결 준비(진행 중 트랙과 합류) → Stage 4 실행 엔진.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ── 🎬 시뮬레이터 — 서버 Layer A 와 동일 정규식으로 검증을 재현 ──
+  const RULES = {
+    hostname: { re: /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/,
+                msg: 'RFC 1123 위반 — 소문자·숫자·하이픈(구간 시작/끝은 영숫자)만 가능합니다.' },
+    pkg:      { re: /^[A-Za-z0-9][A-Za-z0-9._+-]*$/,
+                msg: '패키지명 문자셋 위반 — 영숫자로 시작, . _ + - 만 허용(셸 메타문자 차단).' },
+    regkey:   { re: /^[\x21-\x7E]+$/,
+                msg: '등록 키에는 공백·제어문자를 쓸 수 없습니다.' }
+  };
+  const state = { os: 'rocky', iso: true };
+  function setOs(os) { state.os = os; render(); }
+  function toggleIso() { state.iso = !state.iso; render(); }
+
+  function presetRows() {
+    const fs = state.os === 'rocky' ? 'XFS' : 'EXT4';
+    return [
+      ['/boot/efi', 'EFI', '1 GiB', false],
+      ['/boot', fs, '1 GiB', true],
+      ['swap', 'SWAP', '16 GiB', false],
+      ['/', fs, 'grow', true]
+    ];
+  }
+
+  function inputRow(id, label, placeholder, ruleKey, required) {
+    return '<label style="font-size:12px;font-weight:600;">' + label + '</label>' +
+      '<input class="sim-input" id="' + id + '" placeholder="' + placeholder + '" ' +
+      'oninput="judge(\'' + id + '\', \'' + ruleKey + '\', ' + required + ')">' +
+      '<div class="sim-verdict" id="' + id + '-v"></div>';
+  }
+
+  function judge(id, ruleKey, required) {
+    const el = document.getElementById(id);
+    const v = el.value.trim();
+    const out = document.getElementById(id + '-v');
+    el.classList.remove('bad', 'good');
+    if (!v) {
+      out.className = 'sim-verdict' + (required ? ' err' : '');
+      out.textContent = required ? '400 — 필수 값입니다 (@NotBlank).' : '';
+      if (required) el.classList.add('bad');
+      return;
+    }
+    const rule = RULES[ruleKey];
+    const ok = rule.re.test(v);
+    el.classList.add(ok ? 'good' : 'bad');
+    out.className = 'sim-verdict ' + (ok ? 'ok' : 'err');
+    out.textContent = ok ? '통과 — 저장 가능한 값입니다.' : '400 — ' + rule.msg;
+  }
+
+  function render() {
+    document.querySelectorAll('[data-os]').forEach(b => b.classList.toggle('on', b.dataset.os === state.os));
+    const isoBtn = document.querySelector('[data-iso]');
+    isoBtn.classList.toggle('on', state.iso);
+    isoBtn.textContent = state.iso ? '등록됨' : '없음 (0개)';
+
+    document.getElementById('sim-preset').innerHTML =
+      '<tr><th>마운트</th><th>파일시스템</th><th>크기</th></tr>' +
+      presetRows().map(r =>
+        '<tr><td>' + r[0] + '</td><td' + (r[3] ? ' class="diff"' : '') + '>' + r[1] + '</td><td>' + r[2] + '</td></tr>'
+      ).join('');
+
+    document.getElementById('sim-iso-banner').innerHTML = state.iso ? '' :
+      '<span class="warn-banner fail-banner">설치 이미지(ISO)가 없습니다 — 실행 시점까지 등록되지 않으면 실행이 실패합니다. (D3 — 펌웨어의 "건너뜀"과 다른 실패 의미론)</span>';
+
+    const head = document.getElementById('sim-input-head');
+    const inputs = document.getElementById('sim-inputs');
+    if (state.os === 'ubuntu') {
+      head.textContent = '② Ubuntu 입력 검증 — hostname(필수화)·패키지';
+      inputs.innerHTML =
+        inputRow('sim-host', 'hostname (예: node-01.prod)', 'My_Server! 를 넣어보세요', 'hostname', true) +
+        inputRow('sim-pkg-u', '설치 패키지 (1개 입력 체험)', 'vim; rm -rf / 를 넣어보세요', 'pkg', false);
+    } else {
+      head.textContent = '② RHEL 입력 검증 — 추가 패키지·등록 키';
+      inputs.innerHTML =
+        inputRow('sim-pkg-r', 'dnf 추가 패키지 (1개 입력 체험)', 'htop 또는 bad|pkg', 'pkg', false) +
+        inputRow('sim-key', '등록 키 (registrationKey)', '공백 포함 값을 넣어보세요', 'regkey', false);
+    }
+  }
+  render();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

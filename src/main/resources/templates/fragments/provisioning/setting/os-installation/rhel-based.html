@@ -5,7 +5,7 @@
   RHEL 계열 (Rocky Linux 등) OS 설치 폼 전용 입력 블록.
   ─────────────────────────────────────────────────────────
   사용 컨텍스트 : provisioning/setting-new :: settingForm 의 OS_INSTALLATION 카드 내부.
-  필요 Model    : osOptions (List<SettingOSOptionGroupResponse> — OS 유형 그룹, U2-3 optgroup 전환)
+  필요 Model    : osOptions — 환경/패키지 그룹은 ISO 스코프(os.isoList[].environments/packageGroups, U2-4)
 
   가시성 규칙 :
     - data-os-family="RHEL_BASED" — setting-form.js 가 선택된 OS 옵션의
@@ -23,13 +23,16 @@
         <label class="n-label strong" for="oiEnvironment">설치 환경</label>
         <select id="oiEnvironment" class="n-select" data-error-field="environmentId" disabled>
             <option value="" data-placeholder>OS 를 먼저 선택하세요</option>
+            <!-- 환경 가용 스코프 = ISO (사용자 확정 2026-07-11, comps.xml 은 ISO 마다 다름) — data-iso-id 로 필터 -->
             <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
-                <option th:each="env : ${os.environments}"
+                <th:block th:each="iso : ${os.isoList}">
+                <option th:each="env : ${iso.environments}"
                         th:value="${env.id}"
                         th:text="${env.name}"
-                        th:data-os-id="${os.osMetadataId}"
+                        th:data-iso-id="${iso.id}"
                         th:data-group-ids="${#strings.listJoin(env.groupIds, ',')}"
                         class="unavailable" disabled></option>
+                </th:block>
             </th:block></th:block>
         </select>
     </div>
@@ -44,12 +47,14 @@
         <div id="oiPackageGroups" class="n-check-panel">
             <span class="n-hint" id="oiPkgPlaceholder">설치 환경을 선택하면 선택 가능한 패키지 그룹이 표시됩니다.</span>
             <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
+                <th:block th:each="iso : ${os.isoList}">
                 <label class="n-checkbox n-pkg-group unavailable"
-                       th:each="pkg : ${os.packageGroups}"
-                       th:data-os-id="${os.osMetadataId}">
+                       th:each="pkg : ${iso.packageGroups}"
+                       th:data-iso-id="${iso.id}">
                     <input type="checkbox" th:value="${pkg.id}">
                     <span th:text="${pkg.name}">패키지 그룹</span>
                 </label>
+                </th:block>
             </th:block></th:block>
         </div>
     </div>

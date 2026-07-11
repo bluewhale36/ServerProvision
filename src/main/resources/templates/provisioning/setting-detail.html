@@ -92,8 +92,10 @@
                 <!-- 실행 시 건너뜀 가능(사용자 확정 2026-07-06) — 예: SPECIFIED 보드+최신 버전인데 등록 펌웨어 0개.
                      저장을 막지 않는 안내(정의서=재사용 템플릿) — 실행 의미론은 skip+PARTIAL_SUCCESS(Stage 4). -->
                 <th:block th:each="warn : ${setting.executionWarnings}">
+                    <!-- blocking=true 는 수행 불가(실행 실패 — ISO 소실 등), false 는 해당 축 skip — 의미론 구분(U2-4 D3'). -->
                     <span th:if="${warn.processType.name() == process.processType().name()}"
-                          class="n-badge n-badge-yellow"
+                          th:class="${warn.blocking} ? 'n-badge n-badge-red' : 'n-badge n-badge-yellow'"
+                          th:text="${warn.blocking} ? '실행 불가' : '실행 시 건너뜀 가능'"
                           th:title="${#strings.listJoin(warn.warnings, ' / ')}">실행 시 건너뜀 가능</span>
                 </th:block>
             </div>
@@ -175,6 +177,14 @@
                         <tr>
                             <th>대상 OS</th>
                             <td><code class="n-mono" th:text="${setting.references.osNames.get(process.osMetadataId)} ?: ('#' + ${process.osMetadataId})">Rocky Linux 9.4</code></td>
+                        </tr>
+                        <tr>
+                            <th>설치 ISO</th>
+                            <td th:switch="${process.isoId != null}">
+                                <code th:case="true" class="n-mono"
+                                      th:text="${setting.references.isos.get(process.isoId)} ?: ('#' + ${process.isoId})">rocky-9.4.iso</code>
+                                <span th:case="false" class="n-muted">미지정 (구 형식 저장본)</span>
+                            </td>
                         </tr>
                         <tr>
                             <th>타임존</th>

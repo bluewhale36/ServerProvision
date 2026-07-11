@@ -42,6 +42,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
     @JsonCreator
     public RHELInstallationRequest(
             @JsonProperty("osMetadataId")    Long osMetadataId,
+            @JsonProperty("isoId")           Long isoId,
             @JsonProperty("timezone")        TimezoneRequest timezone,
             @JsonProperty("partitions")      List<PartitionRequest> partitions,
             @JsonProperty("rootPassword")    RootPasswordRequest rootPassword,
@@ -52,7 +53,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
             @JsonProperty("isKDumpEnabled")  Boolean isKDumpEnabled,
             @JsonProperty("allowSshRoot")    Boolean allowSshRoot
     ) {
-        super(osMetadataId, timezone, partitions, users);
+        super(osMetadataId, isoId, timezone, partitions, users);
         this.rootPassword    = rootPassword;
         this.environmentId   = environmentId;
         this.packageGroupIds = packageGroupIds != null ? packageGroupIds : List.of();
@@ -77,7 +78,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
         RootPasswordRequest patchedRoot = rootPassword == null
                 ? null : new RootPasswordRequest(null, false, true);
         return new RHELInstallationRequest(
-                osMetadataId, timezone, partitions, patchedRoot, patchedUsers,
+                osMetadataId, isoId, timezone, partitions, patchedRoot, patchedUsers,
                 environmentId, packageGroupIds, isKDumpEnabled, allowSshRoot);
     }
 }

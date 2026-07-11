@@ -15,15 +15,15 @@ public class InvalidEnvironmentSelectionException extends FieldBoundBadRequestEx
         super(message, fieldName);
     }
 
-    /** 환경이 존재하지 않거나 선택한 OS 소속이 아님. */
-    public static InvalidEnvironmentSelectionException environmentNotInOs(Long environmentId) {
+    /** 환경이 선택한 ISO 의 제공 목록에 없음 (ISO 스코프 — 사용자 확정 2026-07-11). */
+    public static InvalidEnvironmentSelectionException environmentNotProvidedByIso(Long environmentId) {
         return new InvalidEnvironmentSelectionException(
-                "선택한 OS 에 존재하지 않는 설치 환경입니다: " + environmentId, "environmentId");
+                "선택한 ISO 에서 제공하지 않는 설치 환경입니다: " + environmentId, "environmentId");
     }
 
     /** 선택 환경에서 허용되지 않는 패키지 그룹 포함. */
     public static InvalidEnvironmentSelectionException groupNotAllowed(Long packageGroupId) {
         return new InvalidEnvironmentSelectionException(
-                "선택한 설치 환경에서 선택할 수 없는 패키지 그룹입니다: " + packageGroupId, "packageGroupIds");
+                "선택한 ISO·설치 환경에서 선택할 수 없는 패키지 그룹입니다: " + packageGroupId, "packageGroupIds");
     }
 }

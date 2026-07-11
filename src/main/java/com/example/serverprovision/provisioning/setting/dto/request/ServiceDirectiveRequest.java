@@ -12,6 +12,8 @@ import jakarta.validation.constraints.NotBlank;
 public record ServiceDirectiveRequest(
 
         @NotBlank(message = "서비스 이름은 필수 값입니다.")
+        @jakarta.validation.constraints.Pattern(regexp = "^[A-Za-z0-9:_.\\\\@-]+$",
+                message = "서비스 이름에 허용되지 않는 문자가 있습니다.")
         String name,
 
         ServiceAction action

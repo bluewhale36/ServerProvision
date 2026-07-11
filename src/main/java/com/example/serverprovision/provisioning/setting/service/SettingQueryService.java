@@ -6,6 +6,7 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingBoar
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.TimezoneRegionResponse;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 
 import java.util.List;
@@ -32,9 +33,9 @@ public interface SettingQueryService {
     /** OS 설치/후처리 단계 폼의 OS·환경·패키지그룹 선택지 — OS 유형(OSName) 그룹. */
     List<SettingOSOptionGroupResponse> findOSOptions();
 
-    /**
-     * OS 별 권장 파티션 프리셋 — 현재 osName 무관 표준 프리셋.
-     * OS 계열별 분기는 OS-다형 동작이 실구현되는 U2-4 의 책임.
-     */
+    /** 타임존 선택지 — IANA 대륙별 도시 목록(JVM tzdb, 계열 무관 공통). */
+    List<TimezoneRegionResponse> findTimezoneOptions();
+
+    /** OS 별 권장 파티션 프리셋 — 계열 무관 고정(사용자 확정 2026-07-11: ext4 기본, 분기하지 않음). */
     List<PartitionPresetResponse> findDefaultPartitions(String osName);
 }

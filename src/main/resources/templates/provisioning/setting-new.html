@@ -266,12 +266,49 @@
                                 </div>
 
                                 <div id="oiDetailFields" hidden>
+                                    <!-- 설치 ISO (U2-4, 사용자 확정) — OS 선택 후 그 OS 의 사용 가능한 ISO 중 선택(필수).
+                                         ISO 없는 OS 는 서버가 OS 옵션 자체를 제외하므로 여기 빈 목록은 도달하지 않는다. -->
+                                    <div class="n-form-group" data-error-field="isoId">
+                                        <label class="n-label strong" for="oiIsoSelect">설치 ISO</label>
+                                        <select id="oiIsoSelect" class="n-select" disabled>
+                                            <option value="" data-placeholder>OS 를 먼저 선택하세요</option>
+                                            <th:block th:each="group : ${osOptions}">
+                                            <th:block th:each="os : ${group.osList}">
+                                                <option th:each="iso : ${os.isoList}"
+                                                        th:value="${iso.id}"
+                                                        th:text="${iso.name}"
+                                                        th:data-os-id="${os.osMetadataId}"
+                                                        th:data-deprecated="${iso.deprecated}"
+                                                        th:data-deprecated-at="${iso.deprecatedAtDisplay}"
+                                                        class="unavailable" disabled></option>
+                                            </th:block>
+                                            </th:block>
+                                        </select>
+                                    </div>
                                     <!-- 타임존 -->
-                                    <div class="n-row">
+                                    <!-- 타임존 = 대륙/도시 2-select (사용자 확정 2026-07-12) — 목록은 JVM 내장
+                                         IANA tzdb(timezoneOptions Model). 기본 Asia/Seoul, wire 값은 "대륙/도시" 조합. -->
+                                    <div class="n-row" data-error-field="timezone">
                                         <div class="n-form-group">
-                                            <label class="n-label strong" for="oiTimezone">타임존</label>
-                                            <input type="text" id="oiTimezone" class="n-input"
-                                                   data-error-field="timezone" placeholder="예: Asia/Seoul">
+                                            <label class="n-label strong" for="oiTzRegion">타임존 — 대륙</label>
+                                            <select id="oiTzRegion" class="n-select">
+                                                <option th:each="tz : ${timezoneOptions}"
+                                                        th:value="${tz.region}"
+                                                        th:text="${tz.region}"
+                                                        th:selected="${tz.region == 'Asia'}"></option>
+                                            </select>
+                                        </div>
+                                        <div class="n-form-group">
+                                            <label class="n-label strong" for="oiTzCity">타임존 — 도시</label>
+                                            <select id="oiTzCity" class="n-select">
+                                                <th:block th:each="tz : ${timezoneOptions}">
+                                                    <option th:each="city : ${tz.cities}"
+                                                            th:value="${city}"
+                                                            th:text="${city}"
+                                                            th:data-region="${tz.region}"
+                                                            class="unavailable" disabled></option>
+                                                </th:block>
+                                            </select>
                                         </div>
                                         <div class="n-form-group n-checkbox-bottom">
                                             <label class="n-checkbox">

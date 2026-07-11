@@ -36,4 +36,14 @@ public class TimezoneRequest {
     public boolean isUTC() {
         return isUTC;
     }
+
+    /**
+     * IANA tzdb 실재 검증(U2-4) — JVM 내장 목록이 SSOT(ISO 추출·하드코딩 불필요, 사용자 확정
+     * 2026-07-12). UI 는 대륙/도시 2-select 로 목록에서만 고르므로 direct POST 안전망.
+     */
+    @jakarta.validation.constraints.AssertTrue(message = "유효하지 않은 시간대입니다.")
+    public boolean isKnownZone() {
+        return timezone == null || timezone.isBlank()
+                || java.time.ZoneId.getAvailableZoneIds().contains(timezone);
+    }
 }

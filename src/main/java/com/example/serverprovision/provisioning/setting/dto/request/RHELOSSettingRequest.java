@@ -32,7 +32,9 @@ public class RHELOSSettingRequest extends OSSettingRequest {
 
     /** {@code dnf install} 추가 패키지 목록. 빈 리스트 허용. */
     @NotNull(message = "추가 패키지 목록은 null일 수 없습니다.")
-    private final List<String> additionalPackages;
+    private final List<@jakarta.validation.constraints.Pattern(
+            regexp = "^[A-Za-z0-9][A-Za-z0-9._+-]*$",
+            message = "패키지명은 영숫자로 시작하고 . _ + - 만 쓸 수 있습니다.") String> additionalPackages;
 
     @JsonCreator
     public RHELOSSettingRequest(

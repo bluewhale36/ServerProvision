@@ -10,7 +10,8 @@ import java.util.List;
 
 /**
  * Debian 계열 설치 참조 검사 — 계열 고유 자원 참조는 없고(hostname/패키지 문자열은 참조 아님),
- * 리눅스 공통 파티션 규칙만 검증한다. U2-4 의 preseed 고유 검증이 이 빈 내부에서 자란다.
+ * 리눅스 공통 파티션 규칙만 검증한다. hostname·패키지 형식은 Layer A(@Pattern, U2-4)가 담당 —
+ * 이후 autoinstall 고유 규칙이 생기면 이 빈에서 자란다.
  */
 @Component
 public class DebianInstallationFamilyInspector implements OSInstallationFamilyInspector {

@@ -209,6 +209,27 @@ class JpaSettingQueryServiceTest {
         given(rocky.getOsVersion()).willReturn("9.4");
         given(rocky.isEnabled()).willReturn(true);
         given(rocky.isDeprecated()).willReturn(false);
+        // U2-4 — 사용 가능한 ISO 가 없는 OS 는 옵션에서 제외되므로 usable ISO 1개 스텁.
+        // 환경/그룹은 ISO 제공 관계 스코프(사용자 확정 2026-07-11): env 의 그룹 ∩ ISO 제공 그룹 계산 검증 겸용.
+        var usableIso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
+        Mockito.lenient().when(usableIso.getId()).thenReturn(50L);
+        Mockito.lenient().when(usableIso.isDeleted()).thenReturn(false);
+        Mockito.lenient().when(usableIso.isEnabled()).thenReturn(true);
+        Mockito.lenient().when(usableIso.isDeprecated()).thenReturn(false);
+        Mockito.lenient().when(usableIso.getIsoPath()).thenReturn("/isos/rocky-9.4.iso");
+        var providedGroup = Mockito.mock(com.example.serverprovision.management.os.entity.OSPackageGroup.class);
+        Mockito.lenient().when(providedGroup.getId()).thenReturn(10L);
+        Mockito.lenient().when(providedGroup.getDisplayName()).thenReturn("Development Tools");
+        var unprovidedGroup = Mockito.mock(com.example.serverprovision.management.os.entity.OSPackageGroup.class);
+        Mockito.lenient().when(unprovidedGroup.getId()).thenReturn(99L);
+        var env = Mockito.mock(com.example.serverprovision.management.os.entity.OSEnvironment.class);
+        Mockito.lenient().when(env.getId()).thenReturn(5L);
+        Mockito.lenient().when(env.getDisplayName()).thenReturn("Minimal Install");
+        // 환경 허용 그룹에는 10·99 가 있으나 ISO 는 10 만 제공 → groupIds 는 10 만 남아야 한다.
+        Mockito.lenient().when(env.getGroups()).thenReturn(List.of(providedGroup, unprovidedGroup));
+        Mockito.lenient().when(usableIso.getProvidedEnvironments()).thenReturn(List.of(env));
+        Mockito.lenient().when(usableIso.getProvidedPackageGroups()).thenReturn(List.of(providedGroup));
+        given(rocky.getIsos()).willReturn(List.of(usableIso));
         OSMetadata windows = Mockito.mock(OSMetadata.class);
         given(windows.getOsName()).willReturn(OSName.WINDOWS_SERVER);
         given(windows.isEnabled()).willReturn(true);
@@ -216,10 +237,6 @@ class JpaSettingQueryServiceTest {
         given(disabledOs.isEnabled()).willReturn(false);
         given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc())
                 .willReturn(List.of(rocky, windows, disabledOs));
-        given(osEnvironmentRepository.findAllByOsMetadata_IdOrderByEnvironmentCode_ValueAsc(1L))
-                .willReturn(List.of());
-        given(osPackageGroupRepository.findAllByOsMetadata_IdOrderByGroupCode_ValueAsc(1L))
-                .willReturn(List.of());
 
         List<SettingOSOptionGroupResponse> groups = service.findOSOptions();
 
@@ -228,5 +245,13 @@ class JpaSettingQueryServiceTest {
         assertThat(groups.get(0).osLabel()).isEqualTo("Rocky Linux");
         assertThat(groups.get(0).osList().get(0).osName()).isEqualTo("ROCKY_LINUX");
         assertThat(groups.get(0).osList().get(0).osFamily()).isEqualTo(OSFamily.RHEL_BASED);
+        // ISO 선택지 — 파일명 표시(U2-4) + 환경/그룹은 ISO 제공 스코프.
+        var isoOption = groups.get(0).osList().get(0).isoList().get(0);
+        assertThat(isoOption.name()).isEqualTo("rocky-9.4.iso");
+        assertThat(isoOption.packageGroups()).singleElement()
+                .extracting(o -> o.id()).isEqualTo(10L);
+        // 환경의 groupIds = 환경 허용(10,99) ∩ ISO 제공(10) = [10].
+        assertThat(isoOption.environments()).singleElement()
+                .extracting(e -> e.groupIds()).isEqualTo(List.of(10L));
     }
 }

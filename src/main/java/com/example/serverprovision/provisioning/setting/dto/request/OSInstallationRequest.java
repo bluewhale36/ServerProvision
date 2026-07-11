@@ -24,8 +24,17 @@ public abstract class OSInstallationRequest extends AbstractProcessRequest {
     @NotNull(message = "OS 메타데이터 ID는 필수 값입니다.")
     protected final Long osMetadataId;
 
-    protected OSInstallationRequest(Long osMetadataId) {
+    /**
+     * 설치에 사용할 ISO 의 DB 기본키(U2-4, 사용자 확정 2026-07-11) — OS 버전 선택 후 ISO 도
+     * 명시 선택한다. UI 는 사용 가능한 ISO 가 없는 OS 를 옵션에서 제외하고, 검사기가
+     * 실존·OS 소속·enabled 를 검증한다. 계열 무관 보편 개념이라 베이스 소유.
+     */
+    @NotNull(message = "설치 ISO 는 필수 선택입니다.")
+    protected final Long isoId;
+
+    protected OSInstallationRequest(Long osMetadataId, Long isoId) {
         this.osMetadataId = osMetadataId;
+        this.isoId = isoId;
     }
 
     @Override

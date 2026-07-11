@@ -241,23 +241,82 @@
             const rootGroup = document.getElementById('oiRootPasswordGroup');
             if (rootGroup) rootGroup.hidden = family !== 'RHEL_BASED';
 
-            filterEnvironmentOptions(osId);
+            filterIsoOptions(osId);
+            filterEnvironmentOptions();
             applyPackageGroupFilter();
             dispatchVersionSpecificBox(opt && osId ? opt : null);
             syncOsSelectionLock();
         }
 
-        /** 설치 환경 옵션을 선택된 osMetadataId(data-os-id) 로 필터링한다. */
-        function filterEnvironmentOptions(osId) {
-            if (!oiEnvironment) return;
-            const placeholder = oiEnvironment.querySelector('option[data-placeholder]');
-            oiEnvironment.disabled = !osId;
+        const oiIsoSelect = document.getElementById('oiIsoSelect');
+        const oiTzRegion = document.getElementById('oiTzRegion');
+        const oiTzCity = document.getElementById('oiTzCity');
+
+        /* ---- 타임존 2-select (사용자 확정 2026-07-12) — 값은 "대륙/도시" IANA 조합 ---- */
+
+        /** 대륙 선택에 따라 도시 옵션을 필터하고, 기본(fallback) 도시를 선택한다. */
+        function filterTzCities(preferredCity) {
+            if (!oiTzRegion || !oiTzCity) return;
+            const region = oiTzRegion.value;
+            let first = null;
+            oiTzCity.querySelectorAll('option[data-region]').forEach(opt => {
+                const match = opt.dataset.region === region;
+                opt.classList.toggle('unavailable', !match);
+                opt.disabled = !match;
+                if (match && first === null) first = opt.value;
+            });
+            const wanted = preferredCity != null ? preferredCity : (region === 'Asia' ? 'Seoul' : null);
+            oiTzCity.value = '';
+            if (wanted) oiTzCity.value = wanted;
+            const chosen = selectedOption(oiTzCity);
+            if ((!chosen || chosen.disabled) && first !== null) oiTzCity.value = first;
+        }
+
+        /** wire 조합값 — "Asia/Seoul". 미선택 방어는 Layer A(@NotBlank/@AssertTrue)가 받는다. */
+        function tzValue() {
+            if (!oiTzRegion || !oiTzCity || !oiTzCity.value) return '';
+            return oiTzRegion.value + '/' + oiTzCity.value;
+        }
+
+        if (oiTzRegion) {
+            oiTzRegion.addEventListener('change', () => filterTzCities(null));
+            filterTzCities(null); // 초기 기본값 — Asia(서버 selected)/Seoul
+        }
+
+        /** 설치 ISO 옵션을 선택된 osMetadataId 로 필터링한다(환경 select 와 동일 관용구, U2-4). */
+        function filterIsoOptions(osId) {
+            if (!oiIsoSelect) return;
+            const placeholder = oiIsoSelect.querySelector('option[data-placeholder]');
+            oiIsoSelect.disabled = !osId;
             if (placeholder) {
-                placeholder.textContent = osId ? '환경을 선택하세요' : 'OS 를 먼저 선택하세요';
+                placeholder.textContent = osId ? 'ISO 를 선택하세요' : 'OS 를 먼저 선택하세요';
                 placeholder.selected = true;
             }
-            oiEnvironment.querySelectorAll('option[data-os-id]').forEach(opt => {
+            oiIsoSelect.querySelectorAll('option[data-os-id]').forEach(opt => {
                 const match = !!osId && opt.dataset.osId === osId;
+                opt.classList.toggle('unavailable', !match);
+                opt.disabled = !match;
+            });
+            // 해당 OS 의 ISO 가 1개뿐이면 자동 선택(서버 제외 규칙상 0개는 도달 불가).
+            const candidates = Array.from(oiIsoSelect.querySelectorAll('option[data-os-id]:not([disabled])'));
+            if (candidates.length === 1) {
+                oiIsoSelect.value = candidates[0].value;
+                commitDeprecatedSelection(oiIsoSelect);
+            }
+        }
+
+        /** 설치 환경 옵션 필터 — 가용 스코프는 선택된 ISO(data-iso-id, 사용자 확정 2026-07-11). */
+        function filterEnvironmentOptions() {
+            if (!oiEnvironment) return;
+            const isoId = oiIsoSelect ? oiIsoSelect.value : '';
+            const placeholder = oiEnvironment.querySelector('option[data-placeholder]');
+            oiEnvironment.disabled = !isoId;
+            if (placeholder) {
+                placeholder.textContent = isoId ? '환경을 선택하세요' : 'ISO 를 먼저 선택하세요';
+                placeholder.selected = true;
+            }
+            oiEnvironment.querySelectorAll('option[data-iso-id]').forEach(opt => {
+                const match = !!isoId && opt.dataset.isoId === isoId;
                 opt.classList.toggle('unavailable', !match);
                 opt.disabled = !match;
             });
@@ -269,7 +328,7 @@
          * (그룹 가용성이 환경에 종속 — 서버 정합 가드와 동일 SSOT).
          */
         function applyPackageGroupFilter() {
-            const osId = oiOsSelect ? oiOsSelect.value : '';
+            const isoId = oiIsoSelect ? oiIsoSelect.value : '';
             const envOpt = oiEnvironment ? oiEnvironment.selectedOptions[0] : null;
             const allowed = envOpt && envOpt.dataset.groupIds != null
                 ? envOpt.dataset.groupIds.split(',').filter(Boolean)
@@ -277,7 +336,7 @@
             let visible = 0;
             form.querySelectorAll('.n-pkg-group').forEach(row => {
                 const chk = row.querySelector('input[type="checkbox"]');
-                const match = !!osId && row.dataset.osId === osId
+                const match = !!isoId && row.dataset.isoId === isoId
                     && allowed !== null && !!chk && allowed.indexOf(chk.value) >= 0;
                 row.classList.toggle('unavailable', !match);
                 if (chk && !match) chk.checked = false;
@@ -697,6 +756,15 @@
         watchDeprecatedSelect(buBios, 'BIOS 펌웨어', null);
         watchDeprecatedSelect(buBmc, 'BMC 펌웨어', null);
         watchDeprecatedSelect(oiOsSelect, 'OS', onInstallOsChange);
+        watchDeprecatedSelect(oiIsoSelect, 'ISO', function () {
+            filterEnvironmentOptions();
+            applyPackageGroupFilter();
+        });
+        if (oiIsoSelect) oiIsoSelect.addEventListener('change', function () {
+            // ISO 가 바뀌면 환경/패키지 그룹의 가용 목록이 바뀐다(comps.xml 스코프).
+            filterEnvironmentOptions();
+            applyPackageGroupFilter();
+        });
         watchDeprecatedSelect(osOsSelect, 'OS', onSettingOsChange);
 
         // 보드 변경 시 onBoardModelChange 가 BIOS/BMC 를 change 이벤트 없이 LATEST 로 리셋하므로
@@ -890,8 +958,9 @@
                     type: 'OS_INSTALLATION',
                     osFamily: osFamily,
                     osMetadataId: intOrNull(oiOsSelect.value),
+                    isoId: oiIsoSelect ? intOrNull(oiIsoSelect.value) : null,
                     timezone: {
-                        timezone: document.getElementById('oiTimezone').value.trim(),
+                        timezone: tzValue(),
                         isUTC: document.getElementById('oiIsUtc').checked
                     },
                     partitions: buildPartitions(),
@@ -1041,6 +1110,12 @@
                     if (select) paintFieldError(select, 'OS 를 선택해야 합니다.');
                     ok = false;
                 }
+                if (proc.type === 'OS_INSTALLATION' && proc.osMetadataId != null && proc.isoId == null) {
+                    const card = cardOf(stepTypeByIndex[i]);
+                    const select = card ? card.querySelector('[data-error-field="isoId"]') : null;
+                    if (select) paintFieldError(select, '설치 ISO 를 선택해야 합니다.');
+                    ok = false;
+                }
                 if (proc.type === 'BASIC_SETTING'
                     && (!proc.biosSettingTemplateIds || proc.biosSettingTemplateIds.length === 0)) {
                     const card = cardOf('BASIC_SETTING');
@@ -1169,9 +1244,20 @@
                     oiOsSelect.value = String(proc.osMetadataId);
                     onInstallOsChange();
                 }
+                if (proc.isoId != null && oiIsoSelect) {
+                    oiIsoSelect.value = String(proc.isoId); // 소실 시 매칭 실패 → placeholder 유지(상세 경고가 안내)
+                    commitDeprecatedSelection(oiIsoSelect);
+                    filterEnvironmentOptions(); // 환경 가용 목록은 ISO 스코프 — 복원 후 재필터
+                }
                 const tz = proc.timezone;
                 if (tz) {
-                    document.getElementById('oiTimezone').value = tz.timezone || '';
+                    // "대륙/도시" 역파싱 — region 세팅 후 도시 필터를 거쳐 복원(비 IANA 구 저장본은 기본값 유지).
+                    const tzId = tz.timezone || '';
+                    const slash = tzId.indexOf('/');
+                    if (oiTzRegion && slash > 0) {
+                        oiTzRegion.value = tzId.substring(0, slash);
+                        filterTzCities(tzId.substring(slash + 1));
+                    }
                     document.getElementById('oiIsUtc').checked = pickBool(tz, 'isUTC', 'utc', 'UTC');
                 }
                 (proc.partitions || []).forEach(p => addPartitionRow({

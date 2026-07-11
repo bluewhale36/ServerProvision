@@ -55,7 +55,7 @@ class SettingRestControllerSaveFlowTest {
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static final String LINUX_COMMON = """
-            "osMetadataId": 1,
+            "osMetadataId": 1, "isoId": 100,
             "timezone": {"timezone": "Asia/Seoul", "isUTC": true},
             "partitions": [
               {"mountPoint": "/boot/efi", "fileSystem": "EFI", "diskName": null, "size": 600, "sizeUnit": "MB", "isGrow": false},
@@ -181,7 +181,7 @@ class SettingRestControllerSaveFlowTest {
     void create_osSelectionMismatch_returns400() throws Exception {
         String mismatch = """
                 {"name": "os 불일치", "processList": [
-                  {"type": "OS_INSTALLATION", "osFamily": "RHEL_BASED", "osMetadataId": 1,
+                  {"type": "OS_INSTALLATION", "osFamily": "RHEL_BASED", "isoId": 100, "osMetadataId": 1,
                    "timezone": {"timezone": "Asia/Seoul", "isUTC": true},
                    "partitions": [{"mountPoint": "/", "fileSystem": "EXT4", "size": 0, "sizeUnit": "GB", "isGrow": true}],
                    "rootPassword": {"password": "pw1"}, "users": [], "environmentId": 1, "packageGroupIds": []},
@@ -193,6 +193,18 @@ class SettingRestControllerSaveFlowTest {
                         .content(mismatch))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osSelectionConsistent')]").exists());
+    }
+
+    @Test
+    @DisplayName("POST — 비실재 타임존 → @AssertTrue 400 (IANA tzdb 검증, U2-4)")
+    void create_unknownTimezone_returns400() throws Exception {
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"RHEL_BASED\","
+                                + LINUX_COMMON.replace("Asia/Seoul", "Asia/Nowhere")
+                                + ", \"environmentId\": 1, \"packageGroupIds\": [], \"isKDumpEnabled\": true, \"allowSshRoot\": null}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field =~ /.*knownZone/)]").exists());
     }
 
     @Test
@@ -421,7 +433,7 @@ class SettingRestControllerSaveFlowTest {
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                         .content(body("""
-                                {"type": "OS_INSTALLATION", "osFamily": "RHEL_BASED", "osMetadataId": 1,
+                                {"type": "OS_INSTALLATION", "osFamily": "RHEL_BASED", "isoId": 100, "osMetadataId": 1,
                                  "timezone": {"timezone": "Asia/Seoul", "isUTC": true},
                                  "partitions": [], "environmentId": 1}
                                 """)))

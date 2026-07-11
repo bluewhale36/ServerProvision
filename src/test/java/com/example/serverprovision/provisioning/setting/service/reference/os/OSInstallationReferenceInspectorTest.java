@@ -39,6 +39,7 @@ class OSInstallationReferenceInspectorTest {
             new com.example.serverprovision.provisioning.setting.service.reference.ProcessValidationContext(java.util.List.of());
 
     @Mock OSMetadataRepository osMetadataRepository;
+    @Mock com.example.serverprovision.management.os.repository.ISORepository isoRepository;
     @Mock RHELInstallationFamilyInspector rhelFamily;
 
     private OSInstallationReferenceInspector inspector;
@@ -47,11 +48,12 @@ class OSInstallationReferenceInspectorTest {
         given(rhelFamily.family()).willReturn(com.example.serverprovision.provisioning.setting.enums.OSFamily.RHEL_BASED);
         // Debian family 는 의도적으로 미등록 — 2단 맵 미스 = 계열 고유 참조 없음(통과) 의미론 검증.
         return new OSInstallationReferenceInspector(
-                new OsMetadataReferenceChecker(osMetadataRepository), List.of(rhelFamily));
+                new OsMetadataReferenceChecker(osMetadataRepository), isoRepository, List.of(rhelFamily));
     }
 
     private static RHELInstallationRequest rhel(Long osMetadataId) {
-        return new RHELInstallationRequest(osMetadataId,
+        return new RHELInstallationRequest(
+                osMetadataId, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
                 null, List.of(), 1L, List.of(), true, null);
@@ -59,10 +61,22 @@ class OSInstallationReferenceInspectorTest {
 
     private static UbuntuInstallationRequest ubuntu(Long osMetadataId) {
         // rootPassword 파라미터 없음 — Ubuntu 계약에서 제거됨(root 잠금 기본).
-        return new UbuntuInstallationRequest(osMetadataId,
+        return new UbuntuInstallationRequest(osMetadataId, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.EXT4, null, 0L, SizeUnit.GB, true)),
                 List.of(), "node-01", List.of());
+    }
+
+    /** 유효한 ISO(선택 OS 소속·enabled) 스텁 — validate 의 ISO 가드 통과용. */
+    private void stubUsableIso(Long isoId, Long osMetadataId) {
+        var iso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
+        var owner = Mockito.mock(OSMetadata.class);
+        Mockito.lenient().when(owner.getId()).thenReturn(osMetadataId);
+        Mockito.lenient().when(iso.isDeleted()).thenReturn(false);
+        Mockito.lenient().when(iso.getOsMetadata()).thenReturn(owner);
+        Mockito.lenient().when(iso.isEnabled()).thenReturn(true);
+        Mockito.lenient().when(iso.isDeprecated()).thenReturn(false);
+        given(isoRepository.findById(isoId)).willReturn(Optional.of(iso));
     }
 
     private OSMetadata enabledOs(boolean deprecated) {
@@ -99,12 +113,44 @@ class OSInstallationReferenceInspectorTest {
         inspector = build();
         OSMetadata os = enabledOs(false);
         given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(os));
+        stubUsableIso(100L, 1L);
 
         OSInstallationRequest rhelRequest = rhel(1L);
         inspector.validateReferences(rhelRequest, CTX);
         verify(rhelFamily).validateReferences(rhelRequest); // 계열 고유 검증 위임
 
         assertThatCode(() -> inspector.validateReferences(ubuntu(1L), CTX)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("ISO 가드(U2-4) — 타 OS 소속/부존재 404 · disabled 409(field=isoId)")
+    void isoGuard() {
+        inspector = build();
+        OSMetadata os = enabledOs(false);
+        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(os));
+
+        // 타 OS 의 ISO forging → 404
+        var foreignIso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
+        var otherOs = Mockito.mock(OSMetadata.class);
+        given(otherOs.getId()).willReturn(2L);
+        given(foreignIso.isDeleted()).willReturn(false);
+        given(foreignIso.getOsMetadata()).willReturn(otherOs);
+        given(isoRepository.findById(100L)).willReturn(Optional.of(foreignIso));
+        assertThatThrownBy(() -> inspector.validateReferences(rhel(1L), CTX))
+                .isInstanceOf(com.example.serverprovision.management.os.exception.ISONotFoundException.class);
+
+        // disabled ISO → 409 field=isoId
+        var disabledIso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
+        var owner = Mockito.mock(OSMetadata.class);
+        given(owner.getId()).willReturn(1L);
+        given(disabledIso.isDeleted()).willReturn(false);
+        given(disabledIso.getOsMetadata()).willReturn(owner);
+        given(disabledIso.isEnabled()).willReturn(false);
+        Mockito.lenient().when(disabledIso.getId()).thenReturn(100L);
+        given(isoRepository.findById(100L)).willReturn(Optional.of(disabledIso));
+        assertThatThrownBy(() -> inspector.validateReferences(rhel(1L), CTX))
+                .isInstanceOf(DisabledResourceReferenceException.class)
+                .hasFieldOrPropertyWithValue("fieldName", "isoId");
     }
 
     @Test

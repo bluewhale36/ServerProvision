@@ -59,7 +59,7 @@ class ProcessPayloadConverterTest {
     @DisplayName("왕복 — OS 다형(2단 판별자 + Linux 중간층 + 중첩 하위요청) 보존")
     void roundTrip_polymorphicOsSteps() {
         ProcessPayload install = new ProcessPayload(new RHELInstallationRequest(
-                1L, new TimezoneRequest("Asia/Seoul", true),
+                1L, 100L, new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
                 null, List.of(), 1L, List.of(2L), true, null));
         ProcessPayload setting = new ProcessPayload(new RHELOSSettingRequest(

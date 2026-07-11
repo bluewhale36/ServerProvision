@@ -33,7 +33,7 @@ class DebianInstallationFamilyInspectorTest {
     }
 
     private static UbuntuInstallationRequest ubuntu(List<PartitionRequest> partitions, List<UserRequest> users) {
-        return new UbuntuInstallationRequest(1L,
+        return new UbuntuInstallationRequest(1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true), partitions, users, "node-01", List.of());
     }
 

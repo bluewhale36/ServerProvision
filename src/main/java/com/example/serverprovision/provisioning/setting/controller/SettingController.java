@@ -73,6 +73,7 @@ public class SettingController {
         model.addAttribute("boardOptions", settingQueryService.findBoardOptions());
         model.addAttribute("osOptions", settingQueryService.findOSOptions());
         model.addAttribute("biosTemplateOptions", settingQueryService.findBiosTemplateOptions());
+        model.addAttribute("timezoneOptions", settingQueryService.findTimezoneOptions());
         model.addAttribute("fileSystems", List.of(FileSystem.values()));
         model.addAttribute("sizeUnits", List.of(SizeUnit.values()));
     }

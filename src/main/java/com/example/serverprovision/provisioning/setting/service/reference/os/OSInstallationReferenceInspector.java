@@ -4,6 +4,10 @@ import com.example.serverprovision.provisioning.setting.dto.request.AbstractProc
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
+import com.example.serverprovision.global.entity.LifecycleEntity;
+import com.example.serverprovision.management.os.exception.ISONotFoundException;
+import com.example.serverprovision.management.os.repository.ISORepository;
+import com.example.serverprovision.provisioning.setting.exception.DisabledResourceReferenceException;
 import com.example.serverprovision.provisioning.setting.service.reference.ProcessReferenceInspector;
 import com.example.serverprovision.provisioning.setting.service.reference.ProcessValidationContext;
 import org.springframework.stereotype.Component;
@@ -23,11 +27,14 @@ import java.util.stream.Collectors;
 public class OSInstallationReferenceInspector implements ProcessReferenceInspector {
 
     private final OsMetadataReferenceChecker osMetadataChecker;
+    private final ISORepository isoRepository;
     private final Map<OSFamily, OSInstallationFamilyInspector> familyInspectors;
 
     public OSInstallationReferenceInspector(OsMetadataReferenceChecker osMetadataChecker,
+                                            ISORepository isoRepository,
                                             List<OSInstallationFamilyInspector> familyInspectors) {
         this.osMetadataChecker = osMetadataChecker;
+        this.isoRepository = isoRepository;
         this.familyInspectors = familyInspectors.stream()
                 .collect(Collectors.toUnmodifiableMap(OSInstallationFamilyInspector::family, Function.identity()));
     }
@@ -41,6 +48,14 @@ public class OSInstallationReferenceInspector implements ProcessReferenceInspect
     public void validateReferences(AbstractProcessRequest process, ProcessValidationContext context) {
         OSInstallationRequest request = (OSInstallationRequest) process;
         osMetadataChecker.requireEnabled(request.getOsMetadataId());
+        // ISO 는 계열 무관 베이스 참조(U2-4) — 실존 + OS 소속(타 OS 의 ISO forging 차단) + enabled.
+        var iso = isoRepository.findById(request.getIsoId())
+                .filter(candidate -> !candidate.isDeleted())
+                .filter(candidate -> candidate.getOsMetadata().getId().equals(request.getOsMetadataId()))
+                .orElseThrow(() -> new ISONotFoundException(request.getOsMetadataId(), request.getIsoId()));
+        if (!iso.isEnabled()) {
+            throw new DisabledResourceReferenceException("isoId", "ISO #" + iso.getId());
+        }
         OSInstallationFamilyInspector family = familyInspectors.get(request.osFamily());
         if (family != null) {
             family.validateReferences(request);
@@ -52,6 +67,12 @@ public class OSInstallationReferenceInspector implements ProcessReferenceInspect
         OSInstallationRequest request = (OSInstallationRequest) process;
         List<String> names = new ArrayList<>();
         osMetadataChecker.describeDeprecated(request.getOsMetadataId()).ifPresent(names::add);
+        if (request.getIsoId() != null) {
+            isoRepository.findById(request.getIsoId())
+                    .filter(candidate -> !candidate.isDeleted())
+                    .filter(LifecycleEntity::isDeprecated)
+                    .ifPresent(candidate -> names.add("ISO #" + candidate.getId()));
+        }
         OSInstallationFamilyInspector family = familyInspectors.get(request.osFamily());
         if (family != null) {
             names.addAll(family.describeDeprecatedReferences(request));

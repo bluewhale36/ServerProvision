@@ -3,7 +3,7 @@ package com.example.serverprovision.provisioning.setting.service.reference.os;
 import com.example.serverprovision.management.os.entity.OSEnvironment;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.entity.OSPackageGroup;
-import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
+import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest;
@@ -33,7 +33,7 @@ import static org.mockito.BDDMockito.given;
 class RHELInstallationFamilyInspectorTest {
 
 
-    @Mock OSEnvironmentRepository osEnvironmentRepository;
+    @Mock ISORepository isoRepository;
     @InjectMocks RHELInstallationFamilyInspector inspector;
 
     /** 필수 마운트 4종을 채운 표준 세트 — 파티션 규칙과 무관한 테스트가 그 규칙에 걸리지 않게 한다. */
@@ -53,7 +53,7 @@ class RHELInstallationFamilyInspectorTest {
             Long osMetadataId, Long environmentId, List<Long> groupIds, List<PartitionRequest> partitions) {
         // rootPassword 를 채워 접근성 규칙(NO_ACCESSIBLE_USER)과 무관한 테스트를 통과시킨다.
         return new RHELInstallationRequest(
-                osMetadataId,
+                osMetadataId, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 partitions,
                 new RootPasswordRequest("root-pw-1", false, false),
@@ -67,18 +67,24 @@ class RHELInstallationFamilyInspectorTest {
                 .toList();
     }
 
-    private OSEnvironment envOfOs(Long osId, List<Long> allowedGroupIds) {
+    /** ISO 스텁 — 제공 환경 1개(envId, 허용 그룹 envGroupIds) + ISO 제공 그룹(providedIds). */
+    private void stubIso(Long isoId, Long envId, List<Long> envGroupIds, List<Long> providedIds) {
+        var iso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
         OSEnvironment env = Mockito.mock(OSEnvironment.class);
-        OSMetadata os = Mockito.mock(OSMetadata.class);
-        given(os.getId()).willReturn(osId);
-        given(env.getOsMetadata()).willReturn(os);
-        List<OSPackageGroup> groups = allowedGroupIds.stream().map(id -> {
-            OSPackageGroup g = Mockito.mock(OSPackageGroup.class);
-            Mockito.lenient().when(g.getId()).thenReturn(id);
-            return g;
-        }).toList();
-        Mockito.lenient().when(env.getGroups()).thenReturn(groups);
-        return env;
+        Mockito.lenient().when(env.getId()).thenReturn(envId);
+        // 주의: 스터빙 인자 안에서 group() 을 호출하면 중첩 스터빙 — 반드시 선생성 후 전달.
+        List<OSPackageGroup> envGroups = envGroupIds.stream().map(this::group).toList();
+        List<OSPackageGroup> provided = providedIds.stream().map(this::group).toList();
+        Mockito.lenient().when(env.getGroups()).thenReturn(envGroups);
+        Mockito.lenient().when(iso.getProvidedEnvironments()).thenReturn(List.of(env));
+        Mockito.lenient().when(iso.getProvidedPackageGroups()).thenReturn(provided);
+        given(isoRepository.findById(isoId)).willReturn(Optional.of(iso));
+    }
+
+    private OSPackageGroup group(Long id) {
+        OSPackageGroup g = Mockito.mock(OSPackageGroup.class);
+        Mockito.lenient().when(g.getId()).thenReturn(id);
+        return g;
     }
 
     @Test
@@ -117,7 +123,7 @@ class RHELInstallationFamilyInspectorTest {
     @DisplayName("접근성 규칙(legacy NO_ACCESSIBLE_USER) — root 비밀번호도 사용자도 없으면 400 field=rootPassword")
     void userAccess_enforced() {
         RHELInstallationRequest noAccess = new RHELInstallationRequest(
-                1L, new TimezoneRequest("Asia/Seoul", true), standardPartitions(),
+                1L, 100L, new TimezoneRequest("Asia/Seoul", true), standardPartitions(),
                 null, List.of(), 6L, List.of(), true, null);
         assertThatThrownBy(() -> inspector.validateReferences(noAccess))
                 .isInstanceOf(com.example.serverprovision.provisioning.setting.exception.InvalidUserAccessException.class)
@@ -125,26 +131,22 @@ class RHELInstallationFamilyInspectorTest {
     }
 
     @Test
-    @DisplayName("환경이 타 OS 소속/부존재 → 400 field=environmentId")
-    void environmentNotInOs_throws400() {
-        OSEnvironment foreign = envOfOs(2L, List.of());
-        given(osEnvironmentRepository.findById(5L)).willReturn(Optional.of(foreign));
-        assertThatThrownBy(() -> inspector.validateReferences(rhel(1L, 5L, List.of())))
+    @DisplayName("환경이 선택 ISO 의 제공 목록에 없음 → 400 field=environmentId (ISO 스코프)")
+    void environmentNotProvidedByIso_throws400() {
+        stubIso(100L, 5L, List.of(), List.of()); // ISO 는 env 5 만 제공
+        assertThatThrownBy(() -> inspector.validateReferences(rhel(1L, 7L, List.of())))
                 .isInstanceOf(InvalidEnvironmentSelectionException.class)
                 .hasFieldOrPropertyWithValue("fieldName", "environmentId");
-
-        given(osEnvironmentRepository.findById(7L)).willReturn(Optional.empty());
-        assertThatThrownBy(() -> inspector.validateReferences(rhel(1L, 7L, List.of())))
-                .isInstanceOf(InvalidEnvironmentSelectionException.class);
     }
 
     @Test
-    @DisplayName("허용 목록 밖 그룹 → 400 field=packageGroupIds · 허용 그룹만이면 통과")
-    void groupAllowance() {
-        OSEnvironment env = envOfOs(1L, List.of(10L));
-        given(osEnvironmentRepository.findById(6L)).willReturn(Optional.of(env));
+    @DisplayName("그룹 = 환경 허용 ∩ ISO 제공 — 교집합 밖 400 · 교집합 안 통과")
+    void groupAllowance_isoScoped() {
+        // 환경 허용 그룹 {10, 20}, ISO 제공 그룹 {10} → 허용 = {10}.
+        stubIso(100L, 6L, List.of(10L, 20L), List.of(10L));
 
-        assertThatThrownBy(() -> inspector.validateReferences(rhel(1L, 6L, List.of(10L, 99L))))
+        // 20 은 환경 허용이지만 ISO 미제공 → 400 (ISO 스코프의 핵심 케이스)
+        assertThatThrownBy(() -> inspector.validateReferences(rhel(1L, 6L, List.of(10L, 20L))))
                 .isInstanceOf(InvalidEnvironmentSelectionException.class)
                 .hasFieldOrPropertyWithValue("fieldName", "packageGroupIds");
 

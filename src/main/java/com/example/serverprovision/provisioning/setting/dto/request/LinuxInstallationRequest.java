@@ -41,11 +41,12 @@ public abstract class LinuxInstallationRequest extends OSInstallationRequest {
 
     protected LinuxInstallationRequest(
             Long osMetadataId,
+            Long isoId,
             TimezoneRequest timezone,
             List<PartitionRequest> partitions,
             List<UserRequest> users
     ) {
-        super(osMetadataId);
+        super(osMetadataId, isoId);
         this.timezone   = timezone;
         this.partitions = partitions;
         this.users      = users;

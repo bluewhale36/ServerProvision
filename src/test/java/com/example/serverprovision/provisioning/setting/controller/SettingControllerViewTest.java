@@ -59,7 +59,7 @@ class SettingControllerViewTest {
     /** 비밀번호가 실제로 담긴 RHEL 설치 단계 — initialSettingJson 의 비밀번호 제거를 검증하는 데 쓴다. */
     private SettingDetailResponse detailWithPasswords(long id) {
         RHELInstallationRequest rhel = new RHELInstallationRequest(
-                1L,
+                1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
                 new RootPasswordRequest("root-secret-pw", false, false),

@@ -14,9 +14,10 @@ public record ReferenceNamesResponse(
         Map<Long, String> osNames,
         Map<Long, String> environments,
         Map<Long, String> packageGroups,
-        Map<Long, String> templates
+        Map<Long, String> templates,
+        Map<Long, String> isos
 ) {
     public static ReferenceNamesResponse empty() {
-        return new ReferenceNamesResponse(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+        return new ReferenceNamesResponse(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 }
