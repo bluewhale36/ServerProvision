@@ -62,8 +62,8 @@
 })();
 
 (function () {
-    const POLL_CLOSED_MS = 2000;
-    const POLL_OPEN_MS = 500;
+    const POLL_CLOSED_MS = 5000;   // 일반(패널 닫힘) 새로고침 5초
+    const POLL_OPEN_MS = 3000;     // job 카드 열람(패널 열림) 시 3초
 
     const trigger = document.getElementById('bgjobTrigger');
     const panel = document.getElementById('bgjobPanel');

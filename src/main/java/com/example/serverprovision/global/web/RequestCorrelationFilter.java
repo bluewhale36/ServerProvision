@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -32,6 +33,13 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 	private static final String HEADER = "X-Request-Id";
 	private static final String MDC_KEY = "requestId";
 
+	/**
+	 * 핸들러가 이 요청 속성을 {@code true} 로 세우면 경계 canonical line({@code http.request.complete})을
+	 * 생략한다 — 상시 폴링(예: idle 상태의 {@code /jobs} 새로고침)이 로그를 밀어내는 것을 막는 억제 훅.
+	 * 단 5xx 는 진단이 필요하므로 억제되지 않는다(아래 {@link #logComplete}).
+	 */
+	public static final String SUPPRESS_ACCESS_LINE = "log.suppressAccessLine";
+
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
@@ -40,7 +48,10 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 		response.setHeader(HEADER, requestId);
 		long startNanos = System.nanoTime();
 		try {
-			if (log.isDebugEnabled()) {
+			// 상시 폴링 GET(/jobs)·정적 리소스(.js/.css/...)의 진입 로그는 남기지 않는다 — 노이즈.
+			// (폴링은 진입 시점에 활성 Job 여부를 모르고, 정적 리소스는 성공 시 관심 대상이 아니다.)
+			// method·path·status 는 complete 라인이 담고, 정적 리소스 실패(4xx/5xx)는 아래에서 남긴다.
+			if (log.isDebugEnabled() && !isPollingRequest(request) && !isStaticResource(request)) {
 				log.debug("[http.request.start] method={} path={}", request.getMethod(), path(request));
 			}
 			chain.doFilter(request, response);
@@ -53,6 +64,22 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 		} finally {
 			MDC.remove(MDC_KEY);
 		}
+	}
+
+	/** 상시 폴링 GET(알림 센터의 {@code /jobs}·{@code /jobs/{id}} 새로고침). dismiss(POST)·기타는 대상 아님. */
+	private static boolean isPollingRequest(HttpServletRequest request) {
+		return "GET".equals(request.getMethod()) && request.getRequestURI().startsWith("/jobs");
+	}
+
+	/** 확장자로 판정하는 정적 리소스(css/js/폰트/이미지 등). 경로 prefix 규약과 독립 — 실 위치가 여러 곳이다. */
+	private static final Set<String> STATIC_EXTENSIONS = Set.of(
+			".js", ".css", ".map", ".ico", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp",
+			".woff", ".woff2", ".ttf", ".eot");
+
+	private static boolean isStaticResource(HttpServletRequest request) {
+		String uri = request.getRequestURI();
+		int dot = uri.lastIndexOf('.');
+		return dot >= 0 && STATIC_EXTENSIONS.contains(uri.substring(dot).toLowerCase());
 	}
 
 	/** 정적 리소스는 상관관계 대상 아님 — 도메인/PXE 엔드포인트는 제외하지 않는다. */
@@ -68,6 +95,14 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 	 * 그 외는 INFO. (advice 가 처리한 5xx 는 advice.* ERROR+stack 으로 별도 1회 — eventCode 가 달라 중복 아님.)
 	 */
 	private void logComplete(HttpServletRequest request, int status, long startNanos) {
+		// 정적 리소스는 성공(2xx/3xx) 시 남기지 않는다 — 실패(4xx/5xx: 파일 없음·서빙 오류)만 가시화.
+		if (status < 400 && isStaticResource(request)) {
+			return;
+		}
+		// 핸들러가 억제를 요청한 idle 폴링은 남기지 않는다 — 단 5xx 는 항상 가시화.
+		if (status < 500 && Boolean.TRUE.equals(request.getAttribute(SUPPRESS_ACCESS_LINE))) {
+			return;
+		}
 		String fmt = "[http.request.complete] method={} path={} status={} durationMs={}";
 		Object[] args = {request.getMethod(), path(request), status, elapsedMs(startNanos)};
 		if (status >= 500) {

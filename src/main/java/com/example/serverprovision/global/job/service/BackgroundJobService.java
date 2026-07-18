@@ -112,6 +112,7 @@ public class BackgroundJobService {
 		BackgroundJob j = jobs.get(jobId);
 		if (j == null) return;
 		j.complete();
+		log.info("[job.completed] jobId={}, type={}, title={}", jobId, j.getType(), j.getTitle());
 	}
 
 	/**
@@ -122,12 +123,16 @@ public class BackgroundJobService {
 		BackgroundJob j = jobs.get(jobId);
 		if (j == null) return;
 		j.complete(resultMetadata);
+		log.info("[job.completed] jobId={}, type={}, title={}, result={}",
+				jobId, j.getType(), j.getTitle(), resultMetadata);
 	}
 
 	public void fail(String jobId, String message) {
 		BackgroundJob j = jobs.get(jobId);
 		if (j == null) return;
 		j.fail(message);
+		log.warn("[job.failed] jobId={}, type={}, title={}, message={}",
+				jobId, j.getType(), j.getTitle(), message);
 	}
 
 	/**

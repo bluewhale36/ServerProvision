@@ -5,6 +5,8 @@ import com.example.serverprovision.global.job.dto.response.BackgroundJobListResp
 import com.example.serverprovision.global.job.dto.response.BackgroundJobResponse;
 import com.example.serverprovision.global.job.exception.BackgroundJobNotFoundException;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
+import com.example.serverprovision.global.web.RequestCorrelationFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,17 +31,24 @@ public class BackgroundJobController {
 	private final BackgroundJobService backgroundJobService;
 
 	@GetMapping
-	public BackgroundJobListResponse list() {
-		List<BackgroundJobResponse> jobs = backgroundJobService.snapshot().stream()
-				.map(BackgroundJobResponse::from)
-				.toList();
-		return new BackgroundJobListResponse(jobs);
+	public BackgroundJobListResponse list(HttpServletRequest request) {
+		List<BackgroundJob> snapshot = backgroundJobService.snapshot();
+		// 진행 중인 Job 이 하나도 없으면 이 폴링 응답은 로그로 남기지 않는다 — 활성 작업이 있을 때만 남긴다.
+		boolean anyActive = snapshot.stream().anyMatch(job -> !job.getStatus().isTerminal());
+		if (!anyActive) {
+			request.setAttribute(RequestCorrelationFilter.SUPPRESS_ACCESS_LINE, true);
+		}
+		return new BackgroundJobListResponse(snapshot.stream().map(BackgroundJobResponse::from).toList());
 	}
 
 	@GetMapping("/{id}")
-	public BackgroundJobResponse get(@PathVariable("id") String id) {
+	public BackgroundJobResponse get(@PathVariable("id") String id, HttpServletRequest request) {
 		BackgroundJob job = backgroundJobService.find(id)
 				.orElseThrow(() -> new BackgroundJobNotFoundException(id));
+		// 단건 세밀 폴링도 대상 Job 이 종료됐으면 로그를 남기지 않는다 (완료/실패 1회 로그는 서비스가 담당).
+		if (job.getStatus().isTerminal()) {
+			request.setAttribute(RequestCorrelationFilter.SUPPRESS_ACCESS_LINE, true);
+		}
 		return BackgroundJobResponse.from(job);
 	}
 
