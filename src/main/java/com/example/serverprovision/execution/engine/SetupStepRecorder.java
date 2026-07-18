@@ -27,4 +27,13 @@ public class SetupStepRecorder {
             ProvisioningStatus status, String statusMeta, LocalDateTime at) {
         setupStepRepository.save(SetupStep.instant(server, stepCode, status, statusMeta, at));
     }
+
+    /**
+     * 게스트 실행 step 의 열림(E1-0b) — 시작 보고 시 RUNNING 행 생성 후 반환(행 식별자가 종료 보고의
+     * 바인딩 키). 응답 유실 재전송으로 RUNNING 행이 중복될 수 있으나 "현재 상태 = stepCode 별 최신 행"
+     * 규약(DEC-3)이 흡수한다 — 닫힘은 {@code SetupStep.close}(엔티티, 1회) 소관.
+     */
+    public SetupStep openRunning(GuestServer server, ProvisioningPhaseStep stepCode, LocalDateTime at) {
+        return setupStepRepository.save(SetupStep.openRunning(server, stepCode, at));
+    }
 }

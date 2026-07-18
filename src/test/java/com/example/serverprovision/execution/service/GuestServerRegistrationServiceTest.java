@@ -71,12 +71,15 @@ class GuestServerRegistrationServiceTest {
     @DisplayName("등록 성공 — server/detail/nic/progress(seed) 적재, custom 미생성, detail 에 vendor 미저장")
     void register_success_writesFourRows() {
         BoardModel board = BoardModel.builder().vendor(Vendor.GIGABYTE).modelName("MS73-HB1-000").build();
-        given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(false);
+        given(guestServerRepository.findBySystemUUID(any(UUID.class))).willReturn(Optional.empty());
         given(boardModelRepository.findByVendorAndModelNameAndIsDeletedFalse(Vendor.GIGABYTE, "MS73-HB1-000"))
                 .willReturn(Optional.of(board));
         given(guestServerRepository.save(any(GuestServer.class))).willAnswer(inv -> inv.getArgument(0));
 
-        service().initialRegistry(validReq());
+        GuestServer registered = service().initialRegistry(validReq());
+
+        // E1-0b — 게스트 신원 토큰이 등록 트랜잭션에서 발급된다(DEC-5).
+        assertThat(registered.getGuestToken()).isNotNull();
 
         ArgumentCaptor<GuestServerDetail> detailCap = ArgumentCaptor.forClass(GuestServerDetail.class);
         verify(guestServerRepository).save(any(GuestServer.class));
@@ -107,21 +110,24 @@ class GuestServerRegistrationServiceTest {
     @Test
     @DisplayName("재부팅 멱등성 — 이미 등록된 systemUUID 면 어떤 행도 저장하지 않음 (원장 중복 적재 없음)")
     void register_idempotent_whenAlreadyRegistered() {
-        given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(true);
+        given(guestServerRepository.findBySystemUUID(any(UUID.class)))
+                .willReturn(Optional.of(GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build()));
 
-        service().initialRegistry(validReq());
+        GuestServer existing = service().initialRegistry(validReq());
 
         verify(guestServerRepository, never()).save(any());
         verify(guestServerDetailRepository, never()).save(any());
         verify(hostNicBindingRepository, never()).save(any());
         verify(provisioningProgressRepository, never()).save(any());
         verify(setupStepRecorder, never()).recordInstant(any(), any(), any(), any(), any());
+        // E1-0b — U1 시절 등록분(토큰 없음)은 재진입에서 lazy 발급된다.
+        assertThat(existing.getGuestToken()).isNotNull();
     }
 
     @Test
     @DisplayName("미등록 보드 모델 → BoardModelNotFoundException")
     void register_unknownBoard_throws() {
-        given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(false);
+        given(guestServerRepository.findBySystemUUID(any(UUID.class))).willReturn(Optional.empty());
         given(boardModelRepository.findByVendorAndModelNameAndIsDeletedFalse(Vendor.GIGABYTE, "MS73-HB1-000"))
                 .willReturn(Optional.empty());
 
@@ -133,7 +139,7 @@ class GuestServerRegistrationServiceTest {
     @Test
     @DisplayName("알 수 없는 vendor(ipxeName) → VendorNotFoundException")
     void register_unknownVendor_throws() {
-        given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(false);
+        given(guestServerRepository.findBySystemUUID(any(UUID.class))).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().initialRegistry(
                 req("aa:bb:cc:dd:ee:ff", "10.20.3.11", UUID_STR, "NoSuchVendor", "MS73-HB1-000")))
@@ -162,7 +168,7 @@ class GuestServerRegistrationServiceTest {
     @DisplayName("Gigabyte -000 — 원본 miss 시 정규화(MS03-CE0)로 exact 매칭 성공")
     void register_resolvesGigabyteSuffix() {
         BoardModel board = BoardModel.builder().vendor(Vendor.GIGABYTE).modelName("MS03-CE0").build();
-        given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(false);
+        given(guestServerRepository.findBySystemUUID(any(UUID.class))).willReturn(Optional.empty());
         given(boardModelRepository.findByVendorAndModelNameAndIsDeletedFalse(Vendor.GIGABYTE, "MS03-CE0-000"))
                 .willReturn(Optional.empty());                          // 원본 miss
         given(boardModelRepository.findByVendorAndModelNameAndIsDeletedFalse(Vendor.GIGABYTE, "MS03-CE0"))
@@ -180,7 +186,7 @@ class GuestServerRegistrationServiceTest {
     @DisplayName("원본 exact 우선 — 카탈로그가 보고값과 동일하면 정규화 쿼리 미시도(과잉 제거 방지)")
     void register_rawExactWins_noCanonicalQuery() {
         BoardModel board = BoardModel.builder().vendor(Vendor.GIGABYTE).modelName("MS03-CE0-000").build();
-        given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(false);
+        given(guestServerRepository.findBySystemUUID(any(UUID.class))).willReturn(Optional.empty());
         given(boardModelRepository.findByVendorAndModelNameAndIsDeletedFalse(Vendor.GIGABYTE, "MS03-CE0-000"))
                 .willReturn(Optional.of(board));                        // 원본 hit
         given(guestServerRepository.save(any(GuestServer.class))).willAnswer(inv -> inv.getArgument(0));
@@ -194,7 +200,7 @@ class GuestServerRegistrationServiceTest {
     @Test
     @DisplayName("비 Gigabyte 는 -000 을 깎지 않음 — Asus 'P13R-E-000' → 정규화 미적용 → 404, 'P13R-E' 재시도 없음")
     void register_nonGigabyte_notStripped() {
-        given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(false);
+        given(guestServerRepository.findBySystemUUID(any(UUID.class))).willReturn(Optional.empty());
         given(boardModelRepository.findByVendorAndModelNameAndIsDeletedFalse(Vendor.ASUS, "P13R-E-000"))
                 .willReturn(Optional.empty());
 

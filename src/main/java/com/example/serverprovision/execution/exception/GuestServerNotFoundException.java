@@ -12,4 +12,9 @@ public class GuestServerNotFoundException extends NotFoundException {
     public GuestServerNotFoundException(UUID id) {
         super("게스트 서버를 찾을 수 없습니다. id=" + id);
     }
+
+    /** 토큰 불일치(E1-0b) — 사칭 시도에 존재 여부·토큰 값을 노출하지 않는다(plan Q2). */
+    public static GuestServerNotFoundException byToken() {
+        return new GuestServerNotFoundException((UUID) null);
+    }
 }

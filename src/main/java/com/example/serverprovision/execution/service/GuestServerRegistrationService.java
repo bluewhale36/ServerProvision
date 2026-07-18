@@ -53,7 +53,7 @@ public class GuestServerRegistrationService {
     private final BoardModelRepository boardModelRepository;
 
     @Transactional
-    public void initialRegistry(BootIPXEInfoRequest req) {
+    public GuestServer initialRegistry(BootIPXEInfoRequest req) {
         // 형식 검증 — null/blank 면 UUID.fromString 이 NPE 를 내므로 사전 가드. 형식 오류는 IllegalArgumentException → 400.
         String systemUuidStr = req.systemUUID();
         if (systemUuidStr == null || systemUuidStr.isBlank()) {
@@ -62,9 +62,12 @@ public class GuestServerRegistrationService {
         UUID systemUUID = UUID.fromString(systemUuidStr.trim());
 
         // 재부팅 멱등성 — PXE 클라이언트는 매 부팅마다 /boot 를 호출하므로 중복 등록을 사전 차단한다.
-        if (guestServerRepository.existsBySystemUUID(systemUUID)) {
+        // 기존 등록분은 토큰만 lazy 발급(E1-0b — U1 시절 행 보정)하고 그대로 반환해 dispatch 입력이 된다.
+        var existing = guestServerRepository.findBySystemUUID(systemUUID);
+        if (existing.isPresent()) {
+            existing.get().issueTokenIfAbsent();
             log.info("이미 등록된 서버 재부팅 — 등록 생략 : systemUUID={}", systemUUID);
-            return;
+            return existing.get();
         }
 
         Vendor vendor = Vendor.findByIpxeName(req.vendor());
@@ -76,6 +79,7 @@ public class GuestServerRegistrationService {
                         .systemUUID(systemUUID)
                         .build()
         );
+        server.issueTokenIfAbsent();   // 게스트 신원 토큰 발급(DEC-5) — 부팅 응답 커널 인자로 전달된다.
 
         guestServerDetailRepository.save(
                 GuestServerDetail.builder()
@@ -117,6 +121,7 @@ public class GuestServerRegistrationService {
 
         log.info("신규 서버 등록 완료 : systemUUID={}, vendor={}, boardModel={}, mac={}",
                 systemUUID, vendor, boardModel.getModelName(), req.macAddress());
+        return server;
     }
 
     /**

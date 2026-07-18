@@ -14,7 +14,8 @@ set -eu
 
 BASE_URL="${1:-http://localhost:7777}"
 UUID="${MOCK_UUID:-$(uuidgen | tr '[:upper:]' '[:lower:]')}"
-MAC="${MOCK_MAC:-00:1f:c6:9a:1b:2c}"
+SUFFIX=$(printf '%s' "$UUID" | tr -d '-' | tail -c 6 | sed 's/\(..\)\(..\)\(..\)/\1:\2:\3/')
+MAC="${MOCK_MAC:-00:1f:c6:$SUFFIX}"   # 기본 MAC = UUID 파생 — host_mac UNIQUE 와의 충돌 방지
 IP="${MOCK_IP:-192.168.1.150}"
 VENDOR="${MOCK_VENDOR:-Giga Computing}"   # iPXE 가 보고하는 제조사 문자열(Vendor.ipxeName) — enum 명이 아님
 BOARD="${MOCK_BOARD:-MS03-CE0}"    # 카탈로그(board_model)에 등록된 모델명이어야 한다 — 미등록이면 404

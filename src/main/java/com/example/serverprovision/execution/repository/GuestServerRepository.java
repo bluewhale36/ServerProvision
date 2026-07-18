@@ -1,10 +1,12 @@
 package com.example.serverprovision.execution.repository;
 
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.vo.GuestToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -30,4 +32,10 @@ public interface GuestServerRepository extends JpaRepository<GuestServer, UUID> 
      * 인라인 수정 — 사내 시리얼 번호(유니크) 중복 검사. 자기 자신은 제외. (U1 §D1: serial 이 guest_server 로 흡수됨)
      */
     boolean existsBySerialNumberAndIdNot(String serialNumber, UUID id);
+
+    /** 재부팅 재진입 — 기존 등록 서버 조회 (E1-0b: 토큰 lazy 발급 + dispatch 입력). */
+    Optional<GuestServer> findBySystemUUID(UUID systemUUID);
+
+    /** 에이전트 API 인증 — 토큰으로 게스트 식별 (불일치 = 404, 사칭 차단. E1-0b). */
+    Optional<GuestServer> findByGuestToken(GuestToken guestToken);
 }

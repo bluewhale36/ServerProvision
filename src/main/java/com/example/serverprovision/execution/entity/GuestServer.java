@@ -50,6 +50,14 @@ public class GuestServer extends BaseTimeEntity {
     private LocalDateTime decommissionedAt;
 
     /**
+     * 게스트 신원 토큰(E1-0b, DEC-5) — 부팅 스크립트의 커널 인자로 전달되고 에이전트 API 가 대조한다.
+     * U1 기존 등록분은 null 일 수 있어 /boot 재진입 시 lazy 발급({@link #issueTokenIfAbsent()}).
+     */
+    @Convert(converter = com.example.serverprovision.execution.converter.GuestTokenConverter.class)
+    @Column(name = "guest_token", length = 32, unique = true)
+    private com.example.serverprovision.execution.vo.GuestToken guestToken;
+
+    /**
      * 상세 화면 인라인 수정 — 운영자 입력 4필드 일괄 갱신.
      */
     public void updateOperatorInfo(String name, String modelName, String serialNumber, String memo) {
@@ -66,5 +74,13 @@ public class GuestServer extends BaseTimeEntity {
         if (this.decommissionedAt == null) {
             this.decommissionedAt = at;
         }
+    }
+
+    /** 토큰 lazy 발급(멱등) — U1 기존 등록분(null) 보정 경로. 발급됐으면 보존(회전 없음, DEC-5). */
+    public com.example.serverprovision.execution.vo.GuestToken issueTokenIfAbsent() {
+        if (this.guestToken == null) {
+            this.guestToken = com.example.serverprovision.execution.vo.GuestToken.issue();
+        }
+        return this.guestToken;
     }
 }

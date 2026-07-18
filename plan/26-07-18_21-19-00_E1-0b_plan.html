@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-0b Plan — 게스트 프로토콜 v1</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row .label { flex:1; min-width:120px; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .badge.blue { background:var(--blue-bg); color:var(--blue); } .badge.teal { background:rgba(0,150,150,0.12); color:#0a8080; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .script-view { font-family:var(--mono); font-size:12px; background:#1b1f24; color:#7ce38b; border-radius:6px; padding:12px 14px; margin-top:10px; white-space:pre; overflow-x:auto; min-height:88px; }
+  .script-view .cm { color:#8b949e; }
+  .ledger { width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; overflow:hidden; margin-top:10px; }
+  .ledger th, .ledger td { border-bottom:1px solid var(--border-soft); padding:5px 9px; }
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-0b — 게스트 프로토콜 v1 <span class="v2-badge">/boot 가 처음 말을 하기 시작한다</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-0b (feature)</span>
+    <span><strong>상위</strong> E1 (DIAGNOSE_LINUX)</span>
+    <span><strong>scope</strong> /boot text/plain dispatch + phase 실행기 SPI 골격 + 게스트 토큰 + 체크인·보고 API + PXE 한정 advice + 하네스 확장</span>
+    <span><strong>생성</strong> 2026-07-18 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+    <span><strong>선행</strong> E1-0a 완료 (2026-07-12)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (dispatch 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">E1-0a 가 서버 내부 규약(신호 컬럼 · 전이 invariant · 원장 적재 · 개시 버튼)을 완성했다. 그러나 게스트 쪽에서 보면 아무것도 변하지 않았다:</p>
+        <table>
+          <thead><tr><th>자산</th><th>있음 (E1-0a 까지)</th><th>비어 있음 (이 슬라이스가 채움)</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /api/pxe/v1/boot</code></td><td>멱등 등록 + 유보분 2행 적재</td><td><b>응답이 여전히 빈 200</b> — 게스트는 등록만 되고 다음 할 일을 받지 못한다. 개시 버튼을 눌러도 게스트 동작이 바뀌지 않는다(E1-0a 비목표로 명기했던 그 공백)</td></tr>
+            <tr><td>전이 도메인 메서드</td><td><code>advanceTo</code>/<code>markFailed</code>/<code>markCompleted</code> + invariant 완비</td><td><b>호출자 0</b> — 게스트 사실 신호(체크인 · 보고)를 받는 API 가 없어 신호가 발생할 수 없다</td></tr>
+            <tr><td>SetupStep 원장</td><td>단발 기록(<code>recordInstant</code>) + append-only 규약</td><td><b>게스트 실행 step 의 RUNNING 열림/닫힘 규약 미구현</b> (DEC-3 의 나머지 절반)</td></tr>
+            <tr><td>예외 채널</td><td>JSON(<code>ApiExceptionHandler</code>) / HTML(<code>WebExceptionHandler</code>) 이원화</td><td><b>iPXE 채널 없음</b> — 지금 /boot 에서 예외가 나면 JSON 이 iPXE 로 새어 나가 파싱 불능 → 부팅 실패 루프(1차 문서가 지적한 레거시 결함 그대로)</td></tr>
+            <tr><td>게스트 신원</td><td>—</td><td><b>없음</b> — 보고 API 를 열면 무인증 사칭 보고로 타 서버 상태를 오염시킬 수 있다(DEC-5 토큰 확정, 미구현)</td></tr>
+            <tr><td>하네스</td><td><code>boot-register.sh</code> (등록만)</td><td>체크인 · 보고 시나리오 부재 — CP5 리허설 불가</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>핵심 진단</b> — E1-0a 의 "정직 기록" 그대로: 신호는 도출 가능하나 <b>실트리거가 없다</b>. 이 슬라이스가 게스트↔서버 프로토콜 v1(부팅 dispatch + 체크인 + 보고)을 열면, BOOTSTRAPPING→DIAGNOSE_LINUX 전이와 FAILED 실패 신호가 처음으로 실제 발생한다 — 단 실게스트가 아니라 <b>모의 게스트(curl)로</b>. 진단 리눅스 실부팅 자산은 E1-1 이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>/boot text/plain 전환 + dispatch 매트릭스 v1</b>(DEC-2 · D3) — 응답이 iPXE 스크립트가 된다. 판정 입력 = (등록 × 회수 × failed × completed × started × 커서 × 실행기 등록 여부) — 1차 문서 §6-4 매트릭스의 E1-0b 소유분 7행(§4).</li>
+          <li><b>phase 실행기 SPI 골격</b>(DEC-6) — 최소 폭 단일 인터페이스(<code>ProvisioningPhaseExecutor</code>: 담당 phase + 부팅 스크립트 기여) + 기동 시 수집 registry. <b>이번 슬라이스 구현체 0개</b> — 커서가 미등록 phase 에 도달하면 명시 HOLD 대기 스크립트(silent 통과 금지). 첫 구현체는 E1-1(DIAGNOSE_LINUX).</li>
+          <li><b>게스트 토큰</b>(DEC-5) — 등록 시 발급 · guest_server 저장(<code>GuestToken</code> Value Object), 부팅 스크립트의 커널 인자로 게스트에 전달, 에이전트 API 전 요청에 요구. 기존 등록 서버(토큰 없음)는 다음 /boot 재진입 시 발급(멱등 가드 확장).</li>
+          <li><b>체크인 API</b> — 진단 리눅스 에이전트의 첫 신호. 효과: 첫 체크인 = <code>advanceTo(DIAGNOSE_LINUX)</code>(DEC-2 실배선, 수신 트랜잭션 내 즉시). 응답은 지시 골격(JSON) — 지시 내용 채움은 E1-2.</li>
+          <li><b>보고 API (RUNNING 원장 규약, DEC-3 완결)</b> — 시작 보고 = RUNNING 행 생성(응답에 step 행 식별자) / 종료 보고 = 그 식별자에 바인딩된 close(SUCCEEDED/FAILED/SKIPPED + statusMeta). <b>중복 종료 보고 = no-op(멱등)</b>. <b>FAILED 종료 보고 수신 = <code>progress.markFailed</code> 즉시</b> — 실패 신호의 첫 실트리거.</li>
+          <li><b>PXE 부팅 채널 한정 advice</b>(DEC-5) — /boot 계열 컨트롤러 한정 <code>@RestControllerAdvice</code> 가 낙관적 락 충돌 포함 전 예외를 <b>HTTP 200 + 재시도 대기 스크립트</b>로 변환(§8 Q3). 에이전트 API(JSON)는 기존 <code>ApiExceptionHandler</code> 그대로.</li>
+          <li><b>하네스 확장</b> — <code>diagnose-cycle.sh</code>: 부팅→토큰 추출→체크인→step 시작/종료 보고→(성공/실패 변형) 시퀀스. CP5 절차의 본체.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>진단 리눅스 실부팅 — Alpine 아티팩트 서빙 · 체인로드 스크립트 · DIAGNOSTIC_BOOTING step 은 <b>E1-1</b> (첫 실행기 구현체). 이번 dispatch 는 DIAGNOSE_LINUX 도달 시 <b>HOLD</b> 를 준다.</li>
+            <li>수집 계약(hardwareSpec 파싱 · GuestServerDetail 갱신 · DIAGNOSTIC_ENRICHED) · phase 완주 판정(<code>PhaseSequence</code> 소비 · completedAt 실기록) · 운영자 수동 FAILED/재시도 — <b>E1-2</b>.</li>
+            <li>completed 서버의 로컬 부팅 폴스루(<code>exit</code>)는 스크립트만 준비 — sanboot/exit 실효성은 T2 검증 항목(E4 시점 실검).</li>
+            <li>할당(U3) 판정 — 대기 사유에 "할당" 축은 U3 이후 dispatch 에 합류.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — /boot dispatch + 프로토콜 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 데모는 E1-0b 의 두 축을 재현한다. <b>왼쪽 상태를 바꾸면</b> 아래 검은 화면에 <b>/boot 가 실제로 반환할 iPXE 스크립트</b>가 갱신된다(dispatch 매트릭스 = <code>simDispatch()</code> — 서버 판정과 1:1). <b>게스트 신호 버튼</b>은 체크인 · 보고 API 의 효과(전이 · RUNNING 원장 · 실패 신호 · 멱등)를 재현한다. 토큰이 틀리면 404 로 거절되는 것도 체험할 수 있다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">운영자 · 상태 :</span>
+            <span id="b-reg"></span><span id="b-start"></span><span id="b-decom"></span>
+            <label style="font-size:12px;"><input type="checkbox" id="opt-executor" onchange="simRender()"> DIAGNOSE_LINUX 실행기 등록됨 (=E1-1 이후)</label>
+            <button class="n-demo-btn" style="border-color:var(--text-muted);color:var(--text-muted);" onclick="simReset()">⟲ 리셋</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">게스트 신호 (하네스) :</span>
+            <span id="b-boot"></span><span id="b-checkin"></span><span id="b-open"></span><span id="b-closeok"></span><span id="b-closefail"></span><span id="b-closedup"></span>
+            <label style="font-size:12px;"><input type="checkbox" id="opt-badtoken" onchange="simRender()"> 잘못된 토큰으로 호출 (사칭)</label>
+          </div>
+
+          <div class="ux-row">
+            <strong>guest-01</strong>
+            <span class="label" style="font-family:var(--mono);font-size:12px;" id="sim-state"></span>
+            <span id="sim-badge" class="badge off">—</span>
+          </div>
+
+          <div class="script-view" id="sim-script"><span class="cm"># /boot 응답 미리보기 — 왼쪽 상태를 바꿔보세요</span></div>
+
+          <table class="ledger"><thead><tr><th>#</th><th>Step</th><th>상태</th><th>시각</th></tr></thead>
+            <tbody id="sim-ledger"><tr><td colspan="4" style="color:var(--text-muted);">setup_step 원장 비어 있음</td></tr></tbody></table>
+
+          <div class="ux-caps" id="sim-caps"></div>
+          <div class="ux-message" id="sim-message">「iPXE 부팅」부터 눌러 등록 → 개시 → 체크인 → 보고 순서로 프로토콜을 체험해보세요.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — <code>simDispatch()</code> = 서버 <code>BootScriptDispatcher</code> 판정 순서(§4 매트릭스), <code>simCheckin()/simOpen()/simClose()</code> = 에이전트 API 의 전이 · 원장 · 멱등 규약, 토큰 검사 = <code>GuestToken</code> 대조(불일치 404). caps 패널이 판정 입력 전부를 그대로 보여준다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>채널</th><th>동작</th><th>응답</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code></td><td>iPXE (text/plain)</td><td>멱등 등록(+토큰 lazy 발급) → dispatch 매트릭스 → 스크립트</td><td>200 스크립트 (예외도 200 대기 스크립트 — Q3)</td><td><span class="chip mod">전환</span></td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/checkin</code></td><td>에이전트 (JSON)</td><td>토큰 인증 → 첫 체크인이면 <code>advanceTo(DIAGNOSE_LINUX)</code></td><td>200 지시 골격 / 404(토큰)</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/steps</code></td><td>에이전트 (JSON)</td><td>step 시작 보고 → RUNNING 행 생성</td><td>201 {stepId} / 400 / 404(토큰)</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/steps/{stepId}/close</code></td><td>에이전트 (JSON)</td><td>종료 보고 — close(상태+statusMeta). FAILED 면 <code>markFailed</code>. <b>중복 = no-op 200</b></td><td>200 / 404(토큰 · step)</td><td><span class="chip new">신규</span></td></tr>
+          </tbody>
+        </table>
+        <p>토큰 운반: 부팅 응답 스크립트의 커널 인자(<code>provision_token=…</code>)로 게스트에 전달 → 에이전트가 <code>/proc/cmdline</code> 에서 읽어 <code>X-Guest-Token</code> 헤더로 회신. 에이전트 API 는 토큰만으로 서버를 식별한다(별도 id 파라미터 없음 — 사칭 축소).</p>
+        <h4>정상 시퀀스 (하네스 = 이 흐름의 curl 재연)</h4>
+        <div class="seq">
+          <div class="actor a1">게스트 (iPXE → 에이전트)</div><div class="actor a2">BootScriptDispatcher</div><div class="actor a3">AgentReportService</div>
+          <div class="step a1"><code>GET /boot</code> (매 재부팅)</div><div class="step a2">등록 멱등 + 토큰 발급 → 매트릭스 판정 → 스크립트(토큰 동봉)</div><div class="step a3"></div>
+          <div class="step a1"><code>POST /agent/checkin</code> (진단 리눅스 기동 후)</div><div class="step a2"></div><div class="step a3">첫 체크인 → <code>advanceTo(DIAGNOSE_LINUX)</code> (DEC-2)</div>
+          <div class="step a1"><code>POST /agent/steps</code> {stepCode}</div><div class="step a2"></div><div class="step a3">RUNNING 행 생성 → stepId 반환</div>
+          <div class="step a1"><code>POST /agent/steps/{id}/close</code> {status}</div><div class="step a2"></div><div class="step a3">close(멱등) — FAILED 면 <code>markFailed</code> 즉시</div>
+        </div>
+        <pre><code>[iPXE 채널 비정상]  /boot 처리 중 어떤 예외든 → PxeBootExceptionHandler(한정 advice)
+                    → 200 text/plain "echo 오류 안내 + sleep 30 + chain /boot" (Q3 — iPXE 는 2xx 만 실행)
+[에이전트 비정상]   토큰 불일치 → GuestServerNotFoundException(404 — 존재 비노출, Q2)
+                    잘못된 stepId → SetupStepNotFoundException(404) · 검증 실패 → 400 (기존 JSON 체계)</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>dispatch 매트릭스 v1 — 판정 순서 고정 (BootScriptDispatcher 의 SSOT)</h4>
+        <table>
+          <thead><tr><th>#</th><th>판정 (이 순서대로)</th><th>응답 스크립트</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>미등록</td><td>등록 수행 후 <b>대기</b>(sleep 30 + chain — 다음 재진입에서 재평가)</td><td>U1 등록 + DEC-26 게이트</td></tr>
+            <tr><td>2</td><td>회수됨</td><td><b>대기</b> + 회수 안내 echo</td><td>회수 서버는 프로비저닝 대상 아님</td></tr>
+            <tr><td>3</td><td><code>isFailed()</code></td><td><b>대기</b> + 실패 안내 echo (운영자 개입 대기 — DEC-4 자동 재시도 없음)</td><td>DEC-4</td></tr>
+            <tr><td>4</td><td><code>isCompleted()</code></td><td><code>exit</code> — iPXE 종료 → 펌웨어 부트 순서 폴스루(로컬 디스크)</td><td>D3 폴백 이분 · 실효성 T2 유보</td></tr>
+            <tr><td>5</td><td><code>!isStarted()</code></td><td><b>대기</b> (개시 게이트 — 버튼 클릭 시 다음 재진입에서 6번으로)</td><td>DEC-26</td></tr>
+            <tr><td>6</td><td>커서 phase 의 실행기 <b>미등록</b></td><td><b>HOLD 대기</b> + "미구현 단계" echo — silent 통과 금지</td><td>DEC-6</td></tr>
+            <tr><td>7</td><td>실행기 등록</td><td>실행기 <code>bootScript()</code> 위임 (E1-1 부터 실전 — 진단 리눅스 체인로드)</td><td>SPI</td></tr>
+          </tbody>
+        </table>
+        <p>이 순서가 곧 우선순위다 — GuestServerStatus.derive 진리표(회수 &gt; 실패 &gt; 종단 &gt; 개시)와 정렬을 맞춰 "배지가 말하는 것 = 게스트가 받는 것" 이 되게 한다. 신규 phase 의 행 추가는 매트릭스 분기 증식이 아니라 <b>실행기 빈 등록</b>(6→7 자동 전환)이다 — 조건분기 확장 금지의 이행.</p>
+
+        <h4>phase 실행기 SPI — 최소 폭 단일 인터페이스 (DEC-6)</h4>
+        <pre><code>// execution/engine — MarkableScanner 선례와 동형: phase 판별자 빈들을 registry 가 기동 시 수집.
+public interface ProvisioningPhaseExecutor {
+    ProvisioningPhase phase();
+    String bootScript(GuestServer server, ProvisioningProgress progress);   // 부팅 스크립트 기여
+}
+// PhaseExecutorRegistry: Map&lt;ProvisioningPhase, executor&gt; — 중복 판별자 = 기동 실패(fail-fast),
+// 미등록 phase 조회 = Optional.empty (dispatch 6번 HOLD — 명시 동작). 전체 enum 커버 강제 없음.
+// 보고 처리 메서드는 두 번째 실물(E1-2 수집 소비)이 나타날 때 추가 — 미리 분리 금지.</code></pre>
+
+        <h4>GuestToken — Value Object (DEC-5, Q1)</h4>
+        <pre><code>// execution/vo — MacAddressVO/IpAddressVO 선례 답습(record + AttributeConverter).
+public record GuestToken(String value) {
+    public static GuestToken issue() { … }        // UUID 랜덤(대시 제거 32자) — 등록 트랜잭션에서 발급
+    public boolean matches(String presented) { … } // 에이전트 API 인증 대조의 단일 지점
+}
+// GuestServer: guest_token 컬럼(@Convert). 회전 없음(고정) — 내부 프로비저닝망 전제(§5-10 확정)의 안전망.
+// 기존 등록 서버는 guest_token null — /boot 멱등 가드에서 null 이면 발급(lazy backfill).</code></pre>
+
+        <h4>SetupStep — RUNNING 열림/닫힘 (DEC-3 완결)</h4>
+        <pre><code>// SetupStep 신규 팩토리·메서드 (recordInstant 의 짝):
+public static SetupStep openRunning(GuestServer g, ProvisioningPhaseStep code, LocalDateTime at)
+        // status=RUNNING, startedAt=at, finishedAt=null
+public boolean close(ProvisioningStatus result, String statusMeta, LocalDateTime at)
+        // 이미 종결(finishedAt != null)이면 false 반환(no-op — 멱등의 실체), RUNNING→result 만 허용
+// SetupStepRecorder: openRunning(...)→저장 후 id 반환 / close(stepId, ...) — append-only 유지(수정은 close 1회뿐)</code></pre>
+
+        <h4>결정 비교 — 스크립트 생성 방식 (Q4)</h4>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>(a) Java text block 정적 팩토리 — 채택</h4><ul><li><code>IpxeScripts</code> 유틸 — 대기/HOLD/exit/체인로드 5종</li><li>삽입 값이 서버 생성 값(URL · 토큰 · 초)뿐 — 이스케이프 리스크 없음</li><li>통합 테스트가 바디 문자열을 그대로 단언</li></ul></div>
+          <div class="card v-orange"><h4>(b) Thymeleaf text 템플릿 — 탈락</h4><ul><li>뷰 리졸버 경유가 REST text/plain 흐름과 부정합</li><li>스크립트 5종에 템플릿 엔진은 과잉</li></ul></div>
+          <div class="card v-red"><h4>(c) 정적 파일 + 치환 — 탈락</h4><ul><li>파일 서빙 + 치환 규약 신설 — 관리 포인트만 증가</li><li>E4 kickstart 렌더러(레거시 이식)와도 별개 문제</li></ul></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스의 산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 변경 없음 — 게스트 채널 슬라이스(상세 페이지는 E1-0a 완성분으로 충분). N/A 근거 명기</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>ExecutionRestController</code> /boot text/plain 전환 + <code>GuestAgentRestController</code>(checkin · steps · close) + <code>PxeBootExceptionHandler</code>(한정 advice)</td></tr>
+            <tr><td>4</td><td><code>AgentCheckinResponse</code>(지시 골격) · <code>StepOpenRequest</code>/<code>StepOpenResponse</code> · <code>StepCloseRequest</code>(@Valid)</td></tr>
+            <tr><td>5</td><td><code>BootScriptDispatcher</code> · <code>AgentReportService</code> · <code>ProvisioningPhaseExecutor</code>+<code>PhaseExecutorRegistry</code> · <code>IpxeScripts</code> 시그니처</td></tr>
+            <tr><td>6</td><td>Repository 변경 0 (기존 파생 질의 + 신규 <code>findByGuestToken</code> 1개)</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td><code>GuestServer</code> +guestToken(<code>GuestToken</code> VO + converter), <code>SetupStep</code> openRunning/close</td></tr>
+            <tr><td>8</td><td>본체 + 단위(dispatch 순서 · close 멱등 · registry fail-fast) + 통합(§6)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td><code>ddl/E1-0b_guest_token.sql</code> — guest_server ADD guest_token VARCHAR(32) NULL + UNIQUE</td></tr>
+            <tr><td>10</td><td>CP5(하네스) — <code>diagnose-cycle.sh</code> 실행: 부팅→개시→체크인(배지 전이 확인)→step 성공/실패 보고(원장 · FAILED 배지 확인)→중복 close(멱등 확인)</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>부팅 채널 (<code>ExecutionRestControllerBootFlowTest</code> — 2xx 는 스크립트 바디 문자열까지, T0 규약)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 200</td><td>매트릭스 7행 각각의 바디 검증 — 미등록(등록+대기) / 회수 / failed / completed(exit) / 미개시 / HOLD(실행기 0) / 실행기 위임(테스트용 가짜 실행기 빈)</td><td>7</td></tr>
+            <tr><td>200 (advice)</td><td>처리 중 예외(BoardModelNotFound · 형식 오류 · 낙관적 락) → <b>200 + 재시도 대기 스크립트</b> — JSON 이 iPXE 로 새지 않음을 바디로 검증</td><td>3</td></tr>
+            <tr><td>토큰</td><td>부팅 응답에 <code>provision_token=</code> 동봉 / 기존 토큰 없는 서버 재진입 시 lazy 발급</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <h4>에이전트 채널 (<code>GuestAgentRestControllerFlowTest</code>)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>첫 체크인 → 전이 발생(서비스 검증) + 지시 골격 바디 / 재체크인 → 전이 1회뿐 / steps open 201 + stepId / close 200</td><td>4</td></tr>
+            <tr><td>409 · 멱등</td><td><b>중복 close → 200 no-op</b>(행 불변) / FAILED close → <code>markFailed</code> 호출 검증</td><td>2</td></tr>
+            <tr><td>404</td><td>토큰 불일치 3종(checkin · open · close — 사칭 차단) / 잘못된 stepId</td><td>4</td></tr>
+            <tr><td>400</td><td>stepCode 누락 · 알 수 없는 상태값 (@Valid)</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <h4>단위</h4>
+        <ul>
+          <li><code>BootScriptDispatcher</code> — 판정 순서 전 조합(회수&gt;실패&gt;종단&gt;미개시&gt;HOLD&gt;위임), 매트릭스 표와 1:1 (~8)</li>
+          <li><code>SetupStep.close</code> — RUNNING→종결 / 중복 close false / <code>SetupStepRecorder</code> open→close 왕복 (~4)</li>
+          <li><code>PhaseExecutorRegistry</code> — 중복 판별자 기동 실패 / 미등록 empty (~2)</li>
+          <li><code>GuestToken</code> — issue 형식 · matches (~2)</li>
+        </ul>
+        <div class="callout"><b>규율</b> — 신규 예외(<code>SetupStepNotFoundException</code>) 트리거 시나리오 포함. 가짜 실행기 빈은 테스트 구성으로 주입해 7번 행(위임)을 실검증 — E1-1 전에 SPI 계약을 고정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td><b>토큰 불일치 = 404</b>(Q2) — 사칭 시도에 존재 여부를 노출하지 않는다(forging 404 관례)</td></tr>
+            <tr><td><code>SetupStepNotFoundException</code></td><td>404</td><td><span class="chip new">신규</span></td><td>close 대상 step 부재/타 서버 소속(stepId forging) — NotFoundException 상속</td></tr>
+            <tr><td>iPXE 채널 전 예외</td><td><b>200</b></td><td><span class="chip new">신규 advice</span></td><td><code>PxeBootExceptionHandler</code>(assignableTypes=/boot 컨트롤러) — 재시도 대기 스크립트로 변환 + <code>ExceptionLogPolicy</code> 로그는 유지(silent 흡수 아님 — 상태코드만 바꾼다, Q3)</td></tr>
+            <tr><td>에이전트 채널 400/404/409</td><td>그대로</td><td><span class="chip keep">재사용</span></td><td>기존 <code>ApiExceptionHandler</code> JSON — 분기 추가 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>잔존 책임 · 주의 (정직 기록)</h4>
+        <ul>
+          <li><b>실게스트는 여전히 부팅 못 한다</b> — dispatch 가 진단 리눅스 체인로드(7번 행)를 주려면 E1-1 실행기가 필요. 이 슬라이스의 검증 상한 = <b>T0(계약) + T1(하네스)</b>. 실 iPXE 가 대기 스크립트를 올바르게 해석하는지는 E1-1 의 T2 에서 처음 확인된다 — <code>sleep</code>/<code>chain</code> 명령의 iPXE 빌드별 가용성이 유일한 외부 미지수(E1-R V7 과 함께 검증).</li>
+          <li><b>체크인 → 전이는 열리지만 완주는 안 열린다</b> — DIAGNOSE_LINUX 진입 후 완주 판정(<code>PhaseSequence</code> 소비 · completedAt)은 E1-2. 하네스로 completed 상태를 만들려면 이번엔 DB 직접 조작이 필요함을 CP5 안내에 명기.</li>
+            <li><b>중복 open 은 허용</b> — 에이전트 재전송(응답 유실)으로 RUNNING 행이 중복될 수 있으나 "현재 상태 = stepCode 별 최신 행"(DEC-3) 규약이 흡수한다. close 만 멱등이면 원장 정합이 유지된다 — open 멱등 키 도입은 실측 후(과잉 방지).</li>
+          <li>guest_token UNIQUE — 충돌 확률은 무시 가능하나 유니크 제약으로 안전망(발급 재시도 없음 — 충돌 시 등록 트랜잭션 실패 = 재부팅 재시도).</li>
+        </ul>
+        <h4>Open Questions (CP1 결정 — 권고 포함)</h4>
+        <table><thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>토큰 형태</td><td><b>등록 시 랜덤 발급 + 저장(GuestToken VO)</b> — HMAC 파생(무저장)은 키 관리 신설 대비 이득 없음, 회전 없음(내부망 전제 명시)</td></tr>
+            <tr><td>Q2</td><td>토큰 불일치 응답</td><td><b>404</b> (GuestServerNotFoundException 재사용) — 401/403 은 존재를 노출. 내부망 안전망 목적에 부합</td></tr>
+            <tr><td>Q3</td><td>iPXE 예외 응답 코드</td><td><b>200 + 대기 스크립트</b> — iPXE <code>chain</code> 은 4xx/5xx 바디를 실행하지 않으므로 5xx 로는 재시도 루프를 만들 수 없다. 로그(<code>ExceptionLogPolicy</code>)는 원 예외 그대로 — silent 흡수 아님</td></tr>
+            <tr><td>Q4</td><td>스크립트 생성 방식</td><td>(a) Java text block 정적 팩토리 — §4 비교 참조</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E1-0b-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (E1-0a 테스트 회귀 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 적용 + <code>SHOW CREATE TABLE guest_server</code> 검증 + validate 기동</span></label></li>
+          <li><label><input type="checkbox" data-key="smoke"> <span>실DB 스모크 — diagnose-cycle.sh 전 시퀀스(부팅 스크립트 바디 · 전이 · 원장 · 멱등 · 사칭 404) + 데이터 복원</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 (사용자) — 하네스 실행 + 상세 페이지 확인</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <div class="pkg-tree">execution/
+├── engine/
+│   ├── BootScriptDispatcher.java        (신규 — 매트릭스 판정 SSOT)
+│   ├── AgentReportService.java          (신규 — 체크인 전이 + RUNNING open/close + markFailed)
+│   ├── ProvisioningPhaseExecutor.java   (신규 — SPI, 구현체 0)
+│   ├── PhaseExecutorRegistry.java       (신규 — 기동 수집 + fail-fast)
+│   ├── IpxeScripts.java                 (신규 — 스크립트 5종 text block)
+│   └── SetupStepRecorder.java           (수정 — openRunning/close 추가)
+├── controller/ExecutionRestController.java   (수정 — text/plain dispatch)
+├── controller/GuestAgentRestController.java  (신규 — checkin · steps · close)
+├── controller/PxeBootExceptionHandler.java   (신규 — 한정 advice, 200 스크립트)
+├── entity/GuestServer.java              (수정 — guestToken)
+├── entity/SetupStep.java                (수정 — openRunning/close)
+├── vo/GuestToken.java + converter/GuestTokenConverter.java  (신규)
+├── exception/SetupStepNotFoundException.java (신규)
+├── repository/GuestServerRepository.java     (수정 — findByGuestToken)
+└── dto/ — AgentCheckinResponse · StepOpenRequest/Response · StepCloseRequest (신규)
+ddl/E1-0b_guest_token.sql                (신규)
+scripts/mock-guest/diagnose-cycle.sh     (신규 — CP5 본체)</div>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip keep">유지</span></td><td><code>GuestServerController</code> · server-detail.html · <code>ProvisioningProgress</code></td><td>변경 0 — E1-0a 완성분이 신호를 이미 표시(전이 · FAILED 는 값만 채워지면 렌더)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ApiExceptionHandler</code> / <code>WebExceptionHandler</code></td><td>분기 추가 0 — PXE advice 는 별도 클래스 + assignableTypes 한정</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>E1-1 진단 리눅스 부팅 체인</b> — 첫 <code>ProvisioningPhaseExecutor</code> 구현체(DIAGNOSE_LINUX): Alpine netboot 아티팩트 + apkovl 서빙(E1-R 확정안), 체인로드 스크립트, DIAGNOSTIC_BOOTING step. 이번 슬라이스의 HOLD(6번 행)가 실전 체인로드(7번 행)로 바뀐다. E1-R 잔여 검증 V1~V7 · V9 동반.</li>
+          <li>E1-2 — 수집 · 적재 · 완주 · 대기 (completedAt 실기록 — 프로토콜의 마지막 공백).</li>
+        </ol>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎬 dispatch + 프로토콜 시뮬레이터 — 서버 판정 1:1 재현
+  // simDispatch = BootScriptDispatcher 매트릭스(§4 순서 그대로)
+  // simCheckin/simOpen/simClose = AgentReportService 규약(전이·원장·멱등·markFailed)
+  // 토큰 검사 = GuestToken.matches (불일치 = 404, Q2)
+  // ─────────────────────────────────────────────────────────────
+  let S;
+  function simReset() {
+    S = { registered:false, token:null, startedAt:null, currentPhase:null,
+          failedAt:null, failedStep:null, completedAt:null, decommissionedAt:null,
+          checkedIn:false, steps:[], clock:0, lastBoot:null };
+    simMsg('', '「iPXE 부팅」부터 눌러 등록 → 개시 → 체크인 → 보고 순서로 프로토콜을 체험해보세요.');
+    simRender();
+  }
+  function now() { S.clock += 1; return 'T+' + S.clock; }
+  function executorRegistered() { return document.getElementById('opt-executor').checked; }
+  function badToken() { return document.getElementById('opt-badtoken').checked; }
+
+  // == BootScriptDispatcher — §4 매트릭스 판정 순서 그대로 ==
+  function simDispatch() {
+    if (!S.registered) return { row:1, script:'<span class="cm"># 등록 수행(멱등) + 토큰 발급 후:</span>\n#!ipxe\necho registered. waiting for operator...\nsleep 30\nchain /api/pxe/v1/boot' };
+    if (S.decommissionedAt) return { row:2, script:'#!ipxe\necho decommissioned server. not a provisioning target.\nsleep 30\nchain /api/pxe/v1/boot' };
+    if (S.failedAt) return { row:3, script:'#!ipxe\necho provisioning FAILED at ' + S.failedStep + '. waiting for operator...\nsleep 30\nchain /api/pxe/v1/boot' };
+    if (S.completedAt) return { row:4, script:'#!ipxe\n<span class="cm"># 종단 — iPXE 종료 → 부트 순서 폴스루(로컬 디스크). 실효성 T2 검증 유보</span>\nexit' };
+    if (!S.startedAt) return { row:5, script:'#!ipxe\necho waiting for provisioning start (operator gate)...\nsleep 30\nchain /api/pxe/v1/boot' };
+    if (!executorRegistered()) return { row:6, script:'#!ipxe\necho phase DIAGNOSE_LINUX not implemented yet (HOLD).\nsleep 30\nchain /api/pxe/v1/boot' };
+    return { row:7, script:'<span class="cm"># DIAGNOSE_LINUX 실행기 위임 (E1-1 실물 — 개념 예시)</span>\n#!ipxe\nkernel http://…/vmlinuz-lts ip=dhcp modules=loop,squashfs \\\n  modloop=http://…/modloop-lts apkovl=http://…/diag.apkovl.tar.gz \\\n  provision_token=' + S.token + ' initrd=initramfs-lts\ninitrd http://…/initramfs-lts\nboot' };
+  }
+  // == 에이전트 API 규약 ==
+  function tokenGuard() {
+    if (!S.registered) { simMsg('error', '404 — 등록된 서버가 없습니다.'); return false; }
+    if (badToken()) { simMsg('error', '404 GuestServerNotFound — 토큰 불일치(사칭). 존재 여부를 노출하지 않는다 (Q2).'); return false; }
+    return true;
+  }
+  function actBoot() {
+    if (!S.registered) { S.registered = true; S.currentPhase = 'BOOTSTRAPPING'; S.token = 'a3f9…c21b'; }
+    S.lastBoot = simDispatch();
+    simMsg('success', '✓ GET /boot → 200 text/plain — 매트릭스 ' + S.lastBoot.row + '번 행. (예외가 나도 200 + 재시도 스크립트 — Q3)');
+    simRender();
+  }
+  function actStart() {
+    if (!S.registered || S.startedAt || S.decommissionedAt) { simMsg('error', '개시 불가 상태 — E1-0a 의 가드 그대로(UI 는 버튼 숨김).'); return; }
+    S.startedAt = now();
+    simMsg('success', '✓ 개시 — 다음 /boot 재진입부터 5번 행(대기)을 지나 6/7번 행으로.');
+    simRender();
+  }
+  function actDecom() {
+    if (!S.registered || S.decommissionedAt) { simMsg('error', '회수 불가/멱등.'); return; }
+    S.decommissionedAt = now();
+    simMsg('success', '✓ 회수 — dispatch 2번 행.');
+    simRender();
+  }
+  function actCheckin() {
+    if (!tokenGuard()) return;
+    if (!S.startedAt) { simMsg('error', '개시 전 — 실게스트라면 /boot 가 대기 스크립트만 줘서 체크인이 발생하지 않는다. (하네스 direct 호출도 전이 없이 지시 골격만 반환)'); return; }
+    if (S.failedAt || S.completedAt || S.decommissionedAt) { simMsg('error', '종결·회수 상태 — 전이 없음.'); return; }
+    if (S.currentPhase === 'BOOTSTRAPPING') {
+      S.currentPhase = 'DIAGNOSE_LINUX'; S.checkedIn = true;
+      simMsg('success', '✓ 첫 체크인 → advanceTo(DIAGNOSE_LINUX) — 수신 트랜잭션 내 즉시 전이(DEC-2). 응답: 지시 골격 JSON.');
+    } else {
+      simMsg('success', '✓ 재체크인 — 전이는 1회뿐(멱등). 지시 골격만 반환.');
+    }
+    simRender();
+  }
+  function actOpen() {
+    if (!tokenGuard()) return;
+    if (S.currentPhase !== 'DIAGNOSE_LINUX' || S.failedAt || S.completedAt) { simMsg('error', '진단 진입 후에만 step 보고가 유효합니다.'); return; }
+    S.steps.push({ code:'INFORMATION_COLLECTING', st:'RUNNING', at:now(), closed:false });
+    simMsg('success', '✓ POST /agent/steps → 201 { stepId: ' + S.steps.length + ' } — RUNNING 행 생성(원장 열림).');
+    simRender();
+  }
+  function lastOpen() { return [...S.steps].reverse().find(s => !s.closed); }
+  function actCloseOk() { simClose('SUCCEEDED'); }
+  function actCloseFail() { simClose('FAILED'); }
+  function simClose(result) {
+    if (!tokenGuard()) return;
+    const step = lastOpen();
+    if (!step) { simMsg('error', '404 SetupStepNotFound — 열린 step 이 없습니다(잘못된 stepId 와 동일 처리).'); return; }
+    step.st = result; step.closed = true; step.at = now();
+    if (result === 'FAILED') {
+      S.failedAt = step.at; S.failedStep = step.code;
+      simMsg('success', '✓ close(FAILED) → progress.markFailed 즉시 — 실패 신호의 첫 실트리거. 배지 FAILED, /boot 는 3번 행.');
+    } else {
+      simMsg('success', '✓ close(SUCCEEDED) — 원장 종결. (완주 판정·completedAt 은 E1-2)');
+    }
+    simRender();
+  }
+  function actCloseDup() {
+    if (!tokenGuard()) return;
+    const closed = [...S.steps].reverse().find(s => s.closed);
+    if (!closed) { simMsg('error', '종결된 step 이 없습니다 — 먼저 close 하세요.'); return; }
+    simMsg('success', '✓ 같은 stepId 재-close → 200 no-op — 행 불변(멱등, DEC-3). 원장에 새 행도 변경도 없다.');
+    simRender();
+  }
+  function simDerive() {
+    if (S.decommissionedAt) return ['회수됨','off'];
+    if (S.failedAt) return ['실패','del'];
+    if (S.completedAt) return ['완료','teal'];
+    if (!S.registered || !S.startedAt) return ['등록됨','blue'];
+    return ['프로비저닝 중','on'];
+  }
+  function simMsg(kind, text) {
+    const m = document.getElementById('sim-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+  function btn(id, label, handler, blockedReason) {
+    const el = document.getElementById(id);
+    const dis = blockedReason ? ' disabled' : '';
+    const tip = blockedReason ? (' data-tip="' + blockedReason + '"') : '';
+    el.innerHTML = '<span class="tip"' + tip + '><button class="n-demo-btn"' + dis + ' onclick="' + handler + '()">' + label + '</button></span>';
+  }
+  function simRender() {
+    const [label, cls] = S.registered ? simDerive() : ['—','off'];
+    const b = document.getElementById('sim-badge');
+    b.textContent = label; b.className = 'badge ' + cls;
+    document.getElementById('sim-state').textContent =
+      'phase=' + (S.currentPhase || '—') + ' started=' + (S.startedAt || 'null') +
+      ' failed=' + (S.failedAt || 'null') + ' token=' + (S.token || '—');
+
+    const d = S.registered ? simDispatch() : null;
+    document.getElementById('sim-script').innerHTML =
+      (d ? '<span class="cm"># GET /api/pxe/v1/boot → 200 text/plain (매트릭스 ' + d.row + '번 행)</span>\n' + d.script
+         : '<span class="cm"># 미등록 — 「iPXE 부팅」을 누르면 1번 행(등록+대기)이 반환됩니다</span>');
+
+    const ledger = document.getElementById('sim-ledger');
+    ledger.innerHTML = S.steps.length === 0
+      ? '<tr><td colspan="4" style="color:var(--text-muted);">setup_step 원장 비어 있음 (부트스트래핑 2행은 생략 표시)</td></tr>'
+      : S.steps.map((s, i) => {
+          const stB = s.st === 'RUNNING' ? '<span class="badge blue">작업 중</span>'
+            : s.st === 'SUCCEEDED' ? '<span class="badge on">작업 완료</span>' : '<span class="badge del">작업 실패</span>';
+          return '<tr><td>' + (i+1) + '</td><td><code>' + s.code + '</code></td><td>' + stB + '</td><td>' + s.at + '</td></tr>';
+        }).join('');
+
+    btn('b-reg', 'iPXE 부팅 (/boot)', 'actBoot', null);
+    btn('b-boot', '재부팅 (/boot 재진입)', 'actBoot', !S.registered ? '먼저 등록(부팅)하세요' : null);
+    btn('b-start', '▶ 프로비저닝 개시', 'actStart', !S.registered ? '등록 먼저' : (S.startedAt ? '이미 개시' : (S.decommissionedAt ? '회수됨' : null)));
+    btn('b-decom', '서버 회수', 'actDecom', !S.registered ? '등록 먼저' : (S.decommissionedAt ? '이미 회수' : null));
+    btn('b-checkin', 'POST /agent/checkin', 'actCheckin', !S.registered ? '등록 먼저' : null);
+    btn('b-open', 'step 시작 보고', 'actOpen', S.currentPhase !== 'DIAGNOSE_LINUX' ? '진단 진입(체크인) 먼저' : null);
+    btn('b-closeok', 'close(성공)', 'actCloseOk', !lastOpen() ? '열린 step 없음' : null);
+    btn('b-closefail', 'close(실패)', 'actCloseFail', !lastOpen() ? '열린 step 없음' : null);
+    btn('b-closedup', '중복 close (멱등 확인)', 'actCloseDup', null);
+
+    const tf = v => v ? '<span class="t">' + v + '</span>' : '<span class="f">false/null</span>';
+    document.getElementById('sim-caps').innerHTML =
+      'dispatch 입력: registered=' + tf(S.registered) + ' decommissioned=' + tf(S.decommissionedAt) +
+      ' failed=' + tf(S.failedAt) + ' completed=' + tf(S.completedAt) + ' started=' + tf(S.startedAt) + '\n' +
+      '              cursor=' + (S.currentPhase || '—') + ' executorRegistered=' + tf(executorRegistered()) +
+      '  → 매트릭스 <b>' + (S.registered ? simDispatch().row : 1) + '번 행</b>\n' +
+      'token 검사:   presented=' + (badToken() ? '<span class="t">불일치(사칭)</span>' : '<span class="f">일치</span>') + ' → 불일치면 전 에이전트 API 404';
+  }
+  simReset();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

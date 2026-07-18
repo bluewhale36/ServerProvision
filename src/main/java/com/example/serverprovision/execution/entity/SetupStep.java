@@ -76,4 +76,29 @@ public class SetupStep extends BaseTimeEntity {
                 .finishedAt(at)
                 .build();
     }
+
+    /** 게스트 실행 step 의 열림 팩토리(E1-0b, DEC-3) — 시작 보고 시점에 RUNNING 으로 생성된다. */
+    public static SetupStep openRunning(GuestServer guestServer, ProvisioningPhaseStep stepCode, LocalDateTime at) {
+        return SetupStep.builder()
+                .id(org.hibernate.id.uuid.UuidVersion7Strategy.INSTANCE.generateUuid(null))
+                .guestServer(guestServer)
+                .stepCode(stepCode)
+                .status(ProvisioningStatus.RUNNING)
+                .startedAt(at)
+                .build();
+    }
+
+    /**
+     * 종료 보고(닫힘) — append-only 원장에서 허용되는 유일한 행 갱신(RUNNING → 종결 1회).
+     * 이미 종결된 행이면 아무것도 바꾸지 않고 {@code false} — 중복 종료 보고 no-op 멱등의 실체.
+     */
+    public boolean close(ProvisioningStatus result, String statusMeta, LocalDateTime at) {
+        if (this.finishedAt != null) {
+            return false;
+        }
+        this.status = result;
+        this.statusMeta = statusMeta;
+        this.finishedAt = at;
+        return true;
+    }
 }
