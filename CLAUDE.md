@@ -8,15 +8,15 @@
 
 - **관리자(Management)** 가 프로비저닝에 쓸 자원을 등록·관리한다 — OS 이미지/ISO, 메인보드 모델, BIOS·BMC 펌웨어, Subprogram(드라이버·유틸리티). 각 자원은 디스크 파일 + **HMAC 서명 마커**(`.provision.json` in-tree 또는 sidecar)로 무결성을 추적한다.
 - **운영자(Maintenance)** 영역은 자가 점검·복구 — 파일 경로가 바뀌면 마커 기준으로 DB 를 재조정(reconciliation), soft-delete 자원은 휴지통(`.soft-deleted/`)으로 격리, DB/FS 불일치(ghost·orphan) 정합화.
-- **사용자(Provisioning)** 가 세팅 정의서로 프로비저닝 절차(OS 설치 등 다형 단계)를 정의해 서버에 할당한다. 물리 서버가 **PXE 부팅**(`/pxe/v1/entry/boot`, Stage 4)하면 이 정의에 따라 자동 프로비저닝된다.
+- **사용자(Provisioning)** 가 세팅 정의서로 프로비저닝 절차(OS 설치 등 다형 단계)를 정의해 서버에 할당한다. 물리 서버가 **PXE 부팅**(`/api/pxe/v1/boot`)으로 등록되면 이 정의에 따라 자동 프로비저닝된다(실행 엔진 = **E 단계**, 구상 중).
 - **스택**: Spring Boot 4 + Thymeleaf SSR 관리 UI(일부 XHR) + Spring Data JPA + MariaDB.
 
 ## 현재 상태 (어디까지 왔는가)
 
 - 브랜치 **`renew/main`** — 구 `dev` 구현(`archive/legacy/`, 실행경로 외 참조용)을 Top-down 재설계 중.
-- **구현됨**: Management 자원관리(`os`/`board`/`bios`/`bmc`/`subprogram`) + Maintenance(`reconciliation`/`trash`/`orphan`) + Provisioning(`setting`/`server`) 골격 + global 인프라(`marker`/`job`/`lifecycle`/`security`/`ui` 등).
-- **리팩토링 캠페인 R1~R7** 로 6 도메인(OS/Iso/Board/BIOS/BMC/Subprogram)의 Controller/Service 분리 + `LifecycleService` 다형 정렬 + `MarkableScanner` SPI(Service Provider Interface) 분리 + `ObjectProvider`/생성자 순환 제거 완료.
-- **잔여**: R2(예외 처리 모델 개편) 의 R2-3(advice 통합)/R2-4(ProblemDetail)/R2-5(errorCode)/R2-6(frontend alert 정리). Stage 4(PXE Boot 연동) 미착수.
+- **구현됨**: Management 자원관리(`os`/`board`/`bios`/`bmc`/`subprogram`) + Maintenance(`reconciliation` 드리프트 탐지·해결 체계/`trash`/`orphan`) + Provisioning(`setting` 세팅 정의서 CRUD 완료 = U2 / `biossetting` BIOS 세팅 템플릿) + Execution 골격(`execution` — 게스트 서버 데이터 모델 + PXE 최초 등록 = U1) + global 인프라(`marker`/`job`/`lifecycle`/`security`/`ui` 등).
+- **리팩토링 캠페인 R1~R9** 로 Controller/Service 분리 + `LifecycleService` 다형 정렬 + `MarkableScanner` SPI(Service Provider Interface) 분리 + 생성자 순환 제거 + 예외 라우팅 다형화 + reconciliation 사용성 개선 진행.
+- **다음 본류**: **E 단계**(프로비저닝 실행 엔진 — `ProvisioningPhase` 순서대로 E1=진단 리눅스부터) 로드맵 구상 착수. U3(정의서-서버 할당)는 E 로드맵 안에서 위치 결정.
 - **단계별 상태·scope·이력은 Notion DB `Provisioning Server 개발 상세` 가 SSOT.** 현황이 궁금하면 CLAUDE.md 가 아니라 그 DB 와 코드를 본다.
 
 ## 작업 규칙 (불가침 철학)
@@ -63,8 +63,8 @@
 ### 영역 분할
 - **Management** (`/management/*`) — 자원 관리. `os`(OSMetadata 1:N ISO) / `board`(BoardModel) / `bios`(BoardBIOS) / `bmc`(BoardBMC) / `subprogram`(드라이버·유틸, FK nullable=공용). BoardModel 1:N {BIOS, BMC, Subprogram}.
 - **Maintenance** (`/maintenance/*`) — 자가 점검·복구. `reconciliation`(경로 드리프트), trash·orphan 정합화.
-- **Provisioning** (`/provisioning/*`) — 사용자 영역. `setting`(SettingDefinition + SettingProcess 다형) / `server`(Server, MacAddress/IpAddress VO).
-- **Entry** (`/pxe/v1/entry/boot`) — PXE 부팅 진입점(Stage 4). 호환성 위해 `/pxe/v1` prefix 유지.
+- **Provisioning** (`/provisioning/*`) — 사용자 영역. `setting`(SettingDefinition + SettingProcess 다형 payload = 실행 계약 SSOT) / `biossetting`(BIOS 세팅 템플릿).
+- **Execution** (`/api/pxe/v1/*`) — 실행 영역. 게스트 서버(GuestServer/GuestServerDetail/HostNicBinding/ProvisioningProgress/SetupStep, MacAddressVO/IpAddressVO) + PXE 부팅 진입점 + 실행 엔진(E 단계). 큰 단계 체크포인트는 `ProvisioningPhase`, 하위 단계는 `ProvisioningPhaseStep` enum.
 - **global** — 영역 무관 인프라: `marker`(ProvisionMarkerService + `Markable` + `MarkableScanner` SPI) / `job`(BackgroundJob) / `lifecycle`(`LifecycleService`/`SoftDeleteIntentService`/`TypedNameGuard`) / `trash` / `orphan` / `registration` / `security` / `exception` / `ui` / `entity`(BaseTimeEntity) / `config`.
 
 각 feature 하위는 `controller/`·`service/`·`repository/`·`entity/`·`vo/`·`dto/`·`enums/`·`exception/` 로 세분. **엔티티 필드·도메인 메서드의 상세는 코드가 SSOT** — 여기 나열하지 않는다.
@@ -86,7 +86,7 @@
 
 ## 개발 흐름 (어떻게 일하는가)
 
-작업은 **인벤토리 코드**(작업 단위 식별자)로 부른다: `MA*`(Manage-Application) / `MK*`(Manage-Kernel/Maintenance) / `U*`(Provisioning) / `S*`(cross-cutting infra) / `R*`(리팩토링 캠페인) / `HF*`(hotfix) / `M0`(리네임) / `CH*`(housekeeping). 코드 번호는 식별자이지 실행 순서가 아니다. **각 코드의 상태·이력은 Notion DB 가 SSOT** — CLAUDE.md 에 이력을 적지 않는다.
+작업은 **인벤토리 코드**(작업 단위 식별자)로 부른다: `MA*`(Manage-Application) / `MK*`(Manage-Kernel/Maintenance) / `U*`(Provisioning) / `E*`(Execution — 프로비저닝 실행 엔진, E1=진단 리눅스부터 `ProvisioningPhase` 순서 대응) / `S*`(cross-cutting infra) / `R*`(리팩토링 캠페인) / `HF*`(hotfix) / `M0`(리네임) / `CH*`(housekeeping). 코드 번호는 식별자이지 실행 순서가 아니다. **각 코드의 상태·이력은 Notion DB 가 SSOT** — CLAUDE.md 에 이력을 적지 않는다.
 
 ### 수직 슬라이스 (페이지/작업당 10 단계)
 1. URL/데이터 흐름 스케치 — **plan html 산출**(아래 규약) 2. Thymeleaf 뷰(더미, 기존 CSS 재사용) 3. Controller(`@ModelAttribute`+`BindingResult`, Model 엔 Response 만) 4. Request/Response DTO(`@Valid`) 5. Service 인터페이스+시그니처(`@Transactional` 경계) 6. Repository(Spring Data 네임규칙) 7. Entity(`BaseTimeEntity` 상속, **7단계 전 `@Entity` 작성 금지**) 8. Service 본체 + 테스트(아래 규율) 9. 스키마 확인(`ddl-auto=validate` — 수동 DDL 을 `sql/` 에 산출·적용 후 `SHOW CREATE TABLE` 검증. ALTER 권한 계정 필요 — `claude_code` 는 ALTER 불가) 10. 브라우저 E2E — **사용자 단독**.
@@ -105,12 +105,22 @@
 
 > **모든 CP 중 Claude 가 가장 많은 사고를 쏟아야 하는 단계는 CP1(계획)이다 (불가침).** 코드 구현(CP2~CP4)은 좋은 계획만 있으면 기계적이지만, 설계 결함은 CP1 에서 못 잡으면 그대로 굳는다. plan 을 쓰기 전 반드시: ① **설계 대안을 복수 생성·비교**(첫 떠오른 안 하나로 쓰지 않는다 — 2~3 접근의 trade-off 명시 후 최선 선택) ② **자기 선택을 적대적으로 비판**(통일성 깨지 않는가/churn 만들지 않는가/더 간단한 길은/숨은 순환·결함은 — 막히면 코드를 더 읽어 확인) ③ **결정에 채택안 + 비채택 대안 + 탈락 사유를 함께 기록**(사용자가 "더 나은 방안 없냐" 되묻지 않아도 최적 설계가 plan 에 담겨야 한다). 필요하면 CP1 에 workflow/Agent 를 적극 동원한다 — CP1 토큰은 CP2~CP4 재작업을 막는 투자다.
 
+> **CP5 의 E 단계 예외** (2026-07-12 합의): 실행 엔진(E*) 슬라이스의 CP5 는 브라우저 E2E 대신 **모의 게스트 하네스(`scripts/mock-guest/`) 실행 + 게스트 서버 상세 페이지 확인**으로 수행한다. 하네스는 게스트의 HTTP 행동(부팅→체크인→보고)을 curl 로 재연하는 git 추적 자산이며 Step 8 테스트 규율을 대체하지 않는다. 실기(T3) 검증이 유보된 슬라이스는 그 시점을 Notion 후속 마일스톤에 기재한다.
+
 ### Step 1 — plan html 규약 (불가침)
 - **경로**: `plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html`, timestamp 는 **KST(Asia/Seoul)**. 페이지키 = 인벤토리 코드.
 - **방식**: html 을 직접 Write. html 인 본질은 **인터랙티브** — ① 🎬 라이브 데모로 설계 동작을 클릭·체험 검증, ② 검색/접기 ToC, ③ localStorage 체크리스트. **골격·CSS·JS 는 묻지 말고 최근 `plan/*.html` 을 직접 읽어 복제**한다.
 - 골격: sticky `header.page-header` + sticky `nav.toc`(top:108px) + `<main>`. 섹션 = `<details class="section" id="sN">`. `<input class="filter-box">` 검색. 말미 `<script>` 4 로직(불가침): ToC 클릭→open+smooth scroll(offset −108) / 전부 펴기·접기 / filter→매칭 섹션만 / `check-list[data-storage]` localStorage.
 - **🎬 미리보기 = 진짜 인터랙티브(불가침, §2 직후)**: 단순 텍스트/도식 박스 금지. 위젯에서 **상태를 직접 바꿔 결과(상태전이/차단/cascade/순환)를 체험**할 수 있어야 한다 — `state` 객체 + `render()` + `action()` 으로 그 슬라이스의 도메인 규칙을 JS 로 시뮬레이션(서버 판정을 재현). 선례: `plan/26-05-30_10-55-11_R2-2_plan.html`(부모상태→자식버튼 disable+tooltip), `plan/26-06-28_03-33-59_R4-3_R5-3_R6-3_plan.html`(분해+순환 가드).
 - **필수 섹션(11)**: ①현재 상태 ②요구사항 ③URL/데이터 흐름 ④도메인 모델 ⑤10단계 매핑 ⑥Step 8 테스트 시나리오 ⑦예외 계층(신규·재사용) ⑧부산물/주의(scope 경계·미루는 리팩터·CLAUDE.md 수정·동반 수정) ⑨Verification(빌드·기능·회귀) ⑩Critical Files(신규·수정·유지) ⑪다음 마일스톤.
+
+### E 단계 — discussion 문서 규약
+E 단계(프로비저닝 실행 엔진)는 이 프로그램의 핵심 비즈니스 로직 설계라 코드 착수 전 사용자와의 토론·브레인스토밍 비중이 크다. 이를 위한 소통 문서를 둔다:
+- **경로**: `discussion/YY-MM-DD_HH-MM-SS_<주제>_discussion.md`, timestamp 는 **KST(Asia/Seoul)**.
+- **포맷**: markdown — 사용자와 Claude 가 **서로 수정하기 편하고 가독성 좋은 텍스트**가 목적. plan html 의 인터랙티브 시뮬레이터 같은 장치 대신, 열린 질문(토론 포인트)·대안 비교·확정/미확정 구분 표기가 중심이다.
+- **plan/report html 을 대체하지 않는다** — E 슬라이스도 CP1 진입 시 plan html 은 기존 규약대로 산출한다. discussion 문서는 CP1 앞의 구상·토론 자산이며, 토론 결과가 plan 의 입력이 된다.
+- **시리즈 구성**: 한 주제의 **최초 문서만** 전체 그림(로드맵·단계 상세)을 포함한다 — 처음 파악하는 데는 그 편이 낫다. **후속 문서는 토론 전용** — 로드맵·단계 상세를 재기술하지 않고 쟁점·응답·파생 질문만 담는다. 토론 종결 시 **마지막 문서에서 결정 사항을 간단히 정리**하고, 본격 명세는 해당 슬라이스의 plan html 로 넘긴다.
+- 문서 스타일은 "설명·답변·문서 작성 규칙" 을 그대로 따른다(사실 풀어쓰기·약어 금지·유스케이스 중심).
 
 ### 테스트 규율 (불가침)
 단위 테스트만으로는 "예외→HTTP 응답" 매핑 사고나 컨트롤러 분기 누락이 안 드러난다(과거 `MissingFilenameException` 이 500 으로 새던 사고). Step 8 은 **두 레이어 모두** 작성:
