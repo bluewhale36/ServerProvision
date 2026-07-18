@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<!--
+ ============================================================================
+  diagram/guest-provisioning-protocol.html
+  Guest Server ↔ Provisioning Server 통신 프로토콜 다이어그램 (living document)
+ ============================================================================
+  · 목적 : 일반 LAN(프로비저닝 격리망)과 MGMT 포트(BMC) 두 통로로 오가는
+    요청/응답·객체·파일·스크립트를 한눈에 보는 인터랙티브 시각 자료.
+    E 단계 슬라이스가 진행될 때마다 이 파일을 갱신한다 (보고서 시각 요소 겸용).
+  · 갱신 규약 (슬라이스 종료 시):
+    1) 아래 <script> 의 MESSAGES 배열에 항목 추가/status 변경 (planned → wip → done)
+    2) CHANGELOG 배열 맨 앞에 갱신 이력 1줄 추가
+    3) 구조(레인·렌더러)는 손대지 않는다 — 데이터만 자란다
+  · status : done(구현됨·실선) / wip(구현 중·파란 점 badge) / planned(로드맵·파선+반투명)
+  · channel: lan(일반 LAN·파랑) / mgmt(MGMT 포트·보라) / local(게스트 내부·회색)
+ ============================================================================
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guest ↔ Provisioning Server 통신 다이어그램</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --lan:#0075de; --lan-bg:#e6f0ff;
+    --mgmt:#6f4cdd; --mgmt-bg:rgba(111,76,221,0.10);
+    --local:#57606a; --local-bg:rgba(0,0,0,0.05);
+    --done:#1aae39; --wip:#0075de; --planned:#8b949e;
+    --red:#bf2626; --yellow:#C29343; --yellow-bg:#FAF3DD;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); font-size:14px; line-height:1.6; }
+
+  header { background:linear-gradient(180deg,#fff,#fbfcfd); border-bottom:1px solid var(--border);
+    padding:16px 24px; position:sticky; top:0; z-index:50; }
+  header h1 { margin:0 0 4px; font-size:18px; font-weight:700; }
+  header .sub { font-size:12px; color:var(--muted); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; align-items:center; font-size:12px; }
+  .toolbar .grp { display:flex; gap:8px; align-items:center; padding:4px 10px; background:var(--card);
+    border:1px solid var(--border-soft); border-radius:6px; }
+  .toolbar label { display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+  .toolbar button { border:1px solid var(--border); background:var(--card); padding:4px 10px;
+    font-size:11px; border-radius:4px; cursor:pointer; }
+  .sw { display:inline-block; width:22px; height:0; border-top:3px solid; border-radius:2px; }
+  .sw.lan { border-color:var(--lan); } .sw.mgmt { border-color:var(--mgmt); } .sw.local { border-color:var(--local); }
+  .sw.dashed { border-top-style:dashed; }
+
+  .wrap { max-width:1200px; margin:0 auto; padding:20px 24px 340px; }
+
+  /* ── 레인 헤더 (sticky) ── */
+  .lanes-head { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; position:sticky; top:118px; z-index:40; margin-bottom:4px; }
+  .lane-title { text-align:center; padding:10px 8px; font-weight:700; font-size:13px;
+    background:var(--card); border:1px solid var(--border); border-radius:8px; margin:0 6px; }
+  .lane-title small { display:block; font-weight:400; font-size:11px; color:var(--muted); }
+  .lane-title.guest { border-top:3px solid var(--lan); }
+  .lane-title.server { border-top:3px solid #1f2328; }
+  .lane-title.bmc { border-top:3px solid var(--mgmt); }
+
+  /* ── 그룹(부팅 세션) ── */
+  details.grp-box { background:var(--card); border:1px solid var(--border); border-radius:10px; margin:14px 0; overflow:hidden; }
+  details.grp-box > summary { cursor:pointer; list-style:none; padding:11px 16px; font-weight:700; font-size:14px;
+    display:flex; align-items:center; gap:10px; user-select:none; background:linear-gradient(90deg,var(--bg),transparent); }
+  details.grp-box > summary::-webkit-details-marker { display:none; }
+  details.grp-box > summary::before { content:'›'; color:var(--muted); font-size:17px; transition:transform .15s; width:12px; display:inline-block; }
+  details.grp-box[open] > summary::before { transform:rotate(90deg); }
+  details.grp-box > summary .gsub { font-weight:400; font-size:12px; color:var(--muted); }
+  .grp-body { padding:6px 10px 14px; position:relative; }
+
+  /* 레인 세로선 */
+  .grp-body::before, .grp-body::after, .grp-body .midline { content:''; position:absolute; top:0; bottom:0; width:0;
+    border-left:2px dashed var(--border); z-index:0; }
+  .grp-body::before { left:16.66%; } .grp-body .midline { left:50%; } .grp-body::after { left:83.33%; }
+
+  /* ── 메시지 행 — 레인 중심선을 잇는 실제 화살선 + 중앙 라벨 (v2: 전폭 카드 형태의 어색함 교정) ── */
+  .msg { position:relative; z-index:1; margin:10px 0; min-height:50px; }
+  .msg.hidden { display:none; }
+  .msg .line { position:absolute; top:50%; height:0; border-top:3px solid var(--lan); }
+  .msg.c-mgmt .line { border-top-color:var(--mgmt); }
+  .msg.c-local .line { border-top-color:var(--local); }
+  .msg.s-planned .line { border-top-style:dashed; opacity:.55; }
+  .msg .head { position:absolute; top:50%; width:0; height:0; border:6px solid transparent; transform:translateY(-6px); }
+  .msg.dir-right .head { border-left:9px solid var(--lan); border-right:none; margin-left:-9px; }
+  .msg.dir-left .head { border-right:9px solid var(--lan); border-left:none; }
+  .msg.c-mgmt.dir-right .head { border-left-color:var(--mgmt); }
+  .msg.c-mgmt.dir-left .head { border-right-color:var(--mgmt); }
+  .msg.c-local.dir-right .head { border-left-color:var(--local); }
+  .msg.c-local.dir-left .head { border-right-color:var(--local); }
+  .msg.s-planned .head { opacity:.55; }
+  .arrow { position:absolute; top:50%; transform:translate(-50%,-50%); cursor:pointer; border-radius:7px;
+    background:var(--card); border:1px solid var(--border-soft); box-shadow:0 1px 3px rgba(0,0,0,0.08);
+    padding:4px 12px; font-size:12px; line-height:1.45; max-width:44%; text-align:center; }
+  .arrow:hover { border-color:var(--lan); box-shadow:0 2px 8px rgba(0,0,0,0.10); z-index:4; }
+  .arrow.selected { outline:2px solid var(--lan); z-index:4; }
+  .arrow .lbl { font-family:var(--mono); font-weight:600; font-size:11.5px; display:block; }
+  .arrow .carry { color:var(--muted); font-size:11px; display:block; }
+  .msg.s-planned .arrow { opacity:.7; border-style:dashed; }
+  .badge { display:inline-block; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:8px; margin-left:6px; vertical-align:1px; }
+  .badge.done { background:rgba(26,174,57,.12); color:var(--done); }
+  .badge.wip { background:var(--lan-bg); color:var(--wip); }
+  .badge.planned { background:rgba(0,0,0,.06); color:var(--planned); }
+  /* 노트(단일 레인 내부 효과) — 해당 레인 중심에 pill 로 */
+  .note { position:absolute; top:50%; transform:translate(-50%,-50%); padding:5px 12px; border-radius:7px;
+    font-size:11.5px; background:var(--yellow-bg); border:1px dashed var(--yellow); color:#6b5216;
+    cursor:pointer; max-width:30%; text-align:center; }
+  .note:hover { box-shadow:0 2px 6px rgba(0,0,0,.08); z-index:4; }
+  .note.selected { outline:2px solid var(--yellow); z-index:4; }
+  .msg.s-planned .note { opacity:.62; }
+
+  /* ── 상세 패널 (하단 고정) ── */
+  #panel { position:fixed; left:0; right:0; bottom:0; z-index:60; background:var(--card);
+    border-top:2px solid var(--border); box-shadow:0 -6px 24px rgba(0,0,0,.10);
+    max-height:305px; overflow-y:auto; padding:14px 24px 18px; display:none; }
+  #panel.show { display:block; }
+  #panel h3 { margin:0 0 4px; font-size:14px; font-family:var(--mono); }
+  #panel .meta-line { font-size:11.5px; color:var(--muted); margin-bottom:8px; }
+  #panel .meta-line b { color:var(--text); }
+  #panel .cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  #panel pre { background:#1b1f24; color:#e6edf3; border-radius:6px; padding:10px 12px; margin:4px 0 0;
+    font-size:11.5px; font-family:var(--mono); line-height:1.5; overflow-x:auto; max-height:170px; }
+  #panel .cap { font-size:11px; font-weight:700; color:var(--muted); }
+  #panel .close-x { position:absolute; right:18px; top:10px; border:none; background:none; font-size:18px; cursor:pointer; color:var(--muted); }
+  #panel .basis { font-size:11px; color:var(--muted); margin-top:8px; }
+
+  /* ── 갱신 이력 ── */
+  .changelog { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:10px 16px; font-size:12px; margin-top:22px; }
+  .changelog b { font-size:12.5px; }
+  .changelog li { margin:2px 0; }
+
+  @media print {
+    header, #panel, .toolbar { display:none !important; }
+    .wrap { padding-bottom:20px; }
+    details.grp-box { break-inside:avoid; }
+    details.grp-box:not([open]) { display:block; }
+  }
+  @media (max-width:860px) { .arrow { margin:0 14px; } #panel .cols { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Guest Server ↔ Provisioning Server 통신 다이어그램 <span style="font-size:11px;color:var(--muted);font-weight:400;">living document — E 단계 진행에 따라 갱신</span></h1>
+  <div class="sub">두 통로 — <b style="color:var(--lan)">일반 LAN(프로비저닝 격리망 192.168.1.x)</b> 과 <b style="color:var(--mgmt)">MGMT 포트(BMC · Redfish/IPMI)</b>. 화살표를 클릭하면 실제 요청/응답 · 전달물 예시가 아래에 열립니다.</div>
+  <div class="toolbar">
+    <span class="grp"><b>채널</b>
+      <label><span class="sw lan"></span><input type="checkbox" checked data-f="c-lan"> LAN</label>
+      <label><span class="sw mgmt"></span><input type="checkbox" checked data-f="c-mgmt"> MGMT</label>
+      <label><span class="sw local"></span><input type="checkbox" checked data-f="c-local"> 게스트 내부</label>
+    </span>
+    <span class="grp"><b>구현 상태</b>
+      <label><span class="badge done">구현됨</span><input type="checkbox" checked data-f="s-done"></label>
+      <label><span class="badge wip">구현 중</span><input type="checkbox" checked data-f="s-wip"></label>
+      <label><span class="badge planned">로드맵</span><input type="checkbox" checked data-f="s-planned"></label>
+    </span>
+    <span class="grp">
+      <button onclick="document.querySelectorAll('details.grp-box').forEach(d=>d.open=true)">전부 펴기</button>
+      <button onclick="document.querySelectorAll('details.grp-box').forEach(d=>d.open=false)">전부 접기</button>
+      <button onclick="window.print()">🖨 인쇄(보고서용)</button>
+    </span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="lanes-head">
+    <div class="lane-title guest">Guest Server — 호스트<small>iPXE → 진단 리눅스(에이전트) → 설치 OS · 일반 LAN</small></div>
+    <div class="lane-title server">Provisioning Server<small>Spring Boot 앱 + dhcpd/tftp (격리망 192.168.1.10)</small></div>
+    <div class="lane-title bmc">Guest Server — BMC<small>MGMT 포트 · Redfish API (AST2600/MegaRAC)</small></div>
+  </div>
+
+  <div id="diagram"><!-- JS 렌더 --></div>
+
+  <div class="changelog">
+    <b>갱신 이력</b>
+    <ul id="changelog-list"></ul>
+  </div>
+</div>
+
+<div id="panel">
+  <button class="close-x" onclick="closePanel()">✕</button>
+  <h3 id="p-title"></h3>
+  <div class="meta-line" id="p-meta"></div>
+  <div class="cols">
+    <div><span class="cap">요청 / 전달 (→)</span><pre id="p-req"></pre></div>
+    <div><span class="cap">응답 / 효과 (←)</span><pre id="p-res"></pre></div>
+  </div>
+  <div class="basis" id="p-basis"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATA — 슬라이스 진행 시 여기만 갱신한다 (구조·렌더러 불변)
+// ═══════════════════════════════════════════════════════════════════════════
+const CHANGELOG = [
+  'v3 (2026-07-18) — E1-0b 게스트 프로토콜 v1 구현 완료(CP5) — dispatch·체크인·보고·토큰 흐름을 구현됨으로 갱신. dhcpd filename 수동 flip 만 배치 잔여.',
+  'v2 (2026-07-18) — 렌더 교정: 전폭 카드+화살촉 스텁 → 레인 중심선을 잇는 실제 화살선 + 중앙 라벨(캔버스와 동일 문법).',
+  'v1 (2026-07-18) — 최초 작성: PXE 인프라(수동 구축) + U1·E1-0a 구현 반영, E1-0b(구현 중 — CP1 승인 대기), E1-1~E5·E2~E3(MGMT) 로드맵 예정선 수록.',
+];
+
+// group: 시간 순 묶음 (부팅 세션 단위 — discussion 2차 T5 타임라인과 정렬)
+const GROUPS = [
+  { id:'infra', title:'부팅 준비 — PXE 인프라', sub:'매 부팅 반복 · dhcpd/tftp (수동 구축분, 관리 UI 는 E1-I 예정)', open:true },
+  { id:'boot1', title:'부팅 #1 — 등록과 대기', sub:'U1 + E1-0a 구현 / 응답 스크립트는 E1-0b', open:true },
+  { id:'diag',  title:'부팅 #2 — 진단 리눅스', sub:'프로토콜 E1-0b(구현 중) · 부팅 자산 E1-1 · 수집 E1-2 (로드맵)', open:true },
+  { id:'fw',    title:'부팅 #3~4 — 펌웨어 업데이트', sub:'E2 로드맵 (가상 USB 선행 → Redfish 전환 목표)', open:false },
+  { id:'bios',  title:'BIOS·BMC 설정 — MGMT 통로', sub:'E3 로드맵 (Redfish · 재부팅 불요 통로)', open:false },
+  { id:'os',    title:'부팅 #5 — OS 설치·후처리', sub:'E4·E5 로드맵 (Kickstart 무인 설치)', open:false },
+  { id:'end',   title:'부팅 #6 — 종단', sub:'E1-0b 스크립트 + E1-2 판정 (로드맵)', open:false },
+];
+
+// from/to: guest | server | bmc  ·  channel: lan | mgmt | local  ·  status: done | wip | planned
+// note:true 면 화살표 대신 해당 레인 위 노트 박스 (내부 효과 · 운영자 액션)
+const MESSAGES = [
+  // ── 부팅 준비 (인프라) ──────────────────────────────────────────────
+  { g:'infra', from:'guest', to:'server', ch:'lan', st:'done', slice:'인프라(수동)',
+    lbl:'DHCP DISCOVER → OFFER/ACK', carry:'IP 임대(192.168.1.100~200) + 부트 파일 안내',
+    req:'DHCP DISCOVER (PXEClient, MAC 제시)', res:'OFFER: IP + next-server 192.168.1.10\nfilename: ipxe.efi  (첫 부팅)\nfilename: http://…/boot 진입 URL (iPXE 재요청 시)',
+    basis:'dhcpd.conf pxeclients class 분기 — Notion "PXE Server 구축". 구성 관리 UI 는 E1-I 로 이관 예정.' },
+  { g:'infra', from:'guest', to:'server', ch:'lan', st:'done', slice:'인프라(수동)',
+    lbl:'TFTP GET ipxe.efi', carry:'iPXE 부트로더 바이너리 (~1MB)',
+    req:'TFTP RRQ ipxe.efi', res:'ipxe-x86_64.efi 바이너리 — 이후 HTTP 가능한 부트 환경 확보',
+    basis:'/var/lib/tftpboot/ipxe.efi (수동 구축분).' },
+  { g:'infra', from:'guest', to:'server', ch:'lan', st:'wip', slice:'E1-0b 배치',
+    lbl:'iPXE 재DHCP → 앱 /boot 로 체인', carry:'dhcpd filename 을 앱 URL 로 전환 (배치 시 1회 수동)',
+    req:'DHCP (user-class=iPXE)', res:'filename: http://192.168.1.10:<port>/api/pxe/v1/boot\n(현재는 정적 boot.ipxe — E1-0b 부터 앱이 동적 응답)',
+    basis:'PXE 인프라 통합 1단계 (discussion 2차 T3).' },
+
+  // ── 부팅 #1 — 등록과 대기 ───────────────────────────────────────────
+  { g:'boot1', from:'guest', to:'server', ch:'lan', st:'done', slice:'U1',
+    lbl:'GET /api/pxe/v1/boot', carry:'쿼리 5종: systemUUID · macAddress · ipAddress · vendor · boardModel',
+    req:'GET /api/pxe/v1/boot?systemUUID=…&macAddress=aa:bb:…\n  &ipAddress=192.168.1.150&vendor=Giga%20Computing\n  &boardModel=MS03-CE0', res:'(효과) 멱등 등록 — guest_server / detail / nic /\nprovisioning_progress(BOOTSTRAPPING seed) 4행',
+    basis:'U1 — GuestServerRegistrationService (보드 카탈로그 exact 매칭 + Gigabyte -000 정규화).' },
+  { g:'boot1', from:'server', to:'server', ch:'lan', st:'done', slice:'E1-0a', note:true,
+    lbl:'원장 2행 실적재 + 토큰 발급(예정)', carry:'',
+    req:'(등록 트랜잭션 내부)', res:'setup_step: NETWORK_ALLOCATING · INIT_PERSISTING = SUCCEEDED\n(E1-0b) guest_token 발급 · 저장',
+    basis:'E1-0a SetupStepRecorder — U1 유보분 인수. 토큰은 E1-0b.' },
+  { g:'boot1', from:'server', to:'guest', ch:'lan', st:'done', slice:'U1 현행',
+    lbl:'응답(현행): 빈 200', carry:'게스트는 다음 할 일을 받지 못함 — E1-0b 가 해소',
+    req:'—', res:'HTTP 200 (본문 없음)\n→ 게스트는 부트 순서 다음 항목으로 넘어가거나 멈춘다',
+    basis:'E1-0a 비목표로 명기했던 공백.' },
+  { g:'boot1', from:'server', to:'guest', ch:'lan', st:'done', slice:'E1-0b',
+    lbl:'응답(전환): iPXE 대기 스크립트', carry:'text/plain — sleep 30 + chain 재시도 (30초 폴링)',
+    req:'—', res:'#!ipxe\necho waiting for provisioning start...\nsleep 30\nchain /api/pxe/v1/boot\n# dispatch 매트릭스: 미개시/회수/실패/HOLD 별 변형',
+    basis:'E1-0b plan §4 dispatch 매트릭스 7행. 예외 시에도 200 + 재시도 스크립트(PXE 한정 advice).' },
+  { g:'boot1', from:'server', to:'server', ch:'lan', st:'done', slice:'E1-0a', note:true,
+    lbl:'운영자: [프로비저닝 개시] 버튼', carry:'',
+    req:'POST /provisioning/server/{id}/start (운영자 브라우저)', res:'startedAt 기록 → 다음 /boot 재진입부터 대기 해제\n(재개시·회수 서버는 409 안전망)',
+    basis:'DEC-26 개시 게이트 — E1-0a 구현 완료.' },
+
+  // ── 부팅 #2 — 진단 리눅스 ───────────────────────────────────────────
+  { g:'diag', from:'server', to:'guest', ch:'lan', st:'planned', slice:'E1-1',
+    lbl:'응답: 진단 리눅스 체인로드 스크립트', carry:'커널 인자에 modloop · apkovl · provision_token 동봉',
+    req:'GET /api/pxe/v1/boot (개시됨 + DIAGNOSE_LINUX 실행기 등록)', res:'#!ipxe\nkernel http://…/vmlinuz-lts ip=dhcp modules=loop,squashfs \\\n  modloop=http://…/modloop-lts apkovl=http://…/diag.apkovl.tar.gz \\\n  provision_token=<토큰> initrd=initramfs-lts\ninitrd http://…/initramfs-lts\nboot',
+    basis:'E1-R 확정: 공식 netboot + apkovl (재빌드 없음). SPI 실행기 1호.' },
+  { g:'diag', from:'guest', to:'server', ch:'lan', st:'planned', slice:'E1-1',
+    lbl:'HTTP GET 부팅 자산 4+2종', carry:'vmlinuz-lts(13M) · initramfs-lts(25M) · modloop-lts(208M) · apkovl(tar, 수 KB) · 부분 apk 저장소 · agent.sh',
+    req:'GET /…/vmlinuz-lts, initramfs-lts, modloop-lts,\n    diag.apkovl.tar.gz, (apk: dmidecode·ipmitool), agent.sh', res:'파일 스트림 — RAM 상주 진단 리눅스 완성\n(apkovl 의 firstboot 가 agent.sh 를 받아 실행)',
+    basis:'E1-I 관리 자산 6종 (E1-R 종결 확정).' },
+  { g:'diag', from:'guest', to:'server', ch:'lan', st:'done', slice:'E1-0b',
+    lbl:'POST /api/pxe/v1/agent/checkin', carry:'X-Guest-Token 헤더 — 첫 체크인 = DIAGNOSE_LINUX 전이',
+    req:'POST /api/pxe/v1/agent/checkin\nX-Guest-Token: a3f9…c21b', res:'200 { "directive": "WAIT" }  (지시 골격 — E1-2 가 COLLECT 채움)\n(효과) 첫 체크인 → advanceTo(DIAGNOSE_LINUX)\n토큰 불일치 → 404 (사칭 차단)',
+    basis:'DEC-2 사실 신호 전이 · DEC-5 토큰. E1-0b plan §3.' },
+  { g:'diag', from:'guest', to:'server', ch:'lan', st:'done', slice:'E1-0b',
+    lbl:'POST /agent/steps → 201 {stepId}', carry:'step 시작 보고 — RUNNING 원장 열림',
+    req:'POST /api/pxe/v1/agent/steps\n{ "stepCode": "INFORMATION_COLLECTING" }', res:'201 { "stepId": "…" }\n(원장) setup_step RUNNING 행 생성 — 상세 페이지 즉시 표시',
+    basis:'DEC-3 append-only — RUNNING 열림/닫힘 규약.' },
+  { g:'diag', from:'guest', to:'server', ch:'local', st:'planned', slice:'E1-2',
+    lbl:'(게스트 내부) modprobe + ipmitool lan print', carry:'호스트 → 자기 BMC 조회 (KCS 인터페이스 — 네트워크 아님)',
+    req:'modprobe ipmi_devintf ipmi_si\nipmitool lan print 1', res:'BMC IP/MAC/게이트웨이 — 수집 payload 에 포함\n(MGMT 통로의 주소를 서버가 알게 되는 경로)',
+    basis:'E1-2 BMC 신원 구조화 저장 (1차 문서) — E3 의 입력.' },
+  { g:'diag', from:'guest', to:'server', ch:'lan', st:'planned', slice:'E1-2',
+    lbl:'수집 결과 보고 (hardwareSpec JSON)', carry:'dmidecode -s 키별 값 + 초기 펌웨어 버전 + BMC LAN 정보',
+    req:'POST /api/pxe/v1/agent/steps/{id}/close\n{ "status":"SUCCEEDED", "statusMeta": {\n  "systemUuid":"…", "boardSerial":"…", "biosVersion":"…",\n  "bmc": { "ip":"…", "mac":"…" } } }', res:'200 — GuestServerDetail 갱신 · DIAGNOSTIC_ENRICHED 승급\n상세 페이지 placeholder("— 진단 단계에서 수집")가 실값으로',
+    basis:'E1-2 수집·적재. FAILED 보고 시 markFailed (E1-0b 규약).' },
+  { g:'diag', from:'server', to:'guest', ch:'lan', st:'planned', slice:'E1-2',
+    lbl:'완주 판정 → 재부팅 지시', carry:'PhaseSequence — 다음 phase 또는 종단(completedAt)',
+    req:'(체크인/보고 응답의 지시)', res:'{ "directive": "REBOOT" }\n(효과) 보유 다음 phase 로 advanceTo — 없으면 markCompleted',
+    basis:'DEC-25 — 보유 마지막 phase 완주 = 종단.' },
+
+  // ── 부팅 #3~4 — 펌웨어 ─────────────────────────────────────────────
+  { g:'fw', from:'server', to:'server', ch:'lan', st:'planned', slice:'E2-1', note:true,
+    lbl:'resolve 판정 (FIRMWARE_RESOLVING)', carry:'',
+    req:'(서버 내부 판정)', res:'보드 AUTO → 감지 보드 FK · 펌웨어 LATEST → 버전 VO 비교\n파일 부재 = SKIPPED(경고) · 마커 무결성 실패 = FAILED 차단',
+    basis:'E2-1 — U2 실행 경고 의미론의 첫 코드화.' },
+  { g:'fw', from:'server', to:'guest', ch:'lan', st:'planned', slice:'E2-2',
+    lbl:'응답: 펌웨어 임무 스크립트 + 가상 USB 이미지', carry:'FAT32 이미지(UEFI Shell + startup.nsh + 펌웨어 롬) — 앱이 동적 조립',
+    req:'GET /api/pxe/v1/boot (FIRMWARE_UPDATING)', res:'#!ipxe\nsanboot http://…/fw/<serverId>/bios_update.img\n# 이미지 내부: BOOTX64.EFI(쉘) + startup.nsh + .RBU 롬',
+    basis:'DEC-20 가상 USB 선행 (Redfish UpdateService 는 후행 전환 목표).' },
+  { g:'fw', from:'guest', to:'server', ch:'lan', st:'planned', slice:'E2-2',
+    lbl:'flash → 리셋 → 재진입 → 버전 재수집 보고', carry:'재부팅 루프 — 성공 판정은 버전 비교로',
+    req:'(flash 후 자동 리셋) GET /boot → 진단 재진입\nPOST /agent/steps/{id}/close { biosVersion: "새 버전" }', res:'서버가 기대 버전과 대조 → BIOS_UPDATING SUCCEEDED/FAILED\n(집행 자체는 실기 T3 검증 유보)',
+    basis:'E2-2 재부팅 루프 (1차 문서 §3-E2).' },
+  { g:'fw', from:'server', to:'bmc', ch:'mgmt', st:'planned', slice:'E2 전환목표',
+    lbl:'(전환 목표) Redfish SimpleUpdate', carry:'ImageURI 로 .RBU/.ima_enc 원격 pull — 게스트 재부팅 불요',
+    req:'POST /redfish/v1/UpdateService/Actions/SimpleUpdate\n{ "UpdateComponent":"BIOS", "TransferProtocol":"HTTP",\n  "ImageURI":"http://192.168.1.10/…/fw.RBU" }', res:'Task 생성 → GET /redfish/v1/UpdateService 의\nOem.AMIUpdateService.FlashPercentage 폴링\n(커스텀 BIOS 적용 여부 실기 확인 필요)',
+    basis:'E3-R survey §4 — Gigabyte 공식 가이드 실례.' },
+
+  // ── BIOS·BMC 설정 (MGMT) ───────────────────────────────────────────
+  { g:'bios', from:'server', to:'bmc', ch:'mgmt', st:'planned', slice:'E3-0',
+    lbl:'Redfish 세션 로그인 (부트스트랩)', carry:'공장 기본 자격증명 = admin / 보드 시리얼 끝 11자',
+    req:'POST /redfish/v1/SessionService/Sessions\n{ "UserName":"admin", "Password":"<시리얼끝11자>" }', res:'201 + X-Auth-Token (세션 상한 有 — 사용 후 DELETE 필수)',
+    basis:'DEC-21 · Gigabyte 공식 규약(공지 1762) — 시리얼은 E1-2 수집분.' },
+  { g:'bios', from:'server', to:'bmc', ch:'mgmt', st:'planned', slice:'E3-0',
+    lbl:'PATCH 계정 — 고정 비밀번호 1회 변경', carry:'이후 모든 Redfish 호출의 자격증명 (DB 평문 금지)',
+    req:'PATCH /redfish/v1/AccountService/Accounts/{id}\n{ "Password": "<고정 비밀번호>" }\n(412 대비: GET → ETag → If-Match)', res:'200 — 이후 세션은 고정 비밀번호로',
+    basis:'DEC-21. ETag 함정은 E3-R survey §7.' },
+  { g:'bios', from:'server', to:'bmc', ch:'mgmt', st:'planned', slice:'E3-1',
+    lbl:'PATCH Bios/SD — BIOS 설정 적용', carry:'BIOS 세팅 템플릿 값을 무변환으로 Attributes 에',
+    req:'PATCH /redfish/v1/Systems/Self/Bios/SD\n{ "Attributes": { "PCIS003":"Disabled", … } }', res:'200 — pending 값 등록 (재부팅 시 적용)',
+    basis:'E3-1 — U2-2 템플릿 구조 동형 설계의 실현. 경로는 공식 가이드 확인.' },
+  { g:'bios', from:'server', to:'bmc', ch:'mgmt', st:'planned', slice:'E3-1',
+    lbl:'ComputerSystem.Reset → 재부팅 → GET readback', carry:'적용 확인 대조',
+    req:'POST /redfish/v1/Systems/Self/Actions/ComputerSystem.Reset\n{ "ResetType": "ForceRestart" }\n(재부팅 후) GET /redfish/v1/Systems/Self/Bios', res:'Attributes 현재값 — 템플릿과 대조 → BIOS_SETTING 판정',
+    basis:'E3-1 readback.' },
+
+  // ── 부팅 #5 — OS 설치·후처리 ────────────────────────────────────────
+  { g:'os', from:'server', to:'guest', ch:'lan', st:'planned', slice:'E4-1',
+    lbl:'응답: 설치 커널 스크립트', carry:'inst.repo + inst.ks=<앱 URL> (게스트별 렌더)',
+    req:'GET /api/pxe/v1/boot (OS_INSTALLING)', res:'#!ipxe\nkernel http://…/os-images/rocky9/…/vmlinuz \\\n  inst.repo=http://…/os-images/rocky9/ \\\n  inst.ks=http://…/api/pxe/v1/ks/<token>\ninitrd http://…/initrd.img\nboot',
+    basis:'E4-1 — 레거시 커널 인자 규약 이식.' },
+  { g:'os', from:'guest', to:'server', ch:'lan', st:'planned', slice:'E4-1',
+    lbl:'GET inst.ks → Kickstart 렌더본', carry:'스냅샷 payload 기반 무인 설치 대본 (파티션·사용자·타임존·패키지그룹·%post)',
+    req:'GET /api/pxe/v1/ks/<token>  (anaconda)', res:'text — url·timezone Asia/Seoul·rootpw·part /boot…\n%packages @^environment …\n%post: OS_SETTING 실행 + curl 보고 (하이브리드 A 경로)',
+    basis:'E4-1 렌더러(이스케이프 계층) + DEC-23. 스냅샷은 U3 산출.' },
+  { g:'os', from:'guest', to:'server', ch:'lan', st:'planned', slice:'E4-0',
+    lbl:'GET os-images 패키지 트리', carry:'설치 소스 (수 GB — 서빙 주체는 E4-0 결정: httpd vs 앱)',
+    req:'GET /os-images/rocky9/… (수백 회)', res:'RPM 패키지 스트림',
+    basis:'E4-0 설치 소스 서빙 전략.' },
+  { g:'os', from:'guest', to:'server', ch:'lan', st:'planned', slice:'E4-1·E5',
+    lbl:'%post curl — 설치·후처리 보고', carry:'OS_SETTING 시작/종료 별도 보고 + 설치 완료 콜백 ("재부팅=완료" 답습 금지)',
+    req:'curl -X POST …/agent/steps { OS_INSTALLING } → close\ncurl -X POST …/agent/steps { OS_SETTING } → close', res:'원장에 OS_INSTALLING · OS_SETTING 각각 기록\n(커스텀 스크립트(U2-5) 적용 시 first-boot 에이전트 경로 — B)',
+    basis:'DEC-23 하이브리드.' },
+
+  // ── 부팅 #6 — 종단 ─────────────────────────────────────────────────
+  { g:'end', from:'server', to:'guest', ch:'lan', st:'done', slice:'E1-0b(스크립트)',
+    lbl:'응답: exit — 로컬 부팅 폴스루', carry:'completedAt 이후 — iPXE 종료 → 디스크 부트',
+    req:'GET /api/pxe/v1/boot (completed)', res:'#!ipxe\nexit\n# 부트 순서 폴스루 → 설치된 OS 기동 (실효성 T2 검증 유보)',
+    basis:'dispatch 매트릭스 4행 · D3 폴백 이분.' },
+  { g:'end', from:'server', to:'server', ch:'lan', st:'planned', slice:'E1-2', note:true,
+    lbl:'completedAt → 배지 PROVISIONED', carry:'',
+    req:'(보유 마지막 phase 완주 판정)', res:'markCompleted → GuestServerStatus.PROVISIONED 최초 도달\n이후 /boot 는 exit 만 반환 — 게스트 통신 종료',
+    basis:'DEC-25.' },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  렌더러 — 데이터만 자라면 그림이 따라온다 (이하 수정 불필요)
+// ═══════════════════════════════════════════════════════════════════════════
+const LANE = { guest:0, server:1, bmc:2 };
+const CENTERS = [16.667, 50, 83.333];   // 레인 세로선(%) — .grp-body 의 ::before/midline/::after 와 일치
+const ST_KO = { done:'구현됨', wip:'구현 중', planned:'로드맵' };
+const CH_KO = { lan:'일반 LAN', mgmt:'MGMT 포트', local:'게스트 내부' };
+let selected = null;
+
+function render() {
+  const root = document.getElementById('diagram');
+  root.innerHTML = GROUPS.map(g => {
+    const rows = MESSAGES.map((m, i) => ({ m, i })).filter(x => x.m.g === g.id).map(({ m, i }) => {
+      const cls = `msg c-${m.ch} s-${m.st}`;
+      if (m.note) {
+        return `<div class="${cls}" data-i="${i}"><div class="note" style="left:${CENTERS[LANE[m.from]]}%" onclick="openPanel(${i})">📌 ${m.lbl}<span class="badge ${m.st}">${ST_KO[m.st]}</span></div></div>`;
+      }
+      const a = CENTERS[LANE[m.from]], b = CENTERS[LANE[m.to]];
+      const dir = b > a ? 'dir-right' : 'dir-left';
+      const left = Math.min(a, b), width = Math.abs(b - a);
+      const headPos = dir === 'dir-right' ? left + width : left;
+      return `<div class="${cls} ${dir}" data-i="${i}">
+        <span class="line" style="left:${left}%; width:${width}%"></span>
+        <span class="head" style="left:${headPos}%"></span>
+        <div class="arrow" style="left:${(a + b) / 2}%" onclick="openPanel(${i})">
+          <span class="lbl">${m.lbl}<span class="badge ${m.st}">${ST_KO[m.st]}</span></span>
+          <span class="carry">${m.carry || ''}</span>
+        </div></div>`;
+    }).join('');
+    return `<details class="grp-box"${g.open ? ' open' : ''}>
+      <summary>${g.title} <span class="gsub">${g.sub}</span></summary>
+      <div class="grp-body"><span class="midline"></span>${rows}</div>
+    </details>`;
+  }).join('');
+  document.getElementById('changelog-list').innerHTML = CHANGELOG.map(c => `<li>${c}</li>`).join('');
+  applyFilters();
+}
+
+function openPanel(i) {
+  const m = MESSAGES[i];
+  selected = i;
+  document.querySelectorAll('.arrow.selected,.note.selected').forEach(e => e.classList.remove('selected'));
+  const row = document.querySelector(`.msg[data-i="${i}"] .arrow, .msg[data-i="${i}"] .note`);
+  if (row) row.classList.add('selected');
+  document.getElementById('p-title').textContent = m.lbl;
+  document.getElementById('p-meta').innerHTML =
+    `채널 <b>${CH_KO[m.ch]}</b> · 방향 <b>${m.note ? m.from + ' 내부' : m.from + ' → ' + m.to}</b> · 상태 <b>${ST_KO[m.st]}</b> · 슬라이스 <b>${m.slice}</b>`;
+  document.getElementById('p-req').textContent = m.req || '—';
+  document.getElementById('p-res').textContent = m.res || '—';
+  document.getElementById('p-basis').textContent = m.basis ? ('근거 · 참조 — ' + m.basis) : '';
+  document.getElementById('panel').classList.add('show');
+}
+function closePanel() {
+  document.getElementById('panel').classList.remove('show');
+  document.querySelectorAll('.arrow.selected,.note.selected').forEach(e => e.classList.remove('selected'));
+}
+function applyFilters() {
+  const on = {};
+  document.querySelectorAll('.toolbar input[data-f]').forEach(cb => on[cb.dataset.f] = cb.checked);
+  document.querySelectorAll('.msg').forEach(el => {
+    const okCh = ['c-lan', 'c-mgmt', 'c-local'].every(c => !el.classList.contains(c) || on[c]);
+    const okSt = ['s-done', 's-wip', 's-planned'].every(s => !el.classList.contains(s) || on[s]);
+    el.classList.toggle('hidden', !(okCh && okSt));
+  });
+}
+document.querySelectorAll('.toolbar input[data-f]').forEach(cb => cb.addEventListener('change', applyFilters));
+render();
+</script>
+</body>
+</html>
