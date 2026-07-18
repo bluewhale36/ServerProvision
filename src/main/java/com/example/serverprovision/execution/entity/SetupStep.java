@@ -58,4 +58,22 @@ public class SetupStep extends BaseTimeEntity {
     public ProvisioningPhase phase() {
         return stepCode != null ? stepCode.getPhaseType() : null;
     }
+
+    /**
+     * 단발 기록 팩토리(E1-0a, DEC-3) — "판정 즉시 적재" 되는 서버 측 step 은 시작 = 종료 시각이다.
+     * ID 생성(UUID v7 — PK 클러스터링)까지 캡슐화해 적재자마다의 ID 조립 중복을 막는다.
+     */
+    public static SetupStep instant(
+            GuestServer guestServer, ProvisioningPhaseStep stepCode,
+            ProvisioningStatus status, String statusMeta, LocalDateTime at) {
+        return SetupStep.builder()
+                .id(org.hibernate.id.uuid.UuidVersion7Strategy.INSTANCE.generateUuid(null))
+                .guestServer(guestServer)
+                .stepCode(stepCode)
+                .status(status)
+                .statusMeta(statusMeta)
+                .startedAt(at)
+                .finishedAt(at)
+                .build();
+    }
 }

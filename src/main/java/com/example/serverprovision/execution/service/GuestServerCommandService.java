@@ -2,8 +2,11 @@ package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.request.UpdateGuestServerRequest;
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
+import com.example.serverprovision.execution.exception.ProvisioningStartRejectedException;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
+import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 게스트 서버 상태 변경(인라인 수정 · 회수) application service (U1 §D11).
+ * 게스트 서버 상태 변경(인라인 수정 · 회수 · 프로비저닝 개시) application service (U1 §D11).
  * 운영자 입력 4필드는 모두 단일 테이블 guest_server(§D1). 유니크(name / serial_number) 충돌 여부는 컨트롤러가
  * boolean 질의로 미리 확인해 BindingResult 인라인 표시한다(예외=프로그램 예외 전용).
  */
@@ -21,6 +24,7 @@ import java.util.UUID;
 public class GuestServerCommandService {
 
     private final GuestServerRepository guestServerRepository;
+    private final ProvisioningProgressRepository provisioningProgressRepository;
 
     @Transactional(readOnly = true)
     public boolean isNameTakenByOther(UUID id, String name) {
@@ -54,6 +58,28 @@ public class GuestServerCommandService {
         GuestServer server = guestServerRepository.findById(id)
                 .orElseThrow(() -> new GuestServerNotFoundException(id));
         server.decommission(LocalDateTime.now());
+    }
+
+    /**
+     * 프로비저닝 개시(E1-0a, DEC-26) — startedAt 기록. 게스트 동작(대기 해제)은 E1-0b 의 dispatch 가 소비한다.
+     * 가드 판정은 뷰의 버튼 노출과 같은 SSOT({@link ProvisioningProgress#isStartableWith})를 쓰고,
+     * 거절 사유(회수/재개시)는 메시지 구분용으로만 다시 본다.
+     */
+    @Transactional
+    public void startProvisioning(UUID id) {
+        GuestServer server = guestServerRepository.findById(id)
+                .orElseThrow(() -> new GuestServerNotFoundException(id));
+        // progress 는 등록 트랜잭션이 1:1 로 seed 한다(U1 §D6) — 부재는 데이터 손상이므로 500 이 정직하다.
+        ProvisioningProgress progress = provisioningProgressRepository.findByGuestServer_Id(id)
+                .orElseThrow(() -> new IllegalStateException(
+                        "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + id));
+
+        if (!progress.isStartableWith(server.getDecommissionedAt())) {
+            throw server.getDecommissionedAt() != null
+                    ? ProvisioningStartRejectedException.decommissioned(id)
+                    : ProvisioningStartRejectedException.alreadyStarted(id);
+        }
+        progress.start(LocalDateTime.now());
     }
 
     private static String blankToNull(String value) {

@@ -58,11 +58,21 @@ public record GuestServerDetailResponse(
     ) {
     }
 
-    /** 큰 단계 진행 상태 (provisioning_progress) — current_phase 가 "현재 단계" 커서 SSOT(U1 §D7). */
+    /**
+     * 큰 단계 진행 상태 (provisioning_progress) — current_phase 가 "현재 단계" 커서 SSOT(U1 §D7).
+     * <p>E1-0a — 신호 3종(개시/실패/종단)과 개시 버튼 노출 판정을 함께 싣는다. {@code startable} 은
+     * 서버 가드와 같은 도메인 메서드({@code ProvisioningProgress.isStartableWith})에서 계산된 값이다
+     * (UI 차단 조건 = 서버 가드 조건 SSOT).</p>
+     */
     public record Progress(
             ProvisioningPhase currentPhase,
             LocalDateTime lastTransitionAt,
-            String phaseMeta
+            String phaseMeta,
+            LocalDateTime startedAt,
+            LocalDateTime failedAt,
+            ProvisioningPhaseStep failedStepCode,
+            LocalDateTime completedAt,
+            boolean startable
     ) {
     }
 

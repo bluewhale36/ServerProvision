@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
+import com.example.serverprovision.execution.engine.SetupStepRecorder;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
@@ -8,6 +9,8 @@ import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
 import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
+import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.HostNicBindingRepository;
@@ -45,12 +48,13 @@ class GuestServerRegistrationServiceTest {
     @Mock GuestServerDetailRepository guestServerDetailRepository;
     @Mock HostNicBindingRepository hostNicBindingRepository;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
+    @Mock SetupStepRecorder setupStepRecorder;
     @Mock BoardModelRepository boardModelRepository;
 
     GuestServerRegistrationService service() {
         return new GuestServerRegistrationService(
                 guestServerRepository, guestServerDetailRepository,
-                hostNicBindingRepository, provisioningProgressRepository, boardModelRepository);
+                hostNicBindingRepository, provisioningProgressRepository, setupStepRecorder, boardModelRepository);
     }
 
     private static final String UUID_STR = "11111111-1111-1111-1111-111111111111";
@@ -90,10 +94,18 @@ class GuestServerRegistrationServiceTest {
         verify(provisioningProgressRepository).save(progCap.capture());
         assertThat(progCap.getValue().getCurrentPhase()).isEqualTo(ProvisioningPhase.BOOTSTRAPPING);
         assertThat(progCap.getValue().getLastTransitionAt()).isNotNull();
+
+        // E1-0a — U1 유보분 인수: 부트스트래핑 2단계가 SUCCEEDED 단발 2행으로 적재된다.
+        verify(setupStepRecorder).recordInstant(
+                any(GuestServer.class), org.mockito.ArgumentMatchers.eq(ProvisioningPhaseStep.NETWORK_ALLOCATING),
+                org.mockito.ArgumentMatchers.eq(ProvisioningStatus.SUCCEEDED), any(), any());
+        verify(setupStepRecorder).recordInstant(
+                any(GuestServer.class), org.mockito.ArgumentMatchers.eq(ProvisioningPhaseStep.INIT_PERSISTING),
+                org.mockito.ArgumentMatchers.eq(ProvisioningStatus.SUCCEEDED), any(), any());
     }
 
     @Test
-    @DisplayName("재부팅 멱등성 — 이미 등록된 systemUUID 면 어떤 행도 저장하지 않음")
+    @DisplayName("재부팅 멱등성 — 이미 등록된 systemUUID 면 어떤 행도 저장하지 않음 (원장 중복 적재 없음)")
     void register_idempotent_whenAlreadyRegistered() {
         given(guestServerRepository.existsBySystemUUID(any(UUID.class))).willReturn(true);
 
@@ -103,6 +115,7 @@ class GuestServerRegistrationServiceTest {
         verify(guestServerDetailRepository, never()).save(any());
         verify(hostNicBindingRepository, never()).save(any());
         verify(provisioningProgressRepository, never()).save(any());
+        verify(setupStepRecorder, never()).recordInstant(any(), any(), any(), any(), any());
     }
 
     @Test

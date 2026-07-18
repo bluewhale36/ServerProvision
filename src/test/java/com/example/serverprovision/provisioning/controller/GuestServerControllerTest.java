@@ -59,7 +59,9 @@ class GuestServerControllerTest {
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, "MS73-HB1-000", "GB-001", DiscoveryStage.IPXE_REGISTERED),
                 List.of(),
-                new GuestServerDetailResponse.Progress(ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null),
+                new GuestServerDetailResponse.Progress(
+                        ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
+                        null, null, null, null, true),   // E1-0a — 미개시(startable) 기본 fixture
                 List.of());
     }
 

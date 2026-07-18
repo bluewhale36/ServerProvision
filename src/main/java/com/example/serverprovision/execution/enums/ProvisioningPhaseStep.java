@@ -26,6 +26,10 @@ public enum ProvisioningPhaseStep {
     INFORMATION_PERSISTING(ProvisioningPhase.DIAGNOSE_LINUX),
     /**
      * {@code ipmitool} 명령으로 커스텀 정보를 저장하는 단계.
+     * <p><b>보류(DEC-11, 2026-07-12)</b> — 소비자 없음. 공정 표준상 프로비저닝 종료 후 게스트 NIC 이
+     * DHCP auto 로 전환되고 BMC IP 가 고정되어 프로비저닝망 연결이 끊기므로 재진입 자동화가 성립하지
+     * 않고, 사람이 최종 점검하는 업무 프로세스가 존재한다. modelName/serialNumber 는 운영자 입력
+     * 필드로만 관리한다. 공정 여건이 바뀌면 재개 — 상수는 유지(원장 이력 호환).</p>
      */
     IPMI_SETTING(ProvisioningPhase.DIAGNOSE_LINUX),
 

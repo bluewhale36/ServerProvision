@@ -74,8 +74,10 @@ class GuestServerQueryServiceTest {
     }
 
     private ProvisioningProgress progress(GuestServer s, ProvisioningPhase phase) {
+        // E1-0a — 커서가 BOOTSTRAPPING 을 넘은 진행 상태는 개시(startedAt)가 선행된 상태만 실존한다(DEC-26).
         return ProvisioningProgress.builder().id(UUID.randomUUID()).guestServer(s)
-                .currentPhase(phase).lastTransitionAt(LocalDateTime.now()).build();
+                .currentPhase(phase).lastTransitionAt(LocalDateTime.now())
+                .startedAt(LocalDateTime.now()).build();
     }
 
     @Test

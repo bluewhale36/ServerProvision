@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
+import com.example.serverprovision.execution.engine.SetupStepRecorder;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
@@ -8,6 +9,8 @@ import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
 import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
+import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.HostNicBindingRepository;
@@ -45,6 +48,7 @@ public class GuestServerRegistrationService {
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final HostNicBindingRepository hostNicBindingRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
+    private final SetupStepRecorder setupStepRecorder;
 
     private final BoardModelRepository boardModelRepository;
 
@@ -94,7 +98,7 @@ public class GuestServerRegistrationService {
                         .build()                   // 바인딩 시각 = BaseTimeEntity.createdAt 흡수(별도 bounded_at 제거)
         );
 
-        // 진행 상태 seed — 1:1 불변 유지 + 상세 UI 단계 노출(§D6). 단계 전이/적재는 엔진(Stage 4).
+        // 진행 상태 seed — 1:1 불변 유지 + 상세 UI 단계 노출(§D6). 커서 전이는 게스트 사실 신호 소관(DEC-2).
         provisioningProgressRepository.save(
                 ProvisioningProgress.builder()
                         .id(newId())
@@ -103,6 +107,13 @@ public class GuestServerRegistrationService {
                         .lastTransitionAt(now)
                         .build()
         );
+
+        // U1 유보분 인수(E1-0a) — 부트스트래핑 2단계의 수행 실체가 곧 이 등록 트랜잭션이므로 완료 사실을
+        // 단발 적재한다. 위 멱등 가드가 재부팅 재진입을 걸러 중복 행이 생기지 않는다.
+        setupStepRecorder.recordInstant(server, ProvisioningPhaseStep.NETWORK_ALLOCATING,
+                ProvisioningStatus.SUCCEEDED, null, now);
+        setupStepRecorder.recordInstant(server, ProvisioningPhaseStep.INIT_PERSISTING,
+                ProvisioningStatus.SUCCEEDED, null, now);
 
         log.info("신규 서버 등록 완료 : systemUUID={}, vendor={}, boardModel={}, mac={}",
                 systemUUID, vendor, boardModel.getModelName(), req.macAddress());

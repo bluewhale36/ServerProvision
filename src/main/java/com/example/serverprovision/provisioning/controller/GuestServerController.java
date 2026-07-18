@@ -85,4 +85,14 @@ public class GuestServerController {
         guestServerCommandService.decommission(id);
         return "redirect:/provisioning/server/" + id;
     }
+
+    /**
+     * 프로비저닝 개시(E1-0a, DEC-26). 정상 흐름은 뷰가 startable 플래그로 버튼을 숨겨 차단하고,
+     * direct POST 는 서비스 가드가 409 로 거절한다(안전망) — plain form PRG(회수 버튼과 동일 패턴).
+     */
+    @PostMapping("/{id}/start")
+    public String startProvisioning(@PathVariable("id") UUID id) {
+        guestServerCommandService.startProvisioning(id);
+        return "redirect:/provisioning/server/" + id;
+    }
 }

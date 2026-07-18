@@ -48,7 +48,8 @@
 
         <div class="n-detail-section">
             <div class="n-section-title">기본 정보 (운영자 입력)</div>
-            <div class="n-section-hint">이름·메모와 사내 식별자(모델명·시리얼)는 운영자가 부여하며, 사내 식별자는 진단 리눅스에서 <code>ipmitool</code> 로 하드웨어에 각인됩니다.</div>
+            <!-- DEC-11 (2026-07-12): 하드웨어 각인은 보류 — 사내 식별자는 운영자 입력 필드로만 관리한다. -->
+            <div class="n-section-hint">이름·메모와 사내 식별자(모델명·시리얼)는 운영자가 부여합니다.</div>
             <div class="n-card">
                 <div class="n-card-body">
                     <table class="n-detail-table">
@@ -202,11 +203,35 @@
                         <th>마지막 전이 시각</th>
                         <td th:text="${server.progress.lastTransitionAt != null} ? ${#temporals.format(server.progress.lastTransitionAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
                     </tr>
+                    <!-- E1-0a 신호 3종 — 개시(DEC-26) / 실패(DEC-4) / 종단(DEC-25) -->
+                    <tr>
+                        <th>개시 시각</th>
+                        <td th:text="${server.progress.startedAt != null} ? ${#temporals.format(server.progress.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '— (개시 전)'">— (개시 전)</td>
+                    </tr>
+                    <tr th:if="${server.progress.failedAt != null}">
+                        <th>실패</th>
+                        <td>
+                            <span class="n-badge n-badge-red" th:text="${server.progress.failedStepCode != null} ? ${server.progress.failedStepCode} : '—'">BIOS_UPDATING</span>
+                            <span th:text="${#temporals.format(server.progress.failedAt, 'yyyy-MM-dd HH:mm:ss')}">—</span>
+                        </td>
+                    </tr>
+                    <tr th:if="${server.progress.completedAt != null}">
+                        <th>완료 시각</th>
+                        <td th:text="${#temporals.format(server.progress.completedAt, 'yyyy-MM-dd HH:mm:ss')}">—</td>
+                    </tr>
                     </tbody>
                 </table>
                 <div th:unless="${server.progress != null}">
                     <p class="n-detail-empty"><strong>프로비저닝 미시작</strong> — 이 서버는 아직 프로비저닝 단계에 진입하지 않았습니다.</p>
                 </div>
+
+                <!-- 개시 액션 (DEC-26) — 노출 판정(startable)은 서버 가드와 같은 도메인 메서드에서 온 값 (SSOT).
+                     회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->
+                <form th:if="${server.progress != null and server.progress.startable}"
+                      th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post"
+                      style="margin-top: 16px;">
+                    <button type="submit" class="n-btn n-btn-primary">프로비저닝 개시</button>
+                </form>
 
                 <!-- 세부 단계 이력 (append-only) — 프로비저닝 엔진(Stage 4)이 적재. 현재는 비어 있음. -->
                 <table th:if="${not #lists.isEmpty(server.steps)}" class="n-table" style="margin-top: 20px;">

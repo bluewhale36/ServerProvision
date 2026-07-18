@@ -117,7 +117,12 @@ public class GuestServerQueryService {
                 : new GuestServerDetailResponse.Progress(
                 progress.getCurrentPhase(),
                 progress.getLastTransitionAt(),
-                progress.getPhaseMeta());
+                progress.getPhaseMeta(),
+                progress.getStartedAt(),
+                progress.getFailedAt(),
+                progress.getFailedStepCode(),
+                progress.getCompletedAt(),
+                progress.isStartableWith(server.getDecommissionedAt()));   // 버튼 노출 = 서버 가드 SSOT
 
         List<GuestServerDetailResponse.Step> stepResponses = steps.stream()
                 .map(s -> new GuestServerDetailResponse.Step(
@@ -147,8 +152,6 @@ public class GuestServerQueryService {
     }
 
     private GuestServerStatus deriveStatus(GuestServer server, ProvisioningProgress progress) {
-        return GuestServerStatus.derive(
-                progress != null ? progress.getCurrentPhase() : null,
-                server.getDecommissionedAt());
+        return GuestServerStatus.derive(progress, server.getDecommissionedAt());
     }
 }
