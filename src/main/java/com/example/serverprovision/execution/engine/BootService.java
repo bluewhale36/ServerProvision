@@ -3,9 +3,11 @@ package com.example.serverprovision.execution.engine;
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
+import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.service.GuestServerRegistrationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ public class BootService {
     private final GuestServerRegistrationService registrationService;
     private final ProvisioningProgressRepository provisioningProgressRepository;
     private final BootScriptDispatcher bootScriptDispatcher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public String boot(BootIPXEInfoRequest request, String rebootQuery) {
@@ -29,6 +32,8 @@ public class BootService {
         ProvisioningProgress progress = provisioningProgressRepository.findByGuestServer_Id(server.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + server.getId()));
+        // 실시간 스트림 신호(S7) — 등록·접촉 변화. AFTER_COMMIT 리스너가 커밋 확정 후에만 내보낸다.
+        eventPublisher.publishEvent(new GuestServerChangedEvent(server.getId()));
         return bootScriptDispatcher.dispatch(server, progress, rebootQuery == null ? "" : rebootQuery);
     }
 }

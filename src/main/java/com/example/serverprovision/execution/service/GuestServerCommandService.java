@@ -3,6 +3,7 @@ package com.example.serverprovision.execution.service;
 import com.example.serverprovision.execution.dto.request.UpdateGuestServerRequest;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
+import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.ProvisioningMarkFailedRejectedException;
 import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
@@ -10,6 +11,7 @@ import com.example.serverprovision.execution.exception.ProvisioningStartRejected
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ public class GuestServerCommandService {
 
     private final GuestServerRepository guestServerRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public boolean isNameTakenByOther(UUID id, String name) {
@@ -50,6 +53,7 @@ public class GuestServerCommandService {
                 blankToNull(req.modelName()),
                 blankToNull(req.serialNumber()),
                 blankToNull(req.memo()));
+        publishChanged(id);
     }
 
     /**
@@ -60,6 +64,7 @@ public class GuestServerCommandService {
         GuestServer server = guestServerRepository.findById(id)
                 .orElseThrow(() -> new GuestServerNotFoundException(id));
         server.decommission(LocalDateTime.now());
+        publishChanged(id);
     }
 
     /**
@@ -82,6 +87,7 @@ public class GuestServerCommandService {
                     : ProvisioningStartRejectedException.alreadyStarted(id);
         }
         progress.start(LocalDateTime.now());
+        publishChanged(id);
     }
 
     /**
@@ -96,6 +102,7 @@ public class GuestServerCommandService {
             throw ProvisioningMarkFailedRejectedException.notProvisioning(id);
         }
         progress.markFailedManually(LocalDateTime.now());
+        publishChanged(id);
     }
 
     /**
@@ -113,6 +120,12 @@ public class GuestServerCommandService {
             throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getFailedStepCode());
         }
         progress.clearFailed(LocalDateTime.now());
+        publishChanged(id);
+    }
+
+    /** 실시간 스트림 신호(S7) — 운영자 액션은 다른 탭·다른 운영자 화면의 동기화 대상. AFTER_COMMIT 수신. */
+    private void publishChanged(UUID id) {
+        eventPublisher.publishEvent(new GuestServerChangedEvent(id));
     }
 
     private ProvisioningProgress requireProgress(UUID id) {

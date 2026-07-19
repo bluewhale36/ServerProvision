@@ -51,7 +51,7 @@ class GuestServerControllerTest {
         return new GuestServerSummaryResponse(
                 id, "web-01", UUID.randomUUID(), Vendor.GIGABYTE, "MS73-HB1-000",
                 GuestServerStatus.REGISTERED, IpAddressVO.of("10.20.3.11"), LocalDateTime.now(),
-                null, false);   // E1-2 — 접촉 관찰(lastSeenAt·contactActive) 기본 fixture
+                null, false, null);   // E1-2·S7 — 접촉 관찰(lastSeenAt·contactActive·remaining) 기본 fixture
     }
 
     private GuestServerDetailResponse detail(UUID id) {

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S7 Plan — 실시간 상태 스트림 (SSE)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:96px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .two-pane { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .pane { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; font-size:12.5px; }
+  .pane h5 { margin:0 0 8px; font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:8px; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.blue { background:var(--blue-bg); color:var(--blue); } .badge.red { background:var(--red-bg); color:var(--red); }
+  .badge.teal { background:rgba(0,150,150,0.12); color:#0a8080; } .badge.warnb { background:var(--yellow-bg); color:var(--yellow); }
+  .flash { animation:flash 0.9s ease-out; }
+  @keyframes flash { 0% { background:var(--green-bg); } 100% { background:transparent; } }
+  .pane table { font-size:11.5px; margin:6px 0; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .sse-log { font-family:var(--mono); font-size:11px; background:#0d1117; color:#c9d1d9; border-radius:6px; padding:8px 10px; margin-top:10px; white-space:pre-wrap; max-height:120px; overflow-y:auto; }
+  .sse-log .ok { color:#7ce38b; } .sse-log .warn { color:#e3b341; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .two-pane{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S7 — 실시간 상태 스트림 <span class="v2-badge">새로고침이 사라진다 (SSE)</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S7 (cross-cutting UI 인프라)</span>
+    <span><strong>scope</strong> SSE 단일 스트림 + 도메인 이벤트(AFTER_COMMIT — 첫 EventListener 실사례) + 신호-재조회 부분 갱신(목록·상세)</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+    <span><strong>선행</strong> E1-2 완료 — 게스트 이벤트가 실재하는 첫 시점</span>
+    <span><strong>규모</strong> 엔티티·DDL·Repository 변경 0</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (2탭 실시간 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">E1-2 이후 게스트는 30초 폴링·수집 보고·완주로 상태를 계속 바꾸는데, 운영자 화면은 <b>새로고침해야만</b> 그것을 본다:</p>
+        <table>
+          <thead><tr><th>자산</th><th>있음</th><th>비어 있음 (이 슬라이스가 채움)</th></tr></thead>
+          <tbody>
+            <tr><td>상태 변화 발생 지점</td><td>등록·전이·수집·완주·실패·개시·회수·접촉 — 전부 코드에 명시된 트랜잭션(서버는 변화 시점을 정확히 안다)</td><td><b>화면으로 가는 통로 없음</b> — 변화를 아는 쪽(서버)이 모르는 쪽(브라우저)에 알릴 수단이 없다</td></tr>
+            <tr><td>화면 갱신</td><td>PRG(자기 액션 후 리다이렉트) + 수동 F5</td><td>게스트가 일으킨 변화(체크인·완주·실패)는 운영자가 우연히 새로고침해야 보인다 — UC-3 의 "서로 기다리는" 착각도 이 공백의 산물</td></tr>
+            <tr><td>유사 선례</td><td><code>background-jobs.js</code> — fetch 주기 폴링(JSON) + DOM 조립. 최근 그 폴링의 로그 노이즈를 정비했음</td><td>"변화 없는데 계속 묻는" 폴링을 서버 화면까지 증설하는 것은 역방향 — push 인프라 부재</td></tr>
+            <tr><td>이벤트 인프라</td><td>없음 — 이 프로젝트의 첫 <code>@EventListener</code> 는 S5-13 에서 AFTER_COMMIT 방식으로 이연해 둔 상태</td><td>그 이연분의 <b>첫 실사례 자리</b>가 여기다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>SSE 단일 스트림</b> — <code>GET /provisioning/server/stream</code> (text/event-stream). 구독 필터는 클라이언트(상세 페이지는 자기 id 만 반응) — 운영자 소수·이벤트 저빈도라 서버측 필터는 과잉(§8 Q3).</li>
+          <li><b>도메인 이벤트</b> — <code>GuestServerChangedEvent(serverId)</code> 단일 record. 상태가 변하는 application service 트랜잭션(등록·전이·수집 소비·완주·실패·개시·회수·운영자 수정·수동 실패·재시도·접촉)에서 발행.</li>
+          <li><b>AFTER_COMMIT 구독</b> — <code>@TransactionalEventListener(phase = AFTER_COMMIT)</code> 이 커밋 확정 후에만 브라우저로 신호를 보낸다(롤백된 변화를 화면에 쏘는 사고 차단). <b>S5-13 이 이연해 둔 첫 EventListener 의 실사례.</b></li>
+          <li><b>신호-재조회 패턴</b> — payload 는 서버 id 뿐. 브라우저는 신호를 받으면 같은 URL 을 다시 fetch 해 관심 영역만 교체한다(§4) — 상태 데이터의 SSOT 가 기존 조회 서비스 하나로 유지되고, SSE payload 스키마가 아예 생기지 않는다.</li>
+          <li><b>부분 갱신 + 편집 보존</b> — 상세 페이지의 읽기 전용 영역(배지·인벤토리·NIC·진행·원장·액션 버튼)만 교체하고, <b>인라인 수정 폼은 절대 교체하지 않는다</b>(입력 중 유실 방지 — §8 Q5). 목록 페이지는 테이블 영역 교체.</li>
+          <li><b>연결 수명 관리</b> — emitter 레지스트리(등록·완료·타임아웃·send 실패 시 제거) + 25초 heartbeat(프록시 idle 절단 방지) + 브라우저 <code>EventSource</code> 의 자동 재연결에 위임(재연결 코드 직접 작성 없음).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>WebSocket/STOMP</b> — 양방향·브로커 인프라는 단방향 push 요구에 과잉(§8 Q1 탈락 기록). 원격 콘솔류 양방향 요구가 실재할 때 재고.</li>
+            <li><b>background job 폴링의 SSE 전환</b> — 같은 인프라의 후속 소비처 후보로만 기록(scope 비대 방지).</li>
+            <li><b>이벤트 종류별 세분(전이/실패/접촉 …)</b> — 소비자가 종류를 구분할 필요가 생길 때(예: 알림음) 확장. 지금은 "변했다" 하나면 충분.</li>
+            <li><b>대량 게스트 스로틀</b> — 접촉 신호는 게스트당 30초 자연 주기. 수백 대 규모의 서버측 디바운스는 실측 후(§8 잔존).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 목록·상세 2탭 실시간 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 두 패널은 <b>같은 서버를 열어둔 두 브라우저 탭</b>(목록/상세)이다. 게스트 이벤트 버튼을 누르면 SSE 신호(<code>changed: id</code>)가 두 탭에 도착하고, 각 탭이 <b>자기 관심 영역만 재조회·교체</b>하는 것을 본다(교체 순간 초록 플래시). 상세 탭의 <b>메모 입력칸에 타이핑해 두고</b> 이벤트를 눌러보라 — 읽기 영역만 바뀌고 입력은 보존된다. 「연결 끊김」으로 EventSource 자동 재연결도 체험.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">게스트 이벤트 :</span>
+            <button class="n-demo-btn" onclick="evt('checkin')">체크인 (진단 진입)</button>
+            <button class="n-demo-btn" onclick="evt('collect')">수집 완료 (ENRICHED·완주)</button>
+            <button class="n-demo-btn danger" onclick="evt('fail')">실패 보고</button>
+            <button class="n-demo-btn" onclick="evt('touch')">접촉 (30초 폴링)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">연결 :</span>
+            <span id="b-conn"></span>
+            <button class="n-demo-btn" style="border-color:var(--text-muted);color:var(--text-muted);" onclick="simReset()">⟲ 리셋</button>
+          </div>
+          <div class="two-pane">
+            <div class="pane" id="pane-list">
+              <h5>탭 A — 서버 목록 <span class="badge blue" id="conn-a">SSE 연결됨</span></h5>
+              <table><thead><tr><th>이름</th><th>운영 상태</th><th>접촉</th></tr></thead>
+                <tbody id="list-rows"></tbody></table>
+            </div>
+            <div class="pane" id="pane-detail">
+              <h5>탭 B — guest-01 상세 <span class="badge blue" id="conn-b">SSE 연결됨</span></h5>
+              <div id="det-read">
+                <span class="badge" id="det-status">등록됨</span>
+                <span class="badge" id="det-contact">접촉 중</span>
+                <span class="badge off" id="det-stage">iPXE 등록</span>
+                <table><tr><th style="width:90px;">현재 단계</th><td id="det-phase">부트스트래핑</td></tr>
+                       <tr><th>완료</th><td id="det-done">—</td></tr></table>
+              </div>
+              <div style="border-top:1px dashed var(--border-soft); margin-top:8px; padding-top:8px;">
+                <span style="font-size:11px; color:var(--text-muted);">인라인 수정 폼 (교체 제외 영역 — 타이핑 후 이벤트를 눌러보라)</span><br>
+                <input type="text" placeholder="메모 입력 중…" style="width:100%; margin-top:4px; padding:5px 8px; font-size:12px; border:1px solid var(--border); border-radius:5px;">
+              </div>
+            </div>
+          </div>
+          <div class="sse-log" id="sse-log"><span class="warn"># SSE 이벤트 로그 — 게스트 이벤트를 눌러보세요</span></div>
+          <div class="ux-message" id="sim-message">신호에는 id 만 실린다 — 데이터는 각 탭이 자기 조회 경로로 다시 가져온다(신호-재조회).</div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 이벤트 발행 지점 = §4 발행표, AFTER_COMMIT 이후에만 신호(실패 보고를 눌러도 커밋 전 신호는 없음), 갱신 영역 경계 = §8 Q5(편집 폼 보존), 재연결 = EventSource 기본 동작 재현.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/server/stream</code></td><td>SSE 구독(text/event-stream) — 연결 시 emitter 등록, 이벤트명 <code>changed</code> + data = 서버 id. 25초 heartbeat(comment)</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server</code> · <code>/{id}</code></td><td>변경 0 — 신호 수신 시 브라우저가 같은 URL 을 재fetch 해 부분 교체(재조회 경로 = 기존 SSR 그대로)</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <pre><code>[게스트]  체크인/보고/폴링 ──▶ [application service 트랜잭션]
+                                   ├─ 상태 변경 + publisher.publishEvent(GuestServerChangedEvent(id))
+                                   └─ 커밋
+[커밋 후] @TransactionalEventListener(AFTER_COMMIT) ──▶ emitter 레지스트리.broadcast("changed", id)
+[브라우저] EventSource("stream") ── changed(id) 수신
+           ├─ 목록 탭: fetch(현재 URL) → 응답 HTML 에서 테이블 영역만 교체
+           └─ 상세 탭: id == 내 서버면 fetch → 읽기 전용 영역만 교체 (수정 폼 보존)</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>이벤트 + 스트림 서비스</h4>
+        <pre><code>// execution/event — 단일 신호 record. 종류 세분은 소비자가 구분할 필요가 생길 때(비목표).
+public record GuestServerChangedEvent(UUID serverId) { }
+
+// execution/service/GuestServerStreamService — emitter 레지스트리 + 구독/브로드캐스트.
+//  subscribe(): SseEmitter(타임아웃 30분) 생성 → 레지스트리 등록 → onCompletion/onTimeout/onError 제거
+//  @TransactionalEventListener(phase = AFTER_COMMIT)  onChanged(event): 전 구독자에 event("changed", id)
+//    — send 실패(닫힌 연결)는 그 자리에서 제거(다음 신호가 죽은 연결에 막히지 않게)
+//  @Scheduled(25초) heartbeat: comment 프레임(":ping") — 프록시 idle 절단 방지
+//  fallbackExecution = 트랜잭션 밖 발행(테스트 등)도 수신하도록 명시</code></pre>
+        <h4>발행 지점 (전수 — 누락은 "그 화면만 안 갱신되는" 회귀로 테스트가 잡는다)</h4>
+        <table>
+          <thead><tr><th>트랜잭션</th><th>변화</th></tr></thead>
+          <tbody>
+            <tr><td><code>BootService.boot</code></td><td>등록(신규 서버) · 접촉(last_seen — 30초 자연 스로틀)</td></tr>
+            <tr><td><code>AgentReportService</code> checkin·openStep·closeStep</td><td>전이 · 원장 열림/닫힘 · (소비 훅 경유) 수집 적재·완주·실패 — 훅이 같은 트랜잭션이므로 <b>발행은 접수 메서드 말미 1회</b>면 충분</td></tr>
+            <tr><td><code>GuestServerCommandService</code> update·decommission·startProvisioning·markFailedManually·retry</td><td>운영자 액션 5종 — 다른 탭·다른 운영자 화면의 동기화</td></tr>
+          </tbody>
+        </table>
+        <h4>브라우저 — server-stream.js (신규 1파일, 두 페이지 공용)</h4>
+        <pre><code>// 페이지가 data-stream-scope="list" | data-stream-scope="detail" data-server-id="…" 를 선언하면 활성.
+// EventSource("stream") → "changed" 수신 → (상세면 id 일치 시) fetch(location.href)
+//   → DOMParser → [data-live] 마킹 영역만 replaceWith — 목록: 테이블 카드 / 상세: 읽기 전용 섹션들.
+// 수정 폼(form)은 [data-live] 를 붙이지 않는 것이 곧 보존 규약. 연속 신호는 300ms 디바운스(재조회 1회로 합침).
+// 재연결: EventSource 기본 동작(별도 코드 0). 연결 상태는 콘솔로만(운영자 UI 소음 방지).</code></pre>
+        <h4>결정 비교 — 전송 기술 (Q1, 사용자 검토 승인분 기록)</h4>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>(a) SSE — 채택</h4><ul><li>단방향 push 에 정확히 맞음 · Spring MVC 내장(의존성 0)</li><li>EventSource 자동 재연결 · HTTP 그대로(프록시 무관)</li></ul></div>
+          <div class="card v-orange"><h4>(b) WebSocket/STOMP — 탈락</h4><ul><li>양방향·브로커·세션 관리 전부 잉여(브라우저→서버는 기존 폼)</li></ul></div>
+          <div class="card v-red"><h4>(c) 주기 폴링 증설 — 탈락</h4><ul><li>변화를 아는 서버에게 계속 묻는 역방향 — jobs 폴링 노이즈 정비의 역행</li></ul></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스의 산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td><code>server-stream.js</code> 신규 + 목록·상세 템플릿에 <code>[data-live]</code> 영역 마킹·스크립트 포함(수정 폼은 마킹 제외)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>GuestServerStreamController</code> — GET /stream (SseEmitter 반환)</td></tr>
+            <tr><td>4</td><td>DTO 변경 0 (신호-재조회 — payload 스키마 없음)</td></tr>
+            <tr><td>5</td><td><code>GuestServerStreamService</code> 시그니처 + <code>GuestServerChangedEvent</code> record + 발행 지점 배선 시그니처</td></tr>
+            <tr><td>6·7</td><td>Repository·Entity 변경 0 — N/A (리팩토링 슬라이스 규약 원용)</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>본체 + 단위·통합(§6). <code>@EnableScheduling</code> 확인(heartbeat — 기존 trash cron 이 이미 쓰는지 확인 후 필요 시)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 변경 0 — DDL N/A</td></tr>
+            <tr><td>10</td><td>CP5(사용자) — 목록·상세 두 탭을 열어두고 QEMU 게스트(또는 하네스) 이벤트 유발 → 새로고침 없이 반영·수정 폼 보존·재연결 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>스트림 서비스 (단위)</h4>
+        <ul>
+          <li>subscribe → 레지스트리 등록 / 완료·타임아웃 콜백 → 제거 (~2)</li>
+          <li>onChanged → 전 구독자 send("changed", id) / send 실패 emitter 즉시 제거 + 나머지 계속 (~2)</li>
+          <li>heartbeat — 구독자에 comment 송신 (~1)</li>
+        </ul>
+        <h4>발행 검증 (기존 서비스 테스트 확장 — 누락 = "그 화면만 안 갱신" 회귀 차단)</h4>
+        <ul>
+          <li><code>AgentReportService</code> checkin·closeStep / <code>GuestServerCommandService</code> 5액션 / <code>BootService.boot</code> — 각각 publisher.publishEvent(해당 id) 검증 (~8)</li>
+        </ul>
+        <h4>HTTP (@WebMvcTest)</h4>
+        <ul>
+          <li>GET /stream → 200 + Content-Type text/event-stream / 구독 직후 이벤트 발행 → 응답 바디에 "event:changed" + id (async 처리) (~2)</li>
+        </ul>
+        <div class="callout"><b>규율</b> — 신규 예외 0(§7). AFTER_COMMIT 실배선(트랜잭션 경계)은 T1 로 실검증: 하네스 이벤트 → curl 로 stream 을 물고 신호 수신 확인을 CP4 스모크에 포함.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>상황</th><th>처리</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>구독자 연결 끊김(send 실패·타임아웃)</td><td>레지스트리에서 제거 — 예외 전파 없음(다른 구독자 보호). 브라우저는 EventSource 가 자동 재구독</td><td><span class="chip new">수명 관리</span></td></tr>
+            <tr><td>리스너 내부 실패</td><td>AFTER_COMMIT 리스너 예외는 원 트랜잭션에 영향 없음(이미 커밋) — 로그 WARN 만. 화면은 다음 신호·수동 새로고침으로 회복</td><td><span class="chip keep">격리</span></td></tr>
+            <tr><td>신규 도메인 예외</td><td><b>0</b></td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>잔존 책임 · 주의 (정직 기록)</h4>
+        <ul>
+          <li><b>접촉 신호 빈도</b> — 게스트당 30초 1신호. 수십 대까지는 무의미한 부하지만 수백 대 규모에선 서버측 디바운스(예: 5초 창 합침) 재고 — 실측 후(지금 최적화 금지).</li>
+          <li><b>MVC 스레드 점유</b> — SseEmitter 는 비동기 컨테이너 처리라 요청 스레드를 붙잡지 않는다. 다만 구독자 수 = 열린 연결 수 — 운영자 소수 전제 명기.</li>
+          <li><b>재조회 비용</b> — 신호마다 페이지 1회 재조회. 300ms 디바운스로 연속 신호를 합치므로 폴링보다 항상 적거나 같다.</li>
+          <li><b>IntelliJ devtools 재시작</b> — SSE 연결은 앱 재시작 시 끊기고 EventSource 가 자동 재연결한다(개발 흐름 무영향).</li>
+        </ul>
+        <h4>Open Questions (CP1 결정 — 권고 포함)</h4>
+        <table><thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>전송 기술</td><td><b>SSE</b> — §4 비교 기록(사용자 사전 검토 승인분)</td></tr>
+            <tr><td>Q2</td><td>payload</td><td><b>id 만(신호-재조회)</b> — 상태 동봉은 SSOT 이원화·스키마 유지비. 탈락</td></tr>
+            <tr><td>Q3</td><td>구독 필터 위치</td><td><b>클라이언트</b> — 단일 스트림. 서버측 id 필터는 구독자·빈도 규모가 요구할 때</td></tr>
+            <tr><td>Q4</td><td>이벤트 소유 패키지</td><td><b>execution</b>(게스트 서버 애그리거트 소유 — U1 §D11 관례) — 스트림 서비스·컨트롤러도 동일. global/ui 는 도메인 무관 인프라만 두는 자리라 탈락</td></tr>
+            <tr><td>Q5</td><td>부분 갱신 방식</td><td><b>같은 URL 재fetch + [data-live] 영역 교체</b> — fragment 전용 endpoint(뷰 이원화)·전체 reload(입력 유실·깜빡임) 탈락. 수정 폼은 마킹 제외가 곧 보존 규약</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S7-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (발행 검증 확장 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="t1"> <span>T1 스모크 — <code>curl -N /stream</code> 물고 하네스 이벤트 → "event:changed" 수신 (AFTER_COMMIT 실배선)</span></label></li>
+          <li><label><input type="checkbox" data-key="browser"> <span>브라우저 스모크 — 두 탭 자동 반영 · 수정 폼 보존 · 앱 재시작 후 자동 재연결</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 (사용자) — QEMU/하네스 이벤트로 실관찰</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <div style="font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:14px;white-space:pre;overflow-x:auto;">execution/
+├── event/GuestServerChangedEvent.java        (신규 — 단일 신호 record)
+├── service/GuestServerStreamService.java     (신규 — 레지스트리 · AFTER_COMMIT 리스너 · heartbeat)
+├── engine/BootService.java · AgentReportService.java   (수정 — 발행 1줄)
+└── service/GuestServerCommandService.java    (수정 — 액션 5종 발행)
+provisioning/controller/GuestServerStreamController.java (신규 — GET /stream)
+static/provisioning/server-stream.js          (신규 — EventSource + [data-live] 교체 + 디바운스)
+templates/provisioning/server-list.html · server-detail.html  (수정 — data-live 마킹 + 스크립트)
+src/test/ — GuestServerStreamServiceTest(신규) · GuestServerStreamControllerTest(신규)
+           · 기존 서비스 테스트 3종 발행 검증 확장</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>E1-I — PXE 인프라 관리</b> (S7 다음 — 사용자 지정 순서): dhcpd·tftp 자산 관리 + 진단 이미지 자산 화면 + 자산 서빙 주체 재판단 + V10. E1 완결.</li>
+          <li>jobs 폴링(background-jobs.js)의 SSE 전환 검토 — 이 인프라의 두 번째 소비처 후보.</li>
+          <li>로드맵 정렬: 회차(DEC-29)·재투입(DEC-30)·중단(DEC-31) + U3 시점.</li>
+        </ol>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎬 2탭 실시간 시뮬레이터 — SSE 신호-재조회 패턴 1:1 재현
+  // evt() = 서버측 트랜잭션 커밋 + AFTER_COMMIT 브로드캐스트
+  // 각 탭 = EventSource 구독자: 신호 수신 → 자기 관심 영역만 재렌더(플래시)
+  // ─────────────────────────────────────────────────────────────
+  let S, connected;
+  function simReset() {
+    S = { status:'REGISTERED', stage:'iPXE 등록', phase:'부트스트래핑', done:false, contact:true, clock:0 };
+    connected = true;
+    document.getElementById('sse-log').innerHTML = '<span class="warn"># SSE 이벤트 로그 — 게스트 이벤트를 눌러보세요</span>';
+    msg('', '신호에는 id 만 실린다 — 데이터는 각 탭이 자기 조회 경로로 다시 가져온다(신호-재조회).');
+    renderConn(); renderList(false); renderDetail(false);
+  }
+  function msg(k, t) { const el = document.getElementById('sim-message'); el.className = 'ux-message' + (k ? ' ' + k : ''); el.textContent = t; }
+  function slog(cls, t) {
+    const el = document.getElementById('sse-log');
+    S.clock += 1;
+    el.innerHTML += `\n<span class="${cls}">[T+${S.clock}] ${t}</span>`;
+    el.scrollTop = el.scrollHeight;
+  }
+  function renderConn() {
+    document.getElementById('b-conn').innerHTML = connected
+      ? '<button class="n-demo-btn danger" onclick="drop()">연결 끊김 (프록시 절단 재연)</button>'
+      : '<button class="n-demo-btn" disabled>재연결 중…</button>';
+    ['conn-a','conn-b'].forEach(id => {
+      const b = document.getElementById(id);
+      b.className = 'badge ' + (connected ? 'blue' : 'red');
+      b.textContent = connected ? 'SSE 연결됨' : '끊김 — 자동 재연결 대기';
+    });
+  }
+  function drop() {
+    connected = false; renderConn();
+    slog('warn', '연결 절단 — EventSource 가 3초 후 자동 재구독(재연결 코드 0줄)');
+    msg('error', '끊긴 동안의 신호는 유실되지만, 재연결 직후 1회 재조회로 따라잡는다(server-stream.js 규약).');
+    setTimeout(() => { connected = true; renderConn(); slog('ok', '자동 재연결 → 즉시 1회 재조회(따라잡기)');
+      renderList(true); renderDetail(true); }, 3000);
+  }
+  function evt(kind) {
+    // 서버측: 트랜잭션 커밋 → AFTER_COMMIT 브로드캐스트
+    if (kind === 'checkin') { if (S.done || S.status==='FAILED') { msg('error','완주/실패 상태 — 리셋 후 다시.'); return; }
+      S.status='PROVISIONING'; S.phase='진단 리눅스'; }
+    if (kind === 'collect') { if (S.done || S.status==='FAILED') { msg('error','완주/실패 상태 — 리셋 후 다시.'); return; }
+      S.status='PROVISIONED'; S.phase='진단 리눅스'; S.stage='진단 정보 보강'; S.done=true; }
+    if (kind === 'fail') { if (S.done) { msg('error','완주 상태 — 리셋 후 다시.'); return; } S.status='FAILED'; }
+    if (kind === 'touch') { S.contact = true; }
+    slog('ok', `commit → AFTER_COMMIT → broadcast  event:changed  data:guest-01`);
+    if (!connected) { slog('warn', '(구독자 없음 — 신호 유실. 재연결 따라잡기가 회복)'); return; }
+    // 브라우저측: 신호 수신 → 300ms 디바운스 → 재조회 → 영역 교체
+    setTimeout(() => { renderList(true); renderDetail(true); }, 300);
+    msg('success', '✓ 두 탭이 신호를 받고 각자 재조회 — 교체된 영역만 플래시. 수정 폼 입력은 그대로다.');
+  }
+  const ST = { REGISTERED:['등록됨','off'], PROVISIONING:['프로비저닝 중','on'], PROVISIONED:['완료 (입고 검수 대기)','teal'], FAILED:['실패','red'] };
+  function renderList(flash) {
+    const [txt, cls] = ST[S.status];
+    const tb = document.getElementById('list-rows');
+    tb.innerHTML = `<tr><td>guest-01</td><td><span class="badge ${cls}">${txt}</span></td>
+      <td><span class="badge ${S.contact?'teal':'off'}">${S.contact?'접촉 중':'무접촉'}</span></td></tr>
+      <tr><td>guest-02</td><td><span class="badge off">등록됨</span></td><td><span class="badge off">무접촉</span></td></tr>`;
+    if (flash) document.getElementById('pane-list').classList.add('flash'),
+      setTimeout(() => document.getElementById('pane-list').classList.remove('flash'), 900);
+  }
+  function renderDetail(flash) {
+    const [txt, cls] = ST[S.status];
+    const st = document.getElementById('det-status'); st.className = 'badge ' + cls; st.textContent = txt;
+    const ct = document.getElementById('det-contact'); ct.className = 'badge ' + (S.contact?'teal':'off'); ct.textContent = S.contact?'접촉 중':'무접촉';
+    const sg = document.getElementById('det-stage'); sg.className = 'badge ' + (S.stage==='진단 정보 보강'?'teal':'off'); sg.textContent = S.stage;
+    document.getElementById('det-phase').textContent = S.phase;
+    document.getElementById('det-done').textContent = S.done ? '기록됨 — 입고 검수 대기' : '—';
+    if (flash) document.getElementById('det-read').classList.add('flash'),
+      setTimeout(() => document.getElementById('det-read').classList.remove('flash'), 900);
+  }
+  simReset();
+</script>
+</body>
+</html>

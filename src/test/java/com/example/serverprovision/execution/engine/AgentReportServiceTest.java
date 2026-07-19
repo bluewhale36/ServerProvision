@@ -14,6 +14,7 @@ import com.example.serverprovision.execution.exception.GuestServerNotFoundExcept
 import com.example.serverprovision.execution.exception.SetupStepNotFoundException;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
+import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -53,6 +55,7 @@ class AgentReportServiceTest {
     @Mock SetupStepRepository setupStepRepository;
     @Mock SetupStepRecorder setupStepRecorder;
     @Mock PhaseExecutorRegistry phaseExecutorRegistry;               // E1-2 — 소비 훅 위임(기본 empty = 미등록)
+    @Mock ApplicationEventPublisher eventPublisher;                  // S7 — 실시간 스트림 신호 발행 검증
     @InjectMocks AgentReportService service;
 
     private GuestServer guest(UUID id) {
@@ -299,5 +302,46 @@ class AgentReportServiceTest {
         given(setupStepRepository.findById(unknown)).willReturn(Optional.empty());
         assertThatThrownBy(() -> service.closeStep(TOKEN, unknown, ProvisioningStatus.SUCCEEDED, null))
                 .isInstanceOf(SetupStepNotFoundException.class);
+    }
+
+    // ==== S7 — 실시간 스트림 신호 발행 (발행 누락 = "그 화면만 안 갱신" 회귀) ====
+
+    @Test
+    @DisplayName("checkin — 접수 말미 변화 신호(GuestServerChangedEvent) 발행")
+    void checkin_publishesChangedSignal() {
+        GuestServer g = stubGuest();
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId()))
+                .willReturn(Optional.of(progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX)));
+
+        service.checkin(TOKEN);
+
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(g.getId()));
+    }
+
+    @Test
+    @DisplayName("closeStep — 접수 말미 변화 신호 발행 (전이·원장·소비 훅과 같은 트랜잭션이라 1회면 충분)")
+    void closeStep_publishesChangedSignal() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        SetupStep step = SetupStep.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        given(setupStepRepository.findById(step.getId())).willReturn(Optional.of(step));
+
+        service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(g.getId()));
+    }
+
+    @Test
+    @DisplayName("가드 거절(409) — 변화 신호 미발행 (롤백 트랜잭션과 함께 사라지는 계약의 발행측 반쪽)")
+    void rejectedCheckin_publishesNothing() {
+        GuestServer g = stubGuest();
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId()))
+                .willReturn(Optional.of(progress(g, false, ProvisioningPhase.BOOTSTRAPPING)));
+
+        assertThatThrownBy(() -> service.checkin(TOKEN))
+                .isInstanceOf(AgentReportRejectedException.class);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 }

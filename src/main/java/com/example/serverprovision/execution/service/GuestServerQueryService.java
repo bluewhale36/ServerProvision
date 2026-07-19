@@ -99,7 +99,8 @@ public class GuestServerQueryService {
                 primaryNic != null ? primaryNic.getIpAddress() : null,
                 server.getCreatedAt(),
                 server.getLastSeenAt(),
-                isContactActive(server.getLastSeenAt())
+                isContactActive(server.getLastSeenAt()),
+                contactRemainingSeconds(server.getLastSeenAt())
         );
     }
 
@@ -183,12 +184,26 @@ public class GuestServerQueryService {
             return null;
         }
         long seconds = Math.max(0, Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds());
-        return new GuestServerDetailResponse.Contact(lastSeenAt, seconds, seconds <= CONTACT_ACTIVE_SECONDS);
+        boolean active = seconds <= CONTACT_ACTIVE_SECONDS;
+        return new GuestServerDetailResponse.Contact(
+                lastSeenAt, seconds, active, active ? CONTACT_ACTIVE_SECONDS - seconds : 0);
     }
 
     private boolean isContactActive(LocalDateTime lastSeenAt) {
         return lastSeenAt != null
                 && Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds() <= CONTACT_ACTIVE_SECONDS;
+    }
+
+    /**
+     * 연결 중 → 끊어짐 전이까지 남은 초(S7) — 침묵 전이는 발행 이벤트가 없어 브라우저가 이 값으로
+     * 전이 예정 시각에 1회 재조회를 예약한다. 비연결이면 null(예약 불필요).
+     */
+    private Long contactRemainingSeconds(LocalDateTime lastSeenAt) {
+        if (!isContactActive(lastSeenAt)) {
+            return null;
+        }
+        long seconds = Math.max(0, Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds());
+        return CONTACT_ACTIVE_SECONDS - seconds;
     }
 
     /** 저장 JSON → 수집 record 관용 파싱 — 해석 불가는 null(화면은 원장 원문 안내로 폴백). */

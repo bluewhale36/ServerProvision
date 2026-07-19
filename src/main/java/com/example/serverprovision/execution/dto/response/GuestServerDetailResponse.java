@@ -41,13 +41,17 @@ public record GuestServerDetailResponse(
 ) {
 
     /**
-     * 게스트 접촉 관찰(E1-2, DEC-32) — 판정 입력이 아닌 표시용. {@code active} 는 "폴링 주기(30초) 3회
-     * 이내 접촉"(90초) 기준으로 조회 시점에 계산된다. 한 번도 접촉이 없으면 record 자체가 null.
+     * 게스트 접촉 관찰(E1-2, DEC-32) — 판정 입력이 아닌 표시용(화면 용어: 연결 중 / 끊어짐).
+     * {@code active} 는 "폴링 주기(30초) 3회 이내 접촉"(90초) 기준으로 조회 시점에 계산된다.
+     * 한 번도 접촉이 없으면 record 자체가 null.
+     * <p>{@code remainingSeconds}(S7) — 연결 중일 때 "끊어짐 전이까지 남은 초". 침묵 전이는 이벤트가
+     * 없는(신호 부재) 변화라 브라우저가 이 값으로 전이 예정 시각에 1회 재조회를 예약한다. 비연결이면 0.</p>
      */
     public record Contact(
             LocalDateTime lastSeenAt,
             long secondsSince,
-            boolean active
+            boolean active,
+            long remainingSeconds
     ) {
     }
 

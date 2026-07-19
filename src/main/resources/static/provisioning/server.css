@@ -66,3 +66,13 @@
 }
 
 /* primary NIC 강조 배지는 기존 n-badge 재사용 — 별도 색 정의 없음 */
+
+/* S7 — 실시간 갱신 플래시: [data-live] 영역이 교체된 순간의 시각 피드백 (연결 상태 표시는 두지 않는다) */
+.n-live-flash {
+    animation: n-live-flash 0.9s ease-out;
+}
+
+@keyframes n-live-flash {
+    0%   { background-color: rgba(52, 199, 89, 0.14); }
+    100% { background-color: transparent; }
+}

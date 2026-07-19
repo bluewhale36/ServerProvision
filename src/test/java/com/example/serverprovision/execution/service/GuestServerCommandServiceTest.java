@@ -4,7 +4,10 @@ import com.example.serverprovision.execution.dto.request.UpdateGuestServerReques
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
+import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
+import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
 import com.example.serverprovision.execution.exception.ProvisioningStartRejectedException;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -21,7 +25,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * U1 CP4 — {@link GuestServerCommandService} 단위 테스트. 인라인 수정(4필드, blank→null), 회수(멱등),
@@ -32,6 +39,7 @@ class GuestServerCommandServiceTest {
 
     @Mock GuestServerRepository guestServerRepository;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
+    @Mock ApplicationEventPublisher eventPublisher;   // S7 — 실시간 스트림 신호 발행 검증
     @InjectMocks GuestServerCommandService service;
 
     private GuestServer server(UUID id) {
@@ -58,6 +66,7 @@ class GuestServerCommandServiceTest {
         assertThat(s.getModelName()).isEqualTo("RE2108");
         assertThat(s.getSerialNumber()).isNull();           // blank → null
         assertThat(s.getMemo()).isNull();
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));   // S7 — 다른 탭 동기화 신호
     }
 
     @Test
@@ -80,6 +89,7 @@ class GuestServerCommandServiceTest {
         service.decommission(id);
 
         assertThat(s.getDecommissionedAt()).isNotNull();
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
     }
 
     @Test
@@ -119,6 +129,7 @@ class GuestServerCommandServiceTest {
         service.startProvisioning(id);
 
         assertThat(progress.isStarted()).isTrue();
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
     }
 
     @Test
@@ -133,6 +144,7 @@ class GuestServerCommandServiceTest {
         assertThatThrownBy(() -> service.startProvisioning(id))
                 .isInstanceOf(ProvisioningStartRejectedException.class)
                 .hasMessageContaining("이미 개시");
+        verify(eventPublisher, never()).publishEvent(any());   // 거절 = 신호 없음
     }
 
     @Test
@@ -157,5 +169,64 @@ class GuestServerCommandServiceTest {
 
         assertThatThrownBy(() -> service.startProvisioning(id))
                 .isInstanceOf(GuestServerNotFoundException.class);
+    }
+
+    // ==== 수동 실패 전환 · 재시도 (E1-2, DEC-4) + S7 발행 검증 ==================
+
+    @Test
+    @DisplayName("markFailedManually — 실패 신호 기록(failedStepCode 없음 = 운영자 전환) + 변화 신호 발행")
+    void markFailedManually_records_andPublishes() {
+        UUID id = UUID.randomUUID();
+        ProvisioningProgress progress = ProvisioningProgress.builder()
+                .guestServer(server(id))
+                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).lastTransitionAt(LocalDateTime.now())
+                .startedAt(LocalDateTime.now())
+                .build();
+        given(guestServerRepository.existsById(id)).willReturn(true);
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+
+        service.markFailedManually(id);
+
+        assertThat(progress.isFailed()).isTrue();
+        assertThat(progress.getFailedStepCode()).isNull();   // 운영자 전환 표식
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
+    @DisplayName("retry — 실패 신호 해제(커서 유지) + 변화 신호 발행")
+    void retry_clearsFailed_andPublishes() {
+        UUID id = UUID.randomUUID();
+        ProvisioningProgress progress = ProvisioningProgress.builder()
+                .guestServer(server(id))
+                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).lastTransitionAt(LocalDateTime.now())
+                .startedAt(LocalDateTime.now())
+                .failedAt(LocalDateTime.now()).failedStepCode(ProvisioningPhaseStep.INFORMATION_COLLECTING)
+                .build();
+        given(guestServerRepository.existsById(id)).willReturn(true);
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+
+        service.retry(id);
+
+        assertThat(progress.isFailed()).isFalse();
+        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);   // 커서 유지
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
+    @DisplayName("retry — 펌웨어 flash 실패는 차단(409) + 신호 없음")
+    void retry_firmwareBlocked_rejectedWithoutSignal() {
+        UUID id = UUID.randomUUID();
+        ProvisioningProgress progress = ProvisioningProgress.builder()
+                .guestServer(server(id))
+                .currentPhase(ProvisioningPhase.FIRMWARE_UPDATING).lastTransitionAt(LocalDateTime.now())
+                .startedAt(LocalDateTime.now())
+                .failedAt(LocalDateTime.now()).failedStepCode(ProvisioningPhaseStep.BIOS_UPDATING)
+                .build();
+        given(guestServerRepository.existsById(id)).willReturn(true);
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+
+        assertThatThrownBy(() -> service.retry(id))
+                .isInstanceOf(ProvisioningRetryRejectedException.class);
+        verify(eventPublisher, never()).publishEvent(any());
     }
 }

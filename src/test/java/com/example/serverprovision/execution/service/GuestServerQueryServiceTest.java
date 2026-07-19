@@ -103,6 +103,41 @@ class GuestServerQueryServiceTest {
     }
 
     @Test
+    @DisplayName("접촉 관찰(S7) — 연결 중이면 남은 초(90-경과)가 실리고, 침묵이면 remaining 이 비워진다")
+    void contactMapping_remainingSeconds() {
+        UUID activeId = UUID.randomUUID();
+        UUID staleId = UUID.randomUUID();
+        GuestServer active = GuestServer.builder().id(activeId).systemUUID(UUID.randomUUID())
+                .lastSeenAt(LocalDateTime.now().minusSeconds(30)).build();
+        GuestServer stale = GuestServer.builder().id(staleId).systemUUID(UUID.randomUUID())
+                .lastSeenAt(LocalDateTime.now().minusSeconds(200)).build();
+        given(guestServerRepository.findAllByOrderByCreatedAtDesc()).willReturn(List.of(active, stale));
+        given(detailRepository.findAllByServerIdInWithBoardModel(anyList())).willReturn(List.of());
+        given(nicRepository.findPrimaryByServerIdIn(anyList())).willReturn(List.of());
+        given(progressRepository.findAllByGuestServer_IdIn(anyList())).willReturn(List.of());
+
+        List<GuestServerSummaryResponse> rows = service.findAll();
+
+        GuestServerSummaryResponse activeRow = rows.stream().filter(r -> r.id().equals(activeId)).findFirst().orElseThrow();
+        GuestServerSummaryResponse staleRow = rows.stream().filter(r -> r.id().equals(staleId)).findFirst().orElseThrow();
+        assertThat(activeRow.contactActive()).isTrue();
+        assertThat(activeRow.contactRemainingSeconds()).isBetween(55L, 61L);   // 90 - 경과(~30초)
+        assertThat(staleRow.contactActive()).isFalse();
+        assertThat(staleRow.contactRemainingSeconds()).isNull();               // rollover 예약 불필요
+
+        // 상세 Contact — 경과 + 남은 초 = 임계(90초) 정확 일치 (같은 계산 기반에서 도출)
+        given(guestServerRepository.findById(activeId)).willReturn(Optional.of(active));
+        given(detailRepository.findByServerIdWithBoardModel(activeId)).willReturn(Optional.empty());
+        given(nicRepository.findAllByServerIdOrderByPrimary(activeId)).willReturn(List.of());
+        given(progressRepository.findByGuestServer_Id(activeId)).willReturn(Optional.empty());
+        given(setupStepRepository.findAllByServerIdOrderByStartedAt(activeId)).willReturn(List.of());
+
+        GuestServerDetailResponse.Contact contact = service.findDetail(activeId).contact();
+        assertThat(contact.active()).isTrue();
+        assertThat(contact.secondsSince() + contact.remainingSeconds()).isEqualTo(90L);
+    }
+
+    @Test
     @DisplayName("findAll — 서버가 없으면 빈 목록 + 후속 조회 미수행(N+1 회피 단축)")
     void findAll_empty() {
         given(guestServerRepository.findAllByOrderByCreatedAtDesc()).willReturn(List.of());

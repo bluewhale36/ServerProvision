@@ -13,6 +13,7 @@ import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
+import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.AgentReportRejectedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.SetupStepNotFoundException;
@@ -23,6 +24,7 @@ import com.example.serverprovision.execution.repository.SetupStepRepository;
 import com.example.serverprovision.execution.vo.GuestToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +51,7 @@ public class AgentReportService {
     private final SetupStepRepository setupStepRepository;
     private final SetupStepRecorder setupStepRecorder;
     private final PhaseExecutorRegistry phaseExecutorRegistry;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 체크인 — 진단 리눅스 기동 사실 신호. <b>첫 체크인(개시됨 + 커서 BOOTSTRAPPING)만</b>
@@ -66,6 +69,7 @@ public class AgentReportService {
             progress.advanceTo(ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now());
             log.info("게스트 첫 체크인 — 진단 진입 : guestServerId={}", server.getId());
         }
+        publishChanged(server);
         return new AgentCheckinResponse(directiveFor(server, progress), server.getName());
     }
 
@@ -75,6 +79,7 @@ public class AgentReportService {
         GuestServer server = requireByToken(presentedToken);
         requireProvisioning(server, requireProgress(server));
         SetupStep step = setupStepRecorder.openRunning(server, stepCode, LocalDateTime.now());
+        publishChanged(server);
         return new StepOpenResponse(step.getId());
     }
 
@@ -108,6 +113,7 @@ public class AgentReportService {
                 // 완주 후 새 step 을 닫으려는 시도는 비정상 — 게이트 원칙 유지.
                 throw AgentReportRejectedException.notProvisioning(server.getId());
             }
+            publishChanged(server);   // 접촉(lastSeenAt)은 이 no-op 경로에서도 갱신됐다
             return new StepCloseResponse(directiveFor(server, progress));   // no-op + REBOOT 재계산
         }
 
@@ -123,7 +129,17 @@ public class AgentReportService {
             phaseExecutorRegistry.find(step.getStepCode().getPhaseType())
                     .ifPresent(executor -> executor.onStepClosed(server, progress, step));
         }
+        publishChanged(server);
         return new StepCloseResponse(directiveFor(server, progress));
+    }
+
+    /**
+     * 실시간 스트림 신호(S7) — 게이트를 통과한 모든 에이전트 접촉은 최소 lastSeenAt 이 변한다.
+     * 전이·원장·소비 훅의 적재도 같은 트랜잭션이므로 접수 메서드 말미 1회 발행으로 충분하다.
+     * AFTER_COMMIT 리스너가 수신하므로 게이트 거절(롤백) 시엔 신호도 함께 사라진다.
+     */
+    private void publishChanged(GuestServer server) {
+        eventPublisher.publishEvent(new GuestServerChangedEvent(server.getId()));
     }
 
     /**

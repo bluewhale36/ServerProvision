@@ -23,13 +23,17 @@
 <body>
 <nav th:replace="~{fragments/layout :: navbar('server')}"></nav>
 
-<div class="n-page">
+<!-- S7 — 실시간 상태 스트림 선언부: server-stream.js 가 이 속성을 보고 SSE 를 구독한다 -->
+<div class="n-page" data-stream-scope="list" th:data-stream-url="@{/provisioning/server/stream}">
     <div class="n-page-header">
         <h1 class="n-page-title">게스트 서버</h1>
         <div class="n-header-actions">
             <span class="n-hint">iPXE 부팅으로 등록된 물리 서버 목록입니다. 행을 클릭하면 상세 정보를 볼 수 있습니다.</span>
         </div>
     </div>
+
+    <!-- S7 — 실시간 교체 영역: 빈 상태 ↔ 목록 전환(첫 등록)까지 한 영역으로 묶는다 -->
+    <div data-live="server-list">
 
     <!-- 빈 상태 -->
     <div th:if="${#lists.isEmpty(servers)}" class="n-card">
@@ -49,7 +53,7 @@
             <th>제조사</th>
             <th>보드 모델</th>
             <th>운영 상태</th>
-            <th>접촉</th>
+            <th>연결</th>
             <th>호스트 IP</th>
             <th>등록 시각</th>
         </tr>
@@ -75,10 +79,12 @@
                 <span th:case="*" class="n-muted">—</span>
             </td>
             <td>
-                <!-- E1-2 (DEC-32) — 게스트 접촉 관찰 -->
-                <span th:if="${server.contactActive}" class="n-badge n-badge-teal">접촉 중</span>
+                <!-- E1-2 (DEC-32) — 게스트 접촉 관찰. data-contact-remaining(S7) = 끊어짐 전이 예정 시각의
+                     rollover 재조회 예약 입력 (침묵 전이는 발행 이벤트가 없는 변화) -->
+                <span th:if="${server.contactActive}" class="n-badge n-badge-teal"
+                      th:data-contact-remaining="${server.contactRemainingSeconds}">연결 중</span>
                 <span th:if="${!server.contactActive and server.lastSeenAt != null}" class="n-badge n-badge-gray"
-                      th:title="${#temporals.format(server.lastSeenAt, 'yyyy-MM-dd HH:mm:ss')}">무접촉</span>
+                      th:title="${#temporals.format(server.lastSeenAt, 'yyyy-MM-dd HH:mm:ss')}">끊어짐</span>
                 <span th:if="${server.lastSeenAt == null}" class="n-muted">—</span>
             </td>
             <td><code class="n-mono" th:text="${server.primaryIp != null} ? ${server.primaryIp.value} : '—'">192.168.1.1</code></td>
@@ -91,10 +97,14 @@
         </tbody>
     </table>
     </div>
+
+    </div><!-- /data-live="server-list" -->
 </div>
 
 <!-- 행 전체 클릭 → 상세 이동. 셀 내부 <a> 는 자체 동작하므로 중복 내비게이션 방지. -->
 <script th:src="@{/provisioning/server-list.js}"></script>
+<!-- S7 — SSE 구독 + 신호-재조회 부분 교체 -->
+<script th:src="@{/provisioning/server-stream.js}"></script>
 
 </body>
 </html>

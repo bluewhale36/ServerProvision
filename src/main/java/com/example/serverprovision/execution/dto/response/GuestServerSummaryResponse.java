@@ -12,6 +12,8 @@ import java.util.UUID;
  * <p>vendor 와 status 는 <b>도출값</b>이다(U1 §D2/§D4) — vendor 는 boardModel 에서, status 는 (progress + 회수)에서
  * 서비스 매핑 단계에 계산해 싣는다. 저장 컬럼이 아니다.</p>
  * detail / nic 가 아직 없을 수 있어 vendor / boardModelName / primaryIp 는 nullable.
+ * <p>{@code contactRemainingSeconds}(S7) — 연결 중일 때 "끊어짐 전이까지 남은 초"(브라우저 rollover
+ * 재조회 예약 입력), 비연결이면 null. 기준 90초의 SSOT 는 조회 서비스다.</p>
  */
 public record GuestServerSummaryResponse(
         UUID id,
@@ -23,6 +25,7 @@ public record GuestServerSummaryResponse(
         IpAddressVO primaryIp,
         LocalDateTime createdAt,
         LocalDateTime lastSeenAt,
-        boolean contactActive
+        boolean contactActive,
+        Long contactRemainingSeconds
 ) {
 }
