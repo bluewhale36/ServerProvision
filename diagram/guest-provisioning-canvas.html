@@ -155,6 +155,7 @@
 //  DATA — 슬라이스 진행 시 여기만 갱신
 // ═══════════════════════════════════════════════════════════════════════════
 const CHANGELOG = [
+  'v4 (2026-07-19) — E1-1 진단 리눅스 부팅 체인 구현 완료(CP5) — 체인로드·자산 다운로드 흐름을 구현됨으로 갱신(실측 계약 반영: /assets 서빙·provision_base·시리얼 콘솔·실패 폴백·DIAGNOSTIC_BOOTING). V7 실측 결과 주기.',
   'v3 (2026-07-18) — E1-0b 게스트 프로토콜 v1 구현 완료(CP5) — dispatch·체크인·보고·토큰 흐름을 구현됨으로 갱신. dhcpd filename 수동 flip 만 배치 잔여.',
   'v2 (2026-07-18) — Step 밴드 구조로 재편(시간순·라벨 겹침 해소) + 우측 사이드바 상세(형식·내부 구조·예시 전문).',
   'v1 (2026-07-18) — 최초 작성.',
@@ -172,7 +173,7 @@ const LANES = {
 const BANDS = [
   { id:'infra', no:'①', title:'부팅 인프라', sub:'매 부팅 반복 — dhcpd·tftp (수동 구축분, 관리 UI 는 E1-I 예정)' },
   { id:'e1reg', no:'②', title:'등록 · 개시 대기', sub:'BOOTSTRAPPING — U1·E1-0a 구현 / 응답 스크립트는 E1-0b' },
-  { id:'e1diag', no:'③', title:'진단 리눅스', sub:'DIAGNOSE_LINUX — 프로토콜 E1-0b(구현 중) · 부팅 자산 E1-1 · 수집 E1-2' },
+  { id:'e1diag', no:'③', title:'진단 리눅스', sub:'DIAGNOSE_LINUX — 프로토콜 E1-0b · 부팅 자산 E1-1 (구현됨) · 수집 E1-2 (로드맵)' },
   { id:'e2', no:'④', title:'펌웨어 업데이트', sub:'FIRMWARE_UPDATING — E2 (가상 USB 선행 → Redfish 전환 목표)' },
   { id:'e3', no:'⑤', title:'BIOS · BMC 설정', sub:'FIRMWARE_SETTING — E3 · MGMT 통로 본격 사용' },
   { id:'e4', no:'⑥', title:'OS 설치 · 후처리', sub:'OS_INSTALLING · OS_SETTING — E4 · E5 (Kickstart 무인 설치)' },
@@ -203,7 +204,7 @@ const FLOWS = [
   desc:'펌웨어의 PXE 는 HTTP 를 모르는 원시적인 환경이라, 먼저 TFTP(느리지만 단순한 프로토콜)로 약 1MB 짜리 오픈소스 부트로더 iPXE(ipxe.efi — UEFI 실행 파일)를 받아 실행한다. iPXE 는 HTTP·변수·스크립트를 아는 훨씬 똑똑한 부트 환경이라, 이 시점부터 앱과 대화가 가능해진다.',
   blocks:[
     { cap:'전송물', code:'/var/lib/tftpboot/ipxe.efi\n· 정체 : iPXE 오픈소스 네트워크 부트로더 (x86_64 UEFI 빌드, ~1MB)\n· 역할 : HTTP 요청 · 커널 로드 · 스크립트 해석 능력을 갖춘 부트 환경으로 승격' } ],
-  fields:[['검증 항목 (E1-R V7)','이 ipxe.efi 빌드가 chain http:// 와 커널 인자 initrd= 를 지원하는지 — E1-1 T2 에서 확인']],
+  fields:[['검증 항목 (E1-R V7)','이 ipxe.efi 빌드가 chain http:// 와 커널 인자 initrd= 를 지원하는지 — T2 실측(2026-07-19): QEMU legacy BIOS iPXE ROM 은 스크립트 부트파일 실행 OK / OVMF(UEFI) 네이티브 PXE 는 텍스트 스크립트 실행 불가(랩은 BIOS 모드 사용). 실기 ipxe.efi 2단 체인은 T3 체크리스트로 이관']],
   effect:'게스트가 iPXE 환경이 되어 재DHCP → 앱 /boot 로 체인할 수 있게 된다.',
   basis:'수동 구축 인프라.' },
 
@@ -263,34 +264,35 @@ const FLOWS = [
   basis:'E1-0a 구현 완료 (CP5 검증됨).' },
 
 // ── ③ 진단 리눅스 ─────────────────────────────────────────────────────
-{ band:'e1diag', from:'server', to:'host', ch:'lan', st:'planned', slice:'E1-1',
+{ band:'e1diag', from:'server', to:'host', ch:'lan', st:'done', slice:'E1-1',
   lbl:'응답 — 진단 리눅스 체인로드 스크립트', ep:'200 text/plain (dispatch 7행)',
   kind:'iPXE 스크립트 — 커널 부팅 지시',
-  desc:'개시된 서버의 폴링에 DIAGNOSE_LINUX 실행기(E1-1)가 응답하는 스크립트다. Alpine Linux 공식 netboot 아티팩트를 그대로 쓰고(E1-R 확정 — 이미지 재빌드 없음), 커널 인자로 네 가지를 지시한다: 어디서 드라이버 모음(modloop)을 받을지, 어디서 설정 가방(apkovl)을 받을지, apk 저장소가 어디인지, 그리고 이 게스트의 신원 토큰. 게스트는 이 스크립트를 실행하는 순간 디스크를 전혀 건드리지 않는 RAM 상주 리눅스로 부팅한다.',
+  desc:'개시된 서버의 폴링에 DIAGNOSE_LINUX 실행기(DiagnoseLinuxExecutor — 첫 SPI 구현체)가 응답하는 스크립트다. Alpine Linux 공식 netboot 아티팩트를 그대로 쓰고(E1-R 확정 — 이미지 재빌드 없음), 커널 인자로 다섯 가지를 지시한다: 드라이버 모음(modloop) · 설정 가방(apkovl) · apk 저장소 위치, 이 게스트의 신원 토큰, 그리고 콜백 주소(provision_base). 모든 로드 명령에 실패 폴백이 붙어 자산 결손 · 단절에도 게스트가 죽지 않고 30초 뒤 /boot 재진입으로 복귀한다.',
   blocks:[
-    { cap:'스크립트 전문 (예상 형태)', code:
-'#!ipxe\nkernel http://192.168.1.10/diag/vmlinuz-lts \\\n  ip=dhcp modules=loop,squashfs \\\n  alpine_repo=http://192.168.1.10/diag/apks \\\n  modloop=http://192.168.1.10/diag/modloop-lts \\\n  apkovl=http://192.168.1.10/diag/diag.apkovl.tar.gz \\\n  provision_token=a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d \\\n  initrd=initramfs-lts\ninitrd http://192.168.1.10/diag/initramfs-lts\nboot' } ],
+    { cap:'스크립트 전문 (구현 — 가독을 위한 줄바꿈, 실제 kernel 행은 한 줄)', code:
+'#!ipxe\necho [provision] chainloading diagnose linux...\nkernel {base}/api/pxe/v1/assets/vmlinuz-lts ip=dhcp modules=loop,squashfs\n  console=tty0 console=ttyS0,115200\n  alpine_repo={base}/api/pxe/v1/assets/repo/main\n  modloop={base}/api/pxe/v1/assets/modloop-lts\n  apkovl={base}/api/pxe/v1/assets/diag.apkovl.tar.gz\n  provision_token=<32자> provision_base={base}\n  initrd=initramfs-lts || goto failed\ninitrd {base}/api/pxe/v1/assets/initramfs-lts || goto failed\nboot || goto failed\n:failed\necho [provision] chainload failed. retrying...\nsleep 30\nchain /api/pxe/v1/boot?{원본 쿼리}' } ],
   fields:[
-    ['ip=dhcp','initramfs 단계에서 다시 DHCP 로 IP 취득'],
-    ['modules=loop,squashfs','modloop(squashfs) 마운트에 필요한 모듈 선적재'],
-    ['apkovl=','부팅 시 자동 적용되는 설정 오버레이 — Alpine 공식 기능'],
-    ['provision_token=','게스트 신원 — 에이전트가 /proc/cmdline 에서 읽는다'],
-    ['initrd= (커널 인자에도)','UEFI 부팅에서 필요 — E1-R 조사 확인 사항'] ],
+    ['{base}','pxe.server.base-url — Alpine init 은 절대 URL 만 소비. 자산 서빙 주체를 외부 httpd 로 이관해도(E1-I 재판단) 이 설정 1줄만 바뀐다'],
+    ['provision_token= · provision_base=','게스트 신원 + 콜백 주소 — agent.sh 가 /proc/cmdline 에서 읽는다 (커널 인자 계약 SSOT)'],
+    ['console=ttyS0,115200','시리얼 콘솔 — T2 랩 관찰 · 실서버 SOL 겸용'],
+    ['initrd= (커널 인자에도)','UEFI 부팅 필수 — E1-R 확인 사항 반영'],
+    ['|| goto failed','자산 404 · 단절 시 재시도 루프 복귀 — UC-4 류 창을 관찰 가능한 재시도로'] ],
   effect:'게스트가 진단 리눅스로 부팅되어 에이전트가 기동한다.',
-  basis:'E1-1 (첫 ProvisioningPhaseExecutor 구현체) + E1-R 권고 1안 확정.' },
+  basis:'E1-1 구현 완료 (2026-07-19) — T2 QEMU 실부팅으로 체인로드→체크인→DIAGNOSTIC_BOOTING 원장까지 검증.' },
 
-{ band:'e1diag', from:'host', to:'server', ch:'lan', st:'planned', slice:'E1-1',
-  lbl:'부팅 자산 다운로드 — 6종 (~250MB)', ep:'GET /diag/* (HTTP 파일)',
-  kind:'파일 전송 (HTTP GET) — E1-I 가 관리할 시스템 자산',
-  desc:'체인로드 스크립트가 가리키는 파일들을 게스트가 차례로 받는다. 전부 Alpine 공식 배포본 그대로이고, 우리가 만드는 것은 수 KB 짜리 apkovl 가방과 에이전트 스크립트뿐이다. 에이전트 본체를 가방에 넣지 않고 부팅 후 다운로드하게 한 것은 — 에이전트를 수정할 때마다 가방을 다시 싸지 않고 파일 교체로 끝내기 위해서다(E1-R 확정).',
+{ band:'e1diag', from:'host', to:'server', ch:'lan', st:'done', slice:'E1-1',
+  lbl:'부팅 자산 다운로드 — 6종 (~250MB)', ep:'GET /api/pxe/v1/assets/** (resource handler)',
+  kind:'파일 전송 (HTTP GET) — 앱이 직접 서빙 (E1-I 에서 외부 httpd 이관 재판단)',
+  desc:'체인로드 스크립트가 가리키는 파일들을 게스트가 차례로 받는다. 전부 Alpine 공식 배포본 그대로이고, 우리가 만드는 것은 수 KB 짜리 apkovl 가방과 에이전트 스크립트뿐이다. 조립은 scripts/diag-image/build-assets.sh(git 추적 — 재현성의 SSOT)가 하고 산출물은 git 비추적($PXE_ASSETS_ROOT). 에이전트 본체를 가방에 넣지 않고 부팅 후 다운로드하게 한 것은 — 에이전트를 수정할 때마다 가방을 다시 싸지 않고 파일 교체로 끝내기 위해서다(E1-R 확정). T2 스모크가 잡아낸 3가지: ① 부분 저장소는 base 시스템 폐쇄(alpine-base+openssl 포함, 34개)를 담아야 한다 — netboot 는 base 자체를 여기서 설치 ② apkovl 이 있으면 Alpine init 이 기본 런레벨을 안 만든다 — 표준 런레벨 12링크를 가방이 가져가야 networking·firstboot 이 돈다 ③ Apple Silicon Docker 는 --platform linux/amd64 고정 필수.',
   blocks:[
-    { cap:'자산 6종과 정체', code:
-'vmlinuz-lts        13MB   리눅스 커널 (Alpine 공식)\ninitramfs-lts      25MB   초기 램디스크 (Alpine 공식)\nmodloop-lts       208MB   커널 모듈 모음 squashfs — ipmi_si·ipmi_devintf 포함\ndiag.apkovl.tar.gz 수KB   설정 가방 (우리 제작) — 아래 내부 구조\napks/              소량   부분 apk 저장소 — dmidecode·ipmitool + 의존성 + 서명 인덱스\nagent.sh           수KB   에이전트 본체 (bash/BusyBox ash 셸 스크립트)' },
-    { cap:'diag.apkovl.tar.gz 내부 (tar 루트 기준)', code:
-'etc/fstab                              ← 오버레이 적용 필수 파일\netc/apk/world                          ← "dmidecode ipmitool" — 부팅 시 자동 설치 목록\netc/apk/keys/provision.rsa.pub         ← 부분 저장소 서명 공개키\netc/init.d/provision-firstboot         ← OpenRC 스크립트: modprobe → agent.sh 다운로드·실행\netc/runlevels/default/provision-firstboot -> ../../init.d/provision-firstboot' } ],
-  fields:[['Alpine 업그레이드','위 3개(vmlinuz·initramfs·modloop)만 교체 — E1-I 의 "교체만 가능한 시스템 자산" 화면이 담당']],
-  effect:'RAM 상주 진단 리눅스 완성 — dmidecode·ipmitool 가용, 에이전트 기동.',
-  basis:'E1-R 종결 확정 (권고 1안 · 자산 6종). 부분 저장소 서명은 V5 검증 항목.' },
+    { cap:'자산 6종과 정체 (조립: build-assets.sh)', code:
+'vmlinuz-lts        13MB   리눅스 커널 (Alpine 공식)\ninitramfs-lts      25MB   초기 램디스크 (Alpine 공식)\nmodloop-lts       208MB   커널 모듈 모음 squashfs — ipmi_si·ipmi_devintf 포함\ndiag.apkovl.tar.gz 수KB   설정 가방 (우리 제작) — 아래 내부 구조\nrepo/main/x86_64/  ~20MB  부분 apk 저장소 — base 폐쇄+dmidecode+ipmitool+openssl\n                          34개 .apk + 자체 서명 APKINDEX (아키텍처 가드 내장)\nagent.sh           수KB   에이전트 본체 — 체크인·DIAGNOSTIC_BOOTING 보고·식별 배너·WAIT 폴링' },
+    { cap:'diag.apkovl.tar.gz 내부 (tar 루트 기준 — 구현)', code:
+'etc/fstab                        ← 오버레이 적용 필수 파일\netc/network/interfaces           ← lo + eth0 dhcp — networking 서비스가 재구성\netc/apk/world                    ← alpine-base·dmidecode·ipmitool (openssl 은 init 이 자동 추가)\netc/apk/keys/*.rsa.pub           ← 부분 저장소 서명 공개키\netc/init.d/firstboot             ← OpenRC: modprobe ipmi → agent.sh 다운로드·실행(출력→tty1)\netc/runlevels/                   ← 표준 런레벨 12링크 (sysinit: devfs·dmesg·mdev·hwdrivers /\n                                    boot: modloop·networking·hostname·bootmisc / default: firstboot)' } ],
+  fields:[['Alpine 업그레이드','위 3개(vmlinuz·initramfs·modloop)만 교체 — build-assets.sh 의 버전 변수 갱신 + 재조립. E1-I 의 자산 화면이 장기 담당'],
+    ['V5 실검증 (2026-07-19)','자체 키 서명 인덱스를 게스트 apk 가 신뢰 · 34개 설치 성공 — 유일한 설계 리스크 해소']],
+  effect:'RAM 상주 진단 리눅스 완성 — dmidecode·ipmitool 가용, 에이전트 기동, 콘솔 식별 배너(DEC-33) 표시.',
+  basis:'E1-1 구현 완료 (2026-07-19) — T2 QEMU 전 시퀀스 완주 (전원→에이전트 약 27초 실측).' },
 
 { band:'e1diag', from:'host', to:'server', ch:'lan', st:'done', slice:'E1-0b',
   lbl:'에이전트 체크인 → DIAGNOSE_LINUX 전이', ep:'POST /api/pxe/v1/agent/checkin',

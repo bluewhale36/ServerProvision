@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-1 Report — 진단 리눅스 부팅 체인</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.asset{background:var(--purple-bg);color:var(--purple);} .chip.fix{background:var(--red-bg);color:var(--red);}
+  .chip.ok{background:var(--green-bg);color:var(--green);} .chip.hold{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.active { background:var(--blue); color:#fff; }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .n-demo-btn.danger.active { background:var(--red); color:#fff; }
+  .console-view { font-family:var(--mono); font-size:12px; background:#0d1117; color:#c9d1d9; border-radius:6px; padding:12px 14px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; min-height:200px; max-height:400px; overflow-y:auto; }
+  .console-view .ok { color:#7ce38b; } .console-view .warn { color:#e3b341; } .console-view .err { color:#ff7b72; }
+  .console-view .banner { color:#79c0ff; font-weight:700; } .console-view .ts { color:#8b949e; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-1 Report — 진단 리눅스 부팅 체인 <span class="v2-badge">CP5 완료 · 2026-07-19</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-1 (feature + 실물 자산)</span>
+    <span><strong>상위</strong> E1 (DIAGNOSE_LINUX)</span>
+    <span><strong>검증 상한</strong> T2 (QEMU 가상 게스트 실부팅 완주)</span>
+    <span><strong>커밋</strong> 6267346 (feat) · 6c26cf8 (토론 종결)</span>
+    <span><strong>테스트</strong> 전체 1226건 통과 (신규 21건)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 무엇이 가능해졌나</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 실측 재연 (결함 재현 포함)</a></li>
+      <li><a href="#s2">§2 산출물 인벤토리</a></li>
+      <li><a href="#s3">§3 스모크 여정 — 결함 4건</a></li>
+      <li><a href="#s4">§4 검증 결과</a></li>
+      <li><a href="#s5">§5 게스트↔서버 계약 (부록)</a></li>
+      <li><a href="#s6">§6 잔존 책임 · 다음</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 무엇이 가능해졌나 — 운영자 관점 한살이</summary>
+      <div class="body">
+        <p style="margin-top:0;">E1-1 이전의 게스트는 개시 버튼을 눌러도 "미구현 단계(HOLD)" 안내만 30초마다 받으며 iPXE 화면에 머물렀다. E1-1 이후의 한살이는 이렇다:</p>
+        <ol>
+          <li><b>서버를 연결하고 켠다</b> — PXE 부팅 → 자동 등록(기존 U1) → 개시 대기.</li>
+          <li><b>목록에서 서버를 확인하고 [프로비저닝 개시]를 누른다</b> — 다음 폴링(최대 30초)에서 게스트가 <b>진단 리눅스 체인로드 스크립트</b>를 받는다.</li>
+          <li><b>게스트가 스스로 진단 리눅스로 부팅한다</b> — Alpine 커널·모듈·설정 가방·패키지(~250MB)를 서버에서 받아 디스크를 건드리지 않는 RAM 상주 리눅스가 뜬다. 소요 약 30초(QEMU 실측 — 실기는 하드웨어 POST 가 더해진다).</li>
+          <li><b>에이전트가 자동 기동해 보고한다</b> — 체크인으로 상세 페이지 배지가 '진단 리눅스' 로 바뀌고, 원장에 <code>DIAGNOSTIC_BOOTING → SUCCEEDED</code> 행이 남는다("체인로드를 줬다" 가 아니라 "진짜 부팅됐다" 는 게스트 사실 기록).</li>
+          <li><b>게스트 화면(모니터)에 식별 배너가 뜬다</b> — 서버명 · UUID 끝자리 · IP. 여러 대를 동시에 꽂아도 실물 섀시와 목록의 행을 즉시 매핑할 수 있다(UC-5 · DEC-33 — 유스케이스 토론에서 확정한 물리 식별 해법의 1차 구현).</li>
+          <li><b>여기서 대기한다</b> — 하드웨어 수집 지시는 E1-2 몫. 에이전트는 30초 주기 WAIT 폴링이 정상 종착이다.</li>
+        </ol>
+        <div class="callout success"><b>이 슬라이스의 의미</b> — E 로드맵에서 처음으로 <b>게스트가 진짜 운영체제로 살아났다</b>. 프로토콜(E1-0b)은 curl 모의였지만, 이제 실제 리눅스가 같은 API 를 밟는다. 그리고 그 검증을 물리 서버 없이 반복 가능한 QEMU 랩(T2)으로 해냈다 — 유스케이스 토론 §1(물리 의존성 구분)의 전략이 실증된 것이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 실측 재연 — 부팅 한살이 + 스모크가 잡은 결함 4건 재현</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래는 2026-07-19 T2 스모크의 <b>실측 타임라인 재연</b>이다. 시나리오를 고르고 ▶ 재생을 누르면 게스트 콘솔과 서버 로그가 시간순으로 흐른다. <b>결함 시나리오</b>를 고르면 개발 중 실제로 부딪힌 그 지점에서 그 증상 그대로 멈춘다 — 왜 그랬는지 설명이 함께 뜬다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn active" id="sc-ok" onclick="pick('ok')">정상 완주 (최종형)</button>
+            <button class="n-demo-btn danger" id="sc-arch" onclick="pick('arch')">결함① aarch64 혼입</button>
+            <button class="n-demo-btn danger" id="sc-ssl" onclick="pick('ssl')">결함② openssl 누락</button>
+            <button class="n-demo-btn danger" id="sc-rl" onclick="pick('rl')">결함③ 런레벨 누락</button>
+            <button class="n-demo-btn danger" id="sc-enum" onclick="pick('enum')">결함④ ENUM 미확장</button>
+          </div>
+          <div class="ux-toolbar">
+            <button class="n-demo-btn" onclick="play()">▶ 재생</button>
+            <button class="n-demo-btn" style="border-color:var(--text-muted);color:var(--text-muted);" onclick="stopPlay(true)">⟲ 리셋</button>
+          </div>
+          <div class="console-view" id="rp-console"><span class="ts"># 시나리오 선택 후 ▶ 재생</span></div>
+          <div class="ux-message" id="rp-message">정상 완주는 전원 인가부터 배너까지 약 30초의 실측 흐름이다.</div>
+        </div>
+        <div class="callout"><b>재연의 근거</b> — 타임스탬프와 로그 문구는 실제 서버 로그(bootRun)·게스트 시리얼 캡처에서 가져왔다. 결함 시나리오의 증상(응급 셸 · Exec format error · 500)도 실측 그대로다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2">
+      <summary>§2. 산출물 인벤토리</summary>
+      <div class="body">
+        <h4>흐름 로직 (앱)</h4>
+        <table>
+          <thead><tr><th>산출물</th><th>역할</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>진단 리눅스 실행기 (<code>DiagnoseLinuxExecutor</code>)</td><td>첫 phase 실행기 — 체인로드 스크립트 조립(자산 URL · 토큰 · 콜백 주소 · 실패 폴백). <b>빈 등록만으로 dispatch 6행 HOLD→7행 위임 전환</b> — E1-0b 의 "분기 추가 없는 확장" 설계가 실증됐다</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>자산 서빙 (<code>/api/pxe/v1/assets/**</code>)</td><td>Spring resource handler 로 부팅 자산 정적 서빙. <code>pxe.assets.root</code> 미설정 환경은 실행기·서빙이 통째로 비활성(기존 HOLD 유지 — 끄는 스위치 겸용), 반쪽 설정은 기동 거부</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>부팅 마일스톤 step (<code>DIAGNOSTIC_BOOTING</code>)</td><td>원장에서 "체인로드를 줬다"(서버 관점)와 "진짜 부팅됐다"(게스트 사실)를 구분 — DB ENUM 확장 DDL 동반</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>체크인 응답 서버명</td><td>콘솔 식별 배너(DEC-33)의 서버측 정보 운반로 — JSON 이라 한글·공백 안전</td><td><span class="chip mod">확장</span></td></tr>
+          </tbody>
+        </table>
+        <h4>실물 자산 + 검증 인프라 (git 추적 = 조립 스크립트·랩, 비추적 = 대용량 산출물)</h4>
+        <table>
+          <thead><tr><th>산출물</th><th>역할</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>자산 조립 파이프라인 (<code>scripts/diag-image/</code>)</td><td>진단 리눅스 자산 6종을 재현 가능하게 조립 — ① Alpine 공식 netboot 3종 다운로드(버전 고정) ② Docker 로 부분 apk 저장소 조립(base 폐쇄 34개 + 자체 서명 + <b>아키텍처 가드</b>) ③ apkovl 가방(표준 런레벨 12링크 · 네트워크 설정 · 서명 공개키 · firstboot) + agent.sh 배치</td><td><span class="chip asset">자산</span></td></tr>
+            <tr><td>진단 에이전트 v1 (<code>agent.sh</code>)</td><td>커널 인자에서 토큰·콜백 주소 파싱 → 체크인 → DIAGNOSTIC_BOOTING 보고 → <b>식별 배너</b> → WAIT 폴링. BusyBox 만으로 동작(추가 의존성 0)</td><td><span class="chip asset">자산</span></td></tr>
+            <tr><td>QEMU 랩 (<code>scripts/pxe-lab/</code>)</td><td>T2 실행 환경 — QEMU 내장 DHCP/TFTP 로 <b>실 dhcpd·tftp 없이</b> 부팅 체인 전체 재현. UUID 파생 MAC(동시 다대 안전) · HEADLESS · 시리얼 캡처 · BIOS/UEFI 선택. CP5 와 이후 E 슬라이스의 반복 검증 자산</td><td><span class="chip asset">자산</span></td></tr>
+            <tr><td>T3 체크리스트 (<code>docs/T3-checklist.md</code>)</td><td>물리 서버 확보 시 몰아서 확인할 항목 적립처(Q-C·DEC-35 이행) — V3·V8·flash·Redfish·전원 제어 3종 초기 등재</td><td><span class="chip asset">자산</span></td></tr>
+            <tr><td>DDL (<code>ddl/E1-1_diagnostic_booting_step.sql</code>)</td><td>setup_step.step_code ENUM 확장 — 적용·검증 완료</td><td><span class="chip new">신규</span></td></tr>
+          </tbody>
+        </table>
+        <h4>문서 (같은 날 종결된 토론 포함)</h4>
+        <ul>
+          <li><b>유스케이스 토론 종결</b> — DEC-29(회차 모델) · DEC-30(재투입) · DEC-31(중단) · DEC-32(접촉 관찰성) · DEC-33(식별 배너) · DEC-34(BMC 만 skip, BIOS 무조건 재-flash) · DEC-35(T3 적립) 확정 + OPEN-1(RAID) · OPEN-2(NIC 교체) 등재.</li>
+          <li><b>통신 다이어그램 v4</b> — 체인로드·자산 다운로드 흐름을 '구현됨' + 실측 계약으로 갱신 (living document).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 스모크 여정 — 8번의 부팅이 잡아낸 결함 4건</summary>
+      <div class="body">
+        <p style="margin-top:0;">T0(계약 테스트)·T1(curl 하네스)은 처음부터 전부 통과했다. 그런데 <b>진짜 리눅스를 부팅시키자 네 겹의 결함이 차례로 드러났다</b> — 전부 문서·조사로는 알 수 없고 실부팅으로만 잡히는 종류다. T2 랩을 정식 자산으로 만든 판단(Q-B)의 근거가 이 표다.</p>
+        <table>
+          <thead><tr><th>#</th><th>증상 (실측)</th><th>원인</th><th>교정 (조립 파이프라인에 각인)</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip fix">①</span></td><td>모든 유지 스크립트 exit 127 → <code>/sbin/init</code> 부재 → 응급 셸. 응급 셸에서 <code>Exec format error</code> + <code>ld-musl-aarch64.so.1</code> 발견</td><td>Apple Silicon 의 Docker 가 arm64 alpine 이미지를 선택 → <code>apk fetch</code> 가 aarch64 패키지를 수집. 인덱스의 <code>--rewrite-arch</code> 가 불일치를 은폐</td><td><code>--platform linux/amd64</code> 고정 + <b>APKINDEX 아키텍처 검증 가드</b>(이종 혼입 시 조립 자체가 실패)</td></tr>
+            <tr><td><span class="chip fix">②</span></td><td>world 설치 실패 — <code>openssl (no such package)</code></td><td>Alpine init 이 apkovl 을 URL 로 받으면 world 에 <b>openssl 을 스스로 추가</b>한다 — 부분 저장소에 없으면 트랜잭션 전체가 실패하고 busybox 심링크 팜(=/sbin/init)이 안 생긴다</td><td>fetch 목록에 openssl 동봉 (34개)</td></tr>
+            <tr><td><span class="chip fix">③</span></td><td>패키지 설치까지 성공했는데 modloop·agent.sh 요청이 영영 안 옴 — OpenRC 단계 침묵</td><td>apkovl 이 존재하면 Alpine init 은 <b>기본 런레벨 구성을 만들지 않는다</b>(오버레이가 가져온다고 가정) — networking 서비스가 어느 런레벨에도 없어 firstboot 의 <code>need net</code> 이 영구 미충족</td><td>apkovl 에 표준 런레벨 12링크(sysinit 4 · boot 4 · default 1) + <code>etc/network/interfaces</code> 동봉</td></tr>
+            <tr><td><span class="chip fix">④</span></td><td>에이전트의 step 보고가 500 — <code>Data truncated for column 'step_code'</code></td><td>Java enum 에 DIAGNOSTIC_BOOTING 을 추가했지만 <b>DB 컬럼이 ENUM 타입</b>이라 값 목록 확장 DDL 이 필요했다 — plan 의 "스키마 변경 0" 판단 오류(validate 모드는 타입 호환만 봐서 기동 시엔 안 잡힘)</td><td>DDL 산출·적용 + plan 정정 주석. 이후 enum 상수 추가 시 ENUM DDL 동반을 관례로</td></tr>
+          </tbody>
+        </table>
+        <p>디버깅 수단도 자산이 됐다: <b>시리얼 콘솔</b>(커널 인자 <code>console=ttyS0</code> + 랩의 캡처 옵션 — 실서버 SOL 겸용)과 <b>응급 셸 원격 조작</b>(시리얼을 유닉스 소켓으로 물려 게스트 내부를 직접 검사)이 이번 원인 규명의 결정타였다.</p>
+        <div class="callout warn"><b>부수 발견 (CP5 중)</b> — QEMU 기본 MAC(52:54:00:12:34:56)이 모든 게스트 공통이라 두 번째 게스트부터 host_mac UNIQUE 충돌 → UUID 파생 MAC 으로 교정. 이때 등록 실패가 게스트를 죽이지 않고 <b>200+재시도 스크립트</b>(E1-0b 예외 변환)로 흡수되는 것이 실게스트 경로에서 확인됐다 — 안전망 설계의 실증.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 검증 결과</summary>
+      <div class="body">
+        <h4>E1-R 잔여 검증 (V) — 이 슬라이스에서 소화한 것</h4>
+        <table>
+          <thead><tr><th>ID</th><th>항목</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>V2</td><td>netboot 실효 RAM</td><td><span class="chip ok">부분</span> 2GB 성공 확인 (하한 탐색은 생략 — 실기 유휴 RAM 이 충분해 실익 없음)</td></tr>
+            <tr><td>V4</td><td>BusyBox wget 가용</td><td><span class="chip ok">성공</span> 다운로드·JSON POST(--header/--post-data) 전부 BusyBox 만으로</td></tr>
+            <tr><td>V5</td><td>부분 저장소 서명 E2E</td><td><span class="chip ok">성공</span> 자체 키 서명 인덱스를 게스트 apk 가 신뢰 · 34개 설치 — <b>유일한 설계 리스크 해소</b> (전체 미러 후퇴 불필요)</td></tr>
+            <tr><td>V6</td><td>apkovl 비 /etc 경로</td><td><span class="chip hold">해당 없음</span> 설계상 불필요해짐 (에이전트는 HTTP 배포 — 가방은 /etc 만)</td></tr>
+            <tr><td>V7</td><td>iPXE 스크립트 호환</td><td><span class="chip ok">실측</span> QEMU legacy BIOS iPXE ROM = 실행 OK / OVMF(UEFI) 네이티브 PXE = 텍스트 스크립트 실행 불가 → <b>랩은 BIOS 모드가 정답</b>. 실기 UEFI(dhcpd→tftp ipxe.efi 2단 체인은 구조가 다름)는 T3 체크리스트로</td></tr>
+            <tr><td>V9</td><td>macOS TCG 소요</td><td><span class="chip ok">실측</span> 전원→에이전트 약 <b>27초</b> (우려했던 수 분대 아님 — 자산이 전부 로컬 HTTP 라 I/O 지배)</td></tr>
+          </tbody>
+        </table>
+        <h4>T2 완주 증적 (최종 부팅, 서버 로그·DB 원장 기준)</h4>
+        <pre><code>04:08:23  전원 인가 (QEMU legacy BIOS · TCG)
+04:08:50  modloop-lts 수신          ← boot 런레벨(modloop 서비스) 가동 증거
+04:08:55  agent.sh 수신             ← networking·firstboot 성립 증거
+04:08:55  POST /agent/checkin 200   → "게스트 첫 체크인 — 진단 진입" (커서 DIAGNOSE_LINUX)
+04:08:56  POST /agent/steps 201 → close 200
+          → 원장: DIAGNOSTIC_BOOTING RUNNING→SUCCEEDED (94ms)
+이후      30초 주기 WAIT 폴링 = E1-1 의 설계된 종착</code></pre>
+        <h4>테스트 (T0)</h4>
+        <ul>
+          <li>전체 <b>1226건 통과</b> (기존 회귀 포함). 신규 21건 — 체인로드 바디 전체 계약(HTTP) · 자산 서빙 200/404/경로 이탈 · 속성 조건부 활성(미설정=HOLD 유지) · 기동 fail-fast · 스크립트 조립 단위 · serverName · 신규 stepCode 역직렬화.</li>
+          <li>CP5(사용자): QEMU 창 관찰 — 식별 배너 + 상세 페이지 진단 배지·원장 확인 완료.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 게스트↔서버 계약 (부록 — 기술 상세)</summary>
+      <div class="body">
+        <h4>커널 인자 계약 (DiagnoseLinuxExecutor ↔ agent.sh 의 SSOT)</h4>
+        <pre><code>provision_token=&lt;32자&gt;    에이전트 인증 — X-Guest-Token 으로 회신
+provision_base=&lt;URL&gt;      서버 콜백 주소 (체크인 · step 보고 · agent.sh 재다운로드)
+alpine_repo / modloop / apkovl   Alpine 공식 — 전부 base-url 절대 URL (Alpine init 은 상대 해석 없음)
+console=tty0 console=ttyS0,115200   모니터(배너) + 시리얼(관찰·SOL) 겸용
+initrd=initramfs-lts      EFI 부팅 필수 중복 명기 (E1-R §1)</code></pre>
+        <h4>자산 트리 (서빙 루트 $PXE_ASSETS_ROOT — git 비추적 산출물)</h4>
+        <div class="pkg-tree">vmlinuz-lts (13MB) · initramfs-lts (25MB) · modloop-lts (208MB)   ← Alpine 공식, 업그레이드 시 교체
+diag.apkovl.tar.gz (수KB)   ← 설정 가방: fstab · network/interfaces · apk world ·
+                              서명 공개키 · firstboot · 표준 런레벨 12링크
+repo/main/x86_64/ (~20MB)   ← base 폐쇄 + dmidecode + ipmitool + openssl = 34개 .apk
+                              + 자체 서명 APKINDEX (조립 시 아키텍처 가드)
+agent.sh (수KB)             ← 가방 밖 — 수정 = 파일 교체만 (재조립 불요)</div>
+        <h4>실행 환경 주입 (신규 2종 — 나머지는 기존과 동일)</h4>
+        <pre><code>PXE_ASSETS_ROOT=/opt/provisioning/pxe-assets    # 있으면 실행기·서빙 활성, 빼면 HOLD (스위치 겸용)
+PXE_SERVER_BASE_URL=http://10.0.2.2:7777        # 게스트 관점 주소 (QEMU 랩) — 실배포 시 격리망 IP</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 잔존 책임 · 다음 마일스톤</summary>
+      <div class="body">
+        <h4>잔존 책임 (정직 기록)</h4>
+        <ul>
+          <li><b>부팅까지만 열렸다</b> — 수집(dmidecode 파싱·적재) · 완주 판정(completedAt) · 운영자 수동 FAILED/재시도는 E1-2. 게스트의 WAIT 폴링이 이 슬라이스의 정상 종착.</li>
+          <li><b>T3 유보 잔존</b> — 실보드 ipmi 모듈(V3) · dmidecode placeholder(V8) · 실 NIC 드라이버 · 실기 iPXE 거동 — 전부 <code>docs/T3-checklist.md</code> 적립.</li>
+          <li><b>스모크 잔여물</b> — QEMU 게스트 2대(스모크 ...5002 · CP5 사용자분)가 DB 에 남음. 처분은 사용자 지시로.</li>
+          <li><b>조립 전제</b> — repo 단계는 Docker 필요(단계 분리로 우회 가능), 재조립은 인터넷 필요(서빙은 불요).</li>
+        </ul>
+        <h4>다음</h4>
+        <ol>
+          <li><b>E1-2 — 수집·적재·완주·관찰성</b>: agent.sh 수집 함수 + hardwareSpec 파싱·적재 + placeholder 필터 + 완주 판정 + 접촉 시각(DEC-32) + 수동 FAILED/재시도. 진단 phase 가 처음으로 끝까지 돈다.</li>
+          <li><b>로드맵 정렬(사용자와)</b>: 회차 모델(DEC-29)·재투입(DEC-30)·중단(DEC-31) 슬라이스 위치(U3 전후 권고) + OPEN-1(RAID, E4 전 조사)·OPEN-2(NIC 교체) 배정.</li>
+          <li><b>E1-I</b>: dhcpd·tftp 자산 관리 + 진단 이미지 자산 화면 + 자산 서빙 주체 재판단.</li>
+        </ol>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      d.style.display = d.textContent.toLowerCase().includes(q) ? '' : 'none';
+      if (d.style.display === '') d.open = true;
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎬 실측 재연 — 타임라인은 실제 스모크 로그(서버 bootRun · 게스트 시리얼) 기준
+  // 결함 시나리오는 개발 중 실제 증상 지점에서 실제 메시지로 정지한다.
+  // ─────────────────────────────────────────────────────────────
+  const COMMON_HEAD = [
+    ['00.0','', 'QEMU 전원 인가 (legacy BIOS · TCG) → iPXE ROM → 내장 DHCP/TFTP → boot.ipxe'],
+    ['02.1','', 'iPXE> chain http://10.0.2.2:7779/api/pxe/v1/boot?systemUUID=${uuid}&mac=…'],
+    ['02.3','ok','서버: dispatch 7행 위임 — DiagnoseLinuxExecutor 체인로드 스크립트 응답 (200 text/plain)'],
+    ['03.0','ok','iPXE> kernel …/assets/vmlinuz-lts ok · initrd …/assets/initramfs-lts ok · boot'],
+    ['09.5','ok','alpine-init: DHCP ok → apkovl 적용 ok'],
+  ];
+  const SCEN = {
+    ok: { name:'정상 완주 (최종형)', lines: COMMON_HEAD.concat([
+      ['10.2','ok','alpine-init: 부분 저장소(자체 서명 · x86_64 34개)에서 world 설치 — busybox 트리거 ok → /sbin/init 생성'],
+      ['11.0','','switch_root → OpenRC: sysinit(devfs·mdev…) → boot(networking · modloop 208MB 수신) → default(firstboot)'],
+      ['27.3','ok','firstboot: modprobe ipmi → wget …/assets/agent.sh → 실행'],
+      ['27.6','ok','agent: POST /agent/checkin → 200 {directive:WAIT, serverName:…} — 서버: "게스트 첫 체크인 — 진단 진입"'],
+      ['27.9','ok','agent: POST /agent/steps {DIAGNOSTIC_BOOTING} → 201 → close(SUCCEEDED) → 200 — 원장 94ms 왕복'],
+      ['28.1','banner','┌──────────────────────────────┐'],
+      ['28.1','banner','│  PROVISION GUEST             │'],
+      ['28.1','banner','│  name : (서버명)  uuid : …5002  ip : 10.0.2.15'],
+      ['28.1','banner','└──────────────────────────────┘'],
+      ['28.2','','agent: WAIT 폴링(30초 주기) — E1-1 의 정상 종착. 수집 지시는 E1-2 부터.'],
+    ]), msg:['success','✓ 실측 27~28초 완주 — 상세 페이지: 배지 [진단 리눅스] + 원장 DIAGNOSTIC_BOOTING SUCCEEDED.'] },
+    arch: { name:'결함① aarch64 혼입', lines: COMMON_HEAD.concat([
+      ['10.2','err','alpine-init: world 설치 중 — busybox-1.37.0 post-install: exit 127 · alpine-baselayout pre-install: 127 · trigger: 127 (3 errors)'],
+      ['10.9','err','/sbin/init not found in new root. Launching emergency recovery shell'],
+      ['  — ','err','응급 셸 검시: chroot /sysroot /bin/sh → "Exec format error" · /sysroot/lib/ld-musl-aarch64.so.1 (!!)'],
+    ]), msg:['error','✗ Apple Silicon Docker 가 arm64 이미지로 aarch64 패키지를 조립 — x86 게스트에서 전 스크립트 실행 불가. 교정: --platform linux/amd64 고정 + APKINDEX 아키텍처 가드.'] },
+    ssl: { name:'결함② openssl 누락', lines: COMMON_HEAD.concat([
+      ['10.2','err','alpine-init: apk — ERROR: unable to select packages: openssl (no such package) required by: world[openssl]'],
+      ['10.4','err','world 트랜잭션 실패 → busybox 심링크 트리거 미실행 → /sbin/init 부재 → 응급 셸'],
+      ['  — ','warn','원인: Alpine init 은 apkovl 을 URL 로 받으면 world 에 openssl 을 스스로 추가한다 — 우리 world 파일엔 없던 항목.'],
+    ]), msg:['error','✗ 부분 저장소가 init 의 자동 추가분까지 담아야 한다. 교정: openssl 동봉 (34개).'] },
+    rl: { name:'결함③ 런레벨 누락', lines: COMMON_HEAD.concat([
+      ['10.2','ok','alpine-init: world 설치 ok → /sbin/init 생성 → switch_root'],
+      ['11.0','warn','OpenRC 기동… (이후 서버 로그 영구 침묵 — modloop 도 agent.sh 도 요청되지 않음)'],
+      ['  — ','warn','원인: apkovl 이 있으면 Alpine init 이 기본 런레벨을 만들지 않는다 — networking 이 어느 런레벨에도 없어 firstboot 의 need net 이 영구 미충족.'],
+    ]), msg:['error','✗ 가방이 런레벨 구성을 통째로 책임진다. 교정: 표준 12링크(sysinit 4·boot 4·default 1) + network/interfaces 동봉.'] },
+    'enum': { name:'결함④ ENUM 미확장', lines: COMMON_HEAD.concat([
+      ['10.2','ok','(부팅 전 구간 정상 — 결함①②③ 교정 후)'],
+      ['27.6','ok','agent: POST /agent/checkin → 200 — 진단 진입'],
+      ['27.9','err','agent: POST /agent/steps {DIAGNOSTIC_BOOTING} → 500 — 서버: Data truncated for column \'step_code\''],
+      ['  — ','warn','원인: setup_step.step_code 가 DB ENUM — Java enum 상수 추가만으로는 부족, 값 목록 확장 DDL 필요 (validate 모드는 타입 호환만 검사해 기동 시 미탐지).'],
+    ]), msg:['error','✗ plan 의 "스키마 변경 0" 정정 지점. 교정: ddl/E1-1_diagnostic_booting_step.sql 적용 — 에이전트는 죽지 않고 배너·폴링 계속(보고만 유실).'] },
+  };
+  let cur = 'ok', timer = null;
+  function pick(k) {
+    cur = k;
+    document.querySelectorAll('.ux-toolbar .n-demo-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('sc-' + (k === 'enum' ? 'enum' : k)).classList.add('active');
+    stopPlay(true);
+    document.getElementById('rp-message').className = 'ux-message';
+    document.getElementById('rp-message').textContent = SCEN[k].name + ' — ▶ 재생을 누르면 타임라인이 흐른다.';
+  }
+  function stopPlay(clear) {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (clear) document.getElementById('rp-console').innerHTML = '<span class="ts"># 시나리오 선택 후 ▶ 재생</span>';
+  }
+  function play() {
+    stopPlay(true);
+    const cv = document.getElementById('rp-console');
+    cv.innerHTML = '';
+    const lines = SCEN[cur].lines;
+    let i = 0;
+    timer = setInterval(() => {
+      if (i >= lines.length) {
+        stopPlay(false);
+        const [k, t] = SCEN[cur].msg;
+        const m = document.getElementById('rp-message');
+        m.className = 'ux-message ' + k; m.textContent = t;
+        return;
+      }
+      const [ts, cls, text] = lines[i++];
+      const esc = text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      cv.innerHTML += '<span class="ts">[T+' + ts + 's]</span> <span class="' + cls + '">' + esc + '</span>\n';
+      cv.scrollTop = cv.scrollHeight;
+    }, 420);
+  }
+</script>
+</body>
+</html>
