@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MA·MK·S·R 전수 점검 — 에러·예상외 동작 취합 보고서</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:"▸"; color:var(--text-muted); transition:transform .15s; }
+  details.section[open] > summary::before { transform:rotate(90deg); }
+  .section-body { padding:0 20px 18px; border-top:1px solid var(--border-soft); }
+  h3 { font-size:14px; margin:20px 0 8px; }
+  h4 { font-size:13px; margin:16px 0 6px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; margin:10px 0; }
+  th, td { border:1px solid var(--border-soft); padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; white-space:nowrap; }
+  code { font-family:var(--mono); font-size:12px; background:var(--bg); border:1px solid var(--border-soft); border-radius:4px; padding:1px 5px; word-break:break-all; }
+  pre { font-family:var(--mono); font-size:12px; background:#0d1117; color:#e6edf3; border-radius:8px; padding:14px 16px; overflow-x:auto; line-height:1.5; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .b-red { background:var(--red-bg); color:var(--red); }
+  .b-orange { background:var(--orange-bg); color:var(--orange); }
+  .b-yellow { background:var(--yellow-bg); color:var(--yellow); }
+  .b-green { background:var(--green-bg); color:var(--green); }
+  .b-blue { background:var(--blue-bg); color:var(--blue); }
+  .b-purple { background:var(--purple-bg); color:var(--purple); }
+  .callout { border-left:4px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:12px 0; }
+  .callout.warn { border-color:var(--orange); background:var(--orange-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .finding { border:1px solid var(--border); border-radius:8px; margin:14px 0; overflow:hidden; }
+  .finding-head { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg); border-bottom:1px solid var(--border-soft); font-weight:600; flex-wrap:wrap; }
+  .finding-body { padding:4px 16px 14px; }
+  ul { margin:6px 0; padding-left:22px; }
+  li { margin:3px 0; }
+  .check-list label { display:flex; gap:8px; align-items:flex-start; padding:5px 8px; border-radius:5px; cursor:pointer; }
+  .check-list label:hover { background:var(--bg); }
+  .check-list input { margin-top:4px; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>MA·MK·S·R 전수 점검 — 에러·예상외 동작 취합 보고서</h1>
+  <div class="meta">
+    <span>일시 <strong>2026-07-19 15:12 ~ 16:12 (KST)</strong></span>
+    <span>수행 <strong>Claude (격리 샌드박스 · 브라우저 자동화 + curl 프로토콜 재연 + DB/FS/로그 3계층 교차검증)</strong></span>
+    <span>환경 <strong>bootRun :7788 · Docker MariaDB 11.4 :3307 · 격리 storage (ddl-auto=update)</strong></span>
+    <span>동반 산출물 <strong>full-sweep-journal_report.html (상세 일지·스크린샷 증거)</strong></span>
+  </div>
+</header>
+<div class="layout">
+<nav class="toc">
+  <strong>목차</strong>
+  <ol id="tocList">
+    <li><a href="#s1">1. 요약 — 결과 한눈에</a></li>
+    <li><a href="#s2">2. 결함 상세 (F-1 ~ F-7)</a></li>
+    <li><a href="#s3">3. 설계 특성 관찰 (결함 아님 · 확인 질문)</a></li>
+    <li><a href="#s4">4. 환경 이벤트 (앱 무관)</a></li>
+    <li><a href="#s5">5. 커버리지와 미검증 잔여</a></li>
+    <li><a href="#s6">6. 권고 정리 (우선순위)</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="btnExpand">전부 펴기</button>
+    <button id="btnCollapse">전부 접기</button>
+  </div>
+</nav>
+<main>
+<input class="filter-box" id="filterBox" placeholder="검색 — 예: 연장, 500, 모달, PATH_DRIFT ...">
+
+<details class="section" id="s1" open>
+<summary>1. 요약 — 결과 한눈에</summary>
+<div class="section-body">
+<p>MA(자원 관리)·MK(휴지통/정합화)·S(보안·격리·잡 인프라)·R(리팩토링으로 정착된 UI 차단·가드 체계)이 만든 기능 표면 전체를 사용자 조작 관점으로 훑었다.
+방식은 세 갈래를 병행했다: ① 실제 Chrome 을 자동화해 화면을 사람처럼 클릭·입력, ② 화면 JS 가 쓰는 것과 동일한 HTTP 프로토콜(intent 핸드셰이크·multipart·form POST)을 curl 로 재연, ③ 각 액션 직후 DB 행·디스크 파일·서버 로그를 대조해 화면 표시와 실제 상태의 불일치를 잡았다.</p>
+<table>
+  <tr><th>도메인</th><th>검증 케이스</th><th>PASS</th><th>FAIL</th><th>관찰/질문</th></tr>
+  <tr><td>A. Management/OS + ISO</td><td>12</td><td>11</td><td>0 <span class="badge b-yellow">직접 POST 한정 2</span></td><td>2</td></tr>
+  <tr><td>B. Board/BIOS/BMC/Subprogram</td><td>7</td><td>7</td><td>0</td><td>2</td></tr>
+  <tr><td>C. Trash 휴지통</td><td>6</td><td>4</td><td><span class="badge b-red">1 (연장 500)</span></td><td>2</td></tr>
+  <tr><td>D. Reconciliation 드리프트</td><td>10 시나리오 중 7 재현</td><td>7</td><td>0</td><td>3</td></tr>
+  <tr><td>E. Quarantine·잡·보안 가드</td><td>6</td><td>6</td><td>0</td><td>1</td></tr>
+  <tr><td>F. 스모크 + 로그 전수(2,149줄)</td><td>ERROR/WARN 전 계열 원인 규명</td><td>—</td><td>—</td><td>미규명 잔여 0</td></tr>
+</table>
+<h3>결함 총괄</h3>
+<table>
+  <tr><th>ID</th><th>한 줄 요약</th><th>심각도</th><th>정상 UX 로 노출되는가</th></tr>
+  <tr><td><a href="#f1">F-1</a></td><td>휴지통 "+30일 연장"이 메타 자원(OS 버전·보드 모델)에서 비라우팅 <b>500</b> — UI 는 버튼을 활성 노출</td><td><span class="badge b-red">높음</span></td><td><b>예</b> — 버튼 클릭만으로 발생</td></tr>
+  <tr><td><a href="#f2">F-2</a></td><td>연장 확인 모달의 제목·확정 버튼이 "<b>Deprecated 표시</b>"로 오표기</td><td><span class="badge b-orange">중간</span></td><td><b>예</b></td></tr>
+  <tr><td><a href="#f3">F-3</a></td><td>XHR 실패 시 오류 모달에 <b>HTML 에러 페이지 원문</b>이 그대로 덤프 (JSON/HTML 협상 불일치)</td><td><span class="badge b-orange">중간</span></td><td><b>예</b> — F-1 발생 시 함께 보임</td></tr>
+  <tr><td><a href="#f4">F-4</a></td><td>ISO 등록에 디렉토리 경로+파일 첨부 direct POST → <b>500</b> (입력성 오류의 INFRA 매핑)</td><td><span class="badge b-yellow">낮음~중간</span></td><td>아니오 — direct POST 한정</td></tr>
+  <tr><td><a href="#f5">F-5</a></td><td>checkbox 마커 없는 direct POST 의 바인딩 실패가 <b>오류 무표시 silent 200</b> 재렌더</td><td><span class="badge b-yellow">낮음</span></td><td>아니오 — direct POST 한정</td></tr>
+  <tr><td><a href="#f6">F-6</a></td><td>ISO 설명 길이 미검증 → DB 제약(1406)까지 전파, DB_CONSTRAINT 격리로 처리</td><td><span class="badge b-yellow">낮음~중간</span></td><td><b>예</b> — 1024자 초과 입력 시</td></tr>
+  <tr><td><a href="#f7">F-7</a></td><td>휴지통 리네임이 디렉토리명 점(.)을 확장자 취급 — "v1.10" → "v1_&lt;ts&gt;_&lt;hash&gt;.10"</td><td><span class="badge b-yellow">낮음</span></td><td>예 — 표기 혼란만, 기능 영향 없음</td></tr>
+</table>
+<div class="callout"><b>전체 판정.</b> 코어 플로우(등록 → 업로드/마커 발급 → lifecycle 토글·cascade → soft-delete/복원 → typed-name 영구삭제 → 드리프트 탐지·해결 → 격리 회수)는 UI·DB·파일시스템 3계층이 전부 일관되게 맞물려 돌았고, 보안 가드(zip bomb·경로 이탈·traversal·forging·부모-자식 409)도 전건 설계대로 차단했다. 발견 결함 중 정상 사용자 경로에서 즉시 체감되는 것은 <b>F-1/F-2/F-3 묶음(휴지통 연장)</b> 하나로 수렴한다 — 세 결함이 한 클릭 흐름에서 연쇄로 나타난다.</div>
+</div>
+</details>
+
+<details class="section" id="s2" open>
+<summary>2. 결함 상세 (F-1 ~ F-7)</summary>
+<div class="section-body">
+
+<div class="finding" id="f1">
+<div class="finding-head"><span class="badge b-red">F-1 · 높음</span> 휴지통 "+30일 연장" — 메타 자원에서 비라우팅 500 + UI 버튼 활성 노출</div>
+<div class="finding-body">
+<h4>증상</h4>
+<p>휴지통에 OS 버전(OS_IMAGE) 행이 있을 때 "+30일 연장" 버튼이 활성 상태로 노출된다. 확정하면 서버가 500 을 반환하고 TTL 은 연장되지 않는다. 사용자에게는 F-3 의 깨진 오류 모달이 보인다.</p>
+<h4>재현</h4>
+<ul>
+<li>OS 버전 하나를 삭제해 휴지통으로 보낸다 → 휴지통에서 해당 행의 "+30일 연장" 클릭 → (오표기된 F-2 모달) 확정.</li>
+<li>curl 재현: <code>POST /maintenance/trash/OS_IMAGE/{id}/extend</code> → HTTP 500.</li>
+</ul>
+<h4>근본 원인</h4>
+<p><code>global/marker/MarkableTrashOperator.extendTrashTtl</code> 은 default 메서드가 <code>UnsupportedOperationException("&lt;type&gt; 는 trash TTL 연장을 지원하지 않습니다")</code> 를 던지고, 이 메서드를 재정의한 구현체는 파일 자원 4종(IsoMarkableScanner · BoardBiosMarkableScanner · BoardBmcMarkableScanner · SubprogramMarkableScanner)뿐이다. 메타 자원(OS_IMAGE, BOARD_MODEL) 스캐너에는 구현이 없어 default 가 발동하는데, 이 예외는 advice 어디에도 매핑되어 있지 않아 <code>[http.request.unhandled]</code> 로 빠져 500 이 된다. 파일 자원(OS_ISO 등)의 연장은 302 로 정상 동작함을 양성 대조로 확인했다.</p>
+<h4>왜 문제인가</h4>
+<p>프로젝트 불가침 원칙 두 가지에 동시에 걸린다. ① "정상 UX 흐름의 논리 모순은 UI 에서 1차 차단(버튼 disabled + tooltip)" — 연장 미지원 자원이면 버튼이 비활성이어야 한다. ② "예외는 advice 가 HTTP 응답으로 변환" — 지원 여부는 도메인 상태이므로 설령 direct POST 로 들어와도 4xx 로 거절되어야 한다.</p>
+<h4>권고</h4>
+<ul>
+<li>1차: 휴지통 뷰모델에 자원 종류별 연장 지원 여부 플래그를 내려 메타 자원 행의 연장 버튼을 disabled + tooltip 처리 (SSOT 는 <code>MarkableTrashOperator</code> 지원 여부 판정 메서드 하나로 공유).</li>
+<li>2차: 설계 의도를 정한다 — 메타 자원도 연장을 <i>지원해야</i> 한다면 (cascade 로 자식 파일 자원 TTL 재기준) 구현 추가가 본질 해법. 지원하지 않을 것이면 <code>UnsupportedOperationException</code> 대신 도메인 예외를 던지고 advice 에서 409/400 으로 라우팅.</li>
+</ul>
+</div>
+</div>
+
+<div class="finding" id="f2">
+<div class="finding-head"><span class="badge b-orange">F-2 · 중간</span> 연장 확인 모달 라벨 오배선 — 제목·버튼이 "Deprecated 표시"</div>
+<div class="finding-body">
+<p>"+30일 연장" 클릭 시 뜨는 confirm-action 모달의 제목이 "<b>Deprecated 표시</b>", 확정 버튼도 "<b>Deprecated 표시</b>"다. 본문은 "Ubuntu 22.04 의 보존기간 을(를) Deprecated 로 표시할까요? +30일 연장돼요."로 두 액션의 문구가 섞여 있다. S5-2 confirm-action 모달 자산 호출부에서 연장 액션의 라벨 파라미터에 다른 액션(Deprecated 표시)의 라벨이 배선된 것으로 보인다. 사용자는 자신이 어떤 액션을 확정하는지 오인할 수 있다 — 특히 F-1 과 겹치면 "Deprecated 를 눌렀더니 서버 오류"로 읽혀 원인 파악이 더 어려워진다.</p>
+<h4>권고</h4><p>휴지통 연장 버튼의 모달 호출부 라벨 배선 수정(제목 "보존기간 연장", 버튼 "연장"). 같은 화면의 다른 액션(복원/영구삭제) 라벨은 정상이었으므로 연장 한 곳의 오배선이다.</p>
+</div>
+</div>
+
+<div class="finding" id="f3">
+<div class="finding-head"><span class="badge b-orange">F-3 · 중간</span> 오류 모달에 HTML 에러 페이지 원문 덤프 — 오류 응답 협상 불일치</div>
+<div class="finding-body">
+<p>연장 확정(F-1) 실패 시 "서버 오류" 모달 본문에 <code>&lt;!DOCTYPE html&gt; &lt;html lang="ko"&gt; &lt;!-- 공통 에러 뷰. WebExceptionHandler 가 …</code> 처럼 공통 에러 뷰의 HTML 소스(주석 포함)가 그대로 출력됐다. 화면 JS(fetch)는 실패 응답 바디를 JSON <code>ApiErrorResponse</code> 로 기대하는데, 서버의 미매핑 예외는 HTML 에러 뷰로 렌더되기 때문이다. IsoUploadController 의 주석("전역 핸들러의 HTML 에러 뷰 경로로 빠지면 클라이언트가 실제 사유 메시지를 파싱하지 못해…")이 이미 이 함정을 경계하고 있는데, 휴지통 연장 XHR 경로는 그 방어가 없다.</p>
+<h4>권고</h4>
+<ul>
+<li>클라이언트 공통 fetch 헬퍼에서 응답 Content-Type 이 JSON 이 아니면 바디를 버리고 일반화된 메시지("서버 오류가 발생했습니다 (HTTP 500)")로 대체.</li>
+<li>서버측: XHR 전용 엔드포인트는 <code>@ResponseBody</code> + JSON 오류 계약으로 통일하거나, Accept 헤더 기반으로 advice 가 JSON variant 를 선택하도록 확장 (기존 <code>variant=json</code> 라우팅이 이미 있으므로 미매핑 예외의 fallback 만 보강하면 된다).</li>
+</ul>
+</div>
+</div>
+
+<div class="finding" id="f4">
+<div class="finding-head"><span class="badge b-yellow">F-4 · 낮음~중간</span> ISO 등록: 디렉토리 경로 + 파일 첨부 direct POST → 500</div>
+<div class="finding-body">
+<p><code>POST /management/os/{id}/iso</code> 에 <code>isoPath</code> 를 디렉토리로 주고 파일을 첨부하면 <code>IsoRegistrationService.storeUploadedFile:433</code> 의 <code>Files.newOutputStream</code>(대상이 디렉토리)이 실패해 <code>ISOFileStorageException</code> → 500 이 된다. 정상 화면 JS 는 "이 디렉토리에 저장" 선택 시 클라이언트가 디렉토리 + 파일명으로 완전한 경로를 조립해 보내므로 노출되지 않는다 — direct POST 한정. 다만 "경로가 디렉토리"는 클라이언트 입력 오류(4xx 계열)이지 INFRA 장애가 아니므로, 500(ISOFileStorageException) 매핑은 과잉이다. 서버 가드 안전망 관점에서 <code>prepare()</code> 단계에 <code>Files.isDirectory(resolved)</code> 검사 → 필드 오류(400) 한 줄이면 충분하다.</p>
+</div>
+</div>
+
+<div class="finding" id="f5">
+<div class="finding-head"><span class="badge b-yellow">F-5 · 낮음</span> checkbox 마커 없는 direct POST — 바인딩 실패의 오류 무표시 silent 200</div>
+<div class="finding-body">
+<p>같은 엔드포인트에 Spring checkbox 관례 필드 <code>_allowCreateDirectory</code> 없이 POST 하면 record 생성자 바인딩(primitive boolean)이 실패해 <code>bindingResult.hasErrors()</code> 분기로 폼이 재렌더되는데, <b>화면 어디에도 오류가 표시되지 않고 입력값만 보존된 200</b> 이다 (템플릿에 해당 필드의 오류 슬롯이 없음). 브라우저 폼은 hidden 마커를 항상 포함하므로 정상 UX 노출은 없지만, "silent 흡수"는 프로젝트가 가장 경계해 온 사고 패턴이므로 기록한다. 바인딩 오류 시 최소한 폼 상단 배너(글로벌 오류)로 표면화하는 방어를 권고.</p>
+</div>
+</div>
+
+<div class="finding" id="f6">
+<div class="finding-head"><span class="badge b-yellow">F-6 · 낮음~중간</span> ISO 설명 길이 미검증 — DB 제약(1406)까지 전파</div>
+<div class="finding-body">
+<p><code>ISOCreateRequest.description</code> 에 <code>@Size(max=1024)</code> 가 없어 1024자 초과 설명이 검증을 통과하고, 등록 background job 의 INSERT 에서 MariaDB 1406(Data too long) 으로 실패한다. 실패 자체는 orphan 격리 saga 가 DB_CONSTRAINT 로 정확히 분류·회수했으므로(파일 격리 → 복구/폐기 UI) 데이터 유실은 없다 — 오히려 이 실수 덕에 saga 의 실전 동작이 검증됐다. 그러나 사용자 입장에선 "업로드까지 다 끝난 뒤 실패 → 복구 페이지행"이라 비용이 크다. DTO <code>@Size</code> 1 줄로 앞단 400 차단을 권고. 같은 패턴(폼 textarea ↔ DB varchar 길이 계약)이 다른 자원의 설명 필드에도 있는지 일괄 점검 가치가 있다.</p>
+</div>
+</div>
+
+<div class="finding" id="f7">
+<div class="finding-head"><span class="badge b-yellow">F-7 · 낮음</span> 휴지통 리네임 — 디렉토리명의 마지막 점을 확장자로 취급</div>
+<div class="finding-body">
+<p>디렉토리 자원이 휴지통으로 이동할 때 충돌 방지 리네임이 파일 확장자 보존 규칙을 디렉토리에도 적용해 <code>v1.10</code> → <code>v1_260719-064732-312_26f378f3<b>.10</b></code>, <code>v2.3</code> → <code>v2_…<b>.3</b></code> 처럼 버전 표기가 끊긴다. 복원은 원경로 기준이라 기능 영향은 없지만, 휴지통 디렉토리를 직접 열어보는 운영자는 혼란스럽다. 리네임 유틸에서 대상이 디렉토리면 확장자 분리 없이 전체 이름 뒤에 접미사를 붙이는 분기 권고.</p>
+</div>
+</div>
+
+</div>
+</details>
+
+<details class="section" id="s3">
+<summary>3. 설계 특성 관찰 (결함 아님 · 확인 질문)</summary>
+<div class="section-body">
+<p>아래는 오류가 아니라 "설계가 그렇게 되어 있음"을 실측으로 확인한 항목들이다. 의도와 일치하는지만 확인하면 된다.</p>
+<table>
+<tr><th>#</th><th>관찰</th><th>실측 근거</th><th>확인 질문</th></tr>
+<tr><td>O-1</td><td><b>PATH_DRIFT 탐지 범위 = active 자원 path.parent 의 union</b>. 부모 디렉토리째 상위로 이동하면(스캔 루트 밖) 마커가 함께 있어도 "자원 소실"로 분류되고 수동 복구 안내가 나온다.</td><td>BMC 트리를 <code>ms03-ce0 → ms03-ce0-relocated</code> 로 옮기자 MISSING("DB 경로와 검색 범위 모두에서 마커를 찾지 못함"). 스캔 루트 안 이동(diagtool-copy)은 정확히 "경로 이동됨"으로 잡히고 [적용]으로 DB 경로 갱신까지 완주.</td><td>운영 문서에 "상위 이동은 extra-roots 설정으로 보강" 안내가 있는가?</td></tr>
+<tr><td>O-2</td><td><b>원본이 정상일 때 동일 resourceId 마커 복제본은 무보고</b>. '잔여 마커' 류 신호가 없다.</td><td>utility 트리를 스캔 루트 안에 복제해 두 마커가 공존해도 드리프트 0건. 원본 삭제 후에야 복제본이 "경로 이동"으로 잡힘.</td><td>가이드의 "잔여 마커" 시나리오와 정합적인가? (잔여 사본 방치가 후일 PATH_DRIFT 오인 원인이 될 수 있음)</td></tr>
+<tr><td>O-3</td><td><b>스캔 이력의 건수 배지는 '미해결 잔수'로 동적 감소</b>한다 (해결하면 과거 보고서도 0건 표기).</td><td>4건이던 15:54 보고서가 해결 진행에 따라 3건→표시 변화.</td><td>감사 관점에서 "탐지 당시 N건 / 미해결 M건" 병기가 낫지 않은가?</td></tr>
+<tr><td>O-4</td><td><b>TTL 연장의 의미 = trashed_at 재기준</b>(연장 시점부터 다시 30일). 가산(만료일 +30일)이 아니다.</td><td>OS_ISO 연장 시 trashed_at 이 현재 시각으로 갱신됨.</td><td>버튼 문구 "+30일 연장"과 의미가 일치한다고 볼 것인가? (삭제 직후엔 동일, 말기엔 차이 큼)</td></tr>
+<tr><td>O-5</td><td><b>배경 작업 목록은 in-memory</b> — 프로세스 재시작 시 이력이 사라진다 (S1 설계 부합).</td><td>devtools 재시작 후 잡 센터에 직전 스캔 1건만 잔존.</td><td>—</td></tr>
+<tr><td>O-6</td><td><b>중복 콘텐츠 ISO 는 "격리 없이 fail"</b> — 기존 경로를 안내하며 업로드 파일을 즉시 정리한다.</td><td>동일 바이트 재업로드 시 job.failed("이미 등록된 ISO 와 내용이 동일합니다") + 잔존물 0.</td><td>—</td></tr>
+<tr><td>O-7</td><td>curl(JSON 클라이언트)로 받은 500 오류 바디에 <b>전체 스택트레이스("trace" 필드)</b>가 포함된다.</td><td>F-1 재현 시 JSON 응답에 trace 전문.</td><td>devtools 기본값으로 보이나, 운영 프로파일에서 <code>server.error.include-stacktrace=never</code> 가 보장되는지 확인.</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s4">
+<summary>4. 환경 이벤트 (앱 무관 — 판독 시 혼동 방지용 기록)</summary>
+<div class="section-body">
+<ul>
+<li><b>Spring Devtools 재시작 3회(16:00 대)</b> — 같은 프로젝트 디렉토리에서 외부 Gradle/IDE 빌드 활동으로 classpath 가 3연속 변경(38 삭제 → 51 추가 → 103 수정)되며 자동 재시작. 이후 <b>SpringEL <code>T(IntegrityStatusView)</code> 평가 실패로 bios/bmc/subprogram 목록 3페이지가 템플릿 파싱 오류</b>를 냈다. 신규 JVM 재기동 후 동일 페이지가 완전 렌더됨을 확인 — <b>RestartClassLoader 아티팩트로 판정(운영엔 devtools 없음)</b>.
+  <div class="callout warn" style="margin-top:8px;"><b>단, 여기서 앱 일반의 관찰 하나</b>: 템플릿 렌더 중반(라인 200 부근)에서 예외가 나면 응답이 이미 커밋된 뒤라 <b>HTTP 200 + 잘린 HTML</b> 로 나간다("Ignoring exception, response committed already"). 상태코드 기반 모니터링이 잡지 못하는 실패 형태라는 점은 기억해 둘 가치가 있다.</div></li>
+<li><b>16:08:43 bootRun SIGTERM(exit 143) 종료</b> — 위 외부 Gradle 활동과 연관된 프로세스 종료로 추정. 재기동 후 DB·파일·기능 전 상태 정상 (상태는 전부 DB/FS 에 있고 in-memory 는 잡 목록뿐임을 실측 재확인).</li>
+<li><b>COMPS_EXTRACTION 잡 실패</b> — 더미 ISO(비 ISO9660) + macOS(mount -t iso9660/7z 부재) 환경 제약. 실패 라우팅(job.failed + 알림)은 정상 동작.</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s5">
+<summary>5. 커버리지와 미검증 잔여</summary>
+<div class="section-body">
+<h3>검증됨 (요약)</h3>
+<ul>
+<li><b>CRUD·검증·중복</b>: OS/보드 등록 폼 400 필드 오류·409 중복 배너(HTML/JSON 양쪽)·수정 read-only 정책.</li>
+<li><b>업로드 파이프라인</b>: ISO(form POST + 사이드카 마커), BIOS Zip(전개+in-tree 마커+진입점 자동탐지), BMC 단일 파일, Subprogram 보드연결/공용 — intent 핸드셰이크 → 업로드 → background job → manifest 해시·HMAC 마커·DB 3자 일치 확인.</li>
+<li><b>lifecycle</b>: 토글/deprecate/soft-delete/복원 cascade(부모-자식 동반, 공용 자원 독립), UI 1차 차단(disabled+tooltip "부모 OS 버전이 비활성/삭제 상태입니다…") + 서버 가드 409 + forging 404.</li>
+<li><b>휴지통</b>: TTL 표기, 복원 cascade 모달(radio), typed-name 영구삭제(오입력 시 버튼 disabled), 운영 설정 저장 왕복, 감사 로그(사용자 직접/DRIFT_TRASH_LOST 2건).</li>
+<li><b>드리프트 7종 재현</b>: 경로 이동(+적용=DB 경로 갱신) · 자원 소실 2형태(+수동 복구 후 자연 해소) · 내용 변경(정밀 전용, typed-name 수용 → HASH_ACCEPT 잡 → 마커·DB 지문 동기) · 서명 불일치(+적용=재서명) · 휴지통 소실(복원 거절 모달 → TRASH_LOST 탐지 → 적용=기록 정리+감사) · 부팅 자동 스캔.</li>
+<li><b>보안 가드</b>: zip bomb 415(압축률 1030>100) · browse /etc 403 · traversal 400 · 실행형(.efi) ALLOW 정책 통과.</li>
+<li><b>격리 saga</b>: DB_CONSTRAINT 실패 → 파일 격리 → 복구 페이지 3택 → typed-name 폐기 완주.</li>
+</ul>
+<h3>이 환경에서 검증 불가/미수행 (다음 기회로)</h3>
+<ul>
+<li><b>브라우저 네이티브 파일선택 대화상자 경유 업로드</b> — 자동화 도구가 호스트 파일 주입을 막아 서버측은 동일 프로토콜의 curl 재연으로 검증했다. 화면의 파일선택·진행바·fingerprint Web Worker 체험은 사용자 수동 확인 영역으로 남는다.</li>
+<li><b>폴더 업로드(webkitdirectory) 모드</b> — 같은 이유로 Zip/단일 파일 모드만 검증.</li>
+<li><b>대용량(GB급)·한도 근접 업로드</b> — "큰 파일 금지" 지침에 따라 미수행 (zip bomb 가드는 소형 고압축으로 검증).</li>
+<li><b>TTL cron 실발화</b>(매시 정각 자동 purge/notify) — 대기 시간 문제로 설정 저장까지만.</li>
+<li><b>S6 강제 saga·무인 자동 적용(auto-apply.kinds)</b> — 기본값(전부 수동) 상태로 수동 해결 경로만 검증.</li>
+<li><b>U2 세팅 정의서·BIOS 세팅·서버(Execution) 페이지</b> — 요청 범위(MA/MK/S/R) 밖이라 로드 스모크(200)만.</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s6">
+<summary>6. 권고 정리 (우선순위)</summary>
+<div class="section-body">
+<div class="check-list" data-storage="sweep-findings-todo">
+<label><input type="checkbox"> <span><b>P1</b> — F-1: 메타 자원 연장 버튼 UI 차단(disabled+tooltip, SSOT 공유) + 서버측 4xx 라우팅(또는 메타 자원 연장 구현 결정). 관련 F-2 라벨 배선, F-3 오류 협상 보강을 같은 슬라이스로 묶으면 휴지통 연장 UX 가 한 번에 정리된다.</span></label>
+<label><input type="checkbox"> <span><b>P2</b> — F-6: 자원 설명 필드 <code>@Size</code> 일괄 점검(폼 ↔ DTO ↔ varchar 계약 동기).</span></label>
+<label><input type="checkbox"> <span><b>P2</b> — O-7: 운영 프로파일 <code>server.error.include-stacktrace</code> 확인 (LOG L4 슬라이스에 편입 가능).</span></label>
+<label><input type="checkbox"> <span><b>P3</b> — F-4: ISO prepare 에 디렉토리 검사 400 · F-5: 바인딩 실패 글로벌 배너 · F-7: 디렉토리 리네임 분기.</span></label>
+<label><input type="checkbox"> <span><b>P3</b> — O-1/O-2/O-3/O-4: 설계 의도 확인 후 필요 시 문서화(운영 가이드) 또는 후속 백로그 등재.</span></label>
+</div>
+<p style="color:var(--text-muted); font-size:12px; margin-top:10px;">체크 상태는 이 브라우저의 localStorage 에 저장된다.</p>
+</div>
+</details>
+
+</main>
+</div>
+<script>
+(function(){
+  // ToC 클릭 → 섹션 열고 스크롤 (-108 오프셋)
+  document.querySelectorAll('nav.toc a, main a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (!el) return;
+      e.preventDefault();
+      if (el.tagName === 'DETAILS') el.open = true;
+      const sec = el.closest('details.section'); if (sec) sec.open = true;
+      const y = el.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({top:y, behavior:'smooth'});
+    });
+  });
+  // 전부 펴기 / 접기
+  document.getElementById('btnExpand').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = true);
+  document.getElementById('btnCollapse').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = false);
+  // 필터 → 매칭 섹션만
+  const fb = document.getElementById('filterBox');
+  fb.addEventListener('input', () => {
+    const q = fb.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      const hit = !q || d.textContent.toLowerCase().includes(q);
+      d.style.display = hit ? '' : 'none';
+      if (q && hit) d.open = true;
+    });
+  });
+  // check-list localStorage
+  document.querySelectorAll('.check-list[data-storage]').forEach(list => {
+    const key = list.dataset.storage;
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b, i) => {
+      b.checked = !!saved[i];
+      b.addEventListener('change', () => {
+        localStorage.setItem(key, JSON.stringify([...boxes].map(x => x.checked)));
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
