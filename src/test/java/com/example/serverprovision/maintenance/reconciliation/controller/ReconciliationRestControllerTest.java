@@ -48,6 +48,11 @@ class ReconciliationRestControllerTest {
 
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.example.serverprovision.maintenance.reconciliation.service.HashAcceptService hashAcceptService;
+
+    // HF4-5 — resolve-duplicate endpoint 의존. 본 클래스는 기존 액션만 검증 — 전용 시나리오는
+    // ReconciliationRestControllerDuplicateFlowTest 분리 파일이 담당.
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.example.serverprovision.maintenance.reconciliation.service.DuplicateResolveService duplicateResolveService;
     // R9-4 — ReconciliationController 의 격리 대기 배너용 의존.
     @MockitoBean com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -55,7 +60,16 @@ class ReconciliationRestControllerTest {
     private DriftReportResponse sampleReport() {
         DriftResponse drift = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso", Instant.now(), null);
-        return new DriftReportResponse(10L, Instant.now(), "0.45초", false, 17, 1, List.of(), List.of(drift));
+        // HF4-4 — detectedDriftCount(탐지 스냅샷) 1 · driftCount(미해결 잔수) 1
+        return new DriftReportResponse(10L, Instant.now(), "0.45초", false, 17, 1, 1, List.of(), List.of(drift));
+    }
+
+    /**
+     * HF4-4 — 탐지/미해결 병기 검증용 fixture. drifts 상세는 카운트 계약과 무관해 비운다.
+     */
+    private DriftReportResponse reportWithCounts(long id, int detectedDriftCount, int driftCount) {
+        return new DriftReportResponse(id, Instant.now(), "0.45초", false, 17,
+                detectedDriftCount, driftCount, List.of(), List.of());
     }
 
     // ==== 성공 경로 ====================================================
@@ -93,6 +107,53 @@ class ReconciliationRestControllerTest {
         mvc.perform(get("/maintenance/reconciliation/history?page=0&size=20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(10));
+    }
+
+    // ==== HF4-4 — 탐지 스냅샷 · 미해결 잔수 병기 =========================
+
+    @Test
+    @DisplayName("HF4-4 GET /history : 탐지/미해결 병기 값 노출 — 신행(4·1) / 구행 대체 적용 결과(3·3)")
+    void history_exposesDetectedAndUnresolvedCounts() throws Exception {
+        // 신행: 스캔 시점 탐지 4건 중 3건 해결됨. 구행: 스냅샷 0 을 서비스 매핑이 미해결 수(3)로 대체한 결과.
+        DriftReportResponse fresh = reportWithCounts(10L, 4, 1);
+        DriftReportResponse legacy = reportWithCounts(9L, 3, 3);
+        given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new PageImpl<>(List.of(fresh, legacy)));
+
+        mvc.perform(get("/maintenance/reconciliation/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].detectedDriftCount").value(4))
+                .andExpect(jsonPath("$.content[0].driftCount").value(1))
+                .andExpect(jsonPath("$.content[1].detectedDriftCount").value(3))
+                .andExpect(jsonPath("$.content[1].driftCount").value(3));
+    }
+
+    @Test
+    @DisplayName("HF4-4 GET list : C1 배지 '탐지 N · 미해결 M' 병기 + 스캔 범위(extra-roots) 안내 문구 렌더")
+    void list_rendersDetectedUnresolvedBadgeAndScanScopeGuidance() throws Exception {
+        given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new PageImpl<>(List.of(reportWithCounts(10L, 4, 1))));
+
+        mvc.perform(get("/maintenance/reconciliation"))
+                .andExpect(status().isOk())
+                // 배지 병기 — 템플릿이 DTO 신설 필드를 실제 참조하는지(누락 시 500) 함께 고정
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("탐지 4 · 미해결 1")))
+                // O-1 — 상단 배너의 스캔 범위 보강 안내
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("reconciliation.scan.extra-roots")));
+    }
+
+    @Test
+    @DisplayName("HF4-4 GET list : 탐지 0 보고서는 종전 '0 건' 표기 유지 (병기 불필요 경계)")
+    void list_rendersZeroBadgeWhenNothingDetected() throws Exception {
+        given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new PageImpl<>(List.of(reportWithCounts(10L, 0, 0))));
+
+        mvc.perform(get("/maintenance/reconciliation"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("0 건")));
     }
 
     @Test

@@ -101,22 +101,24 @@ public class TrashService {
 
 	/**
 	 * 원본 파일명 + ms timestamp + UUID8 suffix 합성. 같은 ms 안에 두 번 호출되어도 UUID 로 고유 보장.
+	 *
+	 * <p>HF4-3 (F-7) — 디렉토리 이름의 점은 확장자가 아니다 ("v1.10" → "v1_….10" 오분리 방지).
+	 * 호출 시점({@link #moveToTrash} 의 mv 직전)에 원본이 실재하므로 파일시스템 실체로 판정한다.
+	 * 디렉토리는 확장자 분리 없이 전체 이름 뒤에 suffix, 파일은 기존대로 확장자 보존.</p>
 	 */
 	private String generateTrashedFileName(Path resourcePath) {
 		String original = resourcePath.getFileName().toString();
-		String base;
-		String ext;
-		int dot = original.lastIndexOf('.');
-		if (dot > 0) {
-			base = original.substring(0, dot);
-			ext = original.substring(dot); // includes leading dot
-		} else {
-			base = original;
-			ext = "";
-		}
 		String ts = TS_FORMAT.format(Instant.now());
 		String uuid8 = UUID.randomUUID().toString().substring(0, 8);
-		return base + "_" + ts + "_" + uuid8 + ext;
+		String suffix = "_" + ts + "_" + uuid8;
+		if (Files.isDirectory(resourcePath)) {
+			return original + suffix;
+		}
+		int dot = original.lastIndexOf('.');
+		if (dot > 0) {
+			return original.substring(0, dot) + suffix + original.substring(dot); // ext 는 leading dot 포함
+		}
+		return original + suffix;
 	}
 
 	/**

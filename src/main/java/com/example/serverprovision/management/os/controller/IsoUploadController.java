@@ -1,6 +1,7 @@
 package com.example.serverprovision.management.os.controller;
 
 import com.example.serverprovision.global.exception.ApiErrorResponse;
+import com.example.serverprovision.global.exception.FieldBoundBadRequestException;
 import com.example.serverprovision.management.os.dto.request.ISOCreateRequest;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
@@ -10,8 +11,10 @@ import com.example.serverprovision.management.os.service.iso.IsoRegistrationLaun
 import com.example.serverprovision.management.os.service.iso.IsoRegistrationService;
 import com.example.serverprovision.management.os.service.iso.IsoUploadIntentService;
 import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -54,17 +57,33 @@ public class IsoUploadController {
 			@Valid @ModelAttribute("isoForm") ISOCreateRequest request,
 			BindingResult bindingResult,
 			@RequestParam(value = "file", required = false) MultipartFile file,
-			Model model
+			Model model,
+			HttpServletResponse response
 	) {
 		if (bindingResult.hasErrors()) {
-			OSMetadataResponse os = osMetadataService.findById(osId);
-			OSControllerSupport.populateIsoFormContext(model, osId, null, os);
-			return "management/os/iso-new";
+			return renderIsoNewForm(osId, model);
 		}
-		IsoRegistrationService.PreparedIsoRegistration prepared =
-				isoRegistrationService.prepare(osId, request, file);
+		IsoRegistrationService.PreparedIsoRegistration prepared;
+		try {
+			prepared = isoRegistrationService.prepare(osId, request, file);
+		} catch (FieldBoundBadRequestException ex) {
+			// HF4-3 (F-4) — 필드 직결 400(디렉토리 경로 등)을 폼 재렌더로 표면화 (updateIso 의 rejectValue 선례).
+			// 예외가 자기 fieldName 을 들고 오는 다형 매핑이라 sub-class 별 catch 분기가 자라지 않는다.
+			bindingResult.rejectValue(ex.fieldName(), "fieldBound", ex.getMessage());
+			response.setStatus(HttpStatus.BAD_REQUEST.value());
+			return renderIsoNewForm(osId, model);
+		}
 		isoRegistrationLauncher.startRegistration(prepared);
 		return OSControllerSupport.redirectToListWithSelect(osId);
+	}
+
+	/**
+	 * iso-new 폼 재렌더 공통 조립 — Layer A 검증 실패와 필드 직결 도메인 예외(rejectValue 흡수) 두 경로가 공유.
+	 */
+	private String renderIsoNewForm(Long osId, Model model) {
+		OSMetadataResponse os = osMetadataService.findById(osId);
+		OSControllerSupport.populateIsoFormContext(model, osId, null, os);
+		return "management/os/iso-new";
 	}
 
 	/**

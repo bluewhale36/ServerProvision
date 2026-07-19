@@ -162,7 +162,14 @@
         try {
             const ct = resp.headers.get('content-type') || '';
             if (ct.includes('application/json')) payload = await resp.json();
-            else payload = {message: (await resp.text()).slice(0, 500)};
+            else if (ct.includes('text/plain')) payload = {message: (await resp.text()).slice(0, 500)};
+            else {
+                // HF4-1 F-3 — HTML 에러 페이지 등 비 JSON 바디는 사용자 메시지로 쓰지 않는다
+                // (원문 500자 덤프가 모달에 노출되던 사고). 원문은 디버깅용 console 로만 남기고
+                // handler 의 일반화 메시지("요청이 거절되었어요...")로 fallback.
+                console.warn(TAG, '비 JSON 오류 응답 (HTTP ' + resp.status + ', ' + ct + ') — 바디 원문은 메시지로 쓰지 않음 :',
+                    (await resp.text()).slice(0, 500));
+            }
         } catch (_) {
             payload = null;
         }

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 /**
  * ISO 업로드 intent 핸드셰이크 요청 — 실제 바이트 전송 전에 서버에 사전 검증을 의뢰한다.
@@ -18,8 +19,15 @@ import jakarta.validation.constraints.Pattern;
  * </ul>
  */
 public record IsoUploadIntentRequest(
-		@NotBlank String isoPath,
-		@NotBlank String filename,
+		// HF4-2 — 합성 결과가 iso.iso_path VARCHAR(1024) 에 저장되므로 핸드셰이크 단계에서 선차단.
+		// rawPath+filename 합성이 1024 를 넘는 교차 필드 엣지는 DB_CONSTRAINT 격리 안전망이 받는다.
+		@NotBlank
+		@Size(max = 1024, message = "ISO 경로는 1024자 이하로 입력해주세요.")
+		String isoPath,
+
+		@NotBlank
+		@Size(max = 255, message = "파일명은 255자 이하로 입력해주세요.")
+		String filename,
 		@NotNull @Min(0) Long size,
 		boolean allowCreateDirectory,
 

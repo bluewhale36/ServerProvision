@@ -47,7 +47,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
  * 사용자가 웹 화면에서 수행하는 대표 시나리오들을 HTTP 계층에서 검증한다.
@@ -191,6 +193,51 @@ class OSMetadataControllerUploadFlowTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(om.writeValueAsString(req)))
                     .andExpect(status().isNotFound());
+        }
+    }
+
+    // ========= HF4-2 — ISO 등록 form POST (SSR 재렌더 경로) 길이 계약 =========
+
+    @Nested
+    @DisplayName("HF4-2 — POST /{osId}/iso 길이 계약 (@Size)")
+    class RegisterFormLengthContract {
+
+        @Test
+        @DisplayName("description 1,025자 → iso-new 재렌더 + description 필드 오류 (F-6 : 등록 잡 미기동)")
+        void formPost_descriptionOverLimit_rerendersWithFieldError() throws Exception {
+            // SSR 재렌더 분기가 폼 컨텍스트를 다시 채우기 위해 findById 를 호출한다.
+            given(osMetadataService.findById(1L)).willReturn(
+                    new com.example.serverprovision.management.os.dto.response.OSMetadataResponse(
+                            1L, com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX, "9.6", null,
+                            true, false, false, com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE,
+                            java.util.List.of(), java.util.List.of(), java.util.List.of()));
+
+            mvc.perform(post("/management/os/1/iso")
+                            .param("isoPath", "/opt/iso/dvd.iso")
+                            .param("description", "가".repeat(1025))
+                            .param("allowCreateDirectory", "false"))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("management/os/iso-new"))
+                    .andExpect(model().attributeHasFieldErrors("isoForm", "description"));
+
+            // 검증 실패 시 등록 파이프라인이 아예 기동되지 않아야 한다 (F-6 의 사고 경로 차단).
+            org.mockito.Mockito.verify(isoRegistrationService, org.mockito.Mockito.never())
+                    .prepare(org.mockito.ArgumentMatchers.anyLong(), any(), any());
+        }
+
+        @Test
+        @DisplayName("description 정확히 1,024자 → 검증 통과, 302 redirect (경계값)")
+        void formPost_descriptionAtLimit_passes() throws Exception {
+            given(isoRegistrationService.prepare(eq(1L), any(), any()))
+                    .willReturn(new IsoRegistrationService.PreparedIsoRegistration(
+                            1L, "/opt/iso/dvd.iso", "", "dvd.iso", false));
+            given(isoRegistrationLauncher.startRegistration(any())).willReturn("job-1");
+
+            mvc.perform(post("/management/os/1/iso")
+                            .param("isoPath", "/opt/iso/dvd.iso")
+                            .param("description", "가".repeat(1024))
+                            .param("allowCreateDirectory", "false"))
+                    .andExpect(status().is3xxRedirection());
         }
     }
 
@@ -490,6 +537,18 @@ class OSMetadataControllerUploadFlowTest {
                                     """))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value(containsString("clientHash")));
+        }
+
+        @Test
+        @DisplayName("HF4-2 : upload-intent isoPath 1,025자 → 400 + 길이 메시지 (업로드 바이트 전송 전 선차단)")
+        void intent_isoPathOverLimit_returns400() throws Exception {
+            var req = new IsoUploadIntentRequest("/" + "a".repeat(1024), "dvd.iso", 1024L, false);
+
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(om.writeValueAsString(req)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(containsString("1024자")));
         }
 
         @Test

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF4-3 Plan — ISO 등록 direct POST 3결함 (디렉토리 500 · silent 200 · 휴지통 리네임)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:60px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .n-demo-btn.on { background:var(--blue); color:#fff; }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .pane { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; font-size:12.5px; margin-top:10px; }
+  .pane h5 { margin:0 0 8px; font-size:12px; color:var(--text-muted); }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.s200 { background:var(--green-bg); color:var(--green); } .badge.s302 { background:var(--green-bg); color:var(--green); }
+  .badge.s400 { background:var(--yellow-bg); color:var(--yellow); } .badge.s409 { background:var(--purple-bg); color:var(--purple); }
+  .badge.s500 { background:var(--red-bg); color:var(--red); }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; white-space:pre-wrap; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .sim-input { width:100%; padding:6px 9px; font-size:12.5px; font-family:var(--mono); border:1px solid var(--border); border-radius:5px; }
+  .sim-input.invalid { border-color:var(--red); outline:1px solid var(--red); }
+  .sim-field-error { color:var(--red); font-size:11.5px; margin-top:4px; }
+  .sim-banner { border:1px solid var(--red); background:var(--red-bg); color:var(--red); border-radius:6px; padding:8px 11px; font-size:12px; margin-bottom:10px; }
+  .sim-banner ul { margin:4px 0 0; padding-left:18px; color:var(--text); }
+  .rename-out { font-family:var(--mono); font-size:12.5px; padding:6px 9px; background:var(--card); border:1px solid var(--border-soft); border-radius:5px; margin-top:6px; word-break:break-all; }
+  .rename-out .bad { color:var(--red); font-weight:700; }
+  .rename-out .good { color:var(--green); font-weight:700; }
+  .flash { animation:flash 0.9s ease-out; }
+  @keyframes flash { 0% { background:var(--green-bg); } 100% { background:transparent; } }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF4-3 — ISO 등록 direct POST 3결함 일괄 <span class="v2-badge">F-4 500 · F-5 silent 200 · F-7 리네임</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF4-3 (3차 개발 · 핫픽스)</span>
+    <span><strong>scope</strong> F-4 디렉토리 경로 400 전환 · F-5 슬롯 없는 바인딩 오류 배너 · F-7 디렉토리 휴지통 리네임</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>검증</strong> ./gradlew test 전체 green (bootRun 금지 지시 — CP1~CP4 연속 진행)</span>
+    <span><strong>근거</strong> 2026-07-19 전수 점검 §F-4 · §F-5 · §F-7 (셋 다 direct POST / 표기 한정, 정상 브라우저 UX 미노출)</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc">
+  <strong>목차</strong>
+  <ol id="tocList">
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s2p" class="preview">🎬 라이브 데모</a></li>
+    <li><a href="#s3">3. URL/데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델 (설계 결정)</a></li>
+    <li><a href="#s5">5. 10단계 매핑</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물/주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="btnExpand">전부 펴기</button>
+    <button id="btnCollapse">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input class="filter-box" id="filterBox" placeholder="검색 — 예: isoPath, FieldBoundBadRequestException, 배너, lastIndexOf ...">
+
+<details class="section" id="s1" open>
+<summary>1. 현재 상태 (실측 근거)</summary>
+<div class="body">
+<p>2026-07-19 전수 점검에서 ISO 등록·휴지통 이동의 세 가지 결함이 확인됐다. 셋 모두 <b>정상 브라우저 흐름에서는 노출되지 않는다</b> — 화면 JavaScript 가 경로를 보정하고(디렉토리 선택 시 파일명 자동 추가), Thymeleaf <code>th:field</code> 체크박스가 hidden 마커 <code>_allowCreateDirectory</code> 를 항상 동봉하기 때문이다. 즉 발동 경로는 curl 등 <b>direct POST</b> 와 (F-7 은) 휴지통 목록의 <b>표기</b>다.</p>
+<table>
+<tr><th>#</th><th>층</th><th>현재 동작</th><th>원인 (코드 실측 — HEAD 61dc383)</th></tr>
+<tr><td>F-4</td><td>서버</td><td><code>POST /management/os/{id}/iso</code> 에 isoPath 를 <b>기존 디렉토리</b>로 주고 파일을 첨부하면 <b>500</b></td><td><code>IsoRegistrationService.prepare</code> 에 "대상이 디렉토리" 가드가 없다. <code>DuplicateFilenameException</code> 조건이 <code>Files.exists(target) &amp;&amp; !Files.isDirectory(target)</code> 라 디렉토리는 그냥 통과 → <code>storeUploadedFile</code> 의 <code>Files.copy(in, target)</code> 가 IOException(디렉토리에 복사 불가) → <code>ISOFileStorageException</code>(@ResponseStatus 없음) → advice fallback 500</td></tr>
+<tr><td>F-4b</td><td>서버(intent)</td><td>XHR(XMLHttpRequest) 사전 핸드셰이크 <code>upload-intent</code> 도 디렉토리 경로에 <b>토큰을 발급</b> — 바이트 전송이 끝난 뒤에야 위 500 을 만난다</td><td><code>IsoUploadIntentService.validateFilesystem</code> 도 같은 <code>exists &amp;&amp; !isDirectory</code> 조건이라 디렉토리를 통과시킨다. intent 의 존재 이유(전송 전 거절)가 이 케이스에서 무력</td></tr>
+<tr><td>F-5</td><td>서버+뷰</td><td>hidden 마커 <code>_allowCreateDirectory</code> 없이 POST 하면 <b>오류 무표시 silent 200</b></td><td>record 생성자 바인딩에서 primitive <code>boolean allowCreateDirectory</code> 값 부재 → <code>bindingResult.hasErrors()</code> → <code>iso-new</code> 재렌더. 그런데 템플릿의 서버 렌더 오류 슬롯은 <code>isoPath</code> 하나뿐(<code>th:errors="*{isoPath}"</code>) — allowCreateDirectory 필드 오류는 어디에도 표시되지 않는다</td></tr>
+<tr><td>F-7</td><td>표기</td><td>휴지통 이동 시 <b>디렉토리</b> 이름의 마지막 점을 확장자로 취급 — 실측: "v1.10" → "v1_260719-064732-312_26f378f3<b>.10</b>", "v2.3" → "v2_…_e2ea7c67<b>.3</b>"</td><td><code>global/trash/TrashService.generateTrashedFileName</code>(109행) 이 <code>original.lastIndexOf('.')</code> 로 무조건 base/ext 분리 — 대상이 파일인지 디렉토리인지 보지 않는다. 기능 영향은 없음(복원 정상), 운영자 혼란만 발생</td></tr>
+</table>
+<p>보조 사실: 필드 직결 400 예외 계층 <code>FieldBoundBadRequestException</code>(abstract, <code>fieldName()</code> 보유, <code>@ResponseStatus(400)</code>)이 이미 있고, XHR 채널은 <code>ApiExceptionHandler.handleFieldBoundBadRequest</code> 가 400 JSON + <code>fieldErrors</code> 로 변환한다. SSR(Server-Side Rendering — Thymeleaf 폼 흐름)에서 필드 오류를 폼 재렌더로 흡수하는 선례는 <code>IsoLifecycleController.updateIso</code> 의 <code>bindingResult.rejectValue("isoPath", …)</code> catch 다.</p>
+</div>
+</details>
+
+<details class="section" id="s2" open>
+<summary>2. 요구사항</summary>
+<div class="body">
+<ol>
+<li><b>F-4 — 입력성 오류는 400</b> — <code>prepare</code> 단계에서 resolved 경로가 <b>기존 디렉토리</b>면 isoPath 필드에 바인딩되는 400 예외로 거절한다. 메시지: "경로가 디렉토리입니다. 저장할 파일명까지 포함한 경로를 입력하세요." SSR 폼 재렌더 시 isoPath 슬롯에 오류가 보이고 응답 상태는 400. XHR(upload / upload-intent)은 기존 advice 로 400 JSON + fieldErrors.</li>
+<li><b>F-4b — intent 도 동일 방어</b> — 핸드셰이크 시점에 디렉토리 경로를 거절해 무의미한 바이트 전송을 차단한다(확인 결과 필요: §1 F-4b).</li>
+<li><b>F-5 — silent 실패 금지</b> — <code>iso-new.html</code> 폼 상단에 서버 렌더 글로벌 오류 배너를 추가한다. 바인딩 오류 중 <b>화면에 전용 슬롯이 없는 것</b>(global 오류 + isoPath 외 필드)을 Thymeleaf <code>#fields</code> 로 표시. 기존 알럿 CSS 클래스(<code>n-alert n-alert-danger</code>) 재사용, 인라인 스타일 금지.</li>
+<li><b>F-5 전수 확인</b> — 같은 checkbox 마커 패턴(record + primitive boolean + hidden <code>_marker</code>)을 쓰는 다른 폼의 적용 여부를 확인해 기록한다(§4 D3 에 결론).</li>
+<li><b>F-7 — 디렉토리 리네임</b> — 휴지통 이동 리네임에서 대상이 디렉토리면 확장자 분리 없이 <code>이름_&lt;ts&gt;_&lt;hash&gt;</code> 전체 접미사. 파일은 기존 동작(확장자 보존) 유지.</li>
+<li><b>테스트</b> — 단위(prepare 디렉토리 거절 · 리네임 파일/디렉토리) + 통합 @WebMvcTest(① 디렉토리 POST → 400 + isoPath 필드 메시지 ② 마커 누락 POST → 200 재렌더 + 배너 문구) + <code>./gradlew test</code> 전체 green.</li>
+</ol>
+<div class="callout warn">금지 경계 — 커밋 금지 · execution/·provisioning/ 수정 금지 · CLAUDE.md/AGENTS.md 수정 금지 · 업로드 intent 프로토콜(핸드셰이크 계약) 자체 변경 금지. 본 슬라이스는 intent 의 <b>검증 규칙 1건 추가</b>일 뿐 요청/응답 계약은 그대로다.</div>
+</div>
+</details>
+
+<details class="section preview" id="s2p" open>
+<summary>🎬 라이브 데모 — direct POST 3종 입력 → 서버 판정 체험</summary>
+<div class="body">
+<p><b>AS-IS 모드</b>는 전수 점검에서 잡힌 실제 결함 그대로, <b>TO-BE 모드</b>는 본 plan 적용 후 서버 판정이다. 세 위젯 모두 실제 서버 로직(경로 해석 → 디렉토리 판정 → 응답 조립 / 바인딩 실패 → 재렌더 / 확장자 분리)을 JavaScript 로 재현했다 — 입력을 바꿔가며 판정 변화를 직접 확인해보라.</p>
+<div class="ux-wrap">
+  <div class="ux-toolbar">
+    <span class="group-label">모드</span>
+    <button class="n-demo-btn on" id="mAsIs" onclick="setMode('asis')">AS-IS (현재 결함)</button>
+    <button class="n-demo-btn" id="mToBe" onclick="setMode('tobe')">TO-BE (수정 후)</button>
+  </div>
+
+  <div class="pane">
+    <h5>① F-4 — isoPath 에 디렉토리를 주고 파일 첨부 direct POST</h5>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:6px;">
+      데모 파일시스템 — 디렉토리: <code>/opt/iso</code>, <code>/opt/iso/rocky9</code> · 파일: <code>/opt/iso/rocky9/dvd.iso</code>
+      (끝이 <code>/</code> 면 서버 IsoPathResolver 가 업로드 파일명 <code>upload.iso</code> 를 이어붙인다)
+    </div>
+    <input class="sim-input" id="f4Path" value="/opt/iso/rocky9" spellcheck="false">
+    <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+      <button class="n-demo-btn danger" onclick="postF4()">파일 첨부 direct POST (SSR 폼)</button>
+      <button class="n-demo-btn danger" onclick="postF4Intent()">upload-intent XHR</button>
+    </div>
+    <div id="f4Out"></div>
+  </div>
+
+  <div class="pane">
+    <h5>② F-5 — Spring checkbox 마커 <code>_allowCreateDirectory</code> 유무</h5>
+    <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;">
+      <input type="checkbox" id="f5Marker" checked>
+      <span>hidden <code>_allowCreateDirectory</code> 마커 포함 (정상 브라우저 폼은 항상 포함)</span>
+    </label>
+    <div style="margin-top:8px;">
+      <button class="n-demo-btn danger" onclick="postF5()">direct POST (isoPath 는 유효값)</button>
+    </div>
+    <div id="f5Out"></div>
+  </div>
+
+  <div class="pane">
+    <h5>③ F-7 — 휴지통 이동 리네임 (파일/디렉토리)</h5>
+    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+      <input class="sim-input" id="f7Name" value="v1.10" style="width:180px;" spellcheck="false">
+      <button class="n-demo-btn" id="f7File" onclick="setF7Type('file')">파일</button>
+      <button class="n-demo-btn on" id="f7Dir" onclick="setF7Type('dir')">디렉토리</button>
+      <button class="n-demo-btn danger" onclick="moveF7()">휴지통 이동</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">추천 입력: 디렉토리 "v1.10" / "v2.3" · 파일 "a.iso" · 점 없는 "bundle"</div>
+    <div id="f7Out"></div>
+  </div>
+
+  <div class="ux-message" id="uxMsg">모드를 고르고 각 위젯의 버튼을 눌러보세요. AS-IS ↔ TO-BE 를 오가며 같은 입력의 판정 차이를 비교하는 것이 핵심.</div>
+</div>
+<div class="callout">데모가 재현하는 판정 = 본 plan 의 서버 판정과 동일식: ① <code>Files.isDirectory(resolved) → (AS-IS) Files.copy IOException 500 / (TO-BE) IsoPathIsDirectoryException 400(field=isoPath)</code> ② <code>마커 부재 → boolean 바인딩 실패 → hasErrors 재렌더 — (AS-IS) 슬롯 없음 무표시 / (TO-BE) 슬롯 없는 오류 배너</code> ③ <code>(AS-IS) lastIndexOf('.') 무조건 분리 / (TO-BE) isDirectory 면 전체 이름 + 접미사</code>.</div>
+</div>
+</details>
+
+<details class="section" id="s3">
+<summary>3. URL / 데이터 흐름</summary>
+<div class="body">
+<pre>
+[F-4 · SSR]  POST /management/os/{osId}/iso   (multipart form, IsoUploadController.addIso)
+   bindingResult.hasErrors() → 재렌더 (기존 유지 — F-5 배너가 이제 슬롯 없는 오류를 표시)
+   isoRegistrationService.prepare(osId, request, file)
+     ├─ resolvedPath = IsoPathResolver.resolve(…)                    // 기존
+     ├─ ensureParentDirectory / assertWritablePath                   // 기존
+     ├─ if (Files.isDirectory(target))                               // ★ 신설 가드
+     │      throw IsoPathIsDirectoryException(resolvedPath)          //   FieldBoundBadRequestException(400, field=isoPath)
+     └─ … (중복/사이드카/저장 — 기존)
+   controller catch (FieldBoundBadRequestException ex)               // ★ 신설 — updateIso rejectValue 선례
+     → bindingResult.rejectValue(ex.fieldName(), "fieldBound", ex.getMessage())
+     → response.setStatus(400) → iso-new 재렌더 (isoPath 슬롯에 오류 표시)
+
+[F-4 · XHR]  POST /management/os/{osId}/iso/upload  → 같은 prepare 가드
+   → ApiExceptionHandler.handleFieldBoundBadRequest → 400 JSON {message, fieldErrors:[{field:"isoPath"}]}  // advice 무변경
+
+[F-4b · intent]  POST /management/os/{osId}/iso/upload-intent
+   IsoUploadIntentService.issue → validateFilesystem
+     ├─ if (Files.isDirectory(target)) throw IsoPathIsDirectoryException  // ★ 신설 (같은 예외 재사용)
+     └─ 기존 DuplicateFilename / DirectoryMissing / 디스크 공간 검사
+   → 400 JSON (같은 advice) — 바이트 전송 전 거절 (intent 계약 자체는 무변경)
+
+[F-5 · 뷰]  templates/management/os/iso-new.html — 폼 상단
+   서버 렌더 배너 (기존 JS 배너 슬롯과 별개, 같은 n-alert n-alert-danger 클래스)
+   #fields.detailedErrors() 중 { global || fieldName != 'isoPath' } 만 나열
+   → 마커 누락 재렌더(200)에서 배너 표시. isoPath 오류는 기존 인라인 슬롯이 담당(중복 표시 없음)
+
+[F-7]  TrashService.moveToTrash → generateTrashedFileName(resourcePath)
+   if (Files.isDirectory(resourcePath)) return name + "_" + ts + "_" + uuid8   // ★ 확장자 분리 없음
+   else 기존 base/ext 분리 유지
+</pre>
+</div>
+</details>
+
+<details class="section" id="s4">
+<summary>4. 도메인 모델 — 설계 결정 (대안 비교 포함)</summary>
+<div class="body">
+<h4>D1. F-4 예외의 형태와 위치</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td>신규 <code>IsoPathIsDirectoryException extends FieldBoundBadRequestException</code>(management/os/exception, fieldName="isoPath"). <code>prepare</code> 의 <code>assertWritablePath</code> 직후 <code>Files.isDirectory(target)</code> 가드 1곳 + intent <code>validateFilesystem</code> 1곳에서 던진다.</td><td>XHR 은 기존 <code>handleFieldBoundBadRequest</code> 가 자동 매핑(advice 무변경 — hierarchy 흡수), SSR 은 fieldName 다형으로 rejectValue. 파일 첨부/미첨부(in-place 등록) 양쪽 모두 이른 시점에 명확한 사유로 거절 — 미첨부 시 기존의 오해성 메시지("ISO 파일이 해당 경로에 존재하지 않습니다" 409)도 이 케이스에선 대체된다.</td></tr>
+<tr><td>(b) 탈락</td><td>기존 <code>InvalidIsoPathException</code>(ConflictException, 409) 재사용</td><td>입력 형식 오류인데 409(충돌) 는 의미 오염. fieldName 이 없어 SSR 폼 슬롯/XHR fieldErrors 에 바인딩 불가 — 요구(필드 오류 표시) 미충족.</td></tr>
+<tr><td>(c) 탈락</td><td><code>storeUploadedFile</code> 의 IOException 메시지만 개선(500 유지)</td><td>과업 요구가 400. 게다가 파일 저장을 <b>시도한 뒤의</b> 사후 판정이라 원인(디렉토리)을 IOException 메시지 파싱으로 추정해야 한다 — 사전 판정이 정확하고 싸다.</td></tr>
+</table>
+<h4>D2. SSR 재렌더 처리 방식</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>addIso</code> 가 <code>FieldBoundBadRequestException</code>(추상 family) 를 catch → <code>rejectValue(ex.fieldName(), …)</code> + <code>HttpServletResponse</code> 400 + 재렌더. 재렌더 조립 3곳(기존 hasErrors / 신설 catch)은 private helper 로 추출(중복 금지).</td><td><code>updateIso</code> 의 기존 선례와 동형. sub-class 별 분기 없음 — 예외가 자기 필드명을 들고 오는 다형 매핑이라 향후 다른 필드 직결 예외가 생겨도 catch 는 안 자란다. 400 상태는 direct POST 전용 경로라 브라우저 UX 영향 없음.</td></tr>
+<tr><td>(b) 탈락</td><td>advice(WebExceptionHandler)에서 처리 — error.html 400 페이지</td><td>지금도 되는 동작(handleDomain 이 @ResponseStatus 400 매핑)이지만 "폼 재렌더 시 isoPath 필드 오류 표시" 요구 미충족 — advice 는 원 폼의 Model/BindingResult 컨텍스트가 없어 재렌더가 불가(updateIso 주석의 framework 한계와 동일).</td></tr>
+<tr><td>(c) 탈락</td><td>prepare 호출 전에 controller 가 직접 Files.isDirectory 검사</td><td>검증 로직이 controller/service 두 층으로 분산 — XHR upload 경로(같은 prepare 사용)와 SSOT 가 갈라진다. 판정은 service 1곳, 표현만 채널별.</td></tr>
+</table>
+<h4>D3. F-5 배너 범위 — checkbox 마커 패턴 전수 확인 결과</h4>
+<table>
+<tr><th>폼</th><th>패턴 존재</th><th>silent 200 가능?</th><th>배너 적용</th></tr>
+<tr><td><code>management/os/iso-new.html</code></td><td>O (ISOCreateRequest.allowCreateDirectory)</td><td><b>O</b> — 유일한 SSR fallback POST(<code>addIso</code>)가 hasErrors 시 재렌더</td><td><span class="chip new">적용</span></td></tr>
+<tr><td><code>management/bios/bios-new.html</code></td><td>O (BiosCreateRequest)</td><td>X — 등록 POST 전부 <code>@ResponseBody</code> XHR(<code>BiosUploadController</code>), 바인딩 오류는 400 JSON 으로 표면화</td><td><span class="chip na">미적용</span></td></tr>
+<tr><td><code>management/bmc/bmc-new.html</code></td><td>O (BmcCreateRequest)</td><td>X — 동일(XHR 전용, 400 JSON)</td><td><span class="chip na">미적용</span></td></tr>
+<tr><td><code>management/subprogram/subprogram-new.html</code></td><td>O (SubprogramCreateRequest)</td><td>X — 동일(XHR 전용, 400 JSON)</td><td><span class="chip na">미적용</span></td></tr>
+</table>
+<p>그 외 checkbox 는 목록 필터(GET, includeDeleted 등)와 provisioning 세팅 폼(JSON @RequestBody — 마커 개념 없음, 수정 금지 영역)이라 본 패턴이 아니다. <b>결론: silent 200 은 SSR 재렌더 + 슬롯 부재의 교집합에서만 성립하고, 그 교집합은 iso-new 하나다.</b></p>
+<h4>D4. F-5 배너 구현</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>#fields.detailedErrors()</code> 를 <code>{ global || fieldName != 'isoPath' }</code> 로 필터한 목록만 배너에 나열(필드명 + 메시지). 배너 고정 헤드라인 "입력값을 처리하지 못한 항목이 있습니다." + 기존 <code>n-alert n-alert-danger</code> 재사용.</td><td>슬롯이 있는 isoPath 오류는 인라인만 표시(중복 없음) — 정상 검증 UX 불변. 제외 목록('isoPath')은 슬롯 자체와 같은 템플릿 파일 안에 있어 SSOT-인접(슬롯을 추가/삭제하는 수정과 같은 diff 에서 보인다). 향후 슬롯 없는 새 필드는 자동으로 배너에 잡힌다 — silent 재발 불가.</td></tr>
+<tr><td>(b) 탈락</td><td><code>#fields.allErrors()</code> 전체 요약 배너</td><td>isoPath 오류 시 배너+인라인 이중 표시 — 정상 흐름(경로 공백 등)의 기존 화면이 바뀐다. 핫픽스가 정상 UX 를 건드릴 이유 없음.</td></tr>
+<tr><td>(c) 탈락</td><td>allowCreateDirectory 전용 오류 슬롯 추가</td><td>필드 하나를 지목하는 방식 — 다음에 슬롯 없는 필드가 추가되면 같은 silent 사고 재발(분기 legacy 확장과 같은 냄새).</td></tr>
+</table>
+<h4>D5. F-7 리네임 분기</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>generateTrashedFileName</code> 내부에서 <code>Files.isDirectory(resourcePath)</code> 로 분기 — 디렉토리는 전체 이름 + <code>_ts_uuid8</code>, 파일은 기존 분리 유지. suffix 조립은 한 번만 계산해 두 분기가 공유(중복 금지).</td><td>호출 시점(<code>moveToTrash</code> 의 mv 직전)에 원본이 실재하므로 파일시스템 실체 기반 판정이 정확. 호출부/시그니처 무변경.</td></tr>
+<tr><td>(b) 탈락</td><td><code>moveToTrash</code> 가 boolean isDirectory 를 인자로 전달</td><td>호출자가 1곳뿐인데 시그니처만 오염(무명 boolean 인자 — CLAUDE.md 가독성 신호). 판정 재료(경로)가 이미 메서드 안에 있다.</td></tr>
+<tr><td>(c) 탈락</td><td>이름 휴리스틱("마지막 세그먼트가 숫자면 확장자 아님")</td><td>"v2.iso" 라는 디렉토리·"file.10" 이라는 파일이 얼마든지 가능 — 이름으로는 오판정. 실체 판정이 유일하게 정확.</td></tr>
+</table>
+<p>Edge: 존재하지 않는 경로(ghost)는 <code>isDirectory=false</code> → 기존(파일) 규칙으로 이름을 만들지만 어차피 직후 <code>moveWithRetry</code> 가 실패하므로 행동 변화 없음.</p>
+</div>
+</details>
+
+<details class="section" id="s5">
+<summary>5. 10단계 매핑</summary>
+<div class="body">
+<table>
+<tr><th>Step</th><th>내용</th><th>비고</th></tr>
+<tr><td>1</td><td>본 plan</td><td><span class="chip new">CP1</span></td></tr>
+<tr><td>2</td><td>뷰 — iso-new.html 폼 상단 서버 렌더 배너(슬롯 없는 바인딩 오류 나열, n-alert 재사용)</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>3</td><td>Controller — IsoUploadController.addIso: FieldBoundBadRequestException catch → rejectValue + 400 재렌더, 재렌더 조립 helper 추출</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>4</td><td>DTO — 변경 없음</td><td><span class="chip keep">유지</span></td></tr>
+<tr><td>5</td><td>Service — IsoRegistrationService.prepare 디렉토리 가드 / IsoUploadIntentService.validateFilesystem 동일 가드 / TrashService.generateTrashedFileName 디렉토리 분기</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>6</td><td>Repository — 변경 없음</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>7</td><td>Entity — 변경 없음</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>8</td><td>테스트 — §6</td><td>단위 + @WebMvcTest 통합</td></tr>
+<tr><td>9</td><td>스키마 — 변경 없음</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>10</td><td>CP5 — 사용자 검증(브라우저 direct POST 재연 또는 curl). 본 과업 범위는 CP4 까지</td><td>유보</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s6">
+<summary>6. Step 8 테스트 시나리오</summary>
+<div class="body">
+<h4>단위 (JUnit + Mockito)</h4>
+<ul>
+<li><b>IsoRegistrationServiceTest 추가</b> — prepare: resolved 경로가 @TempDir <b>기존 디렉토리</b>면 <code>IsoPathIsDirectoryException</code>(fieldName="isoPath", 메시지에 "디렉토리") / 대조 happy: 미존재 파일 경로 + 업로드 파일이면 통과(PreparedIsoRegistration 반환).</li>
+<li><b>IsoUploadIntentServiceTest 신설</b> — issue: 디렉토리 경로 → <code>IsoPathIsDirectoryException</code>(토큰 미발급) / happy: 정상 경로 → IntentTokenIssued.</li>
+<li><b>TrashServiceTest 신설</b>(mock TrashPolicy + @TempDir 실제 FS) — 파일 <code>a.iso</code> → <code>a_&lt;yyMMdd-HHmmss-SSS&gt;_&lt;uuid8&gt;.iso</code> (확장자 보존) / 디렉토리 <code>v1.10</code> → <code>v1.10_&lt;ts&gt;_&lt;uuid8&gt;</code> (점 미분리 — ".10" 꼬리 없음) / 점 없는 파일 <code>bundle</code> → <code>bundle_&lt;ts&gt;_&lt;uuid8&gt;</code>. 디렉토리는 내용 파일 포함 이동까지 확인.</li>
+</ul>
+<h4>사용자 액션 통합 (@WebMvcTest — 신규 IsoUploadControllerFormGuardFlowTest, 기존 *FlowTest 파일 분리 관례)</h4>
+<ul>
+<li><b>① 400 (SSR)</b> — multipart POST <code>/management/os/1/iso</code> + isoPath=디렉토리 + 파일 첨부(prepare stub 이 실제 <code>IsoPathIsDirectoryException</code> throw) → <b>status 400</b> + 재렌더 HTML 에 isoPath 필드 오류 메시지("경로가 디렉토리입니다") 존재. <b>신규 예외 동반 시나리오 규율 충족.</b></li>
+<li><b>② 200 silent→배너 (SSR)</b> — POST <code>/management/os/1/iso</code> 에 <code>_allowCreateDirectory</code>·<code>allowCreateDirectory</code> 둘 다 없이(유효 isoPath) → <b>status 200</b> + 바디에 배너 헤드라인 "입력값을 처리하지 못한 항목이 있습니다" 존재 + prepare 미호출 검증.</li>
+<li><b>③ 400 JSON (XHR upload)</b> — multipart POST <code>/management/os/1/iso/upload</code> (같은 stub) → 400 + <code>$.fieldErrors[0].field == "isoPath"</code> — advice 매핑 실증.</li>
+<li><b>④ 400 JSON (XHR intent)</b> — POST <code>/management/os/1/iso/upload-intent</code> (intent service stub throw) → 400 + fieldErrors[0].field == "isoPath".</li>
+</ul>
+<p>404/409 신규 시나리오 없음 — 본 슬라이스는 새 NotFound/Conflict 하위를 만들지 않는다(기존 스위트 OSMetadataControllerUploadFlowTest 가 보유).</p>
+</div>
+</details>
+
+<details class="section" id="s7">
+<summary>7. 예외 계층</summary>
+<div class="body">
+<table>
+<tr><th>예외</th><th>신규/재사용</th><th>매핑</th></tr>
+<tr><td><code>IsoPathIsDirectoryException extends FieldBoundBadRequestException</code> (management/os/exception/, fieldName="isoPath")</td><td><span class="chip new">신규</span></td><td>XHR: 기존 <code>handleFieldBoundBadRequest</code> → 400 JSON + fieldErrors (advice 무변경). SSR: addIso catch → rejectValue + 400 재렌더. advice 미경유 direct HTML 흐름도 <code>@ResponseStatus(400)</code> 상속으로 최악의 경우 400 error 뷰(500 아님).</td></tr>
+<tr><td><code>ISOFileStorageException</code></td><td><span class="chip keep">유지</span></td><td>디렉토리 케이스가 선차단되어 이 경로로 더는 도달하지 않음 — 진짜 저장 IO 실패(권한/디스크)의 500 안전망으로 존치.</td></tr>
+<tr><td><code>DuplicateFilenameException</code> / <code>DirectoryMissingException</code> / <code>InvalidIsoPathException</code></td><td><span class="chip keep">유지</span></td><td>기존 조건·매핑 무변경(디렉토리 가드가 이들보다 먼저 판정될 뿐).</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s8">
+<summary>8. 부산물 / 주의</summary>
+<div class="body">
+<ul>
+<li><b>scope 경계</b> — bios/bmc/subprogram 의 등록 경로에도 이론상 "디렉토리 경로" 유사 입력이 가능하지만 업로드 모델이 다르고(번들/디렉토리 등록이 정상 기능) 이번 발견(F-4)은 ISO 한정 — 타 도메인 가드는 만들지 않는다. <code>updateIso</code> 의 재렌더 200(400 아님)도 기존 동작 유지 — 이번 요구 밖.</li>
+<li><b>intent 프로토콜 불변</b> — upload-intent 의 요청/응답 계약(토큰·nudge·hash 단계)은 그대로. validateFilesystem 안 검증 규칙 1건 추가일 뿐이다.</li>
+<li><b>F-5 배너의 표시 문언</b> — allowCreateDirectory 바인딩 실패의 기본 메시지는 Spring 이 만드는 영문(typeMismatch)일 수 있다. 배너는 한국어 헤드라인 + 필드명/원문 나열로 표면화가 목적 — 메시지 한글화(MessageSource 도입)는 프로젝트에 messages.properties 자체가 없어 본 핫픽스 범위 밖(후속 후보, §11).</li>
+<li><b>TrashService 리네임 변경은 이동 시점 이름에만 영향</b> — 기존 휴지통에 이미 잘못 리네임된 항목은 소급 정정하지 않는다(복원 정상이므로 데이터 수술 불요).</li>
+<li><b>동반 수정 없음</b> — CLAUDE.md/AGENTS.md/스키마/Notion 구조 무변경. execution/·provisioning/ 미접촉.</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s9">
+<summary>9. Verification</summary>
+<div class="body">
+<ol>
+<li><b>빌드</b> — <code>./gradlew test</code> 신설 테스트 포함 전체 green (bootRun 금지 지시).</li>
+<li><b>기능(테스트로 실증)</b> — §6 ①~④ + 단위 3종: 디렉토리 400 필드오류 / 마커 누락 배너 / 리네임 점 미분리.</li>
+<li><b>회귀</b> — 기존 OSMetadataControllerUploadFlowTest(인접 엔드포인트 스위트) green / IsoRegistrationServiceTest 기존 finalize 분기 green / trash 관련 기존 스위트(TrashLifecycleService*, PurgeExecutor*) green — 파일 리네임 동작 불변 확인.</li>
+<li><b>CP5(사용자, 유보)</b> — curl 로 ① isoPath=디렉토리 첨부 POST → 400 + 폼에 오류 표시 ② 마커 누락 POST → 배너 ③ "v1.10" 디렉토리 자원 soft-delete → 휴지통 파일명 "v1.10_…" 확인.</li>
+</ol>
+</div>
+</details>
+
+<details class="section" id="s10">
+<summary>10. Critical Files</summary>
+<div class="body">
+<table>
+<tr><th>구분</th><th>파일</th></tr>
+<tr><td><span class="chip new">신규</span></td><td><code>management/os/exception/IsoPathIsDirectoryException.java</code> · 테스트 <code>management/os/controller/IsoUploadControllerFormGuardFlowTest.java</code> · <code>management/os/service/iso/IsoUploadIntentServiceTest.java</code> · <code>global/trash/TrashServiceTest.java</code></td></tr>
+<tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/iso/IsoRegistrationService.java</code>(prepare 가드) · <code>management/os/service/iso/IsoUploadIntentService.java</code>(validateFilesystem 가드) · <code>management/os/controller/IsoUploadController.java</code>(catch+400+helper) · <code>templates/management/os/iso-new.html</code>(서버 렌더 배너) · <code>global/trash/TrashService.java</code>(리네임 분기) · 테스트 <code>IsoRegistrationServiceTest.java</code>(prepare 시나리오 추가)</td></tr>
+<tr><td><span class="chip keep">유지</span></td><td>advice 2종(ApiExceptionHandler/WebExceptionHandler — hierarchy 흡수라 무변경) · IsoPathResolver · ISOCreateRequest · bios/bmc/subprogram 폼·컨트롤러(§4 D3 미적용 결론) · iso-new.js(클라이언트 프로토콜 불변)</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s11">
+<summary>11. 다음 마일스톤</summary>
+<div class="body">
+<ul class="check-list" data-storage="hf43-next">
+<li><label><input type="checkbox"><span>CP2~CP4 구현 + 테스트 전체 green (본 세션)</span></label></li>
+<li><label><input type="checkbox"><span>CP5 — 사용자 검증(curl direct POST 재연 + 휴지통 리네임 확인) 후 완료 통보</span></label></li>
+<li><label><input type="checkbox"><span>후속 후보: 바인딩 기본 메시지 한글화(MessageSource + messages.properties 도입) — 전 폼 공통 개선이라 별도 슬라이스</span></label></li>
+</ul>
+</div>
+</details>
+
+</main>
+</div>
+
+<script>
+(function(){
+  // ── 불가침 4 로직 ──────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const el = document.getElementById(a.getAttribute('href').slice(1));
+      if (!el) return;
+      e.preventDefault();
+      el.open = true;
+      const y = el.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({top:y, behavior:'smooth'});
+    });
+  });
+  document.getElementById('btnExpand').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = true);
+  document.getElementById('btnCollapse').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = false);
+  const fb = document.getElementById('filterBox');
+  fb.addEventListener('input', () => {
+    const q = fb.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      const hit = !q || d.textContent.toLowerCase().includes(q);
+      d.style.display = hit ? '' : 'none';
+      if (q && hit) d.open = true;
+    });
+  });
+  document.querySelectorAll('.check-list[data-storage]').forEach(list => {
+    const key = list.dataset.storage;
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b, i) => {
+      b.checked = !!saved[i];
+      b.closest('label').classList.toggle('done', b.checked);
+      b.addEventListener('change', () => {
+        b.closest('label').classList.toggle('done', b.checked);
+        localStorage.setItem(key, JSON.stringify([...boxes].map(x => x.checked)));
+      });
+    });
+  });
+})();
+
+// ── 🎬 라이브 데모 — 서버 판정 시뮬레이션 ──────────
+const state = { mode: 'asis', f7type: 'dir' };
+// 데모 파일시스템 (판정 SSOT 재현)
+const FS = { dirs: ['/opt/iso', '/opt/iso/rocky9'], files: ['/opt/iso/rocky9/dvd.iso'] };
+
+function setMode(m) {
+  state.mode = m;
+  document.getElementById('mAsIs').classList.toggle('on', m==='asis');
+  document.getElementById('mToBe').classList.toggle('on', m==='tobe');
+  msg('', '모드 전환: ' + (m==='asis'?'AS-IS (결함 재현)':'TO-BE (수정 후)') + ' — 같은 입력으로 버튼을 다시 눌러 판정 차이를 비교해보라.');
+  ['f4Out','f5Out','f7Out'].forEach(id => document.getElementById(id).innerHTML = '');
+}
+function msg(cls, text) { const el = document.getElementById('uxMsg'); el.className = 'ux-message ' + cls; el.textContent = text; }
+function badge(s) { const cls = s>=500?'s500':(s>=409?'s409':(s>=400?'s400':(s>=300?'s302':'s200'))); return '<span class="badge '+cls+'">HTTP '+s+'</span>'; }
+
+// F-4 — IsoPathResolver + prepare 가드 재현
+function resolveF4(raw) { return raw.endsWith('/') ? raw + 'upload.iso' : raw; }
+function judgeF4(resolved) {
+  if (FS.dirs.includes(resolved)) {
+    return state.mode==='asis'
+      ? { status:500, kind:'crash' }
+      : { status:400, kind:'field', message:'경로가 디렉토리입니다. 저장할 파일명까지 포함한 경로를 입력하세요 : ' + resolved };
+  }
+  if (FS.files.includes(resolved)) return { status:409, kind:'conflict', message:'이미 존재하는 파일 : ' + resolved + ' (DuplicateFilenameException — 기존 동작, 본 슬라이스 무변경)' };
+  return { status:302, kind:'ok' };
+}
+function postF4() {
+  const raw = document.getElementById('f4Path').value.trim();
+  const resolved = resolveF4(raw);
+  const r = judgeF4(resolved);
+  const out = document.getElementById('f4Out');
+  if (r.kind === 'crash') {
+    out.innerHTML = '<div class="ux-message error flash">' + badge(500) + ' — 500 에러 페이지 (SSR)\n'
+      + 'storeUploadedFile → Files.copy(in, ' + resolved + ') → IOException(대상이 디렉토리)\n'
+      + '→ ISOFileStorageException (@ResponseStatus 없음) → advice fallback 500. 폼도, 필드 오류도 없다.</div>';
+    msg('error', 'AS-IS: 입력 실수가 서버 내부 오류(500)로 위장된다 — 사용자는 자기 잘못인지 서버 장애인지 알 수 없음.');
+  } else if (r.kind === 'field') {
+    out.innerHTML = '<div class="pane flash">' + badge(400) + ' — 폼 재렌더 (isoPath 슬롯에 오류 표시)'
+      + '<div style="margin-top:8px;"><input class="sim-input invalid" value="' + raw.replace(/"/g,'&quot;') + '" readonly>'
+      + '<div class="sim-field-error">' + r.message + '</div></div></div>';
+    msg('success', 'TO-BE: prepare 가 Files.isDirectory 로 선판정 → IsoPathIsDirectoryException(field=isoPath) → catch → rejectValue + 400 재렌더.');
+  } else if (r.kind === 'conflict') {
+    out.innerHTML = '<div class="ux-message error flash">' + badge(409) + ' — ' + r.message + '</div>';
+    msg('', '이 판정은 AS-IS/TO-BE 동일 — 디렉토리 가드는 기존 중복 파일 거절보다 먼저 확인될 뿐 기존 분기를 바꾸지 않는다.');
+  } else {
+    out.innerHTML = '<div class="ux-message success flash">' + badge(302) + ' — 등록 job 시작 → 목록으로 redirect (정상 경로: 미존재 파일 경로 + 업로드)</div>';
+    msg('success', '정상 판정 — 끝이 / 인 경로를 넣으면 IsoPathResolver 가 upload.iso 를 이어붙이는 것도 확인해보라.');
+  }
+}
+function postF4Intent() {
+  const raw = document.getElementById('f4Path').value.trim();
+  const resolved = resolveF4(raw);
+  const out = document.getElementById('f4Out');
+  if (FS.dirs.includes(resolved)) {
+    if (state.mode === 'asis') {
+      out.innerHTML = '<div class="ux-message flash">' + badge(200) + ' — {"uploadToken":"3fa8…"} 토큰 발급!\n'
+        + '클라이언트는 12GB 바이트 전송을 시작하고… 전송 완료 후 prepare 에서 500. 핸드셰이크(전송 전 거절)가 이 케이스에서 무력하다 (F-4b).</div>';
+      msg('error', 'AS-IS: validateFilesystem 의 exists && !isDirectory 조건이 디렉토리를 통과시킨다.');
+    } else {
+      out.innerHTML = '<div class="ux-message error flash">' + badge(400) + ' — {"message":"경로가 디렉토리입니다. …","fieldErrors":[{"field":"isoPath"}]}\n바이트 전송 자체가 시작되지 않는다.</div>';
+      msg('success', 'TO-BE: 같은 IsoPathIsDirectoryException 을 intent 검증에서도 던진다 — advice(handleFieldBoundBadRequest)가 400 JSON 으로 변환. intent 계약(토큰/nudge 단계)은 무변경.');
+    }
+  } else {
+    out.innerHTML = '<div class="ux-message success flash">' + badge(200) + ' — 토큰 발급 (디렉토리 아님 — 기존 검증 통과 가정)</div>';
+    msg('', '디렉토리 경로(/opt/iso/rocky9 등)를 넣고 다시 눌러 차이를 보라.');
+  }
+}
+
+// F-5 — 마커 유무 → 바인딩 → 재렌더 재현
+function postF5() {
+  const marker = document.getElementById('f5Marker').checked;
+  const out = document.getElementById('f5Out');
+  if (marker) {
+    out.innerHTML = '<div class="ux-message success flash">' + badge(302) + ' — allowCreateDirectory=false 로 정상 바인딩 → 등록 진행. (Thymeleaf th:field 체크박스가 이 마커를 항상 만들어 준다 — 정상 브라우저 폼이 안전한 이유)</div>';
+    msg('success', '마커 포함 = 정상 흐름. 체크를 풀고(direct POST 재현) 다시 눌러보라.');
+    return;
+  }
+  // 마커 부재 → record 생성자 primitive boolean 바인딩 실패 → hasErrors → 재렌더
+  if (state.mode === 'asis') {
+    out.innerHTML = '<div class="pane flash">' + badge(200) + ' — 폼 재렌더 (AS-IS)'
+      + '<div style="margin-top:8px;"><input class="sim-input" value="/mnt/iso/new.iso" readonly>'
+      + '<div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">… 오류 표시 아무 데도 없음. bindingResult 에는 allowCreateDirectory 오류가 있지만 템플릿 슬롯은 isoPath 뿐 — 등록도 안 됐는데 화면은 멀쩡 (silent 200)</div></div></div>';
+    msg('error', 'AS-IS: 실패했는데 실패로 보이지 않는다 — 세 결함 중 가장 조용한 유형.');
+  } else {
+    out.innerHTML = '<div class="pane flash">' + badge(200) + ' — 폼 재렌더 (TO-BE)'
+      + '<div class="sim-banner" style="margin-top:8px;"><b>입력값을 처리하지 못한 항목이 있습니다.</b>'
+      + '<ul><li>allowCreateDirectory — Failed to convert value … (boolean 바인딩 실패)</li></ul></div>'
+      + '<input class="sim-input" value="/mnt/iso/new.iso" readonly></div>';
+    msg('success', 'TO-BE: #fields.detailedErrors() 중 슬롯 없는 것(global + isoPath 외)만 배너에 나열 — isoPath 오류는 기존 인라인 슬롯이 담당하므로 이중 표시 없음.');
+  }
+}
+
+// F-7 — generateTrashedFileName 재현
+function setF7Type(t) {
+  state.f7type = t;
+  document.getElementById('f7File').classList.toggle('on', t==='file');
+  document.getElementById('f7Dir').classList.toggle('on', t==='dir');
+}
+function trashedName(name, isDir, tobe) {
+  const suffix = '_260719-064732-312_26f378f3';
+  if (tobe && isDir) return { text: name + '<span class="good">' + suffix + '</span>', broken: false };
+  const dot = name.lastIndexOf('.');
+  if (dot > 0) {
+    const base = name.slice(0, dot), ext = name.slice(dot);
+    const broken = isDir;   // 디렉토리인데 분리했다 = 오분리
+    return { text: base + suffix + '<span class="' + (broken?'bad':'good') + '">' + ext + '</span>', broken };
+  }
+  return { text: name + '<span class="good">' + suffix + '</span>', broken: false };
+}
+function moveF7() {
+  const name = document.getElementById('f7Name').value.trim() || 'v1.10';
+  const isDir = state.f7type === 'dir';
+  const asis = trashedName(name, isDir, false);
+  const tobe = trashedName(name, isDir, true);
+  document.getElementById('f7Out').innerHTML =
+    '<div class="rename-out flash">AS-IS &nbsp;→ ' + asis.text + (asis.broken ? ' &nbsp;<span class="bad">← 디렉토리 이름의 ".' + name.slice(name.lastIndexOf('.')+1) + '" 이 확장자로 오분리!</span>' : '') + '</div>'
+    + '<div class="rename-out">TO-BE → ' + tobe.text + '</div>';
+  if (isDir && name.lastIndexOf('.') > 0) {
+    msg(state.mode==='asis'?'error':'success', (state.mode==='asis'?'AS-IS':'TO-BE') + ' 관점: 디렉토리 "' + name + '" — AS-IS 는 마지막 점 뒤를 잘라 접미사 앞에 붙이고, TO-BE 는 Files.isDirectory 판정으로 전체 이름 뒤에 접미사를 붙인다. 파일 타입으로 바꿔 확장자 보존(양쪽 동일)도 확인해보라.');
+  } else {
+    msg('', '이 입력은 AS-IS/TO-BE 결과가 같다 — 점 있는 디렉토리 이름("v1.10", "v2.3")이 유일한 차이 지점.');
+  }
+}
+setF7Type('dir');
+</script>
+</body>
+</html>

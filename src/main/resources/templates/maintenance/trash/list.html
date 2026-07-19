@@ -137,13 +137,25 @@
                                     th:disabled="${item.parentDeleted}">복원</button>
                         </span>
                         </form>
+                        <!-- HF4-1 — 연장 전용 modal 마커(data-confirm-extend) + step 라벨 동적화. -->
+                        <!--    미지원 자원 종류(메타 자원)는 disabled + tooltip 으로 UI 1차 차단 —
+                                ttlExtendable 은 서버 가드와 동일한 SPI 판정(supportsTrashTtlExtension) SSOT. -->
                         <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
                               method="post"
-                              data-confirm-deprecate=""
+                              data-confirm-extend=""
                               data-async-submit=""
+                              th:data-resource-type="${item.resourceType}"
+                              th:data-resource-id="${item.resourceId}"
                               th:data-resource-label="|${item.displayName} 의 보존기간|"
-                              data-resource-extra="+30일 연장돼요.">
-                            <button type="submit" class="n-btn n-btn-sm n-btn-ghost">+30일 연장</button>
+                              th:data-extend-step-days="${item.extendStepDays}"
+                              data-resource-extra="만료일 기준으로 가산돼요.">
+                            <span class="n-btn-tooltip-wrap"
+                                  data-tooltip-align="right"
+                                  th:attr="data-tooltip=${!item.ttlExtendable} ? '이 자원 종류는 보존기간 연장을 지원하지 않아요.' : null">
+                            <button type="submit" class="n-btn n-btn-sm n-btn-ghost"
+                                    th:disabled="${!item.ttlExtendable}"
+                                    th:text="|+${item.extendStepDays}일 연장|">+30일 연장</button>
+                        </span>
                         </form>
                         <!-- S5-2 — typed-name 검증 적용 영구삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
                         <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"

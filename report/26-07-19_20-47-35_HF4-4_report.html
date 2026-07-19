@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF4-4 report — 스캔 보고서 탐지·미해결 건수 병기(O-3) + 스캔 범위 운영 안내(O-1)</title>
+<style>
+  :root{--bg:#f6f8fa;--card:#fff;--text:#1f2328;--muted:#57606a;--border:#d0d7de;--soft:#eaecef;
+    --blue:#0075de;--blue-bg:#e6f0ff;--green:#1a7f37;--green-bg:#dafbe1;--red:#bf2626;--red-bg:#ffebe9;
+    --yellow:#9a6700;--yellow-bg:#fff8c5;--purple:#6f4cdd;--purple-bg:rgba(111,76,221,.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;margin:0;background:var(--bg);color:var(--text);line-height:1.65;font-size:14px}
+  header{background:linear-gradient(180deg,#fff,#fbfcfd);border-bottom:1px solid var(--border);padding:18px 26px}
+  header h1{margin:0 0 4px;font-size:19px;font-weight:700}
+  header p{margin:0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;background:var(--green-bg);color:var(--green);vertical-align:2px}
+  .wrap{max-width:1060px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:16px;margin:28px 0 10px}
+  .dim{color:var(--muted);font-size:12px}
+  code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:.88em;font-family:var(--mono);word-break:break-all}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:10px 0}
+  th,td{border-bottom:1px solid var(--soft);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-size:11.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+  .callout.ok{border-color:var(--green);background:var(--green-bg)}
+  .callout.warn{border-color:var(--yellow);background:var(--yellow-bg)}
+  .fix{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:10px;padding:13px 16px;margin:10px 0}
+  .fix h4{margin:0 0 5px;font-size:13.5px}
+  .fix p{margin:3px 0;font-size:13px}
+  details.appendix{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0}
+  details.appendix summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--muted)}
+  details.appendix .bd{padding:0 16px 14px;border-top:1px solid var(--soft);padding-top:12px}
+  ul{padding-left:20px} li{padding:2px 0}
+  .b-as{color:var(--red);font-weight:700}
+  .b-to{color:var(--green);font-weight:700}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px}
+  .tag.o3{background:var(--purple-bg);color:var(--purple)}
+  .tag.o1{background:var(--blue-bg);color:var(--blue)}
+</style>
+</head>
+<body>
+<header>
+  <h1>HF4-4 report — 스캔 보고서 탐지·미해결 건수 병기(O-3) + 스캔 범위 운영 안내(O-1) <span class="chip">검수 통과 · main 통합</span></h1>
+  <p>plan: plan/26-07-19_19-58-52_HF4-4_plan.html (CP1~CP4 연속 진행 지시 · 병렬 워크트리) · 검수 반려 1건(수정 후 통과) · main 통합 테스트 1,343 / 실패 0 · 신설 테스트 7 · 샌드박스 실측 4항목 · 2026-07-19 KST</p>
+</header>
+<div class="wrap">
+
+  <h2>① 요약</h2>
+  <div class="callout ok"><b>2026-07-19 전수 점검에서 설계 특성으로 관찰됐던 두 항목(O-3 · O-1)에 대해 사용자가 내린 결정 두 건이 구현되어 main 에 통합됐습니다.</b>
+  <b>O-3</b> 은 자원 무결성 점검(reconciliation) 화면의 스캔 이력 건수 배지가 "지금 남은 미해결 건수"로만 표시돼,
+  드리프트를 해결할 때마다 <b>과거 보고서의 배지까지 함께 줄어들어 "그 스캔에서 몇 건이 탐지됐었는가"라는 역사적 사실이 사라지던</b> 문제입니다 —
+  탐지 시점 건수를 보고서에 스냅샷(snapshot, 시점 고정 저장)으로 보존하고 "탐지 N · 미해결 M" 으로 병기하도록 했습니다.
+  <b>O-1</b> 은 스캔이 훑는 범위(활성 자원이 등록된 폴더들의 상위 폴더 모음 + 설정으로 지정한 추가 폴더)와,
+  자원을 그 범위 밖으로 통째 옮기면 '경로 이동'이 아니라 '자원 소실'로 보고된다는 동작이 코드 주석 외 어디에도 안내되지 않던 문제입니다 —
+  점검 화면 상단 배너와 '자원 소실' 카드의 권장 조치 문구에 이 사실과 보강 방법을 적어 넣었습니다.
+  둘 다 표시·기록 계층만 손댄 변경이며, 드리프트를 탐지·해결하는 핵심 로직과 예외 흐름은 한 줄도 바꾸지 않았습니다.</div>
+
+  <table>
+    <thead><tr><th style="width:16%">항목</th><th>전수 점검에서의 관찰</th><th>사용자 결정</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag o3">O-3</span></td>
+        <td>스캔 이력의 건수 배지가 '미해결 잔수'로 동적 감소한다 — 해결하면 과거 보고서도 "0 건" 표기가 되어 탐지 이력이 소실된다.</td>
+        <td>감사(audit) 관점에서 "탐지 당시 N건 / 미해결 M건" 병기로 바꾼다. 탐지 건수는 보고서에 스냅샷으로 영속 보존.</td></tr>
+      <tr><td><span class="tag o1">O-1</span></td>
+        <td>PATH_DRIFT(경로 이동) 탐지 범위가 활성 자원 상위 폴더의 합집합 + <code>reconciliation.scan.extra-roots</code> 설정이라는 사실과, 범위 밖 이동이 '자원 소실'로 보고되는 동작·보강법이 화면 어디에도 없다.</td>
+        <td>점검 화면에 스캔 범위와 extra-roots 보강 경로를 안내한다.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>② 유스케이스 전후</h2>
+
+  <div class="fix"><h4><span class="tag o3">O-3</span> 스캔 이력 배지가 해결할수록 줄어 탐지 이력이 사라지던 문제</h4>
+    <p><b>상황:</b> 운영자가 <code>/maintenance/reconciliation</code> 에서 자원 무결성 점검을 돌려 드리프트 4건을 탐지한다.
+    이후 각 드리프트를 [적용] 또는 [보고 닫기] 로 하나씩 해결한다.</p>
+    <p><span class="b-as">전:</span> 배지가 표시하던 값은 보고서에 남아 있는 자식 드리프트 행 수(<code>drifts.size()</code>)였다.
+    해결은 자식 행을 <code>orphanRemoval</code>(고아 제거) 로 <b>물리 삭제</b>하므로 배지가 4 → 3 → … → 0 으로 줄고,
+    상단 요약줄도 같이 줄었다. 전부 해결하면 그 스캔의 보고서가 "0 건"(처리 완료 초록)이 되어,
+    나중에 이력을 열어봐도 <b>"그때 몇 건이 탐지됐었는지" 알 수 없었다</b> — 감사 추적이 불가능했다.</p>
+    <p><span class="b-to">후(실측):</span> 보고서가 만들어질 때 탐지 건수를 <code>detected_drift_count</code> 컬럼에 고정 저장한다(해결로 감소하지 않음).
+    화면은 "탐지 N · 미해결 M" 으로 병기한다 — 4건 탐지 후 전부 해결하면 배지가 <b>"탐지 4 · 미해결 0"</b>(처리 완료 초록) 으로 남아,
+    미해결이 0 이라는 현재 상태와 탐지 4 라는 역사적 사실이 동시에 보인다.
+    색 판정은 종전대로 미해결 기준을 유지해, 미해결이 1건이라도 있으면 회색(주의) 배지다.</p></div>
+
+  <div class="fix"><h4><span class="tag o1">O-1</span> 스캔 범위와 '자원 소실' 보고 조건이 화면에 안내되지 않던 문제</h4>
+    <p><b>상황:</b> 운영자가 자원 파일을 스캔 범위 밖(예: 별도 백업 폴더)으로 통째 옮긴 뒤 점검을 돌린다.</p>
+    <p><span class="b-as">전:</span> 스캔은 활성 자원의 상위 폴더 합집합과 <code>reconciliation.scan.extra-roots</code> 설정 폴더만 훑는다.
+    범위 밖으로 옮긴 자원은 마커를 찾을 수 없어 '경로 이동'이 아니라 <b>'자원 소실'</b> 로 보고된다.
+    이 동작 자체는 설계 의도이지만, 운영자가 그 사실을 알 수 있는 곳은 서비스 코드의 주석(Javadoc)뿐이었다 —
+    화면 상단 설명에도, '자원 소실' 카드의 권장 조치에도 <code>extra-roots</code> 언급이 없어,
+    운영자는 왜 '경로 이동'으로 안 잡히는지, 어떻게 보강하는지 알 길이 없었다.</p>
+    <p><span class="b-to">후(실측):</span> 점검 화면 상단 배너에 ① 스캔 범위 = 활성 자원 폴더 + <code>extra-roots</code> ② 범위 밖 이동은 '자원 소실'로 보고됨
+    ③ <code>extra-roots</code> 에 경로를 추가해 범위를 넓힐 수 있음, 세 사실을 적었다.
+    아울러 '자원 소실' 카드의 권장 조치에도 "점검 범위 밖으로 옮긴 경우라면 <code>reconciliation.scan.extra-roots</code> 에 등록하면
+    다음 점검부터 '경로 이동'으로 탐지된다" 한 문장을 덧붙였다.</p></div>
+
+  <h2>③ 설계 결정 (대안 비교 · 검수 통과 논거 포함)</h2>
+  <table>
+    <thead><tr><th style="width:22%">결정</th><th>채택</th><th>탈락 대안과 사유</th></tr></thead>
+    <tbody>
+      <tr><td><b>D1. 탐지 건수를 어떻게 보존하나</b></td>
+        <td><code>drift_report.detected_drift_count</code> 스냅샷 컬럼. 보고서 생성(자식 드리프트 추가) 시점에 확정되고 이후 불변.
+        "탐지 건수는 보고서 생성 시점에 확정되는 값"이라는 도메인 사실과 일치한다.
+        선례 R9-5(<code>drift.display_name</code> 스냅샷 — 자원 영구삭제 후 보고서에서 실명이 사라지던 같은 구조의 문제를 컬럼 하나로 해결) 와 동일 패턴이라 컬럼 1개·ALTER 1회로 끝난다.</td>
+        <td><b>자식 행 집계 쿼리로 복원</b>: 불가 — 해결이 자식 행을 <code>orphanRemoval</code> 로 물리 삭제하므로 집계할 원본이 남지 않는다.
+        삭제를 상태 플래그(soft-flag)로 바꾸면 가능하지만 "드리프트는 불변, 해소 = 행 제거"라는 기존 설계와 resolution/recheck 계층 전반을 갈아엎는 큰 변경(churn) 이라, 표시 수치 하나의 동기로는 과하고 병렬 슬라이스 HF4-5 와도 충돌한다.
+        <b>스캔 이벤트 로그 테이블 신설</b>: 수치 하나를 위해 신규 테이블·엔티티·보존 정책까지 만드는 과설계(over-engineering) — 감사 추적 요구가 실제로 생기는 시점에 도입해도 늦지 않다.</td></tr>
+      <tr><td><b>D2. 스냅샷을 어디서 기록하나</b></td>
+        <td><code>DriftReport.addDrift()</code> 내부에서 <code>detectedDriftCount++</code>, <code>removeDrift()</code> 는 감소시키지 않음.
+        "탐지 수 = 이 보고서에 추가된 적 있는 드리프트 총수"라는 정의가 엔티티 안에서 단일 진실 출처(SSOT — Single Source of Truth)로 성립해,
+        저장 호출부는 아무것도 기억할 필요가 없다. 강제 적용 임시 보고서(<code>persistAndForcedApply</code>)도 자동으로 탐지 1이 기록된다.
+        JPA 가 DB 에서 엔티티를 다시 읽을 때는 컬렉션 필드를 직접 주입할 뿐 <code>addDrift()</code> 를 타지 않으므로, 재로딩 시 증가 부작용이 없다.</td>
+        <td><b>저장 호출부에서 빌더로 <code>.detectedDriftCount(drifts.size())</code> 명시 전달</b>: 저장 호출부가 두 곳(<code>performScan</code> / <code>persistAndForcedApply</code>)이라 각각 기억해야 하고,
+        새 저장 경로가 생기면 누락이 침묵으로 지나간다. 서비스 파일 수정 범위도 커져 HF4-5 충돌면이 넓어진다 — 탈락.</td></tr>
+      <tr><td><b>D3. 스냅샷 없는 구행(도입 이전 저장 행) 표기</b></td>
+        <td><code>INT NOT NULL DEFAULT 0</code> — 구행은 0. 표시 규칙은 "스냅샷이 0 이면 미해결 수로 대체".
+        핵심은 <b>신행에서 스냅샷 0 은 곧 "탐지 0건"이고, 그때 미해결도 반드시 0</b>(자식이 애초에 없고 줄기만 하므로)이라 대체 표기가 <b>항상 참</b>이라는 점이다 — 0 경계의 의미 충돌이 구조적으로 없다.
+        대체 규칙의 SSOT 는 <code>DriftReport.getDetectedDriftCountForDisplay()</code> 하나이고, 화면 표시 두 곳(C1 배지·상단 요약줄)은 서비스가 내려준 값을 출력만 한다.</td>
+        <td><b>NULL 허용 컬럼(null = 구행)</b>: 표기 결과는 같지만 <code>Integer</code> 박싱과 null 분기를 도처에 만든다.
+        R9-5 의 <code>display_name</code> 은 "null 이면 다른 정보(타입 #id)로 대체"라 null 구분이 필수였지만, 여기는 0 이 자연스러운 경계라 null 이 주는 정보가 없다 — 원시 <code>int</code> 유지가 낫다. 탈락.</td></tr>
+      <tr><td><b>D4. O-1 안내 문구의 위치</b></td>
+        <td>① 점검 화면 상단 설명 배너에 안내 줄 추가 ② <code>DriftKind.MISSING.recommendedAction</code> 문자열에 한 문장 추가.
+        ②는 R9-2 가 확립한 "사용자에게 노출하는 드리프트 문구는 <code>DriftKind</code> enum 이 SSOT" 원칙 그대로라, 카드·확인 모달·추후 가이드가 전부 한 곳을 따른다.
+        이것은 enum 상수 <b>신설이 아니라 기존 상수(MISSING)의 문구 수정</b>이므로, 본 캠페인의 scope 경계(DriftKind 상수 신설은 병렬 HF4-5 소관, 본 슬라이스 금지)와 무관하다.</td>
+        <td><b>템플릿 카드에 조건부 하드코딩 문구</b>: MISSING 문구의 두 번째 소유자를 만든다 — R9-2 이전의 "템플릿 하드코딩 ×3곳" 사고 재발 경로. 탈락.
+        <b>별도 도움말 페이지/모달 신설</b>: 안내 세 문장을 위해 URL·뷰·라우팅을 새로 만드는 것은 과함 — 필요 시점에 확장. 탈락.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>④ 테스트 · 검증</h2>
+  <table>
+    <thead><tr><th style="width:26%">항목</th><th>결과</th></tr></thead>
+    <tbody>
+      <tr><td><b>검수 판정</b></td>
+        <td>통과(반려 1건 수정 후 — ⑤ 참조). 스냅샷 설계 평가: 기록 시점을 <code>addDrift()</code> 내부 증가로 두어 저장 호출부 두 곳이 무부담이고,
+        <code>removeDrift()</code> 미감소로 "탐지 수 = 이 보고서에 추가된 적 있는 드리프트 총수"라는 정의를 보존하며,
+        구행(컬럼 0) 호환은 <code>getDetectedDriftCountForDisplay()</code> 엔티티 단일 SSOT 로 처리한다는 점(신행 탐지 0 이면 미해결도 0 이라 대체가 항상 참).
+        R9-5 <code>display_name</code> 스냅샷 선례 인용이 적절하다는 판정.</td></tr>
+      <tr><td><b>main 통합 테스트</b></td><td><b>1,343건 / 실패 0</b> (워크트리 시점 전체 green → main 통합 후 재확인).</td></tr>
+      <tr><td><b>신설 테스트 (7)</b></td>
+        <td><b>단위 4</b>(<code>PathReconciliationServiceTest</code>) — ① 스캔 저장 시 탐지 건수 스냅샷 후 <code>removeDrift</code>(해결 재현) 뒤에도 탐지 1 불변·미해결 0
+        ② 응답 매핑에서 신행은 해결 후에도 탐지 스냅샷 그대로(탐지 2·미해결 1)
+        ③ 구행(스냅샷 0·잔존 3, <code>ReflectionTestUtils</code> 로 0 복원) 표시 대체 = 3
+        ④ 강제 적용 임시 보고서(<code>persistAndForcedApply</code>)도 탐지 1 자동 스냅샷(<code>addDrift</code> 내부화 검증, 자식은 비어 있음).
+        <b>통합 3</b>(<code>@WebMvcTest</code> · <code>ReconciliationRestControllerTest</code>) — ① <code>GET /history</code>: 신행(4·1)/구행 대체 결과(3·3) JSON 병기 값
+        ② <code>GET</code> 목록: 렌더 HTML 에 "탐지 4 · 미해결 1" 배지 + 상단 배너의 <code>reconciliation.scan.extra-roots</code> 안내 존재(템플릿이 신설 DTO 필드를 실제 참조하는지 함께 고정 — 누락 시 500 으로 드러남)
+        ③ 탐지 0 보고서는 종전 "0 건" 표기 유지(병기 불필요 경계). Mockito mocking 은 서비스 단까지 — 컨트롤러·advice·Thymeleaf 렌더는 실제 실행.</td></tr>
+      <tr><td><b>샌드박스 실측 ①</b></td><td>ISO 파일 제거 → 스캔 → <code>/latest</code> 응답 <code>detectedDriftCount=1 · driftCount=1</code>.</td></tr>
+      <tr><td><b>샌드박스 실측 ②</b></td><td>[보고 닫기] 로 해결 → <code>detectedDriftCount=1</code> <b>유지</b> · <code>driftCount=0</code> — 스냅샷이 해결로 감소하지 않음을 실증.</td></tr>
+      <tr><td><b>샌드박스 실측 ③</b></td><td><code>/history</code> 의 구행들이 탐지 == 미해결로 대체 표기(4·4, 1·1 등) — 도입 이전 저장 행의 <code>getDetectedDriftCountForDisplay()</code> 대체 동작 확인.</td></tr>
+      <tr><td><b>샌드박스 실측 ④ (화면)</b></td><td>상단 요약줄 "드리프트 탐지 1건 · 미해결 0건", 배지 신행 "탐지 1 · 미해결 0"(처리 완료 초록) · 구행 "탐지 4 · 미해결 4" · "0 건" 경계 모두 정상, 상단 배너의 O-1 안내문 실제 표시.
+      <span class="dim">(샌드박스는 <code>ddl-auto=update</code> 라 <code>detected_drift_count</code> 컬럼이 자동 생성됨 — 실 DB 는 ⑥ 참조.)</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>⑤ 검수 반려 · 수정 이력</h2>
+  <div class="callout warn"><b>반려 1건 — 계획이 존재하지 않는 CSS 클래스를 전제했다.</b>
+  plan 의 D4 는 상단 배너 안내 줄에 "기존 Bootstrap <code>text-muted</code> 클래스(인라인 스타일 금지 준수)"를 쓴다고 적었고 구현도 <code>class="text-muted"</code> 로 붙였다.
+  그러나 이 프로젝트는 <b>Bootstrap 을 쓰지 않으며</b>, CSS 에 <code>.text-muted</code> 클래스가 없다 — 존재하는 것은 색 토큰 <code>--n-text-muted</code> 와 테이블 스코프 유틸 <code>.n-table-muted</code> 뿐이다.
+  그대로 두면 클래스가 아무 규칙에도 매칭되지 않아 <b>배너 부가 설명의 muted(흐린 회색) 색이 소실</b>된다.</div>
+  <table>
+    <thead><tr><th style="width:26%">조치</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td><b>범용 유틸 신설</b></td>
+        <td><code>src/main/resources/static/global/style.css</code> 에 범용 muted 텍스트 유틸 <code>.n-text-muted { color: var(--n-text-muted); }</code> 를 추가(테이블 스코프인 <code>.n-table-muted</code> 바로 뒤).
+        기존 <code>.n-table-muted</code> 는 명칭이 테이블에 묶여 배너에 재사용하기 부적절하므로, 색 토큰명 그대로 일반화한 유틸을 별도로 뒀다.</td></tr>
+      <tr><td><b>템플릿 교체 (2곳)</b></td>
+        <td><code>templates/maintenance/reconciliation/list.html</code> 의 상단 배너 두 요소 — O-1 스캔 범위 안내 <code>&lt;div&gt;</code> 와 O-3 요약줄 <code>&lt;div&gt;</code> — 의 <code>class="text-muted"</code> 를 <code>class="n-text-muted"</code> 로 교체.
+        인라인 스타일 금지 원칙을 지키면서 muted 색이 실제로 적용되도록 정정했다.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>⑥ 스키마 · 수동 DDL</h2>
+  <p><code>sql/HF4-4_drift_report_detected_count.sql</code> 로 스냅샷 컬럼 한 개를 추가한다:</p>
+  <table>
+    <tbody>
+      <tr><td style="width:26%"><b>DDL</b></td><td><code>ALTER TABLE drift_report ADD COLUMN detected_drift_count INT NOT NULL DEFAULT 0 AFTER total_checked;</code></td></tr>
+      <tr><td><b>구행 backfill</b></td><td><b>비목표.</b> 도입 이전 행의 탐지치는 복원 불가 — 자식 드리프트 행이 apply/dismiss 로 이미 물리 삭제(<code>orphanRemoval</code>)되어 복원할 원본이 없다.
+      default 0 으로 두면 화면·API 매핑이 <code>getDetectedDriftCountForDisplay()</code> 로 미해결 잔수를 대체 표기하고, 보고서 보존 정책(FIFO retention, 기본 100건 유지)에 따라 구행이 밀려나며 자연 해소된다. sql 주석에 명시했다.</td></tr>
+      <tr><td><b>적용 주체</b></td><td>실행 환경은 <code>ddl-auto=validate</code> 라 이 DDL 적용 전에는 앱이 기동되지 않는다(<code>Schema-validation: missing column [detected_drift_count]</code>).
+      <code>claude_code</code> 계정은 ALTER 권한이 없으므로 <b>ALTER 권한 계정(root 등)으로 수동 적용</b>이 필요하다 —
+      <code>mysql -u root -p server_provision &lt; sql/HF4-4_drift_report_detected_count.sql</code> 후 <code>SHOW CREATE TABLE drift_report;</code> 로 컬럼 존재를 확인한다.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>⑦ 잔여 · 후속</h2>
+  <ul>
+    <li><b>실 DB 컬럼 반영은 수동 적용 대기</b> — 위 sql 을 ALTER 권한 계정으로 적용하기 전까지 실 DB 기동 시 스키마 검증에 걸린다. 샌드박스는 <code>ddl-auto=update</code> 로 자동 생성되어 실측을 마쳤다.</li>
+    <li><b>구행 탐지치는 소급 복원하지 않음</b> — 자식 행이 이미 물리 삭제되어 원본이 없다. 화면 대체 표기 + FIFO retention 으로 자연 해소되며, 데이터 수술은 하지 않는다.</li>
+    <li><b>HF4-5(DriftKind 상수 신설) merge 대조</b> — 본 슬라이스는 <code>DriftKind.java</code> 의 MISSING 문구와 <code>list.html</code> 을 만졌다. 병렬 HF4-5 가 같은 두 파일을 상수 추가로 건드릴 수 있어, merge 시 인접 충돌 여부 대조가 필요하다.</li>
+    <li><b>CP5 브라우저 최종 확인은 사용자 단독</b> — 본 위임 범위는 CP4(구현·테스트·검증)까지다. 배지 병기·안내 문구·구행 표기의 브라우저 E2E 는 사용자 몫으로 남는다(샌드박스 실측으로 사전 확인 완료).</li>
+  </ul>
+
+  <h2>⑧ Critical Files</h2>
+  <table>
+    <thead><tr><th style="width:12%">구분</th><th>파일</th></tr></thead>
+    <tbody>
+      <tr><td><b>신규</b></td><td><code>sql/HF4-4_drift_report_detected_count.sql</code>(스냅샷 컬럼 ALTER + 구행 backfill 비목표 주석)</td></tr>
+      <tr><td><b>수정</b></td><td>
+        <code>maintenance/reconciliation/entity/DriftReport.java</code>(<code>detectedDriftCount</code> 필드 + <code>@Builder.Default</code> 0 · <code>addDrift()</code> 증가 · <code>getDetectedDriftCountForDisplay()</code> · Javadoc) ·
+        <code>maintenance/reconciliation/dto/response/DriftReportResponse.java</code>(<code>detectedDriftCount</code> 필드 + Javadoc) ·
+        <code>maintenance/reconciliation/service/PathReconciliationService.java</code>(<code>toResponse</code> 매핑 1곳) ·
+        <code>global/marker/DriftKind.java</code>(<code>MISSING.recommendedAction</code> 문구 한 문장) ·
+        <code>templates/maintenance/reconciliation/list.html</code>(C1 배지·요약줄 병기 + 상단 배너 안내 + Model 주석) ·
+        <code>static/global/style.css</code>(<span class="tag o3" style="background:var(--yellow-bg);color:var(--yellow)">검수 반영</span> <code>.n-text-muted</code> 유틸 신설) ·
+        테스트 <code>maintenance/reconciliation/service/PathReconciliationServiceTest.java</code>(단위 4) / <code>maintenance/reconciliation/controller/ReconciliationRestControllerTest.java</code>(통합 3 + fixture 시그니처 갱신)
+      </td></tr>
+      <tr><td><b>유지</b></td><td><code>ReconciliationController</code> · <code>ReconciliationRestController</code> · <code>Drift.java</code> · repository 2종 · resolution/recheck 계층 · <code>list.js</code>(스캔 완료 토스트는 완료 시점 값 = 탐지치 동치라 무변경) · advice 2종(신규 실패 모드 없음 — 회귀 검증으로만 유지)</td></tr>
+    </tbody>
+  </table>
+
+  <details class="appendix">
+    <summary>부록 — 판정 흐름 상세 (개발용)</summary>
+    <div class="bd">
+      <table><tbody>
+        <tr><td style="width:34%">기록 경로</td><td><code>performScan</code> / <code>persistAndForcedApply</code> → <code>DriftReport.builder()...build()</code> → <code>report.addDrift(d)</code> × N (각 호출이 <code>detectedDriftCount++</code>) → <code>save</code>. 해결(<code>removeDrift</code>)은 자식만 분리, 스냅샷 불변.</td></tr>
+        <tr><td>표시 매핑</td><td><code>toResponse(DriftReport)</code> → <code>detectedDriftCount = r.getDetectedDriftCountForDisplay()</code> (구행 0 은 엔티티 SSOT 가 미해결 수 대체) · <code>driftCount = r.getDriftCount()</code> (미해결 잔수). 화면·REST 양쪽 동일 매핑.</td></tr>
+        <tr><td>C1 배지 (list.html)</td><td>색: <code>th:classappend="${report.driftCount &gt; 0} ? off : on"</code> (미해결 기준 유지). 문구: <code>th:text="${report.detectedDriftCount == 0} ? '0 건' : |탐지 ${report.detectedDriftCount} · 미해결 ${report.driftCount}|"</code>.</td></tr>
+        <tr><td>구행 대체가 항상 참인 이유</td><td><code>getDetectedDriftCountForDisplay()</code> = <code>detectedDriftCount &gt; 0 ? detectedDriftCount : drifts.size()</code>. 신행 스냅샷 0 ⇒ 탐지 0 ⇒ 자식 추가 없음 ⇒ 미해결 <code>drifts.size()</code> 도 0 ⇒ 대체값 0 = 원값 0. 의미 충돌 없음.</td></tr>
+        <tr><td>JPA 재로딩 안전</td><td>DB 에서 엔티티를 읽을 때는 컬렉션 필드를 직접 주입(하이드레이션)하고 <code>addDrift()</code> 를 호출하지 않으므로, 재로딩 시 <code>detectedDriftCount</code> 가 잘못 증가하지 않는다 — 단위 테스트에서 <code>ReflectionTestUtils</code> 로 구행 0 상태를 재현해 검증.</td></tr>
+      </tbody></table>
+    </div>
+  </details>
+
+  <h2>다음</h2>
+  <p style="margin-top:0">main 통합 완료 상태(워크트리 → 통합, 커밋은 사용자/검수자 소관). 실 DB 는 ⑥ 의 sql 을 ALTER 권한 계정으로 수동 적용해야 기동되며, CP5 브라우저 최종 확인은 ⑦ 대로 사용자 단독이다. Notion HF4-4 마감 처리는 검수자(main) 소관.</p>
+</div>
+</body>
+</html>

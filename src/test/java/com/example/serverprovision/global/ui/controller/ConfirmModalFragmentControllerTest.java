@@ -122,6 +122,20 @@ class ConfirmModalFragmentControllerTest {
                 .andExpect(content().string(containsString("data-modal-cascade-true")));
     }
 
+    // ==== HF4-1 : 휴지통 보존기간 연장 modal (deprecate modal 차용 오배선 F-2 의 해소) ====
+
+    @Test
+    @DisplayName("EXTEND_TTL — 자원 lookup 없이 fragment 응답 (제목 '보존기간 연장')")
+    void renders_extend_ttl_modal() throws Exception {
+        mvc.perform(get("/ui/confirm-modal/EXTEND_TTL")
+                        .param("resourceType", "OS_ISO")
+                        .param("resourceId", "5"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("보존기간 연장")))
+                .andExpect(content().string(containsString("data-modal-active")))
+                .andExpect(content().string(containsString("data-modal-confirm")));
+    }
+
     // ==== R9-3 : reconciliation 드리프트 확인 modal (자원 lookup 없음) ====
 
     @Test

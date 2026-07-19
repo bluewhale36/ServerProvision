@@ -350,8 +350,11 @@ public class PathReconciliationService {
 
 		// (3) 디스크에서 마커 모두 수집 (파일명 패턴 *.provision.json)
 		// (권고6) 부분 실패 가시화 — walk IOException 등으로 일부 root 가 누락되면 failedScanRoots 에 누적
+		// HF4-5 — key 당 발견 전체를 보존한다 (List). 종전 putIfAbsent(첫 발견 1건)는 중복 사본을
+		// 수집 단계에서 침묵시켰다. 소비부는 중복 탐지(4a)만 전체를 보고 나머지(4b/ORPHAN/ESCAPE)는
+		// 종전과 같은 첫 발견을 쓴다 — 행동 변화를 중복 탐지에 한정.
 		List<String> failedScanRoots = new ArrayList<>();
-		Map<MarkerKey, MarkerHit> diskMarkers = collectDiskMarkers(scanRoots, failedScanRoots);
+		Map<MarkerKey, List<MarkerHit>> diskMarkers = collectDiskMarkers(scanRoots, failedScanRoots);
 
 		// (4) drift 분류
 		// R9-1 — 실경계 stage 계측. startStage 는 RUNNING 표시일 뿐이라 트랜잭션 롤백 시
@@ -396,6 +399,11 @@ public class PathReconciliationService {
 					));
 					continue;
 				}
+				// HF4-5 — 원본이 완전 정상(마커 존재·파싱·서명·본체)임을 확인한 이 지점에서만 중복 사본을
+				// 보고한다. 원본에 자체 드리프트가 있으면 그 신호가 우선(위 continue 들)이고, 원본 소실 시엔
+				// 4b 의 PATH_DRIFT 분류가 유효하다 — 판정 순서가 곧 D1 결정. deep 의 HASH_MISMATCH 와는
+				// 독립 신호라 동시 보고될 수 있다 (TRASH_MARKER_STALE 선례).
+				addDuplicateDrifts(resource, expectedPath, diskMarkers.get(key), drifts, now);
 				if (deep) {
 					Optional<String> recomputed = scannersByType.get(resource.getResourceType())
 							.recomputeManifestHash(resource);
@@ -433,7 +441,7 @@ public class PathReconciliationService {
 			// 주의 (B-1) : SIDECAR 의 경우 마커만 옮겨지고 본체 파일이 함께 이동되지 않았다면
 			// 자동 적용 시 DB 의 path 가 존재하지 않는 파일을 가리키게 된다. 본체 부재 시 PATH_DRIFT
 			// 로 분류하지 않고 MISSING 으로 떨어뜨려 운영자 검토를 강제한다.
-			MarkerHit hit = diskMarkers.get(key);
+			MarkerHit hit = firstHit(diskMarkers.get(key));
 			if (hit != null) {
 				matchedMarkers.add(key);
 				if (!resourceBodyExists(hit.resourcePath(), hit.layout())) {
@@ -462,13 +470,16 @@ public class PathReconciliationService {
 		// S6-2-2 — soft-deleted 매칭 마커는 종전의 침묵 제외(D20) 대신 ESCAPE 로 분류한다:
 		// 발견 위치가 원위치(본체 포함)면 "삭제 자원 복귀", 아니면 "삭제 자원 위치 이탈".
 		Set<MarkerKey> escapeReported = new HashSet<>();
-		for (Map.Entry<MarkerKey, MarkerHit> e : diskMarkers.entrySet()) {
+		for (Map.Entry<MarkerKey, List<MarkerHit>> e : diskMarkers.entrySet()) {
 			MarkerKey key = e.getKey();
 			if (matchedMarkers.contains(key)) continue;
+			// HF4-5 — ORPHAN/ESCAPE 는 종전대로 첫 발견 hit 만 사용 (다중 사본 소비 확대는 scope 밖 — plan §8).
+			MarkerHit hit = firstHit(e.getValue());
+			if (hit == null) continue;
 			Markable deleted = deletedByKey.get(key);
 			if (deleted != null) {
 				escapeReported.add(key);
-				Drift escape = classifyEscape(deleted, e.getValue(), now);
+				Drift escape = classifyEscape(deleted, hit, now);
 				if (escape != null) drifts.add(escape);
 				continue;
 			}
@@ -476,10 +487,10 @@ public class PathReconciliationService {
 							   .resourceType(key.resourceType())
 							   .resourceId(key.resourceId())
 							   // R9-5 — ORPHAN 은 DB 매칭 자원(Markable)이 없어 마커 본체 파일명이 실명 fallback.
-							   .displayName(e.getValue().resourcePath().getFileName() != null
-									   ? e.getValue().resourcePath().getFileName().toString() : null)
+							   .displayName(hit.resourcePath().getFileName() != null
+									   ? hit.resourcePath().getFileName().toString() : null)
 							   .kind(DriftKind.ORPHAN)
-							   .oldPath(e.getValue().resourcePath().toString())
+							   .oldPath(hit.resourcePath().toString())
 							   .newPath(null)
 							   .detectedAt(now)
 							   .detail("DB 에 매칭되는 자원 없음")
@@ -620,8 +631,8 @@ public class PathReconciliationService {
 			java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 					.withZone(java.time.ZoneId.of("Asia/Seoul"));
 
-	private Map<MarkerKey, MarkerHit> collectDiskMarkers(Set<Path> scanRoots, List<String> failedRoots) {
-		Map<MarkerKey, MarkerHit> result = new HashMap<>();
+	private Map<MarkerKey, List<MarkerHit>> collectDiskMarkers(Set<Path> scanRoots, List<String> failedRoots) {
+		Map<MarkerKey, List<MarkerHit>> result = new HashMap<>();
 		// MK3 — trashRoot 미설정 (test mock 환경 등) 시 walk skip 비활성. null 이면 모든 walk 결과 통과.
 		Path trashRootPath = (trashRoot != null && !trashRoot.isBlank())
 				? Path.of(trashRoot).toAbsolutePath().normalize()
@@ -643,8 +654,14 @@ public class PathReconciliationService {
 							MarkerHit hit = parseMarkerHit(markerFile);
 							if (hit != null) {
 								MarkerKey key = new MarkerKey(hit.resourceType(), hit.resourceId());
-								// 같은 key 가 여러 위치에서 발견될 수도 있다 — 첫 발견 우선
-								result.putIfAbsent(key, hit);
+								// HF4-5 — 같은 key 의 발견을 전부 보존한다 (종전 putIfAbsent 는 중복 사본 침묵).
+								// 단, 중첩 scan root 가 같은 마커를 재방문하는 경우는 정규화 경로 dedupe 로
+								// 걸러 동일 위치의 이중 보고를 막는다 (종전엔 putIfAbsent 가 우연히 막던 것).
+								List<MarkerHit> hits = result.computeIfAbsent(key, k -> new ArrayList<>());
+								Path normalized = hit.resourcePath().toAbsolutePath().normalize();
+								boolean alreadySeen = hits.stream().anyMatch(
+										h -> h.resourcePath().toAbsolutePath().normalize().equals(normalized));
+								if (!alreadySeen) hits.add(hit);
 							}
 						});
 			} catch (IOException e) {
@@ -703,13 +720,41 @@ public class PathReconciliationService {
 	}
 
 	/**
-	 * S6-1 — layout 별 본체 존재 술어. SIDECAR 는 단일 파일, IN_TREE 는 트리 디렉토리가 본체다.
-	 * 4a(본체 부재의 quick 조기 감지)와 4b(마커만 이동 시 PATH_DRIFT → MISSING 강등)가 같은 판정을 공유한다.
+	 * S6-1 — layout 별 본체 존재 술어. 4a(본체 부재의 quick 조기 감지)와 4b(마커만 이동 시
+	 * PATH_DRIFT → MISSING 강등)가 같은 판정을 공유한다. HF4-5 — 판정 본체는 {@link MarkerLayout}
+	 * 다형 메서드로 승격 (DuplicateResolveService 와 SSOT 공유) — 본 메서드는 기존 호출부 유지용 위임.
 	 */
 	private static boolean resourceBodyExists(Path resourcePath, MarkerLayout layout) {
-		return layout == MarkerLayout.IN_TREE
-				? Files.isDirectory(resourcePath)
-				: Files.isRegularFile(resourcePath);
+		return layout.resourceBodyExists(resourcePath);
+	}
+
+	/**
+	 * HF4-5 — 원본이 완전 정상일 때(4a 검사 전부 통과 지점)만 호출되는 중복 사본 보고.
+	 * 사본 경로당 drift 1행 (plan D2) — oldPath=원본(DB 경로), newPath=그 사본. 본체 없는
+	 * 마커만 사본은 보고하지 않는다 ("복제본"=실체 있는 사본 의미 유지, plan §8 알려진 한계 1).
+	 */
+	private void addDuplicateDrifts(
+			Markable resource, Path expectedPath, List<MarkerHit> hits, List<Drift> drifts, Instant now
+	) {
+		if (hits == null) return;
+		Path original = expectedPath.toAbsolutePath().normalize();
+		for (MarkerHit hit : hits) {
+			Path found = hit.resourcePath().toAbsolutePath().normalize();
+			if (found.equals(original)) continue;
+			if (!resourceBodyExists(hit.resourcePath(), hit.layout())) continue;
+			drifts.add(buildDrift(
+					resource, DriftKind.RESOURCE_DUPLICATED, expectedPath.toString(),
+					hit.resourcePath().toString(), now,
+					"원본 정상 상태에서 동일 신원의 사본 발견 — 방치 시 원본 유실 후 '경로 이동됨'으로 오인될 수 있음"
+			));
+		}
+	}
+
+	/**
+	 * HF4-5 — 수집 List 화 이후에도 "첫 발견 우선" 소비(4b/ORPHAN/ESCAPE)를 종전과 동일하게 유지하는 헬퍼.
+	 */
+	private static MarkerHit firstHit(List<MarkerHit> hits) {
+		return (hits == null || hits.isEmpty()) ? null : hits.get(0);
 	}
 
 	/**
@@ -996,6 +1041,8 @@ public class PathReconciliationService {
 		return new DriftReportResponse(
 				r.getId(), r.getScannedAt(),
 				formatDuration(r.getScanDuration()), r.isDeep(), r.getTotalChecked(),
+				// HF4-4 — 탐지 스냅샷(구행 0 은 엔티티 SSOT 가 미해결 수로 대체) · 미해결 잔수 병기
+				r.getDetectedDriftCountForDisplay(),
 				r.getDriftCount(), r.getFailedScanRootList(), drifts
 		);
 	}

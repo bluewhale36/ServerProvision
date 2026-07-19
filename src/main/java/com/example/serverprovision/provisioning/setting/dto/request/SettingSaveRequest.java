@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 import java.util.Objects;
@@ -18,6 +19,7 @@ import java.util.Objects;
 public record SettingSaveRequest(
 
         @NotBlank(message = "정의서 명칭은 필수 입력값입니다.")
+        @Size(max = 128, message = "정의서 명칭은 128자 이하로 입력해주세요.")
         String name,
 
         /**

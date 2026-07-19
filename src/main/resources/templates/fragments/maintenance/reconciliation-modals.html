@@ -61,5 +61,43 @@
         </div>
     </div>
 </div>
+
+<!--/*
+  HF4-5 — 자원 중복 해소 택일 modal. 표준 id 규약(prefix=dupResolve)이라 ConfirmModal.open 을 그대로
+  재사용하고, radio 슬롯만 고유 마크업 (restore fragment 의 .cm-cascade-option 클래스 세트 재사용 — 신규 CSS 0).
+  경로 텍스트는 list.js 가 form 의 data-original-path / data-duplicate-path 에서 주입하며,
+  열릴 때마다 기본 선택을 원본(DB 기록 경로)으로 리셋한다 (사용자 결정 ③).
+*/-->
+<div th:fragment="duplicateResolveModal" id="dupResolveModal" class="cm-overlay" hidden>
+    <div id="dupResolveBackdrop" class="cm-backdrop"></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 id="dupResolveTitle" class="cm-title">자원 중복 해소</h2>
+            <p id="dupResolveMessage" class="cm-message cm-message-tight">남길 위치를 선택하세요 — 선택하지 않은 쪽 파일은 삭제됩니다.</p>
+            <div class="cm-cascade-wrap">
+                <label class="cm-cascade-option">
+                    <input type="radio" name="dupResolveSurvivor" value="ORIGINAL" checked>
+                    <span>
+                        <span class="cm-cascade-option-title">원본 유지 (DB 기록 경로)</span>
+                        <span class="cm-cascade-option-desc"><code id="dupResolveOriginalPath"></code></span>
+                        <span class="cm-cascade-option-desc">복제본 파일을 삭제합니다. 등록 정보(DB)는 그대로 둡니다.</span>
+                    </span>
+                </label>
+                <label class="cm-cascade-option">
+                    <input type="radio" name="dupResolveSurvivor" value="DUPLICATE">
+                    <span>
+                        <span class="cm-cascade-option-title">복제본 유지</span>
+                        <span class="cm-cascade-option-desc"><code id="dupResolveDuplicatePath"></code></span>
+                        <span class="cm-cascade-option-desc">원본 파일을 삭제하고 등록 경로(DB)를 복제본 위치로 갱신합니다.</span>
+                    </span>
+                </label>
+            </div>
+            <div class="cm-actions">
+                <button type="button" id="dupResolveCancelBtn" class="n-btn n-btn-secondary">취소</button>
+                <button type="button" id="dupResolveConfirmBtn" class="n-btn n-btn-outline-danger">선택 적용</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

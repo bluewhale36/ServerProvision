@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF4-5 Plan — 자원 중복 존재 드리프트 (RESOURCE_DUPLICATED)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:76px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .n-demo-btn.on { background:var(--blue); color:#fff; }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .pane { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; font-size:12.5px; margin-top:10px; }
+  .pane h5 { margin:0 0 8px; font-size:12px; color:var(--text-muted); }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.red { background:var(--red-bg); color:var(--red); } .badge.warnb { background:var(--yellow-bg); color:var(--yellow); }
+  .badge.dup { background:var(--purple-bg); color:var(--purple); }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; white-space:pre-wrap; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .sim-modal { border:2px solid var(--blue); border-radius:8px; background:var(--card); padding:14px; margin-top:10px; }
+  .sim-modal h5 { margin:0 0 6px; font-size:13px; }
+  .sim-modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
+  .sim-choice { display:flex; align-items:flex-start; gap:8px; border:1px solid var(--border-soft); border-radius:6px; padding:8px 10px; margin:6px 0; cursor:pointer; font-size:12.5px; }
+  .sim-choice.sel { border-color:var(--blue); background:var(--blue-bg); }
+  .sim-choice .t { font-weight:600; }
+  .sim-choice .d { color:var(--text-muted); font-size:11.5px; }
+  .drift-card { border:1px solid var(--border); border-left:3px solid var(--purple); border-radius:6px; background:var(--card); padding:8px 12px; margin:6px 0; font-size:12.5px; }
+  .drift-card.pd { border-left-color:var(--orange); }
+  .drift-card.ms { border-left-color:var(--red); }
+  .flash { animation:flash 0.9s ease-out; }
+  @keyframes flash { 0% { background:var(--green-bg); } 100% { background:transparent; } }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF4-5 — 자원 중복 존재 드리프트 <span class="v2-badge">신규 DriftKind + 택일 해결</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF4-5 (3차 개발 · 핫픽스 묶음 중 최대 신규 기능)</span>
+    <span><strong>scope</strong> RESOURCE_DUPLICATED 탐지 · 택일(원본|복제본) 해결 · 상세 UI + 모달</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>근거</strong> 2026-07-19 전수 점검 관찰 O-2 + 사용자 결정 ①~④</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc">
+  <strong>목차</strong>
+  <ol id="tocList">
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s2p" class="preview">🎬 라이브 데모</a></li>
+    <li><a href="#s3">3. URL/데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델 (설계 결정)</a></li>
+    <li><a href="#s5">5. 10단계 매핑</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물/주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="btnExpand">전부 펴기</button>
+    <button id="btnCollapse">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input class="filter-box" id="filterBox" placeholder="검색 — 예: RESOURCE_DUPLICATED, survivor, putIfAbsent, 409, 승격 ...">
+
+<details class="section" id="s1" open>
+<summary>1. 현재 상태 (실측 근거)</summary>
+<div class="body">
+<p>정상 등록 자원의 디렉토리를 — in-tree <code>.provision.json</code> 마커째 — 스캔 범위 안 다른 위치에 복사해 두면, <b>원본이 정상인 동안 스캔이 아무 신호도 내지 않는다</b>. 침묵의 원인은 <code>PathReconciliationService</code> 의 두 지점이 겹쳐서다:</p>
+<table>
+<tr><th>#</th><th>지점</th><th>동작 (코드 실측)</th></tr>
+<tr><td>침묵1</td><td><code>collectDiskMarkers</code></td><td>디스크 마커 수집이 <code>Map&lt;MarkerKey, MarkerHit&gt;</code> + <code>putIfAbsent</code> — 같은 (resourceType, resourceId) 의 두 번째 이후 발견은 <b>수집 단계에서 이미 버려진다</b> ("첫 발견 우선" 주석 존재). 어느 쪽이 남는지는 walk 순서에 달렸다.</td></tr>
+<tr><td>침묵2</td><td>4a 분기 + (5) ORPHAN 패스</td><td>원본(DB 경로)이 정상이면 4a 가 <code>matchedMarkers.add(key)</code> 후 <code>continue</code>. (5) ORPHAN 판정은 <code>matchedMarkers</code> 포함 key 를 건너뛰므로, 설령 사본 hit 가 살아남았어도 <b>ORPHAN 으로도 보고되지 않는다</b>.</td></tr>
+</table>
+<p><b>이 침묵이 위험한 이유 (O-2 시나리오)</b>: 이후 원본이 유실되면 4b 분기가 그 사본을 '경로 이동됨(PATH_DRIFT)' 으로 분류하고, [적용] 은 <code>applyDriftedPath</code> 로 DB 경로를 사본 위치로 갱신한다. 사본이 몇 달 전 복사해 둔 낡은 버전이어도 (resourceType, resourceId) 마커 키만 맞으면 통과 — <b>방치된 낡은 사본이 슬그머니 정본 자리를 차지</b>한다. 사용자가 이 상황을 인지할 기회는 원본이 살아 있는 동안에만 있는데, 그 시기에 시스템이 침묵한다.</p>
+<p>관련 자산 현황: <code>DriftKind</code> 는 R9-2 에서 사용자 문구(label/description/recommendedAction)와 해결 방식(mode 3단)을 enum 필드로 SSOT 화했고, 해결은 <code>DriftResolution</code> 전략 bean 디스패치(1 bean = 1 kind)다. 사용자 입력을 동반하는 해결은 HASH_MISMATCH 의 <code>HashAcceptService</code>(전용 endpoint + typed-name 파라미터, mode=NONE — 표준 [적용] 경로 밖) 선례가 있다. drift 엔티티는 <code>old_path</code>/<code>new_path</code> 2컬럼을 보유한다(PATH_DRIFT 가 사용).</p>
+</div>
+</details>
+
+<details class="section" id="s2" open>
+<summary>2. 요구사항 (사용자 결정 ①~④)</summary>
+<div class="body">
+<ol>
+<li><b>표면화</b> — 원본 정상 + 동일 (resourceType, resourceId) 마커가 DB 경로 밖에서 발견되면 별도 드리프트 상태 <b>'자원 중복 존재' (<code>RESOURCE_DUPLICATED</code>)</b> 로 보고한다. 이전 경로 = DB 기록 경로(원본), 새 경로 = 복제본 경로. displayName 스냅샷 등 기존 드리프트 생성 관례 준수.</li>
+<li><b>해결 = 택일</b> — 모달에서 둘 중 하나를 선택해 나머지를 <b>파일시스템에서 삭제</b>한다.</li>
+<li><b>모달 기본 선택 = DB 기록 경로(원본)</b>.</li>
+<li><b>복제본 선택 시</b> — 원본 삭제 + <b>DB 기록 경로를 복제본 경로로 갱신</b>하는 작업까지 함께 진행한다.</li>
+<li>(파생 — CLAUDE.md 불가침) 신규 상수는 <code>DriftKind</code> 다형 체계에 합류 — controller/service 에 kind if/switch 를 늘리지 않는다. 자동 적용 대상 아님(autoApplicable=false 가 SSOT 로 표현될 것).</li>
+</ol>
+</div>
+</details>
+
+<details class="section preview" id="s2p" open>
+<summary>🎬 라이브 데모 — 중복 발생 → 점검 → 택일 해결 (양 갈래 + 가드) 체험</summary>
+<div class="body">
+<p>SUBPROGRAM 자원 <b>DiagTool(#7)</b> 하나를 파일시스템·DB 와 함께 시뮬레이션한다. 본 plan 의 서버 판정식(탐지 우선순위·승격 가드·stale 가드)을 JS 로 그대로 재현했다. 추천 시나리오: ① [사본 복사] → [지금 점검] → 보라색 '자원 중복 존재' 카드 → [택일 해결] 로 <b>양 갈래 모두</b> 체험 ② [낡은 사본 복사] 후 복제본 유지를 시도해 <b>승격 가드 409</b> 확인 ③ 사본 2개 상태에서 하나를 승격한 뒤 남은 카드에 <b>stale 가드 409</b> 확인 ④ [원본 유실] → [지금 점검] 으로 기존 PATH_DRIFT 판정(순서 규칙)이 유지됨을 확인.</p>
+<div class="ux-wrap">
+  <div class="ux-toolbar">
+    <span class="group-label">파일 조작</span>
+    <button class="n-demo-btn" onclick="makeCopy(false)">사본 복사 (동일 내용)</button>
+    <button class="n-demo-btn" onclick="makeCopy(true)">낡은 사본 복사 (구버전 내용)</button>
+    <button class="n-demo-btn danger" onclick="loseOriginal()">원본 유실 (rm DB 경로)</button>
+    <button class="n-demo-btn" onclick="resetDemo()">초기화</button>
+  </div>
+  <div class="ux-toolbar">
+    <span class="group-label">점검</span>
+    <button class="n-demo-btn on" onclick="scan()">지금 점검 (스캔 실행)</button>
+  </div>
+  <div class="pane">
+    <h5>DB (subprogram 엔티티 #7)</h5>
+    <div>tree_root_path = <code id="dbPathEl">—</code> · 기록 지문(manifestHash) = <code id="dbHashEl">—</code></div>
+  </div>
+  <div class="pane">
+    <h5>파일시스템 (마커 포함 트리)</h5>
+    <table id="fsTable"><tr><th>경로</th><th>마커 신원</th><th>내용 지문</th><th>비고</th></tr></table>
+  </div>
+  <div class="pane">
+    <h5>점검 보고서 <span id="reportNo" class="badge off">아직 없음</span></h5>
+    <div id="driftList"><span style="color:var(--text-muted);">[지금 점검] 을 눌러 스캔하세요.</span></div>
+  </div>
+  <div class="sim-modal" id="simModal" hidden>
+    <h5 id="modalTitle">자원 중복 해소 — 정본으로 남길 위치를 선택하세요</h5>
+    <div id="modalBody" style="font-size:12.5px;"></div>
+    <div id="modalChoices"></div>
+    <div class="actions">
+      <button class="n-demo-btn" onclick="closeModal()">취소</button>
+      <button class="n-demo-btn danger" id="modalConfirm">선택 적용</button>
+    </div>
+  </div>
+  <div class="ux-message" id="uxMsg">사본을 만들고 점검을 눌러보세요.</div>
+</div>
+<div class="callout">데모가 재현하는 판정 = 본 plan 의 서버 판정과 동일식: <b>탐지</b> — 원본 정상(마커·서명·본체 OK)이면 다른 위치의 동일 신원 hit 마다 RESOURCE_DUPLICATED 1건, 원본 소실이면 기존 PATH_DRIFT/MISSING 순서 그대로. <b>해결</b> — stale 가드(<code>drift.oldPath == 현재 DB 경로</code>), 승격 가드(사본 마커 지문 == 엔티티 기록 지문), 그리고 양 갈래의 파일 삭제/DB 갱신. 모달 기본 선택이 항상 원본(DB 기록 경로)인 것도 요구사항 ③ 그대로다.</div>
+</div>
+</details>
+
+<details class="section" id="s3">
+<summary>3. URL / 데이터 흐름</summary>
+<div class="body">
+<pre>
+[수정] 스캔 (트리거·주기 무변경 — 분류 단계만 확장)
+   PathReconciliationService.performScan
+     ├─ collectDiskMarkers : Map&lt;MarkerKey, MarkerHit&gt; → Map&lt;MarkerKey, List&lt;MarkerHit&gt;&gt;
+     │    (putIfAbsent 폐기 — key 당 전체 발견 보존. 동일 정규화 경로 재방문은 dedupe)
+     ├─ 4a (원본 정상 : 마커 존재·파싱·서명·본체 모두 OK 확인 후)
+     │    └─ hits 중 경로 != DB 경로 && 본체 존재 → RESOURCE_DUPLICATED drift (사본 경로당 1건)
+     │        oldPath = DB 경로(원본) / newPath = 복제본 경로 / displayName 스냅샷 (buildDrift 재사용)
+     ├─ 4b (원본 위치 마커 부재) → 기존 그대로 : 첫 hit → PATH_DRIFT, 본체 없으면 MISSING
+     └─ (5) ORPHAN / (5.5a) soft-deleted 패스 → 기존 그대로 (첫 hit 사용 유지)
+
+[신설] POST /maintenance/reconciliation/drifts/{driftId}/resolve-duplicate?survivor=ORIGINAL|DUPLICATE
+   ReconciliationRestController.resolveDuplicate
+     → DuplicateResolveService.resolve(driftId, survivor)        // @Transactional, 동기
+         ├─ 전역 resolution-enabled 가드 (isResolutionEnabled SSOT 공유 — 409 globalOff)
+         ├─ drift 존재(404) · kind==RESOURCE_DUPLICATED(409 notApplicable) · 자원 활성(409 staleState)
+         ├─ stale 가드 : drift.oldPath == 현재 자원 경로 (409 staleState — 다중 사본 잔여 행 방어)
+         ├─ 사본 재검증 : newPath 마커 읽기 + (type,id) 신원 일치 (409 staleState)
+         ├─ [survivor=ORIGINAL]  card 제거 + flush → 복제본 파일 삭제 (IN_TREE 트리 / SIDECAR 본체+마커)
+         └─ [survivor=DUPLICATE] 승격 가드(서명 유효 + 마커 지문==엔티티 기록 지문 + 본체 존재 + 포함관계 아님)
+                                 → scanner.applyDriftedPath(newPath) (PATH_DRIFT 해결 로직 재사용)
+                                 + card 제거 + flush → 원본 파일 삭제
+         파일 삭제 실패 → RuntimeException → 트랜잭션 롤백 (drift 유지 + DB 경로 원복) + 오류 응답
+     → RedirectView /maintenance/reconciliation (+flash — 기존 apply 계약. JS 는 async 제출 + 토스트)
+
+[수정] 화면 GET /maintenance/reconciliation (컨트롤러 무변경 — 템플릿·JS 만)
+   C3 상세 : 경로 2필드 dt 라벨을 DriftKind.oldPathLabel()/newPathLabel() 다형으로
+             (RESOURCE_DUPLICATED → "원본 경로 (DB 기록)" / "복제본 경로", 그 외 기존 문구 유지)
+   C3 액션 : kind==RESOURCE_DUPLICATED 전용 [둘 중 하나 선택해 해소] 폼 (HASH_MISMATCH 전용 폼 선례)
+             → list.js 가 dupResolve 모달(radio 택일 · 기본=원본) 열고 확인 시 survivor 채워 async 제출
+</pre>
+</div>
+</details>
+
+<details class="section" id="s4">
+<summary>4. 도메인 모델 — 설계 결정 (대안 비교 포함)</summary>
+<div class="body">
+
+<h4>D1. 탐지 우선순위 — 판정 순서를 어디에 두나</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td>기존 4a→4b 판정 순서 무변경. <b>중복 판정은 4a 안에서, 원본이 완전 정상일 때만</b> 발동한다 — "완전 정상" = 마커 존재 + 파싱 성공 + HMAC 서명 유효 + 본체 존재 (4a 의 기존 검사 4개를 모두 통과한 지점). 원본 소실 시(4b) 는 기존 PATH_DRIFT/MISSING 분류가 그대로 유효하다.</td><td>사용자 결정 원문("원본이 정상인 동안")과 일치. 원본에 자체 드리프트(서명 불일치·본체 부재)가 있으면 그 신호가 우선 — 보안/소실 신호가 중복 신호에 묻히지 않는다. 원본 회복 후 다음 점검이 중복을 보고한다.</td></tr>
+<tr><td>(b) 탈락</td><td>원본 상태 무관하게 사본을 항상 RESOURCE_DUPLICATED 로 보고</td><td>원본 소실 시 같은 사본이 PATH_DRIFT 와 RESOURCE_DUPLICATED 로 이중 보고 — 어느 카드로 해결해야 하는지 모호하고, PATH_DRIFT 의 "이동" 서사(원본이 없어야 이동)와 충돌.</td></tr>
+<tr><td>(c) 탈락</td><td>사본 발견 시 PATH_DRIFT 를 아예 대체(중복 kind 로 통합)</td><td>PATH_DRIFT 는 자동 적용 가능(AUTO)한 확립된 흐름 — 통합하면 mv 한 자원의 자동 정합이라는 기존 가치가 사라진다. 두 상황은 원본 생존 여부로 의미가 다르다.</td></tr>
+</table>
+<p><b>Deep 스캔과의 관계</b>: HASH_MISMATCH(내용 변경)와 RESOURCE_DUPLICATED 는 독립 신호로 동시 보고될 수 있다(TRASH_MARKER_STALE "독립 신호" 선례). 중복 검사는 본체 존재 확인 직후·deep 해시 검사와 무관한 위치에 둔다.</p>
+
+<h4>D2. 동일 자원 복제본 3개 이상 — 행 단위 vs N지선다</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><b>복제본 경로당 drift 1행</b> (oldPath=원본, newPath=그 사본). 모달은 항상 2지선다(원본 vs 그 사본). 한 행에서 사본을 승격하면 남은 행들은 oldPath 가 현재 DB 경로와 달라져 stale — 해결 시도 시 <b>stale 가드가 409 로 거절</b>하고 다음 점검이 새 기준으로 재분류한다.</td><td>drift 의 old_path/new_path 2컬럼 재사용 원칙(스키마 무변경) 충족. 카드 1장 = 결정 1개로 UX 단순. Drift 불변 설계(수정 없음)와도 정합 — N지선다는 해결마다 카드 내용 갱신이 필요해진다.</td></tr>
+<tr><td>(b) 탈락</td><td>자원당 drift 1행 + 모달 N지선다 (사본 목록 전체 나열)</td><td>N 경로 저장이 2컬럼으로 불가 — detail 텍스트에 구겨 넣으면 해결 파라미터의 신뢰 소스가 자유 텍스트가 된다(파싱 취약). 스키마 신설(자식 테이블/JSON) 은 "기존 drift 컬럼 재사용" 원칙 위배 + HF4-4(보고서 계층) 충돌 위험. 하나 삭제 후 카드 갱신 문제도 Drift 불변 설계와 충돌.</td></tr>
+</table>
+
+<h4>D3. 삭제 방식 — 직접 삭제 vs 휴지통/격리 경유</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><b>모달 확인 경유 직접 삭제</b> (IN_TREE 는 트리 재귀 삭제, SIDECAR 는 본체+마커 2파일 삭제). [AUDIT] 로그로 삭제 경로·생존 경로·drift id 를 남긴다.</td><td>사용자 결정 원문이 "파일시스템에서 삭제". 삭제 대상은 자기 DB 행이 없는 잉여 사본(또는 승격으로 참조를 잃은 구 원본)이라 복원 개념 자체가 없다.</td></tr>
+<tr><td>(b) 탈락</td><td>휴지통(.soft-deleted) 경유</td><td>휴지통 lifecycle 은 soft-delete 된 <b>DB 행</b>과 결합돼 있다(trashedPath 기록·TTL 자동 정리·복원 흐름이 전부 엔티티 기준). 사본은 대응하는 DB 행이 없어 휴지통에 넣는 순간 휴지통 화면에 보이지 않고 TTL 정리도 안 되는 <b>휴지통 안의 새 유형 orphan</b> 이 된다 — 정합화 도구가 부정합을 생산하는 모순.</td></tr>
+<tr><td>(c) 탈락</td><td>ORPHAN 해결처럼 격리 구역(<code>trashRoot/orphan/</code>) 이동</td><td>ORPHAN 격리는 "주인 없는 파일" 의 비파괴 보존이 목적. 여기는 주인이 명확하고 정본이 살아서 남는다 — 보존 가치가 없는 사본이 격리 구역에 무한 누적되며, 무엇보다 사용자 결정(삭제)과 불일치.</td></tr>
+</table>
+
+<h4>D4. 무인 자동 적용(auto-apply) 제외 근거 — mode 선택</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>DriftResolutionMode.NONE</code> + 전용 endpoint (HASH_MISMATCH 선례 그대로). <code>DriftResolution</code> bean 미등록 → 표준 [적용]·forced apply·스캔 무인 적용 모두 구조적으로 도달 불가.</td><td>① 해결이 택일 입력(survivor)을 요구 — 무인 실행은 입력 자체가 없다 ② 파일 삭제라는 비가역 파괴 동작 ③ 이중 의도 검증 명제(MK3): 어느 쪽이 정본인지는 운영자 의도라 시스템이 단일화할 수 없다. mode=NONE 이면 <code>isAutoApplicable()==false</code> 가 enum SSOT 로 자동 성립 — 별도 플래그 불요.</td></tr>
+<tr><td>(b) 탈락</td><td>mode=MANUAL + <code>DriftResolution</code> 인터페이스에 파라미터 추가</td><td>표준 [적용] POST 는 파라미터가 없다 — 인터페이스 시그니처를 바꾸면 기존 8개 해결 bean 전부가 쓰지 않는 파라미터를 받는 churn. HASH_MISMATCH 가 이미 "사용자 입력 동반 해결은 전용 계약" 선례를 확립했다.</td></tr>
+</table>
+
+<h4>D5. 생존측 마커 재발급 필요 여부 — 실측 판정</h4>
+<p><b>결론: 재발급 불필요.</b> 근거를 실측으로 확인했다:</p>
+<ul>
+<li><code>MarkerContent</code> 의 서명 대상 필드는 (resourceType, resourceId, attributes, createdAt, manifestHash) — <b>attributes 에 절대 경로가 없다</b> (BIOS: boardId/version/<i>상대</i>경로 entrypointRelativePath, ISO: osMetadataId/originalFilename, SUBPROGRAM 동형). 마커는 위치 독립적이다.</li>
+<li>사본 마커는 원본 마커의 byte-동일 복사라 서명이 그대로 유효하고, manifestHash 는 내용 기반(트리 canonical/파일 SHA-256)이라 경로와 무관하다.</li>
+<li>선례 일치: PATH_DRIFT 해결(<code>PathDriftResolution</code>)도 파일은 건드리지 않고 <code>applyDriftedPath</code> 로 엔티티 경로만 갱신한다 — 이동한 자원의 마커를 재발급하지 않는 것이 확립된 계약.</li>
+</ul>
+<p><b>단, 재발급 불요가 "무검증 승격" 은 아니다.</b> 복제본 유지(승격) 직전 가드 4종을 둔다: ① 사본 마커 HMAC 서명 유효 ② <b>사본 마커 manifestHash == 엔티티 기록 manifestHash</b> — 원본이 재업로드된 뒤 남은 <i>구버전</i> 사본의 승격(O-2 위험의 본질)을 차단한다. 내용이 다른 사본을 정본화하려면 재업로드 또는 HASH_MISMATCH 수용 흐름이 올바른 경로다 ③ 사본 본체 존재 + 원본/사본이 포함 관계가 아님(사본이 원본 트리 내부에 있으면 승격 후 원본 삭제가 사본까지 지운다 — 거절) ④ <b>사본 <i>실제 바이트</i>의 manifestHash 재계산 == 엔티티 기록 manifestHash</b> (검수 반려로 추가 — 아래 callout).</p>
+
+<div class="callout danger">
+<b>검수 반려 이력 (2026-07-19, main 샌드박스 실측).</b> 위 가드 ②는 <i>사본 마커에 기록된</i> 지문만 대조했다. 그래서 <b>마커는 정상 최신본을 byte-동일 복사(서명 유효 + 기록 manifestHash 가 엔티티 기록값과 일치)해 두고 페이로드 바이트만 변조한 사본</b>이 ①②③을 모두 통과했다. 재현: 정본 트리 복제 → 페이로드만 변조(마커는 원본 복사) → RESOURCE_DUPLICATED 탐지 → survivor=DUPLICATE 승격 → <b>302 성공으로 변조 파일이 정본으로 승격되고 원본 삭제</b>(기대는 409).
+<br><br>
+<b>수정.</b> 승격 갈래 마지막에 가드 ④를 추가한다 — 사본 <i>실제 바이트</i>의 지문을 재계산해 엔티티 기록 지문과 대조하고, 불일치(또는 재계산 불능)면 <code>DriftResolutionNotAllowedException.duplicateNotPromotable(...)</code> 409. 재계산은 정밀 점검(deep scan)이 쓰는 <code>MarkableScanner.recomputeManifestHash(Markable)</code> 를 그대로 재사용한다(<code>HashAcceptService</code>·<code>PathReconciliationService</code> deep 경로와 동일 — 해시 규칙 중복 구현 0). SPI 시그니처는 <code>getResourcePath()</code> 기준으로 계산하므로, 경로만 사본으로 바꿔 끼운 읽기 전용 위임 뷰(<code>DuplicatePathView implements Markable</code>, 상태 변이 메서드 전부 즉시 실패)를 넘겨 6 scanner 구현 동반 수정 없이 재사용한다. 가드 ④는 저비용 가드(①②③)를 모두 통과한 <b>맨 마지막</b>에 둔다.
+<br><br>
+<b>keepOriginal(원본 유지) 갈래는 재계산하지 않는다</b> — 어차피 삭제할 사본의 내용 진위는 결과에 영향이 없어 검증 비용이 무의미하다. <b>동기 수행</b>: 승격은 운영자 확인을 거친 드문 비가역 액션이고 대용량 ISO 재계산이 수십 초 걸릴 수 있음을 감수한다(빈도가 늘면 HASH_MISMATCH 선례의 BackgroundJob 비동기 전환이 후속 후보 — D6 갱신 참조).
+</div>
+
+<h4>D6. 해결 전달 방식 — 동기 vs 비동기</h4>
+<p><b>채택</b>: 동기 <code>@Transactional</code> 서비스(<code>DuplicateResolveService</code>) + 즉시 응답. <b>탈락</b>: BackgroundJob 비동기 — 완료 이벤트 배선·중복 시작 차단 등 비용만 늘고 이득이 없다. survivor 파라미터는 Primitive Obsession 금지에 따라 <code>DuplicateSurvivor</code> enum(ORIGINAL/DUPLICATE)으로 타입화 — Spring 변환 실패가 곧 400.</p>
+<p><b>검수 반려 반영 (2026-07-19).</b> 초안은 "본 해결은 지문 재계산이 없고 파일 삭제만 빠르므로 동기로 충분" 이라 적었으나, D5 가드 ④ 추가로 <b>승격 갈래는 이제 사본 실제 바이트의 지문을 재계산한다</b> — 대용량 ISO 는 수십 초가 걸릴 수 있다. 그럼에도 동기를 유지하는 이유: 승격은 운영자 확인을 거친 드문 비가역 액션이라 비동기의 완료 이벤트·중복 시작 차단 배선이 오히려 과한 비용이다. 빈도가 늘면 HASH_MISMATCH 선례의 BackgroundJob 비동기 전환이 후속 후보(코드 주석에 명기). 원본 유지 갈래는 재계산이 없어 종전대로 즉시.</p>
+
+<h4>D7. 트랜잭션 경계·파일 삭제 실패 시의 상태</h4>
+<p><b>순서가 안전장치다 (HashAcceptService 적대적 검증 선례 준수)</b>: DB 변이(승격 시 경로 갱신 + 카드 제거)를 먼저 실행하고 flush 해 낙관적 잠금 충돌을 파일 조작 <i>전에</i> 표면화한다. 파일 삭제는 마지막 — 실패(IOException → IllegalStateException) 시 트랜잭션이 롤백되어 <b>드리프트 카드 유지 + (승격이었다면) DB 경로 원복 + 오류 응답</b>. 잔여 위험은 "삭제가 도중에 끊긴 부분 잔재" 한 가지로 줄고, 그 잔재는 다음 점검이 다시 보고한다(마커가 남았으면 RESOURCE_DUPLICATED 재보고, 마커부터 지워졌으면 마커 없는 파일 — §8 알려진 한계). 역순(파일 먼저)이면 삭제는 됐는데 DB 커밋이 실패해 카드가 남고, 그 카드는 영원히 stale 이다.</p>
+
+<h4>D8. 경로 2필드의 사용자 라벨 — enum 다형</h4>
+<p><b>채택</b>: <code>DriftKind</code> 에 <code>oldPathLabel()</code>/<code>newPathLabel()</code> 메서드(기본 "이전 경로"/"새 경로")를 추가하고 RESOURCE_DUPLICATED 상수만 "원본 경로 (DB 기록)"/"복제본 경로" 로 재정의(enum method-per-constant — CLAUDE.md 권장 다형). 템플릿 dt 가 이 메서드를 참조한다. <b>탈락1</b>: 템플릿에 kind 비교 분기 — 사용자 문구의 SSOT 를 enum 에 모은 R9-2 원칙 역행. <b>탈락2</b>: 전 상수 생성자 인자 2개 추가 — 10개 상수 전부 수정하는 churn 대비 이득 없음(재정의 1곳이 명확).</p>
+</div>
+</details>
+
+<details class="section" id="s5">
+<summary>5. 10단계 매핑</summary>
+<div class="body">
+<table>
+<tr><th>Step</th><th>내용</th><th>비고</th></tr>
+<tr><td>1</td><td>본 plan</td><td><span class="chip new">CP1</span></td></tr>
+<tr><td>2</td><td>뷰 — list.html: 경로 dt 라벨 다형화 + RESOURCE_DUPLICATED 전용 해결 폼(HASH_MISMATCH 전용 폼 선례·kind 직접 비교) / reconciliation-modals.html 에 dupResolve 모달 fragment(radio 2택일 — 기존 <code>.cm-cascade-option</code> radio 클래스 세트 재사용, 신규 CSS 0) / list.js 에 모달 바인딩(<code>ConfirmModal.open</code> 의 afterOpen/beforeConfirm 훅)</td><td>기본 선택 = 원본(DB 기록 경로)</td></tr>
+<tr><td>3</td><td>Controller — <code>ReconciliationRestController</code> 에 <code>POST /drifts/{driftId}/resolve-duplicate</code> 1 메서드 추가 (RedirectView + flash — 기존 apply 계약)</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>4</td><td>DTO — 무변경 (<code>DriftResponse</code> 의 oldPath/newPath/kind 로 충분. survivor 는 <code>DuplicateSurvivor</code> enum @RequestParam)</td><td><span class="chip keep">유지</span></td></tr>
+<tr><td>5</td><td>Service 시그니처 — <code>DuplicateResolveService.resolve(Long driftId, DuplicateSurvivor survivor)</code> (@Transactional) / <code>PathReconciliationService</code> 분류부 확장</td><td><span class="chip new">신규</span>+<span class="chip mod">수정</span></td></tr>
+<tr><td>6</td><td>Repository — 무변경</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>7</td><td>Entity — 무변경 (Drift 의 old_path/new_path 재사용. kind 컬럼 length 32 ≥ "RESOURCE_DUPLICATED" 19자)</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>8</td><td>테스트 — §6 (단위 + @WebMvcTest 통합)</td><td><span class="chip new">신규</span></td></tr>
+<tr><td>9</td><td>스키마 — 변경 없음 확인(신규 컬럼·테이블 0, enum 문자열만 추가). sql/ 산출물 없음</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>10</td><td>브라우저 E2E — 사용자 단독 (본 작업은 CP4 까지)</td><td>CP5 대기</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s6">
+<summary>6. Step 8 테스트 시나리오</summary>
+<div class="body">
+<h4>단위 — 탐지 (PathReconciliationServiceTest 확장, @TempDir + 실제 ProvisionMarkerService 관례)</h4>
+<ul>
+<li><b>원본 정상 + 사본 1</b> → RESOURCE_DUPLICATED 1건 (oldPath=DB 경로, newPath=사본 경로, displayName 스냅샷).</li>
+<li><b>원본 정상 + 사본 2</b> → RESOURCE_DUPLICATED 2건 (사본 경로당 1행 — D2 회귀 고정).</li>
+<li><b>원본 소실 + 사본 존재</b> → PATH_DRIFT 유지, RESOURCE_DUPLICATED 0건 (판정 순서 D1 회귀 방지).</li>
+<li><b>원본 마커만 있고 본체 부재 + 사본 존재</b> → MISSING 우선, RESOURCE_DUPLICATED 0건 ("완전 정상" 조건 회귀).</li>
+<li><b>사본이 마커만 복사(본체 없음)</b> → 보고 0건 (§8 알려진 한계의 의도 고정).</li>
+<li><b>기존 스위트 전체 green</b> — collectDiskMarkers 반환형 변경(List)의 파급 회귀 (PATH_DRIFT/ORPHAN/ESCAPE 분류 무변화).</li>
+</ul>
+<h4>단위 — 해결 (DuplicateResolveServiceTest 신설)</h4>
+<ul>
+<li><b>ORIGINAL 유지</b> — 사본 트리/파일+마커 삭제됨 · 원본 잔존 · DB 경로 무변경(applyDriftedPath 미호출) · 카드 제거 · [AUDIT] 로그.</li>
+<li><b>DUPLICATE 유지(승격)</b> — applyDriftedPath(newPath) 호출 · 원본 파일 삭제 · 카드 제거 (마커 재발급 없음 — D5 계약 고정: reissueMarker 미호출).</li>
+<li><b>stale 가드</b> — drift.oldPath != 현재 자원 경로 → DriftResolutionNotAllowedException(staleState), 파일 무변경.</li>
+<li><b>승격 가드</b> — 사본 마커 지문 != 엔티티 기록 지문(낡은 사본) → 409 duplicateNotPromotable, 파일·DB 무변경.</li>
+<li><b>승격 가드 ④ (검수 반려 재현)</b> — 사본 마커 기록 지문은 일치하나 <b>페이로드 바이트만 변조</b>해 재계산 지문이 불일치 → 409, 파일·DB 무변경 + 카드 유지. 종전 가드(기록값 대조)를 통과하던 시나리오를 회귀 고정.</li>
+<li><b>승격 가드 ④</b> — 사본 지문 재계산 불능(<code>recomputeManifestHash</code> → <code>Optional.empty()</code>, IO 오류 등) → 409, 파일·DB 무변경.</li>
+<li><b>승격 성공 재사용 계약</b> — 재계산 일치 시 승격 진행 + <code>recomputeManifestHash</code> 가 <i>사본 경로</i> 뷰로 위임됨을 ArgumentCaptor 로 검증(정밀 점검과 동일 scanner 경로).</li>
+<li><b>승격 가드</b> — 사본이 원본 트리 내부(포함 관계) → 409, 파일·DB 무변경.</li>
+<li><b>파일 삭제 실패</b> — 삭제 단계 IOException 주입 → 예외 전파(롤백 경로) + 그 전 단계까지의 파일 상태 보존 확인.</li>
+<li><b>kind 불일치 / 자원 비활성 / 전역 OFF</b> — 각각 409 계열 거절.</li>
+</ul>
+<h4>사용자 액션 통합 (@WebMvcTest — ReconciliationRestControllerDuplicateFlowTest 파일 분리, Mockito 는 Service 단까지)</h4>
+<ul>
+<li><b>2xx</b> — resolve-duplicate?survivor=ORIGINAL → 302 /maintenance/reconciliation (survivor=DUPLICATE 동일 + 서비스 인자 검증).</li>
+<li><b>400</b> — survivor=BOGUS (enum 변환 실패) / survivor 파라미터 누락.</li>
+<li><b>404</b> — DriftNotFoundException.</li>
+<li><b>409</b> — notApplicable(다른 kind 직접 POST) / staleState / duplicateNotPromotable(신규 factory 의 동반 시나리오 규율) / globalOff.</li>
+<li><b>표준 [적용] 안전망</b> — RESOURCE_DUPLICATED 에 기존 /apply direct POST → 409 (mode=NONE + bean 미등록 이중 차단 — 서비스 단위에서 검증).</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s7">
+<summary>7. 예외 계층 (신규·재사용)</summary>
+<div class="body">
+<table>
+<tr><th>예외</th><th>신규/재사용</th><th>매핑</th></tr>
+<tr><td><code>DriftResolutionNotAllowedException.duplicateNotPromotable(reason)</code> — 신규 <b>factory</b> (클래스 신설 아님). 승격 가드 3종(서명·지문 불일치·포함 관계) 거절 전용 문구</td><td><span class="chip new">신규</span></td><td>ConflictException → 409 (기존 advice 흡수). 동반 시나리오 테스트 §6 포함</td></tr>
+<tr><td><code>DriftResolutionNotAllowedException.staleState()/notApplicable()/globalOff()</code></td><td><span class="chip keep">재사용</span></td><td>409 — stale 화면·direct POST 안전망 (S6-2-3 선례)</td></tr>
+<tr><td><code>DriftNotFoundException</code></td><td><span class="chip keep">재사용</span></td><td>404</td></tr>
+<tr><td>survivor enum 변환 실패</td><td><span class="chip keep">framework</span></td><td>Spring MethodArgumentTypeMismatch → 400 (분기 코드 0)</td></tr>
+<tr><td>파일 삭제 IOException → <code>IllegalStateException</code> 래핑</td><td><span class="chip keep">관례</span></td><td>500 — 진짜 인프라 장애 (OrphanMarkerQuarantineResolution 의 격리 구역 생성 실패 선례와 동일 취급). 롤백으로 카드 유지</td></tr>
+</table>
+<p><b>UI 1차 차단과의 관계 (불가침)</b>: 정상 흐름의 모순은 UI 가 막는다 — 전역 resolution-enabled OFF 시 해결 버튼 disabled+tooltip(기존 [적용]과 동일 뷰모델 플래그 재사용). 서버 409 들은 direct POST / stale 화면 / 동시성에서만 발동하는 안전망이다.</p>
+</div>
+</details>
+
+<details class="section" id="s8">
+<summary>8. 부산물 / 주의</summary>
+<div class="body">
+<ul>
+<li><b>병렬 슬라이스 경계 (HF4-4)</b> — drift_report 의 보고서 저장·건수 표시 계층은 접촉하지 않는다. 본 슬라이스의 접점은 분류 로직(drifts 리스트에 행 추가)과 해결·상세 UI 뿐 — DriftReport 엔티티/리포지토리/카운트 표시 무변경.</li>
+<li><b>알려진 한계 1 (의도)</b> — <b>마커만 복사된 사본(본체 없는 .provision.json)</b> 은 원본 정상 시 계속 침묵한다. "복제본" 의 의미(실체 있는 사본)를 지키고 모달 택일의 전제(양쪽 다 실물)를 깨지 않기 위한 스코프 결정. 원본 소실 시엔 기존 4b 가 MISSING("마커만 이동 가능성") 으로 이미 잡는다. 표면화가 필요해지면 후속 백로그(§11).</li>
+<li><b>알려진 한계 2 (기존 유지)</b> — ORPHAN·ESCAPE 분류는 여전히 key 당 첫 hit 만 사용한다(다중 orphan 사본 중 1곳만 보고). collectDiskMarkers 의 List 화로 <i>수집은</i> 되지만 소비를 바꾸는 것은 본 슬라이스 범위 밖 — 행동 변화를 중복 탐지에 한정해 회귀 면적을 최소화한다.</li>
+<li><b>scan root 중첩 dedupe</b> — 중첩된 scan root 가 같은 마커를 두 번 walk 하는 경우가 있어(부모/자식 root 동시 등록), hit 목록은 정규화 경로 기준으로 dedupe 한다. 종전엔 putIfAbsent 가 우연히 막아주던 것을 명시 가드로 승격.</li>
+<li><b>단일 자원 스캔(scanForResource) 무변경</b> — softDelete reject saga 전용 경로는 "DB 위치 마커 부재" 에서 출발하므로 중복(원본 정상) 상황과 교집합이 없다.</li>
+<li><b>recheckable=false</b> — [다시 점검] 축은 부여하지 않는다(PATH_DRIFT 도 false). 사본을 수동으로 지운 사용자는 [보고 닫기] 또는 다음 점검으로 해소. 재확인 지원은 §11 후보.</li>
+<li><b>CLAUDE.md/AGENTS.md 수정 없음 · 커밋 금지 준수 · execution/·provisioning/ 무접촉.</b></li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s9">
+<summary>9. Verification</summary>
+<div class="body">
+<ol>
+<li><b>빌드</b> — <code>./gradlew test</code> 전체 green (신설 단위·통합 포함, bootRun 금지).</li>
+<li><b>기능 (테스트로 대체 검증)</b> — ① 사본 복사 → 스캔 → RESOURCE_DUPLICATED 행(경로 2필드) ② 원본 유지 → 사본 삭제·DB 불변 ③ 복제본 유지 → 원본 삭제·DB 경로 갱신·마커 무변경 ④ 낡은 사본 승격 시도 → 409 ⑤ 원본 소실 시 PATH_DRIFT 유지.</li>
+<li><b>회귀</b> — 기존 reconciliation 스위트(분류 5종·ESCAPE·recheck·hash-accept·컨트롤러) 전량 green — collectDiskMarkers 반환형 변경의 파급 확인.</li>
+<li><b>브라우저 확인(CP5, 사용자)</b> — C3 라벨("원본 경로 (DB 기록)"/"복제본 경로"), 모달 기본 선택=원본, 양 갈래 토스트/오류 모달.</li>
+</ol>
+</div>
+</details>
+
+<details class="section" id="s10">
+<summary>10. Critical Files</summary>
+<div class="body">
+<table>
+<tr><th>구분</th><th>파일</th></tr>
+<tr><td><span class="chip new">신규</span></td><td><code>maintenance/reconciliation/service/DuplicateResolveService.java</code> · <code>maintenance/reconciliation/service/DuplicateSurvivor.java</code> (enum) · test: <code>DuplicateResolveServiceTest.java</code> · <code>ReconciliationRestControllerDuplicateFlowTest.java</code></td></tr>
+<tr><td><span class="chip mod">수정</span></td><td><code>global/marker/DriftKind.java</code> (RESOURCE_DUPLICATED 상수 + oldPathLabel/newPathLabel 다형) · <code>maintenance/reconciliation/service/PathReconciliationService.java</code> (collectDiskMarkers List 화 + 4a 중복 pass) · <code>controller/ReconciliationRestController.java</code> (+resolve-duplicate) · <code>exception/DriftResolutionNotAllowedException.java</code> (+duplicateNotPromotable factory) · <code>templates/maintenance/reconciliation/list.html</code> · <code>templates/fragments/maintenance/reconciliation-modals.html</code> (+dupResolve fragment) · <code>static/maintenance/reconciliation/list.js</code> · test: <code>PathReconciliationServiceTest.java</code> (+탐지 시나리오)</td></tr>
+<tr><td><span class="chip keep">유지</span></td><td><code>Drift</code>/<code>DriftReport</code> 엔티티 · <code>DriftResponse</code> · repositories · <code>service/resolution/</code> 기존 8 bean · <code>DriftResolution</code> 인터페이스 · advice 2종 · <code>confirm-modal-base.js</code> · <code>confirm-modal.css</code> (.cm-cascade-option 재사용)</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s11">
+<summary>11. 다음 마일스톤</summary>
+<div class="body">
+<ul class="check-list" data-storage="hf45-next">
+<li><label><input type="checkbox"><span>CP2~CP4 구현 + 테스트 전체 green → 보고</span></label></li>
+<li><label><input type="checkbox"><span>CP5 — 사용자 브라우저 E2E (사본 복사 → 점검 → 양 갈래 해결)</span></label></li>
+<li><label><input type="checkbox"><span>후속 백로그 후보: 마커만 복사된 사본(본체 없음)의 표면화 여부 / RESOURCE_DUPLICATED [다시 점검](recheckable) 지원 / ORPHAN 다중 사본 전체 보고</span></label></li>
+<li><label><input type="checkbox"><span>HF4-4(보고서 계층)와의 병합 시 PathReconciliationService 충돌 여부 확인 (본 슬라이스는 분류부만 접촉)</span></label></li>
+</ul>
+</div>
+</details>
+
+</main>
+</div>
+
+<script>
+(function(){
+  // ── 불가침 4 로직 ──────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const el = document.getElementById(a.getAttribute('href').slice(1));
+      if (!el) return;
+      e.preventDefault();
+      el.open = true;
+      const y = el.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({top:y, behavior:'smooth'});
+    });
+  });
+  document.getElementById('btnExpand').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = true);
+  document.getElementById('btnCollapse').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = false);
+  const fb = document.getElementById('filterBox');
+  fb.addEventListener('input', () => {
+    const q = fb.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      const hit = !q || d.textContent.toLowerCase().includes(q);
+      d.style.display = hit ? '' : 'none';
+      if (q && hit) d.open = true;
+    });
+  });
+  document.querySelectorAll('.check-list[data-storage]').forEach(list => {
+    const key = list.dataset.storage;
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b, i) => {
+      b.checked = !!saved[i];
+      b.closest('label').classList.toggle('done', b.checked);
+      b.addEventListener('change', () => {
+        b.closest('label').classList.toggle('done', b.checked);
+        localStorage.setItem(key, JSON.stringify([...boxes].map(x => x.checked)));
+      });
+    });
+  });
+})();
+
+// ── 🎬 라이브 데모 — 서버 판정 시뮬레이션 ──────────
+const ORIG = '/opt/provisioning/subprogram/DiagTool';
+const state = {
+  dbPath: ORIG,
+  dbHash: 'a17f',
+  copySeq: 0,
+  reportNo: 0,
+  files: {},           // path -> {id, hash, note}
+  drifts: []           // {kind, oldPath, newPath}
+};
+function resetDemo() {
+  state.dbPath = ORIG; state.dbHash = 'a17f'; state.copySeq = 0; state.reportNo = 0;
+  state.files = {}; state.files[ORIG] = {id:7, hash:'a17f', note:'등록 원본'};
+  state.drifts = [];
+  closeModal(); msg('', '초기화 — 원본만 존재. [사본 복사] 후 [지금 점검] 을 눌러보세요.');
+  render();
+}
+function makeCopy(staleContent) {
+  state.copySeq++;
+  const p = '/opt/provisioning/subprogram/' + (staleContent ? 'old' : 'backup') + state.copySeq + '_DiagTool';
+  const src = state.files[state.dbPath];
+  if (!src) {
+    // 원본이 이미 유실됐어도 "예전에 떠 둔 사본" 을 재현할 수 있게 허용
+    state.files[p] = {id:7, hash: staleContent ? 'b2e0' : state.dbHash, note: staleContent ? '구버전 내용 사본' : '동일 내용 사본'};
+  } else {
+    state.files[p] = {id:7, hash: staleContent ? 'b2e0' : src.hash, note: staleContent ? '구버전 내용 사본 (재업로드 전 복사 가정)' : '동일 내용 사본'};
+  }
+  msg('', 'cp -r ' + (staleContent ? '(예전 백업에서) ' : '') + '→ ' + p + '\n스캔 전에는 시스템이 모른다 — [지금 점검] 을 눌러 탐지를 확인하라.');
+  render();
+}
+function loseOriginal() {
+  if (!state.files[state.dbPath]) { msg('error', 'DB 경로에 이미 파일이 없습니다.'); return; }
+  delete state.files[state.dbPath];
+  msg('error', 'rm -rf ' + state.dbPath + ' — 원본 유실. [지금 점검] 으로 4b 판정(PATH_DRIFT/MISSING)이 유지되는지 확인하라.');
+  render();
+}
+// ── 탐지 — 본 plan 의 performScan 판정식 재현 ──
+function scan() {
+  state.reportNo++;
+  state.drifts = [];
+  const orig = state.files[state.dbPath];
+  const hits = Object.keys(state.files).filter(p => p !== state.dbPath && state.files[p].id === 7);
+  if (orig) {
+    // 4a — 원본 완전 정상 → hit 마다 RESOURCE_DUPLICATED 1행 (D1 + D2)
+    hits.forEach(p => state.drifts.push({kind:'RESOURCE_DUPLICATED', oldPath: state.dbPath, newPath: p}));
+  } else if (hits.length > 0) {
+    // 4b — 원본 소실 → 기존 그대로 첫 hit 만 PATH_DRIFT (중복 kind 미발동)
+    state.drifts.push({kind:'PATH_DRIFT', oldPath: state.dbPath, newPath: hits[0]});
+  } else {
+    state.drifts.push({kind:'MISSING', oldPath: state.dbPath, newPath: null});
+  }
+  msg('success', '점검 #' + state.reportNo + ' 완료 — 드리프트 ' + state.drifts.length + '건.'
+    + (orig && hits.length ? ' 원본이 정상인데도 사본이 잡혔다 — HF4-5 의 핵심.' : ''));
+  render();
+}
+// ── 해결 — DuplicateResolveService 판정식 재현 ──
+let modalDriftIdx = -1, modalChoice = 'ORIGINAL';
+function openResolve(idx) {
+  const d = state.drifts[idx];
+  modalDriftIdx = idx; modalChoice = 'ORIGINAL'; // 요구사항 ③ — 기본 선택 = DB 기록 경로
+  document.getElementById('modalBody').innerHTML =
+    'DiagTool(#7) 이 두 위치에 존재합니다. <b>남길 쪽</b>을 선택하세요 — 나머지는 파일시스템에서 삭제됩니다.';
+  renderChoices(d);
+  document.getElementById('simModal').hidden = false;
+  document.getElementById('modalConfirm').onclick = () => confirmResolve();
+}
+function renderChoices(d) {
+  const box = document.getElementById('modalChoices');
+  box.innerHTML = '';
+  [['ORIGINAL', '원본 유지 (기본)', d.oldPath, '복제본 파일을 삭제합니다. DB 는 그대로.'],
+   ['DUPLICATE', '복제본 유지', d.newPath, '원본 파일을 삭제하고 DB 기록 경로를 복제본 경로로 갱신합니다.']]
+  .forEach(([val, title, path, desc]) => {
+    const div = document.createElement('div');
+    div.className = 'sim-choice' + (modalChoice === val ? ' sel' : '');
+    div.innerHTML = '<input type="radio" name="simSurv"' + (modalChoice === val ? ' checked' : '') + '>'
+      + '<div><div class="t">' + title + '</div><div><code>' + path + '</code></div><div class="d">' + desc + '</div></div>';
+    div.onclick = () => { modalChoice = val; renderChoices(d); };
+    box.appendChild(div);
+  });
+}
+function confirmResolve() {
+  const d = state.drifts[modalDriftIdx];
+  closeModal();
+  // 가드 1 — stale : drift.oldPath == 현재 DB 경로 (다중 사본에서 승격 후 남은 행 방어)
+  if (d.oldPath !== state.dbPath) {
+    msg('error', 'HTTP 409 — "이미 상태가 바뀌어 이 보고로는 처리할 수 없습니다. 다시 점검한 뒤 새 보고에서 진행하세요."\n(stale 가드 : 카드의 원본 경로 ' + d.oldPath + ' ≠ 현재 DB 경로 ' + state.dbPath + ')');
+    return;
+  }
+  // 가드 2 — 사본 실존 + 신원
+  const dup = state.files[d.newPath];
+  if (!dup || dup.id !== 7) {
+    msg('error', 'HTTP 409 — 복제본 위치의 상태가 바뀌었습니다 (staleState). 다시 점검하세요.');
+    return;
+  }
+  if (modalChoice === 'ORIGINAL') {
+    delete state.files[d.newPath];
+    state.drifts.splice(modalDriftIdx, 1);
+    msg('success', '✓ 원본 유지 — 복제본 삭제: ' + d.newPath + '\nDB 무변경. [AUDIT] 자원 중복 해소 — SUBPROGRAM#7 원본 유지, 사본 삭제 (drift 카드 제거)');
+  } else {
+    // 가드 3 — 승격 : 사본 마커 지문 == 엔티티 기록 지문 (낡은 사본 승격 차단 = O-2 본질 방어)
+    if (dup.hash !== state.dbHash) {
+      msg('error', 'HTTP 409 — "복제본의 내용 지문이 현재 정본 기록과 다릅니다 (' + dup.hash + ' ≠ ' + state.dbHash + '). 낡은 사본일 수 있어 정본 승격을 거절합니다. 그 내용을 정본으로 삼으려면 재업로드가 올바른 경로입니다."\n(duplicateNotPromotable — 파일·DB 무변경, 카드 유지)');
+      return;
+    }
+    const oldOriginal = d.oldPath;
+    state.dbPath = d.newPath;              // applyDriftedPath 재사용 (PATH_DRIFT 해결 로직)
+    delete state.files[oldOriginal];       // DB 변이 → flush → 파일 삭제 순서 (D7)
+    state.drifts.splice(modalDriftIdx, 1);
+    msg('success', '✓ 복제본 유지(승격) — DB 경로 갱신: ' + state.dbPath + ' · 원본 삭제: ' + oldOriginal
+      + '\n마커 재발급 없음(D5 — 마커는 위치 독립). 남은 중복 카드가 있다면 stale 가드가 지켜준다 — 시도해보라.');
+  }
+  render();
+}
+function applyPathDrift(idx) {
+  const d = state.drifts[idx];
+  state.dbPath = d.newPath;
+  state.drifts.splice(idx, 1);
+  const f = state.files[state.dbPath];
+  const hijacked = f && f.hash !== state.dbHash;
+  msg(hijacked ? 'error' : 'success',
+    '[적용] PATH_DRIFT — DB 경로를 ' + state.dbPath + ' 로 갱신.'
+    + (hijacked ? '\n⚠ 방금 낡은 사본(' + f.hash + ')이 정본 자리를 차지했다 — 이것이 O-2 위험. HF4-5 는 원본이 살아 있는 동안 중복을 표면화해 이 시나리오를 사전에 끊는다 (사후 방어는 정밀 점검의 HASH_MISMATCH).' : ''));
+  render();
+}
+function msg(cls, text) { const el = document.getElementById('uxMsg'); el.className = 'ux-message ' + cls; el.textContent = text; }
+function closeModal() { document.getElementById('simModal').hidden = true; }
+function render() {
+  document.getElementById('dbPathEl').textContent = state.dbPath;
+  document.getElementById('dbHashEl').textContent = state.dbHash;
+  const ft = document.getElementById('fsTable');
+  ft.innerHTML = '<tr><th>경로</th><th>마커 신원</th><th>내용 지문</th><th>비고</th></tr>';
+  const paths = Object.keys(state.files);
+  if (!paths.length) ft.innerHTML += '<tr><td colspan="4" style="color:var(--text-muted);">（비어 있음）</td></tr>';
+  paths.forEach(p => {
+    const f = state.files[p];
+    ft.innerHTML += '<tr><td><code>' + p + '</code>' + (p === state.dbPath ? ' <span class="badge on">DB 기록</span>' : '')
+      + '</td><td>SUBPROGRAM#' + f.id + '</td><td><code>' + f.hash + '</code>'
+      + (f.hash !== state.dbHash ? ' <span class="badge red">기록과 다름</span>' : '')
+      + '</td><td>' + f.note + '</td></tr>';
+  });
+  const rn = document.getElementById('reportNo');
+  rn.textContent = state.reportNo ? ('#' + state.reportNo) : '아직 없음';
+  rn.className = 'badge ' + (state.reportNo ? 'on' : 'off');
+  const dl = document.getElementById('driftList');
+  dl.innerHTML = '';
+  if (!state.reportNo) { dl.innerHTML = '<span style="color:var(--text-muted);">[지금 점검] 을 눌러 스캔하세요.</span>'; return; }
+  if (!state.drifts.length) { dl.innerHTML = '<span style="color:var(--green);">드리프트 없음 — 모든 자원이 정상.</span>'; return; }
+  state.drifts.forEach((d, i) => {
+    const card = document.createElement('div');
+    if (d.kind === 'RESOURCE_DUPLICATED') {
+      card.className = 'drift-card';
+      card.innerHTML = '<span class="badge dup">자원 중복 존재</span> <code>RESOURCE_DUPLICATED</code>'
+        + '<div>원본 경로 (DB 기록): <code>' + d.oldPath + '</code></div>'
+        + '<div>복제본 경로: <code>' + d.newPath + '</code></div>'
+        + '<div style="margin-top:4px;"><button class="n-demo-btn" onclick="openResolve(' + i + ')">둘 중 하나 선택해 해소</button>'
+        + ' <span class="d" style="color:var(--text-muted);font-size:11px;">(자동 적용 아님 — mode NONE)</span></div>';
+    } else if (d.kind === 'PATH_DRIFT') {
+      card.className = 'drift-card pd';
+      card.innerHTML = '<span class="badge warnb">경로 이동됨</span> <code>PATH_DRIFT</code>'
+        + '<div>이전 경로: <code>' + d.oldPath + '</code></div><div>새 경로: <code>' + d.newPath + '</code></div>'
+        + '<div style="margin-top:4px;"><button class="n-demo-btn" onclick="applyPathDrift(' + i + ')">적용</button></div>';
+    } else {
+      card.className = 'drift-card ms';
+      card.innerHTML = '<span class="badge red">자원 소실</span> <code>MISSING</code>'
+        + '<div>이전 경로: <code>' + d.oldPath + '</code></div><div class="d" style="color:var(--text-muted);">시스템이 자동 복구할 수 없음 — 파일 복원 후 재점검.</div>';
+    }
+    dl.appendChild(card);
+  });
+}
+resetDemo();
+</script>
+</body>
+</html>

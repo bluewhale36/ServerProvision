@@ -26,6 +26,10 @@ import java.time.Instant;
  * @param parentResourceId   S5-2-3-1 — 자식 자원의 부모 PK (없으면 null).
  * @param parentDisplayName  S5-2-3-1 — 자식 자원의 부모 displayName (없으면 null). 활성/삭제 무관 lookup.
  * @param parentDeleted      S5-2-3-1 — 부모가 삭제 상태인지 여부. true 면 부모 복구 먼저 필요 안내.
+ * @param ttlExtendable      HF4-1 — 이 자원 종류가 보존기간 연장을 지원하는지 여부
+ *                           ({@code MarkableTrashOperator.supportsTrashTtlExtension()} — 서버 가드와 동일 판정 SSOT).
+ *                           false 면 연장 버튼 disabled + tooltip. ghost 행은 항상 false.
+ * @param extendStepDays     HF4-1 — 연장 1회의 가산 일수 (= 운영 설정 TTL 일수). 버튼 라벨 "+N일 연장" 동적화용.
  */
 public record TrashItemResponse(
 		ResourceType resourceType,
@@ -42,7 +46,9 @@ public record TrashItemResponse(
 		ResourceType parentResourceType,
 		Long parentResourceId,
 		String parentDisplayName,
-		boolean parentDeleted
+		boolean parentDeleted,
+		boolean ttlExtendable,
+		int extendStepDays
 ) {
 
 }

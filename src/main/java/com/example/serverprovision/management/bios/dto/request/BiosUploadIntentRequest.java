@@ -12,6 +12,7 @@ import jakarta.validation.constraints.*;
 public record BiosUploadIntentRequest(
 
 		@NotBlank(message = "대상 디렉토리 경로를 입력해주세요.")
+		@Size(max = 1024, message = "대상 디렉토리 경로는 1024자 이하로 입력해주세요.")
 		String targetDirectory,
 
 		@NotNull(message = "업로드 방식을 지정해야 합니다.")

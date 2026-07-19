@@ -20,9 +20,25 @@ public interface MarkableTrashOperator {
 	ResourceType supportedType();
 
 	/**
-	 * TtlExtensionService 의 자원별 보존기간 연장 — 도메인이 자기 entity 의 trashed_at 만 갱신.
+	 * HF4-1 — 이 자원 종류가 보존기간 연장을 지원하는가.
+	 * <p>UI 차단(연장 버튼 disabled + tooltip)과 서버 가드({@code TrashTtlExtensionService} 의
+	 * {@code TtlExtensionUnsupportedException} throw)가 <b>이 판정 하나를 공유</b>한다 — 두 곳에 조건을
+	 * 복붙하면 drift 로 silent 사고가 재발하므로 SSOT 를 SPI 에 둔다. 파일 자원 4 스캐너만 {@code true} 로
+	 * override, 신규 타입은 default {@code false} 라 자동 안전.</p>
 	 */
-	default void extendTrashTtl(Long resourceId) {
+	default boolean supportsTrashTtlExtension() {
+		return false;
+	}
+
+	/**
+	 * TtlExtensionService 의 자원별 보존기간 연장.
+	 * <p>HF4-1 — 재기준(trashed_at 갱신)에서 <b>가산</b>으로 전환 : 도메인이 자기 entity 의
+	 * {@code extendTrashTtl(days)} 를 호출해 {@code ttl_extension_days} 를 누적한다. trashed_at 은 불변.</p>
+	 * <p>default throw 는 {@link #supportsTrashTtlExtension()} 서비스 가드가 선차단하므로 정상 경로에서
+	 * 도달 불가 — 신규 SPI 구현이 지원 선언({@code true})만 하고 본 메서드 override 를 누락한 경우의
+	 * 최후 안전망으로 존치.</p>
+	 */
+	default void extendTrashTtl(Long resourceId, int days) {
 		throw new UnsupportedOperationException(supportedType() + " 는 trash TTL 연장을 지원하지 않습니다.");
 	}
 

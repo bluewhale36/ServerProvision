@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF4-2 Plan — 길이 계약 정렬 + 오류 바디 스택 차단</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .chip.gap{background:var(--red-bg);color:var(--red);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:70px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .n-demo-btn.on { background:var(--blue); color:#fff; }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .pane { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; font-size:12.5px; margin-top:10px; }
+  .pane h5 { margin:0 0 8px; font-size:12px; color:var(--text-muted); }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.red { background:var(--red-bg); color:var(--red); } .badge.warnb { background:var(--yellow-bg); color:var(--yellow); }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; white-space:pre-wrap; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .sim-field { margin-top:10px; }
+  .sim-field textarea { width:100%; min-height:64px; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-size:12.5px; font-family:inherit; resize:vertical; background:var(--card); }
+  .sim-field textarea.sim-invalid { border-color:var(--red); box-shadow:0 0 0 2px var(--red-bg); }
+  .sim-counter { font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .sim-counter.over { color:var(--red); font-weight:700; }
+  .sim-slot { font-size:12px; color:var(--red); margin-top:4px; min-height:16px; font-weight:600; }
+  .timeline { list-style:none; padding:0; margin:8px 0 0; }
+  .timeline li { padding:5px 0 5px 22px; position:relative; font-size:12.5px; }
+  .timeline li::before { content:''; position:absolute; left:6px; top:11px; width:8px; height:8px; border-radius:50%; background:var(--border); }
+  .timeline li.ok::before { background:var(--green); }
+  .timeline li.bad::before { background:var(--red); }
+  .timeline li.warn::before { background:var(--yellow); }
+  .flash { animation:flash 0.9s ease-out; }
+  @keyframes flash { 0% { background:var(--green-bg); } 100% { background:transparent; } }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF4-2 — 문자열 길이 계약 정렬 + 오류 바디 스택트레이스 차단 <span class="v2-badge">F-6 · O-7</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF4-2 (3차 개발 · 핫픽스)</span>
+    <span><strong>scope</strong> F-6 Request DTO @Size 전수 정렬 + SSR 오류 슬롯 보강 · O-7 500 JSON trace 노출 차단</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>검증</strong> 워크트리 <code>./gradlew test</code> 전체 green (bootRun 금지 — 병렬 세션)</span>
+    <span><strong>근거</strong> 2026-07-19 전수 점검 §F-6 · §O-7 + 본 plan §1 실측 대조표</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc">
+  <strong>목차</strong>
+  <ol id="tocList">
+    <li><a href="#s1">1. 현재 상태 (대조표)</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s2p" class="preview">🎬 라이브 데모</a></li>
+    <li><a href="#s3">3. URL/데이터 흐름</a></li>
+    <li><a href="#s4">4. 설계 결정 (대안 비교)</a></li>
+    <li><a href="#s5">5. 10단계 매핑</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물/주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="btnExpand">전부 펴기</button>
+    <button id="btnCollapse">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input class="filter-box" id="filterBox" placeholder="검색 — 예: 1024, legacyFilePath, spring.web.error, n-error ...">
+
+<details class="section" id="s1" open>
+<summary>1. 현재 상태 — 길이 계약 전수 대조표 (실측 근거)</summary>
+<div class="body">
+<h4>발단 (F-6 · O-7)</h4>
+<p>2026-07-19 샌드박스 전수 점검에서 두 결함이 잡혔다. <b>F-6</b>: <code>ISOCreateRequest.description</code> 에 <code>@Size</code> 가 없어 1,600자 설명이 Bean Validation 을 통과했고, background 등록 잡의 INSERT 단계에서 MariaDB 1406 (Data too long — <code>iso.description VARCHAR(1024)</code>) 으로 실패해 업로드 완주 후에야 DB_CONSTRAINT 격리로 흘렀다 (orphan saga 자체는 정상 동작 — 안전망이 받았을 뿐 앞단 400 필드 오류가 적정한 UX). <b>O-7</b>: 500 JSON 오류 바디에 <code>trace</code> 필드로 전체 스택트레이스가 노출됐다 (devtools 동봉 환경).</p>
+<h4>전수 대조표 — Request DTO 문자열 필드 vs 엔티티 @Column(length)</h4>
+<p>management 5 도메인 + provisioning setting 의 Request 문자열 필드 <b>약 40개</b>를 전수 대조한 결과. bios/bmc/subprogram/biossetting 의 Create·Update 계열은 이미 "<code>@Size(max) = 엔티티 length</code> + 한국어 메시지" 관례를 지키고 있고, <b>OS·ISO·Board 3 도메인과 upload-intent 4종, setting name 만 관례에서 이탈</b>해 있다 — 계약 설계 누락이 아니라 관례 확립(bios 계열 R 캠페인) 이전에 작성된 DTO 들이 정렬을 못 받은 것이다.</p>
+<table>
+<tr><th>Request.필드</th><th>현재 검증</th><th>엔티티 컬럼 length</th><th>판정</th></tr>
+<tr><td><code>OSMetadataCreateRequest.osVersion</code></td><td>@NotBlank</td><td><code>os_metadata.os_version</code> 64</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>OSMetadataCreateRequest.description</code> / <code>OSMetadataUpdateRequest.description</code></td><td>없음</td><td>1024</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>ISOCreateRequest.isoPath</code> / <code>ISOUpdateRequest.isoPath</code></td><td>@NotBlank</td><td><code>iso.iso_path</code> 1024</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>ISOCreateRequest.description</code> / <code>ISOUpdateRequest.description</code> <b>(F-6 당사자)</b></td><td>없음</td><td>1024</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>IsoUploadIntentRequest.isoPath</code> · <code>.filename</code></td><td>@NotBlank</td><td>합성(<code>IsoPathResolver.resolve</code>) 후 <code>iso.iso_path</code> 1024</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>BoardModelCreateRequest.modelName</code> / <code>BoardModelUpdateRequest.modelName</code></td><td>@NotBlank</td><td><code>board_model.model_name</code> 128</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>BoardModelCreateRequest.description</code> / <code>BoardModelUpdateRequest.description</code></td><td>없음</td><td>1024</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>BiosUploadIntentRequest.targetDirectory</code></td><td>@NotBlank (version 64·entrypoint 512 는 @Size 있음)</td><td><code>board_bios</code> treeRootPath 1024</td><td><span class="chip gap">상한 없음</span> — intent 만 이탈</td></tr>
+<tr><td><code>BmcCreateRequest.targetDirectory</code> / <code>BmcRegisterExistingRequest.targetDirectory</code></td><td>@Size(max=1024)</td><td><b>이중 매핑</b> — <code>firmware_path</code> 1024 <b>+ legacy <code>file_path</code> 255 NOT NULL</b> (<code>BoardBMC.java:62,127</code> · <code>BmcRegistrationService.java:274</code> 미러링)</td><td><span class="chip gap">검증상한 &gt; DB 제약</span> — 256~1024자 입력 시 검증 통과 후 INSERT 실패</td></tr>
+<tr><td><code>BmcUploadIntentRequest.targetDirectory</code></td><td>@NotBlank</td><td>위와 동일 (255 effective)</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>SubprogramUploadIntentRequest.targetDirectory</code></td><td>@NotBlank</td><td><code>subprogram</code> treeRootPath 1024</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td><code>SettingSaveRequest.name</code></td><td>@NotBlank</td><td><code>setting_definition.name</code> 128 (unique)</td><td><span class="chip gap">상한 없음</span></td></tr>
+<tr><td>bios/bmc/subprogram Create·Update 의 name(128)·version(64)·targetDirectory(1024)·description(1024)·entrypointRelativePath(512) / biossetting name(128)·description(1024)</td><td>@Size 정합</td><td>각각 일치</td><td><span class="chip keep">일치 — 무변경</span></td></tr>
+<tr><td>setting Process 하위 문자열(파티션·계정·타임존 등)</td><td>@Pattern 위주</td><td><code>setting_process.payload_json</code> JSON 컬럼 — 개별 length 없음</td><td><span class="chip na">length 대조 대상 아님 (§8 비목표)</span></td></tr>
+</table>
+<h4>오류 표시 경로 이원화 (실측)</h4>
+<ul>
+<li><b>create 폼 = XHR JSON</b> — 컨트롤러가 <code>BindingResult</code> 오류를 400 + <code>ApiErrorResponse.fieldErrors[]</code> 로 반환, <code>static/global/form-error.js</code> 가 <code>data-error-field</code> 요소에 <code>.has-error</code>+<code>.field-error-message</code> 주입 (form-validation.css 관례). description 은 전 create 템플릿에 <code>data-error-field</code> 가 이미 있어 <b>슬롯 동작함</b>.</li>
+<li><b>edit 폼 6종 = 진짜 SSR 재렌더</b> — 컨트롤러가 <code>hasErrors()</code> 시 뷰 이름을 그대로 반환. 이 경로의 유일한 표시 수단은 <code>&lt;div class="n-error" th:errors&gt;</code> 인데, <b>6개 edit 템플릿 모두 description 에 n-error 슬롯이 없다</b> (name·version·isoPath 는 있음 — 같은 폼 안 자기모순). bios/bmc/subprogram edit 는 @Size 가 이미 있어 지금도 1025자 입력 시 <b>오류가 무표시로 삼켜진 채 재렌더</b>되는 재현 가능한 UX 버그.</li>
+<li><b>예외 케이스</b> — ISO 등록 form POST(<code>IsoUploadController</code> <code>POST /{osId}/iso</code>)는 create 지만 SSR 재렌더(<code>iso-new</code> 뷰 반환) — iso-new 의 description 도 n-error 슬롯 필요.</li>
+</ul>
+<h4>O-7 근본 원인 (jar 레벨 실측)</h4>
+<p>Spring Boot 4.0.3 에서 <code>spring-boot-autoconfigure-4.0.3.jar!/META-INF/spring-devtools.properties</code> 가 <code>defaults.spring.web.error.include-stacktrace=always</code>(+ include-message/include-binding-errors=always) 를 선언하고, devtools 의 <code>DevToolsSettings.getPropertyDefaults()</code> → <code>DevToolsPropertyDefaultsPostProcessor</code> 가 이를 <b>최하순위 property source 로 주입</b>한다. 본 프로젝트는 <code>developmentOnly 'spring-boot-devtools'</code> 를 쓰므로 개발/샌드박스 실행에서 기본값 <code>never</code> 가 <code>always</code> 로 상향돼 있었다. 응답 바디에서만 노출될 뿐 서버 로그의 스택은 이 설정과 무관하다.</p>
+<div class="callout danger"><b>키 함정</b> — 구 키 <code>server.error.include-stacktrace</code> 는 Boot 4.0.0 부터 구성 메타데이터 <b>deprecation level=error</b> (spring-boot-web-server 4.0.3 메타데이터 실측: replacement=<code>spring.web.error.include-stacktrace</code>) — <b>더 이상 바인딩되지 않는 죽은 키</b>다. 구 키로 넣으면 devtools 가 올리는 신 키를 이기지 못해 O-7 이 고쳐지지 않는다.</div>
+</div>
+</details>
+
+<details class="section" id="s2" open>
+<summary>2. 요구사항</summary>
+<div class="body">
+<ol>
+<li><b>앞단 400 필드 오류 (F-6)</b> — §1 대조표의 불일치 필드 전부에 <code>@Size(max = 엔티티 length)</code> + 한국어 메시지("…N자 이하로 입력해주세요." — bios 계열 기존 관례 문구)를 추가한다. 업로드/등록 잡이 돌기 전에 제출 즉시 필드 오류로 거절한다.</li>
+<li><b>BMC legacy 255 정합</b> — <code>targetDirectory</code> 가 legacy <code>file_path VARCHAR(255) NOT NULL</code> 에도 미러링되므로 BMC 3 Request 의 상한을 <b>effective 제약 255</b> 로 정렬한다 (스키마 변경 금지 — 코드가 DB 에 맞춘다).</li>
+<li><b>SSR 오류 슬롯 보강</b> — SSR 재렌더가 실제 발생하는 7개 템플릿(edit 6종 + iso-new)의 description 에 기존 관례 그대로 <code>n-error</code>(th:errors) 슬롯을 추가한다. 인라인 스타일 금지, 각 템플릿의 인접 필드 마크업 복제.</li>
+<li><b>오류 바디 스택 차단 (O-7)</b> — <code>application.properties</code> 에 <code>spring.web.error.include-stacktrace=never</code> 명시 + WHY 주석(devtools 상향 근거·구 키 함정 포함). 로그 스택은 유지, 응답 바디만 차단.</li>
+<li><b>테스트</b> — DTO Validator 단위(1024/64/255 경계) + @WebMvcTest 통합(ISO·OS·Board 대표 1,025자 → 400 fieldErrors / SSR 재렌더 필드오류) — §6.</li>
+</ol>
+</div>
+</details>
+
+<details class="section preview" id="s2p" open>
+<summary>🎬 라이브 데모 — 입력 길이 → 검증 판정 AS-IS / TO-BE 체험</summary>
+<div class="body">
+<p>필드를 고르고 textarea 에 글자를 채워 제출해보라. <b>AS-IS</b> 는 전수 점검에서 잡힌 실제 경로(검증 통과 → 잡 실행 → INSERT 1406 → 격리행), <b>TO-BE</b> 는 본 plan 적용 후(제출 즉시 400 + 필드 슬롯 메시지) 다. 판정식은 본 plan 의 서버 판정과 동일: <code>len(입력) &gt; @Size.max(= 엔티티 length) → 필드 오류</code>.</p>
+<div class="ux-wrap">
+  <div class="ux-toolbar">
+    <span class="group-label">모드</span>
+    <button class="n-demo-btn on" id="mAsIs" onclick="setMode('asis')">AS-IS (현재 결함)</button>
+    <button class="n-demo-btn" id="mToBe" onclick="setMode('tobe')">TO-BE (수정 후)</button>
+    <span class="group-label" style="margin-left:14px;">필드</span>
+    <button class="n-demo-btn on" id="fIso" onclick="setField('iso')">ISO 설명 (1024)</button>
+    <button class="n-demo-btn" id="fOsv" onclick="setField('osv')">OS 버전 (64)</button>
+    <button class="n-demo-btn" id="fBmc" onclick="setField('bmc')">BMC 디렉토리 (legacy 255)</button>
+  </div>
+  <div class="ux-toolbar">
+    <span class="group-label">채우기</span>
+    <button class="n-demo-btn" onclick="fill(-1)">상한 정확히</button>
+    <button class="n-demo-btn danger" onclick="fill(-2)">상한 +1자</button>
+    <button class="n-demo-btn danger" onclick="fill(1600)">1,600자 (F-6 재현)</button>
+    <button class="n-demo-btn" onclick="fill(0)">비우기</button>
+  </div>
+  <div class="pane">
+    <h5 id="simFormTitle">ISO 등록 폼 — 설명 (선택)</h5>
+    <div class="sim-field">
+      <textarea id="simInput" placeholder="직접 입력하거나 위 채우기 버튼 사용"></textarea>
+      <div class="sim-counter" id="simCounter">0자 / 상한 1024자</div>
+      <div class="sim-slot" id="simSlot"></div>
+    </div>
+    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+      <button class="n-demo-btn" id="btnSubmit" onclick="submitSim()">제출</button>
+      <span class="badge off" id="verdictBadge">대기</span>
+    </div>
+  </div>
+  <div class="pane">
+    <h5>서버 측 진행 (제출 후)</h5>
+    <ul class="timeline" id="simTimeline"><li>아직 제출 안 함</li></ul>
+  </div>
+  <div class="ux-message" id="uxMsg">모드·필드를 고르고 "상한 +1자" 채우기 후 제출해보세요. AS-IS 와 TO-BE 의 갈림을 비교할 수 있어요.</div>
+</div>
+<h4>O-7 미니 데모 — 미매핑 500 의 JSON 오류 바디</h4>
+<div class="ux-wrap">
+  <div class="ux-toolbar">
+    <button class="n-demo-btn danger" onclick="fire500()">미매핑 500 유발 (devtools 동봉 실행)</button>
+    <span style="font-size:11px;color:var(--text-muted);">모드 토글(AS-IS/TO-BE)이 이 데모에도 적용된다</span>
+  </div>
+  <div class="ux-message" id="msg500">500 을 유발해보세요.</div>
+</div>
+<div class="callout">데모 판정 로직 = 서버와 동일식 재현: TO-BE 는 <code>@Size</code> 가 컨트롤러 진입 전 BindingResult 에 오류를 담아 400(XHR)/재렌더+슬롯(SSR) 으로 갈라지고, O-7 은 <code>spring.web.error.include-stacktrace=never</code> 가 devtools 의 always 상향을 application.properties 우선순위로 눌러 trace 필드가 사라진다.</div>
+</div>
+</details>
+
+<details class="section" id="s3">
+<summary>3. URL / 데이터 흐름</summary>
+<div class="body">
+<pre>
+[F-6 — XHR create 경로 (os/board create, 4종 upload-intent, setting save)]
+POST /management/os (JSON) 등
+  @Valid 바인딩 → @Size 위반 → BindingResult
+    → 컨트롤러 기존 분기: 400 + ApiErrorResponse.fieldErrors[{field:"description", message:"설명은 1024자 이하로 입력해주세요."}]
+    → form-error.js renderResponse() → data-error-field="description" 슬롯에 표시   [컨트롤러 무변경 — DTO 만]
+
+[F-6 — SSR 재렌더 경로 (edit 6종 + ISO 등록 form POST)]
+POST /management/os/{id}/edit 등
+  @Valid 바인딩 → @Size 위반 → hasErrors() → 기존 분기: 뷰 재렌더 (폼 값 보존)
+    → 템플릿 신설 슬롯: &lt;div class="n-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"&gt;   [컨트롤러 무변경 — 템플릿만]
+
+[F-6 — intent 핸드셰이크]
+POST /management/os/{osId}/iso/upload-intent (JSON)
+  isoPath @Size(1024) · filename @Size(255) → 위반 시 기존 분기: 400 + ApiErrorResponse(message)
+  → 업로드 바이트 전송 전에 거절 (기존: 15GB 업로드 완주 후 INSERT 1406 격리)
+
+[O-7]
+(모든 미매핑 500) → BasicErrorController JSON 바디
+  AS-IS: devtools property defaults 가 include-stacktrace=always 상향 → trace 노출
+  TO-BE: application.properties 의 spring.web.error.include-stacktrace=never 가 우선 → trace 제거 (로그 스택 유지)
+</pre>
+</div>
+</details>
+
+<details class="section" id="s4">
+<summary>4. 설계 결정 — 대안 비교 (채택 + 탈락 사유)</summary>
+<div class="body">
+<h4>D1. F-6 해법 — 길이 검증을 어디에 둘 것인가</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td>Request DTO 에 표준 <code>@Size(max = 엔티티 length)</code> + 한국어 메시지. bios/bmc/subprogram/biossetting 이 이미 확립한 관례에 OS·ISO·Board·intent·setting 을 정렬.</td><td>신규 어휘 0 — 저장소 관례 그대로. <code>BindingResult</code> 자동매핑(Spring primitive)이 분기를 떠맡아 컨트롤러 무변경. 불일치가 "관례 미정렬" 이므로 정렬이 정답.</td></tr>
+<tr><td>(b) 탈락</td><td>커스텀 Bean Validation 어노테이션 또는 길이 상수 공유 클래스(<code>LengthContract.DESCRIPTION</code>)로 DTO·엔티티 양쪽 참조 (length SSOT 중앙화)</td><td>이론상 SSOT 응집이 좋아 보이나, 이미 정렬된 bios 계열 5 도메인 전부를 함께 갈아야 반쪽이 안 된다 — 핫픽스 범위를 넘는 churn. 길이 계약은 스키마 고정 후 사실상 불변이라 drift 재발 압력도 낮다. 후속 리팩토링 후보로 §11 에 기록.</td></tr>
+<tr><td>(c) 탈락</td><td>DB 컬럼 확대 (VARCHAR(1024)→TEXT)</td><td>스키마 변경 금지 (이 슬라이스는 코드가 DB 에 맞춘다) + 1,600자 설명 허용은 UX 요구가 아니다.</td></tr>
+<tr><td>(d) 탈락</td><td>Service 단 truncate/trim</td><td>silent 데이터 훼손 — 사용자가 입력 유실을 인지 못 한다.</td></tr>
+</table>
+<h4>D2. BMC targetDirectory — legacy file_path(255) 이중 매핑</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td>BMC 3 Request(<code>BmcCreateRequest</code>·<code>BmcRegisterExistingRequest</code> 1024→255 하향, <code>BmcUploadIntentRequest</code> 255 신설)의 상한을 effective DB 제약 255 로 정렬 + WHY 주석. bios/subprogram(1024)과의 비대칭은 legacy 컬럼 제거 시 해소 — §8·§11 기재.</td><td>기존 @Size(1024) 는 <b>검증상한이 DB 제약보다 큰 유일 케이스</b> — F-6 동형 사고(검증 통과 후 INSERT 실패)의 잠복처. 256자+ 경로는 실사용 희귀라 UX 손실 미미.</td></tr>
+<tr><td>(b) 탈락</td><td>legacy <code>file_path</code> 컬럼 제거/확대</td><td>스키마 변경 금지. legacy 컬럼 정리는 별도 마이그레이션 슬라이스 소관.</td></tr>
+<tr><td>(c) 탈락</td><td>현행 유지(1024)</td><td>F-6 을 고치면서 같은 구조의 잠복 결함을 알고도 남기는 자기모순.</td></tr>
+</table>
+<h4>D3. O-7 — 어느 키로 고정하는가</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>spring.web.error.include-stacktrace=never</code> (Boot 4 정식 키). application.properties 는 devtools 의 최하순위 property source 를 항상 이긴다.</td><td>devtools 가 상향하는 키와 동일 키를 고정 — 어떤 실행 모드에서도 차단. 근거 주석에 jar 실측(§1) 명기.</td></tr>
+<tr><td>(b) 탈락</td><td><code>server.error.include-stacktrace=never</code> (발견 보고서 원문 키)</td><td>Boot 4.0 부터 deprecation level=error — <b>바인딩되지 않는 죽은 키</b>라 devtools 의 신 키 상향을 못 막는다. 지시 취지(응답 바디 스택 고정 차단)를 신 키로 이행.</td></tr>
+<tr><td>(c) 탈락</td><td><code>spring.devtools.add-properties=false</code> 로 devtools 기본값 전체 비활성</td><td>템플릿 캐시 비활성 등 개발에 유익한 기본값까지 일괄 상실 — 과잉 차단.</td></tr>
+<tr><td>(d) 탈락</td><td>include-message / include-binding-errors 까지 never 고정</td><td>발견은 trace 뿐. message 는 개발 진단에 유용하고 도메인 오류 응답은 커스텀 advice(<code>ApiErrorResponse</code>) 경로라 BasicErrorController 속성과 무관 — 범위 밖 (§8 비목표).</td></tr>
+</table>
+<h4>D4. SSR 오류 슬롯 — 추가 범위와 방식</h4>
+<p><b>채택</b>: SSR 재렌더가 실제 발생하는 뷰(컨트롤러가 <code>hasErrors()</code> 에서 뷰 이름 반환 — edit 6종 + iso-new)의 description 에만 <code>n-error</code> 슬롯 추가. 각 템플릿의 인접 필드(name/version/isoPath) 마크업을 그대로 복제 — 신규 CSS 0. <b>탈락 1</b>: 전 템플릿 일괄 추가 — 순수 XHR create 뷰의 th:errors 는 도달 불가 죽은 마크업(초기 GET 은 항상 무오류). <b>탈락 2</b>: 오류 슬롯 fragment 공통화 — 템플릿마다 label·hint 구조가 달라 파라미터 폭발, 도메인 가로질러 의미를 잃는 분리(over-abstraction 경계).</p>
+<h4>D5. intent filename 과 경로 합성 엣지</h4>
+<p><b>채택</b>: <code>IsoUploadIntentRequest.filename</code> 에 <code>@Size(max=255)</code> — 파일시스템 파일명 한계(ext4/APFS 255)와 일치. <b>잔여 엣지 인정</b>: <code>rawPath(≤1024) + filename(≤255)</code> 합성이 1024 를 넘는 교차 필드 케이스는 필드 단위 @Size 로 못 잡는다 — 교차 필드 커스텀 검증기는 핫픽스 과설계로 탈락, 기존 DB_CONSTRAINT 격리 안전망(F-6 사고에서 정상 동작 실증)이 최후방을 유지한다. §8 기재.</p>
+</div>
+</details>
+
+<details class="section" id="s5">
+<summary>5. 10단계 매핑</summary>
+<div class="body">
+<table>
+<tr><th>Step</th><th>내용</th><th>비고</th></tr>
+<tr><td>1</td><td>본 plan</td><td><span class="chip new">CP1</span></td></tr>
+<tr><td>2</td><td>뷰 — 7개 템플릿(os/edit·iso-new·iso-edit·board/edit·bios-edit·bmc-edit·subprogram-edit)의 description 에 n-error 슬롯 추가 (인접 필드 마크업 복제, 인라인 스타일 금지)</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>3</td><td>Controller — 무변경 (BindingResult 자동매핑·기존 hasErrors 분기가 전부 흡수)</td><td><span class="chip keep">유지</span></td></tr>
+<tr><td>4</td><td>DTO — 13 Request 에 @Size + 한국어 메시지 (§10 목록) + application.properties O-7 키</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>5</td><td>Service 시그니처 — 무변경</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>6</td><td>Repository — 무변경</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>7</td><td>Entity — 무변경 (코드가 DB 에 맞추는 슬라이스 — 엔티티 length 가 기준값)</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>8</td><td>테스트 — §6 (Validator 단위 신설 + @WebMvcTest 통합 추가)</td><td><span class="chip new">신규</span></td></tr>
+<tr><td>9</td><td>스키마 — 변경 없음 (ddl-auto=validate 영향 0)</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>10</td><td>브라우저 E2E — 사용자 단독 (워크트리 병합 후). Claude 검증은 <code>./gradlew test</code> 전체 green 까지</td><td>CP5 유보</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s6">
+<summary>6. Step 8 테스트 시나리오</summary>
+<div class="body">
+<h4>단위 — DTO Bean Validation (jakarta Validator 직접 사용 · 저장소 첫 도입)</h4>
+<ul>
+<li><code>OsRequestSizeValidationTest</code> (management/os/dto/request/) — ① <code>ISOCreateRequest.description</code> 1,025자 → description violation 1건 + 메시지 "설명은 1024자 이하로 입력해주세요." ② 1,024자 정확히 → violation 0 (경계) ③ <code>OSMetadataCreateRequest.osVersion</code> 65자 → violation ④ <code>IsoUploadIntentRequest.isoPath</code> 1,025자 → violation.</li>
+<li><code>BmcRequestSizeValidationTest</code> (management/bmc/dto/request/) — ① <code>BmcCreateRequest.targetDirectory</code> 256자 → violation (255 하향 확인 — 행동 변경 테스트) ② 255자 → 통과 ③ <code>BmcUploadIntentRequest.targetDirectory</code> 256자 → violation.</li>
+</ul>
+<h4>사용자 액션 통합 (@WebMvcTest — 기존 파일 관례에 추가)</h4>
+<ul>
+<li><b>ISO (OSMetadataControllerUploadFlowTest)</b> — ① 등록 form POST <code>/management/os/1/iso</code> description 1,025자 → SSR 재렌더: <code>view().name("management/os/iso-new")</code> + <code>model().attributeHasFieldErrors("isoForm","description")</code> (이 경로의 "400 등가" 는 재렌더+필드오류 — 관례 <code>update_validationFailure_rerendersForm</code> 준거) ② upload-intent POST isoPath 1,025자 → <code>status().isBadRequest()</code> + message (관례 <code>blankIsoPath_returns400</code> 준거).</li>
+<li><b>OS (기존 OS create 테스트 파일)</b> — create POST description 1,025자 → 400 + <code>fieldErrors[?].field="description"</code> + 메시지 (발견 보고서의 "400 + 필드 메시지" 문자 그대로 이 경로가 이행).</li>
+<li><b>Board (BoardModelMetadataControllerTest)</b> — create POST description 1,025자 → 400 + fieldErrors (관례 <code>create_validationFailure_returns400</code> 준거) — "다른 도메인 대표 1개" 충족.</li>
+<li>4 범주 준수 확인 — 성공 2xx/409/404 는 기존 스위트 보유 · 본 슬라이스 신규 예외 0 → 신규 400 시나리오만 추가하면 규율 충족.</li>
+</ul>
+<div class="callout warn">O-7 은 @WebMvcTest 로 검증 불가 — BasicErrorController 오류 렌더링은 MockMvc 슬라이스 밖. 설정 값 자체(§1 jar 근거 + 주석)로 확정하고 실행 검증은 사용자 E2E/샌드박스 몫 (§9).</div>
+</div>
+</details>
+
+<details class="section" id="s7">
+<summary>7. 예외 계층</summary>
+<div class="body">
+<table>
+<tr><th>예외</th><th>신규/재사용</th><th>매핑</th></tr>
+<tr><td>(신규 예외 없음) — @Size 위반은 <code>BindingResult</code> 로 흡수되어 기존 컨트롤러 분기·advice 가 400 변환</td><td><span class="chip keep">재사용</span></td><td>XHR: 400 + ApiErrorResponse.fieldErrors / SSR: 뷰 재렌더 + th:errors</td></tr>
+<tr><td>MariaDB 1406 → DB_CONSTRAINT 격리 (orphan saga)</td><td><span class="chip keep">유지</span></td><td>앞단 @Size 가 정상 경로를 차단하므로 합성 초과 등 잔여 엣지에서만 발동하는 최후 안전망으로 존치</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s8">
+<summary>8. 부산물 / 주의</summary>
+<div class="body">
+<ul>
+<li><b>scope 경계</b> — setting Process 하위 문자열(파티션·계정 등)은 JSON blob 저장이라 컬럼 length 계약이 없어 비목표. 길이 상한 정책(예: password 최대치)은 도메인 결정이 필요한 별건 — §11 후속 기록. include-message/include-binding-errors 고정도 비목표(D3-d).</li>
+<li><b>BMC 255 하향은 행동 변경</b> — 기존엔 256~1024자 targetDirectory 가 검증을 통과(했다가 INSERT 실패)했다. 이제 앞단 400. bios/subprogram(1024)과의 비대칭은 legacy <code>file_path</code> 컬럼 제거 마이그레이션 시 1024 복원으로 해소 — WHY 주석에 명기.</li>
+<li><b>교차 필드 합성 엣지 잔존</b> — intent 의 rawPath+filename 합성 1024 초과는 필드 @Size 로 못 잡음(D5). DB_CONSTRAINT 격리 안전망 유지가 설계 의도.</li>
+<li><b>병렬 세션 충돌 없음</b> — 수정 파일은 management/·provisioning/setting/·resources/ 한정. execution/·provisioning/server* 무접촉. CLAUDE.md/AGENTS.md 무수정. 커밋 없음 (워크트리 상태로 보고).</li>
+<li><b>intent 요청의 기존 bare @Size</b>(BiosUploadIntentRequest version 등)는 메시지 없이도 동작 중 — 이번 추가분은 한국어 메시지를 포함하되 기존 필드는 건드리지 않는다 (핫픽스 최소 diff).</li>
+<li><b>devtools 상향의 다른 두 키</b>(include-message/include-binding-errors=always)는 개발 진단용으로 존치 — 운영 프로파일(LOG L4)에서 별도 점검 후보.</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s9">
+<summary>9. Verification</summary>
+<div class="body">
+<ol>
+<li><b>빌드/테스트</b> — 워크트리에서 <code>./gradlew test</code> 전체 green (신설 단위 2 + 통합 추가분 + 기존 전 스위트 무회귀). bootRun 금지(병렬 세션) — 런타임 검증은 사용자 몫.</li>
+<li><b>기능(사용자 E2E 시)</b> — ① ISO 등록 폼 1,025자 설명 → 제출 즉시 필드 오류(업로드 미발생) ② edit 폼 1,025자 설명 → 재렌더 화면에 n-error 메시지 표시 ③ BMC 등록 256자 경로 → 400 ④ 미매핑 500 유발 → JSON 바디에 trace 필드 부재 + 서버 로그 스택 존재.</li>
+<li><b>회귀</b> — 정상 길이 입력 등록/수정 성공, 기존 @WebMvcTest 스위트 green, BMC 255자 이하 경로 등록 정상.</li>
+</ol>
+</div>
+</details>
+
+<details class="section" id="s10">
+<summary>10. Critical Files</summary>
+<div class="body">
+<table>
+<tr><th>구분</th><th>파일 (워크트리 상대경로)</th></tr>
+<tr><td><span class="chip mod">DTO 수정 (13)</span></td><td><code>management/os/dto/request/</code> ISOCreateRequest · ISOUpdateRequest · IsoUploadIntentRequest · OSMetadataCreateRequest · OSMetadataUpdateRequest / <code>management/board/dto/request/</code> BoardModelCreateRequest · BoardModelUpdateRequest / <code>management/bios/dto/request/</code> BiosUploadIntentRequest / <code>management/bmc/dto/request/</code> BmcCreateRequest · BmcRegisterExistingRequest · BmcUploadIntentRequest / <code>management/subprogram/dto/request/</code> SubprogramUploadIntentRequest / <code>provisioning/setting/dto/request/</code> SettingSaveRequest</td></tr>
+<tr><td><span class="chip mod">템플릿 수정 (7)</span></td><td><code>templates/management/os/edit.html</code> · <code>os/iso-new.html</code> · <code>os/iso-edit.html</code> · <code>board/edit.html</code> · <code>bios/bios-edit.html</code> · <code>bmc/bmc-edit.html</code> · <code>subprogram/subprogram-edit.html</code></td></tr>
+<tr><td><span class="chip mod">설정 (1)</span></td><td><code>src/main/resources/application.properties</code> — spring.web.error.include-stacktrace=never + WHY 주석</td></tr>
+<tr><td><span class="chip new">테스트 신규 (2)</span></td><td><code>test/.../management/os/dto/request/OsRequestSizeValidationTest.java</code> · <code>test/.../management/bmc/dto/request/BmcRequestSizeValidationTest.java</code></td></tr>
+<tr><td><span class="chip mod">테스트 추가 (3)</span></td><td><code>OSMetadataControllerUploadFlowTest</code>(ISO form/intent) · OS create 테스트 파일 · <code>BoardModelMetadataControllerTest</code></td></tr>
+<tr><td><span class="chip keep">유지</span></td><td>전 Controller/Service/Repository/Entity · form-error.js · form-validation.css · bios/bmc/subprogram/biossetting 기존 @Size 필드(BMC targetDirectory 제외)</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s11">
+<summary>11. 다음 마일스톤</summary>
+<div class="body">
+<ul class="check-list" data-storage="hf42-next">
+<li><label><input type="checkbox"><span>CP2~CP4 구현 + 테스트 → 워크트리 ./gradlew test green → 최종 보고</span></label></li>
+<li><label><input type="checkbox"><span>사용자 E2E: 1,025자 필드 오류 · SSR n-error 표시 · 500 바디 trace 부재 확인</span></label></li>
+<li><label><input type="checkbox"><span>후속 후보: BMC legacy file_path 컬럼 제거 마이그레이션 → targetDirectory 상한 1024 복원</span></label></li>
+<li><label><input type="checkbox"><span>후속 후보: setting Process payload 문자열 길이 정책(비 length 계약) 도메인 결정</span></label></li>
+<li><label><input type="checkbox"><span>후속 후보: 길이 상수 SSOT 중앙화(D1-b) — 전 도메인 일괄 리팩토링 캠페인으로만</span></label></li>
+</ul>
+</div>
+</details>
+
+</main>
+</div>
+
+<script>
+(function(){
+  // ── 불가침 4 로직 ──────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const el = document.getElementById(a.getAttribute('href').slice(1));
+      if (!el) return;
+      e.preventDefault();
+      el.open = true;
+      const y = el.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({top:y, behavior:'smooth'});
+    });
+  });
+  document.getElementById('btnExpand').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = true);
+  document.getElementById('btnCollapse').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = false);
+  const fb = document.getElementById('filterBox');
+  fb.addEventListener('input', () => {
+    const q = fb.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      const hit = !q || d.textContent.toLowerCase().includes(q);
+      d.style.display = hit ? '' : 'none';
+      if (q && hit) d.open = true;
+    });
+  });
+  document.querySelectorAll('.check-list[data-storage]').forEach(list => {
+    const key = list.dataset.storage;
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b, i) => {
+      b.checked = !!saved[i];
+      b.closest('label').classList.toggle('done', b.checked);
+      b.addEventListener('change', () => {
+        b.closest('label').classList.toggle('done', b.checked);
+        localStorage.setItem(key, JSON.stringify([...boxes].map(x => x.checked)));
+      });
+    });
+  });
+})();
+
+// ── 🎬 라이브 데모 — 서버 판정 시뮬레이션 ──────────
+// FIELDS = 본 plan 의 길이 계약 SSOT 재현: max = 엔티티 @Column(length), msg = 구현할 @Size 메시지.
+const FIELDS = {
+  iso: { label:'ISO 등록 폼 — 설명 (선택)', max:1024, msg:'설명은 1024자 이하로 입력해주세요.',
+         asisFail:['[검증] @Size 없음 — 1,025자+ 통과|warn','[업로드] ISO 바이트 전송/등록 잡 시작 (수 분 소요)|warn','[INSERT] MariaDB 1406 Data too long — iso.description VARCHAR(1024)|bad','[격리] DB_CONSTRAINT 사유로 오펀 격리행 생성 (orphan saga 정상 동작)|bad'] },
+  osv: { label:'OS 등록 폼 — OS 버전', max:64, msg:'OS 버전은 64자 이하로 입력해주세요.',
+         asisFail:['[검증] @NotBlank 만 통과 — 상한 없음|warn','[INSERT] MariaDB 1406 — os_metadata.os_version VARCHAR(64)|bad','[응답] 등록 실패 500 계열 — 사용자는 원인 필드를 모름|bad'] },
+  bmc: { label:'BMC 등록 폼 — 대상 디렉토리 (legacy file_path 255 이중 매핑)', max:255, msg:'대상 디렉토리 경로는 255자 이하로 입력해주세요.',
+         asisFail:['[검증] @Size(max=1024) 통과 — 256~1024자 허용|warn','[미러링] treeRootPath(1024 OK) + legacyFilePath ← 같은 값|warn','[INSERT] MariaDB 1406 — board_bmc.file_path VARCHAR(255) NOT NULL|bad','[결과] 검증상한 > DB 제약 — F-6 동형 잠복 결함|bad'] }
+};
+const state = { mode:'asis', field:'iso' };
+const $ = id => document.getElementById(id);
+
+function fill(n) {
+  const f = FIELDS[state.field];
+  const len = n === -1 ? f.max : n === -2 ? f.max + 1 : n;
+  $('simInput').value = '가'.repeat(len);
+  render();
+}
+function setMode(m) { state.mode = m; msg('', '모드 전환: ' + (m==='asis' ? 'AS-IS (현재 결함)' : 'TO-BE (수정 후)')); resetTimeline(); render(); }
+function setField(k) { state.field = k; $('simInput').value=''; resetTimeline(); msg('', 'SSOT 전환: ' + FIELDS[k].label + ' — 상한 ' + FIELDS[k].max + '자'); render(); }
+function msg(cls, text) { const el = $('uxMsg'); el.className = 'ux-message ' + cls; el.textContent = text; }
+function resetTimeline() { $('simTimeline').innerHTML = '<li>아직 제출 안 함</li>'; $('verdictBadge').className='badge off'; $('verdictBadge').textContent='대기'; }
+
+function render() {
+  const f = FIELDS[state.field];
+  const len = $('simInput').value.length;
+  const over = len > f.max;
+  $('mAsIs').classList.toggle('on', state.mode==='asis');
+  $('mToBe').classList.toggle('on', state.mode==='tobe');
+  $('fIso').classList.toggle('on', state.field==='iso');
+  $('fOsv').classList.toggle('on', state.field==='osv');
+  $('fBmc').classList.toggle('on', state.field==='bmc');
+  $('simFormTitle').textContent = f.label;
+  const c = $('simCounter');
+  c.textContent = len.toLocaleString() + '자 / 상한 ' + f.max.toLocaleString() + '자' + (over ? ' — 초과 +' + (len - f.max) : '');
+  c.className = 'sim-counter' + (over ? ' over' : '');
+  // TO-BE 는 실시간으로도 슬롯 미리보기 (실서비스는 제출 시 표시지만 초과 상태를 즉시 체감시킨다)
+  const slot = $('simSlot');
+  const ta = $('simInput');
+  if (state.mode==='tobe' && over) { slot.textContent = f.msg + ' (제출 시 이 슬롯에 표시)'; ta.classList.add('sim-invalid'); }
+  else { slot.textContent = ''; ta.classList.remove('sim-invalid'); }
+}
+
+function submitSim() {
+  const f = FIELDS[state.field];
+  const len = $('simInput').value.length;
+  const over = len > f.max;
+  const tl = $('simTimeline');
+  const badge = $('verdictBadge');
+  tl.innerHTML = '';
+  const push = (text, cls) => { const li = document.createElement('li'); li.className = cls; li.textContent = text; tl.appendChild(li); };
+  if (!over) {
+    push('[검증] 통과 — ' + len + '자 ≤ ' + f.max, 'ok');
+    push('[저장] INSERT 성공', 'ok');
+    badge.className='badge on'; badge.textContent='성공';
+    msg('success', '정상 길이 — 두 모드 모두 성공. "상한 +1자" 로 갈림을 확인해보세요.');
+    return;
+  }
+  if (state.mode === 'asis') {
+    f.asisFail.forEach(s => { const [text, cls] = s.split('|'); push(text, cls); });
+    badge.className='badge red'; badge.textContent='격리/실패';
+    msg('error', 'AS-IS: 검증이 못 잡아 잡 실행 후에야 DB 가 거절 — 사용자는 업로드를 다 기다린 뒤 격리행을 마주한다 (F-6 실측 경로).');
+  } else {
+    push('[검증] @Size(max=' + f.max + ') 위반 → BindingResult 필드 오류', 'bad');
+    push('[응답] 제출 즉시 400 (XHR: fieldErrors → data-error-field 슬롯 / SSR: 재렌더 + n-error)', 'ok');
+    push('[업로드/INSERT] 미발생 — 자원 소모 0', 'ok');
+    badge.className='badge warnb'; badge.textContent='400 필드 오류';
+    msg('error', 'TO-BE: 제출 즉시 필드 슬롯에 "' + f.msg + '" — 업로드/등록 잡이 아예 돌지 않는다.');
+  }
+}
+
+// O-7 미니 데모 — devtools property defaults 상향 vs application.properties 고정
+function fire500() {
+  const el = $('msg500');
+  if (state.mode === 'asis') {
+    el.className = 'ux-message error';
+    el.textContent = 'HTTP 500 — {"timestamp":"…","status":500,"error":"Internal Server Error",\n  "trace":"java.lang.IllegalStateException: …\\n\\tat com.example.serverprovision…(총 100여 줄 스택 전문)",\n  "message":"…","path":"/management/os"}\n\n원인: spring-boot-autoconfigure jar 의 META-INF/spring-devtools.properties 가 defaults.spring.web.error.include-stacktrace=always 를 주입 (devtools 동봉 실행 한정).';
+  } else {
+    el.className = 'ux-message success';
+    el.textContent = 'HTTP 500 — {"timestamp":"…","status":500,"error":"Internal Server Error","path":"/management/os"}\n\ntrace 필드 부재 — application.properties 의 spring.web.error.include-stacktrace=never 가 devtools 최하순위 property source 를 이긴다. 서버 로그의 스택트레이스는 그대로 남는다 (진단 능력 무손실).';
+  }
+}
+render();
+</script>
+</body>
+</html>

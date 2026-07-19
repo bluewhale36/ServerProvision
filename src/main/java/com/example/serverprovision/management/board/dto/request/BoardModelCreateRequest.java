@@ -3,6 +3,7 @@ package com.example.serverprovision.management.board.dto.request;
 import com.example.serverprovision.management.board.enums.Vendor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  * 신규 메인보드 모델 등록 요청. (vendor, modelName) 조합은 활성 레코드 안에서 유일해야 한다.
@@ -13,8 +14,10 @@ public record BoardModelCreateRequest(
 		Vendor vendor,
 
 		@NotBlank(message = "모델명을 입력하세요.")
+		@Size(max = 128, message = "모델명은 128자 이하로 입력해주세요.")
 		String modelName,
 
+		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
 		String description
 ) {
 

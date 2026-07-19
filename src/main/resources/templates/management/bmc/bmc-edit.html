@@ -59,6 +59,8 @@
                     <textarea id="description" th:field="*{description}"
                               class="n-textarea" rows="3"
                               data-error-field="description"></textarea>
+                    <div class="n-error" th:if="${#fields.hasErrors('description')}"
+                         th:errors="*{description}"></div>
                 </div>
 
                 <div class="n-form-actions">

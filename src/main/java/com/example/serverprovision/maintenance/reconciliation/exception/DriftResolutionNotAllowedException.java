@@ -73,6 +73,16 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	}
 
 	/**
+	 * HF4-5 — 복제본 유지(정본 승격)가 안전 가드에 걸려 거절된 경우. 서명 무효 · 지문 불일치(낡은 사본 —
+	 * O-2 위험의 본질) · 원본/사본 포함 관계가 해당한다. 원본 유지(사본 삭제) 갈래에는 적용되지 않는다.
+	 */
+	public static DriftResolutionNotAllowedException duplicateNotPromotable(String reason) {
+		return new DriftResolutionNotAllowedException(
+				"복제본을 정본으로 승격할 수 없습니다 — " + reason + ". 상태를 확인한 뒤 다시 점검하세요."
+		);
+	}
+
+	/**
 	 * S6-3-4 — 같은 카드의 수용 작업이 이미 진행 중인 경우 (중복 시작 차단).
 	 */
 	public static DriftResolutionNotAllowedException acceptInProgress() {

@@ -48,8 +48,23 @@
                   enctype="multipart/form-data"
                   novalidate>
 
-                <!-- S4 폼 배너 슬롯 -->
+                <!-- S4 폼 배너 슬롯 (JS 가 XHR 오류를 채운다) -->
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <!-- HF4-3 (F-5) — 서버 렌더 글로벌 오류 배너: 전용 슬롯(isoPath)이 없는 바인딩 오류를 표면화.
+                     direct POST 로 checkbox 마커(_allowCreateDirectory)가 빠지면 boolean 바인딩 오류가 생기는데,
+                     표시 슬롯이 없어 조용히 사라지던 것(silent 200)을 여기서 나열한다.
+                     제외 목록('isoPath'·'description')은 아래 인라인 슬롯과 같은 파일 안의 SSOT-인접 — 슬롯 추가/삭제 시 함께 수정. -->
+                <th:block th:with="slotlessErrors=${#fields.detailedErrors().?[global or (fieldName != 'isoPath' and fieldName != 'description')]}">
+                    <div class="n-alert n-alert-danger" role="alert"
+                         th:if="${not #lists.isEmpty(slotlessErrors)}">
+                        <strong>입력값을 처리하지 못한 항목이 있습니다.</strong>
+                        <ul>
+                            <li th:each="err : ${slotlessErrors}"
+                                th:text="${err.global} ? ${err.message} : ${err.fieldName + ' — ' + err.message}"></li>
+                        </ul>
+                    </div>
+                </th:block>
 
                 <div class="n-form-group">
                     <label class="n-label strong" for="isoPath">ISO 경로</label>
@@ -100,7 +115,11 @@
                     <textarea id="description" th:field="*{description}"
                               class="n-textarea" rows="3"
                               data-error-field="description"
+                              th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"
                               placeholder="예: Rocky Linux 9.6 x86_64 DVD ISO"></textarea>
+                    <!-- HF4-2 — SSR 재렌더 경로의 description 길이 검증(@Size) 오류 슬롯. -->
+                    <div class="n-error" th:if="${#fields.hasErrors('description')}"
+                         th:errors="*{description}"></div>
                 </div>
 
                 <div class="n-form-actions">

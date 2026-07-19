@@ -135,6 +135,11 @@ public class IsoUploadIntentService {
 	private void validateFilesystem(String resolvedPath, boolean allowCreateDirectory, long size) {
 		try {
 			Path target = Path.of(resolvedPath);
+			// HF4-3 (F-4b) — 디렉토리 경로는 핸드셰이크 시점에 거절해 무의미한 바이트 전송을 차단한다.
+			// (IsoRegistrationService.prepare 의 가드와 동일 판정 — 없으면 전송 완료 후에야 실패.)
+			if (Files.isDirectory(target)) {
+				throw new IsoPathIsDirectoryException(resolvedPath);
+			}
 			if (Files.exists(target) && !Files.isDirectory(target)) {
 				throw new DuplicateFilenameException(resolvedPath);
 			}

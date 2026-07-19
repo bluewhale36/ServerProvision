@@ -169,22 +169,23 @@ public class TrashController {
 			// 파일 자원인데 trashed_path 가 null → ghost 영역. 본 메서드는 정상 trash 만 처리.
 			return null;
 		}
-		Instant expiresAt = (trashedAt != null) ? trashedAt.plus(ttl) : null;
+		MarkableScanner scanner = scannersByType().get(m.getResourceType());
+		// HF4-1 — 만료 계산을 entity SSOT(trashExpiresAt)로 통일. 연장 가산분(ttl_extension_days) 반영.
+		Instant expiresAt = lifecycle.trashExpiresAt(ttl);
 		boolean ttlWarning = !ghost && expiresAt != null
 				&& Duration.between(now, expiresAt).compareTo(TTL_WARNING_THRESHOLD) <= 0;
 		java.nio.file.Path resourcePath = m.getResourcePath();
 		String resourcePathStr = resourcePath != null ? resourcePath.toString() : "(메타데이터 — 파일 없음)";
 		// S5-2+ — 메타 자원의 cascade preview. ghost 가 아닌 정상 trash 만 의미.
 		String childPreview = null;
-		if (!ghost && isMeta) {
-			MarkableScanner scanner = scannersByType().get(m.getResourceType());
-			if (scanner != null) {
-				List<String> labels = scanner.findDeletedChildLabels(m.getResourceId());
-				if (!labels.isEmpty()) {
-					childPreview = String.join(" · ", labels);
-				}
+		if (!ghost && isMeta && scanner != null) {
+			List<String> labels = scanner.findDeletedChildLabels(m.getResourceId());
+			if (!labels.isEmpty()) {
+				childPreview = String.join(" · ", labels);
 			}
 		}
+		// HF4-1 — 연장 버튼 활성 판정. 서버 가드(TrashTtlExtensionService)와 동일한 SPI 판정 하나를 공유.
+		boolean ttlExtendable = !ghost && scanner != null && scanner.supportsTrashTtlExtension();
 		// S5-2 — entity.displayName() 가 사용자 표시명 + typed-name 검증식. 5 list page 와 동일 합성식.
 		String displayName = m.displayName();
 		// ghost 자원은 typed-name 입력 불가 (raw row 정리 액션만 활성). null 로 두어 form 마커 분기에 활용.
@@ -219,7 +220,9 @@ public class TrashController {
 				parentType,
 				parentId,
 				parentDisplayName,
-				parentDeleted
+				parentDeleted,
+				ttlExtendable,
+				trashPolicy.getTtlDays()
 		);
 	}
 

@@ -33,6 +33,9 @@ class ReconciliationControllerSecurityFlowTest {
 
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.example.serverprovision.maintenance.reconciliation.service.HashAcceptService hashAcceptService;
+    // HF4-5 — resolve-duplicate endpoint 의존 (컨텍스트 로드용).
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.example.serverprovision.maintenance.reconciliation.service.DuplicateResolveService duplicateResolveService;
     // R9-4 — ReconciliationController 의 격리 대기 배너용 의존.
     @MockitoBean com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;

@@ -162,6 +162,18 @@ class BoardModelMetadataControllerTest {
     }
 
     @Test
+    @DisplayName("HF4-2 : POST /management/board (JSON) — description 1,025자 → 400 + fieldErrors[description] (길이 계약)")
+    void create_descriptionOverLimit_returns400() throws Exception {
+        mvc.perform(post("/management/board")
+                        .param("vendor", "ASUS")
+                        .param("modelName", "P13R-E")
+                        .param("description", "가".repeat(1025)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("description"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해주세요."));
+    }
+
+    @Test
     @DisplayName("POST /management/board/{id}/edit — modelName 누락 → 폼 뷰 재렌더(200, edit)")
     void update_validationFailure_rerendersForm() throws Exception {
         given(boardModelService.findById(3L)).willReturn(activeBoard());

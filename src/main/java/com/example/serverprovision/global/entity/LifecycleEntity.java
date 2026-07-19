@@ -16,6 +16,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
@@ -90,6 +91,16 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	 */
 	@Column(name = "trashed_path", length = 1024)
 	private String trashedPath;
+
+	/**
+	 * HF4-1 — 보존기간 연장 누적 일수. 연장 1회 = +step 일 가산 (step = 운영 설정 TTL 일수).
+	 * <p>만료 = {@code trashedAt + TTL + ttlExtensionDays일} ({@link #trashExpiresAt(Duration)} 가 SSOT).
+	 * trashed_at 재기준 방식(구 구현)이 "휴지통 이동 시각" 표시까지 왜곡하던 것의 해소 — 이동 시각 불변.
+	 * TTL 자체는 컬럼에 굳히지 않아 운영 설정 변경이 기존 행에도 동적 반영된다.</p>
+	 */
+	@Column(name = "ttl_extension_days", nullable = false)
+	@Builder.Default
+	private int ttlExtensionDays = 0;
 
 	/**
 	 * 가드 메시지에 노출할 자원 라벨. sub-class 가 도메인 명칭으로 override (예: "BIOS", "BMC", "ISO").
@@ -229,6 +240,7 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	public void markTrashed(String trashedPath) {
 		this.trashedAt = Instant.now();
 		this.trashedPath = trashedPath;
+		this.ttlExtensionDays = 0;   // HF4-1 — 휴지통 진입 시 연장 누적 초기화 (재삭제 시 이전 연장 이월 방지)
 	}
 
 	/**
@@ -238,5 +250,30 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	public void clearTrashed() {
 		this.trashedAt = null;
 		this.trashedPath = null;
+		this.ttlExtensionDays = 0;   // HF4-1 — 복원 경로에서도 연장 누적 초기화
+	}
+
+	/**
+	 * HF4-1 — 보존기간 +days 가산 연장. trashed_at 은 불변 — 만료일만 뒤로 민다.
+	 * <p>trashed 상태가 아닌 자원 연장은 도메인 invariant 위반 — UI/서비스 가드를 우회한 비정상 경로 방어.</p>
+	 */
+	public void extendTrashTtl(int days) {
+		if (this.trashedAt == null) {
+			throw new IllegalLifecycleTransitionException(
+					"휴지통에 없는 " + resourceLabel() + " 는 보존기간을 연장할 수 없습니다 : " + resourceId());
+		}
+		this.ttlExtensionDays += days;
+	}
+
+	/**
+	 * HF4-1 — trash 만료 시각 SSOT : {@code trashedAt + baseTtl + ttlExtensionDays일}.
+	 * <p>화면 표시({@code TrashController.toResponse})와 자동 영구삭제 판정({@code TrashTtlWorker})이
+	 * 같은 식을 각자 계산하며 갈라지던 것을 본 메서드 하나로 통일. trashed 상태가 아니면 {@code null}.</p>
+	 */
+	public Instant trashExpiresAt(Duration baseTtl) {
+		if (this.trashedAt == null) {
+			return null;
+		}
+		return this.trashedAt.plus(baseTtl).plus(Duration.ofDays(this.ttlExtensionDays));
 	}
 }

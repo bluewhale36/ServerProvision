@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF4-1 Plan — 휴지통 TTL 연장 결함·의미 일괄</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:96px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .n-demo-btn.on { background:var(--blue); color:#fff; }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .pane { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; font-size:12.5px; margin-top:10px; }
+  .pane h5 { margin:0 0 8px; font-size:12px; color:var(--text-muted); }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.red { background:var(--red-bg); color:var(--red); } .badge.warnb { background:var(--yellow-bg); color:var(--yellow); }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; white-space:pre-wrap; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .sim-modal { border:2px solid var(--blue); border-radius:8px; background:var(--card); padding:14px; margin-top:10px; }
+  .sim-modal h5 { margin:0 0 6px; font-size:13px; }
+  .sim-modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
+  .tt-wrap { position:relative; display:inline-block; }
+  .tt-wrap[data-tt]:hover::after { content:attr(data-tt); position:absolute; bottom:calc(100% + 6px); right:0;
+    background:#1f2328; color:#fff; font-size:11px; padding:6px 9px; border-radius:5px; white-space:nowrap; z-index:10; }
+  .flash { animation:flash 0.9s ease-out; }
+  @keyframes flash { 0% { background:var(--green-bg); } 100% { background:transparent; } }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF4-1 — 휴지통 TTL 연장 결함·의미 일괄 <span class="v2-badge">한 클릭 3결함 + 가산 전환</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF4-1 (3차 개발 · 핫픽스)</span>
+    <span><strong>scope</strong> F-1 UI 차단+예외 라우팅 · F-2 모달 라벨 · F-3 오류 응답 협상 · O-4 가산 전환</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>검증</strong> 샌드박스 (사용자 지시 — CP1~CP4 연속 진행 + 샌드박스 검증 + report)</span>
+    <span><strong>근거</strong> report/26-07-19_16-11-48 full-sweep-findings §F-1~F-3, §3 O-4</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc">
+  <strong>목차</strong>
+  <ol id="tocList">
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s2p" class="preview">🎬 라이브 데모</a></li>
+    <li><a href="#s3">3. URL/데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델 (설계 결정)</a></li>
+    <li><a href="#s5">5. 10단계 매핑</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물/주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="btnExpand">전부 펴기</button>
+    <button id="btnCollapse">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input class="filter-box" id="filterBox" placeholder="검색 — 예: 가산, supportsTrashTtlExtension, 409, EXTEND_TTL ...">
+
+<details class="section" id="s1" open>
+<summary>1. 현재 상태 (실측 근거)</summary>
+<div class="body">
+<p>2026-07-19 샌드박스 전수 점검에서 휴지통 "+30일 연장" 한 클릭이 세 결함을 연쇄로 노출했다.</p>
+<table>
+<tr><th>#</th><th>층</th><th>현재 동작</th><th>원인 (코드 실측)</th></tr>
+<tr><td>F-1a</td><td>UI</td><td>메타 자원(OS 버전·보드 모델) 행에서도 연장 버튼이 <b>활성</b></td><td><code>maintenance/trash/list.html</code> 의 연장 form 에 지원 여부 분기 없음</td></tr>
+<tr><td>F-1b</td><td>서버</td><td>확정 시 <b>비라우팅 500</b>, TTL 미변경</td><td><code>MarkableTrashOperator.extendTrashTtl</code> default 가 <code>UnsupportedOperationException</code> throw — 구현은 파일 자원 4종 스캐너뿐, advice 에 미매핑</td></tr>
+<tr><td>F-2</td><td>UI</td><td>확인 모달 제목·버튼이 "<b>Deprecated 표시</b>"</td><td>연장 form 이 <code>data-confirm-deprecate</code> 마커를 재사용 (list.html:142) — deprecate 모달 핸들러가 라벨 소유</td></tr>
+<tr><td>F-3</td><td>클라이언트</td><td>실패 모달에 <b>HTML 에러 페이지 원문</b> 500자 덤프</td><td><code>confirm-modal-base.js submitAsync</code> 가 비 JSON 응답 바디를 <code>message</code> 로 그대로 채움 + 서버가 미매핑 예외를 HTML 에러 뷰로 응답</td></tr>
+<tr><td>O-4</td><td>의미</td><td>연장 = <code>trashed_at</code> 을 현재 시각으로 <b>재기준</b> (연장 시점부터 다시 TTL)</td><td>4 스캐너의 <code>extendTrashTtl</code> 이 <code>markTrashed(기존경로)</code> 재호출 — 사용자 결정: <b>만료일 +N일 가산</b>으로 수정. 부작용: 재기준 방식은 "휴지통 이동 시각" 표시까지 왜곡</td></tr>
+</table>
+<p>만료 계산의 현재 SSOT 분포: 화면은 <code>TrashController.toResponse</code> 의 <code>trashedAt.plus(ttl)</code>, 자동 영구삭제는 <code>TrashTtlWorker</code> 의 <code>findTrashedBefore(now - ttl)</code> — 두 곳이 같은 식을 각자 계산한다. 가산 도입 시 이 식이 3곳 이상으로 늘 수 있어 SSOT 응집이 함께 필요하다.</p>
+</div>
+</details>
+
+<details class="section" id="s2" open>
+<summary>2. 요구사항</summary>
+<div class="body">
+<ol>
+<li><b>UI 1차 차단 (불가침 원칙 복원)</b> — 연장 미지원 자원 종류(현재: OS_IMAGE, BOARD_MODEL)의 행에서 연장 버튼을 disabled + tooltip 으로 차단한다. 차단 조건의 SSOT 는 서버 가드와 동일한 판정 하나를 공유한다.</li>
+<li><b>서버 가드 안전망</b> — direct POST 로 미지원 자원 연장 요청 시 도메인 예외 → advice 가 <b>409</b> 로 변환 (JSON/HTML 협상 포함). 500 금지.</li>
+<li><b>모달 라벨 정상화</b> — 연장 전용 확인 모달: 제목 "보존기간 연장", 확정 버튼 "연장", 본문 "{자원} 의 보존기간을 +N일 연장할까요?".</li>
+<li><b>오류 응답 협상</b> — XHR 실패 시 서버는 JSON 오류를 응답하고, 클라이언트는 비 JSON 응답이 와도 원문을 노출하지 않는다 (일반화 메시지).</li>
+<li><b>가산 전환 (O-4)</b> — 연장 1회 = 만료일 +N일 누적. <code>trashed_at</code>(이동 시각) 불변. N = 운영 설정 TTL 일수(현재 30) — 버튼 라벨도 설정값 연동.</li>
+</ol>
+</div>
+</details>
+
+<details class="section preview" id="s2p" open>
+<summary>🎬 라이브 데모 — 연장 UX AS-IS / TO-BE 체험</summary>
+<div class="body">
+<p>휴지통의 두 행(파일 자원 OS_ISO / 메타 자원 OS_IMAGE)을 시뮬레이션한다. <b>AS-IS 모드</b>는 전수 점검에서 잡힌 실제 결함 그대로, <b>TO-BE 모드</b>는 본 plan 적용 후 동작이다. 버튼을 눌러 상태 전이·차단·가산 계산을 직접 확인해보라.</p>
+<div class="ux-wrap">
+  <div class="ux-toolbar">
+    <span class="group-label">모드</span>
+    <button class="n-demo-btn on" id="mAsIs" onclick="setMode('asis')">AS-IS (현재 결함)</button>
+    <button class="n-demo-btn" id="mToBe" onclick="setMode('tobe')">TO-BE (수정 후)</button>
+    <span class="group-label" style="margin-left:16px;">운영 설정 TTL</span>
+    <button class="n-demo-btn" onclick="setTtl(30)" id="ttl30">30일</button>
+    <button class="n-demo-btn" onclick="setTtl(45)" id="ttl45">45일</button>
+  </div>
+  <div class="pane">
+    <h5>휴지통 (2026-07-19 15:49 삭제 가정)</h5>
+    <table>
+      <tr><th>자원</th><th>종류</th><th>이동 시각</th><th>만료일</th><th>연장 누적</th><th>액션</th></tr>
+      <tr id="rowIso">
+        <td>Rocky-9.6.iso</td><td>OS_ISO (파일)</td>
+        <td id="isoMoved">07-19 15:49</td><td id="isoExp">—</td><td id="isoExt">0일</td>
+        <td><span class="tt-wrap"><button class="n-demo-btn" id="btnIsoExtend" onclick="clickExtend('iso')">+<span id="isoStep">30</span>일 연장</button></span></td>
+      </tr>
+      <tr id="rowMeta">
+        <td>Ubuntu 22.04</td><td>OS_IMAGE (메타)</td>
+        <td id="metaMoved">07-19 15:49</td><td id="metaExp">—</td><td id="metaExt">0일</td>
+        <td><span class="tt-wrap" id="metaTt"><button class="n-demo-btn" id="btnMetaExtend" onclick="clickExtend('meta')">+<span id="metaStep">30</span>일 연장</button></span></td>
+      </tr>
+    </table>
+  </div>
+  <div class="sim-modal" id="simModal" hidden>
+    <h5 id="modalTitle">—</h5>
+    <div id="modalBody" style="font-size:12.5px;"></div>
+    <div class="actions">
+      <button class="n-demo-btn" onclick="closeModal()">취소</button>
+      <button class="n-demo-btn" id="modalConfirm">—</button>
+    </div>
+  </div>
+  <div class="ux-message" id="uxMsg">모드를 고르고 연장 버튼을 눌러보세요. (TO-BE 에서 메타 자원 버튼에 마우스를 올리면 tooltip)</div>
+</div>
+<div class="callout">데모가 재현하는 판정 로직 = 본 plan 의 서버 판정과 동일식: <code>지원여부(자원종류) && 확정 → extensionDays += step; 만료일 = trashedAt + TTL + extensionDays</code>. AS-IS 의 500/원문 덤프·라벨 오배선·재기준(이동 시각까지 바뀜)도 실측 그대로 재현했다.</div>
+</div>
+</details>
+
+<details class="section" id="s3">
+<summary>3. URL / 데이터 흐름</summary>
+<div class="body">
+<pre>
+[변경 없음] POST /maintenance/trash/{resourceType}/{resourceId}/extend   (form, data-async-submit fetch)
+   TrashController.extendTtl
+     → TrashTtlExtensionService.extend(type, id)
+         ├─ scanner = operators[type]                        // 기존
+         ├─ if (!scanner.supportsTrashTtlExtension())        // 신설 가드 (UI 차단과 SSOT 공유)
+         │      throw TtlExtensionUnsupportedException(type) // ConflictException → advice 409 (JSON/HTML 협상)
+         └─ scanner.extendTrashTtl(id, stepDays)             // SPI 시그니처 확장 — stepDays = TrashPolicy TTL 일수
+              └─ entity.extendTrashTtl(stepDays)             // LifecycleEntity: ttlExtensionDays += stepDays
+
+[변경 없음] GET /maintenance/trash — toResponse 의 만료 계산이 entity SSOT 메서드로 이동
+   expiresAt = entity.trashExpiresAt(ttl)   // = trashedAt + ttl + ttlExtensionDays일
+   + TrashItemResponse 에 ttlExtendable / extendStepDays 추가 → 버튼 disabled·라벨 동적화
+
+[신설] GET /ui/confirm-modal/EXTEND_TTL?resourceType=..&resourceId=..
+   ConfirmModalType.EXTEND_TTL (lookup 불요 — SOFT_DELETE 패턴) → fragments confirm-extend :: modalCard
+
+[유지] TrashTtlWorker.purgeExpired — findTrashedBefore(broad) 후 entity.trashExpiresAt 로 Java 재검증 필터
+</pre>
+</div>
+</details>
+
+<details class="section" id="s4">
+<summary>4. 도메인 모델 — 설계 결정 (대안 비교 포함)</summary>
+<div class="body">
+<h4>D1. 연장 지원 여부의 SSOT</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>MarkableTrashOperator</code> 에 <code>default boolean supportsTrashTtlExtension() { return false; }</code> 추가, <code>extendTrashTtl</code> 을 override 한 파일 자원 4 스캐너만 <code>true</code> 로 override. UI 뷰모델 플래그와 서버 가드가 이 판정 하나를 함께 호출.</td><td>차단 조건 SSOT 공유 불가침 원칙 그대로. 기존 SPI 확장이라 신규 타입 추가 시 자동 안전(default false).</td></tr>
+<tr><td>(b) 탈락</td><td>TrashTtlExtensionService 에 지원 타입 Set 상수</td><td>SPI 밖에 두 번째 SSOT — 스캐너 구현과 Set 이 drift 하면 silent 사고 재발.</td></tr>
+<tr><td>(c) 탈락</td><td>메타 자원도 연장 구현해 결함 자체를 소멸</td><td>메타 연장의 cascade 의미(자식 파일 자원 TTL 도 함께 연장?)가 미확정 — 지금 정하면 과설계. 후속 논의 항목으로 §11 에 기록.</td></tr>
+</table>
+<h4>D2. 가산 저장 방식</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>LifecycleEntity</code>(@MappedSuperclass) 에 <code>ttlExtensionDays int default 0</code> 추가. 만료 = <code>trashedAt + TTL + extensionDays</code>. 복원·purge 시 0 초기화.</td><td>이동 시각 불변(표시 정확) + 전역 TTL 설정 변경이 기존 행에도 동적 반영 유지. 라이프사이클 6 테이블 ALTER 1회.</td></tr>
+<tr><td>(b) 탈락</td><td>현행처럼 trashed_at 을 앞으로 밀기(재기준/shift)</td><td>사용자 결정(가산)과 불일치 + "휴지통 이동 시각" 표시 왜곡 실측.</td></tr>
+<tr><td>(c) 탈락</td><td><code>trash_expires_at</code> 절대값 저장</td><td>운영 설정 TTL 변경이 기존 행에 반영 안 됨 — 현행 동적 의미 상실.</td></tr>
+</table>
+<h4>D3. 연장 step 일수</h4>
+<p><b>채택</b>: <code>TrashPolicy.getTtl()</code> 일수 (운영 설정 ttl_days, 현재 30) — 버튼 라벨 "+{step}일 연장" 을 뷰모델로 동적화. <b>탈락</b>: 고정 30 — 운영 설정을 45일로 바꾸면 라벨·동작이 설정과 drift.</p>
+<h4>D4. 자동 영구삭제(worker)의 만료 판정</h4>
+<p><b>채택</b>: 기존 <code>findTrashedBefore(now - ttl)</code> 후보 조회 유지 + <code>entity.trashExpiresAt(ttl).isBefore(now)</code> Java 재검증 (연장분 제외). <b>탈락</b>: SQL 날짜 연산으로 쿼리 한 방 — 4개 repository 에 방언 의존 date 연산 중복, JPQL 이식성 저하. 후보 초과조회는 소량(만료 임박 행)이라 비용 무시 가능.</p>
+<h4>D5. 오류 응답 협상 (F-3)</h4>
+<p><b>채택</b>: 서버 — 신설 예외가 <code>ConflictException</code> 하위라 기존 이중 advice(HIGHEST + Accept 협상)가 자동으로 JSON/HTML 변환. 클라이언트 — <code>submitAsync</code> 의 비 JSON 분기가 바디 원문을 message 로 쓰지 않도록 수정(일반화 메시지, 원문은 console 로만). <b>탈락</b>: 클라이언트만 고치고 서버 500 방치 — 로그에 unhandled ERROR 잔존, 모니터링 오염.</p>
+<h4>D6. 연장 확인 모달 (F-2)</h4>
+<p><b>채택</b>: <code>ConfirmModalType.EXTEND_TTL</code> 상수 신설(lookup 불요 — SOFT_DELETE 패턴) + <code>confirm-extend.html</code> fragment + <code>confirm-extend.js</code>(마커 <code>data-confirm-extend</code>). <b>탈락</b>: deprecate 모달에 라벨 파라미터 추가 — S5-2 모달 자산의 "actionKey 별 책임 분리" 위반, deprecate 라벨의 두 번째 소유자를 만든다.</p>
+</div>
+</details>
+
+<details class="section" id="s5">
+<summary>5. 10단계 매핑</summary>
+<div class="body">
+<table>
+<tr><th>Step</th><th>내용</th><th>비고</th></tr>
+<tr><td>1</td><td>본 plan</td><td><span class="chip new">CP1</span></td></tr>
+<tr><td>2</td><td>뷰 — list.html 연장 form: 마커 교체(<code>data-confirm-extend</code>)·disabled+tooltip 래핑·동적 step 라벨 / confirm-extend fragment / confirm-extend.js / submitAsync 비 JSON 분기 수정</td><td>기존 CSS(.n-btn-tooltip-wrap) 재사용, 인라인 스타일 금지</td></tr>
+<tr><td>3</td><td>Controller — 변경 없음 (TrashController.extendTtl 유지, ConfirmModalFragmentController 는 enum 다형이라 무변경)</td><td><span class="chip keep">유지</span></td></tr>
+<tr><td>4</td><td>DTO — TrashItemResponse 에 <code>ttlExtendable</code>·<code>extendStepDays</code> 추가</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>5</td><td>Service 시그니처 — MarkableTrashOperator: <code>supportsTrashTtlExtension()</code> 신설 + <code>extendTrashTtl(Long, int)</code> 로 확장 / TrashTtlExtensionService 가드+step 산출</td><td>SPI 4 구현 동반 수정</td></tr>
+<tr><td>6</td><td>Repository — 변경 없음</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>7</td><td>Entity — LifecycleEntity <code>ttlExtensionDays</code> + <code>extendTrashTtl(int)</code> + <code>trashExpiresAt(Duration)</code> SSOT + 복원/트래시 시 0 초기화</td><td>스키마 영향 §Step 9</td></tr>
+<tr><td>8</td><td>테스트 — §6</td><td>단위 + @WebMvcTest 통합</td></tr>
+<tr><td>9</td><td>스키마 — 라이프사이클 6 테이블 <code>ttl_extension_days INT NOT NULL DEFAULT 0</code> ALTER (sql/ 산출). 샌드박스는 ddl-auto=update 자동, 실 DB 는 관리자 수동 적용 필요</td><td><span class="chip mod">DDL</span></td></tr>
+<tr><td>10</td><td>샌드박스 검증 (사용자 지시로 브라우저 E2E 대체) — §9</td><td>report html 동반</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s6">
+<summary>6. Step 8 테스트 시나리오</summary>
+<div class="body">
+<h4>단위 (JUnit + Mockito)</h4>
+<ul>
+<li>TrashTtlExtensionService — 지원 타입: 위임 호출 + step 일수 전달 확인 / 미지원 타입: <code>TtlExtensionUnsupportedException</code> throw / 미등록 타입: 기존 IllegalArgumentException 유지.</li>
+<li>LifecycleEntity — <code>extendTrashTtl(30)</code> 2회 누적 → <code>trashExpiresAt(TTL30)</code> = trashedAt+90일 / trashed 아닌 상태의 만료 null / <code>markTrashed</code>·복원 시 extensionDays 0 초기화.</li>
+<li>TrashTtlWorker — 후보 중 연장으로 만료 미도래 행이 purge 대상에서 제외되는 재검증 필터.</li>
+</ul>
+<h4>사용자 액션 통합 (@WebMvcTest TrashController + @MockitoBean 서비스단)</h4>
+<ul>
+<li><b>2xx</b> — 파일 자원 extend POST → 302 redirect /maintenance/trash.</li>
+<li><b>409</b> — 메타 자원 extend POST(신설 예외 실제 트리거): Accept json → JSON body message 필드 검증 / Accept html → error 뷰. <b>새 예외 클래스 동반 시나리오 규율 충족.</b></li>
+<li><b>400</b> — resourceType 경로변수 오타(enum 변환 실패).</li>
+<li><b>404</b> — (해당 없음 — extend 는 id lookup 을 스캐너가 수행. 스캐너 NotFound 시나리오는 단위에서 커버; 통합 404 는 기존 restore/purge 스위트가 보유)</li>
+<li>모달 fragment — GET /ui/confirm-modal/EXTEND_TTL → 200 + fragment 마크업(제목 '보존기간 연장').</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s7">
+<summary>7. 예외 계층</summary>
+<div class="body">
+<table>
+<tr><th>예외</th><th>신규/재사용</th><th>매핑</th></tr>
+<tr><td><code>TtlExtensionUnsupportedException extends ConflictException</code> (maintenance/trash/exception/)</td><td><span class="chip new">신규</span></td><td>기존 handleDomain hierarchy 흡수 → 409, JSON/HTML Accept 협상 자동</td></tr>
+<tr><td><code>UnsupportedOperationException</code> (MarkableTrashOperator default)</td><td><span class="chip keep">유지</span></td><td>이제 이 경로로 도달 불가(서비스 가드가 선차단) — default 는 신규 SPI 구현 누락 시의 최후 안전망으로 존치</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s8">
+<summary>8. 부산물 / 주의</summary>
+<div class="body">
+<ul>
+<li><b>scope 경계</b> — 메타 자원 연장 '지원 구현'은 하지 않는다(D1-c 탈락 사유). trash-action.js 의 describeRejection 은 이미 status 별 안내가 있으므로 무변경.</li>
+<li><b>submitAsync 는 공용 인프라</b> — 비 JSON 분기 수정은 휴지통 외 data-async-submit 사용처 전체에 영향(개선 방향 동일). 회귀 확인은 §9.</li>
+<li><b>LifecycleEntity 컬럼 추가는 6 테이블 공통</b> — 파일 자원 4 + 메타 2. 메타는 연장 미지원이라 항상 0 이지만, 컬럼 통일이 향후 메타 연장 구현 시 재-ALTER 를 막는다.</li>
+<li><b>동반 수정 없음</b> — CLAUDE.md 수정 불요. 병렬 세션(E1-2/S7, execution·provisioning 영역)과 파일 충돌 없음 확인.</li>
+<li><b>버튼 라벨 동적화</b>로 기존 하드코딩 "+30일 연장" 문구가 설정 연동 "+{n}일 연장" 으로 바뀐다 — 스크린샷 기반 문서와 표기 차이 발생 가능(의도).</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s9">
+<summary>9. Verification (샌드박스)</summary>
+<div class="body">
+<ol>
+<li><b>빌드</b> — <code>./gradlew test</code> 신설 테스트 포함 전체 green → bootJar 재빌드 → 샌드박스 재기동(java 21).</li>
+<li><b>기능</b> — ① 메타 자원 삭제 → 휴지통에서 연장 버튼 disabled+tooltip 확인 ② curl direct POST → 409 JSON(message) ③ 파일 자원 삭제 → 연장 클릭 → 모달 제목/버튼 "보존기간 연장/연장" → 확정 → 만료일 +30일·이동 시각 불변·연장 누적 표기 ④ 2회 연장 → +60일 누적 ⑤ 운영 설정 TTL 45 로 변경 → 버튼 라벨 "+45일" 동적 반영 확인 후 30 원복.</li>
+<li><b>회귀</b> — 복원/영구삭제/정리 모달 정상(마커 분리 확인), 기존 @WebMvcTest 스위트 green, TTL worker 로그 정상.</li>
+</ol>
+</div>
+</details>
+
+<details class="section" id="s10">
+<summary>10. Critical Files</summary>
+<div class="body">
+<table>
+<tr><th>구분</th><th>파일</th></tr>
+<tr><td><span class="chip new">신규</span></td><td>global/ui/enums 의 EXTEND_TTL 상수(기존 파일 내) 제외 순수 신규: <code>maintenance/trash/exception/TtlExtensionUnsupportedException.java</code> · <code>templates/fragments/management/confirm-extend.html</code> · <code>static/management/common/confirm-extend.js</code> · <code>sql/HF4-1_ttl_extension_days.sql</code></td></tr>
+<tr><td><span class="chip mod">수정</span></td><td><code>global/marker/MarkableTrashOperator.java</code> · 4 스캐너(Iso/BoardBios/BoardBmc/Subprogram MarkableScanner) · <code>maintenance/trash/service/TrashTtlExtensionService.java</code> · <code>TrashTtlWorker.java</code> · <code>TrashController.java</code>(toResponse 만) · <code>TrashItemResponse.java</code> · <code>global/entity/LifecycleEntity.java</code> · <code>global/ui/enums/ConfirmModalType.java</code> · <code>templates/maintenance/trash/list.html</code> · <code>static/management/common/confirm-modal-base.js</code></td></tr>
+<tr><td><span class="chip keep">유지</span></td><td>advice 2종(WebExceptionHandler/ApiExceptionHandler — hierarchy 흡수라 무변경) · trash-action.js · ConfirmModalFragmentController</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s11">
+<summary>11. 다음 마일스톤</summary>
+<div class="body">
+<ul class="check-list" data-storage="hf41-next">
+<li><label><input type="checkbox"><span>CP2~CP4 구현 + 테스트 → 샌드박스 검증 → HF4-1 report html</span></label></li>
+<li><label><input type="checkbox"><span>후속 논의(신규 백로그 후보): 메타 자원 연장 지원 여부 — cascade 의미(자식 TTL 동반 연장) 정의 필요</span></label></li>
+<li><label><input type="checkbox"><span>실 DB 반영 시 sql/HF4-1_ttl_extension_days.sql 관리자 계정 수동 적용 (claude_code ALTER 불가)</span></label></li>
+</ul>
+</div>
+</details>
+
+</main>
+</div>
+
+<script>
+(function(){
+  // ── 불가침 4 로직 ──────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const el = document.getElementById(a.getAttribute('href').slice(1));
+      if (!el) return;
+      e.preventDefault();
+      el.open = true;
+      const y = el.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({top:y, behavior:'smooth'});
+    });
+  });
+  document.getElementById('btnExpand').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = true);
+  document.getElementById('btnCollapse').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = false);
+  const fb = document.getElementById('filterBox');
+  fb.addEventListener('input', () => {
+    const q = fb.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      const hit = !q || d.textContent.toLowerCase().includes(q);
+      d.style.display = hit ? '' : 'none';
+      if (q && hit) d.open = true;
+    });
+  });
+  document.querySelectorAll('.check-list[data-storage]').forEach(list => {
+    const key = list.dataset.storage;
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b, i) => {
+      b.checked = !!saved[i];
+      b.closest('label').classList.toggle('done', b.checked);
+      b.addEventListener('change', () => {
+        b.closest('label').classList.toggle('done', b.checked);
+        localStorage.setItem(key, JSON.stringify([...boxes].map(x => x.checked)));
+      });
+    });
+  });
+})();
+
+// ── 🎬 라이브 데모 — 서버 판정 시뮬레이션 ──────────
+const state = {
+  mode: 'asis', ttl: 30,
+  iso:  { trashedAt: '07-19 15:49', ext: 0, movedShifted: 0 },
+  meta: { trashedAt: '07-19 15:49', ext: 0 }
+};
+const SUPPORTS = { iso: true, meta: false };   // supportsTrashTtlExtension SSOT 재현
+
+function fmtExpiry(baseDay, plusDays) {
+  // 데모 단순화: 07-19 기준 일수 가산 표기
+  const d = new Date(2026, 6, 19);
+  d.setDate(d.getDate() + plusDays);
+  return (d.getMonth()+1).toString().padStart(2,'0') + '-' + d.getDate().toString().padStart(2,'0');
+}
+function render() {
+  const s = state;
+  document.getElementById('mAsIs').classList.toggle('on', s.mode==='asis');
+  document.getElementById('mToBe').classList.toggle('on', s.mode==='tobe');
+  document.getElementById('ttl30').classList.toggle('on', s.ttl===30);
+  document.getElementById('ttl45').classList.toggle('on', s.ttl===45);
+  document.getElementById('isoStep').textContent = s.mode==='tobe' ? s.ttl : 30;
+  document.getElementById('metaStep').textContent = s.mode==='tobe' ? s.ttl : 30;
+  // ISO 행 — AS-IS 재기준: 이동 시각이 밀림 / TO-BE 가산: 이동 시각 불변, 만료 누적
+  if (s.mode==='asis') {
+    const shift = s.iso.movedShifted;
+    document.getElementById('isoMoved').textContent = shift ? fmtExpiry(null, shift) + ' (밀림!)' : s.iso.trashedAt;
+    document.getElementById('isoExp').textContent = fmtExpiry(null, shift + 30);
+    document.getElementById('isoExt').textContent = '(개념 없음)';
+  } else {
+    document.getElementById('isoMoved').textContent = s.iso.trashedAt;
+    document.getElementById('isoExp').textContent = fmtExpiry(null, s.ttl + s.iso.ext);
+    document.getElementById('isoExt').textContent = s.iso.ext + '일';
+  }
+  document.getElementById('metaMoved').textContent = s.meta.trashedAt;
+  document.getElementById('metaExp').textContent = fmtExpiry(null, s.mode==='tobe' ? s.ttl : 30);
+  document.getElementById('metaExt').textContent = s.mode==='tobe' ? '0일' : '(개념 없음)';
+  // 메타 행 버튼 — TO-BE 는 disabled + tooltip (UI 1차 차단)
+  const metaBtn = document.getElementById('btnMetaExtend');
+  const metaTt = document.getElementById('metaTt');
+  if (s.mode==='tobe' && !SUPPORTS.meta) {
+    metaBtn.disabled = true;
+    metaTt.setAttribute('data-tt', '이 자원 종류는 보존기간 연장을 지원하지 않아요.');
+  } else {
+    metaBtn.disabled = false;
+    metaTt.removeAttribute('data-tt');
+  }
+}
+function setMode(m) { state.mode = m; closeModal(); msg('', '모드 전환: ' + (m==='asis'?'AS-IS (결함 재현)':'TO-BE (수정 후)')); render(); }
+function setTtl(n) { state.ttl = n; msg('', '운영 설정 TTL = ' + n + '일 — TO-BE 버튼 라벨이 함께 바뀌는 것 확인'); render(); }
+function msg(cls, text) { const el = document.getElementById('uxMsg'); el.className = 'ux-message ' + cls; el.textContent = text; }
+function closeModal() { document.getElementById('simModal').hidden = true; }
+
+function clickExtend(kind) {
+  const s = state;
+  const modal = document.getElementById('simModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+  const confirmBtn = document.getElementById('modalConfirm');
+  modal.hidden = false;
+  if (s.mode === 'asis') {
+    // F-2 재현 — deprecate 모달 오배선
+    title.textContent = 'Deprecated 표시';
+    body.textContent = (kind==='iso'?'Rocky-9.6.iso':'Ubuntu 22.04') + ' 의 보존기간 을(를) Deprecated 로 표시할까요? +30일 연장돼요.';
+    confirmBtn.textContent = 'Deprecated 표시';
+    confirmBtn.onclick = () => {
+      closeModal();
+      if (kind === 'meta') {
+        // F-1/F-3 재현 — 500 + HTML 원문 덤프
+        msg('error', '서버 오류\n<!DOCTYPE html> <html lang="ko"> <!-- 공통 에러 뷰. WebExceptionHandler 가 Model 에 담은 status/statusLabel/message 를 렌더한다... (HTML 원문 500자 덤프 — F-3)\n\n[서버 로그] UnsupportedOperationException: OS_IMAGE 는 trash TTL 연장을 지원하지 않습니다 → 비라우팅 500 (F-1)');
+      } else {
+        s.iso.movedShifted += 0;  // 재기준: 이동 시각이 현재 시각으로 밀림 (데모: +7일 가정 시점 클릭)
+        s.iso.movedShifted = 7;
+        msg('success', '연장됨 — 단, trashed_at 재기준: "휴지통 이동 시각" 이 오늘로 밀려 표시가 왜곡된다 (O-4 AS-IS). 만료 = 새 이동시각 + 30일.');
+        render();
+      }
+    };
+  } else {
+    if (kind === 'meta') return; // disabled — 클릭 자체가 불가 (UI 1차 차단)
+    title.textContent = '보존기간 연장';
+    body.textContent = 'Rocky-9.6.iso 의 보존기간을 +' + s.ttl + '일 연장할까요? 만료일 기준으로 가산돼요.';
+    confirmBtn.textContent = '연장';
+    confirmBtn.onclick = () => {
+      closeModal();
+      s.iso.ext += s.ttl;
+      msg('success', '✓ 연장 누적 ' + s.iso.ext + '일 — 이동 시각 불변, 만료일 = 이동시각 + TTL(' + s.ttl + ') + 누적(' + s.iso.ext + '일). 한 번 더 눌러 누적 가산을 확인해보라.');
+      render();
+    };
+  }
+}
+// direct POST 시뮬 — 메타 자원 curl
+(function addCurlDemo(){
+  const bar = document.querySelector('.ux-toolbar');
+  const btn = document.createElement('button');
+  btn.className = 'n-demo-btn danger'; btn.style.marginLeft = '16px';
+  btn.textContent = 'direct POST (메타 연장 시도)';
+  btn.onclick = () => {
+    if (state.mode === 'asis') msg('error', '$ curl -X POST /maintenance/trash/OS_IMAGE/2/extend\nHTTP 500 — {"timestamp":..,"status":500,"trace":"java.lang.UnsupportedOperationException: ..."} (스택트레이스 노출)');
+    else msg('error', '$ curl -X POST /maintenance/trash/OS_IMAGE/2/extend\nHTTP 409 — {"message":"OS 버전 자원은 보존기간 연장을 지원하지 않습니다."} (advice 409 JSON — 서버 가드 안전망)');
+  };
+  bar.appendChild(btn);
+})();
+render();
+</script>
+</body>
+</html>

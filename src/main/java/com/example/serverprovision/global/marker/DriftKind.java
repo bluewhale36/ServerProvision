@@ -41,6 +41,14 @@ import lombok.Getter;
  *   정의 : {@code is_deleted=true AND trashed_at=null AND trashed_path=null AND Files.notExists(DB.path)}.
  *   drift apply = DB row hard-delete. <b>자동 ON</b> (R9-2 — 서버 가드는 종전부터 허용, UI 만 4종 하드코딩으로 숨겨져 있던 것을 SSOT 승격으로 노출)</li>
  * </ul>
+ *
+ * <h3>HF4-5 신규 (탐지 구현됨)</h3>
+ * <ul>
+ *   <li>{@code RESOURCE_DUPLICATED} — 원본(DB.path)이 완전 정상인데 동일 (resourceType, resourceId) 마커와
+ *   본체가 다른 위치에서도 발견됨. 방치하면 원본 유실 시 그 사본이 PATH_DRIFT 로 오인되어 정본 자리를
+ *   차지할 수 있다 (2026-07-19 전수 점검 O-2). 해결은 택일 입력(survivor)을 동반하므로 표준 [적용] 이 아닌
+ *   전용 endpoint ({@code DuplicateResolveService}) — HASH_MISMATCH 선례와 같은 mode=NONE.</li>
+ * </ul>
  */
 @Getter
 public enum DriftKind {
@@ -55,7 +63,11 @@ public enum DriftKind {
 	MISSING(
 			"자원 소실",
 			"DB 에 등록된 자원의 파일과 마커를 어디에서도 찾지 못했습니다.",
-			"백업·이동·이름 변경 여부를 확인해 파일을 원래 경로·이름으로 복원한 뒤 다시 점검하세요. 시스템이 자동 복구할 수 없습니다.",
+			// HF4-4 (O-1) — 스캔 범위(활성 자원 폴더 + extra-roots) 밖으로 통째 이동한 자원은 '경로 이동'이
+			// 아니라 이 종류로 보고된다. extra-roots 보강 안내를 권장 조치에 병기.
+			"백업·이동·이름 변경 여부를 확인해 파일을 원래 경로·이름으로 복원한 뒤 다시 점검하세요. 시스템이 자동 복구할 수 없습니다. "
+					+ "점검 범위 밖(백업 폴더 등)으로 옮긴 경우라면 reconciliation.scan.extra-roots 설정에 해당 경로를 등록하면 "
+					+ "다음 점검부터 '경로 이동'으로 탐지됩니다.",
 			DriftResolutionMode.NONE,
 			true
 	),
@@ -116,7 +128,27 @@ public enum DriftKind {
 			"적용하면 남은 DB 기록을 영구 삭제합니다. 복구할 파일이 없어 안전한 정리입니다.",
 			DriftResolutionMode.AUTO,
 			false
-	);
+	),
+	// HF4-5 신규 — 원본 정상 + 동일 신원 사본. 해결은 택일 입력 동반이라 전용 endpoint (mode=NONE — HASH_MISMATCH 선례)
+	RESOURCE_DUPLICATED(
+			"자원 중복 존재",
+			"등록 경로의 원본이 정상인 상태에서, 같은 신원(자원 종류·번호)의 마커와 파일이 다른 위치에서도 발견되었습니다. "
+					+ "방치하면 원본 유실 시 이 사본이 '경로 이동됨'으로 오인되어 정본 자리를 차지할 수 있습니다.",
+			"해소 버튼에서 원본과 복제본 중 남길 쪽을 선택하세요. 선택하지 않은 쪽 파일은 삭제되며, "
+					+ "복제본을 남기면 등록 경로(DB)도 복제본 위치로 갱신됩니다.",
+			DriftResolutionMode.NONE,
+			false
+	) {
+		@Override
+		public String getOldPathLabel() {
+			return "원본 경로 (DB 기록)";
+		}
+
+		@Override
+		public String getNewPathLabel() {
+			return "복제본 경로";
+		}
+	};
 
 	/**
 	 * 사용자 노출 한 줄 명칭. 템플릿 배지·확인 문구가 사용한다. enum 원시명은 상세 화면의 보조 표기로만.
@@ -170,5 +202,21 @@ public enum DriftKind {
 	 */
 	public boolean isManuallyResolvable() {
 		return mode != DriftResolutionMode.NONE;
+	}
+
+	/**
+	 * HF4-5 — 상세 화면의 {@code old_path} 필드 라벨. 종류별 의미가 다를 때만 상수가 재정의한다
+	 * (RESOURCE_DUPLICATED 는 아무것도 이동하지 않아 "이전 경로" 표기가 오독을 부른다).
+	 * 사용자 문구의 SSOT 를 enum 에 모으는 R9-2 원칙 — 템플릿 kind 분기 금지.
+	 */
+	public String getOldPathLabel() {
+		return "이전 경로";
+	}
+
+	/**
+	 * HF4-5 — 상세 화면의 {@code new_path} 필드 라벨. {@link #getOldPathLabel()} 과 동일 원칙.
+	 */
+	public String getNewPathLabel() {
+		return "새 경로";
 	}
 }

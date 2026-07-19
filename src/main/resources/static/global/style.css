@@ -534,6 +534,12 @@ code {
     color: var(--n-text-muted);
 }
 
+/* HF4-4 — 테이블 밖(배너 부가 설명 등)에서도 쓰는 범용 muted 텍스트 유틸.
+   .n-table-muted 는 명칭이 테이블 스코프라 배너에 재사용하지 않고 토큰명 그대로 일반화. */
+.n-text-muted {
+    color: var(--n-text-muted);
+}
+
 .n-table-empty td {
     text-align: center;
     color: var(--n-text-muted);

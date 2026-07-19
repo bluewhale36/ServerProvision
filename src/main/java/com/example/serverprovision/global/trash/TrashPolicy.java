@@ -53,4 +53,12 @@ public class TrashPolicy {
 	public Duration getTtl() {
 		return Duration.ofDays(ttlDays);
 	}
+
+	/**
+	 * HF4-1 — TTL 일수(int). 보존기간 연장 1회의 가산 step + 연장 버튼 라벨("+N일 연장")이 공유하는
+	 * 단일 원천 — 호출부마다 {@code getTtl().toDays()} 변환을 복붙하지 않도록 여기 응집.
+	 */
+	public int getTtlDays() {
+		return ttlDays;
+	}
 }

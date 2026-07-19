@@ -1,0 +1,17 @@
+-- HF4-4 — 스캔 시점 탐지 건수 스냅샷 컬럼 (O-3).
+-- 배지·요약줄이 '미해결 잔수'(drifts.size())로만 동적 감소해 과거 보고서의 탐지 이력이 소실되던 것을
+-- "탐지 N · 미해결 M" 병기로 보존한다. 기록은 DriftReport.addDrift() 증가 — 저장 시점에 확정, 이후 불변.
+-- (선례: R9-5 drift.display_name 스냅샷 — sql/R9-5_drift_display_name.sql)
+--
+-- 구행(도입 이전 행) backfill 은 비목표 — 자식 drift 행이 apply/dismiss 로 이미 물리 삭제되어
+-- (orphanRemoval) 탐지치를 복원할 원본이 없다. default 0 으로 두면 화면·API 매핑이
+-- DriftReport.getDetectedDriftCountForDisplay() 로 미해결 잔수를 대체 표기하고,
+-- FIFO retention(default 100건)으로 자연 해소된다.
+--
+-- ddl-auto=validate 환경이라 이 DDL 적용 전에는 앱이 기동되지 않는다
+-- (Schema-validation: missing column [detected_drift_count] in table [drift_report]).
+-- claude_code 계정은 ALTER 권한이 없으므로 ALTER 권한 계정(root 등)으로 실행:
+--   mysql -u root -p server_provision < sql/HF4-4_drift_report_detected_count.sql
+-- 적용 확인:
+--   SHOW CREATE TABLE drift_report;  -- detected_drift_count INT NOT NULL DEFAULT 0 존재
+ALTER TABLE drift_report ADD COLUMN detected_drift_count INT NOT NULL DEFAULT 0 AFTER total_checked;

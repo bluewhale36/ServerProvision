@@ -119,6 +119,28 @@ public enum ConfirmModalType {
 	},
 
 	/**
+	 * HF4-1 — 휴지통 보존기간 연장 확인 modal. SOFT_DELETE 와 동일 패턴 — 자원 lookup 불요,
+	 * 표시 정보 (자원 라벨·가산 step 일수) 는 JS 가 form 의 data 속성으로 inject.
+	 * 종전에는 연장 form 이 deprecate modal 을 차용해 제목/버튼이 "Deprecated 표시" 로 뜨던 것의 해소 (F-2).
+	 */
+	EXTEND_TTL {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			// 자원 lookup 없음. resourceType 만 model 에 표기 (디버그용).
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/management/confirm-extend :: modalCard";
+		}
+	},
+
+	/**
 	 * R9-3 — 드리프트 적용 확인 modal. 자원 lookup 불요 — 문구(라벨·권장 조치)는 JS 가 form 의
 	 * data 속성(R9-2 산출)에서 inject. 종전에는 restore modal 을 차용해 "복구할까요?" 가 떠
 	 * GHOST_DB_ROW(행 영구 삭제)와 반대 의미를 안내하던 것의 해소.

@@ -101,11 +101,17 @@ public class BoardBmcMarkableScanner implements MarkableScanner {
 	}
 
 	@Override
+	public boolean supportsTrashTtlExtension() {
+		return true;   // HF4-1 — 파일 자원은 보존기간 연장 지원 (UI 버튼 활성 + 서버 가드 통과의 공유 SSOT)
+	}
+
+	@Override
 	@org.springframework.transaction.annotation.Transactional
-	public void extendTrashTtl(Long resourceId) {
+	public void extendTrashTtl(Long resourceId, int days) {
 		com.example.serverprovision.management.bmc.entity.BoardBMC bmc = bmcRepository.findById(resourceId)
 				.orElseThrow(() -> new IllegalStateException("BMC not found for TTL extend: " + resourceId));
-		bmc.markTrashed(bmc.getTrashedPath());
+		// HF4-1 — 재기준(markTrashed 재호출) 대신 가산 : trashed_at 불변, 만료일만 +days.
+		bmc.extendTrashTtl(days);
 	}
 
 	@Override

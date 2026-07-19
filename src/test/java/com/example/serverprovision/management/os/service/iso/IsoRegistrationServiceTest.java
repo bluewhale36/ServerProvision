@@ -13,10 +13,12 @@ import com.example.serverprovision.management.common.nudge.NudgeSession;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.dto.request.ISOCreateRequest;
 import com.example.serverprovision.management.os.exception.DuplicateISOContentException;
 import com.example.serverprovision.management.os.exception.IllegalOSMetadataStateException;
 import com.example.serverprovision.management.os.exception.IsoClientHashMismatchException;
 import com.example.serverprovision.management.os.exception.IsoNudgeRequiredException;
+import com.example.serverprovision.management.os.exception.IsoPathIsDirectoryException;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
 import com.example.serverprovision.management.os.service.iso.IsoRegistrationService.PreparedIsoRegistration;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +41,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -228,5 +232,42 @@ class IsoRegistrationServiceTest {
 
 		assertThatThrownBy(() -> service.finalize(null, prepared))
 				.isInstanceOf(IsoNudgeRequiredException.class);
+	}
+
+	// ==== prepare (HF4-3 F-4 — 디렉토리 경로 가드) ======================
+
+	@Test
+	@DisplayName("prepare : resolved 경로가 기존 디렉토리 → IsoPathIsDirectoryException (field=isoPath)")
+	void prepare_directoryPath_throws(@TempDir Path dir) {
+		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent(1L)));
+		given(pathPolicyService.assertWritablePath(dir.toString())).willReturn(dir);
+		var request = new ISOCreateRequest(dir.toString(), "desc", false);
+		var file = new MockMultipartFile("file", "dvd.iso", "application/octet-stream", new byte[]{1});
+
+		IsoPathIsDirectoryException thrown = catchThrowableOfType(
+				() -> service.prepare(1L, request, file), IsoPathIsDirectoryException.class);
+
+		assertThat(thrown.fieldName()).isEqualTo("isoPath");
+		assertThat(thrown.getMessage()).contains("디렉토리");
+	}
+
+	@Test
+	@DisplayName("prepare : 미존재 파일 경로 + 업로드 파일 → 저장 후 PreparedIsoRegistration 반환 (happy)")
+	void prepare_uploadToNewPath_happy(@TempDir Path dir) throws Exception {
+		Path target = dir.resolve("new.iso");
+		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent(1L)));
+		given(pathPolicyService.assertWritablePath(target.toString())).willReturn(target);
+		given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
+				.willReturn(Optional.empty());
+		given(markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR))
+				.willReturn(dir.resolve("new.iso.provision.json"));
+		var request = new ISOCreateRequest(target.toString(), "desc", false);
+		var file = new MockMultipartFile("file", "dvd.iso", "application/octet-stream", "iso-bytes".getBytes());
+
+		var prepared = service.prepare(1L, request, file);
+
+		assertThat(prepared.resolvedPath()).isEqualTo(target.toString());
+		assertThat(prepared.uploadedFile()).isTrue();
+		assertThat(Files.exists(target)).isTrue();
 	}
 }

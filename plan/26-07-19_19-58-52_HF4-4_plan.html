@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF4-4 Plan — 점검 이력 탐지·미해결 병기 + 스캔 범위 안내</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:70px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .n-demo-btn.on { background:var(--blue); color:#fff; }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .pane { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; font-size:12.5px; margin-top:10px; }
+  .pane h5 { margin:0 0 8px; font-size:12px; color:var(--text-muted); }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.red { background:var(--red-bg); color:var(--red); } .badge.warnb { background:var(--yellow-bg); color:var(--yellow); }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; white-space:pre-wrap; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .sim-cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .sim-report-row { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid var(--border-soft); font-size:12px; }
+  .sim-report-row:last-child { border-bottom:none; }
+  .sim-banner { border-left:3px solid var(--blue); background:var(--blue-bg); padding:8px 12px; border-radius:0 6px 6px 0; font-size:12px; margin-top:8px; }
+  .sim-banner .muted-line { color:var(--text-muted); margin-top:4px; }
+  .hl-add { background:var(--green-bg); border-radius:3px; padding:0 2px; }
+  .flash { animation:flash 0.9s ease-out; }
+  @keyframes flash { 0% { background:var(--green-bg); } 100% { background:transparent; } }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .sim-cols{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF4-4 — 점검 이력 탐지·미해결 병기 + 스캔 범위 안내 <span class="v2-badge">이력 소급 왜곡 + 안내 부재</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF4-4 (3차 개발 · 핫픽스)</span>
+    <span><strong>scope</strong> O-3 탐지 건수 스냅샷 병기 · O-1 스캔 범위/extra-roots 운영 안내</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>진행</strong> CP1~CP4 연속 (사용자 지시 — 병렬 워크트리, 커밋 없음)</span>
+    <span><strong>근거</strong> 2026-07-19 전수 점검 관찰 O-3(결정: 병기) · O-1(확인: 안내 부재)</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc">
+  <strong>목차</strong>
+  <ol id="tocList">
+    <li><a href="#s1">1. 현재 상태</a></li>
+    <li><a href="#s2">2. 요구사항</a></li>
+    <li><a href="#s2p" class="preview">🎬 라이브 데모</a></li>
+    <li><a href="#s3">3. URL/데이터 흐름</a></li>
+    <li><a href="#s4">4. 도메인 모델 (설계 결정)</a></li>
+    <li><a href="#s5">5. 10단계 매핑</a></li>
+    <li><a href="#s6">6. Step 8 테스트 시나리오</a></li>
+    <li><a href="#s7">7. 예외 계층</a></li>
+    <li><a href="#s8">8. 부산물/주의</a></li>
+    <li><a href="#s9">9. Verification</a></li>
+    <li><a href="#s10">10. Critical Files</a></li>
+    <li><a href="#s11">11. 다음 마일스톤</a></li>
+  </ol>
+  <div class="toc-actions">
+    <button id="btnExpand">전부 펴기</button>
+    <button id="btnCollapse">전부 접기</button>
+  </div>
+</nav>
+
+<main>
+<input class="filter-box" id="filterBox" placeholder="검색 — 예: detected_drift_count, addDrift, extra-roots, 구행 fallback ...">
+
+<details class="section" id="s1" open>
+<summary>1. 현재 상태 (실측 근거)</summary>
+<div class="body">
+<h4>O-3 — 스캔 이력 배지가 '미해결 잔수'로만 동적 감소한다</h4>
+<p>자원 무결성 점검(<code>/maintenance/reconciliation</code>)의 C1 스캔 이력 배지와 상단 요약줄("마지막 점검 … 드리프트 N건")은 모두 <code>DriftReportResponse.driftCount</code> 를 표시하는데, 이 값의 원천은 <code>DriftReport.getDriftCount()</code> = <code>drifts.size()</code>, 즉 <b>지금 남아 있는 자식 행 수</b>다. 그런데 드리프트를 [적용]/[보고 닫기] 하면 <code>DriftReport.removeDrift()</code> 가 자식 행을 분리하고 <code>orphanRemoval=true</code> 가 DB 행을 <b>물리 삭제</b>한다. 결과: 과거 보고서의 배지도 함께 줄어들어, "그 스캔에서 몇 건이 탐지됐었는가"라는 역사적 사실이 화면에서 사라진다. 전부 해결하면 과거 보고서가 전건 "0 건"(초록)이 되어 이력으로서의 의미를 잃는다.</p>
+<table>
+<tr><th>표시 위치</th><th>현재 코드</th><th>동작</th></tr>
+<tr><td>C1 스캔 이력 배지</td><td><code>list.html</code> — <code>th:text="${report.driftCount} + ' 건'"</code></td><td>해결할 때마다 4→3→…→0 감소</td></tr>
+<tr><td>상단 요약줄</td><td><code>list.html</code> — "드리프트 <code>${latestReport.driftCount}</code>건"</td><td>동일하게 감소</td></tr>
+<tr><td>REST <code>/latest</code>·<code>/history</code></td><td><code>DriftReportResponse.driftCount</code></td><td>외부 API 도 잔수만 노출</td></tr>
+</table>
+<p>참고: 스캔 완료 토스트(<code>list.js</code> 의 job metadata <code>driftCount</code>)는 <b>스캔 완료 시점</b> 값이라 사실상 탐지치와 같다 — 문제는 그 값이 어디에도 영속 보존되지 않는다는 점이다. 선례 <b>R9-5</b> 는 같은 구조의 문제(자원 purge 후 보고서에서 실명 소실)를 <code>drift.display_name</code> 스냅샷 컬럼으로 해결했다.</p>
+<h4>O-1 — 스캔 범위의 특성이 화면 어디에도 안내되지 않는다</h4>
+<p><code>PathReconciliationService.computeScanRoots()</code>(D19) 는 스캔 루트를 <b>active 자원 <code>path.parent</code> 의 union + <code>reconciliation.scan.extra-roots</code> 설정</b>으로 동적 산출한다. 따라서 자원을 이 범위 밖(예: 별도 백업 폴더)으로 통째 옮기면 (resourceType, resourceId) 매칭 마커를 걸을 수 없어 '경로 이동(PATH_DRIFT)'이 아니라 <b>'자원 소실(MISSING)'</b> 로 보고된다. 이 동작 자체는 설계 의도이나, 운영자가 알 수 있는 곳이 코드 Javadoc 뿐이다 — 화면 상단 설명("등록된 자원 정보(DB)와 …")에도, MISSING 카드의 권장 조치(<code>DriftKind.MISSING.recommendedAction</code>)에도 extra-roots 언급이 없다.</p>
+</div>
+</details>
+
+<details class="section" id="s2" open>
+<summary>2. 요구사항</summary>
+<div class="body">
+<ol>
+<li><b>탐지 건수 스냅샷 (O-3)</b> — 보고서 생성 시점에 확정되는 "탐지 N건"을 <code>drift_report</code> 에 영속 보존한다. 이후 해결로 자식 행이 삭제돼도 탐지치는 불변.</li>
+<li><b>병기 표시</b> — C1 배지·상단 요약줄을 "탐지 N · 미해결 M" 병기로 바꾼다. 미해결 산출은 기존 <code>drifts.size()</code> 로직 그대로 재사용. 색 판정(초록/회색)도 기존처럼 <b>미해결 &gt; 0</b> 기준 유지 — "탐지 4 · 미해결 0" 은 처리 완료의 초록.</li>
+<li><b>구행 호환</b> — 스냅샷 도입 이전 행(컬럼 default 0)은 화면에서 미해결 수로 대체 표기한다. 구행 데이터 마이그레이션(backfill)은 비목표 — sql 주석으로 명시하고 FIFO retention 으로 자연 해소.</li>
+<li><b>스캔 범위 안내 (O-1)</b> — 화면 상단 설명 영역에 ① 스캔 범위 = 활성 자원 폴더 + extra-roots ② 범위 밖 이동은 '자원 소실'로 보고 ③ extra-roots 로 보강 가능, 세 사실을 안내한다.</li>
+<li><b>MISSING 권장 조치 보강</b> — '자원 소실' 카드의 권장 조치에 "스캔 범위 밖(백업 폴더 등)으로 옮긴 경우라면 <code>reconciliation.scan.extra-roots</code> 에 해당 경로를 등록하면 '경로 이동'으로 탐지된다" 취지 한 문장을 추가한다. 문구 SSOT 는 기존대로 <code>DriftKind</code> enum(R9-2 문구 표).</li>
+</ol>
+</div>
+</details>
+
+<details class="section preview" id="s2p" open>
+<summary>🎬 라이브 데모 — 스캔 이력 배지 AS-IS / TO-BE 병렬 체험 + 안내 문구 미리보기</summary>
+<div class="body">
+<p>스캔을 실행해 드리프트 4건을 탐지한 뒤 하나씩 해결해보라. <b>왼쪽(AS-IS)</b>은 현재 결함 — 배지가 4→3→…→0 으로 줄며 탐지 이력이 소실된다. <b>오른쪽(TO-BE)</b>은 본 plan 적용 후 — 탐지 4 는 스냅샷으로 고정되고 미해결만 감소한다. 판정식은 서버와 동일: <code>탐지 = addDrift 시점 누적(불변) / 미해결 = drifts.size()(잔존)</code>.</p>
+<div class="ux-wrap">
+  <div class="ux-toolbar">
+    <span class="group-label">시나리오</span>
+    <button class="n-demo-btn" id="btnScan" onclick="actScan()">지금 점검 (드리프트 4건 탐지)</button>
+    <button class="n-demo-btn" id="btnApply" onclick="actResolve('apply')" disabled>드리프트 1건 [적용]</button>
+    <button class="n-demo-btn" id="btnDismiss" onclick="actResolve('dismiss')" disabled>드리프트 1건 [보고 닫기]</button>
+    <button class="n-demo-btn danger" onclick="actReset()">리셋</button>
+  </div>
+  <div class="ux-toolbar">
+    <span class="group-label">구행 재현</span>
+    <button class="n-demo-btn" id="btnLegacy" onclick="toggleLegacy()">스냅샷 도입 이전 보고서 1건 표시</button>
+  </div>
+  <div class="sim-cols">
+    <div class="pane">
+      <h5>AS-IS — C1 스캔 이력 (배지 = 잔수만)</h5>
+      <div id="asisList"></div>
+      <div class="sim-banner">마지막 점검 <b>07-19 20:00</b> · 자원 <b>17</b>건 · 드리프트 <b id="asisSummary">—</b>건</div>
+    </div>
+    <div class="pane">
+      <h5>TO-BE — C1 스캔 이력 (탐지 스냅샷 · 미해결 병기)</h5>
+      <div id="tobeList"></div>
+      <div class="sim-banner">마지막 점검 <b>07-19 20:00</b> · 자원 <b>17</b>건 · 드리프트 탐지 <b id="tobeSummaryD">—</b>건 · 미해결 <b id="tobeSummaryU">—</b>건</div>
+    </div>
+  </div>
+  <div class="ux-message" id="uxMsg">[지금 점검] 을 눌러 보고서를 만든 뒤, [적용]/[보고 닫기] 로 하나씩 해결하며 양쪽 배지를 비교해보세요.</div>
+</div>
+<h4>O-1 안내 문구 미리보기 (TO-BE)</h4>
+<div class="pane">
+  <h5>① 화면 상단 설명 배너 — 추가 줄은 <span class="hl-add">초록 배경</span></h5>
+  <div class="sim-banner">
+    <div>등록된 자원 정보(DB)와 디스크의 실제 파일·마커가 서로 일치하는지 점검하고, 불일치(드리프트)를 정합합니다.</div>
+    <div class="muted-line"><span class="hl-add">점검은 활성 자원이 등록된 폴더들과 <code>reconciliation.scan.extra-roots</code> 설정에 지정한 폴더만 검색합니다.
+    자원을 이 범위 밖(예: 별도 백업 폴더)으로 옮기면 파일을 찾을 수 없어 '경로 이동'이 아닌 '자원 소실'로 보고됩니다 —
+    그런 위치를 쓴다면 <code>reconciliation.scan.extra-roots</code> 에 해당 경로를 추가해 점검 범위를 넓힐 수 있습니다.</span></div>
+  </div>
+  <h5 style="margin-top:12px;">② '자원 소실(MISSING)' 카드의 권장 조치 — 추가 문장은 <span class="hl-add">초록 배경</span></h5>
+  <div class="sim-banner" style="border-color:var(--yellow); background:var(--yellow-bg);">
+    권장 조치 : 백업·이동·이름 변경 여부를 확인해 파일을 원래 경로·이름으로 복원한 뒤 다시 점검하세요. 시스템이 자동 복구할 수 없습니다.
+    <span class="hl-add">점검 범위 밖(백업 폴더 등)으로 옮긴 경우라면 <code>reconciliation.scan.extra-roots</code> 설정에 해당 경로를 등록하면 다음 점검부터 '경로 이동'으로 탐지됩니다.</span>
+  </div>
+</div>
+<div class="callout">데모의 구행 재현 버튼은 <b>스냅샷 컬럼 도입 이전에 저장된 보고서</b>(detected_drift_count = 0, 미해결 3건 잔존)를 이력에 끼워 넣는다. TO-BE 쪽에서 이 행은 "탐지 3 · 미해결 3" 으로 — 즉 <b>탐지 자리를 미해결 수로 대체</b> 표기됨을 확인할 수 있다 (D3 fallback 규칙).</div>
+</div>
+</details>
+
+<details class="section" id="s3">
+<summary>3. URL / 데이터 흐름</summary>
+<div class="body">
+<pre>
+[변경 없음·의미 확장] GET /maintenance/reconciliation            (Thymeleaf 페이지)
+   ReconciliationController.list
+     → PathReconciliationService.history(pageable) / latestReport()
+         → toResponse(DriftReport)                               // 매핑만 수정 (표시 계층)
+              detectedDriftCount = report.getDetectedDriftCountForDisplay()   // ★ 신설 — 구행(0) fallback SSOT
+              driftCount         = report.getDriftCount()                     // 기존 미해결 산출 재사용
+   템플릿 list.html — C1 배지·요약줄 "탐지 N · 미해결 M" 병기 + 상단 배너 안내 줄 추가
+
+[변경 없음·계약 확장] GET /maintenance/reconciliation/latest · /history   (REST JSON)
+   DriftReportResponse 에 detectedDriftCount 필드 추가 — 외부 API 도 병기 값 노출
+
+[저장 경로 — Service 무변경] performScan (6) / persistAndForcedApply
+   DriftReport.builder()...build() → report.addDrift(d) × N     // ★ addDrift() 가 detectedDriftCount++ (엔티티 내부)
+   → save. removeDrift(apply/dismiss)는 감소시키지 않음 = 스냅샷 의미.
+</pre>
+<p>탐지 분기(4a~5.5a)·저장 호출부·자동 적용 루프는 <b>한 줄도 바꾸지 않는다</b> — 병렬 슬라이스 HF4-5(DriftKind 신설)와의 충돌 최소화 요구를 만족한다. Service 에서 손대는 곳은 <code>toResponse</code> 매핑 1곳뿐.</p>
+</div>
+</details>
+
+<details class="section" id="s4">
+<summary>4. 도메인 모델 — 설계 결정 (대안 비교 포함)</summary>
+<div class="body">
+<h4>D1. 탐지 건수를 어떻게 보존하나</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td><code>drift_report.detected_drift_count</code> 스냅샷 컬럼. 보고서 생성(자식 추가) 시점에 확정, 이후 불변.</td><td>탐지치는 "보고서 생성 시점에 확정되는 값"이라는 도메인 사실과 일치. 선례 R9-5(<code>drift.display_name</code> 스냅샷)와 동일 패턴 — 컬럼 1개·ALTER 1회로 끝난다.</td></tr>
+<tr><td>(b) 탈락</td><td>drift 자식 행 집계 쿼리로 탐지치 복원</td><td>불가 — [적용]/[보고 닫기]가 <code>orphanRemoval</code> 로 자식 행을 <b>물리 삭제</b>하므로 집계할 원본이 남지 않는다. 삭제를 soft-flag(status 컬럼)로 바꾸면 가능하지만 "Drift 는 불변, 해소 = 행 제거"라는 기존 설계와 resolution/recheck 계층 전반을 갈아엎는 큰 churn — 표시 수치 1개가 동기로는 과하며 HF4-5 와도 정면 충돌.</td></tr>
+<tr><td>(c) 탈락</td><td>스캔 이벤트 로그 테이블(append-only) 신설</td><td>수치 1개를 위해 신규 테이블·엔티티·FIFO 연동 정리 정책까지 신설 — over-engineering. 이벤트 로그가 필요해지는 시점(감사 추적 요구)에 도입해도 늦지 않다.</td></tr>
+</table>
+<h4>D2. 스냅샷 기록 시점 — 어디서 기록하나</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td>(i) 탈락</td><td><code>performScan</code> 저장부에서 빌더로 <code>.detectedDriftCount(drifts.size())</code> 명시 전달</td><td>저장 호출부가 2곳(<code>performScan</code> / <code>persistAndForcedApply</code>)이라 각각 기억해야 하고, 새 저장 경로가 생기면 누락이 침묵으로 지나간다. Service 파일 수정 범위도 커져 HF4-5 충돌면 확대.</td></tr>
+<tr><td><b>(ii) 채택</b></td><td><code>DriftReport.addDrift()</code> 내부에서 <code>detectedDriftCount++</code>. <code>removeDrift()</code> 는 감소시키지 않음.</td><td>"탐지 수 = 이 보고서에 추가된 적 있는 drift 총수"라는 정의가 엔티티 안에서 SSOT 로 성립 — 호출부는 아무것도 기억할 필요 없다. saga 임시 보고서(<code>persistAndForcedApply</code>)도 자동으로 탐지 1 이 기록된다. JPA 로딩은 컬렉션 필드 직주입이라 <code>addDrift()</code> 를 타지 않는다 — 재로딩 시 증가 부작용 없음.</td></tr>
+</table>
+<h4>D3. 구행 호환 — 스냅샷 없는 행의 표기</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td>(A) 탈락</td><td>NULL 허용 컬럼 — null = 구행 (R9-5 displayName 방식)</td><td>표기 결과는 같지만 <code>Integer</code> 박싱 + null 분기를 도처에 만든다. displayName 은 "null 이면 다른 정보(TYPE #id)로 대체"라 null 구분이 필수였지만, 여기는 아래 (B)처럼 0 이 자연스러운 경계라 null 이 주는 정보가 없다.</td></tr>
+<tr><td><b>(B) 채택</b></td><td><code>INT NOT NULL DEFAULT 0</code> — 구행은 0. 표시 규칙: <b>스냅샷이 0 이면 미해결 수로 대체</b>.</td><td>신행에서 스냅샷 0 은 "탐지 0건" — 이때 미해결도 반드시 0(자식이 애초에 없고 줄기만 한다)이라 대체 표기가 <b>항상 참</b>이다. 즉 0-경계의 의미 충돌이 구조적으로 없다. 원시 <code>int</code> 유지.</td></tr>
+</table>
+<p>대체 규칙의 SSOT 는 <code>DriftReport.getDetectedDriftCountForDisplay()</code> 1곳 — 템플릿 표시 2곳(C1 배지·요약줄)이 각자 fallback 을 복붙하면 drift 가 생기므로, <code>toResponse</code> 가 이 메서드 결과를 <code>DriftReportResponse.detectedDriftCount</code> 에 담아 내려보내고 템플릿은 그대로 출력만 한다.</p>
+<h4>D4. O-1 안내 문구의 위치</h4>
+<table>
+<tr><th>안</th><th>내용</th><th>판정</th></tr>
+<tr><td><b>(a) 채택</b></td><td>① 상단 설명 배너에 안내 줄 추가(기존 Bootstrap <code>text-muted</code> 클래스 — 인라인 스타일 금지 준수) ② <code>DriftKind.MISSING.recommendedAction</code> 문자열에 한 문장 추가</td><td>②는 R9-2 가 확립한 "사용자 노출 문구는 DriftKind enum 이 SSOT" 원칙 그대로 — 카드·확인 모달·추후 가이드 문서가 전부 한 곳을 따른다. enum <b>상수 신설이 아니라 기존 상수의 문구 수정</b>이므로 HF4-5 금지 조항(DriftKind 신설 금지)과 무관.</td></tr>
+<tr><td>(b) 탈락</td><td>템플릿 C3 카드에 조건부 하드코딩 문구</td><td>MISSING 문구의 두 번째 소유자를 만든다 — R9-2 이전의 "템플릿 하드코딩 ×3곳" 사고 재발 경로.</td></tr>
+<tr><td>(c) 탈락</td><td>별도 도움말 페이지/모달 신설</td><td>안내 세 문장을 위해 URL·뷰·라우팅 신설은 과함. 필요 시점에 확장.</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s5">
+<summary>5. 10단계 매핑</summary>
+<div class="body">
+<table>
+<tr><th>Step</th><th>내용</th><th>비고</th></tr>
+<tr><td>1</td><td>본 plan</td><td><span class="chip new">CP1</span></td></tr>
+<tr><td>2</td><td>뷰 — <code>list.html</code>: C1 배지 "탐지 N · 미해결 M"(탐지 0 이면 기존 "0 건" 유지) · 요약줄 병기 · 상단 배너 안내 줄(<code>text-muted</code>) · Model 주석 갱신</td><td><span class="chip mod">수정</span> 인라인 스타일 금지</td></tr>
+<tr><td>3</td><td>Controller — 변경 없음 (모델 attribute 구성 동일)</td><td><span class="chip keep">유지</span></td></tr>
+<tr><td>4</td><td>DTO — <code>DriftReportResponse</code> 에 <code>detectedDriftCount</code>(fallback 적용 후 값) 추가</td><td><span class="chip mod">수정</span></td></tr>
+<tr><td>5</td><td>Service — <code>toResponse</code> 매핑 1곳만 수정. 탐지 분기·저장 호출부·자동 적용 무변경</td><td>HF4-5 충돌 최소</td></tr>
+<tr><td>6</td><td>Repository — 변경 없음</td><td><span class="chip na">N/A</span></td></tr>
+<tr><td>7</td><td>Entity — <code>DriftReport</code>: <code>detectedDriftCount</code> 필드(+<code>@Builder.Default</code> 0) · <code>addDrift()</code> 증가 · <code>getDetectedDriftCountForDisplay()</code> · 클래스 Javadoc 갱신 / <code>DriftKind.MISSING</code> 권장 조치 문장 추가</td><td>스키마 영향 Step 9</td></tr>
+<tr><td>8</td><td>테스트 — §6</td><td>단위 + @WebMvcTest 통합</td></tr>
+<tr><td>9</td><td>스키마 — <code>sql/HF4-4_drift_report_detected_count.sql</code>: <code>ALTER TABLE drift_report ADD COLUMN detected_drift_count INT NOT NULL DEFAULT 0</code> + 구행 backfill 비목표 주석. 실 DB 는 ALTER 권한 계정 수동 적용</td><td><span class="chip mod">DDL</span></td></tr>
+<tr><td>10</td><td>CP5 — 사용자 브라우저 E2E (본 위임 범위 밖 — CP4 까지)</td><td><span class="chip na">유보</span></td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s6">
+<summary>6. Step 8 테스트 시나리오</summary>
+<div class="body">
+<h4>단위 (JUnit + Mockito — 기존 PathReconciliationServiceTest 에 추가)</h4>
+<ul>
+<li><b>스냅샷 기록</b> — MISSING 1건 스캔 → 저장 보고서의 <code>getDetectedDriftCount()</code> = 1. 이어 <code>removeDrift</code>(해결 재현) 후에도 탐지치 1 불변 + 미해결(<code>getDriftCount()</code>) 0.</li>
+<li><b>구행(0) 표시 대체</b> — 자식 3건 잔존 + 스냅샷 0(도입 이전 행 재현: ReflectionTestUtils 로 0 복원) → <code>getDetectedDriftCountForDisplay()</code> = 3. 신행은 해결 후에도 스냅샷 값 그대로.</li>
+<li><b>매핑 fallback</b> — <code>latestReport()</code> 응답: 신행(탐지 2·미해결 1) → detectedDriftCount 2 / 구행(스냅샷 0·잔존 3) → 3.</li>
+<li><b>saga 임시 보고서</b> — <code>persistAndForcedApply</code> 경유 보고서도 탐지 1 자동 기록 (addDrift 내부화의 검증).</li>
+</ul>
+<h4>사용자 액션 통합 (@WebMvcTest — 기존 ReconciliationRestControllerTest 스위트에 추가)</h4>
+<ul>
+<li><b>2xx (REST 계약)</b> — GET /history: 신행(탐지 4·미해결 1)과 구행(대체 적용 결과 3·3) 각 1건 모킹 → JSON <code>detectedDriftCount</code>/<code>driftCount</code> 병기 값 검증.</li>
+<li><b>2xx (페이지 렌더)</b> — GET list: 렌더된 HTML 에 "탐지 4 · 미해결 1" 배지 문구와 상단 배너의 <code>reconciliation.scan.extra-roots</code> 안내 존재 검증 (템플릿-DTO 결합 회귀 방지 — 필드 누락 시 500 으로 드러남).</li>
+<li><b>400/404/409</b> — 신규 예외 없음 → 기존 스위트가 전 범주 보유 (신규 시나리오 불요, 회귀 green 확인).</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s7">
+<summary>7. 예외 계층</summary>
+<div class="body">
+<table>
+<tr><th>예외</th><th>신규/재사용</th><th>매핑</th></tr>
+<tr><td>(신규 없음)</td><td><span class="chip na">N/A</span></td><td>본 슬라이스는 표시·기록 계층만 변경 — 새 실패 모드가 없다. 기존 <code>DriftNotFoundException</code>(404)·<code>DriftResolutionNotAllowedException</code>(409)·<code>ReconciliationAlreadyRunningException</code>(409) 스위트는 회귀 검증으로만 유지.</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s8">
+<summary>8. 부산물 / 주의</summary>
+<div class="body">
+<ul>
+<li><b>scope 경계 — DriftKind 신설 금지</b> (병렬 HF4-5 소관). 본 슬라이스는 기존 상수 <code>MISSING</code> 의 <code>recommendedAction</code> 문자열만 수정한다. <code>PathReconciliationService</code> 의 탐지 분기(4a~5.5a)·저장 호출부·자동 적용 루프 무변경 — 수정은 <code>toResponse</code> 1곳.</li>
+<li><b>구행 backfill 비목표</b> — 도입 이전 행의 탐지치는 복원 불가(자식 행이 이미 물리 삭제됨). 화면 대체 표기 + FIFO retention(default 100건)으로 자연 해소. sql 주석에 명시.</li>
+<li><b>REST 계약 확장</b> — <code>/latest</code>·<code>/history</code> JSON 에 <code>detectedDriftCount</code> 필드가 추가된다(기존 필드 불변 — 하위 호환).</li>
+<li><b>스캔 완료 토스트 무변경</b> — job metadata <code>driftCount</code> 는 스캔 완료 시점 값 = 탐지치와 동치라 그대로 둔다.</li>
+<li><b>동반 수정 없음</b> — CLAUDE.md/AGENTS.md 수정 불요. execution/·provisioning/ 미접촉. 커밋 없음(사용자 지시).</li>
+<li><b>merge 주의</b> — HF4-5 가 <code>DriftKind.java</code>(상수 추가)와 <code>list.html</code> 을 함께 만질 수 있다 — 본 슬라이스의 수정 지점(MISSING 문구·배지 줄·배너)은 인접 충돌 가능성이 있으니 merge 시 대조 필요.</li>
+</ul>
+</div>
+</details>
+
+<details class="section" id="s9">
+<summary>9. Verification</summary>
+<div class="body">
+<ol>
+<li><b>빌드</b> — <code>./gradlew test</code> 신설 테스트 포함 전체 green (bootRun 금지 — 워크트리 병렬 작업 중 포트/DB 경합 방지).</li>
+<li><b>기능</b> — ① 단위: 스냅샷 기록·불변·구행 fallback ② 통합: /history JSON 병기 값(신·구행) ③ 통합: 페이지 렌더에 병기 배지 문구 + extra-roots 안내 존재.</li>
+<li><b>회귀</b> — reconciliation 기존 스위트(RestController/SecurityFlow/Service/EdgeCase/HashAccept/Recheck/Resolution) green. <code>DriftReportResponse</code> 생성자 시그니처 변경의 컴파일 파급(테스트 fixture)을 전부 갱신.</li>
+</ol>
+</div>
+</details>
+
+<details class="section" id="s10">
+<summary>10. Critical Files</summary>
+<div class="body">
+<table>
+<tr><th>구분</th><th>파일</th></tr>
+<tr><td><span class="chip new">신규</span></td><td><code>sql/HF4-4_drift_report_detected_count.sql</code></td></tr>
+<tr><td><span class="chip mod">수정</span></td><td><code>maintenance/reconciliation/entity/DriftReport.java</code> · <code>maintenance/reconciliation/dto/response/DriftReportResponse.java</code> · <code>maintenance/reconciliation/service/PathReconciliationService.java</code>(toResponse 만) · <code>global/marker/DriftKind.java</code>(MISSING 문구만) · <code>templates/maintenance/reconciliation/list.html</code> · 테스트 2파일(<code>PathReconciliationServiceTest</code> / <code>ReconciliationRestControllerTest</code>)</td></tr>
+<tr><td><span class="chip keep">유지</span></td><td><code>ReconciliationController</code> · <code>ReconciliationRestController</code> · <code>Drift.java</code> · repository 2종 · resolution/recheck 계층 · <code>list.js</code> · advice 2종</td></tr>
+</table>
+</div>
+</details>
+
+<details class="section" id="s11">
+<summary>11. 다음 마일스톤</summary>
+<div class="body">
+<ul class="check-list" data-storage="hf44-next">
+<li><label><input type="checkbox"><span>CP2~CP4 구현 + 테스트 전체 green → 최종 보고 (워크트리, 커밋 없음)</span></label></li>
+<li><label><input type="checkbox"><span>실 DB 반영 시 sql/HF4-4_drift_report_detected_count.sql 을 ALTER 권한 계정으로 수동 적용 (claude_code ALTER 불가)</span></label></li>
+<li><label><input type="checkbox"><span>HF4-5(DriftKind 신설) merge 시 DriftKind.java·list.html 인접 수정 대조</span></label></li>
+<li><label><input type="checkbox"><span>CP5 — 사용자 브라우저 E2E (배지 병기·안내 문구·구행 표기 확인)</span></label></li>
+</ul>
+</div>
+</details>
+
+</main>
+</div>
+
+<script>
+(function(){
+  // ── 불가침 4 로직 ──────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const el = document.getElementById(a.getAttribute('href').slice(1));
+      if (!el) return;
+      e.preventDefault();
+      el.open = true;
+      const y = el.getBoundingClientRect().top + window.scrollY - 108;
+      window.scrollTo({top:y, behavior:'smooth'});
+    });
+  });
+  document.getElementById('btnExpand').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = true);
+  document.getElementById('btnCollapse').onclick = () => document.querySelectorAll('details.section').forEach(d => d.open = false);
+  const fb = document.getElementById('filterBox');
+  fb.addEventListener('input', () => {
+    const q = fb.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      const hit = !q || d.textContent.toLowerCase().includes(q);
+      d.style.display = hit ? '' : 'none';
+      if (q && hit) d.open = true;
+    });
+  });
+  document.querySelectorAll('.check-list[data-storage]').forEach(list => {
+    const key = list.dataset.storage;
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b, i) => {
+      b.checked = !!saved[i];
+      b.closest('label').classList.toggle('done', b.checked);
+      b.addEventListener('change', () => {
+        b.closest('label').classList.toggle('done', b.checked);
+        localStorage.setItem(key, JSON.stringify([...boxes].map(x => x.checked)));
+      });
+    });
+  });
+})();
+
+// ── 🎬 라이브 데모 — 서버 판정 시뮬레이션 ──────────
+// 판정식 재현: 탐지 = addDrift 시점 누적(removeDrift 로 감소하지 않음) / 미해결 = drifts.size()
+const state = {
+  report: null,          // { detected: 4, remaining: 4 } — 신행 보고서
+  history: [             // 과거 보고서 (이미 저장된 이력)
+    { at: '07-18 09:00', detected: 2, remaining: 0, legacy: false },
+    { at: '07-17 09:00', detected: 0, remaining: 0, legacy: false }
+  ],
+  legacyShown: false     // 구행(스냅샷 도입 이전) 재현 행
+};
+
+function badgeAsIs(r) {
+  // AS-IS: driftCount(잔수)만 — 색도 잔수 기준
+  const cls = r.remaining > 0 ? 'red' : 'on';
+  return '<span class="badge ' + cls + '">' + r.remaining + ' 건</span>';
+}
+function badgeToBe(r) {
+  // TO-BE: 탐지(스냅샷, 구행은 잔수 대체) · 미해결 병기 — DriftReport.getDetectedDriftCountForDisplay() 재현
+  const detectedForDisplay = r.detected > 0 ? r.detected : r.remaining;   // D3 fallback
+  if (detectedForDisplay === 0) return '<span class="badge on">0 건</span>';
+  const cls = r.remaining > 0 ? 'red' : 'on';
+  const mark = (r.legacy ? ' *' : '');
+  return '<span class="badge ' + cls + '">탐지 ' + detectedForDisplay + mark + ' · 미해결 ' + r.remaining + '</span>';
+}
+function rows() {
+  const list = [];
+  if (state.report) list.push({ at: '07-19 20:00', detected: state.report.detected, remaining: state.report.remaining, legacy: false });
+  if (state.legacyShown) list.push({ at: '07-16 09:00 (스냅샷 도입 이전)', detected: 0, remaining: 3, legacy: true });
+  return list.concat(state.history);
+}
+function render() {
+  const rs = rows();
+  const asis = rs.map(r => '<div class="sim-report-row"><span>' + r.at + '</span>' + badgeAsIs(r) + '</div>').join('');
+  const tobe = rs.map(r => '<div class="sim-report-row"><span>' + r.at + '</span>' + badgeToBe(r) + '</div>').join('');
+  document.getElementById('asisList').innerHTML = asis || '<div class="sim-report-row"><span>이력 없음</span></div>';
+  document.getElementById('tobeList').innerHTML = tobe || '<div class="sim-report-row"><span>이력 없음</span></div>';
+  const latest = rs[0];
+  document.getElementById('asisSummary').textContent = latest ? latest.remaining : '—';
+  document.getElementById('tobeSummaryD').textContent = latest ? (latest.detected > 0 ? latest.detected : latest.remaining) : '—';
+  document.getElementById('tobeSummaryU').textContent = latest ? latest.remaining : '—';
+  const has = !!state.report && state.report.remaining > 0;
+  document.getElementById('btnApply').disabled = !has;
+  document.getElementById('btnDismiss').disabled = !has;
+  document.getElementById('btnScan').disabled = !!state.report;
+  document.getElementById('btnLegacy').classList.toggle('on', state.legacyShown);
+}
+function msg(cls, text) { const el = document.getElementById('uxMsg'); el.className = 'ux-message ' + cls; el.textContent = text; }
+
+function actScan() {
+  state.report = { detected: 4, remaining: 4 };   // addDrift ×4 → detectedDriftCount = 4 확정
+  msg('success', '점검 완료 — 드리프트 4건 탐지. addDrift() 4회로 detected_drift_count = 4 가 저장 시점에 확정됐다. 이제 [적용]/[보고 닫기]로 해결하며 양쪽을 비교해보라.');
+  render();
+}
+function actResolve(kind) {
+  if (!state.report || state.report.remaining === 0) return;
+  state.report.remaining--;                        // removeDrift — 잔수만 감소, 탐지 스냅샷 불변
+  const r = state.report;
+  if (r.remaining === 0) {
+    msg('success', (kind==='apply'?'[적용]':'[보고 닫기]') + ' — 전부 해결. AS-IS 배지는 "0 건"이 되어 탐지 이력이 소실됐지만, TO-BE 는 "탐지 4 · 미해결 0"(초록) 으로 역사적 사실이 남는다.');
+  } else {
+    msg('', (kind==='apply'?'[적용]':'[보고 닫기]') + ' 1건 — AS-IS: ' + r.remaining + ' 건 (감소) / TO-BE: 탐지 4 고정 · 미해결 ' + r.remaining + '.');
+  }
+  render();
+}
+function toggleLegacy() {
+  state.legacyShown = !state.legacyShown;
+  msg('', state.legacyShown
+    ? '구행 표시 — detected_drift_count = 0(도입 이전 저장) + 미해결 3건 잔존. TO-BE 는 탐지 자리를 미해결 수(3)로 대체 표기한다 (* 표시는 데모 전용 구분).'
+    : '구행 행 숨김.');
+  render();
+}
+function actReset() {
+  state.report = null; state.legacyShown = false;
+  msg('', '리셋 — [지금 점검] 부터 다시.');
+  render();
+}
+render();
+</script>
+</body>
+</html>

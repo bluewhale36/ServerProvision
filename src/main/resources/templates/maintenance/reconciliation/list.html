@@ -5,13 +5,14 @@
   ─────────────────────────────────────────────────────────
   Model:
     reports        : List<DriftReportResponse> — 페이지네이션된 이력 (default size=20)
-                       · id            : Long
-                       · scannedAt     : Instant (ISO-8601)
-                       · scanDuration  : String (PT0.45S)
-                       · deep          : boolean
-                       · totalChecked  : int
-                       · driftCount    : int
-                       · drifts        : List<DriftResponse>  (C3 상세 포함)
+                       · id                 : Long
+                       · scannedAt          : Instant (ISO-8601)
+                       · scanDuration       : String (PT0.45S)
+                       · deep               : boolean
+                       · totalChecked       : int
+                       · detectedDriftCount : int  (HF4-4 — 스캔 시점 탐지 스냅샷. 구행은 서비스가 미해결 수로 대체)
+                       · driftCount         : int  (미해결 잔수 — apply/dismiss 로 감소)
+                       · drifts             : List<DriftResponse>  (C3 상세 포함)
     page           : int  (현재 페이지 — 0-base)
     size           : int  (페이지당 개수)
     totalPages     : int
@@ -56,12 +57,21 @@
          latestReport 는 페이지네이션과 무관한 전체 최신 1건 (컨트롤러가 별도 조회). -->
     <div class="n-banner n-banner-info">
         <div>등록된 자원 정보(DB)와 디스크의 실제 파일·마커가 서로 일치하는지 점검하고, 불일치(드리프트)를 정합합니다.</div>
-        <div th:if="${latestReport != null}" style="margin-top: 4px; color: var(--n-text-muted);">
+        <!-- HF4-4 (O-1) — 스캔 범위 특성 안내. 범위 밖 이동이 '자원 소실'로 보고되는 동작은 설계 의도(D19)이나
+             운영자가 알 길이 코드뿐이었다. extra-roots 보강 경로를 첫 화면에서 안내한다. -->
+        <div class="n-text-muted">
+            점검은 활성 자원이 등록된 폴더들과 <code>reconciliation.scan.extra-roots</code> 설정에 지정한 폴더만 검색합니다.
+            자원을 이 범위 밖(예: 별도 백업 폴더)으로 옮기면 파일을 찾을 수 없어 '경로 이동'이 아닌 '자원 소실'로 보고됩니다 —
+            그런 위치를 쓴다면 <code>reconciliation.scan.extra-roots</code> 에 해당 경로를 추가해 점검 범위를 넓힐 수 있습니다.
+        </div>
+        <!-- HF4-4 (O-3) — 요약줄 병기: 탐지(스캔 시점 스냅샷·불변)와 미해결(잔수·해결 시 감소)을 함께 표기. -->
+        <div th:if="${latestReport != null}" class="n-text-muted">
             마지막 점검
             <strong th:text="${#temporals.format(latestReport.scannedAt, 'yyyy-MM-dd HH:mm')}"></strong>
             <span th:if="${latestReport.deep}">(정밀)</span>
             · 자원 <strong th:text="${latestReport.totalChecked}"></strong>건
-            · 드리프트 <strong th:text="${latestReport.driftCount}"></strong>건
+            · 드리프트 탐지 <strong th:text="${latestReport.detectedDriftCount}"></strong>건
+            · 미해결 <strong th:text="${latestReport.driftCount}"></strong>건
         </div>
     </div>
 
@@ -113,9 +123,11 @@
                         <span th:if="${report.deep}" style="font-size: 11px;"> · deep</span>
                     </span>
                 </span>
+                <!--/* HF4-4 (O-3) — 탐지(스냅샷)·미해결(잔수) 병기. 탐지 0(= 미해결도 0)이면 종전 "0 건" 유지.
+                     색은 종전대로 미해결 기준 — "탐지 N · 미해결 0" 은 처리 완료의 초록. */-->
                 <span class="n-miller-status-tag"
                       th:classappend="${report.driftCount > 0} ? 'n-miller-status-tag-off' : 'n-miller-status-tag-on'"
-                      th:text="${report.driftCount} + ' 건'">0 건</span>
+                      th:text="${report.detectedDriftCount == 0} ? '0 건' : |탐지 ${report.detectedDriftCount} · 미해결 ${report.driftCount}|">0 건</span>
             </button>
 
             <!-- 페이지네이션 -->
@@ -230,14 +242,16 @@
                             <dt>권장 조치</dt>
                             <dd th:text="${drift.kind.recommendedAction}"></dd>
                         </div>
+                        <!--/* HF4-5 — 경로 2필드 라벨은 DriftKind 다형 (RESOURCE_DUPLICATED 는 이동이 아니라
+                             "원본 경로 (DB 기록)"/"복제본 경로" — 문구 SSOT 를 enum 에 두는 R9-2 원칙). */-->
                         <div class="n-accordion-field">
-                            <dt>이전 경로</dt>
+                            <dt th:text="${drift.kind.oldPathLabel}">이전 경로</dt>
                             <dd>
                                 <code style="font-size: 11px; word-break: break-all;" th:text="${drift.oldPath}"></code>
                             </dd>
                         </div>
                         <div class="n-accordion-field" th:if="${drift.newPath != null}">
-                            <dt>새 경로</dt>
+                            <dt th:text="${drift.kind.newPathLabel}">새 경로</dt>
                             <dd>
                                 <code style="font-size: 11px; word-break: break-all; color: var(--n-color-primary);"
                                       th:text="${drift.newPath}"></code>
@@ -306,6 +320,23 @@
                                     th:title="${!resolutionEnabled} ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.' : null">현재 내용을 정본으로 수용</button>
                         </div>
                     </form>
+                    <!--/* HF4-5 — 자원 중복 존재 : 택일(원본|복제본) 해소. 사용자 입력(survivor) 동반이라
+                         표준 [적용] 계약과 분리된 전용 폼 (HASH_MISMATCH 전용 폼 선례 — 소비처 1곳 kind 직접 비교).
+                         radio 택일은 list.js 의 dupResolve 모달이 담당 — 기본 선택은 항상 원본(DB 기록 경로). */-->
+                    <form class="n-form-actions"
+                          th:if="${drift.kind.name() == 'RESOURCE_DUPLICATED'}"
+                          method="post"
+                          th:action="@{/maintenance/reconciliation/drifts/{driftId}/resolve-duplicate(driftId=${drift.id})}"
+                          data-duplicate-resolve=""
+                          data-async-submit=""
+                          th:data-original-path="${drift.oldPath}"
+                          th:data-duplicate-path="${drift.newPath}"
+                          th:data-resource-label="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">
+                        <input type="hidden" name="survivor" value="ORIGINAL">
+                        <button type="submit" class="n-btn n-btn-primary"
+                                th:disabled="${!resolutionEnabled}"
+                                th:title="${!resolutionEnabled} ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.' : null">둘 중 하나 선택해 해소</button>
+                    </form>
                 </div>
             </th:block>
         </div>
@@ -334,6 +365,8 @@
 <div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 <!-- R9-3 — Deep 스캔 / 마커 서명 재발급 확인용 정적 generic modal (페이지 액션 — lazy endpoint 의 자원 시그니처와 무관). -->
 <div th:replace="~{fragments/maintenance/reconciliation-modals :: genericConfirmModal('reconConfirm')}"></div>
+<!-- HF4-5 — 자원 중복 해소 택일 modal (radio 2택일, 기본 선택 = 원본). 표준 id 규약(prefix=dupResolve). -->
+<div th:replace="~{fragments/maintenance/reconciliation-modals :: duplicateResolveModal}"></div>
 
 <!--
   Miller 컬럼 상호작용은 os-list.js (data-os-key / data-os-id 일반화) 를 그대로 재사용.

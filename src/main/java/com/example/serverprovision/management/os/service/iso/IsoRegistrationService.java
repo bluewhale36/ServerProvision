@@ -122,6 +122,12 @@ public class IsoRegistrationService {
 		// S3 — allowlist 검증
 		Path target = pathPolicyService.assertWritablePath(resolvedPath);
 
+		// HF4-3 (F-4) — 대상이 기존 디렉토리면 저장 자체가 불가능한 입력. 방치하면 storeUploadedFile 의
+		// Files.copy IOException → ISOFileStorageException(500) 으로 새므로 필드 직결 400 으로 선판정한다.
+		if (Files.isDirectory(target)) {
+			throw new IsoPathIsDirectoryException(resolvedPath);
+		}
+
 		isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(osMetadataId, resolvedPath)
 				.ifPresent(existing -> {
 					throw new IsoUploadIntentConflictException("같은 경로에 이미 등록된 ISO 가 있습니다 : " + existing.getIsoPath());

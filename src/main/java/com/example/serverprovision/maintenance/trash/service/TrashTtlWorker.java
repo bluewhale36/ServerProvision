@@ -47,11 +47,18 @@ public class TrashTtlWorker {
 			log.debug("[trash:ttl] auto_purge_enabled=false — purgeExpired skip");
 			return;
 		}
-		Instant threshold = Instant.now().minus(settingsService.getTtl());
+		Instant now = Instant.now();
+		Duration ttl = settingsService.getTtl();
+		Instant threshold = now.minus(ttl);
 		int totalAttempted = 0;
 		int totalSuccess = 0;
 		for (MarkableInventory scanner : scanners) {
-			List<Markable> expired = scanner.findTrashedBefore(threshold);
+			// HF4-1 D4 — findTrashedBefore 는 trashed_at 기준 넓은 후보 조회 유지. ttl_extension_days
+			// 가산분은 SQL 로 옮기지 않고(4 repository 방언 의존 date 연산 중복 회피) entity 의 만료
+			// SSOT(trashExpiresAt)로 Java 재검증 — 연장된 행을 purge 대상에서 제외한다.
+			List<Markable> expired = scanner.findTrashedBefore(threshold).stream()
+					.filter(m -> isExpired(m, ttl, now))
+					.toList();
 			if (expired.isEmpty()) continue;
 			log.info(
 					"[trash:ttl] type={} expired count={} threshold={}",
@@ -84,6 +91,19 @@ public class TrashTtlWorker {
 		if (totalAttempted > 0) {
 			log.info("[trash:ttl] 자동 영구삭제 완료. attempted={} success={}", totalAttempted, totalSuccess);
 		}
+	}
+
+	/**
+	 * HF4-1 — 만료 확정 판정. {@link com.example.serverprovision.global.entity.LifecycleEntity#trashExpiresAt(Duration)}
+	 * SSOT 로 연장 가산분 반영 — 연장으로 만료 미도래인 행은 purge 제외.
+	 */
+	private boolean isExpired(Markable m, Duration ttl, Instant now) {
+		if (!(m instanceof com.example.serverprovision.global.entity.LifecycleEntity lifecycle)) {
+			// LifecycleEntity 가 아닌 Markable 은 연장 개념이 없다 — 후보 조회(trashed_at 기준) 결과 그대로 만료.
+			return true;
+		}
+		Instant expiresAt = lifecycle.trashExpiresAt(ttl);
+		return expiresAt != null && !expiresAt.isAfter(now);
 	}
 
 	/**

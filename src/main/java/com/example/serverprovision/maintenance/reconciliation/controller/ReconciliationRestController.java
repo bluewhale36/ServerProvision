@@ -28,6 +28,7 @@ public class ReconciliationRestController {
 	private final PathReconciliationService reconciliationService;
 	private final com.example.serverprovision.maintenance.reconciliation.service.recheck.DriftRecheckService driftRecheckService;
 	private final com.example.serverprovision.maintenance.reconciliation.service.HashAcceptService hashAcceptService;
+	private final com.example.serverprovision.maintenance.reconciliation.service.DuplicateResolveService duplicateResolveService;
 
 	/**
 	 * 가장 최근 보고서 1 건. 한번도 스캔된 적 없으면 204.
@@ -113,6 +114,22 @@ public class ReconciliationRestController {
 			@PathVariable Long driftId,
 			@org.springframework.web.bind.annotation.RequestParam String typedName) {
 		return java.util.Map.of("jobId", hashAcceptService.triggerAccept(driftId, typedName));
+	}
+
+	/**
+	 * HF4-5 — [자원 중복 존재] 택일 해소 : 남길 쪽(survivor)을 받아 나머지를 파일시스템에서 삭제한다.
+	 * 사용자 입력을 동반하는 해결의 전용 endpoint 선례(accept-hash) — 응답은 표준 apply 계약(redirect+flash,
+	 * JS 는 async 제출 + 토스트). survivor 는 enum 바인딩이라 잘못된 값은 framework 가 400 으로 거절한다.
+	 */
+	@PostMapping("/drifts/{driftId}/resolve-duplicate")
+	public RedirectView resolveDuplicate(
+			@PathVariable Long driftId,
+			@RequestParam("survivor") com.example.serverprovision.maintenance.reconciliation.service.DuplicateSurvivor survivor,
+			RedirectAttributes redirectAttributes
+	) {
+		duplicateResolveService.resolve(driftId, survivor);
+		redirectAttributes.addFlashAttribute("flashMessage", "자원 중복을 해소했습니다");
+		return new RedirectView("/maintenance/reconciliation");
 	}
 
 	@PostMapping("/drifts/{driftId}/dismiss")

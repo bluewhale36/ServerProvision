@@ -80,7 +80,10 @@
                     <label class="n-label" for="description">설명 (선택)</label>
                     <textarea id="description" th:field="*{description}"
                               class="n-textarea" rows="3"
-                              data-error-field="description"></textarea>
+                              data-error-field="description"
+                              th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"></textarea>
+                    <div class="n-error" th:if="${#fields.hasErrors('description')}"
+                         th:errors="*{description}"></div>
                 </div>
 
                 <div class="n-form-actions">

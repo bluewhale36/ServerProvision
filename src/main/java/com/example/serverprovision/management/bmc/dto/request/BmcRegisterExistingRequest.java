@@ -16,8 +16,9 @@ public record BmcRegisterExistingRequest(
 		@Size(max = 64, message = "버전은 64자 이하로 입력해주세요.")
 		String version,
 
+		// HF4-2 — legacy 컬럼 file_path VARCHAR(255) NOT NULL 미러링 때문에 255 로 정렬 (BmcCreateRequest 동일).
 		@NotBlank(message = "기존 디렉토리 경로를 입력해주세요.")
-		@Size(max = 1024, message = "경로는 1024자 이하로 입력해주세요.")
+		@Size(max = 255, message = "경로는 255자 이하로 입력해주세요.")
 		String targetDirectory,
 
 		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")

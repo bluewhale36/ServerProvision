@@ -232,9 +232,40 @@
         });
     }
 
+    // HF4-5 — [자원 중복 존재] 택일 해소 : 정적 dupResolve 모달(radio 2택일)에서 남길 쪽을 고르고
+    // form 의 hidden survivor 를 채워 async 제출한다. 열릴 때마다 기본 선택을 원본(DB 기록 경로)으로
+    // 리셋 — 이전 열람의 선택이 잔존해 실수로 원본이 삭제되는 사고를 막는다 (사용자 결정 ③).
+    function bindDuplicateResolveForms() {
+        if (!window.ConfirmModal) return;
+        ConfirmModal.bindFormSubmit('data-duplicate-resolve', form => {
+            ConfirmModal.open('dupResolve', {
+                title: '자원 중복 해소',
+                message: (form.getAttribute('data-resource-label') || '이 자원')
+                    + ' 이(가) 두 위치에 존재합니다. 남길 위치를 선택하세요 — 선택하지 않은 쪽 파일은 삭제됩니다.',
+                confirmLabel: '선택 적용',
+                confirmClass: 'n-btn-outline-danger',
+                afterOpen: () => {
+                    const origEl = document.getElementById('dupResolveOriginalPath');
+                    const dupEl = document.getElementById('dupResolveDuplicatePath');
+                    if (origEl) origEl.textContent = form.getAttribute('data-original-path') || '';
+                    if (dupEl) dupEl.textContent = form.getAttribute('data-duplicate-path') || '';
+                    document.querySelectorAll('input[name="dupResolveSurvivor"]')
+                        .forEach(r => { r.checked = (r.value === 'ORIGINAL'); });
+                    return null;
+                },
+                onConfirm: () => {
+                    const chosen = document.querySelector('input[name="dupResolveSurvivor"]:checked');
+                    form.querySelector('input[name="survivor"]').value = chosen ? chosen.value : 'ORIGINAL';
+                    ConfirmModal.approveAndSubmit(form);
+                }
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         bindRecheckButtons();
         bindAcceptHashForms();
+        bindDuplicateResolveForms();
         ['scanBtn', 'scanDeepBtn', 'reissueBtn'].forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.addEventListener('click', () => trigger(btn));
@@ -266,6 +297,9 @@
                     sessionStorage.setItem(TOAST_KEY, '드리프트를 적용했습니다.');
                 } else if (form && form.hasAttribute('data-confirm-drift-dismiss')) {
                     sessionStorage.setItem(TOAST_KEY, '드리프트 보고를 닫았습니다.');
+                } else if (form && form.hasAttribute('data-duplicate-resolve')) {
+                    // HF4-5 — 택일 해소 성공. 어느 갈래였는지는 서버 [AUDIT] 로그가 보존.
+                    sessionStorage.setItem(TOAST_KEY, '자원 중복을 해소했습니다.');
                 }
                 window.location.reload();
             },

@@ -372,6 +372,134 @@ class PathReconciliationServiceTest {
         assertThat(report.getDrifts()).isEmpty();
     }
 
+    // ==== HF4-5 — RESOURCE_DUPLICATED 탐지 시나리오 ========================
+
+    @Test
+    @DisplayName("HF4-5 : 원본 정상 + 동일 신원 사본 → RESOURCE_DUPLICATED (원본=oldPath, 사본=newPath)")
+    void scan_resourceDuplicated(@TempDir Path tmp) throws Exception {
+        Path iso = tmp.resolve("dvd.iso");
+        Files.writeString(iso, "fake-iso");
+        writeMarker(iso, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Path copy = tmp.resolve("backup_dvd.iso");
+        Files.writeString(copy, "fake-iso");
+        writeMarker(copy, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Markable m = isoAt(42L, iso);
+        given(m.displayName()).willReturn("Rocky dvd.iso");
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+            assertThat(d.getKind()).isEqualTo(DriftKind.RESOURCE_DUPLICATED);
+            assertThat(d.getOldPath()).isEqualTo(iso.toString());
+            assertThat(d.getNewPath()).isEqualTo(copy.toString());
+            // R9-5 관례 — 스캔 시점 실명 스냅샷 동반
+            assertThat(d.getDisplayName()).isEqualTo("Rocky dvd.iso");
+        });
+    }
+
+    @Test
+    @DisplayName("HF4-5 : 사본 2개 → 사본 경로당 1건씩 2건 (plan D2 — N지선다 아님)")
+    void scan_resourceDuplicated_multipleCopies(@TempDir Path tmp) throws Exception {
+        Path iso = tmp.resolve("dvd.iso");
+        Files.writeString(iso, "fake-iso");
+        writeMarker(iso, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Path copy1 = tmp.resolve("backup1_dvd.iso");
+        Files.writeString(copy1, "fake-iso");
+        writeMarker(copy1, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Path copy2 = tmp.resolve("backup2_dvd.iso");
+        Files.writeString(copy2, "fake-iso");
+        writeMarker(copy2, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Markable m = isoAt(42L, iso);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDrifts()).hasSize(2).allSatisfy(d -> {
+            assertThat(d.getKind()).isEqualTo(DriftKind.RESOURCE_DUPLICATED);
+            assertThat(d.getOldPath()).isEqualTo(iso.toString());
+        });
+        assertThat(saved.getDrifts()).extracting(Drift::getNewPath)
+                .containsExactlyInAnyOrder(copy1.toString(), copy2.toString());
+    }
+
+    @Test
+    @DisplayName("HF4-5 판정 순서 : 원본 소실 + 사본 존재 → 기존 PATH_DRIFT 유지, RESOURCE_DUPLICATED 미발동 (plan D1)")
+    void scan_originalLost_staysPathDrift(@TempDir Path tmp) throws Exception {
+        Path oldIso = tmp.resolve("old/dvd.iso"); // DB 경로 — 파일도 마커도 없음
+        Files.createDirectories(oldIso.getParent());
+        Path copy = tmp.resolve("new/dvd.iso");
+        Files.createDirectories(copy.getParent());
+        Files.writeString(copy, "fake-iso");
+        writeMarker(copy, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Markable m = isoAt(42L, oldIso);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDrifts()).singleElement()
+                .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.PATH_DRIFT));
+    }
+
+    @Test
+    @DisplayName("HF4-5 판정 순서 : 원본 본체 부재(자체 드리프트) → MISSING 우선, 중복 미보고 (완전 정상 조건)")
+    void scan_unhealthyOriginal_suppressesDuplicate(@TempDir Path tmp) throws Exception {
+        Path iso = tmp.resolve("dvd.iso");
+        writeMarker(iso, MarkerLayout.SIDECAR, 42L, "hash-abc"); // 마커만 — 본체 없음
+        Path copy = tmp.resolve("backup_dvd.iso");
+        Files.writeString(copy, "fake-iso");
+        writeMarker(copy, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Markable m = isoAt(42L, iso);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDrifts()).singleElement()
+                .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.MISSING));
+    }
+
+    @Test
+    @DisplayName("HF4-5 : 마커만 복사된 사본(본체 없음)은 미보고 — 알려진 한계의 의도 고정 (plan §8)")
+    void scan_markerOnlyCopy_ignored(@TempDir Path tmp) throws Exception {
+        Path iso = tmp.resolve("dvd.iso");
+        Files.writeString(iso, "fake-iso");
+        writeMarker(iso, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Path copy = tmp.resolve("backup_dvd.iso");
+        writeMarker(copy, MarkerLayout.SIDECAR, 42L, "hash-abc"); // 사본 마커만 — 본체 없음
+        Markable m = isoAt(42L, iso);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDriftCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("HF4-5 : RESOURCE_DUPLICATED 는 표준 [적용] 불가 (mode=NONE — 택일 전용 endpoint 로만 해소)")
+    void apply_rejectsResourceDuplicated() {
+        DriftReport report = DriftReport.builder()
+                .scannedAt(Instant.now()).scanDurationMs(0).deep(false).totalChecked(1).build();
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L)
+                .kind(DriftKind.RESOURCE_DUPLICATED)
+                .oldPath("/opt/dvd.iso").newPath("/opt/backup_dvd.iso")
+                .detectedAt(Instant.now()).build();
+        report.addDrift(drift);
+        ReflectionTestUtils.setField(drift, "id", 1L);
+        given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
+
+        assertThatThrownBy(() -> service.apply(1L))
+                .isInstanceOf(DriftResolutionNotAllowedException.class)
+                .hasMessageContaining("자원 중복 존재");
+        assertThat(report.getDrifts()).hasSize(1); // 카드 유지
+    }
+
     private DriftReport captureSavedReport() {
         var captor = org.mockito.ArgumentCaptor.forClass(DriftReport.class);
         verify(driftReportRepository).save(captor.capture());
@@ -940,5 +1068,83 @@ class PathReconciliationServiceTest {
         verify(backgroundJobService, never()).register(
                 org.mockito.ArgumentMatchers.eq(com.example.serverprovision.global.job.enums.JobType.PATH_RECONCILIATION),
                 anyString(), anyString(), org.mockito.ArgumentMatchers.<List<String>>any());
+    }
+
+    // ==== HF4-4 — 탐지 건수 스냅샷 =================================================
+
+    @Test
+    @DisplayName("HF4-4 : 스캔 저장 시 탐지 건수가 스냅샷되고, 해결(removeDrift) 후에도 불변")
+    void scan_snapshotsDetectedDriftCount(@TempDir Path tmp) {
+        // 마커가 어디에도 없는 자원 1건 → MISSING drift 1건 탐지
+        Markable m = isoAt(42L, tmp.resolve("dvd.iso"));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDetectedDriftCount()).isEqualTo(1);
+        assertThat(saved.getDriftCount()).isEqualTo(1);
+
+        // 해결 재현 — 미해결 잔수만 줄고 탐지 스냅샷은 역사적 사실로 남는다
+        saved.removeDrift(saved.getDrifts().iterator().next());
+        assertThat(saved.getDriftCount()).isZero();
+        assertThat(saved.getDetectedDriftCount()).isEqualTo(1);
+        assertThat(saved.getDetectedDriftCountForDisplay()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("HF4-4 : 응답 매핑 — 신행은 해결 후에도 탐지 스냅샷 그대로 (탐지 2 · 미해결 1)")
+    void latestReport_mapsDetectedSnapshotDistinctFromRemaining() {
+        DriftReport report = DriftReport.builder()
+                .scannedAt(Instant.now()).scanDurationMs(100).deep(false).totalChecked(5).build();
+        Drift d1 = Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(1L).kind(DriftKind.MISSING)
+                .oldPath("/a").detectedAt(Instant.now()).build();
+        Drift d2 = Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(2L).kind(DriftKind.MISSING)
+                .oldPath("/b").detectedAt(Instant.now()).build();
+        report.addDrift(d1);
+        report.addDrift(d2);
+        report.removeDrift(d1); // 1건 해결 재현
+        given(driftReportRepository.findFirstByOrderByScannedAtDesc()).willReturn(Optional.of(report));
+
+        var response = service.latestReport().orElseThrow();
+
+        assertThat(response.detectedDriftCount()).isEqualTo(2);
+        assertThat(response.driftCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("HF4-4 : 구행(스냅샷 0·잔존 3) 표시 대체 — 탐지 자리를 미해결 수로 (backfill 없는 도입 이전 행 호환)")
+    void legacyRow_detectedCountFallsBackToRemaining() {
+        DriftReport report = DriftReport.builder()
+                .scannedAt(Instant.now()).scanDurationMs(100).deep(false).totalChecked(5).build();
+        for (long id = 1; id <= 3; id++) {
+            report.addDrift(Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(id)
+                    .kind(DriftKind.MISSING).oldPath("/x" + id).detectedAt(Instant.now()).build());
+        }
+        // 도입 이전 저장 행 재현 — DB 컬럼 default 0 (JPA 하이드레이션은 addDrift 를 타지 않는다)
+        ReflectionTestUtils.setField(report, "detectedDriftCount", 0);
+        given(driftReportRepository.findFirstByOrderByScannedAtDesc()).willReturn(Optional.of(report));
+
+        assertThat(report.getDetectedDriftCountForDisplay()).isEqualTo(3);
+        var response = service.latestReport().orElseThrow();
+        assertThat(response.detectedDriftCount()).isEqualTo(3);
+        assertThat(response.driftCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("HF4-4 : saga 임시 보고서(persistAndForcedApply)도 탐지 1건 자동 스냅샷 (addDrift 내부화 검증)")
+    void persistAndForcedApply_snapshotsDetectedCount(@TempDir Path tmp) {
+        Path newPath = tmp.resolve("new.iso");
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
+                .oldPath("/old").newPath(newPath.toString()).detectedAt(Instant.now()).build();
+        // mock save 는 실 영속화가 아니라 drift id 가 null — forced apply 의 findById 를 그대로 매칭
+        given(driftRepository.findById(any())).willReturn(Optional.of(drift));
+
+        service.persistAndForcedApply(drift);
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getDetectedDriftCount()).isEqualTo(1);
+        assertThat(saved.getDrifts()).isEmpty(); // forced apply 가 제거 — 스냅샷만 남는다
     }
 }
