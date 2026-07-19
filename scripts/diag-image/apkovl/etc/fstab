@@ -1,0 +1,2 @@
+# diskless — 오버레이 적용에 필수(빈 파일이면 lbu 형식이 깨진다). 실 마운트는 없다.
+none / tmpfs defaults 0 0

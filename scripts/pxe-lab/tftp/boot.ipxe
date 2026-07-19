@@ -1,0 +1,7 @@
+#!ipxe
+# T2 랩 진입 스크립트 — QEMU 내장 iPXE ROM 이 내장 TFTP 로 받아 실행한다(run-guest.sh 가 @PORT@ 치환).
+# 실배포에서는 같은 파일이 dhcpd→tftp 체인의 진입 스크립트가 된다(E1-I 소관 — 호스트 주소만 다름).
+# ${uuid}/${net0/mac}/${net0/ip} 는 iPXE 내장 변수, ${manufacturer}/${product} 는 SMBIOS 값
+# (랩에서는 run-guest.sh 의 -smbios 주입값 = 카탈로그 보드 재현).
+dhcp
+chain http://10.0.2.2:@PORT@/api/pxe/v1/boot?systemUUID=${uuid}&macAddress=${net0/mac}&ipAddress=${net0/ip}&vendor=${manufacturer}&boardModel=${product}

@@ -55,3 +55,8 @@ redfish_materials/
 redfish_materials/*
 **/BiosAttributeRegistry_*.json
 **/SetupData_*.xml
+
+# Obsidian Vault
+.obsidian/
+# E1-1 — 진단 리눅스 부분 apk 저장소 서명 키 (개인키 — 커밋 금지. build-assets.sh repo 단계가 생성)
+scripts/diag-image/keys/

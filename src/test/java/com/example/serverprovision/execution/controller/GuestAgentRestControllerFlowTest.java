@@ -47,13 +47,29 @@ class GuestAgentRestControllerFlowTest {
     // ==== 성공 2xx ====================================================
 
     @Test
-    @DisplayName("POST /agent/checkin — 200 + 지시 골격(WAIT)")
+    @DisplayName("POST /agent/checkin — 200 + 지시 골격(WAIT) + 배너용 서버명(E1-1, DEC-33)")
     void checkin_returnsDirective() throws Exception {
-        given(agentReportService.checkin(TOKEN)).willReturn(new AgentCheckinResponse(AgentDirective.WAIT));
+        given(agentReportService.checkin(TOKEN))
+                .willReturn(new AgentCheckinResponse(AgentDirective.WAIT, "rack-a-03"));
 
         mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.directive").value("WAIT"));
+                .andExpect(jsonPath("$.directive").value("WAIT"))
+                .andExpect(jsonPath("$.serverName").value("rack-a-03"));
+    }
+
+    @Test
+    @DisplayName("POST /agent/steps — DIAGNOSTIC_BOOTING(E1-1 신규 상수) 역직렬화 + 201")
+    void openStep_diagnosticBooting_returns201() throws Exception {
+        UUID stepId = UUID.randomUUID();
+        given(agentReportService.openStep(TOKEN, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING))
+                .willReturn(new StepOpenResponse(stepId));
+
+        mvc.perform(post("/api/pxe/v1/agent/steps").header("X-Guest-Token", TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"stepCode\":\"DIAGNOSTIC_BOOTING\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.stepId").value(stepId.toString()));
     }
 
     @Test

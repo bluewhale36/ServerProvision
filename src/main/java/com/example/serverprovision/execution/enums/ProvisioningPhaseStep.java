@@ -17,6 +17,11 @@ public enum ProvisioningPhaseStep {
     INIT_PERSISTING(ProvisioningPhase.BOOTSTRAPPING),
 
     /**
+     * 진단 리눅스가 게스트에서 실제 부팅되어 에이전트가 기동한 단계(E1-1) — "체인로드를 줬다"(서버 관점)와
+     * "진짜 부팅됐다"(게스트 사실)를 원장에서 구분하는 부팅 마일스톤. agent.sh 가 체크인 직후 보고한다.
+     */
+    DIAGNOSTIC_BOOTING(ProvisioningPhase.DIAGNOSE_LINUX),
+    /**
      * {@code dmidecode} 등의 명령으로 메인보드 시리얼번호 등의 2차 정보를 수집하는 단계.
      */
     INFORMATION_COLLECTING(ProvisioningPhase.DIAGNOSE_LINUX),

@@ -1,0 +1,7 @@
+# 진단 리눅스 네트워크 — 격리망 DHCP. initramfs 의 ip=dhcp 는 초기 fetch 용이고,
+# 실체계(switch_root 이후)의 networking 서비스가 이 파일로 다시 구성한다(firstboot 의 need net 충족).
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp

@@ -1,0 +1,37 @@
+#!/sbin/openrc-run
+# 진단 리눅스 firstboot (E1-1) — 얇은 bootstrap 만 담당한다: BMC 모듈 적재 + 에이전트 다운로드 · 기동.
+# 에이전트 본체(agent.sh)는 apkovl 에 동봉하지 않고 HTTP 로 받는다 — 수정이 가방 재조립 없이
+# 파일 교체로 끝나게(E1-R 권고 1안). 커널 인자 계약: provision_base / provision_token.
+
+description="provision diagnose-linux bootstrap"
+
+depend() {
+    need net
+    after firewall
+}
+
+start() {
+    ebegin "provision firstboot"
+    # BMC 로컬 통신 모듈 (E1-2 ipmitool 수집 준비) — 실패해도 부팅은 계속(V3 는 실보드 확인 항목)
+    modprobe ipmi_devintf 2>/dev/null || true
+    modprobe ipmi_si 2>/dev/null || true
+
+    base=$(sed -n 's/.*provision_base=\([^ ]*\).*/\1/p' /proc/cmdline)
+    if [ -z "$base" ]; then
+        eerror "provision_base 커널 인자가 없다 — 체인로드 스크립트(DiagnoseLinuxExecutor)와의 계약 위반"
+        eend 1
+        return 1
+    fi
+
+    # BusyBox wget (V4) — 에이전트 본체 다운로드. 실패 시 재시도는 다음 재부팅 폴링에 맡긴다.
+    if ! wget -q -O /usr/local/bin/agent.sh "$base/api/pxe/v1/assets/agent.sh"; then
+        eerror "agent.sh 다운로드 실패: $base"
+        eend 1
+        return 1
+    fi
+    chmod +x /usr/local/bin/agent.sh
+
+    # 배너가 보이도록 콘솔(tty1)로 출력을 보낸다 (DEC-33)
+    /usr/local/bin/agent.sh >/dev/tty1 2>&1 &
+    eend 0
+}

@@ -56,7 +56,7 @@ public class AgentReportService {
             progress.advanceTo(ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now());
             log.info("게스트 첫 체크인 — 진단 진입 : guestServerId={}", server.getId());
         }
-        return new AgentCheckinResponse(AgentDirective.WAIT);
+        return new AgentCheckinResponse(AgentDirective.WAIT, server.getName());
     }
 
     /** step 시작 보고 — RUNNING 행을 열고 종료 보고가 바인딩할 행 식별자를 돌려준다(DEC-3). */

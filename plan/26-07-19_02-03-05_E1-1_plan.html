@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-1 Plan — 진단 리눅스 부팅 체인</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .chip.asset{background:var(--purple-bg);color:var(--purple);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row .label { flex:1; min-width:120px; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .badge.blue { background:var(--blue-bg); color:var(--blue); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .script-view { font-family:var(--mono); font-size:12px; background:#1b1f24; color:#7ce38b; border-radius:6px; padding:12px 14px; margin-top:10px; white-space:pre; overflow-x:auto; min-height:88px; }
+  .script-view .cm { color:#8b949e; }
+  .console-view { font-family:var(--mono); font-size:12px; background:#0d1117; color:#c9d1d9; border-radius:6px; padding:12px 14px; margin-top:10px; white-space:pre; overflow-x:auto; min-height:120px; max-height:340px; overflow-y:auto; }
+  .console-view .ok { color:#7ce38b; } .console-view .warn { color:#e3b341; } .console-view .err { color:#ff7b72; }
+  .console-view .banner { color:#79c0ff; font-weight:700; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .seq{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-1 — 진단 리눅스 부팅 체인 <span class="v2-badge">HOLD 가 실전 체인로드로 바뀐다</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-1 (feature + 실물 자산)</span>
+    <span><strong>상위</strong> E1 (DIAGNOSE_LINUX)</span>
+    <span><strong>scope</strong> 첫 phase 실행기(DiagnoseLinuxExecutor) + Alpine 진단 리눅스 실물 자산 제작 + 앱 자산 서빙 + QEMU 랩(T2) + 콘솔 식별 배너(DEC-33) + T3 체크리스트</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+    <span><strong>선행</strong> E1-0b 완료(2026-07-18) · E1-R 종결 · 유스케이스 토론 종결(DEC-29~35)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (부팅 체인 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 + 자산 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">E1-0b 가 게스트↔서버 프로토콜 v1(dispatch 매트릭스 · 토큰 · 체크인 · 보고)을 열었다. 그러나 <b>실행기 구현체가 0개</b>라, 개시된 서버는 지금 전부 dispatch 6행 <b>HOLD</b>("phase DIAGNOSE_LINUX not implemented yet")를 받는다. 게스트는 아직 진단 리눅스로 부팅하지 못한다.</p>
+        <table>
+          <thead><tr><th>자산</th><th>있음 (E1-0b 까지)</th><th>비어 있음 (이 슬라이스가 채움)</th></tr></thead>
+          <tbody>
+            <tr><td>dispatch 7행 (실행기 위임)</td><td>SPI(<code>ProvisioningPhaseExecutor</code>) + registry + HOLD 폴백</td><td><b>구현체 0</b> — <code>DiagnoseLinuxExecutor</code> 가 첫 실물</td></tr>
+            <tr><td>진단 리눅스</td><td>E1-R 조사로 방식 확정(공식 netboot + apkovl + 부분 apk 저장소 + agent HTTP 다운로드)</td><td><b>실물 파일이 하나도 없다</b> — 아티팩트 · apkovl · agent.sh · 조립 스크립트 전부 미제작</td></tr>
+            <tr><td>자산 서빙</td><td><code>pxe.server.base-url</code> 설정 키만 존재(빈 default)</td><td><b>서빙 경로 없음</b> — 게스트가 커널/모듈/오버레이를 받을 HTTP 엔드포인트 부재</td></tr>
+            <tr><td>토큰 전달</td><td>발급 · 저장 · 헤더 인증 완비</td><td><b>게스트로 가는 운반로 없음</b> — 커널 인자 동봉은 체인로드 스크립트(이번) 몫</td></tr>
+            <tr><td>검증 환경</td><td>T0(계약) + T1(하네스 curl)</td><td><b>T2 없음</b> — 가상 게스트로 실부팅을 확인할 QEMU 랩 부재. E1-R 잔여 검증 V2·V4·V5·V6·V7·V9 미수행</td></tr>
+            <tr><td>물리 식별(DEC-33)</td><td>—</td><td>게스트 화면에 자기 식별 정보를 표시하는 배너 없음(UC-5)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>핵심 진단</b> — 이 슬라이스는 코드 반, 실물 자산 반이다. 유스케이스 토론(Q-A)에서 "E1-1 먼저 + 인프라 실물 자산은 E1-1 안에서 제작" 으로 확정했다. 코드(실행기 · 서빙)는 얇고, 무게 중심은 <b>자산 조립 파이프라인과 QEMU 랩</b>이다 — E 로드맵 전체에서 처음으로 "게스트가 진짜 리눅스로 살아난다".</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>DiagnoseLinuxExecutor</b> — 첫 <code>ProvisioningPhaseExecutor</code> 구현체(DIAGNOSE_LINUX). <code>bootScript()</code> 가 Alpine netboot 체인로드 iPXE 스크립트를 조립한다: kernel/initrd/modloop/apkovl/alpine_repo 절대 URL(<code>pxe.server.base-url</code> 기반) + <code>provision_token=</code>(E1-0b 예고분) + <code>provision_base=</code>(에이전트 콜백 주소) + EFI 용 <code>initrd=</code> 중복 명기(E1-R V 사실) + 로드 실패 시 재시도 폴백.</li>
+          <li><b>진단 리눅스 실물 자산 제작</b>(E1-R 확정안 = 관리 자산 6종) — ① vmlinuz-lts ② initramfs-lts ③ modloop-lts(공식 netboot 그대로) ④ <code>diag.apkovl.tar.gz</code>(firstboot OpenRC + <code>/etc/apk/world</code> + 부분 저장소 공개키) ⑤ 부분 apk 저장소(dmidecode · ipmitool + 의존성, 자체 서명) ⑥ <code>agent.sh</code>(체크인 + <b>콘솔 식별 배너 DEC-33</b>). 대용량 산출물은 git 비추적 — <b>조립 스크립트만 git 추적</b>(재현 가능성이 자산).</li>
+          <li><b>앱 자산 서빙</b> — <code>/api/pxe/v1/assets/**</code> 를 <code>pxe.assets.root</code> 디렉토리에 매핑(Spring resource handler — §8 Q1). <code>pxe.assets.root</code> 미설정 환경에서는 실행기 빈이 생성되지 않아 <b>기존 HOLD 동작이 그대로 유지</b>된다(§8 Q2).</li>
+          <li><b>agent.sh v1 (E1-1 임무 한정)</b> — <code>/proc/cmdline</code> 에서 토큰 · base URL 파싱 → <code>modprobe ipmi_devintf ipmi_si</code>(E1-2 준비, 실패 무해) → 체크인(전이 신호) → <code>DIAGNOSTIC_BOOTING</code> step open/close 보고(부팅 마일스톤 원장) → <b>콘솔 배너 출력</b>(서버명 · systemUUID 끝 12자 · IP — UC-5) → WAIT 폴링 루프. 수집 · 보고 본체는 E1-2.</li>
+          <li><b><code>DIAGNOSTIC_BOOTING</code> step 상수 추가</b> — "진단 리눅스가 실제로 부팅됐다" 는 원장 마일스톤(E1-0b plan §11 예고분). <code>ProvisioningPhaseStep</code> 에 DIAGNOSE_LINUX 소속으로 추가.</li>
+          <li><b>체크인 응답에 서버명 동봉</b> — <code>AgentCheckinResponse</code> 에 <code>serverName</code> 추가(배너의 유일한 서버측 정보 — §8 Q3).</li>
+          <li><b>QEMU 랩(T2) git 추적 자산</b> — <code>scripts/pxe-lab/</code>: QEMU 내장 iPXE ROM + user-mode 네트워킹 내장 DHCP/TFTP 로 실 dhcpd 없이 부팅 체인 재현(§4). macOS 는 TCG 부팅 스모크까지(E1-R 포인트 2 확정). E1-R 잔여 검증 <b>V2 · V4 · V5 · V6 · V7 · V9</b> 를 이 랩에서 수행.</li>
+          <li><b><code>docs/T3-checklist.md</code> 생성</b>(DEC-35 · Q-C 확정) — V3 · V8 + Redfish 전원 제어 · BootSourceOverride · IndicatorLED + E2 flash · E3 실 BMC 초기 적립.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>수집 · 적재</b> — dmidecode 파싱 · GuestServerDetail 갱신 · 완주 판정(completedAt) · 운영자 수동 FAILED/재시도는 <b>E1-2</b>. agent.sh 의 수집 함수도 E1-2 에서 추가.</li>
+            <li><b>접촉 시각 기록(DEC-32)</b> — <b>E1-2 로 배정</b>(§8 Q4): 무보고 실패 대응(DEC-4 경과 표시)과 같은 관찰성 축이므로 그쪽에서 한 번에. 이번 슬라이스는 엔티티 · DDL 변경 0.</li>
+            <li><b>dhcpd · tftp 실배포 자산</b>(dhcpd.conf · tftp 의 ipxe.efi 배치) — <b>E1-I</b>. 이번 랩은 QEMU 내장 DHCP/TFTP 로 대체해 실 인프라 없이 검증한다. 외부 httpd 서빙 전환 여지도 E1-I 에서 판단.</li>
+            <li><b>회차 모델(DEC-29) · 재투입(DEC-30) · 중단(DEC-31)</b> — 별도 슬라이스(로드맵 위치 U3 전후 권고, 토론 §5).</li>
+            <li><b>RAID CLI 동봉(OPEN-1)</b> — E4 확정 전 조사. 진단 리눅스 자산 구조(부분 저장소)가 추후 패키지 추가를 수용하므로 지금 결정 불요.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 진단 리눅스 부팅 체인 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 데모는 E1-1 이후의 게스트 한살이를 재현한다. <b>「전원 인가」를 누른 뒤 「다음 →」로 부팅을 진행</b>시키면 검은 콘솔에 게스트 화면(iPXE → Alpine → 배너)이 흐른다. 왼쪽 토글로 <b>설정 · 상태 · 장애를 바꿔가며</b> dispatch 판정(6행 HOLD ↔ 7행 체인로드)과 로드 실패 폴백, 배너(UC-5)를 체험한다. 판정 로직은 서버 <code>BootScriptDispatcher</code> + <code>DiagnoseLinuxExecutor</code> 와 1:1 이다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">서버 설정 · 상태 :</span>
+            <label style="font-size:12px;"><input type="checkbox" id="opt-assets" checked onchange="simRender()"> <code>pxe.assets.root</code> 설정됨 (실행기 활성)</label>
+            <label style="font-size:12px;"><input type="checkbox" id="opt-started" onchange="simRender()"> 개시됨 (DEC-26)</label>
+            <label style="font-size:12px;"><input type="checkbox" id="opt-missing" onchange="simRender()"> 장애 주입: modloop 파일 누락 (404)</label>
+            <button class="n-demo-btn" style="border-color:var(--text-muted);color:var(--text-muted);" onclick="simReset()">⟲ 리셋</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">게스트 :</span>
+            <span id="b-power"></span><span id="b-next"></span>
+          </div>
+
+          <div class="ux-row">
+            <strong>guest-01</strong>
+            <span class="label" style="font-family:var(--mono);font-size:12px;" id="sim-state"></span>
+            <span id="sim-badge" class="badge off">—</span>
+          </div>
+
+          <div class="console-view" id="sim-console"><span class="cm"># 게스트 화면 — 「전원 인가」를 눌러 시작</span></div>
+          <div class="script-view" id="sim-script"><span class="cm"># /boot 가 반환한 스크립트 (마지막 호출분)</span></div>
+          <div class="ux-caps" id="sim-caps"></div>
+          <div class="ux-message" id="sim-message">개시 토글을 끈 채로 시작해보면 개시 대기(5행)에 머무는 것도 볼 수 있다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — <code>simDispatch()</code> = <code>BootScriptDispatcher</code> 판정 순서(회수·실패·종단 축은 E1-0b plan 시뮬레이터가 이미 다뤄 여기선 생략), 체인로드 스크립트 = <code>DiagnoseLinuxExecutor.bootScript()</code> 조립 결과, 부팅 진행 = Alpine diskless 순서(kernel→initramfs→modloop→apkovl→apk→agent), 배너 = agent.sh 출력 규격(DEC-33). 장애 주입 시 iPXE 가 재시도 폴백으로 떨어지는 것까지 서버 설계 그대로다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>채널</th><th>동작</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code></td><td>iPXE</td><td>dispatch 7행이 <b>실전</b>이 된다 — 개시 + 커서 DIAGNOSE_LINUX + 실행기 활성이면 체인로드 스크립트</td><td><span class="chip mod">실전화</span></td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/assets/**</code></td><td>iPXE · Alpine init · agent</td><td><code>pxe.assets.root</code> 디렉토리의 정적 서빙(vmlinuz · initramfs · modloop · apkovl · agent.sh · repo/**) — resource handler, 경로 이탈은 Spring 기본 가드</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/checkin</code></td><td>에이전트</td><td>응답에 <code>serverName</code> 동봉(배너용) — 전이 규약은 불변</td><td><span class="chip mod">응답 확장</span></td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/steps</code> · <code>…/close</code></td><td>에이전트</td><td>변경 0 — agent.sh 가 <code>DIAGNOSTIC_BOOTING</code> 을 실보고(첫 실사용)</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+        <h4>게스트 한살이 (E1-1 완성 후 — QEMU 랩과 실기가 공유하는 시퀀스)</h4>
+        <div class="seq">
+          <div class="actor a1">게스트 (iPXE → Alpine → agent)</div><div class="actor a2">앱 (dispatch · assets)</div><div class="actor a3">앱 (agent API)</div>
+          <div class="step a1"><code>GET /boot</code> (개시된 서버)</div><div class="step a2">7행 위임 → <code>DiagnoseLinuxExecutor.bootScript()</code> — 토큰 · URL 동봉 체인로드 스크립트</div><div class="step a3"></div>
+          <div class="step a1">kernel/initrd 로드 → Alpine init: modloop · apkovl fetch → apk 로 dmidecode · ipmitool 설치 → firstboot 가 agent.sh 다운로드 · 실행</div><div class="step a2"><code>/assets/**</code> 5~6회 응답 (vmlinuz · initramfs · modloop · apkovl · repo · agent.sh)</div><div class="step a3"></div>
+          <div class="step a1">agent: <code>/proc/cmdline</code> 파싱 → checkin</div><div class="step a2"></div><div class="step a3">첫 체크인 → <code>advanceTo(DIAGNOSE_LINUX)</code> + <code>serverName</code> 반환</div>
+          <div class="step a1">agent: <code>DIAGNOSTIC_BOOTING</code> open→close(SUCCEEDED) → <b>콘솔 배너 표시</b> → WAIT 폴링</div><div class="step a2"></div><div class="step a3">원장에 부팅 마일스톤 기록. 이후 지시(수집)는 E1-2</div>
+        </div>
+        <pre><code>커널 인자 계약 (DiagnoseLinuxExecutor ↔ agent.sh 의 SSOT — 둘 다 이 이름을 쓴다):
+  provision_token=&lt;32자&gt;      에이전트 인증 (X-Guest-Token 회신)
+  provision_base=&lt;base-url&gt;   에이전트 콜백 주소 (checkin · steps · agent.sh 재다운로드)
+  alpine_repo/modloop/apkovl  Alpine 공식 파라미터 — 전부 base-url 절대 URL (Alpine init 은 상대 URL 해석 불가)</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 + 자산 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 + 자산 (SSOT)</summary>
+      <div class="body">
+        <h4>DiagnoseLinuxExecutor — 첫 SPI 구현체</h4>
+        <pre><code>// execution/engine — 활성 조건: pxe.assets.root 설정 시에만 빈 생성(§8 Q2).
+// 미설정 환경 = registry 에 없음 = dispatch 6행 HOLD (기존 명시 동작 그대로 — 분기 추가 0).
+@Component
+@ConditionalOnProperty("pxe.assets.root")
+public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
+    // pxe.server.base-url 이 비어 있으면 기동 fail-fast (@PostConstruct) —
+    // 자산은 켰는데 콜백 주소가 없는 반쪽 설정을 조용히 허용하지 않는다.
+    public ProvisioningPhase phase() { return ProvisioningPhase.DIAGNOSE_LINUX; }
+    public String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery) { … }
+}</code></pre>
+        <p>스크립트 조립은 실행기 소유의 text block(E1-0b Q4 채택안 답습) — <code>IpxeScripts</code> 에 넣지 않는다. 공용 유틸에 phase 별 스크립트가 쌓이면 그것이 곧 조건분기 증식이다. 공용 5종(대기 계열)은 그대로 <code>IpxeScripts</code>, phase 전용 스크립트는 그 phase 실행기가 갖는다.</p>
+        <pre><code>#!ipxe
+echo [provision] chainloading diagnose linux...
+kernel {base}/api/pxe/v1/assets/vmlinuz-lts ip=dhcp modules=loop,squashfs console=tty0 \
+  alpine_repo={base}/api/pxe/v1/assets/repo/main \
+  modloop={base}/api/pxe/v1/assets/modloop-lts \
+  apkovl={base}/api/pxe/v1/assets/diag.apkovl.tar.gz \
+  provision_token={token} provision_base={base} initrd=initramfs-lts || goto failed
+initrd {base}/api/pxe/v1/assets/initramfs-lts || goto failed
+boot || goto failed
+:failed
+echo [provision] chainload failed. retrying...
+sleep 30
+chain /api/pxe/v1/boot?{rebootQuery}</code></pre>
+        <ul>
+          <li><code>|| goto failed</code> — 자산 404 · 네트워크 단절 시 iPXE 가 죽지 않고 <b>기존 대기 루프와 같은 폴백</b>으로 복귀(§7). UC-4 류 "network boot 는 됐는데 자산이 죽은" 창을 관찰 가능한 재시도로 바꾼다.</li>
+          <li><code>initrd=initramfs-lts</code> 커널 인자 중복 명기 — EFI 부팅 필수(E1-R §1 확인 사실).</li>
+          <li>절대 URL 인 이유: <code>modloop=</code> 등은 iPXE 가 아니라 <b>Alpine init 이 소비</b>하므로 스크립트 URL 기준 상대 해석이 없다. 유일한 주소 원천 = <code>pxe.server.base-url</code>(기존 키 재사용 — 신규 키는 <code>pxe.assets.root</code> 하나뿐).</li>
+        </ul>
+
+        <h4>관리 자산 6종 (E1-R 포인트 3 확정분) — 조립 파이프라인이 git 추적 대상</h4>
+        <div class="pkg-tree">scripts/diag-image/                  (git 추적 — 재현 가능한 조립이 자산)
+├── build-assets.sh                  ① dl-cdn 에서 netboot 3종 다운로드(버전 고정 변수)
+│                                    ② 부분 apk 저장소 조립(Docker alpine 컨테이너에서
+│                                       apk fetch dmidecode ipmitool + abuild-keygen 서명 + apk index)
+│                                    ③ apkovl 조립(아래 템플릿 tar) → $PXE_ASSETS_ROOT 로 배치
+├── apkovl/                          apkovl 템플릿 트리 (etc/fstab · etc/apk/world ·
+│   │                                 etc/apk/keys/&lt;서명 공개키&gt; · etc/init.d/firstboot ·
+│   │                                 etc/runlevels/default/ 심링크)
+│   └── etc/init.d/firstboot         modprobe → wget {provision_base}/…/agent.sh → 실행
+└── agent/agent.sh                   v1: cmdline 파싱 · checkin · DIAGNOSTIC_BOOTING 보고 ·
+                                     배너(DEC-33) · WAIT 폴링. build 가 assets 로 복사
+
+$PXE_ASSETS_ROOT/                    (git 비추적 — 산출물. 앱이 /api/pxe/v1/assets/** 로 서빙)
+├── vmlinuz-lts · initramfs-lts · modloop-lts     ← Alpine 업그레이드 시 교체
+├── diag.apkovl.tar.gz                            ← 구성 변경 시 재조립
+├── repo/main/x86_64/{APKINDEX.tar.gz, *.apk}     ← 패키지 추가 시(OPEN-1 RAID CLI 도 이 자리)
+└── agent.sh                                      ← 가장 잦은 교체 — 파일 교체만으로 반영(재부팅 불요)</div>
+
+        <h4>콘솔 식별 배너 (DEC-33 — UC-5 의 물리 불요 해법)</h4>
+        <pre><code>agent.sh 가 checkin 성공 후 tty 에 출력 (개념 규격 — 값 3종은 고정):
+┌──────────────────────────────────────────────┐
+│  PROVISION GUEST                             │
+│  name : rack-a-03        ← checkin 응답 serverName (운영자가 붙인 이름)
+│  uuid : …c358a2014920    ← systemUUID 끝 12자 (dmidecode 로컬)
+│  ip   : 192.168.1.153    ← 부여된 IP (로컬)
+└──────────────────────────────────────────────┘
+실물 섀시에 모니터를 꽂으면 목록의 어느 행인지 즉시 매핑된다(UC-5 후보 2). 미개시 서버는
+체인로드 자체가 안 오므로(5행) 배너 이전 단계 — 게이트 우회 없음.</code></pre>
+
+        <h4>QEMU 랩 (scripts/pxe-lab/ — T2 의 실행 환경, git 추적)</h4>
+        <pre><code>run-guest.sh (개념):
+  qemu-system-x86_64 -m 2048 -uuid $(uuidgen) \
+    -smbios type=1,manufacturer="Giga Computing",product="MS03-CE0" \   # 등록 경로 재현(-smbios 주입)
+    -drive if=pflash,…,edk2-x86_64-code.fd \                            # OVMF (UEFI — brew qemu 동봉)
+    -netdev user,id=n0,tftp=./tftp,bootfile=boot.ipxe \                 # 내장 DHCP+TFTP — 실 dhcpd 불요
+    -device virtio-net-pci,netdev=n0
+boot.ipxe (tftp/ — QEMU 내장 iPXE ROM 이 실행. 실배포 tftp 에도 같은 파일이 감 — E1-I):
+  #!ipxe
+  dhcp
+  chain http://10.0.2.2:${PORT}/api/pxe/v1/boot?systemUUID=${uuid}&amp;macAddress=${net0/mac}&amp;ipAddress=${net0/ip}&amp;vendor=${manufacturer}&amp;boardModel=${product}
+검증 상한: macOS TCG = Alpine 부팅 스모크(수 분대 각오 — V9 실측). user-mode 네트워킹의
+10.0.2.2 = 호스트 루프백 → 로컬 bootRun 인스턴스로 바로 붙는다. QEMU ROM 이 iPXE 스크립트를
+직접 실행 못 하는 빌드로 판명되면(V7) ipxe.org 의 ipxe.efi 를 EMBED 빌드로 대체(후퇴 경로).</code></pre>
+
+        <h4>DIAGNOSTIC_BOOTING — 원장 마일스톤 상수</h4>
+        <pre><code>// ProvisioningPhaseStep 추가 (DIAGNOSE_LINUX 소속):
+/** 진단 리눅스가 게스트에서 실제 부팅되어 에이전트가 기동한 단계. */
+DIAGNOSTIC_BOOTING(ProvisioningPhase.DIAGNOSE_LINUX),
+// agent.sh 가 checkin 직후 open→close(SUCCEEDED) 로 보고 — "체인로드를 줬다"(서버 관점)와
+// "진짜 부팅됐다"(게스트 사실)를 원장에서 구분하는 최초의 게스트 사실 기록(DEC-2 정합).</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §5 10단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스의 산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 변경 없음 — 게스트 채널 + 자산 슬라이스. 배너는 게스트 화면(agent.sh)이지 Thymeleaf 가 아니다. N/A 근거 명기</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>PxeAssetsConfig</code>(WebMvcConfigurer — /assets/** resource handler, <code>@ConditionalOnProperty</code>)</td></tr>
+            <tr><td>4</td><td><code>AgentCheckinResponse</code> +serverName (record 확장)</td></tr>
+            <tr><td>5</td><td><code>DiagnoseLinuxExecutor</code> 시그니처 + <code>PxeAssetsProperties</code>(root · base-url 검증) + <b>자산 조립 스크립트 골격</b>(build-assets.sh · apkovl 템플릿 · agent.sh v1 · pxe-lab)</td></tr>
+            <tr><td>6</td><td>Repository 변경 0</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity 변경 0 · <code>ProvisioningPhaseStep</code> +DIAGNOSTIC_BOOTING (enum 상수 — @Entity 아님)</td></tr>
+            <tr><td>8</td><td>본체 + 단위 · 통합(§6) + <b>자산 실조립 + QEMU 스모크(V2 · V4 · V5 · V6 · V7 · V9)</b> + <code>docs/T3-checklist.md</code></td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 변경 0 — DDL N/A (접촉 시각은 E1-2 로 배정 — §8 Q4) <b style="color:var(--red);">→ CP4 정정</b>: <code>setup_step.step_code</code> 가 DB ENUM 컬럼이라 DIAGNOSTIC_BOOTING 상수 추가에 확장 DDL 1건 필요 — <code>ddl/E1-1_diagnostic_booting_step.sql</code> (QEMU 스모크의 "Data truncated" 500 으로 발견 · 적용 완료)</td></tr>
+            <tr><td>10</td><td>CP5(E 단계 예외 + T2 확장) — ① 하네스 <code>diagnose-cycle.sh</code>(T1 회귀) ② <b><code>scripts/pxe-lab/run-guest.sh</code> 로 QEMU 게스트 부팅</b> → 배너 확인 + 상세 페이지에서 진단 리눅스 배지 · DIAGNOSTIC_BOOTING 원장 행 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">Step 6 · 7(엔티티) · 9(DDL) 가 사실상 N/A 인 자산 중심 슬라이스다 — 리팩토링 슬라이스의 N/A 허용 규약을 원용한다. 대신 Step 8 에 "자산 실조립 + QEMU 검증" 이라는 이 슬라이스 고유의 무게가 실린다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>부팅 채널 (<code>ExecutionRestControllerBootFlowTest</code> 확장 — 가짜 실행기를 실물로 교체)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 200</td><td>개시 + 커서 DIAGNOSE_LINUX + 실행기 활성 → 바디에 <code>#!ipxe</code> · kernel/initrd URL · <code>provision_token=</code> · <code>provision_base=</code> · <code>goto failed</code> 폴백 전부 검증</td><td>2</td></tr>
+            <tr><td>속성 조건</td><td><code>pxe.assets.root</code> 미설정 컨텍스트 → 실행기 빈 부재 → 6행 HOLD 유지(기존 테스트 그대로 통과가 곧 검증) / base-url 빈 값 + assets.root 설정 → 기동 fail-fast</td><td>2</td></tr>
+            <tr><td>자산 서빙</td><td><code>/assets/agent.sh</code> 200(임시 디렉토리 fixture) / 존재하지 않는 파일 404 / <code>%2e%2e</code> 경로 이탈 404(Spring resolver 기본 가드 확인)</td><td>3</td></tr>
+          </tbody>
+        </table>
+        <h4>에이전트 채널 (<code>GuestAgentRestControllerFlowTest</code> 확장)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 200</td><td>checkin 응답에 <code>serverName</code> 필드(배너 계약) / <code>DIAGNOSTIC_BOOTING</code> stepCode 로 open 201(신규 상수의 역직렬화 검증)</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <h4>단위</h4>
+        <ul>
+          <li><code>DiagnoseLinuxExecutor</code> — 스크립트 조립: base-url 슬래시 정규화 · 토큰 삽입 · rebootQuery 전파 · phase() 값 (~4)</li>
+          <li><code>PhaseExecutorRegistry</code> — 실행기 1개 등록 시 find(DIAGNOSE_LINUX) 위임(기존 fail-fast 테스트는 유지) (~1)</li>
+        </ul>
+        <div class="callout"><b>규율 확인</b> — 신규 예외 클래스 0(§7) 이라 "새 예외 = 시나리오 동반" 조항은 해당 없음. 대신 이 슬라이스의 실검증 본체는 T2(QEMU) — V2(RAM 하한) · V4(BusyBox wget) · V5(부분 저장소 서명 E2E — <b>유일한 설계 리스크, 실패 시 전체 미러 후퇴</b>) · V6(apkovl 비 /etc 경로) · V7(QEMU ROM 의 스크립트 실행) · V9(macOS TCG 소요 실측)를 CP4 보고에 결과 명기.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>상황</th><th>응답</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>체인로드 자산 로드 실패(404 · 단절)</td><td>게스트 측 <code>goto failed</code> → sleep + chain 재진입</td><td><span class="chip new">스크립트 내 폴백</span></td><td>서버 예외가 아니라 게스트에서 끝나는 회복 — /boot 재진입 시 서버는 정상 재판정</td></tr>
+            <tr><td>/boot 처리 중 예외</td><td>200 + 재시도 스크립트</td><td><span class="chip keep">재사용</span></td><td>E1-0b 컨트롤러 내장 핸들러 그대로 — 분기 추가 0</td></tr>
+            <tr><td>자산 요청 이상(부재 · 경로 이탈)</td><td>404</td><td><span class="chip keep">Spring 기본</span></td><td>resource handler 의 <code>PathResourceResolver</code> 가드 — 신규 예외 클래스 불요. iPXE 는 404 를 실패로 보고 위 폴백으로</td></tr>
+            <tr><td>assets.root 설정 + base-url 공백</td><td>기동 fail-fast</td><td><span class="chip new">기동 검증</span></td><td><code>SecurityPropertiesValidator</code> 선례의 부팅 시 정합 검증 — 반쪽 설정의 silent 운행 금지</td></tr>
+          </tbody>
+        </table>
+        <p><b>신규 도메인 예외 클래스 0</b> — 이 슬라이스의 비정상은 전부 기존 채널 규약(200 변환 · 404 · fail-fast)이 흡수한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>잔존 책임 · 주의 (정직 기록)</h4>
+        <ul>
+          <li><b>부팅까지만 열린다</b> — 진단 리눅스가 떠서 체크인 · DIAGNOSTIC_BOOTING 까지 기록되지만, <b>수집 · 완주는 여전히 비어 있다</b>(E1-2). 게스트는 배너를 띄운 채 WAIT 폴링에 머문다 — 이것이 이 슬라이스의 정상 종착이다.</li>
+          <li><b>실기(T3) 미검증 잔존</b> — QEMU 로 못 보는 것: V3(실보드 ipmi 모듈) · V8(dmidecode placeholder) + 실 NIC 드라이버 · 실 iPXE 펌웨어 거동. 전부 <code>docs/T3-checklist.md</code> 에 적립(Q-C 확정 이행).</li>
+          <li><b>자산 버전 고정</b> — build-assets.sh 에 Alpine 버전(v3.22)을 변수로 박는다. dl-cdn 이 구버전을 내리면 다운로드가 깨질 수 있음 — 조립 산출물을 로컬 보존하는 이유이기도 하다(재조립은 인터넷 필요, 서빙은 불요).</li>
+          <li><b>Docker 전제</b> — 부분 apk 저장소 조립(②단계)은 alpine 컨테이너가 필요하다(macOS 에 apk 툴체인 없음). Docker 부재 환경은 ①·③만 수행하고 ②는 스킵 가능하게 스크립트를 단계 분리한다.</li>
+          <li><b>모의 하네스와 실게스트의 공존</b> — diagnose-cycle.sh(T1)는 계속 유효(프로토콜 회귀용). QEMU 게스트(T2)는 같은 서버에 실 HTTP 로 붙는다 — 하네스 전용 규약을 새로 만들지 않는다.</li>
+        </ul>
+        <h4>Open Questions (CP1 결정 — 대안 비교 + 권고)</h4>
+        <table><thead><tr><th>#</th><th>질문</th><th>대안 비교 → 권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>자산 서빙 주체</td><td><b>(a) 앱 resource handler — 채택 권고.</b> 단일 프로세스로 T1/T2 완결, 개발 환경 추가 인프라 0, Spring 기본 경로 가드 재사용. (b) 외부 httpd 전제 — 탈락: 개발기 · 랩에 httpd 상시 요구, CP5 절차 비대. 격리망 실배포에서 httpd 이관이 유리해지면 <b>E1-I 에서 재판단</b>(URL 원천이 base-url 하나라 이관 비용 = 설정 1줄). (c) 전용 스트리밍 컨트롤러 — 탈락: 208MB 정적 파일에 수제 IO 코드는 과잉, resource handler 가 Range 요청까지 기본 처리.</td></tr>
+            <tr><td>Q2</td><td>실행기 활성 조건</td><td><b><code>@ConditionalOnProperty("pxe.assets.root")</code> — 채택 권고.</b> 미설정 = 빈 부재 = 기존 6행 HOLD(이미 있는 명시 동작 재사용 — 신규 분기 0). 대안(항상 활성 + 런타임 검사) — 탈락: 실행기 안에 "설정됐나" if 가 생기고, 반쪽 설정이 조용히 굴러간다. assets.root 설정 + base-url 공백은 기동 fail-fast 로 짝을 맞춘다.</td></tr>
+            <tr><td>Q3</td><td>배너의 서버명 운반로</td><td><b>(a) checkin 응답 확장(serverName) — 채택 권고.</b> JSON 이라 한글 · 공백 안전, E1-2 의 지시 확장과 같은 자리. (b) 커널 인자 동봉 — 탈락: 이름의 공백 · 비 ASCII 가 cmdline 파싱을 깨는 표면, 이름 변경 시 재부팅 필요. (c) 로컬 정보만 표시 — 탈락: UC-5 의 핵심 요구가 "목록의 행(이름)과 실물 매핑" 이다.</td></tr>
+            <tr><td>Q4</td><td>접촉 시각(DEC-32) 배정</td><td><b>E1-2 — 권고.</b> 무보고 실패 대응(DEC-4 — 경과 표시 + 수동 FAILED)이 E1-2 배치라 같은 관찰성 축을 한 슬라이스에서 설계해야 표시 · 임계 · UI 가 일관된다. E1-1 에 넣으면 엔티티 · DDL · 상세 뷰가 이번 scope 로 끌려 들어와 자산 슬라이스가 비대해진다. QEMU 스모크 디버깅은 서버 로그(pxe 요청 INFO)로 충분.</td></tr>
+            <tr><td>Q5</td><td>부분 apk 저장소 조립 도구</td><td><b>Docker alpine 컨테이너(apk fetch + abuild-keygen + apk index) — 채택 권고.</b> E1-R 확정안(서명 저장소) 그대로. 대안(서명 생략 <code>--allow-untrusted</code> 설치) — 탈락: 무결성 검증(HMAC 마커)을 세운 프로젝트 철학과 상충. <b>V5 실패 시 후퇴 = rsync 부분 미러(공식 키)</b> — E1-R 종결 시 합의된 후퇴 경로, 비용은 디스크뿐.</td></tr>
+          </tbody>
+        </table>
+        <h4>동반 수정 · 부산물</h4>
+        <ul>
+          <li><code>docs/T3-checklist.md</code> 신설(초기 적립: V3 · V8 · E2 flash · E3 실 BMC Redfish · DEC-35 3종) — 이후 슬라이스가 한 줄씩 추가하는 living document.</li>
+          <li><code>CLAUDE.local.md</code> 실행 예시에 <code>PXE_SERVER_BASE_URL</code> · <code>PXE_ASSETS_ROOT</code> 주입 예 추가 제안(CP4 보고 시 — 사용자 파일이라 제안만).</li>
+          <li>모의 하네스 안내문 갱신 — "토큰은 커널 인자 동봉(E1-1 부터)" 주석이 실현되므로 diagnose-cycle.sh 의 DB 조회 안내에 "실게스트는 cmdline 에서 읽는다" 각주.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E1-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (E1-0a/0b 회귀 — 특히 HOLD 유지 테스트가 속성 미설정 컨텍스트에서 그대로 통과)</span></label></li>
+          <li><label><input type="checkbox" data-key="assets"> <span>build-assets.sh 실행 — 산출물 6종이 $PXE_ASSETS_ROOT 에 생성(①netboot ②repo ③apkovl+agent 단계별 성공)</span></label></li>
+          <li><label><input type="checkbox" data-key="serve"> <span>bootRun(+PXE_SERVER_BASE_URL·PXE_ASSETS_ROOT) 후 <code>curl /api/pxe/v1/assets/agent.sh</code> 200 · 개시 서버 /boot 에 체인로드 스크립트</span></label></li>
+          <li><label><input type="checkbox" data-key="qemu"> <span>QEMU 스모크 — Alpine 부팅 → 체크인 → DIAGNOSTIC_BOOTING 원장 → 배너 표시 (V2 · V4 · V5 · V6 · V7 · V9 결과 기록)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3"> <span><code>docs/T3-checklist.md</code> 생성 + 초기 항목 적립</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 (사용자) — run-guest.sh 부팅 관찰(배너) + 상세 페이지 확인</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <div class="pkg-tree">src/main/java/…/execution/
+├── engine/DiagnoseLinuxExecutor.java        (신규 — 첫 SPI 구현체, 체인로드 스크립트 소유)
+├── config/PxeAssetsConfig.java              (신규 — /assets/** resource handler, @ConditionalOnProperty)
+├── config/PxeAssetsProperties.java          (신규 — root · base-url 기동 정합 검증)
+├── enums/ProvisioningPhaseStep.java         (수정 — +DIAGNOSTIC_BOOTING)
+└── dto/response/AgentCheckinResponse.java   (수정 — +serverName)
+src/main/java/…/execution/engine/AgentReportService.java  (수정 — checkin 응답에 서버명 공급)
+scripts/diag-image/                          (신규 — build-assets.sh · apkovl 템플릿 · agent.sh)
+scripts/pxe-lab/                             (신규 — run-guest.sh · tftp/boot.ipxe · README)
+docs/T3-checklist.md                         (신규 — T3 예약 목록, DEC-35 · Q-C)
+src/test/java/…/ExecutionRestControllerBootFlowTest.java  (수정 — 실행기 실물 검증)
+src/test/java/…/GuestAgentRestControllerFlowTest.java     (수정 — serverName · 신규 stepCode)
+src/test/java/…/DiagnoseLinuxExecutorTest.java            (신규 — 단위)</div>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BootScriptDispatcher</code> · <code>PhaseExecutorRegistry</code> · <code>IpxeScripts</code> · <code>BootService</code></td><td>변경 0 — 실행기 빈 등록만으로 6행→7행 전환(E1-0b 설계 의도의 실증)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>GuestServer · ProvisioningProgress · 전 엔티티 / DDL</td><td>스키마 변경 0 (접촉 시각은 E1-2)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>diagnose-cycle.sh</code></td><td>T1 회귀 자산으로 존속 — 안내 각주만 갱신</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>E1-2 — 수집 · 적재 · 완주 · 관찰성</b>: agent.sh 수집 함수(dmidecode 키워드 → hardwareSpec JSON) + 서버 파싱 · GuestServerDetail 갱신 + placeholder 필터(V8 입력) + 완주 판정(PhaseSequence 소비 · completedAt 실기록) + <b>접촉 시각(DEC-32)</b> + 무보고 실패 수동 FAILED · 재시도 액션(DEC-4). 이때 진단 phase 가 처음으로 "끝까지" 돈다.</li>
+          <li><b>로드맵 정렬 결정(사용자와)</b>: 회차 모델(DEC-29) · 재투입(DEC-30) · 중단(DEC-31) 슬라이스의 삽입 위치(U3 전후 권고) + OPEN-1(RAID 조사, E4 전) · OPEN-2(NIC 교체) 배정.</li>
+          <li><b>E1-I — PXE 인프라 관리</b>: dhcpd.conf · tftp 자산 관리 + 진단 이미지 자산 화면 + (Q1 재판단) 외부 httpd 이관 여부. V10(OMAPI)은 이 시점.</li>
+        </ol>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎬 부팅 체인 시뮬레이터 — 서버 판정 + Alpine diskless 순서 1:1
+  // simDispatch = BootScriptDispatcher(5행 미개시 / 6행 HOLD / 7행 위임)
+  // 부팅 타임라인 = kernel → initramfs → modloop → apkovl → apk → agent → checkin → 배너
+  // 장애 주입(modloop 404) = 스크립트의 goto failed 폴백 재현
+  // ─────────────────────────────────────────────────────────────
+  let S;
+  const BASE = 'http://192.168.1.10:7777';
+  const TOKEN = 'a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d';
+  function simReset() {
+    S = { powered:false, stage:0, lines:[], lastRow:null };
+    simMsg('', '개시 토글을 끈 채로 시작해보면 개시 대기(5행)에 머무는 것도 볼 수 있다.');
+    simRender();
+  }
+  const assetsOn  = () => document.getElementById('opt-assets').checked;
+  const startedOn = () => document.getElementById('opt-started').checked;
+  const missingOn = () => document.getElementById('opt-missing').checked;
+
+  // == dispatch (이 데모가 다루는 축만 — 회수·실패·종단은 E1-0b plan 데모 소관) ==
+  function simDispatch() {
+    if (!startedOn()) return { row:5, kind:'wait', script:'#!ipxe\necho [provision] waiting for provisioning start (operator gate)...\nsleep 30\nchain /api/pxe/v1/boot?systemUUID=...' };
+    if (!assetsOn())  return { row:6, kind:'hold', script:'#!ipxe\necho [provision] phase DIAGNOSE_LINUX not implemented yet (HOLD).\nsleep 30\nchain /api/pxe/v1/boot?systemUUID=...' };
+    return { row:7, kind:'chain', script:
+'#!ipxe\necho [provision] chainloading diagnose linux...\nkernel ' + BASE + '/api/pxe/v1/assets/vmlinuz-lts ip=dhcp modules=loop,squashfs console=tty0 \\\n  alpine_repo=' + BASE + '/api/pxe/v1/assets/repo/main \\\n  modloop=' + BASE + '/api/pxe/v1/assets/modloop-lts \\\n  apkovl=' + BASE + '/api/pxe/v1/assets/diag.apkovl.tar.gz \\\n  provision_token=' + TOKEN + ' provision_base=' + BASE + ' initrd=initramfs-lts || goto failed\ninitrd ' + BASE + '/api/pxe/v1/assets/initramfs-lts || goto failed\nboot || goto failed\n:failed\necho [provision] chainload failed. retrying...\nsleep 30\nchain /api/pxe/v1/boot?systemUUID=...' };
+  }
+
+  // == 부팅 타임라인 — 「다음 →」이 한 단계씩 진행 ==
+  function push(cls, text) { S.lines.push({cls, text}); }
+  function actPower() {
+    if (S.powered) { simMsg('error', '이미 전원이 켜져 있다 — 리셋 후 다시.'); return; }
+    S.powered = true; S.stage = 1; S.lines = [];
+    push('', 'QEMU/실기 전원 인가 → UEFI → PXE ROM(iPXE) → DHCP → boot.ipxe');
+    const d = simDispatch(); S.lastRow = d;
+    push('', 'iPXE> chain ' + BASE + '/api/pxe/v1/boot?systemUUID=${uuid}&...');
+    if (d.kind === 'wait') { push('warn', '[provision] waiting for provisioning start (operator gate)...'); push('warn', '(30초마다 재질의 — 재부팅 아님. 개시를 켜고 「다음 →」)'); }
+    else if (d.kind === 'hold') { push('warn', '[provision] phase DIAGNOSE_LINUX not implemented yet (HOLD).'); push('warn', '(pxe.assets.root 미설정 = 실행기 빈 없음 — 토글을 켜고 「다음 →」)'); }
+    else push('ok', '[provision] chainloading diagnose linux...');
+    simMsg('success', '✓ GET /boot → dispatch ' + d.row + '행. 아래 스크립트 창이 실제 응답이다.');
+    simRender();
+  }
+  function actNext() {
+    if (!S.powered) { simMsg('error', '먼저 전원을 켜야 한다.'); return; }
+    const d = simDispatch();
+    if (d.kind !== 'chain') { S.lastRow = d;
+      if (d.kind==='wait' && startedOn()) { simMsg('success', '개시됨 — 다음 폴링(최대 30초)이 재판정한다. 「다음 →」'); S.stage = 1; }
+      else if (d.kind==='hold' && assetsOn()) { simMsg('success', '실행기 활성 — 다음 폴링이 체인로드를 준다. 「다음 →」'); S.stage = 1; }
+      else simMsg('', '대기 루프 — 폴링이 30초마다 같은 판정을 반복한다.');
+      if (S.stage === 1 && d.kind === 'chain') {}
+      push('', 'iPXE> (30s) chain /api/pxe/v1/boot?... → ' + d.row + '행');
+      if (d.kind==='chain') push('ok', '[provision] chainloading diagnose linux...');
+      simRender(); return;
+    }
+    S.lastRow = d;
+    switch (S.stage) {
+      case 1:
+        push('ok', 'iPXE> kernel .../assets/vmlinuz-lts ... ok');
+        push('ok', 'iPXE> initrd .../assets/initramfs-lts ... ok');
+        push('', 'iPXE> boot  →  Linux 커널 기동, Alpine init 시작'); S.stage = 2; break;
+      case 2:
+        if (missingOn()) {
+          push('err', 'alpine-init: fetch modloop-lts ... 404 Not Found');
+          push('err', '(iPXE 단계 실패였다면 goto failed → sleep 30 → chain /boot 재진입 — 폴백 동일)');
+          push('warn', '장애 주입 해제 후 「다음 →」 = 재부팅 폴링에서 회복');
+          simMsg('error', '✗ 자산 누락 — 게스트는 죽지 않고 재시도 루프로 돌아간다(§7). 토글을 끄고 계속.');
+          S.stage = 2; simRender(); return;
+        }
+        push('ok', 'alpine-init: modloop-lts 마운트(드라이버 상자) ... ok');
+        push('ok', 'alpine-init: diag.apkovl.tar.gz 적용(설정 가방) ... ok');
+        push('ok', 'apk: dmidecode ipmitool 설치 (부분 저장소 ' + BASE + '/...assets/repo — 자체 서명키 신뢰)'); S.stage = 3; break;
+      case 3:
+        push('ok', 'firstboot: modprobe ipmi_devintf ipmi_si ... ok (E1-2 준비)');
+        push('ok', 'firstboot: wget ' + BASE + '/api/pxe/v1/assets/agent.sh → 실행');
+        push('', 'agent: /proc/cmdline 파싱 — provision_token · provision_base 확보'); S.stage = 4; break;
+      case 4:
+        push('ok', 'agent: POST /agent/checkin (X-Guest-Token) → 200 {directive:WAIT, serverName:"rack-a-03"}');
+        push('', '        └ 서버: 첫 체크인 → advanceTo(DIAGNOSE_LINUX) — 상세 배지 "진단 리눅스"');
+        push('ok', 'agent: POST /agent/steps {DIAGNOSTIC_BOOTING} → 201 → close(SUCCEEDED) — 원장 마일스톤'); S.stage = 5; break;
+      case 5:
+        push('banner', '┌──────────────────────────────────────────────┐');
+        push('banner', '│  PROVISION GUEST                             │');
+        push('banner', '│  name : rack-a-03                            │');
+        push('banner', '│  uuid : ...c358a2014920                      │');
+        push('banner', '│  ip   : 192.168.1.153                        │');
+        push('banner', '└──────────────────────────────────────────────┘');
+        push('', 'agent: WAIT 폴링 — 수집 지시는 E1-2 에서 온다 (이 슬라이스의 정상 종착)');
+        simMsg('success', '✓ E1-1 완주 — 실물 섀시 모니터의 이 배너(UC-5/DEC-33)로 목록의 행과 실물을 매핑한다.');
+        S.stage = 6; break;
+      default:
+        simMsg('', '종착 상태 — 리셋으로 처음부터, 또는 토글을 바꿔 다른 경로를 체험.');
+    }
+    simRender();
+  }
+
+  function simMsg(kind, text) { const el = document.getElementById('sim-message'); el.className = 'ux-message' + (kind ? ' ' + kind : ''); el.textContent = text; }
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function simRender() {
+    document.getElementById('b-power').innerHTML = '<button class="n-demo-btn" onclick="actPower()"' + (S.powered?' disabled':'') + '>⏻ 전원 인가</button>';
+    document.getElementById('b-next').innerHTML = '<button class="n-demo-btn" onclick="actNext()"' + (!S.powered?' disabled':'') + '>다음 →</button>';
+    const stageName = ['off','iPXE 폴링/체인로드','커널 기동','Alpine 구성','firstboot/agent','체크인·보고','배너 · WAIT'][Math.min(S.stage,6)];
+    document.getElementById('sim-state').textContent = 'stage=' + stageName + (S.lastRow ? ' · dispatch ' + S.lastRow.row + '행' : '');
+    const badge = document.getElementById('sim-badge');
+    if (!S.powered) { badge.className='badge off'; badge.textContent='전원 꺼짐'; }
+    else if (S.stage >= 5) { badge.className='badge on'; badge.textContent='진단 리눅스'; }
+    else if (startedOn()) { badge.className='badge blue'; badge.textContent='프로비저닝 중'; }
+    else { badge.className='badge dep'; badge.textContent='등록됨(미개시)'; }
+    document.getElementById('sim-console').innerHTML = S.lines.length
+      ? S.lines.map(l => '<span class="' + l.cls + '">' + esc(l.text) + '</span>').join('\n')
+      : '<span class="cm"># 게스트 화면 — 「전원 인가」를 눌러 시작</span>';
+    const sc = document.getElementById('sim-script');
+    sc.innerHTML = S.lastRow ? esc(S.lastRow.script) : '<span class="cm"># /boot 가 반환한 스크립트 (마지막 호출분)</span>';
+    const cap = (b) => b ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    document.getElementById('sim-caps').innerHTML =
+      'pxe.assets.root 설정      = ' + cap(assetsOn()) + '   (false → 실행기 빈 없음 → 6행 HOLD)\n' +
+      'progress.isStarted()      = ' + cap(startedOn()) + '   (false → 5행 개시 대기, DEC-26)\n' +
+      'modloop 자산 존재         = ' + cap(!missingOn()) + '   (false → 로드 실패 → goto failed 폴백)\n' +
+      'executor.phase()          = DIAGNOSE_LINUX (registry 위임 — 분기 추가 없이 6행→7행)';
+    const cv = document.getElementById('sim-console'); cv.scrollTop = cv.scrollHeight;
+  }
+  simReset();
+</script>
+</body>
+</html>
