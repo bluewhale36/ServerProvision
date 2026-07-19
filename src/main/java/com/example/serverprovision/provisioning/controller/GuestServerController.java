@@ -95,4 +95,24 @@ public class GuestServerController {
         guestServerCommandService.startProvisioning(id);
         return "redirect:/provisioning/server/" + id;
     }
+
+    /**
+     * 운영자 수동 실패 전환(E1-2, DEC-4) — 무보고 침묵(UC-4) 대응. 노출 판정(markFailable)은
+     * 서버 가드와 같은 도메인 메서드 SSOT — direct POST 는 409 안전망.
+     */
+    @PostMapping("/{id}/mark-failed")
+    public String markFailed(@PathVariable("id") UUID id) {
+        guestServerCommandService.markFailedManually(id);
+        return "redirect:/provisioning/server/" + id;
+    }
+
+    /**
+     * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제 후 커서 유지 재개. 펌웨어 실패는 서버 가드가 차단
+     * (UI 는 disabled + tooltip — 같은 SSOT).
+     */
+    @PostMapping("/{id}/retry")
+    public String retry(@PathVariable("id") UUID id) {
+        guestServerCommandService.retry(id);
+        return "redirect:/provisioning/server/" + id;
+    }
 }

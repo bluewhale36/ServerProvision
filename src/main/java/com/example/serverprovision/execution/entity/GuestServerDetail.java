@@ -58,6 +58,45 @@ public class GuestServerDetail extends BaseTimeEntity {
     @Column(name = "software_spec", columnDefinition = "json")
     private String softwareSpec;
 
+    /**
+     * BMC 신원(E1-2 in-band 수집 · plan Q4) — hardwareSpec JSON 에 섞지 않고 구조화 컬럼으로 직행한다
+     * (E3 에서 꺼내 옮기는 예정된 재작업 회피 — 로드맵 §3-E1-2 확정). E3-0 이 자격증명과 함께 별도
+     * binding 엔티티로 승격할 여지가 있는 자리다. QEMU 등 BMC 미검출 환경은 null(정상 degrade).
+     */
+    @Convert(converter = com.example.serverprovision.execution.converter.IpAddressConverter.class)
+    @Column(name = "bmc_ip", length = 15)
+    private com.example.serverprovision.execution.vo.IpAddressVO bmcIp;
+
+    @Convert(converter = com.example.serverprovision.execution.converter.MacAddressConverter.class)
+    @Column(name = "bmc_mac", length = 17)
+    private com.example.serverprovision.execution.vo.MacAddressVO bmcMac;
+
     @Version
     private Long version;
+
+    /**
+     * 진단 수집 적재(E1-2) — 하드웨어가 보고한 사실로 인벤토리를 채우고 수집 단계를
+     * {@link DiscoveryStage#DIAGNOSTIC_ENRICHED} 로 승급한다. 재수집 보고는 최신값으로 덮는다
+     * (관용 파서가 null 로 거른 필드는 기존 값을 지우지 않는다 — 부분 적재 보호).
+     */
+    public void enrich(String boardSerial, String hardwareSpec, String softwareSpec,
+                       com.example.serverprovision.execution.vo.IpAddressVO bmcIp,
+                       com.example.serverprovision.execution.vo.MacAddressVO bmcMac) {
+        if (boardSerial != null) {
+            this.boardSerial = boardSerial;
+        }
+        if (hardwareSpec != null) {
+            this.hardwareSpec = hardwareSpec;
+        }
+        if (softwareSpec != null) {
+            this.softwareSpec = softwareSpec;
+        }
+        if (bmcIp != null) {
+            this.bmcIp = bmcIp;
+        }
+        if (bmcMac != null) {
+            this.bmcMac = bmcMac;
+        }
+        this.discoveryStage = DiscoveryStage.DIAGNOSTIC_ENRICHED;
+    }
 }

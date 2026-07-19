@@ -25,6 +25,7 @@ public class BootService {
     @Transactional
     public String boot(BootIPXEInfoRequest request, String rebootQuery) {
         GuestServer server = registrationService.initialRegistry(request);
+        server.touchSeen(java.time.LocalDateTime.now());   // 접촉 관찰 로그(E1-2, DEC-32) — 판정 입력 아님
         ProvisioningProgress progress = provisioningProgressRepository.findByGuestServer_Id(server.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + server.getId()));

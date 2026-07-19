@@ -55,9 +55,21 @@ class BootScriptDispatcherTest {
     }
 
     @Test
-    @DisplayName("4행 종단 — exit 만, chain 재시도 없음")
-    void completed_exitsWithoutChain() {
-        String script = dispatcher.dispatch(server(null), progress().startedAt(T).completedAt(T).build(), Q);
+    @DisplayName("4행 이분(E1-2) — 완주 + OS 설치 전(진단만 완주) → 입고 검수 대기 (exit 금지)")
+    void completed_beforeOsInstall_awaitsIntake() {
+        String script = dispatcher.dispatch(server(null),
+                progress().startedAt(T).currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).completedAt(T).build(), Q);
+        assertThat(script)
+                .contains("awaiting assignment")
+                .contains("chain /api/pxe/v1/boot?" + Q)
+                .doesNotContain("exit");   // OS 없는 베어메탈에 exit = 부팅 실패 루프 (로드맵 D3)
+    }
+
+    @Test
+    @DisplayName("4행 이분(E1-2) — 완주 + OS 설치 이후 커서 → exit (로컬 부팅 폴스루)")
+    void completed_afterOsInstall_exitsWithoutChain() {
+        String script = dispatcher.dispatch(server(null),
+                progress().startedAt(T).currentPhase(ProvisioningPhase.OS_SETTING).completedAt(T).build(), Q);
         assertThat(script).contains("exit").doesNotContain("chain");
     }
 

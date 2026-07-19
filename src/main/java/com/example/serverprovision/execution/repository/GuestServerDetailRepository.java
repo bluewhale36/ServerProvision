@@ -24,4 +24,11 @@ public interface GuestServerDetailRepository extends JpaRepository<GuestServerDe
      */
     @Query("select d from GuestServerDetail d join fetch d.boardModel where d.guestServer.id = :serverId")
     Optional<GuestServerDetail> findByServerIdWithBoardModel(@Param("serverId") UUID serverId);
+
+    /**
+     * 수집 적재 전 보드 시리얼 중복 사전 검사(E1-2) — board_serial UNIQUE 를 커밋 시점 500 으로
+     * 맞지 않기 위한 관용 경로의 입력. 중복이면 시리얼만 적재 생략(원문은 원장 statusMeta 보존)하고
+     * 나머지 인벤토리는 정상 적재한다 — T1 하네스 실측 결함(2026-07-19) 대응.
+     */
+    boolean existsByBoardSerialAndGuestServer_IdNot(String boardSerial, UUID serverId);
 }

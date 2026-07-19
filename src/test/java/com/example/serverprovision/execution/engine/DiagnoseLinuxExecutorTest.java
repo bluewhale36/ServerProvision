@@ -29,12 +29,21 @@ class DiagnoseLinuxExecutorTest {
     @TempDir Path assetsRoot;
 
     private DiagnoseLinuxExecutor executor;
+    private com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;
+    private SetupStepRecorder recorder;
 
     @BeforeEach
     void setUp() {
         // base-url 뒤 슬래시는 properties 가 정규화 — 스크립트에 이중 슬래시가 없어야 한다.
+        // 파서·mapper 는 실물(파싱 규칙까지 실검증), 저장소·원장은 mock (E1-2 소비 훅 검증).
+        tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
+        detailRepository = org.mockito.Mockito.mock(
+                com.example.serverprovision.execution.repository.GuestServerDetailRepository.class);
+        recorder = org.mockito.Mockito.mock(SetupStepRecorder.class);
         executor = new DiagnoseLinuxExecutor(
-                new PxeAssetsProperties(assetsRoot.toString(), "http://10.0.2.2:7777/"));
+                new PxeAssetsProperties(assetsRoot.toString(), "http://10.0.2.2:7777/"),
+                new DiagnosticReportParser(mapper),
+                detailRepository, recorder, mapper);
     }
 
     private GuestServer server(GuestToken token) {
@@ -79,5 +88,111 @@ class DiagnoseLinuxExecutorTest {
         assertThatThrownBy(() -> executor.bootScript(server(null), progress(), "q"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("게스트 토큰 부재");
+    }
+
+    // ==== E1-2 — 수집 보고 소비(onStepClosed) =================================
+
+    private static final String REPORT = """
+            { "boardSerial": "JG4P6400027", "biosVersion": "F13",
+              "cpu": {"manufacturer": "Intel", "model": "Xeon Gold 6338"},
+              "memoryModules": [{"slot": "DIMM_A1", "manufacturer": "Samsung", "size": "32 GB"}],
+              "disks": [{"device": "nvme0n1", "size": "1.9T", "rota": "0", "tran": "nvme"}],
+              "pcieRaw": ["01:00.0 RAID bus controller: Broadcom / LSI MegaRAID 9560-8i"] }
+            """;
+
+    private com.example.serverprovision.execution.entity.GuestServerDetail realDetail(GuestServer g) {
+        return com.example.serverprovision.execution.entity.GuestServerDetail.builder()
+                .id(UUID.randomUUID()).guestServer(g)
+                .discoveryStage(com.example.serverprovision.execution.enums.DiscoveryStage.IPXE_REGISTERED)
+                .build();
+    }
+
+    private com.example.serverprovision.execution.entity.SetupStep closedCollecting(GuestServer g, String meta) {
+        var step = com.example.serverprovision.execution.entity.SetupStep.openRunning(
+                g, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        step.close(com.example.serverprovision.execution.enums.ProvisioningStatus.SUCCEEDED, meta, T);
+        return step;
+    }
+
+    @Test
+    @DisplayName("수집 소비 — 관용 파싱 → enrich(ENRICHED 승급) → INFORMATION_PERSISTING 기록 → 완주(DEC-25)")
+    void onStepClosed_enrichesAndCompletes() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+        ProvisioningProgress p = progress();
+
+        executor.onStepClosed(g, p, closedCollecting(g, REPORT));
+
+        assertThat(detail.getBoardSerial()).isEqualTo("JG4P6400027");
+        assertThat(detail.getDiscoveryStage())
+                .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);
+        assertThat(detail.getHardwareSpec()).contains("DIMM_A1").contains("MegaRAID");
+        org.mockito.Mockito.verify(recorder).recordInstant(
+                org.mockito.ArgumentMatchers.eq(g),
+                org.mockito.ArgumentMatchers.eq(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_PERSISTING),
+                org.mockito.ArgumentMatchers.eq(com.example.serverprovision.execution.enums.ProvisioningStatus.SUCCEEDED),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        assertThat(p.isCompleted()).isTrue();   // U3 전 보유 = 빈 집합 → 진단 완주 = 종단
+    }
+
+    @Test
+    @DisplayName("수집 소비 — placeholder 시리얼은 null 적재(필터), 나머지는 정상 (V8 대비)")
+    void onStepClosed_placeholderSerialFiltered() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+
+        executor.onStepClosed(g, progress(),
+                closedCollecting(g, REPORT.replace("JG4P6400027", "To Be Filled By O.E.M.")));
+
+        assertThat(detail.getBoardSerial()).isNull();
+        assertThat(detail.getDiscoveryStage())
+                .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);
+    }
+
+    @Test
+    @DisplayName("수집 소비 — 보드 시리얼 실중복(타 서버 보유)은 시리얼만 생략(관용) — 500 루프 차단 (T1 실측 결함)")
+    void onStepClosed_duplicateSerialAbsorbed() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+        org.mockito.BDDMockito.given(detailRepository
+                .existsByBoardSerialAndGuestServer_IdNot("JG4P6400027", g.getId())).willReturn(true);
+        ProvisioningProgress p = progress();
+
+        executor.onStepClosed(g, p, closedCollecting(g, REPORT));
+
+        assertThat(detail.getBoardSerial()).isNull();                       // 중복 시리얼 생략
+        assertThat(detail.getDiscoveryStage())
+                .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);
+        assertThat(p.isCompleted()).isTrue();                               // 나머지 파이프라인은 정상 진행
+    }
+
+    @Test
+    @DisplayName("수집 소비 — 비정형 statusMeta 는 적재·완주 없이 반환 (close 는 이미 성공 — 원장 보존, §7 관용)")
+    void onStepClosed_unparsable_skipsQuietly() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        ProvisioningProgress p = progress();
+
+        executor.onStepClosed(g, p, closedCollecting(g, "not-json-at-all"));
+
+        org.mockito.Mockito.verifyNoInteractions(detailRepository, recorder);
+        assertThat(p.isCompleted()).isFalse();   // 다음 체크인이 COLLECT 재지시
+    }
+
+    @Test
+    @DisplayName("수집 소비 — 대상 아닌 step(DIAGNOSTIC_BOOTING)은 no-op")
+    void onStepClosed_ignoresOtherSteps() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var step = com.example.serverprovision.execution.entity.SetupStep.openRunning(
+                g, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, T);
+
+        executor.onStepClosed(g, progress(), step);
+
+        org.mockito.Mockito.verifyNoInteractions(detailRepository, recorder);
     }
 }

@@ -49,6 +49,7 @@
             <th>제조사</th>
             <th>보드 모델</th>
             <th>운영 상태</th>
+            <th>접촉</th>
             <th>호스트 IP</th>
             <th>등록 시각</th>
         </tr>
@@ -72,6 +73,13 @@
                 <span th:case="'FAILED'"         class="n-badge n-badge-red"   th:text="${server.status.description}">실패</span>
                 <span th:case="'DECOMMISSIONED'" class="n-badge n-badge-gray"  th:text="${server.status.description}">회수됨</span>
                 <span th:case="*" class="n-muted">—</span>
+            </td>
+            <td>
+                <!-- E1-2 (DEC-32) — 게스트 접촉 관찰 -->
+                <span th:if="${server.contactActive}" class="n-badge n-badge-teal">접촉 중</span>
+                <span th:if="${!server.contactActive and server.lastSeenAt != null}" class="n-badge n-badge-gray"
+                      th:title="${#temporals.format(server.lastSeenAt, 'yyyy-MM-dd HH:mm:ss')}">무접촉</span>
+                <span th:if="${server.lastSeenAt == null}" class="n-muted">—</span>
             </td>
             <td><code class="n-mono" th:text="${server.primaryIp != null} ? ${server.primaryIp.value} : '—'">192.168.1.1</code></td>
             <td>

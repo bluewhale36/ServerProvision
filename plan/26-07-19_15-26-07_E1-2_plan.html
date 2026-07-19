@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-2 Plan — 진단 정보 수집 · 적재 · 완주 · 대기</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:100px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .mini-detail { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; margin-top:10px; font-size:12.5px; }
+  .mini-detail table { font-size:12px; margin:6px 0; }
+  .mini-detail .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.blue { background:var(--blue-bg); color:var(--blue); } .badge.red { background:var(--red-bg); color:var(--red); }
+  .badge.teal { background:rgba(0,150,150,0.12); color:#0a8080; } .badge.warnb { background:var(--yellow-bg); color:var(--yellow); }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-2 — 진단 정보 수집 · 적재 · 완주 · 대기 <span class="v2-badge">진단 phase 가 처음으로 끝까지 돈다</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-2 (feature — 구 E1-3 흡수, DEC-12)</span>
+    <span><strong>상위</strong> E1 (DIAGNOSE_LINUX)</span>
+    <span><strong>scope</strong> COLLECT/REBOOT 지시 + 수집·관용 파싱·적재 + BMC 신원 구조화 + 완주 판정(completedAt 실기록) + dispatch 4행 이분 + 접촉 관찰성(DEC-32) + 수동 FAILED·재시도(DEC-4)</span>
+    <span><strong>생성</strong> 2026-07-19 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+    <span><strong>검증 상한</strong> T2 (QEMU −smbios 주입 · V3/V8 은 T3 적립)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (수집·완주 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">E1-1 이후 게스트는 진단 리눅스로 부팅해 배너를 띄우고 WAIT 폴링에 머문다. 프로토콜의 나머지 절반이 비어 있다:</p>
+        <table>
+          <thead><tr><th>자산</th><th>있음 (E1-1 까지)</th><th>비어 있음 (이 슬라이스가 채움)</th></tr></thead>
+          <tbody>
+            <tr><td>에이전트 지시</td><td><code>AgentDirective.WAIT</code> 골격 + "E1-2 가 COLLECT·REBOOT 추가" 예고 주석</td><td><b>지시 내용 없음</b> — 게스트는 수집하라는 말을 못 듣고 영원히 대기한다</td></tr>
+            <tr><td>하드웨어 인벤토리</td><td><code>GuestServerDetail.hardwareSpec/softwareSpec</code> JSON 컬럼(U1 예약 — 항상 null) + 상세 페이지 "— (진단 단계에서 수집)" placeholder + <code>DiscoveryStage.DIAGNOSTIC_ENRICHED</code> 상수</td><td><b>수집·파싱·적재 전부 미구현</b> — boardSerial 도 빈 채. BMC 신원(IP/MAC)의 저장 자리 자체가 없다</td></tr>
+            <tr><td>완주</td><td><code>markCompleted</code> 도메인 메서드 + <code>PhaseSequence</code> 종단 규약(DEC-25) 완비</td><td><b>실호출자 0</b> — completedAt 이 기록될 길이 없어 어떤 서버도 PROVISIONED 에 도달 못 한다</td></tr>
+            <tr><td>dispatch 4행</td><td>completedAt → <code>exit</code>(로컬 부팅 폴스루)</td><td><b>위험</b> — U3 전 진단만 완주한 베어메탈은 OS 가 없어 exit = 부팅 실패 루프(로드맵 §3-E1-3 지적). 완주를 실배선하는 순간 4행 이분이 필수가 된다</td></tr>
+            <tr><td>실패 대응</td><td><code>failedAt</code> 신호 + 게스트 FAILED 보고 트리거(E1-0b)</td><td><b>운영자 쪽 절반 없음</b> — 무보고 침묵(UC-4)을 실패로 전환할 수단도, FAILED 를 풀 재시도도 없다(javadoc "해제는 운영자 재시도 액션(E1-2)" 예고)</td></tr>
+            <tr><td>관찰성 (DEC-32)</td><td>—</td><td>게스트 접촉 시각 기록·표시 없음 — "개시 안 눌렀는데 서로 대기"(UC-3)·"침묵 감지"(UC-4)가 화면에 없다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>핵심 진단</b> — E1-0a 가 만든 신호 4컬럼 중 <b>completedAt 만 아직 실트리거가 없다</b>. 이 슬라이스가 수집→적재→완주를 이으면 게스트 한 대가 등록부터 종단(입고 검수 대기)까지 처음으로 완주하고, 상세 페이지의 모든 placeholder 가 실값으로 바뀐다. 물리 서버 불요 — 수집 경로는 QEMU <code>-smbios</code> 주입으로 실보드와 동일하게 재현된다(유스케이스 토론 §1-2 합의).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>지시 프로토콜 확장</b> — <code>AgentDirective</code> +COLLECT·REBOOT. 체크인 응답 판정: 커서 DIAGNOSE_LINUX + 미수집(<code>DiscoveryStage.IPXE_REGISTERED</code>) → COLLECT / 완주(<code>isCompleted</code>) → REBOOT / 그 외 → WAIT.</li>
+          <li><b>agent.sh v2 수집 임무</b> — COLLECT 수신 시: <code>INFORMATION_COLLECTING</code> open → 수집 → JSON 조립 → close(SUCCEEDED, statusMeta=수집 결과). REBOOT 수신 시 재부팅. <b>수집 항목(2026-07-19 사용자 확정 스펙)</b>:
+            <ul>
+              <li><b>CPU</b> — 제조사 + 모델명만 (<code>dmidecode -t processor</code>). 코어 수 등 불요.</li>
+              <li><b>메모리</b> — DIMM <b>슬롯별 1행</b>: 슬롯 위치 · 제조사 · 용량 (<code>dmidecode -t memory</code> type 17 — 몇 개 꽂혔는지는 행 수가 말한다).</li>
+              <li><b>디스크</b> — SSD/HDD 구분 + HDD 는 SAS/SATA 구분 + 용량 (<code>lsblk -o NAME,SIZE,ROTA,TRAN</code>). <b>한계 명기</b>: RAID 카드 뒤 물리 디스크는 OS 에 안 보인다 — 벤더 CLI(storcli 류) 동봉이 필요한 OPEN-1 후속에서 확장, 이번엔 OS 가시 디스크(온보드 SATA·NVMe·JBOD)까지.</li>
+              <li><b>PCIe 슬롯</b> — 꽂힌 카드 목록 (<code>lspci</code>): RAID 카드(제조사+모델명) · LAN · 10G LAN(UTP / SFP+) · Fibre(16Gb / 32Gb) · NVIDIA GPU(모델명). 종류 분류는 lspci 모델명 기반 규칙 — 실보드 실측(T3)으로 보강.</li>
+              <li><b>보드·펌웨어</b> — 보드 시리얼 · BIOS 버전 (<code>dmidecode -s</code>) + <b>ipmitool BMC 조회(미검출 = 정상 degrade — BMC 필드 생략)</b>.</li>
+            </ul>
+            수집 도구 추가분(<code>pciutils</code> · <code>lsblk</code>)은 부분 apk 저장소 fetch 목록에 동봉(build-assets.sh 갱신).</li>
+          <li><b>서버 수집 소비 — SPI 확장(DEC-6 의 "두 번째 실물" 시점)</b> — <code>ProvisioningPhaseExecutor</code> 에 보고 소비 훅 추가, <code>DiagnoseLinuxExecutor</code> 가 구현: <b>관용 파싱</b>(파싱 가능한 필드만 구조화, 원문은 원장 statusMeta 가 보존 — raw 컬럼 신설 불요) + <b>placeholder 필터</b>("To Be Filled By O.E.M." 류 → null 처리, boardSerial UNIQUE 충돌 회피) → <code>GuestServerDetail</code> 갱신(boardSerial·hardwareSpec·softwareSpec·<b>BMC 신원 구조화 2컬럼</b>) + DIAGNOSTIC_ENRICHED 승급 + <code>INFORMATION_PERSISTING</code> 단발 기록.</li>
+          <li><b>수집 계약 Value Object</b> — hardwareSpec/softwareSpec record 를 <code>vo/</code> 에(로드맵 확정 — <code>spec/</code> 신설안 탈락), Jackson 3(<code>tools.jackson.*</code>) 직렬화.</li>
+          <li><b>완주 판정 실배선(DEC-25)</b> — 수집 적재 성공 시 <code>PhaseSequence.nextAfter(DIAGNOSE_LINUX, 보유집합)</code>: U3 전 보유 = 빈 집합 → empty → <code>markCompleted</code>. 다음 체크인이 REBOOT 지시.</li>
+          <li><b>dispatch 4행 이분(로드맵 D3 폴백 이분)</b> — completedAt + 커서 &lt; OS_INSTALLING → <b>입고 검수 대기 스크립트</b>(sleep+chain — U3 할당이 생기면 이 폴링이 재개 트리거) / 커서 ≥ OS_INSTALLING → 기존 exit.</li>
+          <li><b>접촉 관찰성(DEC-32)</b> — <code>guest_server.last_seen_at</code>: /boot·에이전트 API 접촉 시 갱신(판정 입력 아님 — DEC-2 무관 관찰 로그). 상세·목록에 "접촉 중(N초 전)/무접촉(N분)" + '등록됨·접촉 중·미개시' 조합에 개시 유도 안내(UC-3).</li>
+          <li><b>운영자 액션 2종(DEC-4)</b> — ① 수동 FAILED 전환: PROVISIONING 에서만(무보고 침묵 대응 — UC-4), <code>failedStepCode=null</code> 허용(수동 표식). ② 재시도: FAILED 에서만, <code>clearFailed()</code>(전진 가드의 유일한 명시 예외) → 커서 유지 재개. <b>펌웨어 실패(BIOS/BMC_UPDATING)는 재시도 차단</b>(벽돌 리스크) — 차단 조건 도메인 메서드 1개를 UI disabled+tooltip 과 서버 가드가 공유(SSOT).</li>
+          <li><b>검증 자산 확장</b> — run-guest.sh 에 SMBIOS 확장 주입(type=0 BIOS 버전·type=2 보드 시리얼 — placeholder 값 주입 변형 포함), 하네스 diagnose-cycle.sh v2(COLLECT 시퀀스), T2 랩 저널에 캠페인 적재.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>IPMI 각인</b> — DEC-11 보류 그대로 (상수 IPMI_SETTING 유지, 소비 없음).</li>
+            <li><b>U3 할당 감지·재개</b> — 보유 집합은 빈 집합 상수. 대기 스크립트의 "할당 감지 후 재개" 는 U3 가 보유 공급을 배선할 때 자동 성립(폴링 루프가 이미 재개 트리거).</li>
+            <li><b>V3(실보드 ipmi 모듈)·V8(실보드 placeholder 실측)</b> — T3 체크리스트 적립 그대로. placeholder 필터는 알려진 패턴 목록으로 시작, 실측 후 보강.</li>
+            <li><b>자동 타임아웃 워치독</b> — 무접촉 자동 FAILED 는 실측 후(로드맵 D6 명시 유보). 이번엔 표시 + 수동 전환만.</li>
+            <li><b>회차 모델(DEC-29)·재투입(DEC-30)·중단(DEC-31)</b> — 별도 슬라이스.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 수집 · 적재 · 완주 시뮬레이터 (상세 페이지 미니어처)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래는 <b>상세 페이지 미니어처</b>다. 왼쪽에서 게스트가 보고할 값을 고르고(정상 / placeholder 시리얼 / BMC 미검출) 「▶ 수집 사이클」을 누르면 — 지시(COLLECT)→수집 보고→관용 파싱→적재→완주(REBOOT)→입고 검수 대기까지 흐르면서 <b>미니어처의 placeholder 가 실값으로 바뀌는 것</b>을 본다. 「⏱ 30분 경과」와 수동 FAILED·재시도 버튼으로 무보고 침묵(UC-4) 대응도 체험한다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">게스트 보고 변형 :</span>
+            <label style="font-size:12px;"><input type="radio" name="var" value="ok" checked onchange="simRender()"> 정상 값</label>
+            <label style="font-size:12px;"><input type="radio" name="var" value="ph" onchange="simRender()"> placeholder 시리얼 ("To Be Filled By O.E.M.")</label>
+            <label style="font-size:12px;"><input type="radio" name="var" value="nobmc" onchange="simRender()"> BMC 미검출 (QEMU/모듈 실패)</label>
+            <button class="n-demo-btn" style="border-color:var(--text-muted);color:var(--text-muted);" onclick="simReset()">⟲ 리셋</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">진행 :</span>
+            <span id="b-cycle"></span><span id="b-silence"></span><span id="b-fail"></span><span id="b-retry"></span>
+          </div>
+
+          <div class="mini-detail">
+            <b>guest-01</b> <span class="badge" id="sim-status">등록됨</span>
+            <span class="badge" id="sim-contact">접촉 중 · 3초 전</span>
+            <span class="badge" id="sim-stage">iPXE 등록</span>
+            <span id="sim-nudge" style="font-size:11px;color:var(--blue);"></span>
+            <table>
+              <tr><th style="width:130px;">보드 시리얼</th><td id="f-serial">— (진단 단계에서 수집)</td>
+                  <th style="width:110px;">BIOS 버전</th><td id="f-bios">— (진단 단계에서 수집)</td></tr>
+              <tr><th>하드웨어</th><td id="f-hw">— (진단 단계에서 수집)</td>
+                  <th>BMC 신원</th><td id="f-bmc">— (진단 단계에서 수집)</td></tr>
+              <tr><th>현재 단계</th><td id="f-phase">부트스트래핑</td>
+                  <th>완주(completedAt)</th><td id="f-done">—</td></tr>
+            </table>
+            <table class="ledger"><thead><tr><th>원장</th><th>상태</th></tr></thead><tbody id="sim-ledger">
+              <tr><td colspan="2" style="color:var(--text-muted);">DIAGNOSTIC_BOOTING 까지 기록됨 (E1-1)</td></tr></tbody></table>
+          </div>
+
+          <div class="ux-caps" id="sim-caps"></div>
+          <div class="ux-message" id="sim-message">「▶ 수집 사이클」로 시작 — placeholder 변형을 고르면 필터가 어떻게 지키는지 보인다.</div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 지시 판정(<code>COLLECT/REBOOT/WAIT</code>) = 체크인 응답 규칙 §4, 관용 파싱·placeholder 필터 = <code>DiagnoseLinuxExecutor</code> 소비 규약, 완주 = <code>PhaseSequence</code> 빈 보유 종단, 수동 FAILED·재시도 버튼의 활성 조건 = 도메인 메서드 SSOT(§4). 무접촉 표시는 last_seen_at 경과 그대로.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/checkin</code></td><td>응답 directive 실판정 — COLLECT(미수집) / REBOOT(완주) / WAIT. last_seen 갱신</td><td><span class="chip mod">판정 실전화</span></td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/steps/{id}/close</code></td><td>INFORMATION_COLLECTING 성공 close 시 실행기 소비 훅 → 파싱·적재·승급·완주 판정 (한 트랜잭션)</td><td><span class="chip mod">소비 배선</span></td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code></td><td>4행 이분: 완주 + 커서&lt;OS_INSTALLING → 입고 검수 대기 / 이상 → exit. last_seen 갱신</td><td><span class="chip mod">4행 이분</span></td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/mark-failed</code></td><td>운영자 수동 FAILED 전환 (무보고 침묵 대응 — PROVISIONING 에서만)</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/retry</code></td><td>운영자 재시도 — clearFailed, 커서 유지 재개 (FAILED + 비펌웨어 실패에서만)</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code> · 목록</td><td>인벤토리 실값 · 접촉 배지 · 개시 유도 · 버튼 2종 노출 플래그</td><td><span class="chip mod">확장</span></td></tr>
+          </tbody>
+        </table>
+        <h4>정상 수집 사이클 (하네스 v2 = 이 흐름의 curl 재연)</h4>
+        <pre><code>agent: POST /checkin            → 200 { directive: COLLECT }          (커서 진단 + IPXE_REGISTERED)
+agent: POST /steps {INFORMATION_COLLECTING} → 201 {stepId}            (RUNNING 원장)
+agent: dmidecode·인벤토리·ipmitool 수집 → JSON 조립
+agent: POST /steps/{id}/close { SUCCEEDED, statusMeta: 수집 JSON }
+       └ 서버(한 트랜잭션): 실행기 소비 → 관용 파싱 + placeholder 필터
+         → Detail 갱신(boardSerial·hardwareSpec·softwareSpec·bmcIp·bmcMac) + DIAGNOSTIC_ENRICHED
+         → INFORMATION_PERSISTING 단발 기록(서버 사실)
+         → PhaseSequence.nextAfter(진단, ∅) = empty → markCompleted   ← completedAt 첫 실기록
+agent: POST /checkin            → 200 { directive: REBOOT }
+agent: reboot → iPXE → GET /boot → 4행 이분 → "입고 검수 대기" (sleep+chain — U3 가 열리면 이 폴링이 재개)</code></pre>
+        <pre><code>[FAILED close]  수집 실패 보고 → markFailed(기존 E1-0b 경로) → 운영자 재시도(신규)로 재개
+[무보고 침묵]   last_seen 경과 표시 → 운영자 수동 FAILED 전환(신규) → 현장 조치 후 재시도</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>지시 판정 — 체크인 응답 (AgentReportService, 분기 아닌 우선순위 규약)</h4>
+        <pre><code>REBOOT : progress.isCompleted()                          — 완주했으니 진단 리눅스를 떠나라
+COLLECT: 커서 DIAGNOSE_LINUX && detail.discoveryStage == IPXE_REGISTERED  — 수집 임무
+WAIT   : 그 외 (수집 적재 완료 후 판정 대기 등 과도 상태)
+// 멱등: COLLECT 재수신(응답 유실 재체크인)은 무해 — 소비 훅이 승급을 1회만 수행(ENRICHED 재적재 no-op)</code></pre>
+
+        <h4>SPI 확장 — 보고 소비 훅 (DEC-6 "두 번째 실물이 나타날 때" = 지금)</h4>
+        <pre><code>public interface ProvisioningPhaseExecutor {
+    ProvisioningPhase phase();
+    String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery);
+    /** 이 phase 의 step 종결 보고 소비(E1-2 신설) — default no-op: 소비할 게 없는 실행기는 구현 안 한다. */
+    default void onStepClosed(GuestServer server, ProvisioningProgress progress, SetupStep step) { }
+}
+// AgentReportService.closeStep: close 성공 후 stepCode.getPhaseType() 실행기 find → onStepClosed 위임.
+// 신규 phase 의 소비 = 분기 추가가 아니라 훅 구현 — E2 부터 동형 확장(조건분기 확장 금지의 이행).</code></pre>
+
+        <h4>수집 계약 — vo/ record (Jackson 3 tools.jackson.* — 로드맵 확정)</h4>
+        <pre><code>// agent 보고 statusMeta(JSON) ↔ 서버 record 의 계약. 관용 원칙: 모르는 필드 무시, 누락 필드 null.
+// 구조는 사용자 확정 스펙(§2-2) 그대로 — 요약 통계가 아니라 슬롯 단위 인벤토리다.
+public record HardwareSpec(CpuInfo cpu, List&lt;MemoryModule&gt; memoryModules,
+                           List&lt;DiskInfo&gt; disks, List&lt;PcieDevice&gt; pcieDevices) {
+    public record CpuInfo(String manufacturer, String model) { }              // 코어 수 불요(확정)
+    public record MemoryModule(String slot, String manufacturer, String size) { }   // DIMM 슬롯별 1행
+    public record DiskInfo(String device, String type /*SSD|HDD*/,
+                           String transport /*SAS|SATA|NVMe*/, String size) { }
+    public record PcieDevice(String slot, String kind /*RAID|LAN|LAN_10G_UTP|LAN_10G_SFP|FC_16G|FC_32G|GPU|ETC*/,
+                             String vendor, String model) { }                 // RAID·GPU 는 vendor+model 필수
+}
+public record SoftwareSpec(String biosVersion, String bmcVersion) { }
+public record BmcIdentity(IpAddressVO ip, MacAddressVO mac) { }   // hardwareSpec JSON 에 넣지 않는다(로드맵 —
+                                                                  // E3 이관 churn 회피, 구조화 컬럼 직행)
+// 파싱 실패·placeholder → 해당 필드 null + 구조화 가능한 것만 적재. 원문 전문은 setup_step.statusMeta 가
+// append-only 로 이미 보존 — raw 컬럼 신설 불요(V8 실측 후 파서만 보강하면 소급 재파싱 가능).</code></pre>
+
+        <h4>placeholder 필터 — 알려진 패턴 목록 (V8 실측 후 보강)</h4>
+        <pre><code>"To Be Filled By O.E.M." · "To be filled by O.E.M." · "Default string" · "System Serial Number"
+· "Not Specified" · 빈 문자열/공백 → null 처리.
+효과: boardSerial UNIQUE 가 placeholder 중복으로 깨지는 사고 차단(두 서버가 같은 placeholder 를 보고해도 안전).</code></pre>
+
+        <h4>Entity 확장 (도메인 메서드 = UI 플래그와 SSOT)</h4>
+        <pre><code>GuestServer      + lastSeenAt (관찰 로그 — /boot·에이전트 접촉 시 갱신. 판정 입력 아님: DEC-2 유지)
+GuestServerDetail+ bmcIp/bmcMac (VO 재사용 컬럼 2개 — E3-0 이 binding 엔티티로 승격 여지)
+                 + enrich(boardSerial, hardwareSpec, softwareSpec, bmc) — ENRICHED 승급 포함, 재호출 no-op
+ProvisioningProgress
+  + markFailedManually(now)  — failedStepCode=null 허용(수동 표식). PROVISIONING 에서만(서버 가드)
+  + clearFailed(now)         — 전진 전용 가드의 유일한 명시 예외(운영자 재시도). FAILED 에서만
+  + retryBlocked()           — failedStepCode ∈ {BIOS_UPDATING, BMC_UPDATING} → true (벽돌 리스크, DEC-4)
+                               ← UI disabled+tooltip 과 서버 가드가 이 메서드 하나를 공유 (SSOT)</code></pre>
+
+        <h4>dispatch 4행 이분 — 결정 비교 (Q1)</h4>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>(a) 커서 기준 순수 판정 — 채택</h4><ul><li>completedAt + 커서 &lt; OS_INSTALLING → 입고 검수 대기 / 커서 ≥ OS_INSTALLING → exit</li><li>기존 컬럼만으로 순수 함수 — DDL·상태 추가 0</li><li>완주 커서 = 마지막 보유 phase(DEC-25)라 의미가 정확</li></ul></div>
+          <div class="card v-orange"><h4>(b) osInstalledAt 컬럼 신설 — 탈락</h4><ul><li>신호 컬럼 증식 — 커서가 이미 같은 사실을 담고 있어 중복(드리프트원)</li></ul></div>
+          <div class="card v-red"><h4>(c) 원장 조회 판정 — 탈락</h4><ul><li>매 부팅 폴링마다 원장 스캔 — 판정이 순수 함수가 아니게 됨</li></ul></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스의 산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>상세·목록 뷰 확장 — 인벤토리 실값(hardwareSpec 표) · 접촉 배지 · 개시 유도 안내 · 수동 FAILED/재시도 버튼(도메인 플래그로 노출)</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>GuestServerController</code> +mark-failed·retry (PRG) / <code>GuestAgentRestController</code> 변경 0(응답 값만 실전화)</td></tr>
+            <tr><td>4</td><td><code>AgentDirective</code> +COLLECT·REBOOT / <code>GuestServerDetailResponse</code> 확장(인벤토리·접촉·플래그 2종)</td></tr>
+            <tr><td>5</td><td>SPI <code>onStepClosed</code> 시그니처 + <code>DiagnoseLinuxExecutor</code> 소비 시그니처 + vo record 3종 + <code>GuestServerCommandService</code> 액션 2종 시그니처</td></tr>
+            <tr><td>6</td><td>Repository 변경 0</td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td><code>GuestServer</code>+lastSeenAt / <code>GuestServerDetail</code>+bmc 2컬럼+enrich / <code>ProvisioningProgress</code>+수동 실패·재시도·차단 메서드</td></tr>
+            <tr><td>8</td><td>본체 + 단위·통합(§6) + agent.sh v2 + run-guest.sh SMBIOS 확장 + 하네스 v2 + QEMU 수집 완주 스모크(랩 저널 적재)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td><code>ddl/E1-2_collection.sql</code> — guest_server ADD last_seen_at / guest_server_detail ADD bmc_ip·bmc_mac</td></tr>
+            <tr><td>10</td><td>CP5(E 단계 예외 + T2) — QEMU 게스트 수집 완주 관찰 + 상세 페이지: 인벤토리 실값 · ENRICHED · 완주 · 입고 검수 대기 · 접촉 배지 · placeholder 변형 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>에이전트 채널 (<code>GuestAgentRestControllerFlowTest</code> 확장 + <code>AgentReportServiceTest</code>)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>지시 판정</td><td>미수집 → COLLECT / 완주 → REBOOT / 적재 후 미완주 과도 → WAIT / COLLECT 재수신 멱등</td><td>4</td></tr>
+            <tr><td>소비 훅</td><td>INFORMATION_COLLECTING 성공 close → 파싱·Detail 갱신·ENRICHED·INFORMATION_PERSISTING 기록·markCompleted 한 트랜잭션 검증 / FAILED close 는 소비 안 함(기존 markFailed 만) / 훅 미구현 phase 는 no-op</td><td>3</td></tr>
+            <tr><td>관용 파싱</td><td>placeholder 시리얼 → null 적재(UNIQUE 충돌 없음 — 2대 연속) / 필드 누락 JSON → 부분 적재 / 알 수 없는 필드 무시 / 완전 비정형 statusMeta → 적재 실패해도 close 는 성공(원장 보존) + 승급 없음</td><td>4</td></tr>
+            <tr><td>BMC degrade</td><td>bmc 필드 없음 → bmc 컬럼 null + 나머지 정상 적재</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <h4>부팅 채널 (<code>ExecutionRestControllerBootFlowTest</code> · Chainload 테스트 확장)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>4행 이분</td><td>완주 + 커서 DIAGNOSE_LINUX → 입고 검수 대기 바디(sleep·chain — exit 없음) / 완주 + 커서 OS_SETTING → exit</td><td>2</td></tr>
+            <tr><td>관찰</td><td>/boot 접촉 시 last_seen 갱신 (서비스 검증)</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <h4>운영자 액션 (MVC — <code>GuestServerControllerActionTest</code> 신규)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>2xx/PRG</td><td>mark-failed 성공(PROVISIONING) / retry 성공(FAILED·비펌웨어) — 302 + 상태 반영</td><td>2</td></tr>
+            <tr><td>409</td><td>mark-failed: 미개시·완주·회수 거절 / retry: 미실패 거절 / <b>retry: 펌웨어 실패 차단(retryBlocked SSOT)</b> — 신규 예외 실트리거</td><td>3</td></tr>
+            <tr><td>404</td><td>없는 서버 id 2종</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <h4>단위</h4>
+        <ul>
+          <li>파서·placeholder 필터 (~6: 정상/placeholder 5패턴/누락/비정형) · <code>enrich</code> 멱등 (~2) · <code>markFailedManually/clearFailed/retryBlocked</code> 가드 (~5) · 지시 판정 순수 규칙 (~3) · 4행 이분 (~2)</li>
+        </ul>
+        <div class="callout"><b>규율</b> — 신규 예외(재시도 차단·수동 전환 거절 — §7)는 통합 시나리오 동반. T2: QEMU <code>-smbios</code> 정상/placeholder 주입 각 1회 완주가 CP4 검증 본체(랩 저널 적재).</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>ProvisioningRetryRejectedException</code></td><td>409</td><td><span class="chip new">신규</span></td><td>미실패 재시도 · 펌웨어 실패 재시도 차단(retryBlocked) — UI 가 1차 차단하므로 direct POST 안전망. ConflictException 상속</td></tr>
+            <tr><td><code>ProvisioningStartRejectedException</code> 계열 재사용</td><td>409</td><td><span class="chip keep">재사용</span></td><td>수동 FAILED 전환 거절은 기존 스타일의 정적 팩토리 추가(별 클래스 불요 판단 — CP2 에서 명명 확정)</td></tr>
+            <tr><td>수집 statusMeta 파싱 실패</td><td>—</td><td><span class="chip keep">비예외</span></td><td><b>close 를 실패시키지 않는다</b> — 원장은 보존되고 승급만 안 됨(관용 원칙). 로그 WARN + 다음 체크인 COLLECT 재지시</td></tr>
+            <tr><td>에이전트 채널 400/404/409</td><td>그대로</td><td><span class="chip keep">재사용</span></td><td>기존 ApiExceptionHandler — 분기 추가 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>잔존 책임 · 주의 (정직 기록)</h4>
+        <ul>
+          <li><b>V3·V8 은 여전히 실보드 몫</b> — QEMU 는 ipmi 가 없어 BMC 축은 degrade 경로만 검증된다. placeholder 필터도 패턴 목록 기반 — 실측(T3) 후 보강 전제.</li>
+          <li><b>RAID 카드 뒤 물리 디스크는 이번에 안 보인다</b> — OS 는 컨트롤러의 논리 볼륨만 본다. 물리 디스크 슬롯·구성 수집은 벤더 CLI 동봉(OPEN-1 — storcli 류, E4 전 조사)에서 확장. PCIe 목록에 RAID 카드 자체(제조사+모델)는 이번에 잡힌다.</li>
+          <li><b>PCIe 종류 분류(10G UTP/SFP+ · FC 16/32Gb)는 모델명 규칙 기반</b> — 사내 사용 카드 목록으로 시작하고 실보드 lspci 실측(T3 항목 추가)으로 보강. 미분류는 ETC + 원문 그대로 표시(수집 유실 없음).</li>
+          <li><b>입고 검수 대기는 무한 폴링</b> — U3 전엔 할당이 생길 수 없어 완주 서버는 계속 30초 폴링한다(전원을 끄면 침묵 — 정상). 자동 타임아웃 없음은 의도.</li>
+          <li><b>수동 FAILED 의 failedStepCode=null</b> — UI 는 '운영자 전환' 으로 표시. 기존 failed(step) 스크립트 문구는 null 안전 처리.</li>
+          <li><b>last_seen 갱신 쓰기</b> — 게스트당 30초 1 UPDATE. 현 규모 무시 가능 — 대량화 시점에 버퍼링 재고(지금 최적화 금지).</li>
+        </ul>
+        <h4>Open Questions (CP1 결정 — 권고 포함)</h4>
+        <table><thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>4행 이분 판정</td><td><b>(a) 커서 기준 순수 판정</b> — §4 비교 참조 (컬럼 신설·원장 조회 탈락)</td></tr>
+            <tr><td>Q2</td><td>수집 소비 위치</td><td><b>SPI <code>onStepClosed</code> default 훅</b> — DEC-6 예고의 이행. AgentReportService 내 phase if 분기(금지 원칙 위반)·별도 이벤트(첫 사례에 과잉) 탈락</td></tr>
+            <tr><td>Q3</td><td>raw 보고 보존</td><td><b>원장 statusMeta 재사용(신설 0)</b> — append-only 가 이미 원문 보존. 파서 보강 시 소급 재파싱 가능</td></tr>
+            <tr><td>Q4</td><td>BMC 신원 저장</td><td><b>Detail 컬럼 2개(VO 재사용)</b> — 로드맵 "구조화 저장" 확정 이행. 별도 엔티티는 E3-0 승격 시점에(미리 분리 금지)</td></tr>
+            <tr><td>Q5</td><td>last_seen 위치</td><td><b>GuestServer</b> — 회차·progress 무관 관찰 축(DEC-29 회차 모델과도 무충돌)</td></tr>
+            <tr><td>Q6</td><td>수동 FAILED 표식</td><td><b>failedStepCode=null 허용</b> — 신규 enum 상수(원장 오염)·별도 컬럼(신호 증식) 탈락</td></tr>
+          </tbody>
+        </table>
+        <h4>동반 수정</h4>
+        <ul>
+          <li>통신 캔버스·프로토콜 다이어그램: E1-2 흐름(수집 보고·완주 판정·in-band BMC) planned→done 갱신 + 입고 검수 대기 흐름 — CP5 후.</li>
+          <li>T2 랩 저널: E1-2 캠페인 적재 — CP4 스모크와 함께.</li>
+          <li>diagnose-cycle.sh v2 — COLLECT 시퀀스 반영(T1 회귀 자산 유지).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E1-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (E1-0a/0b/1-1 회귀 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 적용 + SHOW CREATE 검증 + validate 기동</span></label></li>
+          <li><label><input type="checkbox" data-key="harness"> <span>하네스 v2 — COLLECT 사이클·placeholder 변형·수동 FAILED/재시도 (T1)</span></label></li>
+          <li><label><input type="checkbox" data-key="qemu"> <span>QEMU 수집 완주 스모크 — 정상/placeholder 주입 각 1회, 인벤토리 실값·완주·입고 검수 대기 (T2, 랩 저널 적재)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 (사용자) — QEMU 관찰 + 상세 페이지 확인</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <div class="pkg-tree" style="font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:14px;white-space:pre;overflow-x:auto;">execution/
+├── engine/ProvisioningPhaseExecutor.java     (수정 — +onStepClosed default 훅)
+├── engine/DiagnoseLinuxExecutor.java         (수정 — 소비 구현: 파싱·적재·승급·완주 판정)
+├── engine/AgentReportService.java            (수정 — 지시 판정 실전화 + 소비 위임 + last_seen)
+├── engine/BootScriptDispatcher.java          (수정 — 4행 이분) · engine/IpxeScripts.java (+입고 검수 대기)
+├── engine/BootService.java                   (수정 — last_seen 갱신)
+├── vo/HardwareSpec·SoftwareSpec·BmcIdentity  (신규 — 수집 계약 record + 파서·placeholder 필터)
+├── entity/GuestServer(+lastSeenAt) · GuestServerDetail(+bmc·enrich) · ProvisioningProgress(+수동 실패·재시도)
+├── enums/AgentDirective                      (수정 — +COLLECT·REBOOT)
+├── exception/ProvisioningRetryRejectedException (신규)
+├── service/GuestServerCommandService         (수정 — markFailed·retry 액션) · GuestServerQueryService(응답 확장)
+└── dto/response/GuestServerDetailResponse    (수정 — 인벤토리·접촉·플래그)
+templates/provisioning/server-detail.html · server-list.html   (수정 — §5 Step 2)
+scripts/diag-image/agent/agent.sh             (수정 — v2 수집 임무)
+scripts/pxe-lab/run-guest.sh                  (수정 — SMBIOS 확장 주입 + placeholder 변형)
+scripts/mock-guest/diagnose-cycle.sh          (수정 — v2 COLLECT 시퀀스)
+ddl/E1-2_collection.sql                       (신규 — last_seen_at + bmc 2컬럼)</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>E1-I — PXE 인프라 관리</b> (사용자 지정 순서): dhcpd.conf·tftp 자산 관리 + 진단 이미지 자산 화면 + 자산 서빙 주체 재판단 + V10(OMAPI). E1 이 완결된다.</li>
+          <li>로드맵 정렬: 회차(DEC-29)·재투입(DEC-30)·중단(DEC-31) 슬라이스 위치 + U3 착수 시점.</li>
+          <li>T3 적립분(V3·V8·실기 iPXE)은 물리 확보 시 일괄.</li>
+        </ol>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎬 수집·적재·완주 시뮬레이터 — 서버 규약 1:1
+  // 지시 판정 = §4 우선순위 / 소비 = 관용 파싱 + placeholder 필터 + 승급 + 완주 / 4행 이분
+  // 수동 FAILED·재시도 활성 조건 = 도메인 메서드 SSOT 재현
+  // ─────────────────────────────────────────────────────────────
+  let S;
+  function simReset() {
+    S = { stage:'IPXE_REGISTERED', phase:'DIAGNOSE_LINUX', started:true,
+          failedAt:null, failedStep:null, completedAt:null, silentMin:0,
+          serial:null, bios:null, hw:null, bmc:null, ledger:[], clock:0 };
+    msg('', '「▶ 수집 사이클」로 시작 — placeholder 변형을 고르면 필터가 어떻게 지키는지 보인다.');
+    simRender();
+  }
+  const variant = () => document.querySelector('input[name="var"]:checked').value;
+  function msg(k, t) { const el = document.getElementById('sim-message'); el.className = 'ux-message' + (k ? ' ' + k : ''); el.textContent = t; }
+
+  function directive() {                                   // §4 지시 판정 그대로
+    if (S.completedAt) return 'REBOOT';
+    if (S.phase === 'DIAGNOSE_LINUX' && S.stage === 'IPXE_REGISTERED') return 'COLLECT';
+    return 'WAIT';
+  }
+  function actCycle() {
+    if (S.failedAt) { msg('error', 'FAILED 상태 — 에이전트 보고는 게이트가 409 거절(E1-0b). 재시도 버튼으로 풀어야 한다.'); return; }
+    if (S.completedAt) { msg('success', '이미 완주 — 다음 체크인은 REBOOT, 재부팅 후 /boot 는 4행 이분 → 입고 검수 대기(sleep+chain). U3 할당이 생기면 이 폴링이 재개 트리거다.'); return; }
+    S.silentMin = 0;
+    const v = variant();
+    // 수집 보고 (statusMeta) → 관용 파싱 + placeholder 필터
+    S.ledger.push(['INFORMATION_COLLECTING', 'SUCCEEDED']);
+    const rawSerial = v === 'ph' ? 'To Be Filled By O.E.M.' : 'JG4P6400027';
+    S.serial = (v === 'ph') ? null : rawSerial;            // placeholder → null (UNIQUE 보호)
+    S.bios = 'F13';
+    S.hw = 'CPU: Intel Xeon Gold 6338 · DIMM_A1~A8: Samsung 32GB ×8 · nvme0: SSD NVMe 1.92TB · PCIe: Broadcom MegaRAID 9560-8i(RAID) · Intel X710-DA2(10G SFP+)';
+    S.bmc = (v === 'nobmc') ? null : '192.168.0.201 / b4:2e:99:aa:bb:cc';
+    S.stage = 'DIAGNOSTIC_ENRICHED';
+    S.ledger.push(['INFORMATION_PERSISTING', 'SUCCEEDED']);
+    // 완주 판정: PhaseSequence.nextAfter(진단, ∅) = empty → markCompleted
+    S.completedAt = 'now';
+    let note = '✓ COLLECT → 수집 보고 → 관용 파싱·적재 → ENRICHED → 완주(completedAt 첫 실기록).';
+    if (v === 'ph') note += ' placeholder 시리얼은 필터가 null 로 지켰다(원문은 원장 statusMeta 보존 — V8 실측 후 재파싱 가능).';
+    if (v === 'nobmc') note += ' BMC 미검출은 정상 degrade — 나머지만 적재(실보드에서 자연히 채워짐).';
+    msg('success', note);
+    simRender();
+  }
+  function actSilence() {
+    if (S.completedAt || S.failedAt) { msg('', '진행 중(PROVISIONING)에서만 의미 있는 시나리오다 — 리셋 후 완주 전에 눌러보라.'); return; }
+    S.silentMin += 30;
+    msg('error', '무보고 침묵 ' + S.silentMin + '분(UC-4 — network boot 이탈 등). 자동 FAILED 는 없다(DEC-4) — 운영자가 판단해 수동 전환한다.');
+    simRender();
+  }
+  function actFail() {
+    if (S.completedAt || S.failedAt || !S.started) { msg('error', '수동 FAILED 는 PROVISIONING 에서만 — UI 는 버튼을 숨기고 서버 가드는 409(direct POST 안전망).'); return; }
+    S.failedAt = 'now'; S.failedStep = null;               // 수동 표식 = failedStepCode null
+    msg('success', '✓ 수동 FAILED 전환 — failedStepCode=null(운영자 전환 표시). /boot 는 3행 대기, 에이전트 보고는 409.');
+    simRender();
+  }
+  function actRetry() {
+    if (!S.failedAt) { msg('error', '재시도는 FAILED 에서만.'); return; }
+    if (S.failedStep === 'BIOS_UPDATING' || S.failedStep === 'BMC_UPDATING') {
+      msg('error', '✗ 펌웨어 실패는 재시도 차단(retryBlocked — 벽돌 리스크, DEC-4). UI disabled+tooltip 과 서버 409 가 같은 메서드를 공유한다.'); return;
+    }
+    S.failedAt = null; S.failedStep = null; S.silentMin = 0;
+    msg('success', '✓ 재시도(clearFailed — 전진 가드의 유일한 명시 예외) — 커서 유지, 다음 /boot 가 진단 체인로드 재발급.');
+    simRender();
+  }
+  function simRender() {
+    document.getElementById('b-cycle').innerHTML = '<button class="n-demo-btn" onclick="actCycle()">▶ 수집 사이클 (체크인→보고→적재)</button>';
+    document.getElementById('b-silence').innerHTML = '<button class="n-demo-btn" onclick="actSilence()">⏱ 30분 경과 (무보고)</button>';
+    const canFail = S.started && !S.failedAt && !S.completedAt;
+    const canRetry = !!S.failedAt && !(S.failedStep === 'BIOS_UPDATING' || S.failedStep === 'BMC_UPDATING');
+    document.getElementById('b-fail').innerHTML = '<button class="n-demo-btn danger" onclick="actFail()"' + (canFail ? '' : ' disabled') + '>수동 FAILED 전환</button>';
+    document.getElementById('b-retry').innerHTML = '<button class="n-demo-btn" onclick="actRetry()"' + (S.failedAt ? '' : ' disabled') + '>재시도</button>';
+    const st = document.getElementById('sim-status');
+    if (S.failedAt) { st.className = 'badge red'; st.textContent = '실패'; }
+    else if (S.completedAt) { st.className = 'badge teal'; st.textContent = '완료 (입고 검수 대기)'; }
+    else { st.className = 'badge on'; st.textContent = '프로비저닝 중'; }
+    const ct = document.getElementById('sim-contact');
+    if (S.silentMin > 0) { ct.className = 'badge warnb'; ct.textContent = '무접촉 ' + S.silentMin + '분'; }
+    else { ct.className = 'badge blue'; ct.textContent = '접촉 중 · 3초 전'; }
+    const sg = document.getElementById('sim-stage');
+    sg.className = 'badge ' + (S.stage === 'DIAGNOSTIC_ENRICHED' ? 'teal' : 'off');
+    sg.textContent = S.stage === 'DIAGNOSTIC_ENRICHED' ? '진단 정보 보강' : 'iPXE 등록';
+    document.getElementById('sim-nudge').textContent = '';
+    const ph = '— (진단 단계에서 수집)';
+    document.getElementById('f-serial').textContent = S.serial || (S.stage === 'DIAGNOSTIC_ENRICHED' ? 'null (placeholder 필터)' : ph);
+    document.getElementById('f-bios').textContent = S.bios || ph;
+    document.getElementById('f-hw').textContent = S.hw || ph;
+    document.getElementById('f-bmc').textContent = S.bmc || (S.stage === 'DIAGNOSTIC_ENRICHED' ? 'null (미검출 degrade)' : ph);
+    document.getElementById('f-phase').textContent = '진단 리눅스';
+    document.getElementById('f-done').textContent = S.completedAt ? '기록됨 — /boot 4행 이분: 커서<OS_INSTALLING → 입고 검수 대기' : '—';
+    document.getElementById('sim-ledger').innerHTML =
+      '<tr><td colspan="2" style="color:var(--text-muted);">DIAGNOSTIC_BOOTING 까지 기록됨 (E1-1)</td></tr>' +
+      S.ledger.map(([c, r]) => `<tr><td>${c}</td><td>${r}</td></tr>`).join('');
+    const cap = b => b ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    document.getElementById('sim-caps').innerHTML =
+      'directive()                = ' + directive() + '   (§4 우선순위 판정)\n' +
+      'discoveryStage             = ' + S.stage + '\n' +
+      'isCompleted()              = ' + cap(!!S.completedAt) + '   (completedAt — DEC-25 첫 실기록)\n' +
+      'isFailed()                 = ' + cap(!!S.failedAt) + '   (failedStepCode=' + (S.failedStep || 'null') + ')\n' +
+      'retryBlocked()             = ' + cap(S.failedStep === 'BIOS_UPDATING' || S.failedStep === 'BMC_UPDATING') + '   (펌웨어 실패만 true — UI·서버 SSOT)';
+  }
+  simReset();
+</script>
+</body>
+</html>

@@ -58,6 +58,15 @@ public class GuestServer extends BaseTimeEntity {
     private com.example.serverprovision.execution.vo.GuestToken guestToken;
 
     /**
+     * 게스트 마지막 접촉 시각(E1-2, DEC-32) — /boot 폴링 · 에이전트 보고가 갱신하는 <b>관찰 로그</b>다.
+     * dispatch 판정 입력이 아니며(DEC-2 읽기 전용 판정 유지) UI 의 "접촉 중 / 무접촉 N분" 표시와
+     * 무보고 침묵(UC-4) 감지에만 쓰인다. 회차 모델(DEC-29) 도입 후에도 서버당 1개면 충분해
+     * progress 가 아닌 여기 둔다(plan Q5).
+     */
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
+
+    /**
      * 상세 화면 인라인 수정 — 운영자 입력 4필드 일괄 갱신.
      */
     public void updateOperatorInfo(String name, String modelName, String serialNumber, String memo) {
@@ -74,6 +83,11 @@ public class GuestServer extends BaseTimeEntity {
         if (this.decommissionedAt == null) {
             this.decommissionedAt = at;
         }
+    }
+
+    /** 게스트 접촉 표식(E1-2) — 항상 최신으로 덮는다(관찰 로그라 순서 보정 불요). */
+    public void touchSeen(LocalDateTime at) {
+        this.lastSeenAt = at;
     }
 
     /** 토큰 lazy 발급(멱등) — U1 기존 등록분(null) 보정 경로. 발급됐으면 보존(회전 없음, DEC-5). */

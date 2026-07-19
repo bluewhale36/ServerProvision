@@ -21,6 +21,8 @@ public record GuestServerSummaryResponse(
         String boardModelName,
         GuestServerStatus status,
         IpAddressVO primaryIp,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime lastSeenAt,
+        boolean contactActive
 ) {
 }

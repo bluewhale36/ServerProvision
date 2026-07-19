@@ -4,6 +4,8 @@ import com.example.serverprovision.execution.dto.request.UpdateGuestServerReques
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
+import com.example.serverprovision.execution.exception.ProvisioningMarkFailedRejectedException;
+import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
 import com.example.serverprovision.execution.exception.ProvisioningStartRejectedException;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
@@ -80,6 +82,47 @@ public class GuestServerCommandService {
                     : ProvisioningStartRejectedException.alreadyStarted(id);
         }
         progress.start(LocalDateTime.now());
+    }
+
+    /**
+     * 운영자 수동 실패 전환(E1-2, DEC-4) — 무보고 침묵(게스트 침묵 · 전원 단절, UC-4)을 운영자 판단으로
+     * 실패 처리한다. 가드 판정은 뷰 버튼 노출과 같은 SSOT({@link ProvisioningProgress#isManualFailable}).
+     */
+    @Transactional
+    public void markFailedManually(UUID id) {
+        ProvisioningProgress progress = requireProgress(id);
+        GuestServer server = progress.getGuestServer();
+        if (!progress.isManualFailable(server.getDecommissionedAt())) {
+            throw ProvisioningMarkFailedRejectedException.notProvisioning(id);
+        }
+        progress.markFailedManually(LocalDateTime.now());
+    }
+
+    /**
+     * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제(전진 가드의 유일한 명시 예외). 커서는 유지되어
+     * 다음 /boot 폴링이 실패 phase 의 스크립트를 재발급한다. 펌웨어 flash 실패는 차단
+     * (판정 SSOT = {@link ProvisioningProgress#isRetryBlocked} — UI disabled + tooltip 과 공유).
+     */
+    @Transactional
+    public void retry(UUID id) {
+        ProvisioningProgress progress = requireProgress(id);
+        if (!progress.isFailed()) {
+            throw ProvisioningRetryRejectedException.notFailed(id);
+        }
+        if (progress.isRetryBlocked()) {
+            throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getFailedStepCode());
+        }
+        progress.clearFailed(LocalDateTime.now());
+    }
+
+    private ProvisioningProgress requireProgress(UUID id) {
+        if (!guestServerRepository.existsById(id)) {
+            throw new GuestServerNotFoundException(id);
+        }
+        // progress 는 등록 트랜잭션이 1:1 로 seed 한다(U1 §D6) — 부재는 데이터 손상이므로 500 이 정직하다.
+        return provisioningProgressRepository.findByGuestServer_Id(id)
+                .orElseThrow(() -> new IllegalStateException(
+                        "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + id));
     }
 
     private static String blankToNull(String value) {

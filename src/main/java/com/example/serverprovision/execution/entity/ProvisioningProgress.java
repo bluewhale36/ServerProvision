@@ -133,6 +133,48 @@ public class ProvisioningProgress extends BaseTimeEntity {
         this.lastTransitionAt = now;
     }
 
+    /**
+     * 운영자 수동 실패 전환(E1-2, DEC-4) — 무보고 침묵(게스트 침묵 · 전원 단절, UC-4)을 운영자 판단으로
+     * 실패 처리한다. failedStepCode 는 null(수동 표식 — 게스트가 보고한 실패가 아님을 화면이 '운영자 전환'
+     * 으로 구분, plan Q6). 가능 판정은 {@link #isManualFailable} 로 뷰 플래그와 SSOT 공유.
+     */
+    public void markFailedManually(LocalDateTime now) {
+        markFailed(null, now);
+    }
+
+    /** 수동 실패 전환 가능 판정 — 뷰 버튼 노출과 서비스 409 가드의 단일 SSOT. (= 운영 상태 PROVISIONING) */
+    public boolean isManualFailable(LocalDateTime decommissionedAt) {
+        return decommissionedAt == null && isStarted() && !isFailed() && !isCompleted();
+    }
+
+    /**
+     * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제. 전진 전용 가드 체계의 <b>유일한 명시 예외</b>다
+     * (자동 재시도는 없다 — 운영자 액션만). 커서는 실패 phase 를 그대로 가리키므로 다음 /boot 폴링이
+     * 그 phase 의 스크립트를 재발급한다. 가능 판정은 {@link #isRetryable}/{@link #isRetryBlocked} SSOT.
+     */
+    public void clearFailed(LocalDateTime now) {
+        if (!isFailed()) {
+            throw new IllegalStateException("실패 상태가 아닌 프로비저닝의 재시도는 불가합니다. id=" + id);
+        }
+        this.failedAt = null;
+        this.failedStepCode = null;
+        this.lastTransitionAt = now;
+    }
+
+    /**
+     * 펌웨어 flash 실패의 재시도 차단(DEC-4 — 원인 미상 재-flash 는 벽돌 리스크).
+     * UI disabled + tooltip 과 서버 409 가드가 이 메서드 하나를 공유한다(SSOT).
+     */
+    public boolean isRetryBlocked() {
+        return failedStepCode == ProvisioningPhaseStep.BIOS_UPDATING
+                || failedStepCode == ProvisioningPhaseStep.BMC_UPDATING;
+    }
+
+    /** 재시도 버튼 노출 판정 — 실패 상태이면서 차단 대상이 아닐 때. */
+    public boolean isRetryable() {
+        return isFailed() && !isRetryBlocked();
+    }
+
     public boolean isStarted() {
         return startedAt != null;
     }

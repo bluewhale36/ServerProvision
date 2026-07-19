@@ -1,3 +1,5 @@
 alpine-base
 dmidecode
 ipmitool
+pciutils
+lsblk

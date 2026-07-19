@@ -6,8 +6,10 @@ import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
+import com.example.serverprovision.execution.vo.HardwareSpec;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
+import com.example.serverprovision.execution.vo.SoftwareSpec;
 import com.example.serverprovision.management.board.enums.Vendor;
 
 import java.time.LocalDateTime;
@@ -31,18 +33,35 @@ public record GuestServerDetailResponse(
         LocalDateTime decommissionedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
+        Contact contact,
         Inventory inventory,
         List<Nic> nics,
         Progress progress,
         List<Step> steps
 ) {
 
-    /** 하드웨어 인벤토리 (guest_server_detail). vendor 는 boardModel 에서 도출(U1 §D2). */
+    /**
+     * 게스트 접촉 관찰(E1-2, DEC-32) — 판정 입력이 아닌 표시용. {@code active} 는 "폴링 주기(30초) 3회
+     * 이내 접촉"(90초) 기준으로 조회 시점에 계산된다. 한 번도 접촉이 없으면 record 자체가 null.
+     */
+    public record Contact(
+            LocalDateTime lastSeenAt,
+            long secondsSince,
+            boolean active
+    ) {
+    }
+
+    /** 하드웨어 인벤토리 (guest_server_detail). vendor 는 boardModel 에서 도출(U1 §D2).
+     *  hardwareSpec/softwareSpec 은 저장 JSON 의 관용 파싱 결과(E1-2) — 해석 불가면 null(원문은 원장 보존). */
     public record Inventory(
             Vendor vendor,
             String boardModelName,
             String boardSerial,
-            DiscoveryStage discoveryStage
+            DiscoveryStage discoveryStage,
+            HardwareSpec hardwareSpec,
+            SoftwareSpec softwareSpec,
+            IpAddressVO bmcIp,
+            MacAddressVO bmcMac
     ) {
     }
 
@@ -72,7 +91,10 @@ public record GuestServerDetailResponse(
             LocalDateTime failedAt,
             ProvisioningPhaseStep failedStepCode,
             LocalDateTime completedAt,
-            boolean startable
+            boolean startable,
+            boolean markFailable,
+            boolean retryable,
+            boolean retryBlocked
     ) {
     }
 

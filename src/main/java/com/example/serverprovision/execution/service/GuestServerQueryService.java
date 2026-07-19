@@ -14,9 +14,15 @@ import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.HostNicBindingRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.repository.SetupStepRepository;
+import com.example.serverprovision.execution.vo.HardwareSpec;
+import com.example.serverprovision.execution.vo.SoftwareSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 import java.util.List;
 import java.util.Map;
@@ -37,6 +43,10 @@ public class GuestServerQueryService {
     private final HostNicBindingRepository nicRepository;
     private final ProvisioningProgressRepository progressRepository;
     private final SetupStepRepository setupStepRepository;
+    private final ObjectMapper objectMapper;
+
+    /** "접촉 중" 판정 임계 — 게스트 폴링 주기(30초) 3회 이내(E1-2, DEC-32 표시 규칙). */
+    private static final long CONTACT_ACTIVE_SECONDS = 90;
 
     @Transactional(readOnly = true)
     public List<GuestServerSummaryResponse> findAll() {
@@ -87,7 +97,9 @@ public class GuestServerQueryService {
                 detail != null ? detail.getBoardModel().getModelName() : null,
                 deriveStatus(server, progress),                                          // 도출
                 primaryNic != null ? primaryNic.getIpAddress() : null,
-                server.getCreatedAt()
+                server.getCreatedAt(),
+                server.getLastSeenAt(),
+                isContactActive(server.getLastSeenAt())
         );
     }
 
@@ -100,7 +112,11 @@ public class GuestServerQueryService {
                 detail.getBoardModel().getVendor(),            // 도출
                 detail.getBoardModel().getModelName(),
                 detail.getBoardSerial(),
-                detail.getDiscoveryStage());
+                detail.getDiscoveryStage(),
+                parseTolerant(detail.getHardwareSpec(), HardwareSpec.class),
+                parseTolerant(detail.getSoftwareSpec(), SoftwareSpec.class),
+                detail.getBmcIp(),
+                detail.getBmcMac());
 
         List<GuestServerDetailResponse.Nic> nicResponses = nics.stream()
                 .map(n -> new GuestServerDetailResponse.Nic(
@@ -122,7 +138,11 @@ public class GuestServerQueryService {
                 progress.getFailedAt(),
                 progress.getFailedStepCode(),
                 progress.getCompletedAt(),
-                progress.isStartableWith(server.getDecommissionedAt()));   // 버튼 노출 = 서버 가드 SSOT
+                // 버튼 노출 4종 전부 서버 가드와 같은 도메인 메서드 SSOT (UI 차단 조건 = 서버 가드 조건)
+                progress.isStartableWith(server.getDecommissionedAt()),
+                progress.isManualFailable(server.getDecommissionedAt()),
+                progress.isRetryable(),
+                progress.isRetryBlocked());
 
         List<GuestServerDetailResponse.Step> stepResponses = steps.stream()
                 .map(s -> new GuestServerDetailResponse.Step(
@@ -144,6 +164,7 @@ public class GuestServerQueryService {
                 server.getDecommissionedAt(),
                 server.getCreatedAt(),
                 server.getUpdatedAt(),
+                toContact(server.getLastSeenAt()),
                 inventory,
                 nicResponses,
                 progressResponse,
@@ -153,5 +174,32 @@ public class GuestServerQueryService {
 
     private GuestServerStatus deriveStatus(GuestServer server, ProvisioningProgress progress) {
         return GuestServerStatus.derive(progress, server.getDecommissionedAt());
+    }
+
+    // ─────────────────────────── E1-2 — 접촉 관찰 · 수집 JSON 관용 파싱 ───────────────────────────
+
+    private GuestServerDetailResponse.Contact toContact(LocalDateTime lastSeenAt) {
+        if (lastSeenAt == null) {
+            return null;
+        }
+        long seconds = Math.max(0, Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds());
+        return new GuestServerDetailResponse.Contact(lastSeenAt, seconds, seconds <= CONTACT_ACTIVE_SECONDS);
+    }
+
+    private boolean isContactActive(LocalDateTime lastSeenAt) {
+        return lastSeenAt != null
+                && Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds() <= CONTACT_ACTIVE_SECONDS;
+    }
+
+    /** 저장 JSON → 수집 record 관용 파싱 — 해석 불가는 null(화면은 원장 원문 안내로 폴백). */
+    private <T> T parseTolerant(String json, Class<T> type) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, type);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 }

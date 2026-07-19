@@ -38,9 +38,18 @@ public final class IpxeScripts {
         return waitAndChain("decommissioned server. not a provisioning target.", rebootQuery);
     }
 
-    /** 실패 상태(자동 재시도 없음, DEC-4) — dispatch 3행. */
+    /** 실패 상태(자동 재시도 없음, DEC-4) — dispatch 3행. step null = 운영자 수동 전환(E1-2, plan Q6). */
     public static String failed(ProvisioningPhaseStep failedStep, String rebootQuery) {
-        return waitAndChain("provisioning FAILED at " + failedStep + ". waiting for operator...", rebootQuery);
+        String where = failedStep != null ? "at " + failedStep : "(operator-marked)";
+        return waitAndChain("provisioning FAILED " + where + ". waiting for operator...", rebootQuery);
+    }
+
+    /**
+     * 완주했지만 OS 설치 전(진단만 완주 = 입고 검수 상태) — dispatch 4행 이분(E1-2)의 대기쪽.
+     * U3 할당이 생기면 이 폴링 루프 자체가 재개 트리거다(로드맵 §3-E1-3).
+     */
+    public static String awaitingIntake(String rebootQuery) {
+        return waitAndChain("diagnosis complete. awaiting assignment (intake hold)...", rebootQuery);
     }
 
     /** 미구현 phase HOLD(silent 통과 금지, DEC-6) — dispatch 6행. */

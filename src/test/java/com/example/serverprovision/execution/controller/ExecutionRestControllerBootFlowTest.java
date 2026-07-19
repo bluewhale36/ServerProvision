@@ -115,9 +115,17 @@ class ExecutionRestControllerBootFlowTest {
     }
 
     @Test
-    @DisplayName("4행 — 종단: exit (로컬 부팅 폴스루, chain 없음)")
+    @DisplayName("4행 이분(E1-2) — 완주 + OS 설치 전 → 입고 검수 대기 / OS 설치 후 → exit")
     void row4_completed() throws Exception {
-        boot(server(null), progress().startedAt(T).completedAt(T).build())
+        // 진단만 완주(커서 < OS_INSTALLING) = 입고 검수 대기 — OS 없는 베어메탈에 exit 는 부팅 실패 루프
+        boot(server(null), progress().startedAt(T)
+                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).completedAt(T).build())
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("awaiting assignment")))
+                .andExpect(content().string(not(containsString("exit"))));
+        // OS 설치 이후 커서 = 기존 exit 폴스루 유지
+        boot(server(null), progress().startedAt(T)
+                .currentPhase(ProvisioningPhase.OS_SETTING).completedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("exit")))
                 .andExpect(content().string(not(containsString("chain"))));

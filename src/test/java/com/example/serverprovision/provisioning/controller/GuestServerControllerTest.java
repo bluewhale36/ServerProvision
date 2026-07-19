@@ -50,18 +50,21 @@ class GuestServerControllerTest {
     private GuestServerSummaryResponse summary(UUID id) {
         return new GuestServerSummaryResponse(
                 id, "web-01", UUID.randomUUID(), Vendor.GIGABYTE, "MS73-HB1-000",
-                GuestServerStatus.REGISTERED, IpAddressVO.of("10.20.3.11"), LocalDateTime.now());
+                GuestServerStatus.REGISTERED, IpAddressVO.of("10.20.3.11"), LocalDateTime.now(),
+                null, false);   // E1-2 — 접촉 관찰(lastSeenAt·contactActive) 기본 fixture
     }
 
     private GuestServerDetailResponse detail(UUID id) {
         return new GuestServerDetailResponse(
                 id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "memo",
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
-                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, "MS73-HB1-000", "GB-001", DiscoveryStage.IPXE_REGISTERED),
+                null,   // E1-2 — 접촉 관찰 없음 fixture
+                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, "MS73-HB1-000", "GB-001",
+                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
-                        null, null, null, null, true),   // E1-0a — 미개시(startable) 기본 fixture
+                        null, null, null, null, true, false, false, false),   // E1-0a 미개시 + E1-2 액션 플래그
                 List.of());
     }
 

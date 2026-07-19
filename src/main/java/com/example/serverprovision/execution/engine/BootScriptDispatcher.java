@@ -33,8 +33,13 @@ public class BootScriptDispatcher {
         if (progress.isFailed()) {                                        // 3행
             return IpxeScripts.failed(progress.getFailedStepCode(), rebootQuery);
         }
-        if (progress.isCompleted()) {                                     // 4행
-            return IpxeScripts.completedExit();
+        if (progress.isCompleted()) {                                     // 4행 — E1-2 이분(로드맵 D3)
+            // OS 미설치 베어메탈에 exit(로컬 부팅 폴스루)는 부팅 실패 루프다. 완주 커서는 "마지막
+            // 보유 phase"(DEC-25)이므로, OS 설치까지 갔던 서버만 exit — 그 전(진단만 완주 = 입고 검수)은
+            // 대기 폴링을 유지한다(U3 할당이 생기면 이 폴링이 재개 트리거).
+            boolean osInstalled = progress.getCurrentPhase() != null
+                    && progress.getCurrentPhase().ordinal() >= ProvisioningPhase.OS_INSTALLING.ordinal();
+            return osInstalled ? IpxeScripts.completedExit() : IpxeScripts.awaitingIntake(rebootQuery);
         }
         if (!progress.isStarted()) {                                      // 5행 — 개시 게이트(DEC-26)
             return IpxeScripts.waitingForStart(rebootQuery);

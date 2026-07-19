@@ -78,7 +78,7 @@ do_repo() {
             # 스스로 추가한다 — 누락 시 world 트랜잭션 전체가 실패해 busybox 심링크 트리거가 안 돌고
             # /sbin/init 부재로 부팅이 응급 셸에 떨어진다 (2026-07-19 QEMU 스모크 실측).
             cd /out
-            apk fetch --recursive --output . alpine-base openrc busybox dmidecode ipmitool openssl
+            apk fetch --recursive --output . alpine-base openrc busybox dmidecode ipmitool openssl pciutils lsblk
             # 인덱스 생성 + 서명
             apk index --rewrite-arch "$ALPINE_ARCH" -o APKINDEX.unsigned.tar.gz ./*.apk
             key=$(ls /keys/*.rsa | head -1)

@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.engine;
 
+import com.example.serverprovision.execution.dto.response.StepCloseResponse;
 import com.example.serverprovision.execution.dto.response.StepOpenResponse;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
@@ -11,6 +12,9 @@ import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.exception.AgentReportRejectedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.SetupStepNotFoundException;
+import com.example.serverprovision.execution.entity.GuestServerDetail;
+import com.example.serverprovision.execution.enums.DiscoveryStage;
+import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.repository.SetupStepRepository;
@@ -44,9 +48,11 @@ class AgentReportServiceTest {
     private static final LocalDateTime T = LocalDateTime.of(2026, 7, 18, 12, 0);
 
     @Mock GuestServerRepository guestServerRepository;
+    @Mock GuestServerDetailRepository guestServerDetailRepository;   // E1-2 — 지시 판정(미수집 여부) 입력
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock SetupStepRepository setupStepRepository;
     @Mock SetupStepRecorder setupStepRecorder;
+    @Mock PhaseExecutorRegistry phaseExecutorRegistry;               // E1-2 — 소비 훅 위임(기본 empty = 미등록)
     @InjectMocks AgentReportService service;
 
     private GuestServer guest(UUID id) {
@@ -72,7 +78,7 @@ class AgentReportServiceTest {
     // ==== checkin — 첫 체크인 1회 전이 =================================
 
     @Test
-    @DisplayName("첫 체크인(개시 + BOOTSTRAPPING) → DIAGNOSE_LINUX 전이 + WAIT 지시")
+    @DisplayName("첫 체크인(개시 + BOOTSTRAPPING) → DIAGNOSE_LINUX 전이 + COLLECT 지시(미수집)")
     void checkin_first_advances() {
         GuestServer g = stubGuest();
         ProvisioningProgress p = progress(g, true, ProvisioningPhase.BOOTSTRAPPING);
@@ -80,8 +86,23 @@ class AgentReportServiceTest {
 
         var res = service.checkin(TOKEN);
 
-        assertThat(res.directive()).isEqualTo(AgentDirective.WAIT);
+        // 전이 후 커서 = 진단 + detail 미수집(기본 empty) → 수집 지시 (E1-2 지시 판정)
+        assertThat(res.directive()).isEqualTo(AgentDirective.COLLECT);
         assertThat(p.getCurrentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);
+    }
+
+    @Test
+    @DisplayName("체크인 — 이미 수집됨(DIAGNOSTIC_ENRICHED) → WAIT (COLLECT 재지시 없음)")
+    void checkin_enriched_waits() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        GuestServerDetail enriched = org.mockito.Mockito.mock(GuestServerDetail.class);
+        given(enriched.getDiscoveryStage()).willReturn(DiscoveryStage.DIAGNOSTIC_ENRICHED);
+        given(guestServerDetailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(Optional.of(enriched));
+
+        assertThat(service.checkin(TOKEN).directive()).isEqualTo(AgentDirective.WAIT);
     }
 
     @Test
@@ -191,6 +212,59 @@ class AgentReportServiceTest {
 
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);   // 행 불변
         assertThat(p.isFailed()).isFalse();                                     // markFailed 재발화 없음
+    }
+
+    @Test
+    @DisplayName("closeStep(SUCCEEDED) — 해당 phase 실행기 소비 훅 위임 (E1-2, DEC-6 확장)")
+    void close_succeeded_delegatesToExecutor() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        SetupStep step = SetupStep.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        given(setupStepRepository.findById(step.getId())).willReturn(Optional.of(step));
+        ProvisioningPhaseExecutor executor = org.mockito.Mockito.mock(ProvisioningPhaseExecutor.class);
+        given(phaseExecutorRegistry.find(ProvisioningPhase.DIAGNOSE_LINUX)).willReturn(Optional.of(executor));
+
+        service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+
+        verify(executor).onStepClosed(g, p, step);
+    }
+
+    @Test
+    @DisplayName("closeStep — 소비 훅이 완주를 판정하면 응답 directive = REBOOT (완주 지시의 유일한 운반로)")
+    void close_completed_returnsReboot() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        SetupStep step = SetupStep.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        given(setupStepRepository.findById(step.getId())).willReturn(Optional.of(step));
+        ProvisioningPhaseExecutor executor = org.mockito.Mockito.mock(ProvisioningPhaseExecutor.class);
+        given(phaseExecutorRegistry.find(ProvisioningPhase.DIAGNOSE_LINUX)).willReturn(Optional.of(executor));
+        org.mockito.Mockito.doAnswer(inv -> {   // 소비 훅이 같은 트랜잭션에서 markCompleted (DEC-25)
+            p.markCompleted(T.plusSeconds(1));
+            return null;
+        }).when(executor).onStepClosed(g, p, step);
+
+        StepCloseResponse res = service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+
+        assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
+    }
+
+    @Test
+    @DisplayName("완주 후 중복 close(REBOOT 응답 유실 재전송) — 게이트의 좁은 예외: no-op + REBOOT 재계산")
+    void close_duplicateAfterCompletion_returnsRebootAgain() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX);
+        p.markCompleted(T);   // 완주 상태 (derive = PROVISIONED)
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        SetupStep step = SetupStep.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        step.close(ProvisioningStatus.SUCCEEDED, "{}", T);   // 이미 종결된 행
+        given(setupStepRepository.findById(step.getId())).willReturn(Optional.of(step));
+
+        StepCloseResponse res = service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+
+        assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
+        assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);   // 행 불변(no-op)
     }
 
     @Test

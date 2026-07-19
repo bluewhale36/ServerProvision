@@ -119,16 +119,62 @@ cd scripts/pxe-lab && FIRMWARE=bios PORT=7777 ./run-guest.sh</pre>
 
 <script>
 const CHANGELOG = [
+  'v2 (2026-07-19) — E1-2 검증 캠페인 적재(수집·적재·완주 — SMBIOS 주입 관통 · placeholder 필터 · T1 이 잡은 결함 2건: 중복 시리얼 500·완주 후 중복 close 409).',
   'v1 (2026-07-19) — 신설: E1-1 검증 캠페인(부팅 10회 — UEFI 불가 판정부터 CP5 완주까지) 적재.',
 ];
 
 // ── 캠페인: 시간순 묶음 (슬라이스 검증 단위) ──
 const CAMPAIGNS = [
+  { id:'e12', title:'E1-2 — 진단 정보 수집·적재·완주 검증', sub:'2026-07-19 · QEMU 2회 + T1 하네스 3회 · 결함 2건 발견·교정 · SMBIOS 주입 관통 실증' },
   { id:'e11', title:'E1-1 — 진단 리눅스 부팅 체인 검증', sub:'2026-07-19 · 부팅 10회 · 결함 4건 발견·교정 · V4/V5/V7/V9 실측 · CP5 완주' },
 ];
 
 // result: pass(완주) | defect(결함 발견 — 이 랩의 존재 이유) | env(랩·환경 교정) | blocked(진행 불가)
 const SESSIONS = [
+{ camp:'e12', run:'R1', date:'2026-07-19 16:10', slice:'E1-2', fw:'BIOS', result:'pass',
+  goal:'수집 사이클 전 구간 — SMBIOS 주입값(시리얼 JG4P6400027 · BIOS F13)이 dmidecode→agent→파서→DB 까지 관통하는가',
+  observed:'체크인(COLLECT) → DIAGNOSTIC_BOOTING → INFORMATION_COLLECTING(수집 JSON 보고) → 소비 훅(관용 파싱·적재·ENRICHED·INFORMATION_PERSISTING) → completedAt 첫 실기록까지 1.6초. board_serial=JG4P6400027 · biosVersion=F13 · 메모리 DIMM 슬롯 단위 · lspci 관통(QEMU 장치 ETC 분류) · BMC 미검출 degrade(NULL). REBOOT 후 재부팅한 게스트가 입고 검수 대기 폴링(last_seen 갱신 지속).',
+  log:'16:10:34 checkin(진단 진입) → 16:10:35.8 "진단 phase 완주 — 종단 기록(completedAt)"\nDB: DIAGNOSTIC_ENRICHED · hw_spec {cpu,memoryModules[DIMM 0],pcieDevices[...]} · 원장 5행 서사',
+  finding:'—',
+  action:'수집 파이프라인 T2 완주 확정 — 물리 불요 검증 전략(-smbios 주입)의 실증.',
+  refs:['ddl/E1-2_collection.sql', 'DiagnoseLinuxExecutor.onStepClosed'] },
+
+{ camp:'e12', run:'R2', date:'2026-07-19 16:13', slice:'E1-2', fw:'BIOS', result:'pass',
+  goal:'placeholder 변형(PLACEHOLDER=1) — "To Be Filled By O.E.M." 시리얼이 필터로 걸러지는가 (V8 대비)',
+  observed:'정상 완주 + board_serial=NULL + 원장 INFORMATION_PERSISTING statusMeta 에 필터 기록 잔존: {"placeholderFiltered":["boardSerial=To Be Filled By O.E.M."]} — 원문 보존·소급 재파싱 가능 구조 실증.',
+  finding:'—',
+  action:'placeholder 필터 전 경로 확정. 실측 패턴 보강은 T3(V8).',
+  refs:['DiagnosticReportParser (PLACEHOLDERS)'] },
+
+{ camp:'e12', run:'R3', date:'2026-07-19 16:12', slice:'E1-2 (T1)', fw:'하네스', result:'defect',
+  goal:'T1 하네스 회귀 — curl 로 수집 사이클 재연',
+  observed:'하네스 견본 시리얼이 R1 게스트 적재값과 동일 → guest_server_detail.board_serial UNIQUE 충돌 → close 500 + 트랜잭션 롤백. 에이전트 재시도도 같은 500 = 무한 실패 루프.',
+  log:'Duplicate entry JG4P6400027 for key UK... (guest_server_detail)',
+  finding:'placeholder 필터만으론 부족 — 실중복 시리얼(같은 보드 재등장 · 견본 중복)도 관용 흡수 필요. 커밋 시점 UNIQUE 500 은 관용 원칙의 사각.',
+  action:'적재 전 중복 사전 검사(existsByBoardSerialAndGuestServer_IdNot) → 시리얼만 생략 + WARN + 원장 meta 기록, 나머지 정상 적재. 단위 테스트 동반.',
+  refs:['GuestServerDetailRepository', 'DiagnoseLinuxExecutor (중복 흡수)'] },
+
+{ camp:'e12', run:'R4', date:'2026-07-19 16:15', slice:'E1-2 (T1)', fw:'하네스', result:'defect',
+  goal:'중복 close 멱등(E1-0b 계약) 회귀',
+  observed:'완주가 close 트랜잭션에서 판정되면서, 완주 직후의 중복 close(REBOOT 응답 유실 재전송 재연)가 보고 게이트(PROVISIONING 한정)에 걸려 409 — "재전송이 지시를 잃지 않는다" 멱등 계약 파손.',
+  finding:'게이트와 완주-in-close 의 상호작용 — 설계 시점에 못 본 교차점을 T1 이 잡았다.',
+  action:'게이트의 좁은 예외 신설: 완주(PROVISIONED) 상태에서 "이미 종결된 행의 재-close" 만 no-op + REBOOT 재계산 허용(새 step close 는 여전히 거절). agent.sh 에 close 3회 재시도 추가. 서비스 테스트 동반.',
+  refs:['AgentReportService.closeStep', 'agent.sh report_step'] },
+
+{ camp:'e12', run:'R6', date:'2026-07-19 16:26', slice:'E1-2 CP5', fw:'BIOS', result:'defect',
+  goal:'CP5 — 사용자 실검증 (IntelliJ 기동 + 창 모드 관찰)',
+  observed:'① 상세 페이지 500 — 접촉 배지의 T(java.lang.Math) 표현식이 Thymeleaf 3.1 의 타입 참조 금지에 걸림(접촉 기록이 있는 서버에서만 발화 — CP4 실렌더 확인이 상세 HTML 을 안 거친 틈). ② 게스트 콘솔의 한글 전부 ▪ — 리눅스 콘솔 비트맵 폰트에 한글 글리프가 없음(원천 제약).',
+  finding:'뷰 검증 사각(상세 HTML 실렌더) + 게스트 콘솔 출력 문자셋 제약.',
+  action:'① SpEL 삼항으로 교체 + 문제 서버 2대 실렌더 200 확인 + 제한 구문 전수 grep. ② 게스트 화면 출력(agent.sh·firstboot 메시지)은 ASCII 규약으로 확정 — 서버 로그·웹 화면의 한국어는 유지, 게스트 이름은 영문 권장. 사이클 자체는 사용자 환경에서 완주 관찰(배너·COLLECT 635bytes·REBOOT).',
+  refs:['server-detail.html (접촉 배지)', 'agent.sh · firstboot (ASCII 규약)'] },
+
+{ camp:'e12', run:'R5', date:'2026-07-19 16:16', slice:'E1-2 (T1)', fw:'하네스', result:'pass',
+  goal:'교정 2건 반영 후 재검증',
+  observed:'중복 시리얼 → 200 + REBOOT + board_serial NULL(중복 흡수) + 원장 meta {"filtered":["boardSerial(duplicate)=..."]}. 완주 게스트의 중복 close 재전송 → 200 {"directive":"REBOOT"}. /boot = 입고 검수 대기(4행 이분). 전체 테스트 1253건 통과.',
+  finding:'—',
+  action:'CP4 검증 종료.',
+  refs:['report (CP4 보고)'] },
+
 { camp:'e11', run:'R1', date:'2026-07-19 02:41', slice:'E1-1', fw:'UEFI(OVMF)', result:'defect',
   goal:'첫 실부팅 시도 — UEFI 경로로 체인 진입 확인 (V7)',
   observed:'20분간 /boot 접촉 0건. OVMF 의 네이티브 PXE 는 부트파일(boot.ipxe — 텍스트 스크립트)을 UEFI 실행파일로 취급해 실행하지 못한다.',

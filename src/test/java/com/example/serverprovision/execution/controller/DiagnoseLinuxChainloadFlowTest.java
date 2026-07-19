@@ -51,7 +51,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = ExecutionRestController.class)
 @Import({ BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
-        DiagnoseLinuxExecutor.class, PxeAssetsProperties.class, PxeAssetsConfig.class })
+        DiagnoseLinuxExecutor.class, PxeAssetsProperties.class, PxeAssetsConfig.class,
+        com.example.serverprovision.execution.engine.DiagnosticReportParser.class })
 class DiagnoseLinuxChainloadFlowTest {
 
     private static final String TOKEN = "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d";
@@ -79,6 +80,8 @@ class DiagnoseLinuxChainloadFlowTest {
 
     @MockitoBean GuestServerRegistrationService registrationService;
     @MockitoBean ProvisioningProgressRepository progressRepository;
+    @MockitoBean com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;   // E1-2 소비 협력자
+    @MockitoBean com.example.serverprovision.execution.engine.SetupStepRecorder setupStepRecorder;               // E1-2 소비 협력자
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private GuestServer server() {

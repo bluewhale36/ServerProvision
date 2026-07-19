@@ -55,9 +55,10 @@ class GuestServerControllerStartFlowTest {
         return new GuestServerDetailResponse(
                 id, "web-01", null, null, UUID.randomUUID(), null,
                 status, decommissionedAt, T, T,
-                null, List.of(),
+                null, null, List.of(),
                 new GuestServerDetailResponse.Progress(
-                        ProvisioningPhase.BOOTSTRAPPING, T, null, startedAt, null, null, null, startable),
+                        ProvisioningPhase.BOOTSTRAPPING, T, null, startedAt, null, null, null, startable,
+                        false, false, false),
                 List.of());
     }
 

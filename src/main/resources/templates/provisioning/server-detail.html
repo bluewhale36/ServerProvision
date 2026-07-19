@@ -38,6 +38,14 @@
                 <span th:case="'FAILED'"         class="n-badge n-badge-red"   th:text="${server.status.description}">실패</span>
                 <span th:case="'DECOMMISSIONED'" class="n-badge n-badge-gray"  th:text="${server.status.description}">회수됨</span>
             </span>
+            <!-- E1-2 (DEC-32) — 게스트 접촉 관찰: 판정이 아닌 표시. active = 폴링 3주기(90초) 이내 접촉 -->
+            <span th:if="${server.contact != null}" style="margin-left: 6px;">
+                <span th:if="${server.contact.active}" class="n-badge n-badge-teal"
+                      th:text="'접촉 중 · ' + ${server.contact.secondsSince} + '초 전'">접촉 중</span>
+                <!-- Thymeleaf 3.1+ 는 T() 타입 참조를 금지 — 분 하한(최소 1분)은 SpEL 삼항으로 계산 -->
+                <span th:unless="${server.contact.active}" class="n-badge n-badge-gray"
+                      th:text="'무접촉 ' + ${server.contact.secondsSince < 120 ? 1 : server.contact.secondsSince / 60} + '분'">무접촉</span>
+            </span>
         </div>
     </div>
 
@@ -135,6 +143,31 @@
                         <td th:text="${server.inventory.boardSerial != null} ? ${server.inventory.boardSerial} : '— (진단 단계에서 수집)'">—</td>
                     </tr>
                     <tr>
+                        <th>BIOS 버전</th>
+                        <td th:text="${server.inventory.softwareSpec != null and server.inventory.softwareSpec.biosVersion != null} ? ${server.inventory.softwareSpec.biosVersion} : '— (진단 단계에서 수집)'">—</td>
+                    </tr>
+                    <tr>
+                        <th>BMC 신원</th>
+                        <td>
+                            <span th:if="${server.inventory.bmcIp != null or server.inventory.bmcMac != null}">
+                                <code class="n-mono" th:text="${server.inventory.bmcIp != null} ? ${server.inventory.bmcIp.value} : '—'">192.168.0.201</code>
+                                /
+                                <code class="n-mono" th:text="${server.inventory.bmcMac != null} ? ${server.inventory.bmcMac.value} : '—'">b4:2e:99:aa:bb:cc</code>
+                            </span>
+                            <span th:unless="${server.inventory.bmcIp != null or server.inventory.bmcMac != null}"
+                                  class="n-muted">— (진단 단계에서 수집 · BMC 미검출 시 비어 있음)</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>CPU</th>
+                        <td>
+                            <span th:if="${server.inventory.hardwareSpec != null and server.inventory.hardwareSpec.cpu != null}"
+                                  th:text="${(server.inventory.hardwareSpec.cpu.manufacturer != null ? server.inventory.hardwareSpec.cpu.manufacturer + ' ' : '') + (server.inventory.hardwareSpec.cpu.model != null ? server.inventory.hardwareSpec.cpu.model : '')}">Intel Xeon Gold 6338</span>
+                            <span th:unless="${server.inventory.hardwareSpec != null and server.inventory.hardwareSpec.cpu != null}"
+                                  class="n-muted">— (진단 단계에서 수집)</span>
+                        </td>
+                    </tr>
+                    <tr>
                         <th>수집 단계</th>
                         <td>
                             <span class="n-badge n-badge-blue" th:text="${server.inventory.discoveryStage.description}">iPXE 등록</span>
@@ -142,6 +175,56 @@
                     </tr>
                     </tbody>
                 </table>
+
+                <!-- 메모리 — DIMM 슬롯별 1행 (몇 개 꽂혔는지 = 행 수) -->
+                <th:block th:if="${server.inventory != null and server.inventory.hardwareSpec != null}">
+                    <table th:if="${not #lists.isEmpty(server.inventory.hardwareSpec.memoryModules)}" class="n-table" style="margin-top: 16px;">
+                        <thead>
+                        <tr><th colspan="3">메모리 (DIMM <span th:text="${#lists.size(server.inventory.hardwareSpec.memoryModules)}">8</span>개)</th></tr>
+                        <tr><th>슬롯</th><th>제조사</th><th>용량</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="m : ${server.inventory.hardwareSpec.memoryModules}">
+                            <td><code class="n-mono" th:text="${m.slot != null} ? ${m.slot} : '—'">DIMM_A1</code></td>
+                            <td th:text="${m.manufacturer != null} ? ${m.manufacturer} : '—'">Samsung</td>
+                            <td th:text="${m.size != null} ? ${m.size} : '—'">32 GB</td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 디스크 — SSD/HDD + 전송(SAS/SATA/NVMe). RAID 카드 뒤 물리 디스크는 OS 불가시(OPEN-1 확장 예정) -->
+                    <table th:if="${not #lists.isEmpty(server.inventory.hardwareSpec.disks)}" class="n-table" style="margin-top: 16px;">
+                        <thead>
+                        <tr><th colspan="4">디스크 (OS 가시분 — RAID 카드 뒤 물리 디스크는 별도)</th></tr>
+                        <tr><th>장치</th><th>종류</th><th>전송</th><th>용량</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="d : ${server.inventory.hardwareSpec.disks}">
+                            <td><code class="n-mono" th:text="${d.device}">nvme0n1</code></td>
+                            <td th:text="${d.type != null} ? ${d.type} : '—'">SSD</td>
+                            <td th:text="${d.transport != null} ? ${d.transport} : '—'">NVME</td>
+                            <td th:text="${d.size != null} ? ${d.size} : '—'">1.9T</td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- PCIe 슬롯 — RAID·LAN·10G(UTP/SFP+)·FC(16/32Gb)·GPU. 미분류(ETC)도 원문 유지 -->
+                    <table th:if="${not #lists.isEmpty(server.inventory.hardwareSpec.pcieDevices)}" class="n-table" style="margin-top: 16px;">
+                        <thead>
+                        <tr><th colspan="4">PCIe 슬롯 장착물</th></tr>
+                        <tr><th>슬롯</th><th>종류</th><th>제조사</th><th>모델</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="pc : ${server.inventory.hardwareSpec.pcieDevices}">
+                            <td><code class="n-mono" th:text="${pc.slot != null} ? ${pc.slot} : '—'">01:00.0</code></td>
+                            <td><span class="n-badge n-badge-gray" th:text="${pc.kind != null} ? ${pc.kind} : 'ETC'">RAID</span></td>
+                            <td th:text="${pc.vendor != null} ? ${pc.vendor} : '—'">Broadcom</td>
+                            <td th:text="${pc.model != null} ? ${pc.model} : '—'">MegaRAID 9560-8i</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </th:block>
+
                 <p th:unless="${server.inventory != null}" class="n-detail-empty">인벤토리 정보가 아직 없습니다.</p>
             </div>
         </div>
@@ -211,7 +294,8 @@
                     <tr th:if="${server.progress.failedAt != null}">
                         <th>실패</th>
                         <td>
-                            <span class="n-badge n-badge-red" th:text="${server.progress.failedStepCode != null} ? ${server.progress.failedStepCode} : '—'">BIOS_UPDATING</span>
+                            <!-- failedStepCode null = 운영자 수동 전환 (E1-2, plan Q6) -->
+                            <span class="n-badge n-badge-red" th:text="${server.progress.failedStepCode != null} ? ${server.progress.failedStepCode} : '운영자 전환'">BIOS_UPDATING</span>
                             <span th:text="${#temporals.format(server.progress.failedAt, 'yyyy-MM-dd HH:mm:ss')}">—</span>
                         </td>
                     </tr>
@@ -227,11 +311,35 @@
 
                 <!-- 개시 액션 (DEC-26) — 노출 판정(startable)은 서버 가드와 같은 도메인 메서드에서 온 값 (SSOT).
                      회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->
+                <!-- E1-2 (UC-3) — 게스트가 접촉 중인데 미개시면 개시 유도: "서로 기다리는" 착각 차단 -->
+                <div th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}"
+                     class="n-section-hint" style="margin-top: 16px;">
+                    게스트가 접촉 중입니다 — <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.
+                </div>
                 <form th:if="${server.progress != null and server.progress.startable}"
                       th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post"
                       style="margin-top: 16px;">
                     <button type="submit" class="n-btn n-btn-primary">프로비저닝 개시</button>
                 </form>
+
+                <!-- E1-2 (DEC-4) — 운영자 액션 2종. 노출·차단 판정은 전부 도메인 메서드 SSOT 값:
+                     markFailable(수동 실패 전환 — 무보고 침묵 대응) / retryable · retryBlocked(재시도) -->
+                <form th:if="${server.progress != null and server.progress.markFailable}"
+                      th:action="@{/provisioning/server/{id}/mark-failed(id=${server.id})}" method="post"
+                      style="margin-top: 12px;">
+                    <button type="submit" class="n-btn n-btn-danger">수동 실패 전환</button>
+                    <span class="n-muted" style="font-size: 12px; margin-left: 8px;">게스트가 침묵할 때(무접촉) 운영자 판단으로 실패 처리합니다.</span>
+                </form>
+                <div th:if="${server.progress != null and server.progress.failedAt != null}" style="margin-top: 12px;">
+                    <form th:if="${server.progress.retryable}"
+                          th:action="@{/provisioning/server/{id}/retry(id=${server.id})}" method="post" style="display:inline;">
+                        <button type="submit" class="n-btn n-btn-primary">재시도</button>
+                    </form>
+                    <button th:if="${server.progress.retryBlocked}" type="button" class="n-btn n-btn-secondary" disabled
+                            title="펌웨어 flash 실패는 재시도가 차단됩니다 — 원인 확인 전 재-flash 는 벽돌 리스크 (DEC-4)">재시도 (차단됨)</button>
+                    <span class="n-muted" style="font-size: 12px; margin-left: 8px;"
+                          th:text="${server.progress.retryBlocked} ? '펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.' : '실패 신호를 해제하고 같은 단계부터 재개합니다.'"></span>
+                </div>
 
                 <!-- 세부 단계 이력 (append-only) — 프로비저닝 엔진(Stage 4)이 적재. 현재는 비어 있음. -->
                 <table th:if="${not #lists.isEmpty(server.steps)}" class="n-table" style="margin-top: 20px;">

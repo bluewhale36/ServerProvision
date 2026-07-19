@@ -3,6 +3,7 @@ package com.example.serverprovision.execution.controller;
 import com.example.serverprovision.execution.dto.request.StepCloseRequest;
 import com.example.serverprovision.execution.dto.request.StepOpenRequest;
 import com.example.serverprovision.execution.dto.response.AgentCheckinResponse;
+import com.example.serverprovision.execution.dto.response.StepCloseResponse;
 import com.example.serverprovision.execution.dto.response.StepOpenResponse;
 import com.example.serverprovision.execution.engine.AgentReportService;
 import jakarta.validation.Valid;
@@ -44,11 +45,12 @@ public class GuestAgentRestController {
         return agentReportService.openStep(token, request.stepCode());
     }
 
+    /** 종료 보고 — 응답에 다음 지시를 싣는다(E1-2). 완주(REBOOT)의 유일한 운반로다(체크인은 게이트가 거절). */
     @PostMapping("/steps/{stepId}/close")
-    public void closeStep(
+    public StepCloseResponse closeStep(
             @RequestHeader(TOKEN_HEADER) String token,
             @PathVariable("stepId") UUID stepId,
             @Valid @RequestBody StepCloseRequest request) {
-        agentReportService.closeStep(token, stepId, request.status(), request.statusMeta());
+        return agentReportService.closeStep(token, stepId, request.status(), request.statusMeta());
     }
 }

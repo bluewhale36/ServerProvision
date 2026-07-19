@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.controller;
 
 import com.example.serverprovision.execution.dto.response.AgentCheckinResponse;
+import com.example.serverprovision.execution.dto.response.StepCloseResponse;
 import com.example.serverprovision.execution.dto.response.StepOpenResponse;
 import com.example.serverprovision.execution.engine.AgentReportService;
 import com.example.serverprovision.execution.enums.AgentDirective;
@@ -87,17 +88,34 @@ class GuestAgentRestControllerFlowTest {
     }
 
     @Test
-    @DisplayName("POST /agent/steps/{id}/close — 200 (중복 close 도 같은 계약 — no-op 은 서비스 규약)")
+    @DisplayName("POST /agent/steps/{id}/close — 200 + 다음 지시 바디(E1-2 — REBOOT 의 유일한 운반로)")
     void closeStep_returns200() throws Exception {
         UUID stepId = UUID.randomUUID();
+        given(agentReportService.closeStep(eq(TOKEN), eq(stepId), eq(ProvisioningStatus.FAILED), any()))
+                .willReturn(new StepCloseResponse(AgentDirective.WAIT));
 
         mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", stepId).header("X-Guest-Token", TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"FAILED\",\"statusMeta\":\"{\\\"reason\\\":\\\"x\\\"}\"}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.directive").value("WAIT"));
 
         verify(agentReportService).closeStep(eq(TOKEN), eq(stepId),
                 eq(ProvisioningStatus.FAILED), any());
+    }
+
+    @Test
+    @DisplayName("close 응답 directive=REBOOT — 완주 지시가 close 바디로 운반된다 (E1-2)")
+    void closeStep_carriesReboot() throws Exception {
+        UUID stepId = UUID.randomUUID();
+        given(agentReportService.closeStep(eq(TOKEN), eq(stepId), eq(ProvisioningStatus.SUCCEEDED), any()))
+                .willReturn(new StepCloseResponse(AgentDirective.REBOOT));
+
+        mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", stepId).header("X-Guest-Token", TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"SUCCEEDED\",\"statusMeta\":\"{}\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.directive").value("REBOOT"));
     }
 
     // ==== 404 — 토큰 사칭 · stepId forging ============================

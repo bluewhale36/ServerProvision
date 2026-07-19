@@ -143,4 +143,53 @@ class ProvisioningProgressTest {
         failed.markFailed(ProvisioningPhaseStep.OS_INSTALLING, T1);
         assertThatThrownBy(() -> failed.markCompleted(T1)).isInstanceOf(IllegalStateException.class);
     }
+
+    // ==== E1-2 — 수동 실패 · 재시도 · 차단 (DEC-4) ============================
+
+    private ProvisioningProgress.ProvisioningProgressBuilder diag() {
+        return ProvisioningProgress.builder()
+                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).lastTransitionAt(T0);
+    }
+
+    @Test
+    @DisplayName("markFailedManually — failedStepCode=null 수동 표식 (plan Q6)")
+    void markFailedManually_setsNullStep() {
+        ProvisioningProgress p = diag().startedAt(T0).build();
+        p.markFailedManually(T1);
+        assertThat(p.isFailed()).isTrue();
+        assertThat(p.getFailedStepCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("isManualFailable — 진행 중(개시·미회수·미실패·미종단)에서만 true (뷰·가드 SSOT)")
+    void isManualFailable_matrix() {
+        assertThat(diag().startedAt(T0).build().isManualFailable(null)).isTrue();
+        assertThat(diag().build().isManualFailable(null)).isFalse();                    // 미개시
+        assertThat(diag().startedAt(T0).build().isManualFailable(T0)).isFalse();        // 회수
+        assertThat(diag().startedAt(T0).failedAt(T0).build().isManualFailable(null)).isFalse();
+        assertThat(diag().startedAt(T0).completedAt(T0).build().isManualFailable(null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("clearFailed — 실패 해제(전진 가드의 유일한 명시 예외) · 미실패면 IllegalState")
+    void clearFailed_resetsSignals() {
+        ProvisioningProgress p = diag().startedAt(T0).failedAt(T0)
+                .failedStepCode(ProvisioningPhaseStep.INFORMATION_COLLECTING).build();
+        p.clearFailed(T1);
+        assertThat(p.isFailed()).isFalse();
+        assertThat(p.getFailedStepCode()).isNull();
+        assertThatThrownBy(() -> p.clearFailed(T1)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("isRetryBlocked — 펌웨어 flash 실패(BIOS/BMC_UPDATING)만 차단 (벽돌 리스크 SSOT)")
+    void retryBlocked_onlyFirmwareSteps() {
+        assertThat(diag().startedAt(T0).failedAt(T0)
+                .failedStepCode(ProvisioningPhaseStep.BIOS_UPDATING).build().isRetryBlocked()).isTrue();
+        assertThat(diag().startedAt(T0).failedAt(T0)
+                .failedStepCode(ProvisioningPhaseStep.BMC_UPDATING).build().isRetryBlocked()).isTrue();
+        assertThat(diag().startedAt(T0).failedAt(T0)
+                .failedStepCode(ProvisioningPhaseStep.INFORMATION_COLLECTING).build().isRetryBlocked()).isFalse();
+        assertThat(diag().startedAt(T0).failedAt(T0).build().isRetryBlocked()).isFalse();   // 수동 전환(null)
+    }
 }
