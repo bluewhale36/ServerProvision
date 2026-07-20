@@ -185,7 +185,9 @@ sequenceDiagram
 5. 본체에서 해시를 재계산(단일 파일은 SHA-256 스트리밍, 번들은 정규화된 트리 해시)해 `verifyManifestHash`로 비교한다. 불일치는 `TAMPERED`, 일치는 `ORIGINAL`이다.
 6. 결과와 시각을 엔티티 스냅샷으로 영속화한다. 조회 경로는 이 스냅샷만 읽으며 기본값은 `NOT_VERIFIED`다.
 
-전역 스캔은 `PathReconciliationService`가 모든 `MarkableScanner`의 인벤토리를 합산해 디스크의 마커 전수와 대조하고, 어긋남을 `DriftKind`로 분류해 보고한다. 분류 규칙과 해결 절차의 상세는 재조정 상세 문서의 소관이므로 여기서는 마커 관점의 요점만 적는다. 스캔은 (자원 종류, 자원 id) 키로 마커를 매칭하므로 파일과 마커가 함께 이동한 경우를 경로 이동(`PATH_DRIFT`)으로 잡아내고, 마커만 이동하고 본체가 따라오지 않은 경우는 자동 적용이 위험하므로 자원 소실(`MISSING`)로 강등해 운영자 검토를 강제한다.
+전역 스캔은 `PathReconciliationService`가 모든 `MarkableScanner`의 인벤토리를 합산해 디스크의 마커 전수와 대조하고, 어긋남을 `DriftKind`로 분류해 보고한다. 분류 규칙과 해결 절차의 상세는 재조정 상세 문서의 소관이므로 여기서는 마커 관점의 요점만 적는다. 스캔은 (자원 종류, 자원 id) 키로 마커를 매칭하므로 파일과 마커가 함께 이동한 경우를 경로 이동(`PATH_DRIFT`)으로 잡아내고, 마커만 이동하고 본체가 따라오지 않은 경우는 자동 적용이 위험하므로 자원 소실(`MISSING`)로 강등해 운영자 검토를 강제한다. 자원 소실에는 스캔 범위 밖으로 통째 옮겨진 경우도 포함되며, 그 경로를 `reconciliation.scan.extra-roots`에 등록하면 다음 점검부터 경로 이동으로 탐지된다.
+
+제3의 발견물이 자원 중복(`RESOURCE_DUPLICATED`)이다. 마커 수집이 키마다 첫 발견 하나만 담던 구조에서 같은 키의 발견을 전량 보존하는 구조로 바뀌면서, 등록 경로의 원본이 완전히 정상임이 확인된 지점에서만 나머지 발견을 사본으로 보고한다. 나머지 소비부는 종전대로 첫 발견을 쓴다. 이 분류가 없으면 원본이 나중에 유실됐을 때 남은 사본이 경로 이동으로 오인되어 정본 자리를 차지한다. 해결은 어느 쪽을 남길지 택일하는 입력을 동반하므로 표준 적용 버튼이 아닌 전용 경로를 쓴다. 상수 자체의 상세는 재조정 상세 문서가 다룬다.
 
 > 주의: `ProvisionMarkerService.read`는 파일 부재에는 `MarkerMissingException`을, JSON 파싱 실패에는 이름과 달리 `MarkerWriteFailedException`을 던진다. 검증 흐름은 전자만 잡아 상태값으로 환원하고 후자는 500으로 흘려보내는 구분이 의도다. 파싱 실패까지 상태값으로 흡수하면 깨진 마커가 조용히 묻힌다.
 
@@ -206,6 +208,8 @@ sequenceDiagram
 
 `MarkerLayout`은 마커 파일의 위치 규칙 enum이다. `IN_TREE`는 디렉터리 자원의 트리 루트 안에 `.provision.json` 하나를 두는 방식이고, `SIDECAR`는 단일 파일 자원의 형제로 마커를 두는 방식이다. 예를 들어 `x.iso`의 사이드카 마커는 `x.iso.provision.json`이 된다. `write`는 `IN_TREE`면 디렉터리를 자동 생성하지만 `SIDECAR`는 부모 디렉터리가 이미 있어야 하는 비대칭이 있고, 사이드카 선점 검사는 등록 서비스의 책임이다.
 
+이 enum은 상수별 메서드를 가진 다형 enum이기도 하다. 추상 메서드 `resourceBodyExists(Path)`가 배치별 본체 존재 판정을 담아 `IN_TREE`는 디렉터리인지를, `SIDECAR`는 단일 파일인지를 확인한다. 원래 재조정 서비스의 비공개 판정이었는데 중복 해소도 같은 판정을 필요로 하면서 배치 자신의 메서드로 끌어올렸다. 판정을 두 곳에 복사하지 않게 하는 단일 출처이고, 새 배치 방식을 추가하면 구현이 컴파일 수준에서 강제된다.
+
 `ResourceType`은 마커가 부착될 수 있는 자원 종류 enum이다. 상수마다 기본 배치(`defaultLayout`), 메타 자원 여부(`metadata`), 화면 표시명을 보유한다. 파일 자원 4종(`BIOS_BUNDLE`, `OS_ISO`, `BMC_FIRMWARE`, `SUBPROGRAM`)과 메타 자원 2종(`OS_IMAGE`, `BOARD_MODEL`)이 있다. 메타 자원은 파일 실체가 없어 마커 발급과 휴지통 파일 이동, 재조정 분류에서 제외되고 수명주기 메타만 활용한다.
 
 > 주의: 메타 자원을 재조정 분류나 휴지통 이동에서 명시적으로 제외하지 않으면 경로가 없어 널 참조나 유령 행(ghost row) 오탐이 난다. `PathReconciliationService`와 휴지통 컨트롤러의 `metadata` 가드가 선례다.
@@ -224,7 +228,7 @@ sequenceDiagram
 - `MarkableInventory`: 조회 전용이다. 활성 자원 전수(`findActiveMarkables`), 휴지통 자원(`findTrashed` 계열), 유령 행 판정을 제공한다. 모두 저장소 직접 조회라 도메인 서비스를 역참조하지 않는다. 기본 구현이 전체 목록의 필터라서 단건 조회(`findActiveMarkableById`, `findTrashedById`)는 저장소 단건 조회로 재정의하는 것이 권장 계약이다.
 - `MarkableDriftApplier`: 재조정 책임이다. 경로 이동의 자동 적용(`applyDriftedPath`)과 정밀 점검의 해시 재계산(`recomputeManifestHash`)을 담당한다. 재계산이 `Optional.empty()`를 반환하면 본체가 사라졌다는 신호이고 재조정은 이를 자원 소실로 노출한다.
 - `MarkableGhostOperator`: 유령 행(삭제 표시 행만 남고 파일이 어디에도 없는 상태)의 정리 책임이다. 정리가 저장소 삭제 한 줄이라 역참조가 없다.
-- `MarkableTrashOperator`: 휴지통 운영 책임이다. 복원과 영구삭제, 보존기간 연장은 도메인 서비스 호출이 불가피해서, 스캐너에서 도메인 서비스로 향하는 유일한 의존 변이다.
+- `MarkableTrashOperator`: 휴지통 운영 책임이다. 복원과 영구삭제, 보존기간 연장은 도메인 서비스 호출이 불가피해서, 스캐너에서 도메인 서비스로 향하는 유일한 의존 변이다. 보존기간 연장의 지원 여부는 `supportsTrashTtlExtension()`이 선언하고 기본값은 false다. 화면의 연장 버튼 활성 판정과 서버의 거절 가드(`TtlExtensionUnsupportedException`)가 이 판정 하나를 공유하므로 조건을 두 곳에 복사하지 않는다. 파일 자원 4 스캐너만 true로 재정의하고 있어 새 자원 종류는 선언하지 않는 한 자동으로 차단된다. 연장 실행 메서드는 가산 일수를 받는 `extendTrashTtl(Long, int)`이고, 지원을 선언하고도 이를 재정의하지 않은 구현을 위한 최후 안전망으로 기본 구현이 `UnsupportedOperationException`을 던진다.
 
 합성 `MarkableScanner`에는 자원명 검증을 적용한 영구삭제 기본 메서드가 있다. 휴지통 단건 조회와 영구삭제 두 책임을 합성하기 때문에 하위 인터페이스가 아닌 합성에 위치한다.
 
@@ -234,7 +238,7 @@ sequenceDiagram
 
 ### 검증 어휘
 
-`IntegrityStatus`는 단건 검증 액션의 결과 enum이다. `ORIGINAL`, `TAMPERED`, `SIGNATURE_INVALID`, `MARKER_MISSING`, `NOT_VERIFIED` 다섯 상수가 각자 사용자 안내 문구를 보유해 검증 작업 카드와 목록 배지의 문구 분기를 대체한다. `DriftKind`는 전역 스캔의 발견물 어휘로, 상수마다 사용자 노출 명칭과 설명, 권장 조치, 해결 방식(`DriftResolutionMode`의 `NONE`, `MANUAL`, `AUTO` 3단), 재점검 지원 여부를 데이터로 보유한다. 두 enum은 별개 축이다. 전자는 자원 하나의 검증 스냅샷이고 후자는 스캔이 만든 `Drift` 기록의 분류다. 상수 목록과 해결 절차는 재조정 상세 문서가 다룬다.
+`IntegrityStatus`는 단건 검증 액션의 결과 enum이다. `ORIGINAL`, `TAMPERED`, `SIGNATURE_INVALID`, `MARKER_MISSING`, `NOT_VERIFIED` 다섯 상수가 각자 사용자 안내 문구를 보유해 검증 작업 카드와 목록 배지의 문구 분기를 대체한다. `DriftKind`는 전역 스캔의 발견물 어휘로, 상수마다 사용자 노출 명칭과 설명, 권장 조치, 해결 방식(`DriftResolutionMode`의 `NONE`, `MANUAL`, `AUTO` 3단), 재점검 지원 여부, 그리고 상세 화면의 두 경로 필드 라벨(`getOldPathLabel`, `getNewPathLabel`)을 데이터로 보유한다. 경로 라벨의 기본값은 이전 경로와 새 경로이고, 아무것도 이동하지 않아 그 표현이 오독을 부르는 자원 중복만 원본 경로(DB 기록)와 복제본 경로로 재정의한다. 문구를 enum에 모으는 이유는 템플릿이 종류로 분기하지 않게 하기 위해서다. 두 enum은 별개 축이다. 전자는 자원 하나의 검증 스냅샷이고 후자는 스캔이 만든 `Drift` 기록의 분류다. 상수 목록과 해결 절차는 재조정 상세 문서가 다룬다.
 
 ### 마커 체계 편입 방법
 
@@ -294,7 +298,7 @@ public void restore(Long id) {   // (1)
 
 ### 수명주기 엔티티
 
-`LifecycleEntity`는 운영자가 직접 관리하는 자원 엔티티 6종의 공통 부모인 `@MappedSuperclass` 추상 클래스로, `LifecycleManageable`을 구현한다. 감사 시각, 수명주기 boolean 다섯 개(실효 2, 삭제 1, 자체 2), 휴지통 시각과 경로, 전이 가드를 한 곳에 모은다. 하위 엔티티는 세 훅을 구현한다. 가드 메시지용 기본키를 주는 `resourceId()`, 실효 값 재계산의 입력인 부모 자원을 주는 `parentLifecycle()`(루트와 공용 자원은 null), 선택적으로 가드 메시지의 도메인 라벨을 주는 `resourceLabel()`이다.
+`LifecycleEntity`는 운영자가 직접 관리하는 자원 엔티티 6종의 공통 부모인 `@MappedSuperclass` 추상 클래스로, `LifecycleManageable`을 구현한다. 감사 시각, 수명주기 boolean 다섯 개(실효 2, 삭제 1, 자체 2), 휴지통 시각과 경로, 보존기간 연장 누적 일수, 전이 가드를 한 곳에 모은다. 하위 엔티티는 세 훅을 구현한다. 가드 메시지용 기본키를 주는 `resourceId()`, 실효 값 재계산의 입력인 부모 자원을 주는 `parentLifecycle()`(루트와 공용 자원은 null), 선택적으로 가드 메시지의 도메인 라벨을 주는 `resourceLabel()`이다.
 
 자체 값과 실효 값의 계산 규칙은 `recomputeEffective()` 하나에 있다. 실효 deprecated는 자체 deprecated와 부모 deprecated의 논리합, 실효 enabled는 자체 enabled와 부모 enabled의 논리곱이다. 예를 들어 자식 BIOS의 자체 enabled가 true인 상태에서 부모 보드를 비활성화하면 자식의 실효 enabled만 false가 되고 자체 값은 true로 남는다. 부모를 다시 활성화하면 보존된 자체 값으로 자식이 자동 복원된다. 재계산 호출 지점은 네 곳이다. 운영자의 자체 값 전이, 부모 연쇄(서비스 측), 자식 복원, 그리고 insert 직전의 `@PrePersist` 훅이다. 마지막 훅 덕에 부모가 비활성인 상태에서 만든 자식도 생성 즉시 부모를 반영한다.
 
@@ -303,6 +307,10 @@ public void restore(Long id) {   // (1)
 `childEnableBlockReason()`과 `blocksChildEnable()`, `blocksChildRestore()`, `blocksChildUndeprecate()`는 부모 상태에 따른 자식 액션 차단 조건의 단일 진실 출처다. 화면 응답 객체의 버튼 비활성 플래그와 서버 가드(`ChildLifecycleBlockedByParentException`을 던지는 조건)가 같은 메서드를 호출한다. 조건을 바꿀 일이 있으면 반드시 이 메서드 안에서만 바꾼다. 어느 한쪽에 조건을 복사하면 화면과 서버가 어긋난다.
 
 휴지통 필드의 순서 계약도 이 클래스에 있다. soft-delete는 `softDelete()` 호출, 파일 이동, `markTrashed(경로)` 순이고, 복원은 파일 복귀, `restore()`, `clearTrashed()` 순이다. `is_deleted`가 true인데 `trashed_path`가 null인 조합은 정상 상태가 아니라 자원이 어디에도 없는 유령 상태의 표식이다. soft-delete가 도메인의 경로 컬럼을 건드리지 않는 것도 의도로, 운영자가 지정한 원위치가 복원의 기준으로 보존된다.
+
+휴지통 만료 시각의 단일 진실 출처도 이 클래스의 `trashExpiresAt(Duration baseTtl)` 하나다. 계산식은 휴지통 진입 시각에 기본 보존 기한과 연장 누적 일수를 더한 값이고, 휴지통 상태가 아니면 null을 반환한다. 화면의 만료 표시와 자동 영구삭제 판정이 각자 식을 갖고 갈라지던 것을 이 메서드로 통일했으므로 새 소비자도 식을 다시 쓰지 않고 이 메서드를 부른다. 연장은 `extendTrashTtl(int days)`가 누적 일수를 더하는 방식이라 휴지통 진입 시각 자체는 불변이고 만료일만 뒤로 밀린다. `markTrashed`와 `clearTrashed`가 누적을 0으로 되돌리므로 복원한 자원을 다시 삭제해도 이전 연장이 이월되지 않는다.
+
+전이 가드는 `LifecycleManageable`의 네 전이 외에 이 클래스 고유의 것이 하나 더 있다. `extendTrashTtl`은 휴지통 상태가 아닌 자원에 호출되면 `IllegalLifecycleTransitionException`을 던진다. 정상 흐름에서는 화면이 버튼을 비활성화하고 서버에서는 `TrashTtlExtensionService`가 지원 여부를 먼저 판정해 `TtlExtensionUnsupportedException`(409)으로 거절하므로, 이 가드는 그 둘을 우회한 직접 POST에서만 발동하는 안전망이다.
 
 `BaseTimeEntity`는 수명주기가 필요 없는 엔티티(세팅 정의서, 게스트 서버 애그리거트, 드리프트 보고서 등)의 생성 수정 시각 공통 부모다.
 
@@ -396,7 +404,7 @@ sequenceDiagram
 1. 진입 타입 바운드는 `LifecycleEntity`와 `Markable`의 교집합이다. 헬퍼는 도메인을 모른 채 이 두 계약만 사용한다.
 2. `softDelete()`가 DB 수명주기를 전이한다. 아직 트랜잭션 안이라 이후 실패 시 롤백된다.
 3. 활성 위치의 마커를 `resolveMarkerFile`로 계산해 삭제한다. 삭제 실패는 경고만 남기고 진행하는데, 잔여 마커는 다음 스캔이 `TRASH_MARKER_STALE`로 감지해 자동 정리하기 때문이다.
-4. `TrashService.moveToTrash`가 휴지통 규칙 디렉터리(`<휴지통 루트>/<자원 종류>/<자원 id>/`)를 만들고 원본 파일명의 몸통과 확장자 사이에 밀리초 타임스탬프와 UUID 8자를 끼운 파일명(`<몸통>_<타임스탬프>_<UUID8><확장자>`)으로 이동한다. 같은 밀리초에 두 번 호출해도 충돌하지 않는다. 파일이 원래 없으면(이미 유령에 가까운 상태) 이동을 건너뛰고 DB만 정리한다. 트리 자원은 마커가 트리와 함께 따라왔을 수 있으므로 휴지통 안에서 한 번 더 삭제한다.
+4. `TrashService.moveToTrash`가 휴지통 규칙 디렉터리(`<휴지통 루트>/<자원 종류>/<자원 id>/`)를 만들고 밀리초 타임스탬프와 UUID 8자를 붙인 이름으로 이동한다. 붙이는 위치는 자원의 형태에 따라 갈린다. 번들처럼 디렉터리가 자원인 경우에는 확장자를 분리하지 않고 이름 전체 뒤에 붙이므로 `v1.10`은 `v1.10_<타임스탬프>_<UUID8>`이 되고, 단일 파일인 경우에만 몸통과 확장자 사이에 끼워 넣어 확장자를 보존한다. 같은 밀리초에 두 번 호출해도 충돌하지 않는다. 파일이 원래 없으면(이미 유령에 가까운 상태) 이동을 건너뛰고 DB만 정리한다. 트리 자원은 마커가 트리와 함께 따라왔을 수 있으므로 휴지통 안에서 한 번 더 삭제한다.
 5. 반환된 절대 경로를 `markTrashed`로 기록한다. 4와 5 사이에서 예외가 나면 `moveBackReverse`로 파일을 원위치에 되돌린 뒤 원래 예외를 다시 던진다. 트랜잭션 롤백과 파일시스템이 같은 방향(둘 다 삭제 취소)이 되게 하는 역보상이다.
 
 ### 휴지통 복원 흐름
@@ -456,7 +464,7 @@ if (result instanceof PurgeResult.Failed failed
 
 휴지통 운영 설정은 단일 행 엔티티 `TrashSettings`와 그 게이트 `TrashSettingsService`가 담당한다. 보존 기한, 자동 삭제 여부, 알림 시점, 알림 채널(`NotifyChannel`의 작업 카드와 서버 로그 2종), 재시도 정책을 담고, 만료 판정 워커와 집행기의 재시도 정책이 이 DB 행을 읽는다.
 
-> 주의: 보존 기한 값이 이원화되어 있다. `TrashPolicy`의 프로퍼티 값과 `TrashSettings` DB 행이 따로 있고, 만료 삭제 판정과 재시도 정책은 DB 행을 읽지만 휴지통 화면의 만료 예정 표시(만료 시각과 임박 강조)는 아직 `TrashPolicy` 프로퍼티를 읽는다. DB에서 보존 기한을 바꿔도 화면 표시는 프로퍼티 기준으로 남는다. 또한 설정 화면의 정리 주기 표현식은 저장은 되지만 `@Scheduled`의 고정 문자열 한계로 실제 스케줄은 프로퍼티 기본값(정리는 매시 정각)으로 돈다. 화면에서 바꿔도 즉시 반영되지 않는다.
+> 주의: 보존 기한 값이 이원화되어 있다. `TrashPolicy`의 프로퍼티 값과 `TrashSettings` DB 행이 따로 있고, 만료 삭제 판정과 재시도 정책은 DB 행을 읽지만 휴지통 화면의 만료 예정 표시(만료 시각과 임박 강조)는 아직 `TrashPolicy` 프로퍼티를 읽는다. 연장 1회의 가산 일수와 연장 버튼 라벨의 원천인 `TrashPolicy.getTtlDays()`도 프로퍼티 쪽이다. 따라서 두 값이 다르면 만료를 판정하는 기준 기한과 한 번 연장했을 때 늘어나는 일수의 기준이 서로 어긋난다. DB에서 보존 기한을 바꿔도 화면 표시와 연장 가산 폭은 프로퍼티 기준으로 남는다. 또한 설정 화면의 정리 주기 표현식은 저장은 되지만 `@Scheduled`의 고정 문자열 한계로 실제 스케줄은 프로퍼티 기본값(정리는 매시 정각)으로 돈다. 화면에서 바꿔도 즉시 반영되지 않는다.
 
 ### 자원명 입력 검증
 
@@ -468,7 +476,7 @@ if (result instanceof PurgeResult.Failed failed
 
 검증 기준 문자열은 `Markable.displayName()` 하나다. 서비스, 스캐너, 화면이 전부 같은 메서드를 호출하므로 자원명 합성식은 엔티티 한 곳에만 있다.
 
-확인 모달은 `ConfirmModalFragmentController`(`/ui/confirm-modal`)가 서버 렌더링 조각으로 제공한다. 모달 종류별 처리(자원 조회, 모델 준비, 조각 선택)는 `ConfirmModalType` enum의 상수별 메서드가 흡수해 컨트롤러에는 분기가 없다. 영구삭제 상수만 `resolveExpectedName`으로 기대 자원명을 조회하는데, 모달을 여는 시점에 지연 로딩하므로 페이지 진입 시 DOM에 자원명이 미리 노출되지 않는다. 현재 상수는 영구삭제, soft-delete, deprecate와 해제, 복원, 드리프트 적용과 닫기, 휴지통 결과 안내까지 8종이다.
+확인 모달은 `ConfirmModalFragmentController`(`/ui/confirm-modal`)가 서버 렌더링 조각으로 제공한다. 모달 종류별 처리(자원 조회, 모델 준비, 조각 선택)는 `ConfirmModalType` enum의 상수별 메서드가 흡수해 컨트롤러에는 분기가 없다. 영구삭제 상수만 `resolveExpectedName`으로 기대 자원명을 조회하는데, 모달을 여는 시점에 지연 로딩하므로 페이지 진입 시 DOM에 자원명이 미리 노출되지 않는다. 현재 상수는 영구삭제, soft-delete, deprecate와 해제, 복원, 보존기간 연장, 드리프트 적용과 닫기, 휴지통 결과 안내까지 9종이다.
 
 ### 격리 레코드와 복구 사가
 
@@ -759,7 +767,7 @@ global의 `security` 패키지는 업로드와 경로 입력의 검증 계층이
 
 각 장의 확장 절을 한 절차로 모으면 다음 순서가 된다. 항목마다 책임 클래스와 완료 확인 방법을 병기한다.
 
-1. 엔티티가 `LifecycleEntity`를 상속하고 세 훅(`resourceId()`, `parentLifecycle()`, 필요 시 `resourceLabel()`)을 구현한다. 확인: `ddl-auto=validate` 기동이 통과하고, 부모가 비활성인 상태에서 자식을 만들면 insert 직후 실효 값이 부모를 반영한다.
+1. 엔티티가 `LifecycleEntity`를 상속하고 세 훅(`resourceId()`, `parentLifecycle()`, 필요 시 `resourceLabel()`)을 구현한다. 확인: `ddl-auto=validate` 기동이 통과하고, 부모가 비활성인 상태에서 자식을 만들면 insert 직후 실효 값이 부모를 반영한다. 상속으로 딸려오는 컬럼도 수동 DDL 대상이므로 `sql/`의 미적용 스크립트가 없는지 함께 확인한다.
 2. 엔티티가 `Markable`을 구현하고 `displayName()`과 (자식 자원이면) `getParentMarkable()`을 재정의한다. 확인: 휴지통 화면과 영구삭제 모달에 합성 자원명이 표시된다.
 3. `ResourceType`에 상수를 추가한다(기본 배치, 메타 여부, 표시명). 확인: 발급된 마커의 자원 종류 문자열이 새 상수명이다.
 4. 파일 자원이면 `ProvisionMarkerService`만 주입받는 `*MarkerWriter`를 작성해 발급 4단계를 응집한다. 확인: 등록 후 실물 옆에 `.provision.json`이 생기고 단건 검증 결과가 `ORIGINAL`이다.
@@ -775,6 +783,7 @@ global의 `security` 패키지는 업로드와 경로 입력의 검증 계층이
 - 기동이 `IllegalStateException` "provision.marker.secret 가 dev 기본값입니다. 운영 환경에서는 PROVISION_MARKER_SECRET 환경변수로 override 가 필수입니다."로 중단된다: 환경변수 `PROVISION_MARKER_SECRET` 없이 운영 추정 프로필로 부팅한 것이다. `ProvisionMarkerService`의 기동 가드가 개발 기본 키의 운영 사용을 차단하므로 환경변수를 주입한다. 개발과 테스트 프로필은 경고 로그만 남는다.
 - 기동이 `IllegalStateException` "provision.path.allowed-roots 가 설정되지 않았습니다"류 메시지로 중단된다: `SecurityPropertiesValidator`의 fail-fast다. "provision.upload.executable-binary-policy / suspicious-filenames-policy 누락"과 "provision.browse.max-entries / max-depth 양수 필수"도 같은 검증기의 메시지다. 메시지가 가리키는 항목을 채우거나 고치고, multipart 상한이 자체 업로드 상한보다 크지 않게 맞춘다.
 - 기동이 `BeanCurrentlyInCreationException`으로 실패한다: 도메인 서비스에 `TypedNameVerifier`나 `MarkableScanner`, `ObjectProvider`를 주입해 생성자 순환이 재생성된 것이다. 엔티티를 이미 든 서비스는 `TypedNameGuard` 정적 호출로, 조회가 필요한 인프라는 `MarkableInventory` 좁은 주입으로 바꾼다.
+- 기동이 스키마 검증에서 "missing column [ttl_extension_days]"로 중단된다: 보존기간 연장 누적 컬럼의 수동 DDL(`sql/HF4-1_ttl_extension_days.sql`)을 적용하지 않은 것이다. Hibernate가 스키마를 만들지 않는 설정이라 `LifecycleEntity`를 상속한 6개 테이블 전부에 이 컬럼을 직접 추가해야 하며, `claude_code` 계정은 ALTER 권한이 없으므로 권한 있는 계정으로 실행한다.
 - 기동이 "No default constructor found"로 실패한다: `@Configuration(proxyBeanMethods = false)` 클래스에 생성자를 추가해 다중 생성자가 된 경우다. 단일 생성자 구조를 유지한다.
 - `com.fasterxml.jackson.core`나 `databind` import가 컴파일에 실패한다: 이 프로젝트의 Jackson 3는 어노테이션만 기존 좌표를 유지하고 런타임 클래스는 `tools.jackson`이다. import를 바꾼다.
 - 정상 자원인데 점검이 `SIGNATURE_INVALID`(화면 명칭 "마커 서명 불일치")를 무더기로 보고한다: 서명 키가 회전됐거나 마커 직렬화의 정렬 강제가 완화된 것이다. 키 회전이면 일괄 서명 재발급 도구로 마이그레이션하고, mapper 설정 변경이면 되돌린다.
