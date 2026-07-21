@@ -172,7 +172,7 @@ RECONCILIATION_SCAN_EXTRA_ROOTS= \
 |---|---|
 | `main` | 실 배포 소스. GitHub 기본 브랜치다. |
 | `dev` | 개발 완료 도달점. `dev`에서 `main`으로의 병합만 배포로 본다. |
-| `<type>/<인벤토리코드>-<슬러그>` | 작업 브랜치. 캠페인 또는 phase 단위로 PR을 연다. `type`은 conventional 어휘(feat, fix, refactor, docs, chore)를 쓰고, 브랜치명만 영문이며 커밋 메시지와 주석은 한국어다. 예: `feat/E1-diagnose-linux`, `chore/CH1-repo-tidy`. |
+| `<type>/<인벤토리코드>_<슬러그>` | 작업 브랜치. 캠페인 또는 phase 단위로 PR을 연다. 인벤토리 코드에 하이픈이 들어가므로(`E1-I`, `HF4-1`) 코드와 슬러그의 경계는 언더스코어로 나눈다. `type`은 conventional 어휘(feat, fix, refactor, docs, chore)를 쓰고, 브랜치명만 영문이며 커밋 메시지와 주석은 한국어다. 예: `feat/E1-I_boot-infra`, `docs/DOC-1_dev-reference`. |
 | `refine/<기능>` | Java와 Spring 학습을 위한 재구성 브랜치. 로컬 전용이라 push하지 않아 정규 이력과 기여 그래프를 오염시키지 않는다. |
 
 작업은 인벤토리 코드로 부른다. 코드 번호는 식별자이지 실행 순서가 아니다. 각 코드의 상태와 이력은 Notion DB 'Provisioning Server 개발 상세'가 기준 출처다.

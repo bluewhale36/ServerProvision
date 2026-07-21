@@ -28,8 +28,8 @@
 |---|---|
 | 브랜치 모델 | 3계층. `main` ← `dev` ← `feature/*`. main 은 실 배포 소스, dev 는 개발 완료 도달점, feature 는 작업 브랜치 |
 | 승격 방식 | main 은 현재 작업의 순수 조상이라 force push 없이 fast-forward 가능. 이력 재작성 없음 |
-| feature 브랜치 단위 | 캠페인 또는 phase 단위. 예: `feat/E1-diagnose-linux`, `fix/HF4-inspection-followup`. plan 1건마다 브랜치를 파지 않는다 |
-| feature 브랜치 명명 | `<type>/<인벤토리코드>-<영문 슬러그>`. type 은 기존 커밋이 쓰는 conventional 어휘 재사용(feat, fix, refactor, docs, chore). 브랜치명만 영문이고 커밋 메시지와 주석은 한국어 유지 |
+| feature 브랜치 단위 | 캠페인 또는 phase 단위. 예: `feat/E1_diagnose-linux`, `fix/HF4_inspection-followup`. plan 1건마다 브랜치를 파지 않는다 |
+| feature 브랜치 명명 | `<type>/<인벤토리코드>_<영문 슬러그>` (2026-07-22 정정: 코드에 하이픈이 있어(`E1-I`, `HF4-1`) 코드↔슬러그 경계를 언더스코어 `_` 로). type 은 기존 커밋이 쓰는 conventional 어휘 재사용(feat, fix, refactor, docs, chore). 브랜치명만 영문이고 커밋 메시지와 주석은 한국어 유지 |
 | 세션 종료 | 이 세션을 제외한 나머지 Claude 세션을 정상 종료한 뒤 수술 착수. 워크트리가 하나라 HEAD 와 인덱스가 공유되어 동시 작업 시 경합 |
 
 브랜치 모델을 3계층으로 다시 정한 것은 근거가 있다. 통합 계층으로서의 dev 는 지금 흡수할 발산이 없다는 반론이 있었지만, main 을 배포 브랜치로, dev 를 개발 완료 도달점으로 나누면 두 브랜치의 역할이 서로 다르므로 그 반론이 성립하지 않는다.
@@ -127,7 +127,7 @@ Java 와 Spring 실력 향상용 학습 세션은 나머지 세 세션과 성격
 
 > A 진행.
 >
-> (2026-07-22 정정) A(`claude --worktree`)를 실제로 쓰려다 우리 규약과 두 군데서 충돌함이 드러났다. ① 내장 방식은 브랜치를 워크트리 이름으로 만드는데 워크트리 이름에 `/` 를 못 써서, 같은 문서에서 확정한 `feat/<코드>-<슬러그>` 규약명이 나오지 않는다. ② base 가 `origin/main` 고정이라 feature 를 dev 에서 떠야 하는 모델과 어긋난다. 이 두 충돌은 D6 결정 시점에 이미(브랜치 명명 규약과 base-ref 조사 결과로) 추론 가능했으나 그때 놓쳤다. **따라서 표준을 B(수동)로 정정한다**: `git worktree add -b <feat/코드-슬러그> <base>/ServerProvision-<브랜치> origin/dev`. 폴더 경로는 저장소 기존 관례대로 **`ServerProvision-<브랜치>`**(브랜치의 `/` 를 경로 구분자로 보존)로 둔다 — 예: 폴더 `ServerProvision-feat/E1-I-boot-infra` ↔ 브랜치 `feat/E1-I-boot-infra`. 기존 `ServerProvision-renew/main`, `ServerProvision-feature/setting` 과 동일 형태이고, 브랜치명이 경로에 그대로 드러나며 타입별로 묶인다(폴더명과 브랜치명이 어긋나 혼란스럽다는 사용자 지적 반영). 편의는 `~/.zshrc` 함수 `spv-wt <브랜치>`(폴더 `ServerProvision-<브랜치>` 자동 생성 + origin/dev 기반 + CLAUDE.local.md 승계 + cd)로 대체한다.
+> (2026-07-22 정정) A(`claude --worktree`)를 실제로 쓰려다 우리 규약과 두 군데서 충돌함이 드러났다. ① 내장 방식은 브랜치를 워크트리 이름으로 만드는데 워크트리 이름에 `/` 를 못 써서, 같은 문서에서 확정한 `feat/<코드>-<슬러그>` 규약명이 나오지 않는다. ② base 가 `origin/main` 고정이라 feature 를 dev 에서 떠야 하는 모델과 어긋난다. 이 두 충돌은 D6 결정 시점에 이미(브랜치 명명 규약과 base-ref 조사 결과로) 추론 가능했으나 그때 놓쳤다. **따라서 표준을 B(수동)로 정정한다**: `git worktree add -b <feat/코드-슬러그> <base>/ServerProvision-<브랜치> origin/dev`. 폴더 경로는 저장소 기존 관례대로 **`ServerProvision-<브랜치>`**(브랜치의 `/` 를 경로 구분자로 보존)로 둔다 — 예: 폴더 `ServerProvision-feat/E1-I_boot-infra` ↔ 브랜치 `feat/E1-I_boot-infra`(단계 `E1-I` 와 기능 `boot-infra` 를 언더스코어로 구분). 기존 `ServerProvision-renew/main`, `ServerProvision-feature/setting` 과 동일 형태이고, 브랜치명이 경로에 그대로 드러나며 타입별로 묶인다(폴더명과 브랜치명이 어긋나 혼란스럽다는 사용자 지적 반영). 편의는 `~/.zshrc` 함수 `spv-wt <브랜치>`(폴더 `ServerProvision-<브랜치>` 자동 생성 + origin/dev 기반 + CLAUDE.local.md 승계 + cd)로 대체한다.
 
 ---
 
