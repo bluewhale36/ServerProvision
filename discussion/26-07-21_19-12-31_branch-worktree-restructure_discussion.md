@@ -126,6 +126,8 @@ Java 와 Spring 실력 향상용 학습 세션은 나머지 세 세션과 성격
 부트스트랩은 방식과 무관하게 필요하다. `CLAUDE.local.md`(빌드 명령과 DB 환경변수)와 권한 목록이 gitignore 대상이라 새 워크트리에 없다. 해결은 `.worktreeinclude` 파일에 `CLAUDE.local.md` 를 적어 자동 복사시키고, 공유해도 되는 권한은 커밋되는 `.claude/settings.json` 으로 올리는 것이다. 누적 메모리는 저장소 기준으로 묶여 모든 워크트리가 자동 공유하므로 별도 조치가 필요 없다(공식 문서로 확인).
 
 > A 진행.
+>
+> (2026-07-22 정정) A(`claude --worktree`)를 실제로 쓰려다 우리 규약과 두 군데서 충돌함이 드러났다. ① 내장 방식은 브랜치를 워크트리 이름으로 만드는데 워크트리 이름에 `/` 를 못 써서, 같은 문서에서 확정한 `feat/<코드>-<슬러그>` 규약명이 나오지 않는다. ② base 가 `origin/main` 고정이라 feature 를 dev 에서 떠야 하는 모델과 어긋난다. 이 두 충돌은 D6 결정 시점에 이미(브랜치 명명 규약과 base-ref 조사 결과로) 추론 가능했으나 그때 놓쳤다. **따라서 표준을 B(수동)로 정정한다**: `git worktree add -b <feat/코드-슬러그> <ServerProvision-슬러그> origin/dev`. 폴더명은 브랜치명에서 type 접두만 뗀 형태로 맞춘다(폴더 `ServerProvision-E1-I-boot-infra` ↔ 브랜치 `feat/E1-I-boot-infra` — 폴더명과 브랜치명 불일치가 혼란스럽다는 사용자 지적 반영). 편의는 `~/.zshrc` 함수 `spv-wt <브랜치>`(폴더명 자동 도출 + origin/dev 기반 + CLAUDE.local.md 승계 + cd)로 대체한다.
 
 ---
 
