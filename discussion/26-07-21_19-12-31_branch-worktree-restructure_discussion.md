@@ -127,7 +127,7 @@ Java 와 Spring 실력 향상용 학습 세션은 나머지 세 세션과 성격
 
 > A 진행.
 >
-> (2026-07-22 정정) A(`claude --worktree`)를 실제로 쓰려다 우리 규약과 두 군데서 충돌함이 드러났다. ① 내장 방식은 브랜치를 워크트리 이름으로 만드는데 워크트리 이름에 `/` 를 못 써서, 같은 문서에서 확정한 `feat/<코드>-<슬러그>` 규약명이 나오지 않는다. ② base 가 `origin/main` 고정이라 feature 를 dev 에서 떠야 하는 모델과 어긋난다. 이 두 충돌은 D6 결정 시점에 이미(브랜치 명명 규약과 base-ref 조사 결과로) 추론 가능했으나 그때 놓쳤다. **따라서 표준을 B(수동)로 정정한다**: `git worktree add -b <feat/코드-슬러그> <ServerProvision-슬러그> origin/dev`. 폴더명은 브랜치명에서 type 접두만 뗀 형태로 맞춘다(폴더 `ServerProvision-E1-I-boot-infra` ↔ 브랜치 `feat/E1-I-boot-infra` — 폴더명과 브랜치명 불일치가 혼란스럽다는 사용자 지적 반영). 편의는 `~/.zshrc` 함수 `spv-wt <브랜치>`(폴더명 자동 도출 + origin/dev 기반 + CLAUDE.local.md 승계 + cd)로 대체한다.
+> (2026-07-22 정정) A(`claude --worktree`)를 실제로 쓰려다 우리 규약과 두 군데서 충돌함이 드러났다. ① 내장 방식은 브랜치를 워크트리 이름으로 만드는데 워크트리 이름에 `/` 를 못 써서, 같은 문서에서 확정한 `feat/<코드>-<슬러그>` 규약명이 나오지 않는다. ② base 가 `origin/main` 고정이라 feature 를 dev 에서 떠야 하는 모델과 어긋난다. 이 두 충돌은 D6 결정 시점에 이미(브랜치 명명 규약과 base-ref 조사 결과로) 추론 가능했으나 그때 놓쳤다. **따라서 표준을 B(수동)로 정정한다**: `git worktree add -b <feat/코드-슬러그> <base>/ServerProvision-<브랜치> origin/dev`. 폴더 경로는 저장소 기존 관례대로 **`ServerProvision-<브랜치>`**(브랜치의 `/` 를 경로 구분자로 보존)로 둔다 — 예: 폴더 `ServerProvision-feat/E1-I-boot-infra` ↔ 브랜치 `feat/E1-I-boot-infra`. 기존 `ServerProvision-renew/main`, `ServerProvision-feature/setting` 과 동일 형태이고, 브랜치명이 경로에 그대로 드러나며 타입별로 묶인다(폴더명과 브랜치명이 어긋나 혼란스럽다는 사용자 지적 반영). 편의는 `~/.zshrc` 함수 `spv-wt <브랜치>`(폴더 `ServerProvision-<브랜치>` 자동 생성 + origin/dev 기반 + CLAUDE.local.md 승계 + cd)로 대체한다.
 
 ---
 
