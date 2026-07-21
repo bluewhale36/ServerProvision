@@ -1,3 +1,11 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+# 과정 산출물과 설계 문서는 GitHub 언어 통계에서 제외해 활성 코드 비율을 정확히 반영한다.
+# plan/report 의 html 이 소스보다 커서, 미지정 시 백엔드 프로젝트가 프론트엔드로 분류된다.
+plan/**        linguist-documentation
+report/**      linguist-documentation
+discussion/**  linguist-documentation
+diagram/**     linguist-documentation
+docs/**        linguist-documentation
