@@ -8,6 +8,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.MapperFeature;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SerializationFeature;
@@ -143,7 +144,10 @@ public class ProvisionMarkerService {
 		}
 		try {
 			return om.readValue(Files.readAllBytes(target), MarkerContent.class);
-		} catch (IOException e) {
+		} catch (IOException | JacksonException e) {
+			// Jackson 3 파싱 오류(StreamReadException 등)는 IOException 이 아니라 unchecked JacksonException 이다
+			// (Jackson 2 의 JsonProcessingException 은 IOException 이었음). @throws 계약대로 파싱 실패도 흡수한다 —
+			// 이걸 놓치면 손상 마커가 raw StreamReadException 으로 새어 나간다(E1-I-1 이 노출).
 			throw new MarkerWriteFailedException("marker 파일 파싱 실패 : " + target, e);
 		}
 	}

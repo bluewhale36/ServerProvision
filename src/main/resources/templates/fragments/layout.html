@@ -12,6 +12,7 @@
     · activePage 키
         Management   : 'os-metadata' | 'board' | 'bios' | 'bmc' | 'driver'
         Maintenance  : 'reconciliation' | 'quarantine' | 'trash'
+        System       : 'diagnostic-asset'
         Provisioning : 'setting' | 'server'
     · 구현 완료 메뉴는 <a>, 미구현은 <span aria-disabled="true"> 로 남겨
       페이지가 완성될 때 태그만 교체한다.
@@ -89,6 +90,11 @@
     <a th:href="@{/maintenance/trash}"
        class="n-nav-link"
        th:classappend="${activePage == 'trash'} ? ' active'">휴지통</a>
+
+    <!-- System (격리된 시스템 자산 — 교체 전용, 자원 도메인 아님. E1-I) -->
+    <a th:href="@{/system/diagnostic-asset}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'diagnostic-asset'} ? ' active'">진단 자산</a>
 
     <!-- Provisioning -->
     <a th:href="@{/provisioning/setting}"

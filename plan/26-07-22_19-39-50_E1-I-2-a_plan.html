@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-I-2-a Plan — 진단 리눅스 자산 교체 (replace)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.na{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:100px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .n-demo-btn.danger { border-color:var(--red); color:var(--red); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .mini-detail { background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:12px 14px; margin-top:10px; font-size:12.5px; }
+  .mini-detail table { font-size:12px; margin:6px 0; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.blue { background:var(--blue-bg); color:var(--blue); } .badge.red { background:var(--red-bg); color:var(--red); }
+  .badge.teal { background:rgba(0,150,150,0.12); color:#0a8080; } .badge.warnb { background:var(--yellow-bg); color:var(--yellow); }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-I-2-a — 진단 리눅스 자산 교체 (replace) <span class="v2-badge">대시보드가 처음으로 자산을 바꾼다</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-I-2-a (feature — E1-I 캠페인, 교체 전용. 이력 보존·롤백은 E1-I-2-b)</span>
+    <span><strong>상위</strong> E1-I (PXE 인프라 · 진단 이미지 자산)</span>
+    <span><strong>scope</strong> 단일 파일 4종(vmlinuz-lts · initramfs-lts · modloop-lts · agent.sh) UI 업로드 교체 + 원자적 스왑 + 자동 재봉인. 조립 자산(apkovl · repo)은 비대상(빌드 스크립트 안내). 동반: 마커 사이드카 서빙 제외</span>
+    <span><strong>생성</strong> 2026-07-22 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+    <span><strong>검증 상한</strong> 샌드박스(파일시스템 · 브라우저) — 물리 불요</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (교체 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">E1-I-1 로 진단 자산 대시보드는 <b>조회·봉인·재검증</b>까지 한다. 그러나 <b>자산을 바꾸는 경로가 전무하다</b> —
+          Alpine 버전 업그레이드(vmlinuz/initramfs/modloop 교체)나 진단 에이전트 수정(agent.sh)이 필요하면 운영자가
+          서버에 접속해 셸로 파일을 덮어쓴 뒤 대시보드에서 다시 [무결성 봉인]을 눌러야 한다.</p>
+        <table>
+          <thead><tr><th>능력</th><th>있음 (E1-I-1)</th><th>비어 있음 (이 슬라이스가 채움)</th></tr></thead>
+          <tbody>
+            <tr><td>조회 · 무결성</td><td>6 슬롯 존재·크기·수정시각·HMAC 마커 대조 + 봉인/재검증</td><td>—</td></tr>
+            <tr><td>자산 교체</td><td>—</td><td><b>화면에 교체 수단 없음</b> — 셸 접속 + 수동 덮어쓰기 + 수동 재봉인의 2단 수작업</td></tr>
+            <tr><td>교체 중 안전</td><td>—</td><td><b>보장 없음</b> — 셸 <code>cp</code> 로 208MB modloop 을 덮어쓰는 도중 게스트가 부팅하면 잘린 파일을 받는다(torn read)</td></tr>
+            <tr><td>마커 사이드카 노출</td><td>봉인 시 <code>&lt;자산&gt;.provision.json</code> 생성 — <b>서빙 디렉토리에 있어 <code>/api/pxe/v1/assets/*.provision.json</code> 로 게스트에 노출</b>(E1-I-1 known item, 비밀 누출은 없음)</td><td>이 슬라이스에서 서빙 제외로 정리(동반)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>핵심 진단</b> — 대시보드가 "보기"만 하고 "고치기"를 못한다. 이 슬라이스는 <b>가장 자주 바뀌는 단일 파일 4종</b>을
+          화면에서 업로드 교체하게 하되, 208MB 자산을 게스트가 실시간으로 받는 환경이므로 <b>원자적 스왑</b>으로 torn read 를 원천 차단하고,
+          교체된 파일을 <b>자동으로 신뢰 기준으로 재봉인</b>한다. 조립 자산(apkovl·repo)은 내부 구조·서명 때문에 임의 업로드 교체 대상에서 뺀다(빌드 스크립트 소관).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>단일 파일 4종 UI 교체</b> — <code>vmlinuz-lts</code> · <code>initramfs-lts</code> · <code>modloop-lts</code>(Alpine 업그레이드 주 케이스) + <code>agent.sh</code>(에이전트 수정). 대시보드의 해당 슬롯 행에서 파일을 골라 업로드하면 교체된다.</li>
+          <li><b>조립 자산은 비대상</b> — <code>diag.apkovl.tar.gz</code>(서명 공개키 동봉 tar) · <code>repo/</code>(서명된 apk 저장소 디렉토리)는 <b>UI 교체 불가</b>. 대시보드는 "빌드 스크립트(<code>build-assets.sh</code>)로 교체" 를 안내한다. 임의 tar/zip 을 신뢰해 덮어쓰면 부팅이 깨질 수 있어(내부 구조·서명 검증 불가) 의도적으로 제외(사용자 확정).</li>
+          <li><b>원자적 스왑(불가침)</b> — 업로드 바이트를 자산 루트 안 임시 파일에 먼저 쓰고 <code>Files.move(temp, target, ATOMIC_MOVE, REPLACE_EXISTING)</code> 로 교체. 208MB modloop 교체 중 부팅하는 게스트가 잘린 파일을 받지 않게 한다. 임시 파일이 같은 파일시스템(자산 루트 하위)이라 atomic move 가 성립.</li>
+          <li><b>교체 = 스왑 + 자동 재봉인</b> — 운영자가 교체를 택한 순간 그 파일이 새 신뢰 기준이므로, 스왑 직후 그 슬롯의 마커를 재기록한다(재검증 시 즉시 ORIGINAL). 수동 재봉인 불요.</li>
+          <li><b>가드(슬롯 경로변수 신설)</b> — <code>POST /system/diagnostic-asset/{slot}/replace</code> 의 <code>{slot}</code> 검증: 없는 슬롯 → 404 / 조립 자산(비대상) → 409 / 서빙 비활성 → 409 / 빈 파일 → 400. UI 는 정상 경로를 1차 차단(비대상엔 버튼 없음, 서빙 비활성 시 disabled)하고 서버 가드가 안전망.</li>
+          <li><b>동반 — 마커 사이드카 서빙 제외</b> — <code>PxeAssetsConfig</code> 자산 핸들러가 <code>*.provision.json</code> 을 서빙하지 않게 한다(<code>PathResourceResolver</code> 확장). E1-I-1 이 남긴 노출 항목 정리(비밀 누출은 없었으나 내부 마커를 게스트에 줄 이유가 없다).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>apkovl · repo UI 교체</b> — 빌드 스크립트 소관(요구사항 2). 사전조립 결과물 업로드 방식은 필요 시 후속 슬라이스.</li>
+            <li><b>대시보드 다중 자원 일반화</b> — <b>E1-I-3</b>. 이 슬라이스는 대시보드를 진단 리눅스 전용으로 유지한다(갈라지는 시점에 분리 — 두 번째 자원 종류는 E1-I-3 에서 온다).</li>
+            <li><b>PXE 인프라 dhcpd/tftp</b> — E1-I-3.</li>
+            <li><b>배경 업로드(Service Worker)</b> — 208MB 는 동기 multipart POST 로 충분(격리망 · 단일 운영자). 초대형 자산 · 불안정 회선이면 후속에 <code>BackgroundUpload</code> 도입.</li>
+            <li><b>이력 보존 · 롤백</b> — <b>E1-I-2-b</b>. 이 단계(a)는 <b>순수 덮어쓰기</b>(이전 파일 미보존)다. 교체 후 버그로 롤백이 필요한 상황은 b 가 담당한다 — 범용 버전 저장소(<code>global/history</code>, dhcpd/tftp 도 재사용)를 b-1 이 신설하고, b 가 a 의 스왑 앞에 <code>archive(현재→이력)</code> 단계를 끼운다. a 의 <code>replace()</code>는 그 삽입이 깨끗하도록 <code>swap→reseal</code> 순서로 둔다(seam).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 교체 시뮬레이터 (스왑·재봉인·가드를 직접 굴린다)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래는 <b>대시보드 미니어처</b>다. 단일 파일 4종에는 「교체」버튼이 있고, 조립 자산(apkovl·repo)에는 "빌드 스크립트로 교체" 안내만 있다.
+          「교체」를 누르면 업로드→원자적 스왑→자동 재봉인이 흘러 크기·시각이 갱신되고 무결성이 <b>원본 유지</b>로 남는다.
+          「서빙」을 끄면 교체가 막히고(가드), 드리프트 상태의 슬롯을 교체하면 새 파일이 기준이 되어 복구되는 것도 본다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">서빙 :</span>
+            <label style="font-size:12px;"><input type="checkbox" id="sim-serving" checked onchange="rRender()"> pxe.assets.root · base-url 설정됨</label>
+            <span style="flex:1;"></span>
+            <button class="n-demo-btn" onclick="rDrift()">modloop 외부 변조(드리프트 유발)</button>
+            <button class="n-demo-btn" style="border-color:var(--text-muted);color:var(--text-muted);" onclick="rReset()">⟲ 리셋</button>
+          </div>
+
+          <div class="mini-detail">
+            <b>진단 리눅스 자산</b> <span class="badge" id="rsim-serve"></span>
+            <table>
+              <thead><tr><th style="width:150px;">슬롯</th><th style="width:90px;">크기</th><th style="width:130px;">무결성</th><th>교체</th></tr></thead>
+              <tbody id="rsim-rows"></tbody>
+            </table>
+          </div>
+
+          <div class="ux-caps" id="rsim-caps"></div>
+          <div class="ux-message" id="rsim-message"></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 시뮬레이터의 교체 판정(서빙? → 대상? → 스왑 → 재봉인 → ORIGINAL)은 §4 서버 규약과 1:1 이다.
+          비대상(apkovl·repo)은 버튼이 아예 없고(UI 1차 차단), 서빙 비활성이면 버튼이 disabled — direct POST 는 서버 가드가 409/409 로 받는다.
+          "교체 = 스왑 + 자동 재봉인" 이라 교체 후 즉시 원본 유지가 된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/system/diagnostic-asset</code></td><td>대시보드 — 슬롯 Response 에 <code>replaceable</code> 플래그 추가(뷰가 교체 버튼/안내 분기)</td><td><span class="chip mod">확장</span></td></tr>
+            <tr><td>POST</td><td><code>/system/diagnostic-asset/{slot}/replace</code></td><td>단일 파일 자산 교체 — multipart 업로드 → 원자적 스왑 → 자동 재봉인 → PRG</td><td><span class="chip new">신규</span></td></tr>
+          </tbody>
+        </table>
+        <h4>교체 데이터 흐름</h4>
+        <pre><code>POST /system/diagnostic-asset/{slot}/replace   (multipart: file)
+  1. slot 파싱 — 없는 이름 → 404 (DiagnosticAssetSlotNotFoundException)
+  2. servingActive 아님 → 409 (SystemAssetServingDisabledException 재사용)
+  3. !slot.replaceable() (apkovl·repo) → 409 (DiagnosticAssetNotReplaceableException)
+  4. file.isEmpty() → 400
+  5. 원자적 스왑:  temp = root/<filename>.tmp-<uuid>
+                  file.transferTo(temp)                       (multipart → 임시)
+                  Files.move(temp, root/<filename>, ATOMIC_MOVE, REPLACE_EXISTING)
+                  fileSystemHardener.applyDefaultPermissionsForFile(target)
+  6. 자동 재봉인:  integrityService.sealOne(slot)             (새 해시 → 마커 재기록)
+  → redirect /system/diagnostic-asset  (flash "교체 완료 — <자산> 새 파일로 갱신·재봉인")</code></pre>
+        <div class="callout"><b>왜 원자적 move 인가</b> — 자산 루트는 <code>/api/pxe/v1/assets/**</code> 로 게스트에 실시간 서빙된다. <code>Files.copy(in, target, REPLACE_EXISTING)</code> 로 직접 덮어쓰면 208MB 를 쓰는 수 초 동안 target 이 반쯤 쓰인 상태가 되어, 그때 부팅하는 게스트가 잘린 modloop 을 받는다. 임시 파일에 완성한 뒤 원자적 rename 하면 게스트는 항상 옛 파일 아니면 새 파일 — 중간이 없다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>DiagnosticAsset — replaceable 플래그 추가</h4>
+        <pre><code>// 교체 가능 여부는 layout 으로 유도할 수 없다: apkovl 은 단일 파일(SIDECAR)이지만 조립물이라 비대상.
+// 명시 속성으로 둔다.
+enum DiagnosticAsset {
+  VMLINUZ  (..., replaceable=true),   INITRAMFS(..., replaceable=true),
+  MODLOOP  (..., replaceable=true),   AGENT    (..., replaceable=true),
+  APKOVL   (..., replaceable=false),  REPO     (..., replaceable=false);
+  // 조회는 6종 전부, 교체는 replaceable=true 4종만.
+}</code></pre>
+
+        <h4>교체 판정 규약 (분기 아닌 순차 가드 — 도메인 invariant if-throw)</h4>
+        <pre><code>slot 파싱 실패        → 404   // 없는 자산 이름(forging)
+!servingActive        → 409   // 자산 위치 불명 (SystemAssetServingDisabledException 재사용)
+!slot.replaceable()   → 409   // apkovl·repo (DiagnosticAssetNotReplaceableException)
+file.isEmpty()        → 400   // 빈 업로드
+그 외                 → 스왑 + 재봉인
+// 이건 "케이스 추가로 분기 늘리기" 가 아니라 도메인 invariant 의 imperative if-throw(정당). UI 가 정상 흐름을 1차 차단.</code></pre>
+
+        <h4>재봉인 재사용 — seal() 을 sealOne(slot) 으로 분해</h4>
+        <pre><code>// E1-I-1 의 seal() 은 전 슬롯 루프. 교체는 한 슬롯만 재봉인하므로 단위 메서드를 뽑아 양쪽이 공유(SSOT).
+DiagnosticAssetIntegrityService:
+  SealResult seal()            { for (slot) sealOne(slot); }   // 기존 동작 = sealOne 루프로 재정의
+  void       sealOne(slot)     { 존재하면 해시 계산 → 마커 write → 0644 }   // 교체가 호출
+// 교체 서비스는 스왑만 담당하고 재봉인은 integrityService.sealOne 위임 — 마커 조립 로직 복붙 금지.</code></pre>
+
+        <h4>결정 비교</h4>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>(1) replaceable = 명시 enum 속성 — 채택</h4><ul><li>apkovl(단일 파일이나 비대상)을 layout 유도로 못 가르므로 명시</li><li>대상/비대상이 코드 한 곳(enum)에 고정</li></ul></div>
+          <div class="card v-orange"><h4>(1 대안) layout 으로 유도 — 탈락</h4><ul><li>SIDECAR=교체가능 규칙이 apkovl 에서 깨진다</li></ul></div>
+          <div class="card v-blue"><h4>(2) 원자적 move — 채택</h4><ul><li>서빙 중 torn read 원천 차단</li><li>임시 파일이 같은 FS(자산 루트) → atomic 성립</li></ul></div>
+          <div class="card v-red"><h4>(2 대안) copy REPLACE_EXISTING 직접 — 탈락</h4><ul><li>208MB 쓰는 동안 게스트가 잘린 파일 수신</li></ul></div>
+          <div class="card v-blue"><h4>(3) 교체 = 자동 재봉인 — 채택</h4><ul><li>운영자가 교체를 택함 = 새 파일이 신뢰 기준</li><li>수동 재봉인 2단 수작업 제거</li></ul></div>
+          <div class="card v-orange"><h4>(3 대안) 교체 후 수동 재봉인 — 탈락</h4><ul><li>교체 직후 TAMPERED 로 뜨는 혼란 + 불필요한 클릭</li></ul></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스의 산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 — <code>dashboard.html</code> 확장: replaceable 슬롯에 교체 폼(file input + 업로드), 비대상엔 "빌드 스크립트로 교체" 안내</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>DiagnosticAssetController</code> + <code>POST /{slot}/replace</code>(multipart, PRG). slot 파싱·가드</td></tr>
+            <tr><td>4</td><td>Response 확장(<code>replaceable</code> 플래그) + 교체 결과 flash</td></tr>
+            <tr><td>5</td><td>서비스 시그니처 — <code>DiagnosticAssetReplaceService.replace(slot, file)</code> + <code>IntegrityService.sealOne(slot)</code> 추출</td></tr>
+            <tr><td>6</td><td>Repository — <span class="chip na">N/A</span></td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>Entity — <span class="chip na">N/A</span> (<code>enum DiagnosticAsset</code> + <code>replaceable</code> 속성)</td></tr>
+            <tr><td>8</td><td>서비스 본체(스왑·재봉인) + 단위·통합 테스트(§6) + <code>PxeAssetsConfig</code> 마커 서빙 제외(동반)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 — <span class="chip na">N/A</span></td></tr>
+            <tr><td>10</td><td>CP5 — 브라우저 E2E: 교체 업로드 → 대시보드 크기·시각 갱신·원본 유지 + 디스크 파일 실제 교체 확인 + 비대상/서빙비활성 차단</td><td><span class="chip cp5">CP5</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 — <code>DiagnosticAssetReplaceServiceTest</code> (@TempDir + 실제 마커 엔진)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>교체 성공</td><td>단일 파일 교체 → 디스크 내용·크기 변경 + 마커 재봉인 → 재조회 ORIGINAL / 드리프트(변조) 슬롯 교체 → ORIGINAL 복구</td><td>2</td></tr>
+            <tr><td>원자성</td><td>스왑 후 임시 파일 잔존 0 / target 이 새 내용과 동일(해시 일치)</td><td>2</td></tr>
+            <tr><td>가드</td><td>비대상(apkovl·repo) 교체 → <code>NotReplaceable</code> / 서빙 비활성 → <code>ServingDisabled</code> / 빈 파일 → 400</td><td>3</td></tr>
+            <tr><td>재봉인 분해</td><td><code>sealOne(slot)</code> 단일 슬롯만 마커 기록(다른 슬롯 마커 불변) / <code>seal()</code> = sealOne 루프 동치</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (<code>@WebMvcTest</code> + <code>MockMvc</code> — <code>DiagnosticAssetControllerReplaceTest</code>)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>2xx/PRG</td><td><code>MockMultipartFile</code> 로 POST replace → 302 + flash + service.replace 호출 검증</td><td>1</td></tr>
+            <tr><td>404</td><td>없는 slot 이름 → <code>DiagnosticAssetSlotNotFoundException</code></td><td>1</td></tr>
+            <tr><td>409</td><td>비대상 slot → <code>DiagnosticAssetNotReplaceableException</code> / 서빙 비활성 → <code>SystemAssetServingDisabledException</code> (둘 다 실트리거)</td><td>2</td></tr>
+            <tr><td>400</td><td>빈 파일 업로드 → 400</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <h4>동반 — <code>PxeAssetsConfigMarkerExclusionTest</code></h4>
+        <ul><li><code>/api/pxe/v1/assets/vmlinuz-lts</code> 는 서빙 / <code>/api/pxe/v1/assets/vmlinuz-lts.provision.json</code> · <code>/api/pxe/v1/assets/repo/.provision.json</code> 은 404 (마커 제외)</li></ul>
+        <div class="callout"><b>규율</b> — 신규 예외 2종(<code>NotReplaceable</code>·<code>SlotNotFound</code>)은 통합 시나리오 동반(테스트 규율). Mockito 는 서비스 파일시스템 경계까지, 컨트롤러 가드·advice 매핑은 실제 실행.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>DiagnosticAssetSlotNotFoundException</code></td><td>404</td><td><span class="chip new">신규</span></td><td>없는 slot 이름(forging). <code>NotFoundException</code> 상속</td></tr>
+            <tr><td><code>DiagnosticAssetNotReplaceableException</code></td><td>409</td><td><span class="chip new">신규</span></td><td>apkovl·repo 교체 시도. UI 가 버튼을 안 붙여 1차 차단 → direct POST 안전망. <code>ConflictException</code> 상속</td></tr>
+            <tr><td><code>SystemAssetServingDisabledException</code></td><td>409</td><td><span class="chip keep">재사용</span></td><td>E1-I-1 신설분. 서빙 비활성 교체 거절</td></tr>
+            <tr><td>빈 파일 업로드</td><td>400</td><td><span class="chip new">신규</span></td><td><code>file.isEmpty()</code> → 400. 필드 직결 400(FieldBound 계열) 또는 소형 BadRequest 도메인 예외 — CP2 확정</td></tr>
+            <tr><td>스왑 IO 실패</td><td>500</td><td><span class="chip keep">정직</span></td><td><code>transferTo</code>/<code>Files.move</code> 실패 — 진짜 IO 이상. silent 흡수 금지, 로그 유지</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>UI 1차 차단 ↔ 서버 가드 SSOT</b> — "교체 가능?" 은 도메인 판정 <code>slot.replaceable()</code> 하나를 뷰(버튼 노출)와 서버 가드가 함께 호출. "서빙 활성?" 도 동일(disabled ↔ 409). 두 곳 복붙 금지.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>잔존 책임 · 주의 (정직 기록)</h4>
+        <ul>
+          <li><b>교체는 덮어쓰기 — 이전 버전 미보존(a 한정)</b>. 롤백을 위한 이력 보존은 E1-I-2-b. a 의 <code>replace()</code>는 <code>스왑 → sealOne</code> 2단으로 두어, b-1 이 맨 앞에 <code>archive(현재 파일 → 버전 저장소)</code>를 끼우면 <code>archive → 스왑 → sealOne</code>이 되도록 확장 seam 을 남긴다(a 에서 archive 는 구현하지 않는다 — 갈라지는 시점에 분리).</li>
+          <li><b>업로드 크기 상한</b> — Spring multipart(<code>provision.upload.max-file-size=15GB</code>) 재사용. modloop 208MB 는 여유. 임시 저장은 <code>spring.servlet.multipart.location</code>. 자산 루트 하위 임시 파일(atomic move 용)은 자산 루트가 multipart temp 와 다른 FS 여도 동작하도록 <b>자산 루트 안</b>에 만든다(cross-device rename 회피).</li>
+          <li><b>마커 사이드카 제외의 부수효과</b> — <code>*.provision.json</code> 서빙 차단은 진단 자산에 한정(자산 핸들러만). 다른 자원의 마커는 애초에 web-served 아님. 회귀 없음.</li>
+          <li><b>비대상 자산의 교체 요구가 잦아지면</b> — 사전조립 번들 업로드(apkovl tar / repo zip) 방식을 후속에서 재고. 지금은 빌드 스크립트 안내로 충분(교체 빈도 낮음).</li>
+          <li><b>동시 교체</b> — 같은 슬롯 동시 POST 는 원자적 move 가 마지막 승자로 수렴(중간 없음). 단일 운영자 규모라 락 불요.</li>
+        </ul>
+        <h4>Open Questions (CP1 결정 — 권고 포함)</h4>
+        <table><thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>교체 대상 범위</td><td><b>단일 파일 4종만</b>(사용자 확정) — apkovl·repo 는 빌드 스크립트</td></tr>
+            <tr><td>Q2</td><td>스왑 방식</td><td><b>원자적 move</b>(temp+ATOMIC_MOVE) — 서빙 중 torn read 차단</td></tr>
+            <tr><td>Q3</td><td>재봉인 시점</td><td><b>교체 직후 자동</b> — 교체 = 신뢰 표명. sealOne 재사용</td></tr>
+            <tr><td>Q4</td><td>교체 UI 확인</td><td><b>파일 선택 자체가 명시 행위 + 경고 문구</b> — 네이티브 confirm 금지(아키텍처 테스트), 전용 confirm-replace 모달은 필요 시 후속</td></tr>
+            <tr><td>Q5</td><td>마커 사이드카 노출</td><td><b>이 슬라이스에서 서빙 제외</b>(동반) — 사용자 지시("정리 검토") 이행</td></tr>
+          </tbody>
+        </table>
+        <h4>동반 수정</h4>
+        <ul>
+          <li><code>execution/config/PxeAssetsConfig</code> — 자산 핸들러에 <code>*.provision.json</code> 제외 <code>PathResourceResolver</code>.</li>
+          <li><code>enums/DiagnosticAsset</code> — <code>replaceable</code> 속성 추가.</li>
+          <li><code>DiagnosticAssetIntegrityService.seal()</code> — <code>sealOne(slot)</code> 로 분해(동작 동일, 교체가 재사용).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E1-I-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (E1-I-1 회귀 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="unit"> <span>교체 단위 — 스왑·자동 재봉인·원자성(임시 잔존 0)·가드(비대상/서빙비활성/빈파일)</span></label></li>
+          <li><label><input type="checkbox" data-key="integ"> <span>통합 — replace 302 / 404 없는슬롯 / 409 비대상·서빙비활성 / 400 빈파일</span></label></li>
+          <li><label><input type="checkbox" data-key="marker"> <span>동반 — 자산은 서빙되고 <code>*.provision.json</code> 은 404</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 — 교체 업로드 후 디스크 파일 실제 바뀜 + 대시보드 크기·시각·원본유지 (Chrome)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 (사용자) — 브라우저 E2E</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <div class="pkg-tree" style="font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:14px;white-space:pre;overflow-x:auto;">execution/asset/
+├── enums/DiagnosticAsset.java              (수정 — +replaceable 속성)
+├── service/DiagnosticAssetReplaceService.java (신규 — 업로드→원자적 스왑→sealOne 위임)
+├── service/DiagnosticAssetIntegrityService.java (수정 — seal()→sealOne(slot) 분해)
+├── controller/DiagnosticAssetController.java  (수정 — +POST /{slot}/replace)
+├── dto/response/SystemAssetSlotResponse.java  (수정 — +replaceable)
+└── exception/DiagnosticAssetSlotNotFoundException.java · DiagnosticAssetNotReplaceableException.java (신규)
+execution/config/PxeAssetsConfig.java        (수정 — 동반: *.provision.json 서빙 제외)
+templates/system/diagnostic-asset/dashboard.html (수정 — 교체 폼 / 비대상 안내)
+test/execution/asset/... (신규 — ReplaceServiceTest · ControllerReplaceTest · MarkerExclusionTest)
+
+── 재사용(무변경) ──────────────────────────────────
+global/marker/service/ProvisionMarkerService · MarkerContent  (재봉인)
+global/security/FileSystemHardener            (교체 파일 0644)
+execution/asset/exception/SystemAssetServingDisabledException  (서빙 비활성 재사용)
+spring.servlet.multipart.*                    (업로드 상한·임시 — application.properties)
+
+── 변경 없음(명시) ─────────────────────────────────
+ddl/ (없음) · Repository (없음) · @Entity (없음)</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>E1-I-2-b-1 — 범용 버전 저장소 + 교체 시 자동 아카이브</b>: <code>global/history</code> 신설 — <code>AssetVersionKey(category,name)</code>·<code>AssetVersion</code> 엔티티(첫 DB 엔티티)·<code>AssetHistoryService(archive/list/openVersion/prune)</code> + 비 web-served 이력 루트. a 의 <code>replace</code> 앞에 <code>archive</code> 를 끼워 교체마다 버전 누적(보존: 자산별 최근 N개 FIFO, 기본 3). <b>dhcpd/tftp 도 키만 바꿔 이 저장소를 그대로 재사용</b>.</li>
+          <li><b>E1-I-2-b-2 — 롤백 UI + 보존 정책</b>: 슬롯별 버전 목록·복원(롤백 = 현재 archive → 그 버전 스왑 → 재봉인) + 보존 개수 설정(TrashSettings 미러). 활성화(복원된 버전 살리기)는 진단 서비스에 두고 dhcpd 합류 시 SPI 화.</li>
+          <li><b>E1-I-3 — PXE 인프라 구성(dhcpd·tftp) + 대시보드 다중 자원화</b>: DEC-13 2단계. 대시보드를 진단 전용에서 여러 인프라 자원으로 일반화(<code>InfraAssetSource</code> 확장점) + b-1 의 버전 저장소를 dhcpd/tftp 파일에 재사용. 무결성 이질성: 정적 파일은 봉인형 / dhcpd.conf 는 존재·문법유효(dhcpd -t)·서비스상태형. 실 Rocky 서버(T3) 필요.</li>
+          <li>E1-I-3 완주 시 E1-I 완결 → E1(진단 리눅스) 단계 종결 → E2(펌웨어).</li>
+        </ol>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎬 교체 시뮬레이터 — 서버 규약 1:1
+  // 판정: 서빙? → 대상(replaceable)? → 스왑 → 자동 재봉인 → ORIGINAL
+  // ─────────────────────────────────────────────────────────────
+  const RSLOTS = [
+    { id:'vmlinuz',   label:'vmlinuz-lts',        replaceable:true,  size:'12.4 MB' },
+    { id:'initramfs', label:'initramfs-lts',      replaceable:true,  size:'23.8 MB' },
+    { id:'modloop',   label:'modloop-lts',        replaceable:true,  size:'198.4 MB' },
+    { id:'apkovl',    label:'diag.apkovl.tar.gz', replaceable:false, size:'6.1 KB' },
+    { id:'repo',      label:'repo/',              replaceable:false, size:'211.0 KB' },
+    { id:'agent',     label:'agent.sh',           replaceable:true,  size:'41 B' },
+  ];
+  let R;
+  function rReset() {
+    R = {}; RSLOTS.forEach(s => { R[s.id] = { size:s.size, status:'ORIGINAL', gen:0 }; });
+    rmsg('', '단일 파일 4종에서 「교체」를 눌러보라 — 업로드→원자적 스왑→자동 재봉인이 흐른다. modloop 을 외부 변조한 뒤 교체하면 복구된다.');
+    rRender();
+  }
+  const rServing = () => document.getElementById('sim-serving').checked;
+  function rmsg(k, t) { const el = document.getElementById('rsim-message'); el.className = 'ux-message' + (k ? ' ' + k : ''); el.textContent = t; }
+  function rDrift() {
+    R.modloop.status = 'TAMPERED';
+    rmsg('error', 'modloop-lts 외부 변조 — 봉인 이후 바이트가 바뀌어 드리프트(변조 감지). 교체하면 새 파일이 기준이 되어 복구된다.');
+    rRender();
+  }
+  function rReplace(id) {
+    const slot = RSLOTS.find(s => s.id === id);
+    if (!rServing()) { rmsg('error', '✗ 서빙 비활성 — 교체 불가(자산 위치 불명). UI 는 버튼 disabled, 서버 가드는 409.'); return; }
+    if (!slot.replaceable) { rmsg('error', '✗ ' + slot.label + ' 는 조립 자산이라 UI 교체 대상이 아니다 — build-assets.sh 로 교체(서버 가드 409).'); return; }
+    // 원자적 스왑 + 자동 재봉인
+    R[id].gen += 1;
+    R[id].size = ['13.1 MB', '24.0 MB', '201.7 MB', '', '', '52 B'][RSLOTS.indexOf(slot)] || '새 크기';
+    if (id === 'modloop') R[id].size = '201.7 MB';
+    R[id].status = 'ORIGINAL';
+    rmsg('success', '✓ ' + slot.label + ' 교체 — 임시 파일에 완성 → 원자적 move(게스트는 torn read 없음) → sealOne 자동 재봉인 → 원본 유지. (크기·시각 갱신)');
+    rRender();
+  }
+  function rRender() {
+    const sb = document.getElementById('rsim-serve');
+    sb.className = 'badge ' + (rServing() ? 'on' : 'off');
+    sb.textContent = rServing() ? '서빙 ● 활성' : '서빙 ○ 비활성';
+    const rows = RSLOTS.map(s => {
+      const st = R[s.id];
+      const badge = st.status === 'ORIGINAL' ? ['on', '원본 유지'] : ['red', '변조 감지'];
+      let action;
+      if (!s.replaceable) {
+        action = '<span style="font-size:11px;color:var(--text-muted);">빌드 스크립트로 교체</span>';
+      } else {
+        const dis = rServing() ? '' : ' disabled';
+        action = '<button class="n-demo-btn"' + dis + ' onclick="rReplace(\'' + s.id + '\')">교체' + (st.gen ? ' (v' + (st.gen + 1) + ')' : '') + '</button>';
+      }
+      return '<tr><td><code>' + s.label + '</code></td><td>' + st.size + '</td>'
+        + '<td><span class="badge ' + badge[0] + '">' + badge[1] + '</span></td>'
+        + '<td>' + action + '</td></tr>';
+    }).join('');
+    document.getElementById('rsim-rows').innerHTML = rows;
+    document.getElementById('rsim-caps').innerHTML =
+      'servingActive = ' + (rServing() ? '<span class="t">true</span>' : '<span class="f">false</span>') + '\n' +
+      RSLOTS.map(s => (s.label + ' ').padEnd(22, '·').slice(0, 22)
+        + ' → ' + (s.replaceable ? '교체 대상' : '비대상(빌드 스크립트)')).join('\n') +
+      '\n\n교체 판정: 서빙? → 대상? → 스왑(원자적 move) → sealOne 자동 재봉인 → ORIGINAL';
+  }
+  rReset();
+</script>
+</body>
+</html>
