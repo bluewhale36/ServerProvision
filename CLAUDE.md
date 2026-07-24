@@ -107,12 +107,11 @@
 
 > **CP5 의 E 단계 예외** (2026-07-12 합의): 실행 엔진(E*) 슬라이스의 CP5 는 브라우저 E2E 대신 **모의 게스트 하네스(`scripts/mock-guest/`) 실행 + 게스트 서버 상세 페이지 확인**으로 수행한다. 하네스는 게스트의 HTTP 행동(부팅→체크인→보고)을 curl 로 재연하는 git 추적 자산이며 Step 8 테스트 규율을 대체하지 않는다. 실기(T3) 검증이 유보된 슬라이스는 그 시점을 Notion 후속 마일스톤에 기재한다.
 
-### Step 1 — plan html 규약 (불가침)
-- **경로**: `plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html`, timestamp 는 **KST(Asia/Seoul)**. 페이지키 = 인벤토리 코드.
-- **방식**: html 을 직접 Write. html 인 본질은 **인터랙티브** — ① 🎬 라이브 데모로 설계 동작을 클릭·체험 검증, ② 검색/접기 ToC, ③ localStorage 체크리스트. **골격·CSS·JS 는 묻지 말고 최근 `plan/*.html` 을 직접 읽어 복제**한다.
-- 골격: sticky `header.page-header` + sticky `nav.toc`(top:108px) + `<main>`. 섹션 = `<details class="section" id="sN">`. `<input class="filter-box">` 검색. 말미 `<script>` 4 로직(불가침): ToC 클릭→open+smooth scroll(offset −108) / 전부 펴기·접기 / filter→매칭 섹션만 / `check-list[data-storage]` localStorage.
-- **🎬 미리보기 = 진짜 인터랙티브(불가침, §2 직후)**: 단순 텍스트/도식 박스 금지. 위젯에서 **상태를 직접 바꿔 결과(상태전이/차단/cascade/순환)를 체험**할 수 있어야 한다 — `state` 객체 + `render()` + `action()` 으로 그 슬라이스의 도메인 규칙을 JS 로 시뮬레이션(서버 판정을 재현). 선례: `plan/26-05-30_10-55-11_R2-2_plan.html`(부모상태→자식버튼 disable+tooltip), `plan/26-06-28_03-33-59_R4-3_R5-3_R6-3_plan.html`(분해+순환 가드).
-- **필수 섹션(11)**: ①현재 상태 ②요구사항 ③URL/데이터 흐름 ④도메인 모델 ⑤10단계 매핑 ⑥Step 8 테스트 시나리오 ⑦예외 계층(신규·재사용) ⑧부산물/주의(scope 경계·미루는 리팩터·CLAUDE.md 수정·동반 수정) ⑨Verification(빌드·기능·회귀) ⑩Critical Files(신규·수정·유지) ⑪다음 마일스톤.
+### plan / report html 규약 (불가침)
+- **저작 SSOT**: 골격·디자인 객체(class/id)·색 토큰·반응형·JS 4 동작·🎬 데모의 단일 규약은 **`.claude/plan-report-html-spec.md`**, 기준 구현은 **`plan/plan_template.html`** 이다. **최근 파일을 복제하지 않는다**(드리프트 원인) — 명세와 템플릿을 따르고, 카탈로그에 없는 디자인 객체가 필요하면 명세에 먼저 추가한 뒤 쓴다.
+- **plan** = CP1(Step 1) 산출물. `plan/YY-MM-DD_HH-MM-SS_<인벤토리코드>_plan.html`. **§2 직후 🎬 라이브 데모는 진짜 인터랙티브**(단순 텍스트/도식 금지 — 상태를 직접 바꿔 차단·전이·cascade 를 체험, 판정 JS = 서버 도메인 메서드로 드리프트 0). 섹션 체계는 명세 §1-2 의 `s0`~`s11`.
+- **report** = 슬라이스·캠페인·단계 **완료 보고 시** 산출물. `report/YY-MM-DD_HH-MM-SS_<단계명>_report.html`. plan 과 같은 명세·골격을 따르되 섹션 구성은 보고 대상에 맞춘다.
+- **공통 불가침**: 자체 완결 단일 파일(외부 CSS/JS/폰트/이미지 참조 0 — Notion 임베드가 sandboxed iframe 이라 외부 의존 시 깨짐), 색은 `:root` 토큰만, **반응형**(데스크톱 무변경 + 태블릿/휴대폰에서 헤더·ToC 비고정 + 표/스윔레인/긴 코드 처리), 시각은 **KST(Asia/Seoul)**. 작성은 전용 에이전트(`plan-docx-architect` / `stage-report-architect`)에 위임할 수 있으며, 그 경우 **내용 구상은 세션이 하고 에이전트는 명세대로 옮겨적기만** 한다.
 
 ### E 단계 — discussion 문서 규약
 E 단계(프로비저닝 실행 엔진)는 이 프로그램의 핵심 비즈니스 로직 설계라 코드 착수 전 사용자와의 토론·브레인스토밍 비중이 크다. 이를 위한 소통 문서를 둔다:
@@ -121,6 +120,10 @@ E 단계(프로비저닝 실행 엔진)는 이 프로그램의 핵심 비즈니�
 - **plan/report html 을 대체하지 않는다** — E 슬라이스도 CP1 진입 시 plan html 은 기존 규약대로 산출한다. discussion 문서는 CP1 앞의 구상·토론 자산이며, 토론 결과가 plan 의 입력이 된다.
 - **시리즈 구성**: 한 주제의 **최초 문서만** 전체 그림(로드맵·단계 상세)을 포함한다 — 처음 파악하는 데는 그 편이 낫다. **후속 문서는 토론 전용** — 로드맵·단계 상세를 재기술하지 않고 쟁점·응답·파생 질문만 담는다. 토론 종결 시 **마지막 문서에서 결정 사항을 간단히 정리**하고, 본격 명세는 해당 슬라이스의 plan html 로 넘긴다.
 - 문서 스타일은 "설명·답변·문서 작성 규칙" 을 그대로 따른다(사실 풀어쓰기·약어 금지·유스케이스 중심).
+
+### 다이어그램 규약 (E 단계, 불가침)
+- `diagram/` 의 인터랙티브 통신 다이어그램(`guest-provisioning-canvas.html` 등)은 Provisioning Server ↔ Guest Server 가 LAN·MGMT 두 통로로 주고받는 요청·응답·객체·스크립트를 **Provisioning Step 기준**으로 보여준다.
+- **E 단계(하위 단계 포함)가 완료될 때마다 그 단계에서 새로 오가는 상호작용을 반영해 다이어그램을 갱신**한다(신규 생성 또는 기존 수정). 보고서(report html)의 시각 자산으로 재사용한다.
 
 ### 테스트 규율 (불가침)
 단위 테스트만으로는 "예외→HTTP 응답" 매핑 사고나 컨트롤러 분기 누락이 안 드러난다(과거 `MissingFilenameException` 이 500 으로 새던 사고). Step 8 은 **두 레이어 모두** 작성:
@@ -136,6 +139,7 @@ E 단계(프로비저닝 실행 엔진)는 이 프로그램의 핵심 비즈니�
 ### Notion 작업 규약
 - 페이지 'Provisioning Server', DB 'Provisioning Server 개발 상세'. 댓글은 `[Claude]` 접두사.
 - **페이지 신설/상태 갱신/scope 변경 시 본문(content)에 4 항목 필수 기재(불가침)**: ① scope 요약 ② 비 목표(out of scope + 다음 슬라이스 어디로) ③ 잔존 책임/임시 비대칭 + 해소 시점 ④ 후속 마일스톤. plan/report 는 별도 자산 — Notion 페이지는 단독으로도 슬라이스 의도를 파악할 수 있어야 한다. 본문을 빈 채로 두지 않는다.
+- **단계 페이지 골격(2026-07 개편, 불가침)**: 단계 페이지는 **최상단 tabs 블록**(탭 3 — `요약`: 수행 내용 핵심 1줄 / `plan`: plan html 임베드 / `report`: report html 임베드) + **그 아래 위 4항목 본문**으로 구성한다. 골격 정본 = 'Provisioning Server > 단계 페이지 개편안'. plan/report html 은 산출 시점(plan=CP1, report=완료 보고)에 해당 탭에 임베드한다. **이 개편은 본문 골격만 바꾸며 DB 속성(스키마)은 생성·수정·삭제하지 않는다.** (tabs 는 API 로 직접 못 만들어, DB 템플릿 `(단계) : (개요)` 를 `template_id` 로 인스턴스화한 뒤 4항목 본문을 `update-page` 로 잇는다.)
 
 ### 브랜치 운용 (2026-07 재편)
 - 3계층: **`main`**(실 배포 소스, GitHub 기본 브랜치) ← **`dev`**(개발 완료 도달점) ← **`<구분>/<단계>_<기능>`** = **`<type>/<인벤토리코드>_<슬러그>`**(작업). type(구분) 은 conventional 어휘(`feat`/`fix`/`refactor`/`docs`/`chore`). **단계(인벤토리 코드)에 하이픈이 들어가므로(`E1-I`, `HF4-1`) 단계와 기능의 경계는 언더스코어 `_` 로 나눈다.** 예: `feat/E1-I_boot-infra`, `feat/E1_diagnose-linux`.

@@ -12,8 +12,8 @@ memory: project
 ## 핵심 원칙 (불가침)
 
 1. **당신은 코드를 작성하지 않는다.** Step 2 ~ 10 의 구현은 다른 단계 / 다른 에이전트의 책임이다. 당신의 산출물은 오직 plan html 뿐이다.
-2. **plan html 은 11섹션 고정 구조 + 인터랙티브 장치** 를 따른다 (CLAUDE.md §Step 1 — plan html 규약).
-3. **최근 `plan/*.html` 선례를 직접 읽어 골격·CSS·JS 를 복제** 한다. 골격 작성 방법을 사용자에게 묻지 않는다.
+2. **저작 규약의 정본(SSOT)은 `.claude/plan-report-html-spec.md`(디자인 객체·골격 `s0`~`s11`·색 토큰·반응형·JS 4동작·🎬 데모)와 기준 구현 `plan/plan_template.html` 이다.** plan html 작성 전 이 둘을 **반드시 Read** 하고 그대로 따른다. (CLAUDE.md §plan / report html 규약이 이를 요약·지시한다.)
+3. **최근 `plan/*.html` 을 골격 복제 원본으로 삼지 않는다** — 파일마다 규약이 갈려 드리프트의 원인이다(명세가 이를 막으려 신설됨). 골격·CSS·JS·디자인 객체는 명세·템플릿을 정본으로 하고, 최근 선례는 어휘·수위 참고로만 읽는다. 골격 작성 방법을 사용자에게 묻지 않는다.
 4. **CP1 승인 대상** 임을 항상 의식한다 — 사용자가 "승인 / 수정 / 거절" 을 판별할 수 있도록 구체적이고 검증 가능하게 작성한다. CP1 은 모든 체크포인트 중 가장 많은 사고를 쏟는 단계다.
 
 ## 작업 절차
@@ -22,10 +22,12 @@ memory: project
 
 다음을 **반드시** 읽는다:
 
-- `CLAUDE.md` — 아키텍처 / 네이밍 / 패키지 구조 / 도메인 모델 / Stage 인벤토리 / 테스트 규율 / Step 1 plan html 규약
+- **`.claude/plan-report-html-spec.md`** — plan/report html 저작 규약 정본(디자인 객체·골격 `s0`~`s11`·색 토큰·반응형·JS 4동작·🎬 데모). **작성 전 반드시.**
+- **`plan/plan_template.html`** — 기준 구현. 명세와 어긋나면 명세가 정본.
+- `CLAUDE.md` — 아키텍처 / 네이밍 / 패키지 구조 / 도메인 모델 / Stage 인벤토리 / 테스트 규율 / §plan / report html 규약
 - `CLAUDE.local.md` — 빌드/실행 환경
-- `DESIGN.md` (UI 관련 슬라이스인 경우) — UI 디자인 규약
-- `plan/` 디렉토리의 **최신 2~3개 html 선례** (특히 같은 Stage / 유사 도메인의 plan) — 골격·CSS·JS·🎬 시뮬레이터 패턴을 그대로 복제할 기준
+- `DESIGN.md` — 제품 웹 UI 레퍼런스. plan html 은 자체 완결 검토 문서라 DESIGN.md 를 그대로 따를 필요는 없다(명세 우선).
+- `plan/` 디렉토리의 **최신 선례** (같은 Stage / 유사 도메인) — 골격 복제 원본이 아니라 어휘·표현·수위 **참고용**. 골격·디자인 객체·반응형은 명세·템플릿을 따른다.
 - 본 슬라이스와 직접 관련된 기존 코드 (해당 feature 패키지, 의존성을 가지는 패키지)
 - 본 슬라이스의 선행 슬라이스 산출물 (이전 plan html + 실제 구현)
 
@@ -68,7 +70,7 @@ memory: project
 1. 파일명을 **KST(Asia/Seoul) 현재 시각** 으로 결정: `plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html`
    - 페이지키는 인벤토리 코드 (`MA1`, `MA1-1`, `MA3`, `MK1`, `S1`, `U1`, `U2`, `E1`, `DOC-1`, `CH1` 등)
    - `ls plan/` 로 최신 선례 파일명 컨벤션을 확인 후 동일 형식을 따른다
-2. **최근 `plan/*.html` 을 직접 읽어** 골격(sticky `header.page-header` + sticky `nav.toc` + `<main>`, 섹션 = `<details class="section">`, `<input class="filter-box">`)과 CSS, 말미 `<script>` 4로직(ToC 클릭 open+smooth scroll, 전부 펴기/접기, filter 매칭, `check-list[data-storage]` localStorage)을 복제한다
+2. **`.claude/plan-report-html-spec.md` 와 `plan/plan_template.html` 을 정본으로** 골격(header/layout/toc/main, 섹션 = `<details class="section">`, `<input class="filter-box">`), 색 토큰, 말미 `<script>` 4동작(ToC open+smooth scroll, 전부 펴기/접기, filter 매칭, `check-list[data-storage]` localStorage), **반응형(명세 §3 — 데스크톱 sticky, 태블릿/휴대폰은 헤더·ToC 비고정)** 을 구성한다
 3. `Write` 로 html 을 직접 작성한다 (한국어, 11섹션 + 🎬 시뮬레이터). pandoc 등 변환 도구를 쓰지 않는다
 4. `ls -la plan/<filename>.html` 로 생성 확인
 
@@ -85,7 +87,7 @@ plan html 생성 완료 후, **간결한 요약** 을 한국어로 제시한다:
 - **언어**: 모든 본문은 한국어. 코드 / 식별자 / 패키지명만 영어.
 - **구체성**: "적절히 처리" 같은 모호한 표현 금지. 상태 코드, 필드명, 메서드 시그니처를 명시.
 - **검증 가능성**: Step 8 시나리오 수, Critical Files 개수 등 정량 정보 제공.
-- **선례 일관성**: 기존 plan html 의 어휘 / 표 형식 / 골격 / 시뮬레이터 스타일을 따른다. 새로운 양식을 임의 도입하지 않는다.
+- **명세 일관성**: 골격 / 디자인 객체 / 반응형 / 시뮬레이터는 `.claude/plan-report-html-spec.md` 카탈로그의 정본만 쓴다. 카탈로그에 없는 class 를 임의 도입하지 않는다(필요 시 명세에 먼저 추가). 어휘·표현은 최근 선례를 참고하되 골격의 정본은 명세다.
 - **CLAUDE.md 정합**: 네이밍 (`*Request`/`*Response`/`*Service`/`*RestController`), 패키지 (feature-first), 레이어 경계 (Controller↔Service 는 DTO만), 테스트 규율 (단위 + 통합) 을 위반하지 않는다.
 - **Primitive Obsession**: 도메인 의미값(MAC, IP, 버전, 진행률, 경로 등)은 반드시 VO/Enum 으로 타입화. plan html 의 도메인 모델 섹션에서 이를 명시.
 
@@ -93,6 +95,7 @@ plan html 생성 완료 후, **간결한 요약** 을 한국어로 제시한다:
 
 plan html 을 사용자에게 제시하기 전, 다음을 자체 점검한다:
 
+- [ ] 명세(`.claude/plan-report-html-spec.md`)·템플릿을 읽고 따랐는가 — 카탈로그 외 class 미사용, 반응형 §3 블록 포함, 폐기 class(`.ux-btn`/`.compare-card`/`.ok`/`.pill`/`.dim`/`.seq-*` 변형) 미사용
 - [ ] 11섹션이 모두 존재하고 순서가 맞는가
 - [ ] 🎬 인터랙티브 미리보기가 실제로 상태를 바꿔 규칙을 체험하게 하는가 (정적 박스가 아닌가)
 - [ ] 말미 `<script>` 4로직(ToC/펴고접기/filter/localStorage)이 동작하는가
