@@ -13,6 +13,8 @@ import com.example.serverprovision.global.marker.exception.MarkerMissingExceptio
 import com.example.serverprovision.global.marker.exception.MarkerWriteFailedException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.security.FileSystemHardener;
+import com.example.serverprovision.global.util.FileDigest;
+import com.example.serverprovision.global.util.FileSize;
 import com.example.serverprovision.management.bios.service.BundleManifestService;
 import com.example.serverprovision.management.common.view.IntegrityStatusView;
 import lombok.RequiredArgsConstructor;
@@ -21,15 +23,10 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -91,6 +88,26 @@ public class DiagnosticAssetIntegrityService {
                 serving ? props.getRoot().toString() : null,
                 serving ? props.getBaseUrl() : null,
                 slots, ok, DiagnosticAsset.values().length);
+    }
+
+    /**
+     * 단일 슬롯 조회(상세 화면용). {@link #loadDashboard()} 가 6종 전량을 매번 재해시하는 것과 달리 이 슬롯
+     * 하나만 해시한다 — 행 클릭·교체/롤백 PRG 로 상세 진입이 잦으므로 208MB 급 자산 6배 낭비를 피한다.
+     * 서빙 비활성이면 {@code offSlot}, 아니면 {@code probe → verify → toResponse}(loadDashboard 와 같은 프리미티브).
+     */
+    public SystemAssetSlotResponse loadSlot(DiagnosticAsset asset) {
+        PxeAssetsProperties props = propertiesProvider.getIfAvailable();
+        if (props == null) {
+            return offSlot(asset);
+        }
+        Probe probe = probe(asset, props.getRoot());
+        IntegrityStatus status = probe.present() ? verify(asset, props.getRoot(), probe.hash()) : null;
+        return toResponse(asset, probe, status);
+    }
+
+    /** 서빙 활성 여부(비throwing) — 상세 화면의 교체·롤백 버튼 disabled 게이트. {@link #requireServingRoot()} 와 동일 조건 SSOT. */
+    public boolean isServing() {
+        return propertiesProvider.getIfAvailable() != null;
     }
 
     /**
@@ -186,26 +203,10 @@ public class DiagnosticAssetIntegrityService {
                 BundleManifestService.ManifestSummary ms = bundleManifestService.compute(path);
                 return new Probe(true, ms.totalBytes(), mtime, ms.manifestHash());
             }
-            return new Probe(true, Files.size(path), mtime, sha256File(path));
+            return new Probe(true, Files.size(path), mtime, FileDigest.sha256(path));
         } catch (IOException e) {
             // 존재하는 자산의 읽기 실패는 진짜 IO 이상 — 500 이 정직하다.
             throw new IllegalStateException("진단 자산 조회 실패 : " + path, e);
-        }
-    }
-
-    private static String sha256File(Path file) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            try (InputStream in = Files.newInputStream(file);
-                 DigestInputStream dis = new DigestInputStream(in, md)) {
-                byte[] buf = new byte[8192];
-                while (dis.read(buf) >= 0) {
-                    // drain
-                }
-            }
-            return HexFormat.of().formatHex(md.digest());
-        } catch (IOException | NoSuchAlgorithmException e) {
-            throw new IllegalStateException("자산 SHA-256 계산 실패 : " + file, e);
         }
     }
 
@@ -217,7 +218,7 @@ public class DiagnosticAssetIntegrityService {
         String badge = present ? IntegrityStatusView.badgeClass(status) : "n-badge-gray";
         return new SystemAssetSlotResponse(
                 asset.name(), asset.label(), asset.category().label(), asset.filename(), layoutLabel(asset.layout()),
-                present, asset.replaceable(), present ? humanSize(probe.sizeBytes()) : "—", probe.modifiedAt(),
+                present, asset.replaceable(), present ? FileSize.format(probe.sizeBytes()) : "—", probe.modifiedAt(),
                 statusLabel, badge, asset.replaceCadence());
     }
 
@@ -231,17 +232,4 @@ public class DiagnosticAssetIntegrityService {
         return layout == MarkerLayout.IN_TREE ? "디렉토리" : "단일 파일";
     }
 
-    private static String humanSize(long bytes) {
-        if (bytes < 1024) {
-            return bytes + " B";
-        }
-        String[] units = {"KB", "MB", "GB", "TB"};
-        double value = bytes;
-        int i = -1;
-        do {
-            value /= 1024;
-            i++;
-        } while (value >= 1024 && i < units.length - 1);
-        return String.format("%.1f %s", value, units[i]);
-    }
 }

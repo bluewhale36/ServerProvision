@@ -413,4 +413,26 @@ CREATE TABLE `trash_settings` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
+-- E1-I-2-b-1 — 파일 버전 이력(교체 롤백 대비). append-only, FK 없음, id=아카이브 순서.
+CREATE TABLE `asset_version` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `category` varchar(64) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `archived_rel_path` varchar(512) NOT NULL,
+  `sha256` varchar(64) NOT NULL,
+  `size_bytes` bigint(20) NOT NULL,
+  `archived_at` timestamp(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_asset_version_key` (`category`,`name`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+-- E1-I-2-b-2 — 버전 이력 운영 설정(보존 개수). 단일행 singleton, trash_settings 축소 미러.
+CREATE TABLE `asset_history_settings` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `retention_count` int(11) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

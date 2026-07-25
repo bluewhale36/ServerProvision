@@ -84,6 +84,40 @@ class DiagnosticAssetIntegrityServiceTest {
                 .allSatisfy(slot -> assertThat(slot.statusLabel()).isEqualTo(IntegrityStatus.MARKER_MISSING.getDisplayMessage()));
     }
 
+    // ── 단일 슬롯 조회(E1-I-2-b-2 재구성 — 상세 화면) ────────────────────────
+
+    @Test
+    @DisplayName("loadSlot — 봉인 후 단일 슬롯만 조회, ORIGINAL")
+    void loadSlot_afterSeal_original() throws IOException {
+        stageAllAssets();
+        service.seal();
+
+        SystemAssetSlotResponse slot = service.loadSlot(DiagnosticAsset.VMLINUZ);
+
+        assertThat(slot.key()).isEqualTo("VMLINUZ");
+        assertThat(slot.statusLabel()).isEqualTo(IntegrityStatus.ORIGINAL.getDisplayMessage());
+    }
+
+    @Test
+    @DisplayName("loadSlot — 서빙 비활성 시 off 상태 슬롯(예외 없이 반환)")
+    void loadSlot_servingDisabled_offSlot() {
+        given(propertiesProvider.getIfAvailable()).willReturn(null);
+
+        SystemAssetSlotResponse slot = service.loadSlot(DiagnosticAsset.VMLINUZ);
+
+        assertThat(slot.key()).isEqualTo("VMLINUZ");
+        assertThat(slot.statusLabel()).isNotEqualTo(IntegrityStatus.ORIGINAL.getDisplayMessage());
+    }
+
+    @Test
+    @DisplayName("isServing — props 유무를 반영(서버 가드와 동일 조건)")
+    void isServing_reflectsProps() {
+        assertThat(service.isServing()).isTrue();
+
+        given(propertiesProvider.getIfAvailable()).willReturn(null);
+        assertThat(service.isServing()).isFalse();
+    }
+
     // ── 드리프트 탐지 ───────────────────────────────────────────────────────
 
     @Test

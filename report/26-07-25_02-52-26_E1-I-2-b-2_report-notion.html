@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-I-2-b-2 Report — 진단 자산 화면 3분할 재구성 (완료)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 진행 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : BEFORE(red) / AFTER(green) ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── card-grid : 정책/옵션 병렬 비교 ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:80px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .seg { padding:4px 10px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .seg:hover { background:var(--blue-bg); } .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge, .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : N-actor 호출 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 스크린샷 (샌드박스 UI 검증) ── */
+  .shot { max-width:100%; border:1px solid var(--border); border-radius:6px; margin:8px 0; }
+  figure { margin:14px 0; }
+  figcaption { font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+  /* ── 반응형 (명세 §3) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-I-2-b-2 — 진단 자산 화면 3분할 재구성 (대시보드 · 상세 · 설정) <span class="v2-badge">완료 · CP4</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-I-2-b-2 (feature · UI 재구성)</span>
+    <span><strong>상위</strong> E1-I · E1-I-2-b (범용 버전 저장소)</span>
+    <span><strong>결과</strong> 한 화면 → 현황(대시보드) · 자원 액션(상세) · 전역 튜너블(설정) 3화면 분리</span>
+    <span><strong>테스트</strong> 1407 pass · 0 fail · 0 error · 6 skip</span>
+    <span><strong>생성</strong> 2026-07-25 02:52 KST</span>
+    <span><strong>상태</strong> CP4 완료 · 커밋 대기(b-1+b-2 일괄)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 슬라이스 개요 — 무엇을 만들었나</a></li>
+      <li><a href="#s2">§2 요구 결과 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (3화면 라이브)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 설계 결정 (채택 · 비채택 · 탈락)</a></li>
+      <li><a href="#s5">§5 레이어별 구현</a></li>
+      <li><a href="#s6">§6 코드 리뷰 결과</a></li>
+      <li><a href="#s7">§7 테스트 커버리지</a></li>
+      <li><a href="#s8">§8 예외 계층</a></li>
+      <li><a href="#s9">§9 불가침 원칙 점검</a></li>
+      <li><a href="#s10">§10 샌드박스 UI 검증</a></li>
+      <li><a href="#s11">§11 Verification / 잔존 / Critical Files</a></li>
+      <li><a href="#s12">§12 부록 — 구현 좌표</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 개요 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 슬라이스 개요 — 무엇을 만들었나</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스는 처음에 진단 리눅스 자산 화면 <b>하나</b>에 무결성 현황표, 상단 보존 개수 인라인 폼, 슬롯마다 접히는 버전 이력과 롤백 버튼, 봉인·재검증 버튼을 전부 얹었다. 그 설계로 서비스 계층(활성화·롤백·버전 저장소·보존 설정)은 이미 구현·검증까지 끝났다. 그런데 사용자 지시로 <b>화면 구조만</b> 다시 나눴다 — 서비스·엔티티·DDL 은 한 줄도 손대지 않고, 뷰와 컨트롤러 배선만 세 관심사로 갈랐다. 이 보고서가 그 <b>최종 형태</b>를 기록한다.</p>
+
+        <div class="card-grid">
+          <div class="card v-blue">
+            <h4>대시보드 (status-only)</h4>
+            <ul>
+              <li><code>GET /system/diagnostic-asset</code></li>
+              <li>6슬롯 무결성 현황표 + 서빙 배너 + <code>okCount/total</code></li>
+              <li>상태 변경 액션 <b>0</b> — <b>재검증</b>(비변경 새로고침)과 <b>운영 설정 →</b> 링크만</li>
+              <li>각 행 클릭 → 그 자산 상세</li>
+            </ul>
+          </div>
+          <div class="card v-orange">
+            <h4>자산 상세 (자원 액션)</h4>
+            <ul>
+              <li><code>GET /system/diagnostic-asset/{slot}</code></li>
+              <li>자산 메타 표</li>
+              <li>교체 가능 슬롯 : 교체 폼 · 버전 이력 · 행별 되돌리기</li>
+              <li>비교체 슬롯(apkovl · repo) : 읽기전용 + 빌드 스크립트 안내</li>
+            </ul>
+          </div>
+          <div class="card v-purple">
+            <h4>운영 설정 (전역 튜너블)</h4>
+            <ul>
+              <li><code>GET · POST /system/diagnostic-asset/settings</code></li>
+              <li>이력 보존 개수 폼 + 현재값</li>
+              <li>무결성 봉인(seal-all) 카드 — 전 슬롯 기준선 확립</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout"><b>본질</b> — 이 슬라이스는 <span class="diff-del">한 화면에 조회와 변경을 섞음</span> 을 <span class="diff-add">현황 · 자원 액션 · 전역 튜너블 세 관심사로 분리</span> 한 재배치다. 새 도메인 능력은 없다. 서버 판정(FIFO 정리 · 롤백 승격·제거 · 서빙 게이트)은 재사용한 그대로다. 재구성 도중 코드 리뷰를 받아, 상세 데이터 조회를 6종 전량 재해시에서 <b>단일 슬롯 해시</b>로 최적화한 것이 유일하게 계획을 넘어선 변화다(§4 D4).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구 결과 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구 결과 (확정 · 구현) + 비목표</summary>
+      <div class="body">
+        <h4>확정 페이지 구조 (구현 결과)</h4>
+        <table>
+          <thead><tr><th>페이지</th><th>URL</th><th>담은 것</th><th>Model</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>대시보드</b><br><span class="mono" style="font-size:11px;color:var(--text-muted)">status-only</span></td>
+              <td><code>GET /system/diagnostic-asset</code></td>
+              <td>6슬롯 현황표(자산 · 종류 · 구성 · 크기 · 최종수정 · 무결성 배지 · 교체주기) + <code>okCount/total</code> + 서빙 배너 + <b>재검증</b> + 행→상세 클릭 + "운영 설정 →"</td>
+              <td><code>dashboard</code> 하나</td>
+            </tr>
+            <tr>
+              <td><b>상세</b><br><span class="mono" style="font-size:11px;color:var(--text-muted)">자원 액션</span></td>
+              <td><code>GET /{slot}</code> <span class="chip new">신규</span></td>
+              <td>슬롯 메타 + (교체가능) 교체 폼 · 버전 이력표 · 행별 되돌리기 / (비교체) 읽기전용 + <code>build-assets.sh</code> 안내 + 대시보드 back-link</td>
+              <td><code>slot</code> · <code>versions</code> · <code>servingActive</code></td>
+            </tr>
+            <tr>
+              <td><b>설정</b><br><span class="mono" style="font-size:11px;color:var(--text-muted)">전역 튜너블</span></td>
+              <td><code>GET · POST /settings</code> <span class="chip new">GET 신규</span></td>
+              <td>보존 개수 폼 + 현재값 + 무결성 봉인(seal-all) 카드 + back-link</td>
+              <td><code>retentionForm</code> · <code>retentionSettings</code> · <code>dashboard</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>구현된 요구 규칙 (전부 충족)</h4>
+        <ol>
+          <li><b>대시보드 mutation 버튼 0</b> — 교체 · 롤백 · 봉인 · 보존 수정 중 어느 것도 대시보드에 없다. 남은 상호작용은 재검증(비변경 새로고침)과 링크(행→상세, "운영 설정 →")뿐이다.</li>
+          <li><b>상세 = 슬롯 단위 액션의 집</b> — 교체 가능한 4슬롯(<code>VMLINUZ · INITRAMFS · MODLOOP · AGENT</code>)은 교체 폼 · 버전 이력 · 행별 되돌리기를 상세에서 제공한다. 비교체 2슬롯(<code>APKOVL · REPO</code>)의 상세는 읽기전용이며 빌드 스크립트 안내만 둔다.</li>
+          <li><b>봉인(seal-all)은 설정으로</b> — 6슬롯 마커를 일괄 기록하는 전역 mutation 이고, 비교체 2슬롯에는 seal-all 이 유일한 기준선 확립 수단이라 설정 카드가 자연스러운 집이다.</li>
+          <li><b>보존 개수는 별도 설정 폼</b> — 인라인 폼을 없애고 <code>GET /settings</code> 폼에서 고쳐 <code>POST /settings</code> 로 저장한다. <code>retentionCount</code> 는 <code>@Min(1) @Max(20)</code>.</li>
+          <li><b>redirect 규약</b> — 교체 · 롤백 성공은 <code>redirect:/{slot}</code>(상세 복귀), 봉인 · 보존 저장 성공은 <code>redirect:/settings</code>(self-PRG), 재검증은 <code>redirect:/</code>(대시보드 잔류).</li>
+          <li><b>서빙 비활성 UI 1차 차단</b> — 서빙이 꺼져 있으면 상세의 교체 · 되돌리기와 설정의 봉인 버튼을 <code>disabled</code> + tooltip 으로 막는다. 조건은 서버 가드 <code>requireServingRoot()</code>(409)와 단일 SSOT(<code>servingActive</code> / <code>isServing()</code>).</li>
+          <li><b>인라인 style 청산 + native confirm 미사용</b> — 재구성 전 <code>dashboard.html</code> 의 인라인 <code>style</code> 약 28곳을 페이지 CSS + 전역 클래스로 바꿨다. 롤백은 현재 활성본을 archive 하므로 가역이라 native <code>confirm()</code> 대신 버튼 <code>title</code> 경고로 안내한다.</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표 (의도적으로 제외)</b> :
+          <ul>
+            <li><b>서비스 계층 변경</b> — 활성화 · 롤백 · 버전 저장소 · 보존 설정은 b-1/b-2 백엔드에서 이미 결정 · 구현됐다. 이번엔 배선만 다시 했다.</li>
+            <li><b><code>dhcpd</code> · <code>tftp</code> 등 PXE 인프라 자산 화면</b> — E1-I-3.</li>
+            <li><b>활성화 코어의 SPI 일반화</b> — dhcpd/tftp 구현자가 실재하는 E1-I-3 이후 단계 신설 없는 리팩토링(R* 계열)으로 미룬다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 3화면을 실제로 오가며 확인</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 위젯 하나에 <b>대시보드 · 상세 · 설정</b> 세 화면이 들어 있고, 한 번에 한 화면만 보입니다. 대시보드의 <b>자산 행을 클릭</b>하면 그 자산 상세로, <b>운영 설정 →</b> 로 설정 화면으로 갑니다. 상세에서 <b>교체 · 되돌리기</b>, 설정에서 <b>보존 개수 · 전 슬롯 봉인</b>을 눌러 결과를 보세요.
+          공유 상태 하나(서빙 · 보존 개수 · 슬롯별 활성본/이력/무결성)를 세 화면이 함께 읽습니다. 판정 로직(FIFO 정리 · 롤백 승격·제거 · 서빙 게이트)은 서버 구현과 <b>1:1</b> 입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">전역 서빙 :</span>
+            <button class="seg" data-s="on" onclick="demoSetServing(true)">활성</button>
+            <button class="seg" data-s="off" onclick="demoSetServing(false)">비활성</button>
+            <span style="font-size:11px;color:var(--text-muted);margin-left:6px;">현재 화면 : <b id="demo-screen-name">대시보드</b></span>
+          </div>
+
+          <div id="demo-screen" style="margin-top:10px;"></div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <p style="font-size:12px;color:var(--text-muted);">표기 주의 : 미리보기의 <code>버전 #N</code> 은 어느 바이트인지 눈으로 따라가기 쉽게 붙인 <b>미리보기 전용 라벨</b>이며, 실제 화면에는 세대 번호가 없습니다. 실제 상세는 버전을 <b>아카이브 시각 · 크기 · 해시</b>로 표시하고(<code>AssetVersionView</code>), 식별 키는 재사용되지 않는 자동 증가 <code>asset_version.id</code> 입니다. 미리보기의 번호도 같은 성질을 따르도록 단조 증가시켜 롤백 뒤에도 번호를 재사용하지 않습니다.</p>
+        <p style="font-size:12px;color:var(--text-muted);">위젯 캡션 : 대시보드에는 상태를 바꾸는 버튼이 없습니다. 교체 · 롤백은 각 자산 상세에서, 봉인 · 보존 개수는 설정에서 합니다. 서빙을 <b>비활성</b>으로 바꾸면 상세의 교체 · 되돌리기와 설정의 봉인 버튼이 <code>disabled</code> + tooltip 으로 막히는데(UI 1차 차단), 이 조건은 서버 <code>requireServingRoot()</code> 가드(409)와 <b>같은 SSOT</b> 입니다.</p>
+
+        <div class="callout success"><b>드리프트 0</b> — 미리보기 판정 = 서버 도메인 규칙.
+          FIFO 정리 = <code>versions.size &gt; N → id 오름차순 (size−N)개 삭제</code> = 서버 <code>AssetHistoryService.prune()</code>.
+          롤백 불변식 = <code>archive(현재) → 활성=X → remove(X)</code> = 서버 <code>DiagnosticAssetActivationService.rollback()</code>(<code>openVersion</code> 이 temp 로 바이트를 먼저 실체화해 순서 안전).
+          UI 버튼 disable = <code>!servingActive</code> = 서버 <code>requireServingRoot()</code> throw(409).</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>엔드포인트 8개 (재구성 결과)</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작 / Model</th><th>응답</th><th>재구성</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/system/diagnostic-asset</code></td><td>status-only 대시보드 — <code>dashboard = loadDashboard()</code> <b>하나만</b> 적재</td><td>200</td><td><span class="chip mod">모델 축소</span></td></tr>
+            <tr><td>GET</td><td><code>/{slot}</code></td><td>상세 — <code>slot = loadSlot(slot)</code>(단건 해시) · <code>versions = listVersions(slot)</code>(단건 조회) · <code>servingActive = isServing()</code></td><td>200 / 404</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>GET</td><td><code>/settings</code></td><td>설정 폼 — <code>retentionForm</code> · <code>retentionSettings</code> · <code>dashboard</code>(봉인 카드 맥락)</td><td>200</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>POST</td><td><code>/settings</code></td><td>보존 개수 갱신(<code>@Valid</code>) → 성공 <code>redirect:/settings</code> · 무효 <code>settings</code> 재렌더(폼 값은 <code>@ModelAttribute</code> 유지)</td><td>302 / 400</td><td><span class="chip mod">신규 뷰 · redirect</span></td></tr>
+            <tr><td>POST</td><td><code>/seal</code></td><td>6슬롯 무결성 봉인 → <code>redirect:/settings</code></td><td>302 / 409</td><td><span class="chip mod">redirect 변경</span></td></tr>
+            <tr><td>POST</td><td><code>/{slot}/replace</code></td><td>업로드 교체 → <code>redirect:/{slot}</code></td><td>302 / 400 / 404 / 409 / 500</td><td><span class="chip mod">redirect 변경</span></td></tr>
+            <tr><td>POST</td><td><code>/{slot}/versions/{id}/rollback</code></td><td>버전 롤백 → <code>redirect:/{slot}</code></td><td>302 / 404 / 409 / 500</td><td><span class="chip mod">redirect 변경</span></td></tr>
+            <tr><td>POST</td><td><code>/recheck</code></td><td>재검증(서비스 미호출) → <code>redirect:/</code></td><td>302</td><td><span class="chip keep">무변경</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>라우팅 우선순위 (검증됨)</b> — <code>GET /settings</code>(리터럴)와 <code>GET /{slot}</code>(경로변수)가 같은 깊이지만, Spring 은 리터럴 세그먼트를 경로변수보다 우선 매칭하므로 <code>/settings</code> 는 설정 핸들러로 간다(<code>parseSlot("settings")</code> 로 새지 않음). 없는 슬롯 이름은 <code>parseSlot</code> 이 <code>DiagnosticAssetSlotNotFoundException</code>(404)을 던진다. 이 두 동작을 상세 테스트가 고정한다.</div>
+
+        <h4>대시보드 → 상세 진입 (조회 렌더 · 단건 해시)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">DiagnosticAssetController</div><div class="actor a3">Integrity + Version 서비스</div>
+
+          <div class="step a1">대시보드 자산 행 <b>전체</b> 클릭 (data-href + 위임 JS)</div>
+          <div class="step a2"><code>GET /{slot}</code> · <code>parseSlot</code>(없는 이름 → 404)</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>loadSlot(slot)</code></div>
+          <div class="step a3"><b>이 슬롯 하나만</b> 해시(6종 전량 재해시 회피)</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>listVersions(slot)</code> · <code>isServing()</code></div>
+          <div class="step a3"><code>asset_version</code> 행만 읽음(활성 파일 재해시 없음)</div>
+
+          <div class="step a1">상세 렌더(교체 폼 · 이력 · 되돌리기, 서빙 비활성 시 disabled)</div>
+          <div class="step a2">Model : slot · versions · servingActive</div>
+          <div class="step a3"></div>
+        </div>
+
+        <h4>상세에서 교체 / 롤백 → 상세 복귀</h4>
+        <div class="seq">
+          <div class="actor a1">상세 화면</div><div class="actor a2">ActivationService</div><div class="actor a3">History + 파일시스템</div>
+
+          <div class="step a1"><code>POST /{slot}/replace</code> 또는 <code>.../versions/{id}/rollback</code></div>
+          <div class="step a2"><code>requireServingRoot</code>(409) · <code>requireReplaceable</code>(409)</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">롤백 : <code>openVersion(key,id)</code> → temp 로 바이트 <b>먼저</b> 실체화(없음/타키 → 404)</div>
+          <div class="step a3">이력 파일 read</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>archive(현재)</code> → ATOMIC_MOVE → <code>sealOne</code> · 롤백은 <code>remove(id)</code></div>
+          <div class="step a3"><code>prune</code>(FIFO) · 파일 교체 · 마커 write(IO → 500)</div>
+
+          <div class="step a1"><code>redirect:/{slot}</code> + flash — 새 버전이 이 상세 이력에 즉시 노출</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+        </div>
+
+        <h4>설정에서 봉인 / 보존 저장 → 설정 복귀 (self-PRG)</h4>
+        <div class="seq">
+          <div class="actor a1">설정 화면</div><div class="actor a2">DiagnosticAssetController</div><div class="actor a3">Integrity / Settings 서비스</div>
+
+          <div class="step a1"><code>POST /seal</code></div>
+          <div class="step a2"><code>integrityService.seal()</code>(서빙 비활성 → 409)</div>
+          <div class="step a3">6슬롯 마커 일괄 기록 → <code>SealResult</code></div>
+
+          <div class="step a1"><code>POST /settings</code>(retentionCount)</div>
+          <div class="step a2"><code>@Valid</code> — 무효면 <code>settings</code> 재렌더(400)</div>
+          <div class="step a3"><code>settingsService.update(N)</code> → 캐시 갱신</div>
+
+          <div class="step a1"><code>redirect:/settings</code> + flash</div>
+          <div class="step a2"><code>populateSettingsContext</code>(retentionSettings · dashboard)</div>
+          <div class="step a3">봉인 카드가 새 <code>okCount/total</code> 표시</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 설계 결정 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 설계 결정 (채택 · 비채택 · 탈락 사유)</summary>
+      <div class="body">
+        <p style="margin-top:0;">화면 3분할은 사용자 지시였다. 그 지시 아래에서 각 액션을 어느 화면에 두느냐, 상세 데이터를 어떻게 조회하느냐를 결정했다. 아래는 채택안과 탈락 대안, 탈락 사유다.</p>
+
+        <p><b>D1 · 재검증(recheck)은 대시보드 잔류</b><br>
+          <span class="chip add">채택</span> 재검증은 서비스를 호출하지 않고(GET 재렌더가 곧 재검증) 상태를 바꾸지 않는 <b>현황 새로고침</b>이라 status-only 대시보드에 속한다. <code>redirect:/</code> 무변경.<br>
+          <span class="chip del">탈락</span> 설정으로 이동 — 재검증은 mutation 이 아니라 조회 갱신이라 전역 튜너블 화면에 둘 이유가 없다.</p>
+
+        <p><b>D2 · 봉인(seal-all)은 설정 페이지</b><br>
+          <span class="chip add">채택</span> 6슬롯 마커를 일괄 기록하는 전역 mutation 이라 status-only 대시보드에서 제거했다. per-slot 개념이 없어 상세로도 못 간다. 특히 비교체 2슬롯(apkovl · repo)은 교체 경로가 아예 없어 seal-all 이 <b>유일한 기준선 확립 수단</b>이므로 설정 페이지가 자연스러운 집이다. 봉인 후 <code>redirect:/settings</code>(self-PRG)로 카드의 <code>okCount/total</code> 이 새 값으로 피드백된다.<br>
+          <span class="chip del">탈락 ⓐ</span> 대시보드 잔류 — status-only 원칙 위배.<br>
+          <span class="chip del">탈락 ⓑ</span> per-slot seal(각 상세에서 봉인) — 초기 6슬롯 기준선을 세우려면 상세를 6번 순회하는 회귀 + 신규 엔드포인트 churn + 읽기전용 슬롯의 상세에 mutation 버튼을 놓는 의미 충돌이 생긴다.</p>
+
+        <p><b>D3 · replace / rollback 성공 redirect = <code>/{slot}</code>(상세 복귀)</b><br>
+          <span class="chip add">채택</span> 교체 · 롤백을 상세에서 개시하므로 직후 새 버전이 <b>그 상세 이력에 뜨는 것</b>이 자연스럽다(<code>GuestServer</code> 액션의 <code>redirect:/{id}</code> 선례와 동형). flash 메시지로 결과를 안내한다.<br>
+          <span class="chip del">탈락</span> 대시보드 복귀 — 상세에서 시작한 액션이 현황 화면으로 튕겨, 방금 만든 버전을 다시 상세로 들어가 확인해야 한다.</p>
+
+        <p><b>D4 · 상세 데이터 = 단건 조회 <code>loadSlot</code> (코드 리뷰로 계획 초과)</b><br>
+          <span class="chip add">채택(최종)</span> 상세는 <code>loadSlot(slot)</code> 로 <b>단일 슬롯만</b> 해시하고, <code>listVersions(slot)</code> 로 그 슬롯 이력만 읽으며, <code>isServing()</code> 으로 버튼 게이트 플래그를 얻는다. 세 조회 모두 단건이다.<br>
+          <span class="chip del">탈락(초안 = 계획의 Detail-A)</span> 상세 진입마다 <code>loadDashboard()</code> 로 6종 전량을 재해시한 뒤 key 로 1행을 필터. 대시보드가 이미 그렇게 하니 신규 회귀는 아니지만, 208MB 급 자산 6배를 <b>매 상세 진입마다</b>(행 클릭 · 교체/롤백 PRG 로 잦음) 재해시하는 낭비다.<br>
+          <span class="chip opt">전환 사유</span> 적대적 코드 리뷰가 이 낭비를 Warning 으로 지적했다. 즉시 <code>loadSlot</code> · <code>isServing</code> · <code>listVersions</code> 단건 API 로 최적화했다. <code>loadSlot</code> 은 <code>loadDashboard</code> 가 쓰던 private 프리미티브(<code>probe</code> · <code>verify</code> · <code>toResponse</code> · <code>offSlot</code>)를 그대로 재사용해 entity-free 를 유지하고 로직 중복이 없다. 계획의 §비목표(loadSlot 이연)를 앞당겨 실현한 셈이다.</p>
+
+        <p><b>D5 · 대시보드 행 → 상세 = 행 전체 클릭</b><br>
+          <span class="chip add">채택</span> 행에 <code>data-href</code> 를 붙이고 document 위임 JS 로 행 전체 클릭 시 상세로 이동한다(<code>provisioning/server-list.js</code> 미러). 셀 내부의 링크 · 버튼 · 폼 클릭은 <code>e.target.closest('a, button, input, form')</code> 로 걸러 중복 내비게이션을 막는다. 별도 "상세 →" 앵커 셀은 두지 않는다.<br>
+          <span class="chip del">탈락</span> 명시적 링크 셀 — 이미 <code>provisioning</code> 영역이 행 전체 클릭 관례를 확립했고, 그 관례를 미러하는 편이 화면 간 일관성이 낫다. CP1 plan 의 Q2 는 열어 뒀으나 최종은 행 클릭으로 확정됐다.</p>
+
+        <p><b>D6 · 부수효과 (전부 준수)</b><br>
+          <span class="chip add">채택</span> 신규 예외 0(<code>parseSlot</code> 재사용, forging 404) · navbar 무변경(단일 "진단 자산" 링크 · active 키 유지) · <code>integrityService</code> entity-free 유지 · 인라인 <code>style</code> 약 28곳을 페이지 CSS + 전역 클래스로 청산 · 서빙 비활성 시 버튼 <code>disabled</code>(= <code>servingActive</code>/<code>isServing</code> 플래그로 서버 가드 409 와 SSOT) · native <code>confirm()</code> 미사용. <code>/settings</code> 리터럴이 <code>/{slot}</code> 보다 우선 매칭됨을 테스트로 고정.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 레이어별 구현 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 레이어별 구현 (도메인 모델 SSOT)</summary>
+      <div class="body">
+        <div class="callout"><b>도메인 모델 무변경</b> — 이 슬라이스는 UI 재배치다. 엔티티 · VO · Enum · 도메인 메서드를 하나도 새로 만들지 않았다. 아래는 <b>이미 결정된 기반</b>과 재구성이 그 위에 다시 배선한 <b>화면별 계약</b>이다.</div>
+
+        <h4>컨트롤러 (DiagnosticAssetController)</h4>
+        <p>단일 <code>@Controller</code> 하나가 8 엔드포인트를 담는다. 조회 화면 3개(대시보드 · 상세 · 설정)와 PRG 액션 5개(설정 저장 · 봉인 · 재검증 · 교체 · 롤백)다. 재구성으로 바뀐 것은 세 가지다. ① 대시보드 핸들러가 <code>dashboard</code> 모델 하나만 담도록 축소됐고(<code>versionsBySlot</code> · <code>retentionSettings</code> · <code>retentionForm</code> 적재 제거), ② <code>GET /{slot}</code> · <code>GET /settings</code> 두 조회 핸들러가 신설됐으며, ③ 교체 · 롤백 · 봉인 · 보존 저장의 redirect 대상이 재배치됐다. 설정 GET 과 POST 무효 재렌더가 공유하는 부가 모델은 <code>populateSettingsContext(model)</code> 헬퍼 하나로 모았다.</p>
+
+        <h4>서비스 (재사용 + 단건 API 추가)</h4>
+        <table>
+          <thead><tr><th>서비스 / 메서드</th><th>역할</th><th>재구성에서</th></tr></thead>
+          <tbody>
+            <tr><td><code>DiagnosticAssetIntegrityService.loadDashboard()</code></td><td>6슬롯 현황 · 서빙 게이트 · <code>okCount/total</code>. DB 없이 마커 사이드카가 SSOT</td><td><span class="chip keep">무변경</span> — 대시보드 · 봉인 카드 맥락</td></tr>
+            <tr><td><code>...IntegrityService.loadSlot(slot)</code></td><td>단일 슬롯만 <code>probe → verify → toResponse</code>(loadDashboard 와 같은 프리미티브)</td><td><span class="chip new">신규(상세 최적화)</span></td></tr>
+            <tr><td><code>...IntegrityService.isServing()</code></td><td>서빙 활성 여부(비throwing). <code>requireServingRoot()</code> 와 동일 조건</td><td><span class="chip new">신규(버튼 게이트)</span></td></tr>
+            <tr><td><code>...IntegrityService.seal() / sealOne() / requireServingRoot()</code></td><td>전 슬롯 봉인 · 단건 봉인 · 서빙 가드(409)</td><td><span class="chip keep">무변경</span></td></tr>
+            <tr><td><code>DiagnosticAssetActivationService.replace / rollback</code></td><td>업로드 교체 · 저장본 승격 + private <code>activate</code> 코어(소스 temp 先실체화 → archive → ATOMIC_MOVE → 권한 → sealOne)</td><td><span class="chip keep">무변경</span></td></tr>
+            <tr><td><code>DiagnosticAssetVersionService.listVersions(slot)</code></td><td>한 슬롯 이력만 <code>AssetVersionView</code> 로. 활성 파일 재해시 없음</td><td><span class="chip keep">무변경</span> — 상세가 소비</td></tr>
+            <tr><td><code>AssetHistorySettingsService</code>(+ <code>asset_history_settings</code> singleton · 캐시)</td><td>보존 개수 실효값 SSOT. <code>prune</code> 이 <code>getRetentionCount()</code> 로 읽음</td><td><span class="chip keep">무변경</span> — 설정 화면이 소비</td></tr>
+          </tbody>
+        </table>
+
+        <h4>화면별 Model 계약 (뷰는 문자열 · Response 만 받는다)</h4>
+        <pre><code>[대시보드]  dashboard : SystemAssetDashboardResponse   // loadDashboard() 하나
+[상세]      slot      : SystemAssetSlotResponse         // loadSlot(slot) — 단건 해시
+            versions  : List&lt;AssetVersionView&gt;          // listVersions(slot) — 단건 조회 (비교체는 빈 목록)
+            servingActive : boolean                     // isServing() — 버튼 게이트
+[설정]      retentionForm     : AssetHistorySettingsRequest   // prefill = getRetentionCount()
+            retentionSettings : AssetHistorySettingsResponse  // 현재값 카드
+            dashboard         : SystemAssetDashboardResponse  // 봉인 카드 okCount/total + 서빙 게이트</code></pre>
+
+        <h4>뷰 3종 + 인라인 style 청산</h4>
+        <p>재구성 전 대시보드 한 파일에 몰려 있던 인라인 <code>style</code> 약 28곳을 두 갈래로 청산했다. 페이지 전용 헬퍼는 <code>static/system/diagnostic-asset.css</code>(행 클릭 <code>n-row-clickable</code> · 모노/뮤트 <code>da-mono</code>/<code>da-muted</code>/<code>da-muted-sm</code>/<code>da-filename</code> · 섹션 간격 <code>da-section*</code> · 요약 <code>da-summary</code>/<code>da-current</code> · 인라인 폼 <code>da-inline-form</code>)에 두고, 나머지는 전역 클래스(<code>n-card</code>/<code>n-detail-table</code>/<code>n-alert</code>/<code>n-form-*</code>/<code>n-btn-*</code>/<code>n-badge-*</code>/<code>n-back-link</code>/<code>n-page-md</code> 등)를 그대로 썼다. system 페이지에는 provisioning CSS 가 로드되지 않으므로, provisioning 전용 <code>n-mono</code>/<code>n-muted</code> 대신 <code>da-*</code> 접두 헬퍼를 따로 정의해 클래스 유출을 0으로 막았다. 행 클릭 내비게이션은 <code>diagnostic-asset.js</code> 의 document 위임 한 조각(<code>closest('a, button, input, form')</code> 가드)으로 처리했다.</p>
+
+        <div class="state-flow">교체 셀·롤백·봉인·보존폼  =  대시보드(단일 화면)에 뒤섞임
+                    ──재배치(재구성)──▶
+현황(대시보드 status-only) · 슬롯 액션(상세 /{slot}) · 전역 튜너블(설정 /settings)
+도메인 판정(FIFO · 승격·제거 · 서빙 게이트)은 3화면 어디서 호출해도 동일 SSOT</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 코드 리뷰 결과 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 코드 리뷰 결과 (적대적 리뷰 · 별도 서술)</summary>
+      <div class="body">
+        <p style="margin-top:0;">재구성 구현 후 적대적 코드 리뷰(에이전트)를 돌렸다. 핵심 위험 지점을 정면으로 겨눴다 — 라우팅 우선순위, redirect 정합, 서빙 게이트 SSOT, CSS 클래스 실재성, 모델 계약, 행 클릭 중복 내비 방지. 결과는 아래와 같다.</p>
+
+        <div class="card-grid">
+          <div class="card v-green">
+            <h4>Critical : 0</h4>
+            <ul>
+              <li><code>/settings</code> 리터럴 우선 매칭 견고</li>
+              <li>replace/rollback → <code>/{slot}</code>, seal/retention → <code>/settings</code> redirect 정합</li>
+              <li>서빙 게이트 = <code>isServing</code>/<code>servingActive</code> 와 <code>requireServingRoot</code>(409) 단일 SSOT</li>
+              <li>뷰가 참조하는 CSS 클래스 전부 실재(<code>da-*</code> + 전역 <code>n-*</code>)</li>
+              <li>세 화면 Model 계약이 컨트롤러 적재와 일치</li>
+              <li>행 클릭 위임이 셀 내부 폼/버튼과 중복 내비 방지</li>
+            </ul>
+          </div>
+          <div class="card v-orange">
+            <h4>Warning : 1 (조치 완료)</h4>
+            <ul>
+              <li>상세 진입마다 6종 전량 재해시(초안 Detail-A) — 208MB 급 자산 6배 낭비</li>
+              <li><b>조치</b> : <code>loadSlot</code> · <code>isServing</code> · <code>listVersions</code> 단건 API 로 즉시 최적화(§4 D4). private 프리미티브 재사용으로 로직 중복 0</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>Suggestion : 5 중 4 조치 · 1 유보</h4>
+        <table>
+          <thead><tr><th>지적</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>문서 드리프트 — <code>DiagnosticAsset</code> Javadoc 이 구 동작 서술</td><td><span class="chip add">조치</span> Javadoc 정정</td></tr>
+            <tr><td>문서 드리프트 — <code>AssetHistorySettings</code> Javadoc</td><td><span class="chip add">조치</span> Javadoc 정정</td></tr>
+            <tr><td><code>n-page</code> vs <code>n-page-md</code> 클래스 일관성</td><td><span class="chip add">조치</span> 대시보드=<code>n-page</code>(넓은 표), 상세·설정=<code>n-page-md</code>(폼)로 폭 의도를 명시적으로 정리</td></tr>
+            <tr><td>테스트 <code>stubDashboard</code> 중복(대시보드·설정 파일에 12-arg 슬롯 조립 복붙)</td><td><span class="chip add">조치</span> <code>DiagnosticAssetTestFixtures</code> 로 추출</td></tr>
+            <tr><td>서빙 배지 렌더가 대시보드·설정에 중복</td><td><span class="chip keep">유보</span> 두 화면의 나머지 요약 문구가 갈라져 fragment 추출이 과하다(리뷰어도 유보). 갈라지는 시점에 분리 — 지금은 아님</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 테스트 커버리지 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 테스트 커버리지 (단위 + 통합)</summary>
+      <div class="body">
+        <p style="margin-top:0;">화면이 셋으로 갈리면서 컨트롤러 통합 테스트를 화면별 파일로 나눴다. 서비스 계층은 무변경이라 활성화 · 버전 · 보존설정 서비스 테스트는 그대로고, 상세 최적화로 새로 생긴 <code>loadSlot</code>/<code>isServing</code> 단위 검증만 무결성 서비스 테스트에 더했다.</p>
+
+        <h4>통합 테스트 — 컨트롤러 4파일 (@WebMvcTest + MockMvc + @MockitoBean)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>수</th><th>핵심 단언</th></tr></thead>
+          <tbody>
+            <tr><td><code>DiagnosticAssetControllerTest</code> <span class="chip mod">축소</span></td><td>2</td><td>대시보드 GET 이 status-only(<code>dashboard</code> 하나만, <code>versionsBySlot</code>·<code>retentionSettings</code>·<code>retentionForm</code> 부재) · 재검증 POST 302 → <code>/</code></td></tr>
+            <tr><td><code>DiagnosticAssetControllerDetailTest</code> <span class="chip new">신규</span></td><td>3</td><td>교체가능 슬롯 상세 200(slot·versions·servingActive) · 비교체(apkovl) 상세 200 · 없는 슬롯 이름 forging → 404</td></tr>
+            <tr><td><code>DiagnosticAssetControllerSettingsTest</code> <span class="chip new">신규</span></td><td>5</td><td>설정 GET 200(retentionForm·retentionSettings·dashboard) · 보존 유효 302 → <code>/settings</code> · 보존 0 재렌더 400 필드에러 · seal 302 → <code>/settings</code> · seal 서빙 비활성 409</td></tr>
+            <tr><td><code>DiagnosticAssetControllerActivationTest</code> <span class="chip mod">redirect 수정</span></td><td>10</td><td>replace 5(302→<code>/{slot}</code> · 없는 슬롯 404 · 비대상 409 · 서빙 비활성 409 · 빈 파일 400) · rollback 5(302→<code>/{slot}</code> · 없는 슬롯 404 · 없는/타슬롯 버전 404 · 비대상 409 · 서빙 비활성 409)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>단위 테스트 — 서비스 (JUnit + Mockito)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>수</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>DiagnosticAssetActivationServiceTest</code></td><td>14</td><td><span class="chip keep">무변경</span> 교체·롤백·activate 코어 분기</td></tr>
+            <tr><td><code>DiagnosticAssetIntegrityServiceTest</code></td><td>11</td><td><code>loadSlot</code>/<code>isServing</code> 신규 3건 포함</td></tr>
+            <tr><td><code>DiagnosticAssetVersionServiceTest</code></td><td>2</td><td><span class="chip keep">무변경</span> 버전 목록 뷰 변환</td></tr>
+            <tr><td><code>AssetHistoryServiceTest</code>(global)</td><td>9</td><td><span class="chip keep">무변경</span> archive·prune·remove·openVersion</td></tr>
+            <tr><td><code>AssetHistorySettingsServiceTest</code>(global)</td><td>4</td><td><span class="chip keep">무변경</span> 보존 개수 조회·갱신·캐시</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4 범주 커버 (2xx / 400 / 404 / 409)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip cp2">성공 2xx</span></td><td>대시보드 GET(status-only) · 상세 GET(교체가능 · 비교체) · 설정 GET · retention POST 302→<code>/settings</code> · seal POST 302→<code>/settings</code> · replace · rollback 302→<code>/{slot}</code> · recheck 302→<code>/</code></td><td>9</td></tr>
+            <tr><td><span class="chip mod">400</span></td><td>retention POST <code>retentionCount</code> 범위 위반 → 설정 재렌더 필드 에러 · replace 빈 파일</td><td>2</td></tr>
+            <tr><td><span class="chip del">404</span></td><td>상세 GET 없는 슬롯(forging) · replace/rollback 없는 슬롯 · rollback 없는/타슬롯 버전(openVersion 소유권 forging)</td><td>4</td></tr>
+            <tr><td><span class="chip cp4">409</span></td><td>seal 서빙 비활성 · replace/rollback 서빙 비활성(<code>requireServingRoot</code>) · replace/rollback 비대상 슬롯(<code>requireReplaceable</code>)</td><td>5</td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--text-muted);font-size:12px;">500(스왑 IO · archive IO)은 재구성이 건드리지 않은 활성화 경로라 활성화 서비스 단위 테스트가 그대로 검증한다. 컨트롤러 try/catch + advice 매핑은 실제 실행되며(Mockito 는 Service 단까지만), 새 예외를 추가하지 않았으므로 신규 시나리오 요구는 없다.</p>
+
+        <div class="callout success"><b>전체 결과</b> — <code>./gradlew test</code> <b>1407 tests · 0 fail · 0 error · 6 skip</b>. 컨트롤러 20건(대시보드 2 · 상세 3 · 설정 5 · 활성화 10) + 진단 자산 서비스 27건이 모두 통과.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 예외 계층 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예외 계층 (신규 0 · 재사용)</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신규 예외 0.</b> 재구성은 새 분기 · 새 도메인 의미를 만들지 않으므로 예외 계층을 손대지 않았다. 상세 GET 의 forging(없는 슬롯명)은 기존 <code>parseSlot</code> → <code>DiagnosticAssetSlotNotFoundException</code>(404)을 그대로 재사용한다(신규 소비처 = 상세 GET).</p>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>재구성에서의 트리거</th></tr></thead>
+          <tbody>
+            <tr><td><code>DiagnosticAssetSlotNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td><b>상세 GET</b> · replace · rollback 의 <code>parseSlot</code> — 없는 슬롯 이름</td></tr>
+            <tr><td><code>SystemAssetServingDisabledException</code></td><td>409</td><td><span class="chip keep">재사용</span></td><td>서빙 비활성 상태의 seal · replace · rollback(<code>requireServingRoot</code>)</td></tr>
+            <tr><td><code>DiagnosticAssetNotReplaceableException</code></td><td>409</td><td><span class="chip keep">재사용</span></td><td>비대상 슬롯(apkovl · repo) replace · rollback(<code>requireReplaceable</code>)</td></tr>
+            <tr><td><code>DiagnosticAssetReplaceEmptyException</code></td><td>400</td><td><span class="chip keep">재사용</span></td><td>replace 빈 업로드</td></tr>
+            <tr><td><code>AssetVersionNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td>rollback <code>openVersion</code> — 없는 버전(stale) / 타 키 소속(forging)</td></tr>
+            <tr><td><code>DiagnosticAssetReplaceFailedException</code> · 마커 write IO</td><td>500</td><td><span class="chip keep">재사용</span></td><td>activate 스왑 · archive · 마커 write 실패(재구성 무관)</td></tr>
+            <tr><td>Bean Validation → <code>BindingResult</code></td><td>400</td><td><span class="chip keep">프레임워크</span></td><td>설정 <code>retentionCount</code> 범위 위반</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>예외 철학 준수</b> — 정상 UX 흐름의 모순(서빙 비활성 중 교체 · 롤백 · 봉인)은 UI 에서 <code>disabled</code> 로 1차 차단하고, 서버 409 가드는 direct POST 같은 비정상 경로의 안전망으로만 발동한다. UI 차단 조건(<code>!servingActive</code>)과 서버 가드 조건(<code>requireServingRoot</code>)은 단일 SSOT 다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §9 불가침 원칙 점검 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 불가침 원칙 점검</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>원칙</th><th>결과</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>Primitive Obsession 금지</b></td>
+              <td><span class="chip add">신규 위반 0</span></td>
+              <td>도메인 의미값은 이미 타입화돼 있고 이 슬라이스는 새 값을 만들지 않는다 — 슬롯 식별 <code>DiagnosticAsset</code> enum · 버전 키 <code>AssetVersionKey</code> record · 마커 배치 <code>MarkerLayout</code> enum · 버전 식별 <code>Long</code> PK. <code>retentionCount</code> 는 도메인 의미값이 아닌 순수 수량이라 <code>TrashSettings.ttlDays</code> 선례대로 <code>int</code> + <code>@Min(1) @Max(20)</code>(VO 미도입). sha · size · 경로 · 시각은 서비스가 미리 계산한 표시 문자열로만 뷰에 노출</td>
+            </tr>
+            <tr>
+              <td><b>네이밍 규칙</b></td>
+              <td><span class="chip add">준수</span></td>
+              <td><code>DiagnosticAssetController</code> · <code>*Service</code> · <code>*Request</code>(<code>AssetHistorySettingsRequest</code>) · <code>*Response</code>(<code>SystemAssetDashboardResponse</code>·<code>SystemAssetSlotResponse</code>) · 뷰 전용 <code>AssetVersionView</code> · Enum/VO 는 도메인 명칭. 신규 클래스는 테스트 픽스처 1개뿐(<code>DiagnosticAssetTestFixtures</code>)</td>
+            </tr>
+            <tr>
+              <td><b>레이어 경계</b></td>
+              <td><span class="chip add">준수</span></td>
+              <td>Controller ↔ Service 는 <code>*Request</code>/<code>*Response</code>/<code>*View</code> 만. 세 뷰(Model)에 엔티티 직접 노출 0. Service ↔ Repository 는 엔티티(<code>AssetVersion</code>)로. <code>integrityService</code> entity-free 유지</td>
+            </tr>
+            <tr>
+              <td><b>@Transactional 경계</b></td>
+              <td><span class="chip add">해당 없음(신규 0)</span></td>
+              <td>신규 서비스 메서드 0(상세 최적화의 <code>loadSlot</code>/<code>isServing</code> 은 읽기 · 마커 조회로 트랜잭션 경계 아님). 트랜잭션 경계는 재사용하는 보존설정 · 이력 서비스가 각자 유지 — 컨트롤러에는 두지 않음</td>
+            </tr>
+            <tr>
+              <td><b>조건분기 legacy 확장 금지</b></td>
+              <td><span class="chip add">준수</span></td>
+              <td>슬롯은 <code>DiagnosticAsset</code> enum method-per-constant(<code>replaceable()</code>/<code>layout()</code>/<code>resolve()</code>)로 다형 처리. 예외→HTTP 는 advice 매핑. 무결성 판정은 우선순위 규약(분기 나열 아님)</td>
+            </tr>
+            <tr>
+              <td><b>Step 8 통합 테스트 4범주</b></td>
+              <td><span class="chip add">충족</span></td>
+              <td>2xx 9 · 400 2 · 404 4 · 409 5. 모든 <code>ConflictException</code>/<code>NotFoundException</code> 하위를 실제 트리거(forging 포함). §7 참조</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 샌드박스 UI 검증 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. 샌드박스 UI 검증 (실환경 E2E)</summary>
+      <div class="body">
+        <p style="margin-top:0;">Docker MariaDB(포트 3307, <code>asset_version</code> + <code>asset_history_settings</code> 테이블) + <code>bootRun</code>(포트 7788, <code>ddl-auto=validate</code> 통과) + Chrome 자동화로 세 화면 네비게이션 · 롤백 승격 · 보존/봉인 · 서빙 게이트를 실환경에서 확인했다. <code>ddl-auto=validate</code> 통과는 스키마 변경이 없음을 코드 밖에서도 못 박는다.</p>
+
+        <h4>① 대시보드 — status-only</h4>
+        <p>6슬롯 무결성 현황표가 뜬다. 상태를 바꾸는 버튼은 하나도 없고 <b>재검증</b>과 <b>운영 설정 →</b> 링크만 있으며, 각 행은 클릭용이다. 시드 직후 무결성은 원본 유지 4 / 6(변조 감지 1 · 기준선 미설정 1)이다.</p>
+<div class="callout"><b>참고</b> — 이 Notion 버전은 스크린샷을 뺀 설명 전용본이다. 화면 캡처가 포함된 전체 보고서 파일은 별도로 전달됐다.</div>
+        <figure>
+          <figcaption>대시보드 GET <code>/system/diagnostic-asset</code> — 현황표 · 재검증 · 운영 설정 링크만, mutation 버튼 0</figcaption>
+        </figure>
+
+        <h4>② 이력 시드 → 행 클릭 → 상세 진입</h4>
+        <p>전 슬롯 봉인으로 기준선을 세우고 <code>vmlinuz</code> 를 4회 교체해 버전 이력을 시드했다. 대시보드에서 커널 행을 클릭하면 상세로 이동한다(<code>GET /VMLINUZ</code> 200). 이때 <code>loadSlot</code> 이 그 슬롯 하나만 해시하므로 6종 전량 재해시가 일어나지 않는다.</p>
+
+        <h4>③ 자산 상세 — 메타 + 교체 폼 + 버전 이력 + 롤백 승격</h4>
+        <p>상세에 자산 메타(원본 유지)와 자산 교체 폼, 버전 이력표가 뜬다. 이력은 아카이브 시각 · 크기 · 짧은 해시 · 되돌리기 버튼으로 구성된다. 상세에서 롤백하면 현재 활성본이 이력으로 archive 되고, 고른 버전이 활성 파일로 앉으며(활성 파일 = 되돌린 버전), 그 버전은 이력에서 제거된다(승격). 활성 파일이 되돌린 세대로 바뀌고 <code>asset_version</code> 행 id 가 재배치됨을 DB 로 확인했다.</p>
+        <figure>
+          <figcaption>상세 GET <code>/system/diagnostic-asset/VMLINUZ</code> — 메타 표 · 교체 폼 · 버전 이력(되돌리기 버튼) · redirect:/{slot} 복귀</figcaption>
+        </figure>
+
+        <h4>④ 운영 설정 — 보존 개수 + 무결성 봉인</h4>
+        <p>대시보드의 <b>운영 설정 →</b> 로 설정 화면에 들어간다. 이력 보존 개수 폼(현재 적용 3개)과 무결성 봉인 카드(서빙 활성 · 무결성 4 / 6 · 전 슬롯 봉인 버튼)가 분리돼 있다. 보존 저장은 self-PRG(<code>/settings</code>), 봉인도 설정으로 PRG 되어 카드 값이 갱신된다.</p>
+        <figure>
+          <figcaption>설정 GET <code>/system/diagnostic-asset/settings</code> — 보존 개수 폼 · 무결성 봉인(전 슬롯) 카드</figcaption>
+        </figure>
+
+        <div class="callout success"><b>검증 결론</b> — 3화면 네비게이션 · 롤백 승격 · 보존/봉인 · 서빙 게이트가 실환경에서 코드와 일치한다. <code>loadSlot</code> 최적화로 상세는 단일 슬롯만 해시하며, <code>ddl-auto=validate</code> 통과로 스키마 무변경이 확인된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 Verification / 잔존 / Critical Files ===== -->
+    <details class="section" id="s11">
+      <summary>§11. Verification · 잔존 / 후속 · Critical Files</summary>
+      <div class="body">
+        <h4>Verification</h4>
+        <ul class="check-list" data-storage="E1-I-2-b-2-report-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><b>빌드</b> — <code>compileJava</code> · <code>compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><b>테스트</b> — <code>./gradlew test</code> 1407 pass · 0 fail · 0 error · 6 skip</span></label></li>
+          <li><label><input type="checkbox" data-key="dash"> <span><b>기능</b> — 대시보드 GET 모델이 <code>dashboard</code> 하나뿐, mutation 버튼 0</span></label></li>
+          <li><label><input type="checkbox" data-key="detail"> <span><b>기능</b> — 상세 GET 교체가능(폼·이력·롤백) / 비교체(읽기전용) / 없는 슬롯 404 · <code>loadSlot</code> 단건 해시</span></label></li>
+          <li><label><input type="checkbox" data-key="settings"> <span><b>기능</b> — 설정 GET 폼 + 봉인 카드, retention POST → <code>/settings</code>, seal POST → <code>/settings</code></span></label></li>
+          <li><label><input type="checkbox" data-key="redirect"> <span><b>기능</b> — replace · rollback → 상세 복귀(<code>/{slot}</code>), 새 버전이 그 이력에 즉시 노출</span></label></li>
+          <li><label><input type="checkbox" data-key="guard"> <span><b>기능</b> — 서빙 비활성 시 상세 교체·롤백 + 설정 봉인 버튼 disabled + tooltip, direct POST 는 409</span></label></li>
+          <li><label><input type="checkbox" data-key="route"> <span><b>회귀</b> — <code>GET /settings</code> 가 <code>{slot}</code> 로 새지 않음(리터럴 우선, 테스트 고정)</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span><b>회귀</b> — <code>ddl-auto=validate</code> 통과(스키마 무변경), 서비스 계층 판정 그대로</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span><b>E2E</b> — 샌드박스 3화면 네비게이션 · 롤백 승격 · 보존/봉인 · 서빙 게이트 확인(§10)</span></label></li>
+        </ul>
+
+        <h4>남은 작업 / 후속 슬라이스</h4>
+        <ul>
+          <li><b>커밋</b> — 사용자 지시 대기(b-1 범용 버전 저장소 + b-2 활성화·롤백·보존·재구성 일괄).</li>
+          <li><b>활성화 SPI 추출</b> — 진단 자산에 특화된 <code>activate</code> 코어를, dhcpd/tftp 구현자가 실재하는 E1-I-3 이후 단계 신설 없는 R* 리팩토링에서 global 로 추출.</li>
+          <li><b>자산 DB 일반화 + 감사 이력</b> — 진단 자산 DB 를 향후 다른 자산으로 일반화하고, 교체/롤백 operation 감사 history 테이블을 구상(E1-I-3 전 설계정리 discussion 제안).</li>
+        </ul>
+
+        <h4>회귀 위험 (해소 근거)</h4>
+        <ul>
+          <li><b>대시보드 축소</b> — 제거된 <code>versionsBySlot</code>·<code>retentionSettings</code>·<code>retentionForm</code> 잔존 참조는 status-only 단언 테스트가 부재로 고정.</li>
+          <li><b>redirect 3종 대상 변경</b> — replace·rollback → <code>/{slot}</code>, seal·settings → <code>/settings</code> 를 각 통합 테스트가 <code>redirectedUrl</code> 로 고정.</li>
+          <li><b>인라인 style → 클래스</b> — 실환경 E2E(§10)로 시각 드리프트 없음 확인.</li>
+          <li><b>라우팅</b> — <code>GET /settings</code> 리터럴 우선을 상세 테스트가 고정.</li>
+          <li><b>영향 범위</b> — <code>system/diagnostic-asset/</code> 뷰 3종 + 컨트롤러 + 페이지 CSS/JS 만. navbar · 스키마 · 타 화면 영향 0.</li>
+        </ul>
+
+        <h4>Critical Files</h4>
+        <p><span class="chip new">신규</span></p>
+        <table>
+          <thead><tr><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>templates/system/diagnostic-asset/detail.html</code></td><td>슬롯 상세 — 메타 · 교체 폼 · 버전 이력 · 되돌리기 / 비교체 읽기전용 + 빌드 안내 + back-link</td></tr>
+            <tr><td><code>templates/system/diagnostic-asset/settings.html</code></td><td>전역 설정 — 보존 개수 폼 · 현재값 · 무결성 봉인(seal-all) 카드 + back-link</td></tr>
+            <tr><td><code>static/system/diagnostic-asset.css</code></td><td>페이지 CSS — 행 클릭 · <code>da-*</code> 모노/뮤트 헬퍼 · 상세/설정 섹션 간격(provisioning CSS 미로드 대비)</td></tr>
+            <tr><td><code>static/system/diagnostic-asset.js</code></td><td>행 전체 클릭 → 상세 위임 내비(<code>closest('a,button,input,form')</code> 중복 방지)</td></tr>
+            <tr><td><code>test …/DiagnosticAssetControllerDetailTest.java</code></td><td>상세 GET 교체가능·비교체·404</td></tr>
+            <tr><td><code>test …/DiagnosticAssetControllerSettingsTest.java</code></td><td>설정 GET · retention POST 302/400 · seal POST 302/409</td></tr>
+            <tr><td><code>test …/DiagnosticAssetTestFixtures.java</code></td><td>슬롯·대시보드 조립 공용 픽스처(중복 제거)</td></tr>
+          </tbody>
+        </table>
+        <p><span class="chip mod">수정</span></p>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution/asset/controller/DiagnosticAssetController.java</code></td><td>대시보드 모델 축소 · <code>GET /{slot}</code>(loadSlot) · <code>GET/POST /settings</code> · redirect 대상 재배치 · <code>populateSettingsContext</code> 헬퍼</td></tr>
+            <tr><td><code>execution/asset/service/DiagnosticAssetIntegrityService.java</code></td><td><code>loadSlot(slot)</code> · <code>isServing()</code> 추가(private 프리미티브 재사용) + Javadoc 정정</td></tr>
+            <tr><td><code>templates/system/diagnostic-asset/dashboard.html</code></td><td>status-only 축소(교체 셀·이력·롤백·봉인·보존 폼 제거) + 행→상세 클릭 + "운영 설정 →" + 인라인 style 청산</td></tr>
+            <tr><td><code>test …/DiagnosticAssetControllerTest.java</code></td><td>대시보드 status-only 단언으로 축소, recheck 생존</td></tr>
+            <tr><td><code>test …/DiagnosticAssetControllerActivationTest.java</code></td><td>replace·rollback 성공 redirect 대상만 <code>/{slot}</code> 로 갱신(상태코드 케이스 생존)</td></tr>
+          </tbody>
+        </table>
+        <p><span class="chip keep">유지</span> (변경 0)</p>
+        <table>
+          <thead><tr><th>파일</th><th>KEEP 근거</th></tr></thead>
+          <tbody>
+            <tr><td><code>DiagnosticAssetActivationService</code> · <code>DiagnosticAssetVersionService</code></td><td>활성화·롤백·버전 목록 무변경 — 재구성은 배선만</td></tr>
+            <tr><td><code>AssetHistoryService</code> · <code>AssetHistorySettingsService</code> · <code>AssetVersion</code>(엔티티·리포)</td><td>버전 저장소·보존 설정 이미 구현. 소비처만 이동</td></tr>
+            <tr><td>DTO 5종 · <code>fragments/layout.html</code>(navbar) · <code>ddl/</code> · <code>asset_history_settings</code> 스키마</td><td>계약·navbar·스키마 변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §12 부록 ===== -->
+    <details class="section" id="s12">
+      <summary>§12. 부록 — 구현 좌표 (접힘)</summary>
+      <div class="body">
+        <p style="margin-top:0;">코드를 여는 독자를 위한 위치 표. 본문의 유스케이스 서술을 파일로 매핑한다.</p>
+        <table>
+          <thead><tr><th>역할</th><th>좌표 (시그니처)</th></tr></thead>
+          <tbody>
+            <tr><td>대시보드 핸들러(status-only)</td><td><code>DiagnosticAssetController#dashboard(Model)</code></td></tr>
+            <tr><td>상세 핸들러(단건 조회)</td><td><code>DiagnosticAssetController#detail(String slotKey, Model)</code></td></tr>
+            <tr><td>설정 GET / POST</td><td><code>#settings(Model)</code> · <code>#updateSettings(@Valid ...Request, BindingResult, ...)</code></td></tr>
+            <tr><td>봉인 / 재검증</td><td><code>#seal(RedirectAttributes)</code> · <code>#recheck(RedirectAttributes)</code></td></tr>
+            <tr><td>교체 / 롤백(→ /{slot})</td><td><code>#replace(String, MultipartFile, ...)</code> · <code>#rollback(String, Long, ...)</code></td></tr>
+            <tr><td>슬롯 파싱(forging → 404)</td><td><code>DiagnosticAssetController#parseSlot(String)</code></td></tr>
+            <tr><td>단건 해시 / 서빙 게이트</td><td><code>DiagnosticAssetIntegrityService#loadSlot(DiagnosticAsset)</code> · <code>#isServing()</code></td></tr>
+            <tr><td>버전 목록</td><td><code>DiagnosticAssetVersionService#listVersions(DiagnosticAsset)</code></td></tr>
+            <tr><td>활성화 코어(교체·롤백 공용)</td><td><code>DiagnosticAssetActivationService#activate(DiagnosticAsset, Path, InputStream)</code></td></tr>
+            <tr><td>행 전체 클릭 내비</td><td><code>static/system/diagnostic-asset.js</code>(document 위임)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 3화면 라이브 미리보기 — 공유 상태 하나를 대시보드 · 상세 · 설정이 함께 읽는다.
+  //  판정 = 서버 도메인 규칙 1:1 :
+  //    · FIFO prune  = versions.size > retention → id 오름차순 (size−N)개 삭제   [AssetHistoryService.prune]
+  //    · rollback(X) = archive(현재) → 활성=X → remove(X)  [openVersion 이 temp 로 바이트 먼저 실체화]
+  //    · UI disable  = !serving  (requireServingRoot 서버 가드와 동일 SSOT · isServing)
+  //    · redirect    = replace·rollback → /{slot} · seal·retention → /settings · recheck → /
+  //    · 상세 조회   = loadSlot(단건) + listVersions(단건) + isServing (6종 전량 재해시 아님)
+  //  demoRender() 는 파일 끝에서 1회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const SCREEN_NAME = { dashboard: '대시보드 (status-only)', detail: '상세', settings: '설정' };
+  const INTEG = {
+    ORIGINAL:       { label: '원본 유지',    cls: 'on'  },
+    TAMPERED:       { label: '변조 감지',    cls: 'del' },
+    MARKER_MISSING: { label: '기준선 미설정', cls: 'dep' },
+    OFF:            { label: '서빙 비활성',   cls: 'off' }
+  };
+
+  const demo = {
+    screen: 'dashboard',
+    slotKey: null,
+    serving: true,
+    retention: 3,
+    retentionDraft: 3,
+    nextId: 200,
+    order: ['VMLINUZ', 'INITRAMFS', 'MODLOOP', 'APKOVL', 'REPO', 'AGENT'],
+    slots: {
+      VMLINUZ:   { label: '커널 (vmlinuz-lts)',           replaceable: true,  integrity: 'ORIGINAL',       cadence: 'Alpine 업그레이드 시', nextGen: 5, activeGen: 4, versions: [{ id: 12, gen: 3 }, { id: 9, gen: 2 }] },
+      INITRAMFS: { label: '초기 램디스크 (initramfs-lts)', replaceable: true,  integrity: 'ORIGINAL',       cadence: 'Alpine 업그레이드 시', nextGen: 3, activeGen: 2, versions: [{ id: 7, gen: 1 }] },
+      MODLOOP:   { label: '커널 모듈 (modloop-lts)',       replaceable: true,  integrity: 'TAMPERED',       cadence: 'Alpine 업그레이드 시', nextGen: 6, activeGen: 5, versions: [{ id: 14, gen: 4 }, { id: 11, gen: 3 }, { id: 8, gen: 2 }] },
+      APKOVL:    { label: '설정 가방 (diag.apkovl.tar.gz)', replaceable: false, integrity: 'ORIGINAL',       cadence: '부팅 구성 변경 시' },
+      REPO:      { label: '부분 apk 저장소 (repo/)',       replaceable: false, integrity: 'MARKER_MISSING', cadence: '패키지 구성 변경 시' },
+      AGENT:     { label: '진단 에이전트 (agent.sh)',      replaceable: true,  integrity: 'ORIGINAL',       cadence: '에이전트 수정 시', nextGen: 7, activeGen: 6, versions: [{ id: 5, gen: 5 }] }
+    },
+    msg: '대시보드에서 시작합니다. 교체 가능한 자산 행을 클릭해 상세로 가거나, 「운영 설정 →」으로 설정을 여세요. 이 화면에는 상태를 바꾸는 버튼이 없습니다.',
+    msgType: null
+  };
+
+  const shaOf = g => ((0x9e3779b1 * (g + 1)) >>> 0).toString(16).padStart(8, '0').slice(0, 7);
+  const sizeOf = g => (207 + (g % 5) * 0.4).toFixed(1) + ' MB';
+  function okCount() { return demo.order.filter(k => demo.slots[k].integrity === 'ORIGINAL').length; }
+  function integBadge(s) {
+    const m = INTEG[demo.serving ? s.integrity : 'OFF'];
+    return '<span class="badge ' + m.cls + '">' + m.label + '</span>';
+  }
+  function btn(label, onclick, blocked, tip, extraCss) {
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    const act = blocked ? ' disabled' : (' onclick="' + onclick + '"');
+    const st = extraCss ? (' style="' + extraCss + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + st + act + '>' + label + '</button></span>';
+  }
+  function pruneAll() {
+    demo.order.forEach(k => {
+      const s = demo.slots[k];
+      if (s.replaceable) { while (s.versions.length > demo.retention) s.versions.pop(); }
+    });
+  }
+
+  // ── 네비게이션 ──────────────────────────────────────────────
+  function demoGo(screen, key) {
+    demo.screen = screen;
+    if (key) demo.slotKey = key;
+    if (screen === 'settings') { demo.retentionDraft = demo.retention; demo.msg = '설정 화면 — 보존 개수와 무결성 봉인(전 슬롯)은 여기서 합니다. 슬롯 현황·교체·롤백은 없습니다.'; demo.msgType = null; }
+    else if (screen === 'detail') {
+      const s = demo.slots[demo.slotKey];
+      demo.msg = s.replaceable
+        ? '상세 화면 — 이 자산의 교체·되돌리기와 버전 이력이 여기 있습니다. loadSlot 이 이 슬롯 하나만 해시합니다. 전역 액션(봉인·보존)은 없습니다.'
+        : '상세 화면 — 조립 자산이라 읽기전용입니다. 교체·롤백 버튼이 없고 빌드 스크립트로 교체합니다.';
+      demo.msgType = null;
+    }
+    else { demo.msg = '대시보드(status-only) — 현황만 봅니다. 행을 클릭해 상세로, 「운영 설정 →」으로 설정으로 이동하세요.'; demo.msgType = null; }
+    demoRender();
+  }
+  function demoSetServing(v) {
+    demo.serving = v;
+    demo.msgType = null;
+    demo.msg = v ? '서빙 활성 — 자산 위치를 알 수 있어 교체·롤백·봉인이 열립니다.'
+                 : '서빙 비활성 — 상세의 교체·되돌리기와 설정의 봉인 버튼이 disabled 로 잠깁니다 (UI 1차 차단). direct POST 는 requireServingRoot 가 409.';
+    demoRender();
+  }
+  function demoRecheck() {
+    demo.msgType = null;
+    demo.msg = '재검증 — 서비스를 호출하지 않고 GET 재렌더가 곧 재검증입니다. 상태 불변, 엔드포인트·redirect(→ /) 무변경. 그래서 status-only 대시보드에 남습니다.';
+    demoRender();
+  }
+
+  // ── 상세 액션 (교체 · 롤백) ─────────────────────────────────
+  function demoReplace(k) {
+    if (!demo.serving) return;                     // 버튼 disabled — 안전망
+    const s = demo.slots[k];
+    s.versions.unshift({ id: demo.nextId++, gen: s.activeGen });  // 옛 활성본 → 이력(최신 앞)
+    pruneAll();                                    // 상한 초과분 FIFO 삭제(오래된 = 맨 뒤)
+    s.activeGen = s.nextGen++;                     // 새 업로드 = 새 세대(단조 증가 — 롤백 후에도 번호 재사용 없음)
+    demo.msgType = 'success';
+    demo.msg = '✓ 교체 완료 — 옛 활성본을 이력에 archive → 새 버전 #' + s.activeGen + ' 활성화 → 재봉인. redirect:/{slot} 로 이 상세에 남습니다. (보존 ' + demo.retention + '개, FIFO)';
+    demoRender();
+  }
+  function demoRollback(k, id) {
+    if (!demo.serving) return;                     // 버튼 disabled — 안전망
+    const s = demo.slots[k];
+    const idx = s.versions.findIndex(v => v.id === id);
+    if (idx === -1) {                              // stale / forging → 404
+      demo.msgType = 'error';
+      demo.msg = '404 — 버전 id=' + id + ' 은 이미 정리(prune)됐거나 다른 자산 소속입니다 (openVersion → AssetVersionNotFoundException). 목록·롤백 사이의 stale 은 진짜 abnormal 이라 404 가 정당.';
+      demoRender(); return;
+    }
+    const targetGen = s.versions[idx].gen;         // openVersion(X) → temp 로 바이트 먼저 실체화(안전)
+    s.versions.unshift({ id: demo.nextId++, gen: s.activeGen });  // 현재 활성본 → 이력
+    pruneAll();                                    // FIFO — targetGen 의 옛 형제를 지워도 temp 안전
+    s.activeGen = targetGen;                       // X 승격 = 활성본
+    const j = s.versions.findIndex(v => v.id === id);  // remove(X) — 멱등(prune 이 먼저 지웠으면 no-op)
+    if (j !== -1) s.versions.splice(j, 1);
+    demo.msgType = 'success';
+    demo.msg = '✓ 롤백 완료 — 현재 활성본 archive → 버전 #' + targetGen + ' 활성화 → 그 버전을 이력에서 제거(승격·제거). redirect:/{slot} 로 이 상세에 남습니다. 직전 활성본으로 다시 되돌릴 수 있어요.';
+    demoRender();
+  }
+
+  // ── 설정 액션 (보존 개수 · 전 슬롯 봉인) ─────────────────────
+  function demoSetRetentionDraft(n) { demo.retentionDraft = n; demoRender(); }
+  function demoSaveRetention() {
+    demo.retention = demo.retentionDraft;
+    pruneAll();                                    // 데모는 즉시 반영으로 결과 표시(서버는 다음 archive 때 같은 size−N)
+    demo.msgType = 'success';
+    demo.msg = '✓ 보존 개수 ' + demo.retention + '개 저장 — self-PRG(redirect:/settings)로 설정 화면 유지. 초과분은 FIFO(오래된 id 오름차순)로 정리. 판정식은 서버 prune 과 동일.';
+    demoRender();
+  }
+  function demoSealAll() {
+    if (!demo.serving) return;                     // 버튼 disabled — 안전망
+    demo.order.forEach(k => { demo.slots[k].integrity = 'ORIGINAL'; });
+    demo.msgType = 'success';
+    demo.msg = '✓ 전 슬롯 봉인 완료 — 6슬롯의 현재 상태를 신뢰 기준으로 기록. 무결성 일치 ' + okCount() + ' / 6. self-PRG(redirect:/settings)로 카드 값이 갱신됩니다. 비교체 자산(apkovl·repo)도 이 봉인으로만 기준선이 섭니다.';
+    demoRender();
+  }
+
+  // ── 화면 렌더 ────────────────────────────────────────────────
+  function renderDashboard() {
+    let h = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">'
+      + '<span class="badge ' + (demo.serving ? 'on' : 'off') + '">' + (demo.serving ? '서빙 활성' : '서빙 비활성') + '</span>'
+      + '<span style="font-size:11px;color:var(--text-muted);">무결성 일치 ' + (demo.serving ? okCount() + ' / 6' : '—') + '</span>'
+      + '<span style="flex:1;"></span>'
+      + btn('재검증 (새로고침)', 'demoRecheck()', false, '')
+      + btn('운영 설정 →', 'demoGo(\'settings\')', false, '', 'border-color:var(--text-muted);color:var(--text-muted)')
+      + '</div>';
+    h += demo.order.map(k => {
+      const s = demo.slots[k];
+      return '<div class="ux-row" style="cursor:pointer;" onclick="demoGo(\'detail\',\'' + k + '\')" title="행 전체를 클릭하면 이 자산 상세로 이동">'
+        + '<span class="label"><b>' + s.label + '</b> <span class="mono" style="font-size:11px;color:var(--text-muted);">'
+        + (s.replaceable ? '교체 가능' : '조립 자산 · 읽기전용') + ' · ' + s.cadence + '</span></span>'
+        + integBadge(s) + '</div>';
+    }).join('');
+    h += '<div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">이 화면에는 상태를 바꾸는 버튼이 없습니다 — 교체·롤백은 각 자산 상세에서(행 전체 클릭), 봉인·보존 개수는 설정에서.</div>';
+    return h;
+  }
+  function renderDetail() {
+    const k = demo.slotKey, s = demo.slots[k];
+    let h = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">'
+      + btn('← 대시보드로', 'demoGo(\'dashboard\')', false, '', 'border-color:var(--text-muted);color:var(--text-muted)')
+      + '<b>' + s.label + '</b> ' + integBadge(s) + '</div>';
+    if (!s.replaceable) {
+      h += '<div class="callout warn" style="margin:6px 0;">조립 자산(서명·내부 구조)이라 임의 업로드 교체 대상이 아닙니다. 교체·롤백 버튼이 없고, <code>build-assets.sh</code> 로 교체합니다. (기준선은 설정의 「전 슬롯 봉인」으로만 확립)</div>';
+      h += '<div class="ux-row"><span class="label mono">' + s.label + '</span><span class="badge off">읽기 전용</span></div>';
+      return h;
+    }
+    const blocked = !demo.serving;
+    const tip = '서빙 비활성 — 자산 위치를 알 수 없어 교체가 막힙니다. requireServingRoot 서버 가드(409)와 동일 조건(단일 SSOT).';
+    const rtip = '서빙 비활성 — 롤백이 막힙니다. requireServingRoot(409)와 동일 조건.';
+    h += '<div style="margin-bottom:6px;">' + btn('새 버전 교체 (모의 업로드)', 'demoReplace(\'' + k + '\')', blocked, tip) + '</div>';
+    h += '<div class="ux-row' + (blocked ? ' muted' : '') + '"><strong>활성본</strong>'
+      + '<span class="label mono">버전 #' + s.activeGen + ' · ' + shaOf(s.activeGen) + ' · ' + sizeOf(s.activeGen) + '</span>'
+      + '<span class="badge on">서빙 중</span></div>';
+    if (s.versions.length === 0) {
+      h += '<div class="ux-row child muted"><span class="label">되돌릴 과거 버전이 없습니다.</span></div>';
+    } else {
+      h += s.versions.map(v => '<div class="ux-row child"><span class="label mono">버전 #' + v.gen + ' · ' + shaOf(v.gen) + ' · ' + sizeOf(v.gen) + '</span>'
+        + btn('되돌리기', 'demoRollback(\'' + k + '\',' + v.id + ')', blocked, rtip) + '</div>').join('');
+    }
+    h += '<div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">교체·롤백 성공은 redirect:/{slot} 로 이 상세에 돌아옵니다 — 새 버전이 바로 위 이력에 뜹니다.</div>';
+    return h;
+  }
+  function renderSettings() {
+    let h = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">'
+      + btn('← 대시보드로', 'demoGo(\'dashboard\')', false, '', 'border-color:var(--text-muted);color:var(--text-muted)')
+      + '<b>운영 설정</b></div>';
+    h += '<div class="ux-row"><span class="label"><b>이력 보존 개수</b> <span style="font-size:11px;color:var(--text-muted);">현재 실효값 ' + demo.retention + '개</span></span>'
+      + [2, 3, 4].map(n => '<button class="seg' + (demo.retentionDraft === n ? ' active' : '') + '" onclick="demoSetRetentionDraft(' + n + ')">' + n + '개</button>').join(' ')
+      + ' ' + btn('저장', 'demoSaveRetention()', false, '') + '</div>';
+    h += '<div style="font-size:11.5px;color:var(--text-muted);margin:4px 0 10px;">저장하면 다음 교체·롤백의 archive 시점에 FIFO(size−N)로 반영됩니다. prune 실효값 소스 = AssetHistorySettings.</div>';
+    const blocked = !demo.serving;
+    const stip = '서빙 비활성 — 자산 위치를 알 수 없어 봉인이 막힙니다. requireServingRoot(409)와 동일 조건.';
+    h += '<div class="callout"><b>무결성 봉인 (전 슬롯)</b><br>현재 디스크 상태를 6슬롯 전체의 신뢰 기준으로 기록합니다. 비교체 자산(apkovl·repo)은 교체 경로가 없어 이 봉인이 유일한 기준선 확립 수단입니다.'
+      + '<div style="margin-top:8px;display:flex;gap:10px;align-items:center;">'
+      + btn('전 슬롯 봉인', 'demoSealAll()', blocked, stip)
+      + '<span class="mono" style="font-size:12px;">무결성 일치 ' + (demo.serving ? okCount() + ' / 6' : '—') + '</span></div></div>';
+    return h;
+  }
+  function renderCaps() {
+    const scr = demo.screen === 'detail' ? 'detail:' + demo.slotKey : demo.screen;
+    const tf = (v, tTxt, fTxt) => v ? '<span class="t">' + tTxt + '</span>' : '<span class="f">' + fTxt + '</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'screen            = ' + scr + '\n' +
+      'serving           = ' + tf(!demo.serving, 'false → 교체·롤백·봉인 차단(409)', 'true → 허용') + '   (requireServingRoot · isServing · UI disable 단일 SSOT)\n' +
+      '상세 조회          = loadSlot(단건 해시) + listVersions(단건) + isServing   (6종 전량 재해시 아님)\n' +
+      'retention(실효값)  = ' + demo.retention + '   (AssetHistorySettings · prune 실효값)\n' +
+      '무결성 okCount     = ' + (demo.serving ? okCount() + ' / 6' : '— (서빙 비활성)') + '\n' +
+      'redirect 규약      = replace·rollback → /{slot}  ·  seal·retention → /settings  ·  recheck → /\n' +
+      'FIFO prune        = versions.size > N → id 오름차순 (size−N)개 삭제\n' +
+      'rollback 불변식    = archive(현재) → 활성=X → remove(X)   [openVersion 이 temp 로 바이트 먼저 실체화]';
+  }
+  function demoRender() {
+    document.querySelectorAll('.seg[data-s]').forEach(s => s.classList.toggle('active', (s.dataset.s === 'on') === demo.serving));
+    document.getElementById('demo-screen-name').textContent = SCREEN_NAME[demo.screen];
+    const el = document.getElementById('demo-screen');
+    if (demo.screen === 'dashboard') el.innerHTML = renderDashboard();
+    else if (demo.screen === 'detail') el.innerHTML = renderDetail();
+    else el.innerHTML = renderSettings();
+    renderCaps();
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (demo.msgType ? ' ' + demo.msgType : '');
+    msg.textContent = demo.msg || '';
+  }
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

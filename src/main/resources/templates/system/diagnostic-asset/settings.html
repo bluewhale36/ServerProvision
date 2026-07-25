@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  E1-I-2-b-2. 진단 자산 운영 설정 페이지 (전역 튜너블).
+  ─────────────────────────────────────────────────────────
+  대시보드·상세와 분리된 전역 설정 화면. 이력 보존 개수와 무결성 봉인(전 슬롯 기준선)을 여기서 다룬다.
+
+  Model:
+    retentionForm    : AssetHistorySettingsRequest (보존 개수 편집 폼 바인딩)
+    retentionSettings: AssetHistorySettingsResponse (현재 적용된 보존 개수)
+    dashboard        : SystemAssetDashboardResponse (봉인 카드의 servingActive·okCount/total 맥락)
+    flashMessage     : String (보존 갱신·봉인 후 PRG flash — optional)
+
+  액션:
+    · 보존 개수 저장 → POST /system/diagnostic-asset/settings (성공 시 self-PRG)
+    · 전 슬롯 봉인   → POST /system/diagnostic-asset/seal (성공 시 이 페이지로 PRG)
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('진단 자산 운영 설정')}"></th:block>
+    <link rel="stylesheet" th:href="@{/system/diagnostic-asset.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('diagnostic-asset')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <div>
+            <a th:href="@{/system/diagnostic-asset}" class="n-back-link">← 진단 자산</a>
+            <h1 class="n-page-title">진단 자산 운영 설정</h1>
+        </div>
+    </div>
+
+    <!--/* PRG flash */-->
+    <div th:if="${flashMessage}" class="n-alert n-alert-success da-summary" th:text="${flashMessage}"></div>
+
+    <!--/* ① 이력 보존 개수 */-->
+    <div class="da-section-title">이력 보존 개수</div>
+    <div class="n-card">
+        <div class="n-card-body">
+            <form th:action="@{/system/diagnostic-asset/settings}" th:object="${retentionForm}" method="post" novalidate>
+                <div class="n-form-group">
+                    <label class="n-label strong" for="retentionCount">자산별 보존 버전 수</label>
+                    <input id="retentionCount" type="number" th:field="*{retentionCount}"
+                           class="n-input" min="1" max="20"
+                           th:classappend="${#fields.hasErrors('retentionCount')} ? 'is-invalid'">
+                    <div class="n-hint">교체·롤백 시 자산별로 최근 이 개수만큼만 버전을 보존합니다(초과분은 오래된 것부터 삭제). 1~20.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('retentionCount')}" th:errors="*{retentionCount}"></div>
+                </div>
+                <div class="n-form-actions">
+                    <button type="submit" class="n-btn n-btn-primary">저장</button>
+                </div>
+            </form>
+            <div class="da-current">현재 적용: <strong th:text="${retentionSettings.retentionCount}">3</strong>개</div>
+        </div>
+    </div>
+
+    <!--/* ② 무결성 봉인 (전 슬롯 기준선) */-->
+    <div class="da-section">
+        <div class="da-section-title">무결성 봉인</div>
+        <div class="da-section-hint">존재하는 모든 자산의 현재 해시를 무결성 기준으로 기록/갱신합니다. 교체 가능한 자산은 교체 시 자동 재봉인되지만, 빌드 스크립트로 관리되는 자산(설정 가방·부분 저장소)의 기준선은 여기서만 확립합니다. 변조·손상 상태를 봉인하면 그 상태가 기준선이 되니 대시보드에서 무결성을 먼저 확인하세요.</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <p>
+                    <span th:if="${dashboard.servingActive}" class="n-badge n-badge-green">서빙 활성</span>
+                    <span th:unless="${dashboard.servingActive}" class="n-badge n-badge-gray">서빙 비활성</span>
+                    <span th:if="${dashboard.servingActive}" th:text="'무결성 일치 ' + ${dashboard.okCount} + ' / ' + ${dashboard.totalCount}"></span>
+                    <span th:unless="${dashboard.servingActive}" class="da-muted">자산 서빙이 꺼져 있어 봉인할 수 없습니다.</span>
+                </p>
+                <form th:action="@{/system/diagnostic-asset/seal}" method="post">
+                    <button type="submit" class="n-btn n-btn-warning" th:disabled="${!dashboard.servingActive}"
+                            th:title="${dashboard.servingActive} ? '존재하는 자산의 현재 해시를 무결성 기준으로 기록합니다.' : '서빙이 비활성이라 봉인할 수 없습니다.'">전 슬롯 봉인</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -9,8 +9,10 @@ import java.nio.file.Path;
  * DB 열거가 불필요하므로 자원 엔티티가 아니라 enum 이 SSOT 다(DEC-14 — MA 자원 도메인 편입 탈락).
  * 각 파일명은 {@code scripts/diag-image/build-assets.sh} 산출물과 1:1 이며, 그 스크립트가 조립 SSOT 다.
  *
- * <p>파일명이 컴파일 상수라 사용자 입력 경로가 개입할 여지가 없다 — 슬롯을 URL 경로 변수로 노출하지
- * 않으므로 path traversal 표면이 0 이고, forging(404) 경로도 성립하지 않는다.</p>
+ * <p>슬롯은 URL 경로 변수로 노출되나(E1-I-2-b-2 재구성 — {@code /{slot}} 상세·교체·롤백), {@code valueOf}
+ * 로 고정 enum 상수에만 매핑되어 filename 이 컴파일 상수로 결정된다 — 사용자 입력 경로가 개입할 여지가 없어
+ * path traversal 표면은 0 이고, 없는 슬롯 이름(forging)은 {@code DiagnosticAssetSlotNotFoundException} 으로
+ * 404 가 된다(컨트롤러 {@code parseSlot}, 테스트로 고정).</p>
  *
  * <p>마커 레이아웃: 단일 파일 5종은 {@link MarkerLayout#SIDECAR}(형제 {@code <name>.provision.json}),
  * 디렉토리인 부분 apk 저장소 1종은 {@link MarkerLayout#IN_TREE}({@code repo/.provision.json}).</p>

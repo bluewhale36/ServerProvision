@@ -1,22 +1,24 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  E1-I-1. 진단 리눅스 자산 현황 · 무결성 대시보드 (조회 전용 시스템 자산 화면)
+  E1-I-2-b-2. 진단 리눅스 자산 현황 대시보드 (status-only).
   ─────────────────────────────────────────────────────────
-  Model:
-    dashboard : SystemAssetDashboardResponse
-      · servingActive : boolean
-      · assetsRoot / baseUrl : String (비활성 시 null)
-      · slots : List<SystemAssetSlotResponse>
-      · okCount / totalCount : int
-    flashMessage : String (봉인/재검증 후 PRG flash — optional)
+  대시보드는 자원 상태를 한눈에 보는 곳이다 — 상태를 바꾸는 액션(교체·롤백·봉인·보존설정)은 두지 않는다.
+  각 자산 행을 클릭하면 그 자산 상세로 이동해 교체·롤백·이력 조회를 하고, 봉인·보존 개수는 운영 설정에서 한다.
 
-  액션 (자산 파일은 절대 바꾸지 않는다 — 교체는 E1-I-2):
-    · 무결성 봉인 → POST /system/diagnostic-asset/seal   (현재 자산을 신뢰 기준으로 마커 기록)
-    · 재검증      → POST /system/diagnostic-asset/recheck (디스크 재대조 후 새로고침)
+  Model:
+    dashboard : SystemAssetDashboardResponse (servingActive / assetsRoot / baseUrl / slots / okCount / totalCount)
+    flashMessage : String (재검증 등 PRG flash — optional)
+
+  액션 (여기 유일한 비변경 새로고침):
+    · 재검증 → POST /system/diagnostic-asset/recheck (디스크 재대조 후 새로고침)
+  네비게이션:
+    · 자산 행 클릭 → GET /system/diagnostic-asset/{slot} (상세)
+    · 운영 설정 → GET /system/diagnostic-asset/settings
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('진단 리눅스 자산')}"></th:block>
+    <link rel="stylesheet" th:href="@{/system/diagnostic-asset.css}">
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('diagnostic-asset')}"></nav>
@@ -25,44 +27,35 @@
     <div class="n-page-header">
         <h1 class="n-page-title">진단 리눅스 자산</h1>
         <div class="n-header-actions">
-            <span class="n-hint" style="margin-right: 12px;">
-                PXE 부팅에 쓰이는 자산 6종의 무결성을 조회합니다. 자산 파일은 이 화면에서 바뀌지 않으며(교체는 별도),
-                봉인은 현재 자산을 신뢰 기준으로 기록만 합니다.
-            </span>
-            <form th:action="@{/system/diagnostic-asset/recheck}" method="post" style="display: inline;">
+            <span class="n-hint da-muted-sm">PXE 부팅 자산 6종의 무결성 현황입니다. 교체·롤백은 각 자산을 클릭해 상세에서, 봉인·보존 개수는 운영 설정에서 합니다.</span>
+            <form th:action="@{/system/diagnostic-asset/recheck}" method="post" class="da-inline-form">
                 <button type="submit" class="n-btn n-btn-secondary n-btn-sm"
                         th:disabled="${!dashboard.servingActive}"
                         title="디스크를 다시 해시해 무결성을 재대조합니다.">재검증</button>
             </form>
-            <form th:action="@{/system/diagnostic-asset/seal}" method="post" style="display: inline;">
-                <button type="submit" class="n-btn n-btn-primary n-btn-sm"
-                        th:disabled="${!dashboard.servingActive}"
-                        title="존재하는 자산의 현재 해시를 무결성 기준으로 기록/갱신합니다. 봉인 전 아래 표에서 무결성 상태를 확인하세요 — 변조·손상 상태를 봉인하면 그 상태가 기준선이 됩니다.">무결성 봉인</button>
-            </form>
+            <a th:href="@{/system/diagnostic-asset/settings}" class="n-btn n-btn-secondary n-btn-sm">운영 설정 →</a>
         </div>
     </div>
 
     <!--/* PRG flash */-->
-    <div th:if="${flashMessage}" class="n-hint"
-         style="margin: 0 0 14px; padding: 10px 14px; border-left: 3px solid var(--n-color-success, #1aae39); background: rgba(26,174,57,0.08); border-radius: 0 6px 6px 0;"
-         th:text="${flashMessage}"></div>
+    <div th:if="${flashMessage}" class="n-alert n-alert-success da-summary" th:text="${flashMessage}"></div>
 
     <!--/* 서빙 상태 요약 */-->
-    <div class="n-hint" style="margin-bottom: 14px;">
+    <div class="n-hint da-summary">
         <span th:if="${dashboard.servingActive}" class="n-badge n-badge-green">서빙 활성</span>
         <span th:unless="${dashboard.servingActive}" class="n-badge n-badge-gray">서빙 비활성</span>
         <span th:if="${dashboard.servingActive}">
             <span th:text="'무결성 일치 ' + ${dashboard.okCount} + ' / ' + ${dashboard.totalCount}"></span>
-            · 루트 <code th:text="${dashboard.assetsRoot}"></code>
-            · base-url <code th:text="${dashboard.baseUrl}"></code>
+            · 루트 <code class="da-mono" th:text="${dashboard.assetsRoot}"></code>
+            · base-url <code class="da-mono" th:text="${dashboard.baseUrl}"></code>
         </span>
         <span th:unless="${dashboard.servingActive}">
-            자산 서빙이 꺼져 있습니다 — <code>PXE_ASSETS_ROOT</code> 미설정. 자산 위치를 알 수 없어 조회·봉인이 비활성입니다.
+            자산 서빙이 꺼져 있습니다 — <code class="da-mono">PXE_ASSETS_ROOT</code> 미설정. 자산 위치를 알 수 없어 조회가 비활성입니다.
         </span>
     </div>
 
-    <!--/* 6 슬롯 현황 */-->
-    <table class="n-table">
+    <!--/* 6 슬롯 현황 — 행 클릭 시 상세로 이동 */-->
+    <table id="diagnosticAssetTable" class="n-table">
         <thead>
         <tr>
             <th>자산</th>
@@ -72,47 +65,30 @@
             <th>최종 수정</th>
             <th>무결성</th>
             <th>교체 주기</th>
-            <th>교체</th>
         </tr>
         </thead>
         <tbody>
-        <tr th:each="slot : ${dashboard.slots}">
+        <tr th:each="slot : ${dashboard.slots}" class="n-row-clickable"
+            th:data-href="@{/system/diagnostic-asset/{k}(k=${slot.key})}">
             <td>
                 <div th:text="${slot.label}"></div>
-                <code style="font-size: 11px; color: var(--n-text-muted, #777);" th:text="${slot.filename}"></code>
+                <span class="da-filename" th:text="${slot.filename}"></span>
             </td>
             <td><span class="n-badge n-badge-gray" th:text="${slot.category}"></span></td>
-            <td th:text="${slot.layoutLabel}" style="color: var(--n-text-muted, #777); font-size: 12px;"></td>
+            <td class="da-muted-sm" th:text="${slot.layoutLabel}"></td>
             <td th:text="${slot.sizeDisplay}"></td>
             <td>
                 <span th:if="${slot.modifiedAt != null}"
                       th:text="${#temporals.format(slot.modifiedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
-                <span th:if="${slot.modifiedAt == null}" style="color: var(--n-text-muted, #777);">—</span>
+                <span th:if="${slot.modifiedAt == null}" class="da-muted">—</span>
             </td>
             <td><span class="n-badge" th:classappend="${slot.badgeClass}" th:text="${slot.statusLabel}"></span></td>
-            <td style="color: var(--n-text-muted, #777); font-size: 12px;" th:text="${slot.replaceCadence}"></td>
-            <td>
-                <!--/* 단일 파일 자산: 서빙 활성 시 업로드 교체 폼, 비활성 시 안내. 조립 자산: 빌드 스크립트 안내. */-->
-                <th:block th:if="${slot.replaceable}">
-                    <form th:if="${dashboard.servingActive}" method="post" enctype="multipart/form-data"
-                          th:action="@{/system/diagnostic-asset/{k}/replace(k=${slot.key})}"
-                          style="display: flex; gap: 6px; align-items: center;">
-                        <input type="file" name="file" required
-                               style="font-size: 11px; max-width: 150px;">
-                        <button type="submit" class="n-btn n-btn-sm n-btn-primary"
-                                title="선택한 파일로 교체하고 무결성을 재봉인합니다. 원자적으로 교체되어 부팅 중 잘린 파일이 나가지 않습니다.">교체</button>
-                    </form>
-                    <span th:unless="${dashboard.servingActive}"
-                          style="color: var(--n-text-muted, #777); font-size: 11px;">서빙 비활성</span>
-                </th:block>
-                <span th:unless="${slot.replaceable}"
-                      style="color: var(--n-text-muted, #777); font-size: 11px;"
-                      title="조립 자산(서명·내부 구조)은 build-assets.sh 로 교체합니다.">빌드 스크립트로 교체</span>
-            </td>
+            <td class="da-muted-sm" th:text="${slot.replaceCadence}"></td>
         </tr>
         </tbody>
     </table>
 </div>
 
+<script th:src="@{/system/diagnostic-asset.js}" defer></script>
 </body>
 </html>

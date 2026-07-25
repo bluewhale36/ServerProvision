@@ -1,0 +1,71 @@
+/* ============================================================
+   diagnostic-asset.css — 진단 자산 시스템 화면(대시보드 / 상세 / 설정) 보조 스타일.
+   기본 레이아웃·색은 global/style.css 를 재사용하고, 여기서는 대시보드 행 클릭과
+   system 영역에 없는 모노/뮤트 헬퍼, 상세·설정 섹션 간격만 보강한다
+   (provisioning/server.css 의 행클릭·헬퍼 관례 미러 — system 영역엔 그 CSS 가 로드되지 않음).
+   ============================================================ */
+
+/* ---- 대시보드 : 행 전체 클릭 → 상세 ---------------------------- */
+.n-row-clickable {
+    cursor: pointer;
+}
+
+.n-row-clickable:hover td {
+    background: var(--n-bg-hover, #f5f5f4);
+}
+
+/* ---- 모노 / 뮤트 헬퍼 (n-mono·n-muted 는 provisioning 전용이라 재정의) ---- */
+.da-mono {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.da-muted {
+    color: var(--n-text-muted, #777);
+}
+
+.da-muted-sm {
+    color: var(--n-text-muted, #777);
+    font-size: 12px;
+}
+
+.da-filename {
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--n-text-muted, #777);
+}
+
+/* ---- 상세 / 설정 섹션 간격 ------------------------------------ */
+.da-section {
+    margin-top: 20px;
+}
+
+.da-section-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+.da-section-hint {
+    color: var(--n-text-muted, #777);
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+/* 상단 서빙 요약 배너 간격 */
+.da-summary {
+    margin-bottom: 14px;
+}
+
+/* 설정 요약 줄(현재 적용값) */
+.da-current {
+    margin-top: 10px;
+    color: var(--n-text-muted, #777);
+    font-size: 13px;
+}
+
+/* 인라인 액션 폼(버전 행 롤백 등) */
+.da-inline-form {
+    display: inline;
+}
