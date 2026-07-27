@@ -1,6 +1,5 @@
 package com.example.serverprovision.execution.asset.service;
 
-import com.example.serverprovision.execution.asset.dto.response.SystemAssetDashboardResponse;
 import com.example.serverprovision.execution.asset.dto.response.SystemAssetSlotResponse;
 import com.example.serverprovision.execution.asset.enums.DiagnosticAsset;
 import com.example.serverprovision.execution.asset.exception.DiagnosticAssetNotReplaceableException;
@@ -30,7 +29,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -67,8 +65,8 @@ class DiagnosticAssetActivationServiceTest {
         ProvisionMarkerService markerService = new ProvisionMarkerService();
         ReflectionTestUtils.setField(markerService, "secret", "test-secret-e1i2b2");
         FileSystemHardener hardener = new FileSystemHardener(mock(FileSystemSecurityProperties.class));
-        integrityService = new DiagnosticAssetIntegrityService(
-                propertiesProvider, markerService, new BundleManifestService(), hardener);
+        SealedFileInspector inspector = new SealedFileInspector(markerService, new BundleManifestService(), hardener);
+        integrityService = new DiagnosticAssetIntegrityService(propertiesProvider, inspector);
         historyService = mock(AssetHistoryService.class);
         activationService = new DiagnosticAssetActivationService(integrityService, historyService, hardener);
         given(propertiesProvider.getIfAvailable())
@@ -81,7 +79,7 @@ class DiagnosticAssetActivationServiceTest {
     @Test
     @DisplayName("교체 — 디스크 내용 갱신 + 자동 재봉인 → ORIGINAL")
     void replace_swapsAndReseals() throws IOException {
-        integrityService.seal();
+        sealBaseline();
         MultipartFile upload = file("vmlinuz-lts", "NEW-KERNEL-BYTES-v2");
 
         activationService.replace(DiagnosticAsset.VMLINUZ, upload);
@@ -94,7 +92,7 @@ class DiagnosticAssetActivationServiceTest {
     @Test
     @DisplayName("드리프트 슬롯 교체 — 새 파일이 기준이 되어 ORIGINAL 복구")
     void replace_driftedSlot_recovers() throws IOException {
-        integrityService.seal();
+        sealBaseline();
         Files.writeString(root.resolve("modloop-lts"), "TAMPER", StandardOpenOption.APPEND);
         assertThat(slot(DiagnosticAsset.MODLOOP).statusLabel())
                 .isEqualTo(IntegrityStatus.TAMPERED.getDisplayMessage());
@@ -155,7 +153,7 @@ class DiagnosticAssetActivationServiceTest {
     @Test
     @DisplayName("교체 — 스왑 전 현재(옛) 버전을 이력에 위임(키·시점 검증)")
     void replace_archivesCurrentVersionBeforeSwap() throws IOException {
-        integrityService.seal();
+        sealBaseline();
         AtomicReference<String> seenAtArchive = new AtomicReference<>();
         given(historyService.archive(any(), any())).willAnswer(inv -> {
             seenAtArchive.set(Files.readString(inv.getArgument(1, Path.class)));   // 아카이브 시점 파일 = 옛 버전
@@ -188,7 +186,7 @@ class DiagnosticAssetActivationServiceTest {
     @Test
     @DisplayName("롤백 — 선택 버전 바이트로 활성본 갱신 + 현재본 archive + 재봉인 + 버전 제거")
     void rollback_restoresVersion() throws IOException {
-        integrityService.seal();
+        sealBaseline();
         AssetVersionKey key = new AssetVersionKey("DIAGNOSTIC", "vmlinuz-lts");
         Path versionFile = Files.writeString(store.resolve("archived-v3"), "KERNEL-v3-RESTORED");
         given(historyService.openVersion(key, 3L)).willReturn(versionFile);
@@ -250,6 +248,13 @@ class DiagnosticAssetActivationServiceTest {
 
     // ── 픽스처 ──────────────────────────────────────────────────────────────
 
+    /** 스테이징된 자산 전량을 봉인해 기준선을 세운다 — 부재 슬롯은 sealOne 이 건너뛴다(구 집계 seal() 대체, 집계 봉인은 영역 어댑터로 이관). */
+    private void sealBaseline() {
+        for (DiagnosticAsset asset : DiagnosticAsset.values()) {
+            integrityService.sealOne(asset, root);
+        }
+    }
+
     private void stageSingleFiles() throws IOException {
         Files.writeString(root.resolve("vmlinuz-lts"), "kernel-v1");
         Files.writeString(root.resolve("initramfs-lts"), "initramfs-v1");
@@ -263,11 +268,6 @@ class DiagnosticAssetActivationServiceTest {
     }
 
     private SystemAssetSlotResponse slot(DiagnosticAsset asset) {
-        SystemAssetDashboardResponse dashboard = integrityService.loadDashboard();
-        List<SystemAssetSlotResponse> slots = dashboard.slots();
-        return slots.stream()
-                .filter(s -> s.filename().equals(asset.filename()))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("슬롯 없음 : " + asset.filename()));
+        return integrityService.loadSlot(asset);   // 단일 슬롯 조회 — 6종 재해시 없이 이 슬롯 현황만
     }
 }

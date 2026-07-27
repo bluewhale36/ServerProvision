@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * E1-I-2-b-2 재구성 CP4 — 자산 상세 페이지의 HTTP 계층 검증. 교체 가능 슬롯(버전 이력·롤백)과 비교체 슬롯
- * (읽기전용), 그리고 없는 슬롯 이름(forging)의 404 를 검증한다. 상세는 loadDashboard 를 필터해 단일 슬롯을 얻는다.
+ * (읽기전용), 그리고 없는 슬롯 이름(forging)의 404 를 검증한다. 상세는 {@code loadSlot} 으로 단일 슬롯만 얻는다.
  */
 @WebMvcTest(controllers = DiagnosticAssetController.class)
 class DiagnosticAssetControllerDetailTest {

@@ -1,13 +1,10 @@
 package com.example.serverprovision.execution.asset.controller;
 
-import com.example.serverprovision.execution.asset.dto.response.SystemAssetDashboardResponse;
 import com.example.serverprovision.execution.asset.dto.response.SystemAssetSlotResponse;
 
-import java.util.List;
-
 /**
- * 진단 자산 컨트롤러 테스트 공용 픽스처. 12-arg {@link SystemAssetSlotResponse} 생성이 대시보드·상세·설정
- * 테스트에 흩어지지 않도록 슬롯·대시보드 조립을 한곳에 둔다.
+ * 진단 자산 컨트롤러 테스트 공용 픽스처. 12-arg {@link SystemAssetSlotResponse} 생성이 상세 테스트에
+ * 흩어지지 않도록 슬롯 조립을 한곳에 둔다.
  */
 final class DiagnosticAssetTestFixtures {
 
@@ -19,12 +16,6 @@ final class DiagnosticAssetTestFixtures {
         return new SystemAssetSlotResponse(
                 key, label, category, filename, "단일 파일",
                 true, replaceable, "13.0 MB", null, "원본 유지", "n-badge-green", "교체 주기");
-    }
-
-    static SystemAssetDashboardResponse dashboard(SystemAssetSlotResponse... slots) {
-        return new SystemAssetDashboardResponse(
-                true, "/opt/provisioning/pxe-assets", "http://localhost:7777",
-                List.of(slots), slots.length, 6);
     }
 
     static SystemAssetSlotResponse vmlinuz() {

@@ -3,8 +3,8 @@ package com.example.serverprovision.global.history;
 import com.example.serverprovision.global.history.dto.response.AssetHistorySettingsResponse;
 
 /**
- * 버전 이력 보존 설정의 읽기·갱신(E1-I-2-b-2). {@code prune} 이 실효 보존 개수를 여기서 얻고, 진단 자산
- * 운영 설정 화면({@code /system/diagnostic-asset/settings})이 현재값을 표시·수정한다. 구현은 singleton 행 +
+ * 버전 이력 보존 설정의 읽기·갱신(E1-I-2-b-2). {@code prune} 이 실효 보존 개수를 여기서 얻고, 통합 시스템 자산
+ * 운영 설정 화면({@code /system/asset/settings})이 현재값을 표시·수정한다. 구현은 singleton 행 +
  * 캐시({@code TrashSettingsService} 미러).
  */
 public interface AssetHistorySettingsService {

@@ -21,12 +21,12 @@
     <link rel="stylesheet" th:href="@{/system/diagnostic-asset.css}">
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('diagnostic-asset')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('system-asset')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
         <div>
-            <a th:href="@{/system/diagnostic-asset}" class="n-back-link">← 진단 자산</a>
+            <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
             <h1 class="n-page-title" th:text="${slot.label}">커널</h1>
             <span class="da-mono da-muted" th:text="${slot.filename}">vmlinuz-lts</span>
         </div>
@@ -132,7 +132,7 @@
     <div th:unless="${slot.replaceable}" class="da-section">
         <div class="n-alert n-alert-info">
             이 자산은 빌드 스크립트(<code class="da-mono">build-assets.sh</code>)로 생성·교체됩니다. 이 화면에서는 교체·롤백할 수 없습니다.
-            기준선(무결성 봉인)을 다시 잡아야 하면 <a th:href="@{/system/diagnostic-asset/settings}">운영 설정</a>의 무결성 봉인을 사용하세요.
+            기준선(무결성 봉인)을 다시 잡아야 하면 <a th:href="@{/system/asset/settings}">운영 설정</a>의 무결성 봉인을 사용하세요.
         </div>
     </div>
 </div>

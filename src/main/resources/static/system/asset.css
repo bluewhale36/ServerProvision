@@ -1,0 +1,44 @@
+/* ============================================================
+   asset.css — 통합 시스템 자산 대시보드/설정의 다중 영역 레이아웃 보강(E1-I-3-a).
+   행 클릭·모노/뮤트 헬퍼·섹션 간격은 diagnostic-asset.css 를 재사용하고, 여기서는
+   영역 블록 헤더(제목 + 집계 배지 + 봉인 버튼 한 줄 배치)와 봉인 카드 행 배치만 더한다.
+   ============================================================ */
+
+/* ---- 영역 블록 ------------------------------------------------ */
+.asset-area {
+    margin-top: 24px;
+}
+
+.asset-area-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.asset-area-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.asset-area-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* ---- 설정: 영역별 봉인 카드 ---------------------------------- */
+.asset-seal-card {
+    margin-bottom: 12px;
+}
+
+.asset-seal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
