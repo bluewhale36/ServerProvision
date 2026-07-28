@@ -132,7 +132,7 @@ CP 칩: `.cp1`(blue) `.cp2`(green) `.cp3`(yellow) `.cp4`(orange) `.cp5`(red).
 ```
 
 - 열 수는 주체 수만큼(`grid-template-columns:repeat(N,1fr)`). 2~4 열이 일반적.
-- 레인 색: `.a1`(blue) `.a2`(green) `.a3`(orange). `.actor`/`.step` 에 같은 `aN` 을 붙여 색을 맞춘다. 빈 칸도 `<div class="step aN"></div>` 로 정렬을 유지한다.
+- 레인 색: `.a1`(blue) `.a2`(green) `.a3`(orange) `.a4`(purple — 4-actor 흐름용). `.actor`/`.step` 에 같은 `aN` 을 붙여 색을 맞춘다. 빈 칸도 `<div class="step aN"></div>` 로 정렬을 유지한다.
 - 반응형은 3-4 참고(좁은 화면에서 접지 않고 열 유지 + 가로 스크롤).
 
 ### 2-5. 시뮬레이터 (🎬 라이브 데모)
