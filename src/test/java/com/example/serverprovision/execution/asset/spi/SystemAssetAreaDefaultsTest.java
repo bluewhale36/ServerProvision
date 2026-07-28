@@ -38,6 +38,15 @@ class SystemAssetAreaDefaultsTest {
         assertThat(supportedByDefault.supportsSeal()).isTrue();
     }
 
+    @Test
+    @DisplayName("context 기본값은 빈 목록 — 오버라이드하지 않은 영역은 헤더 관측 chip 을 그리지 않는다(진단·TFTP 무변경)")
+    void context_defaultsToEmpty() {
+        // 파일 봉인 영역은 관측치가 없어 context() 를 오버라이드하지 않고 기본 빈 목록을 그대로 쓴다.
+        SystemAssetArea fileSealed = new FakeArea(true);
+
+        assertThat(fileSealed.context()).isEmpty();
+    }
+
     /**
      * 봉인 지원 여부만 파라미터로 받는 최소 fake 영역. supportsSeal=false 이면 seal() 을 오버라이드하지 않아
      * 확장점 default(throw)를 그대로 탄다. 나머지 메서드는 이 테스트가 소비하지 않아 사소한 값만 돌려준다.

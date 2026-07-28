@@ -14,6 +14,7 @@ import java.util.List;
  * @param okCount      이 영역에서 healthy(정상) 판정 슬롯 수
  * @param totalCount   이 영역의 전체 슬롯 수
  * @param supportsSeal 봉인 지원 여부 — false 면 뷰가 봉인 버튼 자체를 렌더하지 않는다(UI 1차 차단, 서버 가드와 동일 SSOT)
+ * @param context      영역 헤더 관측 chip(서비스 상태·활성 임대 건수 등, 슬롯 아님). 파일 봉인 영역은 빈 목록.
  */
 public record SystemAssetAreaGroupResponse(
         String areaKey,
@@ -22,6 +23,7 @@ public record SystemAssetAreaGroupResponse(
         List<SystemAssetSlotResponse> slots,
         int okCount,
         int totalCount,
-        boolean supportsSeal
+        boolean supportsSeal,
+        List<AssetContextItemResponse> context
 ) {
 }

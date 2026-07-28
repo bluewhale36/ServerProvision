@@ -208,10 +208,10 @@ class SystemAssetControllerTest {
     private static SystemAssetOverviewResponse overview() {
         SystemAssetAreaGroupResponse diagnostic = new SystemAssetAreaGroupResponse(
                 "DIAGNOSTIC", "진단 리눅스 부팅 자산", "CONFIGURED",
-                List.of(row("VMLINUZ", "커널 (vmlinuz-lts)", "vmlinuz-lts")), 1, 1, true);
+                List.of(row("VMLINUZ", "커널 (vmlinuz-lts)", "vmlinuz-lts")), 1, 1, true, List.of());
         SystemAssetAreaGroupResponse tftp = new SystemAssetAreaGroupResponse(
                 "TFTP", "TFTP 부팅 인프라 자산", "CONFIGURED",
-                List.of(row("IPXE_EFI", "iPXE 부트 (ipxe.efi)", "ipxe.efi")), 1, 1, true);
+                List.of(row("IPXE_EFI", "iPXE 부트 (ipxe.efi)", "ipxe.efi")), 1, 1, true, List.of());
         return new SystemAssetOverviewResponse(List.of(diagnostic, tftp), 2, 2);
     }
 

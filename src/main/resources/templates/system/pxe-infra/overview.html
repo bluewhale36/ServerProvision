@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  E1-I-3-b. dhcpd PXE 인프라 임대 목록 (조회 전용).
+  ─────────────────────────────────────────────────────────
+  통합 시스템 자산 대시보드의 dhcpd 영역 헤더는 서비스 상태·활성 임대 건수만 요약한다. 개별 임대 명세
+  (IP·MAC·시작·만료·상태)는 이 페이지에서 본다. 상태를 바꾸는 액션은 없다(조회 전용).
+
+  Model:
+    overview : PxeInfraOverviewResponse
+                 · configured   : boolean (dhcpd 관측 설정 존재 — false 면 미구성 안내)
+                 · activeCount  : int (현재 활성·미만료 임대 수)
+                 · totalCount   : int (파싱된 전체 임대 블록 수)
+                 · leases       : List<DhcpLeaseView>
+                     (ip / mac / starts / ends / state / stateBadgeClass) — 활성 우선·만료 내림차순
+
+  임대 시각은 ISC dhcpd 관례대로 UTC 표기다(원본 dhcpd.leases 와 대조 가능하게 KST 변환 없음).
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('PXE 인프라 임대')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('system-asset')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <div>
+            <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
+            <h1 class="n-page-title">PXE 인프라 임대 (dhcpd)</h1>
+        </div>
+    </div>
+
+    <!--/* 미구성: 관측 설정(pxe.dhcpd.fragment-path)이 없으면 임대 표 대신 안내 */-->
+    <div th:unless="${overview.configured}" class="n-hint">
+        dhcpd 관측이 구성되지 않았습니다(<code>pxe.dhcpd.fragment-path</code> 미설정). 설정하면 임대 목록이 여기 표시됩니다.
+    </div>
+
+    <th:block th:if="${overview.configured}">
+        <div class="n-hint">
+            <span class="n-badge n-badge-green" th:text="'활성 ' + ${overview.activeCount} + '건'"></span>
+            <span class="n-badge n-badge-gray" th:text="'전체 ' + ${overview.totalCount} + '건'"></span>
+            <span>임대 시각은 UTC 기준입니다.</span>
+        </div>
+
+        <table class="n-table">
+            <thead>
+            <tr>
+                <th>IP 주소</th>
+                <th>MAC 주소</th>
+                <th>시작(UTC)</th>
+                <th>만료(UTC)</th>
+                <th>상태</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${overview.leases.isEmpty()}">
+                <td colspan="5" class="da-muted">기록된 임대가 없습니다.</td>
+            </tr>
+            <tr th:each="lease : ${overview.leases}">
+                <td th:text="${lease.ip}"></td>
+                <td th:text="${lease.mac}"></td>
+                <td th:text="${lease.starts}"></td>
+                <td th:text="${lease.ends}"></td>
+                <td><span class="n-badge" th:classappend="${lease.stateBadgeClass}" th:text="${lease.state}"></span></td>
+            </tr>
+            </tbody>
+        </table>
+    </th:block>
+</div>
+</body>
+</html>

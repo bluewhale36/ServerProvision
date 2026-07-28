@@ -14,5 +14,8 @@ public enum SystemAssetAreaKey {
     DIAGNOSTIC,
 
     /** TFTP/PXE 부팅 인프라 자산. */
-    TFTP
+    TFTP,
+
+    /** dhcpd(DHCP 서버) PXE 인프라 관측 영역. 파일 봉인이 아닌 존재·문법·서비스 상태·임대로 판정. */
+    DHCPD
 }

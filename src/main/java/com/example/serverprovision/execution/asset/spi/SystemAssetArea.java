@@ -30,6 +30,14 @@ public interface SystemAssetArea {
     List<SystemAssetSlot> slots();
 
     /**
+     * 영역 헤더에 함께 노출할 컨텍스트 관측치(서비스 상태·활성 임대 건수 등). 슬롯이 아니므로 okCount 에 불참한다.
+     * 파일 봉인 영역(진단·TFTP)은 관측치가 없어 기본 빈 목록 — 대시보드 헤더에 chip 을 그리지 않는다(무변경).
+     */
+    default List<AssetContextItem> context() {
+        return List.of();
+    }
+
+    /**
      * 슬롯 하나의 현재 현황·무결성을 프로브한다. 존재·크기·수정시각·판정을 담은 {@link AssetSlotStatus} 를
      * 반환하며, 부재·미봉인·서빙비활성을 전부 판정으로 흡수하므로 예외로 거절하지 않는다(조회는 실패하지 않음).
      */

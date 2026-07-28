@@ -59,6 +59,15 @@
                       th:text="${area.availability == 'CONFIGURED'} ? '서빙 활성' : '서빙 비활성'"></span>
                 <span class="n-badge n-badge-gray"
                       th:text="'정상 ' + ${area.okCount} + ' / 전체 ' + ${area.totalCount}"></span>
+                <!--/*
+                  영역 헤더 관측 chip — 슬롯이 아닌 부수 관측치(dhcpd 서비스 상태·활성 임대 건수 등)를 배지로 얹는다.
+                  파일 봉인 영역(진단·TFTP)은 context 가 빈 목록이라 아무것도 렌더되지 않는다(무변경).
+                */-->
+                <span class="n-badge" th:each="c : ${area.context}"
+                      th:classappend="${c.badgeClass}" th:text="${c.label} + ' ' + ${c.value}"></span>
+                <!--/* dhcpd 영역만 임대 명세 페이지로 이동(그 영역만 임대 목록을 보유) */-->
+                <a th:if="${area.areaKey == 'DHCPD'}" th:href="@{/system/pxe-infra}"
+                   class="da-muted-sm">임대 목록 →</a>
             </div>
             <!--/* 봉인 버튼: 봉인 지원 영역만 렌더(supportsSeal), 서빙 비활성이면 disabled — 서버 가드와 동일 SSOT */-->
             <form th:if="${area.supportsSeal}" method="post" class="da-inline-form"

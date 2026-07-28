@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.asset.service;
 
 import com.example.serverprovision.execution.asset.dto.SealResult;
+import com.example.serverprovision.execution.asset.dto.response.AssetContextItemResponse;
 import com.example.serverprovision.execution.asset.dto.response.SystemAssetAreaGroupResponse;
 import com.example.serverprovision.execution.asset.dto.response.SystemAssetOverviewResponse;
 import com.example.serverprovision.execution.asset.dto.response.SystemAssetSlotResponse;
@@ -92,9 +93,12 @@ public class SystemAssetDashboardService {
             }
             rows.add(toRow(slot, status));
         }
+        List<AssetContextItemResponse> context = area.context().stream()
+                .map(i -> new AssetContextItemResponse(i.label(), i.value(), i.severity().badgeClass()))
+                .toList();
         return new SystemAssetAreaGroupResponse(
                 area.areaKey().name(), area.displayName(), area.availability().name(),
-                rows, ok, slots.size(), area.supportsSeal());
+                rows, ok, slots.size(), area.supportsSeal(), context);
     }
 
     private SystemAssetSlotResponse toRow(SystemAssetSlot slot, AssetSlotStatus status) {
