@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-I-3-a Report — 통합 시스템 자산 대시보드</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--orange-bg); color:var(--orange); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── 부록 위젯 ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-I-3-a — 통합 시스템 자산 대시보드 <span class="v2-badge">완료 보고 · CP4</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-I-3-a (feature)</span>
+    <span><strong>상위</strong> E1-I (부팅 인프라)</span>
+    <span><strong>scope</strong> 격리된 진단 자산 화면 → 다영역 통합 대시보드(SPI)</span>
+    <span><strong>커밋</strong> 8082c99 · d403cf3</span>
+    <span><strong>작성</strong> 2026-07-28 19:36 KST</span>
+    <span><strong>상태</strong> CP4 완료(테스트 green) · CP5 유보</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 진입 전 상태</a></li>
+      <li><a href="#s2">§2 무엇을 만들었나 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 설계 실현 (SPI 다형 집계)</a></li>
+      <li><a href="#s5">§5 적대적 검토 → 정비</a></li>
+      <li><a href="#s6">§6 Step 8 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 불가침 원칙 점검</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 상태 · 잔여 · 다음</a></li>
+      <li><a href="#appendix">📎 부록 — 구현 좌표</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 진입 전 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 진입 전 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">E1-I-3-a 진입 시점에 진단 리눅스 부팅 자산은 조회·무결성 판정(E1-I-1)과 단일 파일 교체·버전 이력·롤백(E1-I-2)까지 갖춰져
+        운영자가 쓸 수 있었다. 다만 그 화면 전체가 <b>진단 자산 한 종류에만 묶여</b> 있었다 — 현황 대시보드도, 운영 설정도, 전역 무결성 봉인도
+        모두 <code>/system/diagnostic-asset</code> 아래에 있었고, 자산 종류가 하나 더 생기면 화면을 통째로 다시 만들어야 하는 구조였다.</p>
+
+        <table>
+          <thead><tr><th>영역</th><th>진입 전</th><th>결손</th></tr></thead>
+          <tbody>
+            <tr><td>진단 리눅스 자산</td><td>조회·무결성·교체·이력·롤백 완비</td><td>화면이 진단 전용 URL 에 격리</td></tr>
+            <tr><td>TFTP 부팅 자산(<code>ipxe.efi</code>)</td><td>파일은 배포되나 <b>운영 화면 없음</b></td><td>존재·무결성을 볼 수 있는 대시보드가 없음</td></tr>
+            <tr><td>집계</td><td>단일 종류의 6슬롯만</td><td>여러 자산 종류를 한눈에 볼 통합 뷰 부재</td></tr>
+            <tr><td>판정 로직</td><td><code>DiagnosticAssetIntegrityService</code> 안에 private 으로 묶임</td><td>다른 종류가 재사용할 수 없는 형태</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>잠복 결함(진단 중 발견)</b> — 직전 슬라이스 E1-I-2-b(<code>f0ac2f8</code>)가 로컬 스키마 생성을 위해
+        JPA <code>ddl-auto</code> 를 <code>update</code> 로 바꾼 뒤 <code>validate</code> 로 되돌리지 못한 leftover 가 남아 있었다. 바로 위 주석과
+        직전 안정화 커밋(<code>2b7f397</code>)에 모순되며, <code>update</code> 는 부팅마다 엔티티에 맞춰 스키마를 리뷰 없이 변형해
+        엔티티↔스키마 fail-fast 검증을 잃는다. 본 슬라이스 적대적 리뷰에서 잡아 별도 커밋으로 정정했다(§5).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 무엇을 만들었나 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 무엇을 만들었나 (확정) + 비목표</summary>
+      <div class="body">
+        <p style="margin-top:0;">격리돼 있던 진단 리눅스 자산 화면을, 여러 자산 종류를 <b>한 대시보드로 집계하는 통합 화면</b>
+        <code>/system/asset</code> 으로 승격했다. 그 밑에 자산 종류 하나가 자기 슬롯·판정·봉인을 <b>스스로 제공하는 확장점</b>
+        <code>SystemAssetArea</code>(Service Provider Interface — 도메인이 구현해 끼우는 확장점)를 열고, 진단 리눅스와 TFTP 두 영역을
+        그 위에 올렸다.</p>
+
+        <ol>
+          <li>통합 대시보드 <code>GET /system/asset</code> — 등록된 모든 자산 영역의 슬롯 현황을 영역별 표 + 전 영역 합계(정상 N / 전체 N)로 집계.</li>
+          <li>확장점 <code>SystemAssetArea</code> — 대시보드 서비스는 <code>List&lt;SystemAssetArea&gt;</code> 를 주입받아 라우팅만 하고,
+              영역이 늘어도 집계·컨트롤러에 조건분기(if/switch)를 늘리지 않는다.</li>
+          <li>다형 판정 <code>AssetCondition</code> — 대시보드 집계·배지·쓰기 차단이 슬롯 판정 하나를 단일 진실 출처(SSOT)로 공유.
+              진단 영역이 쓰는 <code>SealedFileCondition</code> 은 기존 문자열을 <b>byte 동일</b> 승계.</li>
+          <li>판정 엔진 <code>SealedFileInspector</code> 추출 — 프로브·검증·봉인 실 로직을 진단·TFTP 두 영역이 공유.</li>
+          <li>두 영역 등록 — <code>DiagnosticSystemAssetArea</code>(6슬롯) + <code>TftpAssetArea</code>(<code>ipxe.efi</code>). 봉인 대칭성은 확장점 default 로 다형화.</li>
+          <li>운영 설정·전역 봉인·재검증을 통합 화면으로 승격. 자산 하나의 교체·롤백·이력은 진단 상세 URL 에 잔존, 구 대시보드 URL 은 302 이전.</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> (이번 슬라이스 밖 — 어디로 가는지 명시):
+          <ul>
+            <li>dhcpd 설정 <b>조각 쓰기</b>(수정·반영) — E1-I-3-c 소관. 3-a 는 읽기·집계·봉인만.</li>
+            <li>dhcpd 등 <b>관측 영역</b>의 실제 등록 — 후속 E1-I-3-b(관측, 완료). 3-a 는 봉인 미지원 경로를 확장점 default 로 열어만 둔다.</li>
+            <li>진단 자산 <b>활성화 골격</b>의 확장점 추출·어댑터 병합 — 단계 없는 리팩토링(R*)으로 이연.</li>
+            <li>브라우저/샌드박스 E2E — CP5 는 E1-I-2 와 <b>합동 종합 검증</b>으로 유보(§11).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래에서 <b>자산 영역</b>과 <b>슬롯 판정</b>을 바꾸면, 진단·TFTP 두 파일 봉인 영역이
+        각자 프로브해도 <b>같은 배지 어휘</b>(원본 유지 / 변조 감지 / 마커 없음 …)로 수렴하는 것과, 봉인 미지원 영역에서 봉인 버튼이
+        차단(disabled + tooltip)되는 것을 볼 수 있다. 판정 JS 는 서버 도메인 메서드와 같은 로직이다 —
+        <code>SealedFileCondition.healthy()/label()/badgeClass()</code>, <code>SystemAssetArea.supportsSeal()</code>,
+        그리고 <code>seal()</code> 의 409 거절(<b>드리프트 0</b>).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">자산 영역 :</span>
+            <button class="seg" data-area="DIAGNOSTIC" onclick="demoArea('DIAGNOSTIC')">DIAGNOSTIC</button>
+            <button class="seg" data-area="TFTP" onclick="demoArea('TFTP')">TFTP</button>
+            <button class="seg" data-area="OBSERVATION" onclick="demoArea('OBSERVATION')">관측(봉인 미지원)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">슬롯 판정 :</span>
+            <button class="seg" data-cond="ORIGINAL" onclick="demoCond('ORIGINAL')">ORIGINAL</button>
+            <button class="seg" data-cond="TAMPERED" onclick="demoCond('TAMPERED')">TAMPERED</button>
+            <button class="seg" data-cond="MARKER_MISSING" onclick="demoCond('MARKER_MISSING')">MARKER_MISSING</button>
+            <button class="seg" data-cond="MISSING" onclick="demoCond('MISSING')">MISSING</button>
+            <button class="seg" data-cond="NOT_CONFIGURED" onclick="demoCond('NOT_CONFIGURED')">NOT_CONFIGURED</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-area-row">
+              <strong>영역</strong><span class="label" id="demo-area-name">진단 리눅스 부팅 자산</span>
+              <span class="badge on" id="demo-area-badge">봉인 지원</span>
+            </div>
+            <div class="ux-row child" id="demo-slot"><!-- JS 렌더 --></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">영역·판정을 눌러보세요. 차단된 봉인 버튼에 마우스를 올리면 사유 tooltip 이 떠요.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 배지 라벨·건강 판정 = 서버 <code>SealedFileCondition</code>,
+        봉인 버튼 노출 판정 = 서버 <code>SystemAssetArea.supportsSeal()</code>, direct POST 의 409 = 서버 default
+        <code>seal()</code>. UI 1차 차단과 서버 안전망이 같은 SSOT.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>URL 표</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/system/asset</code></td><td>통합 대시보드(영역별 표 + 집계)</td><td>200 (view)</td></tr>
+            <tr><td>GET</td><td><code>/system/asset/settings</code></td><td>운영 설정(이력 보존 개수 + 영역별 봉인 카드)</td><td>200 (view)</td></tr>
+            <tr><td>POST</td><td><code>/system/asset/settings</code></td><td>보존 개수 변경 · self-PRG</td><td>302 / 200(필드 에러 재렌더)</td></tr>
+            <tr><td>POST</td><td><code>/system/asset/{area}/seal</code></td><td>영역 단위 무결성 봉인 · 대시보드 PRG</td><td>302 / 404 / 409 / 500</td></tr>
+            <tr><td>POST</td><td><code>/system/asset/recheck</code></td><td>재검증(비변경 새로고침) · 대시보드 PRG</td><td>302</td></tr>
+            <tr><td><span class="chip move">이전</span> GET</td><td><code>/system/diagnostic-asset</code></td><td>구 대시보드 URL 보존</td><td>302 → <code>/system/asset</code></td></tr>
+            <tr><td><span class="chip keep">잔존</span> GET/POST</td><td><code>/system/diagnostic-asset/{slot}…</code></td><td>진단 상세 · 교체 · 롤백</td><td>변경 없음</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12.5px;color:var(--text-muted);">봉인만 영역 인자를 받아 다중화한다. 단일 세그먼트 리터럴
+        (<code>/settings</code>·<code>/recheck</code>)과 2세그먼트 <code>/{area}/seal</code> 는 매칭이 겹치지 않는다.</p>
+
+        <h4>조회 흐름 (조회는 실패하지 않는다)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">SystemAssetController</div><div class="actor a3">DashboardService</div><div class="actor a4">Area(SPI) → Inspector</div>
+          <div class="step a1"><code>GET /system/asset</code></div><div class="step a2">dashboard()</div><div class="step a3">loadOverview()</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">areasByKey 순회(EnumMap)</div><div class="step a4">slots() · inspect(slot)</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">okCount += healthy()</div><div class="step a4">부재·미봉인·서빙비활성 → 판정으로 흡수</div>
+          <div class="step a1">영역별 표 + 집계</div><div class="step a2">Overview 모델</div><div class="step a3">groups + 합계</div><div class="step a4"></div>
+        </div>
+
+        <h4>봉인 흐름 (쓰기 액션만 거절 가능)</h4>
+        <pre><code>[정상]     POST /system/asset/DIAGNOSTIC/seal → areaOf("DIAGNOSTIC") → area.seal()
+                                                → 존재 슬롯 마커 기록 → 302 대시보드(flash "N건 기록")
+[영역 위조] POST /system/asset/NOPE/seal       → valueOf 실패 → SystemAssetAreaNotFoundException (404)
+[봉인 미지원] 미지원 영역 direct POST           → default seal() → SystemAssetSealNotSupportedException (409)
+[서빙 비활성] props 미설정 direct POST          → SystemAssetServingDisabledException (409, 안전망)
+[마커 IO 실패] 기록 중 디스크 오류              → MarkerWriteFailedException (500)</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 설계 실현 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 설계 실현 (SPI 다형 집계)</summary>
+      <div class="body">
+        <h4>① SPI 다영역 집계 — 라우팅만, 분기 없음</h4>
+        <p style="margin-top:0;"><code>SystemAssetDashboardService</code> 는 스프링이 발견한 <code>List&lt;SystemAssetArea&gt;</code> 전량을 주입받아
+        <code>EnumMap&lt;SystemAssetAreaKey, SystemAssetArea&gt;</code> 로 라우팅 맵을 세운다. 집계(<code>loadOverview</code>)는 이 맵을 순회하며
+        각 영역의 슬롯을 <code>inspect</code> 할 뿐이라, 영역이 늘어도 이 서비스와 컨트롤러의 코드가 자라지 않는다(조건분기 legacy 확장 금지 — 다형성으로 흡수).
+        같은 라우팅 키를 두 구현이 주장하면 URL 이 어느 영역으로 갈지 모호해지므로 <b>기동 시 즉시 실패</b>(fail-fast)한다.</p>
+
+        <h4>② 다형 판정 <code>AssetCondition</code> — 세 소비처가 한 근거를 공유</h4>
+        <p>슬롯 하나의 무결성·현황 판정을 <code>label()</code>·<code>badgeClass()</code>·<code>healthy()</code> 세 메서드로 표현한다.
+        대시보드 집계(healthy 슬롯 카운트)·배지 렌더링·쓰기 차단이 모두 이 하나를 공유해 문자열을 세 곳에 복붙하지 않는다.
+        영역마다 판정 축이 다르므로(진단 = 파일 봉인 사다리, 관측 = 서비스 상태) 영역별로 서로 다른 enum 이 이 인터페이스를 구현하고,
+        대시보드는 구체 enum 을 모른 채 세 메서드만 소비한다.</p>
+
+        <div class="callout success"><b>회귀망 무변경(byte 동일 승계)</b> — 진단 영역이 쓰는 <code>SealedFileCondition</code>(enum)의
+        <code>label()</code>·<code>badgeClass()</code> 는 기존 <code>IntegrityStatus.getDisplayMessage()</code> 와
+        <code>IntegrityStatusView.badgeClass()</code> 가 내던 문자열과 <b>정확히 동일</b>하다. 그 결과 E1-I-1/2 의 진단 무결성 테스트
+        단언을 한 줄도 고치지 않고 green 을 유지했다(값을 바꾸려면 두 원본과 이 enum 을 함께 옮겨야 한다는 불가침 주석을 명시).</div>
+
+        <h4>판정 사다리 (부재 → 미봉인 → 서명무효 → 변조 → 원본)</h4>
+        <div class="state-flow">MISSING(자산 없음) ─┐
+MARKER_MISSING(마커 파일 없음) ─┼─▶ 신뢰 불가(healthy=false)
+SIGNATURE_INVALID(서명 무효) ─┤
+TAMPERED(변조 감지, 해시 불일치) ─┘
+ORIGINAL(원본 유지) ───────────▶ 유일한 healthy=true (okCount 가산)
+NOT_CONFIGURED(서빙 비활성) ────▶ 자산 위치 미상 → 어댑터가 부재 판정으로 흡수</div>
+
+        <h4>③ 판정 엔진 <code>SealedFileInspector</code> 추출</h4>
+        <p><code>DiagnosticAssetIntegrityService</code> 안에 private 으로 묶여 있던 프로브(존재·크기·수정시각·해시) + 검증(마커 검증 사다리) + 봉인 로직을
+        영역 무관 무상태 부품으로 추출했다. 레이아웃별 프로브 규칙도 이 부품이 SSOT 다 — 디렉토리(IN_TREE)는 번들 매니페스트 트리 해시,
+        단일 파일(SIDECAR)은 SHA-256 을 재계산 근거로 쓴다. <b>어댑터는 <code>DiagnosticAssetIntegrityService</code> 를 주입하지 않고
+        인스펙터를 직접 쓴다</b> — 서비스 주입은 이중 판정과 (서비스↔어댑터) 순환 위험을 만들기 때문이다.</p>
+
+        <h4>④ 두 영역 등록 + 봉인 대칭성 다형화</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>DiagnosticSystemAssetArea</h4>
+            <ul>
+              <li>진단 리눅스 6슬롯(커널·initramfs·modloop·apkovl·repo·agent)</li>
+              <li>서빙 여부 = <code>PxeAssetsProperties</code> 가용성</li>
+              <li>슬롯 교체 가능(<code>replaceable</code>) — 상세 화면 존치</li>
+            </ul></div>
+          <div class="card v-blue"><h4>TftpAssetArea</h4>
+            <ul>
+              <li><code>ipxe.efi</code> 한 슬롯 — 읽기·봉인 전용(교체 폼 없음)</li>
+              <li>서빙 여부 = <code>TftpAssetsProperties</code> 가용성</li>
+              <li>같은 <code>SealedFileInspector</code> 위임(중복 회수)</li>
+            </ul></div>
+        </div>
+        <p><b>봉인 대칭성</b>은 <code>supportsSeal()</code>·<code>seal()</code> default 로 다형화했다. 봉인은 정적 파일의 해시를 기준선으로
+        기록하는 영역에만 의미가 있다 — 파일 봉인 영역은 <code>supportsSeal()=true</code> 로 실제 기록을 오버라이드하고,
+        봉인 개념이 없는 영역은 이를 <code>false</code> 로 두며 그 경우 default <code>seal()</code> 이
+        <code>SystemAssetSealNotSupportedException</code>(409)을 던진다(UI 1차 차단의 서버 안전망).</p>
+
+        <h4>URL 이전 — 링크·즐겨찾기 보존</h4>
+        <p>진단 상세(교체·롤백·이력)는 진단 고유 슬롯 네임스페이스 <code>/system/diagnostic-asset/{slot}</code> 에 그대로 남긴다(회귀 안전망 존치).
+        구 대시보드 URL <code>/system/diagnostic-asset</code> 는 <code>/system/asset</code> 로 302 리다이렉트해 즐겨찾기·기존 링크를 무해화했다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 적대적 검토 → 정비 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 적대적 검토 → 정비 (6건, 커밋 반영)</summary>
+      <div class="body">
+        <p style="margin-top:0;">CP4 이후 적대적 코드 리뷰 6건을 실코드·git 이력으로 검증해 처리했다. 코드가 좋아 보인다고 넘기지 않고,
+        죽은 경로·거짓 계약·잠복 회귀를 실제로 트리거해 확인했다.</p>
+        <table>
+          <thead><tr><th>#</th><th>구분</th><th>발견 → 처리</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td><td><span class="chip force">Critical</span></td>
+              <td><b><code>ddl-auto</code> 회귀 정정</b>(별도 커밋 <code>d403cf3</code>) — E1-I-2-b 커밋이 안정화 커밋을 말없이 되돌려 <code>update</code> 로 둔 leftover 를
+              <code>validate</code> 로 복구. 신규 두 테이블의 수동 DDL 이 <code>ddl/</code> 에 이미 존재함을 확인해 부팅 안전.</td>
+            </tr>
+            <tr>
+              <td>2</td><td><span class="chip del">死코드</span></td>
+              <td><b>死 집계 경로 통합</b> — 프로덕션 호출자 0 인 <code>loadDashboard()</code> + <code>seal()</code> 중복 루프 제거. 진단 6슬롯 오케스트레이션
+              커버리지를 프로덕션 경로 테스트 <code>DiagnosticSystemAssetAreaTest</code>(신설)로 이관 — 死경로로만 간접 검증되던 실경로를 직접 커버.</td>
+            </tr>
+            <tr>
+              <td>3</td><td><span class="chip del">死코드</span></td>
+              <td><b>미사용 SPI 메서드 제거</b> — <code>findSlot</code>·<code>markerResourceType</code>·<code>historyCategory</code>(호출자 0, 매직 문자열 중복).
+              소비처가 생기는 후속 슬라이스(b/c)에서 재도입한다.</td>
+            </tr>
+            <tr>
+              <td>4</td><td><span class="chip mod">거짓 계약</span></td>
+              <td><b>TFTP 봉인 미지원 오기 정정</b> — <code>ipxe.efi</code> 는 정적 파일이라 봉인이 의미가 있는데 미지원으로 잘못 표기돼 있었다.
+              예외 javadoc·테스트를 정합화하고, 봉인 미지원 default 가 실제로 409 를 던지는지 SPI 단 trigger 테스트를 별도로 뒀다.</td>
+            </tr>
+            <tr>
+              <td>5</td><td><span class="chip del">고아</span></td>
+              <td><b>死링크·고아 정리</b> — 상세 화면의 死링크, 고아 템플릿 2종(구 진단 대시보드·설정), 고아 JS 삭제.</td>
+            </tr>
+            <tr>
+              <td>6</td><td><span class="chip add">커버리지</span></td>
+              <td><b>프로덕션 경로 직접 테스트</b> — 위 2·4 의 결과로 <code>DiagnosticSystemAssetAreaTest</code>·<code>SystemAssetAreaDefaultsTest</code> 등
+              프로덕션 어댑터·확장점 default 를 직접 검증하는 테스트를 추가.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>발견 사항(기록)</b> — 1번 <code>ddl-auto</code> leftover 는 직전 슬라이스에서 유입돼 잠복하던 것으로,
+        정상 흐름에서는 드러나지 않는다. 본 슬라이스에서 실코드·직전 안정화 커밋(<code>2b7f397</code>)과 대조해 발견·정정했다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <p style="margin-top:0;">사용자 액션 통합 테스트는 <code>SystemAssetControllerTest</code>(<code>@WebMvcTest</code> + <code>MockMvc</code>)가
+        HTTP 계층에서 실제 상태코드·리다이렉트·flash·model 로 검증한다. Mockito 대체는 서비스 단까지만이라, 컨트롤러 try/catch 없이 서비스가 던진
+        예외를 전역 advice 가 상태코드로 변환하는 매핑이 실제로 실행된다.</p>
+
+        <h4>4 범주 커버리지 (컨트롤러 통합, 총 12건)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip cp2">성공 2xx</span></td><td>대시보드 200 · 설정 200 · 보존변경 302 · 진단봉인 302 · <b>TFTP봉인 302(다중 영역)</b> · 재검증 302</td><td>6</td></tr>
+            <tr><td><span class="chip mod">400</span></td><td>보존 개수 0 → 필드 에러 재렌더 · 숫자 아닌 값(타입 불일치) → 필드 에러 재렌더 (둘 다 <code>update</code> 미호출)</td><td>2</td></tr>
+            <tr><td><span class="chip del">404</span></td><td>없는 영역 키 <code>/NOPE/seal</code> → <code>SystemAssetAreaNotFoundException</code>(주소 위조)</td><td>1</td></tr>
+            <tr><td><span class="chip force">409</span></td><td>서빙 비활성 → <code>SystemAssetServingDisabledException</code>(재사용) · 봉인 미지원 → <code>SystemAssetSealNotSupportedException</code>(신규) advice 매핑</td><td>2</td></tr>
+            <tr><td><span class="chip cp5">500</span></td><td>봉인 중 마커 기록 IO 실패 → <code>MarkerWriteFailedException</code></td><td>1</td></tr>
+          </tbody>
+        </table>
+
+        <h4>도메인 trigger · 단위 테스트 (신규 asset 테스트)</h4>
+        <p>컨트롤러 테스트가 서비스 mock 으로 흘린 예외의 advice 매핑을 검증한다면, 그 예외가 <b>실제로 도메인에서 발생하는지</b>는 아래가 확장점·부품 단에서 직접 검증한다.</p>
+        <table>
+          <thead><tr><th>테스트</th><th>검증 대상</th><th>@Test</th></tr></thead>
+          <tbody>
+            <tr><td><code>SystemAssetAreaDefaultsTest</code></td><td>봉인 미지원 영역의 default <code>seal()</code> 이 실제로 409 를 던지는지(계약 trigger)</td><td>3</td></tr>
+            <tr><td><code>DiagnosticSystemAssetAreaTest</code></td><td>프로덕션 진단 어댑터의 6슬롯 오케스트레이션·서빙비활성 흡수·봉인 집계</td><td>8</td></tr>
+            <tr><td><code>TftpAssetAreaTest</code></td><td>TFTP 어댑터의 프로브·봉인·서빙비활성(409) 위임</td><td>5</td></tr>
+            <tr><td><code>SealedFileInspectorTest</code></td><td>프로브·판정 사다리·봉인 기록의 부품 단위 로직</td><td>6</td></tr>
+            <tr><td><code>SystemAssetDashboardServiceTest</code></td><td>라우팅·집계·중복 키 fail-fast·영역 위조 404</td><td>3</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>신규 예외 = 트리거 시나리오 동반</b> — 신규 3 예외(§7) 모두 이를 발생시키는 시나리오 테스트를 함께 뒀다.
+        409 는 컨트롤러 advice 매핑(mock)과 도메인 trigger(<code>SystemAssetAreaDefaultsTest</code>·어댑터 테스트) 두 층에서 검증한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>언제</th></tr></thead>
+          <tbody>
+            <tr><td><code>SystemAssetAreaNotFoundException</code></td><td>404</td><td><span class="chip new">신규</span></td><td>영역 키가 enum 파싱 실패 또는 미등록(주소 위조). base <code>NotFoundException</code> 상속</td></tr>
+            <tr><td><code>SystemAssetSealNotSupportedException</code></td><td>409</td><td><span class="chip new">신규</span></td><td>봉인 미지원 영역에 봉인 요청. default <code>seal()</code> 이 던지는 안전망. base <code>ConflictException</code> 상속</td></tr>
+            <tr><td><code>SystemAssetServingDisabledException</code></td><td>409</td><td><span class="chip new">신규</span></td><td>서빙 비활성인데 봉인처럼 자산 위치가 필요한 액션. direct POST·stale 안전망. base <code>ConflictException</code> 상속</td></tr>
+            <tr><td><code>MarkerWriteFailedException</code></td><td>500</td><td><span class="chip keep">재사용</span></td><td>봉인 중 마커 기록 IO 실패(진짜 IO 이상)</td></tr>
+            <tr><td><code>DiagnosticAssetSlotNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td>진단 상세 슬롯 이름 위조(잔존 상세 컨트롤러)</td></tr>
+            <tr><td>폼 검증(<code>BindingResult</code>)</td><td>400</td><td><span class="chip keep">재사용</span></td><td>보존 개수 필드 에러 — SSR 폼 재렌더(예외 아님)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>예외 = 프로그램 예외 전용</b> — 신규 3 예외는 모두 정상 흐름에서 UI 가 1차 차단(버튼 미노출/disabled)하고,
+        direct POST·주소 위조·서빙 비활성 같은 <b>진짜 비정상 경로</b>에서만 발동하는 서버 안전망이다. <code>supportsSeal()</code> 플래그가
+        UI 봉인 버튼 노출과 서버 가드를 같은 SSOT 로 공유한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 불가침 원칙 점검 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 불가침 원칙 점검</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>원칙</th><th>판정</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>조건분기 legacy 확장 금지 → 다형성</td><td><span class="chip add">준수</span></td><td>영역 추가는 <code>SystemAssetArea</code> 구현 등록으로 흡수. 집계·컨트롤러에 if/switch 증가 0. 봉인 대칭성도 default 메서드 다형화</td></tr>
+            <tr><td>Primitive Obsession 금지</td><td><span class="chip add">준수</span></td><td>영역 키는 <code>SystemAssetAreaKey</code>(enum), 판정은 <code>AssetCondition</code>/<code>SealedFileCondition</code>(enum), 슬롯 프로브 결과는 <code>AssetSlotStatus</code>(record). 판정을 원시 문자열로 넘기지 않음</td></tr>
+            <tr><td>네이밍 규칙</td><td><span class="chip add">준수</span></td><td><code>*Controller</code>·<code>*Service</code>·<code>*Response</code>·<code>*Exception</code>. 요청 DTO 는 <code>*Request</code>(재사용). enum/VO 는 도메인 의미 직접 노출</td></tr>
+            <tr><td>레이어 경계</td><td><span class="chip add">준수</span></td><td>Controller↔Service 는 <code>*Response</code>/<code>*Request</code> 만. 모델에 엔티티 노출 0(SPI 슬롯은 <code>SystemAssetSlotResponse</code> 로 변환)</td></tr>
+            <tr><td><code>@Transactional</code> 경계</td><td><span class="chip keep">해당 없음</span></td><td>본 슬라이스가 연 경로(집계·봉인)는 DB 트랜잭션이 아니라 파일시스템 마커 I/O. DB 트랜잭션 경계는 재사용한 이력 보존 설정 서비스(<code>AssetHistorySettingsServiceImpl</code>, <code>@Transactional</code>)에 존치</td></tr>
+            <tr><td>중복·과추상 경계</td><td><span class="chip add">준수</span></td><td>진단·TFTP 가 프로브·봉인을 복붙하지 않고 <code>SealedFileInspector</code> 공유. 반대로 관측 영역 판정은 파일 봉인과 축이 달라 <code>AssetCondition</code> 인터페이스로만 묶고 enum 은 분리(over-abstraction 회피)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E1-I-3-a-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew test</code> BUILD SUCCESSFUL (커밋 <code>8082c99</code> 기준 1433 tests green)</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>E1-I-1/2 진단 무결성 회귀망 무변경 green — 진단 무결성 단언 무수정(byte 동일 승계)</span></label></li>
+          <li><label><input type="checkbox" data-key="newtests"> <span>신규 asset 테스트 5파일(Defaults·DiagnosticArea·TftpArea·Inspector·DashboardService) + 컨트롤러 통합 12건</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span><code>ddl-auto=validate</code> 복구 — 신규 두 테이블 수동 DDL 이 <code>ddl/</code> 에 존재해 부팅 안전</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저/샌드박스 E2E (CP5) — E1-I-2 와 합동 종합 검증으로 <b>유보</b></span></label></li>
+        </ul>
+        <div class="callout warn"><b>"무변경"의 정직한 범위</b> — "집계 무분기·진단/TFTP production 무변경" 보증은
+        <b>프로덕션 어댑터·진단 테스트에 한정</b>이다. E1-I-2 단계에서 만든 테스트 DTO 생성처는 통합 응답 형태에 맞춰 가산 갱신됐다.
+        "완전 무변경"이 아니라 "프로덕션 판정 경로·진단 회귀 단언 무변경"으로 읽어야 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/spi/SystemAssetArea.java</code></td><td>확장점(SPI) — 영역 하나가 슬롯·판정·봉인 제공</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/spi/AssetCondition.java</code> · <code>SealedFileCondition.java</code></td><td>다형 판정 + 파일 봉인 사다리(byte 동일 승계)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/spi/SystemAssetAreaKey.java</code> · <code>SystemAssetSlot.java</code> · <code>AssetSlotStatus.java</code> · <code>AreaAvailability.java</code></td><td>라우팅 키 · 슬롯 메타 · 프로브 결과 · 가용성</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/service/SystemAssetDashboardService.java</code></td><td>집계·라우팅(EnumMap fail-fast)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/service/SealedFileInspector.java</code></td><td>프로브·검증·봉인 공유 부품</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/area/DiagnosticSystemAssetArea.java</code> · <code>TftpAssetArea.java</code></td><td>두 영역 어댑터</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/controller/SystemAssetController.java</code></td><td>통합 화면 컨트롤러(대시보드·설정·봉인·재검증)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>3 예외 + <code>TftpAsset</code> enum + <code>TftpAssetsProperties</code></td><td>404/409 안전망 · TFTP 슬롯 · TFTP 루트 설정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/asset/controller/DiagnosticAssetController.java</code></td><td>대시보드·설정·봉인 제거, 구 URL 302 이전, 상세만 존치</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>service/DiagnosticAssetIntegrityService.java</code></td><td>프로브·검증·봉인 로직을 <code>SealedFileInspector</code> 로 위임</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>application.properties</code> (커밋 <code>d403cf3</code>)</td><td><code>ddl-auto</code> update→validate 재정정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/system/asset/dashboard.html</code> · <code>settings.html</code> · <code>fragments/layout.html</code></td><td>통합 화면 뷰 + 내비 링크 정합</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td>구 <code>diagnostic-asset/dashboard.html</code> · <code>settings.html</code> · 고아 JS</td><td>통합 화면 승격에 따른 고아 정리</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>진단 무결성 회귀 테스트(E1-I-1/2)</td><td>단언 무수정 green(byte 동일 승계)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 상태 · 잔여 · 다음 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 상태 · 잔여 책임 · 다음 마일스톤</summary>
+      <div class="body">
+        <div class="callout warn"><b>완료 판정(정직 표기)</b> — 본 슬라이스는 <b>CP4 완료</b>(Step 8 테스트 green)이며
+        커밋(<code>8082c99</code>/<code>d403cf3</code>)에 반영돼 미커밋 시점이 아니다. 다만 <b>CP5(브라우저/샌드박스 E2E)는
+        E1-I-2(b-1/b-2)와 합동 종합 검증으로 유보</b> 상태다 — "완료"로 단정하지 않고 CP5 유보로 표기한다.</div>
+
+        <h4>잔여 책임 → 받는 슬라이스</h4>
+        <table>
+          <thead><tr><th>잔여</th><th>어디로</th></tr></thead>
+          <tbody>
+            <tr><td>CP5 E2E(통합 화면 조회·봉인·설정 브라우저 확인)</td><td>E1-I-2 와 합동 종합 검증</td></tr>
+            <tr><td>미사용 SPI 메서드(<code>findSlot</code>·<code>markerResourceType</code>·<code>historyCategory</code>) 재도입</td><td>소비처 생기는 b/c</td></tr>
+            <tr><td>dhcpd 관측 영역 실제 등록(봉인 미지원 default 소비)</td><td>E1-I-3-b (관측, 완료)</td></tr>
+            <tr><td>dhcpd 조각 쓰기(수정·반영)</td><td>E1-I-3-c</td></tr>
+            <tr><td>진단 활성화 골격 확장점 추출·어댑터 병합</td><td>단계 없는 리팩토링(R*)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>회귀 위험</h4>
+        <ul>
+          <li><b>낮음</b> — 진단 판정 문자열을 byte 동일 승계했고 진단 회귀망이 무수정 green 이라, 통합 화면 이관이 진단 판정 결과를 바꾸지 않는다.</li>
+          <li>구 <code>/system/diagnostic-asset</code> 대시보드 URL 은 302 로 흡수했으나, 외부에서 그 페이지 본문을 직접 스크래핑하던 자동화가 있었다면 리다이렉트를 따라야 한다(내부 자동화 없음).</li>
+          <li><code>ddl-auto=validate</code> 복구로 부팅 시 엔티티↔스키마 불일치가 있으면 fail-fast 한다 — 이는 의도된 안전장치이며, 신규 두 테이블 DDL 이 적용됐는지 배포 시 확인 필요.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== 부록 — 구현 좌표 ===== -->
+    <details class="section" id="appendix">
+      <summary>📎 부록 — 구현 좌표 (패키지 트리)</summary>
+      <div class="body">
+        <div class="pkg-tree">execution/asset/
+├── spi/
+│   ├── SystemAssetArea.java          (SPI 확장점: areaKey·slots·inspect·supportsSeal·seal)
+│   ├── SystemAssetAreaKey.java       (enum: DIAGNOSTIC · TFTP [· DHCPD ← E1-I-3-b])
+│   ├── AssetCondition.java           (판정 인터페이스: label·badgeClass·healthy)
+│   ├── SealedFileCondition.java      (enum: 파일 봉인 사다리, byte 동일 승계)
+│   ├── SystemAssetSlot.java          (슬롯 메타)
+│   ├── AssetSlotStatus.java          (record: present·sizeBytes·modifiedAt·condition)
+│   └── AreaAvailability.java         (enum: CONFIGURED · NOT_CONFIGURED)
+├── service/
+│   ├── SystemAssetDashboardService.java  (EnumMap 라우팅 + loadOverview + areaOf + seal)
+│   └── SealedFileInspector.java          (probe · verify · seal 공유 부품)
+├── area/
+│   ├── DiagnosticSystemAssetArea.java     (진단 6슬롯 어댑터)
+│   └── TftpAssetArea.java                 (ipxe.efi 읽기·봉인 어댑터)
+├── controller/
+│   ├── SystemAssetController.java         (신규 통합 화면)
+│   └── DiagnosticAssetController.java     (상세만 존치 + 구 URL 302)
+└── exception/
+    ├── SystemAssetAreaNotFoundException.java     (404)
+    ├── SystemAssetSealNotSupportedException.java (409)
+    └── SystemAssetServingDisabledException.java  (409)</div>
+        <p style="font-size:12px;color:var(--text-muted);">DHCPD 키·관측 영역은 후속 E1-I-3-b(<code>d3c4f32</code>)에서 실제 등록된다. 3-a 는 봉인 미지원 경로를 확장점 default 로 열어만 둔다.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  // ① ToC 클릭 → open + smooth scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 서버 도메인 메서드와 동형(드리프트 0)
+  //  · SEALED_FILE_CONDITION : 서버 SealedFileCondition 의 label()/badgeClass()/healthy() 를 그대로 재현(byte 동일)
+  //  · AREA_SUPPORTS_SEAL    : 서버 SystemAssetArea.supportsSeal()
+  //  · sealOutcome()         : 서버 seal() 경로 — 미지원 default → 409(SealNotSupported), 서빙비활성 → 409(ServingDisabled)
+  // ─────────────────────────────────────────────────────────────
+  const SEALED_FILE_CONDITION = {
+    ORIGINAL:        { label: '원본 유지',            badge: 'n-badge-green',  healthy: true  },
+    TAMPERED:        { label: '변조 감지 (해시 불일치)', badge: 'n-badge-red',   healthy: false },
+    SIGNATURE_INVALID:{ label: '서명 무효',           badge: 'n-badge-orange', healthy: false },
+    MARKER_MISSING:  { label: '마커 파일 없음',        badge: 'n-badge-gray',   healthy: false },
+    MISSING:         { label: '자산 없음',            badge: 'n-badge-gray',   healthy: false },
+    NOT_CONFIGURED:  { label: '서빙 비활성',           badge: 'n-badge-gray',   healthy: false }
+  };
+  const AREA = {
+    DIAGNOSTIC:  { name: '진단 리눅스 부팅 자산', supportsSeal: true,  fileSealed: true  },
+    TFTP:        { name: 'TFTP 부팅 인프라 자산', supportsSeal: true,  fileSealed: true  },
+    OBSERVATION: { name: '관측 영역 (dhcpd 등)',  supportsSeal: false, fileSealed: false }
+  };
+  // n-badge-* → 데모 배지 시각 매핑(카탈로그 .badge 변형)
+  const BADGE_VIS = { 'n-badge-green':'on', 'n-badge-red':'del', 'n-badge-orange':'dep', 'n-badge-gray':'off' };
+
+  let demoAreaKey = 'DIAGNOSTIC';
+  let demoCondKey = 'ORIGINAL';
+
+  function demoArea(k) { demoAreaKey = k; demoRender(); }
+  function demoCond(k) { demoCondKey = k; demoRender(); }
+
+  // 서버 seal() 경로 재현
+  function sealOutcome(areaKey, condKey) {
+    const area = AREA[areaKey];
+    if (!area.supportsSeal) return { code: 409, ex: 'SystemAssetSealNotSupportedException', blocked: true,
+      tip: '이 자산 영역은 무결성 봉인을 지원하지 않습니다 (supportsSeal=false). default seal() 이 409 안전망.' };
+    if (condKey === 'NOT_CONFIGURED') return { code: 409, ex: 'SystemAssetServingDisabledException', blocked: true,
+      tip: '자산 서빙이 비활성(루트 미설정)입니다. 자산 위치가 있어야 봉인할 수 있어요.' };
+    return { code: 200, ex: null, blocked: false, tip: '' };
+  }
+
+  function demoBtn(label, blocked, tip) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis +
+      ' onclick="demoSeal(' + blocked + ')">' + label + '</button></span>';
+  }
+  function demoSeal(blocked) {
+    const msg = document.getElementById('demo-message');
+    if (blocked) {
+      msg.className = 'ux-message error';
+      msg.textContent = '봉인 버튼이 disabled 입니다 (UI 1차 차단). direct POST 로 우회해도 서버가 409 로 거절합니다 (안전망).';
+      return;
+    }
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ 봉인 진행 — 존재 슬롯의 현재 해시를 마커에 기록하고 대시보드로 PRG(302).';
+  }
+
+  function demoRender() {
+    const area = AREA[demoAreaKey];
+    const cond = area.fileSealed ? SEALED_FILE_CONDITION[demoCondKey] : null;
+    document.querySelectorAll('.ux-toolbar .seg[data-area]').forEach(s => s.classList.toggle('active', s.dataset.area === demoAreaKey));
+    document.querySelectorAll('.ux-toolbar .seg[data-cond]').forEach(s => {
+      s.classList.toggle('active', s.dataset.cond === demoCondKey);
+      s.disabled = !area.fileSealed;
+      s.style.opacity = area.fileSealed ? '1' : '0.4';
+    });
+
+    // 영역 헤더 행
+    document.getElementById('demo-area-name').textContent = area.name;
+    const ab = document.getElementById('demo-area-badge');
+    ab.textContent = area.supportsSeal ? '봉인 지원' : '봉인 미지원';
+    ab.className = 'badge ' + (area.supportsSeal ? 'on' : 'off');
+
+    // 슬롯 행
+    const out = sealOutcome(demoAreaKey, demoCondKey);
+    const slot = document.getElementById('demo-slot');
+    let badgeHtml, slotName;
+    if (area.fileSealed) {
+      slotName = (demoAreaKey === 'TFTP') ? 'ipxe.efi' : 'vmlinuz-lts';
+      badgeHtml = '<span class="badge ' + BADGE_VIS[cond.badge] + '">' + cond.label + '</span>';
+    } else {
+      slotName = 'dhcpd.conf (관측)';
+      badgeHtml = '<span class="badge dep">관측 기반 판정</span>';
+    }
+    slot.classList.toggle('muted', area.fileSealed && demoCondKey === 'NOT_CONFIGURED');
+    slot.innerHTML = '<strong>슬롯</strong><span class="label">' + slotName + '</span>' + badgeHtml
+      + demoBtn('무결성 봉인', out.blocked, out.tip);
+
+    // capability 패널
+    const tf = (v, goodWhenTrue) => {
+      const cls = (v === goodWhenTrue) ? 'f' : 't';
+      return '<span class="' + cls + '">' + v + '</span>';
+    };
+    let caps = 'area.areaKey()            = ' + demoAreaKey + '\n'
+             + 'area.supportsSeal()       = ' + tf(area.supportsSeal, true) + (area.supportsSeal ? ' → 봉인 버튼 노출' : ' → 버튼 미노출(UI 1차 차단)') + '\n';
+    if (area.fileSealed) {
+      caps += 'condition                 = ' + demoCondKey + '\n'
+            + 'condition.label()         = "' + cond.label + '"\n'
+            + 'condition.badgeClass()    = "' + cond.badge + '"\n'
+            + 'condition.healthy()       = ' + tf(cond.healthy, true) + (cond.healthy ? ' → okCount 가산' : ' → 신뢰 불가') + '\n';
+    } else {
+      caps += 'condition                 = (관측 기반 — 파일 봉인 사다리 미적용)\n';
+    }
+    caps += 'seal() [direct POST]      → ' + (out.code === 200
+              ? '<span class="f">200</span> (기록/건너뜀)'
+              : '<span class="t">' + out.code + '</span> throw ' + out.ex);
+    document.getElementById('demo-caps').innerHTML = caps;
+  }
+  demoRender();   // 파일 끝에서 1회 호출(불가침)
+</script>
+</body>
+</html>

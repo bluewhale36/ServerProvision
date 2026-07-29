@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1-I-3-b Report — PXE 인프라 관측 (dhcpd, 읽기 전용) 완료 보고</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203a'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout p { margin:5px 0; font-size:12.8px; }
+  .callout p:first-child { margin-top:0; } .callout p:last-child { margin-bottom:0; }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar.muted { opacity:0.4; pointer-events:none; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:172px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar input[type="range"] { flex:1; min-width:120px; max-width:260px; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .mono { color:var(--text-muted); font-size:11px; margin-right:2px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 4-actor 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── .pkg-tree : 파일 트리 (§10) ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 반응형 (명세 §3) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1-I-3-b — PXE 인프라 관측 (dhcpd, 읽기 전용) <span class="v2-badge">완료 보고 · 이질 판정 흡수</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1-I-3-b (feature)</span>
+    <span><strong>상위</strong> E1-I-3 (PXE 인프라 관측 우산)</span>
+    <span><strong>커밋</strong> d3c4f32</span>
+    <span><strong>상태</strong> CP4 완료 · CP5 유보(E1-I-2 합동)</span>
+    <span><strong>작성</strong> 2026-07-28 19:36 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 완료 요약 (무엇을 했나)</a></li>
+      <li><a href="#s2">§2 만든 것 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 실현된 판정 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 설계 결정 D1~D11 실현</a></li>
+      <li><a href="#s6">§6 테스트 (단위 + 통합 4범주)</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 적대적 검토 → 정비 / 부산물</a></li>
+      <li><a href="#s9">§9 Verification (검증 결과)</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 상태 · 잔여 · 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 완료 요약 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 완료 요약 — 무엇을 했나</summary>
+      <div class="body">
+        <p style="margin-top:0;">파일 봉인(해시 마커)으로 판정할 수 없는 이질 영역인 <b>dhcpd(DHCP 서버)</b>를, 선행 슬라이스 a 가 만든 <b>통합 시스템 자산 대시보드</b>의 세 번째 영역으로 붙였다. b 는 오직 관측(읽기 전용)이며 <b>신규 예외 0 · DB·엔티티·스키마 무변경</b>이다. dhcpd 의 건강은 해시 드리프트가 아니라 세 개의 독립축으로 판정된다.</p>
+        <ol>
+          <li><b>조각 파일 존재 + 구성 문법</b> — <code>managed.conf</code> 가 있는가 + <code>dhcpd -t</code> 가 통과하는가</li>
+          <li><b>systemd 서비스 라이브니스</b> — <code>systemctl is-active dhcpd</code> 가 active 인가</li>
+          <li><b>임대 현황</b> — <code>dhcpd.leases</code> 의 활성 임대 건수</li>
+        </ol>
+        <p>a 가 열어 둔 확장점(<code>SystemAssetArea</code>, 도메인이 구현해 끼우는 Service Provider Interface)이 이 이질 판정을 <b>집계 코드에 영역별 분기를 만들지 않고</b> 흡수할 수 있는지가 확장점 계약의 스트레스 테스트였다. 대시보드 집계 서비스는 영역 종류를 묻지 않고 <code>area.context()</code> 를 균일하게 map 할 뿐이다 — 이질 판정이 <b>집계 분기 없이 합류</b>했고, 계약은 통과했다.</p>
+
+        <div class="callout success"><b>완료 상태</b> — 커밋 <code>d3c4f32</code> 로 CP4(Step 8~9)까지 완료. <code>./gradlew test</code> BUILD SUCCESSFUL, <b>1463 tests · 0 failures · 0 errors · 6 skipped(baseline)</b>, 신규 <b>pxeinfra 29 테스트</b>, 진단 무결성 회귀망 무변경 green. CP5(샌드박스 하네스 E2E)는 선행 E1-I-2 와 <b>합동 종합 검증으로 유보</b>한다(§11).</div>
+
+        <div class="callout"><b>a 가 갖춰 둔 전제</b> — 통합 대시보드(<code>/system/asset</code>) + 확장점 <code>SystemAssetArea</code>(<code>supportsSeal()</code>/<code>seal()</code> default 대칭) + 슬롯 판정 인터페이스 <code>AssetCondition</code>(<code>healthy()==true</code> 슬롯 수 = okCount). 진단 리눅스·TFTP 두 영역이 등록돼 있고 둘 다 파일 봉인 사다리(<code>SealedFileCondition</code>)를 쓴다. b 는 여기에 세 번째 영역을 <b>기존 어댑터·집계 로직을 건드리지 않고</b> 붙였다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 만든 것 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 만든 것 (읽기 전용 관측 4종) + 비목표</summary>
+      <div class="body">
+        <h4>충족한 완료조건 — 읽기 전용 관측 4종</h4>
+        <table>
+          <thead><tr><th>#</th><th>관측</th><th>실현</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>조각 파일(<code>managed.conf</code>) 존재 + <code>dhcpd -t</code> 문법</td><td><code>ConfigFileCondition</code> 슬롯 사다리 — 존재+문법을 하나의 슬롯 판정으로. okCount 참여</td></tr>
+            <tr><td>②</td><td><code>systemctl is-active dhcpd</code> 서비스 상태</td><td><code>ServiceState</code>(<code>ObservationSeverity</code> 매핑) — 헤더 관측 chip. okCount 불참</td></tr>
+            <tr><td>③</td><td>미구성 → 예외 아닌 상태 표시 + 특권 명령 미실행</td><td><code>DhcpdAssetArea</code> 게이팅 — 미구성이면 슬롯 <code>NOT_CONFIGURED</code> + <code>context()=[]</code>, 명령 spawn 안 함</td></tr>
+            <tr><td>④</td><td><code>dhcpd.leases</code> 활성 임대 건수(헤더) + 목록 페이지</td><td><code>DhcpLeaseParser</code>/<code>LeaseSnapshot.activeCount</code> → 헤더 건수 chip + <code>/system/pxe-infra</code> 임대 목록 표(Q1)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>지킨 불가침 제약</h4>
+        <table>
+          <thead><tr><th>제약</th><th>실현</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip force">쓰기 0</span></td><td>모든 엔드포인트가 GET. 조각 반영(폼·원자 교체·재기동)은 <b>c 소관</b> — b 에 쓰기 경로 없음</td></tr>
+            <tr><td><span class="chip force">신규 예외 0</span></td><td>미구성·명령 실패·타임아웃·명령 부재·파싱 실패·손상 블록을 전부 <b>상태로 흡수</b>. 봉인 미지원은 a 가 도입한 기존 <code>SystemAssetSealNotSupportedException</code> 의 SPI default 로 흡수</td></tr>
+            <tr><td><span class="chip force">DB·엔티티 무변경</span></td><td>엔티티(<code>PxeNetworkConfig</code>)·리포지토리·DDL 은 <b>c 소관</b>. 수직 슬라이스 6·7·9 단계 N/A</td></tr>
+            <tr><td><span class="chip force">특권 명령 경계 1개</span></td><td>외부 명령은 <code>SystemCommandRunner</code> 포트 + <code>AllowedCommand</code> enum 을 통해서만. 절대 경로·타임아웃 3초·sudoers 근거를 enum 이 SSOT 로 보유</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>비 목표 (의도적 이연)</b> :
+          <ul>
+            <li>조각 반영 쓰기 → <b>E1-I-3-c</b> (폼·렌더·<code>dhcpd -t</code> 게이트·원자 교체·재기동·자동 복원 + <code>PxeNetworkConfig</code> 엔티티·DDL)</li>
+            <li>임대 예약 / OMAPI → 범위 밖</li>
+            <li>IPv6 lease → <code>IpAddressVO</code> 가 IPv4 전용이라 파서가 흡수 skip</li>
+            <li>관측 캐싱 / TTL → 후속 마일스톤(b 코드 없음)</li>
+            <li>활성화 골격 확장점 추출 → R* 리팩토링 캠페인으로 이연</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 이질 판정이 같은 배지 어휘로 수렴 (구현된 로직 그대로)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 데모는 구현된 서버 도메인 메서드를 JS 로 <b>1:1 재현</b>한 것이다(드리프트 0). 통합 대시보드 하나에 <b>진단 리눅스·TFTP·dhcpd</b> 세 영역이 <b>서로 다른 판정 모델</b>로 같은 화면에 상태 배지로 수렴한다. 진단·TFTP 는 파일 봉인이라 고정, <b>dhcpd 만 토글로 조작</b>한다. 토글을 바꾸면 (a) dhcpd <b>조각 슬롯 배지</b>가 <code>ConfigFileCondition</code> 사다리로 갱신, (b) 헤더 <b>관측 chip 2개</b>(서비스 상태·활성 임대)가 갱신, (c) <b>okCount 는 조각 슬롯만 반영</b>(서비스·임대 불참)임을 확인할 수 있다. "미구성" 마스터 토글로 <b>미구성 게이팅</b>(특권 명령 미노출)도 체험한다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">availability :</span>
+            <button class="seg" data-f="configured" data-v="1" onclick="demoSet('configured',1)">CONFIGURED</button>
+            <button class="seg" data-f="configured" data-v="0" onclick="demoSet('configured',0)">NOT_CONFIGURED (미구성)</button>
+          </div>
+          <div class="ux-toolbar" id="tb-frag">
+            <span class="group-label">조각 파일 managed.conf :</span>
+            <button class="seg" data-f="fragmentPresent" data-v="1" onclick="demoSet('fragmentPresent',1)">존재</button>
+            <button class="seg" data-f="fragmentPresent" data-v="0" onclick="demoSet('fragmentPresent',0)">없음</button>
+          </div>
+          <div class="ux-toolbar" id="tb-syntax">
+            <span class="group-label">dhcpd -t (특권 명령) :</span>
+            <button class="seg" data-f="syntax" data-v="PASS" onclick="demoSet('syntax','PASS')">통과 (exit 0)</button>
+            <button class="seg" data-f="syntax" data-v="ERROR" onclick="demoSet('syntax','ERROR')">오류 (exit≠0)</button>
+            <button class="seg" data-f="syntax" data-v="UNCHECKED" onclick="demoSet('syntax','UNCHECKED')">미검사 (부재·타임아웃)</button>
+          </div>
+          <div class="ux-toolbar" id="tb-service">
+            <span class="group-label">systemctl is-active (특권) :</span>
+            <button class="seg" data-f="service" data-v="active" onclick="demoSet('service','active')">active</button>
+            <button class="seg" data-f="service" data-v="inactive" onclick="demoSet('service','inactive')">inactive</button>
+            <button class="seg" data-f="service" data-v="failed" onclick="demoSet('service','failed')">failed</button>
+            <button class="seg" data-f="service" data-v="unknown" onclick="demoSet('service','unknown')">unknown</button>
+          </div>
+          <div class="ux-toolbar" id="tb-lease">
+            <span class="group-label">활성 임대(dhcpd.leases) :</span>
+            <input type="range" min="0" max="40" value="8" id="lease-range" oninput="demoSet('leases',parseInt(this.value,10))">
+            <span class="mono" id="lease-val">8건</span>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row"><strong>진단 리눅스</strong><span class="label">파일 봉인(해시 대조) — 데모 고정</span><span class="mono">정상 6 / 전체 6</span><span class="badge on">원본 유지</span></div>
+            <div class="ux-row"><strong>TFTP</strong><span class="label">파일 봉인(해시 대조) — 데모 고정</span><span class="mono">정상 3 / 전체 3</span><span class="badge on">원본 유지</span></div>
+            <div class="ux-row" id="dhcpd-header"><!-- JS 렌더 --></div>
+            <div class="ux-row child" id="dhcpd-slot"><!-- JS 렌더 --></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">토글을 바꿔 보세요. dhcpd 만 판정 모델이 다릅니다 — 세 영역이 같은 배지 어휘로 수렴합니다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 <code>ConfigFileCondition.of(present, syntaxCheck)</code> 사다리 · <code>ServiceState.from(commandResult)</code> · <code>LeaseSnapshot.activeCount(now)</code> 판정은 구현된 서버 도메인 메서드와 <b>문자 그대로 같은 로직</b>이다(판정 로직은 데모 <code>&lt;script&gt;</code> 상단 주석에 명시). 집계 서비스는 <code>area.context()</code> 를 균일 map 할 뿐 영역 종류를 묻지 않으므로, 이 이질 판정이 <b>집계 분기 없이</b> 합류한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 (구현)</summary>
+      <div class="body">
+        <p style="margin-top:0;">두 엔드포인트 모두 <b>GET(읽기 전용)</b> 이다. 쓰기(POST/PUT/DELETE)는 c 소관이라 b 에 없다.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/system/asset</code></td><td>기존 통합 대시보드 — dhcpd 영역이 group 으로 합류(조각 슬롯 + 헤더 관측 chip)</td><td>200 · <code>SystemAssetOverviewResponse</code></td></tr>
+            <tr><td>GET</td><td><code>/system/pxe-infra</code></td><td>임대 목록 상세 페이지 — <code>dhcpd.leases</code> 파싱 결과 표</td><td>200 · <code>PxeInfraOverviewResponse</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>조회 흐름 — 미구성이면 특권 명령을 아예 spawn 하지 않는다</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Controller</div><div class="actor a3">DhcpdAssetArea</div><div class="actor a4">Inspector / Reader</div>
+          <div class="step a1"><code>GET /system/asset</code></div><div class="step a2">대시보드 서비스 위임</div><div class="step a3"><code>availability()</code> 판정</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">CONFIGURED?</div><div class="step a4"><code>dhcpd -t</code> · <code>is-active</code> · leases 읽기</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">NOT_CONFIGURED → 슬롯 <code>NOT_CONFIGURED</code>, <code>context()=[]</code></div><div class="step a4">특권 명령 실행 안 함</div>
+          <div class="step a1">배지 렌더</div><div class="step a2"><code>toGroup()</code> 균일 map</div><div class="step a3"><code>inspect()</code> + <code>context()</code></div><div class="step a4">조각→슬롯 / 서비스·임대→관측</div>
+        </div>
+
+        <h4>응답 구조 (뷰는 문자열·플래그만 받는다)</h4>
+        <pre><code>SystemAssetOverviewResponse
+ └ groups: List&lt;SystemAssetAreaGroupResponse&gt;
+     └ (dhcpd) areaKey="DHCPD", displayName, availability,
+        slots: [조각 슬롯 1개 — ConfigFileCondition.label()/badgeClass()],
+        okCount(=조각 slot healthy 수) / totalCount(=1), supportsSeal=false,
+        context: List&lt;AssetContextItemResponse&gt;      ← b 신규 필드 (7→8)
+                 [ {서비스 상태, badgeClass}, {"활성 임대", "N건", INFO} ]
+                 (미구성이면 빈 목록 → 뷰가 chip 을 안 그림)</code></pre>
+        <p><code>SystemAssetDashboardService.toGroup</code> 은 <code>area.context()</code> 를 <code>AssetContextItemResponse</code> 로 균일 map 하는 <b>한 줄</b>만 추가됐다. 진단·TFTP 영역은 <code>context()</code> default 빈 목록을 반환하므로 이 map 을 그대로 타면서도 chip 이 생기지 않는다 — 집계에 영역 분기가 자라지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 실현된 판정 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 실현된 판정 모델 (SSOT)</summary>
+      <div class="body">
+        <p style="margin-top:0;">도메인 의미값을 전부 Value Object / Enum 으로 타입화했다(Primitive Obsession 금지). 원시 <code>String mac</code> / <code>int exitCode</code> 를 SPI·대시보드로 전파하지 않는다 — 종료양태·서비스 상태·임대 binding 은 각각 enum, IP·MAC 은 기존 VO 로 잠갔다.</p>
+
+        <h4>① 조각 슬롯 판정 — <code>ConfigFileCondition</code> (implements <code>AssetCondition</code>)</h4>
+        <div class="state-flow">NOT_CONFIGURED ──▶ ABSENT ──▶ SYNTAX_ERROR ──▶ UNKNOWN ──▶ SYNTAX_OK
+   (서빙 비활성)   (조각 없음)   (구성 문법 오류)  (문법 미검사)   (구성 유효 · 유일한 healthy)</div>
+        <pre><code>static ConfigFileCondition of(boolean fragmentPresent, CommandResult syntaxCheck) {
+    if (!fragmentPresent) return ABSENT;
+    return switch (syntaxCheck.outcome()) {
+        case NOT_FOUND, TIMED_OUT -> UNKNOWN;                       // 종료양태 우선
+        case COMPLETED -> syntaxCheck.exitedZero() ? SYNTAX_OK : SYNTAX_ERROR;
+    };
+}
+// healthy() == (this == SYNTAX_OK)  → okCount 는 SYNTAX_OK 슬롯만 셈</code></pre>
+        <div class="callout warn"><b>중요 시맨틱</b> : <code>dhcpd -t</code> 는 조각이 아니라 <code>dhcpd.conf</code> <b>전체</b>를 검사한다 — 조각과 무관한 기존 오류도 조각 슬롯을 문법 오류로 만든다. 그래서 라벨을 "조각 문법"이 아니라 "<b>구성 문법 오류</b>"(전체 구성)로 확정했다.</div>
+
+        <h4>② 서비스 상태 — <code>ServiceState</code> (plain enum, <code>AssetCondition</code> 미구현)</h4>
+        <pre><code>enum ServiceState { ACTIVE, INACTIVE, FAILED, UNKNOWN;
+    static ServiceState from(CommandResult r) {            // 종료양태 우선, COMPLETED 에서만 stdout 파싱
+        return switch (r.outcome()) {
+            case NOT_FOUND, TIMED_OUT -> UNKNOWN;
+            case COMPLETED -> switch (r.stdout().strip()) {
+                case "active" -> ACTIVE; case "inactive" -> INACTIVE;
+                case "failed" -> FAILED; default -> UNKNOWN; };
+        };
+    }
+    ObservationSeverity severity() { ... }  // ACTIVE→OK · INACTIVE→WARN · FAILED→CRITICAL · UNKNOWN→INFO
+}</code></pre>
+        <p><code>ServiceState</code> 는 슬롯이 아니라 헤더 관측이라 <code>AssetCondition</code>(<code>healthy()</code> = okCount 집계용)을 구현하지 않는다(Interface Segregation Principle — 관측은 healthy 불요). 배지 어휘는 <code>ObservationSeverity</code> 가 단독 소유하고, <code>severity()</code> 는 <b><code>ACTIVE→OK · INACTIVE→WARN · FAILED→CRITICAL · UNKNOWN→INFO</code></b> 로 구현했다(failed 가 inactive 보다 위중).</p>
+
+        <h4>③ 관측 배지 타입 — <code>ObservationSeverity</code> (배지 어휘 단일 출처)</h4>
+        <table>
+          <thead><tr><th>Severity</th><th>badgeClass()</th><th>용례</th></tr></thead>
+          <tbody>
+            <tr><td><code>OK</code></td><td><code>n-badge-green</code></td><td>서비스 ACTIVE</td></tr>
+            <tr><td><code>INFO</code></td><td><code>n-badge-gray</code></td><td>활성 임대 "N건", 서비스 UNKNOWN</td></tr>
+            <tr><td><code>WARN</code></td><td><code>n-badge-orange</code></td><td>서비스 INACTIVE</td></tr>
+            <tr><td><code>CRITICAL</code></td><td><code>n-badge-red</code></td><td>서비스 FAILED</td></tr>
+          </tbody>
+        </table>
+        <pre><code>record AssetContextItem(String label, String value, ObservationSeverity severity) {}   // SPI 반환
+record AssetContextItemResponse(String label, String value, String badgeClass) {}      // 뷰 경계 (문자열만)</code></pre>
+
+        <h4>④ 임대 파서 — <code>DhcpLeaseParser</code> (순수 · Spring 의존 0 · 절대 throw 안 함)</h4>
+        <pre><code>final class DhcpLeaseParser { LeaseSnapshot parse(String raw) { ... } }   // 무상태 — String 픽스처 직접 테스트
+record LeaseEntry(IpAddressVO ip, MacAddressVO mac,   // mac nullable — hardware ethernet 줄 없는 블록
+                  Instant starts, Instant ends, LeaseBindingState state) {}
+record LeaseSnapshot(List&lt;LeaseEntry&gt; entries) {
+    int activeCount(Instant now) { ... }               // IP 기준 최신 블록 dedup + state==ACTIVE && ends&gt;now
+}
+enum LeaseBindingState { ACTIVE, FREE, EXPIRED, RELEASED, ABANDONED, BACKUP, RESET, UNKNOWN }  // 미지 → UNKNOWN</code></pre>
+        <p>파서는 <code>lease &lt;ip&gt; { … }</code> 블록 단위 try/catch 로 VO invariant throw·손상 블록·미지 binding·빈 파일을 전부 흡수한다(절대 throw 0). <code>IpAddressVO</code>(IPv4 전용)·<code>MacAddressVO</code> 는 <b>재사용</b>, <code>LeaseBindingState</code>·<code>LeaseSnapshot</code> 은 신규 VO 로 타입화(원시 String/int 전파 0). 파일 부재는 <code>DhcpLeaseReader</code>(<code>Files.readString</code> 실패 → 빈 snapshot)가 흡수한다.</p>
+        <div class="callout warn"><b>잠정 (Rocky 9 실측 전)</b> : 파서 <b>타입·사다리·구조</b>(ISC <code>binding state</code>/<code>hardware ethernet</code>/<code>starts</code>/<code>ends</code>)는 dhcpd 버전 무관하게 안정적이라 <b>확정</b>했다. 손으로 쓴 픽스처는 실 ISC 문법으로 작성한 "<b>잠정</b>" 상태이며, 실 서버 캡처로의 교체는 <b>합동 CP5 전</b>에 한다(§11·Q2). 파서 구조·타입·사다리는 실측과 무관하게 확정이다.</div>
+
+        <h4>⑤ 특권 명령 경계 — 포트 + enum + 경화된 <code>CommandResult</code></h4>
+        <pre><code>interface SystemCommandRunner { CommandResult run(AllowedCommand cmd, List&lt;String&gt; callerArgs); }
+enum CommandOutcome { COMPLETED, TIMED_OUT, NOT_FOUND }   // 3-상태 종료양태를 상호배타 타입화
+record CommandResult(CommandOutcome outcome, int exitCode, String stdout, String stderr) {
+    boolean exitedZero() { return outcome == COMPLETED && exitCode == 0; }   // exitCode 는 COMPLETED 에서만 의미
+}
+enum AllowedCommand {                                     // 지금은 2상수 (restart/restorecon 은 c 착수 시 추가)
+    DHCPD_SYNTAX_CHECK("/usr/sbin/dhcpd", ...),  DHCPD_SERVICE_STATUS("/usr/bin/systemctl", ...);
+    List&lt;String&gt; assembleArgv(List&lt;String&gt; callerArgs);  Duration timeout();  String sudoersLine();
+}
+enum ArgShape { NONE, ONE_PATH }                          // 경로 루트 위반만 invariant if-throw</code></pre>
+        <p>원안(<code>int exit + boolean timedOut</code>)의 두 결함 — ① 명령 부재를 표현할 필드가 없어 종료코드 매직 상수로 오분류, ② <code>timedOut=true</code> 이면서 <code>exit=0</code> 같은 무효 조합 표현 가능(Primitive Obsession) — 을 <code>CommandOutcome</code> enum 하나로 경화했다. <code>exitCode</code> 는 <code>exitedZero()</code>(COMPLETED 에서만)를 강제 경유해 raw exit 가 SPI·대시보드로 유출되지 않는다. 운영 빈 <code>ProcessSystemCommandRunner</code> 는 <code>IsoPreparationService</code> 의 <code>waitFor()</code>-후-<code>read()</code> 데드락을 답습하지 않도록 <b>stdout/stderr 전용 배수(drain) 스레드</b>로 구현했고, 타임아웃 초과 시 <code>destroyForcibly()</code> + <code>CommandResult.timedOut()</code>(예외 아님).</p>
+
+        <h4>⑥ 영역 확장점 — <code>DhcpdAssetArea</code> implements <code>SystemAssetArea</code></h4>
+        <pre><code>areaKey()      -> SystemAssetAreaKey.DHCPD
+availability() -> PxeInfraProperties 빈 존재 ? CONFIGURED : NOT_CONFIGURED  (@ConditionalOnProperty + ObjectProvider)
+inspect(slot)  -> 미구성이면 ConfigFileCondition.NOT_CONFIGURED,  else ConfigFileCondition.of(present, dhcpd -t)
+supportsSeal() -> false   // 명시 override (기본 default=true → 안 하면 기본 seal() 의 409 안전망에 걸림)
+context()      -> CONFIGURED ? [ {서비스 상태 chip}, {"활성 임대","N건",INFO} ] : List.of()   // 미구성 게이팅</code></pre>
+        <p>조각 문법 검사·서비스 상태·임대 읽기는 각각 얇은 어댑터(<code>DhcpdConfigInspector</code> / <code>SystemServiceInspector</code> / <code>DhcpLeaseReader</code>)로 분리했다. <code>DhcpLeaseReader</code> 는 대시보드 영역과 임대 목록 컨트롤러가 <b>공용</b>(중복 회수)하며, 미구성·파일 부재·IO 실패를 빈 snapshot 으로 흡수한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 설계 결정 D1~D11 실현 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 설계 결정 D1~D11 — 무엇을 채택해 실현했나</summary>
+      <div class="body">
+        <p style="margin-top:0;">plan 이 확정한 결정 11개를 커밋 <code>d3c4f32</code> 로 실현했다. 아래는 각 결정의 <b>채택안과 실현 결과</b> 요약이다.</p>
+        <table>
+          <thead><tr><th>결정</th><th>채택안</th><th>실현</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b> 관측 surface 단일화</td><td><code>SystemAssetArea.context(): List&lt;AssetContextItem&gt;</code> default(빈 목록) <b>하나만</b> 추가</td><td>진단·TFTP 는 default 빈 목록이라 무변경, 4번째 영역도 분기 0 으로 합류</td></tr>
+            <tr><td><b>D2</b> 배지 타입화</td><td><code>AssetContextItem(label, value, ObservationSeverity)</code> + <code>ObservationSeverity{OK,INFO,WARN,CRITICAL}</code></td><td><code>n-badge-*</code> 어휘 SSOT 를 severity 한 곳으로. 뷰는 <code>AssetContextItemResponse</code> 문자열만 수령</td></tr>
+            <tr><td><b>D3</b> 특권 명령 경계</td><td><code>SystemCommandRunner</code> 포트 + <code>AllowedCommand</code> enum + <code>CommandOutcome</code> 3-상태</td><td>절대경로·argv 셸미경유·타임아웃 3초·sudoers 근거. 무효 조합·명령부재 미표현 결함 경화</td></tr>
+            <tr><td><b>D4</b> 종료양태 소비</td><td>모든 <code>of</code>/<code>from</code> 은 <code>CommandResult</code> 경유, <code>exitedZero()</code> 는 COMPLETED 에서만</td><td>raw exit 유출 0 — systemctl 부재·타임아웃의 자리값을 종료코드로 오독 방지</td></tr>
+            <tr><td><b>D5</b> 미구성 게이팅</td><td><code>context()</code> 는 CONFIGURED 일 때만 chip 조립</td><td>미구성이면 특권 명령을 아예 spawn 하지 않음(테스트가 <code>verifyNoInteractions</code> 로 고정)</td></tr>
+            <tr><td><b>D6</b> 판정축 직교 분리</td><td>조각 = 슬롯(okCount 참여), 서비스·임대 = 헤더 관측(okCount 불참)</td><td>"파일 유효 + 데몬 다운" 표현 가능. 라벨 "구성 문법 오류"(전체 구성) 시맨틱 확정</td></tr>
+            <tr><td><b>D7</b> 순수 파서 분리</td><td><code>DhcpLeaseParser.parse(String): LeaseSnapshot</code> — 블록 단위 try/catch</td><td>String 픽스처 직접 테스트. VO throw·손상·미지·빈 파일 전부 흡수(throw 0)</td></tr>
+            <tr><td><b>D8</b> 조건 명칭 통일</td><td>슬롯 = <code>ConfigFileCondition</code>(AssetCondition) / 서비스 = <code>ServiceState</code>(plain) / 임대 = <code>LeaseBindingState</code></td><td><code>-Condition</code> 접미사는 AssetCondition 구현을 뜻함. 서비스는 <code>ServiceState</code> 가 정직한 이름</td></tr>
+            <tr><td><b>D9</b> 패키지·페이지 구조</td><td>dhcpd 고유형은 <code>execution.pxeinfra.*</code>, 공용 관측 타입만 <code>execution.asset.*</code></td><td>pxeinfra 가 asset.spi 를 의존하는 방향. <code>SystemAssetAreaKey.DHCPD</code> 1개 추가</td></tr>
+            <tr><td><b>D10</b> 정직 표기</td><td>진단·TFTP production 어댑터는 무변경, 가산 갱신은 정직 표기</td><td>영역 2→3, 그룹 응답 필드 7→8, <code>supportsSeal()</code> override, 기본 테스트에 <code>context()</code> 케이스</td></tr>
+            <tr><td><b>D11</b> DB·엔티티 무변경</td><td>엔티티·리포지토리·스키마 무변경(c 로 명시)</td><td>슬라이스 6·7·9 단계 N/A</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>조건분기 legacy 확장 금지 준수</b> — 이질 영역을 붙이면서 집계 서비스 <code>toGroup</code> 에는 if/switch 가 단 한 줄도 늘지 않았다. 영역이 자기 슬롯·관측·봉인 지원 여부를 스스로 제공하고, 집계는 균일 순회한다(다형성으로 흡수).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 테스트 — 단위 + Step 8 통합 4범주</summary>
+      <div class="body">
+        <h4>단위 테스트 (분기별 happy 1 + fail 1)</h4>
+        <table>
+          <thead><tr><th>대상</th><th>커버 분기</th></tr></thead>
+          <tbody>
+            <tr><td><code>DhcpLeaseParserTest</code></td><td>완료① — binding state 다종 · 손상 블록 · 빈 파일 · 파일 부재 · 중간 미종료 블록 · <code>activeCount</code>(절대 throw 안 함 검증)</td></tr>
+            <tr><td><code>DhcpdConfigInspectorTest</code></td><td>완료② — stub runner 로 <code>dhcpd -t</code> exit 0 / 비0 / 타임아웃 / 부재 → <code>SYNTAX_OK</code>/<code>SYNTAX_ERROR</code>/<code>UNKNOWN</code>/<code>UNKNOWN</code></td></tr>
+            <tr><td><code>SystemServiceInspectorTest</code></td><td><code>is-active</code> stdout 분기 → <code>ACTIVE</code>/<code>INACTIVE</code>/<code>FAILED</code>/<code>UNKNOWN</code></td></tr>
+            <tr><td><code>DhcpdAssetAreaTest</code></td><td>완료③ — 미구성 → <code>NOT_CONFIGURED</code> 슬롯 + <code>context()</code> 빈 목록 + 특권 명령 미실행(<code>verifyNoInteractions</code>) / 구성 → 조각 슬롯 판정 + 관측 chip 2개</td></tr>
+          </tbody>
+        </table>
+
+        <h4>사용자 액션 통합 테스트 (HTTP 계층 — 4 범주)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip cp2">성공 2xx</span></td><td>GET <code>/system/pxe-infra</code> 임대 목록 표 바디(<code>PxeInfraControllerTest</code>) + 미구성 시 degrade 표시(<code>PxeInfraControllerUnconfiguredTest</code>) / 완료④ 헤더 서비스·건수 chip</td><td>2+</td></tr>
+            <tr><td><span class="chip cp3">400</span></td><td>쓰기·폼 없음 → <code>@Valid</code> 필드 검증 대상 엔드포인트 없음(해당 없음)</td><td>0</td></tr>
+            <tr><td><span class="chip del">404</span></td><td>기존 <code>SystemAssetAreaNotFoundException</code> 재사용 — 위조 <code>areaKey</code> 라우팅 실패(신규 아님, 회귀 확인)</td><td>1</td></tr>
+            <tr><td><span class="chip cp4">409</span></td><td><code>dhcpd</code> <code>supportsSeal=false</code> → 기존 <code>SystemAssetSealNotSupportedException</code>(<code>/system/asset/DHCPD/seal</code> 거절) 재사용</td><td>1</td></tr>
+            <tr><td><span class="chip cp5">500</span></td><td>관측은 명령 실패·타임아웃·부재를 전부 상태로 흡수 → 500 유발 경로 없음(설계상 조회 무실패)</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>신규 예외 0</b> 이라 신규 409/404 시나리오는 없다. dhcpd 의 봉인 미지원·라우팅 위조는 <b>a 가 이미 도입한</b> 예외 두 개를 실제로 트리거하는 회귀 시나리오로 검증한다(테스트 규율 — 예외 트리거 시나리오 명시).</div>
+        <div class="callout success"><b>결과</b> — 완료조건 ①(파서 픽스처: binding state 다종·손상·빈·부재·<code>activeCount</code>) · ②(stub runner <code>dhcpd -t</code> 0/비0/타임아웃/부재 분기) · ③(미구성→상태 표시 + 특권 명령 미실행) · ④(헤더 서비스·건수 chip) 전부 테스트로 고정됐다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신규 예외 0.</b> 모든 비정상은 상태로 흡수하거나 a 가 도입한 기존 예외를 재사용한다.</p>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>트리거</th></tr></thead>
+          <tbody>
+            <tr><td><code>SystemAssetSealNotSupportedException</code></td><td>409</td><td><span class="chip keep">재사용</span></td><td>dhcpd(<code>supportsSeal=false</code>) 봉인 시도 — a 도입 예외의 SPI default</td></tr>
+            <tr><td><code>SystemAssetAreaNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td>위조 <code>areaKey</code> 라우팅 실패 — a 도입 예외</td></tr>
+            <tr><td><code>IllegalArgumentException</code></td><td>—</td><td><span class="chip keep">가드</span></td><td><code>ArgShape</code> 경로 루트 위반(invariant if-throw) — <b>도메인 예외 아님</b>, direct-call 안전망</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>상태로 흡수(예외 아님)</b> : dhcpd 미구성 · 명령 실패(exit≠0) · 타임아웃 · 명령 부재 · 파싱 실패 · 손상 블록 · 빈 leases · 미지 binding state. 이들은 전부 <code>ConfigFileCondition</code>/<code>ServiceState</code>/<code>LeaseSnapshot</code> 판정값으로 표현된다 — 관측 경로가 예외로 끊기지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 적대적 검토 → 정비 / 부산물 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 적대적 검토 → 정비 (3건) / 부산물 / 발견 사항</summary>
+      <div class="body">
+        <p style="margin-top:0;">CP4 직전 자기 적대적 검토를 수행했고, 아래 3건을 <b>회귀 테스트를 동반해 정비</b>했다. 나머지 8개 점검(무분기·신규예외 0·게이팅·데드락·Primitive Obsession·배선·파서정확성·레이어경계)은 clean 판정이었다.</p>
+        <table>
+          <thead><tr><th>구분</th><th>발견</th><th>정비</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">Warning</span></td><td>파서에서 중간 미종료 블록이 뒤의 정상 블록을 삼킴 — 손상 블록 하나가 이후 블록을 오염</td><td>정규식 body 에서 중괄호 배제(<code>\{([^{}]*)\}</code>)로 손상 블록만 skip. 중간-미종료 회귀 테스트 추가</td></tr>
+            <tr><td><span class="chip opt">Suggestion</span></td><td>조각 부재에도 <code>dhcpd -t</code>(sudo)를 헛 spawn</td><td>부재 시 명령 실행 전 short-circuit <code>ABSENT</code>. "부재→미실행(callCount 0)" 테스트 추가</td></tr>
+            <tr><td><span class="chip opt">Suggestion</span></td><td><code>sudoersLine()</code> 미배선</td><td>특권 명령의 권한 자기문서라 <b>데이터로 보존</b>(c 의 sudoers 안내가 소비 예정). 미배선을 주석으로 명시</td></tr>
+          </tbody>
+        </table>
+
+        <h4>부산물 (가산적 기계 갱신 — 정직 표기)</h4>
+        <ul>
+          <li><code>SystemAssetAreaGroupResponse</code> 필드 추가(7→8) → <code>SystemAssetControllerTest</code> 의 record 생성 인자 갱신</li>
+          <li>등록 영역 2→3 → "영역 개수" 단언 갱신 + <code>SystemAssetAreaKey.DHCPD</code> 추가</li>
+          <li><code>DhcpdAssetArea</code> 가 <code>supportsSeal()=false</code> 명시 override(기본 default=true)</li>
+          <li><code>SystemAssetAreaDefaultsTest</code> 에 <code>context()</code> 기본 빈 목록 케이스 추가</li>
+          <li>대시보드 헤더 fragment 에 관측 chip(빈 목록이면 안 그림) — 진단·TFTP 화면은 무변경</li>
+        </ul>
+        <div class="callout"><b>CLAUDE.md 수정 없음.</b> 관련 페이지 동반 수정은 대시보드 헤더 fragment 뿐이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification — 검증 결과</summary>
+      <div class="body">
+        <div class="callout success"><b><code>./gradlew test</code> BUILD SUCCESSFUL</b> — 1463 tests · 0 failures · 0 errors · 6 skipped(baseline). 신규 pxeinfra 29 테스트. 진단 무결성 회귀망 무변경 green.</div>
+        <ul class="check-list" data-storage="E1-I-3-b-report-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 — 1463 tests · 0 failures</span></label></li>
+          <li><label><input type="checkbox" data-key="unit-parser"> <span>단위 — <code>DhcpLeaseParser</code>(binding state 다종·손상·중간미종료·빈·부재, 절대 throw 안 함)</span></label></li>
+          <li><label><input type="checkbox" data-key="unit-inspect"> <span>단위 — <code>DhcpdConfigInspector</code>(0/비0/타임아웃/부재) · <code>SystemServiceInspector</code>(is-active 분기)</span></label></li>
+          <li><label><input type="checkbox" data-key="unit-area"> <span>단위 — <code>DhcpdAssetArea</code>(미구성 게이팅·빈 context·특권 명령 미실행·조각 슬롯 판정)</span></label></li>
+          <li><label><input type="checkbox" data-key="int"> <span>통합 — <code>PxeInfraController</code> @WebMvcTest + dhcpd seal 409 / 위조 404 회귀</span></label></li>
+          <li><label><input type="checkbox" data-key="noreg"> <span>무회귀 — 진단·TFTP production 어댑터·진단 무결성 테스트 무변경(default 흡수)</span></label></li>
+          <li><label><input type="checkbox" data-key="honest"> <span>정직 갱신 — 영역 2→3 · 그룹 응답 인자 7→8 · <code>SystemAssetAreaDefaultsTest</code> context</span></label></li>
+          <li><label><input type="checkbox" data-key="fixture"> <span>Rocky 9 실측 캡처로 파서 픽스처 교체 — <b>잠정, 합동 CP5 전</b>(미완)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>CP5 샌드박스 하네스 E2E — <b>E1-I-2 와 합동 검증으로 유보</b>(미완)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (커밋 d3c4f32 — 39 files, +2741)</summary>
+      <div class="body">
+        <h4><span class="chip new">신규</span> 공용 관측 타입 (<code>execution.asset.*</code>)</h4>
+        <div class="pkg-tree">asset/spi/AssetContextItem.java              (record: label, value, ObservationSeverity)
+asset/spi/ObservationSeverity.java           (enum OK/INFO/WARN/CRITICAL, badgeClass())
+asset/dto/response/AssetContextItemResponse.java  (record: label, value, badgeClass)</div>
+
+        <h4><span class="chip new">신규</span> 명령 경계 · 판정 · 파서 · 영역 (<code>execution.pxeinfra.*</code>)</h4>
+        <div class="pkg-tree">command/SystemCommandRunner.java        (포트)
+command/CommandOutcome.java             (enum COMPLETED/TIMED_OUT/NOT_FOUND)
+command/CommandResult.java              (record + exitedZero)
+command/AllowedCommand.java             (enum 2상수 + assembleArgv/timeout/sudoersLine)
+command/ArgShape.java                   (enum NONE/ONE_PATH)
+command/ProcessSystemCommandRunner.java (@Component, ProcessBuilder argv, 배수 스레드)
+spi/DhcpdAssetArea.java                 (implements SystemAssetArea, supportsSeal→false)
+spi/ConfigFileCondition.java            (implements AssetCondition)
+spi/ServiceState.java                   (plain enum + severity())
+spi/LeaseBindingState.java              (enum)
+inspect/DhcpdConfigInspector.java       (dhcpd -t → ConfigFileCondition)
+inspect/SystemServiceInspector.java     (is-active → ServiceState)
+inspect/DhcpLeaseParser.java            (순수 String → LeaseSnapshot)
+inspect/DhcpLeaseReader.java            (@Component, 미구성·부재→빈 snapshot, 영역·컨트롤러 공용)
+inspect/LeaseSnapshot.java   inspect/LeaseEntry.java
+config/PxeInfraProperties.java          (@ConditionalOnProperty, fragmentPath+leasesPath)
+controller/PxeInfraController.java · dto/response/PxeInfraOverviewResponse.java · dto/response/DhcpLeaseView.java
+templates/system/pxe-infra/overview.html</div>
+
+        <h4><span class="chip mod">수정</span></h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution/asset/spi/SystemAssetArea.java</code></td><td>+ <code>default List&lt;AssetContextItem&gt; context()</code></td></tr>
+            <tr><td><code>execution/asset/spi/SystemAssetAreaKey.java</code></td><td>+ <code>DHCPD</code></td></tr>
+            <tr><td><code>.../asset/dto/response/SystemAssetAreaGroupResponse.java</code></td><td>+ <code>List&lt;AssetContextItemResponse&gt; context</code> (7→8 필드)</td></tr>
+            <tr><td><code>.../asset/service/SystemAssetDashboardService.java</code></td><td><code>toGroup</code> 에 <code>area.context()</code> 균일 map 1줄</td></tr>
+            <tr><td><code>.../asset/controller/SystemAssetControllerTest.java</code></td><td>record 생성 인자 7→8 · 영역 개수 2→3</td></tr>
+            <tr><td><code>.../asset/spi/SystemAssetAreaDefaultsTest.java</code></td><td><code>context()</code> 기본 빈 목록 케이스</td></tr>
+          </tbody>
+        </table>
+
+        <h4><span class="chip new">신규</span> 테스트 (<code>src/test/.../execution/pxeinfra/</code>)</h4>
+        <div class="pkg-tree">inspect/DhcpLeaseParserTest.java        inspect/DhcpdConfigInspectorTest.java
+inspect/SystemServiceInspectorTest.java command/StubSystemCommandRunner.java
+spi/DhcpdAssetAreaTest.java             controller/PxeInfraControllerTest.java
+controller/PxeInfraControllerUnconfiguredTest.java</div>
+
+        <h4><span class="chip keep">유지</span> (KEEP — 변경 0)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>KEEP 근거</th></tr></thead>
+          <tbody>
+            <tr><td>진단·TFTP <code>SystemAssetArea</code> production 어댑터</td><td><code>context()</code> default 빈 목록 → 무변경</td></tr>
+            <tr><td>진단 무결성 테스트 · <code>SealedFileCondition</code></td><td>파일 봉인 판정 무변경</td></tr>
+            <tr><td><code>PxeNetworkConfig</code> 엔티티 · repository · DDL</td><td>읽기 전용 — c 소관</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 상태 · 잔여 · 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 상태 · 잔여 (정직 표기) · 다음 마일스톤</summary>
+      <div class="body">
+        <h4>상태 · 회귀 위험</h4>
+        <ul>
+          <li><b>CP4 완료</b>(커밋 <code>d3c4f32</code>). <b>CP5(샌드박스 하네스 E2E)는 선행 E1-I-2 와 합동 종합 검증으로 유보</b>한다.</li>
+          <li><b>Rocky 9 실측(Q2)</b> : 파서 픽스처는 실 ISC 문법으로 손수 작성한 "<b>잠정</b>" 상태다. 실 서버 캡처로 교체는 <b>합동 CP5 전</b>에 한다. 파서 구조·타입·사다리는 실측과 무관하게 확정이다.</li>
+          <li><b>다이어그램</b> : b 는 관측 전용이라 Provisioning Server ↔ Guest 신규 상호작용이 없다 → 갱신 <b>N/A</b>(dhcpd 노드는 c 의 조각 반영 때 반영).</li>
+          <li><b>회귀 위험</b> : 집계 서비스에 <code>context()</code> 균일 map 한 줄과 그룹 응답 필드 7→8 이 진단·TFTP 영역을 지나가나, 두 영역은 default 빈 목록을 반환하므로 화면·okCount 에 영향이 없다(무회귀 테스트로 고정).</li>
+        </ul>
+
+        <h4>다음 마일스톤</h4>
+        <ul class="check-list" data-storage="E1-I-3-b-report-next">
+          <li><label><input type="checkbox" data-key="ms-c"> <span><b>E1-I-3-c</b> — 조각 반영 쓰기 : 폼 · 렌더 · <code>dhcpd -t</code> 게이트 · 원자 교체 · 재기동 · 자동 복원 + <code>PxeNetworkConfig</code> 엔티티 · DDL. b 의 관측이 c 의 쓰기-후-검증 게이트가 된다</span></label></li>
+          <li><label><input type="checkbox" data-key="ms-fixture"> <span>Rocky 9 실측 캡처로 파서 픽스처 교체(합동 CP5 전)</span></label></li>
+          <li><label><input type="checkbox" data-key="ms-cache"> <span>관측 캐싱 / TTL(Q4) — 특권 명령 GET-마다-spawn 완화. b 는 기록만, 코드 없음</span></label></li>
+          <li><label><input type="checkbox" data-key="ms-badge"> <span>배지 상수 SSOT 추출(Q5) — <code>ObservationSeverity</code>/<code>AssetCondition</code> 의 <code>n-badge-*</code> 병렬 보유 통합 여부 후속 판단</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — dhcpd 이질 판정을 구현된 서버 도메인 메서드와 1:1 재현 (드리프트 0)
+  //  판정 로직 = 구현 결정 D4·D6·D7·D8 문자 그대로:
+  //   · ConfigFileCondition.of(present, syntaxCheck):  !present→ABSENT
+  //        outcome NOT_FOUND/TIMED_OUT→UNKNOWN ; COMPLETED→ exitedZero()? SYNTAX_OK : SYNTAX_ERROR
+  //        (미구성이면 호출자 게이팅이 NOT_CONFIGURED 로 흡수)  healthy == (SYNTAX_OK)
+  //   · ServiceState.from(CommandResult):  outcome NOT_FOUND/TIMED_OUT→UNKNOWN ; COMPLETED→ stdout 매칭
+  //        severity: ACTIVE→OK / INACTIVE→WARN / FAILED→CRITICAL / UNKNOWN→INFO
+  //   · LeaseSnapshot.activeCount(now): state==ACTIVE && ends>now, IP 기준 최신 블록 dedup (여기선 슬라이더값)
+  //   · DhcpdAssetArea.context(): availability==CONFIGURED 일 때만 chip 조립, 아니면 [] (특권 명령 미노출, D5)
+  //   · okCount 는 조각 슬롯만 반영 — 서비스·임대 관측은 불참
+  // ─────────────────────────────────────────────────────────────
+  const demoState = { configured: 1, fragmentPresent: 1, syntax: 'PASS', service: 'active', leases: 8 };
+
+  // ── 서버 도메인 메서드 재현 ──
+  function configCondition(s) {                       // ConfigFileCondition.of (+ 게이팅)
+    if (!s.configured) return 'NOT_CONFIGURED';
+    if (!s.fragmentPresent) return 'ABSENT';
+    if (s.syntax === 'UNCHECKED') return 'UNKNOWN';   // outcome NOT_FOUND / TIMED_OUT
+    return s.syntax === 'PASS' ? 'SYNTAX_OK' : 'SYNTAX_ERROR';   // COMPLETED exitedZero()
+  }
+  function configHealthy(c) { return c === 'SYNTAX_OK'; }
+  function serviceSeverity(state) {                   // ServiceState.severity
+    switch (state) {
+      case 'active':   return 'OK';
+      case 'inactive': return 'WARN';
+      case 'failed':   return 'CRITICAL';
+      default:         return 'INFO';                 // unknown (NOT_FOUND/TIMED_OUT/미인식)
+    }
+  }
+  // ── 표시 매핑 (ConfigFileCondition·ObservationSeverity → .badge 팔레트 + n-badge-*) ──
+  const CFG = {
+    NOT_CONFIGURED: ['서빙 비활성',  'off', 'n-badge-gray'],
+    ABSENT:         ['조각 파일 없음','off', 'n-badge-gray'],
+    SYNTAX_ERROR:   ['구성 문법 오류','del', 'n-badge-red'],
+    UNKNOWN:        ['문법 미검사',  'dep', 'n-badge-orange'],
+    SYNTAX_OK:      ['구성 유효',    'on',  'n-badge-green']
+  };
+  const SEV = {
+    OK:       ['on',  'n-badge-green'],
+    INFO:     ['off', 'n-badge-gray'],
+    WARN:     ['dep', 'n-badge-orange'],
+    CRITICAL: ['del', 'n-badge-red']
+  };
+  const SVC_LABEL = { active: 'active', inactive: 'inactive', failed: 'failed', unknown: 'unknown' };
+
+  function demoSet(field, val) {
+    demoState[field] = val;
+    if (field === 'leases') document.getElementById('lease-val').textContent = val + '건';
+    demoRender();
+  }
+
+  function demoRender() {
+    const s = demoState;
+    document.querySelectorAll('.ux-toolbar .seg[data-f]').forEach(b => {
+      const f = b.dataset.f, v = b.dataset.v;
+      const cur = String(s[f]);
+      b.classList.toggle('active', cur === v);
+    });
+    const off = !s.configured;
+    ['tb-frag', 'tb-syntax', 'tb-service', 'tb-lease'].forEach(id =>
+      document.getElementById(id).classList.toggle('muted', off));
+
+    const cond = configCondition(s);
+    const healthy = configHealthy(cond);
+    const ok = healthy ? 1 : 0;
+    const [cLabel, cBadge] = CFG[cond];
+
+    // ── dhcpd 헤더 (availability + okCount + 관측 chip 2개 — 미구성이면 chip 없음) ──
+    const header = document.getElementById('dhcpd-header');
+    let chips = '';
+    if (s.configured) {
+      const sev = serviceSeverity(s.service);
+      const [svcCls] = SEV[sev];
+      chips = '<span class="badge ' + svcCls + '">서비스 ' + SVC_LABEL[s.service] + '</span>'
+            + '<span class="badge off">활성 임대 ' + s.leases + '건</span>';
+    }
+    header.innerHTML = '<strong>dhcpd (DHCP 부트 서버)</strong>'
+      + '<span class="label">' + (s.configured ? 'availability = CONFIGURED · 조각=슬롯, 서비스·임대=헤더 관측' : 'availability = NOT_CONFIGURED · 특권 명령 실행 안 함') + '</span>'
+      + '<span class="mono">정상 ' + ok + ' / 전체 1</span>' + chips;
+    header.classList.toggle('muted', off);
+
+    // ── dhcpd 조각 슬롯 (ConfigFileCondition 사다리) ──
+    const slot = document.getElementById('dhcpd-slot');
+    slot.innerHTML = '<strong>조각 파일</strong><span class="label">managed.conf · dhcpd -t = dhcpd.conf 전체 문법</span>'
+      + '<span class="badge ' + cBadge + '">' + cLabel + '</span>';
+    slot.classList.toggle('muted', off);
+
+    // ── 판정 캡션 (mono) ──
+    const caps = document.getElementById('demo-caps');
+    if (!s.configured) {
+      caps.innerHTML =
+        'availability                    = NOT_CONFIGURED\n' +
+        'inspect() → ConfigFileCondition.NOT_CONFIGURED   healthy=<span class="t">false</span>  → okCount 0/1\n' +
+        'context() → []   (헤더 chip 없음)\n' +
+        '▶ systemctl / dhcpd -t 실행 안 함 — 특권 명령 미노출 (D5 게이팅)';
+    } else {
+      const sev = serviceSeverity(s.service);
+      const outcome = s.syntax === 'UNCHECKED' ? 'NOT_FOUND/TIMED_OUT' : 'COMPLETED';
+      const exit = s.syntax === 'PASS' ? 'exit 0' : (s.syntax === 'ERROR' ? 'exit≠0' : '—');
+      caps.innerHTML =
+        'availability                    = CONFIGURED\n' +
+        '── 조각 슬롯 (okCount 참여) ──\n' +
+        'ConfigFileCondition.of(present=' + (s.fragmentPresent ? 'true' : 'false') + ', dhcpd -t = ' + outcome + ' ' + exit + ')\n' +
+        '                                = ' + cond + '   healthy=' + (healthy ? '<span class="f">true</span>' : '<span class="t">false</span>') + '  → okCount ' + ok + '/1\n' +
+        '── 헤더 관측 (okCount 불참) ──\n' +
+        'ServiceState.from(is-active="' + SVC_LABEL[s.service] + '") → ObservationSeverity.' + sev + '\n' +
+        'LeaseSnapshot.activeCount(now)  = ' + s.leases + '건 → ObservationSeverity.INFO';
+    }
+
+    // ── 메시지 ──
+    const msg = document.getElementById('demo-message');
+    if (!s.configured) {
+      msg.className = 'ux-message';
+      msg.textContent = 'dhcpd 미구성 — 조각 슬롯은 NOT_CONFIGURED, 헤더 관측 chip 은 사라지고 특권 명령을 spawn 하지 않습니다 (D5 게이팅). 미구성은 예외가 아니라 상태입니다.';
+    } else if (healthy) {
+      msg.className = 'ux-message success';
+      msg.textContent = '✓ 조각 슬롯 SYNTAX_OK — okCount 에 참여. 서비스·임대는 헤더 관측이라 okCount 에 들어가지 않습니다(D6 직교 분리). 진단·TFTP 와 다른 판정 모델인데 같은 배지 어휘로 수렴합니다.';
+    } else {
+      msg.className = 'ux-message error';
+      msg.textContent = '조각 슬롯이 healthy 가 아님(' + cond + ') → okCount 0/1. 서비스·임대 관측은 그와 무관하게 헤더에 그려집니다 — 파일 유효성과 데몬 라이브니스는 독립축입니다.';
+    }
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
