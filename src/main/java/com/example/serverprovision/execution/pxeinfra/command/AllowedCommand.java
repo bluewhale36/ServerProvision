@@ -17,7 +17,11 @@ public enum AllowedCommand {
 
     /** systemd dhcpd 서비스 활성 상태. is-active 는 비특권으로 조회 가능 → sudo 불요. */
     DHCPD_SERVICE_STATUS("/usr/bin/systemctl", List.of("is-active", "dhcpd"), ArgShape.NONE, false,
-            Duration.ofSeconds(3), null);
+            Duration.ofSeconds(3), null),
+
+    /** dhcpd 서비스 재기동. root 필요 → sudo -n. 재기동은 유닛 active 도달까지 블록하므로 넉넉한 타임아웃(20s) — dhcpd -t 의 3s 답습 금지. */
+    DHCPD_SERVICE_RESTART("/usr/bin/systemctl", List.of("restart", "dhcpd"), ArgShape.NONE, true,
+            Duration.ofSeconds(20), "provisioning ALL=(root) NOPASSWD: /usr/bin/systemctl restart dhcpd");
 
     private final String binaryPath;
     private final List<String> fixedArgs;

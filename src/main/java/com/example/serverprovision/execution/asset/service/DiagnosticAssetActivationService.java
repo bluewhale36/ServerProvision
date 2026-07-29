@@ -4,9 +4,9 @@ import com.example.serverprovision.execution.asset.enums.DiagnosticAsset;
 import com.example.serverprovision.execution.asset.exception.DiagnosticAssetNotReplaceableException;
 import com.example.serverprovision.execution.asset.exception.DiagnosticAssetReplaceEmptyException;
 import com.example.serverprovision.execution.asset.exception.DiagnosticAssetReplaceFailedException;
+import com.example.serverprovision.global.asset.AtomicAssetSwap;
 import com.example.serverprovision.global.history.AssetHistoryService;
 import com.example.serverprovision.global.history.AssetVersionKey;
-import com.example.serverprovision.global.security.FileSystemHardener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 /**
@@ -47,7 +46,7 @@ public class DiagnosticAssetActivationService {
 
     private final DiagnosticAssetIntegrityService integrityService;
     private final AssetHistoryService historyService;
-    private final FileSystemHardener fileSystemHardener;
+    private final AtomicAssetSwap atomicAssetSwap;
 
     /**
      * 슬롯 자산을 업로드 파일로 교체한다. 가드(도메인 invariant if-throw): 서빙 활성(409) → 교체 대상(409)
@@ -90,6 +89,10 @@ public class DiagnosticAssetActivationService {
     /**
      * 공용 활성화 코어 — 주어진 바이트 소스를 슬롯의 활성 파일로 앉힌다. 순서는 클래스 Javadoc 참고.
      * archive 실패(500)·스왑 IO 실패(500) 시 temp 를 정리하고 활성 파일을 건드리지 않는다(fail-closed).
+     *
+     * <p>중간 3단(② 현재본 archive → ③ 원자적 스왑 → ④ 권한)은 도메인 무관 부품 {@link AtomicAssetSwap#swap}
+     * 으로 위임한다 — 이 부품이 archive 를 스왑 전에 수행하고(실패 시 스왑 전 중단·temp 정리) 권한까지 적용하므로,
+     * 여기서는 ① 실체화와 ⑤ 재봉인만 남는다. 진단 자산은 봉인 개념이 있어 swap 뒤에 재봉인을 별도로 한다.</p>
      */
     private void activate(DiagnosticAsset slot, Path root, InputStream source) {
         Path target = slot.resolve(root);
@@ -98,9 +101,7 @@ public class DiagnosticAssetActivationService {
         AssetVersionKey key = new AssetVersionKey(HISTORY_CATEGORY, slot.filename());
         try {
             Files.copy(source, temp);                          // ① 소스를 temp 로 완성(archive-prune 전 실체화)
-            historyService.archive(key, target);               // ② 현재 활성본 보관(실패 시 500 → 스왑 전 중단)
-            Files.move(temp, target,
-                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);   // ③ 원자적 스왑
+            atomicAssetSwap.swap(target, temp, key);           // ②③④ archive → 원자적 스왑 → 권한(부품 위임)
         } catch (IOException e) {
             deleteQuietly(temp);
             throw new DiagnosticAssetReplaceFailedException("자산 활성화 스왑 실패 : " + target, e);   // 500
@@ -108,8 +109,7 @@ public class DiagnosticAssetActivationService {
             deleteQuietly(temp);                               // 아카이브 실패(500) 등 — temp 정리 후 전파
             throw e;
         }
-        fileSystemHardener.applyDefaultPermissionsForFile(target);   // ④
-        integrityService.sealOne(slot, root);                       // ⑤ 새 파일이 신뢰 기준 — 자동 재봉인
+        integrityService.sealOne(slot, root);                  // ⑤ 새 파일이 신뢰 기준 — 자동 재봉인
     }
 
     private static void requireReplaceable(DiagnosticAsset slot) {

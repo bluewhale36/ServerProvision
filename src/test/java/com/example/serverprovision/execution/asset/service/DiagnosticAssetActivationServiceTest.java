@@ -6,6 +6,7 @@ import com.example.serverprovision.execution.asset.exception.DiagnosticAssetNotR
 import com.example.serverprovision.execution.asset.exception.DiagnosticAssetReplaceEmptyException;
 import com.example.serverprovision.execution.asset.exception.SystemAssetServingDisabledException;
 import com.example.serverprovision.execution.config.PxeAssetsProperties;
+import com.example.serverprovision.global.asset.AtomicAssetSwap;
 import com.example.serverprovision.global.history.AssetHistoryService;
 import com.example.serverprovision.global.history.AssetVersionKey;
 import com.example.serverprovision.global.history.exception.AssetVersionArchiveFailedException;
@@ -68,7 +69,10 @@ class DiagnosticAssetActivationServiceTest {
         SealedFileInspector inspector = new SealedFileInspector(markerService, new BundleManifestService(), hardener);
         integrityService = new DiagnosticAssetIntegrityService(propertiesProvider, inspector);
         historyService = mock(AssetHistoryService.class);
-        activationService = new DiagnosticAssetActivationService(integrityService, historyService, hardener);
+        // 부품 추출(E1-I-3-c) — 활성화 코어의 중간 3단(archive→ATOMIC_MOVE→권한)이 AtomicAssetSwap 으로 이관됐다.
+        // 진단 동작 보존이 목적이라 실제 부품을 같은 historyService/hardener 로 배선해 기존 검증을 그대로 통과시킨다.
+        AtomicAssetSwap atomicAssetSwap = new AtomicAssetSwap(historyService, hardener);
+        activationService = new DiagnosticAssetActivationService(integrityService, historyService, atomicAssetSwap);
         given(propertiesProvider.getIfAvailable())
                 .willReturn(new PxeAssetsProperties(root.toString(), "http://localhost:7777"));
         stageSingleFiles();
