@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.util.Map;
 
@@ -55,6 +56,28 @@ class SealedFileInspectorTest {
 
         assertThat(status.present()).isFalse();
         assertThat(status.condition()).isEqualTo(SealedFileCondition.MISSING);
+    }
+
+    @Test
+    @DisplayName("해시 캐시 — (mtime,size) 불변이면 캐시된 해시 재사용, invalidateHashCache 로 강제 재해시(대시보드 진입 최적화)")
+    void hashCache_reusesUntilInvalidated() throws IOException {
+        Path asset = root.resolve("kernel.img");
+        Files.writeString(asset, "AAAA");
+        inspector.seal(asset, MarkerLayout.SIDECAR, "TEST", 0, "kernel.img");   // "AAAA" 기준 봉인 + 캐시 채움
+        FileTime sealedMtime = Files.getLastModifiedTime(asset);
+
+        // 같은 길이로 내용만 바꾸고 mtime 을 봉인 시점으로 되돌린다(mtime 보존 변조) — (mtime,size) 지문이 동일해진다.
+        Files.writeString(asset, "BBBB");
+        Files.setLastModifiedTime(asset, sealedMtime);
+
+        // 캐시 적중 → 옛 "AAAA" 해시 재사용 → 여전히 ORIGINAL(캐시가 실제로 쓰였다는 증거 — 없으면 재해시로 TAMPERED).
+        assertThat(inspector.inspect(asset, MarkerLayout.SIDECAR).condition())
+                .isEqualTo(SealedFileCondition.ORIGINAL);
+
+        // 재검사 = 캐시 무효화 → 재해시 → mtime 보존 변조까지 감지.
+        inspector.invalidateHashCache();
+        assertThat(inspector.inspect(asset, MarkerLayout.SIDECAR).condition())
+                .isEqualTo(SealedFileCondition.TAMPERED);
     }
 
     @Test

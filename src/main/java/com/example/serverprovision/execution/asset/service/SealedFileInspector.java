@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 파일 봉인(sidecar/in-tree {@code .provision.json} 마커) 기반 자산 슬롯의 프로브·판정·봉인 부품. 진단 자산
@@ -42,6 +43,21 @@ public class SealedFileInspector {
     private final ProvisionMarkerService markerService;
     private final BundleManifestService bundleManifestService;
     private final FileSystemHardener fileSystemHardener;
+
+    /**
+     * 단일 파일(SIDECAR) 해시 캐시 — 대시보드 진입마다 208MB 급 진단 커널을 통째로 재해시하는 비용을 없앤다.
+     * (mtime, size) 지문이 캐시와 같으면 저장된 해시를 재사용한다. 파일은 어떤 쓰기든 mtime 이 갱신되므로 이
+     * 지문은 내용 변경을 놓치지 않는다(비-stale — 봉인·교체가 파일을 바꾸면 지문이 달라져 자동 재해시). 재검사
+     * 버튼은 mtime 을 보존한 변조까지 다시 잡도록 {@link #invalidateHashCache} 로 캐시를 비운다.
+     */
+    private final Map<Path, SidecarDigest> sidecarHashCache = new ConcurrentHashMap<>();
+
+    private record SidecarDigest(Instant mtime, long size, String hash) {}
+
+    /** 재검사(강제 신선 재검증) 시 캐시를 비워 다음 프로브가 전량 재해시하게 한다 — mtime 보존 변조까지 다시 잡는다. */
+    public void invalidateHashCache() {
+        sidecarHashCache.clear();
+    }
 
     /**
      * 자산 경로 하나의 현황·무결성을 프로브해 {@link AssetSlotStatus} 로 반환한다. 존재·크기·수정시각을 계산하고
@@ -120,13 +136,27 @@ public class SealedFileInspector {
         try {
             Instant mtime = Files.getLastModifiedTime(path).toInstant();
             if (layout == MarkerLayout.IN_TREE) {
+                // 디렉토리 번들은 in-place 수정 시 디렉토리 mtime 이 안 바뀌어 (mtime,size) 지문이 안전하지 않다 —
+                // 매니페스트 해시를 매번 계산한다(REPO 는 소형이라 커널만큼 무겁지 않다). 필요 시 stat 지문 캐시로 확장.
                 BundleManifestService.ManifestSummary ms = bundleManifestService.compute(path);
                 return new Probe(true, ms.totalBytes(), mtime, ms.manifestHash());
             }
-            return new Probe(true, Files.size(path), mtime, FileDigest.sha256(path));
+            long size = Files.size(path);
+            return new Probe(true, size, mtime, cachedSidecarHash(path, mtime, size));
         } catch (IOException e) {
             // 존재하는 자산의 읽기 실패는 진짜 IO 이상 — 500 이 정직하다.
             throw new IllegalStateException("자산 조회 실패 : " + path, e);
         }
+    }
+
+    /** (mtime,size) 지문이 캐시와 일치하면 저장된 해시를 재사용하고, 다르면 재계산해 캐시를 갱신한다(비-stale). */
+    private String cachedSidecarHash(Path path, Instant mtime, long size) throws IOException {
+        SidecarDigest cached = sidecarHashCache.get(path);
+        if (cached != null && cached.mtime().equals(mtime) && cached.size() == size) {
+            return cached.hash();
+        }
+        String hash = FileDigest.sha256(path);
+        sidecarHashCache.put(path, new SidecarDigest(mtime, size, hash));
+        return hash;
     }
 }

@@ -57,6 +57,8 @@ class SystemAssetControllerTest {
     @MockitoBean
     AssetHistorySettingsService settingsService;
     @MockitoBean
+    com.example.serverprovision.execution.asset.service.SealedFileInspector sealedFileInspector;
+    @MockitoBean
     JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @BeforeEach
@@ -126,12 +128,13 @@ class SystemAssetControllerTest {
     }
 
     @Test
-    @DisplayName("POST /system/asset/recheck — 302 대시보드 PRG(비변경 새로고침)")
+    @DisplayName("POST /system/asset/recheck — 302 대시보드 PRG + 해시 캐시 무효화(강제 신선 재검증)")
     void recheck_redirects() throws Exception {
         mvc.perform(post("/system/asset/recheck"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/system/asset"))
                 .andExpect(flash().attributeExists("flashMessage"));
+        verify(sealedFileInspector).invalidateHashCache();
     }
 
     // ── 400 : 보존 개수 필드 검증(SSR 폼은 재렌더 + 필드 에러) ──────────────────

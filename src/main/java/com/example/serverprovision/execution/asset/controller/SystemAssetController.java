@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.asset.controller;
 
 import com.example.serverprovision.execution.asset.dto.SealResult;
+import com.example.serverprovision.execution.asset.service.SealedFileInspector;
 import com.example.serverprovision.execution.asset.service.SystemAssetDashboardService;
 import com.example.serverprovision.global.history.AssetHistorySettingsService;
 import com.example.serverprovision.global.history.dto.request.AssetHistorySettingsRequest;
@@ -42,6 +43,7 @@ public class SystemAssetController {
 
     private final SystemAssetDashboardService dashboardService;
     private final AssetHistorySettingsService settingsService;
+    private final SealedFileInspector sealedFileInspector;
 
     // ── 조회 화면 ────────────────────────────────────────────────────────────
 
@@ -84,9 +86,10 @@ public class SystemAssetController {
 
     @PostMapping("/recheck")
     public String recheck(RedirectAttributes redirectAttributes) {
-        // 재검증의 실제 대조는 리다이렉트 후 GET 이 매번 수행한다(전 영역 재프로브). 이 액션은 "지금 다시 검증"
-        // 이라는 명시적 affordance 와 확인 문구를 준다. 자원 상태를 바꾸지 않는 비변경 새로고침이다.
-        redirectAttributes.addFlashAttribute("flashMessage", "재검증 완료 — 현재 디스크 상태로 무결성을 다시 대조했습니다.");
+        // 진입 최적화(해시 캐시)로 평상시 대시보드는 안 바뀐 파일의 해시를 재사용한다. 재검증은 그 캐시를 비워
+        // 리다이렉트 후 GET 이 전량 재해시하게 만든다 — mtime 을 보존한 변조까지 강제로 다시 잡는다(비변경 액션).
+        sealedFileInspector.invalidateHashCache();
+        redirectAttributes.addFlashAttribute("flashMessage", "재검증 완료 — 캐시를 비우고 현재 디스크 상태로 무결성을 다시 대조했습니다.");
         return "redirect:/system/asset";
     }
 
