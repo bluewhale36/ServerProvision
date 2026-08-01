@@ -49,8 +49,23 @@
               th:text="'전체 정상 ' + ${overview.totalOk} + ' / ' + ${overview.totalCount}"></span>
     </div>
 
-    <!--/* 영역별 표 — 영역이 늘어도(확장점 구현 추가) 이 반복만으로 렌더된다 */-->
-    <section class="asset-area" th:each="area : ${overview.areas}">
+    <!--/* 영역 전환 탭 — 영역이 늘어도(확장점 구현 추가) 이 반복만으로 탭·패널이 렌더된다 */-->
+    <div class="n-tabs" role="tablist" aria-label="시스템 자산 영역">
+        <button type="button" class="n-tab" role="tab" th:each="area, iter : ${overview.areas}"
+                th:attr="aria-selected=${iter.first ? 'true' : 'false'},
+                         data-panel=${'asset-panel-' + area.areaKey},
+                         aria-controls=${'asset-panel-' + area.areaKey}">
+            <span th:text="${area.displayName}">영역명</span>
+            <span class="n-badge"
+                  th:classappend="${area.okCount == area.totalCount} ? 'n-badge-green' : 'n-badge-orange'"
+                  th:text="${area.okCount} + '/' + ${area.totalCount}">6/6</span>
+        </button>
+    </div>
+
+    <!--/* 영역별 패널 — 첫 영역만 is-active(CSS 로 나머지 숨김), 탭이 전환한다 */-->
+    <section class="n-tab-panel" role="tabpanel" th:each="area, iter : ${overview.areas}"
+             th:id="${'asset-panel-' + area.areaKey}"
+             th:classappend="${iter.first} ? ' is-active'">
         <div class="asset-area-header">
             <div class="asset-area-heading">
                 <h2 class="asset-area-title" th:text="${area.displayName}">영역명</h2>
@@ -121,6 +136,7 @@
     </section>
 </div>
 
+<script th:src="@{/global/n-tab.js}" defer></script>
 <script th:src="@{/system/asset.js}" defer></script>
 </body>
 </html>

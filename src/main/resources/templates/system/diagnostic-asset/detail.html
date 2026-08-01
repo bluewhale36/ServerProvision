@@ -26,18 +26,21 @@
 <div class="n-page-md">
     <div class="n-page-header">
         <div>
-            <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
             <h1 class="n-page-title" th:text="${slot.label}">커널</h1>
             <span class="da-mono da-muted" th:text="${slot.filename}">vmlinuz-lts</span>
+        </div>
+        <div class="n-header-actions">
+            <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
         </div>
     </div>
 
     <!--/* PRG flash */-->
-    <div th:if="${flashMessage}" class="n-alert n-alert-success da-summary" th:text="${flashMessage}"></div>
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" style="margin-bottom: 14px;" th:text="${flashMessage}"></div>
 
-    <!--/* 자산 메타 */-->
+    <!--/* 자산 정보 */-->
     <div class="n-card">
         <div class="n-card-body">
+            <h2 class="n-card-title">자산 정보</h2>
             <table class="n-detail-table">
                 <tbody>
                 <tr>
@@ -75,30 +78,27 @@
 
     <!--/* 교체 가능 슬롯: 교체 폼 + 버전 이력 + 롤백 */-->
     <th:block th:if="${slot.replaceable}">
-        <div class="da-section">
-            <div class="da-section-title">자산 교체</div>
-            <div class="da-section-hint">선택한 파일로 교체하고 무결성을 재봉인합니다. 원자적으로 교체되어 부팅 중 잘린 파일이 나가지 않으며, 교체 전 파일은 아래 버전 이력에 보관됩니다.</div>
-            <div class="n-card">
-                <div class="n-card-body">
-                    <form method="post" enctype="multipart/form-data"
-                          th:action="@{/system/diagnostic-asset/{k}/replace(k=${slot.key})}">
-                        <input type="file" name="file" required class="n-input">
-                        <div class="n-form-actions">
-                            <button type="submit" class="n-btn n-btn-primary" th:disabled="${!servingActive}"
-                                    th:title="${servingActive} ? '선택한 파일로 교체하고 재봉인합니다.' : '서빙이 비활성이라 교체할 수 없습니다 (PXE_ASSETS_ROOT 미설정).'">교체</button>
-                        </div>
-                    </form>
-                </div>
+        <div class="n-card" style="margin-top: 14px;">
+            <div class="n-card-body">
+                <h2 class="n-card-title">자산 교체</h2>
+                <p class="n-hint" style="margin-bottom: 14px;">선택한 파일로 교체하고 무결성을 재봉인합니다. 원자적으로 교체되어 부팅 중 잘린 파일이 나가지 않으며, 교체 전 파일은 아래 버전 이력에 보관됩니다.</p>
+                <form method="post" enctype="multipart/form-data"
+                      th:action="@{/system/diagnostic-asset/{k}/replace(k=${slot.key})}">
+                    <input type="file" name="file" required class="n-input">
+                    <div class="n-form-actions">
+                        <button type="submit" class="n-btn n-btn-primary" th:disabled="${!servingActive}"
+                                th:title="${servingActive} ? '선택한 파일로 교체하고 재봉인합니다.' : '서빙이 비활성이라 교체할 수 없습니다 (PXE_ASSETS_ROOT 미설정).'">교체</button>
+                    </div>
+                </form>
             </div>
         </div>
 
-        <div class="da-section">
-            <div class="da-section-title">버전 이력 <span th:text="'(' + ${#lists.size(versions)} + ')'">(0)</span></div>
-            <div class="da-section-hint">교체·롤백 때 보관된 이전 버전입니다. 활성본은 목록에 없으며, 다음 교체·롤백 때 아카이브됩니다. 되돌리면 현재 활성본이 이력에 들어가고 고른 버전이 활성본이 됩니다.</div>
-            <div class="n-card">
-                <div class="n-card-body">
-                    <p th:if="${#lists.isEmpty(versions)}" class="n-empty">보존된 이전 버전이 없습니다.</p>
-                    <table th:unless="${#lists.isEmpty(versions)}" class="n-table">
+        <div class="n-card" style="margin-top: 14px;">
+            <div class="n-card-body">
+                <h2 class="n-card-title">버전 이력 <span th:text="'(' + ${#lists.size(versions)} + ')'">(0)</span></h2>
+                <p class="n-hint" style="margin-bottom: 14px;">교체·롤백 때 보관된 이전 버전입니다. 활성본은 목록에 없으며, 다음 교체·롤백 때 아카이브됩니다. 되돌리면 현재 활성본이 이력에 들어가고 고른 버전이 활성본이 됩니다.</p>
+                <p th:if="${#lists.isEmpty(versions)}" class="n-empty">보존된 이전 버전이 없습니다.</p>
+                <table th:unless="${#lists.isEmpty(versions)}" class="n-table">
                         <thead>
                         <tr>
                             <th>아카이브 시각</th>
@@ -122,18 +122,15 @@
                             </td>
                         </tr>
                         </tbody>
-                    </table>
-                </div>
+                </table>
             </div>
         </div>
     </th:block>
 
     <!--/* 비교체 슬롯(apkovl · repo): 읽기전용 안내 */-->
-    <div th:unless="${slot.replaceable}" class="da-section">
-        <div class="n-alert n-alert-info">
-            이 자산은 빌드 스크립트(<code class="da-mono">build-assets.sh</code>)로 생성·교체됩니다. 이 화면에서는 교체·롤백할 수 없습니다.
-            기준선(무결성 봉인)을 다시 잡아야 하면 <a th:href="@{/system/asset/settings}">운영 설정</a>의 무결성 봉인을 사용하세요.
-        </div>
+    <div th:unless="${slot.replaceable}" class="n-alert n-alert-info" style="margin-top: 14px;">
+        이 자산은 빌드 스크립트(<code class="da-mono">build-assets.sh</code>)로 생성·교체됩니다. 이 화면에서는 교체·롤백할 수 없습니다.
+        기준선(무결성 봉인)을 다시 잡아야 하면 <a th:href="@{/system/asset/settings}">운영 설정</a>의 무결성 봉인을 사용하세요.
     </div>
 </div>
 </body>

@@ -214,6 +214,14 @@ What makes Notion's visual language distinctive is its border philosophy. Rather
   정적 generic modal(`genericConfirmModal(prefix)`, `.cm-*` 클래스) + `ConfirmModal.open()` —
   자원 시그니처가 필요한 lazy-load(`/ui/confirm-modal/{type}`)와 구분한다.
 
+**Tab Group** (`n-tab` — E1-I-b 이후 시스템 자산 대시보드 다영역 전환)
+- 한 화면에서 동류의 영역/패널을 밑줄 인디케이터로 전환한다(단순 표 세로 나열을 대체). 관리 페이지
+  `bios-new`/`subprogram-new` 류의 `role=tablist` 임시 패턴(전용 CSS 없이 inline)을 글로벌 컴포넌트로 승격.
+- 구현: `.n-tabs[role=tablist]` 바(하단 `--n-border` 1px) 안에 `.n-tab[role=tab][aria-selected][data-panel="패널id"]`,
+  패널은 `.n-tab-panel#패널id`(활성 `.is-active` 만 표시). 활성 탭은 `--n-blue` 텍스트 + 2px 밑줄 인디케이터.
+  탭 라벨 옆 상태 배지는 기존 `.n-badge*` 재사용(정상/전체 개수 등). 전환 로직은 `global/n-tab.js`
+  (이벤트 위임 — 다중 탭 그룹 안전, 패널 스코프는 `.n-tabs` 의 부모). 기존 토큰만 사용(팔레트 이원화 금지).
+
 ## 5. Layout Principles
 
 ### Spacing System

@@ -24,9 +24,9 @@
 
 <div class="n-page">
     <div class="n-page-header">
-        <div>
+        <h1 class="n-page-title">PXE 인프라 임대 (dhcpd)</h1>
+        <div class="n-header-actions">
             <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
-            <h1 class="n-page-title">PXE 인프라 임대 (dhcpd)</h1>
         </div>
     </div>
 
@@ -54,7 +54,7 @@
             </thead>
             <tbody>
             <tr th:if="${overview.leases.isEmpty()}">
-                <td colspan="5" class="da-muted">기록된 임대가 없습니다.</td>
+                <td colspan="5" style="color: var(--n-text-muted);">기록된 임대가 없습니다.</td>
             </tr>
             <tr th:each="lease : ${overview.leases}">
                 <td th:text="${lease.ip}"></td>

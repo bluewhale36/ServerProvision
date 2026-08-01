@@ -4,6 +4,7 @@
   E1-I-3-a. 시스템 자산 운영 설정 페이지 (전역 튜너블).
   ─────────────────────────────────────────────────────────
   대시보드와 분리된 전역 설정 화면. 이력 보존 개수(전 영역 공통)와 영역별 무결성 봉인을 여기서 다룬다.
+  골격은 휴지통 운영 설정(maintenance/trash/settings.html)과 동일 기조 — n-card + n-card-title + n-table 로 통일.
 
   Model:
     retentionForm     : AssetHistorySettingsRequest (보존 개수 편집 폼 바인딩)
@@ -17,27 +18,26 @@
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('시스템 자산 운영 설정')}"></th:block>
-    <link rel="stylesheet" th:href="@{/system/diagnostic-asset.css}">
-    <link rel="stylesheet" th:href="@{/system/asset.css}">
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('system-asset')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
-        <div>
+        <h1 class="n-page-title">시스템 자산 운영 설정</h1>
+        <div class="n-header-actions">
             <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
-            <h1 class="n-page-title">시스템 자산 운영 설정</h1>
         </div>
     </div>
 
     <!--/* PRG flash */-->
-    <div th:if="${flashMessage}" class="n-alert n-alert-success da-summary" th:text="${flashMessage}"></div>
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" style="margin-bottom: 14px;"
+         th:text="${flashMessage}"></div>
 
     <!--/* ① 이력 보존 개수 (전 영역 공통) */-->
-    <div class="da-section-title">이력 보존 개수</div>
     <div class="n-card">
         <div class="n-card-body">
+            <h2 class="n-card-title">이력 보존 개수</h2>
             <form th:action="@{/system/asset/settings}" th:object="${retentionForm}" method="post" novalidate>
                 <div class="n-form-group">
                     <label class="n-label strong" for="retentionCount">자산별 보존 버전 수</label>
@@ -51,36 +51,66 @@
                     <button type="submit" class="n-btn n-btn-primary">저장</button>
                 </div>
             </form>
-            <div class="da-current">현재 적용: <strong th:text="${retentionSettings.retentionCount}">3</strong>개</div>
         </div>
     </div>
 
-    <!--/* ② 무결성 봉인 — 봉인 지원 영역마다 카드 하나 */-->
-    <div class="da-section">
-        <div class="da-section-title">무결성 봉인</div>
-        <div class="da-section-hint">존재하는 모든 자산의 현재 해시를 무결성 기준으로 기록/갱신합니다. 교체 가능한 자산은 교체 시 자동 재봉인되지만, 빌드 스크립트·패키지로 관리되는 자산의 기준선은 여기서(또는 대시보드에서) 확립합니다. 변조·손상 상태를 봉인하면 그 상태가 기준선이 되니 대시보드에서 무결성을 먼저 확인하세요.</div>
-
-        <div class="n-card asset-seal-card" th:each="area : ${overview.areas}" th:if="${area.supportsSeal}">
-            <div class="n-card-body">
-                <div class="asset-seal-row">
-                    <div>
-                        <strong th:text="${area.displayName}">영역명</strong>
+    <!--/* ② 무결성 봉인 — 봉인 지원 영역별 액션 */-->
+    <div class="n-card" style="margin-top: 14px;">
+        <div class="n-card-body">
+            <h2 class="n-card-title">무결성 봉인</h2>
+            <p class="n-hint" style="margin-bottom: 14px;">존재하는 모든 자산의 현재 해시를 무결성 기준으로 기록/갱신합니다. 교체 가능한 자산은 교체 시 자동 재봉인되지만, 빌드 스크립트·패키지로 관리되는 자산의 기준선은 여기서(또는 대시보드에서) 확립합니다. 변조·손상 상태를 봉인하면 그 상태가 기준선이 되니 대시보드에서 무결성을 먼저 확인하세요.</p>
+            <table class="n-table">
+                <thead>
+                <tr>
+                    <th>영역</th>
+                    <th>서빙</th>
+                    <th style="text-align: right;">액션</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="area : ${overview.areas}" th:if="${area.supportsSeal}">
+                    <td><strong th:text="${area.displayName}">영역명</strong></td>
+                    <td>
                         <span class="n-badge"
                               th:classappend="${area.availability == 'CONFIGURED'} ? 'n-badge-green' : 'n-badge-gray'"
                               th:text="${area.availability == 'CONFIGURED'} ? '서빙 활성' : '서빙 비활성'"></span>
+                    </td>
+                    <td style="text-align: right;">
+                        <form th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}" method="post"
+                              style="display: inline;">
+                            <button type="submit" class="n-btn n-btn-sm n-btn-warning"
+                                    th:disabled="${area.availability != 'CONFIGURED'}"
+                                    th:title="${area.availability == 'CONFIGURED'}
+                                              ? '존재하는 자산의 현재 해시를 무결성 기준으로 기록합니다.'
+                                              : '서빙이 비활성이라 봉인할 수 없습니다.'">봉인</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!--/* ③ 현재 적용된 값 — 휴지통 설정의 요약 카드와 동일 기조 */-->
+    <div class="n-card" style="margin-top: 14px;">
+        <div class="n-card-body">
+            <h2 class="n-card-title">현재 적용된 값</h2>
+            <table class="n-table">
+                <tbody>
+                <tr>
+                    <th>이력 보존 개수</th>
+                    <td><strong th:text="${retentionSettings.retentionCount}">3</strong> 개</td>
+                </tr>
+                <tr th:each="area : ${overview.areas}" th:if="${area.supportsSeal}">
+                    <th th:text="${area.displayName} + ' 무결성'">영역 무결성</th>
+                    <td>
                         <span th:if="${area.availability == 'CONFIGURED'}"
-                              th:text="'무결성 일치 ' + ${area.okCount} + ' / ' + ${area.totalCount}"></span>
-                        <span th:unless="${area.availability == 'CONFIGURED'}" class="da-muted">서빙이 꺼져 있어 봉인할 수 없습니다.</span>
-                    </div>
-                    <form th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}" method="post" class="da-inline-form">
-                        <button type="submit" class="n-btn n-btn-warning"
-                                th:disabled="${area.availability != 'CONFIGURED'}"
-                                th:title="${area.availability == 'CONFIGURED'}
-                                          ? '존재하는 자산의 현재 해시를 무결성 기준으로 기록합니다.'
-                                          : '서빙이 비활성이라 봉인할 수 없습니다.'">봉인</button>
-                    </form>
-                </div>
-            </div>
+                              th:text="'일치 ' + ${area.okCount} + ' / ' + ${area.totalCount}">일치 6 / 6</span>
+                        <span th:unless="${area.availability == 'CONFIGURED'}" class="n-badge n-badge-gray">서빙 비활성</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
