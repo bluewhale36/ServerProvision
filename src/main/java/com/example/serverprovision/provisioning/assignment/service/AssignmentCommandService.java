@@ -4,9 +4,12 @@ import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
 import com.example.serverprovision.provisioning.assignment.entity.AssignedProcess;
 import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
 import com.example.serverprovision.provisioning.assignment.exception.DuplicateActiveAssignmentException;
+import com.example.serverprovision.provisioning.assignment.exception.NoActiveAssignmentToReassignException;
+import com.example.serverprovision.provisioning.assignment.exception.ReassignAfterStartException;
 import com.example.serverprovision.provisioning.assignment.mapper.SettingProcessPhaseMapper;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
 import com.example.serverprovision.provisioning.assignment.vo.FrozenBiosSettings;
@@ -28,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -36,12 +40,16 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 세팅 정의서 할당 command — 할당 시점 스냅샷 생성(행 단위 복사 · derive-then-freeze).
+ * 세팅 정의서 할당 · 재할당 command — 할당 시점 스냅샷 생성(행 단위 복사 · derive-then-freeze).
  *
  * <p>정의서(+processes) · 게스트를 로드(부재 404)하고, 활성 유일성 가드(중복 409)를 통과하면 스냅샷을 만든다:
  * 각 {@code SettingProcess} 를 {@link AssignedProcess} 로 payload 무변환 복사하고, BASIC_SETTING 은 참조 BIOS
  * 세팅 템플릿을 resolve 해 {@link FrozenBiosSettings} 로 deep-freeze 한다(결정 D-C). {@code ownedPhases} 는
  * {@link SettingProcessPhaseMapper} 로 derive 해 얼린다. 정의서는 <b>소프트참조</b>라 하드 FK 가 없다.</p>
+ *
+ * <p>재할당(U3-2-a)은 이미 있는 <b>미개시</b> 활성 스냅샷을 논리 종료(supersede)하고 현재 정의서로 새 활성
+ * 스냅샷을 만든다 — 스냅샷 조립 로직은 {@link #deriveSnapshot}로 공통 추출해 할당 · 재할당이 함께 쓴다(DA5,
+ * 복붙 금지). 개시된 활성의 재할당은 도메인 메서드 {@code reassignBlockReason()} SSOT 가 차단한다(DA4).</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -61,15 +69,64 @@ public class AssignmentCommandService {
         SettingDefinition definition = definitionRepository.findById(definitionId)
                 .orElseThrow(() -> new SettingNotFoundException(definitionId));
 
-        // 활성 유일성 가드(안전망 — UI 가 재할당 폼을 1차 차단). 재할당 UX 는 U3-2.
+        // 활성 유일성 가드(안전망 — UI 가 재할당 폼을 1차 차단, DB unique 가 최후 방어). 정상 재할당은 reassign.
         if (assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(guestId)) {
             throw new DuplicateActiveAssignmentException(guestId);
         }
 
+        SettingAssignment saved = assignmentRepository.save(deriveSnapshot(guest, definition));
+        log.info("[assignment] created id={} guest={} definition={} ownedPhases={}",
+                saved.getId(), guestId, definition.getId(), saved.getOwnedPhases().asSet());
+        return new AssignmentResponse(
+                saved.getId(), definition.getId(), definition.getName(),
+                List.copyOf(saved.getOwnedPhases().asSet()));
+    }
+
+    /**
+     * 재할당(U3-2-a) — 미개시 활성 스냅샷을 논리 종료(supersede)하고 현재 정의서로 새 활성 스냅샷을 만든다.
+     * 게스트 · 정의서 부재는 404, 갈아끼울 활성이 없으면 409({@link NoActiveAssignmentToReassignException}),
+     * 개시된 활성이면 409({@link ReassignAfterStartException}) — 차단 판정은 도메인 SSOT
+     * {@code reassignBlockReason()} 하나다(뷰 disabled 와 동일 소스, DA4).
+     */
+    @Transactional
+    public ReassignmentResponse reassign(UUID guestId, Long definitionId) {
+        GuestServer guest = guestServerRepository.findById(guestId)
+                .orElseThrow(() -> new GuestServerNotFoundException(guestId));
+        SettingDefinition definition = definitionRepository.findById(definitionId)
+                .orElseThrow(() -> new SettingNotFoundException(definitionId));
+
+        SettingAssignment active = assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(guestId)
+                .orElseThrow(() -> new NoActiveAssignmentToReassignException(guestId));
+
+        // 서버 가드(안전망) = 뷰 disabled 판정 = 단일 SSOT. 개시된 활성이면 재할당 차단(E cluster 소관).
+        String blockReason = active.reassignBlockReason();
+        if (blockReason != null) {
+            throw new ReassignAfterStartException(guestId, blockReason);
+        }
+
+        active.supersede(LocalDateTime.now());   // 논리 종료(이력 보존) — 활성 술어 6곳이 자동으로 새 행을 가리킨다.
+        // 새 활성 INSERT 전에 supersede UPDATE(active_guest_id→NULL)를 DB 에 먼저 반영한다. Hibernate 는 flush 시
+        // INSERT 를 UPDATE 보다 먼저 실행하므로(IDENTITY 라 save 가 즉시 INSERT), flush 없이는 새 행과 기존 행이
+        // 순간적으로 둘 다 active_guest_id=guest 가 되어 uk_active_assignment_per_guest(DA2) 를 위반한다.
+        assignmentRepository.flush();
+        SettingAssignment saved = assignmentRepository.save(deriveSnapshot(guest, definition));
+        log.info("[assignment] reassigned guest={} superseded={} new={} definition={} ownedPhases={}",
+                guestId, active.getId(), saved.getId(), definition.getId(), saved.getOwnedPhases().asSet());
+        return new ReassignmentResponse(
+                saved.getId(), active.getId(), definition.getId(), definition.getName(),
+                List.copyOf(saved.getOwnedPhases().asSet()));
+    }
+
+    /**
+     * 현재 정의서에서 활성 스냅샷을 derive-then-freeze 로 조립한다(저장은 호출자 — 할당 · 재할당 공통, DA5).
+     * {@code ownedPhases} 는 {@link SettingProcessPhaseMapper} 로 도출해 얼리고, 각 {@code SettingProcess} 를
+     * payload 무변환 복사하며 BASIC_SETTING 은 참조 BIOS 세팅 템플릿을 resolve 해 deep-freeze 한다.
+     */
+    private SettingAssignment deriveSnapshot(GuestServer guest, SettingDefinition definition) {
         Set<SettingProcessType> types = definition.getProcesses().stream()
                 .map(SettingProcess::getProcessType)
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(SettingProcessType.class)));
-        OwnedPhases ownedPhases = SettingProcessPhaseMapper.toOwnedPhases(types);   // derive-then-freeze
+        OwnedPhases ownedPhases = SettingProcessPhaseMapper.toOwnedPhases(types);
 
         SettingAssignment assignment = SettingAssignment.create(
                 guest,
@@ -79,13 +136,7 @@ public class AssignmentCommandService {
             ProcessPayload payload = process.getPayload();   // 무변환 복사(불변 VO)
             assignment.addProcess(new AssignedProcess(payload, freezeBiosIfPresent(payload)));
         }
-
-        SettingAssignment saved = assignmentRepository.save(assignment);
-        log.info("[assignment] created id={} guest={} definition={} ownedPhases={}",
-                saved.getId(), guestId, definition.getId(), ownedPhases.asSet());
-        return new AssignmentResponse(
-                saved.getId(), definition.getId(), definition.getName(),
-                List.copyOf(ownedPhases.asSet()));
+        return assignment;
     }
 
     /** BASIC_SETTING payload 의 템플릿 참조를 resolve 해 값을 동결. 그 외 타입은 null. */

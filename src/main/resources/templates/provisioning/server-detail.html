@@ -272,17 +272,17 @@
         </div>
     </div>
 
-    <!-- ===== 세팅 정의서 할당 (U3-1) ===== -->
-    <!-- data-live 미마킹(§S7 규약): 입력 폼(assignment-form)을 포함하므로 SSE 재렌더 대상에서 제외한다 —
-         data-live 로 두면 replaceWith 가 폼 DOM 을 교체해 server-assignment.js 의 submit 핸들러와 선택 입력을
-         함께 소실시킨다(브라우저 검증에서 확인). 할당·개시는 모두 리로드라 이 섹션에 SSE-only 변화는 없다. -->
+    <!-- ===== 세팅 정의서 할당 · 재할당 (U3-1 · U3-2-a) ===== -->
+    <!-- data-live 미마킹(§S7 규약): 입력 폼(assignment-form · reassignment-form)을 포함하므로 SSE 재렌더 대상에서
+         제외한다 — data-live 로 두면 replaceWith 가 폼 DOM 을 교체해 server-assignment.js 의 submit 핸들러와 선택
+         입력을 함께 소실시킨다(U3-1 commit 107bbd0 재발 방지). 할당·재할당·개시는 모두 리로드라 SSE-only 변화 없음. -->
     <div class="n-detail-section">
         <div class="n-section-title">세팅 정의서 할당</div>
         <div class="n-section-hint">할당하면 정의서 내용을 스냅샷으로 복사해 이 서버가 밟을 프로비저닝 단계(phase)를 확정합니다. 할당 없이도 진단 리눅스까지는 진행됩니다.</div>
         <div class="n-card">
             <div class="n-card-body">
 
-                <!-- 현재 할당(있을 때) — 활성 유일성이라 재할당 폼은 노출하지 않는다(UI 1차 차단). -->
+                <!-- 현재 할당(있을 때) — 미개시면 재할당 폼 개방, 개시됐으면 disabled + tooltip(UI 1차 차단, DA4). -->
                 <div th:if="${phaseRail.assigned}">
                     <table class="n-detail-table">
                         <tbody>
@@ -290,13 +290,45 @@
                             <th>할당된 정의서</th>
                             <td>
                                 <strong th:text="${phaseRail.definitionName}">web-standard</strong>
-                                <span class="n-badge n-badge-blue" style="margin-left: 8px;"
-                                      th:text="${phaseRail.state}">ACTIVE_UNCONSUMED</span>
+                                <span class="n-badge" th:classappend="${phaseRail.badgeClass}" style="margin-left: 8px;"
+                                      th:text="${phaseRail.state.description}">개시 전</span>
                             </td>
                         </tr>
                         </tbody>
                     </table>
-                    <div class="n-section-hint" style="margin-top: 8px;">재할당·해제는 후속 단계(U3-2)에서 제공됩니다.</div>
+
+                    <!-- 재할당(미개시 활성) — reassignBlockReason == null 이면 개방. XHR JSON 제출(server-assignment.js). -->
+                    <div th:if="${phaseRail.reassignBlockReason == null}" style="margin-top: 16px;">
+                        <p th:if="${#lists.isEmpty(definitionOptions)}" class="n-detail-empty">
+                            재할당할 다른 세팅 정의서가 없습니다.
+                        </p>
+                        <form th:unless="${#lists.isEmpty(definitionOptions)}" id="reassignment-form"
+                              th:data-action="@{/provisioning/server/{id}/assignment/reassign(id=${server.id})}">
+                            <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+                            <div class="n-form-group" data-error-field="definitionId">
+                                <label class="n-label" for="reassignment-definition">다른 정의서로 재할당</label>
+                                <select id="reassignment-definition" name="definitionId" class="n-select">
+                                    <option value="">— 정의서 선택 —</option>
+                                    <option th:each="def : ${definitionOptions}"
+                                            th:value="${def.id}" th:text="${def.name}">web-standard</option>
+                                </select>
+                            </div>
+                            <div class="n-form-actions" style="margin-top: 12px;">
+                                <button type="submit" class="n-btn n-btn-primary">재할당</button>
+                            </div>
+                            <div class="n-section-hint" style="margin-top: 8px;">
+                                재할당하면 지금 정의서로 새 스냅샷을 만들고 기존 할당은 이력으로 종료됩니다. 프로비저닝 개시 전까지만 가능합니다.
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 재할당 차단(개시된 활성) — disabled + 사유 tooltip(reassignBlockReason SSOT = 서버 가드와 동일). -->
+                    <div th:if="${phaseRail.reassignBlockReason != null}" style="margin-top: 16px;">
+                        <button type="button" class="n-btn n-btn-secondary" disabled
+                                th:title="${phaseRail.reassignBlockReason}">재할당 (차단됨)</button>
+                        <span class="n-muted" style="font-size: 12px; margin-left: 8px;"
+                              th:text="${phaseRail.reassignBlockReason}">이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)</span>
+                    </div>
                 </div>
 
                 <!-- 할당 폼(미할당일 때만) — XHR JSON 제출(server-assignment.js). -->

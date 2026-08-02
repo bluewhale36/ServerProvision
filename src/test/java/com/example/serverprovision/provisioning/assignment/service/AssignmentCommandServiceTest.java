@@ -6,11 +6,17 @@ import com.example.serverprovision.execution.exception.GuestServerNotFoundExcept
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
 import com.example.serverprovision.provisioning.assignment.entity.AssignedProcess;
 import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
+import com.example.serverprovision.provisioning.assignment.enums.AssignmentState;
 import com.example.serverprovision.provisioning.assignment.exception.DuplicateActiveAssignmentException;
+import com.example.serverprovision.provisioning.assignment.exception.NoActiveAssignmentToReassignException;
+import com.example.serverprovision.provisioning.assignment.exception.ReassignAfterStartException;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
 import com.example.serverprovision.provisioning.assignment.vo.FrozenBiosSettings.FrozenBiosTemplate;
+import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
+import com.example.serverprovision.provisioning.assignment.vo.SourceDefinitionRef;
 import com.example.serverprovision.provisioning.biossetting.entity.BiosSettingTemplate;
 import com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository;
 import com.example.serverprovision.provisioning.biossetting.vo.BiosSettingValues;
@@ -32,6 +38,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,6 +49,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -142,5 +150,109 @@ class AssignmentCommandServiceTest {
 
         assertThatThrownBy(() -> service.assign(GUEST, DEF_ID))
                 .isInstanceOf(DuplicateActiveAssignmentException.class);
+    }
+
+    // ==== 재할당(U3-2-a) =============================================
+
+    /** 미개시 활성 스냅샷 fixture(id 지정) — 이전 정의서(id=9) 참조. */
+    private SettingAssignment activeUnconsumed(long id) {
+        SettingAssignment active = SettingAssignment.create(
+                mock(GuestServer.class), new SourceDefinitionRef(9L, "old-def"), OwnedPhases.empty());
+        ReflectionTestUtils.setField(active, "id", id);
+        return active;
+    }
+
+    @Test
+    @DisplayName("reassign happy — 미개시 활성 supersede + 현재 정의서로 새 활성(ownedPhases 재파생 · deep-freeze)")
+    void reassign_success_supersedesAndCreatesNew() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
+        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+
+        SettingAssignment active = activeUnconsumed(100L);
+        given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
+                .willReturn(Optional.of(active));
+
+        // deep-freeze 대상 템플릿(assign happy 와 동일 fixture) — 재할당도 재동결한다.
+        BoardModel board = mock(BoardModel.class);
+        given(board.getId()).willReturn(3L);
+        BiosSettingValues values = new BiosSettingValues(Map.of(
+                BiosAttributeName.of("BootMode"), BiosAttributeValue.ofString("UEFI")));
+        BiosSettingTemplate template = mock(BiosSettingTemplate.class);
+        given(template.getId()).willReturn(7L);
+        given(template.getBoardModel()).willReturn(board);
+        given(template.getValues()).willReturn(values);
+        given(biosSettingTemplateRepository.findById(7L)).willReturn(Optional.of(template));
+        given(assignmentRepository.save(any(SettingAssignment.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        ReassignmentResponse response = service.reassign(GUEST, DEF_ID);
+
+        // 기존 활성은 논리 종료(supersede) — 이력 보존.
+        assertThat(active.state()).isEqualTo(AssignmentState.SUPERSEDED);
+        assertThat(active.isActive()).isFalse();
+
+        // 응답 — 이전 행 id + 새 스냅샷의 재파생 ownedPhases.
+        assertThat(response.supersededAssignmentId()).isEqualTo(100L);
+        assertThat(response.definitionId()).isEqualTo(DEF_ID);
+        assertThat(response.definitionName()).isEqualTo("web-standard");
+        assertThat(response.ownedPhases()).containsExactly(ProvisioningPhase.FIRMWARE_SETTING);
+
+        // 새 스냅샷 저장 — deep-freeze 재수행.
+        ArgumentCaptor<SettingAssignment> captor = ArgumentCaptor.forClass(SettingAssignment.class);
+        verify(assignmentRepository).save(captor.capture());
+        SettingAssignment saved = captor.getValue();
+        assertThat(saved.getOwnedPhases().asSet()).containsExactly(ProvisioningPhase.FIRMWARE_SETTING);
+        assertThat(saved.getProcesses()).hasSize(1);
+        assertThat(saved.getProcesses().get(0).getFrozenBiosSettings()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("reassign 차단 — 개시된(ACTIVE_CONSUMED) 활성 → ReassignAfterStartException(409), supersede·save 없음")
+    void reassign_consumed_blocked() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
+        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+
+        SettingAssignment active = activeUnconsumed(100L);
+        active.markConsumed(LocalDateTime.now());   // 개시됨 → 재할당 차단 대상
+        given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
+                .willReturn(Optional.of(active));
+
+        assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
+                .isInstanceOf(ReassignAfterStartException.class);
+
+        assertThat(active.isActive()).isTrue();   // 차단 — supersede 안 됨
+        verify(assignmentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("reassign 실패 — 갈아끼울 활성 없음 → NoActiveAssignmentToReassignException(409)")
+    void reassign_noActive() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
+        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+        given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
+                .isInstanceOf(NoActiveAssignmentToReassignException.class);
+        verify(assignmentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("reassign 실패 — 없는 게스트 → GuestServerNotFoundException(404)")
+    void reassign_guestNotFound() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
+                .isInstanceOf(GuestServerNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("reassign 실패 — 없는 정의서 → SettingNotFoundException(404)")
+    void reassign_definitionNotFound() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
+        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
+                .isInstanceOf(SettingNotFoundException.class);
     }
 }

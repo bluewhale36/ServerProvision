@@ -3,6 +3,8 @@ package com.example.serverprovision.provisioning.assignment.repository;
 import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,4 +15,11 @@ public interface SettingAssignmentRepository extends JpaRepository<SettingAssign
 
     /** 활성 유일성 가드 — 이미 활성 스냅샷이 있으면 재할당은 409(안전망, UI 1차 차단). */
     boolean existsByGuestServer_IdAndSupersededAtIsNull(UUID guestServerId);
+
+    /**
+     * reaper 수거 대상(U3-2-a) — 재할당으로 논리 종료됐으나 <b>한 번도 개시 안 된</b> 순수 쓰레기 행 중 TTL 경과분.
+     * {@code supersededAt IS NOT NULL AND consumedAt IS NULL AND supersededAt < threshold}. 소비 이력 행(감사
+     * 가치)과 활성 행은 술어에서 제외된다.
+     */
+    List<SettingAssignment> findBySupersededAtIsNotNullAndConsumedAtIsNullAndSupersededAtBefore(LocalDateTime threshold);
 }
