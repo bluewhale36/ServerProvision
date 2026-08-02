@@ -273,7 +273,10 @@
     </div>
 
     <!-- ===== 세팅 정의서 할당 (U3-1) ===== -->
-    <div class="n-detail-section" data-live="assignment">
+    <!-- data-live 미마킹(§S7 규약): 입력 폼(assignment-form)을 포함하므로 SSE 재렌더 대상에서 제외한다 —
+         data-live 로 두면 replaceWith 가 폼 DOM 을 교체해 server-assignment.js 의 submit 핸들러와 선택 입력을
+         함께 소실시킨다(브라우저 검증에서 확인). 할당·개시는 모두 리로드라 이 섹션에 SSE-only 변화는 없다. -->
+    <div class="n-detail-section">
         <div class="n-section-title">세팅 정의서 할당</div>
         <div class="n-section-hint">할당하면 정의서 내용을 스냅샷으로 복사해 이 서버가 밟을 프로비저닝 단계(phase)를 확정합니다. 할당 없이도 진단 리눅스까지는 진행됩니다.</div>
         <div class="n-card">
