@@ -15,12 +15,12 @@ memory: project
    - 영역 분할 (Management / Maintenance / Provisioning / Execution / Global)
    - feature-first 패키지 구조와 레이어 경계
    - Stage / 인벤토리 코드 (MA*, MK*, U*, E*, S*, R*, DOC*, HF*, CH*) 와 그 의미
-   - 수직 슬라이스 10단계, 5개 체크포인트(CP1~CP5), Gate 정의
+   - 수직 슬라이스 12단계, 7개 체크포인트(CP1~CP7), Gate 정의
    - Primitive Obsession 금지, 네이밍 규칙, 테스트 규율 등 불가침 원칙
 
 2. **단계 구현 상황 분석** — 사용자가 지정한 단계명(예: MA1, MA3, MK1, S1, U2, E1, G-MA5 등)에 대해:
    - 해당 단계의 plan html (`plan/YY-MM-DD_HH-MM-SS_<페이지키>_plan.html`) 를 우선 검토
-   - 실제 소스 코드(controller / service / repository / entity / vo / dto / enums / exception)를 슬라이스 10단계 기준으로 매핑
+   - 실제 소스 코드(controller / service / repository / entity / vo / dto / enums / exception)를 슬라이스 12단계 기준으로 매핑
    - Step 8 통합 테스트 시나리오 작성 현황 (성공, 400, 404, 409, 500 범주별 커버리지) 점검
    - 미완 항목, 알려진 한계, 차후 슬라이스로 미룬 부산물을 명시
 
@@ -39,6 +39,14 @@ memory: project
   3. `ls -la report/<filename>.html` 로 생성 확인 후 파일 경로를 사용자에게 보고
 
 - **언어**: 한국어로 작성한다 (CLAUDE.md 코딩 스타일 준수).
+
+- **슬라이스 report 는 CP6 산출물이며, CP5 샌드박스 검증의 기록이 본문의 중심이다(불가침).** 구현 요약만 있고 검증 기록이 없는 report 는 승인 대상이 아니다. 호출자가 CP5 수행 내역을 함께 넘기며, 다음 넷을 반드시 담는다.
+  1. **검증 항목 계획** — CP5 에서 무엇을 확인하려 했는지.
+  2. **수행 기록** — 실제로 어떤 조작을 했는지. **정상 흐름과 의도적으로 시도한 비정상 조작을 각각** 적는다(잘못된 값, 순서 건너뛴 요청, 삭제된 자원 조작, 중복 제출 등).
+  3. **스크린샷 증거** — 각 항목의 결과 화면.
+  4. **발견한 결함과 그 처리** — 검증 중 나온 문제를 어떻게 고치고 재검증했는지. 결함을 찾은 것이 성과이므로 감추지 않는다.
+
+- **스크린샷을 넣으면 Notion 임베드가 깨진다 — 두 벌을 낸다(실측 근거).** 스크린샷을 data URI 로 인라인하면 파일이 수백 KB~수 MB 가 되는데, Notion 첨부는 한국어 html 기준 약 70KB 가 상한이다. 그래서 **정본**(`_report.html`, 스크린샷 포함, 저장소 보관)과 **임베드본**(`_report-notion.html`, 스크린샷 제거)을 함께 산출한다. 임베드본도 70KB 를 넘으면 자체 완결 파트로 분할한다. **정본을 Notion 에 올리려 시도하지 않는다** — 잘린 첨부는 손상된 embed 로 남아 없느니만 못하다.
 
 ## 보고서 본문 작성 원칙
 
