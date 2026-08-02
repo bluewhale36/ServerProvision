@@ -86,7 +86,7 @@
 
 ## 개발 흐름 (어떻게 일하는가)
 
-작업은 **인벤토리 코드**(작업 단위 식별자)로 부른다: `MA*`(Manage-Application) / `MK*`(Manage-Kernel/Maintenance) / `U*`(Provisioning) / `E*`(Execution — 프로비저닝 실행 엔진, E1=진단 리눅스부터 `ProvisioningPhase` 순서 대응) / `S*`(cross-cutting infra) / `R*`(리팩토링 캠페인) / `HF*`(hotfix) / `M0`(리네임) / `CH*`(housekeeping). 코드 번호는 식별자이지 실행 순서가 아니다. **각 코드의 상태·이력은 Notion DB 가 SSOT** — CLAUDE.md 에 이력을 적지 않는다.
+작업은 **인벤토리 코드**(작업 단위 식별자)로 부른다: `MA*`(Manage-Application) / `MK*`(Manage-Kernel/Maintenance) / `U*`(Provisioning) / `E*`(Execution — 프로비저닝 실행 엔진, E1=진단 리눅스부터 `ProvisioningPhase` 순서 대응) / `S*`(cross-cutting infra) / `R*`(리팩토링 캠페인) / `HF*`(hotfix) / `M0`(리네임) / `CH*`(housekeeping) / `DOC*`(문서화) / `OPS*`(서버 운영 설계 — 배포 대상 OS 위에서 애플리케이션을 어떤 계정·권한·배치로 돌릴지). 코드 번호는 식별자이지 실행 순서가 아니다. **각 코드의 상태·이력은 Notion DB 가 SSOT** — CLAUDE.md 에 이력을 적지 않는다.
 
 ### 수직 슬라이스 (페이지/작업당 12 단계)
 1. URL/데이터 흐름 스케치 — **plan html 산출**(아래 규약) 2. Thymeleaf 뷰(더미, 기존 CSS 재사용) 3. Controller(`@ModelAttribute`+`BindingResult`, Model 엔 Response 만) 4. Request/Response DTO(`@Valid`) 5. Service 인터페이스+시그니처(`@Transactional` 경계) 6. Repository(Spring Data 네임규칙) 7. Entity(`BaseTimeEntity` 상속, **7단계 전 `@Entity` 작성 금지**) 8. Service 본체 + 테스트(아래 규율) 9. 스키마 확인(`ddl-auto=validate` — 수동 DDL 을 `ddl/` 에 산출·적용 후 `SHOW CREATE TABLE` 검증. ALTER 권한 계정 필요 — `claude_code` 는 ALTER 불가) 10. **샌드박스 브라우저 검증**(아래 규율) 11. **report html 산출**(아래 규약) 12. 브라우저 E2E — **사용자 단독**.
@@ -108,6 +108,8 @@
 > **모든 CP 중 Claude 가 가장 많은 사고를 쏟아야 하는 단계는 CP1(계획)이다 (불가침).** 코드 구현(CP2~CP4)은 좋은 계획만 있으면 기계적이지만, 설계 결함은 CP1 에서 못 잡으면 그대로 굳는다. plan 을 쓰기 전 반드시: ① **설계 대안을 복수 생성·비교**(첫 떠오른 안 하나로 쓰지 않는다 — 2~3 접근의 trade-off 명시 후 최선 선택) ② **자기 선택을 적대적으로 비판**(통일성 깨지 않는가/churn 만들지 않는가/더 간단한 길은/숨은 순환·결함은 — 막히면 코드를 더 읽어 확인) ③ **결정에 채택안 + 비채택 대안 + 탈락 사유를 함께 기록**(사용자가 "더 나은 방안 없냐" 되묻지 않아도 최적 설계가 plan 에 담겨야 한다). 필요하면 CP1 에 workflow/Agent 를 적극 동원한다 — CP1 토큰은 CP2~CP4 재작업을 막는 투자다.
 
 > **CP5 · CP7 의 E 단계 예외** (2026-07-12 합의, 2026-08-02 CP 재편 반영): 실행 엔진(E*) 슬라이스는 게스트가 화면 없이 HTTP 로만 상호작용하므로, **CP5 의 샌드박스 검증과 CP7 의 사용자 E2E 를 브라우저 대신 모의 게스트 하네스(`scripts/mock-guest/`) 실행 + 게스트 서버 상세 페이지 확인**으로 수행한다. 관리자 화면이 딸린 슬라이스(자산 대시보드 등)는 그 화면만 브라우저로 검증한다. 하네스는 게스트의 HTTP 행동(부팅→체크인→보고)을 curl 로 재연하는 git 추적 자산이며 Step 8 테스트 규율을 대체하지 않는다. 실기(T3) 검증이 유보된 항목은 `docs/T3-checklist.md` 에 적립하고 그 시점을 Notion 후속 마일스톤에 기재한다.
+
+> **CP 체계는 코드 슬라이스에만 적용한다** (2026-08-02 확정). `OPS*` 처럼 **산출물이 코드가 아니라 결정인 설계 계열**은 위 12 단계·7 체크포인트를 따르지 않는다. 뷰·컨트롤러·서비스가 없으므로 대응시킬 자리가 없기 때문이다. 이런 단계는 **토론에서 결정이 확정되면 완료**로 닫고, 그 결정을 실제 파일·코드로 옮기는 일은 별도 단계(구현 계열)로 넘긴다. 토론 진행과 아카이브는 discussion 규약을 따른다.
 
 ### 샌드박스 브라우저 검증 (Step 10 · CP5, 불가침)
 빌드와 테스트가 통과해도 화면에서만 드러나는 결함이 있다. 과거 전수 점검에서 실제로 direct POST 로 폼 마커가 빠지면 오류가 조용히 삼켜지던 결함(silent 200)을 이 방식으로 잡았다. 그래서 **CP4 의 green 은 완료가 아니라 검증 착수 조건**이다.
