@@ -6,6 +6,10 @@ import com.example.serverprovision.execution.exception.ProvisioningMarkFailedRej
 import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
 import com.example.serverprovision.execution.service.GuestServerCommandService;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
+import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,11 @@ class GuestServerControllerActionTest {
 
     @MockitoBean GuestServerQueryService queryService;
     @MockitoBean GuestServerCommandService commandService;
+    // U3-1 — 컨트롤러 신규 협력자(할당 스냅샷). 본 액션(mark-failed·retry)은 소비하지 않으나 컨텍스트 로드에 필요.
+    @MockitoBean AssignmentCommandService assignmentCommandService;
+    @MockitoBean AssignmentQueryService assignmentQueryService;
+    @MockitoBean AssignmentStartService assignmentStartService;
+    @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     // ==== 성공 (PRG) ==================================================

@@ -272,6 +272,87 @@
         </div>
     </div>
 
+    <!-- ===== 세팅 정의서 할당 (U3-1) ===== -->
+    <div class="n-detail-section" data-live="assignment">
+        <div class="n-section-title">세팅 정의서 할당</div>
+        <div class="n-section-hint">할당하면 정의서 내용을 스냅샷으로 복사해 이 서버가 밟을 프로비저닝 단계(phase)를 확정합니다. 할당 없이도 진단 리눅스까지는 진행됩니다.</div>
+        <div class="n-card">
+            <div class="n-card-body">
+
+                <!-- 현재 할당(있을 때) — 활성 유일성이라 재할당 폼은 노출하지 않는다(UI 1차 차단). -->
+                <div th:if="${phaseRail.assigned}">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>할당된 정의서</th>
+                            <td>
+                                <strong th:text="${phaseRail.definitionName}">web-standard</strong>
+                                <span class="n-badge n-badge-blue" style="margin-left: 8px;"
+                                      th:text="${phaseRail.state}">ACTIVE_UNCONSUMED</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <div class="n-section-hint" style="margin-top: 8px;">재할당·해제는 후속 단계(U3-2)에서 제공됩니다.</div>
+                </div>
+
+                <!-- 할당 폼(미할당일 때만) — XHR JSON 제출(server-assignment.js). -->
+                <div th:unless="${phaseRail.assigned}">
+                    <p th:if="${#lists.isEmpty(definitionOptions)}" class="n-detail-empty">
+                        등록된 세팅 정의서가 없습니다. 먼저 정의서를 만들어 주세요.
+                    </p>
+                    <form th:unless="${#lists.isEmpty(definitionOptions)}" id="assignment-form"
+                          th:data-action="@{/provisioning/server/{id}/assignment(id=${server.id})}">
+                        <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+                        <div class="n-form-group" data-error-field="definitionId">
+                            <label class="n-label" for="assignment-definition">세팅 정의서</label>
+                            <select id="assignment-definition" name="definitionId" class="n-select">
+                                <option value="">— 정의서 선택 —</option>
+                                <option th:each="def : ${definitionOptions}"
+                                        th:value="${def.id}" th:text="${def.name}">web-standard</option>
+                            </select>
+                        </div>
+                        <div class="n-form-actions" style="margin-top: 12px;">
+                            <button type="submit" class="n-btn n-btn-primary">이 서버에 할당</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 계획 phase rail — 계획(assigned)에 실제 진행(started) 커서를 겹친다. -->
+                <div style="margin-top: 20px;">
+                    <div class="n-label strong">계획 phase (assigned)</div>
+                    <div class="n-section-hint">
+                        실제 전진(started)은 실행 엔진 배선(ES-1) 후 반영됩니다 — 배지가 아직 '예정(계획)'에 머물러 있어도 고장이 아닙니다.
+                    </div>
+                    <p th:if="${#lists.isEmpty(phaseRail.entries)}" class="n-detail-empty" style="margin-top: 12px;">
+                        계획 phase 없음 — 정의서를 할당하면 열립니다. (할당 없이도 진단 리눅스까지는 진행됩니다.)
+                    </p>
+                    <table th:unless="${#lists.isEmpty(phaseRail.entries)}" class="n-table" style="margin-top: 12px;">
+                        <thead>
+                        <tr>
+                            <th>순서</th>
+                            <th>Phase</th>
+                            <th>상태</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="entry, it : ${phaseRail.entries}">
+                            <td th:text="${it.index + 1}">1</td>
+                            <td th:text="${entry.description}">진단 리눅스</td>
+                            <td th:switch="${entry.runState.name()}">
+                                <span th:case="'DONE'" class="n-badge n-badge-green">완료 (실제)</span>
+                                <span th:case="'CURRENT'" class="n-badge n-badge-blue">현재 (실제)</span>
+                                <span th:case="'PENDING'" class="n-badge n-badge-gray">예정 (계획)</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
     <!-- 프로비저닝 진행 (읽기 전용 + 액션 버튼 — 상태 변화에 따라 나타나고 사라지므로 함께 교체) -->
     <div class="n-detail-section" data-live="progress">
         <div class="n-section-title">프로비저닝 진행</div>
@@ -395,6 +476,8 @@
 
 <!-- S7 — SSE 구독 + 신호-재조회 부분 교체 (수정 폼 영역은 건드리지 않는다) -->
 <script th:src="@{/provisioning/server-stream.js}"></script>
+<!-- U3-1 — 세팅 정의서 할당 XHR 제출 -->
+<script th:src="@{/provisioning/server-assignment.js}"></script>
 
 </body>
 </html>
