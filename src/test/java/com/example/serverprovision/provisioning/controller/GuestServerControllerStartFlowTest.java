@@ -7,6 +7,12 @@ import com.example.serverprovision.execution.exception.GuestServerNotFoundExcept
 import com.example.serverprovision.execution.exception.ProvisioningStartRejectedException;
 import com.example.serverprovision.execution.service.GuestServerCommandService;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
+import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
+import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,7 +50,18 @@ class GuestServerControllerStartFlowTest {
 
     @MockitoBean GuestServerQueryService queryService;
     @MockitoBean GuestServerCommandService commandService;
+    // U3-1 — 개시는 provisioning 측 오케스트레이터(AssignmentStartService)가 소유한다(D-D). 컨트롤러는 이걸 호출.
+    @MockitoBean AssignmentCommandService assignmentCommandService;
+    @MockitoBean AssignmentQueryService assignmentQueryService;
+    @MockitoBean AssignmentStartService assignmentStartService;
+    @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @BeforeEach
+    void stubAssignmentPlan() {
+        given(assignmentQueryService.plannedPhasesOf(org.mockito.ArgumentMatchers.any(UUID.class)))
+                .willReturn(AssignmentPlanResponse.unassigned());
+    }
 
     private static final LocalDateTime T = LocalDateTime.of(2026, 7, 12, 12, 0);
 
@@ -77,7 +94,7 @@ class GuestServerControllerStartFlowTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "/provisioning/server/" + id));
 
-        verify(commandService).startProvisioning(id);
+        verify(assignmentStartService).startProvisioning(id);
     }
 
     // ==== 404 / 409 (안전망 — 신규 예외 실트리거) ======================
@@ -86,7 +103,7 @@ class GuestServerControllerStartFlowTest {
     @DisplayName("POST /{id}/start — 없는 id → 404 (advice)")
     void start_notFound_returns404() throws Exception {
         UUID id = UUID.randomUUID();
-        willThrow(new GuestServerNotFoundException(id)).given(commandService).startProvisioning(id);
+        willThrow(new GuestServerNotFoundException(id)).given(assignmentStartService).startProvisioning(id);
 
         mvc.perform(post("/provisioning/server/{id}/start", id).accept(MediaType.TEXT_HTML))
                 .andExpect(status().isNotFound());
@@ -97,7 +114,7 @@ class GuestServerControllerStartFlowTest {
     void start_alreadyStarted_returns409() throws Exception {
         UUID id = UUID.randomUUID();
         willThrow(ProvisioningStartRejectedException.alreadyStarted(id))
-                .given(commandService).startProvisioning(id);
+                .given(assignmentStartService).startProvisioning(id);
 
         mvc.perform(post("/provisioning/server/{id}/start", id).accept(MediaType.TEXT_HTML))
                 .andExpect(status().isConflict());
@@ -108,7 +125,7 @@ class GuestServerControllerStartFlowTest {
     void start_decommissioned_returns409() throws Exception {
         UUID id = UUID.randomUUID();
         willThrow(ProvisioningStartRejectedException.decommissioned(id))
-                .given(commandService).startProvisioning(id);
+                .given(assignmentStartService).startProvisioning(id);
 
         mvc.perform(post("/provisioning/server/{id}/start", id).accept(MediaType.TEXT_HTML))
                 .andExpect(status().isConflict());

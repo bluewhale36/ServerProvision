@@ -10,6 +10,12 @@ import com.example.serverprovision.execution.service.GuestServerCommandService;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.management.board.enums.Vendor;
+import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
+import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,7 +51,18 @@ class GuestServerControllerTest {
 
     @MockitoBean GuestServerQueryService queryService;
     @MockitoBean GuestServerCommandService commandService;
+    // U3-1 — 컨트롤러 신규 협력자(할당 스냅샷). 상세 렌더가 계획 rail 을 조립하므로 plannedPhasesOf 를 스텁한다.
+    @MockitoBean AssignmentCommandService assignmentCommandService;
+    @MockitoBean AssignmentQueryService assignmentQueryService;
+    @MockitoBean AssignmentStartService assignmentStartService;
+    @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @BeforeEach
+    void stubAssignmentPlan() {
+        given(assignmentQueryService.plannedPhasesOf(any(UUID.class)))
+                .willReturn(AssignmentPlanResponse.unassigned());
+    }
 
     private GuestServerSummaryResponse summary(UUID id) {
         return new GuestServerSummaryResponse(

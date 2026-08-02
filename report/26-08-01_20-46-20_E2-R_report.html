@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E2-R — 펌웨어 업데이트 실행 메커니즘 조사 보고서</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--orange-bg); color:var(--orange); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+  .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:200px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-actions { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 4px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq 스윔레인 ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── card-grid ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E2-R — 펌웨어 업데이트 실행 메커니즘 조사 보고서 <span class="v2-badge">조사 트랙</span></h1>
+  <div class="meta">
+    <span><strong>단계</strong> E2-R (조사 트랙)</span>
+    <span><strong>상위</strong> E2 펌웨어 업데이트 (<code>ProvisioningPhase.FIRMWARE_UPDATING</code>)</span>
+    <span><strong>산출물</strong> 조사 report (코드 없음)</span>
+    <span><strong>대상 하드웨어</strong> GIGABYTE MS03-CE0 · MS73-HB1 · MS04-CE0 · MS74-HB0</span>
+    <span><strong>조사 방식</strong> 4축 병렬 웹조사(122회) + 코드 실측 + 적대적 비판</span>
+    <span><strong>작성</strong> 2026-08-01 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 조사 배경 · 목표</a></li>
+      <li><a href="#s2">§2 조사 산출물 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 세 집행 경로 비교</a></li>
+      <li><a href="#s4">§4 가상 USB 앱 내 동적 생성</a></li>
+      <li><a href="#s5">§5 BIOS · BMC flash 메커니즘</a></li>
+      <li><a href="#s6">§6 성공 판정 + 버전 재수집</a></li>
+      <li><a href="#s7">§7 엔진 매핑 + 착수 게이트 공백</a></li>
+      <li><a href="#s8">§8 위험 등록부</a></li>
+      <li><a href="#s9">§9 결정 · 열린 질문</a></li>
+      <li><a href="#s10">§10 T3(실기) 검증 체크리스트</a></li>
+      <li><a href="#s11">§11 후속 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <div class="callout danger" style="font-size:13.5px;">
+      <b>핵심 한 줄</b> — 집행 메커니즘(가상 USB + UEFI Shell 로 BIOS · BMC flash)은 확보됐으나, E2 의 진짜 착수 본체는 이미지 빌드가 아니라
+      <b>&lsquo;진단 완주 후 커서를 <code>FIRMWARE_UPDATING</code> 으로 전진시키고 완료를 판정하는 phase 진행 골격&rsquo;</b>이며 이 골격은 현 코드에 통째로 없다.
+      U3(할당 스냅샷의 <code>ownedPhases</code> 공급)가 엄격한 선행 의존이다.
+    </div>
+
+    <!-- ===== §1 조사 배경 · 목표 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 조사 배경 · 목표</summary>
+      <div class="body">
+        <p style="margin-top:0;">E2 = <code>ProvisioningPhase.FIRMWARE_UPDATING</code> 이다. 진단 리눅스 E1 직후, 펌웨어 설정 E3 직전에 위치한다.
+          게스트 서버에 할당된 세팅 정의서의 <code>BasicUpdateRequest</code> 를 resolve(보드 <code>AUTO</code> / 펌웨어 <code>LATEST</code>)해
+          BIOS · BMC flash 를 집행하는 단계다. E2-R 은 그 집행 게이트를 여는 조사 트랙이며, 산출물은 코드가 아니라 이 보고서다.</p>
+
+        <h4>선행 결정 (E 로드맵 토론 종결)</h4>
+        <table>
+          <thead><tr><th>결정</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>DEC-20</code></td>
+              <td>펌웨어 집행 = 가상 USB(FAT32 이미지) 방식 선행, Redfish <code>UpdateService</code> 후행 전환 목표.
+                기존 수동 방식의 유일한 불편 = 이미지를 리눅스 셸에서 사람이 수동 제작. → &ldquo;가상 USB 제작 로직의 앱 내 구현 가능 여부&rdquo;가 E2-R 1번 조사항목.
+                <code>.RBU</code>(BIOS) / <code>.ima_enc</code>(BMC) 파일이 공식 번들에 실재함은 <span class="chip add">확인</span>됨.</td>
+            </tr>
+            <tr>
+              <td><code>DEC-4</code></td>
+              <td>펌웨어 flash 실패는 자동 재시도 없음(운영자 명시 액션). &ldquo;원인 미상 재-flash = 벽돌 리스크&rdquo;.</td>
+            </tr>
+            <tr>
+              <td>검증 Tier</td>
+              <td>T0 계약테스트 / T1 모의게스트 하네스 / T2 QEMU / T3 실기. E2 집행 검증은 <span class="chip opt">T3 유보</span>.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>조사 3항목 (E2-R Notion)</h4>
+        <ol>
+          <li>가상 USB 방식의 앱 내 동적 생성 가능성 (→ §4)</li>
+          <li>대안 경로 비교(진단 리눅스 벤더 도구 / Redfish <code>UpdateService</code>) (→ §3)</li>
+          <li>flash 성공 판정 절차 (→ §6)</li>
+        </ol>
+
+        <div class="callout">
+          <b>MVP 수동 선례</b> (Notion &lsquo;PXE Server 구축&rsquo; §6 · §8) —
+          <code>boot.ipxe</code> 가 iPXE 내장변수 <code>product</code>(메인보드 모델명)로 모델 분기 →
+          <code>sanboot</code> 로 FAT32 가상 USB(<code>bios_update.img</code> = UEFI Shell <code>BOOTX64.EFI</code> + <code>startup.nsh</code> + 펌웨어 롬) 부팅 →
+          <code>startup.nsh</code> 가 BIOS → BMC 순 flash 후 재부팅.
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 조사 산출물 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 조사 산출물 + 비목표</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 보고서가 <b>E2-2</b>(<code>BIOS_UPDATING</code> · <code>BMC_UPDATING</code> 집행)의 착수 게이트 입력이 된다.
+          단, 아래 §7 의 발견으로 착수 게이트는 아직 열리지 않는다 — 선결 배선이 필요하다.</p>
+
+        <div class="callout warn">
+          <b>비 목표</b>
+          <ul>
+            <li>resolve 판정 로직(목표 보드 <code>AUTO</code> 결정 / 펌웨어 <code>LATEST</code> 선택)은 <b>E2-1</b>(<code>FIRMWARE_RESOLVING</code>) 소관 — 이 조사 밖.</li>
+            <li>BIOS 설정 값 적용은 <b>E3</b>(펌웨어 설정) — E2 는 펌웨어 바이너리 버전 갱신(flash)까지만.</li>
+            <li>실제 flash 집행 성공 검증은 실기 <span class="chip opt">T3 유보</span> — 이 조사는 &ldquo;무엇이 가능하고 무엇을 지어야 하는가&rdquo;까지.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 현 코드에서 게스트 커서는 FIRMWARE_UPDATING 에 도달하지 못한다</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 데모는 이 보고서의 핵심 발견(코드 실측으로 확증)을 상태 전이로 체험시킵니다.
+          게스트 프로비저닝 커서를 단계별로 밟아 보세요.
+          <b>U3 의 <code>ownedPhases</code> 공급 토글</b>을 바꿔도 결과가 안 바뀌는 것</b>이 관전 포인트입니다 —
+          규칙 함수는 <code>FIRMWARE_UPDATING</code> 을 반환할 능력이 있지만, 실제 호출부가 <code>Set.of()</code> 를 박아 넣어 그 능력을 못 씁니다.
+          (판정 JS 는 서버 도메인 메서드와 드리프트 0)</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">U3 할당 스냅샷의 ownedPhases 공급 :</span>
+            <button class="seg" data-u3="false" onclick="demoU3Set(false)">없음 (현재)</button>
+            <button class="seg" data-u3="true" onclick="demoU3Set(true)">있음: {FIRMWARE_UPDATING}</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-cursor">
+              <strong>게스트 커서</strong><span class="label" id="demo-cursor-label">currentPhase</span>
+              <span class="badge off" id="demo-cursor-badge">미등록</span>
+            </div>
+          </div>
+
+          <div class="ux-actions" id="demo-actions"><!-- JS 렌더 --></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">① 등록+개시 버튼부터 순서대로 눌러보세요. 차단된 버튼에 마우스를 올리면 이유 tooltip 이 떠요.</div>
+        </div>
+
+        <p style="color:var(--text-muted);font-size:11.5px;margin-bottom:0;">
+          ※ 이 판정 JS 는 <code>PhaseSequence.nextAfter</code>(<code>engine/PhaseSequence.java:29-44</code>)와
+          <code>DiagnoseLinuxExecutor.onStepClosed</code>(<code>engine/DiagnoseLinuxExecutor.java:119</code>)를 1:1 재현한다.
+        </p>
+      </div>
+    </details>
+
+    <!-- ===== §3 세 집행 경로 비교 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 세 집행 경로 비교 (조사항목 ②)</summary>
+      <div class="body">
+        <div class="card-grid">
+          <div class="card v-green">
+            <h4>경로 A — EFI-Shell 가상 USB</h4>
+            <p style="margin:0 0 6px;font-size:12px;"><b>sanboot FAT32</b> · <span class="chip add">권장 · 확인된 사실</span></p>
+            <ul>
+              <li><b>전달</b>: 서버는 부트스크립트 · 이미지를 HTTP 로 제공만(pull), 게스트가 스스로 UEFI Shell 로 부팅해 flash. BMC IP · 자격증명 전혀 불요.</li>
+              <li><b>pull-push 대칭</b>: 완전 대칭(<code>DEC-1</code> pull 엔진 · MVP BIOS → BMC 순 flash 와 0 비대칭).</li>
+              <li><b>BIOS</b>: <code>f.nsh</code> → <code>AfuEfix64.efi</code> 확정(sysGen 문서 + GIGABYTE MC12-LE0 실전 후기). <code>GigabyteEntrypointStrategy</code> 의 <code>f.nsh</code> &gt; <code>flash.nsh</code> 우선순위와 정확히 일치.</li>
+              <li><b>BMC</b>: <code>bmc_fw_update_uefi.nsh cs 0 flashall</code> 공식 배포(GIGABYTE Firmware Upgrade Guide v0.04, AST2600). AMI <code>YAFUKCS.efi</code>(KCS)도 대체.</li>
+              <li><b>관측성</b>: flash 중 진행률 · 오류 회신 채널 없음(UEFI Shell 에 HTTP agent 없음) — 최대 약점. 완료 = 재부팅 후 버전 재대조.</li>
+              <li><b>아키텍처 적합도</b>: 최고(<code>FirmwareUpdatingExecutor</code> 빈 1개, <code>DiagnoseLinuxExecutor</code> 동형).</li>
+            </ul>
+          </div>
+
+          <div class="card v-red">
+            <h4>경로 B — in-band 벤더 도구</h4>
+            <p style="margin:0 0 6px;font-size:12px;"><b>afulnx / YAFUFlash</b> · <span class="chip del">탈락</span></p>
+            <ul>
+              <li>이미 부팅된 Alpine 에서 직접 flash — 겉보기 간단하나 실현성 낮음(<span class="chip add">확인된 사실</span>).</li>
+              <li><code>afulnx</code> 는 <code>amifldrv</code> 커널 플래시 드라이버를 커널에 맞춰 컴파일해야 하는데 신형 커널에서 잦은 실패.</li>
+              <li><code>afulnx_64</code> 는 glibc 의존 독점 바이너리라 musl + BusyBox Alpine 에서 <code>gcompat</code> shim 필요.</li>
+              <li>커널모듈 빌드 + libc shim 이중 장벽. 실패가 곧 벽돌. → primary 배제.</li>
+            </ul>
+          </div>
+
+          <div class="card v-orange">
+            <h4>경로 C — Redfish UpdateService</h4>
+            <p style="margin:0 0 6px;font-size:12px;"><b>OOB</b> · <span class="chip opt">후행 전환</span></p>
+            <ul>
+              <li>BMC standby power 독립성 활용하나 서버가 BMC IP + 자격증명으로 능동 push → pull 대칭 파괴.
+                (a) E1 에서 <code>ipmitool lan print</code> 로 <code>bmcIp</code> 수집 (b) 자격증명(admin + 시리얼 끝 11자, E3 소관) (c) 서버측 Redfish 클라이언트 <code>TaskService</code> 폴링 필요.</li>
+              <li><b>관측성</b>: 최고(<code>FlashPercentage</code> / <code>UpdateStatus</code> 실시간, Task Completed) — 경로 A 약점 정확히 보완.</li>
+              <li><b>BIOS</b>: <code>SimpleUpdate ImageURI=…RBU</code>(<code>UpdateComponent</code> 는 AMI / GIGABYTE OEM 확장, DMTF 표준 아님). 커스텀 <code>.RBU</code> 의 Redfish 적용성은 <code>DEC-20</code> 이 이미 <span class="chip opt">T3 유보</span>.</li>
+              <li><b>장기 안정성 근거</b>: 일부 벤더(Supermicro)가 보안상 KCS in-band flash 차단 추세 → 경로 A 가 미래 BMC 펌웨어 버전에서 막힐 수 있음. Redfish 후행 전환의 근거.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout">
+          <b>요약</b> — 경로 A 가 이 pull-대칭 아키텍처에 가장 정합하고 BIOS · BMC 양쪽 커버(관측성만 열위).
+          B 는 벽돌 위험 탈락. C 는 pull 비대칭 · 자격증명 · <span class="chip opt">T3 유보</span>로 <code>DEC-20</code> 대로 후행 전환.
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 가상 USB 앱 내 동적 생성 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 가상 USB 앱 내 동적 생성 (조사항목 ①, 핵심)</summary>
+      <div class="body">
+        <div class="callout success">
+          <b>결론</b> — 앱 내 가상 USB(FAT32 super-floppy) 동적 생성은 실현 가능(<span class="chip add">확인된 사실</span>).
+          단, 신뢰도 분리: <b>라이브러리 능력 = 확인</b> / <b>생성 이미지의 UEFI 부팅성 = T2(QEMU+OVMF) 선검증 필요</b>.
+        </div>
+
+        <h4>3방식 비교</h4>
+        <table>
+          <thead><tr><th>순위 / 방식</th><th>핵심</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="chip add">1순위</span> 순수 Java<br><code>de.waldheinz:fat32-lib</code><br>(Maven Central 0.6.5)</td>
+              <td><code>SuperFloppyFormatter</code> 가 파티션 테이블 없는 FAT32(= MVP 의 &lsquo;<code>mkfs.fat -F 32</code> 직접 포맷&rsquo; super-floppy 와 동일)를
+                네이티브 코드 · 외부 바이너리 · mount · sudo 없이 인프로세스로 생성.
+                <code>FileDisk</code>(파일 백엔드) + <code>SuperFloppyFormatter</code>(포맷) + <code>addFile</code> / <code>addDirectory</code> 로
+                <code>EFI/BOOT/BOOTX64.EFI</code> · <code>STARTUP.NSH</code> · 펌웨어 롬 주입.
+                ⇒ <code>AllowedCommand</code> 확장 · SELinux <code>restorecon</code> · <code>CAP_SYS_ADMIN</code> 특권 전부 불필요.
+                인프로세스라 T0 계약테스트로 이미지 바이트 구조 검증 가능.
+                근거: github.com/waldheinz/fat32-lib, chuckstechtalk 실사용 절차.</td>
+              <td><b>단점</b>: 유지보수 정지(dormant, 보안 패치 없음) → 사내 vendoring · 버전 핀 필요.
+                모든 디렉토리 엔트리를 LFN(롱 파일명)으로 쓰는 특성 — UEFI FAT 드라이버는 LFN 지원이라 무해 <span class="chip mod">추정</span>이나,
+                UEFI Shell 이 LFN 으로 쓰인 <code>STARTUP.NSH</code> 를 자동실행 파일로 인식하는지는 T2(QEMU+OVMF) 선검증 권장(실패 시 8.3 대문자 강제 / fork).
+                재현성 knob 없음(볼륨 시리얼 · 타임스탬프 매 생성 변동).</td>
+            </tr>
+            <tr>
+              <td><span class="chip opt">2순위 fallback</span> <code>mtools</code><br>(<code>mformat</code> / <code>mmd</code> / <code>mcopy</code> 의 <code>-i</code>)</td>
+              <td>mount · root 없이 이미지에 직접 포맷 · 디렉토리 · 파일 주입. edk2 / coreos 등 EFI 이미지 빌드 표준.</td>
+              <td>채택 조건: <code>AllowedCommand</code> 에 상수 추가 + <code>ArgShape</code> 에 다중 가변 인자용 신규 변형(현재 <code>NONE</code> / <code>ONE_PATH</code> 2형태뿐, 코드 실측) + PXE 서버에 <code>mtools</code> 바이너리 설치.
+                sudo 불요, <code>ProcessSystemCommandRunner</code> 무변경 재사용. 재현성 지원(<code>SOURCE_DATE_EPOCH</code>, <code>mformat -N</code>).</td>
+            </tr>
+            <tr>
+              <td><span class="chip del">3순위 탈락</span> loop-mount<br>(MVP 방식)</td>
+              <td><code>dd</code> → <code>mkfs.fat</code> → <code>mount -o loop</code> → <code>cp</code> → <code>umount</code>.</td>
+              <td>root / <code>CAP_SYS_ADMIN</code> 필요 → 비특권 앱 · 컨테이너 부적합 + Rocky9 SELinux <code>restorecon</code> 함정.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>부수 자산</h4>
+        <ul>
+          <li><b>UEFI Shell 바이너리</b> = edk2 <code>ShellBinPkg</code> prebuilt <code>Shell.efi</code>(BSD 라이선스, <code>BOOTX64.EFI</code> 로 rename 해 <code>/EFI/BOOT</code>).
+            오프라인 / 격리망 위해 런타임 다운로드 대신 앱 리소스 번들 + edk2-stable 태그 핀 고정. (마지막 V1 호환 = <code>edk2-stable202002/ShellBinPkg.zip</code>)</li>
+          <li><b>STARTUP.NSH</b> = 결정적 텍스트 조립(<code>@echo -off</code> / <code>fs0:</code> / <code>&lt;entrypoint 호출&gt;</code> / <code>reset -c</code>), 외부 도구 불요.
+            <code>GigabyteEntrypointStrategy</code> 가 진입점(<code>.nsh</code>) 결정. <code>IpxeScripts</code> 의 text-block 팩토리 패턴(서버 생성 값만 삽입, 이스케이프 불요) 답습.</li>
+          <li><b>서빙</b>: 생성 <code>.img</code> 를 <code>pxe.assets.root</code> 하위(<code>firmware/</code>)에 배치만 하면 기존 <code>PxeAssetsConfig</code> <code>ResourceHandler</code>(<code>/api/pxe/v1/assets/**</code>, Range · 경로이탈 가드 · 마커 은닉)가 신규 서빙 코드 0으로 서빙(208MB modloop Range 서빙용으로 도입된 것 재사용).</li>
+          <li><b>캐시</b>: <code>bootScript</code> 는 게스트가 30초 주기로 <code>/boot</code> 재폴링할 때마다 호출 → 매 폴 재생성 금지.
+            캐시 키 = (<code>boardModel</code>, <code>BoardBIOS</code> <code>manifestHash</code>, <code>BoardBMC</code> <code>manifestHash</code>), 입력 불변이면 생략.
+            <code>SealedFileInspector</code> 의 (mtime, size) → 해시 지문 캐시 패턴 재사용(바이트 재현성 불요 — 입력으로 키잉).</li>
+        </ul>
+
+        <div class="callout warn">
+          <b>남는 제약</b> — <code>fat32-lib</code> 생성 super-floppy 가 실보드(AMI Aptio V)에서 <code>sanboot</code> 로 부팅되고
+          UEFI 가 <code>/EFI/BOOT/BOOTX64.EFI</code> 를 removable-media 로 실행하는지 —
+          단 이 부팅성 자체는 QEMU+OVMF(<span class="chip opt">T2</span>)로 실기 전 선검증 가능(실기 전용 리스크 아님).
+          bare super-floppy 를 ESP 로 인식하는지 vs 파티션 테이블 필요한지는 펌웨어 의존(<span class="chip mod">MVP 는 super-floppy 성공, 앱 생성물로 재확인</span>).
+          T3 에서 파티션 테이블 요구 시 <code>fat32-lib</code>(파티션 미지원)로는 부족 → <code>mtools</code> + 파티션 도구 전환(설계 분기 리스크).
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 BIOS · BMC flash 메커니즘 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. BIOS · BMC flash 실행 메커니즘</summary>
+      <div class="body">
+
+        <h4>BIOS (AMI Aptio V)</h4>
+        <ul>
+          <li><b>진입 · 도구</b>: <code>f.nsh</code> → <code>AfuEfix64.efi</code>(v5.10.00.1610). 무인 flash 플래그:
+            <code>/P</code>(메인 BIOS) <code>/B</code>(부트블록) <code>/N</code>(NVRAM) <code>/K</code>(non-critical) <code>/R</code>(SMBIOS 보존)
+            <code>/X</code>(ROM-ID 검사 생략) <code>/Q</code>(무음) <code>/REBOOT</code> <code>/D</code>(flash 없이 검증 dry-run) <code>/O</code>(백업).
+            예: <code>AfuEfix64.efi BIOS.ROM /P /B /N /X /Q /REBOOT</code>. 근거: openbmc-util <code>AfuEfi64</code> readme.txt, holoto/efi_shell_flash_bios a64.txt.</li>
+          <li>UEFI Shell <code>.nsh</code> 는 <code>%lasterror%</code> + <code>if / then / endif</code> 로 성공 / 실패 분기 후 <code>reset -c</code> 가능(congatec AN48 예시). <span class="chip add">확인</span></li>
+          <li><b>함정 1</b> <span class="chip mod">추정</span>: GIGABYTE 순정 <code>f.nsh</code> 는 ROM-ID 불일치 시 대화형 프롬프트(&lsquo;E&rsquo; 입력) 가능(MC12-LE0 후기) →
+            진짜 무인화는 순정 <code>f.nsh</code> 의존 대신 <code>AfuEfix64.efi</code> 를 <code>/X /Q</code> 로 직접 호출.
+            단 <code>/X</code> 는 잘못된 모델 ROM flash 위험 → 앱 레벨에서 <code>GuestServerDetail.boardModel</code> ↔ <code>BoardBIOS</code> 대상모델 일치 사전 강제.</li>
+          <li><b>함정 2</b> <span class="chip add">확인</span>: AMI Aptio V Secure Flash 가 미서명 / 변조 ROM 을 error 18(&lsquo;secure flash rom verify fail&rsquo;)로 거부 → 공식 서명 ROM 만 통과.
+            이는 코드 무결성 모델(<code>manifestHash</code> + HMAC <code>markerSignature</code>)이 보장하는 &lsquo;변조 안 된 공식 번들만 집행&rsquo;과 하드웨어 레벨에서 이중 정합.
+            근거: winraid MX32-4L0 스레드, StarLabs issue #305.</li>
+          <li><b>포맷</b> <span class="chip mod">추정</span>: 공식 번들은 (a) <code>.RBU</code>(BMC / Redfish / Web-BIOS-Update 용, ROM 에 체크섬 / 서명 덧붙은 래핑)
+            + (b) 원본 <code>.ROM</code>(UEFI-Shell AFU 용, 번들 내부 <code>zi_</code> 중첩 아카이브 해제로 <code>AfuEfix64.efi</code> 와 함께 나옴) 동시 포함.
+            UEFI-Shell 경로가 flash 하는 대상은 <code>.RBU</code> 가 아니라 원본 <code>.ROM</code>. 근거: MC12-LE0 블로그, ServeTheHome Web-BIOS-Update.</li>
+          <li><b>복구</b> <span class="chip add">확인</span>: 대상 보드류 BIOS 손상 복구 = 부트블록 리커버리(BIOS Recovery 점퍼 + USB 의 ROM + 리커버리 모드), 자동 듀얼 BIOS 전환 아님(MS03-CE0 매뉴얼 p.89).
+            BMC(AST2600)가 전원 오프 시 SPI 직접 프로그램 가능(물리 프로그래머 유사). 이 수동성이 <code>DEC-4</code> · <code>isRetryBlocked</code> 원천차단의 물리적 근거.</li>
+          <li><b>in-band 리눅스 대안</b>: 실현성 낮음(위 경로 B, Alpine musl + 커널모듈 컴파일 + glibc shim 삼중 장벽).</li>
+        </ul>
+
+        <h4>BMC (AST2600 + AMI MegaRAC SP-X)</h4>
+        <ul>
+          <li><b>핵심 판정</b> <span class="chip add">확인</span>: BMC 는 Redfish 전용이 아니다.
+            GIGABYTE 가 AST2600 서버용 UEFI Shell BMC flash 스크립트 <code>bmc_fw_update_uefi.nsh</code>(<code>cs 0 flashall</code> — <code>cs</code> = Active / Backup 이미지 선택, <code>flashall</code> = 경고 없이 BMC 전체 flash) 공식 배포(GIGABYTE Firmware Upgrade Guide v0.04).
+            실전 후기(MC12-LE0)도 web GUI 실패 시 FAT32 USB 로 UEFI Shell 부팅해 BMC 성공 flash. AMI <code>YAFUKCS.efi</code>(KCS 경유)도 대체 존재(Trenton / Supermicro 문서).</li>
+          <li><b>flash 메커니즘 2종</b> <span class="chip add">확인</span>:
+            (A) <code>socflash</code> = ASPEED P2A(PCI-to-AHB) 브리지로 SPI NOR 에 raw 직접 기록(검증 우회, raw <code>.ima</code> 필요, ASPEED &lsquo;engineer / lab only&rsquo;).
+            (B) <code>YAFU</code> / <code>YAFUKCS</code> · web GUI · Redfish · IPMI = 살아있는 BMC 에 이미지 전달 → BMC 스스로 복호화 · 검증 · 기록(<code>.ima_enc</code> 암호화본 소비).</li>
+          <li><b>미확정</b> <span class="chip force">미확정 · 벽돌 위험</span>: UEFI Shell 경로가 소비하는 파일이 <code>.ima_enc</code>(암호화)인지 raw 인지,
+            하부 도구가 <code>socflash</code>(P2A)인지 <code>YAFUKCS</code>(KCS)인지 미확정.
+            암호화본을 raw-SPI(<code>socflash</code>)로 잘못 기록하면 BMC 벽돌 → 실기(<span class="chip opt">T3</span>)에서 대상 4종 동봉 BMC 파일 실체 + <code>.nsh</code> 참조 파일명 확정 필수.</li>
+          <li><b>재부팅</b> <span class="chip add">확인</span>: BMC 는 flash 완료 후 스스로 재부팅(5~10분, WebUI 무응답 → 재로그인). AST2600 센서 오독 시 서버 전체 cold boot 필요 가능.
+            듀얼 이미지: Image1 실패 시에만 Image2(Active / Backup). AST2600 ABR(2차 watchdog)로 주 이미지 부팅 실패 시 golden 이미지 자동 페일오버(<span class="chip mod">추정</span>, QEMU 문서) → BMC 벽돌 확률은 상대적으로 낮음.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §6 성공 판정 + 버전 재수집 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. flash 성공 판정 + 버전 재수집 절차 (조사항목 ③)</summary>
+      <div class="body">
+        <div class="callout danger">
+          <b>원칙</b> — 성공 판정은 &ldquo;flash 유틸 종료코드&rdquo;가 아니라 <b>&ldquo;재부팅 후 재수집한 버전 == 목표 번들 버전&rdquo;의 정규화된 등가 비교</b>다. 근거 2가지:
+          <ol style="margin:6px 0 0;">
+            <li><code>dmidecode -s bios-version</code> 은 SMBIOS type0 테이블을 읽는데 이 테이블은 BIOS 가 POST 때 채운다 → flash 직후 재부팅 전에는 옛 버전이 그대로.
+              반드시 재부팅 후 재수집해야 새 버전이 보인다(<span class="chip add">확인</span>).</li>
+            <li>AFU 의 <code>/D</code> 는 flash 전 dry-run 호환성 검사일 뿐 flash 후 대조가 아니며, &lsquo;Process completed&rsquo; / 성공 종료가 실제 버전 반영을 보장 안 함
+              (사일런트 실패 = 종료코드 성공인데 버전 그대로, <span class="chip add">확인</span>).</li>
+          </ol>
+        </div>
+
+        <h4>재부팅 루프 상태기계 (4 actor 스윔레인)</h4>
+        <div class="seq">
+          <div class="actor a1">게스트</div>
+          <div class="actor a2">iPXE dispatch</div>
+          <div class="actor a3">진단 Alpine agent</div>
+          <div class="actor a4">엔진(FirmwareUpdatingExecutor · onStepClosed)</div>
+
+          <div class="step a1">UEFI Shell 부팅 → BIOS(AFU) → BMC(<code>bmc_fw_update_uefi.nsh</code>) 순 flash 후 <code>reset -c</code></div>
+          <div class="step a2"><code>bootScript</code> 가 가상 USB <code>sanboot</code> emit</div>
+          <div class="step a3"></div>
+          <div class="step a4">FIRMWARE_UPDATING 진입 + <code>SetupStep(BIOS_UPDATING, RUNNING)</code></div>
+
+          <div class="step a1"><code>reset</code> → <code>/boot</code> 재진입</div>
+          <div class="step a2">원장에서 &lsquo;BIOS_UPDATING 이미 RUNNING&rsquo;을 보고 재-flash(벽돌 위험) 대신 E1 진단 Alpine 체인로드 emit(<b>멱등 필수</b>)</div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3"><code>agent.sh</code> 가 <code>dmidecode -s bios-version</code>(BIOS) / Redfish <code>FirmwareInventory</code>(BMC) 재수집 → 보고 → <code>GuestServerDetail.softwareSpec</code> 갱신</div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">FAILED 시 dispatch 3행 <code>IpxeScripts.failed</code> 로 운영자 대기</div>
+          <div class="step a3"></div>
+          <div class="step a4"><code>onStepClosed</code> 가 목표버전과 정규화 등가 대조: 일치 = <code>BIOS_UPDATING</code> SUCCEEDED 후 <code>BMC_UPDATING</code> 전진 / 불일치(사일런트 실패) = FAILED.
+            FAILED 시 <code>ProvisioningProgress.isRetryBlocked()</code> 가 <code>failedStepCode ∈ {BIOS_UPDATING, BMC_UPDATING}</code> 이면 자동 재시도 원천 차단(<code>entity/ProvisioningProgress.java:168-171</code>) — 벽돌 방지 <code>DEC-4</code> 이행.</div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);">
+          ※ BMC 버전은 <code>ipmitool mc info</code> 가 major.minor 로 잘려 신뢰 불가(ipmitool #323) → Redfish <code>FirmwareInventory</code> 로 재수집.
+        </p>
+
+        <div class="callout">
+          <b>버전 비교 = 순서비교(≥)가 아니라 정규화 등가 비교</b> <span class="chip add">확인</span> —
+          GIGABYTE 버전은 <code>F13</code> / <code>R14</code> / <code>M03</code> 같은 짧은 불투명 토큰, 콤보(<code>M03_R14</code>)는 밑줄 결합 · flash 스크립트가 플랫폼별 변형 자동선택 →
+          <code>dmidecode</code> 는 활성 변형 하나만 보고 → 콤보 파일명 전체와 정확일치하면 오탐.
+          정규화-등가 로직은 <code>FirmwareVersion</code> Value Object 로 타입화(원시 <code>String</code> 금지 — Primitive Obsession, <code>vo/</code> 배치)해 UI 플래그와 서버 가드가 단일 SSOT 공유.
+        </div>
+
+        <div class="callout warn">
+          <b>타이밍</b> — <code>dmidecode</code> 재수집은 flash → reset → 재부팅 후 부팅에서만 유효(직후 재수집은 옛 SMBIOS 오판).
+          BMC 는 5~10분 자기 재부팅 → 재수집 전 충분한 WAIT 여유(너무 이르면 정상 flash 를 응답없음으로 오판).
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §7 엔진 매핑 + 착수 게이트 공백 (핵심) ===== -->
+    <details class="section" id="s7" open>
+      <summary>§7. 엔진 매핑 + 착수 게이트 공백 【이 보고서의 핵심】</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>확장 자체는 정갈하다</b>:
+          <code>FirmwareUpdatingExecutor implements ProvisioningPhaseExecutor</code> 빈 1개 등록 →
+          <code>PhaseExecutorRegistry</code> 가 <code>phase()=FIRMWARE_UPDATING</code> 수집 →
+          <code>BootScriptDispatcher</code> 6행(HOLD)이 7행(위임)으로 자동 전환(분기 추가 없음, <code>DiagnoseLinuxExecutor</code> 동형).
+          SPI = <code>phase()</code> + <code>bootScript(server, progress, rebootQuery)</code> + default <code>onStepClosed(server, progress, step)</code>.</p>
+
+        <div class="callout danger">
+          <b>그러나 코드 실측(적대적 비판 + 세션 직접 확인)이 밝힌 4개 구조 공백 — 이것이 E2 의 진짜 착수 본체다.</b>
+        </div>
+
+        <h4><span class="chip force">치명</span> #1 — 커서가 FIRMWARE_UPDATING 에 도달하는 경로가 없다</h4>
+        <p><code>advanceTo</code> 호출자는 <code>AgentReportService.checkin</code> 의 BOOTSTRAPPING → DIAGNOSE_LINUX 단 하나(<code>engine/AgentReportService.java:68-69</code>).
+          그 외 어디서도 <code>FIRMWARE_UPDATING</code> 으로 전이하지 않는다.
+          <code>DiagnoseLinuxExecutor.onStepClosed</code> 는 완주 판정에서 <code>PhaseSequence.nextAfter(DIAGNOSE_LINUX, Set.of())</code>(<code>engine/DiagnoseLinuxExecutor.java:119</code>)를 호출 —
+          <code>ownedPhases</code> 를 <b>빈 집합으로 하드코딩</b>한다. <code>nextAfter</code> 는 empty 를 반환하고 <code>markCompleted</code> 만 한다(비어있지 않아도 <code>advanceTo</code> 를 호출하는 코드가 없다).
+          결론: 진단 완주 게스트는 <b>무조건 PROVISIONED 종단</b>되고 <code>FIRMWARE_UPDATING</code> 에 절대 진입 못 한다.
+          <code>ownedPhases</code> 의 실공급자는 U3(할당 스냅샷)임이 <code>PhaseSequence</code> javadoc(<code>engine/PhaseSequence.java:10-11</code>)과
+          <code>DiagnoseLinuxExecutor</code> 주석(<code>:117-118</code>)에 명시.
+          ⇒ <b>U3 가 엄격한 선행 의존</b>이며, U3 가 <code>ownedPhases</code> 를 공급해도 <code>onStepClosed</code> 의 <code>Set.of()</code> 하드코딩 제거 + 진단완주 → 펌웨어 전이 배선을 함께 지어야 한다.</p>
+
+        <h4><span class="chip mod">중대</span> #2 — 완료 신호를 닫을 훅이 구조적으로 발화 못 한다</h4>
+        <p><code>AgentReportService.closeStep</code> 은 SUCCEEDED 종결 시 <code>phaseExecutorRegistry.find(step.getStepCode().getPhaseType())</code> 로 <code>onStepClosed</code> 를 라우팅한다(<code>engine/AgentReportService.java:129</code>) —
+          훅은 오직 &lsquo;닫힌 step 의 phaseType 실행기&rsquo;로만 간다.
+          flash 후 버전 재수집은 Alpine 재진입으로 <code>INFORMATION_COLLECTING</code> 을 보고하며 이 step 의 phaseType 은 <code>DIAGNOSE_LINUX</code> →
+          <code>DiagnoseLinuxExecutor.onStepClosed</code> 만 발화, <code>FirmwareUpdatingExecutor.onStepClosed</code> 는 절대 호출 안 됨.
+          반대로 <code>FirmwareUpdatingExecutor</code> 훅이 발화하려면 <code>BIOS_UPDATING</code> / <code>BMC_UPDATING</code> step 이 SUCCEEDED 로 닫혀야 하나,
+          UEFI Shell flash 환경엔 agent(HTTP 채널)가 없어 그 step 을 open / close 할 주체가 없다.
+          ⇒ <b>완료 판정 주체 재설계 필요</b>. 3안:</p>
+        <ul>
+          <li>(a) 진단 실행기가 커서 보고 펌웨어 step 까지 닫음 = phase 경계 침범</li>
+          <li>(b) 별도 reconciliation 서비스 대조</li>
+          <li>(c) <code>FirmwareUpdatingExecutor.bootScript</code> 재진입 시점에 직전 재수집 결과 판정</li>
+        </ul>
+        <p style="font-size:12px;color:var(--text-muted);">plan CP1 에서 trade-off 비교 결정.</p>
+
+        <h4><span class="chip mod">중대</span> #3 — 버전 재수집 directive 가 firmware 재진입에서 안 나간다</h4>
+        <p><code>directiveFor</code> 는 COLLECT 를 <code>currentPhase==DIAGNOSE_LINUX &amp;&amp; !isEnriched</code> 일 때만 반환(<code>engine/AgentReportService.java:156</code>).
+          flash 후 재진입 시 커서 = <code>FIRMWARE_UPDATING</code>, detail 은 이미 <code>DIAGNOSTIC_ENRICHED</code> → 두 조건 거짓 → WAIT 만.
+          재수집 트리거가 없으면 버전 대조 절차 전체가 성립 안 함.
+          ⇒ firmware phase 재진입 시 재수집 지시하는 새 directive 판정 분기 또는 <code>DiscoveryStage</code> 에 &lsquo;재수집 요구&rsquo; 상태 필요.</p>
+
+        <h4><span class="chip mod">중대</span> #4 — 이미지 빌드를 bootScript 에 넣으면 읽기전용 dispatch(DEC-2)와 충돌</h4>
+        <p><code>BootScriptDispatcher</code> 는 &lsquo;상태를 일절 바꾸지 않는 읽기 전용 판정(<code>DEC-2</code>)&rsquo;로 명시(<code>engine/BootScriptDispatcher.java:14</code>).
+          이미지 생성(수십~수백 MB, 초 단위 I/O)을 <code>/boot</code> HTTP 응답 스레드에서 동기 수행하면 첫 폴에서 iPXE 타임아웃 · 스레드 점유.
+          ⇒ 이미지 빌드를 boot dispatch 밖의 사전 async 스테이징(<code>BackgroundJob</code> / 전용 빌더 서비스)으로 분리, 준비 전엔 <code>bootScript</code> 가 HOLD 반환, <code>bootScript</code> 는 준비된 img 의 <code>sanboot</code> URL emit 만.</p>
+
+        <div class="callout danger">
+          <b>핵심 재정의</b> — E2 plan 의 실질 본체는 &lsquo;가상 USB 이미지 빌드&rsquo;가 아니라
+          <b>&lsquo;진단 완주 → FIRMWARE_UPDATING 커서 전진 배선 + <code>ownedPhases</code> 공급(U3) + 완료 판정 주체 + 재수집 directive&rsquo;</b>다.
+          이미지 빌드는 이 골격 위에 얹히는 부차 요소.
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §8 위험 등록부 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 위험 등록부</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>위험</th><th>심각도</th><th>완화</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><b>벽돌</b><sup><a href="#fn-s8-1">각주 1</a></sup>: flash 중 전원차단 / 리셋 = 하드-벽돌. BIOS = 부트블록 + 점퍼 수동 리커버리(자동 듀얼 BIOS 아님), BMC(AST2600) = ABR golden 이미지 자동 페일오버 가능성.</td>
+              <td><span class="chip force">치명</span></td>
+              <td><code>isRetryBlocked</code> 자동 재시도 차단(<code>DEC-4</code>), 충분한 WAIT, 운영자 물리 개입을 HOLD UX · 알림 안내.</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><b>[깊은 함정] 무롤백 + isRetryBlocked</b><sup><a href="#fn-s8-2">각주 2</a></sup>: 진짜 벽돌은 재부팅 자체를 못해 재수집 보고가 영영 안 옴 →
+                서버 관점에선 WAIT 무한대기로만 보이고 FAILED 자동판정이 발생 안 함(실패 자동판정은 &lsquo;게스트가 살아 재부팅&rsquo;을 전제하는데 벽돌엔 그 전제가 없다).
+                <code>clearFailed</code>(<code>entity/ProvisioningProgress.java:155-162</code>)엔 자체 <code>isRetryBlocked</code> 체크가 없고
+                <code>isRetryable()=isFailed()&amp;&amp;!isRetryBlocked()</code> 가 UI 버튼 / 서버 가드 SSOT 로 막는다 →
+                firmware step FAILED 는 정상 경로로 해제 불가(브릭 안전 의도).
+                그런데 버전 SSOT 오기재로 인한 false-mismatch FAILED(실제 flash 는 성공)가 나면 소프트웨어 복구 경로가 0(decommission / 재온보딩뿐).</td>
+              <td><span class="chip force">치명</span></td>
+              <td>&lsquo;재부팅 후 버전 미변경 = 실패&rsquo;를 판정할 타임아웃 기반 실패 전이 + WAIT 무한대기와 벽돌을 구분하는 관측 신호 정의 +
+                운영자 물리 리커버리 후 원장 정리 · 재개하는 명시적 오버라이드 경로(<code>clearFailed</code> 운영자 오버라이드) 결정 + 등록시점 version 검증.</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><b>부분 실패</b>(BIOS 성공 / BMC 실패): 단일 phase FAILED 로 뭉뚱그리면 진단 어려움.</td>
+              <td><span class="chip mod">중대</span></td>
+              <td>append-only <code>SetupStep</code> 원장이 컴포넌트별(<code>BIOS_UPDATING</code> / <code>BMC_UPDATING</code>) 결과 분리 보존.</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><b>사일런트 실패</b>: 종료코드 불신.</td>
+              <td><span class="chip mod">중대</span></td>
+              <td>재부팅 후 버전 재수집 등가 대조를 유일 성공 조건으로.</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><b>재수집 타이밍 오판</b>: flash 직후 재부팅 전 재수집 = 옛 SMBIOS 오판.</td>
+              <td><span class="chip mod">중대</span></td>
+              <td>재수집은 재부팅 후에만.</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td><b>Secure Flash 거부</b>(error 18): 무결성 모델과 방향 정합이나 &lsquo;왜 실패&rsquo;(서명 vs 전원 / 타이밍) 구분 어려워 운영자 진단 부담.</td>
+              <td><span class="chip dep">주의</span></td>
+              <td>번들 등록 시 shell 경로용 원본 <code>.ROM</code> 존재 무결성 검증.</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td><b>순정 f.nsh 대화형 프롬프트</b>: ROM-ID 불일치 시 사용자 입력 대기로 무인화 파괴.</td>
+              <td><span class="chip dep">주의</span></td>
+              <td><code>AfuEfix64.efi</code> 를 <code>/X /Q</code> 직접 호출 + <code>boardModel</code> ↔ <code>BoardBIOS</code> 대상모델 일치 사전 강제.</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td><b>BMC 이미지 포맷 미확정</b>(<code>.ima_enc</code> vs raw): 잘못 기록 시 벽돌.</td>
+              <td><span class="chip force">치명</span></td>
+              <td><span class="chip opt">T3</span> 전 BMC flash 미확정 유지.</td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td><b>SELinux 함정</b>: 순수 Java <code>fat32-lib</code> 채택 시 Spring <code>ResourceHandler</code> 가 JVM 으로 직접 서빙해 httpd 라벨 정책 비적용(<span class="chip mod">추정</span>,
+                단 앞단 httpd / nginx 리버스프록시 서빙 구성이면 무효 — 서빙 토폴로지 확정 필요).</td>
+              <td><span class="chip dep">주의</span></td>
+              <td><code>mtools</code> / loop-mount 택할 때만 <code>restorecon</code> 필요.</td>
+            </tr>
+            <tr>
+              <td>10</td>
+              <td><b>pull-push 비대칭</b>: E2 는 가상 USB 통일로 비대칭 0. Redfish 후행 전환 시 <code>BMC_UPDATING</code> step 내부 격리로 <code>BIOS_UPDATING</code> 무변경.</td>
+              <td><span class="chip dep">주의</span></td>
+              <td>단 전환은 &lsquo;국소 transport swap&rsquo;이 아니라 &lsquo;<code>bmcIp</code> / 자격증명 cross-phase 의존 + 비동기 폴링 실행모델 도입&rsquo;
+                (<code>onStepClosed</code> 는 same-tx 동기 훅이라 분 단위 폴링 부적합 → 별도 async job 필요)으로 정직하게 규모화할 것.</td>
+            </tr>
+            <tr>
+              <td>11</td>
+              <td><b>KCS in-band 장기 리스크</b>: 향후 MegaRAC 버전이 차단하면 가상 USB BMC 경로 막힘.</td>
+              <td><span class="chip dep">주의</span></td>
+              <td>Redfish 후행 전환 준비.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn" id="fn-s8">
+          <b>각주 — #1 · #2 상세 (미결정 · E2 하위 단계 착수 시 결정)</b>
+          <p>아래 두 위험의 완화책은 <b>지금 확정하는 설계 결정이 아니다.</b> 조사 단계(E2-R)는 위험의 존재와 성격만 규명하고, 완화책을 어떤 형태로 넣을지는 E2 하위 단계(E2-1 / E2-2) 구현 진입 시 그 슬라이스의 plan CP1 에서 결정한다. 아래 각주는 두 위험을 쉬운 말로 풀어 그 결정의 입력으로 남겨두는 것이다.</p>
+
+          <p id="fn-s8-1"><b>[각주 1] 벽돌이 왜 특히 무서운가.</b> 펌웨어(BIOS · BMC)는 보드가 전원을 넣고 부팅을 <i>시작할 수 있게</i> 하는 가장 밑바닥 소프트웨어다. flash 는 보드가 그 펌웨어 위에서 돌아가는 중에 그 칩을 통째로 덮어쓰는 작업이라 <b>비행 중 엔진 교체</b>에 가깝다. 도중에 전원이 나가거나 리셋되면 칩에는 옛것도 새것도 아닌 반쯤 쓰다 만 것이 남아, POST(전원 자가진단)조차 못 하는 &lsquo;벽돌&rsquo;이 된다. 보통 소프트웨어는 다시 깔면 되지만 <b>벽돌 BIOS 는 프로비저닝 서버가 네트워크로 못 고친다</b> — 복구가 물리 작업이다. 이 4종 보드는 자동 듀얼 BIOS 전환이 없어, 사람이 점퍼(핀)를 꽂고 ROM 을 USB 에 담아 리커버리 모드로 직접 다시 구워야 한다(<code>MS03-CE0</code> 매뉴얼 p.89). BMC 는 <code>AST2600</code> 의 ABR 워치독이 backup(golden) 이미지로 자동 페일오버할 <i>가능성</i>이 있으나 활성 여부는 실기(T3) 확인 대상이다. 이렇게 중간에 끊긴 flash 를 소프트웨어로 못 되살리기 때문에, 시스템은 <b>펌웨어 flash 를 절대 자동 재시도하지 않는다</b>(<code>DEC-4</code>) — 원인도 모르고 다시 구우면 또 벽돌이 나기 때문이다. 대신 멈추고 사람을 기다리며, flash 에 충분한 시간(BIOS 2~5분 · BMC 5~10분)을 준다.</p>
+
+          <p id="fn-s8-2"><b>[각주 2] #1 의 안전장치가 낳는 함정.</b> #1 때문에 &lsquo;펌웨어 flash 자동 재시도 금지&rsquo; 안전장치(<code>isRetryBlocked</code>)를 넣는다. 방향은 옳지만, 여기에 세 균열이 있어 <b>하드웨어가 멀쩡한데도 워크플로가 막힐</b> 수 있다.</p>
+          <ul>
+            <li><b>균열 A — 서버가 &lsquo;벽돌&rsquo;과 &lsquo;아직 굽는 중&rsquo;을 구별 못 한다.</b> 서버는 flash 를 직접 지켜보지 못하고(UEFI Shell 에 보고 채널이 없음), 오직 게스트가 <b>재부팅해서 돌아와 새 버전을 보고</b>할 때만 성공 · 실패를 안다. 진짜 벽돌은 재부팅 자체를 못 해 영영 안 돌아오니, 서버 관점에선 &lsquo;대기(WAIT)&rsquo;만 무한히 이어진다. 자동 실패 판정이 가장 필요한 상황(진짜 벽돌)에서 오히려 판정이 안 뜨는 셈이다 — 그 판정 로직이 &lsquo;살아서 재부팅하는 게스트&rsquo;를 전제하는데 벽돌엔 그 전제가 없기 때문이다.</li>
+            <li><b>균열 B — 오탐(false alarm) 한 번이 멀쩡한 서버를 영구히 잠근다.</b> 성공 판정은 &lsquo;재수집한 버전 == 운영자가 등록해 둔 목표 버전&rsquo; 대조인데, 이 목표 버전은 사람이 손으로 입력한다(GIGABYTE 커스텀 <code>.RBU</code> 포맷이라 앱이 버전을 안정적으로 자동추출하기 어려움). 오타(예: 실제 문자열은 <code>MS03CE0 F05</code> 인데 <code>F05</code> 로 등록)가 나면 <b>flash 가 성공했는데도</b> 대조가 &lsquo;불일치&rsquo;라며 <code>BIOS_UPDATING</code> 을 FAILED 로 찍는다. 이제 안전장치가 엉뚱하게 작동해, 펌웨어 단계 실패라 <code>isRetryBlocked</code> 가 재시도를 막고 버튼이 사라진다. 보드는 완벽히 멀쩡한데 <b>서류 대조에 걸린 것</b>이고, 이를 소프트웨어로 풀 길이 없어 폐기 · 재온보딩만 남는다.</li>
+            <li><b>균열 C — 되돌리기(rollback)가 없다.</b> flash 에는 &lsquo;실행 취소&rsquo;가 없다. 새 펌웨어를 쓰기 시작하면 옛것을 자동으로 되돌려놓을 수 없어, 나쁜 상태에서 뒤로 물러나 복구하는 선택지가 없고 앞으로 나아가(물리 복구) 해결하거나 포기(폐기)하는 두 갈래만 남는다.</li>
+          </ul>
+          <p>정리하면 #2 는 &lsquo;#1 을 막으려는 안전장치(자동 재시도 금지)가, 하드웨어 고장이 <i>아닌</i> 두 상황 — ① 느린 flash 를 무한대기로 오인, ② 버전 오타로 인한 가짜 불일치 — 까지 소프트웨어 탈출구 없이 가둔다&rsquo;는 문제다. 표의 완화 열(타임아웃 기반 실패 전이 · 벽돌/대기 구분 신호 · 운영자 오버라이드 경로 · 등록시점 version 검증)은 이 세 균열에 대응하나, <b>어느 것을 어떤 형태로 채택할지는 E2 하위 단계 plan 에서 결정</b>한다.</p>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §9 결정 · 열린 질문 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 결정 · 열린 질문</summary>
+      <div class="body">
+        <h4>비채택 대안</h4>
+        <ul>
+          <li><span class="chip del">비채택</span> <b>BMC 를 E2 부터 Redfish 분리</b> —
+            R3 이 UEFI Shell BMC flash 공식 존재 확인해 &lsquo;BMC = Redfish 강제&rsquo; 전제가 거짓.
+            E2 시점 분리는 pull 대칭 파괴 + 자격증명(E3) 선당김 + 커스텀 <code>.RBU</code> / <code>.ima_enc</code> Redfish 적용성 <span class="chip opt">T3 유보</span>를 E2 게이트로 끌어옴.</li>
+          <li><span class="chip del">비채택</span> <b>in-band afulnx(경로 B)</b> — Alpine 삼중 장벽 벽돌.</li>
+          <li><span class="chip del">비채택</span> <b>loop-mount 이미지 제작</b> — 특권 + SELinux, <code>fat32-lib</code> 로 회피.</li>
+        </ul>
+
+        <h4>Open Questions (plan 에서 확정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>현재 판단</th><th>확정 시점</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Q1</td>
+              <td><b>cross-phase 완료 신호 배선</b>: UEFI Shell flash 엔 agent 없어 <code>BIOS_UPDATING</code> / <code>BMC_UPDATING</code> 을 close 할 주체가 flash 부팅에 없다.
+                재부팅 후 진단 Alpine 이 재수집한 버전을 어느 트랜잭션에서 누가 목표버전과 대조해 펌웨어 step 을 close 하는가(§7 #2 의 3안).</td>
+              <td>plan 핵심 설계 결정.</td>
+              <td>E2-2 plan CP1</td>
+            </tr>
+            <tr>
+              <td>Q2</td>
+              <td>BIOS · BMC 를 한 번의 가상 USB 부팅에서 순차 flash(<code>startup.nsh</code> 안 BIOS → BMC)할지 vs 각각 별도 부팅 사이클로 나눌지.
+                순차 1회 = 벽돌 창 짧고 재부팅 1회지만 부분실패 판정 granularity 손실. 분리 2회 = 컴포넌트별 판정 명확하나 재부팅 2회 + 총소요 증가.</td>
+              <td>안전(<code>DEC-4</code>)과 관측성의 trade-off — 사용자 판단 필요.</td>
+              <td>E2-2 plan CP1</td>
+            </tr>
+            <tr>
+              <td>Q3</td>
+              <td>생성 가상 USB 에 HMAC <code>.provision.json</code> 마커 붙여 재검증할지.
+                붙이면 <code>fat32-lib</code> 비결정 출력 때문에 매 생성 재서명 필요 → 재현성 요구 시 <code>mtools</code>(<code>SOURCE_DATE_EPOCH</code> / <code>-N</code>)로 전환.</td>
+              <td>생성물 무결성 보증 범위가 도구 선택을 되짚음.</td>
+              <td>E2-2 plan CP1</td>
+            </tr>
+            <tr>
+              <td>Q4</td>
+              <td><code>FIRMWARE_RESOLVING</code> 사전 해소 step(목표버전 확정 + <code>softwareSpec</code> 최초버전과 등가 비교 → 이미 같으면 flash 생략 멱등 SUCCEEDED)을 E2 에 둘지,
+                <code>FirmwareVersion</code> VO 를 지금 도입할지.</td>
+              <td>VO 는 Primitive Obsession 상 당위지만 정규화 규약(콤보 토큰 추출)이 T3 전 미확정이라 VO 내부 비교식을 잠정으로 둘지.
+                (비판 지적: 정규화 근거로 든 콤보 / F-R-M 매핑은 AMD EPYC 문서 출처인데 대상 4종은 Intel Xeon → Intel 실측으로 갈아끼우고 VO 확정 보류.)</td>
+              <td>E2-1 / <span class="chip opt">T3</span></td>
+            </tr>
+            <tr>
+              <td>Q5</td>
+              <td><code>BMC_UPDATING</code> 을 E2 에서 아예 미착수(BIOS 먼저)하고 BMC 는 포맷(<code>.ima_enc</code> vs raw) · 하부도구(<code>socflash</code> vs <code>YAFUKCS</code>) T3 확정 후 착수할지,
+                아니면 BIOS · BMC 한 슬라이스로 묶되 BMC 만 T3 게이트로 표시할지 — 슬라이스 분할 경계.</td>
+              <td>(비판: verdict 의 BMC 통일 신뢰도를 risk #8 수준으로 하향, 이 질문을 게이트 필수 결정으로 승격.)</td>
+              <td>E2-2 착수 게이트</td>
+            </tr>
+            <tr>
+              <td>Q6</td>
+              <td>U3 선행 의존을 E2 착수 게이트에 명시 등재할지, 아니면 U3 없이 진행하려면 <code>ownedPhases</code> 잠정 공급 stub 을 착수 게이트 산출물로 포함할지.</td>
+              <td>U3 가 §7 #1 의 엄격한 선행 의존.</td>
+              <td>E2-2 착수 게이트</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 T3(실기) 검증 체크리스트 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. T3(실기) 검증 체크리스트</summary>
+      <div class="body">
+        <p style="margin-top:0;font-size:12px;color:var(--text-muted);">체크 상태는 브라우저 localStorage 에 저장된다.</p>
+        <ul class="check-list" data-storage="E2-R-t3-verify">
+          <li><label><input type="checkbox" data-key="t3-boot"> <span>앱(<code>fat32-lib</code>) 생성 raw FAT32 super-floppy <code>.img</code> 가 실보드 4종에서 <code>sanboot</code> 로 부팅되고 UEFI 가 <code>/EFI/BOOT/BOOTX64.EFI</code> 를 removable-media 로 실행하는지</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-esp"> <span>bare super-floppy 를 ESP 로 인식하는지 vs 파티션 테이블 + <code>sanboot --filename \EFI\BOOT\BOOTX64.EFI</code> 필요한지 (<code>fat32-lib</code> 는 파티션 미지원)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-lfn"> <span>UEFI Shell 이 LFN 으로 쓰인 <code>STARTUP.NSH</code> 를 자동실행 파일로 인식하는지 (QEMU+OVMF T2 선검증 권장)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-fnsh"> <span>대상 4종 순정 <code>f.nsh</code> 실제 내용: <code>AfuEfix64.efi</code> 플래그, ROM-ID 불일치 프롬프트 실재 여부, 완전 무인 여부</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-lasterror"> <span><code>AfuEfix64.efi</code>(EFI 판)가 실패 시 <code>%lasterror%</code> 에 non-zero EFI_STATUS 를 신뢰성 있게 반영하는지</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-bundle"> <span>공식 BIOS 번들 내부 구조: <code>.RBU</code>(BMC / Redfish 용)와 원본 <code>.ROM</code>(UEFI-Shell AFU 용) 모두 있는지, <code>.ROM</code> 이 <code>zi_</code> 중첩 아카이브 해제로만 얻어지는지, 커스텀 <code>.RBU</code> 가 AFU 로도 직접 flash 되는지</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-bmcnsh"> <span>대상 4종 <code>bmc_fw_update_uefi.nsh</code>(또는 등가) 동봉 여부, 파일명 · 인자(<code>cs 0 flashall</code>), 참조 BMC 이미지 실체(<code>.ima_enc</code> vs raw)와 하부 도구(<code>socflash</code>-P2A vs <code>YAFUKCS</code>-KCS)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-seq"> <span>가상 USB 하나에 BIOS+BMC 담아 UEFI Shell 에서 순차 flash 성공하는지 (실기 BMC 필요, QEMU T2 불가)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-e2e"> <span>AFU <code>/P /B /N /X /Q</code> 무인 flash 완주 + 재부팅 후 <code>dmidecode</code> <code>biosVersion</code> 이 목표로 바뀌는지 end-to-end</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-timing"> <span>실측 flash 소요시간(BIOS 2~5분 / BMC 5~10분)과 BMC 자기 재부팅 후 재응답 지연 → WAIT 타임아웃 산정</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-mcinfo"> <span>MegaRAC SP-X 의 <code>ipmitool mc info</code> + Aux Firmware Rev Info 인코딩, Redfish <code>FirmwareInventory</code> / BMC Version 이 번들 버전과 대조 가능 포맷인지</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-verfmt"> <span>4보드 <code>dmidecode</code> BIOS 버전 문자열이 번들 메타 version 과 동일 포맷인지 (Intel Xeon 계열이라 sysGen 의 AMD F/R/M 매핑이 그대로인지 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-abr"> <span>AST2600 ABR 이중 이미지 페일오버가 이 보드들에서 실제 발동하는지, BIOS 측 이중 이미지 복구 유무, <code>ipmitool mc reset cold</code> 후 재시도 절차</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-reset"> <span>BMC self-reboot 후 <code>startup.nsh</code> 의 <code>reset -c</code> warm 만으로 AST2600 센서 · 기능 정상화되는지 vs cold boot 필요한지</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-selinux"> <span>순수 Java <code>fat32-lib</code> 서빙(Spring <code>ResourceHandler</code>)이 Rocky9 SELinux enforcing 에서 <code>restorecon</code> 없이 정상 서빙되는지</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 후속 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 후속 마일스톤</summary>
+      <div class="body">
+        <p style="margin-top:0;">조사 완료로 E2-2 착수 게이트를 &lsquo;기술적으로는&rsquo; 해제하나, §7 의 배선 공백 4건이 해소돼야 실질 착수 가능하다.
+          착수 순서 권고:</p>
+        <ol>
+          <li><b>U3</b>(할당 스냅샷 <code>ownedPhases</code> 공급) 선행 — E2 의 엄격한 선행 의존.</li>
+          <li>진단완주 → <code>FIRMWARE_UPDATING</code> 커서 전진 배선 + 완료 판정 주체 결정(§9 Q1) + 재수집 directive(§7 #3).</li>
+          <li>이미지 빌드 async 스테이징(§7 #4).</li>
+          <li>BIOS flash(경로 A) 먼저, BMC 는 <span class="chip opt">T3</span> 포맷 확정 게이트(§9 Q5) 후.</li>
+        </ol>
+
+        <h4>후속 슬라이스</h4>
+        <ul>
+          <li><b>E2-1</b>(<code>FIRMWARE_RESOLVING</code>): 펌웨어 버전 VO 비교 규약 + 마커 무결성 게이트(무결성 실패 = FAILED 차단 / 파일 부재 = 경고성 SKIPPED 비차단). U3 완료 후.</li>
+          <li><b>E2-2</b>(<code>BIOS_UPDATING</code> · <code>BMC_UPDATING</code> 집행): 가상 USB 빌드 + flash 후 재부팅 루프 + 버전 재수집. 실기 <span class="chip opt">T3 유보</span> 명기.</li>
+          <li><b>Redfish 후행 전환</b>(<code>DEC-20</code>): <code>BMC_UPDATING</code> step 내부 격리 transport swap + async 폴링 job. E3+ 시점.</li>
+          <li><b>다이어그램</b>(<code>diagram/guest-provisioning-protocol.html</code>): E2-2 집행 구현 시 flash 부팅 · 재수집 상호작용 반영 갱신(이 조사 단계에선 신규 상호작용 미구현이라 갱신 유보).</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — 게스트 프로비저닝 커서 진행
+  //  ⚠ 판정 JS 는 서버 도메인 메서드와 드리프트 0.
+  //    · phaseNextAfter()      = PhaseSequence.nextAfter (engine/PhaseSequence.java:29-44) 1:1 재현
+  //    · CALLSITE_OWNED (Set.of()) = DiagnoseLinuxExecutor.onStepClosed (engine/DiagnoseLinuxExecutor.java:119) 하드코딩 재현
+  //    · checkin advanceTo      = AgentReportService.checkin:68-69
+  //  ⚠ demoRender() 는 파일 끝에서 1회 호출(불가침).
+  // ─────────────────────────────────────────────────────────────
+  let demoU3 = false;      // U3 할당 스냅샷의 ownedPhases 공급 여부 (토글)
+  let demoStep = 0;        // 0 미시작, 1 등록+개시, 2 첫 체크인, 3 진단 수집 close
+  let demoCursor = null;   // currentPhase
+
+  // engine/PhaseSequence.java:29-44 재현 — current 이후 ProvisioningPhase 순서상 ownedPhases 중 첫 phase.
+  // DIAGNOSE_LINUX 다음 순서 = FIRMWARE_UPDATING. ownedPhases 에 없으면 empty(null).
+  function phaseNextAfter(current, ownedPhases) {
+    if (current === 'DIAGNOSE_LINUX' && ownedPhases.indexOf('FIRMWARE_UPDATING') !== -1) return 'FIRMWARE_UPDATING';
+    return null; // empty
+  }
+  // engine/DiagnoseLinuxExecutor.java:119 재현 — 호출부는 ownedPhases 를 항상 Set.of() 로 하드코딩한다.
+  // (U3 가 실제로 ownedPhases 를 공급해도 이 호출부는 그것을 인자로 넘기지 않는다.)
+  const CALLSITE_OWNED = []; // Set.of()
+
+  function demoU3Set(v) { demoU3 = v; demoRender(); }
+  function demoReset() { demoStep = 0; demoCursor = null; demoRender(); }
+
+  function demoDo(n) {
+    if (n === 1) {              // 등록 + 개시
+      demoCursor = 'BOOTSTRAPPING'; demoStep = 1;
+    } else if (n === 2) {       // 첫 체크인 — AgentReportService.checkin:68-69
+      if (demoCursor === 'BOOTSTRAPPING') demoCursor = 'DIAGNOSE_LINUX'; // advanceTo(DIAGNOSE_LINUX)
+      demoStep = 2;
+    } else if (n === 3) {       // 진단 수집 close — DiagnoseLinuxExecutor.onStepClosed:119
+      const next = phaseNextAfter('DIAGNOSE_LINUX', CALLSITE_OWNED); // 항상 Set.of() 를 넘긴다
+      demoCursor = next ? next : 'PROVISIONED'; // empty → markCompleted() → PROVISIONED 종단
+      demoStep = 3;
+    }
+    demoRender();
+  }
+
+  function demoActBtn(label, fn, enabled, tip) {
+    const dis = enabled ? '' : ' disabled';
+    const t = (!enabled && tip) ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + ' onclick="' + fn + '">' + label + '</button></span>';
+  }
+
+  function cursorBadge(cur) {
+    if (cur === null) return ['미등록', 'off'];
+    if (cur === 'BOOTSTRAPPING') return ['BOOTSTRAPPING', 'off'];
+    if (cur === 'DIAGNOSE_LINUX') return ['DIAGNOSE_LINUX', 'on'];
+    if (cur === 'FIRMWARE_UPDATING') return ['FIRMWARE_UPDATING', 'on'];
+    if (cur === 'PROVISIONED') return ['PROVISIONED — 종단(FIRMWARE_UPDATING 미도달)', 'del'];
+    return [cur, 'off'];
+  }
+
+  function demoRender() {
+    // U3 세그먼트 active 표시
+    document.querySelectorAll('.ux-toolbar .seg[data-u3]').forEach(s =>
+      s.classList.toggle('active', (s.dataset.u3 === 'true') === demoU3));
+
+    // 커서 배지
+    const cb = cursorBadge(demoCursor);
+    const badge = document.getElementById('demo-cursor-badge');
+    badge.textContent = cb[0]; badge.className = 'badge ' + cb[1];
+    document.getElementById('demo-cursor-label').textContent =
+      'currentPhase' + (demoCursor === null ? ' (미등록)' : ' = ' + (demoCursor === 'PROVISIONED' ? 'PROVISIONED' : demoCursor));
+    document.getElementById('demo-cursor').classList.toggle('muted', demoCursor === 'PROVISIONED');
+
+    // 액션 버튼 (순차 enable)
+    let html = demoActBtn('① 등록 + 개시', 'demoDo(1)', demoStep === 0, '이미 등록되었습니다. 처음부터 다시 하려면 [처음부터].');
+    html += demoActBtn('② 첫 체크인', 'demoDo(2)', demoStep === 1, '먼저 ① 등록 + 개시를 실행하세요.');
+    html += demoActBtn('③ 진단 수집 close (진단 완주)', 'demoDo(3)', demoStep === 2, '먼저 ② 첫 체크인을 실행하세요.');
+    html += demoActBtn('처음부터', 'demoReset()', demoStep !== 0, '');
+    document.getElementById('demo-actions').innerHTML = html;
+
+    // 판정 캡션 (.ux-caps)
+    let caps = '';
+    if (demoStep >= 1) caps += 'register()                → currentPhase = BOOTSTRAPPING\n';
+    if (demoStep >= 2) caps += 'checkin(): BOOTSTRAPPING   → advanceTo(DIAGNOSE_LINUX)      // AgentReportService.checkin:68-69\n';
+    if (demoStep >= 3) {
+      caps += 'onStepClosed: nextAfter(DIAGNOSE_LINUX, <span class="t">Set.of()</span>) → empty  ⇒  markCompleted()  ⇒  PROVISIONED 종단   // 항상 · DiagnoseLinuxExecutor.java:119\n';
+      caps += '        대비  nextAfter(DIAGNOSE_LINUX, {FIRMWARE_UPDATING}) → <span class="f">FIRMWARE_UPDATING</span>   // 규칙은 가능, 호출부가 Set.of() 를 박아 미사용';
+    }
+    document.getElementById('demo-caps').innerHTML = caps || '// ① 등록 + 개시 부터 순서대로 실행하세요.';
+
+    // 결과 메시지
+    const msg = document.getElementById('demo-message');
+    if (demoStep < 3) {
+      msg.className = 'ux-message';
+      msg.textContent = demoStep === 0
+        ? '① 등록 + 개시 버튼부터 순서대로 눌러보세요. 차단된 버튼에 마우스를 올리면 이유 tooltip 이 떠요.'
+        : (demoStep === 1
+            ? '커서 = BOOTSTRAPPING. ② 첫 체크인을 누르면 advanceTo(DIAGNOSE_LINUX) 로 전이합니다.'
+            : '커서 = DIAGNOSE_LINUX. ③ 진단 수집 close 를 누르면 완주 판정이 돕니다. U3 토글을 바꿔가며 관찰해 보세요.');
+    } else {
+      msg.className = 'ux-message error';
+      msg.textContent = '진단 완주 → 무조건 PROVISIONED 종단. U3 토글이 ' + (demoU3 ? "'있음: {FIRMWARE_UPDATING}'" : "'없음(현재)'") +
+        ' 이어도 결과 동일 — 실제 호출부가 Set.of() 를 하드코딩이라 ownedPhases 를 못 쓴다. ' +
+        'FIRMWARE_UPDATING 도달에는 (1) ownedPhases 공급자(U3) + (2) onStepClosed 의 Set.of() 하드코딩 제거 · 전이 배선, 둘 다 필요하다. 현재는 둘 다 없다.';
+    }
+  }
+
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
