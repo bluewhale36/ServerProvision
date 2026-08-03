@@ -109,6 +109,20 @@ class AgentReportServiceTest {
     }
 
     @Test
+    @DisplayName("체크인 — 커서가 진단 이후로 전진한 게스트(FIRMWARE_UPDATING) → REBOOT (DES-2: 진단 리눅스를 떠나라)")
+    void checkin_advancedCursor_returnsReboot() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhase.FIRMWARE_UPDATING);   // 진단 이후로 전진한 커서
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+
+        var res = service.checkin(TOKEN);
+
+        assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
+        assertThat(p.getCurrentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);   // 전이 없음(BOOTSTRAPPING 아님)
+        assertThat(p.isCompleted()).isFalse();                                            // 종단 아닌데도 REBOOT
+    }
+
+    @Test
     @DisplayName("재체크인(이미 진단 진입) — 전이 없음(1회뿐)")
     void checkin_again_noTransition() {
         GuestServer g = stubGuest();
@@ -251,6 +265,28 @@ class AgentReportServiceTest {
         StepCloseResponse res = service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
 
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
+    }
+
+    @Test
+    @DisplayName("closeStep — 소비 훅이 커서를 전진(FIRMWARE_UPDATING)시키면 응답 directive = REBOOT + not completed (ES-1 · DES-2)")
+    void close_advancedCursor_returnsReboot() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        SetupStep step = SetupStep.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        given(setupStepRepository.findById(step.getId())).willReturn(Optional.of(step));
+        ProvisioningPhaseExecutor executor = org.mockito.Mockito.mock(ProvisioningPhaseExecutor.class);
+        given(phaseExecutorRegistry.find(ProvisioningPhase.DIAGNOSE_LINUX)).willReturn(Optional.of(executor));
+        org.mockito.Mockito.doAnswer(inv -> {   // 소비 훅이 같은 트랜잭션에서 커서를 소유 첫 phase 로 전진(ES-1)
+            p.advanceTo(ProvisioningPhase.FIRMWARE_UPDATING, T.plusSeconds(1));
+            return null;
+        }).when(executor).onStepClosed(g, p, step);
+
+        StepCloseResponse res = service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+
+        assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);                      // 전진했으므로 진단을 떠나라
+        assertThat(p.getCurrentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
+        assertThat(p.isCompleted()).isFalse();
     }
 
     @Test

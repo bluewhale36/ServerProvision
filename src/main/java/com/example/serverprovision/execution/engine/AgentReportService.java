@@ -143,14 +143,19 @@ public class AgentReportService {
     }
 
     /**
-     * 지시 판정 단일 지점(E1-2) — 우선순위 규약:
-     * ① 완주 → REBOOT(진단 리눅스를 떠나 iPXE 폴링으로 — dispatch 4행 이분이 받는다)
+     * 지시 판정 단일 지점(E1-2 · ES-1) — 우선순위 규약:
+     * ① 진단 작업이 이 게스트에게 끝남 → REBOOT. "끝남" = 종단(isCompleted) <b>또는 커서가 진단 이후로
+     *    전진</b>(ES-1). 두 경우 모두 게스트는 진단 리눅스를 떠나 iPXE 폴링으로 돌아가야 한다 —
+     *    종단은 dispatch 4행이, 전진은 소유 phase 스크립트(미구현이면 명시 HOLD)가 받는다.
      * ② 커서 진단 + 미수집(IPXE_REGISTERED) → COLLECT
-     * ③ 그 외 → WAIT.
-     * COLLECT 재수신(응답 유실 재체크인)은 무해 — 소비 훅의 적재가 최신값 덮기라 멱등이다.
+     * ③ 그 외(진단 진행 중 · 수집 완료 대기) → WAIT.
+     * ①의 "진단 이후 전진" 은 새 분기가 아니라 REBOOT 조건의 확장이다(ordinal 비교라 BOOTSTRAPPING 오검출
+     * 없음 · PhaseSequence 의 ordinal 축과 정합). COLLECT 재수신(응답 유실 재체크인)은 무해 —
+     * 소비 훅의 적재가 최신값 덮기라 멱등이다.
      */
     private AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
-        if (progress.isCompleted()) {
+        if (progress.isCompleted()
+                || progress.getCurrentPhase().ordinal() > ProvisioningPhase.DIAGNOSE_LINUX.ordinal()) {
             return AgentDirective.REBOOT;
         }
         if (progress.getCurrentPhase() == ProvisioningPhase.DIAGNOSE_LINUX && !isEnriched(server)) {

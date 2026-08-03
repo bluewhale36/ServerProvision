@@ -59,6 +59,9 @@ public class BootScriptDispatcher {
      */
     private ProvisioningPhase bootTargetPhase(ProvisioningProgress progress) {
         if (progress.getCurrentPhase() == ProvisioningPhase.BOOTSTRAPPING) {
+            // 의도적 빈 집합(DES-3) — BOOTSTRAPPING→진단은 보유(ownedPhases) 무관이라 결과 불변이며,
+            // 실공급자 배선 대상이 아니다(진단 완주 후의 실배선은 PhaseCursorAdvancer 소관, ES-1).
+            // 여기 provider 를 주입하는 것은 결과가 같은데 의존만 늘리는 over-wiring 이라 하지 않는다.
             return PhaseSequence.nextAfter(ProvisioningPhase.BOOTSTRAPPING, Set.of())
                     .orElseThrow(() -> new IllegalStateException("BOOTSTRAPPING 다음 phase 부재 — PhaseSequence 규칙 위반"));
         }
