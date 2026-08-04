@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF5 Plan — 사용자 노출 문구 결함 4건 정리</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : BEFORE / AFTER 대조 ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : N-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── .pkg-tree ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── card-grid ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ══ 반응형 (명세 §3) — 데스크톱 무변경 ══ */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF5 — 사용자 노출 문구 결함 4건 정리 <span class="v2-badge">hotfix</span> <span style="font-weight:500;color:var(--text-muted)">— 파트 1/2 (§1 ~ §5 · 🎬 미리보기)</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF5 (hotfix)</span>
+    <span><strong>상위</strong> MK4 reconciliation 사용성 진단 (2026-08-02 ~ 08-03)</span>
+    <span><strong>scope</strong> 오류 페이지 상태 문구 · 확인창 조사 · 자원명 확인 기대값 노출 · 바인딩 오류 한국어화</span>
+    <span><strong>브랜치</strong> fix/HF5_user-facing-copy</span>
+    <span><strong>생성</strong> 2026-08-04 00:52:38 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 — 조사 판정기</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+<details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>이 슬라이스가 어디서 나왔는가</h4>
+        <p>MK4 reconciliation 사용성 진단(2026-08-02 ~ 08-03)에서 개선 후보 28 건과 진단 범위 밖 부수 관찰 3 건이 나왔고,
+          사용자가 전부 채택했다. 그중 <b>reconciliation 화면 레이아웃 개편과 무관하고 전역 공용인 결함 4 건</b>을
+          먼저 떼어 처리하는 것이 이 슬라이스다. 나머지 후보는 MK4 후속 슬라이스에서
+          정보 정의 → 데이터 모델 → 레이아웃 개편 순서로 다룬다.</p>
+        <p>4 건 모두 <b>샌드박스에서 실제로 화면을 조작해 확인</b>한 것이며, 추정이나 코드 읽기만으로 잡은 것이 아니다.</p>
+
+        <h4>진입 전제</h4>
+        <table>
+          <thead><tr><th>전제</th><th>상태</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>MK4 진단 완료 (후보 28 + 부수 관찰 3, 사용자 채택)</td><td><span class="chip new">충족</span></td><td>2026-08-02 ~ 08-03 진단 세션</td></tr>
+            <tr><td>확인 modal 자산 (<code>ConfirmModal</code> base + specialized 6 종) 가동</td><td><span class="chip new">충족</span></td><td>S5-2 / S5-6-1 / S5-6-2 / HF4-1 로 정착</td></tr>
+            <tr><td>SSR 오류 라우팅 (<code>WebExceptionHandler</code> + <code>error.html</code>) 가동</td><td><span class="chip new">충족</span></td><td>R1-4-1 hotfix v3 · R2-3 로 수렴 완료</td></tr>
+            <tr><td>휴지통 영구삭제 확인 modal 의 기대 자원명 본문 노출 선례</td><td><span class="chip new">충족</span></td><td><code>fragments/management/confirm-purge.html</code> 의 <code>.cm-typed-target-code</code></td></tr>
+            <tr><td>MK4 레이아웃 개편 착수</td><td><span class="chip keep">미착수</span></td><td>HF5 완료 후 MK4-1 설계 토론부터 (§11)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>결함 4 건 — 관찰과 원인</h4>
+        <table>
+          <thead><tr><th>#</th><th>화면에서 보이는 것</th><th>원인</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>①</b></td>
+              <td>없는 주소로 가면 <code>404 Internal Error</code>, 잘못된 폼을 보내면 <code>400 Internal Error</code>.
+                본문은 둘 다 "알 수 없는 오류가 발생했습니다."</td>
+              <td><code>error.html</code> 이 <code>${statusLabel} ?: 'Internal Error'</code> 로 렌더한다.
+                <code>statusLabel</code> 은 <code>WebExceptionHandler.populate</code> 만 채우므로,
+                Spring Boot 기본 <code>/error</code> 경로(핸들러가 없는 404, 바인딩 실패 400 등)로 들어온 요청은
+                이 값이 비어 fallback 리터럴이 그대로 나온다. 상태 코드는 맞게 표시되는데 라벨만 항상
+                "Internal Error" 라서 <b>서로 모순된 한 줄</b>이 된다.</td>
+            </tr>
+            <tr>
+              <td><b>②</b></td>
+              <td>확인창에 <code>'경로 이동됨' 드리프트 을(를) 적용할까요</code>,
+                <code>Ubuntu 24.04 Ubuntu-24.04-live.iso 을(를) 복구할까요</code></td>
+              <td>문구 템플릿이 여덟 곳 이상에 흩어져 있다. 다만 그중 <code>bios-setting-detail.js</code> 를 뺀 전부가
+                <code>ConfirmModal.composeMessage(form, template, defaultMessage)</code> 한 함수를 거쳐
+                <code>{resource}</code> 를 자원명으로 치환한다 — <b>치환 지점이 하나</b>인 것이 이 결함의 지렛대다.</td>
+            </tr>
+            <tr>
+              <td><b>③</b></td>
+              <td>내용 변경 수용에서 입력해야 할 이름은 <code>Rocky Linux 9.6 Rocky-9.6-x86_64-dvd.iso</code> 인데
+                입력창에는 <code>자원명 입력 : Rocky Linux</code> 까지만 보인다. 보이는 대로 입력하면 거절되고,
+                그 거절 메시지가 기대값 전문을 알려준다.</td>
+              <td>이 폼만 기대 이름을 <code>placeholder</code> 에 넣었다
+                (<code>th:placeholder="|자원명 입력 : ${drift.displayName}|"</code>).
+                <b>같은 저장소에 올바른 선례가 이미 있다</b> — 휴지통 영구삭제 확인 modal 은 기대 이름을
+                <code>&lt;code th:text="${expectedName}"&gt;</code> 로 화면 본문에 노출한다. 두 곳이 갈라진 것이 결함의 실체다.</td>
+            </tr>
+            <tr>
+              <td><b>④</b></td>
+              <td>폼 마커(<code>_allowCreateDirectory</code>)가 빠진 직접 요청에서 배너에
+                <code>… allowCreateDirectory — Failed to convert value of type null to required type boolean; …</code></td>
+              <td>저장소에 <code>messages.properties</code> 도 <code>MessageSource</code> 설정도 없다.
+                그래서 Spring 의 기본 <code>typeMismatch</code> 메시지가 영어 원문 그대로 나온다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout success"><b>④ 에서 정상 동작하는 부분</b> — 오류가 조용히 삼켜지지 않고 배너로 표면화되는 것은
+          이전에 고쳐진 부분이 제대로 동작하는 것이다. 남은 문제는 <b>문구가 영어 원문</b>이라는 것뿐이며,
+          이번 슬라이스는 그 한 가지만 다룬다.</div>
+
+        <div class="callout warn"><b>공통 성격</b> — 4 건 모두 도메인 로직이 아니라 <b>사용자에게 보이는 문구</b>의 문제다.
+          엔티티 · Repository · 스키마 변경이 없고, 신규 URL 도 없다. 그래서 12 단계 중 6 · 7 · 9 단계가 해당 없음이 된다(§5).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+
+        <h4>① 오류 페이지 상태 문구를 상태 코드에서 파생한다</h4>
+        <ol>
+          <li>상태 코드 → 한국어 문구 조회를 <b>단일 소스</b>로 만들고, Spring Boot 기본 <code>/error</code> 경로와
+            <code>WebExceptionHandler</code> advice 경로가 그 하나를 함께 쓴다.</li>
+          <li><code>ErrorStatusLabels</code>(신규, <code>global/exception/</code>) — 상태 코드 → 한국어 문구 조회.
+            <b>표 조회이고 분기 증식이 아니며</b>, 미등록 상태는 기본 문구로 떨어진다.</li>
+          <li><code>ProvisionErrorAttributes</code>(신규, <code>DefaultErrorAttributes</code> 상속, <code>@Component</code>) —
+            Spring 이 제공하는 확장점이다. 기본 <code>/error</code> 경로의 오류 속성에 <code>statusLabel</code> 을 항상 채운다.</li>
+          <li><code>WebExceptionHandler.populate</code> — 지금 넘기는 영어 reason phrase(<code>"Conflict"</code> 등)를
+            같은 <code>ErrorStatusLabels</code> 조회로 바꿔 두 경로의 문구를 일치시킨다.</li>
+          <li><code>error.html</code> — fallback 리터럴 <code>'Internal Error'</code> 제거. 표기는
+            <b>한국어 문구가 주가 되고 코드가 괄호로 따라오는</b> 형태
+            (<code>페이지를 찾을 수 없습니다 (404)</code>)로 바꾼다.</li>
+        </ol>
+
+        <h4>② 병기형 조사를 치환 지점 한 곳에서 해소한다</h4>
+        <ol>
+          <li>치환 이후 문자열에서 <b>"앞 단어 + 병기형 조사" 패턴을 일반적으로 해소</b>하는 공용 함수를 만들고,
+            <code>composeMessage</code> 가 마지막에 한 번 통과시킨다.</li>
+          <li><code>korean-particle.js</code>(신규, <code>static/global/</code>) — <code>window.KoreanParticle.resolve(text)</code>.
+            지원 쌍은 <code>을(를)</code> · <code>이(가)</code> · <code>은(는)</code> · <code>와(과)</code> ·
+            <code>으로(로)</code> · <code>아(야)</code>.</li>
+          <li>여덟 파일 중 실제로 고치는 것은 <code>confirm-modal-base.js</code> 하나이며,
+            <code>bios-setting-detail.js</code> 는 같은 함수를 직접 부른다.</li>
+          <li>앞으로 누가 새 문구에 <code>을(를)</code> 을 써도 <b>자동으로 해소</b>된다 — 새 문구 작성자가 별도 규약을 알 필요가 없다.</li>
+        </ol>
+
+        <h4>③ 자원명 확인의 기대값을 본문에 노출한다</h4>
+        <ol>
+          <li>휴지통 영구삭제 확인 modal 의 선례를 따른다 — 기대 이름을 <b>본문에 텍스트로 노출</b>하고
+            <code>placeholder</code> 는 짧게 둔다.</li>
+          <li>결과적으로 "한 번 틀린 뒤 복사해서 붙여넣기" 가 아니라, 처음부터 기대값을 보고 입력할 수 있게 된다.</li>
+        </ol>
+
+        <h4>④ 바인딩 오류 문구를 한국어로 바꾼다</h4>
+        <ol>
+          <li>Spring 이 이미 제공하는 방법을 쓴다. <code>src/main/resources/messages.properties</code> 를 신설하면
+            Spring Boot 의 <code>MessageSourceAutoConfiguration</code> 이 기본 basename <code>messages</code> 로 자동 등록한다.</li>
+          <li>여기에 <code>typeMismatch</code> 계열 코드의 한국어 문구를 넣는다.
+            <b>새 설정 클래스도, 템플릿 분기도 필요 없다.</b></li>
+        </ol>
+
+        <h4>검토한 대안과 탈락 사유</h4>
+        <table>
+          <thead><tr><th>#</th><th>대안</th><th>판정</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>템플릿에서 status 별로 Thymeleaf 분기</td><td><span class="chip del">탈락</span></td>
+              <td>상태가 늘 때마다 분기가 자라는 패턴이라 "조건분기 legacy 확장 금지" 원칙에 정면으로 걸린다.</td></tr>
+            <tr><td>①</td><td><code>BasicErrorController</code> 를 대체 구현</td><td><span class="chip del">탈락</span></td>
+              <td>영향 범위가 슬라이스 규모를 넘고, 얻는 것은 라벨 하나다.</td></tr>
+            <tr><td>①</td><td>라벨을 아예 없애고 상태 코드만 노출</td><td><span class="chip del">탈락</span></td>
+              <td>"404" 만으로는 무슨 일인지 알 수 없다.</td></tr>
+            <tr><td>①</td><td><code>ErrorStatusLabels</code> + <code>ProvisionErrorAttributes</code> 로 단일 소스화</td><td><span class="chip new">채택</span></td>
+              <td>두 경로가 같은 표를 조회하므로 문구가 갈라질 수 없다. 상태 추가는 표에 한 줄이지 분기가 아니다.</td></tr>
+            <tr><td>②</td><td>템플릿을 <code>{resource}{을/를}</code> 같은 토큰으로 바꾸고 치환기가 처리</td><td><span class="chip del">탈락</span></td>
+              <td>명시적이지만 여덟 파일을 모두 고쳐야 하고, 새 문구를 추가하는 사람이 토큰 규약을 알아야 한다.
+                앞으로 추가될 문구에서 다시 갈라진다.</td></tr>
+            <tr><td>②</td><td>서버가 문구를 완성해 내려보냄</td><td><span class="chip del">탈락</span></td>
+              <td>확인 문구 조립이 클라이언트 책임이라는 현행 구조를 바꾸는 큰 변경이고, 이 결함이 요구하는 규모가 아니다.</td></tr>
+            <tr><td>②</td><td>치환 이후 문자열을 공용 함수가 일반 해소</td><td><span class="chip new">채택</span></td>
+              <td>고치는 파일이 <code>confirm-modal-base.js</code> 하나. 새 문구도 자동 적용.</td></tr>
+            <tr><td>③</td><td>선례(<code>confirm-purge.html</code>)를 따라 본문 노출</td><td><span class="chip new">채택</span></td>
+              <td>같은 저장소에 이미 옳게 하는 곳이 있는데 한 곳만 갈라진 상태를 정합시키는 것이라, 새 판단이 필요 없다.</td></tr>
+            <tr><td>④</td><td><code>messages.properties</code> 신설 (자동 등록에 위임)</td><td><span class="chip new">채택</span></td>
+              <td>Spring primitive 그대로 사용. 신규 설정 클래스 0.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>필드 이름의 한국어 라벨 사전</b>(<code>allowCreateDirectory</code> → "상위 디렉토리 생성 허용") —
+              필드 전수 조사가 필요하다. <b>MK4 레이아웃 개편</b>에서 화면을 손볼 때 함께 처리한다.</li>
+            <li><b>배너 마크업의 fragment 공용화</b> — 같은 배너 마크업이 일곱 템플릿에 복붙되어 있으나,
+              일곱 화면 회귀 위험이 있다. 역시 <b>MK4 레이아웃 개편</b>으로 넘긴다.</li>
+            <li><b>reconciliation 화면 레이아웃 개편 자체</b> — MK4-1(정보 정의) → MK4-2(데이터 모델) → MK4-3(레이아웃) 순서로 간다(§11).</li>
+            <li><b>MK4 진단의 나머지 후보 24 건</b> — 레이아웃 개편과 얽혀 있어 이번에 떼어내지 않는다.</li>
+            <li><b>서버가 생성해 내려보내는 문구의 조사</b>(예외 메시지 등) — 이번 해소는 클라이언트 확인창 조립 지점 한 곳에만 적용된다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 조사 판정기 (라이브 데모)</summary>
+      <div class="body">
+        <p style="margin-top:0;">결함 ② 의 해소 규칙은 글로 읽는 것보다 <b>직접 입력해 보는 편</b>이 빠르다.
+          아래에서 자원명을 바꾸거나 예시 버튼을 누르면, 조사 앞 글자를 어떻게 읽고 받침을 어떻게 판정하는지가
+          그대로 드러나고, 확인창 문구가 <b>개선 전 / 개선 후</b> 두 줄로 비교된다.
+          여기서 도는 판정 함수 본체가 곧 <code>korean-particle.js</code> 에 들어갈 <code>resolve()</code> 다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">자원명 :</span>
+            <input type="text" id="demo-name" value="Rocky Linux 9.6 Rocky-9.6-x86_64-dvd.iso"
+                   oninput="demoRender()" autocomplete="off"
+                   style="flex:1;min-width:240px;padding:5px 10px;font-size:12px;font-family:var(--mono);border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)">
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">예시 넣기 :</span>
+            <button class="seg" data-name="Rocky-9.6-x86_64-dvd.iso" onclick="demoSetName(this.dataset.name)">Rocky-9.6-x86_64-dvd.iso</button>
+            <button class="seg" data-name="Ubuntu-24.04-live.iso" onclick="demoSetName(this.dataset.name)">Ubuntu-24.04-live.iso</button>
+            <button class="seg" data-name="드리프트" onclick="demoSetName(this.dataset.name)">드리프트</button>
+            <button class="seg" data-name="자원 목록" onclick="demoSetName(this.dataset.name)">자원 목록</button>
+            <button class="seg" data-name="MS03-CE0" onclick="demoSetName(this.dataset.name)">MS03-CE0</button>
+            <button class="seg" data-name="9.6" onclick="demoSetName(this.dataset.name)">9.6</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">조사 쌍 :</span>
+            <button class="seg" data-pair="을(를)" onclick="demoSetPair(this.dataset.pair)">을(를)</button>
+            <button class="seg" data-pair="이(가)" onclick="demoSetPair(this.dataset.pair)">이(가)</button>
+            <button class="seg" data-pair="은(는)" onclick="demoSetPair(this.dataset.pair)">은(는)</button>
+            <button class="seg" data-pair="와(과)" onclick="demoSetPair(this.dataset.pair)">와(과)</button>
+            <button class="seg" data-pair="으로(로)" onclick="demoSetPair(this.dataset.pair)">으로(로)</button>
+          </div>
+
+          <div class="ux-row" style="margin-top:12px;">
+            <strong>확인창</strong>
+            <span class="label" id="demo-modal-line">…</span>
+            <span class="tip" id="demo-confirm-tip">
+              <button class="n-demo-btn" id="demo-confirm-btn" onclick="demoClick()">확인창 열기</button>
+            </span>
+          </div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+
+          <div class="ux-message error" id="demo-before"></div>
+          <div class="ux-message success" id="demo-after"></div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — composeMessage</h4><pre><code>let msg = template.replace('{resource}', resource);
+const extra = form.getAttribute('data-resource-extra');
+if (extra) msg += ' ' + extra;
+<span class="diff-del">return msg;</span>
+// → "… .iso 을(를) 복구할까요?"</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 치환 지점 1 곳 통과</h4><pre><code>let msg = template.replace('{resource}', resource);
+const extra = form.getAttribute('data-resource-extra');
+if (extra) msg += ' ' + extra;
+<span class="diff-add">return KoreanParticle.resolve(msg);</span>
+// → "… .iso 를 복구할까요?"   (한글로 끝나면 "드리프트를 …" 처럼 붙는다)</code></pre></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 위 데모의 판정 함수(<code>demoResolve()</code> / <code>demoJudge()</code>)는
+          <code>korean-particle.js</code> 의 <code>KoreanParticle.resolve()</code> 와 <b>같은 본체</b>다.
+          §4 의 판정 규칙 7 항이 두 곳의 단일 명세이며, 구현 시 이 데모 코드를 그대로 옮긴다.</div>
+
+        <div class="callout"><b>읽는 법</b> — 판정 캡션의 색은 값 구분용이다.
+          <span class="mono" style="color:var(--red);font-weight:700">빨강 = 받침 있음</span>,
+          <span class="mono" style="color:var(--green);font-weight:700">초록 = 받침 없음</span>.
+          오류/정상을 뜻하지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <div class="callout"><b>신규 URL 0 · 계약 변경 0</b> — 이 슬라이스는 엔드포인트를 추가하지도, 기존 응답의
+          상태 코드나 바디 구조를 바꾸지도 않는다. 바뀌는 것은 <b>같은 응답 안에서 사용자에게 보이는 문구</b>다.</div>
+
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>(매핑 없는 임의 주소)</code></td>
+              <td>핸들러 미매칭 → Spring Boot 기본 <code>/error</code> forward → <code>error.html</code></td>
+              <td>404 + <span class="diff-add">한국어 라벨</span> (<code>ProvisionErrorAttributes</code> 가 <code>statusLabel</code> 주입)</td></tr>
+            <tr><td>POST</td><td><code>(임의 폼 — 타입 불일치 바인딩 실패)</code></td>
+              <td>바인딩 실패 → 기본 <code>/error</code> forward 또는 <code>BindingResult</code> 배너</td>
+              <td>400 + <span class="diff-add">한국어 라벨</span> + <span class="diff-add">한국어 필드 메시지</span> (<code>messages.properties</code>)</td></tr>
+            <tr><td>—</td><td><code>(advice 경로) DomainException 하위</code></td>
+              <td><code>WebExceptionHandler.handleDomain</code> → <code>@ResponseStatus</code> 4xx 매핑 / 그 외 500</td>
+              <td>4xx · 500 + <span class="diff-add"><code>ErrorStatusLabels</code> 조회 라벨</span> (기존 영어 reason phrase 대체)</td></tr>
+            <tr><td>POST</td><td><code>/maintenance/reconciliation/drifts/{driftId}/accept-hash</code></td>
+              <td>내용 변경 수용 — <b>계약 무변경</b>. 기대 자원명의 <span class="diff-add">표시 위치</span>만 <code>placeholder</code> → 본문</td>
+              <td>302 · 400 · 409 (기존 그대로)</td></tr>
+            <tr><td>—</td><td><code>(클라이언트) ConfirmModal.composeMessage</code></td>
+              <td>확인창 문구 조립 — <span class="diff-add"><code>KoreanParticle.resolve</code> 1 회 통과</span> 추가</td>
+              <td>서버 왕복 0</td></tr>
+          </tbody>
+        </table>
+
+        <h4>흐름 A — Spring Boot 기본 <code>/error</code> 경로 (지금 라벨이 비던 경로)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Spring MVC · /error</div><div class="actor a3">ProvisionErrorAttributes</div>
+          <div class="step a1">없는 주소 <code>GET</code></div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">핸들러 미매칭 → 404 → <code>/error</code> forward</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>BasicErrorController</code> 가 오류 속성 조립</div>
+            <div class="step a3"><code>getErrorAttributes()</code> override →<br><code>statusLabel</code> 주입</div>
+          <div class="step a1"><code>error.html</code> 렌더 수신</div><div class="step a2">model : status · statusLabel · message</div>
+            <div class="step a3"><code>ErrorStatusLabels.of(404)</code><br>= "페이지를 찾을 수 없습니다"</div>
+        </div>
+
+        <h4>흐름 B — advice 경로 (지금도 라벨이 차되 영어이던 경로)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Controller · Service</div><div class="actor a3">WebExceptionHandler</div>
+          <div class="step a1">액션 <code>POST</code></div><div class="step a2"><code>throw</code> 도메인 예외</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>handleDomain</code> → <code>@ResponseStatus</code> 판독</div>
+          <div class="step a1"></div><div class="step a2"></div>
+            <div class="step a3"><code>populate(model, 409,<br>ErrorStatusLabels.of(409), msg)</code></div>
+          <div class="step a1"><code>error.html</code> 409 수신</div><div class="step a2"></div><div class="step a3">view <code>"error"</code></div>
+        </div>
+
+        <div class="callout success"><b>두 흐름이 같은 문구를 쓰는 이유</b> — A 는 <code>ProvisionErrorAttributes</code> 가,
+          B 는 <code>WebExceptionHandler.populate</code> 가 <b>같은 <code>ErrorStatusLabels</code> 표</b>를 조회하기 때문이다.
+          문구를 바꾸려면 표 한 곳만 고치면 되고, 두 경로가 갈라질 수 없다.</div>
+
+        <h4>흐름 C — 확인창 문구 조립 (클라이언트 전용, 서버 왕복 0)</h4>
+        <pre><code>[여덟 개 문구 템플릿]           confirm-restore.js  : '{resource} 을(를) 복구할까요?'
+                                confirm-purge.js    : '{resource} 을(를) 영구 삭제할까요?'
+                                …  (문구는 각 파일에 그대로 둔다 — 수정 0)
+        │
+        ▼
+ConfirmModal.composeMessage(form, template, defaultMessage)
+        │  ① data-confirm-message 명시 override 있으면 그대로 반환      (기존)
+        │  ② '{resource}' → data-resource-label 치환                    (기존)
+        │  ③ data-resource-extra 이어붙이기                             (기존)
+        │  ④ KoreanParticle.resolve(msg)   ← 신설. 치환 이후 1 회 통과   (추가)
+        ▼
+"Rocky Linux 9.6 Rocky-9.6-x86_64-dvd.iso 를 복구할까요?"
+
+[예외 1 곳] provisioning/bios-setting-detail.js 는 composeMessage 를 거치지 않고
+           문자열을 직접 만든다 → KoreanParticle.resolve() 를 직접 호출한다.</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <div class="callout warn"><b>엔티티 · Value Object · Enum 신설 0</b> — 이 슬라이스에는 영속 도메인이 없다.
+          Primitive Obsession 관점의 유일한 판단 지점은 상태 코드이며, <code>ErrorStatusLabels</code> 의 조회 키를
+          원시 <code>int</code> 가 아니라 <code>HttpStatus</code> 로 받는다. Spring 이 <code>Integer</code> 로 넘겨주는
+          지점(<code>DefaultErrorAttributes</code> 의 속성 맵)에서만 <code>HttpStatus.resolve(int)</code> 로 승격하고,
+          해석 불가 값은 기본 문구로 떨어진다.</div>
+
+        <h4>ErrorStatusLabels — 상태 문구의 단일 소스</h4>
+        <pre><code>public final class ErrorStatusLabels {
+
+    // 상태 코드 → 한국어 문구. 표 조회이므로 상태가 늘어도 분기가 자라지 않는다.
+    private static final Map&lt;HttpStatus, String&gt; LABELS = Map.of(...);
+    private static final String DEFAULT_LABEL = "요청을 처리하지 못했습니다";
+
+    public static String of(HttpStatus status);   // 미등록 → DEFAULT_LABEL
+    public static String of(int rawStatus);       // HttpStatus.resolve 실패 → DEFAULT_LABEL
+}</code></pre>
+
+        <table>
+          <thead><tr><th>상태</th><th>한국어 문구</th><th>화면 표기 (한국어 주 · 코드 괄호)</th></tr></thead>
+          <tbody>
+            <tr><td><code>400</code></td><td>요청 형식이 올바르지 않습니다</td><td><code>요청 형식이 올바르지 않습니다 (400)</code></td></tr>
+            <tr><td><code>403</code></td><td>접근 권한이 없습니다</td><td><code>접근 권한이 없습니다 (403)</code></td></tr>
+            <tr><td><code>404</code></td><td>페이지를 찾을 수 없습니다</td><td><code>페이지를 찾을 수 없습니다 (404)</code></td></tr>
+            <tr><td><code>405</code></td><td>허용되지 않은 요청 방식입니다</td><td><code>허용되지 않은 요청 방식입니다 (405)</code></td></tr>
+            <tr><td><code>409</code></td><td>현재 상태와 충돌하는 요청입니다</td><td><code>현재 상태와 충돌하는 요청입니다 (409)</code></td></tr>
+            <tr><td><code>500</code></td><td>서버에서 처리하지 못했습니다</td><td><code>서버에서 처리하지 못했습니다 (500)</code></td></tr>
+            <tr><td>그 밖 · 해석 불가</td><td>요청을 처리하지 못했습니다 (기본)</td><td><code>요청을 처리하지 못했습니다 (418)</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>ErrorStatusLabels 의 소비처 2 곳</h4>
+        <table>
+          <thead><tr><th>소비처</th><th>담당 경로</th><th>지금</th><th>이후</th></tr></thead>
+          <tbody>
+            <tr><td><code>ProvisionErrorAttributes</code></td><td>Spring Boot 기본 <code>/error</code></td>
+              <td><code>statusLabel</code> 이 <b>비어 있음</b> → 템플릿 fallback <code>'Internal Error'</code></td>
+              <td><code>ErrorStatusLabels.of(status)</code> 주입</td></tr>
+            <tr><td><code>WebExceptionHandler.populate</code></td><td>advice (SSR 예외)</td>
+              <td>영어 reason phrase (<code>"Conflict"</code> · <code>"Internal Error"</code>)</td>
+              <td><code>ErrorStatusLabels.of(status)</code> 조회</td></tr>
+          </tbody>
+        </table>
+
+        <div class="state-flow">현재 :  status=404 ──▶ statusLabel = (없음) ──▶ error.html fallback ──▶ "404 Internal Error"   ← 모순
+개선 :  status=404 ──▶ ErrorStatusLabels.of(404) ──▶ "페이지를 찾을 수 없습니다" ──▶ "페이지를 찾을 수 없습니다 (404)"</div>
+
+        <h4>KoreanParticle — 병기형 조사 해소 규칙 (판정 SSOT)</h4>
+        <p><code>window.KoreanParticle.resolve(text)</code> 는 치환이 끝난 문자열을 받아, 그 안의 병기형 조사 토큰을
+          앞 글자의 받침 여부로 골라 바꾸고 <b>조사 앞 띄어쓰기까지 정규화한</b> 문자열을 돌려준다. 판정은 아래 7 항이 전부이며,
+          🎬 미리보기의 판정 함수가 <b>같은 본체</b>다.</p>
+        <ol>
+          <li>조사 바로 앞 글자를 본다. 괄호 · 따옴표 · 공백은 건너뛴다.</li>
+          <li>한글 음절(<code>U+AC00</code> ~ <code>U+D7A3</code>)이면 <code>(코드 - 0xAC00) % 28 != 0</code> 일 때 받침 있음.</li>
+          <li>숫자면 그 숫자의 한국어 읽기로 판정한다.
+            받침 있음 = <code>0</code>(영) · <code>1</code>(일) · <code>3</code>(삼) · <code>6</code>(육) · <code>7</code>(칠) · <code>8</code>(팔),
+            받침 없음 = <code>2</code>(이) · <code>4</code>(사) · <code>5</code>(오) · <code>9</code>(구).</li>
+          <li>라틴 문자면 그 글자의 한국어 읽기 끝소리로 판정한다.
+            받침 있음 집합 = <code>l</code>(엘) <code>m</code>(엠) <code>n</code>(엔) 셋뿐이고,
+            나머지는 받침 없음. 대소문자 구분 없음. 예를 들어 <code>r</code> 은 '아르', <code>s</code> 는 '에스',
+            <code>x</code> 는 '엑스', <code>z</code> 는 '제트' 로 모두 받침 없이 끝난다.</li>
+          <li>판정 불가(기호 등)면 받침 없는 쪽을 쓴다.</li>
+          <li><code>으로(로)</code> 만 예외다. 받침이 없거나 받침이 <code>ㄹ</code> 이면 '로', 그 밖에는 '으로'.</li>
+          <li><b>띄어쓰기</b> — 앞 글자가 한글이면 조사를 <b>단어에 붙이고</b>(앞의 공백을 없앤다),
+            한글이 아니면(영문 · 숫자 · 기호) 조사 앞에 <b>한 칸을 띄운다</b>(공백이 없으면 넣는다).</li>
+        </ol>
+
+        <div class="callout"><b>규칙 7 이 필요한 이유</b> — 지금 문구 템플릿은 전부
+          <code>'{resource} 을(를) 복구할까요?'</code> 처럼 공백을 이미 품고 있다. 자원명이 한글로 끝나면
+          그 공백 때문에 "드리프트 를" 처럼 어색해지고, 영문으로 끝나면 반대로 공백이 있어야 읽힌다.
+          그래서 조사를 고르는 김에 <b>앞 공백까지 함께 정리</b>한다. 템플릿은 손대지 않는다.
+          <ul>
+            <li>한글로 끝남 : <code>드리프트 을(를)</code> → <code>드리프트를</code></li>
+            <li>영문으로 끝남 : <code>… -dvd.iso 을(를)</code> → <code>… -dvd.iso 를</code></li>
+            <li>숫자로 끝남 : <code>Rocky Linux 9.6 을(를)</code> → <code>Rocky Linux 9.6 을</code></li>
+          </ul>
+          <b>숫자에 대한 판단</b> — 사용자 지시는 영문과 한글만 규정했다. 이 저장소의 자원명은
+          <code>Rocky Linux 9.6</code> · <code>MS03-CE0</code> 처럼 <b>숫자로 끝나도 전체가 라틴 표기 식별자</b>라,
+          한글이 아닌 쪽으로 묶어 띄우는 것이 일관적이라고 보았다. 붙이는 편이 낫다고 보시면 규칙 7 의
+          조건을 "한글 또는 숫자" 로 넓히면 되고, 데모 판정도 한 줄만 바뀐다.</div>
+
+        <table>
+          <thead><tr><th>지원 쌍</th><th>받침 있음</th><th>받침 없음</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>을(를)</code></td><td>을</td><td>를</td><td>확인창 다수</td></tr>
+            <tr><td><code>이(가)</code></td><td>이</td><td>가</td><td></td></tr>
+            <tr><td><code>은(는)</code></td><td>은</td><td>는</td><td></td></tr>
+            <tr><td><code>와(과)</code></td><td>과</td><td>와</td><td>받침 있음이 '과'로 뒤집히는 유일한 쌍</td></tr>
+            <tr><td><code>아(야)</code></td><td>아</td><td>야</td><td>호격 — 현재 사용처 없음, 규약만 확보</td></tr>
+            <tr><td><code>으로(로)</code></td><td>으로</td><td>로</td><td>규칙 6 — <code>ㄹ</code> 받침도 '로'</td></tr>
+          </tbody>
+        </table>
+
+        <h4>규칙 6 의 <code>ㄹ</code> 받침 판정 대상</h4>
+        <table>
+          <thead><tr><th>분류</th><th><code>ㄹ</code> 받침으로 보는 것</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>한글</td><td>종성 인덱스 <code>(코드 - 0xAC00) % 28 == 8</code></td><td>유니코드 종성 배열에서 <code>ㄹ</code> 의 위치</td></tr>
+            <tr><td>숫자</td><td><code>1</code>(일) · <code>7</code>(칠) · <code>8</code>(팔)</td><td>규칙 3 의 한국어 읽기가 <code>ㄹ</code> 로 끝남</td></tr>
+            <tr><td>라틴</td><td><code>l</code>(엘)</td><td>규칙 4 의 읽기가 <code>ㄹ</code> 로 끝남</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">규칙 6 은 "받침이 <code>ㄹ</code>" 이라고만 규정하므로, 숫자 · 라틴에서 어떤 글자가
+          <code>ㄹ</code> 받침인지는 위 표로 확정해야 구현과 데모가 갈라지지 않는다.
+          <b>§8 Q1 에서 확인을 구한다</b> — 승인되면 위 표가 그대로 SSOT 가 된다.</div>
+
+        <h4>검증 예 (데모에 그대로 담겨 있음)</h4>
+        <table>
+          <thead><tr><th>자원명</th><th>조사 앞 글자</th><th>읽기</th><th>받침</th><th><code>을(를)</code> 결과</th></tr></thead>
+          <tbody>
+            <tr><td><code>Rocky-9.6-x86_64-dvd.iso</code></td><td><code>o</code></td><td>오</td><td>없음</td><td>를</td></tr>
+            <tr><td><code>Ubuntu-24.04-live.iso</code></td><td><code>o</code></td><td>오</td><td>없음</td><td>를</td></tr>
+            <tr><td><code>드리프트</code></td><td><code>트</code></td><td>트</td><td>없음</td><td>를</td></tr>
+            <tr><td><code>자원 목록</code></td><td><code>록</code></td><td>록</td><td>있음 (<code>ㄱ</code>)</td><td>을</td></tr>
+            <tr><td><code>MS03-CE0</code></td><td><code>0</code></td><td>영</td><td>있음 (<code>ㅇ</code>)</td><td>을</td></tr>
+            <tr><td><code>9.6</code></td><td><code>6</code></td><td>육</td><td>있음 (<code>ㄱ</code>)</td><td>을</td></tr>
+          </tbody>
+        </table>
+
+        <h4>기대 자원명 노출의 정본 (결함 ③)</h4>
+        <pre><code>// 선례 — fragments/management/confirm-purge.html (변경 0, 이번 수정의 기준)
+&lt;div class="cm-typed-target-box"&gt;
+  &lt;span class="cm-typed-target-label"&gt;정확히 입력해야 할 자원명&lt;/span&gt;
+  &lt;code class="cm-typed-target-code" th:text="${expectedName}"&gt;&lt;/code&gt;
+&lt;/div&gt;
+&lt;input type="text" class="cm-typed-input" placeholder="자원명을 정확히 입력..."&gt;
+
+// 갈라진 곳 — templates/maintenance/reconciliation/list.html (수정 대상)
+&lt;input type="text" name="typedName" class="n-input"
+       th:placeholder="|자원명 입력 : ${drift.displayName}|"&gt;   ← 기대값이 입력창 너비에 잘린다</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <div class="callout"><b>슬라이스 성격</b> — 리팩토링이 아니라 <b>결함 수정 묶음</b>이다.
+          엔티티 · Repository · 스키마 변경이 없으므로 6 · 7 · 9 단계가 해당 없음이 되고,
+          그에 따라 <b>CP3 는 건너뛴다</b>. 화면이 딸린 수정이므로 CP5 샌드박스 브라우저 검증은 그대로 수행한다.</div>
+
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>Thymeleaf 뷰 — <code>error.html</code> 표기 교체(fallback 리터럴 제거),
+              <code>maintenance/reconciliation/list.html</code> 기대 자원명 본문 노출,
+              <code>fragments/management/confirm-modals.html</code> 에 <code>korean-particle.js</code> 선행 로드</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — <b>변경 0</b> (신규 URL · 신규 핸들러 없음)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td>Request / Response DTO — <b>변경 0</b></td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td>시그니처 — <code>ErrorStatusLabels.of(HttpStatus)</code> / <code>of(int)</code>,
+              <code>ProvisionErrorAttributes.getErrorAttributes(...)</code> override,
+              <code>KoreanParticle.resolve(text)</code></td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6</td><td>Repository — <b>해당 없음</b> (영속 도메인 없음)</td><td>—</td></tr>
+            <tr><td>7</td><td>Entity · VO · Enum — <b>해당 없음</b></td><td>—</td></tr>
+            <tr><td>8</td><td>본체 + 테스트 — <code>ErrorStatusLabels</code> · <code>ProvisionErrorAttributes</code> 본체,
+              <code>korean-particle.js</code>, <code>messages.properties</code>,
+              <code>composeMessage</code> 통과 1 줄, 단위 4 + 통합 10 (§6)</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 확인 — <b>해당 없음</b> (DDL 변경 0)</td><td>—</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 — 검증 항목 계획 후 수행, 스크린샷 채증 (§9)</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>11</td><td>report html 산출 (정본 + Notion 임베드본)</td><td><span class="chip cp6">CP6</span></td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>CP3 건너뜀에 대한 주의</b> — 6 · 7 단계가 해당 없음이라고 해서 CP2 에서 곧장 CP4 로 가는 것이
+          자동 승인은 아니다. CP2 보고 시 "6 · 7 이 왜 비었는지"를 함께 보고하고, 사용자가 그 판단에 동의한 뒤 CP4 로 진행한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 조사 판정기 — korean-particle.js 의 KoreanParticle.resolve 와 동일 본체 (드리프트 0)
+  //  판정 규칙은 §4 의 7 항이 SSOT. 구현 시 아래 demoJudge / demoResolve 를 그대로 옮긴다.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_PAIRS = [
+    { token: '을(를)',   on: '을',   off: '를' },
+    { token: '이(가)',   on: '이',   off: '가' },
+    { token: '은(는)',   on: '은',   off: '는' },
+    { token: '와(과)',   on: '과',   off: '와' },
+    { token: '아(야)',   on: '아',   off: '야' },
+    { token: '으로(로)', on: '으로', off: '로' }   // 규칙 6 — ㄹ 받침도 '로'
+  ];
+  // 규칙 3 — 숫자의 한국어 읽기와 받침
+  const DEMO_DIGIT_READ = { '0':'영','1':'일','2':'이','3':'삼','4':'사','5':'오','6':'육','7':'칠','8':'팔','9':'구' };
+  const DEMO_DIGIT_BATCHIM = { '0':true,'1':true,'2':false,'3':true,'4':false,'5':false,'6':true,'7':true,'8':true,'9':false };
+  const DEMO_DIGIT_RIEUL = { '1':true, '7':true, '8':true };
+  // 규칙 4 — 라틴 문자의 한국어 읽기와 받침 (받침 있음 = l 엘 · m 엠 · n 엔 셋뿐)
+  const DEMO_LATIN_READ = { a:'에이',b:'비',c:'시',d:'디',e:'이',f:'에프',g:'지',h:'에이치',i:'아이',j:'제이',
+    k:'케이',l:'엘',m:'엠',n:'엔',o:'오',p:'피',q:'큐',r:'아르',s:'에스',t:'티',u:'유',v:'브이',w:'더블유',
+    x:'엑스',y:'와이',z:'제트' };
+  const DEMO_LATIN_BATCHIM = ['l','m','n'];
+  // 규칙 1 — 건너뛰는 문자 : 공백 · 괄호 · 따옴표
+  const DEMO_SKIP = /[\s()\[\]{}'"“”‘’`]/;
+
+  // 규칙 1 : 조사 바로 앞 글자를 찾는다. 건너뛴 문자도 함께 돌려준다.
+  function demoLastChar(prefix) {
+    let skipped = '';
+    for (let i = prefix.length - 1; i >= 0; i--) {
+      const ch = prefix.charAt(i);
+      if (DEMO_SKIP.test(ch)) { skipped = ch + skipped; continue; }
+      return { ch: ch, skipped: skipped };
+    }
+    return { ch: null, skipped: skipped };
+  }
+
+  // 규칙 2~5 : 한 글자의 분류 · 한국어 읽기 · 받침 · ㄹ 받침 판정
+  function demoJudge(ch) {
+    if (ch === null) return { kind: '없음', read: '—', batchim: false, rieul: false };
+    const code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) {                     // 규칙 2 — 한글 음절
+      const jong = (code - 0xAC00) % 28;
+      return { kind: '한글 음절', read: ch, batchim: jong !== 0, rieul: jong === 8 };
+    }
+    if (ch >= '0' && ch <= '9') {                                // 규칙 3 — 숫자
+      return { kind: '숫자', read: DEMO_DIGIT_READ[ch], batchim: DEMO_DIGIT_BATCHIM[ch], rieul: !!DEMO_DIGIT_RIEUL[ch] };
+    }
+    const lower = ch.toLowerCase();
+    if (lower >= 'a' && lower <= 'z') {                          // 규칙 4 — 라틴 문자
+      return { kind: '라틴 문자', read: DEMO_LATIN_READ[lower],
+               batchim: DEMO_LATIN_BATCHIM.indexOf(lower) !== -1, rieul: lower === 'l' };
+    }
+    return { kind: '판정 불가', read: '—', batchim: false, rieul: false };   // 규칙 5
+  }
+
+  // KoreanParticle.resolve — 치환이 끝난 문자열의 병기형 조사를 모두 해소한다.
+  function demoResolve(text) {
+    let out = text;
+    DEMO_PAIRS.forEach(p => {
+      let idx = out.indexOf(p.token);
+      while (idx !== -1) {
+        const head = out.slice(0, idx);
+        const j = demoJudge(demoLastChar(head).ch);
+        // 규칙 6 — '으로(로)' 만 ㄹ 받침을 받침 없음과 같이 다룬다.
+        const rep = (p.token === '으로(로)')
+          ? ((!j.batchim || j.rieul) ? p.off : p.on)
+          : (j.batchim ? p.on : p.off);
+        // 규칙 7 — 한글로 끝나면 조사를 붙이고(앞 공백 제거), 그 밖(영문 · 숫자 · 기호)이면 한 칸 띄운다.
+        const trimmed = head.replace(/\s+$/, '');
+        const glue = (trimmed === '' || j.kind === '한글 음절') ? '' : ' ';
+        out = trimmed + glue + rep + out.slice(idx + p.token.length);
+        idx = out.indexOf(p.token);
+      }
+    });
+    return out;
+  }
+
+  // 데모 상태 + 조사 쌍별 실제 확인창 문장 (문구 템플릿은 각 confirm-*.js 의 것과 같은 형태)
+  const DEMO_SENTENCES = {
+    '을(를)':   "{resource} 을(를) 복구할까요?",
+    '이(가)':   "{resource} 이(가) 이미 다른 작업에 사용 중입니다.",
+    '은(는)':   "{resource} 은(는) 이미 비활성 상태입니다.",
+    '와(과)':   "{resource} 와(과) 하위 자원을 함께 복구할까요?",
+    '으로(로)': "{resource} 으로(로) 교체할까요?"
+  };
+  let demoPair = '을(를)';
+
+  function demoSetName(v) { document.getElementById('demo-name').value = v; demoRender(); }
+  function demoSetPair(p) { demoPair = p; demoRender(); }
+
+  function demoClick() {
+    const before = document.getElementById('demo-before');
+    const after = document.getElementById('demo-after');
+    before.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    after.style.outline = '2px solid var(--green)';
+    setTimeout(() => { after.style.outline = 'none'; }, 900);
+  }
+
+  function demoRender() {
+    const name = document.getElementById('demo-name').value;
+    const empty = name.trim().length === 0;
+
+    // 세그먼트 활성 표시
+    document.querySelectorAll('.ux-toolbar .seg[data-name]').forEach(s =>
+      s.classList.toggle('active', s.dataset.name === name));
+    document.querySelectorAll('.ux-toolbar .seg[data-pair]').forEach(s =>
+      s.classList.toggle('active', s.dataset.pair === demoPair));
+
+    // 개선 전 = 치환만 한 문자열, 개선 후 = 같은 문자열을 resolve() 통과
+    const composed = DEMO_SENTENCES[demoPair].replace('{resource}', name);
+    const resolved = demoResolve(composed);
+
+    document.getElementById('demo-before').textContent = '개선 전 : ' + composed;
+    document.getElementById('demo-after').textContent = '개선 후 : ' + resolved;
+    document.getElementById('demo-modal-line').textContent = empty ? '(자원명이 비어 있습니다)' : resolved;
+
+    // 확인 버튼은 자원명이 비면 UI 1 차 차단 (사유는 .tip[data-tip] tooltip)
+    const btn = document.getElementById('demo-confirm-btn');
+    const tipWrap = document.getElementById('demo-confirm-tip');
+    btn.disabled = empty;
+    if (empty) tipWrap.setAttribute('data-tip', '자원명이 비어 있어요. 치환할 이름이 없으면 확인창 문구를 만들 수 없습니다.');
+    else tipWrap.removeAttribute('data-tip');
+
+    // 판정 캡션 — 어떤 글자를 보았고 · 무엇으로 읽었으며 · 받침이 있는지
+    const tokenIdx = composed.indexOf(demoPair);
+    const found = demoLastChar(tokenIdx === -1 ? name : composed.slice(0, tokenIdx));
+    const j = demoJudge(found.ch);
+    const chosen = (demoPair === '으로(로)')
+      ? ((!j.batchim || j.rieul) ? '로' : '으로')
+      : (j.batchim ? DEMO_PAIRS.filter(p => p.token === demoPair)[0].on
+                   : DEMO_PAIRS.filter(p => p.token === demoPair)[0].off);
+    const yn = (v, yes, no) => v ? '<span class="t">' + yes + '</span>' : '<span class="f">' + no + '</span>';
+    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    document.getElementById('demo-caps').innerHTML =
+      '입력                 = "' + esc(name) + '"\n' +
+      '조사 앞 글자         = ' + (found.ch === null ? '(없음)' : "'" + esc(found.ch) + "'") +
+        '   (건너뛴 문자 : ' + (found.skipped.length ? '"' + esc(found.skipped) + '"' : '없음') + ')\n' +
+      '분류 · 한국어 읽기   = ' + j.kind + ' · "' + j.read + '"\n' +
+      '받침                 = ' + yn(j.batchim, '있음', '없음') + '\n' +
+      'ㄹ 받침              = ' + yn(j.rieul, '예', '아니오') + '   (규칙 6 — 으로(로) 에만 영향)\n' +
+      '선택된 조사          = "' + chosen + '"   (' + demoPair + ' → ' + chosen + ')\n' +
+      '띄어쓰기             = ' + (j.kind === '한글 음절'
+          ? '<span class="f">붙임</span>   (한글로 끝나므로 한국어 문법대로 단어에 붙인다)'
+          : '<span class="t">한 칸 띄움</span>   (' + j.kind + ' 로 끝나므로 조사 앞에 공백을 둔다)') +
+      '   (규칙 7)';
+  }
+  if (document.getElementById('demo-name')) demoRender();   // 임베드 분할본 가드
+</script>
+</body>
+</html>

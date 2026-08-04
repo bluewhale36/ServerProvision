@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF5 Report — 사용자 노출 문구 4건 정정</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : BEFORE(red) / AFTER(green) 대조 ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar input[type="text"] { flex:1; min-width:220px; padding:5px 10px; font-size:12px; font-family:var(--mono);
+    border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); }
+  .ux-toolbar input[type="text"]:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : N-actor 시간순 흐름 ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── pkg-tree / card-grid ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 스크린샷 증거 (일반 마크업 — 색 토큰만 사용) ── */
+  figure { margin:12px 0; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px; }
+  figure img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:4px; background:var(--bg); }
+  figcaption { margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.55; }
+  figcaption b { color:var(--text); }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF5 Report — 사용자 노출 문구 4건 정정 <span class="v2-badge">hotfix</span> <span style="font-weight:500;color:var(--text-muted)">— 파트 2/2</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF5 (hotfix)</span>
+    <span><strong>상위</strong> MK4 reconciliation 사용성</span>
+    <span><strong>scope</strong> 레이아웃 개편과 무관한 전역 공용 문구 결함 4건</span>
+    <span><strong>브랜치</strong> fix/HF5_user-facing-copy</span>
+    <span><strong>작성</strong> 2026-08-04 01:44 KST</span>
+    <span><strong>CP6</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s7">§7 CP5 검증 항목 계획</a></li>
+      <li><a href="#s8">§8 CP5 수행 기록 · 증거</a></li>
+      <li><a href="#s9">§9 CP5 발견 결함과 처리</a></li>
+      <li><a href="#s10">§10 불가침 원칙 점검</a></li>
+      <li><a href="#s11">§11 잔존 · 후속 · 회귀 위험</a></li>
+      <li><a href="#s12">§12 Critical Files</a></li>
+      <li><a href="#s13">📎 부록 — 구현 좌표</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+<details class="section" id="s7">
+      <summary>§7. CP5 — 무엇을 확인하려 했는가 (검증 항목 계획)</summary>
+      <div class="body">
+        <p style="margin-top:0;">착수 전에 네 항목을 정하고 시작했다. 즉흥적으로 클릭하며 훑지 않았다.</p>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>항목 1 — 오류 페이지</h4>
+            <ul>
+              <li>없는 주소와 잘못된 요청 <b>각각</b>에서 상태 문구가 실제 상태와 일치하는가</li>
+              <li>advice 경로에서 도메인 메시지가 사라지지 않는가</li>
+            </ul></div>
+          <div class="card v-green"><h4>항목 2 — 확인창 조사</h4>
+            <ul>
+              <li>조사가 자연스러운가</li>
+              <li>자원명이 <b>한글 · 영문 · 숫자로 끝나는 경우를 각각</b> 만든다</li>
+            </ul></div>
+          <div class="card v-orange"><h4>항목 3 — 자원명 확인 입력</h4>
+            <ul>
+              <li>기대 이름이 잘리지 않고 보이는가</li>
+              <li>그 이름을 그대로 입력했을 때 <b>첫 시도에</b> 통과하는가</li>
+            </ul></div>
+          <div class="card v-purple"><h4>항목 4 — 바인딩 오류 배너</h4>
+            <ul>
+              <li>폼 마커를 뺀 직접 요청에서 배너 문구가 한국어인가</li>
+            </ul></div>
+        </div>
+        <p>항목 1 과 항목 4 는 정상 흐름으로는 도달할 수 없다. 없는 주소를 직접 치고, 잘못된 타입의 파라미터를 붙이고,
+        폼 마커를 뺀 직접 요청을 보내는 <b>의도적인 비정상 조작</b>으로 만들어 냈다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 CP5 수행 기록 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. CP5 — 실제로 한 조작과 결과 (증거)</summary>
+      <div class="body">
+        <p style="margin-top:0;">검증 환경은 격리 샌드박스다(DB 3327 · 앱 7808). MK4 진단에서 만든 드리프트 자료가 그대로 남아
+        있어 그 위에서 확인했다.</p>
+
+        <h4>항목 1 — 오류 페이지 (네 경로)</h4>
+        <table>
+          <thead><tr><th>요청</th><th>성격</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>없는 주소 <code>/management/board/1/bios/new</code></td><td>비정상 — 직접 주소 입력</td>
+              <td><code>404</code> · "페이지를 찾을 수 없습니다 (404)"</td></tr>
+            <tr><td>잘못된 파라미터 타입 <code>?page=abc</code></td><td>비정상 — 타입 어긋난 값</td>
+              <td><code>400</code> · "요청 내용이 올바르지 않습니다 (400)"</td></tr>
+            <tr><td>없는 자원 <code>/management/os/9999</code></td><td>비정상 — 존재하지 않는 id</td>
+              <td><code>404</code> · "페이지를 찾을 수 없습니다 (404)"</td></tr>
+            <tr><td>advice 경로 <code>POST /management/os/9999/toggle</code></td><td>비정상 — 삭제 · 부재 자원 조작</td>
+              <td><code>404</code> · 상태 문구 <b>와</b> 도메인 메시지 "OS 버전을 찾을 수 없습니다. id=9999" 둘 다 유지</td></tr>
+          </tbody>
+        </table>
+        <p>마지막 줄이 중요하다. 상태 문구를 한국어로 바꾸면서 도메인이 알려주던 구체 정보가 밀려나면 안 된다.
+        두 줄이 각자 역할을 유지하는지 실제 화면에서 확인했다.</p>
+
+        <h4>항목 2 — 확인창 조사 (세 가지 끝 문자)</h4>
+        <table>
+          <thead><tr><th>자원명 끝</th><th>확인창 문구</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>한글 (<code>… 드리프트</code>)</td><td><code>'잔여 마커 정리 필요' 드리프트를 적용할까요?</code></td>
+              <td><b>붙임</b></td></tr>
+            <tr><td>영문 (<code>… netinst.iso</code>)</td>
+              <td><code>Rocky Linux 9.6 Rocky-9.6-x86_64-netinst.iso 를 복구할까요?</code></td><td><b>띄움</b></td></tr>
+            <tr><td>숫자 (<code>… 9.6</code>)</td><td><code>OS 버전 'Rocky Linux 9.6' 을 삭제할까요?</code></td>
+              <td><b>띄움</b> · 따옴표를 건너뛰고 <code>6</code> 을 판정</td></tr>
+          </tbody>
+        </table>
+
+        
+
+        
+
+        
+
+        
+
+        <h4>항목 3 — 자원명 확인 입력</h4>
+        <p>정밀 점검으로 내용 변경 드리프트를 만든 뒤 수용 폼을 열었다. "정확히 입력해야 할 자원명" 아래
+        <code>Rocky Linux 9.6 Rocky-9.6-x86_64-dvd.iso</code> 전체가 잘리지 않고 나왔고, 그 이름을 그대로 입력하자
+        <b>첫 시도에 통과</b>해 "수용 완료" 토스트가 떴다.</p>
+        <div class="split-grid">
+          <div class="split-card before"><h4>종전 흐름</h4>
+            <p style="margin:0;font-size:12.5px;">보이는 대로 입력 → 거절 → 거절 메시지에서 기대값을 알아냄 →
+            복사해 다시 입력 → 통과</p></div>
+          <div class="split-card after"><h4>현재 흐름</h4>
+            <p style="margin:0;font-size:12.5px;">화면에 적힌 이름을 그대로 입력 → 통과</p></div>
+        </div>
+
+        
+
+        
+
+        <h4>항목 4 — 바인딩 오류 배너 (의도적 비정상 요청)</h4>
+        <p>폼 마커(<code>_allowCreateDirectory</code>)를 뺀 직접 요청을 보냈다. 이는 정상 UI 로는 만들 수 없는 요청이며,
+        서버가 어떻게 막는지 보려고 일부러 만든 것이다. 배너가 다음과 같이 나왔다.</p>
+        <pre><code>입력값을 처리하지 못한 항목이 있습니다.
+allowCreateDirectory — 예 / 아니오 로 지정해야 하는 항목입니다.</code></pre>
+        <p>영어 원문이 사라졌다. 필드 이름이 코드 그대로인 것은 계획에서 범위 밖으로 둔 부분이며 §11 에 후속으로 적립했다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 CP5 발견 결함 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. CP5 — 검증 중 발견한 결함과 처리</summary>
+      <div class="body">
+        <div class="callout danger"><b>발견 1 — 새 오류 페이지가 자기 문구를 부정했다</b><br>
+          상태 문구를 고치고 나서 404 페이지를 열어 보니, "페이지를 찾을 수 없습니다 (404)" 아래에
+          "알 수 없는 오류가 발생했습니다." 가 그대로 남아 있었다. 무슨 일인지 이미 알려 준 상황에서 모른다고 덧붙이는 꼴이라
+          두 줄이 서로 부정한다.<br><br>
+          <b>계획과의 차이</b> — 계획 단계에서는 이 fallback 을 유지하기로 했었다. 상태 문구만 고치면 아래 줄은 그대로 두어도
+          무해할 것이라 보았는데, 화면에서 두 줄을 나란히 보고서야 어색함이 드러났다. 빌드와 테스트로는 잡히지 않는 종류다.<br><br>
+          <b>처리</b> — 덧붙일 설명이 있을 때만 그 줄을 보여주도록 고치고, 다시 빌드해 §8 항목 1 의 네 경로를 모두 재확인했다.
+        </div>
+
+        <div class="callout danger"><b>발견 2 (계획 검토 중) — 라틴 문자 받침 판정표가 규칙과 모순이었다</b><br>
+          처음 정한 표는 <code>r</code> · <code>f</code> · <code>s</code> · <code>x</code> · <code>z</code> 를
+          받침 있음으로 분류했다. 그런데 규칙 자체가 "그 글자의 한국어 읽기 끝소리로 판정한다" 이고, 그 읽기는
+          아르 · 에프 · 에스 · 엑스 · 제트로 <b>전부 받침 없이 끝난다</b>. 표가 자기 규칙을 어긴 것이다.<br><br>
+          <b>어떻게 잡았나</b> — 계획서의 데모 판정 함수를 Node 로 떼어 실행해 사례를 대조하다가
+          <code>Mellanox OFED Driver</code> 가 "Driver 을" 로 나오는 것을 보고 발견했다.<br><br>
+          <b>처리</b> — 받침 있음을 <code>l</code>(엘) · <code>m</code>(엠) · <code>n</code>(엔) 셋으로 줄이고,
+          계획서 본문과 데모 코드를 함께 정정했다. 이 표가 틀린 채 구현으로 넘어갔다면 확인창 문구가 어색한 채로 굳었을 것이다.
+        </div>
+
+        <div class="callout warn"><b>반려한 관찰 — 수용 버튼이 화면에서 닿지 않는다 (오탐)</b><br>
+          MK4 진단 때, 상세 패널이 끝까지 스크롤된 상태에서 수용 버튼이 화면 밖에 있어 결함으로 보였다.
+          이번에 실측해 보니 페이지 배경 위에서 마우스를 굴리면 문서가 스크롤되어 버튼에 닿았다.
+          결함이 아니므로 목록에서 뺐다.
+        </div>
+
+        <div class="callout success"><b>CP5 가 잡은 것의 성격</b> — 발견 1 은 빌드도 테스트도 통과한 상태에서
+        <b>화면에서만 드러난</b> 결함이다. CP4 의 green 이 완료가 아니라 검증 착수 조건이라는 규율이 실제로 값을 한 사례다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §10 불가침 원칙 점검 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. 불가침 원칙 점검</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>원칙</th><th>판정</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>Primitive Obsession 금지</td><td><span class="chip keep">해당 없음</span></td>
+              <td>도메인 값을 새로 도입하지 않았다. 조회표가 받는 상태 코드는 HTTP 프로토콜 값이며 Spring 이
+              <code>HttpStatus</code> · <code>int</code> 로 다루는 프레임워크 경계다 — 도메인 의미를 갖는 값이 아니라
+              Value Object 화 대상이 아니다. 엔티티 · Service 시그니처 · Request · Response 변경 0.</td></tr>
+            <tr><td>네이밍 규칙</td><td><span class="chip new">준수</span></td>
+              <td><code>ErrorStatusLabels</code> 는 조회표 유틸이라 <code>*Controller</code> · <code>*Service</code> 등
+              접미사 규약 대상이 아니다. <code>ProvisionErrorAttributes</code> 는 Spring 확장점
+              <code>DefaultErrorAttributes</code> 를 대체하는 자리라 그 명명을 따랐다. 클래스 · 메서드 이름을 약어로 줄이지 않았다.</td></tr>
+            <tr><td>레이어 경계</td><td><span class="chip keep">변경 0</span></td>
+              <td>Controller ↔ Service 는 여전히 Request · Response 만 오간다. 이번 변경은 예외 처리 advice 와 뷰,
+              그리고 정적 스크립트에 국한된다. 뷰에 엔티티를 노출한 곳이 없다.</td></tr>
+            <tr><td><code>@Transactional</code> 경계</td><td><span class="chip keep">변경 0</span></td>
+              <td>Service 를 손대지 않았다.</td></tr>
+            <tr><td>조건분기 legacy 확장 금지</td><td><span class="chip new">준수</span></td>
+              <td>상태 문구는 <code>if</code> · <code>switch</code> 사슬이 아니라 <b>표 조회</b>다. 상태가 늘어도 항목만 는다.
+              조사 판정도 병기형 쌍 배열과 숫자 · 라틴 판정표로 데이터화해, 새 쌍이 생겨도 판정 로직에 분기가 붙지 않는다.</td></tr>
+            <tr><td>예외 = 프로그램 예외 전용</td><td><span class="chip keep">변경 0</span></td>
+              <td>예외를 신설하지도, 기존 예외의 발생 조건을 바꾸지도 않았다. 문구와 표시만 손댔다.</td></tr>
+            <tr><td>UX 모순은 UI 1차 차단</td><td><span class="chip new">강화</span></td>
+              <td>자원명 확인 입력(③)이 그 원칙의 문구판이다. 종전에는 "틀리게 입력 → 거절 → 기대값 학습" 이었는데,
+              기대 이름을 먼저 보여주어 <b>틀릴 이유를 없앴다</b>.</td></tr>
+            <tr><td>중복 · 가독성 금지</td><td><span class="chip new">준수</span></td>
+              <td>문구 템플릿 여덟 곳을 각각 고치는 대신 표시 직전 길목 세 곳으로 수렴시켰다. 자원명 표기는 새 방식을
+              발명하지 않고 휴지통 영구삭제 확인창 선례로 통일했다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 잔존 · 후속 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 잔존 · 후속 · 회귀 위험</summary>
+      <div class="body">
+        <h4>잔존 항목</h4>
+        <table>
+          <thead><tr><th>항목</th><th>지금 상태</th><th>어디서 받는가</th></tr></thead>
+          <tbody>
+            <tr><td>서버 문구의 병기형 조사</td>
+              <td><code>ChildLifecycleBlockedByParentException</code> 하나가 병기형을 쓴다. 화면 표시 직전 길목에서
+              해소되므로 <b>사용자에게는 정상으로 보인다</b>. 서버 문구 자체는 그대로다.</td>
+              <td>서버 문구 정비 시</td></tr>
+            <tr><td><code>error.html</code> 의 navbar 활성 메뉴 키</td>
+              <td>낡은 값(<code>os-metadata</code>)이라 오류 페이지에서 엉뚱한 메뉴가 강조된다. 이번 범위 밖으로 두고
+              기록만 남긴다.</td>
+              <td>미정 — 기록 적립</td></tr>
+            <tr><td>필드 한국어 라벨 사전</td>
+              <td>타입 단위까지만 한국어화했다. 필드 이름은 코드 그대로 노출된다.</td>
+              <td>MK4 레이아웃 개편</td></tr>
+            <tr><td>오류 배너 fragment 공용화</td>
+              <td>화면별로 배너 마크업이 따로 있다.</td>
+              <td>MK4 레이아웃 개편</td></tr>
+            <tr><td>숫자 끝 자원명의 띄어쓰기</td>
+              <td>규정이 없어 "한글이 아닌 쪽" 으로 묶어 띄웠다.</td>
+              <td>뒤집으려면 판정 조건 한 줄</td></tr>
+          </tbody>
+        </table>
+
+        <h4>회귀 위험</h4>
+        <table>
+          <thead><tr><th>변경</th><th>파급 범위</th><th>완화</th></tr></thead>
+          <tbody>
+            <tr><td>기본 <code>/error</code> 오류 속성 확장</td>
+              <td>JSON 오류 응답에도 <code>statusLabel</code> 이 함께 실린다</td>
+              <td>속성을 <b>더하기만</b> 하고 기존 필드는 그대로다. 이를 읽던 클라이언트에는 영향이 없다</td></tr>
+            <tr><td>조사 해소를 표시 직전 길목에 건 것</td>
+              <td>모든 확인 모달 · 오류 모달 문구가 이 함수를 통과한다</td>
+              <td>병기형이 없는 문자열은 원문 그대로 반환하고, 이미 해소된 문자열을 다시 넣어도 결과가 같다.
+              스크립트가 로드되지 않은 상황에서도 원문을 그대로 표시한다</td></tr>
+            <tr><td><code>messages.properties</code> 신설</td>
+              <td>전역 메시지 해석에 basename 이 하나 생긴다</td>
+              <td><code>typeMismatch</code> 계열과 <code>required</code> · <code>methodInvocation</code> 만 정의했다.
+              다른 메시지 키는 종전 동작 그대로다</td></tr>
+            <tr><td>오류 페이지 두 번째 줄 조건부 표시</td>
+              <td>설명이 없는 오류에서 줄이 하나 사라진다</td>
+              <td>CP5 에서 네 경로를 재확인했다. 도메인 메시지가 있는 경우에는 그대로 표시된다(§8 항목 1 마지막 줄)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>후속 처리 체크리스트</h4>
+        <ul class="check-list" data-storage="HF5-followup">
+          <li><label><input type="checkbox" data-key="e2e"> <span>CP7 사용자 브라우저 E2E</span></label></li>
+          <li><label><input type="checkbox" data-key="back"> <span><code>feat/MK4_reconciliation-usability</code> 로 복귀</span></label></li>
+          <li><label><input type="checkbox" data-key="mk4-1"> <span>MK4-1 설계 토론 착수 — 무엇을 보여줄 것인가</span></label></li>
+          <li><label><input type="checkbox" data-key="catalog"> <span>드리프트 카탈로그 — 앱 안 안내 화면 · 저장소 문서 둘 다 작성</span></label></li>
+          <li><label><input type="checkbox" data-key="navbar"> <span><code>error.html</code> navbar 활성 메뉴 키 정정</span></label></li>
+        </ul>
+
+        <h4>다음</h4>
+        <p>CP7 사용자 E2E 후 <code>feat/MK4_reconciliation-usability</code> 로 복귀한다. 이어서 MK4-1 설계 토론
+        (무엇을 보여줄 것인가)에 착수하고, 드리프트 카탈로그는 사용자 결정에 따라 앱 안 안내 화면과 저장소 문서를 둘 다 만든다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §12 Critical Files ===== -->
+    <details class="section" id="s12">
+      <summary>§12. Critical Files (신규 5 · 수정 6 · 유지)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td>
+              <td><code>global/exception/ErrorStatusLabels.java</code></td>
+              <td>상태 코드 → 한국어 문구 조회표. 두 경로가 공유하는 단일 소스</td></tr>
+            <tr><td><span class="chip new">신규</span></td>
+              <td><code>global/exception/ProvisionErrorAttributes.java</code></td>
+              <td>기본 <code>/error</code> 오류 속성에 <code>statusLabel</code> 을 항상 채우는 확장점</td></tr>
+            <tr><td><span class="chip new">신규</span></td>
+              <td><code>static/global/korean-particle.js</code></td>
+              <td>병기형 조사 해소 + 띄어쓰기 정규화. <code>window.KoreanParticle.resolve()</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td>
+              <td><code>resources/messages.properties</code></td>
+              <td>바인딩 오류 한국어 문구. 기본 basename 으로 자동 등록</td></tr>
+            <tr><td><span class="chip new">신규</span></td>
+              <td><code>test/…/exception/ErrorStatusLabelsTest.java</code></td>
+              <td>조회표 규약 단위 테스트 4건</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+              <td><code>global/exception/WebExceptionHandler.java</code></td>
+              <td>영어 reason phrase 인자를 없애고 상태에서 문구를 파생</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+              <td><code>templates/error.html</code></td>
+              <td>한국어 문구 + 괄호 상태 코드. 설명이 있을 때만 두 번째 줄 표시(CP5 발견 1)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+              <td><code>templates/fragments/layout.html</code></td>
+              <td><code>commonHead</code> 에서 조사 해소 스크립트를 전역 1회 공급</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+              <td><code>static/management/common/confirm-modal-base.js</code></td>
+              <td>메시지 주입 지점과 <code>composeMessage()</code> 반환에 해소 적용</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+              <td><code>static/global/error-modal.js</code></td>
+              <td>서버가 보낸 문구도 표시 직전 해소</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+              <td><code>templates/maintenance/reconciliation/list.html</code></td>
+              <td>기대 자원명을 본문 텍스트로 노출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+              <td><code>test/…/exception/AdviceExceptionMappingTest.java</code></td>
+              <td>상태 문구 통합 시나리오 4건 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td>
+              <td>확인창 문구 템플릿 8곳 (<code>confirm-soft-delete.js</code> · <code>confirm-restore.js</code>
+              · <code>confirm-purge.js</code> · <code>confirm-deprecate.js</code> · <code>confirm-extend.js</code>
+              · <code>bios-setting-detail.js</code> · <code>reconciliation/list.js</code> 2곳)</td>
+              <td>한 줄도 고치지 않았다 — 길목에서 덮이므로</td></tr>
+            <tr><td><span class="chip keep">유지</span></td>
+              <td>엔티티 · Repository · DDL</td>
+              <td>변경 0. CP3 · Step 9 가 해당 없음인 근거</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §13 부록 ===== -->
+    <details class="section" id="s13">
+      <summary>📎 부록 — 구현 좌표</summary>
+      <div class="body">
+        <p style="margin-top:0;">본문은 상황 중심으로 서술했다. 코드를 직접 열어야 할 때를 위한 좌표를 여기 모았다.</p>
+
+        <h4>패키지 배치</h4>
+        <div class="pkg-tree">com.example.serverprovision.global.exception/
+├── ErrorStatusLabels.java              (신규 — 상태 → 한국어 문구 조회표)
+├── ProvisionErrorAttributes.java       (신규 — DefaultErrorAttributes 대체)
+└── WebExceptionHandler.java            (수정 — populate 시그니처에서 라벨 인자 제거)
+
+src/main/resources/
+├── messages.properties                 (신규 — typeMismatch 계열 한국어)
+├── static/global/korean-particle.js    (신규 — window.KoreanParticle)
+├── static/global/error-modal.js        (수정 — 표시 직전 해소)
+├── static/management/common/confirm-modal-base.js (수정 — 길목 2곳)
+└── templates/
+    ├── error.html                      (수정 — 문구 · 조건부 설명 줄)
+    ├── fragments/layout.html           (수정 — commonHead 전역 공급)
+    └── maintenance/reconciliation/list.html (수정 — 기대 자원명 노출)</div>
+
+        <h4>주요 시그니처</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>시그니처</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>ErrorStatusLabels</code></td>
+              <td><code>public static String of(int status)</code></td>
+              <td>인스턴스화 금지(private 생성자). 미등록 상태는 기본 문구</td></tr>
+            <tr><td><code>ProvisionErrorAttributes</code></td>
+              <td><code>Map&lt;String,Object&gt; getErrorAttributes(WebRequest, ErrorAttributeOptions)</code></td>
+              <td><code>@Component</code>. 상태를 못 얻는 드문 경우 500 으로 수렴</td></tr>
+            <tr><td><code>WebExceptionHandler</code></td>
+              <td><code>private static void populate(Model, int status, String message)</code></td>
+              <td>종전 4-arg 에서 라벨 인자 제거</td></tr>
+            <tr><td><code>window.KoreanParticle</code></td>
+              <td><code>resolve(text) → string</code></td>
+              <td>중복 호출 안전. 병기형이 없으면 원문 반환</td></tr>
+          </tbody>
+        </table>
+
+        <h4>검증 환경</h4>
+        <table>
+          <thead><tr><th>항목</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td>샌드박스 DB 포트</td><td><code>3327</code></td></tr>
+            <tr><td>샌드박스 앱 포트</td><td><code>7808</code></td></tr>
+            <tr><td>검증 자료</td><td>MK4 진단에서 만든 드리프트 자료를 그대로 사용</td></tr>
+            <tr><td>브랜치</td><td><code>fix/HF5_user-facing-copy</code></td></tr>
+            <tr><td>계획서</td><td><code>plan/26-08-04_00-52-38_HF5_plan.html</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부 펴기 · 접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 조사 판정기 데모
+  //  ⚠ 아래 판정은 배포된 static/global/korean-particle.js 의 resolve() 와 1:1 동일 (드리프트 0).
+  //     판정표(DIGIT_BATCHIM / LATIN_BATCHIM), 건너뛰기 문자 집합, 띄어쓰기 분기까지 같은 값을 쓴다.
+  //  ⚠ demoRender() 는 파일 끝에서 1회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_PAIRS = [
+    { token: '을(를)', on: '을', off: '를' },
+    { token: '이(가)', on: '이', off: '가' },
+    { token: '은(는)', on: '은', off: '는' },
+    { token: '와(과)', on: '과', off: '와' },
+    { token: '아(야)', on: '아', off: '야' },
+    { token: '으로(로)', on: '으로', off: '로' }
+  ];
+  const DEMO_DIGIT_BATCHIM = { '0': true, '1': true, '2': false, '3': true, '4': false,
+                               '5': false, '6': true, '7': true, '8': true, '9': false };
+  const DEMO_DIGIT_RIEUL = { '1': true, '7': true, '8': true };
+  const DEMO_LATIN_BATCHIM = ['l', 'm', 'n'];
+  const DEMO_SKIP = /[\s()\[\]{}'"“”‘’`]/;
+  const DEMO_HANGUL_START = 0xAC00, DEMO_HANGUL_END = 0xD7A3, DEMO_JONG_RIEUL = 8;
+
+  function demoLastChar(prefix) {
+    for (let i = prefix.length - 1; i >= 0; i--) {
+      const ch = prefix.charAt(i);
+      if (!DEMO_SKIP.test(ch)) return ch;
+    }
+    return null;
+  }
+  function demoJudge(ch) {
+    if (ch === null) return { hangul: false, batchim: false, rieul: false };
+    const code = ch.charCodeAt(0);
+    if (code >= DEMO_HANGUL_START && code <= DEMO_HANGUL_END) {
+      const jong = (code - DEMO_HANGUL_START) % 28;
+      return { hangul: true, batchim: jong !== 0, rieul: jong === DEMO_JONG_RIEUL };
+    }
+    if (ch >= '0' && ch <= '9') {
+      return { hangul: false, batchim: DEMO_DIGIT_BATCHIM[ch], rieul: !!DEMO_DIGIT_RIEUL[ch] };
+    }
+    const lower = ch.toLowerCase();
+    if (lower >= 'a' && lower <= 'z') {
+      return { hangul: false, batchim: DEMO_LATIN_BATCHIM.indexOf(lower) !== -1, rieul: lower === 'l' };
+    }
+    return { hangul: false, batchim: false, rieul: false };
+  }
+  function demoResolve(text) {
+    if (typeof text !== 'string' || text.length === 0) return text;
+    let out = text;
+    DEMO_PAIRS.forEach(pair => {
+      let idx = out.indexOf(pair.token);
+      while (idx !== -1) {
+        const head = out.slice(0, idx);
+        const j = demoJudge(demoLastChar(head));
+        const chosen = (pair.token === '으로(로)')
+          ? ((!j.batchim || j.rieul) ? pair.off : pair.on)
+          : (j.batchim ? pair.on : pair.off);
+        const trimmed = head.replace(/\s+$/, '');
+        const glue = (trimmed === '' || j.hangul) ? '' : ' ';
+        out = trimmed + glue + chosen + out.slice(idx + pair.token.length);
+        idx = out.indexOf(pair.token);
+      }
+    });
+    return out;
+  }
+
+  // 확인창 템플릿 — 저장소의 문구를 그대로 옮긴 것 (고치지 않은 원문)
+  const DEMO_TEMPLATES = {
+    delete:  "OS 버전 '{resource}' 을(를) 삭제할까요?",
+    restore: '{resource} 을(를) 복구할까요?',
+    apply:   "'{resource}' 드리프트 을(를) 적용할까요?",
+    dup:     "'{resource}' 이(가) 두 위치에 존재합니다. 남길 위치를 선택하세요.",
+    extend:  '{resource} 을(를) +7일 연장할까요?'
+  };
+  const DEMO_PRESETS = {
+    hangul: '잔여 마커 정리 필요',
+    latin:  'Rocky Linux 9.6 Rocky-9.6-x86_64-netinst.iso',
+    digit:  'Rocky Linux 9.6',
+    rieul:  '설치 파일',
+    symbol: 'ISO (2026-08)'
+  };
+  let demoTplKey = 'delete';
+  let demoPresetKey = 'digit';
+
+  function demoPreset(key) {
+    demoPresetKey = key;
+    document.getElementById('demo-name').value = DEMO_PRESETS[key];
+    if (document.getElementById('demo-name')) demoRender();
+  }
+  function demoTpl(key) { demoTplKey = key; demoRender(); }
+
+  function demoRender() {
+    const name = document.getElementById('demo-name').value;
+    const template = DEMO_TEMPLATES[demoTplKey];
+    const raw = template.replace('{resource}', name);
+    const shown = demoResolve(raw);
+
+    document.querySelectorAll('.ux-toolbar .seg[data-tpl]').forEach(s =>
+      s.classList.toggle('active', s.dataset.tpl === demoTplKey));
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(s =>
+      s.classList.toggle('active', DEMO_PRESETS[s.dataset.preset] === name));
+
+    document.getElementById('demo-template').textContent = raw;
+    document.getElementById('demo-shown').textContent = shown;
+
+    // 판정 근거 캡션 — 규칙 1 · 2 · 3 · 4 · 7 이 각각 어떻게 적용됐는지
+    const pair = DEMO_PAIRS.find(p => raw.indexOf(p.token) !== -1);
+    const caps = document.getElementById('demo-caps');
+    const badge = document.getElementById('demo-badge');
+    const msg = document.getElementById('demo-message');
+
+    if (!pair) {
+      caps.innerHTML = '병기형 조사 없음 → 원문 그대로 반환 (중복 호출 안전)';
+      badge.textContent = '해소할 것 없음'; badge.className = 'badge off';
+      msg.className = 'ux-message';
+      msg.textContent = '이 문구에는 병기형 조사가 없어 해소 함수가 원문을 그대로 돌려줍니다.';
+      return;
+    }
+    const head = raw.slice(0, raw.indexOf(pair.token));
+    const ch = demoLastChar(head);
+    const j = demoJudge(ch);
+    const chosen = (pair.token === '으로(로)')
+      ? ((!j.batchim || j.rieul) ? pair.off : pair.on)
+      : (j.batchim ? pair.on : pair.off);
+    const tf = v => v ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    const skipped = head.length - head.replace(/[\s()\[\]{}'"“”‘’`]+$/, '').length;
+
+    caps.innerHTML =
+      '규칙1  판정 대상 글자   = "' + (ch === null ? '(없음)' : ch) + '"'
+        + (skipped > 0 ? '   ← 앞의 공백 · 따옴표 ' + skipped + '자 건너뜀' : '') + '\n' +
+      '규칙2~4 받침 있음        = ' + tf(j.batchim) + '\n' +
+      '        한글 여부        = ' + tf(j.hangul) + '\n' +
+      '        선택된 조사      = "' + chosen + '"  (' + pair.token + ' 중)\n' +
+      '규칙7  띄어쓰기         = ' + (j.hangul ? '붙임 (앞 공백 제거)' : '한 칸 띄움');
+
+    badge.textContent = '해소됨'; badge.className = 'badge on';
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ 문구 템플릿은 그대로 두고 표시 직전 길목에서만 해소했습니다.';
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

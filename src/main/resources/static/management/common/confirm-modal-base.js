@@ -34,14 +34,18 @@
         const cancelBtn = document.getElementById(prefix + 'CancelBtn');
         const backdrop = document.getElementById(prefix + 'Backdrop');
 
+        // HF5 — 모든 정적 modal 메시지가 지나는 길목. 호출측이 어떻게 문구를 조립했든
+        // 여기서 병기형 조사를 해소한다 (composeMessage 를 거치지 않는 호출도 함께 덮인다).
+        const message = particles(opts.message || '');
+
         if (!modal || !confirmBtn || !cancelBtn) {
             console.warn(TAG, 'fragment 누락 — fallback native confirm. prefix=', prefix);
-            if (window.confirm(opts.message || '계속할까요?')) opts.onConfirm();
+            if (window.confirm(message || '계속할까요?')) opts.onConfirm();
             return;
         }
 
         if (titleEl && opts.title) titleEl.textContent = opts.title;
-        if (messageEl) messageEl.textContent = opts.message || '';
+        if (messageEl) messageEl.textContent = message;
         confirmBtn.textContent = opts.confirmLabel;
         confirmBtn.className = 'n-btn ' + (opts.confirmClass || 'n-btn-primary');
         confirmBtn.disabled = !!opts.startDisabled;
@@ -104,15 +108,25 @@
      */
     function composeMessage(form, template, defaultMessage) {
         const explicit = form.getAttribute('data-confirm-message');
-        if (explicit) return explicit;
+        if (explicit) return particles(explicit);
         const resource = form.getAttribute('data-resource-label');
         if (resource && template) {
             let msg = template.replace('{resource}', resource);
             const extra = form.getAttribute('data-resource-extra');
             if (extra) msg += ' ' + extra;
-            return msg;
+            return particles(msg);
         }
-        return defaultMessage;
+        return particles(defaultMessage);
+    }
+
+    /**
+     * HF5 — 병기형 조사('{resource} 을(를)' 등)를 앞 글자의 받침으로 해소하고 띄어쓰기를 정규화한다.
+     * korean-particle.js 가 먼저 로드되지 않아도 문구가 깨지지 않도록 원문을 그대로 돌려준다.
+     */
+    function particles(text) {
+        return (window.KoreanParticle && typeof text === 'string')
+                ? window.KoreanParticle.resolve(text)
+                : text;
     }
 
     /**
