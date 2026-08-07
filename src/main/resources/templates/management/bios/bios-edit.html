@@ -36,7 +36,8 @@
             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/edit(boardId=${boardId},biosId=${biosId})}"
                   th:object="${biosForm}"
                   method="post"
-                  novalidate>
+                  novalidate
+                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
 
                 <!-- S4 폼 배너 슬롯 -->
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>

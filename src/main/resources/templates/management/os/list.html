@@ -196,7 +196,6 @@
                             <form th:action="@{/management/os/{id}/restore(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-restore=""
-                                  data-async-submit=""
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   th:data-cascade-true-title="|하위 ISO ${os.isos.?[isDeleted].size()}건도 함께 복구|"
                                   th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ' · ')}">
@@ -399,7 +398,6 @@
                                                   th:action="@{/management/os/{osId}/iso/{isoId}/restore(osId=${os.id},isoId=${iso.id})}"
                                                   method="post" class="n-accordion-inline-form"
                                                   data-confirm-restore=""
-                                                  data-async-submit=""
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|">
                                                 <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                                 <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>

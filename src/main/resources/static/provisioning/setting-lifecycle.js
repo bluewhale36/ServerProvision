@@ -19,7 +19,7 @@
 
         // ── 성공 후 이동 지점 — 서버가 지정한 곳을 따른다 ──
         // 전역 기본 동작은 현재 페이지 재적재인데, 영구 삭제는 지금 보고 있는 정의서를 없애므로
-        // 재적재하면 사라진 상세를 다시 요청해 404 응답이 화면이 된다. submitAsync 는 redirect 를
+        // 재적재하면 사라진 상세를 다시 요청해 404 응답이 화면이 된다. FormSubmit.sendAsync 는 redirect 를
         // follow 하므로 최종 도착지(resp.url)가 서버가 의도한 이동 지점이다(영구 삭제 → 목록,
         // 그 외 → 상세). 거절 · 네트워크 오류는 전역 핸들러에 그대로 위임한다
         // (trash-action.js · reconciliation/list.js 의 페이지 로컬 override 선례).
@@ -39,18 +39,8 @@
             }
         };
 
-        // ── 확인 모달이 없는 즉시 실행 폼(활성 토글 · 사용 중단 권고 · 복원) ──
-        // 네이티브 제출로 두면 서버 거절(예: 복원 시 활성 이름 충돌 409)이 raw JSON 페이지로 그대로
-        // 노출된다. 관리 도메인의 lifecycle 폼과 같이 fetch 로 보내 실패를 ErrorModal 로 안내한다.
-        // 확인 모달을 거치는 폼(삭제 · 영구삭제)은 approveAndSubmit 이 같은 경로를 태우므로 제외한다.
-        document.querySelectorAll(
-            'form[data-async-submit]:not([data-confirm-soft-delete]):not([data-confirm-purge])'
-        ).forEach(function (form) {
-            form.addEventListener('submit', function (e) {
-                e.preventDefault();
-                ConfirmModal.approveAndSubmit(form);
-            });
-        });
+        // 확인 모달이 없는 즉시 실행 폼(활성 토글 · 사용 중단 권고 · 복원)의 가로채기는
+        // S10 의 전역 인터셉터(global/form-submit.js)가 맡는다 — 여기서 폼별로 다시 걸지 않는다.
 
         // ── soft-delete : 참조 활성 할당 수를 정보성 경고로 곁들인다(차단 아님, DEC-C) ──
         ConfirmModal.bindFormSubmit('data-confirm-soft-delete', function (form) {

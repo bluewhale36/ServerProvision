@@ -57,7 +57,8 @@
     <!-- ===== 인라인 수정 폼 (운영자 입력 4필드 — 모두 guest_server) ===== -->
     <form th:object="${updateForm}"
           th:action="@{/provisioning/server/{id}/edit(id=${server.id})}"
-          method="post" novalidate>
+          method="post" novalidate
+                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
 
         <div class="n-detail-section">
             <div class="n-section-title">기본 정보 (운영자 입력)</div>

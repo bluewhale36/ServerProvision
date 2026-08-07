@@ -34,7 +34,8 @@
                   th:action="@{/maintenance/trash/settings}"
                   th:object="${form}"
                   method="post"
-                  novalidate>
+                  novalidate
+                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
 
                 <!-- 폼 배너 슬롯 (SSR). -->
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
