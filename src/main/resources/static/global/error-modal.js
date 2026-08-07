@@ -60,7 +60,11 @@
             statusEl.textContent = '';
             statusEl.hidden = true;
         }
-        root.querySelector('[data-message]').textContent = message || '요청을 처리하지 못했어요.';
+        // HF5 — 서버가 보낸 문구에도 병기형 조사가 남아 있을 수 있다(예: 부모 자원 가드 메시지).
+        // 표시 직전 한 곳에서 해소한다. korean-particle.js 가 없으면 원문 그대로 표시.
+        const shown = message || '요청을 처리하지 못했어요.';
+        root.querySelector('[data-message]').textContent =
+            window.KoreanParticle ? window.KoreanParticle.resolve(shown) : shown;
         root.hidden = false;
         // focus confirm button — 키보드 사용자 친화
         const btn = root.querySelector('[data-close].n-btn');

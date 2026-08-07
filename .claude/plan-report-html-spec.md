@@ -115,7 +115,7 @@ report 는 같은 골격을 쓰되 섹션 구성이 plan 11섹션과 다를 수 
 
 `.chip` 변형: `.new`/`.add`(green 신규·추가), `.mod`(yellow 수정), `.keep`(회색 유지), `.del`(red 삭제), `.move`(blue 이동), `.force`(red 강제), `.opt`(blue 옵션), `.dep`(yellow deprecated).
 
-CP 칩: `.cp1`(blue) `.cp2`(green) `.cp3`(yellow) `.cp4`(orange) `.cp5`(red).
+CP 칩: `.cp1`(blue) `.cp2`(green) `.cp3`(yellow) `.cp4`(orange) `.cp5`(red) `.cp6`(purple) `.cp7`(muted). CP6 · CP7 은 CH4 의 체크포인트 확장(CP1~CP7)에 맞춰 추가한 것으로, CP6=report 산출 · CP7=사용자 단독 E2E 를 가리킨다.
 
 `.badge` 는 시뮬레이터의 상태 배지: `.on`(green 활성) `.off`(회색 비활성) `.dep`(yellow) `.del`(red). 본문 표에서는 `.chip` 을, 🎬 데모의 자원 상태 표시에는 `.badge` 를 쓴다.
 

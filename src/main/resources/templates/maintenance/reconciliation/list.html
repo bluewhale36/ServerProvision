@@ -312,9 +312,17 @@
                           th:attr="data-accept-hash-url=@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}">
                         <p class="n-form-hint" style="margin:0">원본 재업로드가 더 안전합니다 (검증 재통과).
                             의도된 교체가 확실할 때만 자원명을 입력해 수용하세요 — 감사 기록에 남습니다.</p>
+                        <!--/* HF5 — 기대 자원명을 placeholder 가 아니라 본문에 노출한다. placeholder 는 입력창 너비에
+                             잘려 무엇을 입력해야 하는지 화면에서 알 수 없었고, 틀린 뒤 거절 메시지로 기대값을 알아내
+                             복사하는 흐름이 되어 있었다. 표기 방식은 휴지통 영구삭제 확인 modal(confirm-purge) 선례를 따른다. */-->
+                        <div style="display:flex;flex-direction:column;gap:2px">
+                            <span class="n-form-hint" style="margin:0">정확히 입력해야 할 자원명</span>
+                            <code style="font-size:11px;word-break:break-all"
+                                  th:text="${drift.displayName}"></code>
+                        </div>
                         <div style="display:flex;gap:8px;align-items:center">
                             <input type="text" name="typedName" class="n-input"
-                                   th:placeholder="|자원명 입력 : ${drift.displayName}|" autocomplete="off">
+                                   placeholder="위 자원명을 그대로 입력" autocomplete="off">
                             <button type="submit" class="n-btn n-btn-outline-danger"
                                     th:disabled="${!resolutionEnabled}"
                                     th:title="${!resolutionEnabled} ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.' : null">현재 내용을 정본으로 수용</button>

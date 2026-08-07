@@ -72,7 +72,7 @@ public class WebExceptionHandler {
 				ex.getParentResourceType(), ex.getParentResourceId(),
 				ex.getParentState(), ex.getRequestedAction());
 		response.setStatus(HttpStatus.CONFLICT.value());
-		populate(model, 409, "Conflict", ex.getMessage());
+		populate(model, 409, ex.getMessage());
 		return "error";
 	}
 
@@ -84,7 +84,7 @@ public class WebExceptionHandler {
 		log.warn("OptimisticLockingFailureException : {}", ex.getMessage());
 		response.setStatus(HttpStatus.CONFLICT.value());
 		populate(
-				model, 409, "Conflict",
+				model, 409,
 				"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해주세요."
 		);
 		return "error";
@@ -98,18 +98,23 @@ public class WebExceptionHandler {
 		if (rs != null && rs.value().is4xxClientError()) {
 			ExceptionLogPolicy.record("advice.domain.mapped", ex, rs.value(), "html");
 			response.setStatus(rs.value().value());
-			populate(model, rs.value().value(), rs.value().getReasonPhrase(), ex.getMessage());
+			populate(model, rs.value().value(), ex.getMessage());
 			return "error";
 		}
 		ExceptionLogPolicy.record("advice.domain.unmapped", ex, HttpStatus.INTERNAL_SERVER_ERROR, "html");
 		response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-		populate(model, 500, "Internal Error", ex.getMessage());
+		populate(model, 500, ex.getMessage());
 		return "error";
 	}
 
-	private static void populate(Model model, int status, String statusLabel, String message) {
+	/**
+	 * HF5 — 상태 문구는 인자로 받지 않고 {@link ErrorStatusLabels} 에서 파생한다. 종전에는 호출부마다
+	 * 영어 reason phrase 를 직접 넘겨(예: "Conflict" · "Internal Error") 기본 {@code /error} 경로의 문구와
+	 * 갈라졌다. 파생으로 바꿔 두 경로가 같은 표를 보게 한다.
+	 */
+	private static void populate(Model model, int status, String message) {
 		model.addAttribute("status", status);
-		model.addAttribute("statusLabel", statusLabel);
+		model.addAttribute("statusLabel", ErrorStatusLabels.of(status));
 		model.addAttribute("message", message);
 	}
 }
