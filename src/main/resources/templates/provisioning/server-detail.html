@@ -309,8 +309,7 @@
                                 <label class="n-label" for="reassignment-definition">다른 정의서로 재할당</label>
                                 <select id="reassignment-definition" name="definitionId" class="n-select">
                                     <option value="">— 정의서 선택 —</option>
-                                    <option th:each="def : ${definitionOptions}"
-                                            th:value="${def.id}" th:text="${def.name}">web-standard</option>
+                                    <th:block th:replace="~{fragments/provisioning/definition-options :: definitionOptions(${definitionOptions})}"></th:block>
                                 </select>
                             </div>
                             <div class="n-form-actions" style="margin-top: 12px;">
@@ -343,8 +342,7 @@
                             <label class="n-label" for="assignment-definition">세팅 정의서</label>
                             <select id="assignment-definition" name="definitionId" class="n-select">
                                 <option value="">— 정의서 선택 —</option>
-                                <option th:each="def : ${definitionOptions}"
-                                        th:value="${def.id}" th:text="${def.name}">web-standard</option>
+                                <th:block th:replace="~{fragments/provisioning/definition-options :: definitionOptions(${definitionOptions})}"></th:block>
                             </select>
                         </div>
                         <div class="n-form-actions" style="margin-top: 12px;">

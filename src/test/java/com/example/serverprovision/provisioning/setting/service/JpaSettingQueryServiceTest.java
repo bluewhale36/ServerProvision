@@ -54,6 +54,7 @@ class JpaSettingQueryServiceTest {
     @Mock SettingDefinitionRepository repository;
     @Mock com.example.serverprovision.provisioning.setting.service.reference.ProcessReferenceInspectors referenceInspectors;
     @Mock com.example.serverprovision.provisioning.setting.service.reference.ProcessReferenceInspector inspector;
+    @Mock com.example.serverprovision.provisioning.setting.service.AssignmentUsageInspector assignmentUsageInspector;
     @Mock BoardModelRepository boardModelRepository;
     @Mock BiosRepository biosRepository;
     @Mock BmcRepository bmcRepository;
@@ -77,32 +78,72 @@ class JpaSettingQueryServiceTest {
     }
 
     @Test
-    @DisplayName("findAll — 단계 타입 요약이 enum 선언 순(D7 — 저장 순서 무관)")
-    void findAll_summarizesTypesInEnumOrder() {
-        given(repository.findAll(any(org.springframework.data.domain.Sort.class)))
+    @DisplayName("findAll(false) — 활성 전용 조회 + 단계 타입 요약이 enum 선언 순(D7 · U3-2-b DEC-F)")
+    void findAll_activeOnly_summarizesTypesInEnumOrder() {
+        given(repository.findAllByIsDeletedFalseOrderByIdAsc())
                 .willReturn(List.of(reversedDefinition()));
 
-        List<SettingSummaryResponse> result = service.findAll();
+        List<SettingSummaryResponse> result = service.findAll(false);
 
         assertThat(result.get(0).processTypes())
                 .containsExactly(SettingProcessType.BASIC_UPDATE, SettingProcessType.BASIC_SETTING);
+        assertThat(result.get(0).deleted()).isFalse();
     }
 
     @Test
-    @DisplayName("findDetail — payload 재조립도 enum 선언 순 + 없는 id 404")
+    @DisplayName("findAll(true) — includeDeleted 면 전건 조회(휴지통 토글) + 삭제 플래그 전달")
+    void findAll_includeDeleted_returnsAllWithFlag() {
+        SettingDefinition deleted = reversedDefinition();
+        deleted.softDelete();
+        given(repository.findAll(any(org.springframework.data.domain.Sort.class)))
+                .willReturn(List.of(deleted));
+
+        List<SettingSummaryResponse> result = service.findAll(true);
+
+        assertThat(result.get(0).deleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("findDetail — payload 재조립도 enum 선언 순 + deleted/referencingCount 적재 + 없는 id 404")
     void findDetail_reassemblesInEnumOrder() {
         // deprecated 서술은 검사기 위임(U2-3-1) — 이 테스트의 관심사가 아니므로 빈 서술로 스텁.
         given(referenceInspectors.inspectorFor(org.mockito.ArgumentMatchers.any())).willReturn(inspector);
         given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
         given(repository.findById(1L)).willReturn(Optional.of(reversedDefinition()));
+        // U3-2-b — 삭제 경고용 활성 할당 수(SPI). 상세 응답에 실린다.
+        given(assignmentUsageInspector.countReferencing(1L)).willReturn(2L);
 
         SettingDetailResponse detail = service.findDetail(1L);
 
         assertThat(detail.processList().get(0)).isInstanceOf(BasicUpdateRequest.class);
         assertThat(detail.processList().get(1)).isInstanceOf(BasicSettingRequest.class);
+        assertThat(detail.deleted()).isFalse();
+        // U3-2-b DEC-G — 활성/사용중단 축도 상세 응답에 실린다(배지 · 토글 버튼 라벨 SSOT).
+        assertThat(detail.enabled()).isTrue();
+        assertThat(detail.deprecated()).isFalse();
+        assertThat(detail.referencingCount()).isEqualTo(2L);
 
         given(repository.findById(99L)).willReturn(Optional.empty());
         assertThatThrownBy(() -> service.findDetail(99L)).isInstanceOf(SettingNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("findAssignable — 비활성 정의서는 선택지에서 제외 · deprecated 는 플래그와 함께 포함(DEC-G SSOT)")
+    void findAssignable_excludesDisabled_keepsDeprecated() {
+        SettingDefinition assignable = reversedDefinition();
+        SettingDefinition deprecated = reversedDefinition();
+        deprecated.deprecate();
+        SettingDefinition disabled = reversedDefinition();
+        disabled.toggleEnabled();
+        given(repository.findAllByIsDeletedFalseOrderByIdAsc())
+                .willReturn(List.of(assignable, deprecated, disabled));
+
+        List<SettingSummaryResponse> options = service.findAssignable();
+
+        // 제외 판정은 서버 가드와 같은 도메인 메서드(assignBlockReason) — 비활성만 빠진다.
+        assertThat(options).hasSize(2);
+        assertThat(options).extracting(SettingSummaryResponse::enabled).containsOnly(true);
+        assertThat(options).extracting(SettingSummaryResponse::deprecated).containsExactly(false, true);
     }
 
     @Test
@@ -110,6 +151,7 @@ class JpaSettingQueryServiceTest {
     void findDetail_collectsExecutionWarnings() {
         given(referenceInspectors.inspectorFor(org.mockito.ArgumentMatchers.any())).willReturn(inspector);
         given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(assignmentUsageInspector.countReferencing(1L)).willReturn(0L);
         SettingDefinition definition = SettingDefinition.builder()
                 .name("경고 세팅")
                 .processes(List.of(new SettingProcess(new ProcessPayload(new BasicUpdateRequest(

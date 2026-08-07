@@ -22,4 +22,14 @@ public interface SettingAssignmentRepository extends JpaRepository<SettingAssign
      * 가치)과 활성 행은 술어에서 제외된다.
      */
     List<SettingAssignment> findBySupersededAtIsNotNullAndConsumedAtIsNullAndSupersededAtBefore(LocalDateTime threshold);
+
+    /**
+     * 정의서 역참조 카운트(U3-2-b, DEC-D) — 이 정의서를 참조하는 <b>활성</b> 할당 수. 삭제 경고 문구용.
+     * {@code SourceDefinitionRef} 는 {@code @Embedded} 라 파생 쿼리가 {@code sourceDefinitionRef.definitionId}
+     * 로 소프트참조 스칼라를 탐색한다({@code definition_id} 컬럼, FK 아님).
+     */
+    long countBySourceDefinitionRef_DefinitionIdAndSupersededAtIsNull(Long definitionId);
+
+    /** 정의서 역참조 존재 여부(저비용 분기) — 활성 할당 술어 동일. */
+    boolean existsBySourceDefinitionRef_DefinitionIdAndSupersededAtIsNull(Long definitionId);
 }

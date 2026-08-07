@@ -54,7 +54,7 @@ class JpaSettingCommandServiceTest {
     @Test
     @DisplayName("create — 단계별 행 분해(process_type 파생) + 단계마다 검사기 dispatch")
     void create_decomposesToRows_andDispatchesInspectors() {
-        given(repository.existsByName("표준 세팅")).willReturn(false);
+        given(repository.existsByNameAndIsDeletedFalse("표준 세팅")).willReturn(false);
         given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
         given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
@@ -80,13 +80,26 @@ class JpaSettingCommandServiceTest {
     }
 
     @Test
-    @DisplayName("create — name 전역 중복 → 409 (검사기 dispatch 이전에 거절)")
+    @DisplayName("create — 활성 name 중복 → 409 (검사기 dispatch 이전에 거절, U3-2-b 활성 전용 유일성)")
     void create_duplicateName_throws409() {
-        given(repository.existsByName("표준 세팅")).willReturn(true);
+        given(repository.existsByNameAndIsDeletedFalse("표준 세팅")).willReturn(true);
 
         assertThatThrownBy(() -> service.create(new SettingSaveRequest("표준 세팅",
                 List.of(new BasicSettingRequest(List.of())))))
                 .isInstanceOf(DuplicateSettingDefinitionNameException.class);
+    }
+
+    @Test
+    @DisplayName("create — soft-deleted 이름은 재사용 허용(활성 전용 유일성 판정, DEC-B)")
+    void create_reusesSoftDeletedName() {
+        // soft-deleted 정의서가 그 이름을 갖고 있어도 existsByNameAndIsDeletedFalse 는 false → 생성 통과.
+        given(repository.existsByNameAndIsDeletedFalse("재사용 세팅")).willReturn(false);
+        given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
+        given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        service.create(new SettingSaveRequest("재사용 세팅", List.of(new BasicSettingRequest(List.of()))));
+
+        verify(repository).save(any());
     }
 
     @Test
@@ -98,8 +111,8 @@ class JpaSettingCommandServiceTest {
                 .processes(List.of(new com.example.serverprovision.provisioning.setting.entity.SettingProcess(
                         new com.example.serverprovision.provisioning.setting.vo.ProcessPayload(autoFirmware()))))
                 .build();
-        given(repository.findById(1L)).willReturn(Optional.of(existing));
-        given(repository.existsByNameAndIdNot("개정 세팅", 1L)).willReturn(false);
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(existing));
+        given(repository.existsByNameAndIdNotAndIsDeletedFalse("개정 세팅", 1L)).willReturn(false);
 
         service.update(1L, new SettingSaveRequest("개정 세팅", List.of(new BasicSettingRequest(List.of()))));
 
@@ -109,8 +122,142 @@ class JpaSettingCommandServiceTest {
         assertThat(existing.getProcesses()).hasSize(1);
         assertThat(existing.getProcesses().get(0).getProcessType()).isEqualTo(SettingProcessType.BASIC_SETTING);
 
-        given(repository.findById(99L)).willReturn(Optional.empty());
+        // soft-deleted(=활성 아님) 정의서는 편집 대상이 아니다 → findByIdAndIsDeletedFalse 가 빈 Optional → 404.
+        given(repository.findByIdAndIsDeletedFalse(99L)).willReturn(Optional.empty());
         assertThatThrownBy(() -> service.update(99L, new SettingSaveRequest("x", List.of(new BasicSettingRequest(List.of())))))
                 .isInstanceOf(SettingNotFoundException.class);
+    }
+
+    // ==== U3-2-b — soft-delete lifecycle =============================
+
+    private static SettingDefinition definitionNamed(String name) {
+        return SettingDefinition.builder()
+                .name(name)
+                .processes(List.of(new com.example.serverprovision.provisioning.setting.entity.SettingProcess(
+                        new com.example.serverprovision.provisioning.setting.vo.ProcessPayload(autoFirmware()))))
+                .build();
+    }
+
+    @Test
+    @DisplayName("softDelete — is_deleted 토글 + 멱등(이미 삭제된 것 재삭제해도 no-op) · 부재 404")
+    void softDelete_togglesFlag_idempotent() {
+        SettingDefinition def = definitionNamed("삭제 대상");
+        given(repository.findById(1L)).willReturn(Optional.of(def));
+
+        service.softDelete(1L);
+        assertThat(def.isDeleted()).isTrue();
+
+        // 멱등 — 이미 삭제된 것을 다시 삭제해도 상태 불변(예외 없음).
+        service.softDelete(1L);
+        assertThat(def.isDeleted()).isTrue();
+
+        given(repository.findById(99L)).willReturn(Optional.empty());
+        assertThatThrownBy(() -> service.softDelete(99L)).isInstanceOf(SettingNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("restore — happy(활성 name 충돌 없음 → 복원) · 부재 404")
+    void restore_happy() {
+        SettingDefinition def = definitionNamed("복원 대상");
+        def.softDelete();
+        given(repository.findById(1L)).willReturn(Optional.of(def));
+        given(repository.existsByNameAndIsDeletedFalse("복원 대상")).willReturn(false);
+
+        service.restore(1L);
+        assertThat(def.isDeleted()).isFalse();
+
+        given(repository.findById(99L)).willReturn(Optional.empty());
+        assertThatThrownBy(() -> service.restore(99L)).isInstanceOf(SettingNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("restore — 같은 이름의 활성 정의서 존재 → RestoreNameConflictException(409), 상태 불변")
+    void restore_nameConflict_throws409() {
+        SettingDefinition def = definitionNamed("충돌 이름");
+        def.softDelete();
+        given(repository.findById(1L)).willReturn(Optional.of(def));
+        given(repository.existsByNameAndIsDeletedFalse("충돌 이름")).willReturn(true);
+
+        assertThatThrownBy(() -> service.restore(1L))
+                .isInstanceOf(com.example.serverprovision.provisioning.setting.exception.RestoreNameConflictException.class);
+        assertThat(def.isDeleted()).isTrue(); // 거절 후에도 삭제 상태 유지
+    }
+
+    @Test
+    @DisplayName("purge — typed-name 일치 → hard delete(자식 동반) / 불일치 → TypedNameMismatchException(400)")
+    void purge_typedNameGate() {
+        SettingDefinition def = definitionNamed("영구삭제 대상");
+        given(repository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.of(def));
+
+        // 불일치 → 400, delete 미호출.
+        assertThatThrownBy(() -> service.purge(1L, "다른 이름"))
+                .isInstanceOf(com.example.serverprovision.global.exception.TypedNameMismatchException.class);
+        verify(repository, org.mockito.Mockito.never()).delete(any());
+
+        // 일치 → delete 호출(자식 setting_process 는 cascade/orphanRemoval 동반).
+        service.purge(1L, "영구삭제 대상");
+        verify(repository).delete(def);
+    }
+
+    @Test
+    @DisplayName("purge — 활성/부재 정의서(soft-delete 미선행) → 404 (DEC-E, findByIdAndIsDeletedTrue 빈 Optional)")
+    void purge_notSoftDeleted_throws404() {
+        given(repository.findByIdAndIsDeletedTrue(5L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.purge(5L, "무엇이든"))
+                .isInstanceOf(SettingNotFoundException.class);
+    }
+
+    // ==== U3-2-b DEC-G — 활성 · 사용 중단 권고 축 ======================
+
+    @Test
+    @DisplayName("toggleEnabled — 활성 정의서를 반전 · 재호출로 복귀(멱등 아닌 토글)")
+    void toggleEnabled_flipsActiveDefinition() {
+        SettingDefinition def = definitionNamed("토글 대상");
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(def));
+
+        service.toggleEnabled(1L);
+        assertThat(def.isEnabled()).isFalse();
+        // 비활성이어도 할당 차단 사유만 생길 뿐 정의서 자체는 그대로 편집·재활성 가능하다.
+        assertThat(def.assignBlockReason()).isNotNull();
+
+        service.toggleEnabled(1L);
+        assertThat(def.isEnabled()).isTrue();
+        assertThat(def.assignBlockReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("toggleEnabled — soft-deleted/부재 정의서는 대상 아님 → 404 (활성 전용 로드)")
+    void toggleEnabled_softDeletedOrMissing_throws404() {
+        // soft-deleted 정의서는 findByIdAndIsDeletedFalse 가 빈 Optional 을 준다(복원이 먼저).
+        given(repository.findByIdAndIsDeletedFalse(99L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.toggleEnabled(99L)).isInstanceOf(SettingNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("deprecate / undeprecate — 멱등 · 활성 축 불변(deprecated ≠ disabled)")
+    void deprecate_undeprecate_idempotent() {
+        SettingDefinition def = definitionNamed("권고 대상");
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(def));
+
+        service.deprecate(1L);
+        service.deprecate(1L);
+        assertThat(def.isDeprecated()).isTrue();
+        assertThat(def.isEnabled()).isTrue();
+        assertThat(def.assignBlockReason()).isNull();   // 권고는 할당을 막지 않는다
+
+        service.undeprecate(1L);
+        service.undeprecate(1L);
+        assertThat(def.isDeprecated()).isFalse();
+    }
+
+    @Test
+    @DisplayName("deprecate / undeprecate — soft-deleted/부재 정의서 → 404 (활성 전용 로드)")
+    void deprecate_softDeletedOrMissing_throws404() {
+        given(repository.findByIdAndIsDeletedFalse(99L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deprecate(99L)).isInstanceOf(SettingNotFoundException.class);
+        assertThatThrownBy(() -> service.undeprecate(99L)).isInstanceOf(SettingNotFoundException.class);
     }
 }

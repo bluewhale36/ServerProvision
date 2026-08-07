@@ -175,7 +175,9 @@ public class GuestServerController {
      * (개시된 경우만)를 겹쳐 done/current/pending 을 계산한다(계획 vs 실제 라벨 구분).
      */
     private void populateAssignmentModel(UUID id, GuestServerDetailResponse server, Model model) {
-        model.addAttribute("definitionOptions", settingQueryService.findAll());
+        // 할당 대상은 "할당 가능" 정의서만(삭제 · 비활성 제외, U3-2-b DEC-G). 판정은 서버 가드와 같은
+        // 도메인 SSOT(assignBlockReason) 이므로 옵션에서 뺀 정의서를 direct POST 해도 409 로 일관 거절된다.
+        model.addAttribute("definitionOptions", settingQueryService.findAssignable());
         AssignmentPlanResponse plan = assignmentQueryService.plannedPhasesOf(id);
         GuestServerDetailResponse.Progress progress = server.progress();
         ProvisioningPhase currentPhase = progress != null ? progress.currentPhase() : null;

@@ -22,6 +22,7 @@ import com.example.serverprovision.provisioning.setting.dto.request.BasicSetting
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import com.example.serverprovision.provisioning.setting.entity.SettingProcess;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
+import com.example.serverprovision.provisioning.setting.exception.DefinitionNotAssignableException;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 import com.example.serverprovision.provisioning.setting.repository.SettingDefinitionRepository;
 import com.example.serverprovision.provisioning.setting.vo.ProcessPayload;
@@ -42,7 +43,8 @@ import java.util.stream.Collectors;
 /**
  * 세팅 정의서 할당 · 재할당 command — 할당 시점 스냅샷 생성(행 단위 복사 · derive-then-freeze).
  *
- * <p>정의서(+processes) · 게스트를 로드(부재 404)하고, 활성 유일성 가드(중복 409)를 통과하면 스냅샷을 만든다:
+ * <p>정의서(+processes) · 게스트를 로드(부재 · 삭제된 정의서 404)하고, 할당 가능 가드(비활성 409, U3-2-b
+ * DEC-G)와 활성 유일성 가드(중복 409)를 통과하면 스냅샷을 만든다:
  * 각 {@code SettingProcess} 를 {@link AssignedProcess} 로 payload 무변환 복사하고, BASIC_SETTING 은 참조 BIOS
  * 세팅 템플릿을 resolve 해 {@link FrozenBiosSettings} 로 deep-freeze 한다(결정 D-C). {@code ownedPhases} 는
  * {@link SettingProcessPhaseMapper} 로 derive 해 얼린다. 정의서는 <b>소프트참조</b>라 하드 FK 가 없다.</p>
@@ -66,8 +68,7 @@ public class AssignmentCommandService {
     public AssignmentResponse assign(UUID guestId, Long definitionId) {
         GuestServer guest = guestServerRepository.findById(guestId)
                 .orElseThrow(() -> new GuestServerNotFoundException(guestId));
-        SettingDefinition definition = definitionRepository.findById(definitionId)
-                .orElseThrow(() -> new SettingNotFoundException(definitionId));
+        SettingDefinition definition = loadAssignableDefinition(definitionId);
 
         // 활성 유일성 가드(안전망 — UI 가 재할당 폼을 1차 차단, DB unique 가 최후 방어). 정상 재할당은 reassign.
         if (assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(guestId)) {
@@ -92,8 +93,7 @@ public class AssignmentCommandService {
     public ReassignmentResponse reassign(UUID guestId, Long definitionId) {
         GuestServer guest = guestServerRepository.findById(guestId)
                 .orElseThrow(() -> new GuestServerNotFoundException(guestId));
-        SettingDefinition definition = definitionRepository.findById(definitionId)
-                .orElseThrow(() -> new SettingNotFoundException(definitionId));
+        SettingDefinition definition = loadAssignableDefinition(definitionId);
 
         SettingAssignment active = assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(guestId)
                 .orElseThrow(() -> new NoActiveAssignmentToReassignException(guestId));
@@ -115,6 +115,24 @@ public class AssignmentCommandService {
         return new ReassignmentResponse(
                 saved.getId(), active.getId(), definition.getId(), definition.getName(),
                 List.copyOf(saved.getOwnedPhases().asSet()));
+    }
+
+    /**
+     * 할당 대상 정의서 로드 + 할당 가능 가드(U3-2-b DEC-G — 할당 · 재할당 공통).
+     *
+     * <p>조회부터 <b>활성(비삭제) 전용</b>이라 soft-deleted 정의서는 부재와 같이 404 로 끊긴다 — 화면에서
+     * 사라진 정의서를 direct POST 로 할당하는 경로를 막는다. 이어 도메인 SSOT
+     * {@code SettingDefinition.assignBlockReason()} 이 사유를 반환하면(현재는 비활성) 409 로 거절한다.
+     * deprecated 정의서는 사유가 없으므로 통과한다 — 사용 중단 권고는 경고이지 차단이 아니다.</p>
+     */
+    private SettingDefinition loadAssignableDefinition(Long definitionId) {
+        SettingDefinition definition = definitionRepository.findByIdAndIsDeletedFalse(definitionId)
+                .orElseThrow(() -> new SettingNotFoundException(definitionId));
+        String blockReason = definition.assignBlockReason();
+        if (blockReason != null) {
+            throw new DefinitionNotAssignableException(definitionId, blockReason);
+        }
+        return definition;
     }
 
     /**

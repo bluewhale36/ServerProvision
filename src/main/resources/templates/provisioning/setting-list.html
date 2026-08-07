@@ -8,6 +8,9 @@
                  · id           : Long
                  · name         : String
                  · processTypes : List<SettingProcessType> (단계 요약 배지)
+                 · deleted      : boolean (삭제됨 배지 — includeDeleted 목록에서만 등장)
+                 · enabled      : boolean (false 면 '비활성' 배지 — 신규 할당 차단, U3-2-b DEC-G)
+                 · deprecated   : boolean (true 면 '사용 중단' 배지 — 할당은 허용, 경고만)
                  · createdAt    : LocalDateTime
 
   행 클릭 시 /provisioning/setting/{id} 상세로 이동.
@@ -23,6 +26,13 @@
     <div class="n-page-header">
         <h1 class="n-page-title">세팅 정의서</h1>
         <div class="n-header-actions">
+            <!-- U3-2-b — 휴지통 토글(os 선례 DEC-F). on 이면 삭제분도 목록에 노출(삭제 배지). -->
+            <label class="n-checkbox">
+                <input type="checkbox"
+                       th:checked="${includeDeleted}"
+                       id="settingIncludeDeletedToggle">
+                삭제된 항목 포함
+            </label>
             <a th:href="@{/provisioning/setting/new}" class="n-btn n-btn-primary">새 정의서 작성</a>
         </div>
     </div>
@@ -40,8 +50,10 @@
         <table class="n-table" id="settingTable">
             <thead>
             <tr>
-                <th>#</th>
+                <th class="n-th-center">#</th>
                 <th>정의서 명칭</th>
+                <th class="n-th-center">활성</th>
+                <th class="n-th-center">사용 중단</th>
                 <th>포함 단계</th>
                 <th>생성일시</th>
             </tr>
@@ -55,6 +67,25 @@
                     <a class="n-row-link"
                        th:href="@{/provisioning/setting/{id}(id=${setting.id})}"
                        th:text="${setting.name}">정의서 명칭</a>
+                    <span th:if="${setting.deleted}" class="n-badge n-badge-red">삭제됨</span>
+                </td>
+                <!-- U3-2-b DEC-G — 활성 축: 비활성이면 신규 할당만 차단되고 이미 만들어진 할당 스냅샷은 무영향.
+                     삭제된 정의서는 두 축이 의미를 잃으므로 '-' 로 비운다. -->
+                <td class="n-td-center">
+                    <span th:if="${setting.deleted}" class="n-table-muted">-</span>
+                    <span th:if="${!setting.deleted and setting.enabled}"
+                          class="n-badge n-badge-green"
+                          title="서버에 새로 할당할 수 있는 정의서입니다.">활성</span>
+                    <span th:if="${!setting.deleted and !setting.enabled}"
+                          class="n-badge n-badge-gray"
+                          title="비활성 정의서는 서버에 새로 할당할 수 없습니다.">비활성</span>
+                </td>
+                <!-- 사용 중단 축: 할당을 막지 않고 권고만 한다 — 정상은 값 없음('-'), 권고는 노란 배지. -->
+                <td class="n-td-center">
+                    <span th:if="${setting.deleted or !setting.deprecated}" class="n-table-muted">-</span>
+                    <span th:if="${!setting.deleted and setting.deprecated}"
+                          class="n-badge n-badge-yellow"
+                          title="사용 중단이 권고된 정의서입니다. 할당은 가능하지만 다른 정의서 사용을 권장합니다.">사용 중단 권고</span>
                 </td>
                 <td>
                     <span th:if="${#lists.isEmpty(setting.processTypes)}" class="n-table-muted">-</span>
@@ -86,6 +117,16 @@
                 if (href) window.location.href = href;
             });
         });
+        // U3-2-b — 휴지통 토글: querystring 만 갈아끼워 재조회.
+        const toggle = document.getElementById('settingIncludeDeletedToggle');
+        if (toggle) {
+            toggle.addEventListener('change', function () {
+                const url = new URL(window.location.href);
+                if (this.checked) url.searchParams.set('includeDeleted', 'true');
+                else url.searchParams.delete('includeDeleted');
+                window.location.href = url.toString();
+            });
+        }
     });
 </script>
 

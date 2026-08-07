@@ -17,7 +17,18 @@ import java.util.List;
  */
 public interface SettingQueryService {
 
-    List<SettingSummaryResponse> findAll();
+    /**
+     * 정의서 목록. {@code includeDeleted=false} 면 활성 전용(기본), true 면 soft-deleted 포함(휴지통 토글,
+     * U3-2-b DEC-F · os 선례).
+     */
+    List<SettingSummaryResponse> findAll(boolean includeDeleted);
+
+    /**
+     * 할당 가능한 정의서 목록(U3-2-b DEC-G) — 게스트 서버 상세의 할당 · 재할당 드롭다운 선택지.
+     * 차단 판정은 도메인 SSOT {@code SettingDefinition.assignBlockReason()} 이라 서버 가드와 같은 기준이다
+     * (삭제 · 비활성 제외). deprecated 는 차단이 아니므로 포함되며 응답 플래그로 경고만 표시한다.
+     */
+    List<SettingSummaryResponse> findAssignable();
 
     /**
      * @throws SettingNotFoundException 해당 id 의 정의서가 없을 때 (advice 404)

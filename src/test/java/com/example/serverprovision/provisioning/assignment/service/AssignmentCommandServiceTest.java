@@ -26,6 +26,7 @@ import com.example.serverprovision.provisioning.setting.dto.request.BasicSetting
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import com.example.serverprovision.provisioning.setting.entity.SettingProcess;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
+import com.example.serverprovision.provisioning.setting.exception.DefinitionNotAssignableException;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 import com.example.serverprovision.provisioning.setting.repository.SettingDefinitionRepository;
 import com.example.serverprovision.provisioning.setting.vo.ProcessPayload;
@@ -78,21 +79,26 @@ class AssignmentCommandServiceTest {
         return definition;
     }
 
+    /** deep-freeze 대상 BIOS 세팅 템플릿(id=7 · board=3) — 할당 · 재할당 happy 경로가 함께 쓰는 fixture. */
+    private BiosSettingTemplate frozenTemplate() {
+        BoardModel board = mock(BoardModel.class);
+        given(board.getId()).willReturn(3L);
+        BiosSettingTemplate template = mock(BiosSettingTemplate.class);
+        given(template.getId()).willReturn(7L);
+        given(template.getBoardModel()).willReturn(board);
+        given(template.getValues()).willReturn(new BiosSettingValues(Map.of(
+                BiosAttributeName.of("BootMode"), BiosAttributeValue.ofString("UEFI"))));
+        return template;
+    }
+
     @Test
     @DisplayName("assign happy — 스냅샷 생성 · ownedPhases 도출 · BASIC_SETTING deep-freeze")
     void assign_success_deepFreezesBiosValues() {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
-        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
         given(assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(GUEST)).willReturn(false);
-
-        BoardModel board = mock(BoardModel.class);
-        given(board.getId()).willReturn(3L);
-        BiosSettingValues values = new BiosSettingValues(Map.of(
-                BiosAttributeName.of("BootMode"), BiosAttributeValue.ofString("UEFI")));
-        BiosSettingTemplate template = mock(BiosSettingTemplate.class);
-        given(template.getId()).willReturn(7L);
-        given(template.getBoardModel()).willReturn(board);
-        given(template.getValues()).willReturn(values);
+        // 템플릿 stub 은 given(...) 밖에서 먼저 완성한다 — 중첩하면 Mockito 가 미완성 stubbing 으로 본다.
+        BiosSettingTemplate template = frozenTemplate();
         given(biosSettingTemplateRepository.findById(7L)).willReturn(Optional.of(template));
         given(assignmentRepository.save(any(SettingAssignment.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
@@ -132,20 +138,57 @@ class AssignmentCommandServiceTest {
     }
 
     @Test
-    @DisplayName("assign 실패 — 없는 정의서 → SettingNotFoundException(404)")
+    @DisplayName("assign 실패 — 없는 · soft-deleted 정의서 → SettingNotFoundException(404, 활성 전용 로드)")
     void assign_definitionNotFound() {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
-        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.empty());
+        // 삭제된 정의서도 활성 전용 조회에선 빈 Optional 이라 부재와 같은 404 로 끊긴다(U3-2-b DEC-G).
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.assign(GUEST, DEF_ID))
                 .isInstanceOf(SettingNotFoundException.class);
+        verify(assignmentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("assign 차단 — 비활성 정의서 → DefinitionNotAssignableException(409), save 없음")
+    void assign_disabledDefinition_blocked() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
+        SettingDefinition disabled = basicSettingDefinition();
+        disabled.toggleEnabled();   // 비활성 — 신규 할당 차단(기존 스냅샷은 무영향)
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(disabled));
+
+        assertThatThrownBy(() -> service.assign(GUEST, DEF_ID))
+                .isInstanceOf(DefinitionNotAssignableException.class)
+                // 예외 메시지 = 도메인 SSOT 가 준 사유 그대로(UI 안내와 갈라지지 않게).
+                .hasMessageContaining(disabled.assignBlockReason());
+        verify(assignmentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("assign 통과 — deprecated 정의서는 차단하지 않는다(사용 중단 권고는 경고일 뿐)")
+    void assign_deprecatedDefinition_succeeds() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
+        SettingDefinition deprecated = basicSettingDefinition();
+        deprecated.deprecate();
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(deprecated));
+        given(assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(GUEST)).willReturn(false);
+        // 템플릿 stub 은 given(...) 밖에서 먼저 완성한다 — 중첩하면 Mockito 가 미완성 stubbing 으로 본다.
+        BiosSettingTemplate template = frozenTemplate();
+        given(biosSettingTemplateRepository.findById(7L)).willReturn(Optional.of(template));
+        given(assignmentRepository.save(any(SettingAssignment.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        AssignmentResponse response = service.assign(GUEST, DEF_ID);
+
+        assertThat(response.definitionId()).isEqualTo(DEF_ID);
+        verify(assignmentRepository).save(any(SettingAssignment.class));
     }
 
     @Test
     @DisplayName("assign 실패 — 이미 활성 할당(중복) → DuplicateActiveAssignmentException(409)")
     void assign_duplicateActive() {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
-        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
         given(assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(GUEST)).willReturn(true);
 
         assertThatThrownBy(() -> service.assign(GUEST, DEF_ID))
@@ -166,21 +209,15 @@ class AssignmentCommandServiceTest {
     @DisplayName("reassign happy — 미개시 활성 supersede + 현재 정의서로 새 활성(ownedPhases 재파생 · deep-freeze)")
     void reassign_success_supersedesAndCreatesNew() {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
-        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
 
         SettingAssignment active = activeUnconsumed(100L);
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
                 .willReturn(Optional.of(active));
 
         // deep-freeze 대상 템플릿(assign happy 와 동일 fixture) — 재할당도 재동결한다.
-        BoardModel board = mock(BoardModel.class);
-        given(board.getId()).willReturn(3L);
-        BiosSettingValues values = new BiosSettingValues(Map.of(
-                BiosAttributeName.of("BootMode"), BiosAttributeValue.ofString("UEFI")));
-        BiosSettingTemplate template = mock(BiosSettingTemplate.class);
-        given(template.getId()).willReturn(7L);
-        given(template.getBoardModel()).willReturn(board);
-        given(template.getValues()).willReturn(values);
+        // 템플릿 stub 은 given(...) 밖에서 먼저 완성한다 — 중첩하면 Mockito 가 미완성 stubbing 으로 본다.
+        BiosSettingTemplate template = frozenTemplate();
         given(biosSettingTemplateRepository.findById(7L)).willReturn(Optional.of(template));
         given(assignmentRepository.save(any(SettingAssignment.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
@@ -210,7 +247,7 @@ class AssignmentCommandServiceTest {
     @DisplayName("reassign 차단 — 개시된(ACTIVE_CONSUMED) 활성 → ReassignAfterStartException(409), supersede·save 없음")
     void reassign_consumed_blocked() {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
-        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
 
         SettingAssignment active = activeUnconsumed(100L);
         active.markConsumed(LocalDateTime.now());   // 개시됨 → 재할당 차단 대상
@@ -228,7 +265,7 @@ class AssignmentCommandServiceTest {
     @DisplayName("reassign 실패 — 갈아끼울 활성 없음 → NoActiveAssignmentToReassignException(409)")
     void reassign_noActive() {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
-        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
                 .willReturn(Optional.empty());
 
@@ -247,12 +284,28 @@ class AssignmentCommandServiceTest {
     }
 
     @Test
-    @DisplayName("reassign 실패 — 없는 정의서 → SettingNotFoundException(404)")
+    @DisplayName("reassign 실패 — 없는 · soft-deleted 정의서 → SettingNotFoundException(404, 활성 전용 로드)")
     void reassign_definitionNotFound() {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
-        given(definitionRepository.findById(DEF_ID)).willReturn(Optional.empty());
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
                 .isInstanceOf(SettingNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("reassign 차단 — 비활성 정의서로 갈아끼우기 → DefinitionNotAssignableException(409), 기존 활성 보존")
+    void reassign_disabledDefinition_blocked() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
+        SettingDefinition disabled = basicSettingDefinition();
+        disabled.toggleEnabled();
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(disabled));
+
+        assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
+                .isInstanceOf(DefinitionNotAssignableException.class);
+
+        // 차단은 활성 스냅샷 조회 이전이라 supersede 도 save 도 일어나지 않는다.
+        verify(assignmentRepository, never()).findByGuestServer_IdAndSupersededAtIsNull(GUEST);
+        verify(assignmentRepository, never()).save(any());
     }
 }

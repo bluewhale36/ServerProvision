@@ -15,6 +15,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,8 +41,13 @@ public class SettingController {
     private final ObjectMapper objectMapper;
 
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("settings", settingQueryService.findAll());
+    public String list(
+            @RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
+            Model model
+    ) {
+        // U3-2-b — 활성 전용이 기본, includeDeleted 면 삭제분 포함(휴지통 토글, os 선례 DEC-F).
+        model.addAttribute("settings", settingQueryService.findAll(includeDeleted));
+        model.addAttribute("includeDeleted", includeDeleted);
         return "provisioning/setting-list";
     }
 
