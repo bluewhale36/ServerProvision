@@ -6,9 +6,11 @@ import com.example.serverprovision.execution.dto.request.UpdateGuestServerReques
 import com.example.serverprovision.execution.service.GuestServerCommandService;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
 import com.example.serverprovision.provisioning.assignment.dto.request.AssignSettingRequest;
+import com.example.serverprovision.provisioning.assignment.dto.request.ReassignSettingRequest;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.PlannedPhaseRailResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
@@ -39,8 +41,9 @@ import java.util.UUID;
  *   <li>{@code GET  /provisioning/server/{id}}              — 상세 (인라인 수정 + 할당 폼 + 계획 phase rail)</li>
  *   <li>{@code POST /provisioning/server/{id}/edit}         — 상세 화면의 4 필드 저장</li>
  *   <li>{@code POST /provisioning/server/{id}/decommission} — 서버 회수</li>
- *   <li>{@code POST /provisioning/server/{id}/assignment}   — 세팅 정의서 할당 (XHR JSON)</li>
- *   <li>{@code POST /provisioning/server/{id}/start}        — 프로비저닝 개시 (+ 활성 스냅샷 소비)</li>
+ *   <li>{@code POST /provisioning/server/{id}/assignment}          — 세팅 정의서 할당 (XHR JSON)</li>
+ *   <li>{@code POST /provisioning/server/{id}/assignment/reassign} — 세팅 정의서 재할당 (XHR JSON, U3-2-a)</li>
+ *   <li>{@code POST /provisioning/server/{id}/start}               — 프로비저닝 개시 (+ 활성 스냅샷 소비)</li>
  * </ul>
  */
 @Controller
@@ -122,6 +125,21 @@ public class GuestServerController {
     }
 
     /**
+     * 세팅 정의서 재할당(U3-2-a, XHR JSON) — 미개시 활성을 supersede 하고 현재 정의서로 새 활성 스냅샷을 만든다.
+     * 정상 흐름은 뷰가 미개시 활성일 때만 재할당 폼을 노출하고 개시된 활성이면 버튼을 {@code disabled} + tooltip
+     * 으로 1차 차단한다(같은 SSOT {@code reassignBlockReason()}). direct POST 는 서비스 가드가 409(개시 후 재할당 ·
+     * 활성 부재) / 404(없는 게스트 · 정의서) 로 거절한다(advice 매핑).
+     */
+    @PostMapping("/{id}/assignment/reassign")
+    @ResponseBody
+    public ResponseEntity<ReassignmentResponse> reassign(
+            @PathVariable("id") UUID id,
+            @Valid @RequestBody ReassignSettingRequest request
+    ) {
+        return ResponseEntity.ok(assignmentCommandService.reassign(id, request.definitionId()));
+    }
+
+    /**
      * 프로비저닝 개시(E1-0a, DEC-26) + 활성 스냅샷 소비(U3-1, D-D)를 한 트랜잭션으로. 정상 흐름은 뷰가
      * startable 플래그로 버튼을 숨겨 차단하고, direct POST 는 서비스 가드가 409 로 거절한다(안전망) —
      * plain form PRG(회수 버튼과 동일 패턴).
@@ -157,7 +175,9 @@ public class GuestServerController {
      * (개시된 경우만)를 겹쳐 done/current/pending 을 계산한다(계획 vs 실제 라벨 구분).
      */
     private void populateAssignmentModel(UUID id, GuestServerDetailResponse server, Model model) {
-        model.addAttribute("definitionOptions", settingQueryService.findAll());
+        // 할당 대상은 "할당 가능" 정의서만(삭제 · 비활성 제외, U3-2-b DEC-G). 판정은 서버 가드와 같은
+        // 도메인 SSOT(assignBlockReason) 이므로 옵션에서 뺀 정의서를 direct POST 해도 409 로 일관 거절된다.
+        model.addAttribute("definitionOptions", settingQueryService.findAssignable());
         AssignmentPlanResponse plan = assignmentQueryService.plannedPhasesOf(id);
         GuestServerDetailResponse.Progress progress = server.progress();
         ProvisioningPhase currentPhase = progress != null ? progress.currentPhase() : null;

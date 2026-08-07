@@ -18,6 +18,7 @@ class PlannedPhaseRailResponseTest {
 
     private static AssignmentPlanResponse plan() {
         return new AssignmentPlanResponse(true, "web-standard", AssignmentState.ACTIVE_CONSUMED,
+                "이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)",
                 List.of(ProvisioningPhase.DIAGNOSE_LINUX,
                         ProvisioningPhase.FIRMWARE_UPDATING,
                         ProvisioningPhase.OS_INSTALLING));
@@ -41,6 +42,16 @@ class PlannedPhaseRailResponseTest {
 
         assertThat(rail.entries()).extracting(PlannedPhaseRailResponse.Entry::runState)
                 .containsExactly(RunState.PENDING, RunState.PENDING, RunState.PENDING);
+    }
+
+    @Test
+    @DisplayName("of — reassignBlockReason · state 를 계획에서 그대로 전달(뷰 disabled 판정 SSOT)")
+    void of_propagatesReassignBlockReason() {
+        PlannedPhaseRailResponse rail = PlannedPhaseRailResponse.of(
+                plan(), ProvisioningPhase.FIRMWARE_UPDATING, true);
+
+        assertThat(rail.state()).isEqualTo(AssignmentState.ACTIVE_CONSUMED);
+        assertThat(rail.reassignBlockReason()).isEqualTo("이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)");
     }
 
     @Test

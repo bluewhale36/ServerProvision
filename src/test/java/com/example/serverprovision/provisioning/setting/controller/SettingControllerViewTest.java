@@ -34,6 +34,7 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -52,12 +53,26 @@ class SettingControllerViewTest {
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private SettingSummaryResponse summary(long id) {
+        return summary(id, false);
+    }
+
+    private SettingSummaryResponse summary(long id, boolean deleted) {
+        return summary(id, deleted, true, false);
+    }
+
+    /** U3-2-b DEC-G — 활성/사용중단 축까지 지정하는 목록 행(배지 렌더 검증용). */
+    private SettingSummaryResponse summary(long id, boolean deleted, boolean enabled, boolean deprecated) {
         return new SettingSummaryResponse(id, "표준 세팅",
-                List.of(SettingProcessType.BASIC_UPDATE), LocalDateTime.now());
+                List.of(SettingProcessType.BASIC_UPDATE), deleted, enabled, deprecated, LocalDateTime.now());
     }
 
     /** 비밀번호가 실제로 담긴 RHEL 설치 단계 — initialSettingJson 의 비밀번호 제거를 검증하는 데 쓴다. */
     private SettingDetailResponse detailWithPasswords(long id) {
+        return detailWithPasswords(id, true, false);
+    }
+
+    /** U3-2-b DEC-G — 활성/사용중단 축까지 지정하는 상세(배지 · 액션 버튼 라벨 검증용). */
+    private SettingDetailResponse detailWithPasswords(long id, boolean enabled, boolean deprecated) {
         RHELInstallationRequest rhel = new RHELInstallationRequest(
                 1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
@@ -66,6 +81,7 @@ class SettingControllerViewTest {
                 List.of(new UserRequest("admin", "user-secret-pw", true, false, false)),
                 1L, List.of(1L), true, null);
         return new SettingDetailResponse(id, "표준 세팅",
+                false, enabled, deprecated, 0L,
                 List.of(new BasicUpdateRequest(
                                 new BoardModelSelectionRequest(BoardModelSelectionMode.SPECIFIED, 1L),
                                 new FirmwareSelectionRequest(FirmwareSelectionMode.LATEST, null),
@@ -80,13 +96,26 @@ class SettingControllerViewTest {
     // ==== 성공 2xx ====================================================
 
     @Test
-    @DisplayName("GET /provisioning/setting — 목록 200 + list 뷰 + settings")
+    @DisplayName("GET /provisioning/setting — 목록 200 + list 뷰 + settings (활성 전용 기본)")
     void list_returns200() throws Exception {
-        given(queryService.findAll()).willReturn(List.of(summary(1L)));
+        given(queryService.findAll(false)).willReturn(List.of(summary(1L)));
 
         mvc.perform(get("/provisioning/setting"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/setting-list"))
+                .andExpect(model().attributeExists("settings"))
+                .andExpect(model().attribute("includeDeleted", false));
+    }
+
+    @Test
+    @DisplayName("GET /provisioning/setting?includeDeleted=true — 삭제분 포함 조회 + 토글 상태 전달 (U3-2-b DEC-F)")
+    void list_includeDeleted_returnsAll() throws Exception {
+        given(queryService.findAll(true)).willReturn(List.of(summary(1L), summary(2L, true)));
+
+        mvc.perform(get("/provisioning/setting").param("includeDeleted", "true"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("provisioning/setting-list"))
+                .andExpect(model().attribute("includeDeleted", true))
                 .andExpect(model().attributeExists("settings"));
     }
 
@@ -112,6 +141,31 @@ class SettingControllerViewTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/setting-detail"))
                 .andExpect(model().attributeExists("setting"));
+    }
+
+    @Test
+    @DisplayName("GET /provisioning/setting — 비활성 · 사용 중단 정의서에 상태 배지 렌더 (U3-2-b DEC-G)")
+    void list_rendersLifecycleBadges() throws Exception {
+        given(queryService.findAll(false)).willReturn(List.of(summary(1L, false, false, true)));
+
+        mvc.perform(get("/provisioning/setting"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("비활성")))
+                .andExpect(content().string(containsString("사용 중단")));
+    }
+
+    @Test
+    @DisplayName("GET /{id} — 비활성 · 사용 중단 상세는 액션 버튼이 '활성화' · '권고 해제'로 뒤집힌다")
+    void detail_rendersInverseLifecycleActions() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detailWithPasswords(1L, false, true));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                // 상태 전이 액션은 현재 상태의 반대를 제시한다(현 상태는 배지가 알린다).
+                .andExpect(content().string(containsString(">활성화<")))
+                .andExpect(content().string(containsString(">권고 해제<")))
+                .andExpect(content().string(containsString("/provisioning/setting/1/toggle")))
+                .andExpect(content().string(containsString("/provisioning/setting/1/undeprecate")));
     }
 
     @Test

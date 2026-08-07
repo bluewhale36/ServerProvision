@@ -9,6 +9,7 @@ import com.example.serverprovision.provisioning.assignment.exception.DuplicateAc
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
+import com.example.serverprovision.provisioning.setting.exception.DefinitionNotAssignableException;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * U3-1 CP4 — 세팅 정의서 할당 엔드포인트(XHR JSON)의 HTTP 계층 검증. Mocking 은 Service 단까지 —
  * 컨트롤러 {@code @ResponseBody} + advice(ApiExceptionHandler) 의 2xx/400/404/409 매핑이 실경로다.
- * 신규 예외({@code DuplicateActiveAssignmentException}) 는 409 시나리오가 실트리거한다(테스트 규율).
+ * 신규 예외({@code DuplicateActiveAssignmentException} · U3-2-b 의 {@code DefinitionNotAssignableException})
+ * 는 각각 409 시나리오가 실트리거한다(테스트 규율).
  */
 @WebMvcTest(controllers = GuestServerController.class)
 class GuestServerControllerAssignmentTest {
@@ -119,6 +121,37 @@ class GuestServerControllerAssignmentTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("POST /assignment — soft-deleted 정의서 direct POST → 404 (활성 전용 로드, U3-2-b DEC-G)")
+    void assign_softDeletedDefinition_returns404() throws Exception {
+        UUID id = UUID.randomUUID();
+        // 삭제된 정의서는 드롭다운에 없다 — 옛 화면/직접 호출로 밀어 넣어도 부재와 같은 404 로 끊긴다.
+        given(assignmentCommandService.assign(eq(id), eq(DEF_ID)))
+                .willThrow(new SettingNotFoundException(DEF_ID));
+
+        mvc.perform(post(url(id))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"definitionId\":5}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST /assignment — deprecated 정의서는 할당 성공 200 (사용 중단 권고는 차단이 아니다)")
+    void assign_deprecatedDefinition_returns200() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(assignmentCommandService.assign(eq(id), eq(DEF_ID))).willReturn(
+                new AssignmentResponse(2L, DEF_ID, "legacy-standard",
+                        List.of(ProvisioningPhase.FIRMWARE_SETTING)));
+
+        mvc.perform(post(url(id))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"definitionId\":5}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.definitionName").value("legacy-standard"));
+    }
+
     // ==== 409 — 활성 유일성(신규 예외 실트리거) =======================
 
     @Test
@@ -127,6 +160,22 @@ class GuestServerControllerAssignmentTest {
         UUID id = UUID.randomUUID();
         given(assignmentCommandService.assign(eq(id), eq(DEF_ID)))
                 .willThrow(new DuplicateActiveAssignmentException(id));
+
+        mvc.perform(post(url(id))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"definitionId\":5}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("POST /assignment — 비활성 정의서 direct POST → 409 (신규 예외 실트리거, U3-2-b DEC-G)")
+    void assign_disabledDefinition_returns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        // UI 는 비활성 정의서를 드롭다운에서 빼 1차 차단한다 — 이 경로는 direct POST · stale 화면 안전망.
+        given(assignmentCommandService.assign(eq(id), eq(DEF_ID)))
+                .willThrow(new DefinitionNotAssignableException(
+                        DEF_ID, "비활성화된 정의서는 신규 할당이 차단됩니다(활성화 후 재시도)"));
 
         mvc.perform(post(url(id))
                         .contentType(MediaType.APPLICATION_JSON)

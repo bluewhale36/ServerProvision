@@ -33,6 +33,7 @@ public class AssignmentQueryService {
                         true,
                         assignment.getSourceDefinitionRef().getDefinitionName(),
                         assignment.state(),
+                        assignment.reassignBlockReason(),   // 뷰 disabled + tooltip 판정 SSOT(서버 가드와 동일 소스)
                         orderedPlan(assignment.getOwnedPhases())))
                 .orElseGet(AssignmentPlanResponse::unassigned);
     }
