@@ -71,6 +71,8 @@ public class TrashService {
 	public void moveBack(Path trashedPath, Path originalPath) {
 		moveWithRetry(trashedPath, originalPath);
 		log.info("[trash] moveBack from={} to={}", trashedPath, originalPath);
+		// HF6 — 복원이 남기던 빈 ID 디렉토리 껍데기 정리 (개발 머신 실측 14개의 원인).
+		cleanupEmptyIdDirectory(trashedPath.getParent());
 	}
 
 	/**
@@ -85,8 +87,38 @@ public class TrashService {
 	 * @param trashedPath  되돌릴 trash 내 경로 (mv 도착지)
 	 */
 	public void moveBackReverse(Path originalPath, Path trashedPath) {
+		// HF6 — moveBack 이 빈 ID 디렉토리를 정리하게 되면서, 역보상은 그 디렉토리가 이미 사라진
+		// 상태에서 호출될 수 있다 (moveWithRetry 는 부모를 만들지 않는다). 재생성을 선행하지 않으면
+		// 복원 후속 실패의 역보상이 NoSuchFileException 으로 연쇄 실패한다 — 이 커플링이 이번 수정에서
+		// 가장 놓치기 쉬운 지점이라 여기서 못박는다.
+		try {
+			Files.createDirectories(trashedPath.getParent());
+		} catch (IOException e) {
+			throw new TrashMoveFailedException("역보상 대상 휴지통 디렉토리 재생성 실패 : " + trashedPath.getParent(), e);
+		}
 		moveWithRetry(originalPath, trashedPath);
 		log.info("[trash] moveBackReverse (역보상) from={} to={}", originalPath, trashedPath);
+	}
+
+	/**
+	 * HF6 — {@code 루트/자원종류/ID} 껍데기 정리. 정확히 그 깊이이고 비어 있을 때만 지운다.
+	 * 잡파일이나 다른 잔존물이 있으면 보존 — 그 대사는 MK4 개선 캠페인 소관. best-effort 라
+	 * 실패해도 복원 흐름은 성공으로 유지된다.
+	 */
+	private void cleanupEmptyIdDirectory(Path idDirectory) {
+		if (idDirectory == null) return;
+		Path root = trashPolicy.getTrashRoot().toAbsolutePath().normalize();
+		Path target = idDirectory.toAbsolutePath().normalize();
+		if (!target.startsWith(root) || root.relativize(target).getNameCount() != 2) {
+			return;
+		}
+		try {
+			Files.deleteIfExists(target);
+		} catch (java.nio.file.DirectoryNotEmptyException keep) {
+			// 비어 있지 않으면 보존 — 보수 정책.
+		} catch (IOException e) {
+			log.warn("[trash] ID 디렉토리 정리 실패. path={}, msg={}", target, e.getMessage());
+		}
 	}
 
 	/**

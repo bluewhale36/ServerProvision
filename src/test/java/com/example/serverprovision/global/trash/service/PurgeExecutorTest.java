@@ -45,13 +45,16 @@ class PurgeExecutorTest {
     @Mock TrashSettingsService settings;
     @Mock PurgeLogRepository purgeLogRepository;
     @Mock Markable snapshot;
+    @Mock com.example.serverprovision.global.trash.TrashPolicy trashPolicy;
 
     PurgeExecutorImpl executor;
 
     @BeforeEach
     void setUp() {
         // 본 테스트의 PurgeExecutor 는 단일 도메인 (OS_ISO) 만 등록.
-        executor = new PurgeExecutorImpl(List.of(isoScanner), settings, purgeLogRepository);
+        executor = new PurgeExecutorImpl(List.of(isoScanner), settings, purgeLogRepository, trashPolicy);
+        // HF6 — 실물 정리 가드가 루트를 조회한다. 본 테스트의 관심사가 아니므로 존재하지 않는 경로로 격리.
+        given(trashPolicy.getTrashRoot()).willReturn(java.nio.file.Path.of("/nonexistent-trash-root-for-test"));
         given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
     }
 

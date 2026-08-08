@@ -78,4 +78,58 @@ class TrashServiceTest {
 		assertThat(moved.getFileName().toString())
 				.matches("bundle_\\d{6}-\\d{6}-\\d{3}_[0-9a-f]{8}");
 	}
+
+	/* ═══════════ HF6 — 복원의 빈 ID 디렉토리 정리와 역보상 커플링 ═══════════ */
+
+	@Test
+	@DisplayName("HF6 — moveBack 후 비워진 루트/자원종류/ID 디렉토리가 정리된다 (실측 껍데기 14개의 원인)")
+	void moveBack_cleansEmptyIdDirectory(@TempDir Path dir) throws Exception {
+		Path root = dir.resolve("soft-deleted");
+		Path trashed = root.resolve("OS_ISO/5/dvd_x.iso");
+		Files.createDirectories(trashed.getParent());
+		Files.writeString(trashed, "body");
+		Path original = dir.resolve("iso/dvd.iso");
+		Files.createDirectories(original.getParent());
+		given(trashPolicy.getTrashRoot()).willReturn(root);
+
+		service.moveBack(trashed, original);
+
+		assertThat(Files.exists(original)).isTrue();
+		assertThat(Files.exists(trashed.getParent())).isFalse(); // ID 껍데기 소멸
+		assertThat(Files.exists(root.resolve("OS_ISO"))).isTrue(); // 자원종류 층은 보존
+	}
+
+	@Test
+	@DisplayName("HF6 보수 정책 — ID 디렉토리에 다른 파일이 남아 있으면 보존한다")
+	void moveBack_keepsIdDirectoryWhenNotEmpty(@TempDir Path dir) throws Exception {
+		Path root = dir.resolve("soft-deleted");
+		Path trashed = root.resolve("OS_ISO/5/dvd_x.iso");
+		Files.createDirectories(trashed.getParent());
+		Files.writeString(trashed, "body");
+		Files.writeString(trashed.getParent().resolve("escaped-old.iso"), "잔존물");
+		Path original = dir.resolve("iso/dvd.iso");
+		Files.createDirectories(original.getParent());
+		given(trashPolicy.getTrashRoot()).willReturn(root);
+
+		service.moveBack(trashed, original);
+
+		assertThat(Files.exists(trashed.getParent())).isTrue(); // 잔존물이 있어 보존
+	}
+
+	@Test
+	@DisplayName("HF6 커플링 — 역보상(moveBackReverse)은 정리된 ID 디렉토리를 재생성해 정상 복귀한다")
+	void moveBackReverse_recreatesCleanedIdDirectory(@TempDir Path dir) throws Exception {
+		Path root = dir.resolve("soft-deleted");
+		Path trashed = root.resolve("OS_ISO/5/dvd_x.iso");
+		Path original = dir.resolve("iso/dvd.iso");
+		Files.createDirectories(original.getParent());
+		Files.writeString(original, "body");
+		// moveBack 이 ID 디렉토리를 이미 정리한 상황 — 휴지통에 부모가 없다.
+		assertThat(Files.exists(trashed.getParent())).isFalse();
+
+		service.moveBackReverse(original, trashed);
+
+		assertThat(Files.exists(trashed)).isTrue();   // 휴지통으로 복귀 성공
+		assertThat(Files.exists(original)).isFalse();
+	}
 }
