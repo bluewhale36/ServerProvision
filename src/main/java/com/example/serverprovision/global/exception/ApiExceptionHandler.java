@@ -75,6 +75,20 @@ public class ApiExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+	/**
+	 * 검증 실패 문구의 사전({@code messages.properties}). Bean Validation 제약은 각자 메시지를 들고
+	 * 오지만, 값을 타입으로 바꾸다 실패하는 바인딩 오류(enum · 숫자 · 날짜)는 제약 이전 단계라
+	 * 메시지가 없어 Spring 이 만든 원문 영어 예외 문구가 그대로 응답에 실린다.
+	 * <p>사전을 거치면 그 자리가 사람 문장으로 채워진다. 오류 종류마다 여기에 분기를 두지 않는 이유는
+	 * {@code DefaultMessageCodesResolver} 가 이미 필드 · 타입 · 일반 순으로 후보 키를 만들어 주기
+	 * 때문이다 — 새 필드가 늘어도 사전의 마지막 자리가 받아 낸다.</p>
+	 */
+	private final org.springframework.context.MessageSource messageSource;
+
+	public ApiExceptionHandler(org.springframework.context.MessageSource messageSource) {
+		this.messageSource = messageSource;
+	}
+
 	/* ─────────────────────────── 도메인 (JSON variant) ─────────────────────────── */
 	// R2-3 — handleNotFound/handleConflict(plain-body)는 NotFoundException@404 / ConflictException@409 의
 	// @ResponseStatus 를 handleDomain 이 흡수하므로 수렴(삭제). 특수 body 핸들러(FieldBound/Nudge/DeleteReject/
@@ -233,10 +247,7 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ApiErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
 		List<ApiErrorResponse.FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
-				.map(fe -> new ApiErrorResponse.FieldError(
-						fe.getField(),
-						fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"
-				))
+				.map(fe -> new ApiErrorResponse.FieldError(fe.getField(), resolveMessage(fe)))
 				.toList();
 		String summary = fieldErrors.isEmpty()
 				? "유효하지 않은 입력입니다."
@@ -244,6 +255,17 @@ public class ApiExceptionHandler {
 		log.warn("[validation] MethodArgumentNotValid : {} fields", fieldErrors.size());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 				.body(ApiErrorResponse.ofValidation(summary, fieldErrors));
+	}
+
+	/**
+	 * 필드 오류 하나를 사용자 문구로. 사전에 항목이 있으면 그것을, 없으면 제약이 들고 온 메시지를 쓴다.
+	 * <p>{@code MessageSource} 가 후보 키를 모두 놓쳤을 때 {@code getDefaultMessage()} 로 돌아가는 것은
+	 * Spring 이 이미 하는 일이라 여기에 조건을 두지 않는다. 마지막 fallback 만 우리가 정한다.</p>
+	 */
+	private String resolveMessage(org.springframework.validation.FieldError fieldError) {
+		String resolved = messageSource.getMessage(
+				fieldError, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+		return resolved != null ? resolved : "유효하지 않은 값";
 	}
 
 	/**

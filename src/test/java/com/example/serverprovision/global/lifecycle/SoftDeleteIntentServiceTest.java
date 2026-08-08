@@ -109,7 +109,7 @@ class SoftDeleteIntentServiceTest {
                 .resourceType(ResourceType.OS_ISO).resourceId(42L)
                 .kind(com.example.serverprovision.global.marker.DriftKind.PATH_DRIFT)
                 .oldPath("/old").newPath(tmp.resolve("new").toString())
-                .detectedAt(Instant.now()).build();
+                .firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
         given(reconciliationService.scanForResource(eq(ResourceType.OS_ISO), eq(42L)))
                 .willReturn(List.of(pathDrift));
 

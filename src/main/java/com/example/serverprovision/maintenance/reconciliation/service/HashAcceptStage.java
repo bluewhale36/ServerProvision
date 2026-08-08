@@ -7,7 +7,7 @@ import com.example.serverprovision.global.job.JobStage;
  */
 public enum HashAcceptStage implements JobStage {
 
-	ACCEPTING("지문 재계산·정본 갱신");
+	ACCEPTING("지문 재계산 · 정본 갱신");
 
 	private final String label;
 

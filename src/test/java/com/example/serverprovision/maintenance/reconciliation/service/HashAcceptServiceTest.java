@@ -10,8 +10,11 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftObservation;
 import com.example.serverprovision.maintenance.reconciliation.entity.DriftReport;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +47,7 @@ class HashAcceptServiceTest {
     private MarkableScanner scanner;
     private BackgroundJobService backgroundJobService;
     private DriftRepository driftRepository;
+    private DriftHandlingRepository driftHandlingRepository;
     private ProvisionMarkerService markerService;
     private PathReconciliationService reconciliationService;
     private HashAcceptService service;
@@ -56,13 +60,14 @@ class HashAcceptServiceTest {
         given(backgroundJobService.register(any(), anyString(), anyString(),
                 org.mockito.ArgumentMatchers.<List<String>>any())).willReturn("job-1");
         driftRepository = mock(DriftRepository.class);
+        driftHandlingRepository = mock(DriftHandlingRepository.class);
         markerService = new ProvisionMarkerService();
         ReflectionTestUtils.setField(markerService, "secret", "test-secret");
         reconciliationService = mock(PathReconciliationService.class);
         given(reconciliationService.isResolutionEnabled()).willReturn(true);
         service = new HashAcceptService(
                 List.of(scanner), markerService, backgroundJobService, driftRepository,
-                reconciliationService, null);
+                driftHandlingRepository, reconciliationService, null);
         ReflectionTestUtils.setField(service, "self", service);
     }
 
@@ -71,13 +76,24 @@ class HashAcceptServiceTest {
                 .scannedAt(Instant.now()).scanDurationMs(10).deep(true).totalChecked(1).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.HASH_MISMATCH)
-                .oldPath("/iso/dvd.iso").newPath(null).detectedAt(Instant.now())
+                .oldPath("/iso/dvd.iso").newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now())
                 .observedHash(observedHash)
                 .build();
-        report.addDrift(drift);
+        report.addObservation(observationOf(drift));
         ReflectionTestUtils.setField(drift, "id", id);
         given(driftRepository.findById(id)).willReturn(Optional.of(drift));
         return drift;
+    }
+
+    /**
+     * MK4-1 — 문제 하나를 한 회차에 얹는 픽스처. 스캔이 {@code linkObservations} 에서 만드는 것과 같은 모양.
+     */
+    private static DriftObservation observationOf(Drift drift) {
+        return DriftObservation.builder()
+                .drift(drift).observedAt(drift.getFirstDetectedAt())
+                .oldPath(drift.getOldPath()).newPath(drift.getNewPath())
+                .detail(drift.getDetail()).observedHash(drift.getObservedHash())
+                .build();
     }
 
     private Markable activeIso(Path path, String displayName) {
@@ -98,7 +114,7 @@ class HashAcceptServiceTest {
     }
 
     @Test
-    @DisplayName("수용 성공 : 자원명 확인 → 재계산=스냅샷 일치 → 마커 지문·서명 갱신 + 카드 제거 + 완료")
+    @DisplayName("수용 성공 : 자원명 확인 → 재계산=스냅샷 일치 → 마커 지문·서명 갱신 + 문제 해결 + 완료")
     void acceptsCurrentContent(@TempDir Path tmp) throws Exception {
         Path iso = tmp.resolve("dvd.iso");
         Files.writeString(iso, "new-content");
@@ -115,7 +131,7 @@ class HashAcceptServiceTest {
         assertThat(after.manifestHash()).isEqualTo("hash-new");                     // 정본 갱신
         assertThat(markerService.verifySignature(after)).isTrue();                  // 재서명 유효
         assertThat(after.attributes()).containsEntry("k", "v");                     // 부속 정보 보존
-        assertThat(drift.getReport().getDrifts()).isEmpty();                        // 카드 제거
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.RESOLVED);              // MK4-1 — 문제가 닫힌다
         verify(resource).reissueMarker("hash-new", after.signature());              // DB 반영
         verify(backgroundJobService).complete("job-1",
                 Map.of("acceptedResource", "Rocky Linux 9.6 dvd.iso"));
@@ -151,7 +167,7 @@ class HashAcceptServiceTest {
         verify(backgroundJobService, never()).complete(anyString(),
                 org.mockito.ArgumentMatchers.<Map<String, String>>any());
         assertThat(markerService.read(iso, MarkerLayout.SIDECAR).manifestHash()).isEqualTo("hash-old"); // 정본 불변
-        assertThat(drift.getReport().getDrifts()).containsExactly(drift);                                 // 카드 유지
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.OPEN);                                        // 문제 유지
     }
 
     @Test
@@ -167,8 +183,8 @@ class HashAcceptServiceTest {
                 .scannedAt(Instant.now()).scanDurationMs(10).deep(false).totalChecked(1).build();
         Drift missing = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.MISSING)
-                .oldPath("/x").detectedAt(Instant.now()).build();
-        report.addDrift(missing);
+                .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(observationOf(missing));
         ReflectionTestUtils.setField(missing, "id", 5L);
         given(driftRepository.findById(5L)).willReturn(Optional.of(missing));
         assertThatThrownBy(() -> service.triggerAccept(5L, "x"))

@@ -86,15 +86,30 @@
     margin-top: 3px;
 }
 
+/* 라디오 옆 본문은 세로로 쌓는다. span 으로 쓰면 인라인이라 제목 · 경로 · 설명이 한 줄로 붙어
+   흘러 계층이 보이지 않았다(자원 복제본 선택 카드에서 실측). 태그와 무관하게 쌓이도록 여기서 정한다. */
+.cm-cascade-option > span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;              /* 긴 경로가 카드를 밀어내지 않게 */
+}
+
 .cm-cascade-option-title {
+    display: block;
     font-size: 14px;
     font-weight: 500;
 }
 
 .cm-cascade-option-desc {
+    display: block;
     font-size: 12px;
     color: var(--n-text-muted, #666);
-    margin-top: 2px;
+}
+
+/* 옵션 안의 경로는 길어도 카드를 넘치지 않게 끊어 준다. */
+.cm-cascade-option-desc code {
+    word-break: break-all;
 }
 
 /* ---- purge fragment — typed-name input slot ---- */

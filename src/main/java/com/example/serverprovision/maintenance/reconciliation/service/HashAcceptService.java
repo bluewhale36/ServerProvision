@@ -11,6 +11,9 @@ import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftHandling;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
@@ -49,6 +52,7 @@ public class HashAcceptService {
 	private final ProvisionMarkerService markerService;
 	private final BackgroundJobService backgroundJobService;
 	private final DriftRepository driftRepository;
+	private final DriftHandlingRepository driftHandlingRepository;
 	private final PathReconciliationService reconciliationService;
 	private final HashAcceptService self;
 	// 자원 (종류, 번호) 단위 중복 차단 — driftId 단위면 같은 자원을 가리키는 구 보고서의 다른 카드로
@@ -60,6 +64,7 @@ public class HashAcceptService {
 			ProvisionMarkerService markerService,
 			BackgroundJobService backgroundJobService,
 			DriftRepository driftRepository,
+			DriftHandlingRepository driftHandlingRepository,
 			PathReconciliationService reconciliationService,
 			@Lazy HashAcceptService self
 	) {
@@ -68,6 +73,7 @@ public class HashAcceptService {
 		this.markerService = markerService;
 		this.backgroundJobService = backgroundJobService;
 		this.driftRepository = driftRepository;
+		this.driftHandlingRepository = driftHandlingRepository;
 		this.reconciliationService = reconciliationService;
 		this.self = self;
 	}
@@ -159,7 +165,11 @@ public class HashAcceptService {
 		// 파일 쓰기를 마지막에 두면 잔여 위험은 "커밋 자체 실패" 한 가지로 줄고, 그 경우 마커(신값)와
 		// DB(구값)의 어긋남은 다음 정밀 점검이 다시 보고한다 (침묵 소실 없음).
 		resource.reissueMarker(recomputed.get(), signature);
-		drift.getReport().removeDrift(drift);
+		// MK4-1 — 카드 제거가 아니라 문제 종료. 순서(DB 변이 → flush → 파일 쓰기)는 그대로 유지한다.
+		Instant handledAt = Instant.now();
+		drift.resolve(handledAt, DriftHandlingAction.ACCEPT_HASH);
+		driftHandlingRepository.save(DriftHandling.of(
+				drift, DriftHandlingAction.ACCEPT_HASH, handledAt, resource.getResourcePath().toString(), null, null));
 		driftRepository.flush();
 
 		markerService.write(resource.getResourcePath(), resource.getMarkerLayout(), updated.withSignature(signature));

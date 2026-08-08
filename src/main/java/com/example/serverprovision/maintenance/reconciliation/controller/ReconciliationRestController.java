@@ -1,7 +1,9 @@
 package com.example.serverprovision.maintenance.reconciliation.controller;
 
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
+import com.example.serverprovision.maintenance.reconciliation.dto.request.DriftSnoozeRequest;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftReportResponse;
+import jakarta.validation.Valid;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -128,14 +130,26 @@ public class ReconciliationRestController {
 			RedirectAttributes redirectAttributes
 	) {
 		duplicateResolveService.resolve(driftId, survivor);
-		redirectAttributes.addFlashAttribute("flashMessage", "자원 중복을 해소했습니다");
+		redirectAttributes.addFlashAttribute("flashMessage", "자원 중복을 해결했습니다");
 		return new RedirectView("/maintenance/reconciliation");
 	}
 
-	@PostMapping("/drifts/{driftId}/dismiss")
-	public RedirectView dismiss(@PathVariable Long driftId, RedirectAttributes redirectAttributes) {
-		reconciliationService.dismiss(driftId);
-		redirectAttributes.addFlashAttribute("flashMessage", "드리프트 보고를 닫았습니다");
+	/**
+	 * MK4-1 — 종전 '보고 닫기' 를 대신하는 '보관'. 보관 기간(또는 조건)과 사유를 받는다.
+	 *
+	 * <p>{@code BindingResult} 를 받지 않는다 — 받으면 검증 실패를 이 메서드가 분기로 처리해야 하고,
+	 * 그 분기는 필드가 늘 때마다 같이 자란다. 대신 Spring 이 {@code MethodArgumentNotValidException}
+	 * 을 던지게 두고 {@code ApiExceptionHandler} 가 필드 오류를 담은 400 으로 옮긴다.</p>
+	 */
+	@PostMapping("/drifts/{driftId}/snooze")
+	public RedirectView snooze(
+			@PathVariable Long driftId,
+			@Valid @ModelAttribute DriftSnoozeRequest request,
+			RedirectAttributes redirectAttributes
+	) {
+		reconciliationService.snooze(driftId, request.window(), request.reason());
+		redirectAttributes.addFlashAttribute("flashMessage",
+				request.window().getLabel() + " 보관했습니다");
 		return new RedirectView("/maintenance/reconciliation");
 	}
 }

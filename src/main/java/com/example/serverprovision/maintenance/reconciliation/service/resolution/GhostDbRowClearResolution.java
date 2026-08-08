@@ -4,6 +4,8 @@ import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
 import org.springframework.stereotype.Component;
+import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * GHOST_DB_ROW 해결 — FS 에 자원도 trash 도 없는 dead row 를 hard-delete 한다.
@@ -18,7 +20,9 @@ public class GhostDbRowClearResolution implements DriftResolution {
 	}
 
 	@Override
-	public void resolve(Drift drift, MarkableScanner scanner) {
+	public Optional<Path> resolve(Drift drift, MarkableScanner scanner) {
 		scanner.applyGhostClear(drift.getResourceId());
+		// DB 기록만 지운다 — 옮긴 파일이 없다.
+		return Optional.empty();
 	}
 }

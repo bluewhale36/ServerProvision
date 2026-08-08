@@ -41,7 +41,8 @@ class SecurityIntegrationTest {
 
     private final MockMvc mvc = MockMvcBuilders
             .standaloneSetup(new SecurityProbeController())
-            .setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler())
+            .setControllerAdvice(new WebExceptionHandler(),
+                    new ApiExceptionHandler(new org.springframework.context.support.StaticMessageSource()))
             .build();
 
     /* ───────────────────── XHR (JSON) — ApiExceptionHandler ───────────────────── */

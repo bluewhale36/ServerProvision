@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * SOFTDEL_ESCAPE_TO_OTHER(삭제 자원 위치 이탈) 해결 — 발견 위치의 자원을 휴지통으로 회수한다.
@@ -42,7 +43,7 @@ public class SoftDeleteEscapeToOtherResolution implements DriftResolution {
 	}
 
 	@Override
-	public void resolve(Drift drift, MarkableScanner scanner) {
+	public Optional<Path> resolve(Drift drift, MarkableScanner scanner) {
 		Markable resource = scanner.findTrashedById(drift.getResourceId())
 				.orElseThrow(() -> new IllegalStateException(
 						"회수 대상 삭제 자원을 찾을 수 없습니다 : "
@@ -80,5 +81,7 @@ public class SoftDeleteEscapeToOtherResolution implements DriftResolution {
 			trashService.moveBack(moved, found);
 			throw e;
 		}
+		// 이탈해 있던 실물을 휴지통으로 되돌려 놓았다 — 되돌리기가 찾아갈 곳은 그 휴지통 경로다.
+		return Optional.of(moved);
 	}
 }

@@ -4,6 +4,10 @@ import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftHandling;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
+import java.time.Instant;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
@@ -27,17 +31,20 @@ public class DriftRecheckService {
 	private final Map<ResourceType, MarkableScanner> scanners;
 	private final Map<DriftKind, DriftRecheck> rechecks;
 	private final DriftRepository driftRepository;
+	private final DriftHandlingRepository driftHandlingRepository;
 
 	public DriftRecheckService(
 			List<MarkableScanner> scanners,
 			List<DriftRecheck> rechecks,
-			DriftRepository driftRepository
+			DriftRepository driftRepository,
+			DriftHandlingRepository driftHandlingRepository
 	) {
 		this.scanners = scanners.stream()
 				.collect(Collectors.toUnmodifiableMap(MarkableScanner::supportedType, s -> s));
 		this.rechecks = rechecks.stream()
 				.collect(Collectors.toUnmodifiableMap(DriftRecheck::supportedKind, r -> r));
 		this.driftRepository = driftRepository;
+		this.driftHandlingRepository = driftHandlingRepository;
 	}
 
 	/**
@@ -58,8 +65,12 @@ public class DriftRecheckService {
 		}
 		boolean resolved = recheck.isResolved(drift, scanner);
 		if (resolved) {
-			drift.getReport().removeDrift(drift);
-			log.info("[recheck] 해소 확인 — driftId={}, kind={} : 카드 제거", driftId, drift.getKind());
+			// MK4-1 — 카드를 떼어내는 대신 문제를 닫는다. 회차별 관측은 보고서에 그대로 남는다.
+			Instant handledAt = Instant.now();
+			drift.resolve(handledAt, DriftHandlingAction.RECHECK_RESOLVED);
+			driftHandlingRepository.save(DriftHandling.of(
+					drift, DriftHandlingAction.RECHECK_RESOLVED, handledAt, null, null, null));
+			log.info("[recheck] 해소 확인 — driftId={}, kind={} : 문제 종료", driftId, drift.getKind());
 		}
 		return resolved;
 	}

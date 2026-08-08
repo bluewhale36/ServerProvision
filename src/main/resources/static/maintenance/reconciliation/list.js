@@ -11,7 +11,7 @@
                          — 그 완료는 외부 스캔과 동일하게 '새 보고서 도착' 배너가 안내
     · R9-3 — 확인 UI 정합:
         Deep 스캔/재발급 → 정적 generic modal (reconConfirm — 페이지 액션이라 자원 시그니처 무관)
-        드리프트 적용/보고 닫기 → lazy modal (DRIFT_APPLY / DRIFT_DISMISS), 전송은 전역 fetch 경로(S10)
+        드리프트 해결/보관 → lazy modal (DRIFT_APPLY / DRIFT_SNOOZE), 전송은 전역 fetch 경로(S10)
         성공 = 토스트+reload, 거절 = 전역 AsyncSubmitResult(ErrorModal) — 전체 페이지 이탈 없음
       바인딩은 본 파일(페이지 로컬) — 전역 confirm-modals 스크립트 목록 무변경.
 */
@@ -183,7 +183,7 @@
                     })
                     .then(data => {
                         if (data.resolved) {
-                            sessionStorage.setItem(TOAST_KEY, '해소 확인 — 카드를 정리했습니다.');
+                            sessionStorage.setItem(TOAST_KEY, '해결 확인 — 목록에서 정리했습니다.');
                             window.location.reload();
                         } else {
                             toast('아직 해결되지 않았습니다 — 안내된 조치 후 다시 시도하세요.', {duration: 6000});
@@ -198,38 +198,98 @@
         });
     }
 
-    // S6-3-4 — [현재 내용을 정본으로 수용] : 자원명 확인 + 비동기 작업 시작. 완료/실패는 bgjob 이벤트.
+    // S6-3-4 — [해결](내용 변경 감지) : 자원명 확인 창을 띄우고, 통과하면 비동기 작업 시작.
+    // 입력칸이 상세에 펼쳐져 있던 것을 확인 창으로 옮겼다 — 다른 종류의 [해결] 과 같은 모양이 된다.
     function bindAcceptHashForms() {
-        document.querySelectorAll('form[data-accept-hash-url]').forEach(form => {
-            form.addEventListener('submit', ev => {
-                ev.preventDefault();
-                const input = form.querySelector('input[name=typedName]');
-                const btn = form.querySelector('button[type=submit]');
-                if (!input.value.trim()) { input.focus(); return; }
-                btn.disabled = true;
-                fetch(form.dataset.acceptHashUrl, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'},
-                    body: 'typedName=' + encodeURIComponent(input.value.trim())
-                }).then(res => {
-                    if (!res.ok) {
-                        // R2-6 공용 파서 재사용 — raw JSON 노출 방지 (거절 사유를 정제된 문구로)
-                        ErrorModal.fromResponse(res, {fallback: '수용을 시작하지 못했어요.'});
-                        btn.disabled = false;
-                        return null;
-                    }
-                    return res.json();
-                }).then(data => {
-                    if (!data) return;
-                    selfJobs.set(data.jobId, btn);
-                    btn.textContent = '지문 재계산 중…';
-                    toast('내용 수용 작업을 시작했습니다 — 완료되면 알려드립니다.');
-                }).catch(() => {
-                    ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
-                    btn.disabled = false;
-                });
+        ConfirmModal.bindFormSubmit('data-confirm-drift-accept-hash', form => {
+            let readTyped = null;
+            ConfirmModal.openLazy(driftModalUrl('DRIFT_ACCEPT_HASH', form), {
+                startDisabled: true,
+                afterInject: ({expectedEl, typedInput, confirmBtn}) => {
+                    // 기대 자원명과 정확히 같을 때만 확인 버튼이 살아난다 (영구 삭제와 동일 계약).
+                    const expected = (expectedEl.textContent || '').trim();
+                    const sync = () => { confirmBtn.disabled = typedInput.value.trim() !== expected; };
+                    typedInput.addEventListener('input', sync);
+                    sync();
+                    readTyped = () => typedInput.value.trim();
+                    return null;
+                },
+                beforeConfirm: () => {
+                    // openLazy 는 확인 직후 modal DOM 을 먼저 지운다 — 입력값 회수는 반드시 이 시점에.
+                    form.dataset.typedName = readTyped();
+                    return true;
+                },
+                onConfirm: () => startAcceptHash(form)
             });
         });
+    }
+
+    function startAcceptHash(form) {
+        const btn = form.querySelector('button[type=submit]');
+        btn.disabled = true;
+        // 확인 창에서 이미 일치를 검증했으므로 그때의 기대값을 그대로 보낸다 — 서버가 다시 대조한다.
+        fetch(form.dataset.acceptHashUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'},
+            body: 'typedName=' + encodeURIComponent(form.dataset.typedName || '')
+        }).then(res => {
+            if (!res.ok) {
+                // R2-6 공용 파서 재사용 — raw JSON 노출 방지 (거절 사유를 정제된 문구로)
+                ErrorModal.fromResponse(res, {fallback: '수용을 시작하지 못했어요.'});
+                btn.disabled = false;
+                return null;
+            }
+            return res.json();
+        }).then(data => {
+            if (!data) return;
+            selfJobs.set(data.jobId, btn);
+            btn.textContent = '지문 재계산 중…';
+            toast('내용 수용 작업을 시작했습니다 — 완료되면 알려드립니다.');
+        }).catch(() => {
+            ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+            btn.disabled = false;
+        });
+    }
+
+    // MK4-1 — [보관] : 보관 기간 · 사유 입력을 modal 에서 받아 form 에 싣는다.
+    function bindSnoozeForms() {
+        ConfirmModal.bindFormSubmit('data-confirm-drift-snooze', form => {
+            const message = ConfirmModal.composeMessage(form,
+                '{resource}를 보관합니다.', '이 드리프트를 보관합니다.');
+            // 확인 시점의 입력값을 꺼내는 함수. openLazy 는 확인 직후 modal DOM 을 먼저 지우므로
+            // onConfirm 에서 화면을 다시 찾으면 이미 없다 — 값 회수는 beforeConfirm 에서 한다.
+            let readInputs = null;
+            ConfirmModal.openLazy(driftModalUrl('DRIFT_SNOOZE', form), {
+                afterInject: ({modal, messageEl, confirmBtn}) => {
+                    if (messageEl) messageEl.textContent = message;
+                    const reason = modal.querySelector('[data-snooze-reason]');
+                    const windowSelect = modal.querySelector('[data-snooze-window]');
+                    const sync = () => { confirmBtn.disabled = !reason.value.trim(); };
+                    reason.addEventListener('input', sync);
+                    sync();
+                    readInputs = () => ({window: windowSelect.value, reason: reason.value.trim()});
+                    return null;
+                },
+                beforeConfirm: () => {
+                    const picked = readInputs();
+                    setHidden(form, 'window', picked.window);
+                    setHidden(form, 'reason', picked.reason);
+                    return true;
+                },
+                onConfirm: () => ConfirmModal.approveAndSubmit(form)
+            });
+        });
+    }
+
+    function setHidden(form, name, value) {
+        let input = form.querySelector('input[name="' + name + '"]');
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            form.appendChild(input);
+        }
+        input.value = value;
     }
 
     // HF4-5 — [자원 중복 존재] 택일 해소 : 정적 dupResolve 모달(radio 2택일)에서 남길 쪽을 고르고
@@ -239,10 +299,10 @@
         if (!window.ConfirmModal) return;
         ConfirmModal.bindFormSubmit('data-duplicate-resolve', form => {
             ConfirmModal.open('dupResolve', {
-                title: '자원 중복 해소',
+                title: '자원 중복 해결',
                 message: (form.getAttribute('data-resource-label') || '이 자원')
                     + ' 이(가) 두 위치에 존재합니다. 남길 위치를 선택하세요 — 선택하지 않은 쪽 파일은 삭제됩니다.',
-                confirmLabel: '선택 적용',
+                confirmLabel: '해결',
                 confirmClass: 'n-btn-outline-danger',
                 afterOpen: () => {
                     const origEl = document.getElementById('dupResolveOriginalPath');
@@ -264,7 +324,6 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         bindRecheckButtons();
-        bindAcceptHashForms();
         bindDuplicateResolveForms();
         ['scanBtn', 'scanDeepBtn', 'reissueBtn'].forEach(id => {
             const btn = document.getElementById(id);
@@ -282,10 +341,15 @@
         }
 
         if (window.ConfirmModal) {
+            // 문구 끝의 '{resource}' 는 항상 '… 드리프트' 로 끝나므로 조사가 정해져 있다 —
+            // '을(를)' 병기는 사용자에게 미완성 문장으로 읽힌다 (MK4-1 CP5 실측).
             bindDriftForm('data-confirm-drift-apply', 'DRIFT_APPLY',
-                '{resource} 을(를) 적용할까요?', '이 드리프트를 적용할까요?');
-            bindDriftForm('data-confirm-drift-dismiss', 'DRIFT_DISMISS',
-                '{resource} 보고를 닫을까요?', '이 드리프트 보고를 닫을까요?');
+                '{resource}를 해결할까요?', '이 드리프트를 해결할까요?');
+            // MK4-1 — 두고 보기는 기간과 사유를 함께 받는다. modal 의 입력값을 form 의 hidden 으로
+            // 옮겨 실어 보낸다 — 사유가 비어 있으면 서버가 400 으로 돌려주므로 여기서 먼저 막는다.
+            bindSnoozeForms();
+            // 내용 변경 수용도 확인 창(자원명 입력)을 거치므로 같은 가드 안에서 바인딩한다.
+            bindAcceptHashForms();
         }
 
         // R9-3 — async 제출 성공 피드백. 거절/네트워크 오류는 전역 핸들러(error-modal.js → ErrorModal)에 위임하고
@@ -294,12 +358,12 @@
         window.AsyncSubmitResult = {
             onSuccess: (form) => {
                 if (form && form.hasAttribute('data-confirm-drift-apply')) {
-                    sessionStorage.setItem(TOAST_KEY, '드리프트를 적용했습니다.');
-                } else if (form && form.hasAttribute('data-confirm-drift-dismiss')) {
-                    sessionStorage.setItem(TOAST_KEY, '드리프트 보고를 닫았습니다.');
+                    sessionStorage.setItem(TOAST_KEY, '드리프트를 해결했습니다.');
+                } else if (form && form.hasAttribute('data-confirm-drift-snooze')) {
+                    sessionStorage.setItem(TOAST_KEY, '드리프트를 보관했습니다.');
                 } else if (form && form.hasAttribute('data-duplicate-resolve')) {
                     // HF4-5 — 택일 해소 성공. 어느 갈래였는지는 서버 [AUDIT] 로그가 보존.
-                    sessionStorage.setItem(TOAST_KEY, '자원 중복을 해소했습니다.');
+                    sessionStorage.setItem(TOAST_KEY, '자원 중복을 해결했습니다.');
                 }
                 window.location.reload();
             },

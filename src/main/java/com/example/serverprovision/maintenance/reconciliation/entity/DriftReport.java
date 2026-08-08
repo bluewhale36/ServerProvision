@@ -63,14 +63,12 @@ public class DriftReport extends BaseTimeEntity {
 	private int totalChecked;
 
 	/**
-	 * HF4-4 — 스캔 시점 탐지 건수 스냅샷. 자식 drift 는 apply/dismiss 로 물리 삭제되어
-	 * ({@code orphanRemoval=true}) {@link #getDriftCount()} 가 '미해결 잔수'로 줄어들지만,
-	 * "그 스캔에서 몇 건이 탐지됐었는가"는 보고서 생성 시점에 확정되는 역사적 사실이라 여기 보존한다
+	 * HF4-4 — 그 회차에 몇 건을 봤는가. 보고서 생성 시점에 확정되는 역사적 사실이라 여기 보존한다
 	 * ({@code Drift.display_name} 스냅샷과 동일 개념 — R9-5 선례).
-	 * <p>기록은 {@link #addDrift(Drift)} 내부 증가 — 저장 호출부(performScan / persistAndForcedApply)가
-	 * 각각 기억할 필요가 없고, JPA 로딩은 컬렉션 직주입이라 재로딩 시 증가 부작용이 없다.
-	 * 도입 이전 행은 0 (backfill 없음 — 화면이 {@link #getDetectedDriftCountForDisplay()} 로
-	 * 미해결 수 대체 표기, FIFO retention 으로 자연 해소).</p>
+	 * <p>MK4-1 — 종전에는 자식 드리프트가 해소될 때마다 물리 삭제되어 '미해결 잔수' 가 사후에 줄었고,
+	 * 이 스냅샷이 그 왜곡을 막는 유일한 방벽이었다. 이제 자식이 관측이라 목록 자체가 줄지 않으므로
+	 * 스냅샷과 관측 수가 항상 일치한다 — 대체 표기 fallback 은 그 역할이 사라져 제거됐다.
+	 * 기록은 {@link #addObservation(DriftObservation)} 내부 증가.</p>
 	 */
 	@Column(name = "detected_drift_count", nullable = false)
 	@Builder.Default
@@ -85,30 +83,23 @@ public class DriftReport extends BaseTimeEntity {
 	private String failedScanRoots;
 
 	/**
-	 * 자식 drift 들. cascade ALL + orphanRemoval 로 보고서 삭제 시 자식도 함께 삭제. dismiss 는 자식 1건 분리로 처리.
-	 * detected_at ASC 로 정렬 — 스캔 안에서의 발견 순.
+	 * MK4-1 — 자식이 드리프트가 아니라 <b>관측</b>이다. 보고서는 그 회차에 무엇을 봤는지의 사진이고,
+	 * 문제의 해소는 문제 쪽 상태 전이라 이 목록을 건드리지 않는다 — 지난 보고서의 건수가 사후에
+	 * 줄어들던 현상(진단 후보 2-4)이 여기서 사라진다.
 	 */
 	@OneToMany(mappedBy = "report", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-	@OrderBy("detectedAt ASC")
+	@OrderBy("observedAt ASC")
 	@Builder.Default
-	private List<Drift> drifts = new ArrayList<>();
+	private List<DriftObservation> observations = new ArrayList<>();
 
 	/**
-	 * Service 가 빌더로 생성한 후 자식 drift 추가 시 호출. 양방향 매핑 동기화.
-	 * <p>HF4-4 — 탐지 스냅샷도 여기서 함께 누적한다. {@link #removeDrift(Drift)} 는 감소시키지 않는다 —
-	 * "탐지 수 = 이 보고서에 추가된 적 있는 drift 총수"가 스냅샷의 정의.</p>
+	 * 관측 1건 적재 + 양방향 동기화. 탐지 수 누적은 종전 {@code addDrift} 와 동일하게 여기서 한다 —
+	 * "탐지 수 = 이 회차에 본 문제의 총수" 라는 스냅샷의 정의는 그대로다.
 	 */
-	public void addDrift(Drift drift) {
-		drifts.add(drift);
-		drift.attachTo(this);
+	public void addObservation(DriftObservation observation) {
+		observations.add(observation);
+		observation.attachTo(this);
 		this.detectedDriftCount++;
-	}
-
-	/**
-	 * dismiss 시 자식 1건 분리 — orphanRemoval=true 라 DB 행도 삭제됨.
-	 */
-	public void removeDrift(Drift drift) {
-		drifts.remove(drift);
 	}
 
 	/**
@@ -118,19 +109,6 @@ public class DriftReport extends BaseTimeEntity {
 		return Duration.ofMillis(scanDurationMs);
 	}
 
-	public int getDriftCount() {
-		return drifts.size();
-	}
-
-	/**
-	 * HF4-4 — 화면·API 표기용 탐지 건수. 스냅샷 도입 이전 행(컬럼 default 0)은 미해결 잔수로 대체한다.
-	 * 신행에서 스냅샷 0 은 "탐지 0건"이고 그때 잔수도 반드시 0(자식은 추가 없이 줄기만 한다)이라
-	 * 이 대체는 항상 참 — 0 경계의 의미 충돌이 없다. 템플릿 2곳(C1 배지·요약줄)이 각자 fallback 을
-	 * 복붙하지 않도록 이 메서드가 단일 SSOT.
-	 */
-	public int getDetectedDriftCountForDisplay() {
-		return detectedDriftCount > 0 ? detectedDriftCount : drifts.size();
-	}
 
 	/**
 	 * UI 응답용 — 실패 root 를 List 로. NULL/빈 → 빈 리스트.

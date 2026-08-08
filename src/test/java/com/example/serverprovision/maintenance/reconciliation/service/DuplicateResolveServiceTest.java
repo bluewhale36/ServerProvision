@@ -11,6 +11,9 @@ import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
 import com.example.serverprovision.maintenance.reconciliation.entity.DriftReport;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftObservation;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +47,7 @@ class DuplicateResolveServiceTest {
 
     private ProvisionMarkerService markerService;
     private DriftRepository driftRepository;
+    private DriftHandlingRepository driftHandlingRepository;
     private PathReconciliationService reconciliationService;
     private MarkableScanner isoScanner;
     private MarkableScanner subprogramScanner;
@@ -54,6 +58,7 @@ class DuplicateResolveServiceTest {
         markerService = new ProvisionMarkerService();
         ReflectionTestUtils.setField(markerService, "secret", "test-secret");
         driftRepository = mock(DriftRepository.class);
+        driftHandlingRepository = mock(DriftHandlingRepository.class);
         reconciliationService = mock(PathReconciliationService.class);
         given(reconciliationService.isResolutionEnabled()).willReturn(true);
         isoScanner = mock(MarkableScanner.class);
@@ -61,7 +66,8 @@ class DuplicateResolveServiceTest {
         subprogramScanner = mock(MarkableScanner.class);
         given(subprogramScanner.supportedType()).willReturn(ResourceType.SUBPROGRAM);
         service = new DuplicateResolveService(
-                List.of(isoScanner, subprogramScanner), markerService, driftRepository, reconciliationService);
+                List.of(isoScanner, subprogramScanner), markerService, driftRepository,
+                driftHandlingRepository, reconciliationService);
     }
 
     // ==== 헬퍼 ==========================================================
@@ -87,10 +93,12 @@ class DuplicateResolveServiceTest {
                 .scannedAt(Instant.now()).scanDurationMs(0).deep(false).totalChecked(1).build();
         Drift drift = Drift.builder()
                 .resourceType(type).resourceId(id).displayName(type.name() + "-" + id)
-                .kind(DriftKind.RESOURCE_DUPLICATED)
+                .kind(DriftKind.RESOURCE_REPLICA)
                 .oldPath(oldPath.toString()).newPath(newPath.toString())
-                .detectedAt(Instant.now()).build();
-        report.addDrift(drift);
+                .firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(DriftObservation.builder()
+                .drift(drift).observedAt(drift.getFirstDetectedAt())
+                .oldPath(drift.getOldPath()).newPath(drift.getNewPath()).build());
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
         return drift;
@@ -130,7 +138,7 @@ class DuplicateResolveServiceTest {
         assertThat(Files.exists(orig)).isTrue();
         assertThat(Files.exists(sidecarMarkerOf(orig))).isTrue();
         verify(isoScanner, never()).applyDriftedPath(anyLong(), any());
-        assertThat(drift.getReport().getDrifts()).isEmpty();
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.RESOLVED); // MK4-1 — 문제가 닫힌다
     }
 
     @Test
@@ -152,7 +160,7 @@ class DuplicateResolveServiceTest {
         assertThat(Files.exists(sidecarMarkerOf(copy))).isTrue();
         // D5 계약 — 마커는 위치 독립이라 승격 시 재발급하지 않는다.
         verify(resource, never()).reissueMarker(anyString(), anyString());
-        assertThat(drift.getReport().getDrifts()).isEmpty();
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.RESOLVED); // MK4-1 — 문제가 닫힌다
         // 재사용 계약 — 재계산은 정밀 점검과 같은 scanner 경로에 "사본 경로" 뷰로 위임된다.
         var viewCaptor = org.mockito.ArgumentCaptor.forClass(Markable.class);
         verify(isoScanner).recomputeManifestHash(viewCaptor.capture());
@@ -178,7 +186,7 @@ class DuplicateResolveServiceTest {
                 .isInstanceOf(DriftResolutionNotAllowedException.class)
                 .hasMessageContaining("상태가 바뀌어");
         assertThat(Files.exists(copy)).isTrue();
-        assertThat(drift.getReport().getDrifts()).hasSize(1); // 카드 유지
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.OPEN); // 거절됐으니 문제는 그대로 열려 있다
     }
 
     @Test
@@ -222,7 +230,7 @@ class DuplicateResolveServiceTest {
         assertThat(Files.exists(orig)).isTrue();
         assertThat(Files.exists(sidecarMarkerOf(orig))).isTrue();
         assertThat(Files.exists(copy)).isTrue();
-        assertThat(drift.getReport().getDrifts()).hasSize(1); // 카드 유지
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.OPEN); // 거절됐으니 문제는 그대로 열려 있다
     }
 
     @Test
@@ -288,14 +296,16 @@ class DuplicateResolveServiceTest {
     // ==== 거절 (kind / 비활성 / 전역 OFF / 부재) ============================
 
     @Test
-    @DisplayName("kind 불일치 : RESOURCE_DUPLICATED 외 종류의 direct POST → 409 notApplicable")
+    @DisplayName("kind 불일치 : RESOURCE_REPLICA 외 종류의 direct POST → 409 notApplicable")
     void rejectsOtherKind(@TempDir Path tmp) {
         DriftReport report = DriftReport.builder()
                 .scannedAt(Instant.now()).scanDurationMs(0).deep(false).totalChecked(1).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
-                .oldPath("/x").newPath("/y").detectedAt(Instant.now()).build();
-        report.addDrift(drift);
+                .oldPath("/x").newPath("/y").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(DriftObservation.builder()
+                .drift(drift).observedAt(drift.getFirstDetectedAt())
+                .oldPath(drift.getOldPath()).newPath(drift.getNewPath()).build());
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 

@@ -8,13 +8,21 @@ import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
+import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftResponse;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftHandling;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftObservation;
 import com.example.serverprovision.maintenance.reconciliation.entity.DriftReport;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
+import com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.GhostDbRowClearResolution;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +61,7 @@ class PathReconciliationServiceTest {
     private BackgroundJobService backgroundJobService;
     private DriftReportRepository driftReportRepository;
     private DriftRepository driftRepository;
+    private DriftHandlingRepository driftHandlingRepository;
 
     private MarkableScanner isoScanner;
     private PathReconciliationService service;
@@ -70,6 +79,9 @@ class PathReconciliationServiceTest {
         given(driftReportRepository.count()).willReturn(0L);
 
         driftRepository = mock(DriftRepository.class);
+        // MK4-1 — 신원이 처음 보이는 문제는 저장 결과가 그대로 이번 회차의 문제로 쓰인다.
+        given(driftRepository.save(any(Drift.class))).willAnswer(inv -> inv.getArgument(0));
+        driftHandlingRepository = mock(DriftHandlingRepository.class);
 
         isoScanner = mock(MarkableScanner.class);
         given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
@@ -77,7 +89,7 @@ class PathReconciliationServiceTest {
         // self proxy 자리는 단위 테스트 범위 외 (async/proxy 경로는 통합 테스트에서 검증). null 주입.
         service = new PathReconciliationService(
                 List.of(isoScanner), markerService, backgroundJobService,
-                driftReportRepository, driftRepository,
+                driftReportRepository, driftRepository, driftHandlingRepository,
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(service, "startupEnabled", true);
         ReflectionTestUtils.setField(service, "retentionCount", 100);
@@ -92,6 +104,28 @@ class PathReconciliationServiceTest {
         given(m.getResourcePath()).willReturn(path);
         given(m.getMarkerLayout()).willReturn(MarkerLayout.SIDECAR);
         return m;
+    }
+
+    /**
+     * MK4-1 — 보고서가 담는 것이 관측으로 바뀌었다. 회차가 무엇을 봤는지를 묻는 단언은 그대로 두고,
+     * 그 관측이 가리키는 문제만 꺼내 본다.
+     */
+    private static List<Drift> driftsOf(DriftReport report) {
+        return report.getObservations().stream().map(DriftObservation::getDrift).toList();
+    }
+
+    /**
+     * MK4-1 — 문제 하나를 한 회차에 얹는 픽스처. 스캔이 {@code linkObservations} 에서 만드는 것과 같은 모양.
+     */
+    private static DriftObservation observationOf(Drift drift) {
+        return DriftObservation.builder()
+                .drift(drift)
+                .observedAt(drift.getFirstDetectedAt())
+                .oldPath(drift.getOldPath())
+                .newPath(drift.getNewPath())
+                .detail(drift.getDetail())
+                .observedHash(drift.getObservedHash())
+                .build();
     }
 
     private void writeMarker(Path resourcePath, MarkerLayout layout, Long id, String hash) {
@@ -113,7 +147,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDriftCount()).isZero();
+        assertThat(saved.getDetectedDriftCount()).isZero();
         assertThat(saved.getTotalChecked()).isEqualTo(1);
     }
 
@@ -136,7 +170,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> {
                     assertThat(d.getKind()).isEqualTo(DriftKind.PATH_DRIFT);
                     assertThat(d.getResourceId()).isEqualTo(42L);
@@ -155,7 +189,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.MISSING));
     }
 
@@ -171,7 +205,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> {
                     assertThat(d.getKind()).isEqualTo(DriftKind.MISSING);
                     assertThat(d.getDetail()).contains("본체 파일 부재");
@@ -190,7 +224,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.SIGNATURE_INVALID));
     }
 
@@ -208,7 +242,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.SIGNATURE_INVALID));
     }
 
@@ -226,7 +260,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", true, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> {
                     assertThat(d.getKind()).isEqualTo(DriftKind.HASH_MISMATCH);
                     // S6-3-4 — 수용 판단 재료 스냅샷: 실행 시 대조용 지문 + 카드의 대조 재료(정본 인정 시각·지문 전문)
@@ -248,7 +282,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> {
                     assertThat(d.getKind()).isEqualTo(DriftKind.ORPHAN);
                     assertThat(d.getResourceId()).isEqualTo(99L);
@@ -271,7 +305,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isNotEqualTo(DriftKind.ORPHAN);
             assertThat(d.getKind()).isEqualTo(DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL);
             assertThat(d.getResourceId()).isEqualTo(77L);
@@ -290,22 +324,49 @@ class PathReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("apply(PATH_DRIFT) : scanner.applyDriftedPath 호출 + 보고서에서 drift 제거")
+    @DisplayName("MK4-1 apply(PATH_DRIFT) : scanner.applyDriftedPath 호출 + 문제는 해결로 닫히고 지난 회차 기록은 남는다")
     void apply_pathDrift_success(@TempDir Path tmp) {
         Path newPath = tmp.resolve("new.iso");
         DriftReport report = DriftReport.builder()
                 .scannedAt(Instant.now()).scanDurationMs(100).deep(false).totalChecked(1).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
-                .oldPath("/old").newPath(newPath.toString()).detectedAt(Instant.now()).build();
-        report.addDrift(drift);
+                .oldPath("/old").newPath(newPath.toString()).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(observationOf(drift));
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
         service.apply(1L);
 
         verify(isoScanner, times(1)).applyDriftedPath(42L, newPath);
-        assertThat(report.getDrifts()).isEmpty();
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.RESOLVED);
+        assertThat(drift.getResolvedBy()).isEqualTo(DriftHandlingAction.APPLY);
+        // 종전에는 여기서 보고서의 자식이 사라졌다. 그 물리 삭제가 지난 회차의 건수를 사후에 줄이던 원인이라,
+        // 이제 회차 기록은 그대로 두고 문제만 닫는다.
+        assertThat(driftsOf(report)).containsExactly(drift);
+        assertThat(report.getDetectedDriftCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("MK4-1 apply : 처리 이력에 되돌리기 값(처리 전 경로 · 옮겨 둔 위치)이 함께 남는다")
+    void apply_recordsHandlingHistory(@TempDir Path tmp) {
+        Path newPath = tmp.resolve("new.iso");
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
+                .oldPath("/old").newPath(newPath.toString())
+                .firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        ReflectionTestUtils.setField(drift, "id", 1L);
+        given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
+
+        service.apply(1L);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(DriftHandling.class);
+        verify(driftHandlingRepository).save(captor.capture());
+        DriftHandling handling = captor.getValue();
+        assertThat(handling.getAction()).isEqualTo(DriftHandlingAction.APPLY);
+        assertThat(handling.isReversible()).isTrue();
+        assertThat(handling.getPreviousPath()).isEqualTo("/old");
+        assertThat(handling.getMovedToPath()).isEqualTo(newPath.toString());
     }
 
     @Test
@@ -313,7 +374,7 @@ class PathReconciliationServiceTest {
     void apply_nonPathDrift_throws() {
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.SIGNATURE_INVALID)
-                .oldPath("/x").detectedAt(Instant.now()).build();
+                .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
@@ -328,7 +389,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.setField(service, "resolutionEnabled", Boolean.FALSE);
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
-                .oldPath("/x").newPath("/y").detectedAt(Instant.now()).build();
+                .oldPath("/x").newPath("/y").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
@@ -356,26 +417,106 @@ class PathReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("dismiss : 보고서에서 drift 제거")
-    void dismiss_removesFromReport() {
+    @DisplayName("MK4-1 snooze : 기간과 사유를 받아 목록에서 내리되 기록은 남긴다 (종전 '보고 닫기' 대체)")
+    void snooze_holdsWithReason() {
         DriftReport report = DriftReport.builder()
                 .scannedAt(Instant.now()).scanDurationMs(50).deep(false).totalChecked(1).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.MISSING)
-                .oldPath("/x").detectedAt(Instant.now()).build();
-        report.addDrift(drift);
+                .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(observationOf(drift));
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
-        service.dismiss(1L);
+        service.snooze(1L, SnoozeWindow.DAYS_7, "교체 부품 입고 대기");
 
-        assertThat(report.getDrifts()).isEmpty();
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.SNOOZED);
+        assertThat(drift.getSnoozeReason()).isEqualTo("교체 부품 입고 대기");
+        assertThat(drift.getSnoozeUntil()).isNotNull();
+        assertThat(drift.isListed(Instant.now())).isFalse();
+        // 목록에서 내려가도 회차 기록은 남는다 — 나중에 왜 방치됐는지 설명하는 근거가 된다.
+        assertThat(driftsOf(report)).containsExactly(drift);
+        verify(driftHandlingRepository).save(any(DriftHandling.class));
     }
 
-    // ==== HF4-5 — RESOURCE_DUPLICATED 탐지 시나리오 ========================
+    @Test
+    @DisplayName("MK4-1 보관 : 이미 해결된 드리프트에 보관 요청 → 409 (direct POST 안전망)")
+    void snooze_alreadyResolved_throws() {
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.MISSING)
+                .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        drift.resolve(Instant.now(), DriftHandlingAction.APPLY);
+        ReflectionTestUtils.setField(drift, "id", 1L);
+        given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
+
+        assertThatThrownBy(() -> service.snooze(1L, SnoozeWindow.DAYS_7, "사유"))
+                .isInstanceOf(DriftSnoozeNotAllowedException.class)
+                .hasMessageContaining("이미 해결된");
+    }
 
     @Test
-    @DisplayName("HF4-5 : 원본 정상 + 동일 신원 사본 → RESOURCE_DUPLICATED (원본=oldPath, 사본=newPath)")
+    @DisplayName("MK4-1 apply : 이미 해결된 문제를 다시 해결 → 409 (지난 보고서를 열면 버튼이 눈앞에 있다)")
+    void apply_alreadyResolved_throws() {
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
+                .oldPath("/old").newPath("/new").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        drift.resolve(Instant.now(), DriftHandlingAction.APPLY);
+        ReflectionTestUtils.setField(drift, "id", 1L);
+        given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
+
+        // 화면의 tooltip 과 서버의 거절 사유가 같은 문장이어야 한다 — 조건을 두 곳에 복붙하면 갈라진다.
+        String viewReason = PathReconciliationService.toDriftResponse(drift).resolveBlockReason();
+        assertThatThrownBy(() -> service.apply(1L))
+                .isInstanceOf(DriftResolutionNotAllowedException.class)
+                .hasMessage(viewReason);
+        verify(isoScanner, never()).applyDriftedPath(org.mockito.ArgumentMatchers.anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 보관 중인 드리프트는 해결을 막지 않는다 (미뤄 둔 것을 바로 처리하는 건 정상 흐름)")
+    void snoozedProblem_isStillResolvable() {
+        Drift drift = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
+                .oldPath("/old").newPath("/new").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        drift.snooze(SnoozeWindow.DAYS_7, "사유", Instant.now());
+
+        assertThat(drift.resolveBlockReason()).isNull();
+        assertThat(PathReconciliationService.toDriftResponse(drift).resolveBlockReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 화면이 버튼을 막는 사유와 서버가 거절하는 사유가 같은 문장이다 (단일 SSOT)")
+    void snoozeBlockReason_isSharedBetweenViewAndGuard() {
+        Drift open = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.MISSING)
+                .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        ReflectionTestUtils.setField(open, "id", 1L);
+        // 열린 문제는 막을 이유가 없다 — 화면의 버튼도 살아 있어야 한다.
+        assertThat(PathReconciliationService.toDriftResponse(open).snoozeBlockReason()).isNull();
+
+        open.snooze(SnoozeWindow.DAYS_7, "사유", Instant.now());
+        given(driftRepository.findById(1L)).willReturn(Optional.of(open));
+
+        // 두 경로가 같은 도메인 메서드를 보므로 문장이 갈라질 자리가 없다. 조건을 양쪽에 복붙하면
+        // 화면은 열어 두고 서버만 거절하는(또는 그 반대) 어긋남이 생긴다.
+        String viewReason = PathReconciliationService.toDriftResponse(open).snoozeBlockReason();
+        assertThatThrownBy(() -> service.snooze(1L, SnoozeWindow.DAYS_30, "또 미루기"))
+                .isInstanceOf(DriftSnoozeNotAllowedException.class)
+                .hasMessage(viewReason);
+    }
+
+    @Test
+    @DisplayName("MK4-1 snooze : 존재하지 않는 driftId → DriftNotFoundException")
+    void snooze_notFound() {
+        given(driftRepository.findById(999L)).willReturn(Optional.empty());
+        assertThatThrownBy(() -> service.snooze(999L, SnoozeWindow.DAYS_7, "사유"))
+                .isInstanceOf(DriftNotFoundException.class);
+    }
+
+    // ==== HF4-5 — RESOURCE_REPLICA 탐지 시나리오 ========================
+
+    @Test
+    @DisplayName("HF4-5 : 원본 정상 + 동일 신원 사본 → RESOURCE_REPLICA (원본=oldPath, 사본=newPath)")
     void scan_resourceDuplicated(@TempDir Path tmp) throws Exception {
         Path iso = tmp.resolve("dvd.iso");
         Files.writeString(iso, "fake-iso");
@@ -390,8 +531,8 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
-            assertThat(d.getKind()).isEqualTo(DriftKind.RESOURCE_DUPLICATED);
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
+            assertThat(d.getKind()).isEqualTo(DriftKind.RESOURCE_REPLICA);
             assertThat(d.getOldPath()).isEqualTo(iso.toString());
             assertThat(d.getNewPath()).isEqualTo(copy.toString());
             // R9-5 관례 — 스캔 시점 실명 스냅샷 동반
@@ -417,16 +558,16 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).hasSize(2).allSatisfy(d -> {
-            assertThat(d.getKind()).isEqualTo(DriftKind.RESOURCE_DUPLICATED);
+        assertThat(driftsOf(saved)).hasSize(2).allSatisfy(d -> {
+            assertThat(d.getKind()).isEqualTo(DriftKind.RESOURCE_REPLICA);
             assertThat(d.getOldPath()).isEqualTo(iso.toString());
         });
-        assertThat(saved.getDrifts()).extracting(Drift::getNewPath)
+        assertThat(driftsOf(saved)).extracting(Drift::getNewPath)
                 .containsExactlyInAnyOrder(copy1.toString(), copy2.toString());
     }
 
     @Test
-    @DisplayName("HF4-5 판정 순서 : 원본 소실 + 사본 존재 → 기존 PATH_DRIFT 유지, RESOURCE_DUPLICATED 미발동 (plan D1)")
+    @DisplayName("HF4-5 판정 순서 : 원본 소실 + 사본 존재 → 기존 PATH_DRIFT 유지, RESOURCE_REPLICA 미발동 (plan D1)")
     void scan_originalLost_staysPathDrift(@TempDir Path tmp) throws Exception {
         Path oldIso = tmp.resolve("old/dvd.iso"); // DB 경로 — 파일도 마커도 없음
         Files.createDirectories(oldIso.getParent());
@@ -441,7 +582,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.PATH_DRIFT));
     }
 
@@ -459,7 +600,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.MISSING));
     }
 
@@ -477,32 +618,36 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDriftCount()).isZero();
+        assertThat(saved.getDetectedDriftCount()).isZero();
     }
 
     @Test
-    @DisplayName("HF4-5 : RESOURCE_DUPLICATED 는 표준 [적용] 불가 (mode=NONE — 택일 전용 endpoint 로만 해소)")
+    @DisplayName("HF4-5 : RESOURCE_REPLICA 는 표준 [적용] 불가 (mode=NONE — 택일 전용 endpoint 로만 해소)")
     void apply_rejectsResourceDuplicated() {
         DriftReport report = DriftReport.builder()
                 .scannedAt(Instant.now()).scanDurationMs(0).deep(false).totalChecked(1).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L)
-                .kind(DriftKind.RESOURCE_DUPLICATED)
+                .kind(DriftKind.RESOURCE_REPLICA)
                 .oldPath("/opt/dvd.iso").newPath("/opt/backup_dvd.iso")
-                .detectedAt(Instant.now()).build();
-        report.addDrift(drift);
+                .firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(observationOf(drift));
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
         assertThatThrownBy(() -> service.apply(1L))
                 .isInstanceOf(DriftResolutionNotAllowedException.class)
                 .hasMessageContaining("자원 중복 존재");
-        assertThat(report.getDrifts()).hasSize(1); // 카드 유지
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.OPEN); // 거절됐으니 문제는 그대로 열려 있다
     }
 
+    /**
+     * MK4-1 — 스캔은 보고서를 두 번 저장한다. 먼저 회차 메타데이터를 저장해 식별자를 얻고, 관측을
+     * 모두 얹은 뒤 한 번 더 저장한다. 마지막 저장분이 그 회차의 완성본이다.
+     */
     private DriftReport captureSavedReport() {
         var captor = org.mockito.ArgumentCaptor.forClass(DriftReport.class);
-        verify(driftReportRepository).save(captor.capture());
+        verify(driftReportRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
         return captor.getValue();
     }
 
@@ -518,7 +663,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> {
                     assertThat(d.getKind()).isEqualTo(DriftKind.GHOST_DB_ROW);
                     assertThat(d.getResourceId()).isEqualTo(99L);
@@ -541,21 +686,22 @@ class PathReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("MK3-1 : apply(GHOST_DB_ROW) → scanner.applyGhostClear 호출 + drift 제거")
+    @DisplayName("MK3-1 → MK4-1 : apply(GHOST_DB_ROW) → scanner.applyGhostClear 호출 + 문제는 해결로 닫힘")
     void apply_ghostRow_success() {
         DriftReport report = DriftReport.builder()
                 .scannedAt(Instant.now()).scanDurationMs(50).deep(false).totalChecked(0).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(99L).kind(DriftKind.GHOST_DB_ROW)
-                .oldPath("/missing").newPath(null).detectedAt(Instant.now()).build();
-        report.addDrift(drift);
+                .oldPath("/missing").newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(observationOf(drift));
         ReflectionTestUtils.setField(drift, "id", 7L);
         given(driftRepository.findById(7L)).willReturn(Optional.of(drift));
 
         service.apply(7L);
 
         verify(isoScanner, times(1)).applyGhostClear(99L);
-        assertThat(report.getDrifts()).isEmpty();
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.RESOLVED);
+        assertThat(driftsOf(report)).containsExactly(drift);
     }
 
     // ==== R9-5 — 자원 실명 스냅샷 ====================================================
@@ -573,8 +719,8 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).hasSize(1);
-        Drift drift = saved.getDrifts().iterator().next();
+        assertThat(driftsOf(saved)).hasSize(1);
+        Drift drift = driftsOf(saved).iterator().next();
         assertThat(drift.getKind()).isEqualTo(DriftKind.MISSING);
         assertThat(drift.getDisplayName()).isEqualTo("Rocky Linux 9.6 dvd.iso");
     }
@@ -592,8 +738,8 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).hasSize(1);
-        Drift drift = saved.getDrifts().iterator().next();
+        assertThat(driftsOf(saved)).hasSize(1);
+        Drift drift = driftsOf(saved).iterator().next();
         assertThat(drift.getKind()).isEqualTo(DriftKind.ORPHAN);
         assertThat(drift.getDisplayName()).isEqualTo("stray.iso");
     }
@@ -666,7 +812,7 @@ class PathReconciliationServiceTest {
     void apply_forced_missingResolution_throws() {
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.MISSING)
-                .oldPath("/x").detectedAt(Instant.now()).build();
+                .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
         ReflectionTestUtils.setField(drift, "id", 1L);
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
@@ -694,7 +840,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         verify(isoScanner, times(1)).applyDriftedPath(42L, newIso);
-        assertThat(captureSavedReport().getDrifts()).hasSize(1); // 기록 보존
+        assertThat(driftsOf(captureSavedReport())).hasSize(1); // 기록 보존
     }
 
     @Test
@@ -763,7 +909,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL);
             assertThat(d.getOldPath()).isEqualTo(trashed);
             assertThat(d.getNewPath()).isEqualTo(orig.toString());
@@ -782,7 +928,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL);
             assertThat(d.getDetail()).contains("휴지통 기록");
         });
@@ -805,7 +951,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.SOFTDEL_ESCAPE_TO_OTHER);
             assertThat(d.getNewPath()).isEqualTo(stray.toString());
             assertThat(d.getDetail()).contains("다른 위치");
@@ -830,7 +976,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.SOFTDEL_ESCAPE_TO_OTHER);
             assertThat(d.getDetail()).contains("원위치에도 파일 존재");
         });
@@ -849,7 +995,7 @@ class PathReconciliationServiceTest {
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
-        assertThat(captureSavedReport().getDrifts()).isEmpty();
+        assertThat(driftsOf(captureSavedReport())).isEmpty();
     }
 
     @Test
@@ -860,7 +1006,7 @@ class PathReconciliationServiceTest {
         given(metaScanner.findActiveMarkables()).willReturn(List.of());
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, metaScanner), markerService, backgroundJobService,
-                driftReportRepository, driftRepository,
+                driftReportRepository, driftRepository, driftHandlingRepository,
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(svc, "retentionCount", 100);
         ReflectionTestUtils.setField(svc, "extraRootsCsv", tmp.toString());
@@ -869,7 +1015,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(svc, "performScan", false, "job-1");
 
         verify(metaScanner, never()).findTrashed();
-        assertThat(captureSavedReport().getDrifts()).isEmpty();
+        assertThat(driftsOf(captureSavedReport())).isEmpty();
     }
 
     @Test
@@ -889,7 +1035,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         // 진위·처리는 복원 시점 게이트(RestorePathOccupiedException)가 SSOT — 점검은 침묵
-        assertThat(captureSavedReport().getDrifts()).isEmpty();
+        assertThat(driftsOf(captureSavedReport())).isEmpty();
     }
 
     /** IN_TREE 레이아웃 검증용 fixture — BIOS 번들 디렉토리. */
@@ -926,7 +1072,7 @@ class PathReconciliationServiceTest {
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
-                driftReportRepository, driftRepository,
+                driftReportRepository, driftRepository, driftHandlingRepository,
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(svc, "retentionCount", 100);
         ReflectionTestUtils.setField(svc, "extraRootsCsv", "");
@@ -934,7 +1080,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(svc, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL);
             assertThat(d.getResourceType()).isEqualTo(ResourceType.BIOS_BUNDLE);
         });
@@ -953,7 +1099,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.TRASH_LOST);
             assertThat(d.getOldPath()).isEqualTo(trashed);
             assertThat(d.getNewPath()).isNull();
@@ -974,7 +1120,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.TRASH_MARKER_STALE);
             assertThat(d.getOldPath()).isEqualTo(trashed.toString());
         });
@@ -1000,7 +1146,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).extracting(Drift::getKind).containsExactlyInAnyOrder(
+        assertThat(driftsOf(saved)).extracting(Drift::getKind).containsExactlyInAnyOrder(
                 DriftKind.SOFTDEL_ESCAPE_TO_OTHER, DriftKind.TRASH_MARKER_STALE);
     }
 
@@ -1020,7 +1166,7 @@ class PathReconciliationServiceTest {
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
-                driftReportRepository, driftRepository,
+                driftReportRepository, driftRepository, driftHandlingRepository,
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(svc, "retentionCount", 100);
         ReflectionTestUtils.setField(svc, "extraRootsCsv", "");
@@ -1028,7 +1174,7 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(svc, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.TRASH_MARKER_STALE);
             assertThat(d.getResourceType()).isEqualTo(ResourceType.BIOS_BUNDLE);
         });
@@ -1070,10 +1216,10 @@ class PathReconciliationServiceTest {
                 anyString(), anyString(), org.mockito.ArgumentMatchers.<List<String>>any());
     }
 
-    // ==== HF4-4 — 탐지 건수 스냅샷 =================================================
+    // ==== HF4-4 → MK4-1 — 회차 기록의 불변성 =========================================
 
     @Test
-    @DisplayName("HF4-4 : 스캔 저장 시 탐지 건수가 스냅샷되고, 해결(removeDrift) 후에도 불변")
+    @DisplayName("HF4-4 → MK4-1 : 스캔 저장 시 탐지 건수가 스냅샷되고, 해결 후에도 회차 기록이 줄지 않는다")
     void scan_snapshotsDetectedDriftCount(@TempDir Path tmp) {
         // 마커가 어디에도 없는 자원 1건 → MISSING drift 1건 탐지
         Markable m = isoAt(42L, tmp.resolve("dvd.iso"));
@@ -1083,61 +1229,46 @@ class PathReconciliationServiceTest {
 
         DriftReport saved = captureSavedReport();
         assertThat(saved.getDetectedDriftCount()).isEqualTo(1);
-        assertThat(saved.getDriftCount()).isEqualTo(1);
+        assertThat(saved.getObservations()).hasSize(1);
 
-        // 해결 재현 — 미해결 잔수만 줄고 탐지 스냅샷은 역사적 사실로 남는다
-        saved.removeDrift(saved.getDrifts().iterator().next());
-        assertThat(saved.getDriftCount()).isZero();
+        // 해결 재현 — 문제만 닫힌다. 종전에는 이 시점에 보고서의 자식이 물리 삭제되어 지난 회차의
+        // 건수가 사후에 줄었고, 스냅샷 컬럼이 그 왜곡을 가리는 유일한 방벽이었다.
+        Drift problem = driftsOf(saved).getFirst();
+        problem.resolve(Instant.now(), DriftHandlingAction.APPLY);
+        assertThat(saved.getObservations()).hasSize(1);
         assertThat(saved.getDetectedDriftCount()).isEqualTo(1);
-        assertThat(saved.getDetectedDriftCountForDisplay()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("HF4-4 : 응답 매핑 — 신행은 해결 후에도 탐지 스냅샷 그대로 (탐지 2 · 미해결 1)")
-    void latestReport_mapsDetectedSnapshotDistinctFromRemaining() {
+    @DisplayName("MK4-1 : 응답 매핑 — 해결한 문제도 그 회차의 관측으로 남아 탐지 수와 목록이 어긋나지 않는다")
+    void latestReport_keepsResolvedObservations() {
         DriftReport report = DriftReport.builder()
                 .scannedAt(Instant.now()).scanDurationMs(100).deep(false).totalChecked(5).build();
         Drift d1 = Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(1L).kind(DriftKind.MISSING)
-                .oldPath("/a").detectedAt(Instant.now()).build();
+                .oldPath("/a").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
         Drift d2 = Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(2L).kind(DriftKind.MISSING)
-                .oldPath("/b").detectedAt(Instant.now()).build();
-        report.addDrift(d1);
-        report.addDrift(d2);
-        report.removeDrift(d1); // 1건 해결 재현
+                .oldPath("/b").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(observationOf(d1));
+        report.addObservation(observationOf(d2));
+        d1.resolve(Instant.now(), DriftHandlingAction.APPLY); // 1건 해결 재현
         given(driftReportRepository.findFirstByOrderByScannedAtDesc()).willReturn(Optional.of(report));
 
         var response = service.latestReport().orElseThrow();
 
         assertThat(response.detectedDriftCount()).isEqualTo(2);
-        assertThat(response.driftCount()).isEqualTo(1);
+        assertThat(response.drifts()).hasSize(2);
+        // 해결분은 상태로 구분된다 — 목록에서 사라져 건수만 맞지 않게 되던 종전과 다르다.
+        assertThat(response.drifts()).extracting(DriftResponse::status)
+                .containsExactlyInAnyOrder(DriftStatus.RESOLVED, DriftStatus.OPEN);
     }
 
     @Test
-    @DisplayName("HF4-4 : 구행(스냅샷 0·잔존 3) 표시 대체 — 탐지 자리를 미해결 수로 (backfill 없는 도입 이전 행 호환)")
-    void legacyRow_detectedCountFallsBackToRemaining() {
-        DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(100).deep(false).totalChecked(5).build();
-        for (long id = 1; id <= 3; id++) {
-            report.addDrift(Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(id)
-                    .kind(DriftKind.MISSING).oldPath("/x" + id).detectedAt(Instant.now()).build());
-        }
-        // 도입 이전 저장 행 재현 — DB 컬럼 default 0 (JPA 하이드레이션은 addDrift 를 타지 않는다)
-        ReflectionTestUtils.setField(report, "detectedDriftCount", 0);
-        given(driftReportRepository.findFirstByOrderByScannedAtDesc()).willReturn(Optional.of(report));
-
-        assertThat(report.getDetectedDriftCountForDisplay()).isEqualTo(3);
-        var response = service.latestReport().orElseThrow();
-        assertThat(response.detectedDriftCount()).isEqualTo(3);
-        assertThat(response.driftCount()).isEqualTo(3);
-    }
-
-    @Test
-    @DisplayName("HF4-4 : saga 임시 보고서(persistAndForcedApply)도 탐지 1건 자동 스냅샷 (addDrift 내부화 검증)")
+    @DisplayName("HF4-4 → MK4-1 : saga 임시 보고서(persistAndForcedApply)도 관측 1건을 남긴다")
     void persistAndForcedApply_snapshotsDetectedCount(@TempDir Path tmp) {
         Path newPath = tmp.resolve("new.iso");
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
-                .oldPath("/old").newPath(newPath.toString()).detectedAt(Instant.now()).build();
+                .oldPath("/old").newPath(newPath.toString()).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
         // mock save 는 실 영속화가 아니라 drift id 가 null — forced apply 의 findById 를 그대로 매칭
         given(driftRepository.findById(any())).willReturn(Optional.of(drift));
 
@@ -1145,6 +1276,185 @@ class PathReconciliationServiceTest {
 
         DriftReport saved = captureSavedReport();
         assertThat(saved.getDetectedDriftCount()).isEqualTo(1);
-        assertThat(saved.getDrifts()).isEmpty(); // forced apply 가 제거 — 스냅샷만 남는다
+        assertThat(driftsOf(saved)).containsExactly(drift);
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.RESOLVED);
+    }
+
+    // ==== MK4-1 — 문제와 관측의 분리 =================================================
+
+    /**
+     * 같은 신원의 열린 문제가 이미 있는 상황을 재현한다. 저장소가 그것을 찾아 돌려주게 해서,
+     * 스캔이 새 문제를 만드는 대신 기존 문제에 관측을 잇는지 본다.
+     */
+    private Drift givenOpenProblem(DriftKind kind, Long resourceId, Instant firstDetectedAt) {
+        Drift existing = Drift.builder()
+                .resourceType(ResourceType.OS_ISO).resourceId(resourceId).kind(kind)
+                .oldPath("/처음/본/경로").firstDetectedAt(firstDetectedAt).lastObservedAt(firstDetectedAt)
+                .build();
+        ReflectionTestUtils.setField(existing, "id", 100L);
+        given(driftRepository.findFirstByResourceTypeAndResourceIdAndKindAndStatusNot(
+                ResourceType.OS_ISO, resourceId, kind, DriftStatus.RESOLVED))
+                .willReturn(Optional.of(existing));
+        given(driftRepository.findByStatusNot(DriftStatus.RESOLVED)).willReturn(List.of(existing));
+        return existing;
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 같은 문제를 두 번째로 보면 새 문제를 만들지 않고 관측만 늘린다")
+    void scan_sameIdentityTwice_becomesOneProblemTwoObservations(@TempDir Path tmp) {
+        Instant firstDetectedAt = Instant.now().minusSeconds(3600);
+        Drift existing = givenOpenProblem(DriftKind.MISSING, 42L, firstDetectedAt);
+        Markable m = isoAt(42L, tmp.resolve("dvd.iso")); // 마커도 본체도 없음 → MISSING
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        // 새 문제를 저장하지 않았다 — 이것이 "회차마다 무관한 행이 생기던" 종전과의 차이다.
+        verify(driftRepository, never()).save(any(Drift.class));
+        assertThat(existing.getObservationCount()).isEqualTo(2);
+        assertThat(existing.getFirstDetectedAt()).isEqualTo(firstDetectedAt); // 처음 본 시각은 불변
+        assertThat(existing.getLastObservedAt()).isAfter(firstDetectedAt);
+        assertThat(driftsOf(captureSavedReport())).containsExactly(existing);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 처음 보는 신원은 새 문제가 되고 처음 본 시각 = 이번 점검 시각")
+    void scan_newIdentity_createsProblem(@TempDir Path tmp) {
+        Instant before = Instant.now();
+        Markable m = isoAt(42L, tmp.resolve("dvd.iso"));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        Drift created = driftsOf(captureSavedReport()).getFirst();
+        assertThat(created.getKind()).isEqualTo(DriftKind.MISSING);
+        assertThat(created.getObservationCount()).isEqualTo(1);
+        assertThat(created.getFirstDetectedAt()).isAfterOrEqualTo(before);
+        assertThat(created.getFirstDetectedAt()).isEqualTo(created.getLastObservedAt());
+        assertThat(created.getStatus()).isEqualTo(DriftStatus.OPEN);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 이번 점검이 커버한 종류인데 안 보이면 자동 해소 (운영자가 직접 되돌린 경우)")
+    void scan_unobservedCoveredKind_autoResolves(@TempDir Path tmp) {
+        Drift existing = givenOpenProblem(DriftKind.MISSING, 42L, Instant.now().minusSeconds(3600));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of()); // 이번엔 아무것도 안 보임
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        assertThat(existing.getStatus()).isEqualTo(DriftStatus.RESOLVED);
+        assertThat(existing.getResolvedBy()).isEqualTo(DriftHandlingAction.SCAN_UNOBSERVED);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 일반 점검은 내용 변경 문제를 자동 해소하지 않는다 (커버하지 않는 종류라 '안 보인' 것이 아니다)")
+    void quickScan_doesNotResolveHashMismatch(@TempDir Path tmp) {
+        Drift existing = givenOpenProblem(DriftKind.HASH_MISMATCH, 42L, Instant.now().minusSeconds(3600));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1"); // deep=false
+
+        // 일반 점검은 내용 지문을 재계산하지 않으므로 이 문제를 볼 수 없다. 여기서 닫아 버리면
+        // 정밀 점검마다 되살아나기를 반복해 목록이 요동친다.
+        assertThat(existing.getStatus()).isEqualTo(DriftStatus.OPEN);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 정밀 점검은 내용 변경 문제도 커버하므로 안 보이면 자동 해소한다")
+    void deepScan_resolvesUnobservedHashMismatch(@TempDir Path tmp) {
+        Drift existing = givenOpenProblem(DriftKind.HASH_MISMATCH, 42L, Instant.now().minusSeconds(3600));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", true, "job-1"); // deep=true
+
+        assertThat(existing.getStatus()).isEqualTo(DriftStatus.RESOLVED);
+        assertThat(existing.getResolvedBy()).isEqualTo(DriftHandlingAction.SCAN_UNOBSERVED);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 보관 기간이 지났고 문제가 여전히 보이면 점검이 다시 연다")
+    void scan_reopensExpiredSnooze(@TempDir Path tmp) {
+        Drift existing = givenOpenProblem(DriftKind.MISSING, 42L, Instant.now().minusSeconds(3600));
+        existing.snooze(SnoozeWindow.DAYS_7, "부품 입고 대기", Instant.now().minus(java.time.Duration.ofDays(8)));
+        assertThat(existing.getStatus()).isEqualTo(DriftStatus.SNOOZED);
+        Markable m = isoAt(42L, tmp.resolve("dvd.iso")); // 마커도 본체도 없음 → 이번에도 MISSING
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        assertThat(existing.getStatus()).isEqualTo(DriftStatus.OPEN);
+        assertThat(existing.getSnoozeUntil()).isNull();
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 두고 보던 문제가 그 사이 사라졌으면 다시 열지 않고 해결로 닫는다")
+    void scan_snoozedButGone_resolvesInsteadOfReopening(@TempDir Path tmp) {
+        Drift existing = givenOpenProblem(DriftKind.MISSING, 42L, Instant.now().minusSeconds(3600));
+        existing.snooze(SnoozeWindow.DAYS_7, "부품 입고 대기", Instant.now().minus(java.time.Duration.ofDays(8)));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of()); // 그 사이 운영자가 정리
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        // 만료됐다고 무조건 되살리면 이미 없어진 문제를 목록에 올리게 된다. 자동 해소가 먼저다.
+        assertThat(existing.getStatus()).isEqualTo(DriftStatus.RESOLVED);
+        assertThat(existing.getResolvedBy()).isEqualTo(DriftHandlingAction.SCAN_UNOBSERVED);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 조건형 보관('다음 정밀 점검까지')은 정밀 점검이 관측하는 순간 풀린다")
+    void deepScan_releasesConditionalSnooze(@TempDir Path tmp) {
+        Drift existing = givenOpenProblem(DriftKind.MISSING, 42L, Instant.now().minusSeconds(3600));
+        existing.snooze(SnoozeWindow.UNTIL_NEXT_DEEP_SCAN, "다음 정밀 점검에서 다시 보자", Instant.now());
+        assertThat(existing.getSnoozeUntil()).isNull(); // 시각이 아니라 사건으로 풀린다
+        Markable m = isoAt(42L, tmp.resolve("dvd.iso"));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", true, "job-1");
+
+        assertThat(existing.getStatus()).isEqualTo(DriftStatus.OPEN);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 해결된 문제가 다시 발견되면 그 행을 되살리지 않고 새 문제로 만든다")
+    void scan_rediscoveredAfterResolve_createsNewProblem(@TempDir Path tmp) {
+        // 저장소는 RESOLVED 를 제외하고 찾으므로 해결분은 조회에 걸리지 않는다 — 그 계약의 확인.
+        given(driftRepository.findFirstByResourceTypeAndResourceIdAndKindAndStatusNot(
+                any(), any(), any(), org.mockito.ArgumentMatchers.eq(DriftStatus.RESOLVED)))
+                .willReturn(Optional.empty());
+        Markable m = isoAt(42L, tmp.resolve("dvd.iso"));
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        verify(driftRepository, times(1)).save(any(Drift.class));
+        assertThat(driftsOf(captureSavedReport()).getFirst().getObservationCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("MK4-1 : 재관측은 최신 스냅샷(경로 · 상세)을 덮어쓰되 처음 본 시각은 지킨다")
+    void scan_observationUpdatesLatestSnapshot(@TempDir Path tmp) throws Exception {
+        Instant firstDetectedAt = Instant.now().minusSeconds(3600);
+        Drift existing = givenOpenProblem(DriftKind.PATH_DRIFT, 42L, firstDetectedAt);
+        Path oldIso = tmp.resolve("old/dvd.iso");
+        Path newIso = tmp.resolve("new/dvd.iso");
+        Files.createDirectories(oldIso.getParent());
+        Files.createDirectories(newIso.getParent());
+        Files.writeString(newIso, "fake-iso");
+        writeMarker(newIso, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        Markable iso = isoAt(42L, oldIso);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(iso));
+        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        assertThat(existing.getOldPath()).isEqualTo(oldIso.toString());
+        assertThat(existing.getNewPath()).isEqualTo(newIso.toString());
+        assertThat(existing.getFirstDetectedAt()).isEqualTo(firstDetectedAt);
+        // 회차별 사실은 관측에 따로 남는다 — 나중에 이동 경로를 되짚을 수 있다.
+        assertThat(captureSavedReport().getObservations()).singleElement()
+                .satisfies(o -> {
+                    assertThat(o.getOldPath()).isEqualTo(oldIso.toString());
+                    assertThat(o.getNewPath()).isEqualTo(newIso.toString());
+                });
     }
 }

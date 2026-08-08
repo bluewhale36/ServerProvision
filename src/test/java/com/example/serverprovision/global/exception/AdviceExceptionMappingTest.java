@@ -60,15 +60,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       → {@link WildcardAcceptPin}.</li>
  * </ul>
  *
- * <p>{@link ExceptionLogPolicy} 가 정적 유틸이라 advice 는 생성자 의존성 없이 적재된다 —
- * no-arg {@code .setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler())} 로 충분.
- * 로그 출력 자체는 검증하지 않는다 (상태코드·바디로 충분). 수렴 후 로그 라벨은 {@code advice.domain.mapped}.</p>
+ * <p>{@link ExceptionLogPolicy} 가 정적 유틸이라 advice 는 로깅 목적의 의존성을 갖지 않는다.
+ * {@code ApiExceptionHandler} 만 검증 문구 사전({@code MessageSource})을 받으므로 여기서는 빈 사전을
+ * 넘긴다 — 사전이 비어 있으면 제약이 들고 온 메시지가 그대로 쓰이는 종전 동작이라, 이 파일이 고정하는
+ * 라우팅 계약에는 영향이 없다. 로그 출력 자체는 검증하지 않는다 (상태코드·바디로 충분).
+ * 수렴 후 로그 라벨은 {@code advice.domain.mapped}.</p>
  */
 class AdviceExceptionMappingTest {
 
+	/**
+	 * 항목이 하나도 없는 검증 문구 사전. 조회는 전부 실패하고 Spring 이 제약 메시지로 되돌아간다.
+	 */
+	private static org.springframework.context.MessageSource emptyMessages() {
+		return new org.springframework.context.support.StaticMessageSource();
+	}
+
 	private final MockMvc mvc = MockMvcBuilders
 			.standaloneSetup(new AdviceProbeController())
-			.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler())
+			.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler(emptyMessages()))
 			.build();
 
 	/* ───────────── @ResponseStatus(4xx) DomainException — SSR 비대칭 정정 (기존 가드 유지) ───────────── */
@@ -231,7 +240,7 @@ class AdviceExceptionMappingTest {
 
 		private final MockMvc mvc = MockMvcBuilders
 				.standaloneSetup(new AdviceProbeController())
-				.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler())
+				.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler(emptyMessages()))
 				.build();
 
 		@Test
@@ -289,7 +298,7 @@ class AdviceExceptionMappingTest {
 		private final DirectoryBrowseService browseService = Mockito.mock(DirectoryBrowseService.class);
 		private final MockMvc browseMvc = MockMvcBuilders
 				.standaloneSetup(new DirectoryBrowseController(browseService))
-				.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler())
+				.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler(emptyMessages()))
 				.build();
 
 		@Test

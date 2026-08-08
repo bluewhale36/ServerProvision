@@ -64,7 +64,7 @@ class TrashKindResolutionTest {
     private static Drift driftOf(DriftKind kind, String oldPath) {
         return Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(kind)
-                .oldPath(oldPath).newPath(null).detectedAt(Instant.now())
+                .oldPath(oldPath).newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now())
                 .build();
     }
 
@@ -196,7 +196,7 @@ class TrashKindResolutionTest {
 
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.BIOS_BUNDLE).resourceId(7L).kind(DriftKind.TRASH_MARKER_STALE)
-                .oldPath(trashedTree.toString()).newPath(null).detectedAt(Instant.now())
+                .oldPath(trashedTree.toString()).newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now())
                 .build();
         new StaleTrashMarkerCleanupResolution(markerService).resolve(drift, scanner);
 
