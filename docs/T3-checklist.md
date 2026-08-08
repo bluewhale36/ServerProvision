@@ -18,11 +18,18 @@
 - [ ] **flash 집행** (DEC-20): 가상 USB 이미지 부팅 → BIOS flash 실행 — 어떤 시뮬레이터로도 재현 불가, 실보드 전용.
 - [ ] Redfish SimpleUpdate 로 커스텀 BIOS 파일이 적용되는지 (E3-R 조사의 실기 확인 항목).
 
+#### E2-3 착수 게이트 (2026-08-08 신설 — BMC 펌웨어 13.06.27 이 UEFI Shell 경로를 폐쇄)
+근거: `discussion/26-08-08_14-48-20_E2-bmc-redfish-pivot_discussion.md`. BMC 집행이 가상 USB 에서 Redfish SimpleUpdate 로 전환되면서 착수 게이트가 "이미지 포맷·하부 도구 확정" 에서 아래 셋으로 교체됐다.
+
+- [ ] **13.06.27 에서 UpdateService OEM 계약이 유지되는가** — `GET /redfish/v1/UpdateService` 로 `Oem.AMIUpdateService`(FlashPercentage · UpdateStatus · UpdateTarget)와 `Actions/SimpleUpdate` URI 존재 확인. E3-R 조사가 "최신 펌웨어에서 유지되는지 확인 불가" 로 남긴 항목이며, 13.06.27 이 정확히 그 대상이다.
+- [ ] **게스트 전원 OFF 상태에서 SimpleUpdate 가 수락되는가** — BMC 업데이트는 게스트 전원이 꺼진 상태에서 진행해야 한다(전원 선은 연결 유지, BMC 는 대기 전력으로 생존). 공식 가이드는 "업데이트 중 BMC WebGUI 접속 금지" 만 명시하고 전원 상태 요건은 미기재라 실측이 필요하다.
+- [ ] **BMC 업데이트 실패 후 재시도 경로** — 듀얼 이미지(`DualImageConfigurations`)로 벽돌 위험은 낮으나 복구 절차 확인 필요. HPE Cray CSM 선례: `ipmitool mc reset cold` 후 5 분 뒤 재시도.
+
 ### E3 — BIOS/BMC 설정 (슬라이스 진행 시 구체화)
 - [ ] **실 BMC Redfish**: `/redfish/v1` 버전 · `Systems/Self/Bios/SD` 실재 · 계정 PATCH · 기본 비밀번호(시리얼 끝 11자) 정책 — E3-R 체크리스트 8항목.
 
 ### 강화 확장 (DEC-35 — E3 이후, 전원 제어 3종)
-- [ ] **Redfish 전원 제어**: ComputerSystem.Reset(On/ForceOff/GracefulRestart) 실측 — UC-2 즉시 강제 정지 · phase 전환 재부팅 신뢰성의 전제.
+- [ ] **Redfish 전원 제어**: ComputerSystem.Reset(On/ForceOff/GracefulRestart) 실측 — UC-2 즉시 강제 정지 · phase 전환 재부팅 신뢰성의 전제. **(2026-08-08 이관 — 이 항목은 신설된 `E1.5 : Redfish 제어 기반 · 전원 제어` 소관이며, `E2-3` 의 착수 게이트다.** BMC 업데이트가 `BIOS flash → ForceOff → BMC flash → On → 검증` 흐름을 요구하므로 전원 제어 없이는 시작도 종료도 못 한다. 아래 나머지 2 종은 E1.5 범위 밖 — 필요해지는 시점에 그 클라이언트 위에 얹는다.)
 - [ ] **BootSourceOverride**: 다음 1회 부팅을 PXE 로 강제 — UC-4(network boot 이탈) 원격 복구의 전제.
 - [ ] **IndicatorLED (UID 램프)**: 상세 페이지 버튼 → 실물 램프 점멸 — UC-5 식별 후보 4.
 
