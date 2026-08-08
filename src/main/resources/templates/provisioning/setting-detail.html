@@ -51,7 +51,7 @@
                 <a th:href="@{/provisioning/setting/{id}/edit(id=${setting.id})}"
                    class="n-btn n-btn-secondary">수정</a>
                 <!-- U3-2-b DEC-G — 활성 축(신규 할당 차단 여부) 토글. 삭제분 상세에는 복원·영구삭제만 남긴다. -->
-                <form method="post" class="n-inline-form" data-async-submit=""
+                <form method="post" class="n-inline-form"
                       th:action="@{/provisioning/setting/{id}/toggle(id=${setting.id})}">
                     <button type="submit" class="n-btn n-btn-secondary"
                             th:text="${setting.enabled} ? '비활성화' : '활성화'"
@@ -60,7 +60,7 @@
                                       : '활성화하면 이 정의서를 다시 할당할 수 있습니다.'">비활성화</button>
                 </form>
                 <!-- 사용 중단 권고 축 — 할당을 막지 않고 경고만 붙인다(deprecated ≠ disabled). -->
-                <form method="post" class="n-inline-form" data-async-submit=""
+                <form method="post" class="n-inline-form"
                       th:action="${setting.deprecated}
                                  ? @{/provisioning/setting/{id}/undeprecate(id=${setting.id})}
                                  : @{/provisioning/setting/{id}/deprecate(id=${setting.id})}">
@@ -72,20 +72,20 @@
                 </form>
                 <form method="post" class="n-inline-form"
                       th:action="@{/provisioning/setting/{id}/delete(id=${setting.id})}"
-                      data-confirm-soft-delete="" data-async-submit=""
+                      data-confirm-soft-delete=""
                       th:data-resource-label="|정의서 '${setting.name}'|"
                       th:data-referencing-count="${setting.referencingCount}">
                     <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                 </form>
             </th:block>
             <th:block th:if="${setting.deleted}">
-                <form method="post" class="n-inline-form" data-async-submit=""
+                <form method="post" class="n-inline-form"
                       th:action="@{/provisioning/setting/{id}/restore(id=${setting.id})}">
                     <button type="submit" class="n-btn n-btn-secondary">복원</button>
                 </form>
                 <form method="post" class="n-inline-form"
                       th:action="@{/provisioning/setting/{id}/purge(id=${setting.id})}"
-                      data-confirm-purge="" data-async-submit=""
+                      data-confirm-purge=""
                       th:data-resource-label="|정의서 '${setting.name}'|"
                       th:data-typed-name="${setting.name}">
                     <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>

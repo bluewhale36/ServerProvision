@@ -112,7 +112,6 @@
                           th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
                           data-confirm-soft-delete=""
-                          data-async-submit=""
                           th:data-resource-label="|${item.resourceType} #${item.resourceId} (ghost row)|"
                           data-resource-extra="복구 가능한 자원이 없으므로 안전한 작업이에요.">
                         <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
@@ -123,7 +122,6 @@
                         <form th:action="@{/maintenance/trash/{rt}/{rid}/restore(rt=${item.resourceType}, rid=${item.resourceId})}"
                               method="post"
                               data-confirm-restore=""
-                              data-async-submit=""
                               th:data-resource-label="${item.displayName}"
                               data-resource-extra="원래 경로로 복원돼요."
                               th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
@@ -143,7 +141,6 @@
                         <form th:action="@{/maintenance/trash/{rt}/{rid}/extend(rt=${item.resourceType}, rid=${item.resourceId})}"
                               method="post"
                               data-confirm-extend=""
-                              data-async-submit=""
                               th:data-resource-type="${item.resourceType}"
                               th:data-resource-id="${item.resourceId}"
                               th:data-resource-label="|${item.displayName} 의 보존기간|"
@@ -161,7 +158,6 @@
                         <form th:action="@{/maintenance/trash/{rt}/{rid}/purge(rt=${item.resourceType}, rid=${item.resourceId})}"
                               method="post"
                               data-confirm-purge=""
-                              data-async-submit=""
                               th:data-resource-type="${item.resourceType}"
                               th:data-resource-id="${item.resourceId}"
                               th:data-resource-label="${item.displayName}"

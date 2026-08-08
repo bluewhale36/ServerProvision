@@ -130,74 +130,23 @@
     }
 
     /**
-     * 사용자 확인 직후 form 재제출. 본 base 의 submit listener 가 두 번째 submit 을 통과시킴.
-     * <p>form 에 {@code data-async-submit} 마커가 있으면 native navigation 대신 fetch 로 보내고
-     * 응답을 {@code window.AsyncSubmitResult} 에 위임한다 — 거절 응답이 raw JSON 페이지로
-     * 노출되는 사고를 막기 위함 (휴지통 등 일부 페이지 전용).</p>
+     * 사용자 확인 직후 전송. S10 이 기본값을 뒤집어 <b>fetch 제출이 기본</b>이다 — 거절 응답이
+     * raw JSON 페이지로 노출되는 사고를 막기 위함이며, 종전의 {@code data-async-submit} opt-in 은
+     * 마커를 빠뜨리면 그대로 사고가 되는 구조라 폐기했다.
+     * <p>서버가 실패 시 뷰를 다시 렌더하는 폼({@code BindingResult})만 {@code data-native-submit} 으로
+     * 빠져나가 native 재제출한다. 본 base 의 submit listener 가 두 번째 submit 을 통과시킨다.</p>
+     * <p>전송 구현은 {@code window.FormSubmit.sendAsync} 하나뿐이다 — 전역 인터셉터와 본 경로가
+     * 같은 구현을 공유해야 두 진입점의 동작이 갈라지지 않는다.</p>
      */
     function approveAndSubmit(form) {
-        if (form.hasAttribute('data-async-submit')) {
-            submitAsync(form);
+        if (form.hasAttribute('data-native-submit')) {
+            form.dataset.confirmApproved = '1';
+            form.requestSubmit();
             return;
         }
-        form.dataset.confirmApproved = '1';
-        form.requestSubmit();
+        window.FormSubmit.sendAsync(form);
     }
 
-    async function submitAsync(form) {
-        const method = (form.getAttribute('method') || 'POST').toUpperCase();
-        const action = form.getAttribute('action') || window.location.pathname;
-        const fd = new FormData(form);
-        let url = action;
-        let body = fd;
-        if (method === 'GET') {
-            const qs = new URLSearchParams(fd).toString();
-            url = action + (action.includes('?') ? '&' : '?') + qs;
-            body = null;
-        }
-        const handler = window.AsyncSubmitResult || defaultAsyncResult;
-        let resp;
-        try {
-            resp = await fetch(url, {
-                method,
-                body,
-                headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json,text/html;q=0.9,*/*;q=0.5'},
-                redirect: 'follow'
-            });
-        } catch (err) {
-            handler.onNetworkError(form, err);
-            return;
-        }
-        if (resp.ok || resp.redirected) {
-            handler.onSuccess(form, resp);
-            return;
-        }
-        let payload = null;
-        try {
-            const ct = resp.headers.get('content-type') || '';
-            if (ct.includes('application/json')) payload = await resp.json();
-            else if (ct.includes('text/plain')) payload = {message: (await resp.text()).slice(0, 500)};
-            else {
-                // HF4-1 F-3 — HTML 에러 페이지 등 비 JSON 바디는 사용자 메시지로 쓰지 않는다
-                // (원문 500자 덤프가 모달에 노출되던 사고). 원문은 디버깅용 console 로만 남기고
-                // handler 의 일반화 메시지("요청이 거절되었어요...")로 fallback.
-                console.warn(TAG, '비 JSON 오류 응답 (HTTP ' + resp.status + ', ' + ct + ') — 바디 원문은 메시지로 쓰지 않음 :',
-                    (await resp.text()).slice(0, 500));
-            }
-        } catch (_) {
-            payload = null;
-        }
-        handler.onRejected(form, resp.status, payload);
-    }
-
-    const defaultAsyncResult = {
-        onSuccess: () => window.location.reload(),
-        onRejected: (_form, status, payload) => {
-            const msg = (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')');
-            ErrorModal.show({message: msg, status: status});
-        },
-        onNetworkError: () => ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0})
-    };
 
     /**
      * S5-6-1 — modal lazy-load 흐름. fetchUrl 로 BE 에 fragment 요청 → #modalLazySlot 에 inject →

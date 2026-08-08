@@ -11,7 +11,7 @@
                          — 그 완료는 외부 스캔과 동일하게 '새 보고서 도착' 배너가 안내
     · R9-3 — 확인 UI 정합:
         Deep 스캔/재발급 → 정적 generic modal (reconConfirm — 페이지 액션이라 자원 시그니처 무관)
-        드리프트 적용/보고 닫기 → lazy modal (DRIFT_APPLY / DRIFT_DISMISS) + data-async-submit
+        드리프트 적용/보고 닫기 → lazy modal (DRIFT_APPLY / DRIFT_DISMISS), 전송은 전역 fetch 경로(S10)
         성공 = 토스트+reload, 거절 = 전역 AsyncSubmitResult(ErrorModal) — 전체 페이지 이탈 없음
       바인딩은 본 파일(페이지 로컬) — 전역 confirm-modals 스크립트 목록 무변경.
 */
