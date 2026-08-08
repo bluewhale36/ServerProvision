@@ -4,6 +4,7 @@ import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.PurgeLogDetails;
+import com.example.serverprovision.global.trash.TrashPolicy;
 import com.example.serverprovision.global.trash.PurgeRequest;
 import com.example.serverprovision.global.trash.PurgeResult;
 import com.example.serverprovision.global.trash.entity.PurgeLog;
@@ -47,6 +48,8 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 	private final List<MarkableScanner> scanners;
 	private final TrashSettingsService settingsService;
 	private final PurgeLogRepository purgeLogRepository;
+	// HF6 — 재귀 삭제의 안전 경계. 실물 정리는 휴지통 루트 안쪽에서만 허용된다.
+	private final TrashPolicy trashPolicy;
 
 	/**
 	 * scanner 등록을 ResourceType 으로 색인 — 본 클래스의 단일 lookup 진입점.
@@ -168,13 +171,72 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 
 	/**
 	 * S6-2-3 — 휴지통 실물 정리는 best-effort. 실패해도 purge 자체(기록 삭제)는 성공으로 유지하고 로그만 남긴다.
+	 *
+	 * <p>HF6 — 종전의 {@code Files.deleteIfExists} 단일 호출은 디렉토리형 자원(BIOS · BMC 번들)의
+	 * 휴지통 트리를 지우지 못했다({@code DirectoryNotEmptyException} 이 best-effort 로 삼켜져 경고
+	 * 로그만 남고, 실물은 점검 수색 제외 구역에 영원히 잔존 — 개발 머신 실측 22GB 의 살아 있는 절반).
+	 * 재귀 삭제로 교체하되, 위험 연산이므로 휴지통 레이아웃({@code 루트/자원종류/ID/실물}) 안쪽만
+	 * 허용하는 가드를 앞세운다 — DB 오염 · 변조로 경로가 밖을 가리켜도 아무것도 지우지 않는다.</p>
 	 */
-	private static void deleteQuietly(String rawPath) {
+	private void deleteQuietly(String rawPath) {
 		try {
-			java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(rawPath));
+			java.nio.file.Path target = java.nio.file.Path.of(rawPath).toAbsolutePath().normalize();
+			java.nio.file.Path root = trashPolicy.getTrashRoot().toAbsolutePath().normalize();
+			// 가드 — 루트 밖 · 루트 자신 · 레이아웃보다 얕은 깊이(자원종류/ID 층 자체)는 전부 거부.
+			// 얕은 경로를 허용하면 오염된 한 값이 자원종류 트리 전체를 지울 수 있다.
+			if (!target.startsWith(root) || root.relativize(target).getNameCount() < 3) {
+				log.warn("[purge-executor] 휴지통 레이아웃 밖 경로 — 실물 정리 거부. path={}", rawPath);
+				return;
+			}
+			if (java.nio.file.Files.notExists(target, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+				return; // 이미 없음(TRASH_LOST 경로 등) — 멱등
+			}
+			deleteRecursively(target);
+			cleanupIdDirectory(target.getParent(), root);
 		} catch (java.io.IOException | java.nio.file.InvalidPathException e) {
 			// Path 해석 실패까지 함께 흡수 — 이미 성공한 purge 를 실물 정리 문제로 실패 처리하지 않는다.
 			log.warn("[purge-executor] 휴지통 실물 정리 실패. path={}, msg={}", rawPath, e.getMessage());
+		}
+	}
+
+	/**
+	 * HF6 — 트리 재귀 삭제. {@code walkFileTree} 는 심볼릭 링크를 따라가지 않으므로 트리 안의
+	 * 링크는 링크 자체만 지워지고 타깃은 보존된다.
+	 */
+	private static void deleteRecursively(java.nio.file.Path target) throws java.io.IOException {
+		java.nio.file.Files.walkFileTree(target, new java.nio.file.SimpleFileVisitor<>() {
+			@Override
+			public java.nio.file.FileVisitResult visitFile(
+					java.nio.file.Path file, java.nio.file.attribute.BasicFileAttributes attrs)
+					throws java.io.IOException {
+				java.nio.file.Files.delete(file);
+				return java.nio.file.FileVisitResult.CONTINUE;
+			}
+
+			@Override
+			public java.nio.file.FileVisitResult postVisitDirectory(
+					java.nio.file.Path dir, java.io.IOException exc) throws java.io.IOException {
+				if (exc != null) throw exc;
+				java.nio.file.Files.delete(dir);
+				return java.nio.file.FileVisitResult.CONTINUE;
+			}
+		});
+	}
+
+	/**
+	 * HF6 — 실물 정리 후 비워진 {@code 루트/자원종류/ID} 디렉토리 껍데기 정리. 정확히 그 깊이일 때만,
+	 * 그리고 비어 있을 때만 지운다 — 다른 잔존물이나 잡파일이 있으면 보존한다(그 대사는 MK4 소관).
+	 */
+	private static void cleanupIdDirectory(java.nio.file.Path parent, java.nio.file.Path root) {
+		if (parent == null || !parent.startsWith(root) || root.relativize(parent).getNameCount() != 2) {
+			return;
+		}
+		try {
+			java.nio.file.Files.deleteIfExists(parent);
+		} catch (java.nio.file.DirectoryNotEmptyException keep) {
+			// 비어 있지 않으면 보존 — 보수 정책.
+		} catch (java.io.IOException e) {
+			log.warn("[purge-executor] ID 디렉토리 정리 실패. path={}, msg={}", parent, e.getMessage());
 		}
 	}
 
