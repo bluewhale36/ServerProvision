@@ -58,6 +58,16 @@
 ### UI 디자인
 - `DESIGN.md` 명세를 엄격 준수. 기존 CSS 재사용 원칙(`static/css/global/style.css`, `miller.css`, `table-list.css`, `form-validation.css`). 인라인 스타일 금지, CSS 클래스 활용.
 
+### 작업 전 체크리스트 진입 (불가침)
+아래를 **만들기 전에** `.claude/domain-conventions/` 의 해당 문서를 먼저 연다. 규약을 몰라서가 아니라 **빠뜨려서** 사고가 났기 때문에 두는 관문이다(S10 계기).
+
+| 만드는 것 | 여는 문서 |
+|---|---|
+| 새 예외 클래스 | `new-exception.md` |
+| 상태 변경 폼 · 입력 폼 | `new-form.md` |
+
+해당 문서가 없는 영역(자원 도메인·드리프트·특권 명령·phase)은 그 영역을 실제로 건드릴 때 실측해 추가한다 — 추측으로 채우지 않는다.
+
 ## 아키텍처
 
 ### 영역 분할

@@ -17,7 +17,7 @@ ServerProvision의 문서는 두 갈래다. 개발자 매뉴얼은 `dev/` 아래
 | `dev/guides/add-resource-domain.md` | 새 자원 도메인 추가 절차 | 예정(DOC-4) |
 | `dev/guides/add-provisioning-phase.md` | 새 실행 단계 추가 절차 | 예정(DOC-4) |
 | `dev/glossary.md` | 용어집 | 예정(DOC-4) |
-| `dev/adr/` | 설계 결정 기록(ADR, Architecture Decision Record) | 예정(DOC-5) |
+| `dev/adr/` | 설계 결정 기록(ADR, Architecture Decision Record) | 초안(S10 에서 개시, 1건) |
 
 ### 사용자 가이드
 
@@ -71,7 +71,7 @@ ServerProvision의 문서는 두 갈래다. 개발자 매뉴얼은 `dev/` 아래
 |---|---|---|
 | `plan/`(약 150건) | 작업 단위별 계획. 초기에는 docx, 이후에는 html | 작성 시점의 설계라서 현재 코드와 다를 수 있다 |
 | `report/`(약 75건) | 구현 보고와 조사 기록 | 위와 같다 |
-| `discussion/` | 실행 엔진 설계 토론. 확정 결정에 DEC 번호가 붙는다 | 확정 결정은 `dev/adr/`로 옮겨 적을 예정이다 |
+| `discussion/` | 설계 토론 아카이브. 쟁점과 탈락 대안까지 담는다 | 확정 결정은 `dev/adr/`로 옮겨 적는다. 토론 과정의 근거가 필요할 때만 원본을 본다 |
 | `DB_FS_CONSISTENCY.md` | DB와 파일시스템 정합성 설계 | 2026년 5월 기준이라 이후 변경이 빠져 있다. 코드와 대조해 읽는다 |
 | `MK3-2_SOFTDELETE_REJECT_DIRECTION_1.md` | soft-delete 정책 설계 | 위와 같다 |
 | `report/26-07-11_17-57-19_drift-simulator_guide.html` | 드리프트 점검 체험 가이드 | 재조정 리팩토링 이전 산출물이다 |
