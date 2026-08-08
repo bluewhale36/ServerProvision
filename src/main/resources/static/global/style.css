@@ -207,7 +207,10 @@ code {
 
 /* disabled : flavor(outline-success/info/warning/danger 등) 색을 일관된 중립 회색으로 정규화한다.
    opacity 페이드만으로는 flavor 별로 다른 색(흐린 초록/파랑/주황)이 남으므로, 명시적 중립 배경 + muted
-   텍스트 + border 제거로 모든 disabled 버튼이 동일하게 보이게 한다 (.n-btn-danger:disabled 선례와 동일 값). */
+   텍스트 + border 제거로 모든 disabled 버튼이 동일하게 보이게 한다 (.n-btn-danger:disabled 선례와 동일 값).
+   HF7 — 이 규칙과 아래 flavor 별 :hover 규칙은 명시도 동률(0,2,0)이고 :hover 가 후순위라, hover 선택자에
+   :not(:disabled):not(.n-btn-disabled) 가드가 없으면 비활성 버튼이 hover 시 활성 색으로 되돌아간다.
+   새 flavor 의 hover 규칙을 추가할 때 반드시 같은 가드를 단다 (.n-btn-disabled 는 링크형 비활성). */
 .n-btn:disabled,
 .n-btn.n-btn-disabled {
     background: rgba(0, 0, 0, 0.10);
@@ -293,7 +296,7 @@ code {
     color: #ffffff;
 }
 
-.n-btn-primary:hover {
+.n-btn-primary:hover:not(:disabled):not(.n-btn-disabled) {
     background: var(--n-blue-hover);
     color: #ffffff;
 }
@@ -303,7 +306,7 @@ code {
     color: rgba(0, 0, 0, 0.85);
 }
 
-.n-btn-secondary:hover {
+.n-btn-secondary:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(0, 0, 0, 0.09);
     color: var(--n-text);
 }
@@ -314,7 +317,7 @@ code {
     border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
-.n-btn-ghost:hover {
+.n-btn-ghost:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(0, 0, 0, 0.04);
     color: var(--n-text);
 }
@@ -324,7 +327,7 @@ code {
     color: var(--n-blue-badge-text);
 }
 
-.n-btn-info:hover {
+.n-btn-info:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(9, 127, 232, 0.15);
 }
 
@@ -333,7 +336,7 @@ code {
     color: var(--n-orange);
 }
 
-.n-btn-warning:hover {
+.n-btn-warning:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(221, 91, 0, 0.16);
 }
 
@@ -342,7 +345,7 @@ code {
     color: var(--n-green);
 }
 
-.n-btn-success:hover {
+.n-btn-success:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(26, 174, 57, 0.18);
 }
 
@@ -352,7 +355,7 @@ code {
     border: 1px solid rgba(26, 174, 57, 0.3);
 }
 
-.n-btn-outline-success:hover {
+.n-btn-outline-success:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(26, 174, 57, 0.08);
 }
 
@@ -362,7 +365,7 @@ code {
     border: 1px solid rgba(221, 91, 0, 0.3);
 }
 
-.n-btn-outline-danger:hover {
+.n-btn-outline-danger:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(221, 91, 0, 0.08);
 }
 
@@ -373,7 +376,7 @@ code {
     border: 1px solid var(--n-red);
 }
 
-.n-btn-danger:hover:not(:disabled) {
+.n-btn-danger:hover:not(:disabled):not(.n-btn-disabled) {
     background: var(--n-red-hover);
     border-color: var(--n-red-hover);
     color: #ffffff;
@@ -392,7 +395,7 @@ code {
     border: 1px solid rgba(9, 127, 232, 0.3);
 }
 
-.n-btn-outline-info:hover {
+.n-btn-outline-info:hover:not(:disabled):not(.n-btn-disabled) {
     background: var(--n-blue-badge-bg);
 }
 
@@ -404,7 +407,7 @@ code {
     border: 1px solid rgba(194, 147, 67, 0.35);
 }
 
-.n-btn-outline-warning:hover {
+.n-btn-outline-warning:hover:not(:disabled):not(.n-btn-disabled) {
     background: var(--n-yellow-bg);
 }
 
