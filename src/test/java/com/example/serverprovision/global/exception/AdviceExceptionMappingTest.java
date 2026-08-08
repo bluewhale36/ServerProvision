@@ -29,8 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -222,6 +224,61 @@ class AdviceExceptionMappingTest {
 							.accept(MediaType.TEXT_HTML))
 					.andExpect(status().isBadRequest())
 					.andExpect(view().name("error"));
+		}
+	}
+
+	/* ═══════════ HF5 — SSR 오류 화면의 상태 문구 (ErrorStatusLabels 파생) ═══════════ */
+
+	/**
+	 * HF5 — 종전에는 {@code populate} 호출부가 영어 reason phrase 를 직접 넘겨(예: "Conflict") 기본
+	 * {@code /error} 경로의 문구와 갈라졌고, 그 결과 화면에 "404 Internal Error" 같은 모순된 한 줄이 나왔다.
+	 * 이제 문구를 상태에서 파생하므로 advice 가 만드는 model 이 상태와 일치하는지 못박는다.
+	 */
+	@Nested
+	@DisplayName("HF5 — SSR 오류 화면 상태 문구")
+	class StatusLabelOnErrorView {
+
+		private final MockMvc mvc = MockMvcBuilders
+				.standaloneSetup(new AdviceProbeController())
+				.setControllerAdvice(new WebExceptionHandler(), new ApiExceptionHandler(emptyMessages()))
+				.build();
+
+		@Test
+		@DisplayName("404 — 상태에 맞는 한국어 문구가 model 에 담긴다")
+		void notFound_hasKoreanStatusLabel() throws Exception {
+			mvc.perform(get("/_test/advice").param("kind", "not-found").accept(MediaType.TEXT_HTML))
+					.andExpect(status().isNotFound())
+					.andExpect(view().name("error"))
+					.andExpect(model().attribute("status", 404))
+					.andExpect(model().attribute("statusLabel", "페이지를 찾을 수 없습니다"));
+		}
+
+		@Test
+		@DisplayName("409 — 종전의 영어 'Conflict' 대신 한국어 문구가 담긴다")
+		void conflict_hasKoreanStatusLabel() throws Exception {
+			mvc.perform(get("/_test/advice").param("kind", "conflict").accept(MediaType.TEXT_HTML))
+					.andExpect(status().isConflict())
+					.andExpect(view().name("error"))
+					.andExpect(model().attribute("statusLabel", "다른 작업과 충돌했습니다"));
+		}
+
+		@Test
+		@DisplayName("400 — @ResponseStatus 4xx 도메인 예외도 상태에서 문구를 파생한다")
+		void badRequest_hasKoreanStatusLabel() throws Exception {
+			mvc.perform(get("/_test/advice").param("kind", "typed-name-mismatch").accept(MediaType.TEXT_HTML))
+					.andExpect(status().isBadRequest())
+					.andExpect(view().name("error"))
+					.andExpect(model().attribute("statusLabel", "요청 내용이 올바르지 않습니다"));
+		}
+
+		@Test
+		@DisplayName("어떤 상태든 statusLabel 에 영어가 섞이지 않는다")
+		void statusLabelNeverContainsEnglish() throws Exception {
+			for (String kind : new String[]{"not-found", "conflict", "field-bound-bad-request"}) {
+				Object label = mvc.perform(get("/_test/advice").param("kind", kind).accept(MediaType.TEXT_HTML))
+						.andReturn().getModelAndView().getModel().get("statusLabel");
+				assertThat(String.valueOf(label)).doesNotContainPattern("[A-Za-z]");
+			}
 		}
 	}
 

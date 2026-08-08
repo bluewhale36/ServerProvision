@@ -15,6 +15,17 @@ import java.util.List;
 public record SettingDetailResponse(
         Long id,
         String name,
+        /** soft-delete 여부(U3-2-b) — true 면 "삭제됨" 배지 + 복원/영구삭제 액션(수정 비활성). */
+        boolean deleted,
+        /** 활성 여부(U3-2-b DEC-G) — false 면 "비활성" 배지 + 토글 버튼이 '활성화'로 바뀐다. */
+        boolean enabled,
+        /** 사용 중단 권고(U3-2-b DEC-G) — true 면 "사용 중단" 배지 + 버튼이 '권고 해제'로 바뀐다. */
+        boolean deprecated,
+        /**
+         * 이 정의서를 참조하는 활성 할당 수(U3-2-b, DEC-C) — 삭제 확인 모달의 정보성 경고("N개 게스트에 활성
+         * 할당됨 — 삭제해도 스냅샷 유지"). 차단이 아닌 안내라 삭제 흐름에 예외를 유발하지 않는다.
+         */
+        long referencingCount,
         List<AbstractProcessRequest> processList,
         List<DeprecatedUsageResponse> deprecatedUsages,
         List<ExecutionWarningResponse> executionWarnings,

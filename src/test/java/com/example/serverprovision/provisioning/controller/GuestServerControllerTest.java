@@ -14,6 +14,8 @@ import com.example.serverprovision.provisioning.assignment.dto.response.Assignme
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
+import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,12 +30,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -108,6 +112,24 @@ class GuestServerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/server-detail"))
                 .andExpect(model().attributeExists("server", "updateForm"));
+    }
+
+    @Test
+    @DisplayName("GET /provisioning/server/{id} — 할당 드롭다운은 할당 가능 정의서만 · deprecated 는 라벨로 경고 (U3-2-b DEC-G)")
+    void detail_rendersAssignableDefinitionOptions() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detail(id));
+        // 비활성 · 삭제 정의서는 조회 서비스가 이미 걸러 낸다(서버 가드와 같은 판정) — 뷰는 받은 것만 그린다.
+        given(settingQueryService.findAssignable()).willReturn(List.of(
+                new SettingSummaryResponse(1L, "web-standard",
+                        List.of(SettingProcessType.BASIC_UPDATE), false, true, false, LocalDateTime.now()),
+                new SettingSummaryResponse(2L, "legacy-standard",
+                        List.of(SettingProcessType.BASIC_UPDATE), false, true, true, LocalDateTime.now())));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(">web-standard<")))
+                .andExpect(content().string(containsString(">legacy-standard (사용 중단 권고)<")));
     }
 
     @Test

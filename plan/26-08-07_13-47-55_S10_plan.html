@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S10 Plan — 오류 응답 채널 정정과 규약 강제 장치</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S10 — 오류 응답 채널 정정과 규약 강제 장치 <span class="v2-badge">cross-cutting</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S10 (fix + infra)</span>
+    <span><strong>브랜치</strong> <code>fix/S10_error-response-channel</code></span>
+    <span><strong>개발 단계</strong> 3차 개발</span>
+    <span><strong>scope</strong> 문서 이동에 HTML 오류를 돌려주고, 액션 폼을 자동 가로채기로 전면 전환한 뒤, 둘을 테스트로 못박는다</span>
+    <span><strong>생성</strong> 2026-08-07 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">&sect;1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">&sect;2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">&sect;3 요청 경로 / 데이터 흐름</a></li>
+      <li><a href="#s4">&sect;4 판정 계약 (SSOT)</a></li>
+      <li><a href="#s5">&sect;5 12단계 + CP</a></li>
+      <li><a href="#s6">&sect;6 통합 테스트</a></li>
+      <li><a href="#s7">&sect;7 예외 계층</a></li>
+      <li><a href="#s8">&sect;8 결정 / 부산물 / 주의</a></li>
+      <li><a href="#s9">&sect;9 Verification</a></li>
+      <li><a href="#s10">&sect;10 Critical Files</a></li>
+      <li><a href="#s11">&sect;11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>&sect;1. 현재 상태 (진단)</summary>
+      <div class="body">
+
+        <h4>계기</h4>
+        <p>U3-2-b 의 CP7 사용자 브라우저 E2E 에서, 삭제된 세팅 정의서를 복원할 때 서버가 거절한 응답의 본문이 화면에 그대로 노출됐다. 사용자에게는 안내 없이 <code>{"message":"같은 이름의 활성 정의서가 있어 복원할 수 없습니다. …"}</code> 라는 원문과 낯선 주소만 남았다.</p>
+
+        <p>같은 부류가 과거에 둘 있었다. <code>catch(DomainException)</code> 이 보안 예외를 흡수해 silent 500 으로 새던 사고, <code>MissingFilenameException</code> 이 500 으로 새던 사고다. 후자 때문에 "사용자 액션 통합 테스트" 규율이 생겼다. <b>규약은 이미 있었고 지켜지지 않았다</b> &mdash; 이 사실이 이 슬라이스의 설계를 좌우한다.</p>
+
+        <h4>실측으로 확정한 원인</h4>
+        <p>착수 브리핑은 <code>@ExceptionHandler(Exception.class)</code> 최종 폴백 부재를 주 원인으로 지목했다. <b>조사 결과 사실이 아니다.</b> 예외는 정상적으로 잡혀 409 로 매핑됐고, 형식만 틀렸다. 폴백이 있었어도 이 사고는 그대로 났다.</p>
+
+        <p>진짜 원인은 content negotiation 구조 결함이다. <code>@WebMvcTest</code> 로 <code>BoardModelLifecycleController</code> 와 <code>BoardModelMetadataController</code> 를 측정했다.</p>
+
+        <table>
+          <tr><th>요청 <code>Accept</code></th><th><code>*/*</code> 포함</th><th>선택된 advice</th><th>응답</th></tr>
+          <tr><td><code>text/html</code></td><td>&mdash;</td><td>Web</td><td><code>text/html</code>, view=<code>error</code></td></tr>
+          <tr><td><code>text/html,application/xhtml+xml;q=0.9</code></td><td>&mdash;</td><td>Web</td><td><code>text/html</code>, view=<code>error</code></td></tr>
+          <tr><td><code>text/html,*/*;q=0.8</code></td><td>있음</td><td>Api</td><td><code>application/json</code></td></tr>
+          <tr><td>실제 크롬 내비게이션 헤더</td><td>있음</td><td>Api</td><td><code>application/json</code></td></tr>
+          <tr><td>헤더 없음</td><td>있음</td><td>Api</td><td><code>application/json</code></td></tr>
+        </table>
+
+        <div class="callout danger">
+          <b>기전</b> : 두 advice 가 모두 <code>@Order(HIGHEST_PRECEDENCE)</code> 로 동순위라 등록 순서로 결정되고 <code>ApiExceptionHandler</code> 가 먼저 조회된다. Spring 은 선호도(q값) 최적을 고르는 것이 아니라 <b>훑는 순서대로 "요청이 받아줄 수 있는 형식이면 채택"</b> 한다. <code>*/*</code> 는 모든 형식과 호환되므로 JSON advice 가 무조건 먼저 합격한다. <b>실제 브라우저는 <code>*/*;q=0.8</code> 을 항상 붙인다.</b>
+          <br><br>결과 &mdash; <b><code>WebExceptionHandler</code>(advice)가 실제 브라우저에서 도달 불가능</b>하다. 폼 제출뿐 아니라 주소창 진입도 raw JSON 이 뜬다.
+        </div>
+
+        <p>주소창 진입도 함께 측정했다. <code>GET /management/board/999/edit</code> 에 실제 브라우저 헤더와 <code>Sec-Fetch-Dest: document</code> 를 실어 보낸 결과는 <code>404 application/json</code> 이었다. 오류 페이지가 아니라 JSON 원문이다.</p>
+
+        <h4>혼동하기 쉬운 지점 &mdash; 실패 경로가 둘이다</h4>
+        <p>같은 404 라도 <b>advice 가 잡는 예외인지</b>에 따라 정반대로 동작한다. 이 구분을 놓치면 "어떤 주소는 오류 페이지가 잘 뜨는데" 라는 관찰로 결함을 없는 것으로 오판하게 된다.</p>
+        <table>
+          <tr><th></th><th>경로 A &mdash; advice 가 잡는 예외</th><th>경로 B &mdash; advice 가 못 잡는 예외</th></tr>
+          <tr><td>예</td><td><code>/management/os/999/edit</code><br>&rarr; <code>OSMetadataNotFoundException</code></td><td><code>/management/os/3</code> (매핑 없음)<br>&rarr; <code>NoResourceFoundException</code></td></tr>
+          <tr><td>성격</td><td>도메인 예외 121 개(<code>DomainException</code> 하위)</td><td>Spring 내장. 코드에 등장하지 않음</td></tr>
+          <tr><td>처리 주체</td><td>두 advice 의 content negotiation</td><td>둘 다 통과 &rarr; 기본 <code>/error</code> &rarr; <code>BasicErrorController</code></td></tr>
+          <tr><td>결과</td><td><b style="color:var(--red)">JSON</b> &mdash; 결함</td><td><b style="color:var(--green)">HTML</b> &mdash; 정상</td></tr>
+        </table>
+        <p><b>왜 B 는 되고 A 는 안 되나.</b> <code>BasicErrorController</code> 는 평범한 컨트롤러라 <b>정상 요청 매핑</b>을 탄다. 정상 매핑은 <code>Accept</code> 의 선호도(q값)를 제대로 지켜 <code>text/html</code>(q=1.0)을 고른다. 반면 <b>예외 advice 선택</b>은 선호도를 보지 않고 등록 순서대로 "받아줄 수 있으면 채택" 하므로 <code>*/*</code> 에서 JSON 이 먼저 걸린다. <b>같은 프레임워크 안에서 두 메커니즘이 다르게 동작하는 것이 이 결함의 뿌리다.</b></p>
+        <p>따라서 <code>error.html</code> <b>템플릿 자체는 이미 살아 있다</b>(경로 B 로 렌더된다). 죽어 있는 것은 <code>WebExceptionHandler</code> advice 이고, 이 슬라이스는 <b>경로 A 를 경로 B 와 같은 결과로 맞추는 일</b>이다.</p>
+
+        <h4>왜 지금까지 드러나지 않았나</h4>
+        <p>두 가지가 겹쳐 가리고 있었다.</p>
+        <ul>
+          <li><b>프런트엔드가 우회하고 있었다.</b> 관리 도메인 폼은 <code>data-async-submit</code> 마커를 달고 <code>fetch</code> 로 보낸다. <code>fetch</code> 는 페이지를 이동시키지 않으므로 JSON 을 받아도 화면이 바뀌지 않고, <code>ErrorModal</code> 이 <code>message</code> 를 꺼내 모달로 띄운다. <b>JSON 이 오는 것이 오히려 편한 경로</b>였고, 그래서 결함이 결함으로 보이지 않았다. 템플릿의 POST 폼 68 개 중 마커가 붙은 것은 13 개다.</li>
+          <li><b>테스트가 브라우저를 흉내내지 않았다.</b> <code>AdviceExceptionMappingTest</code> 는 <code>Accept: text/html</code> 순수값으로 검증한다. 그 값에는 <code>*/*</code> 가 없으니 HTML 이 나오고 테스트는 통과한다. 브라우저는 그런 값을 보내지 않는다. SSR lifecycle 의 <code>@WebMvcTest</code> 들도 <code>status().isConflict()</code> 만 볼 뿐 응답 형식을 단언하지 않는다.</li>
+        </ul>
+
+        <p>U3-2-b 는 마커 없이 SSR lifecycle 폼을 추가한 첫 슬라이스였다. 가려주던 것이 없어지자 잠복 결함이 그대로 드러났다.</p>
+
+        <h4>HF5 병합 이후 재확인</h4>
+        <p>HF5 가 <code>WebExceptionHandler</code> 를 건드렸기에 병합된 <code>dev</code>(<code>18f1752</code>) 에서 다시 측정했다. HF5 의 변경은 <code>statusLabel</code> 을 <code>ErrorStatusLabels</code> 에서 파생하도록 바꾼 것뿐이고 <code>@Order</code> 와 <code>produces</code> 는 그대로다. <b>결함은 유지된다.</b></p>
+        <pre>브라우저 네이티브 제출 -&gt; 409  application/json   view=null
+fetch(async) 제출     -&gt; 409  application/json   view=null
+Sec-Fetch-Dest 동반   -&gt; 409  application/json   view=null</pre>
+        <p>세 번째 줄이 중요하다. <code>Sec-Fetch-Dest: document</code> 를 보내도 라우팅이 바뀌지 않는다 &mdash; Spring 이 그 헤더를 보지 않기 때문이며, <b>판별기를 직접 만들어야 한다</b>는 뜻이다.</p>
+
+        <div class="callout warn">
+          <b>문서가 반대로 기록하고 있다.</b> <code>docs/dev/global.md</code> 의 "응답 포맷과 두 어드바이스" 절은 "Accept 와의 호환으로 자연 분리된다", "브라우저 내비게이션이면 HTML 핸들러가 선택되어 오류 페이지가 된다" 고 적는다. 두 문장 다 실측과 반대다. 두 advice 클래스의 v3 주석도 같다. 근거 자료가 없는 것보다 틀린 근거 자료가 더 나쁘므로 정정 대상이다.
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>&sect;2. 요구사항 + 비목표</summary>
+      <div class="body">
+
+        <h4>이 슬라이스가 세우는 원칙</h4>
+        <p>응답 형식은 <b>사용자가 무엇을 하던 중이었나</b>로 정한다. 종전의 "SSR 이면 HTML, XHR 이면 JSON" 은 실제 필요와 어긋난다.</p>
+
+        <table>
+          <tr><th>상황</th><th>머무를 페이지</th><th>옳은 처리</th><th>필요한 응답</th></tr>
+          <tr><td>화면 안에서 액션을 눌렀다</td><td>있다 &mdash; 방금 보던 화면</td><td>페이지 유지 + 안내 모달</td><td>JSON</td></tr>
+          <tr><td>주소로 페이지에 진입했다</td><td>없다 &mdash; 아직 아무 화면도 없다</td><td>전체 오류 페이지</td><td>HTML</td></tr>
+        </table>
+
+        <p>첫 번째가 압도적 다수이고 거기서는 JSON 이 정답이다. 서버가 JSON 을 주는 것은 결함이 아니라 의도대로다. 두 번째는 드물지만 없앨 수 없다 &mdash; 모달은 띄울 host 페이지가 있어야 성립하는데, 진입 자체가 실패한 상황엔 그 페이지가 없다.</p>
+
+        <h4>요구사항</h4>
+        <ol>
+          <li><b>R1 진입 경로 정정.</b> 문서 이동으로 도달한 요청이 도메인 예외를 만나면 <code>error.html</code> 이 렌더된다.</li>
+          <li><b>R2 액션 폼 전면 전환.</b> 상태를 바꾸는 액션 폼 49 개 전부가 자동으로 가로채여 <code>fetch</code> 로 나가고, 거절은 안내 모달로 수렴한다. <b>개별 폼에 마커를 붙이는 일이 사라진다.</b></li>
+          <li><b>R3 입력 폼 불변.</b> <code>BindingResult</code> 로 뷰를 다시 렌더하는 입력 폼 11 개는 네이티브 제출을 유지한다. 필드별 오류 표시가 지금 그대로 동작해야 한다.</li>
+          <li><b>R4 비브라우저 클라이언트 불변.</b> PXE 게스트(<code>/api/pxe/v1/*</code>) 와 XHR 은 지금과 같은 JSON 을 받는다.</li>
+          <li><b>R5 강제 장치.</b> 위 넷이 깨지면 CP4 에서 빨간불이 뜬다. 문서를 읽었는지와 무관해야 한다.</li>
+        </ol>
+
+        <div class="callout warn">
+          <b>비 목표</b>
+          <ul>
+            <li><b>커스텀 도메인 예외 121 개를 advice 에 명시 등록하지 않는다.</b> 상위 타입 핸들러의 다형 흡수가 설계 의도이며, 명시 등록은 고유 상태코드나 응답 몸체가 필요한 경우로 한정한다. 전수 등록은 "조건분기 대신 다형성" 불가침에 정면으로 어긋난다.</li>
+            <li><b><code>@ExceptionHandler(Exception.class)</code> 최종 폴백을 도입하지 않는다.</b> 이번 사고의 원인이 아니었다(&sect;1). 두 advice 를 모두 빠져나가는 예외를 사용자에게 어떻게 보일지는 별도 사안으로 남긴다 &mdash; <code>RequestCorrelationFilter</code> 가 이미 최후 기록 안전망이고, HF5 의 <code>ProvisionErrorAttributes</code> 가 기본 <code>/error</code> 경로의 문구를 맞춘다.</li>
+            <li><b>입력 폼을 fetch 로 전환하지 않는다.</b> R3 참조.</li>
+            <li><b>harness hook 을 도입하지 않는다.</b> 아키텍처 테스트로 얻는 것이 더 확실하고 hook 은 설정 영역이라 별도 판단이 필요하다.</li>
+            <li><b>advice 의 <code>@Order</code> 값을 바꾸지 않는다.</b> 사고 이력이 둘이다(&sect;8 D1).</li>
+            <li><b>체크리스트는 예외 항목만 확정한다.</b> 자원 도메인 &middot; 드리프트 종류 &middot; 특권 명령 &middot; phase 항목은 실측 분량에 따라 후속 단계로 넘길 수 있다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 &mdash; 요청 출처에 따라 사용자가 무엇을 보는가</summary>
+      <div class="body">
+        <p>왼쪽에서 <b>구조</b>(현재 / S10 적용)를, 오른쪽에서 <b>요청 출처</b>를 바꿔 보라. 아래 판정 패널의 두 함수가 &sect;4 의 판정 계약과 1:1 이다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">구조</span>
+            <button class="seg" data-mode="ASIS" onclick="demoSetMode('ASIS')">현재 (AS-IS)</button>
+            <button class="seg" data-mode="TOBE" onclick="demoSetMode('TOBE')">S10 적용 (TO-BE)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">요청 출처</span>
+            <button class="seg" data-origin="ACTION" onclick="demoSetOrigin('ACTION')">액션 버튼</button>
+            <button class="seg" data-origin="INPUT" onclick="demoSetOrigin('INPUT')">입력 폼 제출</button>
+            <button class="seg" data-origin="ADDRESS_BAR" onclick="demoSetOrigin('ADDRESS_BAR')">주소창 진입</button>
+            <button class="seg" data-origin="API" onclick="demoSetOrigin('API')">PXE 게스트 API</button>
+          </div>
+
+          <div class="ux-row" id="demo-row-origin">
+            <strong>출처</strong><span class="label" id="demo-origin-label"></span><span class="badge" id="demo-origin-badge"></span>
+          </div>
+          <div class="ux-row child" id="demo-row-transport">
+            <strong>실제 전송</strong><span class="label" id="demo-transport-label"></span><span class="badge" id="demo-transport-badge"></span>
+          </div>
+          <div class="ux-row child" id="demo-row-server">
+            <strong>서버 응답</strong><span class="label" id="demo-server-label"></span><span class="badge" id="demo-server-badge"></span>
+          </div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <p class="mono" style="color:var(--text-muted);font-size:12px;">AS-IS 의 "액션 버튼" 은 마커가 붙지 않은 폼(68 개 중 55 개)을 가리킨다. 마커가 붙은 13 개는 AS-IS 에서도 TO-BE 와 같은 결과를 낸다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>&sect;3. 요청 경로 / 데이터 흐름</summary>
+      <div class="body">
+
+        <div class="callout"><b>URL 은 하나도 바뀌지 않는다.</b> 이 슬라이스가 바꾸는 것은 경로가 아니라 <b>같은 경로의 응답 채널</b>과 <b>브라우저가 그 경로로 나가는 방식</b>이다. 컨트롤러 시그니처 &middot; 매핑 &middot; 상태코드 전부 불변이다.</p></div>
+
+        <h4>AS-IS &mdash; 액션 폼 거절</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">서버 (advice)</div><div class="actor a3">사용자가 보는 것</div>
+          <div class="step a1">[복원] 클릭<br>네이티브 제출 &mdash; 페이지 이동 시작</div>
+          <div class="step a2"><code>Accept</code> 에 <code>*/*</code> 존재<br>&rarr; Api advice 선택</div>
+          <div class="step a3">&mdash;</div>
+          <div class="step a1">응답 수신</div>
+          <div class="step a2"><code>409 application/json</code></div>
+          <div class="step a3"><b style="color:var(--red)">raw JSON 페이지</b><br>낯선 주소 + 원문</div>
+        </div>
+
+        <h4>TO-BE &mdash; 액션 폼 거절</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">서버 (advice)</div><div class="actor a3">사용자가 보는 것</div>
+          <div class="step a1">[복원] 클릭<br>전역 스크립트가 가로챔<br><code>fetch</code> 로 전송 &mdash; 이동 없음</div>
+          <div class="step a2"><code>Sec-Fetch-Dest: empty</code><br>&rarr; Accept 불변 &rarr; Api advice</div>
+          <div class="step a3">페이지 그대로</div>
+          <div class="step a1"><code>ErrorModal</code> 에 위임</div>
+          <div class="step a2"><code>409 application/json</code></div>
+          <div class="step a3"><b style="color:var(--green)">안내 모달</b><br>사유 + [확인]</div>
+        </div>
+
+        <h4>TO-BE &mdash; 주소창 진입 실패</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">서버 (필터 &rarr; advice)</div><div class="actor a3">사용자가 보는 것</div>
+          <div class="step a1">없는 자원 주소로 이동<br><code>Sec-Fetch-Dest: document</code></div>
+          <div class="step a2">필터가 <code>Accept</code> 를 <code>text/html</code> 로 정규화<br>&rarr; Web advice 선택</div>
+          <div class="step a3">&mdash;</div>
+          <div class="step a1">문서 렌더</div>
+          <div class="step a2"><code>404 text/html</code>, view=<code>error</code></div>
+          <div class="step a3"><b style="color:var(--green)">오류 페이지</b><br>상태 + 사유 + 복귀 동선</div>
+        </div>
+
+        <h4>핵심 &mdash; advice 를 건드리지 않는다</h4>
+        <p>필터가 <b>협상의 입력만 바로잡고</b> 나머지는 기존 구조가 그대로 처리한다. <code>@Order</code> 도 <code>produces</code> 도 손대지 않으므로 v1 &middot; v2 사고를 재현할 여지가 없다. 분기가 한 줄도 늘지 않는다 &mdash; 판별은 Spring primitive(필터 + 요청 래퍼)가 떠맡는다.</p>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>AS-IS &mdash; 협상 입력</h4>
+            <pre>Accept: text/html, …,
+        <span class="diff-del">*/*;q=0.8</span>, …</pre>
+            <p style="font-size:12px;margin:6px 0 0;">JSON advice 가 <code>*/*</code> 에 먼저 합격</p>
+          </div>
+          <div class="split-card after">
+            <h4>TO-BE &mdash; 문서 이동일 때만</h4>
+            <pre>Accept: <span class="diff-add">text/html</span></pre>
+            <p style="font-size:12px;margin:6px 0 0;">HTML advice 가 정확히 매칭</p>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>&sect;4. 판정 계약 (SSOT)</summary>
+      <div class="body">
+
+        <div class="callout success"><b>엔티티 변경 0 &middot; DB 변경 0 &middot; URL 변경 0.</b> 이 슬라이스에 도메인 모델 변경은 없다. SSOT 로 세우는 것은 <b>판정 두 개</b>이며, 서버와 클라이언트에 하나씩 있고 서로 독립이다.</p></div>
+
+        <h4>판정 1 (서버) &mdash; 이 요청은 문서 이동인가</h4>
+        <p>브라우저는 주소창 이동 &middot; 링크 클릭 &middot; 네이티브 폼 제출에 <code>Sec-Fetch-Dest: document</code> 를, <code>fetch</code> 와 <code>XMLHttpRequest</code> 에 <code>empty</code> 를 보낸다. 정확히 이 구분을 위해 표준화된 헤더라 <code>Accept</code> 같은 모호성이 없다. 비브라우저 클라이언트는 이 헤더를 보내지 않으므로 자동으로 JSON 기본값에 남는다.</p>
+
+        <pre>문서 이동 = "Sec-Fetch-Dest" 헤더가 "document"
+
+  주소창 진입      document   &rarr; HTML
+  링크 클릭        document   &rarr; HTML
+  네이티브 폼 제출  document   &rarr; HTML
+  fetch / XHR      empty      &rarr; JSON (불변)
+  PXE 게스트       (없음)      &rarr; JSON (불변)</pre>
+
+        <p>판정이 참이면 요청 래퍼가 <code>Accept</code> 를 <code>text/html</code> 로 좁혀 보고한다. 그 뒤는 기존 협상이 의도대로 동작한다 &mdash; &sect;1 실측에서 <code>*/*</code> 없는 헤더가 Web advice 로 가는 것이 이미 확인됐다.</p>
+
+        <div class="callout warn"><b>안전성 확인(실측).</b> 문서 이동으로 도달하면서 HTML 이 아닌 응답을 내는 엔드포인트가 있으면 이 정규화가 406 을 만든다. 전수 조사 결과 <b>그런 경로는 없다</b> &mdash; 파일 다운로드 엔드포인트가 없고(<code>Content-Disposition</code> &middot; <code>OCTET_STREAM</code> &middot; <code>Resource</code> 반환 0건), 비 HTML 생산자는 SSE 스트림(<code>text/event-stream</code>, <code>EventSource</code> 는 <code>Sec-Fetch-Dest: empty</code>)과 PXE <code>/boot</code>(<code>text/plain</code>, 비브라우저)뿐이다. 이 전제는 &sect;6 의 테스트로 고정한다.</div>
+
+        <h4>판정 2 (클라이언트) &mdash; 이 폼을 가로챌 것인가</h4>
+        <p>기준은 <b>서버 핸들러가 실패 시 뷰를 다시 렌더하는가</b> 다. 임의 재량이 아니라 컨트롤러 코드에서 읽히는 성질이다.</p>
+
+        <table>
+          <tr><th>부류</th><th>수</th><th>실패 시 서버 동작</th><th>가로채기</th><th>근거</th></tr>
+          <tr><td><b>액션 폼</b><br>toggle &middot; delete &middot; restore &middot; purge &middot; deprecate &middot; seal &middot; retry …</td><td>49</td><td>도메인 예외 &rarr; 상태코드 + 메시지</td><td><span class="chip add">대상</span></td><td>그릴 화면이 없다. 모달이 맞다</td></tr>
+          <tr><td><b>입력 폼</b><br>new &middot; edit &middot; settings</td><td>11</td><td><code>BindingResult</code> 를 담아 같은 뷰 재렌더</td><td><span class="chip keep">제외</span></td><td>그릴 화면(오류 붙은 폼)이 있다</td></tr>
+        </table>
+
+        <p>입력 폼을 가로채면 서버가 돌려준 재렌더 HTML 을 버리게 되어 <b>필드별 오류 표시가 사라진다.</b> 전형이 이렇다.</p>
+        <pre>// BoardModelMetadataController.update
+if (bindingResult.hasErrors()) {
+    ...
+    return "management/board/edit";   // 오류를 담아 폼을 다시 그린다
+}
+boardModelService.update(id, request);
+return BoardControllerSupport.redirectToListWithSelect(id);</pre>
+
+        <h4>두 판정의 관계</h4>
+        <div class="state-flow">액션 폼   ──가로챔──▶  fetch     ──Sec-Fetch-Dest: empty──▶  JSON  ──▶ 안내 모달
+입력 폼   ──그대로──▶  네이티브   ──Sec-Fetch-Dest: document─▶  HTML  ──▶ 폼 재렌더 / 오류 페이지
+주소창    ──그대로──▶  네이티브   ──Sec-Fetch-Dest: document─▶  HTML  ──▶ 오류 페이지
+API       ──그대로──▶  직접호출   ──헤더 없음────────────────▶  JSON  ──▶ 클라이언트 파싱</div>
+
+        <p>두 판정이 서로를 참조하지 않는다. 클라이언트가 가로채면 전송 수단이 <code>fetch</code> 가 되고, 서버 판정은 그 결과로 자연히 <code>empty</code> 를 본다. 한쪽이 바뀌어도 다른 쪽 계약이 깨지지 않는 것이 이 배치의 이점이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>&sect;5. 12단계 + CP</summary>
+      <div class="body">
+        <table>
+          <tr><th>Step</th><th>내용</th><th>CP</th></tr>
+          <tr><td>1</td><td>URL / 데이터 흐름 스케치 &mdash; 본 plan html</td><td><span class="chip cp1">CP1</span></td></tr>
+          <tr><td>2</td><td>전역 폼 가로채기 스크립트 신설 + <code>fragments/layout.html</code> 적재. 액션 폼 49 개에서 <code>data-async-submit</code> 제거, 입력 폼은 opt-out 표기</td><td rowspan="4"><span class="chip cp2">CP2</span></td></tr>
+          <tr><td>3</td><td>컨트롤러 변경 없음 <span class="chip keep">N/A</span></td></tr>
+          <tr><td>4</td><td>DTO 변경 없음 <span class="chip keep">N/A</span></td></tr>
+          <tr><td>5</td><td>문서 이동 판별 필터 + 요청 래퍼 시그니처</td></tr>
+          <tr><td>6</td><td>Repository 변경 없음 <span class="chip keep">N/A</span></td><td rowspan="2"><span class="chip cp3">CP3</span></td></tr>
+          <tr><td>7</td><td>Entity 변경 없음 <span class="chip keep">N/A</span></td></tr>
+          <tr><td>8</td><td>필터 본체 + 단위 테스트 + 아키텍처 테스트 3종(&sect;6)</td><td rowspan="2"><span class="chip cp4">CP4</span></td></tr>
+          <tr><td>9</td><td>스키마 변경 없음 <span class="chip keep">N/A</span></td></tr>
+          <tr><td>10</td><td>샌드박스 브라우저 검증 &mdash; 도메인별 폼 거절 경로 전수(&sect;9)</td><td><span class="chip cp5">CP5</span></td></tr>
+          <tr><td>11</td><td>report html 산출 + 문서 정정(&sect;8 D6)</td><td><span class="chip cp6">CP6</span></td></tr>
+          <tr><td>12</td><td>사용자 단독 브라우저 E2E</td><td><span class="chip cp7">CP7</span></td></tr>
+        </table>
+
+        <div class="callout warn"><b>CP5 가 이 슬라이스에서 가장 무겁다.</b> 폼 49 개의 거절 경로를 화면에서 실제로 눌러 확인해야 한다. CLAUDE.md 가 명문화한 대로 <code>curl</code> 응답 확인은 CP5 를 대체하지 않는다 &mdash; 이번 사고가 정확히 그 방식으로 통과됐다가 CP7 에서 발견된 건이다. 항목은 도메인별로 묶어 &sect;9 에 식별자를 붙여 설계했다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>&sect;6. 통합 테스트 (Step 8)</summary>
+      <div class="body">
+        <p>세 테스트를 한 곳에 모으고 "왜 이 테스트가 있는가" 를 주석으로 남긴다. 목적을 모르면 나중에 지워진다.</p>
+
+        <div class="card-grid">
+          <div class="card v-red">
+            <h4>T1 진입 경로 회귀 가드</h4>
+            <ul>
+              <li>실제 브라우저 <code>Accept</code> + <code>Sec-Fetch-Dest: document</code></li>
+              <li>도메인 예외 &rarr; <code>text/html</code> + view=<code>error</code> 단언</li>
+              <li><b>지금 넣으면 곧바로 red</b>, 필터 도입 후 green</li>
+              <li>404 &middot; 409 &middot; 400 세 상태로 반복</li>
+            </ul>
+          </div>
+          <div class="card v-green">
+            <h4>T2 액션 경로 계약 고정</h4>
+            <ul>
+              <li><code>fetch</code> 가 실제로 보내는 헤더로 요청</li>
+              <li><code>application/json</code> + <code>message</code> 필드 단언</li>
+              <li><code>ErrorModal</code> 이 이 계약 위에 선다 &mdash; 깨지면 모달이 빈다</li>
+              <li>PXE <code>/boot</code> 와 SSE 가 영향받지 않음도 함께 단언</li>
+            </ul>
+          </div>
+          <div class="card v-orange">
+            <h4>T3 폼 전수 스캔</h4>
+            <ul>
+              <li>템플릿의 POST 폼을 전수 수집</li>
+              <li>액션 폼이 가로채기 범위 안인지 검증</li>
+              <li>opt-out 한 폼은 <b>사유 표기 필수</b></li>
+              <li><b>이번 사고를 직접 잡았을 테스트</b></li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>4 범주 대응</h4>
+        <table>
+          <tr><th>범주</th><th>이 슬라이스에서</th></tr>
+          <tr><td>성공 2xx</td><td>액션 폼 정상 처리 후 redirect 가 <code>fetch</code> 경로에서도 성공으로 판정되는지(<code>resp.redirected</code>)</td></tr>
+          <tr><td>400</td><td>typed-name 불일치 &mdash; 두 채널 각각</td></tr>
+          <tr><td>404</td><td>없는 자원 액션 &middot; 주소창 진입 &mdash; 두 채널 각각</td></tr>
+          <tr><td>409</td><td>lifecycle invariant &middot; 복원 이름 충돌 &mdash; 두 채널 각각</td></tr>
+        </table>
+
+        <div class="callout"><b>기존 테스트 영향.</b> <code>AdviceExceptionMappingTest</code> 의 <code>Accept: text/html</code> 순수값 단언은 그대로 통과한다(정규화는 <code>Sec-Fetch-Dest</code> 가 있을 때만 작동). 다만 그 테스트가 <b>브라우저를 대표하지 않는다</b>는 주석을 붙여, 다음 사람이 같은 오해를 하지 않게 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>&sect;7. 예외 계층</summary>
+      <div class="body">
+        <div class="callout success"><b>신규 예외 0 &middot; 계층 변경 0 &middot; advice 핸들러 변경 0.</b> 이 슬라이스는 예외를 늘리거나 매핑을 바꾸지 않는다. 같은 예외가 <b>어느 형식으로</b> 나가는지만 바로잡는다.</div>
+
+        <h4>현행 계층 (실측)</h4>
+        <table>
+          <tr><th>항목</th><th>수</th><th>비고</th></tr>
+          <tr><td>커스텀 도메인 예외 총계</td><td>121</td><td>&mdash;</td></tr>
+          <tr><td>advice 에 명시 등록</td><td>17</td><td>고유 상태코드 &middot; 응답 몸체가 필요한 것만</td></tr>
+          <tr><td><code>ConflictException</code> 하위</td><td>54</td><td rowspan="3">상위 타입 핸들러가 다형 흡수</td></tr>
+          <tr><td><code>DomainException</code> 직접 상속</td><td>29</td></tr>
+          <tr><td><code>NotFoundException</code> 하위</td><td>23</td></tr>
+          <tr><td>계층 밖 커스텀 예외</td><td>2</td><td><code>DomainException</code> 자신, <code>SecurityException</code></td></tr>
+        </table>
+
+        <p>121 개 중 17 개만 명시 등록된 것은 결함이 아니다. 나머지는 <code>@ExceptionHandler(DomainException.class)</code> 가 <code>@ResponseStatus</code> 를 계층 탐색으로 읽어 흡수하도록 설계돼 있고, 그것이 "조건분기 대신 다형성" 원칙에 부합한다. 계층 밖 예외가 2 개뿐인 것도 규율이 지켜져 왔다는 뜻이다.</p>
+
+        <div class="callout warn"><b>브리핑이 후보로 든 "예외 계층 이탈 검출" 테스트는 채택하지 않는다.</b> 현재 위반이 0 이라 넣어도 곧바로 green 이고, 이번 사고와 무관하다. 값이 있는 것은 &sect;6 의 T1 &middot; T2 &middot; T3 다. 계층 이탈은 실제로 발생한 뒤 도입해도 늦지 않으며, 지금 넣으면 "테스트가 있으니 안전하다" 는 잘못된 안심만 준다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>&sect;8. 결정 / 부산물 / 주의</summary>
+      <div class="body">
+
+        <h4>D1 &mdash; 서버 판별 방식</h4>
+        <p><b>채택 : <code>Sec-Fetch-Dest: document</code> 판별 + <code>Accept</code> 정규화 필터.</b></p>
+        <table>
+          <tr><th>안</th><th>내용</th><th>판정</th><th>사유</th></tr>
+          <tr><td><b>A</b></td><td>필터가 문서 이동 요청의 <code>Accept</code> 를 <code>text/html</code> 로 좁혀 보고. advice 무변경</td><td><span class="chip add">채택</span></td><td>분기가 한 줄도 안 는다. 기존 협상 구조를 그대로 두고 입력만 바로잡는다. <code>@Order</code> 를 건드리지 않아 v1 &middot; v2 사고 재현 여지가 없다. 판별을 Spring primitive 가 떠맡는다</td></tr>
+          <tr><td><b>B</b></td><td><code>Accept</code> 품질값을 존중하도록 advice 순서 &middot; 구조 변경</td><td><span class="chip del">탈락</span></td><td>v2 가 시도해 <code>Accept: */*</code> 테스트 28 건 회귀. Spring 의 선택 알고리즘 자체를 제어해야 해 통제가 어렵다</td></tr>
+          <tr><td><b>C</b></td><td><code>X-Requested-With</code> 로 역판별(없으면 HTML)</td><td><span class="chip del">탈락</span></td><td>우리 <code>fetch</code> 코드가 보내는 헤더에 의존한다. PXE 게스트처럼 그 헤더가 없는 정당한 JSON 클라이언트가 전부 HTML 을 받게 되어, 경로별 예외 분기를 다시 만들어야 한다</td></tr>
+          <tr><td><b>D</b></td><td>두 advice 를 하나로 합치고 핸들러 안에서 분기</td><td><span class="chip del">탈락</span></td><td>"조건분기 legacy 확장 금지" 불가침 정면 위배. 도메인이 늘 때마다 분기가 자란다</td></tr>
+        </table>
+        <p><b>A 에 대한 자기 비판과 답.</b> 정규화가 정상 응답의 협상까지 바꾼다는 것이 유일한 위험이다. 문서 이동으로 도달하면서 HTML 이 아닌 응답을 내는 엔드포인트가 있으면 406 이 난다. &sect;4 에서 전수 조사로 그런 경로가 없음을 확인했고, 그 전제 자체를 &sect;6 T2 가 테스트로 고정한다. 앞으로 다운로드 엔드포인트를 추가하면 그 테스트가 먼저 깨진다.</p>
+
+        <h4>D2 &mdash; 가로채기 배치</h4>
+        <p><b>채택 : 전역 레이아웃에 적재하는 독립 스크립트.</b></p>
+        <table>
+          <tr><th>안</th><th>판정</th><th>사유</th></tr>
+          <tr><td>전역 <code>fragments/layout.html</code> 에 독립 스크립트</td><td><span class="chip add">채택</span></td><td>모든 화면이 layout 을 쓰므로 누락이 구조적으로 불가능하다. 확인 모달과 책임이 분리된다</td></tr>
+          <tr><td><code>confirm-modal-base.js</code> 확장</td><td><span class="chip del">탈락</span></td><td>이 파일은 <b>일부 페이지에만 적재</b>된다(관리 fragment 3곳 + provisioning 3곳). 여기 얹으면 적재되지 않은 화면이 그대로 구멍으로 남는다 &mdash; 이번 사고의 구조를 그대로 재생산한다</td></tr>
+        </table>
+        <p>기존 <code>ConfirmModal.approveAndSubmit</code> 의 <code>data-async-submit</code> 분기는 유지한다. 확인 모달을 거치는 폼은 그 경로로, 거치지 않는 폼은 전역 스크립트로 같은 <code>submitAsync</code> 에 도달한다. 두 진입점이 한 구현을 공유하므로 드리프트가 생기지 않는다.</p>
+
+        <h4>D3 &mdash; 대상 분류 기준</h4>
+        <p><b>채택 : "핸들러가 실패 시 뷰를 재렌더하는가".</b> 마커 목록이 아니라 코드에서 읽히는 성질이라 &sect;6 T3 가 기계적으로 검증할 수 있다. 대안이던 "마커 유지" 는 <b>이번 사고의 원인 그 자체</b>라 탈락이다 &mdash; 잊을 수 있는 관례는 다시 잊힌다.</p>
+
+        <h4>D4 &mdash; 실패 방향 반전</h4>
+        <p>기본값을 뒤집는 것이 이 슬라이스의 본질이다.</p>
+        <div class="split-grid">
+          <div class="split-card before"><h4>AS-IS</h4><p>마커를 <b>잊으면</b> &rarr; raw JSON 노출<br><span class="mono">안전하지 않은 기본값</span></p></div>
+          <div class="split-card after"><h4>TO-BE</h4><p>표기를 <b>잊으면</b> &rarr; 모달로 안내<br><span class="mono">안전한 기본값</span></p></div>
+        </div>
+        <p>입력 폼이 opt-out 표기를 빠뜨리면 가로채여 검증 오류 표시가 깨진다 &mdash; 이는 <b>즉시 눈에 띄는</b> 실패이고 T3 가 CP4 에서 먼저 잡는다. 반대 방향의 실패(raw JSON)는 조용하고 사용자에게 도달했다. 시끄러운 실패로 바꾸는 것이 목적이다.</p>
+
+        <h4>D5 &mdash; <code>error.html</code> 존치</h4>
+        <p><b>존치한다.</b> 주소창 진입 실패에는 모달을 띄울 host 페이지가 없다. 이 템플릿은 <b>이미 사용 중이다</b> &mdash; 매핑 없는 주소(<code>NoResourceFoundException</code>) 처럼 advice 를 거치지 않고 기본 <code>/error</code> 로 흐르는 요청이 이것을 렌더한다(&sect;1 경로 B). 이 슬라이스는 <b>advice 가 잡는 도메인 예외(경로 A)도 같은 화면에 도달하게</b> 만들어, 사용자가 구분할 이유가 없는 두 상황의 결과를 일치시킨다. HF5 가 정비한 <code>statusLabel</code> 파생과 <code>ProvisionErrorAttributes</code> 가 두 경로에 함께 적용된다.</p>
+
+        <h4>D6 &mdash; 문서 산출물</h4>
+        <p>강제 장치가 먼저이고 문서는 그 위에 얹는다. 각 문서가 서로 다른 일을 하도록 갈랐다.</p>
+        <table>
+          <tr><th>산출물</th><th>위치</th><th>하는 일</th></tr>
+          <tr><td>조사 아카이브</td><td><code>discussion/</code></td><td>실측값 &middot; 기전 &middot; 대안 비교 &middot; <b>탈락 사유</b></td></tr>
+          <tr><td>설계 결정 기록</td><td><code>docs/dev/adr/</code></td><td>확정 결정. 매뉴얼이 인용할 원천. DOC-5 로 예정된 자리를 개시</td></tr>
+          <tr><td><b>매뉴얼 정정</b></td><td><code>docs/dev/global.md</code></td><td>틀린 서술 2곳 교체 + advice v3 주석 정정</td></tr>
+          <tr><td>작업 전 체크리스트</td><td><code>.claude/domain-conventions/</code></td><td>"이걸 건드릴 때 무엇을 함께 건드리나"</td></tr>
+          <tr><td>진입 규칙</td><td><code>CLAUDE.md</code></td><td>"언제 어느 문서를 여나" 트리거만. <b>분량을 늘리지 않는다</b></td></tr>
+        </table>
+
+        <h4>Open Questions</h4>
+        <table>
+          <tr><th>#</th><th>질문</th><th>기본 처리</th></tr>
+          <tr><td>Q1</td><td>구형 브라우저나 <code>Sec-Fetch-*</code> 를 지우는 프록시 뒤에서는 정규화가 작동하지 않는다. 보조 판별을 둘 것인가</td><td><b>두지 않는다.</b> 그 경우 현재 동작(JSON)으로 떨어지므로 회귀가 아니다. 보조 판별은 분기를 늘리고 오탐 위험이 있다. 실제 환경에서 문제가 관측되면 그때 추가</td></tr>
+          <tr><td>Q2</td><td>액션 폼 성공 시 <code>fetch</code> 가 redirect 를 따라간 뒤 <code>location.reload()</code> 한다. 새 URL 로 이동해야 하는 액션(purge 후 목록 복귀)은 어떻게 하나</td><td>기존 <code>AsyncSubmitResult.onSuccess</code> 가 <code>resp.url</code> 을 보고 이동할지 새로고침할지 정하도록 CP2 에서 확정. 휴지통 화면의 선례를 따른다</td></tr>
+          <tr><td>Q3</td><td>체크리스트의 나머지 도메인 항목(자원 도메인 &middot; 드리프트 &middot; 특권 명령 &middot; phase)을 이 슬라이스에서 다 채울 것인가</td><td>예외 항목만 확정하고 나머지는 실측 분량에 따라 후속 S 단계로 분리 가능. 비 목표에 명시</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>&sect;9. Verification (CP5 검증 항목)</summary>
+      <div class="body">
+        <p>강화된 CP5 규약에 따라 항목마다 식별자를 붙인다. 계획과 수행이 1:1 로 대조되고, 항목 수만큼 스크린샷을 남긴다. 전부 브라우저 조작이다.</p>
+
+        <h4>A &mdash; 정상 흐름</h4>
+        <table>
+          <tr><th>id</th><th>조작</th><th>기대</th></tr>
+          <tr><td>A1</td><td>OS 목록에서 활성 토글</td><td>페이지 유지, 상태 반영</td></tr>
+          <tr><td>A2</td><td>메인보드 삭제(확인 모달 경유)</td><td>모달 확인 후 반영</td></tr>
+          <tr><td>A3</td><td>BIOS &middot; BMC &middot; Subprogram 각 lifecycle 1건</td><td>도메인별 회귀 확인</td></tr>
+          <tr><td>A4</td><td>휴지통 복원 &middot; 기한 연장</td><td>기존 async 폼이 그대로 동작</td></tr>
+          <tr><td>A5</td><td>재조정 드리프트 해결</td><td>기존 async 폼이 그대로 동작</td></tr>
+          <tr><td>A6</td><td>세팅 정의서 lifecycle 5종(U3-2-b 경로)</td><td>사고 당사 화면의 정상 확인</td></tr>
+          <tr><td>A7</td><td>게스트 서버 액션(시작 &middot; 재시도 &middot; 해제)</td><td>provisioning 영역 확인</td></tr>
+          <tr><td>A8</td><td><b>입력 폼</b> &mdash; 메인보드 &middot; OS 수정 저장</td><td>정상 저장 후 redirect</td></tr>
+        </table>
+
+        <h4>B &mdash; 의도하지 않은 조작</h4>
+        <table>
+          <tr><th>id</th><th>조작</th><th>기대</th></tr>
+          <tr><td>B1</td><td>이름이 충돌하는 정의서 복원(사고 재현 경로)</td><td><b>안내 모달</b>. raw JSON 아님</td></tr>
+          <tr><td>B2</td><td>이미 삭제된 자원을 다른 탭에서 다시 삭제</td><td>안내 모달, 페이지 유지</td></tr>
+          <tr><td>B3</td><td>typed-name 불일치 상태로 영구삭제</td><td>안내 모달 400</td></tr>
+          <tr><td>B4</td><td><b>주소창에 없는 자원 id 직접 입력</b></td><td><b>오류 페이지</b>(<code>error.html</code>). raw JSON 아님</td></tr>
+          <tr><td>B5</td><td>부모가 비활성인데 자식 활성화를 direct POST</td><td>서버 가드 409 &rarr; 안내 모달</td></tr>
+          <tr><td>B6</td><td><b>입력 폼</b>에 잘못된 값 입력 후 저장</td><td><b>필드별 오류 표시</b>가 지금 그대로</td></tr>
+          <tr><td>B7</td><td>액션 버튼 연속 중복 클릭</td><td>중복 제출이 이상 상태를 만들지 않음</td></tr>
+        </table>
+
+        <h4>C &mdash; 막는 방식</h4>
+        <table>
+          <tr><th>id</th><th>확인</th></tr>
+          <tr><td>C1</td><td>모달이 <b>왜 막혔는지</b> 알려주는가. 사유 문장이 사용자 언어인가</td></tr>
+          <tr><td>C2</td><td>모달을 닫은 뒤 <b>다음에 무엇을 할지</b> 이어갈 수 있는가. 페이지 상태가 보존되는가</td></tr>
+          <tr><td>C3</td><td>오류 페이지에서 <b>복귀 동선</b>이 있는가</td></tr>
+          <tr><td>C4</td><td>애초에 막힐 액션을 UI 가 먼저 <code>disabled</code> 로 차단하는가(불가침 원칙 실지 확인)</td></tr>
+        </table>
+
+        <p>샌드박스는 누적 메모리의 레시피를 따르고, 동시 세션과 겹치지 않는 포트를 쓴다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>&sect;10. Critical Files</summary>
+      <div class="body">
+        <div class="pkg-tree">src/main/java/…/global/exception/
+  <span class="diff-add">DocumentNavigationFilter.java</span>          <span class="chip new">신규</span> 문서 이동 판별 + Accept 정규화
+  <span class="diff-add">DocumentNavigationRequestWrapper.java</span>  <span class="chip new">신규</span> Accept 헤더 래퍼
+  ApiExceptionHandler.java                <span class="chip mod">수정</span> v3 주석 정정만 (로직 무변경)
+  WebExceptionHandler.java                <span class="chip mod">수정</span> v3 주석 정정만 (로직 무변경)
+
+src/main/resources/static/global/
+  <span class="diff-add">form-submit-interceptor.js</span>            <span class="chip new">신규</span> 액션 폼 전역 가로채기
+  error-modal.js                          <span class="chip keep">유지</span>
+
+src/main/resources/static/management/common/
+  confirm-modal-base.js                   <span class="chip keep">유지</span> submitAsync 공유
+
+src/main/resources/templates/
+  fragments/layout.html                   <span class="chip mod">수정</span> 인터셉터 적재
+  management/**, maintenance/**,          <span class="chip mod">수정</span> 액션 폼 마커 제거
+  provisioning/**, system/**                       입력 폼 opt-out 표기
+
+src/test/java/…/global/exception/
+  <span class="diff-add">ErrorResponseChannelTest.java</span>         <span class="chip new">신규</span> T1 + T2
+  <span class="diff-add">FormSubmissionConventionTest.java</span>     <span class="chip new">신규</span> T3 폼 전수 스캔
+  AdviceExceptionMappingTest.java         <span class="chip mod">수정</span> 대표성 주석 추가
+
+docs/dev/
+  global.md                               <span class="chip mod">수정</span> 틀린 서술 2곳 정정
+  <span class="diff-add">adr/</span>                                    <span class="chip new">신규</span> 결정 기록 개시
+
+.claude/
+  <span class="diff-add">domain-conventions/</span>                    <span class="chip new">신규</span> 작업 전 체크리스트
+CLAUDE.md                                 <span class="chip mod">수정</span> 진입 규칙 몇 줄</div>
+
+        <div class="callout"><b>클래스명은 CP2 에서 확정한다.</b> 위는 역할을 드러내는 잠정 이름이다. 네이밍 규약(도메인 의미를 직접 드러내는 명칭)에 맞춰 구현 시 조정할 수 있다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>&sect;11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="s10-plan-milestones">
+          <li><label><input type="checkbox" data-key="cp1"><span>CP1 &mdash; 본 plan 사용자 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="cp2"><span>CP2 &mdash; 전역 인터셉터 + 필터 시그니처 + 폼 표기 전환</span></label></li>
+          <li><label><input type="checkbox" data-key="cp3"><span>CP3 &mdash; 해당 없음(Entity &middot; Repository 무변경)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4"><span>CP4 &mdash; 필터 본체 + T1 &middot; T2 &middot; T3 green. PR 개설</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"><span>CP5 &mdash; 샌드박스 검증 A1~A8 &middot; B1~B7 &middot; C1~C4 (19항목)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"><span>CP6 &mdash; report html + 문서 정정 5종(D6)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"><span>CP7 &mdash; 사용자 단독 브라우저 E2E &rarr; <code>dev</code> 병합</span></label></li>
+        </ul>
+
+        <h4>이 슬라이스 이후</h4>
+        <ul>
+          <li><b>체크리스트 확장</b> &mdash; 자원 도메인 &middot; 드리프트 종류 &middot; 특권 명령 &middot; phase 항목(Q3). 분량에 따라 후속 S 단계</li>
+          <li><b>최종 폴백 판단</b> &mdash; 두 advice 를 모두 빠져나가는 예외의 사용자 노출(비 목표에서 이연)</li>
+          <li><b>매뉴얼 반영</b> &mdash; <code>docs/dev/adr/</code> 의 결정 기록을 개발자 매뉴얼과 유지보수 매뉴얼이 인용</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — §4 판정 계약 두 개를 JS 로 1:1 재현 (드리프트 0)
+  //   · demoIntercepts()  = 클라이언트 판정 "이 폼을 가로챌 것인가"
+  //   · demoDocumentNav() = 서버 판정 "이 요청은 문서 이동인가"
+  // ─────────────────────────────────────────────────────────────
+  let demoMode = 'ASIS', demoOrigin = 'ACTION';
+
+  // 클라이언트 판정 — 서버 핸들러가 실패 시 뷰를 재렌더하면 가로채지 않는다.
+  // AS-IS 에서는 마커가 붙은 폼(13/68)만 가로채였고, 여기서는 마커 없는 다수 경로를 모델링한다.
+  function demoIntercepts(origin, mode) {
+    if (mode === 'ASIS') return false;
+    return origin === 'ACTION';
+  }
+  // 서버 판정 — Sec-Fetch-Dest 가 document 인가. fetch 로 나가면 empty 라 거짓.
+  function demoDocumentNav(origin, intercepted) {
+    if (intercepted) return false;
+    return origin === 'ACTION' || origin === 'INPUT' || origin === 'ADDRESS_BAR';
+  }
+  // 서버가 HTML 을 돌려주는가. AS-IS 는 Accept 의 */* 때문에 항상 JSON (§1 실측).
+  function demoServerHtml(origin, mode, intercepted) {
+    if (mode === 'ASIS') return false;
+    return demoDocumentNav(origin, intercepted);
+  }
+
+  function demoSetMode(m) { demoMode = m; demoRender(); }
+  function demoSetOrigin(o) { demoOrigin = o; demoRender(); }
+
+  const DEMO_ORIGIN_LABEL = {
+    ACTION: '액션 버튼 — 상태를 바꾸는 폼 (49개)',
+    INPUT: '입력 폼 제출 — new · edit · settings (11개)',
+    ADDRESS_BAR: '주소창 진입 — 없는 자원 id 직접 입력',
+    API: 'PXE 게스트 API — 비브라우저 클라이언트'
+  };
+
+  function demoRender() {
+    const mode = demoMode, origin = demoOrigin;
+    const intercepted = demoIntercepts(origin, mode);
+    const docNav = demoDocumentNav(origin, intercepted);
+    const html = demoServerHtml(origin, mode, intercepted);
+
+    document.querySelectorAll('.ux-toolbar .seg[data-mode]').forEach(s =>
+      s.classList.toggle('active', s.dataset.mode === mode));
+    document.querySelectorAll('.ux-toolbar .seg[data-origin]').forEach(s =>
+      s.classList.toggle('active', s.dataset.origin === origin));
+
+    // 1행 — 출처
+    document.getElementById('demo-origin-label').textContent = DEMO_ORIGIN_LABEL[origin];
+    const ob = document.getElementById('demo-origin-badge');
+    ob.textContent = (mode === 'ASIS') ? '현재 구조' : 'S10 적용';
+    ob.className = 'badge ' + (mode === 'ASIS' ? 'off' : 'on');
+
+    // 2행 — 실제 전송 방식
+    const tb = document.getElementById('demo-transport-badge');
+    const tl = document.getElementById('demo-transport-label');
+    if (origin === 'API') {
+      tl.textContent = '직접 호출 — Sec-Fetch-Dest 헤더 없음';
+      tb.textContent = '비브라우저'; tb.className = 'badge off';
+    } else if (intercepted) {
+      tl.textContent = 'fetch — 페이지 이동 없음 (Sec-Fetch-Dest: empty)';
+      tb.textContent = '가로챔'; tb.className = 'badge on';
+    } else {
+      tl.textContent = '네이티브 — 페이지가 이동한다 (Sec-Fetch-Dest: document)';
+      tb.textContent = '네이티브'; tb.className = 'badge dep';
+    }
+
+    // 3행 — 서버 응답 형식
+    const sb = document.getElementById('demo-server-badge');
+    const sl = document.getElementById('demo-server-label');
+    if (html) {
+      sl.textContent = '문서 이동으로 판정 → Accept 정규화 → Web advice';
+      sb.textContent = 'text/html'; sb.className = 'badge on';
+    } else if (mode === 'ASIS' && docNav) {
+      sl.textContent = 'Accept 에 */* 가 있어 Api advice 가 먼저 합격';
+      sb.textContent = 'application/json'; sb.className = 'badge del';
+    } else {
+      sl.textContent = '문서 이동이 아니므로 JSON (의도대로)';
+      sb.textContent = 'application/json'; sb.className = 'badge on';
+    }
+
+    // 판정 패널
+    const tf = v => v ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'client.intercepts(form)        = ' + tf(intercepted) + '\n' +
+      'server.isDocumentNavigation()  = ' + tf(docNav) + '\n' +
+      'server.rendersHtml()           = ' + tf(html);
+
+    // 사용자가 실제로 보는 것
+    const msg = document.getElementById('demo-message');
+    let text, cls;
+    if (origin === 'API') {
+      text = '✓ JSON 응답 — 게스트가 그대로 파싱한다. 이 슬라이스가 건드리지 않는 경로다.';
+      cls = 'ux-message success';
+    } else if (mode === 'ASIS' && (origin === 'ACTION' || origin === 'ADDRESS_BAR')) {
+      text = '✗ 브라우저가 페이지를 이동시킨 뒤 JSON 을 받았다 — 화면에 {"message":"…"} 원문이 그대로 뜬다. ' +
+             (origin === 'ACTION' ? 'U3-2-b 에서 실제로 발생한 사고다.' : '주소창 진입도 같은 결과다.');
+      cls = 'ux-message error';
+    } else if (mode === 'ASIS' && origin === 'INPUT') {
+      text = '△ 검증 실패는 뷰 재렌더라 정상 동작한다. 다만 같은 폼이 도메인 예외를 만나면 JSON 원문이 노출된다.';
+      cls = 'ux-message error';
+    } else if (origin === 'ACTION') {
+      text = '✓ 페이지가 유지된 채 안내 모달이 뜬다 — 사유와 [확인]. 마커를 붙이지 않아도 기본으로 이렇게 동작한다.';
+      cls = 'ux-message success';
+    } else if (origin === 'INPUT') {
+      text = '✓ 네이티브 제출을 유지해 필드별 오류 표시가 그대로 동작한다. 도메인 예외라면 오류 페이지가 렌더된다.';
+      cls = 'ux-message success';
+    } else {
+      text = '✓ error.html 오류 페이지가 렌더된다 — 상태와 사유, 복귀 동선. 모달을 띄울 host 페이지가 없는 상황이다.';
+      cls = 'ux-message success';
+    }
+    msg.className = cls;
+    msg.textContent = text;
+  }
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

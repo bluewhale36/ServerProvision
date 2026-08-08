@@ -2,7 +2,7 @@
    S5-2-3-1 / S5-6-3 — 휴지통 액션 결과 안내 (async submit handler).
    ─────────────────────────────────────────────────────────────
    휴지통 페이지의 4 form (restore / extend / purge / clear-ghost) 은
-   data-async-submit 마커 보유 — confirm-modal-base 의 submitAsync 가 fetch 로 전송한다.
+   S10 이후 전역 기본값에 따라 FormSubmit.sendAsync 가 fetch 로 전송한다(마커 불요).
    본 모듈은 그 응답을 받아 (성공 → reload / 거절 → modal 안내) 처리한다.
 
    S5-6-3 — modal markup 은 사전 include 가 아닌 /ui/confirm-modal/TRASH_RESULT lazy fetch.

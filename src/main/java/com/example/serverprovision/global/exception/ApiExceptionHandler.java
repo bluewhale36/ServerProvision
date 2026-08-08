@@ -52,9 +52,16 @@ import java.util.List;
  *   v1 : Web @Order(HIGHEST_PRECEDENCE - 100) — Integer.MIN_VALUE underflow 로 사실상 LOWEST 가 되어 무효.
  *   v2 : Api @Order(HIGHEST_PRECEDENCE + 100) — Accept any 인 MockMvc 테스트 28건이 Web 의 HTML 응답으로 잡혀 회귀.
  *   v3 : 양 advice 모두 HIGHEST_PRECEDENCE. Spring 의 ExceptionHandlerExceptionResolver 가 핸들러의 produces 와
- *        request 의 Accept 호환성으로 자연 분리 — Accept: text/html 명시 흐름은 Web 의 produces=text/html 매처 우선,
- *        Accept: application/json 명시 흐름은 본 advice 의 produces=application/json 매처 우선. Accept any 는
- *        등록 순서 의존이지만 ApiExceptionHandler 의 핸들러가 더 구체적인 sub-class 매핑이 많아 자연스럽게 우선됨.
+ *        request 의 Accept 호환성으로 분리 — Accept: text/html 만 보내는 흐름은 Web 의 produces=text/html 매처가,
+ *        Accept: application/json 흐름은 본 advice 의 매처가 매칭된다.
+ *
+ * !!! v3 의 "자연 분리" 서술은 실제 브라우저에 대해 성립하지 않았다 (S10 실측으로 정정).
+ *     advice 선택은 Accept 의 선호도(q값)를 보지 않고 등록 순서대로 "받아줄 수 있는 형식이면 채택" 한다.
+ *     실제 브라우저는 Accept 에 "모든 형식 허용"(q=0.8) 항목을 항상 붙이므로 본 advice 가 무조건 먼저
+ *     합격했고, WebExceptionHandler 는 브라우저에서 도달 불가능했다
+ *     (페이지 이동 중 도메인 예외가 JSON 원문으로 노출).
+ *     S10 의 DocumentNavigationAcceptFilter 가 문서 이동 요청의 Accept 를 text/html 로 좁혀 이를 해소한다.
+ *     본 advice 의 로직은 그대로다 — 바뀐 것은 협상의 입력뿐이다.
  *
  * 적용 범위는 모든 controller (annotations 제한 없음) — hybrid controller (@Controller 가 @ResponseBody 메서드 보유)
  * 의 JSON 응답도 본 advice 가 처리.

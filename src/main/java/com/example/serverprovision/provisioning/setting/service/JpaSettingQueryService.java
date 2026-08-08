@@ -61,6 +61,8 @@ public class JpaSettingQueryService implements SettingQueryService {
 
     private final SettingDefinitionRepository repository;
     private final ProcessReferenceInspectors referenceInspectors;
+    // U3-2-b — 정의서 삭제 경고용 역참조 카운트(SPI, 순환 회피 DEC-D). 구현은 assignment 도메인이 제공.
+    private final AssignmentUsageInspector assignmentUsageInspector;
     private final BoardModelRepository boardModelRepository;
     private final BiosRepository biosRepository;
     private final BmcRepository bmcRepository;
@@ -88,21 +90,43 @@ public class JpaSettingQueryService implements SettingQueryService {
     }
 
     @Override
-    public List<SettingSummaryResponse> findAll() {
-        return repository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
-                .map(d -> new SettingSummaryResponse(
-                        d.getId(), d.getName(), sortedTypes(d), d.getCreatedAt()))
+    public List<SettingSummaryResponse> findAll(boolean includeDeleted) {
+        // 기본은 활성 전용(DEC-F). includeDeleted 면 전건(휴지통 토글) — 삭제 배지는 deleted 플래그로 렌더.
+        List<SettingDefinition> definitions = includeDeleted
+                ? repository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+                : repository.findAllByIsDeletedFalseOrderByIdAsc();
+        return definitions.stream().map(this::toSummary).toList();
+    }
+
+    /**
+     * 할당 가능한 정의서 선택지(U3-2-b DEC-G) — 게스트 서버 상세의 할당 · 재할당 드롭다운이 쓴다.
+     *
+     * <p>차단 판정은 도메인 SSOT {@code SettingDefinition.assignBlockReason()} 하나로, 서버 가드
+     * ({@code AssignmentCommandService})와 같은 메서드다 — 옵션에서 뺀 정의서를 direct POST 로 밀어 넣으면
+     * 같은 판정이 409 로 거절한다(드리프트 0). deprecated 는 차단 사유가 아니므로 목록에 남고, 응답의
+     * {@code deprecated} 플래그로 옵션 라벨에 사용 중단 권고를 덧붙인다.</p>
+     */
+    @Override
+    public List<SettingSummaryResponse> findAssignable() {
+        return repository.findAllByIsDeletedFalseOrderByIdAsc().stream()
+                .filter(d -> d.assignBlockReason() == null)
+                .map(this::toSummary)
                 .toList();
     }
 
     @Override
     public SettingDetailResponse findDetail(Long id) {
+        // soft-deleted 정의서도 상세로 접근 가능하다(DEC-F) — findById 로 전건 조회하고 deleted 플래그를 실어
+        // "삭제됨" 배지 + 복원/영구삭제 액션을 렌더한다.
         SettingDefinition definition = repository.findById(id)
                 .orElseThrow(() -> new SettingNotFoundException(id));
         List<AbstractProcessRequest> processList =
                 sortedProcesses(definition).stream().map(p -> p.getPayload().request()).toList();
         return new SettingDetailResponse(
                 definition.getId(), definition.getName(),
+                definition.isDeleted(), definition.isEnabled(), definition.isDeprecated(),
+                // 삭제 확인 모달의 정보성 경고(DEC-C) — 활성 할당 수. 차단이 아니라 안내.
+                assignmentUsageInspector.countReferencing(id),
                 processList,
                 collectDeprecatedUsages(processList),
                 collectExecutionWarnings(processList),
@@ -330,6 +354,14 @@ public class JpaSettingQueryService implements SettingQueryService {
     }
 
     /* ─────────────────────────── 내부 조립 ─────────────────────────── */
+
+    /** 목록 행 조립 — 전체 목록(findAll)과 할당 선택지(findAssignable)가 같은 표현을 공유한다. */
+    private SettingSummaryResponse toSummary(SettingDefinition definition) {
+        return new SettingSummaryResponse(
+                definition.getId(), definition.getName(), sortedTypes(definition),
+                definition.isDeleted(), definition.isEnabled(), definition.isDeprecated(),
+                definition.getCreatedAt());
+    }
 
     // D7 — 순서 컬럼 없음: 재조립·표시 순서는 SettingProcessType enum 선언 순(= 실행 의미 순서)으로 결정적.
     private List<SettingProcess> sortedProcesses(SettingDefinition definition) {

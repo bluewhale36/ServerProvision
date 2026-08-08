@@ -32,12 +32,76 @@
     <div class="n-page-header">
         <div>
             <a th:href="@{/provisioning/setting}" class="n-back-link">← 목록으로</a>
-            <h1 class="n-page-title n-page-title-stacked" th:text="${setting.name}">정의서 명칭</h1>
+            <h1 class="n-page-title n-page-title-stacked">
+                <span th:text="${setting.name}">정의서 명칭</span>
+                <span th:if="${setting.deleted}" class="n-badge n-badge-red">삭제됨</span>
+                <!-- U3-2-b DEC-G — 비활성(신규 할당 차단) · 사용 중단 권고(할당 허용, 경고만). -->
+                <span th:if="${!setting.deleted and !setting.enabled}"
+                      class="n-badge n-badge-gray"
+                      title="비활성 정의서는 서버에 새로 할당할 수 없습니다(기존 할당 스냅샷은 유지).">비활성</span>
+                <span th:if="${!setting.deleted and setting.deprecated}"
+                      class="n-badge n-badge-orange"
+                      title="사용 중단이 권고된 정의서입니다. 할당은 가능하지만 다른 정의서 사용을 권장합니다.">사용 중단</span>
+            </h1>
         </div>
+        <!-- U3-2-b — 활성이면 수정·삭제, soft-deleted 면 복원·영구삭제(수정 비활성). 삭제 확인은 관리 공용
+             confirm-soft-delete / confirm-purge 모달 재사용(setting-lifecycle.js 가 base opener 로 구동). -->
         <div class="n-header-actions">
-            <!-- U2-3 Q1 — 정의서는 수정 자유(상태 개념 없음, BIOS 템플릿 철학 통일). 삭제·참조 차단은 U3. -->
-            <a th:href="@{/provisioning/setting/{id}/edit(id=${setting.id})}"
-               class="n-btn n-btn-secondary">수정</a>
+            <th:block th:unless="${setting.deleted}">
+                <a th:href="@{/provisioning/setting/{id}/edit(id=${setting.id})}"
+                   class="n-btn n-btn-secondary">수정</a>
+                <!-- U3-2-b DEC-G — 활성 축(신규 할당 차단 여부) 토글. 삭제분 상세에는 복원·영구삭제만 남긴다. -->
+                <form method="post" class="n-inline-form"
+                      th:action="@{/provisioning/setting/{id}/toggle(id=${setting.id})}">
+                    <button type="submit" class="n-btn n-btn-secondary"
+                            th:text="${setting.enabled} ? '비활성화' : '활성화'"
+                            th:title="${setting.enabled}
+                                      ? '비활성화하면 이 정의서를 서버에 새로 할당할 수 없습니다(기존 할당은 유지).'
+                                      : '활성화하면 이 정의서를 다시 할당할 수 있습니다.'">비활성화</button>
+                </form>
+                <!-- 사용 중단 권고 축 — 할당을 막지 않고 경고만 붙인다(deprecated ≠ disabled). -->
+                <form method="post" class="n-inline-form"
+                      th:action="${setting.deprecated}
+                                 ? @{/provisioning/setting/{id}/undeprecate(id=${setting.id})}
+                                 : @{/provisioning/setting/{id}/deprecate(id=${setting.id})}">
+                    <button type="submit" class="n-btn n-btn-secondary"
+                            th:text="${setting.deprecated} ? '권고 해제' : '사용 중단'"
+                            th:title="${setting.deprecated}
+                                      ? '사용 중단 권고를 해제합니다.'
+                                      : '사용 중단을 권고합니다. 할당은 계속 가능하지만 선택 시 경고가 표시됩니다.'">사용 중단</button>
+                </form>
+                <form method="post" class="n-inline-form"
+                      th:action="@{/provisioning/setting/{id}/delete(id=${setting.id})}"
+                      data-confirm-soft-delete=""
+                      th:data-resource-label="|정의서 '${setting.name}'|"
+                      th:data-referencing-count="${setting.referencingCount}">
+                    <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
+                </form>
+            </th:block>
+            <th:block th:if="${setting.deleted}">
+                <form method="post" class="n-inline-form"
+                      th:action="@{/provisioning/setting/{id}/restore(id=${setting.id})}">
+                    <button type="submit" class="n-btn n-btn-secondary">복원</button>
+                </form>
+                <form method="post" class="n-inline-form"
+                      th:action="@{/provisioning/setting/{id}/purge(id=${setting.id})}"
+                      data-confirm-purge=""
+                      th:data-resource-label="|정의서 '${setting.name}'|"
+                      th:data-typed-name="${setting.name}">
+                    <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
+                </form>
+            </th:block>
+        </div>
+    </div>
+
+    <!-- soft-deleted 안내 배너 — 삭제분에 접근했을 때 복원/영구삭제 유도(DEC-F). -->
+    <div th:if="${setting.deleted}" class="n-card n-detail-section">
+        <div class="n-card-body">
+            <p class="n-detail-empty">이 정의서는 삭제되어 활성 목록에서 숨겨져 있습니다.
+                <th:block th:if="${setting.referencingCount > 0}">
+                    <span th:text="|${setting.referencingCount}개 게스트에 활성 할당돼 있지만 할당 스냅샷은 소프트 참조라 삭제·영구삭제와 무관하게 유지됩니다.|"></span>
+                </th:block>
+                복원하거나 영구 삭제할 수 있습니다.</p>
         </div>
     </div>
 
@@ -327,6 +391,15 @@
         </div>
     </div>
 </div>
+
+<!-- U3-2-b — 삭제/영구삭제 확인 모달(관리 공용 fragment 사전 include) + base opener + setting 전용 바인딩.
+     purge lazy 흐름은 ResourceType 레지스트리를 전제하므로 쓰지 않고, 사전 include 한 fragment 를
+     ConfirmModal.open 으로 직접 구동한다. -->
+<link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmSoftDelete')}"></div>
+<div th:replace="~{fragments/management/confirm-purge :: confirmPurgeModal('confirmPurge')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/provisioning/setting-lifecycle.js}"></script>
 
 </body>
 </html>

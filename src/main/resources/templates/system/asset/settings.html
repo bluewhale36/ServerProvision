@@ -38,7 +38,8 @@
     <div class="n-card">
         <div class="n-card-body">
             <h2 class="n-card-title">이력 보존 개수</h2>
-            <form th:action="@{/system/asset/settings}" th:object="${retentionForm}" method="post" novalidate>
+            <form th:action="@{/system/asset/settings}" th:object="${retentionForm}" method="post" novalidate
+                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
                 <div class="n-form-group">
                     <label class="n-label strong" for="retentionCount">자산별 보존 버전 수</label>
                     <input id="retentionCount" type="number" th:field="*{retentionCount}"

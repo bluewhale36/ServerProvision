@@ -2,6 +2,7 @@ package com.example.serverprovision.provisioning.assignment.dto.response;
 
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.provisioning.assignment.enums.AssignmentState;
+import com.example.serverprovision.provisioning.assignment.view.AssignmentStateView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,8 @@ public record PlannedPhaseRailResponse(
         boolean assigned,
         String definitionName,
         AssignmentState state,
+        String badgeClass,
+        String reassignBlockReason,
         List<Entry> entries
 ) {
 
@@ -46,7 +49,9 @@ public record PlannedPhaseRailResponse(
         for (ProvisioningPhase phase : plan.plannedPhases()) {
             entries.add(new Entry(phase, phase.getDescription(), runStateOf(phase, cursor)));
         }
-        return new PlannedPhaseRailResponse(plan.assigned(), plan.definitionName(), plan.state(), List.copyOf(entries));
+        String badgeClass = plan.state() != null ? AssignmentStateView.badgeClass(plan.state()) : null;
+        return new PlannedPhaseRailResponse(plan.assigned(), plan.definitionName(), plan.state(),
+                badgeClass, plan.reassignBlockReason(), List.copyOf(entries));
     }
 
     private static RunState runStateOf(ProvisioningPhase phase, ProvisioningPhase cursor) {

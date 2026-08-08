@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U3-2-a 완료 보고서 — 재할당(supersede-then-new) · 미소비 supersede 행 지연 purge reaper</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  /* ── figure (report 증거 스크린샷) ── */
+  figure img { max-width:100%; height:auto; border:1px solid var(--border); border-radius:6px; display:block; }
+  figure { margin:16px 0; }
+  figcaption { color:var(--text-muted); font-size:13px; margin-top:6px; }
+
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+  .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── .seq 스윔레인 ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── card-grid ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U3-2-a 완료 보고서 — 재할당(supersede-then-new) · 미소비 supersede 행 지연 purge reaper <span class="v2-badge">CP6 완료 보고</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리</strong> U3-2-a</span>
+    <span><strong>상위</strong> U3 (세팅 정의서 → 게스트 할당)</span>
+    <span><strong>상태</strong> CP6 보고 (CP7 대기)</span>
+    <span><strong>검증</strong> CP4 테스트 1565 green + CP5 샌드박스 검증 5/5 (스크린샷 채증)</span>
+    <span><strong>작성</strong> 2026-08-02 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 슬라이스 개요</a></li>
+      <li><a href="#s2">§2 구현 결과</a></li>
+      <li><a href="#s3">§3 결정 반영 (DA1~DA5 · 편차)</a></li>
+      <li><a href="#s4">§4 CP4 검증 (테스트)</a></li>
+      <li><a href="#s5" class="preview">§5 CP5 샌드박스 검증 (핵심)</a></li>
+      <li><a href="#s6">§6 남은 것 · 후속</a></li>
+      <li><a href="#s7">§7 부록 — 구현 좌표</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <div class="callout success" style="font-size:13.5px;">
+      <b>핵심 한 줄</b> — U3-2-a 는 U3-1 이 정의만 심어두고 아직 부르지 않던 훅
+      (<code>SettingAssignment.supersede()</code> · <code>AssignmentState.SUPERSEDED</code> · 활성 술어
+      <code>supersededAt IS NULL</code>)을 <b>실배선</b>했다. 게스트에 할당된 세팅 정의서를
+      <b>프로비저닝 개시 전까지</b> 다른 정의서로 <b>재할당</b>(기존 할당을 supersede 로 이력 종료 + 현재 정의서로 새 스냅샷 생성)할 수 있게 하고,
+      미개시 상태로 대체돼 버려진 supersede 스냅샷을 TTL(Time To Live — 경과 시간 임계) 후 스케줄러가 <b>선별 수거</b>한다.
+    </div>
+
+    <!-- ===== §1 슬라이스 개요 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 슬라이스 개요</summary>
+      <div class="body">
+        <p style="margin-top:0;">U3(세팅 정의서 → 게스트 할당)의 하위인 <b>U3-2 를 2분할한 첫 슬라이스</b>다.
+          U3-2-a = <b>재할당(supersede-then-new)</b> + <b>미소비 supersede 행 지연 purge reaper</b>(화면 없는 DB 전용 정리 작업).</p>
+
+        <p>U3-1(할당 core)은 재할당 · 대체 이력에 쓰려고 훅을 미리 정의만 해두고 아무도 부르지 않는 상태로 남겼다 —
+          도메인 메서드 <code>SettingAssignment.supersede()</code>, 상태 값 <code>AssignmentState.SUPERSEDED</code>,
+          그리고 활성 스냅샷을 가리는 술어 <code>supersededAt IS NULL</code> 이다. U3-2-a 는 이 셋을 실제 흐름에 연결한다.</p>
+
+        <h4>이 슬라이스가 여는 것</h4>
+        <ul>
+          <li><b>재할당</b> — 아직 프로비저닝을 개시하지 않은 게스트라면, 할당된 정의서를 다른 정의서로 바꿀 수 있다.
+            기존 할당은 그 자리에서 supersede(대체)로 이력 종료하고, 지금 정의서 내용으로 새 스냅샷을 만들어 활성 할당으로 세운다.</li>
+          <li><b>지연 purge</b> — 재할당으로 대체됐지만 한 번도 소비되지 않은 supersede 스냅샷은 실행에 다시 쓰일 일이 없다.
+            이런 행만 TTL 경과 후 스케줄러가 hard-delete 로 수거하고, <b>소비된 이력 · 활성 할당은 절대 건드리지 않는다</b>.</li>
+        </ul>
+
+        <div class="callout warn">
+          <b>후속 슬라이스</b>
+          <ul style="margin:6px 0 0;">
+            <li><b>U3-2-b</b>(형제, 별도 CP1) — <b>원본 정의서 삭제 lifecycle</b>. 세팅 정의서 자체를 지울 때 그 정의서를
+              할당한 게스트가 있으면 어떻게 처리할지. setting ↔ assignment 순환은 <code>AssignmentUsageInspector</code>
+              Service Provider Interface(도메인이 구현해 끼우는 확장점, 이하 SPI)로 회피할 계획.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 구현 결과 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 구현 결과</summary>
+      <div class="body">
+
+        <h4>재할당 흐름 — supersede-then-new</h4>
+        <p style="margin-top:0;">재할당은 <b>한 트랜잭션</b> 안에서 기존 활성 할당을 supersede 로 종료하고, 현재 정의서로 새 스냅샷을 derive-then-freeze 한다.
+          아래 스윔레인은 재할당 정상 흐름과 그 안의 <b>flush 순서</b>(§5 에서 발견 · 수정한 결함의 핵심)를 함께 보여준다.</p>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">GuestServerController</div><div class="actor a3">AssignmentCommandService</div><div class="actor a4">DB (MariaDB)</div>
+          <div class="step a1"><code>POST …/assignment/reassign</code></div><div class="step a2"><code>@Valid ReassignSettingRequest</code></div><div class="step a3"><code>reassign(guestId, req)</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>active.supersede(now)</code></div><div class="step a4"><code>UPDATE active_guest_id → NULL</code> <b>(flush 먼저)</b></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>deriveSnapshot(현재 정의서)</code> → <code>save</code></div><div class="step a4"><code>INSERT active_guest_id = guest</code></div>
+          <div class="step a1">200 JSON</div><div class="step a2"><code>ReassignmentResponse</code></div><div class="step a3"></div><div class="step a4"><code>uk_active_assignment_per_guest</code> 위반 0 · 활성 1개</div>
+        </div>
+
+        <h4>지연 purge reaper — 선별 수거</h4>
+        <p style="margin-top:0;"><code>AssignmentReaper</code>(<code>@Scheduled</code>, 매 시각 :45 발동하는 얇은 트리거)가
+          <code>AssignmentReapService.purgeExpired</code> 를 호출한다. 수거 대상은 아래 세 조건을 <b>모두</b> 만족하는 행뿐이다.</p>
+        <table>
+          <thead><tr><th>수거 술어 (세 조건 AND)</th><th>보존 대상 (수거 제외)</th></tr></thead>
+          <tbody>
+            <tr><td><code>SUPERSEDED</code> (재할당으로 대체됨)</td><td><code>ACTIVE</code> 활성 할당</td></tr>
+            <tr><td>미소비 (<code>consumedAt IS NULL</code>)</td><td>소비된 supersede 이력 (<code>consumedAt</code> 존재)</td></tr>
+            <tr><td>TTL 경과 (<code>supersededAt</code> &lt; now − TTL)</td><td>TTL 미경과 supersede 행</td></tr>
+          </tbody>
+        </table>
+        <p>이 술어는 "다시 실행에 쓰일 일도, 감사 가치도 없는 버려진 스냅샷"만 정확히 겨냥한다. TTL 등 설정은
+          <code>application.properties</code> 의 <code>assignment.reap.*</code> 로 외부화했고, <code>purge_log</code> · 별도 설정 엔티티는
+          이 슬라이스에서 도입하지 않았다(DA3).</p>
+
+        <h4>활성 유일성 — DB 강제 (DA2)</h4>
+        <p style="margin-top:0;">"한 게스트에 활성 할당은 최대 1개"라는 불변식을 서비스 가드에만 맡기지 않고
+          <b>MariaDB PERSISTENT generated-column + UNIQUE 제약</b>(<code>uk_active_assignment_per_guest</code>)으로 DB 가 강제한다.
+          generated-column(<code>active_guest_id</code>)은 <b>활성 행에만</b> 게스트 식별자 값이 채워지고 대체된 행에서는 NULL 이라,
+          UNIQUE 가 게스트당 활성 1개를 물리적으로 보장한다. 서비스 계층 가드는 없앤 것이 아니라, 사용자에게 친절한 409 를
+          주기 위한 UX 용으로 유지한다.</p>
+
+        <h4>URL / 데이터 흐름</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/provisioning/server/{guestId}/assignment/reassign</code></td><td>미개시 활성 할당을 다른 정의서로 재할당</td><td>200 JSON / 409</td></tr>
+            <tr><td colspan="4" style="color:var(--text-muted);">개시된(ACTIVE_CONSUMED) 할당은 <code>ReassignAfterStartException</code>(409), 활성 할당 자체가 없으면 <code>NoActiveAssignmentToReassignException</code>(409)로 거절.</td></tr>
+          </tbody>
+        </table>
+
+        <h4>신규 · 수정 파일</h4>
+        <table>
+          <thead><tr><th>분류</th><th>객체</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>AssignmentReapService</code></td><td><code>purgeExpired</code> — 술어 만족 행 hard-delete</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>AssignmentReaper</code></td><td><code>@Scheduled</code> :45 얇은 트리거</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ReassignAfterStartException</code></td><td>개시 후 재할당 거절 (409)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>NoActiveAssignmentToReassignException</code></td><td>활성 할당 부재 시 재할당 거절 (409)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ReassignSettingRequest</code> · <code>ReassignmentResponse</code></td><td>재할당 요청 / 응답 DTO</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/U3-2-a_active_uniqueness.sql</code></td><td>generated-column + UNIQUE 수동 DDL</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>AssignmentCommandService</code></td><td><code>reassign()</code> 추가 + <code>deriveSnapshot</code> 공통 추출 (assign 과 복붙 0)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingAssignment</code></td><td><code>reassignBlockReason()</code> 도메인 메서드 = 차단 사유 SSOT</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingAssignmentRepository</code></td><td>reaper 술어 조회</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerController</code></td><td><code>POST …/assignment/reassign</code> 메서드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-detail.html</code> · <code>server-assignment.js</code></td><td>재할당 UX · 두 폼(할당 · 재할당) 일반화</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>application.properties</code></td><td><code>assignment.reap.*</code>(TTL · cron 등)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §3 결정 반영 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 결정 반영 (DA1~DA5 · 계획 대비 편차)</summary>
+      <div class="body">
+        <p style="margin-top:0;">plan §8 에서 확정한 결정 DA1~DA5 를 구현이 그대로 반영했다(요지).</p>
+        <table>
+          <thead><tr><th>#</th><th>결정</th></tr></thead>
+          <tbody>
+            <tr><td><code>DA1</code></td><td>재할당 = supersede-then-new, <b>미개시(ACTIVE_UNCONSUMED) 활성에만</b> 허용.
+              개시된(ACTIVE_CONSUMED) 활성은 <code>ReassignAfterStartException</code>(409)로 차단 — 개시 후 정의서 교체(커서 리셋)는 실행 엔진(E cluster) 소관.</td></tr>
+            <tr><td><code>DA2</code></td><td>활성 유일성을 <b>MariaDB PERSISTENT generated-column + UNIQUE</b>(<code>uk_active_assignment_per_guest</code>)로 DB 강제.
+              서비스 가드는 친절한 409 · UX 용으로 유지.</td></tr>
+            <tr><td><code>DA3</code></td><td>reaper 는 <b>SUPERSEDED ∧ 미소비 ∧ TTL 경과</b> 만 수거, <b>소비 이력 · 활성 보존</b>.
+              <code>@Scheduled</code> :45, 프로퍼티 설정, <code>purge_log</code> · 설정 엔티티 미도입.</td></tr>
+            <tr><td><code>DA4</code></td><td><code>reassignBlockReason()</code> 도메인 메서드를 <b>SSOT</b> 로 두고 서버 가드 + 뷰(disabled + tooltip)가 함께 호출.
+              재할당 폼은 <code>[data-live]</code> 영역 <b>밖</b>에 배치(U3-1 커밋 107bbd0 의 data-live 폼 소실 재발 방지).</td></tr>
+            <tr><td><code>DA5</code></td><td>재할당 스냅샷은 현재 정의서로 새로 derive-then-freeze — assign 과 <code>deriveSnapshot</code> 공통 추출로 복붙 0.</td></tr>
+          </tbody>
+        </table>
+
+        <h4>계획 대비 편차 (판단 후 진행)</h4>
+        <p style="margin-top:0;">plan 이 가정한 형태와 실제 코드가 달라 구현 중 조정한 항목이다 — 모두 코드 실태에 맞춘 정정이며 스코프 변경은 없다.</p>
+        <table>
+          <thead><tr><th>plan 가정</th><th>실제 반영</th></tr></thead>
+          <tbody>
+            <tr><td>guestId = <code>Long</code></td><td>guestId = <code>UUID</code>(게스트 식별자 실 타입)</td></tr>
+            <tr><td>정의서 부재 예외 신규</td><td>실재 클래스 <code>SettingNotFoundException</code> 재사용</td></tr>
+            <tr><td>재할당 = 별도 클래스</td><td><code>GuestServerController</code> 메서드로 배치, 200 JSON 응답</td></tr>
+            <tr><td>재할당 JS 신규</td><td><code>server-assignment.js</code> 를 두 폼(할당 · 재할당) 일반화로 확장</td></tr>
+            <tr><td><code>reassignBlockReason</code> 노출 경로 미정</td><td><code>PlannedPhaseRailResponse</code> 뷰모델에 실어 disabled + tooltip 렌더</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 CP4 검증 (테스트) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. CP4 검증 (테스트)</summary>
+      <div class="body">
+        <h4>단위 테스트 (JUnit + Mockito)</h4>
+        <ul>
+          <li><code>AssignmentCommandService.reassign()</code> — happy(미개시 재할당 성공) + 실패(개시 후 · 활성 부재).</li>
+          <li><code>AssignmentReapService.purgeExpired</code> — 술어 선별성(미소비만 수거, 소비 이력 · 활성 보존).</li>
+          <li><code>SettingAssignment.reassignBlockReason()</code> — 상태별 차단 사유 SSOT.</li>
+        </ul>
+
+        <h4>사용자 액션 통합 테스트 (@WebMvcTest + MockMvc)</h4>
+        <p style="margin-top:0;"><code>POST …/assignment/reassign</code> 를 HTTP 계층에서 4범주로 검증했다.
+          신규 예외 2건은 <b>각각 실제로 트리거하는 시나리오 테스트</b>를 함께 넣었다(단위만 있고 통합이 빠진 묶음 금지 규율).</p>
+        <table>
+          <thead><tr><th>범주</th><th>대상</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip cp2">성공 2xx</span></td><td>재할당 성공 응답(<code>ReassignmentResponse</code> 바디 필드값)</td></tr>
+            <tr><td><span class="chip mod">400</span></td><td>필드 검증 실패(요청 필드 메시지)</td></tr>
+            <tr><td><span class="chip keep">404</span></td><td>대상 자원 부재(게스트 · 정의서)</td></tr>
+            <tr><td><span class="chip cp4">409</span></td><td><code>ReassignAfterStartException</code>(개시 후) · <code>NoActiveAssignmentToReassignException</code>(활성 부재) 실 트리거</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout success">
+          <b>전체</b> — <code>./gradlew test</code> = <b>1565 tests / 0 실패</b>(신규 · 변경 케이스 <b>18</b>건). 빌드 green.
+        </div>
+
+        <div class="callout warn">
+          <b>단위 · slice 테스트의 사각지대</b> — Mockito 단위 테스트와 <code>@WebMvcTest</code> slice 테스트는
+          <b>실 DB 제약(generated-column · UNIQUE)이 없는 환경</b>이라 green 이어도 DA2 제약 위반을 잡지 못한다.
+          이 사각지대에서 새어 나온 결함(재할당 flush 순서)을 §5 에서 실 MariaDB + DDL 적용으로 잡았다.
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 CP5 샌드박스 검증 (핵심) ===== -->
+    <details class="section preview" id="s5" open>
+      <summary>§5. CP5 샌드박스 검증 (핵심)</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스의 본문 중심이다. <b>무엇을 확인하려 했는지 → 실제로 어떤 정상 · 비정상 조작을 했는지 →
+          스크린샷 증거 → 검증 중 발견한 결함과 그 처리</b> 순으로 기록한다.</p>
+
+        <h4>검증 항목 계획 (먼저 세운 5개)</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인하려는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>V1</code></td><td><b>정상 재할당</b> — 할당 → 다른 정의서로 재할당 → 기존 supersede · 새 활성 1개 · 계획 rail 갱신.</td></tr>
+            <tr><td><code>V2</code></td><td><b>개시 후 재할당 차단</b> — 개시 → 재할당 버튼 disabled + tooltip(<code>reassignBlockReason</code> SSOT), UI 우회 direct POST → 409.</td></tr>
+            <tr><td><code>V3</code></td><td><b>활성 없음 재할당</b> — 활성 할당 없는 게스트에 direct POST → 409.</td></tr>
+            <tr><td><code>V4</code></td><td><b>활성 유일성 DB 강제(DA2)</b> — 샌드박스에 DDL 적용 후 재할당이 UNIQUE 위반 없이 성공 + 활성 1개 불변.</td></tr>
+            <tr><td><code>V5</code></td><td><b>reaper 선별 수거</b> — 미소비 supersede 행만 삭제, 소비 이력 · 활성 보존.</td></tr>
+          </tbody>
+        </table>
+
+        <h4>샌드박스 구성</h4>
+        <p style="margin-top:0;">Docker MariaDB(포트 3307) + bootJar(포트 7788, <code>ddl-auto=update</code>) + Chrome 브라우저 자동화.
+          Hibernate 가 생성한 <code>setting_assignment</code> 테이블(게스트 식별자 컬럼은 MariaDB 네이티브 uuid 타입) 위에
+          <b><code>ddl/U3-2-a_active_uniqueness.sql</code> 을 수동 적용</b>했다. <code>ddl-auto=update</code> 는 JPA 가 매핑하지 않은
+          generated-column 을 만들지 않으므로, 이 수동 적용이 <b>DA2 를 실환경처럼 검증하는 핵심</b>이다.
+          시드: <code>board_model</code>(GIGABYTE / MS03-CE0) · 세팅 정의서 2종(A · B) · <code>/boot</code> 로 게스트 등록.</p>
+
+        <div class="callout warn">
+          <b>샌드박스 착수 중 실측 정정 3건 (참고 — U3-2-a 결함 아님)</b> — 정상 흐름을 못 찾다가 코드를 읽어 해결한 게스트 등록 규약 관련 사항이다.
+          <ul style="margin:6px 0 0;">
+            <li><code>docker exec</code> 에 <code>-i</code> 누락으로 heredoc 시드가 stdin 으로 전달되지 않음 → <code>-i</code> 로 해결.</li>
+            <li><code>/boot</code> 의 vendor 파라미터는 enum 이름(<code>"GIGABYTE"</code>)이 아니라
+              <code>Vendor.ipxeName</code>(<code>"Giga Computing"</code>)으로 매칭 — <code>VendorNotFoundException</code>(404)를 겪고
+              <code>Vendor.java</code> 를 읽어 정정.</li>
+          </ul>
+        </div>
+
+        <h4>수행 · 증거 (정상 + 비정상 각각)</h4>
+
+        <p><b>V1 · V4 — 정상 재할당.</b> 브라우저에서 정의서 A 를 할당(스크린샷 2)한 뒤 B 로 재할당(스크린샷 3)했다.
+          DB 결과: A → SUPERSEDED(<code>active_guest_id</code> NULL) · B → ACTIVE(<code>active_guest_id</code> = guest) · <b>활성 행 1개</b>.
+          앱 로그 <code>reassigned … superseded=1 new=2 … status=200</code>. DA2 generated-column 이 활성 행에만 값을 채우는 것을 확인.
+          DDL 이 적용된 샌드박스에서 <b>status 200 · UNIQUE 위반 0 · 활성 1개</b> — 아래 결함 수정이 실제로 작동함을 여기서 확인했다.</p>
+
+        <figure>
+          <div class="shot-omitted" style="padding:16px;border:1px dashed var(--line,#d0d0d8);border-radius:8px;color:var(--muted,#6b7280);font-size:13px;text-align:center;background:var(--surface-2,#f6f6f9);">📷 스크린샷 생략(경량 임베드본) — 원본 캡처는 저장소 정본 <code>report/26-08-02_16-45-44_U3-2-a_report.html</code> 참조. 아래 설명이 그 화면의 내용입니다.</div>
+          <figcaption><b>스크린샷 1 — 초기 상태.</b> 활성 할당 없음 → "할당" 폼(정의서 선택 + "이 서버에 할당")만 노출되고,
+            재할당 폼은 없으며 "계획 phase 없음" 빈 상태.</figcaption>
+        </figure>
+
+        <figure>
+          <div class="shot-omitted" style="padding:16px;border:1px dashed var(--line,#d0d0d8);border-radius:8px;color:var(--muted,#6b7280);font-size:13px;text-align:center;background:var(--surface-2,#f6f6f9);">📷 스크린샷 생략(경량 임베드본) — 원본 캡처는 저장소 정본 <code>report/26-08-02_16-45-44_U3-2-a_report.html</code> 참조. 아래 설명이 그 화면의 내용입니다.</div>
+          <figcaption><b>스크린샷 2 — 정의서 A 할당 후.</b> "할당된 정의서 = 테스트 정의서 A [ACTIVE_UNCONSUMED]",
+            "다른 정의서로 재할당" 드롭다운 + "재할당" 버튼, 안내 문구
+            "재할당하면 지금 정의서로 새 스냅샷을 만들고 기존 할당은 이력으로 종료됩니다. 프로비저닝 개시 전까지만 가능합니다.",
+            계획 phase(1 진단 리눅스 · 예정).</figcaption>
+        </figure>
+
+        <figure>
+          <div class="shot-omitted" style="padding:16px;border:1px dashed var(--line,#d0d0d8);border-radius:8px;color:var(--muted,#6b7280);font-size:13px;text-align:center;background:var(--surface-2,#f6f6f9);">📷 스크린샷 생략(경량 임베드본) — 원본 캡처는 저장소 정본 <code>report/26-08-02_16-45-44_U3-2-a_report.html</code> 참조. 아래 설명이 그 화면의 내용입니다.</div>
+          <figcaption><b>스크린샷 3 — B 로 재할당 후.</b> "할당된 정의서 = 테스트 정의서 B [ACTIVE_UNCONSUMED]"
+            (A → B 로 교체됨), 재할당 폼 유지.</figcaption>
+        </figure>
+
+        <p><b>V2 — 개시 후 차단.</b> "프로비저닝 개시"를 클릭해 B 를 소비(<code>markConsumed</code>, status 302)한 뒤 재렌더하면,
+          재할당 버튼이 <b>disabled "재할당 (차단됨)" + 사유 텍스트</b>로 바뀐다(스크린샷 4, UI 1차 차단).
+          이어 <b>UI 를 우회한 direct POST</b>(curl)로 재할당을 시도하면 <b>409</b>
+          <code>{"message":"이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요) guestId=…"}</code>
+          (<code>ReassignAfterStartException</code>) — 메시지가 <code>reassignBlockReason</code> SSOT 와 동일하다(가드와 뷰가 같은 소스).</p>
+
+        <figure>
+          <div class="shot-omitted" style="padding:16px;border:1px dashed var(--line,#d0d0d8);border-radius:8px;color:var(--muted,#6b7280);font-size:13px;text-align:center;background:var(--surface-2,#f6f6f9);">📷 스크린샷 생략(경량 임베드본) — 원본 캡처는 저장소 정본 <code>report/26-08-02_16-45-44_U3-2-a_report.html</code> 참조. 아래 설명이 그 화면의 내용입니다.</div>
+          <figcaption><b>스크린샷 4 — 개시(start) 후.</b> "할당된 정의서 = 테스트 정의서 B [ACTIVE_CONSUMED]",
+            재할당 버튼이 회색 disabled "재할당 (차단됨)" + 사유 텍스트
+            "이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)" (UI 1차 차단).</figcaption>
+        </figure>
+
+        <p><b>V3 — 활성 없음.</b> 활성 할당이 없는 게스트에 direct POST 로 재할당을 시도하면 <b>409</b>
+          <code>{"message":"재할당할 활성 세팅 정의서 할당이 없습니다. guestId=…"}</code>
+          (<code>NoActiveAssignmentToReassignException</code>).</p>
+
+        <p><b>V5 — reaper 선별 수거.</b> id=1(A, SUPERSEDED 미소비)의 <code>superseded_at</code> 을 47시간 전으로 backdate 하고,
+          대조군으로 합성 소비 이력 행(id=3, SUPERSEDED <b>소비</b> 47h)을 삽입했다. :45 cron 발동 로그
+          <code>[assignment-reaper] 미소비 supersede 스냅샷 1 건 수거(hard-delete). ttl=PT24H</code>.
+          결과: <b>id=1 삭제</b> · id=2(ACTIVE) 보존 · <b>id=3(소비 이력) 보존</b> — 술어
+          <code>SUPERSEDED ∧ 미소비 ∧ TTL 경과</code> 의 선별성을 실제로 확인.</p>
+
+        <div class="callout danger">
+          <b>검증 중 발견 · 수정한 결함 — 재할당 flush 순서 (CP1 급, 숨기지 않음)</b>
+          <br><br>
+          <b>결함</b> — <code>AssignmentCommandService.reassign()</code> 이 <code>active.supersede(now)</code> 직후 곧바로
+          새 스냅샷을 <code>save</code> 했다. Hibernate 는 flush 시 <b>INSERT 를 UPDATE 보다 먼저 실행</b>하고
+          (IDENTITY 전략이라 <code>save</code> 가 즉시 INSERT), 그러면 새 활성 행이 INSERT(<code>active_guest_id</code> = guest)되는 순간
+          기존 행이 아직 <code>active_guest_id</code> = guest 라서 <b><code>uk_active_assignment_per_guest</code>(DA2)를 위반</b>한다.
+          Mockito 단위 · slice 테스트는 실 DB 제약이 없어 green 이라 <b>못 잡고</b>, 실 MariaDB + DDL 적용 시에만 터진다.
+          <br><br>
+          <b>수정</b> — supersede 후 <code>assignmentRepository.flush()</code> 를 넣어
+          UPDATE(<code>active_guest_id</code> → NULL)를 새 행 INSERT 전에 DB 에 먼저 반영했다.
+          원자성은 같은 <code>@Transactional</code> 이라 유지된다(이후 실패 시 함께 롤백).
+          <br><br>
+          <b>재검증</b> — CP5 의 V1 · V4 에서 <b>DDL 이 적용된 샌드박스에 재할당 → status 200 · UNIQUE 위반 0 · 활성 1개</b>로 확인.
+          수정이 없었다면 이 지점이 duplicate-key 500 이었을 것이다.
+        </div>
+
+        <h4>CP5 결과 (5/5 통과)</h4>
+        <table>
+          <thead><tr><th>#</th><th>항목</th><th>방법</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td><code>V1</code></td><td>정상 재할당</td><td>브라우저 할당 → 재할당 + DB</td><td>200 · A superseded · B active · 활성 1</td></tr>
+            <tr><td><code>V2</code></td><td>개시 후 차단</td><td>브라우저 disabled + direct POST</td><td>disabled + 사유 · 409 <code>ReassignAfterStart</code></td></tr>
+            <tr><td><code>V3</code></td><td>활성 없음</td><td>direct POST</td><td>409 <code>NoActiveAssignmentToReassign</code></td></tr>
+            <tr><td><code>V4</code></td><td>활성 유일성 DB(DA2)</td><td>DDL 적용 후 재할당</td><td>UNIQUE 위반 0 (flush 수정 실검증)</td></tr>
+            <tr><td><code>V5</code></td><td>reaper 선별</td><td>backdate + :45 cron</td><td>미소비만 삭제 · 소비 / 활성 보존</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 남은 것 · 후속 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 남은 것 · 후속</summary>
+      <div class="body">
+        <ul>
+          <li><b>T3 실검증 (현 샌드박스로 부분 확인됨)</b> — MariaDB generated-column UNIQUE 의 <b>동시 삽입 경합</b>은
+            단일 세션 브라우저로는 재현하지 못한다. <code>docs/T3-checklist.md</code> 에 동시 재할당 · 최초 동시 할당 부하 항목으로 적립.</li>
+          <li><b>소비 supersede 이력 행의 장기 보존 상한 · 삭제 대기 목록</b>은 후속. <code>purge_log</code> 편입은 보류.</li>
+          <li><b>CP7</b>(사용자 단독 브라우저 E2E) — 샌드박스 포트 7788 기동 중이고 DDL 이 적용된 상태로 대기.</li>
+          <li><b>엔진 실소비</b>(재할당으로 바뀐 활성 스냅샷이 실행 커서에 반영) — <code>ES-1</code> 소관. U3-2-a 는 재할당 · 정리까지.</li>
+          <li><b>형제 U3-2-b</b> — 원본 정의서 삭제 lifecycle + <code>AssignmentUsageInspector</code> SPI 로 setting ↔ assignment 순환 회피.</li>
+        </ul>
+
+        <h4>Verification</h4>
+        <ul class="check-list" data-storage="U3-2-a-verify">
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> = 1565 tests / 0 실패 (신규 · 변경 18건)</span></label></li>
+          <li><label><input type="checkbox" data-key="v1v4"> <span>V1 · V4 정상 재할당 — 200 · A superseded · B active · 활성 1 · UNIQUE 위반 0</span></label></li>
+          <li><label><input type="checkbox" data-key="v2"> <span>V2 개시 후 차단 — disabled + 사유 · direct POST 409</span></label></li>
+          <li><label><input type="checkbox" data-key="v3"> <span>V3 활성 없음 — direct POST 409</span></label></li>
+          <li><label><input type="checkbox" data-key="v5"> <span>V5 reaper 선별 — 미소비만 삭제 · 소비 / 활성 보존</span></label></li>
+          <li><label><input type="checkbox" data-key="bugfix"> <span>flush 순서 버그 발견 · 수정 · 재검증(DDL 적용 샌드박스)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 사용자 단독 브라우저 E2E</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §7 부록 — 구현 좌표 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 부록 — 구현 좌표</summary>
+      <div class="body">
+        <p style="margin-top:0;">본문은 상황 중심으로 서술했다. 아래는 코드를 여는 독자를 위한 좌표 표다.</p>
+        <table>
+          <thead><tr><th>분류</th><th>객체</th><th>배치 · 역할</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>AssignmentReapService</code></td><td><code>provisioning.assignment</code> — <code>purgeExpired</code>, 술어 만족 행 hard-delete</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>AssignmentReaper</code></td><td><code>provisioning.assignment</code> — <code>@Scheduled</code> :45 얇은 트리거</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ReassignAfterStartException</code></td><td>개시된 활성 재할당 거절 (409), 신규 예외 → 통합 시나리오 동반</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>NoActiveAssignmentToReassignException</code></td><td>활성 부재 재할당 거절 (409), 신규 예외 → 통합 시나리오 동반</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ReassignSettingRequest</code> · <code>ReassignmentResponse</code></td><td>재할당 요청 / 응답 DTO</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/U3-2-a_active_uniqueness.sql</code></td><td>PERSISTENT generated-column + <code>uk_active_assignment_per_guest</code> UNIQUE</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>AssignmentCommandService</code></td><td><code>reassign()</code> + <code>deriveSnapshot</code> 공통 추출 + supersede 후 <code>flush()</code>(결함 수정)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingAssignment</code></td><td><code>reassignBlockReason()</code> = 차단 사유 SSOT(서버 가드 + 뷰 공유)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingAssignmentRepository</code></td><td>reaper 술어(<code>SUPERSEDED ∧ 미소비 ∧ TTL 경과</code>) 조회</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerController</code></td><td><code>POST …/assignment/reassign</code> 메서드, 200 JSON</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PlannedPhaseRailResponse</code></td><td><code>reassignBlockReason</code> 뷰모델 노출(disabled + tooltip)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-detail.html</code> · <code>server-assignment.js</code></td><td>재할당 UX · 두 폼 일반화, 재할당 폼은 <code>[data-live]</code> 밖</td></tr>
+            <tr><td><span class="chip keep">재사용</span></td><td><code>SettingNotFoundException</code></td><td>정의서 부재 시 재사용(신규 예외 대신)</td></tr>
+            <tr><td><span class="chip keep">재사용</span></td><td><code>SettingAssignment.supersede()</code> · <code>AssignmentState.SUPERSEDED</code></td><td>U3-1 이 정의만 해둔 훅을 실배선</td></tr>
+          </tbody>
+        </table>
+
+        <h4>불가침 원칙 점검</h4>
+        <ul>
+          <li><b>Primitive Obsession</b> — 게스트 식별자는 <code>UUID</code>, 차단 사유는 도메인 메서드
+            <code>reassignBlockReason()</code> 로 표현하며 원시 boolean 플래그 복붙을 두지 않았다.
+            TTL 은 <code>Duration</code>(<code>PT24H</code>) 로 다룬다.</li>
+          <li><b>네이밍</b> — <code>*Service</code> / <code>*Repository</code> / <code>*Request</code> / <code>*Response</code> /
+            <code>*Exception</code> 접미사 준수(요청 DTO 에 <code>DTO</code> 접미사 없음).</li>
+          <li><b>레이어 경계</b> — controller ↔ service 는 DTO(재할당 JSON), service ↔ repository 는 엔티티.
+            <code>@Transactional</code> 은 service 경계(<code>reassign()</code> supersede + save 원자 실행).</li>
+          <li><b>조건분기 확장 금지 · UI 1차 차단</b> — 개시 후 재할당은 UI 가 disabled + tooltip 으로 먼저 막고
+            (<code>reassignBlockReason()</code> SSOT), 서버 가드는 direct POST · 동시성 같은 비정상 경로의 409 안전망으로만 발동.</li>
+          <li><b>DB 불변식</b> — 활성 유일성을 서비스 가드 + DB UNIQUE 이중으로 강제(DA2), 실 DB 에서만 드러나는 flush 결함을 CP5 에서 포착.</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

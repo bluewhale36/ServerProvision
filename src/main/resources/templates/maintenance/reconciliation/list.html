@@ -334,7 +334,6 @@
                               th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
                               method="post"
                               data-confirm-drift-apply=""
-                              data-async-submit=""
                               th:data-resource-type="${drift.resourceType}"
                               th:data-resource-id="${drift.resourceId}"
                               th:data-resource-label="|'${drift.kind.label}' 드리프트|"
@@ -376,7 +375,6 @@
                               method="post"
                               th:action="@{/maintenance/reconciliation/drifts/{driftId}/resolve-duplicate(driftId=${drift.id})}"
                               data-duplicate-resolve=""
-                              data-async-submit=""
                               th:data-original-path="${drift.oldPath}"
                               th:data-duplicate-path="${drift.newPath}"
                               th:data-resource-label="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">
@@ -394,7 +392,6 @@
                         <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/snooze(driftId=${drift.id})}"
                               method="post"
                               data-confirm-drift-snooze=""
-                              data-async-submit=""
                               th:data-resource-type="${drift.resourceType}"
                               th:data-resource-id="${drift.resourceId}"
                               th:data-resource-label="|'${drift.kind.label}' 드리프트|"

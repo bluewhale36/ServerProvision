@@ -52,9 +52,16 @@
         <script th:src="@{/global/upload-client.js}" defer></script>
         <!-- S4 — 폼 에러 매핑 단일 진입점 window.FormError. data-error-field / .n-form-banner 결합. -->
         <script th:src="@{/global/form-error.js}" defer></script>
-        <!-- R1-4-1 hotfix — 전역 error modal. submitAsync 의 onRejected 가 본 modal 호출 (alert 대체). -->
+        <!-- HF5 — 병기형 조사('{자원명} 을(를)') 해소 window.KoreanParticle. 확인 modal · error modal 이
+             표시 직전 호출하므로 전역 1 회 공급으로 충분하다 (호출 시점이 사용자 조작 이후라 defer 로 안전). -->
+        <script th:src="@{/global/korean-particle.js}" defer></script>
+        <!-- R1-4-1 hotfix — 전역 error modal. FormSubmit.sendAsync 의 onRejected 가 본 modal 호출 (alert 대체). -->
         <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
         <script th:src="@{/global/error-modal.js}" defer></script>
+        <!-- S10 — 상태 변경 폼의 전역 제출 경로. 가로채기가 기본이고 data-native-submit 이 예외다.
+             레이아웃에 두는 이유는 화면이 늘어도 적재 누락이 생기지 않게 하기 위함 — 종전처럼 폼마다
+             마커를 붙이는 방식은 마커를 잊는 것이 곧 raw JSON 노출 사고였다(U3-2-b). -->
+        <script th:src="@{/global/form-submit.js}" defer></script>
     </th:block>
 </head>
 

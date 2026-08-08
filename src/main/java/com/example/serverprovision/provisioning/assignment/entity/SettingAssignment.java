@@ -121,6 +121,20 @@ public class SettingAssignment extends BaseTimeEntity {
         }
     }
 
+    /**
+     * 재할당 차단 사유 SSOT(U3-2-a) — null 이면 재할당 가능, 문자열이면 그게 UI tooltip 이자 서버 가드 예외 메시지다.
+     *
+     * <p>{@code childEnableBlockReason} 선례와 동형으로, <b>서버 가드</b>({@code AssignmentCommandService.reassign})와
+     * <b>뷰모델</b>(server-detail 재할당 버튼 {@code disabled} + tooltip)이 이 한 메서드를 함께 호출해 drift 를 없앤다.
+     * 개시된({@code ACTIVE_CONSUMED}) 활성은 진행 커서 리셋 의미론(E cluster)을 요구하므로 재할당을 차단한다 —
+     * 미개시({@code ACTIVE_UNCONSUMED})만 supersede-then-new 로 갈아끼운다.</p>
+     */
+    public String reassignBlockReason() {
+        return state() == AssignmentState.ACTIVE_CONSUMED
+                ? "이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)"
+                : null;
+    }
+
     public boolean isActive() {
         return supersededAt == null;
     }

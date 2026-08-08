@@ -23,10 +23,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  *   <li>모든 핸들러가 {@code produces = MediaType.TEXT_HTML_VALUE} — Spring 의
  *       {@code ExceptionHandlerExceptionResolver} 가 요청의 Accept 헤더를 보고
  *       {@link ApiExceptionHandler} 의 JSON 핸들러와 본 advice 의 HTML 핸들러 중 하나를 선택한다.</li>
- *   <li>{@code @Order(HIGHEST_PRECEDENCE)} 로 본 advice 를 먼저 시도한다 — 브라우저 navigation 의
- *       {@code Accept: text/html,...,*&#47;*;q=0.8} 같은 모호한 헤더에서도 text/html 을 우선 매칭하기 위함.
- *       명시적 {@code Accept: application/json} 만 보내는 XHR 은 본 advice 의 produces 매칭에 실패하여
- *       {@link ApiExceptionHandler} 로 fallthrough 된다.</li>
+ *   <li>{@code @Order(HIGHEST_PRECEDENCE)} 는 양 advice 가 같다. <b>순서만으로는 본 advice 가 선택되지
+ *       않는다</b> — advice 선택은 Accept 의 선호도(q값)를 보지 않고 등록 순서대로 "받아줄 수 있는 형식이면
+ *       채택" 하므로, {@code *&#47;*} 가 섞인 실제 브라우저 헤더에서는 {@link ApiExceptionHandler} 가 먼저
+ *       합격한다. 그래서 본 advice 는 오랫동안 브라우저에서 도달 불가능했다(S10 실측).
+ *       {@link DocumentNavigationAcceptFilter} 가 문서 이동 요청의 Accept 를 {@code text/html} 로 좁혀
+ *       주어야 비로소 본 advice 가 선택된다. 명시적 {@code Accept: application/json} XHR 은 종전대로
+ *       {@link ApiExceptionHandler} 로 간다.</li>
  *   <li>HTML 만 다루므로 보안 예외 / multipart 예외 / Bean Validation 예외는 본 advice 에서 다루지 않는다 —
  *       이들은 항상 JSON 으로 응답한다 (XHR 흐름에서만 발생).</li>
  * </ul>
@@ -72,7 +75,7 @@ public class WebExceptionHandler {
 				ex.getParentResourceType(), ex.getParentResourceId(),
 				ex.getParentState(), ex.getRequestedAction());
 		response.setStatus(HttpStatus.CONFLICT.value());
-		populate(model, 409, "Conflict", ex.getMessage());
+		populate(model, 409, ex.getMessage());
 		return "error";
 	}
 
@@ -84,7 +87,7 @@ public class WebExceptionHandler {
 		log.warn("OptimisticLockingFailureException : {}", ex.getMessage());
 		response.setStatus(HttpStatus.CONFLICT.value());
 		populate(
-				model, 409, "Conflict",
+				model, 409,
 				"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해주세요."
 		);
 		return "error";
@@ -98,18 +101,23 @@ public class WebExceptionHandler {
 		if (rs != null && rs.value().is4xxClientError()) {
 			ExceptionLogPolicy.record("advice.domain.mapped", ex, rs.value(), "html");
 			response.setStatus(rs.value().value());
-			populate(model, rs.value().value(), rs.value().getReasonPhrase(), ex.getMessage());
+			populate(model, rs.value().value(), ex.getMessage());
 			return "error";
 		}
 		ExceptionLogPolicy.record("advice.domain.unmapped", ex, HttpStatus.INTERNAL_SERVER_ERROR, "html");
 		response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-		populate(model, 500, "Internal Error", ex.getMessage());
+		populate(model, 500, ex.getMessage());
 		return "error";
 	}
 
-	private static void populate(Model model, int status, String statusLabel, String message) {
+	/**
+	 * HF5 — 상태 문구는 인자로 받지 않고 {@link ErrorStatusLabels} 에서 파생한다. 종전에는 호출부마다
+	 * 영어 reason phrase 를 직접 넘겨(예: "Conflict" · "Internal Error") 기본 {@code /error} 경로의 문구와
+	 * 갈라졌다. 파생으로 바꿔 두 경로가 같은 표를 보게 한다.
+	 */
+	private static void populate(Model model, int status, String message) {
 		model.addAttribute("status", status);
-		model.addAttribute("statusLabel", statusLabel);
+		model.addAttribute("statusLabel", ErrorStatusLabels.of(status));
 		model.addAttribute("message", message);
 	}
 }
