@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
-import java.util.Set;
 
 /**
  * 첫 phase 실행기(E1-1) — DIAGNOSE_LINUX 진입 게스트에게 Alpine netboot 체인로드 스크립트를 준다.
@@ -34,8 +33,9 @@ import java.util.Set;
  *
  * <p><b>E1-2 — 수집 보고 소비(onStepClosed)</b>: INFORMATION_COLLECTING 의 최초 SUCCEEDED 종결을
  * 같은 트랜잭션에서 소비한다 — 관용 파싱 → 인벤토리 적재(ENRICHED 승급) → INFORMATION_PERSISTING
- * 단발 기록 → 완주 판정(DEC-25 — U3 전 보유 집합은 빈 집합이라 진단 완주 = 종단). statusMeta 가
- * JSON 이 아니면 적재 없이 반환한다(원문은 원장이 보존 — 다음 체크인이 COLLECT 를 재지시).</p>
+ * 단발 기록 → 커서 전진 · 종단 판정(DEC-25 · ES-1 — {@link PhaseCursorAdvancer} 가 활성 할당의
+ * {@code ownedPhases} 를 읽어 소유 다음 phase 로 전진하거나 종단한다). statusMeta 가 JSON 이 아니면
+ * 적재 없이 반환한다(원문은 원장이 보존 — 다음 체크인이 COLLECT 를 재지시).</p>
  */
 @Slf4j
 @Component
@@ -48,6 +48,7 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final SetupStepRecorder setupStepRecorder;
     private final ObjectMapper objectMapper;
+    private final PhaseCursorAdvancer phaseCursorAdvancer;
 
     @Override
     public ProvisioningPhase phase() {
@@ -114,12 +115,12 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
         setupStepRecorder.recordInstant(server, ProvisioningPhaseStep.INFORMATION_PERSISTING,
                 ProvisioningStatus.SUCCEEDED, persistingMeta(absorbed), now);
 
-        // 완주 판정(DEC-25) — 할당 정의서 보유 phase 의 실공급자는 U3. 그 전까지는 빈 집합 =
-        // "진단만 완주한 서버는 유효한 운영 상태(입고 검수)" 로 즉시 종단된다.
-        if (PhaseSequence.nextAfter(ProvisioningPhase.DIAGNOSE_LINUX, Set.of()).isEmpty()) {
-            progress.markCompleted(now);
-            log.info("진단 phase 완주 — 종단 기록(completedAt) : guestServerId={}", server.getId());
-        }
+        // 커서 전진 · 종단(DEC-25 · ES-1) — 활성 할당의 보유 phase(ownedPhases)를 실공급자로 읽어,
+        // 진단 다음 소유 phase 가 있으면 커서를 전진(advanceTo), 없으면(무할당) 종단(markCompleted)한다.
+        // 규칙은 PhaseCursorAdvancer 1곳에 있어 후속 phase 실행기가 늘어도 복제되지 않는다(DES-1).
+        phaseCursorAdvancer.advanceOrComplete(progress, server.getId(), now);
+        log.info("진단 phase 완주 — 커서 전진 · 종단 판정 : guestServerId={}, cursor={}, completed={}",
+                server.getId(), progress.getCurrentPhase(), progress.isCompleted());
     }
 
     private String toJson(Object value) {

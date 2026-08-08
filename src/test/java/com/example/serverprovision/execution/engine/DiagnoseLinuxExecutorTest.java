@@ -31,19 +31,26 @@ class DiagnoseLinuxExecutorTest {
     private DiagnoseLinuxExecutor executor;
     private com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;
     private SetupStepRecorder recorder;
+    private OwnedPhasesProvider ownedPhasesProvider;
 
     @BeforeEach
     void setUp() {
         // base-url 뒤 슬래시는 properties 가 정규화 — 스크립트에 이중 슬래시가 없어야 한다.
         // 파서·mapper 는 실물(파싱 규칙까지 실검증), 저장소·원장은 mock (E1-2 소비 훅 검증).
+        // 커서 전진 협력자(ES-1)는 실물 PhaseCursorAdvancer + mock OwnedPhasesProvider — 전진/종단 판정
+        // (nextAfter · advanceTo · markCompleted)이 실제로 도는지까지 검증한다. 기본 공급 = 빈 집합(무할당).
         tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
         detailRepository = org.mockito.Mockito.mock(
                 com.example.serverprovision.execution.repository.GuestServerDetailRepository.class);
         recorder = org.mockito.Mockito.mock(SetupStepRecorder.class);
+        ownedPhasesProvider = org.mockito.Mockito.mock(OwnedPhasesProvider.class);
+        org.mockito.BDDMockito.given(ownedPhasesProvider.ownedPhasesOf(org.mockito.ArgumentMatchers.any()))
+                .willReturn(java.util.Set.of());
         executor = new DiagnoseLinuxExecutor(
                 new PxeAssetsProperties(assetsRoot.toString(), "http://10.0.2.2:7777/"),
                 new DiagnosticReportParser(mapper),
-                detailRepository, recorder, mapper);
+                detailRepository, recorder, mapper,
+                new PhaseCursorAdvancer(ownedPhasesProvider));
     }
 
     private GuestServer server(GuestToken token) {
@@ -134,7 +141,27 @@ class DiagnoseLinuxExecutorTest {
                 org.mockito.ArgumentMatchers.eq(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_PERSISTING),
                 org.mockito.ArgumentMatchers.eq(com.example.serverprovision.execution.enums.ProvisioningStatus.SUCCEEDED),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
-        assertThat(p.isCompleted()).isTrue();   // U3 전 보유 = 빈 집합 → 진단 완주 = 종단
+        assertThat(p.isCompleted()).isTrue();   // 무할당(빈 집합) → 진단 완주 = 종단
+    }
+
+    @Test
+    @DisplayName("수집 소비 — 할당 게스트(ownedPhases={FIRMWARE_UPDATING}) → 인벤토리 적재 + 커서 전진(FIRMWARE_UPDATING), 종단 아님 (ES-1)")
+    void onStepClosed_assignedGuest_advancesCursor() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+        org.mockito.BDDMockito.given(ownedPhasesProvider.ownedPhasesOf(g.getId()))
+                .willReturn(java.util.Set.of(ProvisioningPhase.FIRMWARE_UPDATING));
+        ProvisioningProgress p = progress();
+
+        executor.onStepClosed(g, p, closedCollecting(g, REPORT));
+
+        // 인벤토리 적재는 무할당 경로와 동일 — 전진은 적재 이후에 얹힌다(같은 트랜잭션).
+        assertThat(detail.getDiscoveryStage())
+                .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);
+        assertThat(p.getCurrentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);   // 커서 전진
+        assertThat(p.isCompleted()).isFalse();                                            // 종단 아님(HOLD 대기)
     }
 
     @Test

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ES-1 Plan — 엔진 커서 실배선 · 진단 완주 후 ownedPhases 기반 phase 전진</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:260px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>ES-1 — 엔진 커서 실배선 · 진단 완주 후 ownedPhases 기반 phase 전진 <span class="v2-badge">ES 첫 슬라이스</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리</strong> ES-1 (feature · 엔진 배선)</span>
+    <span><strong>영역</strong> Execution (<code>execution.engine</code>)</span>
+    <span><strong>선행</strong> U3-1 (<code>OwnedPhasesProvider</code> · <code>PhaseSequence.nextAfter</code> · <code>advanceTo</code> 훅 완료)</span>
+    <span><strong>다음</strong> ES-n · E2 (후속 phase executor)</span>
+    <span><strong>생성</strong> 2026-08-02 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 ES-1 정체 · 단일 슬라이스 판단</a></li>
+      <li><a href="#s1">§1 현재 상태 (배선 전 진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 · 배선 (SSOT)</a></li>
+      <li><a href="#s5">§5 단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 (DES-1~DES-4) · 잔여</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <div class="callout"><b>이 문서의 성격</b> — ES-1 은 새 알고리즘이 아니라 U3-1 이 만들어 얼려둔 seam(이음매) 3개(<code>OwnedPhasesProvider</code> · <code>PhaseSequence.nextAfter</code> · <code>ProvisioningProgress.advanceTo</code>) 를 엔진의 판정 호출부에 연결하는 <b>배선 슬라이스</b>다. 결정 DES-1~DES-4(§8) 는 채택안 + 비채택 대안 + 탈락 사유를 함께 담은 확정 제안이고, 잔여 · 열린 질문(§8 후반) 은 전부 후속 이월이라 현재 결정 불요다. 승인하면 얼어붙는 계약이 아니라 제안-수정 매개로 읽어달라.</div>
+
+    <!-- ===== §0 정체 · 분할 판단 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. ES-1 이 무엇인가 · 단일 슬라이스 판단 · 교차 의존 0</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>ES-1 = 엔진이 활성 할당의 <code>ownedPhases</code> 를 실제 소비해 phase 커서를 전진시키는 배선.</b> U3-1 이 만든 공급자(<code>OwnedPhasesProvider</code>)와 조합 함수(<code>PhaseSequence.nextAfter</code>)는 이미 존재하고, 엔진의 판정 호출부가 <code>Set.of()</code>(빈 집합) 로 눌려 있어 "진단만 완주하면 무조건 종단" 에 머문다. ES-1 은 그 <code>Set.of()</code> 자리에 실 공급자를 흘려 넣고, 소유 phase 가 있으면 커서를 전진시킨다.</p>
+
+        <h4>분할 : 없음 (단일 슬라이스)</h4>
+        <p>ES-1 은 새 알고리즘을 만들지 않고 기존 seam 3개(<code>OwnedPhasesProvider</code> · <code>PhaseSequence.nextAfter</code> · <code>ProvisioningProgress.advanceTo</code>) 를 연결한다. 각 후속 phase 의 실행기(<code>FirmwareUpdatingExecutor</code> 등)는 ES-n · E2 소관으로 <b>ES-1 범위 밖</b>이다 — 그래서 ES-1 후 게스트는 다음 phase 에서 명시적 HOLD 에 머문다(정상). 규모가 작고 응집돼 분할이 불요하다.</p>
+
+        <div class="callout success"><b>교차 의존 0</b> — ES-1 은 <code>execution.engine</code> 내부에서 이미 존재하는 <code>OwnedPhasesProvider</code> 빈(구현은 <code>provisioning.assignment</code>, 인터페이스는 <code>execution.engine</code> 소유 = dependency inversion(의존성 역전 — 상위 계층이 인터페이스를 소유하고 하위 계층이 구현을 끼운다))을 주입할 뿐이다. 새 도메인 의존을 만들지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (배선 전 · 조사로 확정)</summary>
+      <div class="body">
+        <h4>쉬운 말 요약</h4>
+        <p style="margin-top:0;">서버가 PXE 로 부팅되면 먼저 진단 리눅스가 올라와 하드웨어 정보를 수집한다. 지금은 이 <b>진단이 끝나면 그 서버가 무엇을 더 해야 하는지와 상관없이 무조건 "끝(종단)"</b> 으로 처리한다. 실제로는 서버마다 "펌웨어를 갱신해라", "OS 를 설치해라" 같은 <b>할 일 목록(ownedPhases)</b> 이 U3-1 에서 정의서로 할당돼 있는데, 엔진이 그 목록을 아직 안 읽고 있어서다(코드에 <code>Set.of()</code> 라는 빈 목록이 하드코딩돼 있다).</p>
+        <p>이번 슬라이스는 엔진이 그 <b>실제 할 일 목록을 읽어</b> 진단 다음에 할 일이 남았으면 커서를 그 phase 로 <b>전진</b>시키고(예: 펌웨어 갱신), 남은 일이 없으면 지금처럼 <b>종단</b> 시킨다. 전진한 서버는 진단 리눅스를 떠나 재부팅한 뒤 다음 단계 스크립트를 받으러 다시 폴링한다. 다만 그 다음 단계의 실제 실행기(예: 펌웨어 갱신기)는 아직 안 만들어져(ES-n · E2 몫) 서버는 그 단계에서 <b>명시적 대기(HOLD)</b> 에 멈춘다 — 이것이 ES-1 의 정상 종착점이다.</p>
+
+        <h4>phase 순서 (ProvisioningPhase ordinal · 전진 기준축)</h4>
+        <div class="state-flow">BOOTSTRAPPING(0) → DIAGNOSE_LINUX(1) → FIRMWARE_UPDATING(2) → FIRMWARE_SETTING(3) → OS_INSTALLING(4) → OS_SETTING(5) → TESTING(6)</div>
+
+        <h4>U3-1 이 심어둔 seam · 현재 배선 상태</h4>
+        <table>
+          <thead><tr><th>대상</th><th>현황</th></tr></thead>
+          <tbody>
+            <tr><td><code>PhaseSequence.nextAfter(current, ownedPhases)</code></td><td><b>조합 함수는 이미 있다.</b> <code>current</code> 가 <code>BOOTSTRAPPING</code> 이면 <code>ownedPhases</code> 무관하게 무조건 <code>DIAGNOSE_LINUX</code>; 그 외엔 <code>current.ordinal()+1</code> 부터 선언 순 스캔해 <code>ownedPhases</code> 에 속하는 첫 phase 반환(<code>TESTING</code> 만나면 중단), 없으면 empty(= 종단).</td></tr>
+            <tr><td><code>ProvisioningProgress.currentPhase</code> (커서 SSOT)</td><td>전진은 <code>advanceTo(next, now)</code>(전진 전용 · 역행 금지 · 실패 / 종단 / 미개시 가드), 종단은 <code>markCompleted(now)</code>. <code>markCompleted</code> 는 <code>currentPhase</code> 를 바꾸지 않고 <code>completedAt</code> 만 찍는다.</td></tr>
+            <tr><td>현재 유일한 실전진</td><td><code>AgentReportService.checkin</code> 의 <code>BOOTSTRAPPING → DIAGNOSE_LINUX</code> 최초 1회. <b>이후 전진은 미배선.</b></td></tr>
+            <tr><td><code>OwnedPhasesProvider</code> (<code>execution.engine</code> SPI(Service Provider Interface — 도메인이 구현해 끼우는 확장점))</td><td><code>Set&lt;ProvisioningPhase&gt; ownedPhasesOf(UUID guestId)</code>(무할당 = 빈 Set) + <code>OwnedPhasesProviderImpl</code>(<code>@Component</code>, 활성 스냅샷 <code>supersededAt IS NULL</code> 의 동결 <code>ownedPhases</code> 반환). <b>공급 측 준비 완료 · 미주입</b> — 어떤 엔진 클래스도 아직 이 provider 를 주입 / 호출하지 않는다.</td></tr>
+            <tr><td><code>OwnedPhases</code> VO 의 <code>NON_ASSIGNABLE</code></td><td><code>BOOTSTRAPPING</code> · <code>DIAGNOSE_LINUX</code> · <code>TESTING</code> 을 소유 불가로 거절. 따라서 <code>ownedPhases ⊆ {FIRMWARE_UPDATING, FIRMWARE_SETTING, OS_INSTALLING, OS_SETTING}</code>. 진단은 항상 선행하는 무조건 phase.</td></tr>
+            <tr><td>Executor SPI + registry</td><td><code>ProvisioningPhaseExecutor</code>(<code>phase()</code> / <code>bootScript()</code> / default <code>onStepClosed()</code>) 를 <code>PhaseExecutorRegistry</code> 가 <code>phase()</code> 키로 수집. <b>현재 구현은 <code>DiagnoseLinuxExecutor</code> 1개뿐.</b> 미등록 phase 는 dispatch 가 <code>IpxeScripts.hold(target)</code>(명시 HOLD, silent 아님) 반환.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>핵심 배선점 (진단 완주 판정)</b> — <code>DiagnoseLinuxExecutor.onStepClosed</code>(약 119행):
+          <pre style="margin:8px 0 4px;"><code>if (PhaseSequence.nextAfter(DIAGNOSE_LINUX, Set.of()).isEmpty()) progress.markCompleted(now);</code></pre>
+          <code>Set.of()</code> 가 비어 있어 <code>nextAfter</code> 는 항상 empty → <b>항상 <code>markCompleted</code>(즉시 종단)</b>. 전진(else) 분기 자체가 없다. (주석 "보유 phase 실공급자는 U3, 배선은 ES-1".)</div>
+
+        <div class="callout danger"><b>부수 결함 (directiveFor)</b> — <code>AgentReportService.directiveFor</code> 는 지금 ① <code>isCompleted()</code> → <code>REBOOT</code> ② 커서 진단 + 미수집 → <code>COLLECT</code> ③ 그 외 → <code>WAIT</code> 로 판정한다. 커서를 <b>진단 이후로 전진</b>시키면 <code>isCompleted</code> 는 false 이고 커서가 진단이 아니라 <code>directiveFor</code> 가 <code>WAIT</code> 로 떨어진다 → <b>게스트가 진단 리눅스를 안 떠나 다음 phase 스크립트를 못 받는다.</b> ES-1 이 전진을 켜면 이 결함이 드러나므로 DES-2 로 함께 고친다.</div>
+
+        <p style="color:var(--text-muted);font-size:12px;"><b>무해 지점</b> — <code>BootScriptDispatcher.bootTargetPhase</code>(약 62행)의 <code>nextAfter(BOOTSTRAPPING, Set.of())</code>. <code>BOOTSTRAPPING</code> 분기는 <code>ownedPhases</code> 를 아예 안 보므로(무조건 <code>DIAGNOSE_LINUX</code>) 이 <code>Set.of()</code> 는 결과 불변 — 형식적 자리표시자다(DES-3 에서 주석 명확화).</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>진단 완주 판정 실배선</b> — <code>DiagnoseLinuxExecutor.onStepClosed</code> 의 진단 완주 판정을 실 <code>ownedPhases</code> 로 배선한다. 소유 다음 phase 가 있으면 <code>advanceTo(next)</code>, 없으면 <code>markCompleted</code>(현 동작 보존).</li>
+          <li><b>전진 판정을 재사용 가능한 협력자로 추출</b> — 모든 후속 executor 가 공유할 커서 전진 SSOT(Single Source of Truth, 단일 진실 출처). 신규 <code>PhaseCursorAdvancer</code>(DES-1).</li>
+          <li><b><code>directiveFor</code> 보강</b> — "진단 이후로 전진 시 <code>REBOOT</code>" 를 추가해, 전진한 게스트가 진단 리눅스를 떠나 <code>/boot</code> 재폴링으로 다음 phase 스크립트(또는 HOLD) 를 받게 한다(DES-2).</li>
+          <li><b>(일관성) 자리표시자 정리</b> — <code>BootScriptDispatcher</code> 의 무해한 <code>Set.of()</code> 자리표시자를 주석으로 명확화한다(동작 변경 0 · DES-3).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> (다음 슬라이스로) :
+          <ul style="margin:6px 0 0;">
+            <li>후속 phase 실행기(<code>FirmwareUpdatingExecutor</code> 등) 구현 = <b>ES-n · E2</b>. ES-1 후 게스트는 첫 소유 phase 에서 명시 HOLD 에 머문다(정상 · 실증 대상).</li>
+            <li>진행 중 게스트 재할당의 커서 리셋 = <b>E cluster</b>(U3-2-a 에서 이미 차단).</li>
+            <li>실패 · 재시도 · 회수 흐름은 기존 유지(변경 0).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 진단 완주 판정 · nextAfter 스캔 · 전진 / 종단 · directiveFor 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">게스트가 진단을 완주한 시점의 <b>엔진 판정</b>을 직접 체험하는 시뮬레이터입니다. 게스트의 <b>ownedPhases(할 일 목록)</b> 을 골라 "진단 완주" 를 누르면, 엔진이 <code>nextAfter(DIAGNOSE_LINUX, ownedPhases)</code> 를 어떻게 스캔해 <b>전진(<code>advanceTo</code>)</b> 하거나 <b>종단(<code>markCompleted</code>)</b> 하는지, 그리고 그 결과로 게스트가 받는 <code>directiveFor</code> 지시(<code>REBOOT</code> / <code>COLLECT</code> / <code>WAIT</code>)가 어떻게 바뀌는지 아래 phase 축과 배지로 보입니다. (판정 JS = 서버 <code>nextAfter</code> · <code>directiveFor</code> 와 동형, <b>드리프트 0</b>)</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">ownedPhases :</span>
+            <button class="seg" data-owned="none" onclick="setOwned('none')">∅ 무할당</button>
+            <button class="seg" data-owned="fw" onclick="setOwned('fw')">{FIRMWARE_UPDATING}</button>
+            <button class="seg" data-owned="multi" onclick="setOwned('multi')">{FIRMWARE_UPDATING, OS_INSTALLING, OS_SETTING}</button>
+          </div>
+          <div style="margin-top:10px;">
+            <div class="group-label" style="font-size:11px;color:var(--text-muted);">phase 축 (커서 · 소유 · 스캔 시각화) :</div>
+            <div id="demo-rail" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;"><!-- JS 렌더 --></div>
+            <div id="demo-actions"><!-- JS 렌더 (진단 완주 / 리셋) --></div>
+            <div id="demo-directive" style="margin-top:10px;"><!-- JS 렌더 (directiveFor 배지) --></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">ownedPhases 를 고르고 "진단 완주" 를 눌러보세요. 소유 phase 가 있으면 커서가 전진하고, 없으면 종단합니다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 <code>nextAfter</code> / <code>directive</code> 판정은 서버의 <code>PhaseSequence.nextAfter(current, owned)</code> 와 <code>AgentReportService.directiveFor(progress)</code>(DES-2 보강본) 를 그대로 재현한다. <code>nextAfter</code> = <code>current==BOOTSTRAPPING ? DIAGNOSE_LINUX : (ordinal+1..TESTING-1 중 owned 첫 phase | none)</code>, <code>directive</code> = <code>completed || cursor.ordinal &gt; DIAGNOSE.ordinal ? REBOOT : (cursor==DIAGNOSE &amp;&amp; !enriched ? COLLECT : WAIT)</code>. 소유 phase 를 여러 개 골라도 커서는 <b>소유 첫 phase 에서 멈춘다</b>(DES-4 — 건너뛰지 않음).</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p style="margin-top:0;">ES-1 은 게스트가 화면 없이 HTTP 로만 상호작용하는 엔진 배선이라 신규 URL 이 없다. 아래는 진단 완주 전후로 게스트가 오가는 <b>기존 엔드포인트</b>와, ES-1 이 바꾸는 <b>판정 흐름</b>이다.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/pxe/v1/report</code> (step close)</td><td>진단 <code>INFORMATION_COLLECTING</code> step 을 <code>SUCCEEDED</code> 로 close → <code>DiagnoseLinuxExecutor.onStepClosed</code> → <b><code>PhaseCursorAdvancer.advanceOrComplete</code></b>(전진 / 종단) → <code>directiveFor</code> 지시</td><td>200 (지시 = <code>REBOOT</code> / <code>WAIT</code> / <code>COLLECT</code>)</td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code></td><td>게스트 재폴링 → <code>BootScriptDispatcher.bootTargetPhase</code> = 현재 커서 → <code>PhaseExecutorRegistry.find</code> → executor 있으면 그 스크립트, 없으면 <code>IpxeScripts.hold</code>(명시 HOLD)</td><td>200 (iPXE 스크립트 / HOLD)</td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/checkin</code></td><td>(기존 · 변경 0) <code>BOOTSTRAPPING → DIAGNOSE_LINUX</code> 최초 전진</td><td>200</td></tr>
+          </tbody>
+        </table>
+
+        <h4>재할당 없음 · 진단 완주 데이터 흐름 (4 actor 스윔레인)</h4>
+        <div class="seq">
+          <div class="actor a1">Guest<br>(진단 리눅스)</div><div class="actor a2">AgentReport<br>Service</div><div class="actor a3">PhaseCursor<br>Advancer</div><div class="actor a4">Provisioning<br>Progress · DB</div>
+          <div class="step a1">step close<br>(SUCCEEDED) POST</div><div class="step a2"><code>onStepClosed</code> 위임</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">인벤토리 적재 · persist</div><div class="step a3"><code>advanceOrComplete</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>ownedPhasesOf</code> +<br><code>nextAfter</code> 판정</div><div class="step a4">present → <code>advanceTo</code><br>empty → <code>markCompleted</code></div>
+          <div class="step a1">지시 수신</div><div class="step a2"><code>directiveFor</code><br>→ <code>REBOOT</code></div><div class="step a3"></div><div class="step a4">커서 = 소유 첫 phase<br>(또는 completedAt)</div>
+          <div class="step a1"><code>/boot</code> 재폴링</div><div class="step a2">dispatch → HOLD /<br>awaitingIntake</div><div class="step a3"></div><div class="step a4"></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:12px;">전진 게스트는 소유 첫 phase 의 executor 가 미구현(ES-n) 이라 <code>/boot</code> 재폴링에서 명시 HOLD 를 받아 그 phase 에서 대기한다. 무할당 게스트는 종단(<code>markCompleted</code>) 후 <code>/boot</code> 에서 입고 검수(<code>awaitingIntake</code>) 로 간다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 · 배선 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 · 배선 (SSOT) · 상태 흐름</summary>
+      <div class="body">
+        <div class="callout"><b>Primitive Obsession 없음</b> — ES-1 은 원시 필드를 새로 만들지 않는다. phase 는 <code>ProvisioningPhase</code> enum, 커서는 <code>ProvisioningProgress.currentPhase</code>(enum), 소유 집합은 <code>Set&lt;ProvisioningPhase&gt;</code> / <code>OwnedPhases</code> VO 다. 신규 협력자 <code>PhaseCursorAdvancer</code> 는 이 타입들만 다루며 <code>int</code> / <code>String</code> 커서를 도입하지 않는다.</div>
+
+        <h4>핵심 배선점 before / after (<code>DiagnoseLinuxExecutor.onStepClosed</code> 완주 판정)</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 항상 종단</h4><pre><code>// Set.of() 가 비어 nextAfter 는 항상 empty
+if (PhaseSequence.nextAfter(
+      ProvisioningPhase.DIAGNOSE_LINUX,
+      Set.of()).isEmpty()) {
+    progress.markCompleted(now);
+}
+// 전진(else) 분기 자체가 없음</code></pre></div>
+          <div class="split-card after"><h4>AFTER — ownedPhases 기반 전진 / 종단</h4><pre><code>// 협력자에 위임 (DES-1)
+phaseCursorAdvancer.advanceOrComplete(
+    progress, server.getId(), now);
+// present → advanceTo(next)
+// empty   → markCompleted(now)</code></pre></div>
+        </div>
+
+        <h4>신규 협력자 <code>PhaseCursorAdvancer</code> (커서 전진 SSOT · DES-1)</h4>
+        <pre><code>// execution/engine/PhaseCursorAdvancer.java  (@Component · OwnedPhasesProvider 주입은 여기 1곳)
+public void advanceOrComplete(ProvisioningProgress progress, UUID guestId, LocalDateTime now) {
+    Set&lt;ProvisioningPhase&gt; owned = ownedPhasesProvider.ownedPhasesOf(guestId);
+    PhaseSequence.nextAfter(progress.getCurrentPhase(), owned)
+        .ifPresentOrElse(next -&gt; progress.advanceTo(next, now),   // 소유 phase 있음 → 전진
+                         ()   -&gt; progress.markCompleted(now));    // 없음 → 종단(현 동작 보존)
+}</code></pre>
+
+        <h4><code>directiveFor</code> 보강 (DES-2) — REBOOT 조건 확장 (분기 추가 아님)</h4>
+        <pre><code>// AgentReportService.directiveFor  (약 152행)
+// 게스트가 진단 리눅스를 떠나야 하는 조건 = 종단 OR 커서가 진단 이후로 전진
+return progress.isCompleted()
+    || progress.getCurrentPhase().ordinal() &gt; ProvisioningPhase.DIAGNOSE_LINUX.ordinal()   // ← 추가
+    ? Directive.REBOOT
+    : (cursor == DIAGNOSE_LINUX &amp;&amp; !enriched ? Directive.COLLECT : Directive.WAIT);</code></pre>
+        <p style="color:var(--text-muted);font-size:12px;"><code>ordinal</code> 비교라 <code>BOOTSTRAPPING(0)</code> 오검출 없음. <code>PhaseSequence</code> 의 ordinal 축과 정합. 이는 기존 <code>REBOOT</code> 분기의 <b>조건 확장</b>(같은 책임에 흡수) 이지 새 분기 줄 추가가 아니다.</p>
+
+        <h4>진단 완주 판정 흐름 (상태 다이어그램)</h4>
+        <p>이 plan 은 자체완결 단일 파일(외부 JS 참조 0) 이라 Notion sandboxed iframe 에서 <b>mermaid 는 다이어그램으로 렌더되지 않는다</b> — 아래 ASCII 흐름도가 어디서나 보이는 본체이고, 이어지는 mermaid 소스는 Artifact 등 지원 뷰어용이다.</p>
+        <div class="state-flow">  진단 INFORMATION_COLLECTING close (SUCCEEDED)
+                    │
+                    ▼
+     onStepClosed : 인벤토리 적재 · persist
+                    │
+                    ▼
+     PhaseCursorAdvancer.advanceOrComplete
+                    │
+                    ▼
+     nextAfter(DIAGNOSE_LINUX, ownedPhases)
+            │                        │
+   present (소유 phase 있음)     empty (무할당 · 소유 없음)
+            │                        │
+            ▼                        ▼
+  advanceTo(FIRMWARE_UPDATING 등)   markCompleted (종단)
+            │                        │
+  directiveFor → REBOOT      directiveFor → REBOOT
+   (전진했으므로)                (완주)
+            │                        │
+            ▼                        ▼
+  /boot 재폴링 → dispatch      /boot 재폴링 → dispatch
+  → 소유 phase executor 없음   → awaitingIntake (입고 검수)
+  → HOLD 대기</div>
+        <p>mermaid 소스 (Artifact · mermaid 지원 뷰어에서 다이어그램으로 렌더):</p>
+        <pre><code>flowchart TD
+    A["진단 INFORMATION_COLLECTING close (SUCCEEDED)"] --> B["onStepClosed: 인벤토리 적재 · persist"]
+    B --> C["PhaseCursorAdvancer.advanceOrComplete"]
+    C --> D{"nextAfter(DIAGNOSE_LINUX, ownedPhases)"}
+    D -->|"present (소유 phase 있음)"| E["advanceTo(FIRMWARE_UPDATING 등)"]
+    D -->|"empty (무할당 · 소유 없음)"| F["markCompleted (종단)"]
+    E --> G["directiveFor → REBOOT (전진했으므로)"]
+    F --> H["directiveFor → REBOOT (완주)"]
+    G --> I["/boot 재폴링 → dispatch → 소유 phase executor 없음 → HOLD 대기"]
+    H --> J["/boot 재폴링 → dispatch → awaitingIntake (입고 검수)"]</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §5 단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2~5</td><td>신규 <code>PhaseCursorAdvancer</code> 협력자 시그니처 · <code>DiagnoseLinuxExecutor.onStepClosed</code> 위임 배선 · <code>AgentReportService.directiveFor</code> 보강 시그니처 (화면 없음 — 뷰 / Controller / DTO 산출물 N/A)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6~7</td><td>N/A — 신규 엔티티 · 신규 필드 · 신규 Repository 없음(기존 seam 3개 연결만). 엔티티 무변경 배선 슬라이스</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8~9</td><td>Service 본체(<code>PhaseCursorAdvancer.advanceOrComplete</code> · <code>onStepClosed</code> 위임 · <code>directiveFor</code> 보강) · 단위 + 통합 / flow 테스트 · 스키마 변경 없음(N/A)</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>샌드박스 검증 — mock-guest 하네스(할당 / 무할당 게스트 진단 완주 후 전진 / 종단 재연) + <code>server-detail</code> 계획 rail 커서 확인</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>11 · 12</td><td>report html(CP6) · 사용자 단독 E2E(CP7)</td><td><span class="chip keep">CP6 · CP7</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>E cluster CP5 · CP7 검증 — 두 경로</b> — ES-1 은 게스트가 화면 없이 HTTP 로만 상호작용하는 엔진 배선이라 검증을 두 경로로 나눈다. <b>CP5(세션 샌드박스)</b> 는 mock-guest 하네스(<code>scripts/mock-guest/diagnose-cycle.sh</code>)로 할당 / 무할당 게스트의 진단 완주 후 전진(FIRMWARE_UPDATING HOLD) / 종단(<code>awaitingIntake</code>) 을 curl 로 재연하고 <code>server-detail</code> 계획 rail 커서를 확인한다(빠른 로직 검증). <b>CP7(사용자 E2E)</b> 은 브라우저 확인만이 아니라 <b>qemu 가상 게스트로 실제 execution 과정을 관찰</b>한다 — <code>scripts/pxe-lab/run-guest.sh</code> 가 QEMU 내장 DHCP + TFTP 로 실 게스트를 PXE 부팅시켜 진단 리눅스 체인 → 커서 전진 → 소유 phase HOLD 를 시리얼 로그(<code>console=ttyS0</code>) · 서버 로그로 지켜보고, <b>동시에</b> <code>server-detail</code> 계획 rail 을 브라우저로 확인한다. <b>두 방향(qemu 실행 관찰 + 브라우저)은 CP7 에서 병행 가능</b>하다(macOS Apple Silicon 은 TCG 에뮬레이션이라 스모크 용도 · 전체 OS 설치 E2E 는 Rocky + KVM 에서).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오 (두 레이어 · 불가침)</summary>
+      <div class="body">
+        <h4>단위 테스트 (JUnit + Mockito)</h4>
+        <ul>
+          <li><b><code>PhaseCursorAdvancer</code></b> — ① <code>ownedPhases</code> present(첫 소유 phase 로 <code>advanceTo</code> 호출) ② empty(<code>markCompleted</code>) ③ 소유가 진단 바로 다음이 아닐 때(중간 건너뛰지 않고 소유 첫 phase). <code>OwnedPhasesProvider</code> mock.</li>
+          <li><b><code>DiagnoseLinuxExecutor.onStepClosed</code></b> — 협력자에 위임하는지(전진 / 종단 각각) + 인벤토리 적재는 그대로.</li>
+          <li><b><code>directiveFor</code></b> — 전진(커서 &gt; 진단) → <code>REBOOT</code> / 진단중 미수집 → <code>COLLECT</code> / 진단중 수집됨 → <code>WAIT</code> / 종단 → <code>REBOOT</code>.</li>
+          <li><b><code>OwnedPhasesSeamTest</code> 승격</b> — 기존 "seam 정의만 확인" 을 "실제 소비"(엔진이 provider 를 통해 순회) 로 올린다.</li>
+        </ul>
+
+        <h4>게스트 액션 통합 / flow 테스트 (@WebMvcTest + MockMvc · 기존 flow 확장 · 4 범주)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip cp2">성공 2xx</span></td><td><b>할당 게스트</b> : checkin → step open / close(진단) → close 응답 <code>REBOOT</code> + 커서 <code>FIRMWARE_UPDATING</code> + not completed, 이어 <code>/boot</code> → HOLD(FIRMWARE_UPDATING). <b>무할당 게스트</b> : 진단 close → completed + <code>REBOOT</code> → <code>/boot</code> → <code>awaitingIntake</code>(현 동작 회귀).</td><td>2</td></tr>
+            <tr><td>400</td><td>step close payload 검증 실패 — <b>기존 게스트 엔드포인트 회귀(변경 0)</b>, 필드 메시지 유지</td><td>1</td></tr>
+            <tr><td>404</td><td>없는 게스트 report / checkin(<code>GuestServerNotFoundException</code> 재사용) — <b>기존 회귀(변경 0)</b></td><td>1</td></tr>
+            <tr><td>500 (안전망)</td><td><code>advanceTo</code> 역행 / 종단 재호출 가드(<code>IllegalStateException</code>) — 정상 경로엔 발생 안 함. 단위로 커버 + HTTP 500 매핑 확인</td><td>1</td></tr>
+            <tr><td>회귀 유지</td><td><code>DiagnoseLinuxChainloadFlowTest</code> · <code>GuestAgentRestControllerFlowTest</code> 그대로 green</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>새 예외 규율</b> — ES-1 은 <b>새 예외 클래스를 추가하지 않는다</b>(§7). 그래서 "신규 예외마다 트리거 시나리오" 규율은 신규가 0 이라 해당 없음. 대신 전진 / 종단 두 성공 경로와 <code>advanceTo</code> 안전망(500) 을 게스트 flow 로 실제 트리거해 배선이 두 레이어(단위 + HTTP) 모두에서 검증되게 한다. 단위만 있고 flow 가 빠진 묶음은 CP4 승인 대상이 아니다(테스트 규율 불가침).</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>트리거</th></tr></thead>
+          <tbody>
+            <tr><td>—</td><td>—</td><td><span class="chip keep">신규 0</span></td><td>ES-1 은 새 예외를 도입하지 않는다. 전진 / 종단은 정상 흐름이고 판정은 도메인 메서드(<code>nextAfter</code> / <code>advanceTo</code> / <code>directiveFor</code>) 다.</td></tr>
+            <tr><td><code>IllegalStateException</code></td><td>500</td><td><span class="chip keep">재사용 · 안전망</span></td><td><code>advanceTo</code>(역행 / 종단 / 미개시 가드) · <code>markCompleted</code> 도메인 invariant. 정상 경로 미발동 — direct / stale / 동시성 안전망</td></tr>
+            <tr><td><code>GuestServerNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td>없는 게스트 report / checkin (기존 게스트 엔드포인트)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>조건분기 legacy 확장 금지 정합</b> — <code>directiveFor</code> 보강(DES-2)은 새 분기 줄을 늘리는 게 아니라 기존 <code>REBOOT</code> 분기의 <b>조건을 확장</b>(진단 이후 전진을 같은 <code>REBOOT</code> 책임에 흡수) 한다. 전진 / 종단 판정은 <code>PhaseCursorAdvancer</code> 라는 도메인 협력자 1곳으로 끌어올려, 후속 executor 가 늘어도 분기가 자라지 않고 협력자를 재사용한다. advice 가 <code>IllegalStateException</code> 을 HTTP 500 으로 매핑한다(기존 라우팅).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 · 잔여 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 설계 결정 (DES-1~DES-4) · 잔여 · 열린 질문</summary>
+      <div class="body">
+        <h4>확정 결정 — 채택안 + 비채택 대안 + 탈락 사유 (불가침)</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정 (채택)</th><th>비채택 대안 · 탈락 사유</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>DES-1</b> <span class="chip force">치명</span></td>
+              <td><b>커서 전진 판정을 협력자로 추출(inline 아님).</b> 신규 <code>execution/engine/PhaseCursorAdvancer.java</code>(<code>@Component</code>) 의 <code>advanceOrComplete(progress, guestId, now)</code> 가 <code>OwnedPhasesProvider</code> 로 <code>ownedPhases</code> 를 읽고 <code>nextAfter</code> 로 판정해 <b>present → <code>advanceTo(next)</code>, empty → <code>markCompleted</code></b>. <code>OwnedPhasesProvider</code> 주입은 여기 1곳. <code>DiagnoseLinuxExecutor</code> 는 이 협력자를 주입해 호출한다. <b>왜</b> — "진단 완주 → 소유 다음 phase 로 전진 / 없으면 종단" 은 진단 전용이 아니라 <b>모든 phase 완료가 공유하는 커서 전진 규칙(SSOT)</b> 이다. ES-n 은 executor 를 계속 추가하며 각자 같은 전진 판정을 필요로 하므로, 협력자 1곳에 두면 종단 / 전진 규칙이 단일 SSOT 가 되고 단위 테스트도 격리된다.</td>
+              <td>① <b><code>DiagnoseLinuxExecutor</code> 에 인라인</b> — 지금은 executor 1개라 단순하나, ES-n 이 executor 를 추가하는 순간 전진 규칙이 복제돼 drift(불가침 중복 금지 위반). "갈라지는 시점에 분리" 관점에서도 전진 규칙은 이미 공유가 확정된 규칙이라 지금 분리가 정당(speculative 아님). ② <b><code>ProvisioningPhaseExecutor</code> 의 default 메서드</b> — default 메서드는 <code>OwnedPhasesProvider</code> 를 주입 못 받아(인터페이스 정적 문맥) 협력자를 또 넘겨야 함 → 협력자 빈이 결국 필요. 협력자 직접 호출이 단순.</td>
+            </tr>
+            <tr>
+              <td><b>DES-2</b> <span class="chip force">치명</span></td>
+              <td><b><code>directiveFor</code> 에 "진단 이후 전진 → <code>REBOOT</code>" 추가.</b> 게스트가 진단 리눅스를 떠나 재폴링해야 하는 조건 = 진단 작업이 이 게스트에게 끝남 = <b>종단(<code>isCompleted</code>) 또는 커서가 진단 이후로 전진</b>. 판정 보강 = <code>progress.isCompleted() || progress.getCurrentPhase().ordinal() &gt; DIAGNOSE_LINUX.ordinal()</code> → <code>REBOOT</code>. 전진 후 <code>REBOOT</code> → 게스트 <code>/boot</code> 재폴링 → <code>bootTargetPhase</code> = 현재 커서(FIRMWARE_UPDATING 등) → <code>registry.find</code> → executor 미구현이면 <code>IpxeScripts.hold</code>(명시 HOLD). 즉 게스트가 다음 phase 에서 정상 대기.</td>
+              <td>executor 가 별도 플래그 / 상태를 세워 <code>directiveFor</code> 를 <b>우회</b>하는 방식 — <code>directiveFor</code> 는 지시 판정 단일 지점(E1-2 규약) 이라 그 SSOT 안에서 조건을 보강하는 것이 옳다. 우회는 판정을 분산시켜 drift 원인. 미채택.</td>
+            </tr>
+            <tr>
+              <td><b>DES-3</b> <span class="chip cp3">주의</span></td>
+              <td><b><code>BootScriptDispatcher</code> 의 <code>Set.of()</code> 자리표시자 정리.</b> <code>bootTargetPhase</code> 의 <code>nextAfter(BOOTSTRAPPING, Set.of())</code> 는 결과 불변(<code>BOOTSTRAPPING</code> 은 <code>ownedPhases</code> 무관). ES-1 이 다른 <code>Set.of()</code> 를 실배선하면서 이 잔존 <code>Set.of()</code> 만 남으면 "미배선처럼" 오해될 수 있다. 권장 = 이 자리를 유지하되 <b>"BOOTSTRAPPING → 진단은 보유 무관(의도적 빈 집합, 배선 대상 아님)" 주석을 명확화</b>(또는 <code>nextAfter</code> 의 BOOTSTRAPPING 전용 헬퍼로 표현). 동작 변경 0.</td>
+              <td>여기에도 provider 를 주입해 실 <code>ownedPhases</code> 를 넘기는 것 — 결과가 같은데 불필요한 의존만 늘림(over-wiring). 미채택.</td>
+            </tr>
+            <tr>
+              <td><b>DES-4</b> <span class="chip mod">중대</span></td>
+              <td><b>소유 다음 phase 에 executor 가 없으면 HOLD(전진은 함).</b> ES-1 은 커서를 소유 첫 phase(예: FIRMWARE_UPDATING) 로 전진시키지만 그 executor 는 미구현(ES-n) 이다. 게스트는 재폴링 시 dispatch 의 <b>명시 HOLD 스크립트</b>를 받아 그 phase 에서 대기한다. 이것이 ES-1 의 정상 종착(전진 실증 + 안전 대기).</td>
+              <td>executor 있는 phase 까지 <b>건너뛰며 전진</b> — phase 순서 의미(FIRMWARE_UPDATING 소유 게스트는 펌웨어에서 대기해야 함)를 깨고 소유하지 않은 phase 로 점프. 절대 안 됨. 소유 첫 phase 에서 HOLD 가 정확.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>잔여 · 열린 질문 — 전부 후속 이월 (현재 결정 불요)</h4>
+        <table>
+          <thead><tr><th>#</th><th>항목</th><th>현재 판단 · 이월처</th></tr></thead>
+          <tbody>
+            <tr><td>이월 1</td><td>후속 phase executor(<code>FirmwareUpdatingExecutor</code> 등) — ES-1 은 커서 전진까지. ES-1 후 게스트는 소유 첫 phase 에서 명시 HOLD 에 머문다(정상 · 실증 대상)</td><td><b>ES-n · E2</b></td></tr>
+            <tr><td>이월 2</td><td>소유 phase 에서 HOLD 무한 대기의 운영 가시성 — <code>server-detail</code> 계획 rail 은 이미 커서를 current 로 표시(U3-1). 추가 UX 는 후속</td><td>후속 (가시화)</td></tr>
+            <tr><td>검증 3</td><td>E-slice 검증 두 경로 — CP5(세션) = mock-guest 하네스 + <code>server-detail</code> 계획 rail(빠른 로직). CP7(사용자) = <b>qemu 실행 관찰</b>(<code>scripts/pxe-lab/run-guest.sh</code> 실 PXE 부팅, 시리얼 · 서버 로그) <b>+ 브라우저 병행</b></td><td>CP5 · CP7</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="ES-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="unit"> <span>단위 테스트 — <code>PhaseCursorAdvancer</code>(present / empty / 건너뛰지 않음) · <code>onStepClosed</code> 위임 · <code>directiveFor</code>(전진 / 진단중 미수집 / 진단중 수집 / 종단)</span></label></li>
+          <li><label><input type="checkbox" data-key="seam"> <span><code>OwnedPhasesSeamTest</code> 를 "실제 소비" 로 승격(엔진이 provider 를 통해 순회)</span></label></li>
+          <li><label><input type="checkbox" data-key="flow"> <span>flow 테스트 — 할당 게스트(진단 close → <code>REBOOT</code> + 커서 FIRMWARE_UPDATING → <code>/boot</code> HOLD) · 무할당(종단 + <code>REBOOT</code> → <code>awaitingIntake</code>)</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>회귀 — <code>DiagnoseLinuxChainloadFlowTest</code> · <code>GuestAgentRestControllerFlowTest</code> green 유지</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 — mock-guest 하네스(할당 / 무할당 진단 완주 후 전진 / 종단) + <code>server-detail</code> 계획 rail 커서 확인</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/PhaseCursorAdvancer.java</code></td><td>커서 전진 SSOT — <code>advanceOrComplete(progress, guestId, now)</code>. <code>OwnedPhasesProvider</code> 주입 유일 지점(DES-1)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/DiagnoseLinuxExecutor.java</code></td><td><code>onStepClosed</code>(약 119행) 의 완주 판정을 협력자 위임으로 교체(<code>Set.of()</code> 제거)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/…/AgentReportService.java</code></td><td><code>directiveFor</code>(약 152행) REBOOT 조건 확장 — 진단 이후 전진 시 REBOOT(DES-2)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/BootScriptDispatcher.java</code></td><td><code>bootTargetPhase</code>(약 62행) <code>Set.of()</code> 자리표시자 주석 명확화 — 동작 변경 0(DES-3)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>OwnedPhasesProvider</code> / <code>OwnedPhasesProviderImpl</code> · <code>PhaseSequence</code>(<code>nextAfter</code>) · <code>ProvisioningProgress</code>(<code>advanceTo</code> / <code>markCompleted</code>) · <code>ProvisioningPhaseExecutor</code> / <code>PhaseExecutorRegistry</code></td><td><b>변경 0</b> — U3-1 이 얼려둔 seam 을 연결만 함. 새 도메인 의존 · 새 엔티티 · 새 필드 · 스키마 변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="ES-1-next">
+          <li><label><input type="checkbox" data-key="esn"> <span><b>ES-n · E2</b> — 후속 phase 실행기(<code>FirmwareUpdatingExecutor</code> 등) 구현. ES-1 이 커서를 소유 첫 phase 로 전진시켜 HOLD 로 세워둔 게스트가 실제 작업을 받기 시작한다</span></label></li>
+          <li><label><input type="checkbox" data-key="ecluster"> <span><b>E cluster</b> — 진행 중(<code>ACTIVE_CONSUMED</code>) 게스트 재할당의 커서 리셋 의미론(U3-2-a 가 현재 차단)</span></label></li>
+          <li><label><input type="checkbox" data-key="vis"> <span><b>후속 가시화</b> — 소유 phase HOLD 무한 대기의 운영 가시성 UX(<code>server-detail</code> 계획 rail 확장)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage) ──
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 진단 완주 판정 · nextAfter 스캔 · 전진 / 종단 · directiveFor
+  //  판정 JS 는 서버 도메인 메서드를 1:1 재현 (드리프트 0):
+  //   · nextAfter(current, owned) : current==BOOTSTRAPPING ? DIAGNOSE_LINUX
+  //                                : (ordinal+1..TESTING-1 중 owned 첫 phase | none)
+  //   · directive(cursor, enriched, completed)
+  //        = completed || ord(cursor)>ord(DIAGNOSE) ? REBOOT
+  //        : (cursor==DIAGNOSE && !enriched ? COLLECT : WAIT)
+  //   · ownedPhases ⊆ {FIRMWARE_UPDATING, FIRMWARE_SETTING, OS_INSTALLING, OS_SETTING} (NON_ASSIGNABLE)
+  // ─────────────────────────────────────────────────────────────
+  const PHASES = ['BOOTSTRAPPING','DIAGNOSE_LINUX','FIRMWARE_UPDATING','FIRMWARE_SETTING','OS_INSTALLING','OS_SETTING','TESTING'];
+  const DIAG = 'DIAGNOSE_LINUX';
+  function ord(p) { return PHASES.indexOf(p); }
+  const OWNED_PRESETS = {
+    none:  new Set(),
+    fw:    new Set(['FIRMWARE_UPDATING']),
+    multi: new Set(['FIRMWARE_UPDATING','OS_INSTALLING','OS_SETTING'])
+  };
+
+  // 서버 PhaseSequence.nextAfter 재현 — scan 순회 기록도 함께 반환(시각화용)
+  function nextAfter(current, owned) {
+    if (current === 'BOOTSTRAPPING') return { next: DIAG, scan: [] };
+    const scan = [];
+    for (let i = ord(current) + 1; i < PHASES.length; i++) {
+      const ph = PHASES[i];
+      if (ph === 'TESTING') break;              // TESTING 만나면 중단(소유 불가)
+      const matched = owned.has(ph);
+      scan.push({ phase: ph, matched });
+      if (matched) return { next: ph, scan };   // 소유 첫 phase 에서 멈춤(건너뛰지 않음)
+    }
+    return { next: null, scan };                // empty → 종단
+  }
+  // 서버 AgentReportService.directiveFor 재현 (DES-2 보강본)
+  function directive(cursor, enriched, completed) {
+    if (completed || ord(cursor) > ord(DIAG)) return 'REBOOT';
+    if (cursor === DIAG && !enriched) return 'COLLECT';
+    return 'WAIT';
+  }
+
+  let ownedKey = 'fw';
+  let cursor = DIAG;        // checkin 이 이미 BOOTSTRAPPING→DIAGNOSE_LINUX 로 전진시킨 상태
+  let enriched = false;     // 진단 인벤토리 수집 전
+  let completed = false;
+  let done = false;         // 진단 완주 판정 실행됨 여부
+  let lastScan = [];        // nextAfter 순회 기록
+
+  function setMsg(kind, text) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+  function setOwned(key) {
+    ownedKey = key;
+    cursor = DIAG; enriched = false; completed = false; done = false; lastScan = [];
+    demoRender();
+    setMsg('', 'ownedPhases 를 바꿨습니다. "진단 완주" 를 눌러 엔진이 nextAfter 로 전진 / 종단을 어떻게 판정하는지 보세요.');
+  }
+  function finishDiagnose() {
+    if (done) return;
+    enriched = true;                                   // 인벤토리 적재 완료
+    const owned = OWNED_PRESETS[ownedKey];
+    const r = nextAfter(cursor, owned);
+    lastScan = r.scan;
+    if (r.next) {                                      // present → 전진
+      cursor = r.next; completed = false;
+      setMsg('success', '✓ 전진 — nextAfter 가 소유 첫 phase(' + r.next + ') 를 찾아 advanceTo. directiveFor → REBOOT (커서가 진단 이후). 게스트는 재폴링 후 ' + r.next + ' 에서 executor 미구현 → 명시 HOLD 대기.');
+    } else {                                           // empty → 종단
+      completed = true;
+      setMsg('success', '✓ 종단 — 소유 phase 가 없어 markCompleted. directiveFor → REBOOT (완주). 게스트는 재폴링 후 awaitingIntake(입고 검수) 로 갑니다.');
+    }
+    done = true;
+    demoRender();
+  }
+  function resetDemo() {
+    cursor = DIAG; enriched = false; completed = false; done = false; lastScan = [];
+    demoRender();
+    setMsg('', '진단 진행 중 상태로 리셋. 커서 = DIAGNOSE_LINUX, directiveFor = COLLECT (진단 수집 지시).');
+  }
+
+  function railChip(ph) {
+    const owned = OWNED_PRESETS[ownedKey];
+    const scanned = lastScan.find(s => s.phase === ph);
+    let bg = 'var(--card)', bd = 'var(--border-soft)', col = 'var(--text-muted)', weight = '600';
+    let note = '';
+    if (ph === 'TESTING') { col = 'var(--text-muted)'; note = ' (보류)'; bd = 'var(--border-soft)'; }
+    if (owned.has(ph)) { bd = 'var(--green)'; col = 'var(--green)'; }        // 소유 phase
+    if (scanned && !scanned.matched) { bd = 'var(--yellow)'; }               // 스캔했으나 미매칭
+    if (!completed && ph === cursor) { bg = 'var(--blue)'; col = '#fff'; bd = 'var(--blue)'; }  // 커서
+    const cursorMark = (!completed && ph === cursor) ? '▶ ' : '';
+    const doneMark = (completed && ph === DIAG) ? ' ✓종단' : '';
+    return '<span style="font-family:var(--mono);font-size:11px;font-weight:' + weight +
+      ';padding:4px 8px;border-radius:6px;border:1.5px solid ' + bd + ';background:' + bg + ';color:' + col +
+      ';white-space:nowrap;">' + cursorMark + ph + note + doneMark + '</span>';
+  }
+  function demoRender() {
+    document.querySelectorAll('.seg[data-owned]').forEach(s => s.classList.toggle('active', s.dataset.owned === ownedKey));
+
+    document.getElementById('demo-rail').innerHTML = PHASES.map(railChip).join('');
+
+    let actions = '';
+    if (!done) {
+      actions = '<span class="tip"><button class="n-demo-btn" onclick="finishDiagnose()">진단 완주 (INFORMATION_COLLECTING close)</button></span>';
+    } else {
+      actions = '<span class="tip"><button class="n-demo-btn" style="border-color:var(--purple);color:var(--purple)" onclick="resetDemo()">↺ 리셋 (진단 진행 중으로)</button></span>';
+    }
+    document.getElementById('demo-actions').innerHTML = actions;
+
+    const dir = directive(cursor, enriched, completed);
+    const dirCls = dir === 'REBOOT' ? 'add' : (dir === 'COLLECT' ? 'opt' : 'keep');
+    const dirNote = dir === 'REBOOT'
+      ? (completed ? '완주 → 게스트가 진단 리눅스를 떠남' : '전진 → 게스트가 진단 리눅스를 떠남')
+      : (dir === 'COLLECT' ? '진단 수집 지시 (커서=진단 · 미수집)' : '대기 (진단중 · 수집됨)');
+    document.getElementById('demo-directive').innerHTML =
+      '<span style="font-size:12px;color:var(--text-muted);margin-right:8px;">directiveFor(progress) =</span>' +
+      '<span class="chip ' + dirCls + '">' + dir + '</span>' +
+      '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + dirNote + '</span>';
+
+    const owned = OWNED_PRESETS[ownedKey];
+    const r = nextAfter(DIAG, owned);
+    const naCell = r.next
+      ? '<span class="f">' + r.next + '</span> (소유 첫 phase → 전진)'
+      : '<span class="t">none</span> (empty → 종단)';
+    const scanStr = r.scan.length
+      ? r.scan.map(s => s.phase + (s.matched ? '✓' : '✗')).join(' → ')
+      : '(BOOTSTRAPPING 은 스캔 없이 DIAGNOSE_LINUX)';
+    const dirCell = dir === 'WAIT'
+      ? '<span class="t">WAIT</span> → 게스트 갇힘(전진 전 진단중 수집됨 상태)'
+      : '<span class="f">' + dir + '</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'ownedPhases = {' + [...owned].join(', ') + '}\n' +
+      'nextAfter(DIAGNOSE_LINUX, ownedPhases) = ' + naCell + '\n' +
+      '  scan 순회 : ' + scanStr + '   (TESTING 만나면 중단 · 소유 불가)\n' +
+      'cursor = ' + cursor + (completed ? '   (completedAt 有 · currentPhase 불변)' : '') + '\n' +
+      'directive(cursor, enriched=' + enriched + ', completed=' + completed + ') = ' + dirCell;
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

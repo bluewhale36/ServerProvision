@@ -52,7 +52,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = ExecutionRestController.class)
 @Import({ BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
         DiagnoseLinuxExecutor.class, PxeAssetsProperties.class, PxeAssetsConfig.class,
-        com.example.serverprovision.execution.engine.DiagnosticReportParser.class })
+        com.example.serverprovision.execution.engine.DiagnosticReportParser.class,
+        com.example.serverprovision.execution.engine.PhaseCursorAdvancer.class })   // ES-1 — DiagnoseLinuxExecutor 협력자
 class DiagnoseLinuxChainloadFlowTest {
 
     private static final String TOKEN = "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d";
@@ -82,6 +83,7 @@ class DiagnoseLinuxChainloadFlowTest {
     @MockitoBean ProvisioningProgressRepository progressRepository;
     @MockitoBean com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;   // E1-2 소비 협력자
     @MockitoBean com.example.serverprovision.execution.engine.SetupStepRecorder setupStepRecorder;               // E1-2 소비 협력자
+    @MockitoBean com.example.serverprovision.execution.engine.OwnedPhasesProvider ownedPhasesProvider;           // ES-1 — PhaseCursorAdvancer 공급자
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private GuestServer server() {
@@ -128,6 +130,26 @@ class DiagnoseLinuxChainloadFlowTest {
         boot(progress().startedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("chainloading diagnose linux")));
+    }
+
+    // ==== ES-1 — 전진 후 /boot 재폴링 종착 (전진 = 소유 phase HOLD, 무할당 = 입고 검수) ====
+
+    @Test
+    @DisplayName("ES-1 할당 게스트 — 전진 커서(FIRMWARE_UPDATING)로 /boot 재폴링 → 명시 HOLD (executor 미구현, silent 아님)")
+    void advancedCursor_firmwareUpdating_holds() throws Exception {
+        boot(progress().currentPhase(ProvisioningPhase.FIRMWARE_UPDATING).startedAt(T).build())
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("FIRMWARE_UPDATING not implemented yet (HOLD)")))
+                .andExpect(content().string(containsString("chain /api/pxe/v1/boot?")));   // 재진입 유지
+    }
+
+    @Test
+    @DisplayName("ES-1 무할당 게스트 — 진단 완주 종단(커서 DIAGNOSE_LINUX) /boot 재폴링 → 입고 검수 대기 (현 동작 회귀)")
+    void completedDiagnose_awaitsIntake() throws Exception {
+        boot(progress().currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).startedAt(T).completedAt(T).build())
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("awaiting assignment")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("exit"))));   // OS 미설치 → exit 금지
     }
 
     // ==== 자산 서빙 (/assets/**) ==============================================
