@@ -32,13 +32,18 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	}
 
 	/**
-	 * S6-2-2 — 재격리(위치 이탈 회수) 시 휴지통에 기존 사본이 살아 있는 경우. 그대로 회수하면
+	 * S6-2-2 → S11-1 — 재격리(위치 이탈 회수) 시 휴지통에 기존 사본이 살아 있는 경우. 그대로 회수하면
 	 * 기록이 새 파일만 가리켜 기존 사본이 참조를 잃는다(휴지통은 스캔 범위 밖 — 영구 미발견).
+	 * S11-1 부터 이 충돌은 발견 위치에 본체가 실재하는 칸([C/D · ⓜ2])에서만 발동하므로(마커 단독은
+	 * 미아 마커로 분리), 안내는 어느 쪽이 정본인지 시스템이 정하지 않고 택일을 제시한다 — 종전의
+	 * "휴지통 사본을 정리하라" 단방향 안내는 휴지통의 정본을 잃게 유도할 수 있었다.
 	 */
 	public static DriftResolutionNotAllowedException trashCopyConflict(String trashedPath) {
 		return new DriftResolutionNotAllowedException(
-				"휴지통에 이미 이 자원의 사본이 남아 있어 회수를 진행할 수 없습니다. "
-						+ "휴지통의 기존 사본을 확인해 정리한 뒤 다시 점검하세요. (기존 사본 : " + trashedPath + ")"
+				"휴지통에 이미 이 자원의 사본이 보관되어 있어 회수를 진행할 수 없습니다. "
+						+ "발견 위치의 파일이 불필요한 사본이면 그 파일과 마커를 직접 정리하고, "
+						+ "발견 위치의 파일을 살리려면 휴지통의 기존 사본을 정리한 뒤 다시 점검해 회수하세요. "
+						+ "(휴지통 사본 : " + trashedPath + ")"
 		);
 	}
 
