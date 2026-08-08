@@ -67,7 +67,7 @@ class SoftDeleteEscapeResolutionTest {
     private static Drift driftOf(DriftKind kind, String newPath) {
         return Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(kind)
-                .oldPath("/expected").newPath(newPath).detectedAt(Instant.now())
+                .oldPath("/expected").newPath(newPath).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now())
                 .build();
     }
 

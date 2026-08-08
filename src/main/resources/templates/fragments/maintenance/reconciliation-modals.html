@@ -4,7 +4,7 @@
 <!--/*
   R9-3 — Reconciliation 전용 확인 modal 묶음.
   ─────────────────────────────────────────────────────────
-  · applyModalCard / dismissModalCard : /ui/confirm-modal/DRIFT_APPLY | DRIFT_DISMISS 의
+  · applyModalCard / snoozeModalCard : /ui/confirm-modal/DRIFT_APPLY | DRIFT_SNOOZE 의
     lazy-load 응답 (ConfirmModalType 확장). 문구는 list.js 가 form 의 data-resource-label /
     data-resource-extra (R9-2 가 DriftKind 라벨·권장 조치로 채움) 에서 inject.
   · genericConfirmModal(prefix) : Deep 스캔 / 마커 서명 재발급 같은 페이지 액션용 정적 modal.
@@ -17,25 +17,70 @@
     <div class="cm-backdrop" data-modal-cancel></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 class="cm-title">드리프트 적용</h2>
-            <p class="cm-message" data-modal-message>이 드리프트를 적용할까요?</p>
+            <h2 class="cm-title">드리프트 해결</h2>
+            <p class="cm-message" data-modal-message>이 드리프트를 해결할까요?</p>
             <div class="cm-actions">
                 <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
-                <button type="button" class="n-btn n-btn-primary" data-modal-confirm>적용</button>
+                <button type="button" class="n-btn n-btn-primary" data-modal-confirm>해결</button>
             </div>
         </div>
     </div>
 </div>
 
-<div th:fragment="dismissModalCard" class="cm-overlay" data-modal-active>
+<!--/* MK4-1 — '보고 닫기' 를 '보관' 으로 교체. 종전에는 목록에서만 빼서 다음 점검에
+     그대로 다시 떴고, 왜 미뤘는지 아무 흔적도 남지 않았다. 보관 기간(또는 조건)과 사유를 받는다. */-->
+<div th:fragment="snoozeModalCard" class="cm-overlay" data-modal-active>
     <div class="cm-backdrop" data-modal-cancel></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 class="cm-title">보고 닫기</h2>
-            <p class="cm-message" data-modal-message>이 드리프트 보고를 닫을까요?</p>
+            <h2 class="cm-title">보관</h2>
+            <p class="cm-message" data-modal-message>이 드리프트를 보관합니다.</p>
+            <div class="n-form-group">
+                <label class="n-label" for="snoozeWindow">보관 기간</label>
+                <select id="snoozeWindow" class="n-input" data-snooze-window>
+                    <option value="DAYS_7">7일 동안</option>
+                    <option value="DAYS_30">30일 동안</option>
+                    <option value="UNTIL_NEXT_DEEP_SCAN">다음 정밀 점검까지</option>
+                </select>
+            </div>
+            <div class="n-form-group">
+                <label class="n-label" for="snoozeReason">보관 사유</label>
+                <input type="text" id="snoozeReason" class="n-input" data-snooze-reason
+                       maxlength="500" autocomplete="off"
+                       placeholder="예: 다음 정기 점검 때 자원을 재등록할 예정">
+                <p class="n-form-hint">남긴 사유는 기록에 보존됩니다.</p>
+            </div>
             <div class="cm-actions">
                 <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
-                <button type="button" class="n-btn n-btn-primary" data-modal-confirm>보고 닫기</button>
+                <button type="button" class="n-btn n-btn-primary" data-modal-confirm>보관</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--/* 내용 변경 감지의 [해결] — 영구 삭제와 같은 자원명 확인 의식.
+     입력값이 기대값과 정확히 같을 때만 확인 버튼이 살아난다(판정은 confirm-modal-base 공용). */-->
+<div th:fragment="acceptHashModalCard" class="cm-overlay" data-modal-active>
+    <div class="cm-backdrop" data-modal-cancel></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 class="cm-title">현재 내용을 정본으로 수용</h2>
+            <p class="cm-message-tight" data-modal-message>지금 파일 내용의 지문을 정본으로 등록합니다.</p>
+            <p class="n-form-hint" style="margin:0 0 10px">원본 재업로드가 더 안전합니다 (검증 재통과).
+                의도한 교체가 확실할 때만 수용하세요 — 감사 기록에 남습니다.</p>
+
+            <div class="cm-typed-wrap">
+                <div class="cm-typed-target-box">
+                    <span class="cm-typed-target-label">정확히 입력해야 할 자원명</span>
+                    <code class="cm-typed-target-code" data-modal-expected th:text="${expectedName}"></code>
+                </div>
+                <input type="text" class="cm-typed-input" data-modal-typed-input
+                       placeholder="자원명을 정확히 입력...">
+            </div>
+
+            <div class="cm-actions">
+                <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
+                <button type="button" class="n-btn n-btn-outline-danger" data-modal-confirm disabled>해결</button>
             </div>
         </div>
     </div>
@@ -63,7 +108,7 @@
 </div>
 
 <!--/*
-  HF4-5 — 자원 중복 해소 택일 modal. 표준 id 규약(prefix=dupResolve)이라 ConfirmModal.open 을 그대로
+  HF4-5 — 자원 중복 해결 택일 modal. 표준 id 규약(prefix=dupResolve)이라 ConfirmModal.open 을 그대로
   재사용하고, radio 슬롯만 고유 마크업 (restore fragment 의 .cm-cascade-option 클래스 세트 재사용 — 신규 CSS 0).
   경로 텍스트는 list.js 가 form 의 data-original-path / data-duplicate-path 에서 주입하며,
   열릴 때마다 기본 선택을 원본(DB 기록 경로)으로 리셋한다 (사용자 결정 ③).
@@ -72,7 +117,7 @@
     <div id="dupResolveBackdrop" class="cm-backdrop"></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 id="dupResolveTitle" class="cm-title">자원 중복 해소</h2>
+            <h2 id="dupResolveTitle" class="cm-title">자원 중복 해결</h2>
             <p id="dupResolveMessage" class="cm-message cm-message-tight">남길 위치를 선택하세요 — 선택하지 않은 쪽 파일은 삭제됩니다.</p>
             <div class="cm-cascade-wrap">
                 <label class="cm-cascade-option">
@@ -94,7 +139,7 @@
             </div>
             <div class="cm-actions">
                 <button type="button" id="dupResolveCancelBtn" class="n-btn n-btn-secondary">취소</button>
-                <button type="button" id="dupResolveConfirmBtn" class="n-btn n-btn-outline-danger">선택 적용</button>
+                <button type="button" id="dupResolveConfirmBtn" class="n-btn n-btn-outline-danger">해결</button>
             </div>
         </div>
     </div>

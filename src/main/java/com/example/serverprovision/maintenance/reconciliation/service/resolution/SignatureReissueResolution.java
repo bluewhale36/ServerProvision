@@ -10,6 +10,8 @@ import com.example.serverprovision.maintenance.reconciliation.exception.DriftRes
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * SIGNATURE_INVALID(마커 서명 불일치) 해결 — 이 자원의 마커만 현재 키로 재서명한다.
@@ -35,7 +37,7 @@ public class SignatureReissueResolution implements DriftResolution {
 	}
 
 	@Override
-	public void resolve(Drift drift, MarkableScanner scanner) {
+	public Optional<Path> resolve(Drift drift, MarkableScanner scanner) {
 		Markable resource = scanner.findActiveMarkableById(drift.getResourceId())
 				.orElseThrow(DriftResolutionNotAllowedException::staleState); // 그 사이 삭제/소멸됨
 
@@ -52,7 +54,9 @@ public class SignatureReissueResolution implements DriftResolution {
 				unsigned.withSignature(newSignature));
 		// 내용 지문은 기존 값 그대로 — 변조 가능성을 굳히지 않는다 (전체 재발급과 동일).
 		resource.reissueMarker(existing.manifestHash(), newSignature);
+		// 마커를 제자리에서 다시 서명한다 — 옮긴 파일이 없다.
 		log.warn("[AUDIT] 단일 마커 재서명 — {}#{} (drift {} 사용자 확인 경유)",
 				drift.getResourceType(), drift.getResourceId(), drift.getId());
+		return Optional.empty();
 	}
 }

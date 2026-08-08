@@ -10,6 +10,8 @@ import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
 import com.example.serverprovision.maintenance.reconciliation.entity.DriftReport;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftObservation;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +56,7 @@ class PathReconciliationEdgeCaseTest {
     private BackgroundJobService backgroundJobService;
     private DriftReportRepository driftReportRepository;
     private DriftRepository driftRepository;
+    private DriftHandlingRepository driftHandlingRepository;
 
     private MarkableScanner isoScanner;
     private MarkableScanner biosScanner;
@@ -72,6 +75,9 @@ class PathReconciliationEdgeCaseTest {
         given(driftReportRepository.count()).willReturn(0L);
 
         driftRepository = mock(DriftRepository.class);
+        // MK4-1 — 신원이 처음 보이는 문제는 저장 결과가 그대로 이번 회차의 문제로 쓰인다.
+        given(driftRepository.save(any(Drift.class))).willAnswer(inv -> inv.getArgument(0));
+        driftHandlingRepository = mock(DriftHandlingRepository.class);
 
         isoScanner = mock(MarkableScanner.class);
         given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
@@ -82,7 +88,7 @@ class PathReconciliationEdgeCaseTest {
         // self proxy 자리는 단위 테스트 범위 외. null 주입.
         service = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
-                driftReportRepository, driftRepository,
+                driftReportRepository, driftRepository, driftHandlingRepository,
                 List.of(new com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution(),
                         new com.example.serverprovision.maintenance.reconciliation.service.resolution.GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(service, "startupEnabled", true);
@@ -125,11 +131,22 @@ class PathReconciliationEdgeCaseTest {
                 unsigned.withSignature(markerService.computeSignature(unsigned)));
     }
 
+    /**
+     * MK4-1 — 스캔은 보고서를 두 번 저장한다(회차 메타데이터 → 관측 적재 후 한 번 더). 마지막 저장분이 완성본.
+     */
     private DriftReport runScan(boolean deep) {
         ReflectionTestUtils.invokeMethod(service, "performScan", deep, "job-edge");
         var captor = org.mockito.ArgumentCaptor.forClass(DriftReport.class);
-        verify(driftReportRepository).save(captor.capture());
+        verify(driftReportRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
         return captor.getValue();
+    }
+
+    /**
+     * MK4-1 — 보고서가 담는 것은 관측이다. 회차가 무엇을 봤는지를 묻는 단언은 그대로 두고,
+     * 그 관측이 가리키는 문제만 꺼내 본다.
+     */
+    private static java.util.List<Drift> driftsOf(DriftReport report) {
+        return report.getObservations().stream().map(DriftObservation::getDrift).toList();
     }
 
     // ==== A. 파일 이동 시나리오 =========================================
@@ -153,7 +170,7 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.PATH_DRIFT);
             assertThat(d.getResourceType()).isEqualTo(ResourceType.BIOS_BUNDLE);
             assertThat(d.getResourceId()).isEqualTo(7L);
@@ -186,7 +203,7 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.PATH_DRIFT);
             assertThat(d.getResourceId()).isEqualTo(1L);
             assertThat(d.getNewPath()).isEqualTo(moved.toString());
@@ -218,7 +235,7 @@ class PathReconciliationEdgeCaseTest {
         // 하지만 markerService.read 는 마커 자체만 읽으므로 정상 매칭됨 → MarkerHit 등록 →
         // active inventory 의 dvd 는 expectedMarker 가 없어 PATH_DRIFT 로 분류됨 (newPath = strayed/dvd.iso)
         // 본 시나리오의 실제 동작을 기록해두는 것이 목적.
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getResourceId()).isEqualTo(42L);
             // 코드 동작상 PATH_DRIFT 로 떨어진다 — newPath 가 "유효한 자원 위치" 인지는 별도 검증이 필요.
             assertThat(d.getKind()).isIn(DriftKind.PATH_DRIFT, DriftKind.MISSING);
@@ -246,7 +263,7 @@ class PathReconciliationEdgeCaseTest {
 
         // 종전에는 sidecar 가 살아있으면 quick scan 이 정상으로 봐서 본체 분실이 deep 주기까지 침묵했다.
         // S6-1 — 4a 본체 존재 검사가 quick 에서 바로 MISSING 으로 보고한다.
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.MISSING);
             assertThat(d.getResourceId()).isEqualTo(42L);
             assertThat(d.getDetail()).contains("본체 파일 부재");
@@ -272,10 +289,10 @@ class PathReconciliationEdgeCaseTest {
 
         // (B-2 fix) recompute 가 empty 면 자원 접근 불능으로 보고 MISSING drift 를 발행한다 —
         // deep scan 도 자원 손실을 인지하지 못하던 기존 버그의 교정 분기가 S6-1 이후에도 살아있음을 고정.
-        assertThat(saved.getDrifts()).hasSize(1);
-        assertThat(saved.getDrifts().get(0).getKind()).isEqualTo(DriftKind.MISSING);
-        assertThat(saved.getDrifts().get(0).getResourceId()).isEqualTo(42L);
-        assertThat(saved.getDrifts().get(0).getDetail()).contains("manifestHash 재계산 실패");
+        assertThat(driftsOf(saved)).hasSize(1);
+        assertThat(driftsOf(saved).get(0).getKind()).isEqualTo(DriftKind.MISSING);
+        assertThat(driftsOf(saved).get(0).getResourceId()).isEqualTo(42L);
+        assertThat(driftsOf(saved).get(0).getDetail()).contains("manifestHash 재계산 실패");
     }
 
     // ==== B. 변조 시나리오 ============================================
@@ -296,14 +313,14 @@ class PathReconciliationEdgeCaseTest {
 
         // quick : drift 없음
         DriftReport quick = runScan(false);
-        assertThat(quick.getDrifts()).isEmpty();
+        assertThat(driftsOf(quick)).isEmpty();
 
         // deep : HASH_MISMATCH
         org.mockito.Mockito.reset(driftReportRepository);
         given(driftReportRepository.save(any(DriftReport.class))).willAnswer(inv -> inv.getArgument(0));
         given(driftReportRepository.count()).willReturn(0L);
         DriftReport deep = runScan(true);
-        assertThat(deep.getDrifts()).singleElement()
+        assertThat(driftsOf(deep)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.HASH_MISMATCH));
     }
 
@@ -322,7 +339,7 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.SIGNATURE_INVALID));
     }
 
@@ -348,9 +365,9 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        assertThat(saved.getDrifts()).hasSize(2);
-        assertThat(saved.getDrifts()).allSatisfy(d -> assertThat(d.getKind()).isEqualTo(DriftKind.ORPHAN));
-        assertThat(saved.getDrifts()).extracting(Drift::getResourceType)
+        assertThat(driftsOf(saved)).hasSize(2);
+        assertThat(driftsOf(saved)).allSatisfy(d -> assertThat(d.getKind()).isEqualTo(DriftKind.ORPHAN));
+        assertThat(driftsOf(saved)).extracting(Drift::getResourceType)
                 .containsExactlyInAnyOrder(ResourceType.BIOS_BUNDLE, ResourceType.OS_ISO);
     }
 
@@ -377,7 +394,7 @@ class PathReconciliationEdgeCaseTest {
         DriftReport saved = runScan(false);
 
         // 첫 발견 우선 — 1 건만 PATH_DRIFT, newPath 는 a 또는 b 중 하나 (FS 순회 순서 의존)
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.PATH_DRIFT);
             assertThat(d.getNewPath()).isIn(locA.toString(), locB.toString());
         });
@@ -404,7 +421,7 @@ class PathReconciliationEdgeCaseTest {
         DriftReport saved = runScan(false);
 
         // 깊이 한계로 ORPHAN 도 PATH_DRIFT 도 잡히지 않음 — drift 0
-        assertThat(saved.getDrifts()).isEmpty();
+        assertThat(driftsOf(saved)).isEmpty();
     }
 
     @Test
@@ -425,7 +442,7 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.MISSING));
         // 이는 의도된 동작 — 사용자가 extra-roots 로 알려줘야 한다. 본 테스트는 그 경계를 못박는다.
     }
@@ -442,7 +459,7 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        assertThat(saved.getDrifts()).isEmpty();
+        assertThat(driftsOf(saved)).isEmpty();
         assertThat(saved.getTotalChecked()).isZero();
     }
 
@@ -457,7 +474,7 @@ class PathReconciliationEdgeCaseTest {
         DriftReport saved = runScan(false);
 
         // 예외 없이 통과하는지 보장
-        assertThat(saved.getDrifts()).isEmpty();
+        assertThat(driftsOf(saved)).isEmpty();
     }
 
     // ==== F. 동시성 / 트랜잭션 ========================================
@@ -489,7 +506,7 @@ class PathReconciliationEdgeCaseTest {
         DriftReport saved = runScan(false);
 
         // 두 건의 PATH_DRIFT 가 보고서에 올라가고
-        assertThat(saved.getDrifts()).hasSize(2);
+        assertThat(driftsOf(saved)).hasSize(2);
         // 첫 건 실패해도 두 번째는 계속 — applyDriftedPath 가 두 번 모두 호출됨
         verify(isoScanner, times(1)).applyDriftedPath(eq(1L), any(Path.class));
         verify(isoScanner, times(1)).applyDriftedPath(eq(2L), any(Path.class));
@@ -552,7 +569,7 @@ class PathReconciliationEdgeCaseTest {
         DriftReport saved = runScan(false);
 
         // 마커가 파싱 불가라 diskMarkers 에 등록 안 됨 → MISSING 으로 떨어짐.
-        assertThat(saved.getDrifts()).singleElement()
+        assertThat(driftsOf(saved)).singleElement()
                 .satisfies(d -> assertThat(d.getKind()).isEqualTo(DriftKind.MISSING));
     }
 
@@ -577,7 +594,7 @@ class PathReconciliationEdgeCaseTest {
 
         DriftReport saved = runScan(false);
 
-        assertThat(saved.getDrifts()).singleElement().satisfies(d -> {
+        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
             assertThat(d.getKind()).isEqualTo(DriftKind.ORPHAN);
             assertThat(d.getResourceType()).isEqualTo(ResourceType.OS_ISO);
         });

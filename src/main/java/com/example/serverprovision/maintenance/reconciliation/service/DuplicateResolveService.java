@@ -8,6 +8,10 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftHandling;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
+import java.time.Instant;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
@@ -25,7 +29,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * HF4-5 — "자원 중복 존재"(RESOURCE_DUPLICATED) 의 택일 해소. 사용자가 모달에서 남길 쪽(survivor)을
+ * HF4-5 — "자원 중복 존재"(RESOURCE_REPLICA) 의 택일 해소. 사용자가 모달에서 남길 쪽(survivor)을
  * 선택하면 나머지를 파일시스템에서 삭제한다 (사용자 결정 ②③④).
  *
  * <p>사용자 입력을 동반하는 해결이라 표준 [적용]({@code DriftResolution} bean 디스패치) 계약이 아닌
@@ -50,18 +54,21 @@ public class DuplicateResolveService {
 	private final Map<ResourceType, MarkableScanner> scanners;
 	private final ProvisionMarkerService markerService;
 	private final DriftRepository driftRepository;
+	private final DriftHandlingRepository driftHandlingRepository;
 	private final PathReconciliationService reconciliationService;
 
 	public DuplicateResolveService(
 			List<MarkableScanner> scanners,
 			ProvisionMarkerService markerService,
 			DriftRepository driftRepository,
+			DriftHandlingRepository driftHandlingRepository,
 			PathReconciliationService reconciliationService
 	) {
 		this.scanners = scanners.stream()
 				.collect(Collectors.toUnmodifiableMap(MarkableScanner::supportedType, s -> s));
 		this.markerService = markerService;
 		this.driftRepository = driftRepository;
+		this.driftHandlingRepository = driftHandlingRepository;
 		this.reconciliationService = reconciliationService;
 	}
 
@@ -73,7 +80,7 @@ public class DuplicateResolveService {
 		}
 		Drift drift = driftRepository.findById(driftId)
 				.orElseThrow(() -> new DriftNotFoundException(driftId));
-		if (drift.getKind() != DriftKind.RESOURCE_DUPLICATED) {
+		if (drift.getKind() != DriftKind.RESOURCE_REPLICA) {
 			throw DriftResolutionNotAllowedException.notApplicable(drift.getKind());
 		}
 		MarkableScanner scanner = scannerFor(drift.getResourceType());
@@ -120,7 +127,10 @@ public class DuplicateResolveService {
 			Drift drift, Markable resource, Path originalPath, Path duplicatePath, MarkerLayout layout
 	) {
 		Long driftId = drift.getId();
-		drift.getReport().removeDrift(drift);
+		Instant handledAt = Instant.now();
+		drift.resolve(handledAt, DriftHandlingAction.RESOLVE_DUPLICATE);
+		driftHandlingRepository.save(DriftHandling.of(drift, DriftHandlingAction.RESOLVE_DUPLICATE,
+				handledAt, duplicatePath.toString(), originalPath.toString(), "원본 유지"));
 		driftRepository.flush();
 		deleteResourceFiles(duplicatePath, layout);
 		log.warn("[AUDIT] 자원 중복 해소 — {}#{} ({}) 원본 유지 {} · 복제본 삭제 {} (drift {} 사용자 확인 경유)",
@@ -177,7 +187,10 @@ public class DuplicateResolveService {
 		}
 		Long driftId = drift.getId();
 		scanner.applyDriftedPath(drift.getResourceId(), duplicatePath); // PATH_DRIFT 해결 로직 재사용
-		drift.getReport().removeDrift(drift);
+		Instant handledAt = Instant.now();
+		drift.resolve(handledAt, DriftHandlingAction.RESOLVE_DUPLICATE);
+		driftHandlingRepository.save(DriftHandling.of(drift, DriftHandlingAction.RESOLVE_DUPLICATE,
+				handledAt, originalPath.toString(), duplicatePath.toString(), "복제본 승격"));
 		driftRepository.flush();
 		deleteResourceFiles(originalPath, layout);
 		log.warn("[AUDIT] 자원 중복 해소 — {}#{} ({}) 복제본 승격 {} · DB 경로 갱신 · 원본 삭제 {} (drift {} 사용자 확인 경유)",

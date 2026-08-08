@@ -58,7 +58,7 @@ class OrphanMarkerQuarantineResolutionTest {
     private static Drift orphanDrift(Long driftId, Long resourceId, Path resourcePath) {
         Drift d = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(resourceId).kind(DriftKind.ORPHAN)
-                .oldPath(resourcePath.toString()).newPath(null).detectedAt(Instant.now())
+                .oldPath(resourcePath.toString()).newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now())
                 .build();
         ReflectionTestUtils.setField(d, "id", driftId);
         return d;
@@ -73,12 +73,15 @@ class OrphanMarkerQuarantineResolutionTest {
         writeOrphanMarker(stray, 99L);
         Path trashRoot = tmp.resolve(".soft-deleted");
 
-        resolution(new TrashService(null), trashRoot)
+        var landedAt = resolution(new TrashService(null), trashRoot)
                 .resolve(orphanDrift(5L, 99L, stray), scanner);
 
         assertThat(Files.exists(stray)).isFalse();
         assertThat(Files.exists(trashRoot.resolve("orphan/drift5_ghost.iso"))).isTrue();
         assertThat(Files.exists(trashRoot.resolve("orphan/drift5_ghost.iso.provision.json"))).isTrue();
+        // MK4-1 — 옮겨 둔 위치를 아는 것은 이 전략뿐이다. 돌려주지 않으면 처리 이력이
+        // "되돌릴 수 있다" 고 적어 놓고 정작 어디로 갔는지는 비워 두게 된다(CP5 실측 결함).
+        assertThat(landedAt).contains(trashRoot.resolve("orphan/drift5_ghost.iso"));
     }
 
     @Test
@@ -89,10 +92,12 @@ class OrphanMarkerQuarantineResolutionTest {
         writeOrphanMarker(stray, 99L);
         Path trashRoot = tmp.resolve(".soft-deleted");
 
-        resolution(new TrashService(null), trashRoot)
+        var landedAt = resolution(new TrashService(null), trashRoot)
                 .resolve(orphanDrift(6L, 99L, stray), scanner);
 
         assertThat(Files.exists(trashRoot.resolve("orphan/drift6_ghost.iso.provision.json"))).isTrue();
+        // 본체가 없으면 마커의 도착지가 되돌리기의 앵커다.
+        assertThat(landedAt).contains(trashRoot.resolve("orphan/drift6_ghost.iso.provision.json"));
     }
 
     @Test

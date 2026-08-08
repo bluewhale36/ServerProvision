@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * TRASH_LOST(휴지통 자원 소실) 해결 — 복구 불능이 확정된 기록을 정리한다. 사용자 확인(MANUAL) 전용.
@@ -40,7 +41,7 @@ public class TrashLostClearResolution implements DriftResolution {
 	}
 
 	@Override
-	public void resolve(Drift drift, MarkableScanner scanner) {
+	public Optional<Path> resolve(Drift drift, MarkableScanner scanner) {
 		Markable resource = scanner.findTrashedById(drift.getResourceId())
 				.orElseThrow(DriftResolutionNotAllowedException::staleState); // row 가 이미 정리됨
 		if (resource instanceof LifecycleEntity lifecycle) {
@@ -67,5 +68,7 @@ public class TrashLostClearResolution implements DriftResolution {
 		}
 		log.info("[reconciliation] TRASH_LOST 기록 정리 완료. {}#{}",
 				drift.getResourceType(), drift.getResourceId());
+		// 실물이 이미 없어 기록만 정리한다 — 옮긴 파일도 되돌릴 근거도 없다.
+		return Optional.empty();
 	}
 }

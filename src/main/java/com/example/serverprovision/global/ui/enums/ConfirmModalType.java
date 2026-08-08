@@ -162,10 +162,12 @@ public enum ConfirmModalType {
 	},
 
 	/**
-	 * R9-3 — 드리프트 보고 닫기 확인 modal. 종전 soft-delete modal 차용(제목 "자원 삭제")이
-	 * "자원이 지워진다" 로 읽히던 것의 해소 — 실동작은 보고 행 제거뿐(자원 무변경, 재보고 가능).
+	 * R9-3 — 드리프트 확인 modal. 종전 soft-delete modal 차용(제목 "자원 삭제")이 "자원이 지워진다" 로
+	 * 읽히던 것의 해소.
+	 * <p>MK4-1 — '보고 닫기'(다음 점검에 다시 뜨는 착시)를 '보관'(보관 기간 · 사유를 남기고
+	 * 그동안만 내림)으로 바꾸면서 개명했다.</p>
 	 */
-	DRIFT_DISMISS {
+	DRIFT_SNOOZE {
 		@Override
 		public void resolveModel(
 				ResourceType resourceType, Long resourceId,
@@ -177,7 +179,32 @@ public enum ConfirmModalType {
 
 		@Override
 		public String fragmentView() {
-			return "fragments/maintenance/reconciliation-modals :: dismissModalCard";
+			return "fragments/maintenance/reconciliation-modals :: snoozeModalCard";
+		}
+	},
+
+	/**
+	 * 내용 변경 감지의 [해결] — 현재 내용을 정본으로 수용. 영구 삭제와 같은 등급의 승인 의식이라
+	 * 자원명 입력을 받는다({@code TypedNameGuard} 가 서버에서 같은 값을 검증).
+	 *
+	 * <p>종전에는 이 입력칸이 상세 화면에 늘 펼쳐져 있었다. 다른 종류는 [해결] 을 눌러야 확인 창이
+	 * 뜨는데 이 종류만 입력칸이 먼저 보여, 같은 무게의 액션이 서로 다른 모양이었다.</p>
+	 */
+	DRIFT_ACCEPT_HASH {
+		@Override
+		public void resolveModel(
+				ResourceType resourceType, Long resourceId,
+				TypedNameVerifier verifier, Model model
+		) {
+			// 기대 자원명은 영구 삭제와 같은 경로로 얻는다 — 활성 자원도 조회 대상이다.
+			model.addAttribute("expectedName", verifier.resolveExpectedName(resourceType, resourceId));
+			model.addAttribute("resourceType", resourceType.name());
+			model.addAttribute("resourceId", resourceId);
+		}
+
+		@Override
+		public String fragmentView() {
+			return "fragments/maintenance/reconciliation-modals :: acceptHashModalCard";
 		}
 	},
 

@@ -8,8 +8,11 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftObservation;
 import com.example.serverprovision.maintenance.reconciliation.entity.DriftReport;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,12 +33,13 @@ import static org.mockito.Mockito.mock;
 
 /**
  * S6-3-3 — [다시 점검] 확인 축의 단위 검증.
- * 해소=카드 제거만 / 잔존=카드 불변 / ORPHAN 거짓 해소 방지 / direct POST 안전망.
+ * 해소=문제 닫힘 / 잔존=상태 불변 / ORPHAN 거짓 해소 방지 / direct POST 안전망.
  */
 class DriftRecheckTest {
 
     private final MarkableScanner scanner = mock(MarkableScanner.class);
     private final DriftRepository driftRepository = mock(DriftRepository.class);
+    private final DriftHandlingRepository driftHandlingRepository = mock(DriftHandlingRepository.class);
     private final ProvisionMarkerService markerService = withSecret();
 
     private static ProvisionMarkerService withSecret() {
@@ -50,7 +54,7 @@ class DriftRecheckTest {
                 List.of(scanner),
                 List.of(new MissingRecheck(markerService), new SignatureInvalidRecheck(markerService),
                         new OrphanRecheck(markerService)),
-                driftRepository);
+                driftRepository, driftHandlingRepository);
     }
 
     private Drift driftInReport(Long id, DriftKind kind, String oldPath) {
@@ -58,8 +62,10 @@ class DriftRecheckTest {
                 .scannedAt(Instant.now()).scanDurationMs(10).deep(false).totalChecked(1).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(kind)
-                .oldPath(oldPath).newPath(null).detectedAt(Instant.now()).build();
-        report.addDrift(drift);
+                .oldPath(oldPath).newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
+        report.addObservation(DriftObservation.builder()
+                .drift(drift).observedAt(drift.getFirstDetectedAt())
+                .oldPath(drift.getOldPath()).build());
         ReflectionTestUtils.setField(drift, "id", id);
         given(driftRepository.findById(id)).willReturn(Optional.of(drift));
         return drift;
@@ -80,7 +86,7 @@ class DriftRecheckTest {
     }
 
     @Test
-    @DisplayName("자원 소실 해소 : 파일·마커를 복원해 두면 recheck 가 카드를 제거")
+    @DisplayName("자원 소실 해소 : 파일·마커를 복원해 두면 recheck 가 문제를 닫는다")
     void missing_resolvedAfterRestore(@TempDir Path tmp) throws Exception {
         Path iso = tmp.resolve("dvd.iso");
         Files.writeString(iso, "body");
@@ -92,11 +98,11 @@ class DriftRecheckTest {
         boolean resolved = service().recheck(1L);
 
         assertThat(resolved).isTrue();
-        assertThat(drift.getReport().getDrifts()).isEmpty(); // 카드 제거
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.RESOLVED); // MK4-1 — 문제가 닫힌다
     }
 
     @Test
-    @DisplayName("자원 소실 잔존 : 여전히 본체가 없으면 카드 불변 (필드 갱신도 없음 — 불변 설계)")
+    @DisplayName("자원 소실 잔존 : 여전히 본체가 없으면 문제 불변 (필드 갱신도 없음 — 불변 설계)")
     void missing_stillBroken(@TempDir Path tmp) throws Exception {
         Path iso = tmp.resolve("dvd.iso"); // 본체 없음
         writeValidMarker(iso, 42L);
@@ -107,7 +113,7 @@ class DriftRecheckTest {
         boolean resolved = service().recheck(2L);
 
         assertThat(resolved).isFalse();
-        assertThat(drift.getReport().getDrifts()).containsExactly(drift); // 카드 유지
+        assertThat(drift.getStatus()).isEqualTo(DriftStatus.OPEN);         // 문제 유지
         assertThat(drift.getKind()).isEqualTo(DriftKind.MISSING);          // 재분류 없음
     }
 
@@ -125,7 +131,7 @@ class DriftRecheckTest {
     }
 
     @Test
-    @DisplayName("미등록 마커 해소 : 그 사이 재등록(주인 생김) 또는 마커 정리 → 카드 제거")
+    @DisplayName("미등록 마커 해소 : 그 사이 재등록(주인 생김) 또는 마커 정리 → 문제 닫힘")
     void orphan_resolvedWhenOwnerAppearsOrMarkerGone(@TempDir Path tmp) throws Exception {
         // (a) 주인 생김
         Path stray = tmp.resolve("ghost.iso");

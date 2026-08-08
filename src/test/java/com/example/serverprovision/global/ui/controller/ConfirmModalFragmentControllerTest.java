@@ -139,25 +139,28 @@ class ConfirmModalFragmentControllerTest {
     // ==== R9-3 : reconciliation 드리프트 확인 modal (자원 lookup 없음) ====
 
     @Test
-    @DisplayName("DRIFT_APPLY — 자원 lookup 없이 '드리프트 적용' fragment 응답")
+    @DisplayName("DRIFT_APPLY — 자원 lookup 없이 '드리프트 해결' fragment 응답")
     void renders_drift_apply_modal() throws Exception {
         mvc.perform(get("/ui/confirm-modal/DRIFT_APPLY")
                         .param("resourceType", "OS_ISO")
                         .param("resourceId", "42"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("드리프트 적용")))
+                .andExpect(content().string(containsString("드리프트 해결")))
                 .andExpect(content().string(containsString("data-modal-active")))
                 .andExpect(content().string(containsString("data-modal-confirm")));
     }
 
     @Test
-    @DisplayName("DRIFT_DISMISS — 자원 lookup 없이 '보고 닫기' fragment 응답")
-    void renders_drift_dismiss_modal() throws Exception {
-        mvc.perform(get("/ui/confirm-modal/DRIFT_DISMISS")
+    @DisplayName("MK4-1 DRIFT_SNOOZE — 자원 lookup 없이 '보관' fragment 응답 (보관 기간 · 사유 입력 포함)")
+    void renders_drift_snooze_modal() throws Exception {
+        mvc.perform(get("/ui/confirm-modal/DRIFT_SNOOZE")
                         .param("resourceType", "OS_ISO")
                         .param("resourceId", "42"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("보고 닫기")))
+                .andExpect(content().string(containsString("보관")))
+                // 사유를 받는 것이 이 기능의 핵심이라 입력 자리가 실제로 렌더되는지 함께 고정한다.
+                .andExpect(content().string(containsString("data-snooze-window")))
+                .andExpect(content().string(containsString("data-snooze-reason")))
                 .andExpect(content().string(containsString("data-modal-active")))
                 .andExpect(content().string(containsString("data-modal-confirm")));
     }

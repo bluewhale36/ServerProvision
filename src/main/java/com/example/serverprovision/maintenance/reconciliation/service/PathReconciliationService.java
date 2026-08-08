@@ -10,11 +10,18 @@ import com.example.serverprovision.maintenance.reconciliation.dto.response.Drift
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftResponse;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
 import com.example.serverprovision.maintenance.reconciliation.entity.DriftReport;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftHandling;
+import com.example.serverprovision.maintenance.reconciliation.entity.DriftObservation;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
+import com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.DriftResolution;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,6 +72,7 @@ public class PathReconciliationService {
 			BackgroundJobService backgroundJobService,
 			DriftReportRepository driftReportRepository,
 			DriftRepository driftRepository,
+			DriftHandlingRepository driftHandlingRepository,
 			List<DriftResolution> resolutions,
 			@Lazy PathReconciliationService self
 	) {
@@ -73,6 +81,7 @@ public class PathReconciliationService {
 		this.backgroundJobService = backgroundJobService;
 		this.driftReportRepository = driftReportRepository;
 		this.driftRepository = driftRepository;
+		this.driftHandlingRepository = driftHandlingRepository;
 		// S6-2-1 — kind 별 해결 전략 bean 디스패치 (1 bean = 1 kind, 중복 등록은 조립 시점 즉시 실패).
 		this.resolutions = resolutions.stream()
 				.collect(Collectors.toUnmodifiableMap(DriftResolution::supportedKind, r -> r));
@@ -84,6 +93,7 @@ public class PathReconciliationService {
 	private final BackgroundJobService backgroundJobService;
 	private final DriftReportRepository driftReportRepository;
 	private final DriftRepository driftRepository;
+	private final DriftHandlingRepository driftHandlingRepository;
 	private final Map<DriftKind, DriftResolution> resolutions;
 
 	/**
@@ -209,11 +219,11 @@ public class PathReconciliationService {
 			DriftReport report = self.performScan(deep, jobId);
 			log.info(
 					"[reconciliation] 스캔 완료. deep={}, totalChecked={}, drifts={}",
-					deep, report.getTotalChecked(), report.getDriftCount()
+					deep, report.getTotalChecked(), report.getDetectedDriftCount()
 			);
 			// R9-1 — 완료 시점 결과 수치를 Job 에 탑재. 페이지가 bgjob:completed 토스트 문구에 사용.
 			backgroundJobService.complete(jobId, Map.of(
-					"driftCount", String.valueOf(report.getDriftCount())
+					"driftCount", String.valueOf(report.getDetectedDriftCount())
 			));
 		} catch (RuntimeException e) {
 			log.error("[reconciliation] 스캔 실패", e);
@@ -425,7 +435,8 @@ public class PathReconciliationService {
 								.kind(DriftKind.HASH_MISMATCH)
 								.oldPath(expectedPath.toString())
 								.newPath(null)
-								.detectedAt(now)
+								.firstDetectedAt(now)
+								.lastObservedAt(now)
 								.observedHash(recomputed.get())
 								.detail("내용 지문 불일치 — 변조 또는 의도된 교체. 정본 인정(마커 서명) "
 										+ KST_MINUTE.format(content.createdAt())
@@ -492,7 +503,8 @@ public class PathReconciliationService {
 							   .kind(DriftKind.ORPHAN)
 							   .oldPath(hit.resourcePath().toString())
 							   .newPath(null)
-							   .detectedAt(now)
+							   .firstDetectedAt(now)
+								.lastObservedAt(now)
 							   .detail("DB 에 매칭되는 자원 없음")
 							   .build());
 		}
@@ -561,7 +573,7 @@ public class PathReconciliationService {
 			}
 		}
 
-		// (6) DriftReport 영속화
+		// (6) DriftReport 영속화 + 문제 잇기
 		backgroundJobService.startStage(jobId, ReconciliationStage.PERSISTING);
 		long durationMs = Duration.between(start, Instant.now()).toMillis();
 		DriftReport report = DriftReport.builder()
@@ -570,11 +582,21 @@ public class PathReconciliationService {
 				.deep(deep)
 				.totalChecked(activeInventory.size())
 				.build();
-		for (Drift d : drifts) {
-			report.addDrift(d);
-		}
 		report.recordFailedScanRoots(failedScanRoots);
 		DriftReport saved = driftReportRepository.save(report);
+
+		// MK4-1 — 이번 회차에 발견된 것들을 지속되는 문제에 잇는다. 같은 신원의 열린 문제가 이미
+		// 있으면 그것을 쓰고(관측 갱신), 없으면 새로 만든다. 어느 쪽이든 관측 1건이 보고서에 쌓인다.
+		List<Drift> observed = linkObservations(drifts, saved, now, deep);
+
+		// MK4-1 — 이번 점검이 커버한 종류인데 더 이상 보이지 않는 문제는 해소로 닫는다.
+		// 운영자가 파일을 직접 되돌려 놓은 경우가 대표적이다. 커버 범위를 종류가 스스로 알기 때문에
+		// (DriftKind.coveredBy) 여기에 종류별 분기가 생기지 않는다 — 일반 점검이 내용 변경 문제를
+		// 닫아 버리면 정밀 점검마다 되살아나기를 반복하게 된다.
+		closeUnobserved(observed, now, deep);
+
+		// MK4-1 — 두고 보기 만료분 복귀.
+		reopenExpiredSnoozes(now);
 
 		// (7) FIFO prune (D15)
 		pruneOldReports();
@@ -586,7 +608,7 @@ public class PathReconciliationService {
 			// 전역 OFF — 자동 적용 건너뜀.
 		} else {
 			Set<DriftKind> enabledKinds = autoApplyKinds();
-			for (Drift d : saved.getDrifts()) {
+			for (Drift d : observed) {
 				if (!d.getKind().isAutoApplicable() || !enabledKinds.contains(d.getKind())) continue;
 				DriftResolution resolution = resolutions.get(d.getKind());
 				if (resolution == null) continue; // 해결 미구현 AUTO kind — 스캔을 죽이지 않고 skip
@@ -743,7 +765,7 @@ public class PathReconciliationService {
 			if (found.equals(original)) continue;
 			if (!resourceBodyExists(hit.resourcePath(), hit.layout())) continue;
 			drifts.add(buildDrift(
-					resource, DriftKind.RESOURCE_DUPLICATED, expectedPath.toString(),
+					resource, DriftKind.RESOURCE_REPLICA, expectedPath.toString(),
 					hit.resourcePath().toString(), now,
 					"원본 정상 상태에서 동일 신원의 사본 발견 — 방치 시 원본 유실 후 '경로 이동됨'으로 오인될 수 있음"
 			));
@@ -801,6 +823,75 @@ public class PathReconciliationService {
 		return deleted.getResourcePath().toString();
 	}
 
+	/**
+	 * MK4-1 — 이번 회차에 발견된 후보들을 지속되는 문제에 잇는다.
+	 *
+	 * <p>후보는 아직 저장되지 않은 값이다. 같은 신원(자원 종류 · 자원 번호 · 종류)의 닫히지 않은
+	 * 문제가 이미 있으면 그 문제가 이번에도 보인 것이므로 관측만 갱신하고, 없으면 새 문제로 저장한다.
+	 * 어느 쪽이든 회차별 사실은 관측 1건으로 남는다.</p>
+	 *
+	 * @return 이번 회차에 관측된 문제들(영속 상태). 무인 자동 적용이 이 목록을 쓴다.
+	 */
+	private List<Drift> linkObservations(List<Drift> candidates, DriftReport report, Instant now, boolean deep) {
+		List<Drift> observed = new ArrayList<>();
+		for (Drift candidate : candidates) {
+			Drift problem = driftRepository
+					.findFirstByResourceTypeAndResourceIdAndKindAndStatusNot(
+							candidate.getResourceType(), candidate.getResourceId(),
+							candidate.getKind(), DriftStatus.RESOLVED)
+					.orElse(null);
+			if (problem == null) {
+				problem = driftRepository.save(candidate);
+			} else {
+				problem.observe(now, candidate.getOldPath(), candidate.getNewPath(),
+						candidate.getDetail(), candidate.getObservedHash(), candidate.getDisplayName(), deep);
+			}
+			report.addObservation(DriftObservation.builder()
+					.drift(problem)
+					.report(report)
+					.observedAt(now)
+					.oldPath(candidate.getOldPath())
+					.newPath(candidate.getNewPath())
+					.detail(candidate.getDetail())
+					.observedHash(candidate.getObservedHash())
+					.build());
+			observed.add(problem);
+		}
+		driftReportRepository.save(report);
+		return observed;
+	}
+
+	/**
+	 * MK4-1 — 이번 점검이 커버한 종류인데 관측되지 않은 문제를 해소로 닫는다.
+	 *
+	 * <p>커버 판정을 종류가 스스로 하므로({@code DriftKind.coveredBy}) 여기에 종류별 분기가 없다.
+	 * 이 규칙이 없으면 일반 점검이 내용 변경 문제를 "안 보였다" 는 이유로 닫고, 정밀 점검이 다시
+	 * 열기를 반복한다.</p>
+	 */
+	private void closeUnobserved(List<Drift> observed, Instant now, boolean deep) {
+		Set<Long> observedIds = observed.stream().map(Drift::getId).collect(Collectors.toSet());
+		for (Drift open : driftRepository.findByStatusNot(DriftStatus.RESOLVED)) {
+			if (observedIds.contains(open.getId())) continue;
+			if (!open.getKind().coveredBy(deep)) continue;
+			open.resolve(now, DriftHandlingAction.SCAN_UNOBSERVED);
+			driftHandlingRepository.save(DriftHandling.of(
+					open, DriftHandlingAction.SCAN_UNOBSERVED, now, null, null, null));
+		}
+	}
+
+	/**
+	 * MK4-1 — 두고 보기 기간이 지난 문제를 다시 연다. 조건형('다음 정밀 점검까지')은 시각이 아니라
+	 * 관측 사건으로 풀리므로 {@code Drift.observe} 가 처리한다.
+	 */
+	private void reopenExpiredSnoozes(Instant now) {
+		for (Drift snoozed : driftRepository.findByStatusNot(DriftStatus.RESOLVED)) {
+			if (!snoozed.isSnoozeExpired(now)) continue;
+			snoozed.reopen();
+			driftHandlingRepository.save(DriftHandling.of(
+					snoozed, DriftHandlingAction.UNSNOOZE, now, null, null, "보관 기간 만료"));
+		}
+	}
+
 	private Drift buildDrift(
 			Markable resource, DriftKind kind, String oldPath, String newPath,
 			Instant detectedAt, String detail
@@ -813,7 +904,8 @@ public class PathReconciliationService {
 				.kind(kind)
 				.oldPath(oldPath)
 				.newPath(newPath)
-				.detectedAt(detectedAt)
+				.firstDetectedAt(detectedAt)
+				.lastObservedAt(detectedAt)
 				.detail(detail)
 				.build();
 	}
@@ -857,6 +949,13 @@ public class PathReconciliationService {
 		Drift drift = driftRepository.findById(driftId)
 				.orElseThrow(() -> new DriftNotFoundException(driftId));
 		if (!forced) {
+			// MK4-1 — 이미 닫힌 문제는 다시 해결할 것이 없다. 화면이 버튼을 비활성으로 1차 차단하고
+			// 이 가드는 direct POST · stale 화면에서만 발동한다 — 차단 사유의 단일 소스는
+			// Drift.resolveBlockReason() 이며 화면의 tooltip 도 그 값을 그대로 쓴다.
+			String blockReason = drift.resolveBlockReason();
+			if (blockReason != null) {
+				throw DriftResolutionNotAllowedException.of(blockReason);
+			}
 			// S6-2-1 — 허용 종류는 DriftKind.isManuallyResolvable() 이 SSOT (템플릿 버튼 노출과 동일 소스).
 			// 전역 OFF 옵션은 UI 가 disabled+tooltip 으로 1차 차단하므로,
 			// 이 가드는 direct POST / stale 화면 안전망으로만 발동한다.
@@ -877,8 +976,18 @@ public class PathReconciliationService {
 		if (resolution == null) {
 			throw DriftResolutionNotAllowedException.notApplicable(drift.getKind());
 		}
-		resolution.resolve(drift, scanner);
-		drift.getReport().removeDrift(drift);
+		String previousPath = drift.getOldPath();
+		// MK4-1 — 옮겨 둔 위치를 아는 것은 전략뿐이다(격리 구역 · 휴지통 경로는 실행 중에 계산된다).
+		// 옮긴 것이 없다고 답하면 drift 가 들고 있던 새 경로가 그 자리를 대신한다 — 경로 이동됨처럼
+		// 도착지가 이미 적혀 있는 종류가 그렇다. 종류별 분기는 어디에도 생기지 않는다.
+		String movedToPath = resolution.resolve(drift, scanner)
+				.map(Path::toString)
+				.orElse(drift.getNewPath());
+		// MK4-1 — 보고서에서 떼어내는 대신 문제를 닫는다. 지난 보고서의 관측은 그대로 남는다.
+		Instant handledAt = Instant.now();
+		drift.resolve(handledAt, DriftHandlingAction.APPLY);
+		driftHandlingRepository.save(DriftHandling.of(
+				drift, DriftHandlingAction.APPLY, handledAt, previousPath, movedToPath, null));
 	}
 
 	/**
@@ -976,9 +1085,17 @@ public class PathReconciliationService {
 				.deep(false)
 				.totalChecked(1)
 				.build();
-		tempReport.addDrift(drift);
-		DriftReport saved = driftReportRepository.save(tempReport);
-		Drift persisted = saved.getDrifts().iterator().next();
+		Drift persisted = driftRepository.save(drift);
+		tempReport.addObservation(DriftObservation.builder()
+				.drift(persisted)
+				.report(tempReport)
+				.observedAt(persisted.getFirstDetectedAt())
+				.oldPath(persisted.getOldPath())
+				.newPath(persisted.getNewPath())
+				.detail(persisted.getDetail())
+				.observedHash(persisted.getObservedHash())
+				.build());
+		driftReportRepository.save(tempReport);
 		apply(persisted.getId(), true);
 	}
 
@@ -988,6 +1105,31 @@ public class PathReconciliationService {
 	 * ({@code childEnableBlockReason()} 선례). {@code Boolean} wrapper 라 null(=미주입) 은 활성으로 본다.
 	 * <p>허용 종류 판단은 {@link DriftKind#isManuallyResolvable()} — 이 메서드는 전역 축만 담당.</p>
 	 */
+	/**
+	 * MK4-1 — 지금 목록에 떠야 하는 문제의 수. 종전에는 보고서의 자식 수를 셌는데 그 값은 해소할
+	 * 때마다 줄어 지난 기록을 왜곡했다. 미해결 수는 회차가 아니라 현재 상태의 값이다.
+	 */
+	@Transactional(readOnly = true)
+	public long openDriftCount() {
+		Instant now = Instant.now();
+		return driftRepository.findByStatusNot(DriftStatus.RESOLVED).stream()
+				.filter(d -> d.isListed(now))
+				.count();
+	}
+
+	/**
+	 * MK4-1 — 지금 목록에 떠야 하는 문제들. 화면이 회차와 무관하게 "현재 남은 것" 을 보여준다.
+	 */
+	@Transactional(readOnly = true)
+	public List<DriftResponse> openDrifts() {
+		Instant now = Instant.now();
+		return driftRepository.findByStatusNot(DriftStatus.RESOLVED).stream()
+				.filter(d -> d.isListed(now))
+				.sorted(Comparator.comparing(Drift::getFirstDetectedAt))
+				.map(PathReconciliationService::toDriftResponse)
+				.collect(Collectors.toList());
+	}
+
 	public boolean isResolutionEnabled() {
 		return !Boolean.FALSE.equals(resolutionEnabled);
 	}
@@ -1014,11 +1156,26 @@ public class PathReconciliationService {
 		return kinds;
 	}
 
+	/**
+	 * MK4-1 — 종전 '보고 닫기' 를 대신하는 '지금은 두고 보기'.
+	 *
+	 * <p>종전에는 보고서에서 행을 떼어냈고 다음 점검이 같은 문제를 다시 만들어 착시를 낳았다.
+	 * 이제는 기간(또는 조건)과 사유를 받아 그동안만 목록에서 내린다 — 운영자가 알면서 미룬 사실이
+	 * 기록으로 남아, 나중에 왜 방치됐는지 설명이 된다.</p>
+	 */
 	@Transactional
-	public void dismiss(Long driftId) {
+	public void snooze(Long driftId, SnoozeWindow window, String reason) {
 		Drift drift = driftRepository.findById(driftId)
 				.orElseThrow(() -> new DriftNotFoundException(driftId));
-		drift.getReport().removeDrift(drift);
+		// UI 가 버튼 비활성으로 1차 차단하므로 이 가드는 direct POST · stale 화면에서만 발동한다.
+		String blockReason = drift.snoozeBlockReason();
+		if (blockReason != null) {
+			throw DriftSnoozeNotAllowedException.of(blockReason);
+		}
+		Instant now = Instant.now();
+		drift.snooze(window, reason, now);
+		driftHandlingRepository.save(DriftHandling.of(
+				drift, DriftHandlingAction.SNOOZE, now, null, null, reason));
 	}
 
 	private MarkableScanner scannerFor(ResourceType type) {
@@ -1030,20 +1187,33 @@ public class PathReconciliationService {
 
 	// ==== 매핑 ========================================================
 
+	/**
+	 * MK4-1 — 문제 하나를 화면 값으로. 최신 스냅샷 · 수명 · 상태를 함께 싣는다.
+	 */
+	static DriftResponse toDriftResponse(Drift d) {
+		return new DriftResponse(
+				d.getId(), d.getResourceType(), d.getResourceId(), d.getDisplayName(),
+				d.getKind(), d.getOldPath(), d.getNewPath(),
+				d.getFirstDetectedAt(), d.getLastObservedAt(), d.getObservationCount(),
+				d.getStatus(), d.getSnoozeUntil(), d.getSnoozeReason(),
+				// 화면의 버튼 비활성 사유와 서버 가드가 같은 도메인 메서드를 본다 (UI 1차 차단의 단일 소스).
+				d.snoozeBlockReason(), d.resolveBlockReason(), d.getDetail());
+	}
+
 	private DriftReportResponse toResponse(DriftReport r) {
-		List<DriftResponse> drifts = r.getDrifts().stream()
-				.sorted(Comparator.comparing(Drift::getDetectedAt))
-				.map(d -> new DriftResponse(
-						d.getId(), d.getResourceType(), d.getResourceId(), d.getDisplayName(),
-						d.getKind(), d.getOldPath(), d.getNewPath(), d.getDetectedAt(), d.getDetail()
-				))
+		// MK4-1 — 보고서가 담는 것은 관측이다. 화면에 보여줄 값은 문제 쪽(최신 스냅샷 · 수명 · 상태)에서
+		// 가져오고, 회차 순서만 관측 시각으로 잡는다.
+		List<DriftResponse> drifts = r.getObservations().stream()
+				.sorted(Comparator.comparing(DriftObservation::getObservedAt))
+				.map(DriftObservation::getDrift)
+				.map(PathReconciliationService::toDriftResponse)
 				.collect(Collectors.toList());
 		return new DriftReportResponse(
 				r.getId(), r.getScannedAt(),
 				formatDuration(r.getScanDuration()), r.isDeep(), r.getTotalChecked(),
-				// HF4-4 — 탐지 스냅샷(구행 0 은 엔티티 SSOT 가 미해결 수로 대체) · 미해결 잔수 병기
-				r.getDetectedDriftCountForDisplay(),
-				r.getDriftCount(), r.getFailedScanRootList(), drifts
+				// MK4-1 — 탐지 수는 그 회차의 사실로 고정. 미해결 수는 보고서가 아니라 현재 열린 문제에서 센다.
+				r.getDetectedDriftCount(),
+				r.getFailedScanRootList(), drifts
 		);
 	}
 

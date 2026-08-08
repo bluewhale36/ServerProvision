@@ -1,7 +1,7 @@
 package com.example.serverprovision.maintenance.reconciliation.service;
 
 /**
- * HF4-5 — 자원 중복 존재(RESOURCE_DUPLICATED) 해소의 택일 파라미터. "남길 쪽"을 가리킨다.
+ * HF4-5 — 자원 중복 존재(RESOURCE_REPLICA) 해소의 택일 파라미터. "남길 쪽"을 가리킨다.
  * 원시 문자열 대신 enum 타입화 (Primitive Obsession 금지) — 컨트롤러 @RequestParam 바인딩에서
  * Spring 변환 실패가 곧 400 이라 별도 검증 분기가 필요 없다.
  */

@@ -24,9 +24,10 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	}
 
 	public static DriftResolutionNotAllowedException notApplicable(DriftKind kind) {
+		// 시스템이 못 하는 종류이므로 안내할 것은 '사람이 할 일' 쪽이다.
 		return new DriftResolutionNotAllowedException(
 				"'" + kind.getLabel() + "'(" + kind + ") 종류는 시스템이 해결할 수 없습니다. "
-						+ kind.getRecommendedAction()
+						+ kind.getOperatorAction()
 		);
 	}
 
@@ -95,5 +96,13 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 		return new DriftResolutionNotAllowedException(
 				"시스템 해결 옵션(reconciliation.resolution-enabled)이 꺼져 있어 거절되었습니다. 옵션을 켠 뒤 다시 시도하세요."
 		);
+	}
+
+	/**
+	 * MK4-1 — 문제의 상태가 해결을 막는 경우. 사유 문장은 {@code Drift.resolveBlockReason()} 이 만들고
+	 * 화면의 버튼 tooltip 도 같은 값을 쓴다 — 여기서 문구를 다시 짓지 않는 이유가 그것이다.
+	 */
+	public static DriftResolutionNotAllowedException of(String reason) {
+		return new DriftResolutionNotAllowedException(reason);
 	}
 }

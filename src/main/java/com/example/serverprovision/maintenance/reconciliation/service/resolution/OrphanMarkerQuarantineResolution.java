@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * ORPHAN(미등록 마커) 해결 — 주인 없는 파일(+마커)을 격리 보관 구역으로 회수한다.
@@ -51,7 +52,7 @@ public class OrphanMarkerQuarantineResolution implements DriftResolution {
 	}
 
 	@Override
-	public void resolve(Drift drift, MarkableScanner scanner) {
+	public Optional<Path> resolve(Drift drift, MarkableScanner scanner) {
 		Path resourcePath = Path.of(drift.getOldPath());
 		MarkerLayout layout = drift.getResourceType().getDefaultLayout();
 
@@ -79,10 +80,13 @@ public class OrphanMarkerQuarantineResolution implements DriftResolution {
 			throw new IllegalStateException("격리 구역 생성 실패 : " + quarantineDir, e);
 		}
 		String prefix = "drift" + drift.getId() + "_";
+		// 되돌리기가 찾아갈 곳. 본체가 있으면 본체의 도착지가, 마커만 있으면 마커의 도착지가 앵커다.
+		Path landedAt;
 
 		if (layout == MarkerLayout.IN_TREE) {
 			// 트리 통째 이동 — 마커가 내부에 있어 1회 mv 로 끝난다.
-			trashService.relocate(resourcePath, quarantineDir.resolve(prefix + resourcePath.getFileName()));
+			landedAt = quarantineDir.resolve(prefix + resourcePath.getFileName());
+			trashService.relocate(resourcePath, landedAt);
 		} else {
 			Path markerFile = markerService.resolveMarkerFile(resourcePath, layout);
 			Path targetMarker = quarantineDir.resolve(prefix + markerFile.getFileName());
@@ -96,12 +100,15 @@ public class OrphanMarkerQuarantineResolution implements DriftResolution {
 					trashService.relocate(targetBody, resourcePath);
 					throw e;
 				}
+				landedAt = targetBody;
 			} else {
 				// 본체 없이 마커만 남은 orphan — 마커만 회수.
 				trashService.relocate(markerFile, targetMarker);
+				landedAt = targetMarker;
 			}
 		}
 		log.warn("[AUDIT] 미등록 마커 격리 회수 — {}#{} path={} → {} (drift {} 사용자 확인 경유)",
 				drift.getResourceType(), drift.getResourceId(), resourcePath, quarantineDir, drift.getId());
+		return Optional.of(landedAt);
 	}
 }

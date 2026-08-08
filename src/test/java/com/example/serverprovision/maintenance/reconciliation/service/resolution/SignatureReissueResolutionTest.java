@@ -51,7 +51,7 @@ class SignatureReissueResolutionTest {
     private static Drift driftOf() {
         return Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.SIGNATURE_INVALID)
-                .oldPath("/iso/dvd.iso").newPath(null).detectedAt(Instant.now())
+                .oldPath("/iso/dvd.iso").newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now())
                 .build();
     }
 

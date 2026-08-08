@@ -4,6 +4,8 @@ import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
 import org.springframework.stereotype.Component;
+import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * SOFTDEL_ESCAPE_TO_ORIGINAL(삭제 자원 복귀) 해결 — 파일이 이미 원위치에 돌아와 있으므로
@@ -22,7 +24,9 @@ public class SoftDeleteEscapeToOriginalResolution implements DriftResolution {
 	}
 
 	@Override
-	public void resolve(Drift drift, MarkableScanner scanner) {
+	public Optional<Path> resolve(Drift drift, MarkableScanner scanner) {
 		scanner.restoreFromTrash(drift.getResourceId());
+		// 원위치의 파일을 그대로 인정하는 처리라 옮긴 것이 없다.
+		return Optional.empty();
 	}
 }

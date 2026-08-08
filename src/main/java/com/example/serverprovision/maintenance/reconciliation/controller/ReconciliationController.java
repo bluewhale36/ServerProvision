@@ -2,6 +2,7 @@ package com.example.serverprovision.maintenance.reconciliation.controller;
 
 import com.example.serverprovision.global.orphan.service.OrphanQuarantineService;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftReportResponse;
+import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftResponse;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,7 +15,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * MK1 자원 무결성 점검 페이지 컨트롤러 (Miller Columns).
@@ -66,9 +69,34 @@ public class ReconciliationController {
 		// R9-2 — 전역 자동 적용 OFF 시 UI 가 버튼을 disabled+tooltip 으로 1차 차단.
 		// 서버 가드(apply)와 같은 isResolutionEnabled() 를 공유 — SSOT.
 		model.addAttribute("resolutionEnabled", reconciliationService.isResolutionEnabled());
+		// MK4-1 — 미해결 수와 목록은 보고서가 아니라 현재 열린 문제에서 온다. 지난 보고서를 열어도
+		// 그 회차의 사실이 그대로 남고, 요약줄만 "지금 남은 것" 을 말한다.
+		model.addAttribute("openDriftCount", reconciliationService.openDriftCount());
+		model.addAttribute("openDrifts", reconciliationService.openDrifts());
+		// MK4-1 — 상세 패널은 회차가 아니라 '문제' 단위다. 한 문제가 여러 회차에서 관측되면 가운데
+		// 목록에는 회차마다 나타나지만 상세는 하나여야 한다. 종전에는 회차마다 별도 drift 행이라
+		// 같은 id 가 두 번 나올 수 없었고, 그래서 보고서별로 패널을 찍어도 문제가 없었다.
+		model.addAttribute("detailDrifts", distinctDrifts(reports));
 		// R9-4 — 업로드 실패 격리 대기 안내 배너 (이 페이지 렌더에만 count 조회).
 		model.addAttribute("quarantinePendingCount", orphanQuarantineService.countPending());
 
 		return "maintenance/reconciliation/list";
+	}
+
+	/**
+	 * MK4-1 — 이 페이지에 실린 회차들이 관측한 문제를 신원(id) 기준으로 한 번씩만 추린다.
+	 *
+	 * <p>같은 문제의 관측이 여러 회차에 걸쳐 있어도 상세에 실리는 값은 문제의 현재 상태 하나뿐이라,
+	 * 어느 회차의 관측을 통해 왔든 내용이 같다. 그래서 먼저 만난 것을 쓰고 나머지는 버린다
+	 * (최신 회차가 앞에 오므로 첫 항목이 가장 최근 관측 경유분이다).</p>
+	 */
+	private static List<DriftResponse> distinctDrifts(List<DriftReportResponse> reports) {
+		Map<Long, DriftResponse> byId = new LinkedHashMap<>();
+		for (DriftReportResponse report : reports) {
+			for (DriftResponse drift : report.drifts()) {
+				byId.putIfAbsent(drift.id(), drift);
+			}
+		}
+		return List.copyOf(byId.values());
 	}
 }

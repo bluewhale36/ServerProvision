@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * TRASH_MARKER_STALE(잔여 마커 정리 필요) 해결 — 휴지통 실물 옆에 남은 마커 찌꺼기를 지운다.
@@ -35,7 +36,7 @@ public class StaleTrashMarkerCleanupResolution implements DriftResolution {
 	}
 
 	@Override
-	public void resolve(Drift drift, MarkableScanner scanner) {
+	public Optional<Path> resolve(Drift drift, MarkableScanner scanner) {
 		Markable resource = scanner.findTrashedById(drift.getResourceId())
 				.orElseThrow(DriftResolutionNotAllowedException::staleState);
 		if (!(resource instanceof LifecycleEntity lifecycle) || lifecycle.getTrashedPath() == null
@@ -52,5 +53,7 @@ public class StaleTrashMarkerCleanupResolution implements DriftResolution {
 		}
 		log.info("[reconciliation] 잔여 마커 정리 완료. {}#{} marker={}",
 				drift.getResourceType(), drift.getResourceId(), staleMarker);
+		// 잔여 마커는 옮기지 않고 지운다 — 되돌릴 도착지가 없다.
+		return Optional.empty();
 	}
 }

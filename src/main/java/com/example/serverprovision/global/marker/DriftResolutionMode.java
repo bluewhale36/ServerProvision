@@ -12,12 +12,55 @@ package com.example.serverprovision.global.marker;
  * 조합이 타입으로 표현 가능해 비채택 — 단일 enum 이 불법 상태를 원천 차단한다.</p>
  *
  * <ul>
- *   <li>{@link #NONE} — 시스템 해결 없음. 안내({@code recommendedAction})만.</li>
+ *   <li>{@link #NONE} — 시스템 해결 없음. 안내({@code operatorAction})만.</li>
  *   <li>{@link #MANUAL} — 사용자 확인([적용] 버튼) 후 시스템이 해결. 스캔 무인 적용 불가.</li>
  *   <li>{@link #AUTO} — MANUAL 에 더해 스캔 무인 적용 자격
  *       ({@code reconciliation.auto-apply.kinds} 옵트인 시 실제 발동).</li>
  * </ul>
  */
+@lombok.Getter
 public enum DriftResolutionMode {
-	NONE, MANUAL, AUTO
+
+	/**
+	 * 시스템이 대신 처리할 수 없다. 사람이 직접 해야 한다.
+	 */
+	NONE("자동 해결 불가",
+			"시스템이 대신 바꿔 줄 수 있는 것이 없습니다. 아래 '직접 해야 할 일' 을 사람이 수행해야 합니다.",
+			"gray"),
+
+	/**
+	 * 사람이 확인한 뒤 시스템이 처리한다. 점검이 무인으로 처리하지는 않는다.
+	 */
+	MANUAL("확인 후 자동 해결 가능",
+			"사람이 확인하면 시스템이 처리합니다. 되돌리기 어렵거나 사람의 판단이 필요한 종류라, 점검이 확인 없이 처리하지는 않습니다.",
+			"yellow"),
+
+	/**
+	 * MANUAL 에 더해 점검이 무인으로 처리할 자격도 있다(옵트인 설정 시 실제 발동).
+	 */
+	AUTO("자동 해결 가능",
+			"[해결] 을 누르면 시스템이 처리합니다. 설정에 따라 점검이 사람 확인 없이 처리하도록 맡길 수도 있습니다.",
+			"green");
+
+	/**
+	 * 배지에 쓰는 한 줄 명칭. "자동으로 되는가" 를 권장 조치 문장 속에 묻어 두지 않고 한눈에 보이게 한다.
+	 */
+	private final String label;
+
+	/**
+	 * 배지 옆 한 줄 설명 — 그 등급이 실제로 무엇을 뜻하는지.
+	 */
+	private final String description;
+
+	/**
+	 * 배지 색 이름({@code n-badge-<color>}). 색을 템플릿의 조건식으로 흩지 않고 등급이 직접 들고 있다 —
+	 * 등급이 늘면 여기 한 줄만 추가하면 된다.
+	 */
+	private final String badgeColor;
+
+	DriftResolutionMode(String label, String description, String badgeColor) {
+		this.label = label;
+		this.description = description;
+		this.badgeColor = badgeColor;
+	}
 }

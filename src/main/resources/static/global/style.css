@@ -444,6 +444,13 @@ code {
     color: var(--n-yellow);
 }
 
+/* 중립(회색) — 상태가 아니라 사실만 알리는 표기용. 값은 기존 회색 선례
+   (.n-miller-status-tag-off) 와 동일하게 맞춰 화면 안에서 회색이 갈라지지 않게 한다. */
+.n-badge-gray {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--n-text-muted);
+}
+
 /* Deprecated 식별용 작은 노란 점. Miller C2 처럼 공간이 좁은 라벨 옆에 부착. */
 .n-deprecated-dot {
     display: inline-block;
