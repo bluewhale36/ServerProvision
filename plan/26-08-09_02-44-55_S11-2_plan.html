@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S11-2 Plan — 승계 기록 : 계보 링크와 SUPERSEDED</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S11-2 : 승계 기록 — 계보 링크와 SUPERSEDED <span class="v2-badge">S11 하위</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S11-2 (fix)</span>
+    <span><strong>상위</strong> S11 (드리프트 판정 정합)</span>
+    <span><strong>선행</strong> S11-1 (거짓 전이 제거, commit <code>5febf11</code>)</span>
+    <span><strong>scope</strong> 재분류 승계의 기록 계층 — 계보 링크 컬럼 + <code>SUPERSEDED</code> 액션</span>
+    <span><strong>브랜치</strong> <code>fix/S11-2_drift-succession</code></span>
+    <span><strong>생성</strong> 2026-08-09 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (승계 타임라인)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>선행 슬라이스 상태</h4>
+        <table>
+          <thead><tr><th>슬라이스</th><th>상태</th><th>본 슬라이스와의 관계</th></tr></thead>
+          <tbody>
+            <tr><td>S11 (우산)</td><td><span class="chip mod">진행 중</span></td><td>상위 설계 · 판정 진리표 · 토론 확정 사항의 정본. 본 문서는 그 하위 실행 슬라이스이며 상위 설계를 재기술하지 않고 참조한다.</td></tr>
+            <tr><td>S11-1</td><td><span class="chip new">완료</span> <code>5febf11</code></td><td>마커 한 장의 유무로 문제 종류가 요동치던 <b>거짓 전이</b>를 제거했다. 그 결과 지금 남은 종류 변화는 전부 <b>정당한 재분류</b>다 — 본 슬라이스의 감지 대상이 깨끗해진 상태.</td></tr>
+            <tr><td>MK4-4</td><td><span class="chip keep">미착수</span></td><td>계보를 <b>화면에 보여 주는</b> 책임. 본 슬라이스는 기록만 남기고 표시는 넘긴다(S11 토론 D8).</td></tr>
+          </tbody>
+        </table>
+
+        <h4>남은 문제 — 정당한 재분류의 계보 단절</h4>
+        <p>한 자원에 생긴 하나의 사건이 점검 회차 사이에 <b>다른 종류의 문제로 모습을 바꾸는</b> 일이 있다. 운영자가 사라진 본체를 원위치에 되돌리면, 다음 점검에서 소실 문제는 더 이상 관측되지 않고 복귀 문제가 새로 열린다. 두 기록 모두 그 자체로는 사실이지만, 시스템에는 <b>둘이 같은 사건의 앞뒤</b>라는 표시가 없다.</p>
+
+        <div class="callout danger">
+          <b>실증 사례 — S11-1 CP5 의 A5</b> : 자원 7 의 미아 마커 문제가 <code>SCAN_UNOBSERVED</code>(점검에서 사라짐 — 자동 해소)로 닫히고, 같은 회차에 복귀 문제가 새로 열렸다. 화면상 두 줄은 서로 무관한 사건으로 보이며, 후임 문제의 <b>관측 횟수와 최초 발견 시각이 1 로 리셋</b>된다. 운영자가 "이 문제가 언제부터 있었나" 를 물으면 답이 4일 전이 아니라 오늘이 된다.
+        </div>
+
+        <h4>왜 이렇게 되는가 — 문제 신원이 3축이기 때문</h4>
+        <p>MK4-1 이 정한 문제 신원은 <b>(자원 종류 · 자원 번호 · 드리프트 종류)</b> 3축이다. 종류가 신원의 일부라서, 종류가 바뀌면 시스템의 눈에는 같은 문제의 변화가 아니라 <b>별개 문제의 닫힘 + 별개 문제의 열림</b>으로 보인다. 신원 정의를 2축으로 낮추면 서로 다른 문제가 한 줄에 뭉개지므로, 신원은 그대로 두고 <b>줄과 줄 사이를 잇는 링크</b>를 따로 두는 것이 이 슬라이스의 방향이다.</p>
+
+        <div class="callout">
+          <b>왜 지금 S11 안에서 하는가</b> : 승계 기록은 계보 링크 컬럼이라는 <b>스키마 변경</b>을 동반한다. 스키마를 건드리는 일은 판정 정합 캠페인(S11)이 열려 있는 동안 한 번에 처리하고, 화면 표시는 사용성 캠페인(MK4-4)으로 넘기는 것이 S11 토론 D8 의 확정 사항이다.
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>계보 링크를 저장한다.</b> drift 테이블에 <code>predecessor_drift_id</code>(BIGINT NULL) 컬럼과 자기 참조 외래키를 두고, 후임 행이 전임 행을 가리킨다(링크 방향 후임 → 전임 — S11 우산 plan §8 확정).</li>
+          <li><b>재분류를 자동 감지한다.</b> 점검 회차에서 관측되지 않아 닫히는 문제 <span class="mono">d</span> 에 대해, 같은 회차 관측 목록에서 <b>같은 자원 신원</b> 그리고 <b>다른 드리프트 종류</b> 그리고 <b>이번 회차에 새로 열린</b> 문제 <span class="mono">n</span> 을 찾는다.</li>
+          <li><b>찾으면 두 가지를 함께 기록한다.</b> ① <span class="mono">n</span> 의 계보 링크에 <span class="mono">d</span> 를 기록한다(비어 있을 때만) ② <span class="mono">d</span> 를 <code>SCAN_UNOBSERVED</code> 가 아니라 <code>SUPERSEDED</code> 로 닫는다.</li>
+          <li><b>계보 링크는 최초 1회만 할당된다.</b> 이미 값이 있으면 덮어쓰지 않는다 — 이력은 사후에 바뀌지 않아야 한다는 불변 원칙.</li>
+          <li><b>처리 이력의 문구가 사실과 일치해야 한다.</b> 재분류로 이어진 문제에 "점검에서 사라짐 — 자동 해소" 라고 적히지 않게 한다(S11 토론의 신뢰 기준 ⓑ).</li>
+          <li><b>화면은 바꾸지 않는다.</b> 실측 정정(CP5) — 닫힘 액션(<code>resolvedBy</code>)과 그 라벨은 <b>현재 어떤 화면 · 응답에도 노출되지 않는다</b>(해결 주체의 표시 자체가 MK4-4 소관). 따라서 액션 추가는 화면에 아무 변화도 만들지 않으며, 라벨 문구의 계약은 단위 테스트(U8)로 고정한다.</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>계보의 화면 표시</b>(전임 · 후임을 잇는 타임라인, "이 문제는 4일 전 소실에서 이어졌습니다" 안내) — <b>MK4-4</b> 로 넘긴다. 본 슬라이스가 남기는 것은 데이터뿐이다.</li>
+            <li><b>과거 파동의 소급 복원</b> — 반영 시점 이후의 점검 회차부터 계보가 쌓인다. S11-1 이 관측한 1회성 재분류를 포함해 그 이전 기록은 손대지 않는다(사후 조작 금지).</li>
+            <li><b>다대다 계보</b>(전임 여러 개를 한 후임에 매다는 중간 테이블) — 실사용 관찰 전의 조기 일반화. D-2 참조.</li>
+            <li><b>드리프트 종류 자체의 신설 · 개명</b> — 종류 목록은 현행 그대로다. 이번에 늘어나는 것은 <b>처리 액션</b> 한 종류뿐이다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 승계 타임라인 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">시나리오를 고르고 <b>회차를 한 칸씩 진행</b>하면, 점검이 돌 때마다 drift 행이 열리고 닫히는 모습과 계보 링크가 그어지는 순간을 볼 수 있다. 아래 판정 패널은 <b>화면 서사가 읽는 것과 같은 조건식</b>(같은 자원 · 다른 종류 · 이번 회차 신규)을 그대로 평가해 보여 준다 — 서술과 판정이 갈라질 수 없는 구조다.</p>
+
+        <div class="ux-wrap" id="demo">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="seg" data-scen="basic">① 기본 재분류</button>
+            <button class="seg" data-scen="fanout">② 후임 다수 (fan-out)</button>
+            <button class="seg" data-scen="multipred">③ 전임 다수</button>
+          </div>
+          <div class="ux-toolbar" style="margin-top:8px;">
+            <span class="group-label">타임라인 :</span>
+            <span id="demo-timeline"></span>
+            <span class="tip"><button class="n-demo-btn" data-nav="-1">◀ 이전</button></span>
+            <span class="tip"><button class="n-demo-btn" data-nav="1">다음 ▶</button></span>
+          </div>
+
+          <div class="ux-message" id="demo-message" style="margin-top:12px;"></div>
+
+          <h4 style="margin-top:14px;">drift 테이블 (현재 상태)</h4>
+          <div id="demo-rows"></div>
+
+          <h4>처리 이력 (닫힌 문제)</h4>
+          <div id="demo-log"></div>
+
+          <h4>감지 규칙 판정 — <code>closeUnobserved</code> 가 이번 회차에 평가한 것</h4>
+          <div class="ux-caps" id="demo-caps"></div>
+        </div>
+
+        <div class="callout warn" style="font-size:12.5px;">
+          데모의 드리프트 종류 이름(소실 · 복귀 · 경로 이동 · 서명 불일치)은 <b>읽기 쉬우라고 붙인 표기</b>다. 실제 종류 열거값은 현행 그대로 쓰며 이 슬라이스에서 신설하지 않는다.
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 현행</h4>
+            <pre><code>closeUnobserved(d):
+  d.close(<span class="diff-del">SCAN_UNOBSERVED</span>)
+  // 종류가 바뀐 것인지
+  // 정말 해소된 것인지 구분 없음
+  // 후임의 관측 횟수 · 최초 발견 = 리셋</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 본 슬라이스</h4>
+            <pre><code>closeUnobserved(d):
+  n = 후임 후보 (같은 자원
+        AND 다른 종류
+        AND 이번 회차 신규)
+  if (n != null)
+    <span class="diff-add">n.linkPredecessor(d)</span>   // 최초 1회
+    d.close(<span class="diff-add">SUPERSEDED</span>)
+  else
+    d.close(SCAN_UNOBSERVED)</code></pre></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 후임 판정과 §4 의 감지 규칙, Step 8 단위 테스트가 같은 세 조건(<span class="mono">같은 자원 · 다른 종류 · 이번 회차 신규</span>)을 읽는다. 데모 JS 의 <code>demoSucceeds()</code> 는 서버 감지 규칙의 1:1 재현이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>URL — 신설 0 · 변경 0</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td>Maintenance 점검 화면 <span class="chip keep">현행 그대로</span></td><td>실측 정정(CP5) — 처리 이력을 조회하는 별도 화면은 존재하지 않고, 닫힘 액션 라벨은 어디에도 노출되지 않는다. 닫힌 문제는 상태 <b>해결됨</b> 으로만 표기된다(라벨 노출은 MK4-4).</td><td>200 (뷰)</td></tr>
+            <tr><td>—</td><td>정기 점검(스캔) 실행 경로 <span class="chip keep">현행 그대로</span></td><td><code>PathReconciliationService</code> 내부 동작만 확장. 진입 경로 · 파라미터 · 응답 형태 모두 무변경.</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p class="mono" style="color:var(--text-muted);font-size:12px;">화면 경로 문자열은 현행 코드가 정본이므로 이 문서에 옮겨 적지 않는다 — CP2 착수 시 실측해 확정한다.</p>
+
+        <h4>점검 1회차 내부 흐름</h4>
+        <div class="seq">
+          <div class="actor a1">정기 점검 (스캐너)</div><div class="actor a2">PathReconciliationService</div><div class="actor a3">drift 테이블</div>
+
+          <div class="step a1">자원 · 마커 스캔 → 이번 회차 관측 목록 산출</div>
+          <div class="step a2"><code>linkObservations</code> — 관측된 종류를 열린 문제에 연결</div>
+          <div class="step a3">기존 행 <span class="mono">lastObservedAt</span> 갱신</div>
+
+          <div class="step a1"></div>
+          <div class="step a2">열린 문제가 없는 관측은 신규 열림</div>
+          <div class="step a3">INSERT (<span class="mono">firstDetectedAt</span> = 이번 스캔 시각)</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>closeUnobserved</code> — 관측되지 않은 열린 문제를 순회</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><b>후임 후보 탐색</b> : 같은 자원 · 다른 종류 · 이번 회차 신규</div>
+          <div class="step a3">후보는 이미 영속 상태(ID 보유) — 순서상 <code>linkObservations</code> 가 먼저 돌았기 때문</div>
+
+          <div class="step a1"></div>
+          <div class="step a2">후임 있음 → 후임의 계보 링크에 전임 기록(비어 있을 때만) + 전임을 <code>SUPERSEDED</code> 로 닫음</div>
+          <div class="step a3">UPDATE <code>predecessor_drift_id</code> · 처리 이력 기록</div>
+
+          <div class="step a1"></div>
+          <div class="step a2">후임 없음 → 종전대로 <code>SCAN_UNOBSERVED</code> 로 닫음</div>
+          <div class="step a3">UPDATE 처리 액션</div>
+        </div>
+
+        <div class="callout"><b>순서가 곧 설계 근거다</b> — 후임 행이 먼저 영속화되어 식별자를 갖기 때문에 별도의 2패스 없이 그 자리에서 링크를 걸 수 있다. 만약 닫기가 먼저 돌았다면 후임의 식별자가 없어 지연 배선이 필요했을 것이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>Drift 엔티티 — 추가 필드 1</h4>
+        <table>
+          <thead><tr><th>필드</th><th>타입</th><th>의미</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>predecessor</code></td><td><code>Drift</code> (다대일 · 지연 로딩 · nullable)</td><td>이 문제로 이어지기 직전의 문제. 없으면 <span class="mono">null</span>(대부분의 행).</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>(컬럼) <code>predecessor_drift_id</code></td><td><code>BIGINT NULL</code> + 자기 참조 외래키(RESTRICT) + 조회 인덱스</td><td>위 연관의 물리 컬럼.</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><span class="mono">firstDetectedAt</span> · <span class="mono">lastObservedAt</span> · 관측 횟수 · 신원 3축</td><td>현행</td><td>변경 없음. 신원 정의(자원 종류 · 자원 번호 · 드리프트 종류)는 <b>그대로 3축</b>이며 이번 변경이 건드리지 않는다.</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>Primitive Obsession 회피</b> — 전임을 <code>Long predecessorId</code> 원시 필드로 들지 않고 <b><code>Drift</code> 연관</b>으로 든다. 계보를 따라가는 코드가 식별자를 들고 저장소를 다시 조회하지 않아도 되고, 존재하지 않는 식별자를 담을 수 없다는 보장을 외래키와 타입이 함께 준다. 지연 로딩이라 계보를 안 쓰는 조회 경로에는 비용이 붙지 않는다.</div>
+
+        <h4>도메인 메서드 — 최초 1회 고정</h4>
+        <pre><code>// Drift : 계보 링크는 한 번 정해지면 바뀌지 않는다 (이력 불변)
+public void linkPredecessor(Drift predecessor) {
+    if (this.predecessor != null) return;   // 이미 있으면 불변 — 덮어쓰지 않는다
+    this.predecessor = predecessor;
+}</code></pre>
+        <p>재할당을 예외로 거절하지 않고 조용히 무시하는 이유는, 이 경로가 사용자 액션이 아니라 <b>점검 루프 내부</b>라서다. 같은 회차에 후보가 여러 번 평가되더라도 첫 결정이 유지되면 충분하고, 여기서 예외를 던지면 점검 전체가 한 자원 때문에 중단된다. 예외는 진짜 비정상에만 쓴다는 원칙의 적용이다.</p>
+
+        <h4>DriftHandlingAction — 액션 1종 추가</h4>
+        <table>
+          <thead><tr><th>상수</th><th>라벨</th><th><code>reversibleFor</code></th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>SUPERSEDED</code></td><td>재분류로 이어짐</td><td>항상 <span class="mono">false</span></td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>SCAN_UNOBSERVED</code></td><td>(현행 문구 유지)</td><td>현행 유지</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+        <p><code>reversibleFor</code> 가 항상 <span class="mono">false</span> 인 근거 — 되돌리기는 <b>시스템이 자원에 가한 변경</b>을 취소하는 기능인데, 승계로 닫히는 경우 시스템은 아무것도 바꾸지 않았다. 문제가 다른 종류로 이어졌다는 사실을 적었을 뿐이므로 되돌릴 대상이 없다.</p>
+
+        <div class="state-flow">열린 문제 ──점검에서 미관측 + 후임 있음──▶ 닫힘 (SUPERSEDED)   ← 후임이 predecessor 로 이 행을 가리킴
+열린 문제 ──점검에서 미관측 + 후임 없음──▶ 닫힘 (SCAN_UNOBSERVED)  ← 종전 동작 그대로</div>
+
+        <h4>스키마 변경이 필요 없는 부분</h4>
+        <p>처리 액션은 문자열로 저장되고 컬럼이 <span class="mono">VARCHAR(32)</span> 이므로, 10 자인 <code>SUPERSEDED</code> 를 넣는 데 DDL 이 필요 없다. 이번 DDL 은 <b>계보 링크 컬럼 한 건</b>뿐이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>뷰 — <b>변경 0</b>. 실측 정정(CP5): 닫힘 액션은 어떤 뷰에도 노출되지 않으므로 표기 변화도 없다.</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>Controller — <b>변경 0</b>. 새 엔드포인트 없음.</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td>Request / Response DTO — <b>변경 0</b>. 계보 값을 화면에 싣는 것은 MK4-4 소관.</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td><code>PathReconciliationService</code> 의 <code>closeUnobserved</code> 확장 지점 확정 — 후임 탐색 헬퍼 시그니처.</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6</td><td>Repository — <b>추가 0</b>. 후임 후보는 이번 회차의 메모리 목록에서 찾으므로 새 조회 메서드가 필요 없다.</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td><code>Drift</code> 에 계보 연관 + <code>linkPredecessor</code>, <code>DriftHandlingAction.SUPERSEDED</code> 추가</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>감지 규칙 본체 + 단위 테스트 8 묶음 + HTTP 통합 1 (§6)</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td><code>ddl/S11-2_drift_predecessor.sql</code> 산출 → 사용자가 ALTER 권한 계정으로 적용 → <code>SHOW CREATE TABLE</code> 검증</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (A1 · A2 · B1 · B2 · C1 — §9)</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>11</td><td>report html 산출 (CP5 계획 · 수행 · 증거)</td><td><span class="chip cp6">CP6</span></td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>Step 9 의 권한 제약</b> — <code>claude_code</code> 계정은 ALTER 를 갖고 있지 않다. dev DB(3306) 적용은 <b>사용자가 ALTER 권한 계정으로</b> 수행하고, Claude 는 스크립트 산출과 적용 후 <code>SHOW CREATE TABLE</code> 검증만 맡는다. 샌드박스 DB(3327)는 <span class="mono">ddl-auto=update</span> 라 컬럼이 자가 반영된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 테스트 — 감지 규칙 (8 묶음)</h4>
+        <p>하네스는 기존 <code>PathReconciliationServiceTest</code> 를 재사용하되, 승계 시나리오가 독립적으로 읽히면 전용 테스트 클래스로 분리한다(파일 배치는 CP4 착수 시 기존 구조를 실측해 결정).</p>
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>U1</td><td>감지 happy — 같은 자원에 다른 종류가 이번 회차 신규로 열리고 전임이 미관측</td><td>후임의 계보 링크에 전임 기록 + 전임이 <code>SUPERSEDED</code> 로 닫힘</td></tr>
+            <tr><td>U2</td><td>비감지 — <b>다른 자원</b>의 신규 문제만 있는 경우</td><td>링크 없음 + <code>SCAN_UNOBSERVED</code></td></tr>
+            <tr><td>U3</td><td>비감지 — 후보가 <b>신규가 아님</b>(기존 열린 문제의 재관측)</td><td>링크 없음 + <code>SCAN_UNOBSERVED</code></td></tr>
+            <tr><td>U4</td><td>비감지 — 후보가 <b>같은 종류</b>(즉 같은 신원이라 애초에 재관측 경로)</td><td>링크 없음 + <code>SCAN_UNOBSERVED</code></td></tr>
+            <tr><td>U5</td><td>fan-out — 같은 자원에 신규 종류 2 개</td><td>후임 2 개 모두 같은 전임을 가리킴 + 전임 1 회 <code>SUPERSEDED</code></td></tr>
+            <tr><td>U6</td><td>계보 링크 최초 고정 — 이미 값이 있는 후임에 재할당 시도</td><td>기존 값 불변(덮어쓰기 없음, 예외 없음)</td></tr>
+            <tr><td>U7</td><td>전임 다수 — 같은 회차에 닫히는 전임 여러 개 + 신규 1 개</td><td><span class="mono">lastObservedAt</span> 이 가장 최신인 전임만 링크 · <code>SUPERSEDED</code>, 나머지는 <code>SCAN_UNOBSERVED</code></td></tr>
+            <tr><td>U8</td><td>enum 계약 — <code>DriftHandlingAction.SUPERSEDED</code></td><td>라벨이 <b>재분류로 이어짐</b>이고 <code>reversibleFor</code> 가 어떤 입력에도 <span class="mono">false</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>사용자 액션 통합 테스트 (HTTP 계층)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td><b>해당 없음(실측 정정, CP5)</b> — 닫힘 액션 라벨을 싣는 응답 · 화면이 존재하지 않아 통합 테스트가 성립 불가. 라벨 · reversible 계약은 단위 테스트 U8 이 고정하고, 노출은 MK4-4 소관.</td><td>0</td></tr>
+            <tr><td>400</td><td><b>해당 없음</b> — 새 입력 폼 · 새 요청 파라미터가 없다(DTO 변경 0).</td><td>0</td></tr>
+            <tr><td>404</td><td><b>해당 없음</b> — 새 조회 경로 · 부모-자식 URL 이 없어 forging 대상이 생기지 않는다.</td><td>0</td></tr>
+            <tr><td>409</td><td><b>해당 없음</b> — 신설 <code>ConflictException</code> 하위가 0 이다(§7).</td><td>0</td></tr>
+            <tr><td>500</td><td><b>해당 없음</b> — 외래키 RESTRICT 위반은 현재 코드에 삭제 경로가 없어 도달할 수 없다. 도달 경로가 생기는 시점의 처리 정책은 §8 위험 ①.</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>범주가 비는 이유를 남기는 까닭</b> — 이 슬라이스는 HTTP 표면을 늘리지 않고 점검 루프 내부만 바꾼다. 빈 칸을 지우면 "빠뜨린 것" 과 "해당 없는 것" 이 구분되지 않으므로 사유와 함께 남긴다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><b>신설 없음</b></td><td>—</td><td><span class="chip keep">변경 0</span></td><td>이 슬라이스가 만드는 것은 기록뿐이다. 사용자 액션도, 거절해야 할 요청도 늘지 않는다.</td></tr>
+            <tr><td>계보 재할당 시도</td><td>—</td><td><span class="chip keep">예외 아님</span></td><td>점검 루프 내부의 멱등 처리로 흡수한다(§4). 예외로 올리면 자원 하나 때문에 점검 전체가 끊긴다.</td></tr>
+            <tr><td>외래키 RESTRICT 위반</td><td>(도달 불가)</td><td><span class="chip opt">의도된 시끄러움</span></td><td>drift 행에 하드 삭제 경로가 생기면 제약 위반으로 요란하게 드러나게 두는 것이 목적이다 — 조용히 계보가 끊기는 쪽이 나쁘다. 그때 정책을 다시 정한다.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">신규 예외가 0 이므로 <code>.claude/domain-conventions/new-exception.md</code> 관문은 이번 슬라이스에서 열리지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>경계 결정 — 채택안과 탈락 사유</h4>
+
+        <div class="card-grid">
+          <div class="card v-green">
+            <h4>D-1 후임 다수</h4>
+            <p style="font-size:12px;margin:0 0 6px;"><b>상황</b> — 같은 자원에 신규 종류가 2 개 이상 열림.</p>
+            <ul>
+              <li><b>채택</b> : 신규 전부가 같은 전임을 가리킨다(fan-out). 링크 컬럼이 <b>후임 쪽</b>에 있어 별도 구조 없이 자연히 지원된다.</li>
+              <li><b>탈락</b> : 하나만 골라 링크 — 택일 근거가 없고 나머지 후임의 계보가 사라져 정보 손실이다.</li>
+            </ul>
+          </div>
+          <div class="card v-orange">
+            <h4>D-2 전임 후보 다수</h4>
+            <p style="font-size:12px;margin:0 0 6px;"><b>상황</b> — 같은 자원의 열린 문제 여러 개가 같은 회차에 닫히고 신규 1 개가 열림.</p>
+            <ul>
+              <li><b>채택</b> : 후임의 전임은 1 개. <span class="mono">lastObservedAt</span> 이 가장 최신인 전임을 고른다 — 닫힘 처리 순서에 의존하지 않는 결정성을 얻는다. 나머지는 종전대로 <code>SCAN_UNOBSERVED</code>.</li>
+              <li><b>탈락</b> : 다대다 중간 테이블 — 실사용 관찰 전의 조기 일반화다("갈라지는 시점에 분리" 원칙). 필요성이 실증되면 MK4-4 시점에 재평가한다.</li>
+            </ul>
+          </div>
+          <div class="card v-purple">
+            <h4>D-3 전임의 닫힘 액션</h4>
+            <p style="font-size:12px;margin:0 0 6px;"><b>상황</b> — 승계로 닫히는 전임을 무엇으로 기록할 것인가.</p>
+            <ul>
+              <li><b>채택</b> : <code>SUPERSEDED</code> 신설. 처리 이력은 사실과 다른 줄을 담지 않아야 한다는 S11 토론의 신뢰 기준 ⓑ 를 따른다.</li>
+              <li><b>탈락</b> : <code>SCAN_UNOBSERVED</code> 를 유지한 채 링크만 기록 — "점검에서 사라짐 — 자동 해소" 라는 문구가 재분류라는 사실을 가린다. 데이터는 맞는데 화면이 거짓말하는 상태가 된다.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>Open Questions (CP1 결정 요청)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Q1</td>
+              <td><b>D-2 의 동률 처리</b> — 점검 회차 의미상, 같은 회차에 함께 닫히는 전임들은 직전 회차에 함께 관측되었을 가능성이 높아 <span class="mono">lastObservedAt</span> 이 <b>같아지는 경우가 흔하다</b>. 이때 무엇으로 하나를 고를 것인가.</td>
+              <td><b>확정(2026-08-09 CP1 승인)</b> — 2 차 정렬키로 drift 식별자 오름차순(= 먼저 열린 전임). 근거는 ① 같은 회차라면 "먼저 시작된 사건" 이 계보의 뿌리에 가깝고 ② 식별자는 재실행해도 변하지 않아 결정성이 보장되기 때문이다. 검토된 대안(해결 인과 기반 배정)은 병행 드리프트 해결의 순서 의존성(공유 자원 row · 실물 매개, 선행 해결이 후행 해결을 409 로 만듦)과 전임 풀 구조(APPLY 로 닫힌 문제는 풀에 없음) 때문에 비채택 — 그 순서 의존성 자체는 R 전수 감사 입력으로 등재했다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>기확정 사항 — 재론하지 않고 참조만</h4>
+        <ul>
+          <li><b>저장형</b>(도출형 · note 문자열 대신 컬럼) — S11 우산 plan §8.</li>
+          <li><b>링크 방향은 후임 → 전임</b> — 같은 곳. fan-out 을 구조 변경 없이 담을 수 있는 것이 이 방향의 이득이다(D-1 과 맞물린다).</li>
+          <li><b>기록과 표시의 분리</b> — S11 토론 라운드 3 · D8.</li>
+          <li><b>후임의 관측 횟수 · 최초 발견 시각은 물려받지 않는다</b> — S11 토론 라운드 3 에서 확정("연속은 별도 컬럼 없이 링크 사슬을 따라가며 계산 — 데이터 이관 불요"). 그 값들은 "이 종류의 문제가 언제부터 관측되었나" 라는 사실이라 덮어쓰면 다른 거짓이 되고, 사용자가 원하는 "이 사건이 언제 시작되었나" 는 계보를 거슬러 올라가 표시 계층(MK4-4)에서 합산한다.</li>
+        </ul>
+
+        <h4>위험 — 적대적 자기 비판</h4>
+        <ol>
+          <li><b>외래키 RESTRICT 의 대가</b> : 앞으로 drift 행을 하드 삭제하는 경로(보존 기간 정리 등)가 생기면 제약 위반으로 실패한다. 이것은 결함이 아니라 <b>의도된 시끄러움</b>이다 — 계보가 조용히 끊기는 것보다 낫다. 삭제 정책이 실제로 필요해지는 시점에 CASCADE · SET NULL · 소프트 정리 중 무엇을 쓸지 다시 결정한다.</li>
+          <li><b>같은 회차 다중 재분류의 순서 의존</b> : D-2 의 <span class="mono">lastObservedAt</span> 규칙으로 선해소했다. 남은 동률 문제는 Q1 로 올렸다 — 이 부분을 승인 없이 임의 구현하지 않는다.</li>
+          <li><b>소급 없음</b> : 계보는 반영 이후의 점검부터 쌓인다. S11-1 이 관측한 1 회성 재분류를 포함한 과거 파동은 링크가 비어 있다. MK4-4 의 화면은 <b>링크가 없는 것이 정상인 행</b>을 자연스럽게 다뤄야 한다.</li>
+          <li><b>감지 조건이 너무 넓지 않은가</b> : 같은 자원에 무관한 두 문제가 우연히 같은 회차에 하나는 닫히고 하나는 열리면 잘못된 계보가 그어질 수 있다. 다만 그 경우에도 <b>같은 자원</b>이라는 사실은 참이고, 링크는 표시 계층에서 참고 정보로 쓰일 뿐 어떤 자동 조치도 유발하지 않는다. 조건을 더 좁히는 것(예: 종류 쌍 화이트리스트)은 오탐보다 미탐이 더 나쁜 이 맥락에서 이르다고 판단했다 — MK4-4 에서 실사용 관찰 후 재평가한다.</li>
+        </ol>
+
+        <h4>동반 수정 · 문서</h4>
+        <table>
+          <thead><tr><th>대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>CLAUDE.md</td><td><span class="chip keep">변경 0</span> — 새 규약 · 새 인벤토리 계열이 생기지 않는다.</td></tr>
+            <tr><td>관련 화면</td><td><span class="chip keep">변경 0</span> — 실측 정정(CP5): 닫힘 액션 라벨은 노출 표면이 없어 화면 변화 자체가 없다. 계보 · 라벨 표시는 MK4-4.</td></tr>
+            <tr><td><code>ddl/</code></td><td><span class="chip new">신규 1</span> — <code>S11-2_drift_predecessor.sql</code>. 적용은 사용자 몫(Step 9).</td></tr>
+          </tbody>
+        </table>
+
+        <h4>브랜치 배치</h4>
+        <p><code>fix/S11-2_drift-succession</code> 을 S11-1 커밋(<code>5febf11</code>) 위에 쌓는 스택 브랜치로 판다. 승계 감지는 <b>분류가 이미 올바르다는 전제</b> 위에서만 성립하기 때문이다 — S11-1 이 없으면 마커 한 장에 요동치는 거짓 전이까지 계보로 기록해 버린다. PR 은 S11-1 이 병합된 뒤 <code>dev</code> 를 base 로 정리한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="S11-2-verify-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (기존 통과 수 이상)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span><code>ddl/S11-2_drift_predecessor.sql</code> 적용 후 <code>SHOW CREATE TABLE</code> 에 컬럼 · 외래키 · 인덱스 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="validate"> <span><span class="mono">ddl-auto=validate</span> 로 기동 시 스키마 불일치 0</span></label></li>
+        </ul>
+
+        <h4>기능 (CP5 샌드박스 — 예비 계획)</h4>
+        <p>환경은 M 샌드박스를 재사용한다(DB 3327, <span class="mono">ddl-auto=update</span> 로 컬럼 자가 추가). 항목 식별자는 계획과 수행이 1:1 로 대조되도록 미리 붙인다.</p>
+        <ul class="check-list" data-storage="S11-2-verify-func">
+          <li><label><input type="checkbox" data-key="a1"> <span><b>A1</b> 자원 5 로 재분류 유발 — 소실이 열린 상태에서 본체를 원위치에 복원한 뒤 점검 실행 → 복귀 문제가 새로 열리고 소실이 <code>SUPERSEDED</code> 로 닫히며, DB 에서 <code>predecessor_drift_id</code> 값이 후임 행에 채워진 것을 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span><b>A2</b> (실측 정정) 전임의 <code>resolved_by=SUPERSEDED</code> · <code>drift_handling</code> 행 · <code>reversible=false</code> 를 DB 로 채증하고, 화면에는 라벨이 노출되지 않음이 의도된 현재 상태임을 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="b1"> <span><b>B1</b> 무관한 자원이 같은 회차에 함께 변해도 <b>링크가 생기지 않음</b>(같은 자원 조건의 실지 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>B2</b> 승계 없는 단순 해소는 종전대로 <code>SCAN_UNOBSERVED</code> 로 닫힘 — 회귀 없음</span></label></li>
+          <li><label><input type="checkbox" data-key="c1"> <span><b>C1</b> 액션 라벨 외에 화면 변화가 없음을 확인하고, 계보의 시각적 표시는 MK4-4 소관임을 report 에 명시</span></label></li>
+        </ul>
+
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="S11-2-verify-reg">
+          <li><label><input type="checkbox" data-key="r1"> <span>기존 드리프트 탐지 · 해결 경로의 동작 불변(계보가 없는 행이 정상으로 다뤄짐)</span></label></li>
+          <li><label><input type="checkbox" data-key="r2"> <span>S11-1 이 제거한 거짓 전이가 재발하지 않음 — 마커 한 장 변화로 계보가 그어지지 않는지 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="r3"> <span>되돌리기 기능이 <code>SUPERSEDED</code> 항목을 대상으로 노출되지 않음(<code>reversibleFor</code> = false)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일 / 대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/S11-2_drift_predecessor.sql</code></td><td>계보 링크 컬럼 + 자기 참조 외래키(RESTRICT) + 조회 인덱스</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>Drift</code> (entity)</td><td>계보 연관 필드 + <code>linkPredecessor</code> 도메인 메서드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PathReconciliationService</code> — <code>closeUnobserved</code></td><td>후임 후보 탐색 + 링크 기록 + 닫힘 액션 분기</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DriftHandlingAction</code> (enum)</td><td><code>SUPERSEDED</code> 상수 · 라벨 · <code>reversibleFor</code></td></tr>
+            <tr><td><span class="chip add">테스트</span></td><td>감지 규칙 단위 테스트 (U1~U8)</td><td>기존 <code>PathReconciliationServiceTest</code> 하네스 재사용 또는 전용 클래스 신설</td></tr>
+            <tr><td><span class="chip add">테스트</span></td><td>처리 이력 라벨 통합 테스트</td><td>HTTP 계층에서 <b>재분류로 이어짐</b> 노출 1 건</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>뷰 · Controller · DTO · Repository</td><td>변경 0 — 새 표면 없음, 후임 후보는 메모리 목록에서 탐색</td></tr>
+          </tbody>
+        </table>
+        <p class="mono" style="color:var(--text-muted);font-size:12px;">수정 3 · 신규 1 · 테스트 2 · 유지 4 부류. 파일 절대경로는 현행 패키지 구조가 정본이므로 CP2 착수 시 실측해 확정한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>MK4-4 — 계보의 화면 표시</b>. 본 슬라이스가 남긴 링크를 거슬러 올라가 "이 문제는 N 일 전 소실에서 이어졌습니다" 를 보여 주고, 사건 단위의 최초 발견 시각 · 누적 관측 횟수를 <b>표시 계층에서 합산</b>한다(기확정 — 계보 합산은 표시 계층의 몫, S11 토론 라운드 3). 링크가 비어 있는 과거 행을 자연스럽게 다루는 것이 이 슬라이스의 전제다.</li>
+          <li><b>S11 우산 마감</b>. S11-1(거짓 전이 제거) + S11-2(승계 기록)로 판정 정합 캠페인의 데이터 계층이 닫힌다. 남은 사용성 개선은 MK4 계열이 받는다.</li>
+          <li><b>drift 보존 정책</b>. 외래키 RESTRICT 가 삭제 경로와 충돌하는 시점(§8 위험 ①)에 별도 단계로 다룬다 — 지금 미리 정하지 않는다.</li>
+        </ol>
+        <ul class="check-list" data-storage="S11-2-milestone">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 — 본 plan 승인 (Q1 결정 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp23"> <span>CP2 · CP3 — Service 확장 지점 · Entity · enum</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4"> <span>CP4 — 테스트 green + DDL 적용 검증</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 — 샌드박스 검증 (A1 · A2 · B1 · B2 · C1)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"> <span>CP6 — report html 산출</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 — 사용자 E2E 후 <code>dev</code> 병합</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '#') return;
+      e.preventDefault();
+      var target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+  });
+  document.getElementById('btn-collapse').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+  });
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(function (d) {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().indexOf(q) >= 0) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(function (ul) {
+    var key = ul.dataset.storage;
+    var stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', function () {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 승계 타임라인 시뮬레이터
+  //  demoSucceeds() 는 서버 감지 규칙(같은 자원 · 다른 종류 · 이번 회차 신규)의 1:1 재현이다.
+  // ─────────────────────────────────────────────────────────────
+  var SCEN = {
+    basic: {
+      label: '① 기본 재분류', idBase: 101,
+      timeline: [
+        { day: 1, kind: 'scan', label: '1일차 점검',
+          note: 'ISO #7 과 ISO #9 의 본체가 사라진 것을 처음 관측한다 — 소실 문제가 각각 열린다.',
+          obs: [{ res: 'ISO #7', type: '소실' }, { res: 'ISO #9', type: '소실' }] },
+        { day: 2, kind: 'scan', label: '2일차 점검',
+          note: '변화 없음 — 두 소실 문제가 다시 관측되어 관측 횟수만 오른다.',
+          obs: [{ res: 'ISO #7', type: '소실' }, { res: 'ISO #9', type: '소실' }] },
+        { day: 3, kind: 'event', label: '3일차 운영자 조치',
+          note: '운영자가 ISO #7 본체를 원위치에 복원한다. ISO #9 는 다른 경위로 관측 대상에서 빠진다. 점검 회차가 아니므로 기록은 아직 그대로다.' },
+        { day: 4, kind: 'scan', label: '4일차 점검',
+          note: 'ISO #7 의 소실은 더 이상 관측되지 않고 같은 자원에 복귀 문제가 새로 열린다 → 승계 감지. ISO #9 의 소실도 닫히지만 같은 자원의 신규 문제가 없어 종전대로 닫힌다.',
+          obs: [{ res: 'ISO #7', type: '복귀' }] }
+      ]
+    },
+    fanout: {
+      label: '② 후임 다수 (fan-out)', idBase: 201,
+      timeline: [
+        { day: 1, kind: 'scan', label: '1일차 점검',
+          note: 'ISO #12 의 소실 문제가 열린다.',
+          obs: [{ res: 'ISO #12', type: '소실' }] },
+        { day: 2, kind: 'event', label: '2일차 운영자 조치',
+          note: '운영자가 본체를 되돌리되 다른 디렉토리에 두고, 그 과정에서 마커 서명도 어긋난다.' },
+        { day: 3, kind: 'scan', label: '3일차 점검',
+          note: '소실은 사라지고 같은 자원에 신규 문제가 두 종류 열린다 → 둘 다 같은 전임을 가리킨다. 링크 컬럼이 후임 쪽에 있어 구조 변경 없이 담긴다.',
+          obs: [{ res: 'ISO #12', type: '경로 이동' }, { res: 'ISO #12', type: '서명 불일치' }] }
+      ]
+    },
+    multipred: {
+      label: '③ 전임 다수', idBase: 301,
+      timeline: [
+        { day: 1, kind: 'scan', label: '1일차 점검',
+          note: 'ISO #21 에 서로 다른 종류의 문제 두 개가 함께 열린다.',
+          obs: [{ res: 'ISO #21', type: '소실' }, { res: 'ISO #21', type: '서명 불일치' }] },
+        { day: 2, kind: 'event', label: '2일차 운영자 조치',
+          note: '운영자가 자원을 통째로 재배치한다 — 두 문제 모두 다음 점검에서 관측되지 않게 된다.' },
+        { day: 3, kind: 'scan', label: '3일차 점검',
+          note: '전임 후보가 둘인데 후임은 하나다 → lastObservedAt 최신 우선, 동률이면 식별자가 작은 쪽(먼저 열린 전임)을 고른다. 이 동률 규칙은 Q1 로 승인 대기 중인 잠정 규칙이다.',
+          obs: [{ res: 'ISO #21', type: '경로 이동' }] }
+      ]
+    }
+  };
+
+  var DEMO = { scen: 'basic', step: 0 };
+
+  // 서버 감지 규칙의 1:1 재현 — 같은 자원 · 다른 종류 · 이번 회차 신규
+  function demoSucceeds(cand, closing, scanDay) {
+    return {
+      sameRes: cand.res === closing.res,
+      diffType: cand.type !== closing.type,
+      fresh: cand.first === scanDay,
+      get all() { return this.sameRes && this.diffType && this.fresh; }
+    };
+  }
+
+  function demoBuild(scenKey, upto) {
+    var sc = SCEN[scenKey], rows = [], log = [], seq = sc.idBase, trace = [];
+    for (var i = 0; i <= upto; i++) {
+      var t = sc.timeline[i];
+      var last = (i === upto);
+      if (last) trace = [];
+      if (t.kind !== 'scan') { if (last) trace.push({ kind: 'note', text: '점검 회차가 아님 — 판정 없음' }); continue; }
+      // ① linkObservations — 관측을 열린 문제에 연결, 없으면 신규 열림
+      t.obs.forEach(function (o) {
+        var open = rows.filter(function (r) { return r.status === 'OPEN' && r.res === o.res && r.type === o.type; })[0];
+        if (open) { open.last = t.day; open.count++; }
+        else rows.push({ id: seq++, res: o.res, type: o.type, status: 'OPEN', first: t.day, last: t.day, count: 1, action: null, pred: null });
+      });
+      // ② closeUnobserved — 관측되지 않은 열린 문제 순회
+      var unobs = rows.filter(function (r) {
+        return r.status === 'OPEN' && !t.obs.some(function (o) { return o.res === r.res && o.type === r.type; });
+      });
+      var fresh = rows.filter(function (r) { return r.status === 'OPEN' && r.first === t.day; });
+      var linked = {};
+      fresh.forEach(function (n) {
+        var scored = unobs.map(function (d) { return { d: d, v: demoSucceeds(n, d, t.day) }; });
+        if (last) scored.forEach(function (s) {
+          trace.push({ kind: 'eval', n: n, d: s.d, v: s.v });
+        });
+        var cands = scored.filter(function (s) { return s.v.all; }).map(function (s) { return s.d; });
+        if (!cands.length) return;
+        var pick = cands.slice().sort(function (a, b) { return (b.last - a.last) || (a.id - b.id); })[0];
+        if (n.pred === null) { n.pred = pick.id; linked[pick.id] = true; }
+        if (last && cands.length > 1) trace.push({ kind: 'tie', n: n, cands: cands, pick: pick });
+      });
+      unobs.forEach(function (d) {
+        d.status = 'CLOSED';
+        d.action = linked[d.id] ? 'SUPERSEDED' : 'SCAN_UNOBSERVED';
+        log.push({ day: t.label, id: d.id, res: d.res, type: d.type, action: d.action });
+        if (last) trace.push({ kind: 'close', d: d });
+      });
+      if (last && !unobs.length) trace.push({ kind: 'note', text: '이번 회차에 닫힌 문제 없음 — 승계 판정 대상 없음' });
+    }
+    return { rows: rows, log: log, trace: trace, cur: sc.timeline[upto] };
+  }
+
+  var ACTION_LABEL = { SUPERSEDED: '재분류로 이어짐', SCAN_UNOBSERVED: '점검에서 사라짐 — 자동 해소' };
+
+  function demoEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function demoRender() {
+    var sc = SCEN[DEMO.scen];
+    if (DEMO.step > sc.timeline.length - 1) DEMO.step = sc.timeline.length - 1;
+    if (DEMO.step < 0) DEMO.step = 0;
+    var out = demoBuild(DEMO.scen, DEMO.step);
+
+    document.querySelectorAll('#demo .seg[data-scen]').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.scen === DEMO.scen);
+    });
+    document.getElementById('demo-timeline').innerHTML = sc.timeline.map(function (t, i) {
+      return '<button class="seg' + (i === DEMO.step ? ' active' : '') + '" data-step="' + i + '">' + demoEsc(t.label) + '</button>';
+    }).join(' ');
+    document.querySelectorAll('#demo .n-demo-btn[data-nav]').forEach(function (b) {
+      var dir = parseInt(b.dataset.nav, 10);
+      b.disabled = (dir < 0 && DEMO.step === 0) || (dir > 0 && DEMO.step === sc.timeline.length - 1);
+    });
+
+    var msg = document.getElementById('demo-message');
+    var superseded = out.log.filter(function (l) { return l.action === 'SUPERSEDED'; }).length;
+    msg.className = 'ux-message' + (out.cur.kind === 'scan' ? (superseded ? ' success' : '') : '');
+    msg.innerHTML = '<b>' + demoEsc(out.cur.label) + '</b> — ' + demoEsc(out.cur.note);
+
+    document.getElementById('demo-rows').innerHTML = out.rows.map(function (r) {
+      var badge = r.status === 'OPEN'
+        ? '<span class="badge on">열림</span>'
+        : (r.action === 'SUPERSEDED' ? '<span class="badge dep">닫힘 · SUPERSEDED</span>' : '<span class="badge off">닫힘 · SCAN_UNOBSERVED</span>');
+      return '<div class="ux-row' + (r.status === 'CLOSED' ? ' muted' : '') + '">'
+        + '<strong class="mono">#' + r.id + '</strong>'
+        + '<span class="label">' + demoEsc(r.res) + ' / <b>' + demoEsc(r.type) + '</b>'
+        + ' <span class="mono" style="color:var(--text-muted);font-size:11px;">최초 ' + r.first + '일 · 최근관측 ' + r.last + '일 · 관측 ' + r.count + '회</span></span>'
+        + '<span class="mono" style="font-size:11px;">predecessor = ' + (r.pred === null ? '<span style="color:var(--text-muted);">null</span>' : '<b style="color:var(--purple);">#' + r.pred + '</b>') + '</span>'
+        + badge + '</div>';
+    }).join('');
+
+    document.getElementById('demo-log').innerHTML = out.log.length
+      ? '<table><thead><tr><th>회차</th><th>문제</th><th>처리 액션</th><th>화면 문구</th></tr></thead><tbody>'
+        + out.log.map(function (l) {
+          return '<tr><td>' + demoEsc(l.day) + '</td><td class="mono">#' + l.id + ' ' + demoEsc(l.res) + ' / ' + demoEsc(l.type) + '</td>'
+            + '<td><code>' + l.action + '</code></td><td>' + ACTION_LABEL[l.action] + '</td></tr>';
+        }).join('') + '</tbody></table>'
+      : '<div class="ux-row muted"><span class="label">아직 닫힌 문제가 없다.</span></div>';
+
+    var tf = function (v) { return v ? '<span class="t">true</span>' : '<span class="f">false</span>'; };
+    document.getElementById('demo-caps').innerHTML = out.trace.length
+      ? out.trace.map(function (e) {
+        if (e.kind === 'note') return '// ' + demoEsc(e.text);
+        if (e.kind === 'eval') {
+          return '후임후보 #' + e.n.id + '(' + demoEsc(e.n.type) + ')  vs  닫힘후보 #' + e.d.id + '(' + demoEsc(e.d.type) + ')\n'
+            + '   같은 자원 = ' + tf(e.v.sameRes) + '   다른 종류 = ' + tf(e.v.diffType) + '   이번 회차 신규 = ' + tf(e.v.fresh)
+            + '   →  ' + (e.v.all ? '<span class="t">승계</span>' : '<span class="f">무관</span>');
+        }
+        if (e.kind === 'tie') {
+          return '   [D-2] 전임 후보 ' + e.cands.length + '개 → lastObservedAt 최신 우선, 동률이면 식별자 오름차순 → #' + e.pick.id + ' 채택';
+        }
+        return '닫힘 #' + e.d.id + '  action = ' + (e.d.action === 'SUPERSEDED'
+          ? '<span class="t">SUPERSEDED</span>' : '<span class="f">SCAN_UNOBSERVED</span>');
+      }).join('\n')
+      : '// 판정 대상 없음';
+  }
+
+  document.getElementById('demo').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    if (b.dataset.scen) { DEMO.scen = b.dataset.scen; DEMO.step = 0; demoRender(); return; }
+    if (b.dataset.step !== undefined) { DEMO.step = parseInt(b.dataset.step, 10); demoRender(); return; }
+    if (b.dataset.nav) { DEMO.step += parseInt(b.dataset.nav, 10); demoRender(); }
+  });
+
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

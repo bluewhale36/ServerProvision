@@ -85,6 +85,20 @@ public enum DriftHandlingAction {
 		public boolean reversibleFor(DriftKind kind) {
 			return false;
 		}
+	},
+
+	/**
+	 * S11-2 — 같은 회차에 같은 자원의 새 종류 문제가 열리며 이 문제가 재분류로 닫힘. 후임이
+	 * {@code Drift.predecessor} 로 이 문제를 가리킨다. {@code SCAN_UNOBSERVED} 와 가르는 이유는
+	 * 이력 문구가 사실을 말해야 하기 때문이다 — "점검에서 사라짐 — 자동 해소" 는 상황이 끝났다고
+	 * 읽히지만, 재분류는 같은 사건이 다른 이름으로 계속되는 것이다. 시스템이 바꾼 것이 없으므로
+	 * 되돌릴 대상은 없다.
+	 */
+	SUPERSEDED("재분류로 이어짐") {
+		@Override
+		public boolean reversibleFor(DriftKind kind) {
+			return false;
+		}
 	};
 
 	private final String label;
