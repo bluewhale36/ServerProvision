@@ -478,8 +478,11 @@ public class PathReconciliationService {
 		}
 
 		// (5) ORPHAN — 디스크 마커 중 DB 인벤토리에 매칭 안 된 것.
-		// S6-2-2 — soft-deleted 매칭 마커는 종전의 침묵 제외(D20) 대신 ESCAPE 로 분류한다:
-		// 발견 위치가 원위치(본체 포함)면 "삭제 자원 복귀", 아니면 "삭제 자원 위치 이탈".
+		// S6-2-2 — soft-deleted 매칭 마커는 종전의 침묵 제외(D20) 대신 ESCAPE 로 분류한다.
+		// S11-1 — 판정 원칙 : 마커는 신원 증명이고 본체가 존재 증명이다. 본체 없는 마커는 어떤 자원 상태
+		// 판정도 대표하지 못하므로 미아 마커(SOFTDEL_MARKER_STRAY) 병행 신호로만 보고하고, 뒤 블록(5.5a)의
+		// 상태 판정을 침묵시키지 않는다. 종전에는 마커 한 장이 무조건 escapeReported 에 등록되어 소실 · 유령
+		// 판정이 억제되고 거짓 SCAN_UNOBSERVED 해결 이력이 쌓였다(4b 의 본체 검사 B-1 과 같은 원칙 적용).
 		Set<MarkerKey> escapeReported = new HashSet<>();
 		for (Map.Entry<MarkerKey, List<MarkerHit>> e : diskMarkers.entrySet()) {
 			MarkerKey key = e.getKey();
@@ -489,9 +492,19 @@ public class PathReconciliationService {
 			if (hit == null) continue;
 			Markable deleted = deletedByKey.get(key);
 			if (deleted != null) {
-				escapeReported.add(key);
-				Drift escape = classifyEscape(deleted, hit, now);
-				if (escape != null) drifts.add(escape);
+				if (!resourceBodyExists(hit.resourcePath(), hit.layout())) {
+					drifts.add(buildDrift(
+							deleted, DriftKind.SOFTDEL_MARKER_STRAY,
+							expectedTrashPath(deleted), hit.resourcePath().toString(), now,
+							"삭제 자원의 마커가 본체 없이 발견 — 자원 상태 판정은 별도 문제로 병행 보고"
+					));
+					continue;
+				}
+				EscapeVerdict verdict = classifyEscape(deleted, hit, now);
+				if (verdict.replacesStateJudgment()) {
+					escapeReported.add(key);
+				}
+				if (verdict.drift() != null) drifts.add(verdict.drift());
 				continue;
 			}
 			drifts.add(Drift.builder()
@@ -532,7 +545,9 @@ public class PathReconciliationService {
 				}
 			}
 
-			if (escapeReported.contains(e.getKey())) continue; // 마커 기반 ESCAPE 로 이미 보고됨
+			// S11-1 — 본체 동반 ESCAPE 판정이 자원 상태를 대체한 경우만 건너뛴다. 미아 마커(본체 없는
+			// 마커)는 위 escapeReported 에 등록되지 않으므로 아래 상태 판정이 병행 수행된다.
+			if (escapeReported.contains(e.getKey())) continue;
 			boolean bodyAtOriginal = resourceBodyExists(deleted.getResourcePath(), deleted.getMarkerLayout());
 
 			if (trashedPath == null) {
@@ -548,6 +563,18 @@ public class PathReconciliationService {
 							deleted, DriftKind.GHOST_DB_ROW,
 							deleted.getResourcePath().toString(), null, now,
 							"DB row 만 남은 ghost — FS 자원도 trash 도 없음. drift apply = DB row hard-delete."
+					));
+				} else {
+					// S11-1 — soft-delete 기록 불변식 위반(trashedAt 만 있고 trashedPath 부재). markTrashed 가
+					// 둘을 함께 쓰므로 정상 경로에서는 나올 수 없는 상태다. 종전에는 이 칸이 침묵이었는데,
+					// 실물 위치를 알 수 없다는 점에서 소실과 같으므로 보수적으로 TRASH_LOST 로 보고한다.
+					// oldPath 앵커는 기록이 없어 DB 원위치가 유일하다 (drift.old_path not-null 제약).
+					log.warn("[reconciliation] soft-delete 기록 불변식 위반 — trashedAt 존재 + trashedPath 부재. {}#{}",
+							deleted.getResourceType(), deleted.getResourceId());
+					drifts.add(buildDrift(
+							deleted, DriftKind.TRASH_LOST,
+							deleted.getResourcePath().toString(), null, now,
+							"휴지통 기록 불변식 위반(이동 시각만 존재, 보관 경로 없음) — 실물 위치 불명, 소실로 보수 판정"
 					));
 				}
 				continue;
@@ -780,36 +807,47 @@ public class PathReconciliationService {
 	}
 
 	/**
-	 * S6-2-2 — 삭제 자원의 마커가 active 트리에서 발견됐을 때의 분류.
-	 * 발견 위치가 원위치이고 본체도 있으면 "복귀"(자동 복원 가능), 그 외는 "이탈"(사용자 확인 후 회수).
-	 * 원위치에도 파일이 있는 모호 상태는 이탈로 분류하고 detail 에 병기 — 어느 쪽이 진짜인지
+	 * S11-1 — 본체 동반 ESCAPE 판정의 결과. {@code replacesStateJudgment} 가 true 면 이 판정이
+	 * 뒤 블록(5.5a)의 자원 상태 판정을 대체한다({@code escapeReported} 등록). 대체가 정당한 것은
+	 * 두 경우뿐이다 — 원위치 복귀(뒤 블록과 같은 판정의 중복 방지)와, 원위치 본체가 없는 상태의
+	 * 이탈(빈 휴지통 · 유령 기록을 탈출이 설명). 원위치에 본체가 있는 타위치 이탈은 복귀 판정과
+	 * 병행 보고되어야 하므로 대체하지 않는다.
+	 */
+	private record EscapeVerdict(Drift drift, boolean replacesStateJudgment) {}
+
+	/**
+	 * S6-2-2 → S11-1 — 삭제 자원의 마커가 <b>본체와 함께</b> active 트리에서 발견됐을 때의 분류.
+	 * 발견 위치가 원위치면 "복귀"(자동 복원 가능), 아니면 "이탈"(사용자 확인 후 회수).
+	 * 본체 없는 마커는 이 메서드에 오지 않는다 — 호출부가 미아 마커(SOFTDEL_MARKER_STRAY)로
+	 * 분리해 병행 보고한다(종전 catch-all 이 그 상태까지 이탈로 흡수하던 결함의 제거).
+	 * 원위치에도 파일이 있는 모호 상태는 이탈 detail 에 병기 — 어느 쪽이 진짜인지
 	 * 시스템이 판정하지 않고 복원 시점 게이트(manifestHash 검증)에 맡긴다.
 	 */
-	private Drift classifyEscape(Markable deleted, MarkerHit hit, Instant now) {
+	private EscapeVerdict classifyEscape(Markable deleted, MarkerHit hit, Instant now) {
 		Path found = hit.resourcePath().toAbsolutePath().normalize();
 		Path expected = deleted.getResourcePath().toAbsolutePath().normalize();
-		boolean bodyAtFound = resourceBodyExists(hit.resourcePath(), hit.layout());
 		boolean bodyAtOriginal = resourceBodyExists(deleted.getResourcePath(), deleted.getMarkerLayout());
 		String trashedPath = (deleted instanceof LifecycleEntity lifecycle) ? lifecycle.getTrashedPath() : null;
 		boolean trashCopyAlive = trashedPath != null && Files.exists(Path.of(trashedPath));
 		String oldPath = expectedTrashPath(deleted);
-		if (found.equals(expected) && bodyAtOriginal) {
+		if (found.equals(expected)) {
+			// 발견 위치 = 원위치이고 본체 실재(호출부 보장) — bodyAtOriginal 과 같은 사실이다.
 			if (trashCopyAlive) {
 				// 점유 상태(원O·trashO) — 마커까지 복귀했어도 drift 로 보고하지 않는다(5.5a 와 동일 결정).
 				// 보고하면 [적용]이 항상 409(RestorePathOccupied)로 끝나는 버튼이 노출된다.
-				// 그 파일의 진위·처리는 복원 시점 게이트가 SSOT (적대적 검증 반영).
-				return null;
+				// 그 파일의 진위·처리는 복원 시점 게이트가 SSOT (적대적 검증 반영). 5.5a 도 이 상태를
+				// 보고하지 않으므로 대체 등록은 무해하다.
+				return new EscapeVerdict(null, true);
 			}
-			return buildDrift(deleted, DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL,
+			return new EscapeVerdict(buildDrift(deleted, DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL,
 					oldPath, deleted.getResourcePath().toString(), now,
-					"삭제 자원의 마커와 본체가 원래 위치에서 발견 — 외부 복귀로 판단");
+					"삭제 자원의 마커와 본체가 원래 위치에서 발견 — 외부 복귀로 판단"), true);
 		}
-		String detail = "삭제 자원이 다른 위치에서 발견"
-				+ (bodyAtFound ? "" : " — 마커만 발견(본체 부재), 회수 전 파일 확인 필요")
-				+ (bodyAtOriginal && !found.equals(expected) ? " — 원위치에도 파일 존재 (진위는 복원 시점 검증)" : "")
-				+ (trashCopyAlive ? " — 휴지통에 기존 사본 존재 (회수하려면 먼저 정리 필요)" : "");
-		return buildDrift(deleted, DriftKind.SOFTDEL_ESCAPE_TO_OTHER,
-				oldPath, hit.resourcePath().toString(), now, detail);
+		String detail = "삭제 자원의 본체와 마커가 다른 위치에서 발견"
+				+ (bodyAtOriginal ? " — 원위치에도 파일 존재 (진위는 복원 시점 검증)" : "")
+				+ (trashCopyAlive ? " — 정본이 휴지통에 보관되어 있음. 회수 대신 발견물 정리, 또는 휴지통 정리 후 회수 중 택일 필요" : "");
+		return new EscapeVerdict(buildDrift(deleted, DriftKind.SOFTDEL_ESCAPE_TO_OTHER,
+				oldPath, hit.resourcePath().toString(), now, detail), !bodyAtOriginal);
 	}
 
 	/**

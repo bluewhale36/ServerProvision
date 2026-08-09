@@ -959,8 +959,8 @@ class PathReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("S6-2-2 모호 : 다른 폴더 마커 + 원위치 파일 동시 → TO_OTHER 1건 + 병기 (복귀로 기울이지 않음)")
-    void scan_escapeAmbiguous_bothLocations(@TempDir Path tmp) throws Exception {
+    @DisplayName("S6-2-2 → S11-1 [E · ⓜ2] : 다른 폴더 마커+본체 + 원위치 파일 동시 → 복귀 + 이탈 병행 2건 (원위치 본체가 있으면 이탈이 상태 판정을 대체하지 않음)")
+    void scan_escapeParallel_bothLocations(@TempDir Path tmp) throws Exception {
         Path dbPath = tmp.resolve("iso/dvd.iso");
         Path stray = tmp.resolve("backup/dvd.iso");
         Files.createDirectories(dbPath.getParent());
@@ -976,10 +976,10 @@ class PathReconciliationServiceTest {
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
         DriftReport saved = captureSavedReport();
-        assertThat(driftsOf(saved)).singleElement().satisfies(d -> {
-            assertThat(d.getKind()).isEqualTo(DriftKind.SOFTDEL_ESCAPE_TO_OTHER);
-            assertThat(d.getDetail()).contains("원위치에도 파일 존재");
-        });
+        assertThat(driftsOf(saved)).extracting(Drift::getKind).containsExactlyInAnyOrder(
+                DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL, DriftKind.SOFTDEL_ESCAPE_TO_OTHER);
+        assertThat(driftsOf(saved)).filteredOn(d -> d.getKind() == DriftKind.SOFTDEL_ESCAPE_TO_OTHER)
+                .singleElement().satisfies(d -> assertThat(d.getDetail()).contains("원위치에도 파일 존재"));
     }
 
     @Test

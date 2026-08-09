@@ -49,6 +49,15 @@ import lombok.Getter;
  *   차지할 수 있다 (2026-07-19 전수 점검 O-2). 해결은 택일 입력(survivor)을 동반하므로 표준 [적용] 이 아닌
  *   전용 endpoint ({@code DuplicateResolveService}) — HASH_MISMATCH 선례와 같은 mode=NONE.</li>
  * </ul>
+ *
+ * <h3>S11-1 신규 (탐지 구현됨)</h3>
+ * <ul>
+ *   <li>{@code SOFTDEL_MARKER_STRAY} — 삭제 자원의 마커가 <b>본체 없이</b> 활성 트리에서 발견됨.
+ *   판정 원칙(마커 = 신원 증명, 본체 = 존재 증명)에 따라 자원 상태 판정(복귀 · 소실 · 유령)을 대체하지
+ *   못하며, 그 판정과 <b>병행 보고</b>되는 독립 신호다({@code TRASH_MARKER_STALE} 의 활성 트리 판).
+ *   종전에는 이 상태가 {@code SOFTDEL_ESCAPE_TO_OTHER} 의 catch-all 로 흡수되어 원 판정을 억제하고
+ *   거짓 {@code SCAN_UNOBSERVED} 해결 이력을 만들었다. <b>자동 ON</b> — 마커는 재발급 가능해 파괴 비용이 없다.</li>
+ * </ul>
  */
 @Getter
 public enum DriftKind {
@@ -141,6 +150,30 @@ public enum DriftKind {
 			false,
 			true
 	),
+	// S11-1 신규 — 본체 없는 마커. 자원 상태 판정과 병행 보고되는 독립 신호 (TRASH_MARKER_STALE 의 활성 트리 판)
+	SOFTDEL_MARKER_STRAY(
+			"미아 마커",
+			"삭제 자원의 마커가 본체 파일 없이 발견되었습니다. 마커만으로는 자원 상태를 바꾸지 않으며, "
+					+ "자원 상태에 대한 판정(복귀 · 소실 · 유령 등)은 별도 문제로 함께 보고됩니다.",
+			"발견 위치의 미아 마커를 정리합니다. 자원 실물과 기록은 건드리지 않으며, 마커는 재발급할 수 있습니다.",
+			null,
+			DriftResolutionMode.AUTO,
+			DriftResolveEntry.STANDARD,
+			false,
+			false,
+			true
+	) {
+		@Override
+		public String getOldPathLabel() {
+			// DB 경로도 아니고 이동 전 자리도 아니다 — 기록 기준으로 자원이 있어야 할 자리다.
+			return "자원 기대 경로 (기록 기준)";
+		}
+
+		@Override
+		public String getNewPathLabel() {
+			return "마커 발견 경로";
+		}
+	},
 	TRASH_LOST(
 			"휴지통 자원 소실",
 			"휴지통으로 이동된 자원이 그 위치에 없습니다. 외부에서 정리되었을 수 있습니다.",

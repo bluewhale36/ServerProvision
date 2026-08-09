@@ -47,13 +47,15 @@ class DriftKindTest {
     }
 
     @Test
-    @DisplayName("mode 배정 : AUTO 4 / MANUAL 6 / NONE 1 — 확인만 받으면 시스템이 처리하는 종류는 전용 폼이어도 MANUAL")
+    @DisplayName("mode 배정 : AUTO 5 / MANUAL 6 / NONE 1 — 확인만 받으면 시스템이 처리하는 종류는 전용 폼이어도 MANUAL")
     void modeAssignments() {
         assertThat(byMode(DriftResolutionMode.AUTO)).containsExactlyInAnyOrder(
                 DriftKind.PATH_DRIFT,
                 DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL,
                 DriftKind.TRASH_MARKER_STALE,
-                DriftKind.GHOST_DB_ROW
+                DriftKind.GHOST_DB_ROW,
+                // S11-1 — 미아 마커 정리는 실물 무손실(마커 재발급 가능)이라 AUTO. 무인 발동은 옵트인 뒤.
+                DriftKind.SOFTDEL_MARKER_STRAY
         );
         assertThat(byMode(DriftResolutionMode.MANUAL)).containsExactlyInAnyOrder(
                 DriftKind.SOFTDEL_ESCAPE_TO_OTHER,
@@ -70,12 +72,12 @@ class DriftKindTest {
     }
 
     @Test
-    @DisplayName("처리 입구 축 : 표준 [해결] 8 / 전용 폼 2 / 없음 1 — mode 와 독립 (등급을 올려도 버튼 배선은 그대로)")
+    @DisplayName("처리 입구 축 : 표준 [해결] 9 / 전용 폼 2 / 없음 1 — mode 와 독립 (등급을 올려도 버튼 배선은 그대로)")
     void resolveEntryAxis() {
         assertThat(byEntry(DriftResolveEntry.DEDICATED))
                 .containsExactlyInAnyOrder(DriftKind.HASH_MISMATCH, DriftKind.RESOURCE_REPLICA);
         assertThat(byEntry(DriftResolveEntry.NONE)).containsExactlyInAnyOrder(DriftKind.MISSING);
-        assertThat(byEntry(DriftResolveEntry.STANDARD)).hasSize(8);
+        assertThat(byEntry(DriftResolveEntry.STANDARD)).hasSize(9);
     }
 
     private static Set<DriftKind> byEntry(DriftResolveEntry entry) {
@@ -116,8 +118,8 @@ class DriftKindTest {
     @Test
     @DisplayName("S6-1 : RESOURCE_RENAMED 계열 2종은 삭제됨 — 재도입 시 이 테스트가 의도 확인을 강제")
     void renamedKindsAreRemoved() {
-        // HF4-5 — RESOURCE_REPLICA 추가로 11종 (kind 증감 시 이 잠금이 의도 확인을 강제)
-        assertThat(DriftKind.values()).hasSize(11);
+        // HF4-5 RESOURCE_REPLICA + S11-1 SOFTDEL_MARKER_STRAY 로 12종 (kind 증감 시 이 잠금이 의도 확인을 강제)
+        assertThat(DriftKind.values()).hasSize(12);
         for (String removed : new String[]{"RESOURCE_RENAMED", "RESOURCE_RENAMED_ORPHAN"}) {
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> DriftKind.valueOf(removed))
                     .isInstanceOf(IllegalArgumentException.class);
@@ -139,6 +141,9 @@ class DriftKindTest {
         // 휴지통 자리를 가리키는 두 종류 — DB 경로도 발견 위치도 아니다.
         assertThat(DriftKind.TRASH_MARKER_STALE.getOldPathLabel()).isEqualTo("휴지통 보관 경로");
         assertThat(DriftKind.TRASH_LOST.getOldPathLabel()).isEqualTo("휴지통 기록 경로");
+        // S11-1 미아 마커 — 이동 전후가 아니라 '있어야 할 자리' 와 '마커가 발견된 자리' 다.
+        assertThat(DriftKind.SOFTDEL_MARKER_STRAY.getOldPathLabel()).isEqualTo("자원 기대 경로 (기록 기준)");
+        assertThat(DriftKind.SOFTDEL_MARKER_STRAY.getNewPathLabel()).isEqualTo("마커 발견 경로");
     }
 
     @Test
