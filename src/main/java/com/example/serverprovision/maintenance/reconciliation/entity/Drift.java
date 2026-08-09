@@ -144,7 +144,28 @@ public class Drift {
 	@Column(name = "observed_hash", length = 64)
 	private String observedHash;
 
+	/**
+	 * S11-2 — 계보 링크(후임 → 전임). 같은 회차에 같은 자원의 문제가 관측되지 않아 닫히고 이 문제가
+	 * 새로 열렸다면, 이 필드가 그 전임을 가리킨다 — "이 사건이 언제 시작되었나" 를 링크 사슬로 거슬러
+	 * 올라갈 수 있게 하는 기록 계층이다(표시는 MK4-4 소관). 원시 Long 대신 연관으로 두는 이유는
+	 * 사슬 탐색이 이 링크의 존재 이유이기 때문이다(Primitive Obsession 회피). 방향이 후임 → 전임인
+	 * 이유는 fan-out(신규 여러 종류가 같은 전임을 가리킴)을 구조 변경 없이 담기 위함(plan §8 D-1).
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "predecessor_drift_id")
+	private Drift predecessor;
+
 	/* ═══════════ MK4-1 — 상태 전이. 서비스는 호출만 한다 ═══════════ */
+
+	/**
+	 * S11-2 — 전임을 잇는다. <b>최초 1회만</b> — 이미 계보가 있으면 바꾸지 않는다. 과거 이력의 사실은
+	 * 나중에 변하지 않아야 하기 때문이다(탐지 수 스냅샷 · reversible 동결과 같은 원리).
+	 */
+	public void linkPredecessor(Drift predecessor) {
+		if (this.predecessor == null) {
+			this.predecessor = predecessor;
+		}
+	}
 
 	/**
 	 * 점검이 이 문제를 다시 관측했다. 최신 스냅샷을 덮어쓰고 수명 값을 갱신한다.

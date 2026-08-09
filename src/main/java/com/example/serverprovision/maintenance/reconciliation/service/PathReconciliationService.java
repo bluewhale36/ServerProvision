@@ -905,15 +905,50 @@ public class PathReconciliationService {
 	 * <p>커버 판정을 종류가 스스로 하므로({@code DriftKind.coveredBy}) 여기에 종류별 분기가 없다.
 	 * 이 규칙이 없으면 일반 점검이 내용 변경 문제를 "안 보였다" 는 이유로 닫고, 정밀 점검이 다시
 	 * 열기를 반복한다.</p>
+	 *
+	 * <p>S11-2 — 재분류 승계. 같은 자원의 문제가 닫히는 회차에 새 종류의 문제가 함께 열렸다면 이는
+	 * 같은 사건이 다른 이름으로 이어진 것이다 — 후임이 전임을 {@code Drift.predecessor} 로 가리키고,
+	 * 전임은 {@code SCAN_UNOBSERVED} 대신 {@code SUPERSEDED}(재분류로 이어짐)로 닫아 이력이 사실을
+	 * 말하게 한다. 같은 신원의 열린 문제는 {@code linkObservations} 가 재사용하므로 신규 문제의 종류는
+	 * 닫히는 전임들과 구조적으로 다르다("다른 종류" 조건이 별도 검사 없이 성립).</p>
 	 */
 	private void closeUnobserved(List<Drift> observed, Instant now, boolean deep) {
 		Set<Long> observedIds = observed.stream().map(Drift::getId).collect(Collectors.toSet());
+		// S11-2 — 이번 회차 신규 문제(잠재 후임)를 자원 신원별로 묶는다.
+		Map<MarkerKey, List<Drift>> successorsByResource = observed.stream()
+				.filter(d -> now.equals(d.getFirstDetectedAt()))
+				.collect(Collectors.groupingBy(d -> new MarkerKey(d.getResourceType(), d.getResourceId())));
+		// S11-2 — 닫힘 후보를 자원별로 모아 전임 채택을 결정적으로 한다(D-2 — 처리 순서 비의존).
+		Map<MarkerKey, List<Drift>> closingByResource = new LinkedHashMap<>();
 		for (Drift open : driftRepository.findByStatusNot(DriftStatus.RESOLVED)) {
 			if (observedIds.contains(open.getId())) continue;
 			if (!open.getKind().coveredBy(deep)) continue;
-			open.resolve(now, DriftHandlingAction.SCAN_UNOBSERVED);
-			driftHandlingRepository.save(DriftHandling.of(
-					open, DriftHandlingAction.SCAN_UNOBSERVED, now, null, null, null));
+			closingByResource
+					.computeIfAbsent(new MarkerKey(open.getResourceType(), open.getResourceId()),
+							k -> new ArrayList<>())
+					.add(open);
+		}
+		for (Map.Entry<MarkerKey, List<Drift>> e : closingByResource.entrySet()) {
+			List<Drift> closing = e.getValue();
+			List<Drift> successors = successorsByResource.getOrDefault(e.getKey(), List.of());
+			// D-2 — 전임은 lastObservedAt 최신, 동률이면 식별자 오름차순(= 먼저 열린 전임, Q1 확정).
+			// 같은 회차에 함께 닫히는 전임들은 직전 회차에 함께 관측된 경우가 흔해 1차 키 동률이 잦다.
+			Drift predecessor = successors.isEmpty() ? null : closing.stream()
+					.min(Comparator.comparing(Drift::getLastObservedAt).reversed()
+							.thenComparing(Drift::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+					.orElse(null);
+			for (Drift open : closing) {
+				DriftHandlingAction action;
+				if (open == predecessor) {
+					// D-1 — 후임 다수(fan-out)는 전원이 같은 전임을 가리킨다. 링크는 최초 1회 고정.
+					successors.forEach(s -> s.linkPredecessor(open));
+					action = DriftHandlingAction.SUPERSEDED;
+				} else {
+					action = DriftHandlingAction.SCAN_UNOBSERVED;
+				}
+				open.resolve(now, action);
+				driftHandlingRepository.save(DriftHandling.of(open, action, now, null, null, null));
+			}
 		}
 	}
 
