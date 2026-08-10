@@ -89,6 +89,7 @@ class PathReconciliationEdgeCaseTest {
         service = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution(),
                         new com.example.serverprovision.maintenance.reconciliation.service.resolution.GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(service, "startupEnabled", true);

@@ -82,6 +82,7 @@ class PathReconciliationSuccessionTest {
 		service = new PathReconciliationService(
 				List.of(isoScanner), markerService, backgroundJobService,
 				driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
 				List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
 		ReflectionTestUtils.setField(service, "startupEnabled", true);
 		ReflectionTestUtils.setField(service, "retentionCount", 100);

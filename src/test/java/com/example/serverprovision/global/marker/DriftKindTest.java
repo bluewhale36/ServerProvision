@@ -164,4 +164,39 @@ class DriftKindTest {
             assertThat(kind.name().length()).as("%s 길이", kind).isLessThanOrEqualTo(32);
         }
     }
+
+    /**
+     * MK4-2 재개 조건 1 의 안전망. 순서 산정은 종류가 늘어날 것을 전제로 enum 속성에 기대므로,
+     * 새 종류가 위험도를 빠뜨리면 순서 계산에서 조용히 빠지는 것이 아니라 여기서 빨간불이 켜져야 한다.
+     */
+    @Test
+    @DisplayName("MK4-2 : 모든 종류가 위험도를 갖는다 — 신설 종류의 누락 방지")
+    void everyKindDeclaresSeverity() {
+        for (DriftKind kind : DriftKind.values()) {
+            assertThat(kind.getSeverity())
+                    .as("%s 에 위험도가 없다 — DriftKind 선언에 DriftSeverity 를 추가하라", kind)
+                    .isNotNull();
+        }
+    }
+
+    @Test
+    @DisplayName("MK4-2 : 위험도 배정이 계획서 표와 일치한다")
+    void severityAssignmentMatchesPlan() {
+        // 즉시 — 이 상태로 프로비저닝하면 실패하거나 잘못된 것이 설치된다.
+        assertThat(DriftKind.MISSING.getSeverity()).isEqualTo(DriftSeverity.IMMEDIATE);
+        assertThat(DriftKind.PATH_DRIFT.getSeverity()).isEqualTo(DriftSeverity.IMMEDIATE);
+        assertThat(DriftKind.HASH_MISMATCH.getSeverity()).isEqualTo(DriftSeverity.IMMEDIATE);
+        assertThat(DriftKind.SIGNATURE_INVALID.getSeverity()).isEqualTo(DriftSeverity.IMMEDIATE);
+        // 주의 — 지금은 되지만 방치하면 잘못된 것을 집는다.
+        assertThat(DriftKind.RESOURCE_REPLICA.getSeverity()).isEqualTo(DriftSeverity.ATTENTION);
+        assertThat(DriftKind.SOFTDEL_ESCAPE_TO_OTHER.getSeverity()).isEqualTo(DriftSeverity.ATTENTION);
+        // 기록 정리 — 이미 삭제된 자원의 기록 문제라 프로비저닝에 영향이 없다.
+        assertThat(DriftKind.SOFTDEL_ESCAPE_TO_ORIGINAL.getSeverity()).isEqualTo(DriftSeverity.RECORD);
+        assertThat(DriftKind.TRASH_LOST.getSeverity()).isEqualTo(DriftSeverity.RECORD);
+        assertThat(DriftKind.GHOST_DB_ROW.getSeverity()).isEqualTo(DriftSeverity.RECORD);
+        // 정리 — 실물 무손실, 마커만 남았다.
+        assertThat(DriftKind.ORPHAN.getSeverity()).isEqualTo(DriftSeverity.TIDY);
+        assertThat(DriftKind.TRASH_MARKER_STALE.getSeverity()).isEqualTo(DriftSeverity.TIDY);
+        assertThat(DriftKind.SOFTDEL_MARKER_STRAY.getSeverity()).isEqualTo(DriftSeverity.TIDY);
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
+import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.OSSettingRequest;
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
@@ -57,4 +58,13 @@ public class OSSettingReferenceInspector implements ProcessReferenceInspector {
         }
         return names;
     }
+    /**
+     * MK4-2 — 파일 실체가 있는 자원을 참조하지 않는다. 이 단계가 다루는 것은 설치 후 OS 설정값이고,
+     * 지목하는 OS 버전은 ISO 들을 묶는 논리 자원이라 대조할 파일이 없다.
+     */
+    @Override
+    public List<ResourceKey> referencedResources(AbstractProcessRequest process) {
+        return List.of();
+    }
+
 }

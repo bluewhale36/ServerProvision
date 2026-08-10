@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MK4-2 Report — 급한 순서와 점검 커버리지</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp4{background:var(--orange-bg);color:var(--orange);} .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.cp6{background:var(--purple-bg);color:var(--purple);} .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── 비교 카드 ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+
+  /* ── 스크린샷 증거 (정본에서 이미지가 주입되는 자리) ── */
+  figure { margin:10px 0 14px; padding:0; }
+  figure img { max-width:100%; height:auto; display:block; border:1px solid var(--border); border-radius:6px; background:var(--card); }
+  figcaption { margin-top:6px; font-size:11.5px; color:var(--text-muted); line-height:1.5; }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>MK4-2 — 급한 순서와 점검 커버리지 (완료 보고) <span class="v2-badge">CP6</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> MK4-2 (feature)</span>
+    <span><strong>상위</strong> MK4 (reconciliation 사용성)</span>
+    <span><strong>scope</strong> 드리프트 처리 순서 계산 + 점검 커버리지 표시</span>
+    <span><strong>계획서</strong> <code>plan/26-08-09_13-49-35_MK4-2_plan.html</code></span>
+    <span><strong>작성</strong> 2026-08-10 KST</span>
+    <span><strong>체크포인트</strong> CP6 (report 산출)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 무엇을 만들었나</a></li>
+      <li><a href="#s2">§2 설계 결정 여섯</a></li>
+      <li><a href="#s3">§3 CP5 검증 항목 계획</a></li>
+      <li><a href="#s4">§4 검증 환경</a></li>
+      <li><a href="#s5">§5 정상 흐름 검증 (A1~A8)</a></li>
+      <li><a href="#s6">§6 비정상 조작 검증 (B1~B6)</a></li>
+      <li><a href="#s7">§7 막는 방식 (C1~C3)</a></li>
+      <li><a href="#s8">§8 발견한 결함과 처리</a></li>
+      <li><a href="#s9">§9 테스트</a></li>
+      <li><a href="#s10">§10 남긴 것과 다음 단계</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 무엇을 만들었나 — 구현 요약</summary>
+      <div class="body">
+        <p style="margin-top:0;">드리프트 목록에 정렬이 없어 복구가 불가능한 '자원 소실' 과 사실상 무해한 '잔여 마커' 가 같은 무게로 섞여 있었다.
+        그리고 일반 점검은 파일 내용을 보지 않는데 화면이 그 사실을 말하지 않아, 내용에 관한 문제가 목록에서 빠지면 해결된 것으로 읽혔다.</p>
+
+        <p>이 단계는 둘을 만들었다.</p>
+
+        <h4>처리 순서 계산</h4>
+        <p>큰 축은 종류가 결정하는 고정 위험도이고, 보정은 그 자원이 지금 쓰이는 깊이다. 두 축을 사전식으로 합쳐 <b>급 보존</b>이 성립한다 —
+        사용 중을 아무리 올려도 더 급한 급을 넘지 못한다.</p>
+
+        <h4>점검 커버리지 표시</h4>
+        <p>이번 점검이 파일 내용을 확인했는지, 마지막으로 확인한 것이 언제인지를 화면이 항상 밝힌다.
+        내용을 봐야 판정되는 종류에는 "확인 안 됨" 이 붙는다.</p>
+
+        <div class="callout">
+          신설한 것은 <code>DriftSeverity</code>(위험도 4급) · <code>ResourceUsageLevel</code>(사용 깊이 4단) ·
+          <code>DriftPriority</code>(순서의 단일 진실 출처) · <code>ScanCoverage</code> ·
+          <code>ResourceUsageQuery</code>(provisioning 이 소유하는 조회 계약)다. <b>엔티티 변경과 DDL 이 없다.</b>
+        </div>
+
+        <h4>위험도 배정 12종</h4>
+        <p style="margin:0 0 6px;">기준은 "이 자원으로 지금 프로비저닝하면 어떻게 되는가" 다.</p>
+        <table>
+          <thead><tr><th>급</th><th>종류</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip del">즉시</span></td><td>자원 소실 · 경로 이동됨 · 내용 변경 감지 · 마커 서명 불일치</td></tr>
+            <tr><td><span class="chip mod">주의</span></td><td>자원 중복 존재 · 삭제 자원 위치 이탈</td></tr>
+            <tr><td><span class="chip move">기록 정리</span></td><td>삭제 자원 복귀 · 휴지통 자원 소실 · 유령 DB 기록</td></tr>
+            <tr><td><span class="chip keep">정리</span></td><td>미등록 마커 · 잔여 마커 정리 필요 · 미아 마커</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2">
+      <summary>§2. 설계 결정 여섯</summary>
+      <div class="body">
+        <h4>D1 — 사전식 비교</h4>
+        <p>가중합은 가중치가 작으면 사용 중이 급을 뒤집고, 뒤집히지 않을 만큼 크게 잡으면 같은 동작을 매직 상수로 흉내 내는 것이 된다.
+        튜플 비교는 급 보존이 증명되고 화면이 "위험도 → 사용 중 → 오래된 순" 으로 그대로 설명한다.</p>
+
+        <h4>D2 — 위험도 기준은 "지금 프로비저닝하면 어떻게 되는가"</h4>
+        <p>해결 방식(mode)을 섞지 않는다 — 자동 처리는 설정으로 켜고 끌 수 있어 같은 종류의 급이 설정에 따라 달라진다.
+        되돌릴 수 있는가도 축으로 쓰지 않는다 — 방치해도 더 나빠지지 않는 종류가 최상위로 올라가 "급한 순서" 와 어긋난다.</p>
+
+        <h4>D3 — 사용 중 4수준, 동률은 최초 발견 오름차순</h4>
+        <p>오래 방치된 것이 먼저 올라온다.</p>
+
+        <h4>D4 — 조회 방향은 <code>maintenance → provisioning</code> 단일 간선</h4>
+        <p>실측 근거가 있다. <code>SettingAssignment</code> 가 <code>execution.entity.GuestServer</code> 를 직접 참조해
+        <code>provisioning → execution</code> 의존이 이미 14개 파일에 있다. 따라서 provisioning 이 세 수준을 전부 답할 수 있고
+        maintenance 는 실행 영역을 볼 필요가 없다.</p>
+        <p>반대 방향(maintenance 가 SPI 소유)은 채택하지 않았다 — 선례들은 역방향 의존이 이미 있어 순환을 끊으려던 장치인데
+        여기는 순환이 없고, 그 방향은 핵심 도메인이 보조 도메인에 의존하게 만든다.</p>
+
+        <h4>D5 — 참조 역방향 조회는 payload 순회</h4>
+        <p>파생 참조 테이블은 만들지 않았다. BIOS 세팅 템플릿만 그런 테이블을 두는 선례가 있지만 그것은 외래 키로 삭제를 막아야 해서였고,
+        여기는 읽기 전용 판정이며 정의서는 손으로 쓰는 규모다. 규모가 커지면 <code>ProcessReferenceInspector</code> 뒤에서 교체할 수 있다.</p>
+
+        <h4>D6 — 우선순위는 저장하지 않고 조회 시점에 계산</h4>
+        <p>사용 여부는 드리프트와 무관하게 변하므로 스캔 시점에 굳히면 곧 낡는다.
+        <b>A8 이 이 결정의 실지 확인이다.</b></p>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. CP5 검증 항목 계획 (17)</summary>
+      <div class="body">
+        <p style="margin-top:0;">세 갈래로 17 항목을 설계했다(<code>.claude/cp5-verification-spec.md</code> §2).</p>
+
+        <h4>A — 정상 흐름 8</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인하려는 것</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>위험도 급 순 정렬</td></tr>
+            <tr><td>A2</td><td>같은 급 안 사용 중 우선</td></tr>
+            <tr><td>A3</td><td>상세의 위험도 행</td></tr>
+            <tr><td>A4</td><td>상세의 사용 중 행</td></tr>
+            <tr><td>A5</td><td>일반 점검 후 커버리지 배너 + 마지막 정밀 점검 시각</td></tr>
+            <tr><td>A6</td><td>정밀 점검 후 배너 소멸</td></tr>
+            <tr><td>A7</td><td>내용 종류에 "확인 안 됨"</td></tr>
+            <tr><td>A8</td><td>사용 중 변화 시 순서 변화(조회 시점 계산 실증)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>B — 비정상 조작 6</h4>
+        <table>
+          <thead><tr><th>#</th><th>일부러 시도할 것</th></tr></thead>
+          <tbody>
+            <tr><td>B1</td><td>급 보존을 깨려는 시도</td></tr>
+            <tr><td>B2</td><td>이미 해결된 드리프트 재해결</td></tr>
+            <tr><td>B3</td><td>삭제된 자원의 드리프트 조작</td></tr>
+            <tr><td>B4</td><td>존재하지 않는 드리프트 직접 요청</td></tr>
+            <tr><td>B5</td><td>점검 중복 제출</td></tr>
+            <tr><td>B6</td><td>커버리지 표시 우회</td></tr>
+          </tbody>
+        </table>
+
+        <h4>C — 막는 방식 3</h4>
+        <table>
+          <thead><tr><th>#</th><th>평가할 것</th></tr></thead>
+          <tbody>
+            <tr><td>C1</td><td>거절 사유가 사용자에게 도달하는가</td></tr>
+            <tr><td>C2</td><td>다음 행동을 안내하는가</td></tr>
+            <tr><td>C3</td><td>정밀 점검 이력이 없을 때</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 검증 환경</summary>
+      <div class="body">
+        <ul>
+          <li><b>데이터베이스</b> : Docker MariaDB 11.4, 컨테이너 <code>spv-sandbox-db-m</code>, 포트 3327</li>
+          <li><b>애플리케이션</b> : standalone jar, 포트 7808. <code>PXE_ASSETS_ROOT</code> 을 주면 <code>PXE_SERVER_BASE_URL</code> 도 필수라 짝으로 주입했다</li>
+          <li><b>픽스처</b> : OS 1 · ISO 4 · 보드 1 · BIOS 1 · 세팅 정의서 1. 정의서가 BIOS 를 지정해 사용 중 축을 만들었다</li>
+        </ul>
+        <p>드리프트 6 건이 네 급에 걸쳐 재현됐다 — 자원 소실(즉시) · 경로 이동됨 ×2(즉시, 하나는 정의서 지정) ·
+        내용 변경 감지(즉시) · 자원 중복 존재(주의) · 미아 마커(정리).</p>
+        <div class="callout warn">
+          수행은 하위 에이전트가, 결함 판정과 처리는 메인 세션이 맡았다(2026-08-09 확정 규약).
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 정상 흐름 검증 (A1~A8)</summary>
+      <div class="body">
+        <p style="margin-top:0;">각 항목은 ① 조작 ② 관측 ③ 판정 순으로 적는다.</p>
+
+        <h4>A1 <span class="chip add">통과</span> — 위험도 급 순 정렬</h4>
+        <ul>
+          <li><b>조작</b> — 최신 스캔을 선택해 목록을 열었다.</li>
+          <li><b>관측</b> — 즉시 4 → 주의 1 → 정리 1 순으로 나왔다. 채증 화면은 A7 에서 내용 변경 감지가
+            더해진 뒤의 상태라 즉시 급이 넷이다(경로 이동됨 BIOS · 자원 소실 · 경로 이동됨 ISO · 내용 변경 감지).</li>
+        </ul>
+        <!--SHOT:A1_order_6drifts_after_hash_mismatch.jpg-->
+
+        <h4>A2 <span class="chip add">통과</span> — 같은 급 안 사용 중 우선</h4>
+        <ul>
+          <li><b>조작</b> — A1 과 같은 화면에서 즉시 급 안의 배열을 확인했다.</li>
+          <li><b>관측</b> — 즉시 급 넷 중 정의서 지정인 BIOS 가 미사용 자원들보다 위에 있었다. 나머지 셋은
+            사용 중이 모두 미사용이라 최초 발견이 이른 순으로 이어졌다.</li>
+          <li><b>채증</b> — A1 과 같은 화면이 증거다(별도 스크린샷 없음).</li>
+        </ul>
+
+        <h4>A3 <span class="chip add">통과</span> — 상세의 위험도 행</h4>
+        <ul>
+          <li><b>조작</b> — 드리프트 상세를 종류별로 각각 열었다.</li>
+          <li><b>관측</b> — 자원 소실 · 경로 이동됨 · 내용 변경 감지 = 즉시, 자원 중복 존재 = 주의, 미아 마커 = 정리. 배지마다 설명이 붙었다.</li>
+        </ul>
+        <!--SHOT:A3_A4_drift1_missing.jpg-->
+        <!--SHOT:A3_A4_drift3_replica.jpg-->
+        <!--SHOT:A3_A4_drift4_stray.jpg-->
+        <!--SHOT:A3_A4_drift5_bios_pathdrift.jpg-->
+
+        <h4>A4 <span class="chip add">통과</span> — 상세의 사용 중 행</h4>
+        <ul>
+          <li><b>관측</b> — BIOS 드리프트만 '정의서 지정', 나머지는 '미사용'.</li>
+        </ul>
+        <!--SHOT:A4_drift2_pathdrift_unused.jpg-->
+
+        <h4>A5 <span class="chip add">통과</span> — 커버리지 배너 + 마지막 정밀 점검 시각</h4>
+        <ul>
+          <li><b>조작</b> — 일반 점검을 실행했다.</li>
+          <li><b>관측</b> — 직후 "이번 점검은 파일 내용을 확인하지 않았습니다 … 해결된 것이 아니라 보지 않은 것입니다.
+          마지막 정밀 점검 : 2026-08-10 10:58" 배너가 떴다.</li>
+        </ul>
+        <!--SHOT:A5_C2_coverage_banner_after_normal_scan.jpg-->
+
+        <h4>A6 <span class="chip add">통과</span> — 정밀 점검 후 배너 소멸</h4>
+        <ul>
+          <li><b>관측</b> — 정밀 점검 후 배너가 사라졌다.</li>
+        </ul>
+        <!--SHOT:A6_banner_cleared_after_deep_scan.jpg-->
+
+        <h4>A7 <span class="chip add">통과</span> — 내용 종류에 "확인 안 됨"</h4>
+        <ul>
+          <li><b>조작</b> — 계획이 제시한 재현 절차(이동된 파일 변조)로는 드리프트가 생기지 않아, 등록 경로에 그대로 있는
+          <code>replica.iso</code> 를 제자리 변조해 내용 변경 감지를 만들었다. 이어 일반 점검을 실행했다.</li>
+          <li><b>관측</b> — 그 상세에 "확인 안 됨 — 이번 점검은 파일 내용을 보지 않았습니다. 아래 값은 2026-08-10 11:08 정밀 점검 기준입니다" 가 붙었다.</li>
+        </ul>
+        <div class="callout danger">
+          <b>계획의 재현 절차가 실패한 사실 자체가 결함 하나를 드러냈다</b> — §8 의 결함 1.
+        </div>
+        <!--SHOT:A7_hashmismatch_detail_deep_coverage.jpg-->
+        <!--SHOT:A7_hashmismatch_detail_NOT_VERIFIED_after_quick_scan.jpg-->
+
+        <h4>A8 <span class="chip add">통과</span> — 사용 중 변화 시 순서 변화 <span class="chip opt">설계 결정 D6 의 실지 확인</span></h4>
+        <ul>
+          <li><b>조작</b> — 세팅 정의서를 화면에서 삭제하고 <b>재점검 없이</b> 새로 고쳤다.</li>
+          <li><b>관측</b> — BIOS 드리프트의 사용 중이 '미사용' 으로 내려가고 순위가 1 위에서 3 위로 이동했다.
+          주의 · 정리 급 아래로는 내려가지 않았다(급 보존). 정의서를 복원하니 1 위로 되돌아왔다.</li>
+        </ul>
+        <!--SHOT:A8_setting_delete_confirm.jpg-->
+        <!--SHOT:A8_order_changed_after_delete.jpg-->
+        <!--SHOT:A8_drift5_now_unused.jpg-->
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 비정상 조작 검증 (B1~B6)</summary>
+      <div class="body">
+        <h4>B1 <span class="chip mod">부분 수행</span> — 급 보존을 깨려는 시도</h4>
+        <ul>
+          <li><b>조작</b> — 낮은 급 자원을 사용 중으로 올리려 했으나 OS 설치 단계가 '설치 환경 ID 필수' 로 막혔고,
+          샌드박스에 등록된 설치 환경이 0 건이라 데이터베이스를 직접 건드리지 않고는 채울 수 없었다.</li>
+          <li><b>관측</b> — 지시대로 조작하지 않고 <b>간접 근거 둘</b>을 확보했다.
+            <ol>
+              <li>같은 자원 · 같은 사용 중(미사용)인 내용 변경 감지(즉시)와 자원 중복 존재(주의)가 급에 따라 4 위 · 5 위로 갈렸다
+              (사용 중을 고정한 상태에서 급만 작용).</li>
+              <li>A8 에서 사용 중이 바뀐 항목이 급 안에서만 움직였다.</li>
+            </ol>
+          </li>
+        </ul>
+        <!--SHOT:B1_blocked_no_os_environment.jpg-->
+        <!--SHOT:B1_final_tier_dominance_evidence.jpg-->
+
+        <h4>B2 <span class="chip add">통과</span> — 이미 해결된 드리프트 재해결</h4>
+        <ul>
+          <li><b>조작</b> — 미아 마커를 해결한 뒤 상세를 다시 열고, 이어 브라우저에서 같은 드리프트에 직접 폼 POST 를 보냈다.</li>
+          <li><b>관측</b> — [해결] · [보관] 이 비활성이 됐고, 직접 POST 는 409 오류 화면
+          "다른 작업과 충돌했습니다 / 이미 해결된 드리프트입니다." 로 거절됐다.</li>
+        </ul>
+        <div class="callout success"><b>화면 차단과 서버 가드가 같은 문장을 쓴다.</b></div>
+        <!--SHOT:B2_B3_resolved_buttons_disabled.jpg-->
+        <!--SHOT:B2_C1_409_same_guard_sentence.jpg-->
+
+        <h4>B3 <span class="chip add">통과</span> — 삭제된 자원의 드리프트 조작</h4>
+        <ul>
+          <li><b>관측</b> — 자원이 삭제 상태인 미아 마커의 상세가 정상 렌더됐고 해결까지 오류 없이 끝났다.</li>
+        </ul>
+        <!--SHOT:B3_stray_softdeleted_detail.jpg-->
+        <!--SHOT:B3_resolve_confirm_modal.jpg-->
+
+        <h4>B4 <span class="chip add">통과</span> — 존재하지 않는 드리프트 직접 요청</h4>
+        <ul>
+          <li><b>조작</b> — 존재하지 않는 드리프트에 폼 POST 를 보냈다.</li>
+          <li><b>관측</b> — 원문 JSON 이 아니라 404 오류 화면이 나왔다(S10 채널 규약이 실지에서 성립).</li>
+        </ul>
+        <!--SHOT:B4_404_html_error_page.jpg-->
+
+        <h4>B5 <span class="chip add">통과</span> — 점검 중복 제출</h4>
+        <ul>
+          <li><b>조작</b> — 정밀 점검 확인의 [시작] 을 더블클릭했다.</li>
+          <li><b>관측</b> — 버튼이 '스캔 중…' 비활성으로 바뀌고 스캔 리포트는 <b>1 건만</b> 생성됐다.</li>
+        </ul>
+        <!--SHOT:B5_doubleclick_scanning_state.jpg-->
+        <!--SHOT:B5_single_scan_result.jpg-->
+
+        <h4>B6 <span class="chip add">통과</span> — 커버리지 표시 우회</h4>
+        <ul>
+          <li><b>조작</b> — 일반 점검 상태에서 URL 로 새로 진입했다.</li>
+          <li><b>관측</b> — 배너가 유지됐다. 화면 캐시가 아니라 서버 판정에서 온다.</li>
+        </ul>
+        <!--SHOT:B6_banner_persists_fresh_load.jpg-->
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 막는 방식 (C1~C3)</summary>
+      <div class="body">
+        <h4>C1 <span class="chip del">실패</span> → 결함 2 — 거절 사유가 사용자에게 도달하는가</h4>
+        <p>문구는 단일 진실 출처를 공유한다 — 버튼 title 과 409 응답이 똑같이 "이미 해결된 드리프트입니다." 이고,
+        출처는 <code>Drift.resolveBlockReason()</code> 이다. 그런데 <b>그 tooltip 이 화면에 뜨지 않는다.</b></p>
+        <!--SHOT:C1_DEFECT_no_tooltip_on_disabled_buttons.png-->
+
+        <h4>C2 <span class="chip add">통과</span> — 다음 행동을 안내하는가</h4>
+        <p>배너가 다음 행동을 안내한다 : "[정밀 점검]으로 내용까지 확인할 수 있습니다".
+        채증은 A5 와 같은 화면이다(별도 스크린샷 없음) — 안내 문구가 그 배너 안에 함께 들어 있다.</p>
+
+        <h4>C3 <span class="chip keep">미수행</span> — 정밀 점검 이력이 없을 때</h4>
+        <p>정밀 점검 이력이 이미 여러 건이라 '한 번도 없음' 상태를 데이터베이스를 지우지 않고는 만들 수 없었다.
+        통합 테스트 <code>ReconciliationCoverageRenderTest.neverDeepScannedRendersSafely</code> 가 이 경우를 대신 고정한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 검증 중 발견한 결함과 처리</summary>
+      <div class="body">
+        <div class="callout warn">
+          두 건을 발견했고 <b>둘 다 이번 단계에서 고치지 않았다.</b> 판단 근거를 함께 적는다.
+        </div>
+
+        <h4>결함 1 — 이동된 자원의 내용 변조는 정밀 점검에서도 감지되지 않는다</h4>
+        <p><b>재현</b> : 경로 이동됨 상태인 자원의 파일 내용을 바꾼 뒤 정밀 점검을 실행한다. 드리프트는 경로 이동됨 하나뿐이고 내용 변경 감지가 생기지 않는다.</p>
+        <p><b>원인</b> : <code>PathReconciliationService</code> 의 자원별 판정에서 내용 지문 재계산은 "등록 경로에 마커가 있는" 갈래 안에만 있다.
+        다른 위치에서 마커를 찾은 갈래는 경로 이동됨을 보고하고 곧바로 다음 자원으로 넘어가며 정밀 여부를 보지도 않는다.
+        저장 계층에는 두 종류가 함께 존재하지 못할 이유가 없다 — 드리프트의 신원이 자원 종류 · 자원 번호 · <b>종류</b>이고 유니크 제약도 없다. 제어 흐름의 문제다.</p>
+        <p><b>이번 단계와 겹치는 지점</b> : 그 점검은 정밀이므로 커버리지가 "내용을 확인했다" 로 기록되고, 따라서 그 자원에는 "확인 안 됨" 이 붙지 않는다.
+        실제로는 보지 않았는데 화면은 확인된 것처럼 말한다. 이 단계가 세우려는 "안 본 것은 안 봤다고 밝힌다" 는 계약이 이 경로에서만 깨진다.</p>
+        <p><b>처리 — 이번 단계에서 고치지 않는다.</b> 근거 둘이다.</p>
+        <ol>
+          <li>이 갈래 구조는 이 단계가 만든 것이 아니라 그 이전부터 있던 탐지 로직이다.</li>
+          <li>고치려면 판정 진리표(자원 상태 6종 × 마커 신호 4종)를 손대야 하고, 그 진리표는 S11-1 이 세워
+          <code>PathReconciliationTruthTableTest</code> 24 칸과 1:1 로 묶어 둔 자산이다.
+          순서 계산과 커버리지 표시를 얹는 이 단계에서 그 판정을 함께 바꾸면 두 변경의 책임이 한 커밋에 섞인다.</li>
+        </ol>
+        <p><b>전수 재현 감사(R)로 위임하기로 확정됐다(2026-08-10 사용자 결정).</b>
+        이관 브리핑을 <code>discussion/26-08-10_12-37-30_R-audit-hash-blindspot_briefing.md</code> 에 남겼다 —
+        재현 절차 · 원인 · 고칠 때 확인할 것 · 파장 세 갈래가 들어 있다.</p>
+
+        <h4>결함 2 — 비활성 버튼의 사유 tooltip 이 사용자에게 도달하지 않는다</h4>
+        <p><b>재현</b> : 해결이 끝난 드리프트 상세에서 비활성 [해결] · [보관] 위에 마우스를 올린다. tooltip 이 뜨지 않는다.</p>
+        <p><b>원인</b> : <code>title</code> 이 <code>disabled</code> 버튼 자신에 걸려 있다.
+        브라우저는 비활성 폼 컨트롤에 마우스 이벤트를 주지 않으므로 tooltip 이 표시되지 않는다. 값 자체는 있고 문구도 서버 가드와 같다.</p>
+        <p><b>왜 문제인가</b> : 프로젝트의 불가침 원칙 "UX 모순은 UI 1차 차단 — 버튼 disabled + tooltip" 에서 뒤 절반이 실효가 없다.
+        사용자는 상세의 '상태 : 해결됨' 을 보고 스스로 유추해야 한다.</p>
+        <p><b>처리 — MK4-4 화면 전면 개편에서 함께 고치기로 확정됐다(2026-08-10 사용자 결정).</b>
+        이 tooltip 은 MK4-1 이 넣은 것이고 같은 형태가 화면 전반에 퍼져 있어, 이 화면 하나가 아니라 공통 규칙으로
+        한 번에 잡는 것이 맞다(비활성 버튼을 감싸는 요소에 사유를 걸거나 공용 조각으로 뽑는 방식).
+        MK4-4 가 앞단을 통째로 손대는 단계이므로 그때 한 번에 처리한다.</p>
+
+        <h4>범위 밖 부수 관찰 3</h4>
+        <ul>
+          <li>페이지에 처음 들어오면 스캔이 선택돼 있지 않아 드리프트 칸이 비어 있다. 이력을 한 번 눌러야 목록이 나온다 — 화면 배치 개편(MK4-4) 소관.</li>
+          <li>드리프트 목록 칸이 좁아 자원명이 잘린다 — 같은 개편 소관.</li>
+          <li><code>curl</code> 만으로는 오류 화면 채널을 확인할 수 없다. 브라우저가 항상 보내는 <code>Sec-Fetch-Dest: document</code> 가 있어야
+          HTML 로 갈린다(S10 설계 그대로). 도구를 잘못 고르면 오판할 수 있다는 기록.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 테스트</summary>
+      <div class="body">
+        <p style="margin-top:0;">전체 <b>1745 건 · 실패 0</b>. 이 단계가 더한 것은 아래와 같다.</p>
+        <table>
+          <thead><tr><th>파일</th><th>건수</th><th>고정하는 계약</th></tr></thead>
+          <tbody>
+            <tr><td><code>DriftPriorityTest</code></td><td>9</td><td>사전식 비교와 급 보존 — 모든 급 조합에서 검증</td></tr>
+            <tr><td><code>DriftKindTest</code> (확장)</td><td>+2</td><td><b>12종 전수 위험도 보유</b> · 배정표 일치</td></tr>
+            <tr><td><code>ResourceUsageQueryImplTest</code></td><td>9</td><td>4수준 판정 · 대체된 할당 제외 · 끝난 프로비저닝 제외 · 최심 우선</td></tr>
+            <tr><td><code>ReferencedResourcesTest</code></td><td>6</td><td>파일 자원만 담기 · 버전 미고정(LATEST) 제외</td></tr>
+            <tr><td><code>ReconciliationCoverageRenderTest</code></td><td>4</td><td>배너 · "확인 안 됨" · 위험도 · 사용 중이 실제로 렌더</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <code>DriftKindTest</code> 의 전수 검증이 <b>재개 조건 1 의 안전망</b>이다.
+          전수 재현 감사가 종류를 신설하고 위험도를 빠뜨리면 순서 계산에서 조용히 빠지는 것이 아니라 <span class="chip cp4">CP4</span> 에서 실패한다.
+        </div>
+        <p>스키마 확인(9단계)은 해당 없음 — 우선순위를 저장하지 않기로 했고(D6) 엔티티도 바꾸지 않아 DDL 이 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. 남긴 것과 다음 단계</summary>
+      <div class="body">
+        <h4>남긴 열린 항목</h4>
+        <ul>
+          <li>계획서 §8 의 열린 질문 셋(위험도 배정의 개별 배치 · 휴지통 자원 소실의 급 · 진행 중 판정 기준)은 CP1 승인으로 현재 안이 확정됐다.</li>
+          <li>질문 B(조회 방향)는 D4 로 확정됐다.</li>
+          <li><b>결함 1 · 2 의 처리 시점</b>은 미정이다.</li>
+        </ul>
+
+        <h4>다음 단계</h4>
+        <ul class="check-list" data-storage="MK4-2-next">
+          <li><label><input type="checkbox" data-key="mk4-3"> <span><b>MK4-3 운영 설정 화면</b> — 자동 처리 대상에 미아 마커가 늘어난다</span></label></li>
+          <li><label><input type="checkbox" data-key="mk4-4"> <span><b>MK4-4 화면 전면 개편</b> — S11-2 의 재분류 계보 표시가 이 단계 소관으로 새로 들어오고,
+            병행 보고된 같은 자원의 여러 드리프트를 묶는 문제와 해결 순서 의존성을 다룬다.
+            이 단계가 계산한 순서를 운영자가 조작하는 정렬 · 필터도 여기서 만든다. 위 부수 관찰 둘도 여기 속한다</span></label></li>
+          <li><label><input type="checkbox" data-key="mk4-5"> <span><b>MK4-5 드리프트 카탈로그</b> — 12종과 진리표 기준</span></label></li>
+          <li><label><input type="checkbox" data-key="audit-r"> <span><b>전수 재현 감사(R)</b> — 결함 1 의 유력한 처리 자리</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

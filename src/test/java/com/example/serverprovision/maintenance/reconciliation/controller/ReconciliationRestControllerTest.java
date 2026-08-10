@@ -63,7 +63,8 @@ class ReconciliationRestControllerTest {
         Instant now = Instant.now();
         DriftResponse drift = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
-                now, now, 1, DriftStatus.OPEN, null, null, null, null, null);
+                now, now, 1, DriftStatus.OPEN, null, null, null, null, null,
+                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE);
         return new DriftReportResponse(10L, now, "0.45초", false, 17, 1, List.of(), List.of(drift));
     }
 
@@ -156,7 +157,8 @@ class ReconciliationRestControllerTest {
         Instant now = Instant.now();
         DriftResponse shared = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
-                now, now, 2, DriftStatus.OPEN, null, null, null, null, null);
+                now, now, 2, DriftStatus.OPEN, null, null, null, null, null,
+                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE);
         DriftReportResponse deep = new DriftReportResponse(11L, now, "0.1초", true, 5, 1, List.of(), List.of(shared));
         DriftReportResponse quick = new DriftReportResponse(10L, now, "0.1초", false, 5, 1, List.of(), List.of(shared));
         given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
@@ -179,7 +181,8 @@ class ReconciliationRestControllerTest {
         // 서버 가드가 쓰는 문장이 그대로 실려 온다는 전제 — 화면은 그것을 tooltip 으로 보여주기만 한다.
         DriftResponse resolved = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
-                now, now, 3, DriftStatus.RESOLVED, null, null, null, "이미 해결된 드리프트입니다.", null);
+                now, now, 3, DriftStatus.RESOLVED, null, null, null, "이미 해결된 드리프트입니다.", null,
+                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE);
         given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
                 .willReturn(new PageImpl<>(List.of(
                         new DriftReportResponse(10L, now, "0.1초", false, 5, 1, List.of(), List.of(resolved)))));

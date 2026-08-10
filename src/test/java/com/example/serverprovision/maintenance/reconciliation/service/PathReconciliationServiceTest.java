@@ -90,6 +90,7 @@ class PathReconciliationServiceTest {
         service = new PathReconciliationService(
                 List.of(isoScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(service, "startupEnabled", true);
         ReflectionTestUtils.setField(service, "retentionCount", 100);
@@ -1007,6 +1008,7 @@ class PathReconciliationServiceTest {
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, metaScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(svc, "retentionCount", 100);
         ReflectionTestUtils.setField(svc, "extraRootsCsv", tmp.toString());
@@ -1073,6 +1075,7 @@ class PathReconciliationServiceTest {
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(svc, "retentionCount", 100);
         ReflectionTestUtils.setField(svc, "extraRootsCsv", "");
@@ -1167,6 +1170,7 @@ class PathReconciliationServiceTest {
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
         ReflectionTestUtils.setField(svc, "retentionCount", 100);
         ReflectionTestUtils.setField(svc, "extraRootsCsv", "");

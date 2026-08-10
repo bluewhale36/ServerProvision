@@ -77,6 +77,9 @@ public class ReconciliationController {
 		// 목록에는 회차마다 나타나지만 상세는 하나여야 한다. 종전에는 회차마다 별도 drift 행이라
 		// 같은 id 가 두 번 나올 수 없었고, 그래서 보고서별로 패널을 찍어도 문제가 없었다.
 		model.addAttribute("detailDrifts", distinctDrifts(reports));
+		// MK4-2 — 이번 점검이 파일 내용을 보았는지와 마지막으로 본 시각. 일반 점검은 내용을 보지 않아
+		// 내용에 관한 문제가 목록에서 빠지는데, 화면이 이를 알리지 않으면 해결된 것으로 읽힌다.
+		model.addAttribute("scanCoverage", reconciliationService.scanCoverage());
 		// R9-4 — 업로드 실패 격리 대기 안내 배너 (이 페이지 렌더에만 count 조회).
 		model.addAttribute("quarantinePendingCount", orphanQuarantineService.countPending());
 

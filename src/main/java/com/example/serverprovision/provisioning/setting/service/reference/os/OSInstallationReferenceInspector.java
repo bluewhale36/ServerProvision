@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
+import com.example.serverprovision.global.trash.ResourceKey;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
@@ -78,5 +80,18 @@ public class OSInstallationReferenceInspector implements ProcessReferenceInspect
             names.addAll(family.describeDeprecatedReferences(request));
         }
         return names;
+    }
+
+    /**
+     * MK4-2 — 이 단계가 설치에 쓰기로 지목한 ISO 파일. OS 버전({@code osMetadataId})은 ISO 들을 묶는
+     * 논리 자원이라 파일 실체가 없어 담지 않는다.
+     */
+    @Override
+    public List<ResourceKey> referencedResources(AbstractProcessRequest process) {
+        OSInstallationRequest request = (OSInstallationRequest) process;
+        if (request.getIsoId() == null) {
+            return List.of();
+        }
+        return List.of(new ResourceKey(ResourceType.OS_ISO, request.getIsoId()));
     }
 }

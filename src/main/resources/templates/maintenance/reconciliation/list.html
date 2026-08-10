@@ -75,6 +75,23 @@
         </div>
     </div>
 
+    <!--/* MK4-2 — 점검 커버리지. 일반 점검은 마커와 위치만 보고 파일 내용은 다시 계산하지 않는다.
+         그래서 내용에 관한 문제가 목록에서 빠지는 일이 생기는데, 알리지 않으면 해결된 것으로 읽힌다.
+         마지막으로 내용을 본 시각은 정밀 · 일반 어느 쪽이든 항상 함께 보여 준다. */-->
+    <div th:if="${scanCoverage != null and !scanCoverage.contentChecked}"
+         class="n-banner n-banner-warn">
+        <strong>이번 점검은 파일 내용을 확인하지 않았습니다.</strong>
+        내용이 바뀐 자원은 이번 목록에 나타나지 않을 수 있습니다 — 해결된 것이 아니라 보지 않은 것입니다.
+        <span th:if="${!scanCoverage.neverDeepScanned()}">
+            마지막 정밀 점검 :
+            <strong th:text="${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')}"></strong>
+        </span>
+        <span th:if="${scanCoverage.neverDeepScanned()}">
+            아직 정밀 점검을 한 번도 하지 않았습니다.
+        </span>
+        <span>[정밀 점검]으로 내용까지 확인할 수 있습니다.</span>
+    </div>
+
     <!-- R9-4 — 업로드 실패 격리 대기 안내 (이 페이지 렌더에만 count 조회 — 전역 navbar 배지는 비용으로 기각). -->
     <div th:if="${quarantinePendingCount != null and quarantinePendingCount > 0}"
          class="n-banner n-banner-warn">
@@ -240,6 +257,29 @@
                             <dt>감지 내용</dt>
                             <dd th:text="${drift.kind.description}"></dd>
                         </div>
+                        <!--/* MK4-2 — 처리 순서의 근거를 화면에 드러낸다. 위험도는 종류가 들고 있고
+                             (DriftKind.severity), 사용 중은 조회 시점에 실려 온다. 두 값이 곧 목록의
+                             정렬 기준이라 "왜 이 순서인가" 를 이 두 줄이 설명한다. */-->
+                        <div class="n-accordion-field">
+                            <dt>위험도</dt>
+                            <dd>
+                                <span class="n-badge"
+                                      th:classappend="${drift.kind.severity.name() == 'IMMEDIATE'} ? 'n-badge-red' : (${drift.kind.severity.name() == 'ATTENTION'} ? 'n-badge-yellow' : 'n-badge-gray')"
+                                      th:text="${drift.kind.severity.label}"></span>
+                                <span class="n-text-muted" style="margin-left: 6px; font-size: 12px;"
+                                      th:text="${drift.kind.severity.description}"></span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field" th:if="${drift.usage != null}">
+                            <dt>사용 중</dt>
+                            <dd>
+                                <span class="n-badge"
+                                      th:classappend="${drift.hasUsage()} ? 'n-badge-orange' : 'n-badge-gray'"
+                                      th:text="${drift.usage.label}"></span>
+                                <span class="n-text-muted" style="margin-left: 6px; font-size: 12px;"
+                                      th:text="${drift.usage.description}"></span>
+                            </dd>
+                        </div>
                         <!--/* 자동으로 되는지를 권장 조치 문장 속에 묻어 두지 않고 자기 줄로 세운다.
                              배지 색까지 등급이 들고 있어(DriftResolutionMode.badgeColor) 여기에
                              종류별 조건식이 자라지 않는다. */-->
@@ -305,6 +345,19 @@
                                 <span th:text="|${drift.observationCount}회|"></span>
                                 <span th:if="${drift.isNew()}" class="n-badge n-badge-red"
                                       style="margin-left:6px">최초 발견</span>
+                            </dd>
+                        </div>
+                        <!--/* MK4-2 — 내용을 봐야 판정되는 종류(deepOnly)인데 이번 점검이 일반이었다면,
+                             그 자리에 값을 그대로 두면 방금 확인한 사실처럼 읽힌다. 언제 본 것인지를
+                             함께 밝힌다. 종류별 조건이 아니라 DriftKind.deepOnly 를 그대로 본다. */-->
+                        <div class="n-accordion-field"
+                             th:if="${drift.kind.deepOnly and scanCoverage != null and !scanCoverage.contentChecked}">
+                            <dt>내용 확인</dt>
+                            <dd>
+                                <span class="n-badge n-badge-gray">확인 안 됨</span>
+                                <span class="n-text-muted" style="margin-left:6px; font-size:12px;"
+                                      th:if="${!scanCoverage.neverDeepScanned()}"
+                                      th:text="|이번 점검은 파일 내용을 보지 않았습니다. 아래 값은 ${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')} 정밀 점검 기준입니다.|"></span>
                             </dd>
                         </div>
                         <div class="n-accordion-field">

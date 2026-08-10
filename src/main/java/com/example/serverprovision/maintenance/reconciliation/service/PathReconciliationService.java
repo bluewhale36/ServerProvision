@@ -1,5 +1,9 @@
 package com.example.serverprovision.maintenance.reconciliation.service;
 
+import com.example.serverprovision.global.trash.ResourceKey;
+import com.example.serverprovision.provisioning.usage.ResourceUsageLevel;
+import com.example.serverprovision.provisioning.usage.ResourceUsageQuery;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanCoverage;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
@@ -73,6 +77,7 @@ public class PathReconciliationService {
 			DriftReportRepository driftReportRepository,
 			DriftRepository driftRepository,
 			DriftHandlingRepository driftHandlingRepository,
+			ResourceUsageQuery resourceUsageQuery,
 			List<DriftResolution> resolutions,
 			@Lazy PathReconciliationService self
 	) {
@@ -82,6 +87,8 @@ public class PathReconciliationService {
 		this.driftReportRepository = driftReportRepository;
 		this.driftRepository = driftRepository;
 		this.driftHandlingRepository = driftHandlingRepository;
+		// provisioning 쪽 계약이라 이 방향으로만 의존한다 — 순환 없음(그쪽은 maintenance 를 모른다).
+		this.resourceUsageQuery = resourceUsageQuery;
 		// S6-2-1 — kind 별 해결 전략 bean 디스패치 (1 bean = 1 kind, 중복 등록은 조립 시점 즉시 실패).
 		this.resolutions = resolutions.stream()
 				.collect(Collectors.toUnmodifiableMap(DriftResolution::supportedKind, r -> r));
@@ -94,6 +101,12 @@ public class PathReconciliationService {
 	private final DriftReportRepository driftReportRepository;
 	private final DriftRepository driftRepository;
 	private final DriftHandlingRepository driftHandlingRepository;
+
+	/**
+	 * MK4-2 — 자원이 지금 쓰이는 깊이를 묻는 곳. 계약을 provisioning 이 소유하고 여기서 호출한다
+	 * (새로 생기는 의존은 {@code maintenance → provisioning} 하나뿐 — 실행 영역은 provisioning 이 대신 본다).
+	 */
+	private final ResourceUsageQuery resourceUsageQuery;
 	private final Map<DriftKind, DriftResolution> resolutions;
 
 	/**
@@ -1196,11 +1209,30 @@ public class PathReconciliationService {
 	@Transactional(readOnly = true)
 	public List<DriftResponse> openDrifts() {
 		Instant now = Instant.now();
-		return driftRepository.findByStatusNot(DriftStatus.RESOLVED).stream()
+		List<Drift> open = driftRepository.findByStatusNot(DriftStatus.RESOLVED).stream()
 				.filter(d -> d.isListed(now))
-				.sorted(Comparator.comparing(Drift::getFirstDetectedAt))
-				.map(PathReconciliationService::toDriftResponse)
+				.toList();
+		// MK4-2 — 종전에는 최초 발견 순이었다. 이제 급한 순이며, 최초 발견은 동률을 깨는 마지막 기준이다.
+		Map<ResourceKey, ResourceUsageLevel> usage = usageOf(open);
+		return open.stream()
+				.map(d -> toDriftResponse(d, usageFor(d, usage)))
+				.sorted(Comparator.comparing(DriftResponse::priority))
 				.collect(Collectors.toList());
+	}
+
+	/**
+	 * MK4-2 — 이번 점검이 무엇까지 보았는가. 일반 점검은 파일 내용을 보지 않으므로, 내용에 관한
+	 * 문제가 목록에서 빠진 것이 해결됐기 때문인지 보지 않았기 때문인지를 화면이 구분할 수 있어야 한다.
+	 */
+	@Transactional(readOnly = true)
+	public ScanCoverage scanCoverage() {
+		Instant lastDeep = driftReportRepository.findFirstByDeepTrueOrderByScannedAtDesc()
+				.map(DriftReport::getScannedAt)
+				.orElse(null);
+		boolean latestWasDeep = driftReportRepository.findFirstByOrderByScannedAtDesc()
+				.map(DriftReport::isDeep)
+				.orElse(false);
+		return new ScanCoverage(latestWasDeep, lastDeep);
 	}
 
 	public boolean isResolutionEnabled() {
@@ -1264,22 +1296,50 @@ public class PathReconciliationService {
 	 * MK4-1 — 문제 하나를 화면 값으로. 최신 스냅샷 · 수명 · 상태를 함께 싣는다.
 	 */
 	static DriftResponse toDriftResponse(Drift d) {
+		return toDriftResponse(d, null);
+	}
+
+	/**
+	 * MK4-2 — 사용 깊이를 함께 실어 매핑한다. {@code usage} 가 {@code null} 이면 계산하지 않은 응답이며,
+	 * 화면은 사용 중 배지를 띄우지 않는다.
+	 */
+	static DriftResponse toDriftResponse(Drift d, ResourceUsageLevel usage) {
 		return new DriftResponse(
 				d.getId(), d.getResourceType(), d.getResourceId(), d.getDisplayName(),
 				d.getKind(), d.getOldPath(), d.getNewPath(),
 				d.getFirstDetectedAt(), d.getLastObservedAt(), d.getObservationCount(),
 				d.getStatus(), d.getSnoozeUntil(), d.getSnoozeReason(),
 				// 화면의 버튼 비활성 사유와 서버 가드가 같은 도메인 메서드를 본다 (UI 1차 차단의 단일 소스).
-				d.snoozeBlockReason(), d.resolveBlockReason(), d.getDetail());
+				d.snoozeBlockReason(), d.resolveBlockReason(), d.getDetail(), usage);
+	}
+
+	/** MK4-2 — 드리프트들이 가리키는 자원의 사용 깊이를 한 번에 조회한다(자원마다 부르면 N+1). */
+	private Map<ResourceKey, ResourceUsageLevel> usageOf(Collection<Drift> drifts) {
+		Set<ResourceKey> keys = drifts.stream()
+				.filter(d -> d.getResourceId() != null)
+				.map(d -> new ResourceKey(d.getResourceType(), d.getResourceId()))
+				.collect(Collectors.toSet());
+		return resourceUsageQuery.levelsOf(keys);
+	}
+
+	private static ResourceUsageLevel usageFor(Drift d, Map<ResourceKey, ResourceUsageLevel> usage) {
+		if (d.getResourceId() == null) return ResourceUsageLevel.NONE;
+		return usage.getOrDefault(
+				new ResourceKey(d.getResourceType(), d.getResourceId()), ResourceUsageLevel.NONE);
 	}
 
 	private DriftReportResponse toResponse(DriftReport r) {
 		// MK4-1 — 보고서가 담는 것은 관측이다. 화면에 보여줄 값은 문제 쪽(최신 스냅샷 · 수명 · 상태)에서
 		// 가져오고, 회차 순서만 관측 시각으로 잡는다.
-		List<DriftResponse> drifts = r.getObservations().stream()
+		List<Drift> observed = r.getObservations().stream()
 				.sorted(Comparator.comparing(DriftObservation::getObservedAt))
 				.map(DriftObservation::getDrift)
-				.map(PathReconciliationService::toDriftResponse)
+				.collect(Collectors.toList());
+		// MK4-2 — 목록의 순서는 급한 순이다. 정렬 기준은 DriftPriority 한 곳에만 있다(사전식).
+		Map<ResourceKey, ResourceUsageLevel> usage = usageOf(observed);
+		List<DriftResponse> drifts = observed.stream()
+				.map(d -> toDriftResponse(d, usageFor(d, usage)))
+				.sorted(Comparator.comparing(DriftResponse::priority))
 				.collect(Collectors.toList());
 		return new DriftReportResponse(
 				r.getId(), r.getScannedAt(),

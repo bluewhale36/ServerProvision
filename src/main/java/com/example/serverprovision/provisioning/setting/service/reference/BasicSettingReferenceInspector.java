@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.service.reference;
 
+import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -84,4 +85,13 @@ public class BasicSettingReferenceInspector implements ProcessReferenceInspector
         // 템플릿 자체는 lifecycle 비대상(U2-2 확정) — deprecated 개념 없음.
         return names;
     }
+    /**
+     * MK4-2 — 파일 실체가 있는 자원을 참조하지 않는다. 이 단계가 지목하는 BIOS 세팅 템플릿과
+     * 메인보드 모델은 값과 분류를 담은 논리 자원이라 디스크에 대조할 파일이 없다.
+     */
+    @Override
+    public List<ResourceKey> referencedResources(AbstractProcessRequest process) {
+        return List.of();
+    }
+
 }

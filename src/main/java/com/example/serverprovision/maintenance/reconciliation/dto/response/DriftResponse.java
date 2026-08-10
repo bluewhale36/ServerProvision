@@ -4,6 +4,8 @@ import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.ResourceType;
 
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
+import com.example.serverprovision.maintenance.reconciliation.vo.DriftPriority;
+import com.example.serverprovision.provisioning.usage.ResourceUsageLevel;
 
 import java.time.Instant;
 
@@ -29,6 +31,11 @@ import java.time.Instant;
  *                          {@code Drift.snoozeBlockReason()} 이 그대로 실려 오므로 화면의 버튼 비활성
  *                          조건과 서버 가드가 같은 판정을 본다 — 두 곳에 조건을 복붙하면 drift 가 생긴다
  * @param detail       자유 텍스트 추가 정보. SIGNATURE_INVALID 등에 변조 정황 메시지가 들어간다
+ * @param usage        MK4-2 — 이 자원이 지금 쓰이는 깊이. 처리 순서의 보정 축이며 화면의 배지 근거다.
+ *                     위험도는 {@code kind.severity} 로 종류에서 파생되므로 따로 싣지 않는다.
+ *                     <b>목록을 조립할 때만 채워지고 그 밖에서는 {@code null}</b> 이다 — 사용 여부는
+ *                     드리프트와 무관하게 변하는 현재값이라, 계산하지 않은 자리에 기본값을 넣으면
+ *                     "쓰이지 않는다" 는 사실과 "확인하지 않았다" 를 구분할 수 없게 된다
  */
 public record DriftResponse(
 		Long id,
@@ -46,7 +53,8 @@ public record DriftResponse(
 		String snoozeReason,
 		String snoozeBlockReason,
 		String resolveBlockReason,
-		String detail
+		String detail,
+		ResourceUsageLevel usage
 ) {
 
 	/**
@@ -56,4 +64,19 @@ public record DriftResponse(
 		return observationCount <= 1;
 	}
 
+	/**
+	 * MK4-2 — 이 문제의 처리 순서. 위험도는 종류에서 파생되고 사용 깊이는 조회 시점에 실려 온다.
+	 * 사용 깊이를 계산하지 않은 응답은 미사용으로 간주해 정렬만 가능하게 한다.
+	 */
+	public DriftPriority priority() {
+		return new DriftPriority(
+				kind.getSeverity(),
+				usage != null ? usage : ResourceUsageLevel.NONE,
+				firstDetectedAt);
+	}
+
+	/** 화면이 사용 중 배지를 띄울지 판단한다 — 계산하지 않았거나 쓰이지 않으면 띄우지 않는다. */
+	public boolean hasUsage() {
+		return usage != null && usage != ResourceUsageLevel.NONE;
+	}
 }

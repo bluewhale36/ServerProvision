@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.setting.service.reference;
 
+import com.example.serverprovision.global.trash.ResourceKey;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
@@ -89,5 +91,24 @@ public class BasicUpdateReferenceInspector implements ProcessReferenceInspector 
                     .ifPresent(b -> names.add("BMC " + b.getVersion()));
         }
         return names;
+    }
+
+    /**
+     * MK4-2 — 이 단계가 지목한 BIOS · BMC 펌웨어 파일. 메인보드 모델은 파일 실체가 없어 담지 않는다.
+     *
+     * <p>버전을 고정하지 않은 선택(LATEST)은 참조로 세지 않는다. 어느 펌웨어 파일이 쓰일지는 실행
+     * 시점에 정해지므로 지금 특정 자원을 지정하고 있다고 말할 수 없다.</p>
+     */
+    @Override
+    public List<ResourceKey> referencedResources(AbstractProcessRequest process) {
+        BasicUpdateRequest firmware = (BasicUpdateRequest) process;
+        List<ResourceKey> keys = new ArrayList<>();
+        if (!firmware.getBios().isLatest()) {
+            keys.add(new ResourceKey(ResourceType.BIOS_BUNDLE, firmware.getBios().firmwareId()));
+        }
+        if (!firmware.getBmc().isLatest()) {
+            keys.add(new ResourceKey(ResourceType.BMC_FIRMWARE, firmware.getBmc().firmwareId()));
+        }
+        return keys;
     }
 }

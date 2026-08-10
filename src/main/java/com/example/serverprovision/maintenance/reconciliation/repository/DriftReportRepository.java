@@ -24,4 +24,11 @@ public interface DriftReportRepository extends JpaRepository<DriftReport, Long> 
 	 * 호출 측에서 {@code count() - retentionCount} 만큼 삭제 — 본 인터페이스는 가장 오래된 N 건 조회만 제공.
 	 */
 	Page<DriftReport> findAllByOrderByScannedAtAsc(Pageable pageable);
+
+	/**
+	 * MK4-2 — 마지막으로 파일 내용까지 확인한 점검. 화면이 "언제 이후로 내용을 안 봤는지" 를
+	 * 항상 함께 보여 주기 위한 값이다. 정밀 점검 이력이 없으면 비어 있다.
+	 */
+	Optional<DriftReport> findFirstByDeepTrueOrderByScannedAtDesc();
+
 }

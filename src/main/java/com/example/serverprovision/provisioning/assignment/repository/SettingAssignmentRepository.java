@@ -2,6 +2,7 @@ package com.example.serverprovision.provisioning.assignment.repository;
 
 import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,4 +33,14 @@ public interface SettingAssignmentRepository extends JpaRepository<SettingAssign
 
     /** 정의서 역참조 존재 여부(저비용 분기) — 활성 할당 술어 동일. */
     boolean existsBySourceDefinitionRef_DefinitionIdAndSupersededAtIsNull(Long definitionId);
+
+    /**
+     * MK4-2 — 서버에 걸려 있는 모든 활성 스냅샷. 자원 사용 깊이를 계산할 때 전수 순회한다.
+     *
+     * <p>{@code processes} 를 함께 가져온다. 스냅샷마다 단계를 다시 조회하면 할당 수만큼 질의가
+     * 반복되기 때문이다({@code @OneToMany} 지연 로딩의 N+1). {@code distinct} 는 조인으로 부풀어난
+     * 부모 중복을 제거한다.</p>
+     */
+    @Query("SELECT DISTINCT a FROM SettingAssignment a LEFT JOIN FETCH a.processes WHERE a.supersededAt IS NULL")
+    List<SettingAssignment> findBySupersededAtIsNull();
 }

@@ -67,6 +67,7 @@ public enum DriftKind {
 			"자원 파일과 마커가 다른 위치에서 온전히 발견되었습니다. DB 가 옛 경로를 가리키고 있습니다.",
 			"데이터베이스의 경로를 현재 실제 파일의 경로로 갱신합니다. 파일은 건드리지 않습니다.",
 			null,
+			DriftSeverity.IMMEDIATE,
 			DriftResolutionMode.AUTO,
 			DriftResolveEntry.STANDARD,
 			false,
@@ -82,6 +83,7 @@ public enum DriftKind {
 			"백업 · 이동 · 이름 변경 여부를 확인해 파일을 원래 경로 · 이름으로 복원한 뒤 다시 점검하세요. "
 					+ "점검 범위 밖(백업 폴더 등)으로 옮긴 경우라면 reconciliation.scan.extra-roots 설정에 해당 경로를 등록하면 "
 					+ "다음 점검부터 '경로 이동'으로 탐지됩니다.",
+			DriftSeverity.IMMEDIATE,
 			DriftResolutionMode.NONE,
 			DriftResolveEntry.NONE,
 			true,
@@ -93,6 +95,7 @@ public enum DriftKind {
 			"디스크에 마커가 있으나 DB 에 매칭되는 자원이 없습니다.",
 			"발견된 마커와 파일을 격리 보관 구역으로 회수합니다. 삭제가 아니라 이동이라 실물은 보존됩니다.",
 			"계속 쓸 자원이라면 [해결] 을 누르지 말고 관리 화면에서 다시 등록하세요 — 등록하면 주인이 생겨 이 문제가 사라집니다.",
+			DriftSeverity.TIDY,
 			DriftResolutionMode.MANUAL,
 			DriftResolveEntry.STANDARD,
 			true,
@@ -110,6 +113,7 @@ public enum DriftKind {
 			"마커 파일의 서명이 현재 서명 키와 맞지 않습니다. 마커 손상 · 외부 이식 또는 서명 키(secret) 변경이 원인일 수 있습니다.",
 			"이 자원의 마커만 현재 서명 키로 다시 서명합니다. 내용 지문은 그대로 두므로, 실제 변조였다면 다음 정밀 점검에서 그대로 드러납니다.",
 			"[해결] 전에 변조가 아니라 손상 · 외부 이식이 원인인지 먼저 확인하세요. 서명 키 교체 직후 여러 자원에서 한꺼번에 발생한 것이라면, 자원마다 누르는 대신 하단 관리 도구의 '마커 서명 재발급' 이 빠릅니다.",
+			DriftSeverity.IMMEDIATE,
 			DriftResolutionMode.MANUAL,
 			DriftResolveEntry.STANDARD,
 			true,
@@ -121,6 +125,7 @@ public enum DriftKind {
 			"자원 파일의 내용이 등록 시점과 다릅니다 (정밀 점검에서만 감지).",
 			"[현재 내용을 정본으로 수용] 에서 자원명을 입력해 확인하면, 지금 파일 내용의 지문을 정본으로 등록해 마커를 갱신합니다. 감사 기록에 남습니다.",
 			"의도한 교체가 아니라면 원본을 다시 업로드하는 것이 가장 안전합니다 (검증 재통과). 수용은 의도한 교체가 확실할 때만 하세요 — 변조였다면 변조된 내용이 정본이 됩니다.",
+			DriftSeverity.IMMEDIATE,
 			DriftResolutionMode.MANUAL,
 			DriftResolveEntry.DEDICATED,
 			false,
@@ -133,6 +138,7 @@ public enum DriftKind {
 			"휴지통에 있어야 할 자원이 원래 위치로 돌아와 있습니다.",
 			"자원을 복원해 DB 상태를 실제 위치에 맞게 맞춥니다.",
 			null,
+			DriftSeverity.RECORD,
 			DriftResolutionMode.AUTO,
 			DriftResolveEntry.STANDARD,
 			false,
@@ -144,6 +150,7 @@ public enum DriftKind {
 			"휴지통에 있어야 할 자원이 예상 밖의 위치에서 발견되었습니다. 운영자 의도를 알 수 없습니다.",
 			"발견 위치의 자원을 휴지통으로 회수합니다. 회수까지가 [해결] 의 범위이고, 그 뒤의 복원은 자동으로 일어나지 않습니다.",
 			"다시 쓸 자원이라면 [해결] 로 회수한 뒤 휴지통 화면에서 직접 복원하세요. 발견된 그 위치에서 계속 쓰려면 [해결] 대신 관리 화면에서 새로 등록해야 합니다.",
+			DriftSeverity.ATTENTION,
 			DriftResolutionMode.MANUAL,
 			DriftResolveEntry.STANDARD,
 			false,
@@ -157,6 +164,7 @@ public enum DriftKind {
 					+ "자원 상태에 대한 판정(복귀 · 소실 · 유령 등)은 별도 문제로 함께 보고됩니다.",
 			"발견 위치의 미아 마커를 정리합니다. 자원 실물과 기록은 건드리지 않으며, 마커는 재발급할 수 있습니다.",
 			null,
+			DriftSeverity.TIDY,
 			DriftResolutionMode.AUTO,
 			DriftResolveEntry.STANDARD,
 			false,
@@ -179,6 +187,7 @@ public enum DriftKind {
 			"휴지통으로 이동된 자원이 그 위치에 없습니다. 외부에서 정리되었을 수 있습니다.",
 			"실물 없이 남은 기록을 정리하고 감사 기록(휴지통 정리 이력)에 남깁니다.",
 			"복구가 필요한 자원이었다면 [해결] 전에 백업을 먼저 확인하세요 — 기록을 정리하고 나면 되돌릴 수 없습니다.",
+			DriftSeverity.RECORD,
 			DriftResolutionMode.MANUAL,
 			DriftResolveEntry.STANDARD,
 			false,
@@ -196,6 +205,7 @@ public enum DriftKind {
 			"휴지통 자원 옆에 소프트 삭제 시 정리됐어야 할 마커가 남아 있습니다.",
 			"휴지통 실물 옆에 남은 마커를 정리합니다. 자원 실물은 건드리지 않습니다.",
 			null,
+			DriftSeverity.TIDY,
 			DriftResolutionMode.AUTO,
 			DriftResolveEntry.STANDARD,
 			false,
@@ -214,6 +224,7 @@ public enum DriftKind {
 			"삭제 표시된 자원이 휴지통에도 디스크에도 없습니다. DB 기록만 남아 있습니다.",
 			"남은 DB 기록을 영구 삭제합니다. 복구할 파일이 애초에 없어 안전한 정리입니다.",
 			null,
+			DriftSeverity.RECORD,
 			DriftResolutionMode.AUTO,
 			DriftResolveEntry.STANDARD,
 			false,
@@ -234,6 +245,7 @@ public enum DriftKind {
 			"[해결] 을 누르면 원본과 복제본 중 남길 쪽을 고르는 창이 뜹니다. 고른 뒤에는 선택하지 않은 쪽 파일을 삭제하고, "
 					+ "복제본을 남겼다면 등록 경로(DB)도 복제본 위치로 갱신합니다.",
 			"어느 쪽이 최신인지 두 경로의 파일을 먼저 확인하세요 — 선택하지 않은 쪽은 즉시 삭제되어 되돌릴 수 없습니다.",
+			DriftSeverity.ATTENTION,
 			DriftResolutionMode.MANUAL,
 			DriftResolveEntry.DEDICATED,
 			false,
@@ -314,9 +326,20 @@ public enum DriftKind {
 	 */
 	private final boolean reversible;
 
+	/**
+	 * MK4-2 — 처리 순서의 큰 축인 고정 위험도. 기준은 "이 자원으로 지금 프로비저닝하면 어떻게 되는가" 다.
+	 *
+	 * <p>이 값을 종류별 분기문이 아니라 enum 이 직접 드는 이유는 종류가 늘어날 것을 전제하기 때문이다.
+	 * 전수 재현 감사가 나중에 종류를 신설해도 순서 산정이 재설계가 아니라 여기 한 줄 추가로 끝나야 한다
+	 * (R9-2 관례 — label · mode · recheckable 이 이미 그렇게 산다). 빠뜨리면
+	 * {@code DriftKindTest} 의 전수 검증이 실패한다.</p>
+	 */
+	private final DriftSeverity severity;
+
 	DriftKind(String label, String description, String resolveAction, String operatorAction,
-			DriftResolutionMode mode, DriftResolveEntry resolveEntry,
+			DriftSeverity severity, DriftResolutionMode mode, DriftResolveEntry resolveEntry,
 			boolean recheckable, boolean deepOnly, boolean reversible) {
+		this.severity = severity;
 		this.label = label;
 		this.description = description;
 		this.resolveAction = resolveAction;
