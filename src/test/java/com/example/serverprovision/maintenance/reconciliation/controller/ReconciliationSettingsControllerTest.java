@@ -2,7 +2,10 @@ package com.example.serverprovision.maintenance.reconciliation.controller;
 
 import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.maintenance.reconciliation.enums.ReconciliationSettingItem;
+import com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler;
 import com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanInterval;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanSchedule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +14,10 @@ import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
@@ -39,8 +46,15 @@ class ReconciliationSettingsControllerTest {
 	@MockitoBean
 	private ReconciliationSettingsService settingsService;
 
+	/** MK4-3-2 — 다음 점검 예정 시각의 출처. 화면이 설정 파일을 더 이상 읽지 않는다. */
+	@MockitoBean
+	private ReconciliationScheduler scheduler;
+
 	@MockitoBean
 	private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+	/** 마지막 점검이 있었던 상태로 둔다 — 그래야 다음 예정 시각이 계산되어 화면에 나온다. */
+	private static final Instant LAST_SCAN = Instant.parse("2026-08-11T00:00:00Z");
 
 	private void givenDefaults() {
 		Map<ReconciliationSettingItem, String> values = new EnumMap<>(ReconciliationSettingItem.class);
@@ -50,8 +64,19 @@ class ReconciliationSettingsControllerTest {
 		values.put(ReconciliationSettingItem.REPORT_RETENTION_COUNT, "100");
 		values.put(ReconciliationSettingItem.EXTRA_SCAN_ROOTS, "");
 		values.put(ReconciliationSettingItem.STARTUP_SCAN_ENABLED, "true");
+		values.put(ReconciliationSettingItem.SCAN_INTERVAL, "60");
+		values.put(ReconciliationSettingItem.DEEP_SCAN_INTERVAL, "1440");
 		given(settingsService.currentValues()).willReturn(values);
 		given(settingsService.unknownAutoApplyKinds()).willReturn(Set.of());
+		given(scheduler.currentSchedule()).willReturn(schedule(60, 1440, null));
+	}
+
+	private static ScanSchedule schedule(int quickMinutes, int deepMinutes, Duration lastDeepDuration) {
+		return new ScanSchedule(
+				new ScanSchedule.DepthState(
+						ScanInterval.ofMinutes(quickMinutes), LAST_SCAN, null),
+				new ScanSchedule.DepthState(
+						ScanInterval.ofMinutes(deepMinutes), LAST_SCAN, lastDeepDuration));
 	}
 
 	@Test
@@ -89,18 +114,59 @@ class ReconciliationSettingsControllerTest {
 		}
 	}
 
+	/**
+	 * MK4-3-2 가 뒤집은 계약. 종전에는 주기가 읽기 전용이고 "설정 파일에서만 변경 가능" 이 붙는지를
+	 * 이 자리에서 고정했다. 이제 조작 가능한 입력이어야 하므로 반대를 고정한다.
+	 */
 	@Test
-	@DisplayName("GET — 점검 주기는 읽기 전용으로 보이고 입력 요소가 아니다")
-	void get_showsScheduleAsReadOnly() throws Exception {
+	@DisplayName("GET — 점검 주기가 입력 요소로 그려진다")
+	void get_rendersScheduleAsInput() throws Exception {
 		givenDefaults();
 
 		mvc.perform(get("/maintenance/reconciliation/settings"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("시간마다")))
-				.andExpect(content().string(containsString(
-						ReconciliationSettingItem.EffectTiming.RESTART_REQUIRED.getLabel())))
-				// 주기 항목에는 입력 요소를 만들지 않는다.
-				.andExpect(content().string(not(containsString("name=\"scanIntervalMs\""))));
+				.andExpect(content().string(containsString("name=\"scanIntervalMinutes\"")))
+				.andExpect(content().string(containsString("name=\"deepScanIntervalMinutes\"")))
+				// 사람이 읽는 표기가 입력값 옆에 함께 온다.
+				.andExpect(content().string(containsString("60분 (1시간)")))
+				.andExpect(content().string(containsString("1440분 (1일)")))
+				// "다시 띄워야 반영된다" 는 안내가 화면에서 사라졌다.
+				.andExpect(content().string(not(containsString("설정 파일에서만 변경 가능"))));
+	}
+
+	@Test
+	@DisplayName("GET — 다음 점검 예정 시각을 밝힌다")
+	void get_showsNextDueTime() throws Exception {
+		givenDefaults();
+
+		mvc.perform(get("/maintenance/reconciliation/settings"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("다음 예정")))
+				// 마지막 점검 + 주기. 화면과 같은 시간대로 환산해 비교한다 — 상수로 적으면 UTC 로 도는
+				// 환경에서 깨진다.
+				.andExpect(content().string(containsString(rendered(LAST_SCAN.plusSeconds(60 * 60)))))
+				.andExpect(content().string(containsString(rendered(LAST_SCAN.plusSeconds(1440 * 60)))));
+	}
+
+	/** 템플릿의 {@code #temporals.format} 과 같은 형식 · 같은 시간대. */
+	private static String rendered(Instant instant) {
+		return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+				.withZone(ZoneId.systemDefault())
+				.format(instant);
+	}
+
+	@Test
+	@DisplayName("GET — 주기가 지난 실측 소요 시간보다 짧으면 막지 않고 경고한다")
+	void get_warnsWhenIntervalShorterThanLastRun() throws Exception {
+		givenDefaults();
+		// 정밀 점검 주기 1분인데 지난 정밀 점검은 4분 12초 걸렸다.
+		given(scheduler.currentSchedule())
+				.willReturn(schedule(60, 1, Duration.ofSeconds(252)));
+
+		mvc.perform(get("/maintenance/reconciliation/settings"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("4분 12초")))
+				.andExpect(content().string(containsString("일부 회차가 건너뛰어집니다")));
 	}
 
 	@Test
@@ -125,7 +191,9 @@ class ReconciliationSettingsControllerTest {
 						.param("resolutionEnabled", "true")
 						.param("reportRetentionCount", "50")
 						.param("extraScanRoots", "/mnt/backup")
-						.param("startupScanEnabled", "true"))
+						.param("startupScanEnabled", "true")
+						.param("scanIntervalMinutes", "60")
+						.param("deepScanIntervalMinutes", "1440"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/maintenance/reconciliation/settings?saved"));
 
@@ -141,7 +209,9 @@ class ReconciliationSettingsControllerTest {
 						.param("resolutionEnabled", "true")
 						.param("reportRetentionCount", "0")
 						.param("extraScanRoots", "")
-						.param("startupScanEnabled", "true"))
+						.param("startupScanEnabled", "true")
+						.param("scanIntervalMinutes", "60")
+						.param("deepScanIntervalMinutes", "1440"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("보고서는 최소 1 회분은 남겨야 해요.")));
 	}
@@ -155,7 +225,9 @@ class ReconciliationSettingsControllerTest {
 						.param("resolutionEnabled", "true")
 						.param("reportRetentionCount", "100")
 						.param("extraScanRoots", "backup/iso")
-						.param("startupScanEnabled", "true"))
+						.param("startupScanEnabled", "true")
+						.param("scanIntervalMinutes", "60")
+						.param("deepScanIntervalMinutes", "1440"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("절대 경로로 입력해주세요")));
 	}
@@ -170,7 +242,9 @@ class ReconciliationSettingsControllerTest {
 						.param("resolutionEnabled", "true")
 						.param("reportRetentionCount", "100")
 						.param("extraScanRoots", "")
-						.param("startupScanEnabled", "true"))
+						.param("startupScanEnabled", "true")
+						.param("scanIntervalMinutes", "60")
+						.param("deepScanIntervalMinutes", "1440"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("알 수 없는 종류가 섞여 있어요")));
 	}

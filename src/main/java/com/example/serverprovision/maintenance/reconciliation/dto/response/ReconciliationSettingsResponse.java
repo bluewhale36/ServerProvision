@@ -2,8 +2,12 @@ package com.example.serverprovision.maintenance.reconciliation.dto.response;
 
 import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.maintenance.reconciliation.enums.ReconciliationSettingItem;
+import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanInterval;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanSchedule;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,10 +32,82 @@ public record ReconciliationSettingsResponse(
 		int reportRetentionCount,
 		String extraScanRoots,
 		boolean startupScanEnabled,
-		String scanIntervalText,
-		String deepScanIntervalText,
+		ScheduleView schedule,
 		List<Item> items
 ) {
+
+	/**
+	 * MK4-3-2 — 주기와 <b>다음 점검 예정 시각</b>.
+	 *
+	 * <p>저장한 값을 되비추는 것만으로는 화면이 할 말을 다 한 것이 아니다. 운영자가 알고 싶은 것은
+	 * "그래서 다음에 언제 보는가" 이고, 이 설계는 그 값이 {@code 마지막 점검 + 주기} 로 계산되기 때문에
+	 * 답할 수 있다.</p>
+	 *
+	 * <p>깊이별로 나눈 이유는 화면에 있다. 두 항목은 구조가 같아 템플릿이 같은 조각을 두 번 쓰는데,
+	 * 값이 평평하게 늘어서 있으면 조각에 넘길 수가 없어 결국 복붙이 된다.</p>
+	 */
+	public record ScheduleView(DepthView quick, DepthView deep, int minMinutes, int maxMinutes) {
+
+		/**
+		 * 한 깊이의 화면 표시.
+		 *
+		 * @param item             설명 · 효과 시점의 출처. 문구를 화면이 짓지 않는다는 규칙은 여기서도 같다
+		 * @param fieldName        폼 바인딩 이름. 두 항목을 한 조각으로 그리려면 이름을 값으로 넘겨야 한다
+		 * @param nextDueAt        다음 점검 예정. 기준이 될 기록이 없으면 {@code null} — 예정이 아니라
+		 *                         지금 밀려 있다는 뜻이다
+		 * @param warning          설정한 주기가 지난 실측 소요 시간보다 짧은가
+		 * @param lastDurationText 경고의 근거가 되는 실측값. 기록이 없으면 비어 있다
+		 */
+		public record DepthView(
+				ReconciliationSettingItem item,
+				ScanDepth depth,
+				String fieldName,
+				long minutes,
+				String text,
+				Instant lastScanAt,
+				Instant nextDueAt,
+				boolean warning,
+				String lastDurationText
+		) {
+		}
+
+		/**
+		 * 화면이 반복해서 그릴 목록. 두 항목은 구조가 같아 한 조각으로 그린다 — 두 벌을 복붙하면
+		 * 한쪽만 고치는 사고가 난다.
+		 */
+		public List<DepthView> depths() {
+			return List.of(quick, deep);
+		}
+
+		static ScheduleView of(ScanSchedule schedule) {
+			return new ScheduleView(
+					depthView(schedule.quick(), ScanDepth.QUICK,
+							ReconciliationSettingItem.SCAN_INTERVAL, "scanIntervalMinutes"),
+					depthView(schedule.deep(), ScanDepth.DEEP,
+							ReconciliationSettingItem.DEEP_SCAN_INTERVAL, "deepScanIntervalMinutes"),
+					ScanInterval.MIN_MINUTES, ScanInterval.MAX_MINUTES);
+		}
+
+		private static DepthView depthView(ScanSchedule.DepthState state, ScanDepth depth,
+				ReconciliationSettingItem item, String fieldName) {
+			return new DepthView(
+					item, depth, fieldName,
+					state.interval().toMinutes(),
+					state.interval().display(),
+					state.lastScanAt(),
+					state.nextDueAt().orElse(null),
+					state.intervalShorterThanLastRun(),
+					durationText(state.lastDuration()));
+		}
+
+		/** 경고 문구에 넣을 실측 소요 시간. 기록이 없으면 비어 있다. */
+		private static String durationText(Duration d) {
+			if (d == null || d.isZero()) return "";
+			long minutes = d.toMinutes();
+			long seconds = d.minusMinutes(minutes).toSeconds();
+			return minutes > 0 ? "%d분 %d초".formatted(minutes, seconds) : "%d초".formatted(seconds);
+		}
+	}
 
 	/**
 	 * 자동 처리 후보 하나.
@@ -49,18 +125,18 @@ public record ReconciliationSettingsResponse(
 	}
 
 	/** 화면에 뜻과 효과 시점을 함께 내보내기 위한 항목 한 줄. */
-	public record Item(String name, String label, String description, String effectTiming, boolean editable) {
+	public record Item(String name, String label, String description, String effectTiming) {
 	}
 
 	/**
 	 * @param values      저장된(또는 기본값으로 채워진) 항목별 원문
 	 * @param unknownKinds 코드에 없는 종류 이름
+	 * @param schedule    주기와 마지막 점검 시각 — 다음 예정 시각이 여기서 계산된다
 	 */
 	public static ReconciliationSettingsResponse of(
 			Map<ReconciliationSettingItem, String> values,
 			Set<String> unknownKinds,
-			Duration scanInterval,
-			Duration deepScanInterval) {
+			ScanSchedule schedule) {
 
 		Set<DriftKind> selected = knownKinds(values.get(ReconciliationSettingItem.AUTO_APPLY_KINDS));
 		List<AutoApplyCandidate> candidates = Arrays.stream(DriftKind.values())
@@ -71,7 +147,7 @@ public record ReconciliationSettingsResponse(
 				.toList();
 		List<Item> items = Arrays.stream(ReconciliationSettingItem.values())
 				.map(item -> new Item(item.name(), item.getLabel(), item.getDescription(),
-						item.getEffectTiming().getLabel(), item.isEditable()))
+						item.getEffectTiming().getLabel()))
 				.toList();
 
 		return new ReconciliationSettingsResponse(
@@ -81,7 +157,7 @@ public record ReconciliationSettingsResponse(
 						ReconciliationSettingItem.REPORT_RETENTION_COUNT),
 				values.getOrDefault(ReconciliationSettingItem.EXTRA_SCAN_ROOTS, ""),
 				Boolean.parseBoolean(values.get(ReconciliationSettingItem.STARTUP_SCAN_ENABLED)),
-				humanize(scanInterval), humanize(deepScanInterval), items);
+				ScheduleView.of(schedule), items);
 	}
 
 	private static Set<DriftKind> knownKinds(String raw) {
@@ -105,16 +181,5 @@ public record ReconciliationSettingsResponse(
 		} catch (RuntimeException e) {
 			return Integer.parseInt(item.defaultValue());
 		}
-	}
-
-	/** 밀리초 원문 대신 사람이 읽는 주기로. 읽기 전용 표시라 근사치로 충분하다. */
-	private static String humanize(Duration d) {
-		if (d == null) return "-";
-		long hours = d.toHours();
-		if (hours >= 24 && hours % 24 == 0) return (hours / 24) + "일마다";
-		if (hours >= 1) return hours + "시간마다";
-		long minutes = d.toMinutes();
-		if (minutes >= 1) return minutes + "분마다";
-		return d.toSeconds() + "초마다";
 	}
 }

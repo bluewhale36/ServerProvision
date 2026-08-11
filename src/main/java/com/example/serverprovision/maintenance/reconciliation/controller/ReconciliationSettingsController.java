@@ -2,10 +2,10 @@ package com.example.serverprovision.maintenance.reconciliation.controller;
 
 import com.example.serverprovision.maintenance.reconciliation.dto.request.ReconciliationSettingsRequest;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.ReconciliationSettingsResponse;
+import com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler;
 import com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-
-import java.time.Duration;
 
 /**
  * MK4-3-1 — 자원 무결성 점검의 운영 설정 화면. 휴지통 설정 화면과 대칭 구조다.
@@ -32,14 +30,12 @@ public class ReconciliationSettingsController {
 	private final ReconciliationSettingsService settingsService;
 
 	/**
-	 * 읽기 전용으로 보여 줄 주기. 저장 대상이 아니라 <b>지금 무엇으로 돌고 있는지</b>를 알리는 값이라
-	 * 설정 파일에서 그대로 읽는다. 화면으로 옮기는 것은 MK4-3-2 소관이다.
+	 * MK4-3-2 — 다음 점검 예정 시각을 얻는 곳. 이 화면은 설정 파일을 더 이상 읽지 않는다.
+	 *
+	 * <p>주기를 언제 발동할지 아는 쪽이 언제 발동할 예정인지도 안다. 예정 시각이
+	 * {@code 마지막 점검 + 주기} 로 계산되는 구조라 화면이 그 값을 물어볼 수 있다.</p>
 	 */
-	@Value("${reconciliation.scan.interval-ms:3600000}")
-	private long scanIntervalMs;
-
-	@Value("${reconciliation.scan.deep-interval-ms:86400000}")
-	private long deepScanIntervalMs;
+	private final ReconciliationScheduler scheduler;
 
 	@GetMapping
 	public String view(Model model) {
@@ -61,7 +57,9 @@ public class ReconciliationSettingsController {
 				current.resolutionEnabled(),
 				current.reportRetentionCount(),
 				current.extraScanRoots(),
-				current.startupScanEnabled());
+				current.startupScanEnabled(),
+				Math.toIntExact(current.schedule().quick().minutes()),
+				Math.toIntExact(current.schedule().deep().minutes()));
 	}
 
 	@PostMapping
@@ -83,7 +81,6 @@ public class ReconciliationSettingsController {
 		return ReconciliationSettingsResponse.of(
 				settingsService.currentValues(),
 				settingsService.unknownAutoApplyKinds(),
-				Duration.ofMillis(scanIntervalMs),
-				Duration.ofMillis(deepScanIntervalMs));
+				scheduler.currentSchedule());
 	}
 }

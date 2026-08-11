@@ -68,17 +68,17 @@ public enum ReconciliationSettingItem {
 					+ "기동 시 한 번 맞춰 봅니다.",
 			EffectTiming.NEXT_BOOT, ValueType.BOOLEAN, "true"),
 
-	/* ── 아래 둘은 저장하지 않는다. 지금 무엇으로 돌고 있는지만 화면에 알린다. ── */
-
 	SCAN_INTERVAL(
 			"일반 점검 주기",
-			"일반 점검을 얼마나 자주 돌릴지 정합니다. 일반 점검은 마커와 위치만 보고 파일 내용은 보지 않습니다.",
-			EffectTiming.RESTART_REQUIRED, ValueType.INTEGER, null),
+			"일반 점검을 얼마나 자주 돌릴지 분 단위로 정합니다. 일반 점검은 마커와 위치만 보고 "
+					+ "파일 내용은 보지 않습니다. 마지막 점검으로부터 이만큼 지나면 다시 돕니다.",
+			EffectTiming.IMMEDIATE, ValueType.INTEGER, "60"),
 
 	DEEP_SCAN_INTERVAL(
 			"정밀 점검 주기",
-			"정밀 점검을 얼마나 자주 돌릴지 정합니다. 정밀 점검은 파일 내용의 지문까지 다시 계산해 변조를 잡습니다.",
-			EffectTiming.RESTART_REQUIRED, ValueType.INTEGER, null);
+			"정밀 점검을 얼마나 자주 돌릴지 분 단위로 정합니다. 정밀 점검은 파일 내용의 지문까지 다시 "
+					+ "계산해 변조를 잡습니다. 마지막 정밀 점검으로부터 이만큼 지나면 다시 돕니다.",
+			EffectTiming.IMMEDIATE, ValueType.INTEGER, "1440");
 
 	private final String label;
 	private final String description;
@@ -102,22 +102,6 @@ public enum ReconciliationSettingItem {
 		return staticDefault == null ? "" : staticDefault;
 	}
 
-	/**
-	 * 데이터베이스에 행을 갖는 항목인가.
-	 *
-	 * <p>점검 주기 둘은 스케줄이 시작 시점에 고정되어 저장해도 반영되지 않는다. 저장해 두고 화면에서
-	 * 바꾸게 하면 화면이 거짓말을 하게 되므로(휴지통 설정이 지금 그 상태다) 행을 두지 않고 설정 파일의
-	 * 현재 값을 읽기 전용으로 보여 주기만 한다. MK4-3-2 가 동적 스케줄로 바꾸면서 이리로 옮겨 온다.</p>
-	 */
-	public boolean isPersisted() {
-		return effectTiming != EffectTiming.RESTART_REQUIRED;
-	}
-
-	/** 화면에서 값을 바꿀 수 있는가. 저장하지 않는 항목은 읽기 전용으로 보인다. */
-	public boolean isEditable() {
-		return isPersisted();
-	}
-
 	/** 값이 어떤 형태인가. 검증과 화면 입력 요소를 이 값으로 가른다. */
 	public enum ValueType {
 		BOOLEAN, INTEGER, KIND_SET, PATH_LIST
@@ -136,10 +120,7 @@ public enum ReconciliationSettingItem {
 		NEXT_SCAN("다음 점검부터"),
 
 		/** 다음 기동부터. 이번 실행에는 영향이 없다. */
-		NEXT_BOOT("다음 기동부터"),
-
-		/** 지금 구조로는 저장해도 반영되지 않는다. MK4-3-2 가 동적 스케줄로 바꾼다. */
-		RESTART_REQUIRED("설정 파일에서만 변경 가능");
+		NEXT_BOOT("다음 기동부터");
 
 		private final String label;
 

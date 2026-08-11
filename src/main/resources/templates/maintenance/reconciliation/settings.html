@@ -59,7 +59,7 @@
                 <strong>효과 시점</strong> : <span th:text="${item.effectTiming}"></span>
             </p>
 
-            <p class="n-form-error" th:if="${#fields.hasErrors('autoApplyKindsKnown')}"
+            <p class="n-error" th:if="${#fields.hasErrors('autoApplyKindsKnown')}"
                th:errors="*{autoApplyKindsKnown}"></p>
 
             <!--/* 후보 목록은 종류의 해결 등급에서 파생한다 — 화면에 종류 이름을 하드코딩하지 않으므로
@@ -75,7 +75,7 @@
                           th:text="${candidate.reversible} ? '되돌릴 수 있음' : '되돌릴 수 없음'"></span>
                     <span class="n-form-hint" style="display:block; margin:2px 0 0"
                           th:text="${candidate.resolveAction}"></span>
-                    <span class="n-form-hint" style="display:block; margin:2px 0 0; color:var(--n-danger)"
+                    <span class="n-form-hint" style="display:block; margin:2px 0 0; color:var(--n-red)"
                           th:if="${!candidate.reversible}">되돌릴 수 없는 처리를 무인으로 맡기게 됩니다.</span>
                 </label>
             </div>
@@ -103,7 +103,7 @@
             </p>
             <input type="number" id="reportRetentionCount" class="n-input" min="1" max="10000"
                    th:field="*{reportRetentionCount}">
-            <p class="n-form-error" th:if="${#fields.hasErrors('reportRetentionCount')}"
+            <p class="n-error" th:if="${#fields.hasErrors('reportRetentionCount')}"
                th:errors="*{reportRetentionCount}"></p>
         </div>
 
@@ -121,9 +121,9 @@
             <!--/* 형식 검증은 여러 줄을 한꺼번에 보는 것이라 클래스 수준 규칙(@AssertTrue)으로 두었다.
                  그 오류는 필드가 아니라 파생 이름에 붙으므로, 필드 옆에 보이게 하려면 여기서 함께
                  그려야 한다 — 안 그리면 상단 요약에만 나와 어느 칸이 문제인지 보이지 않는다. */-->
-            <p class="n-form-error" th:if="${#fields.hasErrors('extraScanRoots')}"
+            <p class="n-error" th:if="${#fields.hasErrors('extraScanRoots')}"
                th:errors="*{extraScanRoots}"></p>
-            <p class="n-form-error" th:if="${#fields.hasErrors('extraScanRootsValid')}"
+            <p class="n-error" th:if="${#fields.hasErrors('extraScanRootsValid')}"
                th:errors="*{extraScanRootsValid}"></p>
         </div>
 
@@ -140,36 +140,59 @@
             </label>
         </div>
 
+        <!--/*
+          MK4-3-2 — 주기 둘이 읽기 전용에서 폼 안으로 들어왔다. 구조가 같은 항목이라 한 조각을
+          반복해 그린다 — 두 벌을 복붙하면 한쪽만 고치는 사고가 난다. 그래서 응답이 폼 필드 이름까지
+          값으로 실어 오고, th:field 는 표현식 전처리(__${...}__)로 그 이름을 받는다.
+
+          값과 함께 다음 점검 예정 시각을 밝히는 것이 이 블록의 요점이다 — 저장한 값을 되비추는
+          것만으로는 "그래서 다음에 언제 보는가" 에 답이 되지 않는다.
+        */-->
+        <div class="n-form-group" th:each="d : ${settings.schedule.depths}">
+            <label class="n-form-label" th:for="${d.fieldName}" th:text="${d.item.label}"></label>
+            <p class="n-form-hint" th:text="${d.item.description}"></p>
+            <p class="n-form-hint" style="margin-top:0">
+                <strong>효과 시점</strong> : <span th:text="${d.item.effectTiming.label}"></span>
+            </p>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input type="number" class="n-input" style="max-width:140px"
+                       th:id="${d.fieldName}" th:field="*{__${d.fieldName}__}"
+                       required
+                       th:min="${settings.schedule.minMinutes}"
+                       th:max="${settings.schedule.maxMinutes}">
+                <span>분</span>
+                <span class="n-form-hint" style="margin:0" th:text="'현재 ' + ${d.text}"></span>
+            </div>
+            <p class="n-error" th:if="${#fields.hasErrors(d.fieldName)}"
+               th:errors="*{__${d.fieldName}__}"></p>
+
+            <!--/* 기준이 될 기록이 없으면 예정이 아니라 밀린 상태다 — 그렇게 말해야 사실이다. */-->
+            <p class="n-form-hint" style="margin-top:6px">
+                <span th:if="${d.lastScanAt != null}">
+                    마지막 <span th:text="${d.depth.label}"></span> :
+                    <strong th:text="${#temporals.format(d.lastScanAt, 'yyyy-MM-dd HH:mm')}"></strong> ·
+                </span>
+                <span th:if="${d.nextDueAt != null}">
+                    다음 예정 :
+                    <strong th:text="${#temporals.format(d.nextDueAt, 'yyyy-MM-dd HH:mm')}"></strong>
+                </span>
+                <span th:if="${d.nextDueAt == null}">기록이 없어 곧 한 번 돕니다.</span>
+            </p>
+
+            <!--/* 막지 않고 알리기만 한다. 겹친 회차는 건너뛰어질 뿐 무엇도 깨지지 않으므로 거절할
+                 근거가 못 된다. 근거가 추측이 아니라 이 설치 환경의 실측값이라는 점이 이 문구의 값이다. */-->
+            <p class="n-form-hint" style="color:var(--n-yellow); margin-top:4px" th:if="${d.warning}">
+                지난 <span th:text="${d.depth.label}"></span>은
+                <strong th:text="${d.lastDurationText}"></strong> 걸렸습니다.
+                주기를 그보다 짧게 두면 일부 회차가 건너뛰어집니다.
+            </p>
+        </div>
+
         <div class="n-form-actions">
             <button type="submit" class="n-btn n-btn-primary">저장</button>
         </div>
     </form>
-
-    <!--/* 저장 대상이 아닌 항목 — 지금 무엇으로 돌고 있는지만 알린다. 조작 요소로 두면 바꿀 수
-         있다고 오해하고, 아예 감추면 그 값의 존재를 모른다. MK4-3-2 가 화면으로 옮겨 온다. */-->
-    <div class="n-card" style="margin-top:20px">
-        <div class="n-card-body">
-            <h2 class="n-card-title" style="font-size:15px">점검 주기</h2>
-            <p class="n-form-hint">
-                아래 둘은 아직 화면에서 바꿀 수 없습니다. 지금은 애플리케이션이 시작될 때 값이 고정되어,
-                저장해도 다시 띄우기 전에는 반영되지 않기 때문입니다. 다음 단계에서 화면으로 옮겨 옵니다.
-            </p>
-            <dl class="n-accordion-fields">
-                <div class="n-accordion-field" th:each="item : ${settings.items}"
-                     th:if="${!item.editable}">
-                    <dt th:text="${item.label}"></dt>
-                    <dd>
-                        <span th:text="${item.name == 'SCAN_INTERVAL'}
-                                       ? ${settings.scanIntervalText} : ${settings.deepScanIntervalText}"></span>
-                        <span class="n-badge n-badge-gray" style="margin-left:6px"
-                              th:text="${item.effectTiming}"></span>
-                        <span class="n-form-hint" style="display:block; margin:2px 0 0"
-                              th:text="${item.description}"></span>
-                    </dd>
-                </div>
-            </dl>
-        </div>
-    </div>
 </div>
 </body>
 </html>

@@ -19,6 +19,7 @@ import com.example.serverprovision.maintenance.reconciliation.entity.DriftObserv
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction;
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow;
+import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeNotAllowedException;
@@ -29,14 +30,11 @@ import com.example.serverprovision.maintenance.reconciliation.repository.DriftHa
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.DriftResolution;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,13 +51,10 @@ import java.util.stream.Stream;
 /**
  * MK1 본체 — 자원 인벤토리와 디스크 마커를 대조해 {@code DriftReport} 를 생성·영속화한다.
  *
- * <p>스캔 트리거:
- * <ol>
- *   <li>시작시 1회 (quick) — {@code @EventListener(ApplicationReadyEvent)}</li>
- *   <li>Quick 주기 — default 1h. 마커 서명만 검증, 내용 변조 못 잡음</li>
- *   <li>Deep 주기 — default 24h. manifestHash 재계산 — 내용 변조 감지</li>
- *   <li>수동 — {@link #triggerScan(boolean)}</li>
- * </ol>
+ * <p><b>언제 점검할지는 이 클래스가 정하지 않는다</b>(MK4-3-2). 기동 직후 1 회와 주기 도래 판정은
+ * {@link ReconciliationScheduler} 가 맡고, 여기는 {@link #triggerScan(ScanDepth)} 라는 문 하나만 연다.
+ * 수동 점검도 같은 문으로 들어온다. 트리거가 세 곳에 흩어져 있던 동안 두 주기 스케줄이 같은 순간에
+ * 겹쳐 정밀 점검이 버려지던 문제가 오래 드러나지 않았다.</p>
  *
  * <p>스캔 범위 (D19): DB 활성+softDeleted 자원의 path.parent union 동적. 도메인별 분리 디렉토리 자동 대응.
  * {@code reconciliation.scan.extra-roots} 콤마 구분 설정으로 명시 추가 가능.</p>
@@ -143,62 +138,26 @@ public class PathReconciliationService {
 
 	// ==== 트리거 ========================================================
 
-	@EventListener(ApplicationReadyEvent.class)
-	public void onStartup() {
-		if (!settingsService.isStartupScanEnabled()) {
-			log.info("[reconciliation] startup scan 비활성 — 운영 설정에서 꺼져 있음");
-			return;
-		}
-		try {
-			triggerScan(false);
-		} catch (ReconciliationAlreadyRunningException ignored) {
-			// 부팅 직후 다중 호출 방지 — 보통 발생 안 함
-		}
-	}
-
-	@Scheduled(
-			fixedRateString = "${reconciliation.scan.interval-ms:3600000}",
-			initialDelayString = "${reconciliation.scan.interval-ms:3600000}"
-	)
-	public void scheduledQuickScan() {
-		if (running.get()) {
-			log.debug("[reconciliation] quick 주기 스캔 skip (이전 스캔 RUNNING)");
-			return;
-		}
-		try {
-			triggerScan(false);
-		} catch (ReconciliationAlreadyRunningException ignored) {
-		}
-	}
-
-	@Scheduled(
-			fixedRateString = "${reconciliation.scan.deep-interval-ms:86400000}",
-			initialDelayString = "${reconciliation.scan.deep-interval-ms:86400000}"
-	)
-	public void scheduledDeepScan() {
-		if (running.get()) {
-			log.debug("[reconciliation] deep 주기 스캔 skip (이전 스캔 RUNNING)");
-			return;
-		}
-		try {
-			triggerScan(true);
-		} catch (ReconciliationAlreadyRunningException ignored) {
-		}
+	/** 점검이 지금 돌고 있는가. 심박이 헛돌지 않게 미리 묻는다 — 예외를 흐름 제어로 쓰지 않는다. */
+	public boolean isScanRunning() {
+		return running.get();
 	}
 
 	/**
-	 * 수동/주기 공용 스캔 트리거. BackgroundJob 등록 후 비동기 실행.
+	 * 점검을 여는 단 하나의 문. 수동 · 기동 직후 · 주기 도래가 모두 여기로 들어온다.
+	 * BackgroundJob 등록 후 비동기 실행한다.
 	 *
 	 * @return BackgroundJob 의 jobId
 	 */
-	public String triggerScan(boolean deep) {
+	public String triggerScan(ScanDepth depth) {
 		if (!running.compareAndSet(false, true)) {
 			throw new ReconciliationAlreadyRunningException();
 		}
+		boolean deep = depth.isDeep();
 		String jobId = backgroundJobService.register(
 				JobType.PATH_RECONCILIATION,
-				deep ? "정밀 점검" : "자원 무결성 점검",
-				deep ? "파일 내용 해시 재계산 포함" : "마커 서명 검증",
+				depth.getJobTitle(),
+				depth.getJobDetail(),
 				BackgroundJobService.stagesOf(ReconciliationStage.values())
 		);
 		// self proxy 경유 — 그래야 @Async 가 살아 별도 스레드에서 실행되고 호출 스레드(보통 HTTP 요청 스레드)가
@@ -282,7 +241,7 @@ public class PathReconciliationService {
 		// 한계(인지·수용): 마커 파일 재서명은 됐고 DB 기록 갱신만 실패한 유형은 마커가 유효해 안 잡힌다.
 		if (failedCount > 0) {
 			try {
-				triggerScan(false);
+				triggerScan(ScanDepth.QUICK);
 				log.info("[reissue] 부분 실패 {}건 — 후속 자원 무결성 점검 자동 시작", failedCount);
 			} catch (ReconciliationAlreadyRunningException ignored) {
 				// 그 찰나에 주기 점검이 선점했으면 그것으로 충분 — 조용히 양보.

@@ -1,6 +1,7 @@
 package com.example.serverprovision.maintenance.reconciliation.dto.request;
 
 import com.example.serverprovision.global.marker.DriftKind;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanInterval;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -23,6 +24,8 @@ import java.util.Set;
  * @param reportRetentionCount 보고서 보관 개수
  * @param extraScanRoots      추가 점검 경로. 줄바꿈으로 구분한 원문
  * @param startupScanEnabled  기동 직후 1 회 점검 여부
+ * @param scanIntervalMinutes 일반 점검 주기(분)
+ * @param deepScanIntervalMinutes 정밀 점검 주기(분)
  */
 public record ReconciliationSettingsRequest(
 
@@ -39,7 +42,21 @@ public record ReconciliationSettingsRequest(
 		String extraScanRoots,
 
 		@NotNull(message = "기동 직후 점검 여부를 선택해주세요.")
-		Boolean startupScanEnabled
+		Boolean startupScanEnabled,
+
+		/*
+		 * 경계값은 ScanInterval 이 SSOT 다. 컴파일 상수라 어노테이션에 그대로 쓸 수 있고, 메시지의
+		 * {value} 가 그 상수를 그대로 찍으므로 숫자를 두 곳에 적어 어긋날 여지가 없다.
+		 */
+		@NotNull(message = "일반 점검 주기를 입력해주세요.")
+		@Min(value = ScanInterval.MIN_MINUTES, message = "점검 주기는 최소 {value} 분입니다.")
+		@Max(value = ScanInterval.MAX_MINUTES, message = "점검 주기는 최대 {value} 분(30일)입니다.")
+		Integer scanIntervalMinutes,
+
+		@NotNull(message = "정밀 점검 주기를 입력해주세요.")
+		@Min(value = ScanInterval.MIN_MINUTES, message = "점검 주기는 최소 {value} 분입니다.")
+		@Max(value = ScanInterval.MAX_MINUTES, message = "점검 주기는 최대 {value} 분(30일)입니다.")
+		Integer deepScanIntervalMinutes
 ) {
 
 	/**

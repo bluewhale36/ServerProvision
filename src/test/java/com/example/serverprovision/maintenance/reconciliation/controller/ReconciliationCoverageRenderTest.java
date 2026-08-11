@@ -43,6 +43,9 @@ class ReconciliationCoverageRenderTest {
 	private com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
 
 	@MockitoBean
+	private com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler scheduler;
+
+	@MockitoBean
 	private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
 	private static final Instant NOW = Instant.parse("2026-08-09T04:00:00Z");

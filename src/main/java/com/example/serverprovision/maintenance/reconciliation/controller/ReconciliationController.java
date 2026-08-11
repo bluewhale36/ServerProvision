@@ -3,7 +3,9 @@ package com.example.serverprovision.maintenance.reconciliation.controller;
 import com.example.serverprovision.global.orphan.service.OrphanQuarantineService;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftReportResponse;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftResponse;
+import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
+import com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +37,7 @@ public class ReconciliationController {
 
 	private final PathReconciliationService reconciliationService;
 	private final OrphanQuarantineService orphanQuarantineService;
+	private final ReconciliationScheduler scheduler;
 
 	@GetMapping
 	public String list(
@@ -80,6 +83,11 @@ public class ReconciliationController {
 		// MK4-2 — 이번 점검이 파일 내용을 보았는지와 마지막으로 본 시각. 일반 점검은 내용을 보지 않아
 		// 내용에 관한 문제가 목록에서 빠지는데, 화면이 이를 알리지 않으면 해결된 것으로 읽힌다.
 		model.addAttribute("scanCoverage", reconciliationService.scanCoverage());
+		// MK4-3-2 — "언제 이후로 내용을 안 봤는지" 다음에 "언제 다시 볼지" 가 온다. 예정 시각이
+		// 마지막 정밀 점검 + 주기로 계산되는 구조라 화면이 답할 수 있게 됐다. 기록이 없으면 null 이고
+		// 그때는 밀려 있다는 뜻이라 곧 돈다.
+		model.addAttribute("nextDeepScanAt",
+				scheduler.nextDueAt(ScanDepth.DEEP).orElse(null));
 		// R9-4 — 업로드 실패 격리 대기 안내 배너 (이 페이지 렌더에만 count 조회).
 		model.addAttribute("quarantinePendingCount", orphanQuarantineService.countPending());
 

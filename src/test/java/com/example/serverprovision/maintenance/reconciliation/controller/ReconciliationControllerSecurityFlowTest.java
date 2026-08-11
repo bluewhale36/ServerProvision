@@ -38,6 +38,9 @@ class ReconciliationControllerSecurityFlowTest {
     private com.example.serverprovision.maintenance.reconciliation.service.DuplicateResolveService duplicateResolveService;
     // R9-4 — ReconciliationController 의 격리 대기 배너용 의존.
     @MockitoBean com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
+    // MK4-3-2 — 목록 화면이 다음 정밀 점검 예정을 함께 보인다. 스텁하지 않으면 Optional.empty 로
+    // 응답해 "밀려 있다" 로 그려진다 — 이 테스트들의 관심사가 아니라 그대로 둔다.
+    @MockitoBean com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler scheduler;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test

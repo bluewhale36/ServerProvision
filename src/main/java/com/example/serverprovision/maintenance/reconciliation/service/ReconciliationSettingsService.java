@@ -5,6 +5,7 @@ import com.example.serverprovision.maintenance.reconciliation.dto.request.Reconc
 import com.example.serverprovision.maintenance.reconciliation.entity.ReconciliationSetting;
 import com.example.serverprovision.maintenance.reconciliation.enums.ReconciliationSettingItem;
 import com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanInterval;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -63,6 +64,19 @@ public class ReconciliationSettingsService {
 	@Value("${reconciliation.scan.startup-enabled:true}")
 	private Boolean legacyStartupEnabled;
 
+	/*
+	 * MK4-3-2 — 주기 둘의 이관 원본. 종전 단위가 밀리초라 분으로 환산해 옮긴다.
+	 *
+	 * MK4-3-1 의 주석은 "주기를 옮겨 올 때 여기에 줄이 늘지 않는다" 고 적었으나 틀렸다. 이관 원본이
+	 * 설정 파일에 있으므로 다른 다섯과 똑같이 두 줄이 는다. 30 분으로 맞춰 돌던 환경이 저장 한 번 없이
+	 * 60 분으로 늘어나면 안 된다는 기준은 주기에도 그대로 적용된다.
+	 */
+	@Value("${reconciliation.scan.interval-ms:}")
+	private String legacyScanIntervalMs;
+
+	@Value("${reconciliation.scan.deep-interval-ms:}")
+	private String legacyDeepScanIntervalMs;
+
 	/* ── 실행부가 쓰는 조회 — 여기서부터는 문자열이 나가지 않는다 ── */
 
 	/**
@@ -96,6 +110,34 @@ public class ReconciliationSettingsService {
 		return Boolean.parseBoolean(raw(ReconciliationSettingItem.STARTUP_SCAN_ENABLED));
 	}
 
+	@Transactional
+	public ScanInterval scanInterval() {
+		return interval(ReconciliationSettingItem.SCAN_INTERVAL);
+	}
+
+	@Transactional
+	public ScanInterval deepScanInterval() {
+		return interval(ReconciliationSettingItem.DEEP_SCAN_INTERVAL);
+	}
+
+	/**
+	 * 저장된 주기. 범위를 벗어난 값은 <b>거절하지 않고 범위 안으로 당긴다</b>.
+	 *
+	 * <p>화면은 이미 400 으로 막지만 데이터베이스를 직접 고친 값이 들어올 수 있다. 그때 예외를 던지면
+	 * 심박이 죽어 점검이 통째로 멈춘다 — 설정 하나가 잘못됐다고 점검을 세우는 것은 과하다.
+	 * 기본값으로 되돌리지 않고 당기는 이유는 의도를 최대한 보존하기 위해서다(100000 을 저장한 사람은
+	 * 아주 길게 두려던 것이지 기본값으로 되돌리려던 것이 아니다).</p>
+	 */
+	private ScanInterval interval(ReconciliationSettingItem item) {
+		int minutes = parseInt(raw(item), item);
+		int clamped = Math.clamp(minutes, ScanInterval.MIN_MINUTES, ScanInterval.MAX_MINUTES);
+		if (clamped != minutes) {
+			log.warn("[reconciliation:settings] {} 주기 {}분이 허용 범위를 벗어나 {}분으로 조정",
+					item, minutes, clamped);
+		}
+		return ScanInterval.ofMinutes(clamped);
+	}
+
 	/* ── 화면이 쓰는 조회 ── */
 
 	/** 저장된 항목 전부. 행이 없는 항목은 기본값으로 채워 돌려주므로 호출부가 빈 자리를 다루지 않는다. */
@@ -106,7 +148,6 @@ public class ReconciliationSettingsService {
 				.collect(Collectors.toMap(ReconciliationSetting::getItem, ReconciliationSetting::getValue,
 						(a, b) -> a, () -> new EnumMap<>(ReconciliationSettingItem.class)));
 		for (ReconciliationSettingItem item : ReconciliationSettingItem.values()) {
-			if (!item.isPersisted()) continue;
 			values.put(item, stored.getOrDefault(item, initialValueOf(item)));
 		}
 		return values;
@@ -131,10 +172,14 @@ public class ReconciliationSettingsService {
 		put(ReconciliationSettingItem.EXTRA_SCAN_ROOTS, normalizeRoots(request.extraScanRoots()));
 		put(ReconciliationSettingItem.STARTUP_SCAN_ENABLED,
 				String.valueOf(Boolean.TRUE.equals(request.startupScanEnabled())));
-		log.info("[reconciliation:settings] 설정 갱신. 자동 처리 {}종, 해결 {}, 보관 {}건",
+		put(ReconciliationSettingItem.SCAN_INTERVAL, String.valueOf(request.scanIntervalMinutes()));
+		put(ReconciliationSettingItem.DEEP_SCAN_INTERVAL,
+				String.valueOf(request.deepScanIntervalMinutes()));
+		log.info("[reconciliation:settings] 설정 갱신. 자동 처리 {}종, 해결 {}, 보관 {}건, 주기 {}분 · 정밀 {}분",
 				request.resolvedKinds().size(),
 				Boolean.TRUE.equals(request.resolutionEnabled()) ? "허용" : "차단",
-				request.reportRetentionCount());
+				request.reportRetentionCount(),
+				request.scanIntervalMinutes(), request.deepScanIntervalMinutes());
 	}
 
 	private void put(ReconciliationSettingItem item, String value) {
@@ -155,9 +200,9 @@ public class ReconciliationSettingsService {
 	/**
 	 * 행이 아직 없는 항목의 값. 설정 파일에 값이 있으면 그것을, 없으면 카탈로그 기본값을 쓴다.
 	 *
-	 * <p>항목마다 분기가 생기는 자리이지만 이관은 <b>이 다섯 항목에 한정된 일회성 사상</b>이라
-	 * 도메인이 자라며 함께 자라지 않는다. MK4-3-2 가 주기를 옮겨 올 때는 옮겨 올 설정 파일 값이
-	 * 이미 이 화면 밖에 있으므로 여기에 줄이 늘지 않는다.</p>
+	 * <p>항목마다 분기가 생기는 자리이지만 이관은 <b>설정 파일에 있던 항목에 한정된 일회성 사상</b>이라
+	 * 도메인이 자라며 함께 자라지 않는다. 설정 파일에 원본이 없는 새 항목은 여기에 줄을 더하지 않고
+	 * 카탈로그 기본값으로 시작한다.</p>
 	 */
 	private String initialValueOf(ReconciliationSettingItem item) {
 		String legacy = switch (item) {
@@ -168,9 +213,27 @@ public class ReconciliationSettingsService {
 			case EXTRA_SCAN_ROOTS -> legacyExtraRootsCsv == null ? null
 					: String.join(ROOT_DELIMITER, splitCsv(legacyExtraRootsCsv));
 			case STARTUP_SCAN_ENABLED -> legacyStartupEnabled == null ? null : String.valueOf(legacyStartupEnabled);
-			default -> null;
+			case SCAN_INTERVAL -> minutesOfLegacyMillis(legacyScanIntervalMs);
+			case DEEP_SCAN_INTERVAL -> minutesOfLegacyMillis(legacyDeepScanIntervalMs);
 		};
 		return (legacy == null || legacy.isBlank()) ? item.defaultValue() : legacy;
+	}
+
+	/**
+	 * 밀리초로 적힌 옛 주기를 분으로. 나머지는 <b>올림</b>한다 — 내림하면 설정 파일이 지시한 것보다
+	 * 자주 돌게 되어 이관이 부하를 늘리는 방향으로 어긋난다. 1 분 미만은 하한인 1 분이 된다.
+	 */
+	private static String minutesOfLegacyMillis(String raw) {
+		if (raw == null || raw.isBlank()) return null;
+		try {
+			long millis = Long.parseLong(raw.trim());
+			if (millis <= 0) return null;
+			long minutes = Math.max(1, (millis + 59_999) / 60_000);
+			return String.valueOf(Math.clamp(minutes, ScanInterval.MIN_MINUTES, ScanInterval.MAX_MINUTES));
+		} catch (NumberFormatException e) {
+			log.warn("[reconciliation:settings] 옛 주기 값이 정수가 아니라 이관하지 않음 : '{}'", raw);
+			return null;
+		}
 	}
 
 	private static List<String> splitCsv(String csv) {

@@ -5,6 +5,7 @@ import com.example.serverprovision.maintenance.reconciliation.dto.request.Reconc
 import com.example.serverprovision.maintenance.reconciliation.entity.ReconciliationSetting;
 import com.example.serverprovision.maintenance.reconciliation.enums.ReconciliationSettingItem;
 import com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanInterval;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -155,31 +156,35 @@ class ReconciliationSettingsServiceTest {
 
 		private ReconciliationSettingsRequest request(String roots) {
 			return new ReconciliationSettingsRequest(
-					List.of(DriftKind.PATH_DRIFT.name()), true, 50, roots, false);
+					List.of(DriftKind.PATH_DRIFT.name()), true, 50, roots, false, 30, 720);
 		}
 
+		/**
+		 * 카탈로그와 저장을 맞물려 고정한다. 항목을 카탈로그에만 더하고 저장에서 빠뜨리면 화면은
+		 * 값을 보여 주는데 저장이 안 되는 상태가 되고, 그것은 이 슬라이스가 없애려는 바로 그 형태다.
+		 */
 		@Test
-		@DisplayName("항목마다 행이 하나씩 생긴다")
-		void writesOneRowPerItem() {
+		@DisplayName("카탈로그의 모든 항목이 빠짐없이 저장된다")
+		void writesEveryCatalogItem() {
 			service.update(request(""));
 
 			assertThat(saved).extracting(ReconciliationSetting::getItem)
-					.containsExactlyInAnyOrder(
-							ReconciliationSettingItem.AUTO_APPLY_KINDS,
-							ReconciliationSettingItem.RESOLUTION_ENABLED,
-							ReconciliationSettingItem.REPORT_RETENTION_COUNT,
-							ReconciliationSettingItem.EXTRA_SCAN_ROOTS,
-							ReconciliationSettingItem.STARTUP_SCAN_ENABLED);
+					.containsExactlyInAnyOrder(ReconciliationSettingItem.values());
 		}
 
 		@Test
-		@DisplayName("저장하지 않는 항목(점검 주기)은 행을 만들지 않는다")
-		void doesNotPersistDisplayOnlyItems() {
+		@DisplayName("MK4-3-2 — 주기도 저장 대상이다. 저장한 값이 그대로 읽힌다")
+		void writesScanIntervals() {
 			service.update(request(""));
 
-			assertThat(saved).extracting(ReconciliationSetting::getItem)
-					.doesNotContain(ReconciliationSettingItem.SCAN_INTERVAL,
-							ReconciliationSettingItem.DEEP_SCAN_INTERVAL);
+			assertThat(saved)
+					.filteredOn(row -> row.getItem() == ReconciliationSettingItem.SCAN_INTERVAL)
+					.extracting(ReconciliationSetting::getValue)
+					.containsExactly("30");
+			assertThat(saved)
+					.filteredOn(row -> row.getItem() == ReconciliationSettingItem.DEEP_SCAN_INTERVAL)
+					.extracting(ReconciliationSetting::getValue)
+					.containsExactly("720");
 		}
 
 		@Test
@@ -207,20 +212,90 @@ class ReconciliationSettingsServiceTest {
 		}
 
 		@Test
-		@DisplayName("저장 대상 항목은 기본값을 갖는다 — 행이 없어도 읽을 값이 있다")
-		void persistedItemsHaveDefaults() {
+		@DisplayName("모든 항목이 기본값을 갖는다 — 행이 없어도 읽을 값이 있다")
+		void everyItemHasDefault() {
 			for (ReconciliationSettingItem item : ReconciliationSettingItem.values()) {
-				if (!item.isPersisted()) continue;
+				// 추가 점검 경로처럼 "아무것도 없음" 이 정당한 기본값인 항목이 있어 비어 있는 것은 허용한다.
 				assertThat(item.defaultValue()).as("%s.defaultValue", item).isNotNull();
 			}
 		}
 
+		/**
+		 * MK4-3-2 가 뒤집은 계약이다. 종전에는 주기 둘이 "설정 파일에서만 변경 가능" 이었고 그 사실을
+		 * 이 자리의 테스트가 고정하고 있었다. 이제 저장 즉시 반영되므로 반대를 고정한다.
+		 */
 		@Test
-		@DisplayName("점검 주기는 저장하지 않고 읽기 전용이다")
-		void scheduleItemsAreDisplayOnly() {
-			assertThat(ReconciliationSettingItem.SCAN_INTERVAL.isPersisted()).isFalse();
-			assertThat(ReconciliationSettingItem.SCAN_INTERVAL.isEditable()).isFalse();
-			assertThat(ReconciliationSettingItem.DEEP_SCAN_INTERVAL.isPersisted()).isFalse();
+		@DisplayName("점검 주기는 저장 즉시 반영되는 항목이다")
+		void scheduleItemsTakeEffectImmediately() {
+			assertThat(ReconciliationSettingItem.SCAN_INTERVAL.getEffectTiming())
+					.isEqualTo(ReconciliationSettingItem.EffectTiming.IMMEDIATE);
+			assertThat(ReconciliationSettingItem.DEEP_SCAN_INTERVAL.getEffectTiming())
+					.isEqualTo(ReconciliationSettingItem.EffectTiming.IMMEDIATE);
+			// "다시 띄워야 반영된다" 는 상태가 코드에서 사라졌는지 — 남겨 두면 새 항목이 그리로 간다.
+			assertThat(ReconciliationSettingItem.EffectTiming.values())
+					.noneMatch(timing -> timing.name().contains("RESTART"));
+		}
+	}
+
+	/**
+	 * MK4-3-2 — 주기 읽기와 이관. 옛 값이 밀리초라 분으로 환산해 옮기며, 그 환산이 <b>부하를 늘리는
+	 * 방향으로 어긋나지 않는지</b>가 이 묶음의 관심사다.
+	 */
+	@Nested
+	@DisplayName("점검 주기")
+	class Intervals {
+
+		@Test
+		@DisplayName("손대지 않으면 카탈로그 기본값 — 일반 60분 · 정밀 1440분")
+		void defaultsToCatalogValues() {
+			assertThat(service.scanInterval().toMinutes()).isEqualTo(60);
+			assertThat(service.deepScanInterval().toMinutes()).isEqualTo(1440);
+		}
+
+		@Test
+		@DisplayName("설정 파일의 밀리초 값을 분으로 옮겨 온다 — 맞춰 두고 돌던 환경이 달라지지 않는다")
+		void migratesLegacyMillis() {
+			legacy("legacyScanIntervalMs", "1800000");
+			legacy("legacyDeepScanIntervalMs", "21600000");
+
+			assertThat(service.scanInterval().toMinutes()).isEqualTo(30);
+			assertThat(service.deepScanInterval().toMinutes()).isEqualTo(360);
+		}
+
+		@Test
+		@DisplayName("나머지가 있으면 올림한다 — 내림하면 지시보다 자주 돌게 된다")
+		void roundsUpOnRemainder() {
+			legacy("legacyScanIntervalMs", "90000");   // 1분 30초
+
+			assertThat(service.scanInterval().toMinutes()).isEqualTo(2);
+		}
+
+		@Test
+		@DisplayName("1분 미만은 하한인 1분이 된다")
+		void clampsSubMinuteLegacyValue() {
+			legacy("legacyScanIntervalMs", "5000");
+
+			assertThat(service.scanInterval().toMinutes()).isEqualTo(1);
+		}
+
+		@Test
+		@DisplayName("저장된 값이 범위를 벗어나면 거절하지 않고 당긴다 — 설정 하나로 점검을 세우지 않는다")
+		void clampsStoredOutOfRangeValue() {
+			when(repository.findById(ReconciliationSettingItem.DEEP_SCAN_INTERVAL))
+					.thenReturn(Optional.of(ReconciliationSetting.of(
+							ReconciliationSettingItem.DEEP_SCAN_INTERVAL, "999999")));
+
+			assertThat(service.deepScanInterval().toMinutes()).isEqualTo(ScanInterval.MAX_MINUTES);
+		}
+
+		@Test
+		@DisplayName("저장된 값이 정수가 아니면 기본값으로 대체한다")
+		void fallsBackWhenStoredValueIsNotNumeric() {
+			when(repository.findById(ReconciliationSettingItem.SCAN_INTERVAL))
+					.thenReturn(Optional.of(ReconciliationSetting.of(
+							ReconciliationSettingItem.SCAN_INTERVAL, "곧")));
+
+			assertThat(service.scanInterval().toMinutes()).isEqualTo(60);
 		}
 	}
 }

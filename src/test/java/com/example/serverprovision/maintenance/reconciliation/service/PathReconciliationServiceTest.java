@@ -25,6 +25,7 @@ import com.example.serverprovision.maintenance.reconciliation.exception.Reconcil
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
+import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -329,7 +330,7 @@ class PathReconciliationServiceTest {
         AtomicBoolean running = (AtomicBoolean) ReflectionTestUtils.getField(service, "running");
         running.set(true);
 
-        assertThatThrownBy(() -> service.triggerScan(false))
+        assertThatThrownBy(() -> service.triggerScan(ScanDepth.QUICK))
                 .isInstanceOf(ReconciliationAlreadyRunningException.class);
         verify(backgroundJobService, never()).register(any(), any(), any(), org.mockito.ArgumentMatchers.<List<String>>any());
     }
