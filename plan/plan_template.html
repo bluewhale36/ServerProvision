@@ -88,7 +88,8 @@
   .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
   .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
   .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
-  .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
   .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
   .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
   .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
@@ -197,7 +198,7 @@
       <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
       <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
       <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
-      <li><a href="#s5">§5 10단계 + CP</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
       <li><a href="#s6">§6 통합 테스트</a></li>
       <li><a href="#s7">§7 예외 계층</a></li>
       <li><a href="#s8">§8 부산물 / 주의</a></li>
@@ -307,20 +308,24 @@
       </div>
     </details>
 
-    <!-- ===== §5 10단계 + CP ===== -->
+    <!-- ===== §5 12단계 + CP ===== -->
     <details class="section" id="s5">
-      <summary>§5. 수직 슬라이스 10 단계 + CP 묶음</summary>
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
       <div class="body">
+        <!-- TODO: 이 슬라이스에서 해당 없는 Step 은 "N/A + 사유" 로 남긴다(리팩토링 슬라이스는 6 · 7 · 9 가 N/A 가 될 수 있다). -->
         <table>
-          <thead><tr><th>Step</th><th>산출물</th><th>CP</th></tr></thead>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
           <tbody>
-            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td></tr>
-            <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td></tr>
-            <tr><td>6~7</td><td>Repository · Entity (+VO/Enum)</td><td><span class="chip cp3">CP3</span></td></tr>
-            <tr><td>8~9</td><td>Service 본체 + 단위/통합 테스트 + 스키마 확인</td><td><span class="chip cp4">CP4</span></td></tr>
-            <tr><td>10</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository · Entity (+VO/Enum)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>Service 본체 + 단위/통합 테스트 + 스키마 확인</td><td><span class="chip cp4">CP4</span></td><td>보고</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
           </tbody>
         </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP6 · CP7</b> 셋이다. CP1 승인이 CP2~CP4 의 진행 승인을 겸하므로 그 구간은 무중단으로 진행하고 경계마다 보고만 한다.</div>
       </div>
     </details>
 
@@ -366,7 +371,9 @@
         <ul class="check-list" data-storage="{{PAGE_KEY}}-verify">
           <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
           <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
-          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP5, 사용자)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 브라우저 검증 (CP5, 항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
         </ul>
       </div>
     </details>
