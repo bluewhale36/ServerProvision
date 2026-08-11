@@ -197,7 +197,8 @@ class HashAcceptServiceTest {
         given(reconciliationService.isResolutionEnabled()).willReturn(false);
         assertThatThrownBy(() -> service.triggerAccept(9L, "x"))
                 .isInstanceOf(DriftResolutionNotAllowedException.class)
-                .hasMessageContaining("resolution-enabled");
+                // MK4-3-1 — 사용자 노출 문구에서 설정 키 이름을 걷어냈다.
+                .hasMessageContaining("시스템 해결이 꺼져 있어");
     }
 
     @Test

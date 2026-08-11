@@ -57,12 +57,15 @@
          latestReport 는 페이지네이션과 무관한 전체 최신 1건 (컨트롤러가 별도 조회). -->
     <div class="n-banner n-banner-info">
         <div>등록된 자원 정보(DB)와 디스크의 실제 파일 · 마커가 서로 일치하는지 점검하고, 불일치(드리프트)를 정합합니다.</div>
-        <!-- HF4-4 (O-1) — 스캔 범위 특성 안내. 범위 밖 이동이 '자원 소실'로 보고되는 동작은 설계 의도(D19)이나
-             운영자가 알 길이 코드뿐이었다. extra-roots 보강 경로를 첫 화면에서 안내한다. -->
+        <!--/* HF4-4 (O-1) — 스캔 범위 특성 안내. 범위 밖 이동이 '자원 소실'로 보고되는 동작은 설계 의도(D19)이나
+             운영자가 알 길이 코드뿐이었다.
+             MK4-3-1 — 종전에는 설정 키 이름을 코드 조각으로 보여 주면서 정작 바꿀 방법은 주지 않았다.
+             이제 설정 화면이 있으므로 그리로 보낸다. */-->
         <div class="n-text-muted">
-            점검은 활성 자원이 등록된 폴더들과 <code>reconciliation.scan.extra-roots</code> 설정에 지정한 폴더만 검색합니다.
+            점검은 활성 자원이 등록된 폴더들과 <strong>추가 점검 경로</strong>에 지정한 폴더만 검색합니다.
             자원을 이 범위 밖(예: 별도 백업 폴더)으로 옮기면 파일을 찾을 수 없어 '경로 이동'이 아닌 '자원 소실'로 보고됩니다 —
-            그런 위치를 쓴다면 <code>reconciliation.scan.extra-roots</code> 에 해당 경로를 추가해 점검 범위를 넓힐 수 있습니다.
+            그런 위치를 쓴다면 <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서
+            해당 경로를 추가해 점검 범위를 넓힐 수 있습니다.
         </div>
         <!-- HF4-4 (O-3) — 요약줄 병기: 탐지(스캔 시점 스냅샷·불변)와 미해결(잔수·해결 시 감소)을 함께 표기. -->
         <div th:if="${latestReport != null}" class="n-text-muted">
@@ -73,6 +76,17 @@
             · 드리프트 탐지 <strong th:text="${latestReport.detectedDriftCount}"></strong>건
             · 지금 미해결 <strong th:text="${openDriftCount}"></strong>건
         </div>
+    </div>
+
+    <!--/* MK4-3-1 — 시스템 해결이 꺼져 있으면 상시 알린다.
+         이 스위치는 탐지는 계속하되 고치는 행위만 전부 멈추는 비상 차단기다. 끈 사실을 잊으면
+         시스템이 조용히 아무것도 고치지 않는 상태로 남으므로, 해결을 시도할 때만 보이는 tooltip 으로는
+         부족하다. 앞 단계가 "안 본 것은 안 봤다고 밝힌다" 를 세웠고 여기서는 같은 원칙이
+         "안 고치는 중이면 안 고치는 중이라고 밝힌다" 로 이어진다. */-->
+    <div th:if="${!resolutionEnabled}" class="n-banner n-banner-warn">
+        <strong>시스템 해결이 꺼져 있습니다.</strong>
+        점검은 계속하지만 발견된 문제를 고치지 않습니다 — 수동 [해결] 과 점검 중 자동 처리가 모두 멈춥니다.
+        <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서 다시 켤 수 있습니다.
     </div>
 
     <!--/* MK4-2 — 점검 커버리지. 일반 점검은 마커와 위치만 보고 파일 내용은 다시 계산하지 않는다.
@@ -87,7 +101,9 @@
             <strong th:text="${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')}"></strong>
         </span>
         <span th:if="${scanCoverage.neverDeepScanned()}">
-            아직 정밀 점검을 한 번도 하지 않았습니다.
+            <!--/* 보관 개수를 줄이면 오래된 보고서가 정리되어 정밀 점검 기록도 함께 사라진다.
+                 그때 "한 번도 하지 않았다" 고 말하면 사실이 아니다 — 없는 것은 기록이지 점검이 아니다. */-->
+            남아 있는 정밀 점검 기록이 없습니다.
         </span>
         <span>[정밀 점검]으로 내용까지 확인할 수 있습니다.</span>
     </div>
@@ -399,7 +415,7 @@
                                     th:title="${drift.resolveBlockReason != null}
                                               ? ${drift.resolveBlockReason}
                                               : (${!resolutionEnabled}
-                                                 ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.'
+                                                 ? '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'
                                                  : null)">해결</button>
                         </form>
                         <!--/* S6-3-4 — 내용 변경 수용 : 자원명 확인을 동반해 전용 endpoint 를 쓰지만,
@@ -417,7 +433,7 @@
                                     th:title="${drift.resolveBlockReason != null}
                                               ? ${drift.resolveBlockReason}
                                               : (${!resolutionEnabled}
-                                                 ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.'
+                                                 ? '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'
                                                  : null)">해결</button>
                         </form>
                         <!--/* HF4-5 — 자원 중복 존재 : 택일(원본|복제본) 해결. 사용자 입력(survivor) 동반이라
@@ -439,7 +455,7 @@
                                     th:title="${drift.resolveBlockReason != null}
                                               ? ${drift.resolveBlockReason}
                                               : (${!resolutionEnabled}
-                                                 ? '시스템 해결 옵션이 꺼져 있어요 (reconciliation.resolution-enabled). 켠 뒤 다시 시도하세요.'
+                                                 ? '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'
                                                  : null)">해결</button>
                         </form>
                         <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/snooze(driftId=${drift.id})}"

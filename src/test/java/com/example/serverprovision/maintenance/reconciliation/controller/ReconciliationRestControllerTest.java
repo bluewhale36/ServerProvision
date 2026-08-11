@@ -144,9 +144,16 @@ class ReconciliationRestControllerTest {
                         .string(org.hamcrest.Matchers.containsString("탐지 4건")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("지금 미해결")))
-                // O-1 — 상단 배너의 스캔 범위 보강 안내
+                // O-1 — 상단 배너의 스캔 범위 보강 안내.
+                // MK4-3-1 — 종전에는 설정 키 이름을 그대로 노출했다. 화면에서 바꿀 방법이 생겼으므로
+                // 키 대신 그 자리를 가리키는지 고정한다.
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("reconciliation.scan.extra-roots")));
+                        .string(org.hamcrest.Matchers.containsString("추가 점검 경로")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("/maintenance/reconciliation/settings")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString("reconciliation.scan.extra-roots"))));
     }
 
     @Test

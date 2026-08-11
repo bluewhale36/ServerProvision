@@ -331,7 +331,9 @@ class DuplicateResolveServiceTest {
 
         assertThatThrownBy(() -> service.resolve(1L, DuplicateSurvivor.ORIGINAL))
                 .isInstanceOf(DriftResolutionNotAllowedException.class)
-                .hasMessageContaining("reconciliation.resolution-enabled");
+                // MK4-3-1 — 사용자 노출 문구에서 설정 키 이름을 걷어냈다. 이제 안내는 설정 화면을 가리킨다.
+                .hasMessageContaining("시스템 해결이 꺼져 있어")
+                .hasMessageContaining("점검 운영 설정");
     }
 
     @Test

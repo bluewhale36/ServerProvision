@@ -96,14 +96,14 @@ class ReconciliationCoverageRenderTest {
 	}
 
 	@Test
-	@DisplayName("정밀 점검 이력이 없어도 화면이 깨지지 않는다")
+	@DisplayName("정밀 점검 기록이 없어도 화면이 깨지지 않는다 — 보관 정리로 사라진 경우 포함")
 	void neverDeepScannedRendersSafely() throws Exception {
 		givenPage(new ScanCoverage(false, null));
 
 		mvc.perform(get("/maintenance/reconciliation"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
-						"아직 정밀 점검을 한 번도 하지 않았습니다.")));
+						"남아 있는 정밀 점검 기록이 없습니다.")));
 	}
 
 	@Test

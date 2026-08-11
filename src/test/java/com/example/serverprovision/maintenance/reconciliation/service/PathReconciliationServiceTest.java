@@ -57,6 +57,9 @@ import static org.mockito.Mockito.verify;
  */
 class PathReconciliationServiceTest {
 
+	private com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService settingsService;
+
+
     private ProvisionMarkerService markerService;
     private BackgroundJobService backgroundJobService;
     private DriftReportRepository driftReportRepository;
@@ -87,15 +90,22 @@ class PathReconciliationServiceTest {
         given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
 
         // self proxy 자리는 단위 테스트 범위 외 (async/proxy 경로는 통합 테스트에서 검증). null 주입.
+        // MK4-3-1 — 점검 설정은 이제 데이터베이스에서 온다. 저장소를 비워 두면 서비스가 이관 원본
+        // (설정 파일 값)으로 답하므로, 종전 @Value 필드를 세팅하던 자리를 그대로 옮겨 쓸 수 있다.
+        var settingRepository = mock(com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository.class);
+        given(settingRepository.findById(any())).willReturn(java.util.Optional.empty());
+        given(settingRepository.findAll()).willReturn(java.util.List.of());
+        settingsService = new com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService(settingRepository);
         service = new PathReconciliationService(
                 List.of(isoScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
-        ReflectionTestUtils.setField(service, "startupEnabled", true);
-        ReflectionTestUtils.setField(service, "retentionCount", 100);
-        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "");
-        ReflectionTestUtils.setField(service, "extraRootsCsv", "");
+        ReflectionTestUtils.setField(settingsService, "legacyStartupEnabled", true);
+        ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 100);
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "");
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", "");
     }
 
     private Markable isoAt(Long id, Path path) {
@@ -166,7 +176,7 @@ class PathReconciliationServiceTest {
         // scan root union 에 newIso.parent 도 포함되도록 oldIso.parent 가 같은 tmp 하위라야 함
         Files.createDirectories(oldIso.getParent());
         given(isoScanner.findActiveMarkables()).willReturn(List.of(iso));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -278,7 +288,7 @@ class PathReconciliationServiceTest {
         writeMarker(iso, MarkerLayout.SIDECAR, 99L, "hash");
         // active inventory 비움 — 마커만 잔재
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -301,7 +311,7 @@ class PathReconciliationServiceTest {
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(isoScanner.findTrashed()).willReturn(List.of(
                 new DeletedIso(77L, iso, tmp.resolve("trash/gone.iso").toString())));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -387,7 +397,7 @@ class PathReconciliationServiceTest {
     @Test
     @DisplayName("S6-2-1 apply : 마스터(resolution-enabled) OFF → 허용 종류(PATH_DRIFT)도 409 (globalOff 안전망)")
     void apply_globalOff_rejectsEvenApplicableKind() {
-        ReflectionTestUtils.setField(service, "resolutionEnabled", Boolean.FALSE);
+        ReflectionTestUtils.setField(settingsService, "legacyResolutionEnabled", Boolean.FALSE);
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
                 .oldPath("/x").newPath("/y").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
@@ -396,16 +406,18 @@ class PathReconciliationServiceTest {
 
         assertThatThrownBy(() -> service.apply(1L))
                 .isInstanceOf(DriftResolutionNotAllowedException.class)
-                .hasMessageContaining("reconciliation.resolution-enabled");
+                // MK4-3-1 — 사용자 노출 문구에서 설정 키 이름을 걷어냈다. 이제 안내는 설정 화면을 가리킨다.
+                .hasMessageContaining("시스템 해결이 꺼져 있어")
+                .hasMessageContaining("점검 운영 설정");
     }
 
     @Test
     @DisplayName("S6-2-1 isResolutionEnabled : FALSE 일 때만 false — null(미주입)/TRUE 는 true (서버 가드·뷰모델 공유 SSOT)")
     void isResolutionEnabled_nullMeansEnabled() {
         assertThat(service.isResolutionEnabled()).isTrue(); // 미주입(null)
-        ReflectionTestUtils.setField(service, "resolutionEnabled", Boolean.TRUE);
+        ReflectionTestUtils.setField(settingsService, "legacyResolutionEnabled", Boolean.TRUE);
         assertThat(service.isResolutionEnabled()).isTrue();
-        ReflectionTestUtils.setField(service, "resolutionEnabled", Boolean.FALSE);
+        ReflectionTestUtils.setField(settingsService, "legacyResolutionEnabled", Boolean.FALSE);
         assertThat(service.isResolutionEnabled()).isFalse();
     }
 
@@ -578,7 +590,7 @@ class PathReconciliationServiceTest {
         writeMarker(copy, MarkerLayout.SIDECAR, 42L, "hash-abc");
         Markable m = isoAt(42L, oldIso);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -677,7 +689,7 @@ class PathReconciliationServiceTest {
     @Test
     @DisplayName("S6-2-1 : auto-apply.kinds=GHOST_DB_ROW 시 scan 직후 applyGhostClear 자동 호출")
     void scan_ghostAutoApplied(@TempDir Path tmp) {
-        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "GHOST_DB_ROW");
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "GHOST_DB_ROW");
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(isoScanner.findTrashed()).willReturn(List.of(new DeletedIso(99L, tmp.resolve("removed.iso"), null)));
 
@@ -715,7 +727,7 @@ class PathReconciliationServiceTest {
         Markable m = isoAt(42L, iso);
         given(m.displayName()).willReturn("Rocky Linux 9.6 dvd.iso");
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -734,7 +746,7 @@ class PathReconciliationServiceTest {
         Files.writeString(stray, "fake-iso");
         writeMarker(stray, MarkerLayout.SIDECAR, 99L, "hash-x");
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -751,7 +763,7 @@ class PathReconciliationServiceTest {
     @DisplayName("R9-1 : performScan 이 CLASSIFYING → PERSISTING 순서로 stage 를 계측")
     void performScan_instrumentsStageBoundaries(@TempDir Path tmp) {
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -765,7 +777,7 @@ class PathReconciliationServiceTest {
     void runAsync_completesWithDriftCountMetadata(@TempDir Path tmp) {
         ReflectionTestUtils.setField(service, "self", service);
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         service.runAsync("job-1", false);
 
@@ -777,7 +789,7 @@ class PathReconciliationServiceTest {
     void runAsync_failureMarksJobFailed(@TempDir Path tmp) {
         ReflectionTestUtils.setField(service, "self", service);
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
         given(driftReportRepository.save(any(DriftReport.class))).willThrow(new IllegalStateException("DB down"));
 
         service.runAsync("job-1", false);
@@ -835,8 +847,8 @@ class PathReconciliationServiceTest {
         writeMarker(newIso, MarkerLayout.SIDECAR, 42L, "hash-abc");
         Markable iso = isoAt(42L, oldIso);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(iso));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
-        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "PATH_DRIFT");
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "PATH_DRIFT");
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -844,18 +856,26 @@ class PathReconciliationServiceTest {
         assertThat(driftsOf(captureSavedReport())).hasSize(1); // 기록 보존
     }
 
-    @Test
-    @DisplayName("S6-2-1 : 스캔 자동 적용 — kinds 빈 default 면 AUTO kind 도 무인 적용 없음 (수동 대기)")
-    void scan_noAutoApply_whenKindsEmpty(@TempDir Path tmp) throws Exception {
+    /** 경로 이동 드리프트 하나가 잡히는 상태를 만든다 — 자동 처리 대상 판정을 보기 위한 공통 준비. */
+    private void givenPathDrift(Path tmp) throws Exception {
         Path oldIso = tmp.resolve("old/dvd.iso");
         Path newIso = tmp.resolve("new/dvd.iso");
         Files.createDirectories(oldIso.getParent());
         Files.createDirectories(newIso.getParent());
         Files.writeString(newIso, "fake-iso");
         writeMarker(newIso, MarkerLayout.SIDECAR, 42L, "hash-abc");
+        // 스터빙 인자 안에서 다시 스터빙하지 않도록 픽스처를 먼저 만든다.
         Markable iso = isoAt(42L, oldIso);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(iso));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
+    }
+
+    @Test
+    @DisplayName("MK4-3-1 : 자동 처리 대상에 없는 종류는 무인 적용되지 않는다")
+    void scan_noAutoApply_whenKindNotSelected(@TempDir Path tmp) throws Exception {
+        givenPathDrift(tmp);
+        // 경로 이동됨을 빼고 다른 종류만 켜 둔다.
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "TRASH_MARKER_STALE");
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -863,15 +883,58 @@ class PathReconciliationServiceTest {
     }
 
     @Test
-    @DisplayName("S6-2-1 : auto-apply.kinds 에 무효 kind 명 → IllegalArgumentException (설정 오타의 시끄러운 실패)")
-    void scan_invalidKindsCsv_failsLoudly(@TempDir Path tmp) {
-        given(isoScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
-        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "PATH_DRIFTT");
+    @DisplayName("MK4-3-1 : 손대지 않은 기본값은 되돌릴 수 있는 종류를 무인 처리한다")
+    void scan_autoApplies_reversibleKindsByDefault(@TempDir Path tmp) throws Exception {
+        givenPathDrift(tmp);
+        // 설정 파일도 비어 있고 저장된 행도 없는 상태 — 항목 카탈로그의 기본값이 쓰인다.
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "");
 
-        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("PATH_DRIFTT");
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        // 경로 이동됨은 되돌릴 수 있는 자동 처리 종류라 기본으로 켜져 있다.
+        verify(isoScanner).applyDriftedPath(org.mockito.ArgumentMatchers.anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("MK4-3-1 : 자동 처리한 드리프트는 그 점검에서 닫히고 원장에 자동 처리로 남는다")
+    void scan_autoApplied_isClosedInSameScan(@TempDir Path tmp) throws Exception {
+        givenPathDrift(tmp);
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "PATH_DRIFT");
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        // 고쳐 놓고 열어 두면 이미 처리된 문제가 계속 '조치 필요' 로 남고, 상세의 경로도 실제와 어긋난다.
+        org.mockito.ArgumentCaptor<Drift> captor = org.mockito.ArgumentCaptor.forClass(Drift.class);
+        verify(driftRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        Drift pathDrift = captor.getAllValues().stream()
+                .filter(d -> d.getKind() == DriftKind.PATH_DRIFT)
+                .reduce((first, second) -> second)
+                .orElseThrow();
+        assertThat(pathDrift.getStatus()).isEqualTo(DriftStatus.RESOLVED);
+        assertThat(pathDrift.getResolvedBy())
+                .isEqualTo(com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction.AUTO_APPLY);
+
+        // 원장에도 사람이 아니라 시스템이 처리했다는 사실이 남아야 한다.
+        org.mockito.ArgumentCaptor<com.example.serverprovision.maintenance.reconciliation.entity.DriftHandling> handling =
+                org.mockito.ArgumentCaptor.forClass(
+                        com.example.serverprovision.maintenance.reconciliation.entity.DriftHandling.class);
+        verify(driftHandlingRepository, org.mockito.Mockito.atLeastOnce()).save(handling.capture());
+        assertThat(handling.getAllValues()).anyMatch(h -> h.getAction()
+                == com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction.AUTO_APPLY);
+    }
+
+    @Test
+    @DisplayName("MK4-3-1 : 알 수 없는 종류 이름이 섞여 있어도 점검이 죽지 않고 나머지가 처리된다")
+    void scan_unknownKindName_doesNotKillScan(@TempDir Path tmp) throws Exception {
+        givenPathDrift(tmp);
+        // 종전에는 여기서 IllegalArgumentException 을 던져 점검 자체를 실패시켰다. 이제는 걸러 내고
+        // 그 사실을 설정 화면이 "알 수 없는 항목" 으로 드러낸다 — 고칠 자리에서 보이게 하는 편이 낫다.
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "PATH_DRIFT,PATH_DRIFTT");
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        verify(isoScanner).applyDriftedPath(org.mockito.ArgumentMatchers.anyLong(), any());
+        assertThat(settingsService.unknownAutoApplyKinds()).containsExactly("PATH_DRIFTT");
     }
 
     // ==== S6-2-2 — SOFTDEL ESCAPE 분류 =============================================
@@ -947,7 +1010,7 @@ class PathReconciliationServiceTest {
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(isoScanner.findTrashed()).willReturn(List.of(
                 new DeletedIso(42L, dbPath, tmp.resolve("trash/gone.iso").toString())));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -972,7 +1035,7 @@ class PathReconciliationServiceTest {
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(isoScanner.findTrashed()).willReturn(List.of(
                 new DeletedIso(42L, dbPath, tmp.resolve("trash/gone.iso").toString())));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -1005,13 +1068,20 @@ class PathReconciliationServiceTest {
         MarkableScanner metaScanner = mock(MarkableScanner.class);
         given(metaScanner.supportedType()).willReturn(ResourceType.OS_IMAGE);
         given(metaScanner.findActiveMarkables()).willReturn(List.of());
+        // MK4-3-1 — 점검 설정은 이제 데이터베이스에서 온다. 저장소를 비워 두면 서비스가 이관 원본
+        // (설정 파일 값)으로 답하므로, 종전 @Value 필드를 세팅하던 자리를 그대로 옮겨 쓸 수 있다.
+        var settingRepository = mock(com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository.class);
+        given(settingRepository.findById(any())).willReturn(java.util.Optional.empty());
+        given(settingRepository.findAll()).willReturn(java.util.List.of());
+        settingsService = new com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService(settingRepository);
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, metaScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
-        ReflectionTestUtils.setField(svc, "retentionCount", 100);
-        ReflectionTestUtils.setField(svc, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 100);
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
 
         ReflectionTestUtils.invokeMethod(svc, "performScan", false, "job-1");
@@ -1032,7 +1102,7 @@ class PathReconciliationServiceTest {
         Files.writeString(trashed, "trash-copy");                  // 휴지통 사본 생존
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(isoScanner.findTrashed()).willReturn(List.of(new DeletedIso(42L, orig, trashed.toString())));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -1072,13 +1142,20 @@ class PathReconciliationServiceTest {
         given(biosScanner.findTrashed()).willReturn(List.of(
                 new DeletedTree(7L, treeRoot, tmp.resolve("trash/R23_x").toString())));
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        // MK4-3-1 — 점검 설정은 이제 데이터베이스에서 온다. 저장소를 비워 두면 서비스가 이관 원본
+        // (설정 파일 값)으로 답하므로, 종전 @Value 필드를 세팅하던 자리를 그대로 옮겨 쓸 수 있다.
+        var settingRepository = mock(com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository.class);
+        given(settingRepository.findById(any())).willReturn(java.util.Optional.empty());
+        given(settingRepository.findAll()).willReturn(java.util.List.of());
+        settingsService = new com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService(settingRepository);
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
-        ReflectionTestUtils.setField(svc, "retentionCount", 100);
-        ReflectionTestUtils.setField(svc, "extraRootsCsv", "");
+        ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 100);
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", "");
 
         ReflectionTestUtils.invokeMethod(svc, "performScan", false, "job-1");
 
@@ -1144,7 +1221,7 @@ class PathReconciliationServiceTest {
         Files.writeString(tmp.resolve("trash/dvd_x.iso.provision.json"), "{}"); // + 잔여 마커
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(isoScanner.findTrashed()).willReturn(List.of(new DeletedIso(42L, dbPath, trashed.toString())));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.resolve("backup").toString() + "," + tmp.resolve("iso"));
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.resolve("backup").toString() + "," + tmp.resolve("iso"));
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -1167,13 +1244,20 @@ class PathReconciliationServiceTest {
         given(biosScanner.findTrashed()).willReturn(List.of(
                 new DeletedTree(7L, orig, trashedTree.toString())));
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
+        // MK4-3-1 — 점검 설정은 이제 데이터베이스에서 온다. 저장소를 비워 두면 서비스가 이관 원본
+        // (설정 파일 값)으로 답하므로, 종전 @Value 필드를 세팅하던 자리를 그대로 옮겨 쓸 수 있다.
+        var settingRepository = mock(com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository.class);
+        given(settingRepository.findById(any())).willReturn(java.util.Optional.empty());
+        given(settingRepository.findAll()).willReturn(java.util.List.of());
+        settingsService = new com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService(settingRepository);
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
-        ReflectionTestUtils.setField(svc, "retentionCount", 100);
-        ReflectionTestUtils.setField(svc, "extraRootsCsv", "");
+        ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 100);
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", "");
 
         ReflectionTestUtils.invokeMethod(svc, "performScan", false, "job-1");
 
@@ -1190,7 +1274,7 @@ class PathReconciliationServiceTest {
     @DisplayName("R9-6 : 재발급 부분 실패 → 잠금 해제 후 자원 무결성 점검 자동 시작")
     void reissue_partialFailure_triggersFollowupScan(@TempDir Path tmp) throws Exception {
         ReflectionTestUtils.setField(service, "self", service);
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
         // 마커 없는 자원 1건 — performReissue 의 read 가 실패해 failures=1
         Markable broken = isoAt(42L, tmp.resolve("no-marker.iso"));
         given(isoScanner.findActiveMarkables()).willReturn(List.of(broken));
@@ -1447,7 +1531,7 @@ class PathReconciliationServiceTest {
         writeMarker(newIso, MarkerLayout.SIDECAR, 42L, "hash-abc");
         Markable iso = isoAt(42L, oldIso);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(iso));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 

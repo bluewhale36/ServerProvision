@@ -77,6 +77,7 @@ public class PathReconciliationService {
 			DriftReportRepository driftReportRepository,
 			DriftRepository driftRepository,
 			DriftHandlingRepository driftHandlingRepository,
+			ReconciliationSettingsService settingsService,
 			ResourceUsageQuery resourceUsageQuery,
 			List<DriftResolution> resolutions,
 			@Lazy PathReconciliationService self
@@ -87,6 +88,7 @@ public class PathReconciliationService {
 		this.driftReportRepository = driftReportRepository;
 		this.driftRepository = driftRepository;
 		this.driftHandlingRepository = driftHandlingRepository;
+		this.settingsService = settingsService;
 		// provisioning 쪽 계약이라 이 방향으로만 의존한다 — 순환 없음(그쪽은 maintenance 를 모른다).
 		this.resourceUsageQuery = resourceUsageQuery;
 		// S6-2-1 — kind 별 해결 전략 bean 디스패치 (1 bean = 1 kind, 중복 등록은 조립 시점 즉시 실패).
@@ -118,32 +120,15 @@ public class PathReconciliationService {
 	 */
 	private final PathReconciliationService self;
 
-	@Value("${reconciliation.scan.startup-enabled:true}")
-	private boolean startupEnabled;
-
-	@Value("${reconciliation.report.retention-count:100}")
-	private int retentionCount;
-
 	/**
-	 * S6-2-1 — 스캔 중 무인 자동 적용을 허용할 kind CSV (예: PATH_DRIFT,GHOST_DB_ROW). default 빈 = 전부 수동.
-	 * 과거 kind 별 boolean 키(auto-apply-path-drift / auto-apply-ghost-row)가 AUTO kind 증가마다 키·분기를
-	 * 함께 늘리던 것을 단일 키로 통합. 파싱은 {@link #autoApplyKinds()}.
+	 * MK4-3-1 — 점검의 동작을 좌우하는 값들이 사는 곳. 종전에는 {@code @Value} 다섯이 이 클래스에 박혀
+	 * 있어 바꾸려면 설정 파일을 고치고 애플리케이션을 다시 띄워야 했다. 이제 운영자가 화면에서 바꾸고,
+	 * 여기서는 <b>필요한 순간마다 읽는다</b> — 그래야 저장이 다음 점검부터 바로 효과를 낸다.
+	 *
+	 * <p>노출 타입이 계약이라 이 클래스는 문자열을 보지 않는다({@code Set<DriftKind>} · {@code List<Path>}).
+	 * 저장 형식이 바뀌어도 여기는 흔들리지 않는다.</p>
 	 */
-	@Value("${reconciliation.auto-apply.kinds:}")
-	private String autoApplyKindsCsv;
-
-	@Value("${reconciliation.scan.extra-roots:}")
-	private String extraRootsCsv;
-
-	/**
-	 * MK3(DCN-NEW11) → S6-2-1 개명 — 시스템 해결 전면 차단 마스터. default true. false 시 수동 [적용] 버튼과
-	 * 스캔 무인 적용이 모두 차단된다(forced saga 만 통과). MANUAL 도입으로 "auto-apply" 어휘가 수동 해결까지
-	 * 덮지 못하게 되어 resolution-enabled 로 개명.
-	 * <p>Boolean wrapper 사용 — unit test mock 환경에서 @Value 미주입 시 null. {@code Boolean.FALSE.equals}
-	 * 로 비교하면 null = 활성 (운영자 의도 default = 활성).</p>
-	 */
-	@Value("${reconciliation.resolution-enabled:true}")
-	private Boolean resolutionEnabled;
+	private final ReconciliationSettingsService settingsService;
 
 	/**
 	 * MK3 — Trash 디렉토리 (walk 시 명시 제외). macOS 호환을 위해 `.soft-deleted` 사용.
@@ -160,8 +145,8 @@ public class PathReconciliationService {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onStartup() {
-		if (!startupEnabled) {
-			log.info("[reconciliation] startup scan 비활성 (reconciliation.scan.startup-enabled=false)");
+		if (!settingsService.isStartupScanEnabled()) {
+			log.info("[reconciliation] startup scan 비활성 — 운영 설정에서 꺼져 있음");
 			return;
 		}
 		try {
@@ -641,9 +626,8 @@ public class PathReconciliationService {
 		// (7) FIFO prune (D15)
 		pruneOldReports();
 
-		// (8) 무인 자동 적용 (옵트인, D13 → S6-2-1 디스패치 통합) — mode==AUTO 이고 auto-apply.kinds 에
-		// 포함된 kind 만. kind 별 if-else + 개별 boolean 키의 증식을 전략 bean 디스패치 + CSV 1키로 치환.
-		// 해결돼도 drift 는 보고서에 남긴다 (기록 보존 — 보고서에서의 제거는 수동 apply 전용).
+		// (8) 무인 자동 적용 — 해결 등급이 AUTO 이고 운영 설정에서 켜 둔 종류만. 종류별 분기 대신
+		// 전략 bean 디스패치로 처리하므로 종류가 늘어도 여기 줄이 늘지 않는다.
 		if (!isResolutionEnabled()) {
 			// 전역 OFF — 자동 적용 건너뜀.
 		} else {
@@ -653,7 +637,23 @@ public class PathReconciliationService {
 				DriftResolution resolution = resolutions.get(d.getKind());
 				if (resolution == null) continue; // 해결 미구현 AUTO kind — 스캔을 죽이지 않고 skip
 				try {
-					resolution.resolve(d, scannersByType.get(d.getResourceType()));
+					String previousPath = d.getOldPath();
+					String movedToPath = resolution.resolve(d, scannersByType.get(d.getResourceType()))
+							.map(Path::toString)
+							.orElse(d.getNewPath());
+					// MK4-3-1 — 처리했으면 그 자리에서 닫는다.
+					//
+					// 종전에는 고쳐 놓고도 drift 를 열어 둔 채 두었다("보고서에 남긴다"). 드리프트가
+					// 회차마다 새로 생기던 시절에는 그것이 곧 기록 보존이었지만, MK4-1 이 드리프트를
+					// 지속되는 문제로 바꾼 뒤로는 <b>이미 고친 문제가 계속 조치 필요로 남는다</b>.
+					// 상세의 'DB 기록' 도 갱신 전 경로를 보여 주어 실제 데이터와 어긋난다.
+					// 다음 점검에서 미관측으로 닫히기는 하나, 그러면 원장에 "시스템이 처리했다" 가
+					// 아니라 "그냥 사라졌다" 로 적힌다 — 감사 기록이 사실과 달라진다.
+					// 수동 해결과 같은 방식으로 닫아 두 경로가 같은 원장을 남기게 한다.
+					Instant handledAt = Instant.now();
+					d.resolve(handledAt, DriftHandlingAction.AUTO_APPLY);
+					driftHandlingRepository.save(DriftHandling.of(
+							d, DriftHandlingAction.AUTO_APPLY, handledAt, previousPath, movedToPath, null));
 				} catch (RuntimeException ex) {
 					log.warn(
 							"[reconciliation] 자동 적용 실패. driftId={}, kind={}, msg={}",
@@ -674,13 +674,8 @@ public class PathReconciliationService {
 		}
 		// soft-deleted 자원의 부모는 넣지 않는다 — 복귀 감지는 walk 가 아니라 entity 별 존재 검사(5.5a)로 하고,
 		// 이탈 감지는 active 트리(위 roots) 안에서 발견되는 마커가 대상이라 범위 확장이 불필요.
-		// extra-roots — 명시 설정
-		if (extraRootsCsv != null && !extraRootsCsv.isBlank()) {
-			for (String r : extraRootsCsv.split(",")) {
-				String trimmed = r.trim();
-				if (!trimmed.isEmpty()) roots.add(Path.of(trimmed));
-			}
-		}
+		// 추가 점검 경로 — 운영 설정에서 온다. 서비스가 이미 Path 로 돌려주므로 여기서 파싱하지 않는다.
+		roots.addAll(settingsService.extraScanRoots());
 		return roots;
 	}
 
@@ -998,7 +993,7 @@ public class PathReconciliationService {
 
 	private void pruneOldReports() {
 		long total = driftReportRepository.count();
-		long over = total - retentionCount;
+		long over = total - settingsService.reportRetentionCount();
 		if (over <= 0) return;
 		Pageable oldest = PageRequest.of(0, (int) over);
 		Page<DriftReport> toDelete = driftReportRepository.findAllByOrderByScannedAtAsc(oldest);
@@ -1149,12 +1144,7 @@ public class PathReconciliationService {
 		Set<Path> roots = new HashSet<>();
 		Path parent = resource.getResourcePath().getParent();
 		if (parent != null) roots.add(parent);
-		if (extraRootsCsv != null && !extraRootsCsv.isBlank()) {
-			for (String r : extraRootsCsv.split(",")) {
-				String trimmed = r.trim();
-				if (!trimmed.isEmpty()) roots.add(Path.of(trimmed));
-			}
-		}
+		roots.addAll(settingsService.extraScanRoots());
 		return roots;
 	}
 
@@ -1236,29 +1226,20 @@ public class PathReconciliationService {
 	}
 
 	public boolean isResolutionEnabled() {
-		return !Boolean.FALSE.equals(resolutionEnabled);
+		return settingsService.isResolutionEnabled();
 	}
 
 	/**
-	 * S6-2-1 — 무인 자동 적용 허용 kind 집합. 파싱은 스캔 시점 — 무효 kind 명은 IllegalArgumentException
-	 * 으로 시끄럽게 실패시켜 job 실패 UI(R9-1)로 표면화한다 (설정 오타의 침묵 무시 금지).
+	 * MK4-3-1 — 무인 자동 적용을 맡길 종류. 운영 설정에서 매 점검마다 읽으므로 저장이 다음 점검부터
+	 * 곧바로 효과를 낸다.
+	 *
+	 * <p>종전에는 설정 문자열을 여기서 파싱하며 알 수 없는 이름에 예외를 던져 점검을 실패시켰다.
+	 * 이제 이름을 고르는 것은 화면이고 저장 시점에 이미 검증되므로, 읽는 쪽은 알아본 종류만 받는다.
+	 * 코드에서 사라진 종류가 설정에 남은 경우는 설정 화면이 "알 수 없는 항목" 으로 드러낸다 —
+	 * 점검을 죽이는 대신 고칠 자리에서 보이게 하는 편이 낫다.</p>
 	 */
 	private Set<DriftKind> autoApplyKinds() {
-		if (autoApplyKindsCsv == null || autoApplyKindsCsv.isBlank()) {
-			return Set.of();
-		}
-		Set<DriftKind> kinds = EnumSet.noneOf(DriftKind.class);
-		for (String token : autoApplyKindsCsv.split(",")) {
-			String trimmed = token.trim();
-			if (trimmed.isEmpty()) continue;
-			try {
-				kinds.add(DriftKind.valueOf(trimmed));
-			} catch (IllegalArgumentException e) {
-				throw new IllegalArgumentException(
-						"reconciliation.auto-apply.kinds 에 알 수 없는 DriftKind : '" + trimmed + "'", e);
-			}
-		}
-		return kinds;
+		return settingsService.autoApplyKinds();
 	}
 
 	/**
