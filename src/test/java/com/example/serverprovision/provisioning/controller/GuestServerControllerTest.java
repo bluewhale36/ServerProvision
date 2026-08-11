@@ -71,7 +71,8 @@ class GuestServerControllerTest {
     private GuestServerSummaryResponse summary(UUID id) {
         return new GuestServerSummaryResponse(
                 id, "web-01", UUID.randomUUID(), Vendor.GIGABYTE, "MS73-HB1-000",
-                GuestServerStatus.REGISTERED, IpAddressVO.of("10.20.3.11"), LocalDateTime.now(),
+                GuestServerStatus.REGISTERED, ProvisioningPhase.BOOTSTRAPPING,
+                IpAddressVO.of("10.20.3.11"), LocalDateTime.now(),
                 null, false, null);   // E1-2·S7 — 접촉 관찰(lastSeenAt·contactActive·remaining) 기본 fixture
     }
 
@@ -94,12 +95,14 @@ class GuestServerControllerTest {
     @Test
     @DisplayName("GET /provisioning/server — 목록 200 + list 뷰")
     void list_returns200() throws Exception {
-        given(queryService.findAll()).willReturn(List.of(summary(UUID.randomUUID())));
+        // U3-3 — 목록은 평면 리스트가 아니라 그룹 응답을 받는다. 그룹 렌더 자체는 전용 테스트가 덮는다.
+        given(queryService.findGrouped(null)).willReturn(
+                new com.example.serverprovision.execution.dto.response.GuestServerListResponse(null, List.of()));
 
         mvc.perform(get("/provisioning/server"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/server-list"))
-                .andExpect(model().attributeExists("servers"));
+                .andExpect(model().attributeExists("list"));
     }
 
     @Test

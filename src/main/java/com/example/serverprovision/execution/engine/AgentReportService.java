@@ -164,10 +164,14 @@ public class AgentReportService {
         return AgentDirective.WAIT;
     }
 
+    /**
+     * 스펙을 이미 수집했는가 — 판정은 {@link GuestServerDetail#isDiagnosticEnriched()} 가 갖는다(U3-3 DEC-A).
+     * 여기서 다시 판정하지 않는 이유는 목록 화면 · 후속 그룹 할당 가드와 같은 근거를 써야 하기 때문이다.
+     * 상세 행 자체가 없는 서버는 이 호출부가 흡수한다.
+     */
     private boolean isEnriched(GuestServer server) {
         return guestServerDetailRepository.findByServerIdWithBoardModel(server.getId())
-                .map(GuestServerDetail::getDiscoveryStage)
-                .map(stage -> stage == DiscoveryStage.DIAGNOSTIC_ENRICHED)
+                .map(GuestServerDetail::isDiagnosticEnriched)
                 .orElse(false);
     }
 

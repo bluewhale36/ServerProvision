@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.UUID;
@@ -58,9 +59,25 @@ public class GuestServerController {
     private final AssignmentStartService assignmentStartService;
     private final SettingQueryService settingQueryService;
 
+    /**
+     * 게스트 서버 목록 (U3-3) — 상대 시간 × 스펙으로 묶어 보여준다.
+     *
+     * <p>필터와 '등록 진행 중' 의 펼침이 <b>질의 파라미터</b>인 이유는 SSE 갱신 때문이다(DEC-E · DEC-H).
+     * {@code server-stream.js} 는 신호를 받으면 {@code fetch(location.href)} 로 같은 URL 을 다시 받아
+     * {@code [data-live]} 영역을 통째 교체한다. 상태가 URL 에 있으면 서버가 같은 화면을 다시 렌더해 주므로
+     * 복원 코드가 필요 없다 — 반대로 화면에만 두면 갱신 때마다 지워진다.</p>
+     *
+     * <p>알 수 없는 {@code phase} 값은 Spring 의 enum 바인딩 실패로 400 이 된다. 새 분기를 만들지 않으며,
+     * 주소창 진입이 HTML 오류 페이지를 받는 것은 S10 의 Accept 정규화가 보장한다.</p>
+     */
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("servers", guestServerQueryService.findAll());
+    public String list(@RequestParam(value = "phase", required = false) ProvisioningPhase phase,
+                       @RequestParam(value = "pending", required = false) String pending,
+                       Model model) {
+        model.addAttribute("list", guestServerQueryService.findGrouped(phase));
+        model.addAttribute("phaseFilter", phase);
+        model.addAttribute("phases", ProvisioningPhase.values());
+        model.addAttribute("pendingOpen", "open".equals(pending));
         return "provisioning/server-list";
     }
 

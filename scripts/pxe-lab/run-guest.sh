@@ -15,6 +15,7 @@
 #   FIRMWARE=bios ./run-guest.sh       # OVMF 대신 legacy BIOS (UEFI PXE 가 스크립트를 못 받을 때 폴백)
 #   BOARD_SERIAL=... BIOS_VER=F14 ./run-guest.sh   # E1-2 수집 검증용 SMBIOS 주입 (보드 시리얼·BIOS 버전)
 #   PLACEHOLDER=1 ./run-guest.sh       # 보드 시리얼을 placeholder("To Be Filled By O.E.M.")로 주입 — 필터 검증
+#   SOCKETS=2 ./run-guest.sh           # CPU 소켓 수 (U3-3) — dmidecode 가 소켓당 type 4 를 낸다
 #
 # macOS(Apple Silicon)는 TCG 에뮬레이션이라 부팅이 수 분대(V9 실측 항목) — 스모크 용도 한정,
 # OS 설치 E2E 는 Rocky 서버 위 KVM 에서(E1-R 포인트 2 확정).
@@ -25,6 +26,11 @@ MEM="${MEM:-2048}"                       # modloop-lts 208MB 가 RAM 에 올라�
 GUEST_UUID="${GUEST_UUID:-$(uuidgen | tr '[:upper:]' '[:lower:]')}"
 VENDOR="${VENDOR:-Giga Computing}"
 BOARD="${BOARD:-MS03-CE0}"               # 카탈로그 등록 보드와 일치해야 등록이 성공한다
+
+# U3-3 — CPU 소켓 인벤토리 검증축. QEMU 는 소켓 수만큼 SMBIOS type 4(Processor Information)를 만들고
+# 게스트의 dmidecode 가 그것을 실보드와 같은 방식으로 읽는다. 기본 1 은 종전 동작 보존.
+SOCKETS="${SOCKETS:-1}"
+CORES="${CORES:-1}"
 
 # E1-2 — 수집 검증용 SMBIOS 확장 주입: type=0(BIOS 버전) · type=2(보드 시리얼·제조사·모델).
 # 게스트의 dmidecode 는 이 값을 실보드와 동일한 방식으로 읽는다(물리 불요 검증의 축).
@@ -60,7 +66,7 @@ STAGING=$(mktemp -d)
 trap 'rm -rf "$STAGING"' EXIT
 sed "s/@PORT@/$PORT/" "$SELF_DIR/tftp/boot.ipxe" > "$STAGING/boot.ipxe"
 
-echo "[pxe-lab] guest uuid=$GUEST_UUID mac=$MAC board=$BOARD → http://10.0.2.2:$PORT"
+echo "[pxe-lab] guest uuid=$GUEST_UUID mac=$MAC board=$BOARD sockets=$SOCKETS → http://10.0.2.2:$PORT"
 [ -n "$FW" ] && echo "[pxe-lab] UEFI: $FW" || echo "[pxe-lab] 경고: OVMF 미발견 — legacy BIOS 모드"
 
 # 시리얼 콘솔 캡처 — 커널 인자의 console=ttyS0 출력(부팅 · OpenRC 로그)이 파일로 남는다.
@@ -69,6 +75,7 @@ echo "[pxe-lab] serial log: $SERIAL_LOG"
 
 set -- \
     -m "$MEM" \
+    -smp "cpus=$((SOCKETS * CORES)),sockets=$SOCKETS,cores=$CORES,threads=1" \
     -uuid "$GUEST_UUID" \
     -smbios "type=0,version=$BIOS_VER" \
     -smbios "type=1,manufacturer=$VENDOR,product=$BOARD,uuid=$GUEST_UUID" \

@@ -1,23 +1,26 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  등록된 게스트 서버 목록 페이지
+  등록된 게스트 서버 목록 페이지 (U3-3 — 상대 시간 × 스펙 그룹)
   ─────────────────────────────────────────────────────────
   Model:
-    servers : List<GuestServerSummaryResponse>  (execution.dto.response)
-                · id              : UUID
-                · name            : String (nullable — 운영자 미지정)
-                · systemUuid      : UUID
-                · vendor          : Vendor (nullable, boardModel 에서 도출 — U1 §D2)
-                · boardModelName  : String (nullable)
-                · status          : GuestServerStatus (도출 — progress + 회수, U1 §D4)
-                · primaryIp       : IpAddressVO (nullable)
-                · createdAt       : LocalDateTime
+    list        : GuestServerListResponse — pending(등록 진행 중, 0대면 null) + timeGroups(멤버 있는 구간만)
+    phaseFilter : ProvisioningPhase (nullable — 전체)
+    phases      : ProvisioningPhase[] (필터 칩)
+    pendingOpen : boolean — '등록 진행 중' 을 펼친 상태인가
 
-  행 클릭 시 /provisioning/server/{id} 상세로 이동.
+  화면 규칙(U3-3 §2):
+    · '등록 진행 중' 은 최상단 · 접힘 기본. 접힌 헤더만으로 대수와 내역이 읽힌다.
+    · 멤버가 없는 시간 구간 · 스펙 그룹은 서버가 아예 담아 보내지 않으므로 여기서 걸러낼 것이 없다.
+    · 수집이 끝난 스펙 그룹은 펼침 기본(<details open>) — 접는 것은 사용자의 선택이다.
+
+  DEC-E · DEC-H — 필터 칩과 '등록 진행 중' 토글은 [data-live] 영역 **밖**의 링크이고 상태는 URL 에 있다.
+  server-stream.js 가 fetch(location.href) 로 같은 URL 을 다시 받아 [data-live] 만 교체하므로,
+  URL 에 실린 상태는 갱신 후에도 그대로 살아난다(복원 코드 0). 영역 안에 두면 갱신 때마다 지워진다.
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('게스트 서버')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
     <link rel="stylesheet" th:href="@{/provisioning/server.css}">
 </head>
 <body>
@@ -28,74 +31,117 @@
     <div class="n-page-header">
         <h1 class="n-page-title">게스트 서버</h1>
         <div class="n-header-actions">
-            <span class="n-hint">iPXE 부팅으로 등록된 물리 서버 목록입니다. 행을 클릭하면 상세 정보를 볼 수 있습니다.</span>
+            <span class="n-hint">iPXE 부팅으로 등록된 물리 서버를 등록 시각과 하드웨어 스펙으로 묶어 보여줍니다.</span>
         </div>
+    </div>
+
+    <!-- ── phase 필터 — [data-live] 밖(DEC-E). 상태는 URL 에 남는다 ── -->
+    <div class="n-filter-bar">
+        <span class="n-filter-label">진행 단계</span>
+        <!--/* Thymeleaf 는 null 파라미터를 빈 값(?phase=)으로 렌더한다. URL 이 곧 상태 저장소이므로
+               (DEC-E · DEC-H) 지저분한 빈 파라미터가 남지 않게 완성된 URL 을 골라 쓴다. */-->
+        <a class="n-chip-link" th:classappend="${phaseFilter == null} ? ' is-active'"
+           th:href="${pendingOpen}
+                      ? @{/provisioning/server(pending='open')}
+                      : @{/provisioning/server}">전체</a>
+        <a th:each="p : ${phases}" class="n-chip-link"
+           th:classappend="${phaseFilter != null and phaseFilter.name() == p.name()} ? ' is-active'"
+           th:href="${pendingOpen}
+                      ? @{/provisioning/server(phase=${p.name()}, pending='open')}
+                      : @{/provisioning/server(phase=${p.name()})}"
+           th:text="${p.description}">진단 리눅스</a>
     </div>
 
     <!-- S7 — 실시간 교체 영역: 빈 상태 ↔ 목록 전환(첫 등록)까지 한 영역으로 묶는다 -->
     <div data-live="server-list">
 
     <!-- 빈 상태 -->
-    <div th:if="${#lists.isEmpty(servers)}" class="n-card">
+    <div th:if="${list.empty}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title">등록된 게스트 서버가 없습니다.</div>
-            <div class="n-empty-desc">서버가 PXE 부팅으로 <code>/api/pxe/v1/boot</code> 에 진입하면 이곳에 표시됩니다.</div>
+            <div class="n-empty-title" th:if="${phaseFilter == null}">등록된 게스트 서버가 없습니다.</div>
+            <div class="n-empty-title" th:unless="${phaseFilter == null}">이 단계에 해당하는 서버가 없습니다.</div>
+            <div class="n-empty-desc" th:if="${phaseFilter == null}">
+                서버가 PXE 부팅으로 <code>/api/pxe/v1/boot</code> 에 진입하면 이곳에 표시됩니다.</div>
+            <div class="n-empty-desc" th:unless="${phaseFilter == null}">
+                다른 단계를 고르거나 <a th:href="@{/provisioning/server}">전체</a> 로 되돌리면 모든 서버가 보입니다.</div>
         </div>
     </div>
 
-    <!-- 서버 목록 -->
-    <div th:unless="${#lists.isEmpty(servers)}" class="n-card">
-    <table class="n-table" id="serverTable">
-        <thead>
-        <tr>
-            <th>이름</th>
-            <th>SMBIOS UUID</th>
-            <th>제조사</th>
-            <th>보드 모델</th>
-            <th>운영 상태</th>
-            <th>연결</th>
-            <th>호스트 IP</th>
-            <th>등록 시각</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="server : ${servers}"
-            class="n-row-clickable"
-            th:data-href="@{/provisioning/server/{id}(id=${server.id})}">
-            <td>
-                <a class="n-row-link"
-                   th:href="@{/provisioning/server/{id}(id=${server.id})}"
-                   th:text="${server.name != null} ? ${server.name} : '(이름 미지정)'">srv-01</a>
-            </td>
-            <td><code class="n-mono" th:text="${server.systemUuid}">uuid</code></td>
-            <td th:text="${server.vendor != null} ? ${server.vendor.displayName} : '—'">Gigabyte</td>
-            <td th:text="${server.boardModelName != null} ? ${server.boardModelName} : '—'">MS03-CE0</td>
-            <td th:switch="${server.status != null} ? ${server.status.name()} : 'NONE'">
-                <span th:case="'REGISTERED'"     class="n-badge n-badge-blue"  th:text="${server.status.description}">등록됨</span>
-                <span th:case="'PROVISIONING'"   class="n-badge n-badge-green" th:text="${server.status.description}">프로비저닝 중</span>
-                <span th:case="'PROVISIONED'"    class="n-badge n-badge-teal"  th:text="${server.status.description}">완료</span>
-                <span th:case="'FAILED'"         class="n-badge n-badge-red"   th:text="${server.status.description}">실패</span>
-                <span th:case="'DECOMMISSIONED'" class="n-badge n-badge-gray"  th:text="${server.status.description}">회수됨</span>
-                <span th:case="*" class="n-muted">—</span>
-            </td>
-            <td>
-                <!-- E1-2 (DEC-32) — 게스트 접촉 관찰. data-contact-remaining(S7) = 끊어짐 전이 예정 시각의
-                     rollover 재조회 예약 입력 (침묵 전이는 발행 이벤트가 없는 변화) -->
-                <span th:if="${server.contactActive}" class="n-badge n-badge-teal"
-                      th:data-contact-remaining="${server.contactRemainingSeconds}">연결 중</span>
-                <span th:if="${!server.contactActive and server.lastSeenAt != null}" class="n-badge n-badge-gray"
-                      th:title="${#temporals.format(server.lastSeenAt, 'yyyy-MM-dd HH:mm:ss')}">끊어짐</span>
-                <span th:if="${server.lastSeenAt == null}" class="n-muted">—</span>
-            </td>
-            <td><code class="n-mono" th:text="${server.primaryIp != null} ? ${server.primaryIp.value} : '—'">192.168.1.1</code></td>
-            <td>
-                <span th:if="${server.createdAt != null}"
-                      th:text="${#temporals.format(server.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2026-06-26 12:00:00</span>
-                <span th:unless="${server.createdAt != null}" class="n-muted">—</span>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+    <!-- ── 최상단 · 접힘 기본 — 서버가 0대면 서버가 null 을 보내므로 블록 자체가 없다 ── -->
+    <div th:if="${list.pending != null}" class="n-accordion n-pending-block">
+        <div class="n-accordion-item" th:classappend="${pendingOpen} ? ' is-open'">
+            <a class="n-accordion-head"
+               th:href="${phaseFilter == null}
+                          ? (${pendingOpen} ? @{/provisioning/server}
+                                            : @{/provisioning/server(pending='open')})
+                          : (${pendingOpen} ? @{/provisioning/server(phase=${phaseFilter.name()})}
+                                            : @{/provisioning/server(phase=${phaseFilter.name()}, pending='open')})">
+                <span class="n-accordion-chevron"></span>
+                <span class="n-accordion-title"><strong>등록 진행 중</strong>
+                    <span class="n-accordion-muted"> — 스펙이 아직 없어 그룹 대상이 아닙니다 ·
+                        등록만 됨 <b th:text="${list.pending.registeredOnly.size()}">1</b>대 ·
+                        수집 중 <b th:text="${list.pending.collecting.size()}">1</b>대</span></span>
+                <span class="n-badge n-badge-gray n-accordion-badge"
+                      th:text="${list.pending.total()} + '대'">2대</span>
+            </a>
+
+            <div th:if="${pendingOpen}" class="n-accordion-body">
+                <div th:if="${!list.pending.registeredOnly.isEmpty()}">
+                    <h3 class="n-sub-title">등록만 됨</h3>
+                    <p class="n-hint">PXE 는 찍혔으나 진단으로 넘어가지 못했습니다 — 부팅 · 네트워크 점검 대상입니다.</p>
+                    <table class="n-table n-table-servers">
+                        <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
+                        <tbody>
+                        <th:block th:each="server : ${list.pending.registeredOnly}">
+                            <tr th:replace="~{fragments/provisioning/server-rows :: row(${server})}"></tr>
+                        </th:block>
+                        </tbody>
+                    </table>
+                </div>
+                <div th:if="${!list.pending.collecting.isEmpty()}">
+                    <h3 class="n-sub-title">수집 중</h3>
+                    <p class="n-hint">진단에 도달했고 아직 보고 전입니다 — 기다리면 되는 대상입니다.</p>
+                    <table class="n-table n-table-servers">
+                        <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
+                        <tbody>
+                        <th:block th:each="server : ${list.pending.collecting}">
+                            <tr th:replace="~{fragments/provisioning/server-rows :: row(${server})}"></tr>
+                        </th:block>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 시간 구간 × 스펙 그룹 — 멤버가 있는 것만 온다. 스펙 그룹은 펼침 기본 ── -->
+    <div th:each="tg : ${list.timeGroups}" class="n-card n-time-group">
+        <div class="n-group-head">
+            <strong class="n-group-title" th:text="${tg.bucket.description}">방금</strong>
+            <span class="n-hint">이 시간대에 묶인 서버 <b th:text="${tg.serverCount()}">3</b>대</span>
+        </div>
+
+        <div class="n-accordion">
+            <details class="n-accordion-item" th:each="sg, st : ${tg.specGroups}" open>
+                <summary class="n-accordion-head">
+                    <span class="n-accordion-chevron"></span>
+                    <span class="n-accordion-title"><strong th:text="'스펙 그룹 ' + ${st.count}">스펙 그룹 1</strong>
+                        <span class="n-spec-label" th:text="${sg.label}">MS03-CE0 · Xeon Gold 6338 ×2</span></span>
+                    <span class="n-badge n-badge-blue n-accordion-badge"
+                          th:text="${sg.servers.size()} + '대'">2대</span>
+                </summary>
+                <div class="n-accordion-body">
+                    <table class="n-table n-table-servers">
+                        <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
+                        <tbody>
+                        <th:block th:each="server : ${sg.servers}">
+                            <tr th:replace="~{fragments/provisioning/server-rows :: row(${server})}"></tr>
+                        </th:block>
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        </div>
     </div>
 
     </div><!-- /data-live="server-list" -->

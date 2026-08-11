@@ -78,7 +78,7 @@ else
   if [ "${PLACEHOLDER:-0}" = "1" ]; then SERIAL="To Be Filled By O.E.M."; else SERIAL="JG4P6400027"; fi
   step "5. 종료 보고(SUCCEEDED + 수집 JSON) — 관용 파싱·적재·ENRICHED·완주 판정 (E1-2)"
   # 수집 JSON(사용자 확정 스펙 견본)을 statusMeta 문자열 값으로 이스케이프해 싣는다 — agent.sh 와 동일 계약
-  INNER="{\\\"boardSerial\\\":\\\"${SERIAL}\\\",\\\"biosVersion\\\":\\\"F13\\\",\\\"cpu\\\":{\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"},\\\"memoryModules\\\":[{\\\"slot\\\":\\\"DIMM_A1\\\",\\\"manufacturer\\\":\\\"Samsung\\\",\\\"size\\\":\\\"32 GB\\\"}],\\\"disks\\\":[{\\\"device\\\":\\\"nvme0n1\\\",\\\"size\\\":\\\"1.9T\\\",\\\"rota\\\":\\\"0\\\",\\\"tran\\\":\\\"nvme\\\"}],\\\"pcieRaw\\\":[\\\"01:00.0 RAID bus controller: Broadcom / LSI MegaRAID 9560-8i\\\"]}"
+  INNER="{\\\"boardSerial\\\":\\\"${SERIAL}\\\",\\\"biosVersion\\\":\\\"F13\\\",\\\"cpuSockets\\\":[{\\\"slot\\\":\\\"CPU1\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"},{\\\"slot\\\":\\\"CPU2\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"}],\\\"memoryModules\\\":[{\\\"slot\\\":\\\"DIMM_A1\\\",\\\"manufacturer\\\":\\\"Samsung\\\",\\\"size\\\":\\\"32 GB\\\"}],\\\"disks\\\":[{\\\"device\\\":\\\"nvme0n1\\\",\\\"size\\\":\\\"1.9T\\\",\\\"rota\\\":\\\"0\\\",\\\"tran\\\":\\\"nvme\\\"}],\\\"pcieRaw\\\":[\\\"01:00.0 RAID bus controller: Broadcom / LSI MegaRAID 9560-8i\\\"]}"
   RESULT="{\"status\":\"SUCCEEDED\",\"statusMeta\":\"${INNER}\"}"
 fi
 CLOSE=$(curl -sS -X POST "${BASE_URL}/api/pxe/v1/agent/steps/${STEP_ID}/close" \

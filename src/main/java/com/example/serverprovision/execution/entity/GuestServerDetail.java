@@ -99,4 +99,18 @@ public class GuestServerDetail extends BaseTimeEntity {
         }
         this.discoveryStage = DiscoveryStage.DIAGNOSTIC_ENRICHED;
     }
+
+    /**
+     * 하드웨어 스펙을 이미 수집해 두었는가 (U3-3 DEC-A).
+     *
+     * <p>판정 본문은 {@link DiscoveryStage#isSpecAvailable()} 이 갖고 이 메서드는 그 진입점이다 —
+     * 호출부가 매번 enum 을 꺼내 비교하지 않게 하려는 것이다. 엔진의 수집 지시 판단, 목록의 스펙 그룹 자격,
+     * 후속 U3-4 의 그룹 할당 가드가 이 하나를 공유한다.</p>
+     *
+     * <p>상세 행 자체가 없는 서버(등록 직후)는 여기 도달할 수 없으므로 <b>호출부가 부재를 흡수</b>한다
+     * — 엔진은 {@code Optional.map(...).orElse(false)}, 조회 서비스는 맵 조회의 null 검사다.</p>
+     */
+    public boolean isDiagnosticEnriched() {
+        return discoveryStage.isSpecAvailable();
+    }
 }

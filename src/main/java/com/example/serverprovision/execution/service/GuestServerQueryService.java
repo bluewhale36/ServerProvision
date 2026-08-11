@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
+import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -8,6 +9,8 @@ import com.example.serverprovision.execution.entity.HostNicBinding;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.entity.SetupStep;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
+import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.vo.RegistrationAge;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
@@ -15,6 +18,7 @@ import com.example.serverprovision.execution.repository.HostNicBindingRepository
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.repository.SetupStepRepository;
 import com.example.serverprovision.execution.vo.HardwareSpec;
+import com.example.serverprovision.execution.vo.SpecGroupKey;
 import com.example.serverprovision.execution.vo.SoftwareSpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,8 +28,11 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -72,6 +79,146 @@ public class GuestServerQueryService {
                 .toList();
     }
 
+    /**
+     * 목록 화면용 그룹 조립 (U3-3) — 등록 진행 중을 먼저 가르고, 스펙 보유 서버만 시간 구간 × 스펙으로 묶는다.
+     *
+     * <p>그룹 키는 JSON 컬럼 안의 값으로 만들어지므로 SQL 로 묶을 수 없다. 이미 상세를 함께 읽고 있고
+     * 게스트 수가 입고 단위(수십~수백)라, 읽어 온 것을 애플리케이션에서 묶는다(DEC-D).</p>
+     *
+     * @param phaseFilter null 이면 전체. 값이 있으면 그 phase 인 서버만 남긴다(진행 정보가 없으면 제외)
+     */
+    @Transactional(readOnly = true)
+    public GuestServerListResponse findGrouped(ProvisioningPhase phaseFilter) {
+        List<GuestServer> servers = guestServerRepository.findAllByOrderByCreatedAtDesc();
+        if (servers.isEmpty()) {
+            return new GuestServerListResponse(null, List.of());
+        }
+        List<UUID> ids = servers.stream().map(GuestServer::getId).toList();
+
+        Map<UUID, GuestServerDetail> detailByServer = detailRepository.findAllByServerIdInWithBoardModel(ids).stream()
+                .collect(Collectors.toMap(d -> d.getGuestServer().getId(), Function.identity(), (a, b) -> a));
+        Map<UUID, HostNicBinding> primaryNicByServer = nicRepository.findPrimaryByServerIdIn(ids).stream()
+                .collect(Collectors.toMap(n -> n.getGuestServer().getId(), Function.identity(), (a, b) -> a));
+        Map<UUID, ProvisioningProgress> progressByServer = progressRepository.findAllByGuestServer_IdIn(ids).stream()
+                .collect(Collectors.toMap(p -> p.getGuestServer().getId(), Function.identity(), (a, b) -> a));
+
+        LocalDateTime now = LocalDateTime.now();
+        List<GuestServer> visible = servers.stream()
+                .filter(s -> matchesPhase(progressByServer.get(s.getId()), phaseFilter))
+                .toList();
+
+        // 스펙 보유 여부로 두 갈래 — 그룹 키를 만들 재료가 있는가가 곧 자격이다(DEC-B)
+        List<GuestServer> grouped = new ArrayList<>();
+        List<GuestServer> pending = new ArrayList<>();
+        for (GuestServer s : visible) {
+            GuestServerDetail detail = detailByServer.get(s.getId());
+            if (detail != null && detail.isDiagnosticEnriched()) {
+                grouped.add(s);
+            } else {
+                pending.add(s);
+            }
+        }
+
+        Function<GuestServer, GuestServerSummaryResponse> toRow = s -> toSummary(
+                s, detailByServer.get(s.getId()), primaryNicByServer.get(s.getId()), progressByServer.get(s.getId()));
+
+        return new GuestServerListResponse(
+                buildPending(pending, progressByServer, toRow),
+                buildTimeGroups(grouped, detailByServer, now, toRow));
+    }
+
+    private boolean matchesPhase(ProvisioningProgress progress, ProvisioningPhase filter) {
+        if (filter == null) {
+            return true;
+        }
+        return progress != null && progress.getCurrentPhase() == filter;
+    }
+
+    /**
+     * '등록 진행 중' 조립 — 0대면 {@code null} 을 돌려 뷰가 블록 자체를 그리지 않게 한다.
+     * 둘로 가르는 기준은 진단 phase 도달 여부다(부팅 · 네트워크 점검 대상 / 기다리면 되는 대상).
+     */
+    private GuestServerListResponse.PendingRegistrations buildPending(
+            List<GuestServer> pending,
+            Map<UUID, ProvisioningProgress> progressByServer,
+            Function<GuestServer, GuestServerSummaryResponse> toRow) {
+
+        if (pending.isEmpty()) {
+            return null;
+        }
+        List<GuestServerSummaryResponse> registeredOnly = new ArrayList<>();
+        List<GuestServerSummaryResponse> collecting = new ArrayList<>();
+        for (GuestServer s : pending) {
+            ProvisioningProgress progress = progressByServer.get(s.getId());
+            boolean reachedDiagnose = progress != null
+                    && progress.getCurrentPhase().ordinal() >= ProvisioningPhase.DIAGNOSE_LINUX.ordinal();
+            (reachedDiagnose ? collecting : registeredOnly).add(toRow.apply(s));
+        }
+        return new GuestServerListResponse.PendingRegistrations(
+                List.copyOf(registeredOnly), List.copyOf(collecting));
+    }
+
+    /** 시간 구간 × 스펙 그룹 조립 — 멤버가 없는 구간과 그룹은 원소로 만들지 않는다. */
+    private List<GuestServerListResponse.TimeGroup> buildTimeGroups(
+            List<GuestServer> grouped,
+            Map<UUID, GuestServerDetail> detailByServer,
+            LocalDateTime now,
+            Function<GuestServer, GuestServerSummaryResponse> toRow) {
+
+        // 눈금이 동적이라 미리 정해진 상수 목록이 없다 — 실제로 등장한 묶음만 모아 최근순으로 세운다.
+        // 그래서 "빈 구간을 건너뛴다" 가 별도 분기 없이 성립한다(애초에 키가 만들어지지 않는다).
+        Map<RegistrationAge, List<GuestServer>> byBucket = new TreeMap<>();
+        for (GuestServer s : grouped) {
+            byBucket.computeIfAbsent(RegistrationAge.of(s.getCreatedAt(), now), b -> new ArrayList<>()).add(s);
+        }
+
+        List<GuestServerListResponse.TimeGroup> timeGroups = new ArrayList<>();
+        for (Map.Entry<RegistrationAge, List<GuestServer>> bucketEntry : byBucket.entrySet()) {
+            RegistrationAge bucket = bucketEntry.getKey();
+            List<GuestServer> inBucket = bucketEntry.getValue();
+            Map<SpecGroupKey, List<GuestServer>> bySpec = new LinkedHashMap<>();
+            for (GuestServer s : inBucket) {
+                bySpec.computeIfAbsent(specKeyOf(detailByServer.get(s.getId())), k -> new ArrayList<>()).add(s);
+            }
+            List<GuestServerListResponse.SpecGroup> specGroups = bySpec.entrySet().stream()
+                    .map(e -> new GuestServerListResponse.SpecGroup(
+                            e.getKey(),
+                            specLabelOf(detailByServer.get(e.getValue().getFirst().getId())),
+                            e.getValue().stream().map(toRow).toList()))
+                    .toList();
+            timeGroups.add(new GuestServerListResponse.TimeGroup(bucket, specGroups));
+        }
+        return List.copyOf(timeGroups);
+    }
+
+    private SpecGroupKey specKeyOf(GuestServerDetail detail) {
+        return SpecGroupKey.of(
+                detail.getBoardModel().getModelName(),
+                parseTolerant(detail.getHardwareSpec(), HardwareSpec.class));
+    }
+
+    /** 사람이 읽는 그룹 요약 — 동치 판정은 {@link SpecGroupKey} 가 하고 이 문자열은 표시 전용이다. */
+    private String specLabelOf(GuestServerDetail detail) {
+        HardwareSpec spec = parseTolerant(detail.getHardwareSpec(), HardwareSpec.class);
+        List<String> parts = new ArrayList<>();
+        parts.add(detail.getBoardModel().getModelName());
+        if (spec != null && spec.cpuSockets() != null && !spec.cpuSockets().isEmpty()) {
+            String model = spec.cpuSockets().getFirst().model();
+            parts.add((model == null ? "CPU" : model) + " ×" + spec.cpuSockets().size());
+        }
+        if (spec != null && spec.memoryModules() != null && !spec.memoryModules().isEmpty()) {
+            String size = spec.memoryModules().getFirst().size();
+            parts.add((size == null ? "메모리" : size) + " ×" + spec.memoryModules().size());
+        }
+        if (spec != null && spec.disks() != null && !spec.disks().isEmpty()) {
+            parts.add("디스크 " + spec.disks().size() + "개");
+        }
+        if (spec != null && spec.pcieDevices() != null && !spec.pcieDevices().isEmpty()) {
+            parts.add("PCIe " + spec.pcieDevices().size() + "장");
+        }
+        return String.join(" · ", parts);
+    }
+
     @Transactional(readOnly = true)
     public GuestServerDetailResponse findDetail(UUID id) {
         GuestServer server = guestServerRepository.findById(id)
@@ -96,6 +243,7 @@ public class GuestServerQueryService {
                 detail != null ? detail.getBoardModel().getVendor() : null,            // 도출
                 detail != null ? detail.getBoardModel().getModelName() : null,
                 deriveStatus(server, progress),                                          // 도출
+                progress != null ? progress.getCurrentPhase() : null,
                 primaryNic != null ? primaryNic.getIpAddress() : null,
                 server.getCreatedAt(),
                 server.getLastSeenAt(),
