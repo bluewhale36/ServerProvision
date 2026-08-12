@@ -56,4 +56,10 @@ public class BasicUpdateRequest extends AbstractProcessRequest {
     public SettingProcessType processType() {
         return SettingProcessType.BASIC_UPDATE;
     }
+
+    /** 펌웨어는 보드별 바이너리라 이 단계는 보드 선택을 그대로 요구사항으로 내놓는다(U3-5-a). */
+    @Override
+    public BoardModelSelectionRequest requiredBoardModel() {
+        return boardModel;
+    }
 }

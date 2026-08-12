@@ -85,6 +85,26 @@ public class GuestServer extends BaseTimeEntity {
         }
     }
 
+    /**
+     * 세팅 정의서 할당 차단 사유 SSOT (U3-5-a) — 붙일 수 있으면 {@code null}, 아니면 <b>화면 안내이자
+     * 서버 거절 사유</b>가 되는 문자열이다.
+     *
+     * <p>{@code SettingAssignment.reassignBlockReason()} · {@code SettingDefinition.assignBlockReason()} ·
+     * {@code GuestServerGroup.addBlockReason()} 과 같은 형태로, 서버 상세의 폼 노출 판정과
+     * {@code AssignmentCommandService} 의 가드가 이 한 메서드를 함께 부른다. 두 곳에 조건을 복붙하면
+     * 드리프트가 생긴다.</p>
+     *
+     * <p>회수된 서버는 개시({@code ProvisioningProgress.isStartableWith})와 수동 실패 전환에서 이미
+     * 막히는데 <b>할당만 열려 있었다</b> — 이 메서드가 그 공백을 메운다. 회수는
+     * {@code GuestServerStatus.derive} 가 신호와 무관한 최우선으로 두는 상태이므로 다른 어떤 판정보다
+     * 먼저 본다.</p>
+     */
+    public String assignBlockReason() {
+        return decommissionedAt != null
+                ? "회수된 서버에는 세팅 정의서를 할당할 수 없습니다."
+                : null;
+    }
+
     /** 게스트 접촉 표식(E1-2) — 항상 최신으로 덮는다(관찰 로그라 순서 보정 불요). */
     public void touchSeen(LocalDateTime at) {
         this.lastSeenAt = at;

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U3-5-a Plan — 세팅 정의서 할당 가능성 판정</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 4px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  header.page-header > p { margin:0 0 8px; font-size:13px; color:var(--text-muted); }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover:not(:disabled) { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg:disabled { opacity:0.42; cursor:not-allowed; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 3-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U3-5-a : 세팅 정의서 할당 가능성 판정</h1>
+  <p>이 정의서를 이 서버에 붙여도 되는가 — 판정을 도메인으로 끌어올리고 화면과 서버 가드가 함께 부르게 한다</p>
+  <div class="meta">
+    <span><strong>인벤토리 코드</strong> U3-5-a</span>
+    <span><strong>작성</strong> 2026-08-12 13:03 KST</span>
+    <span><strong>브랜치</strong> <code>feat/U3-5_group-batch-assignment</code></span>
+    <span><strong>선행</strong> U3-1 · U3-2 (완료)</span>
+    <span><strong>후행</strong> U3-5-b</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 이 단계가 어떻게 생겼는가</a></li>
+      <li><a href="#s1">§1 현재 상태 (실측 진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12 단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트 계획</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 이 단계가 어떻게 생겼는가</summary>
+      <div class="body">
+        <p style="margin-top:0;">U3-5(그룹 단위 일괄 할당)의 CP1 을 진행하며 코드를 실측하다가, 일괄 할당의 사전 분류가 <b>소비할 판정 두 가지가 코드에 아예 없다</b>는 것이 드러났다. 회수된 서버를 할당에서 배제하는 규칙과, 정의서가 요구하는 메인보드를 서버의 실제 보드와 대조하는 규칙이다. 둘 다 도메인에는 실재하는 제약인데 확인하는 자리가 없거나 엉뚱한 곳에만 있었다.</p>
+
+        <p>그 둘을 세우는 일과 그룹 일괄 할당을 한 슬라이스에 담으면 수정 파일 17 건 · 검증 항목 28 건이 된다. 2026-08-12 사용자 판단으로 <b>U3-5-a(판정) → U3-5-b(일괄 할당)</b> 로 나눴다. 나눈 기준은 코드 안에 이미 그어져 있었다 — 일괄 할당의 분류기는 두 판정을 <b>소비할 뿐 만들지 않는다.</b></p>
+
+        <div class="callout"><b>분할이 설계를 하나 개선했다</b> — 판정을 독립 슬라이스로 떼어내자 <b>판정들을 순서대로 묶는 자리가 필요하다</b>는 것이 분명해졌고(§8 DEC-B), 그 결과 일괄 할당 쪽 분류기의 시그니처가 인자 넷에서 셋으로 줄었다. 한 슬라이스 안에 있었다면 분류기가 두 판정을 직접 들고 순서까지 아는 형태로 굳었을 것이다.</div>
+
+        <p>분할 전 우산 계획은 <code>plan/26-08-12_11-52-30_U3-5_plan.html</code> 로 고정했다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (실측 진단)</summary>
+      <div class="body">
+        <h4>할당 경로에 지금 있는 가드</h4>
+        <p><code>AssignmentCommandService.assign</code> 은 셋을 본다 — 게스트가 존재하는가(404), 정의서가 활성이며 삭제되지 않았는가(<code>SettingDefinition.assignBlockReason</code>, 409), 이미 활성 스냅샷이 있는가(409). <code>reassign</code> 은 여기에 개시 여부(<code>SettingAssignment.reassignBlockReason</code>, 409)를 더한다.</p>
+
+        <div class="callout warn"><b>서버 자신의 상태를 보는 가드는 하나도 없다.</b> 정의서의 상태는 보는데 서버의 상태는 보지 않는다.</div>
+
+        <h4>없는 것 ① — 회수된 서버의 할당을 막지 않는다</h4>
+        <p><code>assign</code> 과 <code>reassign</code> 어디에도 <code>decommissionedAt</code> 검사가 없다. 화면도 같다 — <code>templates/provisioning/server-detail.html</code> 의 할당 폼 노출 조건은 <code>th:unless="${phaseRail.assigned}"</code> 하나뿐이라 <b>회수된 서버에도 할당 폼이 그대로 열린다.</b></p>
+        <p>회수는 <code>GuestServerStatus.derive</code> 가 신호와 무관한 최우선으로 두는 상태다. 회수된 서버는 개시도 막히고(<code>ProvisioningStartRejectedException.decommissioned</code>) 수동 실패 전환도 막힌다. <b>할당만 열려 있다.</b></p>
+
+        <h4>없는 것 ② — 정의서가 요구하는 보드를 서버와 대조하지 않는다</h4>
+        <p>정의서의 <b>펌웨어 업데이트</b>(<code>BasicUpdateRequest</code>)와 <b>BIOS 설정</b>(<code>BasicSettingRequest</code>) 단계는 <code>BoardModelSelectionRequest</code> 를 들고 있다 — <code>AUTO</code>(실행 시점 감지) 또는 <code>SPECIFIED(boardModelId)</code>(특정 보드 고정)다. 둘이 함께 있으면 같은 선택이어야 한다는 것을 <code>SettingSaveRequest.isBoardSelectionConsistent</code> 가 강제하고, 보드를 지정하면 BIOS 세팅 템플릿이 그 보드 것만 남도록 <code>setting-form.js</code> 가 목록을 걸러낸다.</p>
+        <p><b>그 대조는 정의서를 만들 때까지만이다.</b> 할당 선택지를 만드는 <code>JpaSettingQueryService.findAssignable()</code> 은 <b>인자를 받지 않아 어느 서버에 할당하는지 알지 못하고</b>, <code>isDeleted</code> 와 <code>assignBlockReason()</code> 만 본다. 그래서 메인보드 X 전용 정의서를 보드 Y 서버에 할당할 수 있다.</p>
+
+        <h4>같은 뿌리</h4>
+        <p>둘은 같은 형태의 공백이다 — <b>판정이 한 화면 안에 갇혀 있으면 다른 경로가 생길 때 따라오지 못한다.</b> <code>setting-form.js</code> 안의 필터는 정의서 작성 화면 밖으로 나가지 못하고, 회수 여부는 개시 · 수동 실패 전환 경로에만 배선돼 있다. 이 단계가 하는 일은 두 판정을 <b>이름 있는 도메인 규칙으로 끌어올려</b> 화면과 서버 가드가 같은 것을 부르게 하는 것이다.</p>
+        <p>뒤엣것을 <b>'보드 대조'가 아니라 '하드웨어 대조'</b>로 부른다. 지금 대조하는 축은 메인보드 하나뿐이지만, U4 에서 세팅 정의서에 디스크 구성에 따른 파티셔닝 · RAID 구성이 들어오면 그것도 같은 일의 다른 축이 된다. 이름에 '보드'를 새기면 그때 개념부터 어긋난다. 다만 <b>축이 하나인데 추상 계층을 미리 만들지는 않는다</b> — 그 판단의 근거와 U4 가 실제로 무엇을 건드리게 되는지는 §8 DEC-H 에 적었다.</p>
+
+        <table>
+          <thead><tr><th>판정</th><th>지금 있는 자리</th><th>없는 자리</th></tr></thead>
+          <tbody>
+            <tr><td>정의서 활성 · 미삭제</td><td>선택지 필터 · 서버 가드</td><td>—</td></tr>
+            <tr><td>개시 후 재할당 금지</td><td>뷰 disabled · 서버 가드</td><td>—</td></tr>
+            <tr><td>회수 서버</td><td>개시 · 수동 실패 전환</td><td><b>할당 · 재할당 전부</b></td></tr>
+            <tr><td><b>하드웨어 호환</b>(현재 축 = 메인보드)</td><td>정의서 작성 화면</td><td><b>할당 · 재할당 전부</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ul>
+          <li><b>R1</b> — 회수된 서버에는 신규 할당도 재할당도 되지 않는다.</li>
+          <li><b>R2</b> — 정의서가 특정 메인보드를 요구하면 그 보드의 서버에만 할당된다.</li>
+          <li><b>R3</b> — 막힐 조작은 화면이 먼저 막고 <b>왜 막혔는지 알린다.</b> 서버 가드는 안전망으로만 발동한다.</li>
+          <li><b>R4</b> — 보드를 아직 수집하지 못한 서버는 막지 않되, <b>대조하지 못했다는 사실이 보인다.</b></li>
+          <li><b>R5</b> — 이미 만들어진 할당에는 소급하지 않는다. 다만 지금 든 정의서가 이 서버의 하드웨어와 맞지 않으면 서버 상세가 경고한다.</li>
+          <li><b>R6</b> — 판정 결과는 <b>차단 종류를 구분해</b> 돌려주고, 그것이 하드웨어 불일치인지를 <b>종류 스스로가 답한다</b> — U3-5-b 가 적색으로 칠할 대상을 고를 때 종류 이름을 비교하지 않게 하기 위해서다.</li>
+          <li><b>R7</b> — 하드웨어 축이 늘어날 자리를 남긴다. U4 의 디스크 구성 대조가 <b>상수 하나와 요구사항 값 하나를 더하는 것</b>으로 들어와야 하고, 그 때문에 지금 추상 계층을 미리 만들지는 않는다.</li>
+        </ul>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>그룹 단위 일괄 할당 — U3-5-b.</li>
+            <li>이미 만들어진 스냅샷의 소급 무효화 — 하지 않는다. 스냅샷은 할당 시점 복사본이라 원본 상태 변화와 독립이라는 U3-2-b DEC-G 의 결을 따른다.</li>
+            <li><code>AUTO</code> 보드 선택의 실행 시점 감지 — 실행 엔진(E 계열) 소관.</li>
+            <li><b>메인보드 외의 하드웨어 축</b>(디스크 구성 · CPU · 메모리 등) — U4 의 세팅 정의서 기능 확장 소관이다. 이 단계는 축을 하나만 구현하되 축이 늘어날 자리를 남긴다(§8 DEC-H).</li>
+            <li>정의서 작성 화면의 보드 필터 개선 — 이미 동작하며 이 단계가 건드리지 않는다.</li>
+            <li>하드웨어가 나중에 갱신되어 구성이 바뀐 서버의 기존 할당 재검사 — 경고까지이고 자동 조치는 없다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (§2 직후, 불가침) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 할당 가능성 판정 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 툴바로 <b>서버의 상태</b>와 <b>서버의 메인보드</b>를 바꾸면 정의서 세 건의 선택 가능 여부가 라이브로 갱신된다. 데모의 판정 함수는 서버 도메인이 갖게 될 판정과 같은 바디다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">서버 상태 :</span>
+            <button class="seg" data-srv="normal" onclick="demoSetState('normal')">정상</button>
+            <button class="seg" data-srv="decommissioned" onclick="demoSetState('decommissioned')">회수됨</button>
+            <button class="seg" data-srv="unknown" onclick="demoSetState('unknown')">보드 확인 전</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">서버 보드 :</span>
+            <button class="seg" data-board="MS03-CE0" onclick="demoSetBoard('MS03-CE0')">MS03-CE0</button>
+            <button class="seg" data-board="X11SPM" onclick="demoSetBoard('X11SPM')">X11SPM</button>
+          </div>
+          <div id="demo-list" style="margin-top:12px;"><!-- JS 렌더 --></div>
+          <div style="margin-top:10px;" id="demo-submit"><!-- JS 렌더 --></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>판정 JS (서버 도메인과 1:1)</h4>
+<pre><code>function demoEvaluate(server, def) {
+    if (server.state === 'decommissioned') {
+        return {kind: 'DECOMMISSIONED', reason: '회수된 서버에는 세팅 정의서를 할당할 수 없습니다'};
+    }
+    if (def.board !== null &amp;&amp; server.board !== null &amp;&amp; def.board !== server.board) {
+        return {kind: 'BOARD_MISMATCH',
+                reason: '이 정의서는 메인보드 ' + def.board + ' 전용입니다 — 이 서버는 ' + server.board + ' 입니다'};
+    }
+    return null;   // 통과. def.board 가 있는데 server.board 가 null 이면 '보드 확인 전' 표식만 단다
+}</code></pre>
+        <p>차단 종류를 <b>문자열이 아니라 이름 있는 값</b>으로 돌려주는 것이 요점이다 — 화면이 색을 정하려면 "무엇 때문에 막혔는가" 를 알아야 한다.</p>
+
+        <h4>체험시키고 싶은 것</h4>
+        <p>서버 보드를 <code>X11SPM</code> 으로 바꾸면 <code>bios-ms03</code> 이 잠기고 <code>fw-x11</code> 이 열린다. <b>같은 서버라도 정의서마다 결과가 다르므로 옵션 단위로 잠근다.</b> 서버 상태를 <code>회수됨</code> 으로 바꾸면 세 정의서가 한꺼번에 잠긴다 — 이때는 옵션을 잠그는 것이 아니라 <b>폼 자체를 닫는</b> 것이 맞다는 것을 메시지가 말한다. <code>보드 확인 전</code> 으로 바꾸면 보드 전용 정의서도 열리되 회색 표식이 붙는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 단계는 <b>새 URL 을 만들지 않는다.</b> 기존 세 경로의 동작이 바뀐다.</p>
+        <table>
+          <thead><tr><th>메서드</th><th>URL</th><th>지금</th><th>이 단계 후</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code></td><td>할당 폼 · 선택지 전량</td><td>회수면 폼 닫힘 · 안 맞는 정의서 잠김</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/assignment</code></td><td>정의서 가드만</td><td>서버 가드 추가 → 409</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/assignment/reassign</code></td><td>정의서 · 개시 가드</td><td>서버 가드 추가 → 409</td></tr>
+          </tbody>
+        </table>
+
+        <div class="seq">
+          <div class="actor a1">운영자</div><div class="actor a2">서버 상세 화면</div><div class="actor a3">할당 서비스</div>
+
+          <div class="step a1">① 서버 상세 진입</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">② 회수 여부 확인. 회수면 폼을 그리지 않고 사유를 보인다</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">③ 선택지마다 <code>AssignmentBlockKind.evaluate(...)</code> 호출. 막힌 것은 <code>disabled</code> + 라벨에 사유</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">④ 이미 든 할당의 얼린 보드가 서버 보드와 다르면 경고 배너</div><div class="step a3"></div>
+          <div class="step a1">⑤ 열린 정의서를 골라 제출</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">⑥ 같은 <code>evaluate</code> 를 다시 호출(안전망). 막히면 종류에 맞는 409</div>
+        </div>
+
+        <div class="callout">③ 과 ⑥ 이 <b>같은 메서드</b>를 부르는 것이 이 슬라이스의 뼈대다. 화면이 거른 것을 서버가 다시 거르되 조건은 한 곳에서 온다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>스키마 변경 0</h4>
+        <p>새 테이블도 새 컬럼도 없다. 판정은 이미 저장된 값(<code>decommissioned_at</code>, 정의서 payload 안의 보드 선택, <code>guest_server_detail.board_model_id</code>)에서 파생된다. 12 단계의 9 단계는 N/A 다.</p>
+
+        <h4>새 타입 ① — <code>RequiredBoardModel</code> (Value Object, <code>provisioning/setting/vo/</code>)</h4>
+        <p>"이 정의서가 요구하는 메인보드" 를 이름 있는 값으로 세운다. <code>Long boardModelId</code> 를 맨손으로 들고 다니면 그것이 서버의 보드인지 정의서가 요구하는 보드인지 타입이 말해 주지 않는다.</p>
+        <table>
+          <thead><tr><th>구성</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>필드</td><td><code>Long id</code> · <code>String name</code></td></tr>
+            <tr><td>추출</td><td><code>static RequiredBoardModel from(List&lt;AbstractProcessRequest&gt;)</code> — 보드를 지정한 단계가 없거나 전부 <code>AUTO</code> 면 <code>null</code></td></tr>
+            <tr><td>판정</td><td><code>String blockReasonFor(Long serverBoardId, String serverBoardName)</code> — 통과면 <code>null</code></td></tr>
+          </tbody>
+        </table>
+        <p>추출을 <code>List&lt;AbstractProcessRequest&gt;</code> 에서 하는 것이 중요하다. 정의서 원본(<code>SettingDefinition.getProcesses()</code>)과 <b>할당 스냅샷</b>(<code>SettingAssignment.getProcesses()</code>)이 같은 payload 타입을 들고 있으므로(U3-1 이 무변환 복사한다) <b>같은 추출 코드가 양쪽에 쓰인다.</b> 선택지 잠금은 원본에서, 이미 든 할당의 경고는 스냅샷에서 뽑는다 — 얼린 정의서가 요구하는 보드는 원본이 나중에 바뀌어도 스냅샷이 든 그 값이어야 하기 때문이다.</p>
+        <p>보드를 지정하는 단계는 펌웨어 업데이트와 BIOS 설정 둘뿐이고 둘이 함께 있으면 같은 선택이어야 하므로, 정의서 하나가 요구하는 보드는 최대 하나다. 추출이 모호해질 자리가 없다.</p>
+
+        <h4>새 타입 ② — <code>AssignmentBlockKind</code> (enum, <code>provisioning/assignment/enums/</code>)</h4>
+        <table>
+          <thead><tr><th>상수</th><th>무엇 때문에 막히는가</th><th>하드웨어 불일치</th><th>화면</th></tr></thead>
+          <tbody>
+            <tr><td><code>DECOMMISSIONED</code></td><td>서버가 회수됐다</td><td>아니다</td><td>폼 자체를 닫는다</td></tr>
+            <tr><td><code>BOARD_MISMATCH</code></td><td>정의서가 요구하는 메인보드와 다르다</td><td>그렇다</td><td>옵션을 잠그고 <b>적색</b> 표시</td></tr>
+          </tbody>
+        </table>
+        <p>상수마다 세 메서드를 갖는다.</p>
+        <ul>
+          <li><code>String reasonFor(AssignmentEligibility context)</code> — 해당하면 사유, 아니면 <code>null</code></li>
+          <li><code>RuntimeException toException(UUID guestId, String reason)</code> — 서버 가드가 던질 예외</li>
+          <li><code>boolean hardwareIncompatible()</code> — 화면이 적색으로 칠할 것인가</li>
+        </ul>
+        <p>세 번째가 <b>확장을 위한 자리가 아니라 지금도 옳은 설계</b>다. 이것이 없으면 화면이 <code>kind == BOARD_MISMATCH</code> 로 색을 정하게 되는데, 그러면 "왜 적색인가" 라는 지식이 상수가 아니라 호출자에 산다. 상수가 스스로 대답하게 두면 하드웨어 축이 늘어도 호출자는 그대로다(§8 DEC-H).</p>
+        <p>그리고 static 진입점 하나를 갖는다.</p>
+<pre><code>static AssignmentBlock evaluate(AssignmentEligibility context)   // 통과면 null</code></pre>
+        <p><code>values()</code> 를 선언 순으로 순회해 처음 <code>null</code> 이 아닌 사유를 만나면 그 종류와 함께 돌려준다. <b>판정 순서가 곧 상수 선언 순서</b>이고, 새 차단 사유는 상수 하나를 더하는 것으로 순회에 자동 편입된다.</p>
+        <p><code>AssignmentBlock</code> 은 <code>AssignmentBlockKind</code> 안의 중첩 record 다 — <code>record AssignmentBlock(AssignmentBlockKind kind, String reason)</code>.</p>
+
+        <h4>새 타입 ③ — <code>AssignmentEligibility</code> (record, <code>provisioning/assignment/vo/</code>)</h4>
+        <p>판정 입력 묶음이며 <b>셋</b>을 든다.</p>
+        <table>
+          <thead><tr><th>필드</th><th>무엇</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServer server</code></td><td>회수 여부의 출처</td><td>—</td></tr>
+            <tr><td><code>GuestServerDetail detail</code></td><td>서버가 실제로 가진 하드웨어</td><td>수집 전이면 <code>null</code></td></tr>
+            <tr><td><code>List&lt;AbstractProcessRequest&gt; processes</code></td><td>정의서 원본 또는 할당 스냅샷의 단계들</td><td>요구사항 추출의 재료</td></tr>
+          </tbody>
+        </table>
+        <p><b>요구사항을 미리 추출해 담지 않는 것이 요점이다.</b> 컨텍스트가 <code>RequiredBoardModel</code> 을 필드로 들면 하드웨어 축이 늘 때마다 필드가 함께 는다. 대신 단계 목록을 그대로 넘기고 <b>추출은 그 축을 아는 상수가 한다</b> — <code>BOARD_MISMATCH.reasonFor</code> 안에서 <code>RequiredBoardModel.from(context.processes())</code> 를 부른다.</p>
+        <p><code>GuestServerDetail</code> 을 통째로 드는 이유도 같다. 메인보드는 구조화 FK(<code>board_model_id</code>)로, 디스크 · CPU · 메모리 · PCIe 는 <code>hardware_spec</code> JSON 안에 있어 <b>둘 다 이 엔티티 하나에 모여 있다.</b> 보드 식별자 두 개를 풀어서 담았다면 디스크 축이 올 때 컨텍스트를 다시 열어야 한다.</p>
+
+        <h4>도메인 메서드 신설 — <code>GuestServer.assignBlockReason()</code></h4>
+        <p>회수됐으면 <code>"회수된 서버에는 세팅 정의서를 할당할 수 없습니다"</code>, 아니면 <code>null</code>. <code>SettingAssignment.reassignBlockReason()</code> · <code>SettingDefinition.assignBlockReason()</code> · <code>GuestServerGroup.addBlockReason()</code> 과 같은 형태다. <code>AssignmentBlockKind.DECOMMISSIONED</code> 가 이것을 호출한다 — enum 이 회수 규칙을 직접 알지 않고 엔티티에 묻는다.</p>
+
+        <h4>진리표 (선언 순 = 판정 순)</h4>
+        <table>
+          <thead><tr><th>서버</th><th>정의서가 요구하는 보드</th><th>결과</th><th>사유 출처</th></tr></thead>
+          <tbody>
+            <tr><td>회수됨</td><td>무관</td><td><code>DECOMMISSIONED</code></td><td><code>GuestServer.assignBlockReason()</code></td></tr>
+            <tr><td>정상 · 보드 확인됨</td><td>서버 보드와 다름</td><td><code>BOARD_MISMATCH</code></td><td><code>RequiredBoardModel.blockReasonFor</code></td></tr>
+            <tr><td>정상 · 보드 확인됨</td><td>같거나 <code>AUTO</code></td><td>통과</td><td>—</td></tr>
+            <tr><td>정상 · 보드 확인 전</td><td>지정됨</td><td><b>통과</b> + 표식</td><td>—</td></tr>
+            <tr><td>정상 · 보드 확인 전</td><td><code>AUTO</code></td><td>통과</td><td>—</td></tr>
+          </tbody>
+        </table>
+
+        <h4>재사용 (신설하지 않는다)</h4>
+        <p><code>SettingDefinition.assignBlockReason()</code> · <code>SettingAssignment.reassignBlockReason()</code> · <code>GuestServerStatus.derive</code>.</p>
+
+        <h4>DTO 확장 4 건</h4>
+        <table>
+          <thead><tr><th>DTO</th><th>더하는 것</th><th>왜</th></tr></thead>
+          <tbody>
+            <tr><td><code>SettingSummaryResponse</code></td><td><code>requiredBoardModelId</code> · <code>requiredBoardModelName</code></td><td>선택지가 어느 보드를 요구하는지 알아야 화면이 잠근다</td></tr>
+            <tr><td><code>GuestServerDetailResponse</code></td><td><code>boardModelId</code></td><td>대조의 한쪽</td></tr>
+            <tr><td><code>GuestServerSummaryResponse</code></td><td><code>boardModelId</code></td><td>U3-5-b 가 멤버마다 쓴다</td></tr>
+            <tr><td><code>AssignmentPlanResponse</code></td><td><code>hardwareMismatchReason</code>(nullable)</td><td>이미 든 할당의 경고 — 축 무관</td></tr>
+          </tbody>
+        </table>
+        <p>두 <code>GuestServer*Response</code> 가 보드 <b>이름</b>만 들고 있던 것은 화면에 찍기만 했기 때문이다. 이제 대조에 쓰이므로 식별자가 필요하다 — 모델명이 실무에서 유일하더라도 유일성을 보장하는 것은 id 이지 이름이 아니다.</p>
+        <p><code>GuestServerSummaryResponse</code> 는 이 단계에서 쓰이지 않지만 함께 채운다. <code>GuestServerQueryService</code> 의 요약 조립과 상세 조립이 같은 엔티티 그래프를 타므로 한쪽만 채우면 다음 단계가 같은 파일을 다시 열게 된다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository (N/A) · 도메인 메서드 · Value Object · enum</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>Service 본체 + 단위 · 통합 테스트 + 스키마 확인 (DDL N/A)</td><td><span class="chip cp4">CP4</span></td><td>보고</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP6 · CP7</b> 셋이다. CP1 승인이 CP2~CP4 의 진행 승인을 겸하므로 그 구간은 무중단으로 진행하고 경계마다 보고만 한다.</div>
+
+        <h4>이 슬라이스의 특이점</h4>
+        <ul>
+          <li><b>6 단계 N/A</b> — 새 리포지토리 메서드가 없다. 필요한 조회는 전부 기존 메서드로 된다.</li>
+          <li><b>7 단계</b>는 새 엔티티가 아니라 도메인 메서드 · Value Object · enum 신설이 대신한다.</li>
+          <li><b>9 단계 N/A</b> — DDL 산출물이 없다. <code>ddl-auto=validate</code> 통과만 확인한다.</li>
+          <li><b>CP5 는 브라우저 검증</b>이다. 대상 화면은 서버 상세 하나이고, U3-1 · U3-2 가 이미 검증한 화면을 <b>고친 뒤</b> 다시 보는 것이므로 기존 동작의 회귀 확인이 항목에 포함된다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 계획</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>케이스</th></tr></thead>
+          <tbody>
+            <tr><td><code>RequiredBoardModel.from</code></td><td>보드 지정 단계 없음 → null / <code>AUTO</code> 만 → null / <code>SPECIFIED</code> → 값 / 펌웨어 · BIOS 둘 다 지정(같은 값) → 값</td></tr>
+            <tr><td><code>RequiredBoardModel.blockReasonFor</code></td><td>일치 → null / 불일치 → 사유 / 서버 보드 null → null</td></tr>
+            <tr><td><code>GuestServer.assignBlockReason</code></td><td>회수 → 사유 / 미회수 → null</td></tr>
+            <tr><td><code>AssignmentBlockKind.evaluate</code></td><td>진리표 5 행 · 회수와 보드 불일치가 겹칠 때 회수가 이기는지</td></tr>
+            <tr><td><code>AssignmentCommandService.assign</code></td><td>회수 서버 409 / 보드 불일치 409 / 통과</td></tr>
+            <tr><td><code>AssignmentCommandService.reassign</code></td><td>같은 3 건</td></tr>
+          </tbody>
+        </table>
+
+        <h4>사용자 액션 통합 (<code>@WebMvcTest</code> + <code>MockMvc</code> + <code>@MockitoBean</code>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr><td>2xx</td><td>정상 서버 · 보드 일치 할당 → 200 + <code>ownedPhases</code> / 보드 확인 전 서버 + 보드 지정 정의서 → 200</td></tr>
+            <tr><td>409</td><td>회수 서버 할당 · 회수 서버 재할당 · 보드 불일치 할당 · 보드 불일치 재할당</td></tr>
+            <tr><td>404</td><td>없는 게스트 · 없는 정의서(회귀)</td></tr>
+            <tr><td>400</td><td><code>definitionId</code> 누락(회귀)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">새 예외 둘을 추가하므로 그 예외를 실제로 발생시키는 시나리오 테스트를 함께 넣는다(<code>new-exception.md</code> §4).</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>상속</th><th>HTTP</th><th>언제</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span> <code>ServerNotAssignableException</code></td><td><code>ConflictException</code></td><td>409</td><td>회수된 서버에 할당 · 재할당</td></tr>
+            <tr><td><span class="chip new">신규</span> <code>DefinitionHardwareMismatchException</code></td><td><code>ConflictException</code></td><td>409</td><td>정의서가 요구하는 하드웨어와 서버가 가진 것이 다름</td></tr>
+          </tbody>
+        </table>
+        <p>둘을 하나로 합치지 않는다. 앞은 <b>서버 자신의 상태</b>이고 뒤는 <b>두 대상의 짝</b>이 맞지 않는 것이다. 운영자가 취할 다음 행동도 다르다 — 앞은 서버를 다시 등록해야 하고 뒤는 맞는 정의서를 고르거나 맞는 서버를 골라야 한다.</p>
+        <p>반대로 뒤엣것을 <b>하드웨어 축마다 쪼개지도 않는다.</b> 지금 축은 메인보드 하나뿐이지만 U4 가 디스크 축을 더할 때 <code>DefinitionDiskMismatchException</code> 을 또 만들면, HTTP 상태도 같고 운영자의 다음 행동도 같은 예외가 축 수만큼 늘어난다. <b>예외를 나누는 기준은 상태 코드와 운영자의 다음 행동이지 내부 원인이 아니다</b> — 구체적인 원인은 메시지가 싣고, 그 메시지는 각 축의 <code>reasonFor</code> 가 만든다.</p>
+        <p>advice 에 명시 등록하지 않는다 — 상위 타입 핸들러가 <code>@ResponseStatus</code> 를 계층 탐색으로 읽어 흡수한다(<code>new-exception.md</code> §2 의 세 조건 모두 미해당).</p>
+        <div class="callout"><b>예외 생성을 enum 상수가 맡는다.</b> 서버 가드가 <code>kind</code> 로 분기해 예외를 고르면 새 차단 종류가 생길 때 그 분기가 자란다. <code>AssignmentBlockKind.toException(...)</code> 이 상수별 메서드이므로 상수를 더하면 컴파일이 예외 매핑을 강제한다.</div>
+
+        <h4>폼 규약 (<code>new-form.md</code>)</h4>
+        <p>할당 · 재할당은 <code>@ResponseBody</code> 로 JSON 을 돌려주고 <code>server-assignment.js</code> 가 처리하는 XHR 폼이다. 판정 표에서 <b>아무것도 붙이지 않는</b> 칸이며, 그 스크립트가 이미 기본 동작을 취소하므로 전역 인터셉터가 비켜간다. 거절은 <code>window.FormError</code> 가 배너 · 인라인으로 매핑한다. <code>FormSubmissionConventionTest</code> 의 기대값은 변하지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정</summary>
+      <div class="body">
+        <h4>DEC-A. 판정은 도메인이 갖고 화면과 서버 가드가 함께 부른다</h4>
+        <p>대안 셋을 비교했다.</p>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>서비스 안 if-throw — <code>AssignmentCommandService</code> 에 검사 두 줄</td><td>탈락</td></tr>
+            <tr><td>②</td><td>도메인 메서드 + 조합 지점 — 각 도메인이 사유를 돌려주고 한 곳이 순서를 안다</td><td><b>채택</b></td></tr>
+            <tr><td>③</td><td>검사 전담 서비스 — <code>AssignabilityInspector</code> 가 전부 판정</td><td>탈락</td></tr>
+          </tbody>
+        </table>
+        <p>①이 탈락하는 이유는 <b>화면이 같은 판정을 부를 수 없기 때문</b>이다. 서비스 안의 <code>if</code> 는 밖에서 재사용되지 않으므로 화면이 조건을 복붙하게 되고, 그것이 이 프로젝트가 반복해 겪은 drift 다(<code>childEnableBlockReason</code> 선례가 이 문제를 푼 방식이 ②다).</p>
+        <p>③은 도메인 지식이 서비스로 새고 엔티티가 자기 규칙을 모르게 된다. 뷰가 판정 하나 하려고 서비스를 주입받아야 하는 것도 무겁다.</p>
+
+        <h4>DEC-B. 판정들을 순서대로 묶는 자리를 둔다 — 없으면 네 곳에 복붙된다</h4>
+        <p>판정 순서를 필요로 하는 곳이 넷이다. 단일 할당 가드 · 재할당 가드 · 서버 상세 뷰모델 · (다음 단계) 일괄 할당 분류기. 조합 지점이 없으면 "회수 먼저 보고 그다음 보드" 가 네 번 적힌다.</p>
+        <p><code>AssignmentBlockKind.evaluate</code> 가 그 자리다. <b>이것이 U3-5-a 를 독립 슬라이스로 떼어낸 덕에 드러난 설계</b>다 — 한 슬라이스 안에 있었다면 일괄 할당 분류기가 두 사유를 각각 인자로 받아 순서까지 아는 형태로 굳었을 것이다. 실제로 분할 전 계획의 분류기 시그니처는 인자가 넷이었고 지금은 셋이다.</p>
+
+        <h4>DEC-C. 조합은 if-chain 이 아니라 enum 순회다</h4>
+        <p>두 방식을 비교했다.</p>
+        <table>
+          <thead><tr><th>방식</th><th>새 차단 사유가 생길 때</th></tr></thead>
+          <tbody>
+            <tr><td>if-chain 두 줄</td><td>조합 지점에 줄 추가 + 예외 매핑 분기에도 줄 추가</td></tr>
+            <tr><td>enum 순회</td><td>상수 하나 추가 — 순회 · 예외 매핑이 컴파일로 강제</td></tr>
+          </tbody>
+        </table>
+        <p>CLAUDE.md 는 "신규 케이스가 추가될 때 분기문에 줄을 늘리지 않는다" 를 불가침으로 둔다. 여기서 그것을 미래 예측이 아니라 <b>이미 일어난 사실</b>로 정당화할 수 있다 — 차단 사유는 이번에 하나(회수)에서 둘(회수 + 보드)로 늘었다. <code>AssignmentStateView.badgeClass</code> 가 exhaustive switch 로 색 누락을 컴파일 시점에 막는 것과 같은 층위이며, 여기서는 매핑이 아니라 동작이므로 상수별 메서드를 쓴다.</p>
+
+        <h4>DEC-D. 회수는 폼을 닫고 보드 불일치는 옵션을 잠근다 — 비대칭에 이유가 있다</h4>
+        <p>회수는 <b>서버의 상태</b>라 어떤 정의서를 골라도 막힌다. 선택지를 전부 잠근 폼을 보여주는 것은 조작할 수 없는 화면을 그려 놓고 이유를 옵션 툴팁에 숨기는 셈이다. 그래서 폼 자리에 사유를 적는다.</p>
+        <p>보드는 <b>정의서마다 다르다.</b> 같은 서버에서 어떤 정의서는 되고 어떤 것은 안 되므로 옵션 단위로 잠그고 사유를 라벨에 붙인다.</p>
+        <p><b>지우지 않고 잠그는 것</b>도 의도다. 목록에서 조용히 사라지면 운영자는 그 정의서가 없어진 것인지 자기 서버에 안 맞는 것인지 알 수 없다. <code>definition-options</code> 조각이 이미 사용 중단 권고를 라벨에 덧붙이고 있으므로 같은 자리에 사유를 붙인다.</p>
+
+        <h4>DEC-E. 보드를 모르면 막지 않고 표식만 단다</h4>
+        <p>수집 전 서버에 미리 정의서를 할당해 두고 부팅시키는 흐름이 실재한다. 모른다는 이유로 막으면 그 흐름이 끊긴다.</p>
+        <p>대신 <b>대조하지 못했다는 사실 자체를 보이게</b> 한다 — 조용히 통과시키는 것과 다르다. 실제로 보드가 어긋난 채 프로비저닝이 시작되면 실행 엔진이 그때 막아야 하며, 그것은 E 계열 소관으로 남긴다.</p>
+
+        <h4>DEC-F. 이미 만들어진 할당에는 소급하지 않는다</h4>
+        <p>할당 스냅샷은 할당 시점 복사본이고 원본 상태 변화와 독립이다 — U3-2-b DEC-G 가 "비활성 정의서는 신규 할당만 차단하고 기존 스냅샷은 건드리지 않는다" 로 정한 것과 같은 결이다.</p>
+        <p>다만 <b>경고는 한다.</b> 서버 상세가 지금 든 할당의 얼린 보드를 서버의 실제 보드와 대조해 어긋나면 알린다. 이 판정이 그대로 U3-5-b 의 그룹 멤버 표 적색 표시가 된다.</p>
+        <p>소급 무효화를 검토했으나 탈락시켰다. 무효화하면 진행 중이던 서버의 계획이 사라져 실행 엔진이 참조할 스냅샷이 없어지고, 하드웨어 재수집으로 보드 정보가 바뀌는 것만으로 운영 중인 할당이 대량 소멸할 수 있다.</p>
+
+        <h4>DEC-G. 차단 종류를 값으로 돌려준다</h4>
+        <p>사유 문자열만 돌려주면 화면이 색을 정할 수 없다. U3-5-b 는 보드 불일치를 <b>적색</b>으로, 다른 차단은 일반 제외로 표시해야 한다.</p>
+        <p><code>AssignmentBlock(kind, reason)</code> 이 그래서 종류와 사유를 함께 든다. 종류는 화면이 보고 사유는 사람이 본다. 기존 <code>*BlockReason()</code> 메서드들이 <code>String</code> 을 돌려주는 관례와 어긋나 보이지만, 그 메서드들은 <b>한 가지 이유</b>만 갖는 단일 판정이고 이것은 <b>여러 판정의 조합 결과</b>다. 층위가 다르다.</p>
+        <p>다만 화면은 <b>종류를 직접 비교하지 않는다.</b> <code>kind == BOARD_MISMATCH</code> 로 색을 정하면 하드웨어 축이 늘 때 그 비교가 함께 자란다. 화면이 묻는 것은 <code>kind.hardwareIncompatible()</code> 하나다.</p>
+
+        <h4>DEC-H. 하드웨어 대조로 이름 짓되 추상 계층은 지금 만들지 않는다</h4>
+        <p style="margin-top:0;">이 단계가 대조하는 하드웨어는 <b>메인보드 하나</b>다. 그런데 U4 에서 세팅 정의서에 <b>디스크 구성에 따른 파티셔닝 · RAID 구성</b>이 들어올 예정이고, 그것은 "정의서가 요구하는 하드웨어와 서버가 가진 하드웨어를 대조한다" 는 <b>같은 일의 두 번째 축</b>이다. 그래서 개념의 이름을 '보드 대조' 가 아니라 <b>'하드웨어 대조'</b> 로 둔다 — 지금 축이 하나인 것은 사실이지만, 그 사실을 개념 이름에 새기면 두 번째 축이 올 때 이름부터 어긋난다.</p>
+        <p><b>그렇다고 <code>HardwareRequirement</code> 인터페이스를 지금 만들지는 않는다.</b> 구현이 하나뿐인 인터페이스는 CLAUDE.md 가 금지하는 사전 분리다. 디스크 요구사항이 실제로 생겨 <code>RequiredBoardModel</code> 과 그것의 <b>공통 형태가 실측으로 드러날 때</b> 뽑는다 — 보드는 식별자 하나를 비교하지만 디스크는 개수 · 용량 · 인터페이스를 함께 볼 가능성이 커서, 지금 공통 인터페이스를 상상해 만들면 그때 맞지 않을 확률이 높다.</p>
+        <div class="callout success"><b>지금 인터페이스를 만들지 않는 비용이 0 인 이유</b> — 호출자(서버 가드 · 화면 · 다음 단계의 분류기)는 <code>AssignmentBlockKind.evaluate</code> 하나만 부른다. 나중에 인터페이스를 뽑아도 <b>호출자는 한 줄도 바뀌지 않는다.</b> 확장을 위해 미리 치를 값이 없으므로 미루는 것이 이득이다.</div>
+        <p>U4 가 디스크 축을 더할 때 무엇을 건드리는지 미리 짚어 둔다. 이 표가 이 설계가 확장 가능한지에 대한 실제 답이다.</p>
+        <table>
+          <thead><tr><th>대상</th><th>U4 에서</th></tr></thead>
+          <tbody>
+            <tr><td><code>AssignmentBlockKind</code></td><td>상수 1 개 추가 — <code>reasonFor</code> · <code>toException</code> · <code>hardwareIncompatible()=true</code></td></tr>
+            <tr><td>요구사항 Value Object</td><td><code>RequiredDiskLayout</code> 신설(<code>RequiredBoardModel</code> 옆)</td></tr>
+            <tr><td><code>AssignmentEligibility</code></td><td><b>변경 없음</b> — 단계 목록과 <code>GuestServerDetail</code> 을 이미 든다</td></tr>
+            <tr><td>예외</td><td><b>변경 없음</b> — <code>DefinitionHardwareMismatchException</code> 재사용</td></tr>
+            <tr><td>서버 가드 · 화면</td><td><b>변경 없음</b> — <code>evaluate</code> 와 <code>hardwareIncompatible()</code> 만 본다</td></tr>
+            <tr><td>테스트</td><td>그 축의 진리표 추가</td></tr>
+          </tbody>
+        </table>
+        <p>변경 없음이 셋인 것은 우연이 아니다. <b>축마다 달라지는 것(무엇을 요구하고 어떻게 비교하는가)만 새로 만들고, 축과 무관한 것(순서 · 결과 모양 · 예외 · 표시 규칙)은 이미 축을 모르게 두었다.</b> 이것이 인터페이스 없이 확보한 확장성이며, 다형성을 더 얹지 않은 이유이기도 하다.</p>
+
+        <div class="callout success"><b>열린 질문 없음</b> — 분할 시점에 OQ-1 · OQ-4(단일 경로 적용 여부)가 확정됐고 나머지는 U3-5-b 로 넘어갔다. 이 단계에서 사용자 판단을 기다리는 항목은 없다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 검증 항목 계획)</summary>
+      <div class="body">
+        <p style="margin-top:0;">식별자는 CP5 규약을 따라 A = 정상 흐름, B = 비정상 조작, C = 막는 방식으로 나눈다.</p>
+        <table>
+          <thead><tr><th>식별자</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>정상 서버 + 보드 <code>AUTO</code> 정의서 → 할당됨</td></tr>
+            <tr><td>A2</td><td>정상 서버 + 보드 일치 정의서 → 할당됨</td></tr>
+            <tr><td>A3</td><td>보드 확인 전 서버 + 보드 지정 정의서 → 할당됨(막지 않음) + 표식</td></tr>
+            <tr><td>A4</td><td>회수된 서버 상세 → 할당 폼이 닫히고 사유가 보임</td></tr>
+            <tr><td>A5</td><td>보드 불일치 정의서가 선택지에서 잠기고 사유가 라벨에 붙음</td></tr>
+            <tr><td>A6</td><td>재할당 폼의 선택지에도 같은 잠금이 적용됨</td></tr>
+            <tr><td>A7</td><td>이미 든 할당의 보드가 안 맞으면 서버 상세에 경고 배너</td></tr>
+            <tr><td>A8</td><td>할당 후 서버를 회수 → 기존 스냅샷은 그대로(소급 없음)</td></tr>
+            <tr><td>A9</td><td>기존 할당 · 재할당 · 개시 흐름 회귀 확인</td></tr>
+            <tr><td>B1</td><td>direct POST — 회수 서버 할당 → 409</td></tr>
+            <tr><td>B2</td><td>direct POST — 회수 서버 재할당 → 409</td></tr>
+            <tr><td>B3</td><td>direct POST — 보드 불일치 할당 → 409</td></tr>
+            <tr><td>B4</td><td>direct POST — 보드 불일치 재할당 → 409</td></tr>
+            <tr><td>B5</td><td>화면을 연 뒤 다른 탭에서 회수한 stale 제출 → 409</td></tr>
+            <tr><td>B6</td><td>direct POST — 잠긴 옵션의 정의서 id 를 직접 실어 제출 → 409</td></tr>
+            <tr><td>C1</td><td>잠긴 옵션이 <b>사라지지 않고</b> 사유를 보여주는가</td></tr>
+            <tr><td>C2</td><td>회수 서버의 폼 닫힘이 "왜" 를 알려주는가</td></tr>
+            <tr><td>C3</td><td>거절이 안내 모달 · 인라인 오류로 수렴하는가(raw JSON 노출 없음)</td></tr>
+            <tr><td>C4</td><td>사유 문구가 화면과 서버 응답에서 같은 문자열인지 대조</td></tr>
+          </tbody>
+        </table>
+        <p>항목마다 스크린샷을 남긴다. 발견한 결함은 그 자리에서 고치고 재검증하며 처리 내역을 report 에 남긴다.</p>
+
+        <ul class="check-list" data-storage="U3-5-a-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span><code>ddl-auto=validate</code> 통과 (DDL 산출물 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 브라우저 검증 (CP5, 항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4><span class="chip new">신규</span> 5 건</h4>
+        <table>
+          <thead><tr><th>경로</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>provisioning/setting/vo/RequiredBoardModel.java</code></td><td>정의서가 요구하는 보드 · 대조 판정</td></tr>
+            <tr><td><code>provisioning/assignment/enums/AssignmentBlockKind.java</code></td><td>차단 종류 · 상수별 판정과 예외 · 조합 진입점</td></tr>
+            <tr><td><code>provisioning/assignment/vo/AssignmentEligibility.java</code></td><td>판정 입력 묶음</td></tr>
+            <tr><td><code>provisioning/assignment/exception/ServerNotAssignableException.java</code></td><td>409 — 회수</td></tr>
+            <tr><td><code>provisioning/assignment/exception/DefinitionHardwareMismatchException.java</code></td><td>409 — 하드웨어 불일치(축 공용)</td></tr>
+          </tbody>
+        </table>
+
+        <h4><span class="chip mod">수정</span> 10 건</h4>
+        <table>
+          <thead><tr><th>경로</th><th>무엇을</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution/entity/GuestServer.java</code></td><td><code>assignBlockReason()</code> 신설</td></tr>
+            <tr><td><code>provisioning/assignment/service/AssignmentCommandService.java</code></td><td>할당 · 재할당에 서버 가드</td></tr>
+            <tr><td><code>provisioning/assignment/service/AssignmentQueryService.java</code></td><td>이미 든 할당의 보드 경고</td></tr>
+            <tr><td><code>provisioning/assignment/dto/response/AssignmentPlanResponse.java</code></td><td>경고 사유</td></tr>
+            <tr><td><code>provisioning/setting/service/JpaSettingQueryService.java</code></td><td>요약에 요구 보드 싣기</td></tr>
+            <tr><td><code>provisioning/setting/dto/response/SettingSummaryResponse.java</code></td><td>요구 보드 id · 이름</td></tr>
+            <tr><td><code>execution/dto/response/GuestServerDetailResponse.java</code></td><td><code>boardModelId</code></td></tr>
+            <tr><td><code>execution/dto/response/GuestServerSummaryResponse.java</code></td><td><code>boardModelId</code></td></tr>
+            <tr><td><code>execution/service/GuestServerQueryService.java</code></td><td>두 응답에 보드 id 채우기</td></tr>
+            <tr><td><code>provisioning/controller/GuestServerController.java</code></td><td>선택지 잠금 뷰모델</td></tr>
+          </tbody>
+        </table>
+        <p>화면 2 건도 함께 고친다 — <code>templates/fragments/provisioning/definition-options.html</code>(옵션 잠금 + 사유 라벨), <code>templates/provisioning/server-detail.html</code>(회수 시 폼 닫힘 + 보드 경고 배너).</p>
+
+        <h4><span class="chip keep">유지</span></h4>
+        <p><code>deriveSnapshot</code>(스냅샷 조립) · <code>AssignmentStartService</code>(개시 원자성) · <code>setting-form.js</code>(정의서 작성 화면의 보드 필터) · <code>SettingSaveRequest</code> 의 보드 정합 검증.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U3-5-a-next">
+          <li><label><input type="checkbox" data-key="u35b"> <span><b>U3-5-b — 그룹 단위 일괄 할당.</b> 이 단계의 <code>AssignmentBlockKind.evaluate</code> 를 멤버마다 호출해 사전 분류를 만들고, <code>hardwareIncompatible()</code> 인 차단을 적색으로 표시한다</span></label></li>
+          <li><label><input type="checkbox" data-key="auto"> <span>실행 시점 보드 감지(<code>AUTO</code> 해석)와 어긋남 처리 — E 계열</span></label></li>
+          <li><label><input type="checkbox" data-key="u4disk"> <span><b>U4 — 디스크 구성 대조.</b> 세팅 정의서에 디스크 구성에 따른 분류 · 파티셔닝 · RAID 구성이 들어오면 하드웨어 대조의 두 번째 축이 된다. 그때 <code>RequiredDiskLayout</code> 과 상수 하나를 더하고, <b>그 시점에</b> <code>RequiredBoardModel</code> 과의 공통 형태가 실측으로 드러나면 인터페이스를 뽑는다(§8 DEC-H)</span></label></li>
+          <li><label><input type="checkbox" data-key="recheck"> <span>하드웨어 재수집으로 구성이 바뀐 서버의 기존 할당 재점검 — 지금은 경고까지이고 자동 조치가 없다</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — 할당 가능성 판정
+  //  demoEvaluate() 는 AssignmentBlockKind.evaluate(AssignmentEligibility) 와 동일 판정 (드리프트 0).
+  //  demoRender() 는 파일 끝에서 1 회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const demoServer = { name: 'srv-01', state: 'normal', pickedBoard: 'MS03-CE0' };
+  const DEMO_DEFS = [
+    { name: 'web-standard', board: null,        note: '보드 AUTO' },
+    { name: 'bios-ms03',    board: 'MS03-CE0',  note: 'MS03-CE0 전용' },
+    { name: 'fw-x11',       board: 'X11SPM',    note: 'X11SPM 전용' }
+  ];
+
+  // ⬇ 서버 도메인 판정과 1:1 ⬇
+  function demoEvaluate(server, def) {
+    if (server.state === 'decommissioned') {
+      return { kind: 'DECOMMISSIONED', reason: '회수된 서버에는 세팅 정의서를 할당할 수 없습니다' };
+    }
+    if (def.board !== null && server.board !== null && def.board !== server.board) {
+      return { kind: 'BOARD_MISMATCH',
+               reason: '이 정의서는 메인보드 ' + def.board + ' 전용입니다 — 이 서버는 ' + server.board + ' 입니다' };
+    }
+    return null;   // 통과. def.board 가 있는데 server.board 가 null 이면 '보드 확인 전' 표식만 단다
+  }
+  // ⬆ 여기까지 ⬆
+
+  function demoServerView() {
+    return {
+      name: demoServer.name,
+      state: demoServer.state === 'decommissioned' ? 'decommissioned' : 'active',
+      board: demoServer.state === 'unknown' ? null : demoServer.pickedBoard
+    };
+  }
+  function demoSetState(s) { demoServer.state = s; demoRender(); }
+  function demoSetBoard(b) { demoServer.pickedBoard = b; demoRender(); }
+  function demoEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function demoAssign(open) {
+    const msg = document.getElementById('demo-message');
+    if (open === 0) return;
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ 제출 — 할당 서비스가 같은 evaluate 를 다시 호출해 안전망으로 확인한 뒤 스냅샷을 만듭니다.';
+  }
+  function demoRender() {
+    const view = demoServerView();
+    const boardKnown = view.board !== null;
+
+    document.querySelectorAll('.ux-toolbar .seg[data-srv]').forEach(s =>
+      s.classList.toggle('active', s.dataset.srv === demoServer.state));
+    document.querySelectorAll('.ux-toolbar .seg[data-board]').forEach(s => {
+      s.disabled = !boardKnown;
+      s.classList.toggle('active', boardKnown && s.dataset.board === demoServer.pickedBoard);
+    });
+
+    let rows = '', caps = '', open = 0;
+    DEMO_DEFS.forEach(def => {
+      const block = demoEvaluate(view, def);
+      const unverified = block === null && def.board !== null && !boardKnown;
+      let right;
+      if (block === null) {
+        open += 1;
+        right = '<span class="chip add">선택 가능</span>';
+        if (unverified) right += ' <span class="tip" data-tip="서버의 메인보드를 아직 수집하지 못해 대조하지 못했습니다. 막지 않되 대조 못 한 사실을 표시합니다."><span class="chip keep">보드 확인 전</span></span>';
+      } else {
+        right = '<span class="tip" data-tip="' + demoEsc(block.reason) + '"><span class="chip del">잠김</span></span>';
+      }
+      rows += '<div class="ux-row' + (block === null ? '' : ' muted') + '">' +
+              '<strong>정의서</strong><span class="label">' + demoEsc(def.name) +
+              ' <span style="color:var(--text-muted);font-size:12px;">— ' + demoEsc(def.note) + '</span></span>' +
+              right + '</div>';
+
+      const srvLabel = view.state === 'decommissioned'
+        ? demoServer.name + '(' + demoServer.pickedBoard + ' · 회수됨)'
+        : (boardKnown ? demoServer.name + '(' + view.board + ')' : demoServer.name + '(보드 확인 전)');
+      const defLabel = def.name + '[' + def.note + ']';
+      caps += 'evaluate(server=' + demoEsc(srvLabel) + ', definition=' + demoEsc(defLabel) + ') → ' +
+              (block === null
+                 ? '<span class="f">통과</span>' + (unverified ? '  (하드웨어 대조 미수행)' : '')
+                 : '<span class="t">' + block.kind + '</span>') + '\n';
+    });
+    document.getElementById('demo-list').innerHTML = rows;
+    document.getElementById('demo-caps').innerHTML = caps.replace(/\n$/, '');
+
+    const blocked = open === 0;
+    const tip = blocked ? ' data-tip="이 서버에 붙일 수 있는 정의서가 없습니다. 회수된 서버이거나 남은 정의서가 모두 다른 메인보드를 요구합니다."' : '';
+    document.getElementById('demo-submit').innerHTML =
+      '<span class="tip"' + tip + '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoAssign(' + open + ')">이 서버에 할당</button></span>';
+
+    const msg = document.getElementById('demo-message');
+    if (view.state === 'decommissioned') {
+      msg.className = 'ux-message error';
+      msg.textContent = '회수된 서버입니다 — 할당 폼 자체가 닫힙니다. 어떤 정의서를 골라도 막히므로 옵션을 잠그는 것으로는 부족합니다.';
+    } else {
+      msg.className = 'ux-message';
+      msg.textContent = '선택 가능한 정의서 ' + open + ' 건 / 잠긴 정의서 ' + (DEMO_DEFS.length - open) +
+                        ' 건 — 같은 서버라도 정의서마다 결과가 다르므로 옵션 단위로 잠급니다.';
+    }
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1 회 호출
+</script>
+</body>
+</html>

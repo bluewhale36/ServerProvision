@@ -21,6 +21,8 @@ public record PlannedPhaseRailResponse(
         AssignmentState state,
         String badgeClass,
         String reassignBlockReason,
+        /** 지금 든 스냅샷이 이 서버의 하드웨어와 맞지 않으면 그 사유(U3-5-a) — 경고 배너의 입력. */
+        String hardwareMismatchReason,
         List<Entry> entries
 ) {
 
@@ -51,7 +53,7 @@ public record PlannedPhaseRailResponse(
         }
         String badgeClass = plan.state() != null ? AssignmentStateView.badgeClass(plan.state()) : null;
         return new PlannedPhaseRailResponse(plan.assigned(), plan.definitionName(), plan.state(),
-                badgeClass, plan.reassignBlockReason(), List.copyOf(entries));
+                badgeClass, plan.reassignBlockReason(), plan.hardwareMismatchReason(), List.copyOf(entries));
     }
 
     private static RunState runStateOf(ProvisioningPhase phase, ProvisioningPhase cursor) {

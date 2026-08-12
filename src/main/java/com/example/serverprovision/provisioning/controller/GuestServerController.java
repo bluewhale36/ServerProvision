@@ -218,7 +218,11 @@ public class GuestServerController {
     private void populateAssignmentModel(UUID id, GuestServerDetailResponse server, Model model) {
         // 할당 대상은 "할당 가능" 정의서만(삭제 · 비활성 제외, U3-2-b DEC-G). 판정은 서버 가드와 같은
         // 도메인 SSOT(assignBlockReason) 이므로 옵션에서 뺀 정의서를 direct POST 해도 409 로 일관 거절된다.
-        model.addAttribute("definitionOptions", settingQueryService.findAssignable());
+        // U3-5-a — 여기에 "이 서버에 붙일 수 있는가" 를 덧댄다. 정의서 lifecycle 은 서버와 무관해 목록에서
+        // 빼지만, 하드웨어 대조는 서버마다 결과가 달라 빼지 않고 잠근다(사라지면 이유를 알 수 없다).
+        // 폼 자체를 닫을 사유(회수)와 옵션별 사유(하드웨어)가 한 응답으로 온다 — 같은 판정에서 나온다.
+        model.addAttribute("assignmentForm",
+                assignmentQueryService.assignmentForm(id, settingQueryService.findAssignable()));
         AssignmentPlanResponse plan = assignmentQueryService.plannedPhasesOf(id);
         GuestServerDetailResponse.Progress progress = server.progress();
         ProvisioningPhase currentPhase = progress != null ? progress.currentPhase() : null;

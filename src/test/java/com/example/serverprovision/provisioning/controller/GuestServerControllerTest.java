@@ -10,7 +10,9 @@ import com.example.serverprovision.execution.service.GuestServerCommandService;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.management.board.enums.Vendor;
+import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentFormResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.DefinitionOptionResponse;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
@@ -34,6 +36,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -69,6 +72,13 @@ class GuestServerControllerTest {
     void stubAssignmentPlan() {
         given(assignmentQueryService.plannedPhasesOf(any(UUID.class)))
                 .willReturn(AssignmentPlanResponse.unassigned());
+        // U3-5-a — 할당 폼 재료. 판정은 별도 테스트가 다루므로 여기서는 차단 없이 그대로 통과시킨다
+        // (기존 시나리오의 관심사는 선택지 렌더 · 개시 버튼 노출이지 할당 가능성이 아니다).
+        given(assignmentQueryService.assignmentForm(any(UUID.class), anyList()))
+                .willAnswer(invocation -> new AssignmentFormResponse(null,
+                        invocation.<java.util.List<SettingSummaryResponse>>getArgument(1).stream()
+                                .map(summary -> new DefinitionOptionResponse(summary, null, false))
+                                .toList()));
     }
 
     private GuestServerSummaryResponse summary(UUID id) {
@@ -85,7 +95,7 @@ class GuestServerControllerTest {
                 id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "memo",
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,   // E1-2 — 접촉 관찰 없음 fixture
-                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, "MS73-HB1-000", "GB-001",
+                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
                         DiscoveryStage.IPXE_REGISTERED, null, null, null, null),
                 List.of(),
                 new GuestServerDetailResponse.Progress(

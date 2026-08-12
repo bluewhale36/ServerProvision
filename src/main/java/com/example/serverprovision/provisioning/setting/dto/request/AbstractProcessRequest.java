@@ -37,4 +37,16 @@ public abstract class AbstractProcessRequest {
     public List<Long> referencedBiosSettingTemplateIds() {
         return List.of();
     }
+
+    /**
+     * 이 단계가 요구하는 메인보드 선택 — 보드를 고르지 않는 단계 타입은 {@code null} (U3-5-a).
+     *
+     * <p>{@link #referencedBiosSettingTemplateIds()} 와 같은 다형 accessor 관용구다. 정의서가 어느 보드를
+     * 요구하는지 알아내는 쪽이 {@code instanceof} 사다리를 놓지 않게 하며, 보드를 고르는 단계 타입이
+     * 늘어도 그쪽이 override 하면 될 뿐 읽는 쪽은 그대로다.</p>
+     */
+    @JsonIgnore
+    public BoardModelSelectionRequest requiredBoardModel() {
+        return null;
+    }
 }

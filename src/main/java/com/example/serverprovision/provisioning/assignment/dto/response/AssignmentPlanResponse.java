@@ -21,10 +21,21 @@ public record AssignmentPlanResponse(
         String definitionName,
         AssignmentState state,
         String reassignBlockReason,
+        /**
+         * 지금 든 스냅샷이 이 서버의 하드웨어와 맞지 않으면 그 사유, 맞으면 {@code null} (U3-5-a).
+         *
+         * <p>이미 만들어진 할당에는 <b>소급 적용하지 않는다</b> — 스냅샷은 할당 시점 복사본이라 원본 상태
+         * 변화와 독립이라는 U3-2-b DEC-G 의 결을 따른다. 무효화하면 진행 중이던 서버의 계획이 사라지고,
+         * 하드웨어 재수집만으로 운영 중인 할당이 대량 소멸할 수 있다. 대신 경고만 띄운다.</p>
+         *
+         * <p>판정은 <b>스냅샷이 든 payload</b>에서 요구 하드웨어를 뽑아 한다. 원본 정의서가 나중에 바뀌어도
+         * 이 서버가 실제로 밟을 것은 얼린 그 값이기 때문이다.</p>
+         */
+        String hardwareMismatchReason,
         List<ProvisioningPhase> plannedPhases
 ) {
 
     public static AssignmentPlanResponse unassigned() {
-        return new AssignmentPlanResponse(false, null, null, null, List.of());
+        return new AssignmentPlanResponse(false, null, null, null, null, List.of());
     }
 }

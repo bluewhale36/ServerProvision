@@ -808,6 +808,15 @@ code {
     color: var(--n-orange);
 }
 
+/* 주의 — 막혔거나 되돌릴 수 없는 상태를 알리되 오류는 아닌 것(회수된 서버의 할당 차단 안내 등).
+   danger 가 주황이므로 한 단계 낮은 경고는 yellow 토큰을 쓴다. 템플릿 5 곳이 이 클래스를 쓰는데
+   규칙이 없어 padding 만 먹고 배경 · 테두리가 붙지 않았다(U3-5-a CP5 발견). */
+.n-alert-warning {
+    background: var(--n-yellow-bg);
+    border: 1px solid rgba(194, 147, 67, 0.3);
+    color: var(--n-yellow);
+}
+
 .n-alert-info {
     background: var(--n-blue-badge-bg);
     border: 1px solid rgba(9, 127, 232, 0.2);

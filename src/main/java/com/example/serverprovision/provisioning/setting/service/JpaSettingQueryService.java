@@ -1,6 +1,8 @@
 package com.example.serverprovision.provisioning.setting.service;
 
+import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.global.entity.LifecycleEntity;
@@ -110,8 +112,28 @@ public class JpaSettingQueryService implements SettingQueryService {
     public List<SettingSummaryResponse> findAssignable() {
         return repository.findAllByIsDeletedFalseOrderByIdAsc().stream()
                 .filter(d -> d.assignBlockReason() == null)
-                .map(this::toSummary)
+                .map(this::toAssignableSummary)
                 .toList();
+    }
+
+    /**
+     * 선택지 행 조립 — 목록 행에 <b>요구 메인보드</b>를 덧댄다(U3-5-a).
+     *
+     * <p>전체 목록({@code findAll})에는 싣지 않는다. 요구 보드는 "이 서버에 붙일 수 있는가" 를 따질 때만
+     * 뜻이 있고, 그 판정을 하지 않는 화면에서는 보드명 조회가 순수한 낭비이기 때문이다.</p>
+     */
+    private SettingSummaryResponse toAssignableSummary(SettingDefinition definition) {
+        RequiredBoardModel required = RequiredBoardModel.from(
+                definition.getProcesses().stream().map(p -> p.getPayload().request()).toList(),
+                boardModelId -> boardModelRepository.findById(boardModelId)
+                        .map(BoardModel::getModelName)
+                        .orElse("등록되지 않은 보드"));
+        return new SettingSummaryResponse(
+                definition.getId(), definition.getName(), sortedTypes(definition),
+                definition.isDeleted(), definition.isEnabled(), definition.isDeprecated(),
+                definition.getCreatedAt(),
+                required != null ? required.id() : null,
+                required != null ? required.name() : null);
     }
 
     @Override

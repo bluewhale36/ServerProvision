@@ -3,7 +3,9 @@ package com.example.serverprovision.provisioning.assignment.service;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
+import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
+import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
@@ -63,6 +65,10 @@ class AssignmentCommandServiceTest {
     @Mock SettingDefinitionRepository definitionRepository;
     @Mock GuestServerRepository guestServerRepository;
     @Mock BiosSettingTemplateRepository biosSettingTemplateRepository;
+    // U3-5-a — 하드웨어 대조 입력. 이 fixture 의 정의서는 보드를 AUTO 로 두므로 요구 보드가 없고,
+    // detail 도 비워 두어 대조가 성립하지 않는다(= 기존 시나리오의 판정 결과가 바뀌지 않는다).
+    @Mock GuestServerDetailRepository guestServerDetailRepository;
+    @Mock BoardModelRepository boardModelRepository;
 
     @InjectMocks AssignmentCommandService service;
 
