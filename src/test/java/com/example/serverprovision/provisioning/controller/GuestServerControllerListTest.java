@@ -12,6 +12,8 @@ import com.example.serverprovision.provisioning.assignment.service.AssignmentCom
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
+import com.example.serverprovision.provisioning.group.dto.response.GroupBadgeResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,13 +52,16 @@ class GuestServerControllerListTest {
     @MockitoBean AssignmentQueryService assignmentQueryService;
     @MockitoBean AssignmentStartService assignmentStartService;
     @MockitoBean SettingQueryService settingQueryService;
+    // U3-4 — 목록이 소속 그룹 배지를 합성하므로 컨트롤러가 이 빈을 요구한다.
+    @MockitoBean GuestServerGroupQueryService groupQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static GuestServerSummaryResponse row(String name) {
         return new GuestServerSummaryResponse(
                 UUID.randomUUID(), name, UUID.randomUUID(), null, "MS03-CE0",
                 GuestServerStatus.PROVISIONING, ProvisioningPhase.DIAGNOSE_LINUX,
-                null, LocalDateTime.now(), null, false, null);
+                null, LocalDateTime.now(), null, false, null,
+                new SpecGroupKey("k-fixture"), "MS03-CE0 · 6338 ×2");   // U3-4 — 그룹 화면의 혼재 판정 입력
     }
 
     private static GuestServerListResponse listWith(GuestServerListResponse.PendingRegistrations pending,
@@ -92,8 +97,40 @@ class GuestServerControllerListTest {
                 .andExpect(content().string(containsString(ProvisioningPhase.DIAGNOSE_LINUX.getDescription())));
     }
 
+    /**
+     * 잘린 배지의 전체 이름은 hover 로 읽을 수 있어야 한다.
+     *
+     * <p>표기가 {@code title} 에서 {@code data-tooltip} 으로 바뀌었다(개정) — 네이티브 툴팁은
+     * 화면 어휘와 따로 놀아 프로젝트 공용 툴팁으로 옮겼다. 검사 대상이 속성 이름이지 기능이 아니므로
+     * 기대값을 함께 옮긴다.</p>
+     */
     @Test
-    @DisplayName("'등록 진행 중' 은 접힌 채로 나오고 헤더만으로 대수와 내역이 읽힌다")
+    @DisplayName("그룹 배지는 전체 이름을 툴팁으로 남긴다 — 열 폭에 잘려도 hover 로 구분된다")
+    void groupBadgeCarriesFullNameInTooltip() throws Exception {
+        GuestServerSummaryResponse server = row("srv-01");
+        given(queryService.findGrouped(any())).willReturn(listWith(null, List.of(
+                new GuestServerListResponse.TimeGroup(
+                        new RegistrationAge(RegistrationAge.Unit.SECOND, 30L),
+                        List.of(new GuestServerListResponse.SpecGroup(
+                                new SpecGroupKey("k"), "MS03-CE0", List.of(server)))))));
+        given(groupQueryService.findBadges(any()))
+                .willReturn(java.util.Map.of(server.id(), new GroupBadgeResponse(3L, "8월 A동 1차(수정)")));
+
+        mvc.perform(get("/provisioning/server"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-tooltip=\"8월 A동 1차(수정)\"")));
+    }
+
+    /**
+     * 접혔을 때 무엇이 보이고 무엇이 감춰지는가.
+     *
+     * <p>개정으로 각 묶음의 <b>설명</b>이 본문에서 머리로 올라갔다 — 시간 묶음과 같은 양식을 쓰면서
+     * 안쪽 묶음의 머리가 제목 · 설명 · 대수를 함께 이게 됐다. 그래서 "접히면 설명도 숨는다" 가 아니라
+     * "접히면 <b>서버 표</b>가 숨는다" 가 맞는 기대다. 접힌 채로도 각 묶음이 무엇인지 읽히는 편이
+     * U3-3 의 요구("헤더만으로 대수와 내역이 읽힌다")에 더 가깝다.</p>
+     */
+    @Test
+    @DisplayName("'등록 진행 중' 은 접힌 채로 나오고, 머리만으로 각 묶음의 뜻과 대수가 읽힌다")
     void pendingIsCollapsedByDefault() throws Exception {
         given(queryService.findGrouped(any())).willReturn(
                 listWith(new GuestServerListResponse.PendingRegistrations(
@@ -103,10 +140,12 @@ class GuestServerControllerListTest {
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("pendingOpen", false))
                 .andExpect(content().string(containsString("등록 진행 중")))
-                .andExpect(content().string(containsString("등록만 됨")))     // 헤더 요약에 노출
+                .andExpect(content().string(containsString("등록만 됨")))
                 .andExpect(content().string(containsString("수집 중")))
-                // 접힌 상태이므로 본문(설명 문장)은 렌더되지 않는다
-                .andExpect(content().string(not(containsString("부팅 · 네트워크 점검 대상"))));
+                .andExpect(content().string(containsString("부팅 · 네트워크 점검 대상")))   // 머리의 설명
+                // 접힌 것은 표다 — 행이 렌더되지 않는다
+                .andExpect(content().string(not(containsString("srv-a"))))
+                .andExpect(content().string(not(containsString("srv-b"))));
     }
 
     @Test

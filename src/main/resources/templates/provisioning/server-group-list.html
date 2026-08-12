@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  게스트 서버 그룹 목록 (U3-4)
+  ─────────────────────────────────────────────────────────
+  Model:
+    groups : List<GroupSummaryResponse> — 만든 시각 최신순(Q2)
+
+  이 화면이 서버 목록과 별개인 이유(DEC-D): 그룹은 시간 축을 가로지른다.
+  나중에 합류한 서버는 다른 시간 묶음에 속하므로, 서버 목록의 '시간 → 스펙' 계층
+  안에는 그룹이 들어갈 자리가 없다. 두 화면이 서로 다른 렌즈를 갖는다.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('서버 그룹')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/grouped-list.css}">
+    <link rel="stylesheet" th:href="@{/provisioning/server.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('server-group')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">서버 그룹</h1>
+        <div class="n-header-actions">
+            <span class="n-hint">여러 대를 하나로 묶어 함께 다루기 위한 이름입니다. 멤버는 언제든 넣고 뺄 수 있습니다.</span>
+            <a class="n-btn n-btn-primary" th:href="@{/provisioning/server-group/new}">새 그룹</a>
+        </div>
+    </div>
+
+    <div th:if="${groups.isEmpty()}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">만들어진 그룹이 없습니다.</div>
+            <div class="n-empty-desc">
+                <a th:href="@{/provisioning/server}">게스트 서버 목록</a> 의 스펙 묶음에서 그대로 만들거나,
+                <a th:href="@{/provisioning/server-group/new}">빈 그룹</a> 을 먼저 만들고 나중에 채울 수 있습니다.
+            </div>
+        </div>
+    </div>
+
+    <div th:unless="${groups.isEmpty()}" class="n-card">
+        <table class="n-table n-table-groups">
+            <thead>
+            <tr>
+                <th>이름</th>
+                <th>멤버</th>
+                <th>만든 시각</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!--/* 행 전체는 클릭 대상이 아니다(개정) — 이동은 이름 링크만 한다. */-->
+            <tr th:each="g : ${groups}" class="n-row-hover" th:data-nav-key="${g.id}">
+                <td>
+                    <a class="n-row-link" th:href="@{/provisioning/server-group/{id}(id=${g.id})}"
+                       th:text="${g.name}">8월 2차</a>
+                    <!--/* 구성 혼재를 자원 화면의 사용 중단과 같은 방식으로 알린다 —
+                           목록에서 열어보기 전에 손볼 것이 있는지 보이게. 문장이 아니라 표식이라
+                           행이 늘어도 목록이 시끄러워지지 않는다. */-->
+                    <span th:if="${g.specDiverged}" class="n-deprecated-dot n-tooltip"
+                          data-tooltip="구성 혼재 — 하드웨어 구성이 다른 서버가 섞여 있습니다"></span>
+                </td>
+                <td th:text="${g.memberCount} + '대'">3대</td>
+                <!--/* 구성 혼재 여부는 여기 두지 않는다 — 판정하려면 모든 그룹의 멤버와 서버 상세까지 끌어와야
+                       하는데(N+1), 그 안내가 필요한 자리는 상세 화면이다(DEC-I). */-->
+                <td th:text="${#temporals.format(g.createdAt, 'yyyy-MM-dd HH:mm')}">2026-08-11 16:00</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

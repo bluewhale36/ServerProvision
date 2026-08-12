@@ -30,8 +30,7 @@
     <!-- S7 — [data-live] = 실시간 교체 영역(읽기 전용·액션 버튼). 수정 폼은 미마킹 = 입력 보존 규약 -->
     <div class="n-page-header" data-live="header">
         <div>
-            <a th:href="@{/provisioning/server}" class="n-back-link">← 목록으로</a>
-            <h1 class="n-page-title" style="margin-top: 12px;"
+            <h1 class="n-page-title"
                 th:text="${server.name != null} ? ${server.name} : '(이름 미지정)'">srv-01</h1>
             <code class="n-mono" th:text="${server.systemUuid}">uuid</code>
             <span th:if="${server.status != null}" th:switch="${server.status.name()}" style="margin-left: 10px;">
@@ -52,6 +51,8 @@
                       th:text="'끊어짐 · ' + ${server.contact.secondsSince < 120 ? 1 : server.contact.secondsSince / 60} + '분 전'">끊어짐</span>
             </span>
         </div>
+        <!--/* '목록으로' 는 조각이 만든다 — 실제 목적지는 화면 이력 스택이 정한다. */-->
+        <div th:replace="~{fragments/common/back-link :: backLink('/provisioning/server')}"></div>
     </div>
 
     <!-- ===== 인라인 수정 폼 (운영자 입력 4필드 — 모두 guest_server) ===== -->

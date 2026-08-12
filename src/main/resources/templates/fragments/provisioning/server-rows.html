@@ -1,13 +1,24 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  게스트 서버 목록 행 조각 (U3-3)
+  게스트 서버 목록 행 조각 (U3-3, U3-4 개정)
   ─────────────────────────────────────────────────────────
-  서버 행은 목록에서 세 자리에 같은 모양으로 나타난다 — '등록만 됨' · '수집 중' · 스펙 그룹.
-  같은 마크업을 세 번 복붙하지 않으려고 조각으로 뺐다(중복 금지 원칙).
+  서버 행은 목록에서 여러 자리에 같은 모양으로 나타난다 — '등록만 됨' · '수집 중' · 스펙 묶음.
+  같은 마크업을 여러 번 복붙하지 않으려고 조각으로 뺐다(중복 금지 원칙).
 
   별도 파일에 두는 이유: 조각을 쓰는 템플릿 안에 정의하면 Thymeleaf 가 정의 자리에서도
   한 번 평가해 `server` 가 null 인 채로 렌더를 시도한다.
+
+  개정 — 행 전체는 클릭 대상이 아니다. 이동은 이름 링크만 한다. 이전에는 행에 손 모양 커서가
+  붙어 있었으나 정작 행 클릭 스크립트가 사라진 선택자(#serverTable)를 찾고 있어 아무 일도
+  일어나지 않았다. 커서가 바뀌는데 눌러도 안 되는 것이 가장 나쁘므로 이름만 남겼다.
+
+  문맥에서 읽는 값(있으면 쓰고 없으면 넘어간다):
+    groupBadges : Map<UUID, GroupBadgeResponse> — 소속 그룹
+
+  행의 data-nav-key 는 화면 이력 스택이 쓴다(global/nav-stack.js) — 이 행 안의 링크를 누르면
+  "이 목록의 이 행에서 떠났다" 가 한 겹 쌓이고, 돌아왔을 때 그 행이 강조된다.
+  이름 링크든 그룹 배지든 구분하지 않는다.
 
   사용:
     <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
@@ -19,6 +30,7 @@
 <thead th:fragment="head">
 <tr>
     <th>이름</th>
+    <th>그룹</th>
     <th>SMBIOS UUID</th>
     <th>제조사</th>
     <th>보드 모델</th>
@@ -31,11 +43,19 @@
 </thead>
 
 <table><tbody>
-<tr th:fragment="row(server)" class="n-row-clickable"
-    th:data-href="@{/provisioning/server/{id}(id=${server.id})}">
+<tr th:fragment="row(server)" class="n-row-hover" th:data-nav-key="${server.id}">
     <td>
         <a class="n-row-link" th:href="@{/provisioning/server/{id}(id=${server.id})}"
            th:text="${server.name != null} ? ${server.name} : '(이름 미지정)'">srv-01</a>
+    </td>
+    <!--/* U3-4 — 소속 그룹. 그룹은 provisioning 이고 이 요약은 execution 이라 응답에 실을 수 없다(DEC-C).
+           컨트롤러가 모델에 얹어준 map 을 조각이 문맥에서 직접 읽는다. 없는 화면에서도 쓰이므로 null 을 견딘다.
+           이름이 열 폭보다 길면 말줄임되므로 전체 이름을 툴팁으로 남긴다. */-->
+    <td th:with="badge=${groupBadges != null} ? ${groupBadges.get(server.id)} : null">
+        <a th:if="${badge != null}" class="n-group-badge n-tooltip"
+           th:href="@{/provisioning/server-group/{gid}(gid=${badge.id})}"
+           th:data-tooltip="${badge.name}" th:text="${badge.name}">8월 2차</a>
+        <span th:unless="${badge != null}" class="n-muted">—</span>
     </td>
     <td><code class="n-mono" th:text="${server.systemUuid}">uuid</code></td>
     <td th:text="${server.vendor != null} ? ${server.vendor.displayName} : '—'">Gigabyte</td>

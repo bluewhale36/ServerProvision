@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  게스트 서버 그룹 생성 폼 (U3-4) — 씨앗 생성과 빈 그룹 생성 공용
+  ─────────────────────────────────────────────────────────
+  Model:
+    form       : CreateGroupRequest (@ModelAttribute — name + serverIds)
+    candidates : List<SeedCandidateResponse> — 씨앗으로 넘어온 서버들. 빈 그룹이면 비어 있다
+    blockedCount : int — candidates 중 이미 다른 그룹에 속해 제외되는 대수
+
+  이 화면이 따로 있는 이유(CP2 조정): 씨앗에 이미 다른 그룹 소속 서버가 섞여 있을 수 있는데,
+  목록의 좁은 묶음 헤더에서는 그 사실을 보여줄 자리가 없다. 여기서 눈으로 보고 결정하게 한다.
+
+  new-form.md — 이 핸들러는 BindingResult 를 받아 실패 시 같은 뷰를 다시 그린다(그릴 화면이 있다).
+  그래서 data-native-submit 을 붙여 전역 fetch 가로채기를 비켜간다. 붙이지 않으면 재렌더 HTML 이
+  버려져 필드 오류가 사라진다.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('그룹 만들기')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/form-validation.css}">
+    <link rel="stylesheet" th:href="@{/provisioning/server.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('server-group')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">그룹 만들기</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/provisioning/server-group}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+      <div class="n-card-body">
+        <form method="post" th:action="@{/provisioning/server-group}" th:object="${form}" novalidate
+              data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
+
+        <!-- S4 폼 배너 슬롯 -->
+        <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+        <div class="n-form-group">
+            <label class="n-label strong" for="name">그룹 이름</label>
+            <input id="name" type="text" th:field="*{name}" class="n-input"
+                   data-error-field="name" maxlength="128" autocomplete="off"
+                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                   placeholder="예: MS03-CE0 · 8월 11일 입고">
+            <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+            <div class="n-hint">운영자가 이 묶음을 부를 이름입니다. 시스템 안에서 유일해야 합니다.</div>
+        </div>
+
+        <!--/* 씨앗 — 넘어온 서버를 그대로 보여준다. 이미 다른 그룹에 속한 서버는 체크가 풀린 채
+               사유와 함께 남는다(숨기지 않는다 — 왜 빠지는지 보이는 편이 낫다). */-->
+        <div class="n-form-group" th:if="${!candidates.isEmpty()}">
+            <label class="n-label">묶을 서버</label>
+            <p class="n-hint" th:if="${blockedCount > 0}">
+                <b th:text="${blockedCount}">3</b>대는 이미 다른 그룹에 속해 있어 선택할 수 없습니다.
+                옮기려면 그 그룹에서 먼저 뺀 뒤 이 그룹에 넣어주세요.
+            </p>
+            <table class="n-table">
+                <thead>
+                <!--/* 상세의 후보표와 같은 이유로 운영 상태를 함께 보여준다(CP5 발견) —
+                       회수된 서버가 씨앗에 섞여 있으면 만들기 전에 알아야 한다. */-->
+                <tr><th class="n-th-center">선택</th><th>이름</th><th>SMBIOS UUID</th>
+                    <th>운영 상태</th><th>현재 소속</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${candidates}">
+                    <td class="n-th-center">
+                        <input type="checkbox" name="serverIds" th:value="${c.server.id}"
+                               th:checked="${c.selectable()}" th:disabled="${!c.selectable()}"
+                               th:title="${c.blockReason}">
+                    </td>
+                    <td th:text="${c.server.name != null} ? ${c.server.name} : '(이름 미지정)'">srv-01</td>
+                    <td><code class="n-mono" th:text="${c.server.systemUuid}">uuid</code></td>
+                    <td>
+                        <span th:if="${c.server.status != null}" class="n-badge"
+                              th:classappend="${c.server.status.name() == 'DECOMMISSIONED'} ? ' n-badge-gray' : ' n-badge-blue'"
+                              th:text="${c.server.status.description}">등록됨</span>
+                        <span th:unless="${c.server.status != null}" class="n-muted">—</span>
+                    </td>
+                    <td>
+                        <a th:if="${c.currentGroup != null}" class="n-group-badge"
+                           th:href="@{/provisioning/server-group/{gid}(gid=${c.currentGroup.id})}"
+                           th:text="${c.currentGroup.name}">8월 2차</a>
+                        <span th:unless="${c.currentGroup != null}" class="n-muted">무소속</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="n-form-group" th:if="${candidates.isEmpty()}">
+            <p class="n-hint">
+                멤버 없이 만듭니다. 만든 뒤 상세 화면에서 무소속 서버를 넣어 채울 수 있습니다 —
+                물량이 순차로 들어올 때 자리를 먼저 잡아두는 방식입니다.
+            </p>
+        </div>
+
+        <div class="n-form-actions">
+            <a th:href="@{/provisioning/server-group}" class="n-btn n-btn-secondary">취소</a>
+            <button type="submit" class="n-btn n-btn-primary">만들기</button>
+        </div>
+        </form>
+      </div>
+    </div>
+</div>
+</body>
+</html>

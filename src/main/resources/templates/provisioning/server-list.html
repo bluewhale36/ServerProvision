@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  등록된 게스트 서버 목록 페이지 (U3-3 — 상대 시간 × 스펙 그룹)
+  등록된 게스트 서버 목록 페이지 (U3-3 — 상대 시간 × 스펙)
   ─────────────────────────────────────────────────────────
   Model:
     list        : GuestServerListResponse — pending(등록 진행 중, 0대면 null) + timeGroups(멤버 있는 구간만)
     phaseFilter : ProvisioningPhase (nullable — 전체)
     phases      : ProvisioningPhase[] (필터 칩)
     pendingOpen : boolean — '등록 진행 중' 을 펼친 상태인가
+    groupBadges : Map<UUID, GroupBadgeResponse> — 소속 그룹 (U3-4)
 
-  화면 규칙(U3-3 §2):
-    · '등록 진행 중' 은 최상단 · 접힘 기본. 접힌 헤더만으로 대수와 내역이 읽힌다.
-    · 멤버가 없는 시간 구간 · 스펙 그룹은 서버가 아예 담아 보내지 않으므로 여기서 걸러낼 것이 없다.
-    · 수집이 끝난 스펙 그룹은 펼침 기본(<details open>) — 접는 것은 사용자의 선택이다.
+  화면 규칙:
+    · 바깥 묶음(등록 진행 중 · 상대 시간)과 안쪽 묶음(수집 상태 · 스펙)의 양식은
+      css/grouped-list.css 가 한 곳에서 정의한다 — 화면마다 다르게 재현되지 않도록.
+    · 멤버가 없는 시간 구간 · 스펙은 서버가 아예 담아 보내지 않으므로 여기서 걸러낼 것이 없다.
+    · 수집이 끝난 스펙 묶음은 펼침 기본(<details open>) — 접는 것은 사용자의 선택이다.
+    · 행 전체는 클릭 대상이 아니다. 이동은 이름 링크만 한다(개정) — 커서가 손 모양인데
+      눌러도 아무 일이 없는 상태가 실제로 있었다.
 
   DEC-E · DEC-H — 필터 칩과 '등록 진행 중' 토글은 [data-live] 영역 **밖**의 링크이고 상태는 URL 에 있다.
   server-stream.js 가 fetch(location.href) 로 같은 URL 을 다시 받아 [data-live] 만 교체하므로,
@@ -21,6 +25,7 @@
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('게스트 서버')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <link rel="stylesheet" th:href="@{/css/grouped-list.css}">
     <link rel="stylesheet" th:href="@{/provisioning/server.css}">
 </head>
 <body>
@@ -67,28 +72,34 @@
         </div>
     </div>
 
-    <!-- ── 최상단 · 접힘 기본 — 서버가 0대면 서버가 null 을 보내므로 블록 자체가 없다 ── -->
-    <div th:if="${list.pending != null}" class="n-accordion n-pending-block">
-        <div class="n-accordion-item" th:classappend="${pendingOpen} ? ' is-open'">
-            <a class="n-accordion-head"
-               th:href="${phaseFilter == null}
-                          ? (${pendingOpen} ? @{/provisioning/server}
-                                            : @{/provisioning/server(pending='open')})
-                          : (${pendingOpen} ? @{/provisioning/server(phase=${phaseFilter.name()})}
-                                            : @{/provisioning/server(phase=${phaseFilter.name()}, pending='open')})">
-                <span class="n-accordion-chevron"></span>
-                <span class="n-accordion-title"><strong>등록 진행 중</strong>
-                    <span class="n-accordion-muted"> — 스펙이 아직 없어 그룹 대상이 아닙니다 ·
-                        등록만 됨 <b th:text="${list.pending.registeredOnly.size()}">1</b>대 ·
-                        수집 중 <b th:text="${list.pending.collecting.size()}">1</b>대</span></span>
-                <span class="n-badge n-badge-gray n-accordion-badge"
-                      th:text="${list.pending.total()} + '대'">2대</span>
-            </a>
+    <!--/* ── 등록 진행 중 — 시간 묶음과 같은 양식(개정) ──
+           바깥 묶음이 제목과 대수를 이고, 안쪽 묶음이 '등록만 됨' · '수집 중' 으로 갈린다.
+           스펙 묶음과 달리 <details> 대신 링크 머리를 쓰는 이유는 펼침이 URL 에 있어야
+           SSE 갱신 뒤에도 살아남기 때문이다(DEC-H). 두 안쪽 묶음은 같은 파라미터를 공유한다. */-->
+    <section th:if="${list.pending != null}" class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title">등록 진행 중</strong>
+            <span class="n-glist-hint">스펙이 아직 없어 그룹 대상이 아닙니다</span>
+            <span class="n-badge n-badge-gray" th:text="${list.pending.total()} + '대'">2대</span>
+        </div>
 
-            <div th:if="${pendingOpen}" class="n-accordion-body">
-                <div th:if="${!list.pending.registeredOnly.isEmpty()}">
-                    <h3 class="n-sub-title">등록만 됨</h3>
-                    <p class="n-hint">PXE 는 찍혔으나 진단으로 넘어가지 못했습니다 — 부팅 · 네트워크 점검 대상입니다.</p>
+        <div class="n-accordion"
+             th:with="pendingHref=${phaseFilter == null}
+                        ? (${pendingOpen} ? @{/provisioning/server}
+                                          : @{/provisioning/server(pending='open')})
+                        : (${pendingOpen} ? @{/provisioning/server(phase=${phaseFilter.name()})}
+                                          : @{/provisioning/server(phase=${phaseFilter.name()}, pending='open')})">
+
+            <div th:if="${!list.pending.registeredOnly.isEmpty()}"
+                 class="n-accordion-item" th:classappend="${pendingOpen} ? ' is-open'">
+                <a class="n-accordion-head" th:href="${pendingHref}">
+                    <span class="n-accordion-chevron"></span>
+                    <span class="n-accordion-title"><strong>등록만 됨</strong>
+                        <span class="n-glist-label">PXE 는 찍혔으나 진단으로 넘어가지 못했습니다 — 부팅 · 네트워크 점검 대상입니다</span></span>
+                    <span class="n-badge n-badge-gray n-accordion-badge"
+                          th:text="${list.pending.registeredOnly.size()} + '대'">1대</span>
+                </a>
+                <div th:if="${pendingOpen}" class="n-accordion-body">
                     <table class="n-table n-table-servers">
                         <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
                         <tbody>
@@ -98,9 +109,18 @@
                         </tbody>
                     </table>
                 </div>
-                <div th:if="${!list.pending.collecting.isEmpty()}">
-                    <h3 class="n-sub-title">수집 중</h3>
-                    <p class="n-hint">진단에 도달했고 아직 보고 전입니다 — 기다리면 되는 대상입니다.</p>
+            </div>
+
+            <div th:if="${!list.pending.collecting.isEmpty()}"
+                 class="n-accordion-item" th:classappend="${pendingOpen} ? ' is-open'">
+                <a class="n-accordion-head" th:href="${pendingHref}">
+                    <span class="n-accordion-chevron"></span>
+                    <span class="n-accordion-title"><strong>수집 중</strong>
+                        <span class="n-glist-label">진단에 도달했고 아직 보고 전입니다 — 기다리면 되는 대상입니다</span></span>
+                    <span class="n-badge n-badge-gray n-accordion-badge"
+                          th:text="${list.pending.collecting.size()} + '대'">1대</span>
+                </a>
+                <div th:if="${pendingOpen}" class="n-accordion-body">
                     <table class="n-table n-table-servers">
                         <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
                         <tbody>
@@ -112,24 +132,34 @@
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- ── 시간 구간 × 스펙 그룹 — 멤버가 있는 것만 온다. 스펙 그룹은 펼침 기본 ── -->
-    <div th:each="tg : ${list.timeGroups}" class="n-card n-time-group">
-        <div class="n-group-head">
-            <strong class="n-group-title" th:text="${tg.bucket.description}">방금</strong>
-            <span class="n-hint">이 시간대에 묶인 서버 <b th:text="${tg.serverCount()}">3</b>대</span>
+    <!--/* ── 시간 구간 × 스펙 — 멤버가 있는 것만 온다. 스펙 묶음은 펼침 기본 ──
+           '스펙 그룹' 이 아니라 '스펙' 이라 부른다(개정) — '서버 그룹' 이 생긴 뒤로
+           '그룹' 이라는 말이 두 가지를 가리키게 되어 혼동을 부른다. */-->
+    <section th:each="tg : ${list.timeGroups}" class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title" th:text="${tg.bucket.description}">방금</strong>
+            <span class="n-glist-hint">이 시간대에 묶인 서버 <b th:text="${tg.serverCount()}">3</b>대</span>
         </div>
 
         <div class="n-accordion">
             <details class="n-accordion-item" th:each="sg, st : ${tg.specGroups}" open>
                 <summary class="n-accordion-head">
                     <span class="n-accordion-chevron"></span>
-                    <span class="n-accordion-title"><strong th:text="'스펙 그룹 ' + ${st.count}">스펙 그룹 1</strong>
-                        <span class="n-spec-label" th:text="${sg.label}">MS03-CE0 · Xeon Gold 6338 ×2</span></span>
+                    <span class="n-accordion-title"><strong th:text="'스펙 ' + ${st.count}">스펙 1</strong>
+                        <span class="n-glist-label" th:text="${sg.label}">MS03-CE0 · Xeon Gold 6338 ×2</span></span>
                     <span class="n-badge n-badge-blue n-accordion-badge"
                           th:text="${sg.servers.size()} + '대'">2대</span>
                 </summary>
+                <!--/* U3-4 — 씨앗 진입점. 이 묶음의 서버 id 를 생성 폼으로 넘긴다(DEC-J).
+                       링크 하나만 두는 이유는, 이미 다른 그룹에 속한 서버가 섞여 있을 때의 처리를
+                       좁은 헤더가 아니라 폼 화면에서 눈으로 보고 결정하게 하기 위해서다. */-->
+                <div class="n-group-actions">
+                    <a class="n-btn n-btn-sm"
+                       th:href="@{/provisioning/server-group/new(serverIds=${sg.servers.![id]}, suggested=${sg.label})}">
+                        이 묶음으로 그룹 만들기</a>
+                </div>
                 <div class="n-accordion-body">
                     <table class="n-table n-table-servers">
                         <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
@@ -142,13 +172,11 @@
                 </div>
             </details>
         </div>
-    </div>
+    </section>
 
     </div><!-- /data-live="server-list" -->
 </div>
 
-<!-- 행 전체 클릭 → 상세 이동. 셀 내부 <a> 는 자체 동작하므로 중복 내비게이션 방지. -->
-<script th:src="@{/provisioning/server-list.js}"></script>
 <!-- S7 — SSE 구독 + 신호-재조회 부분 교체 -->
 <script th:src="@{/provisioning/server-stream.js}"></script>
 

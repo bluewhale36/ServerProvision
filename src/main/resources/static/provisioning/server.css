@@ -4,25 +4,6 @@
    여기서는 목록 행 클릭과 상세 페이지 섹션 간격만 보강한다.
    ============================================================ */
 
-/* ---- 목록 : 행 전체 클릭 ---------------------------------- */
-.n-row-clickable {
-    cursor: pointer;
-}
-
-.n-row-clickable:hover td {
-    background: var(--n-bg-hover, #f5f5f4);
-}
-
-.n-row-link {
-    font-weight: 600;
-    color: var(--n-text);
-    text-decoration: none;
-}
-
-.n-row-link:hover {
-    text-decoration: underline;
-}
-
 /* 모노스페이스 셀(UUID / IP / MAC) 공통 */
 .n-mono {
     font-family: 'Courier New', monospace;
@@ -115,62 +96,6 @@
     border-color: var(--n-text);
 }
 
-/* ---- 목록 : URL 로 펼침을 유지하는 아코디언 (U3-3 · DEC-H) ----
-   '등록 진행 중' 은 SSE 갱신 뒤에도 펼침이 남아야 해서 네이티브 <details> 대신 링크 헤더를 쓴다.
-   시각은 accordion.css 를 그대로 재사용하고, [open] 이 담당하던 chevron 회전만 여기서 보강한다.
-   스펙 그룹은 화면 로컬 상태로 충분해 <details open> 을 그대로 쓴다. */
-a.n-accordion-head {
-    text-decoration: none;
-    color: inherit;
-}
-
-.n-accordion-item.is-open > .n-accordion-head .n-accordion-chevron {
-    transform: rotate(45deg);
-}
-
-/* ---- 목록 : 상대 시간 구간 머리 ---------------------------- */
-.n-group-head {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.n-group-title {
-    font-size: 14px;
-}
-
-.n-sub-title {
-    font-size: 13px;
-    margin: 14px 0 4px;
-}
-
-/* ---- 목록 : 상대 시간 그룹 (U3-3 · 2026-08-11 디자인 정리) ----
-   시간 그룹은 스펙 그룹을 담는 바깥 상자다. 둘이 같은 흰 배경이면 경계가 사라져
-   목록이 한 덩어리로 이어져 보이므로, 바깥을 옅게 깔아 안쪽 흰 카드가 떠 보이게 한다. */
-.n-time-group {
-    background: #f7f7f8;
-    padding: 14px 16px 16px;
-    margin-bottom: 22px;          /* 그룹 사이를 넉넉히 — 시간대가 바뀌는 지점이 눈에 들어와야 한다 */
-}
-
-.n-time-group:last-child {
-    margin-bottom: 0;
-}
-
-.n-time-group > .n-accordion > .n-accordion-item {
-    background: #fff;
-}
-
-/* 머리글이 카드 왼쪽 모서리에 붙지 않도록 안쪽 여백을 준다 */
-.n-group-head {
-    padding: 0 2px;
-}
-
-.n-group-title {
-    font-size: 15px;
-}
-
 /* ---- 목록 : 서버 표의 열 정렬 ----
    그룹마다 표가 따로 그려지므로 자동 폭이면 열이 그룹마다 어긋난다.
    고정 레이아웃 + 비율 지정으로 모든 그룹의 열이 수직으로 맞게 한다. */
@@ -186,28 +111,209 @@ a.n-accordion-head {
     white-space: nowrap;
 }
 
-.n-table-servers th:nth-child(1), .n-table-servers td:nth-child(1) { width: 11%; }
-.n-table-servers th:nth-child(2), .n-table-servers td:nth-child(2) { width: 19%; }
-.n-table-servers th:nth-child(3), .n-table-servers td:nth-child(3) { width: 8%; }
-.n-table-servers th:nth-child(4), .n-table-servers td:nth-child(4) { width: 10%; }
-.n-table-servers th:nth-child(5), .n-table-servers td:nth-child(5) { width: 10%; }
-.n-table-servers th:nth-child(6), .n-table-servers td:nth-child(6) { width: 9%; }
-.n-table-servers th:nth-child(7), .n-table-servers td:nth-child(7) { width: 7%; }
-.n-table-servers th:nth-child(8), .n-table-servers td:nth-child(8) { width: 11%; }
-.n-table-servers th:nth-child(9), .n-table-servers td:nth-child(9) { width: 15%; }
+/* U3-4 로 '그룹' 열이 2번째에 끼어 10 열이 됐다. 합이 100% 가 되도록 다시 배분한다.
+   배분 원칙은 <b>잘렸을 때 무엇을 잃는가</b>다 — UUID 는 앞자리만 남아도 식별되지만
+   등록 시각은 초가 잘리면 값이 반쪽이 되고 그룹 이름은 잘리면 못 읽는다.
+   그래서 폭은 UUID 에서 덜어 오고, 등록 시각은 U3-3 의 15% 를 그대로 지킨다
+   (CP5 증거 사진에서 12% 로 줄였다가 '2026-08-12 07:...' 로 잘리는 것을 확인해 되돌렸다). */
+.n-table-servers th:nth-child(1),  .n-table-servers td:nth-child(1)  { width: 11%; }   /* 이름 */
+.n-table-servers th:nth-child(2),  .n-table-servers td:nth-child(2)  { width: 11%; }   /* 그룹 */
+.n-table-servers th:nth-child(3),  .n-table-servers td:nth-child(3)  { width: 13%; }   /* SMBIOS UUID */
+.n-table-servers th:nth-child(4),  .n-table-servers td:nth-child(4)  { width: 8%; }    /* 제조사 — 'Gigabyte' 가 잘리지 않는 최소 폭 */
+.n-table-servers th:nth-child(5),  .n-table-servers td:nth-child(5)  { width: 9%; }    /* 보드 모델 */
+.n-table-servers th:nth-child(6),  .n-table-servers td:nth-child(6)  { width: 9%; }    /* 현재 단계 */
+.n-table-servers th:nth-child(7),  .n-table-servers td:nth-child(7)  { width: 8%; }    /* 운영 상태 */
+.n-table-servers th:nth-child(8),  .n-table-servers td:nth-child(8)  { width: 6%; }    /* 연결 */
+.n-table-servers th:nth-child(9),  .n-table-servers td:nth-child(9)  { width: 10%; }   /* 호스트 IP */
+.n-table-servers th:nth-child(10), .n-table-servers td:nth-child(10) { width: 15%; }   /* 등록 시각 */
 
-/* ---- 목록 : '등록 진행 중' 과 첫 시간 그룹 사이 간격 (2026-08-11) ----
-   등록 진행 중은 성격이 다른 블록이라 바로 아래 시간 그룹과 붙어 있으면 한 덩어리로 읽힌다. */
-.n-pending-block {
-    margin-bottom: 22px;
+/* ============================================================
+   U3-4 — 게스트 서버 그룹
+   ============================================================ */
+
+/* ---- 그룹 배지 ----
+   그룹 이름은 상태가 아니라 식별자다. 그래서 상태 배지 팔레트(파랑=단계 · 초록=진행 · 회색=비활성)에서
+   색 하나를 빌리지 않고 중립 칩으로 둔다 — 상태 열과 나란히 놓였을 때 같은 층위로 오해되지 않게. */
+.n-group-badge {
+    display: inline-block;
+    max-width: 100%;
+    padding: 2px 8px;
+    border: 1px solid var(--n-border);
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--n-text);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
-/* ---- 목록 : 스펙 그룹 라벨 ----
-   코드가 아니라 사람이 읽는 스펙 요약이므로 코드 블록 장식을 걷어내고 본문 글자로 둔다.
-   그룹 이름과 붙어 보이지 않도록 왼쪽 여백을 넉넉히 준다. */
-.n-spec-label {
-    margin-left: 18px;
+.n-group-badge:hover {
+    border-color: var(--n-blue);
+    color: var(--n-blue);
+}
+
+/* ---- 목록 : 스펙 묶음의 씨앗 진입점 ----
+   <details> 본문 맨 위에 놓여 표보다 먼저 읽힌다. */
+.n-group-actions {
+    padding: 10px 14px 0;
+}
+
+/* ---- 상세 : 이름 변경과 삭제를 한 줄에 ----
+   둘은 성격이 반대(수정 / 파괴)라 같은 줄 양 끝으로 벌려 오조작을 줄인다. */
+.n-group-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.n-inline-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.n-inline-form .n-label {
+    margin: 0 0 6px;
+}
+
+/* 폼 묶음의 기본 하단 여백을 없앤다. 남겨 두면 flex-end 가 '여백까지 포함한 바닥' 에 맞춰
+   입력칸보다 버튼이 아래로 내려앉는다 — 한 줄에 놓인 것들이 층이 지는 원인이었다. */
+.n-inline-form .n-form-group {
+    margin-bottom: 0;
+}
+
+.n-inline-form .n-input {
+    width: 280px;
+    max-width: 100%;
+}
+
+/* 이름 줄과 삭제 버튼이 같은 바닥선에 서도록 — 둘의 높이가 달라 각자 다른 층에 있었다 */
+.n-group-toolbar > form {
+    margin-bottom: 0;
+}
+
+/* ---- 그룹 목록 표 ---- */
+.n-table-groups {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.n-table-groups th, .n-table-groups td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n-table-groups th:nth-child(1), .n-table-groups td:nth-child(1) { width: 52%; }
+.n-table-groups th:nth-child(2), .n-table-groups td:nth-child(2) { width: 16%; }
+.n-table-groups th:nth-child(3), .n-table-groups td:nth-child(3) { width: 32%; }
+
+@media (max-width: 900px) {
+    .n-inline-form .n-input { width: 100%; }
+    .n-group-toolbar { flex-direction: column; align-items: stretch; }
+}
+
+/* ---- 서버 넣기 모달 (U3-4 개정) ----
+   확인 모달의 오버레이(.cm-overlay/.cm-backdrop/.cm-card)를 그대로 재사용하고
+   폭과 높이만 넓힌다. 고를 대상이 목록이라 480px 로는 표가 읽히지 않는다.
+   좁은 목록을 아코디언으로 펼치던 방식을 버리고 모달로 옮긴 이유는,
+   '고르는 일' 이 상세 화면을 스크롤하는 도중에 곁다리로 일어나지 않게 하기 위해서다. */
+.cm-card-wide {
+    max-width: 1080px;
+}
+
+.n-picker-body {
+    max-height: 62vh;
+    overflow-y: auto;
+    margin: 4px 0 14px;
+}
+
+/* 모달 안의 묶음은 화면보다 한 단계 조밀하게 — 좁은 폭에서 여백이 내용을 밀어낸다 */
+.n-picker-body .n-glist {
+    padding: 10px 12px 12px;
+    margin-bottom: 14px;
+}
+
+.n-picker-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.n-picker-count {
+    font-size: 13px;
     color: var(--n-text-muted);
-    font-size: 12.5px;
-    font-weight: 400;
+}
+
+/* 선택 열 — 체크박스는 가운데로 모으고 폭을 좁게 고정한다 */
+.n-table-picker {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.n-table-picker th,
+.n-table-picker td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.n-table-picker th:nth-child(1), .n-table-picker td:nth-child(1) { width: 7%;  text-align: center; }
+.n-table-picker th:nth-child(2), .n-table-picker td:nth-child(2) { width: 14%; }
+.n-table-picker th:nth-child(3), .n-table-picker td:nth-child(3) { width: 24%; }
+.n-table-picker th:nth-child(4), .n-table-picker td:nth-child(4) { width: 13%; }
+.n-table-picker th:nth-child(5), .n-table-picker td:nth-child(5) { width: 13%; }
+.n-table-picker th:nth-child(6), .n-table-picker td:nth-child(6) { width: 29%; }
+
+@media (max-width: 900px) {
+    .cm-card-wide { max-width: 100%; }
+    .n-picker-body { max-height: 70vh; }
+}
+
+/* ---- 구성 혼재 표식 (U3-4 개정) ----
+   문장으로만 알리면 표가 길어질수록 어느 행이 문제인지 눈으로 찾아야 한다.
+   자원 화면이 사용 중단을 노란 점으로 알리는 것과 같은 어휘를 쓰되,
+   행 자체에 왼쪽 띠와 옅은 배경을 주어 스크롤 중에도 걸리게 한다. */
+.n-row-diverged > td {
+    background: rgba(194, 147, 67, 0.07);
+}
+
+.n-row-diverged > td:first-child {
+    box-shadow: inset 3px 0 0 var(--n-yellow);
+}
+
+/* 제목 옆 표식 — 이름과 붙지 않게 띄우고 글자 크기를 낮춰 제목을 가리지 않는다 */
+.n-title-badge {
+    margin-left: 10px;
+    vertical-align: middle;
+    font-size: 12px;
+}
+
+/* ---- 툴팁이 든 칸의 넘침 (U3-4 개정) ----
+   열 정렬을 위해 td 에 overflow: hidden 을 걸어 두었는데, 커스텀 툴팁은 절대 배치된
+   ::after 라 그 경계에서 잘린다(네이티브 title 은 OS 계층이라 잘리지 않아 그동안 드러나지 않았다).
+   말줄임은 안쪽 요소가 스스로 하므로 칸의 넘침 차단은 없어도 된다. */
+.n-table-servers td:nth-child(2) {
+    overflow: visible;
+}
+
+.n-table-groups td:nth-child(1) {
+    overflow: visible;
+}
+
+/* 칸이 넘침을 허용하는 대신 이름 링크가 스스로 줄인다 — 점(약 20px) 자리를 남긴다 */
+.n-table-groups .n-row-link {
+    display: inline-block;
+    max-width: calc(100% - 22px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
 }

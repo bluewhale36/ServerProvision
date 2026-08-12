@@ -29,6 +29,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +59,27 @@ public class GuestServerQueryService {
 
     @Transactional(readOnly = true)
     public List<GuestServerSummaryResponse> findAll() {
-        List<GuestServer> servers = guestServerRepository.findAllByOrderByCreatedAtDesc();
+        return assembleSummaries(guestServerRepository.findAllByOrderByCreatedAtDesc());
+    }
+
+    /**
+     * 지정한 서버들의 요약 (U3-4) — 그룹 화면이 멤버와 후보를 그릴 때 쓴다.
+     *
+     * <p>전체를 읽어 걸러내지 않고 대상만 읽는 이유는, 그룹이 다루는 것이 전체가 아니라 <b>고른 몇 대</b>이기
+     * 때문이다. 정렬은 목록과 같은 최신순으로 맞춰 두 화면의 서버 순서가 어긋나지 않게 한다.</p>
+     */
+    @Transactional(readOnly = true)
+    public List<GuestServerSummaryResponse> findSummaries(Collection<UUID> serverIds) {
+        if (serverIds == null || serverIds.isEmpty()) {
+            return List.of();
+        }
+        return assembleSummaries(guestServerRepository.findAllById(serverIds).stream()
+                .sorted(Comparator.comparing(GuestServer::getCreatedAt).reversed())
+                .toList());
+    }
+
+    /** 서버 목록 → 요약 목록. 연관(상세 · NIC · 진행)을 id 묶음으로 한 번씩만 읽어 N+1 을 피한다. */
+    private List<GuestServerSummaryResponse> assembleSummaries(List<GuestServer> servers) {
         if (servers.isEmpty()) {
             return List.of();
         }
@@ -89,7 +111,27 @@ public class GuestServerQueryService {
      */
     @Transactional(readOnly = true)
     public GuestServerListResponse findGrouped(ProvisioningPhase phaseFilter) {
-        List<GuestServer> servers = guestServerRepository.findAllByOrderByCreatedAtDesc();
+        return assembleGroups(guestServerRepository.findAllByOrderByCreatedAtDesc(), phaseFilter);
+    }
+
+    /**
+     * 지정한 서버들만 같은 방식으로 묶는다 (U3-4 개정) — 그룹 상세의 '서버 넣기' 고르기 화면이 쓴다.
+     *
+     * <p>고르는 화면이 목록 화면과 <b>다른 방식으로</b> 서버를 늘어놓으면, 운영자는 방금 본 묶음을
+     * 고르는 자리에서 다시 찾아야 한다. 같은 조립을 그대로 쓰면 그 대조가 필요 없다.</p>
+     */
+    @Transactional(readOnly = true)
+    public GuestServerListResponse findGroupedFor(Collection<UUID> serverIds) {
+        if (serverIds == null || serverIds.isEmpty()) {
+            return new GuestServerListResponse(null, List.of());
+        }
+        return assembleGroups(guestServerRepository.findAllById(serverIds).stream()
+                .sorted(Comparator.comparing(GuestServer::getCreatedAt).reversed())
+                .toList(), null);
+    }
+
+    /** 서버 목록 → 시간 × 스펙 그룹 응답. 연관은 id 묶음으로 한 번씩만 읽는다. */
+    private GuestServerListResponse assembleGroups(List<GuestServer> servers, ProvisioningPhase phaseFilter) {
         if (servers.isEmpty()) {
             return new GuestServerListResponse(null, List.of());
         }
@@ -124,7 +166,7 @@ public class GuestServerQueryService {
 
         return new GuestServerListResponse(
                 buildPending(pending, progressByServer, toRow),
-                buildTimeGroups(grouped, detailByServer, now, toRow));
+                buildTimeGroups(grouped, now, toRow));
     }
 
     private boolean matchesPhase(ProvisioningProgress progress, ProvisioningPhase filter) {
@@ -158,50 +200,44 @@ public class GuestServerQueryService {
                 List.copyOf(registeredOnly), List.copyOf(collecting));
     }
 
-    /** 시간 구간 × 스펙 그룹 조립 — 멤버가 없는 구간과 그룹은 원소로 만들지 않는다. */
+    /**
+     * 시간 구간 × 스펙 그룹 조립 — 멤버가 없는 구간과 그룹은 원소로 만들지 않는다.
+     *
+     * <p>행(요약)을 먼저 만들고 그 행이 들고 있는 키로 묶는다(U3-4). 예전에는 엔티티를 묶은 뒤 행으로 옮겨
+     * 하드웨어 JSON 을 키 한 번 · 라벨 한 번 두 차례 파싱했는데, 키를 요약에 실으면서 한 번으로 줄었다.</p>
+     */
     private List<GuestServerListResponse.TimeGroup> buildTimeGroups(
             List<GuestServer> grouped,
-            Map<UUID, GuestServerDetail> detailByServer,
             LocalDateTime now,
             Function<GuestServer, GuestServerSummaryResponse> toRow) {
 
         // 눈금이 동적이라 미리 정해진 상수 목록이 없다 — 실제로 등장한 묶음만 모아 최근순으로 세운다.
         // 그래서 "빈 구간을 건너뛴다" 가 별도 분기 없이 성립한다(애초에 키가 만들어지지 않는다).
-        Map<RegistrationAge, List<GuestServer>> byBucket = new TreeMap<>();
+        Map<RegistrationAge, List<GuestServerSummaryResponse>> byBucket = new TreeMap<>();
         for (GuestServer s : grouped) {
-            byBucket.computeIfAbsent(RegistrationAge.of(s.getCreatedAt(), now), b -> new ArrayList<>()).add(s);
+            byBucket.computeIfAbsent(RegistrationAge.of(s.getCreatedAt(), now), b -> new ArrayList<>())
+                    .add(toRow.apply(s));
         }
 
         List<GuestServerListResponse.TimeGroup> timeGroups = new ArrayList<>();
-        for (Map.Entry<RegistrationAge, List<GuestServer>> bucketEntry : byBucket.entrySet()) {
-            RegistrationAge bucket = bucketEntry.getKey();
-            List<GuestServer> inBucket = bucketEntry.getValue();
-            Map<SpecGroupKey, List<GuestServer>> bySpec = new LinkedHashMap<>();
-            for (GuestServer s : inBucket) {
-                bySpec.computeIfAbsent(specKeyOf(detailByServer.get(s.getId())), k -> new ArrayList<>()).add(s);
+        for (Map.Entry<RegistrationAge, List<GuestServerSummaryResponse>> bucketEntry : byBucket.entrySet()) {
+            Map<SpecGroupKey, List<GuestServerSummaryResponse>> bySpec = new LinkedHashMap<>();
+            for (GuestServerSummaryResponse row : bucketEntry.getValue()) {
+                bySpec.computeIfAbsent(row.specGroupKey(), k -> new ArrayList<>()).add(row);
             }
             List<GuestServerListResponse.SpecGroup> specGroups = bySpec.entrySet().stream()
                     .map(e -> new GuestServerListResponse.SpecGroup(
-                            e.getKey(),
-                            specLabelOf(detailByServer.get(e.getValue().getFirst().getId())),
-                            e.getValue().stream().map(toRow).toList()))
+                            e.getKey(), e.getValue().getFirst().specLabel(), e.getValue()))
                     .toList();
-            timeGroups.add(new GuestServerListResponse.TimeGroup(bucket, specGroups));
+            timeGroups.add(new GuestServerListResponse.TimeGroup(bucketEntry.getKey(), specGroups));
         }
         return List.copyOf(timeGroups);
     }
 
-    private SpecGroupKey specKeyOf(GuestServerDetail detail) {
-        return SpecGroupKey.of(
-                detail.getBoardModel().getModelName(),
-                parseTolerant(detail.getHardwareSpec(), HardwareSpec.class));
-    }
-
     /** 사람이 읽는 그룹 요약 — 동치 판정은 {@link SpecGroupKey} 가 하고 이 문자열은 표시 전용이다. */
-    private String specLabelOf(GuestServerDetail detail) {
-        HardwareSpec spec = parseTolerant(detail.getHardwareSpec(), HardwareSpec.class);
+    private String specLabelOf(String boardModelName, HardwareSpec spec) {
         List<String> parts = new ArrayList<>();
-        parts.add(detail.getBoardModel().getModelName());
+        parts.add(boardModelName);
         if (spec != null && spec.cpuSockets() != null && !spec.cpuSockets().isEmpty()) {
             String model = spec.cpuSockets().getFirst().model();
             parts.add((model == null ? "CPU" : model) + " ×" + spec.cpuSockets().size());
@@ -236,6 +272,12 @@ public class GuestServerQueryService {
 
     private GuestServerSummaryResponse toSummary(
             GuestServer server, GuestServerDetail detail, HostNicBinding primaryNic, ProvisioningProgress progress) {
+        // 스펙은 수집이 끝난 서버만 갖는다. 그 전에는 키를 만들 재료가 없으므로 둘 다 null 로 둔다
+        // (SpecGroupKey.of 는 재료가 있다는 전제로 부른다). 파싱은 여기 한 번뿐이다.
+        boolean specAvailable = detail != null && detail.isDiagnosticEnriched();
+        HardwareSpec spec = specAvailable ? parseTolerant(detail.getHardwareSpec(), HardwareSpec.class) : null;
+        String boardModelName = detail != null ? detail.getBoardModel().getModelName() : null;
+
         return new GuestServerSummaryResponse(
                 server.getId(),
                 server.getName(),
@@ -248,7 +290,9 @@ public class GuestServerQueryService {
                 server.getCreatedAt(),
                 server.getLastSeenAt(),
                 isContactActive(server.getLastSeenAt()),
-                contactRemainingSeconds(server.getLastSeenAt())
+                contactRemainingSeconds(server.getLastSeenAt()),
+                specAvailable ? SpecGroupKey.of(boardModelName, spec) : null,   // U3-4 — 그룹 화면의 혼재 판정 입력
+                specAvailable ? specLabelOf(boardModelName, spec) : null
         );
     }
 

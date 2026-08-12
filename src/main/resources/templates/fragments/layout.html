@@ -62,6 +62,10 @@
              레이아웃에 두는 이유는 화면이 늘어도 적재 누락이 생기지 않게 하기 위함 — 종전처럼 폼마다
              마커를 붙이는 방식은 마커를 잊는 것이 곧 raw JSON 노출 사고였다(U3-2-b). -->
         <script th:src="@{/global/form-submit.js}" defer></script>
+        <!--/* 화면 이력 스택 — 목록↔상세 왕복의 "어디로 돌아가나" 와 "무엇을 짚나".
+               목록이 있는 화면 어디서나 같은 규약(data-nav-key · data-nav-back)이 성립해야 하므로
+               페이지별로 싣지 않고 레이아웃에서 한 번 적재한다. */-->
+        <script th:src="@{/global/nav-stack.js}" defer></script>
     </th:block>
 </head>
 
@@ -113,6 +117,10 @@
     <a th:href="@{/provisioning/server}"
        class="n-nav-link"
        th:classappend="${activePage == 'server'} ? ' active'">서버</a>
+    <!-- U3-4 — 그룹은 서버 목록과 다른 렌즈다(DEC-D). 목록은 시간 × 스펙, 이쪽은 사람이 정한 묶음. -->
+    <a th:href="@{/provisioning/server-group}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'server-group'} ? ' active'">서버 그룹</a>
 
     <!-- 오른쪽 끝: 배경 작업 조회 아이콘 + 드롭다운 패널 -->
     <div class="n-nav-spacer"></div>
