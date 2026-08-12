@@ -36,6 +36,10 @@ import java.time.Instant;
  *                     <b>목록을 조립할 때만 채워지고 그 밖에서는 {@code null}</b> 이다 — 사용 여부는
  *                     드리프트와 무관하게 변하는 현재값이라, 계산하지 않은 자리에 기본값을 넣으면
  *                     "쓰이지 않는다" 는 사실과 "확인하지 않았다" 를 구분할 수 없게 된다
+ * @param predecessor  MK4-4-2 — 이 문제가 이어받은 앞선 문제. 같은 자원의 문제가 종류를 바꿔
+ *                     나타났을 때 채워진다. 여기 싣는 것은 <b>직전 한 마디</b>뿐이며, 사슬 전체는
+ *                     상세 화면이 따로 조회한다 — 목록의 모든 행마다 사슬을 거슬러 오르면 조회가
+ *                     행 수만큼 늘어난다. {@code null} 이면 이어받은 것이 없다
  */
 public record DriftResponse(
 		Long id,
@@ -54,14 +58,25 @@ public record DriftResponse(
 		String snoozeBlockReason,
 		String resolveBlockReason,
 		String detail,
-		ResourceUsageLevel usage
+		ResourceUsageLevel usage,
+		DriftOriginResponse predecessor
 ) {
 
 	/**
 	 * 이번 점검에서 처음 보인 문제인가. 화면이 '최초 발견' 표시를 붙이는 근거다.
+	 *
+	 * <p>MK4-4-2 — 계보를 함께 본다. 앞선 문제가 형태를 바꿔 나타난 것은 관측 횟수가 1 이어도
+	 * 최초가 아니다. 종전에는 그 구분이 없어 승계된 문제에도 「최초 발견」 이 붙었다.</p>
 	 */
 	public boolean isNew() {
-		return observationCount <= 1;
+		return observationCount <= 1 && predecessor == null;
+	}
+
+	/**
+	 * MK4-4-2 — 앞선 문제에서 이어진 것인가. 화면이 「이어짐」 표시와 그 출처를 붙이는 근거다.
+	 */
+	public boolean succeeded() {
+		return predecessor != null;
 	}
 
 	/**

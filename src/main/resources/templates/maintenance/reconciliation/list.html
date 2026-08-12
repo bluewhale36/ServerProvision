@@ -1,526 +1,72 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  MK1. 자원 무결성 점검 (Path Reconciliation) 페이지 — Miller Columns. R9-4 — 명칭 단일화 + 정보구조 재배치.
+  MK1. 자원 무결성 점검 — 첫 화면 (MK4-4-2 에서 정보구조 개편)
   ─────────────────────────────────────────────────────────
-  Model:
-    reports        : List<DriftReportResponse> — 페이지네이션된 이력 (default size=20)
-                       · id                 : Long
-                       · scannedAt          : Instant (ISO-8601)
-                       · scanDuration       : String (PT0.45S)
-                       · deep               : boolean
-                       · totalChecked       : int
-                       · detectedDriftCount : int  (HF4-4 — 스캔 시점 탐지 스냅샷. 구행은 서비스가 미해결 수로 대체)
-                       (MK4-1 — 미해결 수는 보고서가 아니라 openDriftCount 모델 속성. 현재 열린 문제의 수)
-                       · drifts             : List<DriftResponse>  (C3 상세 포함)
-    page           : int  (현재 페이지 — 0-base)
-    size           : int  (페이지당 개수)
-    totalPages     : int
-    totalElements  : long
-    selectReportId : Long (nullable)  — 토글/적용 후 초기 선택 복원
-    selectDriftId  : Long (nullable)  — C3 자동 펼침
-    latestReport   : DriftReportResponse (nullable) — 가장 최근 1건. C1 빈 상태일 때 표시 헬퍼
+  들어오면 <b>지금 남은 드리프트</b>가 급한 순으로 먼저 보인다
+  (PathReconciliationService.openDrifts — DriftPriority 정렬). 하나를 열면 드리프트 상세로 가고,
+  겹은 하나다. 점검 이력은 부차로 밀려 별도 화면(/reports)에서 본다.
 
-  CSS: miller.css + accordion.css 재사용. 신규 CSS 없음.
-       C1 "group" = DriftReport (스캔 1회), C2 "item" = Drift (개별 드리프트)
-       기존 os-list.js 의 data-os-key / data-os-id 일반화 바인딩 그대로 활용.
+  종전 Miller 3 컬럼을 이 배치로 바꾼 근거는 진단이다 — 이 도메인에서 운영자가 실제로 하는 일은
+  이력 탐색이 아니라 지금 미해결인 것들을 급한 순서로 처리하는 것인데, 구조가 그 일을 반영하지
+  못하니 개별 항목을 아무리 고쳐도 같은 마찰이 남았다. 배치 후보 둘을 실제 화면으로 만들어
+  견준 뒤 이쪽을 채택했다(MK4-4-2).
+
+  Model: openDrifts · openDriftCount · openBulkTargetCount · latestReport (+ 공통 배너)
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('자원 무결성 점검')}"></th:block>
-    <link rel="stylesheet" th:href="@{/css/miller.css}">
-    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: styles}"></th:block>
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">자원 무결성 점검</h1>
-        <div class="n-header-actions">
-            <!--
-              R9-4 — 헤더는 일상 점검 2버튼만 (2계층화). 마커 서명 재발급은 하단 '관리 도구' 구획,
-              업로드 실패 복구는 navbar 독립 메뉴로 이동. JS fetch 트리거 + R9-1 완료 반영(자기 트리거
-              자동 reload / 외부 완료 배너)은 그대로.
-            -->
-            <button type="button" id="scanBtn" class="n-btn n-btn-primary"
-                    title="등록 정보와 디스크 상태의 불일치를 바로 점검합니다."
-                    th:data-scan-url="@{/maintenance/reconciliation/scan}">지금 점검
-            </button>
-            <button type="button" id="scanDeepBtn" class="n-btn n-btn-ghost"
-                    title="파일 내용까지 검사합니다 — 용량에 따라 수 분이 걸릴 수 있어요."
-                    th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">정밀 점검
-            </button>
-        </div>
-    </div>
-
-    <!-- R9-4 — 도메인 설명 + 최신 점검 요약. 처음 온 사용자가 첫 화면에서 도메인의 역할을 파악하는 진입 문구.
-         latestReport 는 페이지네이션과 무관한 전체 최신 1건 (컨트롤러가 별도 조회). -->
-    <div class="n-banner n-banner-info">
-        <div>등록된 자원 정보(DB)와 디스크의 실제 파일 · 마커가 서로 일치하는지 점검하고, 불일치(드리프트)를 정합합니다.</div>
-        <!--/* HF4-4 (O-1) — 스캔 범위 특성 안내. 범위 밖 이동이 '자원 소실'로 보고되는 동작은 설계 의도(D19)이나
-             운영자가 알 길이 코드뿐이었다.
-             MK4-3-1 — 종전에는 설정 키 이름을 코드 조각으로 보여 주면서 정작 바꿀 방법은 주지 않았다.
-             이제 설정 화면이 있으므로 그리로 보낸다. */-->
-        <div class="n-text-muted">
-            점검은 활성 자원이 등록된 폴더들과 <strong>추가 점검 경로</strong>에 지정한 폴더만 검색합니다.
-            자원을 이 범위 밖(예: 별도 백업 폴더)으로 옮기면 파일을 찾을 수 없어 '경로 이동'이 아닌 '자원 소실'로 보고됩니다 —
-            그런 위치를 쓴다면 <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서
-            해당 경로를 추가해 점검 범위를 넓힐 수 있습니다.
-        </div>
-        <!-- HF4-4 (O-3) — 요약줄 병기: 탐지(스캔 시점 스냅샷·불변)와 미해결(잔수·해결 시 감소)을 함께 표기. -->
-        <div th:if="${latestReport != null}" class="n-text-muted">
-            마지막 점검
-            <strong th:text="${#temporals.format(latestReport.scannedAt, 'yyyy-MM-dd HH:mm')}"></strong>
-            <span th:if="${latestReport.deep}">(정밀)</span>
-            · 자원 <strong th:text="${latestReport.totalChecked}"></strong>건
-            · 드리프트 탐지 <strong th:text="${latestReport.detectedDriftCount}"></strong>건
-            · 지금 미해결 <strong th:text="${openDriftCount}"></strong>건
-        </div>
-    </div>
-
-    <!--/* MK4-3-1 — 시스템 해결이 꺼져 있으면 상시 알린다.
-         이 스위치는 탐지는 계속하되 고치는 행위만 전부 멈추는 비상 차단기다. 끈 사실을 잊으면
-         시스템이 조용히 아무것도 고치지 않는 상태로 남으므로, 해결을 시도할 때만 보이는 tooltip 으로는
-         부족하다. 앞 단계가 "안 본 것은 안 봤다고 밝힌다" 를 세웠고 여기서는 같은 원칙이
-         "안 고치는 중이면 안 고치는 중이라고 밝힌다" 로 이어진다. */-->
-    <div th:if="${!resolutionEnabled}" class="n-banner n-banner-warn">
-        <strong>시스템 해결이 꺼져 있습니다.</strong>
-        점검은 계속하지만 발견된 문제를 고치지 않습니다 — 수동 [해결] 과 점검 중 자동 처리가 모두 멈춥니다.
-        <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서 다시 켤 수 있습니다.
-    </div>
-
-    <!--/* MK4-2 — 점검 커버리지. 일반 점검은 마커와 위치만 보고 파일 내용은 다시 계산하지 않는다.
-         그래서 내용에 관한 문제가 목록에서 빠지는 일이 생기는데, 알리지 않으면 해결된 것으로 읽힌다.
-         마지막으로 내용을 본 시각은 정밀 · 일반 어느 쪽이든 항상 함께 보여 준다. */-->
-    <div th:if="${scanCoverage != null and !scanCoverage.contentChecked}"
-         class="n-banner n-banner-warn">
-        <strong>이번 점검은 파일 내용을 확인하지 않았습니다.</strong>
-        내용이 바뀐 자원은 이번 목록에 나타나지 않을 수 있습니다 — 해결된 것이 아니라 보지 않은 것입니다.
-        <span th:if="${!scanCoverage.neverDeepScanned()}">
-            마지막 정밀 점검 :
-            <strong th:text="${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')}"></strong>
-        </span>
-        <span th:if="${scanCoverage.neverDeepScanned()}">
-            <!--/* 보관 개수를 줄이면 오래된 보고서가 정리되어 정밀 점검 기록도 함께 사라진다.
-                 그때 "한 번도 하지 않았다" 고 말하면 사실이 아니다 — 없는 것은 기록이지 점검이 아니다. */-->
-            남아 있는 정밀 점검 기록이 없습니다.
-        </span>
-        <span>[정밀 점검]으로 내용까지 확인할 수 있습니다.</span>
-        <!--/* MK4-3-2 — 기다리면 언제 도는지. 예정을 밝히지 않으면 지금 눌러야 하는지 판단할 근거가
-             없다. 기록이 없어 예정을 계산할 수 없으면 밀려 있다는 뜻이라 곧 돈다. */-->
-        <span th:if="${nextDeepScanAt != null}">
-            다음 정밀 점검 예정 :
-            <strong th:text="${#temporals.format(nextDeepScanAt, 'yyyy-MM-dd HH:mm')}"></strong>
-        </span>
-        <span th:if="${nextDeepScanAt == null}">정밀 점검이 밀려 있어 곧 자동으로 돕니다.</span>
-    </div>
-
-    <!-- R9-4 — 업로드 실패 격리 대기 안내 (이 페이지 렌더에만 count 조회 — 전역 navbar 배지는 비용으로 기각). -->
-    <div th:if="${quarantinePendingCount != null and quarantinePendingCount > 0}"
-         class="n-banner n-banner-warn">
-        <span>업로드 실패로 격리된 파일 <strong th:text="${quarantinePendingCount}"></strong>건이 복구를 기다립니다.</span>
-        <a th:href="@{/maintenance/quarantine}" class="n-btn n-btn-sm n-btn-secondary">업로드 실패 복구</a>
-    </div>
-
-    <!--
-      R9-1 — 이 페이지가 트리거하지 않은 스캔(주기 스캔 등)이 완료됐을 때 list.js 가 표시하는 안내 배너.
-      자동 reload 는 열람 중 화면 리셋을 만들므로 하지 않는다 — 사용자가 [새로고침] 을 눌러 반영.
-    -->
-    <div id="newReportBanner" hidden class="n-banner n-banner-warn">
-        <span>새 점검 보고서가 도착했습니다.</span>
-        <button type="button" id="newReportReloadBtn" class="n-btn n-btn-sm n-btn-secondary">새로고침</button>
-    </div>
-
-    <!-- 빈 상태 : 한번도 스캔된 적이 없는 경우 -->
-    <div th:if="${#lists.isEmpty(reports)}" class="n-card">
-        <div class="n-empty">
-            <div class="n-empty-title">아직 보고된 스캔 이력이 없습니다.</div>
-            <div class="n-empty-desc">
-                상단의 <strong>지금 점검</strong> 버튼을 눌러 첫 점검을 시작하세요.
-                부팅 시 자동 점검이 켜져 있다면 다음 부팅 시점에 자동으로 보고됩니다.
+        <div>
+            <h1 class="n-page-title">자원 무결성 점검</h1>
+            <!--/* 마지막 점검 시각은 화면의 주인공이 아니라 배경이다. 배너로 두었더니 미해결
+                 목록 위에 한 칸을 차지해, 정작 처리해야 할 것보다 먼저 눈에 들어왔다.
+                 제목 아래 보조 텍스트로 내려 "언제 본 것인가" 만 조용히 말하게 한다. */-->
+            <div th:if="${latestReport != null}" class="n-page-subtext n-text-muted">
+                마지막 점검
+                <strong th:text="${#temporals.format(latestReport.scannedAt, 'yyyy-MM-dd HH:mm')}"></strong>
+                <span th:if="${latestReport.deep}">(정밀)</span>
+                <span th:text="|· 점검 대상 ${latestReport.population.total()}건 · 그때 탐지 ${latestReport.detectedDriftCount}건|"></span>
+            </div>
+            <div th:if="${latestReport == null}" class="n-page-subtext n-text-muted">
+                아직 점검한 적이 없습니다.
             </div>
         </div>
+        <div th:replace="~{fragments/maintenance/reconciliation-parts :: scanActions}"></div>
     </div>
 
-    <!-- Miller 3컬럼 : C1 스캔 보고서 → C2 드리프트 → C3 상세 + 액션 -->
-    <div th:unless="${#lists.isEmpty(reports)}"
-         class="n-miller"
-         th:data-initial-select-id="${selectDriftId}"
-         th:data-initial-select-key="${selectReportId}">
+    <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: banners}"></th:block>
 
-        <!-- C1 : 스캔 보고서 (날짜 / 드리프트 수). 가장 최근이 위 -->
-        <div class="n-miller-col n-miller-col-names">
-            <div class="n-miller-col-header">스캔 이력</div>
-            <button th:each="report : ${reports}"
-                    type="button"
-                    class="n-miller-item n-miller-item-split"
-                    th:data-os-key="${report.id}">
-                <span class="n-miller-version-label"
-                      style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1.25; white-space: normal;">
-                    <span th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd')}">2026-04-25</span>
-                    <span style="font-size: 12px; color: var(--n-text-muted);">
-                        <span th:text="${#temporals.format(report.scannedAt, 'HH:mm:ss')}">10:30:00</span>
-                        <span th:if="${report.deep}" style="font-size: 11px;"> · deep</span>
-                    </span>
-                </span>
-                <!--/* HF4-4 (O-3) — 탐지(스냅샷)·미해결(잔수) 병기. 탐지 0(= 미해결도 0)이면 종전 "0 건" 유지.
-                     색은 종전대로 미해결 기준 — "탐지 N · 미해결 0" 은 처리 완료의 초록. */-->
-                <span class="n-miller-status-tag"
-                      th:classappend="${report.detectedDriftCount > 0} ? 'n-miller-status-tag-off' : 'n-miller-status-tag-on'"
-                      th:text="${report.detectedDriftCount == 0} ? '0 건' : |탐지 ${report.detectedDriftCount}건|">0 건</span>
-            </button>
-
-            <!-- 페이지네이션 -->
-            <div class="n-pagination"
-                 style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-top: 1px solid var(--n-border); font-size: 12px;">
-                <a th:if="${page > 0}"
-                   th:href="@{/maintenance/reconciliation(page=${page - 1}, size=${size})}"
-                   class="n-btn n-btn-sm n-btn-ghost">← 이전</a>
-                <span th:unless="${page > 0}" style="color: var(--n-text-muted);">← 이전</span>
-                <span th:text="${page + 1} + ' / ' + ${totalPages}">1 / 5</span>
-                <a th:if="${page + 1 < totalPages}"
-                   th:href="@{/maintenance/reconciliation(page=${page + 1}, size=${size})}"
-                   class="n-btn n-btn-sm n-btn-ghost">다음 →</a>
-                <span th:unless="${page + 1 < totalPages}" style="color: var(--n-text-muted);">다음 →</span>
-            </div>
+    <section class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title">지금 남은 드리프트</strong>
+            <span class="n-glist-hint">급한 순 — 위험도와 사용 중 여부로 매겨집니다</span>
+            <span class="n-badge"
+                  th:classappend="${openDriftCount > 0} ? 'n-badge-yellow' : 'n-badge-gray'"
+                  th:text="|${openDriftCount} 건|">3 건</span>
+            <span th:replace="~{fragments/maintenance/reconciliation-parts
+                               :: bulkApplyButton(@{/maintenance/reconciliation/drifts/apply-all},
+                                                  ${openBulkTargetCount},
+                                                  '지금 목록에 떠 있는 드리프트 중 시스템이 해결할 수 있는 것')}"></span>
         </div>
 
-        <!-- C2 : 선택된 보고서의 드리프트 목록 -->
-        <div class="n-miller-col n-miller-col-versions">
-            <div class="n-miller-col-header">드리프트</div>
-            <div th:each="report : ${reports}"
-                 class="n-miller-version-panel"
-                 th:data-os-key="${report.id}">
-
-                <!-- 보고서 메타 (스캔 정보 요약) -->
-                <div style="padding: 10px 12px; border-bottom: 1px solid var(--n-border); font-size: 12px; color: var(--n-text-muted);">
-                    <div>점검 자원 : <strong th:text="${report.totalChecked}"></strong> 건</div>
-                    <div>스캔 소요 : <code th:text="${report.scanDuration}"></code></div>
-                    <!-- (권고6) 부분 실패 경고 — walk 가 실패한 root 가 있으면 보고서가 부분 결과임을 명시 -->
-                    <div th:if="${not #lists.isEmpty(report.failedScanRoots)}"
-                         style="margin-top: 8px; padding: 8px 10px; background: var(--n-bg-warn, #fff3cd); border-left: 3px solid var(--n-color-warn, #f0ad4e); color: var(--n-text-warn, #856404);">
-                        ⚠ 일부 스캔 root 가 실패했습니다. 보고서가 부분 결과일 수 있습니다 :
-                        <ul style="margin: 4px 0 0 16px; padding: 0;">
-                            <li th:each="failed : ${report.failedScanRoots}" th:text="${failed}"
-                                style="word-break: break-all; font-size: 11px;"></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- 드리프트 없는 보고서 -->
-                <div th:if="${#lists.isEmpty(report.drifts)}"
-                     class="n-empty-desc" style="padding: 10px 12px;">
-                    드리프트 없음 — 모든 자원이 정상.
-                </div>
-
-                <!--/* R9-2 — C2 배지는 사용자 라벨(enum 원시명은 C3 보조 표기). 색은 kind.mode SSOT (miller tag 는 on/off 2단 자산이라 manuallyResolvable 로 축약, 3단 색은 C3 배지).
-                     R9-5 — 주표기는 자원 실명(스냅샷). 도입 이전 행(null)은 종전 "TYPE #id" 로 fallback. */-->
-                <button th:each="drift : ${report.drifts}"
-                        type="button"
-                        class="n-miller-item n-miller-item-split"
-                        th:data-os-id="${drift.id}">
-                    <span class="n-miller-version-label"
-                          style="display: flex; flex-direction: column; align-items: flex-start; gap: 1px; line-height: 1.25;">
-                        <span th:text="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">Rocky Linux 9.6</span>
-                        <span style="font-size: 11px; color: var(--n-text-muted);"
-                              th:text="${drift.resourceType}">OS_ISO</span>
-                    </span>
-                    <span class="n-miller-status-tag"
-                          th:classappend="${drift.kind.manuallyResolvable} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
-                          th:text="${drift.kind.label}">경로 이동됨</span>
-                </button>
-            </div>
+        <div class="n-glist-panel">
+            <div th:replace="~{fragments/maintenance/reconciliation-parts
+                               :: driftTable(${openDrifts},
+                                             '남아 있는 드리프트가 없습니다.',
+                                             '마지막 점검에서 발견된 것이 모두 처리됐거나, 애초에 아무것도 나오지 않았습니다.')}"></div>
         </div>
+    </section>
 
-        <!-- C3 : 선택된 드리프트 상세 + 액션 -->
-        <div class="n-miller-col n-miller-col-detail">
-            <div class="n-miller-empty" id="millerEmpty">드리프트를 선택하여 상세 보기</div>
-
-            <!--/* MK4-1 — 상세는 '문제' 단위라 신원(id) 당 패널 하나다. 종전에는 회차마다 별도 drift
-                 행이라 보고서별로 찍어도 id 가 겹치지 않았는데, 이제 한 문제가 여러 회차에 관측되므로
-                 그대로 두면 같은 패널이 회차 수만큼 그려져 상세가 중복 표시된다. */-->
-            <div th:each="drift : ${detailDrifts}"
-                 class="n-miller-detail-panel"
-                 th:data-os-id="${drift.id}">
-
-                    <dl class="n-accordion-fields">
-                        <div class="n-accordion-field">
-                            <dt>드리프트 ID</dt>
-                            <dd>
-                                <code style="font-size: 11px;" th:text="${drift.id}"></code>
-                            </dd>
-                        </div>
-                        <!--/* R9-5 — 실명 스냅샷. 도입 이전 행은 "—(이전 점검 기록)". */-->
-                        <div class="n-accordion-field">
-                            <dt>자원 이름</dt>
-                            <dd th:text="${drift.displayName != null ? drift.displayName : '— (이전 점검 기록)'}"></dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <dt>자원 종류</dt>
-                            <dd>
-                                <span class="n-badge n-badge-gray" th:text="${drift.resourceType}"></span>
-                            </dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <dt>자원 ID</dt>
-                            <dd th:text="${drift.resourceId}"></dd>
-                        </div>
-                        <!--/* R9-2 — 종류는 라벨 + enum 보조 표기. 색·버튼 노출은 DriftKind.mode 단일 소스 (AUTO 주황 / MANUAL 노랑 / NONE 회색)
-                             (과거 4종 하드코딩 ×3곳이 서버 5종 나열과 갈라져 GHOST_DB_ROW 버튼이 누락돼 있었다). */-->
-                        <div class="n-accordion-field">
-                            <dt>드리프트 종류</dt>
-                            <dd>
-                                <span class="n-badge"
-                                      th:classappend="${drift.kind.mode.name() == 'AUTO'} ? 'n-badge-orange' : (${drift.kind.mode.name() == 'MANUAL'} ? 'n-badge-yellow' : 'n-badge-gray')"
-                                      th:text="${drift.kind.label}"></span>
-                                <code style="font-size: 10px; margin-left: 6px;" th:text="${drift.kind}"></code>
-                            </dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <dt>감지 내용</dt>
-                            <dd th:text="${drift.kind.description}"></dd>
-                        </div>
-                        <!--/* MK4-2 — 처리 순서의 근거를 화면에 드러낸다. 위험도는 종류가 들고 있고
-                             (DriftKind.severity), 사용 중은 조회 시점에 실려 온다. 두 값이 곧 목록의
-                             정렬 기준이라 "왜 이 순서인가" 를 이 두 줄이 설명한다. */-->
-                        <div class="n-accordion-field">
-                            <dt>위험도</dt>
-                            <dd>
-                                <span class="n-badge"
-                                      th:classappend="${drift.kind.severity.name() == 'IMMEDIATE'} ? 'n-badge-red' : (${drift.kind.severity.name() == 'ATTENTION'} ? 'n-badge-yellow' : 'n-badge-gray')"
-                                      th:text="${drift.kind.severity.label}"></span>
-                                <span class="n-text-muted" style="margin-left: 6px; font-size: 12px;"
-                                      th:text="${drift.kind.severity.description}"></span>
-                            </dd>
-                        </div>
-                        <div class="n-accordion-field" th:if="${drift.usage != null}">
-                            <dt>사용 중</dt>
-                            <dd>
-                                <span class="n-badge"
-                                      th:classappend="${drift.hasUsage()} ? 'n-badge-orange' : 'n-badge-gray'"
-                                      th:text="${drift.usage.label}"></span>
-                                <span class="n-text-muted" style="margin-left: 6px; font-size: 12px;"
-                                      th:text="${drift.usage.description}"></span>
-                            </dd>
-                        </div>
-                        <!--/* 자동으로 되는지를 권장 조치 문장 속에 묻어 두지 않고 자기 줄로 세운다.
-                             배지 색까지 등급이 들고 있어(DriftResolutionMode.badgeColor) 여기에
-                             종류별 조건식이 자라지 않는다. */-->
-                        <div class="n-accordion-field">
-                            <dt>해결 방식</dt>
-                            <dd>
-                                <span class="n-badge"
-                                      th:classappend="'n-badge-' + ${drift.kind.mode.badgeColor}"
-                                      th:text="${drift.kind.mode.label}"></span>
-                                <div class="n-text-muted" style="margin-top:4px"
-                                     th:text="${drift.kind.mode.description}"></div>
-                            </dd>
-                        </div>
-                        <!--/* 버튼이 해 주는 일과 사람이 해야 할 일을 갈라 놓는다. 한 문장에 섞이면
-                             "회수합니다. 다시 쓸 자원이면 복원하세요" 처럼 버튼 하나로 다 끝나는 것처럼 읽힌다. */-->
-                        <div class="n-accordion-field" th:if="${drift.kind.resolveAction != null}">
-                            <dt>해결하면 일어나는 일</dt>
-                            <dd th:text="${drift.kind.resolveAction}"></dd>
-                        </div>
-                        <div class="n-accordion-field" th:if="${drift.kind.operatorAction != null}">
-                            <dt>직접 해야 할 일</dt>
-                            <dd th:text="${drift.kind.operatorAction}"></dd>
-                        </div>
-                        <!--/* HF4-5 — 경로 2필드 라벨은 DriftKind 다형 (RESOURCE_REPLICA 는 이동이 아니라
-                             "원본 경로 (DB 기록)"/"복제본 경로" — 문구 SSOT 를 enum 에 두는 R9-2 원칙). */-->
-                        <div class="n-accordion-field">
-                            <dt th:text="${drift.kind.oldPathLabel}">이전 경로</dt>
-                            <dd>
-                                <code style="font-size: 11px; word-break: break-all;" th:text="${drift.oldPath}"></code>
-                            </dd>
-                        </div>
-                        <!--/* 값이 없을 때 줄을 지울지, '없음' 을 띄울지는 종류가 정한다
-                             (DriftKind.absentNewPathText) — 유령 기록처럼 '없다는 사실' 이 문제의 핵심인
-                             종류에서는 줄을 지우면 그 사실이 화면에서 사라진다. */-->
-                        <div class="n-accordion-field"
-                             th:if="${drift.newPath != null or drift.kind.absentNewPathText != null}">
-                            <dt th:text="${drift.kind.newPathLabel}">실제 파일 경로</dt>
-                            <dd>
-                                <code th:if="${drift.newPath != null}"
-                                      style="font-size: 11px; word-break: break-all; color: var(--n-color-primary);"
-                                      th:text="${drift.newPath}"></code>
-                                <span th:unless="${drift.newPath != null}" class="n-text-muted"
-                                      th:text="${drift.kind.absentNewPathText}"></span>
-                            </dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <!--/* MK4-1 — 뜻이 "이 회차에 봤다" 에서 "처음 본 때" 로 바뀌었으므로 이름도 바꾼다.
-                                 '감지 시각' 그대로 두면 바로 아래 '마지막 관측' 과 나란히 놓였을 때
-                                 어느 쪽이 처음인지 읽는 사람이 추론해야 한다. */-->
-                            <dt>처음 감지</dt>
-                            <dd th:text="${#temporals.format(drift.firstDetectedAt, 'yyyy-MM-dd HH:mm:ss')}"></dd>
-                        </div>
-                        <!--/* MK4-1 — 문제의 수명. "언제부터 있었나 · 몇 번째로 보이나 · 이번에 새로 생겼나" 가
-                             이 세 줄로 드러난다. 종전에는 감지 시각이 매 점검마다 갱신돼 방금 생긴 문제와
-                             3주째 방치된 문제가 똑같아 보였다(진단 후보 2-1). 자리는 레이아웃 개편에서 잡는다. */-->
-                        <div class="n-accordion-field">
-                            <dt>마지막 관측</dt>
-                            <dd th:text="${#temporals.format(drift.lastObservedAt, 'yyyy-MM-dd HH:mm:ss')}"></dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <dt>관측 횟수</dt>
-                            <dd>
-                                <span th:text="|${drift.observationCount}회|"></span>
-                                <span th:if="${drift.isNew()}" class="n-badge n-badge-red"
-                                      style="margin-left:6px">최초 발견</span>
-                            </dd>
-                        </div>
-                        <!--/* MK4-2 — 내용을 봐야 판정되는 종류(deepOnly)인데 이번 점검이 일반이었다면,
-                             그 자리에 값을 그대로 두면 방금 확인한 사실처럼 읽힌다. 언제 본 것인지를
-                             함께 밝힌다. 종류별 조건이 아니라 DriftKind.deepOnly 를 그대로 본다. */-->
-                        <div class="n-accordion-field"
-                             th:if="${drift.kind.deepOnly and scanCoverage != null and !scanCoverage.contentChecked}">
-                            <dt>내용 확인</dt>
-                            <dd>
-                                <span class="n-badge n-badge-gray">확인 안 됨</span>
-                                <span class="n-text-muted" style="margin-left:6px; font-size:12px;"
-                                      th:if="${!scanCoverage.neverDeepScanned()}"
-                                      th:text="|이번 점검은 파일 내용을 보지 않았습니다. 아래 값은 ${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')} 정밀 점검 기준입니다.|"></span>
-                            </dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <dt>상태</dt>
-                            <dd>
-                                <span class="n-badge" th:text="${drift.status.label}"></span>
-                                <span th:if="${drift.snoozeUntil != null}" class="n-text-muted"
-                                      style="margin-left:6px"
-                                      th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|"></span>
-                                <span th:if="${drift.snoozeReason != null}" class="n-text-muted"
-                                      style="margin-left:6px" th:text="|— ${drift.snoozeReason}|"></span>
-                            </dd>
-                        </div>
-                        <div class="n-accordion-field"
-                             th:if="${drift.detail != null and !#strings.isEmpty(drift.detail)}">
-                            <dt>상세</dt>
-                            <dd th:text="${drift.detail}"></dd>
-                        </div>
-                    </dl>
-
-                    <!--/* R9-2 — 버튼 노출 = DriftKind.manuallyResolvable (서버 가드와 동일 SSOT — MANUAL 은 사용자 확인 후 시스템이 해결).
-                         전역 auto-apply OFF 는 disabled + tooltip 으로 1차 차단 — 서버 409 는 direct POST 안전망.
-                         R9-3 — 전용 확인 modal(DRIFT_APPLY/DRIFT_SNOOZE, list.js 로컬 바인딩) + async 제출.
-                         거절(409 등)은 ErrorModal, 성공은 토스트+reload — 전체 페이지 이탈 없음. */-->
-                    <div class="n-form-actions">
-                        <form th:if="${drift.kind.manuallyResolvable}"
-                              th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
-                              method="post"
-                              data-confirm-drift-apply=""
-                              th:data-resource-type="${drift.resourceType}"
-                              th:data-resource-id="${drift.resourceId}"
-                              th:data-resource-label="|'${drift.kind.label}' 드리프트|"
-                              th:data-resource-extra="${drift.kind.resolveAction}">
-                            <!--/* MK4-1 — 차단 사유 둘을 우선순위로 본다. 문제 자체의 상태(이미 해결됨)가
-                                 먼저이고, 그다음이 전역 옵션이다. 상태 사유는 서버 가드와 같은 도메인
-                                 메서드(Drift.resolveBlockReason)에서 오므로 문구가 갈라질 자리가 없다. */-->
-                            <button type="submit" class="n-btn n-btn-primary"
-                                    th:disabled="${drift.resolveBlockReason != null or !resolutionEnabled}"
-                                    th:title="${drift.resolveBlockReason != null}
-                                              ? ${drift.resolveBlockReason}
-                                              : (${!resolutionEnabled}
-                                                 ? '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'
-                                                 : null)">해결</button>
-                        </form>
-                        <!--/* S6-3-4 — 내용 변경 수용 : 자원명 확인을 동반해 전용 endpoint 를 쓰지만,
-                             버튼은 다른 종류의 [해결] 과 같은 자리 · 같은 이름이다. 종전에는 입력칸이
-                             상세에 늘 펼쳐져 있어 이 종류만 모양이 달랐다 — 입력은 확인 창으로 옮겼다. */-->
-                        <form th:if="${drift.kind.name() == 'HASH_MISMATCH'}"
-                              method="post"
-                              th:action="@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}"
-                              data-confirm-drift-accept-hash=""
-                              th:data-resource-type="${drift.resourceType}"
-                              th:data-resource-id="${drift.resourceId}"
-                              th:attr="data-accept-hash-url=@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}">
-                            <button type="submit" class="n-btn n-btn-primary"
-                                    th:disabled="${drift.resolveBlockReason != null or !resolutionEnabled}"
-                                    th:title="${drift.resolveBlockReason != null}
-                                              ? ${drift.resolveBlockReason}
-                                              : (${!resolutionEnabled}
-                                                 ? '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'
-                                                 : null)">해결</button>
-                        </form>
-                        <!--/* HF4-5 — 자원 중복 존재 : 택일(원본|복제본) 해결. 사용자 입력(survivor) 동반이라
-                             표준 계약과 분리된 전용 폼이지만, 버튼은 다른 종류의 [해결] 과 같은 자리 · 같은 이름이다.
-                             종전에는 이 폼이 별도 .n-form-actions 블록이라 이 종류에서만 버튼이 아래 줄로 떨어졌다.
-                             radio 택일은 list.js 의 dupResolve 모달이 담당 — 기본 선택은 항상 원본(DB 기록 경로). */-->
-                        <form th:if="${drift.kind.name() == 'RESOURCE_REPLICA'}"
-                              method="post"
-                              th:action="@{/maintenance/reconciliation/drifts/{driftId}/resolve-duplicate(driftId=${drift.id})}"
-                              data-duplicate-resolve=""
-                              th:data-original-path="${drift.oldPath}"
-                              th:data-duplicate-path="${drift.newPath}"
-                              th:data-resource-label="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">
-                            <input type="hidden" name="survivor" value="ORIGINAL">
-                            <!--/* 전용 폼이지만 차단 조건은 표준 [해결] 과 같은 것을 본다 — 종전에는 이 버튼만
-                                 상태 가드를 빼먹어, 이미 해결된 뒤에도 계속 눌렸다. */-->
-                            <button type="submit" class="n-btn n-btn-primary"
-                                    th:disabled="${drift.resolveBlockReason != null or !resolutionEnabled}"
-                                    th:title="${drift.resolveBlockReason != null}
-                                              ? ${drift.resolveBlockReason}
-                                              : (${!resolutionEnabled}
-                                                 ? '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'
-                                                 : null)">해결</button>
-                        </form>
-                        <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/snooze(driftId=${drift.id})}"
-                              method="post"
-                              data-confirm-drift-snooze=""
-                              th:data-resource-type="${drift.resourceType}"
-                              th:data-resource-id="${drift.resourceId}"
-                              th:data-resource-label="|'${drift.kind.label}' 드리프트|"
-                              data-resource-extra="파일과 자원은 변하지 않으며, 보관 기간 이후 다시 목록에 표출됩니다.">
-                            <!--/* MK4-1 — 이미 해결됐거나 이미 두고 보는 중이면 애초에 누를 수 없게 한다.
-                                 사유는 서버 가드와 같은 도메인 메서드(Drift.snoozeBlockReason)에서 온다 —
-                                 조건을 여기 다시 쓰면 두 판정이 갈라진다(불가침: UI 차단과 서버 가드의 단일 SSOT). */-->
-                            <button type="submit" class="n-btn n-btn-outline"
-                                    th:disabled="${drift.snoozeBlockReason != null}"
-                                    th:title="${drift.snoozeBlockReason}">보관</button>
-                        </form>
-                        <!--/* S6-3-3 — [다시 점검] : 확인 액션 (해결 등급과 독립인 recheckable 축).
-                             상태를 바꾸지 않아 확인 modal 없이 즉시 실행 — 결과는 토스트로 구분. */-->
-                        <button type="button" class="n-btn n-btn-outline"
-                                th:if="${drift.kind.recheckable}"
-                                th:attr="data-recheck-url=@{/maintenance/reconciliation/drifts/{driftId}/recheck(driftId=${drift.id})}">다시 점검</button>
-                    </div>
-            </div>
-        </div>
-    </div>
-
-    <!--
-      R9-4 — 관리 도구 구획. 서명 키(secret) 회전 후 1회용 도구를 일상 점검 버튼과 분리해 하단 배치.
-      무엇인지/언제 쓰는지를 confirm 을 열기 전에 상시 안내한다 (종전엔 native confirm 안에서만 설명).
-    -->
-    <div class="n-card" style="margin-top: 16px;">
-        <div style="padding: 12px 16px;">
-            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">관리 도구</div>
-            <div style="font-size: 12.5px; color: var(--n-text-muted); margin-bottom: 8px;">
-                <strong>마커 서명 재발급</strong> — 서명 키(secret)를 교체한 직후 1회 실행하는 도구입니다.
-                모든 자원의 마커 서명을 현재 키로 다시 계산해, 다음 점검에서 전 자원이 '마커 서명 불일치'로
-                오탐되는 것을 막습니다. 파일 내용 해시는 유지되어 변조된 자원은 이후 정밀 점검에서 그대로 감지됩니다.
-            </div>
-            <button type="button" id="reissueBtn" class="n-btn n-btn-sm n-btn-outline-danger"
-                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
-            </button>
-        </div>
-    </div>
+    <div th:replace="~{fragments/maintenance/reconciliation-parts :: adminTools}"></div>
 </div>
 
-<!-- S5-2 — 4 종 자원 상태 변경 modal 묶음. S5-6-1 — 일관성을 위해 nonPurge 로 교체 (본 페이지에 purge form 없음). -->
-<div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
-<!-- R9-3 — Deep 스캔 / 마커 서명 재발급 확인용 정적 generic modal (페이지 액션 — lazy endpoint 의 자원 시그니처와 무관). -->
-<div th:replace="~{fragments/maintenance/reconciliation-modals :: genericConfirmModal('reconConfirm')}"></div>
-<!-- HF4-5 — 자원 중복 해소 택일 modal (radio 2택일, 기본 선택 = 원본). 표준 id 규약(prefix=dupResolve). -->
-<div th:replace="~{fragments/maintenance/reconciliation-modals :: duplicateResolveModal}"></div>
-
-<!--
-  Miller 컬럼 상호작용은 os-list.js (data-os-key / data-os-id 일반화) 를 그대로 재사용.
-  reconciliation 도메인 특화 동작은 list.js 에서 추가.
--->
-<script th:src="@{/management/os/os-list.js}"></script>
-<script th:src="@{/maintenance/reconciliation/list.js}"></script>
-
+<th:block th:replace="~{fragments/maintenance/reconciliation-parts :: tail}"></th:block>
 </body>
 </html>

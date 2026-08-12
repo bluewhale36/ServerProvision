@@ -2,6 +2,7 @@ package com.example.serverprovision.maintenance.reconciliation.controller;
 
 import com.example.serverprovision.global.job.dto.response.JobStartResponse;
 import com.example.serverprovision.maintenance.reconciliation.dto.request.DriftSnoozeRequest;
+import com.example.serverprovision.maintenance.reconciliation.dto.response.BulkApplyResponse;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftReportResponse;
 import jakarta.validation.Valid;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
@@ -29,6 +30,7 @@ import java.util.Optional;
 public class ReconciliationRestController {
 
 	private final PathReconciliationService reconciliationService;
+	private final com.example.serverprovision.maintenance.reconciliation.service.DriftBulkApplyService bulkApplyService;
 	private final com.example.serverprovision.maintenance.reconciliation.service.recheck.DriftRecheckService driftRecheckService;
 	private final com.example.serverprovision.maintenance.reconciliation.service.HashAcceptService hashAcceptService;
 	private final com.example.serverprovision.maintenance.reconciliation.service.DuplicateResolveService duplicateResolveService;
@@ -93,6 +95,29 @@ public class ReconciliationRestController {
 		// R9-3 — JS 경로는 async 제출(토스트+reload)이라 flash 미소비. 이 flash 는 JS 불능 native submit fallback 용.
 		redirectAttributes.addFlashAttribute("flashMessage", "드리프트 적용 완료");
 		return new RedirectView("/maintenance/reconciliation");
+	}
+
+	/**
+	 * MK4-4-2 — 후보 A 의 [전체 해결] : 그 회차에서 보인 문제 중 지금 해결할 수 있는 것 전부.
+	 *
+	 * <p>건별로 독립 트랜잭션이라 한 건의 실패가 나머지를 되돌리지 않는다(자세한 이유는
+	 * {@link com.example.serverprovision.maintenance.reconciliation.service.DriftBulkApplyService}).
+	 * 그래서 응답이 "성공/실패" 가 아니라 <b>몇 건 중 몇 건</b>이다.</p>
+	 */
+	@PostMapping("/reports/{reportId}/apply-all")
+	public BulkApplyResponse applyAllInReport(@PathVariable Long reportId) {
+		return bulkApplyService.applyAll(bulkApplyService.targetsInReport(reportId));
+	}
+
+	/**
+	 * MK4-4-2 — 후보 B 의 [전체 해결] : 지금 목록에 떠 있는 문제 중 해결할 수 있는 것 전부.
+	 *
+	 * <p>대상이 회차가 아니라 현재 상태라는 점만 위와 다르다. 이 범위 차이 자체가 두 후보의 비교
+	 * 대상이다 — 첫 화면이 무엇이냐에 따라 "전체" 의 뜻이 자연히 갈린다.</p>
+	 */
+	@PostMapping("/drifts/apply-all")
+	public BulkApplyResponse applyAllOpen() {
+		return bulkApplyService.applyAll(bulkApplyService.openTargets());
 	}
 
 	/**

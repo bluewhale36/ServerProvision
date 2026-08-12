@@ -199,6 +199,10 @@
         const expectedEl = modal.querySelector('[data-modal-expected]');
         const typedInput = modal.querySelector('[data-modal-typed-input]');
         const messageEl = modal.querySelector('[data-modal-message]');
+        // MK4-4-2 — 확인 창은 세 계층이다(행위 · 대상 · 무슨 일). 제목과 보조 문단도 호출 시점에
+        // 주입할 수 있어야 같은 fragment 로 종류마다 다른 행위를 말할 수 있다.
+        const titleEl = modal.querySelector('[data-modal-title]');
+        const noteEl = modal.querySelector('[data-modal-note]');
         const cancelEls = modal.querySelectorAll('[data-modal-cancel]');
 
         if (!confirmBtn) {
@@ -208,6 +212,15 @@
         }
 
         if (opts.startDisabled) confirmBtn.disabled = true;
+
+        // MK4-4-2 — 세 계층을 채운다. 값이 없으면 fragment 의 기본 문구를 그대로 두고,
+        // 보조 문단은 비었을 때 아예 지운다 — 빈 문단이 남으면 여백만 벌어진다.
+        if (titleEl && opts.title) titleEl.textContent = opts.title;
+        if (messageEl && opts.message) messageEl.textContent = particles(opts.message);
+        if (noteEl) {
+            if (opts.note) noteEl.textContent = particles(opts.note);
+            else noteEl.remove();
+        }
 
         let extraCleanup = null;
         if (opts.afterInject) {

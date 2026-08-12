@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  점검 이력 목록 (MK4-4-2)
+  ─────────────────────────────────────────────────────────
+  후보 B 에서 이력은 첫 화면의 자리를 미해결 목록에 내주고 여기로 밀린다. 후보 A 는 이력이 곧
+  첫 화면이라 이 화면을 쓰지 않는다 — 라우트를 후보의 합집합으로 두고 각자 자기 것만 쓴다.
+
+  경로가 /history 가 아닌 /reports 인 이유는 그 자리를 이미 ReconciliationRestController 의
+  외부 API 가 쓰고 있어서다. 같은 경로에 GET 을 하나 더 걸면 매핑이 모호해져 기동이 실패한다.
+
+  Model: reports · page · size · totalPages · totalElements · backHref (+ 공통 배너)
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('점검 이력')}"></th:block>
+    <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: styles}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">점검 이력</h1>
+        <div th:replace="~{fragments/common/back-link :: backLink(${backHref})}"></div>
+    </div>
+
+    <div th:replace="~{fragments/maintenance/reconciliation-parts
+                       :: reportTable(${reports}, '/maintenance/reconciliation/reports')}"></div>
+</div>
+
+<th:block th:replace="~{fragments/maintenance/reconciliation-parts :: tail}"></th:block>
+</body>
+</html>

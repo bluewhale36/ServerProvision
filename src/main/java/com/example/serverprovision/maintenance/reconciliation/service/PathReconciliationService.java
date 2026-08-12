@@ -4,12 +4,16 @@ import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.provisioning.usage.ResourceUsageLevel;
 import com.example.serverprovision.provisioning.usage.ResourceUsageQuery;
 import com.example.serverprovision.maintenance.reconciliation.vo.ScanCoverage;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.job.enums.JobType;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.marker.*;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
+import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftOriginResponse;
+import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftTimelineEntry;
+import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftTimelineResponse;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftReportResponse;
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftResponse;
 import com.example.serverprovision.maintenance.reconciliation.entity.Drift;
@@ -19,14 +23,17 @@ import com.example.serverprovision.maintenance.reconciliation.entity.DriftObserv
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlingAction;
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow;
+import com.example.serverprovision.maintenance.reconciliation.enums.DriftTimelineKind;
 import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftReportNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
+import com.example.serverprovision.maintenance.reconciliation.repository.DriftObservationRepository;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.DriftResolution;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,6 +79,7 @@ public class PathReconciliationService {
 			DriftReportRepository driftReportRepository,
 			DriftRepository driftRepository,
 			DriftHandlingRepository driftHandlingRepository,
+			DriftObservationRepository driftObservationRepository,
 			ReconciliationSettingsService settingsService,
 			ResourceUsageQuery resourceUsageQuery,
 			List<DriftResolution> resolutions,
@@ -83,6 +91,7 @@ public class PathReconciliationService {
 		this.driftReportRepository = driftReportRepository;
 		this.driftRepository = driftRepository;
 		this.driftHandlingRepository = driftHandlingRepository;
+		this.driftObservationRepository = driftObservationRepository;
 		this.settingsService = settingsService;
 		// provisioning 쪽 계약이라 이 방향으로만 의존한다 — 순환 없음(그쪽은 maintenance 를 모른다).
 		this.resourceUsageQuery = resourceUsageQuery;
@@ -98,6 +107,8 @@ public class PathReconciliationService {
 	private final DriftReportRepository driftReportRepository;
 	private final DriftRepository driftRepository;
 	private final DriftHandlingRepository driftHandlingRepository;
+	/** MK4-4-2 — 이력 화면이 "이 드리프트가 어느 회차들에 보였는가" 를 되짚는다. */
+	private final DriftObservationRepository driftObservationRepository;
 
 	/**
 	 * MK4-2 — 자원이 지금 쓰이는 깊이를 묻는 곳. 계약을 provisioning 이 소유하고 여기서 호출한다
@@ -175,8 +186,10 @@ public class PathReconciliationService {
 			// 안에서 묶인다. 직접 호출 시 트랜잭션이 누락되어 save / prune 이 자동커밋으로 흩어진다.
 			DriftReport report = self.performScan(deep, jobId);
 			log.info(
-					"[reconciliation] 스캔 완료. deep={}, totalChecked={}, drifts={}",
-					deep, report.getTotalChecked(), report.getDetectedDriftCount()
+					"[reconciliation] 스캔 완료. deep={}, 점검 대상={}(활성 {} · 삭제 {} · 짝없는 마커 {}), drifts={}",
+					deep, report.getPopulation().total(), report.getPopulation().getActiveCount(),
+					report.getPopulation().getDeletedCount(),
+					report.getPopulation().getUnmatchedMarkerCount(), report.getDetectedDriftCount()
 			);
 			// R9-1 — 완료 시점 결과 수치를 Job 에 탑재. 페이지가 bgjob:completed 토스트 문구에 사용.
 			backgroundJobService.complete(jobId, Map.of(
@@ -440,6 +453,14 @@ public class PathReconciliationService {
 		// 판정도 대표하지 못하므로 미아 마커(SOFTDEL_MARKER_STRAY) 병행 신호로만 보고하고, 뒤 블록(5.5a)의
 		// 상태 판정을 침묵시키지 않는다. 종전에는 마커 한 장이 무조건 escapeReported 에 등록되어 소실 · 유령
 		// 판정이 억제되고 거짓 SCAN_UNOBSERVED 해결 이력이 쌓였다(4b 의 본체 검사 B-1 과 같은 원칙 적용).
+		// MK4-4-2 — 짝 없는 마커의 수를 여기서 센다. (4) 가 끝나 matchedMarkers 가 확정된 시점이라
+		// "활성 자원과 이어지지도, 삭제 기록과 이어지지도 않은 마커" 가 정확히 이 집합이다. 아래 루프의
+		// ORPHAN 분기에서 세지 않는 이유는 그 분기가 판정 로직이고 여기는 집계여서다 — 분기에 계산을
+		// 얹으면 판정이 바뀔 때마다 집계가 함께 흔들린다.
+		int unmatchedMarkerCount = (int) diskMarkers.keySet().stream()
+				.filter(k -> !matchedMarkers.contains(k) && !deletedByKey.containsKey(k))
+				.count();
+
 		Set<MarkerKey> escapeReported = new HashSet<>();
 		for (Map.Entry<MarkerKey, List<MarkerHit>> e : diskMarkers.entrySet()) {
 			MarkerKey key = e.getKey();
@@ -564,9 +585,15 @@ public class PathReconciliationService {
 				.scannedAt(start)
 				.scanDurationMs(durationMs)
 				.deep(deep)
-				.totalChecked(activeInventory.size())
+				// MK4-4-2 — 본 것을 전부 센다. 종전에는 활성 자원만 세면서 삭제 자원 · 짝 없는 마커에서
+				// 나온 드리프트를 목록에 실어, 점검 대상보다 문제가 많아 보이는 화면이 됐다.
+				.population(ScanPopulation.of(
+						activeInventory.size(), deletedByKey.size(), unmatchedMarkerCount))
 				.build();
 		report.recordFailedScanRoots(failedScanRoots);
+		// MK4-4-2 — 실패한 범위만이 아니라 뒤진 범위도 남긴다. 회차 상세가 "이 점검이 무엇을 했는가" 에
+		// 답하려면 성공한 범위를 알아야 하는데 종전에는 어디에도 기록되지 않았다.
+		report.recordScannedRoots(scanRoots.stream().map(Path::toString).sorted().toList());
 		DriftReport saved = driftReportRepository.save(report);
 
 		// MK4-1 — 이번 회차에 발견된 것들을 지속되는 문제에 잇는다. 같은 신원의 열린 문제가 이미
@@ -972,6 +999,31 @@ public class PathReconciliationService {
 		return driftReportRepository.findAllBy(pageable).map(this::toResponse);
 	}
 
+	/**
+	 * MK4-4-2 — 회차 하나. 이력 상세 화면이 쓴다.
+	 *
+	 * <p>목록이 이미 실어 온 값을 화면이 골라 쓰게 하지 않고 다시 조회하는 이유는, 상세가 목록의
+	 * 페이지에 실린 회차만 열 수 있게 되는 것을 피하기 위해서다 — 2 페이지의 회차를 열었다가
+	 * 돌아오면 그 회차가 사라지는 식의 결합이 생긴다.</p>
+	 */
+	@Transactional(readOnly = true)
+	public DriftReportResponse report(Long reportId) {
+		return driftReportRepository.findById(reportId)
+				.map(this::toResponse)
+				.orElseThrow(() -> new DriftReportNotFoundException(reportId));
+	}
+
+	/**
+	 * MK4-4-2 — 문제 하나. 드리프트 상세 화면이 쓴다. 사용 깊이까지 실어 배지 근거를 갖춘다.
+	 */
+	@Transactional(readOnly = true)
+	public DriftResponse drift(Long driftId) {
+		Drift drift = driftRepository.findById(driftId)
+				.orElseThrow(() -> new DriftNotFoundException(driftId));
+		return toDriftResponse(drift, usageFor(drift, usageOf(List.of(drift))),
+				predecessorsOf(List.of(drift)));
+	}
+
 	// ==== 액션 =========================================================
 
 	@Transactional
@@ -1118,7 +1170,8 @@ public class PathReconciliationService {
 				.scannedAt(Instant.now())
 				.scanDurationMs(0L)
 				.deep(false)
-				.totalChecked(1)
+				// saga 의 일시 보고서 — 자원 하나만 보고 만든 것이라 활성 1 건이 전부다.
+				.population(ScanPopulation.of(1, 0, 0))
 				.build();
 		Drift persisted = driftRepository.save(drift);
 		tempReport.addObservation(DriftObservation.builder()
@@ -1163,8 +1216,11 @@ public class PathReconciliationService {
 				.toList();
 		// MK4-2 — 종전에는 최초 발견 순이었다. 이제 급한 순이며, 최초 발견은 동률을 깨는 마지막 기준이다.
 		Map<ResourceKey, ResourceUsageLevel> usage = usageOf(open);
+		// MK4-4-2 — 계보의 직전 한 마디를 함께 싣는다. 전임은 대개 이미 닫혀 위 조회에 없으므로
+		// 식별자를 모아 한 번 더 읽는다(행마다 지연 로딩을 타면 조회가 행 수만큼 늘어난다).
+		Map<Long, Drift> predecessors = predecessorsOf(open);
 		return open.stream()
-				.map(d -> toDriftResponse(d, usageFor(d, usage)))
+				.map(d -> toDriftResponse(d, usageFor(d, usage), predecessors))
 				.sorted(Comparator.comparing(DriftResponse::priority))
 				.collect(Collectors.toList());
 	}
@@ -1236,21 +1292,188 @@ public class PathReconciliationService {
 	 * MK4-1 — 문제 하나를 화면 값으로. 최신 스냅샷 · 수명 · 상태를 함께 싣는다.
 	 */
 	static DriftResponse toDriftResponse(Drift d) {
-		return toDriftResponse(d, null);
+		return toDriftResponse(d, null, Map.of());
 	}
 
 	/**
 	 * MK4-2 — 사용 깊이를 함께 실어 매핑한다. {@code usage} 가 {@code null} 이면 계산하지 않은 응답이며,
 	 * 화면은 사용 중 배지를 띄우지 않는다.
+	 *
+	 * <p>MK4-4-2 — 계보의 직전 한 마디를 함께 싣는다. {@code loadedPredecessors} 는 미리 한 번에
+	 * 읽어 둔 전임들이다 — 여기서 지연 로딩 연관을 그대로 타면 목록의 행 수만큼 조회가 늘어난다
+	 * (사용 깊이를 일괄로 읽는 {@code usageOf} 와 같은 이유).</p>
 	 */
-	static DriftResponse toDriftResponse(Drift d, ResourceUsageLevel usage) {
+	static DriftResponse toDriftResponse(Drift d, ResourceUsageLevel usage,
+			Map<Long, Drift> loadedPredecessors) {
 		return new DriftResponse(
 				d.getId(), d.getResourceType(), d.getResourceId(), d.getDisplayName(),
 				d.getKind(), d.getOldPath(), d.getNewPath(),
 				d.getFirstDetectedAt(), d.getLastObservedAt(), d.getObservationCount(),
 				d.getStatus(), d.getSnoozeUntil(), d.getSnoozeReason(),
 				// 화면의 버튼 비활성 사유와 서버 가드가 같은 도메인 메서드를 본다 (UI 1차 차단의 단일 소스).
-				d.snoozeBlockReason(), d.resolveBlockReason(), d.getDetail(), usage);
+				d.snoozeBlockReason(), d.resolveBlockReason(), d.getDetail(), usage,
+				originOf(d, loadedPredecessors));
+	}
+
+	/**
+	 * MK4-4-2 — 전임 한 마디를 응답 값으로. 미리 읽어 둔 것에 없으면 비운다 — 없는 것을 여기서
+	 * 조회하면 일괄로 읽은 의미가 사라진다.
+	 */
+	private static DriftOriginResponse originOf(Drift d, Map<Long, Drift> loadedPredecessors) {
+		Long predecessorId = predecessorIdOf(d);
+		if (predecessorId == null) return null;
+		Drift predecessor = loadedPredecessors.get(predecessorId);
+		if (predecessor == null) return null;
+		return new DriftOriginResponse(predecessor.getId(), predecessor.getKind(),
+				predecessor.getFirstDetectedAt(), predecessor.getResolvedAt());
+	}
+
+	/**
+	 * 지연 로딩 연관에서 <b>식별자만</b> 꺼낸다. 식별자는 프록시가 이미 들고 있어 이 접근만으로는
+	 * 조회가 일어나지 않는다 — 종류나 시각을 읽는 순간 비로소 조회된다.
+	 */
+	private static Long predecessorIdOf(Drift d) {
+		Drift predecessor = d.getPredecessor();
+		return predecessor == null ? null : predecessor.getId();
+	}
+
+	/**
+	 * MK4-4-2 — 여러 문제의 전임을 한 번에 읽는다. 전임은 대개 이미 닫힌 문제라 목록 조회 결과
+	 * 안에 없으므로, 식별자를 모아 별도로 한 번 읽는다.
+	 */
+	private Map<Long, Drift> predecessorsOf(Collection<Drift> drifts) {
+		Set<Long> ids = drifts.stream()
+				.map(PathReconciliationService::predecessorIdOf)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		if (ids.isEmpty()) return Map.of();
+		return driftRepository.findAllById(ids).stream()
+				.collect(Collectors.toMap(Drift::getId, d -> d));
+	}
+
+
+	/** 사슬이 길어져도 화면이 감당할 만한 깊이. 넘으면 거기서 끊고 더 있다는 사실만 알린다. */
+	private static final int MAX_LINEAGE_DEPTH = 20;
+
+	/** 이력 화면이 한 번에 보이는 줄 수. 나머지는 감추되 몇 건인지는 밝힌다. */
+	private static final int TIMELINE_PAGE_SIZE = 20;
+
+	/**
+	 * MK4-4-2 — 이 드리프트에 무슨 일이 있었나. 관측 · 처리 · 이어짐 · 이어 줌을 <b>한 시간축</b>에
+	 * 놓는다.
+	 *
+	 * <p>넷을 나눠 늘어놓지 않는 이유는 실제로 번갈아 일어나기 때문이다. 계보를 별도 구획으로
+	 * 두었더니 두 구획이 서로 무슨 관계인지 알 수 없다는 지적을 받았고, 시간축이 하나면 그 관계가
+	 * 자리로 드러난다.</p>
+	 *
+	 * <p><b>뒤로 이어 준 것까지 싣는다.</b> 계보 링크가 후임 → 전임 단방향이라 닫힌 드리프트를
+	 * 열면 과거만 보였고, 그것이 정말 끝난 것인지 뒤에 더 생긴 문제가 방치된 것인지 구분할 방법이
+	 * 없었다(사용자 지적). 이제 사슬을 양쪽으로 펼쳐 놓고, 아직 열려 있는 자리는 그래프의 색이
+	 * 드러낸다.</p>
+	 *
+	 * <p>관측은 점검마다 쌓이므로 최근 것만 싣고 감춘 수를 함께 돌려준다. <b>사슬은 감추지
+	 * 않는다</b> — 어디서 시작해 어디로 이어졌는지는 건수와 무관하게 알아야 하는 사실이다.</p>
+	 */
+	@Transactional(readOnly = true)
+	public DriftTimelineResponse timelineOf(Long driftId) {
+		Drift drift = driftRepository.findById(driftId)
+				.orElseThrow(() -> new DriftNotFoundException(driftId));
+		boolean selfResolved = drift.getStatus() == DriftStatus.RESOLVED;
+
+		List<DriftTimelineEntry> own = new ArrayList<>();
+		for (DriftObservation observation :
+				driftObservationRepository.findByDriftWithReportOrderByObservedAtDesc(drift)) {
+			DriftReport report = observation.getReport();
+			own.add(new DriftTimelineEntry(
+					observation.getObservedAt(), DriftTimelineKind.OBSERVATION,
+					report.isDeep() ? "정밀 점검에서 관측" : "일반 점검에서 관측",
+					report.getId(), null, false, selfResolved,
+					observation.getOldPath(), observation.getNewPath()));
+		}
+		for (DriftHandling handling : driftHandlingRepository.findByDriftOrderByHandledAtDesc(drift)) {
+			own.add(new DriftTimelineEntry(
+					handling.getHandledAt(), DriftTimelineKind.HANDLING,
+					// 문구의 단일 소스는 DriftHandlingAction 이다 — 여기서 조립하면 같은 처리가
+					// 화면마다 다르게 불리게 된다.
+					handling.getAction().getLabel(),
+					null, null, false, selfResolved,
+					handling.getPreviousPath(), handling.getMovedToPath()));
+		}
+		// 최근 것이 위로. 같은 시각이면 처리가 관측보다 뒤이므로 회차 없는 쪽을 앞에 둔다.
+		own.sort(Comparator.comparing(DriftTimelineEntry::at).reversed()
+				.thenComparing(e -> e.reportId() == null ? 0 : 1));
+		// 사슬 안에서 "지금 여기" 를 가리키는 표식은 하나여야 한다. 자기 줄 전체를 그렇게 두었더니
+		// 관측이 쌓인 드리프트에서 화면이 온통 마름모가 되어 표식이 아무것도 가리키지 않게 됐다.
+		if (!own.isEmpty()) {
+			own.set(0, own.get(0).asCurrent());
+		}
+
+		List<DriftTimelineEntry> entries = new ArrayList<>(successorEntries(drift));
+		entries.addAll(own.stream().limit(TIMELINE_PAGE_SIZE).toList());
+		int hidden = own.size() - Math.min(own.size(), TIMELINE_PAGE_SIZE);
+		entries.addAll(predecessorEntries(drift));
+		return new DriftTimelineResponse(List.copyOf(entries), hidden);
+	}
+
+	/**
+	 * 과거 쪽 사슬 — 이 드리프트가 이어받은 것들. 앞선 드리프트가 <b>닫힌 때</b>가 곧 이 드리프트로
+	 * 이어진 때다. 가까운 전임부터 담으므로 시간 역순 목록에 그대로 이어 붙는다.
+	 */
+	private List<DriftTimelineEntry> predecessorEntries(Drift drift) {
+		List<DriftTimelineEntry> chain = new ArrayList<>();
+		Set<Long> seen = new HashSet<>();
+		seen.add(drift.getId());
+		for (Drift cur = drift.getPredecessor();
+			 cur != null && seen.add(cur.getId()) && chain.size() < MAX_LINEAGE_DEPTH;
+			 cur = cur.getPredecessor()) {
+			chain.add(successionEntry(cur, DriftTimelineKind.SUCCESSION,
+					"전임 · " + cur.getKind().getLabel(),
+					cur.getResolvedAt() != null ? cur.getResolvedAt() : cur.getLastObservedAt()));
+		}
+		return chain;
+	}
+
+	/**
+	 * 이후 쪽 사슬 — 이 드리프트가 닫히며 이어 준 것들. 후임이 <b>처음 감지된 때</b>가 이어 준 때다.
+	 *
+	 * <p>하나가 닫히며 여러 종류가 함께 드러날 수 있어(fan-out) 너비 우선으로 훑는다. 최근 것이
+	 * 위로 오도록 시간 역순으로 정렬해 돌려준다.</p>
+	 */
+	private List<DriftTimelineEntry> successorEntries(Drift drift) {
+		List<DriftTimelineEntry> chain = new ArrayList<>();
+		Set<Long> seen = new HashSet<>();
+		seen.add(drift.getId());
+		Deque<Drift> queue = new ArrayDeque<>(driftRepository.findByPredecessor(drift));
+		while (!queue.isEmpty() && chain.size() < MAX_LINEAGE_DEPTH) {
+			Drift cur = queue.poll();
+			if (!seen.add(cur.getId())) continue;
+			chain.add(successionEntry(cur, DriftTimelineKind.SUCCEEDED_BY,
+					"후임 · " + cur.getKind().getLabel(),
+					cur.getFirstDetectedAt()));
+			queue.addAll(driftRepository.findByPredecessor(cur));
+		}
+		chain.sort(Comparator.comparing(DriftTimelineEntry::at).reversed());
+		return chain;
+	}
+
+	/**
+	 * 사슬의 한 마디를 시간축의 줄로. 색은 그 드리프트가 닫혔는지에서 온다.
+	 *
+	 * <p><b>경로를 싣지 않는다.</b> 사슬은 같은 자원을 두고 이어지므로 상대의 경로가 이 드리프트의
+	 * 것과 거의 같아 되풀이일 뿐이고, 그것을 지워야 경로 열의 뜻이 "이 드리프트가 그때 어디에
+	 * 있었나" 하나로 정리된다. 종전에는 한 열이 세 가지(그때 본 위치 · 옮긴 자취 · 상대의 대상
+	 * 파일)를 겸해, 어느 줄의 경로가 무엇을 말하는지 읽는 사람이 매번 되짚어야 했다.</p>
+	 *
+	 * <p>문구를 「종류」 만으로 쓰지 않는 이유는 사슬에 같은 종류가 두 번 나올 수 있어서다 —
+	 * 실제로 자원 중복 존재가 사슬의 앞뒤에 모두 있어 어미로만 갈리던 상태였다. 방향을 앞세우고
+	 * 번호를 옆에 두면 이름이 같아도 갈린다.</p>
+	 */
+	private static DriftTimelineEntry successionEntry(
+			Drift other, DriftTimelineKind kind, String label, Instant at) {
+		return new DriftTimelineEntry(
+				at, kind, label, null, other.getId(),
+				false, other.getStatus() == DriftStatus.RESOLVED,
+				null, null);
 	}
 
 	/** MK4-2 — 드리프트들이 가리키는 자원의 사용 깊이를 한 번에 조회한다(자원마다 부르면 N+1). */
@@ -1277,16 +1500,17 @@ public class PathReconciliationService {
 				.collect(Collectors.toList());
 		// MK4-2 — 목록의 순서는 급한 순이다. 정렬 기준은 DriftPriority 한 곳에만 있다(사전식).
 		Map<ResourceKey, ResourceUsageLevel> usage = usageOf(observed);
+		Map<Long, Drift> predecessors = predecessorsOf(observed);
 		List<DriftResponse> drifts = observed.stream()
-				.map(d -> toDriftResponse(d, usageFor(d, usage)))
+				.map(d -> toDriftResponse(d, usageFor(d, usage), predecessors))
 				.sorted(Comparator.comparing(DriftResponse::priority))
 				.collect(Collectors.toList());
 		return new DriftReportResponse(
 				r.getId(), r.getScannedAt(),
-				formatDuration(r.getScanDuration()), r.isDeep(), r.getTotalChecked(),
+				formatDuration(r.getScanDuration()), r.isDeep(), r.getPopulation(),
 				// MK4-1 — 탐지 수는 그 회차의 사실로 고정. 미해결 수는 보고서가 아니라 현재 열린 문제에서 센다.
 				r.getDetectedDriftCount(),
-				r.getFailedScanRootList(), drifts
+				r.getScannedRootList(), r.getFailedScanRootList(), drifts
 		);
 	}
 

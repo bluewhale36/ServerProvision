@@ -14,6 +14,7 @@ import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -59,7 +60,7 @@ class DriftRecheckTest {
 
     private Drift driftInReport(Long id, DriftKind kind, String oldPath) {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(10).deep(false).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(10).deep(false).population(ScanPopulation.of(1, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(kind)
                 .oldPath(oldPath).newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();

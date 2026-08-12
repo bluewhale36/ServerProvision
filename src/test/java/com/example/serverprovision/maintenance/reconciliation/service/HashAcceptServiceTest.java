@@ -16,6 +16,7 @@ import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,7 +74,7 @@ class HashAcceptServiceTest {
 
     private Drift hashDriftInReport(Long id, String observedHash) {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(10).deep(true).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(10).deep(true).population(ScanPopulation.of(1, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.HASH_MISMATCH)
                 .oldPath("/iso/dvd.iso").newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now())
@@ -180,7 +181,7 @@ class HashAcceptServiceTest {
 
         // 다른 종류 (direct POST 안전망)
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(10).deep(false).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(10).deep(false).population(ScanPopulation.of(1, 0, 0)).build();
         Drift missing = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.MISSING)
                 .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();

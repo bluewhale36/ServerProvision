@@ -7,6 +7,7 @@ import com.example.serverprovision.maintenance.reconciliation.dto.response.Drift
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
 import com.example.serverprovision.maintenance.reconciliation.vo.ScanCoverage;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import com.example.serverprovision.provisioning.usage.ResourceUsageLevel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,11 @@ class ReconciliationCoverageRenderTest {
 	@MockitoBean
 	private com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler scheduler;
 
+	// MK4-4-2 — 목록이 [전체 해결] 대상 수를 함께 보인다. 이 테스트의 관심사는 커버리지 표기라
+	// 스텁하지 않고 둔다(0 이면 버튼이 비활성으로 그려질 뿐이다).
+	@MockitoBean
+	private com.example.serverprovision.maintenance.reconciliation.service.DriftBulkApplyService bulkApplyService;
+
 	@MockitoBean
 	private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
@@ -55,13 +61,12 @@ class ReconciliationCoverageRenderTest {
 		return new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.4 dvd.iso",
 				DriftKind.HASH_MISMATCH, "/db/dvd.iso", null,
 				NOW, NOW, 2, DriftStatus.OPEN, null, null, null, null, "지문 불일치",
-				ResourceUsageLevel.ASSIGNED);
+				ResourceUsageLevel.ASSIGNED, null);
 	}
 
 	private void givenPage(ScanCoverage coverage) {
 		given(reconciliationService.history(any())).willReturn(new PageImpl<>(List.of(
-				new DriftReportResponse(10L, NOW, "0.1초", coverage.contentChecked(), 5, 1,
-						List.of(), List.of(hashMismatch())))));
+				new DriftReportResponse(10L, NOW, "0.1초", coverage.contentChecked(), ScanPopulation.of(5, 0, 0), 1, List.of(), List.of(), List.of(hashMismatch())))));
 		given(reconciliationService.latestReport()).willReturn(java.util.Optional.empty());
 		given(reconciliationService.openDriftCount()).willReturn(1L);
 		given(reconciliationService.openDrifts()).willReturn(List.of(hashMismatch()));
@@ -79,10 +84,10 @@ class ReconciliationCoverageRenderTest {
 				.andExpect(status().isOk())
 				.andExpect(model().attributeExists("scanCoverage"))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
-						"이번 점검은 파일 내용을 확인하지 않았습니다.")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("마지막 정밀 점검")))
-				// 내용을 봐야 판정되는 종류의 자리에 '확인 안 됨' 이 붙는다.
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("확인 안 됨")));
+						"이번 점검은 파일 내용을 확인하지 않았습니다")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("마지막 정밀 점검")));
+		// '확인 안 됨' 표시는 드리프트 상세의 필드다. MK4-4-2 개편으로 상세가 별도 화면이 되면서
+		// 이 목록에서는 확인할 수 없게 됐다 — 그 검증은 상세 화면 테스트가 맡는다.
 	}
 
 	@Test
@@ -93,9 +98,7 @@ class ReconciliationCoverageRenderTest {
 		mvc.perform(get("/maintenance/reconciliation"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.not(
-						org.hamcrest.Matchers.containsString("이번 점검은 파일 내용을 확인하지 않았습니다."))))
-				.andExpect(content().string(org.hamcrest.Matchers.not(
-						org.hamcrest.Matchers.containsString("확인 안 됨"))));
+						org.hamcrest.Matchers.containsString("이번 점검은 파일 내용을 확인하지 않았습니다"))));
 	}
 
 	@Test
@@ -106,7 +109,8 @@ class ReconciliationCoverageRenderTest {
 		mvc.perform(get("/maintenance/reconciliation"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
-						"남아 있는 정밀 점검 기록이 없습니다.")));
+						// MK4-4-2 — 라벨(마지막 정밀 점검)과 값이 갈리면서 값 쪽 문구가 짧아졌다.
+						"남아 있는 기록 없음")));
 	}
 
 	@Test
@@ -116,6 +120,7 @@ class ReconciliationCoverageRenderTest {
 
 		mvc.perform(get("/maintenance/reconciliation"))
 				.andExpect(status().isOk())
+				// 목록은 위험도와 사용 중을 열로 보여 준다. 설명 문구는 상세의 몫이다.
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("위험도")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						DriftKind.HASH_MISMATCH.getSeverity().getLabel())))

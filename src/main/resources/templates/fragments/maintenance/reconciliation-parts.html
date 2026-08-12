@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  자원 무결성 점검 — 화면 공통 조각 (MK4-4-2)
+  ─────────────────────────────────────────────────────────
+  첫 화면 · 회차 상세 · 드리프트 상세가 <b>같은 조각</b>을 쓴다. 배너 · 표 · 처리 버튼이 화면마다
+  따로 있으면 한 곳을 고칠 때 나머지가 조용히 뒤처진다 — 실제로 [해결] 폼 셋이 복붙이던 때
+  자원 중복 폼만 상태 가드를 빠뜨려 이미 해결된 뒤에도 눌렸다.
+
+  시각 양식은 U3-4 가 만든 css/grouped-list.css 를 그대로 쓴다 — 바깥 묶음(n-glist) →
+  안쪽 흰 판(n-glist-panel) → 표(n-table). 목록의 각 행에는 data-nav-key 를 붙인다. 그것 하나로
+  global/nav-stack.js 가 상세를 다녀온 뒤 그 행을 짚어 준다(n-row-returned).
+
+-->
+<head><title>reconciliation parts</title></head>
+<body>
+
+<!--/* 세 화면이 같은 CSS 를 싣는다. 한 곳에서 늘려야 화면마다 뒤처지지 않는다. */-->
+<th:block th:fragment="styles">
+    <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <link rel="stylesheet" th:href="@{/css/grouped-list.css}">
+    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+</th:block>
+
+<!--/* 헤더 우측 고정 자리 — 어느 화면에서든 같은 곳에 있다.
+     성질이 다른 둘이 한 줄에 서므로 구분선으로 가른다.
+       · 왼쪽 — <b>이동</b>. 다른 화면으로 간다. 눌러도 아무것도 일어나지 않는다
+       · 오른쪽 — <b>실행</b>. 점검을 돌린다. 그중 주 동작(지금 점검)이 맨 끝이다
+     넷을 같은 선에 색만 달리 두었더니 무엇이 화면 이동이고 무엇이 실행인지 갈리지 않았다.
+     자주 쓰는 것이 오른쪽 끝에 오는 것은 이 시스템 전체의 관례다. */-->
+<div th:fragment="scanActions" class="n-header-actions">
+    <a class="n-btn n-btn-ghost" th:href="@{/maintenance/reconciliation/reports}">점검 이력</a>
+    <a class="n-btn n-btn-ghost" th:href="@{/maintenance/reconciliation/settings}">운영 설정</a>
+
+    <span class="n-header-divider" aria-hidden="true"></span>
+
+    <button type="button" id="scanDeepBtn" class="n-btn n-btn-secondary"
+            title="파일 내용까지 검사합니다 — 용량에 따라 수 분이 걸릴 수 있어요."
+            th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">정밀 점검
+    </button>
+    <button type="button" id="scanBtn" class="n-btn n-btn-primary"
+            title="등록 정보와 디스크 상태의 불일치를 바로 점검합니다."
+            th:data-scan-url="@{/maintenance/reconciliation/scan}">지금 점검
+    </button>
+</div>
+
+<!--/* 도메인 설명 · 상태 경고 묶음. 어느 화면에서 들어와도 같은 것을 알려야 하므로 한 조각이다. */-->
+<th:block th:fragment="banners">
+    <!--/* 도메인 설명과 점검 범위 안내는 여기 두지 않는다(2026-08-12 결정). 화면을 열 때마다
+         읽을 것이 아니라 한 번 익히면 되는 내용이라 매뉴얼의 몫이고, 미해결 목록 위에 늘 한 칸을
+         차지하면 정작 처리해야 할 것이 아래로 밀린다. 남기는 배너는 <b>지금 상태에 관한 경고</b>
+         뿐이다 — 해결이 꺼져 있다 · 이번 점검이 내용을 안 봤다 · 격리된 파일이 있다. */-->
+
+    <!--/* MK4-3-1 — 시스템 해결이 꺼져 있으면 상시 알린다. 탐지는 계속하되 고치는 행위만 전부
+         멈추는 비상 차단기라, 끈 사실을 잊으면 시스템이 조용히 아무것도 고치지 않는 상태로 남는다. */-->
+    <div th:if="${!resolutionEnabled}" class="n-banner n-banner-warn">
+        <strong>시스템 해결이 꺼져 있습니다.</strong>
+        점검은 계속하지만 발견된 드리프트를 고치지 않습니다 — 수동 [해결] 과 점검 중 자동 처리가 모두 멈춥니다.
+        <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서 다시 켤 수 있습니다.
+    </div>
+
+    <!--/* MK4-2 — 일반 점검은 마커와 위치만 보고 파일 내용은 다시 계산하지 않는다. 알리지 않으면
+         내용에 관한 문제가 목록에서 빠진 것이 해결된 것으로 읽힌다.
+
+         담을 것이 다섯(제목 · 설명 · 마지막 정밀 · 다음 예정 · 무엇을 할 수 있는가)이라 배너의
+         기본 가로 배치로는 조각이 나뉜다. 세 층으로 세운다 —
+           제목 → 왜 중요한가 → 시각 두 개를 라벨과 값의 쌍으로.
+         시각이 사실이고 나머지는 그 사실을 읽는 법이라, 시각만 따로 모아야 눈이 바로 찾는다. */-->
+    <div th:if="${scanCoverage != null and !scanCoverage.contentChecked}"
+         class="n-banner n-banner-warn n-banner-stack">
+        <strong>이번 점검은 파일 내용을 확인하지 않았습니다</strong>
+        <div>
+            내용이 바뀐 자원은 이번 목록에 나타나지 않을 수 있습니다 — 해결된 것이 아니라 보지 않은 것입니다.
+            상단 <strong>[정밀 점검]</strong> 으로 내용까지 확인할 수 있습니다.
+        </div>
+        <dl class="n-banner-facts">
+            <div>
+                <dt>마지막 정밀 점검</dt>
+                <dd th:if="${!scanCoverage.neverDeepScanned()}"
+                    th:text="${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')}">2026-08-13 08:35</dd>
+                <!--/* 보관 개수를 줄이면 오래된 회차가 정리되어 정밀 점검 기록도 함께 사라진다.
+                     그때 "한 번도 하지 않았다" 고 말하면 사실이 아니다 — 없는 것은 기록이지 점검이 아니다. */-->
+                <dd th:if="${scanCoverage.neverDeepScanned()}">남아 있는 기록 없음</dd>
+            </div>
+            <div>
+                <dt>다음 정밀 점검 예정</dt>
+                <!--/* MK4-3-2 — 예정을 밝히지 않으면 지금 눌러야 하는지 판단할 근거가 없다.
+                     기록이 없어 예정을 계산할 수 없으면 밀려 있다는 뜻이라 곧 돈다. */-->
+                <dd th:if="${nextDeepScanAt != null}"
+                    th:text="${#temporals.format(nextDeepScanAt, 'yyyy-MM-dd HH:mm')}">2026-08-13 08:37</dd>
+                <dd th:if="${nextDeepScanAt == null}">밀려 있어 곧 자동 실행</dd>
+            </div>
+        </dl>
+    </div>
+
+    <div th:if="${quarantinePendingCount != null and quarantinePendingCount > 0}" class="n-banner n-banner-warn">
+        <span>업로드 실패로 격리된 파일 <strong th:text="${quarantinePendingCount}"></strong>건이 복구를 기다립니다.</span>
+        <a th:href="@{/maintenance/quarantine}" class="n-btn n-btn-sm n-btn-secondary">업로드 실패 복구</a>
+    </div>
+
+    <!--/* R9-1 — 이 페이지가 트리거하지 않은 점검이 끝났을 때 list.js 가 띄운다. 자동 reload 는
+         열람 중 화면을 리셋시키므로 하지 않는다. */-->
+    <div id="newReportBanner" hidden class="n-banner n-banner-warn">
+        <span>새 점검 보고서가 도착했습니다.</span>
+        <button type="button" id="newReportReloadBtn" class="n-btn n-btn-sm n-btn-secondary">새로고침</button>
+    </div>
+</th:block>
+
+<!--/* 점검 이력 표. 후보 A 의 첫 화면과 후보 B 의 이력 화면이 같은 것을 쓴다. */-->
+<section th:fragment="reportTable(reports, pageBasePath)" class="n-card n-glist">
+    <div class="n-glist-head">
+        <strong class="n-glist-title">점검 이력</strong>
+        <span class="n-glist-hint">회차를 열면 그 점검이 무엇을 어디까지 봤는지 확인할 수 있습니다</span>
+        <span class="n-badge n-badge-gray" th:text="|${totalElements} 회|">12 회</span>
+    </div>
+
+    <div class="n-glist-panel">
+        <div th:if="${#lists.isEmpty(reports)}" class="n-empty">
+            <div class="n-empty-title">아직 보고된 점검 이력이 없습니다.</div>
+            <div class="n-empty-desc">상단의 <strong>지금 점검</strong> 으로 첫 점검을 시작하세요.</div>
+        </div>
+
+        <table th:unless="${#lists.isEmpty(reports)}" class="n-table">
+            <thead>
+            <tr>
+                <th>점검 일시</th>
+                <th>유형</th>
+                <th>점검 대상</th>
+                <th>탐지</th>
+                <th>소요</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="report : ${reports}" class="n-row-hover" th:data-nav-key="${report.id}">
+                <td>
+                    <a class="n-row-link"
+                       th:href="@{/maintenance/reconciliation/reports/{id}(id=${report.id})}"
+                       th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd HH:mm:ss')}">2026-08-12 10:30:00</a>
+                </td>
+                <td>
+                    <span class="n-badge" th:classappend="${report.deep} ? 'n-badge-blue' : 'n-badge-gray'"
+                          th:text="${report.deep} ? '정밀' : '일반'">일반</span>
+                </td>
+                <!--/* MK4-4-2 — 점검은 활성 자원만 보는 것이 아니다. 총계 옆에 내역을 붙여, 탐지
+                     건수가 이 수를 넘는 것처럼 보이던 모순을 없앤다(진단 1-5). */-->
+                <td>
+                    <span th:text="|${report.population.total()} 건|">16 건</span>
+                    <div th:if="${report.population.hasNonActive()}" class="n-spec-cell"
+                         th:text="|활성 ${report.population.activeCount} · 삭제 ${report.population.deletedCount} · 짝없는 마커 ${report.population.unmatchedMarkerCount}|">
+                        활성 9 · 삭제 6 · 짝없는 마커 1
+                    </div>
+                </td>
+                <td>
+                    <span class="n-badge"
+                          th:classappend="${report.detectedDriftCount > 0} ? 'n-badge-yellow' : 'n-badge-gray'"
+                          th:text="|${report.detectedDriftCount} 건|">0 건</span>
+                </td>
+                <td class="n-spec-cell" th:text="${report.scanDuration}">0.45초</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <!--/* 표와 쪽 이동은 붙어 다닌다 — 따로 두면 화면마다 한쪽만 옮겨 붙이는 일이 생긴다. */-->
+        <div th:if="${totalPages > 1}"
+             th:replace="~{fragments/maintenance/reconciliation-parts :: pagination(${pageBasePath})}"></div>
+    </div>
+</section>
+
+<!--/* 문제 표. 회차 상세의 '그 회차에서 나온 것' 과 후보 B 의 '지금 남은 것' 이 같은 것을 쓴다.
+     순서는 둘 다 급한 순이며 그 정렬은 서비스(DriftPriority)가 이미 해 두었다. */-->
+<div th:fragment="driftTable(drifts, emptyTitle, emptyDesc)">
+    <div th:if="${#lists.isEmpty(drifts)}" class="n-empty">
+        <div class="n-empty-title" th:text="${emptyTitle}">남아 있는 문제가 없습니다.</div>
+        <div class="n-empty-desc" th:text="${emptyDesc}"></div>
+    </div>
+
+    <table th:unless="${#lists.isEmpty(drifts)}" class="n-table">
+        <thead>
+        <tr>
+            <!--/* 번호를 맨 앞에 둔다. 로그나 다른 화면에서 번호로 찾아온 사람이 목록에서 바로
+                 짚을 수 있어야 하고, 상세 화면과 이력 표가 이미 같은 자리에 번호를 두고 있다. */-->
+            <th class="n-tl-id">번호</th>
+            <th>자원</th>
+            <th>드리프트</th>
+            <th>위험도</th>
+            <th>사용 중</th>
+            <th>처음 감지</th>
+            <th>상태</th>
+            <th class="n-th-center">처리</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="drift : ${drifts}" class="n-row-hover" th:data-nav-key="${drift.id}">
+            <td class="n-tl-id n-spec-cell" th:text="|#${drift.id}|">#378</td>
+            <td>
+                <a class="n-row-link"
+                   th:href="@{/maintenance/reconciliation/drifts/{id}(id=${drift.id})}"
+                   th:text="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
+                <div class="n-spec-cell" th:text="${drift.resourceType}">OS_ISO</div>
+            </td>
+            <!--/* 종류는 글자로만 둔다. 배지 색으로 또 나누면 눈이 색부터 좇는데, 정작 순서를
+                 정하는 것은 옆의 위험도와 사용 중이고 목록은 이미 그 순서로 놓여 있다. 종류마다
+                 다른 색은 그 순서와 무관한 축이라 읽는 사람을 헷갈리게 한다. */-->
+            <td th:text="${drift.kind.label}">경로 이동됨</td>
+            <td>
+                <span class="n-badge"
+                      th:classappend="${drift.kind.severity.name() == 'IMMEDIATE'} ? 'n-badge-red' : (${drift.kind.severity.name() == 'ATTENTION'} ? 'n-badge-yellow' : 'n-badge-gray')"
+                      th:text="${drift.kind.severity.label}">즉시</span>
+            </td>
+            <td>
+                <span th:if="${drift.hasUsage()}" class="n-badge n-badge-orange"
+                      th:text="${drift.usage.label}">할당됨</span>
+                <span th:unless="${drift.hasUsage()}" class="n-text-muted">—</span>
+            </td>
+            <!--/* MK4-4-2 — 「최초 발견」 과 「이어짐」 을 가른다. 같은 자원의 문제가 종류를 바꿔
+                 나타나면 새 기록이라 관측 횟수가 1 이고, 종전에는 그것도 최초 발견으로 표시됐다 —
+                 앞선 문제가 형태를 바꾼 것인데 방금 생겼다고 말하는 셈이었다. 어디서 이어졌는지는
+                 tooltip 이 말한다(S11-2 가 남긴 계보를 여기서 처음 꺼내 쓴다). */-->
+            <td class="n-spec-cell">
+                <span th:text="${#temporals.format(drift.firstDetectedAt, 'yyyy-MM-dd HH:mm')}">2026-08-12 10:30</span>
+                <span th:if="${drift.isNew()}" class="n-badge n-badge-red">최초 발견</span>
+                <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal n-tooltip"
+                      th:data-tooltip="|「${drift.predecessor.kindLabel()}」 문제가 닫힌 자리에서 이어졌습니다|">이어짐</span>
+            </td>
+            <td>
+                <span class="n-badge" th:classappend="'n-badge-' + ${drift.status.badgeColor}"
+                      th:text="${drift.status.label}">조치 필요</span>
+                <div th:if="${drift.snoozeUntil != null}" class="n-spec-cell"
+                     th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|"></div>
+            </td>
+            <!--/* 목록에서 바로 처리한다. 한 건 처리하려고 상세를 열었다 닫는 왕복이 진단이 지목한
+                 마찰이었다. 상세로 들어가야만 하는 조작(보관 사유 · 다시 점검)은 상세에 남는다. */-->
+            <td class="n-th-center">
+                <div th:replace="~{fragments/maintenance/reconciliation-parts :: resolveForms(${drift}, 'n-btn n-btn-sm n-btn-primary')}"></div>
+                <span th:unless="${drift.kind.manuallyResolvable or drift.kind.name() == 'HASH_MISMATCH' or drift.kind.name() == 'RESOURCE_REPLICA'}"
+                      class="n-tooltip n-text-muted" th:data-tooltip="${drift.kind.mode.description}">—</span>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!--/* [해결] 폼 묶음. 종류마다 계약이 다르지만(표준 · 내용 수용 · 중복 택일) 버튼은 같은 이름 ·
+     같은 자리다. 목록과 상세가 이 한 조각을 함께 쓰므로 두 곳의 버튼이 갈라질 자리가 없다.
+
+     비활성 사유는 n-btn-tooltip-wrap 이 알린다. 브라우저의 native title 은 disabled 버튼에서
+     뜨지 않아, 종전 화면은 왜 못 누르는지 말해 주지 못했다(S5-3-2 가 이 자산을 만들어 두었는데
+     이 화면만 쓰지 않고 있었다). */-->
+<th:block th:fragment="resolveForms(drift, btnClass)">
+    <th:block th:with="blocked=${drift.resolveBlockReason != null or !resolutionEnabled},
+                       reason=${drift.resolveBlockReason != null
+                               ? drift.resolveBlockReason
+                               : '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'}">
+
+        <form th:if="${drift.kind.manuallyResolvable}"
+              th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
+              method="post"
+              data-confirm-drift-apply=""
+              th:data-resource-type="${drift.resourceType}"
+              th:data-resource-id="${drift.resourceId}"
+              th:data-resource-label="|'${drift.kind.label}' 드리프트|"
+              th:data-resolve-title="${drift.kind.resolveTitle}"
+              th:data-resource-extra="${drift.kind.resolveAction}">
+            <span class="n-btn-tooltip-wrap" th:data-tooltip="${blocked} ? ${reason} : null"
+                  th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+                <button type="submit" th:class="${btnClass}" th:disabled="${blocked}">해결</button>
+            </span>
+        </form>
+
+        <!--/* S6-3-4 — 내용 변경 수용. 자원명 확인을 동반해 전용 endpoint 를 쓰지만 버튼은 같다. */-->
+        <form th:if="${drift.kind.name() == 'HASH_MISMATCH'}"
+              method="post"
+              th:action="@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}"
+              data-confirm-drift-accept-hash=""
+              th:data-resolve-title="${drift.kind.resolveTitle}"
+              th:data-resource-type="${drift.resourceType}"
+              th:data-resource-id="${drift.resourceId}"
+              th:attr="data-accept-hash-url=@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}">
+            <span class="n-btn-tooltip-wrap" th:data-tooltip="${blocked} ? ${reason} : null"
+                  th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+                <button type="submit" th:class="${btnClass}" th:disabled="${blocked}">해결</button>
+            </span>
+        </form>
+
+        <!--/* HF4-5 — 자원 중복 존재. 남길 쪽을 모달에서 고른다. 기본 선택은 항상 원본. */-->
+        <form th:if="${drift.kind.name() == 'RESOURCE_REPLICA'}"
+              method="post"
+              th:action="@{/maintenance/reconciliation/drifts/{driftId}/resolve-duplicate(driftId=${drift.id})}"
+              data-duplicate-resolve=""
+              th:data-resolve-title="${drift.kind.resolveTitle}"
+              th:data-resource-extra="${drift.kind.resolveAction}"
+              th:data-original-path="${drift.oldPath}"
+              th:data-duplicate-path="${drift.newPath}"
+              th:data-resource-label="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">
+            <input type="hidden" name="survivor" value="ORIGINAL">
+            <span class="n-btn-tooltip-wrap" th:data-tooltip="${blocked} ? ${reason} : null"
+                  th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+                <button type="submit" th:class="${btnClass}" th:disabled="${blocked}">해결</button>
+            </span>
+        </form>
+    </th:block>
+</th:block>
+
+<!--/* [전체 해결]. 무엇을 몇 건 집어가는지 버튼이 미리 말한다 — 누르고 나서 알게 되면 되돌릴 수 없다.
+     대상 범위는 화면이 정한다(회차 상세 = 그 회차 · 미해결 목록 = 열린 것 전체). 그 차이 자체가
+     두 후보의 비교 대상이라 버튼이 아니라 화면에 귀속시킨다. */-->
+<span th:fragment="bulkApplyButton(url, count, scopeText)" class="n-btn-tooltip-wrap"
+      th:with="blocked=${count == 0 or !resolutionEnabled}"
+      th:data-tooltip="${blocked}
+                       ? (${count == 0}
+                          ? '지금 해결할 수 있는 문제가 없습니다.'
+                          : '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.')
+                       : null"
+      th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+    <button type="button" class="n-btn n-btn-sm n-btn-primary"
+            data-bulk-apply=""
+            th:data-bulk-url="${url}"
+            th:data-bulk-count="${count}"
+            th:data-bulk-scope="${scopeText}"
+            th:disabled="${blocked}"
+            th:text="|전체 해결 (${count}건)|">전체 해결 (0건)</button>
+</span>
+
+<!--/* 페이지네이션. 쪽 이동이 어느 화면의 것인지는 호출부가 basePath 로 알린다 —
+     같은 표가 첫 화면과 이력 화면에서 함께 쓰이기 때문이다. */-->
+<div th:fragment="pagination(basePath)" class="n-pagination">
+    <a th:if="${page > 0}" class="n-btn n-btn-sm n-btn-ghost"
+       th:href="@{__${basePath}__(page=${page - 1}, size=${size})}">← 이전</a>
+    <span th:unless="${page > 0}" class="n-text-muted">← 이전</span>
+    <span th:text="|${page + 1} / ${totalPages}|">1 / 5</span>
+    <a th:if="${page + 1 < totalPages}" class="n-btn n-btn-sm n-btn-ghost"
+       th:href="@{__${basePath}__(page=${page + 1}, size=${size})}">다음 →</a>
+    <span th:unless="${page + 1 < totalPages}" class="n-text-muted">다음 →</span>
+</div>
+
+<!--/* R9-4 — 관리 도구. 서명 키를 교체한 직후 1 회만 쓰는 것이라 일상 점검 버튼과 떼어 하단에 둔다.
+     무엇인지 · 언제 쓰는지를 확인 창을 열기 전에 상시 밝힌다. */-->
+<section th:fragment="adminTools" class="n-card n-glist">
+    <div class="n-glist-head">
+        <strong class="n-glist-title">관리 도구</strong>
+    </div>
+    <div class="n-glist-panel">
+        <div class="n-card-body">
+            <div class="n-text-muted">
+                <strong>마커 서명 재발급</strong> — 서명 키(secret)를 교체한 직후 1 회 실행하는 도구입니다.
+                모든 자원의 마커 서명을 현재 키로 다시 계산해, 다음 점검에서 전 자원이 '마커 서명 불일치'로
+                오탐되는 것을 막습니다. 파일 내용 해시는 유지되어 변조된 자원은 이후 정밀 점검에서 그대로 감지됩니다.
+            </div>
+            <button type="button" id="reissueBtn" class="n-btn n-btn-sm n-btn-outline-danger"
+                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
+            </button>
+        </div>
+    </div>
+</section>
+
+<!--/* 모달 묶음 + 스크립트. 상세 화면의 [해결] · [보관] · [다시 점검] 이 이 셋에 의존한다.
+     os-list.js 는 Miller 전용이라 싣지 않는다. */-->
+<th:block th:fragment="tail">
+    <div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
+    <div th:replace="~{fragments/maintenance/reconciliation-modals :: genericConfirmModal('reconConfirm')}"></div>
+    <div th:replace="~{fragments/maintenance/reconciliation-modals :: duplicateResolveModal}"></div>
+    <script th:src="@{/maintenance/reconciliation/list.js}"></script>
+</th:block>
+
+</body>
+</html>

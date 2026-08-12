@@ -34,4 +34,15 @@ public interface DriftRepository extends JpaRepository<Drift, Long> {
 	 * 지금 목록에 떠야 하는 문제의 수. 종전에는 보고서의 자식 수를 셌으나 그 값은 사후에 변했다.
 	 */
 	long countByStatus(DriftStatus status);
+
+	/**
+	 * MK4-4-2 — 이 드리프트를 이어받은 것들. 계보의 <b>반대 방향</b> 조회다.
+	 *
+	 * <p>{@code Drift.predecessor} 는 후임 → 전임 단방향이라 전임 쪽에서는 자기 뒤에 무엇이
+	 * 왔는지 알 수 없었다. 그래서 닫힌 드리프트를 열면 과거만 보이고, 그것이 <b>정말 끝난 것인지
+	 * 뒤에 더 생긴 문제가 방치된 것인지</b> 구분할 방법이 없었다.</p>
+	 *
+	 * <p>여럿일 수 있다 — 하나가 닫히며 여러 종류가 함께 드러나는 fan-out 을 계보가 허용한다.</p>
+	 */
+	List<Drift> findByPredecessor(Drift predecessor);
 }

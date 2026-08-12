@@ -11,6 +11,7 @@ import com.example.serverprovision.maintenance.reconciliation.exception.DriftNot
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
 import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +62,9 @@ class ReconciliationRestControllerTest {
     // MK4-3-2 — 목록 화면이 다음 정밀 점검 예정을 함께 보인다. 스텁하지 않으면 Optional.empty 로
     // 응답해 "밀려 있다" 로 그려진다 — 이 테스트들의 관심사가 아니라 그대로 둔다.
     @MockitoBean com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler scheduler;
+    // MK4-4-2 — 목록과 회차 상세가 [전체 해결] 대상 수를 함께 보인다. 스텁하지 않으면 0 이 되어
+    // 버튼이 비활성으로 그려진다 — 이 테스트들의 관심사가 아니라 그대로 둔다.
+    @MockitoBean com.example.serverprovision.maintenance.reconciliation.service.DriftBulkApplyService bulkApplyService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private DriftReportResponse sampleReport() {
@@ -68,8 +72,8 @@ class ReconciliationRestControllerTest {
         DriftResponse drift = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
                 now, now, 1, DriftStatus.OPEN, null, null, null, null, null,
-                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE);
-        return new DriftReportResponse(10L, now, "0.45초", false, 17, 1, List.of(), List.of(drift));
+                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE, null);
+        return new DriftReportResponse(10L, now, "0.45초", false, ScanPopulation.of(17, 0, 0), 1, List.of(), List.of(), List.of(drift));
     }
 
     /**
@@ -77,8 +81,7 @@ class ReconciliationRestControllerTest {
      * 서로 다른 곳에서 온다 — 그 분리를 화면 단언에서 함께 고정하려고 둘을 따로 받는다.
      */
     private DriftReportResponse reportWithDetected(long id, int detectedDriftCount) {
-        return new DriftReportResponse(id, Instant.now(), "0.45초", false, 17,
-                detectedDriftCount, List.of(), List.of());
+        return new DriftReportResponse(id, Instant.now(), "0.45초", false, ScanPopulation.of(17, 0, 0), detectedDriftCount, List.of(), List.of(), List.of());
     }
 
     // ==== 성공 경로 ====================================================
@@ -146,13 +149,13 @@ class ReconciliationRestControllerTest {
                 // 템플릿이 DTO·모델 신설 필드를 실제 참조하는지(누락 시 500) 함께 고정
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("탐지 4건")))
+                // MK4-4-2 — 지금 남은 수는 목록 쪽에서 온다. 두 수가 한 화면에 함께 있고
+                // 출처가 다르다는 계약이 이 둘로 고정된다.
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("지금 미해결")))
-                // O-1 — 상단 배너의 스캔 범위 보강 안내.
-                // MK4-3-1 — 종전에는 설정 키 이름을 그대로 노출했다. 화면에서 바꿀 방법이 생겼으므로
-                // 키 대신 그 자리를 가리키는지 고정한다.
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("추가 점검 경로")))
+                        .string(org.hamcrest.Matchers.containsString("지금 남은 드리프트")))
+                // MK4-3-1 — 설정을 화면에서 바꿀 수 있게 되면서 설정 키 이름 노출을 걷었다.
+                // 그 자리를 가리키는 경로는 헤더 버튼으로 남아 있다(범위 안내 문구 자체는
+                // 2026-08-12 결정으로 매뉴얼로 옮겨졌다).
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("/maintenance/reconciliation/settings")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
@@ -160,30 +163,9 @@ class ReconciliationRestControllerTest {
                                 org.hamcrest.Matchers.containsString("reconciliation.scan.extra-roots"))));
     }
 
-    @Test
-    @DisplayName("MK4-1 GET list : 한 문제가 여러 회차에 관측돼도 상세 패널은 하나만 그려진다")
-    void list_rendersOneDetailPanelPerProblem() throws Exception {
-        // 같은 문제(id=1)를 두 회차가 모두 관측한 상황. 종전에는 회차마다 별도 drift 행이라
-        // 이 중복이 생길 수 없었고, 보고서별로 패널을 찍어도 문제가 없었다.
-        Instant now = Instant.now();
-        DriftResponse shared = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
-                DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
-                now, now, 2, DriftStatus.OPEN, null, null, null, null, null,
-                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE);
-        DriftReportResponse deep = new DriftReportResponse(11L, now, "0.1초", true, 5, 1, List.of(), List.of(shared));
-        DriftReportResponse quick = new DriftReportResponse(10L, now, "0.1초", false, 5, 1, List.of(), List.of(shared));
-        given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
-                .willReturn(new PageImpl<>(List.of(deep, quick)));
-        given(reconciliationService.latestReport()).willReturn(Optional.of(deep));
-
-        String html = mvc.perform(get("/maintenance/reconciliation"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        // 상세 패널의 앵커는 data-os-id. 같은 신원이 두 번 그려지면 상세가 중복 표시된다.
-        int panels = html.split("n-miller-detail-panel", -1).length - 1;
-        org.assertj.core.api.Assertions.assertThat(panels).isEqualTo(1);
-    }
+    // MK4-4-2 — "한 문제의 상세 패널이 하나만 그려지는가" 를 보던 검증은 여기서 사라졌다.
+    // 상세가 목록 안의 패널이 아니라 별도 화면(/drifts/{id})이 되면서 중복이 생길 구조 자체가
+    // 없어졌기 때문이다. 상세 화면의 렌더는 ReconciliationScreenRouteTest 가 본다.
 
     @Test
     @DisplayName("MK4-1 GET list : 이미 해결된 드리프트는 [해결] 버튼이 비활성 + 사유 tooltip")
@@ -193,10 +175,9 @@ class ReconciliationRestControllerTest {
         DriftResponse resolved = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
                 now, now, 3, DriftStatus.RESOLVED, null, null, null, "이미 해결된 드리프트입니다.", null,
-                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE);
-        given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
-                .willReturn(new PageImpl<>(List.of(
-                        new DriftReportResponse(10L, now, "0.1초", false, 5, 1, List.of(), List.of(resolved)))));
+                com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE, null);
+        // MK4-4-2 — 첫 화면은 회차가 아니라 지금 열린 드리프트를 그린다.
+        given(reconciliationService.openDrifts()).willReturn(List.of(resolved));
 
         String html = mvc.perform(get("/maintenance/reconciliation"))
                 .andExpect(status().isOk())
@@ -208,12 +189,13 @@ class ReconciliationRestControllerTest {
     }
 
     @Test
-    @DisplayName("HF4-4 GET list : 탐지 0 보고서는 종전 '0 건' 표기 유지 (병기 불필요 경계)")
-    void list_rendersZeroBadgeWhenNothingDetected() throws Exception {
+    @DisplayName("HF4-4 GET reports : 탐지 0 회차는 종전 '0 건' 표기 유지 (병기 불필요 경계)")
+    void reportList_rendersZeroBadgeWhenNothingDetected() throws Exception {
+        // MK4-4-2 — 회차 표가 첫 화면에서 이력 화면으로 옮겨졌다.
         given(reconciliationService.history(org.mockito.ArgumentMatchers.any()))
                 .willReturn(new PageImpl<>(List.of(reportWithDetected(10L, 0))));
 
-        mvc.perform(get("/maintenance/reconciliation"))
+        mvc.perform(get("/maintenance/reconciliation/reports"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("0 건")));
@@ -240,37 +222,9 @@ class ReconciliationRestControllerTest {
                 .snooze(1L, SnoozeWindow.DAYS_7, "교체 부품 입고 대기");
     }
 
-    // ==== R9-1 — Miller URL 동기화 alias (selectKey/selectId) ============
-
-    @Test
-    @DisplayName("GET list : selectKey/selectId alias 가 selectReportId/selectDriftId 모델로 매핑 (reload 위치 보존)")
-    void list_acceptsMillerSyncAliases() throws Exception {
-        Page<DriftReportResponse> page = new PageImpl<>(List.of(sampleReport()));
-        given(reconciliationService.history(org.mockito.ArgumentMatchers.any())).willReturn(page);
-
-        mvc.perform(get("/maintenance/reconciliation?selectKey=10&selectId=1"))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .model().attribute("selectReportId", 10L))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .model().attribute("selectDriftId", 1L));
-    }
-
-    @Test
-    @DisplayName("GET list : 명시 파라미터(selectReportId/selectDriftId)가 alias 보다 우선")
-    void list_explicitParamsWinOverAliases() throws Exception {
-        Page<DriftReportResponse> page = new PageImpl<>(List.of(sampleReport()));
-        given(reconciliationService.history(org.mockito.ArgumentMatchers.any())).willReturn(page);
-
-        mvc.perform(get("/maintenance/reconciliation?selectReportId=10&selectDriftId=1&selectKey=99&selectId=88"))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .model().attribute("selectReportId", 10L))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .model().attribute("selectDriftId", 1L));
-    }
-
-    // ==== 리소스 없음 ===================================================
+    // MK4-4-2 — Miller URL 동기화 alias(selectKey/selectId) 검증은 여기서 사라졌다. 3 컬럼
+    // 화면이 없어지면서 "선택 위치를 주소에 실어 reload 후 복원한다" 는 장치 자체가 폐기됐고,
+    // 목록↔상세의 자리 보존은 화면 이력 스택(global/nav-stack.js)이 맡는다.
 
     @Test
     @DisplayName("GET /latest : 한번도 스캔 없음 → 204")

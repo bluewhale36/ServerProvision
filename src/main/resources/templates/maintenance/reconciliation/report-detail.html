@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  점검 회차 상세 (MK4-4-2) — 두 후보가 공유한다
+  ─────────────────────────────────────────────────────────
+  "이 점검이 무엇을 했는가" 에 답하는 화면이다. 그러려면 <b>언제 · 어디를 · 어디까지</b> 봤는지가
+  있어야 하는데, 종전에는 실패한 경로만 남기고 성공한 범위는 어디에도 기록하지 않아 지난 회차를
+  열어도 알 수 없었다. 그래서 이 슬라이스가 점검 범위를 회차에 함께 적는다(결정 Q1).
+
+  점검 대상 수도 활성 자원만 세던 것을 세 모집단으로 갈랐다(결정 Q2). 종전에는 삭제 자원과 짝 없는
+  마커에서 나온 문제가 목록에 실리면서 "점검한 것보다 문제가 많은" 화면이 됐다.
+
+  Model: report · bulkTargetCount · backHref (+ 공통 배너)
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('점검 회차 상세')}"></th:block>
+    <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: styles}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">
+            <span th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd HH:mm:ss')}">2026-08-12 10:30:00</span>
+            <span class="n-badge n-title-badge"
+                  th:classappend="${report.deep} ? 'n-badge-blue' : 'n-badge-gray'"
+                  th:text="${report.deep} ? '정밀 점검' : '일반 점검'">일반 점검</span>
+        </h1>
+        <div th:replace="~{fragments/common/back-link :: backLink(${backHref})}"></div>
+    </div>
+
+    <!--/* 이 회차가 남긴 사실만 싣는다. 지금의 설정으로 범위를 계산해 보여 주면 설정이 바뀐 뒤
+         지난 회차를 열었을 때 화면이 거짓을 말하게 된다. */-->
+    <section class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title">이 점검이 한 일</strong>
+            <span class="n-glist-hint">회차가 남긴 사실이며 이후의 설정 변경에 영향받지 않습니다</span>
+        </div>
+
+        <div class="n-glist-panel">
+            <div class="n-card-body">
+                <dl class="n-accordion-fields">
+                    <div class="n-accordion-field">
+                        <dt>점검 일시</dt>
+                        <dd th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd HH:mm:ss')}"></dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>점검 유형</dt>
+                        <dd>
+                            <span th:text="${report.deep} ? '정밀 점검' : '일반 점검'"></span>
+                            <div class="n-text-muted"
+                                 th:text="${report.deep}
+                                          ? '마커와 위치에 더해 파일 내용의 지문까지 다시 계산했습니다.'
+                                          : '마커와 위치를 확인했습니다. 파일 내용은 다시 계산하지 않았습니다.'"></div>
+                        </dd>
+                    </div>
+                    <!--/* MK4-4-2 — 세 모집단. 각각을 밝혀야 탐지 건수와의 관계가 성립한다. */-->
+                    <div class="n-accordion-field">
+                        <dt>점검 대상</dt>
+                        <dd>
+                            <span th:text="|모두 ${report.population.total()} 건|">16 건</span>
+                            <div class="n-text-muted"
+                                 th:text="|활성 자원 ${report.population.activeCount} · 삭제 상태 자원 ${report.population.deletedCount} · 데이터베이스에 짝이 없는 마커 ${report.population.unmatchedMarkerCount}|"></div>
+                        </dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>탐지</dt>
+                        <dd>
+                            <span class="n-badge"
+                                  th:classappend="${report.detectedDriftCount > 0} ? 'n-badge-yellow' : 'n-badge-gray'"
+                                  th:text="|${report.detectedDriftCount} 건|">0 건</span>
+                            <div class="n-text-muted">이 회차에 보인 드리프트의 수입니다 — 이후 해결해도 줄지 않습니다.</div>
+                        </dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>소요</dt>
+                        <dd th:text="${report.scanDuration}">0.45초</dd>
+                    </div>
+                    <!--/* 점검 범위. 기록이 없는 것(도입 이전 회차)과 한 곳도 뒤지지 않은 것은 다르다. */-->
+                    <div class="n-accordion-field">
+                        <dt>점검한 디렉토리</dt>
+                        <dd>
+                            <span th:if="${report.scanScopeUnknown()}" class="n-text-muted">
+                                기록이 없습니다 — 점검 범위를 남기기 시작한 것보다 앞선 회차입니다.
+                            </span>
+                            <ul th:unless="${report.scanScopeUnknown()}" class="n-path-list">
+                                <li th:each="root : ${report.scannedRoots}">
+                                    <code class="n-mono" th:text="${root}">/srv/provision/iso</code>
+                                </li>
+                            </ul>
+                        </dd>
+                    </div>
+                    <div class="n-accordion-field" th:if="${not #lists.isEmpty(report.failedScanRoots)}">
+                        <dt>뒤지지 못한 디렉토리</dt>
+                        <dd>
+                            <div class="n-banner n-banner-warn">
+                                일부 경로를 열지 못해 이 회차는 <strong>부분 결과</strong>입니다 —
+                                여기에 있던 자원의 드리프트는 이번에 보이지 않았을 수 있습니다.
+                            </div>
+                            <ul class="n-path-list">
+                                <li th:each="failed : ${report.failedScanRoots}">
+                                    <code class="n-mono" th:text="${failed}"></code>
+                                </li>
+                            </ul>
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </section>
+
+    <section class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title">이 회차에서 나온 드리프트</strong>
+            <span class="n-glist-hint">급한 순 — 이미 해결된 것도 그때 보였던 사실로 남습니다</span>
+            <span class="n-badge n-badge-gray" th:text="|${report.drifts.size()} 건|">4 건</span>
+            <!--/* 후보 A 의 [전체 해결] — 대상은 이 회차에서 보인 것 중 지금 해결할 수 있는 것이다.
+                 이미 닫힌 것과 시스템이 손댈 수 없는 종류는 대상에서 빠지므로 표의 건수와 다를 수 있고,
+                 버튼이 그 수를 미리 밝힌다. */-->
+            <span th:replace="~{fragments/maintenance/reconciliation-parts
+                               :: bulkApplyButton(@{/maintenance/reconciliation/reports/{id}/apply-all(id=${report.id})},
+                                                  ${bulkTargetCount},
+                                                  '이 회차에서 보인 드리프트 중 시스템이 해결할 수 있는 것')}"></span>
+        </div>
+
+        <div class="n-glist-panel">
+            <div th:replace="~{fragments/maintenance/reconciliation-parts
+                               :: driftTable(${report.drifts},
+                                             '이 회차에서는 아무 드리프트도 나오지 않았습니다.',
+                                             '점검한 대상이 모두 등록 정보와 일치했습니다.')}"></div>
+        </div>
+    </section>
+</div>
+
+<th:block th:replace="~{fragments/maintenance/reconciliation-parts :: tail}"></th:block>
+</body>
+</html>
