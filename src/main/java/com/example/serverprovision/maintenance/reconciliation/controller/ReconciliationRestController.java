@@ -5,6 +5,7 @@ import com.example.serverprovision.maintenance.reconciliation.dto.request.DriftS
 import com.example.serverprovision.maintenance.reconciliation.dto.response.DriftReportResponse;
 import jakarta.validation.Valid;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
+import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -67,7 +68,8 @@ public class ReconciliationRestController {
 			@RequestParam(name = "redirect", required = false) String redirect,
 			RedirectAttributes redirectAttributes
 	) {
-		String jobId = reconciliationService.triggerScan(deep);
+		// 요청 파라미터는 boolean 이지만 서비스 경계에서는 타입으로 올린다(MK4-3-2).
+		String jobId = reconciliationService.triggerScan(ScanDepth.of(deep));
 		return ResponseEntity.ok(new JobStartResponse(jobId));
 	}
 

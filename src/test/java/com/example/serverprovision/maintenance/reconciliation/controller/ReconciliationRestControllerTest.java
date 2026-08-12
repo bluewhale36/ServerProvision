@@ -10,6 +10,7 @@ import com.example.serverprovision.maintenance.reconciliation.exception.DriftRes
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
+import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
@@ -57,6 +58,9 @@ class ReconciliationRestControllerTest {
     private com.example.serverprovision.maintenance.reconciliation.service.DuplicateResolveService duplicateResolveService;
     // R9-4 — ReconciliationController 의 격리 대기 배너용 의존.
     @MockitoBean com.example.serverprovision.global.orphan.service.OrphanQuarantineService orphanQuarantineService;
+    // MK4-3-2 — 목록 화면이 다음 정밀 점검 예정을 함께 보인다. 스텁하지 않으면 Optional.empty 로
+    // 응답해 "밀려 있다" 로 그려진다 — 이 테스트들의 관심사가 아니라 그대로 둔다.
+    @MockitoBean com.example.serverprovision.maintenance.reconciliation.service.ReconciliationScheduler scheduler;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private DriftReportResponse sampleReport() {
@@ -82,7 +86,7 @@ class ReconciliationRestControllerTest {
     @Test
     @DisplayName("POST /scan : 200 + jobId 반환")
     void scan_success() throws Exception {
-        given(reconciliationService.triggerScan(false)).willReturn("job-abc");
+        given(reconciliationService.triggerScan(ScanDepth.QUICK)).willReturn("job-abc");
 
         mvc.perform(post("/maintenance/reconciliation/scan"))
                 .andExpect(status().isOk())
@@ -144,9 +148,16 @@ class ReconciliationRestControllerTest {
                         .string(org.hamcrest.Matchers.containsString("탐지 4건")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("지금 미해결")))
-                // O-1 — 상단 배너의 스캔 범위 보강 안내
+                // O-1 — 상단 배너의 스캔 범위 보강 안내.
+                // MK4-3-1 — 종전에는 설정 키 이름을 그대로 노출했다. 화면에서 바꿀 방법이 생겼으므로
+                // 키 대신 그 자리를 가리키는지 고정한다.
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("reconciliation.scan.extra-roots")));
+                        .string(org.hamcrest.Matchers.containsString("추가 점검 경로")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("/maintenance/reconciliation/settings")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString("reconciliation.scan.extra-roots"))));
     }
 
     @Test
@@ -462,7 +473,7 @@ class ReconciliationRestControllerTest {
     @Test
     @DisplayName("POST /scan : 동시 스캔 → 409")
     void scan_alreadyRunning() throws Exception {
-        given(reconciliationService.triggerScan(anyBoolean()))
+        given(reconciliationService.triggerScan(any(ScanDepth.class)))
                 .willThrow(new ReconciliationAlreadyRunningException());
 
         mvc.perform(post("/maintenance/reconciliation/scan"))
@@ -474,7 +485,7 @@ class ReconciliationRestControllerTest {
     @Test
     @DisplayName("POST /scan?deep=true : deep=true 인자로 호출")
     void scan_deep() throws Exception {
-        given(reconciliationService.triggerScan(true)).willReturn("job-deep");
+        given(reconciliationService.triggerScan(ScanDepth.DEEP)).willReturn("job-deep");
 
         mvc.perform(post("/maintenance/reconciliation/scan").param("deep", "true"))
                 .andExpect(status().isOk())

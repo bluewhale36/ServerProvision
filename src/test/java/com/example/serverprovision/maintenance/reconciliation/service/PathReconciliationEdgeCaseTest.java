@@ -52,6 +52,9 @@ import static org.mockito.Mockito.verify;
  */
 class PathReconciliationEdgeCaseTest {
 
+	private com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService settingsService;
+
+
     private ProvisionMarkerService markerService;
     private BackgroundJobService backgroundJobService;
     private DriftReportRepository driftReportRepository;
@@ -86,16 +89,23 @@ class PathReconciliationEdgeCaseTest {
         given(biosScanner.supportedType()).willReturn(ResourceType.BIOS_BUNDLE);
 
         // self proxy 자리는 단위 테스트 범위 외. null 주입.
+        // MK4-3-1 — 점검 설정은 이제 데이터베이스에서 온다. 저장소를 비워 두면 서비스가 이관 원본
+        // (설정 파일 값)으로 답하므로, 종전 @Value 필드를 세팅하던 자리를 그대로 옮겨 쓸 수 있다.
+        var settingRepository = mock(com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository.class);
+        given(settingRepository.findById(any())).willReturn(java.util.Optional.empty());
+        given(settingRepository.findAll()).willReturn(java.util.List.of());
+        settingsService = new com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService(settingRepository);
         service = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution(),
                         new com.example.serverprovision.maintenance.reconciliation.service.resolution.GhostDbRowClearResolution()), null);
-        ReflectionTestUtils.setField(service, "startupEnabled", true);
-        ReflectionTestUtils.setField(service, "retentionCount", 100);
-        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "");
-        ReflectionTestUtils.setField(service, "extraRootsCsv", "");
+        ReflectionTestUtils.setField(settingsService, "legacyStartupEnabled", true);
+        ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 100);
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "");
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", "");
     }
 
     // ==== helpers ======================================================
@@ -167,7 +177,7 @@ class PathReconciliationEdgeCaseTest {
         Markable b = bios(7L, oldRoot);
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(biosScanner.findActiveMarkables()).willReturn(List.of(b));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -200,7 +210,7 @@ class PathReconciliationEdgeCaseTest {
         Markable m1 = iso(1L, dvd), m2 = iso(2L, minimal), m3 = iso(3L, boot);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m1, m2, m3));
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -228,7 +238,7 @@ class PathReconciliationEdgeCaseTest {
         Markable m = iso(42L, dvd);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -258,7 +268,7 @@ class PathReconciliationEdgeCaseTest {
         Markable m = iso(42L, dvd);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -362,7 +372,7 @@ class PathReconciliationEdgeCaseTest {
 
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -390,7 +400,7 @@ class PathReconciliationEdgeCaseTest {
         Markable m = iso(42L, dbPath);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -417,7 +427,7 @@ class PathReconciliationEdgeCaseTest {
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
         // scan root = tmp 만. 마커는 tmp 로부터 11 단계(d1~d9 + dvd.iso.provision.json) → walk(8) 의 한계 밖
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -456,7 +466,7 @@ class PathReconciliationEdgeCaseTest {
         // 자원도 없고 마커도 없음
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -470,7 +480,7 @@ class PathReconciliationEdgeCaseTest {
         Path missing = tmp.resolve("no-such-dir");
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", missing.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", missing.toString());
 
         DriftReport saved = runScan(false);
 
@@ -497,8 +507,8 @@ class PathReconciliationEdgeCaseTest {
         given(isoScanner.findActiveMarkables()).willReturn(List.of(mm1, mm2));
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
         // ghost 디렉토리가 없으므로 scan root union 에 포함만 시키도록 extra-roots 사용
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
-        ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "PATH_DRIFT");
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "PATH_DRIFT");
 
         // 첫 번째 자원 적용 시 RuntimeException
         doThrow(new RuntimeException("disk-fail"))
@@ -516,7 +526,7 @@ class PathReconciliationEdgeCaseTest {
     @Test
     @DisplayName("F25 : FIFO prune — retention 초과 시 가장 오래된 보고서 삭제")
     void fifoPrune_overRetention(@TempDir Path tmp) {
-        ReflectionTestUtils.setField(service, "retentionCount", 3);
+        ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 3);
 
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
@@ -537,7 +547,7 @@ class PathReconciliationEdgeCaseTest {
     @Test
     @DisplayName("F25-noPrune : retention 미달 시 deleteAll 미호출")
     void fifoPrune_underRetention_noDelete(@TempDir Path tmp) {
-        ReflectionTestUtils.setField(service, "retentionCount", 100);
+        ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 100);
 
         given(isoScanner.findActiveMarkables()).willReturn(List.of());
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
@@ -565,7 +575,7 @@ class PathReconciliationEdgeCaseTest {
         Markable m = iso(42L, oldP);
         given(isoScanner.findActiveMarkables()).willReturn(List.of(m));
         given(biosScanner.findActiveMarkables()).willReturn(List.of());
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 
@@ -591,7 +601,7 @@ class PathReconciliationEdgeCaseTest {
         given(deletedBios.getResourceType()).willReturn(ResourceType.BIOS_BUNDLE);
         given(deletedBios.getResourceId()).willReturn(50L);
         given(biosScanner.findTrashed()).willReturn(List.of(deletedBios));
-        ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
         DriftReport saved = runScan(false);
 

@@ -99,7 +99,7 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 
 	public static DriftResolutionNotAllowedException globalOff() {
 		return new DriftResolutionNotAllowedException(
-				"시스템 해결 옵션(reconciliation.resolution-enabled)이 꺼져 있어 거절되었습니다. 옵션을 켠 뒤 다시 시도하세요."
+				"시스템 해결이 꺼져 있어 거절되었습니다. 점검 운영 설정에서 켠 뒤 다시 시도하세요."
 		);
 	}
 

@@ -25,6 +25,20 @@ public enum DriftHandlingAction {
 	},
 
 	/**
+	 * MK4-3-1 — 점검 도중 시스템이 사람 확인 없이 처리해 닫힘.
+	 *
+	 * <p>{@link #APPLY} 와 가르는 이유는 원장이 사실을 말해야 하기 때문이다 — 운영자가 눌러서 처리한
+	 * 것과 시스템이 스스로 처리한 것은 나중에 "왜 이렇게 됐는가" 를 되짚을 때 전혀 다른 정보다.
+	 * 되돌릴 수 있는지는 무엇을 했는지가 정하므로 {@code APPLY} 와 같은 기준을 쓴다.</p>
+	 */
+	AUTO_APPLY("점검 중 자동 처리") {
+		@Override
+		public boolean reversibleFor(DriftKind kind) {
+			return kind.isReversible();
+		}
+	},
+
+	/**
 	 * [다시 점검] 이 해소를 확인해 닫힘. 시스템이 무언가를 바꾼 것이 아니라 이미 해소된 것을
 	 * 확인한 것이므로 되돌릴 대상이 없다.
 	 */

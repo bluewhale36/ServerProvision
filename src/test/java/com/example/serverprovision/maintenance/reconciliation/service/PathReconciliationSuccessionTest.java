@@ -57,6 +57,7 @@ class PathReconciliationSuccessionTest {
 	private DriftRepository driftRepository;
 	private DriftHandlingRepository driftHandlingRepository;
 	private MarkableScanner isoScanner;
+	private com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService settingsService;
 	private PathReconciliationService service;
 
 	@BeforeEach
@@ -79,15 +80,22 @@ class PathReconciliationSuccessionTest {
 		isoScanner = mock(MarkableScanner.class);
 		given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
 
+		// MK4-3-1 — 점검 설정은 이제 데이터베이스에서 온다. 저장소를 비워 두면 서비스가 이관 원본
+		// (설정 파일 값)으로 답하므로, 종전 @Value 필드를 세팅하던 자리를 그대로 옮겨 쓸 수 있다.
+		var settingRepository = mock(com.example.serverprovision.maintenance.reconciliation.repository.ReconciliationSettingRepository.class);
+		given(settingRepository.findById(any())).willReturn(java.util.Optional.empty());
+		given(settingRepository.findAll()).willReturn(List.of());
+		settingsService = new com.example.serverprovision.maintenance.reconciliation.service.ReconciliationSettingsService(settingRepository);
 		service = new PathReconciliationService(
 				List.of(isoScanner), markerService, backgroundJobService,
 				driftReportRepository, driftRepository, driftHandlingRepository,
+				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
 				List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
-		ReflectionTestUtils.setField(service, "startupEnabled", true);
-		ReflectionTestUtils.setField(service, "retentionCount", 100);
-		ReflectionTestUtils.setField(service, "autoApplyKindsCsv", "");
-		ReflectionTestUtils.setField(service, "extraRootsCsv", "");
+		ReflectionTestUtils.setField(settingsService, "legacyStartupEnabled", true);
+		ReflectionTestUtils.setField(settingsService, "legacyRetentionCount", 100);
+		ReflectionTestUtils.setField(settingsService, "legacyAutoApplyKindsCsv", "");
+		ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", "");
 	}
 
 	/** soft-deleted 분류 패스용 fixture — PathReconciliationServiceTest.DeletedIso 와 동형. */
@@ -205,7 +213,7 @@ class PathReconciliationSuccessionTest {
 				.willReturn(Optional.of(stray));
 		given(isoScanner.findActiveMarkables()).willReturn(List.of());
 		given(isoScanner.findTrashed()).willReturn(List.of(new DeletedIso(42L, orig, trashed.toString())));
-		ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.resolve("backup").toString());
+		ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.resolve("backup").toString());
 
 		ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 
@@ -230,7 +238,7 @@ class PathReconciliationSuccessionTest {
 		given(isoScanner.findActiveMarkables()).willReturn(List.of());
 		given(isoScanner.findTrashed()).willReturn(List.of(
 				new DeletedIso(42L, orig, tmp.resolve("trash/gone.iso").toString())));
-		ReflectionTestUtils.setField(service, "extraRootsCsv", tmp.toString());
+		ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
 
 		ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
 

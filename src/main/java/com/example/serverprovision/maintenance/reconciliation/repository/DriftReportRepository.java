@@ -31,4 +31,12 @@ public interface DriftReportRepository extends JpaRepository<DriftReport, Long> 
 	 */
 	Optional<DriftReport> findFirstByDeepTrueOrderByScannedAtDesc();
 
+	/**
+	 * MK4-3-2 — 마지막 일반 점검. 주기가 실측 소요 시간보다 짧은지 알리기 위해 쓴다.
+	 *
+	 * <p>가장 최근 점검({@link #findFirstByOrderByScannedAtDesc})으로 대신할 수 없다. 그것이 정밀
+	 * 점검이면 소요 시간이 일반 점검의 몇 배라 없는 경고를 띄우게 된다.</p>
+	 */
+	Optional<DriftReport> findFirstByDeepFalseOrderByScannedAtDesc();
+
 }
