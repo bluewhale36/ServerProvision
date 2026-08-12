@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U3-4 Report &mdash; 게스트 서버 그룹 생성 &middot; 멤버십 관리</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--green-bg); color:var(--green); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--green-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp4{background:var(--orange-bg);color:var(--orange);} .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.cp6{background:var(--purple-bg);color:var(--purple);} .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .chip.pass{background:var(--green-bg);color:var(--green);} .chip.skip{background:var(--yellow-bg);color:var(--yellow);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card li { font-size:12px; line-height:1.55; }
+  .shot { margin:10px 0 18px; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--card); }
+  .shot img { display:block; width:100%; height:auto; }
+  .shot figcaption { font-size:12px; color:var(--text-muted); padding:8px 12px; border-top:1px solid var(--border-soft); background:var(--bg); }
+  .shot figcaption b { color:var(--text); }
+  .noshot { font-size:12px; color:var(--text-muted); font-style:italic; padding:10px 12px; background:var(--bg); border:1px dashed var(--border); border-radius:6px; margin:10px 0 18px; }
+  .hidden { display:none !important; }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U3-4 : 게스트 서버 그룹 생성 &middot; 멤버십 관리 &mdash; 완료 보고 <span class="v2-badge">CP6</span></h1>
+  <div class="meta">
+    <span>스펙 묶음은 제안, 그룹은 결정 &mdash; CP5 검증 21 항목과 두 차례 개정</span>
+    <span><strong>슬라이스</strong> U3-4</span>
+    <span><strong>브랜치</strong> <code>feat/U3-4_guest-server-group</code></span>
+    <span><strong>테스트</strong> 1794 green (그룹 전용 44)</span>
+    <span><strong>CP5 검증</strong> 21 / 21 항목 수행</span>
+    <span><strong>작성</strong> 2026-08-12 08:28 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">&sect;1 이 슬라이스가 무엇을 만들었는가</a></li>
+      <li><a href="#s2">&sect;2 설계 결정이 코드에서 어떻게 지켜졌는가</a></li>
+      <li><a href="#s3">&sect;3 계획에서 조정한 것 넷</a></li>
+      <li><a href="#s4">&sect;4 스키마 검증이 잡아낸 것</a></li>
+      <li><a href="#s5" class="preview">&sect;5 CP5 검증 계획</a></li>
+      <li><a href="#s6" class="preview">&sect;6 CP5 수행 기록</a></li>
+      <li><a href="#s7">&sect;7 검증에서 발견해 고친 것</a></li>
+      <li><a href="#s8" class="preview">&sect;8 개정 라운드</a></li>
+      <li><a href="#s9">&sect;9 검증하지 못한 것과 오탐 하나</a></li>
+      <li><a href="#s10">&sect;10 Critical Files</a></li>
+      <li><a href="#s11">&sect;11 다음</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 &hellip;" id="filter">
+
+    <details class="section" id="s1" open>
+      <summary>&sect;1. 이 슬라이스가 무엇을 만들었는가</summary>
+      <div class="body">
+        <p>U3-3 이 만든 목록 화면은 서버를 상대 시간과 하드웨어 스펙 두 축으로 묶어 보여준다. 그러나 그 묶음은 <b>조회할 때마다 계산되는 관찰</b>이라 사람이 손댈 수 없다. 이름도 없고, 넣고 뺄 수도 없으며, 서버 스펙이 바뀌면 소리 없이 다른 묶음으로 옮겨간다.</p>
+        <p>U3-4 는 그 옆에 <b>사람이 만드는 묶음</b>을 세웠다. 운영자가 이름을 주고, 서버를 넣고 빼며, 지울 수 있는 영속 개념이다. 스펙은 그 묶음을 처음 만들 때 참고하는 씨앗일 뿐 정체성이 아니다 &mdash; 스펙이 같다는 이유로 멤버십이 강제되지 않고, 갈렸다는 이유로 막히지도 않는다.</p>
+        <p>이 구분이 이 슬라이스의 전부다. 화면 &middot; 엔티티 &middot; 예외 &middot; 테스트가 전부 여기서 따라 나온다.</p>
+
+        <h4>만든 것</h4>
+        <table>
+          <tr><th>계층</th><th>내용</th></tr>
+          <tr><td>엔티티</td><td><code>GuestServerGroup</code> &middot; <code>GuestServerGroupMember</code></td></tr>
+          <tr><td>리포지토리</td><td>그룹(집계 쿼리 &middot; fetch join) &middot; 멤버(소속 조회)</td></tr>
+          <tr><td>서비스</td><td><code>GuestServerGroupQueryService</code> &middot; <code>GuestServerGroupCommandService</code></td></tr>
+          <tr><td>컨트롤러</td><td><code>GuestServerGroupController</code> 8 엔드포인트 + 목록 화면 배지 합성</td></tr>
+          <tr><td>화면</td><td>그룹 목록 &middot; 생성 폼 &middot; 그룹 상세 신설, 서버 목록에 그룹 열과 씨앗 진입점, 서버 넣기 모달</td></tr>
+          <tr><td>공용 CSS</td><td><code>css/grouped-list.css</code> &mdash; 묶음 목록 3 층 양식(개정)</td></tr>
+          <tr><td>예외</td><td>404 1 종 &middot; 409 2 종</td></tr>
+          <tr><td>DDL</td><td><code>ddl/U3-4_guest_server_group.sql</code></td></tr>
+        </table>
+        <p><b>1794 tests green</b>(실패 0 &middot; 오류 0 &middot; 건너뜀 6 은 기존 <code>@Disabled</code>), 그룹 전용 44 건.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>&sect;2. 설계 결정이 코드에서 어떻게 지켜졌는가</summary>
+      <div class="body">
+        <p>CP1 에서 정한 12 개 결정 중 구현이 실제로 형태를 바꾼 것 넷을 든다.</p>
+
+        <h4>한 서버는 최대 한 그룹(DEC-B) &mdash; 응용 검사가 아니라 DB 제약으로 강제했다.</h4>
+        <p>가장 단순해 보이는 안은 <code>guest_server</code> 테이블에 <code>group_id</code> 컬럼을 두는 것이었다. 그러나 그러면 <code>GuestServer</code>(execution)가 그룹(provisioning)을 참조하게 되어 방향이 뒤집히고, R7 이 제거한 생성자 순환이 되살아난다. 그래서 멤버십 테이블을 따로 두고 <code>guest_server_id</code> 에 <code>UNIQUE</code> 를 걸었다. 결과는 같고 방향은 지켜지며, 동시 요청 두 개가 같은 서버를 서로 다른 그룹에 넣는 경합까지 DB 가 막는다.</p>
+
+        <h4>차단 사유는 한 메서드가 만든다(DEC-B &middot; DEC-H).</h4>
+        <p><code>GuestServerGroup.addBlockReason(targetGroupId, currentGroup)</code> 은 넣을 수 있으면 <code>null</code>, 아니면 문자열을 돌려준다. 그 문자열이 화면의 안내이자 서버 예외의 메시지다. 판정에 필요한 것이 &ldquo;그 서버가 지금 어느 그룹에 있는가&rdquo; 하나뿐이라 인스턴스 상태를 읽지 않으므로 <code>static</code> 으로 뒀고, 덕분에 <b>아직 만들어지지 않은 그룹</b>(생성 폼)도 같은 식을 쓴다 &mdash; <code>targetGroupId</code> 가 <code>null</code> 이면 소속이 있는 서버는 전부 걸린다.</p>
+
+        <h4>회수된 서버는 막지 않는다(DEC-H).</h4>
+        <p>그룹은 운영 이력을 지우지 않는다. 회수된 서버를 할당에서 빼는 것은 U3-5 의 가드가 할 일이고, 여기서 막으면 예외만 하나 늘고 얻는 것이 없다. 이 결정은 코드에 <b>조건이 하나도 추가되지 않는 형태</b>로 나타난다 &mdash; 회수 여부가 판정 입력에 아예 들어가지 않는다.</p>
+
+        <h4>컨트롤러가 도메인 예외를 잡지 않는다.</h4>
+        <p>처음 구현에서는 <code>GroupNameConflictException</code> 을 컨트롤러에서 잡아 필드 오류로 바꿨다. 프로젝트 원칙(컨트롤러 try/catch 는 advice 로 끌어올린다)에 어긋나 되돌렸다. 대신 <code>nameConflictReason(name, selfId)</code> 이 사유 문자열을 돌려주고, 그 문구는 예외의 <code>messageFor(&hellip;)</code> 가 만든다. 화면의 사전 검사와 서비스 가드가 같은 리포지토리 메서드와 같은 문구 생성자를 부르므로 어긋날 수 없다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>&sect;3. 계획에서 조정한 것 넷</summary>
+      <div class="body">
+        <p>CP1 plan 을 그대로 따르지 않은 곳과 그 이유다.</p>
+
+        <h4>&#9312; 생성 폼 화면을 URL 표에 더했다 (<code>GET /provisioning/server-group/new</code>).</h4>
+        <p>plan 은 목록 화면의 스펙 묶음에서 곧장 <code>POST</code> 하는 그림이었다. 구현하면서 드러난 문제는, <b>씨앗에 이미 다른 그룹 소속 서버가 섞여 있을 때 그 사실을 보여줄 자리가 좁은 묶음 헤더에는 없다</b>는 것이다. 전용 폼 화면에서 후보를 줄로 보여주고, 막힌 서버는 체크를 잠근 채 사유와 함께 남긴다. 말없이 사라지면 운영자는 12 대가 왜 9 대가 됐는지 알 수 없다.</p>
+
+        <h4>&#9313; 이름 변경도 <code>BindingResult</code> 경로로 옮겼다 (DEC-G 부분 개정).</h4>
+        <p>plan 은 모든 폼을 전역 인터셉터에 맡기기로 했다. 구현 중 <code>static/global/form-submit.js</code> 를 읽어 확인한 사실이 둘이다 &mdash; 인터셉터는 <code>fieldErrors[]</code> 를 인라인으로 붙이지 않고 <code>payload.message</code> 만 모달로 띄우며, <code>@Valid @ModelAttribute</code> 를 <code>BindingResult</code> 없이 쓰면 검증 실패가 <code>BindException</code> 으로 나가는데 advice 에 등록된 것은 그 <b>하위</b> 타입인 <code>MethodArgumentNotValidException</code> 이라 잡히지 않는다. 그래서 입력 폼 둘(생성 &middot; 이름 변경)만 <code>data-native-submit</code> 을 달고, 멤버 추가 &middot; 제외 &middot; 삭제는 계획대로 인터셉터 경로에 뒀다. <code>FormSubmissionConventionTest</code> 는 개수를 하드코딩하지 않고 재렌더 핸들러 수와 표기된 폼 수를 비교하므로 2 대 2 로 균형이 맞는다.</p>
+
+        <h4>&#9314; 그룹 목록의 &lsquo;구성&rsquo; 열을 뺐다.</h4>
+        <p>초안에 넣었다가 걷어냈다. 판정하려면 모든 그룹의 멤버와 그 서버 상세까지 끌어와야 하는데(N+1), plan 의 요구 8 은 혼재 안내를 <b>상세에서</b> 하도록 정했다. 계획을 넘어선 열 하나가 조회를 무겁게 만드는 전형적인 경우였다.</p>
+
+        <h4>&#9315; <code>CREATE INDEX</code> 를 DDL 에서 뺐다.</h4>
+        <p><code>group_id</code> 조회용 인덱스를 따로 만들려 했으나 권한으로 거절됐고, 확인해 보니 InnoDB 가 외래 키 생성 시 이미 같은 인덱스를 만들어 두고 있었다(<code>KEY fk_group_member_group (group_id)</code>). 처음부터 중복이었고 권한 오류가 그 사실을 드러낸 셈이다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>&sect;4. 스키마 검증이 잡아낸 것</summary>
+      <div class="body">
+        <p><b>빌드도 테스트도 전부 통과한 상태에서 애플리케이션이 기동하지 못했다.</b></p>
+        <pre><code>Schema validation: wrong column type encountered in column [guest_server_id]
+in table [guest_server_group_member];
+found [binary (Types#BINARY)], but expecting [uuid (Types#UUID)]</code></pre>
+        <p>수동 DDL 에 <code>guest_server_id BINARY(16)</code> 이라고 썼는데, 이 스키마는 <b>MariaDB 네이티브 <code>uuid</code> 타입</b>을 쓴다 &mdash; <code>guest_server.id</code> 도 <code>guest_server_detail.guest_server_id</code> 도 전부 <code>uuid</code> 다. 참조하는 쪽이 타입까지 맞춰야 한다.</p>
+        <p>이것이 테스트를 통과한 이유는 분명하다. 단위 테스트는 Mockito 로 리포지토리를 대체하고, <code>@WebMvcTest</code> 는 서비스까지만 실행한다. <b>어느 쪽도 실제 DB 를 거치지 않으므로 컬럼 타입을 볼 기회가 없다.</b> 같은 사각지대에서 과거에 <code>is_deleted</code> 필드 명명 불일치가 앱 부팅에서만 터진 적이 있다.</p>
+        <p>교정은 <code>FK 해제 &rarr; 타입 변경 &rarr; FK 복원</code> 3 단계로 했다. <code>claude_code</code> 계정에 <code>DROP</code> 권한이 없어 테이블을 다시 만들 수 없었기 때문이다. 교정 후 <code>ddl-auto=validate</code> 로 기동해 통과를 확인했다.</p>
+        <p><b>남은 것</b>: 실 DB 검증 중 만든 그룹 1 건(<code>8월 2차</code>)이 남아 있다. <code>claude_code</code> 에 <code>DELETE</code> 권한이 없어 정리하지 못했다 &mdash; 권한 있는 계정이 필요하다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>&sect;5. CP5 검증 계획</summary>
+      <div class="body">
+        <p>브라우저에서 사람이 조작하듯 수행하고 항목마다 증거를 남기는 것이 이 단계의 규율이다. 식별자는 정상 흐름 <code>A</code>, 비정상 조작 <code>B</code>, 막는 방식 <code>C</code> 로 21 건을 계획했다.</p>
+        <p><b>샌드박스</b>: MariaDB 11 컨테이너(포트 3337) + 애플리케이션(포트 7793). 다른 스트림이 3307 &middot; 3327 &middot; 7788 을 쓰고 있어 겹치지 않는 포트를 잡았다.</p>
+        <p><b>픽스처</b>: 스펙 A(Xeon Gold 6338 &times;2) 서버 4 대를 같은 시각에, 스펙 B(Xeon Silver 4310 &times;1) 2 대를 3 시간 전에, 스펙 A 이면서 <b>회수된</b> 서버 1 대를 2 일 전에, 아직 수집이 끝나지 않은 서버 1 대를 두었다. 시간 묶음 &middot; 스펙 묶음 &middot; 회수 서버 &middot; 등록 진행 중을 한 화면에서 전부 보기 위한 구성이다.</p>
+        <div class="callout"><b>픽스처를 심고 나서 시간 묶음이 9 시간씩 밀렸다.</b><br>
+          컨테이너의 <code>NOW()</code> 는 UTC 인데 애플리케이션은 JVM 로컬 시각(KST)으로 <code>created_at</code> 을 쓴다. SQL 로 직접 심은 행만 기준이 달랐던 것이다. 이것이 결함이 아닌 근거는 <code>RegistrationAge</code> 가 저장 시각과 <code>LocalDateTime.now()</code> 를 같은 시간대에서 비교한다는 점이다 &mdash; 앱이 쓴 행끼리는 어긋날 수 없다. 그래서 고칠 곳은 코드가 아니라 픽스처였고, 오프셋을 짐작하지 않고 컨테이너와 호스트의 <code>NOW()</code> 차이를 실측해 보정했다.</div>
+
+        <h4>검증 항목 21 건</h4>
+        <table>
+          <tr><th>#</th><th>항목</th></tr>
+          <tr><td>A1</td><td>스펙 묶음에서 [이 묶음으로 그룹 만들기] &rarr; 제안된 이름 확인 &rarr; 생성 (SSE 재렌더 후에도 동작하는지 함께)</td></tr>
+          <tr><td>A2</td><td>그룹 상세에 멤버 4 대가 전부 들어왔는지</td></tr>
+          <tr><td>A3</td><td>서버 목록 각 행의 그룹 배지 &middot; 배지 클릭 시 그룹 상세로 이동</td></tr>
+          <tr><td>A4</td><td>빈 그룹 생성</td></tr>
+          <tr><td>A5</td><td>빈 그룹에 무소속 서버 추가</td></tr>
+          <tr><td>A6</td><td>멤버 제외 후 목록에서 배지가 사라지는지</td></tr>
+          <tr><td>A7</td><td>이름 변경이 상세 &middot; 목록 &middot; 배지 세 곳에 반영되는지</td></tr>
+          <tr><td>A8</td><td>그룹 목록의 멤버 수 정확성</td></tr>
+          <tr><td>A9</td><td>그룹 삭제 &rarr; 멤버 전원 무소속 복귀 &middot; 서버 생존</td></tr>
+          <tr><td>A10</td><td>회수된 서버를 그룹에 편입 (DEC-H)</td></tr>
+          <tr><td>B1</td><td>중복 이름으로 생성 시도</td></tr>
+          <tr><td>B2</td><td>중복 이름으로 변경 시도</td></tr>
+          <tr><td>B3</td><td>direct POST &mdash; 이미 다른 그룹 소속인 서버 추가</td></tr>
+          <tr><td>B4</td><td>없는 그룹 상세 요청</td></tr>
+          <tr><td>B5</td><td>direct POST &mdash; 없는 서버 추가</td></tr>
+          <tr><td>B6</td><td>direct POST &mdash; 삭제된 그룹에 추가</td></tr>
+          <tr><td>B7</td><td>구성이 다른 서버 섞기 (DEC-I)</td></tr>
+          <tr><td>C1</td><td>후보 목록에 다른 그룹 소속 서버가 나타나지 않는지</td></tr>
+          <tr><td>C2</td><td>이름 중복 거절이 모달이 아니라 필드 오류로 붙는지</td></tr>
+          <tr><td>C3</td><td>삭제 확인 모달 &middot; 취소하면 아무 일도 없는지</td></tr>
+          <tr><td>C4</td><td>스펙 이탈 배너가 조작을 막지 않는지</td></tr>
+        </table>
+        <p><code>B3 &middot; B5 &middot; B6</code> 만 <code>curl</code> 로 했다. 브라우저로는 만들 수 없는 요청이라 HTTP 전사가 증거다. 나머지 18 건은 전부 브라우저 조작이다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>&sect;6. CP5 수행 기록</summary>
+      <div class="body">
+        <p><b>21 항목 전부 수행했고 미수행은 없다.</b> 증거는 스크린샷 33 장과 HTTP 전사 3 건이다.</p>
+        <p>여기서는 결정이 실제로 화면에서 어떻게 나타났는지를 중심으로 적는다. 전 항목의 조작과 결과는 아래 표에 있다.</p>
+
+        <p><b>A1 &mdash; 씨앗이 제안으로 동작한다.</b> 스펙 A 묶음의 [이 묶음으로 그룹 만들기] 를 누르자 이름칸에 <code>MS03-CE0 &middot; Xeon Gold 6338 &times;2 &middot; 32 GB &times;4 &middot; 디스크 1개 &middot; PCIe 1장</code> 이 채워져 있었고 srv-01~04 가 전부 체크된 채 &lsquo;현재 소속: 무소속&rsquo; 으로 표시됐다. 이름을 <code>8월 A동 1차</code> 로 바꿔 만들었다.</p>
+
+        <p><b>A1 곁가지 &mdash; <code>[data-live]</code> 안의 버튼이 SSE 재렌더 후에도 살아남는다.</b> CP1 의 DEC-G 가 근거로 삼은 것은 <code>form-submit.js:93</code> 의 <code>document.addEventListener('submit', &hellip;)</code> &mdash; 위임 등록이라 DOM 이 교체돼도 핸들러가 죽지 않는다는 것이었다. 실측으로 확인했다. <code>server-stream.js</code> 의 재조회 로직을 그대로 재연해 <code>data-live=&quot;server-list&quot;</code> 영역을 실제로 교체한 뒤, 교체됐음을 확인하고(노드 동일성 비교) 그 버튼을 눌러 생성 폼으로 정상 이동했다. U3-1 에서 할당 폼이 죽었던 것은 페이지 로컬 스크립트가 폼 엘리먼트에 <b>직접 바인딩</b>했기 때문이고, 위험한 것은 <code>[data-live]</code> 자체가 아니라 직접 바인딩이라는 판단이 맞았다.</p>
+
+        <p><b>A10 &middot; B7 &mdash; 막지 않기로 한 것은 정말 막히지 않는다.</b> 회수된 srv-07 은 후보 목록에 그대로 나타났고 편입 후 멤버 표에 <code>회수됨</code> 으로 보였다(DEC-H). 스펙 B 서버를 스펙 A 그룹에 넣자 상단에 배너가 떴으나 편입 자체는 이뤄졌고, 해당 행의 구성 셀만 황색으로 강조됐다(DEC-I). 배너가 뜬 상태에서 [빼기] 도 그대로 동작했고, 구성이 균일해지자 배너가 스스로 사라졌다(C4).</p>
+
+        <p><b>B3 &mdash; 사유가 다음 행동까지 알려준다.</b> 이미 그룹 1 에 속한 srv-01 을 다른 그룹에 넣으려 하자 409 와 함께 <code>이미 다른 그룹(8월 A동 1차(수정))에 속해 있습니다. 옮기려면 그 그룹에서 먼저 빼주세요.</code> 가 돌아왔다. 어느 그룹이 막고 있는지와 무엇을 해야 하는지가 한 문장에 있다. 이 문자열은 <code>addBlockReason</code> 이 만든 것이고 화면의 안내와 같은 출처다.</p>
+
+        <p><b>C1 &mdash; 그 409 는 화면에서는 애초에 일어나지 않는다.</b> 후보 목록에는 무소속 서버만 나오므로(DEC-K) 운영자가 다른 그룹의 서버를 고를 방법이 없다. 헤더에도 &ldquo;아직 어느 그룹에도 속하지 않은 서버만 고를 수 있습니다&rdquo; 라고 적혀 있다. 서버 가드는 direct POST 용 안전망으로만 남는다.</p>
+
+        <p><b>C2 &mdash; 거절이 입력칸 옆에 붙는다.</b> 생성과 이름 변경 양쪽에서 중복 이름은 모달이 아니라 필드 오류로 돌아왔고 입력값도 보존됐다. <code>&#9313; 이름 변경도 BindingResult 경로로 옮긴</code> 조정이 실제로 이 결과를 만든다.</p>
+
+        <p><b>B4 &mdash; 없는 그룹은 HTML 오류 페이지로 간다.</b> JSON 이나 스택트레이스가 화면이 되지 않았고 [이전 페이지로] &middot; [홈으로] 복귀 동선이 있었다. S10 의 Accept 정규화가 문서 이동에 대해 동작하고 있음을 확인한 자리다.</p>
+
+        <h4>전 항목 결과표</h4>
+        <table>
+          <tr><th>#</th><th>수행한 조작</th><th>관찰 결과</th><th>판정</th></tr>
+          <tr><td>A1</td><td>스펙 A 묶음의 생성 버튼 &rarr; 이름을 <code>8월 A동 1차</code> 로 생성</td><td>제안 이름 프리필 &middot; 후보 4 대 전원 체크 &middot; 생성 후 상세로 이동</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A2</td><td>생성 직후 상세 확인</td><td>멤버 4 대(srv-01~04) 전원 편입, &ldquo;이 그룹에 묶인 서버 4대&rdquo;</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A3</td><td>서버 목록 복귀 &rarr; 배지 클릭</td><td>srv-01~04 그룹 열에 배지 표시. 배지 클릭 시 행 클릭이 아니라 그룹 상세로 이동</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A4</td><td>[새 그룹] &rarr; <code>예비 그룹</code> 생성</td><td>씨앗 없는 폼은 후보표 대신 &ldquo;멤버 없이 만듭니다&rdquo; 안내. 생성 후 0 대 빈 상태</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A5</td><td>&lsquo;서버 넣기&rsquo; 에서 srv-05 선택 &rarr; 넣기</td><td>멤버 1 대로 증가, 후보 4 대 &rarr; 3 대</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A6</td><td>srv-05 [빼기] &rarr; 서버 목록 확인</td><td>멤버 0 대 복귀, 후보 3 대 &rarr; 4 대, 목록의 그룹 열이 <code>&mdash;</code> 로 환원</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A7</td><td>이름을 <code>8월 A동 1차(수정)</code> 로 변경</td><td>제목 &middot; 그룹 목록 &middot; 서버 목록 배지 3 곳 모두 반영</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A8</td><td>그룹 목록 멤버 수 대조</td><td>0 대 / 4 대 &rarr; 5 대, DB 조회와 매번 일치</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A9</td><td>[그룹 지우기] &rarr; 모달 승인</td><td>모달 문구가 멤버 수에 맞춰 바뀜. 승인 후 목록으로 이동, 멤버였던 서버는 무소속으로 생존</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>A10</td><td>회수된 srv-07 편입</td><td>후보에 정상 노출(차단 없음), 편입 후 멤버표 운영 상태 <code>회수됨</code></td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>B1</td><td>중복 이름으로 생성</td><td>폼 재렌더 + 입력칸 아래 붉은 필드 오류, DB 에 중복 생성 없음</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>B2</td><td>중복 이름으로 변경</td><td>상세 재렌더 + 같은 필드 오류, 제목은 원래 이름 유지</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>B3</td><td>direct POST &mdash; 소속 있는 서버 추가</td><td>409 + 막는 그룹 이름과 해결 방법이 담긴 메시지</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>B4</td><td><code>/server-group/99999</code> 접근</td><td>HTML 오류 페이지(404) + 복귀 동선, JSON &middot; 스택트레이스 없음</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>B5</td><td>direct POST &mdash; 없는 서버</td><td>404 + &ldquo;게스트 서버를 찾을 수 없습니다&rdquo;</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>B6</td><td>direct POST &mdash; 삭제된 그룹에 추가</td><td>404 + &ldquo;서버 그룹을 찾을 수 없습니다&rdquo;</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>B7</td><td>스펙 B 서버를 스펙 A 그룹에 편입</td><td>편입 허용 + 상단 배너 + 해당 행 구성 셀 황색 강조</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>C1</td><td>두 그룹의 후보 목록 확인</td><td>다른 그룹 소속 서버가 일관되게 제외, 헤더에 규칙 명시</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>C2</td><td>생성 &middot; 변경 양쪽의 거절 표시</td><td>모달이 아니라 필드 오류, 입력값 보존</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>C3</td><td>삭제 모달에서 [취소]</td><td>모달만 닫히고 그룹 &middot; 멤버 그대로(DB 조회로 확인)</td><td><span class="chip pass">통과</span></td></tr>
+          <tr><td>C4</td><td>배너가 뜬 상태에서 [빼기]</td><td>조작이 막히지 않고, 구성이 균일해지자 배너 자동 소멸</td><td><span class="chip pass">통과</span></td></tr>
+        </table>
+        <p>세 direct POST 모두 500 도 silent 200 도 없었고, DB 확인 결과 아무것도 생성되지 않았다.</p>
+
+        <h4>항목별 증거</h4>
+        <div class="noshot">스크린샷: A1 &mdash; 제안 이름 프리필 &middot; 후보 4 대 전원 체크 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A1 &mdash; 이름을 <code>8월 A동 1차</code> 로 바꿔 만들었다 &mdash; srv-01~04 가 전부 체크된 채 &lsquo;현재 소속: 무소속&rsquo; &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A1 곁가지 &mdash; <code>data-live=&quot;server-list&quot;</code> 영역을 실제로 교체한 뒤 그 버튼을 눌러 생성 폼으로 정상 이동했다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A2 &mdash; 멤버 4 대(srv-01~04) 전원 편입, &ldquo;이 그룹에 묶인 서버 4대&rdquo; &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A3 &mdash; srv-01~04 그룹 열에 배지 표시 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A3 &mdash; 배지 클릭 시 행 클릭이 아니라 그룹 상세로 이동 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A4 &mdash; 씨앗 없는 폼은 후보표 대신 &ldquo;멤버 없이 만듭니다&rdquo; 안내 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A4 &mdash; 생성 후 0 대 빈 상태 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A5 &mdash; 멤버 1 대로 증가, 후보 4 대 &rarr; 3 대 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A6 &mdash; 멤버 0 대 복귀, 후보 3 대 &rarr; 4 대 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A6 &mdash; 목록의 그룹 열이 <code>&mdash;</code> 로 환원 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A7 &mdash; 이름 변경이 상세 제목에 반영 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A7 &mdash; 서버 목록 배지에 반영 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A8 &mdash; 그룹 목록 멤버 수 0 대 / 4 대 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A8 &mdash; &rarr; 5 대, DB 조회와 매번 일치 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A9 &mdash; 모달 문구가 멤버 수에 맞춰 바뀜 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A9 &mdash; 승인 후 목록으로 이동 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A9 &mdash; 멤버였던 서버는 무소속으로 생존 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A10 &mdash; 회수된 srv-07 이 후보에 정상 노출(차단 없음) &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: A10 &mdash; 편입 후 멤버표 운영 상태 <code>회수됨</code> &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: B1 &mdash; 폼 재렌더 + 입력칸 아래 붉은 필드 오류, DB 에 중복 생성 없음 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: B2 &mdash; 상세 재렌더 + 같은 필드 오류, 제목은 원래 이름 유지 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p><b>B3</b> &mdash; direct POST 로 이미 다른 그룹에 속한 서버를 추가했을 때의 HTTP 전사.</p>
+        <pre><code>HTTP/1.1 409
+X-Request-Id: 3fa931b5-50a3-4f04-a275-3a3758eb11fb
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Tue, 11 Aug 2026 23:15:16 GMT
+
+{&quot;message&quot;:&quot;이미 다른 그룹(8월 A동 1차(수정))에 속해 있습니다. 옮기려면 그 그룹에서 먼저 빼주세요.&quot;}</code></pre>
+        <div class="noshot">스크린샷: B4 &mdash; HTML 오류 페이지(404) + 복귀 동선, JSON &middot; 스택트레이스 없음 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p><b>B5</b> &middot; <b>B6</b> &mdash; direct POST 로 없는 서버 &middot; 삭제된 그룹을 건드렸을 때의 HTTP 전사.</p>
+        <pre><code>HTTP/1.1 404
+X-Request-Id: 1c0f0390-a9dd-4abd-b9ce-273b4ba8e28c
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Tue, 11 Aug 2026 23:15:16 GMT
+
+{&quot;message&quot;:&quot;게스트 서버를 찾을 수 없습니다. id=00000000-0000-0000-0000-000000000999&quot;}</code></pre>
+        <pre><code>HTTP/1.1 404
+X-Request-Id: bd803560-75e3-49b7-a504-3f7dc4b709f4
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Tue, 11 Aug 2026 23:15:16 GMT
+
+{&quot;message&quot;:&quot;서버 그룹을 찾을 수 없습니다. id=2&quot;}</code></pre>
+        <div class="noshot">스크린샷: B7 &mdash; 편입 허용 + 상단 배너 + 해당 행 구성 셀 황색 강조 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: C1 &mdash; 다른 그룹 소속 서버가 일관되게 제외, 헤더에 규칙 명시 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: C2 &mdash; 생성 쪽 거절이 모달이 아니라 필드 오류, 입력값 보존 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: C2 &mdash; 이름 변경 쪽 거절도 같은 필드 오류 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: C3 &mdash; 삭제 확인 모달 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: C3 &mdash; 모달만 닫히고 그룹 &middot; 멤버 그대로(DB 조회로 확인) &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: C4 &mdash; 조작이 막히지 않고, 구성이 균일해지자 배너 자동 소멸 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>&sect;7. 검증에서 발견해 고친 것</summary>
+      <div class="body">
+        <p><b>애플리케이션 결함은 없었다.</b> 그러나 검증 과정에서 세 가지를 고쳤다. 둘은 검증이 범위 밖 관찰로 올린 것이고, <b>하나는 증거 사진을 직접 읽다가 찾은 내가 만든 회귀</b>다.</p>
+
+        <h4>&#9312; 후보 목록에 운영 상태가 없었다.</h4>
+        <p>&lsquo;서버 넣기&rsquo; 후보표는 이름 &middot; UUID &middot; 보드 모델 &middot; 구성 &middot; 등록 시각만 보여줬다. 그래서 회수된 srv-07 을 고를 때 회수됐다는 사실을 알 수 없고, 편입한 뒤 멤버 표에서야 드러난다. DEC-H 가 편입을 허용하기로 한 이상 차단할 일은 아니지만, <b>고르는 시점에 상태가 안 보이면 되돌리는 조작이 한 번 더 든다.</b> 생성 폼과 그룹 상세 두 후보표 모두에 운영 상태 열을 더했다. 회수됨은 회색, 그 외는 파랑이다.</p>
+        <div class="noshot">스크린샷: FIX &#9312; &mdash; 생성 폼과 그룹 상세 두 후보표 모두에 운영 상태 열을 더했다. 회수됨은 회색, 그 외는 파랑이다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+
+        <h4>&#9313; 그룹 배지가 잘려도 전체 이름을 알 수 없었다.</h4>
+        <p><code>8월 A동 1차(수정)</code> 이 열 폭에 잘리는데 <code>title</code> 이 없어 hover 로도 확인할 수 없었다. <code>&hellip;1차</code> / <code>&hellip;2차</code> 처럼 뒤가 갈리는 이름이 실제로 생기므로 잘린 채로는 구분이 안 된다. <code>title</code> 속성을 더했다.</p>
+
+        <h4>&#9314; 내가 만든 회귀 &mdash; 열 폭 재배분이 두 열을 잘랐다.</h4>
+        <p>U3-3 의 9 열 표에 그룹 열을 끼워 넣으며 폭을 다시 나눴는데, <code>등록 시각</code> 을 15% 에서 12% 로, <code>제조사</code> 를 8% 에서 7% 로 줄인 결과 각각 <code>2026-08-12 07:&hellip;</code> 와 <code>Gigab&hellip;</code> 로 잘렸다.</p>
+        <div class="noshot">스크린샷: FIX &#9314; (수정 전) &mdash; <code>등록 시각</code> 과 <code>제조사</code> 가 각각 <code>2026-08-12 07:&hellip;</code> 와 <code>Gigab&hellip;</code> 로 잘렸다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="callout warn"><b>이것은 검증 항목이 잡을 수 없었다.</b><br>
+          CP5 항목은 그룹 기능에 맞춰 설계됐고, 21 항목 어디에도 &ldquo;다른 열이 여전히 온전한가&rdquo; 는 없다. 검증 보고서의 &lsquo;통과&rsquo; 는 <b>계획된 항목에 대한 판정</b>이지 화면 전체가 온전하다는 뜻이 아니다. 이 회귀는 A3 증거 사진을 열어 눈으로 읽다가 발견했다 &mdash; 보고서 요약만 읽었으면 그대로 넘어갔다.</div>
+        <p>배분 원칙을 <b>잘렸을 때 무엇을 잃는가</b>로 다시 세웠다. UUID 는 앞자리만 남아도 식별되지만 등록 시각은 초가 잘리면 값이 반쪽이 되고 그룹 이름은 잘리면 못 읽는다. 그래서 폭은 UUID 에서 덜어 오고 등록 시각은 U3-3 의 15% 를 그대로 지켰다. 재기동 후 10 열 전부 잘림 없이 렌더되는 것을 확인했다.</p>
+        <div class="noshot">스크린샷: FIX &#9313; &middot; &#9314; (수정 후) &mdash; 재기동 후 10 열 전부 잘림 없이 렌더되는 것을 확인했다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p>세 수정에는 <b>회귀 테스트 2 건</b>을 함께 달았다 &mdash; 후보표의 운영 상태 열과 배지의 <code>title</code> 속성이 사라지면 실패한다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s8">
+      <summary>&sect;8. 개정 라운드 &mdash; 화면을 실제로 써 보고 고친 것</summary>
+      <div class="body">
+        <p>CP6 초안을 낸 뒤 사용자가 화면을 직접 보며 <b>13 건</b>을 지적했다. 두 차례에 걸쳐 들어왔고, 성격은 셋으로 갈린다 &mdash; 양식이 화면마다 갈라진 것, 조작 흐름이 얕은 것, 신호가 문장에만 있는 것.</p>
+
+        <h4>양식이 갈라진 것</h4>
+        <p><b>묶음 양식을 한 파일로 모았다.</b> &lsquo;멤버&rsquo; 제목은 카드 끝에 붙어 있고 &lsquo;58분 전&rsquo; 은 여백을 가졌다. 원인은 두 화면이 각자 자기 클래스를 쓴 것이었다. 사용자의 지적은 그 어긋남 하나가 아니라 <b>&ldquo;이 양식이 앞으로도 많이 쓰일 테니 한 번에 정의할 수 있게 하라&rdquo;</b> 였다.</p>
+        <p>그래서 <code>static/css/grouped-list.css</code> 를 신설해 <b>바깥 묶음 &rarr; 안쪽 묶음 &rarr; 표</b> 3 층을 한 곳에서 정의했다. 서버 목록의 시간 묶음 &middot; 등록 진행 중 &middot; 그룹 상세의 멤버 &middot; 고르기 모달이 전부 이 파일을 쓴다. <code>server.css</code> 에서 옮겨간 규칙은 지웠다 &mdash; 두 곳에 남기면 곧 갈라진다.</p>
+        <p><b>&lsquo;등록 진행 중&rsquo; 을 시간 묶음과 같은 모양으로 바꿨다.</b> 예전에는 흰 카드 하나였고 시간 묶음은 회색 상자 안에 흰 카드였다. 이제 둘 다 회색 상자(제목 &middot; 힌트 &middot; 대수)가 흰 카드를 감싼다. 구조가 정확히 대응한다 &mdash; 시간 묶음의 &lsquo;스펙 N&rsquo; 자리에 &lsquo;등록만 됨&rsquo; &middot; &lsquo;수집 중&rsquo; 이 들어간다.</p>
+        <div class="noshot">스크린샷: REV1 &mdash; 목록의 통일된 묶음: 시간 묶음과 &lsquo;등록 진행 중&rsquo; 둘 다 회색 상자(제목 &middot; 힌트 &middot; 대수)가 흰 카드를 감싼다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p><b>&lsquo;구성&rsquo; 열의 값이 열 머리와 어긋났다.</b> 아코디언 제목 옆에 쓰라고 만든 <code>n-spec-label</code>(왼쪽 여백 18px)을 표 셀에도 썼기 때문이다. 여백 없는 &lsquo;수집 전&rsquo; 과 여백 있는 스펙 문장이 한 열에서 갈렸다. 표 셀 전용 <code>n-spec-cell</code> 로 분리했다.</p>
+        <div class="noshot">스크린샷: REV2 &mdash; 그룹 상세의 멤버 묶음이 같은 3 층 양식으로 통일되고, 정렬된 &lsquo;구성&rsquo; 열이 열 머리와 맞는다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p><b>&lsquo;목록으로&rsquo; 의 자리를 맞췄다.</b> 서버 상세는 제목 위, 그룹 상세는 우측 상단이었다. 화면을 오갈 때 눈이 매번 다시 찾아야 해서 둘 다 우측 상단으로 옮겼다.</p>
+        <p><b>한 줄에 놓인 것들이 층이 졌다.</b> 그룹 이름 입력칸 &middot; [이름 바꾸기] &middot; [그룹 지우기] 가 각각 다른 높이에 섰다. <code>align-items: flex-end</code> 는 &ldquo;여백까지 포함한 바닥&rdquo; 에 맞추는데 폼 묶음이 하단 여백을 갖고 있었다. 인라인 폼 안에서만 그 여백을 없앴다.</p>
+        <div class="noshot">스크린샷: REV5 &mdash; 그룹 이름 입력칸 &middot; [이름 바꾸기] &middot; [그룹 지우기] 가 한 바닥선에 선 도구 줄 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p><b>&lsquo;스펙 그룹&rsquo; 을 &lsquo;스펙&rsquo; 으로 바꿨다.</b> &lsquo;서버 그룹&rsquo; 이 생긴 뒤로 &lsquo;그룹&rsquo; 이 두 가지를 가리키게 됐다. 화면에서 <code>스펙 1</code> &middot; <code>스펙 2</code> 로 부른다.</p>
+
+        <h4>조작 흐름이 얕은 것</h4>
+        <p><b>&lsquo;서버 넣기&rsquo; 를 아코디언에서 버튼 + 모달로 바꿨다.</b> 상세를 훑는 도중에 고르는 일이 곁다리로 일어나던 것을, 버튼 &rarr; 모달이라는 한 단계를 더 두어 분리했다. 모달 안에서는 <b>서버 목록과 같은 방식(시간 &times; 스펙)으로 묶어</b> 보여준다 &mdash; 고르는 자리가 다른 순서로 늘어놓으면 방금 목록에서 본 묶음을 여기서 다시 찾아야 하기 때문이다.</p>
+        <div class="callout"><b>이 요구가 응답 구조를 바꿨다.</b><br>
+          &ldquo;서버 화면과 같은 묶음&rdquo; 은 시간 &rarr; 스펙 트리다. 그것을 상세 응답에 얹으면 <b>모달을 열지 않아도 매번 조립</b>하게 된다. 그래서 상세에는 <code>candidateCount</code> 만 남기고, 목록은 조각 엔드포인트(<code>GET /{id}/candidates</code>)가 열 때만 내려준다. 열지 않으면 비용이 0 이다.</div>
+        <div class="noshot">스크린샷: REV3 &mdash; 서버 화면과 같은 묶음으로 렌더되는 고르기 모달과 선택 수 갱신 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p><b>행 전체 클릭을 걷어냈다.</b> 사용자의 지적은 &ldquo;커서는 손 모양으로 바뀌는데 정작 이름을 눌러야 이동한다&rdquo; 였다. 확인해 보니 <code>server-list.js</code> 가 <code>#serverTable .n-row-clickable</code> 을 찾는데 <b>U3-3 재작성에서 그 id 가 사라져</b> 핸들러가 아무것도 잡지 못하고 있었다. 죽은 핸들러를 살리는 대신 이름 링크를 유일한 클릭 대상으로 확정하고, 행에는 배경 변화만 남겼다.</p>
+        <p><b>&lsquo;목록으로&rsquo; 가 항상 서버 목록으로 갔다.</b> 그룹 상세에서 멤버를 열고 나와도 서버 목록으로 튕겼다. 들어올 때 <code>returnTo</code> 를 실어 보내 온 곳으로 돌아가게 했다.</p>
+        <div class="callout warn"><b>이 값은 검증 없이 쓸 수 없다.</b><br>
+          <code>returnTo</code> 는 화면의 링크 주소로 그대로 나간다. 검사가 없으면 <code>//other.example</code> 이나 <code>javascript:</code> 를 넣어 사용자를 다른 곳으로 보내는 링크를 만들 수 있다. <code>^/provisioning/[A-Za-z0-9/_-]*$</code> 로 형태를 좁히고 어긋나면 조용히 서버 목록으로 되돌린다. 주입 시도 5 종(외부 호스트 &middot; 스킴 상대 &middot; <code>javascript:</code> &middot; 다른 영역 &middot; 질의 문자열)을 테스트로 못박았다.</div>
+        <h4>되돌아가기 &mdash; 세 번 만에 자리를 잡은 곳</h4>
+        <p>이 부분은 요구를 한 걸음씩 받아 붙이다 설계가 어긋났고, 두 번 고친 끝에 <b>구조를 통째로 다시 세웠다.</b>
+        오간 길을 그대로 적는다 &mdash; 어디서 갈라졌는지가 결론보다 쓸모 있기 때문이다.</p>
+
+        <p><b>① 처음 요구 &mdash; 돌아오면 맨 위로 튀지 않게.</b> 목록 → 상세 → &lsquo;목록으로&rsquo; 로 돌아오면
+        브라우저는 문서 맨 위를 보여준다. 서버가 수십 대면 방금 어디를 보고 있었는지 다시 찾아야 한다.
+        돌아갈 링크에 <code>returned=&lt;행 id&gt;</code> 를 실어 그 행으로 스크롤하고 잠깐 배경을 밝혔다.
+        이어서 &lsquo;목록으로&rsquo; 가 늘 서버 목록으로 가던 것을 <code>returnTo</code> 로 고쳤고,
+        그룹 목록에도 같은 동작을 넣으며 행 키에서 도메인을 걷어냈다(<code>data-nav-key</code> 의 전신).</p>
+
+        <p><b>② 규약 위배 &mdash; 사용자가 주소창을 보다 지적했다.</b> 이름이 셋이 됐다 &mdash;
+        <code>returnTo</code>(어디로) &middot; <code>returnKey</code>(무엇을, <b>그룹 상세에만</b>) &middot;
+        <code>returned</code>(목록에서 지금 짚을 것). 서버 상세는 짚을 것을 자기 id 로 하드코딩했고,
+        기본값 채우기는 두 컨트롤러에, 링크 마크업은 두 템플릿에 복붙돼 있었다.
+        CLAUDE.md 기준으로 둘이 걸렸다 &mdash; <b>Primitive Obsession 금지</b>(&ldquo;어디로 돌아가 무엇을 짚는가&rdquo; 는
+        도메인 의미가 있는 값인데 <code>String</code> 두 개로 흩어져 다녔다)와 <b>중복 금지</b>.
+        값 객체 <code>ReturnTarget</code> 과 조각 <code>fragments/common/back-link</code> 로 묶고 이름을 둘로 줄였다.</p>
+
+        <div class="callout"><b>조각으로 뽑은 값어치가 곧바로 드러났다.</b>
+        1 차 정리 직후 테스트가 <b>같은 부류의 결함을 하나 더</b> 잡았다 &mdash; 서버 상세의 수정 폼 재렌더 경로가
+        모델을 얹지 않아 조각이 터졌다. 각 템플릿이 인라인으로 링크를 만들던 때였다면 링크만 이상하게 나오고
+        넘어갔을 것이다. 공통화의 값어치는 &ldquo;코드가 줄어든다&rdquo; 가 아니라 &ldquo;빠뜨리면 터진다&rdquo; 에 있다.</div>
+
+        <p><b>③ 그래도 깨졌다 &mdash; 사용자가 두 결함을 찾았다.</b></p>
+        <table>
+          <thead><tr><th>재현</th><th>일어난 일</th><th>왜</th></tr></thead>
+          <tbody>
+          <tr><td>서버 목록 &rarr;(배지) 그룹 상세 &rarr;(멤버) 서버 상세 &rarr; &lsquo;목록으로&rsquo; &times;2</td>
+              <td>서버 목록이 아니라 <b>그룹 목록</b>으로 나왔다</td>
+              <td>깊이 2 를 표현할 자리가 없었다. 멤버 링크는 &ldquo;그룹 상세로 돌아와라&rdquo; 만 실었고,
+                  그 그룹 상세가 어디서 왔는지는 실을 곳이 없었다</td></tr>
+          <tr><td>그룹 목록 &rarr; 그룹 상세 &rarr; 서버 상세 &rarr; &lsquo;목록으로&rsquo; &times;2</td>
+              <td>그룹 목록에서 <b>행 강조가 아예 안 떴다</b></td>
+              <td>서버 상세에서 돌아온 <code>returned=&lt;서버 id&gt;</code> 를 그룹 상세가 자기 back 링크에 재사용해
+                  그룹 목록에 서버 id 가 갔다 &mdash; 그 목록의 행 키는 그룹 id 다</td></tr>
+          </tbody>
+        </table>
+        <p>둘은 같은 뿌리다. <b>&ldquo;어디로&rdquo; 와 &ldquo;무엇을&rdquo; 을 한 벌의 URL 파라미터에 융합한 것</b>이다.
+        앞의 것은 그 표현이 깊이 1 밖에 담지 못해서 깨졌고, 뒤의 것은 <b>짚을 행이 목록마다 다른 좌표계를 갖는다</b>는
+        사실을 무시해서 깨졌다. 개정 당시 &ldquo;두 경우 모두 방금 관계된 서버를 가리키니 뜻이 어긋나지 않는다&rdquo; 고
+        판단했던 것이 틀렸다.</p>
+
+        <h4>④ 재구성 &mdash; 화면 이력 스택</h4>
+        <p>두 관심사를 갈랐다. <b>어디로 돌아가나</b>는 이력 스택이 안다 &mdash; 목록에서 상세로 들어갈 때 한 겹 쌓고
+        상세에서 나올 때 한 겹 걷는다. 겹이 몇이든 같은 규칙이라 깊이가 문제되지 않는다.
+        <b>무엇을 짚나</b>는 그 겹이 함께 들고 있다 &mdash; 자기를 만든 목록의 좌표계 안에서만 쓰이므로
+        키가 남의 목록으로 새지 않는다. 스택은 <code>sessionStorage</code> 에 두고
+        <b>URL 에는 아무것도 싣지 않는다.</b></p>
+        <table>
+          <thead><tr><th>바뀐 것</th><th>전</th><th>후</th></tr></thead>
+          <tbody>
+          <tr><td>URL 파라미터</td><td><code>returnTo</code> &middot; <code>returnKey</code> &middot; <code>returned</code></td><td><b>없음</b></td></tr>
+          <tr><td>서버 쪽 배선</td><td>두 컨트롤러의 파라미터 &middot; 값 객체 &middot; 경로 검증</td><td><b>없음</b> &mdash; 마크업 규약만 남는다</td></tr>
+          <tr><td>화면이 지킬 것</td><td>모델 조립 &middot; 링크 조립 &middot; 재렌더 누락 주의</td><td>행에 <code>data-nav-key</code>, 되돌아가기에 <code>data-nav-back</code></td></tr>
+          <tr><td>깊이</td><td>1 (그 이상은 잃어버림)</td><td>제한 없음(상한 10 겹)</td></tr>
+          </tbody>
+        </table>
+        <p>행 안의 <b>어떤 링크든</b> 자동으로 쌓이므로 이름 링크와 그룹 배지를 구분할 필요가 없다.
+        스크립트가 없거나 스택이 이 화면의 것이 아니면(주소창 직접 진입 &middot; 새로고침) 서버가 렌더한
+        기본 목록 href 가 그대로 열린다 &mdash; 점진적 향상이 저절로 성립한다.
+        부수 효과로 <b>바깥에서 준 경로로 이동하는 표면이 통째로 사라져</b> 열린 리다이렉트 검증도 필요 없어졌다.</p>
+
+        <h4>재구성 검증</h4>
+        <p>사용자가 지적한 두 시나리오를 그대로 재현했다. 자동화 클릭이 전달되지 않는 문제가 반복돼
+        위임 리스너를 같은 경로로 타는 <code>element.click()</code> 으로 조작했다 &mdash;
+        운영체제 입력 경로만 우회하고 애플리케이션 로직은 그대로 실행된다.</p>
+        <table>
+          <thead><tr><th>재현</th><th>결과</th><th>판정</th></tr></thead>
+          <tbody>
+          <tr><td>서버 목록 &rarr; 그룹 상세 &rarr; 서버 상세 &rarr; 되돌아가기 &times;2</td>
+              <td>1 번째 <code>/server-group/5</code>(스택 1 겹 남음) &rarr; 2 번째 <b><code>/provisioning/server</code></b>(스택 비움)</td>
+              <td><span class="chip pass">해소</span></td></tr>
+          <tr><td>그룹 목록 &rarr; 그룹 상세 &rarr; 서버 상세 &rarr; 되돌아가기 &times;2</td>
+              <td>들어갔던 그룹 행만 <code>n-row-returned</code> &middot; 배경 <code>rgba(0,117,222,0.18)</code>, 나머지 행은 그대로</td>
+              <td><span class="chip pass">해소</span></td></tr>
+          </tbody>
+        </table>
+        <p>두 번째는 강조가 1.8 초라 왕복 촬영으로는 매번 놓쳤다. 목록을 iframe 으로 적재하고 적재 직후 DOM 을
+        표본해 확인했다 &mdash; 앱 코드와 CSS 는 건드리지 않았다.</p>
+
+        <div class="callout warn"><b>검증이 또 하나를 드러냈다 &mdash; 기능이 장식에 얹혀 있었다.</b>
+        검증 브라우저에서 부드러운 스크롤이 통째로 동작하지 않았다(두 페이지 실측 &mdash;
+        <code>behavior:'smooth'</code> 는 1.2 초 동안 6 회 표본 전부 제자리, <code>'instant'</code> 는 즉시 이동).
+        그 환경에서 스크롤은 <b>예외도 대체 동작도 없이 조용히 아무 일도 하지 않았다</b> &mdash;
+        돌아온 행이 화면 밖(<code>rowTop 1006</code>, 뷰포트 923)에 있는데 화면은 최상단에 머물렀고,
+        강조는 보이지 않는 곳에서 켜졌다 꺼졌다. 여기서는 브라우저 설정 탓이지만
+        <b>동작 줄이기를 켠 사용자에게는 같은 일이 일어난다.</b>
+        기능은 &lsquo;행이 보이게 하는 것&rsquo; 이고 부드러운 이동은 장식인데 기능이 장식에 얹혀 있었다.
+        부드럽게 시도한 뒤 0.7 초가 지나도 제자리면 즉시 이동으로 마무리하도록 고쳤고,
+        <b>그 결함을 드러낸 바로 그 환경에서</b> 화면이 실제로 움직여 대상 행이 중앙에 오는 것을 확인했다.</div>
+
+        <div class="callout warn"><b>페이징이 들어오면 이 구현을 고쳐야 한다 &mdash; 파일에 명시했다.</b>
+        지금 구현은 <b>돌아간 목록의 DOM 안에 그 행이 있다</b>는 전제 위에 선다. 되돌아갈 주소에 질의 문자열을
+        통째로 담아 URL 에 실린 화면 상태(필터 &middot; 펼침)는 복원되고 접힌 묶음은 펼쳐 찾지만,
+        <b>페이징 &middot; 무한 스크롤 &middot; 가상 스크롤에서는 성립하지 않는다</b> &mdash;
+        첫 페이지에 그 행이 없으면 예외도 안내도 없이 강조가 조용히 사라진다.
+        고칠 방향 둘(① 쌓을 때 페이지 좌표까지 담기 ② 목록이 &ldquo;이 키가 몇 쪽인가&rdquo; 를 풀어 주기)과
+        <b>못 찾았을 때 조용히 넘어가지 않게 하는 것이 핵심</b>이라는 점을 <code>global/nav-stack.js</code> 머리말에
+        적었고, 실제 조회 지점에도 그 머리말을 가리키는 주석을 달았다.</div>
+
+        <p><b>범위 밖으로 둔 관찰 하나.</b> 서버 상세와 그룹 상세의 본문 폭이 달라(좁은 중앙 단 / 거의 전폭)
+        같은 되돌아가기 버튼이 화면 좌표로 약 250 px 튄다. 배치 규칙 위반은 아니고 폭 차이에서 오는 흔들림이라
+        이 슬라이스에서 건드리지 않았다.</p>
+
+        <div class="noshot">스크린샷: 부드러운 스크롤이 죽은 바로 그 환경에서 대체 이동이 작동해 대상 행이 화면 중앙에 왔다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+
+        <h4>신호가 문장에만 있는 것</h4>
+        <p><b>구성 혼재를 표식으로 바꿨다.</b> 배너 문장 하나뿐이라 표가 길어지면 어느 행이 문제인지 눈으로 찾아야 했다. 자원 화면이 사용 중단을 알리는 어휘(<code>n-deprecated-dot</code>)를 그대로 빌려 세 자리에 표식을 뒀다 &mdash; 그룹 목록의 이름 옆 점, 상세 제목 옆 <code>구성 혼재</code> 배지, 겉도는 멤버 행의 왼쪽 노란 띠와 옅은 배경. 배너 문구도 &ldquo;구성 열을 비교해 잘못 들어온 서버를 빼주세요&rdquo; 에서 &ldquo;노란색으로 표시된 행이 다수와 다른 구성입니다&rdquo; 로 바꿨다 &mdash; 표식이 대신 짚어 주므로 사람에게 비교를 시킬 이유가 없다.</p>
+        <div class="noshot">스크린샷: REV6 &mdash; 그룹 목록의 이름 옆 점 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: REV4 &mdash; 혼재 그룹의 세 표식 중 상세 쪽: 제목 옆 <code>구성 혼재</code> 배지, 겉도는 멤버 행의 왼쪽 노란 띠와 옅은 배경 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p>목록에도 표식을 넣으려면 모든 그룹의 멤버 구성을 알아야 한다. 앞서 이 이유로 &lsquo;구성&rsquo; 열을 뺐었는데(&sect;3-&#9314;), 그때 걱정한 것은 그룹마다 멤버를 조회하는 N+1 이었다. 이번에는 <b>소속 전부를 한 번에 읽어 애플리케이션에서 가르는</b> 방식을 썼다 &mdash; 질의 수가 그룹 개수와 무관하게 고정이다. 같은 요구를 &ldquo;열을 추가한다&rdquo; 로 읽었을 때는 비용이 컸고 &ldquo;표식을 붙인다&rdquo; 로 읽으니 감당 가능해졌다.</p>
+        <p><b>툴팁을 프로젝트 어휘로 바꿨다.</b> 표식의 설명이 브라우저 기본 툴팁으로 떠서 화면과 따로 놀았다. 프로젝트 공용 툴팁(<code>[data-tooltip]</code> + <code>::after</code>)에 <code>n-tooltip</code> 일반 별칭을 더해 옮겼다 &mdash; 기존 이름은 <code>n-btn-tooltip-wrap</code> 이라 버튼 밖에서 쓰기에 어색했고, 상자 모양 규칙은 한 벌을 공유하므로 두 이름이 갈라져도 시각이 어긋나지 않는다.</p>
+        <div class="callout warn"><b>툴팁만 바꾸면 잘린다.</b><br>
+          열 정렬을 위해 표 셀에 <code>overflow: hidden</code> 을 걸어 두었고, 커스텀 툴팁은 절대 배치된 <code>::after</code> 라 그 경계에서 잘린다. 네이티브 툴팁은 OS 계층이라 잘리지 않아 그동안 이 제약이 드러나지 않았다. 표식이 든 칸만 넘침을 허용하고, 말줄임은 안쪽 요소(배지 &middot; 이름 링크)가 스스로 하게 옮겼다.</div>
+        <div class="noshot">스크린샷: REV7 &mdash; 잘리지 않는 커스텀 툴팁 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+
+        <h4>개정이 바꾼 기대값 둘</h4>
+        <p>숫자만 고치지 않고 무엇이 맞는 기대인지를 다시 적었다.</p>
+        <ul>
+          <li><b>접힘</b> &mdash; 각 묶음의 설명이 본문에서 머리로 올라가면서 &ldquo;접히면 설명도 숨는다&rdquo; 가 더는 맞지 않는다. 맞는 기대는 <b>&ldquo;접히면 서버 표가 숨는다&rdquo;</b> 이고, 접힌 채로도 각 묶음의 뜻이 읽히는 편이 U3-3 의 요구(&ldquo;헤더만으로 대수와 내역이 읽힌다&rdquo;)에 더 가깝다.</li>
+          <li><b>툴팁 속성</b> &mdash; <code>title</code> 에서 <code>data-tooltip</code> 으로 옮겼다. 검사 대상이 속성 이름이지 기능이 아니므로 기대값을 함께 옮겼다.</li>
+        </ul>
+
+        <h4>개정 중 확인한 것</h4>
+        <p>개정 결과는 전부 샌드박스에서 화면으로 확인했다. 목록의 통일된 묶음, 그룹 상세의 정렬된 &lsquo;구성&rsquo; 열과 한 바닥선에 선 도구 줄, 서버 화면과 같은 묶음으로 렌더되는 고르기 모달과 선택 수 갱신, 혼재 그룹의 세 표식, 잘리지 않는 커스텀 툴팁이다.</p>
+        <p><b>멤버 [빼기] 를 브라우저에서 두 번 눌렀는데 DB 가 그대로였던 일</b>이 있었다. 같은 엔드포인트를 <code>curl</code> 로 부르니 302 와 함께 정상 제외됐다 &mdash; CP5 의 A7 오탐과 같은 부류(자동화 클릭 미전달)였고 애플리케이션 결함이 아니다. 가르는 방법은 같다: 애플리케이션이 요청을 받았는지를 별도 경로로 확인한다.</p>
+        <p><b>스크립트를 한쪽 화면에만 실었던 일이 있었다.</b> 되돌아오는 목록은 그룹 상세이기도 한데 기능은 두 화면에 걸쳐 있고 스크립트는 한쪽만 실은 누락이었다. 재구성에서 이 부류가 아예 사라졌다 &mdash; 이력 스택은 레이아웃에서 한 번 적재되므로 화면이 늘어도 실을 자리를 고민할 일이 없다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>&sect;9. 검증하지 못한 것과 오탐 하나</summary>
+      <div class="body">
+        <p><b>오탐 1 건.</b> 검증 중 &ldquo;이름 변경이 반영되지 않는다&rdquo; 를 결함으로 의심했으나, 추적 결과 <b>브라우저 자동화의 클릭이 버튼에 전달되지 않은 것</b>이었다. 버튼에 캡처 단계 리스너를 걸어 수신 횟수를 세니 동작하지 않은 클릭은 <code>0</code> &mdash; 애플리케이션이 이벤트를 받은 적이 없었다. 요소 참조 기반 클릭으로 바꾸면 <code>1</code> 이 기록되며 첫 클릭에 모달이 열리고 폼이 제출된다. 사용자에게 두 번 클릭을 요구하는 문제가 아니다.</p>
+        <div class="noshot">스크린샷: 오탐 &mdash; &ldquo;이름 변경이 반영되지 않는다&rdquo; 를 결함으로 의심한 화면 &mdash; 목록 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: 오탐 &mdash; &ldquo;이름 변경이 반영되지 않는다&rdquo; 를 결함으로 의심한 화면 &mdash; 상세 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <div class="noshot">스크린샷: 오탐 추적 &mdash; 요소 참조 기반 클릭으로 바꾸면 <code>1</code> 이 기록되며 첫 클릭에 모달이 열리고 폼이 제출된다 &mdash; 정본(<code>_report.html</code>)에서 확인</div>
+        <p>같은 부류를 재검증 중에도 만났다. 멤버 [빼기] 를 두 번 눌렀는데 DB 가 그대로였고, 같은 엔드포인트를 <code>curl</code> 로 부르니 302 와 함께 정상 제외됐다. <b>하네스와 애플리케이션을 가르는 방법은 같다 &mdash; 애플리케이션이 요청을 받았는지를 별도 경로로 확인한다.</b></p>
+        <p><b>진행하지 못한 것은 없다.</b> 21 항목 전부 수행했다.</p>
+
+        <h4>이 슬라이스 밖으로 남긴 것</h4>
+        <ul>
+          <li><b>그룹 단위 세팅 정의서 할당</b> &mdash; U3-5. 이 슬라이스는 할당 코드를 한 줄도 건드리지 않았다.</li>
+          <li><b>멤버십 이력</b>(DEC-L) &mdash; 언제 넣고 뺐는지는 남기지 않는다. 감사 요구가 생기는 시점에 만든다.</li>
+          <li><b>체크박스 임의 선택 생성</b>(DEC-J) &mdash; 목록에 선택 UI 를 더해야 하고 U3-3 골격 변경 폭이 커진다.</li>
+          <li><b>실 DB 의 잔여 테스트 그룹 1 건</b> &mdash; <code>claude_code</code> 에 <code>DELETE</code> 권한이 없다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s10">
+      <summary>&sect;10. Critical Files</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <table>
+          <tr><th>파일</th><th>역할</th></tr>
+          <tr><td><code>provisioning/group/entity/GuestServerGroup.java</code></td><td>그룹 &middot; <code>addBlockReason</code> 판정 SSOT</td></tr>
+          <tr><td><code>provisioning/group/entity/GuestServerGroupMember.java</code></td><td>멤버십 &middot; <code>UNIQUE(guest_server_id)</code></td></tr>
+          <tr><td><code>provisioning/group/repository/GuestServerGroupRepository.java</code></td><td>집계 목록 &middot; fetch join 상세</td></tr>
+          <tr><td><code>provisioning/group/repository/GuestServerGroupMemberRepository.java</code></td><td>소속 일괄 조회</td></tr>
+          <tr><td><code>provisioning/group/service/GuestServerGroupQueryService.java</code></td><td>상세 조립 &middot; 혼재 판정 &middot; 배지 map</td></tr>
+          <tr><td><code>provisioning/group/service/GuestServerGroupCommandService.java</code></td><td>생성 &middot; 이름 &middot; 멤버 &middot; 삭제 가드</td></tr>
+          <tr><td><code>provisioning/group/controller/GuestServerGroupController.java</code></td><td>8 엔드포인트</td></tr>
+            <tr><td><code>static/global/nav-stack.js</code></td><td>화면 이력 스택 &mdash; 되돌아갈 곳과 짚을 행(재구성). 레이아웃에서 전역 적재</td></tr>
+          <tr><td><code>templates/provisioning/server-group-list.html</code> &middot; <code>-form.html</code> &middot; <code>-detail.html</code></td><td>그룹 화면 3 종</td></tr>
+          <tr><td><code>templates/fragments/provisioning/server-picker.html</code></td><td>고르기 모달의 후보 조각(개정)</td></tr>
+          <tr><td><code>static/css/grouped-list.css</code></td><td>묶음 목록 공통 양식(개정)</td></tr>
+          <tr><td><code>templates/fragments/common/back-link.html</code></td><td>&lsquo;목록으로&rsquo; &mdash; 자리와 기본 목록 href(재구성)</td></tr>
+          <tr><td><code>static/provisioning/server-group-detail.js</code></td><td>삭제 확인 모달 &middot; 성공 후 이동 보정</td></tr>
+          <tr><td><code>ddl/U3-4_guest_server_group.sql</code></td><td>수동 DDL</td></tr>
+        </table>
+
+        <h4>수정</h4>
+        <table>
+          <tr><th>파일</th><th>무엇을</th></tr>
+          <tr><td><code>execution/dto/response/GuestServerSummaryResponse.java</code></td><td><code>specGroupKey</code> &middot; <code>specLabel</code> 추가</td></tr>
+          <tr><td><code>execution/service/GuestServerQueryService.java</code></td><td>키를 요약에 실어 보냄 &middot; <code>findSummaries</code> &middot; <code>findGroupedFor</code>(개정) &middot; JSON 이중 파싱 제거</td></tr>
+          <tr><td><code>provisioning/controller/GuestServerController.java</code></td><td>그룹 배지 모델 합성 &middot; <code>returnTo</code> 검증(개정)</td></tr>
+          <tr><td><code>templates/fragments/provisioning/server-rows.html</code></td><td>그룹 열 &middot; 툴팁 &middot; 행 클릭 제거 &middot; <code>data-nav-key</code>(재구성)</td></tr>
+          <tr><td><code>templates/provisioning/server-detail.html</code></td><td>&lsquo;목록으로&rsquo; 우측 상단 이동 &middot; <code>returnTo</code>(개정)</td></tr>
+          <tr><td><code>static/global/style.css</code></td><td>툴팁 일반 별칭 <code>n-tooltip</code>(개정)</td></tr>
+          <tr><td><code>templates/provisioning/server-list.html</code></td><td>씨앗 진입점</td></tr>
+          <tr><td><code>static/provisioning/server.css</code></td><td>10 열 폭 재배분 &middot; 그룹 화면 &middot; 모달 &middot; 혼재 표식(개정)</td></tr>
+          <tr><td><code>templates/fragments/layout.html</code></td><td>&lsquo;서버 그룹&rsquo; 메뉴</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s11">
+      <summary>&sect;11. 다음</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="u34-report-next">
+          <li><label><input type="checkbox" data-key="u35"><span><b>U3-5 &mdash; 그룹 단위 세팅 정의서 일괄 할당.</b> 최대 갈림길은 할당 의미론(팬아웃 / 그룹 주체 / 팬아웃 + 그룹 기본 정의서)이고 부분 실패 정책이 함께 확정된다. 회수된 서버를 할당에서 배제하는 가드도 여기 소관이다.</span></label></li>
+          <li><label><input type="checkbox" data-key="group-progress"><span><b>그룹 단위 진행 현황 요약</b> &mdash; 그룹 N 대 중 몇 대가 어느 phase 인지. 멀티 서버 swimlane 과 합류한다.</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"><span><b>CP7</b> &mdash; 사용자 브라우저 E2E.</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

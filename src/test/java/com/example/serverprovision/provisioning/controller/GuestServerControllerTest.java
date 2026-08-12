@@ -17,6 +17,7 @@ import com.example.serverprovision.provisioning.assignment.service.AssignmentSta
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,8 @@ class GuestServerControllerTest {
     @MockitoBean AssignmentQueryService assignmentQueryService;
     @MockitoBean AssignmentStartService assignmentStartService;
     @MockitoBean SettingQueryService settingQueryService;
+    // U3-4 — 목록이 소속 그룹 배지를 합성하므로 컨트롤러가 이 빈을 요구한다.
+    @MockitoBean GuestServerGroupQueryService groupQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @BeforeEach
@@ -71,8 +74,10 @@ class GuestServerControllerTest {
     private GuestServerSummaryResponse summary(UUID id) {
         return new GuestServerSummaryResponse(
                 id, "web-01", UUID.randomUUID(), Vendor.GIGABYTE, "MS73-HB1-000",
-                GuestServerStatus.REGISTERED, IpAddressVO.of("10.20.3.11"), LocalDateTime.now(),
-                null, false, null);   // E1-2·S7 — 접촉 관찰(lastSeenAt·contactActive·remaining) 기본 fixture
+                GuestServerStatus.REGISTERED, ProvisioningPhase.BOOTSTRAPPING,
+                IpAddressVO.of("10.20.3.11"), LocalDateTime.now(),
+                null, false, null,   // E1-2·S7 — 접촉 관찰(lastSeenAt·contactActive·remaining) 기본 fixture
+                null, null);         // U3-4 — 스펙 미수집 서버는 그룹 키·라벨이 없다
     }
 
     private GuestServerDetailResponse detail(UUID id) {
@@ -94,12 +99,33 @@ class GuestServerControllerTest {
     @Test
     @DisplayName("GET /provisioning/server — 목록 200 + list 뷰")
     void list_returns200() throws Exception {
-        given(queryService.findAll()).willReturn(List.of(summary(UUID.randomUUID())));
+        // U3-3 — 목록은 평면 리스트가 아니라 그룹 응답을 받는다. 그룹 렌더 자체는 전용 테스트가 덮는다.
+        given(queryService.findGrouped(null)).willReturn(
+                new com.example.serverprovision.execution.dto.response.GuestServerListResponse(null, List.of()));
 
         mvc.perform(get("/provisioning/server"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/server-list"))
-                .andExpect(model().attributeExists("servers"));
+                .andExpect(model().attributeExists("list"));
+    }
+
+    /**
+     * 되돌아가기는 URL 파라미터가 아니라 화면 이력 스택이 맡는다(재구성).
+     *
+     * <p>화면이 지킬 것은 마크업 규약 둘뿐이다 — 상세의 '목록으로' 에 {@code data-nav-back} 과
+     * 기본 목록 href, 목록 행에 {@code data-nav-key}. 실제 목적지는 스크립트가 스택에서 정하고,
+     * 스택이 비었거나 남의 것이면 이 href 가 그대로 열린다(주소창 직접 진입 · 새로고침).</p>
+     */
+    @Test
+    @DisplayName("상세의 '목록으로' 는 이력 스택 표기와 기본 목록 href 를 함께 갖는다")
+    void detail_backLinkFollowsNavStackConvention() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detail(id));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-nav-back")))
+                .andExpect(content().string(containsString("href=\"/provisioning/server\"")));
     }
 
     @Test

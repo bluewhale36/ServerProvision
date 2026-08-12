@@ -250,13 +250,18 @@ code {
      <span class="n-btn-tooltip-wrap" data-tooltip-active="false" ...>
    (활성화된 상태에서 noise 회피 목적. JS 가 button 활성/비활성에 맞춰 토글)
    ============================================================ */
-.n-btn-tooltip-wrap {
+/* 버튼 밖에서도 쓰는 일반 툴팁 — 표식(점 · 배지)처럼 hover 로만 설명이 필요한 자리.
+   상자 모양은 아래 규칙 한 벌을 공유하므로 두 이름이 갈라져도 시각이 어긋나지 않는다. */
+.n-btn-tooltip-wrap,
+.n-tooltip {
     position: relative;
     display: inline-block;
 }
 
 .n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):hover::after,
-.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):focus-within::after {
+.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):focus-within::after,
+.n-tooltip[data-tooltip]:hover::after,
+.n-tooltip[data-tooltip]:focus-within::after {
     content: attr(data-tooltip);
     position: absolute;
     bottom: calc(100% + 6px);
@@ -285,7 +290,9 @@ code {
   wrapper 의 오른쪽 끝에 정렬되어 viewport 안으로 들어온다.
 */
 .n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):hover::after,
-.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):focus-within::after {
+.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):focus-within::after,
+.n-tooltip[data-tooltip-align="right"][data-tooltip]:hover::after,
+.n-tooltip[data-tooltip-align="right"][data-tooltip]:focus-within::after {
     left: auto;
     right: 0;
     transform: none;

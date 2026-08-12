@@ -3,7 +3,7 @@
 # → 지시 루프(COLLECT: 하드웨어 수집·보고 / REBOOT: 재부팅 / WAIT: 폴링).
 #
 # 수집 항목(2026-07-19 사용자 확정 스펙 — 슬롯 단위 인벤토리):
-#   CPU(제조사+모델) · 메모리 DIMM 슬롯별(슬롯·제조사·용량) · 디스크(SSD/HDD·SAS/SATA/NVMe·용량)
+#   CPU 소켓별(슬롯·제조사+모델) · 메모리 DIMM 슬롯별(슬롯·제조사·용량) · 디스크(SSD/HDD·SAS/SATA/NVMe·용량)
 #   · PCIe 장착물(lspci 원문 — 종류 분류는 서버 파서 몫) · 보드 시리얼 · BIOS 버전 · BMC IP/MAC(미검출 생략)
 #
 # 커널 인자 계약 (DiagnoseLinuxExecutor 와의 SSOT):
@@ -43,11 +43,25 @@ post() { # $1=path $2=json-body(생략 가능) — 응답 바디를 stdout 으�
 
 # ─────────────────────────── 수집 함수 (E1-2) ───────────────────────────
 
-collect_cpu_json() { # {"manufacturer":"...","model":"..."} — 소켓 1개 기준(첫 항목)
-    man=$(dmidecode -s processor-manufacturer 2>/dev/null | head -1)
-    model=$(dmidecode -s processor-version 2>/dev/null | head -1)
-    [ -z "$man" ] && [ -z "$model" ] && return 0
-    printf '{"manufacturer":"%s","model":"%s"}' "$(esc "$man")" "$(esc "$model")"
+collect_cpu_sockets_json() { # [{"slot":..,"manufacturer":..,"model":..},...] — 소켓 1개당 1행(U3-3 DEC-C)
+    # 메모리 DIMM 과 같은 슬롯 단위 인벤토리다. 개수를 세어 보내지 않고 행 수가 말하게 한다 —
+    # 스펙 그룹이 "같은 모델 1소켓" 과 "2소켓" 을 갈라야 하기 때문이다.
+    # 비어 있는 소켓(Status: Unpopulated)은 제외한다.
+    dmidecode -t processor 2>/dev/null | awk '
+        /^Processor Information$/ { flush(); slot=""; man=""; model=""; unpop=0 }
+        /^\tSocket Designation:/  { sub(/^\tSocket Designation: /, ""); slot=$0 }
+        /^\tManufacturer:/        { sub(/^\tManufacturer: /, ""); man=$0 }
+        /^\tVersion:/             { sub(/^\tVersion: /, ""); model=$0 }
+        /^\tStatus:/              { if ($0 ~ /Unpopulated/) unpop=1 }
+        function flush() {
+            if (!unpop && (man != "" || model != "")) {
+                gsub(/["\\]/, "", slot); gsub(/["\\]/, "", man); gsub(/["\\]/, "", model)
+                printf "%s{\"slot\":\"%s\",\"manufacturer\":\"%s\",\"model\":\"%s\"}", sep, slot, man, model
+                sep=","
+            }
+            man=""; model=""
+        }
+        BEGIN { printf "[" } END { flush(); printf "]" }'
 }
 
 collect_memory_json() { # [{"slot":..,"manufacturer":..,"size":..},...] — 장착 슬롯만(빈 슬롯 제외)
@@ -93,7 +107,7 @@ collect_bmc_json() { # {"ip":..,"mac":..} — BMC 미검출(QEMU·모듈 실패)
 build_report_json() { # 수집 결과 전체 JSON (statusMeta) — 누락 축은 필드 생략(서버 관용 파서가 흡수)
     serial=$(dmidecode -s baseboard-serial-number 2>/dev/null | head -1)
     bios=$(dmidecode -s bios-version 2>/dev/null | head -1)
-    cpu=$(collect_cpu_json)
+    cpu_sockets=$(collect_cpu_sockets_json)
     mem=$(collect_memory_json)
     disks=$(collect_disks_json)
     pcie=$(collect_pcie_json)
@@ -102,7 +116,7 @@ build_report_json() { # 수집 결과 전체 JSON (statusMeta) — 누락 축은
     json="{"
     [ -n "$serial" ] && json="$json\"boardSerial\":\"$(esc "$serial")\","
     [ -n "$bios" ]   && json="$json\"biosVersion\":\"$(esc "$bios")\","
-    [ -n "$cpu" ]    && json="$json\"cpu\":$cpu,"
+    [ -n "$cpu_sockets" ] && [ "$cpu_sockets" != "[]" ] && json="$json\"cpuSockets\":$cpu_sockets,"
     json="$json\"memoryModules\":${mem:-[]},\"disks\":${disks:-[]},\"pcieRaw\":${pcie:-[]}"
     [ -n "$bmc" ]    && json="$json,\"bmc\":$bmc"
     json="$json}"

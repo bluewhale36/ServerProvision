@@ -31,6 +31,18 @@ document.addEventListener('DOMContentLoaded', function () {
         console.debug('[server-stream] 연결 끊김 — EventSource 자동 재연결 대기');
     };
 
+    // 페이지를 떠날 때 구독을 명시적으로 닫는다 (U3-3 CP7 발견).
+    // 닫지 않으면 서버가 30분 타임아웃까지 이 연결을 물고 있고(죽은 연결은 25초 heartbeat 가 실패해야 정리된다),
+    // 그 사이 브라우저의 오리진당 동시 연결 한도(HTTP/1.1 기준 6개)가 차 버린다. 한도가 차면 다음 요청이
+    // 슬롯을 기다리며 멈추는데, 그 요청에는 페이지 HTML 자체도 포함된다 — 목록의 단계 탭을 여러 번
+    // 옮겨 다니다 '전체' 를 누르면 화면이 한참 뜨지 않던 증상이 이것이었다.
+    // pagehide 는 일반 이동과 bfcache 진입 모두에서 발생하므로 unload 보다 이 자리에 맞다.
+    window.addEventListener('pagehide', function () {
+        source.close();
+        clearTimeout(refetchTimer);
+        clearTimeout(rolloverTimer);
+    });
+
     function refetch() {
         if (refetching) {
             // 재조회 진행 중 도착한 신호 — 한 번 더 예약해 마지막 변화가 유실되지 않게 한다.

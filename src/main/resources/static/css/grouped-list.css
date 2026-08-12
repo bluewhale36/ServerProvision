@@ -1,0 +1,161 @@
+/* ============================================================
+   grouped-list.css — 묶음 목록 공통 양식
+   ─────────────────────────────────────────────────────────
+   "바깥 묶음 → 안쪽 묶음 → 표" 3 층 구조를 한 곳에서 정의한다.
+   서버 목록의 '상대 시간 그룹 → 스펙 → 표' 가 첫 사용처이고,
+   그룹 상세의 '멤버' · '등록 진행 중' 도 같은 양식을 쓴다.
+
+   이 파일을 따로 두는 이유는, 같은 모양이 화면마다 조금씩 다르게
+   재현되는 것을 막기 위해서다. 실제로 U3-4 에서 '멤버' 제목이 왼쪽에
+   붙고 '58분 전' 은 여백을 갖는 어긋남이 생겼고, 원인은 두 화면이
+   각자 자기 클래스를 쓴 것이었다.
+
+   구조:
+     <section class="n-card n-glist">          바깥 묶음 (옅은 배경)
+       <div class="n-glist-head">              제목 · 힌트 · 우측 배지
+       <div class="n-accordion">               안쪽 묶음들 (접힘)
+          <details class="n-accordion-item">   … n-accordion-body 안에 표
+       또는
+       <div class="n-glist-panel">             접힘이 없을 때 흰 판 하나
+
+   전제: global/style.css(색 토큰 · n-card · n-badge)와
+        css/accordion.css(n-accordion 계열)가 먼저 적재돼 있어야 한다.
+   ============================================================ */
+
+/* ---- 바깥 묶음 ----
+   안쪽 흰 판이 떠 보이도록 옅은 배경을 깐다. 묶음 사이는 넉넉히 벌려
+   경계가 바뀌는 지점이 눈에 들어오게 한다. */
+.n-glist {
+    background: #f7f7f8;
+    padding: 14px 16px 16px;
+    margin-bottom: 22px;
+}
+
+.n-glist:last-child {
+    margin-bottom: 0;
+}
+
+/* ---- 제목 줄 ----
+   안쪽 판의 왼쪽 모서리와 시선이 맞도록 좌우 여백을 준다.
+   제목이 카드 끝에 붙으면 안쪽 내용과 층위가 달라 보인다. */
+.n-glist-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 0 2px;
+    margin-bottom: 10px;
+}
+
+.n-glist-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.n-glist-hint {
+    font-size: 12px;
+    color: var(--n-text-muted);
+}
+
+/* 대수 배지는 오른쪽 끝으로 민다 */
+.n-glist-head > .n-badge {
+    margin-left: auto;
+}
+
+/* ---- 안쪽 판 ----
+   접힘이 필요 없는 목록(그룹 상세의 멤버)은 아코디언 대신 이것을 쓴다. */
+.n-glist-panel {
+    background: #fff;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* 아코디언을 안쪽 묶음으로 쓸 때도 같은 흰 판이 된다 */
+.n-glist > .n-accordion > .n-accordion-item {
+    background: #fff;
+}
+
+/* ---- 안쪽 묶음의 부제 ---- */
+.n-glist-sub {
+    font-size: 13px;
+    margin: 14px 0 4px;
+}
+
+/* ---- 안쪽 묶음 제목 옆의 요약 ----
+   코드가 아니라 사람이 읽는 문장이므로 코드 장식을 걷어내고 본문 글자로 둔다.
+   제목과 붙어 보이지 않게 왼쪽 여백을 준다 — <b>제목 옆에서만</b> 쓴다. */
+.n-glist-label {
+    margin-left: 18px;
+    color: var(--n-text-muted);
+    font-size: 12.5px;
+    font-weight: 400;
+}
+
+/* ---- 표 안의 요약 셀 ----
+   같은 문장이지만 여기서는 여백을 주면 안 된다. 열 머리와 좌측이 어긋나
+   같은 열의 값들이 들쭉날쭉해 보인다(U3-4 개정에서 실제로 생긴 어긋남 —
+   여백 있는 셀과 '수집 전' 처럼 여백 없는 셀이 한 열에서 갈렸다). */
+.n-spec-cell {
+    color: var(--n-text-muted);
+    font-size: 12.5px;
+}
+
+/* ---- 링크 머리 아코디언 ----
+   펼침 상태를 URL 에 두어야 하는 묶음은 <details> 대신 링크를 머리로 쓴다.
+   시각은 accordion.css 를 그대로 쓰고, [open] 이 담당하던 회전만 보강한다. */
+a.n-accordion-head {
+    text-decoration: none;
+    color: inherit;
+}
+
+.n-accordion-item.is-open > .n-accordion-head .n-accordion-chevron {
+    transform: rotate(45deg);
+}
+
+/* ---- 행 ----
+   행 전체가 아니라 <b>이름 링크만</b> 이동한다. 그래서 행에는 손 모양 커서를
+   주지 않고 배경만 바꾼다 — 커서가 바뀌는데 눌러도 안 되는 것이 가장 나쁘다. */
+.n-row-hover:hover td {
+    background: var(--n-bg-hover, #f5f5f4);
+}
+
+.n-row-link {
+    font-weight: 600;
+    color: var(--n-text);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.n-row-link:hover {
+    text-decoration: underline;
+}
+
+/* ---- 상세에서 돌아온 행 ----
+   목록으로 되돌아왔을 때 방금 어느 행을 보고 왔는지 잠깐 알려준다.
+   스크롤 복원만으로는 시선이 어디에 놓여야 하는지가 모호하다. */
+.n-row-returned > td {
+    animation: n-row-returned 1.8s ease-out;
+}
+
+@keyframes n-row-returned {
+    0% {
+        background-color: rgba(0, 117, 222, 0.18);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+@media (max-width: 900px) {
+    .n-glist {
+        padding: 12px 10px 12px;
+    }
+
+    .n-glist-head {
+        flex-wrap: wrap;
+    }
+
+    .n-glist-label {
+        margin-left: 0;
+        display: block;
+    }
+}

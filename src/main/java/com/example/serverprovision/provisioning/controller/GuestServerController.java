@@ -1,6 +1,8 @@
 package com.example.serverprovision.provisioning.controller;
 
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
+import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
+import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.dto.request.UpdateGuestServerRequest;
 import com.example.serverprovision.execution.service.GuestServerCommandService;
@@ -14,6 +16,7 @@ import com.example.serverprovision.provisioning.assignment.dto.response.Reassign
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
+import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,9 +31,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * 등록된 게스트 서버 조회 + 인라인 수정 + 회수 + 세팅 정의서 할당/개시 페이지 (사용자 영역 진입점).
@@ -57,21 +63,52 @@ public class GuestServerController {
     private final AssignmentQueryService assignmentQueryService;
     private final AssignmentStartService assignmentStartService;
     private final SettingQueryService settingQueryService;
+    private final GuestServerGroupQueryService groupQueryService;
 
+    /**
+     * 게스트 서버 목록 (U3-3) — 상대 시간 × 스펙으로 묶어 보여준다.
+     *
+     * <p>필터와 '등록 진행 중' 의 펼침이 <b>질의 파라미터</b>인 이유는 SSE 갱신 때문이다(DEC-E · DEC-H).
+     * {@code server-stream.js} 는 신호를 받으면 {@code fetch(location.href)} 로 같은 URL 을 다시 받아
+     * {@code [data-live]} 영역을 통째 교체한다. 상태가 URL 에 있으면 서버가 같은 화면을 다시 렌더해 주므로
+     * 복원 코드가 필요 없다 — 반대로 화면에만 두면 갱신 때마다 지워진다.</p>
+     *
+     * <p>알 수 없는 {@code phase} 값은 Spring 의 enum 바인딩 실패로 400 이 된다. 새 분기를 만들지 않으며,
+     * 주소창 진입이 HTML 오류 페이지를 받는 것은 S10 의 Accept 정규화가 보장한다.</p>
+     */
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("servers", guestServerQueryService.findAll());
+    public String list(@RequestParam(value = "phase", required = false) ProvisioningPhase phase,
+                       @RequestParam(value = "pending", required = false) String pending,
+                       Model model) {
+        GuestServerListResponse list = guestServerQueryService.findGrouped(phase);
+        model.addAttribute("list", list);
+        model.addAttribute("phaseFilter", phase);
+        model.addAttribute("phases", ProvisioningPhase.values());
+        model.addAttribute("pendingOpen", "open".equals(pending));
+        // U3-4 — 소속 그룹 배지. 목록 조회는 execution 이고 그룹은 provisioning 이라 요약 응답에 실을 수 없다(DEC-C).
+        // 이 컨트롤러가 이미 provisioning 이므로 두 서비스를 각각 부른 뒤 모델 단계에서 합성한다 — SPI 역전 불요.
+        model.addAttribute("groupBadges", groupQueryService.findBadges(visibleServerIds(list)));
         return "provisioning/server-list";
+    }
+
+    /** 화면에 실제로 그려지는 서버들 — 그룹 배지는 이들만 있으면 된다. */
+    private List<UUID> visibleServerIds(GuestServerListResponse list) {
+        Stream<GuestServerSummaryResponse> pending = list.pending() == null
+                ? Stream.of()
+                : Stream.concat(list.pending().registeredOnly().stream(), list.pending().collecting().stream());
+        Stream<GuestServerSummaryResponse> grouped = list.timeGroups().stream()
+                .flatMap(tg -> tg.specGroups().stream())
+                .flatMap(sg -> sg.servers().stream());
+        return Stream.concat(pending, grouped).map(GuestServerSummaryResponse::id).toList();
     }
 
     @GetMapping("/{id}")
     public String detail(@PathVariable("id") UUID id, Model model) {
         GuestServerDetailResponse server = guestServerQueryService.findDetail(id);
-        model.addAttribute("server", server);
+        addDetailModel(model, id, server);
         // 수정 폼 초깃값 — 상세 응답의 현재 값으로 채운다 (4 필드 모두 guest_server).
         model.addAttribute("updateForm", new UpdateGuestServerRequest(
                 server.name(), server.modelName(), server.serialNumber(), server.memo()));
-        populateAssignmentModel(id, server, model);
         return "provisioning/server-detail";
     }
 
@@ -94,9 +131,7 @@ public class GuestServerController {
 
         if (bindingResult.hasErrors()) {
             // 검증 실패 — 같은 상세 화면을 다시 렌더(읽기 전용 영역 복원 + 입력값/에러 유지).
-            GuestServerDetailResponse server = guestServerQueryService.findDetail(id);
-            model.addAttribute("server", server);
-            populateAssignmentModel(id, server, model);
+            addDetailModel(model, id, guestServerQueryService.findDetail(id));
             return "provisioning/server-detail";
         }
 
@@ -174,6 +209,12 @@ public class GuestServerController {
      * 상세 화면의 할당 관련 모델 — 정의서 선택지 + 계획 phase rail. 계획(활성 할당)에 실제 진행 커서
      * (개시된 경우만)를 겹쳐 done/current/pending 을 계산한다(계획 vs 실제 라벨 구분).
      */
+    /** 상세 화면이 최초 렌더와 재렌더에서 같은 재료를 받도록 한 곳에서 얹는다. */
+    private void addDetailModel(Model model, UUID id, GuestServerDetailResponse server) {
+        model.addAttribute("server", server);
+        populateAssignmentModel(id, server, model);
+    }
+
     private void populateAssignmentModel(UUID id, GuestServerDetailResponse server, Model model) {
         // 할당 대상은 "할당 가능" 정의서만(삭제 · 비활성 제외, U3-2-b DEC-G). 판정은 서버 가드와 같은
         // 도메인 SSOT(assignBlockReason) 이므로 옵션에서 뺀 정의서를 direct POST 해도 409 로 일관 거절된다.

@@ -101,7 +101,8 @@ class AgentReportServiceTest {
         ProvisioningProgress p = progress(g, true, ProvisioningPhase.DIAGNOSE_LINUX);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
         GuestServerDetail enriched = org.mockito.Mockito.mock(GuestServerDetail.class);
-        given(enriched.getDiscoveryStage()).willReturn(DiscoveryStage.DIAGNOSTIC_ENRICHED);
+        // U3-3 DEC-A — 판정은 엔티티의 isDiagnosticEnriched() 가 갖는다(엔진 · 목록 · 그룹 가드가 공유).
+        given(enriched.isDiagnosticEnriched()).willReturn(true);
         given(guestServerDetailRepository.findByServerIdWithBoardModel(g.getId()))
                 .willReturn(Optional.of(enriched));
 

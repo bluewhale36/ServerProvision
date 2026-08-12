@@ -10,6 +10,7 @@ import com.example.serverprovision.provisioning.assignment.service.AssignmentCom
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,8 @@ class GuestServerControllerActionTest {
     @MockitoBean AssignmentQueryService assignmentQueryService;
     @MockitoBean AssignmentStartService assignmentStartService;
     @MockitoBean SettingQueryService settingQueryService;
+    // U3-4 — 목록이 소속 그룹 배지를 합성하므로 컨트롤러가 이 빈을 요구한다.
+    @MockitoBean GuestServerGroupQueryService groupQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     // ==== 성공 (PRG) ==================================================

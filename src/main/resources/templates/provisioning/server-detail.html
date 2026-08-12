@@ -30,8 +30,7 @@
     <!-- S7 — [data-live] = 실시간 교체 영역(읽기 전용·액션 버튼). 수정 폼은 미마킹 = 입력 보존 규약 -->
     <div class="n-page-header" data-live="header">
         <div>
-            <a th:href="@{/provisioning/server}" class="n-back-link">← 목록으로</a>
-            <h1 class="n-page-title" style="margin-top: 12px;"
+            <h1 class="n-page-title"
                 th:text="${server.name != null} ? ${server.name} : '(이름 미지정)'">srv-01</h1>
             <code class="n-mono" th:text="${server.systemUuid}">uuid</code>
             <span th:if="${server.status != null}" th:switch="${server.status.name()}" style="margin-left: 10px;">
@@ -52,6 +51,8 @@
                       th:text="'끊어짐 · ' + ${server.contact.secondsSince < 120 ? 1 : server.contact.secondsSince / 60} + '분 전'">끊어짐</span>
             </span>
         </div>
+        <!--/* '목록으로' 는 조각이 만든다 — 실제 목적지는 화면 이력 스택이 정한다. */-->
+        <div th:replace="~{fragments/common/back-link :: backLink('/provisioning/server')}"></div>
     </div>
 
     <!-- ===== 인라인 수정 폼 (운영자 입력 4필드 — 모두 guest_server) ===== -->
@@ -166,10 +167,17 @@
                     </tr>
                     <tr>
                         <th>CPU</th>
-                        <td>
-                            <span th:if="${server.inventory.hardwareSpec != null and server.inventory.hardwareSpec.cpu != null}"
-                                  th:text="${(server.inventory.hardwareSpec.cpu.manufacturer != null ? server.inventory.hardwareSpec.cpu.manufacturer + ' ' : '') + (server.inventory.hardwareSpec.cpu.model != null ? server.inventory.hardwareSpec.cpu.model : '')}">Intel Xeon Gold 6338</span>
-                            <span th:unless="${server.inventory.hardwareSpec != null and server.inventory.hardwareSpec.cpu != null}"
+                        <!--/* U3-3 DEC-C — 소켓 단위 인벤토리. 개수는 별도 필드가 아니라 행 수가 말한다.
+                               DEC-C 이전에 적재된 서버는 파서가 1소켓으로 승급해 읽으므로 여기서 분기하지 않는다. */-->
+                        <td th:with="sockets=${server.inventory.hardwareSpec != null} ? ${server.inventory.hardwareSpec.cpuSockets} : null">
+                            <div th:if="${sockets != null and !sockets.isEmpty()}">
+                                <div th:each="c : ${sockets}">
+                                    <span th:if="${c.slot != null}" class="n-muted" th:text="${c.slot} + ' · '">CPU1 · </span>
+                                    <span th:text="${(c.manufacturer != null ? c.manufacturer + ' ' : '') + (c.model != null ? c.model : '')}">Intel Xeon Gold 6338</span>
+                                </div>
+                                <span class="n-badge n-badge-gray" th:text="'소켓 ' + ${sockets.size()} + '개'">소켓 2개</span>
+                            </div>
+                            <span th:unless="${sockets != null and !sockets.isEmpty()}"
                                   class="n-muted">— (진단 단계에서 수집)</span>
                         </td>
                     </tr>

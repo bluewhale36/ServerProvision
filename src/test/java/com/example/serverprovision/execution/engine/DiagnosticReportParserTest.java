@@ -41,7 +41,8 @@ class DiagnosticReportParserTest {
 
         assertThat(parsed.boardSerial()).isEqualTo("JG4P6400027");
         assertThat(parsed.softwareSpec().biosVersion()).isEqualTo("F13");
-        assertThat(parsed.hardwareSpec().cpu().manufacturer()).isEqualTo("Intel");
+        assertThat(parsed.hardwareSpec().cpuSockets()).hasSize(1);
+        assertThat(parsed.hardwareSpec().cpuSockets().getFirst().manufacturer()).isEqualTo("Intel");
         assertThat(parsed.hardwareSpec().memoryModules()).hasSize(2)
                 .first().extracting(HardwareSpec.MemoryModule::slot).isEqualTo("DIMM_A1");
         assertThat(parsed.hardwareSpec().disks()).extracting(HardwareSpec.DiskInfo::type)
@@ -79,7 +80,7 @@ class DiagnosticReportParserTest {
         var parsed = parser.parse("{ \"biosVersion\": \"F14\" }");
         assertThat(parsed.boardSerial()).isNull();
         assertThat(parsed.softwareSpec().biosVersion()).isEqualTo("F14");
-        assertThat(parsed.hardwareSpec().cpu()).isNull();
+        assertThat(parsed.hardwareSpec().cpuSockets()).isNull();
         assertThat(parsed.hardwareSpec().memoryModules()).isEmpty();
         assertThat(parsed.bmcIp()).isNull();
     }

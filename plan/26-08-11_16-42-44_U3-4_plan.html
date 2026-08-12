@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U3-4 Plan — 게스트 서버 그룹 생성 · 멤버십 관리</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--orange-bg); color:var(--orange); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC (sticky) ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section .body > p:first-child { margin-top:0; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:6px 0 0; }
+
+  /* ── 체크리스트 (localStorage) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid / split-card ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-wrap input[type="text"] { width:100%; padding:8px 11px; font-size:13px; border:1px solid var(--border); border-radius:6px; background:var(--card); font-family:var(--mono); margin:6px 0; }
+  .ux-wrap input[type="text"]:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  .ux-wrap .split-card { background:var(--card); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:70px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : N-actor 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U3-4 : 게스트 서버 그룹 생성 · 멤버십 관리 <span class="v2-badge">스코프 재정의</span></h1>
+  <div class="meta">
+    <span><strong>부제</strong> 스펙 묶음은 제안, 그룹은 결정 — 사람이 만들고 넣고 빼는 영속 묶음</span>
+    <span><strong>슬라이스</strong> U3-4 (feature)</span>
+    <span><strong>상위</strong> U3</span>
+    <span><strong>생성</strong> 2026-08-11 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 재설계 동기</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 라이브 데모</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12 단계 + CP 배치</a></li>
+      <li><a href="#s6">§6 Step 8 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · 부산물 · 주의</a></li>
+      <li><a href="#s9">§9 Verification (CP5 계획)</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 재설계 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 재설계 동기</summary>
+      <div class="body">
+        <p>이 슬라이스는 신규가 아니라 <b>재정의</b>다. 구 U3-4 는 <code>스펙 그룹 단위 세팅 정의서 일괄 할당</code> 이었고, 그룹을 하드웨어 스펙 묶음 그 자체로 잡고 있었다.</p>
+        <p>U3-3 이 완료된 직후 사용자가 요구를 풀어 설명하면서 전제가 어긋남이 드러났다. 요구된 그룹은 <b>사람이 만드는 결정</b>이다 — 게스트 서버 여러 대를 논리적으로 묶어 하나의 세팅 정의서를 할당하거나 한데 보되, 원하면 서버를 넣고 뺄 수 있어야 한다. 넣고 빼는 일이 실제로 필요한 상황이 둘이다.</p>
+        <ul>
+          <li>같은 구성의 물량이 많아 <b>순차적으로 제작</b>될 때, 나중에 올라온 서버를 기존 묶음에 합류시킨다.</li>
+          <li>세팅이 진행되는 도중 <b>특정 몇 대만 요구사항이 바뀌어</b> 떼어낸다.</li>
+        </ul>
+        <p>스펙으로 시스템이 묶음을 고정해버리면 두 상황 모두 표현할 수 없다. 스펙이 같은 한 떼어낸 서버가 계속 다시 편입되기 때문이다.</p>
+        <p>그렇다고 U3-3 의 스펙 묶음이 쓸모를 잃지는 않는다. 그 화면의 값어치는 할당이 아니라 <b>실물 대조</b>에 있다 — 랙에 방금 꽂은 서버들이 화면에 같은 크기의 묶음으로 뜨면, SMBIOS UUID 를 하나씩 맞춰보지 않고도 물리 서버와 탐지 결과가 대응하는지 알 수 있다. 사람이 손댈 수 없다는 성질이 여기서는 장점이고, 유지 비용이 0 이며 언제나 현재 사실이다.</p>
+        <p>그래서 둘의 관계는 동일성이 아니라 <b>씨앗</b>으로 정리됐다. 스펙 묶음이 "이 N 대를 그룹으로 만들까" 를 제안하고, 사람이 수락하면 그 시점의 멤버 명단이 복사되어 독립된 그룹이 시작된다. 이후 그룹은 스펙을 다시 보지 않는다.</p>
+        <p>재편으로 단계가 둘로 갈렸다. 이 슬라이스(U3-4)는 그룹이라는 개념 자체를 세우고, U3-5 가 그 위에서 일괄 할당을 다룬다. 토론 아카이브는 <code>discussion/26-08-11_16-25-25_U3-4-server-group-concept_discussion.md</code> 다.</p>
+        <div class="callout">구 U3-4 가 꼽았던 설계 난제 둘 중 하나는 이미 없어졌다. "스펙 그룹 키의 Value Object 화" 는 U3-3 이 <code>SpecGroupKey</code> 를 산출하며 해결했고, 남은 "부분 실패 정책" 은 U3-5 로 넘어갔다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p>실측 기준은 커밋 <code>84f7846</code>(U3-3 완료분)이다.</p>
+        <p><b>서버를 여러 대 묶어 다루는 수단이 하나도 없다.</b> 목록 화면은 상대 시간과 하드웨어 스펙 두 축으로 보여주지만, 그 묶음은 조회할 때마다 계산되는 관찰이라 사람이 손댈 수 없다. 이름도 없고, 넣고 뺄 수도 없으며, 다음 조회에서 같은 묶음이 나온다는 보장도 없다 — 서버 스펙이 바뀌면 소리 없이 다른 묶음으로 옮겨간다.</p>
+        <p>그 결과 지금은 세팅 정의서를 <b>서버 한 대마다 반복 할당</b>해야 한다. 같은 구성 12 대가 들어오면 같은 조작을 12 번 하고, 한 대를 빠뜨려도 화면이 알려주지 않는다.</p>
+        <p><b>할당 인프라는 이미 서 있다.</b> <code>SettingAssignment</code> 는 게스트 서버 한 대마다 한 행이고 할당 시점에 정의서를 행 단위로 복사해 얼린다. 활성 스냅샷은 서버당 하나이며 서비스 가드와 <code>@Version</code> 이 그 불변식을 지킨다. 즉 <b>부족한 것은 할당이 아니라 "여러 대를 하나로 부를 이름"</b> 이다.</p>
+        <p><b>동치 판정 재료도 이미 있다.</b> <code>SpecGroupKey</code> 가 보드 모델 · CPU · 메모리 · 디스크 · PCIe 여섯 축을 정규화해 비교하고, 다중집합을 정렬해 슬롯 위치와 부팅 순서를 동치에서 뺀다. 이 슬라이스는 이것을 <b>씨앗 제안</b>과 <b>스펙 이탈 알림</b> 두 곳에 쓴다.</p>
+        <table>
+          <thead><tr><th>있는 것</th><th>위치</th><th>이 슬라이스에서의 쓰임</th></tr></thead>
+          <tbody>
+            <tr><td>서버 앵커</td><td><code>execution.entity.GuestServer</code></td><td>멤버십의 참조 대상</td></tr>
+            <tr><td>스펙 동치 키</td><td><code>execution.vo.SpecGroupKey</code></td><td>씨앗 제안 · 이탈 알림</td></tr>
+            <tr><td>목록 화면</td><td><code>templates/provisioning/server-list.html</code></td><td>생성 진입점 · 그룹 배지</td></tr>
+            <tr><td>단일 할당</td><td><code>provisioning.assignment.SettingAssignment</code></td><td>U3-5 가 확장 (이 단계 밖)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 + 비목표</summary>
+      <div class="body">
+        <h4>요구사항</h4>
+        <ol>
+          <li><b>그룹을 만든다.</b> 목록 화면의 스펙 묶음에서 그 멤버를 씨앗으로 받아 만들거나, 빈 그룹을 먼저 만든다.</li>
+          <li><b>이름을 준다.</b> 만들 때 정하고 나중에 바꿀 수 있다. 이름은 시스템 안에서 유일하다.</li>
+          <li><b>멤버를 넣는다.</b> 그룹 상세에서 아직 어느 그룹에도 없는 서버를 골라 넣는다.</li>
+          <li><b>멤버를 뺀다.</b> 그룹 상세에서 제외한다. 서버 자체와 그 서버의 할당은 건드리지 않는다.</li>
+          <li><b>그룹을 본다.</b> 그룹 목록(이름 · 멤버 수 · 만든 시각)과 상세(멤버 표)를 제공한다.</li>
+          <li><b>어느 그룹인지 목록에서 알아본다.</b> 서버 목록의 각 행에 소속 그룹 배지를 붙인다.</li>
+          <li><b>그룹을 지운다.</b> 지우면 멤버는 무소속으로 돌아가고 서버는 그대로 남는다.</li>
+          <li><b>스펙이 섞이면 알린다.</b> 그룹 멤버의 스펙 키가 둘 이상이면 상세에서 안내한다. 막지는 않는다.</li>
+        </ol>
+        <div class="callout warn"><b>비목표</b>
+          <ul>
+            <li><b>그룹에 세팅 정의서를 할당하는 것</b> — U3-5. 이 슬라이스는 할당 코드를 한 줄도 건드리지 않는다.</li>
+            <li><b>그룹 기본 정의서</b> — U3-5 의 열린 쟁점이다. 이 단계의 엔티티에 자리를 미리 파두지 않는다.</li>
+            <li><b>멤버십 이력</b> — 언제 넣고 뺐는지는 남기지 않는다.</li>
+            <li><b>U3-3 목록 화면의 그룹화 골격 변경</b> — 시간 × 스펙 2단 구조는 그대로다. 배지 한 칸과 버튼 하나만 더한다.</li>
+            <li><b>한 서버의 다중 그룹 소속</b> — DEC-B 로 기각한다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 라이브 데모 (§2 직후, 불가침) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 데모</summary>
+      <div class="body">
+        <p>좌측에 <b>서버 카드 6 장</b>, 우측에 <b>그룹 패널</b>. 상단에 조작 버튼, 하단에 판정 로그.
+          스펙 A = <code>MS03-CE0 · 6338 ×2 · 32GB ×8</code>, 스펙 B = <code>MS03-CE0 · 6338 ×1 · 32GB ×4</code>. 그룹 초기값 : <code>8월 2차</code>(멤버 srv-05).
+          카드를 그룹 패널로 끌어 넣거나 <b>[넣기]</b> 를 눌러본다 — 이미 다른 그룹에 속한 서버는 버튼이 <code>disabled</code> 이고 tooltip 에 사유가 뜬다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">그룹 조작 :</span>
+            <button class="n-demo-btn" onclick="demoSeedOpen()">스펙 A 묶음으로 그룹 만들기</button>
+            <button class="n-demo-btn" onclick="demoEmptyOpen()">빈 그룹 만들기</button>
+            <button class="n-demo-btn" onclick="demoRenameOpen()">이름 바꾸기</button>
+            <button class="n-demo-btn" onclick="demoDeleteOpen()">그룹 지우기</button>
+            <button class="n-demo-btn" onclick="demoResetClick()">처음 상태로</button>
+          </div>
+          <div id="demo-form"></div>
+          <div class="split-grid">
+            <div class="split-card">
+              <h4>게스트 서버</h4>
+              <div id="demo-servers"></div>
+            </div>
+            <div class="split-card">
+              <h4>그룹</h4>
+              <div class="ux-toolbar" id="demo-tabs"></div>
+              <div id="demo-group" ondragover="demoAllowDrop(event)" ondrop="demoDrop(event)"></div>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">서버를 넣고 빼며 차단 · 경고 · 무소속 복귀를 확인해보세요. 차단된 버튼에 마우스를 올리면 tooltip 이 떠요.</div>
+        </div>
+
+        <div class="callout"><b>관찰 포인트</b>
+          <ul>
+            <li><b>회수된 서버(srv-06)도 그룹에 들어간다.</b> 그룹은 운영 이력을 지우지 않는다. 배제는 할당 시점(U3-5)의 몫이다.</li>
+            <li><b>스펙 B 서버를 스펙 A 그룹에 넣으면 경고 배너가 뜨지만 들어간다.</b> 스펙은 정체성이 아니므로 섞인 것 자체는 위반이 아니다.</li>
+            <li><b><code>disabled</code> 와 서버 거절은 같은 함수가 판정한다.</b> 화면이 먼저 막고, 서버 가드는 direct POST 용 안전망으로만 남는다.</li>
+          </ul>
+        </div>
+
+        <h4>판정 JS (서버 도메인 메서드와 동일 식)</h4>
+<pre><code>// GuestServerGroup.addBlockReason(server) 와 같은 식
+function addBlockReason(server, group) {
+  if (server.groupId !== null &amp;&amp; server.groupId !== group.id) {
+    return '이미 다른 그룹(' + groupName(server.groupId) + ')에 속해 있습니다';
+  }
+  return null;   // null 이면 넣을 수 있다
+}
+
+// GroupNameConflictException 과 같은 판정
+function nameConflict(name, selfId) {
+  return groups.some(g =&gt; g.id !== selfId &amp;&amp; g.name === name);
+}
+
+// 스펙 이탈 알림 — 차단이 아니라 안내
+function specDiverged(group) {
+  return new Set(group.members.map(s =&gt; s.specKey)).size &gt; 1;
+}</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>URL 표</h4>
+        <table>
+          <thead><tr><th>메서드 · 경로</th><th>하는 일</th><th>성공</th><th>실패</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /provisioning/server-group</code></td><td>그룹 목록</td><td>200 뷰</td><td>—</td></tr>
+            <tr><td><code>GET /provisioning/server-group/{id}</code></td><td>그룹 상세</td><td>200 뷰</td><td>404</td></tr>
+            <tr><td><code>POST /provisioning/server-group</code></td><td>그룹 생성 (씨앗 · 빈 그룹 공용)</td><td>302 상세로</td><td>400 · 409</td></tr>
+            <tr><td><code>POST /provisioning/server-group/{id}/rename</code></td><td>이름 변경</td><td>302 상세로</td><td>400 · 409</td></tr>
+            <tr><td><code>POST /provisioning/server-group/{id}/members</code></td><td>멤버 추가</td><td>302 상세로</td><td>404 · 409</td></tr>
+            <tr><td><code>POST /provisioning/server-group/{id}/members/{serverId}/remove</code></td><td>멤버 제외</td><td>302 상세로</td><td>404</td></tr>
+            <tr><td><code>POST /provisioning/server-group/{id}/delete</code></td><td>그룹 삭제</td><td>302 목록으로</td><td>404</td></tr>
+            <tr><td><code>GET /provisioning/server</code> (기존)</td><td>서버 목록 + 그룹 배지</td><td>200 뷰</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p>경로를 <code>/provisioning/server-group</code> 으로 두는 이유는 서버 목록이 <code>/provisioning/server</code> 이기 때문이다. 그룹은 서버를 다루는 화면 계열에 속한다.</p>
+
+        <h4>씨앗 생성 흐름</h4>
+        <div class="seq">
+          <div class="actor a1">운영자</div><div class="actor a2">목록 화면</div><div class="actor a3">서버</div>
+          <div class="step a1">스펙 묶음 헤더의 <b>[그룹으로 만들기]</b> 를 누른다</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">그 묶음의 서버 id 목록과 스펙 라벨 기반 기본 이름을 담아 폼을 연다</div><div class="step a3"></div>
+          <div class="step a1">이름을 확인 · 수정하고 제출한다</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">이름 유일성을 확인하고 그룹을 만든 뒤, 받은 서버들을 멤버로 넣는다. 이미 다른 그룹에 속한 서버가 섞여 있으면 <b>그 요청 전체를 409 로 거절</b>한다</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">그룹 상세로 리다이렉트한다</div>
+        </div>
+        <p>4 번에서 부분 성공을 허용하지 않는 이유는, 씨앗은 화면이 방금 보여준 묶음 그대로여야 운영자의 기대와 어긋나지 않기 때문이다. 화면은 이미 그룹에 속한 서버를 배지로 보여주고 있으므로 정상 흐름에서는 이 거절이 나오지 않는다.</p>
+
+        <h4>그룹 배지 합성 (제자리 서술)</h4>
+        <p>서버 목록 화면의 컨트롤러는 <code>provisioning.controller.GuestServerController</code> 이고, 그룹 조회 서비스도 <code>provisioning</code> 에 있다. 그래서 컨트롤러가 두 서비스를 각각 불러 <b>모델 단계에서 합성</b>한다 — 조회 서비스(<code>execution</code>)가 그룹을 알 필요가 없고, 따라서 execution → provisioning 역방향 의존이 생기지 않는다. <code>OwnedPhasesProvider</code> 같은 SPI(Service Provider Interface — 도메인이 구현해 끼우는 확장점) 역전을 새로 만들지 않아도 되는 이유가 여기 있다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>엔티티 — <code>GuestServerGroup</code> (<code>provisioning.group.entity</code>)</h4>
+        <table>
+          <thead><tr><th>필드</th><th>타입</th><th>제약</th><th>뜻</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td><code>Long</code></td><td>IDENTITY</td><td></td></tr>
+            <tr><td><code>name</code></td><td><code>String</code></td><td><code>length=128</code>, <code>NOT NULL</code>, <code>UNIQUE</code></td><td>운영자가 부르는 이름</td></tr>
+            <tr><td><code>members</code></td><td><code>List&lt;GuestServerGroupMember&gt;</code></td><td><code>cascade=ALL</code>, <code>orphanRemoval</code></td><td>멤버 (aggregate 종속)</td></tr>
+          </tbody>
+        </table>
+        <p><code>BaseTimeEntity</code> 를 상속해 만든 시각과 수정 시각을 얻는다.</p>
+
+        <h4>엔티티 — <code>GuestServerGroupMember</code> (<code>provisioning.group.entity</code>)</h4>
+        <table>
+          <thead><tr><th>필드</th><th>타입</th><th>제약</th><th>뜻</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td><code>Long</code></td><td>IDENTITY</td><td></td></tr>
+            <tr><td><code>guestServer</code></td><td><code>GuestServer</code></td><td><code>@ManyToOne(LAZY)</code>, <code>NOT NULL</code>, <code>updatable=false</code></td><td>멤버 서버 (execution)</td></tr>
+            <tr><td><code>group</code></td><td><code>GuestServerGroup</code></td><td><code>@ManyToOne(LAZY)</code>, <code>NOT NULL</code></td><td>소속 그룹</td></tr>
+          </tbody>
+        </table>
+        <p>테이블 제약 <code>UNIQUE(guest_server_id)</code> 가 <b>한 서버는 최대 한 그룹</b>을 구조로 강제한다(DEC-B). 합류 시각은 <code>BaseTimeEntity.createdAt</code> 이 겸한다.</p>
+
+        <h4>도메인 메서드 (SSOT)</h4>
+        <table>
+          <thead><tr><th>메서드</th><th>소유</th><th>쓰는 곳</th></tr></thead>
+          <tbody>
+            <tr><td><code>addBlockReason(GuestServer)</code></td><td><code>GuestServerGroup</code></td><td>서버 가드 · 뷰 <code>disabled</code> · tooltip</td></tr>
+            <tr><td><code>addMember(GuestServer)</code></td><td><code>GuestServerGroup</code></td><td>멤버 추가 (양방향 연관 세팅)</td></tr>
+            <tr><td><code>removeMember(UUID serverId)</code></td><td><code>GuestServerGroup</code></td><td>멤버 제외 (<code>orphanRemoval</code> 로 행 삭제)</td></tr>
+            <tr><td><code>rename(String)</code></td><td><code>GuestServerGroup</code></td><td>이름 변경</td></tr>
+            <tr><td><code>memberCount()</code></td><td><code>GuestServerGroup</code></td><td>목록 표시</td></tr>
+          </tbody>
+        </table>
+        <p><code>addBlockReason</code> 은 넣을 수 있으면 <code>null</code>, 아니면 <b>화면 tooltip 이자 서버 예외 메시지가 되는 문자열</b>을 돌려준다. <code>SettingAssignment.reassignBlockReason()</code> 과 <code>childEnableBlockReason()</code> 이 같은 형태다 — UI 차단 조건과 서버 가드 조건이 메서드 하나를 공유하므로 두 곳이 어긋날 수 없다.</p>
+        <div class="callout"><b>차단 사유는 하나뿐이다 : 이미 다른 그룹에 속해 있다.</b> 회수된 서버는 막지 않는다(DEC-H).</div>
+
+        <h4>Value Object 를 만들지 않는 것</h4>
+        <p>그룹 이름은 <code>String</code> 으로 둔다. <code>GuestServer.name</code> 과 <code>SettingDefinition.name</code> 이 이미 그렇고, 이름에는 형식 규칙이나 파생 연산이 없어 Value Object 가 담을 도메인 규칙이 없다. Primitive Obsession 금지는 <b>의미 있는 값</b>을 타입화하라는 것이지 모든 문자열을 감싸라는 것이 아니다 — 도메인을 가로질러 의미를 잃는 추상은 만들지 않는다는 원칙이 여기 적용된다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12 단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 12 단계 + CP 배치</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>단계</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 문서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>그룹 목록 · 상세 뷰, 목록 화면 배지 · 버튼</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>GuestServerGroupController</code></td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td><code>CreateGroupRequest</code> · <code>RenameGroupRequest</code> · <code>AddMembersRequest</code> · <code>GroupResponse</code> · <code>GroupDetailResponse</code></td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td><code>GuestServerGroupQueryService</code> · <code>GuestServerGroupCommandService</code> 시그니처</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6</td><td><code>GuestServerGroupRepository</code> · <code>GuestServerGroupMemberRepository</code></td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td>엔티티 2 종</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>서비스 본체 + 단위 · 통합 테스트</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td><code>ddl/U3-4_guest_server_group.sql</code> 적용 후 <code>SHOW CREATE TABLE</code> 대조</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td></tr>
+            <tr><td>12</td><td>사용자 브라우저 E2E</td><td><span class="chip cp7">CP7</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>9 단계를 건너뛰지 않는다.</b> 새 테이블이 둘이고, 과거에 <code>ddl-auto=update</code> 로 기동해 실 DB 가 조용히 오염된 사고가 있었다(기존 정의서가 전부 비활성으로 백필됨). 수동 DDL 을 먼저 적용하고 <code>ddl-auto=validate</code> 로 기동한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트</summary>
+      <div class="body">
+        <p><code>@WebMvcTest</code> + <code>MockMvc</code> + <code>@MockitoBean</code>. Mocking 은 Service 단까지만 두어 컨트롤러와 advice 매핑이 실제로 실행되게 한다.</p>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>2xx</td><td>빈 그룹 생성 → 302 · 씨앗 생성(3 대) → 302 · 멤버 추가 → 302 · 멤버 제외 → 302 · 이름 변경 → 302 · 삭제 → 302</td></tr>
+            <tr><td>400</td><td>이름 공백 · 128 자 초과</td></tr>
+            <tr><td>404</td><td>없는 그룹 조회 · 없는 그룹에 멤버 추가 · 없는 서버 추가 · 없는 멤버 제외</td></tr>
+            <tr><td>409</td><td>이름 중복(생성) · 이름 중복(변경) · 이미 다른 그룹 소속인 서버 추가 · 씨앗에 소속 서버가 섞임</td></tr>
+          </tbody>
+        </table>
+        <p>단위 테스트는 서비스 분기마다 성공 1 · 실패 1 을 둔다. 그룹 조립 · <code>addBlockReason</code> · 스펙 이탈 판정은 각각 별도 테스트로 못박는다.</p>
+        <div class="callout warn"><b>신규 예외 3 종 전부 통합 시나리오를 함께 낸다.</b> 예외 클래스만 늘리고 발생 시나리오가 빠진 묶음은 CP4 승인 대상이 아니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>상속</th><th>상태</th><th>발생</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerGroupNotFoundException</code></td><td><code>NotFoundException</code></td><td>404</td><td>없는 그룹</td></tr>
+            <tr><td><code>GroupNameConflictException</code></td><td><code>FieldBoundConflictException</code></td><td>409 + 필드</td><td>이름 중복</td></tr>
+            <tr><td><code>ServerAlreadyGroupedException</code></td><td><code>ConflictException</code></td><td>409</td><td>이미 다른 그룹 소속</td></tr>
+          </tbody>
+        </table>
+        <p><b>advice 에 명시 등록하지 않는다.</b> 셋 다 상위 타입 핸들러가 <code>@ResponseStatus</code> 를 계층 탐색으로 읽어 흡수한다. 커스텀 도메인 예외 121 개 중 명시 등록된 것은 17 개뿐이고, 핸들러를 늘리면 분기가 도메인 수만큼 자란다.</p>
+        <p><code>GroupNameConflictException</code> 만 <code>FieldBoundConflictException</code> 을 고른 이유는 <b>충돌이 입력 필드 하나와 1:1</b> 이기 때문이다. <code>fieldName()</code> 이 <code>name</code> 을 돌려주면 응답의 <code>fieldErrors[]</code> 가 그 입력칸 아래에 사유를 붙인다. 나머지 둘은 특정할 필드가 없어 일반 계층에 둔다.</p>
+        <p>재사용 : <code>GuestServerNotFoundException</code>(없는 서버를 멤버로 추가).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 · 부산물 · 주의 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 · 부산물 · 주의</summary>
+      <div class="body">
+        <h4>DEC-A. 그룹은 영속 엔티티, 스펙 묶음은 씨앗.</h4>
+        <p>재편에서 확정된 전제다. 스펙 묶음은 계산 결과로 남고 그룹만 저장된다. <code>SpecGroupKey</code> 를 컬럼으로 물질화하지 않는 U3-3 의 DEC-D 는 유지된다 — 씨앗은 한 번 쓰이고 버려지므로 저장할 이유가 늘지 않았다.</p>
+
+        <h4>DEC-B. 서버 : 그룹 = N : 1.</h4>
+        <p>멤버십 테이블의 <code>guest_server_id</code> 에 <code>UNIQUE</code> 를 걸어 구조로 강제한다.</p>
+        <p><em>기각 ①</em> N : M — 그룹의 주 용도가 할당인데(U3-5) 두 그룹에 속하면 어느 정의서를 따르는지 모호해지고, 서버당 활성 할당 1 개라는 기존 불변식과 어긋난다. 함께 보기만을 위한 다중 소속은 나중에 태그 같은 별도 개념으로 얹는 편이 낫다.</p>
+        <p><em>기각 ②</em> <code>guest_server</code> 테이블에 <code>group_id</code> 컬럼 — 가장 단순해 보이지만, <code>GuestServer</code>(execution)가 그룹(provisioning)을 <code>@ManyToOne</code> 으로 들게 되어 <b>execution → provisioning 역방향 의존</b>이 생긴다. R7 이 제거한 생성자 순환이 재생성되는 경로다.</p>
+
+        <h4>DEC-C. 패키지는 <code>provisioning.group</code>.</h4>
+        <p><code>SettingAssignment</code> 와 같은 형태 — 그룹이 <code>GuestServer</code> 를 <code>@ManyToOne</code> 으로 참조하는 provisioning → execution 단방향이다.</p>
+        <p><em>기각</em> <code>execution.group</code> — 방향만 보면 성립한다. 그러나 U3-5 가 논의 중인 "그룹 기본 정의서" 를 그룹에 얹는 순간 execution 이 provisioning 의 정의서를 참조하게 되어 방향이 뒤집힌다. 그때 가서 옮기는 것보다 지금 provisioning 에 두는 편이 싸다. 그룹의 존재 이유가 할당이라는 점도 같은 쪽을 가리킨다.</p>
+
+        <h4>DEC-D. 목록 화면은 골격을 유지하고 배지만 더한다. 그룹은 별도 화면이 갖는다.</h4>
+        <p><em>기각 ①</em> 목록 최상단에 그룹 섹션을 두고 무소속 서버만 시간 × 스펙으로 묶기 — 재편 시점에는 이쪽을 권고했으나, 설계를 진행하며 <b>그룹이 시간 축을 가로지른다</b>는 것이 드러나 철회했다. 나중에 합류한 서버는 다른 시간 묶음에 속하므로, 시간 → 스펙 계층 안에 그룹이 들어갈 자리가 없다. 그룹을 시간 밖으로 빼면 한 화면에 성격이 다른 두 계층이 겹친다.</p>
+        <p><em>기각 ②</em> 보기 전환 탭(스펙 기준 · 그룹 기준) — 화면 복잡도를 올리고, 방금 검증을 마친 U3-3 골격에 churn 을 만든다.</p>
+        <p>채택안은 각 행에 소속 그룹 배지를 붙이고 그룹 자체는 전용 화면에서 다룬다. 두 화면이 서로 다른 렌즈를 갖되 어느 쪽도 다른 쪽을 흉내내지 않는다.</p>
+
+        <h4>DEC-E. 그룹 삭제는 하드 삭제 + 확인 모달.</h4>
+        <p>그룹을 지워도 서버 · 할당 · 스냅샷은 무사하고, 잃는 것은 이름과 멤버 명단뿐이다. 다시 만들면 복구된다.</p>
+        <p><em>기각 ①</em> soft-delete + 휴지통 — 휴지통과 마커 인프라는 <b>디스크 파일을 가진 자원</b>을 위한 것이다. 그룹은 순수 DB 메타데이터라 격리할 실체가 없다.</p>
+        <p><em>기각 ②</em> typed-name 확인 — 자원 영구삭제급 파괴력이 아니다. 확인 모달로 충분하다.</p>
+
+        <h4>DEC-F. 이름은 전역 유일, 타입은 <code>String</code>.</h4>
+        <p>유일성이 필요한 이유는 운영자가 이름으로 그룹을 지칭하기 때문이다. 강제 방식은 <b>DB 제약 <code>UNIQUE</code></b> 하나로 끝난다 — <code>GuestServer.name</code> 이 같은 형태다.</p>
+        <p>같은 이름 문제를 <code>SettingDefinition</code> 이 다르게 푼 이유를 짚어둘 만하다. 그쪽은 U3-2-b 에서 soft-delete 를 얻으면서 <code>UNIQUE</code> 를 떼고 <b>활성 행에 한정한 애플리케이션 검사</b>(<code>existsByNameAndIsDeletedFalse</code>)로 바꿔야 했다. 삭제된 정의서가 이름을 계속 붙들면 같은 이름을 다시 쓸 수 없기 때문이다. 그룹은 하드 삭제라(DEC-E) 지워진 행이 남지 않으므로 그 우회가 필요 없다 — <b>DEC-E 가 DEC-F 를 단순하게 만든다.</b></p>
+
+        <h4>DEC-G. 폼은 전부 전역 인터셉터 경로 — <code>data-native-submit</code> 을 붙이지 않는다.</h4>
+        <p>핸들러가 <code>BindingResult</code> 를 받지 않기 때문이다(성공은 redirect, 실패는 예외). <code>new-form.md</code> 판정표의 첫 줄에 해당하고, 거절은 안내 모달로 수렴한다.</p>
+        <p>함께 확인한 사실 하나 — <code>static/global/form-submit.js:93</code> 은 <code>document.addEventListener('submit', ...)</code> 로 <b>위임 등록</b>이다. 그래서 <code>[data-live]</code> 안에 폼을 둬도 SSE 재렌더 후 살아남는다. U3-1 에서 할당 폼이 죽었던 것은 페이지 로컬 스크립트가 폼 엘리먼트에 <b>직접 바인딩</b>했기 때문이고, 위험한 것은 <code>[data-live]</code> 자체가 아니라 직접 바인딩이다. 따라서 [그룹으로 만들기] 를 스펙 묶음 헤더 안에 둘 수 있다.</p>
+
+        <h4>DEC-H. 회수된 서버도 그룹에 넣을 수 있다.</h4>
+        <p>U3-3 의 DEC-I 를 잇는다 — 목록의 묶음에 그대로 두어 운영 이력을 지우지 않는다. 그룹에 있어도 U3-5 의 할당 가드가 배제하므로 무해하고, 여기서 막으면 예외가 하나 늘 뿐 얻는 것이 없다.</p>
+
+        <h4>DEC-I. 스펙 이탈은 알림이지 차단이 아니다.</h4>
+        <p>그룹 상세에서 멤버의 <code>SpecGroupKey</code> 가 둘 이상이면 배너로 알린다. 스펙은 정체성이 아니므로(DEC-A) 섞인 것 자체는 위반이 아니고, 엉뚱한 서버를 넣은 실수를 잡는 값만 취한다. 판정에 필요한 키는 <code>GuestServerSummaryResponse</code> 에 실어 보낸다 — 그 키는 목록 조립에서 이미 계산하므로 파싱 비용이 늘지 않는다.</p>
+
+        <h4>DEC-J. 생성 진입점은 둘 — 씨앗과 빈 그룹.</h4>
+        <p>빈 그룹은 물량이 순차 입고될 때 첫 서버가 오기 전에 자리를 잡아두는 용도다.</p>
+        <p><em>기각</em> 목록에서 체크박스로 임의 선택해 만들기 — 선택 UI 를 목록에 더해야 하고 U3-3 골격 변경 폭이 커진다. 씨앗과 개별 추가로 같은 결과에 도달할 수 있어 지금은 넣지 않는다.</p>
+
+        <h4>DEC-K. 멤버 추가 picker 는 무소속 서버만 보여준다.</h4>
+        <p>다른 그룹의 서버를 옮기려면 먼저 빼야 한다. 두 단계지만 어느 그룹에서 빠지는지가 명시적이고, 화면이 조용히 남의 그룹을 건드리지 않는다.</p>
+
+        <h4>DEC-L. 멤버십 이력은 남기지 않는다.</h4>
+        <p>언제 넣고 뺐는지를 기록할 자리를 지금 만들지 않는다. "미래에 갈라질 수 있으니 미리 분리" 는 금지된 변명이고, 필요해지는 시점에 만든다. 현재 합류 시각은 멤버 행의 <code>createdAt</code> 이 담는다.</p>
+
+        <h4>접근 자체의 대안 (기각)</h4>
+        <ul>
+          <li><b>태그 · 라벨 방식</b> — 서버에 자유 라벨을 여러 개 붙이고 라벨로 거른다. 다중 소속이 자연스럽다는 장점이 있으나, 라벨은 "묶음" 이 아니라 "속성" 이라 멤버 명단을 하나로 다루는 조작(추가 · 제외 · 삭제)이 흩어지고, 이름을 바꾸면 사실상 다른 라벨이 되어 정체성이 없다. 요구 4 번("빼도 서버와 할당은 그대로")을 표현하기 어렵다.</li>
+          <li><b>정의서에 서버를 매다는 방식(그룹 없이)</b> — 새 개념이 0 이라는 점이 매력이지만, 정의서를 할당하기 전에는 묶을 수 없어 "함께 보기" 가 성립하지 않고, 정의서를 바꾸면 묶음이 사라진다. 그룹이 결정이라는 전제(DEC-A)와 어긋난다.</li>
+        </ul>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>잠정</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>그룹 이름에 금지 문자를 둘 것인가</td><td>두지 않는다. 길이만 제한</td></tr>
+            <tr><td>Q2</td><td>그룹 목록의 정렬 기준</td><td>만든 시각 최신순. 이름순 전환은 후속</td></tr>
+            <tr><td>Q3</td><td>멤버가 0 인 그룹을 목록에서 어떻게 보일 것인가</td><td>그대로 보인다. 빈 그룹 생성이 정식 경로라 숨기면 안 된다</td></tr>
+            <tr><td>Q4</td><td>그룹 상세에 진행 단계 요약을 얹을 것인가</td><td>이 단계 밖. U3-5 이후 마일스톤</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <p>브라우저에서 사람이 조작하듯 수행하고 항목마다 스크린샷을 남긴다. 식별자는 정상 흐름 <code>A</code>, 비정상 조작 <code>B</code>, 막는 방식 <code>C</code> 다.</p>
+        <table>
+          <thead><tr><th>#</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>스펙 묶음에서 [그룹으로 만들기] → 기본 이름 확인 → 생성</td></tr>
+            <tr><td>A2</td><td>그룹 상세에 멤버 전원이 들어왔는지 확인</td></tr>
+            <tr><td>A3</td><td>서버 목록으로 돌아와 각 행에 그룹 배지 확인</td></tr>
+            <tr><td>A4</td><td>빈 그룹 생성</td></tr>
+            <tr><td>A5</td><td>빈 그룹에 무소속 서버 추가</td></tr>
+            <tr><td>A6</td><td>멤버 제외 후 서버 목록에서 배지 사라짐 확인</td></tr>
+            <tr><td>A7</td><td>이름 변경 후 목록 · 배지 반영 확인</td></tr>
+            <tr><td>A8</td><td>그룹 목록의 멤버 수 정확성 확인</td></tr>
+            <tr><td>A9</td><td>그룹 삭제 → 멤버 전원 무소속 복귀 · 서버 생존 확인</td></tr>
+            <tr><td>A10</td><td>회수된 서버를 그룹에 추가 (DEC-H)</td></tr>
+            <tr><td>B1</td><td>이름 중복으로 생성 시도</td></tr>
+            <tr><td>B2</td><td>이름 중복으로 변경 시도</td></tr>
+            <tr><td>B3</td><td>이미 다른 그룹 소속인 서버를 direct POST 로 추가</td></tr>
+            <tr><td>B4</td><td>없는 그룹 id 로 상세 요청</td></tr>
+            <tr><td>B5</td><td>없는 서버 id 로 멤버 추가</td></tr>
+            <tr><td>B6</td><td>이미 삭제된 그룹에 direct POST 로 멤버 추가</td></tr>
+            <tr><td>B7</td><td>스펙이 다른 서버를 섞어 넣기 (DEC-I — 들어가되 경고)</td></tr>
+            <tr><td>C1</td><td>picker 에 다른 그룹 소속 서버가 나타나지 않는가</td></tr>
+            <tr><td>C2</td><td>이름 중복 거절이 입력칸 아래 필드 오류로 붙는가 (<code>FieldBound</code>)</td></tr>
+            <tr><td>C3</td><td>삭제 확인 모달이 뜨는가, 취소하면 아무 일도 없는가</td></tr>
+            <tr><td>C4</td><td>스펙 이탈 배너가 뜨되 조작을 막지는 않는가</td></tr>
+          </tbody>
+        </table>
+        <p><b>SSE 재렌더 후에도 [그룹으로 만들기] 가 동작하는지</b>를 A1 안에서 함께 확인한다 — DEC-G 가 근거로 삼은 위임 등록이 실제로 성립하는지 보는 자리다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <h4><span class="chip new">신규</span></h4>
+        <table>
+          <thead><tr><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>provisioning/group/entity/GuestServerGroup.java</code></td><td>그룹 · 도메인 메서드 SSOT</td></tr>
+            <tr><td><code>provisioning/group/entity/GuestServerGroupMember.java</code></td><td>멤버십 (<code>UNIQUE(guest_server_id)</code>)</td></tr>
+            <tr><td><code>provisioning/group/repository/GuestServerGroupRepository.java</code></td><td></td></tr>
+            <tr><td><code>provisioning/group/repository/GuestServerGroupMemberRepository.java</code></td><td></td></tr>
+            <tr><td><code>provisioning/group/service/GuestServerGroupQueryService.java</code></td><td>목록 · 상세 · 배지용 조회</td></tr>
+            <tr><td><code>provisioning/group/service/GuestServerGroupCommandService.java</code></td><td>생성 · 이름 변경 · 멤버 조작 · 삭제</td></tr>
+            <tr><td><code>provisioning/group/controller/GuestServerGroupController.java</code></td><td></td></tr>
+            <tr><td><code>provisioning/group/dto/...</code></td><td>요청 3 · 응답 2</td></tr>
+            <tr><td><code>provisioning/group/exception/...</code></td><td>예외 3</td></tr>
+            <tr><td><code>templates/provisioning/server-group-list.html</code></td><td>그룹 목록</td></tr>
+            <tr><td><code>templates/provisioning/server-group-detail.html</code></td><td>그룹 상세</td></tr>
+            <tr><td><code>ddl/U3-4_guest_server_group.sql</code></td><td>수동 DDL</td></tr>
+          </tbody>
+        </table>
+
+        <h4><span class="chip mod">수정</span></h4>
+        <table>
+          <thead><tr><th>파일</th><th>무엇을</th></tr></thead>
+          <tbody>
+            <tr><td><code>provisioning/controller/GuestServerController.java</code></td><td>그룹 배지 모델 합성</td></tr>
+            <tr><td><code>execution/dto/response/GuestServerSummaryResponse.java</code></td><td><code>specGroupKey</code> 추가</td></tr>
+            <tr><td><code>execution/service/GuestServerQueryService.java</code></td><td>키를 요약에 실어 보냄</td></tr>
+            <tr><td><code>templates/provisioning/server-list.html</code></td><td>스펙 묶음 헤더에 [그룹으로 만들기]</td></tr>
+            <tr><td><code>templates/fragments/provisioning/server-rows.html</code></td><td>그룹 배지 열</td></tr>
+            <tr><td><code>static/provisioning/server.css</code></td><td>배지 · 그룹 화면 스타일</td></tr>
+          </tbody>
+        </table>
+
+        <p><span class="chip keep">유지</span> <b>건드리지 않음</b> : <code>provisioning/assignment/**</code> 전체 — 이 슬라이스는 할당 코드를 수정하지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U3-4-next">
+          <li><label><input type="checkbox" data-key="u3-5"> <span><b>U3-5 — 그룹 단위 세팅 정의서 일괄 할당.</b> 이 그룹 위에 얹힌다. 최대 갈림길은 할당 의미론(팬아웃 / 그룹 주체 / 팬아웃 + 그룹 기본 정의서)이고, 부분 실패 정책이 함께 확정된다.</span></label></li>
+          <li><label><input type="checkbox" data-key="group-progress"> <span><b>그룹 단위 진행 현황 요약.</b> 그룹 N 대 중 몇 대가 어느 phase 인지. 멀티 서버 swimlane 과 합류한다.</span></label></li>
+          <li><label><input type="checkbox" data-key="member-history"> <span><b>멤버십 이력</b> (DEC-L 이연). 감사 요구가 생기면 그때.</span></label></li>
+          <li><label><input type="checkbox" data-key="checkbox-create"> <span><b>체크박스 임의 선택 생성</b> (DEC-J 이연).</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 라이브 데모 — 그룹 멤버십 규칙을 JS 로 1:1 재현 (드리프트 0)
+  //  addBlockReason / nameConflict / specDiverged 는 서버 도메인 메서드와 같은 식.
+  //  demoRender() 는 파일 끝에서 1회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_SPECS = { A: 'MS03-CE0 · 6338 ×2 · 32GB ×8', B: 'MS03-CE0 · 6338 ×1 · 32GB ×4' };
+  const DEMO_SEED_NAME = 'MS03-CE0 · 8월 11일 입고';
+
+  let servers, groups, selectedGroupId, seqId, formMode, formValue, formError;
+
+  function mkGroup(id, name) {
+    return { id: id, name: name, get members() { return servers.filter(s => s.groupId === id); } };
+  }
+  function demoInit() {
+    servers = [
+      { id: 'srv-01', specKey: 'A', groupId: null, recovered: false },
+      { id: 'srv-02', specKey: 'A', groupId: null, recovered: false },
+      { id: 'srv-03', specKey: 'A', groupId: null, recovered: false },
+      { id: 'srv-04', specKey: 'B', groupId: null, recovered: false },
+      { id: 'srv-05', specKey: 'B', groupId: 1,    recovered: false },
+      { id: 'srv-06', specKey: 'A', groupId: null, recovered: true  }
+    ];
+    groups = [ mkGroup(1, '8월 2차') ];
+    seqId = 2;
+    selectedGroupId = 1;
+    formMode = null; formValue = ''; formError = null;
+  }
+  demoInit();
+
+  // ── 판정 (서버 도메인 메서드와 동일 식) ──
+  // GuestServerGroup.addBlockReason(server) 와 같은 식
+  function addBlockReason(server, group) {
+    if (server.groupId !== null && server.groupId !== group.id) {
+      return '이미 다른 그룹(' + groupName(server.groupId) + ')에 속해 있습니다';
+    }
+    return null;   // null 이면 넣을 수 있다
+  }
+  // GroupNameConflictException 과 같은 판정
+  function nameConflict(name, selfId) {
+    return groups.some(g => g.id !== selfId && g.name === name);
+  }
+  // 스펙 이탈 알림 — 차단이 아니라 안내
+  function specDiverged(group) {
+    return new Set(group.members.map(s => s.specKey)).size > 1;
+  }
+  function groupName(id) { const g = groups.find(x => x.id === id); return g ? g.name : '(없음)'; }
+  function selectedGroup() { return groups.find(g => g.id === selectedGroupId) || null; }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function demoMsg(text, kind) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+
+  // ── 조작 ──
+  function demoSelect(id) { selectedGroupId = id; formMode = null; formError = null; demoRender(); }
+  function demoSeedOpen() { formMode = 'seed'; formValue = DEMO_SEED_NAME; formError = null; demoRender(); }
+  // DEC-J — 생성 진입점 둘 중 나머지. 씨앗 없이 이름만으로 만들고 멤버는 나중에 채운다(순차 입고 대비)
+  function demoEmptyOpen() { formMode = 'empty'; formValue = ''; formError = null; demoRender(); }
+  function demoRenameOpen() {
+    const g = selectedGroup();
+    if (!g) { demoMsg('선택된 그룹이 없습니다.', 'error'); return; }
+    formMode = 'rename'; formValue = g.name; formError = null; demoRender();
+  }
+  function demoDeleteOpen() {
+    const g = selectedGroup();
+    if (!g) { demoMsg('선택된 그룹이 없습니다.', 'error'); return; }
+    formMode = 'delete'; formError = null; demoRender();
+  }
+  function demoFormCancel() { formMode = null; formError = null; demoRender(); }
+  function demoNameInput(el) { formValue = el.value; demoRenderCaps(); }
+
+  function demoSeedSubmit() {
+    const v = formValue.trim();
+    if (!v) { formError = '이름은 비워둘 수 없습니다 (400)'; demoRender(); return; }
+    if (nameConflict(v, null)) { formError = 'GroupNameConflictException (409) — 같은 이름의 그룹이 이미 있습니다'; demoRender(); return; }
+    const stub = { id: null, name: v };
+    const seeds = servers.filter(s => s.specKey === 'A');
+    const blocked = seeds.filter(s => addBlockReason(s, stub) !== null);
+    if (blocked.length) {
+      formError = 'ServerAlreadyGroupedException (409) — 씨앗에 소속 서버가 섞임 (' + blocked.map(s => s.id).join(', ') + '). 요청 전체를 거절';
+      demoRender(); return;
+    }
+    const g = mkGroup(seqId++, v);
+    groups.push(g);
+    seeds.forEach(s => s.groupId = g.id);
+    selectedGroupId = g.id; formMode = null; formError = null;
+    demoRender();
+    demoMsg('302 → 그룹 상세 : ' + v + ' (씨앗 멤버 ' + seeds.length + ' 대)', 'success');
+  }
+
+  // 빈 그룹 — 이름 검사만 통과하면 만들어진다. 멤버가 없으므로 addBlockReason 을 부를 대상이 없다
+  function demoEmptySubmit() {
+    const v = formValue.trim();
+    if (!v) { formError = '이름은 비워둘 수 없습니다 (400)'; demoRender(); return; }
+    if (nameConflict(v, null)) { formError = 'GroupNameConflictException (409) — 같은 이름의 그룹이 이미 있습니다'; demoRender(); return; }
+    const g = mkGroup(seqId++, v);
+    groups.push(g);
+    selectedGroupId = g.id; formMode = null; formError = null;
+    demoRender();
+    demoMsg('302 → 그룹 상세 : ' + v + ' (멤버 0 대 — 무소속 서버를 넣어 채운다)', 'success');
+  }
+  function demoRenameSubmit() {
+    const g = selectedGroup(); if (!g) return;
+    const v = formValue.trim();
+    if (!v) { formError = '이름은 비워둘 수 없습니다 (400)'; demoRender(); return; }
+    if (nameConflict(v, g.id)) { formError = 'GroupNameConflictException (409) — fieldErrors[name] 로 입력칸 아래에 붙는 사유'; demoRender(); return; }
+    const old = g.name; g.name = v; formMode = null; formError = null;
+    demoRender();
+    demoMsg('302 → 이름 변경 : ' + old + ' → ' + v, 'success');
+  }
+  function demoDeleteSubmit() {
+    const g = selectedGroup(); if (!g) return;
+    const n = g.members.length;
+    servers.forEach(s => { if (s.groupId === g.id) s.groupId = null; });
+    groups = groups.filter(x => x.id !== g.id);
+    selectedGroupId = groups.length ? groups[0].id : null;
+    formMode = null; formError = null;
+    demoRender();
+    demoMsg('302 → 그룹 목록 : ' + g.name + ' 삭제. 멤버 ' + n + ' 대는 무소속으로 복귀, 서버는 그대로', 'success');
+  }
+  function demoAdd(id) {
+    const g = selectedGroup(); if (!g) return;
+    const s = servers.find(x => x.id === id); if (!s) return;
+    const reason = addBlockReason(s, g);
+    if (reason) { demoRender(); demoMsg('서버 가드 409 — ' + s.id + ' : ' + reason, 'error'); return; }
+    s.groupId = g.id;
+    demoRender();
+    const warn = specDiverged(g) ? ' (스펙 이탈 배너 — 차단은 아님)' : '';
+    demoMsg('302 → ' + s.id + ' 를 ' + g.name + ' 에 넣음' + warn, 'success');
+  }
+  function demoRemove(id) {
+    const s = servers.find(x => x.id === id); if (!s) return;
+    const from = groupName(s.groupId);
+    s.groupId = null;
+    demoRender();
+    demoMsg('302 → ' + s.id + ' 를 ' + from + ' 에서 제외. 서버와 그 서버의 할당은 그대로', 'success');
+  }
+  function demoResetClick() { demoInit(); demoRender(); demoMsg('처음 상태로 되돌렸습니다.', ''); }
+
+  // ── 드래그 앤 드롭 (버튼과 같은 판정을 통과) ──
+  function demoDragStart(ev, id) { ev.dataTransfer.setData('text/plain', id); }
+  function demoAllowDrop(ev) { ev.preventDefault(); }
+  function demoDrop(ev) { ev.preventDefault(); demoAdd(ev.dataTransfer.getData('text/plain')); }
+
+  // ── 렌더 ──
+  function demoBtn(fn, label, blocked, tip) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + esc(tip) + '"') : '';
+    const click = blocked ? '' : (' onclick="' + fn + '"');
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + click + '>' + label + '</button></span>';
+  }
+  function demoRenderForm() {
+    const box = document.getElementById('demo-form');
+    if (!formMode) { box.innerHTML = ''; return; }
+    const err = formError ? '<div class="ux-message error">' + esc(formError) + '</div>' : '';
+    if (formMode === 'delete') {
+      const g = selectedGroup();
+      box.innerHTML = '<div class="ux-row"><span class="label">그룹 <b>' + esc(g.name) + '</b> 을 지웁니다. 멤버 ' + g.members.length +
+        ' 대는 무소속으로 돌아가고 서버는 그대로 남습니다.</span>' +
+        '<span class="tip"><button class="n-demo-btn" onclick="demoDeleteSubmit()">지우기</button></span>' +
+        '<span class="tip"><button class="n-demo-btn" onclick="demoFormCancel()">취소</button></span></div>' + err;
+      return;
+    }
+    // 폼 종류가 늘 때 삼항을 겹치지 않게 표로 둔다 — 프로젝트의 분기 확장 금지 원칙과 같은 형태
+    const FORM_META = {
+      seed:   { submit: 'demoSeedSubmit()',   title: '스펙 A 묶음 → 새 그룹 이름' },
+      empty:  { submit: 'demoEmptySubmit()',  title: '빈 그룹 만들기 — 이름' },
+      rename: { submit: 'demoRenameSubmit()', title: '그룹 이름 바꾸기' }
+    };
+    const submit = FORM_META[formMode].submit;
+    const title = FORM_META[formMode].title;
+    box.innerHTML = '<div class="ux-row"><span class="label">' + title + '</span></div>' +
+      '<input type="text" id="demo-name-input" value="' + esc(formValue) + '" oninput="demoNameInput(this)">' + err +
+      '<div class="ux-toolbar"><span class="tip"><button class="n-demo-btn" onclick="' + submit + '">확인</button></span>' +
+      '<span class="tip"><button class="n-demo-btn" onclick="demoFormCancel()">취소</button></span></div>';
+    const el = document.getElementById('demo-name-input');
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  }
+  function demoRenderServers() {
+    const g = selectedGroup();
+    document.getElementById('demo-servers').innerHTML = servers.map(s => {
+      const reason = g ? addBlockReason(s, g) : null;
+      const mine = g && s.groupId === g.id;
+      const canDrag = g && !mine && reason === null;
+      const specTip = '<span class="tip" data-tip="' + esc(DEMO_SPECS[s.specKey]) + '"><code>스펙 ' + s.specKey + '</code></span>';
+      const state = s.recovered ? '<span class="badge del">회수됨</span>' : '<span class="badge on">정상</span>';
+      const own = s.groupId === null ? '<span class="badge off">무소속</span>'
+        : '<span class="badge on">' + esc(groupName(s.groupId)) + '</span>';
+      let btn = '';
+      if (g) {
+        btn = mine ? demoBtn("demoRemove('" + s.id + "')", '빼기', false, '')
+                   : demoBtn("demoAdd('" + s.id + "')", '넣기', reason !== null, reason || '');
+      }
+      return '<div class="ux-row' + (s.recovered ? ' muted' : '') + '"' +
+        (canDrag ? ' draggable="true" ondragstart="demoDragStart(event,\'' + s.id + '\')"' : '') + '>' +
+        '<strong>' + s.id + '</strong>' + specTip + '<span class="label"></span>' + state + own + btn + '</div>';
+    }).join('') +
+    (selectedGroup() ? '' : '<div class="ux-message">그룹이 없습니다. [스펙 A 묶음으로 그룹 만들기] 로 씨앗 생성을 해보세요.</div>');
+  }
+  function demoRenderGroup() {
+    const tabs = document.getElementById('demo-tabs');
+    tabs.innerHTML = groups.length
+      ? groups.map(g => '<button class="seg' + (g.id === selectedGroupId ? ' active' : '') + '" onclick="demoSelect(' + g.id + ')">' + esc(g.name) + '</button>').join('')
+      : '<span class="group-label">그룹 없음</span>';
+    const body = document.getElementById('demo-group');
+    const g = selectedGroup();
+    if (!g) { body.innerHTML = '<div class="ux-message">선택된 그룹이 없습니다.</div>'; return; }
+    const banner = specDiverged(g)
+      ? '<div class="callout warn">멤버의 스펙 키가 둘 이상입니다. 안내만 하고 막지 않습니다 (DEC-I).</div>' : '';
+    const rows = g.members.length
+      ? g.members.map(s => '<div class="ux-row' + (s.recovered ? ' muted' : '') + '"><strong>' + s.id + '</strong>' +
+          '<span class="tip" data-tip="' + esc(DEMO_SPECS[s.specKey]) + '"><code>스펙 ' + s.specKey + '</code></span>' +
+          '<span class="label"></span>' + (s.recovered ? '<span class="badge del">회수됨</span>' : '<span class="badge on">정상</span>') +
+          demoBtn("demoRemove('" + s.id + "')", '빼기', false, '') + '</div>').join('')
+      : '<div class="ux-message">멤버 0 대 — 서버 카드를 여기로 끌어 넣거나 [넣기] 를 누르세요.</div>';
+    body.innerHTML = '<div class="ux-row"><strong>' + esc(g.name) + '</strong><span class="label">멤버 ' + g.members.length + ' 대</span></div>' + banner + rows;
+  }
+  function demoRenderCaps() {
+    const g = selectedGroup();
+    const caps = document.getElementById('demo-caps');
+    if (!g) { caps.textContent = '선택된 그룹이 없습니다.'; return; }
+    const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
+    let out = '';
+    servers.forEach(s => {
+      const r = addBlockReason(s, g);
+      out += esc(pad('addBlockReason(' + s.id + ', "' + g.name + '")', 46)) + ' = ' +
+        (r === null ? '<span class="f">null</span> → 넣을 수 있음'
+                    : '<span class="t">"' + esc(r) + '"</span> → 차단') + '\n';
+    });
+    out += esc(pad('specDiverged("' + g.name + '")', 46)) + ' = ' +
+      (specDiverged(g) ? '<span class="t">true</span> → 배너(차단 아님)' : '<span class="f">false</span> → 정상') + '\n';
+    if (formMode === 'seed' || formMode === 'rename') {
+      const selfId = formMode === 'rename' ? g.id : null;
+      out += esc(pad('nameConflict("' + formValue.trim() + '", self=' + (selfId === null ? 'null' : selfId) + ')', 46)) + ' = ' +
+        (nameConflict(formValue.trim(), selfId) ? '<span class="t">true</span> → 409 거절' : '<span class="f">false</span> → 허용') + '\n';
+    }
+    caps.innerHTML = out;
+  }
+  function demoRender() {
+    demoRenderForm();
+    demoRenderServers();
+    demoRenderGroup();
+    demoRenderCaps();
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

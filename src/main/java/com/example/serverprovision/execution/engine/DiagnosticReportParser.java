@@ -71,7 +71,7 @@ public class DiagnosticReportParser {
         String biosVersion = filteredText(root, "biosVersion", filtered);
 
         HardwareSpec hardware = new HardwareSpec(
-                parseCpu(root.path("cpu"), filtered),
+                parseCpuSockets(root, filtered),
                 parseMemory(root.path("memoryModules"), filtered),
                 parseDisks(root.path("disks")),
                 parsePcie(root.path("pcieRaw")));
@@ -97,14 +97,36 @@ public class DiagnosticReportParser {
 
     // ─────────────────────────── 필드별 관용 파싱 ───────────────────────────
 
-    private HardwareSpec.CpuInfo parseCpu(JsonNode cpu, List<String> filtered) {
+    /**
+     * CPU 소켓 인벤토리 (U3-3 DEC-C) — 신 형식 {@code cpuSockets} 배열을 우선 읽고, 없으면
+     * 구 형식 {@code cpu} 단수 객체를 1소켓으로 승급한다. 에이전트 이미지가 갱신되기 전에 올라온
+     * 보고도 그대로 받기 위한 관용이며, 스펙 그룹은 이때 1소켓으로 취급한다.
+     */
+    private List<HardwareSpec.CpuSocket> parseCpuSockets(JsonNode root, List<String> filtered) {
+        JsonNode sockets = root.path("cpuSockets");
+        if (sockets.isArray() && !sockets.isEmpty()) {
+            List<HardwareSpec.CpuSocket> parsed = new ArrayList<>();
+            sockets.forEach(node -> {
+                HardwareSpec.CpuSocket socket = parseCpuSocket(node, filtered);
+                if (socket != null) {
+                    parsed.add(socket);
+                }
+            });
+            return parsed.isEmpty() ? null : List.copyOf(parsed);
+        }
+        HardwareSpec.CpuSocket legacy = parseCpuSocket(root.path("cpu"), filtered);
+        return legacy == null ? null : List.of(legacy);
+    }
+
+    private HardwareSpec.CpuSocket parseCpuSocket(JsonNode cpu, List<String> filtered) {
         if (!cpu.isObject()) {
             return null;
         }
+        String slot = text(cpu, "slot");
         String manufacturer = filteredText(cpu, "manufacturer", filtered);
         String model = filteredText(cpu, "model", filtered);
         return (manufacturer == null && model == null) ? null
-                : new HardwareSpec.CpuInfo(manufacturer, model);
+                : new HardwareSpec.CpuSocket(slot, manufacturer, model);
     }
 
     private List<HardwareSpec.MemoryModule> parseMemory(JsonNode arr, List<String> filtered) {
