@@ -319,13 +319,13 @@
             <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
             <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
             <tr><td>6~7</td><td>Repository · Entity (+VO/Enum)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
-            <tr><td>8~9</td><td>Service 본체 + 단위/통합 테스트 + 스키마 확인</td><td><span class="chip cp4">CP4</span></td><td>보고</td></tr>
-            <tr><td>10</td><td>샌드박스 브라우저 검증 (항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>Service 본체 + 단위/통합 테스트 + 스키마 확인</td><td><span class="chip cp4">CP4</span></td><td>승인 — 코드 검수 · 빌드/테스트 green</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
             <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
             <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
           </tbody>
         </table>
-        <div class="callout">승인 게이트는 <b>CP1 · CP6 · CP7</b> 셋이다. CP1 승인이 CP2~CP4 의 진행 승인을 겸하므로 그 구간은 무중단으로 진행하고 경계마다 보고만 한다.</div>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4 · CP6 · CP7</b> 넷이다. CP1 승인이 CP2~CP3 의 진행 승인을 겸해 그 구간은 무중단(경계 보고만)이고, CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
       </div>
     </details>
 
