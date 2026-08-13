@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -150,22 +151,29 @@ class GuestServerControllerTest {
                 .andExpect(model().attributeExists("server", "updateForm"));
     }
 
+    /**
+     * 정의서를 고르는 자리가 상세 본문에서 모달로 옮겨갔다(U3-5-b).
+     *
+     * <p>상세가 지킬 것은 둘이다 — 모달을 여는 버튼이 있을 것, 그리고 <b>정의서 이름을 본문에 그리지
+     * 않을 것</b>. 후자를 함께 보는 이유는 {@code <select>} 잔재가 남아도 화면은 멀쩡해 보이기 때문이다.
+     * 선택지 자체의 렌더(할당 가능 정의서만 · 잠금 · 사유)는 조각을 직접 받는
+     * {@code GuestServerControllerPickerTest} 가 덮는다.</p>
+     */
     @Test
-    @DisplayName("GET /provisioning/server/{id} — 할당 드롭다운은 할당 가능 정의서만 · deprecated 는 라벨로 경고 (U3-2-b DEC-G)")
-    void detail_rendersAssignableDefinitionOptions() throws Exception {
+    @DisplayName("GET /provisioning/server/{id} — 고르는 자리는 모달이므로 상세에는 여는 버튼만 (U3-5-b)")
+    void detail_rendersPickerOpenerInsteadOfSelect() throws Exception {
         UUID id = UUID.randomUUID();
         given(queryService.findDetail(id)).willReturn(detail(id));
-        // 비활성 · 삭제 정의서는 조회 서비스가 이미 걸러 낸다(서버 가드와 같은 판정) — 뷰는 받은 것만 그린다.
         given(settingQueryService.findAssignable()).willReturn(List.of(
                 new SettingSummaryResponse(1L, "web-standard",
-                        List.of(SettingProcessType.BASIC_UPDATE), false, true, false, LocalDateTime.now()),
-                new SettingSummaryResponse(2L, "legacy-standard",
-                        List.of(SettingProcessType.BASIC_UPDATE), false, true, true, LocalDateTime.now())));
+                        List.of(SettingProcessType.BASIC_UPDATE), false, true, false, LocalDateTime.now())));
 
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString(">web-standard<")))
-                .andExpect(content().string(containsString(">legacy-standard (사용 중단 권고)<")));
+                .andExpect(content().string(containsString("id=\"openAssignPicker\"")))
+                .andExpect(content().string(containsString("/assignment/picker")))
+                .andExpect(content().string(not(containsString("name=\"definitionId\" class=\"n-select\""))))
+                .andExpect(content().string(not(containsString(">web-standard<"))));
     }
 
     @Test

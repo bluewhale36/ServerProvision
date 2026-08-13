@@ -147,6 +147,13 @@
     color: var(--n-text-muted);
 }
 
+/* 주의를 요하되 막지는 않는 상태 (사용 중단 권고 · 대조 전) — 자원 화면이 사용 중단을 노란 점으로
+   알리는 것과 같은 어휘다. on(초록) 과 off(회색) 사이에 이 층이 없어 U3-5-b 에서 계열을 채웠다. */
+.n-miller-status-tag-warn {
+    background: rgba(194, 147, 67, 0.12);
+    color: var(--n-yellow);
+}
+
 /* ---- 패널 표시·숨김 (JS 가 .active 클래스 토글) --------- */
 .n-miller-version-panel {
     display: none;

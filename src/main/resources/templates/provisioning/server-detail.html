@@ -19,7 +19,20 @@
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('게스트 서버 상세')}"></th:block>
+    <!--/* U3-5-b — 정의서 선택 모달의 우측 패널이 정의서 상세 화면과 같은 카드 조각을 쓴다(DEC-A).
+           그 카드의 스타일(.n-process-card-head · .n-process-subsection)은 setting.css 에만 있으므로
+           함께 싣는다.
+
+           빌려온 둘을 server.css 앞에 두는 이유 : 이 화면의 주인은 server.css 이고, 빌려온 시트가
+           주인을 덮으면 주인 쪽 수정이 조용히 먹지 않는다. 실제로 setting.css 는 server.css 와
+           .n-detail-section > .n-section-title 을 같은 명시도로 중복 정의하므로, 순서가 뒤집혀 있으면
+           server.css 에서 제목 크기를 바꿔도 화면이 그대로다. */-->
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
     <link rel="stylesheet" th:href="@{/provisioning/server.css}">
+    <!--/* confirm-modal.css 는 여기서 싣지 않는다 — commonHead 가 이미 싣는다(전역 오류 modal 용).
+           한 번 더 걸면 .cm-card{max-width:480px} 가 server.css 의 .cm-card-wide{1080px} 뒤로 밀려
+           모달이 480px 로 접힌다(명시도가 같아 순서가 이긴다). CP5 에서 실물로 확인한 회귀다. */-->
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('server')}"></nav>
@@ -324,30 +337,25 @@
                         </tbody>
                     </table>
 
-                    <!-- 재할당(미개시 활성) — reassignBlockReason == null 이면 개방. XHR JSON 제출(server-assignment.js). -->
+                    <!--/* 재할당(미개시 활성) — reassignBlockReason == null 이면 개방.
+                           U3-5-b — 고르는 일은 모달이 맡는다. 여기 남는 것은 여는 버튼과 안내뿐이다. */-->
                     <div th:if="${phaseRail.reassignBlockReason == null}" style="margin-top: 16px;">
                         <p th:unless="${assignmentForm.hasSelectable}" class="n-detail-empty">
                             재할당할 수 있는 세팅 정의서가 없습니다.
                             <span th:if="${!#lists.isEmpty(assignmentForm.options)}">
                                 등록된 정의서는 있으나 이 서버의 하드웨어와 맞지 않습니다.</span>
                         </p>
-                        <form th:if="${assignmentForm.hasSelectable}" id="reassignment-form"
-                              th:data-action="@{/provisioning/server/{id}/assignment/reassign(id=${server.id})}">
-                            <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
-                            <div class="n-form-group" data-error-field="definitionId">
-                                <label class="n-label" for="reassignment-definition">다른 정의서로 재할당</label>
-                                <select id="reassignment-definition" name="definitionId" class="n-select">
-                                    <option value="">— 정의서 선택 —</option>
-                                    <th:block th:replace="~{fragments/provisioning/definition-options :: definitionOptions(${assignmentForm.options})}"></th:block>
-                                </select>
-                            </div>
-                            <div class="n-form-actions" style="margin-top: 12px;">
-                                <button type="submit" class="n-btn n-btn-primary">재할당</button>
-                            </div>
+                        <div th:if="${assignmentForm.hasSelectable}">
+                            <button type="button" class="n-btn n-btn-primary" id="openReassignPicker"
+                                    data-picker-title="다른 정의서로 재할당"
+                                    data-picker-submit-label="재할당"
+                                    th:data-submit-url="@{/provisioning/server/{id}/assignment/reassign(id=${server.id})}">
+                                다른 정의서로 재할당
+                            </button>
                             <div class="n-section-hint" style="margin-top: 8px;">
                                 재할당하면 지금 정의서로 새 스냅샷을 만들고 기존 할당은 이력으로 종료됩니다. 프로비저닝 개시 전까지만 가능합니다.
                             </div>
-                        </form>
+                        </div>
                     </div>
 
                     <!-- 재할당 차단(개시된 활성) — disabled + 사유 tooltip(reassignBlockReason SSOT = 서버 가드와 동일). -->
@@ -379,20 +387,19 @@
                        class="n-detail-empty">
                         이 서버에 할당할 수 있는 세팅 정의서가 없습니다 — 등록된 정의서가 모두 다른 메인보드를 요구합니다.
                     </p>
-                    <form th:if="${!assignmentForm.blocked and assignmentForm.hasSelectable}" id="assignment-form"
-                          th:data-action="@{/provisioning/server/{id}/assignment(id=${server.id})}">
-                        <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
-                        <div class="n-form-group" data-error-field="definitionId">
-                            <label class="n-label" for="assignment-definition">세팅 정의서</label>
-                            <select id="assignment-definition" name="definitionId" class="n-select">
-                                <option value="">— 정의서 선택 —</option>
-                                <th:block th:replace="~{fragments/provisioning/definition-options :: definitionOptions(${assignmentForm.options})}"></th:block>
-                            </select>
+                    <!--/* U3-5-b — 이름만 나열하던 드롭다운을 걷어내고 모달을 연다. 고르기 전에 내용을 볼 수
+                           있어야 하고, 잠긴 정의서의 사유도 라벨에 눌려붙는 대신 제 자리에서 읽혀야 한다. */-->
+                    <div th:if="${!assignmentForm.blocked and assignmentForm.hasSelectable}">
+                        <button type="button" class="n-btn n-btn-primary" id="openAssignPicker"
+                                data-picker-title="세팅 정의서 할당"
+                                data-picker-submit-label="이 서버에 할당"
+                                th:data-submit-url="@{/provisioning/server/{id}/assignment(id=${server.id})}">
+                            정의서 할당
+                        </button>
+                        <div class="n-section-hint" style="margin-top: 8px;">
+                            정의서를 고르면 그 내용을 스냅샷으로 복사해 이 서버가 밟을 phase 를 확정합니다.
                         </div>
-                        <div class="n-form-actions" style="margin-top: 12px;">
-                            <button type="submit" class="n-btn n-btn-primary">이 서버에 할당</button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
 
                 <!-- 계획 phase rail — 계획(assigned)에 실제 진행(started) 커서를 겹친다. -->
@@ -551,10 +558,52 @@
     </div>
 </div>
 
+<!--/* ── 정의서 선택 모달 (U3-5-b) ──
+       할당과 재할당이 이 하나를 함께 쓴다(DEC-E). 다른 것은 제목 · 제출 대상 · 제출 버튼 문구 셋뿐이라
+       여는 버튼이 data-* 로 넘기고 JS 가 갈아끼운다. 두 벌을 두면 한쪽만 고치는 드리프트가 생긴다.
+
+       내용(좌측 목록 + 우측 패널)은 처음 열 때 조각 엔드포인트에서 받는다 — 상세를 그릴 때마다 정의서
+       수만큼의 자원 명칭 해석을 치르지 않기 위해서다(U3-4 서버 넣기 모달과 같은 판단).
+
+       제출은 기존 XHR 경로(server-assignment.js)를 그대로 탄다. 이 폼도 data-action 을 갖는 form 이라
+       같은 핸들러가 잡고, 고른 정의서는 hidden input 에 실린다 — 제출 로직을 새로 쓰지 않는다. */-->
+<div th:if="${!assignmentForm.blocked}" id="definitionPicker" class="cm-overlay" hidden
+     th:data-fetch-url="@{/provisioning/server/{id}/assignment/picker(id=${server.id})}">
+    <div class="cm-backdrop" data-picker-close></div>
+    <div class="n-card cm-card cm-card-wide" role="dialog" aria-modal="true"
+         aria-labelledby="definitionPickerTitle">
+        <div class="n-card-body">
+            <h2 id="definitionPickerTitle" class="cm-title">세팅 정의서 할당</h2>
+            <p class="cm-message">
+                왼쪽에서 정의서를 고르면 오른쪽에 그 내용이 펼쳐집니다.
+                이 서버에 맞지 않는 정의서도 목록에 남으며, 눌러 보면 왜 맞지 않는지와 무엇을 하려던
+                정의서인지를 함께 확인할 수 있습니다.
+            </p>
+            <form id="definition-picker-form" data-action="">
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+                <input type="hidden" name="definitionId" id="definitionPickerChoice">
+                <div class="n-picker-body n-picker-body-miller" id="definitionPickerBody">
+                    <p class="n-detail-empty">불러오는 중…</p>
+                </div>
+                <div class="n-picker-footer">
+                    <span class="n-picker-count" id="definitionPickerStatus">왼쪽에서 정의서를 고르세요</span>
+                    <span>
+                        <button type="button" class="n-btn n-btn-secondary" data-picker-close>취소</button>
+                        <button type="submit" class="n-btn n-btn-primary" id="definitionPickerSubmit" disabled>
+                            이 서버에 할당</button>
+                    </span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- S7 — SSE 구독 + 신호-재조회 부분 교체 (수정 폼 영역은 건드리지 않는다) -->
 <script th:src="@{/provisioning/server-stream.js}"></script>
 <!-- U3-1 — 세팅 정의서 할당 XHR 제출 -->
 <script th:src="@{/provisioning/server-assignment.js}"></script>
+<!-- U3-5-b — 정의서 선택 모달의 열기 · 고르기 (제출은 위 파일이 맡는다) -->
+<script th:src="@{/provisioning/definition-picker.js}"></script>
 
 </body>
 </html>

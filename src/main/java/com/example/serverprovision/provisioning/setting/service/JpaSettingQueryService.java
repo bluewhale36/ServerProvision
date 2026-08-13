@@ -142,13 +142,31 @@ public class JpaSettingQueryService implements SettingQueryService {
         // "삭제됨" 배지 + 복원/영구삭제 액션을 렌더한다.
         SettingDefinition definition = repository.findById(id)
                 .orElseThrow(() -> new SettingNotFoundException(id));
+        return toDetail(definition);
+    }
+
+    /**
+     * 여러 건의 상세를 한 트랜잭션에서 (U3-5-b) — 정의서 선택 모달이 우측 패널을 전부 미리 렌더한다.
+     *
+     * <p>없는 id 는 결과에서 빠진다. 호출자가 방금 받은 선택지에서 뽑은 id 를 넘기므로 빠졌다는 것은 그
+     * 사이에 삭제됐다는 뜻이고, 그때 목록에서 빼는 것이 이미 정해진 규칙이다(U3-2-b DEC-G).</p>
+     */
+    @Override
+    public List<SettingDetailResponse> findDetailsOf(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllById(ids).stream().map(this::toDetail).toList();
+    }
+
+    private SettingDetailResponse toDetail(SettingDefinition definition) {
         List<AbstractProcessRequest> processList =
                 sortedProcesses(definition).stream().map(p -> p.getPayload().request()).toList();
         return new SettingDetailResponse(
                 definition.getId(), definition.getName(),
                 definition.isDeleted(), definition.isEnabled(), definition.isDeprecated(),
                 // 삭제 확인 모달의 정보성 경고(DEC-C) — 활성 할당 수. 차단이 아니라 안내.
-                assignmentUsageInspector.countReferencing(id),
+                assignmentUsageInspector.countReferencing(definition.getId()),
                 processList,
                 collectDeprecatedUsages(processList),
                 collectExecutionWarnings(processList),

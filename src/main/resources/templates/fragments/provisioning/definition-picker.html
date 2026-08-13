@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  정의서 선택 모달의 내용 — 2 열 miller (U3-5-b)
+  ─────────────────────────────────────────────────────────
+  사용 컨텍스트 : 서버 상세(provisioning/server-detail) 의 할당 · 재할당 모달. 두 흐름이 같은 한 벌을
+                 쓰고 다른 것은 제목과 제출 대상뿐이라, 그 둘은 모달 껍데기가 갖고 조각은 내용만 갖는다
+                 (DEC-E — 두 벌을 만들면 한쪽만 고치는 드리프트가 생긴다).
+  파라미터      : picker — AssignmentPickerResponse (컨트롤러 모델 속성)
+  적재 경로     : GET /provisioning/server/{id}/assignment/picker — 모달을 처음 열 때 한 번 fetch.
+
+  왜 패널을 전부 미리 그리는가 (DEC-B)
+    miller.css 는 .n-miller-detail-panel 을 "JS 가 .active 토글" 로 정의하고, management 의 os · board ·
+    bios · bmc · subprogram 다섯 화면이 그 방식으로 돈다. 여기서만 클릭마다 fetch 하면 같은 CSS 를 쓰면서
+    혼자 다르게 동작하는 화면이 생기고, 고르면서 비교하는 흐름도 왕복마다 끊긴다. 정의서는 조직당 수십 개
+    규모이고 이 모달은 열 때만 조립되므로 미리 그리는 값이 크지 않다.
+
+  왜 잠긴 정의서도 상세를 그리는가 (DEC-C)
+    막힌 이유만 알면 다음 판단을 못 한다. "메인보드가 다르다" 를 읽은 운영자의 다음 질문은 "이 정의서가
+    하려던 것을 다른 것으로 할 수 있나" 이고, 그러려면 내용을 봐야 한다. 그래서 패널은 차단 여부와 무관하게
+    같은 카드를 그리고 사유 배너만 위에 얹는다.
+
+  마크업 관용구는 management 의 miller 화면(board/bios/bmc/subprogram)과 같다 —
+  .n-miller-item-split(좌 라벨 + 우 상태 태그) · .n-miller-version-label · .n-miller-status-tag.
+  라벨 class 이름에 'version' 이 남아 있는 것은 그 관용구가 버전 목록에서 먼저 굳었기 때문이고, 여기서
+  동의어를 새로 만들면 같은 것에 이름이 둘이 된다. 이름 정리는 다섯 화면을 함께 손대는 별도 일이다.
+
+  좌측 행이 JS 에 넘기는 것 (data-*)
+    · data-definition-id   : 선택 시 hidden input 에 실릴 값 · 우측 패널 id 와 짝
+    · data-definition-name : 하단 상태줄에 "고른 것" 을 적을 이름
+    · data-block-reason    : 잠긴 경우의 사유 — [할당] tooltip 과 상태줄이 같은 문자열을 쓴다
+-->
+<div class="n-miller n-miller-modal" th:fragment="picker">
+
+    <!-- 좌측 : 정의서 목록. 잠긴 것도 남는다 — 사라지면 "없어진 것" 과 "안 맞는 것" 을 구분할 수 없다. -->
+    <div class="n-miller-col n-miller-col-names n-miller-col-definitions">
+        <div class="n-miller-col-header">세팅 정의서</div>
+
+        <p th:if="${#lists.isEmpty(picker.items)}" class="n-detail-empty" style="padding: 14px 18px;">
+            할당할 수 있는 세팅 정의서가 없습니다.
+        </p>
+
+        <button type="button" th:each="item : ${picker.items}"
+                class="n-miller-item n-miller-item-split"
+                th:classappend="${item.blocked} ? 'n-miller-item-disabled' : ''"
+                th:data-definition-id="${item.id}"
+                th:data-definition-name="${item.name}"
+                th:data-block-reason="${item.blockReason}"
+                th:attr="aria-disabled=${item.blocked}">
+            <!--/* title 을 다는 이유 : 좁은 화면에서 태그가 자리를 먹으면 이름이 말줄임에 걸린다. 이름은
+                   그 항목의 정체라 잘리면 무엇을 고르는지 알 수 없으므로 hover 로 전체를 볼 수 있게 한다.
+                   차단 사유는 여기 담지 않는다 — 그것은 우측 패널이 문장으로 보여 주는 것이 이 단계의
+                   요구이고, tooltip 에 숨기면 <select> 시절로 되돌아간다. */-->
+            <span class="n-miller-version-label" th:title="${item.name}" th:text="${item.name}">web-standard</span>
+            <span th:if="${item.blocked}" class="n-miller-status-tag n-miller-status-tag-off">잠김</span>
+            <span th:if="${!item.blocked and item.deprecated}"
+                  class="n-miller-status-tag n-miller-status-tag-warn">사용 중단</span>
+            <span th:if="${!item.blocked and !item.deprecated and item.unverified}"
+                  class="n-miller-status-tag n-miller-status-tag-warn">대조 전</span>
+        </button>
+    </div>
+
+    <!-- 우측 : 고른 정의서의 상세. 항목마다 한 판씩 미리 그려 두고 .active 만 옮긴다. -->
+    <div class="n-miller-col n-miller-col-detail">
+        <div class="n-miller-empty" id="definitionPickerEmpty">
+            왼쪽에서 정의서를 고르면 내용이 여기에 나타납니다.
+        </div>
+
+        <div th:each="item : ${picker.items}" class="n-miller-detail-panel"
+             th:id="'definition-panel-' + ${item.id}">
+
+            <!--/* 잠긴 사유는 라벨이 아니라 패널 머리에 둔다 — <select> 시절에는 옵션 라벨에 이어붙어
+                   길면 잘렸다. 자리를 주면 문장이 그대로 읽힌다. 문구는 AssignmentBlockKind 가 만든
+                   것으로, direct POST 를 409 로 거절하는 서버 가드의 메시지와 같은 문자열이다. */-->
+            <div th:if="${item.blocked}" class="n-alert n-alert-danger" role="alert">
+                <b>이 서버에는 할당할 수 없습니다.</b>
+                <div style="margin-top: 6px;" th:text="${item.blockReason}">
+                    이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 ASUS-Z13PE 입니다.</div>
+            </div>
+            <div th:if="${!item.blocked and item.unverified}" class="n-alert n-alert-warning" role="alert">
+                <b>하드웨어를 대조하지 못했습니다.</b>
+                <div class="n-section-hint" style="margin-top: 6px;">
+                    이 정의서는 특정 메인보드를 요구하는데 이 서버의 하드웨어는 아직 수집 전입니다.
+                    할당은 막지 않되, 수집 후 맞지 않으면 개시할 때 경고가 뜹니다.
+                </div>
+            </div>
+            <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">
+                <b>사용 중단이 권고된 정의서입니다.</b>
+                <div class="n-section-hint" style="margin-top: 6px;">
+                    할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.
+                </div>
+            </div>
+
+            <!--/* 카드 렌더는 정의서 상세 화면(U2)과 같은 한 벌이다(DEC-A). 여기서 따로 그리면 단계 타입이
+                   늘 때마다 두 곳을 고쳐야 하고, 한쪽만 고치는 것이 드리프트의 시작이다. */-->
+            <th:block th:replace="~{fragments/provisioning/setting-process-cards :: processCards(${item.detail})}"></th:block>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -111,7 +111,11 @@ class JpaSettingQueryServiceTest {
         given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
         given(repository.findById(1L)).willReturn(Optional.of(reversedDefinition()));
         // U3-2-b — 삭제 경고용 활성 할당 수(SPI). 상세 응답에 실린다.
-        given(assignmentUsageInspector.countReferencing(1L)).willReturn(2L);
+        // 인자를 고정하지 않는 이유 : 조회한 엔티티의 id 로 묻는데(U3-5-b 에서 여러 건 조회와 조립을 한
+        // 메서드로 합치면서 그렇게 됐다), 엔티티 빌더는 id 를 받지 않는다(IDENTITY 생성). 실제 흐름에서는
+        // findById(1L) 이 돌려준 것이므로 1L 과 같지만, 픽스처에서는 null 이다.
+        given(assignmentUsageInspector.countReferencing(org.mockito.ArgumentMatchers.any()))
+                .willReturn(2L);
 
         SettingDetailResponse detail = service.findDetail(1L);
 
@@ -125,6 +129,39 @@ class JpaSettingQueryServiceTest {
 
         given(repository.findById(99L)).willReturn(Optional.empty());
         assertThatThrownBy(() -> service.findDetail(99L)).isInstanceOf(SettingNotFoundException.class);
+    }
+
+    /**
+     * U3-5-b — 정의서 선택 모달이 우측 패널을 전부 미리 그리므로 여러 건의 상세를 한 번에 받는다.
+     *
+     * <p>없는 id 에 예외를 던지지 않는 것이 {@code findDetail} 과 다른 점이다. 호출자가 방금 받은 선택지에서
+     * 뽑은 id 를 넘기므로 빠졌다는 것은 그 사이에 삭제됐다는 뜻이고, 그때 목록에서 빼는 것이 이미 정해진
+     * 규칙이다(U3-2-b DEC-G). 사용자가 지정한 id 를 확인하는 자리가 아니라 화면 재료를 모으는 자리다.</p>
+     */
+    @Test
+    @DisplayName("findDetailsOf — 여러 건을 한 번에 · 없는 id 는 예외 대신 결과에서 빠진다 (U3-5-b)")
+    void findDetailsOf_returnsFoundOnly() {
+        given(referenceInspectors.inspectorFor(org.mockito.ArgumentMatchers.any())).willReturn(inspector);
+        given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(assignmentUsageInspector.countReferencing(org.mockito.ArgumentMatchers.any())).willReturn(0L);
+        // 2 번은 그 사이에 삭제됐다 — 리포지토리가 1 건만 돌려준다
+        given(repository.findAllById(List.of(1L, 2L))).willReturn(List.of(reversedDefinition()));
+
+        List<SettingDetailResponse> details = service.findDetailsOf(List.of(1L, 2L));
+
+        assertThat(details).hasSize(1);
+        // 상세 조립은 findDetail 과 같은 경로를 탄다 — 단계 정렬(enum 선언 순)이 여기서도 살아 있어야
+        // 모달 우측 패널과 상세 화면이 같은 순서로 보인다
+        assertThat(details.get(0).processList().get(0)).isInstanceOf(BasicUpdateRequest.class);
+        assertThat(details.get(0).processList().get(1)).isInstanceOf(BasicSettingRequest.class);
+    }
+
+    @Test
+    @DisplayName("findDetailsOf — 빈 id 목록이면 리포지토리를 부르지 않는다")
+    void findDetailsOf_emptyIdsShortCircuits() {
+        assertThat(service.findDetailsOf(List.of())).isEmpty();
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never())
+                .findAllById(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -151,7 +188,9 @@ class JpaSettingQueryServiceTest {
     void findDetail_collectsExecutionWarnings() {
         given(referenceInspectors.inspectorFor(org.mockito.ArgumentMatchers.any())).willReturn(inspector);
         given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
-        given(assignmentUsageInspector.countReferencing(1L)).willReturn(0L);
+        // 인자 미고정 사유는 위 findDetail 테스트의 주석 참고(픽스처 엔티티는 id 를 갖지 못한다).
+        given(assignmentUsageInspector.countReferencing(org.mockito.ArgumentMatchers.any()))
+                .willReturn(0L);
         SettingDefinition definition = SettingDefinition.builder()
                 .name("경고 세팅")
                 .processes(List.of(new SettingProcess(new ProcessPayload(new BasicUpdateRequest(
