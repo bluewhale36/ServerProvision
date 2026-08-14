@@ -30,6 +30,14 @@
      자주 쓰는 것이 오른쪽 끝에 오는 것은 이 시스템 전체의 관례다. */-->
 <div th:fragment="scanActions" class="n-header-actions">
     <a class="n-btn n-btn-ghost" th:href="@{/maintenance/reconciliation/reports}">점검 이력</a>
+    <!--/* MK4-4-3 — 보관 목록으로 가는 자리. 종전에는 첫 화면 목록 위 callout 이었는데 처리해야 할
+         것보다 먼저 눈에 들어왔고, 첫 화면에서만 닿을 수 있었다. 이력을 보는 행위끼리 묶어 헤더에 둔다.
+         건수를 버튼 안에 실어 "몇 건이 미뤄져 있는가" 를 들어가지 않고도 알 수 있게 한다.
+         0 건이면 버튼 자체가 없다 — 없는 것을 "0" 으로 알리면 매번 읽고 지나가야 하는 것이 하나 늘고,
+         보관이 없으면 그 화면에 갈 이유도 없다(결정 D3 의 취지를 버튼으로 옮긴 것). */-->
+    <a th:if="${snoozedCount != null and snoozedCount > 0}" class="n-btn n-btn-ghost"
+       th:href="@{/maintenance/reconciliation/snoozed}"
+       th:text="'보관 이력 | ' + ${snoozedCount}">보관 이력 | 2</a>
     <a class="n-btn n-btn-ghost" th:href="@{/maintenance/reconciliation/settings}">운영 설정</a>
 
     <span class="n-header-divider" aria-hidden="true"></span>
@@ -68,10 +76,10 @@
          시각이 사실이고 나머지는 그 사실을 읽는 법이라, 시각만 따로 모아야 눈이 바로 찾는다. */-->
     <div th:if="${scanCoverage != null and !scanCoverage.contentChecked}"
          class="n-banner n-banner-warn n-banner-stack">
-        <strong>이번 점검은 파일 내용을 확인하지 않았습니다</strong>
+        <strong>이번 점검은 파일 내용을 확인하지 않습니다</strong>
         <div>
-            내용이 바뀐 자원은 이번 목록에 나타나지 않을 수 있습니다 — 해결된 것이 아니라 보지 않은 것입니다.
-            상단 <strong>[정밀 점검]</strong> 으로 내용까지 확인할 수 있습니다.
+            파일 내용의 변동 여부는 정밀 점검에서 나타납니다.
+            필요 시 상단의 <strong>[정밀 점검]</strong> 을 이용할 수 있습니다.
         </div>
         <dl class="n-banner-facts">
             <div>
@@ -341,14 +349,24 @@
     </div>
     <div class="n-glist-panel">
         <div class="n-card-body">
-            <div class="n-text-muted">
-                <strong>마커 서명 재발급</strong> — 서명 키(secret)를 교체한 직후 1 회 실행하는 도구입니다.
-                모든 자원의 마커 서명을 현재 키로 다시 계산해, 다음 점검에서 전 자원이 '마커 서명 불일치'로
-                오탐되는 것을 막습니다. 파일 내용 해시는 유지되어 변조된 자원은 이후 정밀 점검에서 그대로 감지됩니다.
+            <!--/* MK4-4-3 CP7 — 한 문단에 이름 · 쓰는 때 · 하는 일 · 안 하는 일이 뭉쳐 있어, 읽는
+                 사람이 "지금 눌러도 되는가" 를 판단하려면 문장을 끝까지 따라가야 했다. 설정 화면과
+                 같은 층위 어휘(n-form-label → n-form-hint → n-form-meta)로 갈라 놓는다 —
+                 이 화면만의 클래스를 새로 만들지 않는 것이 요점이다. */-->
+            <div class="n-form-group">
+                <label class="n-form-label">마커 서명 재발급</label>
+                <p class="n-form-hint">
+                    모든 자원의 마커 서명을 현재 키로 다시 계산합니다.
+                    다음 점검에서 전 자원이 '마커 서명 불일치'로 오탐되는 것을 막습니다.
+                </p>
+                <p class="n-form-hint">
+                    파일 내용 해시는 그대로 두므로, 실제로 변조된 자원은 이후 정밀 점검에서 여전히 잡힙니다.
+                </p>
+                <p class="n-form-meta">쓰는 때 <span>서명 키(secret)를 교체한 직후 1 회</span></p>
+                <button type="button" id="reissueBtn" class="n-btn n-btn-sm n-btn-outline-danger"
+                        th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
+                </button>
             </div>
-            <button type="button" id="reissueBtn" class="n-btn n-btn-sm n-btn-outline-danger"
-                    th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
-            </button>
         </div>
     </div>
 </section>

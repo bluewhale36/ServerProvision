@@ -4,6 +4,7 @@ import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.ResourceType;
 
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
+import com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow;
 import com.example.serverprovision.maintenance.reconciliation.vo.DriftPriority;
 import com.example.serverprovision.provisioning.usage.ResourceUsageLevel;
 
@@ -24,9 +25,13 @@ import java.time.Instant;
  * @param observationCount 관측 횟수. 1 이면 이번 점검에서 처음 보인 문제
  * @param status          조치 필요 · 해결됨 · 두고 보기
  * @param snoozeUntil     두고 보기 만료 시각. 조건형이거나 두고 보기가 아니면 null
+ * @param snoozeWindow    보관 기간(또는 조건). 보관 중이 아니면 null — 보관 목록이 표시한다
  * @param snoozeReason    두고 보기 사유
  * @param resolveBlockReason 해결할 수 없는 사유. null 이면 가능하다. {@code Drift.resolveBlockReason()} 이
  *                           그대로 실려 오므로 화면의 버튼 비활성 조건과 서버 가드가 같은 판정을 본다
+ * @param unsnoozeBlockReason MK4-4-3 — 보관을 풀 수 없는 사유. null 이면 가능하다.
+ *                          {@code Drift.unsnoozeBlockReason()} 이 그대로 실려 오므로 보관 목록의
+ *                          버튼 비활성 조건과 서버 가드가 같은 판정을 본다
  * @param snoozeBlockReason 두고 보기를 걸 수 없는 사유. null 이면 가능하다.
  *                          {@code Drift.snoozeBlockReason()} 이 그대로 실려 오므로 화면의 버튼 비활성
  *                          조건과 서버 가드가 같은 판정을 본다 — 두 곳에 조건을 복붙하면 drift 가 생긴다
@@ -54,13 +59,23 @@ public record DriftResponse(
 		int observationCount,
 		DriftStatus status,
 		Instant snoozeUntil,
+		SnoozeWindow snoozeWindow,
 		String snoozeReason,
 		String snoozeBlockReason,
+		String unsnoozeBlockReason,
 		String resolveBlockReason,
 		String detail,
 		ResourceUsageLevel usage,
 		DriftOriginResponse predecessor
 ) {
+
+	/**
+	 * MK4-4-3 — 보관 기간의 사용자 문구. 문구의 단일 소스는 {@code SnoozeWindow} 다.
+	 * 보관 중이 아니면 비어 있다 — 목록이 그 자리를 다른 값으로 채우지 않게 한다.
+	 */
+	public String snoozeWindowLabel() {
+		return snoozeWindow != null ? snoozeWindow.getLabel() : "—";
+	}
 
 	/**
 	 * 이번 점검에서 처음 보인 문제인가. 화면이 '최초 발견' 표시를 붙이는 근거다.

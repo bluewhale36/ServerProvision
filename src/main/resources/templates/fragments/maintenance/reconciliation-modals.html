@@ -72,8 +72,23 @@
         <div class="n-card-body">
             <h2 class="cm-title" data-modal-title>현재 내용을 정본으로 수용</h2>
             <p class="cm-message-tight" data-modal-message>지금 파일 내용의 지문을 정본으로 등록합니다.</p>
-            <p class="cm-message-hint" data-modal-note>원본 재업로드가 더 안전합니다 (검증 재통과).
-                의도한 교체가 확실할 때만 수용하세요 — 감사 기록에 남습니다.</p>
+            <p class="cm-message-hint" data-modal-note></p>
+
+            <!--/* MK4-4-3 CP7 — 이 경고를 data-modal-note 에 두면 openLazy 가 호출측 문구로 덮어써
+                 사라진다. 덮이지 않는 자리에 고정한다.
+
+                 다른 해결은 기록을 실물에 맞추는 일이라 되돌릴 수 있지만, 이것은 <b>변조되었을 수도
+                 있는 지금 내용을 정본으로 굳히는</b> 일이다. 잘못 수용하면 변조된 파일이 올바른 것이
+                 되어 이후 점검에서 영영 잡히지 않는다. 자원명 확인은 실수로 누르지 못하게 하는
+                 장치인데, 왜 신중해야 하는지를 그 자리에서 말하지 않으면 타이핑이 요식이 된다. */-->
+            <div class="cm-warn-box">
+                <strong class="cm-warn-title">의도한 교체가 아니라면 원본을 다시 업로드하세요.</strong>
+                <p class="cm-warn-desc">
+                    재업로드는 검증을 다시 통과하므로 안전합니다. 수용은 <strong>변조된 내용도 정본으로
+                    굳히며</strong>, 그 뒤로는 이 자원에서 같은 변조가 감지되지 않습니다.
+                </p>
+                <p class="cm-warn-desc">의도한 교체가 확실할 때만 진행하세요 — 감사 기록에 남습니다.</p>
+            </div>
 
             <div class="cm-typed-wrap">
                 <div class="cm-typed-target-box">

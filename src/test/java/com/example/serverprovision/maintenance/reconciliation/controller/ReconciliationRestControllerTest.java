@@ -71,7 +71,7 @@ class ReconciliationRestControllerTest {
         Instant now = Instant.now();
         DriftResponse drift = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
-                now, now, 1, DriftStatus.OPEN, null, null, null, null, null,
+                now, now, 1, DriftStatus.OPEN, null, null, null, null, null, null, null,
                 com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE, null);
         return new DriftReportResponse(10L, now, "0.45초", false, ScanPopulation.of(17, 0, 0), 1, List.of(), List.of(), List.of(drift));
     }
@@ -152,7 +152,7 @@ class ReconciliationRestControllerTest {
                 // MK4-4-2 — 지금 남은 수는 목록 쪽에서 온다. 두 수가 한 화면에 함께 있고
                 // 출처가 다르다는 계약이 이 둘로 고정된다.
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("지금 남은 드리프트")))
+                        .string(org.hamcrest.Matchers.containsString("현재 감지된 드리프트")))
                 // MK4-3-1 — 설정을 화면에서 바꿀 수 있게 되면서 설정 키 이름 노출을 걷었다.
                 // 그 자리를 가리키는 경로는 헤더 버튼으로 남아 있다(범위 안내 문구 자체는
                 // 2026-08-12 결정으로 매뉴얼로 옮겨졌다).
@@ -174,7 +174,7 @@ class ReconciliationRestControllerTest {
         // 서버 가드가 쓰는 문장이 그대로 실려 온다는 전제 — 화면은 그것을 tooltip 으로 보여주기만 한다.
         DriftResponse resolved = new DriftResponse(1L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6 dvd.iso",
                 DriftKind.PATH_DRIFT, "/old/dvd.iso", "/new/dvd.iso",
-                now, now, 3, DriftStatus.RESOLVED, null, null, null, "이미 해결된 드리프트입니다.", null,
+                now, now, 3, DriftStatus.RESOLVED, null, null, null, null, null, "이미 해결된 드리프트입니다.", null,
                 com.example.serverprovision.provisioning.usage.ResourceUsageLevel.NONE, null);
         // MK4-4-2 — 첫 화면은 회차가 아니라 지금 열린 드리프트를 그린다.
         given(reconciliationService.openDrifts()).willReturn(List.of(resolved));
@@ -297,7 +297,7 @@ class ReconciliationRestControllerTest {
     @DisplayName("MK4-1 POST /drifts/{id}/snooze : 이미 해결된 문제 → 409 (UI 1차 차단의 서버 안전망)")
     void snooze_notAllowed() throws Exception {
         doThrow(com.example.serverprovision.maintenance.reconciliation.exception
-                        .DriftSnoozeNotAllowedException.of("이미 해결된 드리프트라 보관할 것이 없습니다."))
+                        .DriftSnoozeStateException.of("이미 해결된 드리프트라 보관할 것이 없습니다."))
                 .when(reconciliationService)
                 .snooze(eq(1L), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
 

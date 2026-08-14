@@ -132,6 +132,10 @@
     padding-top: 3px;
 }
 
+/* MK4-4-3 CP7 — 긴 값(파일 경로 · 지문 해시 · 변조 정황 문장)이 판 밖으로 잘려 나가던 것을 막는다.
+   원인은 두 겹이다 : ① 위 grid 의 1fr 트랙과 ② 이 dd 의 flex 항목이 모두 min-width 기본값 auto 라
+   내용의 min-content 아래로 줄어들지 못한다. 64 자 해시처럼 끊을 자리가 없는 문자열은 그대로 넘친다.
+   min-width 를 0 으로 열어 주고 넘칠 때만 끊게 한다 — 내용이 들어가는 평소에는 아무것도 달라지지 않는다. */
 .n-accordion-field dd {
     margin: 0;
     font-size: 13px;
@@ -139,6 +143,16 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    min-width: 0;
+    /* break-word 가 아니라 anywhere 다. 둘은 넘칠 때 끊는 것은 같지만 <b>min-content 크기를 줄이는
+       것은 anywhere 뿐</b>이라, flex 항목이 실제로 축소되려면 이쪽이어야 한다. break-word 로는
+       항목 폭이 그대로 남아 여전히 넘친다(실측으로 확인). */
+    overflow-wrap: anywhere;
+}
+
+.n-accordion-field dd > * {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .n-accordion-muted {

@@ -177,6 +177,9 @@
                 title: form.getAttribute('data-resolve-title'),
                 message: message,
                 note: form.getAttribute('data-resource-extra'),
+                // MK4-4-3 CP5 — 확인 버튼 라벨. 없으면 fragment 기본값(해결)이 남는다.
+                // 한 fragment 를 다른 행위로 재사용하는 폼은 이 속성으로 자기 이름을 밝힌다.
+                confirmLabel: form.getAttribute('data-confirm-label'),
                 onConfirm: () => ConfirmModal.approveAndSubmit(form)
             });
         });
@@ -415,6 +418,9 @@
             // MK4-1 — 두고 보기는 기간과 사유를 함께 받는다. modal 의 입력값을 form 의 hidden 으로
             // 옮겨 실어 보낸다 — 사유가 비어 있으면 서버가 400 으로 돌려주므로 여기서 먼저 막는다.
             bindSnoozeForms();
+            // MK4-4-3 — 보관 해제. 상태만 되돌리는 일이라 입력이 없어 표준 확인 창을 그대로 쓴다.
+            bindDriftForm('data-confirm-drift-unsnooze', 'DRIFT_APPLY',
+                '{resource}의 보관을 해제할까요?', '이 드리프트의 보관을 해제할까요?');
             // 내용 변경 수용도 확인 창(자원명 입력)을 거치므로 같은 가드 안에서 바인딩한다.
             bindAcceptHashForms();
         }
@@ -428,6 +434,8 @@
                     sessionStorage.setItem(TOAST_KEY, '드리프트를 해결했습니다.');
                 } else if (form && form.hasAttribute('data-confirm-drift-snooze')) {
                     sessionStorage.setItem(TOAST_KEY, '드리프트를 보관했습니다.');
+                } else if (form && form.hasAttribute('data-confirm-drift-unsnooze')) {
+                    sessionStorage.setItem(TOAST_KEY, '보관을 해제했습니다 — 처리 대기로 돌아왔습니다.');
                 } else if (form && form.hasAttribute('data-duplicate-resolve')) {
                     // HF4-5 — 택일 해소 성공. 어느 갈래였는지는 서버 [AUDIT] 로그가 보존.
                     sessionStorage.setItem(TOAST_KEY, '자원 중복을 해결했습니다.');

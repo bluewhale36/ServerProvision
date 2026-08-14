@@ -93,7 +93,6 @@
         <section class="n-card n-glist">
             <div class="n-glist-head">
                 <strong class="n-glist-title">위험도</strong>
-                <span class="n-glist-hint">위험도는 드리프트 종류에서, 사용 중 여부는 지금 상태에서 옵니다</span>
             </div>
             <div class="n-glist-panel">
                 <div class="n-card-body">
@@ -135,15 +134,27 @@
                                 <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal">이어짐</span>
                             </dd>
                         </div>
-                        <!--/* MK4-2 — 내용을 봐야 판정되는 종류인데 이번 점검이 일반이었다면, 값을 그대로
-                             두면 방금 확인한 사실처럼 읽힌다. 언제 본 것인지를 밝힌다. */-->
-                        <div class="n-accordion-field"
-                             th:if="${drift.kind.deepOnly and scanCoverage != null and !scanCoverage.contentChecked}">
-                            <dt>내용 확인</dt>
-                            <dd>
-                                <span class="n-badge n-badge-gray">확인 안 됨</span>
-                                <div class="n-text-muted" th:if="${!scanCoverage.neverDeepScanned()}"
-                                     th:text="|이번 점검은 파일 내용을 보지 않았습니다. 위 값은 ${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')} 정밀 점검 기준입니다.|"></div>
+                        <!--/* MK4-4-3 — 내용을 봐야 판정되는 종류에 "이 판정이 언제 것인가" 를 밝힌다.
+                             종전에는 전역 scanCoverage(가장 최근 점검의 성질)를 읽어 「확인 안 됨」 +
+                             "이번 점검은 파일 내용을 보지 않았습니다" 를 띄웠다. 이 화면에는 회차라는
+                             문맥이 없으므로 '이번 점검' 이 어느 점검인지 알 길이 없었고, 정밀 점검
+                             회차를 타고 들어와도 같은 문장이 나와 모순으로 읽혔다.
+
+                             부정형("확인 안 됨")도 사실과 달랐다. 드리프트는 회차마다 새로 나는 행이
+                             아니라 지속 개체라(MK4-1), 정밀 점검이 잡은 것은 이후 일반 점검을 지나며
+                             재확인되지도 부정되지도 않은 채 살아 있다 — 모르는 것이 아니라 그때 안
+                             것이다. 그래서 <b>언제 확인했는지</b>를 값으로 말한다. */-->
+                        <div class="n-accordion-field" th:if="${contentCheck != null}">
+                            <dt>내용 확인 기준</dt>
+                            <dd th:if="${contentCheck.hasBasis()}">
+                                <span th:text="|${#temporals.format(contentCheck.lastDeepObservedAt, 'yyyy-MM-dd HH:mm')} 정밀 점검|">2026-08-13 01:26 정밀 점검</span>
+                                <div class="n-text-muted" th:if="${contentCheck.hasUncheckedScansSince()}">
+                                    <span th:text="|이후 일반 점검 ${contentCheck.generalScansSince}회는 파일 내용을 확인하지 않았습니다.|"></span>
+                                    내용 변조 여부는 다음 정밀 점검에서 확인됩니다.
+                                </div>
+                            </dd>
+                            <dd th:unless="${contentCheck.hasBasis()}" class="n-text-muted">
+                                아직 정밀 점검이 이 자원의 내용을 확인한 적이 없습니다.
                             </dd>
                         </div>
                         <div class="n-accordion-field">
@@ -151,13 +162,13 @@
                             <dd>
                                 <span class="n-badge" th:classappend="'n-badge-' + ${drift.status.badgeColor}"
                                       th:text="${drift.status.label}"></span>
-                                <span th:if="${drift.snoozeUntil != null}" class="n-text-muted"
+                                <!--/* MK4-4-3 — 보관 중이면 기간과 사유를 여기 꼬리로 달지 않는다. 아래
+                                     「보관 상세」 구획이 그것을 맡는다. 종전에는 이 자리에 작은 회색 글씨로
+                                     붙어 있어, 미룬 이유를 남기게 한 목적에 비해 읽히지 않았다.
+                                     보관 중이 아닐 때만 지난 기록의 만료 시각을 참고로 남긴다. */-->
+                                <span th:if="${drift.snoozeUntil != null and drift.status.name() != 'SNOOZED'}"
+                                      class="n-text-muted"
                                       th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|"></span>
-                                <!--/* 사유는 보관 중일 때만 뜻이 있다. 도메인이 해제 시 함께 비우지만,
-                                     그 전에 닫힌 지난 기록에는 값이 남아 있어 화면이 한 번 더 막는다 —
-                                     지난 기록을 소급해 고치지 않는 것이 이 도메인의 원칙이다. */-->
-                                <div th:if="${drift.status.name() == 'SNOOZED' and drift.snoozeReason != null}"
-                                     class="n-text-muted" th:text="|사유 — ${drift.snoozeReason}|"></div>
                             </dd>
                         </div>
                     </dl>
@@ -166,6 +177,45 @@
         </section>
     </div>
 
+
+    <!--/* MK4-4-3 — 보관 중일 때만 「보관 상세」 가 「해결 방법」 왼편에 선다. 미룬 결정은 그 자체가
+         읽혀야 하는 정보인데(보관 기간 · 보관 만료 일시 · 보관 사유) 종전에는 위험도 구획 끝의 회색 꼬리였다.
+         보관 중이 아니면 이 묶음에 n-split-2 를 붙이지 않으므로 해결 방법이 종전대로 전폭을 쓴다 —
+         빈 칸을 남기지 않기 위해 래퍼의 class 자체를 조건부로 둔다. */-->
+    <div th:class="${drift.status.name() == 'SNOOZED'} ? 'n-split-2' : 'n-split-1'">
+
+        <section th:if="${drift.status.name() == 'SNOOZED'}" class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">보관 상세</strong>
+            </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <dl class="n-accordion-fields">
+                        <div class="n-accordion-field">
+                            <dt>보관 기간</dt>
+                            <dd th:text="${drift.snoozeWindowLabel()}">7일 동안</dd>
+                        </div>
+                        <!--/* 조건형 보관은 시각이 아니라 사건으로 풀린다. 만료 시각이 없다는 사실을
+                             빈칸으로 두면 값이 빠진 것처럼 읽히므로 언제 풀리는지를 밝힌다
+                             (보관 목록과 같은 문구를 쓴다 — 두 화면이 다른 말을 하면 안 된다). */-->
+                        <div class="n-accordion-field">
+                            <dt>보관 만료 일시</dt>
+                            <dd>
+                                <span th:if="${drift.snoozeUntil != null}"
+                                      th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|">2026-08-20 11:28 까지</span>
+                                <span th:unless="${drift.snoozeUntil != null}">다음 정밀 점검 직전</span>
+                                <div class="n-text-muted">이후 드리프트 목록에 다시 나타납니다.</div>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>보관 사유</dt>
+                            <dd th:if="${drift.snoozeReason != null}" th:text="${drift.snoozeReason}">보관 테스트</dd>
+                            <dd th:unless="${drift.snoozeReason != null}" class="n-text-muted">남긴 사유가 없습니다.</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </section>
 
     <section class="n-card n-glist">
         <div class="n-glist-head">
@@ -224,6 +274,8 @@
         </div>
     </section>
 
+    </div>
+
     <!--/* MK4-4-2 — 이 드리프트에 무슨 일이 있었나.
          점검이 보고, 운영자나 시스템이 처리하고, 앞선 드리프트가 닫히며 이어진다 — 셋이 번갈아
          일어나므로 한 시간축에 놓는다. 계보를 별도 구획으로 두었더니 두 구획이 서로 무슨 관계인지
@@ -231,7 +283,6 @@
     <section th:if="${not timeline.isEmpty()}" class="n-card n-glist">
         <div class="n-glist-head">
             <strong class="n-glist-title">이력</strong>
-            <span class="n-glist-hint">최근 것이 위 — 아래로 갈수록 과거이며 맨 아래가 이 사건의 시작입니다</span>
             <span class="n-badge n-badge-gray" th:text="|${timeline.total()} 건|">7 건</span>
         </div>
         <div class="n-glist-panel">

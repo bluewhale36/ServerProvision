@@ -31,6 +31,12 @@ public interface DriftRepository extends JpaRepository<Drift, Long> {
 	List<Drift> findByStatusNot(DriftStatus status);
 
 	/**
+	 * MK4-4-3 — 보관 화면이 쓴다. 만료 여부는 시각 비교라 도메인이 판정하므로
+	 * ({@code Drift.isSnoozeExpired}) 여기서는 상태만 걸러 온다.
+	 */
+	List<Drift> findByStatus(DriftStatus status);
+
+	/**
 	 * 지금 목록에 떠야 하는 문제의 수. 종전에는 보고서의 자식 수를 셌으나 그 값은 사후에 변했다.
 	 */
 	long countByStatus(DriftStatus status);

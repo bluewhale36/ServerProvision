@@ -179,4 +179,17 @@ public class ReconciliationRestController {
 				request.window().getLabel() + " 보관했습니다");
 		return new RedirectView("/maintenance/reconciliation");
 	}
+
+	/**
+	 * MK4-4-3 — 보관을 앞당겨 푼다. 기간 만료를 기다리지 않고 지금 처리하겠다는 뜻이다.
+	 *
+	 * <p>거절은 보관 중이 아닌 것을 풀려 할 때뿐이고, 보관 목록에만 버튼이 있으므로 정상 흐름에서는
+	 * 도달하지 않는다({@code Drift.unsnoozeBlockReason} 이 화면과 서버 가드의 단일 소스).</p>
+	 */
+	@PostMapping("/drifts/{driftId}/unsnooze")
+	public RedirectView unsnooze(@PathVariable Long driftId, RedirectAttributes redirectAttributes) {
+		reconciliationService.unsnooze(driftId);
+		redirectAttributes.addFlashAttribute("flashMessage", "보관을 해제했습니다");
+		return new RedirectView("/maintenance/reconciliation/snoozed");
+	}
 }

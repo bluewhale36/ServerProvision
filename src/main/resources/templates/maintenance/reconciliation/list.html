@@ -3,7 +3,7 @@
 <!--
   MK1. 자원 무결성 점검 — 첫 화면 (MK4-4-2 에서 정보구조 개편)
   ─────────────────────────────────────────────────────────
-  들어오면 <b>지금 남은 드리프트</b>가 급한 순으로 먼저 보인다
+  들어오면 <b>현재 감지된 드리프트</b>가 급한 순으로 먼저 보인다
   (PathReconciliationService.openDrifts — DriftPriority 정렬). 하나를 열면 드리프트 상세로 가고,
   겹은 하나다. 점검 이력은 부차로 밀려 별도 화면(/reports)에서 본다.
 
@@ -43,10 +43,12 @@
 
     <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: banners}"></th:block>
 
+    <!--/* MK4-4-3 — 보관 진입은 헤더의 [보관 이력 | n] 이 맡는다(reconciliation-parts :: scanActions).
+         이 자리에 callout 으로 두었더니 처리해야 할 목록보다 먼저 눈에 들어왔고, 첫 화면에서만
+         닿을 수 있었다. 건수는 버튼 안에 실려 있으므로 여기서 다시 알리지 않는다. */-->
     <section class="n-card n-glist">
         <div class="n-glist-head">
-            <strong class="n-glist-title">지금 남은 드리프트</strong>
-            <span class="n-glist-hint">급한 순 — 위험도와 사용 중 여부로 매겨집니다</span>
+            <strong class="n-glist-title">현재 감지된 드리프트</strong>
             <span class="n-badge"
                   th:classappend="${openDriftCount > 0} ? 'n-badge-yellow' : 'n-badge-gray'"
                   th:text="|${openDriftCount} 건|">3 건</span>

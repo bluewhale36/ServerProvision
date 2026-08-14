@@ -221,6 +221,10 @@
             if (opts.note) noteEl.textContent = particles(opts.note);
             else noteEl.remove();
         }
+        // MK4-4-3 CP5 — 확인 버튼도 행위를 말해야 한다. 정적 open() 은 confirmLabel 을 주입하는데
+        // 이 lazy 경로만 빠져 있어, 한 fragment 를 다른 행위로 재사용하면 버튼이 남의 이름을 달았다
+        // (보관 해제 창의 버튼이 「해결」 로 떴다). 값을 안 주면 fragment 기본값이 그대로 남는다.
+        if (opts.confirmLabel) confirmBtn.textContent = opts.confirmLabel;
 
         let extraCleanup = null;
         if (opts.afterInject) {

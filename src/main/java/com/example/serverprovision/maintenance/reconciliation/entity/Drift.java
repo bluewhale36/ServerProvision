@@ -258,6 +258,22 @@ public class Drift {
 	}
 
 	/**
+	 * MK4-4-3 — 보관을 풀 수 없는 사유. null 이면 가능하다.
+	 *
+	 * <p>{@link #snoozeBlockReason()} 의 짝이다 — 화면의 버튼 비활성 사유와 서버 가드가 이 한
+	 * 메서드를 함께 본다. 보관 목록에만 [보관 해제] 가 놓이므로 정상 흐름에서는 발동하지 않고,
+	 * direct POST 나 오래된 화면에서만 걸린다.</p>
+	 *
+	 * <p>만료된 보관은 막지 않는다 — 이미 첫 화면에 돌아와 있지만 상태 값은 아직 보관이라,
+	 * 여기서 풀어 기록을 맞추는 것이 정상이다.</p>
+	 */
+	public String unsnoozeBlockReason() {
+		if (status == DriftStatus.RESOLVED) return "이미 해결된 드리프트입니다.";
+		if (status != DriftStatus.SNOOZED) return "보관 중인 드리프트가 아닙니다.";
+		return null;
+	}
+
+	/**
 	 * 해결할 수 없는 사유. null 이면 가능하다 — {@link #snoozeBlockReason()} 과 같은 방식으로
 	 * 화면의 버튼 비활성 사유와 서버 가드가 이 한 메서드를 함께 본다.
 	 *

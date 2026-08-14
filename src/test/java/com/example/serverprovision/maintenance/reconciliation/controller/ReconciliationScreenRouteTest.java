@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>배치 후보 둘을 실제 화면으로 만들어 견준 뒤 채택한 구조다. 다음 셋을 본다.</p>
  *
  * <ul>
- *   <li>첫 화면이 지금 남은 드리프트를 급한 순으로 놓는가 — MK4-4-2 개편의 핵심</li>
+ *   <li>첫 화면이 현재 감지된 드리프트를 급한 순으로 놓는가 — MK4-4-2 개편의 핵심</li>
  *   <li>새로 생긴 두 상세 화면이 없는 자원에 404 를 주는가 — {@link DriftReportNotFoundException}
  *       이 이 슬라이스에서 새로 생겼으므로 그 예외를 실제로 발생시키는 시나리오가 필요하다</li>
  *   <li>[전체 해결] 이 부분 성공을 부분 성공으로 답하는가</li>
@@ -82,6 +82,7 @@ class ReconciliationScreenRouteTest {
 		given(reconciliationService.scanCoverage()).willReturn(new ScanCoverage(true, NOW));
 		given(scheduler.nextDueAt(any(ScanDepth.class))).willReturn(Optional.empty());
 		given(orphanQuarantineService.countPending()).willReturn(0L);
+		given(reconciliationService.snoozedDrifts()).willReturn(List.of());
 		given(reconciliationService.timelineOf(anyLong()))
 				.willReturn(new DriftTimelineResponse(List.of(), 0));
 	}
@@ -95,7 +96,7 @@ class ReconciliationScreenRouteTest {
 	private DriftResponse drift(Long id) {
 		return new DriftResponse(id, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6",
 				DriftKind.PATH_DRIFT, "/iso/old.iso", "/iso/new.iso",
-				NOW, NOW, 1, DriftStatus.OPEN, null, null, null, null,
+				NOW, NOW, 1, DriftStatus.OPEN, null, null, null, null, null, null,
 				"경로가 바뀌었습니다", ResourceUsageLevel.NONE, null);
 	}
 
@@ -104,12 +105,12 @@ class ReconciliationScreenRouteTest {
 	class FirstScreen {
 
 		@Test
-		@DisplayName("A1 지금 남은 드리프트가 첫 화면이다")
+		@DisplayName("A1 현재 감지된 드리프트가 첫 화면이다")
 		void 미해결이_첫_화면() throws Exception {
 			mvc.perform(get("/maintenance/reconciliation"))
 					.andExpect(status().isOk())
 					.andExpect(view().name("maintenance/reconciliation/list"))
-					.andExpect(content().string(org.hamcrest.Matchers.containsString("지금 남은 드리프트")));
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("현재 감지된 드리프트")));
 		}
 
 		/** 갈 수 있는 곳 둘은 배너 문장 속 링크가 아니라 헤더 버튼이다. */
@@ -209,7 +210,7 @@ class ReconciliationScreenRouteTest {
 		private DriftResponse succeeded() {
 			return new DriftResponse(2L, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6",
 					DriftKind.RESOURCE_REPLICA, "/iso/a.iso", "/iso/b.iso",
-					NOW, NOW, 1, DriftStatus.OPEN, null, null, null, null, "복제본 발견",
+					NOW, NOW, 1, DriftStatus.OPEN, null, null, null, null, null, null, "복제본 발견",
 					ResourceUsageLevel.NONE,
 					new DriftOriginResponse(1L, DriftKind.SIGNATURE_INVALID, NOW, NOW));
 		}
@@ -300,6 +301,113 @@ class ReconciliationScreenRouteTest {
 					.andExpect(status().isOk())
 					.andExpect(content().string(org.hamcrest.Matchers.not(
 							org.hamcrest.Matchers.containsString("최근 것이 위"))));
+		}
+	}
+
+	/**
+	 * MK4-4-3 — 미뤄 둔 것을 볼 자리.
+	 *
+	 * <p>종전에는 보관하면 어느 화면에도 나타나지 않았다 — 첫 화면의 필터가 열려 있거나 만료된
+	 * 것만 통과하기 때문이다. 미룬 순간 잊히던 것을 이 화면이 되찾는다.</p>
+	 */
+	@Nested
+	@DisplayName("보관 — 미뤄 둔 것을 볼 자리")
+	class Snoozed {
+
+		private DriftResponse snoozed(Long id, java.time.Instant until, String reason) {
+			return new DriftResponse(id, ResourceType.OS_ISO, 42L, "Rocky Linux 9.6",
+					DriftKind.PATH_DRIFT, "/iso/old.iso", "/iso/new.iso",
+					NOW, NOW, 2, DriftStatus.SNOOZED, until,
+					com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow.DAYS_7,
+					reason, null, null, null, "경로가 바뀌었습니다",
+					ResourceUsageLevel.NONE, null);
+		}
+
+		@Test
+		@DisplayName("A15 보관 목록이 보관 기간 · 만료 일시 · 사유를 보여 준다")
+		void 보관_목록() throws Exception {
+			given(reconciliationService.snoozedDrifts())
+					.willReturn(List.of(snoozed(9L, NOW.plusSeconds(86400), "다음 주에 본다")));
+
+			mvc.perform(get("/maintenance/reconciliation/snoozed"))
+					.andExpect(status().isOk())
+					.andExpect(view().name("maintenance/reconciliation/snoozed-list"))
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("7일 동안")))
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("다음 주에 본다")))
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("보관 해제")));
+		}
+
+		/** 조건형 보관은 만료 시각이 없다 — 빈칸으로 두면 값이 빠진 것처럼 읽힌다. */
+		@Test
+		@DisplayName("A16 조건형 보관은 무엇이 풀어 주는지 밝힌다")
+		void 조건형_보관() throws Exception {
+			given(reconciliationService.snoozedDrifts())
+					.willReturn(List.of(snoozed(9L, null, null)));
+
+			mvc.perform(get("/maintenance/reconciliation/snoozed"))
+					.andExpect(status().isOk())
+					.andExpect(content().string(org.hamcrest.Matchers.containsString(
+							"다음 정밀 점검 직전")));
+		}
+
+		/**
+		 * 보관 진입은 헤더의 [보관 이력 | n] 이 맡는다. 종전에는 목록 위 callout 이었으나 처리해야 할
+		 * 것보다 먼저 눈에 들어왔고 첫 화면에서만 닿을 수 있었다 — 이력을 보는 행위끼리 묶어 헤더로 옮겼다.
+		 * <b>건수를 버튼 안에 싣는 것</b>이 이 계약의 핵심이라 문자열째로 고정한다.
+		 */
+		@Test
+		@DisplayName("A17 헤더 버튼이 보관 건수를 함께 보인다")
+		void 첫_화면_안내() throws Exception {
+			given(reconciliationService.snoozedDrifts())
+					.willReturn(List.of(snoozed(9L, NOW, null), snoozed(10L, NOW, null)));
+
+			mvc.perform(get("/maintenance/reconciliation"))
+					.andExpect(status().isOk())
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("보관 이력 | 2")));
+		}
+
+		/** 없는 것을 "0" 으로 알리지 않는다 — 매번 읽고 지나가야 하는 것이 하나 느는 값이 없다(결정 D3). */
+		@Test
+		@DisplayName("A18 보관이 0 건이면 버튼 자체가 없다")
+		void 보관_0건이면_안내_없음() throws Exception {
+			given(reconciliationService.snoozedDrifts()).willReturn(List.of());
+
+			mvc.perform(get("/maintenance/reconciliation"))
+					.andExpect(status().isOk())
+					.andExpect(content().string(org.hamcrest.Matchers.not(
+							org.hamcrest.Matchers.containsString("보관 이력"))));
+		}
+
+		@Test
+		@DisplayName("A19 보관 해제 → 보관 목록으로 redirect")
+		void 보관_해제() throws Exception {
+			mvc.perform(post("/maintenance/reconciliation/drifts/9/unsnooze"))
+					.andExpect(status().is3xxRedirection())
+					.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+							.redirectedUrl("/maintenance/reconciliation/snoozed"));
+		}
+
+		@Test
+		@DisplayName("B5 없는 드리프트를 해제 → 404")
+		void 없는_드리프트_해제() throws Exception {
+			org.mockito.BDDMockito.willThrow(new DriftNotFoundException(999L))
+					.given(reconciliationService).unsnooze(999L);
+
+			mvc.perform(post("/maintenance/reconciliation/drifts/999/unsnooze"))
+					.andExpect(status().isNotFound());
+		}
+
+		/** 보관 목록에만 버튼이 있으므로 정상 흐름에서는 도달하지 않는 안전망이다. */
+		@Test
+		@DisplayName("B6 보관 중이 아닌 것을 해제 → 409")
+		void 보관_중_아님_해제() throws Exception {
+			org.mockito.BDDMockito.willThrow(
+					com.example.serverprovision.maintenance.reconciliation.exception
+							.DriftSnoozeStateException.of("보관 중인 드리프트가 아닙니다."))
+					.given(reconciliationService).unsnooze(1L);
+
+			mvc.perform(post("/maintenance/reconciliation/drifts/1/unsnooze"))
+					.andExpect(status().isConflict());
 		}
 	}
 

@@ -39,4 +39,13 @@ public interface DriftReportRepository extends JpaRepository<DriftReport, Long> 
 	 */
 	Optional<DriftReport> findFirstByDeepFalseOrderByScannedAtDesc();
 
+	/**
+	 * MK4-4-3 — 어떤 시각 이후로 <b>내용을 보지 않고 지나간</b> 점검 횟수.
+	 *
+	 * <p>드리프트 상세가 "이 판정을 언제 확인했고, 그 뒤로 몇 번이나 안 봤는가" 를 말하는 데 쓴다.
+	 * 횟수가 시각보다 잘 읽히는 자리다 — 「01:26 기준」 만으로는 그것이 방금인지 한참 전인지
+	 * 가늠하려면 현재 시각과 점검 주기를 함께 알아야 한다.</p>
+	 */
+	long countByDeepFalseAndScannedAtAfter(java.time.Instant after);
+
 }

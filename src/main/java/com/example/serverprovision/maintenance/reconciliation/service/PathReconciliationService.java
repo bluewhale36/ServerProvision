@@ -3,6 +3,7 @@ package com.example.serverprovision.maintenance.reconciliation.service;
 import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.provisioning.usage.ResourceUsageLevel;
 import com.example.serverprovision.provisioning.usage.ResourceUsageQuery;
+import com.example.serverprovision.maintenance.reconciliation.vo.ContentCheckBasis;
 import com.example.serverprovision.maintenance.reconciliation.vo.ScanCoverage;
 import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import com.example.serverprovision.global.entity.LifecycleEntity;
@@ -28,7 +29,7 @@ import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftReportNotFoundException;
-import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeStateException;
 import com.example.serverprovision.maintenance.reconciliation.exception.ReconciliationAlreadyRunningException;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
@@ -1240,6 +1241,25 @@ public class PathReconciliationService {
 		return new ScanCoverage(latestWasDeep, lastDeep);
 	}
 
+	/**
+	 * MK4-4-3 — 이 드리프트의 내용 판정이 언제 것인가.
+	 *
+	 * <p>{@link #scanCoverage()} 와 묻는 것이 다르다. 그쪽은 <b>가장 최근 점검</b>의 성질이라
+	 * 회차 문맥이 있는 화면(첫 화면의 경고 배너)에서 맞고, 이쪽은 <b>드리프트 하나</b>의 사실이라
+	 * 회차 문맥이 없는 드리프트 상세에서 맞다. 상세가 전자를 쓰고 있어, 정밀 점검 회차를 타고
+	 * 들어가도 "이번 점검은 파일 내용을 보지 않았습니다" 가 나오는 모순이 있었다.</p>
+	 *
+	 * <p>내용을 봐야 판정되는 종류가 아니면 물을 것이 없으므로 호출 측이 걸러 부른다.</p>
+	 */
+	@Transactional(readOnly = true)
+	public ContentCheckBasis contentCheckBasisOf(Long driftId) {
+		Drift drift = driftRepository.findById(driftId)
+				.orElseThrow(() -> new DriftNotFoundException(driftId));
+		return driftObservationRepository.findLastDeepObservedAt(drift)
+				.map(at -> new ContentCheckBasis(at, driftReportRepository.countByDeepFalseAndScannedAtAfter(at)))
+				.orElseGet(ContentCheckBasis::unknown);
+	}
+
 	public boolean isResolutionEnabled() {
 		return settingsService.isResolutionEnabled();
 	}
@@ -1271,12 +1291,59 @@ public class PathReconciliationService {
 		// UI 가 버튼 비활성으로 1차 차단하므로 이 가드는 direct POST · stale 화면에서만 발동한다.
 		String blockReason = drift.snoozeBlockReason();
 		if (blockReason != null) {
-			throw DriftSnoozeNotAllowedException.of(blockReason);
+			throw DriftSnoozeStateException.of(blockReason);
 		}
 		Instant now = Instant.now();
 		drift.snooze(window, reason, now);
 		driftHandlingRepository.save(DriftHandling.of(
 				drift, DriftHandlingAction.SNOOZE, now, null, null, reason));
+	}
+
+	/**
+	 * MK4-4-3 — 보관을 앞당겨 푼다.
+	 *
+	 * <p>{@code Drift.reopen()} 과 {@code DriftHandlingAction.UNSNOOZE} 는 MK4-1 이 만들어
+	 * 두었는데 부르는 곳이 기간 만료 자동 처리 하나뿐이었다. 그래서 "생각이 바뀌었으니 지금
+	 * 처리하겠다" 를 할 경로가 없었다 — 미룬 것을 되돌릴 수 없으면 미루는 결정의 무게가 달라진다.</p>
+	 */
+	@Transactional
+	public void unsnooze(Long driftId) {
+		Drift drift = driftRepository.findById(driftId)
+				.orElseThrow(() -> new DriftNotFoundException(driftId));
+		// UI 가 버튼 비활성으로 1 차 차단하므로 이 가드는 direct POST · stale 화면에서만 발동한다.
+		String blockReason = drift.unsnoozeBlockReason();
+		if (blockReason != null) {
+			throw DriftSnoozeStateException.of(blockReason);
+		}
+		Instant now = Instant.now();
+		drift.reopen();
+		driftHandlingRepository.save(DriftHandling.of(
+				drift, DriftHandlingAction.UNSNOOZE, now, null, null, "운영자가 앞당겨 해제"));
+	}
+
+	/**
+	 * MK4-4-3 — 지금 보관 중인 드리프트. <b>아직 만료되지 않은 것</b>만 담는다.
+	 *
+	 * <p>만료된 것은 {@code isListed(now)} 가 이미 열린 것으로 치므로 첫 화면에 나타난다. 두
+	 * 화면에 같은 것이 동시에 뜨면 어느 쪽이 사실인지 흔들리므로 여기서 뺀다.</p>
+	 *
+	 * <p>정렬은 급한 순이 아니라 <b>만료가 임박한 순</b>이다 — 이 화면에서 묻는 것은 "무엇이
+	 * 급한가" 가 아니라 "무엇이 곧 돌아오는가" 이기 때문이다. 조건형 보관(다음 정밀 점검까지)은
+	 * 만료 시각이 없어 뒤로 민다.</p>
+	 */
+	@Transactional(readOnly = true)
+	public List<DriftResponse> snoozedDrifts() {
+		Instant now = Instant.now();
+		List<Drift> snoozed = driftRepository.findByStatus(DriftStatus.SNOOZED).stream()
+				.filter(d -> !d.isSnoozeExpired(now))
+				.toList();
+		Map<ResourceKey, ResourceUsageLevel> usage = usageOf(snoozed);
+		Map<Long, Drift> predecessors = predecessorsOf(snoozed);
+		return snoozed.stream()
+				.map(d -> toDriftResponse(d, usageFor(d, usage), predecessors))
+				.sorted(Comparator.comparing(DriftResponse::snoozeUntil,
+						Comparator.nullsLast(Comparator.naturalOrder())))
+				.collect(Collectors.toList());
 	}
 
 	private MarkableScanner scannerFor(ResourceType type) {
@@ -1309,9 +1376,9 @@ public class PathReconciliationService {
 				d.getId(), d.getResourceType(), d.getResourceId(), d.getDisplayName(),
 				d.getKind(), d.getOldPath(), d.getNewPath(),
 				d.getFirstDetectedAt(), d.getLastObservedAt(), d.getObservationCount(),
-				d.getStatus(), d.getSnoozeUntil(), d.getSnoozeReason(),
+				d.getStatus(), d.getSnoozeUntil(), d.getSnoozeWindow(), d.getSnoozeReason(),
 				// 화면의 버튼 비활성 사유와 서버 가드가 같은 도메인 메서드를 본다 (UI 1차 차단의 단일 소스).
-				d.snoozeBlockReason(), d.resolveBlockReason(), d.getDetail(), usage,
+				d.snoozeBlockReason(), d.unsnoozeBlockReason(), d.resolveBlockReason(), d.getDetail(), usage,
 				originOf(d, loadedPredecessors));
 	}
 

@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  * {@link ReconciliationRestController} 에 분리.</p>
  *
  * <h3>MK4-4-2 — 정보구조 개편</h3>
- * <p>첫 화면의 주인공이 점검 회차에서 <b>지금 남은 드리프트</b>로 바뀌었다. 배치 후보 둘을 실제
+ * <p>첫 화면의 주인공이 점검 회차에서 <b>현재 감지된 드리프트</b>로 바뀌었다. 배치 후보 둘을 실제
  * 화면으로 만들어 견준 뒤 이쪽을 채택했고, 비교에 쓰던 질의 파라미터와 후보 템플릿은 함께
  * 지웠다. 회차 상세({@code /reports/{id}})와 드리프트 상세({@code /drifts/{id}})는 그때 만든
  * 화면이 그대로 남은 것이다.</p>
@@ -46,7 +46,7 @@ public class ReconciliationController {
 	private final ReconciliationScheduler scheduler;
 
 	/**
-	 * 첫 화면 — 지금 남은 드리프트가 급한 순으로 놓인다.
+	 * 첫 화면 — 현재 감지된 드리프트가 급한 순으로 놓인다.
 	 *
 	 * <p>회차 목록은 여기서 쓰지 않는다. 마지막 점검이 언제였는지만 머리에 적고, 회차를 훑는 일은
 	 * {@link #reportList} 로 넘겼다 — 운영자가 실제로 하는 일이 이력 탐색이 아니라 미해결 처리라는
@@ -62,7 +62,6 @@ public class ReconciliationController {
 		model.addAttribute("openDrifts", reconciliationService.openDrifts());
 		// MK4-4-2 — [전체 해결] 대상 수. 버튼에 몇 건이 걸리는지 미리 밝힌다.
 		model.addAttribute("openBulkTargetCount", bulkApplyService.openTargets().size());
-
 		addCommonModel(model);
 		return "maintenance/reconciliation/list";
 	}
@@ -96,6 +95,21 @@ public class ReconciliationController {
 	}
 
 	/**
+	 * MK4-4-3 — 보관 목록. 지금 미뤄 둔 것들.
+	 *
+	 * <p>첫 화면과 섞지 않는 이유는 주인공이 다르기 때문이다 — 첫 화면은 "지금 처리할 것" 이고
+	 * 여기는 "지금 처리 안 하기로 한 것" 이다. 섞으면 급한 순 정렬의 뜻이 깨진다.</p>
+	 */
+	@GetMapping("/snoozed")
+	public String snoozedList(Model model) {
+		model.addAttribute("snoozedDrifts", reconciliationService.snoozedDrifts());
+
+		addCommonModel(model);
+		model.addAttribute("backHref", BASE_PATH);
+		return "maintenance/reconciliation/snoozed-list";
+	}
+
+	/**
 	 * MK4-4-2 — 회차 상세. 그 점검이 언제 무엇을 어디까지 봤고 무엇이 나왔는지.
 	 */
 	@GetMapping("/reports/{reportId}")
@@ -122,7 +136,14 @@ public class ReconciliationController {
 			@PathVariable Long driftId,
 			Model model
 	) {
-		model.addAttribute("drift", reconciliationService.drift(driftId));
+		var drift = reconciliationService.drift(driftId);
+		model.addAttribute("drift", drift);
+		// MK4-4-3 — 내용을 봐야 판정되는 종류에만 "그 판정이 언제 것인가" 를 함께 싣는다.
+		// 종전에는 이 자리에 전역 scanCoverage(최근 점검의 성질)를 썼는데, 이 화면에는 회차라는
+		// 문맥이 없어 정밀 점검 회차를 타고 들어와도 "이번 점검은 내용을 보지 않았습니다" 가 떴다.
+		if (drift.kind().isDeepOnly()) {
+			model.addAttribute("contentCheck", reconciliationService.contentCheckBasisOf(driftId));
+		}
 		// MK4-4-2 — 이 드리프트에 무슨 일이 있었나. 관측 · 처리 · 전임 · 후임이 한 시간축에 놓인다.
 		// 기록은 MK4-1 부터 쌓이고 있었는데 화면이 한 번도 꺼내지 않아, 운영자가 "이 드리프트가
 		// 언제부터 어떻게 흘러왔는지" 를 확인할 자리가 없었다.
@@ -161,6 +182,9 @@ public class ReconciliationController {
 		model.addAttribute("nextDeepScanAt", scheduler.nextDueAt(ScanDepth.DEEP).orElse(null));
 		// R9-4 — 업로드 실패 격리 대기 안내 배너 (이 페이지 렌더에만 count 조회).
 		model.addAttribute("quarantinePendingCount", orphanQuarantineService.countPending());
+		// MK4-4-3 — 보관 건수. 헤더의 [보관 이력 | n] 이 쓰므로 첫 화면만이 아니라 공통으로 담는다.
+		// 화면마다 따로 담으면 한 곳을 고칠 때 나머지가 조용히 뒤처진다(이 메서드가 있는 이유다).
+		model.addAttribute("snoozedCount", reconciliationService.snoozedDrifts().size());
 	}
 
 }

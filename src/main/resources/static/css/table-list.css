@@ -309,6 +309,29 @@ td.n-tl-cell::before {
     margin-bottom: 0;
 }
 
+/* MK4-4-3 CP7 — 조건에 따라 한 칸이 되는 자리. 짝이 있으면 n-split-2, 없으면 이것을 쓴다.
+   래퍼를 씌우면 안쪽 n-glist 가 그 안의 last-child 가 되어 `.n-glist:last-child { margin-bottom:0 }`
+   에 걸린다 — 형제였을 때 있던 아래 여백이 사라져 다음 묶음과 붙어 버린다. 래퍼가 그 여백을
+   대신 지어 두 상태의 간격을 같게 맞춘다. */
+.n-split-1 {
+    margin-bottom: 22px;
+}
+
+/* MK4-4-3 CP7 — 나란한 두 카드의 <b>안쪽 흰 판</b> 높이를 맞춘다.
+   grid 의 기본 align-items:stretch 가 바깥 n-glist 카드는 이미 같은 높이로 늘려 주는데, 그 안의
+   n-glist-panel 은 내용만큼만 차지해 짧은 쪽 아래에 회색 바닥이 드러났다 — 내용 양이 다른 짝
+   (드리프트 상세 ↔ 위험도, 보관 상세 ↔ 해결 방법)에서 특히 어긋나 보인다.
+   카드를 세로 flex 로 두고 판이 남는 높이를 흡수하게 해 흰 판의 아래선을 맞춘다.
+   n-split-2 안에서만 적용하므로 단독으로 쓰이는 n-glist 는 종전대로 내용 높이를 지킨다. */
+.n-split-2 > .n-glist {
+    display: flex;
+    flex-direction: column;
+}
+
+.n-split-2 > .n-glist > .n-glist-panel {
+    flex: 1;
+}
+
 @media (max-width: 900px) {
     .n-split-2 {
         grid-template-columns: 1fr;

@@ -17,7 +17,7 @@ import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlin
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
-import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeStateException;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.GhostDbRowClearResolution;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
@@ -529,7 +529,7 @@ class PathReconciliationServiceTest {
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
         assertThatThrownBy(() -> service.snooze(1L, SnoozeWindow.DAYS_7, "사유"))
-                .isInstanceOf(DriftSnoozeNotAllowedException.class)
+                .isInstanceOf(DriftSnoozeStateException.class)
                 .hasMessageContaining("이미 해결된");
     }
 
@@ -580,7 +580,7 @@ class PathReconciliationServiceTest {
         // 화면은 열어 두고 서버만 거절하는(또는 그 반대) 어긋남이 생긴다.
         String viewReason = PathReconciliationService.toDriftResponse(open).snoozeBlockReason();
         assertThatThrownBy(() -> service.snooze(1L, SnoozeWindow.DAYS_30, "또 미루기"))
-                .isInstanceOf(DriftSnoozeNotAllowedException.class)
+                .isInstanceOf(DriftSnoozeStateException.class)
                 .hasMessage(viewReason);
     }
 
