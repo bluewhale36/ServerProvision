@@ -664,15 +664,59 @@
           3~7 · 9 가 N/A 였고, §4 가 <b>기존 11 건의 무변경 통과</b>로 성립하며, 무게가 CP5 에 실렸다.</div>
 
         <h4>남은 일</h4>
+        <p style="margin-top:0;">CP7 승인으로 이 슬라이스는 닫혔고 <b>MK4-4 의 화면 개편이 완결됐다</b> — 첫 화면 ·
+          회차 상세 · 드리프트 상세(MK4-4-2), 보관 목록(MK4-4-3), 운영 설정(여기)까지 reconciliation 의 모든 화면이
+          같은 언어를 쓴다. 아래는 <b>이 슬라이스가 드러냈으나 범위 밖이라 넘기는 것</b>이다.</p>
+
+        <div class="item"><h4>S 계열 적립 ① 전역 미정의 CSS 클래스 둘 <span class="verdict na">S 계열 · 이 슬라이스가 세었다</span></h4>
+          <div class="kv"><b>경위</b> MK4-3-2 CP5 가 "미정의 클래스 넷" 으로 잡았고 MK4-4 분할 때 이쪽에 배정됐다. 실측해 보니 <b>넷을 한 부채로 묶은 것이 전제 오류</b>였다 — 성질이 다른 둘씩이다</div>
+          <div class="kv"><b>흡수한 둘</b> <code>n-form-label</code>(1 곳) · <code>n-form-hint</code>(2 곳) — reconciliation 국지라 <code>form-validation.css</code> 에 정의했다</div>
+          <div class="kv"><b>넘기는 둘</b> 아래 표. <b>세는 일까지가 이 슬라이스의 몫</b>이었다</div>
+        </div>
+        <table>
+          <thead><tr><th>클래스</th><th>쓰는 곳 (실측)</th><th>정의 상태</th></tr></thead>
+          <tbody>
+            <tr><td><code>n-form-banner</code></td><td>템플릿 <b>20</b> 파일 · JS <b>5</b> 파일</td><td><b>없음.</b> 함께 붙는 <code>n-alert n-alert-danger</code>(<code>global/style.css</code>)가 시인성을 대신해 화면은 깨져 보이지 않는다 — <b>그래서 오래 발견되지 않았다</b></td></tr>
+            <tr><td><code>n-btn-outline</code></td><td>템플릿 <b>20</b> 파일 · JS <b>10</b> 파일</td><td>파생 넷만 존재 — <code>-danger</code> · <code>-info</code> · <code>-success</code> · <code>-warning</code>. <b>기본형이 없다</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>빠진 정의를 채우는 단순 작업이 아니다.</b> <code>n-btn-outline</code> 에 기본형을
+          넣으면 파생 넷이 그것을 상속하거나 덮게 되므로 지금 <code>-danger</code> 등으로 보이는 <b>20 여 곳의 모양이
+          함께 바뀐다.</b> 그 단계의 CP5 는 <b>두 클래스를 쓰는 화면 전수</b>를 훑어야 한다.</div>
+        <p>이것이 이 슬라이스가 세운 기준의 실지 적용이다 — <b>고치는 범위와 검증하는 범위가 같은가.</b> 전역 둘을
+          여기서 정의했다면 20 개 넘는 화면이 동시에 바뀌는데 이 슬라이스의 CP5 는 reconciliation 화면만 봤다.
+          아무도 보지 않은 채 커밋되는 변경이라 <b>통과했다는 사실이 근거가 되지 못한다.</b></p>
+
+        <div class="item"><h4>S 계열 적립 ② 모든 <code>/{id}</code> 엔드포인트의 400 문구 <span class="verdict na">S 계열</span></h4>
+          <div class="kv"><b>내용</b> 경로 변수가 타입 변환에 실패하면 Spring 내부 예외 문자열이 사용자 화면에 그대로 노출된다. MK4-4-3 의 CP5 B4 가 발견했다</div>
+          <div class="kv"><b>실측</b> <code>MethodArgumentTypeMismatchException</code> 전용 핸들러가 <b>존재하지 않는다</b> — 고칠 자리는 <code>global/exception</code> 의 advice 한 곳이며, 한 번 고치면 전 도메인이 함께 바뀐다</div>
+          <div class="kv"><b>이 슬라이스와의 관계</b> 설정 저장은 경로 변수를 쓰지 않아 직접 영향이 없다. 자매 슬라이스가 발견한 것을 같은 이유(전역 파급)로 함께 적립한다</div>
+        </div>
+
+        <div class="item"><h4>판정 대기 — MK4-4-3 이 넘긴 둘 <span class="verdict na">범위 판정 필요</span></h4>
+          <div class="kv"><b>①</b> 만료된 보관이 첫 화면에서 「보관」 배지로 뜬다. 목록은 시각 인식 규칙으로 행을 띄우고 배지는 저장된 값을 그려 <b>한 행에 두 기준</b>이 쓰인다. 고치면 <code>DriftResponse</code> 생성 <b>7 지점</b> + 배지 렌더 <b>2 곳</b>으로 번진다</div>
+          <div class="kv"><b>②</b> stale 화면이 409 를 받고도 갱신되지 않는다. reconciliation 의 <b>모든 async 거절 경로</b>에 공통이라, 고칠 때 "모든 거절" 인지 "409 에만" 인지를 정해야 한다 — 400 에 reload 를 걸면 사용자가 방금 입력한 값이 날아간다</div>
+          <div class="kv"><b>상세</b> MK4-4-3 보고서 §11 참조. 둘 다 <b>그 슬라이스가 드러냈을 뿐 만들지 않은</b> 것이다</div>
+        </div>
+
+        <h4>이 슬라이스 자체의 잔여</h4>
+        <table>
+          <thead><tr><th>항목</th><th>왜 남았는가</th></tr></thead>
+          <tbody>
+            <tr><td><b>오류 지점 스크롤</b>의 효과 확인</td><td>자동화 브라우저가 프로그래밍 스크롤 API 를 전부 막아(<code>window.scrollTo</code> · <code>scrollTop</code> · <code>scrollIntoView</code> 무효, 휠만 동작) 판정할 수 없었다. 핸들러 발화(<code>invalidFired: 1</code>)까지만 확인 — <b>사용자 브라우저에서 즉시 판별된다</b></td></tr>
+            <tr><td><b>C1 앵커 링크</b> 판정</td><td>배너에서 가장 먼 필드까지 <b>1,874px(2.15 화면)</b> 로 실측됐다. 앵커 링크를 넣을지는 결정하지 않았다 — 저장 후 첫 오류로 데려가는 스크롤이 이미 들어갔으므로, 그 효과를 CP7 에서 본 뒤 판단하는 편이 낫다</td></tr>
+            <tr><td><code>n-form-hint-warn</code> 렌더 확인</td><td>발동 조건("직전 점검 소요 &gt; 설정 주기")이 샌드박스에서 성립하지 않아 요소가 렌더되지 않았다. 신규 클래스 아홉 중 <b>이 하나만 미확인</b>이다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>후속 마일스톤</h4>
         <ul class="check-list" data-storage="MK4-4-4-report-next">
-          <li><label><input type="checkbox" data-key="cp7"> <span><b>CP7</b> — 사용자 브라우저 E2E. <b>스크롤 동작(§10)이 이때 판별된다</b></span></label></li>
-          <li><label><input type="checkbox" data-key="c1"> <span><b>C1 앵커 링크 판정</b> — 배너 항목에서 해당 필드로 가는 링크를 넣을지 (최대 2.15 화면)</span></label></li>
-          <li><label><input type="checkbox" data-key="warn"> <span><b><code>n-form-hint-warn</code> 확인</b> — 점검 소요가 주기를 넘는 조건을 만들어 렌더 확인</span></label></li>
-          <li><label><input type="checkbox" data-key="s"> <span><b><code>S*</code> 신설</b> — 전역 <code>n-form-banner</code> · <code>n-btn-outline</code> 정의. 검증은 두 클래스를 쓰는 화면 전수</span></label></li>
-          <li><label><input type="checkbox" data-key="mk45"> <span><b>MK4-5</b> 드리프트 카탈로그</span></label></li>
+          <li><label><input type="checkbox" data-key="pr"> <span><b>PR</b> <code>feat/MK4-4_screen-overhaul</code> → <code>dev</code> — MK4-4-1 · 4-2 · 4-3 커밋이 함께 실린다</span></label></li>
+          <li><label><input type="checkbox" data-key="s"> <span><b>S 계열 ① · ②</b> — 전역 CSS 둘 · 400 문구</span></label></li>
+          <li><label><input type="checkbox" data-key="d34"> <span><b>판정 대기 ① · ②</b> — MK4-4-3 이 넘긴 것</span></label></li>
+          <li><label><input type="checkbox" data-key="mk45"> <span><b>MK4-5</b> 화면 간 경계 정합과 드리프트 카탈로그 (시작 전)</span></label></li>
+          <li><label><input type="checkbox" data-key="audit"> <span><b>R 전수 재현 감사</b> — "MK4-4 화면이 끝난 뒤" 를 조건으로 걸어 둔 것이라 <b>이제 조건이 충족됐다</b></span></label></li>
         </ul>
-        <p>이 슬라이스가 CP7 을 통과하면 <b>MK4-4 의 화면 개편이 완결된다</b> — 첫 화면 · 회차 상세 · 드리프트
-          상세(MK4-4-2), 보관 목록(MK4-4-3), 운영 설정(여기)까지 reconciliation 의 모든 화면이 같은 언어를 쓰게 된다.</p>
       </div>
     </details>
 

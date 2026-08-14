@@ -634,12 +634,65 @@
         </table>
 
         <h4>남은 일</h4>
+        <p style="margin-top:0;">CP7 승인으로 이 슬라이스는 닫혔다. 아래 넷은 <b>이 슬라이스가 드러냈으나
+          범위 밖이라 넘기는 것</b>이다 — 감추면 다음 사람이 같은 자리에서 다시 발견하게 되므로 무엇을 왜
+          넘기는지 근거와 비용까지 적는다.</p>
+
+        <div class="item"><h4>판정 대기 ① 만료된 보관이 첫 화면에서 「보관」 배지로 뜬다 <span class="verdict na">범위 판정 필요</span></h4>
+          <div class="kv"><b>증상</b> 보관 기간이 지났는데 아직 점검이 돌지 않은 창에서, 첫 화면 목록에 행은 나타나면서 상태 칸은 「보관 2026-08-12 10:40 까지」 — <b>이미 지난 시각까지 보관 중</b>이라고 읽힌다</div>
+          <div class="kv"><b>원인</b> 목록은 <b>시각 인식 규칙</b>(<code>Drift.isListed(now)</code>)으로 행을 띄우고, 배지는 <b>저장된 값</b>(<code>DriftStatus.badgeColor</code>)을 그린다. 화면이 한 행에 대해 두 기준을 동시에 쓰고 있다</div>
+          <div class="kv"><b>왜 우리 것이 아닌가</b> 배지 렌더는 MK4-4-2 가, 만료-미처리 상태는 MK4-1 이 만들었다. 이 슬라이스는 <b>그리로 가는 길을 냈을 뿐</b>이며, CP5 의 B6 도 SQL 로 강제해야 재현됐다</div>
+          <div class="kv"><b>참작</b> 정기 점검이 도는 환경에서는 <b>최대 1 주기만 보이는 과도 상태</b>다(<code>reopenExpiredSnoozes</code> 가 정리). 샌드박스에서 창이 넓었던 것은 검증을 위해 스케줄러를 멈춰서다</div>
+          <div class="kv"><b>제안</b> <code>DriftResponse</code> 에 조립 시점 <code>drift.isSnoozeExpired(now)</code> 를 실어, 만료면 「조치 필요」 배지 + "보관 기간이 지나 돌아왔습니다" 보조 문구</div>
+        </div>
+        <table>
+          <thead><tr><th>고치면 번지는 곳</th><th>실측</th></tr></thead>
+          <tbody>
+            <tr><td><code>DriftResponse</code> 생성 지점</td><td><b>7</b> — main 1(<code>PathReconciliationService</code>) · test 3 파일(Coverage 1 · RestController 2 · ScreenRoute 3)</td></tr>
+            <tr><td>배지 렌더</td><td><b>2</b> — <code>reconciliation-parts.html:234</code>(목록 공용) · <code>drift-detail.html:163</code></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>대안 하나를 미리 탈락시켜 둔다.</b> 템플릿에서 <code>snoozeUntil</code> 과 현재 시각을
+          비교해 분기하는 방법은 쓰지 않는다 — 만료 판정은 <code>Drift.isSnoozeExpired</code> 라는 도메인 메서드가
+          이미 갖고 있고, 화면이 같은 규칙을 다시 구현하면 두 곳이 어긋날 자리가 생긴다. 값을 응답에 실어 보내는
+          쪽이 SSOT 를 지킨다.</div>
+
+        <div class="item"><h4>판정 대기 ② stale 화면이 409 를 받고도 갱신되지 않는다 <span class="verdict na">범위 판정 필요</span></h4>
+          <div class="kv"><b>증상</b> CP5 B5 — 두 탭에 목록을 열고 한쪽에서 해제한 뒤 다른 쪽에서 같은 행을 누르면 409 모달이 뜬다. <b>[확인] 으로 닫아도 이미 해제된 행이 그대로 남아</b> 사용자가 직접 새로고침해야 사실을 본다</div>
+          <div class="kv"><b>원인</b> <code>list.js</code> 의 <code>AsyncSubmitResult.onSuccess</code> 는 <code>location.reload()</code> 를 하는데 <code>onRejected</code>(445 행)에는 그 처리가 없다. 오류 모달을 띄우고 끝난다</div>
+          <div class="kv"><b>왜 우리 것이 아닌가</b> 이 경로는 reconciliation 의 <b>모든 async 거절</b>에 공통이다 — 해결 · 보관 · 전체 해결 · 중복 해소가 같은 핸들러를 탄다. 보관 해제가 그중 하나로 추가됐을 뿐이다</div>
+          <div class="kv"><b>고칠 때 정할 것</b> 모든 거절에 reload 를 걸지, <b>409 에만</b> 걸지. 409 는 "당신 화면이 낡았다" 는 뜻이라 갱신이 맞지만, 400(입력 오류)에 reload 를 걸면 사용자가 방금 입력한 값이 날아간다 — <b>상태코드로 갈라야 한다</b></div>
+        </div>
+
+        <div class="item"><h4>S 계열 적립 ① 모든 <code>/{id}</code> 엔드포인트의 400 에 내부 예외 문자열이 노출된다 <span class="verdict na">S 계열</span></h4>
+          <div class="kv"><b>증상</b> CP5 B4 — <code>POST /drifts/abc/unsnooze</code> 시 화면에 <code>Method parameter 'driftId': Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; For input string: "abc"</code> 가 그대로 뜬다</div>
+          <div class="kv"><b>범위</b> <b>경로 변수를 쓰는 모든 엔드포인트</b>. reconciliation 만이 아니라 management · provisioning 전역이다</div>
+          <div class="kv"><b>실측</b> <code>MethodArgumentTypeMismatchException</code> 전용 핸들러가 <b>존재하지 않는다</b> — Spring 기본 메시지가 그대로 나간다. 고칠 자리는 <code>global/exception</code> 의 advice 한 곳이다</div>
+          <div class="kv"><b>왜 S 인가</b> 상태코드 400 자체는 옳다. 문제는 <b>문구가 한국어가 아니고 내부 타입 정보가 새어 나온다</b>는 것이며, 한 곳을 고치면 전 도메인이 함께 바뀐다 — 이 슬라이스의 CP5 는 reconciliation 화면만 보므로 <b>검증할 수 없는 변경</b>이 된다</div>
+        </div>
+
+        <div class="item"><h4>S 계열 적립 ② 전역 미정의 CSS 클래스 둘 <span class="verdict na">S 계열</span></h4>
+          <div class="kv"><b>내용</b> <code>n-form-banner</code> · <code>n-btn-outline</code> 이 정의 없이 쓰인다. MK4-3-2 CP5 가 "미정의 넷" 으로 잡았고, 실측해 보니 <b>성질이 다른 둘씩</b>이었다 — 국지 둘은 MK4-4-4 가 흡수했고 전역 둘이 남았다</div>
+        </div>
+        <table>
+          <thead><tr><th>클래스</th><th>쓰는 곳 (실측)</th><th>정의 상태</th></tr></thead>
+          <tbody>
+            <tr><td><code>n-form-banner</code></td><td>템플릿 <b>20</b> 파일 · JS <b>5</b> 파일</td><td><b>없음.</b> 함께 붙는 <code>n-alert n-alert-danger</code>(<code>global/style.css</code>)가 시인성을 대신하고 있어 화면은 깨져 보이지 않는다</td></tr>
+            <tr><td><code>n-btn-outline</code></td><td>템플릿 <b>20</b> 파일 · JS <b>10</b> 파일</td><td>파생 넷만 존재 — <code>-danger</code> · <code>-info</code> · <code>-success</code> · <code>-warning</code>. <b>기본형이 없다</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>단순히 빠진 정의를 채우는 일이 아니다.</b> <code>n-btn-outline</code> 에 기본형을
+          넣으면 파생 넷이 그것을 상속하거나 덮게 되므로, 지금 <code>-danger</code> 등으로 보이는 <b>20 여 곳의 모양이
+          함께 바뀐다</b>. 이미 굳은 시각을 건드리는 일이라 그 단계의 CP5 는 <b>두 클래스를 쓰는 화면 전수</b>를 훑어야
+          한다 — 이것이 이 슬라이스가 "고치는 범위와 검증하는 범위가 같은가" 를 기준으로 전역 둘을 밀어낸 이유다.</div>
+
+        <h4>후속 마일스톤</h4>
         <ul class="check-list" data-storage="MK4-4-3-report-next">
-          <li><label><input type="checkbox" data-key="cp7"> <span><b>CP7</b> — 사용자 브라우저 E2E</span></label></li>
-          <li><label><input type="checkbox" data-key="d3"> <span><b>결함 ③ · ④ 범위 판정</b> — 이번에 함께 고칠지, 별도 인벤토리 코드로 적립할지</span></label></li>
-          <li><label><input type="checkbox" data-key="s"> <span><b>결함 ② 적립</b> — <code>S*</code> 계열, 모든 <code>/{id}</code> 엔드포인트의 400 문구</span></label></li>
-          <li><label><input type="checkbox" data-key="mk444"> <span><b>MK4-4-4</b> 운영 설정 화면 재구성 — CP5 완료, CP6 별도 보고서</span></label></li>
-          <li><label><input type="checkbox" data-key="mk45"> <span><b>MK4-5</b> 드리프트 카탈로그</span></label></li>
+          <li><label><input type="checkbox" data-key="pr"> <span><b>PR</b> <code>feat/MK4-4_screen-overhaul</code> → <code>dev</code> — MK4-4-1 · 4-2 커밋이 함께 실린다</span></label></li>
+          <li><label><input type="checkbox" data-key="d34"> <span><b>판정 대기 ① · ②</b> — 별도 인벤토리 코드로 적립할지, 다음 슬라이스에 흡수할지</span></label></li>
+          <li><label><input type="checkbox" data-key="s"> <span><b>S 계열 ① · ②</b> — 400 문구 · 전역 CSS 둘</span></label></li>
+          <li><label><input type="checkbox" data-key="mk45"> <span><b>MK4-5</b> 화면 간 경계 정합과 드리프트 카탈로그 (시작 전)</span></label></li>
+          <li><label><input type="checkbox" data-key="audit"> <span><b>R 전수 재현 감사</b> — "MK4-4 화면이 끝난 뒤" 를 조건으로 걸어 둔 것이라 <b>이제 조건이 충족됐다</b></span></label></li>
         </ul>
         <div class="callout"><b>샌드박스 잔여 상태.</b> <code>SCAN_INTERVAL</code> · <code>DEEP_SCAN_INTERVAL</code> 을
           43200 분으로 올려 둔 채다(원래 1 분 · 2 분). 조건형 보관이 2 분마다 자동 해제되는 것을 막으려 한 조치이며,
