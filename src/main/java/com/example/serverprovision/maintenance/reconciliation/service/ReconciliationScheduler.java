@@ -57,9 +57,9 @@ public class ReconciliationScheduler {
 	private final DriftReportRepository driftReportRepository;
 
 	/**
-	 * 기동 직후 1 회. <b>일반 점검으로 돈다</b> — 이 항목의 뜻이 "꺼져 있는 동안 디스크가 바뀌었을 수
-	 * 있어 한 번 맞춰 본다" 이고 마커와 위치를 보는 것으로 그 물음에 답이 되기 때문이다. 정밀 점검이
-	 * 밀려 있다면 1 분 뒤 첫 심박이 판정해 돌리므로 기동 점검이 그것까지 떠안을 이유가 없다.
+	 * 기동 직후 1 회. <b>일반 점검으로 돈다</b> — 이 점검이 답하려는 물음은 "꺼져 있는 동안 디스크가
+	 * 바뀌었는가" 이고, 마커와 위치를 보는 것으로 그 물음에는 답이 되기 때문이다. 정밀 점검이 밀려
+	 * 있다면 1 분 뒤 첫 심박이 판정해 돌리므로 기동 점검이 그것까지 떠안을 이유가 없다.
 	 */
 	@EventListener(ApplicationReadyEvent.class)
 	public void onStartup() {

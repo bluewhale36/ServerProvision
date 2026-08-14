@@ -24,8 +24,7 @@ public enum ReconciliationSettingItem {
 
 	AUTO_APPLY_KINDS(
 			"자동 처리 대상",
-			"점검 도중 시스템이 사람 확인 없이 스스로 처리할 드리프트 종류입니다. "
-					+ "여기 없는 종류는 발견만 하고 그대로 둡니다.",
+			"점검 도중 시스템이 사람 확인 없이 스스로 처리할 드리프트 종류입니다.",
 			EffectTiming.NEXT_SCAN, ValueType.KIND_SET, null) {
 		/**
 		 * 무인 처리를 기본으로 맡길 종류 — <b>되돌릴 수 있는 것만</b> 켠다.
@@ -57,27 +56,24 @@ public enum ReconciliationSettingItem {
 
 	EXTRA_SCAN_ROOTS(
 			"추가 점검 경로",
-			"기본 점검 범위(활성 자원이 등록된 폴더들) 밖에서 추가로 뒤질 경로입니다. "
+			"기본 점검 범위(활성 자원이 등록된 폴더들) 밖에서 추가로 탐색할 경로입니다. "
 					+ "백업 폴더처럼 자원을 옮겨 두는 자리를 범위에 넣으면 '자원 소실' 대신 "
 					+ "'경로 이동됨' 으로 잡힙니다.",
 			EffectTiming.NEXT_SCAN, ValueType.PATH_LIST, ""),
 
 	STARTUP_SCAN_ENABLED(
 			"기동 직후 점검",
-			"애플리케이션이 뜬 직후 한 번 점검할지 정합니다. 꺼져 있는 동안 디스크가 바뀌었을 수 있어 "
-					+ "기동 시 한 번 맞춰 봅니다.",
+			"애플리케이션이 기동된 직후 점검을 수행할 여부입니다.",
 			EffectTiming.NEXT_BOOT, ValueType.BOOLEAN, "true"),
 
 	SCAN_INTERVAL(
 			"일반 점검 주기",
-			"일반 점검을 얼마나 자주 돌릴지 분 단위로 정합니다. 일반 점검은 마커와 위치만 보고 "
-					+ "파일 내용은 보지 않습니다. 마지막 점검으로부터 이만큼 지나면 다시 돕니다.",
+			"일반 점검을 얼마나 자주 돌릴지 분 단위로 정합니다. 일반 점검은 마커와 위치만 보고 파일 내용은 보지 않습니다.",
 			EffectTiming.IMMEDIATE, ValueType.INTEGER, "60"),
 
 	DEEP_SCAN_INTERVAL(
 			"정밀 점검 주기",
-			"정밀 점검을 얼마나 자주 돌릴지 분 단위로 정합니다. 정밀 점검은 파일 내용의 지문까지 다시 "
-					+ "계산해 변조를 잡습니다. 마지막 정밀 점검으로부터 이만큼 지나면 다시 돕니다.",
+			"정밀 점검을 얼마나 자주 돌릴지 분 단위로 정합니다. 정밀 점검은 파일 내용의 지문까지 다시 계산해 변조를 잡습니다.",
 			EffectTiming.IMMEDIATE, ValueType.INTEGER, "1440");
 
 	private final String label;
