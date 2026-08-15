@@ -28,6 +28,8 @@ sudo hostnamectl set-hostname spv-staging
 getenforce    # Enforcing 확인. OPS-3 D1 에 따라 끄지 않는다
 ```
 
+minimal 설치에는 tar 와 rsync 가 없다. 파일 반입 전에 함께 설치한다(`sudo dnf -y install tar rsync`). 설치보다 먼저 아카이브를 옮겨야 하는 상황이면 기본 포함인 python3 로 대체할 수 있다(`python3 -m tarfile -e <아카이브> <대상 디렉토리>`). 실측 2026-08-15.
+
 ## 3. 계정과 그룹
 
 OPS-1 D3(비특권 서비스 계정 provisioning, 셸 로그인 차단, 홈 없음)과 D4(운영자 그룹 spvadmin)를 그대로 만든다.
@@ -124,6 +126,8 @@ mysql -u root -p -e "SHOW TABLES" server_provision
 
 저장소 ddl 디렉토리의 schema.sql 을 쓰는 경우, 최신 마이그레이션이 전부 반영돼 있는지 개발 DB 와 대조한 뒤 쓴다.
 
+개발 DB 자체가 병합된 코드보다 뒤처져 있을 수도 있다. 반입 후 기동이 Schema validation missing column 으로 실패하면 ddl 디렉토리에서 미적용 스크립트를 찾아 적용한다. 실측 2026-08-15: PR 병합 다음 날 MK4-4-2 스크립트가 개발 DB 에 미적용인 채 덤프에 실려 와 기동이 재시작 루프에 빠졌다.
+
 ## 9. 환경 파일
 
 OPS-3 D8(EnvironmentFile 주입, 0600)을 따른다. OPS-2 의 경로 배치는 코드에 아직 반영되지 않았지만(upload-tmp 와 work 의 경로 변경은 구현 과제로 이연됨), application.properties 의 외부화 지점이 대부분의 경로를 환경변수로 받으므로 새 배치를 지금 주입할 수 있다.
@@ -131,6 +135,7 @@ OPS-3 D8(EnvironmentFile 주입, 0600)을 따른다. OPS-2 의 경로 배치는 
 ```bash
 sudo tee /etc/serverprovision/env >/dev/null <<'EOF'
 SERVER_PORT=8080
+SERVER_ADDRESS=0.0.0.0
 DB_URL=jdbc:mariadb://localhost:3306/server_provision
 DB_USERNAME=spv_app
 DB_PASSWORD=<비밀번호>
@@ -148,6 +153,7 @@ sudo chmod 0600 /etc/serverprovision/env
 
 주의와 확인 지점:
 
+- **SERVER_ADDRESS=0.0.0.0 은 필수다.** application.properties 가 server.address=localhost 를 고정하고 있어, 이 변수 없이는 루프백 전용 바인딩이 되어 외부 접속이 전부 거부된다. OS 환경변수가 패키징된 properties 보다 우선하므로 덮어쓰기가 성립한다. 실측 2026-08-15.
 - **PROVISION_MARKER_SECRET 은 한 번 정하면 바꾸지 않는다.** 마커 서명이 이 비밀에 묶이므로 바꾸는 순간 기존 마커 전부가 서명 불일치가 된다. 현재 코드에는 기본값이 있으나 OPS-3 D9 가 기본값 제거를 확정했으므로 처음부터 명시 주입한다.
 - 기본값 없는 필수 키는 SERVER_PORT, DB_URL, DB_USERNAME, DB_PASSWORD, RECONCILIATION_SCAN_EXTRA_ROOTS 다섯이다. 마지막 키는 빈 값 허용 여부를 첫 기동으로 확인한다.
 - PROVISION_ALLOWED_ROOTS 의 다중 경로 표기 형식(쉼표 구분 여부)은 application.properties 주석과 첫 기동으로 확인한다.
@@ -184,6 +190,8 @@ EOF
 ```
 
 OPS-3 원안에는 ReadWritePaths 에 /etc/dhcp 가 한 줄 더 있다. dhcpd 를 설치하지 않은 스테이징에서 그 디렉토리가 없으면 기동이 막히므로, PXE 리허설을 시작하는 시점(dhcp-server 와 tftp-server 설치)에 그 줄을 추가한다. 특권 위임 sudoers(dhcpd 문법 검사와 재기동)도 같은 시점에 AllowedCommand.sudoersLine() 값으로 만든다(OPS-3 D5).
+
+실측 반영 2026-08-15 — 그 시점이 오면 이렇게 한다. ReadWritePaths 추가는 유닛 본문 수정 대신 drop-in 이 깔끔하다: `/etc/systemd/system/serverprovision.service.d/dhcp.conf` 에 `[Service]` 와 `ReadWritePaths=/etc/dhcp` 두 줄(목록형 지시자라 본문 값에 누적된다). sudoers 는 `/etc/sudoers.d/serverprovision` 에 AllowedCommand 정본 두 줄(dhcpd -t 문법 검사, systemctl restart dhcpd)을 넣고 440 으로 좁힌다. dhcpd 는 설치와 문법 검사 위임 확인까지만 하고 기동하지 않는다 — 공유 가상 네트워크에서 켜면 하이퍼바이저 DHCP 와 충돌하고, 브리지에서 켜면 사내망에 불량 DHCP 를 뿌린다. 실서빙은 격리 세그먼트에서 한다.
 
 ## 11. 방화벽과 기동 검증
 

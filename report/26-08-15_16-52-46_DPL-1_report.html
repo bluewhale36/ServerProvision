@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DPL-1 Report — 스테이징 VM 테스트 배포 (첫 배포 세션 기록)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : BEFORE / AFTER 대조 ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── .seq : N-actor 시간 흐름 ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── pkg-tree ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── card-grid : 병렬 카드 ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+  .card p { font-size:12px; line-height:1.6; margin:0; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>DPL-1 — 스테이징 VM 테스트 배포 · 첫 배포 세션 기록 <span class="v2-badge">DPL</span></h1>
+  <div class="meta">
+    <span><strong>단계</strong> DPL-1 (배포 실행 계열 · 신설)</span>
+    <span><strong>무대</strong> 개발 맥북 위 Rocky Linux 9.6 aarch64 minimal VM</span>
+    <span><strong>절차 SSOT</strong> <code>docs/staging-vm-bootstrap.md</code> 런북 — 첫 실측 수행</span>
+    <span><strong>수행</strong> 2026-08-15 KST</span>
+    <span><strong>결과</strong> 맥 브라우저 → <code>http://192.168.24.128:8080/management/os</code> HTTP 200</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 배경 — 왜 오늘 이 작업을 했는가</a></li>
+      <li><a href="#s1">§1 통로 만들기 — ssh 가 열리기까지</a></li>
+      <li><a href="#s2">§2 sudo 관문</a></li>
+      <li><a href="#s3">§3 소스와 스키마 반입</a></li>
+      <li><a href="#s4">§4 시스템 구축</a></li>
+      <li><a href="#s5">§5 기동 실패 1 — 개발 DB 지연</a></li>
+      <li><a href="#s6">§6 기동 실패 2 — 루프백 바인딩</a></li>
+      <li><a href="#s7">§7 접속 성공</a></li>
+      <li><a href="#s8">§8 dhcp 준비</a></li>
+      <li><a href="#s9">§9 오늘 남긴 기록 자산</a></li>
+      <li><a href="#s10">§10 남은 일</a></li>
+      <li><a href="#s11">§11 부록 — 최종 구성 실측값</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 배경 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 배경 — 왜 오늘 이 작업을 했는가</summary>
+      <div class="body">
+        <p style="margin-top:0;">MVP 출시선을 확정(필요조건 E3 · 충분조건 E4)한 뒤, 실제 배포 기기가 아직 없는 상태에서 배포 절차를 미리 검증할 무대가 필요했다.
+        개발 맥북 위에 만들어 둔 Rocky Linux 9.6 aarch64 minimal 가상머신을 스테이징으로 세우기로 했고, 이 작업을 기록하는 계열로 <b>DPL(배포 실행)</b> 을 신설했다.</p>
+
+        <table>
+          <thead><tr><th>단계</th><th>내용</th><th>시점</th></tr></thead>
+          <tbody>
+            <tr><td><b>DPL-1</b></td><td>스테이징 VM 테스트 배포</td><td>오늘 (2026-08-15)</td></tr>
+            <tr><td><b>DPL-2</b></td><td>실배포</td><td>배포 기기 확보 후</td></tr>
+          </tbody>
+        </table>
+
+        <p>절차의 SSOT(Single Source of Truth — 단일 진실 출처)는 저장소의 <code>docs/staging-vm-bootstrap.md</code> 런북이며, 오늘 세션은 <b>그 런북의 첫 실측 수행</b>이다. 목표는 셋이었다.</p>
+
+        <table>
+          <thead><tr><th>목표</th><th>결과</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>① 프로그램을 VM 에 구축</td><td><span class="chip new">달성</span></td><td>systemd 서비스로 상시 기동</td></tr>
+            <tr><td>② dhcp 준비</td><td><span class="chip mod">부분</span></td><td>설치 · 특권 위임 실검증까지. 실서빙은 의도적 보류(§8)</td></tr>
+            <tr><td>③ 맥북 브라우저에서 웹페이지 접속</td><td><span class="chip new">달성</span></td><td>HTTP 200 확인(§7)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>이 문서의 성격</b> — 코드 슬라이스의 CP6 보고서가 아니라 <b>배포 세션의 수행 기록</b>이다.
+        그래서 CP5 의 검증 항목 식별자(A · B · C)와 항목별 스크린샷 체계를 쓰지 않는다.
+        여기서 증거 역할을 하는 것은 <b>터미널 실측값</b>(오류 메시지 · <code>ss</code> 와 방화벽 출력 · HTTP 응답 코드)이며, 각 절에 코드 블록으로 인용한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 통로 만들기 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 통로 만들기 — ssh 가 열리기까지 (사용자 + 세션 협업)</summary>
+      <div class="body">
+        <p style="margin-top:0;">작업 방식부터 정했다. VM 에 Claude Code 를 설치하지 않고, <b>맥의 세션이 ssh 로 VM 에 명령을 보내 원격으로 구축</b>하기로 했다(설치는 필요가 실체화될 때 한다).
+        그러려면 맥에서 VM 으로 가는 <b>비밀번호 없는 ssh 통로</b>가 먼저 있어야 했다. 이 통로를 뚫는 데 세 번 걸렸다.</p>
+
+        <h4>1-1. 키가 없었다</h4>
+        <p>사용자가 <code>ssh-copy-id spvadmin@192.168.1.5</code> 를 실행하자 <span class="mono">No identities found</span> 가 떴다 — 맥의 <code>~/.ssh</code> 에 키 자체가 없었다.
+        세션이 ed25519 키 쌍을 생성했다(<code>~/.ssh/id_ed25519</code>). <b>passphrase 는 두지 않았다</b> — 비대화형 자동화에 쓸 키라서 명령마다 잠금 해제가 걸리면 원격 구축 자체가 성립하지 않는다.</p>
+
+        <h4>1-2. 이번엔 연결이 안 됐다</h4>
+        <p>키를 만들고 재시도한 <code>ssh-copy-id</code> 는 120초를 넘겨 실패했다.</p>
+<pre><code>connect to host 192.168.1.5 port 22: Operation timed out</code></pre>
+        <p>비밀번호나 키 등록의 문제가 아니다. 인증 단계까지 가지도 못했다는 뜻이며, <b>패킷이 VM 까지 아예 못 가는</b> 상태다.</p>
+
+        <h4>1-3. 진단 — VM 의 IP 가 존재하지 않는 대역이었다</h4>
+        <p>맥의 네트워크를 실측했다. 맥이 가진 대역은 셋뿐이었다 — 실 LAN 인터페이스 en0 의 <code>172.30.1.21</code>, 하이퍼바이저 가상 네트워크인 <code>192.168.16.1/24</code>(bridge100) 와 <code>192.168.24.1/24</code>(bridge101).
+        VM 이 주장하는 <code>192.168.1.5</code> 는 <b>이 중 어느 대역에도 속하지 않았다</b>. 원인은 VM 안에 남아 있던 정적 IP 설정이다 — 192.168.1.x 는 사무실 BMC 망 대역과 같아, 그쪽 용도로 잡았던 값의 잔재로 추정된다.</p>
+
+        <svg viewBox="0 0 880 360" role="img" aria-label="맥의 네트워크 대역과 VM 의 위치" style="width:100%;height:auto;max-width:880px;display:block;margin:14px 0;">
+          <defs>
+            <marker id="arw-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--green)"/>
+            </marker>
+            <marker id="arw-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--border)"/>
+            </marker>
+          </defs>
+
+          <rect x="40" y="16" width="320" height="44" rx="8" style="fill:var(--bg);stroke:var(--border)"/>
+          <text x="200" y="43" text-anchor="middle" style="fill:var(--text-muted);font-size:12.5px">사무실 실 LAN</text>
+          <line x1="200" y1="60" x2="200" y2="100" style="stroke:var(--border);stroke-width:1.5" marker-end="url(#arw-grey)"/>
+
+          <rect x="40" y="104" width="320" height="240" rx="10" style="fill:var(--card);stroke:var(--border);stroke-width:1.5"/>
+          <text x="58" y="130" style="fill:var(--text);font-size:13px;font-weight:700">개발 맥북 (macOS)</text>
+
+          <rect x="58" y="142" width="284" height="52" rx="6" style="fill:var(--bg);stroke:var(--border-soft)"/>
+          <text x="70" y="163" style="fill:var(--blue);font-size:12px;font-weight:700;font-family:var(--mono)">en0</text>
+          <text x="118" y="163" style="fill:var(--text);font-size:12px;font-family:var(--mono)">172.30.1.21</text>
+          <text x="70" y="181" style="fill:var(--text-muted);font-size:11px">실 LAN 인터페이스</text>
+
+          <rect x="58" y="204" width="284" height="52" rx="6" style="fill:var(--bg);stroke:var(--border-soft)"/>
+          <text x="70" y="225" style="fill:var(--purple);font-size:12px;font-weight:700;font-family:var(--mono)">bridge100</text>
+          <text x="152" y="225" style="fill:var(--text);font-size:12px;font-family:var(--mono)">192.168.16.1/24</text>
+          <text x="70" y="243" style="fill:var(--text-muted);font-size:11px">하이퍼바이저 가상 네트워크</text>
+
+          <rect x="58" y="266" width="284" height="52" rx="6" style="fill:var(--green-bg);stroke:var(--green)"/>
+          <text x="70" y="287" style="fill:var(--green);font-size:12px;font-weight:700;font-family:var(--mono)">bridge101</text>
+          <text x="152" y="287" style="fill:var(--text);font-size:12px;font-family:var(--mono)">192.168.24.1/24</text>
+          <text x="70" y="305" style="fill:var(--text-muted);font-size:11px">VM 이 실제로 붙은 대역</text>
+
+          <line x1="344" y1="292" x2="550" y2="292" style="stroke:var(--green);stroke-width:2" marker-end="url(#arw-green)"/>
+          <text x="448" y="282" text-anchor="middle" style="fill:var(--green);font-size:11.5px">ssh · scp · http :8080</text>
+
+          <rect x="556" y="252" width="290" height="92" rx="10" style="fill:var(--card);stroke:var(--green);stroke-width:1.5"/>
+          <text x="572" y="276" style="fill:var(--text);font-size:13px;font-weight:700">게스트 VM — spv</text>
+          <text x="572" y="298" style="fill:var(--green);font-size:12.5px;font-weight:700;font-family:var(--mono)">192.168.24.128 (DHCP)</text>
+          <text x="572" y="320" style="fill:var(--text-muted);font-size:11.5px">Rocky Linux 9.6 aarch64 minimal</text>
+
+          <rect x="556" y="28" width="290" height="84" rx="10" style="fill:var(--red-bg);stroke:var(--red);stroke-dasharray:6 4"/>
+          <text x="572" y="55" style="fill:var(--red);font-size:13px;font-weight:700;font-family:var(--mono)">192.168.1.5</text>
+          <text x="572" y="77" style="fill:var(--text);font-size:11.5px">VM 에 남아 있던 정적 IP 설정</text>
+          <text x="572" y="97" style="fill:var(--text-muted);font-size:11.5px">맥의 어느 인터페이스 대역과도 불일치</text>
+
+          <line x1="364" y1="150" x2="548" y2="74" style="stroke:var(--red);stroke-width:1.5;stroke-dasharray:5 4"/>
+          <circle cx="456" cy="112" r="11" style="fill:var(--card);stroke:var(--red);stroke-width:1.5"/>
+          <line x1="451" y1="107" x2="461" y2="117" style="stroke:var(--red);stroke-width:2"/>
+          <line x1="461" y1="107" x2="451" y2="117" style="stroke:var(--red);stroke-width:2"/>
+          <text x="456" y="152" text-anchor="middle" style="fill:var(--red);font-size:11.5px;font-weight:700">도달 경로 없음</text>
+          <text x="456" y="170" text-anchor="middle" style="fill:var(--text-muted);font-size:11px">ssh 22 · Operation timed out</text>
+        </svg>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:0;">맥이 가진 대역은 172.30.1.x(실 LAN) · 192.168.16.x · 192.168.24.x 셋이다. VM 이 주장하던 192.168.1.5 는 그중 어디에도 없었고, 그래서 맥에서 보낸 패킷이 VM 까지 가지 못했다.</p>
+
+        <h4>1-4. 해법 — DHCP 전환</h4>
+        <p>사용자가 VM 콘솔에서 <code>nmcli con mod ... ipv4.method auto</code> 로 전환하자 VM 이 bridge101 대역의 <code>192.168.24.128</code> 을 받았다.
+        이어 <code>ssh-copy-id spvadmin@192.168.24.128</code> 이 성공했고, 이후로 세션이 비밀번호 없이 VM 에 명령을 보낼 수 있게 됐다.</p>
+
+        <div class="seq">
+          <div class="actor a1">사용자 (VM 콘솔)</div><div class="actor a2">맥 세션</div><div class="actor a3">VM spv</div>
+          <div class="step a1"><code>ssh-copy-id spvadmin@192.168.1.5</code></div><div class="step a2">키 부재 — <span class="mono">No identities found</span></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">ed25519 키 쌍 생성 (passphrase 없음)</div><div class="step a3"></div>
+          <div class="step a1"><code>ssh-copy-id</code> 재시도</div><div class="step a2"></div><div class="step a3">패킷 미도달 — 120초 후 timed out</div>
+          <div class="step a1"></div><div class="step a2">맥 인터페이스 실측 → 192.168.1.x 대역 없음</div><div class="step a3"></div>
+          <div class="step a1"><code>nmcli con mod ... ipv4.method auto</code></div><div class="step a2"></div><div class="step a3">bridge101 대역 <code>192.168.24.128</code> 취득</div>
+          <div class="step a1"><code>ssh-copy-id spvadmin@192.168.24.128</code></div><div class="step a2">비밀번호 없는 원격 명령 가능</div><div class="step a3">공개키 등록 완료</div>
+        </div>
+
+        <h4>1-5. 접속 검증 실측</h4>
+        <table>
+          <thead><tr><th>항목</th><th>실측값</th></tr></thead>
+          <tbody>
+            <tr><td>호스트명</td><td><code>spv</code></td></tr>
+            <tr><td>배포판</td><td>Rocky Linux 9.6 (Blue Onyx)</td></tr>
+            <tr><td>아키텍처</td><td>aarch64</td></tr>
+            <tr><td>메모리</td><td>2.8Gi</td></tr>
+            <tr><td>루트 디스크</td><td>12G (여유 9.6G)</td></tr>
+            <tr><td>SELinux</td><td><b>Enforcing</b> — OPS-3 D1 대로 유지</td></tr>
+            <tr><td>로그인 계정</td><td><code>spvadmin</code> (wheel 그룹)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 sudo 관문 ===== -->
+    <details class="section" id="s2">
+      <summary>§2. sudo 관문</summary>
+      <div class="body">
+        <p style="margin-top:0;">시스템 구축은 패키지 설치 · 계정 생성 · systemd 유닛 배치까지 전부 sudo 가 필요하다.
+        그런데 sudo 가 비밀번호를 요구하면 세션이 보내는 <b>비대화형 명령이 전부 막힌다</b> — 원격에서 입력할 프롬프트가 없기 때문이다.
+        사용자가 VM 콘솔에서 <code>/etc/sudoers.d/spvadmin-nopasswd</code> 에 NOPASSWD 를 등록해 이 관문을 열었다.</p>
+        <div class="callout warn"><b>스테이징 한정 편의</b> — 이 전면 개방은 오늘 무대에서만 쓴다.
+        실배포(DPL-2)에서는 OPS-3 D4 대로 <b>명령을 한정한 sudoers 만</b> 둔다. 원상 복귀 항목으로 §10 에 적립했다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 소스와 스키마 반입 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 소스와 스키마 반입 — sudo 없이 되는 일 먼저</summary>
+      <div class="body">
+        <h4>소스</h4>
+        <p>GitHub 인증을 VM 에 새로 만들지 않기로 하고, 맥의 dev 작업 트리를 tar.gz 로 묶어 scp 로 보냈다 — 22.2M(<code>build</code> · <code>.gradle</code> · <code>.git</code> · <code>.idea</code> 제외).
+        그런데 VM 에서 풀려고 보니 <b>minimal 설치에는 tar 조차 없었다</b>. 기본으로 들어 있는 python3 로 대체했다.</p>
+<pre><code>tar 실행                                                  → exit 127 (명령 없음)
+python3 -m tarfile -e ~/spv-src.tgz ~/ServerProvision     → 압축 해제 성공</code></pre>
+        <p>런북에 적을 <b>실측 수확 1호</b>다 — minimal 이미지가 무엇을 안 갖고 있는지는 실제로 해 봐야 드러난다.</p>
+
+        <h4>스키마</h4>
+        <p>애플리케이션이 <code>ddl-auto=validate</code> 로 동작하므로 <b>스키마가 먼저 들어가 있어야 기동한다</b>. 맥 개발 DB(3306)에서 구조만 떴다.</p>
+<pre><code>mariadb-dump --no-data --skip-lock-tables --no-tablespaces
+   → 726줄, CREATE TABLE 36개</code></pre>
+        <p>이 덤프를 scp 로 VM 에 반입했다. 이 시점의 선택이 §5 의 첫 기동 실패로 이어진다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 시스템 구축 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 시스템 구축 — 런북 절차의 일괄 실행</summary>
+      <div class="body">
+        <h4>패키지 (약 3분)</h4>
+        <p>시간대를 Asia/Seoul 로 맞추고, <code>mariadb:10.11</code> 모듈을 활성화한 뒤 <code>tar rsync git acl java-21-openjdk-devel mariadb-server</code> 를 일괄 설치했다.
+        설치 후 OpenJDK 21.0.12 와 MariaDB 10.11.18 을 확인했다.</p>
+
+        <p>이어 구축 스크립트 한 벌을 실행했다(런북 3 · 5 · 6 · 9 · 10 · 11절).</p>
+
+        <h4>계정 (OPS-1 D3 · D4)</h4>
+        <ul>
+          <li>서비스 계정 <code>provisioning</code> 생성 — system 계정, 셸 로그인 차단(<code>/sbin/nologin</code>), 홈 없음.</li>
+          <li>운영자 그룹 <code>spvadmin</code> 은 로그인 계정의 기본 그룹으로 이미 존재해 새로 만들지 않았다.</li>
+        </ul>
+
+        <h4>디렉토리 (OPS-2 D1 · D2)</h4>
+        <p><b>서빙되는 것</b>과 <b>절대 서빙되지 않는 것</b>을 부모 디렉토리 수준에서 갈랐다. 경로 하나를 잘못 열어도 내부 자산이 노출되지 않게 하려는 배치다.</p>
+        <div class="pkg-tree">/var/lib/serverprovision/
+├── served/                ← 서빙되는 것
+│   ├── resources/         provisioning:spvadmin  2775 + 기본 ACL   (운영자 공유)
+│   └── pxe/               provisioning:provisioning  0755
+└── internal/              ← 절대 서빙 안 되는 것
+    ├── uploads/           provisioning:spvadmin  2775 + 기본 ACL   (운영자 공유)
+    ├── upload-tmp/
+    ├── work/
+    ├── trash/
+    ├── quarantine/
+    └── history/
+
+/opt/serverprovision/data → /var/lib/serverprovision   (심볼릭 링크)</div>
+        <p>기본 소유는 <code>provisioning:provisioning</code> 0755 이고, 운영자와 공유해야 하는 두 곳(<code>served/resources</code> · <code>internal/uploads</code>)만 <code>provisioning:spvadmin</code> + setgid(2775) + 기본 ACL 을 얹었다.
+        setgid 만으로는 부족한 이유가 OPS-1 D5 다 — <b>setgid 는 그룹만 상속하고 권한 비트는 프로세스의 umask 를 타므로</b>, 새로 생기는 파일이 그룹 쓰기 권한을 잃을 수 있다. 그 구멍을 기본 ACL 로 메운다.</p>
+
+        <h4>DB</h4>
+        <ul>
+          <li>MariaDB 기동 후 <code>server_provision</code> 데이터베이스 생성(utf8mb4).</li>
+          <li>앱 계정 <code>spv_app</code> 에는 <b>DML(SELECT · INSERT · UPDATE · DELETE)만</b> 부여했다. validate 모드에서는 앱이 스키마를 만들지 않으며 DDL 은 관리 계정 소관이다 — 로컬 개발에서 쓰는 계정 분리 관행과 같다.</li>
+          <li>스키마 반입 후 테이블 36개 확인.</li>
+        </ul>
+
+        <h4>환경 파일 (OPS-3 D8)</h4>
+        <p><code>/etc/serverprovision/env</code> 를 0600 으로 두었다. DB 비밀번호(18바이트)와 마커 서명 비밀(48바이트)은 <b>VM 안에서 openssl 로 생성해 어디에도 출력하지 않았다</b> — 세션 로그에도 남지 않는다.</p>
+        <p>OPS-2 가 정한 새 경로 배치는 <b>코드를 한 줄도 고치지 않고</b> 환경변수(<code>UPLOAD_BASE_DIR</code> · <code>PROVISION_TRASH_ROOT</code> 등)로 주입했다. 경로 설정이 전부 외부화돼 있었기에 가능했던 일이다.</p>
+
+        <h4>systemd 유닛 (OPS-3 D2)</h4>
+        <table>
+          <thead><tr><th>설정</th><th>값 · 의도</th></tr></thead>
+          <tbody>
+            <tr><td><code>User</code></td><td><code>provisioning</code> — 로그인 불가 서비스 계정으로 실행</td></tr>
+            <tr><td><code>EnvironmentFile</code></td><td>0600 환경 파일에서 비밀 주입</td></tr>
+            <tr><td>하드닝</td><td><code>ProtectSystem=strict</code> · <code>ProtectHome</code> · <code>PrivateTmp</code></td></tr>
+            <tr><td><code>ReadWritePaths</code></td><td>자원 루트와 로그 두 곳만 쓰기 허용</td></tr>
+            <tr><td><code>RequiresMountsFor</code></td><td><code>/var/lib/serverprovision</code> (OPS-2 D9)</td></tr>
+            <tr><td><code>Restart</code></td><td><code>on-failure</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>방화벽 · 빌드</h4>
+        <ul>
+          <li>8080/tcp 개방.</li>
+          <li>병행으로 VM 에서 <code>./gradlew bootJar</code> 를 백그라운드로 돌렸다. 첫 빌드라 Gradle 배포판과 의존성을 전량 내려받았다.</li>
+          <li>산출물 <code>ServerProvision-0.0.1-SNAPSHOT.jar</code> 89M 을 <code>/opt/serverprovision/serverprovision.jar</code> 로 배치했다. 원본이 아니라 <b>사본</b>을 두는 이유는, 나중에 재빌드해도 기동 중인 jar 를 건드리지 않기 위해서다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §5 기동 실패 1 ===== -->
+    <details class="section" id="s5" open>
+      <summary>§5. 기동 실패 1 — 개발 DB 가 코드보다 뒤처져 있었다</summary>
+      <div class="body">
+        <p style="margin-top:0;">기동 후 90초를 폴링했는데 HTTP 응답이 오지 않았다.
+        <code>systemctl</code> 이 보고하는 서비스 상태는 active 였다. 유닛에 넣은 <code>Restart=on-failure</code> 때문에 실패한 프로세스가 즉시 되살아나 <b>겉보기 상태만으로는 정상과 구별되지 않았던</b> 것이고,
+        실체를 드러낸 것은 <b>재시작 카운터 22</b> 였다 — 기동 실패와 자동 재시작이 무한히 반복되고 있었다. 로그에 원인이 있었다.</p>
+<pre><code>Schema validation: missing column [deleted_checked] in table [drift_report]</code></pre>
+
+        <p>인과를 풀면 이렇다. <code>deleted_checked</code> 는 MK4-4-2 가 추가한 컬럼으로, 점검 회차가 "무엇을 어디까지 봤는가" 를 남기는 3컬럼 중 하나다.
+        MK4-4 코드는 어제(8/14) PR #36 으로 dev 에 병합됐다. 그런데 <b>그 DDL 스크립트는 맥의 개발 DB(3306)에 아직 적용되지 않은 상태</b>였다.
+        §3 에서 그 DB 를 그대로 덤프해 왔으니 VM 스키마에도 컬럼이 없었고, 반입한 dev 코드는 그 컬럼이 있다고 기대하므로 <code>ddl-auto=validate</code> 가 기동을 끊은 것이다.</p>
+
+        <div class="card-grid">
+          <div class="card v-red"><h4>증상</h4><p>기동 후 90초 폴링에도 HTTP 무응답. 서비스는 active 로 보이나 재시작 카운터 22.</p></div>
+          <div class="card v-orange"><h4>관찰</h4><p>로그에 <span class="mono">missing column [deleted_checked] in table [drift_report]</span>.</p></div>
+          <div class="card v-purple"><h4>원인</h4><p>MK4-4-2 컬럼. 코드는 8/14 dev 병합(PR #36), DDL 은 맥 개발 DB 미적용 → 그 덤프를 반입 → VM 스키마에도 부재.</p></div>
+          <div class="card v-green"><h4>해법</h4><p>반입 소스의 <span class="mono">ddl/MK4-4-2_drift_report_scan_scope.sql</span> 적용 → <span class="mono">drift_report</span> 13컬럼 → 기동 성공.</p></div>
+        </div>
+
+        <p>적용 전에 다른 DDL 스크립트(<code>reconciliation_setting</code> 등)는 이미 적용돼 있음을 대조로 확인했다 — 빠진 것이 MK4-4-2 하나뿐임을 먼저 가려낸 것이다.</p>
+
+        <div class="callout danger"><b>파장 — 맥의 개발 DB 도 같은 상태다.</b>
+        지금 맥에서 dev 브랜치 앱을 3306 으로 띄우면 <b>같은 오류로 기동에 실패한다</b>.
+        <code>claude_code</code> 계정은 ALTER 권한이 없으므로 <b>사용자가 root 로 한 번 적용</b>해야 한다(§10-1).
+        "PR 병합 후 DDL 적용" 이라는 앵커 통합 절차의 빈틈이 스테이징 첫날 실측으로 드러난 셈이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 기동 실패 2 ===== -->
+    <details class="section" id="s6" open>
+      <summary>§6. 기동 실패 2 — 루프백 전용 바인딩</summary>
+      <div class="body">
+        <p style="margin-top:0;">스키마를 맞추자 애플리케이션이 떴다. 그런데 <b>VM 안(localhost)에서는 응답하는데 맥에서의 접속은 여전히 거부</b>됐다.
+        먼저 방화벽을 의심했으나 정상이었다 — 8080/tcp 개방, zone 은 public, 인터페이스는 <code>enp2s0</code>. 실체는 방화벽이 아니라 <b>바인딩 주소</b>였다.</p>
+<pre><code>LISTEN  [::ffff:127.0.0.1]:8080     ← 루프백에만 묶여 외부 요청을 받지 않음</code></pre>
+
+        <p>원인은 <code>application.properties</code> 3행의 <code>server.address=localhost</code> 다. 개발 편의로 박혀 있던 값인데, 그 값이 jar 안에 그대로 패키징돼 스테이징까지 따라온 것이다.
+        방화벽이 포트를 열어 두어도 프로세스 자신이 루프백에만 귀를 기울이고 있으면 외부에서 온 연결은 애초에 받아들여지지 않는다.</p>
+
+        <p>해법은 환경 파일에 <code>SERVER_ADDRESS=0.0.0.0</code> 한 줄을 더하는 것이었다. 파일을 다시 빌드하지 않고도 덮어쓰기가 성립하는 근거는 Spring 의 설정 우선순위다 — <b>OS 환경변수가 jar 안에 패키징된 properties 보다 높다</b>.</p>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — jar 내 properties</h4>
+            <pre><code><span class="diff-del">server.address=localhost</span>
+
+LISTEN [::ffff:127.0.0.1]:8080
+→ 맥에서 접속 거부</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 환경 파일 주입</h4>
+            <pre><code><span class="diff-add">SERVER_ADDRESS=0.0.0.0</span>
+
+LISTEN *:8080
+→ 맥에서 접속 성립</code></pre></div>
+        </div>
+
+        <div class="card-grid">
+          <div class="card v-red"><h4>증상</h4><p>VM 안 localhost 는 응답. 맥에서의 접속만 거부.</p></div>
+          <div class="card v-orange"><h4>관찰</h4><p>방화벽 정상(8080/tcp · zone public · enp2s0). <span class="mono">LISTEN [::ffff:127.0.0.1]:8080</span>.</p></div>
+          <div class="card v-purple"><h4>원인</h4><p><span class="mono">application.properties</span> 3행 <span class="mono">server.address=localhost</span> — 개발 편의 값이 jar 에 패키징됨.</p></div>
+          <div class="card v-green"><h4>해법</h4><p>환경 파일에 <span class="mono">SERVER_ADDRESS=0.0.0.0</span> 추가(환경변수 우선). 재기동 후 <span class="mono">*:8080</span> 확인.</p></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §7 접속 성공 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 접속 성공</summary>
+      <div class="body">
+        <p style="margin-top:0;">맥에서 <code>http://192.168.24.128:8080/management/os</code> 로 접속해 <b>HTTP 200</b> 과 OS 자원 관리 화면 HTML 을 정상 수신했다. 오늘의 목표 ③ 달성이다.</p>
+        <div class="callout"><b>루트 경로 404 는 정상이다</b> — <code>/</code> 에는 매핑이 없다. 진입은 <code>/management/*</code> · <code>/maintenance/*</code> · <code>/provisioning/*</code> 경로로 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 dhcp 준비 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. dhcp 준비 — 설치와 위임까지, 실서빙은 의도적 보류</summary>
+      <div class="body">
+        <ul style="margin-top:0;">
+          <li><code>dhcp-server</code> · <code>tftp-server</code> 설치.</li>
+          <li><b>특권 위임 (OPS-3 D4 · D5)</b> — <code>/etc/sudoers.d/serverprovision</code> 에 코드 정본(<code>AllowedCommand.sudoersLine</code>)이 만들어 내는 두 줄을 넣고 440 으로 두었다.
+            <ul>
+              <li>dhcpd 문법 검사 — <code>/usr/sbin/dhcpd -t -cf *</code></li>
+              <li>dhcpd 재기동 — <code>systemctl restart dhcpd</code></li>
+            </ul>
+          </li>
+          <li><b>실검증 통과</b> — <code>provisioning</code> 계정이 비밀번호 없이 <code>dhcpd -t</code> 를 실행함을 확인했다. E1-I-3 의 dhcpd 조각 반영 기능이 실제로 쓰는 바로 그 경로다.</li>
+          <li>유닛에 <code>ReadWritePaths=/etc/dhcp</code> 를 추가했다. 유닛 본문을 고치는 대신 drop-in(<code>serverprovision.service.d/dhcp.conf</code>)으로 얹었고, 재기동 후 웹이 정상임을 다시 확인했다.</li>
+        </ul>
+        <div class="callout warn"><b>dhcpd 는 disabled · inactive 로 남겼다.</b>
+        공유 가상 네트워크에서 켜면 하이퍼바이저의 DHCP 와 충돌하고, 브리지에서 켜면 사내망에 불량 DHCP 를 뿌리는 사고가 된다.
+        실서빙은 <b>격리된 랩 세그먼트를 확보한 뒤</b> 한다(§10-3).</div>
+      </div>
+    </details>
+
+    <!-- ===== §9 기록 자산 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 오늘 세션이 남긴 기록 자산</summary>
+      <div class="body">
+        <h4>런북 실측 개정 5건 <span class="chip mod">미커밋</span></h4>
+        <p><code>docs/staging-vm-bootstrap.md</code> 에 오늘 실측으로 드러난 것을 반영했다.</p>
+        <table>
+          <thead><tr><th>#</th><th>개정 내용</th><th>출처</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>minimal 의 tar 부재와 python3 우회</td><td>§3</td></tr>
+            <tr><td>2</td><td><code>SERVER_ADDRESS=0.0.0.0</code> 필수와 그 이유</td><td>§6</td></tr>
+            <tr><td>3</td><td>개발 DB 지연 대조 절차</td><td>§5</td></tr>
+            <tr><td>4</td><td>dhcp drop-in · sudoers 실측 절차</td><td>§8</td></tr>
+            <tr><td>5</td><td>IDE 는 headless 원격 정리 — Gateway = Ultimate 전용 · 메모리 4G 권장</td><td>세션 검토</td></tr>
+          </tbody>
+        </table>
+
+        <h4>그 밖</h4>
+        <table>
+          <thead><tr><th>대상</th><th>내용</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td><code>CLAUDE.md</code></td><td>인벤토리 코드 목록에 DPL 계열 등재</td><td><span class="chip mod">미커밋</span></td></tr>
+            <tr><td>Notion</td><td>DPL 우산 · DPL-1(진행 중) · DPL-2(시작 전) 3페이지 신설 — 본문 4항목 포함</td><td><span class="chip new">완료</span></td></tr>
+            <tr><td>origin/dev</td><td>이날 앞서 push 된 런북 초판과 BMC Redfish 실측 체크리스트 (<code>ad9dcaa</code> · <code>f10c309</code>)</td><td><span class="chip new">push 됨</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 남은 일 ===== -->
+    <details class="section" id="s10" open>
+      <summary>§10. 남은 일</summary>
+      <div class="body">
+        <div class="callout danger">
+          <b>① [사용자 액션 — 먼저 해야 한다] 맥 개발 DB 에 MK4-4-2 적용</b>
+          <pre style="margin:8px 0 6px;"><code>mysql -u root -p server_provision &lt; ddl/MK4-4-2_drift_report_scan_scope.sql</code></pre>
+          하지 않으면 <b>맥에서 dev 앱을 띄울 수 없는 상태가 지속된다</b>(§5 와 동일한 스키마 검증 실패).
+          <code>claude_code</code> 계정에는 ALTER 권한이 없어 세션이 대신 적용할 수 없다 — root 로 한 번 실행해야 한다.
+        </div>
+
+        <table>
+          <thead><tr><th>#</th><th>항목</th><th>주체 · 전제</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>맥 개발 DB 에 MK4-4-2 DDL 적용</td><td><span class="chip force">사용자</span> root 권한 필요</td></tr>
+            <tr><td>2</td><td><code>CLAUDE.md</code> + 런북 개정 커밋 — <code>docs(dpl-1)</code> 로 묶어 올릴 준비 완료</td><td><span class="chip opt">지시 대기</span></td></tr>
+            <tr><td>3</td><td>dhcpd 실서빙</td><td>격리 세그먼트 확보 후 — 불량 DHCP 위험 해소가 전제</td></tr>
+            <tr><td>4</td><td>ES-2 병합 후 스테이징 DDL 업그레이드 리허설</td><td>E 준비도 토론이 확정한 실행 데이터 모델 정비(ES-2)가 dev 에 병합되면, 그 마이그레이션을 이 스테이징 DB 에 적용하는 것이 OPS-4 "업그레이드 절차" 의 첫 리허설이 된다</td></tr>
+            <tr><td>5</td><td>보안 원상 복귀 항목 메모</td><td>VM 의 전면 NOPASSWD sudo 는 스테이징 한정 — DPL-2 에서는 금지</td></tr>
+          </tbody>
+        </table>
+
+        <ul class="check-list" data-storage="DPL-1-followup">
+          <li><label><input type="checkbox" data-key="ddl"> <span><b>[사용자]</b> 맥 개발 DB 에 <code>ddl/MK4-4-2_drift_report_scan_scope.sql</code> 적용</span></label></li>
+          <li><label><input type="checkbox" data-key="commit"> <span><code>docs(dpl-1)</code> — CLAUDE.md + 런북 개정 커밋</span></label></li>
+          <li><label><input type="checkbox" data-key="dhcpd"> <span>격리 세그먼트 확보 후 dhcpd 실서빙</span></label></li>
+          <li><label><input type="checkbox" data-key="es2"> <span>ES-2 병합 후 스테이징 DDL 업그레이드 리허설 (OPS-4 첫 리허설)</span></label></li>
+          <li><label><input type="checkbox" data-key="secback"> <span>DPL-2 에서 NOPASSWD sudo 원상 복귀 (명령 한정 sudoers 로)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 부록 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 부록 — 최종 구성 실측값</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>항목</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td>VM</td><td>Rocky Linux 9.6 aarch64 minimal, 호스트명 <code>spv</code>, <code>192.168.24.128</code>(DHCP), 메모리 2.8Gi, SELinux Enforcing</td></tr>
+            <tr><td>접속</td><td>맥 <code>~/.ssh/id_ed25519</code> → <code>spvadmin@192.168.24.128</code> (비밀번호 없는 ssh)</td></tr>
+            <tr><td>앱</td><td><code>/opt/serverprovision/serverprovision.jar</code> (89M), systemd <code>serverprovision.service</code>, <code>provisioning</code> 계정</td></tr>
+            <tr><td>DB</td><td>MariaDB 10.11.18, <code>server_provision</code> 36테이블 + MK4-4-2 3컬럼, <code>spv_app</code>(DML 전용)</td></tr>
+            <tr><td>자원 루트</td><td><code>/var/lib/serverprovision</code> (served/internal 분리, setgid + ACL)</td></tr>
+            <tr><td>진입 URL</td><td><code>http://192.168.24.128:8080/management/os</code> (HTTP 200 확인)</td></tr>
+            <tr><td>dhcp</td><td><code>dhcp-server</code> · <code>tftp-server</code> 설치, sudoers 위임 검증 완료, dhcpd 미기동(의도)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>
