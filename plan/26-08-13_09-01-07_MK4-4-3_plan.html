@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MK4-4-3 Plan — 보관 화면</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list (localStorage) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 3-actor 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>MK4-4-3 — 보관 화면 <span class="v2-badge">MK4-4 하위 슬라이스</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> MK4-4-3 (feat)</span>
+    <span><strong>상위</strong> MK4-4</span>
+    <span><strong>scope</strong> 보관한 것을 볼 자리를 만든다 — 목록 · 진입 · 해제</span>
+    <span><strong>생성</strong> 2026-08-13 09:01 KST</span>
+    <span><strong>개정</strong> 2026-08-13 09:56 KST — 운영 설정을 MK4-4-4 로 분리</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 설계 결정 + 도메인 SSOT</a></li>
+      <li><a href="#s5">§5 12 단계 + 체크포인트</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · 주의 · 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">MK4-4-2 가 첫 화면 · 회차 상세 · 드리프트 상세를 다시 그렸다. 그런데
+          <b>보관한 드리프트를 볼 화면이 아직 없다.</b> 미루는 기능은 MK4-1 이 만들어 두었는데 미룬 것을 읽을
+          자리가 없어, 보관은 사실상 잊는 것과 같아져 있다.</p>
+
+        <div class="callout"><b>2026-08-13 분할.</b> 이 슬라이스는 본래 보관 화면과 운영 설정 화면을 함께 담았다.
+          구현을 마치고 갈래별 규모를 재 보니 <b>설정 계열이 보관 계열의 약 5 배</b>(+301/−142 대 +63/−21)였고,
+          두 화면이 공유하는 도메인 개념이 없어 <b>CP5 검증이 두 줄기로 갈린다</b>. 한 report 에 무관한 검증 두 묶음이
+          들어가면 어느 한쪽이 얕아져도 분량에 묻히므로, 운영 설정을 <b>MK4-4-4</b> 로 떼었다.
+          2026-08-11 분할 시 걸어 둔 조건("커지면 다시 나눈다")이 실제로 발동한 것이며, 다만 무거운 쪽은
+          예상과 반대인 설정이었다.</div>
+
+        <h4>실측 ① 보관한 것을 볼 자리가 없다</h4>
+        <p><code>Drift.snooze()</code> 는 기간과 사유를 받아 상태를 <code>SNOOZED</code> 로 바꾼다. 그런데 첫 화면의
+          목록은 <code>PathReconciliationService.openDrifts()</code> 이고, 그 필터는 <code>Drift.isListed(now)</code> 다 —
+          <b>열려 있거나 만료된 보관</b>만 통과한다. 보관 중인 것은 어느 화면에도 나오지 않는다.</p>
+
+        <table>
+          <thead><tr><th>화면 라우트 (실측 넷)</th><th>무엇</th><th>보관을 모아 볼 수 있나</th></tr></thead>
+          <tbody>
+            <tr><td><code>/</code></td><td>첫 화면</td><td>아니오 — <code>isListed(now)</code> 가 거른다</td></tr>
+            <tr><td><code>/reports</code></td><td>점검 이력 목록</td><td>아니오 — 점검 회차의 목록이다</td></tr>
+            <tr><td><code>/reports/{id}</code></td><td>회차 상세</td><td>아니오</td></tr>
+            <tr><td><code>/drifts/{id}</code></td><td>드리프트 상세</td><td>id 를 알면 한 건씩 열리지만 목록에서 닿을 길이 없다</td></tr>
+          </tbody>
+        </table>
+
+        <p>그래서 보관은 <b>미룬 순간 잊힌다.</b> 만료돼 목록에 다시 뜰 때까지 무엇을 몇 건 미뤘는지 알 수 없다.
+          MK4-1 이 '보고 닫기'(다음 점검에 그대로 다시 뜨는 착시)를 '보관'(기간과 사유를 남기고 그동안만 내림)으로
+          바꾼 목적이 "왜 방치됐는지 나중에 설명이 된다" 였는데, 그 설명을 읽을 자리가 없다.</p>
+
+        <h4>실측 ② 미룬 것을 앞당길 수 없다</h4>
+        <p><code>DriftHandlingAction.UNSNOOZE("보관 해제")</code> 와 <code>Drift.reopen()</code> 은 MK4-1 이 만들어
+          두었다. 그런데 이를 부르는 곳은 <code>PathReconciliationService.reopenExpiredSnoozes</code> 하나뿐이고,
+          그것은 <b>기간 만료 자동 처리</b>다. 사용자가 "생각이 바뀌었으니 지금 처리하겠다" 를 할 경로가 없다.</p>
+
+        <p>정리하면 보관은 <b>걸 수는 있는데 볼 수도 풀 수도 없는 상태</b>다. 이 슬라이스가 더하는 것은
+          그 둘 — 읽는 자리와 앞당기는 경로다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>하는 일 하나</h4>
+        <p style="margin-top:0;"><b>보관 화면</b>을 만든다 — 목록 · 진입 · 해제. 셋이 한 덩어리인 이유는 하나만
+          있으면 쓸모가 없기 때문이다. 목록만 있으면 미룬 것을 보기만 하고 되돌릴 수 없고, 해제만 있으면 무엇을
+          해제할지 고를 자리가 없으며, 진입로가 없으면 앞의 둘에 닿지 못한다.</p>
+
+        <h4>비 목표</h4>
+        <table>
+          <thead><tr><th>항목</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td><b>운영 설정 화면 재구성</b></td><td><b>MK4-4-4</b> 로 분리 (2026-08-13). 보관과 공유하는 도메인 개념이 없어 CP5 검증이 두 줄기로 갈린다</td></tr>
+            <tr><td>보관 전용 상세 화면</td><td>드리프트 상세가 이미 보관 중인 것도 연다 (§4 D1)</td></tr>
+            <tr><td>조사 처리("을(를)") 전역 정리</td><td>reconciliation 화면에는 병기형이 남아 있지 않다 (실측)</td></tr>
+            <tr><td>드리프트 카탈로그</td><td>MK4-5</td></tr>
+            <tr><td>휴지통 설정과의 통합</td><td>별개 도메인 (trash)</td></tr>
+          </tbody>
+        </table>
+        <p>병기형이 남은 곳은 provisioning · management 쪽이고 <code>korean-particle.js</code> 가 표시 직전에
+          해소한다 — 이 슬라이스의 화면이 아니다. 휴지통 설정은 도메인이 다르므로 지금 합칠 근거가 없다.</p>
+
+        <h4>이미 있는 것을 쓴다</h4>
+        <p>보관 목록은 <b>새 시각 양식을 만들지 않는다.</b> MK4-4-2 가 채택한 구조의 양식
+          (<code>n-glist</code> 바깥 묶음 → 흰 판 → 내용)을 그대로 입는다. 도메인도 마찬가지다 — 보관에 필요한
+          상태와 메서드는 MK4-1 이 이미 만들어 두었고, 이 슬라이스는 그것을 <b>부르는 자리</b>만 더한다 (§4).</p>
+
+        <div class="callout"><b>이 단계의 원칙 — 미룬 것도 보여야 미룬 것이다.</b><br>
+          보관은 잊기 위한 장치가 아니라 알면서 미루기 위한 장치다. 볼 자리가 없으면 그 둘이 같아진다.</div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">체험시키는 것은 하나다 — 드리프트 하나가 <b>보관 → 해제 → 다시 처리 대기</b>로 오가는
+          동안 <b>어느 화면에 나타나고 어느 화면에서 사라지는가.</b> 아래에서 화면을 고르고 드리프트를 조작해 보면 된다.
+          시간도 직접 밀 수 있다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">화면 :</span>
+            <button class="seg" data-screen="open" onclick="demoSetScreen('open')">첫 화면 (미해결)</button>
+            <button class="seg" data-screen="snoozed" onclick="demoSetScreen('snoozed')">보관 화면</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">조작 :</span>
+            <span id="demo-actions"><!-- JS 렌더 --></span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">시간 :</span>
+            <span class="tip"><button class="n-demo-btn" onclick="demoAct('advance',false)">시간을 8 일 뒤로</button></span>
+            <span class="tip"><button class="n-demo-btn" onclick="demoReset()">처음으로</button></span>
+            <span id="demo-clock" style="font-size:11px;color:var(--text-muted);"></span>
+          </div>
+
+          <div id="demo-screen" style="margin-top:12px;"><!-- JS 렌더 --></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">보관 화면은 이 슬라이스가 만드는 것이다. 먼저 [보관 (7 일)] 을 눌러 보라.</div>
+        </div>
+
+        <h4>이 데모가 보여 주는 것 셋</h4>
+        <ol>
+          <li><b>보관하면 첫 화면에서 사라진다</b> — 그런데 지금은 어느 화면에도 나타나지 않는다(현재 결함).
+            보관 화면을 켜면 거기 나타난다(이 슬라이스의 결과).</li>
+          <li><b>보관 해제하면 즉시 첫 화면으로 돌아온다</b> — 지금은 이 경로가 없다. 해제 버튼은
+            보관 목록의 행에만 있으므로(§4 D4), 보관 화면을 켜야 눌린다.</li>
+          <li><b>기간이 만료되면 해제하지 않아도 돌아온다</b> — 이것만 지금도 된다. 만료된 것은 보관 목록에서
+            빠지므로 두 화면에 동시에 뜨지 않는다(§8 주의 ②).</li>
+        </ol>
+        <p>첫 화면 위의 <span class="mono">보관 중 N 건</span> 안내도 함께 보라 — 보관이 0 건이 되면 안내 자체가
+          사라진다(§4 D3). 해제하거나 만료시켜 0 건을 만들어 보면 확인된다.</p>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 판정식 = 서버 도메인 메서드.
+          첫 화면에 보이는 조건은 <code>Drift.isListed(now)</code> 를 그대로 옮긴
+          <span class="mono">status == OPEN || (status == SNOOZED &amp;&amp; snoozeUntil &lt;= now)</span> 이고,
+          보관 목록의 조건은 그 부정 중 <code>SNOOZED</code> 인 것이다. 데모가 규칙을 따로 재구현하지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>경로</th><th>무엇</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>/maintenance/reconciliation/snoozed</code></td><td>보관 목록</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>/maintenance/reconciliation/drifts/{id}/unsnooze</code></td><td>보관 해제 (POST)</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>/maintenance/reconciliation/drifts/{id}</code></td><td>드리프트 상세</td><td><span class="chip keep">기존 · 보관 중인 것도 이 화면</span></td></tr>
+            <tr><td><code>/maintenance/reconciliation</code></td><td>첫 화면</td><td><span class="chip mod">기존 · 「보관 중 N 건」 안내 추가</span></td></tr>
+          </tbody>
+        </table>
+        <p>화면 라우트는 <code>ReconciliationController</code> 가, 해제 요청은 <code>ReconciliationRestController</code> 가
+          받는다. 아래는 보관 해제 한 번의 흐름이다.</p>
+
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Controller</div><div class="actor a3">Service</div>
+          <div class="step a1">첫 화면의 <span class="mono">보관 중 N 건</span> 안내를 누른다</div>
+          <div class="step a2"><code>GET /snoozed</code></div>
+          <div class="step a3"><code>snoozedDrifts()</code> — 아직 만료되지 않은 보관만</div>
+          <div class="step a1">행의 [보관 해제] 를 누른다</div>
+          <div class="step a2"><code>POST /drifts/{id}/unsnooze</code></div>
+          <div class="step a3"><code>unsnooze(id)</code> → <code>Drift.reopen()</code></div>
+          <div class="step a1">첫 화면 목록에 다시 나타난다</div>
+          <div class="step a2">응답</div>
+          <div class="step a3">처리 이력에 <code>UNSNOOZE</code> 적재</div>
+        </div>
+        <p>만료 자동 복귀는 이 흐름과 별개로 이미 돌고 있다 —
+          <code>PathReconciliationService.reopenExpiredSnoozes</code> 가 그 자리다. 이 슬라이스는 그것을 건드리지 않고
+          <b>사람이 앞당기는 경로만</b> 옆에 붙인다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 설계 결정 + 도메인 SSOT ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 설계 결정 (D1~D4) + 도메인 SSOT</summary>
+      <div class="body">
+        <h4>도메인 신설 0 — 있는 것을 화면으로 꺼낸다</h4>
+        <p style="margin-top:0;">엔티티 · Value Object · Enum 을 새로 만들지 않는다. 보관은 이미 <code>Drift</code> 가
+          들고 있고, 필요한 도메인 메서드도 MK4-1 이 만들어 두었다. 새 값이 생기지 않으므로 Primitive Obsession 을
+          판단할 새 지점도 없다 — 이 슬라이스가 더하는 것은 <b>읽는 자리</b>다.</p>
+        <table>
+          <thead><tr><th>있는 것</th><th>무엇</th><th>이 슬라이스가 하는 일</th></tr></thead>
+          <tbody>
+            <tr><td><code>Drift.status</code></td><td>열림 · 보관 · 해결</td><td>보관 목록의 필터 조건</td></tr>
+            <tr><td><code>Drift.snoozeUntil</code></td><td>보관 만료 시각</td><td>정렬 키 · 남은 기간 표시</td></tr>
+            <tr><td><code>Drift.snoozeWindow</code></td><td>보관 기간</td><td>목록에 표시</td></tr>
+            <tr><td><code>Drift.snoozeReason</code></td><td>미룬 사유</td><td>목록에 표시</td></tr>
+            <tr><td><code>Drift.reopen()</code></td><td>보관을 풀어 다시 열기</td><td>수동 해제가 호출</td></tr>
+            <tr><td><code>DriftHandlingAction.UNSNOOZE</code></td><td>처리 이력의 갈래</td><td>수동 해제를 이력에 남김</td></tr>
+          </tbody>
+        </table>
+
+        <h4>판정 규칙 (SSOT — 🎬 데모가 그대로 쓴다)</h4>
+        <pre><code>첫 화면에 보이는가 = status == OPEN || (status == SNOOZED &amp;&amp; snoozeUntil &lt;= now)   // Drift.isListed(now)
+보관 목록에 있는가 = status == SNOOZED &amp;&amp; snoozeUntil &gt;  now                       // 만료된 것은 빠진다 (§8 주의 ②)</code></pre>
+        <p>두 조건이 서로를 배제하므로 같은 드리프트가 두 화면에 동시에 뜨지 않는다. 이 성질이 §8 주의 ② 의 근거다.</p>
+
+        <h4>D1 — 보관 상세를 따로 만들지 않는다</h4>
+        <p>2026-08-11 분할 시 범위는 "보관 목록 · 보관 상세" 였다. 그때는 드리프트 상세 화면이 없었다.
+          MK4-4-2 가 만들었고 보관 중인 드리프트도 그 화면으로 열리며 상태 배지가 「보관」 으로 뜬다.
+          따로 만들면 같은 내용의 화면이 둘이 된다.</p>
+        <ul><li><b>비채택</b> — 보관 전용 상세(사유 · 만료를 크게). <b>탈락</b> : 그 둘은 이미 드리프트 상세의
+          「위험도」 구획에 있다. 화면을 늘리는 대신 그 자리를 손보면 된다.</li></ul>
+
+        <h4>D2 — 보관 목록은 첫 화면에 섞지 않고 별도 화면으로 둔다</h4>
+        <p>첫 화면의 주인공은 "지금 처리할 것" 이고 보관은 "지금 처리 안 하기로 한 것" 이다. 섞으면 MK4-4-2 가 세운
+          축이 흐려진다.</p>
+        <ul>
+          <li><b>비채택 ①</b> — 첫 화면에 탭(미해결 / 보관 중). <b>탈락</b> : 탭은 둘이 같은 무게라는 신호인데 아니다.</li>
+          <li><b>비채택 ②</b> — 목록에 보관 행을 흐리게 함께 표시. <b>탈락</b> : 급한 순 정렬에 섞이면 순서의 뜻이 깨진다.</li>
+        </ul>
+
+        <h4>D3 — 진입은 헤더 버튼이 아니라 첫 화면의 안내다</h4>
+        <p>헤더에는 이미 [점검 이력] · [운영 설정] 둘이 있다. 셋이 되면 버튼 묶음이 다시 무거워진다. 보관은 상시
+          확인할 것이 아니라 있으면 알려 주면 되는 것이라, 첫 화면 목록 위에 <span class="mono">보관 중 N 건</span>
+          안내로 두고 거기서 들어간다. <b>0 건이면 안내 자체가 없다.</b></p>
+
+        <h4>D4 — 수동 보관 해제를 잇는다</h4>
+        <p><code>UNSNOOZE</code> 와 <code>reopen()</code> 은 이미 있고 부르는 곳만 없다. 보관 목록의 각 행에서
+          [보관 해제] 를 누른다. 처리 이력에 남으므로 "왜 앞당겼나" 가 이력에 기록된다.</p>
+
+        <div class="callout"><b>D5 · D6 은 MK4-4-4 로 옮겼다</b> (2026-08-13 분할). 각각 "운영 설정을 성질로
+          묶는다" · "저장은 묶음별로 나누지 않는다" 로, 둘 다 설정 화면의 결정이라 보관 화면과 맞물리는 지점이 없다.
+          번호는 그쪽에서 다시 매겨진다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12 단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + 체크포인트</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스는 12 단계를 밟되 <b>6 · 7 · 9 단계가 N/A</b> 다 — 새 엔티티도 새 컬럼도
+          없다. 보관은 이미 <code>Drift.status</code> · <code>snoozeUntil</code> · <code>snoozeWindow</code> ·
+          <code>snoozeReason</code> 로 표현돼 있고, 필요한 도메인 메서드(<code>reopen</code>)도 있다.
+          이 슬라이스가 하는 일은 <b>있는 것을 화면으로 꺼내는 것</b>이다.</p>
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 계획서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>보관 목록 템플릿 · 첫 화면 안내</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>라우트 · 컨트롤러</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td>응답 DTO (보관 목록 항목)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td>서비스 시그니처 (<code>snoozedDrifts</code> · <code>unsnooze</code>)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6</td><td>Repository</td><td>N/A — 기존 조회로 충분</td></tr>
+            <tr><td>7</td><td>Entity</td><td>N/A — 새 필드 없음</td></tr>
+            <tr><td>8</td><td>서비스 본체 + 테스트</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 확인</td><td>N/A</td></tr>
+            <tr><td>10</td><td>샌드박스 검증</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>11</td><td>report</td><td><span class="chip cp6">CP6</span></td></tr>
+            <tr><td>12</td><td>사용자 E2E</td><td><span class="chip cp7">CP7</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP6 · CP7</b> 셋이다. CP1 승인이 CP2~CP4 의 진행 승인을 겸하므로
+          그 구간은 무중단으로 진행하고 경계마다 보고만 한다.</div>
+        <div class="callout warn"><b>CP3 에 해당하는 산출물이 없다.</b> 6 · 7 이 N/A 라 CP3 가 통째로 비는데,
+          이것은 빠뜨린 것이 아니라 해당이 없는 것이다. 구분이 흐려지지 않도록 <b>CP2 보고에서 6 · 7 이 왜 비었는지를
+          함께 보고</b>한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 규율</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수 (예상)</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>unsnooze</code> happy 1 + 실패 1 (보관 중이 아닌 것을 해제)</td><td>2</td></tr>
+            <tr><td>단위</td><td><code>snoozedDrifts</code> 가 만료된 것을 빼는가</td><td>1</td></tr>
+            <tr><td>성공 2xx</td><td><code>/snoozed</code> 렌더 · <code>/drifts/{id}/unsnooze</code></td><td>2</td></tr>
+            <tr><td>404</td><td>존재하지 않는 드리프트 id 로 해제</td><td>1</td></tr>
+            <tr><td>409</td><td>보관 중이 아닌 것을 해제</td><td>1</td></tr>
+            <tr><td>400</td><td>해당 없음 — 보관 해제는 경로 변수 하나만 받는다</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p>통합은 <code>@WebMvcTest</code> + <code>MockMvc</code> 로, 컨트롤러 try/catch 와 advice 매핑이 실제로
+          실행되도록 mocking 은 Service 단까지만 둔다. 보관 해제는 경로 변수 하나만 받으므로 <code>@Valid</code> 로
+          400 이 나는 입력 자리가 없다 — 이것은 시나리오를 빠뜨린 것이 아니라 <b>바인딩할 폼 필드가 없다</b>는
+          사실의 결과다.</p>
+        <div class="callout warn"><b>새 예외를 만든다면</b> 그 예외를 실제로 발생시키는 시나리오를 반드시 함께 만든다.
+          작성 전 <code>.claude/domain-conventions/new-exception.md</code> 를 연다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;">보관 해제가 거절되는 경우는 하나다 — <b>보관 중이 아닌 것을 해제하려 할 때.</b>
+          정상 흐름에서는 보관 목록에만 [보관 해제] 가 있으므로 도달하지 않는다(UI 1 차 차단).
+          direct POST · stale 화면에서만 발동하는 안전망이라 예외가 맞다.</p>
+        <table>
+          <thead><tr><th>상황</th><th>HTTP</th><th>예외</th></tr></thead>
+          <tbody>
+            <tr><td>보관 중이 아닌 것을 해제</td><td>409</td><td><code>DriftSnoozeStateException</code>(기존 <code>DriftSnoozeNotAllowedException</code> 개명) 재사용</td></tr>
+            <tr><td>존재하지 않는 드리프트</td><td>404</td><td>드리프트 상세가 이미 쓰는 <code>NotFoundException</code> 하위 (이름은 CP2 에서 실측 확인)</td></tr>
+            <tr><td>그 밖</td><td>—</td><td>신규 예외 없음</td></tr>
+          </tbody>
+        </table>
+        <p><b>새 예외를 만들지 않는다.</b> 상태코드(409)도 응답 형태도 같아 실질 차이가 이름뿐인데, 새 예외는 규약상
+          통합 시나리오를 동반한다. 쓰이는 곳이 <code>PathReconciliationService</code> 한 곳뿐이라 개명 비용이 거의 없고,
+          이름을 "보관 상태 전이가 거절됐다" 로 넓히면 걸기와 풀기가 한 예외를 공유하면서 이름이 거짓말하지 않는다.
+          예외 신설이 0 이므로 §6 의 409 시나리오는 기존 예외를 트리거하는 형태가 된다.</p>
+        <p>차단 사유의 단일 소스는 <code>Drift.snoozeBlockReason()</code> 과 새로 만드는
+          <code>Drift.unsnoozeBlockReason()</code> 이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 · 주의 · 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 · 주의 · 결정 사항</summary>
+      <div class="body">
+        <h4>주의 ① 보관 목록의 정렬</h4>
+        <p style="margin-top:0;">급한 순(<code>DriftPriority</code>)이 아니라 <b>만료가 임박한 순</b>이 맞다.
+          보관 화면에서 묻는 것은 "무엇이 급한가" 가 아니라 "무엇이 곧 돌아오는가" 이기 때문이다.
+          조건형 보관(<code>UNTIL_NEXT_DEEP_SCAN</code>)은 만료 시각이 없으므로 뒤로 민다.</p>
+
+        <h4>주의 ② 만료된 것은 보관 목록에 없다</h4>
+        <p><code>isListed(now)</code> 가 만료를 이미 열린 것으로 치므로 첫 화면에 나타난다. 보관 목록은
+          <b>아직 만료되지 않은 것</b>만 담는다 — 두 화면에 같은 것이 동시에 뜨면 어느 쪽이 사실인지 흔들린다.</p>
+
+        <h4>주의 ③ 보관 목록의 [보관 해제] 는 조건형 보관에도 있다</h4>
+        <p>조건형 보관(<code>UNTIL_NEXT_DEEP_SCAN</code>)은 만료 시각이 없어 시간으로는 풀리지 않고 <b>사건</b>으로
+          풀린다. 그렇다고 해제 버튼을 막으면 "정밀 점검을 돌려야만 되돌릴 수 있다" 가 되는데, 그것은 사용자가
+          마음을 바꿀 권리를 시스템 일정에 묶는 것이다. 그래서 조건형도 같은 버튼으로 풀린다 —
+          <code>Drift.unsnoozeBlockReason()</code> 이 보는 것은 기간이 아니라 <b>지금 보관 중인가</b> 하나다.</p>
+
+        <h4>Open Questions — 2026-08-13 확정</h4>
+        <div class="callout success"><b>Q1 확정 — 새 예외를 만들지 않는다.</b> 기존
+          <code>DriftSnoozeNotAllowedException</code> 을 <code>DriftSnoozeStateException</code> 으로 개명해
+          재사용한다. 근거 : 상태코드(409)도 응답 형태도 같고 실질 차이가 이름뿐인데, 새 예외는 규약상 통합 시나리오
+          테스트를 동반한다. 쓰이는 곳이 <code>PathReconciliationService</code> 한 곳뿐이라 개명 비용이 거의 없다.
+          이름을 "보관 상태 전이가 거절됐다" 로 넓히면 <b>걸기와 풀기가 한 예외를 공유하면서 이름이 거짓말하지
+          않는다.</b></div>
+
+        <h4>확정 전 원문 (판단 근거 보존)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>보관 해제 거절 예외를 신설할까, <code>DriftSnoozeNotAllowedException</code> 을 재사용할까</td><td>CP2 에서 기존 예외의 문구와 쓰임을 실측한 뒤 정한다</td></tr>
+          </tbody>
+        </table>
+        <p>본래 열린 질문은 셋이었고 <b>Q2 · Q3 은 설정 화면의 것이라 MK4-4-4 로 옮겼다</b>(각각 설정 저장의 400
+          시나리오 · 미정의 CSS 클래스의 정의 위치). 셋 다 2026-08-13 에 답을 받았으므로 이동은 확정 상태 그대로다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 기능 항목이 CP5 검증 항목 계획의 요지다. 실제 항목 번호(A · B · C)와
+          스크린샷은 CP5 에서 붙인다.</p>
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="MK4-4-3-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+        </ul>
+        <h4>기능</h4>
+        <ul class="check-list" data-storage="MK4-4-3-verify">
+          <li><label><input type="checkbox" data-key="v1"> <span>보관하면 첫 화면에서 사라지고 <b>보관 화면에 나타나는가</b></span></label></li>
+          <li><label><input type="checkbox" data-key="v2"> <span>보관 해제하면 즉시 첫 화면으로 돌아오는가 · 이력에 「보관 해제」 가 남는가</span></label></li>
+          <li><label><input type="checkbox" data-key="v3"> <span>만료된 것이 두 화면에 동시에 뜨지 않는가</span></label></li>
+          <li><label><input type="checkbox" data-key="v4"> <span>보관 0 건이면 첫 화면의 안내가 사라지는가</span></label></li>
+          <li><label><input type="checkbox" data-key="v5"> <span>조건형 보관(<code>UNTIL_NEXT_DEEP_SCAN</code>)이 만료 시각 자리에 <b>무엇이 풀어 주는지</b>를 밝히는가 — 빈칸으로 두면 값이 빠진 것처럼 읽힌다</span></label></li>
+          <li><label><input type="checkbox" data-key="v6"> <span>정렬이 <b>만료 임박 순</b>인가 · 조건형이 뒤로 밀리는가</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="MK4-4-3-regress">
+          <li><label><input type="checkbox" data-key="r1"> <span>보관 중이 아닌 드리프트에 direct POST 로 해제를 걸면 409 로 끊기는가</span></label></li>
+          <li><label><input type="checkbox" data-key="r2"> <span>MK4-4-2 가 그린 첫 화면 · 회차 상세 · 드리프트 상세가 그대로인가</span></label></li>
+          <li><label><input type="checkbox" data-key="r3"> <span>기간 만료 자동 복귀(<code>reopenExpiredSnoozes</code>)가 수동 해제를 더한 뒤에도 그대로 도는가</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (예상)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/maintenance/reconciliation/snoozed-list.html</code></td><td>보관 목록 화면</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/maintenance/reconciliation/list.html</code></td><td>보관 중 안내</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>controller/ReconciliationController.java</code></td><td><code>/snoozed</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>controller/ReconciliationRestController.java</code></td><td><code>unsnooze</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>service/PathReconciliationService.java</code></td><td><code>snoozedDrifts</code> · <code>unsnooze</code></td></tr>
+            <tr><td><span class="chip move">개명</span></td><td><code>exception/DriftSnoozeNotAllowedException.java</code></td><td>→ <code>DriftSnoozeStateException.java</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>entity/Drift.java</code></td><td><code>unsnoozeBlockReason()</code> 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/response/DriftResponse.java</code></td><td><code>snoozeWindow</code> · <code>unsnoozeBlockReason</code> 노출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>repository/DriftRepository.java</code></td><td>보관 목록 조회</td></tr>
+          </tbody>
+        </table>
+        <p><b>새 CSS 파일도 새 JS 파일도 만들지 않는다.</b> 시각 양식은 <code>n-glist</code> 를 그대로 쓴다.</p>
+        <p>개명이 번지는 범위도 좁다 — 실측으로 그 예외를 참조하는 곳은 <code>PathReconciliationService</code> 한 곳과
+          테스트 두 파일뿐이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="MK4-4-3-next">
+          <li><label><input type="checkbox" data-key="mk444" checked> <span><b>MK4-4-4 운영 설정 화면 재구성</b> — 2026-08-13 분리 완료. 2026-08-11 에 걸어 둔 분할 조건이 발동한 결과이며, 다만 떼어낸 쪽은 예상(보관)과 반대인 설정이었다</span></label></li>
+          <li><label><input type="checkbox" data-key="mk45"> <span><b>MK4-5 드리프트 카탈로그</b></span></label></li>
+          <li><label><input type="checkbox" data-key="audit"> <span><b>전수 재현 감사 (R)</b> — MK4-4 화면이 끝난 뒤</span></label></li>
+          <li><label><input type="checkbox" data-key="scss"> <span><b>전역 CSS 자산 정리 (S)</b> — <code>n-form-banner</code> · <code>n-btn-outline</code>. MK4-4-4 의 비 목표에서 넘어온다</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 라이브 데모 — 보관 → 해제 → 다시 처리 대기
+  //  판정은 서버 도메인 메서드와 같은 식 (드리프트 0) :
+  //    Drift.isListed(now) = status == OPEN || (status == SNOOZED && snoozeUntil <= now)
+  //  보관 목록 = status == SNOOZED && !isListed(now)   (§8 주의 ②)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_SNOOZE_DAYS = 7;
+  let demoState = { now: 0, status: 'OPEN', snoozeUntil: null, screen: 'open' };
+
+  function demoIsListed(s) {
+    return s.status === 'OPEN' || (s.status === 'SNOOZED' && s.snoozeUntil <= s.now);
+  }
+  function demoIsSnoozeListed(s) {
+    return s.status === 'SNOOZED' && !demoIsListed(s);
+  }
+  function demoBlocks(s) {
+    return {
+      snooze:   s.status !== 'OPEN',
+      unsnooze: !demoIsSnoozeListed(s),
+      resolve:  !demoIsListed(s)
+    };
+  }
+  function demoTip(action, s) {
+    if (action === 'snooze') {
+      return s.status === 'RESOLVED'
+        ? '이미 해결한 드리프트입니다.'
+        : '이미 보관 중입니다. 먼저 [보관 해제] 하거나 기간이 만료돼야 합니다.';
+    }
+    if (action === 'unsnooze') {
+      if (s.status === 'RESOLVED') return '이미 해결한 드리프트입니다.';
+      if (s.status === 'OPEN') return '보관 중이 아닙니다. [보관 해제] 는 보관 목록의 행에만 있습니다 (D4).';
+      return '기간이 만료돼 이미 첫 화면으로 돌아왔습니다. 해제할 것이 없습니다.';
+    }
+    return s.status === 'RESOLVED'
+      ? '이미 해결한 드리프트입니다.'
+      : '보관 중이라 첫 화면에 없습니다. 먼저 해제하거나 기간이 만료돼야 처리 대상이 됩니다.';
+  }
+  function demoBtn(action, label, blocked, tip) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis +
+      ' onclick="demoAct(\'' + action + '\',' + blocked + ')">' + label + '</button></span> ';
+  }
+  function demoSetScreen(v) { demoState.screen = v; demoRender(); }
+  function demoReset() {
+    demoState = { now: 0, status: 'OPEN', snoozeUntil: null, screen: 'open' };
+    demoMsg('처음 상태로 돌렸습니다 — 드리프트 한 건이 첫 화면에서 처리를 기다린다.', '');
+    demoRender();
+  }
+  function demoMsg(text, kind) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+  function demoAct(action, blocked) {
+    const s = demoState;
+    if (blocked) {
+      demoMsg('이 버튼은 지금 상태에서 화면에 없거나 눌리지 않습니다 (UI 1 차 차단). 서버 가드도 같은 판정으로 409 안전망.', 'error');
+      return;
+    }
+    if (action === 'snooze') {
+      s.status = 'SNOOZED'; s.snoozeUntil = s.now + DEMO_SNOOZE_DAYS;
+      demoMsg('보관 ' + DEMO_SNOOZE_DAYS + ' 일 — 첫 화면에서 내려갔습니다. 지금 코드에는 이것이 갈 화면이 없어 여기서 잊힙니다. 위에서 [보관 화면] 을 눌러 보세요.', 'success');
+    } else if (action === 'unsnooze') {
+      s.status = 'OPEN'; s.snoozeUntil = null;
+      demoMsg('보관 해제 — 즉시 첫 화면으로 돌아왔습니다. 처리 이력에 「보관 해제」 가 남습니다 (D4).', 'success');
+    } else if (action === 'resolve') {
+      s.status = 'RESOLVED'; s.snoozeUntil = null;
+      demoMsg('해결 — 두 화면 모두에서 사라집니다.', 'success');
+    } else if (action === 'advance') {
+      s.now += 8;
+      demoMsg('8 일이 흘렀습니다. 보관 기간이 지났다면 해제하지 않아도 첫 화면으로 돌아옵니다 — 그리고 보관 목록에서는 빠집니다 (주의 ②).', '');
+    }
+    demoRender();
+  }
+  function demoRow(s) {
+    let badge, note = '';
+    if (demoIsSnoozeListed(s)) {
+      badge = '<span class="badge dep">보관 · D+' + s.snoozeUntil + ' 까지</span>';
+      note = '남은 기간 ' + (s.snoozeUntil - s.now) + ' 일';
+    } else if (demoIsListed(s)) {
+      badge = '<span class="badge del">조치 필요</span>';
+      note = (s.status === 'SNOOZED') ? '보관 기간 만료' : '처리 대기';
+    } else {
+      badge = '<span class="badge off">해결됨</span>';
+    }
+    return '<div class="ux-row"><span class="label">드리프트 한 건 (경로 어긋남)</span>' +
+      '<span style="font-size:11px;color:var(--text-muted);">' + note + '</span>' + badge + '</div>';
+  }
+  function demoRender() {
+    const s = demoState, b = demoBlocks(s);
+    document.querySelectorAll('.ux-toolbar .seg[data-screen]').forEach(el =>
+      el.classList.toggle('active', el.dataset.screen === s.screen));
+
+    document.getElementById('demo-actions').innerHTML =
+      demoBtn('snooze', '보관 (7 일)', b.snooze, demoTip('snooze', s)) +
+      demoBtn('unsnooze', '보관 해제', b.unsnooze, demoTip('unsnooze', s)) +
+      demoBtn('resolve', '해결', b.resolve, demoTip('resolve', s));
+    document.getElementById('demo-clock').textContent = '지금 = D+' + s.now;
+
+    const onOpen = demoIsListed(s), onSnoozed = demoIsSnoozeListed(s);
+    let html;
+    if (s.screen === 'open') {
+      html = '<h4>첫 화면 — 미해결 목록</h4>';
+      if (onSnoozed) {
+        html += '<div class="ux-row"><span class="label">보관 중 <b>1</b> 건 — 기간이 지나면 이 목록으로 돌아옵니다</span>' +
+          '<span class="tip"><button class="n-demo-btn" onclick="demoSetScreen(\'snoozed\')">보관 화면으로</button></span></div>';
+      }
+      html += onOpen ? demoRow(s)
+        : '<div class="ux-row muted"><span class="label">이 화면에 표시할 것이 없습니다</span></div>';
+    } else {
+      html = '<h4>보관 화면 — 보관 목록 <span class="chip new">MK4-4-3 신규</span></h4>';
+      html += onSnoozed ? demoRow(s)
+        : '<div class="ux-row muted"><span class="label">보관 중인 것이 없습니다 (만료된 것은 첫 화면에 있습니다)</span></div>';
+    }
+    document.getElementById('demo-screen').innerHTML = html;
+
+    const tf = v => v ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'now                          = D+' + s.now + '\n' +
+      'status                       = ' + s.status + '\n' +
+      'snoozeUntil                  = ' + (s.snoozeUntil === null ? 'null' : 'D+' + s.snoozeUntil) + '\n' +
+      'isListed(now)                = ' + tf(onOpen) + '   → 첫 화면 : ' + (onOpen ? '보임' : '안 보임') + '\n' +
+      'SNOOZED && !isListed(now)    = ' + tf(onSnoozed) + '   → 보관 화면 : ' + (onSnoozed ? '보임' : '안 보임');
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1 회 호출
+</script>
+</body>
+</html>

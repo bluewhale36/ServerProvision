@@ -36,6 +36,28 @@ class DriftKindTest {
         }
     }
 
+    /**
+     * MK4-4-2 — 확인 창의 제목은 그 종류를 해결한다는 것이 <b>무슨 행위인가</b>를 말한다.
+     *
+     * <p>종전에는 전 종류가 "드리프트 해결" 하나로 떴다. 경로 기록만 고치는 일과 파일을 지우는
+     * 일이 같은 제목이라, 무엇을 승인하는지가 본문 문장 안에 묻혀 있었다.</p>
+     */
+    @Test
+    @DisplayName("시스템이 처리하는 종류는 확인 창 제목(행위 이름)을 들고 있다")
+    void resolvableKindsCarryActionTitle() {
+        for (DriftKind kind : DriftKind.values()) {
+            if (kind.getMode() == DriftResolutionMode.NONE) {
+                // 시스템이 할 수 있는 일이 없으면 확인 창 자체가 뜨지 않는다.
+                assertThat(kind.getResolveTitle()).as("%s.resolveTitle", kind).isNull();
+                continue;
+            }
+            assertThat(kind.getResolveTitle()).as("%s.resolveTitle", kind).isNotBlank();
+            // 제목은 행위지 종류 이름이 아니다 — 둘이 같으면 "무엇을 하는가" 를 말하지 못한다.
+            assertThat(kind.getResolveTitle()).as("%s — 제목이 종류 이름과 같다", kind)
+                    .isNotEqualTo(kind.getLabel());
+        }
+    }
+
     @Test
     @DisplayName("해결 등급은 사용자 문구와 배지 색을 직접 들고 있다 (템플릿에 종류별 조건식이 자라지 않는 근거)")
     void modesCarryTheirOwnPresentation() {

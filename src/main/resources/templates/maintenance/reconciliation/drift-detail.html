@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  드리프트 상세 (MK4-4-2) — 두 후보가 공유한다
+  ─────────────────────────────────────────────────────────
+  종전 Miller 세 번째 칸의 내용이 자기 화면을 갖는다. 담기는 값은 그대로이며 자리만 옮겼다 —
+  다투는 것은 첫 화면의 주인공이지 상세의 생김새가 아니므로, 두 후보가 같은 상세를 쓴다.
+
+  되돌아가기는 화면 이력 스택(global/nav-stack.js)이 맡는다. 이 화면은 그 규약 중 하나만 지킨다 —
+  '목록으로' 에 data-nav-back(back-link fragment 가 붙인다). 어디서 왔는지는 주소에 싣지 않는다.
+
+  Model: drift · timeline · backHref (+ 공통 배너 — resolutionEnabled 가 버튼 차단 축)
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('드리프트 상세')}"></th:block>
+    <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: styles}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">
+            <span th:text="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">Rocky Linux 9.6</span>
+            <span class="n-badge n-title-badge"
+                  th:classappend="${drift.kind.mode.name() == 'AUTO'} ? 'n-badge-orange' : (${drift.kind.mode.name() == 'MANUAL'} ? 'n-badge-yellow' : 'n-badge-gray')"
+                  th:text="${drift.kind.label}">경로 이동됨</span>
+            <!--/* 번호를 제목 옆에 둔다. 종전에는 아래 구획의 '자원 종류' 줄에 묻혀 있어, 로그나
+                 다른 화면에서 번호로 이 드리프트를 찾아온 사람이 맞게 왔는지 확인하려면 한참
+                 내려가야 했다. */-->
+            <span class="n-text-muted n-title-id" th:text="|#${drift.id}|">#378</span>
+        </h1>
+        <div th:replace="~{fragments/common/back-link :: backLink(${backHref})}"></div>
+    </div>
+
+    <!--/* MK4-3-1 — 시스템 해결이 꺼져 있으면 여기서도 알린다. 목록을 거치지 않고 주소로 바로
+         들어올 수 있으므로, 첫 화면에서만 알리면 그 사실을 모른 채 버튼을 누르게 된다. */-->
+    <div th:if="${!resolutionEnabled}" class="n-banner n-banner-warn">
+        <strong>시스템 해결이 꺼져 있습니다.</strong>
+        아래 [해결] 은 눌리지 않습니다 —
+        <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서 다시 켤 수 있습니다.
+    </div>
+
+    <!--/* 무엇이 어긋났나와 얼마나 급한가는 <b>함께 읽는 짝</b>이다 — 어긋난 내용을 보고 곧바로
+         급한지를 판단한다. 세로로 쌓으면 둘을 오가느라 스크롤이 생기므로 한 줄에 나란히 둔다.
+         좁은 화면에서는 자동으로 위아래로 갈린다. */-->
+    <div class="n-split-2">
+        <section class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">드리프트 상세</strong>
+            </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <dl class="n-accordion-fields">
+                        <div class="n-accordion-field">
+                            <dt>감지 내용</dt>
+                            <dd th:text="${drift.kind.description}"></dd>
+                        </div>
+                        <div class="n-accordion-field" th:if="${drift.detail != null and !#strings.isEmpty(drift.detail)}">
+                            <dt>상세</dt>
+                            <dd th:text="${drift.detail}"></dd>
+                        </div>
+                        <!--/* HF4-5 — 경로 2 필드의 라벨은 종류가 정한다(자원 중복 존재는 '이동' 이 아니라
+                             원본과 복제본이다). 문구 SSOT 를 enum 에 두는 R9-2 원칙. */-->
+                        <div class="n-accordion-field">
+                            <dt th:text="${drift.kind.oldPathLabel}">이전 경로</dt>
+                            <dd><code class="n-mono n-path" th:text="${drift.oldPath}"></code></dd>
+                        </div>
+                        <!--/* 값이 없을 때 줄을 지울지 '없음' 을 띄울지도 종류가 정한다 — 유령 기록처럼
+                             '없다는 사실' 이 문제의 핵심인 종류에서는 줄을 지우면 그 사실이 사라진다. */-->
+                        <div class="n-accordion-field"
+                             th:if="${drift.newPath != null or drift.kind.absentNewPathText != null}">
+                            <dt th:text="${drift.kind.newPathLabel}">실제 파일 경로</dt>
+                            <dd>
+                                <code th:if="${drift.newPath != null}" class="n-mono n-path n-path-found"
+                                      th:text="${drift.newPath}"></code>
+                                <span th:unless="${drift.newPath != null}" class="n-text-muted"
+                                      th:text="${drift.kind.absentNewPathText}"></span>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>자원 종류</dt>
+                            <dd>
+                                <span class="n-badge n-badge-gray" th:text="${drift.resourceType}"></span>
+                                <span class="n-text-muted" th:text="|자원 ID ${drift.resourceId}|"></span>
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </section>
+
+        <section class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">위험도</strong>
+            </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <dl class="n-accordion-fields">
+                        <div class="n-accordion-field">
+                            <dt>위험도</dt>
+                            <dd>
+                                <span class="n-badge"
+                                      th:classappend="${drift.kind.severity.name() == 'IMMEDIATE'} ? 'n-badge-red' : (${drift.kind.severity.name() == 'ATTENTION'} ? 'n-badge-yellow' : 'n-badge-gray')"
+                                      th:text="${drift.kind.severity.label}"></span>
+                                <div class="n-text-muted" th:text="${drift.kind.severity.description}"></div>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field" th:if="${drift.usage != null}">
+                            <dt>사용 중</dt>
+                            <dd>
+                                <span class="n-badge"
+                                      th:classappend="${drift.hasUsage()} ? 'n-badge-orange' : 'n-badge-gray'"
+                                      th:text="${drift.usage.label}"></span>
+                                <div class="n-text-muted" th:text="${drift.usage.description}"></div>
+                            </dd>
+                        </div>
+                        <!--/* MK4-1 — 문제의 수명. 방금 생긴 것과 3 주째 방치된 것이 똑같아 보이던 것을
+                             이 세 줄이 가른다. */-->
+                        <div class="n-accordion-field">
+                            <dt>처음 감지</dt>
+                            <dd th:text="${#temporals.format(drift.firstDetectedAt, 'yyyy-MM-dd HH:mm:ss')}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>마지막 관측</dt>
+                            <dd th:text="${#temporals.format(drift.lastObservedAt, 'yyyy-MM-dd HH:mm:ss')}"></dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>관측 횟수</dt>
+                            <dd>
+                                <span th:text="|${drift.observationCount}회|"></span>
+                                <span th:if="${drift.isNew()}" class="n-badge n-badge-red">최초 발견</span>
+                                <!--/* 승계된 문제는 관측 1 회여도 최초가 아니다. 사슬은 위 구획이 보여 준다. */-->
+                                <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal">이어짐</span>
+                            </dd>
+                        </div>
+                        <!--/* MK4-4-3 — 내용을 봐야 판정되는 종류에 "이 판정이 언제 것인가" 를 밝힌다.
+                             종전에는 전역 scanCoverage(가장 최근 점검의 성질)를 읽어 「확인 안 됨」 +
+                             "이번 점검은 파일 내용을 보지 않았습니다" 를 띄웠다. 이 화면에는 회차라는
+                             문맥이 없으므로 '이번 점검' 이 어느 점검인지 알 길이 없었고, 정밀 점검
+                             회차를 타고 들어와도 같은 문장이 나와 모순으로 읽혔다.
+
+                             부정형("확인 안 됨")도 사실과 달랐다. 드리프트는 회차마다 새로 나는 행이
+                             아니라 지속 개체라(MK4-1), 정밀 점검이 잡은 것은 이후 일반 점검을 지나며
+                             재확인되지도 부정되지도 않은 채 살아 있다 — 모르는 것이 아니라 그때 안
+                             것이다. 그래서 <b>언제 확인했는지</b>를 값으로 말한다. */-->
+                        <div class="n-accordion-field" th:if="${contentCheck != null}">
+                            <dt>내용 확인 기준</dt>
+                            <dd th:if="${contentCheck.hasBasis()}">
+                                <span th:text="|${#temporals.format(contentCheck.lastDeepObservedAt, 'yyyy-MM-dd HH:mm')} 정밀 점검|">2026-08-13 01:26 정밀 점검</span>
+                                <div class="n-text-muted" th:if="${contentCheck.hasUncheckedScansSince()}">
+                                    <span th:text="|이후 일반 점검 ${contentCheck.generalScansSince}회는 파일 내용을 확인하지 않았습니다.|"></span>
+                                    내용 변조 여부는 다음 정밀 점검에서 확인됩니다.
+                                </div>
+                            </dd>
+                            <dd th:unless="${contentCheck.hasBasis()}" class="n-text-muted">
+                                아직 정밀 점검이 이 자원의 내용을 확인한 적이 없습니다.
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>상태</dt>
+                            <dd>
+                                <span class="n-badge" th:classappend="'n-badge-' + ${drift.status.badgeColor}"
+                                      th:text="${drift.status.label}"></span>
+                                <!--/* MK4-4-3 — 보관 중이면 기간과 사유를 여기 꼬리로 달지 않는다. 아래
+                                     「보관 상세」 구획이 그것을 맡는다. 종전에는 이 자리에 작은 회색 글씨로
+                                     붙어 있어, 미룬 이유를 남기게 한 목적에 비해 읽히지 않았다.
+                                     보관 중이 아닐 때만 지난 기록의 만료 시각을 참고로 남긴다. */-->
+                                <span th:if="${drift.snoozeUntil != null and drift.status.name() != 'SNOOZED'}"
+                                      class="n-text-muted"
+                                      th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|"></span>
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </section>
+    </div>
+
+
+    <!--/* MK4-4-3 — 보관 중일 때만 「보관 상세」 가 「해결 방법」 왼편에 선다. 미룬 결정은 그 자체가
+         읽혀야 하는 정보인데(보관 기간 · 보관 만료 일시 · 보관 사유) 종전에는 위험도 구획 끝의 회색 꼬리였다.
+         보관 중이 아니면 이 묶음에 n-split-2 를 붙이지 않으므로 해결 방법이 종전대로 전폭을 쓴다 —
+         빈 칸을 남기지 않기 위해 래퍼의 class 자체를 조건부로 둔다. */-->
+    <div th:class="${drift.status.name() == 'SNOOZED'} ? 'n-split-2' : 'n-split-1'">
+
+        <section th:if="${drift.status.name() == 'SNOOZED'}" class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">보관 상세</strong>
+            </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <dl class="n-accordion-fields">
+                        <div class="n-accordion-field">
+                            <dt>보관 기간</dt>
+                            <dd th:text="${drift.snoozeWindowLabel()}">7일 동안</dd>
+                        </div>
+                        <!--/* 조건형 보관은 시각이 아니라 사건으로 풀린다. 만료 시각이 없다는 사실을
+                             빈칸으로 두면 값이 빠진 것처럼 읽히므로 언제 풀리는지를 밝힌다
+                             (보관 목록과 같은 문구를 쓴다 — 두 화면이 다른 말을 하면 안 된다). */-->
+                        <div class="n-accordion-field">
+                            <dt>보관 만료 일시</dt>
+                            <dd>
+                                <span th:if="${drift.snoozeUntil != null}"
+                                      th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|">2026-08-20 11:28 까지</span>
+                                <span th:unless="${drift.snoozeUntil != null}">다음 정밀 점검 직전</span>
+                                <div class="n-text-muted">이후 드리프트 목록에 다시 나타납니다.</div>
+                            </dd>
+                        </div>
+                        <div class="n-accordion-field">
+                            <dt>보관 사유</dt>
+                            <dd th:if="${drift.snoozeReason != null}" th:text="${drift.snoozeReason}">보관 테스트</dd>
+                            <dd th:unless="${drift.snoozeReason != null}" class="n-text-muted">남긴 사유가 없습니다.</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </section>
+
+    <section class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title">해결 방법</strong>
+        </div>
+        <div class="n-glist-panel">
+            <div class="n-card-body">
+                <dl class="n-accordion-fields">
+                    <div class="n-accordion-field">
+                        <dt>해결 방식</dt>
+                        <dd>
+                            <span class="n-badge" th:classappend="'n-badge-' + ${drift.kind.mode.badgeColor}"
+                                  th:text="${drift.kind.mode.label}"></span>
+                            <div class="n-text-muted" th:text="${drift.kind.mode.description}"></div>
+                        </dd>
+                    </div>
+                    <!--/* 버튼이 해 주는 일과 사람이 해야 할 일을 갈라 놓는다. 한 문장에 섞이면 버튼
+                         하나로 다 끝나는 것처럼 읽힌다. */-->
+                    <div class="n-accordion-field" th:if="${drift.kind.resolveAction != null}">
+                        <dt>해결하면 일어나는 일</dt>
+                        <dd th:text="${drift.kind.resolveAction}"></dd>
+                    </div>
+                    <div class="n-accordion-field" th:if="${drift.kind.operatorAction != null}">
+                        <dt>직접 해야 할 일</dt>
+                        <dd th:text="${drift.kind.operatorAction}"></dd>
+                    </div>
+                </dl>
+
+                <div class="n-form-actions">
+                    <div th:replace="~{fragments/maintenance/reconciliation-parts
+                                       :: resolveForms(${drift}, 'n-btn n-btn-primary')}"></div>
+
+                    <form th:action="@{/maintenance/reconciliation/drifts/{driftId}/snooze(driftId=${drift.id})}"
+                          method="post"
+                          data-confirm-drift-snooze=""
+                          th:data-resource-type="${drift.resourceType}"
+                          th:data-resource-id="${drift.resourceId}"
+                          th:data-resource-label="|'${drift.kind.label}' 드리프트|"
+                          data-resolve-title="보관 — 지금은 두고 보기"
+                          data-resource-extra="파일과 자원은 변하지 않으며, 보관 기간 이후 다시 목록에 표출됩니다.">
+                        <!--/* MK4-1 — 이미 해결됐거나 이미 보관 중이면 애초에 누를 수 없게 한다. 사유는
+                             서버 가드와 같은 도메인 메서드(Drift.snoozeBlockReason)에서 온다. */-->
+                        <span class="n-btn-tooltip-wrap" th:data-tooltip="${drift.snoozeBlockReason}"
+                              th:attr="data-tooltip-active=${drift.snoozeBlockReason != null} ? 'true' : 'false'">
+                            <button type="submit" class="n-btn n-btn-outline"
+                                    th:disabled="${drift.snoozeBlockReason != null}">보관</button>
+                        </span>
+                    </form>
+
+                    <!--/* S6-3-3 — [다시 점검] 은 확인 액션이라 상태를 바꾸지 않는다. 확인 창 없이 즉시
+                         실행하고 결과만 토스트로 구분한다. */-->
+                    <button type="button" class="n-btn n-btn-outline"
+                            th:if="${drift.kind.recheckable}"
+                            th:attr="data-recheck-url=@{/maintenance/reconciliation/drifts/{driftId}/recheck(driftId=${drift.id})}">다시 점검</button>
+                </div>
+        </div>
+    </section>
+
+    </div>
+
+    <!--/* MK4-4-2 — 이 드리프트에 무슨 일이 있었나.
+         점검이 보고, 운영자나 시스템이 처리하고, 앞선 드리프트가 닫히며 이어진다 — 셋이 번갈아
+         일어나므로 한 시간축에 놓는다. 계보를 별도 구획으로 두었더니 두 구획이 서로 무슨 관계인지
+         알 수 없다는 지적을 받았고, 자리를 하나로 합치니 그 관계가 순서로 드러난다. */-->
+    <section th:if="${not timeline.isEmpty()}" class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title">이력</strong>
+            <span class="n-badge n-badge-gray" th:text="|${timeline.total()} 건|">7 건</span>
+        </div>
+        <div class="n-glist-panel">
+            <table class="n-table">
+                <thead>
+                <tr>
+                    <!--/* 그래프 열은 머리글이 없다 — 값이 아니라 줄과 줄의 관계를 그리는 자리다. */-->
+                    <th class="n-tl-cell"></th>
+                    <th class="n-tl-id">번호</th>
+                    <th class="n-tl-at">감지 시각</th>
+                    <th class="n-tl-summary">내역</th>
+                    <th>경로</th>
+                </tr>
+                </thead>
+                <!--/* 감춘 줄이 있으면 마지막 줄의 선을 끊지 않는다 — 사슬이 여기서 끝난 것이
+                     아니라 이어진다는 뜻이기 때문이다. */-->
+                <tbody class="n-tl-body" th:classappend="${timeline.hidden > 0} ? 'is-continued'">
+                <tr th:each="e : ${timeline.entries}" class="n-row-hover">
+                    <!--/* 노드 모양은 종류가 정한다(DriftTimelineKind) — 화면이 조건식으로 고르면
+                         종류가 늘 때마다 그 식이 함께 자란다. 색만이 아니라 모양도 다르게 하는
+                         이유는 색 구별이 어려운 사람에게 종류가 같아 보이지 않게 하기 위해서다. */-->
+                    <td class="n-tl-cell">
+                        <span class="n-tl-node" th:classappend="${e.nodeClass()}"></span>
+                    </td>
+                    <!--/* git 이력에서 해시가 그래프 바로 옆에 오는 자리다. 그 줄이 가리키는
+                         대상의 번호이며, 처리는 가리킬 것이 자기 자신이라 비운다.
+                         이동은 이 번호가 맡는다 — 개요는 문장이라 어디까지가 링크인지 경계가
+                         흐리고, 번호는 가리키는 대상 그 자체라 누를 곳이 분명하다. */-->
+                    <td class="n-tl-id n-spec-cell">
+                        <a th:if="${e.reportId != null}" class="n-row-link"
+                           th:href="@{/maintenance/reconciliation/reports/{id}(id=${e.reportId})}"
+                           th:text="|#${e.reportId}|">#425</a>
+                        <a th:if="${e.driftId != null}" class="n-row-link"
+                           th:href="@{/maintenance/reconciliation/drifts/{id}(id=${e.driftId})}"
+                           th:text="|#${e.driftId}|">#13</a>
+                    </td>
+                    <td class="n-spec-cell"
+                        th:text="${#temporals.format(e.at, 'yyyy-MM-dd HH:mm:ss')}">2026-08-12 13:11:35</td>
+                    <td th:text="${e.label}">정밀 점검에서 관측</td>
+                    <td class="n-spec-cell">
+                        <!--/* 옮긴 일에서만 화살표를 그린다. 옮기지 않았는데 화살표가 있으면
+                             무언가 이동한 것으로 읽힌다. */-->
+                        <span th:if="${e.moved()}">
+                            <code class="n-mono n-path" th:text="${e.fromPath}"></code>
+                            <span> → </span>
+                            <code class="n-mono n-path n-path-found" th:text="${e.toPath}"></code>
+                        </span>
+                        <code th:if="${!e.moved() and e.fromPath != null}" class="n-mono n-path"
+                              th:text="${e.fromPath}"></code>
+                        <span th:if="${!e.moved() and e.fromPath == null}" class="n-text-muted">—</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <!--/* 잘라 놓고 말하지 않으면 보이는 것이 전부인 줄 알게 된다. 선을 그대로 이어
+                 그리는 이유도 같다 — 여기서 끝난 것이 아님을 눈으로 알린다.
+                 계보는 이 아래가 아니라 표 안의 마지막 줄들로 이미 들어와 있다. */-->
+            <div th:if="${timeline.hidden > 0}" class="n-tl-continue">
+                <span th:text="|이전 ${timeline.hidden} 건은 표시하지 않았습니다 — 오래 남은 드리프트는 점검마다 관측이 쌓입니다.|"></span>
+            </div>
+        </div>
+    </section>
+</div>
+
+<th:block th:replace="~{fragments/maintenance/reconciliation-parts :: tail}"></th:block>
+</body>
+</html>

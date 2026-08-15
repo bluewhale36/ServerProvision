@@ -36,6 +36,9 @@ class ReconciliationRestControllerDuplicateFlowTest {
     @MockitoBean DriftRecheckService driftRecheckService;
     @MockitoBean HashAcceptService hashAcceptService;
     @MockitoBean DuplicateResolveService duplicateResolveService;
+    // MK4-4-2 — 목록과 회차 상세가 [전체 해결] 대상 수를 함께 보인다. 스텁하지 않으면 0 이 되어
+    // 버튼이 비활성으로 그려진다 — 이 테스트들의 관심사가 아니라 그대로 둔다.
+    @MockitoBean com.example.serverprovision.maintenance.reconciliation.service.DriftBulkApplyService bulkApplyService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static final String URL = "/maintenance/reconciliation/drifts/1/resolve-duplicate";

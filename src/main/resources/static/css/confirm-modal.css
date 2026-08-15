@@ -42,6 +42,10 @@
 .cm-message {
     margin: 0 0 20px 0;
     line-height: 1.5;
+    /* MK4-4-4 CP7 — 문단이 둘 이상인 확인 창(시스템 해결 전환)이 생겼다. 호출측이 \n\n 으로
+       나눈 것을 살리되, 한 문단 안의 줄바꿈은 폭에 맞춰 접히도록 pre-line 을 쓴다(pre 는 긴 줄이
+       넘친다). 문단이 하나뿐인 기존 확인 창은 개행이 없으므로 아무것도 달라지지 않는다. */
+    white-space: pre-line;
 }
 
 /* restore / purge 는 message 와 slot 사이 간격을 작게 — slot 자체에 margin-bottom 있음. */
@@ -50,12 +54,19 @@
     line-height: 1.5;
 }
 
-/* S5-6-3 — trash-result modal 의 message 아래 보조 hint. message 와 시각 분리를 위해 margin-top.
-   기존 cm-cascade-option-desc 는 cascade 라디오 옵션 의미라 hint 로 재사용하지 않고 별도 클래스. */
+/* S5-6-3 — modal 의 본문 아래 보조 문단. 무엇을 대상으로 하는지(본문) 다음에 오는
+   "무슨 일이 일어나는가" 자리다.
+
+   MK4-4-2 — 각주 크기(12px · 흐린 회색)에서 본문 무게로 올렸다. 승인 전에 반드시 읽어야 하는
+   내용인데 눈이 그냥 지나쳤기 때문이다. 왼쪽 세로선은 이것이 앞 문단에 딸린 설명임을 형태로
+   말한다 — 배경을 깔면 자원명 입력 상자(cm-typed-target-box)와 블록이 겹쳐 보인다. */
 .cm-message-hint {
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--n-text-muted, #666);
+    margin: 0 0 18px 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--n-border);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--n-text-sec, #444);
 }
 
 .cm-actions {
@@ -115,6 +126,36 @@
 /* ---- purge fragment — typed-name input slot ---- */
 .cm-typed-wrap {
     margin-bottom: 14px;
+}
+
+/* MK4-4-3 CP7 — 되돌릴 수 없는 수용 앞에 세우는 경고. 자원명 입력 위에 놓아 <b>타이핑하기 전에</b>
+   읽히게 한다. 아래 typed-target-box 와 형태를 맞추되 색으로 성격을 가른다 — 그쪽은 "무엇을 입력하라"
+   는 안내이고 이쪽은 "그 전에 다시 생각하라" 는 경고다. */
+.cm-warn-box {
+    background: var(--n-color-danger-bg, rgba(191, 38, 38, 0.07));
+    border-left: 3px solid var(--n-color-danger, #bf2626);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+}
+
+.cm-warn-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--n-color-danger, #bf2626);
+    margin-bottom: 5px;
+}
+
+.cm-warn-desc {
+    margin: 0 0 4px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--n-text, #1f2328);
+}
+
+.cm-warn-desc:last-child {
+    margin-bottom: 0;
 }
 
 .cm-typed-target-box {

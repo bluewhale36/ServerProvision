@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MK4-4-2 Plan — 후보 비교와 채택</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── card-grid : 대안 병렬 비교 (§8) ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:13.5px; font-family:var(--mono); }
+  .card li { font-size:12.5px; line-height:1.55; }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; }
+  .ux-row .label { flex:1; min-width:0; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>MK4-4-2 — 후보 비교와 채택 <span class="v2-badge">MK4-4 하위 슬라이스</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> MK4-4-2 (feat)</span>
+    <span><strong>상위</strong> MK4-4</span>
+    <span><strong>scope</strong> 배치 후보 둘을 실제 화면으로 만들어 견주고 하나를 고른다</span>
+    <span><strong>생성</strong> 2026-08-12 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 + 후보 둘</a></li>
+      <li><a href="#s5">§5 12 단계 + 체크포인트</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · 결정 · 비계 제거</a></li>
+      <li><a href="#s9">§9 판정 기준 + Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">MK4-1 · MK4-2 · MK4-3 이 만든 것을 되짚으면 <b>전부 화면이 쓸 재료</b>였다.
+          MK4-1 이 드리프트에 수명을 주었고, MK4-2 가 급한 순서를 계산했고, MK4-3 이 운영 설정을 화면으로 꺼냈다.
+          <b>그런데 정보구조는 Miller 3 컬럼 그대로다.</b></p>
+
+        <h4>만들어 놓고 안 쓰는 것 — 코드로 확인한 둘</h4>
+        <table>
+          <thead><tr><th>#</th><th>만든 것</th><th>지금 쓰이는 방식</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>급한 순서 (<code>DriftPriority</code>)</td><td>세 번째 칸의 정렬</td></tr>
+            <tr><td>②</td><td>점검한 자원 수 (<code>DriftReport.totalChecked</code>)</td><td>활성 자원만 셈</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>① 급한 순서가 목록 정렬로만 쓰인다.</b>
+          <code>PathReconciliationService.openDrifts()</code> 는 열린 드리프트를 <code>DriftPriority</code> 로 정렬해
+          돌려준다. 그런데 화면은 그것을 세 번째 칸의 정렬에만 쓴다. 들어와서 "지금 가장 급한 것" 에 도달하려면
+          회차를 먼저 고르고 그 회차 안에서 봐야 한다 — <b>"급한 것부터 처리한다" 는 흐름 자체가 없다.</b></p>
+
+        <p><b>② 점검한 자원 수가 활성 자원만 센다.</b>
+          <code>DriftReport.totalChecked</code> 는 <code>activeInventory.size()</code> 로 채워진다. 그런데
+          드리프트는 세 모집단에서 나온다 — 활성 자원, 삭제 상태 자원, 데이터베이스에 짝이 없는 마커.
+          뒤의 둘도 실제로 점검하는데 세지 않으니 <b>점검한 자원보다 문제가 많다는 모순</b>이 화면에 나타난다
+          (진단 1-5).</p>
+
+        <p>MK4-4-1 의 CP5 A9 가 이것을 화면에서 재현해 보였다 — 픽스처가 12 종을 만들었는데 화면의 자원 수는
+          그보다 적게 나온다. 픽스처가 만들어지자마자 고칠 대상 하나를 드러낸 셈이다.</p>
+
+        <h4>진단이 지목한 것은 정보구조였다</h4>
+        <div class="callout danger">
+          답답함의 정체는 개별 문구나 버튼이 아니라 정보구조였다. … 이 도메인에서 운영자가 실제로 하는 일은
+          이력 탐색이 아니라 지금 미해결인 것들을 급한 순서로 처리하는 것이다. 구조가 일을 반영하지 못하니
+          개별 항목을 아무리 고쳐도 같은 마찰이 남는다.
+          <div style="margin-top:6px;font-size:12px;color:var(--text-muted);">
+            <code>discussion/26-08-04_00-42-52_MK4-reconciliation-usability_discussion.md</code> §4</div>
+        </div>
+        <p>축 4 의 세 증상(최신 결과가 자동으로 안 열림 · 한 건 처리하면 선택이 풀림 · 정렬 필터 없음)이
+          전부 이 하나에서 파생한다.</p>
+
+        <p style="font-size:12.5px;color:var(--text-muted);">이 문서가 쓰는 라벨 셋은 앞선 문서에서 왔다.
+          <b>축 1~5</b> 는 배치 후보가 갈릴 수 있는 다섯 차원이다 — 첫 화면의 주인공 · 화면 분할 · 처리 방식 ·
+          이력 위치 · 급한 순서 활용. <b>진단 축 4</b> 는 최초 진단이 묶은 마찰 갈래로, 최신 결과가 자동으로
+          안 열림 · 한 건 처리하면 선택이 풀림 · 정렬과 필터 없음 셋이 거기 든다. <b>진단 1-5</b> 는 점검한
+          자원 수가 활성 자원만 세어 드리프트 수와 어긋나는 항목이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>하는 일</h4>
+        <p style="margin-top:0;">배치 후보 <b>둘을 실제 템플릿으로 구현</b>해 샌드박스에서 비교하고, 하나를 채택해
+          <code>list.html</code> 로 옮긴 뒤 나머지와 비계를 제거한다. 검토 수단은 2026-08-11 토론에서 확정했다 —
+          목업이 아니라 실제 화면으로 만드는 이유는 <b>후보가 요구하는 데이터가 실제로 있는지 그 자리에서 판명되고,
+          실제 드리프트로 검증할 수 있고, 요청과 응답까지 함께 보이기</b> 때문이다.</p>
+        <p>같은 상태에서 견주는 것은 MK4-4-1 의 픽스처가 보장한다.</p>
+
+        <h4>흡수하는 부채 넷</h4>
+        <table>
+          <thead><tr><th>부채</th><th>왜 여기서</th></tr></thead>
+          <tbody>
+            <tr><td>목록 첫 진입 시 드리프트 칸이 빈 상태</td><td>축 1 결정이 곧 답이다</td></tr>
+            <tr><td>집계 표시가 활성 자원만 센다</td><td>목록 요약줄을 다시 그리는 자리</td></tr>
+            <tr><td>비활성 버튼 tooltip 이 도달하지 않는다</td><td>처리 버튼을 다시 그리는 자리</td></tr>
+            <tr><td>한 건 처리하면 선택이 풀린다</td><td><code>n-row-returned</code> 로 돌아온 행을 짚어 준다</td></tr>
+          </tbody>
+        </table>
+        <p>마지막 줄은 진단 축 4 의 세 증상 중 하나인데, <b>U3-4 의 화면 이력 스택이 이미 그 기구를 갖고 있다.</b>
+          이 슬라이스는 그것을 두 후보에 붙이기만 한다.</p>
+
+        <h4>비 목표</h4>
+        <table>
+          <thead><tr><th>항목</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>운영 설정 화면 레이아웃</td><td>MK4-4-3</td></tr>
+            <tr><td>보관 목록 · 보관 상세</td><td>MK4-4-3</td></tr>
+            <tr><td>종류 필터 · 묶음 선택</td><td>배치 축이 아니다 — 채택 후에 얹는다</td></tr>
+            <tr><td>드리프트 카탈로그</td><td>MK4-5</td></tr>
+            <tr><td>실행 영역과의 맞물림</td><td>execution 소관 (2026-08-11 확정)</td></tr>
+          </tbody>
+        </table>
+        <p>보관 화면 둘을 미루는 것은 <b>배치 축이 아니라 없던 화면을 만드는 일</b>이라 비교에 잡음이 되기 때문이다.
+          실행 영역은 소관이 다르다 — reconciliation 은 실행 상태를 <b>읽어서 급한 순서를 매길</b> 뿐
+          프로비저닝을 막거나 중단시키지 않는다. 종류 필터를 빼는 근거는 §4 의 확정 셋에 있다.</p>
+
+        <h4>이미 있는 것을 쓴다</h4>
+        <div class="callout success">
+          <b>U3-4 가 남긴 화면 기구 둘을 그대로 쓴다.</b> 이 슬라이스는 시각 양식도 되돌아가기도 새로 만들지 않는다.
+          <ul>
+            <li><b><code>css/grouped-list.css</code></b> — 바깥 묶음 → 안쪽 묶음 → 표의 <b>3 층 양식</b>을 한 곳에서
+              정의한다 (<code>n-glist</code> · <code>n-glist-head</code> · <code>n-glist-title</code> ·
+              <code>n-glist-panel</code> · <code>n-glist-sub</code> · <code>n-row-link</code> ·
+              <code>n-spec-cell</code> · <code>n-row-returned</code>). 후보 A 의 이력 상세 드리프트 표와
+              후보 B 의 미해결 목록이 정확히 그 양식이다.</li>
+            <li><b><code>global/nav-stack.js</code> + <code>fragments/common/back-link.html</code></b> —
+              목록과 상세를 오갈 때 <b>어디로 돌아가나</b>(화면 이력 스택)와 <b>무엇을 짚나</b>(그 겹이 들고 있는 행 키)를
+              갈라 다룬다. 레이아웃에서 한 번 적재되므로 페이지가 따로 싣지 않는다. 마크업 규약은 <b>딱 하나</b> —
+              목록의 각 행에 <code>data-nav-key="&lt;그 행의 식별자&gt;"</code>, 상세의 되돌아가기 링크에
+              <code>data-nav-back</code>. URL 에는 아무것도 싣지 않는다.</li>
+          </ul>
+        </div>
+        <p>이것이 이 슬라이스를 U3-4 완료까지 기다린 이유다. 먼저 만들었다면 되돌아가기를 새로 발명했을 것이고 —
+          화면 이력 스택이라는 비자명한 설계까지 다시 만든 뒤 둘 중 하나를 버려야 했다.
+          <b>두 후보가 같은 옷을 입고 겨루게 되는 것도 이득이다.</b> 다투는 것은 정보구조이지 목록의 시각 양식이
+          아니므로, 양식이 이미 정해져 있으면 비교가 축 1 하나로 더 깨끗하게 좁혀진다.</p>
+
+        <div class="callout"><b>이 단계의 원칙 — 구조가 일을 반영해야 한다.</b><br>
+          앞선 셋이 재료를 만들었고 이 단계가 그 재료로 일하는 흐름을 만든다. 개별 문구나 버튼을 고쳐서는
+          같은 마찰이 남는다는 것이 진단의 결론이었다.</div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">체험시키는 것은 하나다 — <b>같은 상황에서 후보 A 와 B 가 몇 번의 조작으로 일을 끝내는가.</b>
+          위에서 후보를 고르고 상황을 고른 뒤, 아래 화면의 버튼을 실제로 눌러 목표에 닿아 보면 된다.
+          누를 때마다 <b>화면이 바뀌고 조작 수가 올라간다.</b> 아래 막대는 두 후보의 최단 조작 수다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">후보 :</span>
+            <button class="seg" id="seg-cand-A" onclick="demoSetCand('A')">A · 이력이 첫 화면</button>
+            <button class="seg" id="seg-cand-B" onclick="demoSetCand('B')">B · 미해결이 첫 화면</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">상황 :</span>
+            <button class="seg" id="seg-sit-S1" onclick="demoSetSit('S1')">지금 가장 급한 것을 처리한다</button>
+            <button class="seg" id="seg-sit-S2" onclick="demoSetSit('S2')">어제 점검 결과를 본다</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">&nbsp;</span>
+            <button class="seg" id="seg-sit-S3" onclick="demoSetSit('S3')">12 건을 한꺼번에 처리한다</button>
+            <button class="seg" id="seg-sit-S4" onclick="demoSetSit('S4')">한 건 처리하고 다음 건으로</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">되돌리기 :</span>
+            <span class="tip"><button class="n-demo-btn" onclick="demoReset()">처음으로</button></span>
+            <span style="font-size:11px;color:var(--text-muted);">같은 상황을 첫 화면부터 다시 걸어 본다</span>
+          </div>
+
+          <div id="demo-screen" style="margin-top:12px;"><!-- JS 렌더 --></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div id="demo-bars" style="margin-top:10px;"><!-- JS 렌더 --></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>네 상황이 각각 무엇을 보여 주는가</h4>
+        <ol>
+          <li><b>지금 가장 급한 것</b> — A 는 이력 목록에서 회차를 고르고 이력 상세로 들어가야 하지만,
+            B 는 첫 화면이 이미 그 목록이다. <b>조작 수 차이가 축 1 의 값</b>이다.</li>
+          <li><b>어제 점검 결과</b> — 반대로 A 가 유리하다. 이력이 첫 화면이기 때문이다.</li>
+          <li><b>12 건 한꺼번에</b> — 두 후보 모두 <span class="mono">[전체 해결]</span> 을 갖지만
+            그 버튼이 걸리는 <b>대상 범위</b>가 다르다. 후보 A 는 연 회차의 것, 후보 B 는 열린 것 전체다.</li>
+          <li><b>한 건 처리하고 다음 건으로</b> — §9 의 연속 처리 비용에 대응한다. 개별 처리 두 건을 잇는
+            비용만 세므로 <span class="mono">[전체 해결]</span> 은 이 셈에 끼지 않는다(그것은 상황 3 에서 본다).</li>
+        </ol>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 전이 규칙 = §4 의 화면 전이표.
+          표를 그대로 자료구조로 옮겨 최단 경로를 세므로 데모가 따로 규칙을 재구현하지 않는다.</div>
+        <p style="font-size:12.5px;color:var(--text-muted);">이 데모가 <b>§9 판정 기준의 예고편</b>이다.
+          실제 판정은 샌드박스에서 두 후보의 진짜 화면을 놓고 하되, 무엇을 셀지는 여기서 보인다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>라우트는 합집합으로 두고 후보가 자기 것만 쓴다</h4>
+        <table>
+          <thead><tr><th>경로</th><th>후보 A</th><th>후보 B</th></tr></thead>
+          <tbody>
+            <tr><td><code>/maintenance/reconciliation</code></td><td>이력 목록</td><td>미해결 목록</td></tr>
+            <tr><td><code>/maintenance/reconciliation/history</code></td><td>미사용</td><td>이력 목록</td></tr>
+            <tr><td><code>/maintenance/reconciliation/reports/{id}</code></td><td>이력 상세</td><td>이력 상세 (같은 화면)</td></tr>
+            <tr><td><code>/maintenance/reconciliation/drifts/{id}</code></td><td>드리프트 상세</td><td>드리프트 상세</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>이력 상세와 드리프트 상세는 두 후보가 같은 화면을 쓴다.</b>
+          다른 것은 그 화면에 이르는 <b>입구</b>뿐이다 — 후보 A 는 첫 화면이 이력이라 한 번에 닿고,
+          후보 B 는 이력을 부차로 밀어 한 홉이 더 걸린다. 이렇게 두면 비교가 <b>축 1 하나로 좁혀진다.</b>
+          상세 화면까지 후보마다 따로 만들면 어느 차이가 축 1 에서 왔는지 갈리지 않고, 만드는 비용도 두 배가 된다.</div>
+        <p>후보마다 첫 화면과 이력의 입구가 달라 한 경로에 템플릿만 갈아 끼우는 것으로는 부족하다.
+          쓰지 않는 경로는 그 후보에서 접근하지 않으면 그만이므로 <b>합집합</b>이 가장 단순하다.</p>
+
+        <h4>후보 전환</h4>
+        <p><code>?agenda=A</code> · <code>?agenda=B</code> 로 고른다. 템플릿은 <code>list-agendaA.html</code> ·
+          <code>list-agendaB.html</code> 형태로 같은 자리에 둔다.
+          <b>모르는 값과 없는 값은 모두 기본 화면(<code>list.html</code>)으로 보낸다</b> —
+          검토 중 오타 한 번에 흰 화면이 뜨는 것은 비계라도 곤란하다.</p>
+<pre><code>GET /maintenance/reconciliation?agenda=A  →  list-agendaA.html
+GET /maintenance/reconciliation?agenda=B  →  list-agendaB.html
+GET /maintenance/reconciliation?agenda=Z  →  list.html        (모르는 값)
+GET /maintenance/reconciliation           →  list.html        (없는 값)</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 + 후보 둘 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) + 후보 둘</summary>
+      <div class="body">
+        <div class="callout success"><b>새로 만드는 도메인 타입은 집계 하나뿐이다.</b>
+          나머지는 이미 있는 것을 화면이 쓰게 하는 일이다.</div>
+
+        <h4><code>ScanPopulation</code> (record VO, <code>vo/</code>)</h4>
+        <p style="margin-top:0;">점검이 실제로 본 세 모집단의 수.</p>
+        <table>
+          <thead><tr><th>필드</th><th>뜻</th></tr></thead>
+          <tbody>
+            <tr><td><code>activeCount</code></td><td>활성 자원</td></tr>
+            <tr><td><code>deletedCount</code></td><td>삭제 상태 자원</td></tr>
+            <tr><td><code>unmatchedMarkerCount</code></td><td>데이터베이스에 짝이 없는 마커</td></tr>
+          </tbody>
+        </table>
+        <p><code>total()</code> 은 셋의 합이다. 지금 <code>DriftReport.totalChecked</code> 가 담는 것은
+          <code>activeCount</code> 하나뿐이라, 드리프트 수가 그보다 많아지는 모순이 생긴다.
+          세 수를 원시 정수로 흩지 않고 <code>vo/</code> 의 record 하나로 묶는 것은 CLAUDE.md 의
+          Primitive Obsession 금지 규약을 따른 것이다.</p>
+        <div class="callout warn"><b>기존 컬럼을 늘릴 것인가 새 컬럼을 더할 것인가는 Q2 에서 정한다.</b></div>
+
+        <h4>이미 있어서 그대로 쓰는 것</h4>
+        <table>
+          <thead><tr><th>무엇</th><th>어디</th></tr></thead>
+          <tbody>
+            <tr><td>급한 순서</td><td><code>DriftPriority</code> — <code>openDrifts()</code> 가 이미 정렬해 돌려준다</td></tr>
+            <tr><td>드리프트 수명 · 관측 이력</td><td>MK4-1 의 <code>Drift</code> · <code>DriftObservation</code></td></tr>
+            <tr><td>점검 커버리지</td><td>MK4-2 의 <code>ScanCoverage</code></td></tr>
+            <tr><td>다음 점검 예정</td><td>MK4-3-2 의 <code>ReconciliationScheduler.nextDueAt</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>후보 A — 이력이 첫 화면 (2026-08-11 사용자 설계)</h4>
+        <p>첫 화면은 <b>점검 이력 목록</b>이다. 회차를 클릭하면 <b>이력 상세</b>로 들어가고,
+          거기에 점검의 메타데이터와 그 회차의 드리프트 목록이 표로 놓인다. 표의 마지막 열에
+          <span class="mono">[해결]</span> 이 있고 표 밖에 <span class="mono">[전체 해결]</span> 이 있다.
+          드리프트를 클릭하면 <b>드리프트 상세</b>로 간다. 운영 설정은 첫 화면에서 버튼으로 이동한다.</p>
+        <p>축으로 보면 현행과 <b>축 1(첫 화면의 주인공)이 같고</b> 축 2 · 3(화면 분할 · 처리 방식)이 다르다.
+          <span class="mono">[전체 해결]</span> 은 진단에도 없던 개선이다 — 12 종이 섞인 상태에서 하나씩 누르는 것이
+          실제 마찰인데 그것을 직접 친다.</p>
+
+        <h4>후보 B — 미해결이 첫 화면 (축 1 만 다르게)</h4>
+        <p>첫 화면은 <b>미해결 드리프트 목록</b>이고 급한 순서로 놓인다(<code>openDrifts()</code> 를 그대로 쓴다).
+          클릭하면 드리프트 상세로 간다. 이력은 부차로 밀려 별도 화면에서 본다.</p>
+        <p><b>축 1 만 다르게 두는 것이 이 후보의 존재 이유다.</b> 진단이 원인으로 지목한 것이 축 1 이었고,
+          후보 A 는 거기서 현행과 같다. 축 1 이 같은 후보 둘만 놓고 고르면 그 질문은 열리지 않는다.</p>
+        <p>방문 빈도가 낮다는 사실은 양쪽 모두의 근거가 된다 — 가끔 들어오니 "지난번 이후 무슨 일이" 를 보는
+          것이 맞다고도, 가끔 들어오니 들어온 김에 밀린 것부터 처리해야 한다고도 읽힌다.
+          <b>논증으로 갈리지 않으므로 실물로 판정한다.</b></p>
+
+        <div class="callout"><b>두 후보가 공유하는 것</b> — 시각 양식(<code>grouped-list.css</code>),
+          되돌아가기(<code>nav-stack.js</code> · <code>back-link.html</code>), 이력 상세와 드리프트 상세 화면,
+          처리 버튼의 자리.
+          <b>다른 것은 첫 화면의 주인공(축 1)과 그로부터 파생하는 입구 · <span class="mono">[전체 해결]</span> 의
+          대상 범위뿐이다.</b> 공유 범위를 넓게 잡을수록 비교가 정확해진다 — 차이가 축 1 에서 왔는지 다른 데서
+          왔는지 갈리기 때문이다.
+          <br><br>
+          두 후보 모두 목록의 각 행에 <code>data-nav-key</code> 를 붙이고 상세 화면에 <code>back-link</code>
+          fragment 를 쓴다. 후보 A 는 <b>깊이 2</b>(목록 → 이력 상세 → 드리프트 상세), 후보 B 는 <b>깊이 1</b> 이다.
+          화면 이력 스택은 겹이 몇이든 같은 규칙으로 동작하므로 후보마다 다르게 배선하지 않는다.</div>
+
+        <h4>화면 전이표 — 🎬 데모가 보는 표</h4>
+        <table>
+          <thead><tr><th>후보</th><th>화면</th><th>조작</th><th>다음</th></tr></thead>
+          <tbody>
+            <tr><td>A</td><td>이력 목록 <span class="chip opt">첫 화면</span></td><td>회차 열기</td><td>이력 상세</td></tr>
+            <tr><td>A</td><td>이력 상세</td><td>표 행의 <span class="mono">[해결]</span></td><td>그 건 처리됨</td></tr>
+            <tr><td>A</td><td>이력 상세</td><td><span class="mono">[전체 해결]</span></td><td>그 회차 처리됨</td></tr>
+            <tr><td>A</td><td>이력 상세</td><td>드리프트 열기</td><td>드리프트 상세</td></tr>
+            <tr><td>A</td><td>드리프트 상세</td><td><span class="mono">[해결]</span></td><td>그 건 처리됨</td></tr>
+            <tr><td>A</td><td>드리프트 상세 · 이력 상세</td><td>뒤로</td><td>직전 화면</td></tr>
+            <tr><td>B</td><td>미해결 목록 <span class="chip opt">첫 화면</span></td><td>행의 <span class="mono">[해결]</span></td><td>그 건 처리됨</td></tr>
+            <tr><td>B</td><td>미해결 목록</td><td><span class="mono">[전체 해결]</span></td><td>열린 전체 처리됨</td></tr>
+            <tr><td>B</td><td>미해결 목록</td><td>드리프트 열기</td><td>드리프트 상세</td></tr>
+            <tr><td>B</td><td>미해결 목록</td><td><span class="mono">[점검 이력]</span></td><td>이력 목록</td></tr>
+            <tr><td>B</td><td>이력 목록</td><td>회차 열기</td><td>이력 상세</td></tr>
+            <tr><td>B</td><td>드리프트 상세</td><td><span class="mono">[해결]</span></td><td>그 건 처리됨</td></tr>
+            <tr><td>B</td><td>드리프트 상세 · 이력 목록 · 이력 상세</td><td>뒤로</td><td>직전 화면</td></tr>
+          </tbody>
+        </table>
+
+        <h4>확정 셋 — 후보가 갈리는 곳과 갈리지 않는 곳</h4>
+        <div class="callout success">
+          <b>처리 버튼은 두 후보에 같게 둔다</b> — 목록 행의 마지막 열에 <span class="mono">[해결]</span>,
+          드리프트 상세에도 <span class="mono">[해결]</span>. 버튼 자리가 후보마다 다르면 조작 수 차이가
+          축 1 에서 왔는지 버튼 배치에서 왔는지 갈리지 않는다.
+        </div>
+        <div class="callout warn">
+          <b><span class="mono">[전체 해결]</span> 의 대상 범위는 후보마다 다르다</b> — 후보 A 는 그 회차의
+          해결 가능한 것, 후보 B 는 열린 것 전체다. 자리가 다른 것이 아니라 <b>첫 화면이 무엇이냐에 따라
+          자연히 갈리는 범위</b>이며, 그 차이 자체가 비교 대상이다.
+        </div>
+        <div class="callout">
+          <b>종류 필터와 묶음 선택은 이번 범위 밖이다.</b> 어느 후보에도 두지 않는다 — 배치 후보가 갈리는 축이
+          아니라 두 후보 모두에 필요할 기능이고, 채택 후 얹는 편이 비교를 흐리지 않는다.
+          다만 <b>필터 없이 60 행을 견디는가</b>는 §9 판정 기준의 부하 내성에서 본다.
+          (여기서 말하는 묶음은 사용자가 고르는 <b>기능</b>이다. <code>grouped-list.css</code> 가 정의하는
+          묶음 목록 <b>양식</b>은 그대로 쓴다 — 이름이 같을 뿐 다른 것이다.)
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12 단계 + 체크포인트 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + 체크포인트</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스는 12 단계를 온전히 밟는다. 화면 · 라우트 · DTO · 서비스 · 엔티티 ·
+          스키마가 모두 걸리기 때문이다.</p>
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 계획서</td><td><span class="chip cp1">CP1</span></td></tr>
+            <tr><td>2</td><td>후보 A · B 템플릿과 상세 화면</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td>라우트 · <code>agenda</code> 분기(비계)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td>응답 DTO — 세 모집단 집계 · 점검 루트</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td>서비스 시그니처</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6</td><td>리포지토리</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>7</td><td><code>ScanPopulation</code> · <code>DriftReport</code> 컬럼</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>서비스 본체 + 테스트</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>9</td><td>스키마 확인 — Q1 · Q2 결정에 따른 DDL</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>샌드박스 비교 · 판정 · 채택 · 비계 제거</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td></tr>
+            <tr><td>12</td><td>사용자 브라우저 E2E</td><td><span class="chip cp7">CP7</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>CP5 가 이 슬라이스에서 특히 무겁다</b> — 검증만이 아니라
+          <b>채택 결정과 비계 제거</b>가 거기서 일어난다.</div>
+        <div class="callout">승인 게이트는 <b>CP1 · CP6 · CP7</b> 셋이다. CP1 승인이 CP2~CP4 의 진행 승인을
+          겸하므로 그 구간은 무중단으로 진행하고 경계마다 보고만 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <p style="margin-top:0;">단위와 통합 두 층으로 쓴다.</p>
+        <table>
+          <thead><tr><th>층</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td>세 모집단 집계가 활성 · 삭제 · 짝 없는 마커를 각각 센다</td></tr>
+            <tr><td>단위</td><td>점검 루트 기록이 그 회차의 값을 담는다</td></tr>
+            <tr><td>통합 200</td><td><code>?agenda=A</code> · <code>?agenda=B</code> 가 각자의 템플릿을 렌더한다</td></tr>
+            <tr><td>통합 200</td><td>이력 상세 · 드리프트 상세가 두 후보에서 같은 화면을 쓴다</td></tr>
+            <tr><td>통합 200</td><td>요약줄이 세 모집단을 각각 보인다</td></tr>
+            <tr><td>통합 404</td><td>없는 회차 · 없는 드리프트</td></tr>
+            <tr><td>통합 fallback</td><td>모르는 <code>agenda</code> 값과 없는 값이 기본 화면으로 수렴한다</td></tr>
+          </tbody>
+        </table>
+        <p><b>409 는 해당 없음</b>이다 — 이 슬라이스가 만드는 상태 충돌이 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <div class="callout success"><b>신규 예외 0.</b> 없는 회차 · 드리프트는 기존
+          <code>NotFoundException</code> 계열이 이미 404 로 매핑한다. <code>agenda</code> 값은 거절하지 않고
+          기본 화면으로 보내므로 예외가 아니다.</div>
+        <p><code>.claude/domain-conventions/new-exception.md</code> 관문은 해당 없음.
+          새 예외를 만들지 않으므로 "예외를 추가하면 트리거 시나리오를 함께 추가한다" 는 규율에 걸리는 항목도 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 · 결정 · 비계 제거 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 · 주의 · 결정 · 비계 제거</summary>
+      <div class="body">
+        <h4>D1 — 후보는 둘이고 축 1 에서 갈린다</h4>
+        <p style="margin-top:0;">셋 이상은 비교 비용만 늘린다. 축 1 이 같은 후보를 더 만드는 것은 이 단계의 질문을
+          열지 않는다.</p>
+
+        <h4>D2 — 라우트는 합집합, 전환은 질의 파라미터</h4>
+        <p>후보마다 첫 화면과 이력의 입구가 달라 한 경로에 템플릿만 갈아 끼울 수 없다.
+          쓰지 않는 경로는 접근하지 않으면 그만이다.</p>
+
+        <h4>D3 — 모르는 <code>agenda</code> 값은 기본 화면으로</h4>
+        <p>비계라도 오타 한 번에 흰 화면이 뜨면 검토가 끊긴다.</p>
+
+        <h4>D4 — 흡수하는 부채는 두 후보 모두에 넣는다</h4>
+        <p>한쪽에만 넣으면 그 차이가 배치 때문인지 부채 때문인지 갈리지 않는다. 비교의 공정성 문제다.</p>
+        <div class="card-grid">
+          <div class="card v-green"><h4>양쪽에 넣는다 — 채택</h4>
+            <ul>
+              <li>두 후보가 같은 조건에서 겨룬다</li>
+              <li>부채를 두 번 쓰는 비용이 든다</li>
+            </ul></div>
+          <div class="card v-red"><h4>채택 후 한 번만 — 탈락</h4>
+            <ul>
+              <li>값싸다</li>
+              <li>비교 중에는 두 후보가 서로 다른 조건에 놓인다</li>
+            </ul></div>
+        </div>
+
+        <h4>D5 — 판정 기준을 미리 정하고 CP5 에서 값을 기록한다</h4>
+        <p>기준 없이 고르면 취향 싸움이 되고, 나중에 "왜 그것을 골랐나" 에 답할 수 없다. 기준은 §9 에 있다.</p>
+
+        <h4>D6 — 화면 자산을 새로 만들지 않는다</h4>
+        <p>시각 양식과 되돌아가기는 U3-4 가 만든 것을 쓴다. 새 CSS 파일도 새 JS 파일도 만들지 않으며,
+          후보 템플릿은 이미 있는 클래스와 데이터 속성을 조립하기만 한다.
+          이 슬라이스가 다투는 것은 <b>무엇을 어떤 순서로 보여 주는가</b>이지 어떻게 칠하는가가 아니다.</p>
+        <div class="card-grid">
+          <div class="card v-green"><h4>U3-4 자산을 쓴다 — 채택</h4>
+            <ul>
+              <li>새 CSS · JS 파일 0</li>
+              <li>두 후보가 같은 옷을 입는다</li>
+            </ul></div>
+          <div class="card v-red"><h4>이 화면 전용 양식 — 탈락</h4>
+            <ul>
+              <li>같은 것을 두 곳에서 정의하게 된다</li>
+              <li>두 후보가 서로 다른 옷을 입으면 비교에서 배치의 차이와 양식의 차이가 섞인다</li>
+            </ul></div>
+        </div>
+
+        <h4>비계를 어떻게 걷을 것인가</h4>
+        <p>후보 템플릿과 <code>agenda</code> 분기는 <b>한시적 비계</b>다. 중복 금지 규약의 면제는 그 한시성에
+          근거하므로 제거 시점을 미리 못박는다(2026-08-11 확정).</p>
+        <ol>
+          <li>채택안이 정해지면 그 템플릿의 내용을 <code>list.html</code> 로 옮긴다</li>
+          <li><code>list-agenda*.html</code> 을 전부 지운다</li>
+          <li>컨트롤러의 <code>agenda</code> 분기를 지운다</li>
+          <li>후보 전용으로만 쓰이던 라우트가 남으면 함께 지운다</li>
+        </ol>
+        <div class="callout danger"><b>이 넷이 끝나야 이 슬라이스가 끝난다.</b>
+          CP5 검증 항목에 비계 제거 확인을 포함한다.</div>
+
+        <h4>주의</h4>
+        <ul>
+          <li><b>구현은 PR #31 병합 후에 시작한다.</b> MK4-3 이 <code>list.html</code> 을 고쳤고 이 슬라이스가
+            그 파일을 다시 쓴다. 병합 전에 시작하면 같은 파일을 두 갈래로 고치게 된다.
+            계획(CP1)은 지금 해도 무방하다.</li>
+          <li><b>픽스처의 자동 처리 잠금을 기억한다.</b> MK4-4-1 의 <code>perturb</code> 가 자동 처리를 끄므로,
+            후보 비교 중 "자동으로 해소되는 종류" 의 화면 동작은 그 상태에서 보이지 않는다.
+            필요하면 잠금을 풀고 따로 본다.</li>
+        </ul>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권장</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>이력 상세의 "점검한 디렉토리" 를 어떻게 할 것인가</td><td>안 가 — 컬럼을 더한다</td></tr>
+            <tr><td>Q2</td><td>집계 세 모집단을 어떻게 저장할 것인가</td><td>안 가 — 컬럼 둘을 더한다</td></tr>
+            <tr><td>Q3</td><td>후보 비교를 누가 판정하는가</td><td>값은 세션, 채택은 사용자</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>Q1 — 후보 A 의 이력 상세가 보여 줄 "점검한 디렉토리" 를 어떻게 할 것인가.</b>
+          사용자 설계는 이력 상세에 "점검 일시 · 점검한 디렉토리 · 점검 유형" 을 두자고 했다. 그런데
+          <code>DriftReport</code> 에는 <b>실패한 루트(<code>failedScanRoots</code>)만 있고 점검한 루트 목록은
+          저장하지 않는다.</b> 실제로 구현해 비교하는 방식이 곧바로 드러낸 첫 번째 항목이다.</p>
+        <div class="card-grid">
+          <div class="card v-green"><h4>안 가 — 권장</h4>
+            <ul>
+              <li><code>DriftReport</code> 에 점검 루트 목록 컬럼을 더한다(DDL 1)</li>
+              <li>이력 상세가 사실을 말한다</li>
+            </ul></div>
+          <div class="card v-blue"><h4>안 나</h4>
+            <ul>
+              <li>그 항목을 빼고 실패한 루트만 보여 준다</li>
+              <li>비용 0, 다만 "어디를 봤는지" 는 여전히 모른다</li>
+            </ul></div>
+          <div class="card v-red"><h4>안 다 — 배제</h4>
+            <ul>
+              <li>화면에서 현재 설정의 점검 범위를 계산해 보여 준다</li>
+              <li>저장하지 않으므로 그 회차의 사실이 아니라 지금의 설정이다</li>
+              <li>지난 회차를 열었을 때 거짓이 된다</li>
+            </ul></div>
+        </div>
+        <p>권장은 <b>안 가</b>다. 이력 상세의 목적이 "그 회차가 무엇을 했는가" 인데 범위를 모르면 그 질문에 답하지
+          못한다. 안 다는 화면이 거짓말하게 되므로 배제한다.</p>
+
+        <p><b>Q2 — 집계 세 모집단을 어떻게 저장할 것인가.</b></p>
+        <div class="card-grid">
+          <div class="card v-green"><h4>안 가 — 권장</h4>
+            <ul>
+              <li><code>DriftReport</code> 에 컬럼 둘을 더한다(삭제 상태 · 짝 없는 마커)</li>
+              <li><code>totalChecked</code> 는 그대로 두고 화면이 셋을 각각 보여 준다</li>
+              <li>지난 보고서는 새 컬럼이 0 이라 옛 회차와 새 회차가 다르게 보인다</li>
+            </ul></div>
+          <div class="card v-red"><h4>안 나 — 탈락</h4>
+            <ul>
+              <li><code>totalChecked</code> 의 의미를 셋의 합으로 바꾼다</li>
+              <li>컬럼은 안 는다</li>
+              <li>지난 보고서의 수가 소급해 의미를 바꾼다 — 같은 숫자가 어제는 활성 자원 수였고 오늘은 총계가 된다</li>
+            </ul></div>
+        </div>
+        <p>권장은 <b>안 가</b>다. 지난 기록의 뜻이 바뀌지 않는 쪽이다. MK4-1 이 "지난 점검 기록은 그대로 둔다" 를
+          이미 원칙으로 세웠다.</p>
+
+        <p><b>Q3 — 후보 비교를 누가 판정하는가.</b> CP5 에서 세션이 기준별 값을 재어 표로 제출하고
+          <b>사용자가 고른다.</b> 조작 수 같은 값은 세션이 셀 수 있지만 "훑기 좋은가" 는 쓰는 사람의 판단이다.<br>
+          권장 — 세션이 값을 채워 제출, 채택은 사용자 결정. 그 결정이 나온 뒤 통합과 비계 제거를 진행한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 판정 기준 + Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 판정 기준 + Verification</summary>
+      <div class="body">
+        <h4>무엇으로 채택을 판정할 것인가</h4>
+        <p style="margin-top:0;">후보를 만들어 놓고 "어느 쪽이 나은가" 를 눈대중으로 고르면 취향 싸움이 된다.
+          <b>판정 기준을 먼저 정한다.</b></p>
+        <table>
+          <thead><tr><th>기준</th><th>어떻게 재는가</th></tr></thead>
+          <tbody>
+            <tr><td>급한 것에 닿는 비용</td><td>들어와서 가장 급한 드리프트를 여는 데 필요한 조작 수</td></tr>
+            <tr><td>연속 처리 비용</td><td>한 건 처리 후 다음 건으로 가는 조작 수</td></tr>
+            <tr><td>이력에 닿는 비용</td><td>특정 회차의 결과를 보는 데 필요한 조작 수</td></tr>
+            <tr><td>부하 내성</td><td>종류당 5 건(60 행)에서 훑기 · 종류 구분 · 스크롤</td></tr>
+            <tr><td>종류 식별</td><td>12 종이 섞인 목록에서 종류를 구분할 수 있는가</td></tr>
+            <tr><td>상태 보존</td><td>돌아왔을 때 짚은 행이 보이는가 — 겹 깊이 A 2 · B 1</td></tr>
+          </tbody>
+        </table>
+        <p>앞의 셋은 <b>세면 되는 값</b>이라 취향이 끼어들지 않는다. 뒤의 셋은 판단이 들어가지만 무엇을 볼지는
+          정해져 있다. 픽스처가 같은 상태를 보장하므로 두 후보가 같은 자료를 놓고 겨룬다.</p>
+        <p><b>상태 보존은 두 후보가 같은 기구를 쓰므로 배치 자체를 가르지 않는다.</b> 그래도 재는 이유는
+          깊이가 다르기 때문이다 — 후보 A 는 두 겹을 걷어 돌아오고 후보 B 는 한 겹이다.
+          겹이 깊을 때 되돌아오는 경험이 어떤지가 실제로 갈릴 수 있다.</p>
+        <div class="callout"><b>판정은 CP5 에서 기록한다.</b> 기준마다 두 후보의 값을 나란히 적고,
+          그 표가 채택 근거가 된다.</div>
+
+        <h4>CP5 검증 항목 계획 (요지)</h4>
+        <p>세부 항목표는 CP5 진입 시 작성한다. 여기서는 무엇을 확인할지만 정한다.</p>
+        <ul class="check-list" data-storage="MK4-4-2-verify">
+          <li><label><input type="checkbox" data-key="v1"> <span>두 후보가 <b>같은 픽스처 상태</b>에서 나란히 뜨는가 (<code>?agenda=A</code> · <code>?agenda=B</code>)</span></label></li>
+          <li><label><input type="checkbox" data-key="v2"> <span>위 기준 여섯을 두 후보 각각에 대해 재어 기록</span></label></li>
+          <li><label><input type="checkbox" data-key="v3"> <span>부채 넷이 두 후보 모두에서 해소됐는가 — 첫 진입 · 집계 · tooltip · 돌아온 행 짚기</span></label></li>
+          <li><label><input type="checkbox" data-key="v4"> <span>종류당 5 건(60 행)에서 두 후보가 견디는가</span></label></li>
+          <li><label><input type="checkbox" data-key="v5"> <span>모르는 <code>agenda</code> 값 · 없는 값이 기본 화면으로 수렴하는가</span></label></li>
+          <li><label><input type="checkbox" data-key="v6"> <span>채택 후 <b>비계가 남지 않았는가</b> — 후보 템플릿 · 분기 · 미사용 라우트</span></label></li>
+          <li><label><input type="checkbox" data-key="v7"> <span>처리 흐름이 실제로 도는가 (해결 · 전체 해결 · 보관)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (예상)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span> <span class="chip del">비계</span></td>
+                <td><code>templates/maintenance/reconciliation/list-agendaA.html</code> · <code>list-agendaB.html</code></td>
+                <td>후보 둘</td></tr>
+            <tr><td><span class="chip new">신규</span></td>
+                <td>이력 상세 · 드리프트 상세 템플릿</td>
+                <td>두 후보가 공유한다</td></tr>
+            <tr><td><span class="chip new">신규</span></td>
+                <td><code>vo/ScanPopulation.java</code></td>
+                <td>세 모집단 집계</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+                <td><code>controller/ReconciliationController.java</code></td>
+                <td>라우트 추가 · <code>agenda</code> 분기(비계)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+                <td><code>service/PathReconciliationService.java</code></td>
+                <td>세 모집단 집계</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+                <td><code>entity/DriftReport.java</code></td>
+                <td>Q1 · Q2 결정에 따라</td></tr>
+            <tr><td><span class="chip mod">수정</span></td>
+                <td><code>templates/maintenance/reconciliation/list.html</code></td>
+                <td>채택안으로 교체</td></tr>
+            <tr><td><span class="chip new">신규</span></td>
+                <td><code>ddl/MK4-4-2_*.sql</code></td>
+                <td>Q1 · Q2 결정에 따라</td></tr>
+          </tbody>
+        </table>
+        <p>신규 CSS · JS 는 없다(D6). 후보 템플릿은 <code>grouped-list.css</code> 의 클래스와
+          <code>nav-stack.js</code> 의 데이터 속성 규약을 조립하며, 되돌아가기는
+          <code>fragments/common/back-link.html</code> 을 쓴다.</p>
+        <div class="callout warn"><b>채택 후 제거</b> — <code>list-agenda*.html</code> ·
+          <code>agenda</code> 분기 · 미사용 라우트.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="MK4-4-2-next">
+          <li><label><input type="checkbox" data-key="mk4-4-3"> <span><b>MK4-4-3 남은 화면</b> — 운영 설정 레이아웃 · 보관 목록 · 보관 상세. 채택된 구조의 언어를 따른다</span></label></li>
+          <li><label><input type="checkbox" data-key="filter"> <span><b>종류 필터 · 묶음 선택</b> — 채택된 구조 위에 얹는다</span></label></li>
+          <li><label><input type="checkbox" data-key="mk4-5"> <span><b>MK4-5 드리프트 카탈로그</b></span></label></li>
+          <li><label><input type="checkbox" data-key="audit"> <span><b>전수 재현 감사(R)</b></span></label></li>
+          <li><label><input type="checkbox" data-key="particle"> <span><b>조사 처리("을(를)")</b> — MK4-4-3 이 흡수한다</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 후보 비교 시뮬레이터
+  //  ⚠ 화면 · 전이는 §4 의 화면 전이표를 그대로 옮긴 것이다. 데모는 이 자료만 보고 판정한다(드리프트 0).
+  //  ⚠ demoRender() 는 파일 끝에서 1 회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_SCREENS = {
+    A_HISTORY: { c:'A', title:'점검 이력 목록',       kind:'이력', badge:'dep',
+                 note:'회차만 놓인다. 드리프트는 회차를 열어야 보인다.' },
+    A_REPORT:  { c:'A', title:'이력 상세',            kind:'상세', badge:'off',
+                 note:'점검 메타데이터 + 그 회차의 드리프트 표. 두 후보가 같은 화면을 쓴다.' },
+    A_DRIFT:   { c:'A', title:'드리프트 상세',        kind:'상세', badge:'off',
+                 note:'드리프트 한 건의 내용과 처리. 두 후보가 같은 화면을 쓴다.' },
+    B_OPEN:    { c:'B', title:'미해결 드리프트 목록', kind:'목록', badge:'on',
+                 note:'열린 드리프트가 급한 순서로 놓인다 (openDrifts()).' },
+    B_DRIFT:   { c:'B', title:'드리프트 상세',        kind:'상세', badge:'off',
+                 note:'드리프트 한 건의 내용과 처리. 두 후보가 같은 화면을 쓴다.' },
+    B_HISTORY: { c:'B', title:'점검 이력 목록',       kind:'이력', badge:'dep',
+                 note:'부차 화면. 회차만 놓인다.' },
+    B_REPORT:  { c:'B', title:'이력 상세',            kind:'상세', badge:'off',
+                 note:'그 회차의 결과. 후보 A 와 같은 화면이다.' }
+  };
+  const DEMO_ENTRY = { A:'A_HISTORY', B:'B_OPEN' };
+
+  // set : 'round'=회차 결과를 봤다 / 'batch'=한꺼번에 처리했다   res : 개별 처리한 행
+  const DEMO_EDGES = [
+    // ── 후보 A ──
+    { c:'A', from:'A_HISTORY', to:'A_REPORT', set:'round',
+      row:'2026-08-11 03:00 정기 점검 · 드리프트 12 건 (어제)', btn:'열기', short:'회차 열기' },
+    { c:'A', from:'A_REPORT', to:'A_DRIFT',
+      row:'① 경로 이동됨 · OS 이미지 <span class="mono">ubuntu-24.04.iso</span>', btn:'열기', short:'드리프트 열기' },
+    { c:'A', from:'A_REPORT', to:'A_REPORT', res:'r1',
+      row:'① 경로 이동됨 · OS 이미지 <span class="mono">ubuntu-24.04.iso</span>', btn:'해결', short:'① 행의 [해결]' },
+    { c:'A', from:'A_REPORT', to:'A_REPORT', res:'r2',
+      row:'② 마커 서명 불일치 · BIOS <span class="mono">X13SAE-2.1</span>', btn:'해결', short:'② 행의 [해결]' },
+    { c:'A', from:'A_REPORT', to:'A_REPORT', set:'batch',
+      row:'표 밖', btn:'전체 해결', short:'[전체 해결]' },
+    { c:'A', from:'A_REPORT', to:'A_HISTORY',
+      row:'표 밖', btn:'뒤로', short:'뒤로' },
+    { c:'A', from:'A_DRIFT', to:'A_DRIFT', res:'r1',
+      row:'경로 이동됨 · OS 이미지 <span class="mono">ubuntu-24.04.iso</span>', btn:'해결', short:'상세의 [해결]' },
+    { c:'A', from:'A_DRIFT', to:'A_REPORT',
+      row:'', btn:'뒤로', short:'뒤로' },
+    // ── 후보 B ──
+    { c:'B', from:'B_OPEN', to:'B_DRIFT',
+      row:'① 급 최상 · 경로 이동됨 · OS 이미지 <span class="mono">ubuntu-24.04.iso</span>', btn:'열기', short:'드리프트 열기' },
+    { c:'B', from:'B_OPEN', to:'B_OPEN', res:'r1',
+      row:'① 급 최상 · 경로 이동됨 · OS 이미지 <span class="mono">ubuntu-24.04.iso</span>', btn:'해결', short:'① 행의 [해결]' },
+    { c:'B', from:'B_OPEN', to:'B_OPEN', res:'r2',
+      row:'② 급 상 · 마커 서명 불일치 · BIOS <span class="mono">X13SAE-2.1</span>', btn:'해결', short:'② 행의 [해결]' },
+    { c:'B', from:'B_OPEN', to:'B_OPEN', set:'batch',
+      row:'목록 밖', btn:'전체 해결', short:'[전체 해결]' },
+    { c:'B', from:'B_OPEN', to:'B_HISTORY',
+      row:'목록 밖', btn:'점검 이력', short:'[점검 이력]' },
+    { c:'B', from:'B_DRIFT', to:'B_DRIFT', res:'r1',
+      row:'경로 이동됨 · OS 이미지 <span class="mono">ubuntu-24.04.iso</span>', btn:'해결', short:'상세의 [해결]' },
+    { c:'B', from:'B_DRIFT', to:'B_OPEN',
+      row:'', btn:'뒤로', short:'뒤로' },
+    { c:'B', from:'B_HISTORY', to:'B_REPORT', set:'round',
+      row:'2026-08-11 03:00 정기 점검 · 드리프트 12 건 (어제)', btn:'열기', short:'회차 열기' },
+    { c:'B', from:'B_HISTORY', to:'B_OPEN',
+      row:'목록 밖', btn:'뒤로', short:'뒤로' },
+    { c:'B', from:'B_REPORT', to:'B_HISTORY',
+      row:'', btn:'뒤로', short:'뒤로' }
+  ];
+
+  // 화면에 함께 놓이지만 이 데모가 다루지 않는 조작 (차단 + tooltip)
+  const DEMO_DECOYS = {
+    A_HISTORY: [
+      { row:'2026-08-12 03:00 정기 점검 · 드리프트 7 건', btn:'열기', tip:'이 데모는 어제 회차 한 건만 다룹니다.' },
+      { row:'2026-08-10 03:00 정기 점검 · 드리프트 9 건', btn:'열기', tip:'이 데모는 어제 회차 한 건만 다룹니다.' }
+    ],
+    A_REPORT: [
+      { row:'② 마커 서명 불일치 · BIOS <span class="mono">X13SAE-2.1</span>',
+        btn:'열기', tip:'이 데모는 첫 행만 상세로 엽니다.' }
+    ],
+    B_OPEN: [
+      { row:'② 급 상 · 마커 서명 불일치 · BIOS <span class="mono">X13SAE-2.1</span>',
+        btn:'열기', tip:'이 데모는 첫 행만 상세로 엽니다.' },
+      { row:'③ 급 중 · 미등록 마커 · Subprogram <span class="mono">nic-driver-3.4</span>',
+        btn:'열기', tip:'이 데모는 앞의 두 행만 다룹니다.' }
+    ],
+    B_HISTORY: [
+      { row:'2026-08-12 03:00 정기 점검 · 드리프트 7 건', btn:'열기', tip:'이 데모는 어제 회차 한 건만 다룹니다.' }
+    ]
+  };
+
+  // 화면 맨 위에 놓이는 정보 줄 (조작이 아니라 표시)
+  const DEMO_HEADS = {
+    A_REPORT: '점검 일시 2026-08-11 03:00 · 점검 유형 정기 · 점검한 디렉토리 <b>(Q1 — 저장하지 않아 표시할 수 없다)</b>',
+    B_REPORT: '점검 일시 2026-08-11 03:00 · 점검 유형 정기 · 점검한 디렉토리 <b>(Q1 — 저장하지 않아 표시할 수 없다)</b>'
+  };
+
+  const DEMO_SITS = {
+    S1: { label:'지금 가장 급한 것을 처리한다', goal:{ res:1 },
+          goalText:'급한 순서의 첫 건을 처리한다' },
+    S2: { label:'어제 점검에서 무엇이 나왔는지 본다', goal:{ flag:'round' },
+          goalText:'어제 회차의 결과 화면에 닿는다' },
+    S3: { label:'같은 종류 12 건을 한꺼번에 처리한다', goal:{ flag:'batch' },
+          goalText:'[전체 해결] 로 한 번에 처리한다' },
+    S4: { label:'한 건 처리하고 다음 건으로', goal:{ res:2 },
+          goalText:'개별 처리 두 건을 잇는다' }
+  };
+  const DEMO_NOTES = {
+    'A|S1':'후보 A 가 연 것은 그 회차의 드리프트 표다 — 열린 드리프트 전체를 급한 순서로 놓은 화면은 후보 A 에 없다.',
+    'B|S1':'후보 B 는 첫 화면이 이미 급한 순서 목록이라 회차를 고르는 단계가 없다.',
+    'A|S2':'후보 A 는 첫 화면이 이력이라 회차를 여는 한 번으로 닿는다.',
+    'B|S2':'후보 B 는 이력을 부차로 밀었으므로 입구로 가는 한 홉이 더 든다 — 회차를 연 뒤 보는 화면은 후보 A 와 같다.',
+    'A|S3':'후보 A 의 [전체 해결] 은 연 회차의 해결 가능한 것에 걸린다.',
+    'B|S3':'후보 B 의 [전체 해결] 은 열린 것 전체에 걸린다.',
+    'A|S4':'처리 후 이력 상세에 머무는 것으로 세었다 — 다음 행이 한 조작이다. 실제로 자리가 유지되는지는 §9 의 상태 보존에서 본다.',
+    'B|S4':'처리 후 미해결 목록에 머무는 것으로 세었다 — 다음 행이 한 조작이다. 차이는 목록에 이르는 비용에서만 온다.'
+  };
+
+  let D = { cand:'A', sit:'S1', screen:DEMO_ENTRY['A'], flags:[], res:[], clicks:0, reached:false, last:'' };
+
+  function demoMet(flags, res, goal) {
+    if (goal.flag && flags.indexOf(goal.flag) < 0) return false;
+    if (goal.res && res.length < goal.res) return false;
+    return true;
+  }
+  function demoUsable(e, flags, res) {
+    if (!e.res) return true;
+    if (flags.indexOf('batch') >= 0) return false;   // 일괄 처리 뒤에는 개별 처리가 남지 않는다
+    return res.indexOf(e.res) < 0;                   // 같은 행을 두 번 처리하지 않는다
+  }
+  // 전이표만 보고 최단 조작 수를 센다 (BFS)
+  function demoShortest(cand, goal) {
+    const start = DEMO_ENTRY[cand];
+    const seen = new Set([start + '||']);
+    const q = [{ s:start, f:[], r:[], n:0, path:[] }];
+    while (q.length) {
+      const cur = q.shift();
+      if (demoMet(cur.f, cur.r, goal)) return { n:cur.n, path:cur.path };
+      DEMO_EDGES.forEach(e => {
+        if (e.c !== cand || e.from !== cur.s) return;
+        if (!demoUsable(e, cur.f, cur.r)) return;
+        const nf = (e.set && cur.f.indexOf(e.set) < 0) ? cur.f.concat(e.set) : cur.f;
+        const nr = e.res ? cur.r.concat(e.res) : cur.r;
+        const key = e.to + '|' + nf.slice().sort().join(',') + '|' + nr.slice().sort().join(',');
+        if (seen.has(key)) return;
+        seen.add(key);
+        q.push({ s:e.to, f:nf, r:nr, n:cur.n + 1, path:cur.path.concat(e.short) });
+      });
+    }
+    return { n:0, path:['도달 경로 없음'] };
+  }
+
+  function demoSetCand(c) { D.cand = c; demoReset(); }
+  function demoSetSit(s) { D.sit = s; demoReset(); }
+  function demoReset() {
+    D.screen = DEMO_ENTRY[D.cand]; D.flags = []; D.res = []; D.clicks = 0; D.reached = false; D.last = '';
+    demoRender();
+  }
+  function demoGo(i) {
+    if (D.reached) { demoReset(); return; }
+    const e = DEMO_EDGES[i];
+    D.clicks += 1;
+    D.last = e.short;
+    if (e.set && D.flags.indexOf(e.set) < 0) D.flags.push(e.set);
+    if (e.res && D.res.indexOf(e.res) < 0) D.res.push(e.res);
+    D.screen = e.to;
+    if (demoMet(D.flags, D.res, DEMO_SITS[D.sit].goal)) D.reached = true;
+    demoRender();
+  }
+  function demoBtn(label, onclick, blocked, tip) {
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    const dis = blocked ? ' disabled' : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis +
+      (blocked ? '' : ' onclick="' + onclick + '"') + '>' + label + '</button></span>';
+  }
+  function demoBar(name, n, max, color) {
+    const w = max > 0 ? Math.round(n / max * 100) : 0;
+    return '<div class="ux-row"><span style="flex:0 0 74px;font-weight:600">' + name + '</span>' +
+      '<span style="flex:1;min-width:80px;height:10px;background:rgba(0,0,0,0.06);border-radius:5px;overflow:hidden;display:block">' +
+      '<span style="display:block;height:10px;width:' + w + '%;background:' + color + '"></span></span>' +
+      '<b style="flex:0 0 62px;text-align:right">' + n + ' 조작</b></div>';
+  }
+
+  function demoRender() {
+    ['A','B'].forEach(c => document.getElementById('seg-cand-' + c).classList.toggle('active', D.cand === c));
+    ['S1','S2','S3','S4'].forEach(s => document.getElementById('seg-sit-' + s).classList.toggle('active', D.sit === s));
+
+    const sc = DEMO_SCREENS[D.screen];
+    let html = '<div class="ux-row"><strong>화면</strong><span class="label">' + sc.title +
+      '</span><span class="badge ' + sc.badge + '">' + sc.kind + '</span></div>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin:0 0 8px 2px;">' + sc.note + '</div>';
+    if (DEMO_HEADS[D.screen]) {
+      html += '<div class="ux-row muted"><span class="label">' + DEMO_HEADS[D.screen] + '</span></div>';
+    }
+
+    // 전이표에서 이 화면의 조작을 뽑아 행 단위로 묶는다
+    const groups = [];
+    function group(row) {
+      let g = groups.filter(x => x.row === row)[0];
+      if (!g) { g = { row:row, btns:[], muted:false }; groups.push(g); }
+      return g;
+    }
+    DEMO_EDGES.forEach((e, i) => {
+      if (e.c !== D.cand || e.from !== D.screen) return;
+      const g = group(e.row);
+      if (e.res && D.res.indexOf(e.res) >= 0) {
+        g.btns.push(demoBtn('처리됨', '', true, '이미 처리한 건입니다.'));
+      } else if (e.res && D.flags.indexOf('batch') >= 0) {
+        g.btns.push(demoBtn('처리됨', '', true, '[전체 해결] 로 처리됐습니다. [처음으로] 를 눌러 다시 걸어 보세요.'));
+      } else {
+        g.btns.push(demoBtn(e.btn, 'demoGo(' + i + ')', false, ''));
+      }
+    });
+    (DEMO_DECOYS[D.screen] || []).forEach(d => {
+      const g = group(d.row);
+      if (g.btns.length === 0) g.muted = true;
+      g.btns.push(demoBtn(d.btn, '', true, d.tip));
+    });
+    groups.forEach(g => {
+      html += '<div class="ux-row' + (g.muted ? ' muted' : '') + '"><span class="label">' +
+        (g.row || '&nbsp;') + '</span>' + g.btns.join(' ') + '</div>';
+    });
+    document.getElementById('demo-screen').innerHTML = html;
+
+    const sit = DEMO_SITS[D.sit];
+    const sa = demoShortest('A', sit.goal), sb = demoShortest('B', sit.goal);
+    const mine = D.reached ? String(D.clicks) : (D.clicks + ' (진행 중)');
+    document.getElementById('demo-caps').innerHTML =
+      '상황        = ' + sit.label + '\n' +
+      '목표        = ' + sit.goalText + '\n' +
+      '내 조작 수  = ' + mine + (D.last ? '   (마지막 조작 : ' + D.last + ')' : '') + '\n' +
+      '후보 A 최단 = ' + sa.n + ' 조작   ' + sa.path.join(' → ') + '\n' +
+      '후보 B 최단 = ' + sb.n + ' 조작   ' + sb.path.join(' → ');
+
+    const max = Math.max(sa.n, sb.n);
+    document.getElementById('demo-bars').innerHTML =
+      demoBar('후보 A', sa.n, max, 'var(--blue)') +
+      demoBar('후보 B', sb.n, max, 'var(--purple)') +
+      '<div style="font-size:12px;color:var(--text-muted);margin:2px 0 0 2px;">' +
+      DEMO_NOTES['A|' + D.sit] + '<br>' + DEMO_NOTES['B|' + D.sit] + '</div>';
+
+    const msg = document.getElementById('demo-message');
+    if (D.reached) {
+      const best = (D.cand === 'A' ? sa.n : sb.n);
+      msg.className = 'ux-message success';
+      msg.textContent = '✓ 목표 달성 — 후보 ' + D.cand + ' 로 ' + D.clicks + ' 조작 (최단 ' + best + ' 조작). ' +
+        '다시 누르면 처음으로 돌아갑니다.';
+    } else {
+      msg.className = 'ux-message';
+      msg.textContent = '후보와 상황을 고른 뒤 화면의 버튼을 눌러 목표에 닿아 보세요. ' +
+        '차단된 버튼에 마우스를 올리면 이유가 뜹니다.';
+    }
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1 회 호출
+</script>
+</body>
+</html>

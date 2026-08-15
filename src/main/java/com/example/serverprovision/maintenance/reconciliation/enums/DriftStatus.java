@@ -22,22 +22,33 @@ public enum DriftStatus {
 	 * <p>라벨이 '열림' 이었을 때는 운영자가 무엇을 해야 하는 상태인지 읽어 내기 어려웠다. 상수 이름은
 	 * 상태 축의 이름이라 {@code OPEN} 으로 두고, 화면 문구만 할 일을 가리키게 바꿨다.</p>
 	 */
-	OPEN("조치 필요"),
+	OPEN("조치 필요", "yellow"),
 
 	/**
 	 * 해결됨 — 시스템 처리 · 재점검 확인 · 점검 미관측 중 하나로 닫혔다. 다시 열리지 않는다
 	 * (같은 신원이 재발견되면 새 문제가 생긴다).
 	 */
-	RESOLVED("해결됨"),
+	RESOLVED("해결됨", "green"),
 
 	/**
 	 * 보관 — 운영자가 알면서 미룬 상태. 보관 기간이 지나면 다시 조치 필요로 돌아온다.
 	 */
-	SNOOZED("보관");
+	SNOOZED("보관", "gray");
 
 	private final String label;
 
-	DriftStatus(String label) {
+	/**
+	 * MK4-4-2 — 배지 색을 상태가 들고 있다. 화면이 조건식으로 색을 고르면 상태가 늘 때마다 그 식이
+	 * 함께 자라고, 여러 화면에 복붙되면 한 곳만 고쳐져 색이 갈린다({@code DriftResolutionMode} 가
+	 * 같은 이유로 색을 들고 있다 — R9-2).
+	 *
+	 * <p>종전에는 색 없이 {@code n-badge} 만 붙어 배경이 그려지지 않았고, 그래서 배지가 아니라
+	 * 여백이 잘못 잡힌 것처럼 보였다.</p>
+	 */
+	private final String badgeColor;
+
+	DriftStatus(String label, String badgeColor) {
 		this.label = label;
+		this.badgeColor = badgeColor;
 	}
 }

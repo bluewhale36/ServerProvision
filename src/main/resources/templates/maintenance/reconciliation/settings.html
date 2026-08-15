@@ -1,20 +1,25 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  MK4-3-1. 자원 무결성 점검 운영 설정.
+  자원 무결성 점검 운영 설정 (MK4-3-1 신설 · MK4-4-4 에서 배치 재구성)
   ─────────────────────────────────────────────────────────
   Model:
     settings     : ReconciliationSettingsResponse — 현재 값 + 자동 처리 후보 + 항목 설명
     settingsForm : ReconciliationSettingsRequest  — 폼 바인딩 대상(검증 실패 시 입력값 보존)
 
-  배치와 디자인은 최소로 둔다 — MK4-4 가 화면을 전면 개편하므로 휴지통 설정 화면의
-  폼 관례(n-form-group / n-form-banner)를 그대로 쓰고 새 배치를 고안하지 않는다.
+  MK4-3-1 은 "배치와 디자인은 최소로 — MK4-4 가 전면 개편하므로" 를 명시하고 항목 일곱을 평평하게
+  나열했다. 그 MK4-4 가 여기다. 항목을 <b>성질로 넷</b>으로 묶고, 채택된 구조의 시각 양식
+  (n-glist 바깥 묶음 → 흰 판 → 내용)을 따른다.
 
-  항목 설명 문구는 템플릿이 짓지 않는다. ReconciliationSettingItem 이 들고 있는 것을
-  응답이 실어 오며, 화면은 그것을 그대로 보여 준다 — 문서 · 화면 · 코드가 같은 문장을 본다.
+  묶음별로 저장을 나누지는 않는다(결정 D6) — 설정은 함께 바꾸는 일이 많아(주기를 늘리며 보관
+  개수도 줄이는 식) 폼 하나가 조작이 적다. 폼 넷이면 검증 오류의 자리도 넷으로 갈린다.
+
+  항목 설명 문구는 템플릿이 짓지 않는다. ReconciliationSettingItem 이 들고 있는 것을 응답이
+  실어 오며, 화면은 그것을 그대로 보여 준다 — 문서 · 화면 · 코드가 같은 문장을 본다.
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('점검 운영 설정')}"></th:block>
+    <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: styles}"></th:block>
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
@@ -22,9 +27,7 @@
 <div class="n-page">
     <div class="n-page-header">
         <h1 class="n-page-title">점검 운영 설정</h1>
-        <div class="n-header-actions">
-            <a class="n-btn n-btn-outline" th:href="@{/maintenance/reconciliation}">점검 화면으로</a>
-        </div>
+        <div th:replace="~{fragments/common/back-link :: backLink('/maintenance/reconciliation')}"></div>
     </div>
 
     <div th:if="${param.saved != null}" class="n-banner n-banner-info">저장했습니다.</div>
@@ -45,154 +48,207 @@
 
         <div class="n-form-banner n-alert n-alert-danger" role="alert"
              th:if="${#fields.hasErrors('*')}">
-            <ul style="margin:0; padding-left:18px;">
+            <ul class="n-error-list">
                 <li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
             </ul>
         </div>
 
-        <!--/* 항목마다 뜻과 효과 시점을 함께 보인다. 두 값 모두 항목 카탈로그에서 온다. */-->
-        <div class="n-form-group" th:each="item : ${settings.items}"
-             th:if="${item.name == 'AUTO_APPLY_KINDS'}">
-            <label class="n-form-label" th:text="${item.label}"></label>
-            <p class="n-form-hint" th:text="${item.description}"></p>
-            <p class="n-form-hint" style="margin-top:0">
-                <strong>효과 시점</strong> : <span th:text="${item.effectTiming}"></span>
-            </p>
-
-            <p class="n-error" th:if="${#fields.hasErrors('autoApplyKindsKnown')}"
-               th:errors="*{autoApplyKindsKnown}"></p>
-
-            <!--/* 후보 목록은 종류의 해결 등급에서 파생한다 — 화면에 종류 이름을 하드코딩하지 않으므로
-                 자동 처리 등급의 종류가 늘면 여기 저절로 나타난다. */-->
-            <div th:each="candidate : ${settings.autoApplyCandidates}"
-                 style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--n-border);">
-                <input type="checkbox" th:field="*{autoApplyKinds}" th:value="${candidate.name}"
-                       th:id="'kind-' + ${candidate.name}" style="margin-top:3px">
-                <label th:for="'kind-' + ${candidate.name}" style="flex:1; cursor:pointer;">
-                    <span style="font-weight:600" th:text="${candidate.label}"></span>
-                    <span class="n-badge" style="margin-left:6px"
-                          th:classappend="${candidate.reversible} ? 'n-badge-gray' : 'n-badge-red'"
-                          th:text="${candidate.reversible} ? '되돌릴 수 있음' : '되돌릴 수 없음'"></span>
-                    <span class="n-form-hint" style="display:block; margin:2px 0 0"
-                          th:text="${candidate.resolveAction}"></span>
-                    <span class="n-form-hint" style="display:block; margin:2px 0 0; color:var(--n-red)"
-                          th:if="${!candidate.reversible}">되돌릴 수 없는 처리를 무인으로 맡기게 됩니다.</span>
-                </label>
+        <!-- ══ 점검 주기 — 언제 · 얼마나 자주 도는가 ══════════════════════ -->
+        <section class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">점검 주기</strong>
             </div>
-        </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <div class="n-form-group" th:each="item : ${settings.items}"
+                         th:if="${item.name == 'STARTUP_SCAN_ENABLED'}">
+                        <label class="n-form-label" th:text="${item.label}"></label>
+                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
+                        <label class="n-toggle-row">
+                            <input type="checkbox" th:field="*{startupScanEnabled}">
+                            <span>기동 직후 한 번 점검</span>
+                        </label>
+                    </div>
 
-        <div class="n-form-group" th:each="item : ${settings.items}"
-             th:if="${item.name == 'RESOLUTION_ENABLED'}">
-            <label class="n-form-label" th:text="${item.label}"></label>
-            <p class="n-form-hint" th:text="${item.description}"></p>
-            <p class="n-form-hint" style="margin-top:0">
-                <strong>효과 시점</strong> : <span th:text="${item.effectTiming}"></span>
-            </p>
-            <label style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" th:field="*{resolutionEnabled}">
-                <span>시스템 해결 허용</span>
-            </label>
-        </div>
+                    <!--/*
+                      MK4-3-2 — 주기 둘이 읽기 전용에서 폼 안으로 들어왔다. 구조가 같은 항목이라 한
+                      조각을 반복해 그린다 — 두 벌을 복붙하면 한쪽만 고치는 사고가 난다. 그래서 응답이
+                      폼 필드 이름까지 값으로 실어 오고, th:field 는 표현식 전처리(__${...}__)로 받는다.
 
-        <div class="n-form-group" th:each="item : ${settings.items}"
-             th:if="${item.name == 'REPORT_RETENTION_COUNT'}">
-            <label class="n-form-label" for="reportRetentionCount" th:text="${item.label}"></label>
-            <p class="n-form-hint" th:text="${item.description}"></p>
-            <p class="n-form-hint" style="margin-top:0">
-                <strong>효과 시점</strong> : <span th:text="${item.effectTiming}"></span>
-            </p>
-            <input type="number" id="reportRetentionCount" class="n-input" min="1" max="10000"
-                   th:field="*{reportRetentionCount}">
-            <p class="n-error" th:if="${#fields.hasErrors('reportRetentionCount')}"
-               th:errors="*{reportRetentionCount}"></p>
-        </div>
+                      값과 함께 다음 점검 예정 시각을 밝히는 것이 이 블록의 요점이다 — 저장한 값을
+                      되비추는 것만으로는 "그래서 다음에 언제 보는가" 에 답이 되지 않는다.
+                    */-->
+                    <div class="n-form-group" th:each="d : ${settings.schedule.depths}">
+                        <label class="n-form-label" th:for="${d.fieldName}" th:text="${d.item.label}"></label>
+                        <p class="n-form-hint" th:text="${d.item.description}"></p>
+                        <p class="n-form-meta">효과 시점 <span th:text="${d.item.effectTiming.label}"></span></p>
 
-        <div class="n-form-group" th:each="item : ${settings.items}"
-             th:if="${item.name == 'EXTRA_SCAN_ROOTS'}">
-            <label class="n-form-label" for="extraScanRoots" th:text="${item.label}"></label>
-            <p class="n-form-hint" th:text="${item.description}"></p>
-            <p class="n-form-hint" style="margin-top:0">
-                <strong>효과 시점</strong> : <span th:text="${item.effectTiming}"></span>
-                · 한 줄에 하나씩, 절대 경로로 입력합니다. 아직 없는 경로도 미리 등록할 수 있습니다.
-            </p>
-            <textarea id="extraScanRoots" class="n-input" rows="4"
-                      th:field="*{extraScanRoots}"
-                      placeholder="/mnt/backup/iso"></textarea>
-            <!--/* 형식 검증은 여러 줄을 한꺼번에 보는 것이라 클래스 수준 규칙(@AssertTrue)으로 두었다.
-                 그 오류는 필드가 아니라 파생 이름에 붙으므로, 필드 옆에 보이게 하려면 여기서 함께
-                 그려야 한다 — 안 그리면 상단 요약에만 나와 어느 칸이 문제인지 보이지 않는다. */-->
-            <p class="n-error" th:if="${#fields.hasErrors('extraScanRoots')}"
-               th:errors="*{extraScanRoots}"></p>
-            <p class="n-error" th:if="${#fields.hasErrors('extraScanRootsValid')}"
-               th:errors="*{extraScanRootsValid}"></p>
-        </div>
+                        <div class="n-inline-row">
+                            <input type="number" class="n-input n-input-narrow"
+                                   th:id="${d.fieldName}" th:field="*{__${d.fieldName}__}"
+                                   required
+                                   th:min="${settings.schedule.minMinutes}"
+                                   th:max="${settings.schedule.maxMinutes}">
+                            <span>분</span>
+                            <span class="n-form-hint" th:text="'현재 ' + ${d.text}"></span>
+                        </div>
+                        <p class="n-error" th:if="${#fields.hasErrors(d.fieldName)}"
+                           th:errors="*{__${d.fieldName}__}"></p>
 
-        <div class="n-form-group" th:each="item : ${settings.items}"
-             th:if="${item.name == 'STARTUP_SCAN_ENABLED'}">
-            <label class="n-form-label" th:text="${item.label}"></label>
-            <p class="n-form-hint" th:text="${item.description}"></p>
-            <p class="n-form-hint" style="margin-top:0">
-                <strong>효과 시점</strong> : <span th:text="${item.effectTiming}"></span>
-            </p>
-            <label style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" th:field="*{startupScanEnabled}">
-                <span>기동 직후 한 번 점검</span>
-            </label>
-        </div>
+                        <!--/* 기준이 될 기록이 없으면 예정이 아니라 밀린 상태다 — 그렇게 말해야 사실이다. */-->
+                        <p class="n-form-hint">
+                            <span th:if="${d.lastScanAt != null}">
+                                마지막 <span th:text="${d.depth.label}"></span> :
+                                <strong th:text="${#temporals.format(d.lastScanAt, 'yyyy-MM-dd HH:mm')}"></strong> ·
+                            </span>
+                            <span th:if="${d.nextDueAt != null}">
+                                다음 예정 :
+                                <strong th:text="${#temporals.format(d.nextDueAt, 'yyyy-MM-dd HH:mm')}"></strong>
+                            </span>
+                            <span th:if="${d.nextDueAt == null}">기록이 없어 곧 한 번 돕니다.</span>
+                        </p>
 
-        <!--/*
-          MK4-3-2 — 주기 둘이 읽기 전용에서 폼 안으로 들어왔다. 구조가 같은 항목이라 한 조각을
-          반복해 그린다 — 두 벌을 복붙하면 한쪽만 고치는 사고가 난다. 그래서 응답이 폼 필드 이름까지
-          값으로 실어 오고, th:field 는 표현식 전처리(__${...}__)로 그 이름을 받는다.
-
-          값과 함께 다음 점검 예정 시각을 밝히는 것이 이 블록의 요점이다 — 저장한 값을 되비추는
-          것만으로는 "그래서 다음에 언제 보는가" 에 답이 되지 않는다.
-        */-->
-        <div class="n-form-group" th:each="d : ${settings.schedule.depths}">
-            <label class="n-form-label" th:for="${d.fieldName}" th:text="${d.item.label}"></label>
-            <p class="n-form-hint" th:text="${d.item.description}"></p>
-            <p class="n-form-hint" style="margin-top:0">
-                <strong>효과 시점</strong> : <span th:text="${d.item.effectTiming.label}"></span>
-            </p>
-
-            <div style="display:flex; align-items:center; gap:8px;">
-                <input type="number" class="n-input" style="max-width:140px"
-                       th:id="${d.fieldName}" th:field="*{__${d.fieldName}__}"
-                       required
-                       th:min="${settings.schedule.minMinutes}"
-                       th:max="${settings.schedule.maxMinutes}">
-                <span>분</span>
-                <span class="n-form-hint" style="margin:0" th:text="'현재 ' + ${d.text}"></span>
+                        <!--/* 막지 않고 알리기만 한다. 겹친 회차는 건너뛰어질 뿐 무엇도 깨지지 않으므로
+                             거절할 근거가 못 된다. 근거가 추측이 아니라 이 설치 환경의 실측값이라는
+                             점이 이 문구의 값이다. */-->
+                        <p class="n-form-hint n-form-hint-warn" th:if="${d.warning}">
+                            지난 <span th:text="${d.depth.label}"></span>은
+                            <strong th:text="${d.lastDurationText}"></strong> 걸렸습니다.
+                            주기를 그보다 짧게 두면 일부 회차가 건너뛰어집니다.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <p class="n-error" th:if="${#fields.hasErrors(d.fieldName)}"
-               th:errors="*{__${d.fieldName}__}"></p>
+        </section>
 
-            <!--/* 기준이 될 기록이 없으면 예정이 아니라 밀린 상태다 — 그렇게 말해야 사실이다. */-->
-            <p class="n-form-hint" style="margin-top:6px">
-                <span th:if="${d.lastScanAt != null}">
-                    마지막 <span th:text="${d.depth.label}"></span> :
-                    <strong th:text="${#temporals.format(d.lastScanAt, 'yyyy-MM-dd HH:mm')}"></strong> ·
-                </span>
-                <span th:if="${d.nextDueAt != null}">
-                    다음 예정 :
-                    <strong th:text="${#temporals.format(d.nextDueAt, 'yyyy-MM-dd HH:mm')}"></strong>
-                </span>
-                <span th:if="${d.nextDueAt == null}">기록이 없어 곧 한 번 돕니다.</span>
-            </p>
+        <!-- ══ 점검 범위 — 어디를 탐색하는가 ═══════════════════════════════ -->
+        <section class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">점검 범위</strong>
+            </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <div class="n-form-group" th:each="item : ${settings.items}"
+                         th:if="${item.name == 'EXTRA_SCAN_ROOTS'}">
+                        <label class="n-form-label" for="extraScanRoots" th:text="${item.label}"></label>
+                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <p class="n-form-hint">한 줄에 한 경로씩 절대 경로로 입력합니다. 존재하지 않는 경로도 미리 등록할 수 있습니다.</p>
+                        <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
+                        <textarea id="extraScanRoots" class="n-input" rows="4"
+                                  th:field="*{extraScanRoots}"
+                                  placeholder="/mnt/backup/iso"></textarea>
+                        <!--/* 형식 검증은 여러 줄을 한꺼번에 보는 것이라 클래스 수준 규칙(@AssertTrue)으로
+                             두었다. 그 오류는 필드가 아니라 파생 이름에 붙으므로, 필드 옆에 보이게 하려면
+                             여기서 함께 그려야 한다 — 안 그리면 상단 요약에만 나와 어느 칸이 문제인지
+                             보이지 않는다. */-->
+                        <p class="n-error" th:if="${#fields.hasErrors('extraScanRoots')}"
+                           th:errors="*{extraScanRoots}"></p>
+                        <p class="n-error" th:if="${#fields.hasErrors('extraScanRootsValid')}"
+                           th:errors="*{extraScanRootsValid}"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-            <!--/* 막지 않고 알리기만 한다. 겹친 회차는 건너뛰어질 뿐 무엇도 깨지지 않으므로 거절할
-                 근거가 못 된다. 근거가 추측이 아니라 이 설치 환경의 실측값이라는 점이 이 문구의 값이다. */-->
-            <p class="n-form-hint" style="color:var(--n-yellow); margin-top:4px" th:if="${d.warning}">
-                지난 <span th:text="${d.depth.label}"></span>은
-                <strong th:text="${d.lastDurationText}"></strong> 걸렸습니다.
-                주기를 그보다 짧게 두면 일부 회차가 건너뛰어집니다.
-            </p>
-        </div>
+        <!-- ══ 자동 처리 — 시스템이 손을 대는가 ══════════════════════════ -->
+        <section class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">자동 처리</strong>
+            </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <!--/* 전역 스위치가 먼저다 — 이것이 꺼져 있으면 아래 종류 선택이 아무 효과가 없다. */-->
+                    <div class="n-form-group" th:each="item : ${settings.items}"
+                         th:if="${item.name == 'RESOLUTION_ENABLED'}">
+                        <label class="n-form-label" th:text="${item.label}"></label>
+                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
+                        <label class="n-toggle-row">
+                            <input type="checkbox" th:field="*{resolutionEnabled}">
+                            <span>시스템 해결 허용</span>
+                        </label>
+                    </div>
+
+                    <!--/* MK4-4-4 CP5 — 차단기가 꺼져 있으면 아래 선택이 지금은 아무 효과가 없다.
+                         같은 묶음에 둔 것만으로는 그 사실이 전해지지 않았다(CP5 C4). 다만 잠그지는
+                         않는다 — 다시 켰을 때 무엇을 맡길지 미리 정해 두는 것은 정당한 조작이고,
+                         부모가 꺼졌으니 자식을 못 켠다는 종류의 모순이 아니라 "지금은 효과 없음"
+                         이기 때문이다. 그래서 입력은 열어 두고 상태만 눈에 보이게 한다. */-->
+                    <div class="n-form-group" th:each="item : ${settings.items}"
+                         th:if="${item.name == 'AUTO_APPLY_KINDS'}"
+                         th:classappend="${!settingsForm.resolutionEnabled} ? 'n-group-inert'"
+                         data-auto-apply-group>
+                        <label class="n-form-label" th:text="${item.label}"></label>
+                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
+
+                        <p class="n-form-hint n-form-hint-warn" data-auto-apply-inert-note
+                           th:classappend="${settingsForm.resolutionEnabled} ? 'n-hidden'">
+                            <strong>시스템 해결이 꺼져 있어 자동으로 처리하지 않습니다.</strong>
+                            여기서 고른 종류는 저장되며, 시스템 해결을 다시 켜면 그때부터 적용됩니다.
+                        </p>
+
+                        <p class="n-error" th:if="${#fields.hasErrors('autoApplyKindsKnown')}"
+                           th:errors="*{autoApplyKindsKnown}"></p>
+
+                        <!--/* 후보 목록은 종류의 해결 등급에서 파생한다 — 화면에 종류 이름을
+                             하드코딩하지 않으므로 자동 처리 등급의 종류가 늘면 여기 저절로 나타난다. */-->
+                        <div class="n-option-row" th:each="candidate : ${settings.autoApplyCandidates}">
+                            <input type="checkbox" th:field="*{autoApplyKinds}" th:value="${candidate.name}"
+                                   th:id="'kind-' + ${candidate.name}">
+                            <label th:for="'kind-' + ${candidate.name}">
+                                <span class="n-option-title" th:text="${candidate.label}"></span>
+                                <span class="n-badge"
+                                      th:classappend="${candidate.reversible} ? 'n-badge-gray' : 'n-badge-red'"
+                                      th:text="${candidate.reversible} ? '되돌릴 수 있음' : '되돌릴 수 없음'"></span>
+                                <span class="n-option-desc" th:text="${candidate.resolveAction}"></span>
+                                <span class="n-option-desc n-option-warn"
+                                      th:if="${!candidate.reversible}">되돌릴 수 없는 처리를 무인으로 맡기게 됩니다.</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ 기록 보관 — 지난 회차를 얼마나 남기는가 ═════════════════════ -->
+        <section class="n-card n-glist">
+            <div class="n-glist-head">
+                <strong class="n-glist-title">기록 보관</strong>
+            </div>
+            <div class="n-glist-panel">
+                <div class="n-card-body">
+                    <div class="n-form-group" th:each="item : ${settings.items}"
+                         th:if="${item.name == 'REPORT_RETENTION_COUNT'}">
+                        <label class="n-form-label" for="reportRetentionCount" th:text="${item.label}"></label>
+                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
+                        <input type="number" id="reportRetentionCount" class="n-input n-input-narrow"
+                               min="1" max="10000" th:field="*{reportRetentionCount}">
+                        <p class="n-error" th:if="${#fields.hasErrors('reportRetentionCount')}"
+                           th:errors="*{reportRetentionCount}"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <div class="n-form-actions">
             <button type="submit" class="n-btn n-btn-primary">저장</button>
         </div>
     </form>
 </div>
+
+<!--/* MK4-4-4 CP7 — 시스템 해결 토글의 확인 창. 이 화면이 쓰는 확인 창은 하나뿐이라
+     genericConfirmModal 만 싣는다(전용 fragment 를 새로 만들지 않는다). 문구는 settings.js 가
+     끄는 경우와 켜는 경우로 갈라 주입한다 — 두 방향의 위험이 서로 다르기 때문이다. */-->
+<link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+<div th:replace="~{fragments/maintenance/reconciliation-modals :: genericConfirmModal('resolutionToggle')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+
+<!--/* MK4-4-4 — 저장 버튼 이중 제출 가드. 저장이 멱등이라 두 번 눌러도 결과는 같지만, 응답이
+     오기 전에 다시 눌리면 요청이 두 번 나가고 사용자는 무엇이 진행 중인지 알 수 없다
+     (MK4-3-2 CP5 결함 ③). native submit 폼이라 전역 fetch 경로를 타지 않아 여기서 막는다. */-->
+<script th:src="@{/maintenance/reconciliation/settings.js}"></script>
 </body>
 </html>

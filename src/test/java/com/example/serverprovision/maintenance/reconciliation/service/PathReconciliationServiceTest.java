@@ -17,7 +17,7 @@ import com.example.serverprovision.maintenance.reconciliation.enums.DriftHandlin
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.enums.SnoozeWindow;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftResolutionNotAllowedException;
-import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeNotAllowedException;
+import com.example.serverprovision.maintenance.reconciliation.exception.DriftSnoozeStateException;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.GhostDbRowClearResolution;
 import com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution;
 import com.example.serverprovision.maintenance.reconciliation.exception.DriftNotFoundException;
@@ -26,6 +26,7 @@ import com.example.serverprovision.maintenance.reconciliation.repository.DriftHa
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
 import com.example.serverprovision.maintenance.reconciliation.enums.ScanDepth;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,7 @@ class PathReconciliationServiceTest {
         service = new PathReconciliationService(
                 List.of(isoScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.maintenance.reconciliation.repository.DriftObservationRepository.class),
 				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
@@ -160,7 +162,7 @@ class PathReconciliationServiceTest {
 
         DriftReport saved = captureSavedReport();
         assertThat(saved.getDetectedDriftCount()).isZero();
-        assertThat(saved.getTotalChecked()).isEqualTo(1);
+        assertThat(saved.getPopulation().getActiveCount()).isEqualTo(1);
     }
 
     @Test
@@ -324,6 +326,69 @@ class PathReconciliationServiceTest {
         });
     }
 
+    /**
+     * MK4-4-2 — 점검이 실제로 본 것을 전부 센다.
+     *
+     * <p>종전에는 활성 자원만 세면서 삭제 자원 · 짝 없는 마커에서 나온 문제를 목록에 실었다.
+     * 그 결과 탐지 건수가 점검 대상 수를 넘는 화면이 만들어졌고(진단 1-5), 이 테스트가 그 모순이
+     * 사라졌음을 고정한다 — <b>탐지는 점검 대상을 넘을 수 없다</b>.</p>
+     */
+    @Test
+    @DisplayName("MK4-4-2 : 세 모집단을 각각 센다 — 활성 · 삭제 · 짝 없는 마커")
+    void scan_recordsThreePopulations(@TempDir Path tmp) throws Exception {
+        // 활성 1 — 정상이라 문제가 나오지 않는다
+        Path healthy = tmp.resolve("healthy.iso");
+        Files.writeString(healthy, "ok");
+        writeMarker(healthy, MarkerLayout.SIDECAR, 1L, "hash-1");
+        Markable healthyMarkable = isoAt(1L, healthy);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(healthyMarkable));
+
+        // 삭제 1 — 원위치에 실물이 있어 '복귀' 로 잡힌다
+        Path escaped = tmp.resolve("escaped.iso");
+        Files.writeString(escaped, "x");
+        writeMarker(escaped, MarkerLayout.SIDECAR, 77L, "hash-77");
+        given(isoScanner.findTrashed()).willReturn(List.of(
+                new DeletedIso(77L, escaped, tmp.resolve("trash/gone.iso").toString())));
+
+        // 짝 없는 마커 1 — DB 어디에도 없어 미아가 된다
+        Path ghost = tmp.resolve("ghost.iso");
+        Files.writeString(ghost, "ghost");
+        writeMarker(ghost, MarkerLayout.SIDECAR, 99L, "hash-99");
+
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        DriftReport saved = captureSavedReport();
+        assertThat(saved.getPopulation().getActiveCount()).isEqualTo(1);
+        assertThat(saved.getPopulation().getDeletedCount()).isEqualTo(1);
+        assertThat(saved.getPopulation().getUnmatchedMarkerCount()).isEqualTo(1);
+        assertThat(saved.getPopulation().total()).isEqualTo(3);
+        // 이 슬라이스가 없애려던 모순 — 문제가 점검 대상보다 많아 보이던 것
+        assertThat(saved.getDetectedDriftCount()).isLessThanOrEqualTo(saved.getPopulation().total());
+    }
+
+    /**
+     * MK4-4-2 — 실패한 범위만이 아니라 뒤진 범위도 남긴다. 회차 상세가 "이 점검이 무엇을
+     * 했는가" 에 답하려면 성공한 범위를 알아야 하는데 종전에는 어디에도 기록되지 않았다.
+     */
+    @Test
+    @DisplayName("MK4-4-2 : 점검한 디렉토리를 회차에 남긴다")
+    void scan_recordsScannedRoots(@TempDir Path tmp) throws Exception {
+        Path iso = tmp.resolve("healthy.iso");
+        Files.writeString(iso, "ok");
+        writeMarker(iso, MarkerLayout.SIDECAR, 1L, "hash-1");
+        Markable markable = isoAt(1L, iso);
+        given(isoScanner.findActiveMarkables()).willReturn(List.of(markable));
+        ReflectionTestUtils.setField(settingsService, "legacyExtraRootsCsv", tmp.toString());
+
+        ReflectionTestUtils.invokeMethod(service, "performScan", false, "job-1");
+
+        assertThat(captureSavedReport().getScannedRootList())
+                .isNotEmpty()
+                .contains(tmp.toString());
+    }
+
     @Test
     @DisplayName("동시 실행 차단 : 이미 RUNNING 시 새 스캔 거절")
     void triggerScan_alreadyRunning() {
@@ -340,7 +405,7 @@ class PathReconciliationServiceTest {
     void apply_pathDrift_success(@TempDir Path tmp) {
         Path newPath = tmp.resolve("new.iso");
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(100).deep(false).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(100).deep(false).population(ScanPopulation.of(1, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
                 .oldPath("/old").newPath(newPath.toString()).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
@@ -434,7 +499,7 @@ class PathReconciliationServiceTest {
     @DisplayName("MK4-1 snooze : 기간과 사유를 받아 목록에서 내리되 기록은 남긴다 (종전 '보고 닫기' 대체)")
     void snooze_holdsWithReason() {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(50).deep(false).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(50).deep(false).population(ScanPopulation.of(1, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.MISSING)
                 .oldPath("/x").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
@@ -464,7 +529,7 @@ class PathReconciliationServiceTest {
         given(driftRepository.findById(1L)).willReturn(Optional.of(drift));
 
         assertThatThrownBy(() -> service.snooze(1L, SnoozeWindow.DAYS_7, "사유"))
-                .isInstanceOf(DriftSnoozeNotAllowedException.class)
+                .isInstanceOf(DriftSnoozeStateException.class)
                 .hasMessageContaining("이미 해결된");
     }
 
@@ -515,7 +580,7 @@ class PathReconciliationServiceTest {
         // 화면은 열어 두고 서버만 거절하는(또는 그 반대) 어긋남이 생긴다.
         String viewReason = PathReconciliationService.toDriftResponse(open).snoozeBlockReason();
         assertThatThrownBy(() -> service.snooze(1L, SnoozeWindow.DAYS_30, "또 미루기"))
-                .isInstanceOf(DriftSnoozeNotAllowedException.class)
+                .isInstanceOf(DriftSnoozeStateException.class)
                 .hasMessage(viewReason);
     }
 
@@ -639,7 +704,7 @@ class PathReconciliationServiceTest {
     @DisplayName("HF4-5 : RESOURCE_REPLICA 는 표준 [적용] 불가 (mode=NONE — 택일 전용 endpoint 로만 해소)")
     void apply_rejectsResourceDuplicated() {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(0).deep(false).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(0).deep(false).population(ScanPopulation.of(1, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L)
                 .kind(DriftKind.RESOURCE_REPLICA)
@@ -703,7 +768,7 @@ class PathReconciliationServiceTest {
     @DisplayName("MK3-1 → MK4-1 : apply(GHOST_DB_ROW) → scanner.applyGhostClear 호출 + 문제는 해결로 닫힘")
     void apply_ghostRow_success() {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(50).deep(false).totalChecked(0).build();
+                .scannedAt(Instant.now()).scanDurationMs(50).deep(false).population(ScanPopulation.of(0, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(99L).kind(DriftKind.GHOST_DB_ROW)
                 .oldPath("/missing").newPath(null).firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
@@ -1078,6 +1143,7 @@ class PathReconciliationServiceTest {
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, metaScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.maintenance.reconciliation.repository.DriftObservationRepository.class),
 				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
@@ -1152,6 +1218,7 @@ class PathReconciliationServiceTest {
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.maintenance.reconciliation.repository.DriftObservationRepository.class),
 				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
@@ -1254,6 +1321,7 @@ class PathReconciliationServiceTest {
         PathReconciliationService svc = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.maintenance.reconciliation.repository.DriftObservationRepository.class),
 				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new PathDriftResolution(), new GhostDbRowClearResolution()), null);
@@ -1332,7 +1400,7 @@ class PathReconciliationServiceTest {
     @DisplayName("MK4-1 : 응답 매핑 — 해결한 문제도 그 회차의 관측으로 남아 탐지 수와 목록이 어긋나지 않는다")
     void latestReport_keepsResolvedObservations() {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(100).deep(false).totalChecked(5).build();
+                .scannedAt(Instant.now()).scanDurationMs(100).deep(false).population(ScanPopulation.of(5, 0, 0)).build();
         Drift d1 = Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(1L).kind(DriftKind.MISSING)
                 .oldPath("/a").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();
         Drift d2 = Drift.builder().resourceType(ResourceType.OS_ISO).resourceId(2L).kind(DriftKind.MISSING)

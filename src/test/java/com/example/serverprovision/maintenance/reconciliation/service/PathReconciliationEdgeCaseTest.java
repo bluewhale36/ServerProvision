@@ -14,6 +14,7 @@ import com.example.serverprovision.maintenance.reconciliation.entity.DriftObserv
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftReportRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -98,6 +99,7 @@ class PathReconciliationEdgeCaseTest {
         service = new PathReconciliationService(
                 List.of(isoScanner, biosScanner), markerService, backgroundJobService,
                 driftReportRepository, driftRepository, driftHandlingRepository,
+				org.mockito.Mockito.mock(com.example.serverprovision.maintenance.reconciliation.repository.DriftObservationRepository.class),
 				settingsService,
 				org.mockito.Mockito.mock(com.example.serverprovision.provisioning.usage.ResourceUsageQuery.class),
                 List.of(new com.example.serverprovision.maintenance.reconciliation.service.resolution.PathDriftResolution(),
@@ -471,7 +473,7 @@ class PathReconciliationEdgeCaseTest {
         DriftReport saved = runScan(false);
 
         assertThat(driftsOf(saved)).isEmpty();
-        assertThat(saved.getTotalChecked()).isZero();
+        assertThat(saved.getPopulation().getActiveCount()).isZero();
     }
 
     @Test
@@ -535,9 +537,9 @@ class PathReconciliationEdgeCaseTest {
         given(driftReportRepository.findAllByOrderByScannedAtAsc(any()))
                 .willReturn(new org.springframework.data.domain.PageImpl<>(List.of(
                         DriftReport.builder().scannedAt(Instant.now()).scanDurationMs(0)
-                                .deep(false).totalChecked(0).build(),
+                                .deep(false).population(ScanPopulation.of(0, 0, 0)).build(),
                         DriftReport.builder().scannedAt(Instant.now()).scanDurationMs(0)
-                                .deep(false).totalChecked(0).build())));
+                                .deep(false).population(ScanPopulation.of(0, 0, 0)).build())));
 
         runScan(false);
 

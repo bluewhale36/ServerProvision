@@ -15,6 +15,7 @@ import com.example.serverprovision.maintenance.reconciliation.entity.DriftObserv
 import com.example.serverprovision.maintenance.reconciliation.enums.DriftStatus;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftHandlingRepository;
 import com.example.serverprovision.maintenance.reconciliation.repository.DriftRepository;
+import com.example.serverprovision.maintenance.reconciliation.vo.ScanPopulation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -90,7 +91,7 @@ class DuplicateResolveServiceTest {
 
     private Drift duplicateDrift(ResourceType type, Long id, Path oldPath, Path newPath) {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(0).deep(false).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(0).deep(false).population(ScanPopulation.of(1, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(type).resourceId(id).displayName(type.name() + "-" + id)
                 .kind(DriftKind.RESOURCE_REPLICA)
@@ -299,7 +300,7 @@ class DuplicateResolveServiceTest {
     @DisplayName("kind 불일치 : RESOURCE_REPLICA 외 종류의 direct POST → 409 notApplicable")
     void rejectsOtherKind(@TempDir Path tmp) {
         DriftReport report = DriftReport.builder()
-                .scannedAt(Instant.now()).scanDurationMs(0).deep(false).totalChecked(1).build();
+                .scannedAt(Instant.now()).scanDurationMs(0).deep(false).population(ScanPopulation.of(1, 0, 0)).build();
         Drift drift = Drift.builder()
                 .resourceType(ResourceType.OS_ISO).resourceId(42L).kind(DriftKind.PATH_DRIFT)
                 .oldPath("/x").newPath("/y").firstDetectedAt(Instant.now()).lastObservedAt(Instant.now()).build();

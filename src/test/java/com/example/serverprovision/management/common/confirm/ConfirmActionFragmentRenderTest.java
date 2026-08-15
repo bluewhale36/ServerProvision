@@ -176,7 +176,9 @@ class ConfirmActionFragmentRenderTest {
                 "management/bmc/list.html",
                 "management/subprogram/list.html",
                 "maintenance/trash/list.html",
-                "maintenance/reconciliation/list.html"
+                // MK4-4-2 — reconciliation 은 모달 인프라를 공통 조각(tail)이 싣는다. 화면이 셋으로
+                // 늘면서 화면마다 같은 include 를 되풀이하던 것을 한 곳으로 모았다.
+                "fragments/maintenance/reconciliation-parts.html"
         };
         for (String p : pagesWithModalInfra) assertPageUsesNewModalInfra(p);
     }
@@ -192,7 +194,10 @@ class ConfirmActionFragmentRenderTest {
                 TEMPLATES.resolve("management/bmc/list.html"),
                 TEMPLATES.resolve("fragments/management/subprogram/miller.html"),
                 TEMPLATES.resolve("maintenance/trash/list.html"),
-                TEMPLATES.resolve("maintenance/reconciliation/list.html")
+                // MK4-4-2 — [해결] 폼 셋이 이 조각으로 옮겨졌다(목록 · 상세 · 현행 화면이 함께 쓴다).
+                // 규약을 지켜야 하는 자리가 옮겨갔으므로 검사 대상도 함께 옮긴다 — 파일 이름으로
+                // 고정해 두면 조각 추출을 이 테스트가 따라오지 못한다.
+                TEMPLATES.resolve("fragments/maintenance/reconciliation-parts.html")
         };
         for (Path p : callers) {
             String html = read(p);
@@ -203,6 +208,7 @@ class ConfirmActionFragmentRenderTest {
                             || html.contains("data-confirm-restore")
                             || html.contains("data-confirm-purge")
                             || html.contains("data-confirm-drift-apply")
+                            || html.contains("data-confirm-drift-snooze")
                             || html.contains("data-confirm-drift-dismiss");
             assertThat(anyMarker)
                     .as(p.getFileName() + " — boolean 마커 (data-confirm-{action}) 가 form 에 없음")

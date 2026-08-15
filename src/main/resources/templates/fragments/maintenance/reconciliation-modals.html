@@ -13,12 +13,17 @@
   스타일은 confirm-modal.css 의 .cm-* 재사용. 인라인 style 0.
 */-->
 
+<!--/* MK4-4-2 — 세 계층. 제목이 <b>무슨 행위인가</b>(DriftKind.resolveTitle), 첫 문단이
+     <b>무엇을 대상으로</b>, 둘째 문단이 <b>무슨 일이 일어나는가</b>(DriftKind.resolveAction)다.
+     종전에는 제목이 전 종류 "드리프트 해결" 하나였고 나머지가 한 문장에 뭉쳐 있어, 경로 기록만
+     고치는 일과 파일을 지우는 일이 같은 무게로 읽혔다. */-->
 <div th:fragment="applyModalCard" class="cm-overlay" data-modal-active>
     <div class="cm-backdrop" data-modal-cancel></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 class="cm-title">드리프트 해결</h2>
-            <p class="cm-message" data-modal-message>이 드리프트를 해결할까요?</p>
+            <h2 class="cm-title" data-modal-title>드리프트 해결</h2>
+            <p class="cm-message-tight" data-modal-message>이 드리프트를 해결할까요?</p>
+            <p class="cm-message-hint" data-modal-note></p>
             <div class="cm-actions">
                 <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
                 <button type="button" class="n-btn n-btn-primary" data-modal-confirm>해결</button>
@@ -33,8 +38,9 @@
     <div class="cm-backdrop" data-modal-cancel></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 class="cm-title">보관</h2>
-            <p class="cm-message" data-modal-message>이 드리프트를 보관합니다.</p>
+            <h2 class="cm-title" data-modal-title>보관</h2>
+            <p class="cm-message-tight" data-modal-message>이 드리프트를 보관합니다.</p>
+            <p class="cm-message-hint" data-modal-note></p>
             <div class="n-form-group">
                 <label class="n-label" for="snoozeWindow">보관 기간</label>
                 <select id="snoozeWindow" class="n-input" data-snooze-window>
@@ -64,10 +70,25 @@
     <div class="cm-backdrop" data-modal-cancel></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 class="cm-title">현재 내용을 정본으로 수용</h2>
+            <h2 class="cm-title" data-modal-title>현재 내용을 정본으로 수용</h2>
             <p class="cm-message-tight" data-modal-message>지금 파일 내용의 지문을 정본으로 등록합니다.</p>
-            <p class="n-form-hint" style="margin:0 0 10px">원본 재업로드가 더 안전합니다 (검증 재통과).
-                의도한 교체가 확실할 때만 수용하세요 — 감사 기록에 남습니다.</p>
+            <p class="cm-message-hint" data-modal-note></p>
+
+            <!--/* MK4-4-3 CP7 — 이 경고를 data-modal-note 에 두면 openLazy 가 호출측 문구로 덮어써
+                 사라진다. 덮이지 않는 자리에 고정한다.
+
+                 다른 해결은 기록을 실물에 맞추는 일이라 되돌릴 수 있지만, 이것은 <b>변조되었을 수도
+                 있는 지금 내용을 정본으로 굳히는</b> 일이다. 잘못 수용하면 변조된 파일이 올바른 것이
+                 되어 이후 점검에서 영영 잡히지 않는다. 자원명 확인은 실수로 누르지 못하게 하는
+                 장치인데, 왜 신중해야 하는지를 그 자리에서 말하지 않으면 타이핑이 요식이 된다. */-->
+            <div class="cm-warn-box">
+                <strong class="cm-warn-title">의도한 교체가 아니라면 원본을 다시 업로드하세요.</strong>
+                <p class="cm-warn-desc">
+                    재업로드는 검증을 다시 통과하므로 안전합니다. 수용은 <strong>변조된 내용도 정본으로
+                    굳히며</strong>, 그 뒤로는 이 자원에서 같은 변조가 감지되지 않습니다.
+                </p>
+                <p class="cm-warn-desc">의도한 교체가 확실할 때만 진행하세요 — 감사 기록에 남습니다.</p>
+            </div>
 
             <div class="cm-typed-wrap">
                 <div class="cm-typed-target-box">

@@ -196,8 +196,7 @@ public class Drift {
 		this.status = DriftStatus.RESOLVED;
 		this.resolvedAt = at;
 		this.resolvedBy = by;
-		this.snoozeUntil = null;
-		this.snoozeWindow = null;
+		clearSnooze();
 	}
 
 	/**
@@ -215,6 +214,20 @@ public class Drift {
 	 */
 	public void reopen() {
 		this.status = DriftStatus.OPEN;
+		clearSnooze();
+	}
+
+	/**
+	 * 보관에 딸린 값 셋을 함께 비운다.
+	 *
+	 * <p>따로 지우던 때는 {@code resolve} 가 만료 시각과 기간만 비우고 <b>사유를 남겨</b>, 해결된
+	 * 드리프트의 상태 줄에 지난 보관 사유가 그대로 붙어 있었다. 셋은 보관이라는 한 상태의 부속이라
+	 * 함께 서고 함께 사라져야 한다 — 한 곳에 모아 두면 상태 전이가 늘어도 빠뜨릴 자리가 없다.</p>
+	 *
+	 * <p>사유가 이력에서 사라지는 것은 아니다. 보관 시점의 사유는 {@code DriftHandling} 에 남고
+	 * 이력 화면이 그것을 읽는다 — 여기 있는 값은 <b>지금 보관 중이라는 사실의 일부</b>다.</p>
+	 */
+	private void clearSnooze() {
 		this.snoozeUntil = null;
 		this.snoozeWindow = null;
 		this.snoozeReason = null;
@@ -245,6 +258,22 @@ public class Drift {
 	}
 
 	/**
+	 * MK4-4-3 — 보관을 풀 수 없는 사유. null 이면 가능하다.
+	 *
+	 * <p>{@link #snoozeBlockReason()} 의 짝이다 — 화면의 버튼 비활성 사유와 서버 가드가 이 한
+	 * 메서드를 함께 본다. 보관 목록에만 [보관 해제] 가 놓이므로 정상 흐름에서는 발동하지 않고,
+	 * direct POST 나 오래된 화면에서만 걸린다.</p>
+	 *
+	 * <p>만료된 보관은 막지 않는다 — 이미 첫 화면에 돌아와 있지만 상태 값은 아직 보관이라,
+	 * 여기서 풀어 기록을 맞추는 것이 정상이다.</p>
+	 */
+	public String unsnoozeBlockReason() {
+		if (status == DriftStatus.RESOLVED) return "이미 해결된 드리프트입니다.";
+		if (status != DriftStatus.SNOOZED) return "보관 중인 드리프트가 아닙니다.";
+		return null;
+	}
+
+	/**
 	 * 해결할 수 없는 사유. null 이면 가능하다 — {@link #snoozeBlockReason()} 과 같은 방식으로
 	 * 화면의 버튼 비활성 사유와 서버 가드가 이 한 메서드를 함께 본다.
 	 *
@@ -256,5 +285,19 @@ public class Drift {
 	public String resolveBlockReason() {
 		if (status == DriftStatus.RESOLVED) return "이미 해결된 드리프트입니다.";
 		return null;
+	}
+
+	/**
+	 * MK4-4-2 — 일괄 해결이 집어갈 문제인가.
+	 *
+	 * <p>개별 [해결] 버튼이 활성이 되는 조건과 <b>같은 것</b>을 본다 — 종류가 시스템 해결을 지원하고
+	 * (kind), 지금 상태가 해결을 막지 않는다({@link #resolveBlockReason()}). 두 판정이 갈라지면
+	 * 일괄이 하나씩 눌렀을 때와 다른 결과를 내고, 그 차이는 사용자에게 설명할 길이 없다.</p>
+	 *
+	 * <p>시스템 해결 전역 스위치는 여기서 보지 않는다. 그것은 문제의 성질이 아니라 운영 설정이라
+	 * 화면과 서버 가드가 별도 축으로 본다.</p>
+	 */
+	public boolean bulkResolvable() {
+		return kind.isManuallyResolvable() && resolveBlockReason() == null;
 	}
 }

@@ -111,3 +111,260 @@
     letter-spacing: 0.4px;
     text-transform: uppercase;
 }
+
+/* ---- 페이지네이션 줄 (MK4-4-2) -----------------------------
+   목록 아래에 붙는 이전 · 현재쪽 · 다음 한 줄. 종전에는 화면마다 인라인 스타일로
+   같은 모양을 다시 그렸고, 그래서 한쪽을 고치면 다른 쪽이 뒤처졌다.
+   비활성 방향은 링크가 아니라 흐린 글자로 두어 누를 수 있는 것과 구분된다. */
+.n-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-top: 1px solid var(--n-border);
+    font-size: 12px;
+}
+
+/* ---- 경로 표시 (MK4-4-2) ----------------------------------
+   파일 경로는 공백이 없어 기본 규칙으로는 줄이 바뀌지 않는다. 긴 경로 하나가 표나 상세 칸을
+   가로로 밀어내던 것을 여기서 끊는다. 종전에는 화면마다 인라인 스타일로 같은 일을 했다. */
+.n-path {
+    word-break: break-all;
+}
+
+/* 재발견된 위치 — 등록된 위치와 눈으로 갈리도록 강조색을 준다 */
+.n-path-found {
+    color: var(--n-color-primary);
+}
+
+/* 경로 여러 개를 늘어놓을 때. 글머리표 없이 줄만 나눈다 */
+.n-path-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.n-path-list > li {
+    word-break: break-all;
+}
+
+/* ---- 이력 타임라인 그래프 (MK4-4-2) -------------------------
+   드리프트 하나에 일어난 일을 표로만 늘어놓으면 줄이 균질해 흐름이 읽히지 않는다.
+   왼편에 세로선과 노드를 그려, 무엇이 관측이고 무엇이 처리이며 어디서 이어졌는지를
+   눈으로 훑을 수 있게 한다(git 이력 그래프와 같은 방식).
+
+   구조 :
+     <td class="n-tl-cell"><span class="n-tl-node is-handling"></span></td>
+   선은 셀이 그리고 노드가 그 위에 얹힌다. 첫 줄은 위쪽 선을, 마지막 줄은 아래쪽 선을
+   반만 그려 사슬의 시작과 끝이 열려 있지 않게 한다.
+
+   선은 <b>본문 셀에만</b> 그린다 — 머리글에도 그리면 표 위로 선이 삐져나와 어디서
+   시작하는지 모르게 된다(첫 구현에서 실제로 그랬다). */
+.n-tl-cell {
+    width: 34px;
+    padding: 0 !important;
+}
+
+td.n-tl-cell {
+    position: relative;
+}
+
+/* 세로선 — 셀 전체를 지나 위아래 줄과 이어진다 */
+td.n-tl-cell::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--n-border);
+}
+
+/* 사슬의 양 끝 — 선이 허공으로 뻗지 않게 반만 그린다 */
+.n-tl-body > tr:first-child > td.n-tl-cell::before {
+    top: 50%;
+}
+
+.n-tl-body > tr:last-child > td.n-tl-cell::before {
+    bottom: 50%;
+}
+
+/* 아래로 이어짐(감춘 줄)이 있으면 마지막 줄도 선을 끝까지 그린다 */
+.n-tl-body.is-continued > tr:last-child > td.n-tl-cell::before {
+    bottom: 0;
+}
+
+/* 노드 — 셀 높이와 무관하게 늘 세로 가운데.
+   행 높이는 경로 길이에 따라 크게 달라지므로(긴 경로는 두세 줄이 된다) 흐름에 맡기면
+   노드가 줄 위쪽에 붙어 선과 어긋난다. 위치를 절대로 잡고 transform 대신 음수 margin 으로
+   중앙을 맞추는 이유는, transform 자리를 마름모 회전에 남겨 두기 위해서다.
+
+   표식은 두 축의 곱이다.
+     · 모양 — 이 드리프트 자신의 일이면 마름모(.is-current), 다른 드리프트를 가리키면 원.
+              지금 무엇을 보고 있는지가 사슬 안에서 한눈에 드러난다.
+     · 색   — 닫혔으면 파랗게 채우고(.is-resolved), 열려 있으면 붉은 테두리만 남긴다(.is-open).
+              사슬 어딘가에 처리되지 않은 것이 있으면 그 자리가 눈에 띈다. */
+.n-tl-node {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 11px;
+    height: 11px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--n-text-muted);
+    box-sizing: border-box;
+}
+
+/* 닫힌 것 — 파랗게 채운다. 더 볼 것이 없다는 뜻이라 시선을 붙들지 않는다 */
+.n-tl-node.is-resolved {
+    background: var(--n-blue);
+    border-color: var(--n-blue);
+}
+
+/* 열린 것 — 붉은 테두리에 속을 비운다. 채우지 않는 이유는 아직 끝나지 않았음을 형태로도
+   말하기 위해서다(빈 자리 = 해야 할 일이 남음). */
+.n-tl-node.is-open {
+    background: #fff;
+    border-color: var(--n-red);
+}
+
+/* 지금 보고 있는 드리프트의 일 — 마름모. 원과 크기가 같아 보이도록 조금 키운다 */
+.n-tl-node.is-current {
+    width: 13px;
+    height: 13px;
+    margin: -7px 0 0 -7px;
+    border-radius: 2px;
+    transform: rotate(45deg);
+}
+
+/* 표 아래로 이어지는 안내.
+   선을 여기까지 끌어내리지 않는다 — 표 밖에서는 행 높이와 셀 여백이 달라 같은 자리에 그려도
+   눈에는 어긋나 보였다. 사슬이 이어진다는 사실은 마지막 행의 선을 끊지 않는 것으로 이미 말한다. */
+.n-tl-continue {
+    padding: 10px 12px 12px 46px;
+    font-size: 12px;
+    color: var(--n-text-muted);
+}
+
+/* 이력의 번호 열 — 그래프 바로 옆, git 이력에서 해시가 오는 자리.
+   값이 짧고 고정폭이라 폭을 잡아 두어야 옆 열들이 줄마다 흔들리지 않는다. */
+.n-tl-id {
+    width: 72px;
+    white-space: nowrap;
+}
+
+/* 제목 옆의 번호 — 배지 다음에 놓이며 제목의 일부가 아님을 크기로 알린다 */
+.n-title-id {
+    font-size: 13px;
+    font-weight: 400;
+    margin-left: 4px;
+}
+
+/* 이력의 열 폭 — 경로가 가장 넓어야 한다.
+   시각과 개요는 길이가 예측되는 값이라 필요한 만큼만 잡고, 남는 폭은 전부 경로에 준다
+   (경로 열에 width 를 주지 않는 이유가 그것이다 — 남은 자리를 다 먹게 둔다).
+   개요를 넓게 잡았더니 정작 줄바꿈이 잦은 경로가 밀렸다. */
+.n-tl-at {
+    width: 158px;
+    white-space: nowrap;
+}
+
+.n-tl-summary {
+    width: 22%;
+}
+
+/* 제목 아래 보조 텍스트 (MK4-4-2)
+   "마지막 점검이 언제였나" 처럼 배경이 되는 사실을 두는 자리. 배너로 두면 본문 위에 한 칸을
+   차지해 정작 처리해야 할 것보다 먼저 눈에 들어온다. */
+.n-page-subtext {
+    margin-top: 4px;
+    font-size: 12.5px;
+}
+
+/* 헤더 버튼 묶음의 구분선 (MK4-4-2)
+   성질이 다른 버튼이 한 줄에 설 때 색만으로는 계층이 읽히지 않는다. 왼쪽은 화면 이동,
+   오른쪽은 실행 — 그 경계를 선 하나가 말한다. */
+.n-header-divider {
+    align-self: stretch;
+    width: 1px;
+    margin: 2px 4px;
+    background: var(--n-border);
+}
+
+/* 나란히 놓는 두 구획 (MK4-4-2)
+   함께 읽는 짝을 세로로 쌓으면 둘을 오가느라 스크롤이 생긴다. 좁은 화면에서는 그 이점이
+   사라지고 칸만 좁아지므로 자동으로 위아래로 갈린다. */
+.n-split-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-bottom: 22px;
+}
+
+/* 묶음 자체의 아래 여백은 grid gap 이 대신한다 — 둘이 겹치면 세로 간격만 벌어진다. */
+.n-split-2 > .n-glist {
+    margin-bottom: 0;
+}
+
+/* MK4-4-3 CP7 — 조건에 따라 한 칸이 되는 자리. 짝이 있으면 n-split-2, 없으면 이것을 쓴다.
+   래퍼를 씌우면 안쪽 n-glist 가 그 안의 last-child 가 되어 `.n-glist:last-child { margin-bottom:0 }`
+   에 걸린다 — 형제였을 때 있던 아래 여백이 사라져 다음 묶음과 붙어 버린다. 래퍼가 그 여백을
+   대신 지어 두 상태의 간격을 같게 맞춘다. */
+.n-split-1 {
+    margin-bottom: 22px;
+}
+
+/* MK4-4-3 CP7 — 나란한 두 카드의 <b>안쪽 흰 판</b> 높이를 맞춘다.
+   grid 의 기본 align-items:stretch 가 바깥 n-glist 카드는 이미 같은 높이로 늘려 주는데, 그 안의
+   n-glist-panel 은 내용만큼만 차지해 짧은 쪽 아래에 회색 바닥이 드러났다 — 내용 양이 다른 짝
+   (드리프트 상세 ↔ 위험도, 보관 상세 ↔ 해결 방법)에서 특히 어긋나 보인다.
+   카드를 세로 flex 로 두고 판이 남는 높이를 흡수하게 해 흰 판의 아래선을 맞춘다.
+   n-split-2 안에서만 적용하므로 단독으로 쓰이는 n-glist 는 종전대로 내용 높이를 지킨다. */
+.n-split-2 > .n-glist {
+    display: flex;
+    flex-direction: column;
+}
+
+.n-split-2 > .n-glist > .n-glist-panel {
+    flex: 1;
+}
+
+@media (max-width: 900px) {
+    .n-split-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 여러 층을 담는 배너 (MK4-4-2)
+   n-banner-warn 은 기본이 가로 배치라 짧은 문장 하나와 버튼 하나를 담기에 맞다. 담을 것이
+   셋 이상이면 조각이 나뉘므로 세로로 세운다. */
+.n-banner-stack {
+    display: block;
+}
+
+.n-banner-stack > strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* 배너 안의 사실들 — 라벨 위, 값 아래. 값이 시각이라 나란히 놓아야 서로 견줘진다. */
+.n-banner-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 32px;
+    margin: 10px 0 0;
+}
+
+.n-banner-facts dt {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--n-text-muted);
+}
+
+.n-banner-facts dd {
+    margin: 2px 0 0;
+    font-weight: 600;
+}

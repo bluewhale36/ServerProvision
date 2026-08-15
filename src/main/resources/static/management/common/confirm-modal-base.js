@@ -199,6 +199,10 @@
         const expectedEl = modal.querySelector('[data-modal-expected]');
         const typedInput = modal.querySelector('[data-modal-typed-input]');
         const messageEl = modal.querySelector('[data-modal-message]');
+        // MK4-4-2 — 확인 창은 세 계층이다(행위 · 대상 · 무슨 일). 제목과 보조 문단도 호출 시점에
+        // 주입할 수 있어야 같은 fragment 로 종류마다 다른 행위를 말할 수 있다.
+        const titleEl = modal.querySelector('[data-modal-title]');
+        const noteEl = modal.querySelector('[data-modal-note]');
         const cancelEls = modal.querySelectorAll('[data-modal-cancel]');
 
         if (!confirmBtn) {
@@ -208,6 +212,19 @@
         }
 
         if (opts.startDisabled) confirmBtn.disabled = true;
+
+        // MK4-4-2 — 세 계층을 채운다. 값이 없으면 fragment 의 기본 문구를 그대로 두고,
+        // 보조 문단은 비었을 때 아예 지운다 — 빈 문단이 남으면 여백만 벌어진다.
+        if (titleEl && opts.title) titleEl.textContent = opts.title;
+        if (messageEl && opts.message) messageEl.textContent = particles(opts.message);
+        if (noteEl) {
+            if (opts.note) noteEl.textContent = particles(opts.note);
+            else noteEl.remove();
+        }
+        // MK4-4-3 CP5 — 확인 버튼도 행위를 말해야 한다. 정적 open() 은 confirmLabel 을 주입하는데
+        // 이 lazy 경로만 빠져 있어, 한 fragment 를 다른 행위로 재사용하면 버튼이 남의 이름을 달았다
+        // (보관 해제 창의 버튼이 「해결」 로 떴다). 값을 안 주면 fragment 기본값이 그대로 남는다.
+        if (opts.confirmLabel) confirmBtn.textContent = opts.confirmLabel;
 
         let extraCleanup = null;
         if (opts.afterInject) {

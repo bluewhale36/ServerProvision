@@ -201,7 +201,7 @@ class ReconciliationSettingsControllerTest {
 	}
 
 	@Test
-	@DisplayName("POST 400 — 보관 개수가 1 미만이면 필드 메시지와 함께 같은 화면을 다시 그린다")
+	@DisplayName("POST 거절 — 보관 개수가 1 미만이면 필드 메시지와 함께 같은 화면을 다시 그린다")
 	void post_rejectsRetentionBelowOne() throws Exception {
 		givenDefaults();
 
@@ -217,7 +217,7 @@ class ReconciliationSettingsControllerTest {
 	}
 
 	@Test
-	@DisplayName("POST 400 — 상대 경로는 거절한다")
+	@DisplayName("POST 거절 — 상대 경로는 거절한다")
 	void post_rejectsRelativePath() throws Exception {
 		givenDefaults();
 
@@ -233,7 +233,7 @@ class ReconciliationSettingsControllerTest {
 	}
 
 	@Test
-	@DisplayName("POST 400 — 자동 처리 대상에 알 수 없는 종류가 오면 거절한다")
+	@DisplayName("POST 거절 — 자동 처리 대상에 알 수 없는 종류가 오면 거절한다")
 	void post_rejectsUnknownKind() throws Exception {
 		givenDefaults();
 

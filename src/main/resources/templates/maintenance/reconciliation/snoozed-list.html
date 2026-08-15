@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  보관 목록 (MK4-4-3)
+  ─────────────────────────────────────────────────────────
+  지금 미뤄 둔 드리프트들. 종전에는 이 화면이 없어서 보관하면 <b>어느 화면에도 나타나지 않았다</b> —
+  첫 화면의 필터가 Drift.isListed(now) 라 열려 있거나 만료된 것만 통과하기 때문이다. 그래서 보관은
+  미룬 순간 잊혔고, MK4-1 이 '보고 닫기' 를 '보관' 으로 바꾼 목적("왜 방치됐는지 나중에 설명이
+  된다")을 읽을 자리가 없었다.
+
+  첫 화면과 섞지 않는 이유는 주인공이 다르기 때문이다 — 그쪽은 "지금 처리할 것", 여기는 "지금
+  처리 안 하기로 한 것" 이다. 섞으면 급한 순 정렬의 뜻이 깨진다(결정 D2).
+
+  정렬은 급한 순이 아니라 만료가 임박한 순이다 — 이 화면이 묻는 것은 "무엇이 급한가" 가 아니라
+  "무엇이 곧 돌아오는가" 이기 때문이다(주의 ①).
+
+  Model: snoozedDrifts · backHref (+ 공통 배너)
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('보관 목록')}"></th:block>
+    <th:block th:replace="~{fragments/maintenance/reconciliation-parts :: styles}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <div>
+            <h1 class="n-page-title">보관 목록</h1>
+            <div class="n-page-subtext n-text-muted">
+                보관 중인 드리프트 목록입니다. 보관 만료 일시에 드리프트 목록에 다시 나타납니다.
+            </div>
+        </div>
+        <div th:replace="~{fragments/common/back-link :: backLink(${backHref})}"></div>
+    </div>
+
+    <section class="n-card n-glist">
+        <div class="n-glist-head">
+            <strong class="n-glist-title">보관 중</strong>
+            <span class="n-glist-hint">곧 돌아오는 순 — 조건형 보관은 만료 시각이 없어 뒤에 놓입니다</span>
+            <span class="n-badge n-badge-gray" th:text="|${snoozedDrifts.size()} 건|">3 건</span>
+        </div>
+
+        <div class="n-glist-panel">
+            <div th:if="${#lists.isEmpty(snoozedDrifts)}" class="n-empty">
+                <div class="n-empty-title">보관 중인 드리프트가 없습니다.</div>
+                <div class="n-empty-desc">
+                    지금 처리하기 어려운 것은 드리프트 상세에서 <strong>[보관]</strong> 으로 미뤄 둘 수 있습니다.
+                </div>
+            </div>
+
+            <table th:unless="${#lists.isEmpty(snoozedDrifts)}" class="n-table">
+                <thead>
+                <tr>
+                    <th class="n-tl-id">번호</th>
+                    <th>자원</th>
+                    <th>드리프트</th>
+                    <th>보관 기간</th>
+                    <th>보관 만료 일시</th>
+                    <th>보관 사유</th>
+                    <th class="n-th-center">처리</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="drift : ${snoozedDrifts}" class="n-row-hover" th:data-nav-key="${drift.id}">
+                    <td class="n-tl-id n-spec-cell" th:text="|#${drift.id}|">#378</td>
+                    <td>
+                        <a class="n-row-link"
+                           th:href="@{/maintenance/reconciliation/drifts/{id}(id=${drift.id})}"
+                           th:text="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
+                        <div class="n-spec-cell" th:text="${drift.resourceType}">OS_ISO</div>
+                    </td>
+                    <td th:text="${drift.kind.label}">경로 이동됨</td>
+                    <td class="n-spec-cell" th:text="${drift.snoozeWindowLabel()}">7일 동안</td>
+                    <!--/* 조건형 보관은 시각이 아니라 사건으로 풀린다 — 만료 시각이 없다는 사실을
+                         빈칸으로 두면 값이 빠진 것처럼 읽히므로 언제 풀리는지를 밝힌다. */-->
+                    <td class="n-spec-cell">
+                        <span th:if="${drift.snoozeUntil != null}"
+                              th:text="${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')}">2026-08-20 09:00</span>
+                        <span th:unless="${drift.snoozeUntil != null}">다음 정밀 점검 직전</span>
+                    </td>
+                    <td class="n-spec-cell" th:text="${drift.snoozeReason != null ? drift.snoozeReason : '—'}">—</td>
+                    <!--/* MK4-4-3 — 미룬 것을 앞당겨 되돌린다. reopen() 과 UNSNOOZE 는 MK4-1 이
+                         만들어 두었는데 부르는 곳이 기간 만료 자동 처리뿐이라, "생각이 바뀌었으니
+                         지금 처리하겠다" 를 할 경로가 없었다. */-->
+                    <td class="n-th-center">
+                        <form method="post"
+                              th:action="@{/maintenance/reconciliation/drifts/{id}/unsnooze(id=${drift.id})}"
+                              data-confirm-drift-unsnooze=""
+                              th:data-resource-type="${drift.resourceType}"
+                              th:data-resource-id="${drift.resourceId}"
+                              th:data-resource-label="|'${drift.kind.label}' 드리프트|"
+                              data-resolve-title="보관 해제"
+                              data-confirm-label="보관 해제"
+                              data-resource-extra="보관 사유는 기록에 남습니다.">
+                            <span class="n-btn-tooltip-wrap" th:data-tooltip="${drift.unsnoozeBlockReason}"
+                                  th:attr="data-tooltip-active=${drift.unsnoozeBlockReason != null} ? 'true' : 'false'">
+                                <button type="submit" class="n-btn n-btn-sm n-btn-secondary"
+                                        th:disabled="${drift.unsnoozeBlockReason != null}">보관 해제</button>
+                            </span>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<th:block th:replace="~{fragments/maintenance/reconciliation-parts :: tail}"></th:block>
+</body>
+</html>
