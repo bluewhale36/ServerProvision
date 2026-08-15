@@ -135,7 +135,6 @@ OPS-3 D8(EnvironmentFile 주입, 0600)을 따른다. OPS-2 의 경로 배치는 
 ```bash
 sudo tee /etc/serverprovision/env >/dev/null <<'EOF'
 SERVER_PORT=8080
-SERVER_ADDRESS=0.0.0.0
 DB_URL=jdbc:mariadb://localhost:3306/server_provision
 DB_USERNAME=spv_app
 DB_PASSWORD=<비밀번호>
@@ -153,7 +152,7 @@ sudo chmod 0600 /etc/serverprovision/env
 
 주의와 확인 지점:
 
-- **SERVER_ADDRESS=0.0.0.0 은 필수다.** application.properties 가 server.address=localhost 를 고정하고 있어, 이 변수 없이는 루프백 전용 바인딩이 되어 외부 접속이 전부 거부된다. OS 환경변수가 패키징된 properties 보다 우선하므로 덮어쓰기가 성립한다. 실측 2026-08-15.
+- **바인딩 주소는 12절의 구성과 한 쌍으로 정한다.** application.properties 가 server.address=localhost 를 고정하므로 앱은 기본적으로 루프백 전용이다. 12절의 nginx TLS 종단을 쓰는 최종 구성에서는 이것이 그대로 맞다. 외부 창구는 443 하나이고 방화벽에 8080 을 열지 않는다. nginx 없이 HTTP 를 직접 노출해 확인하는 임시 단계에서만 `SERVER_ADDRESS=0.0.0.0` 을 넣어 덮어쓴다. OS 환경변수가 패키징된 properties 보다 우선하므로 덮어쓰기가 성립한다. 실측 2026-08-15.
 - **PROVISION_MARKER_SECRET 은 한 번 정하면 바꾸지 않는다.** 마커 서명이 이 비밀에 묶이므로 바꾸는 순간 기존 마커 전부가 서명 불일치가 된다. 현재 코드에는 기본값이 있으나 OPS-3 D9 가 기본값 제거를 확정했으므로 처음부터 명시 주입한다.
 - 기본값 없는 필수 키는 SERVER_PORT, DB_URL, DB_USERNAME, DB_PASSWORD, RECONCILIATION_SCAN_EXTRA_ROOTS 다섯이다. 마지막 키는 빈 값 허용 여부를 첫 기동으로 확인한다.
 - PROVISION_ALLOWED_ROOTS 의 다중 경로 표기 형식(쉼표 구분 여부)은 application.properties 주석과 첫 기동으로 확인한다.
@@ -207,7 +206,64 @@ journalctl -u serverprovision -f
 
 기동 실패 시 journalctl 의 Spring 로그를 먼저 읽는다. placeholder 미해결은 환경 키 누락이고, validate 실패는 스키마 불일치다. OPS-3 D1 에 따라 애플리케이션은 SELinux 로 가둬지지 않으므로 SELinux 는 원인 후보에서 후순위다(확인은 `ausearch -m avc -ts recent`).
 
-## 12. 개발 도구 층
+## 12. HTTPS 접속과 nginx TLS 종단
+
+앱은 HTTP 8080 을 그대로 두고, nginx 가 443 에서 TLS 를 종단해 127.0.0.1:8080 으로 프록시한다. 앱 설정을 바꾸지 않고 실배포에서도 같은 모양을 쓸 수 있는 표준 구성이다. 실측 2026-08-15.
+
+```bash
+sudo dnf -y install nginx
+sudo mkdir -p /etc/pki/nginx/private
+sudo openssl req -x509 -newkey rsa:2048 -sha256 -days 825 -nodes \
+  -keyout /etc/pki/nginx/private/spv.key -out /etc/pki/nginx/spv.crt \
+  -subj "/CN=spv-staging" -addext "subjectAltName=IP:<VM IP>"
+sudo chmod 600 /etc/pki/nginx/private/spv.key
+```
+
+자체서명 인증서에는 SAN 의 IP 항목이 필수다. CN 만으로는 최신 브라우저가 주소 불일치로 거부한다.
+
+```
+# /etc/nginx/conf.d/serverprovision.conf
+server {
+    listen 443 ssl http2;    # nginx 1.25 이상이면 listen 443 ssl; + http2 on; 두 줄로 쓴다
+    server_name <VM IP>;
+    ssl_certificate     /etc/pki/nginx/spv.crt;
+    ssl_certificate_key /etc/pki/nginx/private/spv.key;
+    client_max_body_size 20g;        # 앱의 한 요청 업로드 한도와 정합. 기본 1m 이면 대용량 업로드가 413 으로 끊긴다
+    proxy_request_buffering off;     # 20 GB 를 nginx 디스크에 스풀하지 않고 앱으로 스트리밍
+    proxy_read_timeout 300s;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
+
+이어서 세 가지를 함께 한다.
+
+```bash
+sudo setsebool -P httpd_can_network_connect 1   # SELinux Enforcing 에서 nginx 의 upstream 접속 허용. 없으면 502
+echo 'SERVER_FORWARD_HEADERS_STRATEGY=native' | sudo tee -a /etc/serverprovision/env
+sudo systemctl restart serverprovision
+sudo nginx -t && sudo systemctl enable --now nginx
+sudo firewall-cmd --permanent --add-service=https && sudo firewall-cmd --reload
+```
+
+SERVER_FORWARD_HEADERS_STRATEGY 는 프록시 뒤에서 앱이 만드는 리다이렉트가 https 로 나가게 한다. 이 애플리케이션의 폼 흐름이 전부 제출 후 리다이렉트 패턴이라 생략하면 안 된다. 브라우저는 자체서명 인증서라 최초 접속 시 경고를 한 번 낸다. 스테이징에서는 경고를 무시하고 진행하면 되고, 없애려면 spv.crt 를 접속 기기의 신뢰 저장소에 등록한다.
+
+마지막으로 11절에서 임시로 열었던 HTTP 직접 노출을 회수해 창구를 443 하나로 만든다.
+
+```bash
+sudo sed -i '/^SERVER_ADDRESS=0.0.0.0$/d' /etc/serverprovision/env   # 루프백 전용 바인딩으로 복귀
+sudo firewall-cmd --permanent --remove-port=8080/tcp && sudo firewall-cmd --reload
+sudo systemctl restart serverprovision
+```
+
+이후 8080 은 nginx 가 쓰는 내부 통로로만 남고 외부에서는 닿지 않는다. 실측 2026-08-15.
+
+## 13. 개발 도구 층
 
 계정 인증이 섞이는 수작업 층이다. 이 VM 은 minimal 설치라 GUI 가 없다. 터미널 도구는 그대로 쓰고, IDE 는 화면 없이 백엔드만 VM 에 올리는 원격 방식으로 간다.
 
@@ -221,6 +277,6 @@ git config --global user.email "<이메일>"
 
 IntelliJ 는 VM 에 설치하지 않는다. 맥의 JetBrains Gateway(또는 IntelliJ 의 Remote Development 메뉴)로 ssh 접속하면 VM 에는 headless 백엔드만 자동 배치되고 IDE 화면은 맥에서 뜬다. GUI 패키지가 전혀 필요 없다. 단 두 가지 전제가 있다. JetBrains 원격 개발은 IntelliJ IDEA Ultimate 계열에서 지원되며 Community 는 지원되지 않는다. 그리고 백엔드가 VM 에서 인덱싱과 빌드를 수행하므로 VM 메모리를 4 GB 이상 잡아야 쾌적하다. 전제가 안 맞으면 코드는 맥에서 편집하고 git push 와 pull 로 VM 에 반영하는 것으로 충분하다. 스테이징의 본분은 실행 환경 리허설이지 편집 환경이 아니다.
 
-## 13. 이 런북의 자리
+## 14. 이 런북의 자리
 
 여기서 실측으로 검증된 절차와 값이 OPS-4 의 정식 자산(설치 스크립트, 유닛 파일, 운영 런북)으로 승격된다. 실서버 이행 시 이 문서와의 차이는 1절의 표가 기준이다. 절차를 수행하며 발견한 어긋남(환경 키, 권한, 경로)은 이 문서를 직접 고쳐 최신으로 유지한다.
