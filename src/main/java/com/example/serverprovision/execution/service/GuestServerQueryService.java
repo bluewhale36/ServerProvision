@@ -303,6 +303,7 @@ public class GuestServerQueryService {
         GuestServerDetailResponse.Inventory inventory = (detail == null) ? null
                 : new GuestServerDetailResponse.Inventory(
                 detail.getBoardModel().getVendor(),            // 도출
+                detail.getBoardModel().getId(),                // U3-5-a — 하드웨어 대조의 한쪽
                 detail.getBoardModel().getModelName(),
                 detail.getBoardSerial(),
                 detail.getDiscoveryStage(),

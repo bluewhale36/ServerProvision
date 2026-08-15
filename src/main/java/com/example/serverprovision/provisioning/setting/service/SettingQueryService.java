@@ -35,6 +35,18 @@ public interface SettingQueryService {
      */
     SettingDetailResponse findDetail(Long id);
 
+    /**
+     * 여러 정의서의 상세를 한 번에 (U3-5-b) — 정의서 선택 모달의 우측 패널을 전부 미리 렌더하는 데 쓴다.
+     *
+     * <p>{@link #findDetail(Long)} 을 목록만큼 반복 호출하지 않는 이유는 그 편이 호출 수만큼 트랜잭션을
+     * 여는 형태이기 때문이다. 여기서는 한 트랜잭션 안에서 한 번에 읽는다.</p>
+     *
+     * <p><b>없는 id 는 예외 대신 결과에서 빠진다.</b> 호출자가 방금 받은 선택지에서 뽑은 id 를 넘기므로 빠진
+     * 것은 그 사이에 삭제됐다는 뜻이고, 삭제된 정의서를 목록에서 빼는 것은 이미 정해진 규칙이다
+     * (U3-2-b DEC-G). 사용자가 지정한 id 를 확인하는 자리가 아니라 화면 재료를 모으는 자리다.</p>
+     */
+    List<SettingDetailResponse> findDetailsOf(List<Long> ids);
+
     /** 펌웨어 업데이트 단계 폼의 보드/BIOS/BMC 선택지 — 제조사(Vendor) 그룹. */
     List<SettingBoardOptionGroupResponse> findBoardOptions();
 

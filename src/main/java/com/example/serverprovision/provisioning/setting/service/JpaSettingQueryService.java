@@ -1,6 +1,8 @@
 package com.example.serverprovision.provisioning.setting.service;
 
+import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.global.entity.LifecycleEntity;
@@ -110,8 +112,28 @@ public class JpaSettingQueryService implements SettingQueryService {
     public List<SettingSummaryResponse> findAssignable() {
         return repository.findAllByIsDeletedFalseOrderByIdAsc().stream()
                 .filter(d -> d.assignBlockReason() == null)
-                .map(this::toSummary)
+                .map(this::toAssignableSummary)
                 .toList();
+    }
+
+    /**
+     * 선택지 행 조립 — 목록 행에 <b>요구 메인보드</b>를 덧댄다(U3-5-a).
+     *
+     * <p>전체 목록({@code findAll})에는 싣지 않는다. 요구 보드는 "이 서버에 붙일 수 있는가" 를 따질 때만
+     * 뜻이 있고, 그 판정을 하지 않는 화면에서는 보드명 조회가 순수한 낭비이기 때문이다.</p>
+     */
+    private SettingSummaryResponse toAssignableSummary(SettingDefinition definition) {
+        RequiredBoardModel required = RequiredBoardModel.from(
+                definition.getProcesses().stream().map(p -> p.getPayload().request()).toList(),
+                boardModelId -> boardModelRepository.findById(boardModelId)
+                        .map(BoardModel::getModelName)
+                        .orElse("등록되지 않은 보드"));
+        return new SettingSummaryResponse(
+                definition.getId(), definition.getName(), sortedTypes(definition),
+                definition.isDeleted(), definition.isEnabled(), definition.isDeprecated(),
+                definition.getCreatedAt(),
+                required != null ? required.id() : null,
+                required != null ? required.name() : null);
     }
 
     @Override
@@ -120,13 +142,31 @@ public class JpaSettingQueryService implements SettingQueryService {
         // "삭제됨" 배지 + 복원/영구삭제 액션을 렌더한다.
         SettingDefinition definition = repository.findById(id)
                 .orElseThrow(() -> new SettingNotFoundException(id));
+        return toDetail(definition);
+    }
+
+    /**
+     * 여러 건의 상세를 한 트랜잭션에서 (U3-5-b) — 정의서 선택 모달이 우측 패널을 전부 미리 렌더한다.
+     *
+     * <p>없는 id 는 결과에서 빠진다. 호출자가 방금 받은 선택지에서 뽑은 id 를 넘기므로 빠졌다는 것은 그
+     * 사이에 삭제됐다는 뜻이고, 그때 목록에서 빼는 것이 이미 정해진 규칙이다(U3-2-b DEC-G).</p>
+     */
+    @Override
+    public List<SettingDetailResponse> findDetailsOf(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllById(ids).stream().map(this::toDetail).toList();
+    }
+
+    private SettingDetailResponse toDetail(SettingDefinition definition) {
         List<AbstractProcessRequest> processList =
                 sortedProcesses(definition).stream().map(p -> p.getPayload().request()).toList();
         return new SettingDetailResponse(
                 definition.getId(), definition.getName(),
                 definition.isDeleted(), definition.isEnabled(), definition.isDeprecated(),
                 // 삭제 확인 모달의 정보성 경고(DEC-C) — 활성 할당 수. 차단이 아니라 안내.
-                assignmentUsageInspector.countReferencing(id),
+                assignmentUsageInspector.countReferencing(definition.getId()),
                 processList,
                 collectDeprecatedUsages(processList),
                 collectExecutionWarnings(processList),

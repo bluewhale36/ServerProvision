@@ -20,15 +20,20 @@
     margin-top: 28px;
 }
 
+/* 절 제목은 페이지 제목(26px)과 본문(13px) 사이의 층이다. 14px 로는 본문과 거의 같아 상세가 길어질수록
+   "여기서 무엇이 새로 시작되는가" 가 눈에 걸리지 않았다(사용자 지적 2026-08-13). 18px 로 올려 층을 세우고,
+   letter-spacing 은 페이지 제목과 같은 방향으로 살짝 조여 크기만 커진 인상을 피한다. */
 .n-detail-section > .n-section-title {
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 600;
+    letter-spacing: -0.2px;
     margin-bottom: 10px;
     color: var(--n-text);
 }
 
+/* 제목이 커진 만큼 보조 설명도 12 → 13px. 제목과의 차이가 6px 이면 위계는 유지되면서 읽기가 편하다. */
 .n-detail-section > .n-section-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
     margin-bottom: 12px;
 }
@@ -223,8 +228,16 @@
    폭과 높이만 넓힌다. 고를 대상이 목록이라 480px 로는 표가 읽히지 않는다.
    좁은 목록을 아코디언으로 펼치던 방식을 버리고 모달로 옮긴 이유는,
    '고르는 일' 이 상세 화면을 스크롤하는 도중에 곁다리로 일어나지 않게 하기 위해서다. */
-.cm-card-wide {
+/* 선택자를 .cm-card 와 겹쳐 쓰는 이유(U3-5-b) : confirm-modal.css 의 .cm-card{max-width:480px} 와
+   명시도가 같으면 두 파일의 적재 순서가 승부를 가른다. 화면이 confirm-modal.css 를 한 번 더 걸기만 해도
+   모달이 480px 로 접히는데, 그 원인은 마크업 어디에도 보이지 않아 찾기 어렵다(실제로 U3-5-b 에서 겪었다).
+   겹쳐 쓰면 순서와 무관하게 이긴다. */
+.cm-card.cm-card-wide {
     max-width: 1080px;
+    /* 카드가 뷰포트보다 길면 .cm-overlay 의 세로 가운데 정렬이 위쪽을 화면 밖으로 밀어내는데,
+       오버레이는 스크롤되지 않으므로 잘린 부분에 손이 닿지 않는다. 넘칠 때는 카드 안에서 스크롤한다. */
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
 }
 
 .n-picker-body {
@@ -273,8 +286,50 @@
 .n-table-picker th:nth-child(6), .n-table-picker td:nth-child(6) { width: 29%; }
 
 @media (max-width: 900px) {
-    .cm-card-wide { max-width: 100%; }
+    /* 위 규칙과 같은 형태로 겹쳐 쓴다 — 명시도는 미디어 쿼리를 따지지 않으므로, 기본 규칙만 (0,2,0) 으로
+       올리고 이쪽을 (0,1,0) 으로 두면 좁은 화면에서도 기본값이 이겨 이 규칙이 죽는다(CP5 재검증에서 확인). */
+    .cm-card.cm-card-wide { max-width: 100%; }
     .n-picker-body { max-height: 70vh; }
+}
+
+/* ---- 정의서 선택 모달의 2 열 miller (U3-5-b) ----
+   miller 컴포넌트는 그대로 쓰고 모달이라는 자리에 맞는 치수만 덮는다. miller.css 를 고치지 않는 이유는
+   그 파일이 management 다섯 화면의 공용 자산이고, 여기서 필요한 것은 컴포넌트의 성질이 아니라
+   '모달 안' 이라는 맥락에서만 뜻이 있는 값이기 때문이다. */
+
+/* 아래 변형들이 기본 class 와 겹쳐 쓰는 이유 : miller.css 가 server.css 뒤에 실리면 명시도가 같은
+   기본 규칙이 이겨 변형이 통째로 죽는다. 변형은 기본을 덮는 것이 존재 이유이므로 겹쳐 써서 순서를
+   따지지 않게 한다(위 .cm-card-wide 와 같은 사고를 CP5 에서 함께 겪었다). */
+
+/* .n-miller 의 기본 높이는 calc(100vh - 220px) 로 페이지 전체를 채우는 값이다.
+   모달 안에서는 제목 · 안내문 · 하단 버튼이 같은 화면을 나눠 쓰므로 그만큼 물러선다. */
+.n-miller.n-miller-modal {
+    height: 56vh;
+    min-height: 260px;
+    max-height: 560px;
+}
+
+/* 바깥에 스크롤을 두지 않는다 — 각 컬럼이 이미 자체 스크롤을 갖고 있어 겹치면 두 겹이 된다. */
+.n-picker-body-miller {
+    max-height: none;
+    overflow: visible;
+}
+
+/* 정의서 이름은 버전 문자열보다 길다(운영자가 짓는 이름이라 서술적이다). 220px 에서는 대부분
+   말줄임에 걸려 목록이 이름 구실을 못 한다. */
+.n-miller-col-names.n-miller-col-definitions {
+    width: 280px;
+}
+
+/* 하단 상태줄이 차단 사유를 그대로 싣는다 — 사유는 문장이라 회색 보조 텍스트로는 묻힌다. */
+.n-picker-count-blocked {
+    color: var(--n-red);
+    font-weight: 500;
+}
+
+@media (max-width: 900px) {
+    .n-miller.n-miller-modal { height: 64vh; }
+    .n-miller-col-names.n-miller-col-definitions { width: 180px; }
 }
 
 /* ---- 구성 혼재 표식 (U3-4 개정) ----

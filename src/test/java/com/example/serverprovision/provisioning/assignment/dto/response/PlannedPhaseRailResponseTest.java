@@ -19,6 +19,7 @@ class PlannedPhaseRailResponseTest {
     private static AssignmentPlanResponse plan() {
         return new AssignmentPlanResponse(true, "web-standard", AssignmentState.ACTIVE_CONSUMED,
                 "이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)",
+                null,   // U3-5-a — 하드웨어 대조 통과(경고 없음)
                 List.of(ProvisioningPhase.DIAGNOSE_LINUX,
                         ProvisioningPhase.FIRMWARE_UPDATING,
                         ProvisioningPhase.OS_INSTALLING));

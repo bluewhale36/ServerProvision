@@ -1,6 +1,9 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
+import com.example.serverprovision.provisioning.setting.dto.request.BasicSettingRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
+import com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest;
+import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import com.example.serverprovision.provisioning.setting.dto.request.BoardModelSelectionRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.FirmwareSelectionRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest;
@@ -93,6 +96,33 @@ class SettingControllerViewTest {
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
+    /** 단계 타입 4 종을 한 정의서에 담는다 — 조각이 어느 타입에서 끊겨도 드러나도록. */
+    private SettingDetailResponse detailWithAllProcessTypes(long id) {
+        RHELInstallationRequest rhel = new RHELInstallationRequest(
+                1L, 100L,
+                new TimezoneRequest("Asia/Seoul", true),
+                List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
+                new RootPasswordRequest("root-secret-pw", false, false),
+                List.of(new UserRequest("admin", "user-secret-pw", true, false, false)),
+                1L, List.of(1L), true, null);
+        return new SettingDetailResponse(id, "전 타입 세팅",
+                false, true, false, 0L,
+                List.of(
+                        new BasicUpdateRequest(
+                                new BoardModelSelectionRequest(BoardModelSelectionMode.SPECIFIED, 1L),
+                                new FirmwareSelectionRequest(FirmwareSelectionMode.LATEST, null),
+                                new FirmwareSelectionRequest(FirmwareSelectionMode.SPECIFIED, 1L)),
+                        new BasicSettingRequest(List.of(9L)),
+                        rhel,
+                        new RHELOSSettingRequest(1L, "enforcing", List.of(), List.of("vim"))),
+                List.of(), List.of(),
+                new com.example.serverprovision.provisioning.setting.dto.response.ReferenceNamesResponse(
+                        java.util.Map.of(1L, "MS03-CE0"), java.util.Map.of(), java.util.Map.of(),
+                        java.util.Map.of(1L, "Rocky Linux"), java.util.Map.of(), java.util.Map.of(),
+                        java.util.Map.of(9L, "성능 우선"), java.util.Map.of()),
+                LocalDateTime.now(), LocalDateTime.now());
+    }
+
     // ==== 성공 2xx ====================================================
 
     @Test
@@ -141,6 +171,50 @@ class SettingControllerViewTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/setting-detail"))
                 .andExpect(model().attributeExists("setting"));
+    }
+
+    /**
+     * 단계 카드 렌더 회귀 (U3-5-b 조각화) — 카드를 그리는 마크업이 이 페이지에서 조각으로 빠져나갔다.
+     *
+     * <p><b>이 테스트가 없으면 조각화가 렌더를 망가뜨려도 green 이 유지된다.</b> 기존 상세 테스트는 뷰
+     * 이름 · 모델 · lifecycle 버튼만 보고 단계 카드를 보지 않았기 때문이다. 그래서 타입 4 종이 모두 실린
+     * 상세로 각 타입의 고유 표식을 확인한다 — 조각이 사라지거나 파라미터가 어긋나면 배지부터 빈다.</p>
+     *
+     * <p>같은 조각을 서버 상세의 정의서 선택 모달도 쓴다. 그쪽 렌더는
+     * {@code GuestServerControllerPickerTest} 가 본다 — 한 벌을 두 화면이 쓰므로 양쪽에서 확인한다.</p>
+     */
+    @Test
+    @DisplayName("GET /{id} — 단계 카드는 조각이 그린다 · 타입 4 종이 모두 렌더된다 (U3-5-b DEC-A)")
+    void detail_rendersProcessCardsThroughFragment() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detailWithAllProcessTypes(1L));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("n-process-card")))
+                .andExpect(content().string(containsString(SettingProcessType.BASIC_UPDATE.getDisplayName())))
+                .andExpect(content().string(containsString(SettingProcessType.BASIC_SETTING.getDisplayName())))
+                .andExpect(content().string(containsString(SettingProcessType.OS_INSTALLATION.getDisplayName())))
+                .andExpect(content().string(containsString(SettingProcessType.OS_SETTING.getDisplayName())))
+                // OS 단계의 2 단 판별(계열) 배지 — 다형 accessor 가 조각 안에서도 살아 있는가
+                .andExpect(content().string(containsString(OSFamily.RHEL_BASED.getDisplayName())))
+                // 참조 명칭 해석이 조각 안에서 동작하는가 (id 폴백이 아니라 이름이 나와야 한다)
+                .andExpect(content().string(containsString("MS03-CE0")))
+                // OS_SETTING 고유 필드 — 계열별 하위 조각까지 도달했는가
+                .andExpect(content().string(containsString("enforcing")));
+    }
+
+    @Test
+    @DisplayName("GET /{id} — 단계가 없는 정의서는 조각이 빈 상태 문구를 그린다")
+    void detail_rendersEmptyProcessState() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(new SettingDetailResponse(
+                1L, "빈 세팅", false, true, false, 0L,
+                List.of(), List.of(), List.of(),
+                com.example.serverprovision.provisioning.setting.dto.response.ReferenceNamesResponse.empty(),
+                LocalDateTime.now(), LocalDateTime.now()));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("등록된 프로비저닝 단계가 없습니다")));
     }
 
     @Test

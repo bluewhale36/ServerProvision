@@ -59,6 +59,8 @@ public record GuestServerDetailResponse(
      *  hardwareSpec/softwareSpec 은 저장 JSON 의 관용 파싱 결과(E1-2) — 해석 불가면 null(원문은 원장 보존). */
     public record Inventory(
             Vendor vendor,
+            /** 메인보드 식별자(U3-5-a) — 정의서가 요구하는 보드와의 대조는 이름이 아니라 이 값으로 한다. */
+            Long boardModelId,
             String boardModelName,
             String boardSerial,
             DiscoveryStage discoveryStage,

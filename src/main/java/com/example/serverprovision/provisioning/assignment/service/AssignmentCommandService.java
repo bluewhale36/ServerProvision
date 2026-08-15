@@ -2,7 +2,14 @@ package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
+import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
+import com.example.serverprovision.management.board.entity.BoardModel;
+import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.provisioning.assignment.enums.AssignmentBlockKind;
+import com.example.serverprovision.provisioning.assignment.enums.AssignmentBlockKind.AssignmentBlock;
+import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility;
+import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
 import com.example.serverprovision.provisioning.assignment.entity.AssignedProcess;
@@ -63,12 +70,16 @@ public class AssignmentCommandService {
     private final SettingDefinitionRepository definitionRepository;
     private final GuestServerRepository guestServerRepository;
     private final BiosSettingTemplateRepository biosSettingTemplateRepository;
+    // U3-5-a — 하드웨어 대조 입력. detail 은 서버가 보고한 하드웨어, boardModel 은 사유 문구의 보드명.
+    private final GuestServerDetailRepository guestServerDetailRepository;
+    private final BoardModelRepository boardModelRepository;
 
     @Transactional
     public AssignmentResponse assign(UUID guestId, Long definitionId) {
         GuestServer guest = guestServerRepository.findById(guestId)
                 .orElseThrow(() -> new GuestServerNotFoundException(guestId));
         SettingDefinition definition = loadAssignableDefinition(definitionId);
+        assertAssignableTo(guest, definition);   // U3-5-a — 회수 · 하드웨어 대조(안전망, UI 1차 차단)
 
         // 활성 유일성 가드(안전망 — UI 가 재할당 폼을 1차 차단, DB unique 가 최후 방어). 정상 재할당은 reassign.
         if (assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(guestId)) {
@@ -95,6 +106,8 @@ public class AssignmentCommandService {
                 .orElseThrow(() -> new GuestServerNotFoundException(guestId));
         SettingDefinition definition = loadAssignableDefinition(definitionId);
 
+        assertAssignableTo(guest, definition);   // U3-5-a — 새 스냅샷을 만드는 것이므로 신규 할당과 같은 가드
+
         SettingAssignment active = assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(guestId)
                 .orElseThrow(() -> new NoActiveAssignmentToReassignException(guestId));
 
@@ -115,6 +128,39 @@ public class AssignmentCommandService {
         return new ReassignmentResponse(
                 saved.getId(), active.getId(), definition.getId(), definition.getName(),
                 List.copyOf(saved.getOwnedPhases().asSet()));
+    }
+
+    /**
+     * 이 정의서를 이 서버에 붙일 수 있는지(U3-5-a — 할당 · 재할당 공통 안전망).
+     *
+     * <p>판정 순서와 사유는 {@link AssignmentBlockKind#evaluate} 하나가 갖는다. 여기서 회수 여부와
+     * 하드웨어를 각각 검사하면 같은 순서가 화면 · 그룹 일괄 할당에도 복붙되고, 축이 늘 때 네 곳이 함께 자란다.
+     * 예외 선택도 이 서비스가 분기하지 않고 차단 종류가 답한다.</p>
+     *
+     * <p>정상 흐름에서는 발동하지 않는다 — 서버 상세가 회수된 서버의 폼을 닫고 맞지 않는 정의서를 잠근다.
+     * 여기까지 오는 것은 direct POST · 동시 조작 · stale 제출뿐이다.</p>
+     */
+    private void assertAssignableTo(GuestServer guest, SettingDefinition definition) {
+        AssignmentEligibility eligibility = new AssignmentEligibility(
+                guest,
+                guestServerDetailRepository.findByServerIdWithBoardModel(guest.getId()).orElse(null),
+                requiredBoardOf(definition));
+        AssignmentBlock block = AssignmentBlockKind.evaluate(eligibility);
+        if (block != null) {
+            throw block.toException(guest.getId());
+        }
+    }
+
+    /** 정의서가 요구하는 메인보드 — 보드명은 표시 문구에만 쓰이므로 필요할 때만 조회한다. */
+    private RequiredBoardModel requiredBoardOf(SettingDefinition definition) {
+        List<ProcessPayload> payloads = definition.getProcesses().stream()
+                .map(SettingProcess::getPayload)
+                .toList();
+        return RequiredBoardModel.from(
+                payloads.stream().map(ProcessPayload::request).toList(),
+                boardModelId -> boardModelRepository.findById(boardModelId)
+                        .map(BoardModel::getModelName)
+                        .orElse("등록되지 않은 보드"));
     }
 
     /**

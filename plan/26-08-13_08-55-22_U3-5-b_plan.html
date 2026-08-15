@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U3-5-b Plan — 정의서 선택 miller 모달</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 4px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  header.page-header > p { margin:0 0 8px; font-size:13px; color:var(--text-muted); }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : 2단 그리드 (데모의 좌측 목록 / 우측 패널) ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-grid > .ux-caps { margin-top:0; }   /* 2열 안에서는 좌우 상단을 맞춘다 */
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover:not(:disabled) { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 3-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── pkg-tree (§4) ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U3-5-b : 정의서 선택 miller 모달</h1>
+  <p>이름만 나열하던 드롭다운을 2 열 miller 로 — 고르기 전에 내용을 보고, 막힌 이유도 거기서 읽는다</p>
+  <div class="meta">
+    <span><strong>인벤토리 코드</strong> U3-5-b</span>
+    <span><strong>작성</strong> 2026-08-13 08:55 KST</span>
+    <span><strong>브랜치</strong> <code>feat/U3-5_group-batch-assignment</code></span>
+    <span><strong>선행</strong> U3-5-a (완료)</span>
+    <span><strong>후행</strong> U3-5-c</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 이 단계가 어떻게 생겼는가</a></li>
+      <li><a href="#s1">§1 현재 상태 (실측)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 12 단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 이 단계가 어떻게 생겼는가</summary>
+      <div class="body">
+        <p style="margin-top:0;">U3-5-a 의 CP6 report 를 제출한 직후 사용자가 요구를 냈다 — "정의서를 할당할 때 이름만 나열하지 말고 내용을 같이 볼 수 있으면 좋겠다."</p>
+
+        <p>이 요구를 U3-5-a 에 얹을지 별도 슬라이스로 뺄지를 두고 판단이 갈렸는데, <b>얹으면 CP5 를 통째로 다시 해야 한다</b>는 점이 결정적이었다. U3-5-a 의 샌드박스 검증에서 A5 · A6 · C1 · C3 은 전부 <code>&lt;select&gt;</code> 의 <code>disabled</code> 옵션과 그 라벨을 대상으로 확인한 항목이다. 고르는 UI 자체가 바뀌면 그 넷은 무엇을 확인한 기록인지 성립하지 않게 되므로 재실시가 불가피하다. 반대로 분리하면 판정 로직은 이미 굳어 있으므로 이 단계의 CP5 는 <b>화면만</b> 보면 된다. 2026-08-13 사용자 판단으로 분리했다.</p>
+
+        <div class="callout"><b>순서도 함께 뒤집었다</b> — 그룹 단위 일괄 할당(구 U3-5-b)을 U3-5-c 로 밀고 이 단계를 앞에 놓았다. 그쪽도 정의서를 고르는 화면을 갖기 때문이다. 순서를 그대로 두면 일괄 할당을 <code>&lt;select&gt;</code> 로 한 번 만들고 곧 갈아끼우게 되는데, 그것이 방금 U3-5-a 에서 겪은 것과 같은 형태의 낭비다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (실측)</summary>
+      <div class="body">
+        <h4>지금 어떻게 고르나</h4>
+        <p>서버 상세 화면의 할당과 재할당은 <code>&lt;select&gt;</code> 하나로 처리한다. <code>fragments/provisioning/definition-options.html</code> 이 <code>&lt;option&gt;</code> 을 그리고, U3-5-a 가 거기에 잠금과 차단 사유를 얹었다. 실제로 그려지는 형태는 이렇다.</p>
+<pre><code>&lt;option value="2" disabled title="…"&gt;bios-ms03 — 이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 ASUS-Z13PE 입니다.&lt;/option&gt;</code></pre>
+
+        <div class="callout warn"><b>두 가지가 아쉽다.</b>
+          <ul>
+            <li>정의서가 무엇을 하는지는 <b>이름으로만 짐작</b>한다. <code>bios-ms03</code> 이 어떤 단계를 밟고 어떤 값을 넣는지 보려면 할당 화면을 떠나 정의서 상세로 나갔다가 돌아와야 한다.</li>
+            <li>차단 사유가 <code>&lt;option&gt;</code> 라벨에 눌려 붙어 있다. 네이티브 select 는 옵션 안에 서식을 줄 수 없으므로 사유가 이름과 한 줄로 이어지고, 길면 잘린다.</li>
+          </ul>
+        </div>
+
+        <h4>재사용할 수 있는 것 (실측 확인)</h4>
+        <table>
+          <thead><tr><th>자산</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td><code>static/css/miller.css</code> (5.2 KB)</td><td><code>.n-miller</code> · <code>.n-miller-col</code> · <code>.n-miller-col-detail</code> · <code>.n-miller-item</code> · <b><code>.n-miller-item-disabled</code></b> · <code>.n-miller-detail-panel</code> · <code>.n-miller-empty</code> 를 이미 갖는다</td></tr>
+            <tr><td>모달 골격</td><td>U3-4 의 서버 넣기 모달(<code>cm-card-wide</code> + 조각 fetch)</td></tr>
+            <tr><td>판정 · 사유</td><td>U3-5-a 의 <code>DefinitionOptionResponse.blockReason</code> 그대로</td></tr>
+            <tr><td>상세 데이터</td><td><code>SettingQueryService.findDetail(id)</code> 가 이미 필요한 것을 전부 준다</td></tr>
+          </tbody>
+        </table>
+
+        <p><b><code>.n-miller-item-disabled</code> 가 이미 있다는 것이 중요하다.</b> 사용자 요구의 "비활성화 처리처럼 보이게 만들되" 가 정확히 그 클래스이고, 클릭 가능 여부는 그 클래스가 정하지 않으므로 "클릭해서 왜 비활성인지 볼 수 있게" 도 같은 자산 위에서 그대로 성립한다. 새 CSS 를 만들 이유가 없다.</p>
+
+        <p>정리하면 <b>이 단계에서 새로 만드는 CSS 는 없고, 새 조회도 없다.</b> 모달 골격은 U3-4 의 서버 넣기 모달이 쓰는 방식(<code>cm-card-wide</code> + 조각 fetch)을 따르고, 2 열 miller 는 <code>miller.css</code> 를 그대로 쓰며, 무엇이 막히는지는 U3-5-a 가, 정의서가 무슨 내용인지는 <code>SettingQueryService.findDetail</code> 이 이미 답한다. 남는 일은 <b>그 넷을 한 화면에 나란히 놓는 것</b>이다.</p>
+
+        <h4>조각화의 실측 경계</h4>
+        <p>어떤 절을 조각으로 뗄 수 있는지는 <b>그 절이 페이지 밖의 무엇에 기대고 있는지</b>에 달렸다. 그래서 참조하는 모델 속성을 먼저 셌다.</p>
+        <p><code>templates/provisioning/setting-detail.html</code> 의 '프로비저닝 단계' 절은 <b>132~393 행</b>이고 <code>th:fragment</code> 가 하나도 없다. 안쪽 구조는 이렇다.</p>
+<pre><code>&lt;div class="n-detail-section"&gt;        ← 132
+  &lt;div class="n-section-title"&gt;프로비저닝 단계&lt;/div&gt;
+  &lt;div th:if="empty"&gt;단계 없음&lt;/div&gt;
+  &lt;div class="n-card n-process-card" th:each="process : ${setting.processList}"&gt;   ← 145~392
+      BASIC_UPDATE / BASIC_SETTING / OS_INSTALLATION / OS_SETTING 다형 렌더
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+        <p>이 절이 참조하는 모델 속성은 <b><code>setting</code> 하나뿐</b>이다 — <code>SettingController.detail</code> 이 넣는 유일한 속성이다. 카드가 실제로 쓰는 것은 <code>setting.processList</code> · <code>setting.deprecatedUsages</code> · <code>setting.executionWarnings</code> · <code>setting.references</code> 넷이고, 넷 모두 그 하나 안에 들어 있다. 조각으로 떼어낼 때 파라미터가 하나로 끝난다는 뜻이며, 이것이 §8 DEC-A 의 근거가 된다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ul>
+          <li><b>R1</b> — [정의서 할당] 을 누르면 큰 모달이 열린다.</li>
+          <li><b>R2</b> — 모달은 2 열 miller 다. 좌측이 정의서 목록, 우측이 고른 정의서의 상세다.</li>
+          <li><b>R3</b> — 선택은 하나뿐이므로 고르면 <b>우하단 [할당] 버튼이 활성화</b>된다.</li>
+          <li><b>R4</b> — 할당할 수 없는 정의서는 <b>비활성처럼 보이되 클릭은 되고</b>, 클릭하면 우측에서 <b>왜 안 되는지</b>를 읽을 수 있다.</li>
+          <li><b>R5</b> — 재할당도 같은 모달을 쓴다. 제목과 제출 대상만 다르다.</li>
+          <li><b>R6</b> — 우측 상세는 정의서 상세 화면과 <b>한 벌을 공유</b>한다(조각화).</li>
+        </ul>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>할당 가능성 판정 규칙 — U3-5-a 확정분을 그대로 호출한다. 이 단계는 판정을 만들지 않는다.</li>
+            <li>그룹 단위 일괄 할당 — U3-5-c.</li>
+            <li>정의서 작성 · 수정 화면(U2)의 편집 경험 — 건드리지 않는다. 이 단계가 U2 화면을 손대는 것은 <b>조각화까지</b>이며 <b>렌더 결과는 같아야 한다</b>.</li>
+            <li>정의서 목록 화면(<code>setting-list</code>)의 UI — 무관하다.</li>
+          </ul>
+        </div>
+
+        <p>여섯 요구 중 <b>U2 화면을 건드리는 것은 R6 하나</b>이고, 그것도 조각으로 떼어내는 데까지다. 나머지 다섯은 서버 상세와 그 위에 뜨는 모달 안에서 끝난다.</p>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (§2 직후, 불가침) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 모달 안에서 고르기</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 툴바로 <b>서버의 하드웨어</b>를 바꾸면 좌측 목록에서 어느 정의서가 잠기는지가 뒤바뀐다. <b>잠긴 항목도 눌린다</b> — 누르면 우측 패널에 사유와 내용이 함께 뜬다. 데모의 판정 함수는 U3-5-a 가 확정한 서버 판정과 같은 바디다(드리프트 0).</p>
+
+        <ul>
+          <li><b>툴바</b> — 이 서버가 실제로 가진 메인보드를 <code>MS03-CE0</code> · <code>ASUS-Z13PE</code> · <code>수집 전</code> 셋으로 바꾼다.</li>
+          <li><b>좌측</b> — 정의서 세 건을 흉내낸 목록이다. <code>os-only-auto</code>(보드 AUTO) · <code>bios-ms03</code>(MS03-CE0 전용) · <code>fw-asus-z13</code>(ASUS-Z13PE 전용). 통과면 <span class="chip add">선택 가능</span>, 차단이면 <span class="chip del">잠김</span> 이 붙고 행이 흐려지되 <b>고르기 버튼은 그대로 눌린다.</b></li>
+          <li><b>우측</b> — 고른 정의서의 요약을 보여준다. 차단된 것을 골랐으면 사유가 위에 붙고 <b>그 아래 내용은 그대로 보인다.</b></li>
+          <li><b>[할당]</b> — 아무것도 고르지 않았거나 차단된 것을 골랐으면 <code>disabled</code> 이고, 마우스를 올리면 이유가 tooltip 으로 뜬다.</li>
+        </ul>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">서버 하드웨어 :</span>
+            <button class="seg" data-board="MS03-CE0" onclick="demoSetBoard('MS03-CE0')">MS03-CE0</button>
+            <button class="seg" data-board="ASUS-Z13PE" onclick="demoSetBoard('ASUS-Z13PE')">ASUS-Z13PE</button>
+            <button class="seg" data-board="" onclick="demoSetBoard(null)">수집 전</button>
+          </div>
+
+          <div class="split-grid">
+            <div id="demo-list"><!-- JS 렌더 : 좌측 목록 --></div>
+            <div class="ux-caps" id="demo-detail"><!-- JS 렌더 : 우측 패널 --></div>
+          </div>
+
+          <div id="demo-submit"><!-- JS 렌더 : [할당] --></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>판정 JS (서버와 1:1)</h4>
+<pre><code>function demoBlockReason(def, board) {
+    if (def.board === null || board === null) return null;   // 보드 AUTO 이거나 수집 전이면 막지 않는다
+    return def.board === board ? null
+        : '이 정의서는 메인보드 ' + def.board + ' 전용입니다 — 이 서버는 ' + board + ' 입니다.';
+}</code></pre>
+        <p>U3-5-a 의 <code>RequiredBoardModel.blockReasonFor</code> 와 같은 식이다. 회수된 서버는 이 모달이 아예 열리지 않으므로(할당 폼 자체가 닫힌다) 데모에서 다루지 않는다 — 그 판단의 근거는 §8 DEC-D 에 있다.</p>
+
+        <h4>체험시키고 싶은 것</h4>
+        <p>서버 하드웨어를 바꾸면 <b>어느 정의서가 잠기는지가 뒤바뀐다.</b> 그리고 잠긴 것을 눌러도 <b>목록에서 사라지지 않고 우측에 사유와 함께 내용이 뜬다</b> — 지금 <code>&lt;select&gt;</code> 에서는 사유가 이름 뒤에 이어붙어 잘리던 것이다. <code>수집 전</code> 로 바꾸면 보드 전용 정의서도 전부 열리되 대조하지 못했다는 표식이 붙는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>메서드</th><th>URL</th><th>용도</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code></td><td>상세 — select 대신 [정의서 할당] 버튼</td><td>HTML</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}/assignment/picker</code></td><td>모달 내용(좌측 목록 + 우측 패널 전부)</td><td>HTML 조각</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/assignment</code></td><td>할당 (기존)</td><td>JSON</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/assignment/reassign</code></td><td>재할당 (기존)</td><td>JSON</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>조각 하나로 전부 내려준다.</b> 좌측 목록과 우측 상세 패널을 함께 담아 한 번에 받고, 이후 클릭은 <code>.active</code> 토글만 한다. 왜 정의서마다 다시 받아오지 않는지는 §8 DEC-B 에 적었다.</p>
+
+        <div class="seq">
+          <div class="actor a1">운영자</div><div class="actor a2">서버 상세 화면</div><div class="actor a3">서버</div>
+
+          <div class="step a1">[정의서 할당] 클릭</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>GET .../assignment/picker</code> 조각 fetch → 모달에 채움</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3">할당 가능 정의서 목록에 U3-5-a 판정을 덧대고(<code>AssignmentFormResponse</code>), 각 정의서의 상세를 <code>findDetail</code> 로 받아 패널을 함께 렌더</div>
+
+          <div class="step a1">좌측에서 정의서 클릭</div>
+          <div class="step a2">우측 패널이 <code>.active</code> 로 전환 (왕복 없음)</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">차단된 것이면 우측 상단에 사유 배너, [할당] 은 <code>disabled</code> + tooltip</div>
+          <div class="step a3"></div>
+
+          <div class="step a1">통과 정의서를 고르고 [할당]</div>
+          <div class="step a2">기존 XHR 경로 그대로</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3">U3-5-a 가드가 안전망으로 다시 판정</div>
+        </div>
+
+        <p>주체는 셋이다 — 조작하는 <b>운영자</b>, 모달을 띄우고 좌우를 전환하는 <b>서버 상세 화면</b>, 목록과 상세를 조립해 내려주는 <b>서버</b>. 화면이 조각을 한 번 받아 온 뒤로는 <b>4 · 5 번의 좌우 전환이 전부 브라우저 안에서 끝나고 서버로 돌아가지 않는다.</b> 서버가 다시 등장하는 것은 [할당] 을 눌러 기존 XHR 경로를 탈 때뿐이며, 그때 U3-5-a 가드가 <b>화면이 이미 막아 둔 것을 한 번 더</b> 확인한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델</summary>
+      <div class="body">
+        <div class="callout success" style="margin-top:0;"><b>스키마 변경 0 · 새 도메인 타입 0 · <b>새 판정 0</b>. 이 단계는 화면 재구성이라 판정도 상세 조회도 이미 있는 것을 부른다. 다만 <b>둘을 한 판으로 묶는 조립 메서드 하나</b>는 필요하다(<code>AssignmentQueryService.assignmentPicker</code>) — 컨트롤러가 <code>assignmentForm</code> 과 정의서별 <code>findDetail</code> 을 각각 불러 모델에서 합치면 그 조립 순서가 화면 코드에 살고, 재할당 진입점이 같은 것을 다시 조립하게 된다.</b> 이 단계는 화면 재구성이다. 판정도 조회도 이미 있는 것을 부른다.</div>
+
+        <h4>조각 신설 2</h4>
+        <table>
+          <thead><tr><th>조각</th><th>파라미터</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>fragments/provisioning/setting-process-cards.html :: processCards(setting)</code></td><td><code>SettingDetailResponse</code></td><td><code>setting-detail.html</code> 140~392 행 — 빈 상태와 카드 루프. 채택한 경계(DEC-A ②)와 같다</td></tr>
+            <tr><td><code>fragments/provisioning/definition-picker.html :: picker(form, details)</code></td><td><code>AssignmentFormResponse</code> + <code>Map&lt;Long, SettingDetailResponse&gt;</code></td><td>좌측 목록 + 우측 패널</td></tr>
+          </tbody>
+        </table>
+
+        <h4>응답 신설 1</h4>
+<pre><code>AssignmentPickerResponse(AssignmentFormResponse form,
+                        Map&lt;Long, SettingDetailResponse&gt; details)</code></pre>
+        <p>모달 한 판을 담는 응답이다. 조각이 두 자료를 함께 쓰므로, 컨트롤러가 모델에 둘을 따로 얹는 대신 하나로 묶어 넘긴다.</p>
+
+        <h4>재사용 (신설하지 않는다)</h4>
+        <ul>
+          <li><code>AssignmentQueryService.assignmentForm</code> — 할당 가능 정의서 목록 + U3-5-a 판정</li>
+          <li><code>SettingQueryService.findDetail</code> — 정의서 상세</li>
+          <li><code>AssignmentBlockKind</code> 판정 · <code>DefinitionOptionResponse.blockReason</code></li>
+        </ul>
+        <p>넷 모두 이 단계가 손대지 않는다. 무엇이 막히는지, 왜 막히는지, 그 정의서가 무슨 내용인지는 <b>이미 서버가 답할 수 있는 질문</b>이고, 지금까지는 그 답이 <code>&lt;option&gt;</code> 라벨 한 줄에만 실려 나갔을 뿐이다. 이 단계는 <b>같은 답을 담을 그릇을 바꾼다.</b></p>
+
+        <h4>없어지는 것</h4>
+        <div class="pkg-tree">templates/fragments/provisioning/
+├── definition-options.html        <span class="chip del">삭제</span>  &lt;select&gt; 전용 — 쓰이지 않게 된다
+├── definition-picker.html         <span class="chip new">신규</span>  좌측 목록 + 우측 패널
+└── setting-process-cards.html     <span class="chip new">신규</span>  단계 카드 루프 (U2 화면과 공유)</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>Thymeleaf 뷰 — 모달 골격 · 조각 2 건 · <code>setting-detail.html</code> 교체</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>Controller — picker 엔드포인트</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td>응답 DTO — <code>AssignmentPickerResponse</code> 1 건 (요청 DTO 없음)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — picker 조립 지점. 새 판정은 없다</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td><b>N/A</b> — 새 조회가 없다</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>7</td><td><b>N/A</b> — 엔티티 무변경</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>8</td><td>조립 본체 + 단위 · 통합 테스트</td><td><span class="chip cp4">CP4</span></td><td>보고</td></tr>
+            <tr><td>9</td><td><b>N/A</b> — DDL 이 없다</td><td><span class="chip cp4">CP4</span></td><td>—</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>4 · 6 · 7 · 9 단계는 사실상 비어 있다</b> — 새 응답 DTO 하나 외에 요청 DTO · 엔티티 · 리포지토리 · DDL 이 없기 때문이다. 무게는 <b>2 단계(뷰)</b>와 <b>3 단계(컨트롤러)</b>에 몰린다. 화면이 있는 슬라이스이므로 CP5 는 하네스가 아니라 브라우저 검증이다.</p>
+
+        <p>2 단계가 무거운 이유는 화면 자산이 <b>둘 신설 · 둘 교체</b>이기 때문이다. 조각 두 건(단계 카드 · picker)을 새로 만들면서, 그 조각을 부르도록 <code>setting-detail.html</code> 과 <code>server-detail.html</code> 을 함께 고쳐야 한다. 특히 앞엣것은 <b>렌더 결과가 달라지면 안 되는 교체</b>라 §6 의 회귀 테스트와 §9 의 A8 이 그 짝이 된다.</p>
+
+        <div class="callout">승인 게이트는 <b>CP1 · CP6 · CP7</b> 셋이다. CP1 승인이 CP2~CP4 의 진행 승인을 겸하므로 그 구간은 무중단으로 진행하고 경계마다 보고만 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>케이스</th></tr></thead>
+          <tbody>
+            <tr><td><code>AssignmentPickerResponse</code> 조립</td><td>정의서 3 종 중 1 종이 차단일 때 <code>form</code> 과 <code>details</code> 의 키가 일치하는지</td></tr>
+            <tr><td>조립 서비스</td><td>할당 가능 정의서가 0 이면 빈 picker</td></tr>
+          </tbody>
+        </table>
+
+        <p>두 케이스가 보는 것은 같은 결함의 앞뒤다. 좌측 목록에 뜬 정의서에는 우측에 대응하는 패널이 반드시 있어야 하고, 목록이 비면 패널도 비어야 한다. 어긋나면 <b>클릭했는데 우측이 비는</b> 형태로 드러나는데, 그것은 화면을 열어 눌러 보기 전에는 보이지 않으므로 단위에서 잡는 편이 싸다.</p>
+
+        <h4>통합 (<code>@WebMvcTest</code>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr><td>2xx</td><td>picker 조각 200 — 좌측 항목 수 · 차단 항목의 <code>n-miller-item-disabled</code> · 우측 패널 수</td></tr>
+            <tr><td>2xx</td><td>차단된 정의서의 패널에도 상세가 실려 있는지 (사유만 보여주지 않는다)</td></tr>
+            <tr><td>404</td><td>없는 게스트</td></tr>
+            <tr><td>회귀</td><td>할당 · 재할당 POST 가 종전대로 동작하는지</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>정의서 상세 렌더 회귀가 이 단계의 핵심 테스트다.</b> 조각화가 U2 화면의 렌더 결과를 바꾸지 않았는지를 확인하는 것이 목적이다. 기존 <code>SettingControllerDetailTest</code> 가 있다면 그 기대가 손대지 않은 채 그대로 통과해야 하고, 없다면 단계 타입 4 종이 모두 렌더되는 상세를 하나 만들어 조각화 전후를 비교한 기록을 남긴다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신설 0.</b> 이 단계는 새 거절 사유를 만들지 않는다. 고를 수 없는 정의서를 화면에서 어떻게 보여주느냐가 바뀔 뿐, 무엇을 거절하는지는 U3-5-a 가 이미 정했다.</p>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>U3-5-a 의 409 둘 (제출 시 안전망)</td><td>409</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <p>신설 0 이 성립하는 것은 §2 의 비목표와 짝을 이룬다 — 판정 규칙을 이 단계가 만들지 않기로 했으므로 새로 거절할 일도 없다. picker 조각은 <b>조회</b>이고, 그 조회가 실패하는 경우는 게스트가 없을 때 하나뿐이다. 제출 경로는 손대지 않으므로 409 둘은 U3-5-a 가 배선한 그대로 남는다.</p>
+
+        <h4>폼 규약</h4>
+        <p>[할당] 제출은 기존 XHR JSON 경로(<code>server-assignment.js</code>)를 그대로 쓴다. <code>.claude/domain-conventions/new-form.md</code> 판정 표의 "<code>@ResponseBody</code> 로 JSON 을 돌려주고 페이지 전용 JS 가 처리한다 → 아무것도 안 붙인다" 칸에 해당하며, <code>FormSubmissionConventionTest</code> 의 기대값은 변하지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정</summary>
+      <div class="body">
+        <h4>DEC-A. 조각 경계 = 카드 루프. 섹션 제목은 페이지가 갖는다</h4>
+        <table>
+          <thead><tr><th>안</th><th>범위</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>절 전체 (132~393) — 섹션 제목 · 빈 상태 · 카드</td><td>탈락</td></tr>
+            <tr><td>②</td><td>카드 루프 + 빈 상태 (140~392) — 내용만</td><td><b>채택</b></td></tr>
+            <tr><td>③</td><td>카드 하나 (145~392) — 루프는 호출자가</td><td>탈락</td></tr>
+          </tbody>
+        </table>
+        <p>①이 탈락하는 이유는 '프로비저닝 단계' 라는 섹션 제목이 <b>상세 화면의 문서 구조</b>이기 때문이다. 모달은 자기 제목 체계(<span class="mono">세팅 정의서 할당 → 우측 패널</span>)를 갖는데, 그 안에 또 섹션 제목이 들어오면 층위가 겹친다.</p>
+        <p>③은 루프를 호출자마다 다시 쓰게 만든다. 그러면 빈 상태 처리("등록된 프로비저닝 단계가 없습니다")까지 두 곳에 복붙된다. 조각 안에 넣으면 한 번이다.</p>
+        <p>②의 파라미터는 <b><code>setting</code> 하나</b>다. 카드가 쓰는 넷(<code>processList</code> · <code>deprecatedUsages</code> · <code>executionWarnings</code> · <code>references</code>)이 전부 <code>SettingDetailResponse</code> 안에 있고, 상세 화면도 모델에 그 하나만 얹는다(§1 실측). 파라미터를 넷으로 풀면 호출자가 매번 네 개를 정확히 넘겨야 하고, 하나라도 빠지면 조각이 예외 없이 <b>조용히 빈 값을 그린다.</b></p>
+
+        <h4>DEC-B. 상세 패널을 전부 미리 렌더하고 <code>.active</code> 만 토글한다</h4>
+        <p>대안은 좌측을 클릭할 때마다 그 정의서의 상세를 fetch 하는 것이었다.</p>
+        <p><b><code>miller.css</code> 의 설계 의도가 전자다.</b> 파일 머리말이 <code>.n-miller-detail-panel</code> 을 "3열 내 항목별 상세 패널 (JS 가 <code>.active</code> 토글)" 로 정의하고 있고, <code>management/os</code> · <code>board</code> · <code>bios</code> · <code>bmc</code> · <code>subprogram</code> 다섯 화면이 그 방식으로 동작한다. 여기서만 fetch 방식을 쓰면 <b>같은 CSS 를 쓰면서 혼자 다르게 동작하는 화면</b>이 하나 생긴다.</p>
+        <p>값의 크기도 그쪽이다. 정의서는 조직당 수십 개 규모이고, 이 모달은 <b>필요할 때만 열린다</b> — 목록 화면처럼 매번 그리는 자리가 아니다. 반대로 클릭마다 왕복하면 고르면서 비교하는 흐름이 끊긴다.</p>
+        <div class="callout warn">다만 <b>정의서가 많아지면 이 판단이 뒤집힐 수 있다.</b> 조각 fetch 로 옮기는 일은 좌측 목록과 우측 패널을 나누는 작업이라 나중에도 할 수 있으므로, 지금 미리 나누지 않는다.</div>
+
+        <h4>DEC-C. 차단된 정의서도 상세를 보여준다</h4>
+        <p>사용자 요구는 "왜 비활성인지 그 내용을 볼 수 있게" 다. 사유만 보여주는 안과 사유 + 상세를 함께 보여주는 안 중 후자를 택한다.</p>
+        <p><b>막힌 이유를 알아도 그 정의서가 무엇인지 모르면 다음 판단을 못 한다.</b> "메인보드가 다르다" 를 읽은 운영자가 다음에 할 일은 "그럼 이 정의서가 하려던 것을 다른 정의서로 할 수 있나" 인데, 그러려면 내용을 봐야 한다. 구현상으로도 이쪽이 단순하다 — 조각은 차단 여부와 무관하게 같은 패널을 그리고, <b>사유 배너만 얹는다.</b></p>
+
+        <h4>DEC-D. 회수된 서버는 이 모달을 열지 않는다</h4>
+        <p>U3-5-a 가 회수된 서버의 할당 폼 자체를 닫았고, 그 판단은 그대로 유지한다. 어떤 정의서를 골라도 막히므로 <b>전부 잠긴 모달</b>을 열어 주는 것은 조작할 수 없는 화면을 보여주는 일이다. [정의서 할당] 버튼도 나타나지 않는다.</p>
+
+        <h4>DEC-E. 재할당은 같은 모달을 공유한다</h4>
+        <p>지금도 두 폼이 같은 <code>&lt;option&gt;</code> 조각을 쓴다. 모달도 같다 — 다른 것은 제목("세팅 정의서 할당" / "다른 정의서로 재할당")과 제출 URL 뿐이라 조각에 파라미터로 넘긴다. 두 벌을 만들면 한쪽만 고치는 드리프트가 생긴다.</p>
+
+        <h4>DEC-F. <code>definition-options.html</code> 은 삭제한다</h4>
+        <p><code>&lt;select&gt;</code> 가 사라지면 이 조각은 쓰이지 않는다. 남겨 두면 "어느 것이 진짜인가" 를 다음 사람이 판단해야 한다. U3-5-a 가 그 파일에 넣은 잠금 · 사유 라벨 로직은 <b>모달 좌측 목록으로 옮겨간다</b> — 판정 자체(<code>DefinitionOptionResponse</code>)는 그대로다.</p>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>번호</th><th>쟁점</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>OQ-1</td><td>좌측 목록을 정렬 · 그룹화할 것인가 (이름순 / 단계 타입별)</td><td>이름순 단순 나열. 정의서가 늘면 그때</td></tr>
+            <tr><td>OQ-2</td><td>모달 폭 — U3-4 서버 넣기의 <code>cm-card-wide</code> 를 그대로 쓸 것인가</td><td>그대로. 2 열이 들어가는지는 CP5 에서 실측</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <p style="margin-top:0;">항목은 정상 흐름 <b>A 9 건</b> · 비정상 조작 <b>B 4 건</b> · 막는 방식 <b>C 4 건</b>, 모두 <b>17 건</b>이다. 항목마다 스크린샷을 1:1 로 남기고 그것이 CP6 report 의 본문이 된다. A8 · A9 는 이 단계가 <b>건드리지 않기로 한 화면</b>(U2 정의서 상세)이 실제로 그대로인지를 보는 항목이므로 빠뜨리지 않는다.</p>
+
+        <h4>정상 흐름 (A)</h4>
+        <table>
+          <thead><tr><th>식별자</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>[정의서 할당] 클릭 → 모달이 열리고 좌측 목록 · 우측 안내가 뜬다</td></tr>
+            <tr><td>A2</td><td>통과 정의서 클릭 → 우측에 상세, [할당] 활성</td></tr>
+            <tr><td>A3</td><td>실제 할당 성공 후 화면 반영</td></tr>
+            <tr><td>A4</td><td>차단 정의서 클릭 → 우측에 <b>사유 + 상세 둘 다</b>, [할당] <code>disabled</code> + tooltip</td></tr>
+            <tr><td>A5</td><td>차단 정의서가 목록에 <b>남아 있고</b> 비활성처럼 보인다</td></tr>
+            <tr><td>A6</td><td>수집 전 서버 — 전부 열리고 대조 못 함 표식</td></tr>
+            <tr><td>A7</td><td>재할당 모달이 같은 형태로 열리고 제출 대상만 다르다</td></tr>
+            <tr><td>A8</td><td>정의서 상세 화면(U2)의 '프로비저닝 단계' 렌더가 조각화 전과 같다 — 단계 타입 4 종 모두</td></tr>
+            <tr><td>A9</td><td>단계가 없는 정의서 — 모달 우측과 상세 화면 모두 빈 상태 문구</td></tr>
+          </tbody>
+        </table>
+
+        <h4>비정상 조작 (B)</h4>
+        <table>
+          <thead><tr><th>식별자</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>B1</td><td>회수된 서버 상세 → [정의서 할당] 버튼이 없다</td></tr>
+            <tr><td>B2</td><td>direct POST — 차단 정의서 id 를 실어 제출 → 409 (U3-5-a 가드 회귀)</td></tr>
+            <tr><td>B3</td><td>picker 조각 direct GET — 없는 게스트 → 404</td></tr>
+            <tr><td>B4</td><td>모달을 연 뒤 다른 탭에서 회수하고 제출(stale) → 409</td></tr>
+          </tbody>
+        </table>
+
+        <p>B 넷은 화면이 막아 둔 것을 우회했을 때 서버가 어떻게 되는지를 본다. B2 와 B4 는 같은 409 를 서로 다른 경로로 트리거한다 — 앞엣것은 처음부터 잠겨 있던 정의서를 직접 제출하는 경우이고, 뒤엣것은 <b>고를 때는 열려 있었는데 제출하는 사이에 조건이 바뀐</b> 경우다.</p>
+
+        <h4>막는 방식 (C)</h4>
+        <table>
+          <thead><tr><th>식별자</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>C1</td><td>잠긴 항목이 "왜" 를 알려주는가 — 사유가 잘리지 않고 읽히는가</td></tr>
+            <tr><td>C2</td><td>선택 없이 [할당] 을 누를 수 없는가</td></tr>
+            <tr><td>C3</td><td>모달 폭 · 2 열 비율이 상세를 읽기에 충분한가</td></tr>
+            <tr><td>C4</td><td>거절이 raw JSON 없이 화면 안내로 수렴하는가</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <p style="margin-top:0;">신규 4 · 수정 5 · 삭제 1 · 유지 3 이다. <b>신규 넷 중 셋이 화면 자산</b>이고 나머지 하나가 응답 DTO 다 — 자바 쪽에 새로 생기는 타입은 그 하나뿐이다.</p>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>fragments/provisioning/setting-process-cards.html</code></td><td>단계 카드 루프 조각 (U2 화면과 공유)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>fragments/provisioning/definition-picker.html</code></td><td>좌측 목록 + 우측 패널</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>AssignmentPickerResponse</code></td><td>모달 한 판 (<code>form</code> + <code>details</code>)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/provisioning/definition-picker.js</code></td><td>좌측 클릭 → 우측 <code>.active</code> 토글</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>setting-detail.html</code></td><td>조각 호출로 교체</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-detail.html</code></td><td><code>&lt;select&gt;</code> → 버튼 + 모달</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerController</code></td><td>picker 엔드포인트</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>AssignmentQueryService</code></td><td>picker 조립</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-assignment.js</code></td><td>모달 제출 배선</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>fragments/provisioning/definition-options.html</code></td><td><code>&lt;select&gt;</code> 전용 — DEC-F</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>U3-5-a 의 판정 일체</td><td><code>AssignmentBlockKind</code> · <code>RequiredBoardModel</code> · 예외 둘</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>static/css/miller.css</code></td><td>그대로 재사용 — 새 CSS 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>SettingQueryService.findDetail</code></td><td>이미 필요한 것을 전부 준다</td></tr>
+          </tbody>
+        </table>
+        <p><b>삭제가 하나 있다는 것이 이 단계의 성격을 드러낸다.</b> 새 화면을 옆에 얹는 것이 아니라 고르는 화면을 갈아끼우는 일이라, 옛 조각이 뒤에 남지 않는다(DEC-F).</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 단계가 끝나면 정의서를 고르는 화면이 한 벌로 모인다. 그 위에 얹히는 것이 다음 넷이다.</p>
+        <ul class="check-list" data-storage="U3-5-b-next">
+          <li><label><input type="checkbox" data-key="u3-5-c"> <span><b>U3-5-c — 그룹 단위 일괄 할당.</b> 이 모달을 그대로 써서 정의서를 고르고, 멤버별 사전 분류를 미리보기로 보여준다</span></label></li>
+          <li><label><input type="checkbox" data-key="list-scale"> <span>정의서가 많아질 때의 좌측 목록 — 정렬 · 검색 · 그룹화 (OQ-1 이 유보한 것)</span></label></li>
+          <li><label><input type="checkbox" data-key="lazy-detail"> <span>상세 패널 지연 로딩 — 정의서 수가 커지면 DEC-B 를 뒤집는다</span></label></li>
+          <li><label><input type="checkbox" data-key="hf-overflow"> <span><code>HF*</code> 모달 옵션 버튼 텍스트 넘침 — 누적 메모리에 기록됨</span></label></li>
+        </ul>
+        <p>이 단계가 남기는 잔존 책임은 <b>규모</b>다 — OQ-1 이 유보한 정렬 · 검색과 DEC-B 가 유보한 지연 로딩은 둘 다 정의서 수가 커질 때 함께 온다. 지금 나누지 않은 이유는 나중에도 나눌 수 있기 때문이다.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — 모달 안에서 고르기
+  //  판정은 U3-5-a 의 RequiredBoardModel.blockReasonFor 와 같은 바디 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_DEFS = [
+    { name: 'os-only-auto', board: null,         note: '보드 AUTO' },
+    { name: 'bios-ms03',    board: 'MS03-CE0',   note: 'MS03-CE0 전용' },
+    { name: 'fw-asus-z13',    board: 'ASUS-Z13PE', note: 'ASUS-Z13PE 전용' }
+  ];
+  const DEMO_STEPS = '이 정의서가 밟을 단계 — 진단 리눅스 · 펌웨어 업데이트';
+  let demoBoard = 'MS03-CE0';   // null = 수집 전
+  let demoPicked = null;        // 고른 정의서의 인덱스
+
+  // ⬇ 서버 판정과 1:1 ⬇
+  function demoBlockReason(def, board) {
+    if (def.board === null || board === null) return null;   // 보드 AUTO 이거나 수집 전이면 막지 않는다
+    return def.board === board ? null
+      : '이 정의서는 메인보드 ' + def.board + ' 전용입니다 — 이 서버는 ' + board + ' 입니다.';
+  }
+  // ⬆ 여기까지 ⬆
+
+  function demoSetBoard(b) { demoBoard = b; demoRender(); }
+  function demoPick(i) { demoPicked = i; demoRender(); }
+  function demoAssign() {
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ 할당 요청 전송 — 서버 가드(U3-5-a)가 안전망으로 다시 판정합니다.';
+  }
+  function demoBtn(label, blocked, tip, onclick) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + ' onclick="' + onclick + '">' + label + '</button></span>';
+  }
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-board]').forEach(s =>
+      s.classList.toggle('active', s.dataset.board === (demoBoard === null ? '' : demoBoard)));
+
+    // 좌측 목록 — 차단 항목도 클릭된다
+    const list = DEMO_DEFS.map((def, i) => {
+      const reason = demoBlockReason(def, demoBoard);
+      const unverified = (def.board !== null && demoBoard === null);
+      return '<div class="ux-row' + (reason ? ' muted' : '') + '">'
+        + '<span class="label"><b>' + def.name + '</b> — ' + def.note + '</span>'
+        + (demoPicked === i ? '<span class="chip opt">선택됨</span>' : '')
+        + (unverified ? '<span class="chip keep">대조 못 함</span>' : '')
+        + (reason ? '<span class="chip del">잠김</span>' : '<span class="chip add">선택 가능</span>')
+        + demoBtn('고르기', false, '', 'demoPick(' + i + ')')
+        + '</div>';
+    }).join('');
+    document.getElementById('demo-list').innerHTML = list;
+
+    // 우측 패널 — 차단이어도 내용은 보인다
+    const detail = document.getElementById('demo-detail');
+    const msg = document.getElementById('demo-message');
+    const submit = document.getElementById('demo-submit');
+
+    if (demoPicked === null) {
+      detail.innerHTML = '— 선택된 정의서 없음 —\n왼쪽 목록에서 정의서를 고르면 여기에 내용이 표시됩니다.';
+      msg.className = 'ux-message';
+      msg.textContent = '왼쪽에서 정의서를 고르세요.';
+      submit.innerHTML = demoBtn('할당', true, '정의서를 먼저 고르세요.', 'demoAssign()');
+      return;
+    }
+
+    const def = DEMO_DEFS[demoPicked];
+    const reason = demoBlockReason(def, demoBoard);
+    const body = '정의서     ' + def.name + '\n'
+               + '요구 보드  ' + (def.board === null ? 'AUTO (지정 없음)' : def.board) + '\n'
+               + DEMO_STEPS;
+
+    detail.innerHTML = (reason ? '<span class="t">⚠ ' + reason + '</span>\n\n'
+                               : '<span class="f">✓ 선택 가능</span>\n\n') + body;
+
+    if (reason) {
+      msg.className = 'ux-message error';
+      msg.textContent = reason;
+      submit.innerHTML = demoBtn('할당', true, reason, 'demoAssign()');
+    } else {
+      msg.className = 'ux-message success';
+      msg.textContent = '이 정의서를 할당할 수 있습니다.';
+      submit.innerHTML = demoBtn('할당', false, '', 'demoAssign()');
+    }
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

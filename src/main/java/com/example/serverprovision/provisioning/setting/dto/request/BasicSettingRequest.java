@@ -61,4 +61,10 @@ public class BasicSettingRequest extends AbstractProcessRequest {
     public List<Long> referencedBiosSettingTemplateIds() {
         return biosSettingTemplateIds;
     }
+
+    /** BIOS 세팅 템플릿은 보드 모델에 매여 있으므로 이 단계도 보드를 요구한다(U3-5-a). */
+    @Override
+    public BoardModelSelectionRequest requiredBoardModel() {
+        return boardModel;
+    }
 }

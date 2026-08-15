@@ -9,14 +9,18 @@ import com.example.serverprovision.execution.service.GuestServerCommandService;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
 import com.example.serverprovision.provisioning.assignment.dto.request.AssignSettingRequest;
 import com.example.serverprovision.provisioning.assignment.dto.request.ReassignSettingRequest;
+import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentFormResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPickerResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.DefinitionOptionResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.PlannedPhaseRailResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +51,7 @@ import java.util.stream.Stream;
  *   <li>{@code GET  /provisioning/server/{id}}              — 상세 (인라인 수정 + 할당 폼 + 계획 phase rail)</li>
  *   <li>{@code POST /provisioning/server/{id}/edit}         — 상세 화면의 4 필드 저장</li>
  *   <li>{@code POST /provisioning/server/{id}/decommission} — 서버 회수</li>
+ *   <li>{@code GET  /provisioning/server/{id}/assignment/picker}   — 정의서 선택 모달 내용 (HTML 조각, U3-5-b)</li>
  *   <li>{@code POST /provisioning/server/{id}/assignment}          — 세팅 정의서 할당 (XHR JSON)</li>
  *   <li>{@code POST /provisioning/server/{id}/assignment/reassign} — 세팅 정의서 재할당 (XHR JSON, U3-2-a)</li>
  *   <li>{@code POST /provisioning/server/{id}/start}               — 프로비저닝 개시 (+ 활성 스냅샷 소비)</li>
@@ -146,6 +151,27 @@ public class GuestServerController {
     }
 
     /**
+     * 정의서 선택 모달의 내용 (U3-5-b) — 좌측 목록과 우측 상세 패널을 한 조각으로 내려준다.
+     *
+     * <p><b>상세를 그릴 때마다 조립하지 않고 모달을 열 때 받는 이유</b>는 정의서 상세가 목록 수만큼의 자원
+     * 명칭 해석을 동반하기 때문이다. 열지도 않을 화면의 값을 상세 진입마다 치르게 된다(U3-4 서버 넣기 모달
+     * 선례와 같은 판단).</p>
+     *
+     * <p>회수된 서버는 화면이 [정의서 할당] 버튼 자체를 내지 않으므로(DEC-D) 이 조각도 열리지 않는다.
+     * 그래도 direct GET 은 막지 않는다 — 고를 수 없다는 사실은 제출 시 서버 가드가 409 로 답하고, 조회
+     * 자체는 아무것도 바꾸지 않는다. 없는 게스트는 {@code assignmentForm} 이 404 로 끊는다.</p>
+     */
+    @GetMapping("/{id}/assignment/picker")
+    public String assignmentPicker(@PathVariable("id") UUID id, Model model) {
+        AssignmentFormResponse form =
+                assignmentQueryService.assignmentForm(id, settingQueryService.findAssignable());
+        List<SettingDetailResponse> details = settingQueryService.findDetailsOf(
+                form.options().stream().map(DefinitionOptionResponse::id).toList());
+        model.addAttribute("picker", AssignmentPickerResponse.of(form, details));
+        return "fragments/provisioning/definition-picker :: picker";
+    }
+
+    /**
      * 세팅 정의서 할당(U3-1, XHR JSON). 정상 흐름은 뷰가 활성 할당이 있으면 폼을 숨겨 1차 차단하고,
      * direct POST 는 서비스 가드가 409(중복 활성)/404(없는 게스트·정의서) 로 거절한다(advice 매핑).
      * {@code @ResponseBody} — 성공 시 도출 {@code ownedPhases} 를 JSON 으로 반환한다.
@@ -218,7 +244,11 @@ public class GuestServerController {
     private void populateAssignmentModel(UUID id, GuestServerDetailResponse server, Model model) {
         // 할당 대상은 "할당 가능" 정의서만(삭제 · 비활성 제외, U3-2-b DEC-G). 판정은 서버 가드와 같은
         // 도메인 SSOT(assignBlockReason) 이므로 옵션에서 뺀 정의서를 direct POST 해도 409 로 일관 거절된다.
-        model.addAttribute("definitionOptions", settingQueryService.findAssignable());
+        // U3-5-a — 여기에 "이 서버에 붙일 수 있는가" 를 덧댄다. 정의서 lifecycle 은 서버와 무관해 목록에서
+        // 빼지만, 하드웨어 대조는 서버마다 결과가 달라 빼지 않고 잠근다(사라지면 이유를 알 수 없다).
+        // 폼 자체를 닫을 사유(회수)와 옵션별 사유(하드웨어)가 한 응답으로 온다 — 같은 판정에서 나온다.
+        model.addAttribute("assignmentForm",
+                assignmentQueryService.assignmentForm(id, settingQueryService.findAssignable()));
         AssignmentPlanResponse plan = assignmentQueryService.plannedPhasesOf(id);
         GuestServerDetailResponse.Progress progress = server.progress();
         ProvisioningPhase currentPhase = progress != null ? progress.currentPhase() : null;
