@@ -168,7 +168,7 @@ CP 칩: `.cp1`(blue) `.cp2`(green) `.cp3`(yellow) `.cp4`(orange) `.cp5`(red) `.c
 
 | class | 용도 |
 |---|---|
-| `.pkg-tree` | 디렉토리/패키지 트리(monospace, `white-space:pre`) |
+| `.pkg-tree` | monospace 고정폭 도식(`white-space:pre` + `overflow-x:auto`). 디렉토리/패키지 트리와 **객체 간 호출 · 데이터 이동 도식**에 함께 쓴다 — 둘 다 들여쓰기와 괘선으로 층을 표현하므로 같은 스타일이면 충분하고, 도식용 class 를 따로 두면 같은 것에 이름이 둘이 된다 |
 | `.diff-add` / `.diff-del` | 인라인 추가(green)/제거(red) 강조 |
 | `.check-list` | 체크박스 목록(§11 마일스톤). `data-storage` 로 localStorage 동기화, 항목에 `data-key` |
 | `.done` | 체크된 항목(취소선). JS 가 토글 |

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U3-5-c Plan — 그룹 단위 세팅 정의서 일괄 할당</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 4px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  header.page-header > p { margin:0 0 8px; font-size:13px; color:var(--text-muted); }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h3 { margin:20px 0 8px; font-size:15px; font-weight:700; color:var(--text); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : BEFORE(red) / AFTER(green) 2열 대조 (§4) ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+
+  /* ── pkg-tree : monospace 고정폭 도식 — 호출 · 데이터 이동 (§4) ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; }
+  .ux-row .label { flex:1; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 3-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U3-5-c : 그룹 단위 세팅 정의서 일괄 할당</h1>
+  <p>고른 정의서가 이 그룹에 어떻게 적용되는지 미리 보고 확정한다 — 되는 것만, 사유와 함께</p>
+  <div class="meta">
+    <span><strong>인벤토리 코드</strong> U3-5-c</span>
+    <span><strong>작성</strong> 2026-08-13 13:05 KST</span>
+    <span><strong>브랜치</strong> <code>feat/U3-5_group-batch-assignment</code></span>
+    <span><strong>선행</strong> U3-5-a · U3-5-b (완료)</span>
+    <span><strong>위치</strong> U3-5 우산의 마지막 조각</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 이 단계가 어떻게 생겼는가</a></li>
+      <li><a href="#s1">§1 현재 상태 (실측)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 12 단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 이 단계가 어떻게 생겼는가</summary>
+      <div class="body">
+        <p style="margin-top:0;">U3-5 는 원래 한 덩어리였다. 계획을 쓰다가 <b>세 가지 성격이 다른 일</b>이 섞여 있음이 드러나 셋으로 나눴다 — 할당 가능성 판정(a) · 고르는 화면(b) · 여러 대에 한 번에(c). c 를 마지막에 둔 이유는 <b>c 가 b 의 화면을 쓰기 때문</b>이다. 순서를 뒤집으면 <code>&lt;select&gt;</code> 로 한 번 만들고 곧 갈아끼우게 된다.</p>
+
+        <p>이제 a 와 b 가 끝났으므로 c 가 쓸 것이 다 있다. <b>판정은 새로 만들지 않는다</b> — U3-5-a 의 <code>AssignmentBlockKind.evaluate</code> 를 그대로 부른다. 그 클래스의 주석이 이미 이 단계를 내다보고 있었다:</p>
+
+        <div class="callout">"여기서 회수 여부와 하드웨어를 각각 검사하면 같은 순서가 화면 · <b>그룹 일괄 할당</b>에도 복붙되고, 축이 늘 때 네 곳이 함께 자란다."</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (실측)</summary>
+      <div class="body">
+        <h4>지금 그룹에서 할 수 있는 것</h4>
+        <p><code>GuestServerGroupController</code> 는 그룹 생성 · 이름 변경 · 멤버 추가 · 멤버 제거 · 삭제를 갖는다. <b>세팅 정의서에 관한 것은 하나도 없다.</b> 정의서를 붙이려면 멤버를 하나씩 열어 개별 할당해야 한다.</p>
+
+        <h4>재사용할 수 있는 것 (실측 확인)</h4>
+        <table>
+          <thead><tr><th>자산</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td><code>AssignmentBlockKind.evaluate</code></td><td>회수 · 하드웨어 대조 판정 — 그대로 호출</td></tr>
+            <tr><td><code>AssignmentCommandService.assign(guestId, definitionId)</code></td><td><code>@Transactional</code> 1 건 할당 — 그대로 호출</td></tr>
+            <tr><td><code>fragments/provisioning/setting-process-cards.html</code></td><td>정의서 상세 카드 — U2 상세와 U3-5-b 모달이 공유 중</td></tr>
+            <tr><td><code>miller.css</code> + <code>server.css</code> 의 모달 변형</td><td>U3-5-b 가 치수까지 잡아 둠</td></tr>
+            <tr><td><code>GuestServerDetailRepository.findAllByServerIdInWithBoardModel</code></td><td><b>여러 서버의 보드를 한 번에</b> — 이미 있다</td></tr>
+            <tr><td><code>flashMessage</code> + PRG</td><td>결과 통지 관용구(<code>system/asset</code> 선례) — 다만 전역 폼 가로채기와 조합하면 소실된다(아래 실측 · DEC-E)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>없어서 만들어야 하는 것</h4>
+        <ul>
+          <li><code>SettingAssignmentRepository</code> 에 <b>여러 서버의 활성 할당을 한 번에</b> 조회하는 메서드가 없다(단건 <code>findByGuestServer_IdAndSupersededAtIsNull</code> 만 있다). 파생 질의 하나 추가.</li>
+          <li><code>GuestServerSummaryResponse</code> 는 <code>boardModelName</code> 은 갖지만 <b><code>boardModelId</code> 는 없다.</b> 하드웨어 판정은 id 로 대조하므로 멤버 요약만으로는 판정할 수 없고 <code>GuestServerDetail</code> 을 따로 읽어야 한다.</li>
+        </ul>
+
+        <h4>패키지 참조 방향 (중요)</h4>
+        <p><b><code>group</code> 과 <code>assignment</code> 는 서로를 전혀 참조하지 않는다.</b> 실측했다 — 양방향 모두 import 0 건이다. 둘을 엮는 것은 <code>provisioning.controller</code> 뿐이다. 이 단계는 그 관계를 새로 만들 수 있는 자리이므로 <b>의식적으로 만들지 않는다</b>(DEC-F).</p>
+
+        <h4>실측으로 드러난 결함 하나 (범위 밖)</h4>
+        <p><code>flashMessage</code> 를 쓰려다 <b>S10 전역 폼 가로채기와 조합되면 메시지가 사라진다</b>는 것을 브라우저로 확인했다. <code>form-submit.js</code> 의 <code>sendAsync</code> 가 <code>fetch(..., redirect:'follow')</code> 로 리다이렉트를 <b>fetch 안에서</b> 따라가며 flash 를 소비하고, 이어지는 <code>onSuccess: () =&gt; window.location.reload()</code> 는 빈 손으로 온다.</p>
+
+        <div class="callout danger">같은 페이지 · 같은 액션에서 <b><code>data-native-submit</code> 만 붙였더니 문구가 떴다</b> — 원인이 확정된다. 영향받는 화면은 <code>system/asset/dashboard</code>(액션 2), <code>system/diagnostic-asset/detail</code>(액션 2), <code>system/asset/settings</code>(2 중 1). <b>이 단계 범위 밖이므로 고치지 않고 <code>HF*</code> 후보로 기록</b>하되, 이 단계의 결과 통지 설계는 이 실측 위에서 정한다(DEC-E).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ul>
+          <li><b>R1</b> — 그룹 상세에 <code>[정의서 일괄 할당]</code> 이 있고, 누르면 U3-5-b 와 같은 형태의 2 열 miller 모달이 열린다.</li>
+          <li><b>R2</b> — 정의서를 고르면 우측에 <b>이 그룹에 어떻게 적용되는지</b>가 먼저 보이고, 그 아래에 정의서 내용이 온다.</li>
+          <li><b>R3</b> — 미리보기는 멤버를 셋으로 나눈다 — <b>할당됨</b> · <b>이미 있음(건너뜀)</b> · <b>막힘(사유)</b>.</li>
+          <li><b>R4</b> — 좌측 목록은 정의서마다 <b>몇 대에 붙는지</b>를 보여준다. 0 대인 정의서도 <b>눌러서 왜 아무에게도 안 붙는지 볼 수 있되</b>, <code>[일괄 할당]</code> 은 열리지 않는다.</li>
+          <li><b>R5</b> — 확정하면 붙는 멤버에만 할당하고, <b>결과를 사유와 함께</b> 알린다.</li>
+        </ul>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>일괄 재할당</b> — 이미 할당된 멤버의 스냅샷을 갈아엎지 않는다(DEC-C). 재할당은 개별 서버 화면(U3-5-b 모달)의 일이다.</li>
+            <li><b>일괄 개시</b> — 프로비저닝 개시는 E 계열 소관이다.</li>
+            <li><b>할당 가능성 판정 규칙</b> — U3-5-a 확정분을 그대로 호출한다.</li>
+            <li><b><code>flashMessage</code> 소실 결함의 수정</b> — 자산 화면 계열이며 별도 <code>HF*</code>.</li>
+            <li>그룹 자체의 CRUD · 멤버 관리 — U3-4 가 끝냈다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (§2 직후, 불가침) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 그룹에 붙여 보기</summary>
+      <div class="body">
+        <p style="margin-top:0;">툴바로 <b>정의서 3 종</b>을 바꾸고, 멤버 행의 버튼 둘로 <b>그 서버의 상태</b>를 바꾼다 — 왼쪽 버튼은 이미 할당이 있는지(<code>할당 있음</code> ↔ <code>할당 없음</code>), 오른쪽 버튼은 회수 여부(<code>회수</code> ↔ <code>복구</code>)다. 정의서와 멤버 상태를 함께 흔들어야 분류가 왜 바뀌는지 체험된다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">정의서 :</span>
+            <button class="seg" data-def="os-only-auto" onclick="demoSetDef(0)">os-only-auto</button>
+            <button class="seg" data-def="bios-ms03" onclick="demoSetDef(1)">bios-ms03</button>
+            <button class="seg" data-def="fw-asus-z13" onclick="demoSetDef(2)">fw-asus-z13</button>
+          </div>
+
+          <div class="ux-caps" id="demo-caps"><!-- JS 렌더 : 요약 --></div>
+          <div id="demo-members" style="margin-top:10px;"><!-- JS 렌더 : 멤버 4 대 --></div>
+          <div id="demo-submit"><!-- JS 렌더 : [일괄 할당] --></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>판정 JS (서버와 1:1)</h4>
+<pre><code>function demoOutcome(def, member) {
+    if (member.assigned)      return {kind: 'ALREADY', reason: '이미 세팅 정의서가 할당되어 있습니다.'};
+    if (member.decommissioned) return {kind: 'BLOCKED', reason: '회수된 서버에는 세팅 정의서를 할당할 수 없습니다.'};
+    if (def.board === null || member.board === null) return {kind: 'ASSIGN', reason: null};
+    return def.board === member.board
+        ? {kind: 'ASSIGN', reason: null}
+        : {kind: 'BLOCKED', reason: '이 정의서는 메인보드 ' + def.board + ' 전용입니다 — 이 서버는 ' + member.board + ' 입니다.'};
+}</code></pre>
+        <p>순서가 중요하다 — <b>이미 할당됨을 먼저 본다.</b> 이미 있는 멤버는 하드웨어를 대조할 이유가 없다(어차피 건너뛴다). 서버도 같은 순서다(DEC-G).</p>
+
+        <h4>체험시키고 싶은 것</h4>
+        <p>정의서를 바꾸면 <b>같은 그룹이 다르게 갈린다.</b> <code>os-only-auto</code>(AUTO)는 회수 · 기존 할당만 걸러내고 하드웨어로는 아무도 막지 않는다. <code>bios-ms03</code> 으로 바꾸면 ASUS 보드 멤버가 추가로 빠진다. 멤버 상태를 흔들면 같은 정의서인데 분류가 바뀐다 — <b>막는 것이 정의서 하나의 성질이 아니라 정의서 × 서버의 조합</b>임이 드러난다. <code>srv-01</code> 의 <code>할당 있음</code> 을 켜면 같은 정의서인데 그 멤버만 <b>이미 있음</b>으로 빠진다 — <b>막는 것이 하드웨어이고 건너뛰는 것이 기존 할당</b>이라는 두 층이 갈린다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>메서드</th><th>URL</th><th>용도</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/server-group/{id}</code></td><td>그룹 상세 — <code>[정의서 일괄 할당]</code> 버튼</td><td>HTML</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server-group/{id}/assignment/picker</code></td><td>모달 내용(좌측 목록 + 우측 패널 전부)</td><td>HTML 조각</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server-group/{id}/assignment</code></td><td>일괄 실행 → PRG</td><td>302 + flash</td></tr>
+          </tbody>
+        </table>
+
+        <div class="seq">
+          <div class="actor a1">운영자</div><div class="actor a2">그룹 상세 화면</div><div class="actor a3">서버</div>
+
+          <div class="step a1"><code>[정의서 일괄 할당]</code> 클릭</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>GET .../assignment/picker</code> 조각 fetch, 모달에 채움</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3">멤버 id 목록으로 <b>한 번에</b> 보드(<code>findAllByServerIdInWithBoardModel</code>)와 활성 할당을 읽고, 할당 가능 정의서마다 멤버별 분류를 만든다</div>
+
+          <div class="step a1">좌측에서 정의서 클릭 → 우측 패널이 <code>.active</code> 로 전환(왕복 없음)</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">요약과 멤버 분류 표가 뜨고, 붙는 멤버가 0 이면 <code>[일괄 할당]</code> 은 <code>disabled</code></div>
+          <div class="step a3"></div>
+
+          <div class="step a1">확정 → <b>네이티브 POST</b>(DEC-E)</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3">멤버마다 다시 판정하고 통과분만 할당(<b>각각 독립 트랜잭션</b>), 결과를 flash 로 실어 그룹 상세로 리다이렉트</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델</summary>
+      <div class="body">
+        <div class="callout success" style="margin-top:0;"><b>스키마 변경 0. 엔티티 변경 0.</b> 리포지토리 파생 메서드 1 개 · 응답 5 종 · 열거 1 종 · 서비스 신설 1(<code>GroupAssignmentService</code>) + 기존 <code>AssignmentQueryService</code> 에 메서드 1(<code>groupPreview</code>) 이 는다.</div>
+
+        <h4>신설</h4>
+        <table>
+          <thead><tr><th>이름</th><th>자리</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>MemberApplyOutcome</code> (enum)</td><td><code>assignment/enums</code></td><td><code>WILL_ASSIGN</code> · <code>ALREADY_ASSIGNED</code> · <code>BLOCKED</code> — 상수마다 표시명과 배지 class</td></tr>
+            <tr><td><code>MemberOutcomeResponse</code></td><td><code>assignment/dto/response</code></td><td>멤버 요약 + 분류 + 사유</td></tr>
+            <tr><td><code>GroupApplyPreviewResponse</code></td><td><code>assignment/dto/response</code></td><td>멤버 결과 목록 + <code>willAssignCount()</code> · <code>summary()</code></td></tr>
+            <tr><td><code>GroupPickerItemResponse</code></td><td><code>assignment/dto/response</code></td><td>정의서 요약 + 상세 + 미리보기</td></tr>
+            <tr><td><code>GroupPickerResponse</code></td><td><code>assignment/dto/response</code></td><td>모달 한 판. <code>of(previews, details)</code> 정적 팩터리</td></tr>
+            <tr><td><code>GroupAssignmentService</code></td><td><code>assignment/service</code></td><td>일괄 실행 orchestrator (<b>별도 빈</b> — DEC-D)</td></tr>
+            <tr><td><code>BatchAssignResult</code></td><td><code>assignment/dto/response</code></td><td>성공 수 · 건너뜀 수 · 사유별 집계</td></tr>
+            <tr><td><code>SettingAssignmentRepository.findByGuestServer_IdInAndSupersededAtIsNull</code></td><td><code>assignment/repository</code></td><td>멤버들의 활성 할당 한 번에</td></tr>
+            <tr><td><code>fragments/provisioning/group-definition-picker.html</code></td><td>조각</td><td>그룹용 2 열 miller</td></tr>
+          </tbody>
+        </table>
+
+        <h3>객체가 어떻게 이어지는가</h3>
+
+        <h4>도식 A — 조회 경로 (모달을 열 때)</h4>
+        <p>모달을 열 때 무엇이 무엇을 부르는지다. <b>리포지토리 조회는 각각 한 번씩만 일어난다</b> — 멤버가 늘어도 질의 수는 그대로다.</p>
+<div class="pkg-tree">GuestServerGroupController.assignmentPicker(groupId)
+│
+├─▶ GuestServerGroupQueryService.findDetail(groupId)
+│        └── 멤버 id 목록  (그룹 상세 화면이 부르는 것과 같은 메서드 — 새로 만들지 않는다)
+│
+├─▶ SettingQueryService.findAssignable()          ─── List&lt;SettingSummaryResponse&gt;
+│   └─▶ SettingQueryService.findDetailsOf(ids)    ─── List&lt;SettingDetailResponse&gt;   [U3-5-b 신설분 재사용]
+│
+├─▶ AssignmentQueryService.groupPreview(멤버 id 목록, 정의서 요약 목록)
+│     │
+│     ├── GuestServerDetailRepository.findAllByServerIdInWithBoardModel(멤버 id)      [1 회]
+│     ├── SettingAssignmentRepository.findByGuestServer_IdInAndSupersededAtIsNull(…)  [1 회 · 신설]
+│     │
+│     └── 정의서 × 멤버 조합마다 (질의 없음 — 위에서 읽은 것만 쓴다)
+│           ├── 이미 활성 할당이 있나 ──▶ MemberApplyOutcome.ALREADY_ASSIGNED
+│           └── AssignmentBlockKind.evaluate(AssignmentEligibility)      [U3-5-a 재사용]
+│                 ├── null      ──▶ WILL_ASSIGN
+│                 └── block     ──▶ BLOCKED + block.reason()
+│                                    └── 사유 문구는 도메인이 만든다(서버 가드와 같은 문자열)
+│
+└─▶ GroupPickerResponse.of(미리보기 목록, 상세 목록)      ← 조립은 응답 record 가 한다(U3-5-b 선례)
+         └── 화면: fragments/provisioning/group-definition-picker :: picker</div>
+        <p><b>판정은 이 단계가 만들지 않는다.</b> 하드웨어 · 회수 축은 <code>AssignmentBlockKind</code> 를 그대로 부르고, 이 단계가 더하는 것은 그 앞에 오는 질문 하나(<code>이미 활성 할당이 있나</code>)뿐이다. 조립을 서비스가 아니라 응답 record 의 정적 팩터리가 맡는 것도 U3-5-b 와 같다 — 하는 일이 조회가 아니라 id 로 짝짓기라서 트랜잭션도 리포지토리도 필요 없다.</p>
+
+        <h4>도식 B — 실행 경로 (orchestrator)</h4>
+        <p>확정을 누른 뒤다. <b><code>GroupAssignmentService</code> 는 스스로 할당하지 않는다</b> — 멤버마다 기존 <code>AssignmentCommandService.assign</code> 을 부르고 결과를 모으는 지휘자다. 새 할당 로직이 없다는 것이 이 설계의 값이다.</p>
+<div class="pkg-tree">GuestServerGroupController.assignBatch(groupId, definitionId)
+│
+└─▶ GroupAssignmentService.assignToMembers(멤버 id 목록, definitionId)     ◀── orchestrator (별도 빈)
+      │
+      │   이 메서드에는 @Transactional 이 없다 — 여기서 트랜잭션을 열면
+      │   멤버 전체가 한 트랜잭션에 묶여 한 건 실패가 전부를 되돌린다
+      │
+      ├── 멤버 1 ─┐
+      ├── 멤버 2 ─┤
+      ├── 멤버 3 ─┤  각각 아래를 독립적으로 탄다
+      ├── 멤버 N ─┘
+                 │
+                 ▼
+        ╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌  Spring AOP 프록시 경계
+                 │            ◀── 이 선을 지나야 @Transactional 이 열린다
+                 │
+                 ▼
+        AssignmentCommandService.assign(guestId, definitionId)   @Transactional
+          ├── assertAssignableTo(guest, definition)      [U3-5-a 가드 — 재판정]
+          └── assignmentRepository.save(deriveSnapshot(…))
+                 │
+                 ├── 성공             ──▶ assigned++
+                 └── ConflictException ──▶ skipped++ · 사유는 예외가 실어 온 도메인 문구
+      │
+      └─▶ BatchAssignResult(assigned, skipped, 사유별 집계)
+                 │
+                 ▼
+        Controller ──▶ addFlashAttribute("flashMessage", 요약 문구)
+                   ──▶ redirect:/provisioning/server-group/{groupId}
+                          └── 폼에 data-native-submit 이 있어야 이 flash 가 산다(DEC-E)</div>
+
+        <h4>왜 별도 빈인가 — before/after</h4>
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>✗ 같은 빈 안에 두면</h4>
+<pre><code>AssignmentCommandService
+ ├ assignToMembers()   ← 여기서
+ └ assign()            ← this.assign() 으로 부른다
+
+호출이 프록시를 거치지 않는다(self-invocation)
+  → @Transactional 이 무시된다
+  → 멤버 N 대가 호출자의 트랜잭션 하나에서 돈다
+  → 한 건 실패가 나머지를 되돌린다</code></pre>
+          </div>
+          <div class="split-card after">
+            <h4>✓ 별도 빈으로 두면</h4>
+<pre><code>GroupAssignmentService ──(주입)──▶ AssignmentCommandService
+ └ assignToMembers()                └ assign()  @Transactional
+
+호출이 프록시를 거친다
+  → 멤버마다 트랜잭션 하나
+  → 9 대 성공 + 1 대 실패가 그대로 남는다</code></pre>
+          </div>
+        </div>
+        <p>미리보기로 걸렀으므로 실행 중 실패는 <b>경합뿐</b>이고 드물다. 그 드문 한 건이 아홉 건을 되돌리면, 다시 눌러도 상태가 같아 영원히 못 한다. 그래서 트랜잭션 경계를 멤버에 두고, <b>그 경계가 실제로 서려면 프록시를 지나야 하므로</b> 지휘자를 별도 빈으로 뺀다. 이것은 취향이 아니라 Spring AOP 의 동작 조건이다.</p>
+
+        <h4>재사용 (신설하지 않는다)</h4>
+        <p><code>AssignmentBlockKind.evaluate</code> · <code>AssignmentEligibility</code> · <code>RequiredBoardModel</code> · <code>AssignmentCommandService.assign</code> · <code>setting-process-cards</code> 조각 · <code>SettingQueryService.findAssignable</code> · <code>findDetailsOf</code> · <code>GuestServerDetailRepository.findAllByServerIdInWithBoardModel</code>.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>Thymeleaf 뷰 — 그룹 상세 버튼 · 모달 · <code>group-definition-picker</code> 조각</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>Controller — picker 조각 · 일괄 실행 POST</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td>응답 DTO · 열거 (§4 신설)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — 그룹 미리보기 질의 · <code>GroupAssignmentService</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>Repository — 파생 메서드 1</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td><b>N/A</b> — 엔티티 무변경</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>8</td><td>서비스 본체 + 단위 · 통합 테스트</td><td><span class="chip cp4">CP4</span></td><td>승인</td></tr>
+            <tr><td>9</td><td><b>N/A</b> — DDL 이 없다</td><td><span class="chip cp4">CP4</span></td><td>—</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+
+        <p>특이점은 <b>7 · 9 단계가 N/A</b> 라는 것이다(엔티티 · DDL 없음). 6 단계는 파생 메서드 하나뿐이라 가볍다. 무게는 <b>2(뷰) · 3(컨트롤러) · 8(서비스 본체 + 테스트)</b>에 몰린다. CP5 는 브라우저 검증이다.</p>
+
+        <div class="callout">승인 게이트는 <b>CP1 · CP4 · CP6 · CP7 넷</b>이다. CP1 승인이 CP2~CP3 의 진행 승인을 겸하므로 그 구간은 무중단으로 진행하고 경계마다 보고만 하며, <b>빌드 · 전체 테스트 green 을 확인하는 CP4 에서 멈춰 승인을 받는다.</b></div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>케이스</th></tr></thead>
+          <tbody>
+            <tr><td>멤버 분류기</td><td>이미 할당 · 회수 · 하드웨어 불일치 · 수집 전 · 통과 — 5 종이 각각 제 분류로</td></tr>
+            <tr><td>분류 순서</td><td>이미 할당 + 하드웨어 불일치가 겹치면 <b>이미 할당</b>으로(먼저 본다)</td></tr>
+            <tr><td><code>GroupApplyPreviewResponse.summary()</code></td><td>0 대 · 전부 · 부분 세 경우의 문구</td></tr>
+            <tr><td><code>GroupPickerResponse.of</code></td><td>정의서 ↔ 상세 id 짝짓기 · 상세 없는 것 탈락</td></tr>
+            <tr><td><code>GroupAssignmentService</code></td><td>통과 2 · 건너뜀 2 인 그룹에서 <code>assign</code> 이 <b>정확히 2 번</b> 호출되는지(Mockito verify)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>통합 (<code>@WebMvcTest</code>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr><td>2xx</td><td>picker 조각 200 — 좌측 항목 수 · 붙는 수 표기 · 멤버 분류 표의 행 수</td></tr>
+            <tr><td>2xx</td><td>붙는 멤버가 0 인 정의서는 좌측이 잠기고 우측에 사유가 모인다</td></tr>
+            <tr><td>302</td><td>일괄 실행 → 그룹 상세로 redirect + flash 문구에 성공 · 건너뜀 수</td></tr>
+            <tr><td>404</td><td>없는 그룹 · 없는 정의서</td></tr>
+            <tr><td>409</td><td>비활성 정의서를 direct POST</td></tr>
+            <tr><td>400</td><td><code>definitionId</code> 없이 제출 → 폼 바인딩 실패. 네이티브 제출이므로 <b>HTML 오류 페이지</b>로 수렴하는지 함께 본다(S10 Accept 정규화)</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>500 범주는 두지 않는다</b> — 이 단계가 새로 만드는 실패는 전부 멤버별 건너뜀이라 예외가 아니며, 참조 손상 같은 진짜 500 은 <code>AssignmentCommandService</code> 가 이미 정직하게 끊는다.</p>
+
+        <p><b>멤버가 0 인 그룹</b>도 봐야 한다 — 버튼이 없거나 눌러도 붙는 대상이 0 임이 명확해야 한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신설 0.</b> 재사용만 한다.</p>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerGroupNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>SettingNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>DefinitionNotAssignableException</code></td><td>409</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>U3-5-a 의 409 둘</td><td>409</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+
+        <p><b>멤버별 차단은 예외가 아니다.</b> 정상 흐름의 일부(건너뜀)이며 미리보기가 먼저 알린다. 예외는 그룹 · 정의서 자체가 없거나 비활성일 때만 — 즉 direct POST · 경합 같은 진짜 비정상이다.</p>
+
+        <h4>폼 규약</h4>
+        <p><code>new-form.md</code> 판정 표에서 <b>"서버가 redirect 로 응답하고 결과를 flash 로 알린다"</b> 칸이다. <code>data-native-submit</code> 을 붙인다(DEC-E) — 그 마커가 있어야 flash 가 살아남는다는 것을 실측으로 확인했다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정</summary>
+      <div class="body">
+        <h4>DEC-A. 그룹 전용 picker 조각 — 상세 카드 조각만 공유</h4>
+        <table>
+          <thead><tr><th>안</th><th>방식</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>① <code>DefinitionPickerItemResponse.blockReason</code> 재사용</td><td>"8 대에 할당됩니다" 를 그 필드에 담는다</td><td>탈락</td></tr>
+            <tr><td>② picker 를 대상 N 개로 완전 일반화</td><td>1 대 화면도 N=1 로</td><td>탈락</td></tr>
+            <tr><td>③ 그룹 전용 조각 + 카드 조각 공유</td><td>좌측 표기 · 우측 판정만 새로</td><td><b>채택</b></td></tr>
+          </tbody>
+        </table>
+        <p>①이 탈락하는 이유는 <code>blocked()</code> 가 <code>blockReason != null</code> 이기 때문이다. 부분 적용(8/10)인데 잠긴 것으로 표시된다 — <b>이름이 거짓말을 한다.</b></p>
+        <p>②는 이미 검증을 마친 U3-5-b 화면을 흔들면서 "1 대 중 1 대" 같은 무의미한 표기를 만든다. 지금 필요 없는 추상이다.</p>
+        <p>③에서 겹치는 것은 miller 껍데기 마크업 25 행 남짓인데, 그것은 <b>CSS 클래스 조합이지 로직이 아니다.</b> management 다섯 화면도 각자 자기 miller 마크업을 갖는다 — 이 저장소의 확립된 관용구다. 반대로 값나가는 공유 자산인 <b>단계 카드 조각은 그대로 재사용</b>한다.</p>
+        <p>잠긴 항목을 눌러 사유를 읽게 하는 것은 U3-5-b DEC-C 를 그대로 잇는다. 그룹에서는 사유가 멤버마다 달라 <b>우측에 모아 보여주는 값이 더 크다.</b></p>
+
+        <h4>DEC-B. 사전 분류 미리보기 → 확정 → 통과분만 실행</h4>
+        <table>
+          <thead><tr><th>안</th><th>방식</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>① all-or-nothing</td><td>한 대라도 막히면 전부 거절</td><td>탈락</td></tr>
+            <tr><td>② best-effort + 사후 보고</td><td>눌러 보고 결과를 안다</td><td>탈락</td></tr>
+            <tr><td>③ 미리보기 → 확정 → 통과분 실행</td><td>누르기 전에 안다</td><td><b>채택</b></td></tr>
+          </tbody>
+        </table>
+        <p>①이 탈락하는 이유는 <b>그룹의 혼재가 정상이기 때문</b>이다. U3-4 가 <code>specDiverged</code> 를 "차단이 아니라 안내" 로 못 박았고, 회수된 멤버가 섞이는 것도 흔하다. 한 대 때문에 아홉 대를 못 붙이면 기능이 쓸모없다.</p>
+        <p>②는 되돌리기 어려운 조작을 눈 감고 누르게 한다. ③이면 <b>"부분 실패" 가 아니라 "부분 적용을 미리 알고 승인"</b> 이 된다 — 불가침 원칙 "UX 모순은 UI 1차 차단" 의 배치판이다.</p>
+
+        <h4>DEC-C. 이미 할당된 멤버는 건너뛴다</h4>
+        <p>재할당은 기존 스냅샷을 <code>supersede</code> 하는 <b>파괴적</b> 조작이다. 일괄로 하면 운영자가 의도치 않게 여러 대의 계획을 한 번에 갈아엎을 수 있고, 그중 하나라도 개시됐으면 그 대는 막히므로 결과가 더 섞인다.</p>
+        <p><b>사용 패턴과도 맞는다</b> — 그룹에 서버가 추가될 때마다 일괄 할당을 돌리면 기존은 건너뛰고 새 것만 붙는다. 이것이 이 기능을 쓰는 가장 흔한 방식이다.</p>
+        <p>비채택: "재할당 포함" 체크박스 — 무명 boolean 인자이고 기본값을 어느 쪽으로 두어도 위험하다.</p>
+
+        <h4>DEC-D. 멤버별 독립 트랜잭션 — orchestrator 는 별도 빈</h4>
+        <p>미리보기로 걸렀으므로 실행 중 실패는 <b>경합뿐</b>이고 드물다. 그런데 한 트랜잭션으로 묶으면 그 드문 한 건이 아홉 건을 되돌리고, 상태가 그대로면 다시 눌러도 같은 결과다.</p>
+        <p><b>그래서 멤버마다 독립 트랜잭션으로 <code>AssignmentCommandService.assign</code> 을 부른다.</b> 그 메서드가 이미 <code>@Transactional</code> 이라 새 트랜잭션 설계가 필요 없다.</p>
+        <div class="callout warn"><b>다만 orchestrator 를 <code>AssignmentCommandService</code> 안에 두면 안 된다</b> — 같은 빈 안에서 <code>this.assign(...)</code> 을 부르면 Spring AOP 프록시를 우회해 <b>새 트랜잭션이 열리지 않는다</b>(self-invocation). <code>GroupAssignmentService</code> 를 별도 빈으로 두고 <code>AssignmentCommandService</code> 를 주입해 프록시를 통해 부른다.</div>
+        <p>경합으로 던져지는 예외는 <code>ConflictException</code> <b>하나의 상위 타입</b>으로 잡아 사유를 결과에 담는다. 차단 종류가 늘어도 여기 줄이 늘지 않는다 — 사유 문구는 <code>AssignmentBlockKind</code> 가 만들기 때문이다. 조건분기를 늘리는 패턴이 아니다.</p>
+        <p>이 관계는 §4 의 <b>도식 B</b> 와 그 아래 대조가 그림으로 보여 준다.</p>
+
+        <h4>DEC-E. 결과 통지 = <code>data-native-submit</code> + flash (실측 근거)</h4>
+        <p><code>flashMessage</code> + PRG 가 관용구이지만, <b>S10 전역 폼 가로채기와 조합되면 메시지가 사라진다</b>(§1 실측). <code>fetch</code> 가 리다이렉트를 안에서 따라가며 flash 를 소비하고 이어지는 <code>location.reload()</code> 는 빈 손이다.</p>
+        <table>
+          <thead><tr><th>안</th><th>방식</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>① 가로채기 그대로 + flash</td><td>지금 관용구</td><td>탈락 — 문구가 안 뜬다(실측)</td></tr>
+            <tr><td>② XHR + 모달 안에 결과 렌더</td><td>비동기 유지</td><td>탈락</td></tr>
+            <tr><td>③ <code>data-native-submit</code> + flash</td><td>네이티브 POST</td><td><b>채택</b></td></tr>
+          </tbody>
+        </table>
+        <p>②가 탈락하는 이유는 결과를 본 뒤 결국 화면을 새로 고쳐야 하고(멤버 표가 바뀐다), 그러면 단계가 하나 더 늘기 때문이다. ③은 마커 한 개로 끝나고 이미 두 화면이 그 마커를 쓴다.</p>
+        <p>③의 대가는 <b>거절 시 오류 모달 대신 HTML 오류 페이지로 이동</b>하는 것이다. 감수할 만하다 — 이 폼의 거절 사유는 그룹 · 정의서 부재나 비활성뿐이고, 그것들은 화면이 이미 1차 차단하므로 direct POST · 경합에서만 나온다. 그때 전체 페이지 오류를 보는 것이 부정확한 성공보다 낫다.</p>
+
+        <h4>DEC-F. <code>group</code> 과 <code>assignment</code> 는 계속 서로를 참조하지 않는다</h4>
+        <p>실측상 둘은 <b>import 0 건</b>이고 컨트롤러만 엮는다. 이 단계에서 한쪽이 다른 쪽을 참조하게 만들면 그 방향이 굳는다.</p>
+        <p><b>컨트롤러가 조립한다</b> — 멤버 id 목록은 <code>GuestServerGroupQueryService</code> 에서, 판정과 실행은 <code>assignment</code> 에서 받아 잇는다. U3-5-a · b 에서 이미 쓴 방식과 같다(컨트롤러가 <code>settingQueryService.findAssignable()</code> 을 받아 <code>assignmentQueryService</code> 에 넘긴다).</p>
+
+        <h4>DEC-G. <code>ALREADY_ASSIGNED</code> 를 <code>AssignmentBlockKind</code> 에 넣지 않는다</h4>
+        <p>얼핏 세 번째 차단 종류로 보이지만 아니다. <b>단건 화면에서 "이미 할당됨" 은 차단이 아니라 재할당으로 가는 갈림길</b>이고, <code>AssignmentBlockKind</code> 는 "이 정의서를 이 서버에 붙일 수 있는가" 만 답한다. 여기에 기존 할당 축을 넣으면 <code>AssignmentEligibility</code> 가 바뀌고 U3-5-a · b 의 판정이 함께 흔들린다.</p>
+        <p><b>그룹 문맥에서만 뜻이 있는 분류</b>이므로 <code>MemberApplyOutcome</code> 이라는 별도 열거로 둔다. 분류기는 두 질문을 순서대로 한다 — ① 이미 활성 할당이 있나 ② <code>AssignmentBlockKind.evaluate</code> 가 막나. 이미 있는 멤버는 어차피 건너뛰므로 하드웨어를 대조할 이유가 없다.</p>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>번호</th><th>쟁점</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>OQ-1</td><td>그룹 상세 멤버 표에 '할당된 정의서' 열을 더할 것인가</td><td><b>더한다.</b> 일괄 할당 결과가 표에서 바로 보여야 flash 문구를 믿을 근거가 생긴다. 열 하나이고 데이터는 이미 조회 범위 안이다</td></tr>
+            <tr><td>OQ-2</td><td>좌측 목록의 적용 수 표기 형식</td><td><code>8 / 10</code> 보다 <b><code>8 대</code></b> — 분모는 그룹 멤버 수로 고정이라 표 밖 한 곳에 적으면 된다</td></tr>
+            <tr><td>OQ-3</td><td>멤버가 0 인 그룹에서 버튼을 감출 것인가</td><td><b>감춘다.</b> 조작할 것이 없는 화면을 열어 주지 않는다(U3-5-b DEC-D 와 같은 결)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>식별자</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>그룹 상세 → <code>[정의서 일괄 할당]</code> → 모달이 열리고 좌측 목록 · 우측 안내</td></tr>
+            <tr><td>A2</td><td>AUTO 정의서 선택 → 우측 요약 + 멤버 분류 표, 붙는 수가 좌측 표기와 일치</td></tr>
+            <tr><td>A3</td><td>보드 전용 정의서로 바꾸면 <b>같은 그룹이 다르게 갈린다</b></td></tr>
+            <tr><td>A4</td><td>실제 일괄 실행 → 그룹 상세로 돌아오고 flash 에 성공 · 건너뜀 수</td></tr>
+            <tr><td>A5</td><td>실행 후 멤버 표에 할당이 반영된다(OQ-1 채택 시)</td></tr>
+            <tr><td>A6</td><td>이미 할당된 멤버가 <b>갈아엎이지 않았다</b> — DB 로 스냅샷 id 대조</td></tr>
+            <tr><td>A7</td><td>붙는 멤버가 0 인 정의서 → 좌측 잠김 + 우측에 사유가 모임 + 버튼 비활성</td></tr>
+            <tr><td>A8</td><td>멤버 0 인 그룹 → 버튼이 없다</td></tr>
+            <tr><td>B1</td><td>direct POST — 비활성 정의서 → 409</td></tr>
+            <tr><td>B2</td><td>direct POST — 없는 그룹 → 404</td></tr>
+            <tr><td>B3</td><td>모달을 연 뒤 다른 창에서 멤버를 회수하고 확정(stale) → 그 멤버만 건너뛰고 나머지는 성공</td></tr>
+            <tr><td>B4</td><td>picker 조각 direct GET — 없는 그룹 → 404</td></tr>
+            <tr><td>C1</td><td>미리보기가 "왜 건너뛰는지" 를 멤버마다 문장으로 알려주는가</td></tr>
+            <tr><td>C2</td><td>실행 결과 문구가 미리보기와 어긋나지 않는가</td></tr>
+            <tr><td>C3</td><td>모달 폭 · 멤버 표가 멤버 수가 많아도 읽히는가(스크롤 처리)</td></tr>
+            <tr><td>C4</td><td>거절이 raw JSON 없이 화면 안내로 수렴하는가</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>MemberApplyOutcome</code></td><td>멤버 분류 열거</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>MemberOutcomeResponse</code></td><td>멤버 요약 + 분류 + 사유</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupApplyPreviewResponse</code></td><td>멤버 결과 목록 + 요약</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupPickerItemResponse</code></td><td>정의서 요약 + 상세 + 미리보기</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupPickerResponse</code></td><td>모달 한 판</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>BatchAssignResult</code></td><td>성공 수 · 건너뜀 수 · 사유별 집계</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupAssignmentService</code></td><td>일괄 실행 orchestrator (별도 빈)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>fragments/provisioning/group-definition-picker.html</code></td><td>그룹용 2 열 miller</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/provisioning/group-definition-picker.js</code></td><td>좌우 전환 배선</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-group-detail.html</code></td><td>버튼 + 모달 + 멤버 표 열</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroupController</code></td><td>picker · 일괄 실행</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>AssignmentQueryService</code></td><td>그룹 미리보기</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingAssignmentRepository</code></td><td>파생 메서드 1</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>U3-5-a 판정 일체</td><td>그대로 호출</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>AssignmentCommandService.assign</code></td><td>그대로 호출</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>setting-process-cards</code> 조각</td><td>우측 상세에 재사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>miller.css</code></td><td>새 CSS 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>server.css</code> 모달 변형</td><td>U3-5-b 가 잡아 둔 치수</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U3-5-c-next">
+          <li><label><input type="checkbox" data-key="u3-5-close"> <span><b>U3-5 우산 종료</b> — a · b · c 가 끝나면 U3 정의서 할당 계열이 닫힌다</span></label></li>
+          <li><label><input type="checkbox" data-key="hf-flash"> <span><b><code>HF*</code> — <code>flashMessage</code> 소실</b>: <code>system/asset/dashboard</code>(2) · <code>system/diagnostic-asset/detail</code>(2) · <code>system/asset/settings</code>(1)에 <code>data-native-submit</code> 누락. 이 단계에서 실측으로 확인했다</span></label></li>
+          <li><label><input type="checkbox" data-key="hf-overflow"> <span><code>HF*</code> 모달 옵션 버튼 텍스트 넘침 — 누적 메모리에 기록됨</span></label></li>
+          <li><label><input type="checkbox" data-key="css-dup"> <span><code>.n-detail-section &gt; .n-section-title</code> 두 파일 중복 해소 · <code>.n-miller-version-label</code> 이름 정리 — U3-5-b 가 남긴 것</span></label></li>
+          <li><label><input type="checkbox" data-key="list-scale"> <span>정의서가 많아질 때의 좌측 목록 정렬 · 검색 — U3-5-b OQ-1 이 유보한 것</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — 그룹에 붙여 보기
+  //  판정은 서버의 멤버 분류기(① 이미 활성 할당 ② AssignmentBlockKind.evaluate)와 같은 순서 · 같은 바디 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_DEFS = [
+    { id: 'os-only-auto', board: null,          note: '보드 AUTO' },
+    { id: 'bios-ms03',    board: 'MS03-CE0',    note: 'MS03-CE0 전용' },
+    { id: 'fw-asus-z13',  board: 'ASUS-Z13PE',  note: 'ASUS-Z13PE 전용' }
+  ];
+  const DEMO_MEMBERS = [
+    { name: 'srv-01', board: 'ASUS-Z13PE', assigned: false, decommissioned: false },
+    { name: 'srv-02', board: 'MS03-CE0',   assigned: false, decommissioned: false },
+    { name: 'srv-03', board: 'MS03-CE0',   assigned: false, decommissioned: true  },
+    { name: 'srv-04', board: null,         assigned: false, decommissioned: false }
+  ];
+  const DEMO_KIND = {
+    ASSIGN:  ['할당됨',    'add'],
+    ALREADY: ['이미 있음', 'mod'],
+    BLOCKED: ['막힘',      'del']
+  };
+  const DEMO_EMPTY = '이 그룹의 어떤 서버에도 붙일 수 없습니다';
+  let demoDefIndex = 0;
+
+  // ⬇ 서버 판정과 1:1 ⬇
+  function demoOutcome(def, member) {
+    if (member.assigned)      return {kind: 'ALREADY', reason: '이미 세팅 정의서가 할당되어 있습니다.'};
+    if (member.decommissioned) return {kind: 'BLOCKED', reason: '회수된 서버에는 세팅 정의서를 할당할 수 없습니다.'};
+    if (def.board === null || member.board === null) return {kind: 'ASSIGN', reason: null};
+    return def.board === member.board
+        ? {kind: 'ASSIGN', reason: null}
+        : {kind: 'BLOCKED', reason: '이 정의서는 메인보드 ' + def.board + ' 전용입니다 — 이 서버는 ' + member.board + ' 입니다.'};
+  }
+  // ⬆ 여기까지 ⬆
+
+  function demoSetDef(i) { demoDefIndex = i; demoRender(); }
+  function demoToggleAssigned(i) { DEMO_MEMBERS[i].assigned = !DEMO_MEMBERS[i].assigned; demoRender(); }
+  function demoToggleDecommissioned(i) { DEMO_MEMBERS[i].decommissioned = !DEMO_MEMBERS[i].decommissioned; demoRender(); }
+  function demoBatch(n) {
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ ' + n + ' 대에 일괄 할당 요청 — 서버가 멤버마다 다시 판정하고 통과분만 각각 독립 트랜잭션으로 붙입니다.';
+  }
+  function demoBtn(label, blocked, tip, onclick) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + ' onclick="' + onclick + '">' + label + '</button></span>';
+  }
+  function demoRender() {
+    const def = DEMO_DEFS[demoDefIndex];
+    document.querySelectorAll('.ux-toolbar .seg[data-def]').forEach(s =>
+      s.classList.toggle('active', s.dataset.def === def.id));
+
+    const outcomes = DEMO_MEMBERS.map(m => demoOutcome(def, m));
+    let assign = 0, already = 0, decom = 0, mismatch = 0;
+    outcomes.forEach((o, i) => {
+      if (o.kind === 'ASSIGN') assign++;
+      else if (o.kind === 'ALREADY') already++;
+      else if (DEMO_MEMBERS[i].decommissioned) decom++;
+      else mismatch++;
+    });
+
+    // 멤버 행 — 분류 chip + 사유 + 상태 토글 둘
+    document.getElementById('demo-members').innerHTML = DEMO_MEMBERS.map((m, i) => {
+      const o = outcomes[i], k = DEMO_KIND[o.kind];
+      return '<div class="ux-row' + (o.kind === 'ASSIGN' ? '' : ' muted') + '">'
+        + '<span class="label"><b>' + m.name + '</b> · 메인보드 ' + (m.board === null ? '수집 전' : m.board)
+        + (o.reason ? '<br>' + o.reason : '') + '</span>'
+        + '<span class="chip ' + k[1] + '">' + k[0] + '</span>'
+        + demoBtn(m.assigned ? '할당 있음' : '할당 없음', false, '', 'demoToggleAssigned(' + i + ')')
+        + demoBtn(m.decommissioned ? '복구' : '회수', false, '', 'demoToggleDecommissioned(' + i + ')')
+        + '</div>';
+    }).join('');
+
+    // 요약 — 붙는 수 / 건너뛰는 수와 그 내역
+    const total = DEMO_MEMBERS.length, skip = total - assign;
+    const parts = [];
+    if (already) parts.push('이미 있음 ' + already);
+    if (decom) parts.push('회수됨 ' + decom);
+    if (mismatch) parts.push('메인보드 불일치 ' + mismatch);
+    const skipText = skip ? (' ' + skip + ' 대는 건너뜁니다(' + parts.join(' · ') + ').') : '';
+    document.getElementById('demo-caps').innerHTML =
+      '정의서  ' + def.id + '  (' + def.note + ')\n'
+      + total + ' 대 중 <span class="f">' + assign + ' 대</span>에 할당됩니다.'
+      + (skip ? (' <span class="t">' + skip + ' 대</span>는 건너뜁니다(' + parts.join(' · ') + ').') : '');
+
+    document.getElementById('demo-submit').innerHTML =
+      demoBtn('일괄 할당', assign === 0, DEMO_EMPTY, 'demoBatch(' + assign + ')');
+
+    const msg = document.getElementById('demo-message');
+    if (assign === 0) {
+      msg.className = 'ux-message error';
+      msg.textContent = DEMO_EMPTY;
+    } else {
+      msg.className = 'ux-message success';
+      msg.textContent = total + ' 대 중 ' + assign + ' 대에 할당됩니다.' + skipText;
+    }
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

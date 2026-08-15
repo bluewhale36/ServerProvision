@@ -21,6 +21,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
+import com.example.serverprovision.provisioning.assignment.service.GroupAssignmentService;
+import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -32,6 +36,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -56,7 +61,17 @@ class GuestServerGroupControllerTest {
 
     @MockitoBean GuestServerGroupQueryService queryService;
     @MockitoBean GuestServerGroupCommandService commandService;
+    // U3-5-c — 컨트롤러가 그룹과 할당을 잇게 되면서 늘어난 협력자들(DEC-F).
+    @MockitoBean AssignmentQueryService assignmentQueryService;
+    @MockitoBean GroupAssignmentService groupAssignmentService;
+    @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @BeforeEach
+    void stubAssignedDefinitions() {
+        // 상세가 멤버 표의 '할당된 정의서' 열을 그리려면 이 조회가 답해야 한다.
+        given(assignmentQueryService.activeDefinitionNamesOf(anyList())).willReturn(java.util.Map.of());
+    }
 
     private static GuestServerSummaryResponse row(UUID id, String name) {
         return new GuestServerSummaryResponse(

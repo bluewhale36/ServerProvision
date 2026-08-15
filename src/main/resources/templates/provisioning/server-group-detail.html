@@ -23,7 +23,15 @@
     <th:block th:replace="~{fragments/layout :: commonHead('서버 그룹 상세')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
     <link rel="stylesheet" th:href="@{/css/grouped-list.css}">
-    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+    <!--/* confirm-modal.css 는 싣지 않는다 — commonHead 가 이미 싣는다(전역 오류 modal 용).
+           한 번 더 걸면 .cm-card{max-width:480px} 가 server.css 의 .cm-card-wide 보다 뒤로 갈 수 있고,
+           그러면 모달이 480px 로 접힌다(U3-5-b CP5 실측). 지금 순서에서는 무해했으나 아래에 시트를
+           더하면서 순서 의존이 늘어나므로 중복 자체를 없앤다. */-->
+    <!--/* U3-5-c — 일괄 할당 모달의 2 열 miller 와 그 우측이 그리는 정의서 단계 카드.
+           빌려온 시트를 server.css 앞에 두는 이유는 U3-5-b 와 같다 — 이 화면의 주인은 server.css 이고,
+           빌려온 것이 주인을 덮으면 주인 쪽 수정이 조용히 먹지 않는다. */-->
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
     <link rel="stylesheet" th:href="@{/provisioning/server.css}">
 </head>
 <body>
@@ -41,6 +49,12 @@
         </div>
         <div th:replace="~{fragments/common/back-link :: backLink('/provisioning/server-group')}"></div>
     </div>
+
+    <!--/* U3-5-c — 일괄 할당 결과(PRG flash). 몇 대에 붙었고 몇 대를 왜 건너뛰었는지 한 줄로 알린다.
+           이 문구가 뜨려면 제출이 네이티브여야 한다(DEC-E) — 전역 폼 가로채기가 fetch 로 리다이렉트를
+           따라가면 flash 가 그 안에서 소비되어 화면에 도달하지 못한다(CP1 실측). */-->
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" style="margin-bottom: 14px;"
+         th:text="${flashMessage}">세팅 정의서를 3 대에 할당했습니다.</div>
 
     <!-- ── 구성 혼재 알림 — 차단이 아니라 안내(DEC-I) ── -->
     <div th:if="${group.specDiverged}" class="n-alert n-alert-warning" role="alert">
@@ -85,6 +99,13 @@
                 서버 넣기<span th:if="${group.candidateCount > 0}"
                              th:text="' (' + ${group.candidateCount} + '대 가능)'"> (4대 가능)</span>
             </button>
+            <!--/* U3-5-c — 멤버가 없으면 내지 않는다(OQ-3). 조작할 것이 없는 화면을 열어 주지 않는 것은
+                   회수된 서버의 할당 폼을 닫은 U3-5-b DEC-D 와 같은 결이다. */-->
+            <button th:unless="${group.members.isEmpty()}"
+                    type="button" class="n-btn n-btn-secondary n-btn-sm" id="openGroupDefinitionPicker"
+                    th:data-fetch-url="@{/provisioning/server-group/{id}/assignment/picker(id=${group.id})}">
+                정의서 일괄 할당
+            </button>
         </div>
 
         <div class="n-glist-panel">
@@ -100,6 +121,7 @@
                     <th>SMBIOS UUID</th>
                     <th>보드 모델</th>
                     <th>구성</th>
+                    <th>할당된 정의서</th>
                     <th>현재 단계</th>
                     <th>운영 상태</th>
                     <th class="n-th-center">제외</th>
@@ -124,6 +146,13 @@
                               th:classappend="${m.minoritySpec} ? ' n-badge n-badge-yellow' : ' n-spec-cell'"
                               th:text="${m.specLabel}">MS03-CE0 · 6338 ×2</span>
                         <span th:unless="${m.specLabel != null}" class="n-muted">수집 전</span>
+                    </td>
+                    <!--/* U3-5-c — 일괄 할당 결과를 이 열에서 확인한다. flash 문구가 "N 대에 할당했다" 고
+                           알려도 어느 N 대인지는 표에서 봐야 한다(OQ-1). */-->
+                    <td>
+                        <span th:if="${assignedDefinitions.containsKey(m.server.id)}"
+                              th:text="${assignedDefinitions.get(m.server.id)}">web-standard</span>
+                        <span th:unless="${assignedDefinitions.containsKey(m.server.id)}" class="n-muted">—</span>
                     </td>
                     <td>
                         <span th:if="${m.server.currentPhase != null}" class="n-badge n-badge-blue"
@@ -178,11 +207,58 @@
     </div>
 </div>
 
+<!--/* ── 정의서 고르기 모달 — 일괄 할당 · 표준 지정 두 모드 (U3-5-c → U3-5-d) ──
+       내용(좌측 목록 + 우측 미리보기 · 상세)은 처음 열 때 조각 엔드포인트에서 받는다 — 정의서 × 멤버
+       조합 판정을 상세 진입마다 치르지 않는다(서버 넣기 모달과 같은 판단).
+
+       한 모달을 두 모드가 나눠 쓰는 이유(DEC-B) : 고르는 일은 같고 고른 뒤에 하는 일만 다르다.
+       할당/재할당이 한 모달을 공유한 U3-5-b DEC-E 와 같은 형태로, 제목 · 제출 대상 · 버튼 문구만
+       JS 가 바꾼다. th:action 은 일괄 할당으로 두고 표준 지정 모드일 때 JS 가 갈아 끼운다.
+
+       U3-5-d 부터 멤버가 없는 그룹에서도 렌더한다 — 표준 지정은 빈 그룹에서 하는 일이기 때문이다.
+       일괄 할당 버튼만 종전대로 멤버 0 이면 숨는다(그쪽은 여전히 조작할 것이 없다).
+
+       제출이 네이티브인 이유(DEC-E) : 결과를 flash 로 알려야 하는데, 전역 폼 가로채기가 fetch 로
+       리다이렉트를 따라가면 flash 가 그 안에서 소비되어 화면에 도달하지 못한다(CP1 실측). 대가는 거절
+       시 오류 모달 대신 HTML 오류 페이지로 이동하는 것인데, 이 폼의 거절 사유는 그룹 · 정의서 부재나
+       비활성뿐이고 그것들은 화면이 이미 1차 차단하므로 direct POST · 경합에서만 나온다. */-->
+<div th:unless="${group.members.isEmpty()}" id="groupDefinitionPicker" class="cm-overlay" hidden>
+    <div class="cm-backdrop" data-picker-close></div>
+    <div class="n-card cm-card cm-card-wide" role="dialog" aria-modal="true"
+         aria-labelledby="groupDefinitionPickerTitle">
+        <div class="n-card-body">
+            <h2 id="groupDefinitionPickerTitle" class="cm-title">정의서 일괄 할당</h2>
+            <p class="cm-message">
+                정의서를 고르면 이 그룹의 <b th:text="${group.members.size()}">4</b>대에 각각 어떻게 적용되는지
+                먼저 보여 드립니다. 이미 정의서가 있는 서버는 갈아엎지 않고 건너뜁니다.
+            </p>
+            <form method="post"
+                  data-native-submit="결과를 flash 로 알려야 한다 — 가로채기가 fetch 로 리다이렉트를 따라가면 그 안에서 flash 가 소비되어 화면에 도달하지 못한다(U3-5-c CP1 실측)"
+                  th:action="@{/provisioning/server-group/{id}/assignment(id=${group.id})}">
+                <input type="hidden" name="definitionId" id="groupDefinitionPickerChoice">
+                <div class="n-picker-body n-picker-body-miller" id="groupDefinitionPickerBody">
+                    <p class="n-detail-empty">불러오는 중…</p>
+                </div>
+                <div class="n-picker-footer">
+                    <span class="n-picker-count" id="groupDefinitionPickerStatus">왼쪽에서 정의서를 고르세요</span>
+                    <span>
+                        <button type="button" class="n-btn n-btn-secondary" data-picker-close>취소</button>
+                        <button type="submit" class="n-btn n-btn-primary" id="groupDefinitionPickerSubmit" disabled>
+                            일괄 할당</button>
+                    </span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!--/* 확인 모달은 조각이 prefix 로 매개변수화돼 있어 새 조각 없이 그대로 재사용한다.
        id 접두사만 바꾸면 {prefix}Modal / Title / Message / ConfirmBtn / CancelBtn 이 생긴다. */-->
 <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmGroupDelete')}"></div>
 
 <script th:src="@{/management/common/confirm-modal-base.js}"></script>
 <script th:src="@{/provisioning/server-group-detail.js}"></script>
+<!-- U3-5-c — 정의서 일괄 할당 모달의 열기 · 고르기 (제출은 네이티브라 스크립트가 관여하지 않는다) -->
+<script th:src="@{/provisioning/group-definition-picker.js}"></script>
 </body>
 </html>

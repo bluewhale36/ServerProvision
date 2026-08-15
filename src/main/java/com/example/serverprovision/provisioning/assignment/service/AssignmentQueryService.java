@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
+import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -12,8 +13,11 @@ import com.example.serverprovision.provisioning.assignment.entity.SettingAssignm
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentFormResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.DefinitionOptionResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.GroupApplyPreviewResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.MemberOutcomeResponse;
 import com.example.serverprovision.provisioning.assignment.enums.AssignmentBlockKind;
 import com.example.serverprovision.provisioning.assignment.enums.AssignmentBlockKind.AssignmentBlock;
+import com.example.serverprovision.provisioning.assignment.enums.MemberApplyOutcome;
 import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility;
 import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
@@ -25,7 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 할당 조회 — 상세 화면 '계획 phase rail' 입력 공급(read-only).
@@ -68,6 +76,94 @@ public class AssignmentQueryService {
 
         // 폼 자체를 닫을 사유는 엔티티가 답한다 — 화면과 서버 가드가 같은 문자열을 쓰게 하는 유일한 방법이다.
         return new AssignmentFormResponse(server.assignBlockReason(), options);
+    }
+
+    /**
+     * 그룹의 멤버들에게 정의서를 붙이면 어떻게 되는가 (U3-5-c) — 확정하기 전에 보는 미리보기.
+     *
+     * <p><b>판정은 새로 만들지 않는다.</b> 하드웨어 · 회수 축은 {@link AssignmentBlockKind#evaluate} 를
+     * 그대로 부르고, 이 메서드가 더하는 것은 그 앞에 오는 질문 하나 — <b>이미 활성 할당이 있나</b>다.
+     * 순서가 중요하다: 이미 있는 멤버는 어차피 건너뛰므로 하드웨어를 대조할 이유가 없다(DEC-G).</p>
+     *
+     * <p>재료(보드 · 활성 할당)는 <b>조합에 들어가기 전에 한 번씩만</b> 읽는다. 정의서 × 멤버 조합마다
+     * 판정하므로 안에서 조회하면 질의가 곱으로 는다.</p>
+     *
+     * <p>멤버 목록과 정의서 목록을 호출자가 넘기는 것은 {@link #assignmentForm} 과 같은 이유다 —
+     * 이 서비스가 {@code group} 이나 {@code setting} 을 직접 참조하면 패키지가 양방향이 된다(DEC-F).</p>
+     */
+    public List<GroupApplyPreviewResponse> groupPreview(List<GuestServerSummaryResponse> members,
+                                                        List<SettingSummaryResponse> assignable) {
+        if (members.isEmpty()) {
+            return assignable.stream()
+                    .map(summary -> new GroupApplyPreviewResponse(summary, List.of()))
+                    .toList();
+        }
+        List<UUID> memberIds = members.stream().map(GuestServerSummaryResponse::id).toList();
+
+        Map<UUID, GuestServer> serverById = guestServerRepository.findAllById(memberIds).stream()
+                .collect(Collectors.toMap(GuestServer::getId, Function.identity()));
+        Map<UUID, GuestServerDetail> detailByServerId =
+                guestServerDetailRepository.findAllByServerIdInWithBoardModel(memberIds).stream()
+                        .collect(Collectors.toMap(d -> d.getGuestServer().getId(), Function.identity()));
+        Set<UUID> alreadyAssigned = assignmentRepository
+                .findByGuestServer_IdInAndSupersededAtIsNull(memberIds).stream()
+                .map(assignment -> assignment.getGuestServer().getId())
+                .collect(Collectors.toSet());
+
+        return assignable.stream().map(summary -> {
+            RequiredBoardModel required = requiredBoardOf(summary);
+            List<MemberOutcomeResponse> outcomes = members.stream()
+                    .map(member -> classify(member, serverById.get(member.id()),
+                            detailByServerId.get(member.id()), alreadyAssigned, required))
+                    .toList();
+            return new GroupApplyPreviewResponse(summary, outcomes);
+        }).toList();
+    }
+
+
+    /**
+     * 서버들에 지금 붙어 있는 정의서 이름 (U3-5-c) — 그룹 상세 멤버 표의 '할당된 정의서' 열.
+     *
+     * <p>그룹 서비스가 직접 조회하지 않는 이유는 {@code group} 이 {@code assignment} 를 참조하게 되기
+     * 때문이다(DEC-F). 컨트롤러가 두 서비스를 받아 잇는다.</p>
+     *
+     * <p>이 열이 있어야 <b>일괄 할당 결과를 화면에서 확인할 수 있다</b> — flash 문구가 "8 대에 할당했다"
+     * 고 알려도 어느 8 대인지는 표에서 봐야 한다.</p>
+     */
+    public Map<UUID, String> activeDefinitionNamesOf(List<UUID> serverIds) {
+        if (serverIds.isEmpty()) {
+            return Map.of();
+        }
+        return assignmentRepository.findByGuestServer_IdInAndSupersededAtIsNull(serverIds).stream()
+                .collect(Collectors.toMap(
+                        assignment -> assignment.getGuestServer().getId(),
+                        assignment -> assignment.getSourceDefinitionRef().getDefinitionName()));
+    }
+
+    /**
+     * 멤버 하나의 처리 방식 — <b>이미 할당됨을 먼저 보고</b>, 그다음 U3-5-a 판정에 맡긴다.
+     *
+     * <p>서버 엔티티를 못 찾는 경우(멤버 목록을 만든 뒤 삭제)는 붙일 수 없는 것으로 본다. 예외를 던지지
+     * 않는 이유는 미리보기가 화면 재료를 모으는 자리이지 사용자 입력을 검증하는 자리가 아니기 때문이다.</p>
+     */
+    private MemberOutcomeResponse classify(GuestServerSummaryResponse member,
+                                           GuestServer server,
+                                           GuestServerDetail detail,
+                                           Set<UUID> alreadyAssigned,
+                                           RequiredBoardModel required) {
+        if (alreadyAssigned.contains(member.id())) {
+            return new MemberOutcomeResponse(member, MemberApplyOutcome.ALREADY_ASSIGNED,
+                    "이미 세팅 정의서가 할당되어 있습니다.");
+        }
+        if (server == null) {
+            return new MemberOutcomeResponse(member, MemberApplyOutcome.BLOCKED,
+                    "이 서버를 찾을 수 없습니다 — 목록을 만든 뒤 삭제된 것으로 보입니다.");
+        }
+        AssignmentBlock block = AssignmentBlockKind.evaluate(
+                new AssignmentEligibility(server, detail, required));
+        return block == null
+                ? new MemberOutcomeResponse(member, MemberApplyOutcome.WILL_ASSIGN, null)
+                : new MemberOutcomeResponse(member, MemberApplyOutcome.BLOCKED, block.reason());
     }
 
     /** 요약이 싣고 온 요구 보드를 값 객체로 되돌린다 — 요구하지 않으면 null. */

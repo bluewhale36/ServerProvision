@@ -309,10 +309,13 @@
     max-height: 560px;
 }
 
-/* 바깥에 스크롤을 두지 않는다 — 각 컬럼이 이미 자체 스크롤을 갖고 있어 겹치면 두 겹이 된다. */
+/* 바깥에 스크롤을 두지 않는다 — 각 컬럼이 이미 자체 스크롤을 갖고 있어 겹치면 두 겹이 된다.
+   min-height 는 내용을 받기 전에도 카드가 제 크기를 갖게 한다 — 없으면 "불러오는 중" 한 줄만큼
+   작았다가 커지는데, 그 사이 목록이 뜰 자리를 누르면 backdrop 에 닿아 모달이 닫힌다(CP5 실측). */
 .n-picker-body-miller {
     max-height: none;
     overflow: visible;
+    min-height: 56vh;
 }
 
 /* 정의서 이름은 버전 문자열보다 길다(운영자가 짓는 이름이라 서술적이다). 220px 에서는 대부분
@@ -372,3 +375,4 @@
     white-space: nowrap;
     vertical-align: middle;
 }
+
