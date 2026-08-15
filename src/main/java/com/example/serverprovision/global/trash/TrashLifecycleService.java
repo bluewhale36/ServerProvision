@@ -127,10 +127,12 @@ public class TrashLifecycleService {
 		if (trashedPathStr == null) {
 			// MK3-1 — trashed_path=null 분기 분리.
 			//   (a) FS 자원이 DB.path 에 살아있음 → 단순 lifecycle 복원 (외부 mv 로 자원만 돌아온 케이스 등)
-			//   (b) FS 자원도 부재 → ghost row → 명시적 거절 (휴지통 정리 / reconciliation drift apply 안내)
-			if (!Files.exists(entity.getResourcePath())) {
-				throw new GhostRowRestoreNotAllowedException(
-						entity.getResourceType().name() + "#" + entity.getResourceId());
+			//   (b) FS 자원도 부재 → ghost row → 명시적 거절 (휴지통 정리 / 자원 무결성 점검 안내)
+			// MK4-5-1 — 판정을 목록 렌더와 공유한다. 화면의 [복원] 이 흐려지는 조건과 여기서 거절하는
+			// 조건이 같은 곳에서 나와야 둘이 갈라지지 않는다. 렌더 시점과 제출 시점 사이에 파일이
+			// 바뀔 수 있으므로(TOCTOU) 서버가 다시 부르는 것은 중복이 아니라 재확인이다.
+			if (TrashRestoreEvaluator.evaluateFileState(entity) == RestoreBlockReason.GHOST) {
+				throw new GhostRowRestoreNotAllowedException(entity.displayName());
 			}
 			entity.restore();
 			entity.clearTrashed();
@@ -272,8 +274,11 @@ public class TrashLifecycleService {
 			);
 			return true;
 		}
-		if (!originalExists && !trashedExists) {
-			// (원X·trashX) 자원이 양쪽에서 완전히 사라짐 — 진짜 분실.
+		// (원X·trashX) 자원이 양쪽에서 완전히 사라짐 — 진짜 분실.
+		// MK4-5-1 — 위 유령 분기와 같은 이유로 판정을 목록 렌더와 공유한다. 4 상태 분류 구조는
+		// 그대로 두고 이 한 칸의 판정만 위임한다 — self-heal 과 점유는 화면이 막지 않는 상태라
+		// 사전 판정의 관심사가 아니고, HF-1 이 세운 보상 윈도우를 건드리지 않기 위해서다.
+		if (TrashRestoreEvaluator.evaluateFileState(entity) == RestoreBlockReason.TRASH_LOST) {
 			throw new RestoreTrashLostException(trashedPath.toString());
 		}
 		if (originalExists) {

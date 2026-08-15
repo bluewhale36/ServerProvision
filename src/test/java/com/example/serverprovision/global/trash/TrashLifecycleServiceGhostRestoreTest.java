@@ -6,6 +6,7 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.trash.exception.GhostRowRestoreNotAllowedException;
+import com.example.serverprovision.management.common.exception.RestoreTrashLostException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,9 +48,24 @@ class TrashLifecycleServiceGhostRestoreTest {
         ghost.softDelete(); // is_deleted=true, trashed_*=null
         // 자원 부재 + trashed_path=null = ghost
 
+        // MK4-5-1 — 안내가 자원 표시명을 쓴다. 종전에는 "OS_ISO#99" 처럼 내부 식별자를 노출했다.
         assertThatThrownBy(() -> service.restoreFromTrash(ghost, e -> Map.of()))
                 .isInstanceOf(GhostRowRestoreNotAllowedException.class)
-                .hasMessageContaining("OS_ISO#99");
+                .hasMessageContaining("OS_ISO #99")
+                .hasMessageContaining("[정리]");
+    }
+
+    @Test
+    @DisplayName("MK4-5-1 : 휴지통 기록은 있는데 실물이 양쪽에 없으면 소실로 거절한다")
+    void restore_trashLost_throws(@TempDir Path tmp) {
+        TestEntity entity = new TestEntity(77L, tmp.resolve("original.iso"));
+        entity.softDelete();
+        entity.markTrashed(tmp.resolve("gone-from-trash.iso").toString());
+
+        assertThatThrownBy(() -> service.restoreFromTrash(entity, e -> Map.of()))
+                .isInstanceOf(RestoreTrashLostException.class)
+                .hasMessageContaining("휴지통 자원 소실")
+                .hasMessageContaining("자원 무결성 점검");
     }
 
     @Test

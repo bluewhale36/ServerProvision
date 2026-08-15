@@ -1,13 +1,18 @@
 package com.example.serverprovision.maintenance.trash.controller;
 
+import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.PurgeRequest;
 import com.example.serverprovision.global.trash.PurgeResult;
+import com.example.serverprovision.global.trash.ResourceKey;
+import com.example.serverprovision.global.trash.RestoreBlockReason;
 import com.example.serverprovision.global.trash.TrashPolicy;
+import com.example.serverprovision.global.trash.TrashRestoreEvaluator;
 import com.example.serverprovision.global.trash.service.PurgeExecutor;
 import com.example.serverprovision.global.trash.service.TypedNameVerifier;
+import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
 import com.example.serverprovision.maintenance.trash.dto.response.TrashItemResponse;
 import com.example.serverprovision.maintenance.trash.service.TrashTtlExtensionService;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +49,10 @@ public class TrashController {
 	private final TrashPolicy trashPolicy;
 	private final PurgeExecutor purgeExecutor;
 	private final TypedNameVerifier typedNameVerifier;
+	/**
+	 * MK4-5-1 — 링크 대상 조회 전용. 복원 차단 판정에는 쓰지 않는다(그쪽은 파일시스템이 근거다).
+	 */
+	private final PathReconciliationService pathReconciliationService;
 
 	private Map<ResourceType, MarkableScanner> scannersByType() {
 		return scanners.stream().collect(Collectors.toMap(MarkableScanner::supportedType, s -> s));
@@ -61,17 +70,20 @@ public class TrashController {
 	public String list(Model model) {
 		Duration ttl = trashPolicy.getTtl();
 		Instant now = Instant.now();
+		// MK4-5-1 — 막힌 행에서 점검으로 가는 링크. 행마다 묻지 않고 한 번에 지도를 받는다.
+		Map<ResourceKey, Long> trashLostDriftIds =
+				pathReconciliationService.openDriftIdsOf(DriftKind.TRASH_LOST);
 
 		List<TrashItemResponse> items = new ArrayList<>();
 		for (MarkableScanner scanner : scanners) {
 			// 정상 trash 자원
 			for (Markable m : scanner.findTrashed()) {
-				TrashItemResponse item = toResponse(m, ttl, now, false);
+				TrashItemResponse item = toResponse(m, ttl, now, false, trashLostDriftIds);
 				if (item != null) items.add(item);
 			}
 			// MK3-1 — ghost row 합본. 4 영역 일관성을 위해 휴지통에 노출 + "정리" 액션만 활성.
 			for (Markable m : scanner.findGhostMarkables()) {
-				TrashItemResponse item = toResponse(m, ttl, now, true);
+				TrashItemResponse item = toResponse(m, ttl, now, true, trashLostDriftIds);
 				if (item != null) items.add(item);
 			}
 		}
@@ -154,7 +166,8 @@ public class TrashController {
 	 *       UI 의 "복구 불가" 배지 + 정리 버튼만 활성화 트리거.</li>
 	 * </ul>
 	 */
-	private TrashItemResponse toResponse(Markable m, Duration ttl, Instant now, boolean ghost) {
+	private TrashItemResponse toResponse(Markable m, Duration ttl, Instant now, boolean ghost,
+			Map<ResourceKey, Long> trashLostDriftIds) {
 		if (!(m instanceof com.example.serverprovision.global.entity.LifecycleEntity lifecycle)) {
 			return null;
 		}
@@ -205,6 +218,14 @@ public class TrashController {
 				parentDeleted = parentLc.isDeleted();
 			}
 		}
+		// MK4-5-1 — 복원 차단 판정. 서버 가드가 부르는 것과 같은 판정 하나를 공유하므로 화면과
+		// 가드가 갈라지지 않는다. 사유가 라벨과 안내 문구를 함께 들고 있어 템플릿에 문구가 없다.
+		RestoreBlockReason restoreBlock = TrashRestoreEvaluator.evaluate(m);
+		// 막힌 이유를 다른 화면에서 풀어야 하는 사유일 때만 링크 대상을 찾는다. 없으면 null 이고,
+		// 그 경우 화면은 다음 점검을 가리킨다 — 링크가 없다고 차단이 풀리지는 않는다.
+		Long driftId = restoreBlock != null && restoreBlock.hasNextScreen()
+				? trashLostDriftIds.get(new ResourceKey(m.getResourceType(), m.getResourceId()))
+				: null;
 		return new TrashItemResponse(
 				m.getResourceType(),
 				m.getResourceId(),
@@ -222,7 +243,9 @@ public class TrashController {
 				parentDisplayName,
 				parentDeleted,
 				ttlExtendable,
-				trashPolicy.getTtlDays()
+				trashPolicy.getTtlDays(),
+				restoreBlock,
+				driftId
 		);
 	}
 

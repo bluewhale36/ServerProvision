@@ -1,6 +1,7 @@
 package com.example.serverprovision.maintenance.trash.dto.response;
 
 import com.example.serverprovision.global.marker.ResourceType;
+import com.example.serverprovision.global.trash.RestoreBlockReason;
 
 import java.time.Instant;
 
@@ -30,6 +31,12 @@ import java.time.Instant;
  *                           ({@code MarkableTrashOperator.supportsTrashTtlExtension()} — 서버 가드와 동일 판정 SSOT).
  *                           false 면 연장 버튼 disabled + tooltip. ghost 행은 항상 false.
  * @param extendStepDays     HF4-1 — 연장 1회의 가산 일수 (= 운영 설정 TTL 일수). 버튼 라벨 "+N일 연장" 동적화용.
+ * @param restoreBlock       MK4-5-1 — 복원을 막는 사유 ({@code TrashRestoreEvaluator} 판정 — 서버 가드와 동일 SSOT).
+ *                           {@code null} 이면 막지 않는다. 값이 있으면 [복원] disabled + 그 값의 안내 문구를 tooltip 으로.
+ *                           라벨과 문구를 값이 들고 있으므로 템플릿은 사유별 분기도 문구도 갖지 않는다.
+ * @param driftId            MK4-5-1 — 이 자원의 열린 '휴지통 자원 소실' 문제 번호 (없으면 null).
+ *                           <b>차단 판정에는 쓰지 않는다</b> — 막는 근거는 파일시스템이고, 이 값은 "어디를 눌러 보면 되는가"
+ *                           만 답한다. 그래서 null 이어도 차단은 유지되고 안내만 다음 점검을 가리킨다.
  */
 public record TrashItemResponse(
 		ResourceType resourceType,
@@ -48,7 +55,42 @@ public record TrashItemResponse(
 		String parentDisplayName,
 		boolean parentDeleted,
 		boolean ttlExtendable,
-		int extendStepDays
+		int extendStepDays,
+		RestoreBlockReason restoreBlock,
+		Long driftId
 ) {
 
+	/**
+	 * 복원이 막혀 있는가. 템플릿이 {@code restoreBlock != null} 을 직접 쓰지 않게 해 의도를 이름으로 드러낸다.
+	 */
+	public boolean restoreBlocked() {
+		return restoreBlock != null;
+	}
+
+	/**
+	 * 행 왼쪽에 차단 배지를 띄울 것인가. 사유가 스스로 판단한다 — 부모 삭제는 부모 줄에 이미
+	 * 같은 문구가 있어 두 번 나오지 않게 한다.
+	 */
+	public boolean showsBlockBadge() {
+		return restoreBlock != null && restoreBlock.isRowBadge();
+	}
+
+	/**
+	 * 막힌 이유를 다른 화면에서 풀어야 하고, 갈 곳까지 알아낸 상태인가. 셋 중 하나라도 어긋나면
+	 * 링크를 붙이지 않는다 — 눌러도 갈 곳이 없는 링크가 안내보다 나쁘다.
+	 */
+	public boolean hasDriftLink() {
+		return restoreBlock != null && restoreBlock.hasNextScreen() && driftId != null;
+	}
+
+	/**
+	 * 다른 화면에서 풀어야 하는데 아직 그 화면에 이 문제가 없는 상태인가. 점검이 아직 이 상태를
+	 * 보지 못한 것이므로 "다음 점검에서 확인됩니다" 로 안내한다.
+	 *
+	 * <p>차단 근거가 파일시스템이라 점검보다 먼저 알 수 있어 생기는 정상적인 시차다. 이 시차를
+	 * 숨기면 사용자가 없는 링크를 찾게 되므로 그대로 말한다.</p>
+	 */
+	public boolean awaitingScan() {
+		return restoreBlock != null && restoreBlock.hasNextScreen() && driftId == null;
+	}
 }

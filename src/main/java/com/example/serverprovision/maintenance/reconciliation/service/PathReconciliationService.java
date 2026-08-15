@@ -1260,6 +1260,28 @@ public class PathReconciliationService {
 				.orElseGet(ContentCheckBasis::unknown);
 	}
 
+	/**
+	 * MK4-5-1 — 이 종류로 아직 열려 있는 문제를 자원별 지도로. 휴지통 화면이 막힌 행에서 점검
+	 * 상세로 가는 링크를 붙일 때 쓴다.
+	 *
+	 * <p><b>차단 판정에는 쓰지 않는다.</b> 막을지 말지는 파일시스템이 정하고(그래야 점검 주기에
+	 * 매이지 않는다), 이 조회는 "그래서 어디를 눌러 보면 되는가" 만 답한다. 그래서 조회가 비어도
+	 * 차단은 그대로 유지되고 안내만 "다음 점검에서 확인됩니다" 로 바뀐다 — 링크가 없다고 기능이
+	 * 무너지지 않는다.</p>
+	 *
+	 * <p>같은 자원에 같은 종류의 열린 문제는 하나뿐이다(점검이 신원으로 기존 문제를 찾아 잇는다).
+	 * 그래도 병합 함수를 두는 것은 동시 점검이 막혀 있다는 전제가 인스턴스 증설로 깨질 때
+	 * 지도 생성이 예외로 터지지 않게 하기 위해서다.</p>
+	 */
+	@Transactional(readOnly = true)
+	public java.util.Map<ResourceKey, Long> openDriftIdsOf(DriftKind kind) {
+		return driftRepository.findByKindAndStatusNot(kind, DriftStatus.RESOLVED).stream()
+				.collect(java.util.stream.Collectors.toMap(
+						d -> new ResourceKey(d.getResourceType(), d.getResourceId()),
+						Drift::getId,
+						(first, second) -> first));
+	}
+
 	public boolean isResolutionEnabled() {
 		return settingsService.isResolutionEnabled();
 	}

@@ -31,6 +31,16 @@ public interface DriftRepository extends JpaRepository<Drift, Long> {
 	List<Drift> findByStatusNot(DriftStatus status);
 
 	/**
+	 * MK4-5-1 — 특정 종류의 아직 닫히지 않은 문제 전부. 휴지통 화면이 막힌 행에서 점검으로 가는
+	 * 링크를 붙일 때 쓴다.
+	 *
+	 * <p>행마다 조회하지 않고 한 번에 가져와 화면이 지도를 만든다 — 목록이 N 행이면 조회도
+	 * N 번이 되는 것을 피한다. 보관 중인 문제도 포함한다({@code StatusNot(RESOLVED)}) — 운영자가
+	 * 알면서 미룬 상태여도 휴지통 행이 막힌 이유를 설명하는 것은 그 문제이기 때문이다.</p>
+	 */
+	List<Drift> findByKindAndStatusNot(DriftKind kind, DriftStatus status);
+
+	/**
 	 * MK4-4-3 — 보관 화면이 쓴다. 만료 여부는 시각 비교라 도메인이 판정하므로
 	 * ({@code Drift.isSnoozeExpired}) 여기서는 상태만 걸러 온다.
 	 */
