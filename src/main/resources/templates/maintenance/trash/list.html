@@ -33,7 +33,7 @@
     <div class="n-page-header">
         <h1 class="n-page-title">휴지통</h1>
         <div class="n-header-actions">
-            <span class="n-hint" style="margin-right: 12px;">soft-delete 자원이 격리되며, 30일 후 자동 영구삭제됩니다. 자원별로 보존기간을 연장할 수 있습니다.</span>
+            <span class="n-hint trash-header-hint">soft-delete 자원이 격리되며, 30일 후 자동 영구삭제됩니다. 자원별로 보존기간을 연장할 수 있습니다.</span>
             <!-- S5-2-4 — 운영 설정 / 감사 로그 페이지 진입점. S5-5 — 이모지 제거. -->
             <a th:href="@{/maintenance/trash/settings}"
                class="n-btn n-btn-secondary n-btn-sm"
@@ -64,14 +64,30 @@
         </tr>
         </thead>
         <tbody>
+        <!--/* MK4-5-1 CP7 — 화면 이력 스택(global/nav-stack.js)의 규약. 행에 이 키가 있어야
+               행 안의 링크를 누를 때 한 겹 쌓이고, 상세의 [목록으로] 가 여기로 되돌아온다.
+               키가 없으면 스택이 비어 상세가 서버 렌더 기본 href(점검 목록)로 가 버린다 —
+               휴지통에서 들어갔는데 점검 목록으로 나오던 것이 그 때문이었다.
+               키는 이 목록의 좌표계다. 자원 종류와 번호의 조합이 행을 유일하게 짚는다. */-->
         <tr th:each="item : ${trashItems}"
+            th:data-nav-key="|${item.resourceType}#${item.resourceId}|"
             th:classappend="${item.ttlWarning} ? 'n-row-warning' : ''">
             <td>
                 <span class="n-badge n-badge-gray" th:text="${item.resourceType}"></span>
-                <!--/* MK3-1 — ghost 배지. DB-truth + FS-truth 양쪽이 음수인 dead row. */-->
-                <span th:if="${item.ghost}" class="n-badge"
-                      style="background: var(--n-color-danger, #c0392b); color: #fff; margin-left: 4px;"
-                      title="DB row 만 남고 FS 자원도 trash 도 없는 상태 — 복구 불가. 정리 액션으로 row 제거.">복구 불가</span>
+                <!--/* MK4-5-1 — 복원이 막힌 행은 왼쪽에서 바로 보인다. 라벨 · 색 · 안내 문구를
+                       RestoreBlockReason 이 함께 들고 있어 여기에 사유별 분기도 문구도 없다.
+                       종전에는 유령 기록만 배지가 있었고 그 색이 인라인 스타일이었다. */-->
+                <span th:if="${item.showsBlockBadge()}" class="n-badge trash-block-badge"
+                      th:classappend="'n-badge-' + ${item.restoreBlock.badgeColor}"
+                      th:title="${item.restoreBlock.guidance}"
+                      th:text="${item.restoreBlock.label}">복구 불가</span>
+                <!--/* 막힌 이유를 다른 화면에서 풀어야 할 때만. 링크가 없어도 차단은 유지되므로
+                       점검이 아직 못 본 상태는 그 사실을 그대로 말한다. */-->
+                <a th:if="${item.hasDriftLink()}"
+                   th:href="@{/maintenance/reconciliation/drifts/{id}(id=${item.driftId})}"
+                   class="trash-block-link"
+                   th:title="|${item.displayName} 의 '${item.restoreBlock.label}' 문제로 이동합니다|">자세히 보기</a>
+                <span th:if="${item.awaitingScan()}" class="trash-block-hint">다음 점검에서 확인됩니다</span>
             </td>
             <td th:text="${item.resourceId}"></td>
             <td>
@@ -81,31 +97,31 @@
                     <span class="trash-parent-label">
                         <span th:text="${item.parentResourceType}"
                               class="n-badge n-badge-gray trash-parent-badge"></span>
-                        <code style="font-size: 11px;" th:text="${item.parentDisplayName}"></code>
+                        <code class="trash-parent-name" th:text="${item.parentDisplayName}"></code>
                         <span th:if="${item.parentDeleted}" class="n-badge trash-parent-deleted"
-                              title="부모 자원이 삭제 상태입니다. 자식만 단독 복구할 수 없으니 부모부터 복구해주세요.">부모 삭제 상태</span>
+                              title="부모 자원이 삭제 상태입니다. 자식만 단독 복구할 수 없으니 부모부터 복구해 주세요.">부모 삭제 상태</span>
                     </span>
                 </div>
-                <code th:class="${item.parentResourceId != null} ? 'trash-child-name' : ''"
-                      style="font-size: 12px;" th:text="${item.displayName}"></code>
+                <code class="trash-resource-name"
+                      th:classappend="${item.parentResourceId != null} ? 'trash-child-name' : ''"
+                      th:text="${item.displayName}"></code>
             </td>
             <td>
-                <code style="font-size: 11px; word-break: break-all;" th:text="${item.originalPath}"></code>
+                <code class="trash-path" th:text="${item.originalPath}"></code>
             </td>
             <td>
                 <span th:if="${item.trashedAt != null}"
                       th:text="${#temporals.format(item.trashedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
-                <span th:if="${item.trashedAt == null}" style="color: var(--n-text-muted, #777);">—</span>
+                <span th:if="${item.trashedAt == null}" class="trash-empty-value">—</span>
             </td>
             <td>
                 <span th:if="${item.expiresAt != null}"
                       th:text="${#temporals.format(item.expiresAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
-                <span th:if="${item.expiresAt == null}" style="color: var(--n-text-muted, #777);">—</span>
-                <strong th:if="${item.ttlWarning}" style="color: var(--n-color-danger); margin-left: 6px;">곧
-                    영구삭제</strong>
+                <span th:if="${item.expiresAt == null}" class="trash-empty-value">—</span>
+                <strong th:if="${item.ttlWarning}" class="trash-expiry-warning">곧 영구삭제</strong>
             </td>
-            <td style="vertical-align: middle; text-align: right;">
-                <div style="display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <td class="trash-action-cell">
+                <div class="trash-action-group">
                     <!--/* MK3-1 — ghost 행은 "정리" 액션 1개만. 복원/연장/영구삭제 disabled. */-->
                     <!-- ghost row 정리는 DB row 만 제거 (복구 가능 자원 없음). typed-name 불요 — 단순 soft-delete 마커 유지. -->
                     <form th:if="${item.ghost}"
@@ -126,13 +142,16 @@
                               data-resource-extra="원래 경로로 복원돼요."
                               th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
                                    data-cascade-true-desc=${item.childPreview}">
-                            <!-- S5-3-2 — parentDeleted 시 disabled + wrapper tooltip 으로 안내. -->
-                            <!--    테이블 오른쪽 끝 액션 컬럼이라 tooltip 잘림 방지 위해 우측 정렬. -->
+                            <!-- MK4-5-1 — 차단 사유가 셋으로 늘었고, 판정과 문구를 모두
+                                 RestoreBlockReason 이 든다. 종전에는 부모 삭제만 막았고 그 안내
+                                 문구가 이 템플릿에 하드코딩돼 있었다 — 사유가 늘 때마다 여기에
+                                 조건이 하나씩 붙고 문구가 흩어지는 구조였다.
+                                 테이블 오른쪽 끝 액션 컬럼이라 tooltip 잘림 방지 위해 우측 정렬. -->
                             <span class="n-btn-tooltip-wrap"
                                   data-tooltip-align="right"
-                                  th:attr="data-tooltip=${item.parentDeleted} ? '부모 자원이 삭제 상태라 자식 단독 복구가 불가능해요. 부모부터 복구해주세요.' : null">
+                                  th:attr="data-tooltip=${item.restoreBlocked()} ? ${item.restoreBlock.guidance} : null">
                             <button type="submit" class="n-btn n-btn-sm n-btn-primary"
-                                    th:disabled="${item.parentDeleted}">복원</button>
+                                    th:disabled="${item.restoreBlocked()}">복원</button>
                         </span>
                         </form>
                         <!-- HF4-1 — 연장 전용 modal 마커(data-confirm-extend) + step 라벨 동적화. -->

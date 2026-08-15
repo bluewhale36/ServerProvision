@@ -368,3 +368,25 @@ td.n-tl-cell::before {
     margin: 2px 0 0;
     font-weight: 600;
 }
+
+/* ============================================================
+   상세에서 돌아온 행 — 화면 이력 스택(global/nav-stack.js)의 짝.
+   목록으로 되돌아왔을 때 방금 어느 행을 보고 왔는지 잠깐 알려준다.
+   스크롤 복원만으로는 시선이 어디에 놓여야 하는지가 모호하다.
+
+   MK4-5-1 CP7 — grouped-list.css 에서 옮겼다. 스크립트는 layout 이 전역으로 싣는데
+   스타일만 묶음 목록 CSS 에 있어, 표로 그린 목록(휴지통 등)에서는 클래스가 붙어도
+   아무 일도 일어나지 않았다. 이 파일은 commonHead 가 전역으로 실으므로 짝이 맞는다.
+   ============================================================ */
+.n-row-returned > td {
+    animation: n-row-returned 1.8s ease-out;
+}
+
+@keyframes n-row-returned {
+    0% {
+        background-color: rgba(0, 117, 222, 0.18);
+    }
+    100% {
+        background-color: transparent;
+    }
+}

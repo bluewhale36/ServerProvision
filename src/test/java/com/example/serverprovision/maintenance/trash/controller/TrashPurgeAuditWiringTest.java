@@ -64,6 +64,10 @@ class TrashPurgeAuditWiringTest {
 	@MockitoBean
 	com.example.serverprovision.maintenance.trash.service.TrashTtlExtensionService trashTtlExtensionService;
 
+	/** MK4-5-1 — 목록이 막힌 행에서 점검으로 가는 링크를 붙일 때 쓰는 조회. */
+	@MockitoBean
+	com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService pathReconciliationService;
+
 	@MockitoBean
 	JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
