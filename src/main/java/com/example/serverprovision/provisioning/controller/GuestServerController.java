@@ -19,6 +19,7 @@ import com.example.serverprovision.provisioning.assignment.dto.response.Reassign
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
+import com.example.serverprovision.provisioning.group.dto.response.GroupBadgeResponse;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
@@ -239,6 +240,27 @@ public class GuestServerController {
     private void addDetailModel(Model model, UUID id, GuestServerDetailResponse server) {
         model.addAttribute("server", server);
         populateAssignmentModel(id, server, model);
+        populateGroupStandardModel(id, model);
+    }
+
+    /**
+     * 이 서버가 속한 그룹이 표준 정의서를 두고 있으면 알린다 (U3-5-d R6) — <b>강제하지 않고 알리기만</b>.
+     *
+     * <p>표준은 그룹의 정책이지 서버의 제약이 아니다. 다른 정의서를 붙이는 것도 정상 조작이므로 선택지를
+     * 잠그거나 기본값을 바꾸지 않고, 한 줄로 "이 그룹은 이것으로 간다" 를 알릴 뿐이다. 몰라서 다른 것을
+     * 고르는 일만 없애면 된다.</p>
+     *
+     * <p>배지에 표준 id 가 함께 실려 오므로(U3-5-d) 소속 조회는 한 번이고, 정의서 해석은 표준이 있을
+     * 때만 한 건 더 읽는다. 이름 해석을 그룹 쪽에 맡기지 않는 것은 {@code group} 이 {@code setting} 을
+     * 조회 경로에서 참조하지 않게 하려는 것으로, 그룹 상세와 같은 형태다.</p>
+     */
+    private void populateGroupStandardModel(UUID id, Model model) {
+        GroupBadgeResponse badge = groupQueryService.findBadges(List.of(id)).get(id);
+        model.addAttribute("groupBadge", badge);
+        model.addAttribute("groupStandard",
+                badge != null && badge.standardDefinitionId() != null
+                        ? settingQueryService.resolveReference(badge.standardDefinitionId())
+                        : null);
     }
 
     private void populateAssignmentModel(UUID id, GuestServerDetailResponse server, Model model) {

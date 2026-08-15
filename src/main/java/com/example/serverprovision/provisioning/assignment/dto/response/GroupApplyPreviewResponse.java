@@ -65,6 +65,11 @@ public record GroupApplyPreviewResponse(
      * 읽는 사람이 한 번 더 해석해야 한다.
      */
     public String summary() {
+        // 멤버가 없는 그룹은 "붙일 수 없다" 가 아니라 "붙일 서버가 없다" 다 — 정의서 탓으로 읽히면
+        // 사용자가 다른 정의서를 찾아 헤맨다. 이 상태는 U3-5-d 가 빈 그룹에서도 모달을 열면서 생겼다.
+        if (memberCount() == 0) {
+            return "이 그룹에는 아직 서버가 없습니다.";
+        }
         if (blocked()) {
             return "이 그룹의 어떤 서버에도 붙일 수 없습니다.";
         }

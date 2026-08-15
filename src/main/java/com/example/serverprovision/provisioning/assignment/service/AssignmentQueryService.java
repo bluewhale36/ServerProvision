@@ -15,9 +15,11 @@ import com.example.serverprovision.provisioning.assignment.dto.response.Assignme
 import com.example.serverprovision.provisioning.assignment.dto.response.DefinitionOptionResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.GroupApplyPreviewResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.MemberOutcomeResponse;
+import com.example.serverprovision.provisioning.assignment.dto.response.StandardApplyBannerResponse;
 import com.example.serverprovision.provisioning.assignment.enums.AssignmentBlockKind;
 import com.example.serverprovision.provisioning.assignment.enums.AssignmentBlockKind.AssignmentBlock;
 import com.example.serverprovision.provisioning.assignment.enums.MemberApplyOutcome;
+import com.example.serverprovision.provisioning.assignment.mapper.SettingProcessPhaseMapper;
 import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility;
 import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
@@ -120,6 +122,44 @@ public class AssignmentQueryService {
         }).toList();
     }
 
+    /**
+     * 그룹 표준을 아직 적용받지 않은 멤버가 몇 대인가 (U3-5-d) — 그룹 상세 안내 배너의 재료.
+     *
+     * <p><b>판정도 질의도 새로 만들지 않는다.</b> {@link #groupPreview} 를 정의서 <b>1 종</b>으로 부른
+     * 것이 전부다. 그래서 배너가 세는 대상과 [표준 적용] 이 실제로 붙이는 대상이 같은 술어에서 나온다 —
+     * 두 곳에 세는 식을 두면 "2 대에 붙습니다" 를 읽고 눌렀는데 1 대에 붙는 일이 생긴다.</p>
+     *
+     * <p>모달은 상세를 그릴 때마다 조립하지 않는데(U3-5-c) 이것은 상세에서 계산한다. 모순이 아니다 —
+     * 모달은 정의서 <b>전 종</b> × 멤버를 조립하지만 이것은 표준 1 종만 보므로, 질의가 멤버 보드 1 회 ·
+     * 활성 할당 1 회로 끝난다(DEC-D).</p>
+     *
+     * <p>멤버가 없는 그룹은 대상 0 으로 나온다 — {@code groupPreview} 가 빈 멤버 목록을 그렇게 다룬다.
+     * 미리 표준만 정해 둔 빈 그룹에서 배너가 뜨지 않는 것이 옳다(할 일이 없다).</p>
+     */
+    public StandardApplyBannerResponse standardApplyBanner(List<GuestServerSummaryResponse> members,
+                                                           SettingSummaryResponse standard) {
+        return StandardApplyBannerResponse.of(groupPreview(members, List.of(standard)).getFirst());
+    }
+
+    /**
+     * 이 정의서를 붙이면 밟게 될 프로비저닝 단계 (U3-5-d 개정) — 선언 순.
+     *
+     * <p>그룹 상세의 표준 절이 이름 옆에 단계를 늘어놓는 데 쓴다. <b>이름만으로는 그 정의서가 무엇을
+     * 하는지 알 수 없다</b> — 운영자가 지은 이름이라 규칙이 없고, 표준을 정하는 자리에서 확인하려면
+     * 정의서 상세로 나가야 했다.</p>
+     *
+     * <p>이름이 {@code plannedPhasesOf} 가 아닌 이유는 그 메서드가 <b>다른 질문</b>에 답하기 때문이다 —
+     * 그쪽은 "이 게스트에 든 스냅샷이 밟을 것" 을 묻고 이쪽은 "이 정의서를 붙이면 밟을 것" 을 묻는다.
+     * 같은 이름으로 겹쳐 두면 무엇을 부르는지 호출부에서 알 수 없다.</p>
+     *
+     * <p>계산은 할당이 쓰는 것과 <b>같은 매핑</b>({@code SettingProcessPhaseMapper})과 같은 나열
+     * 규칙({@link #orderedPlan})이다. 표준을 실제로 붙이면 나오는 계획과 여기 표시가 어긋날 수 없다.
+     * 진단 리눅스가 맨 앞에 오는 것도 그 규칙이 정한다 — 정의서 소비 없이 항상 밟는 phase 다.</p>
+     */
+    public List<ProvisioningPhase> phasesOfDefinition(SettingSummaryResponse definition) {
+        return orderedPlan(SettingProcessPhaseMapper.toOwnedPhases(
+                new java.util.HashSet<>(definition.processTypes())));
+    }
 
     /**
      * 서버들에 지금 붙어 있는 정의서 이름 (U3-5-c) — 그룹 상세 멤버 표의 '할당된 정의서' 열.

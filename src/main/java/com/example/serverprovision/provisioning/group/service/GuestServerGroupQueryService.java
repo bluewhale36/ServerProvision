@@ -130,6 +130,8 @@ public class GuestServerGroupQueryService {
 
         return new GroupDetailResponse(
                 group.getId(), group.getName(), group.getCreatedAt(),
+                // 표준은 id 만 싣는다 — 이름 · 상태 해석은 setting 의 일이고 컨트롤러가 잇는다(U3-5-d).
+                group.getStandardDefinitionId(),
                 members, diverged, ungroupedServerIds().size());
     }
 
@@ -155,7 +157,8 @@ public class GuestServerGroupQueryService {
         return memberRepository.findAllByServerIdIn(serverIds).stream()
                 .collect(Collectors.toMap(
                         m -> m.getGuestServer().getId(),
-                        m -> new GroupBadgeResponse(m.getGroup().getId(), m.getGroup().getName()),
+                        m -> new GroupBadgeResponse(m.getGroup().getId(), m.getGroup().getName(),
+                                m.getGroup().getStandardDefinitionId()),
                         (a, b) -> a));
     }
 
@@ -177,7 +180,10 @@ public class GuestServerGroupQueryService {
             GuestServerGroup currentGroup = membership != null ? membership.getGroup() : null;
             candidates.add(new SeedCandidateResponse(
                     row,
-                    currentGroup != null ? new GroupBadgeResponse(currentGroup.getId(), currentGroup.getName()) : null,
+                    currentGroup != null
+                            ? new GroupBadgeResponse(currentGroup.getId(), currentGroup.getName(),
+                                    currentGroup.getStandardDefinitionId())
+                            : null,
                     // 아직 만들기 전이라 대상 그룹 id 가 없다 — 소속이 있으면 전부 걸린다
                     GuestServerGroup.addBlockReason(null, currentGroup)));
         }

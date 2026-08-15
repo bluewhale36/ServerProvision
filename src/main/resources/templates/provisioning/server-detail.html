@@ -304,6 +304,22 @@
         <div class="n-card">
             <div class="n-card-body">
 
+                <!--/* U3-5-d R6 — 소속 그룹이 표준 정의서를 두고 있으면 알린다. <b>강제하지 않는다</b> :
+                       선택지를 잠그지도, 기본값을 바꾸지도 않고 사실만 한 줄로 놓는다. 표준은 그룹의
+                       정책이지 이 서버의 제약이 아니며 다른 정의서를 붙이는 것도 정상 조작이다.
+                       없애려는 것은 "그런 정책이 있는 줄 몰라서 다른 것을 골랐다" 하나뿐이다. */-->
+                <!--/* 그룹명 뒤에 조사가 아니라 명사('그룹의')를 놓는다(개정 재검증 관찰) — 그룹명은
+                       사용자가 짓는 값이라 한글로 끝날 수도 영문으로 끝날 수도 있다. 조사를 이으면
+                       "1차 의" 처럼 띄어쓰기 규칙이 값에 따라 갈리는데, 명사가 오면 어느 쪽이든
+                       공백이 옳다. 값 뒤에 조사를 붙이지 않는 것이 이 문제의 유일한 일반해다. */-->
+                <div th:if="${groupStandard != null}" class="n-alert n-alert-muted">
+                    이 서버가 속한
+                    <a th:href="@{/provisioning/server-group/{gid}(gid=${groupBadge.id})}"
+                       th:text="${groupBadge.name}">8월 2차</a>
+                    그룹의 표준 세팅 정의서는 <b th:text="${groupStandard.name}">web-standard</b> 입니다.
+                    <span th:unless="${groupStandard.usable}" class="n-badge n-badge-red">사용 불가</span>
+                </div>
+
                 <!--/* U3-5-a — 이미 든 스냅샷이 이 서버의 하드웨어와 맞지 않을 때의 경고.
                        소급 무효화는 하지 않는다(진행 중인 서버의 계획이 사라지고, 하드웨어 재수집만으로
                        운영 중인 할당이 대량 소멸할 수 있다). 알리는 데서 멈추고 조치는 운영자가 정한다.

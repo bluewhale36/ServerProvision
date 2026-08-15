@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U3-5-d Plan — 그룹 표준 정의서</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 4px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  header.page-header > p { margin:0 0 8px; font-size:13px; color:var(--text-muted); }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h3 { margin:20px 0 8px; font-size:15px; font-weight:700; color:var(--text); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── pkg-tree : monospace 고정폭 도식 — 호출 · 데이터 이동 (§4) ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); }
+  .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre-wrap; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 3-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U3-5-d : 그룹 표준 정의서</h1>
+  <p>그룹이 정의서를 기억한다 — 서버가 들어올 때마다 다시 고르지 않는다</p>
+  <div class="meta">
+    <span><strong>인벤토리 코드</strong> U3-5-d</span>
+    <span><strong>작성</strong> 2026-08-13 18:05 KST</span>
+    <span><strong>브랜치</strong> <code>feat/U3-5_group-batch-assignment</code></span>
+    <span><strong>선행</strong> U3-5-a · b · c (완료)</span>
+    <span><strong>위치</strong> U3-5 우산의 마지막 조각</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 이 단계가 어떻게 생겼는가</a></li>
+      <li><a href="#s1">§1 현재 상태 (실측)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 12 단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 이 단계가 어떻게 생겼는가</summary>
+      <div class="body">
+        <p style="margin-top:0;">U3-5 우산은 <b>"그때그때 고르는"</b> 흐름을 a(판정) · b(고르는 화면) · c(일괄 실행)로 완성했다. 그런데 운영 현장에서는 같은 그룹에 같은 정의서를 되풀이해 붙인다 — "A 동 1 차는 <code>web-standard</code> 로 간다" 는 정책이 <b>운영자 머릿속에만</b> 있다.</p>
+
+        <p>사용자가 2026-08-13 에 그 정책을 그룹이 기억하게 하자고 제안했고, 스키마 방향까지 함께 냈다 — <code>setting_assignment</code> 를 <code>guest_type</code> enum(<code>SERVER</code> · <code>GROUP</code>)으로 다형화하는 안이다. <b>그 방향은 검토 끝에 탈락했고</b>(§8 DEC-A) 소프트참조 컬럼 하나로 확정했다. 토론 기록은 <code>discussion/26-08-13_17-27-40_U3-5-d-group-default-definition_discussion.md</code> 이며 그 §6 이 이 plan 의 입력이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (실측)</summary>
+      <div class="body">
+        <h4>있는 것 — 이 단계가 새로 만들 것이 적다</h4>
+        <table>
+          <thead><tr><th>자산</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td><code>AssignmentBlockKind.evaluate</code></td><td>회수 · 하드웨어 대조 판정 (U3-5-a)</td></tr>
+            <tr><td><code>AssignmentQueryService.groupPreview</code></td><td>정의서 × 멤버 조합 미리보기 (U3-5-c)</td></tr>
+            <tr><td><code>GroupAssignmentService.assignToMembers</code></td><td>미리보기 → 통과분만 → 결과 보고 (U3-5-c)</td></tr>
+            <tr><td><code>group-definition-picker</code> 조각 + JS</td><td>2 열 miller 모달 (U3-5-c)</td></tr>
+            <tr><td><code>GuestServerGroupQueryService.findBadges(serverIds)</code></td><td>서버 → 소속 그룹. <b><code>GuestServerController</code> 가 이미 주입받고 있다</b>(목록의 그룹 배지)</td></tr>
+            <tr><td><code>SettingDefinition.assignBlockReason()</code></td><td>삭제 · 비활성 판정 SSOT (U3-2-b)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>없는 것</h4>
+        <p>그룹이 정의서를 <b>기억하는 자리</b>.</p>
+
+        <h4>스키마 실측</h4>
+<pre><code>guest_server_group
+  id     bigint(20)  PK
+  name   varchar(128) UNIQUE
+  (표준 정의서를 담을 자리가 없다)</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ul>
+          <li><b>R1</b> — 그룹 상세에 <b>표준 정의서</b> 절이 있다. 없으면 정할 수 있고, 있으면 바꾸거나 해제할 수 있다.</li>
+          <li><b>R2</b> — 표준을 정할 때 U3-5-c 의 picker 모달을 <b>"표준 지정" 모드</b>로 쓴다 — 정의서 내용과 적용 결과를 보고 정한다.</li>
+          <li><b>R3</b> — <b>멤버가 없는 그룹에서도 표준을 정할 수 있다.</b> 그룹을 미리 만들어 두는 것이 이 기능의 핵심 유스케이스다.</li>
+          <li><b>R4</b> — 표준을 아직 적용받지 않은 멤버가 있으면 그룹 상세에 <b>안내 배너 + 원클릭 적용</b> 버튼이 뜬다.</li>
+          <li><b>R5</b> — 표준 정의서가 삭제 · 비활성이면 그 사실을 표시하고 적용을 막는다.</li>
+          <li><b>R6</b> — 서버 상세에도 그 서버가 속한 그룹의 표준을 알린다 — <b>강제하지 않고 알리기만</b> 한다.</li>
+        </ul>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b><code>setting_assignment</code> 다형화</b> — 검토 후 탈락(DEC-A).</li>
+            <li><b>자동 적용의 강제</b> — 멤버 추가 즉시 붙이지 않는다(DEC-C).</li>
+            <li><b>표준 변경의 소급</b> — 이미 붙은 서버를 갈아엎지 않는다.</li>
+            <li><b>그룹 이동 시 자동 적용</b> — 하지 않는다.</li>
+            <li>할당 판정 · 스냅샷 조립 — U3-5-a · U3-1 확정분을 그대로 호출한다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (§2 직후, 불가침) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 표준을 정하고 적용하기</summary>
+      <div class="body">
+        <p style="margin-top:0;">툴바로 <b>그룹 표준</b>을 <code>없음</code> · <code>os-only-auto</code>(AUTO) · <code>bios-ms03</code>(MS03 전용) 사이에서 바꾼다. 멤버 행의 버튼 둘은 그 서버의 상태다 — 왼쪽은 이미 할당이 있는지(<code>할당 있음</code> ↔ <code>할당 없음</code>), 오른쪽은 회수 여부(<code>회수</code> ↔ <code>복구</code>). 그리고 <b><code>멤버 추가</code> 로 <code>srv-05</code> 를 넣었다 뺐다</b> 한다 — 표준이 있는 그룹에 서버가 들어오는 순간이 이 데모의 요점이다.</p>
+
+        <p>멤버는 넷이다 — <code>srv-01</code>(ASUS-Z13PE · 미할당) · <code>srv-02</code>(MS03-CE0 · <b>할당 있음</b>) · <code>srv-03</code>(MS03-CE0 · <b>회수됨</b>) · <code>srv-04</code>(<b>보드 수집 전</b> · 미할당). 멤버 행은 <b>적용 대상</b> · <b>이미 있음</b> · <b>막힘</b>(사유 병기)으로 갈리고, 표준이 없으면 넷 다 <b>표준 없음</b>이다. 아래 메시지는 <b>세 갈래</b>다 — 표준이 없으면 "표준을 정하면 여기에 적용 대상이 나타납니다", 표준이 있고 적용 대상이 0 이면 "모든 멤버가 표준을 따르고 있습니다", 1 이상이면 "[표준 적용] 한 번으로 N 대에 붙습니다".</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">그룹 표준 :</span>
+            <button class="seg" data-std="none" onclick="demoSetStd(0)">없음</button>
+            <button class="seg" data-std="os-only-auto" onclick="demoSetStd(1)">os-only-auto</button>
+            <button class="seg" data-std="bios-ms03" onclick="demoSetStd(2)">bios-ms03</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">멤버 구성 :</span>
+            <span id="demo-add"><!-- JS 렌더 : 멤버 추가 / 빼기 --></span>
+          </div>
+
+          <div class="ux-caps" id="demo-caps"><!-- JS 렌더 : 표준 · 적용 대상 수 --></div>
+          <div id="demo-members" style="margin-top:10px;"><!-- JS 렌더 : 멤버 행 --></div>
+          <div id="demo-submit"><!-- JS 렌더 : [표준 적용] --></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>판정 JS (서버와 1:1)</h4>
+<pre><code>function demoOutcome(std, member) {
+    if (std === null)          return {kind: 'NO_STANDARD', reason: null};
+    if (member.assigned)       return {kind: 'ALREADY',  reason: '이미 세팅 정의서가 할당되어 있습니다.'};
+    if (member.decommissioned) return {kind: 'BLOCKED',  reason: '회수된 서버에는 세팅 정의서를 할당할 수 없습니다.'};
+    if (std.board === null || member.board === null) return {kind: 'APPLY', reason: null};
+    return std.board === member.board
+        ? {kind: 'APPLY', reason: null}
+        : {kind: 'BLOCKED', reason: '이 정의서는 메인보드 ' + std.board + ' 전용입니다 — 이 서버는 ' + member.board + ' 입니다.'};
+}</code></pre>
+        <p>U3-5-c 의 <code>MemberApplyOutcome</code> 판정과 같은 순서다 — <b>이미 할당됨을 하드웨어보다 먼저 본다</b>(DEC-G 승계).</p>
+
+        <h4>체험시키고 싶은 것</h4>
+        <p><code>멤버 추가</code> 로 <code>srv-05</code> 를 넣으면 <b>배너의 수가 즉시 하나 늘어난다.</b> 그것이 "자동 적용" 대신 택한 안내 + 원클릭이 어떻게 동작하는지다 — 서버가 들어와도 아무것도 자동으로 바뀌지 않고, 화면이 알릴 뿐이다. 표준을 <code>bios-ms03</code> 으로 바꾸면 ASUS 멤버가 빠지면서 <b>같은 그룹인데 적용 대상이 갈린다.</b> 다만 <code>srv-04</code> 는 그대로 남는다 — <b>보드를 아직 대조하지 못해서</b>이지 보드가 맞아서가 아니다(U3-5-a 가 확정한 "수집 전은 막지 않는다").</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>메서드</th><th>URL</th><th>용도</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/server-group/{id}</code></td><td>상세 — 표준 절 + 안내 배너</td><td>HTML</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server-group/{id}/assignment/picker</code></td><td>모달 내용 (기존, 재사용)</td><td>HTML 조각</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server-group/{id}/standard-definition</code></td><td>표준 지정</td><td>302 + flash</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server-group/{id}/standard-definition/clear</code></td><td>표준 해제</td><td>302 + flash</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/server-group/{id}/assignment</code></td><td>표준 적용 (기존, 재사용)</td><td>302 + flash</td></tr>
+          </tbody>
+        </table>
+
+        <div class="seq">
+          <div class="actor a1">운영자</div><div class="actor a2">그룹 상세 화면</div><div class="actor a3">서버</div>
+
+          <div class="step a1">빈 그룹을 만들고 <code>[표준 정하기]</code></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">picker 모달을 <b>표준 지정 모드</b>로 연다(멤버 0 이어도 열린다)</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3">정의서 목록 + 각 정의서의 내용. 미리보기 표는 멤버가 없으므로 빈 상태 안내</div>
+
+          <div class="step a1">정의서를 고르고 <code>[표준으로 지정]</code></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3"><code>guest_server_group.standard_definition_id</code> 갱신 → redirect + flash</div>
+
+          <div class="step a1">나중에 서버 2 대를 그룹에 넣는다</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">상세에 배너 : <code>표준 정의서 web-standard 를 아직 적용하지 않은 서버가 2 대 있습니다. [표준 적용]</code></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"><code>[표준 적용]</code></div>
+          <div class="step a2"></div>
+          <div class="step a3"><b>기존 일괄 할당 경로 재사용</b>(미리보기 재선별 → 통과분만 → 결과 flash)</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델</summary>
+      <div class="body">
+        <div class="callout success" style="margin-top:0;"><b>엔티티 1 필드 · DDL 1 컬럼 · 응답 2 · 서비스 메서드 3.</b> 새 판정 · 새 예외는 0 이다.</div>
+
+        <h4>신설</h4>
+        <table>
+          <thead><tr><th>이름</th><th>자리</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerGroup.standardDefinitionId</code></td><td><code>group/entity</code></td><td>소프트참조 <code>Long</code>(nullable) + <code>assignStandard(Long)</code> · <code>clearStandard()</code> · <code>hasStandard()</code></td></tr>
+            <tr><td><code>GroupStandardResponse</code></td><td><code>group/dto/response</code></td><td>표준 정의서 한 판 — 이름 · 사용 가능 여부 · 사유</td></tr>
+            <tr><td><code>StandardApplyBannerResponse</code></td><td><code>assignment/dto/response</code></td><td>배너 재료 — 적용 대상 수 · 요약 문구</td></tr>
+            <tr><td><code>GuestServerGroupCommandService.setStandardDefinition</code> · <code>clearStandardDefinition</code></td><td><code>group/service</code></td><td>지정 · 해제</td></tr>
+            <tr><td><code>AssignmentQueryService.standardApplyBanner</code></td><td><code>assignment/service</code></td><td>표준 1 종에 대한 미리보기 요약</td></tr>
+            <tr><td><code>ddl/U3-5-d_group_standard_definition.sql</code></td><td>ddl</td><td><code>ALTER TABLE … ADD COLUMN standard_definition_id BIGINT NULL</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>재사용 (신설하지 않는다)</h4>
+        <p><code>AssignmentBlockKind.evaluate</code> · <code>AssignmentQueryService.groupPreview</code> · <code>GroupAssignmentService.assignToMembers</code> · <code>group-definition-picker</code> 조각 · <code>SettingDefinition.assignBlockReason</code> · <code>GuestServerGroupQueryService.findBadges</code>.</p>
+
+        <h3>객체가 어떻게 이어지는가</h3>
+        <p><b>새 판정도 새 실행 경로도 만들지 않는다</b> — 표준은 어느 정의서를 쓸지 기억할 뿐이고, 적용은 U3-5-c 가 만든 길을 그대로 탄다.</p>
+<div class="pkg-tree">GuestServerGroupController.detail(groupId)
+│
+├─▶ GuestServerGroupQueryService.findDetail(groupId)          ─── 멤버 목록
+│
+├─▶ SettingQueryService.findDetailsOf([표준 id])              ─── 표준 정의서 이름 · 상태
+│        └── 없으면(하드 삭제) "삭제된 정의서" · 있으면 assignBlockReason() 으로 사용 가능 판정
+│
+└─▶ AssignmentQueryService.standardApplyBanner(멤버, 표준 요약)
+      └── groupPreview 를 정의서 1 종으로 호출          [U3-5-c 재사용]
+            └── 적용 대상 수 N ──▶ N &gt; 0 이면 배너
+                                   └── [표준 적용] ──▶ POST /{id}/assignment (기존 경로)
+                                                          └── GroupAssignmentService  [U3-5-c 재사용]</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>Thymeleaf 뷰 — 표준 절 · 안내 배너 · picker 표준 지정 모드 · 서버 상세 안내</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>Controller — 표준 지정 · 해제 엔드포인트 2</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td>응답 DTO 2 — <code>GroupStandardResponse</code> · <code>StandardApplyBannerResponse</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>Service 시그니처 3 — 지정 · 해제 · 배너</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td><b>N/A</b> — 리포지토리 변경 없음</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>7</td><td>Entity — <code>standardDefinitionId</code> + 도메인 메서드 3</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8</td><td>서비스 본체 + 단위 · 통합 테스트</td><td><span class="chip cp4">CP4</span></td><td>승인</td></tr>
+            <tr><td>9</td><td><b>DDL 산출 · 적용 · <code>SHOW CREATE TABLE</code> 검증</b></td><td><span class="chip cp4">CP4</span></td><td>승인</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+
+        <p>특이점은 <b>9 단계가 살아난다</b>는 것이다(U3-5-a~c 는 N/A 였다). 컬럼 하나지만 <code>ddl-auto=validate</code> 라 수동 DDL 을 <code>ddl/</code> 에 산출하고 적용해야 하며, <b><code>claude_code</code> 계정은 ALTER 권한이 없어 사용자 적용이 필요</b>하다.</p>
+
+        <div class="callout">승인 게이트는 <b>CP1 · CP4 · CP6 · CP7 넷</b>이고, CP4 승인 후 CP6 까지 무중단이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>케이스</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerGroup</code> 도메인</td><td>지정 · 변경 · 해제 · <code>hasStandard</code></td></tr>
+            <tr><td><code>GroupStandardResponse</code></td><td>정상 · 비활성 · 삭제됨(하드) 세 상태의 사용 가능 판정</td></tr>
+            <tr><td><code>standardApplyBanner</code></td><td>표준 없음 / 대상 0 / 대상 N — 세 경우의 문구와 수</td></tr>
+            <tr><td>표준 변경이 기존 할당을 건드리지 않는다</td><td>변경 전후 <code>setting_assignment</code> 무변화(Mockito verify never)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>통합 (<code>@WebMvcTest</code>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr><td>2xx</td><td>표준 없는 그룹 상세 — "표준 정의서가 없습니다" + <code>[표준 정하기]</code></td></tr>
+            <tr><td>2xx</td><td><b>멤버 0 인 그룹에서도 표준 지정 모달이 열린다</b>(R3 의 핵심)</td></tr>
+            <tr><td>2xx</td><td>표준 있고 대상 N — 배너 + <code>[표준 적용]</code></td></tr>
+            <tr><td>2xx</td><td>표준이 비활성 — 사용 불가 표시 + 적용 버튼 잠금</td></tr>
+            <tr><td>302</td><td>표준 지정 · 해제 → redirect + flash</td></tr>
+            <tr><td>404</td><td>없는 그룹 · 없는 정의서</td></tr>
+            <tr><td>400</td><td><code>definitionId</code> 없이 표준 지정 제출</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>서버 상세 회귀</b> — 그룹 표준 안내 한 줄이 붙어도 기존 할당 절이 그대로인지(U3-5-b 렌더 회귀).</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신설 0.</b> 재사용만 한다.</p>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerGroupNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>SettingNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>DefinitionNotAssignableException</code></td><td>409</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+
+        <p><b>표준 지정은 비활성 정의서를 거절하는가?</b> — 거절한다. 붙일 수 없는 것을 표준으로 두면 배너가 영원히 잠긴 채 남는다. 거절은 <b><code>DefinitionNotAssignableException</code>(409)</b> 으로 한다 — U3-2-b 가 만든 것이고 사유는 <code>assignBlockReason()</code> 이 준다. 판정도 문구도 재사용이라 새 예외가 필요 없다.</p>
+
+        <h4>폼 규약</h4>
+        <p>표준 지정 · 해제 · 표준 적용 셋 다 <b>redirect + flash</b> 이므로 <code>data-native-submit</code> 을 붙인다(U3-5-c DEC-E 와 같은 이유 — 전역 가로채기가 fetch 로 리다이렉트를 따라가면 flash 가 그 안에서 소비된다).</p>
+        <p><code>FormSubmissionConventionTest</code> 의 <code>NATIVE_FOR_FLASH</code> 목록에 이 폼들이 늘어난다 — <b>숫자만 올리지 말고 사유와 함께 이름으로 올린다</b>(그 테스트가 요구하는 방식).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정</summary>
+      <div class="body">
+        <h4>DEC-A. 스키마 = 소프트참조 컬럼 하나 (다형 테이블 탈락)</h4>
+        <table>
+          <thead><tr><th>안</th><th>방식</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>① <code>setting_assignment(guest_id, guest_type)</code> 다형화</td><td>서버 할당과 그룹 표준을 한 테이블에</td><td>탈락</td></tr>
+            <tr><td>② <code>guest_server_group.standard_definition_id</code></td><td>그룹이 컬럼 하나로 기억</td><td><b>채택</b></td></tr>
+          </tbody>
+        </table>
+
+        <p>①이 탈락한 근거 넷(전부 실측) :</p>
+        <ol>
+          <li><b>성질이 다르다.</b> <code>SettingAssignment</code> 은 derive-then-freeze <b>스냅샷</b>이다. U3-1 이 그렇게 만든 이유는 "정의서가 바뀌어도 이 서버가 밟을 것은 얼린 그 값" 이기 때문인데, 그룹 표준에는 그 이유가 없다 — <b>오히려 반대로</b> 정의서가 개정되면 최신을 따르는 편이 자연스럽다.</li>
+          <li><b>절반의 컬럼이 절반의 행에서 죽는다.</b> <code>consumed_at</code> 은 GROUP 행에서 영원히 null, <code>owned_phases</code> 는 소비자 없음, <code>AssignedProcess</code> 자식은 얼릴 이유 없음, <code>AssignmentReaper</code> 와 <code>markConsumed</code> 는 SERVER 전제.</li>
+          <li><b>id 타입이 다르다.</b> <code>guest_server.id</code> 는 <code>uuid</code>, <code>guest_server_group.id</code> 는 <code>bigint</code>. 한 컬럼에 담으려면 <code>VARCHAR</code> 로 뭉개야 하는데 불가침 "Primitive Obsession 금지" 와 충돌한다.</li>
+          <li><b>DB 동시성 불변식을 다시 짜야 한다.</b> U3-2-a 의 <code>active_guest_id GENERATED ALWAYS AS (IF(superseded_at IS NULL, guest_server_id, NULL)) STORED</code> + UNIQUE 는 TOCTOU 도 <code>@Version</code> 도 못 막는 "활성 0 → 2 동시 삽입" 을 막는 장치다. 복합키로 재설계하고 소비 파일 <b>9 개</b>를 함께 봐야 한다.</li>
+        </ol>
+        <p>②의 이득은 <b>기존 스냅샷 의미를 하나도 건드리지 않는 것</b>이다. 되돌리기도 컬럼 하나다.</p>
+
+        <h4>DEC-B. 표준을 정하는 자리는 그룹 상세의 전용 절 — 모달만으로는 부족하다</h4>
+        <p>토론 Q5 의 답은 "U3-5-c 모달 재사용" 이었다. <b>그대로 두면 핵심 유스케이스가 막힌다</b> — 제안의 요지가 "그룹을 미리 만들어 두고" 인데 그 모달은 <b>멤버가 0 이면 열리지 않는다</b>(U3-5-c OQ-3 : 조작할 것이 없는 화면을 열어 주지 않는다). 서버가 아직 없는 빈 그룹에 표준을 정할 길이 없다.</p>
+        <p><b>보완</b> — 표준을 정하는 자리는 <b>그룹 상세의 전용 절</b>이고, 거기서 같은 모달을 <b>"표준 지정" 모드</b>로 연다. 할당/재할당이 한 모달을 공유한 U3-5-b DEC-E 와 같은 형태다(제목 · 제출 대상 · 버튼 문구만 다르다). 모달 렌더 조건에서 <code>멤버 0</code> 배제를 걷어내되, <b>일괄 할당 버튼은 종전대로 멤버 0 이면 숨긴다</b> — 그것은 여전히 조작할 것이 없다.</p>
+        <div class="callout">이 보완은 확정을 뒤집는 것이 아니라 <b>확정을 실제로 쓸 수 있게 만드는 것</b>이다.</div>
+
+        <h4>DEC-C. 자동 적용 대신 안내 배너 + 원클릭</h4>
+        <p>U3-4 는 "그룹은 하드웨어 구성이 아니라 <b>운영자의 묶음</b>" 이라고 못 박았다. 멤버 추가는 가벼운 조작인데 자동 적용은 거기에 <b>되돌리기 어려운 부수효과</b>를 붙인다.</p>
+        <p>배너는 flash 가 아니라 <b>상태 기반</b>이다 — 조건(표준이 있고 + 아직 적용받지 않은 멤버가 1 이상)이 참이면 화면을 다시 열어도 보인다. flash 로 하면 한 번 놓치면 사라진다.</p>
+        <p><b>배너의 수 자체가 요약 미리보기 역할</b>을 한다 — "2 대에 붙습니다" 를 읽고 누르므로 U3-5-c 의 "부분 적용을 미리 알고 승인" 계약이 유지된다. 자세한 내역은 모달로 볼 수 있다.</p>
+
+        <h4>DEC-D. 배너 계산은 상세에서 하되 정의서 1 종에만</h4>
+        <p>U3-5-c 는 "상세를 그릴 때마다 조립하지 않는다"(모달 열 때만)고 정했는데, 배너는 항상 보여야 하므로 상세에서 계산한다. <b>모순이 아니다</b> — 모달은 정의서 <b>전 종 × 멤버</b>를 조립하고 배너는 <b>표준 1 종</b>만 본다. 질의는 멤버 보드 1 회 · 활성 할당 1 회 · 정의서 1 건으로 끝난다.</p>
+
+        <h4>DEC-E. 이름은 <code>standard</code> 로 — 화면 문구와 코드가 같은 말을 쓴다</h4>
+        <p>토론 Q6 이 용어를 <b>"표준 정의서"</b> 로 확정했다(혼재 그룹에서 "기본" 은 "전부에 적용" 처럼 읽힌다). 그러면 컬럼 · 필드도 <code>standard_definition_id</code> · <code>standardDefinitionId</code> 여야 한다. 토론 문서가 적은 <code>default_definition_id</code> 는 용어 확정 <b>전</b>의 표기이므로 여기서 맞춘다 — 화면이 "표준" 이라 하는데 코드가 <code>default</code> 면 다음 사람이 둘을 다른 것으로 읽는다.</p>
+
+        <h4>DEC-F. 표준 정의서 이름을 얼리지 않는다</h4>
+        <p><code>SourceDefinitionRef</code> 는 <code>(id, name)</code> 을 함께 얼리지만 그것은 <b>스냅샷이라서</b>다. 표준은 반대로 정의서명이 바뀌면 따라가야 하므로 <b>id 만 저장하고 이름은 조회 시점에 해석</b>한다. 그래서 VO 로 감싸지 않고 <code>Long</code> 단일 필드를 쓴다 — 감싸면 <code>SourceDefinitionRef</code> 와 헷갈린다.</p>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>번호</th><th>쟁점</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>OQ-1</td><td>그룹 <b>목록</b> 화면에도 표준 열을 더할까</td><td>이번엔 더하지 않는다. 상세에서 확인되면 그때</td></tr>
+            <tr><td>OQ-2</td><td>표준 적용 후에도 배너를 남길까(대상 0 일 때)</td><td>감춘다. 할 일이 없는 안내는 소음이다</td></tr>
+            <tr><td>OQ-3</td><td>모달에 <code>☐ 이 정의서를 표준으로 두기</code> 체크박스를 함께 둘까</td><td>둔다. "고르는 김에" 가 잦은 경로다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>식별자</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>표준 없는 그룹 상세 — "표준 정의서가 없습니다" + <code>[표준 정하기]</code></td></tr>
+            <tr><td>A2</td><td><b>멤버 0 인 빈 그룹에서 표준 지정</b> — 모달이 열리고 지정된다(R3 · DEC-B 의 핵심)</td></tr>
+            <tr><td>A3</td><td>표준 지정 후 상세에 이름 · 상태가 뜬다</td></tr>
+            <tr><td>A4</td><td>멤버를 넣으면 <b>배너의 수가 늘어난다</b> — 자동으로 붙지는 않는다</td></tr>
+            <tr><td>A5</td><td><code>[표준 적용]</code> → 대상에만 붙고 flash 가 결과를 알린다</td></tr>
+            <tr><td>A6</td><td>이미 할당된 멤버가 <b>갈아엎이지 않았다</b> — DB 로 스냅샷 id 대조</td></tr>
+            <tr><td>A7</td><td>표준을 바꿔도 <b>이미 붙은 서버는 그대로다</b>(표준 변경은 소급하지 않는다)</td></tr>
+            <tr><td>A8</td><td>표준 해제 — 배너가 사라지고 절이 빈 상태로 돌아간다</td></tr>
+            <tr><td>A9</td><td>서버 상세에 그룹 표준 안내 한 줄(그룹 표준을 알리기만 한다) — 강제하지 않는다</td></tr>
+            <tr><td>B1</td><td>표준 정의서를 비활성으로 바꾸면 → 사용 불가 표시 + 적용 버튼 잠금</td></tr>
+            <tr><td>B2</td><td>direct POST — 비활성 정의서를 표준으로 지정 → <code>DefinitionNotAssignableException</code>(409)</td></tr>
+            <tr><td>B3</td><td>direct POST — 없는 그룹 · 없는 정의서 → 404</td></tr>
+            <tr><td>B4</td><td>서버를 그룹에서 빼도 할당은 남는다(할당은 서버의 것이라 남는다)</td></tr>
+            <tr><td>B5</td><td>그룹 A → B 로 옮겨도 B 의 표준이 자동 적용되지 않는다(그룹 이동은 자동 적용하지 않는다)</td></tr>
+            <tr><td>C1</td><td>배너 문구가 "몇 대에 붙는지" 를 정확히 말하는가</td></tr>
+            <tr><td>C2</td><td>"표준" 이 "전부에 적용" 으로 읽히지 않는가 — 붙는 수 병기 확인</td></tr>
+            <tr><td>C3</td><td>표준 지정 모드와 일괄 할당 모드가 화면에서 구분되는가</td></tr>
+            <tr><td>C4</td><td>거절이 raw JSON 없이 화면 안내로 수렴하는가</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupStandardResponse</code></td><td>표준 정의서 한 판</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>StandardApplyBannerResponse</code></td><td>배너 재료</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/U3-5-d_group_standard_definition.sql</code></td><td>컬럼 1 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroup</code></td><td>필드 + 도메인 메서드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroupCommandService</code></td><td>지정 · 해제</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroupQueryService</code></td><td>상세에 표준 싣기</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>AssignmentQueryService</code></td><td>배너</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroupController</code></td><td>엔드포인트 2</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-group-detail.html</code></td><td>표준 절 · 배너</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>group-definition-picker.js</code></td><td>표준 지정 모드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-detail.html</code></td><td>그룹 표준 안내</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerController</code></td><td>그룹 표준 조회 — <b>이미 <code>GuestServerGroupQueryService</code> 를 주입받고 있다</b></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>FormSubmissionConventionTest</code></td><td><code>NATIVE_FOR_FLASH</code> 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>U3-5-a 판정</td><td>그대로 호출</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>U3-5-c 미리보기 · orchestrator · 조각</td><td>그대로 재사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>스냅샷 일체</td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U3-5-d-next">
+          <li><label><input type="checkbox" data-key="u3-5-close"> <span><b>U3-5 우산 종료</b> — d 로 닫히고 U3 정의서 할당 계열이 끝난다</span></label></li>
+          <li><label><input type="checkbox" data-key="group-list-col"> <span>그룹 목록의 표준 열(OQ-1 이 유보한 것)</span></label></li>
+          <li><label><input type="checkbox" data-key="hf"> <span><code>HF*</code> <code>flashMessage</code> 소실 · <code>HF*</code> 모달 옵션 버튼 넘침</span></label></li>
+          <li><label><input type="checkbox" data-key="claude-md"> <span><code>CLAUDE.md</code> 의 승인 게이트 서술 갱신 — 앵커 스트림 소관</span></label></li>
+          <li><label><input type="checkbox" data-key="u3-5-c-rest"> <span>U3-5-c 의 잔여(좁은 폭 실물 확인 · picker 지연 로딩)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — 표준을 정하고 적용하기
+  //  판정은 서버의 멤버 분류기(① 표준 유무 ② 이미 활성 할당 ③ AssignmentBlockKind.evaluate)와
+  //  같은 순서 · 같은 바디 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_STDS = [
+    null,
+    { id: 'os-only-auto', board: null,       note: '보드 AUTO' },
+    { id: 'bios-ms03',    board: 'MS03-CE0', note: 'MS03-CE0 전용' }
+  ];
+  // 앞 4 대가 기본 멤버, 5 번째(srv-05)는 [멤버 추가] 로 들락거린다
+  const DEMO_ALL = [
+    { name: 'srv-01', board: 'ASUS-Z13PE', assigned: false, decommissioned: false },
+    { name: 'srv-02', board: 'MS03-CE0',   assigned: true,  decommissioned: false },
+    { name: 'srv-03', board: 'MS03-CE0',   assigned: false, decommissioned: true  },
+    { name: 'srv-04', board: null,         assigned: false, decommissioned: false },
+    { name: 'srv-05', board: 'MS03-CE0',   assigned: false, decommissioned: false }
+  ];
+  // 🎬 데모의 자원 상태 표시는 .badge (명세 2-3). 본문 표의 .chip 과 구분한다.
+  const DEMO_KIND = {
+    APPLY:       ['적용 대상', 'on'],
+    ALREADY:     ['이미 있음', 'off'],
+    BLOCKED:     ['막힘',      'del'],
+    NO_STANDARD: ['표준 없음', 'off']
+  };
+  const DEMO_NO_STD = '이 그룹에 표준 정의서가 없습니다.';
+  const DEMO_ALL_DONE = '모든 멤버가 표준을 따르고 있습니다';
+  let demoStdIndex = 1;
+  let demoExtraIn = false;
+
+  // ⬇ 서버 판정과 1:1 ⬇
+  function demoOutcome(std, member) {
+      if (std === null)          return {kind: 'NO_STANDARD', reason: null};
+      if (member.assigned)       return {kind: 'ALREADY',  reason: '이미 세팅 정의서가 할당되어 있습니다.'};
+      if (member.decommissioned) return {kind: 'BLOCKED',  reason: '회수된 서버에는 세팅 정의서를 할당할 수 없습니다.'};
+      if (std.board === null || member.board === null) return {kind: 'APPLY', reason: null};
+      return std.board === member.board
+          ? {kind: 'APPLY', reason: null}
+          : {kind: 'BLOCKED', reason: '이 정의서는 메인보드 ' + std.board + ' 전용입니다 — 이 서버는 ' + member.board + ' 입니다.'};
+  }
+  // ⬆ 여기까지 ⬆
+
+  function demoMembers() { return demoExtraIn ? DEMO_ALL : DEMO_ALL.slice(0, 4); }
+  function demoSetStd(i) { demoStdIndex = i; demoRender(); }
+  function demoToggleExtra() { demoExtraIn = !demoExtraIn; demoRender(); }
+  function demoToggleAssigned(i) { DEMO_ALL[i].assigned = !DEMO_ALL[i].assigned; demoRender(); }
+  function demoToggleDecommissioned(i) { DEMO_ALL[i].decommissioned = !DEMO_ALL[i].decommissioned; demoRender(); }
+  function demoApply(n) {
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ ' + n + ' 대에 표준을 적용합니다 — 기존 일괄 할당 경로(POST /{id}/assignment)를 그대로 탑니다.';
+  }
+  function demoBtn(label, blocked, tip, onclick) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + ' onclick="' + onclick + '">' + label + '</button></span>';
+  }
+  function demoRender() {
+    const std = DEMO_STDS[demoStdIndex];
+    const key = (std === null) ? 'none' : std.id;
+    document.querySelectorAll('.ux-toolbar .seg[data-std]').forEach(s =>
+      s.classList.toggle('active', s.dataset.std === key));
+
+    const members = demoMembers();
+    const outcomes = members.map(m => demoOutcome(std, m));
+    const n = outcomes.filter(o => o.kind === 'APPLY').length;
+
+    // 멤버 구성 토글 — 표준이 있는 그룹에 서버가 들어오는 순간
+    document.getElementById('demo-add').innerHTML =
+      demoBtn(demoExtraIn ? 'srv-05 빼기' : '멤버 추가 (srv-05)', false, '', 'demoToggleExtra()');
+
+    // 멤버 행 — 분류 badge + 사유 + 상태 토글 둘
+    document.getElementById('demo-members').innerHTML = members.map((m, i) => {
+      const o = outcomes[i], k = DEMO_KIND[o.kind];
+      return '<div class="ux-row' + (o.kind === 'APPLY' ? '' : ' muted') + '">'
+        + '<span class="label"><b>' + m.name + '</b> · 메인보드 ' + (m.board === null ? '수집 전' : m.board)
+        + (o.reason ? '<br>' + o.reason : '') + '</span>'
+        + '<span class="badge ' + k[1] + '">' + k[0] + '</span>'
+        + demoBtn(m.assigned ? '할당 있음' : '할당 없음', false, '', 'demoToggleAssigned(' + i + ')')
+        + demoBtn(m.decommissioned ? '복구' : '회수', false, '', 'demoToggleDecommissioned(' + i + ')')
+        + '</div>';
+    }).join('');
+
+    // 상단 캡션 — 표준과 적용 대상 수
+    document.getElementById('demo-caps').innerHTML = (std === null)
+      ? DEMO_NO_STD
+      : '표준 정의서 ' + std.id + ' (' + std.note + ') — 아직 적용하지 않은 서버 <span class="f">' + n + ' 대</span>';
+
+    // [표준 적용] — 표준이 없거나 대상이 0 이면 잠긴다
+    document.getElementById('demo-submit').innerHTML =
+      demoBtn('표준 적용', std === null || n === 0, (std === null) ? DEMO_NO_STD : DEMO_ALL_DONE, 'demoApply(' + n + ')');
+
+    const msg = document.getElementById('demo-message');
+    if (std === null) {
+      msg.className = 'ux-message';
+      msg.textContent = '표준을 정하면 여기에 적용 대상이 나타납니다';
+    } else if (n === 0) {
+      msg.className = 'ux-message success';
+      msg.textContent = DEMO_ALL_DONE;
+    } else {
+      msg.className = 'ux-message';
+      msg.textContent = '배너가 뜹니다 — [표준 적용] 한 번으로 ' + n + ' 대에 붙습니다';
+    }
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

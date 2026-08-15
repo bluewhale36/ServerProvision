@@ -11,9 +11,11 @@ import com.example.serverprovision.provisioning.group.dto.request.CreateGroupReq
 import com.example.serverprovision.provisioning.group.dto.request.RenameGroupRequest;
 import com.example.serverprovision.provisioning.group.dto.response.GroupDetailResponse;
 import com.example.serverprovision.provisioning.group.dto.response.GroupMemberResponse;
+import com.example.serverprovision.provisioning.group.dto.response.GroupStandardResponse;
 import com.example.serverprovision.provisioning.group.dto.response.SeedCandidateResponse;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupCommandService;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
+import com.example.serverprovision.provisioning.setting.dto.response.ReferencedDefinitionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
@@ -153,6 +155,8 @@ public class GuestServerGroupController {
     @PostMapping("/{id}/assignment")
     public String assignBatch(@PathVariable Long id,
                               @RequestParam("definitionId") Long definitionId,
+                              @RequestParam(value = "alsoSetStandard", defaultValue = "false")
+                              boolean alsoSetStandard,
                               RedirectAttributes redirectAttributes) {
         GroupDetailResponse group = queryService.findDetail(id);
         GroupApplyPreviewResponse preview = assignmentQueryService
@@ -162,10 +166,47 @@ public class GuestServerGroupController {
                 // 목록에 없는 정의서 — 삭제 · 비활성이거나 애초에 없는 것이다. 할당 경로와 같은 판정으로 끊는다.
                 .orElseThrow(() -> new SettingNotFoundException(definitionId));
 
+        // 표준 지정을 먼저 한다 (U3-5-d OQ-3) — 거절될 수 있는 쪽을 앞에 두어야 그것이 거절됐을 때
+        // 할당만 일어난 채로 남지 않는다. 일괄 할당은 멤버별로 건너뛸 뿐 던지지 않으므로 뒤에 와도 된다.
+        String standardNote = "";
+        if (alsoSetStandard) {
+            commandService.setStandardDefinition(id, definitionId);
+            standardNote = " 이 정의서를 이 그룹의 표준으로 두었습니다.";
+        }
+
         // 미리보기를 통째로 넘긴다 — 고를 때 빠진 멤버와 실행 중 거절된 멤버를 한 결과에 함께 세기 위해서다.
         // 대상 목록만 넘기면 "2 대에 붙는다" 를 보고 승인한 사용자가 "1 대에 할당했습니다" 만 읽게 된다.
         BatchAssignResult result = groupAssignmentService.assignToMembers(preview, definitionId);
-        redirectAttributes.addFlashAttribute("flashMessage", result.message());
+        redirectAttributes.addFlashAttribute("flashMessage", result.message() + standardNote);
+        return "redirect:/provisioning/server-group/" + id;
+    }
+
+    /**
+     * 표준 세팅 정의서 지정 (U3-5-d) — 그룹이 <b>어느 정의서를 쓸지 기억</b>하게 한다.
+     *
+     * <p>기억할 뿐 아무 서버에도 붙이지 않는다(DEC-C). 멤버를 넣는 것은 가벼운 조작인데 자동 적용은
+     * 거기에 되돌리기 어려운 부수효과를 붙이기 때문이다. 붙이는 것은 상세의 안내 배너에서 사용자가
+     * 누를 때 일어나며, 그 경로는 일괄 할당과 같다.</p>
+     *
+     * <p>거절 가드는 서비스에 있다 — 붙일 수 없는 정의서를 표준으로 두면 배너가 영원히 잠긴 채 남는다.</p>
+     */
+    @PostMapping("/{id}/standard-definition")
+    public String setStandard(@PathVariable Long id,
+                              @RequestParam("definitionId") Long definitionId,
+                              RedirectAttributes redirectAttributes) {
+        String name = commandService.setStandardDefinition(id, definitionId);
+        redirectAttributes.addFlashAttribute("flashMessage",
+                "세팅 정의서 '" + name + "' 를 이 그룹의 표준으로 지정했습니다."
+                        + " 표준은 기억만 하며 서버에 자동으로 붙지 않습니다.");
+        return "redirect:/provisioning/server-group/" + id;
+    }
+
+    /** 표준 해제 (U3-5-d) — 이미 할당된 서버는 건드리지 않는다. 표준은 앞으로의 정책이다. */
+    @PostMapping("/{id}/standard-definition/clear")
+    public String clearStandard(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        commandService.clearStandardDefinition(id);
+        redirectAttributes.addFlashAttribute("flashMessage",
+                "표준 세팅 정의서를 해제했습니다. 이미 할당된 서버는 그대로입니다.");
         return "redirect:/provisioning/server-group/" + id;
     }
 
@@ -184,6 +225,33 @@ public class GuestServerGroupController {
         model.addAttribute("assignedDefinitions",
                 assignmentQueryService.activeDefinitionNamesOf(memberIdsOf(group)));
 
+        // U3-5-d — 표준 절과 안내 배너. 배너는 표준을 지금 붙일 수 있을 때만 계산한다 — 못 붙이는
+        // 정의서의 "대상 N 대" 는 누를 수 없는 수라 알릴 값이 아니다.
+        GroupStandardResponse standard = standardOf(group);
+        model.addAttribute("standard", standard);
+        model.addAttribute("standardBanner", standard.usable()
+                ? assignmentQueryService.standardApplyBanner(memberSummariesOf(group), standard.definition())
+                : null);
+    }
+
+    /**
+     * 그룹이 기억하는 표준 id 를 화면 재료로 푼다 (U3-5-d).
+     *
+     * <p>해석을 그룹 조회 서비스가 맡지 않는 것은 U3-5-c 와 같은 판단이다 — 두 feature 를 잇는 자리는
+     * 컨트롤러다. 정하지 않은 그룹도 {@code none()} 으로 같은 타입을 돌려주므로 화면이 null 을 확인하고
+     * 다시 안쪽을 확인하는 두 단계를 밟지 않는다.</p>
+     */
+    private GroupStandardResponse standardOf(GroupDetailResponse group) {
+        if (group.standardDefinitionId() == null) {
+            return GroupStandardResponse.none();
+        }
+        ReferencedDefinitionResponse reference =
+                settingQueryService.resolveReference(group.standardDefinitionId());
+        // 단계 표시는 할당이 쓰는 것과 같은 매핑에서 나와야 실제와 어긋나지 않는다(U3-5-d 개정).
+        // 정의서가 사라졌으면 도출할 재료가 없으므로 빈 목록이다.
+        return GroupStandardResponse.of(reference, reference.resolved()
+                ? assignmentQueryService.phasesOfDefinition(reference.definition())
+                : List.of());
     }
 
     private static List<UUID> memberIdsOf(GroupDetailResponse group) {

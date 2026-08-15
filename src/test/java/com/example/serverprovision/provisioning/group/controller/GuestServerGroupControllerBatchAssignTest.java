@@ -92,7 +92,8 @@ class GuestServerGroupControllerBatchAssignTest {
     }
 
     private static GroupDetailResponse group(List<GroupMemberResponse> members) {
-        return new GroupDetailResponse(GROUP, "8월 A동 1차", LocalDateTime.now(), members, false, 0);
+        // 표준 정의서 없음(U3-5-d) — 이 파일이 보는 것은 일괄 할당이고 표준은 그 경로에 관여하지 않는다.
+        return new GroupDetailResponse(GROUP, "8월 A동 1차", LocalDateTime.now(), null, members, false, 0);
     }
 
     private void givenTwoMemberGroup() {
@@ -263,15 +264,25 @@ class GuestServerGroupControllerBatchAssignTest {
 
     // ==== 멤버 0 인 그룹 ==============================================
 
+    /**
+     * U3-5-d 가 이 계약의 <b>절반을 뒤집었다</b>. U3-5-c 는 "멤버가 없으면 버튼도 모달도 내지 않는다"
+     * 였는데, U3-5-d 의 표준 지정이 <b>빈 그룹에서 하는 일</b>이라 모달까지 감추면 핵심 유스케이스가
+     * 닿지 않는다(DEC-B — 그룹을 미리 만들어 두고 정책부터 정하기).
+     *
+     * <p>그래서 <b>모달은 남기고 일괄 할당 버튼만 감춘다</b>. 감추는 이유는 그대로다 — 붙일 서버가
+     * 없는데 여는 화면은 조작할 것이 없다. 표준 지정 버튼은 그 사정이 아니므로 남는다.</p>
+     */
     @Test
-    @DisplayName("멤버가 없는 그룹 — 상세에 일괄 할당 버튼이 없다 (OQ-3)")
-    void detail_hidesBatchButtonWhenGroupIsEmpty() throws Exception {
+    @DisplayName("멤버가 없는 그룹 — 일괄 할당 버튼만 감추고 표준 지정 경로는 남는다 (U3-5-d DEC-B)")
+    void detail_hidesBatchButtonButKeepsStandardPickerWhenGroupIsEmpty() throws Exception {
         given(queryService.findDetail(GROUP)).willReturn(group(List.of()));
 
         mvc.perform(get("/provisioning/server-group/{id}", GROUP))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("openGroupDefinitionPicker"))))
-                .andExpect(content().string(not(containsString("groupDefinitionPicker"))));
+                // 표준 지정은 빈 그룹에서 하는 일이다 — 버튼도 모달도 렌더된다
+                .andExpect(content().string(containsString("openGroupStandardPicker")))
+                .andExpect(content().string(containsString("id=\"groupDefinitionPicker\"")));
     }
 
     @Test

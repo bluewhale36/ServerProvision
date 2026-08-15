@@ -2,6 +2,7 @@ package com.example.serverprovision.provisioning.setting.service;
 
 import com.example.serverprovision.provisioning.setting.dto.response.BiosTemplateOptionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.PartitionPresetResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.ReferencedDefinitionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingBoardOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionGroupResponse;
@@ -46,6 +47,19 @@ public interface SettingQueryService {
      * (U3-2-b DEC-G). 사용자가 지정한 id 를 확인하는 자리가 아니라 화면 재료를 모으는 자리다.</p>
      */
     List<SettingDetailResponse> findDetailsOf(List<Long> ids);
+
+    /**
+     * 소프트참조가 가리키는 정의서 한 건을 지금 해석한다 (U3-5-d) — 그룹 표준이 쓴다.
+     *
+     * <p>{@link #findDetail(Long)} 과 달리 <b>없어도 예외를 던지지 않는다.</b> 표준은 참조 무결성 없이
+     * id 만 들고 있으므로 가리키던 정의서가 사라지는 것이 정상 상태이고, 그때도 화면은 표준 절을 그려
+     * 해제 버튼을 내야 하기 때문이다. 대신 부재와 차단 사유를 응답의 값으로 담는다.</p>
+     *
+     * <p>차단 판정은 {@link #findAssignable()} 과 같은 도메인 SSOT
+     * {@code SettingDefinition.assignBlockReason()} 이다 — 표준으로 지정할 수 있는 정의서와 서버에
+     * 할당할 수 있는 정의서가 같은 기준으로 갈린다.</p>
+     */
+    ReferencedDefinitionResponse resolveReference(Long definitionId);
 
     /** 펌웨어 업데이트 단계 폼의 보드/BIOS/BMC 선택지 — 제조사(Vendor) 그룹. */
     List<SettingBoardOptionGroupResponse> findBoardOptions();

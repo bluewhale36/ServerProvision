@@ -97,8 +97,15 @@ class FormSubmissionConventionTest {
 	 * 가로채기가 fetch 로 리다이렉트를 따라가면 flash 가 <b>그 fetch 안에서</b> 소비되고, 이어지는
 	 * {@code location.reload()} 는 빈 손으로 온다 — 문구가 영영 화면에 뜨지 않는다. U3-5-c CP1 에서
 	 * 같은 페이지 · 같은 액션에 마커만 붙였다 뗐다 하며 실측해 확인했다.</p>
+	 *
+	 * <p>같은 파일이 <b>세 번</b> 오르는 이유는 그 화면에 같은 사정의 폼이 셋이기 때문이다(U3-5-d) —
+	 * ① 정의서 고르기 모달(일괄 할당과 표준 지정이 한 폼을 모드로 나눠 쓴다) ② 표준 해제
+	 * ③ 안내 배너의 표준 적용. 목록은 파일명이 아니라 <b>폼 하나마다 한 줄</b>이며, 아래에서 하나씩
+	 * 덜어내므로 셋 중 하나가 표기를 잃으면 덜어낼 것이 모자라 수가 어긋난다.</p>
 	 */
 	private static final List<String> NATIVE_FOR_FLASH = List.of(
+			"provisioning/server-group-detail.html",
+			"provisioning/server-group-detail.html",
 			"provisioning/server-group-detail.html");
 
 	/**
