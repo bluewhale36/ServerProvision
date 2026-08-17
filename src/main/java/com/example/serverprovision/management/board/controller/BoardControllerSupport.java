@@ -1,10 +1,5 @@
 package com.example.serverprovision.management.board.controller;
 
-import com.example.serverprovision.global.exception.ApiErrorResponse;
-import org.springframework.validation.BindingResult;
-
-import java.util.List;
-
 /**
  * Board 모델 컨트롤러 분할 후 공통으로 쓰이는 view / 응답 헬퍼.
  *
@@ -13,6 +8,9 @@ import java.util.List;
  * {@link BoardModelNudgeController}) 로 분할하면서, redirect URL 조립 / null 보정 /
  * 검증 오류 변환이 여러 컨트롤러에 동시에 필요해졌다. CLAUDE.md 의 "중복 로직은 즉시 공통 유틸로 추출"
  * 원칙에 따라 정적 헬퍼 클래스로 승격해 복붙 진원지를 사전 차단한다.</p>
+ *
+ * <p>MA7 — {@code toValidationError} 는 RAID 카드가 두 번째 사용처가 되면서
+ * {@code management/common/web/ControllerValidationSupport} 로 승격 이동했다.</p>
  */
 public final class BoardControllerSupport {
 
@@ -32,20 +30,5 @@ public final class BoardControllerSupport {
 	 */
 	public static String nullToEmpty(String value) {
 		return value == null ? "" : value;
-	}
-
-	/**
-	 * create() 의 인라인 {@code BindingResult → ApiErrorResponse} 변환 추출.
-	 * XHR JSON 검증 응답의 단일 소스.
-	 */
-	public static ApiErrorResponse toValidationError(BindingResult bindingResult) {
-		List<ApiErrorResponse.FieldError> fields = bindingResult.getFieldErrors().stream()
-				.map(fe -> new ApiErrorResponse.FieldError(
-						fe.getField(),
-						fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"
-				))
-				.toList();
-		return ApiErrorResponse.ofValidation(
-				"입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields);
 	}
 }

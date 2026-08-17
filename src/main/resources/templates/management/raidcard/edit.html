@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  MA7. RAID 카드 수정 폼
+  ─────────────────────────────────────────────────────────
+  Model:
+    raidCardForm : RaidCardUpdateRequest   @ModelAttribute
+                    (modelName, supportedRaidLevels, hasCache, pciSubsystemId, description)
+    raidCardId   : Long                     경로 파라미터
+    vendorLabel  : String                   화면 표시용 ("GIGABYTE" 등, 수정 불가)
+    levelOptions : List<RaidLevel>          모든 RaidLevel 열거형 값
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('RAID 카드 수정')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('raidcard')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">RAID 카드 수정</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/management/raidcard(selectId=${raidCardId})}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <form th:action="@{/management/raidcard/{id}/edit(id=${raidCardId})}"
+                  th:object="${raidCardForm}"
+                  method="post"
+                  novalidate
+                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다"
+                  data-cache-warning-native="">
+
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <!-- 제조사 : 수정 불가. 바꿀 땐 삭제 후 재등록 -->
+                <div class="n-form-group">
+                    <label class="n-label strong">제조사</label>
+                    <input type="text" class="n-input" th:value="${vendorLabel}" readonly>
+                    <div class="n-hint">제조사는 변경할 수 없습니다. 바꾸려면 삭제 후 재등록하세요.</div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="modelName">모델명</label>
+                    <input id="modelName" type="text" th:field="*{modelName}"
+                           class="n-input"
+                           data-error-field="modelName"
+                           th:classappend="${#fields.hasErrors('modelName')} ? 'is-invalid'"
+                           placeholder="예: CRA3338">
+                    <div class="n-error" th:if="${#fields.hasErrors('modelName')}"
+                         th:errors="*{modelName}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong">지원 RAID 레벨</label>
+                    <div data-error-field="supportedRaidLevels" data-level-group
+                         th:classappend="${#fields.hasErrors('supportedRaidLevels')} ? 'is-invalid'"
+                         style="display:flex; gap:16px; flex-wrap:wrap;">
+                        <label class="n-checkbox">
+                            <input type="checkbox" data-level-select-all>
+                            <span>전체 선택</span>
+                        </label>
+                        <label class="n-checkbox" th:each="lvl : ${levelOptions}">
+                            <input type="checkbox" th:field="*{supportedRaidLevels}" th:value="${lvl.name()}"
+                                   th:data-requires-cache="${lvl.typicallyRequiresCache}">
+                            <span th:text="${lvl.displayName}">RAID0</span>
+                        </label>
+                    </div>
+                    <div class="n-hint">이 값을 고치면 세팅 정의서 작성 화면의 카드 선택 판정이 다음 렌더부터 새 값으로 적용됩니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('supportedRaidLevels')}"
+                         th:errors="*{supportedRaidLevels}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="cacheCapacityGb">캐시 용량 (GB)</label>
+                    <input id="cacheCapacityGb" type="number" min="0" max="1024" step="1"
+                           th:field="*{cacheCapacityGb}"
+                           class="n-input"
+                           data-error-field="cacheCapacityGb"
+                           th:classappend="${#fields.hasErrors('cacheCapacityGb')} ? 'is-invalid'">
+                    <div class="n-hint">캐시가 없는 모델은 0 을 입력합니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('cacheCapacityGb')}"
+                         th:errors="*{cacheCapacityGb}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="pciSubsystemId">PCI Subsystem ID (선택)</label>
+                    <input id="pciSubsystemId" type="text" th:field="*{pciSubsystemId}"
+                           class="n-input"
+                           data-error-field="pciSubsystemId"
+                           th:classappend="${#fields.hasErrors('pciSubsystemId')} ? 'is-invalid'"
+                           placeholder="예: 1458:0011">
+                    <div class="n-hint"><code>lspci -nn</code> 출력의 대괄호 쌍입니다. 비워 두면 '미확인' 으로 돌아갑니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('pciSubsystemId')}"
+                         th:errors="*{pciSubsystemId}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"
+                              data-error-field="description"
+                              th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"></textarea>
+                    <div class="n-error" th:if="${#fields.hasErrors('description')}"
+                         th:errors="*{description}"></div>
+                </div>
+
+                <div class="n-form-actions">
+                    <a th:href="@{/management/raidcard(selectId=${raidCardId})}"
+                       class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" class="n-btn n-btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- CP6 개정 — 캐시 0 + RAID5 이상 조합 경고 modal. 네이티브 폼은 data-cache-warning-native 마커로 자동 바인딩. -->
+<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('cacheWarn')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/management/raidcard/raidcard-level-select.js}"></script>
+<script th:src="@{/management/raidcard/raidcard-cache-warning.js}"></script>
+</body>
+</html>

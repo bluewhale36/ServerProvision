@@ -10,7 +10,7 @@
 
   navbar(activePage)
     · activePage 키
-        Management   : 'os-metadata' | 'board' | 'bios' | 'bmc' | 'driver'
+        Management   : 'os-metadata' | 'board' | 'bios' | 'bmc' | 'driver' | 'raidcard'
         Maintenance  : 'reconciliation' | 'quarantine' | 'trash'
         System       : 'system-asset'
         Provisioning : 'setting' | 'server'
@@ -89,6 +89,10 @@
     <a th:href="@{/management/subprogram}"
        class="n-nav-link"
        th:classappend="${activePage == 'subprogram'} ? ' active'">Driver/Utility</a>
+    <!-- MA7 — RAID 카드 (메타 자원). 세팅 정의서의 RAID 구성 지정(U4-1-1)이 참조한다. -->
+    <a th:href="@{/management/raidcard}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'raidcard'} ? ' active'">RAID 카드</a>
 
     <!-- Maintenance (어플리케이션-서버 운영) -->
     <a th:href="@{/maintenance/reconciliation}"

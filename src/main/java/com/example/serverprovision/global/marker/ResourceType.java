@@ -23,7 +23,9 @@ public enum ResourceType {
 	// S5-2-3+ — 메타 자원 (디렉토리/파일 없음). layout 은 형식상 placeholder.
 	// marker / reconciliation / trash 이동 흐름과 무관 — lifecycle 메타 (is_deleted / trashed_at) 만 활용.
 	OS_IMAGE(MarkerLayout.SIDECAR, true, "OS 버전"),
-	BOARD_MODEL(MarkerLayout.SIDECAR, true, "메인보드 모델");
+	BOARD_MODEL(MarkerLayout.SIDECAR, true, "메인보드 모델"),
+	// MA7 — 세 번째 메타 자원. 세팅 정의서가 id 로 참조하는 RAID 카드.
+	RAID_CARD(MarkerLayout.SIDECAR, true, "RAID 카드");
 
 	private final MarkerLayout defaultLayout;
 	/**

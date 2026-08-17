@@ -6,6 +6,7 @@ import com.example.serverprovision.management.board.dto.response.BoardModelCreat
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
+import com.example.serverprovision.management.common.web.ControllerValidationSupport;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -81,7 +82,7 @@ public class BoardModelMetadataController {
 	) {
 		if (bindingResult.hasErrors()) {
 			return ResponseEntity.badRequest().body(
-					BoardControllerSupport.toValidationError(bindingResult));
+					ControllerValidationSupport.toValidationError(bindingResult));
 		}
 		Long id = boardModelService.create(request);
 		return ResponseEntity.ok(new BoardModelCreateResponse(id, "/management/board?selectId=" + id));

@@ -311,7 +311,7 @@ public class PathReconciliationService {
 		Instant start = Instant.now();
 
 		// (1) 인벤토리 수집 — active + soft-deleted 전수 (S6-2-2).
-		// 메타 자원 2종(OS_IMAGE/BOARD_MODEL)은 파일 실체가 없어(resourcePath=null) 분류 대상에서 명시 제외
+		// 메타 자원(OS_IMAGE/BOARD_MODEL/RAID_CARD)은 파일 실체가 없어(resourcePath=null) 분류 대상에서 명시 제외
 		// (TrashController 의 isMetadata() 가드 선례 — 빠뜨리면 NPE/유령 오탐).
 		List<Markable> activeInventory = new ArrayList<>();
 		Map<MarkerKey, Markable> deletedByKey = new HashMap<>();

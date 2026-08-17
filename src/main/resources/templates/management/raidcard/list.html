@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  MA7. RAID 카드 관리 목록 페이지 (Miller Columns)
+  ─────────────────────────────────────────────────────────
+  Model:
+    raidCardGroups : List<RaidCardVendorGroupResponse>   C1/C2 데이터 소스
+                      · vendor        : RaidCardVendor enum
+                      · displayName   : String ("GIGABYTE" 등)
+                      · items         : List<RaidCardResponse> (C3 상세 포함)
+    selectId       : Long (nullable)                     토글/편집 후 초기 선택 복원
+    includeDeleted : boolean                             휴지통 모드 여부
+
+  CSS: A1 의 miller.css 재사용 (Board 목록과 동일 접근 — 클래스 이름은 원래 OS 용이지만
+       레이아웃만 쓰고 도메인 의미는 data-* 속성으로 구분).
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('RAID 카드 관리')}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('raidcard')}"></nav>
+
+<div class="n-page">
+    <div class="n-page-header">
+        <h1 class="n-page-title">RAID 카드 관리</h1>
+        <div class="n-header-actions">
+            <label class="n-checkbox">
+                <input type="checkbox"
+                       th:checked="${includeDeleted}"
+                       data-include-deleted-toggle>
+                삭제된 항목 포함
+            </label>
+            <a th:href="@{/management/raidcard/new}"
+               class="n-btn n-btn-primary">+ 신규 RAID 카드 등록</a>
+        </div>
+    </div>
+
+    <!-- 빈 상태 -->
+    <div th:if="${#lists.isEmpty(raidCardGroups)}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title"
+                 th:text="${includeDeleted} ? '등록된 RAID 카드가 없습니다 (휴지통 포함).' : '등록된 RAID 카드가 없습니다.'">등록된 RAID 카드가 없습니다.
+            </div>
+            <div class="n-empty-desc">"신규 RAID 카드 등록" 버튼으로 카드를 추가하세요.</div>
+        </div>
+    </div>
+
+    <!-- Miller 3컬럼 : C1 제조사 → C2 카드 → C3 상세 -->
+    <div th:unless="${#lists.isEmpty(raidCardGroups)}"
+         class="n-miller"
+         th:data-initial-select-id="${selectId}"
+         th:data-initial-select-key="${selectKey}">
+
+        <!-- C1 : 제조사 그룹 -->
+        <div class="n-miller-col n-miller-col-names">
+            <div class="n-miller-col-header">제조사</div>
+            <button th:each="group : ${raidCardGroups}"
+                    type="button"
+                    class="n-miller-item"
+                    th:data-os-key="${group.vendor.name()}"
+                    th:text="${group.displayName}">GIGABYTE
+            </button>
+        </div>
+
+        <!-- C2 : 해당 제조사의 카드 목록 -->
+        <div class="n-miller-col n-miller-col-versions">
+            <div class="n-miller-col-header">카드</div>
+            <div th:each="group : ${raidCardGroups}"
+                 class="n-miller-version-panel"
+                 th:data-os-key="${group.vendor.name()}">
+                <button th:each="card : ${group.items}"
+                        type="button"
+                        class="n-miller-item n-miller-item-split"
+                        th:classappend="${card.isDeleted} ? 'n-miller-item-disabled' : ''"
+                        th:data-os-id="${card.id}">
+                    <span class="n-miller-version-label">
+                        <span th:text="${card.modelName}">CRA3338</span>
+                        <span th:if="${card.isDeprecated and !card.isDeleted}"
+                              class="n-deprecated-dot"
+                              title="Deprecated"></span>
+                        <span th:if="${card.isDeleted}"
+                              style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                    </span>
+                    <span th:unless="${card.isDeleted}"
+                          class="n-miller-status-tag"
+                          th:classappend="${card.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
+                          th:text="${card.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                </button>
+                <!-- CP6 개정 — 현재 제조사를 프리셀렉트해 등록 폼 진입 (ISO osId · BIOS/BMC boardId 방식). -->
+                <div style="padding: 8px 12px;">
+                    <a th:href="@{/management/raidcard/new(vendor=${group.vendor.name()})}"
+                       class="n-btn n-btn-sm n-btn-primary" style="width: 100%;">+ RAID 카드 등록</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- C3 : 선택된 RAID 카드 상세 -->
+        <div class="n-miller-col n-miller-col-detail">
+            <div class="n-miller-empty" id="millerEmpty"
+                 data-empty-before="제조사를 선택하여 카드 보기"
+                 data-empty-after="카드를 선택하여 상세 보기"
+                 th:text="${selectKey != null or selectId != null} ? '카드를 선택하여 상세 보기' : '제조사를 선택하여 카드 보기'">제조사를 선택하여 카드
+                보기
+            </div>
+
+            <th:block th:each="group : ${raidCardGroups}">
+                <div th:each="card : ${group.items}"
+                     class="n-miller-detail-panel"
+                     th:data-os-id="${card.id}">
+
+                    <!-- 기본 정보 테이블 -->
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>ID</th>
+                            <td th:text="${card.id}"></td>
+                        </tr>
+                        <tr>
+                            <th>제조사</th>
+                            <td style="font-weight:600;" th:text="${group.displayName}"></td>
+                        </tr>
+                        <tr>
+                            <th>모델명</th>
+                            <td>
+                                <span th:text="${card.modelName}"></span>
+                                <span th:if="${card.isDeprecated}"
+                                      class="n-badge n-badge-yellow"
+                                      style="margin-left: 8px;">Deprecated</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>지원 RAID 레벨</th>
+                            <td th:text="${card.supportedRaidLevelsDisplay}">RAID0 · RAID1</td>
+                        </tr>
+                        <tr>
+                            <th>캐시</th>
+                            <td th:text="${card.cacheCapacityDisplay}">없음</td>
+                        </tr>
+                        <tr>
+                            <th>PCI Subsystem ID</th>
+                            <td>
+                                <span th:if="${card.pciSubsystemIdDisplay != null}"
+                                      th:text="${card.pciSubsystemIdDisplay}">1458:0011</span>
+                                <!-- 미확인 = 실물 관측(정밀 등록) 전 — 수정 폼에서 직접 입력할 수도 있다. -->
+                                <span th:if="${card.pciSubsystemIdDisplay == null}"
+                                      class="n-badge n-badge-gray"
+                                      title="아직 확인되지 않았습니다. 수정에서 직접 입력하거나 추후 정밀 등록으로 채워집니다.">미확인</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>설명</th>
+                            <td th:text="${card.description != null and !#strings.isEmpty(card.description)} ? ${card.description} : '—'"></td>
+                        </tr>
+                        <tr>
+                            <th>상태</th>
+                            <td>
+                                <span th:if="${card.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
+                                <th:block th:unless="${card.isDeleted}">
+                                    <span class="n-badge"
+                                          th:classappend="${card.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
+                                          th:text="${card.isEnabled} ? '활성화' : '비활성화'"></span>
+                                    <form th:action="@{/management/raidcard/{id}/toggle(id=${card.id})}"
+                                          method="post" style="display:inline; margin-left: 10px;">
+                                        <button type="submit"
+                                                class="n-btn n-btn-sm"
+                                                th:classappend="${card.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
+                                                th:text="${card.isEnabled} ? '비활성화' : '활성화'"></button>
+                                    </form>
+                                </th:block>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 수정/삭제/복구 : 우측 정렬 -->
+                    <div class="n-form-actions">
+                        <th:block th:unless="${card.isDeleted}">
+                            <a th:href="@{/management/raidcard/{id}/edit(id=${card.id})}"
+                               class="n-btn n-btn-secondary">수정</a>
+                            <form th:unless="${card.isDeprecated}"
+                                  th:action="@{/management/raidcard/{id}/deprecate(id=${card.id})}"
+                                  method="post" style="display:inline;"
+                                  data-confirm-deprecate=""
+                                  th:data-resource-label="|RAID 카드 '${group.displayName} ${card.modelName}'|">
+                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
+                            </form>
+                            <form th:if="${card.isDeprecated}"
+                                  th:action="@{/management/raidcard/{id}/undeprecate(id=${card.id})}"
+                                  method="post" style="display:inline;">
+                                <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
+                            </form>
+                            <form th:action="@{/management/raidcard/{id}/delete(id=${card.id})}"
+                                  method="post" style="display:inline;"
+                                  data-confirm-soft-delete=""
+                                  th:data-resource-label="|RAID 카드 '${group.displayName} ${card.modelName}'|">
+                                <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
+                            </form>
+                        </th:block>
+                        <th:block th:if="${card.isDeleted}">
+                            <form th:action="@{/management/raidcard/{id}/restore(id=${card.id})}"
+                                  method="post" style="display:inline;"
+                                  data-confirm-restore=""
+                                  th:data-resource-label="|RAID 카드 '${group.displayName} ${card.modelName}'|">
+                                <button type="submit" class="n-btn n-btn-outline-info">복구</button>
+                            </form>
+                            <!-- 영구 삭제 — typed-name expected 는 BE 가 modal trigger 시 응답 (S5-6-1). -->
+                            <form th:action="@{/management/raidcard/{id}/purge(id=${card.id})}"
+                                  method="post" style="display:inline;"
+                                  data-confirm-purge=""
+                                  data-resource-type="RAID_CARD"
+                                  th:data-resource-id="${card.id}"
+                                  th:data-resource-label="|RAID 카드 '${group.displayName} ${card.modelName}'|">
+                                <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
+                            </form>
+                        </th:block>
+                    </div>
+
+                </div>
+            </th:block>
+        </div>
+    </div>
+</div>
+
+<!-- 상태 변경 modal 묶음 + 공통 script (S5-2 · S5-6-1 lazy-load). -->
+<div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
+
+<!-- '삭제된 항목 포함' 토글 시 selectId 등 querystring 보존 (S5-4). -->
+<script th:src="@{/global/include-deleted-toggle.js}"></script>
+<!-- Miller 컬럼 상호작용 스크립트 : A1 의 os-list.js 를 그대로 재사용. -->
+<script th:src="@{/management/os/os-list.js}"></script>
+
+</body>
+</html>
