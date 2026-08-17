@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  그룹 일괄 할당 모달의 내용 — 2 열 miller (U3-5-c)
+  ─────────────────────────────────────────────────────────
+  사용 컨텍스트 : 그룹 상세(provisioning/server-group-detail) 의 정의서 일괄 할당 모달.
+  파라미터      : picker — GroupPickerResponse (컨트롤러 모델 속성)
+  적재 경로     : GET /provisioning/server-group/{id}/assignment/picker — 모달을 처음 열 때 한 번 fetch.
+
+  U3-5-b 의 단건 모달과 무엇이 다른가 (DEC-A)
+    단건은 "붙는가 / 안 붙는가" 하나라 우측에 사유 배너 하나면 됐다. 그룹은 멤버마다 결과가 갈리므로
+    우측이 미리보기 표를 갖는다. 그래서 조각을 나눴다 — 부분 적용(4 대 중 3 대)을 단건의 blockReason
+    자리에 담으면 blocked() 가 참이 되어 이름이 거짓말을 한다.
+    반대로 값나가는 공유 자산인 단계 카드 조각(setting-process-cards)은 그대로 재사용한다.
+
+  우측의 순서가 '미리보기 → 정의서 내용' 인 이유
+    그룹 문맥에서 정의서를 고르는 이유는 "이 그룹에 어떻게 적용되나" 이고, 내용은 그 다음 확인이다.
+
+  좌측 행이 JS 에 넘기는 것 (data-*)
+    · data-definition-id   : 선택 시 hidden input 에 실릴 값 · 우측 패널 id 와 짝
+    · data-definition-name : 하단 상태줄에 적을 이름
+    · data-assign-count    : 붙는 멤버 수 — 0 이면 확정 버튼이 열리지 않는다
+    · data-summary         : 하단 상태줄에 그대로 싣는 한 줄 요약(서버가 만든 문구)
+-->
+<div class="n-miller n-miller-modal" th:fragment="picker">
+
+    <!-- 좌측 : 정의서 목록. 아무에게도 안 붙는 것도 남는다 — 눌러서 왜 그런지 볼 수 있어야 한다. -->
+    <div class="n-miller-col n-miller-col-names n-miller-col-definitions">
+        <div class="n-miller-col-header">세팅 정의서</div>
+
+        <p th:if="${#lists.isEmpty(picker.items)}" class="n-detail-empty" style="padding: 14px 18px;">
+            할당할 수 있는 세팅 정의서가 없습니다.
+        </p>
+
+        <button type="button" th:each="item : ${picker.items}"
+                class="n-miller-item n-miller-item-split"
+                th:classappend="${item.blocked} ? 'n-miller-item-disabled' : ''"
+                th:data-definition-id="${item.id}"
+                th:data-definition-name="${item.name}"
+                th:data-assign-count="${item.willAssignCount}"
+                th:data-summary="${item.preview.summary()}"
+                th:attr="aria-disabled=${item.blocked}">
+            <span class="n-miller-version-label" th:title="${item.name}" th:text="${item.name}">web-standard</span>
+            <!--/* 분모(그룹 멤버 수)는 표 밖에서 한 번만 알린다 — 행마다 "3 / 4" 로 되풀이하면
+                   같은 값이 목록 길이만큼 반복된다(OQ-2). */-->
+            <span th:if="${!item.blocked}" class="n-miller-status-tag n-miller-status-tag-on"
+                  th:text="${item.willAssignCount} + ' 대'">3 대</span>
+            <span th:if="${item.blocked}" class="n-miller-status-tag n-miller-status-tag-off">0 대</span>
+        </button>
+    </div>
+
+    <!-- 우측 : 고른 정의서의 적용 미리보기 + 내용. 항목마다 미리 그려 두고 .active 만 옮긴다. -->
+    <div class="n-miller-col n-miller-col-detail">
+        <div class="n-miller-empty" id="groupPickerEmpty">
+            왼쪽에서 정의서를 고르면 이 그룹에 어떻게 적용되는지 나타납니다.
+        </div>
+
+        <div th:each="item : ${picker.items}" class="n-miller-detail-panel"
+             th:id="'group-definition-panel-' + ${item.id}">
+
+            <div th:class="${item.blocked} ? 'n-alert n-alert-danger' : 'n-alert n-alert-success'" role="alert">
+                <b th:text="${item.preview.summary()}">4 대 중 3 대에 할당됩니다.</b>
+            </div>
+            <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">
+                <b>사용 중단이 권고된 정의서입니다.</b>
+                <div class="n-section-hint" style="margin-top: 6px;">
+                    할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.
+                </div>
+            </div>
+
+            <!--/* 멤버별 분류 — 확정하기 전에 무엇이 일어날지 이 표가 전부 말한다.
+                   사유는 도메인이 만든 문구 그대로라 direct POST 를 거절하는 서버 가드와 같은 말이다. */-->
+            <div class="n-label strong" style="margin-top: 4px;">멤버별 적용</div>
+            <table class="n-table" style="margin-bottom: 20px;">
+                <thead>
+                <tr>
+                    <th>서버</th>
+                    <th>보드 모델</th>
+                    <th>결과</th>
+                    <th>사유</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="member : ${item.preview.members()}">
+                    <td th:text="${member.serverName != null} ? ${member.serverName} : '(이름 미지정)'">srv-01</td>
+                    <td th:text="${member.server.boardModelName != null} ? ${member.server.boardModelName} : '수집 전'">
+                        MS03-CE0</td>
+                    <td>
+                        <span class="n-badge" th:classappend="${member.outcome.badgeClass}"
+                              th:text="${member.outcome.displayName}">할당됨</span>
+                    </td>
+                    <td>
+                        <span th:if="${member.reason != null}" class="n-muted"
+                              style="font-size: 12px;" th:text="${member.reason}">사유</span>
+                        <span th:unless="${member.reason != null}" class="n-muted">—</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <div class="n-label strong">정의서 내용</div>
+            <!--/* 카드 렌더는 정의서 상세 화면(U2) · 단건 모달(U3-5-b)과 같은 한 벌이다(DEC-A). */-->
+            <th:block th:replace="~{fragments/provisioning/setting-process-cards :: processCards(${item.detail})}"></th:block>
+        </div>
+    </div>
+</div>
+</body>
+</html>

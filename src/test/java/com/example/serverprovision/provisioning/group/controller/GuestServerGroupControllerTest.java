@@ -14,8 +14,12 @@ import com.example.serverprovision.provisioning.group.dto.response.SeedCandidate
 import com.example.serverprovision.provisioning.group.exception.GroupNameConflictException;
 import com.example.serverprovision.provisioning.group.exception.GuestServerGroupNotFoundException;
 import com.example.serverprovision.provisioning.group.exception.ServerAlreadyGroupedException;
+import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
+import com.example.serverprovision.provisioning.assignment.service.GroupAssignmentService;
+import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupCommandService;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,11 +30,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -56,7 +62,19 @@ class GuestServerGroupControllerTest {
 
     @MockitoBean GuestServerGroupQueryService queryService;
     @MockitoBean GuestServerGroupCommandService commandService;
+    // U3-5-c — 컨트롤러가 그룹과 할당을 잇게 되면서 늘어난 협력자(DEC-F). 일괄 할당 자체는
+    // GuestServerGroupControllerBatchAssignTest 가 덮으므로 여기서는 컨텍스트 적재용으로만 둔다.
+    @MockitoBean AssignmentQueryService assignmentQueryService;
+    @MockitoBean GroupAssignmentService groupAssignmentService;
+    @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @BeforeEach
+    void stubAssignedDefinitions() {
+        // 상세 렌더가 멤버 표의 '할당된 정의서' 열을 채우므로 빈 사상을 기본으로 둔다 —
+        // 기존 시나리오의 관심사는 그룹 CRUD 이지 할당이 아니다.
+        given(assignmentQueryService.activeDefinitionNamesOf(anyList())).willReturn(Map.of());
+    }
 
     private static GuestServerSummaryResponse row(UUID id, String name) {
         return new GuestServerSummaryResponse(
@@ -68,7 +86,8 @@ class GuestServerGroupControllerTest {
     private static GroupDetailResponse detail(List<GroupMemberResponse> members,
                                               boolean diverged,
                                               int candidateCount) {
-        return new GroupDetailResponse(7L, "8월 2차", LocalDateTime.now(), members, diverged, candidateCount);
+        return new GroupDetailResponse(7L, "8월 2차", LocalDateTime.now(), null,
+                members, diverged, candidateCount);
     }
 
     // ==== 성공 2xx / 3xx ==============================================
@@ -110,7 +129,8 @@ class GuestServerGroupControllerTest {
         given(queryService.findSeedCandidates(any())).willReturn(List.of(
                 new SeedCandidateResponse(row(free, "srv-01"), null, null),
                 new SeedCandidateResponse(row(taken, "srv-02"),
-                        new GroupBadgeResponse(1L, "8월 1차"), "이미 다른 그룹(8월 1차)에 속해 있습니다.")));
+                        new GroupBadgeResponse(1L, "8월 1차", null),
+                        "이미 다른 그룹(8월 1차)에 속해 있습니다.")));
 
         mvc.perform(get("/provisioning/server-group/new")
                         .param("serverIds", free.toString(), taken.toString())

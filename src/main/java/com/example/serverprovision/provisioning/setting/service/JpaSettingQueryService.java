@@ -24,6 +24,7 @@ import com.example.serverprovision.provisioning.setting.dto.request.OSSettingReq
 import com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.PartitionPresetResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.ReferenceNamesResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.ReferencedDefinitionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingBoardOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingBoardOptionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
@@ -157,6 +158,27 @@ public class JpaSettingQueryService implements SettingQueryService {
             return List.of();
         }
         return repository.findAllById(ids).stream().map(this::toDetail).toList();
+    }
+
+    /**
+     * 소프트참조 해석 (U3-5-d) — soft-deleted 까지 포함해 전건에서 찾는다.
+     *
+     * <p>{@code findByIdAndIsDeletedFalse} 를 쓰지 않는 이유는 <b>"삭제됐다" 와 "아예 없다" 를 구분해
+     * 알려야</b> 하기 때문이다. 둘 다 못 쓰는 것은 같지만 사용자가 할 일이 다르다 — 삭제된 것은 휴지통에서
+     * 복원할 수 있고, 사라진 것은 표준을 다시 정하는 수밖에 없다. 사유 문자열은 삭제라면 도메인
+     * {@code assignBlockReason()} 이, 부재라면 {@link ReferencedDefinitionResponse#gone} 이 만든다.</p>
+     *
+     * <p>요약을 {@code toAssignableSummary} 로 조립하는 것은 요구 메인보드가 필요해서다 — 이 참조를 받은
+     * 화면이 곧바로 "표준을 붙이면 어느 멤버에 붙는가" 를 판정하는데, 그 판정의 입력이 요구 보드다.</p>
+     */
+    @Override
+    public ReferencedDefinitionResponse resolveReference(Long definitionId) {
+        return repository.findById(definitionId)
+                .map(definition -> new ReferencedDefinitionResponse(
+                        definition.getId(),
+                        toAssignableSummary(definition),
+                        definition.assignBlockReason()))
+                .orElseGet(() -> ReferencedDefinitionResponse.gone(definitionId));
     }
 
     private SettingDetailResponse toDetail(SettingDefinition definition) {

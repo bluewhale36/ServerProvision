@@ -50,6 +50,25 @@ public class GuestServerGroup extends BaseTimeEntity {
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GuestServerGroupMember> members = new ArrayList<>();
 
+    /**
+     * 이 그룹의 표준 세팅 정의서 (U3-5-d) — 정하지 않았으면 null 이고, 그것이 그룹의 출발 상태다.
+     *
+     * <p><b>왜 소프트참조(FK 없는 id)인가.</b> 세팅 정의서는 soft-delete 되고 나중에 영구삭제될 수 있는데,
+     * FK 를 걸면 그 삭제가 이 컬럼 때문에 막히거나 cascade 로 조용히 지워진다. 둘 다 그룹 쪽에서 원하지
+     * 않는 일이다 — 표준이 가리키던 정의서가 사라지면 화면이 그 사실을 알리고 다시 정하게 하면 된다.
+     * {@code SettingAssignment} 의 {@code SourceDefinitionRef} 가 같은 이유로 소프트참조다.</p>
+     *
+     * <p><b>왜 이름을 함께 얼리지 않는가</b>(DEC-F). 스냅샷은 "정의서가 나중에 바뀌어도 이 서버가 밟을
+     * 것은 얼린 그 값" 이라 {@code (id, name)} 을 함께 얼리지만, 표준은 정반대로 정의서 개정을 따라가는
+     * 편이 자연스럽다. 그래서 id 만 두고 이름 · 상태는 읽는 시점에 해석한다. 값 객체로 감싸지 않은 것도
+     * 같은 이유다 — 감싸면 {@code SourceDefinitionRef} 와 성질이 다른데 모양이 닮아 헷갈린다.</p>
+     *
+     * <p><b>표준은 기억일 뿐 적용이 아니다</b>(DEC-C). 이 값이 바뀌어도 이미 할당된 서버는 그대로이며,
+     * 멤버가 새로 들어와도 자동으로 붙지 않는다. 붙이는 것은 사용자가 상세의 안내에서 누를 때다.</p>
+     */
+    @Column(name = "standard_definition_id")
+    private Long standardDefinitionId;
+
     private GuestServerGroup(String name) {
         this.name = name;
     }
@@ -99,5 +118,22 @@ public class GuestServerGroup extends BaseTimeEntity {
 
     public int memberCount() {
         return members.size();
+    }
+
+    /**
+     * 표준 지정 — 이미 표준이 있으면 갈아탄다. 바꾼다고 이미 붙은 할당을 되돌리지 않는다(소급 없음).
+     * 붙일 수 있는 정의서인지의 판정은 호출 전에 서비스가 한다({@code assignBlockReason()} SSOT).
+     */
+    public void assignStandard(Long definitionId) {
+        this.standardDefinitionId = definitionId;
+    }
+
+    /** 표준 해제 — 없는 상태에서 다시 해제해도 아무 일도 일어나지 않는다(멱등). */
+    public void clearStandard() {
+        this.standardDefinitionId = null;
+    }
+
+    public boolean hasStandard() {
+        return standardDefinitionId != null;
     }
 }

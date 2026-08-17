@@ -17,6 +17,15 @@ public record GroupDetailResponse(
         Long id,
         String name,
         LocalDateTime createdAt,
+        /**
+         * 이 그룹의 표준 세팅 정의서 id — 정하지 않았으면 null (U3-5-d).
+         *
+         * <p>id 만 싣고 이름 · 상태를 담지 않는 이유는 해석이 {@code setting} 의 일이기 때문이다.
+         * 그룹 조회 서비스가 정의서를 직접 읽으면 {@code group → setting} 참조가 조회 경로에 생긴다.
+         * 컨트롤러가 이 id 로 {@code SettingQueryService.resolveReference} 를 불러 화면 재료를 만든다
+         * (U3-5-c 가 그룹과 할당을 컨트롤러에서 이은 것과 같은 형태).</p>
+         */
+        Long standardDefinitionId,
         List<GroupMemberResponse> members,
         boolean specDiverged,
         int candidateCount

@@ -168,12 +168,15 @@ CP 칩: `.cp1`(blue) `.cp2`(green) `.cp3`(yellow) `.cp4`(orange) `.cp5`(red) `.c
 
 | class | 용도 |
 |---|---|
-| `.pkg-tree` | 디렉토리/패키지 트리(monospace, `white-space:pre`) |
+| `.pkg-tree` | monospace 고정폭 도식(`white-space:pre` + `overflow-x:auto`). 디렉토리/패키지 트리와 **객체 간 호출 · 데이터 이동 도식**에 함께 쓴다 — 둘 다 들여쓰기와 괘선으로 층을 표현하므로 같은 스타일이면 충분하고, 도식용 class 를 따로 두면 같은 것에 이름이 둘이 된다 |
 | `.diff-add` / `.diff-del` | 인라인 추가(green)/제거(red) 강조 |
 | `.check-list` | 체크박스 목록(§11 마일스톤). `data-storage` 로 localStorage 동기화, 항목에 `data-key` |
 | `.done` | 체크된 항목(취소선). JS 가 토글 |
 | `.tip` | `data-tip` hover tooltip(시뮬레이터 외에도 사용 가능) |
 | `.v2-badge` | 제목 옆 슬라이스 태그 배지 |
+| `.shot` | **CP5 채증 스크린샷**(report 전용). `<figure class="shot">` + `<img>` + `<figcaption>` 한 벌. caption 은 **항목 식별자를 굵게 앞세우고**(`<b>A5</b> — …`) 무엇을 찍은 것인지 한 문장으로 잇는다. 기준 구현 `report/26-08-07_15-45-05_S10_report.html` 이 쓰던 것을 U3-5-d CP6 에서 정본으로 승격했다 |
+
+`.shot` 의 이미지는 **반드시 base64 data URI 로 인라인**한다(외부 참조 0 이 불가침). `<img style="max-width:100%; height:auto;">` 로 반응형을 지키고 `alt` 에 식별자와 요지를 적는다. 한 항목이 여러 컷을 가질 수 있으나 **같은 화면을 두 번 담지 않는다** — 중복은 증거를 늘리지 않으면서 파일만 키운다(U3-5-d 에서 실제로 한 장을 걷어냈다). 반대로 **평가 성격의 항목**(다른 항목의 컷을 다시 읽는 것)은 전용 컷을 두지 않아도 되며, 그 사유를 '미수행 항목과 사유' 절에 적는다.
 
 표(`<table>`), 코드(`<code>`/`<pre>`), 콜아웃, 리스트는 일반 마크업을 쓰되 위 색 토큰과 반응형(3장)을 따른다.
 

@@ -52,4 +52,43 @@ class GuestServerGroupTest {
         assertThat(GuestServerGroup.addBlockReason(null, groupNamed(1L, "8월 2차"))).isNotNull();
         assertThat(GuestServerGroup.addBlockReason(null, null)).isNull();
     }
+
+    /* ═══════════ 표준 세팅 정의서 (U3-5-d) ═══════════ */
+
+    @Test
+    @DisplayName("만든 직후에는 표준이 없다 — 정하지 않은 것은 결함이 아니라 출발 상태다")
+    void newGroupHasNoStandard() {
+        GuestServerGroup group = GuestServerGroup.create("8월 2차");
+
+        assertThat(group.hasStandard()).isFalse();
+        assertThat(group.getStandardDefinitionId()).isNull();
+    }
+
+    @Test
+    @DisplayName("표준 변경은 이전 표준을 묻지 않는다 — 덮어쓸 뿐 되돌릴 것이 없다")
+    void assigningStandardOverwritesPreviousOne() {
+        GuestServerGroup group = GuestServerGroup.create("8월 2차");
+
+        group.assignStandard(11L);
+        assertThat(group.getStandardDefinitionId()).isEqualTo(11L);
+
+        // 바꾸는 것과 처음 정하는 것이 같은 경로다 — 이미 붙은 할당은 이 필드와 무관하므로
+        // '이전 표준으로 붙은 서버' 를 챙길 이유가 없다(소급하지 않는다).
+        group.assignStandard(22L);
+        assertThat(group.getStandardDefinitionId()).isEqualTo(22L);
+        assertThat(group.hasStandard()).isTrue();
+    }
+
+    @Test
+    @DisplayName("해제는 멱등이다 — 없는 것을 다시 해제해도 오류가 아니다")
+    void clearingStandardIsIdempotent() {
+        GuestServerGroup group = GuestServerGroup.create("8월 2차");
+        group.assignStandard(11L);
+
+        group.clearStandard();
+        assertThat(group.hasStandard()).isFalse();
+
+        group.clearStandard();   // 두 번 눌렀다고 오류를 낼 이유가 없다(멤버 제외와 같은 결)
+        assertThat(group.getStandardDefinitionId()).isNull();
+    }
 }

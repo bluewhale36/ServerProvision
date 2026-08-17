@@ -23,7 +23,15 @@
     <th:block th:replace="~{fragments/layout :: commonHead('서버 그룹 상세')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
     <link rel="stylesheet" th:href="@{/css/grouped-list.css}">
-    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+    <!--/* confirm-modal.css 는 싣지 않는다 — commonHead 가 이미 싣는다(전역 오류 modal 용).
+           한 번 더 걸면 .cm-card{max-width:480px} 가 server.css 의 .cm-card-wide 보다 뒤로 갈 수 있고,
+           그러면 모달이 480px 로 접힌다(U3-5-b CP5 실측). 지금 순서에서는 무해했으나 아래에 시트를
+           더하면서 순서 의존이 늘어나므로 중복 자체를 없앤다. */-->
+    <!--/* U3-5-c — 일괄 할당 모달의 2 열 miller 와 그 우측이 그리는 정의서 단계 카드.
+           빌려온 시트를 server.css 앞에 두는 이유는 U3-5-b 와 같다 — 이 화면의 주인은 server.css 이고,
+           빌려온 것이 주인을 덮으면 주인 쪽 수정이 조용히 먹지 않는다. */-->
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
+    <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
     <link rel="stylesheet" th:href="@{/provisioning/server.css}">
 </head>
 <body>
@@ -42,12 +50,24 @@
         <div th:replace="~{fragments/common/back-link :: backLink('/provisioning/server-group')}"></div>
     </div>
 
+    <!--/* U3-5-c — 일괄 할당 결과(PRG flash). 몇 대에 붙었고 몇 대를 왜 건너뛰었는지 한 줄로 알린다.
+           이 문구가 뜨려면 제출이 네이티브여야 한다(DEC-E) — 전역 폼 가로채기가 fetch 로 리다이렉트를
+           따라가면 flash 가 그 안에서 소비되어 화면에 도달하지 못한다(CP1 실측). */-->
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" style="margin-bottom: 14px;"
+         th:text="${flashMessage}">세팅 정의서를 3 대에 할당했습니다.</div>
+
     <!-- ── 구성 혼재 알림 — 차단이 아니라 안내(DEC-I) ── -->
     <div th:if="${group.specDiverged}" class="n-alert n-alert-warning" role="alert">
         이 그룹에 <b>구성이 다른 서버</b>가 섞여 있습니다. 의도한 것이라면 그대로 두셔도 됩니다 —
         그룹은 하드웨어 구성이 아니라 운영자의 묶음이라 막지 않습니다.
         의도치 않았다면 아래 <b>멤버 표에서 노란색으로 표시된 행</b>이 다수와 다른 구성입니다.
     </div>
+
+    <!--/* ── 이름 · 삭제 / 표준 정의서 — 나란히 (개정) ──
+           둘 다 "이 그룹이 무엇인가" 를 정하는 속성이라 같은 층에 놓는다. 세로로 쌓으면 멤버 표까지
+           스크롤이 한 화면 더 늘고, 표준을 확인하려면 이름 카드를 지나쳐야 했다.
+           할 일을 알리는 배너와 경고는 이 줄 아래 전폭으로 둔다 — 조작이 아니라 안내이기 때문이다. */-->
+    <div class="n-group-top">
 
     <!-- ── 이름 · 삭제 ── -->
     <div class="n-card">
@@ -74,6 +94,137 @@
         </div>
     </div>
 
+    <!--/* ── 표준 정의서 (U3-5-d) ──
+           그룹이 "이 묶음은 이 정의서로 간다" 를 기억하는 자리다. 기억할 뿐 자동으로 붙이지는 않는다
+           (DEC-C) — 멤버 추가는 가벼운 조작인데 자동 적용은 거기에 되돌리기 어려운 부수효과를 붙인다.
+           대신 아직 적용받지 않은 멤버가 있으면 아래 배너가 그 수를 알리고 한 번에 붙일 수 있게 한다.
+
+           이 절이 따로 있는 이유(DEC-B) : 표준을 정하는 일은 일괄 할당 모달만으로는 닿지 않는다.
+           그 모달은 멤버가 없으면 열리지 않는데(U3-5-c OQ-3), 이 기능의 핵심 유스케이스가 바로
+           "그룹을 미리 만들어 두고 정책부터 정하기" 라서 빈 그룹에서 표준을 정할 길이 필요하다. */-->
+    <section class="n-card">
+        <div class="n-card-body">
+            <div class="n-group-toolbar">
+                <div class="n-standard-main">
+                    <div class="n-label strong">표준 세팅 정의서</div>
+
+                    <p th:unless="${standard.present}" class="n-section-hint">
+                        아직 정하지 않았습니다. 정해 두면 이 그룹에 서버가 들어올 때마다
+                        정의서를 다시 찾지 않고 한 번에 적용할 수 있습니다.
+                    </p>
+
+                    <!--/* 이름은 <b>꾸미지 않은 텍스트 링크</b>다(개정 2회차).
+                           테두리 · 배경을 준 인라인 요소는 바로 옆의 [표준 바꾸기] · [해제] 와 시각적으로
+                           구분되지 않아 버튼으로 읽혔다. 링크로 두면 서버 상세의 그룹 안내가 그룹명을
+                           링크로 두는 것과 같은 어휘가 된다 — "이름은 누르면 그 자원으로 간다".
+
+                           사라진 정의서는 링크하지 않는다 : 소프트참조라 부재가 정상 상태인데(DEC-F)
+                           링크를 걸면 404 로 보낸다. 비활성 · 삭제는 링크한다 — 붙일 수는 없어도
+                           상세는 열리고, 거기서 활성화 · 복원을 하게 된다. */-->
+                    <div th:if="${standard.present}" class="n-standard-line">
+                        <a th:if="${standard.resolved}" th:title="${standard.name}"
+                           th:href="@{/provisioning/setting/{sid}(sid=${standard.definitionId})}"
+                           th:text="${standard.name}">web-standard</a>
+                        <span th:unless="${standard.resolved}" th:text="${standard.name}"
+                              class="n-muted">(사라진 정의서 #9)</span>
+                        <!--/* 사용 중단은 차단이 아니라 권고다 — 표준으로 두는 것 자체는 막지 않는다. */-->
+                        <span th:if="${standard.deprecated}" class="n-badge n-badge-yellow">사용 중단</span>
+                        <span th:unless="${standard.usable}" class="n-badge n-badge-red">사용 불가</span>
+                    </div>
+
+                    <!--/* 이름 옆에 '이 정의서가 무엇을 하는가' 를 단계 순서로 늘어놓는다(개정).
+                           운영자가 지은 이름이라 규칙이 없어 이름만으로는 알 수 없었고, 확인하려면
+                           정의서 상세로 나가야 했다. 단계 도출은 할당이 쓰는 것과 같은 매핑이라
+                           여기 표시와 실제로 밟는 계획이 어긋날 수 없다. */-->
+                    <div th:if="${standard.present and !#lists.isEmpty(standard.phases)}"
+                         class="n-phase-chips">
+                        <span th:each="p, it : ${standard.phases}" class="n-phase-chip">
+                            <span class="n-phase-chip-no" th:text="${it.index + 1}">1</span><span
+                                  th:text="${p.description}">진단 리눅스</span>
+                        </span>
+                    </div>
+                </div>
+
+                <span class="n-standard-actions">
+                    <!--/* 멤버가 0 이어도 낸다 — 이 버튼이 DEC-B 의 요지다. 같은 모달을 '표준 지정' 모드로 연다. */-->
+                    <button type="button" class="n-btn n-btn-secondary n-btn-sm" id="openGroupStandardPicker"
+                            data-picker-mode="standard"
+                            th:data-fetch-url="@{/provisioning/server-group/{id}/assignment/picker(id=${group.id})}"
+                            th:text="${standard.present} ? '표준 바꾸기' : '표준 정하기'">표준 정하기</button>
+
+                    <form th:if="${standard.present}" method="post" class="n-inline-form"
+                          th:action="@{/provisioning/server-group/{id}/standard-definition/clear(id=${group.id})}"
+                          data-native-submit="해제 결과를 flash 로 알린다 — 가로채기가 fetch 로 리다이렉트를 따라가면 그 안에서 flash 가 소비되어 화면에 도달하지 못한다(U3-5-c CP1 실측)">
+                        <button type="submit" class="n-btn n-btn-sm n-btn-ghost">해제</button>
+                    </form>
+                </span>
+            </div>
+        </div>
+    </section>
+
+    </div><!--/* /.n-group-top */-->
+
+    <!--/* 아래 셋은 조작이 아니라 안내라서 카드 밖 전폭에 둔다 — 오른쪽 카드 안에 가두면 폭이
+           절반이라 문장이 접히고, 화면에서 "할 일" 이 눈에 덜 띈다. */-->
+            <!--/* 표준이 남아 있는데 지금은 붙일 수 없는 상태 — 비활성 · 삭제 · 아예 사라짐.
+                   사유 문자열은 표준 지정을 거절하는 서버 가드와 같은 것이라 두 곳이 어긋날 수 없다. */-->
+            <!--/* 사유를 제 줄에 놓는 이유(CP5 F2) : 사유 문자열은 도메인이 만든 것이라 마침표로 끝나지
+                   않는다("…(활성화 후 재시도)"). 뒤 문장을 같은 줄에 이으면 두 문장이 붙어 읽힌다.
+                   서버 상세의 하드웨어 불일치 경고가 쓰는 것과 같은 세 줄 형태로 맞춘다. */-->
+            <div th:if="${standard.present and !standard.usable}" class="n-alert n-alert-warning" role="alert"
+                 style="margin-top: 12px;">
+                <b>이 표준은 지금 쓸 수 없습니다.</b>
+                <div style="margin-top: 6px;" th:text="${standard.blockReason}">
+                    비활성화된 정의서는 신규 할당이 차단됩니다(활성화 후 재시도)</div>
+                <div class="n-section-hint" style="margin-top: 6px;">
+                    다른 정의서로 바꾸거나 해제해 주세요. 이미 할당된 서버는 그대로입니다.
+                </div>
+            </div>
+
+            <!--/* ── 안내 배너 — flash 가 아니라 '상태' 다(DEC-C).
+                   조건(표준이 있고 · 아직 붙지 않은 멤버가 한 대 이상)이 참이면 화면을 다시 열어도 보인다.
+                   flash 로 하면 한 번 놓친 사용자는 다시 볼 방법이 없는데, 이 안내는 서버가 들어올 때마다
+                   되살아나야 한다. 붙는 수를 문구에 싣는 것이 요약 미리보기 역할을 한다 — "2 대에 붙습니다"
+                   를 읽고 누르므로 U3-5-c 의 '부분 적용을 미리 알고 승인' 계약이 원클릭에서도 유지된다. */-->
+            <div th:if="${standard.usable and standardBanner.visible}" class="n-alert n-alert-info"
+                 role="alert" style="margin-top: 12px;">
+                <!--/* 문구가 세는 집합을 정확히 말한다(개정) : 이 수는 "표준을 아직 적용받지 않은
+                       서버" 가 아니라 <b>"지금 붙일 수 있는 서버"</b> 다. 다른 정의서가 붙어 있는 서버는
+                       표준을 따르지 않는데도 갈아엎지 않는다는 규칙 때문에 빠지고, 회수된 서버도 빠진다.
+                       붙는 수만 말하면 읽는 사람이 "나머지는 표준을 따르고 있다" 로 오해하므로,
+                       빠지는 수와 사유별 내역을 함께 싣는다. 어휘는 모달의 미리보기 요약과 같다. */-->
+                <div class="n-standard-banner">
+                    <span>
+                        멤버 <b th:text="${standardBanner.memberCount}">6</b>대 중
+                        <b th:text="${standardBanner.targetCount}">2</b>대에 표준 정의서
+                        <b th:text="${standardBanner.definitionName}">web-standard</b> 를 지금 붙일 수 있습니다.
+                        <span th:if="${standardBanner.skippedCount > 0}">
+                            나머지 <b th:text="${standardBanner.skippedCount}">4</b>대는 대상이 아닙니다(<span
+                                th:text="${standardBanner.skipBreakdown}">이미 있음 2 · 막힘 2</span>) —
+                            이미 정의서가 있는 서버는 갈아엎지 않습니다.
+                        </span>
+                    </span>
+                    <form method="post"
+                          th:action="@{/provisioning/server-group/{id}/assignment(id=${group.id})}"
+                          data-native-submit="적용 결과를 flash 로 알린다 — 가로채기가 fetch 로 리다이렉트를 따라가면 그 안에서 flash 가 소비되어 화면에 도달하지 못한다(U3-5-c CP1 실측)">
+                        <input type="hidden" name="definitionId" th:value="${standardBanner.definitionId}">
+                        <button type="submit" class="n-btn n-btn-primary n-btn-sm">표준 적용</button>
+                    </form>
+                </div>
+            </div>
+
+            <!--/* 할 일이 없을 때는 배너를 내지 않는다(OQ-2). 다만 왜 없는지는 알려준다 —
+                   빈 그룹과 '이미 다 붙은 그룹' 은 사용자가 할 일이 다르다. */-->
+            <p th:if="${standard.usable and group.members.isEmpty()}" class="n-section-hint"
+               style="margin-top: 12px;">
+                아직 이 그룹에 서버가 없습니다. 서버를 넣으면 여기에서 한 번에 적용할 수 있습니다.
+            </p>
+            <p th:if="${standard.usable and !group.members.isEmpty() and !standardBanner.visible}"
+               class="n-section-hint" style="margin-top: 12px;">
+                지금 표준을 적용할 서버가 없습니다 — 멤버 모두가 이미 정의서를 가지고 있거나 조건이 맞지
+                않습니다. 어느 쪽인지는 아래 멤버 표에서 확인할 수 있습니다.
+            </p>
+
     <!-- ── 멤버 — 서버 목록의 묶음과 같은 양식 ── -->
     <section class="n-card n-glist">
         <div class="n-glist-head">
@@ -84,6 +235,14 @@
                     th:data-fetch-url="@{/provisioning/server-group/{id}/candidates(id=${group.id})}">
                 서버 넣기<span th:if="${group.candidateCount > 0}"
                              th:text="' (' + ${group.candidateCount} + '대 가능)'"> (4대 가능)</span>
+            </button>
+            <!--/* U3-5-c — 멤버가 없으면 내지 않는다(OQ-3). 조작할 것이 없는 화면을 열어 주지 않는 것은
+                   회수된 서버의 할당 폼을 닫은 U3-5-b DEC-D 와 같은 결이다. */-->
+            <button th:unless="${group.members.isEmpty()}"
+                    type="button" class="n-btn n-btn-secondary n-btn-sm" id="openGroupDefinitionPicker"
+                    data-picker-mode="assign"
+                    th:data-fetch-url="@{/provisioning/server-group/{id}/assignment/picker(id=${group.id})}">
+                정의서 골라 할당
             </button>
         </div>
 
@@ -100,6 +259,7 @@
                     <th>SMBIOS UUID</th>
                     <th>보드 모델</th>
                     <th>구성</th>
+                    <th>할당된 정의서</th>
                     <th>현재 단계</th>
                     <th>운영 상태</th>
                     <th class="n-th-center">제외</th>
@@ -124,6 +284,13 @@
                               th:classappend="${m.minoritySpec} ? ' n-badge n-badge-yellow' : ' n-spec-cell'"
                               th:text="${m.specLabel}">MS03-CE0 · 6338 ×2</span>
                         <span th:unless="${m.specLabel != null}" class="n-muted">수집 전</span>
+                    </td>
+                    <!--/* U3-5-c — 일괄 할당 결과를 이 열에서 확인한다. flash 문구가 "N 대에 할당했다" 고
+                           알려도 어느 N 대인지는 표에서 봐야 한다(OQ-1). */-->
+                    <td>
+                        <span th:if="${assignedDefinitions.containsKey(m.server.id)}"
+                              th:text="${assignedDefinitions.get(m.server.id)}">web-standard</span>
+                        <span th:unless="${assignedDefinitions.containsKey(m.server.id)}" class="n-muted">—</span>
                     </td>
                     <td>
                         <span th:if="${m.server.currentPhase != null}" class="n-badge n-badge-blue"
@@ -178,11 +345,67 @@
     </div>
 </div>
 
+<!--/* ── 정의서 고르기 모달 — 일괄 할당 · 표준 지정 두 모드 (U3-5-c → U3-5-d) ──
+       내용(좌측 목록 + 우측 미리보기 · 상세)은 처음 열 때 조각 엔드포인트에서 받는다 — 정의서 × 멤버
+       조합 판정을 상세 진입마다 치르지 않는다(서버 넣기 모달과 같은 판단).
+
+       한 모달을 두 모드가 나눠 쓰는 이유(DEC-B) : 고르는 일은 같고 고른 뒤에 하는 일만 다르다.
+       할당/재할당이 한 모달을 공유한 U3-5-b DEC-E 와 같은 형태로, 제목 · 제출 대상 · 버튼 문구만
+       JS 가 바꾼다. th:action 은 일괄 할당으로 두고 표준 지정 모드일 때 JS 가 갈아 끼운다.
+
+       U3-5-d 부터 멤버가 없는 그룹에서도 렌더한다 — 표준 지정은 빈 그룹에서 하는 일이기 때문이다.
+       일괄 할당 버튼만 종전대로 멤버 0 이면 숨는다(그쪽은 여전히 조작할 것이 없다).
+
+       제출이 네이티브인 이유(DEC-E) : 결과를 flash 로 알려야 하는데, 전역 폼 가로채기가 fetch 로
+       리다이렉트를 따라가면 flash 가 그 안에서 소비되어 화면에 도달하지 못한다(CP1 실측). 대가는 거절
+       시 오류 모달 대신 HTML 오류 페이지로 이동하는 것인데, 이 폼의 거절 사유는 그룹 · 정의서 부재나
+       비활성뿐이고 그것들은 화면이 이미 1차 차단하므로 direct POST · 경합에서만 나온다. */-->
+<div id="groupDefinitionPicker" class="cm-overlay" hidden>
+    <div class="cm-backdrop" data-picker-close></div>
+    <div class="n-card cm-card cm-card-wide" role="dialog" aria-modal="true"
+         aria-labelledby="groupDefinitionPickerTitle">
+        <div class="n-card-body">
+            <h2 id="groupDefinitionPickerTitle" class="cm-title">정의서 골라 할당</h2>
+            <p class="cm-message" id="groupDefinitionPickerMessage">
+                정의서를 고르면 이 그룹의 <b th:text="${group.members.size()}">4</b>대에 각각 어떻게 적용되는지
+                먼저 보여 드립니다. 이미 정의서가 있는 서버는 갈아엎지 않고 건너뜁니다.
+            </p>
+            <form method="post" id="groupDefinitionPickerForm"
+                  data-native-submit="결과를 flash 로 알려야 한다 — 가로채기가 fetch 로 리다이렉트를 따라가면 그 안에서 flash 가 소비되어 화면에 도달하지 못한다(U3-5-c CP1 실측)"
+                  th:action="@{/provisioning/server-group/{id}/assignment(id=${group.id})}"
+                  th:data-assign-action="@{/provisioning/server-group/{id}/assignment(id=${group.id})}"
+                  th:data-standard-action="@{/provisioning/server-group/{id}/standard-definition(id=${group.id})}">
+                <input type="hidden" name="definitionId" id="groupDefinitionPickerChoice">
+                <div class="n-picker-body n-picker-body-miller" id="groupDefinitionPickerBody">
+                    <p class="n-detail-empty">불러오는 중…</p>
+                </div>
+                <div class="n-picker-footer">
+                    <span class="n-picker-count" id="groupDefinitionPickerStatus">왼쪽에서 정의서를 고르세요</span>
+                    <span class="n-picker-actions">
+                        <!--/* 고르는 김에 표준으로도 두기(OQ-3) — 같은 정의서를 다시 찾아 지정하는 왕복을
+                               없앤다. 표준 지정 모드에서는 이미 그것이 목적이므로 JS 가 감춘다. */-->
+                        <label class="n-picker-standard-opt" id="groupDefinitionPickerStandardOpt">
+                            <input type="checkbox" name="alsoSetStandard" value="true"
+                                   id="groupDefinitionPickerAlsoStandard">
+                            이 정의서를 이 그룹의 표준으로 두기
+                        </label>
+                        <button type="button" class="n-btn n-btn-secondary" data-picker-close>취소</button>
+                        <button type="submit" class="n-btn n-btn-primary" id="groupDefinitionPickerSubmit" disabled>
+                            선택한 정의서 할당</button>
+                    </span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!--/* 확인 모달은 조각이 prefix 로 매개변수화돼 있어 새 조각 없이 그대로 재사용한다.
        id 접두사만 바꾸면 {prefix}Modal / Title / Message / ConfirmBtn / CancelBtn 이 생긴다. */-->
 <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmGroupDelete')}"></div>
 
 <script th:src="@{/management/common/confirm-modal-base.js}"></script>
 <script th:src="@{/provisioning/server-group-detail.js}"></script>
+<!-- U3-5-c — 정의서 일괄 할당 모달의 열기 · 고르기 (제출은 네이티브라 스크립트가 관여하지 않는다) -->
+<script th:src="@{/provisioning/group-definition-picker.js}"></script>
 </body>
 </html>

@@ -309,10 +309,13 @@
     max-height: 560px;
 }
 
-/* 바깥에 스크롤을 두지 않는다 — 각 컬럼이 이미 자체 스크롤을 갖고 있어 겹치면 두 겹이 된다. */
+/* 바깥에 스크롤을 두지 않는다 — 각 컬럼이 이미 자체 스크롤을 갖고 있어 겹치면 두 겹이 된다.
+   min-height 는 내용을 받기 전에도 카드가 제 크기를 갖게 한다 — 없으면 "불러오는 중" 한 줄만큼
+   작았다가 커지는데, 그 사이 목록이 뜰 자리를 누르면 backdrop 에 닿아 모달이 닫힌다(CP5 실측). */
 .n-picker-body-miller {
     max-height: none;
     overflow: visible;
+    min-height: 56vh;
 }
 
 /* 정의서 이름은 버전 문자열보다 길다(운영자가 짓는 이름이라 서술적이다). 220px 에서는 대부분
@@ -371,4 +374,153 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: middle;
+}
+
+/* ---- 표준 정의서 절 · 안내 배너 (U3-5-d) ----
+   그룹이 "이 묶음은 이 정의서로 간다" 를 기억하는 자리다. 표준 자체는 상태이지 조작이 아니므로
+   카드 하나에 이름 · 상태 · 액션을 한 줄로 놓고, 할 일이 생겼을 때만 그 아래에 배너가 붙는다. */
+
+.n-standard-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.n-standard-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 폼 묶음의 기본 하단 여백을 없앤다 — 남기면 옆의 버튼과 바닥선이 어긋난다(.n-inline-form 과 같은 이유). */
+.n-standard-actions > form {
+    margin-bottom: 0;
+}
+
+/* 배너는 문장과 버튼이 한 줄에 서되 좁아지면 버튼이 아래로 떨어진다. 버튼을 줄이지 않는 것은,
+   문장이 길어져 버튼을 밀어내면 '무엇을 누르는지' 가 화면 밖으로 나가기 때문이다. */
+.n-standard-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.n-standard-banner > form {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+/* ---- 정의서 고르기 모달의 하단 액션 (U3-5-d) ---- */
+
+.n-picker-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* '고르는 김에 표준으로도 두기' — 버튼이 아니라 부가 선택이므로 보조 텍스트 크기로 물러선다. */
+.n-picker-standard-opt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--n-text-muted);
+    cursor: pointer;
+}
+
+/* 붙을 대상이 0 대면 확정이 열리지 않으므로 이 부가 선택도 성립하지 않는다(CP5 F1) — 켜지기만 하고
+   보낼 수단이 없는 컨트롤을 남기지 않는다. 잠긴 이유는 title 로 붙어 사용자가 다음 행동을 안다.
+   변형이 기본 class 와 겹쳐 쓰는 것은 이 파일의 다른 변형들과 같은 이유(적재 순서 무관화)다. */
+.n-picker-standard-opt.n-picker-standard-opt-blocked {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* 표준 지정 모드에서는 '0 대' 로 흐려진 모양을 되돌린다 — 지금 붙는 서버가 없다는 것이 표준으로
+   둘 수 없다는 뜻은 아니기 때문이다(빈 그룹에 정책부터 정하는 것이 이 기능의 출발점이다).
+   판정 자체는 서버가 그대로 내려주고, 보이는 방식만 모드가 바꾼다.
+   기본 class 와 겹쳐 쓰는 것은 위 변형들과 같은 이유다 — miller.css 의 적재 순서를 따지지 않게 한다. */
+.n-picker-standard-mode .n-miller-item.n-miller-item-disabled {
+    color: var(--n-text);
+}
+
+/* ---- 그룹 상세 상단 두 카드 나란히 (U3-5-d 개정) ----
+   이름과 표준은 둘 다 "이 그룹이 무엇인가" 를 정하는 속성이라 같은 층에 놓는다. 세로로 쌓으면
+   멤버 표까지 스크롤이 한 화면 더 늘고, 표준을 확인하려면 이름 카드를 지나쳐야 했다.
+   높이는 stretch 로 맞춘다 — 표준 쪽이 단계 배지 때문에 더 길어지는 것이 보통인데, 짧은 쪽이
+   위로 붙으면 두 카드가 서로 다른 요소처럼 보인다. */
+.n-group-top {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
+}
+
+.n-group-top > * {
+    flex: 1 1 0;
+    min-width: 0;          /* 안쪽 긴 이름이 카드를 밀어내지 않게 한다 */
+    margin-bottom: 0;
+}
+
+.n-standard-main {
+    min-width: 0;
+}
+
+/* 표준 정의서 이름에는 전용 스타일을 두지 않는다(개정 2회차) — 테두리 · 배경을 준 인라인 요소는
+   옆의 [표준 바꾸기] · [해제] 와 구분되지 않아 버튼으로 읽혔다. 꾸미지 않은 텍스트 링크가 답이고,
+   그러면 서버 상세가 그룹명을 링크로 두는 것과 같은 어휘가 된다. 여기서만 쓰이던 .n-standard-field
+   는 그래서 함께 지웠다 — 쓰는 곳이 없어진 class 를 남기면 다음 사람이 살아 있는 규약으로 읽는다. */
+
+/* ---- 표준이 밟는 프로비저닝 단계 (U3-5-d 개정) ----
+   이름만으로는 그 정의서가 무엇을 하는지 알 수 없다 — 운영자가 지은 이름이라 규칙이 없다.
+   순서를 앞에 붙여 '무엇을 어떤 차례로' 를 한 줄에서 읽게 한다. 좁아지면 줄바꿈한다. */
+.n-phase-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.n-phase-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px 3px 4px;
+    border: 1px solid var(--n-blue-badge-bg);
+    border-radius: 999px;
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+/* 순서를 원 안에 넣어 단계 이름과 층을 나눈다 — 숫자가 이름과 같은 줄에 섞이면 어디까지가
+   순서이고 어디부터가 이름인지 눈이 한 번 더 판단해야 한다. */
+.n-phase-chip-no {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: var(--n-blue-badge-text);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+@media (max-width: 900px) {
+    /* 두 카드를 나란히 두기엔 좁다 — 표준 쪽 단계 배지가 한 칸에 하나씩 떨어진다 */
+    .n-group-top { flex-direction: column; }
+
+    /* flex-basis 는 <b>주축</b>에 걸린다. 가로일 때 0 은 "폭을 균등 분할" 이지만, 세로로 뒤집는 순간
+       0 은 <b>높이</b>가 된다 — 컨테이너 높이가 auto 라 늘릴 여분이 없어 flex-grow 가 아무것도 하지
+       못하고 카드가 높이 0(테두리 2px)으로 주저앉는다. .n-card 의 overflow:hidden 이 내용을 잘라내
+       화면에서 통째로 사라진다(개정 재검증 V1-b 실측 — 946px 234px / 897px 2px).
+       세로에서는 내용 높이를 그대로 쓰게 되돌린다. */
+    .n-group-top > * { flex: 0 0 auto; }
 }

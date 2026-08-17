@@ -10,6 +10,10 @@ import com.example.serverprovision.provisioning.group.exception.GuestServerGroup
 import com.example.serverprovision.provisioning.group.exception.ServerAlreadyGroupedException;
 import com.example.serverprovision.provisioning.group.repository.GuestServerGroupMemberRepository;
 import com.example.serverprovision.provisioning.group.repository.GuestServerGroupRepository;
+import com.example.serverprovision.provisioning.setting.dto.response.ReferencedDefinitionResponse;
+import com.example.serverprovision.provisioning.setting.exception.DefinitionNotAssignableException;
+import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
+import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +39,13 @@ public class GuestServerGroupCommandService {
     private final GuestServerGroupRepository groupRepository;
     private final GuestServerGroupMemberRepository memberRepository;
     private final GuestServerRepository guestServerRepository;
+    /**
+     * 표준 정의서 지정 가드의 입력 (U3-5-d). {@code group → setting} 단방향이며 순환이 없다 —
+     * {@code setting} 은 {@code group} 을 참조하지 않는다(실측). {@code assignment} 를 컨트롤러로
+     * 우회한 것과 사정이 다른 이유가 이것이다 — 그쪽은 {@code setting → assignment} 가 이미 있어
+     * 서로 참조하면 양방향이 된다.
+     */
+    private final SettingQueryService settingQueryService;
 
     /**
      * 그룹 생성 — 씨앗과 빈 그룹이 같은 경로다(DEC-J).
@@ -87,6 +98,59 @@ public class GuestServerGroupCommandService {
     @Transactional
     public void delete(Long groupId) {
         groupRepository.delete(load(groupId));
+    }
+
+    /**
+     * 표준 세팅 정의서 지정 (U3-5-d) — <b>기억할 뿐 아무 서버에도 붙이지 않는다.</b>
+     *
+     * <p>이미 정의서가 붙어 있는 멤버를 갈아엎지 않는 것은 물론이고, 아직 없는 멤버에도 붙이지 않는다.
+     * 붙이는 것은 사용자가 배너의 [표준 적용] 을 누를 때 일어난다(DEC-C). 멤버가 하나도 없는 그룹에서도
+     * 성립하며, 오히려 그것이 이 기능의 출발점이다 — 그룹을 미리 만들어 두고 정책부터 정한다(R3).</p>
+     *
+     * @return 지정한 정의서 이름 — 호출자가 flash 문구에 싣는다
+     */
+    @Transactional
+    public String setStandardDefinition(Long groupId, Long definitionId) {
+        GuestServerGroup group = load(groupId);
+        String name = assertStandardCandidate(definitionId);
+        group.assignStandard(definitionId);
+        return name;
+    }
+
+    /**
+     * 표준 해제 — 이미 할당된 서버는 건드리지 않는다. 표준은 <b>앞으로의 정책</b>이지 이미 일어난 할당의
+     * 근거가 아니다(스냅샷은 소프트참조라 표준이 사라져도 그대로 산다).
+     *
+     * <p>표준이 없는 그룹에 다시 해제해도 아무 일도 일어나지 않는다(멱등) — 두 번 눌렀다고 오류를 낼
+     * 이유가 없다(멤버 제외와 같은 결).</p>
+     */
+    @Transactional
+    public void clearStandardDefinition(Long groupId) {
+        load(groupId).clearStandard();
+    }
+
+    /**
+     * 표준으로 둘 수 있는 정의서인가 — <b>붙일 수 없는 것을 표준으로 두면 배너가 영원히 잠긴 채 남는다.</b>
+     *
+     * <p>판정은 할당 경로와 <b>같은 도메인 SSOT</b>({@code SettingDefinition.assignBlockReason()})를 쓴다.
+     * {@code SettingQueryService.resolveReference} 가 그 메서드를 불러 결과를 실어 오므로, 표준 지정을
+     * 거절하는 사유와 서버에 붙일 때 거절하는 사유가 같은 문자열이다.</p>
+     *
+     * <p>가드를 컨트롤러가 아니라 여기에 두는 것은 <b>컬럼을 쓰는 트랜잭션 안</b>이어야 하기 때문이다.
+     * 정상 흐름에서는 모달이 붙일 수 없는 정의서를 애초에 내지 않으므로, 이 거절은 direct POST 와
+     * 고르는 사이에 관리자가 비활성화한 경합에서만 나온다.</p>
+     *
+     * @return 확인된 정의서 이름
+     */
+    private String assertStandardCandidate(Long definitionId) {
+        ReferencedDefinitionResponse reference = settingQueryService.resolveReference(definitionId);
+        if (!reference.resolved()) {
+            throw new SettingNotFoundException(definitionId);
+        }
+        if (!reference.usable()) {
+            throw new DefinitionNotAssignableException(definitionId, reference.blockReason());
+        }
+        return reference.name();
     }
 
     // ─────────────────────────── 내부 ───────────────────────────

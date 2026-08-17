@@ -114,7 +114,8 @@ class GuestServerControllerListTest {
                         List.of(new GuestServerListResponse.SpecGroup(
                                 new SpecGroupKey("k"), "MS03-CE0", List.of(server)))))));
         given(groupQueryService.findBadges(any()))
-                .willReturn(java.util.Map.of(server.id(), new GroupBadgeResponse(3L, "8월 A동 1차(수정)")));
+                .willReturn(java.util.Map.of(server.id(),
+                        new GroupBadgeResponse(3L, "8월 A동 1차(수정)", null)));
 
         mvc.perform(get("/provisioning/server"))
                 .andExpect(status().isOk())

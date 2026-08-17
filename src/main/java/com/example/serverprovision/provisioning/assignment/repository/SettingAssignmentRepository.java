@@ -18,6 +18,15 @@ public interface SettingAssignmentRepository extends JpaRepository<SettingAssign
     boolean existsByGuestServer_IdAndSupersededAtIsNull(UUID guestServerId);
 
     /**
+     * 여러 서버의 활성 스냅샷을 한 번에 (U3-5-c) — 그룹 일괄 할당의 미리보기가 "이미 할당됨" 을 가릴 때 쓴다.
+     *
+     * <p>멤버마다 {@link #findByGuestServer_IdAndSupersededAtIsNull} 를 부르지 않는 이유는 그 편이 멤버
+     * 수만큼 질의를 내기 때문이다. 미리보기는 정의서 × 멤버 조합마다 판정하므로, 판정에 드는 재료는
+     * <b>조합에 들어가기 전에 한 번씩만</b> 읽어야 한다.</p>
+     */
+    List<SettingAssignment> findByGuestServer_IdInAndSupersededAtIsNull(List<UUID> guestServerIds);
+
+    /**
      * reaper 수거 대상(U3-2-a) — 재할당으로 논리 종료됐으나 <b>한 번도 개시 안 된</b> 순수 쓰레기 행 중 TTL 경과분.
      * {@code supersededAt IS NOT NULL AND consumedAt IS NULL AND supersededAt < threshold}. 소비 이력 행(감사
      * 가치)과 활성 행은 술어에서 제외된다.

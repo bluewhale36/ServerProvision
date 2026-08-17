@@ -183,6 +183,65 @@ class JpaSettingQueryServiceTest {
         assertThat(options).extracting(SettingSummaryResponse::deprecated).containsExactly(false, true);
     }
 
+    /* ═══════════ 소프트참조 해석 (U3-5-d) ═══════════ */
+
+    @Test
+    @DisplayName("resolveReference — 쓸 수 있는 정의서는 사유 없이 요약과 함께 온다")
+    void resolveReference_usableDefinition() {
+        given(repository.findById(1L)).willReturn(Optional.of(reversedDefinition()));
+
+        var reference = service.resolveReference(1L);
+
+        assertThat(reference.resolved()).isTrue();
+        assertThat(reference.usable()).isTrue();
+        assertThat(reference.blockReason()).isNull();
+        assertThat(reference.name()).isEqualTo("표준 세팅");
+    }
+
+    @Test
+    @DisplayName("resolveReference — 비활성이면 사유가 도메인 SSOT(assignBlockReason) 에서 그대로 온다")
+    void resolveReference_disabledCarriesDomainReason() {
+        SettingDefinition disabled = reversedDefinition();
+        disabled.toggleEnabled();
+        given(repository.findById(1L)).willReturn(Optional.of(disabled));
+
+        var reference = service.resolveReference(1L);
+
+        assertThat(reference.resolved()).isTrue();
+        assertThat(reference.usable()).isFalse();
+        // findAssignable 이 목록에서 빼는 판정 · 서버 가드가 거절하는 판정과 같은 메서드다
+        assertThat(reference.blockReason()).isEqualTo(disabled.assignBlockReason());
+    }
+
+    @Test
+    @DisplayName("resolveReference — soft-deleted 도 찾아온다. '삭제됨' 과 '아예 없음' 은 할 일이 다르다")
+    void resolveReference_findsSoftDeletedToTellItApart() {
+        SettingDefinition deleted = reversedDefinition();
+        deleted.softDelete();
+        given(repository.findById(1L)).willReturn(Optional.of(deleted));
+
+        var reference = service.resolveReference(1L);
+
+        // 찾아온다 — 휴지통에서 복원할 수 있는 상태라 사용자가 할 일이 있다
+        assertThat(reference.resolved()).isTrue();
+        assertThat(reference.usable()).isFalse();
+        assertThat(reference.blockReason()).contains("삭제");
+    }
+
+    @Test
+    @DisplayName("resolveReference — 없으면 예외가 아니라 '사라짐' 이다. 소프트참조라 정상 상태다")
+    void resolveReference_missingIsAValueNotAnException() {
+        given(repository.findById(9L)).willReturn(Optional.empty());
+
+        var reference = service.resolveReference(9L);
+
+        assertThat(reference.resolved()).isFalse();
+        assertThat(reference.usable()).isFalse();
+        assertThat(reference.definitionId()).isEqualTo(9L);
+        // 빈칸으로 두면 화면이 무엇을 해제하려는지 적을 수 없다
+        assertThat(reference.name()).contains("9");
+    }
+
     @Test
     @DisplayName("findDetail — SPECIFIED 보드+최신 버전인데 등록 펌웨어 0개 → 실행 시 건너뜀 경고 (저장은 막지 않음)")
     void findDetail_collectsExecutionWarnings() {
