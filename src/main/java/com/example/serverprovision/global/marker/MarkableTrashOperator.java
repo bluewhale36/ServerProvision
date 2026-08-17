@@ -51,7 +51,7 @@ public interface MarkableTrashOperator {
 	}
 
 	/**
-	 * S5-2-3+ — 메타 자원 (OS_IMAGE / BOARD_MODEL) 의 cascade 옵션 지원 복원.
+	 * S5-2-3+ — 메타 자원 (OS_IMAGE / BOARD_MODEL / RAID_CARD) 의 cascade 옵션 지원 복원.
 	 * default 는 cascade 무시하고 단순 restoreFromTrash 위임 — 파일 자원도 안전하게 작동.
 	 */
 	default void restoreFromTrash(Long resourceId, boolean cascade) {
@@ -59,7 +59,7 @@ public interface MarkableTrashOperator {
 	}
 
 	/**
-	 * S5-2+ — 메타 자원 (OS_IMAGE / BOARD_MODEL) 의 휴지통 내 자식 자원 이름 미리보기.
+	 * S5-2+ — 메타 자원 (OS_IMAGE / BOARD_MODEL — 자식 있는 것만) 의 휴지통 내 자식 자원 이름 미리보기.
 	 * 휴지통 페이지의 cascade 라디오 desc 에 "ISO: dvd.iso · minimal.iso" 형태로 노출하기 위함.
 	 * default 는 empty — 파일 자원 / 자식 없는 메타 자원은 cascade 라디오 자체 표시 안 됨.
 	 */

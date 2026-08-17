@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  MA7. RAID 카드 신규 등록 폼
+  ─────────────────────────────────────────────────────────
+  Model:
+    raidCardForm  : RaidCardCreateRequest   @ModelAttribute
+                     (vendor, modelName, supportedRaidLevels, hasCache, pciSubsystemId, description)
+    vendorOptions : List<RaidCardVendor>     모든 RaidCardVendor 열거형 값
+    levelOptions  : List<RaidLevel>          모든 RaidLevel 열거형 값
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('신규 RAID 카드 등록')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('raidcard')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">신규 RAID 카드 등록</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/management/raidcard}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <form id="raidCardForm"
+                  th:action="@{/management/raidcard}"
+                  th:object="${raidCardForm}"
+                  method="post"
+                  novalidate>
+
+                <!-- S4 폼 배너 슬롯 -->
+                <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
+
+                <!-- 제조사 : 신규 등록 시에만 선택 가능 (수정 시 고정) -->
+                <div class="n-form-group">
+                    <label class="n-label strong" for="vendor">제조사</label>
+                    <select id="vendor" th:field="*{vendor}" class="n-select"
+                            data-error-field="vendor"
+                            th:classappend="${#fields.hasErrors('vendor')} ? 'is-invalid'">
+                        <option value="">선택하세요</option>
+                        <option th:each="v : ${vendorOptions}"
+                                th:value="${v.name()}"
+                                th:text="${v.displayName}"></option>
+                    </select>
+                    <div class="n-hint">새 제조사를 추가하려면 <code>RaidCardVendor</code> 열거형에 상수를 추가해야 합니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('vendor')}"
+                         th:errors="*{vendor}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="modelName">모델명</label>
+                    <input id="modelName" type="text" th:field="*{modelName}"
+                           class="n-input"
+                           data-error-field="modelName"
+                           th:classappend="${#fields.hasErrors('modelName')} ? 'is-invalid'"
+                           placeholder="예: CRA3338">
+                    <div class="n-error" th:if="${#fields.hasErrors('modelName')}"
+                         th:errors="*{modelName}"></div>
+                </div>
+
+                <!-- 지원 RAID 레벨 : 복수 선택 (최소 1개). 정의서 작성 화면의 1차 차단 재료가 된다. -->
+                <div class="n-form-group">
+                    <label class="n-label strong">지원 RAID 레벨</label>
+                    <div data-error-field="supportedRaidLevels" data-level-group
+                         th:classappend="${#fields.hasErrors('supportedRaidLevels')} ? 'is-invalid'"
+                         style="display:flex; gap:16px; flex-wrap:wrap;">
+                        <!-- CP6 개정 — 전체 선택/해제 master. 개별 상태에 따라 checked/indeterminate 동기화. -->
+                        <label class="n-checkbox">
+                            <input type="checkbox" data-level-select-all>
+                            <span>전체 선택</span>
+                        </label>
+                        <label class="n-checkbox" th:each="lvl : ${levelOptions}">
+                            <input type="checkbox" th:field="*{supportedRaidLevels}" th:value="${lvl.name()}"
+                                   th:data-requires-cache="${lvl.typicallyRequiresCache}">
+                            <span th:text="${lvl.displayName}">RAID0</span>
+                        </label>
+                    </div>
+                    <div class="n-hint">카드 데이터시트의 지원 레벨을 그대로 적습니다. 세팅 정의서가 이 값으로 "이 카드로 이 구성을 만들 수 있는가" 를 판정합니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('supportedRaidLevels')}"
+                         th:errors="*{supportedRaidLevels}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="cacheCapacityGb">캐시 용량 (GB)</label>
+                    <input id="cacheCapacityGb" type="number" min="0" max="1024" step="1"
+                           th:field="*{cacheCapacityGb}"
+                           class="n-input"
+                           data-error-field="cacheCapacityGb"
+                           th:classappend="${#fields.hasErrors('cacheCapacityGb')} ? 'is-invalid'">
+                    <div class="n-hint">캐시가 없는 모델은 0 을 입력합니다. 예: AVAGO 9361-8i 는 2. 캐시 보유 카드는 단일 디스크 RAID0 구성이 가능해 세팅 정의서 판정에도 쓰입니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('cacheCapacityGb')}"
+                         th:errors="*{cacheCapacityGb}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="pciSubsystemId">PCI Subsystem ID (선택)</label>
+                    <input id="pciSubsystemId" type="text" th:field="*{pciSubsystemId}"
+                           class="n-input"
+                           data-error-field="pciSubsystemId"
+                           th:classappend="${#fields.hasErrors('pciSubsystemId')} ? 'is-invalid'"
+                           placeholder="예: 1458:0011">
+                    <div class="n-hint"><code>lspci -nn</code> 출력의 대괄호 쌍입니다. 비워 두면 '미확인' 으로 표시되며, 나중에 수정으로 채울 수 있습니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('pciSubsystemId')}"
+                         th:errors="*{pciSubsystemId}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label" for="description">설명 (선택)</label>
+                    <textarea id="description" th:field="*{description}"
+                              class="n-textarea" rows="3"
+                              data-error-field="description"
+                              placeholder="예: SAS3008 계열, GIGABYTE 4종 보드 기본 장착"></textarea>
+                </div>
+
+                <div class="n-form-actions">
+                    <a th:href="@{/management/raidcard}" class="n-btn n-btn-secondary">취소</a>
+                    <button type="submit" class="n-btn n-btn-primary">등록</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- nudge modal (메타 단독 충돌용 — MK2 WAVE 1). -->
+<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/raidcard/nudge')}"></div>
+
+<!-- CP6 개정 — 캐시 0 + RAID5 이상 조합 경고 modal (deprecatedUse 선례 — fragment 재사용 + open 오버라이드). -->
+<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('cacheWarn')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+
+<script th:src="@{/global/form-error.js}"></script>
+<script th:src="@{/global/nudge-modal.js}"></script>
+<script th:src="@{/management/raidcard/raidcard-level-select.js}"></script>
+<script th:src="@{/management/raidcard/raidcard-cache-warning.js}"></script>
+<script th:src="@{/management/raidcard/raidcard-new.js}"></script>
+</body>
+</html>

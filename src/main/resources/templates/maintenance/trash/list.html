@@ -139,7 +139,7 @@
                               method="post"
                               data-confirm-restore=""
                               th:data-resource-label="${item.displayName}"
-                              data-resource-extra="원래 경로로 복원돼요."
+                              th:data-resource-extra="${item.resourceType.metadata} ? null : '원래 경로로 복원돼요.'"
                               th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
                                    data-cascade-true-desc=${item.childPreview}">
                             <!-- MK4-5-1 — 차단 사유가 셋으로 늘었고, 판정과 문구를 모두

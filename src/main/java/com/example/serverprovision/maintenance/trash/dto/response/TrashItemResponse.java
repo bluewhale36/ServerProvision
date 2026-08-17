@@ -18,7 +18,7 @@ import java.time.Instant;
  * @param ttlWarning         TTL 7일 이내 / 1일 이내일 때 UI 강조용 boolean. ghost 는 항상 false
  * @param ghost              MK3-1 — DB row 는 소프트삭제 상태이지만 FS 자원도 trash 도 없는 dead row.
  *                           true 면 UI 가 "복구 불가" 배지 + 정리 액션만 활성화. 복원 / +30일 연장 비활성.
- * @param childPreview       S5-2+ — 메타 자원 (OS_IMAGE / BOARD_MODEL) 의 cascade preview.
+ * @param childPreview       S5-2+ — 자식 있는 메타 자원 (OS_IMAGE / BOARD_MODEL) 의 cascade preview.
  *                           soft-deleted 자식 자원 이름들을 ' · ' 로 join. 자식 없거나 파일 자원이면 null.
  *                           null 이면 cascade 라디오 자체 노출 안 함.
  * @param typedName          S5-2 — 영구삭제 typed-name 검증 기준 자원명 ({@code Markable.displayName()}).

@@ -120,7 +120,7 @@ public class TrashController {
 		if (scanner == null) {
 			throw new IllegalArgumentException("지원하지 않는 자원 종류 : " + resourceType);
 		}
-		// 메타 자원 (OS_IMAGE / BOARD_MODEL) 은 cascade 옵션 수신. 파일 자원은 cascade 무관 — 단순 위임.
+		// 메타 자원 (OS_IMAGE / BOARD_MODEL / RAID_CARD) 은 cascade 옵션 수신. 파일 자원은 cascade 무관 — 단순 위임.
 		if (resourceType.isMetadata()) {
 			scanner.restoreFromTrash(resourceId, Boolean.TRUE.equals(cascade));
 		} else {
@@ -173,7 +173,7 @@ public class TrashController {
 		}
 		Instant trashedAt = lifecycle.getTrashedAt();
 		String trashedPath = lifecycle.getTrashedPath();
-		// S5-2-3 — 메타 자원 (OS_IMAGE / BOARD_MODEL) 은 trashed_path=null 이 정상.
+		// S5-2-3 — 메타 자원 (OS_IMAGE / BOARD_MODEL / RAID_CARD) 은 trashed_path=null 이 정상.
 		boolean isMeta = m.getResourceType().isMetadata();
 		if (!ghost && trashedAt == null) {
 			return null;
