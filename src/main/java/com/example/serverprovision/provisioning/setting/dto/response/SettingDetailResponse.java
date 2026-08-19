@@ -33,4 +33,18 @@ public record SettingDetailResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
+
+    /**
+     * OS 설치 파티션의 대상 볼륨 설명(U4-1-3 D5) — processList 의 RAID 구성 단계를 읽어 {@code OsVolumeTargets.describe}.
+     * 상세 fragment 의 OS 설치 카드 안내 줄이 쓴다(폼은 같은 네 분기를 JS 가 DOM 으로 판정).
+     */
+    public OsVolumeTarget osVolumeTarget() {
+        com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest raid = null;
+        com.example.serverprovision.provisioning.setting.dto.request.LinuxInstallationRequest install = null;
+        for (AbstractProcessRequest process : processList == null ? List.<AbstractProcessRequest>of() : processList) {
+            if (process instanceof com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest r) raid = r;
+            else if (process instanceof com.example.serverprovision.provisioning.setting.dto.request.LinuxInstallationRequest l) install = l;
+        }
+        return com.example.serverprovision.provisioning.setting.service.reference.os.OsVolumeTargets.describe(raid, install);
+    }
 }

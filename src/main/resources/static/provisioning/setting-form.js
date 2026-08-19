@@ -445,7 +445,7 @@
             }
         }
 
-        /** grow 체크 시 크기 입력 비활성화 + 같은 디스크 그룹의 다른 grow 해제 (디스크당 1개). */
+        /** grow 체크 시 크기 입력 비활성화 + 다른 행의 grow 해제 — 파티션이 놓이는 OS 영역 볼륨이 하나라 grow 도 하나(U4-1-3 D3). */
         function onGrowChange(checkbox) {
             const row = checkbox.closest('tr');
             const sizeInput = row.querySelector('.pSize');
@@ -453,10 +453,8 @@
                 sizeInput.disabled = true;
                 sizeInput.value = '';
                 sizeInput.classList.remove('has-error');
-                const diskName = row.querySelector('.pDiskName').value.trim();
                 oiPartitionTbody.querySelectorAll('tr').forEach(other => {
                     if (other === row) return;
-                    if (other.querySelector('.pDiskName').value.trim() !== diskName) return;
                     const otherGrow = other.querySelector('.pGrow');
                     if (otherGrow.checked) {
                         otherGrow.checked = false;
@@ -466,6 +464,7 @@
             } else {
                 sizeInput.disabled = false;
             }
+            refreshOsVolumeTargetHint();
         }
 
         function addPartitionRow(data) {
@@ -474,7 +473,6 @@
             const d = data || {};
             row.querySelector('.pMountPoint').value = d.mountPoint || '';
             if (d.fileSystem) row.querySelector('.pFileSystem').value = d.fileSystem;
-            row.querySelector('.pDiskName').value = d.diskName || '';
             row.querySelector('.pSizeUnit').value = d.sizeUnit || 'GB';
             const grow = !!d.isGrow;
             row.querySelector('.pGrow').checked = grow;
@@ -484,9 +482,123 @@
 
             row.querySelector('.pMountPoint').addEventListener('input', () => applyFsConstraint(row));
             row.querySelector('.pGrow').addEventListener('change', e => onGrowChange(e.target));
+            row.querySelector('.pSize').addEventListener('input', refreshOsVolumeTargetHint);
+            row.querySelector('.pSizeUnit').addEventListener('change', refreshOsVolumeTargetHint);
             bindRowRemove(row);
+            row.querySelector('[data-row-remove]').addEventListener('click', () => setTimeout(refreshOsVolumeTargetHint, 0));
             oiPartitionTbody.appendChild(row);
             applyFsConstraint(row);
+            refreshOsVolumeTargetHint();
+        }
+
+        /* ---- OS 설치 카드의 대상 볼륨 안내 (U4-1-3) — OsVolumeTargets.describe 의 네 분기 + 용량 하한을 DOM 으로 재현 ---- */
+        const oiOsVolumeTargetKind = document.getElementById('oiOsVolumeTargetKind');
+        const oiOsVolumeTargetCapacity = document.getElementById('oiOsVolumeTargetCapacity');
+        // 문구는 서버가 SSOT(OsVolumeTargetKind · OsVolumeTarget.messageTemplates) — 템플릿을 받아 %d · %s 를 차례로 채운다(CP5 F-1).
+        let OS_VOLUME_TARGET_MESSAGES = {};
+        try { OS_VOLUME_TARGET_MESSAGES = JSON.parse(window.OS_VOLUME_TARGET_MESSAGES_JSON || '{}') || {}; }
+        catch (e) { console.warn('[settingForm] osVolumeTargetMessagesJson 파싱 실패:', e); }
+        function fillTemplate(template, args) {
+            let i = 0;
+            return String(template || '').replace(/%[ds]/g, () => String(args[i++] != null ? args[i - 1] : ''));
+        }
+        const MSG_PARTITIONS_OVER = 'OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.';
+        const DISK_UNIT_BYTES = {GB: 1e9, TB: 1e12};                                   // DiskCapacityUnit — 십진
+        const SIZE_UNIT_BYTES = {MB: 1048576, GB: 1073741824, TB: 1099511627776};      // SizeUnit — 이진(MiB · GiB · TiB)
+
+        function raidCardActive() {
+            const card = cardOf('RAID_CONFIGURATION');
+            return !!card && !card.hidden;
+        }
+        /** 묶음 행 하나의 볼륨 유효 용량 하한(바이트) — DiskGroupRuleRequest.usableCapacityLowerBoundBytes 의 사본. 모르면 null. */
+        function diskGroupLowerBound(row) {
+            if (row.querySelector('.dgCapacityMode').value !== 'SPECIFIED') return null;
+            const size = intOrNull(row.querySelector('.dgCapacitySize').value);
+            const unit = row.querySelector('.dgCapacityUnit').value;
+            if (size == null || size < 1 || !DISK_UNIT_BYTES[unit]) return null;
+            const perDisk = size * DISK_UNIT_BYTES[unit];
+            if (!rowBuildsRaid(row)) return perDisk;
+            const levelOpt = selectedOption(row.querySelector('.dgLevel'));
+            const count = intOrNull(row.querySelector('.dgCount').value);
+            if (!levelOpt || count == null) return null;
+            // RaidLevel.usableDisks — 계수 a · b 는 레벨 옵션 data-* 로 서버가 내린다(SSOT = enum)
+            const usable = Math.floor(parseFloat(levelOpt.dataset.usableA || '0') * count + parseInt(levelOpt.dataset.usableB || '0', 10));
+            return usable <= 0 ? null : perDisk * usable;
+        }
+        /** 묶음 요약 — OsVolumeTargets.summarize 와 같은 형태. */
+        function diskGroupSummary(row) {
+            const levelSel = row.querySelector('.dgLevel');
+            const cap = row.querySelector('.dgCapacityMode').value === 'SPECIFIED'
+                ? (row.querySelector('.dgCapacitySize').value || '?') + ' ' + row.querySelector('.dgCapacityUnit').value
+                : '자동 탐지';
+            const cnt = (row.querySelector('.dgCount').value || '?') + (row.querySelector('.dgCountMode').value === 'AT_LEAST' ? '개 이상' : '개');
+            return [levelSel.value ? selectedOption(levelSel).textContent : 'RAID 없음',
+                selectedOption(row.querySelector('.dgType')).textContent,
+                selectedOption(row.querySelector('.dgTransport')).textContent, cap, cnt].join(' · ');
+        }
+        /** 네 분기 판정 — {kind, ruleNo, summary, bound}. bound null = 모름. */
+        function describeOsVolumeTarget() {
+            if (!raidCardActive() || !rcDiskGroupTbody) return {kind: 'NONE'};
+            const rows = diskGroupRows();
+            if (!rows.length) return {kind: 'NONE'};
+            const fixedIdx = rows.findIndex(r => r.querySelector('.dgRole').value === 'OS');
+            const candidates = fixedIdx >= 0 ? [rows[fixedIdx]] : rows.filter(r => r.querySelector('.dgRole').value === 'BY_PRIORITY');
+            if (!candidates.length) return {kind: 'NO_CANDIDATE'};
+            let bound = Infinity;
+            for (const r of candidates) {
+                const b = diskGroupLowerBound(r);
+                if (b == null) { bound = null; break; }
+                bound = Math.min(bound, b);
+            }
+            return fixedIdx >= 0
+                ? {kind: 'FIXED', ruleNo: fixedIdx + 1, summary: diskGroupSummary(rows[fixedIdx]), bound: bound}
+                : {kind: 'BY_PRIORITY', bound: bound};
+        }
+        function fixedPartitionBytes() {
+            let sum = 0;
+            (oiPartitionTbody ? oiPartitionTbody.querySelectorAll('tr') : []).forEach(row => {
+                if (row.querySelector('.pGrow').checked) return;
+                const size = intOrNull(row.querySelector('.pSize').value) || 0;
+                sum += size * (SIZE_UNIT_BYTES[row.querySelector('.pSizeUnit').value] || 0);
+            });
+            return sum;
+        }
+        function hasGrowPartition() {
+            return !!oiPartitionTbody && Array.from(oiPartitionTbody.querySelectorAll('tr')).some(r => r.querySelector('.pGrow').checked);
+        }
+        function formatDecimal(bytes) {
+            const trim = v => { const t = v.toFixed(1); return t.endsWith('.0') ? t.slice(0, -2) : t; };
+            return bytes >= 1e12 ? trim(bytes / 1e12) + ' TB' : trim(bytes / 1e9) + ' GB';
+        }
+        function formatBinary(bytes) {
+            const t = (bytes / 1073741824).toFixed(1);
+            return (t.endsWith('.0') ? t.slice(0, -2) : t) + ' GiB';
+        }
+        /** 파티션 고정 합이 하한을 넘는가 — SettingSaveRequest.isPartitionsWithinOsVolume 의 사본(하한을 모르면 false). */
+        function partitionsOverOsVolume() {
+            const target = describeOsVolumeTarget();
+            if (target.bound == null || !isFinite(target.bound)) return false;
+            const fixed = fixedPartitionBytes();
+            return hasGrowPartition() ? fixed >= target.bound : fixed > target.bound;
+        }
+        function refreshOsVolumeTargetHint() {
+            if (!oiOsVolumeTargetKind) return;
+            const target = describeOsVolumeTarget();
+            const M = OS_VOLUME_TARGET_MESSAGES;
+            oiOsVolumeTargetKind.textContent = target.kind === 'FIXED'
+                ? fillTemplate(M.FIXED, [target.ruleNo, target.summary])
+                : (M[target.kind] || '');
+            oiOsVolumeTargetKind.classList.toggle('is-danger', target.kind === 'NO_CANDIDATE');
+            const hasTarget = target.kind === 'FIXED' || target.kind === 'BY_PRIORITY';
+            oiOsVolumeTargetCapacity.hidden = !hasTarget;
+            if (hasTarget) {
+                const over = partitionsOverOsVolume();
+                oiOsVolumeTargetCapacity.textContent = target.bound == null
+                    ? (M.CAPACITY_UNKNOWN || '')
+                    : fillTemplate(M.CAPACITY_FORMAT, [formatDecimal(target.bound), formatBinary(fixedPartitionBytes()),
+                        hasGrowPartition() ? (M.GROW_SUFFIX || '') : '']) + (over ? (M.OVER_SUFFIX || '') : '');
+                oiOsVolumeTargetCapacity.classList.toggle('is-danger', over);
+            }
         }
 
         /** 기본 파티션 자동 생성 — GET /provisioning/setting/default-partitions?osName=... */
@@ -668,6 +780,7 @@
                 rcRaidCardHint.textContent = needsCard ? MSG_CARD_REQUIRED : '';
                 rcRaidCardHint.hidden = !needsCard;
             }
+            refreshOsVolumeTargetHint(); // OS 설치 카드의 대상 볼륨 안내(U4-1-3) — 역할 · 용량 · 개수 · 행 추가/삭제 · 카드 유무가 재료
         }
 
         /** 다섯 축의 정규 표기 — 서버 DiskGroupRules.identity 와 같은 축을 본다. */
@@ -1288,7 +1401,6 @@
             return Array.from(oiPartitionTbody.querySelectorAll('tr')).map(row => ({
                 mountPoint: row.querySelector('.pMountPoint').value.trim(),
                 fileSystem: row.querySelector('.pFileSystem').value,
-                diskName: row.querySelector('.pDiskName').value.trim() || null,
                 size: intOrNull(row.querySelector('.pSize').value) || 0,
                 sizeUnit: row.querySelector('.pSizeUnit').value,
                 isGrow: row.querySelector('.pGrow').checked
@@ -1613,6 +1725,12 @@
                     if (container) paintFieldError(container, '파티션의 크기를 지정하거나 grow 를 체크해야 합니다.');
                     ok = false;
                 }
+                // U4-1-3 D7 — 고정 파티션 합이 OS 영역 볼륨 하한을 넘으면 막는다(하한을 알 때만 · 서버 isPartitionsWithinOsVolume 과 같은 판정).
+                if (stepTypeByIndex.includes('RAID_CONFIGURATION') && partitionsOverOsVolume()) {
+                    const container = form.querySelector('[data-error-field="partitionsWithinOsVolume"]');
+                    if (container) paintFieldError(container, MSG_PARTITIONS_OVER);
+                    ok = false;
+                }
             }
             return ok;
         }
@@ -1758,7 +1876,6 @@
                 (proc.partitions || []).forEach(p => addPartitionRow({
                     mountPoint: p.mountPoint,
                     fileSystem: p.fileSystem,
-                    diskName: p.diskName,
                     size: p.size,
                     sizeUnit: p.sizeUnit,
                     isGrow: pickBool(p, 'isGrow', 'grow')

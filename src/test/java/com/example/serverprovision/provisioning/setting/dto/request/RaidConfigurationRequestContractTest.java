@@ -169,4 +169,42 @@ class RaidConfigurationRequestContractTest {
         assertThat(new RaidConfigurationRequest(1L, List.of(withRole(raid1(), DiskGroupRole.DATA), withRole(noRaidNvme(), DiskGroupRole.NONE)), rows)
                 .isOsVolumeDeterminable()).isFalse();
     }
+
+    // ==== U4-1-3 — 볼륨 유효 용량 하한 =========================================================
+
+    private static DiskGroupRuleRequest sized(RaidLevel level, long size, DiskCapacityUnit unit, DiskCountMode mode, int count, DiskGroupRole role) {
+        return new DiskGroupRuleRequest(level, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
+                new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, size, unit), new DiskCountRequirement(mode, count), role);
+    }
+
+    @Test
+    @DisplayName("usableCapacityLowerBoundBytes — RAID1 480 GB × 2 = 480 GB · RAID5 4 TB × 3개 이상 = 8 TB(하한) · RAID 없음 = 1 장 · 자동 탐지 = empty")
+    void usableCapacityLowerBound() {
+        assertThat(sized(RaidLevel.RAID1, 480, DiskCapacityUnit.GB, DiskCountMode.EXACT, 2, DiskGroupRole.OS).usableCapacityLowerBoundBytes())
+                .hasValue(480_000_000_000L);
+        assertThat(sized(RaidLevel.RAID5, 4, DiskCapacityUnit.TB, DiskCountMode.AT_LEAST, 3, DiskGroupRole.OS).usableCapacityLowerBoundBytes())
+                .hasValue(8_000_000_000_000L);
+        assertThat(sized(RaidLevel.RAID10, 1, DiskCapacityUnit.TB, DiskCountMode.EXACT, 4, DiskGroupRole.OS).usableCapacityLowerBoundBytes())
+                .hasValue(2_000_000_000_000L);
+        assertThat(sized(null, 960, DiskCapacityUnit.GB, DiskCountMode.EXACT, 1, DiskGroupRole.OS).usableCapacityLowerBoundBytes())
+                .hasValue(960_000_000_000L);
+        assertThat(raid1().usableCapacityLowerBoundBytes()).hasValue(480_000_000_000L); // raid1() = 480 GB × 2
+        assertThat(noRaidNvme().usableCapacityLowerBoundBytes()).isEmpty();              // 자동 탐지
+    }
+
+    @Test
+    @DisplayName("osVolumeCapacityLowerBoundBytes — OS 고정이면 그 묶음만 · 없으면 우선순위에 따름의 최솟값 · 후보 중 자동 탐지가 있으면 empty · 후보 0 이면 empty")
+    void osVolumeCapacityLowerBound() {
+        var osFixed480 = sized(RaidLevel.RAID1, 480, DiskCapacityUnit.GB, DiskCountMode.EXACT, 2, DiskGroupRole.OS);
+        var byPriority960 = sized(null, 960, DiskCapacityUnit.GB, DiskCountMode.EXACT, 1, DiskGroupRole.BY_PRIORITY);
+        var byPriority8tb = sized(RaidLevel.RAID5, 4, DiskCapacityUnit.TB, DiskCountMode.AT_LEAST, 3, DiskGroupRole.BY_PRIORITY);
+        var data = sized(RaidLevel.RAID1, 100, DiskCapacityUnit.GB, DiskCountMode.EXACT, 2, DiskGroupRole.DATA);
+
+        assertThat(rc(1L, List.of(byPriority960, osFixed480, data)).osVolumeCapacityLowerBoundBytes()).hasValue(480_000_000_000L);
+        assertThat(rc(1L, List.of(byPriority960, byPriority8tb, data)).osVolumeCapacityLowerBoundBytes()).hasValue(960_000_000_000L);
+        assertThat(rc(1L, List.of(byPriority960, noRaidNvme())).osVolumeCapacityLowerBoundBytes()).isEmpty();
+        assertThat(rc(1L, List.of(data)).osVolumeCapacityLowerBoundBytes()).isEmpty();
+        assertThat(rc(1L, List.of(byPriority960, osFixed480)).osFixedRuleNo()).isEqualTo(2);
+        assertThat(rc(1L, List.of(byPriority960)).osFixedRuleNo()).isZero();
+    }
 }

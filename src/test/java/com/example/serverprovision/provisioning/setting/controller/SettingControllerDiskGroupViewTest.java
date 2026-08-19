@@ -65,7 +65,7 @@ class SettingControllerDiskGroupViewTest {
     private static RHELInstallationRequest rhel() {
         return new RHELInstallationRequest(1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
-                List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
+                List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
                 new RootPasswordRequest("root-secret", false, false), List.of(), 1L, List.of(), false, null);
     }
 
@@ -245,5 +245,49 @@ class SettingControllerDiskGroupViewTest {
                 // 우선순위 행 템플릿의 종류 · 전송 select 는 AUTO 를 내리지 않는다(th:if) — 묶음 행 템플릿엔 남아 있다.
                 .andExpect(content().string(containsString("class=\"n-select vpType\">\n                        <option value=\"SSD\"")))
                 .andExpect(content().string(containsString("class=\"n-page-lg\"")));
+    }
+
+    // ==== U4-1-3 — OS 설치 카드의 대상 볼륨 안내 · 디스크명 열 제거 ====================================
+
+    @Test
+    @DisplayName("GET /{id} — RAID 구성(OS 고정 480 GB × 2) + OS 설치: 안내 'RAID 구성 1번 묶음이 OS 영역' · '최소 용량 480 GB', 파티션 표에 '디스크' 헤더 없음")
+    void detail_osVolumeTargetFixed() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detail(List.of(raid(7L, twoRules()), rhel()), Map.of(7L, "GIGABYTE CRA3338")));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("RAID 구성 1번 묶음(RAID1 · SSD · SATA · 480 GB · 2개)이 OS 영역입니다")))
+                .andExpect(content().string(containsString("OS 영역 최소 용량 480 GB · 고정 파티션 합 0 GiB(+ grow)")))
+                .andExpect(content().string(not(containsString("<th>디스크</th>"))));
+    }
+
+    @Test
+    @DisplayName("GET /{id} — RAID 구성 없이 OS 설치만: 안내 'RAID 구성 단계가 없어 설치기가 디스크를 자동 선택' · 용량 줄 없음")
+    void detail_osVolumeTargetNone() throws Exception {
+        given(queryService.findDetail(2L)).willReturn(detail(List.of(rhel()), Map.of()));
+
+        mvc.perform(get("/provisioning/setting/{id}", 2L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("RAID 구성 단계가 없어 설치기가 디스크를 자동 선택합니다")))
+                .andExpect(content().string(not(containsString("OS 영역 최소 용량"))));
+    }
+
+    @Test
+    @DisplayName("GET /new — 파티션 행 템플릿에 pDiskName 없음 · 안내 줄 id · 레벨 옵션 data-usable-a/b(RAID5 = 1 · −1)")
+    void newForm_noDiskNameAndUsableCoefficients() throws Exception {
+        given(queryService.findRaidCardOptions()).willReturn(List.of());
+
+        mvc.perform(get("/provisioning/setting/new"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("pDiskName"))))
+                .andExpect(content().string(not(containsString("<th>디스크명</th>"))))
+                .andExpect(content().string(containsString("oiOsVolumeTargetKind")))
+                .andExpect(content().string(containsString("oiOsVolumeTargetCapacity")))
+                .andExpect(model().attributeExists("osVolumeTargetMessagesJson"))
+                .andExpect(content().string(containsString("OS_VOLUME_TARGET_MESSAGES_JSON")))
+                .andExpect(content().string(containsString("data-error-field=\"partitionsWithinOsVolume\"")))
+                .andExpect(content().string(containsString("data-usable-a=\"1.0\"")))
+                .andExpect(content().string(containsString("data-usable-b=\"-1\"")))
+                .andExpect(content().string(containsString("data-usable-a=\"0.5\"")));
     }
 }

@@ -75,4 +75,22 @@ public record DiskGroupRuleRequest(
     public boolean isOsFixed() {
         return role == DiskGroupRole.OS;
     }
+
+    /**
+     * 이 묶음이 만드는 볼륨 하나의 <b>유효 용량 하한</b>(바이트) — 용량이 자동 탐지면 알 수 없어 empty (U4-1-3 D7).
+     * RAID 없음은 디스크 1 장이 볼륨이고, RAID 는 {@code RaidLevel.usableDisks(n) × 1 장 용량} 이다. 개수가 'n 개 이상' 이면
+     * n 이 하한이고 유효 디스크 수는 n 에 단조 증가라 결과도 하한이다.
+     */
+    @JsonIgnore
+    public java.util.OptionalLong usableCapacityLowerBoundBytes() {
+        if (capacity == null || capacity.isAuto() || capacity.size() == null || capacity.unit() == null || count == null) {
+            return java.util.OptionalLong.empty();
+        }
+        long perDisk = capacity.unit().toBytes(capacity.size());
+        if (!buildsRaid()) {
+            return java.util.OptionalLong.of(perDisk);
+        }
+        int usable = raidLevel.usableDisks(count.value());
+        return usable <= 0 ? java.util.OptionalLong.empty() : java.util.OptionalLong.of(perDisk * usable);
+    }
 }

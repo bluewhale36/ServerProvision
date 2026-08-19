@@ -254,12 +254,17 @@
                     <!-- 파티션 구성 -->
                     <div class="n-process-subsection">
                         <div class="n-label strong">파티션 구성</div>
+                        <!-- U4-1-3 — 파티션은 OS 영역 볼륨 하나에 놓인다. 어느 볼륨인지 · 용량 하한은 RAID 구성 단계가 정하므로 여기서는
+                             그 결정을 안내한다(SettingDetailResponse.osVolumeTarget → OsVolumeTargets.describe). 구 '디스크' 열은 없다. -->
+                        <div class="n-os-volume-target" th:with="target=${setting.osVolumeTarget()}">
+                            <div class="n-hint" th:classappend="${target.kind.name() == 'NO_CANDIDATE'} ? 'is-danger'" th:text="${target.toDisplay()}">RAID 구성 2번 묶음이 OS 영역입니다</div>
+                            <div class="n-hint" th:if="${target.capacityDisplay() != null}" th:text="${target.capacityDisplay()}">OS 영역 최소 용량 480 GB</div>
+                        </div>
                         <table class="n-table">
                             <thead>
                             <tr>
                                 <th>마운트포인트</th>
                                 <th>파일시스템</th>
-                                <th>디스크</th>
                                 <th>크기</th>
                                 <th>Grow</th>
                             </tr>
@@ -268,11 +273,6 @@
                             <tr th:each="partition : ${process.partitions}">
                                 <td class="n-table-mono" th:text="${partition.mountPoint}">/boot</td>
                                 <td th:text="${partition.fileSystem.displayName}">xfs</td>
-                                <td>
-                                    <span th:if="${#strings.isEmpty(partition.diskName)}" class="n-table-muted">자동</span>
-                                    <span th:unless="${#strings.isEmpty(partition.diskName)}"
-                                          class="n-table-mono" th:text="${partition.diskName}">sda</span>
-                                </td>
                                 <td>
                                     <span th:if="${partition.isGrow()}" class="n-table-muted">—</span>
                                     <span th:unless="${partition.isGrow()}"

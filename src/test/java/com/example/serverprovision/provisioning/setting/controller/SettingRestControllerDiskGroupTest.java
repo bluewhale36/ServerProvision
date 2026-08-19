@@ -329,4 +329,62 @@ class SettingRestControllerDiskGroupTest {
         send(body(raidWithPriorities("1", ruleWithRole("OS"), "[]") + "," + RHEL_INSTALL)).andExpect(status().isCreated());
         send(body(raidWithPriorities("1", RAID1_RULE, "[]"))).andExpect(status().isCreated());
     }
+
+    // ==== U4-1-3 — OS 영역 용량 사전 제한(partitionsWithinOsVolume) ===============================
+
+    /** RHEL 설치 단계 — 파티션 목록만 갈아 끼운다(/ 는 grow). */
+    private static String rhelWith(String partitions) {
+        return """
+            {"type": "OS_INSTALLATION", "osFamily": "RHEL_BASED", "isoId": 100, "osMetadataId": 1,
+             "timezone": {"timezone": "Asia/Seoul", "isUTC": true},
+             "partitions": [%s],
+             "rootPassword": {"password": "pw1"}, "users": [], "environmentId": 1, "packageGroupIds": []}
+            """.formatted(partitions);
+    }
+    private static final String ROOT_GROW = "{\"mountPoint\": \"/\", \"fileSystem\": \"XFS\", \"size\": 0, \"sizeUnit\": \"GB\", \"isGrow\": true}";
+    private static String fixed(String mount, long sizeGiB) {
+        return "{\"mountPoint\": \"" + mount + "\", \"fileSystem\": \"EXT4\", \"size\": " + sizeGiB + ", \"sizeUnit\": \"GB\", \"isGrow\": false}";
+    }
+    /** OS 고정 RAID1 480 GB × 2 → 하한 480 GB(= 447.0 GiB). */
+    private static final String OS_RAID1_480 = """
+            {"raidLevel": "RAID1", "diskType": "SSD", "transport": "SATA",
+             "capacity": {"mode": "SPECIFIED", "size": 480, "unit": "GB"},
+             "count": {"mode": "EXACT", "value": 2}, "role": "OS"}
+            """;
+
+    @Test
+    @DisplayName("POST — 고정 파티션 합이 OS 영역 하한을 넘으면 400 fieldErrors[partitionsWithinOsVolume] · 하한 안이면 201 · 자동 탐지 묶음이면 검사 없이 201")
+    void create_partitionsWithinOsVolume() throws Exception {
+        given(commandService.create(any())).willReturn(new SettingSaveResponse(13L, "디스크 세팅"));
+
+        // 500 GiB(= 536.9 GB) > 480 GB → 400
+        send(body(raid("1", OS_RAID1_480) + "," + rhelWith(fixed("/boot", 1) + "," + fixed("swap", 500) + "," + ROOT_GROW)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'partitionsWithinOsVolume')]").exists());
+        // grow 가 있으면 등호도 불가 — 447 GiB = 479.99 GB 는 통과, 448 GiB = 481.0 GB 는 400
+        send(body(raid("1", OS_RAID1_480) + "," + rhelWith(fixed("/data0", 448) + "," + ROOT_GROW)))
+                .andExpect(status().isBadRequest());
+        verify(commandService, never()).create(any());
+
+        send(body(raid("1", OS_RAID1_480) + "," + rhelWith(fixed("/boot", 1) + "," + fixed("swap", 16) + "," + ROOT_GROW)))
+                .andExpect(status().isCreated());
+        // 자동 탐지 묶음(RAID1_RULE 은 480 GB 지정 — NO_RAID_NVME_RULE 이 자동) 을 OS 후보로 두면 하한을 모른다 → 검사 없음
+        send(body(raid("1", NO_RAID_NVME_RULE) + "," + rhelWith(fixed("swap", 5000) + "," + ROOT_GROW)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("POST — grow 2개(LinuxPartitionRules 단일 grow) → 400 fieldErrors[partitions] · 구 diskName 키는 무시돼 201")
+    void create_singleGrowAndLegacyDiskNameIgnored() throws Exception {
+        given(commandService.create(any()))
+                .willThrow(com.example.serverprovision.provisioning.setting.exception.InvalidPartitionException.multipleGrow());
+        send(body(rhelWith(ROOT_GROW + "," + ROOT_GROW.replace("\"/\"", "\"/data\""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'partitions')].message")
+                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("grow 파티션은 하나만"))));
+
+        org.mockito.BDDMockito.willReturn(new SettingSaveResponse(14L, "디스크 세팅")).given(commandService).create(any());
+        String legacy = "{\"mountPoint\": \"/\", \"fileSystem\": \"XFS\", \"diskName\": \"sda\", \"size\": 0, \"sizeUnit\": \"GB\", \"isGrow\": true}";
+        send(body(rhelWith(legacy))).andExpect(status().isCreated());
+    }
 }

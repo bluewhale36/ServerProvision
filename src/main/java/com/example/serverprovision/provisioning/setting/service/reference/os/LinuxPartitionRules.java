@@ -52,7 +52,7 @@ public final class LinuxPartitionRules {
                 throw InvalidPartitionException.invalidSize(partition.getMountPoint());
             }
         }
-        validateGrowPerDisk(partitions);
+        validateSingleGrow(partitions);
     }
 
     private static void validateMandatoryMounts(List<PartitionRequest> partitions) {
@@ -65,20 +65,11 @@ public final class LinuxPartitionRules {
         }
     }
 
-    /** 같은 디스크(diskName null/공백 = 자동 할당 그룹)에 grow 는 1개만 (legacy MULTIPLE_GROW 이관). */
-    private static void validateGrowPerDisk(List<PartitionRequest> partitions) {
-        Map<String, Integer> growPerDisk = new HashMap<>();
-        for (PartitionRequest partition : partitions) {
-            if (!partition.isGrow()) {
-                continue;
-            }
-            String disk = partition.getDiskName() == null || partition.getDiskName().isBlank()
-                    ? "" : partition.getDiskName();
-            int count = growPerDisk.merge(disk, 1, Integer::sum);
-            if (count > 1) {
-                throw InvalidPartitionException.multipleGrowOnDisk(
-                        disk.isEmpty() ? "(자동 할당)" : disk);
-            }
+    /** grow 는 목록에 하나만 — 파티션이 놓이는 OS 영역 볼륨이 하나라서(U4-1-3 D3, 구 '디스크당 1개' 대체). */
+    private static void validateSingleGrow(List<PartitionRequest> partitions) {
+        long grows = partitions.stream().filter(PartitionRequest::isGrow).count();
+        if (grows > 1) {
+            throw InvalidPartitionException.multipleGrow();
         }
     }
 }

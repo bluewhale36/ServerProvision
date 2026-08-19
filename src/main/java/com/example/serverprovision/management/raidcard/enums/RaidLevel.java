@@ -19,17 +19,17 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum RaidLevel {
 
-	RAID0("RAID0", 2, "을", false) {
+	RAID0("RAID0", 2, "을", false, 1.0, 0) {
 		/** 캐시 보유 카드는 단일 디스크 RAID0 구성이 실무에 존재한다 — 캐시가 최소치를 1로 낮춘다. */
 		@Override
 		public int minimumDisks(boolean cardHasCache) {
 			return cardHasCache ? 1 : getBaseMinimumDisks();
 		}
 	},
-	RAID1("RAID1", 2, "을", false),
-	RAID5("RAID5", 3, "를", true),
-	RAID6("RAID6", 4, "을", true),
-	RAID10("RAID10", 4, "을", true);
+	RAID1("RAID1", 2, "을", false, 0.0, 1),
+	RAID5("RAID5", 3, "를", true, 1.0, -1),
+	RAID6("RAID6", 4, "을", true, 1.0, -2),
+	RAID10("RAID10", 4, "을", true, 0.5, 0);
 
 	private final String displayName;
 
@@ -51,10 +51,26 @@ public enum RaidLevel {
 	private final boolean typicallyRequiresCache;
 
 	/**
+	 * 유효 디스크 수 = {@code usableA × n + usableB}(n = 멤버 디스크 수) 의 계수(U4-1-3 D7) — RAID0 n · RAID1 1 ·
+	 * RAID5 n−1 · RAID6 n−2 · RAID10 n/2. 정의서가 OS 영역 볼륨의 <b>용량 하한</b>을 셈할 때 쓰고, 폼은 레벨 옵션의
+	 * {@code data-usable-a} · {@code data-usable-b} 로 같은 식을 받는다(SSOT = 이 enum).
+	 */
+	private final double usableA;
+	private final int usableB;
+
+	/**
 	 * 이 레벨을 구성하는 데 필요한 최소 디스크 수 — 카드의 캐시 유무가 규칙에 관여한다.
 	 * 기본은 일반 최소치 그대로이고, 캐시가 예외를 만드는 상수만 override 한다.
 	 */
 	public int minimumDisks(boolean cardHasCache) {
 		return baseMinimumDisks;
+	}
+
+	/**
+	 * n 장으로 이 레벨을 구성했을 때 용량으로 쓰이는 디스크 수(내림). 멤버 수가 n 에 단조 증가(RAID1 은 상수)라
+	 * 'n 개 이상' 규칙에 최소 n 을 넣으면 결과도 하한이다. RAID10 은 짝수 장 구성이라 실무에서 나머지가 없다.
+	 */
+	public int usableDisks(int memberDisks) {
+		return (int) Math.floor(usableA * memberDisks + usableB);
 	}
 }

@@ -18,4 +18,9 @@ public enum SizeUnit {
 
     private final long toMBFactor;
     private final String symbol;
+
+    /** MiB × 2²⁰ — 디스크 용량(십진 {@link DiskCapacityUnit})과 바이트로 맞춰 비교한다(U4-1-3 D7). */
+    public long toBytes(long size) {
+        return size * toMBFactor * 1_048_576L;
+    }
 }

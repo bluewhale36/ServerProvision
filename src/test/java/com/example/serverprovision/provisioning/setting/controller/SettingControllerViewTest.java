@@ -79,7 +79,7 @@ class SettingControllerViewTest {
         RHELInstallationRequest rhel = new RHELInstallationRequest(
                 1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
-                List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
+                List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
                 new RootPasswordRequest("root-secret-pw", false, false),
                 List.of(new UserRequest("admin", "user-secret-pw", true, false, false)),
                 1L, List.of(1L), true, null);
@@ -101,7 +101,7 @@ class SettingControllerViewTest {
         RHELInstallationRequest rhel = new RHELInstallationRequest(
                 1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
-                List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
+                List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
                 new RootPasswordRequest("root-secret-pw", false, false),
                 List.of(new UserRequest("admin", "user-secret-pw", true, false, false)),
                 1L, List.of(1L), true, null);

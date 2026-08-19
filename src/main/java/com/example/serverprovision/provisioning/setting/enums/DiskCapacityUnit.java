@@ -13,8 +13,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Getter
 public enum DiskCapacityUnit {
-    GB("GB"),
-    TB("TB");
+    GB("GB", 1_000_000_000L),
+    TB("TB", 1_000_000_000_000L);
 
     private final String symbol;
+    /** 십진 바이트 수 — 파티션(이진 {@link SizeUnit})과 바이트로 맞춰 비교한다(U4-1-3 D7). */
+    private final long bytes;
+
+    public long toBytes(long size) {
+        return size * bytes;
+    }
 }

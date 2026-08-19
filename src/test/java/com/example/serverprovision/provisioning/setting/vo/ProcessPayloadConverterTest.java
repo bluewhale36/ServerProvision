@@ -60,7 +60,7 @@ class ProcessPayloadConverterTest {
     void roundTrip_polymorphicOsSteps() {
         ProcessPayload install = new ProcessPayload(new RHELInstallationRequest(
                 1L, 100L, new TimezoneRequest("Asia/Seoul", true),
-                List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
+                List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
                 null, List.of(), 1L, List.of(2L), true, null));
         ProcessPayload setting = new ProcessPayload(new RHELOSSettingRequest(
                 1L, "enforcing", List.of(), List.of("vim")));
@@ -123,5 +123,19 @@ class ProcessPayloadConverterTest {
         assertThat(restored.getDiskGroups().get(0).isOsFixed()).isTrue();
         assertThat(restored.getVolumePriorities()).hasSize(5);
         assertThat(restored.getVolumePriorities().get(0).toDisplay()).isEqualTo("SSD · NVMe · 작은 용량부터");
+    }
+
+    @Test
+    @DisplayName("구 저장본의 partitions[].diskName 은 미지 속성으로 무시되고 재직렬화에 나타나지 않는다 (U4-1-3 — 필드 제거)")
+    void restore_ignoresLegacyDiskName() {
+        String legacy = "{\"type\":\"OS_INSTALLATION\",\"osFamily\":\"RHEL_BASED\",\"osMetadataId\":1,\"isoId\":100,"
+                + "\"timezone\":{\"timezone\":\"Asia/Seoul\",\"isUTC\":true},"
+                + "\"partitions\":[{\"mountPoint\":\"/\",\"fileSystem\":\"XFS\",\"diskName\":\"sda\",\"size\":0,\"sizeUnit\":\"GB\",\"isGrow\":true}],"
+                + "\"rootPassword\":{\"password\":\"pw\"},\"users\":[],\"environmentId\":1,\"packageGroupIds\":[],\"isKDumpEnabled\":true}";
+        ProcessPayload restored = converter.convertToEntityAttribute(legacy);
+        RHELInstallationRequest install = (RHELInstallationRequest) restored.request();
+        assertThat(install.getPartitions()).hasSize(1);
+        assertThat(install.getPartitions().get(0).isGrow()).isTrue();
+        assertThat(converter.convertToDatabaseColumn(restored)).doesNotContain("diskName");
     }
 }

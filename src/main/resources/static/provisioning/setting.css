@@ -331,6 +331,11 @@
 .n-col-16 { width: 16%; }
 /* U4-1-2 — 볼륨 우선순위 표(핸들 4 · 순위 8 · 종류 24 · 전송 24 · 용량 순서 30 · 삭제 10) */
 .n-col-24 { width: 24%; }
+.n-col-26 { width: 26%; }
+/* U4-1-3 — OS 설치 카드의 대상 볼륨 안내(두 줄) */
+.n-os-volume-target { margin: 4px 0 10px; }
+.n-os-volume-target > .n-hint + .n-hint { margin-top: 2px; }
+.n-os-volume-target .n-hint.is-danger { color: var(--n-red); }
 /* 순위 열 — 행 순서가 곧 우선순위라는 규칙을 숫자로 드러낸다(폼 · 상세 공용) */
 .n-rank {
     display: inline-block;

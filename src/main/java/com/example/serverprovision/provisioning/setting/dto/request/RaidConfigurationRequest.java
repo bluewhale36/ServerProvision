@@ -120,4 +120,41 @@ public class RaidConfigurationRequest extends AbstractProcessRequest {
         if (hasOsFixedRule()) return true;
         return hasByPriorityRule() && volumePriorities != null && !volumePriorities.isEmpty();
     }
+
+    /**
+     * OS 영역이 될 수 있는 규칙 — OS 고정 규칙이 있으면 그것만, 없으면 '우선순위에 따름' 규칙 전부(해석 계약 ②).
+     * {@code OsVolumeTargets} 와 용량 하한이 같은 집합을 본다.
+     */
+    @JsonIgnore
+    public List<DiskGroupRuleRequest> osCandidateRules() {
+        List<DiskGroupRuleRequest> fixed = diskGroups.stream().filter(DiskGroupRuleRequest::isOsFixed).toList();
+        if (!fixed.isEmpty()) return fixed;
+        return diskGroups.stream().filter(r -> r.role() == DiskGroupRole.BY_PRIORITY).toList();
+    }
+
+    /** OS 고정 규칙의 1-based 번호, 없으면 0. */
+    @JsonIgnore
+    public int osFixedRuleNo() {
+        for (int i = 0; i < diskGroups.size(); i++) {
+            if (diskGroups.get(i).isOsFixed()) return i + 1;
+        }
+        return 0;
+    }
+
+    /**
+     * OS 영역 볼륨의 용량 하한(바이트) — 후보 규칙 전부가 용량을 직접 지정했을 때만 알 수 있고(최솟값), 하나라도 자동 탐지면
+     * empty(실행 시 E 가 확인). 후보가 없어도 empty. (U4-1-3 D7)
+     */
+    @JsonIgnore
+    public java.util.OptionalLong osVolumeCapacityLowerBoundBytes() {
+        List<DiskGroupRuleRequest> candidates = osCandidateRules();
+        if (candidates.isEmpty()) return java.util.OptionalLong.empty();
+        long min = Long.MAX_VALUE;
+        for (DiskGroupRuleRequest rule : candidates) {
+            java.util.OptionalLong bound = rule.usableCapacityLowerBoundBytes();
+            if (bound.isEmpty()) return java.util.OptionalLong.empty();
+            min = Math.min(min, bound.getAsLong());
+        }
+        return java.util.OptionalLong.of(min);
+    }
 }

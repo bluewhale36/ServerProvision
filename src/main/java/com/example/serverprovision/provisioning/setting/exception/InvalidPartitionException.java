@@ -45,8 +45,8 @@ public class InvalidPartitionException extends FieldBoundBadRequestException {
     }
 
     /** 같은 디스크에 grow 파티션 2개 이상. */
-    public static InvalidPartitionException multipleGrowOnDisk(String diskLabel) {
-        return new InvalidPartitionException(
-                "디스크 " + diskLabel + " 에 grow 파티션은 1개만 지정할 수 있습니다.");
+    /** grow 둘 이상 — 파티션이 놓이는 OS 영역 볼륨은 하나라 grow 도 하나다(U4-1-3 D3). */
+    public static InvalidPartitionException multipleGrow() {
+        return new InvalidPartitionException("grow 파티션은 하나만 둘 수 있습니다 — OS 영역 볼륨은 하나입니다.");
     }
 }

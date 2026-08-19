@@ -106,6 +106,9 @@ public class SettingController {
         model.addAttribute("diskGroupRoles", List.of(DiskGroupRole.values()));
         model.addAttribute("capacityOrders", List.of(CapacityOrder.values()));
         model.addAttribute("defaultVolumePrioritiesJson", objectMapper.writeValueAsString(VolumePriorityRuleRequest.defaults()));
+        // U4-1-3 — OS 설치 카드의 대상 볼륨 안내 문구(네 분기 + 용량 줄)는 서버가 SSOT — 폼 JS 는 템플릿만 받아 채운다(CP5 F-1).
+        model.addAttribute("osVolumeTargetMessagesJson", objectMapper.writeValueAsString(
+                com.example.serverprovision.provisioning.setting.dto.response.OsVolumeTarget.messageTemplates()));
     }
 
     /**

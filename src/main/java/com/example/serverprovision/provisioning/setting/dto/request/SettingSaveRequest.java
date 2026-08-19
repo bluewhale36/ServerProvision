@@ -136,4 +136,32 @@ public record SettingSaveRequest(
                 .map(RaidConfigurationRequest.class::cast)
                 .allMatch(RaidConfigurationRequest::isOsVolumeDeterminable);
     }
+
+    /**
+     * U4-1-3 D7 — OS 설치 파티션의 고정 크기 합은 OS 영역 볼륨의 용량 하한을 넘을 수 없다. 하한은 RAID 구성의 OS 후보 묶음이
+     * 전부 용량을 직접 지정했을 때만 알 수 있고(자동 탐지 · RAID 구성 없음이면 검사하지 않는다 — 실행 시 E 가 실제 볼륨으로
+     * 최종 검사), grow 파티션이 있으면 고정 합이 하한보다 작아야 grow 가 자리를 갖는다. RAID 메타 · 파일시스템 오버헤드는
+     * 계산하지 않는 1 차 관문이다. 폼은 안내 줄에 하한과 합을 실시간으로 보이고 초과 시 제출을 막는다.
+     */
+    @AssertTrue(message = "OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.")
+    public boolean isPartitionsWithinOsVolume() {
+        if (processList == null) {
+            return true;
+        }
+        LinuxInstallationRequest install = null;
+        RaidConfigurationRequest raid = null;
+        for (AbstractProcessRequest process : processList) {
+            if (process instanceof LinuxInstallationRequest linux) install = linux;
+            else if (process instanceof RaidConfigurationRequest r) raid = r;
+        }
+        if (install == null || raid == null) {
+            return true;
+        }
+        java.util.OptionalLong bound = raid.osVolumeCapacityLowerBoundBytes();
+        if (bound.isEmpty()) {
+            return true;
+        }
+        long fixed = install.fixedPartitionBytes();
+        return install.hasGrowPartition() ? fixed < bound.getAsLong() : fixed <= bound.getAsLong();
+    }
 }
