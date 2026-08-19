@@ -25,12 +25,14 @@ class SettingProcessPhaseMapperTest {
     }
 
     @Test
-    @DisplayName("매핑은 identity 아닌 명시 1:1 (4 상수)")
+    @DisplayName("매핑은 identity 아닌 명시 1:1 (5 상수 — U4-1-1 v2 RAID_CONFIGURATION 포함)")
     void mapping_isExact() {
         assertThat(SettingProcessPhaseMapper.phaseOf(SettingProcessType.BASIC_UPDATE))
                 .isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
         assertThat(SettingProcessPhaseMapper.phaseOf(SettingProcessType.BASIC_SETTING))
                 .isEqualTo(ProvisioningPhase.FIRMWARE_SETTING);
+        assertThat(SettingProcessPhaseMapper.phaseOf(SettingProcessType.RAID_CONFIGURATION))
+                .isEqualTo(ProvisioningPhase.RAID_CONFIGURATION);
         assertThat(SettingProcessPhaseMapper.phaseOf(SettingProcessType.OS_INSTALLATION))
                 .isEqualTo(ProvisioningPhase.OS_INSTALLING);
         assertThat(SettingProcessPhaseMapper.phaseOf(SettingProcessType.OS_SETTING))
@@ -41,10 +43,11 @@ class SettingProcessPhaseMapperTest {
     @DisplayName("toOwnedPhases 는 타입 집합을 union 해 선언 순으로 정렬한다")
     void toOwnedPhases_unionsAndSorts() {
         OwnedPhases owned = SettingProcessPhaseMapper.toOwnedPhases(
-                EnumSet.of(SettingProcessType.OS_INSTALLATION, SettingProcessType.BASIC_UPDATE));
+                EnumSet.of(SettingProcessType.OS_INSTALLATION, SettingProcessType.RAID_CONFIGURATION, SettingProcessType.BASIC_UPDATE));
 
+        // RAID 구성은 펌웨어 설정 다음 · OS 설치 전 — 선언 순 정렬이 그 자리를 보장한다(v2 D13).
         assertThat(owned.asSet()).containsExactly(
-                ProvisioningPhase.FIRMWARE_UPDATING, ProvisioningPhase.OS_INSTALLING);
+                ProvisioningPhase.FIRMWARE_UPDATING, ProvisioningPhase.RAID_CONFIGURATION, ProvisioningPhase.OS_INSTALLING);
     }
 
     @Test

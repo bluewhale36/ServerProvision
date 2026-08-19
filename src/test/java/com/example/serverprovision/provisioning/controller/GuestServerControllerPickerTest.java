@@ -83,7 +83,7 @@ class GuestServerControllerPickerTest {
                         new FirmwareSelectionRequest(FirmwareSelectionMode.LATEST, null))),
                 List.of(), List.of(),
                 new ReferenceNamesResponse(Map.of(7L, "MS03-CE0"),
-                        Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()),
+                        Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 

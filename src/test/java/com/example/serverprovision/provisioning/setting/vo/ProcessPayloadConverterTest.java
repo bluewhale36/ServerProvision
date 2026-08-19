@@ -88,4 +88,31 @@ class ProcessPayloadConverterTest {
         assertThatThrownBy(() -> converter.convertToEntityAttribute("{\"type\": \"GHOST_STEP\"}"))
                 .hasMessageContaining("알 수 없는 판별자");
     }
+
+    @Test
+    @DisplayName("왕복 — RAID_CONFIGURATION(flat) 판별자 · 카드 id · 중첩 record 보존, 판정 메서드는 payload 에 남지 않는다 (U4-1-1 v2)")
+    void roundTrip_raidConfiguration() {
+        var rule = new com.example.serverprovision.provisioning.setting.dto.request.DiskGroupRuleRequest(
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID1,
+                com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement.SSD,
+                com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement.SATA,
+                new com.example.serverprovision.provisioning.setting.dto.request.DiskCapacityRequirement(
+                        com.example.serverprovision.provisioning.setting.enums.CapacityRequirementMode.SPECIFIED, 480L,
+                        com.example.serverprovision.provisioning.setting.enums.DiskCapacityUnit.GB),
+                new com.example.serverprovision.provisioning.setting.dto.request.DiskCountRequirement(
+                        com.example.serverprovision.provisioning.setting.enums.DiskCountMode.EXACT, 2));
+        ProcessPayload payload = new ProcessPayload(
+                new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(7L, List.of(rule)));
+
+        String json = converter.convertToDatabaseColumn(payload);
+        assertThat(json).contains("\"type\":\"RAID_CONFIGURATION\"").contains("\"raidCardId\":7")
+                .doesNotContain("raidCardPresentWhenRequired").doesNotContain("modeConsistent");
+
+        var restored = (com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest)
+                converter.convertToEntityAttribute(json).request();
+        assertThat(restored.getRaidCardId()).isEqualTo(7L);
+        assertThat(restored.getDiskGroups()).hasSize(1);
+        assertThat(restored.getDiskGroups().get(0).capacity().toDisplay()).isEqualTo("480 GB");
+        assertThat(restored.requiresRaidCard()).isTrue();
+    }
 }

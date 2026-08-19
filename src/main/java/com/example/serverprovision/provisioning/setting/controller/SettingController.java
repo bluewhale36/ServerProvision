@@ -5,6 +5,11 @@ import com.example.serverprovision.provisioning.setting.dto.request.LinuxInstall
 import com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.UserRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
+import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.enums.DiskCapacityUnit;
+import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
+import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
+import com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement;
 import com.example.serverprovision.provisioning.setting.enums.FileSystem;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
@@ -82,6 +87,17 @@ public class SettingController {
         model.addAttribute("timezoneOptions", settingQueryService.findTimezoneOptions());
         model.addAttribute("fileSystems", List.of(FileSystem.values()));
         model.addAttribute("sizeUnits", List.of(SizeUnit.values()));
+        // U4-1-1 — 디스크 묶음 규칙 · RAID 카드 선택지. 레벨 최소치(RaidLevel.minimumDisks)는 옵션 data-* 로 폼에 내려간다.
+        var raidCardOptions = settingQueryService.findRaidCardOptions();
+        model.addAttribute("raidCardOptions", raidCardOptions);
+        // 판정 재료를 JSON 문자열로도 내린다 — Thymeleaf 의 JS inline 직렬화는 Jackson 2 만 감지해 record 를 {} 로 만들므로
+        // initialSettingJson 과 같이 Boot ObjectMapper(Jackson 3)로 서버가 직렬화한 문자열을 넘긴다.
+        model.addAttribute("raidCardMetaJson", objectMapper.writeValueAsString(raidCardOptions));
+        model.addAttribute("raidLevels", List.of(RaidLevel.values()));
+        model.addAttribute("diskTypes", List.of(DiskTypeRequirement.values()));
+        model.addAttribute("diskTransports", List.of(DiskTransportRequirement.values()));
+        model.addAttribute("diskCapacityUnits", List.of(DiskCapacityUnit.values()));
+        model.addAttribute("diskCountModes", List.of(DiskCountMode.values()));
     }
 
     /**

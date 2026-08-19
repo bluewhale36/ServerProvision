@@ -62,6 +62,8 @@ class JpaSettingQueryServiceTest {
     @Mock OSEnvironmentRepository osEnvironmentRepository;
     @Mock OSPackageGroupRepository osPackageGroupRepository;
     @Mock com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository biosSettingTemplateRepository;
+    @Mock com.example.serverprovision.management.raidcard.repository.RaidCardRepository raidCardRepository;
+    @Mock com.example.serverprovision.management.os.repository.ISORepository isoRepository;
     @InjectMocks JpaSettingQueryService service;
 
     /** 저장 순서를 선언 순의 역(BASIC_SETTING → BASIC_UPDATE)으로 구성 — 재조립이 정렬함을 검증한다. */
@@ -393,5 +395,74 @@ class JpaSettingQueryServiceTest {
         // 환경의 groupIds = 환경 허용(10,99) ∩ ISO 제공(10) = [10].
         assertThat(isoOption.environments()).singleElement()
                 .extracting(e -> e.groupIds()).isEqualTo(List.of(10L));
+    }
+
+    // ==== U4-1-1 — RAID 카드 선택지 · 상세의 카드명 해석 =====================================
+
+    private static com.example.serverprovision.management.raidcard.entity.RaidCard raidCard(
+            Long id, String model, boolean enabled, boolean deprecated, List<com.example.serverprovision.management.raidcard.enums.RaidLevel> levels, int cacheGb) {
+        var card = com.example.serverprovision.management.raidcard.entity.RaidCard.builder()
+                .id(id).vendor(com.example.serverprovision.management.raidcard.enums.RaidCardVendor.GIGABYTE).modelName(model)
+                .supportedRaidLevels(com.example.serverprovision.management.raidcard.vo.SupportedRaidLevels.of(levels))
+                .cacheCapacity(com.example.serverprovision.management.raidcard.vo.CacheCapacity.ofGigabytes(cacheGb))
+                .ownEnabled(enabled).ownDeprecated(deprecated).isDeleted(false)
+                .build();
+        card.recomputeEffective();
+        return card;
+    }
+
+    @Test
+    @DisplayName("findRaidCardOptions — disabled 배제 · deprecated 포함 · blockReasons 는 못 만드는 레벨만 · hasCache 전달 (U4-1-1)")
+    void findRaidCardOptions_mapsCardsWithJudgmentMaterial() {
+        var levels01 = List.of(com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID0,
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID1);
+        given(raidCardRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(
+                raidCard(1L, "CRA3338", true, false, levels01, 0),
+                raidCard(2L, "9361-8i", true, true, List.of(com.example.serverprovision.management.raidcard.enums.RaidLevel.values()), 2),
+                raidCard(3L, "OFF", false, false, levels01, 0)));
+
+        var groups = service.findRaidCardOptions();
+
+        assertThat(groups).hasSize(1);
+        assertThat(groups.get(0).vendorDisplay()).isEqualTo("GIGABYTE");
+        var cards = groups.get(0).cards();
+        assertThat(cards).extracting(c -> c.id()).containsExactly(1L, 2L); // disabled(3) 배제
+        var cra = cards.get(0);
+        assertThat(cra.hasCache()).isFalse();
+        assertThat(cra.supportedLevels()).containsExactly(
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID0,
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID1);
+        assertThat(cra.blockReasons()).containsOnlyKeys(
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID5,
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID6,
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID10);
+        assertThat(cra.blockReasons().get(com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID5))
+                .contains("RAID5 를 만들 수 없는 카드입니다");
+        var avago = cards.get(1);
+        assertThat(avago.hasCache()).isTrue();
+        assertThat(avago.blockReasons()).isEmpty();
+        assertThat(avago.deprecated()).isTrue();
+    }
+
+    @Test
+    @DisplayName("findDetail — references.raidCards 는 살아 있는 카드만 이름을 담고, 사라진 카드 id 는 비워 둔다 (U4-1-1 소프트참조)")
+    void findDetail_resolvesRaidCardName_orLeavesGoneUnresolved() {
+        given(referenceInspectors.inspectorFor(org.mockito.ArgumentMatchers.any())).willReturn(inspector);
+        given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(assignmentUsageInspector.countReferencing(org.mockito.ArgumentMatchers.any())).willReturn(0L);
+
+        var install = new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(7L, List.of());
+        SettingDefinition definition = SettingDefinition.builder().name("raid")
+                .processes(List.of(new SettingProcess(new ProcessPayload(install)))).build();
+        given(repository.findById(1L)).willReturn(Optional.of(definition));
+
+        // 살아 있는 카드 → 이름 해석
+        given(raidCardRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.of(
+                raidCard(7L, "CRA3338", true, false, List.of(com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID1), 0)));
+        assertThat(service.findDetail(1L).references().raidCards()).containsEntry(7L, "GIGABYTE CRA3338");
+
+        // 사라진(soft-delete) 카드 → 맵에 없음 = 템플릿이 "(사라진 카드 #7)" 로 그린다
+        given(raidCardRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.empty());
+        assertThat(service.findDetail(1L).references().raidCards()).doesNotContainKey(7L);
     }
 }

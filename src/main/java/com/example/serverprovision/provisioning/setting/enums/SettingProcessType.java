@@ -16,6 +16,8 @@ public enum SettingProcessType {
 
     BASIC_UPDATE("펌웨어 업데이트"),
     BASIC_SETTING("BIOS 설정"),
+    /** RAID 카드로 디스크 묶음 규칙을 집행하는 단계(U4-1-1 v2) — 현장 순서(BIOS 설정 → RAID → OS 설치)대로 이 자리다. */
+    RAID_CONFIGURATION("RAID 구성"),
     OS_INSTALLATION("OS 설치"),
     OS_SETTING("OS 후처리 설정");
 

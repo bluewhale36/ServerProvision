@@ -45,6 +45,9 @@ public enum ProvisioningPhaseStep {
     BIOS_SETTING(ProvisioningPhase.FIRMWARE_SETTING),
     BMC_SETTING(ProvisioningPhase.FIRMWARE_SETTING),
 
+    /** RAID 카드로 디스크 묶음 규칙을 집행 — BMC_SETTING 다음 · OS_INSTALLING 전(U4-1-1 v2). */
+    RAID_CONFIGURATION(ProvisioningPhase.RAID_CONFIGURATION),
+
     OS_INSTALLING(ProvisioningPhase.OS_INSTALLING),
 
     OS_SETTING(ProvisioningPhase.OS_SETTING),

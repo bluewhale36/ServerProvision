@@ -122,6 +122,67 @@
                     </div>
                 </th:block>
 
+                <!-- ==================== RAID_CONFIGURATION (U4-1-1 v2) ==================== -->
+                <th:block th:case="'RAID_CONFIGURATION'">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <!-- RAID 카드(U4-1-1) — 소프트참조라 사라진 카드는 #id 폴백이 아니라 그 사실을 드러낸다(purge 참조검사 없음). -->
+                        <tr>
+                            <th>RAID 카드</th>
+                            <td th:switch="${process.raidCardId != null}">
+                                <span th:case="false" class="n-muted">지정 안 함</span>
+                                <th:block th:case="true" th:with="cardName=${setting.references.raidCards.get(process.raidCardId)}">
+                                    <span th:if="${cardName != null}" th:text="${cardName}">GIGABYTE CRA3338</span>
+                                    <span th:if="${cardName == null}" class="n-muted"
+                                          th:text="'(사라진 카드 #' + ${process.raidCardId} + ')'">(사라진 카드 #3)</span>
+                                </th:block>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 디스크 묶음 규칙(U4-1-1) — 규칙 목록. 비어 있으면 디스크 구성을 정하지 않은 것(설치기 자동 선택). -->
+                    <div class="n-process-subsection">
+                        <div class="n-label strong">디스크 구성</div>
+                        <span th:if="${#lists.isEmpty(process.diskGroups)}" class="n-muted">설정 안 함 — 설치기가 자동 선택합니다</span>
+                        <table class="n-table" th:unless="${#lists.isEmpty(process.diskGroups)}">
+                            <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>RAID 레벨</th>
+                                <th>종류</th>
+                                <th>전송</th>
+                                <th>용량</th>
+                                <th>개수</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="rule, it : ${process.diskGroups}">
+                                <td class="n-table-muted" th:text="${it.count}">1</td>
+                                <td>
+                                    <span th:if="${rule.buildsRaid()}" class="n-badge n-badge-blue" th:text="${rule.raidLevel.displayName}">RAID1</span>
+                                    <span th:unless="${rule.buildsRaid()}" class="n-badge n-badge-gray">RAID 없음</span>
+                                </td>
+                                <td>
+                                    <span th:if="${rule.diskType.name() == 'AUTO'}" class="n-table-muted">자동 탐지</span>
+                                    <span th:unless="${rule.diskType.name() == 'AUTO'}" th:text="${rule.diskType.displayName}">SSD</span>
+                                </td>
+                                <td>
+                                    <span th:if="${rule.transport.name() == 'AUTO'}" class="n-table-muted">자동 탐지</span>
+                                    <span th:unless="${rule.transport.name() == 'AUTO'}" th:text="${rule.transport.displayName}">SATA</span>
+                                </td>
+                                <td>
+                                    <span th:if="${rule.capacity.isAuto()}" class="n-table-muted">자동 탐지</span>
+                                    <span th:unless="${rule.capacity.isAuto()}" th:text="${rule.capacity.toDisplay()}">480 GB</span>
+                                </td>
+                                <td th:text="${rule.count.toDisplay()}">2개</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </th:block>
+
                 <!-- ==================== OS_INSTALLATION ==================== -->
                 <th:block th:case="'OS_INSTALLATION'">
                     <table class="n-detail-table">

@@ -11,6 +11,11 @@
                    (id/name/boardModelId/boardModelName — 체크 패널 + 보드 뱃지)
     fileSystems  : List<FileSystem>                    파티션 행 템플릿 (name()/displayName)
     sizeUnits    : List<SizeUnit>                      파티션 행 템플릿 (name()/symbol)
+    raidCardOptions   : List<SettingRaidCardOptionGroupResponse>  U4-1-1 v2 RAID_CONFIGURATION 카드의 RAID 카드 select — 제조사 optgroup.
+    raidCardMetaJson  : String — 위 선택지의 판정 재료(hasCache / supportedLevels / blockReasons)를 서버가 JSON 으로 직렬화한 문자열
+                        (initialSettingJson 과 같은 경로 — JS 가 파싱해 RAID_CARD_META 로 쓴다)
+    raidLevels        : List<RaidLevel>                디스크 묶음 행 템플릿 — 옵션 data-min-disks / data-min-disks-cached
+    diskTypes / diskTransports / diskCapacityUnits / diskCountModes : 디스크 묶음 행 템플릿 select 들
     (setting     : 수정 폼에서만 존재 — settingForm 프래그먼트가 setting 유무로 create/edit 모드를 판별)
 
   공유 구조 :
@@ -230,6 +235,92 @@
                                     </div>
                                     <div class="n-hint">자동 감지 시 실행 시점에 감지된 보드와 일치하는 템플릿 1개가 적용되고 나머지는 건너뜁니다.</div>
                                 </div>
+                            </div>
+                        </details>
+
+                        <!-- ==================== RAID_CONFIGURATION (U4-1-1 v2) ==================== -->
+                        <!-- 독립 단계 카드 — 선언 순(BIOS 설정 다음 · OS 설치 전)이 곧 배치 순. RAID 카드 → 디스크 묶음 규칙 순으로
+                             RAID 카드 select 의 선택이 묶음 표의 레벨 · 개수 하한을 정한다(진리표 D7). -->
+                        <details class="n-accordion-item n-step-card" data-process-card="RAID_CONFIGURATION" hidden>
+                            <summary class="n-accordion-head">
+                                <span class="n-accordion-chevron"></span>
+                                <span class="n-accordion-title n-step-title">RAID 구성</span>
+                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                            </summary>
+                            <div class="n-accordion-body">
+                                <div class="n-hint">RAID card 를 이용한 RAID 구성만 지원되며, Onboard RAID 는 지원되지 않습니다.</div>
+                                <!-- 디스크 구성 (U4-1-1 v2) — RAID 카드 먼저, 그 다음 묶음 규칙(D7). 독립 단계 카드라 OS 선택과 무관하게 항상 보인다. 판정 재료는 서버가 내려주고 JS 는 읽기만 한다:
+                                     카드 → raidCardMetaJson(hasCache / supportedLevels / blockReasons), 레벨 → 옵션 data-min-disks(-cached).
+                                     @AssertTrue(raidCardPresentWhenRequired) 오류는 카드 그룹 컨테이너가 exact-match 로 받는다. -->
+                                <div class="n-form-group" data-error-field="raidCardPresentWhenRequired">
+                                    <!-- 안내는 상시 노출 대신 라벨 바로 옆 ⓘ 표식 hover 로(CP7 검수) — 전역 .n-tooltip 규칙 재사용.
+                                         .n-group-head 가 space-between 이라 표식은 라벨과 한 묶음(.n-label-with-help)으로 왼쪽에 둔다(오른쪽 끝이면 tooltip 이 잘린다). -->
+                                    <div class="n-group-head">
+                                        <span class="n-label-with-help">
+                                            <label class="n-label strong" for="rcRaidCard">RAID 카드</label>
+                                            <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말"
+                                                  data-tooltip="RAID 를 구성하는 묶음이 있으면 카드를 지정해야 합니다. 카드가 만들 수 있는 레벨과 최소 디스크 수가 아래 묶음 표의 선택지를 정합니다.">?</span>
+                                        </span>
+                                    </div>
+                                    <div data-error-field="raidCardId">
+                                        <select id="rcRaidCard" class="n-select">
+                                            <option value="" data-none>선택 안 함 — RAID 를 구성하지 않습니다</option>
+                                            <optgroup th:each="group : ${raidCardOptions}" th:label="${group.vendorDisplay}">
+                                                <option th:each="card : ${group.cards}"
+                                                        th:value="${card.id}"
+                                                        th:text="${card.displayName} + ' — 캐시 ' + ${card.cacheDisplay} + ' · ' + ${card.supportedLevelsDisplay}"
+                                                        th:data-deprecated="${card.deprecated}"
+                                                        th:data-deprecated-at="${card.deprecatedAtDisplay}"
+                                                        th:data-description="${card.description}"></option>
+                                            </optgroup>
+                                        </select>
+                                        <div class="n-hint" id="rcRaidCardHint" hidden></div>
+                                        <!-- 카드 판정 재료(hasCache · supportedLevels · blockReasons)를 JSON 으로 — JS 는 이 표를 읽기만 하고
+                                             문구를 짓지 않는다(SSOT = SupportedRaidLevels.blockReasonFor). setting-edit 의 initialSettingJson 과 같은 문자열 inline 관례. -->
+                                        <script th:inline="javascript">
+                                            window.RAID_CARD_META_JSON = /*[[${raidCardMetaJson}]]*/ '[]';
+                                        </script>
+                                        <!-- 수정 pre-fill 시 저장본의 카드가 선택지에서 사라졌으면(삭제 · 비활성) 경고 — JS 가 표시 -->
+                                        <div class="n-hint" id="rcRaidCardPrefillWarning" hidden>
+                                            저장 당시 선택했던 RAID 카드가 삭제되거나 비활성화되어 선택에서 제외되었습니다. 카드를 다시 고르거나 RAID 묶음을 비워야 저장됩니다.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="n-form-group" data-error-field="diskGroups">
+                                    <div class="n-group-head">
+                                        <span class="n-label-with-help">
+                                            <label class="n-label strong">디스크 묶음 규칙</label>
+                                            <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말"
+                                                  data-tooltip="묶음 하나 = {RAID 레벨, 종류, 전송, 용량, 개수}. 조건에 맞는 조합 전부에 적용됩니다(같은 스펙 4장 + RAID1 2개 → 볼륨 2개). 레벨을 ‘RAID 없음’ 으로 두면 그 묶음의 디스크를 RAID 로 묶지 않고 그대로 씁니다. 묶음을 하나도 두지 않으면 설치기가 자동 선택합니다. 행 순서는 맨 앞 ☰ 핸들을 끌어 바꿉니다.">?</span>
+                                        </span>
+                                    </div>
+                                    <table class="table table-sm table-bordered n-tbl-list" id="rcDiskGroupTable">
+                                        <colgroup>
+                                            <col class="n-col-4"><!-- 순서 핸들(드래그) -->
+                                            <col class="n-col-16"><!-- RAID 레벨 -->
+                                            <col class="n-col-14"><!-- 종류 -->
+                                            <col class="n-col-14"><!-- 전송 -->
+                                            <col class="n-col-21"><!-- 용량: 방식 / (지정 시 아래 줄) 값 + 단위 -->
+                                            <col class="n-col-21"><!-- 개수: 값 + 방식 -->
+                                            <col class="n-col-10"><!-- 삭제 -->
+                                        </colgroup>
+                                        <thead>
+                                        <tr>
+                                            <th></th>
+                                            <th>RAID 레벨</th>
+                                            <th>종류</th>
+                                            <th>전송</th>
+                                            <th>용량</th>
+                                            <th>개수</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                    <button type="button" id="rcAddDiskGroup" class="n-btn n-btn-ghost n-btn-sm">+ 묶음 추가</button>
+                                </div>
+
                             </div>
                         </details>
 
@@ -529,6 +620,61 @@
                     </select>
                 </td>
                 <td class="n-td-center"><input type="checkbox" class="pGrow"></td>
+                <td class="n-td-center">
+                    <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
+                </td>
+            </tr>
+        </template>
+
+        <template id="tplDiskGroupRow">
+            <tr>
+                <td class="n-td-center">
+                    <span class="dgHandle" title="끌어서 순서 변경" aria-label="끌어서 순서 변경">☰</span>
+                </td>
+                <td>
+                    <select class="n-select dgLevel">
+                        <option value="">RAID 없음</option>
+                        <option th:each="lv : ${raidLevels}"
+                                th:value="${lv.name()}"
+                                th:text="${lv.displayName}"
+                                th:data-min-disks="${lv.minimumDisks(false)}"
+                                th:data-min-disks-cached="${lv.minimumDisks(true)}"></option>
+                    </select>
+                </td>
+                <td>
+                    <select class="n-select dgType">
+                        <option th:each="dt : ${diskTypes}" th:value="${dt.name()}" th:text="${dt.displayName}"></option>
+                    </select>
+                </td>
+                <td>
+                    <select class="n-select dgTransport">
+                        <option th:each="tr : ${diskTransports}" th:value="${tr.name()}" th:text="${tr.displayName}"></option>
+                    </select>
+                </td>
+                <td>
+                    <!-- 용량: 방식 select 한 줄 + '지정' 일 때만 아래 줄에 값 · 단위(열 폭을 좁게 유지 — CP7 검수) -->
+                    <div class="n-cell-stack">
+                        <select class="n-select dgCapacityMode" title="자동 탐지 또는 직접 지정">
+                            <option value="AUTO">자동 탐지</option>
+                            <option value="SPECIFIED">직접 지정</option>
+                        </select>
+                        <div class="n-cell-pair dgCapacityValue" hidden>
+                            <input type="number" class="n-input dgCapacitySize" min="1" placeholder="480">
+                            <select class="n-select dgCapacityUnit">
+                                <option th:each="unit : ${diskCapacityUnits}" th:value="${unit.name()}" th:text="${unit.symbol}"></option>
+                            </select>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <!-- 레벨별 최소치는 placeholder · title 로만(셀 안 상시 문구 없음 — CP7 검수) -->
+                    <div class="n-cell-pair">
+                        <input type="number" class="n-input dgCount" min="1" placeholder="1">
+                        <select class="n-select dgCountMode">
+                            <option th:each="cm : ${diskCountModes}" th:value="${cm.name()}" th:text="${cm.suffix}"></option>
+                        </select>
+                    </div>
+                </td>
                 <td class="n-td-center">
                     <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
                 </td>

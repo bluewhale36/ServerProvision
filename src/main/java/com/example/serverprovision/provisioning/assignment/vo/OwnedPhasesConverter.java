@@ -29,6 +29,7 @@ public class OwnedPhasesConverter implements AttributeConverter<OwnedPhases, Str
         EnumMap<ProvisioningPhase, String> toCode = new EnumMap<>(ProvisioningPhase.class);
         toCode.put(ProvisioningPhase.FIRMWARE_UPDATING, "FW_UPDATE");
         toCode.put(ProvisioningPhase.FIRMWARE_SETTING, "FW_SETTING");
+        toCode.put(ProvisioningPhase.RAID_CONFIGURATION, "RAID_CONFIG");
         toCode.put(ProvisioningPhase.OS_INSTALLING, "OS_INSTALL");
         toCode.put(ProvisioningPhase.OS_SETTING, "OS_SETTING");
         TO_CODE = Collections.unmodifiableMap(toCode);
