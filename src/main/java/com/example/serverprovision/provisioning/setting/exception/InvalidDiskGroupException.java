@@ -48,4 +48,10 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
     public static InvalidDiskGroupException incompatibleTransport(int ruleNo, String diskType, String transport) {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + diskType + " 에는 " + transport + " 전송 방식이 없습니다.");
     }
+
+    /** OS 영역으로 고정한 묶음이 둘 이상 — OS 유일성(E7)은 규칙 하나가 고정하고 우선순위가 그 안에서 고른다(U4-1-2 규칙 7). */
+    public static InvalidDiskGroupException multipleOsRules(int ruleNo, int firstOsRuleNo) {
+        return new InvalidDiskGroupException(ruleNo + "번 묶음: " + firstOsRuleNo
+                + "번 묶음이 이미 OS 영역으로 고정되어 있습니다 — OS 영역은 한 묶음만 고정할 수 있습니다.");
+    }
 }

@@ -451,7 +451,8 @@ class JpaSettingQueryServiceTest {
         given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
         given(assignmentUsageInspector.countReferencing(org.mockito.ArgumentMatchers.any())).willReturn(0L);
 
-        var install = new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(7L, List.of());
+        var install = new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(7L, List.of(),
+                com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest.defaults());
         SettingDefinition definition = SettingDefinition.builder().name("raid")
                 .processes(List.of(new SettingProcess(new ProcessPayload(install)))).build();
         given(repository.findById(1L)).willReturn(Optional.of(definition));

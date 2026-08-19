@@ -6,7 +6,10 @@ import com.example.serverprovision.provisioning.setting.dto.request.RootPassword
 import com.example.serverprovision.provisioning.setting.dto.request.UserRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
+import com.example.serverprovision.provisioning.setting.enums.CapacityOrder;
 import com.example.serverprovision.provisioning.setting.enums.DiskCapacityUnit;
+import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
 import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
 import com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement;
@@ -98,6 +101,11 @@ public class SettingController {
         model.addAttribute("diskTransports", List.of(DiskTransportRequirement.values()));
         model.addAttribute("diskCapacityUnits", List.of(DiskCapacityUnit.values()));
         model.addAttribute("diskCountModes", List.of(DiskCountMode.values()));
+        // U4-1-2 — 역할 · 우선순위 선택지. 기본 우선순위 행은 파라미터가 없어 endpoint 대신 페이지에 한 번 싣는다(D6) —
+        // 폼 첫 채움과 '기본 행으로 되돌리기' 가 같은 값을 읽는다. SSOT = VolumePriorityRuleRequest.defaults().
+        model.addAttribute("diskGroupRoles", List.of(DiskGroupRole.values()));
+        model.addAttribute("capacityOrders", List.of(CapacityOrder.values()));
+        model.addAttribute("defaultVolumePrioritiesJson", objectMapper.writeValueAsString(VolumePriorityRuleRequest.defaults()));
     }
 
     /**

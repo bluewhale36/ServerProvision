@@ -115,6 +115,10 @@
             syncOsSelectionLock();
             syncBsBoardLock();
             refreshBsTemplateRules(); // BASIC_UPDATE/BASIC_SETTING 카드 유무가 템플릿 선택 규칙에 반영된다
+            // U4-1-2 — RAID 구성 카드를 처음 열면 우선순위 기본 행을 채운다(E26 — 정의서는 언제나 값을 갖고 기본값은 폼이 채운 값).
+            // 수정 pre-fill 은 이 뒤에 저장본으로 덮어쓴다. OS 설치 카드의 유무가 OS 후보 안내에 걸리므로 진리표도 다시 본다.
+            if (type === 'RAID_CONFIGURATION' && rcPriorityTbody && !priorityRows().length) resetPriorityRows();
+            applyDiskGroupConstraints();
         }
 
         function removeStep(type) {
@@ -127,6 +131,7 @@
             syncOsSelectionLock();
             syncBsBoardLock();
             refreshBsTemplateRules(); // 펌웨어 단계 제거 ⇒ AUTO 취급으로 재평가
+            applyDiskGroupConstraints(); // OS 설치 카드 제거 ⇒ OS 후보 안내 재평가(U4-1-2)
         }
 
         form.querySelectorAll('[data-step-add]').forEach(btn => {
@@ -224,6 +229,13 @@
         const rcRaidCardHint = document.getElementById('rcRaidCardHint');
         const rcRaidCardPrefillWarning = document.getElementById('rcRaidCardPrefillWarning');
         const rcDiskGroupTbody = document.querySelector('#rcDiskGroupTable tbody');
+        // U4-1-2 — 볼륨 우선순위 표 · 안내
+        const rcPriorityTbody = document.querySelector('#rcPriorityTable tbody');
+        const rcAddPriority = document.getElementById('rcAddPriority');
+        const rcResetPriority = document.getElementById('rcResetPriority');
+        const rcPriorityHint = document.getElementById('rcPriorityHint');
+        const rcPriorityPrefillWarning = document.getElementById('rcPriorityPrefillWarning');
+        const rcNoOsCandidateHint = document.getElementById('rcNoOsCandidateHint');
 
         function osFamilyPanes() {
             return Array.from(form.querySelectorAll('#oiDetailFields .n-os-family-pane'));
@@ -530,6 +542,21 @@
         const MSG_CARD_LOCKED = 'RAID 묶음이 있어 해제할 수 없습니다 — 묶음의 레벨을 먼저 비우세요.';
         const MSG_CARD_REQUIRED = 'RAID 를 구성하는 묶음이 있으므로 RAID 카드를 지정해야 합니다.';
         const MSG_HDD_NO_NVME = 'HDD 에는 NVMe 전송 방식이 없습니다.';
+        // U4-1-2 — 역할 · 우선순위 문구. 서버 DiskGroupRules 7 · RaidConfigurationRequest.isVolumePriorityDistinct ·
+        // SettingSaveRequest.isOsVolumeDeterminable 과 같은 뜻.
+        const MSG_OS_FIXED_ELSEWHERE = '번 묶음이 이미 OS 영역으로 고정되어 있습니다 — OS 영역은 한 묶음만 고정할 수 있습니다.';
+        const MSG_NO_OS_CANDIDATE_WITH_INSTALL = 'OS 영역이 될 수 있는 묶음(OS 영역 고정 또는 우선순위에 따름)이 없습니다 — OS 설치 단계가 있으면 저장할 수 없습니다.';
+        const MSG_NO_OS_CANDIDATE = 'OS 영역이 될 수 있는 묶음이 없습니다 — OS 영역은 설치기가 자동 선택합니다.';
+        const MSG_PRIORITY_DUPLICATE = '이미 있는 조합입니다';
+        const MSG_PRIORITY_EXHAUSTED = '종류 · 전송의 유효 조합(5)을 모두 썼습니다 — 행을 지운 뒤 추가하세요.';
+        const MSG_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 고정 또는 우선순위에 따름 + 우선순위 행)이 있어야 합니다.';
+        // 표 아래 상시 안내는 짧게 — 제출 시 붙는 오류(위 전문)와 같은 문장이 두 번 보이지 않게(CP5 O-1).
+        const HINT_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으므로 우선순위 행을 두거나 묶음 하나를 OS 영역으로 고정해야 저장됩니다.';
+        const MSG_PRIORITY_EMPTY = '우선순위 행이 없으면 볼륨은 열거 순서대로 놓입니다.';
+        const PRIORITY_VALID_COMBOS = 5; // 종류 2 × 전송 3 − HDD×NVMe
+        let DEFAULT_VOLUME_PRIORITIES = [];
+        try { DEFAULT_VOLUME_PRIORITIES = JSON.parse(window.DEFAULT_VOLUME_PRIORITIES_JSON || '[]') || []; }
+        catch (e) { console.warn('[settingForm] defaultVolumePrioritiesJson 파싱 실패:', e); }
 
         function selectedRaidCard() {
             return rcRaidCard && rcRaidCard.value ? (RAID_CARD_BY_ID[rcRaidCard.value] || null) : null;
@@ -617,6 +644,23 @@
             // 2-b) 동일 규칙 중복 — 다섯 축이 같은 행을 강조하고 사유를 적는다(DiskGroupRules 4 의 1차 차단, CP5 C5 보강).
             markDuplicateDiskGroups();
 
+            // 2-c) 역할(U4-1-2) — OS 영역 고정은 한 묶음만(DiskGroupRules 7): 어떤 행이 OS 면 다른 행의 OS 옵션을 잠근다.
+            const osRow = diskGroupRows().find(row => row.querySelector('.dgRole').value === 'OS') || null;
+            const osRowNo = osRow ? diskGroupRows().indexOf(osRow) + 1 : 0;
+            diskGroupRows().forEach(row => {
+                const roleSel = row.querySelector('.dgRole');
+                const osOpt = roleSel.querySelector('option[value="OS"]');
+                if (osOpt) setOptionState(osOpt, osRow && row !== osRow ? osRowNo + MSG_OS_FIXED_ELSEWHERE : null);
+            });
+            // OS 후보(OS 고정 · 우선순위에 따름)가 하나도 없으면 안내 — OS 설치 카드가 있으면 저장이 막힌다(isOsVolumeDeterminable).
+            if (rcNoOsCandidateHint) {
+                const rows = diskGroupRows();
+                const noCandidate = rows.length > 0 && !rows.some(row => ['OS', 'BY_PRIORITY'].indexOf(row.querySelector('.dgRole').value) >= 0);
+                rcNoOsCandidateHint.textContent = noCandidate ? (osInstallCardActive() ? MSG_NO_OS_CANDIDATE_WITH_INSTALL : MSG_NO_OS_CANDIDATE) : '';
+                rcNoOsCandidateHint.hidden = !noCandidate;
+            }
+            applyPriorityConstraints();
+
 
             // 3) 카드 select 아래 안내 — 카드가 없는데 RAID 묶음이 있으면(pre-fill 소실 등) 요구 사실을 보인다
             if (rcRaidCardHint) {
@@ -674,11 +718,13 @@
             const cnt = d.count || {};
             row.querySelector('.dgCount').value = cnt.value != null ? cnt.value : '';
             if (cnt.mode) row.querySelector('.dgCountMode').value = cnt.mode;
+            // 역할(U4-1-2) — 저장본에 없으면(구 payload) '우선순위에 따름'. 스펙 축이 아니라 해석 규칙이라 기본값이 정당하다.
+            row.querySelector('.dgRole').value = d.role || 'BY_PRIORITY';
             // RAID 없음 묶음의 개수는 '1개 이상'(제약 없음 = 그 스펙 디스크 각각이 볼륨)이 중립값이라 비어 있으면 채운다 —
             // 디스크 스펙(종류 · 전송 · 용량)에는 기본값을 두지 않는다(E16). 사용자는 언제든 고칠 수 있다.
             defaultCountForNoRaid(row);
 
-            ['.dgLevel', '.dgCapacityMode', '.dgCount', '.dgCountMode', '.dgType', '.dgTransport', '.dgCapacitySize', '.dgCapacityUnit']
+            ['.dgLevel', '.dgCapacityMode', '.dgCount', '.dgCountMode', '.dgType', '.dgTransport', '.dgCapacitySize', '.dgCapacityUnit', '.dgRole']
                 .forEach(sel => row.querySelector(sel).addEventListener('change', applyDiskGroupConstraints));
             row.querySelector('.dgCount').addEventListener('input', applyDiskGroupConstraints);
             row.querySelector('.dgLevel').addEventListener('change', () => defaultCountForNoRaid(row));
@@ -700,10 +746,14 @@
         /* 행 순서 — 맨 앞 ☰ 핸들을 끌어 옮긴다(HTML5 drag & drop, CP7 검수). 묶음 번호(N번)와 중복 판정이 순서를
            따르므로 놓은 뒤 진리표를 다시 적용한다. draggable 은 핸들을 누르는 동안만 켠다 — 셀 안 입력의 텍스트 드래그와 안 겹치게. */
         let dgDragging = null;
-        function clearDropMarks() {
-            diskGroupRows().forEach(r => r.classList.remove('dg-drop-before', 'dg-drop-after'));
+        function clearDropMarks(tbody) {
+            Array.from(tbody.querySelectorAll('tr')).forEach(r => r.classList.remove('dg-drop-before', 'dg-drop-after'));
         }
         function bindDiskGroupDrag(row) {
+            bindRowDrag(row, rcDiskGroupTbody, applyDiskGroupConstraints);
+        }
+        /** 표 공용 행 드래그 — 묶음 표(U4-1-1)와 우선순위 표(U4-1-2)가 같은 구현을 쓴다. 놓은 뒤 onDrop 으로 진리표를 다시 적용한다. */
+        function bindRowDrag(row, tbody, onDrop) {
             const handle = row.querySelector('.dgHandle');
             handle.addEventListener('mousedown', () => row.setAttribute('draggable', 'true'));
             handle.addEventListener('mouseup', () => row.removeAttribute('draggable'));
@@ -714,28 +764,28 @@
                 e.dataTransfer.setData('text/plain', 'disk-group-row'); // Firefox 는 data 가 있어야 드래그가 시작된다
             });
             row.addEventListener('dragover', e => {
-                if (!dgDragging || dgDragging === row) return;
+                if (!dgDragging || dgDragging === row || dgDragging.parentNode !== tbody) return; // 다른 표의 행은 받지 않는다
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
                 const rect = row.getBoundingClientRect();
                 const before = e.clientY < rect.top + rect.height / 2;
-                clearDropMarks();
+                clearDropMarks(tbody);
                 row.classList.add(before ? 'dg-drop-before' : 'dg-drop-after');
             });
             row.addEventListener('drop', e => {
-                if (!dgDragging || dgDragging === row) return;
+                if (!dgDragging || dgDragging === row || dgDragging.parentNode !== tbody) return;
                 e.preventDefault();
                 const rect = row.getBoundingClientRect();
                 const before = e.clientY < rect.top + rect.height / 2;
-                rcDiskGroupTbody.insertBefore(dgDragging, before ? row : row.nextSibling);
-                clearDropMarks();
-                applyDiskGroupConstraints();
+                tbody.insertBefore(dgDragging, before ? row : row.nextSibling);
+                clearDropMarks(tbody);
+                onDrop();
             });
             row.addEventListener('dragend', () => {
                 row.classList.remove('dg-dragging');
                 row.removeAttribute('draggable');
                 dgDragging = null;
-                clearDropMarks();
+                clearDropMarks(tbody);
             });
         }
 
@@ -749,10 +799,102 @@
                     capacity: capMode === 'SPECIFIED'
                         ? {mode: 'SPECIFIED', size: intOrNull(row.querySelector('.dgCapacitySize').value), unit: row.querySelector('.dgCapacityUnit').value}
                         : {mode: 'AUTO', size: null, unit: null},
-                    count: {mode: row.querySelector('.dgCountMode').value, value: intOrNull(row.querySelector('.dgCount').value)}
+                    count: {mode: row.querySelector('.dgCountMode').value, value: intOrNull(row.querySelector('.dgCount').value)},
+                    role: row.querySelector('.dgRole').value
                 };
             });
         }
+
+        /* ---- 볼륨 우선순위 표 (U4-1-2) — 행 순서 = 우선순위. 종류 · 전송 · 용량 순서 ---- */
+        function priorityRows() {
+            return rcPriorityTbody ? Array.from(rcPriorityTbody.querySelectorAll('tr')) : [];
+        }
+        function osInstallCardActive() {
+            const card = cardOf('OS_INSTALLATION');
+            return !!card && !card.hidden;
+        }
+        function priorityIdentity(row) {
+            return row.querySelector('.vpType').value + '|' + row.querySelector('.vpTransport').value;
+        }
+        /**
+         * 우선순위 진리표 — HDD 행의 NVMe 옵션 잠금 · (종류, 전송) 중복 행 강조 · 유효 조합 소진 시 추가 버튼 잠금 ·
+         * 0 행 안내(OS 설치 카드가 있으면 저장 불가 문구). 서버 @AssertTrue 들과 같은 판정.
+         */
+        function applyPriorityConstraints() {
+            if (!rcPriorityTbody) return;
+            const rows = priorityRows();
+            const seen = new Map();
+            rows.forEach((row, i) => {
+                row.querySelector('.vpRank').textContent = String(i + 1); // 순위 열 — 행 순서의 명시(CP6 검수)
+                const typeSel = row.querySelector('.vpType');
+                const transportSel = row.querySelector('.vpTransport');
+                Array.from(transportSel.options).forEach(opt => {
+                    setOptionState(opt, typeSel.value === 'HDD' && opt.value === 'NVME' ? MSG_HDD_NO_NVME : null);
+                });
+                const hddNvme = typeSel.value === 'HDD' && transportSel.value === 'NVME';
+                const key = priorityIdentity(row);
+                const dup = seen.has(key);
+                if (!dup) seen.set(key, i + 1);
+                transportSel.classList.toggle('has-error', hddNvme || dup);
+                transportSel.title = hddNvme ? MSG_HDD_NO_NVME : dup ? MSG_PRIORITY_DUPLICATE + ' (' + seen.get(key) + '번 행)' : '';
+            });
+            if (rcAddPriority) {
+                const exhausted = seen.size >= PRIORITY_VALID_COMBOS && rows.length >= PRIORITY_VALID_COMBOS;
+                rcAddPriority.disabled = exhausted;
+                rcAddPriority.title = exhausted ? MSG_PRIORITY_EXHAUSTED : '';
+            }
+            if (rcPriorityHint) {
+                const empty = rows.length === 0;
+                const osFixed = diskGroupRows().some(row => row.querySelector('.dgRole').value === 'OS');
+                rcPriorityHint.textContent = !empty ? '' : (osInstallCardActive() && !osFixed && diskGroupRows().length > 0)
+                    ? HINT_PRIORITY_EMPTY_WITH_INSTALL : MSG_PRIORITY_EMPTY;
+                rcPriorityHint.hidden = !empty;
+            }
+        }
+        function addPriorityRow(data) {
+            const row = cloneTemplateRow('tplPriorityRow');
+            if (!row || !rcPriorityTbody) return;
+            const d = data || {};
+            if (d.diskType) row.querySelector('.vpType').value = d.diskType;
+            if (d.transport) row.querySelector('.vpTransport').value = d.transport;
+            if (d.capacityOrder) row.querySelector('.vpCapacityOrder').value = d.capacityOrder;
+            ['.vpType', '.vpTransport', '.vpCapacityOrder']
+                .forEach(sel => row.querySelector(sel).addEventListener('change', applyPriorityConstraints));
+            bindRowDrag(row, rcPriorityTbody, applyPriorityConstraints);
+            bindRowRemove(row);
+            row.querySelector('[data-row-remove]').addEventListener('click', () => setTimeout(applyPriorityConstraints, 0));
+            rcPriorityTbody.appendChild(row);
+            applyPriorityConstraints();
+        }
+        function clearPriorityRows() {
+            priorityRows().forEach(row => row.remove());
+        }
+        /** 기본 행으로 — 서버가 내린 defaultVolumePrioritiesJson(SSOT = VolumePriorityRuleRequest.defaults()) 그대로. */
+        function resetPriorityRows() {
+            clearPriorityRows();
+            DEFAULT_VOLUME_PRIORITIES.forEach(row => addPriorityRow(row));
+            applyPriorityConstraints();
+        }
+        function buildVolumePriorities() {
+            return priorityRows().map(row => ({
+                diskType: row.querySelector('.vpType').value,
+                transport: row.querySelector('.vpTransport').value,
+                capacityOrder: row.querySelector('.vpCapacityOrder').value
+            }));
+        }
+        /** 중복 (종류, 전송) 행 → [{no, sameAsNo}] — precheck 용. */
+        function duplicatePriorityRows() {
+            const seen = new Map();
+            const duplicates = [];
+            priorityRows().forEach((row, i) => {
+                const key = priorityIdentity(row);
+                if (seen.has(key)) duplicates.push({no: i + 1, sameAsNo: seen.get(key)});
+                else seen.set(key, i + 1);
+            });
+            return duplicates;
+        }
+        if (rcAddPriority) rcAddPriority.addEventListener('click', () => addPriorityRow());
+        if (rcResetPriority) rcResetPriority.addEventListener('click', resetPriorityRows);
 
         const rcAddDiskGroup = document.getElementById('rcAddDiskGroup');
         if (rcAddDiskGroup) rcAddDiskGroup.addEventListener('click', () => addDiskGroupRow());
@@ -1207,7 +1349,8 @@
                 return {
                     type: 'RAID_CONFIGURATION',
                     raidCardId: rcRaidCard ? intOrNull(rcRaidCard.value) : null,   // 소프트참조(null = 전제 없음)
-                    diskGroups: buildDiskGroups()
+                    diskGroups: buildDiskGroups(),
+                    volumePriorities: buildVolumePriorities()                        // U4-1-2 — 빈 배열도 명시적 값(열거 순서)
                 };
             },
             OS_INSTALLATION: function () {
@@ -1425,6 +1568,35 @@
                     if (container) paintFieldError(container, first.no + '번 묶음이 ' + first.sameAsNo + '번 묶음과 같은 규칙입니다 — 축 하나를 바꾸거나 줄을 지우세요.');
                     ok = false;
                 }
+                // 역할 · 우선순위(U4-1-2) — 진리표가 잠그지만 pre-fill · 경합으로 남을 수 있는 상태의 안전망. 문구는 서버와 같다.
+                const osRows = rows.filter(row => row.querySelector('.dgRole').value === 'OS');
+                if (osRows.length > 1) {
+                    const container = form.querySelector('[data-error-field="diskGroups"]');
+                    if (container) paintFieldError(container, (rows.indexOf(osRows[1]) + 1) + '번 묶음: ' + (rows.indexOf(osRows[0]) + 1) + MSG_OS_FIXED_ELSEWHERE);
+                    ok = false;
+                }
+                const priorityDuplicates = duplicatePriorityRows();
+                if (priorityDuplicates.length) {
+                    const container = form.querySelector('[data-error-field="volumePriorityDistinct"]');
+                    if (container) paintFieldError(container, priorityDuplicates[0].no + '번 행이 ' + priorityDuplicates[0].sameAsNo + '번 행과 같은 종류 · 전송 조합입니다 — 하나를 바꾸거나 지우세요.');
+                    ok = false;
+                }
+                const priorityHddNvme = priorityRows().filter(row => row.querySelector('.vpType').value === 'HDD' && row.querySelector('.vpTransport').value === 'NVME');
+                if (priorityHddNvme.length) {
+                    const container = form.querySelector('[data-error-field="volumePriorities"]');
+                    if (container) paintFieldError(container, (priorityRows().indexOf(priorityHddNvme[0]) + 1) + '번 행: ' + MSG_HDD_NO_NVME);
+                    ok = false;
+                }
+                // OS 설치 단계가 있으면 OS 볼륨이 정의서만으로 정해져야 한다(SettingSaveRequest.isOsVolumeDeterminable 의 1차 차단).
+                if (stepTypeByIndex.includes('OS_INSTALLATION') && rows.length > 0) {
+                    const osFixed = osRows.length > 0;
+                    const byPriority = rows.some(row => row.querySelector('.dgRole').value === 'BY_PRIORITY');
+                    if (!osFixed && !(byPriority && priorityRows().length > 0)) {
+                        const container = form.querySelector('[data-error-field="osVolumeDeterminable"]');
+                        if (container) paintFieldError(container, MSG_PRIORITY_EMPTY_WITH_INSTALL);
+                        ok = false;
+                    }
+                }
             }
             if (stepTypeByIndex.includes('OS_INSTALLATION') && oiPartitionTbody) {
                 let sizeError = false;
@@ -1553,6 +1725,13 @@
                     commitDeprecatedSelection(rcRaidCard);
                 }
                 (proc.diskGroups || []).forEach(g => addDiskGroupRow(g));
+                // 우선순위(U4-1-2) — 저장본이 있으면 그대로(빈 배열도 명시적 값), 없으면(구 저장본) addStep 이 채운 기본 행을 두고 알린다.
+                const legacy = !Array.isArray(proc.volumePriorities) || (proc.diskGroups || []).some(g => !g.role);
+                if (Array.isArray(proc.volumePriorities)) {
+                    clearPriorityRows();
+                    proc.volumePriorities.forEach(row => addPriorityRow(row));
+                }
+                if (rcPriorityPrefillWarning) rcPriorityPrefillWarning.hidden = !legacy;
                 applyDiskGroupConstraints();
             },
             OS_INSTALLATION: function (proc) {

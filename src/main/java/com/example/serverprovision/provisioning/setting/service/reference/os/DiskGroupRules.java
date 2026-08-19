@@ -12,14 +12,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 디스크 묶음 규칙의 값 검증 — 의존 0 static ({@link LinuxPartitionRules} 와 같은 자리, U4-1-1 D5). 규칙 여섯:
- * 지원 레벨 · 최소 디스크 · RAID 없음 개수 · 중복 · 용량 · 종류-전송 정합(HDD × NVMe 불가).
+ * 디스크 묶음 규칙의 값 검증 — 의존 0 static ({@link LinuxPartitionRules} 와 같은 자리, U4-1-1 D5). 규칙 일곱:
+ * 지원 레벨 · 최소 디스크 · RAID 없음 개수 · 중복 · 용량 · 종류-전송 정합(HDD × NVMe 불가) · OS 고정 최대 1(U4-1-2).
  *
  * <p>판정 재료는 정의서가 아니라 <b>카드</b>가 준다 — 만들 수 있는 레벨은 {@code SupportedRaidLevels.blockReasonFor},
  * 최소 디스크 수는 {@code RaidLevel.minimumDisks(cardHasCache)}. 두 메서드가 SSOT 이고 폼은 그 결과를
  * option data-* 로 받아 같은 판정을 먼저 한다(UI 1차 차단 · 여기는 안전망).</p>
  *
- * <p>카드가 {@code null} 인데 RAID 묶음이 있는 상황은 {@code OSInstallationRequest.isRaidCardPresentWhenRequired}
+ * <p>카드가 {@code null} 인데 RAID 묶음이 있는 상황은 {@code RaidConfigurationRequest.isRaidCardPresentWhenRequired}
  * 가 먼저 400 으로 잡는다 — 여기 오면 카드 판정만 건너뛴다.</p>
  */
 public final class DiskGroupRules {
@@ -32,9 +32,17 @@ public final class DiskGroupRules {
             return;
         }
         Map<String, Integer> seen = new HashMap<>();
+        Integer osFixedRuleNo = null;
         for (int i = 0; i < rules.size(); i++) {
             DiskGroupRuleRequest rule = rules.get(i);
             int ruleNo = i + 1;
+            // 규칙 7 — OS 영역 고정은 한 묶음만(U4-1-2 D2). 폼은 다른 행의 OS 옵션을 disabled 로 먼저 막는다.
+            if (rule.isOsFixed()) {
+                if (osFixedRuleNo != null) {
+                    throw InvalidDiskGroupException.multipleOsRules(ruleNo, osFixedRuleNo);
+                }
+                osFixedRuleNo = ruleNo;
+            }
             if (rule.buildsRaid()) {
                 validateRaidRule(ruleNo, rule.raidLevel(), rule.count().value(), card);
             } else if (rule.count().value() < 1) {

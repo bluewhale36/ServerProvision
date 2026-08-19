@@ -130,6 +130,14 @@ code {
     margin: 0 auto;
 }
 
+/* 표 · 다단 카드가 있는 상세 · 작성 화면(세팅 정의서 · 게스트 서버 상세) — 960 은 8열 표에 좁다(U4-1-2 CP4 검수).
+   1200 = DESIGN.md Desktop 브레이크포인트 하한 · 관리 자원의 단일 열 폼은 .n-page-md 그대로 둔다. */
+.n-page-lg {
+    padding: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
 .n-page-sm {
     padding: 40px;
     max-width: 860px;

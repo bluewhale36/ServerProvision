@@ -154,6 +154,7 @@
                                 <th>전송</th>
                                 <th>용량</th>
                                 <th>개수</th>
+                                <th>역할</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -176,6 +177,37 @@
                                     <span th:unless="${rule.capacity.isAuto()}" th:text="${rule.capacity.toDisplay()}">480 GB</span>
                                 </td>
                                 <td th:text="${rule.count.toDisplay()}">2개</td>
+                                <!-- 역할(U4-1-2) — 구 저장본은 role 이 없을 수 있어 null 안전. OS 고정만 색을 준다. -->
+                                <td>
+                                    <span th:if="${rule.role == null}" class="n-table-muted">미지정</span>
+                                    <span th:if="${rule.role != null and rule.role.name() == 'OS'}" class="n-badge n-badge-green" th:text="${rule.role.displayName}">OS 영역</span>
+                                    <span th:if="${rule.role != null and rule.role.name() != 'OS'}" th:text="${rule.role.displayName}">우선순위에 따름</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 볼륨 우선순위(U4-1-2) — 행 순서 = 우선순위. 볼륨은 종류 · 전송이 같은 첫 행의 순번을 받는다. -->
+                    <div class="n-process-subsection">
+                        <div class="n-label strong">볼륨 우선순위</div>
+                        <span th:if="${process.volumePriorities == null}" class="n-table-muted">미지정 (구 저장본 — 편집해 저장하면 기본값이 채워집니다)</span>
+                        <span th:if="${process.volumePriorities != null and #lists.isEmpty(process.volumePriorities)}" class="n-table-muted">없음 — 볼륨은 열거 순서대로 놓입니다</span>
+                        <table class="n-table" th:if="${process.volumePriorities != null and !#lists.isEmpty(process.volumePriorities)}">
+                            <thead>
+                            <tr>
+                                <th>순위</th>
+                                <th>종류</th>
+                                <th>전송</th>
+                                <th>용량 순서</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="row, it : ${process.volumePriorities}">
+                                <td><span class="n-rank" th:text="${it.count}">1</span></td>
+                                <td th:text="${row.diskType != null ? row.diskType.displayName : '?'}">SSD</td>
+                                <td th:text="${row.transport != null ? row.transport.displayName : '?'}">NVMe</td>
+                                <td th:text="${row.capacityOrder != null ? row.capacityOrder.displayName : '?'}">작은 용량부터</td>
                             </tr>
                             </tbody>
                         </table>

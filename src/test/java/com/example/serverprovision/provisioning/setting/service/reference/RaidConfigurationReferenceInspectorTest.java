@@ -1,6 +1,8 @@
 package com.example.serverprovision.provisioning.setting.service.reference;
 
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
+import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
+import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.exception.RaidCardNotFoundException;
@@ -52,8 +54,8 @@ class RaidConfigurationReferenceInspectorTest {
     private static RaidConfigurationRequest request(Long raidCardId, RaidLevel level, int count) {
         var rule = new DiskGroupRuleRequest(level, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
                 new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
-                new DiskCountRequirement(DiskCountMode.EXACT, count));
-        return new RaidConfigurationRequest(raidCardId, List.of(rule));
+                new DiskCountRequirement(DiskCountMode.EXACT, count), DiskGroupRole.BY_PRIORITY);
+        return new RaidConfigurationRequest(raidCardId, List.of(rule), VolumePriorityRuleRequest.defaults());
     }
 
     /** CRA3338 사양(캐시 없음 · RAID0/1) — 지원 레벨 · 캐시 판정이 실제 VO 로 돌도록 mock 대신 실 엔티티. */

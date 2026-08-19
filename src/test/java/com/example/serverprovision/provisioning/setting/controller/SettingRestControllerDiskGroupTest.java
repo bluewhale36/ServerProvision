@@ -46,19 +46,23 @@ class SettingRestControllerDiskGroupTest {
     private static final String RAID1_RULE = """
             {"raidLevel": "RAID1", "diskType": "SSD", "transport": "SATA",
              "capacity": {"mode": "SPECIFIED", "size": 480, "unit": "GB"},
-             "count": {"mode": "EXACT", "value": 2}}
+             "count": {"mode": "EXACT", "value": 2}, "role": "BY_PRIORITY"}
             """;
     private static final String NO_RAID_NVME_RULE = """
             {"raidLevel": null, "diskType": "SSD", "transport": "NVME",
              "capacity": {"mode": "AUTO", "size": null, "unit": null},
-             "count": {"mode": "EXACT", "value": 1}}
+             "count": {"mode": "EXACT", "value": 1}, "role": "BY_PRIORITY"}
+            """;
+    /** U4-1-2 — 우선순위 기본 5 행 중 하나만(빈 배열도 명시적 값이지만, 필드 자체는 필수). */
+    private static final String PRIORITY_ROWS = """
+            [{"diskType": "SSD", "transport": "NVME", "capacityOrder": "SMALLER_FIRST"}]
             """;
 
-    /** RAID 구성 단계(flat) — raidCardId · diskGroups 만 갈아 끼운다. */
+    /** RAID 구성 단계(flat) — raidCardId · diskGroups 만 갈아 끼운다(우선순위는 기본 1 행 고정 — U4-1-2 로 필수가 됐다). */
     private static String raid(String raidCardId, String diskGroups) {
         return """
-                {"type": "RAID_CONFIGURATION", "raidCardId": %s, "diskGroups": [%s]}
-                """.formatted(raidCardId, diskGroups);
+                {"type": "RAID_CONFIGURATION", "raidCardId": %s, "diskGroups": [%s], "volumePriorities": %s}
+                """.formatted(raidCardId, diskGroups, PRIORITY_ROWS);
     }
 
     private static String body(String process) {
@@ -101,10 +105,11 @@ class SettingRestControllerDiskGroupTest {
     }
 
     @Test
-    @DisplayName("POST — diskGroups · raidCardId 키 없이 type 만 → 201 (빈 목록 · null 로 읽힌다) · OS 설치와 함께 보내도 결합 규칙 없음")
+    @DisplayName("POST — diskGroups · raidCardId 키 없이 type + volumePriorities 만 → 201 (빈 목록 · null 로 읽힌다) · OS 설치와 함께 보내도 결합 규칙 없음")
     void create_bareTypeAndWithOsInstall_returns201() throws Exception {
         given(commandService.create(any())).willReturn(new SettingSaveResponse(10L, "디스크 세팅"));
-        String legacy = "{\"type\": \"RAID_CONFIGURATION\"}";
+        // U4-1-2 — volumePriorities 는 필수(@NotNull)라 키가 있어야 한다. 빈 배열은 "우선순위 없음 = 열거 순서" 라는 명시적 값.
+        String legacy = "{\"type\": \"RAID_CONFIGURATION\", \"volumePriorities\": []}";
 
         send(body(legacy)).andExpect(status().isCreated());
 
@@ -210,5 +215,118 @@ class SettingRestControllerDiskGroupTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processTypeUnique')]").exists());
         verify(commandService, never()).create(any());
+    }
+
+    // ==== U4-1-2 — 역할 · 볼륨 우선순위 · 정의서 수준 OS 판정 ======================================
+
+    private static final String RHEL_INSTALL = """
+            {"type": "OS_INSTALLATION", "osFamily": "RHEL_BASED", "isoId": 100, "osMetadataId": 1,
+             "timezone": {"timezone": "Asia/Seoul", "isUTC": true},
+             "partitions": [{"mountPoint": "/", "fileSystem": "EXT4", "size": 0, "sizeUnit": "GB", "isGrow": true}],
+             "rootPassword": {"password": "pw1"}, "users": [], "environmentId": 1, "packageGroupIds": []}
+            """;
+
+    /** RAID 구성 단계 — 우선순위 행까지 갈아 끼우는 변형. */
+    private static String raidWithPriorities(String raidCardId, String diskGroups, String priorities) {
+        return """
+                {"type": "RAID_CONFIGURATION", "raidCardId": %s, "diskGroups": [%s], "volumePriorities": %s}
+                """.formatted(raidCardId, diskGroups, priorities);
+    }
+
+    private static String ruleWithRole(String role) {
+        return RAID1_RULE.replace("\"role\": \"BY_PRIORITY\"", "\"role\": \"" + role + "\"");
+    }
+
+    @Test
+    @DisplayName("POST — 역할 4 종 중 '영역 할당 없음' · 기본 5 행 → 201, 계약에 role · volumePriorities 가 그대로 실린다")
+    void create_withRoleNoneAndDefaultPriorities_returns201() throws Exception {
+        given(commandService.create(any())).willReturn(new SettingSaveResponse(11L, "디스크 세팅"));
+        String defaults = """
+                [{"diskType": "SSD", "transport": "NVME", "capacityOrder": "SMALLER_FIRST"},
+                 {"diskType": "SSD", "transport": "SAS",  "capacityOrder": "SMALLER_FIRST"},
+                 {"diskType": "SSD", "transport": "SATA", "capacityOrder": "LARGER_FIRST"},
+                 {"diskType": "HDD", "transport": "SAS",  "capacityOrder": "SMALLER_FIRST"},
+                 {"diskType": "HDD", "transport": "SATA", "capacityOrder": "SMALLER_FIRST"}]
+                """;
+
+        send(body(raidWithPriorities("1", ruleWithRole("NONE") + "," + NO_RAID_NVME_RULE, defaults)))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
+        verify(commandService).create(captor.capture());
+        RaidConfigurationRequest raid = (RaidConfigurationRequest) captor.getValue().processList().get(0);
+        assertThat(raid.getDiskGroups().get(0).role()).isEqualTo(com.example.serverprovision.provisioning.setting.enums.DiskGroupRole.NONE);
+        assertThat(raid.getDiskGroups().get(0).isOsFixed()).isFalse();
+        assertThat(raid.getVolumePriorities()).hasSize(5);
+        assertThat(raid.getVolumePriorities().get(2).toDisplay()).isEqualTo("SSD · SATA · 큰 용량부터");
+    }
+
+    @Test
+    @DisplayName("POST — role 누락 · volumePriorities 누락 → 400 (processList[0].diskGroups[0].role · processList[0].volumePriorities)")
+    void create_missingRoleOrPriorities_returns400() throws Exception {
+        String noRole = RAID1_RULE.replace(", \"role\": \"BY_PRIORITY\"", "");
+        send(body(raidWithPriorities("1", noRole, "[]")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].diskGroups[0].role')]").exists());
+
+        String noPriorities = """
+                {"type": "RAID_CONFIGURATION", "raidCardId": 1, "diskGroups": [%s]}
+                """.formatted(RAID1_RULE);
+        send(body(noPriorities))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].volumePriorities')]").exists());
+        verify(commandService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("POST — 우선순위 행: AUTO(concrete) · HDD×NVMe(transportCompatible) · 중복(volumePriorityDistinct) → 400 각 경로")
+    void create_badPriorityRows_returns400() throws Exception {
+        String auto = "[{\"diskType\": \"AUTO\", \"transport\": \"SATA\", \"capacityOrder\": \"SMALLER_FIRST\"}]";
+        send(body(raidWithPriorities("1", RAID1_RULE, auto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].volumePriorities[0].concrete')]").exists());
+
+        String hddNvme = "[{\"diskType\": \"HDD\", \"transport\": \"NVME\", \"capacityOrder\": \"SMALLER_FIRST\"}]";
+        send(body(raidWithPriorities("1", RAID1_RULE, hddNvme)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].volumePriorities[0].transportCompatible')]").exists());
+
+        String dup = "[{\"diskType\": \"SSD\", \"transport\": \"SATA\", \"capacityOrder\": \"SMALLER_FIRST\"},"
+                + " {\"diskType\": \"SSD\", \"transport\": \"SATA\", \"capacityOrder\": \"LARGER_FIRST\"}]";
+        send(body(raidWithPriorities("1", RAID1_RULE, dup)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].volumePriorityDistinct')]").exists());
+        verify(commandService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("POST — OS 고정 묶음 둘(DiskGroupRules 7) → 400 fieldErrors[diskGroups] 에 '이미 OS 영역으로 고정' 문구")
+    void create_multipleOsRules_returns400_fieldBound() throws Exception {
+        given(commandService.create(any())).willThrow(InvalidDiskGroupException.multipleOsRules(2, 1));
+
+        send(body(raid("1", ruleWithRole("OS") + "," + NO_RAID_NVME_RULE.replace("\"role\": \"BY_PRIORITY\"", "\"role\": \"OS\""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'diskGroups')].message")
+                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("1번 묶음이 이미 OS 영역으로 고정"))));
+    }
+
+    @Test
+    @DisplayName("POST — OS 설치 단계 + 우선순위 0 행 + OS 고정 없음 → 400 fieldErrors[osVolumeDeterminable] · OS 고정이 있거나 OS 설치가 없으면 201")
+    void create_osVolumeDeterminable() throws Exception {
+        given(commandService.create(any())).willReturn(new SettingSaveResponse(12L, "디스크 세팅"));
+
+        // 사용자 확정(OQ2): OS 설치가 있으면 어느 볼륨이 OS 인지 정의서에서 정해져야 한다.
+        send(body(raidWithPriorities("1", RAID1_RULE, "[]") + "," + RHEL_INSTALL))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osVolumeDeterminable')]").exists());
+        // OQ3(권장 채택): 행이 있어도 OS 후보 규칙이 없으면(전부 Data/없음) 같은 400.
+        send(body(raidWithPriorities("1", ruleWithRole("DATA"), PRIORITY_ROWS) + "," + RHEL_INSTALL))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osVolumeDeterminable')]").exists());
+        verify(commandService, never()).create(any());
+
+        // OS 고정 묶음이 있으면 0 행이어도 통과 · OS 설치 단계가 없으면 0 행 + 우선순위에 따름도 통과.
+        send(body(raidWithPriorities("1", ruleWithRole("OS"), "[]") + "," + RHEL_INSTALL)).andExpect(status().isCreated());
+        send(body(raidWithPriorities("1", RAID1_RULE, "[]"))).andExpect(status().isCreated());
     }
 }

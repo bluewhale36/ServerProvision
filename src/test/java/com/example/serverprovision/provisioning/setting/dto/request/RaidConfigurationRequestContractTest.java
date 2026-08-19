@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.provisioning.setting.enums.CapacityRequirementMode;
 import com.example.serverprovision.provisioning.setting.enums.DiskCapacityUnit;
 import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
@@ -43,17 +44,17 @@ class RaidConfigurationRequestContractTest {
     private static DiskGroupRuleRequest raid1() {
         return new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
                 new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, 480L, DiskCapacityUnit.GB),
-                new DiskCountRequirement(DiskCountMode.EXACT, 2));
+                new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY);
     }
 
     private static DiskGroupRuleRequest noRaidNvme() {
         return new DiskGroupRuleRequest(null, DiskTypeRequirement.SSD, DiskTransportRequirement.NVME,
                 new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
-                new DiskCountRequirement(DiskCountMode.EXACT, 1));
+                new DiskCountRequirement(DiskCountMode.EXACT, 1), DiskGroupRole.BY_PRIORITY);
     }
 
     private static RaidConfigurationRequest rc(Long raidCardId, List<DiskGroupRuleRequest> groups) {
-        return new RaidConfigurationRequest(raidCardId, groups);
+        return new RaidConfigurationRequest(raidCardId, groups, VolumePriorityRuleRequest.defaults());
     }
 
     private static Set<String> violatedPaths(Object bean) {
@@ -95,12 +96,12 @@ class RaidConfigurationRequestContractTest {
     void capacityConsistency() {
         DiskGroupRuleRequest specifiedNoValue = new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD,
                 DiskTransportRequirement.SATA, new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, null, null),
-                new DiskCountRequirement(DiskCountMode.EXACT, 2));
+                new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY);
         assertThat(violatedPaths(rc(1L, List.of(specifiedNoValue)))).contains("diskGroups[0].capacity.modeConsistent");
 
         DiskGroupRuleRequest autoWithValue = new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD,
                 DiskTransportRequirement.SATA, new DiskCapacityRequirement(CapacityRequirementMode.AUTO, 480L, DiskCapacityUnit.GB),
-                new DiskCountRequirement(DiskCountMode.EXACT, 2));
+                new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY);
         assertThat(violatedPaths(rc(1L, List.of(autoWithValue)))).contains("diskGroups[0].capacity.modeConsistent");
     }
 
@@ -109,10 +110,10 @@ class RaidConfigurationRequestContractTest {
     void countAndRequiredAxes() {
         DiskGroupRuleRequest zeroCount = new DiskGroupRuleRequest(null, DiskTypeRequirement.SSD, DiskTransportRequirement.NVME,
                 new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
-                new DiskCountRequirement(DiskCountMode.EXACT, null));
+                new DiskCountRequirement(DiskCountMode.EXACT, null), DiskGroupRole.BY_PRIORITY);
         assertThat(violatedPaths(rc(null, List.of(zeroCount)))).contains("diskGroups[0].count.value");
 
-        DiskGroupRuleRequest bare = new DiskGroupRuleRequest(null, null, null, null, null);
+        DiskGroupRuleRequest bare = new DiskGroupRuleRequest(null, null, null, null, null, null);
         assertThat(violatedPaths(rc(null, List.of(bare)))).contains(
                 "diskGroups[0].diskType", "diskGroups[0].transport", "diskGroups[0].capacity", "diskGroups[0].count");
     }
@@ -124,5 +125,48 @@ class RaidConfigurationRequestContractTest {
         assertThat(noRaidNvme().capacity().toDisplay()).isEqualTo("자동 탐지");
         assertThat(raid1().count().toDisplay()).isEqualTo("2개");
         assertThat(new DiskCountRequirement(DiskCountMode.AT_LEAST, 3).toDisplay()).isEqualTo("3개 이상");
+    }
+
+    // ==== U4-1-2 — 역할 · 볼륨 우선순위 ==========================================================
+
+    private static VolumePriorityRuleRequest priority(DiskTypeRequirement type, DiskTransportRequirement transport) {
+        return new VolumePriorityRuleRequest(type, transport, com.example.serverprovision.provisioning.setting.enums.CapacityOrder.SMALLER_FIRST);
+    }
+
+    private static DiskGroupRuleRequest withRole(DiskGroupRuleRequest base, DiskGroupRole role) {
+        return new DiskGroupRuleRequest(base.raidLevel(), base.diskType(), base.transport(), base.capacity(), base.count(), role);
+    }
+
+    @Test
+    @DisplayName("역할 null → diskGroups[i].role @NotNull · volumePriorities null → @NotNull, 빈 목록은 명시적 값이라 통과")
+    void roleAndPrioritiesRequired() {
+        assertThat(violatedPaths(rc(1L, List.of(withRole(raid1(), null))))).contains("diskGroups[0].role");
+        assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), null))).contains("volumePriorities");
+        assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), List.of()))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("우선순위 행의 (종류, 전송) 중복 → volumePriorityDistinct 위반 · 행 자체의 위반은 volumePriorities[i].* 경로")
+    void priorityDistinctAndRowValidation() {
+        var dup = List.of(priority(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA),
+                priority(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA));
+        assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), dup))).contains("volumePriorityDistinct");
+
+        var bad = List.of(priority(DiskTypeRequirement.HDD, DiskTransportRequirement.NVME),
+                priority(DiskTypeRequirement.AUTO, DiskTransportRequirement.SATA));
+        assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), bad)))
+                .contains("volumePriorities[0].transportCompatible", "volumePriorities[1].concrete");
+    }
+
+    @Test
+    @DisplayName("isOsVolumeDeterminable — 묶음 0 개는 항상 참 · OS 고정이면 참 · 우선순위에 따름 + 행 1 이상이면 참 · 전부 Data/없음이거나 행 0 이면 거짓")
+    void osVolumeDeterminable() {
+        var rows = VolumePriorityRuleRequest.defaults();
+        assertThat(new RaidConfigurationRequest(1L, List.of(), List.of()).isOsVolumeDeterminable()).isTrue();
+        assertThat(new RaidConfigurationRequest(1L, List.of(withRole(raid1(), DiskGroupRole.OS)), List.of()).isOsVolumeDeterminable()).isTrue();
+        assertThat(new RaidConfigurationRequest(1L, List.of(raid1()), rows).isOsVolumeDeterminable()).isTrue();
+        assertThat(new RaidConfigurationRequest(1L, List.of(raid1()), List.of()).isOsVolumeDeterminable()).isFalse();
+        assertThat(new RaidConfigurationRequest(1L, List.of(withRole(raid1(), DiskGroupRole.DATA), withRole(noRaidNvme(), DiskGroupRole.NONE)), rows)
+                .isOsVolumeDeterminable()).isFalse();
     }
 }

@@ -100,9 +100,11 @@ class ProcessPayloadConverterTest {
                         com.example.serverprovision.provisioning.setting.enums.CapacityRequirementMode.SPECIFIED, 480L,
                         com.example.serverprovision.provisioning.setting.enums.DiskCapacityUnit.GB),
                 new com.example.serverprovision.provisioning.setting.dto.request.DiskCountRequirement(
-                        com.example.serverprovision.provisioning.setting.enums.DiskCountMode.EXACT, 2));
+                        com.example.serverprovision.provisioning.setting.enums.DiskCountMode.EXACT, 2),
+                com.example.serverprovision.provisioning.setting.enums.DiskGroupRole.OS);
         ProcessPayload payload = new ProcessPayload(
-                new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(7L, List.of(rule)));
+                new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(7L, List.of(rule),
+                        com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest.defaults()));
 
         String json = converter.convertToDatabaseColumn(payload);
         assertThat(json).contains("\"type\":\"RAID_CONFIGURATION\"").contains("\"raidCardId\":7")
@@ -114,5 +116,12 @@ class ProcessPayloadConverterTest {
         assertThat(restored.getDiskGroups()).hasSize(1);
         assertThat(restored.getDiskGroups().get(0).capacity().toDisplay()).isEqualTo("480 GB");
         assertThat(restored.requiresRaidCard()).isTrue();
+        // U4-1-2 — 역할 · 우선순위 행 왕복 보존, 판정 메서드(osFixed · volumePriorityDistinct · osVolumeDeterminable · concrete)는 payload 밖.
+        assertThat(json).contains("\"role\":\"OS\"").contains("\"volumePriorities\":[")
+                .doesNotContain("osFixed").doesNotContain("volumePriorityDistinct").doesNotContain("osVolumeDeterminable")
+                .doesNotContain("\"concrete\"").doesNotContain("transportCompatible");
+        assertThat(restored.getDiskGroups().get(0).isOsFixed()).isTrue();
+        assertThat(restored.getVolumePriorities()).hasSize(5);
+        assertThat(restored.getVolumePriorities().get(0).toDisplay()).isEqualTo("SSD · NVMe · 작은 용량부터");
     }
 }

@@ -1,6 +1,8 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
+import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskCapacityRequirement;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskCountRequirement;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskGroupRuleRequest;
@@ -56,7 +58,7 @@ class SettingControllerDiskGroupViewTest {
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static RaidConfigurationRequest raid(Long raidCardId, List<DiskGroupRuleRequest> groups) {
-        return new RaidConfigurationRequest(raidCardId, groups);
+        return new RaidConfigurationRequest(raidCardId, groups, VolumePriorityRuleRequest.defaults());
     }
 
     /** 순서 검증용 — BIOS 설정 · RAID 구성 · OS 설치를 함께 가진 정의서(RHEL 은 비밀번호 제거 검증 겸용). */
@@ -71,10 +73,10 @@ class SettingControllerDiskGroupViewTest {
         return List.of(
                 new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
                         new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, 480L, DiskCapacityUnit.GB),
-                        new DiskCountRequirement(DiskCountMode.EXACT, 2)),
+                        new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.OS),
                 new DiskGroupRuleRequest(null, DiskTypeRequirement.SSD, DiskTransportRequirement.NVME,
                         new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
-                        new DiskCountRequirement(DiskCountMode.AT_LEAST, 1)));
+                        new DiskCountRequirement(DiskCountMode.AT_LEAST, 1), DiskGroupRole.BY_PRIORITY));
     }
 
     private static SettingDetailResponse detail(RaidConfigurationRequest raid, Map<Long, String> raidCards) {
@@ -183,5 +185,65 @@ class SettingControllerDiskGroupViewTest {
         org.assertj.core.api.Assertions.assertThat(bios).isGreaterThan(-1);
         org.assertj.core.api.Assertions.assertThat(raid).isGreaterThan(bios);
         org.assertj.core.api.Assertions.assertThat(os).isGreaterThan(raid);
+    }
+
+    // ==== U4-1-2 — 역할 열 · 볼륨 우선순위 ==========================================================
+
+    @Test
+    @DisplayName("GET /{id} — 역할 열(OS 영역 초록 배지 · 우선순위에 따름 텍스트) · 볼륨 우선순위 목록 5 행 렌더")
+    void detail_rendersRoleAndPriorities() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detail(raid(7L, twoRules()), Map.of(7L, "GIGABYTE CRA3338")));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<th>역할</th>")))
+                .andExpect(content().string(containsString("n-badge-green\">OS 영역<")))
+                .andExpect(content().string(containsString(">우선순위에 따름<")))
+                .andExpect(content().string(containsString("볼륨 우선순위")))
+                // 순위 열이 숫자로 명시된다(CP6 검수) — 1 순위 SSD · NVMe, 5 순위 HDD · SATA
+                .andExpect(content().string(containsString("<th>순위</th>")))
+                .andExpect(content().string(containsString("n-rank\">1<")))
+                .andExpect(content().string(containsString("n-rank\">5<")))
+                .andExpect(content().string(containsString(">NVMe<")))
+                .andExpect(content().string(containsString(">작은 용량부터<")))
+                .andExpect(content().string(not(containsString("미지정"))));
+    }
+
+    @Test
+    @DisplayName("GET /{id} — 우선순위 빈 목록은 '없음 — 열거 순서', null(구 저장본)은 '미지정' · 역할 null 은 '미지정'")
+    void detail_rendersEmptyAndLegacyPriorities() throws Exception {
+        var legacyRule = new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
+                new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, 480L, DiskCapacityUnit.GB),
+                new DiskCountRequirement(DiskCountMode.EXACT, 2), null);
+        given(queryService.findDetail(1L)).willReturn(detail(new RaidConfigurationRequest(7L, List.of(legacyRule), null), Map.of(7L, "GIGABYTE CRA3338")));
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("미지정 (구 저장본")))
+                .andExpect(content().string(containsString("n-table-muted\">미지정<")));
+
+        given(queryService.findDetail(2L)).willReturn(detail(new RaidConfigurationRequest(7L, twoRules(), List.of()), Map.of(7L, "GIGABYTE CRA3338")));
+        mvc.perform(get("/provisioning/setting/{id}", 2L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("없음 — 볼륨은 열거 순서대로 놓입니다")));
+    }
+
+    @Test
+    @DisplayName("GET /new — 역할 · 용량 순서 선택지 · 기본 우선순위 JSON(defaultVolumePrioritiesJson) · 우선순위 표 · 행 템플릿 렌더, 우선순위 select 에는 AUTO 없음")
+    void newForm_rendersRoleAndPriorityMaterial() throws Exception {
+        given(queryService.findRaidCardOptions()).willReturn(List.of());
+
+        mvc.perform(get("/provisioning/setting/new"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeExists("diskGroupRoles", "capacityOrders", "defaultVolumePrioritiesJson"))
+                .andExpect(content().string(containsString("DEFAULT_VOLUME_PRIORITIES_JSON")))
+                .andExpect(content().string(containsString("rcPriorityTable")))
+                .andExpect(content().string(containsString("tplPriorityRow")))
+                .andExpect(content().string(containsString("vpRank")))
+                .andExpect(content().string(containsString("rcResetPriority")))
+                .andExpect(content().string(containsString(">영역 할당 없음<")))
+                .andExpect(content().string(containsString(">큰 용량부터<")))
+                // 우선순위 행 템플릿의 종류 · 전송 select 는 AUTO 를 내리지 않는다(th:if) — 묶음 행 템플릿엔 남아 있다.
+                .andExpect(content().string(containsString("class=\"n-select vpType\">\n                        <option value=\"SSD\"")))
+                .andExpect(content().string(containsString("class=\"n-page-lg\"")));
     }
 }

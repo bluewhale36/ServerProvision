@@ -231,6 +231,14 @@ What makes Notion's visual language distinctive is its border philosophy. Rather
 
 ### Grid & Container
 - Max content width: approximately 1200px
+- 페이지 컨테이너 4 단계 (`static/global/style.css`) — 화면 성격으로 고른다:
+
+  | 클래스 | max-width | 쓰는 곳 |
+  |---|---|---|
+  | `n-page` | 1440px | 목록 · 대시보드 (표가 화면 폭을 쓰는 화면) |
+  | `n-page-lg` | 1200px | 표 · 다단 카드가 있는 상세 · 작성 화면 — 세팅 정의서 new/edit/detail · 게스트 서버 상세 |
+  | `n-page-md` | 960px | 단일 열 입력 폼 · 단순 상세 — 관리 자원(os/board/bios/bmc/subprogram/raidcard) new/edit 등 |
+  | `n-page-sm` | 860px | (예비 — 현재 미사용) |
 - Hero: centered single-column with generous top padding (80-120px)
 - Feature sections: 2-3 column grids for cards
 - Full-width warm white (`#f6f5f4`) section backgrounds for alternation

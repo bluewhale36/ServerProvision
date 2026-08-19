@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
 import com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -10,7 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * 디스크 묶음 규칙 한 줄 — {@code {RAID 레벨, 디스크 종류, 전송 방식, 용량, 개수}} (U4-1-1, U4-1 토론 E1 · E22).
+ * 디스크 묶음 규칙 한 줄 — {@code {RAID 레벨, 디스크 종류, 전송 방식, 용량, 개수, 역할}} (U4-1-1 · U4-1-2, U4-1 토론 E1 · E22 · E15).
  *
  * <p><b>묶음은 볼륨 하나의 명세가 아니라 규칙이다</b>(E18 · E19) — 조건에 맞는 조합 전부에 적용되어 볼륨이
  * 여러 개 생길 수 있다. 그 매칭은 실행(E)의 몫이고 정의서는 규칙만 적는다.</p>
@@ -36,7 +37,14 @@ public record DiskGroupRuleRequest(
 
         @NotNull(message = "개수 조건은 필수 값입니다.")
         @Valid
-        DiskCountRequirement count
+        DiskCountRequirement count,
+
+        /**
+         * 여섯째 축(U4-1-2) — 이 규칙의 볼륨을 어느 영역에 둘지. 중복 판정({@code DiskGroupRules.identity})에는
+         * 넣지 않는다 — 다섯 축이 같으면 같은 디스크 집합을 두 규칙이 겹쳐 잡는 것이라 역할이 달라도 중복이다.
+         */
+        @NotNull(message = "역할은 필수 값입니다.")
+        DiskGroupRole role
 ) {
 
     @JsonCreator
@@ -45,18 +53,26 @@ public record DiskGroupRuleRequest(
             @JsonProperty("diskType")  DiskTypeRequirement diskType,
             @JsonProperty("transport") DiskTransportRequirement transport,
             @JsonProperty("capacity")  DiskCapacityRequirement capacity,
-            @JsonProperty("count")     DiskCountRequirement count
+            @JsonProperty("count")     DiskCountRequirement count,
+            @JsonProperty("role")      DiskGroupRole role
     ) {
         this.raidLevel = raidLevel;
         this.diskType  = diskType;
         this.transport = transport;
         this.capacity  = capacity;
         this.count     = count;
+        this.role      = role;
     }
 
     /** 이 묶음이 RAID 를 구성하는가 — RAID 카드 요구(E6)와 레벨 판정의 출발점. */
     @JsonIgnore
     public boolean buildsRaid() {
         return raidLevel != null;
+    }
+
+    /** OS 영역으로 고정한 규칙인가 — 정의서당 최대 1(U4-1-2 D2, {@code DiskGroupRules} 7 번). */
+    @JsonIgnore
+    public boolean isOsFixed() {
+        return role == DiskGroupRole.OS;
     }
 }

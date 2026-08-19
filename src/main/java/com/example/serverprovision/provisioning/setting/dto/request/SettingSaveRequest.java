@@ -115,4 +115,25 @@ public record SettingSaveRequest(
                 .map(AbstractProcessRequest::processType).distinct().count();
         return valid == distinct;
     }
+
+    /**
+     * U4-1-2 (사용자 확정 2026-08-19) — OS 설치 단계가 있으면 RAID 구성 단계는 어느 볼륨이 OS 영역인지 정의서만으로
+     * 정할 수 있어야 한다: OS 로 고정한 묶음이 있거나, 우선순위에 맡긴 묶음이 있고 우선순위 행이 하나 이상.
+     * RAID 구성 단계 혼자서는 OS 설치 단계의 유무를 모르므로 단계 간 정합인 여기서 본다(위 셋과 같은 층).
+     * 폼은 OS 설치 카드가 있을 때 우선순위 표 아래 안내와 제출 차단으로 먼저 막는다 — 여기는 direct POST 안전망.
+     */
+    @AssertTrue(message = "OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 고정 또는 우선순위에 따름 + 우선순위 행)이 있어야 합니다.")
+    public boolean isOsVolumeDeterminable() {
+        if (processList == null) {
+            return true;
+        }
+        boolean hasOsInstall = processList.stream().anyMatch(OSInstallationRequest.class::isInstance);
+        if (!hasOsInstall) {
+            return true;
+        }
+        return processList.stream()
+                .filter(RaidConfigurationRequest.class::isInstance)
+                .map(RaidConfigurationRequest.class::cast)
+                .allMatch(RaidConfigurationRequest::isOsVolumeDeterminable);
+    }
 }

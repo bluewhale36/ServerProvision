@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
+import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.vo.CacheCapacity;
@@ -52,7 +53,7 @@ class DiskGroupRulesTest {
 
     private static DiskGroupRuleRequest rule(RaidLevel level, DiskTypeRequirement type, DiskTransportRequirement transport,
                                              DiskCapacityRequirement capacity, DiskCountRequirement count) {
-        return new DiskGroupRuleRequest(level, type, transport, capacity, count);
+        return new DiskGroupRuleRequest(level, type, transport, capacity, count, DiskGroupRole.BY_PRIORITY);
     }
 
     // ==== 규칙 1 — 카드가 만들 수 없는 레벨 =================================================
@@ -168,5 +169,30 @@ class DiskGroupRulesTest {
                 new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
                 new DiskCountRequirement(DiskCountMode.AT_LEAST, 1));
         assertThatCode(() -> DiskGroupRules.validate(List.of(ssdSas, autoNvme), null)).doesNotThrowAnyException();
+    }
+
+    // ==== 규칙 7 — OS 영역 고정은 한 묶음만 (U4-1-2) =========================================
+
+    private static DiskGroupRuleRequest withRole(DiskGroupRuleRequest base, DiskGroupRole role) {
+        return new DiskGroupRuleRequest(base.raidLevel(), base.diskType(), base.transport(), base.capacity(), base.count(), role);
+    }
+
+    @Test
+    @DisplayName("규칙 7 — OS 고정 묶음이 둘이면 두 번째 묶음 번호와 첫 번째 번호를 함께 말하는 400, 하나면 통과, 전부 Data/없음이어도 통과")
+    void multipleOsRules() {
+        DiskGroupRuleRequest osA = withRole(rule(RaidLevel.RAID1, 2), DiskGroupRole.OS);
+        DiskGroupRuleRequest osB = withRole(rule(null, DiskTypeRequirement.SSD, DiskTransportRequirement.NVME,
+                new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                new DiskCountRequirement(DiskCountMode.EXACT, 1)), DiskGroupRole.OS);
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(osA, osB), AVAGO_9361))
+                .isInstanceOf(InvalidDiskGroupException.class)
+                .hasMessageContaining("2번 묶음: 1번 묶음이 이미 OS 영역으로 고정되어 있습니다");
+
+        DiskGroupRuleRequest data = withRole(rule(RaidLevel.RAID5, 3), DiskGroupRole.DATA);
+        DiskGroupRuleRequest none = withRole(rule(null, DiskTypeRequirement.HDD, DiskTransportRequirement.SATA,
+                new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                new DiskCountRequirement(DiskCountMode.AT_LEAST, 1)), DiskGroupRole.NONE);
+        assertThatCode(() -> DiskGroupRules.validate(List.of(osA, data, none), AVAGO_9361)).doesNotThrowAnyException();
+        assertThatCode(() -> DiskGroupRules.validate(List.of(data, none), AVAGO_9361)).doesNotThrowAnyException();
     }
 }
