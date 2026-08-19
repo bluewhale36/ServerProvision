@@ -39,7 +39,7 @@
 
 **D2** — 두 멤버의 `Version` 문자열 형식(F27 예상)과 속성 전량. E2-1 의 FirmwareVersion Value Object 비교 규약의 BIOS 쪽 입력이다.
 
-**D3** — 13.06.27 배포 패키지 안의 BIOS 파일(조사 기준 `.RBU` — **실물 확장자를 패키지에서 확인**)을 1호와 같은 방식(PC 의 python http.server)으로 서빙하고, D1 이 확인해 준 파라미터로 SimpleUpdate 를 던진다. Task 메시지 시퀀스를 처음부터 끝까지 채증한다. **관찰 포인트**: BIOS 는 BMC 와 달리 호스트 재부팅이 있어야 반영될 수 있다 — Task 가 어디까지 진행되고 무엇을 요구하는지(즉시 flash 인지, 다음 부팅 대기인지)가 E2-2 흐름 설계의 입력이다.
+**D3** — BIOS F27 배포 패키지의 BIOS 파일(조사 기준 `.RBU` — **실물 확장자를 패키지에서 확인**. 13.06.27 은 BMC 펌웨어라 BIOS 파일이 들어 있지 않다 — 2026-08-19 정정)을 1호와 같은 방식(PC 의 python http.server)으로 서빙하고, D1 이 확인해 준 파라미터로 SimpleUpdate 를 던진다. Task 메시지 시퀀스를 처음부터 끝까지 채증한다. **관찰 포인트**: BIOS 는 BMC 와 달리 호스트 재부팅이 있어야 반영될 수 있다 — Task 가 어디까지 진행되고 무엇을 요구하는지(즉시 flash 인지, 다음 부팅 대기인지)가 E2-2 흐름 설계의 입력이다.
 
 **D4** — `GET /redfish/v1/Systems/Self` 의 `BiosVersion` 과 FirmwareInventory 재조회. `BIOS` / `BIOS2` 중 어느 슬롯이 갱신되는지로 듀얼 BIOS 거동을 확인한다.
 
