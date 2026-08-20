@@ -524,3 +524,19 @@
        세로에서는 내용 높이를 그대로 쓰게 되돌린다. */
     .n-group-top > * { flex: 0 0 auto; }
 }
+
+/* ---- E1.5 : 전원 제어 카드 ------------------------------------------------ */
+.n-power-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.n-power-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+/* 실패 메시지 — 문구는 서버가 주고 색만 화면 몫 */
+#powerMessage.is-danger { color: var(--n-red); }

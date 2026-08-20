@@ -143,6 +143,35 @@
         </div>
     </form>
 
+    <!-- 전원 제어 (E1.5) — BMC Redfish 단발 경로. 페이지 로드 시 BMC 를 조회하지 않는다(BMC 다운이 페이지를 느리게 하지 않게 — lazy XHR).
+         bmcIp 가 없으면 버튼 대신 이유 문구(UI 1 차 차단 — 결과 타입 UNSUPPORTED 와 같은 사실). 문구 · 판정의 SSOT 는 서버(PowerControlResult). -->
+    <div class="n-detail-section" id="powerControlSection"
+         th:with="bmcDetected=${server.inventory != null and server.inventory.bmcIp != null}"
+         th:data-server-id="${server.id}"
+         th:data-bmc-detected="${bmcDetected}">
+        <div class="n-section-title">전원 제어</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <div th:if="${bmcDetected}">
+                    <div class="n-power-status">
+                        <span class="n-label strong">전원 상태</span>
+                        <span class="n-badge n-badge-gray" id="powerStateBadge">미조회</span>
+                        <span class="n-hint" id="powerMessage"></span>
+                    </div>
+                    <div class="n-power-actions">
+                        <button type="button" class="n-btn n-btn-sm" id="powerRefreshBtn">상태 조회</button>
+                        <button type="button" class="n-btn n-btn-sm" data-power-reset="ON">켜기</button>
+                        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="FORCE_OFF">강제 끄기</button>
+                        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="FORCE_RESTART">재시작</button>
+                        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="GRACEFUL_SHUTDOWN">정상 종료</button>
+                    </div>
+                    <div class="n-hint">켜기를 포함한 모든 명령은 전달까지만 확인합니다 — 결과는 [상태 조회] 로 확인하세요.</div>
+                </div>
+                <span th:unless="${bmcDetected}" class="n-muted">BMC 미검출 — 원격 전원 제어를 쓸 수 없습니다 (진단 수집이 BMC 를 찾지 못했습니다).</span>
+            </div>
+        </div>
+    </div>
+
     <!-- 하드웨어 인벤토리 (읽기 전용) -->
     <div class="n-detail-section" data-live="inventory">
         <div class="n-section-title">하드웨어 인벤토리</div>
@@ -620,6 +649,24 @@
 <script th:src="@{/provisioning/server-assignment.js}"></script>
 <!-- U3-5-b — 정의서 선택 모달의 열기 · 고르기 (제출은 위 파일이 맡는다) -->
 <script th:src="@{/provisioning/definition-picker.js}"></script>
+<!-- E1.5 — 파괴적 전원 액션 confirm 모달(RedfishResetType.destructive) + base opener + 전원 XHR.
+     confirm-soft-delete 의 id-prefix 골격을 그대로 따른다({prefix}Modal/Backdrop/Title/Message/ConfirmBtn/CancelBtn). -->
+<link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
+<div id="powerConfirmModal" class="cm-overlay" hidden>
+    <div id="powerConfirmBackdrop" class="cm-backdrop"></div>
+    <div class="n-card cm-card" role="dialog" aria-modal="true">
+        <div class="n-card-body">
+            <h2 id="powerConfirmTitle" class="cm-title">전원 제어</h2>
+            <p id="powerConfirmMessage" class="cm-message">메시지</p>
+            <div class="cm-actions">
+                <button type="button" id="powerConfirmCancelBtn" class="n-btn n-btn-secondary">취소</button>
+                <button type="button" id="powerConfirmConfirmBtn" class="n-btn n-btn-outline-danger">실행</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/provisioning/server-power.js}"></script>
 
 </body>
 </html>

@@ -1,0 +1,102 @@
+package com.example.serverprovision.global.redfish;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+/**
+ * E1.5 CP4 — 저수준 HTTP 계층을 {@link MockRestServiceServer} 로 실행한다: Basic 헤더 · Content-Type ·
+ * Task 경로 판독(Location / 본문 @odata.id) · 오류 분류(401 · 412 · IO). TLS 완화는 연결 계층이라 여기선 못 다루고
+ * CP5 하네스(자가서명 mock-redfish)가 확인한다.
+ */
+class RedfishClientTest {
+
+    private static final BmcCredentials CREDS = new BmcCredentials("admin", "pw", "표준 계정");
+
+    private MockRestServiceServer server;
+    private RedfishClient client;
+
+    @BeforeEach
+    void setUp() {
+        RestClient.Builder builder = RestClient.builder();
+        server = MockRestServiceServer.bindTo(builder).build();
+        client = new RedfishClient(builder.build(), new ObjectMapper(), 443);
+    }
+
+    @Test
+    @DisplayName("GET — Basic 헤더가 붙고 JSON 이 파싱된다")
+    void getJson() {
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, org.hamcrest.Matchers.startsWith("Basic ")))
+                .andRespond(withSuccess("{\"PowerState\":\"On\"}", MediaType.APPLICATION_JSON));
+
+        assertThat(client.getJson("10.0.0.9", CREDS, "/redfish/v1/Systems/Self").path("PowerState").asString())
+                .isEqualTo("On");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("POST — Content-Type: application/json, Task 는 Location 헤더 우선 · 없으면 본문 @odata.id · 둘 다 없으면 empty")
+    void postForTask() {
+        // MockRestServiceServer 는 첫 요청 뒤 기대 추가를 금지한다 — 기대 3 건을 선선언하고 같은 순서로 호출한다.
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(java.net.URI.create("https://10.0.0.9/redfish/v1/TaskService/Tasks/1"));
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self/Actions/ComputerSystem.Reset"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
+                .andRespond(withStatus(HttpStatus.ACCEPTED).headers(headers));
+        server.expect(requestTo("https://10.0.0.9/p")).andRespond(withStatus(HttpStatus.ACCEPTED)
+                .body("{\"@odata.id\":\"/redfish/v1/TaskService/Tasks/2\"}").contentType(MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://10.0.0.9/q")).andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        assertThat(client.postForTask("10.0.0.9", CREDS, "/redfish/v1/Systems/Self/Actions/ComputerSystem.Reset",
+                Map.of("ResetType", "On"))).contains("/redfish/v1/TaskService/Tasks/1");
+        assertThat(client.postForTask("10.0.0.9", CREDS, "/p", Map.of())).contains("/redfish/v1/TaskService/Tasks/2");
+        assertThat(client.postForTask("10.0.0.9", CREDS, "/q", Map.of())).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("오류 분류 — 401 AUTH_FAILED · 412 PRECONDITION_FAILED · IO CONNECT_FAILED · 500 PROTOCOL")
+    void classify() {
+        server.expect(requestTo("https://10.0.0.9/a")).andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+        server.expect(requestTo("https://10.0.0.9/b")).andRespond(withStatus(HttpStatus.PRECONDITION_FAILED));
+        server.expect(requestTo("https://10.0.0.9/c")).andRespond(withException(new IOException("refused")));
+        server.expect(requestTo("https://10.0.0.9/d")).andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(() -> client.getJson("10.0.0.9", CREDS, "/a"))
+                .isInstanceOfSatisfying(RedfishRequestException.class,
+                        e -> assertThat(e.getError()).isEqualTo(RedfishError.AUTH_FAILED));
+        assertThatThrownBy(() -> client.getJson("10.0.0.9", CREDS, "/b"))
+                .isInstanceOfSatisfying(RedfishRequestException.class,
+                        e -> assertThat(e.getError()).isEqualTo(RedfishError.PRECONDITION_FAILED));
+        assertThatThrownBy(() -> client.getJson("10.0.0.9", CREDS, "/c"))
+                .isInstanceOfSatisfying(RedfishRequestException.class,
+                        e -> assertThat(e.getError()).isEqualTo(RedfishError.CONNECT_FAILED));
+        assertThatThrownBy(() -> client.getJson("10.0.0.9", CREDS, "/d"))
+                .isInstanceOfSatisfying(RedfishRequestException.class,
+                        e -> assertThat(e.getError()).isEqualTo(RedfishError.PROTOCOL));
+        server.verify();
+    }
+}
