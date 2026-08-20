@@ -241,27 +241,14 @@
             return Array.from(form.querySelectorAll('#oiDetailFields .n-os-family-pane'));
         }
 
+        /* R11 표적 축소 — OS 설치 카드는 식별(OS · ISO)만 받는다. 이 파일에 남은 상세 입력
+           로직(타임존 · 파티션 · 사용자 · 계열 pane · 환경/패키지)은 마크업 제거로 미호출이며,
+           요소 부재 시 null-guard 로 자연 no-op 이다 — 서버 계약 보존(E4 부활 시 재노출)과
+           한 벌로 남긴다(R11 plan D-R2 · D-R5). */
         function onInstallOsChange() {
             const osId = oiOsSelect ? oiOsSelect.value : '';
-            const opt = selectedOption(oiOsSelect);
-            const family = opt && osId ? (opt.dataset.osFamily || '') : '';
-
-            if (oiGuide) oiGuide.hidden = !!osId;
             if (oiDetailFields) oiDetailFields.hidden = !osId;
-            if (oiDefaultPartitions) oiDefaultPartitions.disabled = !osId;
-
-            // 계열 pane 하나만 표시 (RHEL_BASED / DEBIAN_BASED)
-            osFamilyPanes().forEach(pane => {
-                pane.hidden = !(family && pane.dataset.osFamily === family);
-            });
-            // root 비밀번호는 RHEL 계열 전용 — Ubuntu 는 root 잠금 기본(identity 사용자 필수).
-            const rootGroup = document.getElementById('oiRootPasswordGroup');
-            if (rootGroup) rootGroup.hidden = family !== 'RHEL_BASED';
-
             filterIsoOptions(osId);
-            filterEnvironmentOptions();
-            applyPackageGroupFilter();
-            dispatchVersionSpecificBox(opt && osId ? opt : null);
             syncOsSelectionLock();
         }
 
@@ -1466,36 +1453,12 @@
                 };
             },
             OS_INSTALLATION: function () {
-                const opt = selectedOption(oiOsSelect);
-                const osFamily = opt && oiOsSelect.value ? (opt.dataset.osFamily || null) : null;
-                const payload = {
+                // R11 식별 전용 — osFamily 판별자를 보내지 않는다(부재 = PlannedOSInstallationRequest 해석, D-R1).
+                return {
                     type: 'OS_INSTALLATION',
-                    osFamily: osFamily,
                     osMetadataId: intOrNull(oiOsSelect.value),
-                    isoId: oiIsoSelect ? intOrNull(oiIsoSelect.value) : null,
-                    timezone: {
-                        timezone: tzValue(),
-                        isUTC: document.getElementById('oiIsUtc').checked
-                    },
-                    partitions: buildPartitions(),
-                    users: buildUsers()
+                    isoId: oiIsoSelect ? intOrNull(oiIsoSelect.value) : null
                 };
-                if (osFamily === 'RHEL_BASED') {
-                    payload.rootPassword = buildRootPassword(); // RHEL 전용 계약(Kickstart rootpw)
-                    payload.environmentId = intOrNull(oiEnvironment.value);
-                    payload.packageGroupIds = Array.from(
-                        form.querySelectorAll('.n-pkg-group:not(.unavailable) input[type="checkbox"]:checked')
-                    ).map(chk => intOrNull(chk.value)).filter(v => v != null);
-                    payload.isKDumpEnabled = document.getElementById('oiKdump').checked;
-                    // Rocky 10 전용 — 박스가 표시된 경우에만 포함 (미표시 = 미전송(null))
-                    if (oiAllowSshBox && !oiAllowSshBox.hidden) {
-                        payload.allowSshRoot = document.getElementById('oiAllowSshRoot').checked;
-                    }
-                } else if (osFamily === 'DEBIAN_BASED') {
-                    payload.hostname = document.getElementById('oiHostname').value.trim();
-                    payload.packages = splitCsv(document.getElementById('oiPackages').value);
-                }
-                return payload;
             },
             OS_SETTING: function () {
                 const opt = selectedOption(osOsSelect);
@@ -1617,8 +1580,10 @@
             }
             let ok = true;
             payload.processList.forEach((proc, i) => {
+                // R11(CP5 D6) — osFamily 는 더 이상 필수가 아니다: 판별자 부재는 서버의 식별 전용
+                // 등록 테이블(PlannedOSInstallationRequest)이 해석한다. OS 선택만 본다.
                 if ((proc.type === 'OS_INSTALLATION' || proc.type === 'OS_SETTING')
-                    && (!proc.osFamily || proc.osMetadataId == null)) {
+                    && proc.osMetadataId == null) {
                     const card = cardOf(stepTypeByIndex[i]);
                     const select = card ? card.querySelector('[data-error-field="osMetadataId"]') : null;
                     if (select) paintFieldError(select, 'OS 를 선택해야 합니다.');
@@ -1853,60 +1818,14 @@
                 applyDiskGroupConstraints();
             },
             OS_INSTALLATION: function (proc) {
+                // R11 식별 전용 — 구(상세) 저장본을 열어도 식별만 복원한다(상세는 화면에서 걷힘, D-R6).
                 if (proc.osMetadataId != null && oiOsSelect) {
                     oiOsSelect.value = String(proc.osMetadataId);
                     onInstallOsChange();
                 }
                 if (proc.isoId != null && oiIsoSelect) {
-                    oiIsoSelect.value = String(proc.isoId); // 소실 시 매칭 실패 → placeholder 유지(상세 경고가 안내)
+                    oiIsoSelect.value = String(proc.isoId); // 소실 시 매칭 실패 → placeholder 유지
                     commitDeprecatedSelection(oiIsoSelect);
-                    filterEnvironmentOptions(); // 환경 가용 목록은 ISO 스코프 — 복원 후 재필터
-                }
-                const tz = proc.timezone;
-                if (tz) {
-                    // "대륙/도시" 역파싱 — region 세팅 후 도시 필터를 거쳐 복원(비 IANA 구 저장본은 기본값 유지).
-                    const tzId = tz.timezone || '';
-                    const slash = tzId.indexOf('/');
-                    if (oiTzRegion && slash > 0) {
-                        oiTzRegion.value = tzId.substring(0, slash);
-                        filterTzCities(tzId.substring(slash + 1));
-                    }
-                    document.getElementById('oiIsUtc').checked = pickBool(tz, 'isUTC', 'utc', 'UTC');
-                }
-                (proc.partitions || []).forEach(p => addPartitionRow({
-                    mountPoint: p.mountPoint,
-                    fileSystem: p.fileSystem,
-                    size: p.size,
-                    sizeUnit: p.sizeUnit,
-                    isGrow: pickBool(p, 'isGrow', 'grow')
-                }));
-                if (proc.osFamily === 'RHEL_BASED' && proc.rootPassword) {
-                    markRootHasExisting();
-                    document.getElementById('oiRootEncrypted').checked =
-                        pickBool(proc.rootPassword, 'isPasswordEncrypted', 'passwordEncrypted');
-                }
-                (proc.users || []).forEach(u => addUserRow({
-                    username: u.username,
-                    isSudoer: pickBool(u, 'isSudoer', 'sudoer'),
-                    isPasswordEncrypted: pickBool(u, 'isPasswordEncrypted', 'passwordEncrypted')
-                }, true));
-                if (proc.osFamily === 'RHEL_BASED') {
-                    if (proc.environmentId != null && oiEnvironment) {
-                        oiEnvironment.value = String(proc.environmentId);
-                        applyPackageGroupFilter(); // 환경 확정 후 허용 그룹 행을 노출시켜야 체크 복원이 유효
-                    }
-                    const pkgIds = Array.isArray(proc.packageGroupIds) ? proc.packageGroupIds : [];
-                    form.querySelectorAll('.n-pkg-group:not(.unavailable) input[type="checkbox"]').forEach(chk => {
-                        chk.checked = pkgIds.indexOf(parseInt(chk.value, 10)) >= 0;
-                    });
-                    document.getElementById('oiKdump').checked =
-                        pickBool(proc, 'isKDumpEnabled', 'kdumpEnabled', 'kDumpEnabled', 'KDumpEnabled');
-                    if (oiAllowSshBox && !oiAllowSshBox.hidden && typeof proc.allowSshRoot === 'boolean') {
-                        document.getElementById('oiAllowSshRoot').checked = proc.allowSshRoot;
-                    }
-                } else if (proc.osFamily === 'DEBIAN_BASED') {
-                    document.getElementById('oiHostname').value = proc.hostname || '';
-                    document.getElementById('oiPackages').value = (proc.packages || []).join(', ');
                 }
                 commitDeprecatedSelection(oiOsSelect); // 기존 사용분 deprecated 뱃지 (modal 없음)
             },

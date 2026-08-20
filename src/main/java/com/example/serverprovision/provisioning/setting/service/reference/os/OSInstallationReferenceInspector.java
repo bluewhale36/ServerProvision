@@ -2,6 +2,8 @@ package com.example.serverprovision.provisioning.setting.service.reference.os;
 
 import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.global.marker.ResourceType;
+import com.example.serverprovision.management.os.entity.OSMetadata;
+import com.example.serverprovision.provisioning.setting.exception.UnsupportedPlannedInstallTargetException;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
@@ -49,7 +51,7 @@ public class OSInstallationReferenceInspector implements ProcessReferenceInspect
     @Override
     public void validateReferences(AbstractProcessRequest process, ProcessValidationContext context) {
         OSInstallationRequest request = (OSInstallationRequest) process;
-        osMetadataChecker.requireEnabled(request.getOsMetadataId());
+        OSMetadata osMetadata = osMetadataChecker.requireEnabled(request.getOsMetadataId());
         // ISO 는 계열 무관 베이스 참조(U2-4) — 실존 + OS 소속(타 OS 의 ISO forging 차단) + enabled.
         var iso = isoRepository.findById(request.getIsoId())
                 .filter(candidate -> !candidate.isDeleted())
@@ -58,7 +60,17 @@ public class OSInstallationReferenceInspector implements ProcessReferenceInspect
         if (!iso.isEnabled()) {
             throw new DisabledResourceReferenceException("isoId", "ISO #" + iso.getId());
         }
-        OSInstallationFamilyInspector family = familyInspectors.get(request.osFamily());
+        OSFamily familyKey = request.osFamily();
+        if (familyKey == null) {
+            // 식별 전용(설치 예정 기록, R11 D-R1) — 계열 상세가 없으므로 위임 대신 대상 정책만 가드한다.
+            // 정상 흐름은 UI 가 리눅스 옵션을 disabled 로 1차 차단 — 이 가드는 direct POST 안전망(D-R8).
+            String blockReason = PlannedInstallTargetPolicy.blockReason(osMetadata.getOsName());
+            if (blockReason != null) {
+                throw new UnsupportedPlannedInstallTargetException(blockReason);
+            }
+            return;
+        }
+        OSInstallationFamilyInspector family = familyInspectors.get(familyKey);
         if (family != null) {
             family.validateReferences(request);
         }
@@ -75,7 +87,9 @@ public class OSInstallationReferenceInspector implements ProcessReferenceInspect
                     .filter(LifecycleEntity::isDeprecated)
                     .ifPresent(candidate -> names.add("ISO #" + candidate.getId()));
         }
-        OSInstallationFamilyInspector family = familyInspectors.get(request.osFamily());
+        // 불변 맵은 get(null) 에 NPE — 식별 전용(osFamily null)은 계열 고유 deprecated 참조가 없다.
+        OSFamily familyKey = request.osFamily();
+        OSInstallationFamilyInspector family = familyKey == null ? null : familyInspectors.get(familyKey);
         if (family != null) {
             names.addAll(family.describeDeprecatedReferences(request));
         }

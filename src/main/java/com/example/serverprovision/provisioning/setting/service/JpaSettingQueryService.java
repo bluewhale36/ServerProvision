@@ -2,6 +2,7 @@ package com.example.serverprovision.provisioning.setting.service;
 
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import com.example.serverprovision.provisioning.setting.service.reference.os.PlannedInstallTargetPolicy;
 import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
@@ -83,8 +84,9 @@ public class JpaSettingQueryService implements SettingQueryService {
 
     /**
      * management OSFamily → setting OSFamily 선언적 매핑(2단 판별자 축).
-     * 맵에 없는 계열(WINDOWS_BASED)은 설치 폼이 아직 지원하지 않으므로 옵션에서 제외된다 —
-     * setting 쪽 WINDOWS 판별자가 실체화되면(plan v2 §0) 이 맵에 한 항목을 더한다.
+     * 맵에 없는 계열(WINDOWS_BASED)은 setting 판별자 없이 옵션에 실린다(osFamily = null) —
+     * 식별 전용 기록(R11)의 대상이며, setting 쪽 WINDOWS 판별자가 실체화되면(plan v2 §0)
+     * 이 맵에 한 항목을 더한다. 계열별 선택 가능 여부는 {@code PlannedInstallTargetPolicy} 가 판정.
      */
     private static final Map<com.example.serverprovision.management.os.enums.OSFamily, OSFamily> FAMILY_MAPPING = Map.of(
             com.example.serverprovision.management.os.enums.OSFamily.RHEL_BASED, OSFamily.RHEL_BASED,
@@ -422,7 +424,8 @@ public class JpaSettingQueryService implements SettingQueryService {
         Map<String, List<SettingOSOptionResponse>> groups = new LinkedHashMap<>();
         osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc().stream()
                 .filter(LifecycleEntity::isEnabled)
-                .filter(os -> FAMILY_MAPPING.containsKey(os.getOsName().getFamily()))
+                // R11 — Windows 계열도 옵션에 실린다(식별 전용 기록의 대상). 리눅스 계열은 실리되
+                // plannedBlockReason 으로 disabled 표시된다(제외가 아니라 차단 + 사유 — UI 1차 차단 원칙).
                 // 사용 가능한 ISO 가 없는 OS 는 선택 자체가 불가(사용자 확정 2026-07-11) — 옵션에서 제외.
                 .filter(os -> !availableIsos(os).isEmpty())
                 .forEach(os -> groups.computeIfAbsent(os.getOsName().getDisplayName(), k -> new ArrayList<>())
@@ -469,6 +472,7 @@ public class JpaSettingQueryService implements SettingQueryService {
                 os.getOsName().name(),
                 os.getOsVersion(),
                 FAMILY_MAPPING.get(os.getOsName().getFamily()),
+                PlannedInstallTargetPolicy.blockReason(os.getOsName()),
                 os.isDeprecated(),
                 deprecatedAtDisplay(os),
                 os.getDescription(),

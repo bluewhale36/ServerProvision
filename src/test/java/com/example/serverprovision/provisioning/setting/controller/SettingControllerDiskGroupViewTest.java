@@ -273,7 +273,7 @@ class SettingControllerDiskGroupViewTest {
     }
 
     @Test
-    @DisplayName("GET /new — 파티션 행 템플릿에 pDiskName 없음 · 안내 줄 id · 레벨 옵션 data-usable-a/b(RAID5 = 1 · −1)")
+    @DisplayName("GET /new — 파티션 행 템플릿에 pDiskName 없음 · 레벨 옵션 data-usable-a/b(RAID5 = 1 · −1). OS 파티션 안내 줄은 R11 축소로 화면 제외")
     void newForm_noDiskNameAndUsableCoefficients() throws Exception {
         given(queryService.findRaidCardOptions()).willReturn(List.of());
 
@@ -281,11 +281,11 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("pDiskName"))))
                 .andExpect(content().string(not(containsString("<th>디스크명</th>"))))
-                .andExpect(content().string(containsString("oiOsVolumeTargetKind")))
-                .andExpect(content().string(containsString("oiOsVolumeTargetCapacity")))
-                .andExpect(model().attributeExists("osVolumeTargetMessagesJson"))
-                .andExpect(content().string(containsString("OS_VOLUME_TARGET_MESSAGES_JSON")))
-                .andExpect(content().string(containsString("data-error-field=\"partitionsWithinOsVolume\"")))
+                // R11 — OS 설치 카드가 식별 전용으로 축소되어 파티션 UI(대상 안내 줄 · 에러 필드 ·
+                // 메시지 사전)는 화면에서 제외됐다. U4-1-3 의 안내는 E4 부활 시 git 이력으로 복원되며,
+                // 여기서는 부재를 단언해 잔존 마크업의 재유입(CP5 D1 계열)을 막는다.
+                .andExpect(content().string(not(containsString("oiOsVolumeTargetKind"))))
+                .andExpect(content().string(not(containsString("data-error-field=\"partitionsWithinOsVolume\""))))
                 .andExpect(content().string(containsString("data-usable-a=\"1.0\"")))
                 .andExpect(content().string(containsString("data-usable-b=\"-1\"")))
                 .andExpect(content().string(containsString("data-usable-a=\"0.5\"")));

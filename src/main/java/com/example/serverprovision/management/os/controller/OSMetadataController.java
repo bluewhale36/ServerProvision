@@ -49,10 +49,12 @@ import java.util.List;
 public class OSMetadataController {
 
 	/**
-	 * A1 MVP 시점에 등록 가능한 OS 이름 — 나머지 2종(WINDOWS 계열) 은 Stage 3 에서 열린다.
+	 * 등록 가능한 OS 이름. WINDOWS_SERVER 는 R11(설치 예정 기록 — Windows Server 만 허용)이 열었다:
+	 * 정의서의 식별 전용 기록이 성립하려면 그 대상(OS 메타데이터 · ISO)을 등록할 수 있어야 한다.
+	 * WINDOWS(클라이언트)는 대상 아님 — 소비자가 생기는 시점에 연다.
 	 */
 	private static final List<OSName> MVP_OS_NAMES = List.of(
-			OSName.ROCKY_LINUX, OSName.CENTOS, OSName.UBUNTU
+			OSName.ROCKY_LINUX, OSName.CENTOS, OSName.UBUNTU, OSName.WINDOWS_SERVER
 	);
 
 	private final OSMetadataService osMetadataService;

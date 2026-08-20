@@ -17,6 +17,10 @@ import com.example.serverprovision.provisioning.setting.service.SettingQueryServ
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import com.example.serverprovision.provisioning.setting.dto.request.PlannedOSInstallationRequest;
+import com.example.serverprovision.provisioning.setting.service.reference.os.PlannedInstallTargetPolicy;
+import com.example.serverprovision.provisioning.setting.exception.UnsupportedPlannedInstallTargetException;
+import com.example.serverprovision.management.os.exception.OSMetadataNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
@@ -501,5 +505,78 @@ class SettingRestControllerSaveFlowTest {
                         .content(body("{\"type\": \"BASIC_SETTING\", \"boardModel\": {\"mode\": \"AUTO\"}, \"biosSettingTemplateIds\": [1]}")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").exists());
+    }
+
+    // ==== R11 — 식별 전용(설치 예정 기록) 계약 ==========================
+
+    @Test
+    @DisplayName("POST — osFamily 부재 → 201 + PlannedOSInstallationRequest 해석 (R11 D-R1)")
+    void create_plannedIdentificationOnly_returns201() throws Exception {
+        given(commandService.create(any())).willReturn(saved(7L));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osMetadataId\": 1, \"isoId\": 100}")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(7));
+
+        ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
+        verify(commandService).create(captor.capture());
+        assertThat(captor.getValue().processList().get(0)).isInstanceOf(PlannedOSInstallationRequest.class);
+    }
+
+    @Test
+    @DisplayName("POST — osFamily: null 명시도 식별 전용으로 해석 (직렬화 왕복 일관 — 수정 폼 재저장 경로)")
+    void create_plannedExplicitNullFamily_returns201() throws Exception {
+        given(commandService.create(any())).willReturn(saved(8L));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": null, \"osMetadataId\": 1, \"isoId\": 100}")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(8));
+    }
+
+    @Test
+    @DisplayName("POST — OS_SETTING 판별자 부재 → 400 (식별 전용 미등록 — 기존 계약 유지, R11 D-R2)")
+    void create_osSettingWithoutFamily_returns400() throws Exception {
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_SETTING\", \"osMetadataId\": 1, \"selinuxMode\": \"enforcing\", \"services\": [], \"additionalPackages\": []}")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST — 식별 전용의 필수 식별 누락 → 400 + fieldErrors (베이스 @NotNull 그대로)")
+    void create_plannedMissingIds_returns400() throws Exception {
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_INSTALLATION\"}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("POST — 리눅스 계열 식별 전용 → 400 + fieldErrors[osMetadataId] (신규 예외 시나리오, R11 D-R8)")
+    void create_plannedLinuxTarget_returns400() throws Exception {
+        given(commandService.create(any())).willThrow(
+                new UnsupportedPlannedInstallTargetException(PlannedInstallTargetPolicy.LINUX_BLOCK_REASON));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osMetadataId\": 3, \"isoId\": 100}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osMetadataId')]").exists());
+    }
+
+    @Test
+    @DisplayName("POST — 식별 전용의 미실존 OS 참조 → 404 (기존 NotFound 계열 실제 트리거)")
+    void create_plannedUnknownOs_returns404() throws Exception {
+        given(commandService.create(any())).willThrow(new OSMetadataNotFoundException(9L));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osMetadataId\": 9, \"isoId\": 100}")))
+                .andExpect(status().isNotFound());
     }
 }

@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R11 Plan — 세팅 정의서 OS 섹션 표적 축소</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row select { font-size:12px; padding:3px 6px; border:1px solid var(--border); border-radius:5px; background:var(--card); font-family:var(--mono); }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : N-actor 흐름 ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── .pkg-tree ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── card-grid ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R11 — 세팅 정의서 OS 섹션 표적 축소 <span class="v2-badge">노출 축소</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R11 (refactor)</span>
+    <span><strong>scope</strong> OS_INSTALLATION 은 식별만(Windows Server 2025 만 선택) · OS_SETTING 은 팔레트 제거 · 코드 · 스키마 · 계약 보존</span>
+    <span><strong>결정 원장</strong> <span class="mono">discussion/26-08-20_08-26-28_setting-definition-os-scope_discussion.md</span> §8</span>
+    <span><strong>생성</strong> 2026-08-20 KST</span>
+    <span><strong>CP1</strong> 승인 (2026-08-20 · 수정 조건 반영 완료)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 요약 — 스코프 재정의 동기</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 요약 — 스코프 재정의 동기</summary>
+      <div class="body">
+        <p style="margin-top:0;">세팅 정의서에서 OS 계열 프로세스의 <b>입력 표면을 축소</b>한다.
+          <code>OS_INSTALLATION</code> 은 식별(OS 메타데이터 · ISO 선택)만 남기고,
+          <code>OS_SETTING</code> 은 팔레트에서 제거한다.
+          남긴 식별의 선택 대상은 <b>Windows Server 2025</b> 뿐이며 리눅스 기반 OS 는 선택할 수 없다(D-R8, 2026-08-20 사용자 확정).</p>
+        <div class="callout"><b>축소이지 제거가 아니다</b> — 코드 · 스키마 · 기존 계약은 그대로 보존한다.
+          계열 상세 계약은 direct POST 로 여전히 수락되며, 이 슬라이스가 바꾸는 것은 <b>사용자에게 노출하는 입력의 범위</b>다.</div>
+        <table>
+          <thead><tr><th>항목</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td>결정 원장</td><td><span class="mono">discussion/26-08-20_08-26-28_setting-definition-os-scope_discussion.md</span> §8 (D1~D5)</td></tr>
+            <tr><td>Notion 단계</td><td>R11 : 세팅 정의서 OS 섹션 표적 축소 (2026-08-20 신설, 진행 중)</td></tr>
+            <tr><td>본 문서 결정</td><td>D-R1 ~ D-R8 (§2 · §4 · §8)</td></tr>
+            <tr><td>CP1 승인</td><td>2026-08-20 · 수정 조건(D-R8) 반영 완료</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>동료 검토 피드백 (2026-08-20)</h4>
+        <ol>
+          <li>OS 설치 섹션이 구체적이라 <b>복잡해 보인다</b>.</li>
+          <li>사내 주문의 OS 요청사항이 다양해 <b>주문 수만큼 정의서를 만들게 될 것</b>이다(정의서 폭발 우려).</li>
+        </ol>
+
+        <h4>구조적 원인 — 추상 축과 변동 축의 불일치</h4>
+        <p>세팅 정의서는 <b>재사용하는 표준 템플릿</b>이다. 그런데 OS 상세(파티션 · 사용자 · 패키지)는 주문마다 달라지는 <b>변동 값</b>이다.
+          변동 값을 재사용 템플릿에 넣으면 템플릿이 주문 단위로 복제될 수밖에 없다 — 피드백 ②의 폭발 우려는 이 불일치의 결과다.</p>
+
+        <h4>소비처 부재 — MVP 축소 (2026-08-20)</h4>
+        <p>OS 설치(E4)가 MVP 에서 제외되면서, 지금 받는 상세 입력을 <b>실제로 소비하는 실행 경로가 없다</b>.
+          소비처 없는 입력은 정확성을 검증할 방법도 없이 사용자 부담만 남긴다.</p>
+
+        <h4>주문 실측 (약 20건, 사용자)</h4>
+        <table>
+          <thead><tr><th>입력</th><th>변동성</th><th>이번 처리</th></tr></thead>
+          <tbody>
+            <tr><td>OS 종류 · 버전</td><td>주문별</td><td>식별로 잔존</td></tr>
+            <tr><td>파티션</td><td>표준 반 · 주문별 반</td><td>노출 제거</td></tr>
+            <tr><td>사용자 · root 정책</td><td>표준</td><td>노출 제거</td></tr>
+            <tr><td>패키지</td><td>표준</td><td>노출 제거</td></tr>
+            <tr><td>타임존</td><td>표준</td><td>노출 제거</td></tr>
+          </tbody>
+        </table>
+        <p>주문마다 달라지는 것은 <b>OS 종류 · 버전</b> 하나뿐이고, 그것은 정의서가 이미 식별 정보로 갖고 있다.
+          파티션만 표준과 주문별이 섞이는데, 섞인 값을 표준 템플릿에 고정하면 절반은 매번 틀린 값이 된다.</p>
+        <div class="callout warn"><b>추가 실측</b> — RHEL 실 수요 자체가 작다. 계열 상세 입력이 커버하는 실사용 폭이 좁다는 뜻이며, 지금 노출을 유지할 이유가 더 줄어든다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><code>OS_INSTALLATION</code> 카드의 입력은 <b>OS 선택 + ISO 선택</b> 둘만 남긴다. 계열 파생과 상세 pane 은 렌더하지 않는다. <span class="chip mod">D-R5</span></li>
+          <li>남긴 식별의 선택 대상은 <b>Windows Server 2025(Windows 계열)</b> 뿐이다. 리눅스 기반 OS 는 <b>옵션 disabled + 사유 tooltip</b> 으로 UI 에서 1차 차단하고, 서버 가드가 안전망을 잡는다. <span class="chip new">D-R8</span></li>
+          <li><code>OS_SETTING</code> 은 팔레트에서 <b>완전히 제거</b>한다(비활성이 아니라 숨김). <span class="chip del">D-R2</span></li>
+          <li>계열 상세 계약은 <b>유효한 계약으로 남는다</b> — direct POST 는 여전히 수락된다. <span class="chip keep">D-R3</span></li>
+          <li>식별 전용 요청은 <b>판별자 부재 = 식별 전용</b> 규칙으로 해석한다(등록 테이블 신설). <span class="chip new">D-R1</span></li>
+          <li>팔레트 노출 여부의 SSOT 는 <code>SettingProcessType</code> 의 enum 속성이다 — 컨트롤러 하드코딩 목록을 두지 않는다. <span class="chip mod">D-R4</span></li>
+          <li>축소 카드에 <b>안내 문구 1줄</b>을 신설한다("상세 설치 설정은 MVP 이후 지원 예정" 류). <span class="chip new">D-R7</span></li>
+          <li>과거 상세 payload 로 저장된 정의서의 <b>조회가 깨지지 않는다</b> — 계열 상세 카드 fragment 는 잔존한다. <span class="chip keep">D-R6</span></li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>계열 계약 폐지 — RHEL · Ubuntu 설치 요청과 <code>RHELOSSettingRequest</code> 는 그대로 둔다(전체 보존 목록은 §10 유지).</li>
+            <li>엔티티 · 스키마 변경 — payload 가 다형 JSON 이라 DDL 이 필요 없다(§8 스키마, Step 9 = N/A).</li>
+            <li>U3 할당 · 스냅샷 경로 변경 — 스냅샷은 payload 원문을 그대로 얼리므로 영향이 없다.</li>
+            <li>OS 설치 실행(E4) 구현 — MVP 제외 상태이며, 그 부재가 이번 축소의 전제다.</li>
+            <li>리눅스 기반 OS 의 설치 예정 기록 — 상세 설치가 E4 로 이연되므로 기록도 함께 봉인한다(D-R8).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">두 가지를 직접 조작해 확인합니다. <b>데모 1</b> 은 화면에서 사라지는 것(팔레트 1종 · 상세 입력 5칸)과
+          리눅스 옵션 차단을, <b>데모 2</b> 는 그럼에도 서버가 계속 받아주는 것(계열 상세 계약)과 새로 막는 것(리눅스 식별)을 체험시킵니다.
+          데모 2 의 판정 JS 는 §4 의 등록 테이블 조회 순서와 계열 가드를 그대로 미러합니다(<b>드리프트 0</b>).</p>
+
+        <h4>데모 1 — 단계 추가 팔레트와 OS 설치 카드 (축소 전 / 후)</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">화면 :</span>
+            <button class="seg" data-mode="before" onclick="demo1SetMode('before')">축소 전 (현행)</button>
+            <button class="seg" data-mode="after" onclick="demo1SetMode('after')">축소 후 (R11)</button>
+          </div>
+          <div class="ux-row" style="background:var(--bg);border-style:dashed;">
+            <span class="label"><b>단계 추가</b> 팔레트</span>
+            <span id="demo1-palette"></span>
+          </div>
+          <div id="demo1-card"></div>
+          <div class="ux-caps" id="demo1-caps"></div>
+          <div class="ux-message" id="demo1-message">「축소 전 / 축소 후」 를 눌러 비교해 보세요. 축소 전에서 OS 를 고르면 계열이 파생되며 상세 입력이 펼쳐집니다.</div>
+        </div>
+
+        <h4>데모 2 — wire JSON 판정기 (direct POST 시뮬레이션)</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">요청 본문 :</span>
+            <button class="seg" data-case="1" onclick="demo2Set(1)">① 식별 전용 (Windows)</button>
+            <button class="seg" data-case="2" onclick="demo2Set(2)">② 계열 상세 (기존)</button>
+            <button class="seg" data-case="3" onclick="demo2Set(3)">③ OS 후처리 식별</button>
+            <button class="seg" data-case="4" onclick="demo2Set(4)">④ 식별 전용 (리눅스)</button>
+          </div>
+          <div class="ux-row"><span class="label mono" id="demo2-json"></span></div>
+          <div class="ux-caps" id="demo2-caps"></div>
+          <div class="ux-message" id="demo2-message"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모 2 의 판정은
+          <code>FLAT_SUBTYPES</code> → <code>IDENTIFICATION_SUBTYPES</code> → <code>OS_SUBTYPES</code> 순 조회라는
+          <code>ProcessRequestDeserializer</code> 의 등록 테이블 규칙(§4)을 그대로 재현한다. 산문으로 따로 쓴 규칙이 아니라 같은 규칙의 실행판이다.
+          데모 1 의 옵션 disabled 와 데모 2 의 케이스 ④ 차단도 <b>같은 판정 함수 하나</b>를 호출한다 — D-R8 의 단일 SSOT 를 그대로 옮긴 것이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>화면 · 경로</th><th>동작</th><th>이번 변경</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td>세팅 정의서 신규 폼 (경로 무변경)</td><td>단계 추가 팔레트 렌더</td><td>노출 3종으로 축소</td></tr>
+            <tr><td>POST</td><td>세팅 정의서 생성 (경로 무변경)</td><td>단계 payload 역직렬화 → 참조 검증 → 저장</td><td>식별 전용 해석 경로 추가</td></tr>
+            <tr><td>GET</td><td>세팅 정의서 상세 (경로 무변경)</td><td>단계 카드 렌더</td><td>Planned 표시 케이스 추가</td></tr>
+          </tbody>
+        </table>
+        <p>엔드포인트를 신설하거나 변경하지 않는다. 표의 경로 문자열과 메서드 시그니처는 <b>CP2 착수 시 실측 확정</b>한다.</p>
+
+        <h4>등록 테이블 조회 순서</h4>
+        <div class="pkg-tree">ProcessRequestDeserializer  — 판별자 등록 지점 (SSOT)
+├── ① FLAT_SUBTYPES[type]                          판별자 없는 단계 타입
+├── ② osFamily 부재 → IDENTIFICATION_SUBTYPES[type]     ← 신설 (D-R1)
+│      └── OS_INSTALLATION → PlannedOSInstallationRequest
+└── ③ OS_SUBTYPES[type][osFamily]                  기존 계열 (보존 · D-R3)
+       ├── OS_INSTALLATION → RHEL 계열 / Debian 계열 설치 요청
+       └── OS_SETTING      → RHELOSSettingRequest</div>
+
+        <h4>식별 전용 생성 흐름</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저 (setting-form.js)</div><div class="actor a2">Controller · Deserializer</div><div class="actor a3">Service · Payload</div>
+          <div class="step a1">폼 진입 → 팔레트 3종</div><div class="step a2">paletteExposed 필터 목록 전달</div><div class="step a3"></div>
+          <div class="step a1"><code>{type, osMetadataId, isoId}</code> 조립</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">제출</div><div class="step a2">osFamily 부재 → IDENTIFICATION 조회</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">PlannedOSInstallationRequest 로 해석</div><div class="step a3">참조 검사 (OS · ISO 실존 · 소속 · enabled) + 계열 가드 (D-R8)</div>
+          <div class="step a1">리다이렉트 · 상세 조회</div><div class="step a2"></div><div class="step a3">ProcessPayload 가 계약 원문 래핑 · 저장</div>
+        </div>
+        <p>저장 계층은 손대지 않는다. <code>ProcessPayload</code> 가 계약 원문(<code>AbstractProcessRequest</code>)을 그대로 래핑하는 구조(U2-3 D1)라서
+          새 계약이 들어와도 <b>새 payload 클래스가 필요 없다</b>.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>계약 표현 — 설계 대안 비교</h4>
+        <p>화면에서 상세 입력을 숨기기만 하는 방법은 성립하지 않는다. 현행 계열 구현체가 타임존에 <code>@NotNull</code>,
+          파티션에 <code>@NotEmpty</code> 를 걸고 있어, 상세를 비운 요청은 검증에서 거절되기 때문이다. 계약 표현 자체를 정해야 한다.</p>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>(a)</td><td><code>OSFamily.UNSPECIFIED</code> 상수 추가 후 식별 전용 구현체 매핑</td><td><span class="chip del">탈락</span></td></tr>
+            <tr><td>(b)</td><td>판별자 부재 = 식별 전용 등록 테이블 조회</td><td><span class="chip new">채택</span></td></tr>
+            <tr><td>(c)</td><td>계열 구현체의 상세 검증을 완화(optional)하고 화면만 숨김</td><td><span class="chip del">탈락</span></td></tr>
+          </tbody>
+        </table>
+        <p><b>(a) 탈락</b> — <code>OSFamily</code> 축의 오염이다. "계열 미정" 은 계열이 아니라 상태이며, enum 주석 스스로
+          "소비자가 생기는 시점에 상수를 추가한다" 는 원칙을 갖고 있다(현행 상수는 <code>RHEL_BASED</code> · <code>DEBIAN_BASED</code> 둘뿐이고
+          Windows 도 예약만 한 채 추가하지 않았다).</p>
+        <p><b>(c) 탈락</b> — 계약이 "빈 상세 허용" 으로 느슨해진다. E4 가 부활했을 때 빈 파티션으로 kickstart 가 생성되는 류의 조용한 결함 위험이 남고,
+          임시 비대칭이 계열 구현체 전체로 번진다.</p>
+        <p><b>(b) 채택</b> — 도메인 사실("정의서 작성 시점에 계열 상세를 정하지 않는다")과 표현이 일치한다.
+          <code>ProcessRequestDeserializer</code> 가 이미 "새 타입 추가 = 맵 한 항목 등록" 을 공식 확장점으로 명시하고 있어(클래스 Javadoc "판별자 등록 지점 (SSOT)"),
+          <b>분기 추가가 아니라 등록 테이블 확장</b>으로 끝난다.</p>
+
+        <h4>D-R1 — 식별 전용 계약</h4>
+        <table>
+          <thead><tr><th>요소</th><th>정의</th></tr></thead>
+          <tbody>
+            <tr><td>클래스</td><td><code>PlannedOSInstallationRequest</code> <span class="chip new">신규</span></td></tr>
+            <tr><td>상속</td><td><code>OSInstallationRequest</code> 베이스 직접 상속</td></tr>
+            <tr><td>필드</td><td>베이스의 <code>osMetadataId</code> + <code>isoId</code> 뿐 (베이스 <code>@NotNull</code> 검증 그대로)</td></tr>
+            <tr><td>accessor</td><td><code>osFamily()</code> 는 null 반환</td></tr>
+            <tr><td>등록</td><td><code>IDENTIFICATION_SUBTYPES = Map.of(OS_INSTALLATION, PlannedOSInstallationRequest.class)</code> <span class="chip new">신설</span></td></tr>
+            <tr><td>저장</td><td>무변경 — <code>ProcessPayload</code> 가 계약 원문을 래핑</td></tr>
+          </tbody>
+        </table>
+        <p><code>osFamily()</code> 가 null 이라 직렬화 왕복 시에도 판별자가 없는 상태로 나가고, 다시 읽을 때 부재 판별 경로로 재해석된다 — 왕복이 일관된다.</p>
+        <div class="callout"><b>비고 — 계보</b> : 이 계약이 <b>계열에 무관한 식별 타입</b>이라는 점은 Windows 방향과도 정합하지만,
+          그것이 당초 (b) 채택의 근거는 아니었다. 채택 근거는 "정의서 작성 시점에 계열 상세를 정하지 않는다" 는 도메인 사실이었고,
+          Windows 정합성은 2026-08-20 사용자 확정(D-R8)으로 <b>명시 요구로 승격</b>됐다 — 같은 표현 하나가 두 요구를 함께 만족한다.</div>
+
+        <h4>D-R4 — 팔레트 노출의 SSOT</h4>
+        <div class="state-flow">SettingProcessType.values()            ← 현행 (SettingController 78행 부근)
+        ↓
+SettingProcessType 의 노출 속성 필터    ← R11 (예: paletteExposed)</div>
+        <p>노출 여부를 컨트롤러의 하드코딩 목록으로 두면 화면마다 목록이 복제되어 갈라진다. enum 속성 한 곳에 두면
+          팔레트 · 다른 화면 · 서버 가드가 모두 같은 값을 읽는다 — "UI 차단 조건과 서버 가드 조건은 단일 SSOT 공유" 원칙의 적용이다.</p>
+
+        <h4>D-R8 — 선택 가능 대상은 Windows Server 2025 뿐</h4>
+        <p>식별을 남기더라도 <b>선택할 수 있는 OS 는 Windows Server 2025(Windows 계열) 하나</b>다. 리눅스 기반 OS 는 선택 대상이 아니다.</p>
+        <table>
+          <thead><tr><th>층</th><th>동작</th><th>성격</th></tr></thead>
+          <tbody>
+            <tr><td>UI</td><td>리눅스 옵션 <code>disabled</code> + 사유 tooltip</td><td>1차 차단 — 사용자가 애초에 고를 수 없다</td></tr>
+            <tr><td>서버</td><td>Planned 요청의 OS 참조가 Windows 계열이 아니면 거절</td><td>안전망 — direct POST · stale 요청만 도달</td></tr>
+          </tbody>
+        </table>
+        <div class="state-flow">차단 조건 = 단일 SSOT 도메인 메서드 1개
+   ├── 뷰모델 : 옵션 disabled 플래그 + 사유 문구   ← UI 1차 차단
+   └── 서버   : Planned 참조 검증에서 거절          ← 안전망</div>
+        <p>두 층이 같은 도메인 메서드를 호출한다 — 조건을 두 곳에 복붙하면 갈라지기 때문이며,
+          <code>childEnableBlockReason()</code> 과 <code>blocksChild*()</code> 가 이미 쓰는 원칙과 같다.</p>
+        <p><b>근거</b> — 주문 실측에서 "설치 예정 기록" 의 가치가 실재하는 것은 Windows Server 2025 뿐이다(대부분의 출고 서버가 실제로 거치는 공통 과정).
+          리눅스 상세 설치는 E4 로 이연되므로 <b>기록도 함께 봉인</b>한다 — 소비처도 없고 선택 가치도 없는 항목을 열어 두면 §1 의 "복잡해 보인다" 를 그대로 남기게 된다.</p>
+        <p><b>안내 문구</b> — "Windows Server 2025 설치 자동화는 추후 지원 예정" 취지로 둔다.
+          문구 확정은 <code>.claude/domain-conventions/new-user-copy.md</code> 관문을 연 뒤이며, D-R7 의 축소 안내와 한 벌로 다듬는다.</p>
+
+        <h4>D-R2 — OS_SETTING 을 남기지 않는 이유</h4>
+        <p>식별만 남기는 처리를 <code>OS_SETTING</code> 에도 적용하면 담을 정보가 <code>osMetadataId</code> 하나인데,
+          그 값은 <code>OS_INSTALLATION</code> 잔존분과 중복이다. 중복된 식별만 남은 단계는 기록 가치가 없으므로 팔레트에서 제거한다.
+          계약(<code>RHELOSSettingRequest</code>)은 보존하므로 direct POST 는 계속 수락된다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰 축소 · Controller 필터 · 식별 전용 계약 · 해석기 등록</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td><b>N/A</b> — Repository · Entity 변경 0 (리팩토링 슬라이스)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>참조 검증 배선 + 스키마 <b>N/A</b> (payload 다형, DDL 불요)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 A · B · C 항목 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 —
+          ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).</div>
+        <p>브랜치는 <code>refactor/R11_setting-os-scope-reduction</code> 이며 <code>origin/dev</code> 를 기점으로 <b>CP2 진입 시</b> 생성한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>기대</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td>Planned 참조 검증 happy / 실패(ISO 불일치 등 기존 검사 경로)</td><td>통과 / 거절</td><td>2</td></tr>
+            <tr><td>성공 2xx</td><td>① 식별 전용 정의서 생성 — Windows Server 2025 (바디 필드값 확인)</td><td>2xx</td><td>1</td></tr>
+            <tr><td>성공 2xx</td><td>③ 계열 상세 direct POST — 보존 확인 (D-R3)</td><td>2xx</td><td>1</td></tr>
+            <tr><td>400</td><td>② <code>OS_SETTING</code> + osFamily 부재 → 하위 타입 미등록</td><td>400 (입력 불일치 메시지)</td><td>1</td></tr>
+            <tr><td>400</td><td>④ <code>osMetadataId</code> · <code>isoId</code> 누락</td><td>400 (필드 메시지)</td><td>1</td></tr>
+            <tr><td>404 / 409</td><td>⑤ 존재하지 않는 OS 참조 / 존재하지 않는 ISO 참조</td><td>기존 404 · 409 계열 실제 트리거</td><td>2</td></tr>
+            <tr><td>거절 (계열 가드)</td><td>⑥ 리눅스 계열 <code>osMetadataId</code> 의 식별 전용 direct POST</td><td>거절 — 코드는 CP2 실측 (D-R8)</td><td>1</td></tr>
+            <tr><td>500</td><td>해당 없음 — 신규 예외 0, 계약 해석 실패는 전부 400 으로 수렴</td><td>—</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p>합계 <b>9건</b>(단위 2 + 통합 7). 통합은 <code>@WebMvcTest</code> + <code>MockMvc</code> 로 HTTP 계층에서 실제 상태코드 · 바디를 검증하며,
+          Mockito mocking 은 Service 단까지만 둔다 — 컨트롤러와 advice 매핑은 실제로 실행되어야 한다.
+          ⑥ 의 응답 코드는 참조 검증이 어느 기존 예외를 재사용하는지에 달려 있어 CP2 실측 후 확정한다(§7).</p>
+        <div class="callout warn"><b>③ 이 통과해야 하는 이유</b> — 계열 상세 direct POST 가 <b>수락되는 것이 정상</b>이다.
+          이 슬라이스는 노출을 줄일 뿐 계약을 폐지하지 않으므로(D-R3), 거절되면 회귀다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>역직렬화 입력 불일치 (하위 타입 미등록)</td><td>400</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>참조 미존재 · 소속 불일치 계열 (참조 검사기 경로)</td><td>404 / 409</td><td><span class="chip keep">재사용</span> — 클래스는 CP2 실측</td></tr>
+            <tr><td>계열 가드 거절 — Windows 계열 아님 (D-R8)</td><td>CP2 실측</td><td><span class="chip keep">재사용</span> — 참조 검증 예외 재사용, 신설하지 않음</td></tr>
+          </tbody>
+        </table>
+        <p>신규 예외는 <b>0</b> 이다. 새 예외 클래스가 없으므로 <code>.claude/domain-conventions/new-exception.md</code> 관문은 해당하지 않는다.
+          다만 기존 예외가 <b>실제로 트리거되는지</b>는 확인해야 하며, 그 책임은 §6 의 ⑤ · ⑥ 이 진다.
+          D-R8 의 계열 가드도 기존 참조 검증 예외를 재사용하는 것을 원칙으로 하며, CP2 실측에서 재사용할 예외가 없다고 판명되면 그때 관문을 열고 신설 여부를 판단한다.</p>
+        <div class="callout warn"><b>열어야 하는 관문</b> — D-R7 의 안내 문구는 새 사용자 문구이므로,
+          작성 전 <code>.claude/domain-conventions/new-user-copy.md</code> 를 먼저 연다(작업 전 체크리스트 규약).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>D-R5 — 신규 폼 축소 범위</h4>
+        <ul>
+          <li><code>setting-new.html</code> 의 <code>OS_INSTALLATION</code> 카드에서 계열 파생(<code>data-osFamily</code>)과 상세 pane 렌더를 제거하고 OS · ISO 선택만 남긴다.</li>
+          <li><code>setting-form.js</code> 의 <code>OS_INSTALLATION</code> serializer(954행 부근)는 <code>type</code> + <code>osMetadataId</code> + <code>isoId</code> 만 조립하고 <code>osFamily</code> 를 넣지 않는다.</li>
+          <li><code>OS_SETTING</code> 카드 마크업은 팔레트 제거로 진입 자체가 차단되므로 잔존해도 무해하다. 정리 여부는 구현 시 판단한다.</li>
+        </ul>
+
+        <h4>D-R6 — 기존 데이터와 수정 폼</h4>
+        <p>상세 payload 로 저장된 정의서는 테스트 데이터뿐이고 미배포 상태다(토론 D3). 따라서 로컬 테스트 데이터 정리로 처리한다.
+          조회 카드(<code>setting-process-cards.html</code>)에는 Planned 표시 케이스를 <b>추가</b>하고, 계열 상세 카드(<code>detail-rhel</code> 등)는 <b>잔존</b>시킨다 —
+          과거 데이터의 조회가 깨지지 않게 하기 위해서다. 수정 폼은 축소 카드 기준으로 동작한다.</p>
+
+        <h4>D-R7 — 안내 문구</h4>
+        <p>축소 카드에 "상세 설치 설정은 MVP 이후 지원 예정" 류 안내 1줄을 둔다. 무엇이 사라졌는지와 언제 돌아오는지를 함께 전달해야 사용자가 결손으로 오해하지 않는다.</p>
+
+        <h4>미확정 — CP2 진입 시 실측</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인 대상</th><th>미달 시 대응</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>참조 검사기(<code>OSInstallationReferenceInspector</code> 계열)의 계약이 Planned 를 그대로 받는가</td><td>시그니처가 계열 구현체에 결합돼 있으면 식별 전용 검사 경로 분리</td></tr>
+            <tr><td>Q2</td><td>수정 폼 pre-fill(<code>withPatchedPasswords</code> 경로)이 Planned 에서 no-op 으로 성립하는가</td><td>성립하지 않으면 Planned 분기 처리</td></tr>
+            <tr><td>Q3</td><td><code>setting-detail.html</code> 의 OS 카드 배지(<code>setting-process-cards.html</code> 36행)가 Planned 에서 자연 동작하는가</td><td>배지 라벨 케이스 추가</td></tr>
+            <tr><td>Q4</td><td><code>OSMetadata</code> · <code>OSName</code> 이 Windows 계열을 표현할 수 있는가 (Windows Server 2025 값의 실재 여부)</td><td>없으면 enum 값 추가가 CP2 범위에 합류</td></tr>
+          </tbody>
+        </table>
+        <p>Q1 ~ Q3 은 <b>구현 방식의 세부</b>이고 슬라이스 범위를 바꾸지 않는다.
+          Q4 는 실측 결과에 따라 <b>enum 값 추가가 CP2 범위에 합류</b>할 수 있으며, 그 경우 D-R8 의 전제를 만족시키는 최소 추가로 한정한다
+          (<code>OSFamily</code> 의 "소비자가 생기는 시점에 상수를 추가한다" 원칙과 같은 방향 — 이번에 소비자가 생겼다).
+          CP1 의 결정은 D-R1 ~ D-R8 로 확정된 것으로 본다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="R11-verify-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (기존 테스트 회귀 0)</span></label></li>
+        </ul>
+
+        <h4>기능 — CP5 샌드박스 검증 항목 초안</h4>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>신규 폼 팔레트 확인</td><td>「OS 후처리 설정」 버튼 부재</td></tr>
+            <tr><td>A2</td><td>OS 설치 카드 추가 후 OS 선택지 확인</td><td>OS · ISO 두 입력 + 안내 문구 · <b>Windows 계열만 활성 · 리눅스 disabled + 사유 노출</b></td></tr>
+            <tr><td>A3</td><td>식별 전용 정의서 생성 후 상세 조회</td><td>Planned 카드 표시</td></tr>
+            <tr><td>A4</td><td>그 정의서를 U3 할당</td><td>정상 동작</td></tr>
+            <tr><td>B1</td><td>계열 상세 direct POST</td><td><b>수락</b> — 보존이 정상 판정</td></tr>
+            <tr><td>B2</td><td>osFamily 만 있고 상세 누락 direct POST</td><td>400</td></tr>
+            <tr><td>B3</td><td><code>OS_SETTING</code> direct POST (기존 계약)</td><td>수락</td></tr>
+            <tr><td>B4</td><td>리눅스 계열 식별 전용 direct POST</td><td>거절 — 서버 계열 가드 발동 (D-R8)</td></tr>
+            <tr><td>C1</td><td>축소 카드 안내 문구 평가</td><td>이유와 시점(MVP 이후 · 추후 지원 예정)이 전달되는가</td></tr>
+            <tr><td>C2</td><td>팔레트 축소 후 나머지 3종 조작</td><td>동작이 훼손되지 않는가</td></tr>
+          </tbody>
+        </table>
+        <p>항목 10개(A 4 · B 4 · C 2). 항목마다 스크린샷을 남기고, 그 증거가 CP6 report 의 본문이 된다.
+          B4 는 A2 의 UI 차단이 뚫렸을 때를 재연하는 항목이다 — 두 항목이 같은 도메인 메서드를 서로 다른 층에서 확인한다.</p>
+
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="R11-verify-regress">
+          <li><label><input type="checkbox" data-key="legacy-read"> <span>상세 payload 로 저장된 기존 정의서의 조회가 깨지지 않음</span></label></li>
+          <li><label><input type="checkbox" data-key="u3"> <span>U3 할당 · 스냅샷 경로 무변경 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="other-steps"> <span>OS 외 단계(팔레트 3종)의 생성 · 조회 무변경</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>PlannedOSInstallationRequest</code></td><td>식별 전용 계약 (D-R1)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingProcessType</code></td><td>팔레트 노출 속성 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingController</code></td><td>팔레트 목록을 속성 필터로 교체 (78행 부근)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ProcessRequestDeserializer</code></td><td><code>IDENTIFICATION_SUBTYPES</code> 등록 테이블 신설</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>setting-new.html</code></td><td>OS 카드 축소 (계열 pane 제거)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>setting-form.js</code></td><td>OS serializer 식별 전용화 (954행 부근)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>setting-process-cards.html</code></td><td>Planned 조회 카드 케이스 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>참조 검사기 (<code>OSInstallationReferenceInspector</code> 계열)</td><td>OS · ISO 실존 · 소속 · enabled 검증을 Planned 에 재사용 — 범위는 구현 시 실측</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>OS 계열 선택 가드 — 도메인 메서드 + 뷰모델 플래그 (D-R8)</td><td>단일 SSOT 1개를 UI 와 서버 검증이 공유 · 대상 클래스는 CP2 실측 (§8 Q4 연동)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>RHEL · Ubuntu 설치 요청 / 계열 검사기</td><td>변경 0 — 계약 보존 (D-R3)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>계열 폼 fragment (<code>rhel-based.html</code> 등)</td><td>변경 0 — 렌더 진입만 사라짐</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>조회 상세 fragment (<code>detail-rhel.html</code> 등)</td><td>변경 0 — 과거 데이터 조회 보장 (D-R6)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RHELOSSettingRequest</code></td><td>변경 0 — direct POST 수락 유지</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>SettingProcess</code> · <code>SettingDefinition</code> 엔티티 · 스키마</td><td>변경 0 — payload 다형이라 DDL 불요</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>U3 할당 · 스냅샷 경로</td><td>변경 0 — payload 원문을 그대로 얼림</td></tr>
+          </tbody>
+        </table>
+        <p>신규 1 · 수정 8 · 유지 6. 수정 8건 중 백엔드가 5건, 화면 자산이 3건이다 — 축소가 <b>노출 층에 몰려 있다</b>는 사실이 파일 분포에서도 확인된다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R11-milestone">
+          <li><label><input type="checkbox" data-key="m1"> <span>CP2 진입 시 §8 의 실측 4건(Q1 ~ Q4) 확정 — Q4 는 결과에 따라 enum 값 추가가 범위에 합류</span></label></li>
+          <li><label><input type="checkbox" data-key="m2"> <span>MVP 이후 OS 설치(E4)가 살아날 때 계열 상세와 리눅스 선택을 다시 노출 — 계약이 보존돼 있으므로 화면 복원과 가드 해제가 주 작업이다</span></label></li>
+          <li><label><input type="checkbox" data-key="m3"> <span>파티션의 "표준 반 · 주문별 반" 을 어디서 받을지는 E4 재개 시점의 별도 결정으로 넘긴다</span></label></li>
+        </ul>
+
+        <h4>참고 자산</h4>
+        <table>
+          <thead><tr><th>자산</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>결정 원장</td><td><span class="mono">discussion/26-08-20_08-26-28_setting-definition-os-scope_discussion.md</span> §8 (D1~D5)</td></tr>
+            <tr><td>Notion</td><td>R11 : 세팅 정의서 OS 섹션 표적 축소 (2026-08-20 신설, 진행 중)</td></tr>
+            <tr><td>관련 실측</td><td>주문 약 20건 변동성 표 — 위 discussion §4</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 1 — 단계 추가 팔레트 + OS 설치 카드 (축소 전 / 후)
+  // ─────────────────────────────────────────────────────────────
+  const OS_OPTIONS = {
+    '3': { name: '#3 RHEL 계열 이미지', family: 'RHEL_BASED', windows: false },
+    '5': { name: '#5 Debian 계열 이미지', family: 'DEBIAN_BASED', windows: false },
+    '9': { name: '#9 Windows Server 2025', family: 'Windows 계열', windows: true }
+  };
+  // D-R8 단일 SSOT — 데모 1 의 옵션 disabled 와 데모 2 케이스 ④ 의 서버 거절이 같은 함수를 호출한다.
+  // 서버 도메인 메서드(뷰모델 disabled 플래그 + Planned 참조 검증이 공유)의 JS 재현 — 드리프트 0.
+  const OS_BLOCK_REASON = '리눅스 기반 OS 는 선택할 수 없습니다 — 상세 설치가 E4 로 이연되며 설치 예정 기록도 함께 봉인됩니다.';
+  function osChoiceBlockReason(osId) {
+    const os = OS_OPTIONS[osId];
+    if (!os) return null;
+    return os.windows ? null : OS_BLOCK_REASON;
+  }
+  // 데모 편의 — 「축소 전(현행)」 화면에는 Windows 값 자체가 없다 (§8 Q4 실측 대상)
+  const BEFORE_NO_WINDOWS = '현행 계열 enum 에는 Windows 값이 없습니다 (§8 Q4 실측 대상).';
+  function demo1OptionBlock(osId) {
+    if (demo1.mode === 'after') return osChoiceBlockReason(osId);
+    const os = OS_OPTIONS[osId];
+    return (os && os.windows) ? BEFORE_NO_WINDOWS : null;
+  }
+  const ISO_OPTIONS = { '7': '#7 설치 미디어' };
+  const OS_DETAIL_FIELDS = ['타임존', '파티션 목록', '사용자 목록', 'root 비밀번호', '패키지'];
+  // 팔레트 정의 — reduced:true 는 R11 에서 노출 제거 (D-R2)
+  const PALETTE = [
+    { label: '펌웨어 업데이트', kind: 'other', reduced: false },
+    { label: 'BIOS 설정',      kind: 'other', reduced: false },
+    { label: 'OS 설치',        kind: 'os',    reduced: false },
+    { label: 'OS 후처리 설정',  kind: 'ossetting', reduced: true }
+  ];
+  const demo1 = { mode: 'before', card: true, osId: '3', isoId: '7' };
+
+  function demo1SetMode(m) {
+    demo1.mode = m;
+    const blocked = (m === 'after') ? osChoiceBlockReason(demo1.osId) : null;
+    if (blocked) demo1Msg('error', '축소 후 화면입니다 — 선택돼 있던 리눅스 계열 OS 는 선택 대상이 아닙니다. 옵션이 disabled 로 바뀌고, 서버 가드도 같은 판정으로 거절합니다 (D-R8).');
+    else demo1Msg('', '화면 모드를 「' + (m === 'before' ? '축소 전 (현행)' : '축소 후 (R11)') + '」 으로 바꿨습니다.');
+    demoRender();
+  }
+  function demo1SetOs(v) {
+    demo1.osId = v;
+    const blocked = (demo1.mode === 'after') ? osChoiceBlockReason(v) : null;
+    if (!blocked && v && demo1.mode === 'after') demo1Msg('success', '✓ Windows Server 2025 — 식별 전용으로 기록됩니다.');
+    demoRender();
+  }
+  function demo1SetIso(v) { demo1.isoId = v; demoRender(); }
+  function demo1Add(kind) {
+    if (kind === 'os') { demo1.card = true; demo1Msg('success', '✓ OS 설치 단계를 추가했습니다.'); }
+    else if (kind === 'ossetting') { demo1Msg('error', 'OS 후처리 설정 단계 — 축소 후에는 이 버튼 자체가 팔레트에 없습니다 (D-R2).'); }
+    else { demo1Msg('', '이 단계는 R11 의 변경 대상이 아닙니다 — 팔레트에 그대로 남습니다.'); }
+    demoRender();
+  }
+  function demo1Msg(cls, text) {
+    const el = document.getElementById('demo1-message');
+    el.className = 'ux-message' + (cls ? ' ' + cls : '');
+    el.textContent = text;
+  }
+  function demo1Select(handler, options, current, guard) {
+    let h = '<select onchange="' + handler + '(this.value)">';
+    h += '<option value=""' + (current ? '' : ' selected') + '>(선택)</option>';
+    Object.keys(options).forEach(k => {
+      const label = (typeof options[k] === 'string') ? options[k] : options[k].name;
+      const blocked = guard ? !!guard(k) : false;
+      h += '<option value="' + k + '"' + (current === k ? ' selected' : '') + (blocked ? ' disabled' : '') + '>'
+         + label + (blocked ? ' — 선택 불가' : '') + '</option>';
+    });
+    return h + '</select>';
+  }
+  function demo1Render() {
+    document.querySelectorAll('.ux-toolbar .seg[data-mode]').forEach(s => s.classList.toggle('active', s.dataset.mode === demo1.mode));
+
+    document.getElementById('demo1-palette').innerHTML = PALETTE
+      .filter(i => !(i.reduced && demo1.mode === 'after'))
+      .map(i => '<button class="n-demo-btn" style="margin-left:4px;" onclick="demo1Add(\'' + i.kind + '\')">+ ' + i.label + '</button>')
+      .join('');
+
+    const os = demo1.osId ? OS_OPTIONS[demo1.osId] : null;
+    const optBlock = (demo1.card && os) ? demo1OptionBlock(demo1.osId) : null;
+    const detail = (demo1.mode === 'before' && demo1.card && !!os && !optBlock);
+    const blockedNow = (demo1.mode === 'after') ? optBlock : null;
+    const box = document.getElementById('demo1-card');
+
+    if (!demo1.card) {
+      box.innerHTML = '<div class="ux-row muted"><span class="label">추가된 단계가 없습니다 — 위 팔레트에서 「+ OS 설치」 를 눌러보세요.</span></div>';
+    } else {
+      let h = '<div class="ux-row"><strong>OS 설치</strong><span class="label">'
+        + demo1Select('demo1SetOs', OS_OPTIONS, demo1.osId, demo1OptionBlock) + ' '
+        + demo1Select('demo1SetIso', ISO_OPTIONS, demo1.isoId, null) + '</span>'
+        + (demo1.mode === 'after'
+            ? '<span class="tip" data-tip="' + OS_BLOCK_REASON + '" style="font-size:11px;color:var(--text-muted);">ⓘ 리눅스 옵션 차단</span>' : '')
+        + (detail ? '<span class="badge dep">' + os.family + ' 파생</span>'
+          : optBlock ? '<span class="badge del">선택 불가</span>'
+          : '<span class="badge on">식별 전용</span>')
+        + '</div>';
+      if (detail) {
+        h += OS_DETAIL_FIELDS.map(f =>
+          '<div class="ux-row child"><span class="label">' + f + '</span><span class="badge off">상세 입력</span></div>').join('');
+      } else if (optBlock) {
+        h += '<div class="ux-row child"><span class="label" style="color:var(--red);">' + optBlock + '</span><span class="badge del">차단</span></div>';
+      } else if (demo1.mode === 'after') {
+        h += '<div class="ux-row child"><span class="label" style="color:var(--text-muted);">Windows Server 2025 설치 자동화는 추후 지원 예정입니다. 상세 설치 설정은 MVP 이후 지원 예정입니다. (D-R7 · D-R8 안내 문구)</span></div>';
+      }
+      box.innerHTML = h;
+    }
+
+    const count = demo1.card ? (2 + (detail ? OS_DETAIL_FIELDS.length : 0)) : 0;
+    const paletteCount = PALETTE.filter(i => !(i.reduced && demo1.mode === 'after')).length;
+    document.getElementById('demo1-caps').innerHTML =
+      'palette.exposed          = ' + paletteCount + ' 종' + (demo1.mode === 'after' ? '  <span class="f">(OS 후처리 제거)</span>' : '') + '\n' +
+      'osInstallation.inputs    = ' + count + ' 칸' + (detail ? '  <span class="t">(계열 상세 5칸 포함)</span>' : '  <span class="f">(OS · ISO 만)</span>') + '\n' +
+      'wire.osFamily            = ' + (detail ? '<span class="t">"' + os.family + '"</span>' : '<span class="f">부재 → 식별 전용 해석</span>') + '\n' +
+      'osChoiceBlockReason()    = ' + (demo1.mode === 'before' ? '미적용 (현행 화면)'
+          : blockedNow ? '<span class="t">"리눅스 기반 OS …"</span> → 차단'
+          : '<span class="f">null</span> → 허용') + '\n' +
+      '축소 전 7 칸  →  축소 후 2 칸 (Windows Server 2025 만 선택 가능)';
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 2 — wire JSON 판정기
+  //  ⚠ ProcessRequestDeserializer 의 등록 테이블 조회 순서를 1:1 재현 (드리프트 0)
+  //     FLAT_SUBTYPES → (osFamily 부재 시) IDENTIFICATION_SUBTYPES → OS_SUBTYPES
+  // ─────────────────────────────────────────────────────────────
+  const FLAT_SUBTYPES = {};   // 판별자 없는 단계 타입 — OS 계열은 미등록
+  const IDENTIFICATION_SUBTYPES = { OS_INSTALLATION: 'PlannedOSInstallationRequest' };   // 신설 (D-R1)
+  const OS_SUBTYPES = {
+    OS_INSTALLATION: { RHEL_BASED: 'RHEL 계열 설치 요청', DEBIAN_BASED: 'Debian 계열 설치 요청' },
+    OS_SETTING:      { RHEL_BASED: 'RHELOSSettingRequest' }
+  };
+  const WIRE_CASES = {
+    1: { src: '{"type":"OS_INSTALLATION","osMetadataId":9,"isoId":7}', type: 'OS_INSTALLATION', osFamily: null, osId: '9', note: '' },
+    2: { src: '{"type":"OS_INSTALLATION","osFamily":"RHEL_BASED", …상세 전체}', type: 'OS_INSTALLATION', osFamily: 'RHEL_BASED', osId: null,
+         note: ' 기존 계열 등록이 그대로 살아 있습니다 — UI 만 축소하고 계약은 보존한다는 D-R3 의 확인입니다. 계열 가드는 Planned 요청에만 걸리므로 이 경로는 지나갑니다.' },
+    3: { src: '{"type":"OS_SETTING","osMetadataId":3}', type: 'OS_SETTING', osFamily: null, osId: null, note: '' },
+    4: { src: '{"type":"OS_INSTALLATION","osMetadataId":3,"isoId":7}', type: 'OS_INSTALLATION', osFamily: null, osId: '3',
+         note: ' 해석은 Planned 로 성공했지만 참조 검증의 계열 가드가 막습니다 — UI 1차 차단이 뚫린 경로의 안전망입니다 (D-R8).' }
+  };
+  const demo2 = { pick: 1 };
+  function demo2Set(id) { demo2.pick = id; demoRender(); }
+
+  function resolveSubtype(type, osFamily) {
+    const trace = [];
+    const flat = FLAT_SUBTYPES[type];
+    trace.push(['① FLAT_SUBTYPES[' + type + ']', flat || '미등록', !flat]);
+    if (flat) return { ok: true, via: 'FLAT_SUBTYPES', cls: flat, trace: trace };
+    if (!osFamily) {
+      const c = IDENTIFICATION_SUBTYPES[type];
+      trace.push(['② osFamily 부재 → IDENTIFICATION_SUBTYPES[' + type + ']', c || '미등록', !c]);
+      if (c) return { ok: true, via: 'IDENTIFICATION_SUBTYPES', cls: c, trace: trace };
+      return { ok: false, status: '400', kind: 'input', msg: "단계 타입 '" + type + "' 의 하위 타입 등록이 없습니다", trace: trace };
+    }
+    trace.push(['② osFamily 존재 → IDENTIFICATION 건너뜀', '"' + osFamily + '"', false]);
+    const c = (OS_SUBTYPES[type] || {})[osFamily];
+    trace.push(['③ OS_SUBTYPES[' + type + '][' + osFamily + ']', c || '미등록', !c]);
+    if (c) return { ok: true, via: 'OS_SUBTYPES', cls: c, trace: trace };
+    return { ok: false, status: '400', kind: 'input', msg: "판별자 '" + osFamily + "' 의 하위 타입 등록이 없습니다", trace: trace };
+  }
+
+  function demo2Pad(s, n) { let t = s; while (t.length < n) t += ' '; return t; }
+
+  function demo2Render() {
+    document.querySelectorAll('.ux-toolbar .seg[data-case]').forEach(s => s.classList.toggle('active', +s.dataset.case === demo2.pick));
+    const c = WIRE_CASES[demo2.pick];
+    document.getElementById('demo2-json').textContent = c.src;
+
+    let r = resolveSubtype(c.type, c.osFamily);
+    // 참조 검증 단계 — 계열 가드(D-R8)는 Planned 로 해석된 요청에만 걸린다
+    if (r.ok && r.via === 'IDENTIFICATION_SUBTYPES' && c.osId) {
+      const reason = osChoiceBlockReason(c.osId);
+      r.trace.push(['③ 참조 검증 — 계열 가드 (D-R8)', reason ? '리눅스 계열 → 차단' : 'Windows 계열 → 통과', !!reason]);
+      if (reason) r = { ok: false, status: '거절 (검증 실패)', msg: reason, via: r.via, trace: r.trace };
+    }
+
+    let caps = r.trace.map(row =>
+      demo2Pad(row[0], 52) + ' → ' + (row[2] ? '<span class="t">' + row[1] + '</span>' : '<span class="f">' + row[1] + '</span>')
+    ).join('\n');
+    caps += '\n' + demo2Pad('판정', 52) + ' → ' + (r.ok
+      ? '<span class="f">수락 (2xx) · via ' + r.via + '</span>'
+      : '<span class="t">' + r.status + '</span>');
+    document.getElementById('demo2-caps').innerHTML = caps;
+
+    const msg = document.getElementById('demo2-message');
+    if (r.ok) {
+      msg.className = 'ux-message success';
+      msg.textContent = '✓ 수락 — ' + r.cls + ' 로 해석됩니다.' + c.note;
+    } else {
+      msg.className = 'ux-message error';
+      msg.textContent = '✗ ' + r.status + ' — ' + r.msg + (r.kind === 'input' ? ' (입력 불일치)' : '') + c.note;
+    }
+  }
+
+  function demoRender() { demo1Render(); demo2Render(); }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
