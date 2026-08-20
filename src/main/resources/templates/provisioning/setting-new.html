@@ -234,6 +234,9 @@
                         </details>
 
                         <!-- ==================== OS_INSTALLATION ==================== -->
+                        <!-- R11 표적 축소 — 설치 예정 기록(식별 전용). 상세 설치 입력(타임존 · 파티션 ·
+                             사용자 · 계열 전용 블록)은 실행(E4) 이연으로 화면에서 걷혔다. 서버 계약과
+                             계열 fragment 는 보존 — E4 부활 시 재노출로 복귀한다(R11 plan D-R1 · D-R5). -->
                         <details class="n-accordion-item n-step-card" data-process-card="OS_INSTALLATION" hidden>
                             <summary class="n-accordion-head">
                                 <span class="n-accordion-chevron"></span>
@@ -241,15 +244,24 @@
                                 <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
                             </summary>
                             <div class="n-accordion-body">
+                                <!-- D-R7 안내 — 축소 사유와 시점을 먼저 알린다 -->
+                                <div class="n-step-guide">
+                                    <div class="n-step-guide-title">이 단계는 설치할 OS 의 예정 기록만 담습니다</div>
+                                    <div>지금은 기록만 저장됩니다. Windows Server 설치 자동화가 추후 지원되면 이 기록을 사용하며, 상세 설치 설정도 그때 열립니다.</div>
+                                </div>
                                 <div class="n-form-group">
                                     <label class="n-label strong" for="oiOsSelect">설치할 OS</label>
                                     <select id="oiOsSelect" class="n-select" data-error-field="osMetadataId">
-                                        <option value="">OS 를 선택하세요</option>
+                                        <option value="">OS 를 선택하십시오</option>
                                         <optgroup th:each="group : ${osOptions}" th:label="${group.osLabel}">
+                                            <!-- 선택 가능 여부의 SSOT = 서버 정책(plannedBlockReason) — disabled + 사유(title)로 1차 차단(D-R8) -->
                                             <option th:each="os : ${group.osList}"
                                                     th:value="${os.osMetadataId}"
-                                                    th:text="${os.osName} + ' ' + ${os.version}"
-                                                    th:data-os-family="${os.osFamily.name()}"
+                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.plannedBlockReason != null} ? ' — 선택 불가' : '')"
+                                                    th:disabled="${os.plannedBlockReason != null}"
+                                                    th:title="${os.plannedBlockReason}"
+                                                    th:classappend="${os.plannedBlockReason != null} ? 'unavailable'"
+                                                    th:data-os-family="${os.osFamily != null ? os.osFamily.name() : ''}"
                                                     th:data-os-name="${os.osName}"
                                                     th:data-os-version="${os.version}"
                                                     th:data-deprecated="${os.deprecated}"
@@ -258,20 +270,12 @@
                                         </optgroup>
                                     </select>
                                 </div>
-
-                                <!-- OS 미선택 안내 → 선택 시 상세 필드 노출 (레거시 UX 보존) -->
-                                <div id="oiGuide" class="n-step-guide">
-                                    <div class="n-step-guide-title">OS 를 먼저 선택해 주세요</div>
-                                    <div>선택한 OS 에 맞는 상세 설치 항목이 표시됩니다.</div>
-                                </div>
-
                                 <div id="oiDetailFields" hidden>
-                                    <!-- 설치 ISO (U2-4, 사용자 확정) — OS 선택 후 그 OS 의 사용 가능한 ISO 중 선택(필수).
-                                         ISO 없는 OS 는 서버가 OS 옵션 자체를 제외하므로 여기 빈 목록은 도달하지 않는다. -->
+                                    <!-- 설치 ISO (U2-4) — 식별 기록의 나머지 반쪽. ISO 없는 OS 는 서버가 옵션 자체를 제외. -->
                                     <div class="n-form-group" data-error-field="isoId">
                                         <label class="n-label strong" for="oiIsoSelect">설치 ISO</label>
                                         <select id="oiIsoSelect" class="n-select" disabled>
-                                            <option value="" data-placeholder>OS 를 먼저 선택하세요</option>
+                                            <option value="" data-placeholder>OS 를 먼저 선택하십시오</option>
                                             <th:block th:each="group : ${osOptions}">
                                             <th:block th:each="os : ${group.osList}">
                                                 <option th:each="iso : ${os.isoList}"
@@ -285,223 +289,13 @@
                                             </th:block>
                                         </select>
                                     </div>
-                                    <!-- 타임존 -->
-                                    <!-- 타임존 = 대륙/도시 2-select (사용자 확정 2026-07-12) — 목록은 JVM 내장
-                                         IANA tzdb(timezoneOptions Model). 기본 Asia/Seoul, wire 값은 "대륙/도시" 조합. -->
-                                    <div class="n-row" data-error-field="timezone">
-                                        <div class="n-form-group">
-                                            <label class="n-label strong" for="oiTzRegion">타임존 — 대륙</label>
-                                            <select id="oiTzRegion" class="n-select">
-                                                <option th:each="tz : ${timezoneOptions}"
-                                                        th:value="${tz.region}"
-                                                        th:text="${tz.region}"
-                                                        th:selected="${tz.region == 'Asia'}"></option>
-                                            </select>
-                                        </div>
-                                        <div class="n-form-group">
-                                            <label class="n-label strong" for="oiTzCity">타임존 — 도시</label>
-                                            <select id="oiTzCity" class="n-select">
-                                                <th:block th:each="tz : ${timezoneOptions}">
-                                                    <option th:each="city : ${tz.cities}"
-                                                            th:value="${city}"
-                                                            th:text="${city}"
-                                                            th:data-region="${tz.region}"
-                                                            class="unavailable" disabled></option>
-                                                </th:block>
-                                            </select>
-                                        </div>
-                                        <div class="n-form-group n-checkbox-bottom">
-                                            <label class="n-checkbox">
-                                                <input type="checkbox" id="oiIsUtc"> 하드웨어 시계(RTC) UTC 기준
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- 파티션 구성 -->
-                                    <div class="n-form-group" data-error-field="partitions">
-                                        <div class="n-group-head">
-                                            <label class="n-label strong">파티션 구성</label>
-                                            <button type="button" id="oiDefaultPartitions"
-                                                    class="n-btn n-btn-ghost n-btn-sm" disabled>기본 파티션 자동 생성</button>
-                                        </div>
-                                        <div class="n-hint">필수 마운트포인트: /, /boot, /boot/efi, swap</div>
-                                        <table class="table table-sm table-bordered n-tbl-list" id="oiPartitionTable">
-                                            <colgroup>
-                                                <col class="n-col-22"><!-- 마운트포인트 -->
-                                                <col class="n-col-14"><!-- 파일시스템 -->
-                                                <col class="n-col-13"><!-- 디스크명 -->
-                                                <col class="n-col-12"><!-- 크기 -->
-                                                <col class="n-col-11"><!-- 단위 -->
-                                                <col class="n-col-8"><!-- Grow -->
-                                                <col class="n-col-10"><!-- 삭제 -->
-                                            </colgroup>
-                                            <thead>
-                                            <tr>
-                                                <th>마운트포인트</th>
-                                                <th>파일시스템</th>
-                                                <th>디스크명</th>
-                                                <th>크기</th>
-                                                <th>단위</th>
-                                                <th>Grow</th>
-                                                <th></th>
-                                            </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
-                                        <button type="button" id="oiAddPartition" class="n-btn n-btn-ghost n-btn-sm">+ 파티션 추가</button>
-                                    </div>
-
-                                    <!-- root 계정 비밀번호 — RHEL 계열 전용(Kickstart rootpw).
-                                         Ubuntu 는 root 잠금 기본 + identity 사용자 필수라 이 그룹을 JS 가 숨긴다. -->
-                                    <div class="n-form-group" data-error-field="rootPassword" id="oiRootPasswordGroup">
-                                        <label class="n-label strong">root 계정 비밀번호</label>
-                                        <div class="n-hint">
-                                            비워두면 root 계정이 잠긴 상태로 설치됩니다. 이 경우 아래 일반 사용자를 반드시 1명 이상 추가해야 합니다.
-                                        </div>
-                                        <!-- 수정 폼에서 기존 비밀번호가 있을 때만 표시 — 체크 해제 시에만 새 비밀번호 입력 -->
-                                        <label class="n-checkbox n-keep-password" id="oiRootKeepWrap" hidden>
-                                            <input type="checkbox" id="oiRootKeep" checked>
-                                            기존 비밀번호 유지 (해제하면 새 비밀번호를 입력합니다)
-                                        </label>
-                                        <div class="n-row n-row-tight">
-                                            <div>
-                                                <input type="password" id="oiRootPassword" class="n-input"
-                                                       autocomplete="new-password" placeholder="비워두면 root 계정 잠금">
-                                            </div>
-                                            <div class="n-checkbox-bottom">
-                                                <label class="n-checkbox">
-                                                    <input type="checkbox" id="oiRootEncrypted"> 비밀번호 암호화(사전 해시값)
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <!-- Rocky 10 전용 root SSH 허용 — rootpw --allow-ssh 는 root 비밀번호와 한 묶음의
-                                             결정이라 이 그룹에 함께 둔다(rhel-based fragment 에서 이동). 표시는 JS 버전 토글. -->
-                                        <div class="n-version-specific" id="oiAllowSshBox"
-                                             data-os-name="ROCKY_LINUX" data-os-version-prefix="10." hidden>
-                                            <label class="n-checkbox">
-                                                <input type="checkbox" id="oiAllowSshRoot">
-                                                root SSH 로그인 허용 <span class="n-muted">(Rocky Linux 10 전용)</span>
-                                            </label>
-                                            <div class="n-hint">
-                                                Rocky Linux 10 기본 설치는 root SSH 로그인을 차단합니다.
-                                                체크 시 Kickstart <code>rootpw --allow-ssh</code> 가 적용되어 초기 원격 관리가 가능합니다.
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- 일반 사용자 -->
-                                    <div class="n-form-group" data-error-field="users">
-                                        <label class="n-label strong">일반 사용자 설정</label>
-                                        <div class="n-hint">
-                                            RHEL 계열은 root 비밀번호가 없을 때 필수, Ubuntu 계열은 항상 1명 이상 필수입니다(root 잠금 기본).
-                                            기존 사용자의 비밀번호는 보안상 표시되지 않습니다 — "기존 비밀번호 유지" 를 해제한 경우에만 새 비밀번호를 입력합니다.
-                                        </div>
-                                        <table class="table table-sm table-bordered n-tbl-list" id="oiUserTable">
-                                            <colgroup>
-                                                <col class="n-col-22"><!-- 사용자명 -->
-                                                <col class="n-col-36"><!-- 비밀번호 -->
-                                                <col class="n-col-10"><!-- sudo -->
-                                                <col class="n-col-18"><!-- 암호화 -->
-                                                <col class="n-col-14"><!-- 삭제 -->
-                                            </colgroup>
-                                            <thead>
-                                            <tr>
-                                                <th>사용자명</th>
-                                                <th>비밀번호</th>
-                                                <th>sudo</th>
-                                                <th>비밀번호 암호화</th>
-                                                <th></th>
-                                            </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
-                                        <button type="button" id="oiAddUser" class="n-btn n-btn-ghost n-btn-sm">+ 사용자 추가</button>
-                                    </div>
-
-                                    <!-- OS 계열별 전용 입력 블록 — 선택 OS 의 osFamily 에 따라 하나만 표시 -->
-                                    <div th:replace="~{fragments/provisioning/setting/os-installation/rhel-based :: form}"></div>
-                                    <div th:replace="~{fragments/provisioning/setting/os-installation/debian-based :: form}"></div>
-                                </div><!-- /oiDetailFields -->
+                                </div>
                             </div>
                         </details>
 
-                        <!-- ==================== OS_SETTING ==================== -->
-                        <details class="n-accordion-item n-step-card" data-process-card="OS_SETTING" hidden>
-                            <summary class="n-accordion-head">
-                                <span class="n-accordion-chevron"></span>
-                                <span class="n-accordion-title n-step-title">OS 후처리 설정</span>
-                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
-                            </summary>
-                            <div class="n-accordion-body">
-                                <div class="n-alert n-alert-info">
-                                    OS 후처리 설정은 현재 RHEL 계열(Rocky Linux 등)에서만 지원됩니다. 다른 계열은 지원 추가 예정입니다.
-                                </div>
-                                <div class="n-form-group">
-                                    <label class="n-label strong" for="osOsSelect">대상 OS</label>
-                                    <select id="osOsSelect" class="n-select" data-error-field="osMetadataId">
-                                        <option value="">OS 를 선택하세요</option>
-                                        <!-- RHEL 계열 외 옵션은 backend 계약(RHEL_BASED 만 등록)에 맞춰 UI 에서 사전 차단 -->
-                                        <optgroup th:each="group : ${osOptions}" th:label="${group.osLabel}">
-                                            <option th:each="os : ${group.osList}"
-                                                    th:value="${os.osMetadataId}"
-                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.osFamily.name() != 'RHEL_BASED'} ? ' (지원 예정)' : '')"
-                                                    th:data-os-family="${os.osFamily.name()}"
-                                                    th:data-deprecated="${os.deprecated}"
-                                                    th:data-deprecated-at="${os.deprecatedAtDisplay}"
-                                                    th:data-description="${os.description}"
-                                                    th:disabled="${os.osFamily.name() != 'RHEL_BASED'}"></option>
-                                        </optgroup>
-                                    </select>
-                                </div>
-
-                                <div id="osGuide" class="n-step-guide">
-                                    <div class="n-step-guide-title">대상 OS 를 먼저 선택해 주세요</div>
-                                    <div>선택한 OS 에 맞는 상세 설정 항목이 표시됩니다.</div>
-                                </div>
-
-                                <div id="osDetailFields" hidden>
-                                    <div class="n-form-group">
-                                        <label class="n-label strong" for="osSelinuxMode">SELinux 모드</label>
-                                        <select id="osSelinuxMode" class="n-select" data-error-field="selinuxMode">
-                                            <option value="enforcing" selected>enforcing (권장)</option>
-                                            <option value="permissive">permissive</option>
-                                            <option value="disabled">disabled</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="n-form-group" data-error-field="services">
-                                        <label class="n-label strong">서비스 활성화/비활성화 목록</label>
-                                        <div class="n-hint">
-                                            서비스명을 입력하고 systemctl enable / disable 중 수행할 동작을 선택합니다. 비워두면 이 단계를 생략합니다.
-                                        </div>
-                                        <table class="table table-sm table-bordered n-tbl-list" id="osServicesTable">
-                                            <colgroup>
-                                                <col class="n-col-55"><!-- 서비스명 -->
-                                                <col class="n-col-30"><!-- 동작 -->
-                                                <col class="n-col-15"><!-- 삭제 -->
-                                            </colgroup>
-                                            <thead>
-                                            <tr>
-                                                <th>서비스명</th>
-                                                <th>동작</th>
-                                                <th></th>
-                                            </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
-                                        <button type="button" id="osAddService" class="n-btn n-btn-ghost n-btn-sm">+ 서비스 추가</button>
-                                    </div>
-
-                                    <div class="n-form-group">
-                                        <label class="n-label strong" for="osAdditionalPackages">추가 패키지 설치 목록</label>
-                                        <input type="text" id="osAdditionalPackages" class="n-input"
-                                               data-error-field="additionalPackages"
-                                               placeholder="예: vim, curl, wget (콤마로 구분)">
-                                        <div class="n-hint">dnf install 로 설치할 패키지명을 콤마로 구분해 입력합니다. 비워두면 이 단계를 생략합니다.</div>
-                                    </div>
-                                </div><!-- /osDetailFields -->
-                            </div>
-                        </details>
+                        <!-- OS_SETTING 카드 마크업은 R11 CP5 D1 로 제거 — 팔레트 차단으로 열 수 없는 잔존
+                             마크업의 null 미보호(os.osFamily.name())가 Windows 옵션에서 렌더를 중단시켰다.
+                             계약(direct POST)은 보존되며, 화면 부활 시 git 이력에서 복원한다. -->
 
                     </div><!-- /n-accordion -->
                 </div><!-- /data-error-field=processList -->

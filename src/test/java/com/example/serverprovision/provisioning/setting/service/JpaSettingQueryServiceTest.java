@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.service;
 
+import com.example.serverprovision.provisioning.setting.service.reference.os.PlannedInstallTargetPolicy;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
@@ -341,8 +342,8 @@ class JpaSettingQueryServiceTest {
     }
 
     @Test
-    @DisplayName("findOSOptions — 계열 매핑(management→setting OSFamily) + 미지원 계열(WINDOWS) 제외")
-    void findOSOptions_mapsFamilyAndFiltersUnsupported() {
+    @DisplayName("findOSOptions — Windows 계열 포함(식별 전용 기록 대상) + 리눅스 차단 사유(R11 D-R8)")
+    void findOSOptions_includesWindowsAndMarksLinuxBlocked() {
         OSMetadata rocky = Mockito.mock(OSMetadata.class);
         given(rocky.getId()).willReturn(1L);
         given(rocky.getOsName()).willReturn(OSName.ROCKY_LINUX);
@@ -370,9 +371,22 @@ class JpaSettingQueryServiceTest {
         Mockito.lenient().when(usableIso.getProvidedEnvironments()).thenReturn(List.of(env));
         Mockito.lenient().when(usableIso.getProvidedPackageGroups()).thenReturn(List.of(providedGroup));
         given(rocky.getIsos()).willReturn(List.of(usableIso));
+        // R11 — Windows 계열은 이제 옵션에 실린다(식별 전용 기록의 대상). ISO 규칙은 계열 무관 유지.
         OSMetadata windows = Mockito.mock(OSMetadata.class);
+        given(windows.getId()).willReturn(2L);
         given(windows.getOsName()).willReturn(OSName.WINDOWS_SERVER);
+        given(windows.getOsVersion()).willReturn("2025");
         given(windows.isEnabled()).willReturn(true);
+        given(windows.isDeprecated()).willReturn(false);
+        var winIso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
+        Mockito.lenient().when(winIso.getId()).thenReturn(60L);
+        Mockito.lenient().when(winIso.isDeleted()).thenReturn(false);
+        Mockito.lenient().when(winIso.isEnabled()).thenReturn(true);
+        Mockito.lenient().when(winIso.isDeprecated()).thenReturn(false);
+        Mockito.lenient().when(winIso.getIsoPath()).thenReturn("/isos/win2025.iso");
+        Mockito.lenient().when(winIso.getProvidedEnvironments()).thenReturn(List.of());
+        Mockito.lenient().when(winIso.getProvidedPackageGroups()).thenReturn(List.of());
+        given(windows.getIsos()).willReturn(List.of(winIso));
         OSMetadata disabledOs = Mockito.mock(OSMetadata.class);
         given(disabledOs.isEnabled()).willReturn(false);
         given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc())
@@ -380,11 +394,18 @@ class JpaSettingQueryServiceTest {
 
         List<SettingOSOptionGroupResponse> groups = service.findOSOptions();
 
-        // WINDOWS_BASED 는 setting 판별자 미실체화로 제외 — OS 유형 optgroup(표시명) 아래에 버전이 묶인다.
-        assertThat(groups).hasSize(1);
+        // R11 — 리눅스는 실리되 차단 사유(disabled 표시)가 붙고, Windows 는 setting 판별자 없이(osFamily null) 실린다.
+        assertThat(groups).hasSize(2);
         assertThat(groups.get(0).osLabel()).isEqualTo("Rocky Linux");
-        assertThat(groups.get(0).osList().get(0).osName()).isEqualTo("ROCKY_LINUX");
-        assertThat(groups.get(0).osList().get(0).osFamily()).isEqualTo(OSFamily.RHEL_BASED);
+        var rockyOption = groups.get(0).osList().get(0);
+        assertThat(rockyOption.osName()).isEqualTo("ROCKY_LINUX");
+        assertThat(rockyOption.osFamily()).isEqualTo(OSFamily.RHEL_BASED);
+        assertThat(rockyOption.plannedBlockReason()).isEqualTo(PlannedInstallTargetPolicy.LINUX_BLOCK_REASON);
+        assertThat(groups.get(1).osLabel()).isEqualTo("Windows Server");
+        var windowsOption = groups.get(1).osList().get(0);
+        assertThat(windowsOption.osFamily()).isNull();
+        assertThat(windowsOption.plannedBlockReason()).isNull();
+        assertThat(windowsOption.isoList()).singleElement().extracting(i -> i.name()).isEqualTo("win2025.iso");
         // ISO 선택지 — 파일명 표시(U2-4) + 환경/그룹은 ISO 제공 스코프.
         var isoOption = groups.get(0).osList().get(0).isoList().get(0);
         assertThat(isoOption.name()).isEqualTo("rocky-9.4.iso");

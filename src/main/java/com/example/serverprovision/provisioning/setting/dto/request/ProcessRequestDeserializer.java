@@ -32,6 +32,13 @@ public class ProcessRequestDeserializer extends ValueDeserializer<AbstractProces
             SettingProcessType.BASIC_UPDATE, BasicUpdateRequest.class,
             SettingProcessType.BASIC_SETTING, BasicSettingRequest.class);
 
+    /**
+     * 식별 전용(설치 예정 기록) 등록 테이블 — {@code osFamily} 판별자가 없거나 null 인 요청의 목적지
+     * (R11 D-R1). 여기 없는 타입의 판별자 부재는 기존대로 400 이다.
+     */
+    private static final Map<SettingProcessType, Class<? extends AbstractProcessRequest>> IDENTIFICATION_SUBTYPES = Map.of(
+            SettingProcessType.OS_INSTALLATION, PlannedOSInstallationRequest.class);
+
     private static final Map<SettingProcessType, Map<OSFamily, Class<? extends AbstractProcessRequest>>> OS_SUBTYPES = Map.of(
             SettingProcessType.OS_INSTALLATION, Map.of(
                     OSFamily.RHEL_BASED, RHELInstallationRequest.class,
@@ -59,6 +66,15 @@ public class ProcessRequestDeserializer extends ValueDeserializer<AbstractProces
             // enum 상수는 늘었는데 등록이 누락된 경우 — silent 500 대신 명시적 입력 불일치로 드러낸다.
             return ctxt.reportInputMismatch(AbstractProcessRequest.class,
                     "단계 타입 '%s' 의 하위 타입 등록이 없습니다.", type);
+        }
+        JsonNode familyNode = node.get("osFamily");
+        if (familyNode == null || familyNode.isNull()) {
+            Class<? extends AbstractProcessRequest> identification = IDENTIFICATION_SUBTYPES.get(type);
+            if (identification != null) {
+                return identification;
+            }
+            return ctxt.reportInputMismatch(AbstractProcessRequest.class,
+                    "프로비저닝 단계에 판별자 '%s' 가 없습니다.", "osFamily");
         }
         OSFamily family = readDiscriminator(ctxt, node, "osFamily", OSFamily.class);
         Class<? extends AbstractProcessRequest> target = familyMap.get(family);

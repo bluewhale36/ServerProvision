@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.LinkedHashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -75,7 +76,9 @@ public class SettingController {
 
     /** 작성/수정 폼 공용 선택지 — 단계 타입·보드/OS 옵션·파티션 입력 보조 enum. */
     private void addFormOptions(Model model) {
-        model.addAttribute("processTypes", List.of(SettingProcessType.values()));
+        // R11 D-R4 — 노출 여부의 SSOT 는 enum 속성. 컨트롤러는 필터만 한다.
+        model.addAttribute("processTypes", Arrays.stream(SettingProcessType.values())
+                .filter(SettingProcessType::isPaletteExposed).toList());
         model.addAttribute("boardOptions", settingQueryService.findBoardOptions());
         model.addAttribute("osOptions", settingQueryService.findOSOptions());
         model.addAttribute("biosTemplateOptions", settingQueryService.findBiosTemplateOptions());

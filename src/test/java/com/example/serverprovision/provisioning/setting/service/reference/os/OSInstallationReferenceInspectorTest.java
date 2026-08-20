@@ -12,6 +12,8 @@ import com.example.serverprovision.provisioning.setting.dto.request.UbuntuInstal
 import com.example.serverprovision.provisioning.setting.enums.FileSystem;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
 import com.example.serverprovision.provisioning.setting.exception.DisabledResourceReferenceException;
+import com.example.serverprovision.provisioning.setting.dto.request.PlannedOSInstallationRequest;
+import com.example.serverprovision.provisioning.setting.exception.UnsupportedPlannedInstallTargetException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -163,5 +165,41 @@ class OSInstallationReferenceInspectorTest {
 
         assertThat(inspector.describeDeprecatedReferences(rhel(1L)))
                 .containsExactly("Rocky Linux 9.4");
+    }
+
+    // ==== R11 — 식별 전용(설치 예정 기록) ================================
+
+    @Test
+    @DisplayName("식별 전용 + Windows 계열 → 통과, 계열 검사기 미위임 (R11 D-R1 · D-R8)")
+    void planned_windowsTarget_passes() {
+        inspector = build();
+        OSMetadata windows = Mockito.mock(OSMetadata.class);
+        Mockito.lenient().when(windows.isEnabled()).thenReturn(true);
+        Mockito.lenient().when(windows.getOsName()).thenReturn(OSName.WINDOWS_SERVER);
+        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(windows));
+        stubUsableIso(100L, 1L);
+
+        assertThatCode(() -> inspector.validateReferences(new PlannedOSInstallationRequest(1L, 100L), CTX))
+                .doesNotThrowAnyException();
+        verify(rhelFamily, Mockito.never()).validateReferences(any());
+    }
+
+    @Test
+    @DisplayName("식별 전용 + 리눅스 계열 → 400 계열 가드(osMetadataId) — direct POST 안전망 (R11 D-R8)")
+    void planned_linuxTarget_blocked() {
+        inspector = build();
+        OSMetadata rocky = Mockito.mock(OSMetadata.class);
+        Mockito.lenient().when(rocky.isEnabled()).thenReturn(true);
+        Mockito.lenient().when(rocky.getOsName()).thenReturn(OSName.ROCKY_LINUX);
+        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(rocky));
+        stubUsableIso(100L, 1L);
+
+        assertThatThrownBy(() -> inspector.validateReferences(new PlannedOSInstallationRequest(1L, 100L), CTX))
+                .isInstanceOfSatisfying(UnsupportedPlannedInstallTargetException.class, e -> {
+                    // 사유 문장 = 정책 SSOT 그대로(UI tooltip 과 동일 문장 — 같은 상황 같은 문장)
+                    assertThat(e.getMessage()).isEqualTo(PlannedInstallTargetPolicy.LINUX_BLOCK_REASON);
+                    assertThat(e.fieldName()).isEqualTo("osMetadataId");
+                });
+        verify(rhelFamily, Mockito.never()).validateReferences(any());
     }
 }
