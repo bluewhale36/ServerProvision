@@ -39,10 +39,10 @@ class RHELInstallationFamilyInspectorTest {
     /** 필수 마운트 4종을 채운 표준 세트 — 파티션 규칙과 무관한 테스트가 그 규칙에 걸리지 않게 한다. */
     private static List<PartitionRequest> standardPartitions() {
         return List.of(
-                new PartitionRequest("/boot/efi", FileSystem.EFI, null, 1L, SizeUnit.GB, false),
-                new PartitionRequest("/boot", FileSystem.EXT4, null, 1L, SizeUnit.GB, false),
-                new PartitionRequest("swap", FileSystem.SWAP, null, 16L, SizeUnit.GB, false),
-                new PartitionRequest("/", FileSystem.EXT4, null, 0L, SizeUnit.GB, true));
+                new PartitionRequest("/boot/efi", FileSystem.EFI, 1L, SizeUnit.GB, false),
+                new PartitionRequest("/boot", FileSystem.EXT4, 1L, SizeUnit.GB, false),
+                new PartitionRequest("swap", FileSystem.SWAP, 16L, SizeUnit.GB, false),
+                new PartitionRequest("/", FileSystem.EXT4, 0L, SizeUnit.GB, true));
     }
 
     private static RHELInstallationRequest rhel(Long osMetadataId, Long environmentId, List<Long> groupIds) {
@@ -93,15 +93,15 @@ class RHELInstallationFamilyInspectorTest {
         var ipe = com.example.serverprovision.provisioning.setting.exception.InvalidPartitionException.class;
         // /boot/efi 허용 집합(EFI/FAT32) 밖
         assertThatThrownBy(() -> inspector.validateReferences(rhelWithPartitions(1L, 6L, List.of(),
-                withReplaced("/boot/efi", new PartitionRequest("/boot/efi", FileSystem.XFS, null, 1L, SizeUnit.GB, false)))))
+                withReplaced("/boot/efi", new PartitionRequest("/boot/efi", FileSystem.XFS, 1L, SizeUnit.GB, false)))))
                 .isInstanceOf(ipe).hasFieldOrPropertyWithValue("fieldName", "partitions");
         // 예약 fs(SWAP) / 차단 fs(NTFS) 를 일반 마운트포인트에
         java.util.List<PartitionRequest> withData = new java.util.ArrayList<>(standardPartitions());
-        withData.add(new PartitionRequest("/data", FileSystem.SWAP, null, 1L, SizeUnit.GB, false));
+        withData.add(new PartitionRequest("/data", FileSystem.SWAP, 1L, SizeUnit.GB, false));
         assertThatThrownBy(() -> inspector.validateReferences(rhelWithPartitions(1L, 6L, List.of(), withData)))
                 .isInstanceOf(ipe);
         java.util.List<PartitionRequest> withNtfs = new java.util.ArrayList<>(standardPartitions());
-        withNtfs.add(new PartitionRequest("/data", FileSystem.NTFS, null, 1L, SizeUnit.GB, false));
+        withNtfs.add(new PartitionRequest("/data", FileSystem.NTFS, 1L, SizeUnit.GB, false));
         assertThatThrownBy(() -> inspector.validateReferences(rhelWithPartitions(1L, 6L, List.of(), withNtfs)))
                 .isInstanceOf(ipe);
         // 필수 마운트 누락 (swap 없음 — legacy MISSING_MANDATORY_MOUNT_POINTS)
@@ -110,13 +110,13 @@ class RHELInstallationFamilyInspectorTest {
                 .isInstanceOf(ipe).hasMessageContaining("swap");
         // grow 아님 + size 0 (legacy INVALID_PARTITION_SIZE)
         assertThatThrownBy(() -> inspector.validateReferences(rhelWithPartitions(1L, 6L, List.of(),
-                withReplaced("/boot", new PartitionRequest("/boot", FileSystem.EXT4, null, 0L, SizeUnit.GB, false)))))
+                withReplaced("/boot", new PartitionRequest("/boot", FileSystem.EXT4, 0L, SizeUnit.GB, false)))))
                 .isInstanceOf(ipe).hasMessageContaining("/boot");
-        // 같은 디스크 grow 2개 (legacy MULTIPLE_GROW_ON_SAME_DISK)
+        // grow 2개 — 파티션이 놓이는 OS 영역 볼륨이 하나라 grow 도 하나(U4-1-3 D3, 구 '같은 디스크' 조건 제거)
         java.util.List<PartitionRequest> doubleGrow = new java.util.ArrayList<>(standardPartitions());
-        doubleGrow.add(new PartitionRequest("/data", FileSystem.EXT4, null, 0L, SizeUnit.GB, true));
+        doubleGrow.add(new PartitionRequest("/data", FileSystem.EXT4, 0L, SizeUnit.GB, true));
         assertThatThrownBy(() -> inspector.validateReferences(rhelWithPartitions(1L, 6L, List.of(), doubleGrow)))
-                .isInstanceOf(ipe).hasMessageContaining("grow");
+                .isInstanceOf(ipe).hasMessageContaining("grow 파티션은 하나만").hasFieldOrPropertyWithValue("fieldName", "partitions");
     }
 
     @Test

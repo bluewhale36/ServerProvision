@@ -5,6 +5,14 @@ import com.example.serverprovision.provisioning.setting.dto.request.LinuxInstall
 import com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.UserRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
+import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
+import com.example.serverprovision.provisioning.setting.enums.CapacityOrder;
+import com.example.serverprovision.provisioning.setting.enums.DiskCapacityUnit;
+import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
+import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
+import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
+import com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement;
 import com.example.serverprovision.provisioning.setting.enums.FileSystem;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
@@ -82,6 +90,25 @@ public class SettingController {
         model.addAttribute("timezoneOptions", settingQueryService.findTimezoneOptions());
         model.addAttribute("fileSystems", List.of(FileSystem.values()));
         model.addAttribute("sizeUnits", List.of(SizeUnit.values()));
+        // U4-1-1 — 디스크 묶음 규칙 · RAID 카드 선택지. 레벨 최소치(RaidLevel.minimumDisks)는 옵션 data-* 로 폼에 내려간다.
+        var raidCardOptions = settingQueryService.findRaidCardOptions();
+        model.addAttribute("raidCardOptions", raidCardOptions);
+        // 판정 재료를 JSON 문자열로도 내린다 — Thymeleaf 의 JS inline 직렬화는 Jackson 2 만 감지해 record 를 {} 로 만들므로
+        // initialSettingJson 과 같이 Boot ObjectMapper(Jackson 3)로 서버가 직렬화한 문자열을 넘긴다.
+        model.addAttribute("raidCardMetaJson", objectMapper.writeValueAsString(raidCardOptions));
+        model.addAttribute("raidLevels", List.of(RaidLevel.values()));
+        model.addAttribute("diskTypes", List.of(DiskTypeRequirement.values()));
+        model.addAttribute("diskTransports", List.of(DiskTransportRequirement.values()));
+        model.addAttribute("diskCapacityUnits", List.of(DiskCapacityUnit.values()));
+        model.addAttribute("diskCountModes", List.of(DiskCountMode.values()));
+        // U4-1-2 — 역할 · 우선순위 선택지. 기본 우선순위 행은 파라미터가 없어 endpoint 대신 페이지에 한 번 싣는다(D6) —
+        // 폼 첫 채움과 '기본 행으로 되돌리기' 가 같은 값을 읽는다. SSOT = VolumePriorityRuleRequest.defaults().
+        model.addAttribute("diskGroupRoles", List.of(DiskGroupRole.values()));
+        model.addAttribute("capacityOrders", List.of(CapacityOrder.values()));
+        model.addAttribute("defaultVolumePrioritiesJson", objectMapper.writeValueAsString(VolumePriorityRuleRequest.defaults()));
+        // U4-1-3 — OS 설치 카드의 대상 볼륨 안내 문구(네 분기 + 용량 줄)는 서버가 SSOT — 폼 JS 는 템플릿만 받아 채운다(CP5 F-1).
+        model.addAttribute("osVolumeTargetMessagesJson", objectMapper.writeValueAsString(
+                com.example.serverprovision.provisioning.setting.dto.response.OsVolumeTarget.messageTemplates()));
     }
 
     /**

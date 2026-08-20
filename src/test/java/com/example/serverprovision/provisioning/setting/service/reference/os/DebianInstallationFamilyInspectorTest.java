@@ -26,10 +26,10 @@ class DebianInstallationFamilyInspectorTest {
 
     private static List<PartitionRequest> standardPartitions() {
         return List.of(
-                new PartitionRequest("/boot/efi", FileSystem.FAT32, null, 1L, SizeUnit.GB, false),
-                new PartitionRequest("/boot", FileSystem.EXT4, null, 1L, SizeUnit.GB, false),
-                new PartitionRequest("swap", FileSystem.SWAP, null, 16L, SizeUnit.GB, false),
-                new PartitionRequest("/", FileSystem.EXT4, null, 0L, SizeUnit.GB, true));
+                new PartitionRequest("/boot/efi", FileSystem.FAT32, 1L, SizeUnit.GB, false),
+                new PartitionRequest("/boot", FileSystem.EXT4, 1L, SizeUnit.GB, false),
+                new PartitionRequest("swap", FileSystem.SWAP, 16L, SizeUnit.GB, false),
+                new PartitionRequest("/", FileSystem.EXT4, 0L, SizeUnit.GB, true));
     }
 
     private static UbuntuInstallationRequest ubuntu(List<PartitionRequest> partitions, List<UserRequest> users) {
@@ -46,7 +46,7 @@ class DebianInstallationFamilyInspectorTest {
     void partitionRules_shared() {
         List<PartitionRequest> swapWrongFs = standardPartitions().stream()
                 .map(part -> part.getMountPoint().equals("swap")
-                        ? new PartitionRequest("swap", FileSystem.EXT4, null, 16L, SizeUnit.GB, false) : part)
+                        ? new PartitionRequest("swap", FileSystem.EXT4, 16L, SizeUnit.GB, false) : part)
                 .toList();
         assertThatThrownBy(() -> inspector.validateReferences(ubuntu(swapWrongFs, oneUser())))
                 .isInstanceOf(InvalidPartitionException.class);

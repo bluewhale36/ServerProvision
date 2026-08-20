@@ -7,6 +7,7 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingBoar
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingRaidCardOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.TimezoneRegionResponse;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 
@@ -72,6 +73,9 @@ public interface SettingQueryService {
 
     /** 타임존 선택지 — IANA 대륙별 도시 목록(JVM tzdb, 계열 무관 공통). */
     List<TimezoneRegionResponse> findTimezoneOptions();
+
+    /** OS 설치 단계 폼의 RAID 카드 선택지 — 제조사 그룹, disabled 배제 · deprecated 포함 (U4-1-1). */
+    List<SettingRaidCardOptionGroupResponse> findRaidCardOptions();
 
     /** OS 별 권장 파티션 프리셋 — 계열 무관 고정(사용자 확정 2026-07-11: ext4 기본, 분기하지 않음). */
     List<PartitionPresetResponse> findDefaultPartitions(String osName);

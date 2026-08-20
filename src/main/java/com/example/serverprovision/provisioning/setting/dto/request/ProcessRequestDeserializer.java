@@ -30,7 +30,8 @@ public class ProcessRequestDeserializer extends ValueDeserializer<AbstractProces
 
     private static final Map<SettingProcessType, Class<? extends AbstractProcessRequest>> FLAT_SUBTYPES = Map.of(
             SettingProcessType.BASIC_UPDATE, BasicUpdateRequest.class,
-            SettingProcessType.BASIC_SETTING, BasicSettingRequest.class);
+            SettingProcessType.BASIC_SETTING, BasicSettingRequest.class,
+            SettingProcessType.RAID_CONFIGURATION, RaidConfigurationRequest.class);
 
     private static final Map<SettingProcessType, Map<OSFamily, Class<? extends AbstractProcessRequest>>> OS_SUBTYPES = Map.of(
             SettingProcessType.OS_INSTALLATION, Map.of(

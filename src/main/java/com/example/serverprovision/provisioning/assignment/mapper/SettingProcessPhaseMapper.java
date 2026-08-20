@@ -15,7 +15,7 @@ import java.util.Set;
  * <p>{@code SettingProcessType} 상수별 메서드로 표현하지 <b>않는다</b>: {@code provisioning.setting.enums} →
  * {@code execution.enums} 의존 신설이 R7 이 제거한 순환을 재생성하기 때문이다. 매핑은 이 경계 클래스가
  * 양쪽 enum 을 함께 참조하는 단일 지점에 격리한다. identity 매핑 · {@code displayName} 파생은 하지 않고
- * 4 상수를 1:1 로 명시하며, 전 상수 커버리지는 단위 테스트가 못박는다.</p>
+ * 5 상수를 1:1 로 명시하며, 전 상수 커버리지는 단위 테스트가 못박는다.</p>
  */
 public final class SettingProcessPhaseMapper {
 
@@ -25,6 +25,7 @@ public final class SettingProcessPhaseMapper {
         EnumMap<SettingProcessType, ProvisioningPhase> map = new EnumMap<>(SettingProcessType.class);
         map.put(SettingProcessType.BASIC_UPDATE, ProvisioningPhase.FIRMWARE_UPDATING);
         map.put(SettingProcessType.BASIC_SETTING, ProvisioningPhase.FIRMWARE_SETTING);
+        map.put(SettingProcessType.RAID_CONFIGURATION, ProvisioningPhase.RAID_CONFIGURATION);
         map.put(SettingProcessType.OS_INSTALLATION, ProvisioningPhase.OS_INSTALLING);
         map.put(SettingProcessType.OS_SETTING, ProvisioningPhase.OS_SETTING);
         PHASE_OF = Collections.unmodifiableMap(map);
