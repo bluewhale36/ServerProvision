@@ -123,6 +123,99 @@
                     </div>
                 </th:block>
 
+                <!-- ==================== RAID_CONFIGURATION (U4-1-1 v2) ==================== -->
+                <th:block th:case="'RAID_CONFIGURATION'">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <!-- RAID 카드(U4-1-1) — 소프트참조라 사라진 카드는 #id 폴백이 아니라 그 사실을 드러낸다(purge 참조검사 없음). -->
+                        <tr>
+                            <th>RAID 카드</th>
+                            <td th:switch="${process.raidCardId != null}">
+                                <span th:case="false" class="n-muted">지정 안 함</span>
+                                <th:block th:case="true" th:with="cardName=${setting.references.raidCards.get(process.raidCardId)}">
+                                    <span th:if="${cardName != null}" th:text="${cardName}">GIGABYTE CRA3338</span>
+                                    <span th:if="${cardName == null}" class="n-muted"
+                                          th:text="'(사라진 카드 #' + ${process.raidCardId} + ')'">(사라진 카드 #3)</span>
+                                </th:block>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 디스크 묶음 규칙(U4-1-1) — 규칙 목록. 비어 있으면 디스크 구성을 정하지 않은 것(설치기 자동 선택). -->
+                    <div class="n-process-subsection">
+                        <div class="n-label strong">디스크 구성</div>
+                        <span th:if="${#lists.isEmpty(process.diskGroups)}" class="n-muted">설정 안 함 — 설치기가 자동 선택합니다</span>
+                        <table class="n-table" th:unless="${#lists.isEmpty(process.diskGroups)}">
+                            <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>RAID 레벨</th>
+                                <th>종류</th>
+                                <th>전송</th>
+                                <th>용량</th>
+                                <th>개수</th>
+                                <th>역할</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="rule, it : ${process.diskGroups}">
+                                <td class="n-table-muted" th:text="${it.count}">1</td>
+                                <td>
+                                    <span th:if="${rule.buildsRaid()}" class="n-badge n-badge-blue" th:text="${rule.raidLevel.displayName}">RAID1</span>
+                                    <span th:unless="${rule.buildsRaid()}" class="n-badge n-badge-gray">RAID 없음</span>
+                                </td>
+                                <td>
+                                    <span th:if="${rule.diskType.name() == 'AUTO'}" class="n-table-muted">자동 탐지</span>
+                                    <span th:unless="${rule.diskType.name() == 'AUTO'}" th:text="${rule.diskType.displayName}">SSD</span>
+                                </td>
+                                <td>
+                                    <span th:if="${rule.transport.name() == 'AUTO'}" class="n-table-muted">자동 탐지</span>
+                                    <span th:unless="${rule.transport.name() == 'AUTO'}" th:text="${rule.transport.displayName}">SATA</span>
+                                </td>
+                                <td>
+                                    <span th:if="${rule.capacity.isAuto()}" class="n-table-muted">자동 탐지</span>
+                                    <span th:unless="${rule.capacity.isAuto()}" th:text="${rule.capacity.toDisplay()}">480 GB</span>
+                                </td>
+                                <td th:text="${rule.count.toDisplay()}">2개</td>
+                                <!-- 역할(U4-1-2) — 구 저장본은 role 이 없을 수 있어 null 안전. OS 고정만 색을 준다. -->
+                                <td>
+                                    <span th:if="${rule.role == null}" class="n-table-muted">미지정</span>
+                                    <span th:if="${rule.role != null and rule.role.name() == 'OS'}" class="n-badge n-badge-green" th:text="${rule.role.displayName}">OS 영역</span>
+                                    <span th:if="${rule.role != null and rule.role.name() != 'OS'}" th:text="${rule.role.displayName}">우선순위에 따름</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 볼륨 우선순위(U4-1-2) — 행 순서 = 우선순위. 볼륨은 종류 · 전송이 같은 첫 행의 순번을 받는다. -->
+                    <div class="n-process-subsection">
+                        <div class="n-label strong">볼륨 우선순위</div>
+                        <span th:if="${process.volumePriorities == null}" class="n-table-muted">미지정 (구 저장본 — 편집해 저장하면 기본값이 채워집니다)</span>
+                        <span th:if="${process.volumePriorities != null and #lists.isEmpty(process.volumePriorities)}" class="n-table-muted">없음 — 볼륨은 열거 순서대로 놓입니다</span>
+                        <table class="n-table" th:if="${process.volumePriorities != null and !#lists.isEmpty(process.volumePriorities)}">
+                            <thead>
+                            <tr>
+                                <th>순위</th>
+                                <th>종류</th>
+                                <th>전송</th>
+                                <th>용량 순서</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="row, it : ${process.volumePriorities}">
+                                <td><span class="n-rank" th:text="${it.count}">1</span></td>
+                                <td th:text="${row.diskType != null ? row.diskType.displayName : '?'}">SSD</td>
+                                <td th:text="${row.transport != null ? row.transport.displayName : '?'}">NVMe</td>
+                                <td th:text="${row.capacityOrder != null ? row.capacityOrder.displayName : '?'}">작은 용량부터</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </th:block>
+
                 <!-- ==================== OS_INSTALLATION ==================== -->
                 <th:block th:case="'OS_INSTALLATION'">
                     <!-- R11 식별 전용(설치 예정 기록) — 계열 판별자(osFamily)가 없는 저장본은 상세 getter
@@ -184,12 +277,17 @@
                     <!-- 파티션 구성 -->
                     <div class="n-process-subsection">
                         <div class="n-label strong">파티션 구성</div>
+                        <!-- U4-1-3 — 파티션은 OS 영역 볼륨 하나에 놓인다. 어느 볼륨인지 · 용량 하한은 RAID 구성 단계가 정하므로 여기서는
+                             그 결정을 안내한다(SettingDetailResponse.osVolumeTarget → OsVolumeTargets.describe). 구 '디스크' 열은 없다. -->
+                        <div class="n-os-volume-target" th:with="target=${setting.osVolumeTarget()}">
+                            <div class="n-hint" th:classappend="${target.kind.name() == 'NO_CANDIDATE'} ? 'is-danger'" th:text="${target.toDisplay()}">RAID 구성 2번 묶음이 OS 영역입니다</div>
+                            <div class="n-hint" th:if="${target.capacityDisplay() != null}" th:text="${target.capacityDisplay()}">OS 영역 최소 용량 480 GB</div>
+                        </div>
                         <table class="n-table">
                             <thead>
                             <tr>
                                 <th>마운트포인트</th>
                                 <th>파일시스템</th>
-                                <th>디스크</th>
                                 <th>크기</th>
                                 <th>Grow</th>
                             </tr>
@@ -198,11 +296,6 @@
                             <tr th:each="partition : ${process.partitions}">
                                 <td class="n-table-mono" th:text="${partition.mountPoint}">/boot</td>
                                 <td th:text="${partition.fileSystem.displayName}">xfs</td>
-                                <td>
-                                    <span th:if="${#strings.isEmpty(partition.diskName)}" class="n-table-muted">자동</span>
-                                    <span th:unless="${#strings.isEmpty(partition.diskName)}"
-                                          class="n-table-mono" th:text="${partition.diskName}">sda</span>
-                                </td>
                                 <td>
                                     <span th:if="${partition.isGrow()}" class="n-table-muted">—</span>
                                     <span th:unless="${partition.isGrow()}"

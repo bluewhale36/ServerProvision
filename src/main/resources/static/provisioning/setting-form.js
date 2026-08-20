@@ -115,6 +115,10 @@
             syncOsSelectionLock();
             syncBsBoardLock();
             refreshBsTemplateRules(); // BASIC_UPDATE/BASIC_SETTING 카드 유무가 템플릿 선택 규칙에 반영된다
+            // U4-1-2 — RAID 구성 카드를 처음 열면 우선순위 기본 행을 채운다(E26 — 정의서는 언제나 값을 갖고 기본값은 폼이 채운 값).
+            // 수정 pre-fill 은 이 뒤에 저장본으로 덮어쓴다. OS 설치 카드의 유무가 OS 후보 안내에 걸리므로 진리표도 다시 본다.
+            if (type === 'RAID_CONFIGURATION' && rcPriorityTbody && !priorityRows().length) resetPriorityRows();
+            applyDiskGroupConstraints();
         }
 
         function removeStep(type) {
@@ -127,6 +131,7 @@
             syncOsSelectionLock();
             syncBsBoardLock();
             refreshBsTemplateRules(); // 펌웨어 단계 제거 ⇒ AUTO 취급으로 재평가
+            applyDiskGroupConstraints(); // OS 설치 카드 제거 ⇒ OS 후보 안내 재평가(U4-1-2)
         }
 
         form.querySelectorAll('[data-step-add]').forEach(btn => {
@@ -219,6 +224,18 @@
         const oiRootKeepWrap = document.getElementById('oiRootKeepWrap');
         const oiRootKeep = document.getElementById('oiRootKeep');
         const oiRootPassword = document.getElementById('oiRootPassword');
+        // U4-1-1 v2 — RAID 구성 단계 카드(RAID 카드 + 디스크 묶음 규칙). 독립 단계라 OS 선택과 무관하게 동작한다.
+        const rcRaidCard = document.getElementById('rcRaidCard');
+        const rcRaidCardHint = document.getElementById('rcRaidCardHint');
+        const rcRaidCardPrefillWarning = document.getElementById('rcRaidCardPrefillWarning');
+        const rcDiskGroupTbody = document.querySelector('#rcDiskGroupTable tbody');
+        // U4-1-2 — 볼륨 우선순위 표 · 안내
+        const rcPriorityTbody = document.querySelector('#rcPriorityTable tbody');
+        const rcAddPriority = document.getElementById('rcAddPriority');
+        const rcResetPriority = document.getElementById('rcResetPriority');
+        const rcPriorityHint = document.getElementById('rcPriorityHint');
+        const rcPriorityPrefillWarning = document.getElementById('rcPriorityPrefillWarning');
+        const rcNoOsCandidateHint = document.getElementById('rcNoOsCandidateHint');
 
         function osFamilyPanes() {
             return Array.from(form.querySelectorAll('#oiDetailFields .n-os-family-pane'));
@@ -415,7 +432,7 @@
             }
         }
 
-        /** grow 체크 시 크기 입력 비활성화 + 같은 디스크 그룹의 다른 grow 해제 (디스크당 1개). */
+        /** grow 체크 시 크기 입력 비활성화 + 다른 행의 grow 해제 — 파티션이 놓이는 OS 영역 볼륨이 하나라 grow 도 하나(U4-1-3 D3). */
         function onGrowChange(checkbox) {
             const row = checkbox.closest('tr');
             const sizeInput = row.querySelector('.pSize');
@@ -423,10 +440,8 @@
                 sizeInput.disabled = true;
                 sizeInput.value = '';
                 sizeInput.classList.remove('has-error');
-                const diskName = row.querySelector('.pDiskName').value.trim();
                 oiPartitionTbody.querySelectorAll('tr').forEach(other => {
                     if (other === row) return;
-                    if (other.querySelector('.pDiskName').value.trim() !== diskName) return;
                     const otherGrow = other.querySelector('.pGrow');
                     if (otherGrow.checked) {
                         otherGrow.checked = false;
@@ -436,6 +451,7 @@
             } else {
                 sizeInput.disabled = false;
             }
+            refreshOsVolumeTargetHint();
         }
 
         function addPartitionRow(data) {
@@ -444,7 +460,6 @@
             const d = data || {};
             row.querySelector('.pMountPoint').value = d.mountPoint || '';
             if (d.fileSystem) row.querySelector('.pFileSystem').value = d.fileSystem;
-            row.querySelector('.pDiskName').value = d.diskName || '';
             row.querySelector('.pSizeUnit').value = d.sizeUnit || 'GB';
             const grow = !!d.isGrow;
             row.querySelector('.pGrow').checked = grow;
@@ -454,9 +469,123 @@
 
             row.querySelector('.pMountPoint').addEventListener('input', () => applyFsConstraint(row));
             row.querySelector('.pGrow').addEventListener('change', e => onGrowChange(e.target));
+            row.querySelector('.pSize').addEventListener('input', refreshOsVolumeTargetHint);
+            row.querySelector('.pSizeUnit').addEventListener('change', refreshOsVolumeTargetHint);
             bindRowRemove(row);
+            row.querySelector('[data-row-remove]').addEventListener('click', () => setTimeout(refreshOsVolumeTargetHint, 0));
             oiPartitionTbody.appendChild(row);
             applyFsConstraint(row);
+            refreshOsVolumeTargetHint();
+        }
+
+        /* ---- OS 설치 카드의 대상 볼륨 안내 (U4-1-3) — OsVolumeTargets.describe 의 네 분기 + 용량 하한을 DOM 으로 재현 ---- */
+        const oiOsVolumeTargetKind = document.getElementById('oiOsVolumeTargetKind');
+        const oiOsVolumeTargetCapacity = document.getElementById('oiOsVolumeTargetCapacity');
+        // 문구는 서버가 SSOT(OsVolumeTargetKind · OsVolumeTarget.messageTemplates) — 템플릿을 받아 %d · %s 를 차례로 채운다(CP5 F-1).
+        let OS_VOLUME_TARGET_MESSAGES = {};
+        try { OS_VOLUME_TARGET_MESSAGES = JSON.parse(window.OS_VOLUME_TARGET_MESSAGES_JSON || '{}') || {}; }
+        catch (e) { console.warn('[settingForm] osVolumeTargetMessagesJson 파싱 실패:', e); }
+        function fillTemplate(template, args) {
+            let i = 0;
+            return String(template || '').replace(/%[ds]/g, () => String(args[i++] != null ? args[i - 1] : ''));
+        }
+        const MSG_PARTITIONS_OVER = 'OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.';
+        const DISK_UNIT_BYTES = {GB: 1e9, TB: 1e12};                                   // DiskCapacityUnit — 십진
+        const SIZE_UNIT_BYTES = {MB: 1048576, GB: 1073741824, TB: 1099511627776};      // SizeUnit — 이진(MiB · GiB · TiB)
+
+        function raidCardActive() {
+            const card = cardOf('RAID_CONFIGURATION');
+            return !!card && !card.hidden;
+        }
+        /** 묶음 행 하나의 볼륨 유효 용량 하한(바이트) — DiskGroupRuleRequest.usableCapacityLowerBoundBytes 의 사본. 모르면 null. */
+        function diskGroupLowerBound(row) {
+            if (row.querySelector('.dgCapacityMode').value !== 'SPECIFIED') return null;
+            const size = intOrNull(row.querySelector('.dgCapacitySize').value);
+            const unit = row.querySelector('.dgCapacityUnit').value;
+            if (size == null || size < 1 || !DISK_UNIT_BYTES[unit]) return null;
+            const perDisk = size * DISK_UNIT_BYTES[unit];
+            if (!rowBuildsRaid(row)) return perDisk;
+            const levelOpt = selectedOption(row.querySelector('.dgLevel'));
+            const count = intOrNull(row.querySelector('.dgCount').value);
+            if (!levelOpt || count == null) return null;
+            // RaidLevel.usableDisks — 계수 a · b 는 레벨 옵션 data-* 로 서버가 내린다(SSOT = enum)
+            const usable = Math.floor(parseFloat(levelOpt.dataset.usableA || '0') * count + parseInt(levelOpt.dataset.usableB || '0', 10));
+            return usable <= 0 ? null : perDisk * usable;
+        }
+        /** 묶음 요약 — OsVolumeTargets.summarize 와 같은 형태. */
+        function diskGroupSummary(row) {
+            const levelSel = row.querySelector('.dgLevel');
+            const cap = row.querySelector('.dgCapacityMode').value === 'SPECIFIED'
+                ? (row.querySelector('.dgCapacitySize').value || '?') + ' ' + row.querySelector('.dgCapacityUnit').value
+                : '자동 탐지';
+            const cnt = (row.querySelector('.dgCount').value || '?') + (row.querySelector('.dgCountMode').value === 'AT_LEAST' ? '개 이상' : '개');
+            return [levelSel.value ? selectedOption(levelSel).textContent : 'RAID 없음',
+                selectedOption(row.querySelector('.dgType')).textContent,
+                selectedOption(row.querySelector('.dgTransport')).textContent, cap, cnt].join(' · ');
+        }
+        /** 네 분기 판정 — {kind, ruleNo, summary, bound}. bound null = 모름. */
+        function describeOsVolumeTarget() {
+            if (!raidCardActive() || !rcDiskGroupTbody) return {kind: 'NONE'};
+            const rows = diskGroupRows();
+            if (!rows.length) return {kind: 'NONE'};
+            const fixedIdx = rows.findIndex(r => r.querySelector('.dgRole').value === 'OS');
+            const candidates = fixedIdx >= 0 ? [rows[fixedIdx]] : rows.filter(r => r.querySelector('.dgRole').value === 'BY_PRIORITY');
+            if (!candidates.length) return {kind: 'NO_CANDIDATE'};
+            let bound = Infinity;
+            for (const r of candidates) {
+                const b = diskGroupLowerBound(r);
+                if (b == null) { bound = null; break; }
+                bound = Math.min(bound, b);
+            }
+            return fixedIdx >= 0
+                ? {kind: 'FIXED', ruleNo: fixedIdx + 1, summary: diskGroupSummary(rows[fixedIdx]), bound: bound}
+                : {kind: 'BY_PRIORITY', bound: bound};
+        }
+        function fixedPartitionBytes() {
+            let sum = 0;
+            (oiPartitionTbody ? oiPartitionTbody.querySelectorAll('tr') : []).forEach(row => {
+                if (row.querySelector('.pGrow').checked) return;
+                const size = intOrNull(row.querySelector('.pSize').value) || 0;
+                sum += size * (SIZE_UNIT_BYTES[row.querySelector('.pSizeUnit').value] || 0);
+            });
+            return sum;
+        }
+        function hasGrowPartition() {
+            return !!oiPartitionTbody && Array.from(oiPartitionTbody.querySelectorAll('tr')).some(r => r.querySelector('.pGrow').checked);
+        }
+        function formatDecimal(bytes) {
+            const trim = v => { const t = v.toFixed(1); return t.endsWith('.0') ? t.slice(0, -2) : t; };
+            return bytes >= 1e12 ? trim(bytes / 1e12) + ' TB' : trim(bytes / 1e9) + ' GB';
+        }
+        function formatBinary(bytes) {
+            const t = (bytes / 1073741824).toFixed(1);
+            return (t.endsWith('.0') ? t.slice(0, -2) : t) + ' GiB';
+        }
+        /** 파티션 고정 합이 하한을 넘는가 — SettingSaveRequest.isPartitionsWithinOsVolume 의 사본(하한을 모르면 false). */
+        function partitionsOverOsVolume() {
+            const target = describeOsVolumeTarget();
+            if (target.bound == null || !isFinite(target.bound)) return false;
+            const fixed = fixedPartitionBytes();
+            return hasGrowPartition() ? fixed >= target.bound : fixed > target.bound;
+        }
+        function refreshOsVolumeTargetHint() {
+            if (!oiOsVolumeTargetKind) return;
+            const target = describeOsVolumeTarget();
+            const M = OS_VOLUME_TARGET_MESSAGES;
+            oiOsVolumeTargetKind.textContent = target.kind === 'FIXED'
+                ? fillTemplate(M.FIXED, [target.ruleNo, target.summary])
+                : (M[target.kind] || '');
+            oiOsVolumeTargetKind.classList.toggle('is-danger', target.kind === 'NO_CANDIDATE');
+            const hasTarget = target.kind === 'FIXED' || target.kind === 'BY_PRIORITY';
+            oiOsVolumeTargetCapacity.hidden = !hasTarget;
+            if (hasTarget) {
+                const over = partitionsOverOsVolume();
+                oiOsVolumeTargetCapacity.textContent = target.bound == null
+                    ? (M.CAPACITY_UNKNOWN || '')
+                    : fillTemplate(M.CAPACITY_FORMAT, [formatDecimal(target.bound), formatBinary(fixedPartitionBytes()),
+                        hasGrowPartition() ? (M.GROW_SUFFIX || '') : '']) + (over ? (M.OVER_SUFFIX || '') : '');
+                oiOsVolumeTargetCapacity.classList.toggle('is-danger', over);
+            }
         }
 
         /** 기본 파티션 자동 생성 — GET /provisioning/setting/default-partitions?osName=... */
@@ -493,6 +622,383 @@
         if (oiDefaultPartitions) oiDefaultPartitions.addEventListener('click', loadDefaultPartitions);
         const oiAddPartition = document.getElementById('oiAddPartition');
         if (oiAddPartition) oiAddPartition.addEventListener('click', () => addPartitionRow());
+
+        /* ---- RAID 구성 단계 — RAID 카드 + 디스크 묶음 규칙 (U4-1-1 v2) ---- */
+
+        // 판정 재료는 전부 서버가 준다 — 카드는 raidCardMetaJson(hasCache / supportedLevels / blockReasons),
+        // 레벨 최소치는 레벨 옵션의 data-min-disks(-cached). 이 JS 는 문구를 짓지 않고 읽어서 잠그기만 한다
+        // (SSOT = SupportedRaidLevels.blockReasonFor · RaidLevel.minimumDisks — 서버 DiskGroupRules 가 같은 표로 안전망).
+        const RAID_CARD_BY_ID = {};
+        (function () {
+            let groups = [];
+            try { groups = JSON.parse(window.RAID_CARD_META_JSON || '[]'); }
+            catch (e) { console.warn('[settingForm] raidCardMetaJson 파싱 실패:', e); }
+            (groups || []).forEach(group => (group.cards || []).forEach(card => {
+                RAID_CARD_BY_ID[String(card.id)] = card;
+            }));
+        })();
+        const MSG_PICK_CARD_FIRST = 'RAID 카드를 먼저 선택하세요.';
+        const MSG_CARD_LOCKED = 'RAID 묶음이 있어 해제할 수 없습니다 — 묶음의 레벨을 먼저 비우세요.';
+        const MSG_CARD_REQUIRED = 'RAID 를 구성하는 묶음이 있으므로 RAID 카드를 지정해야 합니다.';
+        const MSG_HDD_NO_NVME = 'HDD 에는 NVMe 전송 방식이 없습니다.';
+        // U4-1-2 — 역할 · 우선순위 문구. 서버 DiskGroupRules 7 · RaidConfigurationRequest.isVolumePriorityDistinct ·
+        // SettingSaveRequest.isOsVolumeDeterminable 과 같은 뜻.
+        const MSG_OS_FIXED_ELSEWHERE = '번 묶음이 이미 OS 영역으로 고정되어 있습니다 — OS 영역은 한 묶음만 고정할 수 있습니다.';
+        const MSG_NO_OS_CANDIDATE_WITH_INSTALL = 'OS 영역이 될 수 있는 묶음(OS 영역 고정 또는 우선순위에 따름)이 없습니다 — OS 설치 단계가 있으면 저장할 수 없습니다.';
+        const MSG_NO_OS_CANDIDATE = 'OS 영역이 될 수 있는 묶음이 없습니다 — OS 영역은 설치기가 자동 선택합니다.';
+        const MSG_PRIORITY_DUPLICATE = '이미 있는 조합입니다';
+        const MSG_PRIORITY_EXHAUSTED = '종류 · 전송의 유효 조합(5)을 모두 썼습니다 — 행을 지운 뒤 추가하세요.';
+        const MSG_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 고정 또는 우선순위에 따름 + 우선순위 행)이 있어야 합니다.';
+        // 표 아래 상시 안내는 짧게 — 제출 시 붙는 오류(위 전문)와 같은 문장이 두 번 보이지 않게(CP5 O-1).
+        const HINT_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으므로 우선순위 행을 두거나 묶음 하나를 OS 영역으로 고정해야 저장됩니다.';
+        const MSG_PRIORITY_EMPTY = '우선순위 행이 없으면 볼륨은 열거 순서대로 놓입니다.';
+        const PRIORITY_VALID_COMBOS = 5; // 종류 2 × 전송 3 − HDD×NVMe
+        let DEFAULT_VOLUME_PRIORITIES = [];
+        try { DEFAULT_VOLUME_PRIORITIES = JSON.parse(window.DEFAULT_VOLUME_PRIORITIES_JSON || '[]') || []; }
+        catch (e) { console.warn('[settingForm] defaultVolumePrioritiesJson 파싱 실패:', e); }
+
+        function selectedRaidCard() {
+            return rcRaidCard && rcRaidCard.value ? (RAID_CARD_BY_ID[rcRaidCard.value] || null) : null;
+        }
+        function diskGroupRows() {
+            return rcDiskGroupTbody ? Array.from(rcDiskGroupTbody.querySelectorAll('tr')) : [];
+        }
+        /** 행이 RAID 를 구성하는가 — 레벨 값이 있으면 (OSInstallationRequest.requiresRaidCard 의 행 단위). */
+        function rowBuildsRaid(row) {
+            return !!row.querySelector('.dgLevel').value;
+        }
+        function levelMinDisks(levelOpt, hasCache) {
+            if (!levelOpt || !levelOpt.value) return 1;
+            return parseInt(hasCache ? levelOpt.dataset.minDisksCached : levelOpt.dataset.minDisks, 10) || 1;
+        }
+        /** 병기형 조사를 앞 글자로 해소한다(HF5 의 KoreanParticle — 서버 RaidLevel.objectParticle 과 같은 규칙: 5 → 를, 0·6·10 → 을). */
+        function particles(text) {
+            return window.KoreanParticle ? window.KoreanParticle.resolve(text) : text;
+        }
+        function setOptionState(opt, reason) {
+            opt.disabled = !!reason;
+            if (reason) opt.title = reason; else opt.removeAttribute('title');
+        }
+
+        /**
+         * 진리표(plan D7) 를 한 번에 적용한다 — 카드 · 행 어느 쪽이 바뀌어도 이것 하나만 부른다.
+         *  카드 미선택      → 각 행의 RAID 옵션 disabled(카드 먼저)
+         *  카드 선택됨      → 못 만드는 레벨 disabled(blockReasons) · 개수 하한 = minimumDisks(hasCache)
+         *  RAID 묶음 존재   → '선택 안 함' disabled · 그 레벨을 못 만드는 카드 옵션 disabled
+         */
+        function applyDiskGroupConstraints() {
+            if (!rcRaidCard) return;
+            const card = selectedRaidCard();
+            const raidRows = diskGroupRows().filter(rowBuildsRaid);
+
+            // 1) 카드 select 의 옵션 잠금
+            Array.from(rcRaidCard.options).forEach(opt => {
+                if (opt.hasAttribute('data-none')) {
+                    setOptionState(opt, raidRows.length ? MSG_CARD_LOCKED : null);
+                    return;
+                }
+                const meta = RAID_CARD_BY_ID[opt.value];
+                if (!meta) return;
+                let reason = null;
+                raidRows.some(row => {
+                    const level = row.querySelector('.dgLevel').value;
+                    if ((meta.supportedLevels || []).indexOf(level) >= 0) return false;
+                    reason = particles((diskGroupRows().indexOf(row) + 1) + '번 묶음의 ' + level + ' 을(를) 만들 수 없는 카드입니다.');
+                    return true;
+                });
+                setOptionState(opt, reason);
+            });
+
+            // 2) 각 행 — 레벨 옵션 · 개수 하한 · 용량 입력 표시
+            diskGroupRows().forEach(row => {
+                const levelSel = row.querySelector('.dgLevel');
+                Array.from(levelSel.options).forEach(opt => {
+                    if (!opt.value) { setOptionState(opt, null); return; }
+                    if (!card) { setOptionState(opt, MSG_PICK_CARD_FIRST); return; }
+                    setOptionState(opt, (card.blockReasons || {})[opt.value] || null);
+                });
+                const countInput = row.querySelector('.dgCount');
+                const min = rowBuildsRaid(row) && card ? levelMinDisks(selectedOption(levelSel), card.hasCache) : 1;
+                countInput.min = String(min);
+                // 최소치는 셀 안 상시 문구 대신 placeholder · title 로만 알린다(CP7 검수) — 문구는 서버 tooFewDisks 와 같은 뜻.
+                countInput.placeholder = min > 1 ? min + ' 이상' : '1';
+                countInput.title = rowBuildsRaid(row) && card && min > 1
+                    ? particles(selectedOption(levelSel).textContent + ' 은(는) 디스크 ' + min + '개 이상이 필요합니다'
+                        + (card.hasCache ? '' : ' (캐시 없는 카드)') + '.')
+                    : '';
+                const value = intOrNull(countInput.value);
+                const short = value != null && value < min;
+                countInput.classList.toggle('has-error', short);
+                // 종류 ↔ 전송 정합 — HDD 에는 NVMe 전송이 없다(DiskGroupRules 6 · CP7 검수). SAS SSD 는 실재하므로 막지 않는다.
+                const typeSel = row.querySelector('.dgType');
+                const transportSel = row.querySelector('.dgTransport');
+                Array.from(transportSel.options).forEach(opt => {
+                    setOptionState(opt, typeSel.value === 'HDD' && opt.value === 'NVME' ? MSG_HDD_NO_NVME : null);
+                });
+                transportSel.classList.toggle('has-error', typeSel.value === 'HDD' && transportSel.value === 'NVME');
+                const capAuto = row.querySelector('.dgCapacityMode').value !== 'SPECIFIED';
+                row.querySelector('.dgCapacityValue').hidden = capAuto; // '지정' 일 때만 아래 줄에 값 · 단위
+            });
+
+            // 2-b) 동일 규칙 중복 — 다섯 축이 같은 행을 강조하고 사유를 적는다(DiskGroupRules 4 의 1차 차단, CP5 C5 보강).
+            markDuplicateDiskGroups();
+
+            // 2-c) 역할(U4-1-2) — OS 영역 고정은 한 묶음만(DiskGroupRules 7): 어떤 행이 OS 면 다른 행의 OS 옵션을 잠근다.
+            const osRow = diskGroupRows().find(row => row.querySelector('.dgRole').value === 'OS') || null;
+            const osRowNo = osRow ? diskGroupRows().indexOf(osRow) + 1 : 0;
+            diskGroupRows().forEach(row => {
+                const roleSel = row.querySelector('.dgRole');
+                const osOpt = roleSel.querySelector('option[value="OS"]');
+                if (osOpt) setOptionState(osOpt, osRow && row !== osRow ? osRowNo + MSG_OS_FIXED_ELSEWHERE : null);
+            });
+            // OS 후보(OS 고정 · 우선순위에 따름)가 하나도 없으면 안내 — OS 설치 카드가 있으면 저장이 막힌다(isOsVolumeDeterminable).
+            if (rcNoOsCandidateHint) {
+                const rows = diskGroupRows();
+                const noCandidate = rows.length > 0 && !rows.some(row => ['OS', 'BY_PRIORITY'].indexOf(row.querySelector('.dgRole').value) >= 0);
+                rcNoOsCandidateHint.textContent = noCandidate ? (osInstallCardActive() ? MSG_NO_OS_CANDIDATE_WITH_INSTALL : MSG_NO_OS_CANDIDATE) : '';
+                rcNoOsCandidateHint.hidden = !noCandidate;
+            }
+            applyPriorityConstraints();
+
+
+            // 3) 카드 select 아래 안내 — 카드가 없는데 RAID 묶음이 있으면(pre-fill 소실 등) 요구 사실을 보인다
+            if (rcRaidCardHint) {
+                const needsCard = !card && raidRows.length > 0;
+                rcRaidCardHint.textContent = needsCard ? MSG_CARD_REQUIRED : '';
+                rcRaidCardHint.hidden = !needsCard;
+            }
+            refreshOsVolumeTargetHint(); // OS 설치 카드의 대상 볼륨 안내(U4-1-3) — 역할 · 용량 · 개수 · 행 추가/삭제 · 카드 유무가 재료
+        }
+
+        /** 다섯 축의 정규 표기 — 서버 DiskGroupRules.identity 와 같은 축을 본다. */
+        function diskGroupIdentity(row) {
+            const capMode = row.querySelector('.dgCapacityMode').value;
+            return [
+                row.querySelector('.dgLevel').value || 'null',
+                row.querySelector('.dgType').value,
+                row.querySelector('.dgTransport').value,
+                capMode === 'SPECIFIED'
+                    ? (row.querySelector('.dgCapacitySize').value || '') + row.querySelector('.dgCapacityUnit').value
+                    : 'AUTO',
+                row.querySelector('.dgCountMode').value + ':' + (row.querySelector('.dgCount').value || '')
+            ].join('|');
+        }
+
+        /** 같은 규칙인 행 쌍을 찾아 [{row, sameAsNo}] 로 돌려주고, 행의 레벨 select 에 has-error 를 칠한다. */
+        function markDuplicateDiskGroups() {
+            const seen = new Map();
+            const duplicates = [];
+            diskGroupRows().forEach((row, i) => {
+                const key = diskGroupIdentity(row);
+                const levelSel = row.querySelector('.dgLevel');
+                if (seen.has(key)) {
+                    duplicates.push({row: row, no: i + 1, sameAsNo: seen.get(key)});
+                    levelSel.classList.add('has-error');
+                    levelSel.title = (i + 1) + '번 묶음이 ' + seen.get(key) + '번 묶음과 같은 규칙입니다.';
+                } else {
+                    seen.set(key, i + 1);
+                    levelSel.classList.remove('has-error');
+                    levelSel.removeAttribute('title');
+                }
+            });
+            return duplicates;
+        }
+
+        function addDiskGroupRow(data) {
+            const row = cloneTemplateRow('tplDiskGroupRow');
+            if (!row || !rcDiskGroupTbody) return;
+            const d = data || {};
+            row.querySelector('.dgLevel').value = d.raidLevel || '';
+            if (d.diskType) row.querySelector('.dgType').value = d.diskType;
+            if (d.transport) row.querySelector('.dgTransport').value = d.transport;
+            const cap = d.capacity || {};
+            row.querySelector('.dgCapacityMode').value = cap.mode === 'SPECIFIED' ? 'SPECIFIED' : 'AUTO';
+            row.querySelector('.dgCapacitySize').value = cap.size != null ? cap.size : '';
+            if (cap.unit) row.querySelector('.dgCapacityUnit').value = cap.unit;
+            const cnt = d.count || {};
+            row.querySelector('.dgCount').value = cnt.value != null ? cnt.value : '';
+            if (cnt.mode) row.querySelector('.dgCountMode').value = cnt.mode;
+            // 역할(U4-1-2) — 저장본에 없으면(구 payload) '우선순위에 따름'. 스펙 축이 아니라 해석 규칙이라 기본값이 정당하다.
+            row.querySelector('.dgRole').value = d.role || 'BY_PRIORITY';
+            // RAID 없음 묶음의 개수는 '1개 이상'(제약 없음 = 그 스펙 디스크 각각이 볼륨)이 중립값이라 비어 있으면 채운다 —
+            // 디스크 스펙(종류 · 전송 · 용량)에는 기본값을 두지 않는다(E16). 사용자는 언제든 고칠 수 있다.
+            defaultCountForNoRaid(row);
+
+            ['.dgLevel', '.dgCapacityMode', '.dgCount', '.dgCountMode', '.dgType', '.dgTransport', '.dgCapacitySize', '.dgCapacityUnit', '.dgRole']
+                .forEach(sel => row.querySelector(sel).addEventListener('change', applyDiskGroupConstraints));
+            row.querySelector('.dgCount').addEventListener('input', applyDiskGroupConstraints);
+            row.querySelector('.dgLevel').addEventListener('change', () => defaultCountForNoRaid(row));
+            bindDiskGroupDrag(row);
+            bindRowRemove(row);
+            row.querySelector('[data-row-remove]').addEventListener('click', () => setTimeout(applyDiskGroupConstraints, 0));
+            rcDiskGroupTbody.appendChild(row);
+            applyDiskGroupConstraints();
+        }
+
+        function defaultCountForNoRaid(row) {
+            if (rowBuildsRaid(row)) return;
+            const countInput = row.querySelector('.dgCount');
+            if (countInput.value.trim() !== '') return;
+            countInput.value = '1';
+            row.querySelector('.dgCountMode').value = 'AT_LEAST';
+        }
+
+        /* 행 순서 — 맨 앞 ☰ 핸들을 끌어 옮긴다(HTML5 drag & drop, CP7 검수). 묶음 번호(N번)와 중복 판정이 순서를
+           따르므로 놓은 뒤 진리표를 다시 적용한다. draggable 은 핸들을 누르는 동안만 켠다 — 셀 안 입력의 텍스트 드래그와 안 겹치게. */
+        let dgDragging = null;
+        function clearDropMarks(tbody) {
+            Array.from(tbody.querySelectorAll('tr')).forEach(r => r.classList.remove('dg-drop-before', 'dg-drop-after'));
+        }
+        function bindDiskGroupDrag(row) {
+            bindRowDrag(row, rcDiskGroupTbody, applyDiskGroupConstraints);
+        }
+        /** 표 공용 행 드래그 — 묶음 표(U4-1-1)와 우선순위 표(U4-1-2)가 같은 구현을 쓴다. 놓은 뒤 onDrop 으로 진리표를 다시 적용한다. */
+        function bindRowDrag(row, tbody, onDrop) {
+            const handle = row.querySelector('.dgHandle');
+            handle.addEventListener('mousedown', () => row.setAttribute('draggable', 'true'));
+            handle.addEventListener('mouseup', () => row.removeAttribute('draggable'));
+            row.addEventListener('dragstart', e => {
+                dgDragging = row;
+                row.classList.add('dg-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', 'disk-group-row'); // Firefox 는 data 가 있어야 드래그가 시작된다
+            });
+            row.addEventListener('dragover', e => {
+                if (!dgDragging || dgDragging === row || dgDragging.parentNode !== tbody) return; // 다른 표의 행은 받지 않는다
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const rect = row.getBoundingClientRect();
+                const before = e.clientY < rect.top + rect.height / 2;
+                clearDropMarks(tbody);
+                row.classList.add(before ? 'dg-drop-before' : 'dg-drop-after');
+            });
+            row.addEventListener('drop', e => {
+                if (!dgDragging || dgDragging === row || dgDragging.parentNode !== tbody) return;
+                e.preventDefault();
+                const rect = row.getBoundingClientRect();
+                const before = e.clientY < rect.top + rect.height / 2;
+                tbody.insertBefore(dgDragging, before ? row : row.nextSibling);
+                clearDropMarks(tbody);
+                onDrop();
+            });
+            row.addEventListener('dragend', () => {
+                row.classList.remove('dg-dragging');
+                row.removeAttribute('draggable');
+                dgDragging = null;
+                clearDropMarks(tbody);
+            });
+        }
+
+        function buildDiskGroups() {
+            return diskGroupRows().map(row => {
+                const capMode = row.querySelector('.dgCapacityMode').value;
+                return {
+                    raidLevel: row.querySelector('.dgLevel').value || null,
+                    diskType: row.querySelector('.dgType').value,
+                    transport: row.querySelector('.dgTransport').value,
+                    capacity: capMode === 'SPECIFIED'
+                        ? {mode: 'SPECIFIED', size: intOrNull(row.querySelector('.dgCapacitySize').value), unit: row.querySelector('.dgCapacityUnit').value}
+                        : {mode: 'AUTO', size: null, unit: null},
+                    count: {mode: row.querySelector('.dgCountMode').value, value: intOrNull(row.querySelector('.dgCount').value)},
+                    role: row.querySelector('.dgRole').value
+                };
+            });
+        }
+
+        /* ---- 볼륨 우선순위 표 (U4-1-2) — 행 순서 = 우선순위. 종류 · 전송 · 용량 순서 ---- */
+        function priorityRows() {
+            return rcPriorityTbody ? Array.from(rcPriorityTbody.querySelectorAll('tr')) : [];
+        }
+        function osInstallCardActive() {
+            const card = cardOf('OS_INSTALLATION');
+            return !!card && !card.hidden;
+        }
+        function priorityIdentity(row) {
+            return row.querySelector('.vpType').value + '|' + row.querySelector('.vpTransport').value;
+        }
+        /**
+         * 우선순위 진리표 — HDD 행의 NVMe 옵션 잠금 · (종류, 전송) 중복 행 강조 · 유효 조합 소진 시 추가 버튼 잠금 ·
+         * 0 행 안내(OS 설치 카드가 있으면 저장 불가 문구). 서버 @AssertTrue 들과 같은 판정.
+         */
+        function applyPriorityConstraints() {
+            if (!rcPriorityTbody) return;
+            const rows = priorityRows();
+            const seen = new Map();
+            rows.forEach((row, i) => {
+                row.querySelector('.vpRank').textContent = String(i + 1); // 순위 열 — 행 순서의 명시(CP6 검수)
+                const typeSel = row.querySelector('.vpType');
+                const transportSel = row.querySelector('.vpTransport');
+                Array.from(transportSel.options).forEach(opt => {
+                    setOptionState(opt, typeSel.value === 'HDD' && opt.value === 'NVME' ? MSG_HDD_NO_NVME : null);
+                });
+                const hddNvme = typeSel.value === 'HDD' && transportSel.value === 'NVME';
+                const key = priorityIdentity(row);
+                const dup = seen.has(key);
+                if (!dup) seen.set(key, i + 1);
+                transportSel.classList.toggle('has-error', hddNvme || dup);
+                transportSel.title = hddNvme ? MSG_HDD_NO_NVME : dup ? MSG_PRIORITY_DUPLICATE + ' (' + seen.get(key) + '번 행)' : '';
+            });
+            if (rcAddPriority) {
+                const exhausted = seen.size >= PRIORITY_VALID_COMBOS && rows.length >= PRIORITY_VALID_COMBOS;
+                rcAddPriority.disabled = exhausted;
+                rcAddPriority.title = exhausted ? MSG_PRIORITY_EXHAUSTED : '';
+            }
+            if (rcPriorityHint) {
+                const empty = rows.length === 0;
+                const osFixed = diskGroupRows().some(row => row.querySelector('.dgRole').value === 'OS');
+                rcPriorityHint.textContent = !empty ? '' : (osInstallCardActive() && !osFixed && diskGroupRows().length > 0)
+                    ? HINT_PRIORITY_EMPTY_WITH_INSTALL : MSG_PRIORITY_EMPTY;
+                rcPriorityHint.hidden = !empty;
+            }
+        }
+        function addPriorityRow(data) {
+            const row = cloneTemplateRow('tplPriorityRow');
+            if (!row || !rcPriorityTbody) return;
+            const d = data || {};
+            if (d.diskType) row.querySelector('.vpType').value = d.diskType;
+            if (d.transport) row.querySelector('.vpTransport').value = d.transport;
+            if (d.capacityOrder) row.querySelector('.vpCapacityOrder').value = d.capacityOrder;
+            ['.vpType', '.vpTransport', '.vpCapacityOrder']
+                .forEach(sel => row.querySelector(sel).addEventListener('change', applyPriorityConstraints));
+            bindRowDrag(row, rcPriorityTbody, applyPriorityConstraints);
+            bindRowRemove(row);
+            row.querySelector('[data-row-remove]').addEventListener('click', () => setTimeout(applyPriorityConstraints, 0));
+            rcPriorityTbody.appendChild(row);
+            applyPriorityConstraints();
+        }
+        function clearPriorityRows() {
+            priorityRows().forEach(row => row.remove());
+        }
+        /** 기본 행으로 — 서버가 내린 defaultVolumePrioritiesJson(SSOT = VolumePriorityRuleRequest.defaults()) 그대로. */
+        function resetPriorityRows() {
+            clearPriorityRows();
+            DEFAULT_VOLUME_PRIORITIES.forEach(row => addPriorityRow(row));
+            applyPriorityConstraints();
+        }
+        function buildVolumePriorities() {
+            return priorityRows().map(row => ({
+                diskType: row.querySelector('.vpType').value,
+                transport: row.querySelector('.vpTransport').value,
+                capacityOrder: row.querySelector('.vpCapacityOrder').value
+            }));
+        }
+        /** 중복 (종류, 전송) 행 → [{no, sameAsNo}] — precheck 용. */
+        function duplicatePriorityRows() {
+            const seen = new Map();
+            const duplicates = [];
+            priorityRows().forEach((row, i) => {
+                const key = priorityIdentity(row);
+                if (seen.has(key)) duplicates.push({no: i + 1, sameAsNo: seen.get(key)});
+                else seen.set(key, i + 1);
+            });
+            return duplicates;
+        }
+        if (rcAddPriority) rcAddPriority.addEventListener('click', () => addPriorityRow());
+        if (rcResetPriority) rcResetPriority.addEventListener('click', resetPriorityRows);
+
+        const rcAddDiskGroup = document.getElementById('rcAddDiskGroup');
+        if (rcAddDiskGroup) rcAddDiskGroup.addEventListener('click', () => addDiskGroupRow());
+        if (rcRaidCard) rcRaidCard.addEventListener('change', applyDiskGroupConstraints);
 
         /* ---- root 비밀번호 (기존 유지 UX) ---- */
 
@@ -743,6 +1249,7 @@
         watchDeprecatedSelect(buBios, 'BIOS 펌웨어', null);
         watchDeprecatedSelect(buBmc, 'BMC 펌웨어', null);
         watchDeprecatedSelect(oiOsSelect, 'OS', onInstallOsChange);
+        watchDeprecatedSelect(rcRaidCard, 'RAID 카드', applyDiskGroupConstraints); // U4-1-1
         watchDeprecatedSelect(oiIsoSelect, 'ISO', function () {
             filterEnvironmentOptions();
             applyPackageGroupFilter();
@@ -881,7 +1388,6 @@
             return Array.from(oiPartitionTbody.querySelectorAll('tr')).map(row => ({
                 mountPoint: row.querySelector('.pMountPoint').value.trim(),
                 fileSystem: row.querySelector('.pFileSystem').value,
-                diskName: row.querySelector('.pDiskName').value.trim() || null,
                 size: intOrNull(row.querySelector('.pSize').value) || 0,
                 sizeUnit: row.querySelector('.pSizeUnit').value,
                 isGrow: row.querySelector('.pGrow').checked
@@ -936,6 +1442,14 @@
                         .filter(chk => chk.checked)
                         .map(chk => intOrNull(chk.value))
                         .filter(id => id != null)
+                };
+            },
+            RAID_CONFIGURATION: function () {
+                return {
+                    type: 'RAID_CONFIGURATION',
+                    raidCardId: rcRaidCard ? intOrNull(rcRaidCard.value) : null,   // 소프트참조(null = 전제 없음)
+                    diskGroups: buildDiskGroups(),
+                    volumePriorities: buildVolumePriorities()                        // U4-1-2 — 빈 배열도 명시적 값(열거 순서)
                 };
             },
             OS_INSTALLATION: function () {
@@ -1089,6 +1603,78 @@
                     ok = false;
                 }
             });
+            if (stepTypeByIndex.includes('RAID_CONFIGURATION') && rcDiskGroupTbody) {
+                // 디스크 묶음(U4-1-1) — 진리표가 막지 못하는 두 상태만 사전 차단: pre-fill 로 카드가 소실된 채 RAID 묶음이 남은 경우 ·
+                // 개수 미달 / 미입력. 문구는 서버 @AssertTrue · DiskGroupRules 와 같다.
+                const rows = diskGroupRows();
+                if (!selectedRaidCard() && rows.some(rowBuildsRaid)) {
+                    const container = form.querySelector('[data-error-field="raidCardPresentWhenRequired"]');
+                    if (container) paintFieldError(container, MSG_CARD_REQUIRED);
+                    ok = false;
+                }
+                let countError = false;
+                rows.forEach(row => {
+                    const countInput = row.querySelector('.dgCount');
+                    const value = intOrNull(countInput.value);
+                    if (value == null || value < (parseInt(countInput.min, 10) || 1)) {
+                        countInput.classList.add('has-error');
+                        countError = true;
+                    }
+                    const capMode = row.querySelector('.dgCapacityMode').value;
+                    const size = intOrNull(row.querySelector('.dgCapacitySize').value);
+                    if (capMode === 'SPECIFIED' && (size == null || size < 1)) {
+                        row.querySelector('.dgCapacitySize').classList.add('has-error');
+                        countError = true;
+                    }
+                });
+                const hddNvme = rows.filter(row => row.querySelector('.dgType').value === 'HDD' && row.querySelector('.dgTransport').value === 'NVME');
+                if (hddNvme.length) {
+                    const container = form.querySelector('[data-error-field="diskGroups"]');
+                    if (container) paintFieldError(container, (rows.indexOf(hddNvme[0]) + 1) + '번 묶음: ' + MSG_HDD_NO_NVME);
+                    ok = false;
+                }
+                if (countError) {
+                    const container = form.querySelector('[data-error-field="diskGroups"]');
+                    if (container) paintFieldError(container, '디스크 묶음의 개수(레벨별 최소치 이상)와 직접 지정한 용량을 채워야 합니다.');
+                    ok = false;
+                }
+                const duplicates = markDuplicateDiskGroups();
+                if (duplicates.length) {
+                    const container = form.querySelector('[data-error-field="diskGroups"]');
+                    const first = duplicates[0];
+                    if (container) paintFieldError(container, first.no + '번 묶음이 ' + first.sameAsNo + '번 묶음과 같은 규칙입니다 — 축 하나를 바꾸거나 줄을 지우세요.');
+                    ok = false;
+                }
+                // 역할 · 우선순위(U4-1-2) — 진리표가 잠그지만 pre-fill · 경합으로 남을 수 있는 상태의 안전망. 문구는 서버와 같다.
+                const osRows = rows.filter(row => row.querySelector('.dgRole').value === 'OS');
+                if (osRows.length > 1) {
+                    const container = form.querySelector('[data-error-field="diskGroups"]');
+                    if (container) paintFieldError(container, (rows.indexOf(osRows[1]) + 1) + '번 묶음: ' + (rows.indexOf(osRows[0]) + 1) + MSG_OS_FIXED_ELSEWHERE);
+                    ok = false;
+                }
+                const priorityDuplicates = duplicatePriorityRows();
+                if (priorityDuplicates.length) {
+                    const container = form.querySelector('[data-error-field="volumePriorityDistinct"]');
+                    if (container) paintFieldError(container, priorityDuplicates[0].no + '번 행이 ' + priorityDuplicates[0].sameAsNo + '번 행과 같은 종류 · 전송 조합입니다 — 하나를 바꾸거나 지우세요.');
+                    ok = false;
+                }
+                const priorityHddNvme = priorityRows().filter(row => row.querySelector('.vpType').value === 'HDD' && row.querySelector('.vpTransport').value === 'NVME');
+                if (priorityHddNvme.length) {
+                    const container = form.querySelector('[data-error-field="volumePriorities"]');
+                    if (container) paintFieldError(container, (priorityRows().indexOf(priorityHddNvme[0]) + 1) + '번 행: ' + MSG_HDD_NO_NVME);
+                    ok = false;
+                }
+                // OS 설치 단계가 있으면 OS 볼륨이 정의서만으로 정해져야 한다(SettingSaveRequest.isOsVolumeDeterminable 의 1차 차단).
+                if (stepTypeByIndex.includes('OS_INSTALLATION') && rows.length > 0) {
+                    const osFixed = osRows.length > 0;
+                    const byPriority = rows.some(row => row.querySelector('.dgRole').value === 'BY_PRIORITY');
+                    if (!osFixed && !(byPriority && priorityRows().length > 0)) {
+                        const container = form.querySelector('[data-error-field="osVolumeDeterminable"]');
+                        if (container) paintFieldError(container, MSG_PRIORITY_EMPTY_WITH_INSTALL);
+                        ok = false;
+                    }
+                }
+            }
             if (stepTypeByIndex.includes('OS_INSTALLATION') && oiPartitionTbody) {
                 let sizeError = false;
                 oiPartitionTbody.querySelectorAll('tr').forEach(row => {
@@ -1102,6 +1688,12 @@
                 if (sizeError) {
                     const container = form.querySelector('[data-error-field="partitions"]');
                     if (container) paintFieldError(container, '파티션의 크기를 지정하거나 grow 를 체크해야 합니다.');
+                    ok = false;
+                }
+                // U4-1-3 D7 — 고정 파티션 합이 OS 영역 볼륨 하한을 넘으면 막는다(하한을 알 때만 · 서버 isPartitionsWithinOsVolume 과 같은 판정).
+                if (stepTypeByIndex.includes('RAID_CONFIGURATION') && partitionsOverOsVolume()) {
+                    const container = form.querySelector('[data-error-field="partitionsWithinOsVolume"]');
+                    if (container) paintFieldError(container, MSG_PARTITIONS_OVER);
                     ok = false;
                 }
             }
@@ -1203,6 +1795,27 @@
                 if (missing && bsPrefillWarning) bsPrefillWarning.hidden = false;
                 // 저장본은 이미 규칙 준수라 위반 해제는 발동하지 않는다 — 활성/비활성 정렬 목적
                 refreshBsTemplateRules();
+            },
+            RAID_CONFIGURATION: function (proc) {
+                // U4-1-1 v2 — 저장본의 카드가 선택지에 없으면(삭제 · 비활성) 경고 줄을 보이고 값은 비운다 —
+                // 조용히 다른 카드로 바꾸지 않는다. 그 상태로 저장하면 서버 @AssertTrue 가 잡는다.
+                if (rcRaidCard) {
+                    if (proc.raidCardId != null) {
+                        rcRaidCard.value = String(proc.raidCardId);
+                        const lost = rcRaidCard.value !== String(proc.raidCardId);
+                        if (rcRaidCardPrefillWarning) rcRaidCardPrefillWarning.hidden = !lost;
+                    }
+                    commitDeprecatedSelection(rcRaidCard);
+                }
+                (proc.diskGroups || []).forEach(g => addDiskGroupRow(g));
+                // 우선순위(U4-1-2) — 저장본이 있으면 그대로(빈 배열도 명시적 값), 없으면(구 저장본) addStep 이 채운 기본 행을 두고 알린다.
+                const legacy = !Array.isArray(proc.volumePriorities) || (proc.diskGroups || []).some(g => !g.role);
+                if (Array.isArray(proc.volumePriorities)) {
+                    clearPriorityRows();
+                    proc.volumePriorities.forEach(row => addPriorityRow(row));
+                }
+                if (rcPriorityPrefillWarning) rcPriorityPrefillWarning.hidden = !legacy;
+                applyDiskGroupConstraints();
             },
             OS_INSTALLATION: function (proc) {
                 // R11 식별 전용 — 구(상세) 저장본을 열어도 식별만 복원한다(상세는 화면에서 걷힘, D-R6).

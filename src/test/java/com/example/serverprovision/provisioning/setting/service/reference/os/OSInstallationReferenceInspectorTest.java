@@ -57,7 +57,7 @@ class OSInstallationReferenceInspectorTest {
         return new RHELInstallationRequest(
                 osMetadataId, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
-                List.of(new PartitionRequest("/", FileSystem.XFS, null, 0L, SizeUnit.GB, true)),
+                List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
                 null, List.of(), 1L, List.of(), true, null);
     }
 
@@ -65,7 +65,7 @@ class OSInstallationReferenceInspectorTest {
         // rootPassword 파라미터 없음 — Ubuntu 계약에서 제거됨(root 잠금 기본).
         return new UbuntuInstallationRequest(osMetadataId, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
-                List.of(new PartitionRequest("/", FileSystem.EXT4, null, 0L, SizeUnit.GB, true)),
+                List.of(new PartitionRequest("/", FileSystem.EXT4, 0L, SizeUnit.GB, true)),
                 List.of(), "node-01", List.of());
     }
 

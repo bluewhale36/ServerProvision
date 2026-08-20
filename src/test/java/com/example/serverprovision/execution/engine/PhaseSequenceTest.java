@@ -57,4 +57,18 @@ class PhaseSequenceTest {
                 Set.of(ProvisioningPhase.TESTING)))
                 .isEmpty();
     }
+
+    @Test
+    @DisplayName("RAID_CONFIGURATION 은 FIRMWARE_SETTING 다음 · OS_INSTALLING 전에 온다 — 보유 시 전진, 미보유 시 건너뜀 (U4-1-1 v2)")
+    void raidConfiguration_sitsBetweenFirmwareSettingAndOsInstalling() {
+        assertThat(PhaseSequence.nextAfter(ProvisioningPhase.FIRMWARE_SETTING,
+                Set.of(ProvisioningPhase.FIRMWARE_SETTING, ProvisioningPhase.RAID_CONFIGURATION, ProvisioningPhase.OS_INSTALLING)))
+                .contains(ProvisioningPhase.RAID_CONFIGURATION);
+        assertThat(PhaseSequence.nextAfter(ProvisioningPhase.RAID_CONFIGURATION,
+                Set.of(ProvisioningPhase.RAID_CONFIGURATION, ProvisioningPhase.OS_INSTALLING)))
+                .contains(ProvisioningPhase.OS_INSTALLING);
+        assertThat(PhaseSequence.nextAfter(ProvisioningPhase.FIRMWARE_SETTING,
+                Set.of(ProvisioningPhase.FIRMWARE_SETTING, ProvisioningPhase.OS_INSTALLING)))
+                .contains(ProvisioningPhase.OS_INSTALLING);   // 미보유 → 건너뜀
+    }
 }

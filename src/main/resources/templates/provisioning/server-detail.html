@@ -38,7 +38,7 @@
 <nav th:replace="~{fragments/layout :: navbar('server')}"></nav>
 
 <!-- S7 — 실시간 상태 스트림 선언부: 상세 페이지는 자기 서버 id 의 신호에만 반응한다 (클라이언트 필터) -->
-<div class="n-page n-page-md" data-stream-scope="detail"
+<div class="n-page n-page-lg" data-stream-scope="detail"
      th:data-server-id="${server.id}" th:data-stream-url="@{/provisioning/server/stream}">
     <!-- S7 — [data-live] = 실시간 교체 영역(읽기 전용·액션 버튼). 수정 폼은 미마킹 = 입력 보존 규약 -->
     <div class="n-page-header" data-live="header">

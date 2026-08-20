@@ -30,7 +30,8 @@ public class ProcessRequestDeserializer extends ValueDeserializer<AbstractProces
 
     private static final Map<SettingProcessType, Class<? extends AbstractProcessRequest>> FLAT_SUBTYPES = Map.of(
             SettingProcessType.BASIC_UPDATE, BasicUpdateRequest.class,
-            SettingProcessType.BASIC_SETTING, BasicSettingRequest.class);
+            SettingProcessType.BASIC_SETTING, BasicSettingRequest.class,
+            SettingProcessType.RAID_CONFIGURATION, RaidConfigurationRequest.class);
 
     /**
      * 식별 전용(설치 예정 기록) 등록 테이블 — {@code osFamily} 판별자가 없거나 null 인 요청의 목적지

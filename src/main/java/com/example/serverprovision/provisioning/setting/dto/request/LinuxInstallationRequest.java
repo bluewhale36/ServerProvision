@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -58,4 +59,16 @@ public abstract class LinuxInstallationRequest extends OSInstallationRequest {
      * 함께 패치한다(root 패치 지식이 소유 계층에 캡슐화 — 호출측 instanceof 불요).
      */
     public abstract LinuxInstallationRequest withPatchedPasswords(List<UserRequest> patchedUsers);
+
+    /** grow 아닌 파티션 크기의 합(바이트) — OS 영역 볼륨 하한과 대조한다(U4-1-3 D7). 판정 재료라 payload 에 싣지 않는다. */
+    @JsonIgnore
+    public long fixedPartitionBytes() {
+        return partitions == null ? 0L : partitions.stream().filter(java.util.Objects::nonNull).mapToLong(PartitionRequest::fixedBytes).sum();
+    }
+
+    /** grow 파티션이 있는가 — 있으면 고정 합이 하한보다 작아야(등호 불가) grow 가 자리를 갖는다. */
+    @JsonIgnore
+    public boolean hasGrowPartition() {
+        return partitions != null && partitions.stream().anyMatch(p -> p != null && p.isGrow());
+    }
 }

@@ -54,4 +54,15 @@ class OwnedPhasesConverterTest {
         assertThatThrownBy(() -> converter.convertToEntityAttribute("FW_UPDATE,BOGUS"))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    @DisplayName("RAID_CONFIGURATION 은 안정 코드 RAID_CONFIG 로 저장 · 복원된다 (U4-1-1 v2)")
+    void raidConfiguration_stableCode() {
+        OwnedPhasesConverter converter = new OwnedPhasesConverter();
+        String column = converter.convertToDatabaseColumn(OwnedPhases.of(java.util.List.of(
+                ProvisioningPhase.RAID_CONFIGURATION, ProvisioningPhase.FIRMWARE_SETTING)));
+        org.assertj.core.api.Assertions.assertThat(column).isEqualTo("FW_SETTING,RAID_CONFIG");
+        org.assertj.core.api.Assertions.assertThat(converter.convertToEntityAttribute(column).asSet())
+                .containsExactly(ProvisioningPhase.FIRMWARE_SETTING, ProvisioningPhase.RAID_CONFIGURATION);
+    }
 }

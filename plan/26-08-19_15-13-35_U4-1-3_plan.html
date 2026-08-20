@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U4-1-3 Plan — OS 영역 파티션 지정 : 파티션 대상을 장치명에서 역할로</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid : 병렬 패널 ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; }
+  .ux-row .label { flex:1; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-wrap table { margin:6px 0; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; }
+  .ux-wrap th, .ux-wrap td { padding:6px 8px; font-size:12px; }
+  .ux-wrap tr[data-error="1"] td { background:var(--red-bg); color:var(--red); }
+  .ux-wrap label { font-size:12px; cursor:pointer; }
+  .ux-wrap input[type="number"] { width:76px; font-family:var(--mono); font-size:12px; padding:2px 5px; border:1px solid var(--border); border-radius:4px; background:var(--card); color:var(--text); }
+  .ux-wrap .split-card > label { display:block; margin:3px 0; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+    /* 데모 파티션 표는 셀이 짧아 좁혀도 읽힌다 (명세 §3 의 표별 예외) */
+    .ux-wrap th:not(:first-child), .ux-wrap td:not(:first-child) { min-width:0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U4-1-3 : OS 영역 파티션 지정 — 파티션 대상을 장치명에서 역할로 <span class="v2-badge">U4-1 ③</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U4-1-3 (feature)</span>
+    <span><strong>상위</strong> U4-1 / U4</span>
+    <span><strong>선행</strong> U4-1-2 (완료 2026-08-19)</span>
+    <span><strong>브랜치</strong> feat/U4-1_disk-features</span>
+    <span><strong>스트림</strong> ServerProvision-ue</span>
+    <span><strong>scope</strong> OS 설치 단계 파티션의 대상을 장치명에서 OS 영역 볼륨으로 올리고 디스크명 열을 없앤다</span>
+    <span><strong>생성</strong> 2026-08-19 15:13 KST</span>
+    <span><strong>개정</strong> 2026-08-19 15:35 KST — 1 차 검수 반영(<code>diskName</code> 단순 제거 · OS 영역 용량 사전 제한)</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 / 부산물 / 질문</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">OS 설치 단계의 파티션 행(<code>PartitionRequest</code>)은 대상을 <b>장치명 자유 문자열 <code>diskName</code></b>(선택 — 비우면 설치기 자동)으로 가리킨다.
+          폼 ‘디스크명’ 열 · 상세 ‘디스크’ 열 · <code>LinuxPartitionRules.validateGrowPerDisk</code>(같은 그룹당 grow 1) 만이 사용처이고
+          <b>정의서 밖 소비자는 없다</b>(kickstart · autoinstall 렌더는 E 영역). 운영자가 <code>sda</code> 를 손으로 치지만 그 장치의 실존 여부는 아무도 확인하지 않는다(U4-1 토론 1 회차 §1-1).
+          <b>사용자 확인(2026-08-19)</b> — 값이 든 저장본은 전부 테스트 데이터다.</p>
+
+        <p>U4-1-1 · U4-1-2 로 정의서는 <b>볼륨과 역할</b>을 갖게 됐고, 역할(OS 고정 / 우선순위에 따름 / Data / 없음)과 우선순위가 OS 볼륨 하나를 고른다.
+          토론 <b>E8 · E14</b> 는 OS 설치기가 OS 영역만 파티셔닝하고 Data 영역은 설치 이후 <code>OS_SETTING</code>(U4-1-4)이라고 정했다 —
+          그래서 파티션이 놓이는 곳은 언제나 <b>OS 영역 볼륨 하나</b>이고 행마다 고를 값이 없다.</p>
+
+        <div class="callout">토론이 남긴 정의는 “파티션 대상을 장치명 → 역할로, 파티션 표의 ‘디스크’ 열 교체”(2 · 4 · 6 회차)였다.
+          실측하니 ‘역할’ 은 OS 영역 하나뿐이라, 열을 <b>교체</b>할 것이 아니라 <b>없애고 표 위에 대상을 밝히는 것</b>이 층을 올리는 일이다.</div>
+
+        <h4>붙일 자리</h4>
+        <p><code>PartitionRequest</code> · <code>LinuxPartitionRules</code> · <code>InvalidPartitionException</code> · 폼 파티션 표 · 상세 fragment · JS(<code>onGrowChange</code> · builder · prefill).
+          용량 사전 제한이 <code>RaidLevel</code>(MA7 자원 enum) · <code>DiskGroupRuleRequest</code> · <code>RaidConfigurationRequest</code> ·
+          <code>LinuxInstallationRequest</code> · <code>SettingSaveRequest</code> 를 더 건드린다. DDL · phase · 자원 신설은 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>파티션 표에서 ‘디스크명’ 열 제거 — 대상은 OS 영역 볼륨(상수).</li>
+          <li>표 위 <b>대상 볼륨 안내 줄</b> — 네 문구(RAID 구성 없음 · 묶음 0 → “설치기가 자동 선택” / OS 고정 N번 묶음 / 우선순위 1 순위 볼륨 / OS 후보 없음 → 저장 불가).
+            폼은 즉시 갱신하고 상세도 같은 문구.</li>
+          <li>grow 규칙을 “OS 영역 볼륨은 하나 → grow 는 목록에 1 개” 로.</li>
+          <li><code>diskName</code> 은 필드 · 열 · 검증을 <b>전부 제거</b>한다. 구 payload 에 값이 있어도 역직렬화가 무시한다(테스트 데이터뿐).</li>
+          <li><b>OS 영역 용량 사전 제한</b> — 하한을 알 수 있을 때만 고정 파티션 크기 합이 그 하한을 넘으면 막고, 자동 탐지 · RAID 구성 없음이면 “실행 시 확인” 으로 안내만 한다.</li>
+          <li>왕복 보존 · 판정 메서드 미유출.</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b>
+          <ul>
+            <li>OS 영역 볼륨 → 설치기 장치(kickstart <code>--ondisk</code> 등) 매핑 — E 영역.</li>
+            <li>Data 영역 파티셔닝 — U4-1-4.</li>
+            <li>파티션의 다중 볼륨 분산 — LVM 범위 밖(D9).</li>
+            <li>Windows — 파티션 없음.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">왼쪽 <b>RAID 구성 단계 상태</b>를 바꾸면 오른쪽 <b>대상 볼륨 안내 줄</b>이 즉시 바뀐다. 파티션 표에는 디스크명 열이 없고, Grow 를 두 곳에 켜면 두 번째 행이 오류가 된다.
+          크기는 직접 고칠 수 있다 — ⓒ 에서 합을 500 GiB 로 올리면 OS 영역 최소 용량(480 GB ≈ 447 GiB)을 넘어 막히고, 용량이 자동 탐지인 ⓔ 에서는 같은 값도 통과한다.
+          규칙 → 볼륨 매칭과 <b>볼륨 → 설치기 장치 매핑은 E 의 몫</b>이라 데모는 정의서가 적는 것까지만 그린다.</p>
+
+        <div class="ux-wrap">
+          <div class="split-grid">
+            <div class="split-card">
+              <h4>RAID 구성 단계 상태</h4>
+              <label><input type="radio" name="demo-raid" value="A" onchange="demoSetRaid('A')"> ⓐ RAID 구성 단계 없음</label>
+              <label><input type="radio" name="demo-raid" value="B" onchange="demoSetRaid('B')"> ⓑ 묶음 있음 · 우선순위에 따름</label>
+              <label><input type="radio" name="demo-raid" value="C" onchange="demoSetRaid('C')"> ⓒ 2번 묶음 OS 고정</label>
+              <label><input type="radio" name="demo-raid" value="D" onchange="demoSetRaid('D')"> ⓓ 묶음 전부 Data · 영역 할당 없음</label>
+              <label><input type="radio" name="demo-raid" value="E" onchange="demoSetRaid('E')"> ⓔ 2번 묶음 OS 고정 · 용량 자동 탐지</label>
+              <div id="demo-rules" style="margin-top:10px;"></div>
+            </div>
+            <div class="split-card">
+              <h4>OS 설치 단계</h4>
+              <div class="ux-message" id="demo-hint"></div>
+              <div id="demo-partitions"></div>
+              <div class="ux-row" style="margin-top:10px;">
+                <strong>저장</strong><span class="label" id="demo-save-note"></span><span id="demo-save-badge"></span>
+              </div>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 판정은 §4 의 <code>OsVolumeTargets.describe</code> · <code>RaidLevel.usableDisks</code> ·
+          <code>isPartitionsWithinOsVolume</code>(<span class="mono">fixed ≤ bound</span>, grow 가 있으면 <span class="mono">&lt;</span>) · <code>validateSingleGrow</code> 의 사본이고, 문구도 서버 메시지 그대로다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <div class="callout"><b>새 URL 없음.</b> <code>POST · PUT /provisioning/setting</code> 의 OS 설치 항목에서
+          <code>partitions[].diskName</code> 이 사라진다 — 폼은 보내지 않고, 구 payload 에 남아 있어도 역직렬화가 무시한다.
+          단계 간 정합 검사가 하나 늘어 400 의 필드가 <code>partitionsWithinOsVolume</code> 로도 온다.</div>
+
+        <h4>payload 예 (저장 그대로)</h4>
+        <pre><code>{"type":"OS_INSTALLATION","osFamily":"RHEL_BASED","osMetadataId":1,"isoId":1,
+ "partitions":[{"mountPoint":"/boot/efi","fileSystem":"EFI","size":1,"sizeUnit":"GB","isGrow":false},
+               {"mountPoint":"/","fileSystem":"XFS","size":0,"sizeUnit":"GB","isGrow":true}], "...":"…"}</code></pre>
+
+        <h4>흐름</h4>
+        <ol>
+          <li><b>폼</b> — RAID 카드의 역할 · 용량 · 개수 · 행 추가 · 삭제 · 카드 유무(<span class="mono">applyDiskGroupConstraints</span> 끝)와 파티션 표의 크기 · 단위 · grow 가 바뀔 때마다
+            <code>refreshOsVolumeTargetHint()</code> 가 안내 줄 두 줄을 다시 쓴다. 재료는 두 카드의 DOM — 레벨 옵션의 <code>data-usable-a</code> · <code>data-usable-b</code> 포함.</li>
+          <li><b>제출</b> — <code>stepBuilders.OS_INSTALLATION</code> 이 <code>diskName</code> 을 싣지 않고, precheck 가 grow 2 개와 용량 초과를 막는다.</li>
+          <li><b>서버</b> — <code>PartitionRequest</code> 에 <code>diskName</code> 이 없다(구 payload 의 값은 Jackson 기본 <code>FAIL_ON_UNKNOWN_PROPERTIES=false</code> 로 무시).
+            <code>validateSingleGrow</code> → <code>InvalidPartitionException.multipleGrow</code> 400 · <code>isPartitionsWithinOsVolume</code> → 400.</li>
+          <li><b>상세</b> — <code>SettingDetailResponse.osVolumeTarget()</code> 이 안내 줄(용량 하한 포함)을 주고, 파티션 표는 4 열.</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>타입</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>PartitionRequest</code> <span class="chip mod">수정</span></td>
+                <td><code>diskName</code> 필드 · 생성자 인자 · <code>@Pattern</code> <span class="chip del">제거</span>. 구 payload 의 값은 미지 속성이라 역직렬화가 무시한다
+                    (Jackson 3 기본 <code>FAIL_ON_UNKNOWN_PROPERTIES=false</code>) — 왕복 테스트 1 건으로 고정</td></tr>
+            <tr><td><code>LinuxPartitionRules</code> <span class="chip mod">수정</span></td>
+                <td><code>validateGrowPerDisk</code> → <code>validateSingleGrow</code> : 목록 전체 grow ≤ 1.
+                    “grow 파티션은 하나만 둘 수 있습니다 — OS 영역 볼륨은 하나입니다.”(<code>InvalidPartitionException.multipleGrow()</code>, 구 <code>multipleGrowOnDisk</code> <span class="chip del">제거</span>)</td></tr>
+            <tr><td><code>OsVolumeTargetKind</code> enum <span class="chip new">신설</span><br><span class="mono">provisioning.setting.enums</span></td>
+                <td><code>NONE</code> “RAID 구성 단계가 없어 설치기가 디스크를 자동 선택합니다” · <code>FIXED</code> “RAID 구성 %d번 묶음이 OS 영역입니다” ·
+                    <code>BY_PRIORITY</code> “볼륨 우선순위 1 순위 볼륨이 OS 영역입니다” ·
+                    <code>NO_CANDIDATE</code> “OS 영역이 될 묶음이 없습니다 — OS 설치 단계와 함께 저장할 수 없습니다”</td></tr>
+            <tr><td><code>OsVolumeTarget</code> record <span class="chip new">신설</span><br><span class="mono">dto/response</span></td>
+                <td><code>kind</code> · <code>ruleNo</code> · <code>ruleSummary</code>(둘 다 <code>FIXED</code> 만) · <code>capacityLowerBoundBytes</code>(nullable).
+                    <code>toDisplay()</code> 가 “OS 영역 최소 용량 480 GB(2번 묶음 RAID1 · 480 GB × 2)” 또는 “실행 시 확인됩니다(자동 탐지)” 를 덧붙인다</td></tr>
+            <tr><td><code>OsVolumeTargets</code> static <span class="chip new">신설</span><br><span class="mono">service/reference/os</span></td>
+                <td><code>describe(RaidConfigurationRequest raid /*nullable*/)</code> — null · 규칙 0 → <code>NONE</code> / <code>hasOsFixedRule</code> → <code>FIXED</code>(첫 OS 규칙 번호 · 요약) /
+                    <code>hasByPriorityRule</code> → <code>BY_PRIORITY</code> / 그 외 <code>NO_CANDIDATE</code></td></tr>
+            <tr><td><code>RaidLevel</code> <span class="chip mod">수정</span><br><span class="mono">management.raidcard.enums</span></td>
+                <td><code>usableDisks(int memberDisks)</code> — 유효 디스크 수를 상수 (a, b) 의 <span class="mono">a × n + b</span> 로 :
+                    RAID0 (1,0) · RAID1 (0,1) · RAID5 (1,−1) · RAID6 (1,−2) · RAID10 (0.5,0 — 정수 내림, RAID10 은 짝수 장 구성이라 실무에서 나머지가 없다). 레벨 옵션에 <code>data-usable-a</code> · <code>data-usable-b</code> 로 내려 폼 JS 도 같은 식을 쓴다</td></tr>
+            <tr><td><code>DiskGroupRuleRequest</code> <span class="chip mod">수정</span></td>
+                <td><code>usableCapacityLowerBoundBytes()</code> → <code>OptionalLong</code> : 용량 AUTO → empty / RAID 없음 → 1 장 용량 /
+                    RAID → <code>usableDisks(count.value)</code> × 1 장 용량(<code>AT_LEAST</code> 면 결과도 하한). 1 장 용량 = size × 10⁹(GB) · 10¹²(TB)</td></tr>
+            <tr><td><code>RaidConfigurationRequest</code> <span class="chip mod">수정</span></td>
+                <td><code>osVolumeCapacityLowerBoundBytes()</code> → <code>OptionalLong</code> : OS 후보 규칙(고정이면 그것만, 아니면 우선순위에 따름 전부) 중 하나라도 empty 면 empty, 아니면 최솟값</td></tr>
+            <tr><td><code>LinuxInstallationRequest</code> <span class="chip mod">수정</span></td>
+                <td><code>fixedPartitionBytes()</code>(grow 아닌 파티션 size × <code>SizeUnit</code> 의 바이트 합) · <code>hasGrowPartition()</code></td></tr>
+            <tr><td><code>SettingSaveRequest</code> <span class="chip mod">수정</span></td>
+                <td><code>isPartitionsWithinOsVolume()</code> <code>@AssertTrue</code>(<code>isOsVolumeDeterminable</code> 옆) : Linux 설치 + RAID 구성 + 하한 있음일 때
+                    <span class="mono">fixed ≤ bound</span>, grow 가 있으면 <span class="mono">fixed &lt; bound</span>(grow 자리 확보). 필드 <code>partitionsWithinOsVolume</code>.
+                    “OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.”</td></tr>
+            <tr><td><code>SettingDetailResponse</code> <span class="chip mod">수정</span></td>
+                <td>파생 메서드 <code>osVolumeTarget()</code> — processList 에서 <code>RaidConfigurationRequest</code> 를 찾아 <code>OsVolumeTargets.describe</code></td></tr>
+            <tr><td>폼 · JS <span class="chip mod">수정</span></td>
+                <td>파티션 표 6 열(마운트포인트 26 · 파일시스템 18 · 크기 18 · 단위 14 · Grow 12 · 삭제 12) · 표 위 <code>#oiOsVolumeTargetHint</code> 두 줄
+                    (대상 + “OS 영역 최소 용량 480 GB · 고정 파티션 합 18 GiB(+ grow)”) · 초과면 붉은 hint + precheck 차단 ·
+                    <code>onGrowChange</code> 는 다른 grow 해제 · builder 에서 <code>diskName</code> 제거</td></tr>
+            <tr><td>상세 fragment <span class="chip mod">수정</span></td>
+                <td>‘디스크’ 열 제거 · 표 위 안내 줄(<code>setting.osVolumeTarget().toDisplay()</code>)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>용량을 알 수 있는가 (사전 제한의 적용 범위)</h4>
+        <ul>
+          <li><b>OS 고정 묶음 · 용량 직접 지정</b> → 하한 = <code>usableDisks(n)</code> × 1 장 용량.</li>
+          <li><b>우선순위에 따름 · 후보 전부 직접 지정</b> → 하한 = 후보 하한의 최솟값(어느 볼륨이 뽑혀도 그만큼은 된다).</li>
+          <li><b>후보 중 하나라도 용량 ‘자동 탐지’ · RAID 구성 없음</b> → 모른다. 검사 없이 “실행 시 확인” 만 안내.</li>
+        </ul>
+        <div class="callout warn"><b>단위와 정밀도</b> — 파티션은 이진 단위(MiB · GiB · TiB), 디스크는 십진 단위(GB · TB)라 바이트로 환산해 비교한다.
+          RAID 메타 · 파티션 테이블 · 파일시스템 오버헤드는 셈하지 않는다 — <b>명백한 초과만 막는 1 차 관문</b>이고 실제 볼륨으로 하는 최종 검사는 E 의 몫이다.</div>
+
+        <h4>UI 진리표 (폼)</h4>
+        <table>
+          <thead><tr><th>상황</th><th>안내 줄</th><th>동작</th></tr></thead>
+          <tbody>
+            <tr><td>카드 없음 · 묶음 0</td><td><code>NONE</code></td><td>—</td></tr>
+            <tr><td>OS 고정 묶음 있음</td><td><code>FIXED</code>(N번 + 요약)</td><td>—</td></tr>
+            <tr><td>OS 고정 없음 · 우선순위에 따름 있음</td><td><code>BY_PRIORITY</code></td><td>—</td></tr>
+            <tr><td>묶음 전부 Data / 없음</td><td><code>NO_CANDIDATE</code>(붉은 hint)</td><td>제출은 U4-1-2 의 <code>osVolumeDeterminable</code> 이 막는다</td></tr>
+            <tr><td>grow 두 번째 체크</td><td>—</td><td>첫 grow 자동 해제 · direct POST 는 400</td></tr>
+            <tr><td>하한 있음 · 합이 초과(grow 있으면 같아도)</td><td>2 줄째 붉은 색 + 서버 메시지</td><td>precheck 차단 · direct POST 는 400 <code>partitionsWithinOsVolume</code></td></tr>
+            <tr><td>하한 없음(자동 탐지 · RAID 구성 없음)</td><td>“실행 시 확인됩니다”</td><td>검사 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>N/A — 엔티티 · Repository 무변경</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>값 규칙 · 판정 메서드 본체(테스트 제외, 빌드 통과) · Step 9 = N/A(DDL 없음)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 — <span class="mono">sbx-u412</span>(7794) 재사용. 용량 케이스는 RAID 카드에서 직접 만든다</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트 <b>CP1 · CP4(중간) · CP6 · CP7</b> 넷, 무중단 구간 둘 — ① CP1 승인 → CP4 게이트 ② CP4 승인 → CP6 제출.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>요지</th></tr></thead>
+          <tbody>
+            <tr><td><code>OsVolumeTargetsTest</code> <span class="chip new">신설</span></td>
+                <td>4 분기(null · 규칙 0 → <code>NONE</code> / OS 고정 → <code>FIXED</code> ruleNo · 요약 / <code>BY_PRIORITY</code> / 전부 DATA · NONE → <code>NO_CANDIDATE</code>) · <code>toDisplay</code></td></tr>
+            <tr><td><code>RHELInstallationFamilyInspectorTest</code> <span class="chip mod">+</span></td>
+                <td>grow 2 → <code>multipleGrow</code> · 1 통과</td></tr>
+            <tr><td><code>RaidLevelTest</code> <span class="chip new">신설 소형</span> 또는 기존 enum 테스트 <span class="chip mod">+</span></td>
+                <td><code>usableDisks</code> 5 레벨(RAID0 · 1 · 5 · 6 · 10)</td></tr>
+            <tr><td><code>DiskGroupRuleRequest</code> · <code>RaidConfigurationRequest</code> 계약 <span class="chip mod">+</span></td>
+                <td>하한 — <code>EXACT</code> · <code>AT_LEAST</code> · 용량 AUTO → empty · RAID 없음(1 장 용량) · <code>BY_PRIORITY</code> 후보 최솟값</td></tr>
+            <tr><td><code>SettingSaveRequestContractTest</code> <span class="chip mod">+</span></td>
+                <td><code>isPartitionsWithinOsVolume</code> — 초과 위반 · 경계값 통과 · grow 있으면 등호도 위반</td></tr>
+            <tr><td><code>SettingRestControllerSaveFlowTest</code> <span class="chip mod">+</span></td>
+                <td><code>diskName</code> 을 보낸 POST → 201 · 저장본에 없음 · grow 2 → 400 · 용량 초과 → 400 <code>partitionsWithinOsVolume</code></td></tr>
+            <tr><td><code>SettingControllerViewTest</code> 또는 DiskGroup 뷰 테스트 <span class="chip mod">+</span></td>
+                <td>상세 안내 줄(<code>FIXED</code> · <code>NONE</code> · 용량 하한) · ‘디스크’ 헤더 없음 · <code>pDiskName</code> 없음 ·
+                    <code>oiOsVolumeTargetHint</code> 와 <code>data-usable-a</code> 있음</td></tr>
+            <tr><td><code>ProcessPayloadConverterTest</code> <span class="chip mod">+</span></td>
+                <td><code>diskName</code> 있는 구 payload → 무시하고 복원 · 재직렬화에도 없음(왕복 1 건)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신규 예외 클래스 없음.</b> <code>InvalidPartitionException</code>(400 · field <span class="mono">partitions</span> — 폼의 파티션 그룹 컨테이너가 받는다) 의 팩토리를 교체한다 —
+          <code>multipleGrowOnDisk</code> <span class="chip del">제거</span> → <code>multipleGrow</code> <span class="chip new">신설</span>.
+          용량 사전 제한은 Bean Validation(<code>@AssertTrue</code>)으로 400 — <code>isOsVolumeDeterminable</code> 과 같은 자리라 별도 예외를 두지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 / 부산물 / 질문 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 / 부산물 / 질문</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>탈락</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>대상 표현</td><td>열 제거 + 표 위 안내 줄</td><td>행마다 ‘대상’ select(선택지 1) · 장치명 유지 + 역할 병기</td></tr>
+            <tr><td>D2</td><td>구 <code>diskName</code></td><td>필드 · 열 · 경고 전부 제거(구 payload 는 무시)</td><td>읽기 전용으로 남기고 경고 · 계속 유지</td></tr>
+            <tr><td>D3</td><td>grow 규칙</td><td>목록당 1</td><td>디스크 그룹당 1 유지</td></tr>
+            <tr><td>D4</td><td>안내 줄의 재료</td><td><code>OsVolumeTargets.describe</code>(서버) · 폼 JS 는 같은 4 분기</td><td>폼 문구 하드코딩만</td></tr>
+            <tr><td>D5</td><td>상세 파생</td><td><code>SettingDetailResponse.osVolumeTarget()</code></td><td>컨트롤러 모델 속성 · fragment 안 Thymeleaf 계산</td></tr>
+            <tr><td>D6</td><td>스키마</td><td>DDL · phase 없음</td><td>—</td></tr>
+            <tr><td>D7</td><td>용량 사전 제한</td><td>정의서가 아는 하한까지만(자동 탐지 · RAID 없음은 실행 시)</td><td>검사 없음(실행 시에만) · 자동 탐지도 막기</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>D1</b> — 대상이 OS 영역 하나라 select 는 선택지가 하나인 노이즈이고, 장치명 병기는 정의서를 다시 하드웨어에 묶는다.
+          <b>D2</b> — 실 저장본에 값이 없으니 지킬 것이 없다. 남기면 코드만 남는다. <b>D3</b> — 볼륨이 하나면 “디스크당” 은 뜻이 없다.</p>
+        <p><b>D4</b> — 같은 4 분기를 서버가 갖고 폼이 따라 하면 데모 · 상세 · 폼 문구가 한 SSOT 다(<code>hasOsFixedRule</code> · <code>hasByPriorityRule</code> 재사용).
+          <b>D5</b> — 응답 record 의 파생 메서드가 fragment 에서 가장 가깝고, 컨트롤러가 도메인 판정을 하지 않는다.</p>
+        <p><b>D7</b> — 검사를 실행으로 미루면 저장하고 한참 뒤 프로비저닝에서 실패한다. 반대로 자동 탐지까지 막으면 근거 없이 막는 것이다 —
+          계산할 수 있는 하한이 있을 때만 1 차로 거르고 나머지는 실행이 본다.</p>
+
+        <h4>Open Questions (권장안 굵게)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권장</th></tr></thead>
+          <tbody>
+            <tr><td>OQ1</td><td><code>FIXED</code> 문구에 묶음 요약(<span class="mono">RAID1 · SSD · SATA · 480 GB · 2개</span>)을 붙일지</td><td><b>붙인다</b></td></tr>
+            <tr><td>OQ2</td><td>하한 비교에 여유(margin)를 둘지 — RAID 메타 · 파일시스템 오버헤드 몫</td><td><b>두지 않는다</b> — 오버헤드는 E 최종 검사가 본다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>부산물 · 주의</h4>
+        <p style="margin:6px 0 0;">파티션 표 colgroup 재배분 · <code>PartitionPresetResponse</code> 무변경 ·
+          U4-1-4 가 Data 영역 파티션 표를 만들 때 이 열 구성을 참고한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U4-1-3-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 브라우저 검증 (CP5, 항목별 스크린샷 1:1)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+
+        <h4>정상 흐름 (A)</h4>
+        <ul>
+          <li><b>A1</b> 신규 OS 설치 + RAID(OS 고정) → 안내 <code>FIXED</code> · 폼 표 6 열(디스크명 열 없음) · 저장 → 상세 안내 · 표</li>
+          <li><b>A2</b> RAID 카드 역할을 <span class="mono">우선순위에 따름</span> 으로 → 안내 <code>BY_PRIORITY</code> 즉시 갱신</li>
+          <li><b>A3</b> RAID 카드 제거 → <code>NONE</code></li>
+          <li><b>A4</b> OS 고정 <span class="mono">480 GB × 2 RAID1</span> + 파티션 합 18 GiB → 안내에 하한과 합 표기, 저장</li>
+        </ul>
+
+        <h4>비정상 조작 (B)</h4>
+        <ul>
+          <li><b>B1</b> grow 2 개 — UI 자동 해제 → curl 로 2 개 → 400 “grow 파티션은 하나만”</li>
+          <li><b>B2</b> curl 에 <code>diskName</code> 포함 → 201, 저장본에 없음(무시)</li>
+          <li><b>B3</b> 전부 Data / 없음 + OS 설치 → 안내 <code>NO_CANDIDATE</code> + 저장 400(U4-1-2 규칙)</li>
+          <li><b>B4</b> 파티션 합 500 GiB → UI 붉은 안내 + 차단 → curl 400 <code>partitionsWithinOsVolume</code></li>
+          <li><b>B5</b> 용량 자동 탐지 묶음 → “실행 시 확인” 문구 · 500 GiB 도 저장 201</li>
+        </ul>
+
+        <h4>막는 방식 (C)</h4>
+        <ul>
+          <li><b>C1</b> 안내 줄 4 문구 스크린샷</li>
+          <li><b>C2</b> 레벨 옵션의 <code>data-usable-a</code> · <code>data-usable-b</code> 렌더</li>
+          <li><b>C3</b> 표 폭 6 열</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <p style="margin-top:0;"><span class="chip new">신설</span> <code>enums/OsVolumeTargetKind</code> · <code>dto/response/OsVolumeTarget</code> ·
+          <code>service/reference/os/OsVolumeTargets</code> · <code>OsVolumeTargetsTest</code>.</p>
+        <p><span class="chip mod">수정</span> <code>PartitionRequest</code> · <code>LinuxPartitionRules</code> · <code>InvalidPartitionException</code> ·
+          <code>SettingDetailResponse</code> · <code>RaidLevel</code>(<span class="mono">management.raidcard.enums</span>) · <code>DiskGroupRuleRequest</code> ·
+          <code>RaidConfigurationRequest</code> · <code>LinuxInstallationRequest</code> · <code>SettingSaveRequest</code> · <code>setting-new.html</code> ·
+          <code>setting-form.js</code> · <code>setting.css</code> · <code>setting-process-cards.html</code> · 테스트 7.</p>
+        <p><span class="chip keep">유지</span> <code>PartitionPresetResponse</code> · phase · DDL.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U4-1-3-next">
+          <li><label><input type="checkbox" data-key="cp"> <span>CP1 승인 → CP2~CP4 → CP4 중간 승인 → 테스트 → CP5(<span class="mono">sbx-u412</span>) → CP6 → CP7</span></label></li>
+          <li><label><input type="checkbox" data-key="u414"> <span>U4-1-4 Data 영역 파티셔닝 — <code>OS_SETTING</code> 절 신설, <code>NONE</code> 볼륨 제외, Data 순번 참조</span></label></li>
+          <li><label><input type="checkbox" data-key="e"> <span>E 인계 — OS 영역 볼륨 → 설치기 장치 매핑 · 실제 볼륨 용량으로 파티션 합 최종 검사</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — RAID 구성 단계 상태 5 가지 → 대상 볼륨 안내 · 용량 하한 · grow 하나
+  //  ⚠ 판정은 서버 도메인 메서드의 사본 (드리프트 0)
+  //     describeOsVolumeTarget = OsVolumeTargets.describe(RaidConfigurationRequest)  — 4 분기
+  //     targetDisplay          = OsVolumeTarget.toDisplay()  (FIXED 만 묶음 요약을 괄호로 붙인다 — OQ1)
+  //     usableDisks            = RaidLevel.usableDisks  (a × n + b)
+  //     groupLowerBound        = DiskGroupRuleRequest.usableCapacityLowerBoundBytes
+  //     osLowerBound           = RaidConfigurationRequest.osVolumeCapacityLowerBoundBytes
+  //     fixedPartitionBytes    = LinuxInstallationRequest.fixedPartitionBytes  (grow 행 제외)
+  //     withinOsVolume         = SettingSaveRequest.isPartitionsWithinOsVolume  (fixed ≤ bound, grow 있으면 <)
+  //     growViolations         = LinuxPartitionRules.validateSingleGrow  (목록 전체 grow ≤ 1)
+  //  ⚠ 규칙 → 볼륨 매칭과 볼륨 → 설치기 장치 매핑은 E 의 몫이라 데모는 정의서가 적는 것까지만 그린다.
+  //  ⚠ demoRender() 는 파일 끝에서 1 회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const KIND_MESSAGE = {                                   // OsVolumeTargetKind 의 메시지
+    NONE:         'RAID 구성 단계가 없어 설치기가 디스크를 자동 선택합니다',
+    FIXED:        'RAID 구성 %d번 묶음이 OS 영역입니다',
+    BY_PRIORITY:  '볼륨 우선순위 1 순위 볼륨이 OS 영역입니다',
+    NO_CANDIDATE: 'OS 영역이 될 묶음이 없습니다 — OS 설치 단계와 함께 저장할 수 없습니다'
+  };
+  const ROLE_LABEL = { BY_PRIORITY:'우선순위에 따름', OS:'OS 영역', DATA:'Data 영역', NONE:'영역 할당 없음' };
+  const ROLE_BADGE = { BY_PRIORITY:'dep', OS:'on', DATA:'off', NONE:'off' };
+  const USABLE = { RAID0:[1,0], RAID1:[0,1], RAID5:[1,-1], RAID6:[1,-2], RAID10:[0.5,0] };  // RaidLevel 의 (a, b)
+  const GIB = 1024 * 1024 * 1024;
+  const RULE = {                                           // 묶음 규칙 (level null = RAID 없음, diskGb null = 용량 자동 탐지)
+    r1:     { no:1, level:null,    diskGb:960,  count:1, summary:'RAID 없음 · SSD · NVMe · 960 GB · 1개' },
+    r2:     { no:2, level:'RAID1', diskGb:480,  count:2, summary:'RAID1 · SSD · SATA · 480 GB · 2개' },
+    r2auto: { no:2, level:'RAID1', diskGb:null, count:2, summary:'RAID1 · SSD · SATA · 자동 탐지 · 2개' },
+    r3:     { no:3, level:'RAID5', diskGb:4000, count:3, summary:'RAID5 · HDD · 4 TB · 3개' }
+  };
+  const as = (rule, role) => Object.assign({}, rule, { role: role });
+  const RAID_PRESETS = {                                   // RaidConfigurationRequest 프리셋
+    A: null,
+    B: { rules:[ as(RULE.r1,'BY_PRIORITY'), as(RULE.r2,'BY_PRIORITY'), as(RULE.r3,'DATA') ] },
+    C: { rules:[ as(RULE.r1,'BY_PRIORITY'), as(RULE.r2,'OS'),          as(RULE.r3,'DATA') ] },
+    D: { rules:[ as(RULE.r1,'DATA'),        as(RULE.r2,'DATA'),        as(RULE.r3,'NONE') ] },
+    E: { rules:[ as(RULE.r1,'BY_PRIORITY'), as(RULE.r2auto,'OS'),      as(RULE.r3,'DATA') ] }
+  };
+  const PART_ROWS = [                                      // OS 설치 단계 파티션 4 행 (디스크명 열 없음, 단위는 GiB 고정)
+    { mount:'/boot/efi', fs:'EFI' }, { mount:'/boot', fs:'XFS' }, { mount:'swap', fs:'swap' }, { mount:'/', fs:'XFS' }
+  ];
+  let demoRaid = 'C';                                      // 초기 = ⓒ 2번 묶음 OS 고정
+  let demoSizes = [1, 1, 16, 0];                           // 초기 = 1 · 1 · 16 GiB · grow
+  let demoGrows = [false, false, false, true];             // 초기 = / 한 행만 grow
+
+  function describeOsVolumeTarget(raid) {                   // OsVolumeTargets.describe 의 사본
+    if (raid === null || raid.rules.length === 0) return { kind:'NONE' };
+    const fixed = raid.rules.find(r => r.role === 'OS');
+    if (fixed) return { kind:'FIXED', ruleNo:fixed.no, ruleSummary:fixed.summary };
+    if (raid.rules.some(r => r.role === 'BY_PRIORITY')) return { kind:'BY_PRIORITY' };
+    return { kind:'NO_CANDIDATE' };
+  }
+  function targetDisplay(t) {                               // OsVolumeTarget.toDisplay 의 사본
+    if (t.kind === 'FIXED') return 'RAID 구성 ' + t.ruleNo + '번 묶음(' + t.ruleSummary + ')이 OS 영역입니다';
+    return KIND_MESSAGE[t.kind];
+  }
+  function growViolations(grows) {                          // LinuxPartitionRules.validateSingleGrow 의 사본
+    const marked = grows.map((g, i) => g ? i : -1).filter(i => i >= 0);
+    return marked.slice(1);                                 // 첫 grow 를 넘어선 행이 위반
+  }
+
+  function usableDisks(level, n) {                          // RaidLevel.usableDisks 의 사본 (a × n + b)
+    const ab = USABLE[level];
+    return ab[0] * n + ab[1];
+  }
+  function groupLowerBound(rule) {                          // DiskGroupRuleRequest.usableCapacityLowerBoundBytes 의 사본
+    if (rule.diskGb === null) return null;                  // 용량 자동 탐지 → 모른다
+    const oneDisk = rule.diskGb * 1e9;                      // 디스크는 십진 단위
+    return rule.level === null ? oneDisk : usableDisks(rule.level, rule.count) * oneDisk;
+  }
+  function osLowerBound(raid) {                             // RaidConfigurationRequest.osVolumeCapacityLowerBoundBytes 의 사본
+    if (raid === null) return null;
+    const fixed = raid.rules.filter(r => r.role === 'OS');
+    const candidates = fixed.length > 0 ? fixed : raid.rules.filter(r => r.role === 'BY_PRIORITY');
+    if (candidates.length === 0) return null;
+    const bounds = candidates.map(groupLowerBound);
+    return bounds.indexOf(null) >= 0 ? null : Math.min.apply(null, bounds);
+  }
+  function fixedPartitionBytes(sizes, grows) {              // LinuxInstallationRequest.fixedPartitionBytes 의 사본
+    return sizes.reduce((sum, s, i) => grows[i] ? sum : sum + s * GIB, 0);   // 파티션은 이진 단위
+  }
+  function withinOsVolume(fixed, bound, hasGrow) {          // SettingSaveRequest.isPartitionsWithinOsVolume 의 사본
+    if (bound === null) return true;                        // 하한을 모르면 검사하지 않는다
+    return hasGrow ? fixed < bound : fixed <= bound;
+  }
+
+  function demoSetRaid(k) { demoRaid = k; demoRender(); }
+  function demoSetSize(i, v) { demoSizes[i] = Math.max(0, Number(v) || 0); demoRender(); }
+  function demoToggleGrow(i, on) { demoGrows[i] = on; demoRender(); }
+
+  const gb  = b => Math.round(b / 1e9) + ' GB';
+  const gib = b => (Math.round(b / GIB * 10) / 10) + ' GiB';
+
+  function demoRender() {
+    const raid = RAID_PRESETS[demoRaid];
+    const target = describeOsVolumeTarget(raid);
+    const bad = growViolations(demoGrows);
+    const growCount = demoGrows.filter(Boolean).length;
+    const hasGrow = growCount > 0;
+    const bound = osLowerBound(raid);
+    const fixedBytes = fixedPartitionBytes(demoSizes, demoGrows);
+    const within = withinOsVolume(fixedBytes, bound, hasGrow);
+
+    document.querySelectorAll('input[name="demo-raid"]').forEach(r => { r.checked = (r.value === demoRaid); });
+
+    document.getElementById('demo-rules').innerHTML = (raid === null)
+      ? '<div class="ux-row muted"><span class="label">RAID 구성 단계 카드가 정의서에 없습니다</span></div>'
+      : raid.rules.map(r => '<div class="ux-row"><strong>' + r.no + '번</strong><span class="label">' + r.summary +
+          '</span><span class="badge ' + ROLE_BADGE[r.role] + '">' + ROLE_LABEL[r.role] + '</span></div>').join('');
+
+    let capLine = '';
+    if (target.kind === 'FIXED' || target.kind === 'BY_PRIORITY') {
+      capLine = (bound === null)
+        ? 'OS 영역 용량은 실행 시 확인됩니다(자동 탐지)'
+        : 'OS 영역 최소 용량 ' + gb(bound) + ' · 고정 파티션 합 ' + gib(fixedBytes) + (hasGrow ? '(+ grow)' : '');
+    }
+    const hint = document.getElementById('demo-hint');
+    hint.className = 'ux-message' + ((target.kind === 'NO_CANDIDATE' || !within) ? ' error' : '');
+    hint.innerHTML = targetDisplay(target) + (capLine ? '<br>' + capLine : '');
+
+    document.getElementById('demo-partitions').innerHTML =
+      '<table><thead><tr><th>마운트포인트</th><th>파일시스템</th><th>크기</th><th>단위</th><th>Grow</th></tr></thead><tbody>' +
+      PART_ROWS.map((p, i) =>
+        '<tr' + (bad.indexOf(i) >= 0 ? ' data-error="1"' : '') + '><td>' + p.mount + '</td><td>' + p.fs +
+        '</td><td><input type="number" min="0" value="' + demoSizes[i] + '"' + (demoGrows[i] ? ' disabled' : '') +
+        ' onchange="demoSetSize(' + i + ', this.value)"></td><td>GiB</td>' +
+        '<td><label><input type="checkbox"' + (demoGrows[i] ? ' checked' : '') +
+        ' onchange="demoToggleGrow(' + i + ', this.checked)"> 나머지 전체</label></td></tr>').join('') +
+      '</tbody></table>';
+
+    const blocked = bad.length > 0 || target.kind === 'NO_CANDIDATE' || !within;
+    document.getElementById('demo-save-badge').innerHTML = blocked
+      ? '<span class="badge del">저장 불가 (400)</span>' : '<span class="badge on">저장 가능</span>';
+    document.getElementById('demo-save-note').textContent = (bad.length > 0)
+      ? 'grow 파티션은 하나만 둘 수 있습니다 — OS 영역 볼륨은 하나입니다.'
+      : !within
+        ? 'OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.'
+        : (target.kind === 'NO_CANDIDATE'
+            ? 'OS 영역이 될 묶음이 없습니다 — U4-1-2 의 osVolumeDeterminable 이 막습니다.'
+            : '파티션 4 행 · grow ' + growCount + ' 개 · 용량 검사 통과');
+
+    const tf = v => v ? '<span class="t">차단</span>' : '<span class="f">허용</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'OsVolumeTargets.describe(raid)                            = ' + target.kind +
+        (target.kind === 'FIXED' ? '  (ruleNo=' + target.ruleNo + ')' : '') + '\n' +
+      'RaidConfigurationRequest.osVolumeCapacityLowerBoundBytes() = ' +
+        (bound === null ? '없음 (자동 탐지 · RAID 구성 없음 · 후보 없음)' : gb(bound)) + '\n' +
+      'LinuxInstallationRequest.fixedPartitionBytes()             = ' + gib(fixedBytes) + (hasGrow ? '  (+ grow)' : '') + '\n' +
+      'SettingSaveRequest.isPartitionsWithinOsVolume()            = ' + tf(!within) + '\n' +
+      'LinuxPartitionRules.validateSingleGrow()                   = grow ' + growCount + ' 개 → ' + tf(bad.length > 0);
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1 회 호출
+</script>
+</body>
+</html>

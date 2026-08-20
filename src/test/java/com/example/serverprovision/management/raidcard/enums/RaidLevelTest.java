@@ -30,4 +30,21 @@ class RaidLevelTest {
 		assertThat(level.minimumDisks(false)).isEqualTo(expected);
 		assertThat(level.minimumDisks(true)).isEqualTo(expected);
 	}
+
+	@ParameterizedTest
+	@CsvSource({"RAID0,2,2", "RAID0,5,5", "RAID1,2,1", "RAID1,4,1", "RAID5,3,2", "RAID5,6,5", "RAID6,4,2", "RAID6,5,3", "RAID10,4,2", "RAID10,8,4"})
+	@DisplayName("usableDisks — RAID0 n · RAID1 1 · RAID5 n−1 · RAID6 n−2 · RAID10 n/2 (U4-1-3 D7, 하한 계산 재료)")
+	void usableDisks_perLevel(RaidLevel level, int members, int expected) {
+		assertThat(level.usableDisks(members)).isEqualTo(expected);
+	}
+
+	@Test
+	@DisplayName("usableDisks 는 n 에 단조 증가(RAID1 은 상수) — 'n 개 이상' 에 최소 n 을 넣은 값이 하한이라는 근거")
+	void usableDisks_monotonic() {
+		for (RaidLevel level : RaidLevel.values()) {
+			for (int n = level.minimumDisks(false); n < 12; n++) {
+				assertThat(level.usableDisks(n + 1)).isGreaterThanOrEqualTo(level.usableDisks(n));
+			}
+		}
+	}
 }

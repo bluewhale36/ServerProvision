@@ -13,6 +13,7 @@ import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
+import com.example.serverprovision.management.raidcard.repository.RaidCardRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.BiosTemplateOptionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.DeprecatedUsageResponse;
@@ -22,6 +23,7 @@ import com.example.serverprovision.provisioning.setting.dto.request.BasicSetting
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.OSSettingRequest;
+import com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.PartitionPresetResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.ReferenceNamesResponse;
@@ -31,6 +33,8 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingBoar
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingRaidCardOptionGroupResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingRaidCardOptionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.TimezoneRegionResponse;
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
@@ -75,6 +79,8 @@ public class JpaSettingQueryService implements SettingQueryService {
     private final OSEnvironmentRepository osEnvironmentRepository;
     private final OSPackageGroupRepository osPackageGroupRepository;
     private final BiosSettingTemplateRepository biosSettingTemplateRepository;
+    // U4-1-1 — RAID 카드 선택지 · 상세의 카드명 해석. setting → management.raidcard 단방향(boards 선례).
+    private final RaidCardRepository raidCardRepository;
 
     /**
      * management OSFamily → setting OSFamily 선언적 매핑(2단 판별자 축).
@@ -295,6 +301,7 @@ public class JpaSettingQueryService implements SettingQueryService {
         Map<Long, String> packageGroups = new LinkedHashMap<>();
         Map<Long, String> templates = new LinkedHashMap<>();
         Map<Long, String> isos = new LinkedHashMap<>();
+        Map<Long, String> raidCards = new LinkedHashMap<>();
         for (AbstractProcessRequest process : processList) {
             if (process instanceof BasicSettingRequest basicSetting) {
                 biosSettingTemplateRepository.findAllById(basicSetting.getBiosSettingTemplateIds())
@@ -328,6 +335,10 @@ public class JpaSettingQueryService implements SettingQueryService {
                     osPackageGroupRepository.findAllById(rhel.getPackageGroupIds())
                             .forEach(g -> packageGroups.put(g.getId(), g.getDisplayName()));
                 }
+            } else if (process instanceof RaidConfigurationRequest raid && raid.getRaidCardId() != null) {
+                // 소프트참조(U4-1-1) — 삭제된 카드는 맵에 넣지 않아 템플릿이 "(사라진 카드 #id)" 로 그린다.
+                raidCardRepository.findByIdAndIsDeletedFalse(raid.getRaidCardId())
+                        .ifPresent(card -> raidCards.put(card.getId(), card.displayName()));
             } else if (process instanceof OSSettingRequest setting) {
                 osMetadataRepository.findById(setting.getOsMetadataId())
                         .ifPresent(os -> osNames.put(os.getId(),
@@ -337,7 +348,7 @@ public class JpaSettingQueryService implements SettingQueryService {
         return new ReferenceNamesResponse(
                 Map.copyOf(boards), Map.copyOf(biosVersions), Map.copyOf(bmcVersions),
                 Map.copyOf(osNames), Map.copyOf(environments), Map.copyOf(packageGroups),
-                Map.copyOf(templates), Map.copyOf(isos));
+                Map.copyOf(templates), Map.copyOf(isos), Map.copyOf(raidCards));
     }
 
     /**
@@ -388,6 +399,22 @@ public class JpaSettingQueryService implements SettingQueryService {
     public List<BiosTemplateOptionResponse> findBiosTemplateOptions() {
         return biosSettingTemplateRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
                 .map(BiosTemplateOptionResponse::from)
+                .toList();
+    }
+
+    /**
+     * OS 설치 단계 폼의 RAID 카드 선택지(U4-1-1) — 제조사 그룹, repository 의 vendor asc 정렬 승계.
+     * disabled(effective) 는 렌더 배제 · deprecated 는 포함 + 메타({@link #findBoardOptions} 와 같은 lifecycle 규칙).
+     */
+    @Override
+    public List<SettingRaidCardOptionGroupResponse> findRaidCardOptions() {
+        Map<String, List<SettingRaidCardOptionResponse>> groups = new LinkedHashMap<>();
+        raidCardRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc().stream()
+                .filter(LifecycleEntity::isEnabled)
+                .forEach(card -> groups.computeIfAbsent(card.getVendor().getDisplayName(), k -> new ArrayList<>())
+                        .add(SettingRaidCardOptionResponse.of(card, deprecatedAtDisplay(card))));
+        return groups.entrySet().stream()
+                .map(e -> new SettingRaidCardOptionGroupResponse(e.getKey(), List.copyOf(e.getValue())))
                 .toList();
     }
 
