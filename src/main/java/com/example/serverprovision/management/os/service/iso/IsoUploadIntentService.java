@@ -13,7 +13,7 @@ import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.exception.*;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
-import com.example.serverprovision.management.os.util.IsoPathResolver;
+import com.example.serverprovision.management.common.util.UploadPathResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -58,7 +58,7 @@ public class IsoUploadIntentService {
 		String filename = request.filename();
 		long size = request.size();
 
-		String resolvedPath = IsoPathResolver.resolve(
+		String resolvedPath = UploadPathResolver.resolve(
 				rawPath,
 				filename,
 				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + p)
@@ -204,7 +204,7 @@ public class IsoUploadIntentService {
 		osMetadataRepository.findByIdAndIsDeletedFalse(osMetadataId)
 				.orElseThrow(() -> new OSMetadataNotFoundException(osMetadataId));
 
-		String resolvedPath = IsoPathResolver.resolve(
+		String resolvedPath = UploadPathResolver.resolve(
 				request.isoPath(),
 				request.filename(),
 				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + p)

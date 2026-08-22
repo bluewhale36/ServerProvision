@@ -1,24 +1,23 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  A3 v3. BIOS 번들 업로드 폼 (BoardModel 서브 리소스).
+  R12-1. BIOS 펌웨어 등록 폼 (BoardModel 서브 리소스).
   ─────────────────────────────────────────────
   Model:
-    biosForm     : BiosCreateRequest  @ModelAttribute
-                     · name / version / targetDirectory / description
-                     · allowCreateDirectory / entrypointRelativePath(선택)
-    boardId      : Long
-    contextLabel : String
+    biosForm               : BiosCreateRequest  @ModelAttribute
+                               · name / version / firmwarePath / description / allowCreateDirectory
+    boardId                : Long
+    contextLabel           : String
+    firmwareForbiddenNames : String (금지 파일명 CSV — BiosFirmwareFilePolicy 가 SSOT)
 
-  업로드 방식 택 1:
-    · 폴더 업로드 : <input type="file" webkitdirectory multiple name="folderFiles">
-    · zip 업로드 : <input type="file" accept=".zip" name="zipFile">
-    · 선택 탭으로 토글 + uploadMode 값을 hidden 으로 전송
+  등록 방식 (ISO 와 동일한 단일 폼):
+    · firmwarePath 가 / 로 끝나면 디렉토리로 간주해 업로드 파일명을 이어 붙인다.
+    · 파일을 첨부하면 그 경로에 저장(Intent + XHR foreground), 비우면 그 경로의 기존 파일을 등록(claim).
 
-  흐름: iso-new 와 동일한 Intent + XHR foreground 패턴. bios-new.js 가 탭 선택 · 트리 집계 · Intent 호출 · XHR 전송 담당.
+  bios-new.js 가 금지 파일명 사전 검사 · Intent 호출 · XHR 전송 · claim 제출을 담당.
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 번들 등록')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 펌웨어 등록')}"></th:block>
     <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
 </head>
 <body>
@@ -26,7 +25,7 @@
 
 <div class="n-page-md">
     <div class="n-page-header">
-        <h1 class="n-page-title">BIOS 번들 등록</h1>
+        <h1 class="n-page-title">BIOS 펌웨어 등록</h1>
         <div class="n-header-actions">
             <a id="backLink"
                th:href="@{/management/bios(selectBoardId=${boardId})}"
@@ -39,7 +38,7 @@
     <div class="n-card" th:if="${boardId == null}">
         <div class="n-card-body">
             <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
-                BIOS 번들을 등록할 메인보드 모델을 선택하세요.
+                BIOS 펌웨어를 등록할 메인보드 모델을 선택하십시오.
             </div>
             <div class="n-form-group">
                 <label class="n-label strong" for="boardSelector">메인보드 모델</label>
@@ -53,7 +52,7 @@
                         </optgroup>
                     </th:block>
                 </select>
-                <div class="n-hint">선택 즉시 아래에 해당 모델의 BIOS 번들 등록 폼이 표시됩니다. 보드를 다시 바꿀 수 있어요.</div>
+                <div class="n-hint">선택 즉시 아래에 해당 모델의 BIOS 펌웨어 등록 폼이 표시됩니다. 보드를 다시 바꿀 수 있습니다.</div>
             </div>
         </div>
     </div>
@@ -71,8 +70,11 @@
             <form id="biosForm"
                   th:data-upload-url="@{/management/bios/{boardId}/upload(boardId=${boardId})}"
                   th:data-intent-url="@{/management/bios/{boardId}/upload-intent(boardId=${boardId})}"
-                  th:data-register-existing-url="@{/management/bios/{boardId}/register-existing(boardId=${boardId})}"
                   th:data-list-url="@{/management/bios(selectBoardId=${boardId})}"
+                  th:data-forbidden-names="${firmwareForbiddenNames}"
+                  th:data-forbidden-message="${firmwareForbiddenMessage}"
+                  th:data-allowed-extensions="${firmwareAllowedExtensions}"
+                  th:data-invalid-extension-message="${firmwareInvalidExtensionMessage}"
                   th:object="${biosForm}"
                   method="post"
                   enctype="multipart/form-data"
@@ -87,7 +89,7 @@
                            class="n-input"
                            data-error-field="name"
                            th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
-                           placeholder="예: Gigabyte MS03-CE0 BIOS Bundle">
+                           placeholder="예: Gigabyte MS03-CE0 BIOS">
                     <div class="n-hint">사람이 식별하기 쉬운 레이블.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
                 </div>
@@ -99,115 +101,59 @@
                            data-error-field="version"
                            th:classappend="${#fields.hasErrors('version')} ? 'is-invalid'"
                            placeholder="예: 2.03">
-                    <div class="n-hint">같은 메인보드 내에서 버전은 유일해야 합니다.</div>
+                    <div class="n-hint">같은 메인보드 안에서 버전은 유일해야 합니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
                 </div>
 
                 <div class="n-form-group">
-                    <label class="n-label strong" for="targetDirectory">대상 디렉토리</label>
+                    <label class="n-label strong" for="firmwarePath">펌웨어 파일 경로</label>
                     <div style="display: flex; gap: 8px;">
-                        <input id="targetDirectory" type="text" th:field="*{targetDirectory}"
+                        <input id="firmwarePath" type="text" th:field="*{firmwarePath}"
                                class="n-input" style="flex: 1;"
-                               data-error-field="targetDirectory"
-                               th:classappend="${#fields.hasErrors('targetDirectory')} ? 'is-invalid'"
-                               placeholder="/mnt/firmware/bios/gigabyte/ms03-ce0/2.03/"
+                               data-error-field="firmwarePath"
+                               th:classappend="${#fields.hasErrors('firmwarePath')} ? 'is-invalid'"
+                               placeholder="예: /mnt/firmware/bios/2.03/"
                                th:data-browse-url="@{/management/browse}">
                         <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
                     </div>
-                    <div class="n-hint">번들 등록 방식에 따라 의미가 달라집니다 — 업로드 모드에서는 "전개 대상 (비어있어야 함)", 기존 디렉토리 등록 모드에서는 "이미 콘텐츠가
-                        차 있는 디렉토리". 경로를 직접 타자하거나 "탐색" 버튼으로 서버 디렉토리를 골라 채울 수 있습니다.
+                    <div class="n-hint">
+                        서버 파일시스템상의 펌웨어 파일 경로. 경로가 <code>/</code> 로 끝나면 디렉토리로 간주해
+                        업로드 파일명이 자동으로 이어 붙습니다. 아래에서 파일을 첨부하면 이 경로에 저장하고,
+                        비우면 이 경로의 기존 파일을 그대로 등록합니다. 펌웨어 파일은 자기만의 디렉토리에
+                        하나씩 두어야 합니다 — 다른 파일이 함께 있는 디렉토리는 거절됩니다.
                     </div>
-                    <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}"
-                         th:errors="*{targetDirectory}"></div>
+                    <div class="n-error" th:if="${#fields.hasErrors('firmwarePath')}"
+                         th:errors="*{firmwarePath}"></div>
 
                     <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글 -->
-                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', null)}"></div>
+                    <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', '이 디렉토리에 저장')}"></div>
+                    <div class="n-hint" style="margin-top: 6px;">
+                        <strong>이 디렉토리에 저장</strong>: 현재 디렉토리를 펌웨어 파일 경로로 적용 — 파일 업로드 시 파일명이 자동 추가됩니다.
+                    </div>
 
                     <label class="n-check"
                            style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>상위 디렉토리 생성 허용</span>
                     </label>
-                    <div class="n-hint">대상 경로의 상위(부모) 디렉토리가 없을 때 함께 생성합니다. 대상 디렉토리 자체는 업로드 시 생성됩니다.</div>
-                </div>
-
-                <!-- 업로드 방식 선택 탭 -->
-                <div class="n-form-group">
-                    <label class="n-label strong">번들 등록 방식</label>
-                    <div role="tablist" style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
-                        <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
-                                aria-selected="true" data-mode="FOLDER">폴더 업로드
-                        </button>
-                        <button type="button" id="modeTabZip" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="ZIP">Zip 업로드
-                        </button>
-                        <button type="button" id="modeTabSingle" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="SINGLE_FILE">단일 파일 업로드
-                        </button>
-                        <button type="button" id="modeTabExisting" class="n-btn n-btn-sm n-btn-ghost" role="tab"
-                                aria-selected="false" data-mode="EXISTING_DIRECTORY">기존 디렉토리 등록
-                        </button>
-                    </div>
-
-                    <input type="hidden" id="uploadMode" name="uploadMode" value="FOLDER">
-
-                    <!-- 폴더 업로드 : webkitdirectory + multiple  (Gigabyte 다중 파일 번들) -->
-                    <div id="folderPane">
-                        <input id="folderFiles" type="file" name="folderFiles"
-                               webkitdirectory multiple class="n-input">
-                        <div class="n-hint">
-                            <strong>단일 폴더 하나</strong>만 선택합니다. 개별 파일 여러 개를 흩뿌려 올리는 방식은 거절됩니다.
-                            선택한 폴더 <em>자체</em> 는 대상 디렉토리에 만들어지지 않고,
-                            그 안의 내용물만 대상 디렉토리로 전개됩니다 (폴더 이름 prefix 자동 제거).
-                            Gigabyte 서버보드 BIOS (RBU / SPI_UPD / f.nsh 등 다중 파일) 에 적합.
-                        </div>
-                    </div>
-
-                    <!-- zip 업로드 -->
-                    <div id="zipPane" hidden>
-                        <input id="zipFile" type="file" name="zipFile" accept=".zip" class="n-input">
-                        <div class="n-hint">
-                            zip 내용이 파일들을 <strong>직접</strong> 담고 있으면 그대로 전개.
-                            zip 이 단일 폴더로 한번 감싼 형태이면 그 폴더는 제거되고 내용물만 전개됩니다.
-                            zip 파일 자체는 전개 후 폐기.
-                        </div>
-                    </div>
-
-                    <!-- 단일 파일 업로드 : ASUS .cap/.CAP 등 단일 바이너리 -->
-                    <div id="singlePane" hidden>
-                        <input id="singleFile" type="file" name="singleFile" class="n-input">
-                        <div class="n-hint">
-                            파일 하나가 BIOS 전체를 담고 있는 경우 (예: ASUS 의 <code>.cap</code>/<code>.CAP</code>).
-                            해당 파일이 대상 디렉토리에 저장되고, 서버가 그 파일 자체를 진입점(대상 파일) 으로 등록합니다.
-                            Fujitsu 처럼 iRMC 웹 API 기반 업데이트는 파일 업로드 모델로 표현 불가해 지원되지 않습니다.
-                        </div>
-                    </div>
-
-                    <!-- 기존 디렉토리 등록 : 업로드 없이 이미 콘텐츠가 차 있는 트리를 자원으로 claim -->
-                    <div id="existingPane" hidden>
-                        <div class="n-alert n-alert-muted">
-                            <strong>대상 디렉토리</strong> 에 이미 BIOS 번들 파일들이 존재한다는 전제로 등록합니다.
-                            업로드 바이트 전송 없이 서버가 트리를 직접 스캔해 manifest · 진입점 · marker 를 생성합니다.
-                            <ul style="margin: 6px 0 0 18px; padding: 0;">
-                                <li>경로가 존재하고 디렉토리여야 합니다.</li>
-                                <li>이미 다른 등록의 <code>.provision.json</code> 마커가 있는 디렉토리는 거절됩니다.</li>
-                                <li>"디렉토리 생성 허용" 옵션은 무시됩니다 (디렉토리는 이미 있어야 함).</li>
-                            </ul>
-                        </div>
-                    </div>
+                    <div class="n-hint">대상 경로의 상위(부모) 디렉토리가 없을 때 함께 생성합니다.</div>
                 </div>
 
                 <div class="n-form-group">
-                    <label class="n-label" for="entrypointRelativePath">진입점 상대경로 (선택)</label>
-                    <input id="entrypointRelativePath" type="text" th:field="*{entrypointRelativePath}"
-                           class="n-input"
-                           data-error-field="entrypointRelativePath"
-                           placeholder="예: f.nsh  (비워두면 자동 탐지)">
+                    <label class="n-label" for="firmwareFile">펌웨어 파일 업로드 (선택)</label>
+                    <!-- R12-1 — accept 속성은 vendor 별 허용 확장자에서 파생 (제한 없는 vendor 는 미표기). -->
+                    <input id="firmwareFile" type="file" name="firmwareFile" class="n-input"
+                           data-error-field="firmwareFile"
+                           th:accept="${#strings.isEmpty(firmwareAcceptAttribute)} ? null : ${firmwareAcceptAttribute}">
                     <div class="n-hint">
-                        비워두면 서버가 트리 루트에서 <code>f.nsh</code> → <code>flash.nsh</code> → 단일 <code>*.nsh</code> 순으로 자동
-                        탐지합니다.
-                        진입점은 <strong>실행 파일 자체만</strong> 지정합니다. 실행 시 파라미터 등은 향후 Execution 도메인에서 관장합니다.
+                        비워두면 파일 전송 없이 위 경로의 기존 파일을 등록합니다.
+                        <span th:if="${#strings.isEmpty(firmwareAllowedExtensions)}">파일 형식(확장자)은 제한하지 않습니다.</span>
+                        <span th:if="${not #strings.isEmpty(firmwareInvalidExtensionMessage)}"
+                              th:text="${firmwareInvalidExtensionMessage}"></span>
                     </div>
+                    <!-- R12-1 — vendor 별 금지 파일명 안내. 문구 정본 = FirmwareFilePolicyStrategy (제약 없는 vendor 는 비노출). -->
+                    <div class="n-hint" th:if="${not #strings.isEmpty(firmwareForbiddenMessage)}"
+                         th:text="${firmwareForbiddenMessage}"></div>
                 </div>
 
                 <div class="n-form-group">
@@ -215,18 +161,21 @@
                     <textarea id="description" th:field="*{description}"
                               class="n-textarea" rows="3"
                               data-error-field="description"
-                              placeholder="예: 2026-03 릴리스. AMI AfuEfix64 별도 주입 필요."></textarea>
+                              th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"
+                              placeholder="예: 2026-03 릴리스. 로고 변경본."></textarea>
+                    <div class="n-error" th:if="${#fields.hasErrors('description')}"
+                         th:errors="*{description}"></div>
                 </div>
 
                 <div class="n-form-actions">
                     <a id="cancelLink"
                        th:href="@{/management/bios(selectBoardId=${boardId})}"
                        class="n-btn n-btn-secondary">취소</a>
-                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">번들 등록</button>
+                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">등록</button>
                 </div>
 
                 <div class="n-hint" style="margin-top: 16px;">
-                    번들이 업로드되는 동안 페이지를 떠나지 마세요. 업로드 완료 시 자동으로 목록 페이지로 이동합니다.
+                    등록이 끝날 때까지 페이지를 떠나지 마십시오. 완료되면 자동으로 목록 페이지로 이동합니다.
                 </div>
 
                 <div id="uploadProgress" class="n-upload-progress">

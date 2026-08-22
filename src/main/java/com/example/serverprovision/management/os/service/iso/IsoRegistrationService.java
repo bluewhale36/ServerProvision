@@ -20,7 +20,7 @@ import com.example.serverprovision.management.os.exception.*;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
 import com.example.serverprovision.management.os.service.postcreation.PostCreationTaskStrategy;
-import com.example.serverprovision.management.os.util.IsoPathResolver;
+import com.example.serverprovision.management.common.util.UploadPathResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -107,7 +107,7 @@ public class IsoRegistrationService {
 
 		boolean hasFile = uploadedFile != null && !uploadedFile.isEmpty();
 		String originalFilename = hasFile ? uploadedFile.getOriginalFilename() : null;
-		String resolvedPath = IsoPathResolver.resolve(
+		String resolvedPath = UploadPathResolver.resolve(
 				request.isoPath(),
 				originalFilename,
 				path -> new InvalidIsoPathException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path)

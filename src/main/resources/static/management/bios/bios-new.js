@@ -1,9 +1,8 @@
 /* ============================================================
-   management/bios/bios-new.html 전용 스크립트 (v3 — 번들 업로드)
+   management/bios/bios-new.html 전용 스크립트 (R12-1 — 단일 폼)
    ─────────────────────────────────────────────────────────────
-   폴더/zip 탭 전환 · Intent 사전검증 · XHR foreground 업로드.
-   iso-new.js 와 공통 뼈대를 공유하지만 번들 스키마에 맞춰 재구성.
-   3회 반복(A3/A4/A5) 확보 후 `static/global/file-upload-foreground.js` 로 승격 예정.
+   금지 파일명 사전 검사 · Intent 사전검증(업로드 시) · XHR foreground 업로드 ·
+   파일 없는 기존 파일 등록(claim). iso-new.js 와 공통 뼈대를 공유한다.
    ============================================================ */
 (function () {
     const TAG = '[bios-new]';
@@ -22,8 +21,17 @@
 
         const uploadUrl = form.dataset.uploadUrl;
         const intentUrl = form.dataset.intentUrl;
-        const registerExistingUrl = form.dataset.registerExistingUrl;
         const listUrl = form.dataset.listUrl;
+        // R12-1 — 금지 파일명 · 허용 확장자 목록과 거절 문구는 서버(vendor 별 FirmwareFilePolicyStrategy)가
+        //         SSOT. data 속성으로 받아 표시만 한다 (JS 는 문구를 소유하지 않는다).
+        const forbiddenNames = (form.dataset.forbiddenNames || '')
+            .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        const forbiddenMessage = form.dataset.forbiddenMessage
+            || '등록할 수 없는 파일명입니다.';
+        const allowedExtensions = (form.dataset.allowedExtensions || '')
+            .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        const invalidExtensionMessage = form.dataset.invalidExtensionMessage
+            || '허용되지 않는 파일 형식입니다.';
 
         const submitBtn = document.getElementById('submitBtn');
         const cancelLink = document.getElementById('cancelLink');
@@ -34,20 +42,9 @@
         const progressText = document.getElementById('uploadText');
         const errorBox = document.getElementById('uploadError');
 
-        const uploadModeInput = document.getElementById('uploadMode');
-        const folderPane = document.getElementById('folderPane');
-        const zipPane = document.getElementById('zipPane');
-        const singlePane = document.getElementById('singlePane');
-        const existingPane = document.getElementById('existingPane');
-        const folderInput = document.getElementById('folderFiles');
-        const zipInput = document.getElementById('zipFile');
-        const singleInput = document.getElementById('singleFile');
-        const tabFolder = document.getElementById('modeTabFolder');
-        const tabZip = document.getElementById('modeTabZip');
-        const tabSingle = document.getElementById('modeTabSingle');
-        const tabExisting = document.getElementById('modeTabExisting');
+        const firmwarePathInput = document.getElementById('firmwarePath');
+        const firmwareFileInput = document.getElementById('firmwareFile');
 
-        const targetDirInput = document.getElementById('targetDirectory');
         const browseBtn = document.getElementById('browseBtn');
         const browsePanel = document.getElementById('browsePanel');
         const browseUpBtn = document.getElementById('browseUpBtn');
@@ -56,7 +53,7 @@
         const browseEntries = document.getElementById('browseEntries');
         const browseCancelBtn = document.getElementById('browseCancelBtn');
         const browseApplyBtn = document.getElementById('browseApplyBtn');
-        const browseUrl = targetDirInput ? targetDirInput.dataset.browseUrl : null;
+        const browseUrl = firmwarePathInput ? firmwarePathInput.dataset.browseUrl : null;
 
         if (!form || !uploadUrl || !intentUrl || !listUrl || !submitBtn) return;
 
@@ -75,26 +72,18 @@
             e.returnValue = '';
         });
 
-        // ---- 탭 전환 ------------------------------------------------------
-
-        const bootstrap = window.BundleUploadBootstrap;
-        if (bootstrap) {
-            bootstrap.bindModeTabs({
-                uploadModeInput, folderPane, zipPane, singlePane, existingPane,
-                folderInput, zipInput, singleInput,
-                tabFolder, tabZip, tabSingle, tabExisting,
-                onModeChange(mode) {
-                    if (submitBtn) submitBtn.textContent = mode === 'EXISTING_DIRECTORY' ? '기존 디렉토리 등록' : '번들 등록';
-                },
-                onFilesChange: resetError
-            });
+        if (firmwareFileInput) {
+            firmwareFileInput.addEventListener('change', resetError);
         }
 
         // ---- 경로 브라우저 -----------------------------------------------
+        //  R12-1 — 파일까지 표시(includeFiles). 파일 클릭 시 그 파일 경로를 채워
+        //  업로드 없는 기존 파일 등록(claim)을 바로 지정할 수 있다.
 
+        const bootstrap = window.BundleUploadBootstrap;
         if (bootstrap) {
             bootstrap.bindDirectoryBrowse({
-                targetInput: targetDirInput,
+                targetInput: firmwarePathInput,
                 browseBtn,
                 browsePanel,
                 browseUpBtn,
@@ -104,8 +93,83 @@
                 browseCancelBtn,
                 browseApplyBtn,
                 browseUrl,
-                includeFiles: false
+                includeFiles: true,
+                onFileClick(entry, currentPath) {
+                    const base = currentPath.endsWith('/') ? currentPath : currentPath + '/';
+                    if (firmwarePathInput) firmwarePathInput.value = base + entry.name;
+                    resetError();
+                }
             });
+        }
+
+        // ---- 공통 필드 ------------------------------------------------------
+
+        function resolveFields() {
+            return {
+                name: valueOf('input[name="name"]'),
+                version: valueOf('input[name="version"]'),
+                firmwarePath: valueOf('input[name="firmwarePath"]').trim(),
+                description: valueOf('textarea[name="description"]'),
+                allowCreateDirectory: !!(form.querySelector('input[name="allowCreateDirectory"]') || {}).checked
+            };
+        }
+
+        function valueOf(selector) {
+            const el = form.querySelector(selector);
+            return el ? (el.value || '') : '';
+        }
+
+        function buildFormData(fields, file) {
+            const fd = new FormData();
+            fd.append('name', fields.name.trim());
+            fd.append('version', fields.version.trim());
+            fd.append('firmwarePath', fields.firmwarePath);
+            fd.append('description', fields.description);
+            fd.append('allowCreateDirectory', fields.allowCreateDirectory ? 'true' : 'false');
+            if (file) fd.append('firmwareFile', file, file.name);
+            return fd;
+        }
+
+        /**
+         * 경로가 디렉토리를 가리키는지 (서버 UploadPathResolver.looksLikeDirectory 와 동일 규칙).
+         * R12-2 (D8) — 마지막 세그먼트의 확장자가 허용 목록에 없으면 파일명일 수 없으므로 디렉토리로 본다.
+         * 버전 번호를 디렉토리 이름으로 쓰는 관례(…/2.03)를 흡수하기 위한 규칙이다.
+         * 허용 목록이 없는 제조사는 점 유무만 본다. 규칙을 바꾸면 서버와 함께 고친다.
+         */
+        function looksLikeDirectory(path) {
+            if (!path) return false;
+            if (path.endsWith('/')) return true;
+            const idx = path.lastIndexOf('/');
+            const last = idx < 0 ? path : path.substring(idx + 1);
+            const dot = last.lastIndexOf('.');
+            if (dot < 0) return true;
+            if (allowedExtensions.length === 0) return false;
+            return !allowedExtensions.includes(last.substring(dot + 1).toLowerCase());
+        }
+
+        /**
+         * R12-1 — 최종 파일명 해석 (서버와 동일 규칙).
+         * 업로드가 있으면 디렉토리로 보이는 경로에는 업로드 파일명이 붙고, 파일 경로면 그 이름이 저장명이 된다.
+         * 업로드가 없으면(claim) 경로 자체가 대상 파일이므로 마지막 세그먼트가 파일명이다.
+         */
+        function resolveFinalFileName(path, file) {
+            if (!path) return null;
+            if (file && looksLikeDirectory(path)) return file.name;
+            const idx = path.lastIndexOf('/');
+            return idx < 0 ? path : path.substring(idx + 1);
+        }
+
+        function isForbiddenName(fileName) {
+            return !!fileName && forbiddenNames.includes(fileName.toLowerCase());
+        }
+
+        /** vendor 허용 확장자 위반 여부 (목록이 비면 제한 없음 — 서버 정책과 동일 규칙). */
+        function violatesExtensionPolicy(fileName) {
+            if (!fileName || allowedExtensions.length === 0) return false;
+            const lower = fileName.toLowerCase();
+            const dot = lower.lastIndexOf('.');
+            const ext = dot < 0 ? '' : lower.substring(dot + 1);
+            return !allowedExtensions.includes(ext);
         }
 
         // ---- Submit ------------------------------------------------------
@@ -117,34 +181,36 @@
                 window.FormError.clear(form);
             }
             resetError();   // HF-4 — uploadError 박스도 초기화(재제출 stale 방지)
-            const mode = uploadModeInput.value;
 
-            // 기존 디렉토리 등록 — 업로드 분기 진입 전 별도 처리 (intent / XHR 우회).
-            if (mode === 'EXISTING_DIRECTORY') {
-                await submitRegisterExisting();
+            const fields = resolveFields();
+            const file = firmwareFileInput && firmwareFileInput.files[0] ? firmwareFileInput.files[0] : null;
+
+            // R12-1 — 1차 차단 (UI). 서버 가드(intent · 등록 본체)와 같은 SSOT 목록을 쓴다.
+            if (fields.firmwarePath.endsWith('/') && !file) {
+                showError('경로가 / 로 끝나면 업로드할 파일이 필요합니다. 파일을 첨부하거나 파일 경로를 지정하십시오.');
+                return;
+            }
+            const finalName = resolveFinalFileName(fields.firmwarePath, file);
+            if (isForbiddenName(file && file.name) || isForbiddenName(finalName)) {
+                showError(forbiddenMessage);
+                return;
+            }
+            if (violatesExtensionPolicy(file && file.name)) {
+                showError(invalidExtensionMessage);
+                return;
+            }
+            // 경로가 저장할 파일명으로 해석된 경우의 위반은 사유를 함께 알린다 —
+            // 첨부 파일은 정상인데 경로 때문에 막히면 무엇을 고쳐야 할지 알 수 없기 때문.
+            if (violatesExtensionPolicy(finalName)) {
+                showError('경로의 마지막 이름 \'' + finalName + '\' 이 저장할 파일명으로 해석됐습니다. '
+                    + invalidExtensionMessage + ' 디렉토리 안에 저장하려면 경로 끝에 / 를 붙이십시오.');
                 return;
             }
 
-            const {fileCount, totalBytes} = shell.collectSizeInfo(mode, {
-                folderInput, zipInput, singleInput
-            });
-            if (fileCount === 0) {
-                showError('업로드할 파일이 없습니다.');
+            if (!file) {
+                await submitClaim(fields);
                 return;
             }
-
-            // 폴더 모드 가드 : 파일이 모두 "단일 최상위 폴더" 로 감싸진 형태여야 함 (요구사항 케이스 2).
-            // webkitdirectory 는 파일 선택 대화상자에서 폴더를 고르도록 강제하므로 정상 경로면 여기 걸리지 않는다.
-            // 드래그 앤 드롭 등 일부 경우에 webkitRelativePath 가 비어있거나 여러 prefix 가 섞이면 거절.
-            if (mode === 'FOLDER') {
-                const err = shell.validateFolderWrapping(Array.from(folderInput.files));
-                if (err) {
-                    showError(err);
-                    return;
-                }
-            }
-
-            const commonFields = shell.resolveCommonFields(form);
 
             submitBtn.disabled = true;
             submitBtn.textContent = '사전 검증 중…';
@@ -154,13 +220,11 @@
                 intent = await shell.requestIntent({
                     intentUrl,
                     body: {
-                        targetDirectory: commonFields.targetDirectory.trim(),
-                        uploadMode: mode,
-                        fileCount,
-                        totalBytes,
-                        version: commonFields.version.trim(),
-                        allowCreateDirectory: commonFields.allowCreateDirectory,
-                        entrypointRelativePath: commonFields.entrypointRelativePath.trim()
+                        firmwarePath: fields.firmwarePath,
+                        fileName: file.name,
+                        fileSize: file.size,
+                        version: fields.version.trim(),
+                        allowCreateDirectory: fields.allowCreateDirectory
                     },
                     intentFallbackMessage
                 });
@@ -168,9 +232,9 @@
                 console.error(TAG, 'intent 실패', err);
                 // MK2 WAVE 2 — intent 시점 메타 nudge (단계 A) 분기. proceed/replace 시 새 token 받아 자동 업로드 재개.
                 if (err.body && err.body.code === 'NUDGE_REQUIRED' && err.body.nudgeId) {
-                    openIntentNudgeModal(err.body, commonFields);
+                    openIntentNudgeModal(err.body, fields, file);
                     submitBtn.disabled = false;
-                    submitBtn.textContent = '번들 등록';
+                    submitBtn.textContent = '등록';
                     return;
                 }
                 // S4 — 응답 body 의 fieldErrors 를 폼에 매핑 + banner 노출.
@@ -180,7 +244,7 @@
                     showError(err.message);
                 }
                 submitBtn.disabled = false;
-                submitBtn.textContent = '번들 등록';
+                submitBtn.textContent = '등록';
                 return;
             }
 
@@ -188,34 +252,26 @@
                 const msg = intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?';
                 if (!confirm(msg)) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = '번들 등록';
+                    submitBtn.textContent = '등록';
                     return;
                 }
             }
 
-            startXhrUpload(intent.uploadToken, commonFields);
+            startXhrUpload(intent.uploadToken, fields, file);
         });
 
-        async function submitRegisterExisting() {
-            if (!registerExistingUrl) {
-                showError('기존 디렉토리 등록 URL 이 설정되지 않았습니다. 페이지를 새로고침 해주세요.');
-                return;
-            }
-            const fields = shell.resolveCommonFields(form);
+        /**
+         * R12-1 — 업로드 없는 기존 파일 등록(claim). 토큰 없이 등록 본체로 직행 (ISO 선례).
+         */
+        async function submitClaim(fields) {
             submitBtn.disabled = true;
             const originalLabel = submitBtn.textContent;
             submitBtn.textContent = '등록 중…';
             try {
-                const resp = await fetch(registerExistingUrl, {
+                const resp = await fetch(uploadUrl, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-                    body: JSON.stringify({
-                        name: fields.name.trim(),
-                        version: fields.version.trim(),
-                        targetDirectory: fields.targetDirectory.trim(),
-                        description: fields.description,
-                        entrypointRelativePath: fields.entrypointRelativePath.trim()
-                    })
+                    headers: {'Accept': 'application/json'},
+                    body: buildFormData(fields, null)
                 });
                 const body = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
@@ -242,37 +298,20 @@
         function intentFallbackMessage(status) {
             switch (status) {
                 case 400:
-                    return '입력값이 올바르지 않습니다. 대상 디렉토리와 업로드 방식을 다시 확인해주세요.';
+                    return '입력값이 올바르지 않습니다. 펌웨어 파일 경로와 파일을 다시 확인하십시오.';
                 case 404:
-                    return '대상 메인보드 모델을 찾을 수 없습니다. 목록에서 다시 선택해주세요.';
+                    return '대상 메인보드 모델을 찾을 수 없습니다. 목록에서 다시 선택하십시오.';
                 case 409:
                     return '사전 검증 조건에 어긋났습니다 (디렉토리 점유 · marker 충돌 · 버전 중복 등).';
                 case 500:
-                    return '서버 내부 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도해주세요.';
+                    return '서버 내부 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도하십시오.';
                 default:
                     return '사전 검증 실패 (HTTP ' + status + ')';
             }
         }
 
-        function startXhrUpload(uploadToken, commonFields) {
-            // FormData 수동 구성 — `new FormData(form)` 은 각 File 의 webkitRelativePath 를 소실시킨다.
-            // 폴더 모드에서는 파일별로 Blob 자체 + 3번째 인자(filename) 에 상대경로를 명시적으로 실어
-            // 서버의 MultipartFile.getOriginalFilename() 이 "BiosPkg/SPI_UPD/image.bin" 처럼 받도록 한다.
-            const {formData: fd} = shell.buildBundleFormData({
-                form,
-                uploadModeInput,
-                folderInput,
-                zipInput,
-                singleInput,
-                fixedFields: {
-                    name: commonFields.name,
-                    version: commonFields.version,
-                    targetDirectory: commonFields.targetDirectory,
-                    description: commonFields.description,
-                    allowCreateDirectory: commonFields.allowCreateDirectory ? 'true' : 'false',
-                    entrypointRelativePath: commonFields.entrypointRelativePath
-                }
-            });
+        function startXhrUpload(uploadToken, fields, file) {
+            const fd = buildFormData(fields, file);
 
             resetError();
             const REPORT_INTERVAL_MS = 100;
@@ -308,7 +347,7 @@
                         const elapsedSec = (Date.now() - tweenStart) / 1000;
                         const r = 1 - Math.exp(-elapsedSec / 3);
                         const pct = UPLOAD_END_PCT + (SERVER_END_PCT - UPLOAD_END_PCT) * Math.min(1, r);
-                        showProgress(`${Math.floor(pct)}%  서버 저장 · 전개 · marker 기록 중…`, pct);
+                        showProgress(`${Math.floor(pct)}%  서버 저장 · marker 기록 중…`, pct);
                     }, 150);
                 },
                 onSuccess() {
@@ -375,8 +414,8 @@
 
         function lockPage(lock) {
             submitBtn.disabled = lock;
-            submitBtn.textContent = lock ? '업로드 중…' : '번들 등록';
-            Array.from(form.querySelectorAll('input, textarea, button[role="tab"]')).forEach(el => {
+            submitBtn.textContent = lock ? '업로드 중…' : '등록';
+            Array.from(form.querySelectorAll('input, textarea')).forEach(el => {
                 if (el === submitBtn) return;
                 el.disabled = lock;
             });
@@ -473,7 +512,7 @@
             const replaceBtn = document.getElementById('biosNudgeReplaceBtn');
             const cancelBtn = document.getElementById('biosNudgeCancelBtn');
             if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
-                showError('nudge modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+                showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로고침 하십시오.');
                 return;
             }
             const baseUrl = modal.dataset.confirmBaseUrl;
@@ -505,7 +544,7 @@
             // MK2 — TTL countdown.
             if (window.NudgeTimer) {
                 window.NudgeTimer.start(modal, body.expiresAt, () => {
-                    showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                    showError('중복 확인 세션이 만료되었습니다. 다시 등록하십시오.');
                 });
             }
 
@@ -526,7 +565,7 @@
                     const respBody = await resp.json().catch(() => ({}));
                     if (!resp.ok) {
                         if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                        showError(respBody.message || ('nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                        showError(respBody.message || ('중복 확인 진행 실패 (HTTP ' + resp.status + ')'));
                         disableNudgeButtons(false);
                         return;
                     }
@@ -549,7 +588,7 @@
                     const respBody = await resp.json().catch(() => ({}));
                     if (!resp.ok) {
                         if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                        showError(respBody.message || ('nudge replace 실패 (HTTP ' + resp.status + ')'));
+                        showError(respBody.message || ('중복 확인 교체 실패 (HTTP ' + resp.status + ')'));
                         disableNudgeButtons(false);
                         return;
                     }
@@ -571,7 +610,7 @@
                     console.warn(TAG, 'cancel 호출 실패 (무시) :', err);
                 } finally {
                     closeModal();
-                    showError('업로드를 취소했습니다.');
+                    showError('등록을 취소했습니다.');
                 }
             };
         }
@@ -581,14 +620,14 @@
         //   · proceed/replace → 새 uploadToken 수신 → 그 token 으로 자동 업로드 시작
         //   · cancel → 폼 상태만 복구 (임시 파일 없음)
 
-        function openIntentNudgeModal(body, commonFields) {
+        function openIntentNudgeModal(body, fields, file) {
             const modal = document.getElementById('biosNudgeModal');
             const conflicts = document.getElementById('biosNudgeConflictsList');
             const proceedBtn = document.getElementById('biosNudgeProceedBtn');
             const replaceBtn = document.getElementById('biosNudgeReplaceBtn');
             const cancelBtn = document.getElementById('biosNudgeCancelBtn');
             if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
-                showError('nudge modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+                showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로고침 하십시오.');
                 return;
             }
             // 단계 B 의 baseUrl (`.../nudge`) 을 단계 A 용 `.../intent-nudge` 로 치환.
@@ -622,7 +661,7 @@
             // MK2 — TTL countdown.
             if (window.NudgeTimer) {
                 window.NudgeTimer.start(modal, body.expiresAt, () => {
-                    showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                    showError('중복 확인 세션이 만료되었습니다. 다시 등록하십시오.');
                 });
             }
 
@@ -640,11 +679,11 @@
                 if (intent.warnings && intent.warnings.length) {
                     const msg = intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?';
                     if (!confirm(msg)) {
-                        showError('업로드를 취소했습니다.');
+                        showError('등록을 취소했습니다.');
                         return;
                     }
                 }
-                startXhrUpload(intent.uploadToken, commonFields);
+                startXhrUpload(intent.uploadToken, fields, file);
             };
 
             proceedBtn.onclick = async () => {
@@ -656,7 +695,7 @@
                     const respBody = await resp.json().catch(() => ({}));
                     if (!resp.ok) {
                         if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                        showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                        showError(respBody.message || ('중복 확인 진행 실패 (HTTP ' + resp.status + ')'));
                         disableNudgeButtons(false);
                         return;
                     }
@@ -678,7 +717,7 @@
                     const respBody = await resp.json().catch(() => ({}));
                     if (!resp.ok) {
                         if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                        showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
+                        showError(respBody.message || ('중복 확인 교체 실패 (HTTP ' + resp.status + ')'));
                         disableNudgeButtons(false);
                         return;
                     }
@@ -699,7 +738,7 @@
                     console.warn(TAG, 'intent cancel 호출 실패 (무시) :', err);
                 } finally {
                     closeModal();
-                    showError('업로드를 취소했습니다.');
+                    showError('등록을 취소했습니다.');
                 }
             };
         }
@@ -707,7 +746,7 @@
         function handleExpiredIfAny(closeModal, status, body) {
             if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
                 closeModal();
-                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                showError('중복 확인 세션이 만료되었습니다. 다시 등록하십시오.');
                 return true;
             }
             return false;

@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  A3 v3. BIOS 번들 메타 편집 폼.
+  R12-1. BIOS 펌웨어 메타 편집 폼.
   ─────────────────────────────────────────────
   Model:
     biosForm                : BiosUpdateRequest  @ModelAttribute (name/version/description)
     boardId / biosId        : Long
     contextLabel            : String  "Gigabyte · MS03-CE0"
-    treeRootPath            : String  번들 루트 (읽기 전용 표시)
-    entrypointRelativePath  : String  진입점 상대경로 (읽기 전용 표시)
+    treeRootPath            : String  펌웨어 파일이 놓인 디렉토리 (읽기 전용 표시 — 진입점과 합성해 파일 경로로 노출)
+    entrypointRelativePath  : String  펌웨어 파일명 (읽기 전용 표시)
 
-  번들 내용(트리 자체) 교체는 지원하지 않는다. 파일을 바꾸려면 soft delete 후 새 번들로 재업로드.
+  파일 교체는 지원하지 않는다. 파일을 바꾸려면 soft delete 후 재등록.
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('BIOS 메타 수정')}"></th:block>
@@ -61,19 +61,12 @@
                     <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
                 </div>
 
-                <!-- 트리 루트 : 읽기 전용 -->
+                <!-- R12-1 — 펌웨어 파일 경로 : 읽기 전용 (treeRootPath + 파일명 합성 표시). 교체 의도는 "삭제 후 재등록" 로 유도 -->
                 <div class="n-form-group">
-                    <label class="n-label">트리 루트 경로</label>
-                    <input type="text" th:value="${treeRootPath}" class="n-input" readonly>
-                </div>
-
-                <!-- 진입점 : 읽기 전용. 교체 의도는 "삭제 후 재업로드" 로 유도 -->
-                <div class="n-form-group">
-                    <label class="n-label">진입점 상대경로</label>
-                    <input type="text" th:value="${entrypointRelativePath}" class="n-input" readonly>
+                    <label class="n-label">펌웨어 파일 경로</label>
+                    <input type="text" th:value="${treeRootPath} + '/' + ${entrypointRelativePath}" class="n-input" readonly>
                     <div class="n-hint">
-                        진입점 또는 번들 내용을 바꾸려면 이 BIOS 를 삭제한 뒤 새 번들로 재등록하세요.
-                        실행 시 파라미터 등의 실행 로직은 향후 Execution 도메인에서 관장합니다.
+                        펌웨어 파일을 바꾸려면 이 BIOS 를 삭제한 뒤 재등록하십시오.
                     </div>
                 </div>
 

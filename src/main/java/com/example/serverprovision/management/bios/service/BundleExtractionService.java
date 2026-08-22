@@ -173,9 +173,24 @@ public class BundleExtractionService {
 	}
 
 	/**
-	 * 단일 파일 업로드 (ASUS .cap 등).
+	 * 단일 파일 업로드 (ASUS .cap 등). 원본 파일명 그대로 저장한다.
 	 */
 	public void extractSingleFile(MultipartFile singleFile, Path targetDirectory) {
+		if (singleFile == null || singleFile.isEmpty()) {
+			throw new EmptyBundleException();
+		}
+		String name = singleFile.getOriginalFilename();
+		if (name == null || name.isBlank()) {
+			throw new BundleExtractionException("파일명이 누락되어 있습니다.");
+		}
+		storeSingleFileAs(singleFile, targetDirectory, name);
+	}
+
+	/**
+	 * R12-1 — 저장 파일명을 지정하는 단일 파일 저장. 경로 해석 결과(파일 경로 지정)가 업로드 원본명과
+	 * 다를 수 있어 저장명을 인자로 받는다. {@link #extractSingleFile} 과 동일한 보안 스택을 공유한다.
+	 */
+	public void storeSingleFileAs(MultipartFile singleFile, Path targetDirectory, String fileName) {
 		if (singleFile == null || singleFile.isEmpty()) {
 			throw new EmptyBundleException();
 		}
@@ -183,16 +198,15 @@ public class BundleExtractionService {
 		uploadLimitsPolicy.assertSingleFileSize(singleFile);
 		contentGuard.assertNoSuspiciousFilenames(new MultipartFile[]{singleFile});
 		contentGuard.classifyAndApplyExecutablePolicy(singleFile, null);
-		// S3.1 (A4) — 파일명 raw 검증.
-		contentGuard.sanitizeFilenameOrThrow(singleFile.getOriginalFilename());
-		String name = singleFile.getOriginalFilename();
-		if (name == null || name.isBlank()) {
-			throw new BundleExtractionException("파일명이 누락되어 있습니다.");
+		// S3.1 (A4) — 파일명 raw 검증 (업로드 원본명 · 저장명 모두).
+		if (singleFile.getOriginalFilename() != null) {
+			contentGuard.sanitizeFilenameOrThrow(singleFile.getOriginalFilename());
 		}
-		// 원본 파일명만 사용 — 경로 조작 방지
-		Path clean = Path.of(name).getFileName();
+		contentGuard.sanitizeFilenameOrThrow(fileName);
+		// 파일명만 사용 — 경로 조작 방지
+		Path clean = Path.of(fileName).getFileName();
 		if (clean == null) {
-			throw new BundleExtractionException("파일명 파싱 실패 : " + name);
+			throw new BundleExtractionException("파일명 파싱 실패 : " + fileName);
 		}
 		ensureEmptyDir(targetDirectory);
 		Path dest = targetDirectory.resolve(clean);
