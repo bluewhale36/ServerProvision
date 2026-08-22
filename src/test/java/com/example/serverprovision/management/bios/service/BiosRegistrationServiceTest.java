@@ -96,7 +96,11 @@ class BiosRegistrationServiceTest {
 
         assertThat(id).isEqualTo(77L);
         verify(bundleExtractionService).extractSingleFile(any(), any());
-        verify(biosRepository).save(any(BoardBIOS.class));
+        // E2-1-a — 신규 = 최신 기본: 전 행 +1 shift 뒤 새 행이 1위로 저장된다.
+        verify(biosRepository).shiftAllVersionRanks(10L);
+        org.mockito.ArgumentCaptor<BoardBIOS> savedCap = org.mockito.ArgumentCaptor.forClass(BoardBIOS.class);
+        verify(biosRepository).save(savedCap.capture());
+        assertThat(savedCap.getValue().getVersionRank()).isEqualTo(1);
         verify(biosMarkerWriter).writeSignedMarker(any(BoardBIOS.class), eq(target), eq(10L), eq("1.0"), eq("X99E-WS.CAP"), eq("abc123"));
     }
 

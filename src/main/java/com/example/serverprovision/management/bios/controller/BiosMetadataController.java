@@ -9,6 +9,11 @@ import com.example.serverprovision.management.board.service.metadata.BoardModelM
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PatchMapping;
+import com.example.serverprovision.management.bios.dto.request.BiosRankRequest;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -118,5 +123,19 @@ public class BiosMetadataController {
 		}
 		biosService.update(boardId, biosId, request);
 		return BiosControllerSupport.redirectToListWithSelect(biosId);
+	}
+
+	/**
+	 * 버전 순서 재정렬(E2-1-a) — 목록 드래그의 저장 XHR. 순수 JSON 계약이라 전역 폼 인터셉터 밖이며
+	 * (new-form.md — 페이지 전용 JS 처리), 성공은 204 로 조용히 끝난다(순서가 이미 화면에 보인다).
+	 */
+	@PatchMapping(path = "/{boardId}/rank", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public org.springframework.http.ResponseEntity<Void> reorderRanks(
+			@PathVariable Long boardId,
+			@RequestBody @jakarta.validation.Valid BiosRankRequest request
+	) {
+		biosService.reorderVersionRanks(boardId, request.orderedIds());
+		return org.springframework.http.ResponseEntity.noContent().build();
 	}
 }

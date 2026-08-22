@@ -2,6 +2,7 @@ package com.example.serverprovision.management.bios.repository;
 
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
@@ -26,17 +27,35 @@ public interface BiosRepository extends JpaRepository<BoardBIOS, Long> {
 	 */
 	Optional<BoardBIOS> findByIdAndBoardModel_Id(Long id, Long boardModelId);
 
-	// ---- 목록 (Miller C2) --------------------------------------------
+	// ---- 목록 · 순위 (Miller C2 · E2-1-a) ------------------------------
 
 	/**
-	 * 특정 보드의 활성(미삭제) BIOS 를 버전 내림차순으로. 기본 목록 보기에 사용.
+	 * 특정 보드의 활성(미삭제) BIOS 를 버전 순위 오름차순(1 = 최신)으로 — 목록 · 정의서 폼 select ·
+	 * resolve(E2-1-b) 가 공유하는 "운영자가 정한 순서" 소비 질의. 문자열 정렬 대체(E2-1-a).
 	 */
-	List<BoardBIOS> findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(Long boardModelId);
+	List<BoardBIOS> findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(Long boardModelId);
 
 	/**
-	 * 특정 보드의 전체 BIOS (삭제 포함) 버전 내림차순. 휴지통 보기용.
+	 * 특정 보드의 전체 BIOS (삭제 포함) 순위 오름차순 — 재정렬 재번호와 휴지통 겸용 보기용.
 	 */
-	List<BoardBIOS> findAllByBoardModel_IdOrderByVersionDesc(Long boardModelId);
+	List<BoardBIOS> findAllByBoardModel_IdOrderByVersionRankAsc(Long boardModelId);
+
+	/**
+	 * 순서 무관 소비(cascade · 집계 · 경고 anyMatch)용 — 이름에 순서 어휘를 두지 않는다.
+	 * 옛 {@code …OrderByVersionDesc} 는 정렬을 보장한다는 거짓 이름이 되어 제거했다(E2-1-a).
+	 */
+	List<BoardBIOS> findAllByBoardModel_IdAndIsDeletedFalse(Long boardModelId);
+
+	/** 순서 무관 · 삭제 포함 — cascade 대상 수집용. */
+	List<BoardBIOS> findAllByBoardModel_Id(Long boardModelId);
+
+	/**
+	 * 신규 등록 선행 shift(E2-1-a) — 보드의 전 행 순위를 +1 해 1위 자리를 비운다(신규 = 최신 기본).
+	 * bulk 갱신이라 영속성 컨텍스트를 거치지 않으므로 flush · clear 를 함께 건다.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("update BoardBIOS b set b.versionRank = b.versionRank + 1 where b.boardModel.id = :boardModelId")
+	int shiftAllVersionRanks(@org.springframework.data.repository.query.Param("boardModelId") Long boardModelId);
 
 	/**
 	 * S5-2-3 — 특정 보드의 soft-deleted BIOS. Board restore cascade=true 시 일괄 복구 대상.

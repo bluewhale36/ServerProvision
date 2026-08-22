@@ -37,6 +37,8 @@
 
     <div th:unless="${#lists.isEmpty(boards)}"
          class="n-miller"
+         th:data-rank-enabled="${!includeDeleted}"
+         th:data-rank-error="#{management.firmware.rank.save-failed}"
          data-board-aware="true"
          th:data-initial-select-id="${selectId}"
          th:data-initial-select-board-id="${selectBoardId}">
@@ -64,9 +66,13 @@
 
         <div class="n-miller-col n-miller-col-versions">
             <div class="n-miller-col-header">BMC 버전</div>
+            <!-- E2-1-a — 순서 SSOT 안내(BIOS 목록과 대칭). -->
+            <div class="n-section-hint" id="fwRankHint" th:unless="${includeDeleted}"
+                 th:text="#{management.firmware.rank.hint}">드래그하여 버전 순서 조정</div>
             <div th:each="board : ${boards}"
                  class="n-miller-version-panel"
-                 th:data-os-key="${board.id}">
+                 th:data-os-key="${board.id}"
+                 th:attr="data-rank-url=${board.isDeleted} ? null : @{/management/bmc/{b}/rank(b=${board.id})}">
 
                 <div th:if="${#lists.isEmpty(board.bmcList)}"
                      class="n-empty-desc" style="padding: 10px 12px;">
@@ -79,7 +85,11 @@
                         th:classappend="${bmc.isDeleted} ? 'n-miller-item-disabled' : ''"
                         th:data-os-id="${bmc.id}">
                     <span class="n-miller-version-label">
+                        <span class="n-rank-handle" th:unless="${includeDeleted or bmc.isDeleted}"
+                              title="끌어서 순서 변경" aria-label="끌어서 순서 변경">☰</span>
                         <span th:text="${bmc.version}">12.61</span>
+                        <span th:if="${board.latestBmcId != null and bmc.id == board.latestBmcId}"
+                              class="n-miller-latest" data-latest-mark>latest</span>
                         <span th:if="${bmc.isDeprecated and !bmc.isDeleted}"
                               class="n-deprecated-dot"
                               title="Deprecated"></span>
@@ -276,6 +286,8 @@
 <script th:src="@{/global/include-deleted-toggle.js}"></script>
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
+<script th:src="@{/global/row-drag.js}"></script>
+<script th:src="@{/management/common/firmware-rank.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {

@@ -62,8 +62,8 @@ public class BoardModelMetadataService {
 
 	public BoardModelResponse findById(Long id) {
 		BoardModel board = BoardModelGuards.requireActiveBoard(boardModelRepository, id);
-		int biosCount = biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id).size();
-		int bmcCount = bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(id).size();
+		int biosCount = biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(id).size();
+		int bmcCount = bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(id).size();
 		int subprogramCount = subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(id).size();
 		return toResponse(board, biosCount, bmcCount, subprogramCount);
 	}

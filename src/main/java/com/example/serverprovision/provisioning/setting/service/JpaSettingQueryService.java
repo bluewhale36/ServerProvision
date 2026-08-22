@@ -219,12 +219,12 @@ public class JpaSettingQueryService implements SettingQueryService {
             Long boardId = firmware.getBoardModel().boardModelId();
             List<String> warnings = new ArrayList<>();
             if (firmware.getBios().isLatest()
-                    && biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(boardId).stream()
+                    && biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(boardId).stream()
                             .noneMatch(LifecycleEntity::isEnabled)) {
                 warnings.add("이 보드에 등록된 BIOS 펌웨어가 없어 실행 시 BIOS 업데이트를 건너뜁니다.");
             }
             if (firmware.getBmc().isLatest()
-                    && bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(boardId).stream()
+                    && bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(boardId).stream()
                             .noneMatch(LifecycleEntity::isEnabled)) {
                 warnings.add("이 보드에 등록된 BMC 펌웨어가 없어 실행 시 BMC 업데이트를 건너뜁니다.");
             }
@@ -380,12 +380,12 @@ public class JpaSettingQueryService implements SettingQueryService {
                                 board.isDeprecated(),
                                 deprecatedAtDisplay(board),
                                 board.getDescription(),
-                                biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(board.getId()).stream()
+                                biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(board.getId()).stream()
                                         .filter(LifecycleEntity::isEnabled)
                                         .map(b -> new SettingBoardOptionResponse.FirmwareOption(
                                                 b.getId(), b.getVersion(), b.isDeprecated(), deprecatedAtDisplay(b), b.getDescription()))
                                         .toList(),
-                                bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(board.getId()).stream()
+                                bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(board.getId()).stream()
                                         .filter(LifecycleEntity::isEnabled)
                                         .map(b -> new SettingBoardOptionResponse.FirmwareOption(
                                                 b.getId(), b.getVersion(), b.isDeprecated(), deprecatedAtDisplay(b), b.getDescription()))

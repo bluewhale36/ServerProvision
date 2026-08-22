@@ -129,6 +129,7 @@ class BmcControllerPurgeFlowTest {
         var boardWithBmc = new com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse(
                 3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE,
                 "Gigabyte", "MS73-HB1", false,
+                null,   // E2-1-a latestBmcId — 이 흐름과 무관
                 java.util.List.of(bmc));
         given(bmcService.findAllGrouped(false)).willReturn(java.util.List.of(boardWithBmc));
 

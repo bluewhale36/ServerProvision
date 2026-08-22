@@ -121,4 +121,86 @@ class BiosServiceTest {
         assertThatThrownBy(() -> biosService.update(10L, 1L, new BiosUpdateRequest("x", "2.0", "")))
                 .isInstanceOf(DuplicateBiosVersionException.class);
     }
+
+    // ==== E2-1-a — 버전 순위 (순서 SSOT) ================================
+
+    private BoardBIOS rankedBios(long id, BoardModel board, int rank, boolean enabled, boolean deleted) {
+        return BoardBIOS.builder()
+                .id(id).boardModel(board)
+                .name("b" + id).version("V" + id)
+                .treeRootPath("/tmp/" + id).entrypointRelativePath("f.nsh")
+                .manifestHash("h" + id).markerSignature("s")
+                .fileCount(1).totalBytes(10L)
+                .versionRank(rank)
+                .isEnabled(enabled).isDeleted(deleted).build();
+    }
+
+    @Test
+    @DisplayName("findAllGrouped : 목록은 순위 오름차순(1 = 최신) — 문자열 정렬이 아니라 운영자 순서(E2-1-a)")
+    void findAllGrouped_ordersByVersionRank() {
+        BoardModel board = activeBoard();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc())
+                .willReturn(List.of(board));
+        // 표기 체계가 섞여도(2101 · A40) 순위가 순서를 정한다 — 채택 동기의 단위 실증.
+        BoardBIOS second = rankedBios(1L, board, 2, true, false);
+        BoardBIOS first = rankedBios(2L, board, 1, true, false);
+        given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(second, first));
+
+        var groups = biosService.findAllGrouped(false);
+
+        assertThat(groups.get(0).biosList()).extracting(r -> r.id()).containsExactly(2L, 1L);
+        assertThat(groups.get(0).latestBiosId()).isEqualTo(2L);   // 순위 1위 enabled = 최신
+    }
+
+    @Test
+    @DisplayName("findAllGrouped : 순위 1위가 비활성이면 '최신' 은 다음 enabled — resolve 의 LATEST 와 같은 술어")
+    void findAllGrouped_latestSkipsDisabledTop() {
+        BoardModel board = activeBoard();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc())
+                .willReturn(List.of(board));
+        BoardBIOS disabledTop = rankedBios(1L, board, 1, false, false);
+        BoardBIOS enabledSecond = rankedBios(2L, board, 2, true, false);
+        given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(disabledTop, enabledSecond));
+
+        var groups = biosService.findAllGrouped(false);
+
+        assertThat(groups.get(0).latestBiosId()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("reorderVersionRanks(happy) : 살아있는 행 재배열 + 삭제 행 상대 위치 보존 + 밀집 1..n")
+    void reorder_reassignsDenseRanks_preservingDeletedSlots() {
+        BoardModel board = activeBoard();
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(java.util.Optional.of(board));
+        BoardBIOS a = rankedBios(1L, board, 1, true, false);
+        BoardBIOS trashed = rankedBios(9L, board, 2, true, true);   // soft-deleted — 2위 자리 보존 대상
+        BoardBIOS b = rankedBios(2L, board, 3, true, false);
+        given(biosRepository.findAllByBoardModel_IdOrderByVersionRankAsc(10L))
+                .willReturn(List.of(a, trashed, b));
+
+        biosService.reorderVersionRanks(10L, List.of(2L, 1L));   // b 를 1위로
+
+        assertThat(b.getVersionRank()).isEqualTo(1);
+        assertThat(trashed.getVersionRank()).isEqualTo(2);       // 상대 위치 보존
+        assertThat(a.getVersionRank()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("reorderVersionRanks(fail) : 중복 id → 400 InvalidVersionRankRequest / 누락 → 400 / 타 보드 → 404")
+    void reorder_rejectsMalformedRequests() {
+        BoardModel board = activeBoard();
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(java.util.Optional.of(board));
+        BoardBIOS a = rankedBios(1L, board, 1, true, false);
+        BoardBIOS b = rankedBios(2L, board, 2, true, false);
+        given(biosRepository.findAllByBoardModel_IdOrderByVersionRankAsc(10L)).willReturn(List.of(a, b));
+
+        assertThatThrownBy(() -> biosService.reorderVersionRanks(10L, List.of(1L, 1L)))
+                .isInstanceOf(com.example.serverprovision.management.board.exception.InvalidVersionRankRequestException.class);
+        assertThatThrownBy(() -> biosService.reorderVersionRanks(10L, List.of(1L)))
+                .isInstanceOf(com.example.serverprovision.management.board.exception.InvalidVersionRankRequestException.class);
+        assertThatThrownBy(() -> biosService.reorderVersionRanks(10L, List.of(1L, 77L)))
+                .isInstanceOf(BiosNotFoundException.class);   // 타 보드 · 미존재 — forging 관례
+        assertThat(a.getVersionRank()).isEqualTo(1);          // 거절 시 순위 불변
+        assertThat(b.getVersionRank()).isEqualTo(2);
+    }
 }

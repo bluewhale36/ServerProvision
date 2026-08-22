@@ -1,5 +1,6 @@
 -- ServerProvision 전체 스키마 정본.
--- ES-2(2026-08-20)에서 재생성 — 기준 = 실 DB(server_provision) 사본에 ES-2 마이그레이션
+-- ES-2 · E2-1-a(2026-08-20)에서 재생성 — 기준 = 실 DB(server_provision) 사본에 ES-2 마이그레이션
+-- (ddl/ES-2_realdb_alignment.sql → ddl/ES-2_execution_data_model.sql → ddl/E2-1-a_version_rank.sql)을 적용한 상태의
 -- MariaDB 10.11 덤프다. 종전 정본(Hibernate 생성 + 11.4 덤프)에 빠져 있던 할당 스냅샷 2테이블과
 -- U4-1 의 RAID_CONFIGURATION enum 확장이 이번 재생성으로 합류했다.
 -- 클론 후 기동에 쓴다: 이 파일을 초기화 스크립트로 적재하고, 앱은 ddl-auto=validate 로 검증만 한다.
@@ -66,6 +67,7 @@ CREATE TABLE `board_bios` (
   `total_bytes` bigint(20) NOT NULL,
   `tree_root_path` varchar(1024) NOT NULL,
   `version` varchar(64) NOT NULL,
+  `version_rank` int(11) NOT NULL,
   `board_model_id` bigint(20) NOT NULL,
   `last_integrity_status` enum('MARKER_MISSING','NOT_VERIFIED','ORIGINAL','SIGNATURE_INVALID','TAMPERED') NOT NULL,
   `last_verified_at` datetime(6) DEFAULT NULL,
@@ -97,6 +99,7 @@ CREATE TABLE `board_bmc` (
   `total_bytes` bigint(20) NOT NULL,
   `firmware_path` varchar(1024) NOT NULL,
   `version` varchar(64) NOT NULL,
+  `version_rank` int(11) NOT NULL,
   `compatible_model_id` bigint(20) NOT NULL,
   `last_integrity_status` enum('MARKER_MISSING','NOT_VERIFIED','ORIGINAL','SIGNATURE_INVALID','TAMPERED') NOT NULL,
   `last_verified_at` datetime(6) DEFAULT NULL,

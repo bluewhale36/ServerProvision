@@ -15,6 +15,8 @@ public record BoardWithBiosListResponse(
 		String vendorDisplayName,
 		String modelName,
 		boolean isDeleted,
+		/** "최신" = 순위 1위 enabled 후보(E2-1-a) — resolve 의 LATEST 와 같은 술어. 후보 0 이면 null. */
+		Long latestBiosId,
 		List<BiosResponse> biosList
 ) {
 

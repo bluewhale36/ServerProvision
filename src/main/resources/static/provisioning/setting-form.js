@@ -843,49 +843,17 @@
             row.querySelector('.dgCountMode').value = 'AT_LEAST';
         }
 
-        /* 행 순서 — 맨 앞 ☰ 핸들을 끌어 옮긴다(HTML5 drag & drop, CP7 검수). 묶음 번호(N번)와 중복 판정이 순서를
-           따르므로 놓은 뒤 진리표를 다시 적용한다. draggable 은 핸들을 누르는 동안만 켠다 — 셀 안 입력의 텍스트 드래그와 안 겹치게. */
-        let dgDragging = null;
-        function clearDropMarks(tbody) {
-            Array.from(tbody.querySelectorAll('tr')).forEach(r => r.classList.remove('dg-drop-before', 'dg-drop-after'));
-        }
+        /* 행 순서 — 맨 앞 ☰ 핸들을 끌어 옮긴다. 묶음 번호(N번)와 중복 판정이 순서를 따르므로 놓은 뒤
+           진리표를 다시 적용한다. 드래그 자체의 구현은 공용 모듈(global/row-drag.js)이 갖는다 — 펌웨어
+           버전 목록(E2-1-a)과 같은 조작감을 쓰기 위해 E2-1-a 에서 끌어올렸다. */
         function bindDiskGroupDrag(row) {
             bindRowDrag(row, rcDiskGroupTbody, applyDiskGroupConstraints);
         }
-        /** 표 공용 행 드래그 — 묶음 표(U4-1-1)와 우선순위 표(U4-1-2)가 같은 구현을 쓴다. 놓은 뒤 onDrop 으로 진리표를 다시 적용한다. */
+        /** 표 공용 행 드래그 — 묶음 표(U4-1-1)와 우선순위 표(U4-1-2)가 같은 공용 모듈을 쓴다. */
         function bindRowDrag(row, tbody, onDrop) {
-            const handle = row.querySelector('.dgHandle');
-            handle.addEventListener('mousedown', () => row.setAttribute('draggable', 'true'));
-            handle.addEventListener('mouseup', () => row.removeAttribute('draggable'));
-            row.addEventListener('dragstart', e => {
-                dgDragging = row;
-                row.classList.add('dg-dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', 'disk-group-row'); // Firefox 는 data 가 있어야 드래그가 시작된다
-            });
-            row.addEventListener('dragover', e => {
-                if (!dgDragging || dgDragging === row || dgDragging.parentNode !== tbody) return; // 다른 표의 행은 받지 않는다
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                const rect = row.getBoundingClientRect();
-                const before = e.clientY < rect.top + rect.height / 2;
-                clearDropMarks(tbody);
-                row.classList.add(before ? 'dg-drop-before' : 'dg-drop-after');
-            });
-            row.addEventListener('drop', e => {
-                if (!dgDragging || dgDragging === row || dgDragging.parentNode !== tbody) return;
-                e.preventDefault();
-                const rect = row.getBoundingClientRect();
-                const before = e.clientY < rect.top + rect.height / 2;
-                tbody.insertBefore(dgDragging, before ? row : row.nextSibling);
-                clearDropMarks(tbody);
-                onDrop();
-            });
-            row.addEventListener('dragend', () => {
-                row.classList.remove('dg-dragging');
-                row.removeAttribute('draggable');
-                dgDragging = null;
-                clearDropMarks(tbody);
+            RowDrag.bind({
+                item: row, container: tbody, itemSelector: 'tr',
+                handle: '.dgHandle', payload: 'setting-row', onDrop: onDrop
             });
         }
 

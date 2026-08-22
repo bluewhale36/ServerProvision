@@ -260,7 +260,11 @@ public class BiosRegistrationService {
 			BoardModel parent, String name, String version, String description,
 			Path targetDir, String entrypoint, String manifestHash, int fileCount, long totalBytes
 	) {
+		// 신규 = 최신 기본(E2-1-a) — 전 행 +1 로 1위 자리를 비우고 새 행이 1위로 들어간다.
+		// 소급 등록(옛 버전)은 등록 후 목록 드래그로 내린다.
+		biosRepository.shiftAllVersionRanks(parent.getId());
 		BoardBIOS saved = biosRepository.save(BoardBIOS.builder()
+													  .versionRank(1)
 													  .boardModel(parent)
 													  .name(name)
 													  .version(version)

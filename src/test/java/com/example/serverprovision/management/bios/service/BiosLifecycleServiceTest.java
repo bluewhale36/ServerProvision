@@ -188,11 +188,20 @@ class BiosLifecycleServiceTest {
         BoardModel parent = parent(2L, true, false, false);
         BoardBIOS softDeleted = bios(5L, parent, true, false, true);
         given(biosRepository.findById(5L)).willReturn(Optional.of(softDeleted));
+        // E2-1-a — 삭제 후 남은 행(순위 2 · 3)이 밀집 1..2 로 재번호되는지까지 검증.
+        BoardBIOS remainA = bios(6L, parent, true, false, false);
+        remainA.assignVersionRank(2);
+        BoardBIOS remainB = bios(7L, parent, true, false, false);
+        remainB.assignVersionRank(3);
+        given(biosRepository.findAllByBoardModel_IdOrderByVersionRankAsc(2L))
+                .willReturn(java.util.List.of(remainA, remainB));
 
         biosLifecycleService.purge(5L);
 
         verify(bundleTreeCleanupService).purgeExistingTree(Path.of(softDeleted.getTreeRootPath()), "purgeBios");
         verify(biosRepository).delete(softDeleted);
+        org.assertj.core.api.Assertions.assertThat(remainA.getVersionRank()).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(remainB.getVersionRank()).isEqualTo(2);
     }
 
     @Test

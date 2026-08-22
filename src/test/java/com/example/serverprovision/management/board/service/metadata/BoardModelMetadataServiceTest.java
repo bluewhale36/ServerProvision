@@ -79,9 +79,9 @@ class BoardModelMetadataServiceTest {
                 .treeRootPath("/fw").legacyFilePath("/fw").boardModelIdMirror(3L)
                 .entrypointRelativePath("flash.nsh").manifestHash("h").markerSignature("s")
                 .fileCount(1).totalBytes(1L).isEnabled(true).isDeleted(false).build();
-        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(3L))
+        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(3L))
                 .willReturn(List.of(bios));
-        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(3L))
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(3L))
                 .willReturn(List.of(bmc));
         given(subprogramRepository.findAllByBoardModel_IdAndIsDeletedFalse(3L))
                 .willReturn(List.of());

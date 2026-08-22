@@ -252,7 +252,16 @@ public class BmcLifecycleService implements LifecycleService {
 		}
 		bundleTreeCleanupService.purgeExistingTree(Path.of(bmc.getTreeRootPath()), "purgeBmc");
 		bmcRepository.delete(bmc);
+		renumberVersionRanks(bmc.getBoardModel().getId());   // 밀집 순위 유지(E2-1-a)
 		log.info("[lifecycle.purge] resource=BMC_FIRMWARE#{} outcome=purged", bmcId);
+	}
+
+	/** 영구 삭제 후 밀집 재번호(E2-1-a) — 남은 전 행(삭제 포함)을 순위 순으로 1..n 재부여. */
+	private void renumberVersionRanks(Long boardId) {
+		int rank = 1;
+		for (BoardBMC row : bmcRepository.findAllByBoardModel_IdOrderByVersionRankAsc(boardId)) {
+			row.assignVersionRank(rank++);
+		}
 	}
 
 	// ==== private helpers ==============================================

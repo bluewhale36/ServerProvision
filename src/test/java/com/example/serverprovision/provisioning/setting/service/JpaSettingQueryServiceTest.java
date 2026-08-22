@@ -262,10 +262,10 @@ class JpaSettingQueryServiceTest {
                 .build();
         given(repository.findById(1L)).willReturn(Optional.of(definition));
         // 보드 6 — BIOS 는 0개, BMC 는 enabled 1개 → BIOS 축만 경고.
-        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(6L)).willReturn(List.of());
+        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(6L)).willReturn(List.of());
         BoardBMC bmc = Mockito.mock(BoardBMC.class);
         given(bmc.isEnabled()).willReturn(true);
-        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(6L)).willReturn(List.of(bmc));
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(6L)).willReturn(List.of(bmc));
 
         SettingDetailResponse detail = service.findDetail(1L);
 
@@ -291,14 +291,14 @@ class JpaSettingQueryServiceTest {
         given(bios.getVersion()).willReturn("F10");
         given(bios.isEnabled()).willReturn(true);
         given(bios.isDeprecated()).willReturn(false);
-        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(6L))
+        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(6L))
                 .willReturn(List.of(bios));
         BoardBMC bmc = Mockito.mock(BoardBMC.class);
         given(bmc.getId()).willReturn(2L);
         given(bmc.getVersion()).willReturn("12.61.09");
         given(bmc.isEnabled()).willReturn(true);
         given(bmc.isDeprecated()).willReturn(false);
-        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(6L))
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(6L))
                 .willReturn(List.of(bmc));
 
         List<SettingBoardOptionGroupResponse> groups = service.findBoardOptions();
@@ -331,9 +331,9 @@ class JpaSettingQueryServiceTest {
                 .willReturn(List.of(disabledBoard, enabledBoard));
         BoardBIOS disabledBios = Mockito.mock(BoardBIOS.class);
         given(disabledBios.isEnabled()).willReturn(false);
-        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(6L))
+        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(6L))
                 .willReturn(List.of(disabledBios));
-        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(6L))
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(6L))
                 .willReturn(List.of());
 
         List<SettingBoardOptionGroupResponse> groups = service.findBoardOptions();

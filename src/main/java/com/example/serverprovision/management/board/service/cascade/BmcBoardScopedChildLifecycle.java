@@ -34,13 +34,13 @@ public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	@Override
 	public void recomputeEffective(Long boardId) {
-		bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(boardId).stream()
+		bmcRepository.findAllByBoardModel_Id(boardId).stream()
 				.filter(b -> !b.isDeleted()).forEach(BoardBMC::recomputeEffective);
 	}
 
 	@Override
 	public void softDeleteActive(Long boardId) {
-		bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(boardId)
+		bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(boardId)
 				.forEach(bmc -> bmcLifecycleService.softDelete(bmc.getId()));
 	}
 
@@ -62,7 +62,7 @@ public class BmcBoardScopedChildLifecycle implements BoardScopedChildLifecycle {
 
 	@Override
 	public boolean hasAny(Long boardId) {
-		return !bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(boardId).isEmpty();
+		return !bmcRepository.findAllByBoardModel_Id(boardId).isEmpty();
 	}
 
 	@Override

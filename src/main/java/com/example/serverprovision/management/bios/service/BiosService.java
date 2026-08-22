@@ -5,6 +5,9 @@ import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
 import com.example.serverprovision.management.bios.dto.response.BoardWithBiosListResponse;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
+import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
+import com.example.serverprovision.management.board.exception.InvalidVersionRankRequestException;
+import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -13,6 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -53,18 +59,72 @@ public class BiosService {
 				.collect(Collectors.groupingBy(b -> b.getBoardModel().getId(), HashMap::new, Collectors.toList()));
 
 		return boards.stream()
-				.map(board -> new BoardWithBiosListResponse(
-						board.getId(),
-						board.getVendor(),
-						board.getVendor().getDisplayName(),
-						board.getModelName(),
-						board.isDeleted(),
-						byBoard.getOrDefault(board.getId(), List.of()).stream()
-								.sorted(Comparator.comparing(BoardBIOS::getVersion).reversed())
-								.map(BiosService::toResponse)
-								.toList()
-				))
+				.map(board -> {
+					List<BoardBIOS> ofBoard = byBoard.getOrDefault(board.getId(), List.of()).stream()
+							.sorted(Comparator.comparingInt(BoardBIOS::getVersionRank))   // 운영자 순서 SSOT(E2-1-a)
+							.toList();
+					return new BoardWithBiosListResponse(
+							board.getId(),
+							board.getVendor(),
+							board.getVendor().getDisplayName(),
+							board.getModelName(),
+							board.isDeleted(),
+							latestOf(ofBoard),
+							ofBoard.stream().map(BiosService::toResponse).toList()
+					);
+				})
 				.toList();
+	}
+
+	/**
+	 * "최신" 판정 — 순위 1위인 enabled(effective) 후보(E2-1-a). resolve(E2-1-b)의 LATEST 와 같은 술어라
+	 * 화면의 최신 태그 = 실행이 고를 대상이 구조로 일치한다. 없으면 null(후보 0 — 태그 미표시).
+	 */
+	private static Long latestOf(List<BoardBIOS> rankOrdered) {
+		return rankOrdered.stream()
+				.filter(b -> !b.isDeleted() && b.isEnabled())
+				.findFirst()
+				.map(BoardBIOS::getId)
+				.orElse(null);
+	}
+
+	/**
+	 * 버전 순위 재정렬(E2-1-a) — 목록 드래그의 저장 XHR. 요청은 살아있는 행 전부를 원하는 순서로 담고,
+	 * 삭제 행은 자기 자리(상대 위치)를 보존한 채 전체를 1..n 으로 밀집 재번호한다.
+	 * 타 보드 · 미존재 id 는 404(forging 관례), 누락 · 중복은 400 — 정상 흐름은 드래그가 항상 전체
+	 * 목록을 보내므로 둘 다 direct PATCH · stale 화면에서만 발동한다.
+	 */
+	@Transactional
+	public void reorderVersionRanks(Long boardId, List<Long> orderedIds) {
+		boardModelRepository.findByIdAndIsDeletedFalse(boardId)
+				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
+		List<BoardBIOS> all = biosRepository.findAllByBoardModel_IdOrderByVersionRankAsc(boardId);
+		Map<Long, BoardBIOS> live = all.stream()
+				.filter(b -> !b.isDeleted())
+				.collect(Collectors.toMap(BoardBIOS::getId, b -> b));
+
+		Set<Long> requested = new HashSet<>(orderedIds);
+		if (requested.size() != orderedIds.size()) {
+			throw InvalidVersionRankRequestException.duplicated();
+		}
+		for (Long id : orderedIds) {
+			if (!live.containsKey(id)) {
+				throw new BiosNotFoundException(boardId, id);   // 타 보드 · 미존재 · 삭제 행 — forging 관례 404
+			}
+		}
+		if (requested.size() != live.size()) {
+			throw InvalidVersionRankRequestException.incomplete();
+		}
+
+		Iterator<Long> next = orderedIds.iterator();
+		int rank = 1;
+		for (BoardBIOS row : all) {
+			if (row.isDeleted()) {
+				row.assignVersionRank(rank++);          // 삭제 행 — 상대 위치 보존
+			} else {
+				live.get(next.next()).assignVersionRank(rank++);
+			}
+		}
 	}
 
 	public BiosResponse findBios(Long boardId, Long biosId) {

@@ -52,6 +52,14 @@ public class BoardBMC extends LifecycleEntity implements Markable {
 	@Column(name = "version", nullable = false, length = 64)
 	private String version;
 
+	/**
+	 * 버전 순위(E2-1-a) — 1 = 최신. 같은 보드의 BMC 안에서 밀집 순위(1..n), soft-delete 행 포함 공간 공유.
+	 * "최신" 의 SSOT — 근거와 규칙은 {@code BoardBIOS.versionRank} 와 동일(대칭 계약).
+	 */
+	@Builder.Default
+	@Column(name = "version_rank", nullable = false)
+	private int versionRank = 0;
+
 	@Column(name = "firmware_path", nullable = false, length = 1024)
 	private String treeRootPath;
 
@@ -111,6 +119,11 @@ public class BoardBMC extends LifecycleEntity implements Markable {
 	@Override
 	protected String resourceLabel() {
 		return "BMC";
+	}
+
+	/** 순위 재부여(E2-1-a) — 재정렬 · 등록 shift · 영구삭제 재번호의 단일 변경 통로. */
+	public void assignVersionRank(int versionRank) {
+		this.versionRank = versionRank;
 	}
 
 	public void update(String name, String version, String description) {
