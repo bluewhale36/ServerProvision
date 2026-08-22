@@ -44,15 +44,11 @@
                     <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
                 </div>
 
+                <!-- R12-2 — 펌웨어 파일 경로 : 읽기 전용 (treeRootPath + 파일명 합성 표시). -->
                 <div class="n-form-group">
-                    <label class="n-label strong">트리 루트 경로</label>
-                    <code th:text="${treeRootPath}"></code>
-                </div>
-
-                <div class="n-form-group">
-                    <label class="n-label strong">실행 대상 상대경로</label>
-                    <code th:text="${entrypointRelativePath}"></code>
-                    <div class="n-hint">번들 내용이나 실행 대상을 바꾸려면 삭제 후 새 번들로 다시 등록하세요.</div>
+                    <label class="n-label strong">펌웨어 파일 경로</label>
+                    <code th:text="${treeRootPath} + '/' + ${entrypointRelativePath}"></code>
+                    <div class="n-hint">펌웨어 파일을 바꾸려면 이 BMC 를 삭제한 뒤 재등록하십시오.</div>
                 </div>
 
                 <div class="n-form-group">

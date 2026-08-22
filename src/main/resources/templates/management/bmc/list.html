@@ -140,20 +140,10 @@
                             <dt>트리 루트</dt>
                             <dd><code th:text="${bmc.treeRootPath}"></code></dd>
                         </div>
-                        <div class="n-accordion-field">
-                            <dt>실행 대상</dt>
-                            <dd><code th:text="${bmc.entrypointRelativePath}"></code></dd>
-                        </div>
+                        <!-- R12-2 — 실행 대상(진입점) 표기는 화면에서 제거 (구조는 유지 — 단일 펌웨어 파일 모델에서 표시 가치가 없다). -->
                         <div class="n-accordion-field">
                             <dt>manifest 해시</dt>
                             <dd><code style="font-size: 11px;" th:text="${bmc.manifestHash}"></code></dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <dt>번들 크기</dt>
-                            <dd>
-                                <span th:text="${bmc.fileCount}">0</span> files /
-                                <span th:text="${bmc.totalBytes}">0</span> bytes
-                            </dd>
                         </div>
                         <div class="n-accordion-field">
                             <dt>무결성</dt>
@@ -254,7 +244,7 @@
                                   data-resource-type="BMC_FIRMWARE"
                                   th:data-resource-id="${bmc.id}"
                                   th:data-resource-label="|BMC '${bmc.name}'|"
-                                  data-resource-extra="디스크의 번들 트리도 함께 제거돼요.">
+                                  data-resource-extra="디스크의 펌웨어 파일도 함께 제거됩니다.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>
