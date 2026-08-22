@@ -9,7 +9,7 @@ import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.exception.AgentReportRejectedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
-import com.example.serverprovision.execution.exception.SetupStepNotFoundException;
+import com.example.serverprovision.execution.exception.ProvisioningHistoryNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -155,10 +155,25 @@ class GuestAgentRestControllerFlowTest {
     }
 
     @Test
-    @DisplayName("잘못된 stepId(타 게스트 forging 포함) — 404 SetupStepNotFound")
+    @DisplayName("open — 커서 phase 밖 step 보고 — 409 AgentReportRejected(phaseMismatch, ES-2 게이트)")
+    void openStep_phaseMismatch_returns409() throws Exception {
+        willThrow(AgentReportRejectedException.phaseMismatch(
+                UUID.randomUUID(), ProvisioningPhaseStep.BIOS_UPDATING, ProvisioningPhaseStep.INFORMATION_COLLECTING))
+                .given(agentReportService).openStep(TOKEN, ProvisioningPhaseStep.BIOS_UPDATING);
+
+        mvc.perform(post("/api/pxe/v1/agent/steps").header("X-Guest-Token", TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"stepCode\":\"BIOS_UPDATING\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString("현재 진행 phase 밖의 step")));
+    }
+
+    @Test
+    @DisplayName("잘못된 stepId(타 게스트 forging 포함) — 404 ProvisioningHistoryNotFound")
     void unknownStepId_returns404() throws Exception {
         UUID stepId = UUID.randomUUID();
-        willThrow(new SetupStepNotFoundException(stepId))
+        willThrow(new ProvisioningHistoryNotFoundException(stepId))
                 .given(agentReportService).closeStep(any(), eq(stepId), any(), any());
 
         mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", stepId).header("X-Guest-Token", TOKEN)

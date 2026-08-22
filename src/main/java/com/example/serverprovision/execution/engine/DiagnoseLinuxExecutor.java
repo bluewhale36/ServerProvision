@@ -7,7 +7,7 @@ import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
-import com.example.serverprovision.execution.entity.SetupStep;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +46,7 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     private final PxeAssetsProperties properties;
     private final DiagnosticReportParser reportParser;
     private final GuestServerDetailRepository guestServerDetailRepository;
-    private final SetupStepRecorder setupStepRecorder;
+    private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
     private final ObjectMapper objectMapper;
     private final PhaseCursorAdvancer phaseCursorAdvancer;
 
@@ -78,7 +78,7 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     }
 
     @Override
-    public void onStepClosed(GuestServer server, ProvisioningProgress progress, SetupStep step) {
+    public void onStepClosed(GuestServer server, ProvisioningProgress progress, ProvisioningHistory step) {
         if (step.getStepCode() != ProvisioningPhaseStep.INFORMATION_COLLECTING) {
             return;   // 진단 phase 의 소비 대상은 수집 보고뿐 (DIAGNOSTIC_BOOTING 등은 기록 자체가 목적)
         }
@@ -112,15 +112,18 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
 
         detail.enrich(boardSerial, toJson(parsed.hardwareSpec()), toJson(parsed.softwareSpec()),
                 parsed.bmcIp(), parsed.bmcMac());
-        setupStepRecorder.recordInstant(server, ProvisioningPhaseStep.INFORMATION_PERSISTING,
+        provisioningHistoryRecorder.recordInstant(server, ProvisioningPhaseStep.INFORMATION_PERSISTING,
                 ProvisioningStatus.SUCCEEDED, persistingMeta(absorbed), now);
+        // 서버 판정 instant step 도 커서가 따라간다(ES-2 D-1 — 같은 phase 안 이동). 종단 시 커서가
+        // "그 phase 의 마지막 수행 step" 을 가리키게 되어 이행 규칙 · 화면 표기와 정합한다.
+        progress.positionAt(ProvisioningPhaseStep.INFORMATION_PERSISTING, now);
 
         // 커서 전진 · 종단(DEC-25 · ES-1) — 활성 할당의 보유 phase(ownedPhases)를 실공급자로 읽어,
         // 진단 다음 소유 phase 가 있으면 커서를 전진(advanceTo), 없으면(무할당) 종단(markCompleted)한다.
         // 규칙은 PhaseCursorAdvancer 1곳에 있어 후속 phase 실행기가 늘어도 복제되지 않는다(DES-1).
         phaseCursorAdvancer.advanceOrComplete(progress, server.getId(), now);
         log.info("진단 phase 완주 — 커서 전진 · 종단 판정 : guestServerId={}, cursor={}, completed={}",
-                server.getId(), progress.getCurrentPhase(), progress.isCompleted());
+                server.getId(), progress.getCurrentStep(), progress.isCompleted());
     }
 
     private String toJson(Object value) {

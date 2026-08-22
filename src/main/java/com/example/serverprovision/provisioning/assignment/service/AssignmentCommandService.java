@@ -12,13 +12,13 @@ import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibil
 import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcess;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
+import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.exception.DuplicateActiveAssignmentException;
 import com.example.serverprovision.provisioning.assignment.exception.NoActiveAssignmentToReassignException;
 import com.example.serverprovision.provisioning.assignment.exception.ReassignAfterStartException;
 import com.example.serverprovision.provisioning.assignment.mapper.SettingProcessPhaseMapper;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.assignment.vo.FrozenBiosSettings;
 import com.example.serverprovision.provisioning.assignment.vo.FrozenBiosSettings.FrozenBiosTemplate;
 import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
@@ -52,7 +52,7 @@ import java.util.stream.Collectors;
  *
  * <p>정의서(+processes) · 게스트를 로드(부재 · 삭제된 정의서 404)하고, 할당 가능 가드(비활성 409, U3-2-b
  * DEC-G)와 활성 유일성 가드(중복 409)를 통과하면 스냅샷을 만든다:
- * 각 {@code SettingProcess} 를 {@link AssignedProcess} 로 payload 무변환 복사하고, BASIC_SETTING 은 참조 BIOS
+ * 각 {@code SettingProcess} 를 {@link AssignedProcessSnapshot} 로 payload 무변환 복사하고, BASIC_SETTING 은 참조 BIOS
  * 세팅 템플릿을 resolve 해 {@link FrozenBiosSettings} 로 deep-freeze 한다(결정 D-C). {@code ownedPhases} 는
  * {@link SettingProcessPhaseMapper} 로 derive 해 얼린다. 정의서는 <b>소프트참조</b>라 하드 FK 가 없다.</p>
  *
@@ -66,7 +66,7 @@ public class AssignmentCommandService {
 
     private static final Logger log = LoggerFactory.getLogger(AssignmentCommandService.class);
 
-    private final SettingAssignmentRepository assignmentRepository;
+    private final SettingAssignmentSnapshotRepository assignmentRepository;
     private final SettingDefinitionRepository definitionRepository;
     private final GuestServerRepository guestServerRepository;
     private final BiosSettingTemplateRepository biosSettingTemplateRepository;
@@ -86,7 +86,7 @@ public class AssignmentCommandService {
             throw new DuplicateActiveAssignmentException(guestId);
         }
 
-        SettingAssignment saved = assignmentRepository.save(deriveSnapshot(guest, definition));
+        SettingAssignmentSnapshot saved = assignmentRepository.save(deriveSnapshot(guest, definition));
         log.info("[assignment] created id={} guest={} definition={} ownedPhases={}",
                 saved.getId(), guestId, definition.getId(), saved.getOwnedPhases().asSet());
         return new AssignmentResponse(
@@ -108,7 +108,7 @@ public class AssignmentCommandService {
 
         assertAssignableTo(guest, definition);   // U3-5-a — 새 스냅샷을 만드는 것이므로 신규 할당과 같은 가드
 
-        SettingAssignment active = assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(guestId)
+        SettingAssignmentSnapshot active = assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(guestId)
                 .orElseThrow(() -> new NoActiveAssignmentToReassignException(guestId));
 
         // 서버 가드(안전망) = 뷰 disabled 판정 = 단일 SSOT. 개시된 활성이면 재할당 차단(E cluster 소관).
@@ -122,7 +122,7 @@ public class AssignmentCommandService {
         // INSERT 를 UPDATE 보다 먼저 실행하므로(IDENTITY 라 save 가 즉시 INSERT), flush 없이는 새 행과 기존 행이
         // 순간적으로 둘 다 active_guest_id=guest 가 되어 uk_active_assignment_per_guest(DA2) 를 위반한다.
         assignmentRepository.flush();
-        SettingAssignment saved = assignmentRepository.save(deriveSnapshot(guest, definition));
+        SettingAssignmentSnapshot saved = assignmentRepository.save(deriveSnapshot(guest, definition));
         log.info("[assignment] reassigned guest={} superseded={} new={} definition={} ownedPhases={}",
                 guestId, active.getId(), saved.getId(), definition.getId(), saved.getOwnedPhases().asSet());
         return new ReassignmentResponse(
@@ -186,19 +186,19 @@ public class AssignmentCommandService {
      * {@code ownedPhases} 는 {@link SettingProcessPhaseMapper} 로 도출해 얼리고, 각 {@code SettingProcess} 를
      * payload 무변환 복사하며 BASIC_SETTING 은 참조 BIOS 세팅 템플릿을 resolve 해 deep-freeze 한다.
      */
-    private SettingAssignment deriveSnapshot(GuestServer guest, SettingDefinition definition) {
+    private SettingAssignmentSnapshot deriveSnapshot(GuestServer guest, SettingDefinition definition) {
         Set<SettingProcessType> types = definition.getProcesses().stream()
                 .map(SettingProcess::getProcessType)
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(SettingProcessType.class)));
         OwnedPhases ownedPhases = SettingProcessPhaseMapper.toOwnedPhases(types);
 
-        SettingAssignment assignment = SettingAssignment.create(
+        SettingAssignmentSnapshot assignment = SettingAssignmentSnapshot.create(
                 guest,
                 new SourceDefinitionRef(definition.getId(), definition.getName()),
                 ownedPhases);
         for (SettingProcess process : definition.getProcesses()) {
             ProcessPayload payload = process.getPayload();   // 무변환 복사(불변 VO)
-            assignment.addProcess(new AssignedProcess(payload, freezeBiosIfPresent(payload)));
+            assignment.addProcess(new AssignedProcessSnapshot(payload, freezeBiosIfPresent(payload)));
         }
         return assignment;
     }

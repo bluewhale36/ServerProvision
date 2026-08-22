@@ -4,6 +4,7 @@ import com.example.serverprovision.execution.config.PxeAssetsProperties;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.vo.GuestToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +31,7 @@ class DiagnoseLinuxExecutorTest {
 
     private DiagnoseLinuxExecutor executor;
     private com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;
-    private SetupStepRecorder recorder;
+    private ProvisioningHistoryRecorder recorder;
     private OwnedPhasesProvider ownedPhasesProvider;
 
     @BeforeEach
@@ -42,7 +43,7 @@ class DiagnoseLinuxExecutorTest {
         tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
         detailRepository = org.mockito.Mockito.mock(
                 com.example.serverprovision.execution.repository.GuestServerDetailRepository.class);
-        recorder = org.mockito.Mockito.mock(SetupStepRecorder.class);
+        recorder = org.mockito.Mockito.mock(ProvisioningHistoryRecorder.class);
         ownedPhasesProvider = org.mockito.Mockito.mock(OwnedPhasesProvider.class);
         org.mockito.BDDMockito.given(ownedPhasesProvider.ownedPhasesOf(org.mockito.ArgumentMatchers.any()))
                 .willReturn(java.util.Set.of());
@@ -60,7 +61,7 @@ class DiagnoseLinuxExecutorTest {
 
     private ProvisioningProgress progress() {
         return ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).lastTransitionAt(T).startedAt(T).build();
+                .currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING).lastTransitionAt(T).startedAt(T).build();
     }
 
     @Test
@@ -114,8 +115,8 @@ class DiagnoseLinuxExecutorTest {
                 .build();
     }
 
-    private com.example.serverprovision.execution.entity.SetupStep closedCollecting(GuestServer g, String meta) {
-        var step = com.example.serverprovision.execution.entity.SetupStep.openRunning(
+    private com.example.serverprovision.execution.entity.ProvisioningHistory closedCollecting(GuestServer g, String meta) {
+        var step = com.example.serverprovision.execution.entity.ProvisioningHistory.openRunning(
                 g, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
         step.close(com.example.serverprovision.execution.enums.ProvisioningStatus.SUCCEEDED, meta, T);
         return step;
@@ -160,7 +161,7 @@ class DiagnoseLinuxExecutorTest {
         // 인벤토리 적재는 무할당 경로와 동일 — 전진은 적재 이후에 얹힌다(같은 트랜잭션).
         assertThat(detail.getDiscoveryStage())
                 .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);
-        assertThat(p.getCurrentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);   // 커서 전진
+        assertThat(p.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);   // 진입 step 으로 pre-position
         assertThat(p.isCompleted()).isFalse();                                            // 종단 아님(HOLD 대기)
     }
 
@@ -215,7 +216,7 @@ class DiagnoseLinuxExecutorTest {
     @DisplayName("수집 소비 — 대상 아닌 step(DIAGNOSTIC_BOOTING)은 no-op")
     void onStepClosed_ignoresOtherSteps() {
         GuestServer g = server(new GuestToken(TOKEN));
-        var step = com.example.serverprovision.execution.entity.SetupStep.openRunning(
+        var step = com.example.serverprovision.execution.entity.ProvisioningHistory.openRunning(
                 g, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, T);
 
         executor.onStepClosed(g, progress(), step);

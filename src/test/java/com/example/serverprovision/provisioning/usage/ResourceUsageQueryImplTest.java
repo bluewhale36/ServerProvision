@@ -5,9 +5,9 @@ import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.ResourceKey;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcess;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import com.example.serverprovision.provisioning.setting.entity.SettingProcess;
@@ -44,7 +44,7 @@ class ResourceUsageQueryImplTest {
 	private static final ResourceKey BIOS = new ResourceKey(ResourceType.BIOS_BUNDLE, 2L);
 
 	private SettingDefinitionRepository definitionRepository;
-	private SettingAssignmentRepository assignmentRepository;
+	private SettingAssignmentSnapshotRepository assignmentRepository;
 	private ProvisioningProgressRepository progressRepository;
 	private ResourceUsageQueryImpl query;
 
@@ -88,10 +88,10 @@ class ResourceUsageQueryImplTest {
 		return definition;
 	}
 
-	private static SettingAssignment assignment(UUID guestId, LocalDateTime consumedAt) {
-		SettingAssignment assignment = Mockito.mock(SettingAssignment.class);
+	private static SettingAssignmentSnapshot assignment(UUID guestId, LocalDateTime consumedAt) {
+		SettingAssignmentSnapshot assignment = Mockito.mock(SettingAssignmentSnapshot.class);
 		GuestServer guest = Mockito.mock(GuestServer.class);
-		AssignedProcess process = Mockito.mock(AssignedProcess.class);
+		AssignedProcessSnapshot process = Mockito.mock(AssignedProcessSnapshot.class);
 		ProcessPayload payload = Mockito.mock(ProcessPayload.class);
 		when(guest.getId()).thenReturn(guestId);
 		when(assignment.getGuestServer()).thenReturn(guest);
@@ -116,7 +116,7 @@ class ResourceUsageQueryImplTest {
 	@BeforeEach
 	void setUp() {
 		definitionRepository = Mockito.mock(SettingDefinitionRepository.class);
-		assignmentRepository = Mockito.mock(SettingAssignmentRepository.class);
+		assignmentRepository = Mockito.mock(SettingAssignmentSnapshotRepository.class);
 		progressRepository = Mockito.mock(ProvisioningProgressRepository.class);
 		when(definitionRepository.findAllByIsDeletedFalseOrderByIdAsc()).thenReturn(List.of());
 		when(assignmentRepository.findBySupersededAtIsNull()).thenReturn(List.of());
@@ -148,7 +148,7 @@ class ResourceUsageQueryImplTest {
 	@Test
 	@DisplayName("서버 할당 — 활성 할당이 지목했고 아직 소비 전이면 ASSIGNED")
 	void assignedWhenActiveAssignmentNotConsumed() {
-		SettingAssignment active = assignment(UUID.randomUUID(), null);
+		SettingAssignmentSnapshot active = assignment(UUID.randomUUID(), null);
 		when(assignmentRepository.findBySupersededAtIsNull()).thenReturn(List.of(active));
 		wire(List.of(ISO));
 
@@ -159,7 +159,7 @@ class ResourceUsageQueryImplTest {
 	@DisplayName("진행 중 — 소비됐고 프로비저닝이 끝나지 않았으면 RUNNING")
 	void runningWhenConsumedAndStillInFlight() {
 		UUID guest = UUID.randomUUID();
-		SettingAssignment active = assignment(guest, LocalDateTime.now());
+		SettingAssignmentSnapshot active = assignment(guest, LocalDateTime.now());
 		ProvisioningProgress inFlight = progress(guest, false, false);
 		when(assignmentRepository.findBySupersededAtIsNull()).thenReturn(List.of(active));
 		when(progressRepository.findAllByGuestServer_IdIn(anyList())).thenReturn(List.of(inFlight));
@@ -172,7 +172,7 @@ class ResourceUsageQueryImplTest {
 	@DisplayName("끝난 프로비저닝은 진행 중이 아니다 — 완료 · 실패는 ASSIGNED 로 남는다")
 	void finishedProvisioningIsNotRunning() {
 		UUID completedGuest = UUID.randomUUID();
-		SettingAssignment active = assignment(completedGuest, LocalDateTime.now());
+		SettingAssignmentSnapshot active = assignment(completedGuest, LocalDateTime.now());
 		ProvisioningProgress done = progress(completedGuest, true, false);
 		when(assignmentRepository.findBySupersededAtIsNull()).thenReturn(List.of(active));
 		when(progressRepository.findAllByGuestServer_IdIn(anyList())).thenReturn(List.of(done));
@@ -198,7 +198,7 @@ class ResourceUsageQueryImplTest {
 	void deepestWins() {
 		UUID guest = UUID.randomUUID();
 		SettingDefinition definition = definitionWithProcess();
-		SettingAssignment active = assignment(guest, LocalDateTime.now());
+		SettingAssignmentSnapshot active = assignment(guest, LocalDateTime.now());
 		ProvisioningProgress inFlight = progress(guest, false, false);
 		when(definitionRepository.findAllByIsDeletedFalseOrderByIdAsc()).thenReturn(List.of(definition));
 		when(assignmentRepository.findBySupersededAtIsNull()).thenReturn(List.of(active));

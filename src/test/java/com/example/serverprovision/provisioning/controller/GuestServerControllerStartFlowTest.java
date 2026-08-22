@@ -89,7 +89,7 @@ class GuestServerControllerStartFlowTest {
                 status, decommissionedAt, T, T,
                 null, null, List.of(),
                 new GuestServerDetailResponse.Progress(
-                        ProvisioningPhase.BOOTSTRAPPING, T, null, startedAt, null, null, null, startable,
+                        ProvisioningPhase.DIAGNOSE_LINUX, T, startedAt, null, null, null, startable,
                         false, false, false),
                 List.of());
     }

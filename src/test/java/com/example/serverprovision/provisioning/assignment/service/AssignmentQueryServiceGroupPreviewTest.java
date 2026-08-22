@@ -9,9 +9,9 @@ import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.provisioning.assignment.dto.response.GroupApplyPreviewResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.MemberOutcomeResponse;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.enums.MemberApplyOutcome;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import org.junit.jupiter.api.DisplayName;
@@ -44,7 +44,7 @@ import static org.mockito.Mockito.mock;
 @ExtendWith(MockitoExtension.class)
 class AssignmentQueryServiceGroupPreviewTest {
 
-    @Mock SettingAssignmentRepository assignmentRepository;
+    @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock GuestServerRepository guestServerRepository;
     @Mock GuestServerDetailRepository guestServerDetailRepository;
     @Mock BoardModelRepository boardModelRepository;
@@ -112,9 +112,9 @@ class AssignmentQueryServiceGroupPreviewTest {
                 detailWithBoard(SRV_MS03, 1L, "MS03-CE0"),
                 detailWithBoard(SRV_ASUS, 2L, "ASUS-Z13PE"),
                 detailWithBoard(SRV_DECOM, 1L, "MS03-CE0"));   // SRV_UNVERIFIED 는 detail 이 없다
-        List<SettingAssignment> actives = new java.util.ArrayList<>();
+        List<SettingAssignmentSnapshot> actives = new java.util.ArrayList<>();
         for (UUID id : alreadyAssigned) {
-            SettingAssignment assignment = mock(SettingAssignment.class);
+            SettingAssignmentSnapshot assignment = mock(SettingAssignmentSnapshot.class);
             lenient().when(assignment.getGuestServer()).thenReturn(entity(id, false));
             actives.add(assignment);
         }

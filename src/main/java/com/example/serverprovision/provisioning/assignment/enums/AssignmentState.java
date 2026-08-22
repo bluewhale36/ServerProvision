@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 세팅 정의서 할당 스냅샷의 파생 상태(저장 컬럼 없음 — {@code SettingAssignment.state()} 가
+ * 세팅 정의서 할당 스냅샷의 파생 상태(저장 컬럼 없음 — {@code SettingAssignmentSnapshot.state()} 가
  * {@code consumedAt} · {@code supersededAt} 두 시각에서 도출한다. {@code GuestServer} §D4 하우스스타일).
  *
  * <ul>

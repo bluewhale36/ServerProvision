@@ -9,8 +9,8 @@ import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.provisioning.assignment.dto.response.StandardApplyBannerResponse;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +46,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 @ExtendWith(MockitoExtension.class)
 class AssignmentQueryServiceStandardBannerTest {
 
-    @Mock SettingAssignmentRepository assignmentRepository;
+    @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock GuestServerRepository guestServerRepository;
     @Mock GuestServerDetailRepository guestServerDetailRepository;
     @Mock BoardModelRepository boardModelRepository;
@@ -106,9 +106,9 @@ class AssignmentQueryServiceStandardBannerTest {
                 detailWithBoard(SRV_MS03, 1L, "MS03-CE0"),
                 detailWithBoard(SRV_ASUS, 2L, "ASUS-Z13PE"),
                 detailWithBoard(SRV_DECOM, 1L, "MS03-CE0"));
-        List<SettingAssignment> actives = new ArrayList<>();
+        List<SettingAssignmentSnapshot> actives = new ArrayList<>();
         for (UUID id : alreadyAssigned) {
-            SettingAssignment assignment = mock(SettingAssignment.class);
+            SettingAssignmentSnapshot assignment = mock(SettingAssignmentSnapshot.class);
             lenient().when(assignment.getGuestServer()).thenReturn(entity(id, false));
             actives.add(assignment);
         }

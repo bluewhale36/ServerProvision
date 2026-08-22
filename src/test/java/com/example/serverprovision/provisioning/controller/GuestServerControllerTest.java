@@ -100,8 +100,8 @@ class GuestServerControllerTest {
                         DiscoveryStage.IPXE_REGISTERED, null, null, null, null),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
-                        ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
-                        null, null, null, null, true, false, false, false),   // E1-0a 미개시 + E1-2 액션 플래그
+                        ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
+                        null, null, null, null, true, false, false, false),   // E1-0a 미개시 + E1-2 액션 플래그 (ES-2: phaseMeta 소멸 · seed phase 파생)
                 List.of());
     }
 

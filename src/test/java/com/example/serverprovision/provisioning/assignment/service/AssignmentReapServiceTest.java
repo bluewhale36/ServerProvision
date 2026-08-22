@@ -1,8 +1,8 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.entity.GuestServer;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
 import com.example.serverprovision.provisioning.assignment.vo.SourceDefinitionRef;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +35,7 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class AssignmentReapServiceTest {
 
-    @Mock SettingAssignmentRepository assignmentRepository;
+    @Mock SettingAssignmentSnapshotRepository assignmentRepository;
 
     AssignmentReapService service;
 
@@ -45,8 +45,8 @@ class AssignmentReapServiceTest {
         ReflectionTestUtils.setField(service, "ttl", Duration.ofHours(24));
     }
 
-    private SettingAssignment supersededUnconsumed(long id) {
-        SettingAssignment assignment = SettingAssignment.create(
+    private SettingAssignmentSnapshot supersededUnconsumed(long id) {
+        SettingAssignmentSnapshot assignment = SettingAssignmentSnapshot.create(
                 org.mockito.Mockito.mock(GuestServer.class),
                 new SourceDefinitionRef(1L, "web-standard"), OwnedPhases.empty());
         assignment.supersede(LocalDateTime.now().minusDays(2));   // 미소비 상태로 논리 종료
@@ -57,7 +57,7 @@ class AssignmentReapServiceTest {
     @Test
     @DisplayName("purgeExpired — TTL 경계(now - ttl)로 조회한 미소비 supersede 행을 hard-delete + 건수 반환")
     void purgeExpired_deletesReturnedRows() {
-        List<SettingAssignment> expired = List.of(supersededUnconsumed(1L), supersededUnconsumed(2L));
+        List<SettingAssignmentSnapshot> expired = List.of(supersededUnconsumed(1L), supersededUnconsumed(2L));
         given(assignmentRepository
                 .findBySupersededAtIsNotNullAndConsumedAtIsNullAndSupersededAtBefore(any()))
                 .willReturn(expired);
@@ -76,7 +76,7 @@ class AssignmentReapServiceTest {
 
         // 쿼리가 돌려준 바로 그 행들만 삭제(서비스가 재필터하지 않는다).
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<Iterable<SettingAssignment>> deleteCaptor = ArgumentCaptor.forClass(Iterable.class);
+        ArgumentCaptor<Iterable<SettingAssignmentSnapshot>> deleteCaptor = ArgumentCaptor.forClass(Iterable.class);
         verify(assignmentRepository).deleteAll(deleteCaptor.capture());
         assertThat(deleteCaptor.getValue()).containsExactlyElementsOf(expired);
     }

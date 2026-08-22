@@ -18,7 +18,7 @@ import java.util.UUID;
  *
  * <p>{@code hardwareSpec} / {@code softwareSpec} (JSON 컬럼)은 컬럼만 미리 둔다 — 실제 수집·적재와 앱측
  * sealed record 매핑은 진단 리눅스 수집 슬라이스의 책임이다. 등록(U1) 시점엔 항상 {@code null} (DIAGNOSE_LINUX
- * 단계에서 채워짐). 저장 형식은 기존 {@code provisioning_progress.phaseMeta} / {@code setup_step.statusMeta} 관례와
+ * 단계에서 채워짐). 저장 형식은 기존 {@code provisioning_progress.phaseMeta} / {@code provisioning_history.statusMeta} 관례와
  * 동일하게 JSON 문자열이다.</p>
  */
 @Entity

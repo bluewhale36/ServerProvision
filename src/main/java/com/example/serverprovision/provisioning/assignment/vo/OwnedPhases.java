@@ -10,7 +10,7 @@ import java.util.TreeSet;
 
 /**
  * 할당 스냅샷이 소유한 실행 phase 집합 — {@code SettingProcessType}→{@code ProvisioningPhase} 매핑의
- * derive-then-freeze 결과이자 phase 진행의 <b>유일 권위</b>(결정 D-G). {@code AssignedProcess.processType}
+ * derive-then-freeze 결과이자 phase 진행의 <b>유일 권위</b>(결정 D-G). {@code AssignedProcessSnapshot.processType}
  * 행에서 재도출하지 않는다.
  *
  * <p>불변 · {@link ProvisioningPhase} 선언 순({@code ordinal}) 정렬 집합이다. 도메인은 <b>정의서가 기여할 수

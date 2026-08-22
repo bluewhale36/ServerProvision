@@ -421,9 +421,6 @@
                 <!-- 계획 phase rail — 계획(assigned)에 실제 진행(started) 커서를 겹친다. -->
                 <div style="margin-top: 20px;">
                     <div class="n-label strong">계획 phase (assigned)</div>
-                    <div class="n-section-hint">
-                        실제 전진(started)은 실행 엔진 배선(ES-1) 후 반영됩니다 — 배지가 아직 '예정(계획)'에 머물러 있어도 고장이 아닙니다.
-                    </div>
                     <p th:if="${#lists.isEmpty(phaseRail.entries)}" class="n-detail-empty" style="margin-top: 12px;">
                         계획 phase 없음 — 정의서를 할당하면 열립니다. (할당 없이도 진단 리눅스까지는 진행됩니다.)
                     </p>

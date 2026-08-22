@@ -1,7 +1,7 @@
 package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
-import com.example.serverprovision.execution.engine.SetupStepRecorder;
+import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
@@ -48,7 +48,7 @@ public class GuestServerRegistrationService {
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final HostNicBindingRepository hostNicBindingRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
-    private final SetupStepRecorder setupStepRecorder;
+    private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
 
     private final BoardModelRepository boardModelRepository;
 
@@ -102,21 +102,23 @@ public class GuestServerRegistrationService {
                         .build()                   // 바인딩 시각 = BaseTimeEntity.createdAt 흡수(별도 bounded_at 제거)
         );
 
-        // 진행 상태 seed — 1:1 불변 유지 + 상세 UI 단계 노출(§D6). 커서 전이는 게스트 사실 신호 소관(DEC-2).
+        // 진행 상태 seed — 1:1 불변 유지 + 상세 UI 단계 노출(§D6). 커서 = 다음 목표 step(ES-2 D-1):
+        // 부트스트래핑 instant 2행은 이 등록 트랜잭션에서 즉시 종결되므로 커서가 거기 머물 이유가 없고,
+        // 다음 목표인 진단 진입 step 을 가리킨다. motion 은 미개시라 NULL(실행 창 밖, D4 불변식).
         provisioningProgressRepository.save(
                 ProvisioningProgress.builder()
                         .id(newId())
                         .guestServer(server)
-                        .currentPhase(ProvisioningPhase.BOOTSTRAPPING)
+                        .currentStep(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING)
                         .lastTransitionAt(now)
                         .build()
         );
 
         // U1 유보분 인수(E1-0a) — 부트스트래핑 2단계의 수행 실체가 곧 이 등록 트랜잭션이므로 완료 사실을
         // 단발 적재한다. 위 멱등 가드가 재부팅 재진입을 걸러 중복 행이 생기지 않는다.
-        setupStepRecorder.recordInstant(server, ProvisioningPhaseStep.NETWORK_ALLOCATING,
+        provisioningHistoryRecorder.recordInstant(server, ProvisioningPhaseStep.NETWORK_ALLOCATING,
                 ProvisioningStatus.SUCCEEDED, null, now);
-        setupStepRecorder.recordInstant(server, ProvisioningPhaseStep.INIT_PERSISTING,
+        provisioningHistoryRecorder.recordInstant(server, ProvisioningPhaseStep.INIT_PERSISTING,
                 ProvisioningStatus.SUCCEEDED, null, now);
 
         log.info("신규 서버 등록 완료 : systemUUID={}, vendor={}, boardModel={}, mac={}",

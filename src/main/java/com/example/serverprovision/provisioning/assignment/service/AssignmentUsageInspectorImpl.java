@@ -1,6 +1,6 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.service.AssignmentUsageInspector;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AssignmentUsageInspectorImpl implements AssignmentUsageInspector {
 
-    private final SettingAssignmentRepository assignmentRepository;
+    private final SettingAssignmentSnapshotRepository assignmentRepository;
 
     @Override
     @Transactional(readOnly = true)

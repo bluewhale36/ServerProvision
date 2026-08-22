@@ -2,6 +2,7 @@ package com.example.serverprovision.execution.engine;
 
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -29,14 +30,15 @@ public class PhaseCursorAdvancer {
     private final OwnedPhasesProvider ownedPhasesProvider;
 
     /**
-     * {@code progress} 의 현재 phase 를 완주한 시점에 호출한다. 소유 다음 phase 가 있으면
-     * {@link ProvisioningProgress#advanceTo} 로 커서를 전진시키고, 없으면
-     * {@link ProvisioningProgress#markCompleted} 로 종단한다.
+     * {@code progress} 의 현재 phase 를 완주한 시점에 호출한다. 소유 다음 phase 가 있으면 그 phase 의
+     * 진입 step 으로 커서를 미리 옮겨 세우고(pre-position, {@link ProvisioningProgress#advanceToEntry} —
+     * ES-2 D-1), 없으면 {@link ProvisioningProgress#markCompleted} 로 종단한다.
      */
     public void advanceOrComplete(ProvisioningProgress progress, UUID guestId, LocalDateTime now) {
         Set<ProvisioningPhase> owned = ownedPhasesProvider.ownedPhasesOf(guestId);
-        PhaseSequence.nextAfter(progress.getCurrentPhase(), owned)
-                .ifPresentOrElse(next -> progress.advanceTo(next, now),   // 소유 phase 있음 → 전진
-                                 () -> progress.markCompleted(now));       // 없음 → 종단(무할당 = 현 동작 보존)
+        PhaseSequence.nextAfter(progress.currentPhase(), owned)
+                .ifPresentOrElse(                                          // 소유 phase 있음 → 진입 step 으로 pre-position
+                        next -> progress.advanceToEntry(ProvisioningPhaseStep.entryOf(next), now),
+                        () -> progress.markCompleted(now));                // 없음 → 종단(무할당 = 현 동작 보존)
     }
 }

@@ -2,7 +2,7 @@ package com.example.serverprovision.execution.engine;
 
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
-import com.example.serverprovision.execution.entity.SetupStep;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 
 /**
@@ -28,6 +28,6 @@ public interface ProvisioningPhaseExecutor {
      * 소비 = 접수 서비스의 분기 추가가 아니라 이 훅 구현(조건분기 확장 금지의 이행). default no-op —
      * 소비할 것이 없는 실행기는 구현하지 않는다.
      */
-    default void onStepClosed(GuestServer server, ProvisioningProgress progress, SetupStep step) {
+    default void onStepClosed(GuestServer server, ProvisioningProgress progress, ProvisioningHistory step) {
     }
 }

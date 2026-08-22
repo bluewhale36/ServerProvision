@@ -11,7 +11,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** E1-0b CP4 — RUNNING 열림/닫힘(DEC-3): 닫힘은 1회, 중복 닫힘 = no-op(false) 멱등의 실체. */
-class SetupStepTest {
+class ProvisioningHistoryTest {
 
     private static final LocalDateTime T0 = LocalDateTime.of(2026, 7, 18, 12, 0);
     private static final LocalDateTime T1 = T0.plusMinutes(3);
@@ -23,7 +23,7 @@ class SetupStepTest {
     @Test
     @DisplayName("openRunning — RUNNING · startedAt 만 기록(finishedAt null)")
     void openRunning_opensLedgerRow() {
-        SetupStep step = SetupStep.openRunning(guest(), ProvisioningPhaseStep.INFORMATION_COLLECTING, T0);
+        ProvisioningHistory step = ProvisioningHistory.openRunning(guest(), ProvisioningPhaseStep.INFORMATION_COLLECTING, T0);
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
         assertThat(step.getStartedAt()).isEqualTo(T0);
         assertThat(step.getFinishedAt()).isNull();
@@ -33,7 +33,7 @@ class SetupStepTest {
     @Test
     @DisplayName("close — 종결 1회 기록(true), 중복 close 는 행 불변 + false (멱등)")
     void close_onceThenNoOp() {
-        SetupStep step = SetupStep.openRunning(guest(), ProvisioningPhaseStep.INFORMATION_COLLECTING, T0);
+        ProvisioningHistory step = ProvisioningHistory.openRunning(guest(), ProvisioningPhaseStep.INFORMATION_COLLECTING, T0);
 
         assertThat(step.close(ProvisioningStatus.FAILED, "{\"reason\":\"x\"}", T1)).isTrue();
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
@@ -44,5 +44,22 @@ class SetupStepTest {
         assertThat(step.close(ProvisioningStatus.SUCCEEDED, null, T1.plusMinutes(1))).isFalse();
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(step.getFinishedAt()).isEqualTo(T1);
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("isOperatorOrigin — 운영자 전환 행 판독(ES-2 D-5): 작성 상수와 같은 표식을 읽는다")
+    void isOperatorOrigin_readsOperatorMeta() {
+        GuestServer g = GuestServer.builder().id(java.util.UUID.randomUUID())
+                .systemUUID(java.util.UUID.randomUUID()).build();
+        ProvisioningHistory operator = ProvisioningHistory.instant(
+                g, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_COLLECTING,
+                com.example.serverprovision.execution.enums.ProvisioningStatus.FAILED,
+                ProvisioningHistory.OPERATOR_ORIGIN_META, java.time.LocalDateTime.now());
+        ProvisioningHistory guestReport = ProvisioningHistory.instant(
+                g, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_COLLECTING,
+                com.example.serverprovision.execution.enums.ProvisioningStatus.FAILED,
+                "{\"reason\":\"disk\"}", java.time.LocalDateTime.now());
+        org.assertj.core.api.Assertions.assertThat(operator.isOperatorOrigin()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(guestReport.isOperatorOrigin()).isFalse();
     }
 }

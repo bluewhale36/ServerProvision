@@ -49,7 +49,8 @@ class BootServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer server = GuestServer.builder().id(id).systemUUID(UUID.randomUUID()).build();
         ProvisioningProgress progress = ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.BOOTSTRAPPING).lastTransitionAt(LocalDateTime.now()).build();
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.DIAGNOSTIC_BOOTING)
+                .lastTransitionAt(LocalDateTime.now()).build();
         given(registrationService.initialRegistry(REQUEST)).willReturn(server);
         given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
         given(bootScriptDispatcher.dispatch(server, progress, "")).willReturn("#!ipxe\nsleep 30");

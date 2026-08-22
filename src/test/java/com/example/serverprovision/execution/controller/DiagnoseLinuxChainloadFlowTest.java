@@ -10,6 +10,7 @@ import com.example.serverprovision.execution.engine.PhaseExecutorRegistry;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.service.GuestServerRegistrationService;
 import com.example.serverprovision.execution.vo.GuestToken;
@@ -82,7 +83,7 @@ class DiagnoseLinuxChainloadFlowTest {
     @MockitoBean GuestServerRegistrationService registrationService;
     @MockitoBean ProvisioningProgressRepository progressRepository;
     @MockitoBean com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;   // E1-2 소비 협력자
-    @MockitoBean com.example.serverprovision.execution.engine.SetupStepRecorder setupStepRecorder;               // E1-2 소비 협력자
+    @MockitoBean com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;               // E1-2 소비 협력자
     @MockitoBean com.example.serverprovision.execution.engine.OwnedPhasesProvider ownedPhasesProvider;           // ES-1 — PhaseCursorAdvancer 공급자
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
@@ -103,15 +104,15 @@ class DiagnoseLinuxChainloadFlowTest {
 
     private ProvisioningProgress.ProvisioningProgressBuilder progress() {
         return ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.BOOTSTRAPPING).lastTransitionAt(T);
+                .currentStep(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING).lastTransitionAt(T);   // ES-2 seed 계약
     }
 
     // ==== dispatch 7행 실전 — 체인로드 바디 ====================================
 
     @Test
-    @DisplayName("개시 + 커서 DIAGNOSE_LINUX — 체인로드 스크립트 전체 계약(토큰 · URL · 폴백)")
+    @DisplayName("개시 + 커서 진단 phase — 체인로드 스크립트 전체 계약(토큰 · URL · 폴백)")
     void chainload_fullBody() throws Exception {
-        boot(progress().currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).startedAt(T).build())
+        boot(progress().currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING).startedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/plain"))
                 .andExpect(content().string(containsString("#!ipxe")))
@@ -125,8 +126,8 @@ class DiagnoseLinuxChainloadFlowTest {
     }
 
     @Test
-    @DisplayName("개시 + 커서 BOOTSTRAPPING — 다음 진입 대상(진단)의 체인로드 (HOLD 갇힘 회귀 방지)")
-    void chainload_fromBootstrappingCursor() throws Exception {
+    @DisplayName("개시 + seed 커서(진단 진입 step) — 첫 부팅이 곧 진단 체인로드 (옛 BOOTSTRAPPING HOLD 갇힘의 원인 소멸, ES-2)")
+    void chainload_fromSeedCursor() throws Exception {
         boot(progress().startedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("chainloading diagnose linux")));
@@ -137,7 +138,7 @@ class DiagnoseLinuxChainloadFlowTest {
     @Test
     @DisplayName("ES-1 할당 게스트 — 전진 커서(FIRMWARE_UPDATING)로 /boot 재폴링 → 명시 HOLD (executor 미구현, silent 아님)")
     void advancedCursor_firmwareUpdating_holds() throws Exception {
-        boot(progress().currentPhase(ProvisioningPhase.FIRMWARE_UPDATING).startedAt(T).build())
+        boot(progress().currentStep(ProvisioningPhaseStep.BIOS_UPDATING).startedAt(T).build())   // pre-position 커서(ES-2)
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("FIRMWARE_UPDATING not implemented yet (HOLD)")))
                 .andExpect(content().string(containsString("chain /api/pxe/v1/boot?")));   // 재진입 유지
@@ -146,7 +147,7 @@ class DiagnoseLinuxChainloadFlowTest {
     @Test
     @DisplayName("ES-1 무할당 게스트 — 진단 완주 종단(커서 DIAGNOSE_LINUX) /boot 재폴링 → 입고 검수 대기 (현 동작 회귀)")
     void completedDiagnose_awaitsIntake() throws Exception {
-        boot(progress().currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).startedAt(T).completedAt(T).build())
+        boot(progress().currentStep(ProvisioningPhaseStep.INFORMATION_PERSISTING).startedAt(T).completedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("awaiting assignment")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("exit"))));   // OS 미설치 → exit 금지

@@ -2,6 +2,9 @@ package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.request.UpdateGuestServerRequest;
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
+import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
@@ -29,6 +32,7 @@ public class GuestServerCommandService {
 
     private final GuestServerRepository guestServerRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
+    private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
@@ -101,7 +105,12 @@ public class GuestServerCommandService {
         if (!progress.isManualFailable(server.getDecommissionedAt())) {
             throw ProvisioningMarkFailedRejectedException.notProvisioning(id);
         }
-        progress.markFailedManually(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        progress.markFailedManually(now);
+        // 수동 전환 표식 = 원장 instant 행(ES-2 D-5 — 옛 failed_step_code null 표식 대체). 같은 now 를
+        // 쓰므로 상세 응답의 파생 판독(failedAt = finishedAt 짝)이 이 행을 정확히 집는다.
+        provisioningHistoryRecorder.recordInstant(server, progress.getCurrentStep(),
+                ProvisioningStatus.FAILED, ProvisioningHistory.OPERATOR_ORIGIN_META, now);
         publishChanged(id);
     }
 
@@ -117,7 +126,7 @@ public class GuestServerCommandService {
             throw ProvisioningRetryRejectedException.notFailed(id);
         }
         if (progress.isRetryBlocked()) {
-            throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getFailedStepCode());
+            throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getCurrentStep());
         }
         progress.clearFailed(LocalDateTime.now());
         publishChanged(id);

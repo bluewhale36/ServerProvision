@@ -18,11 +18,10 @@ class GuestServerStatusTest {
 
     private ProvisioningProgress progress(LocalDateTime startedAt, LocalDateTime failedAt, LocalDateTime completedAt) {
         return ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.BOOTSTRAPPING)
+                .currentStep(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING)   // ES-2 seed 계약
                 .lastTransitionAt(T)
                 .startedAt(startedAt)
                 .failedAt(failedAt)
-                .failedStepCode(failedAt != null ? ProvisioningPhaseStep.INFORMATION_COLLECTING : null)
                 .completedAt(completedAt)
                 .build();
     }
@@ -61,7 +60,7 @@ class GuestServerStatusTest {
     }
 
     @Test
-    @DisplayName("개시 직후(게스트 미체크인, 커서 아직 BOOTSTRAPPING) → PROVISIONING — 진입 대기 포함")
+    @DisplayName("개시 직후(게스트 미체크인, 커서 seed = 진단 진입 step) → PROVISIONING — 진입 대기 포함")
     void startedButNotCheckedIn_isProvisioning() {
         assertThat(GuestServerStatus.derive(progress(T, null, null), null))
                 .isEqualTo(GuestServerStatus.PROVISIONING);
@@ -71,7 +70,7 @@ class GuestServerStatusTest {
     @DisplayName("개시 + 커서 진행 중 → PROVISIONING")
     void startedAndAdvanced_isProvisioning() {
         ProvisioningProgress advanced = ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.OS_INSTALLING)
+                .currentStep(ProvisioningPhaseStep.OS_INSTALLING)
                 .lastTransitionAt(T)
                 .startedAt(T)
                 .build();

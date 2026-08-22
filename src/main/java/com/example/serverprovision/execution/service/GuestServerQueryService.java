@@ -7,7 +7,9 @@ import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
-import com.example.serverprovision.execution.entity.SetupStep;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
+import com.example.serverprovision.execution.enums.ProvisioningStatus;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.vo.RegistrationAge;
@@ -16,7 +18,7 @@ import com.example.serverprovision.execution.repository.GuestServerDetailReposit
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.HostNicBindingRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
-import com.example.serverprovision.execution.repository.SetupStepRepository;
+import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.execution.vo.HardwareSpec;
 import com.example.serverprovision.execution.vo.SpecGroupKey;
 import com.example.serverprovision.execution.vo.SoftwareSpec;
@@ -51,7 +53,7 @@ public class GuestServerQueryService {
     private final GuestServerDetailRepository detailRepository;
     private final HostNicBindingRepository nicRepository;
     private final ProvisioningProgressRepository progressRepository;
-    private final SetupStepRepository setupStepRepository;
+    private final ProvisioningHistoryRepository provisioningHistoryRepository;
     private final ObjectMapper objectMapper;
 
     /** "접촉 중" 판정 임계 — 게스트 폴링 주기(30초) 3회 이내(E1-2, DEC-32 표시 규칙). */
@@ -173,7 +175,7 @@ public class GuestServerQueryService {
         if (filter == null) {
             return true;
         }
-        return progress != null && progress.getCurrentPhase() == filter;
+        return progress != null && progress.currentPhase() == filter;
     }
 
     /**
@@ -193,7 +195,7 @@ public class GuestServerQueryService {
         for (GuestServer s : pending) {
             ProvisioningProgress progress = progressByServer.get(s.getId());
             boolean reachedDiagnose = progress != null
-                    && progress.getCurrentPhase().ordinal() >= ProvisioningPhase.DIAGNOSE_LINUX.ordinal();
+                    && progress.currentPhase().ordinal() >= ProvisioningPhase.DIAGNOSE_LINUX.ordinal();
             (reachedDiagnose ? collecting : registeredOnly).add(toRow.apply(s));
         }
         return new GuestServerListResponse.PendingRegistrations(
@@ -263,7 +265,7 @@ public class GuestServerQueryService {
         GuestServerDetail detail = detailRepository.findByServerIdWithBoardModel(id).orElse(null);
         List<HostNicBinding> nics = nicRepository.findAllByServerIdOrderByPrimary(id);
         ProvisioningProgress progress = progressRepository.findByGuestServer_Id(id).orElse(null);
-        List<SetupStep> steps = setupStepRepository.findAllByServerIdOrderByStartedAt(id);
+        List<ProvisioningHistory> steps = provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id);
 
         return toDetail(server, detail, nics, progress, steps);
     }
@@ -285,7 +287,7 @@ public class GuestServerQueryService {
                 detail != null ? detail.getBoardModel().getVendor() : null,            // 도출
                 detail != null ? detail.getBoardModel().getModelName() : null,
                 deriveStatus(server, progress),                                          // 도출
-                progress != null ? progress.getCurrentPhase() : null,
+                progress != null ? progress.currentPhase() : null,
                 primaryNic != null ? primaryNic.getIpAddress() : null,
                 server.getCreatedAt(),
                 server.getLastSeenAt(),
@@ -298,7 +300,7 @@ public class GuestServerQueryService {
 
     private GuestServerDetailResponse toDetail(
             GuestServer server, GuestServerDetail detail,
-            List<HostNicBinding> nics, ProvisioningProgress progress, List<SetupStep> steps) {
+            List<HostNicBinding> nics, ProvisioningProgress progress, List<ProvisioningHistory> steps) {
 
         GuestServerDetailResponse.Inventory inventory = (detail == null) ? null
                 : new GuestServerDetailResponse.Inventory(
@@ -325,12 +327,11 @@ public class GuestServerQueryService {
 
         GuestServerDetailResponse.Progress progressResponse = (progress == null) ? null
                 : new GuestServerDetailResponse.Progress(
-                progress.getCurrentPhase(),
+                progress.currentPhase(),
                 progress.getLastTransitionAt(),
-                progress.getPhaseMeta(),
                 progress.getStartedAt(),
                 progress.getFailedAt(),
-                progress.getFailedStepCode(),
+                deriveFailedStep(progress, steps),
                 progress.getCompletedAt(),
                 // 버튼 노출 4종 전부 서버 가드와 같은 도메인 메서드 SSOT (UI 차단 조건 = 서버 가드 조건)
                 progress.isStartableWith(server.getDecommissionedAt()),
@@ -364,6 +365,20 @@ public class GuestServerQueryService {
                 progressResponse,
                 stepResponses
         );
+    }
+
+    /**
+     * 실패 지점 표시값 파생(ES-2 D-5) — 실패 시 커서 step 이 실패 지점이다. 단 운영자 수동 전환은
+     * 게스트가 그 step 에서 실패한 것이 아니므로 null 을 공급해 화면이 '운영자 전환' 배지를 유지한다.
+     * 판독 재료는 상세 응답이 이미 로드한 원장 목록(추가 쿼리 0) — 실패 시각과 짝이 되는 운영자 행.
+     */
+    private ProvisioningPhaseStep deriveFailedStep(ProvisioningProgress progress, List<ProvisioningHistory> steps) {
+        if (!progress.isFailed()) {
+            return null;
+        }
+        boolean manual = steps.stream().anyMatch(s -> s.getStatus() == ProvisioningStatus.FAILED
+                && s.isOperatorOrigin() && progress.getFailedAt().equals(s.getFinishedAt()));
+        return manual ? null : progress.getCurrentStep();
     }
 
     private GuestServerStatus deriveStatus(GuestServer server, ProvisioningProgress progress) {

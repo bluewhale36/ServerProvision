@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.entity;
 
+import com.example.serverprovision.execution.enums.ProvisioningMotion;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.global.entity.BaseTimeEntity;
@@ -12,15 +13,21 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 큰 단계 진행 상태 — guest_server 와 1:1. {@code current_phase} 가 "현재 단계" 커서 SSOT(U1 §D7).
+ * 진행 상태 — guest_server 와 1:1. {@code current_step} 이 "현재 위치" 커서 SSOT(U1 §D7 → ES-2 개정).
  *
- * <p>U1 §D6 : (1) {@link BaseTimeEntity} 상속으로 감사 리스너를 부착(옛 {@code @LastModifiedDate} 가
- * 리스너 없이 inert 였던 결함 해소). (2) {@code lastTransitionAt} 은 감사 자동주입 대신 전이 시 명시 set 하는
- * 도메인 필드 — 등록 seed 시 now 로 채운다. (3) 여러 주체의 비동기 전이를 위해 {@code @Version} 낙관적 락 추가.</p>
+ * <p>ES-2(토론 D3 · D4) : 커서의 기록 단위를 phase(8값)에서 step(14값)으로 바꿨다. 커서의 의미론은
+ * <b>"도달했거나 향하는 목표 step"</b> — ① 게스트 open 보고는 같은 phase 안에서 커서를 보고된 step 으로
+ * 옮기고(재부팅 후 phase 첫 step 재수행이라는 정상 복구 흐름의 관용 — 뒤로 이동 허용), ② phase 완주
+ * 판정은 다음 보유 phase 의 진입 step 으로 미리 옮겨 세운다(pre-position — 전진만). 역행 금지 invariant 는
+ * phase 축으로 유지된다: 커서의 phase 는 게스트 open 으로 절대 바뀌지 않는다. 이 의미론 덕에 실패 시
+ * "커서 = 실패 지점" 이 성립해 옛 {@code failed_step_code} 컬럼이 제거됐다(D3).</p>
  *
- * <p>E1-0a(DEC-4·25·26) : 개시·실패·종단은 phase enum 을 오염시키지 않는 <b>명시 신호 컬럼</b>으로 두고
- * (phaseMeta JSON 은닉·enum 종단값 추가 대안은 토론에서 탈락), 전이는 아래 도메인 메서드로만 일어난다 —
- * 커서 SSOT 를 지키는 invariant(역행 금지 · 실패↔종단 상호배타)가 이 클래스 밖으로 새지 않게 하기 위함이다.</p>
+ * <p>{@code motion} 은 진행 국면 안의 운동 양태(D4) — 실행 창 밖(미개시 · 실패 · 종단)에서는 NULL 을
+ * 강제해 3 timestamp 신호와의 이중 권위를 표현 불가로 만든다(도메인 메서드 + 수동 DDL CHECK 이중 방어).</p>
+ *
+ * <p>E1-0a(DEC-4 · 25 · 26) : 개시 · 실패 · 종단은 명시 신호 컬럼이며 전이는 아래 도메인 메서드로만
+ * 일어난다 — invariant(phase 역행 금지 · 실패↔종단 상호배타 · motion 실행 창 결합)가 이 클래스 밖으로
+ * 새지 않게 하기 위함이다.</p>
  */
 @Entity
 @Table(name = "provisioning_progress")
@@ -38,14 +45,17 @@ public class ProvisioningProgress extends BaseTimeEntity {
     @JoinColumn(name = "guest_server_id", nullable = false, unique = true)
     private GuestServer guestServer;
 
+    /** 현재 위치 커서 — 등록 seed 는 {@code DIAGNOSTIC_BOOTING}(부트스트래핑 instant 2행은 등록 트랜잭션에서 즉시 종결). */
     @Enumerated(EnumType.STRING)
-    @Column(name = "current_phase", length = 25)
-    private ProvisioningPhase currentPhase;
+    @Column(name = "current_step", length = 25)
+    private ProvisioningPhaseStep currentStep;
 
-    @Column(name = "phase_meta", columnDefinition = "json")
-    private String phaseMeta;
+    /** 운동 양태(D4) — 실행 창 밖 NULL 강제. HOLD 는 값만 선언(작성자 = E2-1 준비도 훅). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "motion", length = 16)
+    private ProvisioningMotion motion;
 
-    /** 마지막 전이 시각 — 전이 서비스(엔진)가 명시 set, 등록 seed 시 now. */
+    /** 마지막 전이 시각 — 전이 서비스(엔진)가 명시 set, 등록 seed 시 now. (HOLD 진입 시 TTL 기점 — E2-1) */
     @Column(name = "last_transition_at", nullable = false)
     private LocalDateTime lastTransitionAt;
 
@@ -53,14 +63,9 @@ public class ProvisioningProgress extends BaseTimeEntity {
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
-    /** 실패 신호(DEC-4). 커서는 실패 phase 를 그대로 가리키고, 해제는 운영자 재시도 액션(E1-2)만 가능. */
+    /** 실패 신호(DEC-4). 커서가 실패 지점 step 을 가리키고, 해제는 운영자 재시도 액션(E1-2)만 가능. */
     @Column(name = "failed_at")
     private LocalDateTime failedAt;
-
-    /** 실패 지점 step — 원시 String 이 아닌 enum 타입(Primitive Obsession 금지). */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "failed_step_code", length = 25)
-    private ProvisioningPhaseStep failedStepCode;
 
     /** 종단 신호(DEC-25) — "할당 정의서 보유 마지막 phase 완주" 판정자가 기록. */
     @Column(name = "completed_at")
@@ -69,7 +74,12 @@ public class ProvisioningProgress extends BaseTimeEntity {
     @Version
     private Long version;
 
-    // ───────────────────────── 전이 · 신호 도메인 메서드 (E1-0a) ─────────────────────────
+    /** 커서의 phase 파생 — 소비처(판정 · 화면)는 대부분 phase 단위로 묻는다. 정보 손실 없음(step → phase 함수). */
+    public ProvisioningPhase currentPhase() {
+        return currentStep != null ? currentStep.getPhaseType() : null;
+    }
+
+    // ───────────────────────── 전이 · 신호 도메인 메서드 (E1-0a → ES-2) ─────────────────────────
     // 정상 UX 는 UI 1차 차단 + 서비스 가드(409)가 막으므로, 아래 IllegalStateException 은 그 가드를
     // 뚫은 프로그램 버그의 표식이다 — 의도적으로 500 으로 남긴다(silent 흡수 금지).
 
@@ -79,6 +89,7 @@ public class ProvisioningProgress extends BaseTimeEntity {
             throw new IllegalStateException("이미 개시된 프로비저닝입니다. id=" + id);
         }
         this.startedAt = now;
+        this.motion = ProvisioningMotion.AWAITING_BOOT;
         this.lastTransitionAt = now;
     }
 
@@ -90,26 +101,54 @@ public class ProvisioningProgress extends BaseTimeEntity {
         return decommissionedAt == null && !isStarted();
     }
 
-    /** 커서 전이(DEC-2) — 게스트 사실 신호를 수신한 트랜잭션 안에서만 호출된다(소비자 배선은 E1-0b~). */
-    public void advanceTo(ProvisioningPhase next, LocalDateTime now) {
+    /**
+     * 게스트 사실 보고에 따른 phase 안 커서 이동(ES-2 D-1 ⓐ) — 보고된 step 이 커서와 같은 phase 면
+     * 앞 · 뒤 무관하게 그 step 으로 옮긴다(같은 step 은 무이동과 동치). 재부팅 후 phase 첫 step 부터
+     * 재수행하는 정상 복구 흐름을 관용하기 위함이다. 다른 phase 의 step 은 서비스 게이트가 409 로
+     * 거절하므로(AgentReportService), 여기 도달한 phase 불일치는 내부 버그다.
+     */
+    public void positionAt(ProvisioningPhaseStep reported, LocalDateTime now) {
         if (!isStarted()) {
-            // 개시 전엔 /boot 가 대기 스크립트만 반환해 게스트 신호 자체가 없다(DEC-26 게이트) —
-            // "미개시인데 커서 진행" 을 표현 불가 상태로 만든다.
+            throw new IllegalStateException("개시 전에는 커서를 옮길 수 없습니다. id=" + id);
+        }
+        if (isFailed() || isCompleted()) {
+            throw new IllegalStateException("실패·종단된 프로비저닝은 커서를 옮길 수 없습니다. id=" + id);
+        }
+        if (reported == null || currentStep == null || reported.getPhaseType() != currentStep.getPhaseType()) {
+            throw new IllegalStateException(
+                    "phase 이탈 커서 이동: " + currentStep + " → " + reported + ", id=" + id);
+        }
+        this.currentStep = reported;
+        this.motion = ProvisioningMotion.STEP_RUNNING;
+        this.lastTransitionAt = now;
+    }
+
+    /**
+     * phase 완주 후 다음 보유 phase 의 진입 step 으로 미리 옮겨 세움(pre-position, ES-2 D-1 ⓑ — DEC-2:
+     * 게스트 사실 신호를 수신한 트랜잭션 안에서만 호출). 역행 금지 invariant 의 자리 — phase 축 전진만 허용.
+     */
+    public void advanceToEntry(ProvisioningPhaseStep entryStep, LocalDateTime now) {
+        if (!isStarted()) {
             throw new IllegalStateException("개시 전에는 phase 를 전이할 수 없습니다. id=" + id);
         }
         if (isFailed() || isCompleted()) {
             throw new IllegalStateException("실패·종단된 프로비저닝은 전이할 수 없습니다. id=" + id);
         }
-        if (next == null || currentPhase == null || next.ordinal() <= currentPhase.ordinal()) {
+        if (entryStep == null || currentStep == null
+                || entryStep.getPhaseType().ordinal() <= currentStep.getPhaseType().ordinal()) {
             throw new IllegalStateException(
-                    "phase 역행 금지: " + currentPhase + " → " + next + ", id=" + id);
+                    "phase 역행 금지: " + currentStep + " → " + entryStep + ", id=" + id);
         }
-        this.currentPhase = next;
+        this.currentStep = entryStep;
+        this.motion = ProvisioningMotion.AWAITING_BOOT;
         this.lastTransitionAt = now;
     }
 
-    /** 실패 신호 기록(DEC-4). 종단과 상호배타 — 두 신호가 공존하는 무효 상태를 표현 불가로 만든다. */
-    public void markFailed(ProvisioningPhaseStep step, LocalDateTime now) {
+    /**
+     * 실패 신호 기록(DEC-4). 종단과 상호배타 — 두 신호가 공존하는 무효 상태를 표현 불가로 만든다.
+     * 실패 지점은 별도 컬럼이 아니라 커서가 답한다(ES-2 D3 — positionAt 이 "커서 = 마지막으로 연 step" 을 보장).
+     */
+    public void markFailed(LocalDateTime now) {
         if (isCompleted()) {
             throw new IllegalStateException("종단된 프로비저닝에 실패를 기록할 수 없습니다. id=" + id);
         }
@@ -117,7 +156,7 @@ public class ProvisioningProgress extends BaseTimeEntity {
             throw new IllegalStateException("이미 실패 상태입니다(재시도는 운영자 액션으로 해제). id=" + id);
         }
         this.failedAt = now;
-        this.failedStepCode = step;
+        this.motion = null;
         this.lastTransitionAt = now;
     }
 
@@ -130,16 +169,18 @@ public class ProvisioningProgress extends BaseTimeEntity {
             throw new IllegalStateException("이미 종단된 프로비저닝입니다. id=" + id);
         }
         this.completedAt = now;
+        this.motion = null;
         this.lastTransitionAt = now;
     }
 
     /**
      * 운영자 수동 실패 전환(E1-2, DEC-4) — 무보고 침묵(게스트 침묵 · 전원 단절, UC-4)을 운영자 판단으로
-     * 실패 처리한다. failedStepCode 는 null(수동 표식 — 게스트가 보고한 실패가 아님을 화면이 '운영자 전환'
-     * 으로 구분, plan Q6). 가능 판정은 {@link #isManualFailable} 로 뷰 플래그와 SSOT 공유.
+     * 실패 처리한다. 수동 전환임의 표식은 옛 null 컬럼 대신 원장 instant 행(statusMeta origin=operator)이
+     * 담당한다(ES-2 D-5) — 적재는 호출자(GuestServerCommandService)가 같은 트랜잭션에서 수행.
+     * 가능 판정은 {@link #isManualFailable} 로 뷰 플래그와 SSOT 공유.
      */
     public void markFailedManually(LocalDateTime now) {
-        markFailed(null, now);
+        markFailed(now);
     }
 
     /** 수동 실패 전환 가능 판정 — 뷰 버튼 노출과 서비스 409 가드의 단일 SSOT. (= 운영 상태 PROVISIONING) */
@@ -149,7 +190,7 @@ public class ProvisioningProgress extends BaseTimeEntity {
 
     /**
      * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제. 전진 전용 가드 체계의 <b>유일한 명시 예외</b>다
-     * (자동 재시도는 없다 — 운영자 액션만). 커서는 실패 phase 를 그대로 가리키므로 다음 /boot 폴링이
+     * (자동 재시도는 없다 — 운영자 액션만). 커서는 실패 지점 step 을 그대로 가리키므로 다음 /boot 폴링이
      * 그 phase 의 스크립트를 재발급한다. 가능 판정은 {@link #isRetryable}/{@link #isRetryBlocked} SSOT.
      */
     public void clearFailed(LocalDateTime now) {
@@ -157,17 +198,18 @@ public class ProvisioningProgress extends BaseTimeEntity {
             throw new IllegalStateException("실패 상태가 아닌 프로비저닝의 재시도는 불가합니다. id=" + id);
         }
         this.failedAt = null;
-        this.failedStepCode = null;
+        this.motion = ProvisioningMotion.AWAITING_BOOT;
         this.lastTransitionAt = now;
     }
 
     /**
      * 펌웨어 flash 실패의 재시도 차단(DEC-4 — 원인 미상 재-flash 는 벽돌 리스크).
      * UI disabled + tooltip 과 서버 409 가드가 이 메서드 하나를 공유한다(SSOT).
+     * 실패 지점 = 커서(ES-2 D-5)이므로 실패 상태 여부와 함께 판정한다.
      */
     public boolean isRetryBlocked() {
-        return failedStepCode == ProvisioningPhaseStep.BIOS_UPDATING
-                || failedStepCode == ProvisioningPhaseStep.BMC_UPDATING;
+        return isFailed() && (currentStep == ProvisioningPhaseStep.BIOS_UPDATING
+                || currentStep == ProvisioningPhaseStep.BMC_UPDATING);
     }
 
     /** 재시도 버튼 노출 판정 — 실패 상태이면서 차단 대상이 아닐 때. */

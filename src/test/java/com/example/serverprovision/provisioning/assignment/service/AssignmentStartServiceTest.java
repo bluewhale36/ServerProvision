@@ -2,8 +2,8 @@ package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.service.GuestServerCommandService;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.verify;
 class AssignmentStartServiceTest {
 
     @Mock GuestServerCommandService guestServerCommandService;
-    @Mock SettingAssignmentRepository assignmentRepository;
+    @Mock SettingAssignmentSnapshotRepository assignmentRepository;
 
     @InjectMocks AssignmentStartService service;
 
@@ -38,7 +38,7 @@ class AssignmentStartServiceTest {
     @Test
     @DisplayName("개시 + 활성 스냅샷 존재 → startProvisioning 후 markConsumed")
     void start_withActiveAssignment_marksConsumed() {
-        SettingAssignment assignment = org.mockito.Mockito.mock(SettingAssignment.class);
+        SettingAssignmentSnapshot assignment = org.mockito.Mockito.mock(SettingAssignmentSnapshot.class);
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
                 .willReturn(Optional.of(assignment));
 

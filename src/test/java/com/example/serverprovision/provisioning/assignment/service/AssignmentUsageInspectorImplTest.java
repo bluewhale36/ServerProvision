@@ -1,6 +1,6 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,7 +18,7 @@ import static org.mockito.BDDMockito.given;
 @ExtendWith(MockitoExtension.class)
 class AssignmentUsageInspectorImplTest {
 
-    @Mock SettingAssignmentRepository assignmentRepository;
+    @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @InjectMocks AssignmentUsageInspectorImpl inspector;
 
     @Test

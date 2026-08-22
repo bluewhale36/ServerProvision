@@ -9,13 +9,13 @@ import com.example.serverprovision.management.board.repository.BoardModelReposit
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.ReassignmentResponse;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcess;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
+import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.enums.AssignmentState;
 import com.example.serverprovision.provisioning.assignment.exception.DuplicateActiveAssignmentException;
 import com.example.serverprovision.provisioning.assignment.exception.NoActiveAssignmentToReassignException;
 import com.example.serverprovision.provisioning.assignment.exception.ReassignAfterStartException;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.assignment.vo.FrozenBiosSettings.FrozenBiosTemplate;
 import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
 import com.example.serverprovision.provisioning.assignment.vo.SourceDefinitionRef;
@@ -61,7 +61,7 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class AssignmentCommandServiceTest {
 
-    @Mock SettingAssignmentRepository assignmentRepository;
+    @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock SettingDefinitionRepository definitionRepository;
     @Mock GuestServerRepository guestServerRepository;
     @Mock BiosSettingTemplateRepository biosSettingTemplateRepository;
@@ -106,7 +106,7 @@ class AssignmentCommandServiceTest {
         // 템플릿 stub 은 given(...) 밖에서 먼저 완성한다 — 중첩하면 Mockito 가 미완성 stubbing 으로 본다.
         BiosSettingTemplate template = frozenTemplate();
         given(biosSettingTemplateRepository.findById(7L)).willReturn(Optional.of(template));
-        given(assignmentRepository.save(any(SettingAssignment.class)))
+        given(assignmentRepository.save(any(SettingAssignmentSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         AssignmentResponse response = service.assign(GUEST, DEF_ID);
@@ -117,14 +117,14 @@ class AssignmentCommandServiceTest {
         assertThat(response.ownedPhases()).containsExactly(ProvisioningPhase.FIRMWARE_SETTING);
 
         // 저장된 스냅샷 — deep-freeze 확인
-        ArgumentCaptor<SettingAssignment> captor = ArgumentCaptor.forClass(SettingAssignment.class);
+        ArgumentCaptor<SettingAssignmentSnapshot> captor = ArgumentCaptor.forClass(SettingAssignmentSnapshot.class);
         verify(assignmentRepository).save(captor.capture());
-        SettingAssignment saved = captor.getValue();
+        SettingAssignmentSnapshot saved = captor.getValue();
         assertThat(saved.getOwnedPhases().asSet()).containsExactly(ProvisioningPhase.FIRMWARE_SETTING);
         assertThat(saved.getSourceDefinitionRef().getDefinitionId()).isEqualTo(DEF_ID);
         assertThat(saved.getProcesses()).hasSize(1);
 
-        AssignedProcess assigned = saved.getProcesses().get(0);
+        AssignedProcessSnapshot assigned = saved.getProcesses().get(0);
         assertThat(assigned.getProcessType()).isEqualTo(SettingProcessType.BASIC_SETTING);
         assertThat(assigned.getFrozenBiosSettings()).isNotNull();
         FrozenBiosTemplate frozen = assigned.getFrozenBiosSettings().templates().get(0);
@@ -181,13 +181,13 @@ class AssignmentCommandServiceTest {
         // 템플릿 stub 은 given(...) 밖에서 먼저 완성한다 — 중첩하면 Mockito 가 미완성 stubbing 으로 본다.
         BiosSettingTemplate template = frozenTemplate();
         given(biosSettingTemplateRepository.findById(7L)).willReturn(Optional.of(template));
-        given(assignmentRepository.save(any(SettingAssignment.class)))
+        given(assignmentRepository.save(any(SettingAssignmentSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         AssignmentResponse response = service.assign(GUEST, DEF_ID);
 
         assertThat(response.definitionId()).isEqualTo(DEF_ID);
-        verify(assignmentRepository).save(any(SettingAssignment.class));
+        verify(assignmentRepository).save(any(SettingAssignmentSnapshot.class));
     }
 
     @Test
@@ -204,8 +204,8 @@ class AssignmentCommandServiceTest {
     // ==== 재할당(U3-2-a) =============================================
 
     /** 미개시 활성 스냅샷 fixture(id 지정) — 이전 정의서(id=9) 참조. */
-    private SettingAssignment activeUnconsumed(long id) {
-        SettingAssignment active = SettingAssignment.create(
+    private SettingAssignmentSnapshot activeUnconsumed(long id) {
+        SettingAssignmentSnapshot active = SettingAssignmentSnapshot.create(
                 mock(GuestServer.class), new SourceDefinitionRef(9L, "old-def"), OwnedPhases.empty());
         ReflectionTestUtils.setField(active, "id", id);
         return active;
@@ -217,7 +217,7 @@ class AssignmentCommandServiceTest {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
         given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
 
-        SettingAssignment active = activeUnconsumed(100L);
+        SettingAssignmentSnapshot active = activeUnconsumed(100L);
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
                 .willReturn(Optional.of(active));
 
@@ -225,7 +225,7 @@ class AssignmentCommandServiceTest {
         // 템플릿 stub 은 given(...) 밖에서 먼저 완성한다 — 중첩하면 Mockito 가 미완성 stubbing 으로 본다.
         BiosSettingTemplate template = frozenTemplate();
         given(biosSettingTemplateRepository.findById(7L)).willReturn(Optional.of(template));
-        given(assignmentRepository.save(any(SettingAssignment.class)))
+        given(assignmentRepository.save(any(SettingAssignmentSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         ReassignmentResponse response = service.reassign(GUEST, DEF_ID);
@@ -241,9 +241,9 @@ class AssignmentCommandServiceTest {
         assertThat(response.ownedPhases()).containsExactly(ProvisioningPhase.FIRMWARE_SETTING);
 
         // 새 스냅샷 저장 — deep-freeze 재수행.
-        ArgumentCaptor<SettingAssignment> captor = ArgumentCaptor.forClass(SettingAssignment.class);
+        ArgumentCaptor<SettingAssignmentSnapshot> captor = ArgumentCaptor.forClass(SettingAssignmentSnapshot.class);
         verify(assignmentRepository).save(captor.capture());
-        SettingAssignment saved = captor.getValue();
+        SettingAssignmentSnapshot saved = captor.getValue();
         assertThat(saved.getOwnedPhases().asSet()).containsExactly(ProvisioningPhase.FIRMWARE_SETTING);
         assertThat(saved.getProcesses()).hasSize(1);
         assertThat(saved.getProcesses().get(0).getFrozenBiosSettings()).isNotNull();
@@ -255,7 +255,7 @@ class AssignmentCommandServiceTest {
         given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(mock(GuestServer.class)));
         given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(basicSettingDefinition()));
 
-        SettingAssignment active = activeUnconsumed(100L);
+        SettingAssignmentSnapshot active = activeUnconsumed(100L);
         active.markConsumed(LocalDateTime.now());   // 개시됨 → 재할당 차단 대상
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
                 .willReturn(Optional.of(active));

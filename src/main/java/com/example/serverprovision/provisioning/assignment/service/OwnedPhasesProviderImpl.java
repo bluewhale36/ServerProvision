@@ -2,7 +2,7 @@ package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.engine.OwnedPhasesProvider;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OwnedPhasesProviderImpl implements OwnedPhasesProvider {
 
-    private final SettingAssignmentRepository assignmentRepository;
+    private final SettingAssignmentSnapshotRepository assignmentRepository;
 
     @Override
     @Transactional(readOnly = true)

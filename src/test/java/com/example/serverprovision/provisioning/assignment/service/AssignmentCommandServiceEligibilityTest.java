@@ -6,10 +6,10 @@ import com.example.serverprovision.execution.repository.GuestServerDetailReposit
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.exception.DefinitionHardwareMismatchException;
 import com.example.serverprovision.provisioning.assignment.exception.ServerNotAssignableException;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.BoardModelSelectionRequest;
@@ -54,7 +54,7 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class AssignmentCommandServiceEligibilityTest {
 
-    @Mock SettingAssignmentRepository assignmentRepository;
+    @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock SettingDefinitionRepository definitionRepository;
     @Mock GuestServerRepository guestServerRepository;
     @Mock BiosSettingTemplateRepository biosSettingTemplateRepository;
@@ -118,7 +118,7 @@ class AssignmentCommandServiceEligibilityTest {
                 .isInstanceOf(ServerNotAssignableException.class)
                 .hasMessageContaining("회수된 서버");
 
-        verify(assignmentRepository, never()).save(any(SettingAssignment.class));
+        verify(assignmentRepository, never()).save(any(SettingAssignmentSnapshot.class));
     }
 
     @Test
@@ -132,7 +132,7 @@ class AssignmentCommandServiceEligibilityTest {
         assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
                 .isInstanceOf(ServerNotAssignableException.class);
 
-        verify(assignmentRepository, never()).save(any(SettingAssignment.class));
+        verify(assignmentRepository, never()).save(any(SettingAssignmentSnapshot.class));
     }
 
     // ─────────────────────────── 하드웨어 대조 ───────────────────────────
@@ -151,7 +151,7 @@ class AssignmentCommandServiceEligibilityTest {
                 .hasMessageContaining("MS03-CE0")
                 .hasMessageContaining("X11SPM");
 
-        verify(assignmentRepository, never()).save(any(SettingAssignment.class));
+        verify(assignmentRepository, never()).save(any(SettingAssignmentSnapshot.class));
     }
 
     @Test
@@ -166,7 +166,7 @@ class AssignmentCommandServiceEligibilityTest {
         assertThatThrownBy(() -> service.reassign(GUEST, DEF_ID))
                 .isInstanceOf(DefinitionHardwareMismatchException.class);
 
-        verify(assignmentRepository, never()).save(any(SettingAssignment.class));
+        verify(assignmentRepository, never()).save(any(SettingAssignmentSnapshot.class));
     }
 
     @Test
@@ -178,11 +178,11 @@ class AssignmentCommandServiceEligibilityTest {
         givenServerBoard(REQUIRED_BOARD, "MS03-CE0");
         givenBoardName();
         given(assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(GUEST)).willReturn(false);
-        given(assignmentRepository.save(any(SettingAssignment.class)))
+        given(assignmentRepository.save(any(SettingAssignmentSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         assertThat(service.assign(GUEST, DEF_ID).definitionName()).isEqualTo("bios-ms03");
-        verify(assignmentRepository).save(any(SettingAssignment.class));
+        verify(assignmentRepository).save(any(SettingAssignmentSnapshot.class));
     }
 
     @Test
@@ -194,7 +194,7 @@ class AssignmentCommandServiceEligibilityTest {
         given(guestServerDetailRepository.findByServerIdWithBoardModel(GUEST)).willReturn(Optional.empty());
         givenBoardName();
         given(assignmentRepository.existsByGuestServer_IdAndSupersededAtIsNull(GUEST)).willReturn(false);
-        given(assignmentRepository.save(any(SettingAssignment.class)))
+        given(assignmentRepository.save(any(SettingAssignmentSnapshot.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         assertThat(service.assign(GUEST, DEF_ID).definitionName()).isEqualTo("bios-ms03");

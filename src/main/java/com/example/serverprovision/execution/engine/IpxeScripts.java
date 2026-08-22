@@ -38,10 +38,9 @@ public final class IpxeScripts {
         return waitAndChain("decommissioned server. not a provisioning target.", rebootQuery);
     }
 
-    /** 실패 상태(자동 재시도 없음, DEC-4) — dispatch 3행. step null = 운영자 수동 전환(E1-2, plan Q6). */
+    /** 실패 상태(자동 재시도 없음, DEC-4) — dispatch 3행. 실패 지점 = 커서 step(ES-2 D-5, 항상 non-null). */
     public static String failed(ProvisioningPhaseStep failedStep, String rebootQuery) {
-        String where = failedStep != null ? "at " + failedStep : "(operator-marked)";
-        return waitAndChain("provisioning FAILED " + where + ". waiting for operator...", rebootQuery);
+        return waitAndChain("provisioning FAILED at " + failedStep + ". waiting for operator...", rebootQuery);
     }
 
     /**

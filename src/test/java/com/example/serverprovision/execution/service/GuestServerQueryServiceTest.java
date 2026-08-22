@@ -6,7 +6,7 @@ import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
-import com.example.serverprovision.execution.entity.SetupStep;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.IpSource;
@@ -18,7 +18,7 @@ import com.example.serverprovision.execution.repository.GuestServerDetailReposit
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.HostNicBindingRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
-import com.example.serverprovision.execution.repository.SetupStepRepository;
+import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -51,7 +51,7 @@ class GuestServerQueryServiceTest {
     @Mock GuestServerDetailRepository detailRepository;
     @Mock HostNicBindingRepository nicRepository;
     @Mock ProvisioningProgressRepository progressRepository;
-    @Mock SetupStepRepository setupStepRepository;
+    @Mock ProvisioningHistoryRepository provisioningHistoryRepository;
 
     @InjectMocks GuestServerQueryService service;
 
@@ -74,9 +74,10 @@ class GuestServerQueryServiceTest {
     }
 
     private ProvisioningProgress progress(GuestServer s, ProvisioningPhase phase) {
-        // E1-0a — 커서가 BOOTSTRAPPING 을 넘은 진행 상태는 개시(startedAt)가 선행된 상태만 실존한다(DEC-26).
+        // E1-0a — 진행 상태는 개시(startedAt) 선행 전제(DEC-26). ES-2: 커서는 step 저장이라 진입 step 으로 변환.
         return ProvisioningProgress.builder().id(UUID.randomUUID()).guestServer(s)
-                .currentPhase(phase).lastTransitionAt(LocalDateTime.now())
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.entryOf(phase))
+                .lastTransitionAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now()).build();
     }
 
@@ -130,7 +131,7 @@ class GuestServerQueryServiceTest {
         given(detailRepository.findByServerIdWithBoardModel(activeId)).willReturn(Optional.empty());
         given(nicRepository.findAllByServerIdOrderByPrimary(activeId)).willReturn(List.of());
         given(progressRepository.findByGuestServer_Id(activeId)).willReturn(Optional.empty());
-        given(setupStepRepository.findAllByServerIdOrderByStartedAt(activeId)).willReturn(List.of());
+        given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(activeId)).willReturn(List.of());
 
         GuestServerDetailResponse.Contact contact = service.findDetail(activeId).contact();
         assertThat(contact.active()).isTrue();
@@ -151,14 +152,14 @@ class GuestServerQueryServiceTest {
     void findDetail_mapsAndDerives() {
         UUID id = UUID.randomUUID();
         GuestServer s = server(id, "web-01", null);
-        SetupStep step = SetupStep.builder().id(UUID.randomUUID()).guestServer(s)
+        ProvisioningHistory step = ProvisioningHistory.builder().id(UUID.randomUUID()).guestServer(s)
                 .stepCode(ProvisioningPhaseStep.OS_INSTALLING).status(ProvisioningStatus.RUNNING).build();
 
         given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
         given(detailRepository.findByServerIdWithBoardModel(id)).willReturn(Optional.of(detail(s)));
         given(nicRepository.findAllByServerIdOrderByPrimary(id)).willReturn(List.of(nic(s)));
         given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress(s, ProvisioningPhase.OS_INSTALLING)));
-        given(setupStepRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of(step));
+        given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of(step));
 
         GuestServerDetailResponse res = service.findDetail(id);
 
@@ -174,6 +175,55 @@ class GuestServerQueryServiceTest {
     }
 
     @Test
+    @DisplayName("findDetail — 게스트 실패: failedStepCode = 커서 step 파생 (ES-2 D-5)")
+    void findDetail_guestFailure_derivesCursorStep() {
+        UUID id = UUID.randomUUID();
+        GuestServer s = server(id, "web-02", null);
+        LocalDateTime failedAt = LocalDateTime.now();
+        ProvisioningProgress failed = ProvisioningProgress.builder().id(UUID.randomUUID()).guestServer(s)
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_COLLECTING)
+                .lastTransitionAt(failedAt).startedAt(failedAt).failedAt(failedAt).build();
+        ProvisioningHistory guestFailRow = ProvisioningHistory.instant(s,
+                ProvisioningPhaseStep.INFORMATION_COLLECTING, ProvisioningStatus.FAILED,
+                "{\"reason\":\"disk\"}", failedAt);
+
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(detailRepository.findByServerIdWithBoardModel(id)).willReturn(Optional.of(detail(s)));
+        given(nicRepository.findAllByServerIdOrderByPrimary(id)).willReturn(List.of());
+        given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(failed));
+        given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of(guestFailRow));
+
+        GuestServerDetailResponse res = service.findDetail(id);
+
+        assertThat(res.progress().failedStepCode())
+                .isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);   // 커서 = 실패 지점
+    }
+
+    @Test
+    @DisplayName("findDetail — 운영자 수동 전환: 원장 operator 행 판독 → failedStepCode null (화면 '운영자 전환' 유지)")
+    void findDetail_manualFailure_derivesNull() {
+        UUID id = UUID.randomUUID();
+        GuestServer s = server(id, "web-03", null);
+        LocalDateTime failedAt = LocalDateTime.now();
+        ProvisioningProgress failed = ProvisioningProgress.builder().id(UUID.randomUUID()).guestServer(s)
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_COLLECTING)
+                .lastTransitionAt(failedAt).startedAt(failedAt).failedAt(failedAt).build();
+        ProvisioningHistory operatorRow = ProvisioningHistory.instant(s,
+                ProvisioningPhaseStep.INFORMATION_COLLECTING, ProvisioningStatus.FAILED,
+                ProvisioningHistory.OPERATOR_ORIGIN_META, failedAt);   // markFailedManually 가 같은 now 로 적재
+
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(detailRepository.findByServerIdWithBoardModel(id)).willReturn(Optional.of(detail(s)));
+        given(nicRepository.findAllByServerIdOrderByPrimary(id)).willReturn(List.of());
+        given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(failed));
+        given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of(operatorRow));
+
+        GuestServerDetailResponse res = service.findDetail(id);
+
+        assertThat(res.progress().failedStepCode()).isNull();   // '운영자 전환' 배지 경로
+    }
+
+    @Test
     @DisplayName("findDetail — 회수된 서버는 status=DECOMMISSIONED (progress 무관)")
     void findDetail_decommissioned() {
         UUID id = UUID.randomUUID();
@@ -182,7 +232,7 @@ class GuestServerQueryServiceTest {
         given(detailRepository.findByServerIdWithBoardModel(id)).willReturn(Optional.of(detail(s)));
         given(nicRepository.findAllByServerIdOrderByPrimary(id)).willReturn(List.of());
         given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress(s, ProvisioningPhase.OS_INSTALLING)));
-        given(setupStepRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of());
+        given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of());
 
         assertThat(service.findDetail(id).status()).isEqualTo(GuestServerStatus.DECOMMISSIONED);
     }

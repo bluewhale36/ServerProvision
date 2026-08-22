@@ -77,6 +77,6 @@ public class FrozenBiosSettingsConverter implements AttributeConverter<FrozenBio
             return BiosAttributeValue.ofBoolean(node.asBoolean());
         }
         // 저장 경로 밖의 변조/버그 — silent 흡수하지 않는다(BiosSettingValuesConverter 선례).
-        throw new IllegalStateException("assigned_process.frozen_bios_settings_json 에 허용되지 않은 값 타입: " + name);
+        throw new IllegalStateException("assigned_process_snapshot.frozen_bios_settings_json 에 허용되지 않은 값 타입: " + name);
     }
 }

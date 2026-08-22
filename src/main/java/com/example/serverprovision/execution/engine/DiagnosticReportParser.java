@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * 진단 수집 보고(statusMeta JSON)의 <b>관용 파서</b>(E1-2, plan Q3) — agent.sh 와의 보고 계약을 서버측에서
  * 해석한다. 원칙: 파싱 가능한 필드만 구조화하고, 실패·누락은 null/생략으로 흡수한다(예외로 close 를
- * 실패시키지 않는다 — 원문은 setup_step.statusMeta 가 append-only 로 보존하므로 파서 보강 후 소급
+ * 실패시키지 않는다 — 원문은 provisioning_history.statusMeta 가 append-only 로 보존하므로 파서 보강 후 소급
  * 재파싱이 가능하다).
  *
  * <p><b>placeholder 필터</b>: 벤더 미기입 관행 값("To Be Filled By O.E.M." 류)을 null 로 정규화한다 —
