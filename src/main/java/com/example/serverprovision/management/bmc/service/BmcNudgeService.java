@@ -53,7 +53,8 @@ public class BmcNudgeService {
 	public void cancel(UUID nudgeId) {
 		NudgeSession session = requireBmcSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		bmcRegistrationService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
+		// R12-2 — 업로드 임시 트리만 정리. claim 경로(사용자 기존 파일)는 registration service 가 보존 판단.
+		bmcRegistrationService.cleanupNudgeCancelled(payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[bmc-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
 	}

@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R12-1 Plan — BIOS 펌웨어 자원 등록 개편</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list (localStorage) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:260px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 3-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R12-1 : BIOS 펌웨어 자원 등록 개편 — 번들 업로드 제거 · 등록 UX 단일 폼 통합 <span class="v2-badge">R12</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리 코드</strong> R12-1 (refactor)</span>
+    <span><strong>상위 캠페인</strong> R12 — 펌웨어 업로드 단순화</span>
+    <span><strong>브랜치(예정)</strong> refactor/R12_firmware-upload-simplification</span>
+    <span><strong>작성</strong> 2026-08-20 (KST)</span>
+    <span><strong>정정</strong> 2026-08-20 사용자 CP1 검수 반영 — 확장자 검사 철회 · 등록 UX 를 ISO 방식 단일 폼으로 통합 · 화면 표기 축소</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>이 슬라이스가 지금 필요한 경위</h4>
+        <p>BIOS 자원이 지금과 같은 "벤더 패키지 번들" 형태로 등록되도록 설계된 이유는 집행 방식의 원안에 있다. 2026-08-01 의 E2-R 펌웨어 flash 조사 시점에 확정돼 있던 집행 원안은 가상 USB(FAT32 이미지)를 만들어 서버에 붙이고 UEFI Shell 에서 벤더 flash 유틸리티를 실행하는 것이었다. 그 방식은 파일 하나만으로 성립하지 않는다 — flash 유틸리티(<code>AfuEfix64.efi</code>) · 실행 스크립트(<code>f.nsh</code>) · 롬 파일이 한 디렉토리에 함께 있어야 UEFI Shell 이 그 트리를 그대로 실행할 수 있기 때문이다. 그래서 관리 자원의 파일 계약이 "디렉토리 트리 한 벌" 로 정해졌고, 업로드 화면도 폴더 · 압축 · 단일 파일 세 모드를 갖게 되었다.</p>
+        <p>그 전제가 2026-08-18 ~ 19 의 BMC Redfish 실측(Notion E0-4 계열)에서 무너졌다. <code>UpdateService</code> 의 <code>SimpleUpdate</code> 로 BIOS(<code>image.RBU</code>, 47 초 ~ 2 분 22 초)와 BMC(<code>.ima_enc</code>, 7 분 37 초)의 실집행이 모두 성공했다. 유일하게 남아 있던 결격 — 로고 변경본이 반영되지 않는 현상 — 도 조사 결과 "로고가 들어 있지 않은 파일을 구운 것" 으로 판명됐다(구운 파일과 정본의 SHA-256 이 동일). 이후 벤더가 제공한 로고 포함 RBU 를 수령해 그 결격도 해소됐다. 2026-08-20 사용자가 가상 USB 경로를 철폐하고 Redfish 를 최종 집행 수단으로 확정했다.</p>
+        <p>집행이 Redfish 한 갈래로 좁혀지면 서버로 보낼 것은 펌웨어 파일 한 개뿐이다. 유틸리티도 스크립트도 게스트에 올릴 필요가 없다. 따라서 관리 자원의 파일 계약을 "번들" 에서 "펌웨어 파일 1 개" 로 내리는 것이 R12 캠페인이며, 그 첫 슬라이스가 BIOS 를 다루는 R12-1, 뒤이어 BMC 를 다루는 것이 R12-2 다.</p>
+
+        <h4>현행 등록 경로 실측</h4>
+        <table>
+          <thead><tr><th>경로</th><th>사용자 입력</th><th>서버 처리</th></tr></thead>
+          <tbody>
+            <tr><td><code>FOLDER</code></td><td>디렉토리 선택(다중 파일)</td><td><code>extractFolder</code> — 트리 전개</td></tr>
+            <tr><td><code>ZIP</code></td><td>압축 파일 1 개(<code>accept=".zip"</code>)</td><td><code>extractZip</code> — 압축 해제</td></tr>
+            <tr><td><code>SINGLE_FILE</code></td><td>파일 1 개(형식 제한 없음)</td><td><code>extractSingleFile</code> — 복사</td></tr>
+            <tr><td>기존 디렉토리 등록</td><td>서버 경로 지정</td><td>추출 없이 claim</td></tr>
+          </tbody>
+        </table>
+        <p>등록 화면은 이 네 경로를 탭으로 나눠 보여주고 <code>uploadMode</code> 값을 hidden 으로 실어 보낸다. 업로드 세 경로는 2 단 핸드셰이크를 쓴다. 먼저 <code>POST /management/bios/{boardId}/upload-intent</code> 가 JSON 으로 하드 조건(보드 존재 · 활성 (board, version) 중복 · 대상 디렉토리 정책)을 검사하고 1 회용 토큰을 발급한다. 그 다음 <code>POST /management/bios/{boardId}/upload</code> 가 <code>X-Upload-Token</code> 헤더와 함께 multipart 로 바이트를 싣는다. 서버는 모드별로 페이로드를 전개한 뒤 <code>BundleEntrypointDetector</code> 가 벤더별 전략으로 진입점을 자동 탐지하고, <code>BundleManifestService</code> 가 manifest 를 집계하며, 해시 충돌이 있으면 nudge 세션을 발급하고, 마지막에 2-phase save 와 마커 기록을 수행한다. 네 번째 경로인 <code>POST /management/bios/{boardId}/register-existing</code> 은 핸드셰이크 없이 단발 POST 로 이미 채워진 트리를 claim 한다.</p>
+        <p>엔티티 <code>BoardBIOS</code> 는 이 트리 전제를 그대로 담고 있다 — <code>treeRootPath</code> · <code>entrypointRelativePath</code> · <code>manifestHash</code> · <code>markerSignature</code> · <code>fileCount</code> · <code>totalBytes</code>. 업로드 용량 상한은 <code>provision.upload.max-file-size=15GB</code> 이므로 64 MB 짜리 RBU 는 설정 변경 없이 통과한다.</p>
+        <div class="callout warn"><b>파일 형식 검사가 어디에도 없다.</b> 압축 업로드에 <code>accept=".zip"</code> 이 붙어 있을 뿐이고, 폴더 업로드와 단일 파일 업로드는 제한이 전혀 없다. 이번 슬라이스는 이 자리를 <b>벤더별 파일 정책</b>으로 채운다(§8 D3 · D10) — GIGABYTE 보드는 <code>.RBU</code> 확장자만 허용하고 PFR 사본 파일 두 개를 막으며, ASUS · FUJITSU 보드는 제약을 두지 않는다.</div>
+
+        <h4>비교 대상 — ISO 등록의 단일 폼 방식 (실측)</h4>
+        <p>같은 저장소 안에 이미 다른 방식의 선례가 있다. ISO 등록은 탭이 없고 폼 하나에 경로 한 칸과 선택적 파일 한 칸만 둔다. <code>IsoUploadController.uploadIso</code> 는 파일 파라미터를 <code>required=false</code> 로 받고, 파일이 실제로 있을 때만 <code>X-Upload-Token</code> 을 소비한다. <code>IsoRegistrationService.prepare</code> 는 <code>hasFile</code> 분기로 갈라져 파일이 있으면 저장하고, 없으면 <code>Files.isRegularFile(target)</code> 로 그 경로의 파일이 실재하는지 확인한 뒤 등록한다. 경로 해석은 <code>IsoPathResolver.resolve</code> 가 맡아 <code>/</code> 로 끝나는 경로에는 업로드 파일명을 이어 붙이고, 파일 경로면 그대로 쓴다. 사용자는 이 방식을 BIOS 에도 그대로 쓰기로 결정했다(§8 D2).</p>
+
+        <h4>공유 실태 — 이번 슬라이스의 핵심 제약</h4>
+        <table>
+          <thead><tr><th>자산</th><th>사용처</th><th>R12-1 에서의 처지</th></tr></thead>
+          <tbody>
+            <tr><td><code>BundleExtractionService</code></td><td>BIOS · BMC</td><td><code>extractSingleFile</code> 만 계속 호출</td></tr>
+            <tr><td><code>BundleEntrypointDetector</code> + 전략 3 종</td><td>BIOS · BMC</td><td>BIOS 호출 중단, 클래스는 잔존</td></tr>
+            <tr><td><code>BundleManifestService</code></td><td>BIOS · BMC</td><td>그대로 사용</td></tr>
+            <tr><td><code>bundle-upload-shell.js</code></td><td>BIOS · BMC 페이지 JS</td><td>단일 폼 개편 범위에서 판단</td></tr>
+            <tr><td><code>bundle-upload-bootstrap.js</code></td><td>BIOS · BMC 페이지 JS</td><td>무변경</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>공유 자산을 지금 지우면 BMC 가 깨진다.</b> <code>BmcRegistrationService</code> 가 <code>bios.service</code> 패키지의 세 클래스를 그대로 import 해 쓰고 있고, 프런트도 <code>management/common</code> 의 두 스크립트를 BIOS · BMC 가 함께 쓴다. 그래서 R12-1 은 BIOS 쪽 호출부만 바꾸고 공유 자산 자체는 손대지 않는다(§8 D5).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <p>사용자 지시 원문은 <b>"기존의 bundle/zip upload 방식을 제거하고 파일 확장자를 검사한다"</b> 였다. 2026-08-20 CP1 검수에서 등록 UX 를 ISO 방식으로 통합하는 결정과 도메인 전역 확장자 검사를 철회하는 결정이 더해졌고, 이어 구현 중에 정책을 벤더별로 나누면서 <b>GIGABYTE 한정 확장자 요구</b>로 다시 들어왔다(§8 D3 · D10 · 정정 이력). 확정된 요구는 다음 넷이다.</p>
+        <ol>
+          <li><b>폴더 · 압축 업로드 모드 제거.</b> 가상 USB 조립용 패키지를 서버에 쌓아 둘 이유가 없어졌다.</li>
+          <li><b>등록 UX 를 단일 폼으로 통합한다.</b> 경로 한 칸과 선택적 펌웨어 파일 한 칸만 둔다. 경로가 <code>/</code> 로 끝나면 디렉토리로 보고 업로드 파일명을 이어 붙이고, 파일 경로면 그대로 쓴다. 업로드 파일이 있으면 그 경로에 저장하고, 없으면 그 경로에 이미 있는 파일을 등록(claim)한다. 별도의 "기존 디렉토리 등록" 기능은 폐지한다 — <code>/register-existing</code> 엔드포인트 · 탭 UI · <code>BiosRegisterExistingRequest</code> 가 함께 사라진다.</li>
+          <li><b>검사는 벤더별 파일 정책으로 한다.</b> 정책은 두 축이다 — 금지 파일명과 허용 확장자. GIGABYTE 는 <code>.RBU</code> 확장자만 허용하고 <code>PFR1.RBU</code> · <code>PFR2.RBU</code>(둘 다 대소문자 무시)를 막으며, ASUS · FUJITSU 는 제약을 두지 않는다. 검사 지점은 세 층 — 브라우저 폼의 JS 사전 검사, upload-intent 하드 검증(업로드 경로에만 해당), 등록 본체 안전망.</li>
+          <li><b>목록 상세의 화면 표기를 줄인다.</b> "진입점" 과 "파일 수 N 개 · B" 표기를 제거한다. 엔티티 필드 · DB 컬럼 · Response 필드는 그대로 두고 화면에서만 감춘다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> — 각 항목이 어디로 가는지 함께 적는다.
+          <ul>
+            <li>집행 코드(<code>SimpleUpdate</code> 호출 · Task 폴링 · 전원 오케스트레이션) → ue 스트림의 E2-2 · E2-3.</li>
+            <li>BMC 도메인 개편 → R12-2.</li>
+            <li>공유 자산의 폴더 · 압축 경로와 벤더 진입점 전략 dead code 일소 → R12-2 완료 후.</li>
+            <li>엔티티 · DB 컬럼 정리(<code>entrypointRelativePath</code> · <code>fileCount</code> 등) → 하지 않는다. 다른 세션이 데이터베이스를 대규모로 손보는 중이라 충돌을 피한다(§8 D9).</li>
+            <li>Subprogram 자원 → 대상 아님. MVP 축소로 Windows 계열과 함께 후순위다.</li>
+            <li>이미 등록된 번들형 자원의 이관 · 재등록 → 운영 절차(코드 무변경). 집행 시점의 유효성 판단은 E2-2 소관.</li>
+            <li>기존 화면 문구 전면 정비 → S16-2.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 파일 후보 × 요청 경로 → 3 층 판정 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">축이 둘이다. <b>파일 후보</b>를 고르면 세 층(① 브라우저 폼 ② upload-intent ③ 업로드 본체)의 판정이 갱신되고, <b>요청 경로</b>를 바꾸면 어느 층이 실제로 발동하는지가 달라진다. <code>기존 파일 등록</code> 은 업로드가 없으므로 층 ②(업로드 전용 핸드셰이크)가 건너뛰어지고, <code>direct POST</code> 는 화면과 핸드셰이크를 모두 우회해 층 ③ 안전망만 남는다. 판정 로직은 <b>GIGABYTE 보드의 정책(<code>GigabyteFirmwareFilePolicyStrategy</code>)을 그대로 옮긴 것</b>이며(드리프트 0), 이 데모는 GIGABYTE 보드를 가정한다 — ASUS · FUJITSU 보드는 금지 목록과 허용 확장자가 모두 비어 있어 어떤 파일이든 통과한다(§8 D3 · D10).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">파일 후보 :</span>
+            <button class="seg" data-file="0" onclick="demoSetFile(0)">image.RBU</button>
+            <button class="seg" data-file="1" onclick="demoSetFile(1)">Image.rbu</button>
+            <button class="seg" data-file="2" onclick="demoSetFile(2)">PFR1.RBU</button>
+            <button class="seg" data-file="3" onclick="demoSetFile(3)">GB-BIOS-bundle.zip</button>
+            <button class="seg" data-file="4" onclick="demoSetFile(4)">ASUS-bios.cap</button>
+            <button class="seg" data-file="5" onclick="demoSetFile(5)">(폴더 선택)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">요청 경로 :</span>
+            <button class="seg" data-mode="form" onclick="demoSetMode('form')">폼 업로드</button>
+            <button class="seg" data-mode="claim" onclick="demoSetMode('claim')">기존 파일 등록</button>
+            <button class="seg" data-mode="direct" onclick="demoSetMode('direct')">direct POST</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-file"></div>
+            <div class="ux-row child" id="demo-l1"></div>
+            <div class="ux-row child" id="demo-l2"></div>
+            <div class="ux-row child" id="demo-l3"></div>
+            <div class="ux-row" id="demo-action"></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">파일 후보와 요청 경로를 바꿔 보세요. 차단된 버튼에 마우스를 올리면 거절 사유 tooltip 이 뜹니다.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 탭 4 개</h4><pre><code>탭 : 폴더 / zip / 단일 파일 / 기존 디렉토리 등록
+uploadMode = FOLDER | ZIP | SINGLE_FILE
+<span class="diff-del">POST /register-existing (별도 엔드포인트)</span>
+진입점 = BundleEntrypointDetector 자동 탐지
+        + 사용자 override 입력</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 단일 폼</h4><pre><code>경로 1 칸 + 펌웨어 파일 1 칸(선택)
+<span class="diff-add">파일 있음 → 그 경로에 저장</span>
+<span class="diff-add">파일 없음 → 그 경로의 기존 파일 claim</span>
+<span class="diff-add">BiosFirmwareFilePolicy.assertAllowed(vendor, fileName)</span>
+진입점 = 경로 해석 결과의 파일명</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 차단 판정 = 폼 JS 의 사전 검사 = 서버 throw 판정 = <code>BiosFirmwareFilePolicy</code> 가 vendor 로 고른 전략의 단일 바디. 화면에 뜨는 문구와 금지 목록도 그 전략이 가진 것을 그대로 내려받아 표시한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>메서드</th><th>URL</th><th>개정 요지</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/management/bios/{boardId}/upload-intent</code></td><td>업로드 전용 핸드셰이크로 축소 · 필드 재구성</td></tr>
+            <tr><td>POST</td><td><code>/management/bios/{boardId}/upload</code></td><td><code>firmwareFile</code> 1 개(<code>required=false</code>) · claim 흡수</td></tr>
+            <tr><td>POST</td><td><code>/management/bios/{boardId}/register-existing</code></td><td><span class="chip del">삭제</span> upload 로 흡수</td></tr>
+          </tbody>
+        </table>
+        <p><b>upload-intent</b> — 요청 필드를 <code>firmwarePath</code> · <code>fileName</code> · <code>fileSize</code> · <code>version</code> · <code>allowCreateDirectory</code> 로 재구성한다. <code>uploadMode</code> · <code>fileCount</code> · <code>entrypointRelativePath</code> 는 제거된다. 하드 검증 목록에 벤더 파일 정책 검사(금지 파일명 + 허용 확장자)를 편입하되, 검사 대상은 두 이름이다 — 업로드 파일의 원본 파일명과, 경로 해석을 마친 최종 파일명. 경로에 <code>PFR1.RBU</code> 를 직접 적어 넣거나 확장자가 다른 파일명을 적는 입력도 같은 자리에서 걸러야 하기 때문이다. 이 핸드셰이크는 <b>업로드가 있을 때만</b> 호출된다. 기존 파일을 등록하는 경우에는 보낼 바이트가 없으므로 사전 관문을 둘 이유도 없다 — ISO 가 같은 구조다.</p>
+        <p><b>upload</b> — multipart 파라미터를 <code>firmwareFile</code> 하나로 줄이고 <code>required=false</code> 로 받는다. 파일이 있으면 <code>X-Upload-Token</code> 을 1 회용으로 소비한 뒤 경로 해석 결과의 이름으로 저장하고, 없으면 토큰 없이 그 경로의 기존 파일을 등록한다. 어느 쪽이든 본체에서 벤더 파일 정책을 다시 검사한다. 화면을 거치지 않은 요청과, 토큰을 받은 뒤 다른 파일을 실어 보내는 요청을 막는 안전망이다.</p>
+        <p><b>register-existing</b> — 삭제한다. 이 엔드포인트가 하던 일(이미 있는 것을 자원으로 등록)은 "업로드 파일 없이 upload 를 호출" 하는 것과 같아졌다. 요청 DTO <code>BiosRegisterExistingRequest</code> 와 서비스의 <code>registerExisting</code> 진입점도 함께 사라지고, 그 안의 검증 · nudge · 저장 흐름은 단일 경로로 합류한다.</p>
+
+        <h4>경로 해석 규칙</h4>
+        <pre><code>firmwarePath = "/mnt/firmware/bios/gigabyte/ms03-ce0/2.03/"   ← "/" 로 끝남 = 디렉토리
+   + 업로드 파일명 "image.RBU"        → resolvedPath = "/mnt/.../2.03/image.RBU"
+   + 업로드 없음                      → 파일명을 알 수 없다 → 400 (필드 = firmwarePath)
+
+firmwarePath = "/mnt/firmware/bios/gigabyte/ms03-ce0/2.03/image.RBU"   ← 파일 경로
+   + 업로드 있음                      → resolvedPath 에 저장
+   + 업로드 없음                      → Files.isRegularFile(resolvedPath) 확인 후 claim
+                                        실재하지 않으면 400 (필드 = firmwarePath)</code></pre>
+
+        <h4>등록 흐름 (개편 후)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저 (폼 + bios-new.js)</div><div class="actor a2">BiosUploadController</div><div class="actor a3">Service 계층</div>
+          <div class="step a1">경로 입력 + (선택) 펌웨어 파일 선택 — JS 금지 파일명 사전 검사</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"><b>파일이 있을 때만</b> POST upload-intent<br><span class="mono">{firmwarePath, fileName, fileSize, version, allowCreateDirectory}</span></div><div class="step a2"><code>@Valid</code> → BindingResult</div><div class="step a3"><code>issue</code> — 보드 · 활성 중복 · 경로 정책 · <b>벤더 파일 정책</b> 검사 → 토큰 발급</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">메타 충돌 시 <code>BiosNudgeRequiredException</code> (단계 A · 409)</div>
+          <div class="step a1">XHR POST upload<br><span class="mono">firmwareFile(선택) + X-Upload-Token(파일 있을 때만)</span></div><div class="step a2">파일 있으면 <code>consume(token)</code>, 없으면 토큰 불요</div><div class="step a3"><code>UploadPathResolver.resolve</code> → <b>벤더 파일 정책 재검</b></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">파일 있음 → 부모 디렉토리 배타 검사 후 저장 / 파일 없음 → <code>Files.isRegularFile</code> 확인 후 claim</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">manifest 집계 → 해시 충돌 시 nudge(단계 B · 409) → 2-phase save + IN_TREE 마커</div>
+          <div class="step a1">응답 <code>redirect</code> 로 목록 이동</div><div class="step a2">200 <span class="mono">{id, redirect}</span></div><div class="step a3"></div>
+        </div>
+        <p>nudge 배선은 현행 그대로다. 메타 충돌(단계 A)은 intent 에서, 내용 해시 충돌(단계 B)은 등록 본체에서 각각 409 로 분기하며 사용자의 proceed / replace / cancel 결정을 기다린다. 다만 기존 파일을 등록하는 경로에는 intent 가 없으므로 단계 A 가 발동하지 않는다 — 이 경로에서 동일 (board, version) 중복은 본체의 활성 중복 검사와 단계 B 가 받는다. 이는 현행 <code>register-existing</code> 과 같은 성질이며 새로 생기는 비대칭이 아니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <div class="callout success"><b>엔티티 · 스키마 · 마커 형식 · DDL 이 전부 무변경이다.</b> 단일 펌웨어 파일은 "파일이 하나뿐인 트리" 로 표현된다. 다른 세션이 데이터베이스를 대규모로 손보는 중이므로 이 원칙은 이번 정정에서 더 강해졌다 — 화면에서 감출 뿐 컬럼과 Response 필드는 건드리지 않는다.</div>
+        <table>
+          <thead><tr><th>필드</th><th>개편 후 값</th><th>화면 표기</th></tr></thead>
+          <tbody>
+            <tr><td><code>treeRootPath</code></td><td><code>resolvedPath</code> 의 부모 디렉토리</td><td>표기 유지</td></tr>
+            <tr><td><code>entrypointRelativePath</code></td><td><code>resolvedPath</code> 의 파일명</td><td><span class="chip del">제거</span> 구조는 유지</td></tr>
+            <tr><td><code>fileCount</code></td><td>항상 1</td><td><span class="chip del">제거</span> 구조는 유지</td></tr>
+            <tr><td><code>totalBytes</code></td><td>그 파일의 바이트</td><td><span class="chip del">제거</span> 구조는 유지</td></tr>
+            <tr><td><code>manifestHash</code></td><td>파일 1 개의 manifest 해시</td><td>표기 유지</td></tr>
+            <tr><td><code>markerSignature</code></td><td>동일 · IN_TREE 마커</td><td>표기 유지</td></tr>
+          </tbody>
+        </table>
+        <p>이 표현을 고르면 주변 인프라가 전부 그대로 동작한다. <code>BoardBiosMarkableScanner</code> 는 <code>treeRootPath</code> 아래의 마커를 읽어 자원을 식별하는데, 그 트리에 파일이 하나이든 열이든 스캔 방식이 달라지지 않는다. 경로 드리프트 탐지(reconciliation) · 휴지통 격리 · orphan 정합화도 "트리 루트" 단위로 동작하므로 계약이 유지된다.</p>
+
+        <h4>부모 디렉토리 배타 검증 — IN_TREE 마커의 구조적 요구</h4>
+        <p>BIOS 자원의 마커는 트리 안에 <code>.provision.json</code> 으로 기록된다(IN_TREE 방식). 이 파일 하나가 디렉토리 전체를 "이 자원의 것" 으로 주장하므로, <b>한 디렉토리를 두 자원이 나눠 가질 수 없다</b>. 두 자원이 같은 디렉토리를 쓰면 마커가 서로를 덮어쓰고, 드리프트 탐지는 어느 자원의 트리인지 판정할 수 없게 되며, 휴지통 격리는 남의 파일까지 함께 옮긴다. 그래서 등록 시점에 부모 디렉토리의 배타성을 확인해야 한다.</p>
+        <ul>
+          <li><b>업로드 경로</b> — 전개 전에 부모 디렉토리가 비어 있어야 한다(현행 <code>TargetDirectoryPolicyService</code> 의 업로드 검사와 같은 성질).</li>
+          <li><b>claim 경로</b> — 등록 대상 파일 · 무시 가능 파일(<code>.DS_Store</code> · <code>Thumbs.db</code>) · 마커(<code>.provision.json</code>) 를 제외하고 다른 파일이 없어야 한다.</li>
+        </ul>
+        <p>위반은 필드 직결 400 으로 거절한다. 사용자가 경로를 고치면 해결되는 입력 문제이지 서버 내부 오류가 아니기 때문이다.</p>
+
+        <h4>신규 — 금지 파일명 정책 SPI (판정 SSOT) <span class="chip mod">D10 반영</span></h4>
+        <p>금지 파일명 두 개는 GIGABYTE 벤더 패키지의 관례에서 기원한 제약이다. 한 클래스에 하드코딩하면 다른 제조사의 파일에도 같은 제약이 번지므로, 진입점 탐지의 <code>EntrypointDetectionStrategy</code> 선례와 같은 vendor 매칭 SPI(Service Provider Interface — 도메인이 구현해 끼우는 확장점)로 나눈다(§8 D10).</p>
+        <pre><code>management/bios/firmware/
+
+public interface FirmwareFilePolicyStrategy {
+    boolean supports(Vendor vendor);
+
+    // ── 데이터 : vendor 구현체가 공급 ──
+    default List&lt;String&gt; forbiddenFilenames()  { return List.of(); }
+    default List&lt;String&gt; allowedExtensions()   { return List.of(); }  // 소문자 · 점 없음, 빈 목록 = 제한 없음
+    default String forbiddenNamesCsv()         { return ""; }         // 폼 data-* 속성
+    default String forbiddenMessage()          { return ""; }         // 금지 파일명 안내 hint
+    default String invalidExtensionMessage()   { return ""; }         // 확장자 거절 문구
+
+    // ── 알고리즘 : 이 한 곳에만 있다 ──
+    default void assertAllowed(String fileName, String fieldName) {
+        // ① 금지 파일명 대조 → ② 허용 확장자 대조, 위반 시 InvalidFirmwareFileException
+    }
+}
+
+GigabyteFirmwareFilePolicyStrategy   // allowedExtensions=[rbu] · forbiddenFilenames=[pfr1.rbu, pfr2.rbu] · 문구 정본
+AsusFirmwareFilePolicyStrategy       // 제약 없음 — supports 만 선언
+FujitsuFirmwareFilePolicyStrategy    // 제약 없음 — supports 만 선언
+
+@Component
+public class BiosFirmwareFilePolicy {          // dispatcher (구 단일 정책 클래스)
+    private final List&lt;FirmwareFilePolicyStrategy&gt; strategies;
+    // assertAllowed(vendor, …) · allowedExtensionsCsv(vendor) · acceptAttribute(vendor)
+    // · forbiddenNamesCsv(vendor) · invalidExtensionMessage(vendor)
+    // 매칭 실패 시 FirmwareFilePolicyMissingException (500)
+}</code></pre>
+        <p>인터페이스를 <b>데이터 메서드 + 알고리즘 default</b> 로 나눈 것이 이 구조의 요점이다. 검사 순서(금지 파일명 먼저, 허용 확장자 나중)와 예외 조립은 <code>assertAllowed</code> 의 default 본문 한 곳에만 있고, 벤더 구현체는 목록과 문구라는 데이터만 공급한다. 벤더가 늘어도 알고리즘이 복제되지 않고, 검사 순서를 바꿔야 할 때 고칠 자리도 하나다. 빈 목록을 "제한 없음" 으로 읽기 때문에 제약이 없는 벤더는 <code>supports</code> 하나만 선언하면 된다 — ASUS 와 FUJITSU 가 그렇다.</p>
+        <p><b>GIGABYTE 전략이 UI 차단 조건과 서버 가드 조건의 단일 SSOT(Single Source of Truth, 단일 진실 출처)</b> 다. 호출부 셋 — upload-intent 의 하드 검증, 등록 본체의 재검, 등록 폼을 여는 <code>GET /new</code> 의 모델 속성 적재 — 이 모두 vendor 를 인자로 넘겨 같은 전략을 거친다. 서버 쪽 검사 호출부는 확장자 축이 더해져도 바뀌지 않았다. <code>assertAllowed</code> 가 두 축을 함께 관장하므로 intent · 등록 본체 · claim 경로가 코드 변경 없이 확장자 검사를 함께 얻는다 — 검사 한 축을 늘리는 일이 전략의 데이터 한 줄로 끝난다는 것이 이 템플릿의 실익이다.</p>
+        <p>화면에 드러나는 효과는 셋이다. ① 파일 입력의 <code>accept</code> 속성이 <code>acceptAttribute(vendor)</code> 에서 파생된다 — GIGABYTE 는 <code>".rbu,.RBU"</code>, 제한이 없는 벤더는 속성 자체를 붙이지 않는다. 대문자 변형을 함께 적는 이유는 브라우저마다 확장자 매칭의 대소문자 처리가 달라, 한쪽만 적으면 정상 파일이 선택되지 않는 환경이 생기기 때문이다. ② 안내 hint 가 "확장자 제한 없음" 과 벤더 확장자 문구 사이에서 조건부로 갈리고, PFR 금지 안내도 GIGABYTE 보드에서만 나타난다. 사용자에게 자기 보드와 무관한 주의사항을 보이지 않는다는 뜻이다. ③ JS 사전 검사에 확장자 축이 더해지며, 업로드 원본 파일명과 경로 해석 최종 파일명을 <b>둘 다</b> 검사한다 — 업로드가 없는 claim 경로도 이 검사를 받는다.</p>
+
+        <h4>신규 — InvalidFirmwareFileException</h4>
+        <pre><code>public class InvalidFirmwareFileException extends FieldBoundBadRequestException {
+    public InvalidFirmwareFileException(String fieldName, String message) { … }
+}
+// fieldName : "firmwareFile" (업로드 파일 입력) 또는 "firmwarePath" (경로 입력)</code></pre>
+        <p>이 예외가 담는 사유는 넷이다 — ① 금지 파일명 ② claim 대상 파일이 그 경로에 없음 ③ 디렉토리 경로인데 업로드 파일이 없어 파일명을 정할 수 없음 ④ 부모 디렉토리가 배타적이지 않음. 클래스를 넷으로 쪼개지 않는 이유는 프런트가 사유별로 분기할 일이 없고 응답 형태가 모두 같기 때문이다. 사유는 메시지로 구분하고, 오류를 붙일 화면 자리는 <code>fieldName</code> 생성자 인자로 지정한다. 상위 클래스가 이미 400 + <code>fieldErrors[]</code> 로 매핑돼 있어 advice 에 분기를 새로 추가하지 않는다.</p>
+
+        <h4>코드 이동 1 건 — IsoPathResolver → UploadPathResolver</h4>
+        <div class="pkg-tree">management/os/util/IsoPathResolver.java          (삭제 — 이동으로 원위치 소멸)
+        ↓
+management/common/util/UploadPathResolver.java   (신규 — 이동 · 개명)
+        ↑ 호출 : IsoRegistrationService (import 갱신)
+        ↑ 호출 : BiosRegistrationService · BiosUploadIntentService (신규)</div>
+        <p>BIOS 가 ISO 와 똑같은 경로 해석 규칙을 쓰게 됐으므로 같은 로직을 복사하면 중복 금지 불가침을 위반한다. 클래스는 정적 메서드 하나(<code>resolve(rawPath, filename, onMissingFilename)</code>)뿐이고 의존이 없어 이동 비용이 낮다. 이름의 <code>Iso</code> 접두사는 도메인을 가로질러 쓰이는 순간 의미를 잃으므로 <code>UploadPathResolver</code> 로 바꾼다. 이 클래스가 "디렉토리 경로인데 파일명이 없다" 는 상황에서 던질 예외를 <b>호출측이 팩토리로 지정</b>하도록 설계돼 있다는 점이 중요하다 — BIOS 는 자기 도메인의 <code>InvalidFirmwareFileException</code> 을, ISO 는 기존 <code>InvalidIsoPathException</code> 을 그대로 넘긴다. 이동해도 두 도메인의 응답이 섞이지 않는다.</p>
+
+        <h4>삭제되는 타입</h4>
+        <div class="state-flow">BiosUploadMode { FOLDER, ZIP, SINGLE_FILE }  →  (삭제)   등록 경로가 하나로 합쳐짐
+BiosRegisterExistingRequest                  →  (삭제)   BiosCreateRequest 로 흡수</div>
+        <p>둘 다 타입이므로 컴파일러가 남은 참조를 전부 짚어 준다. 특히 <code>BiosUploadMode</code> 는 컨트롤러의 <code>@RequestParam</code>, intent 요청 DTO, <code>Intent</code> 레코드, nudge attributes 재구성(<code>reconstructRequestFromAttributes</code>)까지 흩어져 있어 누락 위험이 있는데, 열거형이라 빠뜨리면 빌드가 깨진다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>단일 폼 · 컨트롤러 · DTO · 정책 클래스 · 경로 리졸버 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td><b>N/A</b> — 리포지토리 · 엔티티 무변경</td><td><span class="chip cp3">CP3</span></td><td>해당 없음</td></tr>
+            <tr><td>8</td><td>정책 · 등록 · intent 서비스 본체 (테스트 제외, 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td><b>N/A</b> — DDL 0 건</td><td><span class="chip cp4">CP4</span></td><td>해당 없음</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하고 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+        <p>Step 6 · 7 · 9 가 해당 없음인 이유는 §4 에서 정한 대로다. 엔티티 필드가 그대로이고 새 조회가 필요 없으므로 리포지토리 메서드도 늘지 않으며, 스키마가 바뀌지 않으니 DDL 산출과 <code>SHOW CREATE TABLE</code> 대조도 없다. 이 슬라이스가 데이터베이스를 전혀 건드리지 않는다는 사실은 다른 세션의 대규모 DB 작업과의 충돌 회피 근거이기도 하다. 대신 Step 2 ~ 5 의 무게가 늘어난다 — 탭 UI 를 걷어내고 단일 폼으로 다시 짜는 화면 작업, 컨트롤러 파라미터 재구성, 요청 DTO 개정, 정책 클래스 신설, 경로 리졸버 이동이 이 구간에 몰린다.</p>
+        <p>브랜치는 CP1 승인 후 <code>origin/dev</code> 에서 <code>refactor/R12_firmware-upload-simplification</code> 으로 판다. 캠페인 단위 브랜치이므로 R12-1 과 R12-2 가 이 한 브랜치를 공유한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <p>테스트는 두 레이어로 쓴다. 단위 테스트는 서비스 분기를 직접 겨누고, 통합 테스트는 <code>@WebMvcTest</code> + <code>MockMvc</code> 로 HTTP 계층의 실제 상태 코드와 바디를 확인한다. mocking 은 Service 단까지만 하고 컨트롤러의 검증 분기와 advice 매핑은 실제로 실행되게 둔다.</p>
+
+        <h4>단위 테스트 (13)</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>GigabyteFirmwareFilePolicyStrategy</code></td><td>금지 2 종(대소문자 변형) · 확장자 통과 · 대소문자 확장자 · 확장자 위반 · 확장자 없음</td><td>6</td></tr>
+            <tr><td><code>UploadPathResolver</code></td><td>디렉토리 append · 파일 경로 그대로 · 파일명 누락 예외</td><td>3</td></tr>
+            <tr><td><code>BiosRegistrationService</code></td><td>업로드 happy · claim happy · claim 대상 파일 부재 · 부모 디렉토리 비배타</td><td>4</td></tr>
+          </tbody>
+        </table>
+
+        <h4>사용자 액션 통합 테스트 (15)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>업로드 완주 (<code>image.RBU</code>)</td><td>200 · <code>{id, redirect}</code></td></tr>
+            <tr><td>성공 2xx</td><td>ASUS 보드에 <code>ASUS-bios.cap</code> 업로드 완주</td><td>200 — vendor 무제약 실증</td></tr>
+            <tr><td>성공 2xx</td><td>업로드 없이 기존 파일 claim</td><td>200 · 토큰 불요</td></tr>
+            <tr><td>400</td><td>intent — 금지 파일명</td><td><code>fieldErrors[firmwareFile]</code></td></tr>
+            <tr><td>400</td><td>본체 direct POST — 금지 파일명</td><td>안전망 400</td></tr>
+            <tr><td>400</td><td>intent — 확장자 위반 (GIGABYTE 보드)</td><td><code>fieldErrors[firmwareFile]</code></td></tr>
+            <tr><td>400</td><td>본체 direct POST — 확장자 위반</td><td>안전망 400</td></tr>
+            <tr><td>400</td><td>claim — 경로에 파일 부재</td><td><code>fieldErrors[firmwarePath]</code></td></tr>
+            <tr><td>400</td><td>디렉토리 경로 + 파일 미첨부</td><td><code>fieldErrors[firmwarePath]</code></td></tr>
+            <tr><td>400</td><td>부모 디렉토리에 다른 파일 존재</td><td><code>fieldErrors[firmwarePath]</code></td></tr>
+            <tr><td>404</td><td>존재하지 않는 보드</td><td><code>BoardModelNotFoundException</code></td></tr>
+            <tr><td>404</td><td>삭제된 보드</td><td><code>BoardModelNotFoundException</code></td></tr>
+            <tr><td>409</td><td>활성 (board, version) 중복</td><td><code>DuplicateBiosVersionException</code></td></tr>
+            <tr><td>409</td><td>메타 nudge (단계 A)</td><td>현행 유지 회귀 확인</td></tr>
+            <tr><td>409</td><td>해시 nudge (단계 B)</td><td>현행 유지 회귀 확인</td></tr>
+            <tr><td>500</td><td>해당 없음 — 사용자 액션으로 도달 가능한 500 경로가 없다</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p>CLAUDE.md 의 테스트 규율이 필수로 정한 것은 네 범주(성공 2xx · 400 · 404 · 409)다. 파일 시스템 오류로 500 이 되는 경로는 기존 <code>BundleExtractionService</code> 소관이며 이번 슬라이스가 새로 만들지 않는다. 신설한 <code>FirmwareFilePolicyMissingException</code>(500)은 사용자 액션이 아니라 벤더 전략 등록 누락을 개발자에게 드러내는 가드라 통합 시나리오로 재현할 대상이 아니다(§7). 그래서 500 행은 비워 둔다. 위의 시나리오 수는 열거한 항목을 그대로 센 값이고, CP4 에서 분기가 더 드러나면 늘 수 있다.</p>
+        <p>성공 범주의 <b>ASUS 보드 <code>.cap</code> 업로드</b> 와 400 범주의 <b>GIGABYTE 보드 확장자 위반</b> 은 한 쌍으로 읽어야 한다. 같은 파일 형식이 보드에 따라 갈린다는 사실을 두 방향에서 고정하는 것이며, 둘 중 하나만 있으면 "정책이 벤더별" 이라는 성질이 테스트로 지켜지지 않는다. 한쪽이 빠지면 나중에 누군가 확장자 검사를 도메인 전역으로 되돌리거나 반대로 통째로 지워도 깨지는 테스트가 없다. 400 범주의 <b>본체 direct POST</b> 두 건은 또 다른 방향의 확인이다 — 화면과 핸드셰이크를 모두 우회한 요청을 본체 재검이 두 축 모두에서 잡는지 본다.</p>
+        <div class="callout warn"><b>신규 예외에는 반드시 트리거 시나리오가 붙는다.</b> <code>InvalidFirmwareFileException</code> 의 사유 네 가지가 위 400 범주 다섯 항목에 모두 실려 있다. 새 예외 관문(<code>.claude/domain-conventions/new-exception.md</code>)이 요구하는 조건이며, 이것이 빠진 묶음은 CP4 승인 대상이 아니다.</div>
+        <p>부수 확인 셋. ① <code>UploadPathResolver</code> 이동 후 기존 ISO 테스트가 그대로 green 인지 확인한다 — import 만 바뀌는 이동이지만 ISO 등록 경로 전체가 이 클래스를 통과하므로 회귀 확인 없이 넘기지 않는다. ② <code>FormSubmissionConventionTest</code> 의 기대값에는 영향이 없다. BIOS 폼은 XHR 로 제출되고 페이지 JS 가 응답을 처리하므로 <code>data-native-submit</code> 대상이 아니며 그 성격이 이번에도 유지된다. ③ <code>DriftBulkApplyServiceTest</code> 는 2026-08-19 13:00 KST 이후 항상 1 건 실패하는 기존 결함이다(고정 시각과 <code>Instant.now()</code> 기반 스누즈 만료가 어긋난 것으로 별도 hotfix 후보). CP4 의 green 판정에서 이 실패는 제외한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>상속</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>InvalidFirmwareFileException</code></td><td><code>FieldBoundBadRequestException</code></td><td>400 + <code>fieldErrors[]</code></td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>FirmwareFilePolicyMissingException</code></td><td><code>DomainException</code></td><td>500</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>DuplicateBiosVersionException</code></td><td>기존 계층</td><td>409</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>BiosNudgeRequiredException</code></td><td>기존 계층</td><td>409</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>InvalidUploadTokenException</code></td><td>기존 계층</td><td>현행 매핑</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>BoardModelNotFoundException</code></td><td>기존 계층</td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <p><code>InvalidFirmwareFileException</code> 이 담는 사유는 넷이다 — 금지 파일명, claim 대상 파일 부재, 디렉토리 경로인데 업로드 없음, 부모 디렉토리 비배타. 넷 모두 사용자가 입력을 고치면 해결되는 문제라 400 이 맞다. 필드명을 생성자 인자로 받는 이유는 같은 예외가 두 화면 자리(파일 입력 · 경로 입력)에 붙기 때문이다. 예외를 넷으로 쪼개는 대신 붙일 자리를 인자로 받는다.</p>
+        <p><code>FirmwareFilePolicyMissingException</code> 은 성격이 다르다. 사용자 액션으로는 도달할 수 없고, <b>새 <code>Vendor</code> 값을 추가하면서 그 벤더의 전략을 등록하지 않았을 때만</b> 발동한다. 이 가드가 없으면 등록 누락이 "제약 없음" 으로 조용히 흘러가 금지 파일이 통과해 버린다 — 침묵하는 대신 즉시 500 으로 터뜨려 개발 규칙을 강제한다. 같은 이유로 만들어진 <code>EntrypointStrategyMissingException</code> 선례를 따른다. 사용자 액션이 아니므로 §6 의 통합 시나리오 대상이 아니며, 새 벤더를 추가하는 시점에 개발자가 만나는 예외다.</p>
+        <p>삭제되는 예외는 없다. <code>BundleExtractionException</code> 과 <code>EmptyBundleException</code> 은 BIOS 경로에서 발생 빈도가 줄지만 <code>extractSingleFile</code> 이 여전히 던질 수 있고 BMC 도메인이 같은 서비스를 쓰므로 그대로 둔다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>정정 이력 — 2026-08-20 사용자 CP1 검수</h4>
+        <p>초안 제출 후 사용자가 네 가지를 지시했고, 아래 결정 절이 그에 맞춰 개정됐다.</p>
+        <table>
+          <thead><tr><th>#</th><th>사용자 결정</th><th>반영 위치</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>도메인 전역 확장자 검사를 철회한다 (구현 중 vendor 별로 재도입 — D3 ③)</td><td>D3 재개정 · §2 · §6 · 🎬</td></tr>
+            <tr><td>2</td><td>등록 UX 를 ISO 방식 단일 폼으로 통합한다. 별도 "기존 디렉토리 등록" 폐지</td><td>D2 개정 · §3 · §4</td></tr>
+            <tr><td>3</td><td>목록 상세의 "파일 수 N 개 · B" 표기를 없앤다</td><td>Q3 · §2 · §10</td></tr>
+            <tr><td>4</td><td>"진입점" 은 화면에 띄우지 않되 구조는 유지한다</td><td>Q4 · D9 · §4</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D1 — 저장 모델은 "파일이 하나뿐인 트리" 를 유지한다</h4>
+        <p><b>채택.</b> 엔티티와 마커 형식을 그대로 두고 <code>fileCount=1</code> 인 트리로 단일 파일을 표현한다. <b>비채택 대안</b> 은 ISO 자원처럼 단일 파일 모델로 엔티티를 개편하고 마커를 sidecar 로 전환하는 것이다. <b>탈락 사유</b> — 집행 단계(E2-2)는 <code>treeRootPath</code> 와 <code>entrypointRelativePath</code> 만으로 파일을 특정할 수 있어 개편의 실익이 없다. 반대로 개편하면 스캐너 · 휴지통 · reconciliation · orphan · 마커 인프라를 전면 재작업하고 DDL 까지 동반되는데, 얻는 것은 개념의 순수성뿐이다. 등록 UX 를 ISO 와 같게 만들되(D2) 저장 모델까지 ISO 를 따라가지는 않는다는 뜻이다.</p>
+
+        <h4>D2 — 등록 UX 를 ISO 방식 단일 폼으로 통합한다 <span class="chip mod">정정</span></h4>
+        <p><b>채택(사용자 결정 2026-08-20).</b> 탭을 없애고 경로 한 칸 + 선택적 파일 한 칸의 단일 폼으로 간다. 파일이 있으면 저장, 없으면 그 경로의 기존 파일을 claim 한다. <code>/register-existing</code> 엔드포인트 · <code>BiosRegisterExistingRequest</code> · <code>BiosUploadMode</code> 가 함께 사라진다.</p>
+        <p><b>비채택 대안 ①</b> — 폴더 · 압축만 지우고 "단일 파일 업로드" 와 "기존 디렉토리 등록" 두 탭을 남기는 것(초안이 채택했던 안). <b>탈락 사유</b> — 두 탭이 하는 일이 "파일을 올려서 등록" 과 "이미 있는 파일을 등록" 으로 갈릴 뿐인데, 사용자가 그 차이를 먼저 판단해 탭을 고르게 만든다. ISO 는 같은 문제를 "파일을 첨부했는가" 라는 사실 하나로 서버가 스스로 판정해 해결하고 있고, 그 코드가 이미 검증돼 있다. 화면이 둘로 갈리면 검증 · 문구 · nudge 배선도 두 벌로 갈라진다. <b>비채택 대안 ②</b> — 기존 파일 등록 자체를 없애 경로를 하나로 만드는 것. <b>탈락 사유</b> — 미리 배치해 둔 파일을 등록하거나 드리프트 복구 과정에서 다시 붙이는 실제 쓰임이 있다.</p>
+
+        <h4>D3 — 확장자 검사 = vendor 정책 (GIGABYTE <code>.RBU</code> 단일) <span class="chip mod">재개정</span></h4>
+        <p>이 결정은 세 번 바뀌었다. 흐름을 그대로 적는다.</p>
+        <ol>
+          <li><b>CP1 원안</b> — 도메인 전역에 허용 확장자 목록 <code>.rbu</code> 하나를 둔다. 논거는 "Redfish <code>SimpleUpdate</code> 로 실집행을 완주한 파일이 GIGABYTE 의 <code>image.RBU</code> 뿐이므로 집행 못 할 파일은 등록 단계에서 미리 끊는다" 였다.</li>
+          <li><b>CP1 검수 — 사용자가 확장자 검사 철회.</b> 전역 목록은 실측이 한 벤더 한 모델에 그친 상태에서 다른 제조사의 정상 펌웨어(ASUS 의 <code>.cap</code> 등)까지 막는다. 전역 검사의 부작용이 이득보다 컸다.</li>
+          <li><b>구현 중 — 사용자가 vendor 별 허용 확장자로 재도입 지시.</b> D10 의 vendor SPI 가 들어오면서 전제가 바뀌었다. 목록을 벤더 안에 가둘 수 있게 됐으므로 <b>GIGABYTE 만 <code>.RBU</code> 를 요구</b>하고 ASUS · FUJITSU 는 제약을 두지 않는다.</li>
+        </ol>
+        <p><b>결과적으로 ② 의 우려는 vendor 격리로 소멸했다.</b> 전역 목록이 다른 제조사에 번지는 일이 구조적으로 불가능해졌기 때문이다 — ASUS <code>.cap</code> 은 ASUS 전략에 제약이 없으므로 여전히 등록된다. 동시에 ① 의 이득은 그대로 살아난다. GIGABYTE 보드에 <code>.zip</code> 이나 확장자 없는 파일을 올리면 등록 단계에서 끊긴다. "제조사 관례에서 온 제약은 그 제조사 안에서만 집행한다" 는 것이 세 번의 변경을 관통하는 원칙이며, 금지 파일명(D4)과 허용 확장자가 같은 자리(벤더 전략)에 놓인 이유이기도 하다.</p>
+        <p><b>비채택 대안</b>은 ② 의 상태에 머무르는 것, 즉 확장자를 아예 보지 않는 것이다. <b>탈락 사유</b> — vendor 격리가 갖춰진 뒤에는 전역 검사의 부작용이 사라지므로, 확장자를 보지 않을 이유도 함께 사라진다. GIGABYTE 보드에 압축 파일이 등록되도록 두면 집행 시점(E2-2)에야 실패를 알게 되는데, 그 실패는 등록 시점에 확실히 알 수 있었던 것이다.</p>
+        <div class="callout"><b>확장자 거절 문구 정본</b>(GIGABYTE 전략 보유) — "GIGABYTE BIOS 펌웨어는 .RBU 형식 파일만 등록할 수 있습니다."</div>
+
+        <h4>D4 — <code>PFR1.RBU</code> · <code>PFR2.RBU</code> 는 하드 거절한다 <span class="chip keep">원안 유지 · 사용자 승인</span></h4>
+        <p><b>채택.</b> 금지 파일명 목록으로 차단하고 폼에 사전 안내를 상시 노출한다. 근거는 실측이다 — 이 두 파일은 PFR active/recovery 사본 경로 전용이며 전송 금지로 확인됐다. 등록되면 집행 사고 위험이 실재한다. <b>비채택 대안 ②</b> 는 경고만 띄우고 진행을 허용하는 것으로, 사용자가 무시할 수 있어 사고 여지가 남는다. <b>대안 ③</b> 은 안내 문구만 적어 두는 것으로, 조용히 등록되는 경로가 그대로 열려 있어 더 나쁘다. UI 가 1 차로 막고 서버 가드가 안전망으로 남는 구도라 예외 사용 원칙과도 맞는다. 확장자 검사가 철회됐던 구간(D3 ②)에도 이 검사만은 남아 있었다 — 그때 확장자는 "집행될지 모르는" 추정이었지만 이 두 이름은 "보내면 안 된다" 는 실측이었기 때문이다. 지금은 둘 다 GIGABYTE 전략 안에서 나란히 집행된다.</p>
+
+        <h4>D5 — 공유 자산은 R12-1 에서 건드리지 않는다</h4>
+        <p><b>채택.</b> BIOS 쪽 호출부만 전환하고 공유 자산은 그대로 둔다. <code>BundleExtractionService.extractSingleFile</code> 과 <code>BundleManifestService</code> 는 계속 쓴다. <code>BundleEntrypointDetector</code> 는 BIOS 경로에서 호출을 멈추지만(경로 해석 결과의 파일명이 곧 진입점이므로) 클래스와 전략 3 종은 BMC 가 공유하므로 잔존한다. <code>bundle-upload-shell.js</code> 는 단일 폼 개편 범위에서 판단한다 — 탭 · 모드 분기를 걷어내면 BIOS 페이지가 이 helper 를 거의 쓰지 않게 될 수 있어, 손대야 할지는 화면 작업(Step 2)에서 확정한다. 어느 쪽이든 BMC 가 쓰는 기존 함수는 고치지 않는다. <b>비채택 대안</b> 은 R12-1 에서 폴더 · 압축 경로를 즉시 지우는 것이다. <b>탈락 사유</b> — <code>BmcRegistrationService</code> 가 그 경로를 그대로 쓰고 있어 곧바로 깨진다.</p>
+
+        <h4>D6 — intent 핸드셰이크는 업로드 전용으로 유지한다 <span class="chip mod">정정</span></h4>
+        <p><b>채택.</b> 2 단 핸드셰이크를 없애지 않고 "업로드가 있을 때만 호출" 하는 구조로 좁힌다. 바이트를 보내기 전에 하드 조건을 먼저 본다는 취지가 금지 파일명 검사와 맞물리고, 메타 nudge(단계 A) 배선이 intent 안에 있다. 기존 파일 등록에는 보낼 바이트가 없으므로 핸드셰이크가 필요 없다 — ISO 가 정확히 이 구조다(<code>hasFile</code> 일 때만 토큰 소비). <b>비채택 대안</b> 은 핸드셰이크를 폐지하고 단발 POST 로 단순화하는 것이다. <b>탈락 사유</b> — nudge 를 다시 배선하는 비용에 비해 얻는 것이 없다. 다만 <code>IntentMetaNudgePayload</code> 의 attributes 구성과 <code>reconstructRequestFromAttributes</code> 는 새 필드 구성에 맞춰 함께 개정해야 한다. 여기를 빠뜨리면 nudge 이후 재발급 경로에서 없어진 필드를 읽으려 든다.</p>
+
+        <h4>D7 — 용어와 문구 <span class="chip mod">Q1 승인 반영</span></h4>
+        <p>용어 정본은 <b>"펌웨어 파일"</b> 로 확정됐다(사용자 승인). <code>docs/glossary.tsv</code> 에 행을 추가하고 "번들" · "flash 파일" 을 금지 표기로 등재한다 — 이 파일은 UTF-8 BOM 을 유지해야 한다. 신규 문구에는 문구 관문(<code>.claude/domain-conventions/new-user-copy.md</code>)을 적용한다. 서술은 합니다체, 지시는 하십시오체, placeholder 는 <code>예: </code> 형, 문장형 문구는 <code>MessageSource</code> 키로 등록한다. 화면 개정 범위는 등록 폼(탭 폐지 → 단일 폼 · 진입점 입력 제거 · vendor 조건부 <code>accept</code> 속성과 안내 hint), 페이지 제목 "BIOS 펌웨어 등록", 목록 상세의 표기 축소다. 확장자 거절 문구는 GIGABYTE 전략이 정본을 갖고 있어(D3) 아래 키 목록에 들어가지 않는다 — 벤더마다 다른 문구를 전략이 함께 이고 가는 편이 데이터와 문구가 갈라지지 않는다.</p>
+        <pre><code>management.bios.firmware-file.forbidden-name
+management.bios.firmware-file.claim-target-missing
+management.bios.firmware-file.directory-path-requires-upload
+management.bios.firmware-file.parent-directory-not-exclusive</code></pre>
+
+        <h4>D8 — 이미 등록된 자원은 손대지 않는다</h4>
+        <p><b>채택.</b> 데이터베이스에 남아 있는 번들형 BIOS 자원은 그대로 두고, 필요하면 운영 절차로 재등록한다. 집행 시점에 그 자원이 쓸 수 있는 것인지 판단하는 일은 E2-2 소관이다. 마이그레이션 코드를 이번 슬라이스에 넣지 않는다.</p>
+
+        <h4>D9 — 화면에서만 감추고 구조는 남긴다 <span class="chip mod">신설</span></h4>
+        <p><b>채택(사용자 결정 2026-08-20).</b> "진입점" 과 "파일 수 · 총 바이트" 표기를 목록 상세에서 없애되 엔티티 필드 · DB 컬럼 · Response 필드는 그대로 둔다. <b>명시된 사유는 충돌 회피다</b> — 다른 세션이 데이터베이스를 대규모로 손보는 중이라, 이 슬라이스가 컬럼을 건드리면 그쪽 작업과 부딪친다. 부수 효과로 이 슬라이스의 DDL 0 건 원칙이 한층 단단해진다. <b>비채택 대안</b> 은 표기와 함께 컬럼 · Response 필드까지 정리하는 것이다. <b>탈락 사유</b> — 지금 정리해도 얻는 것은 스키마의 깔끔함뿐인데 충돌 위험이 실재한다. 필드 정리가 필요해지는 시점은 집행 배선(E2-2)이 이 값들을 어떻게 쓰는지 확정된 뒤이며, 그때 별도 슬라이스로 다룬다.</p>
+
+        <h4>D10 — 금지 파일명 정책을 vendor 별 SPI 로 분리한다 <span class="chip new">신설</span></h4>
+        <p><b>채택(사용자 지시 2026-08-20).</b> <code>FirmwareFilePolicyStrategy</code> 인터페이스와 벤더별 구현 3 종을 <code>management/bios/firmware/</code> 에 두고, <code>BiosFirmwareFilePolicy</code> 는 vendor 매칭 dispatcher 로 개편한다. 금지 파일명 두 개가 GIGABYTE 벤더 패키지의 관례에서 나온 제약이기 때문이다. 이 자리가 생기자 허용 확장자도 같은 곳에 들어왔다(D3 ③) — 제조사 관례에서 온 제약을 그 제조사 안에서만 집행한다는 원칙이 두 축에 함께 적용된다.</p>
+        <p><b>비채택 대안 ①</b> — 단일 클래스에 금지 목록을 하드코딩(정정 전 초안이 채택했던 안). <b>탈락 사유</b> — 한 제조사의 패키지 관례에서 기원한 제약이 모든 제조사의 파일에 번진다. ASUS 나 FUJITSU 가 <code>PFR1.RBU</code> 라는 이름을 다른 의미로 쓴다면 정당한 파일이 막히고, 그 사실을 알아채더라도 목록을 벤더별로 갈라야 하므로 결국 같은 분리를 나중에 하게 된다. <b>비채택 대안 ②</b> — <code>Vendor</code> enum 에 method-per-constant 로 정책을 붙이는 것. <b>탈락 사유</b> — <code>Vendor</code> 는 board 도메인의 열거형인데 이렇게 하면 그것이 bios 도메인의 파일 정책을 역참조하게 된다. 도메인 경계를 거스르는 의존이 생기고, 나중에 BMC 가 자기 정책을 더할 때 같은 enum 이 두 도메인 정책을 함께 이고 있게 된다.</p>
+        <p>새 <code>Vendor</code> 값이 늘 때 전략 등록을 잊으면 <code>FirmwareFilePolicyMissingException</code>(500)이 즉시 터진다. 조용히 "제약 없음" 으로 흘러가 금지 파일이 통과하는 것보다 낫다는 판단이며, 진입점 탐지의 <code>EntrypointStrategyMissingException</code> 이 같은 이유로 이미 존재한다.</p>
+
+        <h4>구현 중 확정된 것 (CP2 ~ CP4)</h4>
+        <p><b>① <code>EntrypointDetectionStrategy</code> 에 <code>@Deprecated</code> 부착(사용자 직접 편집).</b> 번들 폐지로 이 인터페이스는 기능상 제외됐다. 다만 BMC 도메인이 R12-2 까지 계속 쓰므로 클래스 제거는 하지 않고 표시만 남긴다 — 지금 지우면 BMC 가 깨진다는 D5 의 판단은 그대로다. 실제 일소는 R12-2 에서 수행한다. <code>@Deprecated</code> 는 그때까지 "이것을 새로 쓰지 말라" 는 신호로 컴파일 경고를 남긴다.</p>
+        <p><b>② claim 취소가 사용자 파일을 삭제하는 잠복 결함을 차단했다.</b> 해시 충돌 nudge 에서 사용자가 "취소" 를 고르면 <code>BiosNudgeService.cancel</code> 이 트리를 물리 삭제한다. 업로드 경로에서는 그 트리가 방금 올린 임시물이라 옳은 동작이지만, <b>claim 경로에서는 사용자가 원래 갖고 있던 파일</b>이다. 취소를 눌렀을 뿐인데 자기 파일이 사라지는 것이다. 구 <code>register-existing</code> 시절부터 있던 잠복 결함이며, 이번 개편에서 claim 흐름을 단일 경로로 재설계하다 드러났다.</p>
+        <p>처리는 이렇게 했다. <code>issueHashNudge</code> 가 payload attributes 에 <code>claimExisting</code> 플래그를 기록하고, 취소 시 정리 책임을 <code>BiosRegistrationService.cleanupNudgeCancelled(payload)</code> 로 옮긴다. claim 이면 트리를 보존하고 업로드 임시물일 때만 삭제한다. 정리 판단에 필요한 맥락(이 트리가 우리가 만든 것인가)을 아는 쪽이 등록 서비스이므로 책임을 그쪽에 두는 것이 맞다. <code>BiosNudgeService</code> 는 취소 사실만 알리고 정리 방식은 모르게 된다.</p>
+
+        <h4>사용자 결정 반영 (구 Open Questions)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>결정</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>용어 정본을 "펌웨어 파일" 로 채택할까</td><td><span class="chip new">승인</span> 채택 — glossary 등재 진행 (D7)</td></tr>
+            <tr><td>Q2</td><td>ASUS <code>.cap</code> 을 허용 목록에 넣을까</td><td><span class="chip keep">소멸</span> vendor 격리로 질문 자체가 없어짐 — ASUS 는 제약 없음, GIGABYTE 만 <code>.RBU</code> (D3)</td></tr>
+            <tr><td>Q3</td><td>목록 상세의 "파일 수 N 개 · B" 표기를 유지할까</td><td><span class="chip del">제거</span> 불필요 — 화면에서 삭제</td></tr>
+            <tr><td>Q4</td><td>"진입점" 라벨 개정 범위는</td><td><span class="chip del">비표시</span> 화면에서 감추고 구조는 유지 (D9)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <p>CP5 는 브라우저에서 사람이 조작하듯 수행하며, 검증 항목은 <code>.claude/cp5-verification-spec.md</code> 의 설계 지침을 따라 먼저 식별자를 붙여 계획한다. 정상 흐름(A) · 의도하지 않은 조작(B) · 막는 방식(C) 세 축이며 항목마다 스크린샷을 1:1 로 남긴다.</p>
+        <table>
+          <thead><tr><th>식별자</th><th>항목</th><th>확인 지점</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>디렉토리 경로 + <code>image.RBU</code> 업로드</td><td>파일명이 이어 붙어 저장 · 목록 redirect</td></tr>
+            <tr><td>A2</td><td>파일 경로 지정 업로드</td><td>저장명 = 경로의 파일명</td></tr>
+            <tr><td>A3</td><td>업로드 없이 기존 파일 등록</td><td>토큰 없이 claim 완주</td></tr>
+            <tr><td>A4</td><td>ASUS 보드에 <code>ASUS-bios.cap</code> 업로드</td><td>성공 — vendor 무제약 실증</td></tr>
+            <tr><td>A5</td><td>메타 nudge 단계 A</td><td>동일 (board, version) soft-deleted 자원 존재 시 현행 유지</td></tr>
+            <tr><td>B1</td><td>GIGABYTE 보드에 <code>PFR1.RBU</code> 선택</td><td>JS 사전 검사 차단</td></tr>
+            <tr><td>B2</td><td>GIGABYTE 보드에 <code>.zip</code> 선택</td><td><code>accept</code> 필터 + JS 확장자 차단</td></tr>
+            <tr><td>B3</td><td><code>PFR1.RBU</code> direct POST</td><td>서버 400</td></tr>
+            <tr><td>B4</td><td>확장자 위반 direct POST</td><td>서버 400</td></tr>
+            <tr><td>B5</td><td>claim — 파일이 없는 경로</td><td>400 + 필드 오류</td></tr>
+            <tr><td>B6</td><td>디렉토리 경로 + 파일 미첨부</td><td>400 + 필드 오류</td></tr>
+            <tr><td>B7</td><td>부모 디렉토리에 다른 파일 존재</td><td>400 + 필드 오류</td></tr>
+            <tr><td>C1</td><td>JS 차단 문구와 표시 위치</td><td>왜 막혔는지 즉시 알 수 있는가</td></tr>
+            <tr><td>C2</td><td>서버 400 의 필드 오류 표시</td><td>해당 입력 옆에 뜨는가(<code>data-error-field</code> 배선)</td></tr>
+            <tr><td>C3</td><td>hint · <code>accept</code> 의 vendor 조건부 전환</td><td>GIGABYTE ↔ ASUS 보드 폼 대조</td></tr>
+          </tbody>
+        </table>
+        <p>B3 · B4 는 화면으로 재현할 수 없는 항목이다. 브라우저 폼과 핸드셰이크를 모두 우회한 요청이 대상이므로 <code>curl</code> 로 업로드 본체에 직접 요청해 확인한다. CP5 규율에서 API 확인은 화면이 있는 슬라이스의 검증을 대체하지 못하지만, 이 항목은 "화면 없는 경로" 자체가 검증 대상이므로 예외로 둔다. 나머지 항목은 모두 브라우저에서 수행한다. 샌드박스는 누적 메모리의 레시피대로 Docker MariaDB(3307)와 별도 포트의 <code>bootRun</code> 으로 띄운다.</p>
+        <ul class="check-list" data-storage="R12-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (<code>DriftBulkApplyServiceTest</code> 기존 1 fail 제외)</span></label></li>
+          <li><label><input type="checkbox" data-key="iso"> <span>ISO 등록 회귀 없음 — <code>UploadPathResolver</code> 이동 후 기존 ISO 테스트 green</span></label></li>
+          <li><label><input type="checkbox" data-key="policy"> <span>금지 파일명 · 허용 확장자 3 층 차단이 통합 테스트로 확인됨</span></label></li>
+          <li><label><input type="checkbox" data-key="vendor"> <span>vendor 격리 확인 — GIGABYTE 확장자 거절 ↔ ASUS 무제약 통과 양쪽</span></label></li>
+          <li><label><input type="checkbox" data-key="bmc"> <span>BMC 등록 경로 회귀 없음 (공유 자산 무변경 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 0 건 · 엔티티 무변경 확인 (다른 세션 DB 작업과 충돌 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 브라우저 검증 A1~A5 · B1~B7 · C1~C3 (항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files — 신규 10 · 수정 17 · 삭제 3 · 유지 7</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>구분</th><th>파일</th><th>변경 요지</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/bios/service/BiosFirmwareFilePolicy.java</code></td><td>dispatcher — vendor 매칭 · <code>acceptAttribute</code> · 문구 파생 (D10)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/bios/firmware/FirmwareFilePolicyStrategy.java</code></td><td>SPI — 데이터 메서드 5 + <code>assertAllowed</code> 알고리즘 default</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/bios/firmware/GigabyteFirmwareFilePolicyStrategy.java</code></td><td>허용 확장자 <code>rbu</code> · 금지 PFR 2 종 · 문구 정본</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/bios/firmware/AsusFirmwareFilePolicyStrategy.java</code></td><td>제약 없음 — <code>supports</code> 만</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/bios/firmware/FujitsuFirmwareFilePolicyStrategy.java</code></td><td>제약 없음 — <code>supports</code> 만</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/bios/exception/InvalidFirmwareFileException.java</code></td><td>400 + 필드 바인딩 · 사유 4 종</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/bios/exception/FirmwareFilePolicyMissingException.java</code></td><td>500 — 전략 등록 누락 개발 규칙 강제</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/common/util/UploadPathResolver.java</code></td><td>이동 · 개명 (구 <code>IsoPathResolver</code>)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>test/…/BiosFirmwareFilePolicyTest.java</code></td><td>단위 6 시나리오 — GIGABYTE 전략 두 축</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>test/…/UploadPathResolverTest.java</code></td><td>단위 3 시나리오</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosUploadController.java</code></td><td><code>firmwareFile</code> 단일 · <code>register-existing</code> 삭제</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosUploadIntentService.java</code></td><td>업로드 전용화 · 금지 파일명 검사 · Intent 레코드 · nudge attributes</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosRegistrationService.java</code></td><td>모드 분기 제거 · claim 흡수 · 경로 해석 · 배타 검증 · <code>cleanupNudgeCancelled</code> 신설</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosNudgeService.java</code></td><td>취소 정리를 등록 서비스로 위임 — claim 트리 보존 (§8 구현 중 확정 ②)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosCreateRequest.java</code></td><td><code>firmwarePath</code> 로 정리 · 진입점 필드 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosUploadIntentRequest.java</code></td><td>필드 재구성 (<code>fileName</code> · <code>fileSize</code>)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosMetadataController.java</code></td><td><code>GET /new</code> 에 vendor 파생 <code>accept</code> · 금지 목록 · 문구 모델 속성</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/bios/bios-new.html</code></td><td>탭 폐지 → 단일 폼 · 진입점 입력 제거 · vendor 조건부 <code>accept</code> 와 hint</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/…/bios-new.js</code></td><td>모드 분기 제거 · 금지 파일명 + 확장자 사전 검사(원본명 · 경로 최종명) · 조건부 intent 호출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/bios/list.html</code></td><td>진입점 · 파일 수 표기 제거 (구조 유지)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/glossary.tsv</code></td><td>"펌웨어 파일" 행 추가 (BOM 유지)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>문장형 문구 키 4 개</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>IsoRegistrationService.java</code> 외 <code>IsoPathResolver</code> 참조처</td><td>import 갱신</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/common/bundle-upload-shell.js</code></td><td>수정 가능 — 단일 폼 개편 범위에서 판단 (D5)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosControllerUploadFlowTest.java</code></td><td>통합 15 시나리오</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosRegistrationServiceTest.java</code></td><td>단위 4 시나리오</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BiosUploadIntentServiceTest.java</code></td><td>업로드 전용 흐름으로 갱신</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>management/bios/enums/BiosUploadMode.java</code></td><td>등록 모드 열거형 제거</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>management/bios/dto/request/BiosRegisterExistingRequest.java</code></td><td>단일 폼으로 흡수</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>management/os/util/IsoPathResolver.java</code></td><td>이동으로 원위치 소멸</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BoardBIOS.java</code></td><td>변경 0 — 저장 모델 무변경 (D1 · D9)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>DDL</td><td>0 건 — 스키마 무변경 (Step 9 N/A)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BiosMarkerWriter.java</code></td><td>변경 0 — 마커 형식 무변경</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BundleExtractionService.java</code></td><td>변경 0 — 폴더 · 압축 경로는 BMC 소관으로 잔존 (D5)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BundleManifestService.java</code></td><td>변경 0 — 계속 사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BundleEntrypointDetector.java</code> + <code>EntrypointDetectionStrategy</code> 3 종</td><td>BIOS 호출만 중단 · 인터페이스에 <code>@Deprecated</code> 부착 — R12-2 에서 일소</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>bundle-upload-bootstrap.js</code></td><td>변경 0 — BMC 공유</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R12-1-next">
+          <li><label><input type="checkbox" data-key="branch"> <span>CP1 승인 → <code>origin/dev</code> 에서 <code>refactor/R12_firmware-upload-simplification</code> 생성 → CP2 진입</span></label></li>
+          <li><label><input type="checkbox" data-key="r12-2"> <span>R12-1 CP7 완료 후 R12-2(BMC 도메인) 착수 — 공유 자산 dead code 일소 포함</span></label></li>
+          <li><label><input type="checkbox" data-key="e2"> <span>집행 배선은 ue 스트림의 E2-2(BIOS) · E2-3(BMC) — R12 산출물이 그 전제</span></label></li>
+          <li><label><input type="checkbox" data-key="column"> <span>엔티티 · DB 컬럼 정리는 집행 배선 확정 후 별도 슬라이스로 (D9)</span></label></li>
+          <li><label><input type="checkbox" data-key="notion"> <span>본 plan html 을 Notion R12-1 페이지의 plan 탭에 임베드(커밋 후 raw URL 또는 사용자 드래그)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 파일 후보 × 요청 경로 → 3 층 판정 데모
+  //  ⚠ validateFirmwareFile() 은 GigabyteFirmwareFilePolicyStrategy 의 데이터를
+  //     인터페이스 default assertAllowed() 알고리즘에 태운 것의 1:1 재현 (드리프트 0).
+  //     ASUS · FUJITSU 전략은 두 목록이 비어 있어 이 함수가 항상 통과를 낸다 (§8 D3 · D10).
+  // ─────────────────────────────────────────────────────────────
+  const FORBIDDEN_NAMES = ['pfr1.rbu', 'pfr2.rbu'];
+  const ALLOWED_EXTENSIONS = ['rbu'];   // GIGABYTE 전략의 데이터. ASUS · FUJITSU 는 빈 배열 = 제한 없음
+  function validateFirmwareFile(fileName) {
+    const lower = fileName.toLowerCase();
+    if (FORBIDDEN_NAMES.includes(lower)) return { ok: false, reason: 'FORBIDDEN_NAME' };
+    if (ALLOWED_EXTENSIONS.length) {
+      const dot = lower.lastIndexOf('.');
+      const ext = dot < 0 ? '' : lower.substring(dot + 1);
+      if (!ALLOWED_EXTENSIONS.includes(ext)) return { ok: false, reason: 'INVALID_EXTENSION' };
+    }
+    return { ok: true };
+  }
+
+  const DEMO_COPY = {
+    FORBIDDEN_NAME: 'PFR1.RBU · PFR2.RBU 는 PFR 사본 경로 전용 파일로, 등록 대상이 아닙니다. 벤더 패키지의 image.RBU 를 선택하십시오.',
+    INVALID_EXTENSION: 'GIGABYTE BIOS 펌웨어는 .RBU 형식 파일만 등록할 수 있습니다.'
+  };
+
+  const DEMO_FILES = [
+    { name: 'image.RBU', sub: '64 MB · GIGABYTE 정본', kind: 'file' },
+    { name: 'Image.rbu', sub: '대소문자만 다른 같은 파일', kind: 'file' },
+    { name: 'PFR1.RBU', sub: 'PFR active/recovery 사본 경로 전용 · 전송 금지', kind: 'file' },
+    { name: 'GB-BIOS-bundle.zip', sub: '벤더 패키지 압축본', kind: 'file' },
+    { name: 'ASUS-bios.cap', sub: 'ASUS 펌웨어 파일', kind: 'file', note: 'ASUS 보드였다면 제약이 없어 통과' },
+    { name: '(폴더 선택)', sub: '폴더 선택 입력 요소가 제거됨', kind: 'folder' }
+  ];
+
+  let demoFileIndex = 0;
+  let demoMode = 'form';
+
+  // 층 ① 브라우저 폼 — JS 사전 검사. claim 경로는 입력한 경로의 마지막 파일명을 본다.
+  function demoLayer1(f) {
+    if (demoMode === 'direct') return { state: 'skip', text: '건너뜀 — 화면을 거치지 않은 요청' };
+    if (f.kind === 'folder') return { state: 'none', text: '시도 불가 — 폴더 선택 입력 요소가 없습니다' };
+    const v = validateFirmwareFile(f.name);
+    if (v.ok) return { state: 'pass', text: demoMode === 'claim' ? '경로 끝 파일명 검사 통과' : '선택 허용 — 서버로 보낼 수 있습니다' };
+    const why = v.reason === 'INVALID_EXTENSION'
+      ? (demoMode === 'claim'
+          ? 'JS 확장자 검사가 경로 끝 파일명을 막습니다'
+          : 'accept=".rbu,.RBU" 필터로 선택이 안 되고, JS 확장자 검사도 막습니다')
+      : 'JS 사전 검사가 금지 파일명을 차단합니다';
+    return { state: 'reject', reason: v.reason, text: why };
+  }
+  // 층 ② upload-intent — 업로드가 있을 때만 발동하는 전용 핸드셰이크.
+  function demoLayer2(f, l1) {
+    if (l1.state === 'reject' || l1.state === 'none') return { state: 'unreached', text: '도달하지 않음 — 층 ① 에서 끊겼습니다' };
+    if (demoMode === 'claim') return { state: 'skip', text: '건너뜀 — 업로드가 없어 핸드셰이크 자체가 없습니다' };
+    if (demoMode === 'direct') return { state: 'skip', text: '건너뜀 — intent 를 거치지 않고 본체로 직접' };
+    const v = validateFirmwareFile(f.name);
+    if (v.ok) return { state: 'pass', text: '토큰 발급 — 바이트 전송을 시작합니다' };
+    return { state: 'reject', reason: v.reason, text: '400 InvalidFirmwareFileException — fieldErrors[firmwareFile]' };
+  }
+  // 층 ③ 업로드 본체 — 어느 경로로 들어와도 마지막에 다시 본다(안전망).
+  function demoLayer3(f, l1, l2) {
+    if (l1.state === 'reject' || l1.state === 'none' || l2.state === 'reject') {
+      return { state: 'unreached', text: '도달하지 않음 — 앞 층에서 끊겼습니다' };
+    }
+    if (f.kind === 'folder') return { state: 'reject', reason: 'FORM', text: '요청 형식 오류 — folderFiles 파라미터가 제거돼 받을 자리가 없습니다' };
+    const v = validateFirmwareFile(f.name);
+    if (!v.ok) return { state: 'reject', reason: v.reason, text: '400 InvalidFirmwareFileException — 안전망 발동' };
+    return demoMode === 'claim'
+      ? { state: 'pass', text: '파일 실재 확인 → 부모 디렉토리 배타 검사 → manifest → save' }
+      : { state: 'pass', text: '파일명 재검 통과 → 경로에 저장 → manifest → save' };
+  }
+
+  function demoSetFile(i) { demoFileIndex = i; demoRender(); }
+  function demoSetMode(m) { demoMode = m; demoRender(); }
+
+  function demoBadge(state) {
+    const map = {
+      pass: ['통과', 'on'], reject: ['거절', 'del'],
+      skip: ['건너뜀', 'off'], none: ['시도 불가', 'off'], unreached: ['도달 안 함', 'off']
+    };
+    return '<span class="badge ' + map[state][1] + '">' + map[state][0] + '</span>';
+  }
+  function demoBtn(label, blocked, tip) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + ' onclick="demoSubmit()">' + label + '</button></span>';
+  }
+
+  function demoSubmit() {
+    const f = DEMO_FILES[demoFileIndex];
+    const l1 = demoLayer1(f), l2 = demoLayer2(f, l1), l3 = demoLayer3(f, l1, l2);
+    const msg = document.getElementById('demo-message');
+    if (l3.state === 'pass') {
+      msg.className = 'ux-message success';
+      msg.textContent = demoMode === 'claim'
+        ? '✓ 200 등록 완료 — 업로드 없이 기존 파일 "' + f.name + '" 을 자원으로 등록했습니다 (토큰 불요).'
+        : '✓ 200 등록 완료 — entrypointRelativePath="' + f.name + '" · fileCount=1 로 저장하고 목록으로 이동합니다.';
+      return;
+    }
+    msg.className = 'ux-message error';
+    const rejected = (l2.state === 'reject') ? l2 : (l3.state === 'reject' ? l3 : null);
+    if (rejected) {
+      const copy = rejected.reason === 'FORM' ? rejected.text : DEMO_COPY[rejected.reason];
+      msg.textContent = '✗ 400 — ' + copy + '  (화면을 우회해도 서버 가드가 같은 판정으로 막습니다.)';
+    } else {
+      msg.textContent = '✗ 요청이 서버에 도달하지 않았습니다 — 층 ① 에서 차단됐습니다.';
+    }
+  }
+
+  function demoRender() {
+    const f = DEMO_FILES[demoFileIndex];
+    const l1 = demoLayer1(f), l2 = demoLayer2(f, l1), l3 = demoLayer3(f, l1, l2);
+
+    document.querySelectorAll('.ux-toolbar .seg[data-file]').forEach(s =>
+      s.classList.toggle('active', Number(s.dataset.file) === demoFileIndex));
+    document.querySelectorAll('.ux-toolbar .seg[data-mode]').forEach(s =>
+      s.classList.toggle('active', s.dataset.mode === demoMode));
+
+    const noteChip = f.note ? ' <span class="chip mod">' + f.note + '</span>' : '';
+    const folderChip = f.kind === 'folder' ? ' <span class="chip keep">폴더</span>' : '';
+    document.getElementById('demo-file').innerHTML =
+      '<strong>선택</strong><span class="label"><code>' + f.name + '</code> — ' + f.sub + folderChip + noteChip + '</span>';
+
+    const rows = [
+      ['demo-l1', '층 ① 브라우저 폼 (JS 사전 검사)', l1],
+      ['demo-l2', '층 ② upload-intent (업로드 전용)', l2],
+      ['demo-l3', '층 ③ 등록 본체 (안전망)', l3]
+    ];
+    rows.forEach(([id, label, r]) => {
+      const el = document.getElementById(id);
+      el.classList.toggle('muted', r.state === 'unreached' || r.state === 'none');
+      el.innerHTML = '<span class="label"><b>' + label + '</b> — ' + r.text + '</span>' + demoBadge(r.state);
+    });
+
+    const blocked = (l1.state === 'reject' || l1.state === 'none');
+    const tip = blocked
+      ? (l1.state === 'none' ? '폴더 업로드 입력 요소가 제거돼 선택 자체를 할 수 없습니다.' : DEMO_COPY[l1.reason])
+      : '';
+    const actionLabel = demoMode === 'claim' ? '기존 파일 등록' : '등록';
+    document.getElementById('demo-action').innerHTML =
+      '<span class="label"><b>등록 실행</b></span>' + demoBtn(actionLabel, blocked, tip);
+
+    const v = validateFirmwareFile(f.name);
+    const lower = f.name.toLowerCase();
+    const dot = lower.lastIndexOf('.');
+    const ext = dot < 0 ? '(없음)' : lower.substring(dot + 1);
+    const isForbidden = (v.reason === 'FORBIDDEN_NAME');
+    const isBadExt = (v.reason === 'INVALID_EXTENSION');
+    document.getElementById('demo-caps').innerHTML =
+      'BiosFirmwareFilePolicy.assertAllowed(Vendor.GIGABYTE, "' + f.name + '", "firmwareFile")\n' +
+      '  ① forbiddenFilenames() = [pfr1.rbu, pfr2.rbu]   lower="' + lower + '"\n' +
+      '        → ' + (isForbidden ? '<span class="t">일치 → 거절</span>' : '<span class="f">해당 없음</span>') + '\n' +
+      '  ② allowedExtensions()  = [rbu]                  ext="' + ext + '"\n' +
+      '        → ' + (isForbidden ? '검사 안 함 (① 에서 거절)'
+                    : isBadExt ? '<span class="t">목록에 없음 → 거절</span>' : '<span class="f">허용</span>') + '\n' +
+      '  판정 = ' + (v.ok ? '<span class="f">허용</span>' : '<span class="t">InvalidFirmwareFileException (400)</span>');
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

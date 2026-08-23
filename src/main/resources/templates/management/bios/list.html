@@ -183,19 +183,7 @@
                                 <code th:text="${bios.treeRootPath}"></code>
                             </dd>
                         </div>
-                        <div class="n-accordion-field">
-                            <dt>진입점</dt>
-                            <dd>
-                                <code th:text="${bios.entrypointRelativePath}"></code>
-                                <span class="n-accordion-muted" style="font-size: 11px;">· 실행 파일 경로만 보관 (실행 로직은 Execution 도메인 담당 예정)</span>
-                            </dd>
-                        </div>
-                        <div class="n-accordion-field">
-                            <dt>파일 수</dt>
-                            <dd>
-                                <span th:text="${bios.fileCount} + ' 개 · ' + ${#numbers.formatInteger(bios.totalBytes, 0, 'COMMA')} + ' B'"></span>
-                            </dd>
-                        </div>
+                        <!-- R12-1 — 진입점 · 파일 수 표기는 화면에서 제거 (구조는 유지 — 단일 펌웨어 파일 모델에서 표시 가치가 없다). -->
                         <div class="n-accordion-field">
                             <dt>manifest 해시</dt>
                             <dd>
@@ -307,7 +295,7 @@
                                   data-resource-type="BIOS_BUNDLE"
                                   th:data-resource-id="${bios.id}"
                                   th:data-resource-label="|BIOS '${bios.name}'|"
-                                  data-resource-extra="디스크의 번들 트리도 함께 제거돼요.">
+                                  data-resource-extra="디스크의 펌웨어 파일도 함께 제거됩니다.">
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
                             </form>
                         </th:block>

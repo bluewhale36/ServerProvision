@@ -33,6 +33,8 @@ class BiosControllerRankFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BiosService biosService;
+    // R12 가 controller 에 주입한 확장자 검사 정책 — rank 흐름은 업로드를 다루지 않으므로 mock 으로 충분(PurgeFlowTest 관용구).
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosFirmwareFilePolicy biosFirmwareFilePolicy;
     @MockitoBean BoardModelMetadataService boardModelService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 

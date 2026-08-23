@@ -106,6 +106,23 @@ class GuestServerControllerTest {
                 List.of());
     }
 
+    /** E1.5 — BMC 가 검출된 상세 fixture(전원 카드가 버튼을 그리는 조건). */
+    private GuestServerDetailResponse detailWithBmc(UUID id) {
+        return new GuestServerDetailResponse(
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "memo",
+                GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
+                null,
+                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "QG260700082",
+                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null,
+                        IpAddressVO.of("192.168.10.21"), null),
+                List.of(),
+                new GuestServerDetailResponse.Progress(
+                        ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
+                        null, null, null, true, false, false, false),
+                null,
+                List.of());
+    }
+
     // ==== 성공 2xx ====================================================
 
     @Test
@@ -256,5 +273,40 @@ class GuestServerControllerTest {
 
         mvc.perform(get("/provisioning/server/{id}", id).accept(org.springframework.http.MediaType.TEXT_HTML))
                 .andExpect(status().isNotFound());
+    }
+
+    // ==== E1.5 — 전원 제어 카드 ==========================================
+
+    @Test
+    @DisplayName("상세 — BMC 검출 게스트: 전원 카드에 버튼 4 종 · confirm 모달 골격 · server-power.js 적재 (E1.5)")
+    void detail_rendersPowerCardWhenBmcDetected() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detailWithBmc(id));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"powerControlSection\"")))
+                .andExpect(content().string(containsString("data-bmc-detected=\"true\"")))
+                .andExpect(content().string(containsString("data-power-reset=\"ON\"")))
+                .andExpect(content().string(containsString("data-power-reset=\"FORCE_OFF\"")))
+                .andExpect(content().string(containsString("data-power-reset=\"FORCE_RESTART\"")))
+                .andExpect(content().string(containsString("data-power-reset=\"GRACEFUL_SHUTDOWN\"")))
+                // PowerCycle 은 화면 미노출(OQ1 — API 전용 폴백)
+                .andExpect(content().string(not(containsString("POWER_CYCLE"))))
+                .andExpect(content().string(containsString("id=\"powerConfirmModal\"")))
+                .andExpect(content().string(containsString("server-power.js")));
+    }
+
+    @Test
+    @DisplayName("상세 — BMC 미검출 게스트: 버튼 없이 이유 문구만 (UI 1 차 차단, E1.5)")
+    void detail_rendersPowerNoticeWhenBmcMissing() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detail(id)); // 기존 fixture — bmcIp null
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-bmc-detected=\"false\"")))
+                .andExpect(content().string(containsString("BMC 미검출 — 원격 전원 제어를 쓸 수 없습니다")))
+                .andExpect(content().string(not(containsString("data-power-reset="))));
     }
 }

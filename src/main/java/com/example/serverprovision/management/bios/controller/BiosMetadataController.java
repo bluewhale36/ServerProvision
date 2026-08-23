@@ -3,6 +3,7 @@ package com.example.serverprovision.management.bios.controller;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
+import com.example.serverprovision.management.bios.service.BiosFirmwareFilePolicy;
 import com.example.serverprovision.management.bios.service.BiosService;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
@@ -32,6 +33,7 @@ public class BiosMetadataController {
 
 	private final BiosService biosService;
 	private final BoardModelMetadataService boardModelService;
+	private final BiosFirmwareFilePolicy biosFirmwareFilePolicy;
 
 	// ==== 목록 ========================================================
 
@@ -62,7 +64,14 @@ public class BiosMetadataController {
 			Model model
 	) {
 		BoardModelResponse board = boardModelService.findById(boardId);
-		model.addAttribute("biosForm", new BiosCreateRequest("", "", "", "", false, ""));
+		model.addAttribute("biosForm", new BiosCreateRequest("", "", "", "", false));
+		// R12-1 — vendor 별 파일 정책(금지 파일명 · 허용 확장자) SSOT 를 data 속성으로 내려
+		//         JavaScript 사전 검사 · accept 속성이 같은 데이터를 쓴다.
+		model.addAttribute("firmwareForbiddenNames", biosFirmwareFilePolicy.forbiddenNamesCsv(board.vendor()));
+		model.addAttribute("firmwareForbiddenMessage", biosFirmwareFilePolicy.forbiddenMessage(board.vendor()));
+		model.addAttribute("firmwareAllowedExtensions", biosFirmwareFilePolicy.allowedExtensionsCsv(board.vendor()));
+		model.addAttribute("firmwareAcceptAttribute", biosFirmwareFilePolicy.acceptAttribute(board.vendor()));
+		model.addAttribute("firmwareInvalidExtensionMessage", biosFirmwareFilePolicy.invalidExtensionMessage(board.vendor()));
 		BiosControllerSupport.populateFormContext(model, boardId, null, board);
 		boolean ajax = "XMLHttpRequest".equalsIgnoreCase(requestedWith);
 		return ajax ? "management/bios/bios-new :: formCard" : "management/bios/bios-new";
@@ -75,7 +84,8 @@ public class BiosMetadataController {
 	 */
 	@GetMapping("/new")
 	public String newFormWithoutBoard(Model model) {
-		model.addAttribute("biosForm", new BiosCreateRequest("", "", "", "", false, ""));
+		// R12-1 — 폼 카드는 board 선택 후 AJAX fragment 로 주입되므로 vendor 별 정책 속성은 그 시점에 내려간다.
+		model.addAttribute("biosForm", new BiosCreateRequest("", "", "", "", false));
 		model.addAttribute("boardId", null);
 		model.addAttribute("contextLabel", null);
 		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(false));

@@ -5,17 +5,19 @@ import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
-import com.example.serverprovision.management.bmc.enums.BmcUploadMode;
 import com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException;
 import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
+import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.common.filesystem.service.TargetDirectoryPolicyService;
+import com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
 import com.example.serverprovision.management.common.nudge.NudgeSession;
 import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
+import com.example.serverprovision.management.common.util.UploadPathResolver;
 import com.example.serverprovision.management.os.exception.InvalidUploadTokenException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +43,7 @@ public class BmcUploadIntentService {
 	private final com.example.serverprovision.management.bmc.repository.BmcRepository bmcRepository;
 	private final TargetDirectoryPolicyService targetDirectoryPolicyService;
 	private final PathPolicyService pathPolicyService;
+	private final BmcFirmwareFilePolicy bmcFirmwareFilePolicy;
 	private final NudgeRegistry nudgeRegistry;
 
 	private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
@@ -72,34 +75,41 @@ public class BmcUploadIntentService {
 	 * MK2 WAVE 2 — nudge proceed/replace 후 호출. 메타 검사를 건너뛰고 token 발급.
 	 */
 	public BmcUploadIntentResponse issueAfterNudge(Long boardId, BmcUploadIntentRequest request) {
-		boardModelRepository.findByIdAndIsDeletedFalse(boardId)
+		BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
 		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
 			throw new DuplicateBmcVersionException(boardId, request.version());
 		}
 
-		Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
-		targetDirectoryPolicyService.validateForIntent(targetDir, request.allowCreateDirectory());
+		// R12-2 — 경로 해석 + 파일명 정책 하드 검증 (파일 바이트 전송 전 조기 차단). 정책은 vendor 별 strategy.
+		//         intent 는 업로드 전용이므로 디렉토리 추론(허용 확장자 기준)을 적용한다.
+		String resolvedPathString = UploadPathResolver.resolveForUpload(
+				request.firmwarePath(),
+				request.fileName(),
+				bmcFirmwareFilePolicy.allowedExtensions(board.getVendor()),
+				path -> new InvalidFirmwareFileException(
+						"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path, "firmwarePath")
+		);
+		bmcFirmwareFilePolicy.assertAllowed(board.getVendor(), request.fileName(), "firmwareFile");
+
+		Path resolved = pathPolicyService.assertWritablePath(resolvedPathString);
+		bmcFirmwareFilePolicy.assertPathFileNameAllowed(board.getVendor(), resolved.getFileName().toString());
+		targetDirectoryPolicyService.validateForIntent(resolved.getParent(), request.allowCreateDirectory());
 
 		List<String> warnings = new ArrayList<>();
-		if (request.totalBytes() == 0) {
-			warnings.add("총 바이트가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
-		}
-		if (request.uploadMode() == BmcUploadMode.FOLDER && request.fileCount() == 0) {
-			warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어있을 수 있습니다.");
+		if (request.fileSize() == 0) {
+			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
 		}
 
 		String token = UUID.randomUUID().toString();
 		intents.put(
 				token, new Intent(
 						boardId,
-						request.targetDirectory(),
-						request.uploadMode(),
-						request.fileCount(),
-						request.totalBytes(),
+						request.firmwarePath(),
+						request.fileName(),
+						request.fileSize(),
 						request.version(),
-						request.entrypointRelativePath(),
 						Instant.now()
 				)
 		);
@@ -119,14 +129,10 @@ public class BmcUploadIntentService {
 		Map<String, String> attributes = new HashMap<>();
 		attributes.put("boardId", String.valueOf(boardId));
 		attributes.put("version", request.version());
-		attributes.put("targetDirectory", request.targetDirectory());
-		attributes.put("uploadMode", request.uploadMode().name());
-		attributes.put("fileCount", String.valueOf(request.fileCount()));
-		attributes.put("totalBytes", String.valueOf(request.totalBytes()));
+		attributes.put("firmwarePath", request.firmwarePath());
+		attributes.put("fileName", request.fileName());
+		attributes.put("fileSize", String.valueOf(request.fileSize()));
 		attributes.put("allowCreateDirectory", String.valueOf(request.allowCreateDirectory()));
-		if (request.entrypointRelativePath() != null) {
-			attributes.put("entrypointRelativePath", request.entrypointRelativePath());
-		}
 		return nudgeRegistry.register(
 				NudgeResourceType.BMC,
 				boardId,
@@ -153,13 +159,11 @@ public class BmcUploadIntentService {
 	 */
 	public BmcUploadIntentRequest reconstructRequestFromAttributes(Map<String, String> attributes) {
 		return new BmcUploadIntentRequest(
-				attributes.get("targetDirectory"),
-				BmcUploadMode.valueOf(attributes.get("uploadMode")),
-				Integer.parseInt(attributes.get("fileCount")),
-				Long.parseLong(attributes.get("totalBytes")),
+				attributes.get("firmwarePath"),
+				attributes.getOrDefault("fileName", ""),
+				Long.parseLong(attributes.getOrDefault("fileSize", "0")),
 				attributes.get("version"),
-				Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false")),
-				attributes.getOrDefault("entrypointRelativePath", "")
+				Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false"))
 		);
 	}
 
@@ -188,12 +192,10 @@ public class BmcUploadIntentService {
 
 	public record Intent(
 			Long boardId,
-			String targetDirectory,
-			BmcUploadMode uploadMode,
-			int fileCount,
-			long totalBytes,
+			String firmwarePath,
+			String fileName,
+			long fileSize,
 			String version,
-			String entrypointOverride,
 			Instant issuedAt
 	) {
 

@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * {@code provision.browse.*} (= filesystem) 보안 properties — DirectoryBrowse 응답 한도 + Files.walk maxDepth.
  *
  * <p>S3.1 (A3) — {@code BrowseSecurityProperties} → {@code FileSystemSecurityProperties} 리네임. {@link #maxDepth} 가
- * Browse 외에도 모든 {@code Files.walk} 호출 (UploadLimitsPolicy / FileSystemHardener / BundleEntrypointDetector /
+ * Browse 외에도 모든 {@code Files.walk} 호출 (UploadLimitsPolicy / FileSystemHardener / 
  * BundleTreeCleanupService) 에서 일관 적용된다. prefix 는 {@code provision.browse.*} 그대로 유지하여
  * 운영자 환경변수 영향을 0 으로.</p>
  */

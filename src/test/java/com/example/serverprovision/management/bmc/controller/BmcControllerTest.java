@@ -11,7 +11,6 @@ import com.example.serverprovision.management.common.filesystem.service.Director
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
-import com.example.serverprovision.management.bmc.enums.BmcUploadMode;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
 import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.bmc.service.BmcService;
@@ -63,6 +62,7 @@ class BmcControllerTest {
     @Autowired ObjectMapper om;
 
     @MockitoBean BmcService bmcService;
+    @MockitoBean com.example.serverprovision.management.bmc.service.BmcFirmwareFilePolicy bmcFirmwareFilePolicy;
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcRegistrationService bmcRegistrationService;
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcIntegrityService bmcIntegrityService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;
@@ -90,7 +90,7 @@ class BmcControllerTest {
         @Test
         @DisplayName("정상 — 200 + uploadToken")
         void success() throws Exception {
-            var req = new BmcUploadIntentRequest("/mnt/bmc/x", BmcUploadMode.FOLDER, 5, 1024, "13.06.25", false, "");
+            var req = new BmcUploadIntentRequest("/mnt/bmc/x/", "bmc.ima_enc", 1024L, "13.06.25", false);
             given(bmcUploadIntentService.issue(eq(1L), any()))
                     .willReturn(new BmcUploadIntentResponse("token-abc", List.of(), null));
 
@@ -102,14 +102,14 @@ class BmcControllerTest {
         }
 
         @Test
-        @DisplayName("대상 디렉토리 공란 → 400")
-        void blankTargetDirectory() throws Exception {
-            String body = "{\"targetDirectory\":\"\",\"uploadMode\":\"FOLDER\",\"fileCount\":5,\"totalBytes\":1024,\"version\":\"13.06.25\",\"allowCreateDirectory\":false,\"entrypointRelativePath\":\"\"}";
+        @DisplayName("펌웨어 파일 경로 공란 → 400")
+        void blankFirmwarePath() throws Exception {
+            String body = "{\"firmwarePath\":\"\",\"fileName\":\"bmc.ima_enc\",\"fileSize\":1024,\"version\":\"13.06.25\",\"allowCreateDirectory\":false}";
             mvc.perform(post("/management/bmc/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("targetDirectory")));
+                    .andExpect(jsonPath("$.message").value(containsString("firmwarePath")));
         }
     }
 
@@ -118,23 +118,21 @@ class BmcControllerTest {
     class Upload {
 
         @Test
-        @DisplayName("폴더 업로드 성공 — 200 + id/redirect")
-        void success_folder() throws Exception {
+        @DisplayName("업로드 성공 — 토큰 소비 + 200 + id/redirect")
+        void success_upload() throws Exception {
             given(bmcUploadIntentService.consume(eq(1L), eq("token-abc")))
                     .willReturn(new BmcUploadIntentService.Intent(
-                            1L, "/mnt/bmc/x", BmcUploadMode.FOLDER, 2, 1024L, "13.06.25", "", Instant.now()));
-            given(bmcRegistrationService.addBmc(eq(1L), any(), eq(BmcUploadMode.FOLDER), any(), any(), any()))
+                            1L, "/mnt/bmc/x/", "bmc.ima_enc", 1024L, "13.06.25", Instant.now()));
+            given(bmcRegistrationService.addBmc(eq(1L), any(), any()))
                     .willReturn(42L);
 
             mvc.perform(multipart("/management/bmc/1/upload")
-                            .file(new MockMultipartFile("folderFiles", "BmcPkg/flash.nsh", null, "x".getBytes()))
-                            .param("uploadMode", "FOLDER")
+                            .file(new MockMultipartFile("firmwareFile", "bmc.ima_enc", null, "x".getBytes()))
                             .param("name", "GIGABYTE BMC")
                             .param("version", "13.06.25")
-                            .param("targetDirectory", "/mnt/bmc/x")
+                            .param("firmwarePath", "/mnt/bmc/x/")
                             .param("description", "")
                             .param("allowCreateDirectory", "true")
-                            .param("entrypointRelativePath", "")
                             .header("X-Upload-Token", "token-abc"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(42))
@@ -146,19 +144,17 @@ class BmcControllerTest {
         void targetConflict() throws Exception {
             given(bmcUploadIntentService.consume(eq(1L), anyString()))
                     .willReturn(new BmcUploadIntentService.Intent(
-                            1L, "/mnt/bmc/x", BmcUploadMode.SINGLE_FILE, 1, 10L, "1.0", "", Instant.now()));
+                            1L, "/mnt/bmc/x/", "bmc.ima_enc", 10L, "1.0", Instant.now()));
             willThrow(new TargetDirectoryNotEmptyException("/mnt/bmc/x"))
-                    .given(bmcRegistrationService).addBmc(eq(1L), any(), any(), any(), any(), any());
+                    .given(bmcRegistrationService).addBmc(eq(1L), any(), any());
 
             mvc.perform(multipart("/management/bmc/1/upload")
-                            .file(new MockMultipartFile("singleFile", "firmware.bin", null, "x".getBytes()))
-                            .param("uploadMode", "SINGLE_FILE")
+                            .file(new MockMultipartFile("firmwareFile", "bmc.ima_enc", null, "x".getBytes()))
                             .param("name", "x")
                             .param("version", "1.0")
-                            .param("targetDirectory", "/mnt/bmc/x")
+                            .param("firmwarePath", "/mnt/bmc/x/")
                             .param("description", "")
                             .param("allowCreateDirectory", "true")
-                            .param("entrypointRelativePath", "")
                             .header("X-Upload-Token", "t"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.message").value(containsString("비어있지 않습니다")));
@@ -291,7 +287,7 @@ class BmcControllerTest {
         @Test
         @DisplayName("intent : 메타 충돌 → 409 NUDGE_REQUIRED")
         void intentMetaNudge() throws Exception {
-            var req = new BmcUploadIntentRequest("/mnt/x", BmcUploadMode.FOLDER, 5, 1024, "12.61", false, "");
+            var req = new BmcUploadIntentRequest("/mnt/x/", "bmc.ima_enc", 1024L, "12.61", false);
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
             var session = new com.example.serverprovision.management.common.nudge.NudgeSession(
                     nudgeId,

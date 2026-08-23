@@ -41,6 +41,7 @@ class BiosControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BiosService biosService;
+    @MockitoBean com.example.serverprovision.management.bios.service.BiosFirmwareFilePolicy biosFirmwareFilePolicy;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosLifecycleService biosLifecycleService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosRegistrationService biosRegistrationService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosIntegrityService biosIntegrityService;
