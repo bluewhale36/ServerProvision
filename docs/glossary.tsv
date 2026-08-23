@@ -66,3 +66,4 @@ TTL	약어	Time To Live. 화면에서는 "보존 기간(TTL)" 병기 허용
 ISO	약어	광학 디스크 이미지 파일 형식(ISO 9660)			
 HMAC	약어	Hash-based Message Authentication Code — 마커 서명 방식			
 Redfish	약어	BMC 표준 관리 API			
+펌웨어 파일	도메인	Redfish SimpleUpdate 로 장비에 전송되는 단일 펌웨어 이미지 파일(BIOS 예: image.RBU · BMC 예: .ima_enc). BIOS · BMC 자원 등록의 대상 — R12 에서 번들 모델을 대체	번들, flash 파일	management/bios/firmware/FirmwareFilePolicyStrategy	R12-1 등재

@@ -1,11 +1,9 @@
 package com.example.serverprovision.management.bios.controller;
 
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
-import com.example.serverprovision.management.bios.dto.request.BiosRegisterExistingRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadResponse;
-import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.service.BiosRegistrationService;
 import com.example.serverprovision.management.bios.service.BiosUploadIntentService;
 import jakarta.validation.Valid;
@@ -17,7 +15,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * BIOS 번들 업로드 진입점 — {@code /upload-intent} → {@code /upload} 2단 핸드셰이크 + 기존 트리 claim.
+ * BIOS 펌웨어 등록 진입점 — {@code /upload-intent} → {@code /upload} 2단 핸드셰이크.
+ *
+ * <p>R12-1 — 번들(폴더 · zip) 업로드와 별도 기존 디렉토리 등록({@code /register-existing})을 폐지하고
+ * ISO 와 동일한 단일 흐름으로 통합했다. {@code /upload} 의 {@code firmwareFile} 은 선택이다 —
+ * 파일이 있으면 intent 토큰을 소비하고 해석된 경로에 저장하며, 없으면 토큰 없이 그 경로의
+ * 기존 파일을 자원으로 등록(claim)한다.</p>
  *
  * <p>R4-1 — fat {@code BiosController} 6분할 결과. 모든 엔드포인트는 JSON 응답.
  * Layer A (BindingResult) 검증 실패만 직접 응답 ({@link BiosControllerSupport#badRequestFromBinding})
@@ -33,7 +36,8 @@ public class BiosUploadController {
 	private final BiosRegistrationService biosRegistrationService;
 
 	/**
-	 * 업로드 Intent 핸드셰이크 — 번들 바이트 전송 이전 하드 검증 + 토큰 발급.
+	 * 업로드 Intent 핸드셰이크 — 파일 바이트 전송 이전 하드 검증(금지 파일명 포함) + 토큰 발급.
+	 * 업로드 파일이 없는 등록(claim)은 이 핸드셰이크를 거치지 않는다.
 	 */
 	@PostMapping(path = "/{boardId}/upload-intent")
 	@ResponseBody
@@ -52,46 +56,26 @@ public class BiosUploadController {
 	}
 
 	/**
-	 * 번들 업로드 본체. {@code uploadMode} 에 따라 {@code folderFiles[]} / {@code zipFile} / {@code singleFile}
-	 * 중 정확히 하나만 실어 보낸다.
+	 * 등록 본체. {@code firmwareFile} 이 있으면 업로드 저장(토큰 소비), 없으면 기존 파일 claim(토큰 불요).
 	 */
 	@PostMapping(path = "/{boardId}/upload")
 	@ResponseBody
-	public ResponseEntity<?> uploadBundle(
+	public ResponseEntity<?> register(
 			@PathVariable("boardId") Long boardId,
 			@Valid @ModelAttribute BiosCreateRequest request,
 			BindingResult bindingResult,
-			@RequestParam("uploadMode") BiosUploadMode uploadMode,
-			@RequestParam(value = "folderFiles", required = false) MultipartFile[] folderFiles,
-			@RequestParam(value = "zipFile", required = false) MultipartFile zipFile,
-			@RequestParam(value = "singleFile", required = false) MultipartFile singleFile,
+			@RequestParam(value = "firmwareFile", required = false) MultipartFile firmwareFile,
 			@RequestHeader(name = "X-Upload-Token", required = false) String uploadToken
 	) {
 		// MK2 — Layer A 검증 실패만 직접 응답. 도메인 예외는 advice 일괄 처리.
 		if (bindingResult.hasErrors()) {
 			return BiosControllerSupport.badRequestFromBinding(bindingResult);
 		}
-		biosUploadIntentService.consume(boardId, uploadToken);
-		Long id = biosRegistrationService.addBios(boardId, request, uploadMode, folderFiles, zipFile, singleFile);
-		String redirect = "/management/bios?selectId=" + id;
-		return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
-	}
-
-	/**
-	 * 기존 디렉토리 등록 — 업로드 없이 이미 콘텐츠가 차 있는 트리를 BIOS 자원으로 claim.
-	 * 핸드셰이크 없이 단발 POST. 응답은 업로드와 동일한 {@link BiosUploadResponse}.
-	 */
-	@PostMapping(path = "/{boardId}/register-existing")
-	@ResponseBody
-	public ResponseEntity<?> registerExisting(
-			@PathVariable("boardId") Long boardId,
-			@Valid @RequestBody BiosRegisterExistingRequest request,
-			BindingResult bindingResult
-	) {
-		if (bindingResult.hasErrors()) {
-			return BiosControllerSupport.badRequestFromBinding(bindingResult);
+		boolean hasFile = firmwareFile != null && !firmwareFile.isEmpty();
+		if (hasFile) {
+			biosUploadIntentService.consume(boardId, uploadToken);
 		}
-		Long id = biosRegistrationService.registerExisting(boardId, request);
+		Long id = biosRegistrationService.addBios(boardId, request, firmwareFile);
 		String redirect = "/management/bios?selectId=" + id;
 		return ResponseEntity.ok(new BiosUploadResponse(id, redirect));
 	}

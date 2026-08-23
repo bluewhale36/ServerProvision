@@ -41,6 +41,7 @@ class BmcControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BmcService bmcService;
+    @MockitoBean com.example.serverprovision.management.bmc.service.BmcFirmwareFilePolicy bmcFirmwareFilePolicy;
     @MockitoBean BmcLifecycleService bmcLifecycleService;
     @MockitoBean BmcRegistrationService bmcRegistrationService;
     @MockitoBean BmcUploadIntentService bmcUploadIntentService;

@@ -1,7 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
-import com.example.serverprovision.management.bios.enums.BiosUploadMode;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.common.filesystem.exception.MarkerConflictException;
 import com.example.serverprovision.management.common.filesystem.exception.TargetDirectoryNotEmptyException;
@@ -20,12 +19,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +34,7 @@ class BiosUploadIntentServiceTest {
     @Mock BiosRepository biosRepository;
     @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
     @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
+    @Mock BiosFirmwareFilePolicy biosFirmwareFilePolicy;
     @InjectMocks BiosUploadIntentService service;
 
     @org.junit.jupiter.api.BeforeEach
@@ -49,8 +49,10 @@ class BiosUploadIntentServiceTest {
                 .isEnabled(true).isDeleted(false).build();
     }
 
-    private BiosUploadIntentRequest req(String target) {
-        return new BiosUploadIntentRequest(target, BiosUploadMode.FOLDER, 2, 1024L, "2.03", false, "");
+    /** R12-1 — 디렉토리 경로(/ 로 끝남) + 업로드 파일명. 해석 결과 = {@code target}/image.RBU. */
+    private BiosUploadIntentRequest req(String targetDirectory) {
+        String slashEnded = targetDirectory.endsWith("/") ? targetDirectory : targetDirectory + "/";
+        return new BiosUploadIntentRequest(slashEnded, "image.RBU", 1024L, "2.03", false);
     }
 
     @Test
@@ -87,26 +89,26 @@ class BiosUploadIntentServiceTest {
     }
 
     @Test
-    @DisplayName("issue(fail) : targetDirectory 비어있지 않고 marker 없음 → TargetDirectoryNotEmpty")
+    @DisplayName("issue(fail) : 대상 디렉토리 비어있지 않고 marker 없음 → TargetDirectoryNotEmpty")
     void issue_targetNotEmpty(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
-                .given(targetDirectoryPolicyService).validateForIntent(target, false);
+                .given(targetDirectoryPolicyService).validateForIntent(any(Path.class), org.mockito.ArgumentMatchers.eq(false));
 
         assertThatThrownBy(() -> service.issue(10L, req(target.toString())))
                 .isInstanceOf(TargetDirectoryNotEmptyException.class);
     }
 
     @Test
-    @DisplayName("issue(fail) : targetDirectory 에 marker 있으면 MarkerConflict")
+    @DisplayName("issue(fail) : 대상 디렉토리에 marker 있으면 MarkerConflict")
     void issue_markerConflict(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
         given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
-                .given(targetDirectoryPolicyService).validateForIntent(target, false);
+                .given(targetDirectoryPolicyService).validateForIntent(any(Path.class), org.mockito.ArgumentMatchers.eq(false));
 
         assertThatThrownBy(() -> service.issue(10L, req(target.toString())))
                 .isInstanceOf(MarkerConflictException.class);
@@ -130,5 +132,43 @@ class BiosUploadIntentServiceTest {
     void consume_invalid() {
         assertThatThrownBy(() -> service.consume(10L, "bogus"))
                 .isInstanceOf(InvalidUploadTokenException.class);
+    }
+
+    // ==== R12-1 — 파일 정책 하드 검증 · attributes 재구성 ====
+
+    @Test
+    @DisplayName("issue(fail) : vendor 파일 정책 위반 → InvalidFirmwareFileException 전파 + 토큰 미발급")
+    void issue_policyViolation_propagates(@TempDir Path tmp) {
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
+        org.mockito.BDDMockito.willThrow(
+                        new com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException(
+                                "허용되지 않는 파일", "firmwareFile"))
+                .given(biosFirmwareFilePolicy)
+                .assertAllowed(any(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+
+        assertThatThrownBy(() -> service.issue(10L, req(tmp.resolve("t").toString())))
+                .isInstanceOf(com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException.class);
+        assertThat(service.size()).isZero();
+    }
+
+    @Test
+    @DisplayName("reconstructRequestFromAttributes : 단계 A nudge attributes 왕복 재구성")
+    void reconstructRequest_roundTrip() {
+        var attributes = java.util.Map.of(
+                "firmwarePath", "/mnt/x/",
+                "fileName", "image.RBU",
+                "fileSize", "1024",
+                "version", "2.03",
+                "allowCreateDirectory", "true"
+        );
+
+        BiosUploadIntentRequest reconstructed = service.reconstructRequestFromAttributes(attributes);
+
+        assertThat(reconstructed.firmwarePath()).isEqualTo("/mnt/x/");
+        assertThat(reconstructed.fileName()).isEqualTo("image.RBU");
+        assertThat(reconstructed.fileSize()).isEqualTo(1024L);
+        assertThat(reconstructed.version()).isEqualTo("2.03");
+        assertThat(reconstructed.allowCreateDirectory()).isTrue();
     }
 }
