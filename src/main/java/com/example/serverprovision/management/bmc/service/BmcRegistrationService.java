@@ -306,7 +306,10 @@ public class BmcRegistrationService {
 			BoardModel parent, String name, String version, String description,
 			Path treeRoot, String entrypoint, String manifestHash, int fileCount, long totalBytes
 	) {
+		// 신규 = 최신 기본(E2-1-a) — 규칙은 BiosRegistrationService 와 대칭.
+		bmcRepository.shiftAllVersionRanks(parent.getId());
 		BoardBMC saved = bmcRepository.save(BoardBMC.builder()
+													.versionRank(1)
 													.boardModel(parent)
 													.name(name)
 													.version(version)

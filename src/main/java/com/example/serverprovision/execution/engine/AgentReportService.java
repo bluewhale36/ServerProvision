@@ -6,7 +6,7 @@ import com.example.serverprovision.execution.dto.response.StepOpenResponse;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
-import com.example.serverprovision.execution.entity.SetupStep;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.AgentDirective;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
@@ -16,11 +16,11 @@ import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.AgentReportRejectedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
-import com.example.serverprovision.execution.exception.SetupStepNotFoundException;
+import com.example.serverprovision.execution.exception.ProvisioningHistoryNotFoundException;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
-import com.example.serverprovision.execution.repository.SetupStepRepository;
+import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.execution.vo.GuestToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,37 +48,43 @@ public class AgentReportService {
     private final GuestServerRepository guestServerRepository;
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
-    private final SetupStepRepository setupStepRepository;
-    private final SetupStepRecorder setupStepRecorder;
+    private final ProvisioningHistoryRepository provisioningHistoryRepository;
+    private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
     private final PhaseExecutorRegistry phaseExecutorRegistry;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
-     * 체크인 — 진단 리눅스 기동 사실 신호. <b>첫 체크인(개시됨 + 커서 BOOTSTRAPPING)만</b>
-     * DIAGNOSE_LINUX 로 전이하고(수신 트랜잭션 내 즉시, DEC-2), 응답 지시는 {@link #directiveFor} 가
-     * 판정한다. 완주 서버의 REBOOT 는 여기로 오지 못한다(게이트가 거절) — close 응답이 운반.
+     * 체크인 — 진단 리눅스 기동 사실 신호. 응답 지시는 {@link #directiveFor} 가 판정한다.
+     * 옛 "첫 체크인 BOOTSTRAPPING → DIAGNOSE_LINUX 전이" 특례는 ES-2 로 소멸 — 등록 seed 가
+     * 이미 진단 진입 step({@code DIAGNOSTIC_BOOTING})을 가리킨다. 완주 서버의 REBOOT 는 여기로
+     * 오지 못한다(게이트가 거절) — close 응답이 운반.
      */
     @Transactional
     public AgentCheckinResponse checkin(String presentedToken) {
         GuestServer server = requireByToken(presentedToken);
         ProvisioningProgress progress = requireProgress(server);
         requireProvisioning(server, progress);
-
-        // 가드 통과 = 개시됨 + 미회수 + 미실패 + 미종단. 남는 판단은 첫 체크인(커서 BOOTSTRAPPING) 전이뿐.
-        if (progress.getCurrentPhase() == ProvisioningPhase.BOOTSTRAPPING) {
-            progress.advanceTo(ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now());
-            log.info("게스트 첫 체크인 — 진단 진입 : guestServerId={}", server.getId());
-        }
         publishChanged(server);
         return new AgentCheckinResponse(directiveFor(server, progress), server.getName());
     }
 
-    /** step 시작 보고 — RUNNING 행을 열고 종료 보고가 바인딩할 행 식별자를 돌려준다(DEC-3). */
+    /**
+     * step 시작 보고 — RUNNING 행을 열고 종료 보고가 바인딩할 행 식별자를 돌려준다(DEC-3).
+     * ES-2: 커서가 보고된 step 을 따라간다(같은 phase 안 — 재부팅 후 phase 첫 step 재수행 관용).
+     * 커서 phase 밖의 step 은 진짜 비정상(direct POST · stale · 변조)이라 409 로 거절한다 — 게이트가
+     * 막으므로 엔티티의 phase 이탈 IllegalStateException 은 내부 버그 안전망으로만 남는다.
+     */
     @Transactional
     public StepOpenResponse openStep(String presentedToken, ProvisioningPhaseStep stepCode) {
         GuestServer server = requireByToken(presentedToken);
-        requireProvisioning(server, requireProgress(server));
-        SetupStep step = setupStepRecorder.openRunning(server, stepCode, LocalDateTime.now());
+        ProvisioningProgress progress = requireProgress(server);
+        requireProvisioning(server, progress);
+        if (stepCode.getPhaseType() != progress.currentPhase()) {
+            throw AgentReportRejectedException.phaseMismatch(server.getId(), stepCode, progress.getCurrentStep());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        ProvisioningHistory step = provisioningHistoryRecorder.openRunning(server, stepCode, now);
+        progress.positionAt(stepCode, now);
         publishChanged(server);
         return new StepOpenResponse(step.getId());
     }
@@ -104,9 +110,9 @@ public class AgentReportService {
             throw AgentReportRejectedException.notProvisioning(server.getId());
         }
 
-        SetupStep step = setupStepRepository.findById(stepId)
+        ProvisioningHistory step = provisioningHistoryRepository.findById(stepId)
                 .filter(s -> s.getGuestServer().getId().equals(server.getId()))
-                .orElseThrow(() -> new SetupStepNotFoundException(stepId));
+                .orElseThrow(() -> new ProvisioningHistoryNotFoundException(stepId));
 
         if (status == GuestServerStatus.PROVISIONED) {
             if (step.getFinishedAt() == null) {
@@ -117,10 +123,20 @@ public class AgentReportService {
             return new StepCloseResponse(directiveFor(server, progress));   // no-op + REBOOT 재계산
         }
 
-        boolean closed = step.close(result, statusMeta, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        boolean closed = step.close(result, statusMeta, now);
         if (closed && result == ProvisioningStatus.FAILED) {
+            // 실패 지점 = 커서(ES-2 D-5). 재시작 등으로 커서가 다른 step 에 가 있으면 같은 phase 안에서
+            // 보고 행의 step 으로 되돌려 "커서 = 실패 지점" 을 확정한다. phase 가 다른 지연 close(희귀)는
+            // 커서를 움직이지 않고 실패 신호만 남긴다 — pre-position 된 커서가 이미 다음 목표를 가리킨다.
+            if (step.getStepCode().getPhaseType() == progress.currentPhase()) {
+                progress.positionAt(step.getStepCode(), now);
+            } else {
+                log.warn("커서 phase 밖 실패 close — 커서 유지 : guestServerId={}, 보고 step={}, 커서={}",
+                        server.getId(), step.getStepCode(), progress.getCurrentStep());
+            }
             // 가드가 미실패·미종단을 이미 보장하므로 markFailed 는 곧바로 안전하다.
-            progress.markFailed(step.getStepCode(), LocalDateTime.now());
+            progress.markFailed(now);
             log.warn("게스트 실패 보고 — 실패 신호 기록 : guestServerId={}, step={}",
                     server.getId(), step.getStepCode());
         }
@@ -155,10 +171,10 @@ public class AgentReportService {
      */
     private AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
         if (progress.isCompleted()
-                || progress.getCurrentPhase().ordinal() > ProvisioningPhase.DIAGNOSE_LINUX.ordinal()) {
+                || progress.currentPhase().ordinal() > ProvisioningPhase.DIAGNOSE_LINUX.ordinal()) {
             return AgentDirective.REBOOT;
         }
-        if (progress.getCurrentPhase() == ProvisioningPhase.DIAGNOSE_LINUX && !isEnriched(server)) {
+        if (progress.currentPhase() == ProvisioningPhase.DIAGNOSE_LINUX && !isEnriched(server)) {
             return AgentDirective.COLLECT;
         }
         return AgentDirective.WAIT;

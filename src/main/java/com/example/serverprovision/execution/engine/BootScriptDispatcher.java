@@ -6,7 +6,6 @@ import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
 
 /**
  * {@code /boot} 응답 판정(E1-0b) — dispatch 매트릭스 v1 의 SSOT. 판정 순서가 곧 우선순위이며
@@ -26,45 +25,36 @@ public class BootScriptDispatcher {
      * 등록(멱등)이 끝난 게스트에 대한 응답 스크립트. (매트릭스 1행 "미등록 → 등록" 은 호출 전에
      * {@code GuestServerRegistrationService} 가 이미 수행 — 여기 도달 시점엔 항상 등록돼 있다.)
      */
-    public String dispatch(GuestServer server, ProvisioningProgress progress, String rebootQuery) {
+    public String dispatch(GuestServer server, ProvisioningProgress progress,
+                           PhaseReadiness readiness, String rebootQuery) {
         if (server.getDecommissionedAt() != null) {                       // 2행
             return IpxeScripts.decommissioned(rebootQuery);
         }
-        if (progress.isFailed()) {                                        // 3행
-            return IpxeScripts.failed(progress.getFailedStepCode(), rebootQuery);
+        if (progress.isFailed()) {                                        // 3행 — 실패 지점 = 커서(ES-2 D-5)
+            return IpxeScripts.failed(progress.getCurrentStep(), rebootQuery);
         }
         if (progress.isCompleted()) {                                     // 4행 — E1-2 이분(로드맵 D3)
             // OS 미설치 베어메탈에 exit(로컬 부팅 폴스루)는 부팅 실패 루프다. 완주 커서는 "마지막
             // 보유 phase"(DEC-25)이므로, OS 설치까지 갔던 서버만 exit — 그 전(진단만 완주 = 입고 검수)은
             // 대기 폴링을 유지한다(U3 할당이 생기면 이 폴링이 재개 트리거).
-            boolean osInstalled = progress.getCurrentPhase() != null
-                    && progress.getCurrentPhase().ordinal() >= ProvisioningPhase.OS_INSTALLING.ordinal();
+            boolean osInstalled = progress.currentPhase() != null
+                    && progress.currentPhase().ordinal() >= ProvisioningPhase.OS_INSTALLING.ordinal();
             return osInstalled ? IpxeScripts.completedExit() : IpxeScripts.awaitingIntake(rebootQuery);
         }
         if (!progress.isStarted()) {                                      // 5행 — 개시 게이트(DEC-26)
             return IpxeScripts.waitingForStart(rebootQuery);
         }
-        ProvisioningPhase target = bootTargetPhase(progress);
-        return phaseExecutorRegistry.find(target)                         // 6행 HOLD / 7행 위임
+        if (progress.isHolding()) {                                       // 6행 — 자원 결손 대기(E2-1-b)
+            // 진입 게이트가 이미 대기로 들여보낸 상태다. 여기서는 그 사실을 게스트에게 알리기만 한다 —
+            // 재료가 돌아오면 다음 폴링에서 게이트가 대기를 풀고 이 행을 지나친다.
+            return IpxeScripts.shortageHold(readiness.wire(), rebootQuery);
+        }
+        // 커서의 phase 파생이 곧 부팅 목표(ES-2 D-1) — 커서가 항상 "도달했거나 향하는 목표 step" 을
+        // 가리키므로(등록 seed 부터 DIAGNOSTIC_BOOTING), 옛 bootTargetPhase 의 BOOTSTRAPPING 특례가
+        // 필요 없어졌다(E1-0b 스모크가 발견했던 영구 HOLD 문제의 원인 자체가 소멸).
+        ProvisioningPhase target = progress.currentPhase();
+        return phaseExecutorRegistry.find(target)                         // 7행 HOLD / 8행 위임
                 .map(executor -> executor.bootScript(server, progress, rebootQuery))
                 .orElseGet(() -> IpxeScripts.hold(target, rebootQuery));
-    }
-
-    /**
-     * 이 부팅이 이끌어야 할 phase. 커서는 게스트 사실 신호(체크인)에야 움직이므로(DEC-2),
-     * 개시됐지만 커서가 아직 BOOTSTRAPPING 인 서버가 받아야 할 것은 커서 자신이 아니라
-     * <b>다음 진입 대상</b>(진단 리눅스)의 스크립트다 — 아니면 E1-1 이 실행기를 등록해도
-     * 게스트가 영원히 HOLD 에 갇힌다(E1-0b 스모크가 발견). 규칙은 {@link PhaseSequence} SSOT 재사용
-     * (BOOTSTRAPPING 다음은 보유 무관 진단 — 빈 집합으로 충분).
-     */
-    private ProvisioningPhase bootTargetPhase(ProvisioningProgress progress) {
-        if (progress.getCurrentPhase() == ProvisioningPhase.BOOTSTRAPPING) {
-            // 의도적 빈 집합(DES-3) — BOOTSTRAPPING→진단은 보유(ownedPhases) 무관이라 결과 불변이며,
-            // 실공급자 배선 대상이 아니다(진단 완주 후의 실배선은 PhaseCursorAdvancer 소관, ES-1).
-            // 여기 provider 를 주입하는 것은 결과가 같은데 의존만 늘리는 over-wiring 이라 하지 않는다.
-            return PhaseSequence.nextAfter(ProvisioningPhase.BOOTSTRAPPING, Set.of())
-                    .orElseThrow(() -> new IllegalStateException("BOOTSTRAPPING 다음 phase 부재 — PhaseSequence 규칙 위반"));
-        }
-        return progress.getCurrentPhase();
     }
 }

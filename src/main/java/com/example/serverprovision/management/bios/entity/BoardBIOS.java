@@ -64,6 +64,16 @@ public class BoardBIOS extends LifecycleEntity implements Markable {
 	private String version;
 
 	/**
+	 * 버전 순위(E2-1-a) — 1 = 최신. 같은 보드의 BIOS 안에서 밀집 순위(1..n)이며, soft-delete 행도
+	 * 순위 공간을 공유한다(복원 시 자리 보존). 벤더 표기 체계가 바뀌면(예: 2101 → A40) 문자열 비교로는
+	 * "최신" 을 판정할 수 없으므로, 순서의 SSOT 는 문자열이 아니라 운영자가 목록에서 정하는 이 값이다.
+	 * 등록 시 1위(기존 전부 +1), 조정은 자원 목록의 드래그, 소비는 목록 · 정의서 폼 select · resolve(E2-1-b).
+	 */
+	@Builder.Default
+	@Column(name = "version_rank", nullable = false)
+	private int versionRank = 0;
+
+	/**
 	 * 번들 트리 루트 절대경로. 이 경로 <em>하위</em> 에 전개된 파일들이 실제 BIOS 번들 내용.
 	 */
 	@Column(name = "tree_root_path", nullable = false, length = 1024)
@@ -141,6 +151,11 @@ public class BoardBIOS extends LifecycleEntity implements Markable {
 	 * 메타데이터 수정. 트리·진입점·해시·서명은 여기서 변경하지 않는다 —
 	 * 번들 교체는 soft delete 후 새 번들 업로드 흐름을 통해서만 가능.
 	 */
+	/** 순위 재부여(E2-1-a) — 재정렬 · 등록 shift · 영구삭제 재번호의 단일 변경 통로. */
+	public void assignVersionRank(int versionRank) {
+		this.versionRank = versionRank;
+	}
+
 	public void update(String name, String version, String description) {
 		this.name = name;
 		this.version = version;

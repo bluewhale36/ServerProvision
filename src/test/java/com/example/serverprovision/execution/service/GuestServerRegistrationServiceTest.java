@@ -1,7 +1,7 @@
 package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
-import com.example.serverprovision.execution.engine.SetupStepRecorder;
+import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
@@ -48,13 +48,13 @@ class GuestServerRegistrationServiceTest {
     @Mock GuestServerDetailRepository guestServerDetailRepository;
     @Mock HostNicBindingRepository hostNicBindingRepository;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
-    @Mock SetupStepRecorder setupStepRecorder;
+    @Mock ProvisioningHistoryRecorder provisioningHistoryRecorder;
     @Mock BoardModelRepository boardModelRepository;
 
     GuestServerRegistrationService service() {
         return new GuestServerRegistrationService(
                 guestServerRepository, guestServerDetailRepository,
-                hostNicBindingRepository, provisioningProgressRepository, setupStepRecorder, boardModelRepository);
+                hostNicBindingRepository, provisioningProgressRepository, provisioningHistoryRecorder, boardModelRepository);
     }
 
     private static final String UUID_STR = "11111111-1111-1111-1111-111111111111";
@@ -95,14 +95,15 @@ class GuestServerRegistrationServiceTest {
 
         ArgumentCaptor<ProvisioningProgress> progCap = ArgumentCaptor.forClass(ProvisioningProgress.class);
         verify(provisioningProgressRepository).save(progCap.capture());
-        assertThat(progCap.getValue().getCurrentPhase()).isEqualTo(ProvisioningPhase.BOOTSTRAPPING);
+        assertThat(progCap.getValue().getCurrentStep())
+                .isEqualTo(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);   // ES-2 seed 계약
         assertThat(progCap.getValue().getLastTransitionAt()).isNotNull();
 
         // E1-0a — U1 유보분 인수: 부트스트래핑 2단계가 SUCCEEDED 단발 2행으로 적재된다.
-        verify(setupStepRecorder).recordInstant(
+        verify(provisioningHistoryRecorder).recordInstant(
                 any(GuestServer.class), org.mockito.ArgumentMatchers.eq(ProvisioningPhaseStep.NETWORK_ALLOCATING),
                 org.mockito.ArgumentMatchers.eq(ProvisioningStatus.SUCCEEDED), any(), any());
-        verify(setupStepRecorder).recordInstant(
+        verify(provisioningHistoryRecorder).recordInstant(
                 any(GuestServer.class), org.mockito.ArgumentMatchers.eq(ProvisioningPhaseStep.INIT_PERSISTING),
                 org.mockito.ArgumentMatchers.eq(ProvisioningStatus.SUCCEEDED), any(), any());
     }
@@ -119,7 +120,7 @@ class GuestServerRegistrationServiceTest {
         verify(guestServerDetailRepository, never()).save(any());
         verify(hostNicBindingRepository, never()).save(any());
         verify(provisioningProgressRepository, never()).save(any());
-        verify(setupStepRecorder, never()).recordInstant(any(), any(), any(), any(), any());
+        verify(provisioningHistoryRecorder, never()).recordInstant(any(), any(), any(), any(), any());
         // E1-0b — U1 시절 등록분(토큰 없음)은 재진입에서 lazy 발급된다.
         assertThat(existing.getGuestToken()).isNotNull();
     }

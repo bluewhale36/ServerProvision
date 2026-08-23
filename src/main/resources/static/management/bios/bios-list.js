@@ -125,3 +125,23 @@
     // S5-2 — purge 확인은 confirm-purge fragment + JS 모듈 (form[data-confirm-purge]) 로 일원화.
     // 기존 MK2 의 data-typed-confirm + window.prompt() 핸들러는 이 자리에서 제거됨.
 })();
+
+/*
+ * E2-1-a CP5 F-2 — 삭제 후 도착지. 전역 인터셉터의 기본 성공 동작은 "현재 페이지 재적재" 인데,
+ * 이 화면의 현재 URL 은 선택 상태(selectId)를 담고 있어 방금 삭제한 자원을 다시 가리킨다 — 보드
+ * 선택이 풀리고 버전 컬럼이 비어 보이는 결함(재현 100%). 서버는 액션마다 올바른 도착지를 이미
+ * redirect 로 정한다(삭제 = selectId 없이, 토글 = 선택 유지) — 그 최종 도착지(resp.url)로 이동한다.
+ * 선례: static/provisioning/setting-lifecycle.js · static/maintenance/trash/trash-action.js.
+ */
+(function () {
+    'use strict';
+    var base = window.AsyncSubmitResult;
+    window.AsyncSubmitResult = {
+        onSuccess: function (_form, resp) {
+            window.location.assign((resp && resp.url) ? resp.url : window.location.href);
+        },
+        onRejected: function (form, status, payload) {
+            if (base && base.onRejected) { base.onRejected(form, status, payload); }
+        }
+    };
+})();

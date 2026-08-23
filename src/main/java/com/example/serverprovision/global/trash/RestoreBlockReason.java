@@ -12,7 +12,7 @@ import lombok.Getter;
  *
  * <p>그래서 사유를 값으로 만든다. 템플릿은 "막혔는가" 와 "무엇이라 말할 것인가" 를 모두 이 값에서
  * 읽고, 서버 가드는 같은 판정({@link TrashRestoreEvaluator})을 불러 같은 결론에 이른다.
- * {@code childEnableBlockReason()} 과 {@code SettingAssignment.reassignBlockReason()} 이 같은 형태다.</p>
+ * {@code childEnableBlockReason()} 과 {@code SettingAssignmentSnapshot.reassignBlockReason()} 이 같은 형태다.</p>
  *
  * <p>사용자 노출 문구를 enum 이 드는 것은 R9-2 가 {@code DriftKind} 로 세운 관례를 따른 것이다.</p>
  */

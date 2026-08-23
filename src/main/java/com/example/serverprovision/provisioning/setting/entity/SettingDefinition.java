@@ -134,7 +134,7 @@ public class SettingDefinition extends BaseTimeEntity {
 
     /**
      * 신규 할당 차단 사유 SSOT(U3-2-b DEC-G) — {@code null} 이면 할당 가능, 문자열이면 그게 UI 안내이자 서버
-     * 가드 예외 메시지다. {@code SettingAssignment.reassignBlockReason()} 선례와 동형으로 <b>서버 가드</b>
+     * 가드 예외 메시지다. {@code SettingAssignmentSnapshot.reassignBlockReason()} 선례와 동형으로 <b>서버 가드</b>
      * ({@code AssignmentCommandService} 의 assign · reassign)와 <b>뷰</b>(할당 드롭다운 옵션 필터)가 이 한
      * 메서드를 함께 호출해 drift 를 없앤다.
      *

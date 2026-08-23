@@ -66,11 +66,11 @@ class OwnedPhasesSeamTest {
 
     // ==== ES-1 승격 — 엔진(PhaseCursorAdvancer)이 공급된 ownedPhases 를 실제 소비 ====
 
-    /** 진단 리눅스 커서에서 시작한, 개시된 진행 상태(전진 가드 통과 전제). */
+    /** 진단 리눅스 커서(수집 step)에서 시작한, 개시된 진행 상태(전진 가드 통과 전제). */
     private ProvisioningProgress diagnoseProgress() {
         return ProvisioningProgress.builder()
                 .id(UUID.randomUUID())
-                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX)
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_COLLECTING)
                 .startedAt(T).lastTransitionAt(T)
                 .build();
     }
@@ -86,7 +86,7 @@ class OwnedPhasesSeamTest {
 
         advancer.advanceOrComplete(progress, UUID.randomUUID(), T.plusMinutes(1));
 
-        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
+        assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);   // 진입 step 으로 pre-position(ES-2)
         assertThat(progress.isCompleted()).isFalse();
     }
 
@@ -101,6 +101,6 @@ class OwnedPhasesSeamTest {
         advancer.advanceOrComplete(progress, UUID.randomUUID(), T.plusMinutes(1));
 
         assertThat(progress.isCompleted()).isTrue();
-        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);
+        assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);
     }
 }

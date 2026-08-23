@@ -623,6 +623,7 @@
      confirm-modal.css 는 commonHead 가 이미 공급하므로 재링크하지 않는다. -->
 <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('deprecatedUse')}"></div>
 <script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/global/row-drag.js}"></script>
 <script th:src="@{/provisioning/setting-form.js}"></script>
 </body>
 </html>

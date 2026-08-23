@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.engine;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
+import com.example.serverprovision.execution.engine.PhaseReadiness;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
@@ -37,6 +38,7 @@ class BootServiceTest {
     @Mock GuestServerRegistrationService registrationService;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock BootScriptDispatcher bootScriptDispatcher;
+    @Mock com.example.serverprovision.execution.engine.PhaseEntryGate phaseEntryGate;   // E2-1-b — dispatch 직전 진입 판정
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks BootService service;
 
@@ -49,10 +51,16 @@ class BootServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer server = GuestServer.builder().id(id).systemUUID(UUID.randomUUID()).build();
         ProvisioningProgress progress = ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.BOOTSTRAPPING).lastTransitionAt(LocalDateTime.now()).build();
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.DIAGNOSTIC_BOOTING)
+                .lastTransitionAt(LocalDateTime.now()).build();
         given(registrationService.initialRegistry(REQUEST)).willReturn(server);
         given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
-        given(bootScriptDispatcher.dispatch(server, progress, "")).willReturn("#!ipxe\nsleep 30");
+        given(phaseEntryGate.evaluate(org.mockito.ArgumentMatchers.eq(server),
+                org.mockito.ArgumentMatchers.eq(progress), org.mockito.ArgumentMatchers.any()))
+                .willReturn(PhaseReadiness.ready());
+        given(bootScriptDispatcher.dispatch(org.mockito.ArgumentMatchers.eq(server),
+                org.mockito.ArgumentMatchers.eq(progress), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(""))).willReturn("#!ipxe\nsleep 30");
 
         String script = service.boot(REQUEST, null);
 

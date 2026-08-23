@@ -3,9 +3,9 @@ package com.example.serverprovision.provisioning.usage;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.global.trash.ResourceKey;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcess;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import com.example.serverprovision.provisioning.setting.entity.SettingProcess;
 import com.example.serverprovision.provisioning.setting.repository.SettingDefinitionRepository;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 public class ResourceUsageQueryImpl implements ResourceUsageQuery {
 
 	private final SettingDefinitionRepository definitionRepository;
-	private final SettingAssignmentRepository assignmentRepository;
+	private final SettingAssignmentSnapshotRepository assignmentRepository;
 	private final ProvisioningProgressRepository progressRepository;
 	private final List<ProcessReferenceInspector> inspectors;
 
@@ -88,17 +88,17 @@ public class ResourceUsageQueryImpl implements ResourceUsageQuery {
 	 * 계약이 아니다.</p>
 	 */
 	private void collectFromAssignments(Set<ResourceKey> wanted, Map<ResourceKey, ResourceUsageLevel> found) {
-		List<SettingAssignment> active = assignmentRepository.findBySupersededAtIsNull();
+		List<SettingAssignmentSnapshot> active = assignmentRepository.findBySupersededAtIsNull();
 		if (active.isEmpty()) return;
 
 		Set<UUID> inFlight = inFlightGuestServerIds(active);
 		Map<Object, ProcessReferenceInspector> byType = inspectorsByType();
 
-		for (SettingAssignment assignment : active) {
+		for (SettingAssignmentSnapshot assignment : active) {
 			boolean running = assignment.getConsumedAt() != null
 					&& inFlight.contains(assignment.getGuestServer().getId());
 			ResourceUsageLevel level = running ? ResourceUsageLevel.RUNNING : ResourceUsageLevel.ASSIGNED;
-			for (AssignedProcess process : assignment.getProcesses()) {
+			for (AssignedProcessSnapshot process : assignment.getProcesses()) {
 				ProcessReferenceInspector inspector = byType.get(process.getProcessType());
 				if (inspector == null) continue;
 				for (ResourceKey key : inspector.referencedResources(process.getPayload().request())) {
@@ -112,7 +112,7 @@ public class ResourceUsageQueryImpl implements ResourceUsageQuery {
 	 * 소비된 할당들 중 프로비저닝이 아직 진행 중인 서버. 완료됐거나 실패한 것은 제외한다 —
 	 * 끝난 프로비저닝은 그 자원을 지금 쓰고 있지 않다.
 	 */
-	private Set<UUID> inFlightGuestServerIds(List<SettingAssignment> active) {
+	private Set<UUID> inFlightGuestServerIds(List<SettingAssignmentSnapshot> active) {
 		List<UUID> consumed = active.stream()
 				.filter(assignment -> assignment.getConsumedAt() != null)
 				.map(assignment -> assignment.getGuestServer().getId())

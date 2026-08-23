@@ -22,6 +22,7 @@ public class BootService {
 
     private final GuestServerRegistrationService registrationService;
     private final ProvisioningProgressRepository provisioningProgressRepository;
+    private final PhaseEntryGate phaseEntryGate;
     private final BootScriptDispatcher bootScriptDispatcher;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -32,8 +33,11 @@ public class BootService {
         ProvisioningProgress progress = provisioningProgressRepository.findByGuestServer_Id(server.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + server.getId()));
+        // 진입 판정 + 결손 사다리 집행(E2-1-b). 상태를 바꾸는 쪽은 게이트, 그 상태를 스크립트로
+        // 표현하는 쪽은 dispatcher — 같은 트랜잭션 안이라 판정 · 전이 · 응답이 한 스냅샷이다.
+        PhaseReadiness readiness = phaseEntryGate.evaluate(server, progress, java.time.LocalDateTime.now());
         // 실시간 스트림 신호(S7) — 등록·접촉 변화. AFTER_COMMIT 리스너가 커밋 확정 후에만 내보낸다.
         eventPublisher.publishEvent(new GuestServerChangedEvent(server.getId()));
-        return bootScriptDispatcher.dispatch(server, progress, rebootQuery == null ? "" : rebootQuery);
+        return bootScriptDispatcher.dispatch(server, progress, readiness, rebootQuery == null ? "" : rebootQuery);
     }
 }

@@ -31,19 +31,19 @@ import lombok.NoArgsConstructor;
  * {@link ProcessPayloadConverter} 를 재사용한다(무변환 복사 — 저장·요청 해석 SSOT 공유).</p>
  *
  * <p>{@code frozenBiosSettings} 는 BASIC_SETTING 전용 deep-freeze(결정 D-C) — 그 외 타입은 null.
- * {@code processType} 컬럼은 표시 · 감사 전용이고 phase 진행 권위는 {@code SettingAssignment.ownedPhases}
+ * {@code processType} 컬럼은 표시 · 감사 전용이고 phase 진행 권위는 {@code SettingAssignmentSnapshot.ownedPhases}
  * 다(결정 D-G).</p>
  */
 @Entity
-@Table(name = "assigned_process",
+@Table(name = "assigned_process_snapshot",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_assigned_process_type",
+                name = "uk_assigned_process_snapshot_type",
                 columnNames = {"assignment_id", "process_type"}
         )
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AssignedProcess extends BaseTimeEntity {
+public class AssignedProcessSnapshot extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,7 +51,7 @@ public class AssignedProcess extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "assignment_id", nullable = false)
-    private SettingAssignment assignment;
+    private SettingAssignmentSnapshot assignment;
 
     /** 표시 · 감사 전용 판별자(권위는 ownedPhases VO). payload 에서 단방향 파생. */
     @Enumerated(EnumType.STRING)
@@ -68,14 +68,14 @@ public class AssignedProcess extends BaseTimeEntity {
     @Column(name = "frozen_bios_settings_json", columnDefinition = "json")
     private FrozenBiosSettings frozenBiosSettings;
 
-    public AssignedProcess(ProcessPayload payload, FrozenBiosSettings frozenBiosSettings) {
+    public AssignedProcessSnapshot(ProcessPayload payload, FrozenBiosSettings frozenBiosSettings) {
         this.payload = payload;
         this.processType = payload.processType();
         this.frozenBiosSettings = frozenBiosSettings;
     }
 
-    /** 양방향 연관 세팅 — {@link SettingAssignment#addProcess} 만 호출. */
-    void assignTo(SettingAssignment assignment) {
+    /** 양방향 연관 세팅 — {@link SettingAssignmentSnapshot#addProcess} 만 호출. */
+    void assignTo(SettingAssignmentSnapshot assignment) {
         this.assignment = assignment;
     }
 }

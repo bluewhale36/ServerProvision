@@ -38,10 +38,10 @@ import java.util.List;
  * 이 지킨다.</p>
  */
 @Entity
-@Table(name = "setting_assignment")
+@Table(name = "setting_assignment_snapshot")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class SettingAssignment extends BaseTimeEntity {
+public class SettingAssignmentSnapshot extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -74,21 +74,21 @@ public class SettingAssignment extends BaseTimeEntity {
 
     /** 행 단위 복사된 단계 스냅샷(aggregate 종속 — cascade + orphanRemoval). */
     @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<AssignedProcess> processes = new ArrayList<>();
+    private List<AssignedProcessSnapshot> processes = new ArrayList<>();
 
-    private SettingAssignment(GuestServer guestServer, SourceDefinitionRef sourceDefinitionRef, OwnedPhases ownedPhases) {
+    private SettingAssignmentSnapshot(GuestServer guestServer, SourceDefinitionRef sourceDefinitionRef, OwnedPhases ownedPhases) {
         this.guestServer = guestServer;
         this.sourceDefinitionRef = sourceDefinitionRef;
         this.ownedPhases = ownedPhases;
     }
 
     /** 정의서 스냅샷에서 생성(단계 행은 {@link #addProcess} 로 장착). */
-    public static SettingAssignment create(GuestServer guestServer, SourceDefinitionRef sourceDefinitionRef, OwnedPhases ownedPhases) {
-        return new SettingAssignment(guestServer, sourceDefinitionRef, ownedPhases);
+    public static SettingAssignmentSnapshot create(GuestServer guestServer, SourceDefinitionRef sourceDefinitionRef, OwnedPhases ownedPhases) {
+        return new SettingAssignmentSnapshot(guestServer, sourceDefinitionRef, ownedPhases);
     }
 
     /** 단계 스냅샷 장착 — 양방향 연관을 함께 세팅. */
-    public void addProcess(AssignedProcess process) {
+    public void addProcess(AssignedProcessSnapshot process) {
         this.processes.add(process);
         process.assignTo(this);
     }

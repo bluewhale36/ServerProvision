@@ -59,6 +59,8 @@
     <div th:unless="${#lists.isEmpty(boards)}"
          class="n-miller"
          data-board-aware="true"
+         th:data-rank-enabled="${!includeDeleted}"
+         th:data-rank-error="#{management.firmware.rank.save-failed}"
          th:data-initial-select-id="${selectId}"
          th:data-initial-select-board-id="${selectBoardId}">
 
@@ -88,9 +90,13 @@
         <!-- C2 : 선택된 보드의 BIOS 버전 목록 -->
         <div class="n-miller-col n-miller-col-versions">
             <div class="n-miller-col-header">BIOS 버전</div>
+            <!-- E2-1-a — 순서 SSOT 안내. 휴지통 겸용 보기에선 드래그가 꺼지므로 함께 숨긴다. -->
+            <div class="n-section-hint" id="fwRankHint" th:unless="${includeDeleted}"
+                 th:text="#{management.firmware.rank.hint}">드래그하여 버전 순서 조정</div>
             <div th:each="board : ${boards}"
                  class="n-miller-version-panel"
-                 th:data-os-key="${board.id}">
+                 th:data-os-key="${board.id}"
+                 th:attr="data-rank-url=${board.isDeleted} ? null : @{/management/bios/{b}/rank(b=${board.id})}">
 
                 <!-- 보드 scope 빈 상태 -->
                 <div th:if="${#lists.isEmpty(board.biosList)}"
@@ -104,7 +110,11 @@
                         th:classappend="${bios.isDeleted} ? 'n-miller-item-disabled' : ''"
                         th:data-os-id="${bios.id}">
                     <span class="n-miller-version-label">
+                        <span class="n-rank-handle" th:unless="${includeDeleted or bios.isDeleted}"
+                              title="끌어서 순서 변경" aria-label="끌어서 순서 변경">☰</span>
                         <span th:text="${bios.version}">2.03</span>
+                        <span th:if="${board.latestBiosId != null and bios.id == board.latestBiosId}"
+                              class="n-miller-latest" data-latest-mark>latest</span>
                         <span th:if="${bios.isDeprecated and !bios.isDeleted}"
                               class="n-deprecated-dot"
                               title="Deprecated"></span>
@@ -316,6 +326,8 @@
 <script th:src="@{/global/include-deleted-toggle.js}"></script>
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
+<script th:src="@{/global/row-drag.js}"></script>
+<script th:src="@{/management/common/firmware-rank.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {

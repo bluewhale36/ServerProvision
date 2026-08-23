@@ -11,7 +11,7 @@ import com.example.serverprovision.execution.repository.GuestServerDetailReposit
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.HostNicBindingRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
-import com.example.serverprovision.execution.repository.SetupStepRepository;
+import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,7 +47,7 @@ class GuestServerQueryServiceGroupingTest {
     @Mock private GuestServerDetailRepository detailRepository;
     @Mock private HostNicBindingRepository nicRepository;
     @Mock private ProvisioningProgressRepository progressRepository;
-    @Mock private SetupStepRepository setupStepRepository;
+    @Mock private ProvisioningHistoryRepository provisioningHistoryRepository;
     @org.mockito.Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks private GuestServerQueryService service;
@@ -95,7 +95,7 @@ class GuestServerQueryServiceGroupingTest {
         if (phase != null) {
             ProvisioningProgress progress = mock(ProvisioningProgress.class);
             when(progress.getGuestServer()).thenReturn(server);
-            when(progress.getCurrentPhase()).thenReturn(phase);
+            when(progress.currentPhase()).thenReturn(phase);
             progresses.add(progress);
         }
         return server;

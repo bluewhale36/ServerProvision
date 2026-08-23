@@ -20,9 +20,12 @@ public class ProvisioningRetryRejectedException extends ConflictException {
         return new ProvisioningRetryRejectedException("실패 상태가 아닌 서버는 재시도할 수 없습니다. id=" + id);
     }
 
-    /** 펌웨어 flash 실패의 재시도 차단 — 원인 미상 재-flash 는 벽돌 리스크(DEC-4). */
+    /**
+     * 펌웨어를 쓰는 도중 실패한 서버의 재시도 차단(DEC-4) — 원인을 모른 채 다시 쓰면 장비가 부팅하지
+     * 못하는 상태가 될 수 있다. 사용자 문구에는 내부 결정 번호 · 영문 용어를 싣지 않는다(E2-1-b CP5 F-2).
+     */
     public static ProvisioningRetryRejectedException firmwareBlocked(UUID id, ProvisioningPhaseStep step) {
         return new ProvisioningRetryRejectedException(
-                "펌웨어 flash 실패(" + step + ")는 재시도가 차단됩니다 — 원인 확인 전 재-flash 는 벽돌 리스크. id=" + id);
+                "펌웨어를 쓰는 도중 실패한 서버는 원인을 확인하기 전에 다시 시도할 수 없습니다. id=" + id);
     }
 }

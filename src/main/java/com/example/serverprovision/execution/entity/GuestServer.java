@@ -89,7 +89,7 @@ public class GuestServer extends BaseTimeEntity {
      * 세팅 정의서 할당 차단 사유 SSOT (U3-5-a) — 붙일 수 있으면 {@code null}, 아니면 <b>화면 안내이자
      * 서버 거절 사유</b>가 되는 문자열이다.
      *
-     * <p>{@code SettingAssignment.reassignBlockReason()} · {@code SettingDefinition.assignBlockReason()} ·
+     * <p>{@code SettingAssignmentSnapshot.reassignBlockReason()} · {@code SettingDefinition.assignBlockReason()} ·
      * {@code GuestServerGroup.addBlockReason()} 과 같은 형태로, 서버 상세의 폼 노출 판정과
      * {@code AssignmentCommandService} 의 가드가 이 한 메서드를 함께 부른다. 두 곳에 조건을 복붙하면
      * 드리프트가 생긴다.</p>

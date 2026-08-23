@@ -139,6 +139,7 @@ class BiosControllerPurgeFlowTest {
         var boardWithBios = new com.example.serverprovision.management.bios.dto.response.BoardWithBiosListResponse(
                 3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE,
                 "Gigabyte", "MS73-HB1", false,
+                null,   // E2-1-a latestBiosId — 이 흐름과 무관
                 java.util.List.of(bios));
         given(biosService.findAllGrouped(false)).willReturn(java.util.List.of(boardWithBios));
 

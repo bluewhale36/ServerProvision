@@ -2,6 +2,9 @@ package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.request.UpdateGuestServerRequest;
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
+import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
@@ -29,6 +32,8 @@ public class GuestServerCommandService {
 
     private final GuestServerRepository guestServerRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
+    private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
+    private final RetryPolicy retryPolicy;   // 재시도 차단 판정 — 화면 노출과 같은 지점
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
@@ -101,14 +106,20 @@ public class GuestServerCommandService {
         if (!progress.isManualFailable(server.getDecommissionedAt())) {
             throw ProvisioningMarkFailedRejectedException.notProvisioning(id);
         }
-        progress.markFailedManually(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        progress.markFailedManually(now);
+        // 수동 전환 표식 = 원장 instant 행(ES-2 D-5 — 옛 failed_step_code null 표식 대체). 같은 now 를
+        // 쓰므로 상세 응답의 파생 판독(failedAt = finishedAt 짝)이 이 행을 정확히 집는다.
+        provisioningHistoryRecorder.recordInstant(server, progress.getCurrentStep(),
+                ProvisioningStatus.FAILED, ProvisioningHistory.OPERATOR_ORIGIN_META, now);
         publishChanged(id);
     }
 
     /**
      * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제(전진 가드의 유일한 명시 예외). 커서는 유지되어
      * 다음 /boot 폴링이 실패 phase 의 스크립트를 재발급한다. 펌웨어 flash 실패는 차단
-     * (판정 SSOT = {@link ProvisioningProgress#isRetryBlocked} — UI disabled + tooltip 과 공유).
+     * (판정 SSOT = {@link RetryPolicy} — UI disabled + tooltip 과 공유. 굽다가 난 실패만 막고,
+     * 자원 결손 시한 만료는 자원을 되살린 뒤 다시 시도할 수 있다).
      */
     @Transactional
     public void retry(UUID id) {
@@ -116,8 +127,8 @@ public class GuestServerCommandService {
         if (!progress.isFailed()) {
             throw ProvisioningRetryRejectedException.notFailed(id);
         }
-        if (progress.isRetryBlocked()) {
-            throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getFailedStepCode());
+        if (retryPolicy.isBlocked(progress)) {
+            throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getCurrentStep());
         }
         progress.clearFailed(LocalDateTime.now());
         publishChanged(id);

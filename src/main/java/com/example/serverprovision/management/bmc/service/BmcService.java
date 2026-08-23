@@ -5,6 +5,12 @@ import com.example.serverprovision.management.bmc.dto.request.BmcUpdateRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
 import com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
+import java.util.Set;
+import java.util.Iterator;
+import java.util.HashSet;
+import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
+import com.example.serverprovision.management.board.exception.InvalidVersionRankRequestException;
+import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -53,18 +59,64 @@ public class BmcService {
 				.collect(Collectors.groupingBy(b -> b.getBoardModel().getId(), HashMap::new, Collectors.toList()));
 
 		return boards.stream()
-				.map(board -> new BoardWithBmcListResponse(
-						board.getId(),
-						board.getVendor(),
-						board.getVendor().getDisplayName(),
-						board.getModelName(),
-						board.isDeleted(),
-						byBoard.getOrDefault(board.getId(), List.of()).stream()
-								.sorted(Comparator.comparing(BoardBMC::getVersion).reversed())
-								.map(BmcService::toResponse)
-								.toList()
-				))
+				.map(board -> {
+					List<BoardBMC> ofBoard = byBoard.getOrDefault(board.getId(), List.of()).stream()
+							.sorted(Comparator.comparingInt(BoardBMC::getVersionRank))   // 운영자 순서 SSOT(E2-1-a)
+							.toList();
+					return new BoardWithBmcListResponse(
+							board.getId(),
+							board.getVendor(),
+							board.getVendor().getDisplayName(),
+							board.getModelName(),
+							board.isDeleted(),
+							latestOf(ofBoard),
+							ofBoard.stream().map(BmcService::toResponse).toList()
+					);
+				})
 				.toList();
+	}
+
+	/** "최신" 판정 — 순위 1위 enabled 후보(E2-1-a). 술어 공유 근거는 BiosService.latestOf 와 동일(대칭). */
+	private static Long latestOf(List<BoardBMC> rankOrdered) {
+		return rankOrdered.stream()
+				.filter(b -> !b.isDeleted() && b.isEnabled())
+				.findFirst()
+				.map(BoardBMC::getId)
+				.orElse(null);
+	}
+
+	/** 버전 순위 재정렬(E2-1-a) — 규칙 · 가드는 BiosService.reorderVersionRanks 와 대칭 계약. */
+	@Transactional
+	public void reorderVersionRanks(Long boardId, List<Long> orderedIds) {
+		boardModelRepository.findByIdAndIsDeletedFalse(boardId)
+				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
+		List<BoardBMC> all = bmcRepository.findAllByBoardModel_IdOrderByVersionRankAsc(boardId);
+		Map<Long, BoardBMC> live = all.stream()
+				.filter(b -> !b.isDeleted())
+				.collect(Collectors.toMap(BoardBMC::getId, b -> b));
+
+		Set<Long> requested = new HashSet<>(orderedIds);
+		if (requested.size() != orderedIds.size()) {
+			throw InvalidVersionRankRequestException.duplicated();
+		}
+		for (Long id : orderedIds) {
+			if (!live.containsKey(id)) {
+				throw new BmcNotFoundException(boardId, id);
+			}
+		}
+		if (requested.size() != live.size()) {
+			throw InvalidVersionRankRequestException.incomplete();
+		}
+
+		Iterator<Long> next = orderedIds.iterator();
+		int rank = 1;
+		for (BoardBMC row : all) {
+			if (row.isDeleted()) {
+				row.assignVersionRank(rank++);
+			} else {
+				live.get(next.next()).assignVersionRank(rank++);
+			}
+		}
 	}
 
 	public BmcResponse findBmc(Long boardId, Long bmcId) {

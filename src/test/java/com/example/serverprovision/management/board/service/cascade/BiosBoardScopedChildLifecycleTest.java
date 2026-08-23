@@ -98,7 +98,7 @@ class BiosBoardScopedChildLifecycleTest {
         BoardBIOS deleted = bios(102L, p, true);     // soft-deleted
         // 부모를 비활성으로 전이 → 활성 자식만 재계산되면 effective=false 가 되어야 한다.
         p.toggleEnabled();
-        given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(BOARD_ID))
+        given(biosRepository.findAllByBoardModel_Id(BOARD_ID))
                 .willReturn(List.of(active, deleted));
 
         adapter.recomputeEffective(BOARD_ID);
@@ -114,7 +114,7 @@ class BiosBoardScopedChildLifecycleTest {
     @DisplayName("softDeleteActive : 활성 자식 각각 lifecycleService.softDelete(biosId) 1-arg 위임")
     void softDeleteActive_delegatesOneArg() {
         BoardModel p = parent(true, false);
-        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(BOARD_ID))
+        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(BOARD_ID))
                 .willReturn(List.of(bios(101L, p, false), bios(102L, p, false)));
 
         adapter.softDeleteActive(BOARD_ID);
@@ -126,7 +126,7 @@ class BiosBoardScopedChildLifecycleTest {
     @Test
     @DisplayName("softDeleteActive : 활성 자식 없으면 service 미호출")
     void softDeleteActive_noActive_skips() {
-        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(BOARD_ID))
+        given(biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(BOARD_ID))
                 .willReturn(List.of());
 
         adapter.softDeleteActive(BOARD_ID);
@@ -181,7 +181,7 @@ class BiosBoardScopedChildLifecycleTest {
     @DisplayName("hasAny : 자식(삭제 포함) 존재 → true")
     void hasAny_whenChildrenExist_true() {
         BoardModel p = parent(true, false);
-        given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(BOARD_ID))
+        given(biosRepository.findAllByBoardModel_Id(BOARD_ID))
                 .willReturn(List.of(bios(101L, p, true)));   // 삭제 자식도 잔존으로 카운트
 
         assertThat(adapter.hasAny(BOARD_ID)).isTrue();
@@ -190,7 +190,7 @@ class BiosBoardScopedChildLifecycleTest {
     @Test
     @DisplayName("hasAny : 자식 없음 → false")
     void hasAny_whenEmpty_false() {
-        given(biosRepository.findAllByBoardModel_IdOrderByVersionDesc(BOARD_ID)).willReturn(List.of());
+        given(biosRepository.findAllByBoardModel_Id(BOARD_ID)).willReturn(List.of());
 
         assertThat(adapter.hasAny(BOARD_ID)).isFalse();
     }

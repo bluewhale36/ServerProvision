@@ -99,7 +99,7 @@ class BmcBoardScopedChildLifecycleTest {
         BoardBMC active = bmc(201L, p, false);
         BoardBMC deleted = bmc(202L, p, true);
         p.toggleEnabled();   // 부모 비활성 전이
-        given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(BOARD_ID))
+        given(bmcRepository.findAllByBoardModel_Id(BOARD_ID))
                 .willReturn(List.of(active, deleted));
 
         adapter.recomputeEffective(BOARD_ID);
@@ -115,7 +115,7 @@ class BmcBoardScopedChildLifecycleTest {
     @DisplayName("softDeleteActive : 활성 자식 각각 service.softDelete(bmcId) 1-arg 위임")
     void softDeleteActive_delegatesOneArg() {
         BoardModel p = parent(true, false);
-        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(BOARD_ID))
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(BOARD_ID))
                 .willReturn(List.of(bmc(201L, p, false), bmc(202L, p, false)));
 
         adapter.softDeleteActive(BOARD_ID);
@@ -127,7 +127,7 @@ class BmcBoardScopedChildLifecycleTest {
     @Test
     @DisplayName("softDeleteActive : 활성 자식 없으면 service 미호출")
     void softDeleteActive_noActive_skips() {
-        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(BOARD_ID))
+        given(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(BOARD_ID))
                 .willReturn(List.of());
 
         adapter.softDeleteActive(BOARD_ID);
@@ -182,7 +182,7 @@ class BmcBoardScopedChildLifecycleTest {
     @DisplayName("hasAny : 자식(삭제 포함) 존재 → true")
     void hasAny_whenChildrenExist_true() {
         BoardModel p = parent(true, false);
-        given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(BOARD_ID))
+        given(bmcRepository.findAllByBoardModel_Id(BOARD_ID))
                 .willReturn(List.of(bmc(201L, p, true)));
 
         assertThat(adapter.hasAny(BOARD_ID)).isTrue();
@@ -191,7 +191,7 @@ class BmcBoardScopedChildLifecycleTest {
     @Test
     @DisplayName("hasAny : 자식 없음 → false")
     void hasAny_whenEmpty_false() {
-        given(bmcRepository.findAllByBoardModel_IdOrderByVersionDesc(BOARD_ID)).willReturn(List.of());
+        given(bmcRepository.findAllByBoardModel_Id(BOARD_ID)).willReturn(List.of());
 
         assertThat(adapter.hasAny(BOARD_ID)).isFalse();
     }

@@ -38,10 +38,9 @@ public final class IpxeScripts {
         return waitAndChain("decommissioned server. not a provisioning target.", rebootQuery);
     }
 
-    /** 실패 상태(자동 재시도 없음, DEC-4) — dispatch 3행. step null = 운영자 수동 전환(E1-2, plan Q6). */
+    /** 실패 상태(자동 재시도 없음, DEC-4) — dispatch 3행. 실패 지점 = 커서 step(ES-2 D-5, 항상 non-null). */
     public static String failed(ProvisioningPhaseStep failedStep, String rebootQuery) {
-        String where = failedStep != null ? "at " + failedStep : "(operator-marked)";
-        return waitAndChain("provisioning FAILED " + where + ". waiting for operator...", rebootQuery);
+        return waitAndChain("provisioning FAILED at " + failedStep + ". waiting for operator...", rebootQuery);
     }
 
     /**
@@ -50,6 +49,24 @@ public final class IpxeScripts {
      */
     public static String awaitingIntake(String rebootQuery) {
         return waitAndChain("diagnosis complete. awaiting assignment (intake hold)...", rebootQuery);
+    }
+
+    /**
+     * 자원 결손 대기(E2-1-b, D1 사다리) — 진입에 필요한 재료가 무너진 게스트. 폴링이 공짜 재시도라
+     * 운영자가 자원을 되살리면 다음 폴링에서 저절로 풀린다. 시한(TTL)이 지나면 실패로 전환된다.
+     */
+    public static String shortageHold(String summary, String rebootQuery) {
+        return waitAndChain("waiting for resources: " + summary, rebootQuery);
+    }
+
+    /**
+     * 펌웨어 해석 완료 · 집행 대기(E2-1-b) — 무엇을 어느 버전으로 구울지는 정해졌고, 실제로 굽는
+     * 실행기(E2-2 BIOS · E2-3 BMC)는 아직 없다. 조용히 통과시키지 않고 이 대기를 명시한다.
+     */
+    public static String awaitingFirmwareFlash(String summary, String rebootQuery) {
+        // "resolved" 라고 단정하지 않는다 — 게이트가 판정을 건너뛴 경우(작업 중 게스트)에는 차단 사유가
+        // 섞인 요약이 그대로 실려 "해석됐다는데 왜 실패 코드가 있나" 로 읽힌다(E2-1-b CP5 F-3).
+        return waitAndChain("firmware plan: " + summary + ". awaiting flash engine...", rebootQuery);
     }
 
     /** 미구현 phase HOLD(silent 통과 금지, DEC-6) — dispatch 6행. */

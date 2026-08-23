@@ -26,7 +26,7 @@ import java.util.UUID;
  * 정체성이 아니므로(DEC-A), 스펙이 같다는 이유로 멤버십이 강제되지 않고 갈렸다는 이유로 막히지도 않는다.</p>
  *
  * <p><b>패키지가 provisioning 인 이유</b>(DEC-C) — 그룹은 {@link GuestServer}(execution)를 참조하는
- * provisioning → execution 단방향이다. {@code SettingAssignment} 와 같은 형태다. execution 에 두면
+ * provisioning → execution 단방향이다. {@code SettingAssignmentSnapshot} 와 같은 형태다. execution 에 두면
  * 방향만 보면 성립하지만, U3-5 가 그룹에 기본 정의서를 얹는 순간 execution 이 provisioning 을 참조하게 된다.</p>
  */
 @Entity
@@ -56,7 +56,7 @@ public class GuestServerGroup extends BaseTimeEntity {
      * <p><b>왜 소프트참조(FK 없는 id)인가.</b> 세팅 정의서는 soft-delete 되고 나중에 영구삭제될 수 있는데,
      * FK 를 걸면 그 삭제가 이 컬럼 때문에 막히거나 cascade 로 조용히 지워진다. 둘 다 그룹 쪽에서 원하지
      * 않는 일이다 — 표준이 가리키던 정의서가 사라지면 화면이 그 사실을 알리고 다시 정하게 하면 된다.
-     * {@code SettingAssignment} 의 {@code SourceDefinitionRef} 가 같은 이유로 소프트참조다.</p>
+     * {@code SettingAssignmentSnapshot} 의 {@code SourceDefinitionRef} 가 같은 이유로 소프트참조다.</p>
      *
      * <p><b>왜 이름을 함께 얼리지 않는가</b>(DEC-F). 스냅샷은 "정의서가 나중에 바뀌어도 이 서버가 밟을
      * 것은 얼린 그 값" 이라 {@code (id, name)} 을 함께 얼리지만, 표준은 정반대로 정의서 개정을 따라가는
@@ -81,7 +81,7 @@ public class GuestServerGroup extends BaseTimeEntity {
      * 멤버 추가 차단 사유 SSOT — 넣을 수 있으면 {@code null}, 아니면 <b>화면 tooltip 이자 서버 거절 사유</b>가
      * 되는 문자열이다.
      *
-     * <p>{@code SettingAssignment.reassignBlockReason()} · {@code childEnableBlockReason()} 과 같은 형태로,
+     * <p>{@code SettingAssignmentSnapshot.reassignBlockReason()} · {@code childEnableBlockReason()} 과 같은 형태로,
      * 뷰의 후보 필터링과 서비스 가드가 이 한 메서드를 함께 호출한다. 두 곳에 조건을 복붙하면 드리프트가 생긴다.</p>
      *
      * <p><b>회수된 서버는 막지 않는다</b>(DEC-H). 그룹은 운영 이력을 지우지 않으며, 회수된 서버를 할당에서

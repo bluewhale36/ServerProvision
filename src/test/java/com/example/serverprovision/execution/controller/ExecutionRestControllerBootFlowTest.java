@@ -46,6 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = ExecutionRestController.class)
 @Import({ BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
+        com.example.serverprovision.execution.engine.PhaseEntryGate.class,
+        com.example.serverprovision.execution.engine.HoldTtlPolicy.class,
         ExecutionRestControllerBootFlowTest.FakeDiagnoseExecutor.class })
 class ExecutionRestControllerBootFlowTest {
 
@@ -66,6 +68,8 @@ class ExecutionRestControllerBootFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean GuestServerRegistrationService registrationService;
+    // E2-1-b — 진입 게이트가 쓰는 협력자. 진단 흐름은 판정 대상이 아니라 기본 mock 으로 충분하다.
+    @MockitoBean com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;
     @MockitoBean ProvisioningProgressRepository progressRepository;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
@@ -78,7 +82,7 @@ class ExecutionRestControllerBootFlowTest {
 
     private ProvisioningProgress.ProvisioningProgressBuilder progress() {
         return ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.BOOTSTRAPPING).lastTransitionAt(T);
+                .currentStep(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING).lastTransitionAt(T);   // ES-2 seed 계약
     }
 
     /** 등록 결과·progress 를 고정하고 /boot 를 호출한다. */
@@ -108,8 +112,9 @@ class ExecutionRestControllerBootFlowTest {
     @Test
     @DisplayName("3행 — 실패 상태: 실패 지점 안내 + 운영자 대기")
     void row3_failed() throws Exception {
+        // ES-2 D-5 — 실패 지점 = 커서(failed_step_code 소멸).
         boot(server(null), progress().startedAt(T).failedAt(T)
-                .failedStepCode(ProvisioningPhaseStep.BIOS_UPDATING).build())
+                .currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("FAILED at BIOS_UPDATING")));
     }
@@ -119,13 +124,13 @@ class ExecutionRestControllerBootFlowTest {
     void row4_completed() throws Exception {
         // 진단만 완주(커서 < OS_INSTALLING) = 입고 검수 대기 — OS 없는 베어메탈에 exit 는 부팅 실패 루프
         boot(server(null), progress().startedAt(T)
-                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).completedAt(T).build())
+                .currentStep(ProvisioningPhaseStep.INFORMATION_PERSISTING).completedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("awaiting assignment")))
                 .andExpect(content().string(not(containsString("exit"))));
         // OS 설치 이후 커서 = 기존 exit 폴스루 유지
         boot(server(null), progress().startedAt(T)
-                .currentPhase(ProvisioningPhase.OS_SETTING).completedAt(T).build())
+                .currentStep(ProvisioningPhaseStep.OS_SETTING).completedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("exit")))
                 .andExpect(content().string(not(containsString("chain"))));
@@ -143,7 +148,7 @@ class ExecutionRestControllerBootFlowTest {
     @DisplayName("6행 — 실행기 미등록 phase: HOLD 명시 대기 (silent 통과 금지)")
     void row6_hold() throws Exception {
         boot(server(null), progress().startedAt(T)
-                .currentPhase(ProvisioningPhase.OS_INSTALLING).build())
+                .currentStep(ProvisioningPhaseStep.OS_INSTALLING).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("OS_INSTALLING not implemented yet (HOLD)")));
     }
@@ -151,8 +156,7 @@ class ExecutionRestControllerBootFlowTest {
     @Test
     @DisplayName("7행 — 실행기 등록 phase: 실행기 bootScript 위임 (쿼리 관통)")
     void row7_executorDelegation() throws Exception {
-        boot(server(null), progress().startedAt(T)
-                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).build())
+        boot(server(null), progress().startedAt(T).build())   // seed 커서가 이미 진단 phase
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("FAKE-DIAGNOSE-CHAINLOAD")))
                 .andExpect(content().string(containsString("systemUUID=11111111")));

@@ -3,6 +3,12 @@ package com.example.serverprovision.execution.enums;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * 프로비저닝 하위 단계(step) — <b>선언 순서가 곧 실행 순서다(ES-2 계약)</b>. 커서가 step 단위가 되면서
+ * phase 진입 step 판정({@link #entryOf})과 진행 비교가 선언 순서에 기대므로, 소속 phase 의 선언 순서를
+ * 거스르는 상수 추가는 금지된다(전 상수 커버리지 테스트가 빌드에서 방어). 명시 순서 필드(int) 대안은
+ * ordinal 과의 이중 권위라 기각했다(ES-2 plan D-1).
+ */
 @RequiredArgsConstructor
 @Getter
 public enum ProvisioningPhaseStep {
@@ -58,4 +64,18 @@ public enum ProvisioningPhaseStep {
     TESTING(ProvisioningPhase.TESTING);
 
     private final ProvisioningPhase phaseType;
+
+    /**
+     * phase 의 진입 step — 선언 순서상 그 phase 의 첫 상수(ES-2 D-1). phase 완주 후 커서를 다음 보유
+     * phase 로 미리 옮겨 세울 때(pre-position) 이 메서드가 유일한 계산 지점이다. 매핑 없는 phase 는
+     * 프로그램 버그(모든 phase 는 step 을 가진다)이므로 명시 예외.
+     */
+    public static ProvisioningPhaseStep entryOf(ProvisioningPhase phase) {
+        for (ProvisioningPhaseStep step : values()) {
+            if (step.phaseType == phase) {
+                return step;
+            }
+        }
+        throw new IllegalStateException("진입 step 이 없는 phase 입니다: " + phase);
+    }
 }

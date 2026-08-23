@@ -25,4 +25,16 @@ public class AgentReportRejectedException extends ConflictException {
         return new AgentReportRejectedException(
                 "프로비저닝 중이 아닌 서버는 에이전트 보고를 보낼 수 없습니다. guestServerId=" + guestServerId);
     }
+
+    /**
+     * 커서 phase 밖 step 의 시작 보고(ES-2) — 게스트는 dispatch 가 준 phase 의 step 만 열 수 있다.
+     * 같은 phase 안 재시작(재부팅 복구)은 정상 수용되므로, 여기 걸리는 것은 direct POST · stale ·
+     * 외부 변조뿐이다.
+     */
+    public static AgentReportRejectedException phaseMismatch(
+            UUID guestServerId, Object reportedStep, Object cursorStep) {
+        return new AgentReportRejectedException(
+                "현재 진행 phase 밖의 step 보고는 받을 수 없습니다. guestServerId=" + guestServerId
+                        + ", 보고 step=" + reportedStep + ", 커서=" + cursorStep);
+    }
 }

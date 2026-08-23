@@ -2,6 +2,7 @@ package com.example.serverprovision.execution.engine;
 
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,11 +33,11 @@ class PhaseCursorAdvancerTest {
         return new PhaseCursorAdvancer(ownedPhasesProvider);
     }
 
-    /** 진단 리눅스 커서에서 시작한, 개시된 진행 상태(전진 가드 통과 전제). */
+    /** 진단 리눅스 커서(수집 step)에서 시작한, 개시된 진행 상태(전진 가드 통과 전제). */
     private ProvisioningProgress diagnoseProgress() {
         return ProvisioningProgress.builder()
                 .id(UUID.randomUUID())
-                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX)
+                .currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING)
                 .startedAt(T).lastTransitionAt(T)
                 .build();
     }
@@ -50,7 +51,8 @@ class PhaseCursorAdvancerTest {
 
         advancer().advanceOrComplete(progress, guestId, T.plusMinutes(1));
 
-        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
+        assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.BIOS_UPDATING);   // 진입 step pre-position(ES-2)
+        assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
         assertThat(progress.isCompleted()).isFalse();
         assertThat(progress.getLastTransitionAt()).isEqualTo(T.plusMinutes(1));
     }
@@ -65,7 +67,7 @@ class PhaseCursorAdvancerTest {
         advancer().advanceOrComplete(progress, guestId, T.plusMinutes(1));
 
         assertThat(progress.isCompleted()).isTrue();
-        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);   // markCompleted 는 커서 불변
+        assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);   // markCompleted 는 커서 불변
     }
 
     @Test
@@ -77,7 +79,7 @@ class PhaseCursorAdvancerTest {
 
         advancer().advanceOrComplete(progress, guestId, T);
 
-        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.OS_INSTALLING);
+        assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.OS_INSTALLING);
         assertThat(progress.isCompleted()).isFalse();
     }
 
@@ -92,11 +94,11 @@ class PhaseCursorAdvancerTest {
 
         advancer().advanceOrComplete(progress, guestId, T);
 
-        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
+        assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
     }
 
     @Test
-    @DisplayName("안전망 — 이미 종단된 진행에 소유 phase 전진 시도(stale · 동시성)는 advanceTo 가드로 IllegalState(500)")
+    @DisplayName("안전망 — 이미 종단된 진행에 소유 phase 전진 시도(stale · 동시성)는 advanceToEntry 가드로 IllegalState(500)")
     void advanceOnCompleted_throwsGuard() {
         UUID guestId = UUID.randomUUID();
         given(ownedPhasesProvider.ownedPhasesOf(guestId)).willReturn(Set.of(ProvisioningPhase.FIRMWARE_UPDATING));

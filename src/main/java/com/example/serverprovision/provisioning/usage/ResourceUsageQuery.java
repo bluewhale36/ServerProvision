@@ -9,7 +9,7 @@ import java.util.Map;
  * MK4-2 — "이 자원이 지금 쓰이는 중인가" 에 답하는 조회 계약.
  *
  * <p>이 인터페이스는 <b>답을 만드는 쪽인 provisioning 이 소유하고</b>, 묻는 쪽인 maintenance 가
- * 호출한다. 방향을 이렇게 잡은 근거는 실측이다 — {@code SettingAssignment} 가 실행 영역의
+ * 호출한다. 방향을 이렇게 잡은 근거는 실측이다 — {@code SettingAssignmentSnapshot} 가 실행 영역의
  * {@code GuestServer} 를 직접 참조해 {@code provisioning → execution} 의존이 이미 존재하므로,
  * provisioning 이 세 수준을 전부 답할 수 있고 maintenance 는 실행 영역을 볼 필요가 없다.
  * 새로 생기는 의존은 {@code maintenance → provisioning} 하나뿐이다.</p>

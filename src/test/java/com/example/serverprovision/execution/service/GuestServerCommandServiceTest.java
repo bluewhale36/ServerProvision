@@ -39,6 +39,8 @@ class GuestServerCommandServiceTest {
 
     @Mock GuestServerRepository guestServerRepository;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
+    @Mock com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;   // ES-2 D-5 — 수동 전환 원장 표식
+    @Mock RetryPolicy retryPolicy;   // E2-1-b CP5 F-1 — 재시도 차단 판정(원장 사실 포함)은 정책이 든다
     @Mock ApplicationEventPublisher eventPublisher;   // S7 — 실시간 스트림 신호 발행 검증
     @InjectMocks GuestServerCommandService service;
 
@@ -48,7 +50,7 @@ class GuestServerCommandServiceTest {
 
     private ProvisioningProgress seedProgress() {
         return ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.BOOTSTRAPPING)
+                .currentStep(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING)   // ES-2 seed 계약
                 .lastTransitionAt(LocalDateTime.now())
                 .build();
     }
@@ -174,12 +176,12 @@ class GuestServerCommandServiceTest {
     // ==== 수동 실패 전환 · 재시도 (E1-2, DEC-4) + S7 발행 검증 ==================
 
     @Test
-    @DisplayName("markFailedManually — 실패 신호 기록(failedStepCode 없음 = 운영자 전환) + 변화 신호 발행")
+    @DisplayName("markFailedManually — 실패 신호 + 운영자 표식 원장 instant 행(ES-2 D-5) + 변화 신호 발행")
     void markFailedManually_records_andPublishes() {
         UUID id = UUID.randomUUID();
         ProvisioningProgress progress = ProvisioningProgress.builder()
                 .guestServer(server(id))
-                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).lastTransitionAt(LocalDateTime.now())
+                .currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING).lastTransitionAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
                 .build();
         given(guestServerRepository.existsById(id)).willReturn(true);
@@ -188,7 +190,14 @@ class GuestServerCommandServiceTest {
         service.markFailedManually(id);
 
         assertThat(progress.isFailed()).isTrue();
-        assertThat(progress.getFailedStepCode()).isNull();   // 운영자 전환 표식
+        assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);   // 커서 유지
+        // 수동 전환 표식 = 원장 instant 행(커서 step · FAILED · origin=operator) — 옛 null 컬럼 표식 대체
+        verify(provisioningHistoryRecorder).recordInstant(
+                any(), org.mockito.ArgumentMatchers.eq(ProvisioningPhaseStep.INFORMATION_COLLECTING),
+                org.mockito.ArgumentMatchers.eq(com.example.serverprovision.execution.enums.ProvisioningStatus.FAILED),
+                org.mockito.ArgumentMatchers.eq(
+                        com.example.serverprovision.execution.entity.ProvisioningHistory.OPERATOR_ORIGIN_META),
+                any());
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
     }
 
@@ -198,9 +207,9 @@ class GuestServerCommandServiceTest {
         UUID id = UUID.randomUUID();
         ProvisioningProgress progress = ProvisioningProgress.builder()
                 .guestServer(server(id))
-                .currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).lastTransitionAt(LocalDateTime.now())
+                .currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING).lastTransitionAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
-                .failedAt(LocalDateTime.now()).failedStepCode(ProvisioningPhaseStep.INFORMATION_COLLECTING)
+                .failedAt(LocalDateTime.now())
                 .build();
         given(guestServerRepository.existsById(id)).willReturn(true);
         given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
@@ -208,7 +217,7 @@ class GuestServerCommandServiceTest {
         service.retry(id);
 
         assertThat(progress.isFailed()).isFalse();
-        assertThat(progress.getCurrentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);   // 커서 유지
+        assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);   // 커서 유지
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
     }
 
@@ -218,12 +227,13 @@ class GuestServerCommandServiceTest {
         UUID id = UUID.randomUUID();
         ProvisioningProgress progress = ProvisioningProgress.builder()
                 .guestServer(server(id))
-                .currentPhase(ProvisioningPhase.FIRMWARE_UPDATING).lastTransitionAt(LocalDateTime.now())
+                .currentStep(ProvisioningPhaseStep.BIOS_UPDATING).lastTransitionAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
-                .failedAt(LocalDateTime.now()).failedStepCode(ProvisioningPhaseStep.BIOS_UPDATING)
+                .failedAt(LocalDateTime.now())
                 .build();
         given(guestServerRepository.existsById(id)).willReturn(true);
         given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+        given(retryPolicy.isBlocked(progress)).willReturn(true);   // 굽다가 난 실패 — 정책이 차단으로 판정
 
         assertThatThrownBy(() -> service.retry(id))
                 .isInstanceOf(ProvisioningRetryRejectedException.class);

@@ -33,13 +33,13 @@ public class BiosBoardScopedChildLifecycle implements BoardScopedChildLifecycle 
 
 	@Override
 	public void recomputeEffective(Long boardId) {
-		biosRepository.findAllByBoardModel_IdOrderByVersionDesc(boardId).stream()
+		biosRepository.findAllByBoardModel_Id(boardId).stream()
 				.filter(b -> !b.isDeleted()).forEach(BoardBIOS::recomputeEffective);
 	}
 
 	@Override
 	public void softDeleteActive(Long boardId) {
-		biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(boardId)
+		biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(boardId)
 				.forEach(bios -> biosLifecycleService.softDelete(bios.getId()));
 	}
 
@@ -62,7 +62,7 @@ public class BiosBoardScopedChildLifecycle implements BoardScopedChildLifecycle 
 
 	@Override
 	public boolean hasAny(Long boardId) {
-		return !biosRepository.findAllByBoardModel_IdOrderByVersionDesc(boardId).isEmpty();
+		return !biosRepository.findAllByBoardModel_Id(boardId).isEmpty();
 	}
 
 	@Override

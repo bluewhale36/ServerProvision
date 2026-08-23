@@ -1,39 +1,39 @@
 package com.example.serverprovision.execution.engine;
 
 import com.example.serverprovision.execution.entity.GuestServer;
-import com.example.serverprovision.execution.entity.SetupStep;
+import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
-import com.example.serverprovision.execution.repository.SetupStepRepository;
+import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
 /**
- * setup_step 원장 적재 창구(E1-0a) — 이벤트 시점 append-only(DEC-3). 행 수정·삭제 API 는 의도적으로
+ * provisioning_history 원장 적재 창구(E1-0a) — 이벤트 시점 append-only(DEC-3). 행 수정·삭제 API 는 의도적으로
  * 두지 않는다(재시도 = 새 행 append). 현재는 서버 측 판정의 단발 기록만 제공하며, 게스트 실행 step 의
  * RUNNING 열림/닫힘은 그 소비자(체크인·보고 API)와 함께 E1-0b 에서 추가한다 — 미리 분리 금지.
  */
 @Component
 @RequiredArgsConstructor
-public class SetupStepRecorder {
+public class ProvisioningHistoryRecorder {
 
-    private final SetupStepRepository setupStepRepository;
+    private final ProvisioningHistoryRepository provisioningHistoryRepository;
 
     /** 판정 즉시 단발 기록 — 시작 = 종료 시각(plan Q3). 호출자의 트랜잭션에 참여한다. */
     public void recordInstant(
             GuestServer server, ProvisioningPhaseStep stepCode,
             ProvisioningStatus status, String statusMeta, LocalDateTime at) {
-        setupStepRepository.save(SetupStep.instant(server, stepCode, status, statusMeta, at));
+        provisioningHistoryRepository.save(ProvisioningHistory.instant(server, stepCode, status, statusMeta, at));
     }
 
     /**
      * 게스트 실행 step 의 열림(E1-0b) — 시작 보고 시 RUNNING 행 생성 후 반환(행 식별자가 종료 보고의
      * 바인딩 키). 응답 유실 재전송으로 RUNNING 행이 중복될 수 있으나 "현재 상태 = stepCode 별 최신 행"
-     * 규약(DEC-3)이 흡수한다 — 닫힘은 {@code SetupStep.close}(엔티티, 1회) 소관.
+     * 규약(DEC-3)이 흡수한다 — 닫힘은 {@code ProvisioningHistory.close}(엔티티, 1회) 소관.
      */
-    public SetupStep openRunning(GuestServer server, ProvisioningPhaseStep stepCode, LocalDateTime at) {
-        return setupStepRepository.save(SetupStep.openRunning(server, stepCode, at));
+    public ProvisioningHistory openRunning(GuestServer server, ProvisioningPhaseStep stepCode, LocalDateTime at) {
+        return provisioningHistoryRepository.save(ProvisioningHistory.openRunning(server, stepCode, at));
     }
 }

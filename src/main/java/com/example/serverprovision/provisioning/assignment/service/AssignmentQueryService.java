@@ -9,7 +9,7 @@ import com.example.serverprovision.execution.repository.GuestServerDetailReposit
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentFormResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.DefinitionOptionResponse;
@@ -22,7 +22,7 @@ import com.example.serverprovision.provisioning.assignment.enums.MemberApplyOutc
 import com.example.serverprovision.provisioning.assignment.mapper.SettingProcessPhaseMapper;
 import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility;
 import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AssignmentQueryService {
 
-    private final SettingAssignmentRepository assignmentRepository;
+    private final SettingAssignmentSnapshotRepository assignmentRepository;
     // U3-5-a — 할당 가능성 판정 입력. execution 방향 참조이며 setting 을 참조하지 않는다(패키지 순환 회피).
     private final GuestServerRepository guestServerRepository;
     private final GuestServerDetailRepository guestServerDetailRepository;
@@ -240,7 +240,7 @@ public class AssignmentQueryService {
      * <p>회수 여부는 여기서 보지 않는다. 회수는 이미 폼을 닫는 사유이고, 이 경고는 "할당은 있는데 그것으로
      * 진행할 수 없다" 를 알리는 자리다. 그래서 서버를 넘기되 하드웨어 축만 묻는다.</p>
      */
-    private String snapshotHardwareMismatch(SettingAssignment assignment) {
+    private String snapshotHardwareMismatch(SettingAssignmentSnapshot assignment) {
         GuestServer server = assignment.getGuestServer();
         GuestServerDetail detail = guestServerDetailRepository
                 .findByServerIdWithBoardModel(server.getId()).orElse(null);

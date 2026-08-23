@@ -2,6 +2,7 @@ package com.example.serverprovision.management.bmc.repository;
 
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
@@ -16,9 +17,22 @@ public interface BmcRepository extends JpaRepository<BoardBMC, Long> {
 
 	Optional<BoardBMC> findByIdAndBoardModel_Id(Long id, Long boardModelId);
 
-	List<BoardBMC> findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionDesc(Long boardModelId);
+	/** 순위 오름차순(1 = 최신) — 목록 · 정의서 폼 select · resolve 공유(E2-1-a, BiosRepository 와 대칭 계약). */
+	List<BoardBMC> findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(Long boardModelId);
 
-	List<BoardBMC> findAllByBoardModel_IdOrderByVersionDesc(Long boardModelId);
+	/** 전체(삭제 포함) 순위 오름차순 — 재정렬 재번호 · 휴지통 겸용. */
+	List<BoardBMC> findAllByBoardModel_IdOrderByVersionRankAsc(Long boardModelId);
+
+	/** 순서 무관 소비(cascade · 집계 · 경고)용 — 순서 어휘 없는 이름(E2-1-a). */
+	List<BoardBMC> findAllByBoardModel_IdAndIsDeletedFalse(Long boardModelId);
+
+	/** 순서 무관 · 삭제 포함 — cascade 대상 수집용. */
+	List<BoardBMC> findAllByBoardModel_Id(Long boardModelId);
+
+	/** 신규 등록 선행 shift(E2-1-a) — 1위 자리 비우기. bulk 라 flush · clear 동반. */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("update BoardBMC b set b.versionRank = b.versionRank + 1 where b.boardModel.id = :boardModelId")
+	int shiftAllVersionRanks(@org.springframework.data.repository.query.Param("boardModelId") Long boardModelId);
 
 	/**
 	 * S5-2-3 — 특정 보드의 soft-deleted BMC. Board restore cascade=true 시 일괄 복구 대상.

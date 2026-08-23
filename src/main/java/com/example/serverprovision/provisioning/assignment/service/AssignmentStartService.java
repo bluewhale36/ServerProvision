@@ -1,7 +1,7 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.service.GuestServerCommandService;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +23,7 @@ import java.util.UUID;
 public class AssignmentStartService {
 
     private final GuestServerCommandService guestServerCommandService;
-    private final SettingAssignmentRepository assignmentRepository;
+    private final SettingAssignmentSnapshotRepository assignmentRepository;
 
     @Transactional
     public void startProvisioning(UUID guestId) {

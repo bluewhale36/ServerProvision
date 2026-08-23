@@ -1,7 +1,7 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
-import com.example.serverprovision.provisioning.assignment.entity.SettingAssignment;
-import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentRepository;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
+import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,7 +28,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AssignmentReapService {
 
-    private final SettingAssignmentRepository assignmentRepository;
+    private final SettingAssignmentSnapshotRepository assignmentRepository;
 
     /** 미소비 supersede 행 물리 삭제 TTL. 재할당 직후 개시 tx 와의 경합을 넘길 만큼만 지연하면 된다. */
     @Value("${assignment.reap.ttl:24h}")
@@ -36,7 +36,7 @@ public class AssignmentReapService {
 
     /**
      * 미소비 supersede 스냅샷 중 TTL 경과분을 hard-delete 한다(reaper 트리거가 호출). 자동화 경로이며 TTL 이
-     * 의도 검증을 대신하므로 typed-name 가드는 없다. {@code assigned_process} 자식은 JPA cascade + DB ON DELETE
+     * 의도 검증을 대신하므로 typed-name 가드는 없다. {@code assigned_process_snapshot} 자식은 JPA cascade + DB ON DELETE
      * CASCADE 로 함께 지워진다.
      *
      * @return 수거한 스냅샷 건수
@@ -44,7 +44,7 @@ public class AssignmentReapService {
     @Transactional
     public int purgeExpired() {
         LocalDateTime threshold = LocalDateTime.now().minus(ttl);
-        List<SettingAssignment> expired = assignmentRepository
+        List<SettingAssignmentSnapshot> expired = assignmentRepository
                 .findBySupersededAtIsNotNullAndConsumedAtIsNullAndSupersededAtBefore(threshold);
         if (!expired.isEmpty()) {
             assignmentRepository.deleteAll(expired);

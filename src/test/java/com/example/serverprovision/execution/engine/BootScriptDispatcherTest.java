@@ -38,7 +38,7 @@ class BootScriptDispatcherTest {
 
     private ProvisioningProgress.ProvisioningProgressBuilder progress() {
         return ProvisioningProgress.builder()
-                .currentPhase(ProvisioningPhase.BOOTSTRAPPING).lastTransitionAt(T);
+                .currentStep(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING).lastTransitionAt(T);   // ES-2 seed 계약
     }
 
     @Test
@@ -46,11 +46,11 @@ class BootScriptDispatcherTest {
     void priorityOrder() {
         // 회수 + 실패 → 회수가 이긴다 (derive 진리표와 동일 정렬)
         assertThat(dispatcher.dispatch(server(T),
-                progress().startedAt(T).failedAt(T).failedStepCode(ProvisioningPhaseStep.OS_INSTALLING).build(), Q))
+progress().startedAt(T).failedAt(T).currentStep(ProvisioningPhaseStep.OS_INSTALLING).build(), PhaseReadiness.ready(), Q))
                 .contains("decommissioned server");
-        // 실패 + 종단은 표현 불가(상호배타) — 실패 vs 미개시: 실패가 이긴다
+        // 실패 + 종단은 표현 불가(상호배타) — 실패 vs 미개시: 실패가 이긴다. 실패 지점 = 커서(ES-2 D-5).
         assertThat(dispatcher.dispatch(server(null),
-                progress().failedAt(T).failedStepCode(ProvisioningPhaseStep.BIOS_UPDATING).build(), Q))
+progress().failedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(), PhaseReadiness.ready(), Q))
                 .contains("FAILED at BIOS_UPDATING");
     }
 
@@ -58,7 +58,7 @@ class BootScriptDispatcherTest {
     @DisplayName("4행 이분(E1-2) — 완주 + OS 설치 전(진단만 완주) → 입고 검수 대기 (exit 금지)")
     void completed_beforeOsInstall_awaitsIntake() {
         String script = dispatcher.dispatch(server(null),
-                progress().startedAt(T).currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).completedAt(T).build(), Q);
+progress().startedAt(T).currentStep(ProvisioningPhaseStep.INFORMATION_PERSISTING).completedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script)
                 .contains("awaiting assignment")
                 .contains("chain /api/pxe/v1/boot?" + Q)
@@ -69,14 +69,15 @@ class BootScriptDispatcherTest {
     @DisplayName("4행 이분(E1-2) — 완주 + OS 설치 이후 커서 → exit (로컬 부팅 폴스루)")
     void completed_afterOsInstall_exitsWithoutChain() {
         String script = dispatcher.dispatch(server(null),
-                progress().startedAt(T).currentPhase(ProvisioningPhase.OS_SETTING).completedAt(T).build(), Q);
+progress().startedAt(T).currentStep(ProvisioningPhaseStep.OS_SETTING).completedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script).contains("exit").doesNotContain("chain");
     }
 
     @Test
     @DisplayName("5행 미개시 — 개시 게이트 대기 + 원본 쿼리로 chain 재진입")
     void notStarted_waits() {
-        String script = dispatcher.dispatch(server(null), progress().build(), Q);
+        String script = dispatcher.dispatch(server(null),
+progress().build(), PhaseReadiness.ready(), Q);
         assertThat(script)
                 .contains("waiting for provisioning start")
                 .contains("sleep 30")
@@ -84,33 +85,55 @@ class BootScriptDispatcherTest {
     }
 
     @Test
+    @DisplayName("6행 결손 대기(E2-1-b) — 게이트가 들여보낸 대기 상태를 사유와 함께 알린다")
+    void holding_showsShortage() {
+        ProvisioningProgress holding = progress().currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build();
+        holding.start(T);             // 개시 = 부팅 대기
+        holding.holdForShortage(T);   // 게이트가 하는 일을 같은 통로로 재현
+
+        String script = dispatcher.dispatch(server(null), holding,
+                PhaseReadiness.of(ReadinessGrade.BLOCKED, List.of("BIOS — 무결성 표식이 없습니다"),
+                        "BIOS=MARKER_MISSING"), Q);
+
+        assertThat(script)
+                .contains("waiting for resources: BIOS=MARKER_MISSING")
+                .contains("chain /api/pxe/v1/boot?" + Q);
+    }
+
+    @Test
+    @DisplayName("우선순위 — 실패가 결손 대기보다 앞선다(시한 만료로 실패한 게스트는 실패 안내를 받는다)")
+    void failed_beatsHolding() {
+        ProvisioningProgress holdingThenFailed = progress().currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build();
+        holdingThenFailed.start(T);
+        holdingThenFailed.holdForShortage(T);
+        holdingThenFailed.markFailed(T);
+
+        assertThat(dispatcher.dispatch(server(null), holdingThenFailed, PhaseReadiness.ready(), Q))
+                .contains("FAILED at BIOS_UPDATING");
+    }
+
+    @Test
     @DisplayName("6행 HOLD — 실행기 미등록 phase 는 명시 대기 (silent 통과 금지)")
     void unregisteredPhase_holds() {
         String script = dispatcher.dispatch(server(null),
-                progress().startedAt(T).currentPhase(ProvisioningPhase.FIRMWARE_UPDATING).build(), Q);
+progress().startedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(), PhaseReadiness.ready(), Q);   // pre-position 커서
         assertThat(script).contains("FIRMWARE_UPDATING not implemented yet (HOLD)");
     }
 
     @Test
-    @DisplayName("7행 위임 — 등록된 실행기의 bootScript 로 (쿼리 관통)")
+    @DisplayName("7행 위임 — 등록된 실행기의 bootScript 로 (쿼리 관통). seed 커서의 phase 파생이 곧 부팅 목표(ES-2)")
     void registeredPhase_delegates() {
         String script = dispatcher.dispatch(server(null),
-                progress().startedAt(T).currentPhase(ProvisioningPhase.DIAGNOSE_LINUX).build(), Q);
+progress().startedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script).contains("FAKE q=" + Q);
     }
 
     @Test
-    @DisplayName("개시 + 커서 BOOTSTRAPPING — 다음 진입 대상(진단) 실행기로 위임 (커서는 체크인에야 움직인다, DEC-2)")
-    void startedAtBootstrapping_targetsNextPhase() {
-        String script = dispatcher.dispatch(server(null), progress().startedAt(T).build(), Q);
-        assertThat(script).contains("FAKE q=" + Q);   // BOOTSTRAPPING 이 아니라 DIAGNOSE_LINUX 실행기
-    }
-
-    @Test
-    @DisplayName("개시 + 커서 BOOTSTRAPPING + 진단 실행기 미등록 — HOLD 는 진단 phase 를 안내한다")
-    void startedAtBootstrapping_withoutExecutor_holdsOnDiagnose() {
+    @DisplayName("개시 + seed 커서 + 진단 실행기 미등록 — HOLD 는 진단 phase 를 안내한다 (옛 BOOTSTRAPPING 특례 소멸 회귀)")
+    void seedCursor_withoutExecutor_holdsOnDiagnose() {
         BootScriptDispatcher empty = new BootScriptDispatcher(new PhaseExecutorRegistry(List.of()));
-        String script = empty.dispatch(server(null), progress().startedAt(T).build(), Q);
+        String script = empty.dispatch(server(null),
+progress().startedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script).contains("DIAGNOSE_LINUX not implemented yet (HOLD)");
     }
 }

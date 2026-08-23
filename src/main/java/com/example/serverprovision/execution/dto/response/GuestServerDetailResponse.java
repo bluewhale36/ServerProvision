@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.dto.response;
 
 import com.example.serverprovision.execution.enums.DiscoveryStage;
+import com.example.serverprovision.execution.engine.ReadinessGrade;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -37,6 +38,8 @@ public record GuestServerDetailResponse(
         Inventory inventory,
         List<Nic> nics,
         Progress progress,
+        /** 펌웨어 갱신 phase 를 보유한 게스트만 — 매 조회 재계산(E2-1-b). */
+        FirmwarePlan firmwarePlan,
         List<Step> steps
 ) {
 
@@ -84,7 +87,9 @@ public record GuestServerDetailResponse(
     }
 
     /**
-     * 큰 단계 진행 상태 (provisioning_progress) — current_phase 가 "현재 단계" 커서 SSOT(U1 §D7).
+     * 진행 상태 (provisioning_progress) — 커서는 step 단위 저장(current_step, ES-2 D3)이고 화면은 phase
+     * 단위로 보므로 {@code currentPhase} 는 파생 공급이다. {@code failedStepCode} 도 커서 파생 — 실패 시
+     * 커서 step, 운영자 수동 전환이면 null(원장 instant 행 판독 — 표시 계약은 종전과 동일).
      * <p>E1-0a — 신호 3종(개시/실패/종단)과 개시 버튼 노출 판정을 함께 싣는다. {@code startable} 은
      * 서버 가드와 같은 도메인 메서드({@code ProvisioningProgress.isStartableWith})에서 계산된 값이다
      * (UI 차단 조건 = 서버 가드 조건 SSOT).</p>
@@ -92,7 +97,6 @@ public record GuestServerDetailResponse(
     public record Progress(
             ProvisioningPhase currentPhase,
             LocalDateTime lastTransitionAt,
-            String phaseMeta,
             LocalDateTime startedAt,
             LocalDateTime failedAt,
             ProvisioningPhaseStep failedStepCode,
@@ -104,7 +108,26 @@ public record GuestServerDetailResponse(
     ) {
     }
 
-    /** 세부 단계 체크포인트 1개 (setup_step, append-only). phase 는 step 에서 도출(U1 §D7). */
+    /**
+     * 펌웨어 갱신 phase 의 해석 · 준비도(E2-1-b) — 매 조회 시 다시 계산한 값이라 저장 필드가 아니다.
+     * 게스트가 그 phase 를 보유하지 않으면 null 이고 화면은 카드 자체를 그리지 않는다.
+     *
+     * @param holding              자원 결손으로 대기 중인가
+     * @param holdRemainingMinutes 대기 시한까지 남은 분 (대기 중일 때만 의미)
+     */
+    public record FirmwarePlan(
+            ReadinessGrade grade,
+            Axis bios,
+            Axis bmc,
+            boolean holding,
+            long holdRemainingMinutes
+    ) {
+        /** 축 하나의 표시값 — 선택됐으면 버전, 아니면 사유 문구(사유 enum 이 문구를 보유한다). */
+        public record Axis(boolean selected, String display, String message) {
+        }
+    }
+
+    /** 세부 단계 체크포인트 1개 (provisioning_history, append-only). phase 는 step 에서 도출(U1 §D7). */
     public record Step(
             ProvisioningPhase phase,
             ProvisioningPhaseStep step,

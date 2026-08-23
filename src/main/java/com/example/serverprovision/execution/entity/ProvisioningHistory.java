@@ -20,12 +20,12 @@ import java.util.UUID;
  * 행 적재는 프로비저닝 엔진(Stage 4)의 책임 — U1 은 모양만 갖춘다.</p>
  */
 @Entity
-@Table(name = "setup_step")
+@Table(name = "provisioning_history")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
-public class SetupStep extends BaseTimeEntity {
+public class ProvisioningHistory extends BaseTimeEntity {
 
     @Id
     private UUID id;
@@ -54,19 +54,43 @@ public class SetupStep extends BaseTimeEntity {
     @Column(name = "finished_at")
     private LocalDateTime finishedAt;
 
+    /**
+     * 운영자 수동 실패 전환 행의 statusMeta(ES-2 D-5) — 옛 {@code failed_step_code} null 표식을 대체하는
+     * 원장 기록. 작성(GuestServerCommandService)과 판독({@link #isOperatorOrigin})이 이 상수 하나를 공유한다.
+     */
+    public static final String OPERATOR_ORIGIN_META = "{\"origin\":\"operator\"}";
+
     /** 소속 Phase — stepCode 에서 도출(별도 저장 없음, §D7). */
     public ProvisioningPhase phase() {
         return stepCode != null ? stepCode.getPhaseType() : null;
     }
 
     /**
+     * 자원 결손 대기의 시한 만료로 실패 전환된 기록의 statusMeta(E2-1-b) — 사유(어느 축이 왜 막혔는지)와
+     * 시한은 나중에 파생할 수 없으므로 사건 시점에 적는다. 값은 ASCII 코드 요약이라 이스케이프가 필요 없다.
+     */
+    public static String holdTtlMeta(String wireSummary, java.time.Duration ttl) {
+        return "{\"origin\":\"hold-ttl\",\"ttl\":\"" + ttl + "\",\"shortage\":\"" + wireSummary + "\"}";
+    }
+
+    /** 이 행이 자원 결손 시한 만료의 기록인가(E2-1-b) — 재시도 차단 판정이 이 사실을 읽는다. */
+    public boolean isHoldTtlOrigin() {
+        return statusMeta != null && statusMeta.contains("\"origin\":\"hold-ttl\"");
+    }
+
+    /** 이 행이 운영자 액션의 기록인가(ES-2 D-5) — 화면의 '운영자 전환' 구분이 이 판정을 파생한다. */
+    public boolean isOperatorOrigin() {
+        return statusMeta != null && statusMeta.contains("\"origin\":\"operator\"");
+    }
+
+    /**
      * 단발 기록 팩토리(E1-0a, DEC-3) — "판정 즉시 적재" 되는 서버 측 step 은 시작 = 종료 시각이다.
      * ID 생성(UUID v7 — PK 클러스터링)까지 캡슐화해 적재자마다의 ID 조립 중복을 막는다.
      */
-    public static SetupStep instant(
+    public static ProvisioningHistory instant(
             GuestServer guestServer, ProvisioningPhaseStep stepCode,
             ProvisioningStatus status, String statusMeta, LocalDateTime at) {
-        return SetupStep.builder()
+        return ProvisioningHistory.builder()
                 .id(org.hibernate.id.uuid.UuidVersion7Strategy.INSTANCE.generateUuid(null))
                 .guestServer(guestServer)
                 .stepCode(stepCode)
@@ -78,8 +102,8 @@ public class SetupStep extends BaseTimeEntity {
     }
 
     /** 게스트 실행 step 의 열림 팩토리(E1-0b, DEC-3) — 시작 보고 시점에 RUNNING 으로 생성된다. */
-    public static SetupStep openRunning(GuestServer guestServer, ProvisioningPhaseStep stepCode, LocalDateTime at) {
-        return SetupStep.builder()
+    public static ProvisioningHistory openRunning(GuestServer guestServer, ProvisioningPhaseStep stepCode, LocalDateTime at) {
+        return ProvisioningHistory.builder()
                 .id(org.hibernate.id.uuid.UuidVersion7Strategy.INSTANCE.generateUuid(null))
                 .guestServer(guestServer)
                 .stepCode(stepCode)
